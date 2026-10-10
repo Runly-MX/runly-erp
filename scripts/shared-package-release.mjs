@@ -6,7 +6,7 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { isBuiltin } from 'node:module';
-import { PACKAGES, REGISTRY, releaseVersion, rewriteManifest, validatePackage, digest } from './lib/shared-package-release.mjs';
+import { PACKAGES, REGISTRY, releaseVersion, rewriteManifest, validatePackage, digest, validatePublishAuthorization } from './lib/shared-package-release.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const args = process.argv.slice(2);
@@ -15,12 +15,12 @@ const git = argv => execFileSync('git', argv, { cwd: root, encoding: 'utf8' }).t
 const revision = git(['rev-parse', 'HEAD']);
 if (git(['status', '--porcelain'])) throw Error('SHARED_RELEASE_REQUIRES_CLEAN_TREE');
 if (option('--revision') && option('--revision') !== revision) throw Error('SHARED_RELEASE_REVISION_MISMATCH');
-const repository = option('--repository') ?? process.env.GITHUB_REPOSITORY;
-if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repository ?? '')) throw Error('RELEASE_REPOSITORY_REQUIRED');
 const config = JSON.parse(readFileSync(resolve(root, 'shared-packages.release.json')));
-if (config.registry !== REGISTRY || config.scopeOwner !== 'runly' || JSON.stringify(config.packages) !== JSON.stringify(PACKAGES)) throw Error('RELEASE_CONFIG_INVALID');
+const repository = option('--repository') ?? config.sourceRepository;
+if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repository ?? '')) throw Error('RELEASE_REPOSITORY_REQUIRED');
+if (repository !== config.sourceRepository || config.registry !== REGISTRY || config.scopeOwner !== 'runly-mx' || config.logicalScope !== '@runly' || config.registryScope !== '@runly-mx' || JSON.stringify(config.packages) !== JSON.stringify(PACKAGES)) throw Error('RELEASE_CONFIG_INVALID');
 const publish = args.includes('--publish');
-if (publish && (process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNLY_SHARED_PUBLISH_ENABLED !== 'true' || repository.split('/')[0].toLowerCase() !== config.scopeOwner || !process.env.NODE_AUTH_TOKEN)) throw Error('SHARED_PUBLISH_NOT_ENABLED_OR_SCOPE_OWNER_MISMATCH');
+if (publish) validatePublishAuthorization({ actions: process.env.GITHUB_ACTIONS === 'true', enabled: process.env.RUNLY_SHARED_PUBLISH_ENABLED === 'true', tokenPresent: !!process.env.NODE_AUTH_TOKEN, mode: option('--auth-mode') ?? 'github-token', workflowRepository: process.env.GITHUB_REPOSITORY, githubTokenAccessVerified: process.env.RUNLY_SHARED_GITHUB_TOKEN_ACCESS_VERIFIED === 'true' });
 if (!/\.(?:c?js)$/.test(process.env.npm_execpath ?? '')) throw Error('RUN_THROUGH_PNPM');
 const output = resolve(option('--output') ?? join(root, '.artifacts/shared-release', revision));
 const temp = mkdtempSync(join(tmpdir(), 'runly-package-release-'));
@@ -70,13 +70,13 @@ try {
       });
     } }] });
     const bytes = readFileSync(join(packed, file));
-    const identity = { package: manifest.name, version: manifest.version, sourceRevision: revision, file, sha256: digest(bytes), integrity: `sha512-${digest(bytes, 'sha512', 'base64')}`, contentDigest: digest(JSON.stringify(files)), files };
+    const identity = { package: manifest.rme3LogicalName, registryPackage: manifest.name, version: manifest.version, sourceRevision: revision, file, sha256: digest(bytes), integrity: `sha512-${digest(bytes, 'sha512', 'base64')}`, contentDigest: digest(JSON.stringify(files)), files };
     writeFileSync(join(output, file), bytes);
     artifacts.push(identity);
   }
   const { PREVIEW_RUNTIME_CONTRACT } = await import(pathToFileURL(join(temp, 'packages/preview-runtime/src/contracts.js')).href);
   const preview = { contract: PREVIEW_RUNTIME_CONTRACT, capabilitiesDigest: digest(JSON.stringify(PREVIEW_RUNTIME_CONTRACT)), artifactDigest: artifacts.find(a => a.package === '@runly/preview-runtime').contentDigest };
-  const manifest = { schemaVersion: 3, distribution: 'github-packages', registry: REGISTRY, repository, revision, dirty: false, packages: PACKAGES, artifacts, preview };
+  const manifest = { schemaVersion: 3, distribution: 'github-packages', registry: REGISTRY, registryScope: '@runly-mx', logicalScope: '@runly', repository, revision, dirty: false, packages: PACKAGES, artifacts, preview };
   writeFileSync(join(output, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   if (publish) {
     // Check ALL existing versions before the first write. Network/auth errors
@@ -84,7 +84,7 @@ try {
     const missing = [];
     for (const artifact of artifacts) {
       let remote;
-      try { remote = JSON.parse(pnpm(['view', `${artifact.package}@${artifact.version}`, 'dist', '--json', '--registry', REGISTRY])); }
+      try { remote = JSON.parse(pnpm(['view', `${artifact.registryPackage}@${artifact.version}`, 'dist', '--json', '--registry', REGISTRY])); }
       catch (error) {
         if (!/\bE404\b/.test(`${error.stdout ?? ''}${error.stderr ?? ''}`)) throw Error('PACKAGE_REGISTRY_LOOKUP_FAILED');
         missing.push(artifact); continue;
@@ -95,8 +95,14 @@ try {
       try { pnpm(['publish', join(output, artifact.file), '--registry', REGISTRY, '--access', 'restricted', '--tag', 'source', '--no-git-checks']); }
       catch { throw Error(`PACKAGE_PUBLISH_FAILED:${artifact.package}`); }
     }
+    for (const artifact of artifacts) {
+      let remote;
+      try { remote = JSON.parse(pnpm(['view', `${artifact.registryPackage}@${artifact.version}`, 'dist', '--json', '--registry', REGISTRY])); }
+      catch { throw Error(`PUBLISHED_VERSION_VERIFICATION_FAILED:${artifact.package}`); }
+      if (remote.integrity !== artifact.integrity || !remote.tarball?.startsWith(`${REGISTRY}/`)) throw Error(`PUBLISHED_VERSION_INTEGRITY_MISMATCH:${artifact.package}`);
+    }
   }
-  const summary = artifacts.map(a => `- ${a.package}@${a.version} (${a.integrity})`).join('\n');
+  const summary = artifacts.map(a => `- ${a.package} -> ${a.registryPackage}@${a.version} (${a.integrity})`).join('\n');
   console.log(`Source ${revision}\n${summary}\nManifest: ${join(output, 'manifest.json')}`);
   if (process.env.GITHUB_STEP_SUMMARY) writeFileSync(process.env.GITHUB_STEP_SUMMARY, summary + '\n', { flag: 'a' });
 } finally {

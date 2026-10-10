@@ -1,80 +1,61 @@
-# Shared package releases
+# Shared packages: Runly-MX
 
-The six packages are @runly/core, module-engine, module-compiler, ui, sdk and
-preview-runtime. Source versions remain 0.1.0; public APIs/exports remain intact.
-All six source manifests are private to block accidental direct publication of
-the workspace/base version. Only the release staging copy becomes publishable;
-publishConfig also fixes GitHub Packages and restricted access in each manifest.
-They export JS/JSX/CSS source, have no declaration files, and use consumer
-Vite/esbuild compilation. The release validates all exported paths and compiles
-every shipped module without changing these API contracts.
+Physical namespace: **@runly-mx**, registry https://npm.pkg.github.com; six packages
+PRIVATE. Source remains raulbellosom/runly-erp; no repository transfer.
 
-`shared-packages.release.json` is the central release policy. A committed source
-SHA deterministically maps every package to `<base>-source.<full-sha>`. The
-generated manifest.json records source revision, exact versions, package SHA-256,
-SHA-512 integrity, per-file inventory and preview contract. Hub adoption uses that
-same manifest as its sole toolchain source pin. All six release together in this
-implementation; unrelated runtime image pins remain separate deployment evidence.
+Logical @runly/* imports and Atlas aliases stay unchanged. Source workspace
+package names/exports stay logical. Only release staging changes name to
+@runly-mx/<name>; internal dependency keys retain @runly/* / @atlas/* with
+exact npm:@runly-mx/<name>@0.1.0-source.<FULL_SHA> specs. Runtime external maps,
+CUSTOM policy and compiler aliases stay logical. Physical scope is not a new
+module import API. JS/JSX/CSS src exports retain Vite/esbuild compilation.
 
-Run `pnpm release:shared --repository runly/<source-repository>` from a clean main
-checkout for a local package-content/build audit. It never publishes without
---publish. Packages are staged from git archive, not mutable working files.
-Workspace dependencies become exact versions, preserving Atlas aliases through
-`npm:@runly/<package>@<exact-version>`. Original manifests remain suitable for
-monorepo development; private flags/devDependencies/scripts are removed only in
-the publication staging copy. Tests/fixtures are not shipped. Existing types
-targets, if introduced later, must resolve to shipped files.
+Source manifests are private with restricted GitHub publishConfig. Staging
+removes private/scripts/devDependencies/tests and omits repository to avoid
+automatic cross-owner linkage. rme3SourceRepository and manifest.repository
+record original source. No invented declaration files.
 
-`Shared packages controlled release` is workflow_dispatch only, with full SHA
-input reachable from main and publish=false by default. It installs the frozen
-source lockfile, tests core/engine and compiler archive/contracts/static-inspection,
-builds and validates packed contents, then produces a downloadable manifest/TGZ
-artifact. A publish requires the protected `shared-packages` environment, approved
-review, RUNLY_SHARED_PUBLISH_ENABLED=true, a repository owned by **runly**, and
-GITHUB_TOKEN packages:write. Only GitHub Packages is allowed; never npmjs.
+From clean main run `pnpm release:shared` (no --publish). git archive pins
+exact committed SHA. shared-packages.release.json pins scopes/source owner.
+.artifacts/shared-release/<FULL_SHA>/manifest.json schema 3 records logical
+package, physical registryPackage, exact versions, sourceRevision, SHA-256,
+SHA-512, file inventory/contentDigest and preview contract provenance.
+This is content provenance, not an npm/Sigstore attestation. All shipped
+modules/exports and declared imports are validated with esbuild.
 
-**Ownership prerequisite:** @runly is GitHub's namespace for a personal account
-or organization named runly. A repository under another owner cannot publish
-those names by merely setting publishConfig.repository. Arrange authorized
-publication under runly before enabling this workflow. No publication, GitHub
-configuration, VPS operation or push is performed by the implementation task.
+Workflow is manual only, publish=false default; full revision reachable from
+main. Prepare tests core/engine, directed compiler archive/contracts/static
+inspection and release policy, then packs six packages.
+Normal publish: protected shared-packages environment, explicit enabled
+variable, contents:read/packages:write, GITHUB_TOKEN. External source owner
+also requires RUNLY_SHARED_GITHUB_TOKEN_ACCESS_VERIFIED=true; never assume
+org publishing permission from an external repository.
 
-Each existing remote version must have identical SHA-512 or release fails before
-the first publish. Only E404 permits a new publish; other lookup errors abort.
-Partial publication can be retried for the same SHA; identical versions are
-skipped. Never delete/re-publish or install latest as a production pin. The source
-dist-tag is discovery-only. Verify all packages are Private in GitHub settings;
-grant Hub Manage Actions access Read and technical users Read, without granting
-write/delete. Do not rely on source repository visibility for package privacy.
+Bootstrap is distinct: protected shared-packages-bootstrap, secret
+RUNLY_SHARED_BOOTSTRAP_TOKEN (PAT classic write:packages of authorized org
+member, short expiry/SSO if needed), RUNLY_SHARED_PUBLISH_ENABLED=true;
+auth_mode=bootstrap. Job has contents:read only, PAT used only for publish.
+No credential in repo/CLI/logs and no automatic normal-to-bootstrap fallback.
+Check Private and Manage Actions access source Write / Hub Read if GitHub
+permits selecting external-owner repos; verify effective permissions.
+If not selectable, use a small publisher repo under Runly-MX checking out
+original source at reviewed exact SHA: no source transfer. This alternative
+repo is not created automatically. After normal GITHUB_TOKEN publishing
+works, delete bootstrap secret/environment and revoke PAT.
 
-For local consumers use scope-only repo .npmrc and user configuration outside the
-checkout:
+Reviewed alternative workflow: [org publisher template](shared-packages-org-publisher.yml).
 
-```ini
-@runly:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
-```
+Probe all six versions before writing; only E404 means absent. Existing
+SHA-512 must match; conflicts/auth/network abort. Partial release retries
+same SHA, skipping identical versions. No deletion/re-publish or latest pins.
+Tracked .npmrc maps @runly-mx only. Local auth uses external user npmrc /
+NPM_CONFIG_USERCONFIG; PAT classic read:packages + package Read, no value in chat.
+Hub adopts only after six versions exist and clean install/contracts/build
+pass without source sibling/TGZ. Active legacy locks remain until then.
+DEV snapshots are external dirty sandboxes, never release pins.
 
-Populate the variable privately; never put real values in docs, CLI args, git,
-lockfiles or Docker. GitHub npm Packages outside Actions supports PAT classic
-read:packages plus package Read and SSO authorization if required. CI should use
-GITHUB_TOKEN with contents:read/packages:read and explicit package Actions access.
-Publisher additionally needs packages:write. See [official npm registry docs](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)
-and [permissions](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages).
-
-After the first publication, use the Hub's `pnpm shared:adopt --manifest ...`:
-it checks remote identities, generates all three real registry lockfiles and
-proves frozen installs/build in an isolated archive without a Runly sibling or
-shared TGZ. It writes the Hub only after all checks pass. No fictional resolution
-or integrity may be committed in advance of publication. The Hub also provides
-`shared:clean`, BuildKit secret Dockerfiles, registry-aware prod:release/prod:build,
-an external root-owned 0600 read-only packages.npmrc design, rotation guidance,
-and `shared:dev` external sandboxes for uncommitted cross-repo development. Its
-docs/RUNLY_SHARED_PACKAGES.md is the operator runbook. Registry/network/auth
-failure must abort before maintenance/migrations, never fall back to old TGZ.
-
-Troubleshooting: scope-owner mismatch requires resolving ownership; 401/403/404
-requires reviewing package Read/Actions/SSO; differing integrity requires stopping
-and investigating source evidence, never overwriting an existing version.
-Content errors fail release before publication. This migration does not alter
-catalog publication, signing keys, S7B or the runtime image release process.
+Operator steps: Hub docs/RUNLY_SHARED_PACKAGES.md.
+[GitHub npm registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry),
+[package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility),
+[npm aliases](https://docs.npmjs.com/cli/v11/using-npm/package-spec/).
+Preparation performs no push, publish, transfer, VPS, SSH, signing/S7B or deploy.

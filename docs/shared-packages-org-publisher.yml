@@ -1,0 +1,90 @@
+# Copy to .github/workflows/shared-packages.yml in an authorized Runly-MX
+# publisher repository only if GitHub denies external-repository Actions Write.
+name: Org shared package publisher
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Reviewed full SHA in original source main
+        required: true
+        type: string
+      publish:
+        description: Publish six private packages
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: org-shared-packages-release
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: raulbellosom/runly-erp
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify source and publisher owner
+        env:
+          REVISION: ${{ inputs.revision }}
+        run: |
+          test "${GITHUB_REPOSITORY%%/*}" = "Runly-MX"
+          [[ "$REVISION" =~ ^[a-f0-9]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$REVISION"
+          git merge-base --is-ancestor "$REVISION" origin/main
+          test -z "$(git status --porcelain)"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          registry-url: https://npm.pkg.github.com
+          scope: '@runly-mx'
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: |
+          pnpm --filter @runly/core --filter @runly/module-engine test
+          node --test packages/module-compiler/src/__tests__/archive.test.js packages/module-compiler/src/__tests__/package-contracts.test.js packages/module-compiler/src/__tests__/static-inspection.test.js
+          node --test scripts/tests/shared-package-release.test.mjs
+          pnpm release:shared
+      - uses: actions/upload-artifact@v4
+        with:
+          name: org-shared-package-preparation
+          path: .artifacts/shared-release/
+          if-no-files-found: error
+  publish:
+    needs: prepare
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    environment: shared-packages
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: raulbellosom/runly-erp
+          ref: ${{ inputs.revision }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          registry-url: https://npm.pkg.github.com
+          scope: '@runly-mx'
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Publish using org repository token
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUNLY_SHARED_PUBLISH_ENABLED: ${{ vars.RUNLY_SHARED_PUBLISH_ENABLED }}
+          REVISION: ${{ inputs.revision }}
+        run: pnpm release:shared --revision "$REVISION" --publish --auth-mode github-token
+      - uses: actions/upload-artifact@v4
+        with:
+          name: org-published-shared-package-manifest
+          path: .artifacts/shared-release/
