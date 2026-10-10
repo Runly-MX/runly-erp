@@ -2,6 +2,9 @@
 
 The six packages are @runly/core, module-engine, module-compiler, ui, sdk and
 preview-runtime. Source versions remain 0.1.0; public APIs/exports remain intact.
+All six source manifests are private to block accidental direct publication of
+the workspace/base version. Only the release staging copy becomes publishable;
+publishConfig also fixes GitHub Packages and restricted access in each manifest.
 They export JS/JSX/CSS source, have no declaration files, and use consumer
 Vite/esbuild compilation. The release validates all exported paths and compiles
 every shipped module without changing these API contracts.

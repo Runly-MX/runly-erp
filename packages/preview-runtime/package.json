@@ -21,5 +21,11 @@
     "react": ">=19 <20",
     "react-dom": ">=19 <20",
     "@tanstack/react-query": "^5.104.0"
+  },
+  "private": true,
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted",
+    "tag": "source"
   }
 }

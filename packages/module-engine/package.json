@@ -9,7 +9,7 @@
     "./server": "./src/index.js",
     "./contracts": "./src/contracts.js"
   },
-  "description": "Runly Module Engine v3 \u2014 defineRunlyModule, defineModel, defineView, definePage, SQL generator, checksum",
+  "description": "Runly Module Engine v3 — defineRunlyModule, defineModel, defineView, definePage, SQL generator, checksum",
   "license": "UNLICENSED",
   "dependencies": {
     "@runly/core": "workspace:*",
@@ -20,5 +20,11 @@
   ],
   "scripts": {
     "test": "node --test src/__tests__/*.test.js"
+  },
+  "private": true,
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted",
+    "tag": "source"
   }
 }

@@ -27,5 +27,10 @@
   "scripts": {
     "test": "node --test src/__tests__/*.test.js"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted",
+    "tag": "source"
+  }
 }
