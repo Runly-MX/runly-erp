@@ -9,6 +9,6 @@
     "./browser": "./src/browser.js"
   },
   "scripts": {
-    "test": "node --test src/__tests__/"
+    "test": "node --test src/__tests__/*.test.js"
   }
 }

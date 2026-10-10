@@ -107,3 +107,5 @@ infra/docker/.release-state.json
 
 # Local E2E runs (Playwright screenshots, state)
 .e2e/
+
+.artifacts/shared-release/

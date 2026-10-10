@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "registry": "https://npm.pkg.github.com",
+  "scopeOwner": "runly",
+  "versionConvention": "<base>-source.<full-git-sha>",
+  "packages": ["core", "module-engine", "module-compiler", "ui", "sdk", "preview-runtime"]
+}
