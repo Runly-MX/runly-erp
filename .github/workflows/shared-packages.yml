@@ -10,13 +10,6 @@ on:
         description: Publish after enabling the protected shared-packages environment
         default: false
         type: boolean
-      auth_mode:
-        description: Bootstrap PAT only for first release; github-token after access is verified
-        default: github-token
-        type: choice
-        options:
-          - github-token
-          - bootstrap
 permissions:
   contents: read
 concurrency:
@@ -67,7 +60,7 @@ jobs:
           if-no-files-found: error
   publish:
     needs: prepare
-    if: ${{ inputs.publish && inputs.auth_mode == 'github-token' }}
+    if: ${{ inputs.publish }}
     runs-on: ubuntu-latest
     environment: shared-packages
     permissions:
@@ -91,41 +84,9 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUNLY_SHARED_PUBLISH_ENABLED: ${{ vars.RUNLY_SHARED_PUBLISH_ENABLED }}
-          RUNLY_SHARED_GITHUB_TOKEN_ACCESS_VERIFIED: ${{ vars.RUNLY_SHARED_GITHUB_TOKEN_ACCESS_VERIFIED }}
           REVISION: ${{ inputs.revision }}
-        run: pnpm release:shared --revision "$REVISION" --publish --auth-mode github-token
+        run: pnpm release:shared --revision "$REVISION" --publish
       - uses: actions/upload-artifact@v4
         with:
           name: published-shared-package-manifest
-          path: .artifacts/shared-release/
-  bootstrap:
-    needs: prepare
-    if: ${{ inputs.publish && inputs.auth_mode == 'bootstrap' }}
-    runs-on: ubuntu-latest
-    environment: shared-packages-bootstrap
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.revision }}
-          persist-credentials: false
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.22.3
-          registry-url: https://npm.pkg.github.com
-          scope: '@runly-mx'
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Bootstrap private org packages with temporary administrative PAT
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.RUNLY_SHARED_BOOTSTRAP_TOKEN }}
-          RUNLY_SHARED_PUBLISH_ENABLED: ${{ vars.RUNLY_SHARED_PUBLISH_ENABLED }}
-          REVISION: ${{ inputs.revision }}
-        run: pnpm release:shared --revision "$REVISION" --publish --auth-mode bootstrap
-      - uses: actions/upload-artifact@v4
-        with:
-          name: bootstrap-shared-package-manifest
           path: .artifacts/shared-release/

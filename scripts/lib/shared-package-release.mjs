@@ -9,11 +9,25 @@ export const registryName = logical => {
   return logical.replace('@runly/', '@runly-mx/');
 };
 export const registryAlias = (logical, version) => `npm:${registryName(logical)}@${version}`;
-export function validatePublishAuthorization({ actions, enabled, tokenPresent, mode, workflowRepository, githubTokenAccessVerified }) {
+export function parseReleaseArguments(args) {
+  const options = {};
+  for (let index = 0; index < args.length; index++) {
+    const flag = args[index];
+    if (!['--revision', '--repository', '--output', '--publish'].includes(flag)) throw Error('SHARED_RELEASE_ARGUMENT_INVALID');
+    const key = flag.slice(2);
+    if (Object.hasOwn(options, key)) throw Error('SHARED_RELEASE_ARGUMENT_INVALID');
+    if (flag === '--publish') options[key] = true;
+    else {
+      const value = args[++index];
+      if (!value || value.startsWith('--')) throw Error('SHARED_RELEASE_ARGUMENT_INVALID');
+      options[key] = value;
+    }
+  }
+  return options;
+}
+export function validatePublishAuthorization({ actions, enabled, tokenPresent, workflowRepository }) {
   if (!actions || !enabled || !tokenPresent) throw Error('SHARED_PUBLISH_NOT_ENABLED_OR_AUTH_MISSING');
-  if (mode === 'bootstrap') return;
-  if (mode !== 'github-token') throw Error('SHARED_PUBLISH_AUTH_MODE_INVALID');
-  if (workflowRepository?.split('/')[0].toLowerCase() !== 'runly-mx' && !githubTokenAccessVerified) throw Error('CROSS_OWNER_GITHUB_TOKEN_ACCESS_NOT_VERIFIED');
+  if (workflowRepository?.toLowerCase() !== 'runly-mx/runly-erp') throw Error('SHARED_PUBLISH_REPOSITORY_INVALID');
 }
 export const digest = (bytes, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(bytes).digest(encoding);
 export function releaseVersion(base, revision) {
@@ -28,7 +42,7 @@ export function rewriteManifest(manifest, versions, revision, repository) {
   delete result.devDependencies;
   delete result.scripts;
   result.files = ['src'];
-  // Source provenance does not imply cross-owner repository linkage in GitHub.
+  // Preserve the published package format; source provenance lives below.
   delete result.repository;
   result.rme3LogicalName = manifest.name;
   result.rme3SourceRepository = `https://github.com/${repository}`;
