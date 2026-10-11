@@ -13,7 +13,7 @@ export function readDevicePrefs() {
   }
 }
 
-function writeDevicePref(kind, deviceId) {
+export function writeDevicePref(kind, deviceId) {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify({ ...readDevicePrefs(), [kind]: deviceId }));
   } catch { /* storage disabled — the choice just isn't remembered */ }

@@ -172,6 +172,7 @@ pub fn host_info(window: WebviewWindow) -> Result<serde_json::Value, String> {
         capabilities.push("notification-actions");
         capabilities.push("screen-share");
         capabilities.push("call-keepalive");
+        capabilities.push("audio-route");
     }
     Ok(serde_json::json!({
         "platform": std::env::consts::OS, "nativeHostVersion": VERSION,

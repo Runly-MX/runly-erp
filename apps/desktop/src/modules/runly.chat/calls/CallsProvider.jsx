@@ -190,7 +190,11 @@ export function CallsProvider({ children }) {
     // Client-only session flags (e.g. meetingMode) survive a token refresh
     // for the same call (rejoin after a dropped connection).
     const previous = activeRef.current?.call?.id === raw.call.id ? activeRef.current : null;
-    const payload = { ...raw, meetingMode: extra?.meetingMode ?? previous?.meetingMode ?? null };
+    const payload = {
+      ...raw,
+      meetingMode: extra?.meetingMode ?? previous?.meetingMode ?? null,
+      joinPrefs: extra?.joinPrefs ?? previous?.joinPrefs ?? null,
+    };
     incomingRef.current = null;
     setIncomingCall(null);
     setActiveSession(payload);
@@ -408,7 +412,8 @@ export function CallsProvider({ children }) {
   }, [config.enabled, isStarting, token, connectWithResponse]);
 
   // Join a live call/meeting the user was not rung for ("Unirse" banner).
-  const joinCall = useCallback(async (callId) => {
+  // `joinPrefs` ({ mic, camera }) comes from the pre-join check.
+  const joinCall = useCallback(async (callId, joinPrefs = null) => {
     if (!callId || activeRef.current || startingCallRef.current) {
       if (activeRef.current) toast.error("Ya tienes una llamada en curso.");
       return false;
@@ -417,7 +422,7 @@ export function CallsProvider({ children }) {
     setIsStarting(true);
     try {
       claimCallForDevice(callId);
-      if (!connectWithResponse(await runly.calls.join(callId, token))) {
+      if (!connectWithResponse(await runly.calls.join(callId, token), { joinPrefs })) {
         throw new Error("El servidor no devolvió los datos para entrar a la llamada.");
       }
       return true;

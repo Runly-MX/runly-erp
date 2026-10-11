@@ -189,6 +189,24 @@ class ScreenSharePlugin(private val activity: Activity) : Plugin(activity) {
     invoke.resolve()
   }
 
+  // In-call audio output (earpiece / speaker / wired / Bluetooth).
+  @Command
+  fun audioRoutes(invoke: Invoke) {
+    try { invoke.resolve(AudioRoute.list(activity)) }
+    catch (error: Exception) { invoke.reject("No se pudo leer la salida de audio.") }
+  }
+
+  @Command
+  fun setAudioRoute(invoke: Invoke) {
+    val id = invoke.getArgs().optString("id", "")
+    try {
+      if (AudioRoute.set(activity, id)) invoke.resolve(AudioRoute.list(activity))
+      else invoke.reject("Esa salida de audio no está disponible.")
+    } catch (error: Exception) {
+      invoke.reject("No se pudo cambiar la salida de audio.")
+    }
+  }
+
   companion object {
     private var instance: ScreenSharePlugin? = null
     fun stopCurrent() {

@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { Button, TextField } from "@runly/ui";
 import { Loader2, PhoneOff, Globe, KeyRound } from "lucide-react";
 import { runly } from "../../../../lib/runly";
+import { PreJoinPreview } from "../PreJoinPreview";
 import { useGuestCall } from "./useGuestCall";
 import { endedReason } from "./lib/guestCall";
 import { GuestCallRoom } from "./GuestCallRoom";
@@ -74,6 +75,7 @@ export default function GuestCallScreen() {
   const [code, setCode] = useState(urlCode ?? "");
   const [pin, setPin] = useState("");
   const [linkInfo, setLinkInfo] = useState(null);
+  const [mediaPrefs, setMediaPrefs] = useState({ mic: true, camera: false });
   const gc = useGuestCall({ token, code: token ? null : code, inviteToken });
   const formRef = useRef({ name: "", email: "", pin: "" });
 
@@ -116,6 +118,8 @@ export default function GuestCallScreen() {
     return (
       <GuestCallRoom
         title={gc.branding?.companyName ? `Reunión con ${gc.branding.companyName}` : "Reunión"}
+        initialMic={mediaPrefs.mic}
+        initialCamera={mediaPrefs.camera}
         fetchLivekitToken={gc.fetchLivekitToken}
         messages={gc.messages}
         onSendMessage={gc.sendMessage}
@@ -163,6 +167,7 @@ export default function GuestCallScreen() {
         {gc.phase === "gate" && (
           <form onSubmit={submitGate} className="space-y-4">
             <h1 className="text-lg font-semibold text-gray-900">Unirte a la llamada</h1>
+            <PreJoinPreview initialCamera={false} name={name.trim()} onChange={setMediaPrefs} tone="light" showDevices={false} />
             <TextField label="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
             {!inviteToken && (
               <TextField label="Correo (opcional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />

@@ -5,6 +5,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 import { useCalls } from "./CallsProvider";
+import { PreJoinDialog } from "./PreJoinDialog";
 
 function unwrap(r) {
   return r?.data ?? r;
@@ -25,7 +26,8 @@ function useElapsedLabel(startedAt) {
 // "Reunión en curso · Unirse": shown above a conversation when it has a live
 // call/meeting the viewer is not in (e.g. a meeting started without ringing).
 export function LiveMeetingBanner({ conversationId }) {
-  const { session } = useAuth();
+  const { session, userProfile } = useAuth();
+  const [preJoinOpen, setPreJoinOpen] = useState(false);
   const token = session?.access_token;
   const queryClient = useQueryClient();
   const { on } = useRealtimeContext();
@@ -84,12 +86,24 @@ export function LiveMeetingBanner({ conversationId }) {
       </div>
       <button
         type="button"
-        onClick={() => joinCall(call.id)}
+        onClick={() => setPreJoinOpen(true)}
         disabled={isStarting || Boolean(activeCall)}
         className="min-h-[36px] shrink-0 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
       >
         Unirse
       </button>
+      <PreJoinDialog
+        open={preJoinOpen}
+        onOpenChange={setPreJoinOpen}
+        subtitle={`${call.joinedCount} ${call.joinedCount === 1 ? "persona" : "personas"} en la reunión`}
+        name={userProfile?.displayName}
+        defaultCamera={call.kind !== "AUDIO"}
+        busy={isStarting}
+        onJoin={async (prefs) => {
+          const ok = await joinCall(call.id, prefs);
+          if (ok) setPreJoinOpen(false);
+        }}
+      />
     </div>
   );
 }

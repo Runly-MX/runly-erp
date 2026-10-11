@@ -10,9 +10,8 @@ Rediseño de la sala de llamada: escenario adaptable, dock con texto, panel
 Personas, moderación de miembros y selección de dispositivos.
 
 ## 2. Status
-In Progress (sala nueva, Personas, moderación y dispositivos en navegador
-implementados y verificados; pendientes: ruta de audio nativa Android, pre-join,
-plantilla de grabación propia, gestos del chat).
+In Progress (sala nueva, Personas, moderación, dispositivos, ruta de audio
+Android y pre-join implementados; pendientes: plantilla de grabación propia).
 
 ## 3. Context
 La sala tenía 12 botones solo-icono, un pill Video/Chat en móvil que tapaba el
@@ -83,6 +82,15 @@ Overlay de llamada (`CallRoom` / `CallRoomLayout`) sobre `/app/*`.
 `runly.calls.muteParticipant(callId, profileId, token)`,
 `runly.calls.removeParticipant(callId, profileId, token)`.
 
+## 13b. Native bridge (Android)
+- Capability `audio-route`; comandos Tauri `host_audio_routes` y
+  `host_audio_route_set` (`earpiece|speaker|wired|bluetooth`) sobre
+  `ScreenSharePlugin.audioRoutes/setAudioRoute` + `AudioRoute.kt`
+  (API 31+ `setCommunicationDevice`; anteriores speakerphone/SCO).
+- JS: `native.audioRoute.list()/set(id)`; `useAudioRoute` refresca cada 5 s.
+- Pre-join: `PreJoinPreview` (vista previa, medidor, toggles, selección de
+  dispositivos) en el banner "Unirse" (miembros) y en la entrada del invitado.
+
 ## 14–18. Validator / Manifest / Navigation / Blueprint / RBAC
 Sin cambios; moderación usa el gate existente `assertCanManageCall`.
 
@@ -120,5 +128,5 @@ llena, hoja Más, presentación con tira; tablet: dock + barra superior).
 Revertir el commit; la migración solo agrega un valor de enum (inocuo).
 
 ## 28. Future enhancements
-Ruta de audio Android (altavoz/auricular/Bluetooth), pre-join, plantilla de
-grabación Runly, migrar la sala del invitado al dock nuevo.
+Plantilla de grabación Runly. Verificación manual pendiente en el APK de la ruta
+de audio (no hay emulador en este entorno; `cargo check` de escritorio pasa).

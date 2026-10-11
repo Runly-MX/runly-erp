@@ -138,6 +138,31 @@ export function MobileCallBar({ ctl, hidden = false }) {
             />
             <ActionTile icon={Settings2} label="Audio y video" onClick={run(ctl.openDeviceSettings)} />
           </div>
+          {ctl.audioRoute?.supported && (
+            <div className="space-y-2">
+              <p className="px-1 text-xs font-semibold uppercase tracking-wider text-white/50">Salida de audio</p>
+              <div role="radiogroup" aria-label="Salida de audio" className="flex flex-wrap gap-2">
+                {ctl.audioRoute.routes.map((route) => {
+                  const selected = ctl.audioRoute.active === route.id;
+                  return (
+                    <button
+                      key={route.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => ctl.audioRoute.select(route.id)}
+                      className={cn(
+                        "min-h-11 rounded-xl px-4 text-sm font-semibold ring-1 transition-colors",
+                        selected ? "bg-(--call-accent) text-(--brand-primary-foreground) ring-transparent" : "bg-white/[0.06] text-white ring-white/10",
+                      )}
+                    >
+                      {route.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {ctl.canEndForAll && (
             <button
               type="button"

@@ -108,6 +108,25 @@ pub async fn host_call_keepalive_stop(window: WebviewWindow, app: AppHandle) -> 
 }
 
 #[tauri::command]
+pub async fn host_audio_routes(window: WebviewWindow, app: AppHandle) -> Result<Value, String> {
+    super::mobile_host::check_remote(&window)?;
+    run(app, "audioRoutes", json!({})).await
+}
+
+#[tauri::command]
+pub async fn host_audio_route_set(
+    window: WebviewWindow,
+    app: AppHandle,
+    id: String,
+) -> Result<Value, String> {
+    super::mobile_host::check_remote(&window)?;
+    if !["earpiece", "speaker", "wired", "bluetooth"].contains(&id.as_str()) {
+        return Err("INVALID_AUDIO_ROUTE".into());
+    }
+    run(app, "setAudioRoute", json!({ "id": id })).await
+}
+
+#[tauri::command]
 pub async fn host_fcm_token(window: WebviewWindow, app: AppHandle) -> Result<Value, String> {
     super::mobile_host::check_remote(&window)?;
     run(app, "currentToken", json!({})).await

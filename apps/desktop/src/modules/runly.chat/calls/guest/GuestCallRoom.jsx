@@ -50,7 +50,7 @@ const hasLiveTrack = (participant, source) => {
 // moderation and the people roster (guests only see who is on screen).
 export function GuestCallRoom({
   fetchLivekitToken, messages, onSendMessage, onLeave, myName, recordingActive = false,
-  presignAttachment, getAttachmentUrl, title = "Reunión",
+  presignAttachment, getAttachmentUrl, title = "Reunión", initialMic = true, initialCamera = false,
 }) {
   useScreenWakeLock(true);
   const { width, height } = useWindowSize();
@@ -62,8 +62,8 @@ export function GuestCallRoom({
   const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true, ...roomDeviceDefaults() }), []);
   const [, force] = useState(0);
   const [connected, setConnected] = useState(false);
-  const [mic, setMic] = useState(true);
-  const [cam, setCam] = useState(false);
+  const [mic, setMic] = useState(initialMic);
+  const [cam, setCam] = useState(initialCamera);
   const [screen, setScreen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [live, setLive] = useState([]);
@@ -111,7 +111,8 @@ export function GuestCallRoom({
         if (cancelled) return;
         await room.connect(livekitUrl, token);
         setConnected(true);
-        await room.localParticipant.setMicrophoneEnabled(true);
+        if (initialMic) await room.localParticipant.setMicrophoneEnabled(true);
+        if (initialCamera) await room.localParticipant.setCameraEnabled(true).catch(() => setCam(false));
         await room.startAudio().catch(() => {});
         refresh();
       } catch { /* surfaced by the parent poll (KICKED / not live) */ }

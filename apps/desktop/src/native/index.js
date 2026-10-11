@@ -95,6 +95,19 @@ export const native = {
       if (native.supports('call-keepalive')) await invoke('host_call_keepalive_stop')
     },
   },
+  // Android in-call audio output. `list()` -> { routes: [{ id, label }], active }.
+  // Unsupported hosts return null so the UI falls back to the browser picker.
+  audioRoute: {
+    async list() {
+      await getHostInfo()
+      if (!native.supports('audio-route')) return null
+      return invoke('host_audio_routes')
+    },
+    async set(id) {
+      await native.requireCapability('audio-route')
+      return invoke('host_audio_route_set', { id })
+    },
+  },
   haptics: {
     async impact(style = 'light') {
       await native.requireCapability('haptics')

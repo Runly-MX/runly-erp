@@ -59,6 +59,16 @@ description = "Stop the Android active-call foreground service."
 commands.allow = ["host_call_keepalive_stop"]
 
 [[permission]]
+identifier = "allow-host-audio-routes"
+description = "List the Android in-call audio outputs (earpiece, speaker, wired, Bluetooth)."
+commands.allow = ["host_audio_routes"]
+
+[[permission]]
+identifier = "allow-host-audio-route-set"
+description = "Switch the Android in-call audio output."
+commands.allow = ["host_audio_route_set"]
+
+[[permission]]
 identifier = "allow-host-confirm-origin"
 description = "Persist and navigate to a server origin that already passed preflight."
 commands.allow = ["host_confirm_origin"]

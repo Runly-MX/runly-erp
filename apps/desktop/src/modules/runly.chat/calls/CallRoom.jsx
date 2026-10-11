@@ -15,6 +15,7 @@ import { useScreenWakeLock } from "./hooks/useScreenWakeLock";
 import { useCallAutoRejoin, useNativeCallKeepAlive } from "./hooks/useCallBackgroundKeepAlive";
 import { CallRoomLayout } from "./CallRoomLayout";
 import { roomDeviceDefaults } from "./hooks/useMediaDevices";
+import { useAudioRoute } from "./hooks/useAudioRoute";
 import { useNativeScreenShare } from './useNativeScreenShare';
 
 const UNANSWERED_CALL_TIMEOUT_MS = 36_000;
@@ -35,11 +36,14 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   // true throws "engine not connected within timeout".
   const [engineReady, setEngineReady] = useState(false);
   const mediaInitRef = useRef(false);
-  const [micEnabled, setMicEnabled] = useState(true);
-  const [cameraEnabled, setCameraEnabled] = useState(session.call.kind === "VIDEO");
+  // Pre-join choices win; otherwise mic on and camera for video calls.
+  const initialMic = session.joinPrefs?.mic ?? true;
+  const initialCamera = session.joinPrefs?.camera ?? session.call.kind === "VIDEO";
+  const [micEnabled, setMicEnabled] = useState(initialMic);
+  const [cameraEnabled, setCameraEnabled] = useState(initialCamera);
   // What the user had on — restored when the call rejoins after a drop instead
   // of forcing mic/camera back on.
-  const mediaPrefsRef = useRef({ mic: true, camera: session.call.kind === "VIDEO" });
+  const mediaPrefsRef = useRef({ mic: initialMic, camera: initialCamera });
   mediaPrefsRef.current = { mic: micEnabled, camera: cameraEnabled };
   // True after an unexpected LiveKit disconnect (device locked/asleep, network
   // lost) until the rejoin connects again.
@@ -65,6 +69,7 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   const canRecord = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes("chat.calls.record"));
   const canTranscribeTracks = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes("chat.calls.transcript.request"));
   const recording = useCallRecording({ callId: session.call.id, conversationId });
+  const audioRoute = useAudioRoute({ enabled: !minimized });
   const trackTranscription = useTrackTranscription({ callId: session.call.id, conversationId });
   // "Grabar reunión presencial": recording (and per-speaker transcription when
   // allowed) starts by itself once media is up, exactly once per room.
@@ -569,6 +574,7 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
         recording,
         canTranscribeTracks,
         trackTranscription,
+        audioRoute,
       }}
       people={{
         isHost: isInitiator,
