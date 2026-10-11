@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
-  Button, TagsField, CheckboxField, NumberField, ConfirmDialog,
+  Button, TagsField, NumberField, ConfirmDialog,
 } from "@runly/ui";
 import { Copy, Check, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
 import { summarizeInviteResult, describeInviteOutcome } from "./lib/inviteResult";
+import { CallAccessSettings } from "./CallAccessSettings";
 
 function unwrap(r) {
   return r?.data ?? r;
@@ -137,34 +138,29 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
                   {copied === "url" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-                Con este enlace no hace falta ningún código: se abre directo en la sala de espera.
-              </p>
             </div>
 
             <div>
-              <span className="mb-1 block text-xs font-medium text-[hsl(var(--muted-foreground))]">
-                Código (alternativa al enlace)
-              </span>
+              <span className="mb-1 block text-xs font-medium text-[hsl(var(--muted-foreground))]">ID de reunión</span>
               <div className="flex gap-2">
-                <input readOnly value={link.code} className="w-40 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))] px-3 py-2 font-mono text-lg tracking-widest" />
-                <Button variant="secondary" size="icon" onClick={() => copy(link.code, "code")} title="Copiar código">
+                <input readOnly value={link.meetingId ?? link.code} className="w-44 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))] px-3 py-2 font-mono text-lg tracking-wider" />
+                <Button variant="secondary" size="icon" onClick={() => copy(link.meetingId ?? link.code, "code")} title="Copiar ID de reunión">
                   {copied === "code" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </Button>
-                <Button variant="ghost" size="icon" onClick={regenerate} title="Regenerar" disabled={loading}>
+                <Button variant="ghost" size="icon" onClick={regenerate} title="Generar otro enlace e ID" disabled={loading}>
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
               <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-                Para quien prefiera escribirlo: entra a {link.url.replace(/\/p\/call\/.*$/, "/p/call")} y teclea este código.
+                Para entrar sin el enlace: abre {link.url.replace(/\/p\/call\/.*$/, "/p/call")} y escribe este ID.
               </p>
             </div>
 
-            <CheckboxField
-              label="Requiere aprobación del anfitrión (sala de espera)"
-              checked={link.requireLobby}
-              onChange={(e) => patch({ requireLobby: e.target.checked })}
-            />
+            <div>
+              <span className="mb-1.5 block text-xs font-medium text-[hsl(var(--muted-foreground))]">Acceso de invitados</span>
+              <CallAccessSettings link={link} onPatch={patch} disabled={loading} />
+            </div>
+
             <NumberField
               label="Máximo de usos (opcional)"
               value={maxUsesDraft}
@@ -229,7 +225,7 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
           open={confirmRevoke}
           onOpenChange={setConfirmRevoke}
           title="Revocar enlace"
-          description="El enlace y el código dejarán de funcionar. Los invitados conectados serán expulsados."
+          description="El enlace y el ID de reunión dejarán de funcionar. Los invitados conectados serán expulsados."
           confirmLabel="Revocar"
           variant="destructive"
           onConfirm={revoke}

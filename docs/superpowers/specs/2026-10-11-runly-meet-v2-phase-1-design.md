@@ -10,7 +10,7 @@ Runly Meet v2, Fase 1: N canales por registro vinculado, acceso a reuniones con
 ID + PIN, reunión sin timbre y "Grabar reunión presencial".
 
 ## 2. Status
-In Progress (1A implementado y verificado; 1B y 1C pendientes).
+In Progress (1A y 1B implementados y verificados; 1C pendiente).
 
 ## 3. Context
 Auditoría del 2026-10-11 sobre chat y videollamadas (LiveKit + Supabase Realtime).
@@ -74,6 +74,14 @@ Auditoría del 2026-10-11 sobre chat y videollamadas (LiveKit + Supabase Realtim
 - `PATCH /chat/conversations/:id` acepta `linkPrimary: boolean`
   (requiere `channel.manage`).
 
+- `PATCH /calls/conversations/:id/link` acepta `accessMode` (`LOBBY|PIN|OPEN`)
+  y `regeneratePin`; `requireLobby` sigue aceptado (legado). El DTO del enlace
+  suma `accessMode`, `pin` (solo para miembros) y `meetingId` (`abc-defg-h`).
+- `GET /calls/guest/link-info?token|code|i` (público) ->
+  `{ accessMode, live, hasInvite, branding }`; nunca devuelve el PIN.
+- `POST /calls/guest/join` acepta `pin`. PIN incorrecto -> 403 `bad_pin`
+  (cuenta para el rate limit). Solo `inviteToken` ya resuelve su enlace.
+
 ## 13. SDK contract
 `runly.chat.getLinkedChannel(module, entityId, token)`: misma firma, respuesta
 ampliada (ver 12).
@@ -115,6 +123,9 @@ Ninguno en 1A.
 ## 26. Verification plan
 `node --test apps/api/src/routes/chat/__tests__/*.test.js`; `.e2e/chat-links-e2e.mjs`
 contra la API local (compañía de pruebas); `pnpm lint`; `pnpm build:web`.
+Verified: 2026-10-11 (1B: 189/189 tests de calls; `.e2e/call-pin-e2e.mjs`:
+PIN correcto ADMITTED, sin PIN LOBBY, PIN erróneo 403, Libre por ID ADMITTED,
+link-info sin PIN.)
 Verified: 2026-10-11 (1A: 383/383 tests de chat; E2E crea público+privado
 vinculados, ambos listados, privado en mi lista, principal 200, slug 409).
 

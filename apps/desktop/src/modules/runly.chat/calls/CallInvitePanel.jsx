@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
 import { summarizeInviteResult, describeInviteOutcome } from "./lib/inviteResult";
+import { CallAccessSettings } from "./CallAccessSettings";
 
 function unwrap(r) {
   return r?.data ?? r;
@@ -58,16 +59,12 @@ export function CallInvitePanel({ conversationId, onClose }) {
     }
   }
 
-  async function changeAccess(mode) {
-    const requireLobby = mode === "lobby";
-    if (!link || requireLobby === link.requireLobby) return;
-    const prev = link;
-    setLink({ ...link, requireLobby });
+  async function patchLink(next) {
+    if (!link) return;
     try {
-      const r = await runly.calls.updateLink(conversationId, { requireLobby }, token);
-      setLink(unwrap(r)?.link ?? { ...prev, requireLobby });
+      const r = await runly.calls.updateLink(conversationId, next, token);
+      setLink(unwrap(r)?.link ?? link);
     } catch (e) {
-      setLink(prev);
       toast.error(e?.message || "No se pudo cambiar el acceso.");
     }
   }
@@ -108,9 +105,9 @@ export function CallInvitePanel({ conversationId, onClose }) {
             </button>
           </div>
           <div className="mb-4 flex items-center gap-2 text-xs text-slate-400">
-            <span>Código:</span>
-            <code className="font-mono text-sm tracking-widest text-slate-100">{link.code}</code>
-            <button type="button" onClick={() => copy(link.code, "code")} className="text-slate-400 hover:text-slate-100">
+            <span>ID de reunión:</span>
+            <code className="font-mono text-sm tracking-wider text-slate-100">{link.meetingId ?? link.code}</code>
+            <button type="button" onClick={() => copy(link.meetingId ?? link.code, "code")} className="text-slate-400 hover:text-slate-100" aria-label="Copiar ID de reunión">
               {copied === "code" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
           </div>
@@ -121,32 +118,8 @@ export function CallInvitePanel({ conversationId, onClose }) {
 
       {link ? (
         <div className="mb-4">
-          <span className="mb-1.5 block text-xs text-slate-400">Acceso</span>
-          <div className="flex gap-1 rounded-lg bg-white/5 p-1">
-            {[
-              { v: "lobby", label: "Con aprobación (PIN)" },
-              { v: "open", label: "Libre acceso" },
-            ].map((opt) => {
-              const active = (link.requireLobby ? "lobby" : "open") === opt.v;
-              return (
-                <button
-                  key={opt.v}
-                  type="button"
-                  onClick={() => changeAccess(opt.v)}
-                  className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
-                    active ? "bg-violet-600 text-white" : "text-slate-300 hover:bg-white/10"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-1 text-[11px] text-slate-500">
-            {link.requireLobby
-              ? "Apruebas a cada persona antes de que entre."
-              : "Cualquiera con el enlace o el código entra directo."}
-          </p>
+          <span className="mb-1.5 block text-xs text-slate-400">Acceso de invitados</span>
+          <CallAccessSettings link={link} onPatch={patchLink} tone="dark" />
         </div>
       ) : null}
 
@@ -165,7 +138,7 @@ export function CallInvitePanel({ conversationId, onClose }) {
           type="button"
           onClick={send}
           disabled={sending || !emails.length}
-          className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-40"
+          className="flex min-h-[36px] items-center gap-1.5 rounded-lg bg-[var(--brand-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--brand-primary-foreground)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-40"
         >
           <Send className="h-3.5 w-3.5" /> {sending ? "Enviando..." : "Enviar"}
         </button>

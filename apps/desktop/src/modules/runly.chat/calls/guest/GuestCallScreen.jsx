@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Button, TextField } from "@runly/ui";
-import { Loader2, PhoneOff, Globe } from "lucide-react";
+import { Loader2, PhoneOff, Globe, KeyRound } from "lucide-react";
+import { runly } from "../../../../lib/runly";
 import { useGuestCall } from "./useGuestCall";
 import { endedReason } from "./lib/guestCall";
 import { GuestCallRoom } from "./GuestCallRoom";
@@ -71,15 +72,30 @@ export default function GuestCallScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState(urlCode ?? "");
+  const [pin, setPin] = useState("");
+  const [linkInfo, setLinkInfo] = useState(null);
   const gc = useGuestCall({ token, code: token ? null : code, inviteToken });
-  const formRef = useRef({ name: "", email: "" });
+  const formRef = useRef({ name: "", email: "", pin: "" });
+
+  // Which access mode applies, so the PIN field only shows when it matters.
+  // With a typed meeting ID we wait until it is complete (8 chars).
+  const typedId = code.replace(/[^0-9a-z]/gi, "");
+  useEffect(() => {
+    if (!token && !inviteToken && typedId.length !== 8) { setLinkInfo(null); return undefined; }
+    let cancelled = false;
+    runly.calls.guest.linkInfo({ token, code: token ? null : typedId, inviteToken })
+      .then((r) => { if (!cancelled) setLinkInfo(r?.data ?? r); })
+      .catch(() => { if (!cancelled) setLinkInfo(null); });
+    return () => { cancelled = true; };
+  }, [token, inviteToken, typedId]);
+  const askPin = linkInfo?.accessMode === "PIN" && !inviteToken;
   const waitTimer = useRef(null);
 
   useEffect(() => {
     if (gc.phase === "lobby" && gc.state.status === "waiting") {
       waitTimer.current = setInterval(() => {
         if (formRef.current.name) {
-          gc.join({ displayName: formRef.current.name, email: formRef.current.email || undefined });
+          gc.join({ displayName: formRef.current.name, email: formRef.current.email || undefined, pin: formRef.current.pin || undefined });
         }
       }, 4000);
       return () => { if (waitTimer.current) clearInterval(waitTimer.current); };
@@ -91,8 +107,9 @@ export default function GuestCallScreen() {
     e.preventDefault();
     const n = name.trim();
     if (n.length < 2) return;
-    formRef.current = { name: n, email: email.trim() };
-    gc.join({ displayName: n, email: email.trim() || undefined });
+    const typedPin = pin.replace(/\D/g, "");
+    formRef.current = { name: n, email: email.trim(), pin: typedPin };
+    gc.join({ displayName: n, email: email.trim() || undefined, pin: typedPin || undefined });
   }
 
   if (gc.phase === "room") {
@@ -150,13 +167,33 @@ export default function GuestCallScreen() {
               <TextField label="Correo (opcional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             )}
             {inviteToken && <p className="text-xs text-gray-500">Invitación por correo verificada.</p>}
-            {!token && (
+            {!token && !inviteToken && (
               <TextField
-                label="Código de la llamada"
+                label="ID de reunión"
+                placeholder="abc-defg-h"
                 value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onChange={(e) => setCode(e.target.value.toLowerCase())}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
               />
+            )}
+            {askPin && (
+              <div className="space-y-1">
+                <TextField
+                  label="PIN (opcional)"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/[^\d ]/g, "").slice(0, 7))}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="000 000"
+                />
+                <p className="flex items-start gap-1.5 text-xs text-gray-500">
+                  <KeyRound className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                  Con el PIN entras directo. Sin él, el anfitrión te admitirá desde la sala de espera.
+                </p>
+              </div>
             )}
             {gc.state.error && <p className="text-sm text-red-600">{gc.state.error}</p>}
             <Button type="submit" className="w-full" disabled={gc.joining || name.trim().length < 2}>

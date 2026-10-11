@@ -21,7 +21,7 @@ export function useGuestCall({ token = null, code = null, inviteToken = null }) 
   const hbRef = useRef(null);
   const gtRef = useRef(null);
 
-  const join = useCallback(async ({ displayName, email }) => {
+  const join = useCallback(async ({ displayName, email, pin }) => {
     setJoining(true);
     setState((s) => ({ ...s, error: null }));
     try {
@@ -30,6 +30,7 @@ export function useGuestCall({ token = null, code = null, inviteToken = null }) 
       if (code) payload.code = code;
       if (inviteToken) payload.inviteToken = inviteToken;
       if (email) payload.email = email;
+      if (pin) payload.pin = pin;
       const res = unwrap(await runly.calls.guest.join(payload));
       if (res?.branding) setBranding(res.branding);
       if (res?.status === "waiting") {

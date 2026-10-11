@@ -10,6 +10,7 @@ import { runly } from "../../../lib/runly";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { useChannelRoles, useUpdateChannelRole } from "../hooks/useChannelRoles";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
+import { CallAccessSettings } from "../calls/CallAccessSettings";
 
 // "General" tab of ConversationProfilePanel — avatar-editing UI for a channel/group
 // conversation. Mirrors MessageReactionPicker.jsx's Popover + ThemedEmojiPicker
@@ -148,16 +149,13 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
     retry: false,
   });
   const callLink = callLinkQuery.data ?? null;
-  // No link yet -> backend seeds requireLobby:true on first create, so the
-  // default shown is "with approval" (switch off).
-  const callAccessOpen = callLink ? !callLink.requireLobby : false;
-
+  // No link yet -> the backend seeds accessMode LOBBY on first create.
   const callAccessMutation = useMutation({
-    mutationFn: async (nextOpen) => {
+    mutationFn: async (patch) => {
       if (!callLink) {
         await runly.calls.createLink(conversationId, token);
       }
-      const res = await runly.calls.updateLink(conversationId, { requireLobby: !nextOpen }, token);
+      const res = await runly.calls.updateLink(conversationId, patch, token);
       return res?.data?.link ?? res?.link ?? null;
     },
     onSuccess: (link) => {
@@ -314,13 +312,19 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
         />
       )}
       {canManage && conversation?.type !== "direct" && !callLinkQuery.isError && (
-        <SwitchField
-          label="Libre acceso a las llamadas"
-          description="Cualquiera con el enlace o el código entra directo. Si lo desactivas, tú admites a cada persona (PIN)."
-          checked={callAccessOpen}
-          onChange={(next) => callAccessMutation.mutate(next)}
-          disabled={callAccessMutation.isPending || callLinkQuery.isLoading}
-        />
+        <div className="space-y-1.5">
+          <Label>Acceso de invitados a las reuniones</Label>
+          <CallAccessSettings
+            link={callLink ?? { accessMode: "LOBBY" }}
+            onPatch={(patch) => callAccessMutation.mutate(patch)}
+            disabled={callAccessMutation.isPending || callLinkQuery.isLoading}
+          />
+          {callLink?.meetingId && (
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              ID de reunión: <span className="font-mono">{callLink.meetingId}</span>
+            </p>
+          )}
+        </div>
       )}
       {isChannel && (
         <div className="space-y-1.5">

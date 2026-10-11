@@ -150,3 +150,12 @@ describe("createCallLinksService.sendInvites", () => {
     assert.match(out.sendError, /JWT_SECRET/);
   });
 });
+
+describe("meeting ID helpers", () => {
+  it("formats and normalizes the meeting ID round-trip", async () => {
+    const { formatMeetingId, normalizeMeetingId, generateCallPin } = await import("../call-links-service.js");
+    assert.equal(formatMeetingId("ABCD2345"), "abc-d234-5");
+    assert.equal(normalizeMeetingId("abc-d234-5"), "ABCD2345");
+    assert.match(generateCallPin(), /^\d{6}$/);
+  });
+});

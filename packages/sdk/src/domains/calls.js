@@ -87,6 +87,14 @@ export function createCallsDomain(request, withAuthHeaders) {
     // --- guest (unauthenticated) ---
     guest: {
       join: (payload) => guestJson("/calls/guest/join", "POST", payload),
+      // { token? , code?, inviteToken? } -> { accessMode, live, hasInvite, branding }
+      linkInfo: ({ token, code, inviteToken } = {}) => {
+        const params = new URLSearchParams();
+        if (token) params.set("token", token);
+        if (code) params.set("code", code);
+        if (inviteToken) params.set("i", inviteToken);
+        return guestJson(`/calls/guest/link-info?${params.toString()}`, "GET");
+      },
       state: (guestToken) => guestJson("/calls/guest/state", "GET", undefined, guestToken),
       token: (guestToken) => guestJson("/calls/guest/token", "POST", {}, guestToken),
       heartbeat: (guestToken) => guestJson("/calls/guest/heartbeat", "POST", {}, guestToken),

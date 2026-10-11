@@ -141,7 +141,30 @@ export function createCallGuestService({
     } catch { /* non-fatal */ }
   }
 
-  async function joinAsGuest({ token = null, code = null, inviteToken = null, displayName, email = null, ip = null, userAgent = null }) {
+  // Pre-join info for the guest gate: which access mode applies (so the PIN
+  // field only shows when it matters), whether the call is live, branding.
+  // Never returns the PIN, the conversation id or anything member-only.
+  async function getLinkInfo({ token = null, code = null, inviteToken = null }) {
+    assertEnabled();
+    let link;
+    try {
+      link = await linksService.resolveLinkForJoin({ token, code, inviteToken });
+    } catch (error) {
+      throw new CallGuestError(error.message, error.status ?? 400, error.reason ?? "bad_token");
+    }
+    const [branding, call] = await Promise.all([
+      loadBranding(link.conversationId),
+      liveCallForConversation(link.conversationId),
+    ]);
+    return {
+      accessMode: link.accessMode ?? (link.requireLobby ? "LOBBY" : "OPEN"),
+      live: Boolean(call),
+      hasInvite: Boolean(inviteToken),
+      branding,
+    };
+  }
+
+  async function joinAsGuest({ token = null, code = null, inviteToken = null, pin = null, displayName, email = null, ip = null, userAgent = null }) {
     assertEnabled();
     const name = String(displayName ?? "").trim();
     if (name.length < 2 || name.length > 40) throw new CallGuestError("El nombre debe tener entre 2 y 40 caracteres.", 422);
@@ -164,10 +187,19 @@ export function createCallGuestService({
 
     let link;
     try {
-      link = await linksService.resolveLinkForJoin({ token, code });
+      link = await linksService.resolveLinkForJoin({ token, code, inviteToken });
     } catch (error) {
       await recordAttempt(ip, null, error.reason ?? "bad_token");
       throw new CallGuestError(error.message, error.status ?? 400, error.reason ?? "bad_token");
+    }
+
+    const accessMode = link.accessMode ?? (link.requireLobby ? "LOBBY" : "OPEN");
+    const typedPin = pin ? String(pin).replace(/\D/g, "") : "";
+    // A wrong PIN is rejected (and counted toward the rate limit) rather than
+    // silently dropped into the lobby, so a typo is visible to the guest.
+    if (accessMode === "PIN" && typedPin && typedPin !== link.pin) {
+      await recordAttempt(ip, link.id, "bad_pin");
+      throw new CallGuestError("PIN incorrecto.", 403, "bad_pin");
     }
 
     let invite = null;
@@ -211,7 +243,11 @@ export function createCallGuestService({
     });
 
     const rawToken = crypto.randomBytes(32).toString("hex");
-    const status = (link.requireLobby || priorRejection) ? "LOBBY" : "ADMITTED";
+    // PIN mode: the right PIN or a personal email invite (which carries the
+    // PIN) skips the lobby. Prior denial/kick always goes back to the host.
+    const directEntry = accessMode === "OPEN"
+      || (accessMode === "PIN" && (typedPin === link.pin || Boolean(invite)));
+    const status = (directEntry && !priorRejection) ? "ADMITTED" : "LOBBY";
     const guest = await prisma.callGuest.create({
       data: {
         callId: call.id,
@@ -274,7 +310,8 @@ export function createCallGuestService({
       guestId: guest.id,
       status,
       callId: call.id,
-      requiresLobby: link.requireLobby,
+      requiresLobby: status === "LOBBY",
+      accessMode,
       branding,
     };
   }
@@ -555,6 +592,7 @@ export function createCallGuestService({
 
   return {
     joinAsGuest,
+    getLinkInfo,
     getGuestState,
     getGuestLiveKitToken,
     heartbeatGuest,

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { callGuestJoinSchema, callRoomMessageSchema, callGuestAttachmentPresignSchema } from "@runly/validators";
+import { callGuestJoinSchema, callGuestLinkInfoSchema, callRoomMessageSchema, callGuestAttachmentPresignSchema } from "@runly/validators";
 
 function guestToken(c) {
   const auth = c.req.header("authorization") || c.req.header("Authorization");
@@ -30,6 +30,18 @@ export function createGuestCallRouter({ guestService, messagesService }) {
     } catch (error) {
       if (error?.name === "ZodError") return c.json({ error: "Datos inválidos." }, 422);
       return fail(c, error, "No se pudo unir a la llamada.");
+    }
+  });
+
+  // Pre-join gate info (access mode, live, branding) — never the PIN.
+  app.get("/link-info", async (c) => {
+    try {
+      const { token, code, i } = c.req.query();
+      const query = callGuestLinkInfoSchema.parse({ token: token || undefined, code: code || undefined, inviteToken: i || undefined });
+      return c.json({ data: await guestService.getLinkInfo(query) });
+    } catch (error) {
+      if (error?.name === "ZodError") return c.json({ error: "Datos inválidos." }, 422);
+      return fail(c, error, "No se pudo consultar el enlace.");
     }
   });
 

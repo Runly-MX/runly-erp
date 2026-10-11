@@ -407,3 +407,38 @@ describe("createCallGuestService.getGuestAttachmentUrl", () => {
     );
   });
 });
+
+describe("createCallGuestService.joinAsGuest — PIN access mode", () => {
+  function pinPrisma(attempts = []) {
+    return {
+      callGuestJoinAttempt: { count: async () => 0, create: async ({ data }) => { attempts.push(data); return {}; } },
+      $queryRaw: async () => [liveCall],
+      callGuest: { count: async () => 0, findFirst: async () => null, create: async ({ data }) => ({ id: GUEST, ...data }) },
+      callLink: { update: async () => ({}) },
+      callParticipant: { findMany: async () => [] },
+    };
+  }
+  const pinLink = { id: "l1", conversationId: CONV, requireLobby: true, accessMode: "PIN", pin: "042917", useCount: 0 };
+
+  it("admits directly with the right PIN", async () => {
+    const svc = createCallGuestService({ prisma: pinPrisma(), env: env(), AccessTokenImpl: FakeToken, linksService: baseLinksService(pinLink) });
+    const out = await svc.joinAsGuest({ token: "t", pin: "042 917", displayName: "Ana", ip: "192.0.2.1" });
+    assert.equal(out.status, "ADMITTED");
+  });
+
+  it("sends a guest without PIN to the lobby", async () => {
+    const svc = createCallGuestService({ prisma: pinPrisma(), env: env(), AccessTokenImpl: FakeToken, linksService: baseLinksService(pinLink) });
+    const out = await svc.joinAsGuest({ token: "t", displayName: "Ana", ip: "192.0.2.1" });
+    assert.equal(out.status, "LOBBY");
+  });
+
+  it("rejects a wrong PIN with 403 bad_pin and records the attempt", async () => {
+    const attempts = [];
+    const svc = createCallGuestService({ prisma: pinPrisma(attempts), env: env(), AccessTokenImpl: FakeToken, linksService: baseLinksService(pinLink) });
+    await assert.rejects(
+      svc.joinAsGuest({ token: "t", pin: "111111", displayName: "Ana", ip: "192.0.2.1" }),
+      (e) => e instanceof CallGuestError && e.status === 403 && e.reason === "bad_pin",
+    );
+    assert.equal(attempts.at(-1)?.outcome, "bad_pin");
+  });
+});

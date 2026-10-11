@@ -146,7 +146,7 @@ function formatScheduledRange(scheduledAt, scheduledEndAt) {
 // time (runly.chat's "Programar" flow); omit them for an instant "join now"
 // call invite. The wording and CTA adapt so a scheduled invite actually says
 // when the meeting is, instead of implying it's happening right now.
-export function buildCallInviteEmail({ joinUrl, inviterName = null, conversationTitle = null, scheduledAt = null, scheduledEndAt = null, brand = null, env = process.env }) {
+export function buildCallInviteEmail({ joinUrl, inviterName = null, conversationTitle = null, scheduledAt = null, scheduledEndAt = null, meetingId = null, pin = null, brand = null, env = process.env }) {
   const orgName = brand?.name ? brand.name : "Runly ERP";
   const who = inviterName ? `${inviterName} te invitó` : "Te invitaron";
   const where = conversationTitle ? ` en "${conversationTitle}"` : "";
@@ -158,6 +158,7 @@ export function buildCallInviteEmail({ joinUrl, inviterName = null, conversation
           ${escapeHtml(who)} a una videollamada${escapeHtml(where)} en ${escapeHtml(orgName)}.
         </p>
         ${whenText ? `<p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155"><strong>Cuándo:</strong> ${escapeHtml(whenText)}</p>` : ""}
+        ${meetingId ? `<p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155"><strong>ID de reunión:</strong> <span style="font-family:ui-monospace,Menlo,Consolas,monospace">${escapeHtml(meetingId)}</span>${pin ? `<br /><strong>PIN:</strong> <span style="font-family:ui-monospace,Menlo,Consolas,monospace">${escapeHtml(pin)}</span>` : ""}</p>` : ""}
         <p style="margin:0 0 16px 0;font-size:13px;line-height:1.6;color:#64748b">
           ${whenText ? "Guarda este enlace y únete a la hora programada. " : "Solo necesitas tu nombre para entrar. "}Si el boton no funciona, copia este enlace en tu navegador:<br />
           <span style="word-break:break-all;color:#334155">${escapeHtml(joinUrl)}</span>
@@ -178,6 +179,7 @@ export function buildCallInviteEmail({ joinUrl, inviterName = null, conversation
     "",
     `${who} a una videollamada${where}.`,
     ...(whenText ? ["", `Cuándo: ${whenText}`] : []),
+    ...(meetingId ? ["", `ID de reunión: ${meetingId}`, ...(pin ? [`PIN: ${pin}`] : [])] : []),
     "",
     `Unirme a la llamada: ${joinUrl}`,
   ].join("\n");

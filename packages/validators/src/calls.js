@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 export const callLinkPatchSchema = z.object({
+  // Legacy boolean (true = lobby, false = open); prefer accessMode.
   requireLobby: z.boolean().optional(),
+  accessMode: z.enum(["LOBBY", "PIN", "OPEN"]).optional(),
+  regeneratePin: z.boolean().optional(),
   maxUses: z.number().int().positive().max(500).nullable().optional(),
   expiresAt: z.string().datetime().nullable().optional(),
 });
@@ -21,8 +24,19 @@ export const callGuestJoinSchema = z
     token: z.string().min(1).max(128).nullish(),
     code: z.string().min(1).max(32).nullish(),
     inviteToken: z.string().min(1).max(128).nullish(),
+    pin: z.string().trim().max(12).nullish(),
     displayName: z.string().trim().min(2).max(40),
     email: z.union([z.string().email(), z.literal(""), z.null()]).optional().transform((v) => v || undefined),
+  })
+  .refine((v) => v.token || v.code || v.inviteToken, {
+    message: "Se requiere un enlace, código o invitación.",
+  });
+
+export const callGuestLinkInfoSchema = z
+  .object({
+    token: z.string().min(1).max(128).optional(),
+    code: z.string().min(1).max(32).optional(),
+    inviteToken: z.string().min(1).max(128).optional(),
   })
   .refine((v) => v.token || v.code || v.inviteToken, {
     message: "Se requiere un enlace, código o invitación.",

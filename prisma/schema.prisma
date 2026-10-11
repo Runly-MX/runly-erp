@@ -2270,6 +2270,11 @@ model CallLink {
   token            String    @unique
   code             String    @unique
   requireLobby     Boolean   @default(true) @map("require_lobby")
+  // LOBBY: host admits everyone. PIN: the right PIN (or a personal email
+  // invite) enters directly, anyone else waits in the lobby. OPEN: anyone
+  // with the link/ID enters. requireLobby is kept derived (OPEN => false).
+  accessMode       String    @default("LOBBY") @map("access_mode") @db.VarChar(8)
+  pin              String?   @map("pin") @db.VarChar(6)
   maxUses          Int?      @map("max_uses")
   useCount         Int       @default(0) @map("use_count")
   expiresAt        DateTime? @map("expires_at")

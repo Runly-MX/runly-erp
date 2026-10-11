@@ -21,6 +21,25 @@ export function generateCallCode() {
   return out;
 }
 
+export const CALL_ACCESS_MODES = ["LOBBY", "PIN", "OPEN"];
+
+// 6-digit numeric PIN — typed on phones, so digits only.
+export function generateCallPin() {
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+}
+
+// "ABCD2345" -> "abc-d234-5": the human-readable meeting ID shown to hosts and
+// guests. The stored code stays the raw 8 chars; dashes/case are ignored on input.
+export function formatMeetingId(code) {
+  const raw = String(code ?? "").toLowerCase();
+  if (raw.length !== 8) return raw;
+  return `${raw.slice(0, 3)}-${raw.slice(3, 7)}-${raw.slice(7)}`;
+}
+
+export function normalizeMeetingId(input) {
+  return String(input ?? "").replace(/[^0-9a-z]/gi, "").toUpperCase();
+}
+
 export function createCallLinksService({ prisma, smtpService, callService, supabaseAdmin = null, env = process.env, now = () => new Date() }) {
   // Public SPA origin — read from the environment (PUBLIC_APP_URL / APP_URL /
   // RUNLY_APP_URL / WEB_APP_URL, then a dev fallback). Never hardcoded.
@@ -36,8 +55,11 @@ export function createCallLinksService({ prisma, smtpService, callService, supab
     return {
       token: link.token,
       code: link.code,
+      meetingId: formatMeetingId(link.code),
       url: joinUrl(link.token),
       requireLobby: link.requireLobby,
+      accessMode: link.accessMode ?? (link.requireLobby ? "LOBBY" : "OPEN"),
+      pin: link.pin ?? null,
       maxUses: link.maxUses ?? null,
       useCount: link.useCount ?? 0,
       expiresAt: link.expiresAt ?? null,
@@ -94,6 +116,7 @@ export function createCallLinksService({ prisma, smtpService, callService, supab
             token: crypto.randomBytes(32).toString("hex"),
             code: generateCallCode(),
             requireLobby: true,
+            accessMode: "LOBBY",
             createdByUserId: profileId,
           },
         });
@@ -110,7 +133,17 @@ export function createCallLinksService({ prisma, smtpService, callService, supab
     const link = await prisma.callLink.findFirst({ where: { conversationId, revokedAt: null } });
     if (!link) throw new CallLinkError("No hay un enlace activo.", 404);
     const data = {};
-    if (patch.requireLobby !== undefined) data.requireLobby = patch.requireLobby;
+    // Legacy boolean from older clients: true keeps PIN mode if already set.
+    let accessMode = patch.accessMode;
+    if (accessMode === undefined && patch.requireLobby !== undefined) {
+      accessMode = patch.requireLobby ? (link.accessMode === "PIN" ? "PIN" : "LOBBY") : "OPEN";
+    }
+    if (accessMode !== undefined) {
+      data.accessMode = accessMode;
+      data.requireLobby = accessMode !== "OPEN";
+      if (accessMode === "PIN" && !link.pin) data.pin = generateCallPin();
+    }
+    if (patch.regeneratePin) data.pin = generateCallPin();
     if (patch.maxUses !== undefined) data.maxUses = patch.maxUses;
     if (patch.expiresAt !== undefined) data.expiresAt = patch.expiresAt ? new Date(patch.expiresAt) : null;
     const updated = await prisma.callLink.update({ where: { id: link.id }, data });
@@ -128,14 +161,18 @@ export function createCallLinksService({ prisma, smtpService, callService, supab
     return { revoked: true };
   }
 
-  async function resolveLinkForJoin({ token = null, code = null }) {
+  async function resolveLinkForJoin({ token = null, code = null, inviteToken = null }) {
     let link = null;
     if (token) {
       link = await prisma.callLink.findUnique({ where: { token } });
     } else if (code) {
-      link = await prisma.callLink.findFirst({ where: { code: code.trim().toUpperCase() } });
+      link = await prisma.callLink.findFirst({ where: { code: normalizeMeetingId(code) } });
+    } else if (inviteToken) {
+      // A personal email invite carries its link — no token/code needed.
+      const invite = await prisma.callInvite.findUnique({ where: { token: inviteToken } });
+      if (invite) link = await prisma.callLink.findUnique({ where: { id: invite.linkId } });
     }
-    if (!link) throw new CallLinkError("Enlace no válido.", 404, token ? "bad_token" : "bad_code");
+    if (!link) throw new CallLinkError("Enlace no válido.", 404, token ? "bad_token" : code ? "bad_code" : "bad_invite");
     if (link.revokedAt) throw new CallLinkError("Este enlace fue revocado.", 410, "revoked");
     if (link.expiresAt && new Date(link.expiresAt).getTime() < now().getTime()) {
       throw new CallLinkError("Este enlace expiró.", 410, "expired");
@@ -265,7 +302,11 @@ export function createCallLinksService({ prisma, smtpService, callService, supab
       const url = joinUrl(link.token, inviteToken);
       if (smtpOk) {
         try {
-          const mail = buildCallInviteEmail({ joinUrl: url, inviterName, conversationTitle, scheduledAt, scheduledEndAt, brand, env });
+          const mail = buildCallInviteEmail({
+            joinUrl: url, inviterName, conversationTitle, scheduledAt, scheduledEndAt,
+            meetingId: formatMeetingId(link.code), pin: link.accessMode === "PIN" ? link.pin : null,
+            brand, env,
+          });
           await smtpService.sendEmail({
             companyId: smtpCompanyId,
             to: email,
