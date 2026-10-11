@@ -587,7 +587,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
 
   // Channel creation/directory, linked channels, joining, and per-channel
   // roles (Phase A foundation) — see channel-routes.js.
-  internal.route("", createChannelRoutes({ requirePermission, chatService, channelDirectoryService, channelLinksService, permissionsService }));
+  internal.route("", createChannelRoutes({ prisma, requirePermission, chatService, channelDirectoryService, channelLinksService, permissionsService }));
 
   // PATCH /chat/availability
   internal.patch("/availability", requirePermission("chat.support.manage"), async (c) => {

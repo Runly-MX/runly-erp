@@ -74,12 +74,8 @@ export function createChatConversationsWriteService({
       }
     }
 
-    // Same "find existing, return it" idempotency as above, applied to channel<->module links.
-    if (linkedModule && linkedEntityId && channelLinksService) {
-      const existing = await channelLinksService.findByLink(linkedModule, linkedEntityId);
-      if (existing) return getConversation({ conversationId: existing.id, authUserId });
-      await channelLinksService.assertLinkAvailable(linkedModule, linkedEntityId);
-    }
+    // Linked channels are NOT deduplicated: a record (e.g. a project) can own
+    // several channels. Creating always inserts a new channel owned by the caller.
 
     const companyId = requestedCompanyId;
 
@@ -90,7 +86,7 @@ export function createChatConversationsWriteService({
       const dupe = await prisma.$queryRaw`
         SELECT id FROM chat_conversations WHERE company_id IS NOT DISTINCT FROM ${companyId} AND slug = ${slug} AND deleted_at IS NULL LIMIT 1
       `;
-      if (dupe.length) throw new ChatServiceError("Ya existe un canal con ese slug en tu empresa.", 400);
+      if (dupe.length) throw new ChatServiceError("Ya existe un canal con ese nombre en tu empresa.", 409);
     }
 
     const convRows = await prisma.$queryRaw`
@@ -175,6 +171,10 @@ export function createChatConversationsWriteService({
     const hasAvatarFileId = updates.avatarFileId !== undefined;
     const hasAvatarEmoji = updates.avatarEmoji !== undefined;
     const hasDescription = updates.description !== undefined;
+
+    if (updates.linkPrimary !== undefined && channelLinksService) {
+      await channelLinksService.setPrimary(conversationId, updates.linkPrimary);
+    }
 
     if (!hasTitle && !hasStatus && !hasAvatarFileId && !hasAvatarEmoji && !hasDescription && updates.linkedModule === undefined) {
       return getConversation({ conversationId, authUserId });

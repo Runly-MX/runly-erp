@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
   Button, Input, Textarea, Switch, Label, ComboboxField,
@@ -7,7 +7,7 @@ import { Hash } from "lucide-react";
 import { useCreateChannel } from "../hooks/useChannels";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 function slugify(text) {
   return text
@@ -19,13 +19,19 @@ function slugify(text) {
     .slice(0, 60);
 }
 
-export function CreateChannelModal({ open, onClose, onCreated }) {
+export function CreateChannelModal({ open, onClose, onCreated, defaultLinkedProjectId = null }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
-  const [linkedProjectId, setLinkedProjectId] = useState(null);
+  const [linkedProjectId, setLinkedProjectId] = useState(defaultLinkedProjectId);
+  const queryClient = useQueryClient();
+  // The caller's default (e.g. the project the modal was opened from) can
+  // change while the modal stays mounted — re-apply it on every open.
+  useEffect(() => {
+    if (open) setLinkedProjectId(defaultLinkedProjectId);
+  }, [open, defaultLinkedProjectId]);
   const [error, setError] = useState(null);
   const { mutateAsync: createChannel, isPending } = useCreateChannel();
   const { session } = useAuth();
@@ -62,7 +68,7 @@ export function CreateChannelModal({ open, onClose, onCreated }) {
     setIsPublic(true);
     setSlug("");
     setSlugEdited(false);
-    setLinkedProjectId(null);
+    setLinkedProjectId(defaultLinkedProjectId);
     setError(null);
   }
 
@@ -78,11 +84,12 @@ export function CreateChannelModal({ open, onClose, onCreated }) {
         linkedModule: linkedProjectId ? "runly.projects" : undefined,
         linkedEntityId: linkedProjectId ?? undefined,
       });
+      if (linkedProjectId) queryClient.invalidateQueries({ queryKey: ["project-linked-channel", linkedProjectId] });
       onCreated?.(result?.data ?? result);
       onClose?.();
       reset();
     } catch (err) {
-      setError(err?.status === 409 ? "Ese proyecto ya tiene un canal vinculado." : (err?.message ?? "Error creando canal."));
+      setError(err?.message ?? "Error creando canal.");
     }
   }
 
@@ -144,6 +151,9 @@ export function CreateChannelModal({ open, onClose, onCreated }) {
               placeholder="Buscar proyecto..."
               emptyText={projectsQuery.isLoading ? "Cargando..." : "Sin resultados"}
             />
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Un proyecto puede tener varios canales.
+            </p>
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import {
   Plus,
   LayoutGrid,
@@ -36,6 +35,9 @@ import TaskFormModal from "../components/TaskFormModal.jsx";
 import StatusEditor from "../components/StatusEditor.jsx";
 import MembersPanel from "../components/MembersPanel.jsx";
 import ProjectFieldsSheet from "../components/ProjectFieldsSheet.jsx";
+import { ProjectChannelsButton, ProjectChannelItems } from "../components/ProjectChannelsMenu.jsx";
+import { useProjectChannels } from "../hooks/useProjectChannels.js";
+import { CreateChannelModal } from "../../runly.chat/components/CreateChannelModal";
 import { useMiraiRecordContext } from "../../runly.chat/lib/miraiPageContext";
 
 const VIEWS = [
@@ -114,8 +116,6 @@ export default function ProjectsScreen() {
 
   const { session } = useAuth();
   const token = session?.access_token;
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   const projectList = projects?.data ?? projects ?? [];
   const selectedProject =
@@ -132,50 +132,8 @@ export default function ProjectsScreen() {
       : { recordType: "project", recordId: effectiveId, label: selectedProject?.name },
   );
 
-  const linkedChannelQuery = useQuery({
-    queryKey: ["project-linked-channel", effectiveId],
-    queryFn: async () => {
-      const res = await runly.chat.getLinkedChannel("runly.projects", effectiveId, token);
-      return res?.data ?? null;
-    },
-    enabled: Boolean(effectiveId && token),
-    staleTime: 30_000,
-  });
-
-  const createChannelMutation = useMutation({
-    mutationFn: async () => {
-      // GET /projects/:id/members returns a raw array, not { data: [...] }.
-      const membersRes = await runly.projects.listMembers(effectiveId, token);
-      const memberUserIds = (membersRes?.data ?? membersRes ?? [])
-        .map((m) => m.userId)
-        .filter(Boolean);
-      return runly.chat.createChannel(
-        {
-          title: selectedProject?.name ?? "Proyecto",
-          linkedModule: "runly.projects",
-          linkedEntityId: effectiveId,
-          memberUserIds,
-        },
-        token
-      );
-    },
-    onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ["project-linked-channel", effectiveId] });
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-      const conversationId = res?.data?.id;
-      if (conversationId) navigate(`/app/m/runly.chat/chat/inbox/${conversationId}`);
-    },
-    onError: () => toast.error("No se pudo crear el canal."),
-  });
-
-  function handleChatChannelClick() {
-    const existing = linkedChannelQuery.data;
-    if (existing?.id) {
-      navigate(`/app/m/runly.chat/chat/inbox/${existing.id}`);
-    } else {
-      createChannelMutation.mutate();
-    }
-  }
+  const projectChannels = useProjectChannels({ projectId: effectiveId, projectName: selectedProject?.name, token });
+  const [newChannelOpen, setNewChannelOpen] = useState(false);
 
   async function handleExport() {
     if (!effectiveId) return;
@@ -363,17 +321,15 @@ export default function ProjectsScreen() {
                 >
                   <Users size={15} />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="hidden sm:flex"
-                  onClick={handleChatChannelClick}
-                  disabled={createChannelMutation.isPending || linkedChannelQuery.isLoading}
-                  title={linkedChannelQuery.data?.id ? "Ir al canal" : "Crear canal de chat"}
-                >
-                  <MessageSquare size={15} className="mr-1" />
-                  {linkedChannelQuery.data?.id ? "Ir al canal" : "Crear canal"}
-                </Button>
+                <ProjectChannelsButton
+                  channels={projectChannels.channels}
+                  primaryId={projectChannels.primaryId}
+                  isLoading={projectChannels.isLoading}
+                  creating={projectChannels.creating}
+                  onCreateDefault={projectChannels.createDefault}
+                  onOpen={projectChannels.openChannel}
+                  onNew={() => setNewChannelOpen(true)}
+                />
                 <Button
                   variant="ghost"
                   size="icon"
@@ -458,13 +414,22 @@ export default function ProjectsScreen() {
                       Exportar CSV
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onSelect={handleChatChannelClick}
-                      disabled={createChannelMutation.isPending || linkedChannelQuery.isLoading}
-                    >
-                      <MessageSquare size={14} className="mr-2" />
-                      {linkedChannelQuery.data?.id ? "Ir al canal" : "Crear canal de chat"}
-                    </DropdownMenuItem>
+                    {projectChannels.channels.length === 0 ? (
+                      <DropdownMenuItem
+                        onSelect={projectChannels.createDefault}
+                        disabled={projectChannels.creating || projectChannels.isLoading}
+                      >
+                        <MessageSquare size={14} className="mr-2" />
+                        Crear canal de chat
+                      </DropdownMenuItem>
+                    ) : (
+                      <ProjectChannelItems
+                        channels={projectChannels.channels}
+                        primaryId={projectChannels.primaryId}
+                        onOpen={projectChannels.openChannel}
+                        onNew={() => setNewChannelOpen(true)}
+                      />
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -566,6 +531,13 @@ export default function ProjectsScreen() {
             projectId={effectiveId}
           />
         )}
+
+        <CreateChannelModal
+          open={newChannelOpen}
+          onClose={() => setNewChannelOpen(false)}
+          defaultLinkedProjectId={effectiveId}
+          onCreated={(conv) => conv?.id && projectChannels.openChannel(conv.id)}
+        />
       </div>
     </UserAvatarContext.Provider>
   );

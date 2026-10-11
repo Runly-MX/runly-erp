@@ -12,6 +12,7 @@ import {
   chatAssignMemberRoleSchema,
 } from "@runly/validators";
 import { ChatServiceError } from "./chat-service-error.js";
+import { resolveUserProfileId } from "./chat-service.js";
 import { GuestChatServiceError } from "./guest-service.js";
 import { ChatPermissionsError } from "./chat-permissions-service.js";
 import { ChatReactionsError } from "./chat-reactions-service.js";
@@ -32,7 +33,7 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500);
 }
 
-export function createChannelRoutes({ requirePermission, chatService, channelDirectoryService, channelLinksService, permissionsService }) {
+export function createChannelRoutes({ prisma, requirePermission, chatService, channelDirectoryService, channelLinksService, permissionsService }) {
   const app = new Hono();
 
   // POST /chat/channels
@@ -67,17 +68,24 @@ export function createChannelRoutes({ requirePermission, chatService, channelDir
   });
 
   // GET /chat/channels/linked?module=runly.projects&entityId=<uuid>
-  // Used by the source module's UI (e.g. a project's detail screen) to know
-  // whether it already has a linked channel before rendering "Crear canal"
-  // vs. "Ir al canal".
+  // Used by the source module's UI (e.g. a project's detail screen) to list
+  // the record's channels the caller can see (public or member-of, active
+  // company only). `data` is the primary channel (or null) for callers that
+  // only need "Ir al canal"; `channels` is the full visible list.
   app.get("/channels/linked", requirePermission("chat.conversations.read"), async (c) => {
     try {
       const { module: linkedModule, entityId } = c.req.query();
       if (!linkedModule || !entityId) {
         return c.json({ error: "module y entityId son requeridos." }, 422);
       }
-      const conversation = await channelLinksService.findByLink(linkedModule, entityId);
-      return c.json({ data: conversation });
+      const companyId = c.get("companyId");
+      if (!companyId) return c.json({ data: null, channels: [], primaryId: null });
+      const profileId = await resolveUserProfileId(prisma, c.get("authUserId"));
+      const { channels, primaryId } = await channelLinksService.listByLink({
+        linkedModule, linkedEntityId: entityId, companyId, profileId,
+      });
+      const primary = channels.find((ch) => ch.id === primaryId) ?? null;
+      return c.json({ data: primary, channels, primaryId });
     } catch (err) {
       return handleError(c, err, "Error buscando el canal vinculado.");
     }

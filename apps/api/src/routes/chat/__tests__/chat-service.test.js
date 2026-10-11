@@ -1690,44 +1690,30 @@ describe("chat-service — listConversations exposes is_muted", () => {
 });
 
 describe("chat-service — createConversation with a channel link", () => {
-  it("returns the existing conversation when one already holds the requested link (idempotent)", async () => {
-    const existing = { id: CONV_ID, linked_module: "atlas.projects", linked_entity_id: "proj-1" };
-    const prisma = buildPrismaMock(
-      [
-        [{ id: PROFILE_ID }], // getUserProfileId
-        [{ id: "member-row" }], // assertMember, inside the final getConversation call
-        [{ ...existing, members: null }], // getConversation's SELECT c.*, members
-      ],
-      [],
-    );
-    const channelLinksService = {
-      assertBothOrNeither: () => {},
-      findByLink: async (mod, id) => { assert.equal(mod, "atlas.projects"); assert.equal(id, "proj-1"); return existing; },
-      assertLinkAvailable: async () => { throw new Error("should not be called when a link already exists"); },
-    };
-    const chatService = createChatService({ prisma, channelLinksService });
-    const result = await chatService.createConversation({ companyId: MOCK_COMPANY_ID,
-      authUserId: AUTH_USER_ID, type: "channel", title: "Proyecto X", memberUserIds: [],
-      linkedModule: "atlas.projects", linkedEntityId: "proj-1",
-    });
-    assert.equal(result.id, CONV_ID);
-  });
-
-  it("propagates a 409 from assertLinkAvailable instead of creating a duplicate channel", async () => {
+  it("creates a new channel even when the record already has linked channels (no dedupe)", async () => {
     const prisma = buildPrismaMock([[{ id: PROFILE_ID }]], []);
+    let inserted = false;
+    const origQuery = prisma.$queryRaw;
+    prisma.$queryRaw = async (strings, ...values) => {
+      if (strings.join("?").includes("INSERT INTO chat_conversations")) {
+        inserted = true;
+        throw new Error("stop-after-insert");
+      }
+      return origQuery(strings, ...values);
+    };
     const channelLinksService = {
       assertBothOrNeither: () => {},
-      findByLink: async () => null,
-      assertLinkAvailable: async () => { throw new ChatServiceError("Ese registro ya tiene un canal vinculado.", 409); },
+      listByLink: async () => { throw new Error("create must not look up existing links"); },
     };
     const chatService = createChatService({ prisma, channelLinksService });
     await assert.rejects(
       () => chatService.createConversation({ companyId: MOCK_COMPANY_ID,
         authUserId: AUTH_USER_ID, type: "channel", title: "Proyecto X", memberUserIds: [],
-        linkedModule: "atlas.projects", linkedEntityId: "proj-1",
+        linkedModule: "runly.projects", linkedEntityId: "proj-1",
       }),
-      (err) => { assert.equal(err.status, 409); return true; },
+      /stop-after-insert/,
     );
+    assert.equal(inserted, true);
   });
 
   it("propagates a 422 from assertBothOrNeither when only linkedModule is provided, before touching prisma", async () => {

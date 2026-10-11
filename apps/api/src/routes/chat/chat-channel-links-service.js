@@ -1,17 +1,15 @@
 import { Prisma } from "@prisma/client";
 import { ChatServiceError } from "./chat-service.js";
 
-// Backs both the "1 channel per project" rule and the generic
-// future-proofing that motivated linked_module/linked_entity_id over a
-// project-specific column — this pair of columns is meant to support future
-// connectors beyond just runly.projects, without another migration.
+// Channel <-> module-record links (linked_module/linked_entity_id). A record
+// (e.g. a runly.projects project) can have any number of linked channels;
+// one of them is the "primary" (metadata.linkPrimary = true, else the oldest)
+// and is what the source module opens by default. The pair of columns is
+// generic so future connectors beyond runly.projects need no migration.
 export function createChatChannelLinksService({ prisma }) {
   // linkedModule/linkedEntityId must travel together — a row with one set and
-  // the other null is a "half-linked" state the partial unique index (added
-  // in a prior migration) cannot catch (Postgres unique indexes never treat
-  // two NULLs as colliding, so N rows could all have the same linked_module
-  // with a null linked_entity_id). Synchronous — pure validation, no I/O —
-  // so callers can call it before touching prisma at all.
+  // the other null is a "half-linked" state nothing can resolve. Synchronous
+  // (pure validation, no I/O) so callers can call it before touching prisma.
   function assertBothOrNeither(linkedModule, linkedEntityId) {
     const hasModule = linkedModule !== null && linkedModule !== undefined;
     const hasEntityId = linkedEntityId !== null && linkedEntityId !== undefined;
@@ -20,49 +18,70 @@ export function createChatChannelLinksService({ prisma }) {
     }
   }
 
-  async function findByLink(linkedModule, linkedEntityId) {
+  // Channels linked to a record that the caller may know about: same company,
+  // and either public or one the caller is an active member of. Private
+  // channels the caller is not in stay invisible (no metadata leak).
+  async function listByLink({ linkedModule, linkedEntityId, companyId, profileId }) {
     const rows = await prisma.$queryRaw`
-      SELECT * FROM chat_conversations
-      WHERE linked_module = ${linkedModule} AND linked_entity_id = ${linkedEntityId} AND deleted_at IS NULL
-      LIMIT 1
+      SELECT c.id, c.title, c.slug, c.is_public, c.avatar_emoji, c.avatar_file_id,
+             c.created_at, COALESCE((c.metadata->>'linkPrimary')::boolean, false) AS link_primary,
+             EXISTS (
+               SELECT 1 FROM chat_conversation_members m
+               WHERE m.conversation_id = c.id AND m.user_id = ${profileId} AND m.left_at IS NULL
+             ) AS is_member
+      FROM chat_conversations c
+      WHERE c.linked_module = ${linkedModule}
+        AND c.linked_entity_id = ${linkedEntityId}
+        AND c.deleted_at IS NULL
+        AND c.company_id = ${companyId}
+      ORDER BY c.created_at ASC
     `;
-    return rows[0] ?? null;
+    const channels = rows.filter((row) => row.is_public || row.is_member);
+    const primary = channels.find((row) => row.link_primary) ?? channels[0] ?? null;
+    return { channels, primaryId: primary?.id ?? null };
   }
 
-  async function assertLinkAvailable(linkedModule, linkedEntityId, excludeConversationId = null) {
-    const rows = excludeConversationId
-      ? await prisma.$queryRaw`
-          SELECT id FROM chat_conversations
-          WHERE linked_module = ${linkedModule} AND linked_entity_id = ${linkedEntityId}
-            AND deleted_at IS NULL AND id != ${excludeConversationId}
-          LIMIT 1
-        `
-      : await prisma.$queryRaw`
-          SELECT id FROM chat_conversations
-          WHERE linked_module = ${linkedModule} AND linked_entity_id = ${linkedEntityId} AND deleted_at IS NULL
-          LIMIT 1
-        `;
-    if (rows.length) {
-      throw new ChatServiceError("Ese registro ya tiene un canal vinculado.", 409);
+  // Marks one channel as the record's primary and clears the flag on its
+  // siblings. Clearing (value=false) only touches this channel; the oldest
+  // sibling then becomes the implicit primary.
+  async function setPrimary(conversationId, value) {
+    if (!value) {
+      await prisma.$executeRaw`
+        UPDATE chat_conversations SET metadata = metadata - 'linkPrimary' WHERE id = ${conversationId}
+      `;
+      return;
     }
+    const [conv] = await prisma.$queryRaw`
+      SELECT linked_module, linked_entity_id FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
+    `;
+    if (!conv?.linked_module) {
+      throw new ChatServiceError("El canal no está vinculado a ningún registro.", 422);
+    }
+    await prisma.$transaction([
+      prisma.$executeRaw`
+        UPDATE chat_conversations SET metadata = metadata - 'linkPrimary'
+        WHERE linked_module = ${conv.linked_module} AND linked_entity_id = ${conv.linked_entity_id}
+          AND id != ${conversationId}
+      `,
+      prisma.$executeRaw`
+        UPDATE chat_conversations SET metadata = COALESCE(metadata, '{}'::jsonb) || '{"linkPrimary": true}'::jsonb
+        WHERE id = ${conversationId}
+      `,
+    ]);
   }
 
-  // Single entry point for updateConversation's SET-clause building: checks
-  // availability (skipped entirely when clearing the link — an unlink can
-  // never collide) and returns the Prisma.sql fragments to push into the
-  // caller's `sets` array. Returns [] when `updates` doesn't touch the link
-  // at all (linkedModule absent from the object), so the caller can always
-  // spread the result into `sets` unconditionally without its own branching.
-  async function applyLinkUpdate(updates, conversationId) {
+  // SET-clause fragments for updateConversation. Returns [] when `updates`
+  // doesn't touch the link, so the caller can spread it unconditionally.
+  // Unlinking also drops the primary flag so a later relink starts clean.
+  function applyLinkUpdate(updates) {
     if (updates.linkedModule === undefined) return [];
-    if (updates.linkedModule !== null) {
-      await assertLinkAvailable(updates.linkedModule, updates.linkedEntityId, conversationId);
-    }
-    return [
+    const sets = [
       Prisma.sql`linked_module = ${updates.linkedModule}`,
       Prisma.sql`linked_entity_id = ${updates.linkedEntityId ?? null}`,
     ];
+    if (updates.linkedModule === null) sets.push(Prisma.sql`metadata = metadata - 'linkPrimary'`);
+    return sets;
   }
 
-  return { findByLink, assertLinkAvailable, assertBothOrNeither, applyLinkUpdate };
+  return { listByLink, setPrimary, assertBothOrNeither, applyLinkUpdate };
 }

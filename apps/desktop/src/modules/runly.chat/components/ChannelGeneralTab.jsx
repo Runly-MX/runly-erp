@@ -90,7 +90,16 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
       queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
     },
-    onError: (err) => toast.error(err?.status === 409 ? "Ese proyecto ya tiene un canal vinculado." : "No se pudo vincular el proyecto."),
+    onError: () => toast.error("No se pudo vincular el proyecto."),
+  });
+
+  const primaryMutation = useMutation({
+    mutationFn: (linkPrimary) => runly.chat.updateConversation(conversationId, { linkPrimary }, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["project-linked-channel", conversation?.linked_entity_id] });
+    },
+    onError: () => toast.error("No se pudo marcar como canal principal."),
   });
 
   const descriptionMutation = useMutation({
@@ -333,6 +342,15 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
             >
               Quitar vinculo
             </button>
+          )}
+          {conversation?.linked_module === "runly.projects" && (
+            <SwitchField
+              label="Canal principal del proyecto"
+              description="El proyecto puede tener varios canales; el principal aparece primero en su menú."
+              checked={conversation?.metadata?.linkPrimary === true}
+              onChange={(next) => primaryMutation.mutate(next)}
+              disabled={!canManage || primaryMutation.isPending}
+            />
           )}
           <Button
             type="button"

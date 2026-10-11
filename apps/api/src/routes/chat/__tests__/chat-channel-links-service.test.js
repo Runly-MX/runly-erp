@@ -19,49 +19,62 @@ function buildPrismaMock(queryRawResults = []) {
   };
 }
 
-describe("chat-channel-links-service — findByLink", () => {
-  it("returns null when no conversation has that link", async () => {
-    const prisma = buildPrismaMock([[]]);
+describe("chat-channel-links-service — listByLink", () => {
+  const args = { linkedModule: "runly.projects", linkedEntityId: PROJECT_ID, companyId: "co-1", profileId: "p-1" };
+
+  it("returns every visible channel and the oldest as primary when none is flagged", async () => {
+    const rows = [
+      { id: CONV_ID, is_public: true, is_member: false, link_primary: false },
+      { id: OTHER_CONV_ID, is_public: false, is_member: true, link_primary: false },
+    ];
+    const prisma = buildPrismaMock([rows]);
     const svc = createChatChannelLinksService({ prisma });
-    const result = await svc.findByLink("atlas.projects", PROJECT_ID);
-    assert.equal(result, null);
+    const result = await svc.listByLink(args);
+    assert.deepEqual(result.channels.map((r) => r.id), [CONV_ID, OTHER_CONV_ID]);
+    assert.equal(result.primaryId, CONV_ID);
+    assert.match(prisma._queryRawCalls[0].sql, /company_id = \?/);
   });
 
-  it("returns the conversation row when a link exists", async () => {
-    const row = { id: CONV_ID, linked_module: "atlas.projects", linked_entity_id: PROJECT_ID };
-    const prisma = buildPrismaMock([[row]]);
+  it("hides private channels the caller is not a member of", async () => {
+    const rows = [
+      { id: CONV_ID, is_public: false, is_member: false, link_primary: true },
+      { id: OTHER_CONV_ID, is_public: true, is_member: false, link_primary: false },
+    ];
+    const prisma = buildPrismaMock([rows]);
     const svc = createChatChannelLinksService({ prisma });
-    const result = await svc.findByLink("atlas.projects", PROJECT_ID);
-    assert.deepEqual(result, row);
+    const result = await svc.listByLink(args);
+    assert.deepEqual(result.channels.map((r) => r.id), [OTHER_CONV_ID]);
+    assert.equal(result.primaryId, OTHER_CONV_ID);
+  });
+
+  it("prefers the flagged primary over the oldest", async () => {
+    const rows = [
+      { id: CONV_ID, is_public: true, is_member: true, link_primary: false },
+      { id: OTHER_CONV_ID, is_public: true, is_member: true, link_primary: true },
+    ];
+    const svc = createChatChannelLinksService({ prisma: buildPrismaMock([rows]) });
+    const result = await svc.listByLink(args);
+    assert.equal(result.primaryId, OTHER_CONV_ID);
   });
 });
 
-describe("chat-channel-links-service — assertLinkAvailable", () => {
-  it("does not throw when no conversation holds the link", async () => {
-    const prisma = buildPrismaMock([[]]);
+describe("chat-channel-links-service — setPrimary", () => {
+  it("rejects with 422 when the channel has no link", async () => {
+    const prisma = buildPrismaMock([[{ linked_module: null, linked_entity_id: null }]]);
     const svc = createChatChannelLinksService({ prisma });
-    await svc.assertLinkAvailable("atlas.projects", PROJECT_ID, null);
+    await assert.rejects(() => svc.setPrimary(CONV_ID, true), (err) => { assert.equal(err.status, 422); return true; });
   });
 
-  it("throws a 409 ChatServiceError when another conversation already holds the link", async () => {
-    const prisma = buildPrismaMock([[{ id: OTHER_CONV_ID }]]);
+  it("clears siblings and flags this channel in one transaction", async () => {
+    const prisma = buildPrismaMock([[{ linked_module: "runly.projects", linked_entity_id: PROJECT_ID }]]);
+    const executed = [];
+    prisma.$executeRaw = async (strings) => { executed.push(strings.join("?")); return 1; };
+    let txSize = 0;
+    prisma.$transaction = async (ops) => { txSize = ops.length; return Promise.all(ops); };
     const svc = createChatChannelLinksService({ prisma });
-    await assert.rejects(
-      () => svc.assertLinkAvailable("atlas.projects", PROJECT_ID, CONV_ID),
-      (err) => {
-        assert.equal(err.name, "ChatServiceError");
-        assert.equal(err.status, 409);
-        return true;
-      },
-    );
-  });
-
-  it("excludes the given conversationId from the collision check (so re-saving the same link on the same channel is allowed)", async () => {
-    const prisma = buildPrismaMock([[]]);
-    const svc = createChatChannelLinksService({ prisma });
-    await svc.assertLinkAvailable("atlas.projects", PROJECT_ID, CONV_ID);
-    assert.match(prisma._queryRawCalls[0].sql, /id != \?/);
-    assert.equal(prisma._queryRawCalls[0].values.at(-1), CONV_ID);
+    await svc.setPrimary(CONV_ID, true);
+    assert.equal(txSize, 2);
+    assert.match(executed[0], /id != \?/);
   });
 });
 
@@ -73,13 +86,13 @@ describe("chat-channel-links-service — assertBothOrNeither", () => {
 
   it("does not throw when both are set", () => {
     const svc = createChatChannelLinksService({ prisma: {} });
-    svc.assertBothOrNeither("atlas.projects", PROJECT_ID);
+    svc.assertBothOrNeither("runly.projects", PROJECT_ID);
   });
 
   it("throws a 422 ChatServiceError when only linkedModule is set", () => {
     const svc = createChatChannelLinksService({ prisma: {} });
     assert.throws(
-      () => svc.assertBothOrNeither("atlas.projects", null),
+      () => svc.assertBothOrNeither("runly.projects", null),
       (err) => { assert.equal(err.name, "ChatServiceError"); assert.equal(err.status, 422); return true; },
     );
   });
@@ -94,34 +107,20 @@ describe("chat-channel-links-service — assertBothOrNeither", () => {
 });
 
 describe("chat-channel-links-service — applyLinkUpdate", () => {
-  it("returns an empty array (no-op) when linkedModule is not present in updates", async () => {
+  it("returns an empty array (no-op) when linkedModule is not present in updates", () => {
     const svc = createChatChannelLinksService({ prisma: {} });
-    const result = await svc.applyLinkUpdate({}, CONV_ID);
-    assert.deepEqual(result, []);
+    assert.deepEqual(svc.applyLinkUpdate({}), []);
   });
 
-  it("checks availability (excluding this conversation) and returns SET fragments when linking", async () => {
-    const prisma = buildPrismaMock([[]]); // assertLinkAvailable finds no collision
-    const svc = createChatChannelLinksService({ prisma });
-    const result = await svc.applyLinkUpdate({ linkedModule: "atlas.projects", linkedEntityId: PROJECT_ID }, CONV_ID);
+  it("returns SET fragments without any collision check when linking (several channels may share a record)", () => {
+    const svc = createChatChannelLinksService({ prisma: {} });
+    const result = svc.applyLinkUpdate({ linkedModule: "runly.projects", linkedEntityId: PROJECT_ID });
     assert.equal(result.length, 2);
-    assert.match(prisma._queryRawCalls[0].sql, /id != \?/);
-    assert.equal(prisma._queryRawCalls[0].values.at(-1), CONV_ID);
   });
 
-  it("propagates the 409 from assertLinkAvailable when the project is already linked elsewhere", async () => {
-    const prisma = buildPrismaMock([[{ id: OTHER_CONV_ID }]]);
-    const svc = createChatChannelLinksService({ prisma });
-    await assert.rejects(
-      () => svc.applyLinkUpdate({ linkedModule: "atlas.projects", linkedEntityId: PROJECT_ID }, CONV_ID),
-      (err) => { assert.equal(err.status, 409); return true; },
-    );
-  });
-
-  it("skips the availability check and returns clearing SET fragments when unlinking (both null)", async () => {
-    const prisma = buildPrismaMock([]); // no $queryRaw call expected at all
-    const svc = createChatChannelLinksService({ prisma });
-    const result = await svc.applyLinkUpdate({ linkedModule: null, linkedEntityId: null }, CONV_ID);
-    assert.equal(result.length, 2);
+  it("also drops the primary flag when unlinking", () => {
+    const svc = createChatChannelLinksService({ prisma: {} });
+    const result = svc.applyLinkUpdate({ linkedModule: null, linkedEntityId: null });
+    assert.equal(result.length, 3);
   });
 });

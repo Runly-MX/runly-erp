@@ -47,6 +47,9 @@ export const chatUpdateConversationSchema = z.object({
   // that would obscure the simpler two-field shape for the common case.
   linkedModule: z.string().trim().min(1).max(64).nullable().optional(),
   linkedEntityId: z.string().uuid().nullable().optional(),
+  // Marks this channel as the primary one among the channels linked to the
+  // same record (several channels may share a linked record).
+  linkPrimary: z.boolean().optional(),
 });
 
 export const chatAddMembersSchema = z.object({

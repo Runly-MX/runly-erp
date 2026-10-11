@@ -77,8 +77,8 @@ export function createChatDomain(request, withAuthHeaders, toQueryString, reques
       }),
 
     // module: e.g. "runly.projects". entityId: the linked record's id.
-    // Returns { data: conversation | null } — used to decide "Crear canal"
-    // vs. "Ir al canal" before the user clicks anything.
+    // Returns { data: primary | null, channels: [...], primaryId } — a record
+    // can own several channels; only those the caller can see are listed.
     getLinkedChannel: (module, entityId, token) =>
       request(`/chat/channels/linked${toQueryString({ module, entityId })}`, {
         headers: withAuthHeaders(token),
