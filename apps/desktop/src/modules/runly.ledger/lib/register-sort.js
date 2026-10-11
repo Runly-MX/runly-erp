@@ -1,6 +1,8 @@
 // Client-side column sorting for the ledger register. Cycle per column:
 // asc -> desc -> unsorted (natural register order, which is what the running
-// balance and drag-to-reorder depend on).
+// balance and drag-to-reorder depend on). `saldo` is deliberately not sortable:
+// it is the running balance computed server-side from the natural order, and
+// sorting only changes how rows are displayed, never their stored saldo.
 
 export function nextSort(sort, key) {
   if (sort?.key !== key) return { key, dir: 'asc' }
@@ -16,7 +18,7 @@ function flattenCategories(categories, map = new Map()) {
   return map
 }
 
-const NUMERIC = new Set(['consecutive', 'deposito', 'retiro', 'saldo'])
+const NUMERIC = new Set(['consecutive', 'deposito', 'retiro'])
 const TEXT_OPTS = { numeric: true, sensitivity: 'base' }
 
 export function sortRows(rows, sort, { types = [], categories = [] } = {}) {
@@ -29,7 +31,6 @@ export function sortRows(rows, sort, { types = [], categories = [] } = {}) {
       case 'consecutive': return Number(row.consecutive ?? 0)
       case 'deposito': return Number(row.deposito ?? 0)
       case 'retiro': return Number(row.retiro ?? 0)
-      case 'saldo': return Number(row.saldo_actual ?? 0)
       case 'fecha': return String(row.fecha ?? '').slice(0, 10)
       case 'tipo': return typeCode.get(String(row.tipo_id ?? '')) ?? ''
       case 'categoria': return categoryName.get(String(row.category_id ?? '')) ?? ''

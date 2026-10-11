@@ -61,7 +61,8 @@ export default function DesktopTransactionTable({
           <SortTh col="deposito" label="Ingreso" className="w-28 text-right" sort={sort} onSort={onSort} />
           <SortTh col="retiro" label="Egreso" className="w-28 text-right" sort={sort} onSort={onSort} />
           <SortTh col="categoria" label="Categoria" className="w-36" sort={sort} onSort={onSort} />
-          <SortTh col="saldo" label="Saldo" className="w-28 text-right" sort={sort} onSort={onSort} />
+          {/* Saldo is the running balance of the register's natural order: never sortable. */}
+          <th className={`${thClass} w-28 text-right`} title="Saldo acumulado según el orden del registro">Saldo</th>
           <th className={`${thClass} w-8`} />
         </tr>
       </thead>
