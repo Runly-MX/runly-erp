@@ -78,7 +78,7 @@ function resolveSupabaseMode(existingEnvContent) {
   return "selfhosted";
 }
 
-const docsRepoOwner = (process.env.RUNLY_DOCS_REPO_OWNER ?? process.env.ATLAS_DOCS_REPO_OWNER) ?? "raulbellosom";
+const docsRepoOwner = (process.env.RUNLY_DOCS_REPO_OWNER ?? process.env.ATLAS_DOCS_REPO_OWNER) ?? "Runly-MX";
 const docsRepoName = (process.env.RUNLY_DOCS_REPO_NAME ?? process.env.ATLAS_DOCS_REPO_NAME) ?? "runly-erp";
 const docsRepoRef = (process.env.RUNLY_DOCS_REPO_REF ?? process.env.ATLAS_DOCS_REPO_REF) ?? "main";
 const docsRawBase =
