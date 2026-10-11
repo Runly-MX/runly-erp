@@ -17,11 +17,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.revision }}
           fetch-depth: 0
@@ -34,12 +34,13 @@ jobs:
           test "$(git rev-parse HEAD)" = "$REVISION"
           git merge-base --is-ancestor "$REVISION" origin/main
           test -z "$(git status --porcelain)"
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9.15.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22.22.3
+          package-manager-cache: false
           registry-url: https://npm.pkg.github.com
           scope: '@runly-mx'
       - run: pnpm install --frozen-lockfile --ignore-scripts
@@ -52,7 +53,7 @@ jobs:
         env:
           REVISION: ${{ inputs.revision }}
         run: pnpm release:shared --revision "$REVISION"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: shared-package-manifest-and-tarballs
@@ -61,22 +62,23 @@ jobs:
   publish:
     needs: prepare
     if: ${{ inputs.publish }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: shared-packages
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.revision }}
           persist-credentials: false
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9.15.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22.22.3
+          package-manager-cache: false
           registry-url: https://npm.pkg.github.com
           scope: '@runly-mx'
       - run: pnpm install --frozen-lockfile --ignore-scripts
@@ -86,7 +88,7 @@ jobs:
           RUNLY_SHARED_PUBLISH_ENABLED: ${{ vars.RUNLY_SHARED_PUBLISH_ENABLED }}
           REVISION: ${{ inputs.revision }}
         run: pnpm release:shared --revision "$REVISION" --publish
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: published-shared-package-manifest
           path: .artifacts/shared-release/
