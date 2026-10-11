@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useOfflineContext, useOfflineStatus } from '@runly/offline'
 import { useAuth } from '../../../auth/AuthProvider'
 import { createLedgerDataClient } from '../lib/ledger-data-client.js'
@@ -98,6 +98,8 @@ export function useAccountTransactions(accountId, { dateFrom, dateTo, limit = 20
     }),
     enabled: Boolean(accountId && (token || localLedgerStore)),
     staleTime: 60 * 1000,
+    // Keep the table mounted while a new date range loads (no skeleton flash).
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -153,5 +155,6 @@ export function useAccountSummary(accountId, { dateFrom, dateTo } = {}) {
     }),
     enabled: Boolean(accountId && (token || localLedgerStore)),
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   })
 }

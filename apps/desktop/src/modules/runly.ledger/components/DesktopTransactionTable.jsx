@@ -1,5 +1,6 @@
 // apps/desktop/src/modules/runly.ledger/components/DesktopTransactionTable.jsx
-import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronsUpDown, Inbox } from 'lucide-react'
+import { EmptyState } from '@runly/ui'
 import CategoryOptions from './CategoryOptions.jsx'
 import { DragHandle, RegisterDndContext, useSortableRow } from './SortableRegister.jsx'
 import { fmtDecimal, toDateValue } from '../lib/spreadsheet-helpers.js'
@@ -67,8 +68,13 @@ export default function DesktopTransactionTable({
       <tbody>
         {rows.length === 0 && !newRow && (
           <tr>
-            <td colSpan={13} className="px-4 py-10 text-center text-sm text-[hsl(var(--muted-foreground))]">
-              Sin movimientos.
+            <td colSpan={13} className="px-4 py-8">
+              <EmptyState
+                icon={Inbox}
+                title="Sin movimientos"
+                description="Aún no hay movimientos en este periodo. Usa Agregar para registrar el primero."
+                className="mx-auto max-w-md border-0 py-10 animate-in fade-in zoom-in-95 duration-300 [&>div:first-child]:animate-bounce [&>div:first-child]:[animation-duration:2.4s]"
+              />
             </td>
           </tr>
         )}

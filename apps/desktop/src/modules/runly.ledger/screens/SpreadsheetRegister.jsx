@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOfflineStatus } from '@runly/offline'
 import { toast } from 'sonner'
-import { Plus, Wallet, ArrowDownLeft, ArrowUpRight, Maximize2, Minimize2, SlidersHorizontal } from 'lucide-react'
-import { Button, ConfirmDialog, ErrorState, SearchInput, FilterBar, DateRangeFilter, ViewModeSwitch, getStoredViewMode, useIsMobile } from '@runly/ui'
+import { Layers, SearchX, Tag, Plus, Wallet, ArrowDownLeft, ArrowUpRight, Maximize2, Minimize2, SlidersHorizontal } from 'lucide-react'
+import { Button, ConfirmDialog, EmptyState, ErrorState, SearchInput, Combobox, DateRangeFilter, ViewModeSwitch, getStoredViewMode, useIsMobile } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useAccountTransactions, useAccountSummary, useLedgerSQLite } from '../hooks/use-ledger-queries.js'
 import { useTransactionMutations } from '../hooks/useTransactionMutations.js'
@@ -44,7 +44,7 @@ export default function SpreadsheetRegister({
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [mobileSheet, setMobileSheet] = useState(null) // { mode: 'new' | 'edit', draft }
   const [search, setSearch] = useState('')
-  const [filterValue, setFilterValue] = useState({ tipo: '', categoria: '' })
+  const [filterValue, setFilterValue] = useState({ tipo: [], categoria: [] }) // multi-select: arrays of ids
   const [sort, setSort] = useState(null) // { key, dir: 'asc' | 'desc' } | null
   // Mobile only: 'cards' (touch list + sheet editor) or 'table' (the same
   // inline spreadsheet grid desktop uses). Desktop always shows the grid.
@@ -89,11 +89,11 @@ export default function SpreadsheetRegister({
   }, [total])
 
   const normalizedSearch = search.trim().toLowerCase()
-  const filtersActive = Boolean(normalizedSearch || filterValue.tipo || filterValue.categoria)
+  const filtersActive = Boolean(normalizedSearch || filterValue.tipo.length || filterValue.categoria.length)
 
   function rowMatchesFilters(row) {
-    if (filterValue.tipo && String(row.tipo_id ?? '') !== String(filterValue.tipo)) return false
-    if (filterValue.categoria && String(row.category_id ?? '') !== String(filterValue.categoria)) return false
+    if (filterValue.tipo.length && !filterValue.tipo.some((id) => String(id) === String(row.tipo_id ?? ''))) return false
+    if (filterValue.categoria.length && !filterValue.categoria.some((id) => String(id) === String(row.category_id ?? ''))) return false
     if (normalizedSearch) {
       const haystack = [row.nombre, row.concepto, row.referencia, row.numero]
         .filter(Boolean)
@@ -128,12 +128,34 @@ export default function SpreadsheetRegister({
       ]
     : []
 
-  const filterBarFilters = [
-    { key: 'tipo', label: 'Tipo', options: types.map((t) => ({ value: t.id, label: t.code })) },
-    { key: 'categoria', label: 'Categoría', options: categories.map((c) => ({ value: c.id, label: c.name })) },
-  ].filter((f) => f.options.length > 0)
+  const flatCategories = (list, depth = 0) => (list ?? []).flatMap((c) => [
+    { value: c.id, label: depth ? `${'— '.repeat(depth)}${c.name}` : c.name },
+    ...flatCategories(c.children, depth + 1),
+  ])
+  const typeOptions = types.map((t) => ({ value: t.id, label: t.code }))
+  const categoryOptions = flatCategories(categories)
+  const setFilter = (key) => (next) => setFilterValue((v) => ({ ...v, [key]: next ?? [] }))
+  const multiFilter = (key, label, icon, options) => options.length > 0 && (
+    <Combobox
+      multiple
+      clearable
+      icon={icon}
+      options={options}
+      value={filterValue[key]}
+      onChange={setFilter(key)}
+      placeholder={label}
+      searchPlaceholder={`Buscar ${label.toLowerCase()}...`}
+      maxChips={1}
+      minWidth={220}
+      dropHeight={320}
+      className="w-auto"
+      triggerClassName="h-8 min-h-8 w-auto max-w-56 rounded-full py-0 pl-2.5 pr-2 text-xs"
+    />
+  )
+  const typeFilter = multiFilter('tipo', 'Tipo', Tag, typeOptions)
+  const categoryFilter = multiFilter('categoria', 'Categoría', Layers, categoryOptions)
   const hasDateFilter = Boolean(onDateFromChange || onDateToChange)
-  const hasMobileFilters = Boolean(hasDateFilter || filterBarFilters.length > 0)
+  const hasMobileFilters = Boolean(hasDateFilter || typeFilter || categoryFilter)
   const dateRangeFilter = hasDateFilter && (
     <DateRangeFilter
       filter={{ key: 'fecha', label: 'Fecha', fromKey: 'from', toKey: 'to' }}
@@ -145,7 +167,7 @@ export default function SpreadsheetRegister({
     />
   )
   const sortedRows = useMemo(() => sortRows(rows, sort, { types, categories }), [rows, sort, types, categories])
-  const activeFilterCount = [dateFrom, dateTo, filterValue.tipo, filterValue.categoria].filter(Boolean).length
+  const activeFilterCount = (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + filterValue.tipo.length + filterValue.categoria.length
 
   const { saveMutation, deleteMutation, moveMutation, getDraft, setDraft, clearDraft, saveRow } = useTransactionMutations({
     accountId,
@@ -297,7 +319,11 @@ export default function SpreadsheetRegister({
               )}
             </Button>
           )}
-          {hasDateFilter && <div className="hidden sm:block shrink-0">{dateRangeFilter}</div>}
+          <div className="hidden sm:flex items-center gap-2 shrink-0">
+            {hasDateFilter && dateRangeFilter}
+            {typeFilter}
+            {categoryFilter}
+          </div>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="sm:hidden text-xs text-[hsl(var(--muted-foreground))] whitespace-nowrap mr-auto">
@@ -346,21 +372,22 @@ export default function SpreadsheetRegister({
       </div>
 
       {/* Date filters — mobile only, collapsible panel below search/toolbar */}
-      {hasDateFilter && mobileFiltersOpen && (
-        <div className="sm:hidden flex items-center gap-2 px-3 py-2 border-b border-[hsl(var(--border))]">
-          {dateRangeFilter}
+      {hasMobileFilters && mobileFiltersOpen && (
+        <div className="sm:hidden flex flex-wrap items-center gap-2 px-3 py-2 border-b border-[hsl(var(--border))]">
+          {hasDateFilter && dateRangeFilter}
+          {typeFilter}
+          {categoryFilter}
         </div>
       )}
 
-      {filterBarFilters.length > 0 && (
-        <div className={`${mobileFiltersOpen ? 'flex' : 'hidden sm:flex'} items-center justify-between gap-2 px-3 py-2 border-b border-[hsl(var(--border))] flex-wrap`}>
-          <FilterBar filters={filterBarFilters} value={filterValue} onChange={setFilterValue} />
-          {noFilterMatches && (
-            <span className="text-xs text-[hsl(var(--muted-foreground))]">
-              Sin movimientos que coincidan con los filtros.
-            </span>
-          )}
-        </div>
+      {noFilterMatches && (
+        <EmptyState
+          variant="compact"
+          icon={SearchX}
+          title="Sin movimientos que coincidan con los filtros."
+          className="mx-3 my-2 animate-in fade-in slide-in-from-top-1 duration-200"
+          action={<Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFilterValue({ tipo: [], categoria: [] }) }}>Limpiar filtros</Button>}
+        />
       )}
 
       {!canEdit && (
