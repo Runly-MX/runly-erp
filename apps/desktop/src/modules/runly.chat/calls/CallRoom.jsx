@@ -24,7 +24,7 @@ const UNANSWERED_CALL_TIMEOUT_MS = 36_000;
 const ALONE_LIMIT_MS = 5 * 60_000;
 
 
-export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitiator = false, minimized = false, onMinimize, onRestore, guestPanelNonce = 0 }) {
+export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitiator = false, minimized = false, onMinimize, onRestore, guestPanelNonce = 0, onRecordingActive = null }) {
   const nativeScreen = useNativeScreenShare(session.call.id);
   // Held for the whole call (full or minimized) so the device doesn't auto-lock.
   useScreenWakeLock(true);
@@ -70,6 +70,9 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   const canTranscribeTracks = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes("chat.calls.transcript.request"));
   const recording = useCallRecording({ callId: session.call.id, conversationId });
   const audioRoute = useAudioRoute({ enabled: !minimized });
+  useEffect(() => {
+    if (recording.active) onRecordingActive?.(session.call.id);
+  }, [recording.active]); // eslint-disable-line react-hooks/exhaustive-deps
   const trackTranscription = useTrackTranscription({ callId: session.call.id, conversationId });
   // "Grabar reunión presencial": recording (and per-speaker transcription when
   // allowed) starts by itself once media is up, exactly once per room.

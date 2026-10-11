@@ -79,11 +79,45 @@ export function CallsProvider({ children }) {
 
   const token = session?.access_token;
 
+  // Calls in which a recording was seen live (CallRoom reports it), so the
+  // end-of-call summary can offer "Ver grabación".
+  const recordedCallsRef = useRef(new Set());
+  const markRecorded = useCallback((callId) => { if (callId) recordedCallsRef.current.add(callId); }, []);
+
+  // End-of-call summary: duration + the most useful next step.
+  const showCallSummary = useCallback((session, fallbackMessage) => {
+    const call = session?.call;
+    const startedRaw = call?.startedAt ?? call?.createdAt;
+    const startedAt = startedRaw ? new Date(startedRaw).getTime() : null;
+    const seconds = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+    if (!call || seconds < 30) {
+      if (fallbackMessage) toast.info(fallbackMessage);
+      return;
+    }
+    const minutes = Math.max(1, Math.round(seconds / 60));
+    const label = minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;
+    const recorded = recordedCallsRef.current.has(call.id);
+    recordedCallsRef.current.delete(call.id);
+    const conversationId = call.conversationId;
+    toast.success(`${call.kind === "AUDIO" ? "Llamada" : "Reunión"} finalizada · ${label}`, {
+      description: recorded ? "La grabación estará lista en unos minutos." : undefined,
+      duration: 8000,
+      action: conversationId ? {
+        label: recorded ? "Ver grabación" : "Ir al chat",
+        onClick: () => {
+          navigate(`/app/m/runly.chat/chat/inbox/${encodeURIComponent(conversationId)}`);
+          if (recorded) setOpenRecordingsFor(conversationId);
+        },
+      } : undefined,
+    });
+  }, [navigate]);
+
   const finishLocalCall = useCallback((callId, message = "La llamada ha terminado.") => {
     if (!callId) return false;
     const matchesIncoming = incomingRef.current?.id === callId;
     const matchesActive = activeRef.current?.call?.id === callId;
     if (!matchesIncoming && !matchesActive) return false;
+    const endedSession = matchesActive ? activeRef.current : null;
     incomingRef.current = null;
     activeRef.current = null;
     setIncomingCall(null);
@@ -91,9 +125,10 @@ export function CallsProvider({ children }) {
     playCallEndSound();
     dismissSystemCallNotification(callId).catch(() => {});
     releaseCallForDevice(callId);
-    toast.info(message);
+    if (endedSession && message === "La llamada ha terminado.") showCallSummary(endedSession, message);
+    else toast.info(message);
     return true;
-  }, []);
+  }, [showCallSummary]);
 
   useEffect(() => {
     if (!incomingCall?.id) return undefined;
@@ -436,14 +471,15 @@ export function CallsProvider({ children }) {
     }
   }, [token, connectWithResponse]);
 
-  const acceptIncoming = useCallback(async () => {
+  // `joinPrefs` ({ camera: false }) = "Solo audio" on a video call.
+  const acceptIncoming = useCallback(async (joinPrefs = null) => {
     if (!incomingCall?.id) return;
     const callId = incomingCall.id;
     claimCallForDevice(callId);
     joiningCallRef.current = callId;
     setIsStarting(true);
     try {
-      connectWithResponse(await runly.calls.join(callId, token));
+      connectWithResponse(await runly.calls.join(callId, token), joinPrefs ? { joinPrefs: { mic: true, ...joinPrefs } } : null);
     } catch (error) {
       releaseCallForDevice(callId);
       toast.error(error?.message || "No se pudo contestar la llamada.");
@@ -480,6 +516,7 @@ export function CallsProvider({ children }) {
     activeRef.current = null;
     releaseCallForDevice(callId);
     if (!callId) return;
+    if (!unanswered) showCallSummary(current);
     try {
       if ((endForAll || unanswered) && isInitiator) await runly.calls.end(callId, token);
       else await runly.calls.leave(callId, token);
@@ -487,7 +524,7 @@ export function CallsProvider({ children }) {
     } catch (error) {
       toast.error(error?.message || "No se pudo actualizar el estado de la llamada.");
     }
-  }, [token, userProfile?.id]);
+  }, [token, userProfile?.id, showCallSummary]);
 
   // Fresh LiveKit token for the same call after the connection dropped (device
   // locked/asleep). Same call id -> CallRoom stays mounted and reconnects.
@@ -585,6 +622,7 @@ export function CallsProvider({ children }) {
             onMinimize={minimizeCall}
             onRestore={restoreCall}
             guestPanelNonce={guestPanelNonce}
+            onRecordingActive={markRecorded}
           />
         </Suspense>
       )}

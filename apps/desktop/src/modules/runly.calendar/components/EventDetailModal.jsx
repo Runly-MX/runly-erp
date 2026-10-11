@@ -20,14 +20,13 @@ import {
   MarkdownViewer,
   ConfirmDialog,
   Skeleton,
-  Button,
 } from "@runly/ui";
 import {
   formatReminderClock,
   formatReminderLead,
   getPrimaryReminderMinutes,
 } from "../lib/reminder-utils";
-import { useCalls } from "../../runly.chat/calls/CallsProvider";
+import { MeetingJoinButton } from "../../runly.chat/calls/MeetingJoinButton";
 
 const STATUS_LABELS = {
   PENDING: "Pendiente",
@@ -44,7 +43,6 @@ export default function EventDetailModal({
 }) {
   const deleteEvent = useDeleteEvent();
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const { enabled: callsEnabled, isStarting: callPending, startCall } = useCalls();
 
   if (!event) return null;
 
@@ -139,23 +137,14 @@ export default function EventDetailModal({
           </div>
 
           <div className="px-5 pb-5 space-y-3">
-            {isChatMeeting && callsEnabled && (
-              <Button
-                type="button"
-                className="w-full"
-                disabled={callPending}
-                onClick={async () => {
-                  const started = await startCall({
-                    conversationId: event.sourceEntityId,
-                    calendarEventId: event._baseEventId ?? event.id,
-                    kind: "VIDEO",
-                  });
-                  if (started) onClose();
-                }}
-              >
-                <Video className="mr-2 h-4 w-4" />
-                Iniciar llamada
-              </Button>
+            {isChatMeeting && (
+              <MeetingJoinButton
+                conversationId={event.sourceEntityId}
+                calendarEventId={event._baseEventId ?? event.id}
+                startAt={event.startAt}
+                endAt={event.endAt}
+                onDone={onClose}
+              />
             )}
 
             {event.description && (
@@ -227,7 +216,7 @@ export default function EventDetailModal({
                     rel="noopener noreferrer"
                     className="text-sm text-violet-500 hover:underline truncate"
                   >
-                    Unirse a la videollamada
+                    {isChatMeeting ? "Enlace para invitados externos" : "Unirse a la videollamada"}
                   </a>
                 </div>
               )}
