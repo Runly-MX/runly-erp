@@ -17,6 +17,7 @@ import {
   pickCornerItem,
 } from "../lib/cornerMenu";
 import { ModuleIcon } from "./ModuleCard";
+import { useCalls } from "../modules/runly.chat/calls/CallsProvider";
 
 // Below modals (50), above the quick-notes pad (48) and the call room (46).
 const Z_CORNER = 49;
@@ -102,6 +103,9 @@ export function CornerMenu() {
   // Hidden while the on-screen keyboard is open (not merely on focus: some
   // screens autofocus a field without raising the keyboard).
   const editing = useKeyboardOpen();
+  // A full-screen call owns the whole viewport (its "Salir" sits in this corner).
+  const { activeCall, minimized: callMinimized } = useCalls();
+  const callCoversScreen = Boolean(activeCall) && !callMinimized;
   const navigate = useNavigate();
   const { availableModules } = useRuntimeModules();
   const { launch, isOfflineBlocked } = useModuleLauncher(availableModules);
@@ -194,7 +198,7 @@ export function CornerMenu() {
     return () => window.removeEventListener("keydown", onKey);
   }, [menu]);
 
-  if (!isTouch) return null;
+  if (!isTouch || callCoversScreen) return null;
 
   const selected = selection ? rings[selection.ring][selection.index] : null;
   const caption = selected?.label ?? "Desliza hacia una opción y suelta";

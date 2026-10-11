@@ -58,7 +58,7 @@ export function InPersonRecorder({
             key={index}
             className={cn(
               "w-1.5 rounded-full transition-[height] duration-75",
-              micEnabled ? "bg-[var(--brand-primary)]" : "bg-slate-600",
+              micEnabled ? "bg-(--brand-primary)" : "bg-slate-600",
             )}
             style={{ height: `${Math.max(6, value * 96)}px`, opacity: 0.35 + (index / history.length) * 0.65 }}
           />

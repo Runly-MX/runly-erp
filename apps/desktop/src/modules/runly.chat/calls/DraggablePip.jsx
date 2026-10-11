@@ -116,7 +116,7 @@ export function DraggablePip({
         title={label ? `Mostrar cámara de ${label}` : "Mostrar cámara"}
         className="absolute z-20 flex touch-none select-none items-center gap-2 rounded-full bg-slate-900/90 px-3 py-2 text-xs font-medium text-white shadow-2xl ring-1 ring-white/20 backdrop-blur"
       >
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-500/30 text-[0.7rem] font-semibold text-violet-100">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-[0.7rem] font-semibold text-white">
           {initial}
         </span>
         <Video className="h-4 w-4 text-white/80" />

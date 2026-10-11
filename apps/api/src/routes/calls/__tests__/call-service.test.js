@@ -417,7 +417,7 @@ describe("createCallService", () => {
     assert.equal(result.status, "ENDED");
     assert.deepEqual(countWhere, {
       callId: CALL_ID,
-      userId: { not: CALLER_ID },
+      userId: { not: CALLEE_ID },
       status: "JOINED",
     });
     assert.equal(callUpdate.data.status, "ENDED");
@@ -1003,5 +1003,27 @@ describe("createCallService — meetings without ringing", () => {
 
     assert.equal(out.token, "t");
     assert.equal(created[0].userId, CALLEE_ID);
+  });
+});
+
+describe("createCallService — leaving a group meeting", () => {
+  it("keeps a group meeting going when the host leaves and others are still in it", async () => {
+    let ended = false;
+    const meeting = {
+      id: CALL_ID, conversationId: CONVERSATION_ID, kind: "VIDEO", status: "ACTIVE",
+      initiatedByUserId: CALLER_ID, livekitRoomName: `call_${CALL_ID}`,
+      participants: [{ userId: CALLER_ID, status: "JOINED" }, { userId: CALLEE_ID, status: "JOINED" }],
+      initiator: { id: CALLER_ID, displayName: "Host" }, calendarEvent: null,
+    };
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Host" }) },
+      call: { findUnique: async () => meeting, update: async () => { ended = true; return {}; } },
+      callParticipant: { update: async () => ({}), updateMany: async () => ({ count: 0 }), count: async () => 1 },
+      $queryRaw: async (strings) => (strings.join("?").includes("SELECT type") ? [{ type: "channel" }] : [{ id: "member-row" }]),
+      $transaction: async (ops) => Promise.all(ops),
+    };
+    const service = createCallService({ prisma, env: enabledEnv() });
+    await service.leaveCall({ authUserId: "host-auth", callId: CALL_ID });
+    assert.equal(ended, false);
   });
 });

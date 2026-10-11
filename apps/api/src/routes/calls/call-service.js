@@ -644,6 +644,9 @@ export function createCallService({
     // even if they declined, missed the ring, left, or were never rung.
     await assertMembership(before.conversationId, profile.id);
     let participant = before.participants.find((entry) => entry.userId === profile.id) ?? null;
+    if (participant?.status === "REMOVED") {
+      throw new CallServiceError("El anfitrión te quitó de esta llamada.", 403);
+    }
     if (!participant) {
       participant = await prisma.callParticipant.create({
         data: { callId, userId: profile.id, status: "INVITED", livekitIdentity: profile.id },
@@ -751,14 +754,16 @@ export function createCallService({
       where: { callId_userId: { callId, userId: profile.id } },
       data: { status: "LEFT", leftAt: now() },
     });
-    const remainingPeerCount = await prisma.callParticipant.count({
-      where: {
-        callId,
-        userId: { not: call.initiatedByUserId },
-        status: "JOINED",
-      },
+    // A 1:1 call ends when either side hangs up. A group call or meeting keeps
+    // going while anyone is still in it — even after the host leaves (the host
+    // ends it for everyone with endCall, "Finalizar para todos").
+    const remaining = await prisma.callParticipant.count({
+      where: { callId, userId: { not: profile.id }, status: "JOINED" },
     });
-    if (profile.id === call.initiatedByUserId || remainingPeerCount === 0) {
+    const [conversation] = await prisma.$queryRaw`
+      SELECT type FROM chat_conversations WHERE id = ${call.conversationId} LIMIT 1
+    `;
+    if (conversation?.type === "direct" || remaining === 0) {
       await endCallRecord(call, "ended");
     }
     return getCallRecord(callId);

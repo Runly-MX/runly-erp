@@ -238,10 +238,10 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
                   onClick={() => setMode(key)}
                   className={[
                     "flex min-h-[84px] flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)]",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary)",
                     mode === key
-                      ? "border-[var(--brand-primary)] bg-[var(--brand-soft)]"
-                      : "border-border hover:border-[var(--brand-primary)]/40",
+                      ? "border-(--brand-primary) bg-(--brand-soft)"
+                      : "border-border hover:border-(--brand-primary)/40",
                   ].join(" ")}
                 >
                   <Icon className="h-4 w-4 text-[hsl(var(--foreground))]" aria-hidden />

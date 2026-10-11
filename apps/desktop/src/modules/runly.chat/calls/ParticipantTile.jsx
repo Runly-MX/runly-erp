@@ -1,20 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { useCoarsePointer } from "@runly/ui";
-import { Hand, MicOff, Pin, PinOff } from "lucide-react";
-import { Track } from "livekit-client";
+import {
+  cn, useCoarsePointer,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from "@runly/ui";
+import { Hand, MicOff, MoreHorizontal, Pin, PinOff, SignalLow, UserX, MonitorUp } from "lucide-react";
+import { ConnectionQuality, Track } from "livekit-client";
+import { CallAvatar } from "./ui/CallAvatar";
+import { isGuestIdentity } from "./ui/callTheme";
+import "./ui/call-ui.css";
 
-// A caller-requested "auto" fit means cover for camera, contain for screen
-// (see the `fit` prop doc on ParticipantTile below). But a portrait phone
-// camera forced to `cover` in a landscape tile crops so aggressively it reads
-// as distorted — so for camera tracks specifically, "auto" is resolved at
-// render time from the track's own decoded dimensions instead of a fixed
-// default. See
-// docs/superpowers/specs/2026-09-23-call-spotlight-polish-round2-design.md §8.1.
+// A caller-requested "auto" fit means cover for camera, contain for screen.
+// A portrait phone camera forced to `cover` in a landscape tile crops so much
+// it reads as distorted, so camera "auto" is resolved from the decoded track
+// orientation. See docs/superpowers/specs/2026-09-23-call-spotlight-polish-round2-design.md §8.1.
 function resolveAutoFit(isPortrait) {
   return isPortrait ? "contain" : "cover";
 }
 
-function TrackRenderer({ participant, source, muted = false, mirror = false, fit = "cover" }) {
+export function TrackRenderer({ participant, source, muted = false, mirror = false, fit = "cover", className = "" }) {
   const elementRef = useRef(null);
   const publication = participant?.getTrackPublication?.(source);
   const track = publication?.track;
@@ -48,14 +51,55 @@ function TrackRenderer({ participant, source, muted = false, mirror = false, fit
       autoPlay
       playsInline
       muted={muted}
-      className={`h-full w-full ${effectiveFit === "contain" ? "object-contain" : "object-cover"} ${mirror ? "-scale-x-100" : ""}`}
+      className={cn(
+        "h-full w-full",
+        effectiveFit === "contain" ? "object-contain" : "object-cover",
+        mirror && "-scale-x-100",
+        className,
+      )}
     />
   );
 }
 
+function NameChip({ name, role, micMuted, speaking, isScreen, compact }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex max-w-full items-center gap-1.5 rounded-full bg-black/55 font-medium text-white backdrop-blur-md",
+        compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs",
+      )}
+    >
+      {isScreen ? (
+        <MonitorUp className="h-3.5 w-3.5 shrink-0 text-white/80" aria-hidden />
+      ) : micMuted ? (
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-(--call-danger)" title="Micrófono apagado">
+          <MicOff className="h-2.5 w-2.5" aria-label="Micrófono apagado" />
+        </span>
+      ) : speaking ? (
+        <span className="call-eq shrink-0" aria-label="Hablando"><span /><span /><span /></span>
+      ) : null}
+      <span className="truncate">{name}</span>
+      {role === "host" && !compact && (
+        <span className="shrink-0 rounded-full bg-(--call-accent-soft) px-1.5 py-px text-[10px] font-semibold text-(--call-accent)">
+          Anfitrión
+        </span>
+      )}
+      {role === "guest" && !compact && (
+        <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-px text-[10px] font-semibold text-white/70">
+          Invitado
+        </span>
+      )}
+    </span>
+  );
+}
+
+// One person (or one shared screen) in the call. `info` enriches the LiveKit
+// participant with what LiveKit doesn't know: { name, avatarUrl, role }.
+// `actions` (host moderation) shows up in the ⋯ menu: { onMute, onRemove }.
 export function ParticipantTile({
   participant,
   isLocal,
+  info = null,
   handRaised = false,
   pinned = false,
   onPin = null,
@@ -63,13 +107,12 @@ export function ParticipantTile({
   className = "",
   preferSource = "auto",
   // "auto" = contain for screen-share, cover-or-contain for camera depending
-  // on its decoded orientation (see resolveAutoFit above). Pass "contain" to
-  // force letterboxing regardless of orientation (used by the main spotlight
-  // tile).
+  // on its orientation. "contain" forces letterboxing (main stage tiles).
   fit = "auto",
-  // Whether this participant is a currently active speaker (LiveKit
-  // room.activeSpeakers) — shows a subtle ring, Teams/Meet-style.
   speaking = false,
+  avatarSize = "lg",
+  compact = false,
+  actions = null,
 }) {
   const coarse = useCoarsePointer();
   const screen = participant?.getTrackPublication?.(Track.Source.ScreenShare);
@@ -87,16 +130,32 @@ export function ParticipantTile({
   const hasVideo =
     source === Track.Source.ScreenShare ? screenLive : cameraLive || (preferSource === "auto" && screenLive);
   const isScreen = source === Track.Source.ScreenShare;
-  const name = participant?.name || (isLocal ? "Tu" : participant?.identity) || "Participante";
+  const identity = participant?.identity ?? "";
+  const baseName = info?.name || participant?.name || (isLocal ? "Tú" : identity) || "Participante";
+  const name = isScreen ? `Pantalla de ${isLocal ? "ti" : baseName}` : isLocal ? `${baseName} (tú)` : baseName;
+  const role = info?.role ?? (isGuestIdentity(identity) ? "guest" : null);
+  const micMuted = !isScreen && participant && !participant.isMicrophoneEnabled;
+  const weak = [ConnectionQuality.Poor, ConnectionQuality.Lost].includes(participant?.connectionQuality);
+  // Small tiles on touch screens skip the ⋯ button (double tap still pins);
+  // the people panel has the same actions.
+  const showMenu = Boolean(onPin || actions?.onMute || actions?.onRemove) && !(coarse && compact);
 
   return (
-    // The speaking ring lives on this outer box (no overflow-hidden here) —
-    // putting overflow-hidden and an outer ring/box-shadow on the SAME
-    // element clips the shadow to the element's own clip region in every
-    // major browser, so the emerald ring got cut off at the tile edges.
-    // overflow-hidden + rounded corners move to the inner box instead.
-    <div className={`group/tile h-full min-h-0 rounded-2xl transition-shadow ${speaking ? "ring-2 ring-emerald-400" : "ring-1 ring-white/10"} ${className}`}>
-      <div className="relative h-full min-h-0 overflow-hidden rounded-2xl bg-slate-900">
+    // The speaking ring lives on the outer box (no overflow-hidden here):
+    // overflow-hidden + an outer ring on the same element clips the ring.
+    <div
+      className={cn(
+        "group/tile relative h-full min-h-0 w-full rounded-2xl transition-shadow duration-200",
+        speaking && !isScreen
+          ? "ring-2 ring-(--call-speaking) shadow-[0_0_0_4px_rgba(52,211,153,0.14)]"
+          : pinned
+            ? "ring-2 ring-(--call-accent)"
+            : "ring-1 ring-white/[0.07]",
+        className,
+      )}
+      onDoubleClick={onPin ? () => onPin(identity) : undefined}
+    >
+      <div className="relative h-full min-h-0 overflow-hidden rounded-2xl bg-(--call-tile)">
         {hasVideo ? (
           <TrackRenderer
             participant={participant}
@@ -106,35 +165,66 @@ export function ParticipantTile({
             mirror={isLocal && source === Track.Source.Camera && mirrorLocalCamera}
           />
         ) : (
-          <div className="flex h-full min-h-0 items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-violet-500/20 text-3xl font-semibold text-violet-100 ring-1 ring-violet-400/30">
-              {name.slice(0, 1).toUpperCase()}
-            </div>
+          <div className="flex h-full min-h-0 items-center justify-center bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),transparent_65%)]">
+            <CallAvatar name={baseName} seed={identity} url={info?.avatarUrl} size={avatarSize} speaking={speaking} />
           </div>
         )}
-        {handRaised && (
-          <div className="absolute left-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 shadow-lg backdrop-blur-sm">
-            <Hand className="h-5 w-5 text-amber-300" />
-          </div>
+
+        <div className="pointer-events-none absolute left-2 top-2 z-10 flex items-center gap-1.5">
+          {handRaised && (
+            <span className="flex h-7 items-center gap-1 rounded-full bg-(--call-hand) px-2 text-[11px] font-bold text-amber-950 shadow-lg" title="Mano levantada">
+              <Hand className="h-3.5 w-3.5" aria-label="Mano levantada" />
+            </span>
+          )}
+          {weak && (
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-amber-300 backdrop-blur" title="Conexión inestable">
+              <SignalLow className="h-4 w-4" aria-label="Conexión inestable" />
+            </span>
+          )}
+        </div>
+
+        {showMenu && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Opciones de ${baseName}`}
+                className={cn(
+                  "absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white/90 backdrop-blur transition hover:bg-black/70",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--call-accent)",
+                  pinned || coarse ? "opacity-100" : "opacity-0 group-hover/tile:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100",
+                )}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="z-60 w-52">
+              {onPin && (
+                <DropdownMenuItem onSelect={() => onPin(identity)}>
+                  {pinned ? <PinOff className="mr-2 h-4 w-4" /> : <Pin className="mr-2 h-4 w-4" />}
+                  {pinned ? "Dejar de fijar" : "Fijar en pantalla"}
+                </DropdownMenuItem>
+              )}
+              {actions?.onMute && !micMuted && (
+                <DropdownMenuItem onSelect={() => actions.onMute(participant)}>
+                  <MicOff className="mr-2 h-4 w-4" /> Silenciar
+                </DropdownMenuItem>
+              )}
+              {actions?.onRemove && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-red-500 focus:text-red-500" onSelect={() => actions.onRemove(participant)}>
+                    <UserX className="mr-2 h-4 w-4" /> Quitar de la llamada
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
-        {onPin && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onPin(participant?.identity); }}
-            title={pinned ? "Quitar de destacado" : "Destacar"}
-            className={[
-              "absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white/90 shadow-lg backdrop-blur-sm transition hover:bg-black/65",
-              pinned || coarse ? "opacity-100" : "opacity-0 group-hover/tile:opacity-100 focus-visible:opacity-100",
-            ].join(" ")}
-          >
-            {pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-          </button>
-        )}
-        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 to-transparent px-3 pb-3 pt-8">
-          <span className="truncate text-sm font-medium text-white">
-            {isLocal ? `${name} (tu)` : name}
-          </span>
-          {!participant?.isMicrophoneEnabled && <MicOff className="h-4 w-4 text-white/70" />}
+
+        <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 flex items-end bg-linear-to-t from-black/60 to-transparent", compact ? "p-1.5 pt-6" : "p-2.5 pt-10")}>
+          <NameChip name={name} role={role} micMuted={micMuted} speaking={speaking} isScreen={isScreen} compact={compact} />
         </div>
       </div>
     </div>

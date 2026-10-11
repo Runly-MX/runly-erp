@@ -2069,6 +2069,8 @@ enum CallParticipantStatus {
   LEFT
   DECLINED
   MISSED
+  // Taken out of the call by the host; cannot re-join that call.
+  REMOVED
 }
 
 model GoogleCalendarConnection {

@@ -1,45 +1,60 @@
-import { useEffect } from "react";
-import { Button } from "@runly/ui";
-import {
-  Camera,
-  CameraOff,
-  Captions,
-  CaptionsOff,
-  Circle,
-  Flashlight,
-  FlashlightOff,
-  Hand,
-  LayoutGrid,
-  MessageSquare,
-  Mic,
-  MicOff,
-  Minimize2,
-  MonitorUp,
-  PhoneOff,
-  PictureInPicture2,
-  ScreenShareOff,
-  StopCircle,
-  SwitchCamera,
-  UserPlus,
-  Volume2,
-} from "lucide-react";
-import { Track } from "livekit-client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { cn, ConfirmDialog, useCoarsePointer } from "@runly/ui";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "../../../auth/AuthProvider";
+import { runly } from "../../../lib/runly";
+import { useChatMessages } from "../hooks/useChatMessages";
+import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
+import { getConversationDisplayName } from "../lib/chatUtils";
 import { playCallSound } from "./callSounds";
-import { ParticipantTile } from "./ParticipantTile";
-import { SpotlightLayout } from "./SpotlightLayout";
-import { DirectFocusLayout } from "./DirectFocusLayout";
-import { CallViewSwitcher } from "./CallViewSwitcher";
+import { CallChatPanel } from "./CallChatPanel";
+import { CallShareDialog } from "./CallShareDialog";
 import { CallReactionsOverlay } from "./CallReactionsOverlay";
-import { CallReactionButton } from "./CallReactionButton";
 import { RaisedHandsBar } from "./RaisedHandsBar";
-import { RecordingBanner } from "./RecordingBanner";
-import { InPersonRecorder } from "./InPersonRecorder";
-import { spotlightStrip } from "./lib/callLayout";
+import { CallTopBar, MobileCallTopBar } from "./layout/CallTopBar";
+import { CallStage } from "./layout/CallStage";
+import { LastMessageChip } from "./layout/LastMessageChip";
+import { CallControlDock } from "./controls/CallControlDock";
+import { MobileCallBar } from "./controls/MobileCallControls";
+import { DeviceSettingsDialog, ShortcutsDialog } from "./controls/CallDialogs";
+import { CallSidePanel, CallPanelSheet } from "./panel/CallSidePanel";
+import { CallPeoplePanel } from "./people/CallPeoplePanel";
+import { useCallRoster } from "./hooks/useCallRoster";
+import { useMediaDevices } from "./hooks/useMediaDevices";
+import { useCallShortcuts } from "./hooks/useCallShortcuts";
+import { useChromeVisibility } from "./hooks/useChromeVisibility";
+import { useFocusedSpeaker } from "./hooks/useFocusedSpeaker";
+import { useElementSize } from "./layout/useElementSize";
+import { resolveCallView, resolveViewport, shouldAutoHideChrome } from "./lib/callViewMode";
+import "./ui/call-ui.css";
 
-function formatDuration(totalSeconds) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+const LAYOUT_PREF_KEY = "runly.calls.layout";
+const PANEL_PREF_KEY = "atlas.calls.chatPanel.collapsed";
+const RING_UI_MS = 36_000;
+
+function readPref(key, fallback) {
+  try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+}
+function writePref(key, value) {
+  try { localStorage.setItem(key, value); } catch { /* storage disabled */ }
+}
+function unwrap(r) {
+  return r?.data ?? r;
+}
+
+function useWindowSize() {
+  const [size, setSize] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  useEffect(() => {
+    const onResize = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+  return size;
 }
 
 function OutgoingCallTone({ active }) {
@@ -47,342 +62,452 @@ function OutgoingCallTone({ active }) {
     if (!active) return undefined;
     return playCallSound("ringtone", { loop: true, volume: 0.5 });
   }, [active]);
-
   return null;
 }
 
-export function CallRoomLayout({ view, actions, chat }) {
-  const {
-    session,
-    connectionState,
-    engineReady = true,
-    elapsed,
-    outgoingToneActive,
-    remoteParticipants,
-    remoteEntries,
-    localEntry,
-    participants,
-    useFocusLayout,
-    screenShareEntry,
-    isVideoActive,
-    mirrorLocalCamera,
-    gridClass,
-    needsAudio,
-    micEnabled,
-    cameraEnabled,
-    canSwitchCamera,
-    torchSupported,
-    torchEnabled,
-    screenEnabled,
-    screenShareSupported,
-    isDirectVideo,
-    layoutMode,
-    invitePanel = null,
-    reactions = [],
-    raisedHands = new Map(),
-    myHandRaised = false,
-    isHost = false,
-    pinnedIdentity = null,
-    myLocalIdentity = null,
-    directSwapped = false,
-    speakingIds = new Set(),
-    canRecord = false,
-    recordingActive = false,
-    recordingBusy = false,
-    canTranscribeTracks = false,
-    trackTranscriptionActive = false,
-    trackTranscriptionBusy = false,
-    inPerson = false,
-  } = view;
+// Presentation shell of a call: resolves the view for the device and call
+// type, and owns panels, roster, devices, dialogs, shortcuts and the
+// immersive chrome. Connection and media logic stay in CallRoom.
+export function CallRoomLayout({ room, call, media, people, live, actions, invitePanel = null, peoplePanelNonce = 0 }) {
+  const { session, userProfile } = useAuth();
+  const token = session?.access_token;
+  const conversationId = call.session.call.conversationId;
+  const { width, height } = useWindowSize();
+  const coarse = useCoarsePointer();
+  const viewport = resolveViewport({ width, height, coarse });
+  const isPhone = viewport === "phone" || viewport === "phone-landscape";
+  const landscape = viewport === "phone-landscape";
+  const useSheets = viewport !== "desktop";
 
-  const {
-    isMobile = false,
-    mobileView = "video",
-    onMobileViewChange = () => {},
-    chatExpanded = true,
-    onToggleChatExpanded = () => {},
-    chatUnread = 0,
-    hasScreenShare = false,
-    panel: chatPanel = null,
-    canShare = false,
-    onShare = () => {},
-    pendingLobby = 0,
-    onOpenGuests = null,
-  } = chat ?? {};
-
-  const showChatColumn = !isMobile && chatExpanded;
-  const showChatRail = !isMobile && !chatExpanded;
-  const mobileChatOpen = isMobile && mobileView === "chat";
-
-  // The spotlight main: a still-valid manual pin, or (with no pin) whoever is
-  // screen-sharing — see resolveSpotlightMain in lib/callLayout.js. Null
-  // means "no spotlight": 1:1 falls to DirectFocusLayout, everything else to
-  // the classic grid. `spotlightStrip` also resolves the strip ("everyone
-  // else", including the sharer's own camera tile if they have one live).
-  const screenShareHasCamera = Boolean(
-    screenShareEntry?.participant?.getTrackPublication?.(Track.Source.Camera)?.track
-      && !screenShareEntry.participant.getTrackPublication(Track.Source.Camera).isMuted,
-  );
-  const { mainEntry: spotlightMain, others: spotlightOthers } = spotlightStrip({
-    participants,
-    pinnedIdentity,
-    screenShareEntry: screenShareEntry ? { ...screenShareEntry, hasCamera: screenShareHasCamera } : null,
+  // ---- conversation, link, chat -------------------------------------------
+  const { data: detailData } = useChatConversationDetail(conversationId);
+  const conversation = unwrap(detailData);
+  const title = call.inPerson
+    ? "Reunión presencial"
+    : call.session.call.calendarEvent?.title
+      || (conversation ? getConversationDisplayName(conversation, userProfile?.id) : null)
+      || call.session.call.initiator?.displayName
+      || "Reunión";
+  const linkQuery = useQuery({
+    queryKey: ["call-link", conversationId],
+    queryFn: async () => unwrap(await runly.calls.getLink(conversationId, token))?.link ?? null,
+    enabled: Boolean(conversationId && token),
+    staleTime: 60_000,
+    retry: false,
   });
+  const link = linkQuery.data ?? null;
+
+  const { data: chatData } = useChatMessages(conversationId);
+  const messages = useMemo(() => chatData?.data ?? [], [chatData]);
+
+  // ---- panels ---------------------------------------------------------------
+  // Desktop: a remembered side column. Tablets/phones: a bottom sheet.
+  const [panel, setPanel] = useState(() => (readPref(PANEL_PREF_KEY, "0") === "1" ? null : "chat"));
+  const [sheetOpen, setSheetOpen] = useState(false);
+  useEffect(() => {
+    if (useSheets) setSheetOpen(false);
+  }, [useSheets]);
+  const openPanel = useCallback((tab) => {
+    setPanel(tab);
+    if (useSheets) setSheetOpen(true);
+    else writePref(PANEL_PREF_KEY, "0");
+  }, [useSheets]);
+  const closePanel = useCallback(() => {
+    if (useSheets) setSheetOpen(false);
+    else { setPanel(null); writePref(PANEL_PREF_KEY, "1"); }
+  }, [useSheets]);
+  const togglePanel = useCallback((tab) => {
+    const open = useSheets ? sheetOpen && panel === tab : panel === tab;
+    if (open) closePanel();
+    else openPanel(tab);
+  }, [useSheets, sheetOpen, panel, openPanel, closePanel]);
+  useEffect(() => { if (peoplePanelNonce) openPanel("people"); }, [peoplePanelNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shownPanel = useSheets ? (sheetOpen ? panel : null) : panel;
+  const chatVisible = shownPanel === "chat";
+
+  // Unread chat messages while the chat is not on screen.
+  const seenRef = useRef(null);
+  const [chatUnread, setChatUnread] = useState(0);
+  useEffect(() => {
+    if (!chatData) return;
+    if (seenRef.current === null || chatVisible) {
+      seenRef.current = messages.length;
+      setChatUnread(0);
+      return;
+    }
+    if (messages.length > seenRef.current) {
+      setChatUnread((n) => n + (messages.length - seenRef.current));
+      seenRef.current = messages.length;
+    }
+  }, [messages.length, chatVisible, chatData]);
+
+  const callStartedAt = new Date(call.session.call.startedAt ?? call.session.call.createdAt ?? Date.now()).getTime();
+  const lastMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const m = messages[i];
+      if (m.message_type === "system" || m.sender_type === "system") continue;
+      if (new Date(m.created_at).getTime() < callStartedAt) return null;
+      return m;
+    }
+    return null;
+  }, [messages, callStartedAt]);
+
+  // ---- roster ---------------------------------------------------------------
+  const roster = useCallRoster({
+    participants: call.participants,
+    members: conversation?.members ?? [],
+    guests: people.guestsApi.guests,
+    initiatorId: call.session.call.initiatedByUserId,
+    raisedHands: live.raisedHands,
+    speakingIds: live.speakingIds,
+  });
+  const tileInfo = useCallback((identity) => roster.infoByIdentity.get(identity) ?? null, [roster]);
+
+  const [ringing, setRinging] = useState(() => new Set());
+  const ring = useCallback(async (profileId) => {
+    const drop = () => setRinging((s) => { const n = new Set(s); n.delete(profileId); return n; });
+    setRinging((s) => new Set(s).add(profileId));
+    setTimeout(drop, RING_UI_MS);
+    try {
+      await runly.calls.ring(call.session.call.id, [profileId], token);
+    } catch (error) {
+      toast.error(error?.message || "No se pudo llamar.");
+      drop();
+    }
+  }, [call.session.call.id, token]);
+
+  const moderate = useMemo(() => ({
+    mute: async (person) => {
+      try {
+        if (person.guestId) await people.guestsApi.mute(person.guestId, true);
+        else {
+          const res = unwrap(await runly.calls.muteParticipant(call.session.call.id, person.identity, token));
+          if (res?.liveActionOk === false) { toast.error("No se pudo silenciar, inténtalo de nuevo."); return; }
+        }
+        toast.success(`Silenciaste a ${person.name}.`);
+      } catch (error) { toast.error(error?.message || "No se pudo silenciar."); }
+    },
+    remove: async (person) => {
+      try {
+        if (person.guestId) await people.guestsApi.kick(person.guestId);
+        else await runly.calls.removeParticipant(call.session.call.id, person.identity, token);
+        toast.success(`${person.name} salió de la llamada.`);
+      } catch (error) { toast.error(error?.message || "No se pudo quitar a la persona."); }
+    },
+  }), [call.session.call.id, token, people.guestsApi]);
+
+  // Tile props shared by every layout.
+  const myIdentity = room.localParticipant?.identity;
+  const tileProps = useCallback((entry) => {
+    const id = entry.participant?.identity;
+    const info = tileInfo(id);
+    const canModerate = people.isHost && !entry.isLocal && info?.role !== "host" && entry.source !== "screen";
+    return {
+      info,
+      handRaised: entry.isLocal ? live.myHandRaised : live.raisedHands.has(id),
+      speaking: live.speakingIds.has(id),
+      pinned: live.pinnedIdentity === id,
+      onPin: call.participants.length > 1 ? actions.setPinned : null,
+      mirrorLocalCamera: media.mirrorLocalCamera,
+      actions: canModerate && info
+        ? { onMute: () => moderate.mute(info), onRemove: () => moderate.remove(info) }
+        : null,
+    };
+  }, [tileInfo, people.isHost, live, call.participants.length, actions.setPinned, media.mirrorLocalCamera, moderate]);
+
+  // ---- view -----------------------------------------------------------------
+  const [layoutPref, setLayoutPrefState] = useState(() => readPref(LAYOUT_PREF_KEY, "auto"));
+  const setLayoutPref = useCallback((value) => { setLayoutPrefState(value); writePref(LAYOUT_PREF_KEY, value); }, []);
+  const view = resolveCallView({
+    participantCount: call.participants.length,
+    hasScreenShare: call.screenEntries.length > 0,
+    isVideoActive: media.isVideoActive,
+    layoutPref,
+    pinnedIdentity: live.pinnedIdentity,
+    inPerson: call.inPerson,
+    isPhone,
+  });
+  const focusedSpeaker = useFocusedSpeaker(live.speakingIds, myIdentity);
+  const focusMain = useMemo(() => {
+    const byId = (id) => call.participants.find((e) => e.participant?.identity === id) ?? null;
+    return byId(live.pinnedIdentity) ?? byId(focusedSpeaker) ?? call.participants.find((e) => !e.isLocal) ?? call.participants[0];
+  }, [call.participants, live.pinnedIdentity, focusedSpeaker]);
+  const [activeScreen, setActiveScreen] = useState(null);
+  const [stripCollapsed, setStripCollapsed] = useState(false);
+
+  const autoHide = shouldAutoHideChrome({ viewport, view, isVideoActive: media.isVideoActive });
+  const chrome = useChromeVisibility({ autoHide, pinned: useSheets && sheetOpen });
+
+  // ---- dialogs ----------------------------------------------------------------
+  const [shareOpen, setShareOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [confirmEndAll, setConfirmEndAll] = useState(false);
+  const mediaDevices = useMediaDevices(room, { enabled: call.engineReady });
+
+  // A recording started by someone else: tell everyone once (consent).
+  const currentRecording = media.recording.current;
+  const recordingId = currentRecording?.id ?? null;
+  const announcedRef = useRef(null);
+  useEffect(() => {
+    if (!recordingId || announcedRef.current === recordingId) return;
+    announcedRef.current = recordingId;
+    if (currentRecording?.startedByUserId === userProfile?.id) return;
+    const by = currentRecording?.startedBy?.displayName;
+    toast.info(by ? `${by} empezó a grabar la reunión.` : "Esta reunión se está grabando.", { id: `rec-${recordingId}` });
+  }, [recordingId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const recordingStartedAt = currentRecording?.startedAt ? new Date(currentRecording.startedAt).getTime() : null;
+  // `call.elapsed` ticks every second, which keeps this fresh too.
+  const recordingElapsed = recordingStartedAt ? Math.max(0, Math.floor((Date.now() - recordingStartedAt) / 1000)) : 0;
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    else document.documentElement.requestFullscreen?.().catch(() => {});
+  }, []);
+
+  const isDirect = conversation?.type === "direct";
+  const ctl = {
+    ...media,
+    myHandRaised: live.myHandRaised,
+    recordingActive: media.recording.active,
+    recordingBusy: media.recording.busy,
+    toggleRecording: media.recording.active ? media.recording.stop : media.recording.start,
+    trackTranscriptionActive: media.trackTranscription.active,
+    trackTranscriptionBusy: media.trackTranscription.busy,
+    toggleTranscription: media.trackTranscription.active ? media.trackTranscription.stop : media.trackTranscription.start,
+    sendReaction: live.sendReaction,
+    toggleHand: live.toggleHand,
+    panel: shownPanel,
+    togglePanel,
+    chatUnread,
+    peopleCount: roster.inCall.length,
+    lobbyCount: people.isHost ? roster.lobby.length : 0,
+    layoutPref,
+    setLayoutPref,
+    openDeviceSettings: () => setSettingsOpen(true),
+    openShortcuts: () => setShortcutsOpen(true),
+    toggleFullscreen,
+    canEndForAll: people.isHost && !isDirect && call.participants.length + roster.lobby.length > 1,
+    leave: () => actions.leave(),
+    requestEndForAll: () => setConfirmEndAll(true),
+    audioRoute: media.audioRoute ?? null,
+  };
+
+  useCallShortcuts({
+    toggleMic: media.toggleMic,
+    toggleCamera: media.toggleCamera,
+    toggleHand: live.toggleHand,
+    toggleChat: () => togglePanel("chat"),
+    togglePeople: () => togglePanel("people"),
+  }, { enabled: !isPhone });
+
+  // Stage width decides whether the dock keeps its labels.
+  const [stageRef, stageSize] = useElementSize();
+  const compactDock = stageSize.width > 0 && stageSize.width < 760;
+
+  const status = call.outgoingToneActive ? "ringing" : call.connectionState;
+  const waitingText = call.participants.length === 1
+    ? (call.outgoingToneActive ? "Llamando…" : "Esperando a que alguien se una…")
+    : null;
+
+  // Swipe down on the phone top bar minimizes the call.
+  const dragRef = useRef(null);
+  const topBarDrag = isPhone ? {
+    onPointerDown: (e) => { dragRef.current = { y: e.clientY }; },
+    onPointerUp: (e) => {
+      if (dragRef.current && e.clientY - dragRef.current.y > 60) actions.minimize?.();
+      dragRef.current = null;
+    },
+    onPointerCancel: () => { dragRef.current = null; },
+  } : null;
+
+  const peopleNode = (
+    <CallPeoplePanel
+      roster={roster}
+      isHost={people.isHost}
+      myIdentity={myIdentity}
+      raisedHands={live.raisedHands}
+      speakingIds={live.speakingIds}
+      pinnedIdentity={live.pinnedIdentity}
+      onAdmit={people.guestsApi.admit}
+      onDeny={people.guestsApi.deny}
+      onAdmitAll={() => roster.lobby.forEach((g) => people.guestsApi.admit(g.id))}
+      onRing={ring}
+      ringingIds={ringing}
+      onMute={moderate.mute}
+      onRemove={moderate.remove}
+      onPin={call.participants.length > 1 ? actions.setPinned : null}
+      onInvite={people.canShare ? () => setShareOpen(true) : null}
+      onCopyLink={link?.url ? () => navigator.clipboard?.writeText(link.url).then(() => toast.success("Enlace copiado.")) : null}
+    />
+  );
+  const chatNode = <CallChatPanel conversationId={conversationId} onClose={closePanel} />;
+  const panelCounts = {
+    chat: chatUnread,
+    people: people.isHost && roster.lobby.length ? roster.lobby.length : roster.inCall.length,
+    lobby: people.isHost ? roster.lobby.length : 0,
+  };
+
+  const stage = {
+    entries: call.participants,
+    screenEntries: call.screenEntries,
+    activeScreenIdentity: activeScreen,
+    onSelectScreen: setActiveScreen,
+    focusMain,
+    tileProps,
+    tileInfo,
+    speakingIds: live.speakingIds,
+    isPhone,
+    landscape,
+    stripCollapsed,
+    onToggleStrip: () => setStripCollapsed((v) => !v),
+    onStopSharing: media.toggleScreen,
+    mirrorLocalCamera: media.mirrorLocalCamera,
+    localEntry: call.localEntry,
+    raisedHands: live.raisedHands,
+    myHandRaised: live.myHandRaised,
+    directSwapped: live.directSwapped,
+    onToggleDirectSwap: isPhone ? actions.toggleDirectSwap : null,
+    waitingText,
+    inPersonProps: {
+      localParticipant: call.localEntry?.participant,
+      elapsed: call.elapsed,
+      micEnabled: media.micEnabled,
+      recordingActive: media.recording.active,
+      recordingBusy: media.recording.busy,
+      canRecord: media.canRecord,
+      onToggleRecording: ctl.toggleRecording,
+      onToggleMic: media.toggleMic,
+      onFinish: () => actions.leave({ endForAll: people.isHost }),
+      onInvite: people.canShare ? () => setShareOpen(true) : null,
+    },
+  };
 
   return (
-    <div className="fixed inset-0 z-[46] flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-slate-950 text-white">
-      <OutgoingCallTone active={outgoingToneActive} />
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <header
-        className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 pb-3"
-        style={{
-          paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))",
-          paddingLeft: "calc(1rem + env(safe-area-inset-left, 0px))",
-          paddingRight: "calc(1rem + env(safe-area-inset-right, 0px))",
-        }}
-      >
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">
-            {inPerson ? "Reunión presencial" : session.call.calendarEvent?.title || session.call.initiator?.displayName || "Runly Calls"}
-          </p>
-          <p className="text-xs text-white/60">
-            {connectionState === "connected" && outgoingToneActive ? "Llamando..." :
-              connectionState === "connected" ? formatDuration(elapsed) :
-                connectionState === "reconnecting" ? "Reconectando..." :
-                  connectionState === "failed" ? "No se pudo conectar" : "Conectando..."}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {actions.minimize && (
-            <button
-              type="button"
-              onClick={actions.minimize}
-              title="Minimizar llamada"
-              aria-label="Minimizar llamada"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/80 hover:text-white"
-            >
-              <Minimize2 className="h-4 w-4" />
-            </button>
-          )}
-          {canShare && (
-            <button
-              type="button"
-              onClick={onOpenGuests ?? onShare}
-              title="Invitados"
-              className="relative flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 hover:text-white"
-            >
-              <UserPlus className="h-3.5 w-3.5" /> Invitados
-              {pendingLobby > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-violet-500 px-1 text-[10px] font-bold ring-2 ring-slate-950">
-                  {pendingLobby > 9 ? "9+" : pendingLobby}
-                </span>
-              )}
-            </button>
-          )}
-          <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">
-            {isVideoActive ? "Videollamada" : "Llamada de voz"}
-          </span>
-        </div>
-      </header>
+    <div
+      className="runly-call fixed inset-0 z-46 flex h-dvh max-h-dvh flex-col overflow-hidden"
+      onPointerMove={autoHide && !coarse ? chrome.reveal : undefined}
+    >
+      <OutgoingCallTone active={call.outgoingToneActive} />
 
-      {isMobile && (
-        <CallViewSwitcher
-          view={mobileView}
-          onChange={onMobileViewChange}
-          chatUnread={chatUnread}
+      {isPhone ? (
+        <MobileCallTopBar
+          title={title}
+          status={status}
+          elapsed={call.elapsed}
+          recordingActive={media.recording.active}
+          recordingElapsed={recordingElapsed}
+          meetingId={link?.meetingId}
+          onMinimize={actions.minimize}
+          canSwitchCamera={media.canSwitchCamera && media.cameraEnabled}
+          onSwitchCamera={media.switchCamera}
+          canInvite={people.canShare}
+          onInvite={() => setShareOpen(true)}
+          onOpenPeople={() => openPanel("people")}
+          lobbyCount={ctl.lobbyCount}
+          hidden={!chrome.visible}
+          dragHandlers={topBarDrag}
+        />
+      ) : (
+        <CallTopBar
+          title={title}
+          subtitle={view === "presentation" ? "Presentación en curso" : null}
+          status={status}
+          elapsed={call.elapsed}
+          recordingActive={media.recording.active}
+          recordingElapsed={recordingElapsed}
+          meetingId={link?.meetingId}
+          quality={room.localParticipant?.connectionQuality}
+          layoutPref={layoutPref}
+          onLayoutChange={view === "inperson" ? null : setLayoutPref}
+          canInvite={people.canShare}
+          onInvite={() => setShareOpen(true)}
+          lobbyCount={ctl.lobbyCount}
+          onMinimize={actions.minimize}
+          hidden={!chrome.visible}
         />
       )}
 
-      <main className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
-        {!inPerson && <RecordingBanner active={recordingActive} />}
-        {mobileChatOpen ? (
-          <div className="dark absolute inset-0 flex flex-col bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
-            {hasScreenShare && (
-              <button
-                type="button"
-                onClick={() => onMobileViewChange("video")}
-                className="flex items-center gap-2 bg-violet-600 px-4 py-2 text-left text-xs font-medium text-white"
-              >
-                <MonitorUp className="h-4 w-4 shrink-0" />
-                <span className="flex-1 truncate">
-                  {(screenShareEntry?.participant?.name) || "Alguien"} esta compartiendo pantalla
-                </span>
-                <span className="underline">Ver</span>
-              </button>
+      <div className="flex min-h-0 flex-1">
+        <main
+          ref={stageRef}
+          className={cn("relative flex min-h-0 min-w-0 flex-1 flex-col", isPhone ? "px-2" : "px-3 pb-3")}
+          onClick={autoHide ? chrome.toggle : undefined}
+        >
+          <div
+            className="relative min-h-0 flex-1"
+            style={landscape ? { paddingLeft: "env(safe-area-inset-left, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" } : undefined}
+          >
+            <CallStage view={view} stage={stage} />
+            {invitePanel && view !== "presentation" && view !== "inperson" && (
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center p-3 sm:items-center">
+                <div className="pointer-events-auto w-full max-w-sm" onClick={(e) => e.stopPropagation()}>{invitePanel}</div>
+              </div>
             )}
-            <div className="min-h-0 flex-1">{chatPanel}</div>
+            <CallReactionsOverlay reactions={live.reactions} />
+            {people.isHost && <RaisedHandsBar raisedHands={live.raisedHands} onLower={live.lowerHand} />}
           </div>
-        ) : (
-          <>
-        {inPerson ? (
-          <InPersonRecorder
-            localParticipant={localEntry?.participant}
-            elapsed={elapsed}
-            micEnabled={micEnabled}
-            recordingActive={recordingActive}
-            recordingBusy={recordingBusy}
-            canRecord={canRecord}
-            onToggleRecording={actions.toggleRecording}
-            onToggleMic={actions.toggleMicrophone}
-            onFinish={actions.leave}
-            onInvite={canShare ? onShare : null}
-          />
-        ) : spotlightMain ? (
-          <SpotlightLayout
-            mainEntry={spotlightMain}
-            others={spotlightOthers}
-            screenShareEntry={screenShareEntry}
-            isMobile={isMobile}
-            raisedHands={raisedHands}
-            myHandRaised={myHandRaised}
-            myLocalIdentity={myLocalIdentity}
-            mirrorLocalCamera={mirrorLocalCamera}
-            onPin={actions.setPinned}
-            speakingIds={speakingIds}
-          />
-        ) : useFocusLayout ? (
-          <DirectFocusLayout
-            localEntry={localEntry}
-            remoteEntry={remoteEntries[0]}
-            raisedHands={raisedHands}
-            myHandRaised={myHandRaised}
-            mirrorLocalCamera={mirrorLocalCamera}
-            swapped={isMobile ? directSwapped : false}
-            onToggleSwap={isMobile ? actions.toggleDirectSwap : null}
-            speakingIds={speakingIds}
-          />
-        ) : (
-          <div className={`mx-auto grid h-full max-w-6xl gap-2 sm:gap-3 ${gridClass}`}>
-            {participants.map(({ participant, isLocal }) => (
-              <ParticipantTile
-                key={participant.sid || participant.identity || "local-participant"}
-                participant={participant}
-                isLocal={isLocal}
-                handRaised={raisedHands.has(participant?.identity)}
-                onPin={participants.length > 1 ? actions.setPinned : null}
-                mirrorLocalCamera={mirrorLocalCamera}
-                fit={participants.length <= 2 ? "contain" : "auto"}
-                speaking={speakingIds.has(participant?.identity)}
-              />
-            ))}
-          </div>
-        )}
-          </>
-        )}
-        {invitePanel && !mobileChatOpen && !screenShareEntry && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center p-4 sm:items-center">
-            <div className="pointer-events-auto w-full max-w-sm">{invitePanel}</div>
-          </div>
-        )}
 
-        <CallReactionsOverlay reactions={reactions} />
-        {isHost && <RaisedHandsBar raisedHands={raisedHands} onLower={actions.lowerHand} />}
-      </main>
+          {!isPhone && view !== "inperson" && (
+            <div data-hidden={!chrome.visible} className="call-chrome call-chrome-bottom flex shrink-0 justify-center pt-3">
+              <CallControlDock ctl={ctl} room={room} mediaDevices={mediaDevices} compact={compactDock} />
+            </div>
+          )}
+        </main>
 
-      {!inPerson && (
-      <footer
-        className="flex shrink-0 flex-wrap items-center justify-center gap-1.5 border-t border-white/10 bg-black/30 pt-3 backdrop-blur-xl"
-        style={{
-          paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
-          paddingLeft: "calc(0.75rem + env(safe-area-inset-left, 0px))",
-          paddingRight: "calc(0.75rem + env(safe-area-inset-right, 0px))",
-        }}
-      >
-        {needsAudio && (
-          <Button type="button" variant="secondary" size="sm" className="basis-full sm:basis-auto" onClick={actions.activateAudio}>
-            <Volume2 className="mr-2 h-4 w-4" />
-            Activar audio
-          </Button>
+        {!useSheets && panel && (
+          <CallSidePanel tab={panel} onTab={setPanel} onClose={closePanel} counts={panelCounts} chat={chatNode} people={peopleNode} />
         )}
-        <Button type="button" variant={micEnabled ? "secondary" : "destructive"} size="icon" disabled={!engineReady} className="h-11 w-11 rounded-full disabled:opacity-40" onClick={actions.toggleMicrophone} title={!engineReady ? "Conectando..." : micEnabled ? "Silenciar" : "Activar microfono"}>
-          {micEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-        </Button>
-        {/* Camera + screen-share are always available — a call created as voice
-            can be upgraded to video mid-call (no kind gate). */}
-        <Button type="button" variant={cameraEnabled ? "secondary" : "destructive"} size="icon" disabled={!engineReady} className="h-11 w-11 rounded-full disabled:opacity-40" onClick={actions.toggleCamera} title={!engineReady ? "Conectando..." : cameraEnabled ? "Apagar camara" : "Encender camara"}>
-          {cameraEnabled ? <Camera className="h-5 w-5" /> : <CameraOff className="h-5 w-5" />}
-        </Button>
-        {cameraEnabled && canSwitchCamera && (
-          <Button type="button" variant="secondary" size="icon" className="h-11 w-11 rounded-full" onClick={actions.switchCamera} title="Cambiar camara">
-            <SwitchCamera className="h-5 w-5" />
-          </Button>
-        )}
-        {cameraEnabled && torchSupported && (
-          <Button type="button" variant={torchEnabled ? "default" : "secondary"} size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleTorch} title={torchEnabled ? "Apagar linterna" : "Encender linterna"}>
-            {torchEnabled ? <FlashlightOff className="h-5 w-5" /> : <Flashlight className="h-5 w-5" />}
-          </Button>
-        )}
-        <CallReactionButton onReact={actions.sendReaction} disabled={!engineReady} />
-        <Button type="button" variant={myHandRaised ? "default" : "secondary"} size="icon" disabled={!engineReady} className="h-11 w-11 rounded-full disabled:opacity-40" onClick={actions.toggleHand} title={!engineReady ? "Conectando..." : myHandRaised ? "Bajar la mano" : "Levantar la mano"}>
-          <Hand className="h-5 w-5" />
-        </Button>
-        <Button type="button" variant={screenEnabled ? "default" : "secondary"} size="icon" disabled={!engineReady} className={`h-11 w-11 rounded-full disabled:opacity-40 ${screenShareSupported ? "" : "opacity-50"}`} onClick={actions.toggleScreen} aria-disabled={!screenShareSupported} title={!engineReady ? "Conectando..." : screenShareSupported ? (screenEnabled ? "Dejar de compartir" : "Compartir pantalla") : "Compartir pantalla no disponible en este navegador"}>
-          {screenShareSupported ? <MonitorUp className="h-5 w-5" /> : <ScreenShareOff className="h-5 w-5" />}
-        </Button>
-        {isDirectVideo && (
-          <Button type="button" variant="secondary" size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleLayout} title={layoutMode === "focus" ? "Usar vista 50/50" : "Destacar al otro participante"}>
-            {layoutMode === "focus" ? <LayoutGrid className="h-5 w-5" /> : <PictureInPicture2 className="h-5 w-5" />}
-          </Button>
-        )}
-        {canRecord && (
-          <Button
-            type="button"
-            variant={recordingActive ? "destructive" : "secondary"}
-            size="icon"
-            disabled={!engineReady || recordingBusy}
-            className="h-11 w-11 rounded-full disabled:opacity-40"
-            onClick={actions.toggleRecording}
-            title={recordingActive ? "Detener grabación" : "Grabar llamada"}
-          >
-            {recordingActive ? <StopCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
-          </Button>
-        )}
-        {canTranscribeTracks && (
-          <Button
-            type="button"
-            variant={trackTranscriptionActive ? "destructive" : "secondary"}
-            size="icon"
-            disabled={!engineReady || trackTranscriptionBusy}
-            className="h-11 w-11 rounded-full disabled:opacity-40"
-            onClick={actions.toggleTrackTranscription}
-            title={trackTranscriptionActive ? "Detener transcripción con hablantes" : "Transcribir con identificación de hablantes"}
-          >
-            {trackTranscriptionActive ? <CaptionsOff className="h-5 w-5" /> : <Captions className="h-5 w-5" />}
-          </Button>
-        )}
-        <Button type="button" variant="destructive" size="icon" className="h-11 w-11 rounded-full sm:w-auto sm:px-6" onClick={actions.leave} title="Colgar">
-          <PhoneOff className="h-5 w-5 sm:mr-2" />
-          <span className="hidden sm:inline">Colgar</span>
-        </Button>
-      </footer>
-      )}
       </div>
 
-      {/* The call room is always dark; `dark` scopes the theme tokens so the
-          chat column matches it even when the app runs in light mode. */}
-      {showChatColumn && (
-        <aside className="dark hidden w-[380px] shrink-0 border-l border-white/10 bg-[hsl(var(--background))] text-[hsl(var(--foreground))] lg:block">
-          {chatPanel}
-        </aside>
+      {isPhone && view !== "inperson" && (
+        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          {!sheetOpen && chrome.visible && !landscape && (
+            <LastMessageChip
+              message={lastMessage}
+              senderName={lastMessage?.sender?.displayName ?? "Alguien"}
+              avatarUrl={lastMessage?.sender?.avatarUrl ?? null}
+              unread={chatUnread}
+              onOpen={() => openPanel("chat")}
+            />
+          )}
+          <MobileCallBar ctl={ctl} hidden={!chrome.visible} />
+        </div>
       )}
 
-      {showChatRail && (
-        <aside className="hidden w-12 shrink-0 flex-col items-center border-l border-white/10 bg-slate-950 pt-3 lg:flex">
-          <button
-            type="button"
-            onClick={() => onToggleChatExpanded(true)}
-            className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/80 hover:text-white"
-            title="Mostrar chat"
-          >
-            <MessageSquare className="h-5 w-5" />
-            {chatUnread > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-violet-500 px-1 text-[10px] font-bold text-white ring-2 ring-slate-950">
-                {chatUnread > 9 ? "9+" : chatUnread}
-              </span>
-            )}
-          </button>
-        </aside>
+      {useSheets && (
+        <CallPanelSheet
+          open={sheetOpen}
+          tab={panel ?? "chat"}
+          onTab={setPanel}
+          onClose={closePanel}
+          counts={panelCounts}
+          chat={chatNode}
+          people={peopleNode}
+        />
       )}
+
+      {people.canShare && <CallShareDialog open={shareOpen} onOpenChange={setShareOpen} conversationId={conversationId} />}
+      <DeviceSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        room={room}
+        mediaDevices={mediaDevices}
+        micEnabled={media.micEnabled}
+        cameraEnabled={media.cameraEnabled}
+        mirror={media.mirrorLocalCamera}
+        audioRoute={media.audioRoute ?? null}
+      />
+      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      <ConfirmDialog
+        open={confirmEndAll}
+        onOpenChange={setConfirmEndAll}
+        title="Finalizar para todos"
+        description="La reunión terminará para todas las personas, incluidos los invitados."
+        confirmLabel="Finalizar reunión"
+        variant="destructive"
+        onConfirm={() => { setConfirmEndAll(false); actions.leave({ endForAll: true }); }}
+      />
     </div>
   );
 }

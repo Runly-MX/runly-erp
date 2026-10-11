@@ -8,6 +8,7 @@ import {
 } from "@runly/validators";
 import { createCallService, CallServiceError } from "./call-service.js";
 import { createCallLinksService, CallLinkError } from "./call-links-service.js";
+import { createCallMemberModerationService } from "./call-member-moderation-service.js";
 import { createCallGuestService, CallGuestError } from "./call-guest-service.js";
 import { createCallMessagesService, CallMessageError } from "./call-messages-service.js";
 import { createCallRecordingService, CallRecordingError } from "./call-recording-service.js";
@@ -68,6 +69,7 @@ export function createCallsRouter({
 
   const calls = service ?? createCallService({ prisma, notificationService, broadcaster, deliveryWorker });
   const linksService = createCallLinksService({ prisma, smtpService, callService: calls, supabaseAdmin });
+  const memberModeration = createCallMemberModerationService({ prisma, callService: calls });
   const guestService = createCallGuestService({
     prisma, supabaseAdmin, linksService, callService: calls, broadcaster, notificationService,
   });
@@ -157,6 +159,18 @@ export function createCallsRouter({
       return c.json({ data: await calls.ringParticipants({ authUserId: c.get("authUserId"), callId, profileIds }) });
     } catch (error) { return handleError(c, error, "No se pudo llamar a los participantes."); }
   });
+
+  // Host moderation of internal members (people panel): mute / remove.
+  for (const [action, method] of [["mute", "muteMember"], ["remove", "removeMember"]]) {
+    internal.post(`/:callId/participants/:profileId/${action}`, async (c) => {
+      try {
+        const callId = callIdSchema.parse(c.req.param("callId"));
+        const targetId = callIdSchema.parse(c.req.param("profileId"));
+        const data = await memberModeration[method]({ profileId: await profileId(c), callId, targetId });
+        return c.json({ data });
+      } catch (error) { return handleError(c, error, "No se pudo moderar al participante."); }
+    });
+  }
 
   // ---- guest link (by conversation) ----
   internal.get("/conversations/:conversationId/link", async (c) => {

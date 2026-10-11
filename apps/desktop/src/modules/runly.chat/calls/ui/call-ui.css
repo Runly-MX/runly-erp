@@ -1,0 +1,114 @@
+/* Runly Meet — call room surface. Always dark (Midnight), Flame accent from
+   the company brand token. Motion respects prefers-reduced-motion. */
+
+.runly-call {
+  --call-stage: var(--runly-navy-dark, #070d18);
+  --call-surface: rgba(12, 23, 45, 0.82);
+  --call-surface-strong: rgba(12, 23, 45, 0.94);
+  --call-tile: #0f1b33;
+  --call-line: rgba(255, 255, 255, 0.08);
+  --call-accent: var(--brand-primary, #fd6016);
+  --call-accent-hover: var(--brand-primary-hover, #f6381a);
+  --call-accent-soft: color-mix(in srgb, var(--call-accent) 18%, transparent);
+  --call-speaking: #34d399;
+  --call-danger: #ef4444;
+  --call-hand: #fbbf24;
+  background:
+    radial-gradient(1200px 600px at 15% -10%, color-mix(in srgb, var(--call-accent) 9%, transparent), transparent 60%),
+    radial-gradient(900px 500px at 110% 120%, rgba(56, 189, 248, 0.06), transparent 60%),
+    var(--call-stage);
+  color: #fff;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.runly-call button {
+  touch-action: manipulation;
+}
+
+.call-glass {
+  background: var(--call-surface);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: inset 0 0 0 1px var(--call-line), 0 18px 40px -18px rgba(0, 0, 0, 0.7);
+}
+
+.call-chrome {
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+.call-chrome[data-hidden="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+.call-chrome-top[data-hidden="true"] {
+  transform: translateY(-12px);
+}
+.call-chrome-bottom[data-hidden="true"] {
+  transform: translateY(12px);
+}
+
+/* "Speaking" equalizer bars in name chips. */
+@keyframes call-eq {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+.call-eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+.call-eq > span {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--call-speaking);
+  transform-origin: bottom;
+  animation: call-eq 900ms ease-in-out infinite;
+}
+.call-eq > span:nth-child(2) { animation-delay: -300ms; }
+.call-eq > span:nth-child(3) { animation-delay: -600ms; }
+
+/* Avatar pulse while speaking (no-video tiles). */
+@keyframes call-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--call-speaking) 55%, transparent); }
+  100% { box-shadow: 0 0 0 18px transparent; }
+}
+.call-avatar-speaking {
+  animation: call-pulse 1.4s ease-out infinite;
+}
+
+@keyframes call-rec-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.call-rec-dot {
+  animation: call-rec-blink 1.6s ease-in-out infinite;
+}
+
+.call-scroll-x {
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+}
+.call-scroll-x::-webkit-scrollbar { display: none; }
+.call-scroll-x > * { scroll-snap-align: start; }
+
+.call-scroll-y {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  overscroll-behavior-y: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .call-eq > span,
+  .call-avatar-speaking,
+  .call-rec-dot {
+    animation: none;
+  }
+  .call-chrome {
+    transition: opacity 120ms linear;
+  }
+  .call-chrome[data-hidden="true"] {
+    transform: none;
+  }
+}

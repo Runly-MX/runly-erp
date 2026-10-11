@@ -79,7 +79,7 @@ export function CallsProvider({ children }) {
 
   const token = session?.access_token;
 
-  const finishLocalCall = useCallback((callId) => {
+  const finishLocalCall = useCallback((callId, message = "La llamada ha terminado.") => {
     if (!callId) return false;
     const matchesIncoming = incomingRef.current?.id === callId;
     const matchesActive = activeRef.current?.call?.id === callId;
@@ -91,7 +91,7 @@ export function CallsProvider({ children }) {
     playCallEndSound();
     dismissSystemCallNotification(callId).catch(() => {});
     releaseCallForDevice(callId);
-    toast.info("La llamada ha terminado.");
+    toast.info(message);
     return true;
   }, []);
 
@@ -464,7 +464,10 @@ export function CallsProvider({ children }) {
     }
   }, [incomingCall?.id, token]);
 
-  const leaveActive = useCallback(async ({ unanswered = false } = {}) => {
+  // "Salir" leaves (a group meeting keeps going without you); "Finalizar
+  // para todos" (endForAll, host only) ends it for everyone. An unanswered
+  // outgoing call is always ended.
+  const leaveActive = useCallback(async ({ unanswered = false, endForAll = false } = {}) => {
     const current = activeRef.current;
     const callId = current?.call?.id;
     const isInitiator = current?.call?.initiatedByUserId === userProfile?.id;
@@ -473,7 +476,7 @@ export function CallsProvider({ children }) {
     releaseCallForDevice(callId);
     if (!callId) return;
     try {
-      if (isInitiator) await runly.calls.end(callId, token);
+      if ((endForAll || unanswered) && isInitiator) await runly.calls.end(callId, token);
       else await runly.calls.leave(callId, token);
       if (unanswered) toast.info("Nadie respondio la llamada.");
     } catch (error) {

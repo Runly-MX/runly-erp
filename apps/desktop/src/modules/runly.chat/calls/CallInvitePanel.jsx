@@ -70,7 +70,7 @@ export function CallInvitePanel({ conversationId, onClose }) {
   }
 
   return (
-    <div className="w-full max-w-sm rounded-2xl bg-slate-900/90 p-5 text-slate-100 shadow-2xl ring-1 ring-white/10 backdrop-blur">
+    <div className="dark w-full max-w-sm rounded-2xl bg-slate-900/90 p-5 text-slate-100 shadow-2xl ring-1 ring-white/10 backdrop-blur">
       <div className="mb-3 flex items-center gap-2 text-sm font-medium">
         <Users className="h-4 w-4 text-slate-400" />
         <span className="flex-1">Aún no hay nadie más</span>

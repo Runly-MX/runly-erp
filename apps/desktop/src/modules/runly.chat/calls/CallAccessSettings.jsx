@@ -70,9 +70,9 @@ export function CallAccessSettings({ link, onPatch, disabled = false, tone = "th
               onClick={() => !selected && onPatch?.({ accessMode: value })}
               className={cn(
                 "flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1 text-[11px] font-semibold leading-tight transition-colors sm:flex-row sm:gap-1.5 sm:text-xs",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] disabled:opacity-50",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary) disabled:opacity-50",
                 selected
-                  ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-sm"
+                  ? "bg-(--brand-primary) text-(--brand-primary-foreground) shadow-sm"
                   : dark
                     ? "text-slate-300 hover:bg-white/10 hover:text-white"
                     : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",

@@ -494,7 +494,7 @@ export function createCallGuestService({
     const guests = await prisma.callGuest.findMany({
       where: { callId, status: { in: ["LOBBY", "ADMITTED", "KICKED", "DENIED"] } },
       orderBy: { createdAt: "asc" },
-      select: { id: true, displayName: true, email: true, status: true, admittedAt: true, createdAt: true },
+      select: { id: true, displayName: true, email: true, status: true, admittedAt: true, createdAt: true, livekitIdentity: true },
     });
     return { guests };
   }

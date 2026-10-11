@@ -102,6 +102,10 @@ export function useCallSynchronization({
             }
             return;
           }
+          if (next?.status === "REMOVED") {
+            finishLocalCall(callId, "El anfitrión te quitó de la llamada.");
+            return;
+          }
           if (["LEFT", "DECLINED", "MISSED"].includes(next?.status)) {
             finishLocalCall(callId);
           }

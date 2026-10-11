@@ -179,7 +179,7 @@ export function GuestCallRoom({
   }
 
   return (
-    <div className="fixed inset-0 flex bg-slate-950 text-white">
+    <div className="runly-call fixed inset-0 flex text-white">
       <div className="flex min-w-0 flex-1 flex-col">
         <main className="relative min-h-0 flex-1 p-2 sm:p-4">
           <RecordingBanner active={recordingActive} />

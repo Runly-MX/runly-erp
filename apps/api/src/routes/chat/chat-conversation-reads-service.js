@@ -249,6 +249,7 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
             'email', up.email,
             'phone', up.phone,
             'bio', up.bio,
+            'isBot', COALESCE(up.is_bot, false),
             'roleId', cm.role_id,
             'roleName', ccr.name,
             'roleColor', ccr.color,

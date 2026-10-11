@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Room, RoomEvent, Track, ConnectionState } from "livekit-client";
 import { toast } from "sonner";
-import { useIsMobile, Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@runly/ui";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@runly/ui";
 import { useAuth } from "../../../auth/AuthProvider";
-import { useChatMessages } from "../hooks/useChatMessages";
 import { playCallSound, playCallEndSound } from "./callSounds";
-import { nextCallView } from "./lib/callChat";
-import { CallChatPanel } from "./CallChatPanel";
-import { CallShareDialog } from "./CallShareDialog";
 import { CallInvitePanel } from "./CallInvitePanel";
 import { MiniCallBubble } from "./MiniCallBubble";
 import { RemoteAudio } from "./RemoteAudio";
@@ -17,8 +13,8 @@ import { useCallRecording } from "./hooks/useCallRecording";
 import { useTrackTranscription } from "./hooks/useTrackTranscription";
 import { useScreenWakeLock } from "./hooks/useScreenWakeLock";
 import { useCallAutoRejoin, useNativeCallKeepAlive } from "./hooks/useCallBackgroundKeepAlive";
-import { CallGuestSheet } from "./CallGuestSheet";
 import { CallRoomLayout } from "./CallRoomLayout";
+import { roomDeviceDefaults } from "./hooks/useMediaDevices";
 import { useNativeScreenShare } from './useNativeScreenShare';
 
 const UNANSWERED_CALL_TIMEOUT_MS = 36_000;
@@ -26,29 +22,13 @@ const UNANSWERED_CALL_TIMEOUT_MS = 36_000;
 // with a 60s "¿sigues aquí?" warning + an "extender" button that resets it.
 const ALONE_LIMIT_MS = 5 * 60_000;
 
-const CHAT_PANEL_PREF_KEY = "atlas.calls.chatPanel.collapsed";
-
-function readChatCollapsedPref() {
-  try {
-    return localStorage.getItem(CHAT_PANEL_PREF_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function writeChatCollapsedPref(collapsed) {
-  try {
-    localStorage.setItem(CHAT_PANEL_PREF_KEY, collapsed ? "1" : "0");
-  } catch {
-    /* private mode / storage disabled — non-fatal */
-  }
-}
 
 export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitiator = false, minimized = false, onMinimize, onRestore, guestPanelNonce = 0 }) {
   const nativeScreen = useNativeScreenShare(session.call.id);
   // Held for the whole call (full or minimized) so the device doesn't auto-lock.
   useScreenWakeLock(true);
-  const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), [session.callId]);
+  // Starts on the user's remembered microphone/camera/speaker.
+  const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true, ...roomDeviceDefaults() }), [session.callId]);
   const [renderVersion, setRenderVersion] = useState(0);
   const [connectionState, setConnectionState] = useState("connecting");
   // The RTC engine (not just signaling) — publishing tracks/data before this is
@@ -68,7 +48,6 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   droppedRef.current = dropped;
   const [browserScreenEnabled, setScreenEnabled] = useState(false);
   const screenEnabled = nativeScreen.supported ? nativeScreen.active : browserScreenEnabled;
-  const [layoutMode, setLayoutMode] = useState("focus");
   const [cameraFacing, setCameraFacing] = useState("user");
   const [canSwitchCamera, setCanSwitchCamera] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
@@ -81,16 +60,6 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   const [inviteDismissed, setInviteDismissed] = useState(false);
 
   const conversationId = session.call.conversationId;
-  const isMobile = useIsMobile(1024);
-  const [mobileView, setMobileView] = useState("video");
-  const [chatExpanded, setChatExpanded] = useState(() => !readChatCollapsedPref());
-
-  const { data: chatData } = useChatMessages(conversationId);
-  const chatMsgCount = chatData?.data?.length ?? 0;
-  const chatActive = isMobile ? mobileView === "chat" : chatExpanded;
-  const chatSeenRef = useRef(0);
-  const chatLoadedRef = useRef(false);
-  const [chatUnread, setChatUnread] = useState(0);
 
   const { userProfile } = useAuth();
   const canRecord = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes("chat.calls.record"));
@@ -113,11 +82,6 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   // gets a swallowed 403); the share dialog + roster are hidden otherwise.
   const guestsApi = useCallGuests(session.call.id, { enabled: isInitiator });
   const hasGuests = guestsApi.guests.some((g) => g.status === "ADMITTED" || g.status === "LOBBY");
-  const [shareOpen, setShareOpen] = useState(false);
-  const [guestSheetOpen, setGuestSheetOpen] = useState(false);
-  // Bumped by CallsProvider from the "Ver solicitudes" toast action — only opens
-  // the sheet in place, never navigates or unmounts the room.
-  useEffect(() => { if (guestPanelNonce) setGuestSheetOpen(true); }, [guestPanelNonce]);
   // Local (per-viewer) spotlight pin — not synced.
   const [pinnedIdentity, setPinnedIdentity] = useState(null);
   const setPinned = useCallback(
@@ -177,6 +141,8 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
       RoomEvent.TrackMuted,
       RoomEvent.TrackUnmuted,
       RoomEvent.ActiveSpeakersChanged,
+      RoomEvent.ConnectionQualityChanged,
+      RoomEvent.ParticipantNameChanged,
     ];
     const handleReconnecting = () => setConnectionState("reconnecting");
     const handleReconnected = () => setConnectionState("connected");
@@ -347,25 +313,6 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
     return () => window.clearTimeout(timer);
   }, [isInitiator, hasRemoteJoined, session.call.status, session.call.createdAt, onUnanswered]);
 
-  // Count chat messages that arrive while the panel is not the active view.
-  useEffect(() => {
-    if (!chatLoadedRef.current) {
-      if (chatData) {
-        chatLoadedRef.current = true;
-        chatSeenRef.current = chatMsgCount;
-      }
-      return;
-    }
-    if (chatActive) {
-      chatSeenRef.current = chatMsgCount;
-      setChatUnread(0);
-      return;
-    }
-    if (chatMsgCount > chatSeenRef.current) {
-      setChatUnread((current) => current + (chatMsgCount - chatSeenRef.current));
-      chatSeenRef.current = chatMsgCount;
-    }
-  }, [chatMsgCount, chatActive, chatData]);
 
   // Block any publish action until the RTC engine is Connected — otherwise
   // LiveKit throws "engine not connected within timeout" and the toast fires on
@@ -461,9 +408,10 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
     }
   }
 
-  function handleLeave() {
+  // { endForAll } — the host ends the meeting for everyone.
+  function handleLeave(options) {
     playCallEndSound();
-    onLeave();
+    onLeave(options);
   }
 
   const allRemoteParticipants = Array.from(room.remoteParticipants.values());
@@ -490,12 +438,17 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   // session.call.kind (there is no backend endpoint to change kind mid-call).
   const isVideoActive =
     session.call.kind === "VIDEO" || cameraEnabled || screenEnabled || anyRemoteHasVideo;
-  const screenShareEntry =
-    [...participants, ...allRemoteParticipants.filter((participant) => participant.identity?.startsWith('screen:')).map((participant) => ({ participant, isLocal: false }))]
-      .find(({ participant }) => hasLiveTrack(participant, Track.Source.ScreenShare)) ?? null;
-  const hasScreenShare = Boolean(screenShareEntry);
-  const isDirectVideo = isVideoActive && participants.length === 2;
-  const useFocusLayout = isDirectVideo && layoutMode === "focus" && !screenShareEntry;
+  // Every live screen share: browser shares ride on the person's own
+  // participant; the Android app shares through a second "screen:<id>"
+  // participant (which is "local" when it is our own).
+  const localIdentity = room.localParticipant?.identity;
+  const screenEntries = [
+    ...participants,
+    ...allRemoteParticipants
+      .filter((participant) => participant.identity?.startsWith('screen:'))
+      .map((participant) => ({ participant, isLocal: participant.identity === `screen:${localIdentity}` })),
+  ].filter(({ participant }) => hasLiveTrack(participant, Track.Source.ScreenShare));
+  const screenShareEntry = screenEntries[0] ?? null;
 
   // A screen share starting (or switching to a different presenter) always
   // takes the spotlight, clearing any manual pin — see resolveSpotlightMain
@@ -521,11 +474,6 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   // listener above (it calls refresh()) — derive the identity set on every render.
   const speakingIds = new Set(room.activeSpeakers.map((p) => p.identity));
   const mirrorLocalCamera = cameraFacing !== "environment";
-  const gridClass = participants.length === 1
-    ? "grid-cols-1 grid-rows-1"
-    : participants.length === 2
-      ? "grid-cols-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1"
-      : "grid-cols-2 auto-rows-[minmax(10rem,1fr)] overflow-y-auto";
   void renderVersion;
 
   const isAlone = participants.length === 1 && !hasGuests;
@@ -543,7 +491,7 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
     if (!aloneEligible) { setAloneSecondsLeft(0); return undefined; }
     const tick = () => {
       const left = aloneDeadline - Date.now();
-      if (left <= 0) { handleLeave(); return; }
+      if (left <= 0) { handleLeave({ endForAll: true }); return; }
       setAloneSecondsLeft(left <= 60_000 ? Math.ceil(left / 1000) : 0);
     };
     tick();
@@ -556,29 +504,6 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
     setAloneSecondsLeft(0);
   }, []);
 
-  useEffect(() => {
-    const corrected = nextCallView(mobileView);
-    if (corrected !== mobileView) setMobileView(corrected);
-  }, [mobileView]);
-
-  const handleChatClose = useCallback(() => {
-    if (isMobile) {
-      setMobileView("video");
-    } else {
-      setChatExpanded(false);
-      writeChatCollapsedPref(true);
-    }
-  }, [isMobile]);
-
-  const handleToggleChatExpanded = useCallback((next) => {
-    setChatExpanded(next);
-    writeChatCollapsedPref(!next);
-  }, []);
-
-  const chatPanelNode =
-    !isMobile || mobileView === "chat"
-      ? <CallChatPanel conversationId={conversationId} onClose={handleChatClose} />
-      : null;
 
   // Kept outside the minimized/full branches so audio survives minimizing.
   const remoteAudio = remoteParticipants.map((participant) => (
@@ -606,7 +531,8 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
     <>
     {remoteAudio}
     <CallRoomLayout
-      view={{
+      room={room}
+      call={{
         session,
         connectionState,
         engineReady,
@@ -617,93 +543,65 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
           && session.call.status === "RINGING"
           && !hasRemoteJoined
           && !["failed", "disconnected"].includes(connectionState),
-        remoteParticipants,
-        remoteEntries,
-        localEntry,
         participants,
-        useFocusLayout,
-        screenShareEntry,
-        isVideoActive,
-        mirrorLocalCamera,
-        gridClass,
-        needsAudio,
+        localEntry,
+        screenEntries,
+        inPerson: inPerson && isAlone,
+      }}
+      media={{
         micEnabled,
         cameraEnabled,
+        screenEnabled,
+        screenShareSupported,
         canSwitchCamera,
         torchSupported,
         torchEnabled,
-        screenEnabled,
-        screenShareSupported,
-        isDirectVideo,
-        layoutMode,
-        inPerson: inPerson && isAlone,
-        invitePanel: isInitiator && isAlone && !inviteDismissed && !inPerson
-          ? <CallInvitePanel conversationId={conversationId} onClose={() => setInviteDismissed(true)} />
-          : null,
-        reactions: ephemeral.reactions,
-        raisedHands: ephemeral.raisedHands,
-        myHandRaised: ephemeral.myHandRaised,
-        isHost: isInitiator,
-        pinnedIdentity,
-        myLocalIdentity: room.localParticipant?.identity,
-        directSwapped,
-        speakingIds,
-        canRecord,
-        recordingActive: recording.active,
-        recordingBusy: recording.busy,
-        canTranscribeTracks,
-        trackTranscriptionActive: trackTranscription.active,
-        trackTranscriptionBusy: trackTranscription.busy,
-      }}
-      actions={{
+        mirrorLocalCamera,
+        isVideoActive,
+        needsAudio,
         activateAudio: () => room.startAudio().then(() => setNeedsAudio(false)),
-        toggleMicrophone,
+        toggleMic: toggleMicrophone,
         toggleCamera,
         switchCamera,
         toggleTorch,
         toggleScreen,
-        toggleLayout: () => setLayoutMode((current) => current === "focus" ? "balanced" : "focus"),
-        leave: handleLeave,
-        minimize: onMinimize,
+        canRecord,
+        recording,
+        canTranscribeTracks,
+        trackTranscription,
+      }}
+      people={{
+        isHost: isInitiator,
+        canShare: isInitiator,
+        guestsApi,
+      }}
+      live={{
+        reactions: ephemeral.reactions,
+        raisedHands: ephemeral.raisedHands,
+        myHandRaised: ephemeral.myHandRaised,
         sendReaction: ephemeral.sendReaction,
         toggleHand: ephemeral.toggleHand,
         lowerHand: ephemeral.lowerHand,
+        speakingIds,
+        pinnedIdentity,
+        directSwapped,
+      }}
+      actions={{
+        leave: handleLeave,
+        minimize: onMinimize,
         setPinned,
         toggleDirectSwap,
-        toggleRecording: recording.active ? recording.stop : recording.start,
-        toggleTrackTranscription: trackTranscription.active ? trackTranscription.stop : trackTranscription.start,
       }}
-      chat={{
-        isMobile,
-        mobileView,
-        onMobileViewChange: setMobileView,
-        chatExpanded,
-        onToggleChatExpanded: handleToggleChatExpanded,
-        chatUnread,
-        hasScreenShare,
-        panel: chatPanelNode,
-        canShare: isInitiator,
-        onShare: () => setShareOpen(true),
-        pendingLobby: guestsApi.lobby.length,
-        onOpenGuests: isInitiator ? () => setGuestSheetOpen(true) : null,
-      }}
+      invitePanel={isInitiator && isAlone && !inviteDismissed && !inPerson
+        ? <CallInvitePanel conversationId={conversationId} onClose={() => setInviteDismissed(true)} />
+        : null}
+      peoplePanelNonce={guestPanelNonce}
     />
-    {isInitiator && (
-      <>
-        <CallShareDialog open={shareOpen} onOpenChange={setShareOpen} conversationId={conversationId} />
-        <CallGuestSheet
-          open={guestSheetOpen}
-          onOpenChange={setGuestSheetOpen}
-          guestsApi={guestsApi}
-          onShare={() => { setGuestSheetOpen(false); setShareOpen(true); }}
-        />
-      </>
-    )}
     <AloneWarningDialog
       open={aloneSecondsLeft > 0}
       seconds={aloneSecondsLeft}
       onStay={extendAlone}
-      onLeave={handleLeave}
+      onLeave={() => handleLeave({ endForAll: true })}
     />
     </>
   );

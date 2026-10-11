@@ -54,5 +54,5 @@ export function useCallRecording({ callId, conversationId }) {
     }
   }, [callId, token, refresh]);
 
-  return { active: Boolean(activeRecording), busy, start, stop };
+  return { active: Boolean(activeRecording), current: activeRecording, busy, start, stop };
 }
