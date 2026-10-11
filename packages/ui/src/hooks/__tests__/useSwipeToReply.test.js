@@ -95,3 +95,12 @@ describe("createSwipeController", () => {
     assert.equal(tgt.calls.release, 1);
   });
 });
+
+describe("createSwipeController — threshold tick", () => {
+  it("fires onThresholdCross once when the swipe arms, not on every move", () => {
+    let ticks = 0;
+    const ctrl = createSwipeController({ threshold: 40, onThresholdCross: () => { ticks += 1; } });
+    drag(ctrl, [[0, 0], [20, 0], [45, 0], [60, 0], [80, 0]], makeTarget());
+    assert.equal(ticks, 1);
+  });
+});

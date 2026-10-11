@@ -6,7 +6,7 @@ const MAX_TRANSLATE = 96;  // rubber-band cap
 // Pure, injectable controller. `direction` is "right" for received messages
 // (drag right to reply) and "left" for own messages (drag left). `onTranslate`
 // receives the signed px offset the caller should apply as translateX.
-export function createSwipeController({ threshold = 64, direction = "right", onReply, onTranslate } = {}) {
+export function createSwipeController({ threshold = 64, direction = "right", onReply, onTranslate, onThresholdCross } = {}) {
   let start = null;         // { x, y, el, pointerId }
   let horizontal = false;
   let engaged = false;
@@ -60,7 +60,10 @@ export function createSwipeController({ threshold = 64, direction = "right", onR
       const projected = dx * sign;                // positive when swiping the intended way
       if (projected <= 0) { onTranslate?.(0); return; }
       const clamped = Math.min(projected, MAX_TRANSLATE);
-      engaged = projected >= threshold;
+      const nowEngaged = projected >= threshold;
+      // Tactile tick when the swipe arms (not on every move past it).
+      if (nowEngaged && !engaged) onThresholdCross?.();
+      engaged = nowEngaged;
       onTranslate?.(clamped * sign);
     },
     onPointerUp() {
@@ -72,10 +75,12 @@ export function createSwipeController({ threshold = 64, direction = "right", onR
   };
 }
 
-export function useSwipeToReply({ onReply, threshold = 64, direction = "right", disabled = false } = {}) {
+export function useSwipeToReply({ onReply, threshold = 64, direction = "right", disabled = false, onThresholdCross = null } = {}) {
   const [translateX, setTranslateX] = useState(0);
   const cb = useRef(onReply);
   cb.current = onReply;
+  const crossCb = useRef(onThresholdCross);
+  crossCb.current = onThresholdCross;
 
   const handlers = useMemo(() => {
     if (disabled) return {};
@@ -84,6 +89,7 @@ export function useSwipeToReply({ onReply, threshold = 64, direction = "right", 
       direction,
       onReply: () => cb.current?.(),
       onTranslate: setTranslateX,
+      onThresholdCross: () => crossCb.current?.(),
     });
     return {
       onPointerDown: (e) => ctrl.onPointerDown(e),

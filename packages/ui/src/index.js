@@ -225,6 +225,7 @@ export { ProgressMeter } from "./components/ProgressMeter.jsx";
 export { RingProgress } from "./components/RingProgress.jsx";
 export { SectionCard } from "./components/SectionCard.jsx";
 export { SegmentedControl } from "./components/SegmentedControl.jsx";
+export { SwipeBackStack } from "./components/SwipeBackStack.jsx";
 export { CopyableValue } from "./components/CopyableValue.jsx";
 export { TagsComboboxField } from "./components/TagsComboboxField.jsx";
 export { SectionIndex } from "./components/SectionIndex.jsx";

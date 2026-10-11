@@ -1,5 +1,5 @@
-import { useMemo, useEffect, useRef } from "react";
-import { useIsMobile, useSwipeToReply } from "@runly/ui";
+import { useMemo, useRef } from "react";
+import { useIsMobile, SwipeBackStack } from "@runly/ui";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import "../chat-theme.css";
 import { ChatSidebar } from "../components/ChatSidebar";
@@ -7,6 +7,7 @@ import { ChatWindow } from "../components/ChatWindow";
 import { useChatConversations, useArchivedConversations } from "../hooks/useChatConversations";
 import { useEnsureMiraiConversation } from "../hooks/useMirAI";
 import { ChatPreferencesProvider, useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPreferences";
+import { hapticTick } from "../lib/haptics";
 
 export function ChatScreen() {
   return (
@@ -31,7 +32,7 @@ function ChatScreenInner() {
 
   const mobileShowWindow = Boolean(conversationIdFromUrl);
   const isMobile = useIsMobile();
-  const windowRef = useRef(null);
+  const stackRef = useRef(null);
 
   const { data, isLoading } = useChatConversations();
 
@@ -80,72 +81,62 @@ function ChatScreenInner() {
     }
   }
 
-  function handleClose() {
+  function navigateToInbox() {
     navigate("/app/m/runly.chat/chat/inbox", { replace: true });
   }
 
-  const { handlers: backSwipe } = useSwipeToReply({
-    direction: "left",
-    threshold: 90,
-    disabled: !isMobile || !mobileShowWindow,
-    onReply: handleClose,
-  });
-
-  useEffect(() => {
-    const node = windowRef.current;
-    if (!node || !isMobile || !mobileShowWindow) return;
-    // Safari reserves edge touches for browser history. Keep these inside
-    // the chat; ordinary vertical scrolling and controls remain native.
-    function containEdgeGesture(event) {
-      if (event.touches.length !== 1 || event.target.closest('button,a,input,textarea,[contenteditable="true"],[role="dialog"]')) return;
-      const x = event.touches[0].clientX;
-      if (x < 20 || x > window.innerWidth - 20) event.preventDefault();
-    }
-    node.addEventListener("touchstart", containEdgeGesture, { passive: false });
-    return () => node.removeEventListener("touchstart", containEdgeGesture);
-  }, [isMobile, mobileShowWindow]);
+  // Phones animate the conversation out (same as the edge swipe) first.
+  function handleClose() {
+    if (isMobile && stackRef.current) stackRef.current.back();
+    else navigateToInbox();
+  }
 
   const { prefs } = useChatPreferences();
 
-  return (
-    <div className="chat-glass-theme flex h-full min-h-0 overflow-hidden" style={chatPreferencesStyle(prefs)}>
-      {/* Conversation list — full width on mobile, fixed 288px on desktop */}
-      <div
-        className={[
-          "flex flex-col shrink-0 w-full md:w-72 min-h-0 overflow-hidden",
-          mobileShowWindow ? "hidden md:flex" : "flex",
-        ].join(" ")}
-      >
-        <ChatSidebar
-          conversations={conversations}
-          isLoading={isLoading}
-          activeId={activeConversation?.id}
-          onSelect={handleSelect}
-          onCreated={handleCreated}
+  const sidebar = (
+    <ChatSidebar
+      conversations={conversations}
+      isLoading={isLoading}
+      activeId={activeConversation?.id}
+      onSelect={handleSelect}
+      onCreated={handleCreated}
+    />
+  );
+  const chatWindow = (
+    <ChatWindow
+      conversation={activeConversation}
+      onClose={handleClose}
+      initialFilesView={initialFilesView}
+      initialJumpMessageId={jumpMessageId}
+    />
+  );
+
+  if (isMobile) {
+    // Phone: list and conversation are a navigation stack with an
+    // interactive edge swipe back (iOS-style) and slide transitions.
+    return (
+      <div className="chat-glass-theme flex h-full min-h-0 overflow-hidden" style={chatPreferencesStyle(prefs)}>
+        <SwipeBackStack
+          ref={stackRef}
+          open={mobileShowWindow}
+          onBack={navigateToInbox}
+          onThresholdCross={hapticTick}
+          base={sidebar}
+          detail={chatWindow}
         />
       </div>
+    );
+  }
 
+  return (
+    <div className="chat-glass-theme flex h-full min-h-0 overflow-hidden" style={chatPreferencesStyle(prefs)}>
+      {/* Conversation list — fixed 288px beside the conversation */}
+      <div className="flex w-72 min-h-0 shrink-0 flex-col overflow-hidden">
+        {sidebar}
+      </div>
       {/* Chat window — fills remaining space */}
-      <div
-        ref={windowRef}
-        {...backSwipe}
-        onPointerDown={(event) => {
-          if (event.pointerType !== "touch" || !event.currentTarget.contains(event.target)) return;
-          if (event.target.closest('button,a,input,textarea,[contenteditable="true"],[role="dialog"],[aria-pressed]')) return;
-          backSwipe.onPointerDown?.(event);
-        }}
-        style={isMobile ? { touchAction: "pan-y", overscrollBehaviorX: "contain" } : undefined}
-        className={[
-          "flex flex-1 min-w-0 min-h-0 overflow-hidden",
-          mobileShowWindow ? "flex" : "hidden md:flex",
-        ].join(" ")}
-      >
-        <ChatWindow
-          conversation={activeConversation}
-          onClose={handleClose}
-          initialFilesView={initialFilesView}
-          initialJumpMessageId={jumpMessageId}
-        />
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        {chatWindow}
       </div>
     </div>
   );

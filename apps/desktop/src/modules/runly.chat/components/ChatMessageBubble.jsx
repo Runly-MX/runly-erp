@@ -23,6 +23,7 @@ import { CallLogCard } from "./CallLogCard";
 import { getCallMeta, getRecordingMeta } from "./callLogMeta";
 import { RecordingReadyCard } from "./RecordingReadyCard";
 import { MessageActionSheet } from "./MessageActionSheet";
+import { hapticTick } from "../lib/haptics";
 import { buildMessageActions } from "../lib/messageActions";
 
 // Block native text selection app-wide the instant a touch lands on a message
@@ -370,6 +371,7 @@ export function ChatMessageBubble({
     direction: isOwn && !isMobile ? "left" : "right",
     threshold: SWIPE_THRESHOLD,
     onReply: () => onReply?.(message),
+    onThresholdCross: hapticTick,
   });
 
   // The action popover is a React child of this row but createPortal()s its
@@ -474,7 +476,8 @@ export function ChatMessageBubble({
     onContextMenu: handleRowContextMenu,
     style: {
       transform: translateX ? `translateX(${translateX}px)` : undefined,
-      transition: translateX ? "none" : "transform 0.18s ease-out",
+      // Springy settle (slight overshoot) when the finger lets go.
+      transition: translateX ? "none" : "transform 0.32s cubic-bezier(0.34, 1.4, 0.64, 1)",
       // Let the browser own vertical scroll but hand horizontal drags to the
       // swipe handlers — without this the browser claims the gesture and
       // fires pointercancel mid-drag, so the swipe never completes.
