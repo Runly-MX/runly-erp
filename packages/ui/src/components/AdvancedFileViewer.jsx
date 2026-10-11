@@ -14,6 +14,7 @@ import {
   Link2,
   Loader2,
   Minus,
+  MoreHorizontal,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -34,6 +35,9 @@ import { useHlsPlayback } from "../lib/useHlsPlayback";
 import { FileVisual } from "./FileVisual";
 import { PDFViewer } from "./PDFViewer";
 import { XmlPreview, ZipPreview, isZipFile } from "./FilePreviewPanels";
+import { ViewerActionsSheet } from "./ViewerActionsSheet.jsx";
+import { useCoarsePointer } from "../hooks/usePointerCapabilities.js";
+import { useViewerTouchGestures } from "../hooks/useViewerTouchGestures.js";
 
 const HLS_MIME_TYPES = new Set(["application/vnd.apple.mpegurl", "application/x-mpegurl"]);
 
@@ -77,13 +81,6 @@ function getDistance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function getMidpoint(a, b) {
-  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-}
-
-function touchPoint(t) {
-  return { x: t.clientX, y: t.clientY };
-}
 
 function ToolbarBtn({ children, title, onClick, disabled, active }) {
   return (
@@ -140,6 +137,13 @@ export function AdvancedFileViewer({
   const [mediaThumbUrls, setMediaThumbUrls] = useState({});
 
   const imageContainerRef = useRef(null);
+  // Touch: the content area receives the gestures; `slideRef` is what moves
+  // when swiping between files or down to close.
+  const surfaceRef = useRef(null);
+  const slideRef = useRef(null);
+  const coarse = useCoarsePointer();
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [chromeHidden, setChromeHidden] = useState(false);
   const hlsVideoRef = useRef(null);
   const thumbRefs = useRef(new Map());
   const mediaThumbFetching = useRef(new Set());
@@ -151,12 +155,6 @@ export function AdvancedFileViewer({
     startPan: { x: 0, y: 0 },
     startPoint: { x: 0, y: 0 },
   });
-  // Touch-gesture snapshots (iOS-reliable Touch Events path — see the effect
-  // near handlePointerDown). Refs, not state, so per-frame updates never
-  // re-render mid-gesture.
-  const pinchRef = useRef(null); // { dist, zoom, pan, center } | null
-  const panRef = useRef(null);   // { point, pan } | null
-  const lastTapRef = useRef(0);
   // Set when the manual touch double-tap handler below fires, so the mouse
   // dblclick handler (handleImageDoubleClick) can ignore the synthetic
   // dblclick some mobile browsers fire right after two touchend events —
@@ -197,8 +195,6 @@ export function AdvancedFileViewer({
     setPinching(false);
     setNaturalSize(null);
     pointersRef.current.clear();
-    pinchRef.current = null;
-    panRef.current = null;
     gestureRef.current = {
       mode: null,
       startDistance: 0,
@@ -376,167 +372,38 @@ export function AdvancedFileViewer({
   const liveRef = useRef({});
   liveRef.current = { zoom, pan, clampPan };
 
-  // Touch gestures (pinch-zoom + pan + double-tap). iOS WebKit's multi-touch
-  // Pointer Events are unreliable — `pointercancel` storms during a pinch made
-  // the old handler re-seed its start distance every frame (the "1% per pinch"
-  // bug). Raw Touch Events with a non-passive listener are the robust path;
-  // the Pointer handlers below are now mouse/trackpad only.
+  // Touch gestures (long press -> actions sheet, swipe between files, swipe
+  // down to close, tap to hide the chrome, and for images pinch/pan/double
+  // tap). PDF, video and scrolling previews keep their own native touch
+  // handling; their actions are in the top bar's "⋯".
+  const touchSurface = !(kind === "pdf" || kind === "video" || kind === "xml" || (kind === "archive" && isZipFile(file)));
+  useViewerTouchGestures({
+    surfaceRef,
+    slideRef,
+    enabled: Boolean(open && coarse && touchSurface),
+    zoomable: kind === "image" && Boolean(signedUrl) && !loading,
+    live: liveRef,
+    setZoom,
+    setPan,
+    setPinching,
+    setDragging,
+    canPrev,
+    canNext,
+    minZoom: MIN_ZOOM,
+    maxZoom: MAX_ZOOM,
+    onNavigate: (dir) => onIndexChange(activeIndex + dir),
+    onClose: () => onOpenChange(false),
+    onLongPress: () => setActionsOpen(true),
+    onTap: () => setChromeHidden((v) => !v),
+    onDoubleTapZoom: () => { suppressDblClickRef.current = Date.now(); },
+    deps: [kind, signedUrl, loading, activeIndex],
+  });
   useEffect(() => {
-    const el = imageContainerRef.current;
-    if (!el || kind !== "image") return;
-
-    function centerAbs() {
-      const r = el.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
-
-    // Long-press -> the viewer's context menu. iOS never fires a native
-    // `contextmenu` event, and Radix's own long-press timer is cancelled by
-    // any pointermove (normal finger jitter), so it rarely fires on phones.
-    // Re-dispatching a synthetic contextmenu at the touch point lets the
-    // ContextMenuTrigger open exactly as it does for a right-click.
-    let longPress = null;
-    function cancelLongPress() {
-      if (longPress) clearTimeout(longPress.timer);
-      longPress = null;
-    }
-    function startLongPress(p) {
-      cancelLongPress();
-      const timer = setTimeout(() => {
-        longPress = null;
-        lastTapRef.current = 0;
-        panRef.current = null;
-        el.dispatchEvent(
-          new MouseEvent("contextmenu", {
-            bubbles: true,
-            cancelable: true,
-            clientX: p.x,
-            clientY: p.y,
-          }),
-        );
-      }, 500);
-      longPress = { timer, point: p };
-    }
-
-    function onTouchStart(e) {
-      if (e.touches.length >= 2) {
-        cancelLongPress();
-        e.preventDefault();
-        const p0 = touchPoint(e.touches[0]);
-        const p1 = touchPoint(e.touches[1]);
-        const c = centerAbs();
-        const mid = getMidpoint(p0, p1);
-        pinchRef.current = {
-          dist: getDistance(p0, p1) || 1,
-          zoom: liveRef.current.zoom,
-          pan: liveRef.current.pan,
-          centerAbs: c,
-          midRel: { x: mid.x - c.x, y: mid.y - c.y },
-        };
-        panRef.current = null;
-        lastTapRef.current = 0;
-        setPinching(true);
-        setDragging(false);
-      } else if (e.touches.length === 1) {
-        const p = touchPoint(e.touches[0]);
-        panRef.current = { point: p, pan: liveRef.current.pan };
-        startLongPress(p);
-        // double-tap -> toggle fit / 2x, anchored at the tap
-        const now = Date.now();
-        if (now - lastTapRef.current < 280) {
-          e.preventDefault();
-          lastTapRef.current = 0;
-          suppressDblClickRef.current = now;
-          const c = centerAbs();
-          setZoom((z) => {
-            const zoomingIn = z <= 1;
-            if (!zoomingIn) {
-              setPan({ x: 0, y: 0 });
-              return 1;
-            }
-            setPan(
-              liveRef.current.clampPan({
-                x: -(p.x - c.x) * 0.6,
-                y: -(p.y - c.y) * 0.6,
-              }),
-            );
-            return 2;
-          });
-        } else {
-          lastTapRef.current = now;
-        }
-      }
-    }
-
-    function onTouchMove(e) {
-      if (longPress) {
-        const p = touchPoint(e.touches[0]);
-        if (e.touches.length > 1 || getDistance(p, longPress.point) > 10) cancelLongPress();
-      }
-      if (e.touches.length >= 2 && pinchRef.current) {
-        e.preventDefault();
-        const p0 = touchPoint(e.touches[0]);
-        const p1 = touchPoint(e.touches[1]);
-        const snap = pinchRef.current;
-        const ratio = getDistance(p0, p1) / snap.dist;
-        const nextZoom = clampZoom(snap.zoom * ratio);
-        const scaleRatio = nextZoom / snap.zoom;
-        const mid = getMidpoint(p0, p1);
-        const m1 = { x: mid.x - snap.centerAbs.x, y: mid.y - snap.centerAbs.y };
-        setZoom(nextZoom);
-        setPan(
-          liveRef.current.clampPan({
-            x: m1.x + scaleRatio * (snap.pan.x - snap.midRel.x),
-            y: m1.y + scaleRatio * (snap.pan.y - snap.midRel.y),
-          }),
-        );
-        return;
-      }
-      if (e.touches.length === 1 && panRef.current) {
-        // Only pan when zoomed past fit — otherwise a one-finger drag on a
-        // fitted image would do nothing but churn renders.
-        if (liveRef.current.zoom <= 1) return;
-        e.preventDefault();
-        const p = touchPoint(e.touches[0]);
-        const snap = panRef.current;
-        setDragging(true);
-        setPan(
-          liveRef.current.clampPan({
-            x: snap.pan.x + (p.x - snap.point.x),
-            y: snap.pan.y + (p.y - snap.point.y),
-          }),
-        );
-      }
-    }
-
-    function onTouchEnd(e) {
-      cancelLongPress();
-      if (e.touches.length === 1) {
-        // dropped from a pinch to one finger — reseed pan from here so the
-        // transition into a one-finger drag doesn't jump
-        pinchRef.current = null;
-        setPinching(false);
-        panRef.current = { point: touchPoint(e.touches[0]), pan: liveRef.current.pan };
-      } else if (e.touches.length === 0) {
-        pinchRef.current = null;
-        panRef.current = null;
-        setPinching(false);
-        setDragging(false);
-      }
-    }
-
-    el.addEventListener("touchstart", onTouchStart, { passive: false });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd);
-    el.addEventListener("touchcancel", onTouchEnd);
-    return () => {
-      cancelLongPress();
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-      el.removeEventListener("touchcancel", onTouchEnd);
-    };
-  }, [kind, signedUrl, loading]);
+    if (!open) { setChromeHidden(false); setActionsOpen(false); }
+  }, [open]);
+  const hideChrome = coarse && chromeHidden;
+  const chromeCls = hideChrome ? "opacity-0 pointer-events-none" : "opacity-100";
+  const barBtn = coarse ? "h-10 w-10" : "h-7 w-7";
 
   function handlePointerDown(event) {
     if (kind !== "image" || event.pointerType === "touch") return;
@@ -770,6 +637,22 @@ export function AdvancedFileViewer({
     }
   }
 
+  const multi = (files?.length ?? 0) > 1;
+  const actions = [
+    kind === "image" && { key: "copy", group: "file", label: "Copiar imagen", icon: Copy, onSelect: copyCurrentImage, disabled: !signedUrl },
+    { key: "download", group: "file", label: isHlsSource ? "Descargar MP4" : "Descargar", icon: Download, onSelect: downloadCurrent, disabled: !signedUrl || hlsDownloading },
+    canShare && !isHlsSource && { key: "share", group: "file", label: "Compartir", icon: Share2, onSelect: shareCurrentFile, disabled: !signedUrl },
+    !isHlsSource && { key: "link", group: "file", label: "Copiar enlace", icon: Link2, onSelect: copyCurrentLink, disabled: !signedUrl },
+    !isHlsSource && { key: "open", group: "file", label: "Abrir en pestaña nueva", icon: ExternalLink, onSelect: () => signedUrl && window.open(signedUrl, "_blank"), disabled: !signedUrl },
+    kind === "image" && { key: "rotl", group: "image", label: "Rotar a la izquierda", icon: RotateCcw, onSelect: () => setRotation((v) => v - 90) },
+    kind === "image" && { key: "rotr", group: "image", label: "Rotar a la derecha", icon: RotateCw, onSelect: () => setRotation((v) => v + 90) },
+    kind === "image" && { key: "fliph", group: "image", label: "Voltear horizontal", icon: FlipHorizontal2, onSelect: () => setFlipX((v) => !v) },
+    kind === "image" && { key: "flipv", group: "image", label: "Voltear vertical", icon: FlipVertical2, onSelect: () => setFlipY((v) => !v) },
+    kind === "image" && { key: "reset", group: "image", label: "Restablecer vista", icon: RefreshCw, onSelect: resetTransforms },
+    multi && { key: "prev", group: "nav", label: "Archivo anterior", icon: ChevronLeft, onSelect: () => canPrev && onIndexChange(activeIndex - 1), disabled: !canPrev },
+    multi && { key: "next", group: "nav", label: "Archivo siguiente", icon: ChevronRight, onSelect: () => canNext && onIndexChange(activeIndex + 1), disabled: !canNext },
+  ].filter(Boolean);
+
   const gestureActive = dragging || pinching;
 
   // scale() is the fit-relative effective scale, so the image renders at its
@@ -816,7 +699,7 @@ export function AdvancedFileViewer({
           ].join(" ")}
         >
           {/* ── TOP BAR ─────────────────────────────────── */}
-          <div className="flex items-center gap-2 px-3 h-12 safe-top shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60">
+          <div className={`flex items-center gap-2 px-3 ${coarse ? "h-14" : "h-12"} safe-top shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 transition-opacity duration-200 ${chromeCls}`}>
             {/* File info */}
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <FileVisual
@@ -844,7 +727,7 @@ export function AdvancedFileViewer({
                   disabled={!canPrev}
                   aria-label="Archivo anterior"
                   title="Anterior"
-                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
+                  className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150`}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -856,7 +739,7 @@ export function AdvancedFileViewer({
                   disabled={!canNext}
                   aria-label="Archivo siguiente"
                   title="Siguiente"
-                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
+                  className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150`}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -873,24 +756,24 @@ export function AdvancedFileViewer({
                   different: downloadCurrent below routes HLS through
                   downloadHlsAsMp4 (client-side remux to a real .mp4) instead
                   of the plain fetch+save path, so it stays visible. */}
-              {!isHlsSource && (
+              {!isHlsSource && !coarse && (
                 <button
                   onClick={() => signedUrl && window.open(signedUrl, "_blank")}
                   disabled={!signedUrl}
                   aria-label="Abrir en pestaña nueva"
                   title="Abrir externo"
-                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
+                  className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150`}
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                 </button>
               )}
-              {kind === "image" && (
+              {kind === "image" && !coarse && (
                 <button
                   onClick={copyCurrentImage}
                   disabled={!signedUrl}
                   aria-label="Copiar imagen"
                   title="Copiar imagen"
-                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
+                  className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150`}
                 >
                   <Copy className="h-3.5 w-3.5" />
                 </button>
@@ -900,26 +783,36 @@ export function AdvancedFileViewer({
                 disabled={!signedUrl || hlsDownloading}
                 aria-label={isHlsSource ? "Descargar como MP4" : "Descargar archivo"}
                 title={isHlsSource ? "Descargar como MP4 (se genera en tu navegador)" : "Descargar"}
-                className="h-7 w-7 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
+                className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150`}
               >
                 {hlsDownloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               </button>
-              {canShare && !isHlsSource && (
+              {canShare && !isHlsSource && !coarse && (
                 <button
                   onClick={shareCurrentFile}
                   disabled={!signedUrl}
                   aria-label="Compartir archivo"
                   title="Compartir"
-                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
+                  className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150`}
                 >
                   <Share2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {coarse && (
+                <button
+                  onClick={() => setActionsOpen(true)}
+                  aria-label="Más acciones"
+                  title="Más acciones"
+                  className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-all duration-150`}
+                >
+                  <MoreHorizontal className="h-5 w-5" />
                 </button>
               )}
               <div className="w-px h-3.5 bg-[hsl(var(--border))] mx-1" />
               <DialogPrimitive.Close
                 aria-label="Cerrar visor"
                 title="Cerrar"
-                className="h-7 w-7 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-all duration-150"
+                className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-all duration-150`}
               >
                 <X className="h-4 w-4" />
               </DialogPrimitive.Close>
@@ -931,8 +824,13 @@ export function AdvancedFileViewer({
               surface opens the Runly context menu instead of the browser's
               native one. Item list adapts to the current file kind. */}
           <ContextMenu>
-            <ContextMenuTrigger asChild>
-          <div className="relative flex-1 min-h-0 overflow-hidden">
+            <ContextMenuTrigger asChild disabled={coarse}>
+          <div
+            ref={surfaceRef}
+            className={`relative flex-1 min-h-0 overflow-hidden ${coarse ? "select-none [-webkit-touch-callout:none]" : ""}`}
+          >
+            {/* Everything that moves with a swipe (prev/next, swipe-down close). */}
+            <div ref={slideRef} className="absolute inset-0 will-change-transform">
             {/* Loading state */}
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center">
@@ -1123,11 +1021,13 @@ export function AdvancedFileViewer({
               </div>
             )}
 
+            </div>
+
             {/* Overlaid navigation arrows (multi-file). Independent of `loading`/
                 `signedUrl` — this is generic chrome, not the active file's
                 content, so it must stay put while the next file's content
                 loads instead of flashing away and back on every click. */}
-            {(files?.length ?? 0) > 1 && (
+            {(files?.length ?? 0) > 1 && !coarse && (
               <>
                 {canPrev && (
                   <button
@@ -1169,7 +1069,7 @@ export function AdvancedFileViewer({
                       "max-w-[calc(100%-1.5rem)] glass rounded-2xl p-1.5",
                       "flex items-center gap-1.5",
                       "transition-all duration-200",
-                      gestureActive
+                      gestureActive || hideChrome
                         ? "opacity-0 translate-y-2 pointer-events-none"
                         : "opacity-100",
                     ].join(" ")}
@@ -1237,7 +1137,7 @@ export function AdvancedFileViewer({
                       "h-8 px-3 glass rounded-full flex items-center gap-1.5",
                       "text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
                       "transition-all duration-200",
-                      gestureActive ? "opacity-0 pointer-events-none" : "opacity-100",
+                      gestureActive || hideChrome ? "opacity-0 pointer-events-none" : "opacity-100",
                     ].join(" ")}
                   >
                     <ChevronUp className="h-3.5 w-3.5" />
@@ -1254,79 +1154,15 @@ export function AdvancedFileViewer({
               className="w-56"
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
-              {kind === "image" && (
-                <ContextMenuItem onSelect={copyCurrentImage} disabled={!signedUrl}>
-                  <Copy />
-                  Copiar imagen
-                </ContextMenuItem>
-              )}
-              <ContextMenuItem onSelect={downloadCurrent} disabled={!signedUrl}>
-                <Download />
-                Descargar
-              </ContextMenuItem>
-              {canShare && (
-                <ContextMenuItem onSelect={shareCurrentFile} disabled={!signedUrl}>
-                  <Share2 />
-                  Compartir
-                </ContextMenuItem>
-              )}
-              <ContextMenuItem onSelect={copyCurrentLink} disabled={!signedUrl}>
-                <Link2 />
-                Copiar enlace
-              </ContextMenuItem>
-              <ContextMenuItem
-                onSelect={() => signedUrl && window.open(signedUrl, "_blank")}
-                disabled={!signedUrl}
-              >
-                <ExternalLink />
-                Abrir en pestaña nueva
-              </ContextMenuItem>
-
-              {kind === "image" && (
-                <>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem onSelect={() => setRotation((v) => v - 90)}>
-                    <RotateCcw />
-                    Rotar a la izquierda
+              {actions.map((action, i) => (
+                <div key={action.key} className="contents">
+                  {i > 0 && actions[i - 1].group !== action.group && <ContextMenuSeparator />}
+                  <ContextMenuItem onSelect={action.onSelect} disabled={action.disabled}>
+                    <action.icon />
+                    {action.label}
                   </ContextMenuItem>
-                  <ContextMenuItem onSelect={() => setRotation((v) => v + 90)}>
-                    <RotateCw />
-                    Rotar a la derecha
-                  </ContextMenuItem>
-                  <ContextMenuItem onSelect={() => setFlipX((v) => !v)}>
-                    <FlipHorizontal2 />
-                    Voltear horizontal
-                  </ContextMenuItem>
-                  <ContextMenuItem onSelect={() => setFlipY((v) => !v)}>
-                    <FlipVertical2 />
-                    Voltear vertical
-                  </ContextMenuItem>
-                  <ContextMenuItem onSelect={resetTransforms}>
-                    <RefreshCw />
-                    Restablecer vista
-                  </ContextMenuItem>
-                </>
-              )}
-
-              {(files?.length ?? 0) > 1 && (
-                <>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    onSelect={() => canPrev && onIndexChange(activeIndex - 1)}
-                    disabled={!canPrev}
-                  >
-                    <ChevronLeft />
-                    Archivo anterior
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    onSelect={() => canNext && onIndexChange(activeIndex + 1)}
-                    disabled={!canNext}
-                  >
-                    <ChevronRight />
-                    Archivo siguiente
-                  </ContextMenuItem>
-                </>
-              )}
+                </div>
+              ))}
             </ContextMenuContent>
           </ContextMenu>
 
@@ -1339,7 +1175,7 @@ export function AdvancedFileViewer({
               toolbar (page nav + zoom/rotate/flip) at its own bottom edge —
               reserving this one too would stack two toolbars for PDFs only. */}
           {!loading && signedUrl && kind !== "pdf" && (
-            <div className="flex items-center justify-center gap-1.5 px-3 h-12 safe-bottom shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 overflow-x-auto">
+            <div className={`flex items-center justify-center gap-1.5 px-3 h-12 safe-bottom shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 overflow-x-auto transition-opacity duration-200 ${chromeCls}`}>
               {kind === "image" && (
                 <>
               {/* Zoom group */}
@@ -1420,6 +1256,13 @@ export function AdvancedFileViewer({
               )}
             </div>
           )}
+          <ViewerActionsSheet
+            open={actionsOpen}
+            onOpenChange={setActionsOpen}
+            title={file?.originalName ?? file?.name}
+            actions={actions}
+            zIndex={zIndex + 10}
+          />
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

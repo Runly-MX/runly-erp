@@ -103,7 +103,8 @@ const SheetContent = forwardRef(function SheetContent(
 
   return (
     <SheetPortal>
-      <SheetOverlay />
+      {/* A custom zIndex (sheet over a high modal) applies to the scrim too. */}
+      <SheetOverlay style={style?.zIndex != null ? { zIndex: style.zIndex } : undefined} />
       <SheetPrimitive.Content
         ref={setRef}
         aria-describedby={ariaDescribedby}
