@@ -3,11 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOfflineStatus } from '@runly/offline'
 import { toast } from 'sonner'
 import { Plus, Wallet, ArrowDownLeft, ArrowUpRight, Maximize2, Minimize2, SlidersHorizontal } from 'lucide-react'
-import { Button, ConfirmDialog, ErrorState, SearchInput, FilterBar, DatePickerField, ViewModeSwitch, getStoredViewMode, useIsMobile } from '@runly/ui'
+import { Button, ConfirmDialog, ErrorState, SearchInput, FilterBar, DateRangeFilter, ViewModeSwitch, getStoredViewMode, useIsMobile } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useAccountTransactions, useAccountSummary, useLedgerSQLite } from '../hooks/use-ledger-queries.js'
 import { useTransactionMutations } from '../hooks/useTransactionMutations.js'
 import { EDITABLE_COLS, PAGE_STEP, emptyRow, buildTransactionPayload, toDateValue } from '../lib/spreadsheet-helpers.js'
+import { nextSort, sortRows } from '../lib/register-sort.js'
 import MobileTransactionList from '../components/MobileTransactionList.jsx'
 import MobileTransactionSheet from '../components/MobileTransactionSheet.jsx'
 import DesktopTransactionTable from '../components/DesktopTransactionTable.jsx'
@@ -44,6 +45,7 @@ export default function SpreadsheetRegister({
   const [mobileSheet, setMobileSheet] = useState(null) // { mode: 'new' | 'edit', draft }
   const [search, setSearch] = useState('')
   const [filterValue, setFilterValue] = useState({ tipo: '', categoria: '' })
+  const [sort, setSort] = useState(null) // { key, dir: 'asc' | 'desc' } | null
   // Mobile only: 'cards' (touch list + sheet editor) or 'table' (the same
   // inline spreadsheet grid desktop uses). Desktop always shows the grid.
   const [mobileView, setMobileView] = useState(() => getStoredViewMode('ledger-register-mobile', 'cards'))
@@ -130,7 +132,19 @@ export default function SpreadsheetRegister({
     { key: 'tipo', label: 'Tipo', options: types.map((t) => ({ value: t.id, label: t.code })) },
     { key: 'categoria', label: 'Categoría', options: categories.map((c) => ({ value: c.id, label: c.name })) },
   ].filter((f) => f.options.length > 0)
-  const hasMobileFilters = Boolean(onDateFromChange || onDateToChange || filterBarFilters.length > 0)
+  const hasDateFilter = Boolean(onDateFromChange || onDateToChange)
+  const hasMobileFilters = Boolean(hasDateFilter || filterBarFilters.length > 0)
+  const dateRangeFilter = hasDateFilter && (
+    <DateRangeFilter
+      filter={{ key: 'fecha', label: 'Fecha', fromKey: 'from', toKey: 'to' }}
+      value={{ from: dateFrom || '', to: dateTo || '' }}
+      onChange={(next) => {
+        if ((next.from || '') !== (dateFrom || '')) onDateFromChange?.(next.from || '')
+        if ((next.to || '') !== (dateTo || '')) onDateToChange?.(next.to || '')
+      }}
+    />
+  )
+  const sortedRows = useMemo(() => sortRows(rows, sort, { types, categories }), [rows, sort, types, categories])
   const activeFilterCount = [dateFrom, dateTo, filterValue.tipo, filterValue.categoria].filter(Boolean).length
 
   const { saveMutation, deleteMutation, moveMutation, getDraft, setDraft, clearDraft, saveRow } = useTransactionMutations({
@@ -143,6 +157,8 @@ export default function SpreadsheetRegister({
 
   const dragDisabledReason = !isOnline
     ? 'Reordenar requiere conexión'
+    : sort
+      ? 'Quita el orden por columna para reordenar'
     : filtersActive
       ? 'Quita la búsqueda y los filtros para reordenar'
       : newRow
@@ -262,7 +278,7 @@ export default function SpreadsheetRegister({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, concepto, referencia..."
-            className="flex-1 min-w-0 sm:max-w-md"
+            className="flex-1 min-w-0 sm:max-w-md [&_input]:h-8 [&_input]:rounded-full [&_input]:text-xs"
           />
           {hasMobileFilters && (
             <Button
@@ -281,38 +297,7 @@ export default function SpreadsheetRegister({
               )}
             </Button>
           )}
-          {(onDateFromChange || onDateToChange) && (
-            <div className="hidden sm:flex items-center gap-2 shrink-0">
-              <DatePickerField
-                compact
-                placeholder="Desde"
-                aria-label="Filtrar desde"
-                value={dateFrom || undefined}
-                onChange={(val) => onDateFromChange?.(val ?? "")}
-              />
-              <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span>
-              <DatePickerField
-                compact
-                placeholder="Hasta"
-                aria-label="Filtrar hasta"
-                value={dateTo || undefined}
-                onChange={(val) => onDateToChange?.(val ?? "")}
-              />
-              {(dateFrom || dateTo) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onDateFromChange?.("")
-                    onDateToChange?.("")
-                  }}
-                  className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
-                  title="Limpiar filtro"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          )}
+          {hasDateFilter && <div className="hidden sm:block shrink-0">{dateRangeFilter}</div>}
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="sm:hidden text-xs text-[hsl(var(--muted-foreground))] whitespace-nowrap mr-auto">
@@ -361,36 +346,9 @@ export default function SpreadsheetRegister({
       </div>
 
       {/* Date filters — mobile only, collapsible panel below search/toolbar */}
-      {(onDateFromChange || onDateToChange) && mobileFiltersOpen && (
+      {hasDateFilter && mobileFiltersOpen && (
         <div className="sm:hidden flex items-center gap-2 px-3 py-2 border-b border-[hsl(var(--border))]">
-          <DatePickerField
-            compact
-            placeholder="Desde"
-            aria-label="Filtrar desde"
-            value={dateFrom || undefined}
-            onChange={(val) => onDateFromChange?.(val ?? "")}
-          />
-          <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span>
-          <DatePickerField
-            compact
-            placeholder="Hasta"
-            aria-label="Filtrar hasta"
-            value={dateTo || undefined}
-            onChange={(val) => onDateToChange?.(val ?? "")}
-          />
-          {(dateFrom || dateTo) && (
-            <button
-              type="button"
-              onClick={() => {
-                onDateFromChange?.("")
-                onDateToChange?.("")
-              }}
-              className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
-              title="Limpiar filtro"
-            >
-              ×
-            </button>
-          )}
+          {dateRangeFilter}
         </div>
       )}
 
@@ -440,7 +398,10 @@ export default function SpreadsheetRegister({
         ) : (
         <DesktopTransactionTable
           tableRef={tableRef}
-          rows={rows}
+          rows={sortedRows}
+          sort={sort}
+          onSort={(key) => setSort((current) => nextSort(current, key))}
+          balanceRow={rows[rows.length - 1]}
           visibleRowIds={visibleRowIds}
           types={types}
           categories={categories}

@@ -1,4 +1,5 @@
 // apps/desktop/src/modules/runly.ledger/components/DesktopTransactionTable.jsx
+import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
 import CategoryOptions from './CategoryOptions.jsx'
 import { DragHandle, RegisterDndContext, useSortableRow } from './SortableRegister.jsx'
 import { fmtDecimal, toDateValue } from '../lib/spreadsheet-helpers.js'
@@ -17,6 +18,7 @@ export default function DesktopTransactionTable({
   tableRef, rows, visibleRowIds, types, categories, canEdit,
   getDraft, setDraft, handleKeyDown, handleRowBlur, saveRow,
   newRow, setNewRow, onDelete, onReorder, dragDisabledReason = null,
+  sort = null, onSort, balanceRow = null,
 }) {
   const dragDisabled = !canEdit || Boolean(dragDisabledReason)
   const totals = rows.reduce(
@@ -29,7 +31,9 @@ export default function DesktopTransactionTable({
     },
     { deposito: 0, retiro: 0 },
   )
-  const lastRow = rows[rows.length - 1]
+  // Sorting reorders `rows`, so the closing balance comes from the register's
+  // natural last row, not the last row on screen.
+  const lastRow = balanceRow ?? rows[rows.length - 1]
 
   return (
     <RegisterDndContext ids={rows.map((row) => row.id)} onReorder={onReorder}>
@@ -46,17 +50,17 @@ export default function DesktopTransactionTable({
       <thead className="sticky top-0 z-10">
         <tr>
           <th className={`${thClass} w-8 px-0`} aria-label="Reordenar" />
-          <th className={`${thClass} w-10 text-center`}>#</th>
-          <th className={`${thClass} w-28`}>Fecha</th>
-          <th className={`${thClass} w-32`}>Tipo</th>
-          <th className={`${thClass} w-24`}>Numero</th>
-          <th className={`${thClass} min-w-40`}>Nombre</th>
-          <th className={`${thClass} w-28`}>Referencia</th>
-          <th className={`${thClass} min-w-32`}>Concepto</th>
-          <th className={`${thClass} w-28 text-right`}>Ingreso</th>
-          <th className={`${thClass} w-28 text-right`}>Egreso</th>
-          <th className={`${thClass} w-36`}>Categoria</th>
-          <th className={`${thClass} w-28 text-right`}>Saldo</th>
+          <SortTh col="consecutive" label="#" className="w-10 text-center" sort={sort} onSort={onSort} />
+          <SortTh col="fecha" label="Fecha" className="w-28" sort={sort} onSort={onSort} />
+          <SortTh col="tipo" label="Tipo" className="w-32" sort={sort} onSort={onSort} />
+          <SortTh col="numero" label="Numero" className="w-24" sort={sort} onSort={onSort} />
+          <SortTh col="nombre" label="Nombre" className="min-w-40" sort={sort} onSort={onSort} />
+          <SortTh col="referencia" label="Referencia" className="w-28" sort={sort} onSort={onSort} />
+          <SortTh col="concepto" label="Concepto" className="min-w-32" sort={sort} onSort={onSort} />
+          <SortTh col="deposito" label="Ingreso" className="w-28 text-right" sort={sort} onSort={onSort} />
+          <SortTh col="retiro" label="Egreso" className="w-28 text-right" sort={sort} onSort={onSort} />
+          <SortTh col="categoria" label="Categoria" className="w-36" sort={sort} onSort={onSort} />
+          <SortTh col="saldo" label="Saldo" className="w-28 text-right" sort={sort} onSort={onSort} />
           <th className={`${thClass} w-8`} />
         </tr>
       </thead>
@@ -395,6 +399,29 @@ export default function DesktopTransactionTable({
       )}
     </table>
     </RegisterDndContext>
+  )
+}
+
+// Header cell that cycles asc -> desc -> unsorted on click.
+function SortTh({ col, label, className = '', sort, onSort }) {
+  const active = sort?.key === col
+  const Icon = !active ? ChevronsUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown
+  const right = className.includes('text-right')
+  return (
+    <th
+      className={`${thClass} ${className} p-0`}
+      aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      <button
+        type="button"
+        onClick={() => onSort?.(col)}
+        title={`Ordenar por ${label}`}
+        className={`flex h-full w-full items-center gap-1 px-2 py-1.5 uppercase tracking-wide transition-colors hover:text-[hsl(var(--foreground))] ${right ? 'justify-end' : ''} ${active ? 'text-[hsl(var(--foreground))]' : ''}`}
+      >
+        {label}
+        <Icon size={11} className={active ? 'text-(--brand-primary)' : 'opacity-40'} />
+      </button>
+    </th>
   )
 }
 

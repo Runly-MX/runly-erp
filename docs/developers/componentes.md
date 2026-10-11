@@ -99,6 +99,26 @@ Filtros en forma de chips para listas.
 | `value` | objeto | Valores activos `{ [key]: value }` |
 | `onChange` | `(nuevoValor) => void` | Recibe el objeto completo de filtros |
 
+### DateRangeFilter
+
+Selector de rango de fechas en forma de chip: atajos (Hoy, Últimos 7 días, Este mes...), calendario con vista previa del rango y botón "Quitar rango". Es el mismo que usa `FilterBar` cuando un filtro es `type: 'daterange'`; úsalo suelto cuando solo necesitas el rango (por ejemplo junto a un buscador).
+
+| Prop | Tipo | Qué hace |
+|---|---|---|
+| `filter` | `{ key, label, fromKey, toKey }` | `label` es el texto del chip; `fromKey`/`toKey` son las claves donde se escribe cada extremo |
+| `value` | objeto | `{ [fromKey]: 'YYYY-MM-DD', [toKey]: 'YYYY-MM-DD' }` (vacío = sin límite) |
+| `onChange` | `(nuevoValor) => void` | Recibe el objeto completo, con ambas claves |
+
+```jsx
+import { DateRangeFilter } from '@runly/ui'
+
+<DateRangeFilter
+  filter={{ key: 'fecha', label: 'Fecha', fromKey: 'desde', toKey: 'hasta' }}
+  value={{ desde, hasta }}
+  onChange={(v) => { setDesde(v.desde); setHasta(v.hasta) }}
+/>
+```
+
 ### EntityTable
 
 Tabla paginada con búsqueda y filtros de una entidad, igual a la vista TABLE del Constructor.

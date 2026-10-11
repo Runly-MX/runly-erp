@@ -586,6 +586,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `DetailHero` | Redesigned entity-detail header: a representative image (or a branded fallback panel tinted by an accent colour) + title + subtitle + status pill + meta chips + an actions slot. Presentational only; consumed by `RunlyDetail` when the DETAIL blueprint declares `schema.hero`. |
 | `SearchInput` | Search text field with icon |
 | `FilterBar` | Horizontal filter control bar |
+| `DateRangeFilter` | Date-range chip (presets + range calendar); what `FilterBar` renders for `type: 'daterange'`, usable standalone with `filter={{ key, label, fromKey, toKey }}` |
 | `ListPager` + `usePagedList` | Client-side paging for in-memory lists/cards ("1–12 de 40 < 1 / 4 >"); hidden for a single page |
 | `DynamicTable` | Blueprint-driven table renderer |
 | `DynamicForm` | Blueprint-driven form renderer |
