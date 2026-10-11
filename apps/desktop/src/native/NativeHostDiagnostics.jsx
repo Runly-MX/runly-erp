@@ -28,7 +28,7 @@ export function NativeHostDiagnostics() {
         call: testCallNotification,
         media: testMedia,
         haptics: async () => { await native.haptics.impact(); return 'Vibración solicitada.' },
-        external: () => native.openExternal('https://github.com/raulbellosom/runly-erp'),
+        external: () => native.openExternal('https://github.com/Runly-MX/runly-erp'),
       }[kind]
       const message = await action()
       if (typeof message === 'string') setStatus(message)

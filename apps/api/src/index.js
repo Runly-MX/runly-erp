@@ -2168,7 +2168,7 @@ app.get("/public", (c) => {
   return c.json({
     api: "Runly ERP Public API",
     version: "1.0",
-    docs: "https://github.com/raulbellosom/runly-erp",
+    docs: "https://github.com/Runly-MX/runly-erp",
     endpoints: [
       // Discovery
       { method: "GET",  path: "/public",                                auth: "none",       description: "This index — lists all public endpoints" },

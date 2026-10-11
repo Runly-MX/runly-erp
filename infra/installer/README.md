@@ -22,7 +22,7 @@ Los servicios/volumenes Compose mantienen sus identidades actuales. Instala las
 imagenes Runly compatibles antes de usar configuracion con los nombres nuevos.
 
 Repositorio oficial:
-- GitHub: `https://github.com/raulbellosom/runly-erp`
+- GitHub: `https://github.com/Runly-MX/runly-erp`
 - Docker Hub: `https://hub.docker.com/r/raulbellosom/runlyerp`
 
 Imágenes de distribución (requieren publicación):
@@ -65,7 +65,7 @@ Requiere: Docker Desktop (o Docker Engine + Compose v2), Node.js 20+, npx.
 
 ```powershell
 # Desde la carpeta donde quieras instalar Runly ERP:
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-local.ps1" -OutFile ".\bootstrap-local.ps1"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-local.ps1" -OutFile ".\bootstrap-local.ps1"
 powershell -ExecutionPolicy Bypass -File .\bootstrap-local.ps1
 ```
 
@@ -73,7 +73,7 @@ powershell -ExecutionPolicy Bypass -File .\bootstrap-local.ps1
 
 ```bash
 # Desde la carpeta donde quieras instalar Runly ERP:
-curl -fsSLo bootstrap-local.sh https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-local.sh
+curl -fsSLo bootstrap-local.sh https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-local.sh
 chmod +x bootstrap-local.sh
 ./bootstrap-local.sh
 ```
@@ -185,7 +185,7 @@ Para un servidor Linux con Supabase self-hosted o Supabase Cloud ya configurado.
 ### Instalacion en servidor nuevo (Linux)
 
 ```bash
-curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.sh
+curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-external.sh
 chmod +x bootstrap-external.sh
 ./bootstrap-external.sh
 
@@ -197,7 +197,7 @@ npm run runly:external
 
 ```powershell
 # Desde la carpeta donde quieras instalar Runly ERP:
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.ps1" -OutFile ".\bootstrap-external.ps1"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-external.ps1" -OutFile ".\bootstrap-external.ps1"
 powershell -ExecutionPolicy Bypass -File .\bootstrap-external.ps1
 
 notepad .\.env.external
@@ -890,7 +890,7 @@ nuevas aunque el código ya estuviera publicado en `main`. Para renovar esa copi
 una vez, desde la carpeta del instalador:
 
 ```bash
-curl -fsSLo bootstrap-external.sh.next https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.sh && bash -n bootstrap-external.sh.next && mv bootstrap-external.sh.next bootstrap-external.sh
+curl -fsSLo bootstrap-external.sh.next https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-external.sh && bash -n bootstrap-external.sh.next && mv bootstrap-external.sh.next bootstrap-external.sh
 bash ./bootstrap-external.sh
 ```
 
@@ -929,7 +929,7 @@ imagenes de Runly y los archivos del instalador. Desde la **carpeta existente de
 instalador**, refresca los scripts y Compose con el bootstrap actualizado:
 
 ```bash
-curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.sh
+curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-external.sh
 bash ./bootstrap-external.sh
 ```
 

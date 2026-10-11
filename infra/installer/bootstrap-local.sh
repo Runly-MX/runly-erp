@@ -11,7 +11,7 @@ set -euo pipefail
 # on disk regardless of what changed in the repo. Missed once already: this
 # exact gap is why the 2026-09-22 S3_PROTOCOL_ACCESS_KEY_ID/SECRET fix to
 # docker-compose.supabase.yml never reached a real VPS via update-local.sh.
-base_url="https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer"
+base_url="https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer"
 if [[ "${RUNLY_BOOTSTRAP_REFRESHED-${ATLAS_BOOTSTRAP_REFRESHED:-}}" != "local" ]]; then
   bootstrap_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
   bootstrap_download="$(mktemp "${bootstrap_path}.XXXXXX")"

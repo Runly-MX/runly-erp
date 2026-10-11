@@ -50,7 +50,7 @@ test('installer devkit downloader uses the exported manifest and writes nested f
   }
 
   const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-devkit-installer-'))
-  const docsRawBase = 'https://raw.githubusercontent.com/raulbellosom/runly-erp/main'
+  const docsRawBase = 'https://raw.githubusercontent.com/Runly-MX/runly-erp/main'
   const requests = []
 
   const result = await mod.downloadDevKitSnapshot({

@@ -16,13 +16,13 @@ cd "$DIR"
 if [[ ! -f .env.external ]]; then
   echo "[runly-update] .env.external no existe todavia — esto no es una actualizacion." >&2
   echo "[runly-update] Para una instalacion nueva:" >&2
-  echo "  curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.sh" >&2
+  echo "  curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-external.sh" >&2
   echo "  chmod +x bootstrap-external.sh && ./bootstrap-external.sh" >&2
   exit 1
 fi
 
 echo "[runly-update] 1/2 Refrescando scripts del instalador..."
-curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.sh
+curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-external.sh
 bash ./bootstrap-external.sh
 
 echo "[runly-update] 2/2 Actualizando Runly (pull + migrate + recreate)..."

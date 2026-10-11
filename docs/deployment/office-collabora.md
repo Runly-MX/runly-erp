@@ -57,7 +57,7 @@ Office is disabled by default. An ordinary update does not enable it automatical
 2. On the VPS, enter the **existing installer directory** containing `.env.external` and `custom-modules/`. Back up your deployment configuration before refreshing the installer. Download and run the updated bootstrap:
 
    ```bash
-   curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.sh
+   curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-external.sh
    bash ./bootstrap-external.sh
    ```
 

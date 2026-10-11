@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$baseUrl = "https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer"
+$baseUrl = "https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer"
 if (-not $SkipBootstrapRefresh) {
   $bootstrapDownload = "$PSCommandPath.download"
   try {

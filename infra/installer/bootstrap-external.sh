@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-base_url="https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer"
+base_url="https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer"
 # Refresh the file list itself before downloading the installer. Existing VPS
 # copies otherwise keep downloading an obsolete list forever.
 if [[ "${RUNLY_BOOTSTRAP_REFRESHED-${ATLAS_BOOTSTRAP_REFRESHED:-}}" != "external" ]]; then

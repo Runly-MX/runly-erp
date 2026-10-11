@@ -4,7 +4,7 @@
 // UI — the setup wizard hero badge and footer, the login footer, etc.
 export const RUNLY_EDITION_NAME = 'Jaguar'
 
-export const RUNLY_GITHUB_REPO = 'raulbellosom/runly-erp'
+export const RUNLY_GITHUB_REPO = 'Runly-MX/runly-erp'
 export const RUNLY_DESKTOP_RELEASE_ASSET_NAME = 'Runly-ERP-Setup.exe'
 export const RUNLY_DESKTOP_DOWNLOAD_URL = `https://github.com/${RUNLY_GITHUB_REPO}/releases/latest/download/${RUNLY_DESKTOP_RELEASE_ASSET_NAME}`
 

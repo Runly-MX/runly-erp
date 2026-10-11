@@ -12,5 +12,5 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
 echo "[runly-update] Refrescando el instalador y actualizando Runly (pull + migrate + recreate)..."
-curl -fsSLo bootstrap-local.sh https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-local.sh
+curl -fsSLo bootstrap-local.sh https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-local.sh
 exec bash ./bootstrap-local.sh

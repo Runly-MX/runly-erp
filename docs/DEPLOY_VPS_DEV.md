@@ -41,7 +41,7 @@ apt update && apt install -y docker.io docker-compose-plugin nginx certbot pytho
 
 ```bash
 cd /opt
-git clone https://github.com/raulbellosom/runly-erp.git runlyerp-dev
+git clone https://github.com/Runly-MX/runly-erp.git runlyerp-dev
 cd runlyerp-dev
 ```
 

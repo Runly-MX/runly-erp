@@ -1,7 +1,7 @@
 # Runly ERP
 
 Renamed from Atlas ERP. Distribution targets GitHub
-`raulbellosom/runly-erp` and Docker Hub `raulbellosom/runlyerp`. Workspace
+`Runly-MX/runly-erp` and Docker Hub `raulbellosom/runlyerp`. Workspace
 packages use `@runly/*`, with `@atlas/*` aliases kept only for existing custom
 modules authored against the old import scope. Installer commands use `runly:*`.
 Environment inputs use `RUNLY_*` and `VITE_RUNLY_*` — there is no `ATLAS_*`
@@ -27,7 +27,7 @@ Quick install on any machine without cloning the repo:
 
 ```powershell
 # Desde la carpeta donde quieras instalar Runly ERP:
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-local.ps1" -OutFile ".\bootstrap-local.ps1"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-local.ps1" -OutFile ".\bootstrap-local.ps1"
 powershell -ExecutionPolicy Bypass -File .\bootstrap-local.ps1
 ```
 
@@ -144,7 +144,7 @@ also start `collabora-dev` in the Docker `runlyerp` group. See the
 
 ### Desktop release
 
-- The public download URL is always `https://github.com/raulbellosom/runly-erp/releases/latest/download/Runly-ERP-Setup.exe`
+- The public download URL is always `https://github.com/Runly-MX/runly-erp/releases/latest/download/Runly-ERP-Setup.exe`
 - `pnpm --filter @runly/desktop release` reads the version from `apps/desktop/src-tauri/tauri.conf.json`, uploads `apps/desktop/src-tauri/target/release/bundle/nsis/Runly-ERP-Setup.exe`, and marks that release as `latest`
 - If the tag does not exist, the script creates it; if it already exists, the script replaces the asset with `--clobber`
 | --------------------- | ------------ |

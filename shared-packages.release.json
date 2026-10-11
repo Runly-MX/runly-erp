@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "registry": "https://npm.pkg.github.com",
   "scopeOwner": "runly-mx",
-  "sourceRepository": "raulbellosom/runly-erp",
+  "sourceRepository": "Runly-MX/runly-erp",
   "logicalScope": "@runly",
   "registryScope": "@runly-mx",
   "versionConvention": "<base>-source.<full-git-sha>",
