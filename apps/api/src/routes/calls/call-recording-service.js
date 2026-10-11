@@ -1,4 +1,4 @@
-import { EgressClient, SegmentedFileOutput, SegmentedFileProtocol, S3Upload } from "livekit-server-sdk";
+import { EgressClient, RoomServiceClient, SegmentedFileOutput, SegmentedFileProtocol, S3Upload } from "livekit-server-sdk";
 import { readLiveKitConfig } from "./call-service.js";
 
 const MAX_DURATION_MS = 4 * 60 * 60 * 1000; // hard cap — spec §24 risk 3
@@ -30,6 +30,7 @@ export function createCallRecordingService({
   prisma,
   env = process.env,
   EgressClientImpl = EgressClient,
+  RoomServiceClientImpl = RoomServiceClient,
   callService = null,
   supabaseAdmin = null,
   onRecordingReady = null,
@@ -96,6 +97,26 @@ export function createCallRecordingService({
     if (!rows.length) throw new CallRecordingError("Conversación no encontrada.", 404);
   }
 
+  // The Runly composite page reads the meeting title from the room metadata
+  // (its only input besides the LiveKit URL/token the egress passes it).
+  async function publishRecordingTitle(call) {
+    const [row] = await prisma.$queryRaw`
+      SELECT c.title, co.name AS "companyName"
+      FROM chat_conversations c
+      LEFT JOIN company co ON co.id = c.company_id
+      WHERE c.id = ${call.conversationId} LIMIT 1
+    `;
+    const c = liveKit();
+    const rooms = typeof RoomServiceClientImpl === "function"
+      ? new RoomServiceClientImpl(c.internalUrl, c.apiKey, c.apiSecret)
+      : RoomServiceClientImpl;
+    await rooms.updateRoomMetadata(call.livekitRoomName, JSON.stringify({
+      title: row?.title ?? "Reunión",
+      companyName: row?.companyName ?? null,
+      recordingStartedAt: now().toISOString(),
+    }));
+  }
+
   // startedByUserId (persisted on the row, for the "started by" audit trail)
   // and profileId (the authorization actor checked against the call) are the
   // same identifier in every real call path today — c.get("userId") from
@@ -128,18 +149,21 @@ export function createCallRecordingService({
       },
     });
 
+    // Runly's own composite page (same stage as the app, branded) when the
+    // instance publishes one the egress container can reach; otherwise
+    // LiveKit's default template. "grid-dark" (not an empty layout) matters
+    // for the default: it only upgrades grid->speaker on a screen share when
+    // the layout string starts with "grid".
+    const templateUrl = String(env.LIVEKIT_EGRESS_TEMPLATE_URL ?? "").trim();
+    const compositeOptions = templateUrl ? { layout: "runly", customBaseUrl: templateUrl } : { layout: "grid-dark" };
+    if (templateUrl) await publishRecordingTitle(call).catch(() => {});
+
     let info;
     try {
-      // "grid-dark" (rather than an omitted/empty layout) matters: LiveKit's
-      // own default composite template auto-upgrades grid->speaker the
-      // moment it sees a screen-share track (giving it the big tile + a
-      // camera carousel), but only when the layout string it receives starts
-      // with "grid" — an empty layout skips that upgrade entirely and every
-      // track renders as an equal-size grid cell, screen-share included.
       info = await egressClient().startRoomCompositeEgress(
         call.livekitRoomName,
         { segments: output },
-        { layout: "grid-dark" },
+        compositeOptions,
       );
     } catch (error) {
       console.warn(`${LOG_PREFIX} No se pudo iniciar el egress de grabación:`, record.id, error?.message ?? error);

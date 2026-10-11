@@ -44,6 +44,8 @@ import { ResetPasswordScreen } from "../auth/ResetPasswordScreen.jsx";
 import PublicNoteScreen from "../modules/runly.notes/PublicNoteScreen.jsx";
 
 const GuestCallScreen = lazy(() => import("../modules/runly.chat/calls/guest/GuestCallScreen.jsx"));
+// LiveKit Egress recorder page (no session; joins with the egress token).
+const EgressCallScreen = lazy(() => import("../modules/runly.chat/calls/egress/EgressCallScreen.jsx"));
 const PublicBoardScreen = lazy(() => import("../modules/runly.canvas/screens/PublicBoardScreen.jsx"));
 const PublicFileScreen = lazy(() => import("../modules/runly.files/screens/PublicFileScreen.jsx"));
 import { useCallSoundUnlock } from "../modules/runly.chat/calls/useCallSoundUnlock.js";
@@ -166,6 +168,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     path="/app/google/calendar/callback"
                     element={<GoogleCalendarCallbackScreen />}
                   />
+                  <Route path="/app/egress/call" element={<Suspense fallback={null}><EgressCallScreen /></Suspense>} />
                   {/* Public notes under /app/p/ — accessible without auth, served by same SPA */}
                   <Route path="/app/p" element={<PublicShell />}>
                     <Route path="notes/:slug" element={<PublicNoteScreen />} />
