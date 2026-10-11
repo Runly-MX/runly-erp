@@ -1,5 +1,25 @@
 ﻿# Runly ERP - Tasks and Roadmap
 
+## Runly Meet v2 — chat y videollamadas [IMPLEMENTED; MANUAL QA PENDING]
+
+Program plan: `docs/superpowers/plans/2026-10-11-runly-meet-v2-program.md`.
+Specs: `docs/superpowers/specs/2026-10-11-runly-meet-v2-phase-1-design.md`, `docs/superpowers/specs/2026-10-11-runly-meet-v2-call-room-design.md`.
+
+- [x] Varios canales por proyecto (canal principal), canal privado visible para su creador, `/chat/channels/linked` aislado por compañía y membresía.
+- [x] Acceso a reuniones: ID de reunión + modos Sala de espera / Con PIN / Libre; `link-info` público sin PIN.
+- [x] Reunión sin timbre (`ring:false`), "Llamar" por persona con expiración propia, banner "Reunión en curso · Unirse", modo Presencial con grabación automática; el tono saliente ya no suena en reuniones.
+- [x] Sala rediseñada: escenario adaptable (presentación con zoom, 1:1 PiP, audio, foco, cuadrícula paginada), dock con texto, barra móvil de 5 + hoja "Más", panel Mensajes | Personas, moderación de miembros (silenciar / quitar, estado `REMOVED`), "Salir" vs "Finalizar para todos", atajos, selección de micrófono/cámara/altavoz.
+- [x] Sala del invitado externo con el mismo escenario y controles; pre-join en el banner y en la entrada del invitado.
+- [x] Ruta de audio Android (`audio-route`: teléfono, altavoz, audífonos, Bluetooth).
+- [x] Plantilla de grabación Runly (`LIVEKIT_EGRESS_TEMPLATE_URL` -> `/app/egress/call`; sin la variable se usa `grid-dark`).
+- [x] Chat táctil: stack con deslizar desde el borde (`SwipeBackStack`), responder con resorte + háptica, teclado de Android que redimensiona el layout.
+- [x] Llamada entrante a pantalla completa en el teléfono (con "Solo audio"), resumen al terminar y "Unirse / Iniciar reunión" en el calendario.
+- [ ] QA manual en el APK: ruta de audio, pantalla compartida nativa, botón atrás (sin SDK de Android en este entorno; `cargo check` de escritorio pasa).
+- [ ] Grabación real con el egress (en el entorno local el egress no inicia la grabación; la plantilla se verificó con un grabador oculto).
+- [ ] Llamada real entre dos usuarios internos (la compañía de pruebas tiene un solo usuario; los flujos de miembros se cubrieron con tests unitarios e invitados externos).
+
+Verified: 2026-10-11 (`node --test` calls + chat + `calls/lib` 648/648; `useSwipeToReply` 11/11; `pnpm build:web`; Playwright `.e2e/ui-callroom.mjs` escritorio/móvil/tablet/horizontal con anfitrión + 3 invitados, `.e2e/ui-meet.mjs`, `.e2e/ui-egress.mjs`, `.e2e/ui-chat-gestures.mjs`; API E2E `.e2e/chat-links-e2e.mjs`, `.e2e/call-pin-e2e.mjs`, `.e2e/call-meeting-e2e.mjs`).
+
 ## LiveKit RTC addressing [IMPLEMENTED; OPERATIONAL ACCEPTANCE PENDING]
 
 Spec: `docs/superpowers/specs/2026-09-26-livekit-rtc-addressing-design.md`.

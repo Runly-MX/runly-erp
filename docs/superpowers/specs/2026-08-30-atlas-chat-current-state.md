@@ -5,6 +5,13 @@
 direct messages, external/guest widget). Shipped 2026-08-27.
 **Status:** Post-audit reference (2026-08-30 pass, same rigor as `atlas.ledger`).
 
+> **Update 2026-10-11 (Runly Meet v2):** channel links are now 1:N (primary
+> channel), meetings have access modes + meeting ID/PIN, meetings can start
+> without ringing, and the call room/guest room were rebuilt
+> (`calls/layout`, `calls/controls`, `calls/panel`, `calls/people`, `calls/ui`).
+> See `docs/superpowers/specs/2026-10-11-runly-meet-v2-*.md`; the call-room
+> layout notes below predate that work.
+
 ---
 
 ## 1. Layout
