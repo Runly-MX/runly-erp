@@ -184,9 +184,13 @@ export function CallsProvider({ children }) {
     return unwrap(response);
   }, [token]);
 
-  const connectWithResponse = useCallback((response) => {
-    const payload = unwrap(response);
-    if (!payload?.call || !payload?.token || !payload?.livekitUrl) return false;
+  const connectWithResponse = useCallback((response, extra = null) => {
+    const raw = unwrap(response);
+    if (!raw?.call || !raw?.token || !raw?.livekitUrl) return false;
+    // Client-only session flags (e.g. meetingMode) survive a token refresh
+    // for the same call (rejoin after a dropped connection).
+    const previous = activeRef.current?.call?.id === raw.call.id ? activeRef.current : null;
+    const payload = { ...raw, meetingMode: extra?.meetingMode ?? previous?.meetingMode ?? null };
     incomingRef.current = null;
     setIncomingCall(null);
     setActiveSession(payload);
@@ -354,7 +358,9 @@ export function CallsProvider({ children }) {
     dismissAnsweredOnOtherDevice,
   });
 
-  const startCall = useCallback(async ({ conversationId, kind, calendarEventId, throwOnError = false }) => {
+  // ring=false starts a meeting without ringing anyone; meetingMode
+  // "inperson" opens the in-person recorder view and records automatically.
+  const startCall = useCallback(async ({ conversationId, kind, calendarEventId, ring, meetingMode = null, throwOnError = false }) => {
     if (!config.enabled || isStarting || startingCallRef.current || activeRef.current) {
       const error = Object.assign(new Error(
         !config.enabled ? "Las llamadas no están disponibles."
@@ -368,8 +374,11 @@ export function CallsProvider({ children }) {
     startingCallRef.current = true;
     setIsStarting(true);
     try {
-      const response = await runly.calls.create({ conversationId, kind, calendarEventId }, token);
-      if (!connectWithResponse(response)) throw new Error("El servidor no devolvió los datos para entrar a la llamada.");
+      const response = await runly.calls.create(
+        { conversationId, kind, calendarEventId, ...(ring === false ? { ring: false } : {}) },
+        token,
+      );
+      if (!connectWithResponse(response, { meetingMode })) throw new Error("El servidor no devolvió los datos para entrar a la llamada.");
       return true;
     } catch (error) {
       const details = error?.details?.details ?? error?.details;
@@ -397,6 +406,30 @@ export function CallsProvider({ children }) {
       setIsStarting(false);
     }
   }, [config.enabled, isStarting, token, connectWithResponse]);
+
+  // Join a live call/meeting the user was not rung for ("Unirse" banner).
+  const joinCall = useCallback(async (callId) => {
+    if (!callId || activeRef.current || startingCallRef.current) {
+      if (activeRef.current) toast.error("Ya tienes una llamada en curso.");
+      return false;
+    }
+    startingCallRef.current = true;
+    setIsStarting(true);
+    try {
+      claimCallForDevice(callId);
+      if (!connectWithResponse(await runly.calls.join(callId, token))) {
+        throw new Error("El servidor no devolvió los datos para entrar a la llamada.");
+      }
+      return true;
+    } catch (error) {
+      releaseCallForDevice(callId);
+      toast.error(error?.message || "No se pudo unir a la reunión.");
+      return false;
+    } finally {
+      startingCallRef.current = false;
+      setIsStarting(false);
+    }
+  }, [token, connectWithResponse]);
 
   const acceptIncoming = useCallback(async () => {
     if (!incomingCall?.id) return;
@@ -516,10 +549,11 @@ export function CallsProvider({ children }) {
     minimizeCall,
     restoreCall,
     startCall,
+    joinCall,
     openRecordingsFor,
     requestOpenRecordings,
     clearOpenRecordingsRequest,
-  }), [config.enabled, config.loading, isStarting, activeSession, pendingGuestCount, minimized, minimizeCall, restoreCall, startCall, openRecordingsFor, requestOpenRecordings, clearOpenRecordingsRequest]);
+  }), [config.enabled, config.loading, isStarting, activeSession, pendingGuestCount, minimized, minimizeCall, restoreCall, startCall, joinCall, openRecordingsFor, requestOpenRecordings, clearOpenRecordingsRequest]);
 
   return (
     <CallsContext.Provider value={value}>

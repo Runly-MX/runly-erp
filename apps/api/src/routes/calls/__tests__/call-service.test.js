@@ -530,8 +530,10 @@ describe("createCallService", () => {
     });
 
     assert.equal(await service.expireStaleCalls(), 1);
-    assert.equal(participantUpdates[0].data.status, "MISSED");
-    assert.equal(participantUpdates[1].data.status, "LEFT");
+    // The first updateMany is the per-participant ring expiry inside meetings.
+    const callUpdates = participantUpdates.filter((u) => !u.where?.ringStartedAt);
+    assert.equal(callUpdates[0].data.status, "MISSED");
+    assert.equal(callUpdates[1].data.status, "LEFT");
     assert.deepEqual(callUpdate.data, { status: "ENDED", endedAt: now, endReason: "missed" });
     assert.equal(deletedRoom, `call_${CALL_ID}`);
     const missBroadcast = broadcasts.find((b) => b.event === "chat.message.new");
@@ -793,8 +795,9 @@ describe("createCallService.inviteMembersToLiveCall", () => {
       membership: { findFirst: async () => ({ companyId: "co-1" }) },
       call: { findFirst: async () => liveCall },
       callParticipant: {
-        findMany: async () => existingParticipantIds.map((userId) => ({ userId })),
+        findMany: async () => existingParticipantIds.map((userId) => ({ userId, status: "JOINED" })),
         createMany: async ({ data }) => { calls.createManyParticipants = data; return { count: data.length }; },
+        updateMany: async (args) => { calls.ringAgain = args; return { count: 1 }; },
       },
       $queryRaw: async (strings) => {
         const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
@@ -843,9 +846,10 @@ describe("createCallService.inviteMembersToLiveCall", () => {
     assert.deepEqual(out.notified, [GUEST]);
     assert.deepEqual(out.addedMembers, [GUEST]);
     assert.deepEqual(out.addedParticipants, [GUEST]);
-    assert.deepEqual(calls.createManyParticipants, [
+    assert.deepEqual(calls.createManyParticipants.map(({ ringStartedAt, ...rest }) => rest), [
       { callId: CALL_ID, userId: GUEST, status: "RINGING", livekitIdentity: GUEST },
     ]);
+    assert.ok(calls.createManyParticipants[0].ringStartedAt instanceof Date);
 
     assert.equal(published.length, 1);
     assert.equal(published[0].input.eventType, "chat.call.incoming");
@@ -921,5 +925,83 @@ describe("createCallService.inviteMembersToLiveCall", () => {
     });
     assert.deepEqual(out, { notified: [], addedMembers: [], addedParticipants: [] });
     assert.equal(touched, false);
+  });
+});
+
+describe("createCallService — meetings without ringing", () => {
+  it("ring:false starts ACTIVE, marks other members INVITED and only sends a quiet meeting notice", async () => {
+    let participantData;
+    let insertSql;
+    const events = [];
+    const meeting = {
+      id: CALL_ID, conversationId: CONVERSATION_ID, kind: "VIDEO", status: "ACTIVE",
+      initiatedByUserId: CALLER_ID, livekitRoomName: `call_${CALL_ID}`,
+      participants: [{ userId: CALLER_ID, status: "JOINED", user: { displayName: "Host" } }],
+      initiator: { id: CALLER_ID, displayName: "Host" }, calendarEvent: null,
+    };
+    const tx = {
+      $queryRaw: async (strings) => {
+        const sql = strings.join("?");
+        if (sql.includes('INSERT INTO "call"')) { insertSql = sql; return [{ id: CALL_ID }]; }
+        return [];
+      },
+      callParticipant: { createMany: async ({ data }) => { participantData = data; } },
+      call: { findUnique: async () => meeting },
+    };
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Host" }) },
+      callLink: { findFirst: async () => null },
+      calendarEvent: { findFirst: async () => null },
+      callParticipant: { updateMany: async () => ({ count: 0 }) },
+      call: { findMany: async () => [], findFirst: async () => null, findUnique: async () => meeting },
+      $queryRaw: async (strings) => {
+        const sql = strings.join("?");
+        if (sql.includes("INSERT INTO chat_messages")) return [{ id: "m1", created_at: new Date() }];
+        return [{ userId: CALLER_ID, displayName: "Host" }, { userId: CALLEE_ID, displayName: "Ana" }];
+      },
+      $executeRaw: async () => 1,
+      $transaction: async (cb) => cb(tx),
+    };
+    class FakeToken { addGrant() {} async toJwt() { return "t"; } }
+    const service = createCallService({
+      prisma, env: enabledEnv(), AccessTokenImpl: FakeToken,
+      broadcaster: { broadcastToUsers: async (ids, event) => { events.push({ ids, event }); } },
+    });
+
+    await service.createCall({ authUserId: "auth", conversationId: CONVERSATION_ID, kind: "VIDEO", ring: false });
+
+    assert.deepEqual(participantData.map((p) => p.status), ["JOINED", "INVITED"]);
+    assert.equal(participantData[1].ringStartedAt, null);
+    assert.ok(insertSql.includes("CallStatus"));
+    assert.ok(events.some((e) => e.event === "chat.call.meeting_started" && e.ids.includes(CALLEE_ID)));
+    assert.ok(!events.some((e) => e.event === "chat.call.incoming"));
+  });
+
+  it("lets a conversation member who was never rung join a live meeting", async () => {
+    const created = [];
+    const meeting = {
+      id: CALL_ID, conversationId: CONVERSATION_ID, kind: "VIDEO", status: "ACTIVE", startedAt: new Date(),
+      initiatedByUserId: CALLER_ID, livekitRoomName: `call_${CALL_ID}`,
+      participants: [{ userId: CALLER_ID, status: "JOINED" }],
+      initiator: { id: CALLER_ID, displayName: "Host" }, calendarEvent: null,
+    };
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLEE_ID, displayName: "Ana" }) },
+      callParticipant: {
+        updateMany: async () => ({ count: 0 }),
+        create: async ({ data }) => { created.push(data); return { ...data, joinedAt: null }; },
+        update: async () => ({}),
+      },
+      call: { findMany: async () => [], findUnique: async () => meeting, update: async () => ({}) },
+      $queryRaw: async () => [{ id: "member-row" }],
+      $transaction: async (ops) => Promise.all(ops),
+    };
+    class FakeToken { addGrant() {} async toJwt() { return "t"; } }
+    const service = createCallService({ prisma, env: enabledEnv(), AccessTokenImpl: FakeToken });
+
+    const out = await service.joinCall({ authUserId: "auth-callee", callId: CALL_ID });
+
+    assert.equal(out.token, "t");
+    assert.equal(created[0].userId, CALLEE_ID);
   });
 });

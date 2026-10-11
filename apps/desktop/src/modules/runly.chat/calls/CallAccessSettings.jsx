@@ -69,7 +69,7 @@ export function CallAccessSettings({ link, onPatch, disabled = false, tone = "th
               disabled={disabled}
               onClick={() => !selected && onPatch?.({ accessMode: value })}
               className={cn(
-                "flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors",
+                "flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1 text-[11px] font-semibold leading-tight transition-colors sm:flex-row sm:gap-1.5 sm:text-xs",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] disabled:opacity-50",
                 selected
                   ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-sm"
@@ -79,7 +79,7 @@ export function CallAccessSettings({ link, onPatch, disabled = false, tone = "th
               )}
             >
               <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span className="truncate">{label}</span>
+              <span className="text-center">{label}</span>
             </button>
           );
         })}

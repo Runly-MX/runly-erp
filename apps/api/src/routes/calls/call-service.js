@@ -1,9 +1,8 @@
 import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 import { buildCallSystemMessage } from "./call-system-messages.js";
 import { createCallScreenShareService } from './call-screen-share-service.js';
-
-const LIVE_CALL_STATUSES = ["RINGING", "ACTIVE"];
-const RING_TIMEOUT_MS = 36_000;
+import { createCallInviteService } from "./call-invite-service.js";
+import { LIVE_CALL_STATUSES, RING_TIMEOUT_MS } from "./call-constants.js";
 
 function isLiveCallConflict(error) {
   return error?.code === "P2002"
@@ -47,6 +46,7 @@ export function createCallService({
   function getConfig() {
     return readLiveKitConfig(env);
   }
+  const { inviteMembersToLiveCall } = createCallInviteService({ prisma, notificationService, broadcaster, deliveryWorker, now });
 
   function assertEnabled() {
     const config = getConfig();
@@ -228,8 +228,21 @@ export function createCallService({
     }
   }
 
+  // Rings sent from inside an already-ACTIVE meeting expire per person: the
+  // participant goes MISSED (their device stops ringing via the participant
+  // realtime feed) but can still join the meeting later.
+  async function expireStaleRings(cutoff) {
+    await prisma.callParticipant.updateMany({
+      where: { status: "RINGING", ringStartedAt: { lte: cutoff }, call: { status: "ACTIVE" } },
+      data: { status: "MISSED", ringStartedAt: null },
+    });
+  }
+
   async function expireStaleCalls() {
     const cutoff = new Date(now().getTime() - RING_TIMEOUT_MS);
+    await expireStaleRings(cutoff).catch((error) => {
+      console.warn("[atlas.calls] No se pudieron expirar los timbres:", error?.message ?? error);
+    });
     const stale = await prisma.call.findMany({
       where: { status: "RINGING", createdAt: { lte: cutoff } },
       select: { id: true, livekitRoomName: true, conversationId: true, kind: true, startedAt: true },
@@ -295,7 +308,45 @@ export function createCallService({
     });
   }
 
-  async function createCall({ authUserId, conversationId, kind, calendarEventId = null }) {
+  // Quiet counterpart of the incoming-call alert: a normal-priority in-app
+  // notice + realtime nudge so members can join, without any ringing.
+  function notifyMeetingStarted({ call, profile, recipientIds, payload }) {
+    if (!recipientIds.length) return;
+    broadcaster?.broadcastToUsers?.(recipientIds, "chat.call.meeting_started", payload).catch(() => {});
+    if (!notificationService?.publish) return;
+    setImmediate(async () => {
+      try {
+        const [conversationRow] = await prisma.$queryRaw`
+          SELECT company_id AS "companyId" FROM chat_conversations WHERE id = ${call.conversationId} LIMIT 1
+        `;
+        const companyId = conversationRow?.companyId ?? null;
+        if (!companyId) return;
+        await notificationService.publish({
+          companyId,
+          actorId: profile.id,
+          input: {
+            eventType: "chat.call.meeting_started",
+            title: `${profile.displayName || "Alguien"} inició una reunión`,
+            body: "Toca para unirte.",
+            link: `/app/m/runly.chat/chat/inbox/${call.conversationId}`,
+            recipients: { userIds: recipientIds },
+            channels: ["in_app"],
+            priority: "normal",
+            sourceType: "call",
+            sourceId: call.id,
+            metadata: payload,
+            dedupeKey: `chat.call.meeting_started:${call.id}`,
+          },
+        });
+      } catch (error) {
+        console.warn("[atlas.calls] No se pudo avisar del inicio de la reunión:", error?.message ?? error);
+      }
+    });
+  }
+
+  // ring=false starts a meeting: ACTIVE right away with only the host, other
+  // members INVITED (not rung) and told "X inició una reunión" instead.
+  async function createCall({ authUserId, conversationId, kind, calendarEventId = null, ring = true }) {
     const config = assertEnabled();
     await expireStaleCalls();
     const profile = await resolveProfile(authUserId);
@@ -309,7 +360,7 @@ export function createCallService({
       where: { conversationId, revokedAt: null },
       select: { id: true },
     });
-    const isMeetingRoom = Boolean(meetingLink);
+    const isMeetingRoom = Boolean(meetingLink) || !ring;
     if (members.length < 2 && !isMeetingRoom) {
       throw new CallServiceError("No hay otra persona disponible en esta conversacion.", 422);
     }
@@ -381,7 +432,7 @@ export function createCallService({
 
         // A meeting-room call starts ACTIVE (host alone, guests join via link);
         // a normal call starts RINGING until someone answers.
-        const soloRoom = isMeetingRoom && invitedMembers.length < 2;
+        const soloRoom = !ring || (isMeetingRoom && invitedMembers.length < 2);
         const initialStatus = soloRoom ? "ACTIVE" : "RINGING";
         const startedAt = soloRoom ? now() : null;
         const rows = await tx.$queryRaw`
@@ -397,13 +448,18 @@ export function createCallService({
         `;
         const callId = rows[0].id;
         await tx.callParticipant.createMany({
-          data: invitedMembers.map((member) => ({
-            callId,
-            userId: member.userId,
-            status: member.userId === profile.id ? "JOINED" : "RINGING",
-            livekitIdentity: member.userId,
-            joinedAt: member.userId === profile.id ? now() : null,
-          })),
+          data: invitedMembers.map((member) => {
+            const isHost = member.userId === profile.id;
+            const status = isHost ? "JOINED" : ring ? "RINGING" : "INVITED";
+            return {
+              callId,
+              userId: member.userId,
+              status,
+              livekitIdentity: member.userId,
+              ringStartedAt: status === "RINGING" ? now() : null,
+              joinedAt: isHost ? now() : null,
+            };
+          }),
         });
         return tx.call.findUnique({ where: { id: callId } });
       });
@@ -453,6 +509,15 @@ export function createCallService({
       initiatorId: profile.id,
       initiatorName: profile.displayName,
     };
+    if (!ring) {
+      notifyMeetingStarted({ call, profile, recipientIds, payload: incomingPayload });
+      return {
+        callId: call.id,
+        call,
+        livekitUrl: config.publicUrl,
+        token: await createToken(config, call, profile),
+      };
+    }
     await broadcaster?.broadcastToUsers?.(
       recipientIds,
       "chat.call.incoming",
@@ -574,17 +639,22 @@ export function createCallService({
     await expireStaleCalls();
     const profile = await resolveProfile(authUserId);
     const before = await getCallRecord(callId);
-    const participant = await assertCallAccess(before, profile.id);
     if (before.status === "ENDED") throw new CallServiceError("Esta llamada ya termino.", 409);
-    if (["DECLINED", "MISSED", "LEFT"].includes(participant.status)) {
-      throw new CallServiceError("Ya no puedes unirte a esta llamada.", 409);
+    // Any member of the conversation may join (or re-join) a live meeting —
+    // even if they declined, missed the ring, left, or were never rung.
+    await assertMembership(before.conversationId, profile.id);
+    let participant = before.participants.find((entry) => entry.userId === profile.id) ?? null;
+    if (!participant) {
+      participant = await prisma.callParticipant.create({
+        data: { callId, userId: profile.id, status: "INVITED", livekitIdentity: profile.id },
+      });
     }
 
     const shouldActivate = profile.id !== before.initiatedByUserId || before.status === "ACTIVE";
     const operations = [
       prisma.callParticipant.update({
         where: { callId_userId: { callId, userId: profile.id } },
-        data: { status: "JOINED", joinedAt: participant.joinedAt ?? now(), leftAt: null },
+        data: { status: "JOINED", joinedAt: participant.joinedAt ?? now(), leftAt: null, ringStartedAt: null },
       }),
     ];
     if (shouldActivate) {
@@ -710,186 +780,59 @@ export function createCallService({
     return getCallRecord(callId);
   }
 
-  // Bring already-registered platform users (matched by email in
-  // call-links-service) straight into the meeting instead of emailing them a
-  // guest link: add them to the conversation if needed, attach them to the live
-  // call as RINGING participants, and fire the same in-app + web_push "incoming
-  // call" alert a normally-rung member gets. Only for people who have an account
-  // in the inviter's company — external addresses keep going out by email.
-  async function inviteMembersToLiveCall({ conversationId, inviterProfileId, users }) {
-    const targets = [
-      ...new Map((users ?? []).filter((u) => u?.userId).map((u) => [u.userId, u])).values(),
-    ];
-    if (!targets.length) return { notified: [], addedMembers: [], addedParticipants: [] };
-    const targetIds = targets.map((u) => u.userId);
-
-    // The relevant company is the conversation's own company, not re-derived
-    // from the inviter's memberships — see call-links-service.js's sendInvites
-    // for why (a multi-company inviter's "most recent membership" is not
-    // necessarily this call's company).
-    const [conversationRow] = await prisma.$queryRaw`
-      SELECT company_id AS "companyId" FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
-    `;
-    const companyId = conversationRow?.companyId ?? null;
-
-    const [inviter] = await prisma.$queryRaw`
-      SELECT display_name AS "displayName" FROM user_profile WHERE id = ${inviterProfileId} LIMIT 1
-    `;
-    const inviterName = inviter?.displayName ?? "Alguien";
-
-    // 1. Add anyone who is not already an active member of the conversation.
+  // Ring specific members from inside a live call/meeting ("Llamar" in the
+  // people panel). Any joined participant may ring; targets must already be
+  // members of the conversation (outsiders go through the invite flow).
+  async function ringParticipants({ authUserId, callId, profileIds }) {
+    assertEnabled();
+    const profile = await resolveProfile(authUserId);
+    const call = await getCallRecord(callId);
+    if (call.status === "ENDED") throw new CallServiceError("Esta llamada ya termino.", 409);
+    const me = call.participants.find((entry) => entry.userId === profile.id);
+    if (me?.status !== "JOINED") throw new CallServiceError("Únete a la llamada para llamar a alguien.", 403);
+    const targets = [...new Set(profileIds ?? [])].filter((id) => id && id !== profile.id);
+    if (!targets.length) return { rung: [] };
     const memberRows = await prisma.$queryRaw`
-      SELECT user_id AS "userId" FROM chat_conversation_members
-      WHERE conversation_id = ${conversationId}
-        AND user_id = ANY(${targetIds}::uuid[])
-        AND left_at IS NULL
+      SELECT m.user_id AS "userId", up.email
+      FROM chat_conversation_members m
+      JOIN user_profile up ON up.id = m.user_id
+      WHERE m.conversation_id = ${call.conversationId}
+        AND m.user_id = ANY(${targets}::uuid[])
+        AND m.left_at IS NULL
+        AND public.runly_chat_user_access(m.conversation_id, m.user_id)
     `;
-    const alreadyMembers = new Set(memberRows.map((r) => r.userId));
-    const addedMembers = [];
-    for (const uid of targetIds) {
-      if (alreadyMembers.has(uid)) continue;
-      // (conversation_id, user_id) is a PARTIAL unique index
-      // (WHERE user_id IS NOT NULL AND left_at IS NULL); the ON CONFLICT clause
-      // must repeat that predicate or Postgres raises 42P10 and this 500s.
-      const inserted = await prisma.$executeRaw`
-        INSERT INTO chat_conversation_members (conversation_id, user_id, role)
-        VALUES (${conversationId}, ${uid}, 'member')
-        ON CONFLICT (conversation_id, user_id) WHERE user_id IS NOT NULL AND left_at IS NULL
-        DO UPDATE
-          SET left_at = NULL, role = EXCLUDED.role, role_id = NULL
-          WHERE chat_conversation_members.left_at IS NOT NULL
-      `;
-      if (inserted === 0) continue;
-      await prisma.$executeRaw`
-        UPDATE chat_conversation_members
-        SET role_id = (SELECT id FROM chat_channel_roles WHERE conversation_id = ${conversationId} AND name = 'Member' LIMIT 1)
-        WHERE conversation_id = ${conversationId} AND user_id = ${uid} AND role_id IS NULL
-      `;
-      addedMembers.push(uid);
-    }
+    const joined = new Set(call.participants.filter((p) => p.status === "JOINED").map((p) => p.userId));
+    const users = memberRows.filter((row) => !joined.has(row.userId));
+    if (!users.length) return { rung: [] };
+    await inviteMembersToLiveCall({ conversationId: call.conversationId, inviterProfileId: profile.id, users });
+    return { rung: users.map((u) => u.userId) };
+  }
 
-    // 2. Attach them to the live call (if any) so their client can fetch it and
-    //    they can actually join.
-    const liveCall = await prisma.call.findFirst({
+  // The live call of a conversation, for the "Reunión en curso · Unirse"
+  // banner. Members only; returns null when nothing is live.
+  async function getConversationLiveCall({ authUserId, conversationId }) {
+    assertEnabled();
+    const profile = await resolveProfile(authUserId);
+    await assertMembership(conversationId, profile.id);
+    const live = await prisma.call.findFirst({
       where: { conversationId, status: { in: LIVE_CALL_STATUSES } },
       orderBy: { createdAt: "desc" },
-      select: { id: true, kind: true, initiatedByUserId: true },
+      select: { id: true },
     });
-    const addedParticipants = [];
-    if (liveCall) {
-      const existing = await prisma.callParticipant.findMany({
-        where: { callId: liveCall.id, userId: { in: targetIds } },
-        select: { userId: true },
-      });
-      const havePart = new Set(existing.map((r) => r.userId));
-      const toAdd = targetIds.filter((id) => !havePart.has(id));
-      if (toAdd.length) {
-        await prisma.callParticipant.createMany({
-          data: toAdd.map((uid) => ({
-            callId: liveCall.id,
-            userId: uid,
-            status: "RINGING",
-            livekitIdentity: uid,
-          })),
-          skipDuplicates: true,
-        });
-        addedParticipants.push(...toAdd);
-      }
-    }
-
-    // 3. System line in the conversation for the freshly-added members.
-    if (addedMembers.length) {
-      const names = await prisma.$queryRaw`
-        SELECT display_name AS "displayName" FROM user_profile
-        WHERE id = ANY(${addedMembers}::uuid[])
-      `;
-      const label = names.map((n) => n.displayName).filter(Boolean).join(", ");
-      if (label) {
-        await prisma.$executeRaw`
-          INSERT INTO chat_messages (conversation_id, sender_type, body, message_type, sender_user_id)
-          VALUES (${conversationId}, 'system', ${`${inviterName} invito a ${label} a la reunion`}, 'system', ${inviterProfileId})
-        `;
-      }
-    }
-
-    // 4. In-app + web_push alert — the same event type a rung member gets, so it
-    //    reaches the incoming-call UI and honours the recipient's call prefs.
-    const kind = liveCall?.kind ?? "VIDEO";
-    const incomingPayload = liveCall
-      ? {
-          callId: liveCall.id,
-          conversationId,
-          kind,
-          initiatorId: inviterProfileId,
-          initiatorName: inviterName,
-        }
-      : { conversationId };
-    let publishedIds = [];
-    if (companyId && notificationService?.publish) {
-      try {
-        const published = await notificationService.publish({
-          companyId,
-          actorId: inviterProfileId,
-          input: {
-            eventType: "chat.call.incoming",
-            title: inviterName || (kind === "VIDEO" ? "Videollamada" : "Llamada"),
-            body: kind === "VIDEO"
-              ? "Te invitaron a una videollamada"
-              : "Te invitaron a una llamada",
-            link: `/app/m/runly.chat/chat/inbox/${conversationId}`,
-            recipients: { userIds: targetIds },
-            channels: ["in_app", "web_push"],
-            priority: "critical",
-            sourceType: "call",
-            sourceId: liveCall?.id ?? conversationId,
-            metadata: incomingPayload,
-            dedupeKey: liveCall
-              ? `chat.call.incoming:${liveCall.id}`
-              : `chat.call.invite:${conversationId}:${inviterProfileId}`,
-            ...(liveCall
-              ? { expiresAt: new Date(now().getTime() + RING_TIMEOUT_MS) }
-              : {}),
-          },
-        });
-        publishedIds = (published?.data ?? []).map((n) => n?.id).filter(Boolean);
-      } catch (error) {
-        console.warn(
-          "[atlas.calls] No se pudo avisar a los invitados con cuenta:",
-          error?.message ?? error,
-        );
-      }
-    }
-
-    // 5. Realtime nudges: ring the online ones now, refresh their channel list.
-    await broadcaster
-      ?.broadcastToUsers?.(targetIds, "chat.conversation.new", { conversationId })
-      .catch(() => {});
-    if (liveCall) {
-      await broadcaster
-        ?.broadcastToUsers?.(targetIds, "chat.call.incoming", incomingPayload)
-        .catch(() => {});
-    }
-
-    // 6. Push out THIS alert's web_push/fcm deliveries now — don't wait for
-    //    the ~30s worker poll — scoped by notificationId so we don't drain the queue.
-    if (deliveryWorker?.processPendingNotificationDeliveries && publishedIds.length) {
-      for (const channel of ["web_push", "fcm"]) {
-        deliveryWorker
-          .processPendingNotificationDeliveries({
-            channel,
-            notificationIds: publishedIds,
-            limit: publishedIds.length,
-          })
-          .catch((error) => {
-            console.warn(
-              `[atlas.calls] Entrega inmediata de push a invitados (${channel}) fallo:`,
-              error?.message ?? error,
-            );
-          });
-      }
-    }
-
-    return { notified: targetIds, addedMembers, addedParticipants };
+    if (!live) return null;
+    const call = await getCallRecord(live.id);
+    const mine = call.participants.find((entry) => entry.userId === profile.id) ?? null;
+    return {
+      call: {
+        id: call.id,
+        kind: call.kind,
+        status: call.status,
+        startedAt: call.startedAt ?? null,
+        initiatedByUserId: call.initiatedByUserId,
+        joinedCount: call.participants.filter((p) => p.status === "JOINED").length,
+      },
+      myStatus: mine?.status ?? null,
+    };
   }
 
   async function revokeUnauthorizedParticipants() {
@@ -943,6 +886,8 @@ export function createCallService({
     revokeUnauthorizedParticipants,
     assertCanManageCall,
     inviteMembersToLiveCall,
+    ringParticipants,
+    getConversationLiveCall,
     postSystemMessage,
     getRecordingActiveStatus,
   };

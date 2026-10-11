@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import {
   callCreateSchema,
+  callRingSchema,
   callLinkPatchSchema,
   callInviteSchema,
 } from "@runly/validators";
@@ -138,6 +139,23 @@ export function createCallsRouter({
       const data = await calls.createCall({ authUserId: c.get("authUserId"), ...payload });
       return c.json({ data }, 201);
     } catch (error) { return handleError(c, error, "Error iniciando la llamada."); }
+  });
+
+  // Live call/meeting of a conversation, for the "Unirse" banner.
+  internal.get("/conversations/:conversationId/live", async (c) => {
+    try {
+      const conversationId = callIdSchema.parse(c.req.param("conversationId"));
+      return c.json({ data: await calls.getConversationLiveCall({ authUserId: c.get("authUserId"), conversationId }) });
+    } catch (error) { return handleError(c, error, "Error consultando la reunión en curso."); }
+  });
+
+  // Ring specific members from inside a live call ("Llamar").
+  internal.post("/:callId/ring", async (c) => {
+    try {
+      const callId = callIdSchema.parse(c.req.param("callId"));
+      const { profileIds } = callRingSchema.parse(await c.req.json());
+      return c.json({ data: await calls.ringParticipants({ authUserId: c.get("authUserId"), callId, profileIds }) });
+    } catch (error) { return handleError(c, error, "No se pudo llamar a los participantes."); }
   });
 
   // ---- guest link (by conversation) ----

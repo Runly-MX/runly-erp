@@ -97,6 +97,17 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   const canTranscribeTracks = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes("chat.calls.transcript.request"));
   const recording = useCallRecording({ callId: session.call.id, conversationId });
   const trackTranscription = useTrackTranscription({ callId: session.call.id, conversationId });
+  // "Grabar reunión presencial": recording (and per-speaker transcription when
+  // allowed) starts by itself once media is up, exactly once per room.
+  const inPerson = session.meetingMode === "inperson";
+  const inPersonAutoRef = useRef(false);
+  useEffect(() => {
+    if (!inPerson || !engineReady || inPersonAutoRef.current) return;
+    inPersonAutoRef.current = true;
+    if (!canRecord) return;
+    recording.start();
+    if (canTranscribeTracks) trackTranscription.start();
+  }, [inPerson, engineReady, canRecord, canTranscribeTracks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Guest access: only the initiator polls the roster (a non-manager member
   // gets a swallowed 403); the share dialog + roster are hidden otherwise.
@@ -520,7 +531,9 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   const isAlone = participants.length === 1 && !hasGuests;
   // Only meeting-room calls (start ACTIVE, guest link exists) get the alone
   // auto-close — a normal call already has the 36s unanswered timeout.
-  const aloneEligible = session.call.status === "ACTIVE" && isInitiator && !hasRemoteJoined && isAlone;
+  // Never while recording or in an in-person meeting: being "alone" is the point.
+  const aloneEligible = session.call.status === "ACTIVE" && isInitiator && !hasRemoteJoined && isAlone
+    && !inPerson && !recording.active;
 
   useEffect(() => {
     if (hasRemoteJoined || hasGuests) setAloneDeadline(Date.now() + ALONE_LIMIT_MS);
@@ -598,7 +611,10 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
         connectionState,
         engineReady,
         elapsed,
+        // Only a call that actually rings plays the outgoing tone; a meeting
+        // (starts ACTIVE, nobody rung) must stay silent while the host waits.
         outgoingToneActive: isInitiator
+          && session.call.status === "RINGING"
           && !hasRemoteJoined
           && !["failed", "disconnected"].includes(connectionState),
         remoteParticipants,
@@ -620,7 +636,8 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
         screenShareSupported,
         isDirectVideo,
         layoutMode,
-        invitePanel: isInitiator && isAlone && !inviteDismissed
+        inPerson: inPerson && isAlone,
+        invitePanel: isInitiator && isAlone && !inviteDismissed && !inPerson
           ? <CallInvitePanel conversationId={conversationId} onClose={() => setInviteDismissed(true)} />
           : null,
         reactions: ephemeral.reactions,

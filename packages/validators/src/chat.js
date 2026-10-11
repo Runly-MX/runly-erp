@@ -158,4 +158,11 @@ export const callCreateSchema = z.object({
   conversationId: z.string().uuid(),
   kind: z.enum(["AUDIO", "VIDEO"]),
   calendarEventId: z.string().uuid().optional(),
+  // false = start a meeting without ringing anyone (members get a quiet
+  // "X inició una reunión" notice and can join or be rung later).
+  ring: z.boolean().optional(),
+});
+
+export const callRingSchema = z.object({
+  profileIds: z.array(z.string().uuid()).min(1).max(50),
 });

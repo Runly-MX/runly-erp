@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
-  Button, SelectField, TagsField, ErrorState,
+  Button, SelectField, TagsField, ErrorState, SwitchField,
 } from "@runly/ui";
-import { Video, Calendar } from "lucide-react";
+import { Video, Calendar, Mic } from "lucide-react";
 import { toast } from "sonner";
 import EventFormModal from "../../runly.calendar/components/EventFormModal";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -14,6 +14,7 @@ import { useCalls } from "../calls/CallsProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { startMeeting } from "../lib/startMeeting.js";
 import { summarizeInviteResult, describeInviteOutcome } from "../calls/lib/inviteResult";
+import { CallAccessSettings } from "../calls/CallAccessSettings";
 
 function unwrap(r) {
   return r?.data ?? r;
@@ -22,11 +23,21 @@ function unwrap(r) {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NEW_ROOM = "__new__";
 
-// Meet-style: pick "ahora" or "programar".
-//  - Ahora   -> opens the call room immediately; the link + email invites live
-//              INSIDE the room (CallInvitePanel) while you wait alone.
-//  - Programar -> collect emails + open EventFormModal; invites are sent only
-//              when the event is saved ("Programar en el calendario").
+const MODES = [
+  { key: "now", label: "Ahora", hint: "Entra ya y espera a los demás", Icon: Video },
+  { key: "schedule", label: "Programar", hint: "Elige fecha y hora", Icon: Calendar },
+  { key: "inperson", label: "Presencial", hint: "Graba una reunión en sala", Icon: Mic },
+];
+
+// Meet-style:
+//  - Ahora      -> opens the call room immediately. By default nobody's phone
+//                  rings: members get "X inició una reunión" and can join (or
+//                  be rung one by one from inside). "Llamar a los miembros"
+//                  rings everyone, like a normal call.
+//  - Programar  -> collect emails + guest access mode, then EventFormModal;
+//                  invites are sent only when the event is saved.
+//  - Presencial -> audio-only meeting that records (and transcribes) by
+//                  itself, for in-person meetings around one device.
 export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = null }) {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
@@ -40,7 +51,9 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   }, [data]);
 
   const [conversationId, setConversationId] = useState(defaultConversationId ?? NEW_ROOM);
-  const [mode, setMode] = useState("now"); // "now" | "schedule"
+  const [mode, setMode] = useState("now"); // "now" | "schedule" | "inperson"
+  const [ringMembers, setRingMembers] = useState(false);
+  const [accessMode, setAccessMode] = useState("LOBBY");
   const [emails, setEmails] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -50,12 +63,17 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
 
   useEffect(() => {
     if (!open) return;
-    setMode("now"); setEmails([]); setError(null); setScheduled(null);
+    setMode("now"); setEmails([]); setError(null); setScheduled(null); setAccessMode("LOBBY");
     setConversationId(conversations.some((c) => c.id === defaultConversationId) ? defaultConversationId : NEW_ROOM);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selected = conversations.find((c) => c.id === conversationId) ?? null;
   const memberIds = (selected?.members ?? []).map((m) => m.userId).filter(Boolean);
+  const otherMemberCount = memberIds.filter((id) => id !== userProfile?.id).length;
+  // Ringing only makes sense with someone to ring; 1:1-sized rooms default to it.
+  useEffect(() => {
+    setRingMembers(otherMemberCount === 1);
+  }, [conversationId, otherMemberCount]);
 
   async function resolveTargetId() {
     if (conversationId !== NEW_ROOM) return conversationId;
@@ -67,8 +85,9 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     return room.id;
   }
 
-  async function startNow() {
+  async function startNow({ inPerson = false } = {}) {
     if (submittingRef.current || isStarting || activeCall) return;
+    const ring = !inPerson && ringMembers && otherMemberCount > 0;
     submittingRef.current = true;
     setBusy(true);
     setError(null);
@@ -76,8 +95,10 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
       const ok = await startMeeting({
         resolveTargetId,
         createLink: async (targetId) => {
-          // Existing multi-member conversations can ring normally without
-          // requiring the caller to have permission to manage guest links.
+          // A meeting without ringing needs no guest link to start (the
+          // in-room invite card creates one on demand). Existing multi-member
+          // conversations can ring without managing guest links either.
+          if (!ring) return;
           if (targetId !== createdRoomRef.current && memberIds.length >= 2) return;
           if (targetId !== createdRoomRef.current) {
             const existing = unwrap(await runly.calls.getLink(targetId, token));
@@ -86,7 +107,12 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
           const result = unwrap(await runly.calls.createLink(targetId, token));
           if (!result?.link) throw new Error("No se pudo preparar el enlace de la reunión.");
         },
-        startCall,
+        startCall: (args) => startCall({
+          ...args,
+          kind: inPerson ? "AUDIO" : "VIDEO",
+          ring,
+          meetingMode: inPerson ? "inperson" : null,
+        }),
         discardNewRoom: async (targetId) => {
           if (createdRoomRef.current !== targetId) return;
           await runly.chat.deleteConversation(targetId, token);
@@ -113,8 +139,11 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     try {
       const targetId = await resolveTargetId();
       const created = unwrap(await runly.calls.createLink(targetId, token));
-      const link = created?.link ?? null;
+      let link = created?.link ?? null;
       if (!link) throw new Error("No se pudo generar el enlace de invitados.");
+      if ((link.accessMode ?? "LOBBY") !== accessMode) {
+        link = unwrap(await runly.calls.updateLink(targetId, { accessMode }, token))?.link ?? link;
+      }
       setScheduled({ targetId, link });
     } catch (e) {
       toast.error(e?.message || "No se pudo preparar la reunión.");
@@ -164,7 +193,8 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
             scheduledEndAt: savedPayload?.endAt ?? null,
           });
           createdRoomRef.current = null;
-          toast.success(`Reunión programada. Código de invitados: ${scheduled.link.code}`);
+          const pinNote = scheduled.link.accessMode === "PIN" && scheduled.link.pin ? ` · PIN ${scheduled.link.pin}` : "";
+          toast.success(`Reunión programada. ID de reunión: ${scheduled.link.meetingId ?? scheduled.link.code}${pinNote}`);
           setScheduled(null);
           onOpenChange(false);
         }}
@@ -197,50 +227,82 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
               ]}
             />
 
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { key: "now", label: "Ahora", hint: "Entra ya y espera a los demás", Icon: Video },
-                { key: "schedule", label: "Programar", hint: "Elige fecha y hora", Icon: Calendar },
-              ].map(({ key, label, hint, Icon }) => (
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tipo de reunión">
+              {MODES.map(({ key, label, hint, Icon }) => (
                 <button
                   key={key}
                   type="button"
+                  role="radio"
+                  aria-checked={mode === key}
                   disabled={busy}
                   onClick={() => setMode(key)}
                   className={[
-                    "flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors",
+                    "flex min-h-[84px] flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)]",
                     mode === key
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:border-primary/40",
+                      ? "border-[var(--brand-primary)] bg-[var(--brand-soft)]"
+                      : "border-border hover:border-[var(--brand-primary)]/40",
                   ].join(" ")}
                 >
-                  <span className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--foreground))]">
-                    <Icon className="h-4 w-4" /> {label}
-                  </span>
-                  <span className="text-[11px] text-[hsl(var(--muted-foreground))]">{hint}</span>
+                  <Icon className="h-4 w-4 text-[hsl(var(--foreground))]" aria-hidden />
+                  <span className="text-sm font-semibold text-[hsl(var(--foreground))]">{label}</span>
+                  <span className="text-[11px] leading-snug text-[hsl(var(--muted-foreground))]">{hint}</span>
                 </button>
               ))}
             </div>
 
-            {mode === "schedule" && (
-              <TagsField
-                label="Invitados externos por correo (opcional)"
-                placeholder="ana@empresa.com  (Enter para agregar)"
-                value={emails}
-                onChange={setEmails}
-                type="email"
-                inputMode="email"
-                normalizeItem={(v) => v.trim().toLowerCase()}
-                validateItem={(v) => (EMAIL_RE.test(v) ? null : "Correo no válido")}
+            {mode === "now" && otherMemberCount > 0 && (
+              <SwitchField
+                label="Llamar a los miembros"
+                description={ringMembers
+                  ? "Sonará el timbre en los dispositivos de todos."
+                  : "Nadie recibe timbre: les avisamos que la reunión empezó y pueden unirse. Desde la llamada puedes llamar a quien quieras."}
+                checked={ringMembers}
+                onChange={setRingMembers}
+                disabled={busy}
               />
+            )}
+
+            {mode === "inperson" && (
+              <p className="rounded-xl bg-[hsl(var(--muted))]/60 px-3 py-2.5 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">
+                Inicia una reunión solo de audio que se graba y transcribe automáticamente. Nadie recibe timbre.
+                Deja el dispositivo cerca de quienes hablan; al terminar, la grabación queda en la conversación.
+              </p>
+            )}
+
+            {mode === "schedule" && (
+              <>
+                <TagsField
+                  label="Invitados externos por correo (opcional)"
+                  placeholder="ana@empresa.com  (Enter para agregar)"
+                  value={emails}
+                  onChange={setEmails}
+                  type="email"
+                  inputMode="email"
+                  normalizeItem={(v) => v.trim().toLowerCase()}
+                  validateItem={(v) => (EMAIL_RE.test(v) ? null : "Correo no válido")}
+                />
+                <div className="space-y-1.5">
+                  <span className="block text-sm font-medium text-[hsl(var(--foreground))]">Acceso de invitados</span>
+                  <CallAccessSettings
+                    link={{ accessMode }}
+                    onPatch={(patch) => patch.accessMode && setAccessMode(patch.accessMode)}
+                    disabled={busy}
+                  />
+                </div>
+              </>
             )}
 
             {error && <ErrorState className="py-3" title="No se pudo iniciar la reunión" description={error} />}
             {activeCall && <p className="text-sm text-muted-foreground">Ya tienes una llamada en curso. Termínala antes de iniciar otra reunión.</p>}
             <div className="flex justify-end pt-1">
               {mode === "now" ? (
-                <Button onClick={startNow} disabled={busy || isStarting || Boolean(activeCall)}>
+                <Button onClick={() => startNow()} disabled={busy || isStarting || Boolean(activeCall)}>
                   <Video className="mr-2 h-4 w-4" /> {busy ? "Abriendo..." : "Iniciar reunión"}
+                </Button>
+              ) : mode === "inperson" ? (
+                <Button onClick={() => startNow({ inPerson: true })} disabled={busy || isStarting || Boolean(activeCall)}>
+                  <Mic className="mr-2 h-4 w-4" /> {busy ? "Abriendo..." : "Empezar a grabar"}
                 </Button>
               ) : (
                 <Button onClick={continueToSchedule} disabled={busy}>

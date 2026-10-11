@@ -29,6 +29,11 @@ export function createCallsDomain(request, withAuthHeaders) {
     get: (callId, token) =>
       request(`/calls/${encodeURIComponent(callId)}`, { headers: withAuthHeaders(token) }),
     join: (callId, token) => action(callId, "join", token),
+    // Ring specific conversation members from inside a live call/meeting.
+    ring: (callId, profileIds, token) => json(`/calls/${encodeURIComponent(callId)}/ring`, "POST", { profileIds }, token),
+    // { call: { id, kind, status, startedAt, initiatedByUserId, joinedCount }, myStatus } | null
+    getConversationLive: (conversationId, token) =>
+      request(`/calls/conversations/${encodeURIComponent(conversationId)}/live`, { headers: withAuthHeaders(token) }),
     screenToken: (callId, token) => action(callId, 'screen-token', token),
     decline: (callId, token) => action(callId, "decline", token),
     leave: (callId, token) => action(callId, "leave", token),

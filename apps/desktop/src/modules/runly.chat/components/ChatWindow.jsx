@@ -35,6 +35,7 @@ import { buildAllAttachments, buildMessagesTranscript } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useCalls } from "../calls/CallsProvider";
 import { ChatHeader } from "./ChatHeader";
+import { LiveMeetingBanner } from "../calls/LiveMeetingBanner";
 
 // Same pattern as ConversationProfilePanel's backHeader — an explicit,
 // always-visible way out of a view that replaces the message list in place.
@@ -640,6 +641,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       />
 
       <TtsNowPlayingBar speech={speech} />
+      {!isExternal && callsEnabled && !embedded && conversationId && (
+        <LiveMeetingBanner conversationId={conversationId} />
+      )}
 
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
           {recordingsView ? (

@@ -10,7 +10,7 @@ Runly Meet v2, Fase 1: N canales por registro vinculado, acceso a reuniones con
 ID + PIN, reunión sin timbre y "Grabar reunión presencial".
 
 ## 2. Status
-In Progress (1A y 1B implementados y verificados; 1C pendiente).
+Complete (1A, 1B y 1C implementados y verificados).
 
 ## 3. Context
 Auditoría del 2026-10-11 sobre chat y videollamadas (LiveKit + Supabase Realtime).
@@ -82,6 +82,17 @@ Auditoría del 2026-10-11 sobre chat y videollamadas (LiveKit + Supabase Realtim
 - `POST /calls/guest/join` acepta `pin`. PIN incorrecto -> 403 `bad_pin`
   (cuenta para el rate limit). Solo `inviteToken` ya resuelve su enlace.
 
+- `POST /calls` acepta `ring: false`: la reunión nace ACTIVE solo con el
+  anfitrión, los demás miembros quedan `INVITED` (sin timbre) y reciben
+  `chat.call.meeting_started` (realtime + notificación in_app normal).
+- `POST /calls/:callId/ring { profileIds }`: hace sonar a miembros concretos
+  desde la llamada (cualquier participante JOINED). Cada timbre expira solo a
+  los 36 s (`call_participant.ring_started_at`) y pasa a MISSED.
+- `GET /calls/conversations/:conversationId/live` -> `{ call, myStatus } | null`
+  para el banner "Reunión en curso · Unirse".
+- `POST /calls/:id/join`: cualquier miembro de la conversación puede unirse o
+  volver a unirse a una llamada viva (antes: 409 si había rechazado/salido).
+
 ## 13. SDK contract
 `runly.chat.getLinkedChannel(module, entityId, token)`: misma firma, respuesta
 ampliada (ver 12).
@@ -123,6 +134,12 @@ Ninguno en 1A.
 ## 26. Verification plan
 `node --test apps/api/src/routes/chat/__tests__/*.test.js`; `.e2e/chat-links-e2e.mjs`
 contra la API local (compañía de pruebas); `pnpm lint`; `pnpm build:web`.
+Verified: 2026-10-11 (1C: 574/574 tests de chat+calls; `.e2e/call-meeting-e2e.mjs`:
+reunión sin timbre en canal de 1 persona -> 201 ACTIVE, `/live` ACTIVE/JOINED,
+null tras terminar; `.e2e/ui-meet.mjs` escritorio y móvil: diálogo de 3 modos,
+modo Presencial con cronómetro y forma de onda del micrófono. El tono saliente
+ya no suena en reuniones que no timbran. Pendiente en este entorno local: el
+egress de LiveKit tarda/no inicia la grabación (500 si la sala está vacía).)
 Verified: 2026-10-11 (1B: 189/189 tests de calls; `.e2e/call-pin-e2e.mjs`:
 PIN correcto ADMITTED, sin PIN LOBBY, PIN erróneo 403, Libre por ID ADMITTED,
 link-info sin PIN.)

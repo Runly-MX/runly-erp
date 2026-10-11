@@ -33,6 +33,7 @@ import { CallReactionsOverlay } from "./CallReactionsOverlay";
 import { CallReactionButton } from "./CallReactionButton";
 import { RaisedHandsBar } from "./RaisedHandsBar";
 import { RecordingBanner } from "./RecordingBanner";
+import { InPersonRecorder } from "./InPersonRecorder";
 import { spotlightStrip } from "./lib/callLayout";
 
 function formatDuration(totalSeconds) {
@@ -91,6 +92,7 @@ export function CallRoomLayout({ view, actions, chat }) {
     canTranscribeTracks = false,
     trackTranscriptionActive = false,
     trackTranscriptionBusy = false,
+    inPerson = false,
   } = view;
 
   const {
@@ -141,7 +143,7 @@ export function CallRoomLayout({ view, actions, chat }) {
       >
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">
-            {session.call.calendarEvent?.title || session.call.initiator?.displayName || "Runly Calls"}
+            {inPerson ? "Reunión presencial" : session.call.calendarEvent?.title || session.call.initiator?.displayName || "Runly Calls"}
           </p>
           <p className="text-xs text-white/60">
             {connectionState === "connected" && outgoingToneActive ? "Llamando..." :
@@ -192,7 +194,7 @@ export function CallRoomLayout({ view, actions, chat }) {
       )}
 
       <main className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
-        <RecordingBanner active={recordingActive} />
+        {!inPerson && <RecordingBanner active={recordingActive} />}
         {mobileChatOpen ? (
           <div className="dark absolute inset-0 flex flex-col bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
             {hasScreenShare && (
@@ -212,7 +214,20 @@ export function CallRoomLayout({ view, actions, chat }) {
           </div>
         ) : (
           <>
-        {spotlightMain ? (
+        {inPerson ? (
+          <InPersonRecorder
+            localParticipant={localEntry?.participant}
+            elapsed={elapsed}
+            micEnabled={micEnabled}
+            recordingActive={recordingActive}
+            recordingBusy={recordingBusy}
+            canRecord={canRecord}
+            onToggleRecording={actions.toggleRecording}
+            onToggleMic={actions.toggleMicrophone}
+            onFinish={actions.leave}
+            onInvite={canShare ? onShare : null}
+          />
+        ) : spotlightMain ? (
           <SpotlightLayout
             mainEntry={spotlightMain}
             others={spotlightOthers}
@@ -264,6 +279,7 @@ export function CallRoomLayout({ view, actions, chat }) {
         {isHost && <RaisedHandsBar raisedHands={raisedHands} onLower={actions.lowerHand} />}
       </main>
 
+      {!inPerson && (
       <footer
         className="flex shrink-0 flex-wrap items-center justify-center gap-1.5 border-t border-white/10 bg-black/30 pt-3 backdrop-blur-xl"
         style={{
@@ -339,6 +355,7 @@ export function CallRoomLayout({ view, actions, chat }) {
           <span className="hidden sm:inline">Colgar</span>
         </Button>
       </footer>
+      )}
       </div>
 
       {/* The call room is always dark; `dark` scopes the theme tokens so the

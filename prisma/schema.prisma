@@ -2252,6 +2252,9 @@ model CallParticipant {
   userId          String                @db.Uuid @map("user_id")
   status          CallParticipantStatus @default(INVITED)
   livekitIdentity String?               @map("livekit_identity")
+  // When this participant's current ring started (RINGING only) — rings
+  // inside an already-ACTIVE meeting expire per person, not per call.
+  ringStartedAt   DateTime?             @map("ring_started_at")
   joinedAt        DateTime?             @map("joined_at")
   leftAt          DateTime?             @map("left_at")
   createdAt       DateTime              @default(now()) @map("created_at")

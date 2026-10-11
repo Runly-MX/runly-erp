@@ -232,6 +232,9 @@ export function RealtimeProvider({ children }) {
       .on('broadcast', { event: 'chat.call.incoming' }, ({ payload }) => {
         dispatch('chat.call.incoming', payload)
       })
+      .on('broadcast', { event: 'chat.call.meeting_started' }, ({ payload }) => {
+        dispatch('chat.call.meeting_started', payload)
+      })
       .on('broadcast', { event: 'chat.call.ended' }, ({ payload }) => {
         dispatch('chat.call.ended', payload)
       })
