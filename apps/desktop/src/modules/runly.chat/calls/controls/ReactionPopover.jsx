@@ -1,8 +1,10 @@
-import { Popover, PopoverTrigger, PopoverContent } from "@runly/ui";
+import { cn, Popover, PopoverTrigger, PopoverContent } from "@runly/ui";
+import { Hand } from "lucide-react";
 import { QUICK_REACTIONS } from "../lib/callEphemeral.js";
 
 // Quick reactions (data-channel only). `children` is the trigger button.
-export function ReactionPopover({ children, onReact, side = "top" }) {
+// `onToggleHand` adds a raise-hand toggle (compact bars without a hand button).
+export function ReactionPopover({ children, onReact, side = "top", onToggleHand = null, handRaised = false }) {
   return (
     <Popover>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
@@ -19,6 +21,23 @@ export function ReactionPopover({ children, onReact, side = "top" }) {
               {emoji}
             </button>
           ))}
+          {onToggleHand && (
+            <>
+              <span className="mx-1 h-7 w-px bg-white/15" aria-hidden />
+              <button
+                type="button"
+                onClick={onToggleHand}
+                aria-pressed={handRaised}
+                aria-label={handRaised ? "Bajar la mano" : "Levantar la mano"}
+                className={cn(
+                  "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
+                  handRaised ? "bg-amber-400 text-amber-950" : "text-white hover:bg-white/10",
+                )}
+              >
+                <Hand className="h-5 w-5" />
+              </button>
+            </>
+          )}
         </div>
       </PopoverContent>
     </Popover>

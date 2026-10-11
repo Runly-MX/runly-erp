@@ -631,6 +631,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         callPending={callPending}
         onStartAudioCall={() => startCall({ conversationId, kind: "AUDIO" })}
         onStartVideoCall={() => startCall({ conversationId, kind: "VIDEO" })}
+        onStartMeeting={() => startCall({ conversationId, kind: "VIDEO", ring: false })}
         onOpenGuestLink={!isExternal && callsEnabled ? () => setShareOpen(true) : undefined}
         isArchived={conversation?.is_archived ?? false}
         onArchive={!isExternal && conversationId

@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Room, RoomEvent, Track } from "livekit-client";
-import { Button, useIsMobile } from "@runly/ui";
-import { Mic, MicOff, Camera, CameraOff, MonitorUp, PhoneOff, MessageSquare, Hand } from "lucide-react";
+import { cn, useCoarsePointer, Sheet, SheetContent, SheetTitle, SheetDescription } from "@runly/ui";
+import { Camera, CameraOff, Hand, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, ScreenShareOff, SmilePlus, X } from "lucide-react";
 import { GuestRoomChat } from "./GuestRoomChat";
 import { useGuestChatUpload } from "./useGuestChatUpload";
 import { useCallEphemeral } from "../hooks/useCallEphemeral";
 import { useScreenWakeLock } from "../hooks/useScreenWakeLock";
+import { useMediaDevices, roomDeviceDefaults } from "../hooks/useMediaDevices";
+import { useFocusedSpeaker } from "../hooks/useFocusedSpeaker";
 import { CallReactionsOverlay } from "../CallReactionsOverlay";
-import { CallReactionButton } from "../CallReactionButton";
-import { RecordingBanner } from "../RecordingBanner";
-import { ParticipantTile } from "../ParticipantTile";
-import { SpotlightLayout } from "../SpotlightLayout";
-import { DirectFocusLayout } from "../DirectFocusLayout";
-import { spotlightStrip } from "../lib/callLayout";
+import { CallStage } from "../layout/CallStage";
+import { CallTopBar, MobileCallTopBar } from "../layout/CallTopBar";
+import { DockButton, DockSplitButton, MobileCallButton } from "../ui/DockButton";
+import { ReactionPopover } from "../controls/ReactionPopover";
+import { MicDeviceMenu, CameraDeviceMenu } from "../controls/DeviceMenus";
+import { resolveCallView, resolveViewport } from "../lib/callViewMode";
+import "../ui/call-ui.css";
 
 function RemoteAudio({ participant }) {
   const ref = useRef(null);
@@ -28,33 +31,56 @@ function RemoteAudio({ participant }) {
   return <audio ref={ref} autoPlay />;
 }
 
+function useWindowSize() {
+  const [size, setSize] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  useEffect(() => {
+    const onResize = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return size;
+}
+
+const hasLiveTrack = (participant, source) => {
+  const pub = participant?.getTrackPublication?.(source);
+  return Boolean(pub?.track && !pub.isMuted);
+};
+
+// External guest's call room: the same stage and controls as members, minus
+// moderation and the people roster (guests only see who is on screen).
 export function GuestCallRoom({
   fetchLivekitToken, messages, onSendMessage, onLeave, myName, recordingActive = false,
-  presignAttachment, getAttachmentUrl,
+  presignAttachment, getAttachmentUrl, title = "Reunión",
 }) {
-  // Below this width there's no room for a video+chat side-by-side layout,
-  // so chat replaces the video view instead (matches CallRoom.jsx's own
-  // mobile breakpoint for the member side).
-  const isMobile = useIsMobile(1024);
   useScreenWakeLock(true);
+  const { width, height } = useWindowSize();
+  const coarse = useCoarsePointer();
+  const viewport = resolveViewport({ width, height, coarse });
+  const isPhone = viewport === "phone" || viewport === "phone-landscape";
+  const landscape = viewport === "phone-landscape";
   const { uploadFile } = useGuestChatUpload(presignAttachment);
-  const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), []);
+  const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true, ...roomDeviceDefaults() }), []);
   const [, force] = useState(0);
+  const [connected, setConnected] = useState(false);
   const [mic, setMic] = useState(true);
   const [cam, setCam] = useState(false);
   const [screen, setScreen] = useState(false);
-  const [showChat, setShowChat] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [live, setLive] = useState([]);
-  // Same local (per-viewer) spotlight pin + 1:1 swap as CallRoom.jsx — see
-  // docs/superpowers/specs/2026-09-22-call-spotlight-pin-overhaul-design.md.
+  const [elapsed, setElapsed] = useState(0);
   const [pinnedIdentity, setPinnedIdentity] = useState(null);
-  const setPinned = useCallback(
-    (id) => setPinnedIdentity((cur) => (id && cur === id ? null : id || null)),
-    [],
-  );
+  const setPinned = useCallback((id) => setPinnedIdentity((cur) => (id && cur === id ? null : id || null)), []);
   const [directSwapped, setDirectSwapped] = useState(false);
-  const toggleDirectSwap = useCallback(() => setDirectSwapped((v) => !v), []);
+  const [activeScreen, setActiveScreen] = useState(null);
+  const [stripCollapsed, setStripCollapsed] = useState(false);
   const refresh = useCallback(() => force((n) => n + 1), []);
+  const mediaDevices = useMediaDevices(room, { enabled: connected });
+
+  useEffect(() => {
+    const started = Date.now();
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,11 +96,13 @@ export function GuestCallRoom({
         }]);
       } catch { /* ignore */ }
     };
-    [
+    const events = [
       RoomEvent.TrackSubscribed, RoomEvent.TrackUnsubscribed,
       RoomEvent.ParticipantConnected, RoomEvent.ParticipantDisconnected,
-      RoomEvent.TrackMuted, RoomEvent.TrackUnmuted,
-    ].forEach((e) => room.on(e, refresh));
+      RoomEvent.TrackMuted, RoomEvent.TrackUnmuted, RoomEvent.ActiveSpeakersChanged,
+      RoomEvent.LocalTrackPublished, RoomEvent.LocalTrackUnpublished, RoomEvent.ConnectionQualityChanged,
+    ];
+    events.forEach((e) => room.on(e, refresh));
     room.on(RoomEvent.DataReceived, onData);
 
     (async () => {
@@ -82,6 +110,7 @@ export function GuestCallRoom({
         const { livekitUrl, token } = await fetchLivekitToken();
         if (cancelled) return;
         await room.connect(livekitUrl, token);
+        setConnected(true);
         await room.localParticipant.setMicrophoneEnabled(true);
         await room.startAudio().catch(() => {});
         refresh();
@@ -90,6 +119,7 @@ export function GuestCallRoom({
 
     return () => {
       cancelled = true;
+      events.forEach((e) => room.off(e, refresh));
       room.off(RoomEvent.DataReceived, onData);
       room.disconnect();
     };
@@ -98,53 +128,21 @@ export function GuestCallRoom({
   const allRemote = Array.from(room.remoteParticipants.values());
   const remote = allRemote.filter((p) => !p.identity?.startsWith("screen:"));
   const localEntry = { participant: room.localParticipant, isLocal: true };
-  const remoteEntries = remote.map((participant) => ({ participant, isLocal: false }));
-  const participants = [localEntry, ...remoteEntries];
+  const participants = [localEntry, ...remote.map((participant) => ({ participant, isLocal: false }))];
+  const screenEntries = [
+    ...participants,
+    ...allRemote.filter((p) => p.identity?.startsWith("screen:")).map((participant) => ({ participant, isLocal: false })),
+  ].filter(({ participant }) => hasLiveTrack(participant, Track.Source.ScreenShare));
+  const isVideoActive = cam || screen || allRemote.some((p) => hasLiveTrack(p, Track.Source.Camera) || hasLiveTrack(p, Track.Source.ScreenShare));
+  const speakingIds = new Set(room.activeSpeakers.map((p) => p.identity));
 
   useEffect(() => {
-    if (pinnedIdentity && !participants.some((p) => p.participant?.identity === pinnedIdentity)) {
-      setPinnedIdentity(null);
-    }
+    if (pinnedIdentity && !participants.some((p) => p.participant?.identity === pinnedIdentity)) setPinnedIdentity(null);
   }, [pinnedIdentity, participants]);
 
-  const hasLiveTrack = (participant, source) => {
-    const pub = participant?.getTrackPublication?.(source);
-    return Boolean(pub?.track && !pub.isMuted);
-  };
-  const screenShareEntry =
-    [...participants, ...allRemote.filter((p) => p.identity?.startsWith("screen:")).map((participant) => ({ participant, isLocal: false }))]
-      .find(({ participant }) => hasLiveTrack(participant, Track.Source.ScreenShare)) ?? null;
-
-  const screenSharerIdentity = screenShareEntry?.participant?.identity ?? null;
-  const prevScreenSharerRef = useRef(null);
-  useEffect(() => {
-    if (screenSharerIdentity !== prevScreenSharerRef.current) {
-      prevScreenSharerRef.current = screenSharerIdentity;
-      if (screenSharerIdentity) setPinnedIdentity(null);
-    }
-  }, [screenSharerIdentity]);
-
-  useEffect(() => {
-    if (participants.length !== 2 || screenShareEntry) setDirectSwapped(false);
-  }, [participants.length, screenShareEntry]);
-
-  const useFocusLayout = participants.length === 2 && !screenShareEntry;
-  const speakingIds = new Set(room.activeSpeakers.map((p) => p.identity));
-  const screenShareHasCamera = Boolean(
-    screenShareEntry?.participant?.getTrackPublication?.(Track.Source.Camera)?.track
-      && !screenShareEntry.participant.getTrackPublication(Track.Source.Camera).isMuted,
-  );
-  const { mainEntry: spotlightMain, others: spotlightOthers } = spotlightStrip({
-    participants,
-    pinnedIdentity,
-    screenShareEntry: screenShareEntry ? { ...screenShareEntry, hasCamera: screenShareHasCamera } : null,
-  });
-
   const publishChat = useCallback((body, attachmentId) => {
-    // An attachment-only message has nothing useful to echo instantly over
-    // the data channel — it reaches other guests via the next state poll,
-    // same as it already reaches members via the Realtime broadcast in
-    // postGuestMessage (see docs/superpowers/specs/2026-09-25-call-guest-chat-attachments-design.md).
+    // Attachment-only messages arrive with the next state poll; only text is
+    // echoed instantly (docs/superpowers/specs/2026-09-25-call-guest-chat-attachments-design.md).
     if (body) {
       const echo = { type: "chat", body, senderName: myName, senderKind: "guest", createdAt: new Date().toISOString() };
       try {
@@ -178,97 +176,168 @@ export function GuestCallRoom({
     try { const n = !screen; await room.localParticipant.setScreenShareEnabled(n); setScreen(n); refresh(); } catch { /* noop */ }
   }
 
+  const view = resolveCallView({
+    participantCount: participants.length,
+    hasScreenShare: screenEntries.length > 0,
+    isVideoActive,
+    layoutPref: "auto",
+    pinnedIdentity,
+    isPhone,
+  });
+  const focusedSpeaker = useFocusedSpeaker(speakingIds, room.localParticipant?.identity);
+  const focusMain = participants.find((e) => e.participant?.identity === pinnedIdentity)
+    ?? participants.find((e) => e.participant?.identity === focusedSpeaker)
+    ?? participants.find((e) => !e.isLocal)
+    ?? localEntry;
+  const tileInfo = (identity) => {
+    const p = participants.find((e) => e.participant?.identity === identity)?.participant;
+    return p ? { name: p.name || (identity === room.localParticipant?.identity ? myName : "Participante") } : null;
+  };
+  const tileProps = (entry) => {
+    const id = entry.participant?.identity;
+    return {
+      info: tileInfo(id),
+      handRaised: entry.isLocal ? ephemeral.myHandRaised : ephemeral.raisedHands.has(id),
+      speaking: speakingIds.has(id),
+      pinned: pinnedIdentity === id,
+      onPin: participants.length > 1 ? setPinned : null,
+      mirrorLocalCamera: true,
+    };
+  };
+  const stage = {
+    entries: participants,
+    screenEntries,
+    activeScreenIdentity: activeScreen,
+    onSelectScreen: setActiveScreen,
+    focusMain,
+    tileProps,
+    tileInfo,
+    speakingIds,
+    isPhone,
+    landscape,
+    stripCollapsed,
+    onToggleStrip: () => setStripCollapsed((v) => !v),
+    onStopSharing: toggleScreen,
+    mirrorLocalCamera: true,
+    localEntry,
+    raisedHands: ephemeral.raisedHands,
+    myHandRaised: ephemeral.myHandRaised,
+    directSwapped,
+    onToggleDirectSwap: isPhone ? () => setDirectSwapped((v) => !v) : null,
+    waitingText: participants.length === 1 ? "Esperando a que los demás se conecten…" : null,
+  };
+
+  const chatNode = (
+    <GuestRoomChat
+      polled={messages}
+      liveIncoming={live}
+      onSend={publishChat}
+      myName={myName}
+      onUploadFile={uploadFile}
+      onResolveAttachmentUrl={getAttachmentUrl}
+    />
+  );
+  const status = connected ? "connected" : "connecting";
+
   return (
-    <div className="runly-call fixed inset-0 flex text-white">
-      <div className="flex min-w-0 flex-1 flex-col">
-        <main className="relative min-h-0 flex-1 p-2 sm:p-4">
-          <RecordingBanner active={recordingActive} />
-          {isMobile && showChat ? (
-            <GuestRoomChat
-              polled={messages}
-              liveIncoming={live}
-              onSend={publishChat}
-              myName={myName}
-              onUploadFile={uploadFile}
-              onResolveAttachmentUrl={getAttachmentUrl}
-            />
-          ) : spotlightMain ? (
-            <SpotlightLayout
-              mainEntry={spotlightMain}
-              others={spotlightOthers}
-              screenShareEntry={screenShareEntry}
-              isMobile
-              raisedHands={ephemeral.raisedHands}
-              myHandRaised={ephemeral.myHandRaised}
-              myLocalIdentity={room.localParticipant?.identity}
-              mirrorLocalCamera
-              onPin={setPinned}
-              speakingIds={speakingIds}
-            />
-          ) : useFocusLayout ? (
-            <DirectFocusLayout
-              localEntry={localEntry}
-              remoteEntry={remoteEntries[0]}
-              raisedHands={ephemeral.raisedHands}
-              myHandRaised={ephemeral.myHandRaised}
-              mirrorLocalCamera
-              swapped={directSwapped}
-              onToggleSwap={toggleDirectSwap}
-              speakingIds={speakingIds}
-            />
-          ) : (
-            <div className={`mx-auto grid h-full max-w-5xl gap-2 ${participants.length <= 1 ? "grid-cols-1" : participants.length === 2 ? "sm:grid-cols-2" : "grid-cols-2"}`}>
-              {participants.map(({ participant, isLocal }) => (
-                <ParticipantTile
-                  key={participant?.sid || participant?.identity}
-                  participant={participant}
-                  isLocal={isLocal}
-                  handRaised={ephemeral.raisedHands.has(participant?.identity)}
-                  onPin={participants.length > 1 ? setPinned : null}
-                  mirrorLocalCamera
-                  fit="contain"
-                  speaking={speakingIds.has(participant?.identity)}
+    <div className="runly-call fixed inset-0 flex h-dvh flex-col overflow-hidden">
+      {isPhone ? (
+        <MobileCallTopBar
+          title={title}
+          status={status}
+          elapsed={elapsed}
+          recordingActive={recordingActive}
+          recordingElapsed={elapsed}
+          onMinimize={null}
+          canSwitchCamera={false}
+          canInvite={false}
+          onOpenPeople={null}
+        />
+      ) : (
+        <CallTopBar title={title} status={status} elapsed={elapsed} recordingActive={recordingActive} recordingElapsed={elapsed} />
+      )}
+
+      <div className="flex min-h-0 flex-1">
+        <main className={cn("relative flex min-h-0 min-w-0 flex-1 flex-col", isPhone ? "px-2" : "px-3 pb-3")}>
+          <div className="relative min-h-0 flex-1">
+            <CallStage view={view} stage={stage} />
+            <CallReactionsOverlay reactions={ephemeral.reactions} />
+          </div>
+          {!isPhone && (
+            <div className="flex shrink-0 justify-center pt-3">
+              <div role="toolbar" aria-label="Controles de la llamada" className="call-glass flex items-center gap-1 rounded-2xl p-1.5">
+                <DockSplitButton
+                  icon={mic ? Mic : MicOff}
+                  label="Micrófono"
+                  tone={mic ? "default" : "off"}
+                  pressed={!mic}
+                  onClick={toggleMic}
+                  menuLabel="Elegir micrófono y altavoz"
+                  menu={<MicDeviceMenu room={room} micEnabled={mic} mediaDevices={mediaDevices} />}
                 />
-              ))}
+                <DockSplitButton
+                  icon={cam ? Camera : CameraOff}
+                  label="Cámara"
+                  tone={cam ? "default" : "off"}
+                  pressed={!cam}
+                  onClick={toggleCam}
+                  menuLabel="Elegir cámara"
+                  menu={<CameraDeviceMenu mediaDevices={mediaDevices} />}
+                />
+                <span className="mx-1 h-8 w-px bg-white/10" aria-hidden />
+                <DockButton icon={screen ? ScreenShareOff : MonitorUp} label={screen ? "Dejar de compartir" : "Compartir"} tone={screen ? "accent" : "default"} onClick={toggleScreen} />
+                <ReactionPopover onReact={ephemeral.sendReaction}>
+                  <DockButton icon={SmilePlus} label="Reaccionar" />
+                </ReactionPopover>
+                <DockButton icon={Hand} label={ephemeral.myHandRaised ? "Bajar mano" : "Levantar mano"} tone={ephemeral.myHandRaised ? "hand" : "default"} onClick={ephemeral.toggleHand} />
+                <span className="mx-1 h-8 w-px bg-white/10" aria-hidden />
+                <DockButton icon={MessageSquare} label="Chat" tone={chatOpen ? "accent" : "default"} onClick={() => setChatOpen((v) => !v)} />
+                <span className="mx-1 h-8 w-px bg-white/10" aria-hidden />
+                <DockButton icon={PhoneOff} label="Salir" tone="danger" wide onClick={onLeave} />
+              </div>
             </div>
           )}
-          {remote.map((p) => <RemoteAudio key={`a-${p.identity}`} participant={p} />)}
-          <CallReactionsOverlay reactions={ephemeral.reactions} />
         </main>
-        <footer className="flex shrink-0 items-center justify-center gap-2 border-t border-white/10 bg-black/30 p-3">
-          <Button variant={mic ? "secondary" : "destructive"} size="icon" className="h-11 w-11 rounded-full" onClick={toggleMic}>
-            {mic ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-          </Button>
-          <Button variant={cam ? "secondary" : "destructive"} size="icon" className="h-11 w-11 rounded-full" onClick={toggleCam}>
-            {cam ? <Camera className="h-5 w-5" /> : <CameraOff className="h-5 w-5" />}
-          </Button>
-          <Button variant={screen ? "default" : "secondary"} size="icon" className="h-11 w-11 rounded-full" onClick={toggleScreen}>
-            <MonitorUp className="h-5 w-5" />
-          </Button>
-          <CallReactionButton onReact={ephemeral.sendReaction} />
-          <Button variant={ephemeral.myHandRaised ? "default" : "secondary"} size="icon" className="h-11 w-11 rounded-full" onClick={ephemeral.toggleHand} title={ephemeral.myHandRaised ? "Bajar la mano" : "Levantar la mano"}>
-            <Hand className="h-5 w-5" />
-          </Button>
-          <Button variant={showChat ? "default" : "secondary"} size="icon" className="h-11 w-11 rounded-full" onClick={() => setShowChat((v) => !v)}>
-            <MessageSquare className="h-5 w-5" />
-          </Button>
-          <Button variant="destructive" size="icon" className="h-11 w-11 rounded-full sm:w-auto sm:px-6" onClick={onLeave}>
-            <PhoneOff className="h-5 w-5 sm:mr-2" /><span className="hidden sm:inline">Salir</span>
-          </Button>
-        </footer>
+        {!isPhone && chatOpen && (
+          <aside className="call-glass dark m-3 ml-0 flex w-95 shrink-0 flex-col overflow-hidden rounded-2xl" aria-label="Chat de la llamada">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <p className="text-sm font-semibold">Mensajes</p>
+              <button type="button" onClick={() => setChatOpen(false)} aria-label="Cerrar chat" className="flex h-8 w-8 items-center justify-center rounded-lg text-white/60 hover:bg-white/10">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1">{chatNode}</div>
+          </aside>
+        )}
       </div>
-      {!isMobile && showChat && (
-        <aside className="flex w-[380px] shrink-0 flex-col border-l border-white/10 bg-slate-950">
-          <GuestRoomChat
-            polled={messages}
-            liveIncoming={live}
-            onSend={publishChat}
-            myName={myName}
-            onUploadFile={uploadFile}
-            onResolveAttachmentUrl={getAttachmentUrl}
-          />
-        </aside>
+
+      {isPhone && (
+        <nav
+          aria-label="Controles de la llamada"
+          className="flex shrink-0 items-start justify-around gap-1 px-2 pt-2"
+          style={{ paddingBottom: "calc(0.6rem + env(safe-area-inset-bottom, 0px))" }}
+        >
+          <MobileCallButton icon={mic ? Mic : MicOff} label={mic ? "Silenciar" : "Activar"} tone={mic ? "default" : "off"} onClick={toggleMic} />
+          <MobileCallButton icon={cam ? Camera : CameraOff} label="Cámara" tone={cam ? "default" : "off"} onClick={toggleCam} />
+          <ReactionPopover onReact={ephemeral.sendReaction} onToggleHand={ephemeral.toggleHand} handRaised={ephemeral.myHandRaised}>
+            <MobileCallButton icon={SmilePlus} label="Reaccionar" tone={ephemeral.myHandRaised ? "hand" : "default"} />
+          </ReactionPopover>
+          <MobileCallButton icon={MessageSquare} label="Chat" onClick={() => setChatOpen(true)} />
+          <MobileCallButton icon={PhoneOff} label="Salir" tone="danger" onClick={onLeave} />
+        </nav>
       )}
+
+      {isPhone && (
+        <Sheet open={chatOpen} onOpenChange={setChatOpen}>
+          <SheetContent side="bottom" className="dark h-[85dvh] max-h-[85dvh] gap-0 overflow-hidden border-white/10 bg-[#0c172d] p-0 text-white" style={{ zIndex: 10002 }}>
+            <SheetTitle className="sr-only">Chat de la llamada</SheetTitle>
+            <SheetDescription className="sr-only">Mensajes con los participantes</SheetDescription>
+            <div className="min-h-0 flex-1 pt-2">{chatNode}</div>
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {remote.map((p) => <RemoteAudio key={`a-${p.identity}`} participant={p} />)}
     </div>
   );
 }

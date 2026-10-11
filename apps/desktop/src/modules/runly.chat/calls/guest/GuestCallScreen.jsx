@@ -115,6 +115,7 @@ export default function GuestCallScreen() {
   if (gc.phase === "room") {
     return (
       <GuestCallRoom
+        title={gc.branding?.companyName ? `Reunión con ${gc.branding.companyName}` : "Reunión"}
         fetchLivekitToken={gc.fetchLivekitToken}
         messages={gc.messages}
         onSendMessage={gc.sendMessage}

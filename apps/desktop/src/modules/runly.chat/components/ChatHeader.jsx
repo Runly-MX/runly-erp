@@ -43,7 +43,7 @@ export function ChatHeader({
   onArchive, isArchived,
   onOpenProfile,
   onOpenPinned,
-  callsEnabled, callPending, onStartAudioCall, onStartVideoCall, onOpenGuestLink,
+  callsEnabled, callPending, onStartAudioCall, onStartVideoCall, onStartMeeting, onOpenGuestLink,
   isMirai = false,
   onOpenMirai, miraiDisabled = false,
   embedded = null, onCollapse = null,
@@ -329,6 +329,12 @@ export function ChatHeader({
                 <Video className="h-3.5 w-3.5 mr-2" />
                 Videollamada
               </DropdownMenuItem>
+              {onStartMeeting && (conversation?.type === "channel" || conversation?.type === "group") && (
+                <DropdownMenuItem onSelect={onStartMeeting} disabled={callPending}>
+                  <Users className="h-3.5 w-3.5 mr-2" />
+                  Iniciar reunión (sin timbre)
+                </DropdownMenuItem>
+              )}
               {onOpenGuestLink && (conversation?.type === "channel" || conversation?.type === "group") && (
                 <DropdownMenuItem onSelect={onOpenGuestLink}>
                   <UserPlus className="h-3.5 w-3.5 mr-2" />

@@ -145,9 +145,11 @@ export function MobileCallTopBar({ title, status, elapsed, recordingActive, reco
       style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top, 0px))" }}
       {...(dragHandlers ?? {})}
     >
-      <button type="button" onClick={onMinimize} aria-label="Minimizar llamada" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.08] ring-1 ring-white/10 active:bg-white/15">
-        <ChevronDown className="h-5 w-5" />
-      </button>
+      {onMinimize ? (
+        <button type="button" onClick={onMinimize} aria-label="Minimizar llamada" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.08] ring-1 ring-white/10 active:bg-white/15">
+          <ChevronDown className="h-5 w-5" />
+        </button>
+      ) : <span className="h-10 w-10 shrink-0" aria-hidden />}
       <div className="min-w-0 flex-1 text-center">
         <p className="flex items-center justify-center gap-1.5 truncate text-sm font-semibold">
           {recordingActive && <span className="call-rec-dot h-2 w-2 shrink-0 rounded-full bg-red-500" aria-label="Grabando" />}
@@ -163,6 +165,7 @@ export function MobileCallTopBar({ title, status, elapsed, recordingActive, reco
           <SwitchCamera className="h-[18px] w-[18px]" />
         </button>
       ) : <span className="h-10 w-10 shrink-0" aria-hidden />}
+      {(canInvite || onOpenPeople) ? (
       <button
         type="button"
         onClick={canInvite ? onInvite : onOpenPeople}
@@ -176,6 +179,7 @@ export function MobileCallTopBar({ title, status, elapsed, recordingActive, reco
           </span>
         )}
       </button>
+      ) : <span className="h-10 w-10 shrink-0" aria-hidden />}
     </header>
   );
 }
