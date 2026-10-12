@@ -1,5 +1,24 @@
 ﻿# Runly ERP - Tasks and Roadmap
 
+## Runly stabilization - recovery, isolation and delivery [PLANNED]
+
+Audit: `docs/architecture/2026-10-12-foda-runly-erp.md`.
+Spec: `docs/superpowers/specs/2026-10-12-runly-stabilization-design.md`.
+Program: `docs/superpowers/plans/2026-10-12-runly-stabilization.md`.
+First workstream: `docs/superpowers/specs/2026-10-12-b2-recovery-hardening-design.md` and `docs/superpowers/plans/2026-10-12-b2-recovery-hardening.md`.
+
+- [x] Planning: requirements, stages, dependencies, file maps, verification and scoped commit sequence documented. Verified: 2026-10-12 (document structure/reference review, privacy and whitespace checks; no implementation or real B2 rehearsal).
+- [ ] Confirm proposed specs/plans and assign implementation, recovery and product/hardware owners.
+- [ ] P0 recovery: inspect/extract/assess original B2 snapshots, complete backup coverage and independently configured freshness; disposable tests followed by a separate real B2 rehearsal.
+- [ ] P0/P1 correctness: SDK delayed JSON company-switch race, current-only Attendance identity, conditional chat hook and reviewed company-transport gate findings.
+- [ ] P1 regressions/security: classify baseline failures, reconcile generated contracts, patch reachable dependency risks and supply secret-scan tooling.
+- [ ] P1 delivery: reproducible regression/build/isolation/privacy CI and exact release artifact provenance.
+- [ ] P1 shared packages: retain ERP workspace consumption, verify isolated packed/registry consumers with exact versions and logical imports.
+- [ ] P1 operational acceptance: real web/Android journeys, LiveKit/Egress/transcription, file recovery, readiness/monitoring, AI execution recovery and extension/auth trust boundaries.
+- [ ] P2 consolidation: accounting/product scope, measured performance/accessibility and backlog/current-status reconciliation.
+
+The historical audit is a baseline, not acceptance of subsequent revisions. Commits record validated scope; publication, deployment, production restore and traffic cutover remain separate identified actions. Missing hardware/real-service evidence stays open while independent work proceeds.
+
 ## Runly Meet v2 — chat y videollamadas [IMPLEMENTED; MANUAL QA PENDING]
 
 Program plan: `docs/superpowers/plans/2026-10-11-runly-meet-v2-program.md`.
