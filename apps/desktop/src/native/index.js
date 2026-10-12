@@ -42,6 +42,9 @@ export const native = {
     async status() { await native.requireCapability('device-permissions'); return invoke('host_device', { action: 'status' }) },
     async requestPermission(permission) { await native.requireCapability('device-permissions'); return invoke('host_device', { action: 'request', permission }) },
     async openSettings(permission) { await native.requireCapability('device-permissions'); return invoke('host_device', { action: 'settings', permission }) },
+    // One-shot NFC tag read (resolves { id: hex, technologies }); rejects NFC_TIMEOUT after 30 s.
+    async nfcRead() { await native.requireCapability('nfc-reader'); return invoke('host_device', { action: 'nfc-read' }) },
+    async nfcStop() { await native.requireCapability('nfc-reader'); return invoke('host_device', { action: 'nfc-stop' }) },
   },
   supports: (capability, minimumVersion) => supportsCapability(hostInfo, capability, minimumVersion),
   async requireCapability(capability, minimumVersion) {
