@@ -76,6 +76,7 @@ import { createPosRouter } from "./routes/pos/index.js";
 import { createCalendarRouter } from "./routes/calendar/index.js";
 import { createProjectsRouter } from "./routes/projects/index.js";
 import { createCanvasRouter, createCanvasPublicRouter } from "./routes/canvas/index.js";
+import { createAttendanceRouter, createAttendancePublicRouter } from "./routes/attendance/index.js";
 import { createCanvasDataSources } from "./routes/canvas/canvas-data-sources.js";
 import { createCanvasFileRemover } from "./routes/canvas/canvas-files.js";
 import { createSettingsRouter } from "./routes/settings-routes.js";
@@ -2130,6 +2131,9 @@ app.route("/", createCanvasPublicRouter({
   resolveLogoUrl: (fileId) => getSignedUrlByFileId(fileId, "card", { prisma, supabaseAdmin }),
 }));
 
+// Attendance kiosks: /public/attendance/* (device-token gated, no user auth).
+app.route("/", createAttendancePublicRouter({ prisma }));
+
 // File view/download public links: /public/files/:token (path-scoped, no auth).
 app.route("/", createFilesPublicRouter({
   prisma,
@@ -2366,7 +2370,7 @@ app.route("/modules", modulesRouter);
 // intercepts every unmatched path before the wildcard route at the bottom can fire.
 // Moving this up as a use() middleware means it runs first for browser GETs to
 // non-API paths and calls next() for everything else (API AJAX calls, etc.).
-const API_PREFIX_RE = /^\/(modules|blueprints|files|wopi|contacts|company|identity|finance|hr|website|ledger|pfm|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|chat|calls|public|auth|health|p|app|user|users|memberships|profile|settings|sync)\b/i
+const API_PREFIX_RE = /^\/(modules|blueprints|files|wopi|contacts|company|identity|finance|hr|website|ledger|pfm|calendar|projects|attendance|catalog|pos|storefront|activity|notifications|inventory|chat|calls|public|auth|health|p|app|user|users|memberships|profile|settings|sync)\b/i
 // Static dist files that aren't HTML pages but live in the dist root (robots.txt, sitemap, webmanifest).
 const DIST_STATIC_RE = /\.(txt|xml|webmanifest|ico|rss|atom)$/i
 app.use('*', async (c, next) => {
@@ -2420,6 +2424,7 @@ mountWithAuth(app, createPosRouter({ prisma, requirePermission, broadcaster }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission, broadcaster, supabaseAdmin }));
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService), broadcaster }));
 mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, entityResolver: resolveCanvasEntityLink, dataSources: createCanvasDataSources({ prisma, relationTargets }), removeFiles: createCanvasFileRemover({ prisma, supabaseAdmin }) }));
+mountWithAuth(app, createAttendanceRouter({ prisma, requirePermission, broadcaster }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));

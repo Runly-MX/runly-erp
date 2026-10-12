@@ -1428,6 +1428,22 @@ export const PERMISSION_CATALOG = {
     displayNameEs: "Restaurar versiones de Boards", descriptionEs: "Permite restaurar snapshots de Boards.", groupKey: "canvas", order: 110,
   },
 
+  "attendance.access": {
+    displayNameEs: "Acceder a Asistencia", descriptionEs: "Permite abrir el módulo de Asistencia.", groupKey: "attendance", order: 10,
+  },
+  "attendance.view": {
+    displayNameEs: "Ver asistencia y reportes", descriptionEs: "Permite consultar checadas, presencia, horas y cumplimiento.", groupKey: "attendance", order: 20,
+  },
+  "attendance.people.manage": {
+    displayNameEs: "Administrar personas y credenciales", descriptionEs: "Permite dar de alta personal, PIN, tarjetas e invitaciones de llave de teléfono.", groupKey: "attendance", order: 30,
+  },
+  "attendance.punch.manage": {
+    displayNameEs: "Registrar y anular checadas", descriptionEs: "Permite capturar checadas manuales y anular checadas existentes.", groupKey: "attendance", order: 40,
+  },
+  "attendance.config.manage": {
+    displayNameEs: "Configurar Asistencia", descriptionEs: "Permite administrar sitios, grupos, categorías, turnos, cuotas y kioskos.", groupKey: "attendance", order: 50,
+  },
+
   "projects.access": {
     displayNameEs: "Acceder a Proyectos",
     descriptionEs: "Permite ver el modulo de proyectos en la navegacion.",

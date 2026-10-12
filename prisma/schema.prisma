@@ -4890,7 +4890,7 @@ model AttKiosk {
 
 // id is supplied by the client (UUID v7) so a retried sync batch is idempotent.
 model AttPunch {
-  id           String    @id @db.Uuid
+  id           String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId    String    @map("company_id") @db.Uuid
   personId     String    @map("person_id") @db.Uuid
   siteId       String?   @map("site_id") @db.Uuid

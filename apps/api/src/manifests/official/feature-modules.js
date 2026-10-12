@@ -908,6 +908,46 @@ export const canvasMap = createModuleManifest({
   blueprints: [...loadHelpBlueprints('runly.canvas', path.join(HELP_DIR, 'runly.canvas'))],
 });
 
+export const attendanceMap = createModuleManifest({
+  key: 'runly.attendance',
+  name: 'Asistencia',
+  description: 'Control de entradas y salidas con kioskos públicos, modo sin conexión, cuotas de contratistas y reportes.',
+  version: '0.1.0',
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  icon: 'Clock',
+  color: '#0d9488',
+  pwa: { shortName: 'Asistencia', startPath: '/' },
+  category: 'operaciones',
+  summary: 'Checador con kioskos, llave de teléfono, turnos y cumplimiento de contratistas',
+  dependencies: [{ key: 'runly.identity' }, { key: 'runly.company' }],
+  lifecycle: {
+    installable: true,
+    uninstallable: false,
+    resettable: false,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: 'purge-owned-tables',
+    ownedEntities: ['AttSite', 'AttGroup', 'AttCategory', 'AttShift', 'AttPerson', 'AttCredential', 'AttKiosk', 'AttPunch', 'AttQuota'],
+    sharedEntities: ['Company', 'UserProfile', 'HrEmployee', 'FileAsset', 'AuditLog'],
+  },
+  navigation: [{ label: 'Asistencia', path: '/', icon: 'Clock', layout: 'main', permissionKey: 'attendance.access' }],
+  acl: {
+    module: 'attendance.access',
+    actions: { read: 'attendance.view', create: 'attendance.people.manage', update: 'attendance.people.manage', delete: 'attendance.config.manage' },
+    models: {},
+  },
+  permissions: [
+    { key: 'attendance.access', name: 'Acceder a Asistencia' },
+    { key: 'attendance.view', name: 'Ver asistencia y reportes' },
+    { key: 'attendance.people.manage', name: 'Administrar personas y credenciales' },
+    { key: 'attendance.punch.manage', name: 'Registrar y anular checadas manuales' },
+    { key: 'attendance.config.manage', name: 'Configurar sitios, turnos, cuotas y kioskos' },
+  ],
+  exposes: { openAttendance: 'route' },
+  blueprints: [...loadHelpBlueprints('runly.attendance', path.join(HELP_DIR, 'runly.attendance'))],
+});
+
 export const chatMap = createModuleManifest({
   key: 'runly.chat',
   name: 'Chat',
