@@ -1814,3 +1814,11 @@ Spec: `docs/superpowers/specs/2026-10-03-rme3-module-platform-v2-design.md` · P
 - [x] 6.4 Catalog: `/module-catalog` (renamed from `/catalog` to avoid the product catalog module), ETag cache + offline listing, install/update through the package pipeline with consent grants, official flag from the signature, instance overrides `catalog.url` / `catalog.publicKeys`; Módulos > Disponibles tab + consent dialog (schema decisions on update). Verified: 2026-10-04 (backend E2E 10/10 with a signed local catalog: install, granted service works, ungranted refused, event delivered, tampered refused, update + wider consent; Playwright 4/4)
 - [ ] Owner: back up `~/.runly/catalog-signing-key.pem`; publish `catalog/v1/index.json` (+ ZIPs) on runly.mx from `runly-web`; until then Disponibles shows "No se pudo cargar el catálogo".
 - [ ] 6.5 First catalog modules (registro de horas, wiki, checklists): each needs its own spec/plan.
+
+## runly.attendance (time clock, kiosks, contractor quotas)
+
+Spec `docs/superpowers/specs/2026-10-11-attendance-design.md`, plan `docs/superpowers/plans/2026-10-11-attendance.md`.
+
+- [x] Foundation, API, admin UI, public offline kiosk, phone key, MirAI read tools, Home widget. Verified: 2026-10-12 (API end-to-end script, Playwright against a production build incl. offline punch + cold start)
+- [ ] Not verified on real hardware: camera QR scan, Web NFC, Android host NFC feed, wake lock, fullscreen
+- [ ] Pending: Android HCE (phone as NFC card), BiometricPrompt, lock-task; selfie evidence upload; BLE; geofence enforcement; xlsx export; optional face match
