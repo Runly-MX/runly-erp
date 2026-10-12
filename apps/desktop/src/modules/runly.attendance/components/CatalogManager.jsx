@@ -5,7 +5,7 @@ import { Badge, Button, ComboboxField, ConfirmDialog, DataTable, SelectField, Sw
 import { useCatalog, useDeleteCatalogItem, useSaveCatalogItem } from '../hooks/useAttendanceData.js'
 import { WEEKDAYS } from '../lib/attendanceLabels.js'
 import { CATALOGS, emptyForm, formFromItem, validateCatalogForm } from '../lib/catalogConfig.js'
-import { FormSheet, toOptions } from './shared.jsx'
+import { FormSheet, toOptions, useCreateAnother } from './shared.jsx'
 
 function CatalogField({ field, value, error, onChange, lookups }) {
   const common = { label: field.label, required: field.required, error }
@@ -39,6 +39,7 @@ export function CatalogManager({ kind, canConfigure, lookups }) {
   const [enabled, setEnabled] = useState(true)
   const [errors, setErrors] = useState({})
   const [toDelete, setToDelete] = useState(null)
+  const another = useCreateAnother()
 
   useEffect(() => {
     if (!editing.open) return
@@ -61,8 +62,8 @@ export function CatalogManager({ kind, canConfigure, lookups }) {
       id: 'actions', header: '', enableSorting: false,
       cell: ({ row }) => (canConfigure ? (
         <div className="flex justify-end gap-1">
-          <Button variant="ghost" size="sm" aria-label="Editar" onClick={() => setEditing({ open: true, item: row.original })}><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="sm" aria-label="Eliminar" onClick={() => setToDelete(row.original)}><Trash2 className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" className="max-sm:h-11 max-sm:w-11" aria-label="Editar" onClick={() => setEditing({ open: true, item: row.original })}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" className="max-sm:h-11 max-sm:w-11" aria-label="Eliminar" onClick={() => setToDelete(row.original)}><Trash2 className="h-4 w-4" /></Button>
         </div>
       ) : null),
     },
@@ -74,7 +75,10 @@ export function CatalogManager({ kind, canConfigure, lookups }) {
     if (Object.keys(result.errors).length) return
     try {
       await save.mutateAsync({ id: editing.item?.id, ...result.payload, ...(editing.item ? { enabled } : {}) })
-      setEditing({ open: false, item: null })
+      another.finish({
+        close: () => setEditing({ open: false, item: null }),
+        reset: () => { setForm(emptyForm(config)); setErrors({}) },
+      })
     } catch { /* toast shown */ }
   }
 
@@ -88,12 +92,7 @@ export function CatalogManager({ kind, canConfigure, lookups }) {
   }
 
   return (
-    <div className="space-y-4">
-      {canConfigure ? (
-        <div className="flex justify-end">
-          <Button onClick={() => setEditing({ open: true, item: null })}><Plus className="h-4 w-4" />{config.newLabel}</Button>
-        </div>
-      ) : null}
+    <div>
       <DataTable
         columns={columns}
         data={list.data ?? []}
@@ -103,6 +102,7 @@ export function CatalogManager({ kind, canConfigure, lookups }) {
         onRetry={() => list.refetch()}
         pageSize={15}
         searchPlaceholder={`Buscar ${config.label.toLowerCase()}…`}
+        toolbarActions={canConfigure ? <Button onClick={() => setEditing({ open: true, item: null })}><Plus className="h-4 w-4" />{config.newLabel}</Button> : null}
         emptyTitle={config.emptyTitle}
         emptyDescription={config.emptyDescription}
       />
@@ -111,10 +111,12 @@ export function CatalogManager({ kind, canConfigure, lookups }) {
         open={editing.open}
         onOpenChange={(open) => setEditing((e) => ({ ...e, open }))}
         title={editing.item ? `Editar ${config.singular}` : config.newLabel}
+        createAnother={{ visible: !editing.item, checked: another.checked, onChange: another.setChecked }}
+        bodyRef={another.bodyRef}
         footer={(
           <>
             <Button variant="outline" onClick={() => setEditing({ open: false, item: null })}>Cancelar</Button>
-            <Button onClick={submit} disabled={save.isPending}>{save.isPending ? 'Guardando…' : 'Guardar'}</Button>
+            <Button onClick={submit} disabled={save.isPending}>{save.isPending ? 'Guardando…' : editing.item ? 'Guardar' : 'Crear'}</Button>
           </>
         )}
       >

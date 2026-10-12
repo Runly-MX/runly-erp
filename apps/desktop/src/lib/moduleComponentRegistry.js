@@ -25,6 +25,7 @@ import InventoryPurchaseSection from "../modules/runly.purchases/components/Inve
 import HrEmployeeActivityPanel from "../modules/runly.hr/components/HrEmployeeActivityPanel.jsx";
 import OrgChartSection from "../modules/runly.hr/components/OrgChartSection.jsx";
 import AssignedEquipmentSection from "../modules/runly.hr/components/AssignedEquipmentSection.jsx";
+import AttendanceSection from "../modules/runly.hr/components/AttendanceSection.jsx";
 
 import { AddressFieldsSection } from "@runly/ui";
 
@@ -109,6 +110,7 @@ componentRegistry.register(
   "runly.hr:AssignedEquipmentSection",
   AssignedEquipmentSection,
 );
+componentRegistry.register("runly.hr:AttendanceSection", AttendanceSection);
 
 componentRegistry.register(
   "runly.identity:AddressFieldsSection",

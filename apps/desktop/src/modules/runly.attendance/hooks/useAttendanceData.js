@@ -68,3 +68,15 @@ export const useSaveKiosk = () => useAction(
 export const useApproveKiosk = () => useAction((t, { id, code }) => runly.attendance.approveKiosk(id, code, t), 'Kiosko aprobado.')
 export const useResetKiosk = () => useAction((t, id) => runly.attendance.resetKiosk(id, t), 'Kiosko restablecido.')
 export const useRevokeKiosk = () => useAction((t, id) => runly.attendance.revokeKiosk(id, t), 'Kiosko revocado.')
+
+// HR link: suggestions are keyed by the typed text; link/unlink refresh the whole attendance cache.
+export const useHrSuggestions = (q) => useRead(
+  ['hr-suggestions', q],
+  (t) => runly.attendance.searchHrSuggestions({ q, limit: 6 }, t),
+  { enabled: Boolean(useToken()) && (q ?? '').trim().length >= 2, staleTime: 15_000, placeholderData: keepPreviousData },
+)
+export const useLinkHr = () => useAction(
+  (t, { personId, hrEmployeeId, syncProfile }) => runly.attendance.linkHr(personId, { hrEmployeeId, syncProfile: Boolean(syncProfile) }, t),
+  'Persona vinculada con RH.',
+)
+export const useUnlinkHr = () => useAction((t, personId) => runly.attendance.unlinkHr(personId, t), 'Vínculo con RH eliminado.')

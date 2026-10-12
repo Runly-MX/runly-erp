@@ -234,6 +234,7 @@ export { DetailActionBar } from "./components/DetailActionBar.jsx";
 export { SearchInput } from "./components/SearchInput.jsx";
 export { FilterBar } from "./components/FilterBar.jsx";
 export { DateRangeFilter } from "./components/DateRangeFilter.jsx";
+export { ChipTabs, ChipTabPanel } from "./components/ChipTabs.jsx";
 export { ListPager, usePagedList } from "./components/ListPager.jsx";
 export { IconPickerField } from "./components/IconPickerField.jsx";
 export { ICON_CATALOG, resolveLucideIcon } from "./components/icon-catalog.js";
@@ -261,6 +262,7 @@ export { requestBugReport, onBugReportRequest, hasBugReportListener } from "./li
 export { ContactPicker } from "./components/ContactPicker.jsx";
 export { FileCard } from "./components/FileCard.jsx";
 export { DistDropZone } from "./components/DistDropZone.jsx";
+export { ColumnMappingStep } from "./components/ColumnMappingStep.jsx";
 export { FileUploader } from "./components/FileUploader.jsx";
 export { AIUploadDropzone } from "./components/AIUploadDropzone.jsx";
 export { AIFlowSteps } from "./components/AIFlowSteps.jsx";

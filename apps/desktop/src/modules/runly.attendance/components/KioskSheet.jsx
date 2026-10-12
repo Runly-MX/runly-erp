@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, ComboboxField, SelectField, SwitchField, TextField } from '@runly/ui'
 import { useSaveKiosk } from '../hooks/useAttendanceData.js'
 import { KIOSK_MODE_OPTIONS, kioskLink } from '../lib/attendanceLabels.js'
-import { FormSheet, LinkBlock, toOptions } from './shared.jsx'
+import { FormSheet, LinkBlock, toOptions, useCreateAnother } from './shared.jsx'
 
 const EMPTY = { name: '', siteId: null, mode: 'both', allowPin: true, requireSelfie: false }
 
@@ -11,6 +11,7 @@ export function KioskSheet({ open, onOpenChange, kiosk, lookups }) {
   const save = useSaveKiosk()
   const [form, setForm] = useState(EMPTY)
   const [nameError, setNameError] = useState('')
+  const another = useCreateAnother()
   useEffect(() => {
     if (!open) return
     setNameError('')
@@ -24,7 +25,7 @@ export function KioskSheet({ open, onOpenChange, kiosk, lookups }) {
     if (!form.name.trim()) { setNameError('El nombre es obligatorio.'); return }
     try {
       await save.mutateAsync({ id: kiosk?.id, name: form.name.trim(), siteId: form.siteId || null, mode: form.mode, allowPin: form.allowPin, requireSelfie: form.requireSelfie })
-      onOpenChange(false)
+      another.finish({ close: () => onOpenChange(false), reset: () => { setForm(EMPTY); setNameError('') } })
     } catch { /* toast shown */ }
   }
 
@@ -33,11 +34,13 @@ export function KioskSheet({ open, onOpenChange, kiosk, lookups }) {
       open={open}
       onOpenChange={onOpenChange}
       title={kiosk ? 'Editar kiosko' : 'Nuevo kiosko'}
+      createAnother={{ visible: !kiosk, checked: another.checked, onChange: another.setChecked }}
+      bodyRef={another.bodyRef}
       description="Un kiosko es la tableta o equipo donde el personal marca su asistencia."
       footer={(
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={submit} disabled={save.isPending}>{save.isPending ? 'Guardando…' : 'Guardar'}</Button>
+          <Button onClick={submit} disabled={save.isPending}>{save.isPending ? 'Guardando…' : kiosk ? 'Guardar' : 'Crear'}</Button>
         </>
       )}
     >

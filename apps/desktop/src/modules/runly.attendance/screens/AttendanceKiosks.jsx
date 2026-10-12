@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { MonitorSmartphone, Plus } from 'lucide-react'
-import { Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, EmptyState, ErrorState, PageHeader } from '@runly/ui'
+import { Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, EmptyState, ErrorState } from '@runly/ui'
 import { KioskCard } from '../components/KioskCard.jsx'
 import { KioskSheet } from '../components/KioskSheet.jsx'
-import { CardSkeletons, LinkBlock, PageShell } from '../components/shared.jsx'
+import { CardSkeletons, LinkBlock, PageShell, ScreenHeader, Toolbar } from '../components/shared.jsx'
 import {
   useApproveKiosk, useAttendancePermissions, useKiosks, useResetKiosk, useRevokeKiosk,
 } from '../hooks/useAttendanceData.js'
@@ -20,6 +20,7 @@ export default function AttendanceKiosks() {
   const [confirm, setConfirm] = useState(null) // { type: 'reset' | 'revoke', kiosk }
 
   const rows = kiosks.data ?? []
+  const pending = rows.filter((k) => k.pairingPending).length
   const confirmCopy = {
     reset: { title: 'Restablecer kiosko', description: 'Se olvidará el dispositivo emparejado y se generará un enlace nuevo. El dispositivo deberá emparejarse de nuevo.', label: 'Restablecer', run: reset },
     revoke: { title: 'Revocar kiosko', description: 'El dispositivo dejará de poder registrar checadas de inmediato.', label: 'Revocar', run: revoke },
@@ -31,11 +32,13 @@ export default function AttendanceKiosks() {
 
   return (
     <PageShell>
-      <PageHeader
-        eyebrow="Asistencia"
+      <ScreenHeader
         title="Kioskos"
         description="Dispositivos donde el personal marca entradas y salidas. Abre el enlace en la tableta y aprueba el emparejamiento aquí."
-        actions={canConfigure ? <Button onClick={() => setSheet({ open: true, kiosk: null })}><Plus className="h-4 w-4" />Nuevo kiosko</Button> : null}
+      />
+      <Toolbar
+        start={rows.length ? <p className="text-sm text-[hsl(var(--muted-foreground))]"><span className="font-semibold tabular-nums text-[hsl(var(--foreground))]">{rows.length}</span> {rows.length === 1 ? 'kiosko' : 'kioskos'}{pending ? <> · <span className="font-medium text-amber-700 dark:text-amber-400">{pending} por aprobar</span></> : null}</p> : null}
+        end={canConfigure && rows.length ? <Button onClick={() => setSheet({ open: true, kiosk: null })}><Plus className="h-4 w-4" />Nuevo kiosko</Button> : null}
       />
 
       {kiosks.isLoading ? <CardSkeletons count={3} className="h-48" /> : kiosks.isError ? (

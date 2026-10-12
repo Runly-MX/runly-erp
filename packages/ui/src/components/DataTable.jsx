@@ -37,6 +37,8 @@ export function DataTable({
   autoResetPageIndex,
   showToolbar = true,
   showPagination = true,
+  toolbarStart,
+  toolbarActions,
 }) {
   const EMPTY_ROWS = useMemo(() => [], [])
   const [sorting, setSorting] = useState([])
@@ -89,6 +91,7 @@ export function DataTable({
             placeholder={searchPlaceholder}
             className="w-full sm:max-w-xs"
           />
+          {toolbarStart}
           {filters && (
             <FilterBar
               filters={filters}
@@ -99,6 +102,7 @@ export function DataTable({
               }}
             />
           )}
+          {toolbarActions ? <div className="flex flex-wrap items-center gap-2 sm:ml-auto">{toolbarActions}</div> : null}
         </div>
       )}
 

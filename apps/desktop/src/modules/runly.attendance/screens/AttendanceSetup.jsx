@@ -1,30 +1,50 @@
-import { PageHeader, Tabs, TabsContent, TabsList, TabsTrigger } from '@runly/ui'
+import { Building2, CalendarClock, MapPin, Target, Users, Wrench } from 'lucide-react'
+import { ChipTabPanel, ChipTabs } from '@runly/ui'
 import { CatalogManager } from '../components/CatalogManager.jsx'
-import { PageShell } from '../components/shared.jsx'
+import { PageShell, ScreenHeader } from '../components/shared.jsx'
 import { useAttendancePermissions } from '../hooks/useAttendanceData.js'
 import { useLookups } from '../hooks/useLookups.js'
+import { usePersistedTab } from '../hooks/usePersistedTab.js'
 import { CATALOGS, CATALOG_ORDER } from '../lib/catalogConfig.js'
+
+const TAB_META = {
+  sites: {
+    icon: MapPin,
+    description: 'Ubicaciones físicas (obra, planta, oficina) donde hay kioskos y se registran checadas. Cada sitio tiene su zona horaria, para que las horas y los turnos se calculen con el reloj correcto.',
+  },
+  groups: {
+    icon: Building2,
+    description: 'Empresas contratistas o áreas a las que pertenece cada persona. Son la base de las cuotas y permiten ver cuántos de cada grupo están presentes.',
+  },
+  categories: {
+    icon: Wrench,
+    description: 'Tipo de elemento u oficio (soldador, electricista, supervisor). Se usa para contar los mínimos requeridos por especialidad en las cuotas.',
+  },
+  shifts: {
+    icon: CalendarClock,
+    description: 'Horario esperado de entrada y salida, con minutos de tolerancia de llegada. Las checadas fuera de tolerancia se marcan como retardo.',
+  },
+  quotas: {
+    icon: Target,
+    description: 'Mínimo de personas por grupo, categoría o sitio que deben estar presentes. El Resumen y los Reportes comparan la presencia real contra estas cuotas.',
+  },
+}
+
+const TABS = CATALOG_ORDER.map((kind) => ({ value: kind, label: CATALOGS[kind].label, icon: TAB_META[kind]?.icon ?? Users, description: TAB_META[kind]?.description }))
 
 export default function AttendanceSetup() {
   const lookups = useLookups()
   const { canConfigure } = useAttendancePermissions()
+  const [tab, setTab] = usePersistedTab('attendance.setup.tab', CATALOG_ORDER, 'sites')
   return (
     <PageShell>
-      <PageHeader
-        eyebrow="Asistencia"
-        title="Configuración"
-        description="Sitios, grupos, categorías, turnos y cuotas de cumplimiento."
-      />
-      <Tabs defaultValue="sites">
-        <TabsList className="h-auto max-w-full flex-wrap justify-start">
-          {CATALOG_ORDER.map((kind) => <TabsTrigger key={kind} value={kind}>{CATALOGS[kind].label}</TabsTrigger>)}
-        </TabsList>
-        {CATALOG_ORDER.map((kind) => (
-          <TabsContent key={kind} value={kind} className="mt-4">
-            <CatalogManager kind={kind} canConfigure={canConfigure} lookups={lookups} />
-          </TabsContent>
-        ))}
-      </Tabs>
+      <ScreenHeader title="Configuración" description="Catálogos que usa Asistencia: dónde, quién, cuándo y cuántos." />
+      <ChipTabs tabs={TABS} value={tab} onChange={setTab} ariaLabel="Catálogos de configuración" />
+      {CATALOG_ORDER.map((kind) => (
+        <ChipTabPanel key={kind} value={kind} active={tab === kind}>
+          <CatalogManager kind={kind} canConfigure={canConfigure} lookups={lookups} />
+        </ChipTabPanel>
+      ))}
     </PageShell>
   )
 }

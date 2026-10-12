@@ -139,6 +139,14 @@ export const HR_EMPLOYEE_DETAIL = {
         component: 'runly.hr:AssignedEquipmentSection',
       },
       {
+        id: 'attendance',
+        type: 'component',
+        label: 'Asistencia',
+        icon: 'Clock',
+        column: 'aside',
+        component: 'runly.hr:AttendanceSection',
+      },
+      {
         id: 'history',
         type: 'component',
         label: 'Actividad',

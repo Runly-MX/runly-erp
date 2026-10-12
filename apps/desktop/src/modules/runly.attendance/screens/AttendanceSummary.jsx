@@ -1,16 +1,18 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarCheck, ClipboardList, Target, UserCheck, Users } from 'lucide-react'
-import { Button, EmptyState, ErrorState, PageHeader, StatCard } from '@runly/ui'
+import { ClipboardList, MonitorSmartphone, Radio, Target } from 'lucide-react'
+import { Button, EmptyState, ErrorState } from '@runly/ui'
 import { KioskStatusBadge } from '../components/KioskStatusChips.jsx'
 import { PresenceChart } from '../components/PresenceChart.jsx'
 import { QuotaCards } from '../components/QuotaCards.jsx'
-import { CardSkeletons, PageShell } from '../components/shared.jsx'
-import { useKiosks, useSummary } from '../hooks/useAttendanceData.js'
+import { CardSkeletons, PageShell, ScreenHeader, SectionCard } from '../components/shared.jsx'
+import { SummaryStats } from '../components/SummaryStats.jsx'
+import { useAttendancePermissions, useKiosks, useSummary } from '../hooks/useAttendanceData.js'
 import { useLookups } from '../hooks/useLookups.js'
-import { formatDateTime, tallyBy } from '../lib/attendanceLabels.js'
+import { formatDateTime, kioskStatus, tallyBy } from '../lib/attendanceLabels.js'
 
 const BASE = '/app/m/runly.attendance'
+const ACCENTS = { online: 'bg-emerald-500', pending: 'bg-amber-500', revoked: 'bg-rose-500', offline: 'bg-slate-400', unpaired: 'bg-slate-400' }
 
 export default function AttendanceSummary() {
   const navigate = useNavigate()
@@ -18,65 +20,67 @@ export default function AttendanceSummary() {
   // The summary payload only carries a slim kiosk list; the full list knows who awaits approval.
   const kiosks = useKiosks({ refetchInterval: 20_000 })
   const lookups = useLookups()
+  const { canConfigure } = useAttendancePermissions()
   const data = summary.data
 
   const byGroup = useMemo(() => tallyBy(data?.present?.byGroup, lookups.groups, 'Sin grupo'), [data, lookups.groups])
   const byCategory = useMemo(() => tallyBy(data?.present?.byCategory, lookups.categories, 'Sin categoría'), [data, lookups.categories])
 
   if (summary.isError) {
-    return <PageShell><PageHeader eyebrow="Asistencia" title="Resumen" /><ErrorState onRetry={() => summary.refetch()} /></PageShell>
+    return <PageShell><ScreenHeader title="Resumen" /><ErrorState onRetry={() => summary.refetch()} /></PageShell>
   }
   const kioskRows = (kiosks.data ?? []).filter((k) => k.enabled !== false)
 
   return (
     <PageShell>
-      <PageHeader
-        eyebrow="Asistencia"
+      <ScreenHeader
         title="Resumen"
         description="Quién está presente ahora, cumplimiento de cuotas y estado de los kioskos. Se actualiza cada 20 segundos."
         actions={<Button variant="outline" onClick={() => navigate(`${BASE}/punches`)}><ClipboardList className="h-4 w-4" />Ver checadas</Button>}
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Presentes ahora" value={data?.present?.total ?? 0} icon={UserCheck} loading={summary.isLoading} />
-        <StatCard label="Personal activo" value={data?.people ?? 0} icon={Users} loading={summary.isLoading} />
-        <StatCard label="Cuotas en incumplimiento" value={data?.quotas?.failing ?? 0} icon={Target} loading={summary.isLoading} />
-        <StatCard label="Checadas marcadas (7 días)" value={data?.flaggedLast7d ?? 0} icon={CalendarCheck} loading={summary.isLoading} />
-      </div>
+      <SummaryStats data={data} loading={summary.isLoading} />
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">Presencia en vivo</h2>
-        {summary.isLoading ? <CardSkeletons count={2} className="h-56" /> : (
+      <SectionCard title="Presencia en vivo" description="Personas dentro en este momento" icon={Radio}>
+        {summary.isLoading ? <CardSkeletons count={2} className="h-48" /> : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <PresenceChart title="Por grupo" data={byGroup} />
-            <PresenceChart title="Por categoría" data={byCategory} />
+            <PresenceChart title="Por grupo" data={byGroup} bare />
+            <PresenceChart title="Por categoría" data={byCategory} bare />
           </div>
         )}
-      </section>
+      </SectionCard>
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">Cumplimiento de cuotas</h2>
+      <SectionCard
+        title="Cumplimiento de cuotas" description="Presentes contra el mínimo requerido" icon={Target}
+        actions={<Button variant="ghost" size="sm" className="max-sm:min-h-11" onClick={() => navigate(`${BASE}/setup?tab=quotas`)}>Configurar cuotas</Button>}
+      >
         {summary.isLoading ? <CardSkeletons /> : <QuotaCards rows={data?.quotas?.rows ?? []} lookups={lookups} />}
-      </section>
+      </SectionCard>
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">Kioskos</h2>
+      <SectionCard
+        title="Kioskos" description="Dispositivos de registro" icon={MonitorSmartphone}
+        actions={<Button variant="ghost" size="sm" className="max-sm:min-h-11" onClick={() => navigate(`${BASE}/kiosks`)}>Administrar</Button>}
+      >
         {kiosks.isLoading ? <CardSkeletons count={3} className="h-16" /> : kioskRows.length === 0 ? (
-          <EmptyState variant="compact" title="Aún no hay kioskos." action={{ label: 'Crear kiosko', onClick: () => navigate(`${BASE}/kiosks`) }} />
+          <EmptyState
+            icon={MonitorSmartphone} title="Aún no hay kioskos" description="Crea un kiosko y ábrelo en una tableta para empezar a registrar checadas."
+            action={canConfigure ? { label: 'Crear kiosko', onClick: () => navigate(`${BASE}/kiosks`) } : undefined}
+          />
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {kioskRows.map((kiosk) => (
-              <div key={kiosk.id} className="flex items-center justify-between gap-3 rounded-xl surface-card p-3">
+              <div key={kiosk.id} className="relative flex min-h-16 items-center justify-between gap-3 overflow-hidden rounded-xl border border-[hsl(var(--border))] py-3 pl-5 pr-3">
+                <span className={`absolute inset-y-0 left-0 w-1 ${ACCENTS[kioskStatus(kiosk).key] ?? 'bg-slate-400'}`} aria-hidden="true" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{kiosk.name}</p>
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Última señal: {formatDateTime(kiosk.lastSeenAt)}</p>
+                  <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">Última señal: {formatDateTime(kiosk.lastSeenAt)}</p>
                 </div>
                 <KioskStatusBadge kiosk={kiosk} />
               </div>
             ))}
           </div>
         )}
-      </section>
+      </SectionCard>
     </PageShell>
   )
 }

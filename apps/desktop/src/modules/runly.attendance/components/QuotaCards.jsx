@@ -18,7 +18,8 @@ export function QuotaCards({ rows, lookups }) {
         const pct = row.required > 0 ? Math.min(100, Math.round((row.present / row.required) * 100)) : 100
         const failing = row.applies && !row.ok
         return (
-          <div key={row.quotaId} className="rounded-2xl surface-card p-4">
+          <div key={row.quotaId} className="relative overflow-hidden rounded-xl border border-[hsl(var(--border))] p-4 pl-5">
+            <span className={`absolute inset-y-0 left-0 w-1 ${!row.applies ? 'bg-slate-400' : failing ? 'bg-rose-500' : 'bg-emerald-500'}`} aria-hidden="true" />
             <div className="flex items-start justify-between gap-2">
               <p className="min-w-0 truncate text-sm font-semibold">{quotaTitle(row, lookups)}</p>
               {!row.applies ? <Badge variant="secondary">No aplica hoy</Badge> : failing ? <Badge variant="destructive">Faltan {row.missing}</Badge> : <Badge variant="success">Cumple</Badge>}
@@ -26,7 +27,7 @@ export function QuotaCards({ rows, lookups }) {
             <p className="mt-2 text-2xl font-bold tabular-nums">
               {row.present}<span className="text-base font-medium text-[hsl(var(--muted-foreground))]"> / {row.required} requeridos</span>
             </p>
-            <ProgressBar value={pct} className="mt-3" barClassName={failing ? 'bg-red-500' : 'bg-emerald-500'} />
+            <ProgressBar value={pct} className="mt-3 h-2" aria-label="Avance de la cuota" barClassName={failing ? 'bg-red-500' : 'bg-emerald-500'} />
           </div>
         )
       })}

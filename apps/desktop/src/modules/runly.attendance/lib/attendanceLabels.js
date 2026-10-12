@@ -15,6 +15,8 @@ const SEVERE_FLAGS = new Set(['proof_failed', 'replay', 'clock_skew'])
 export const flagLabel = (flag) => FLAG_LABELS[flag] ?? String(flag)
 export const flagVariant = (flag) => (SEVERE_FLAGS.has(flag) ? 'destructive' : flag === 'manual' || flag === 'offline' ? 'secondary' : 'warning')
 
+export const flagTone = (flag) => (SEVERE_FLAGS.has(flag) ? 'rose' : flag === 'manual' ? 'slate' : flag === 'offline' ? 'blue' : 'amber')
+
 export const DIRECTION_LABELS = { in: 'Entrada', out: 'Salida' }
 
 export const METHOD_LABELS = {

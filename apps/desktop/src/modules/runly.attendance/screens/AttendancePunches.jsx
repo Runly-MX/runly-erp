@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react'
-import { Ban, ClipboardList, Plus } from 'lucide-react'
-import { Badge, Button, CheckboxField, ComboboxField, ConfirmDialog, DataTable, DateField, PageHeader, TextField } from '@runly/ui'
+import { Ban, ClipboardList, Flag, Plus } from 'lucide-react'
+import { Badge, Button, CheckboxField, ComboboxField, ConfirmDialog, DataTable, DateRangeFilter, PersonAvatar, TextField } from '@runly/ui'
 import { ManualPunchDialog } from '../components/ManualPunchDialog.jsx'
-import { PageShell } from '../components/shared.jsx'
+import { PageShell, ScreenHeader, ToneBadge } from '../components/shared.jsx'
 import { useAttendancePermissions, useKiosks, usePeople, usePunches, useVoidPunch } from '../hooks/useAttendanceData.js'
 import { useLookups } from '../hooks/useLookups.js'
+import { useUrlRange } from '../hooks/useUrlRange.js'
 import {
-  DIRECTION_LABELS, dayEndIso, dayStartIso, flagLabel, flagVariant, formatDateTime, fullName, methodLabel,
+  DIRECTION_LABELS, dayEndIso, dayStartIso, flagLabel, flagTone, formatDateTime, fullName, methodLabel,
 } from '../lib/attendanceLabels.js'
 
 export default function AttendancePunches() {
-  const [filters, setFilters] = useState({ from: '', to: '', personId: null, flaggedOnly: false })
+  const [range, setRange] = useUrlRange({ from: '', to: '' })
+  const [filters, setFilters] = useState({ personId: null, flaggedOnly: false })
   const [manualOpen, setManualOpen] = useState(false)
   const [toVoid, setToVoid] = useState(null)
   const [voidNote, setVoidNote] = useState('')
@@ -22,9 +24,9 @@ export default function AttendancePunches() {
 
   const query = useMemo(() => ({
     limit: 500,
-    from: dayStartIso(filters.from), to: dayEndIso(filters.to),
+    from: dayStartIso(range.from), to: dayEndIso(range.to),
     personId: filters.personId || undefined, status: filters.flaggedOnly ? 'flagged' : undefined,
-  }), [filters])
+  }), [filters, range])
   const punches = usePunches(query)
 
   const kioskNames = useMemo(() => new Map((kiosks.data ?? []).map((k) => [k.id, k.name])), [kiosks.data])
@@ -36,9 +38,12 @@ export default function AttendancePunches() {
     {
       id: 'person', header: 'Persona', accessorFn: (p) => fullName(p.person),
       cell: ({ row }) => (
-        <div className="min-w-0">
-          <p className="truncate font-medium">{fullName(row.original.person)}</p>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">{row.original.person?.code}</p>
+        <div className="flex min-w-0 items-center gap-3">
+          <PersonAvatar name={fullName(row.original.person)} size="sm" />
+          <div className="min-w-0">
+            <p className="truncate font-medium leading-tight">{fullName(row.original.person)}</p>
+            <p className="text-xs tabular-nums text-[hsl(var(--muted-foreground))]">{row.original.person?.code}</p>
+          </div>
         </div>
       ),
     },
@@ -57,8 +62,9 @@ export default function AttendancePunches() {
         const p = row.original
         return (
           <div className="flex flex-wrap gap-1">
-            {p.status === 'voided' ? <Badge variant="destructive">Anulada</Badge> : null}
-            {(p.flags ?? []).map((flag) => <Badge key={flag} variant={flagVariant(flag)}>{flagLabel(flag)}</Badge>)}
+            {p.status === 'voided' ? <ToneBadge tone="rose" icon={Ban}>Anulada</ToneBadge> : null}
+            {(p.flags ?? []).map((flag) => <ToneBadge key={flag} tone={flagTone(flag)} icon={Flag}>{flagLabel(flag)}</ToneBadge>)}
+            {p.status !== 'voided' && !(p.flags ?? []).length ? <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span> : null}
           </div>
         )
       },
@@ -67,7 +73,7 @@ export default function AttendancePunches() {
       id: 'actions', header: '', enableSorting: false,
       cell: ({ row }) => (canManagePunches && row.original.status !== 'voided' ? (
         <div className="flex justify-end">
-          <Button variant="ghost" size="sm" aria-label="Anular checada" onClick={() => { setVoidNote(''); setToVoid(row.original) }}><Ban className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" className="max-sm:h-11 max-sm:w-11" aria-label="Anular checada" onClick={() => { setVoidNote(''); setToVoid(row.original) }}><Ban className="h-4 w-4" /></Button>
         </div>
       ) : null),
     },
@@ -75,20 +81,7 @@ export default function AttendancePunches() {
 
   return (
     <PageShell>
-      <PageHeader
-        eyebrow="Asistencia"
-        title="Checadas"
-        description="Entradas y salidas registradas en kioskos, con las marcas de seguridad que detectó el sistema."
-        actions={canManagePunches ? <Button onClick={() => setManualOpen(true)}><Plus className="h-4 w-4" />Checada manual</Button> : null}
-      />
-
-      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <DateField label="Desde" value={filters.from} onChange={(e) => set('from')(e.target.value)} />
-        <DateField label="Hasta" value={filters.to} onChange={(e) => set('to')(e.target.value)} />
-        <ComboboxField label="Persona" options={personOptions} value={filters.personId} onChange={set('personId')} clearable placeholder="Todas las personas" />
-        <CheckboxField id="att-flagged" checked={filters.flaggedOnly} onChange={set('flaggedOnly')}>Solo marcadas</CheckboxField>
-      </div>
-
+      <ScreenHeader title="Checadas" description="Entradas y salidas registradas en kioskos, con las marcas de seguridad que detectó el sistema." />
       <DataTable
         columns={columns}
         data={punches.data ?? []}
@@ -100,7 +93,15 @@ export default function AttendancePunches() {
         searchPlaceholder="Buscar en los resultados…"
         emptyIcon={ClipboardList}
         emptyTitle="Sin checadas"
-        emptyDescription="No hay checadas con estos filtros."
+        emptyDescription="No hay checadas con estos filtros. Prueba con otro rango de fechas."
+        toolbarStart={(
+          <>
+            <DateRangeFilter filter={{ key: 'range', label: 'Fechas', fromKey: 'from', toKey: 'to' }} value={range} onChange={(next) => setRange({ from: next.from, to: next.to })} />
+            <ComboboxField className="w-full sm:w-64" aria-label="Persona" options={personOptions} value={filters.personId} onChange={set('personId')} clearable placeholder="Todas las personas" />
+            <CheckboxField id="att-flagged" className="min-h-11 justify-center sm:min-h-0" checked={filters.flaggedOnly} onChange={(e) => set('flaggedOnly')(e.target.checked)}>Solo marcadas</CheckboxField>
+          </>
+        )}
+        toolbarActions={canManagePunches ? <Button onClick={() => setManualOpen(true)}><Plus className="h-4 w-4" />Checada manual</Button> : null}
       />
 
       <ManualPunchDialog open={manualOpen} onOpenChange={setManualOpen} people={people.data} lookups={lookups} />

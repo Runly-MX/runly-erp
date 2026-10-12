@@ -509,6 +509,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `RingProgress` | Circular SVG progress ring. `value`/`max`, `size`, `stroke`, `color`; renders `children` centred. Use for goals/completion. |
 | `SectionCard` | Glass `Card` with a `title` (+ optional `description`, `action` slot) header and a body. Standardises the "titled card" pattern; `variant` passes through to `Card`. |
 | `ImportStepIndicator` | Multi-step wizard rail. `steps` (`{ key, label, icon }[]`), `current` (active step key). Vertical rail on desktop (`sm:` and up), compact icon-only horizontal strip on mobile — keeps wizard chrome from eating width from step content like a review table. |
+| `ColumnMappingStep` | Generic import-wizard step that relates file columns to target fields. Props: `headers` (string[]), `rows` (objects keyed by header, used for sample values), `fields` (`{ key, label, group, required, hint }[]`), `mapping` (`{ [fieldKey]: header }`), `onMappingChange(next)`, `title?`. Groups fields by `group`, one `SelectField` per field with a "No importar" option, hides headers already used elsewhere, shows a check when mapped and a warning badge when a required field is unmapped. |
 | `Avatar`, `AvatarImage`, `AvatarFallback` | User avatar with fallback initials |
 | `DetailSkeleton`, `FormSkeleton` | Page-level loading placeholders shaped like a record detail (hero + KPIs + two columns) or a sectioned form. Use instead of `LoadingState` while a detail/form screen loads its record |
 | `FormSaveBar` | Universal save/cancel bar for forms (RunlyForm uses it). `floating` (full page): sticky glass bar on phones; on `lg+` a bottom-right pill that slides in only while `dirty`/`submitting`/`forceVisible`. `floating={false}` inside Dialog/Sheet: always-visible buttons. Render inside the `<form>` |
@@ -571,7 +572,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | Export | Description |
 |---|---|
 | `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableHead`, `TableRow`, `TableCell`, `TableCaption` | HTML table primitives |
-| `DataTable` | Feature-rich sortable/filterable table |
+| `DataTable` | Feature-rich sortable/filterable table. `toolbarStart` adds custom filters (e.g. `DateRangeFilter`) after the search box and `toolbarActions` renders the screen primary action at the right end of the search/filter row (wraps on mobile). |
 | `Pagination`, `PaginationContent`, `PaginationItem`, `PaginationLink`, `PaginationPrevious`, `PaginationNext`, `PaginationEllipsis` | Paginator |
 
 ### Overlays and feedback
@@ -601,6 +602,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `SearchInput` | Search text field with icon |
 | `FilterBar` | Horizontal filter control bar |
 | `DateRangeFilter` | Date-range chip (presets + range calendar); what `FilterBar` renders for `type: 'daterange'`, usable standalone with `filter={{ key, label, fromKey, toKey }}` |
+| `ChipTabs` + `ChipTabPanel` | Controlled colored chip tabs: `tabs=[{ value, label, icon, description, badge }]`, `value`, `onChange`, `tone` (`teal` default, `blue`, `violet`, `amber`, `rose`), `ariaLabel`, `showDescription`. Solid active chip with a sliding indicator (translateX/width, reduced-motion aware), roving tabindex + arrow/Home/End keys, horizontally scrollable on mobile, and a description banner (icon + title + sentence) under the chips. Render content with `<ChipTabPanel value active>` (fades/rises in, unmounts when inactive). Persist the selection in the URL with the module's `usePersistedTab` pattern. |
 | `ListPager` + `usePagedList` | Client-side paging for in-memory lists/cards ("1–12 de 40 < 1 / 4 >"); hidden for a single page |
 | `DynamicTable` | Blueprint-driven table renderer |
 | `DynamicForm` | Blueprint-driven form renderer |
