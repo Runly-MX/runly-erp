@@ -58,6 +58,8 @@ export const useSavePerson = () => useAction(
 )
 export const useImportFromHr = () => useAction((t) => runly.attendance.importPeopleFromHr(t))
 export const useEnrollInvite = () => useAction((t, personId) => runly.attendance.createEnrollInvite(personId, t))
+export const useCancelInvite = () => useAction((t, personId) => runly.attendance.cancelEnrollInvite(personId, t), 'Invitación cancelada.')
+export const useSendInvite = () => useAction((t, { personId, email }) => runly.attendance.sendEnrollInvite(personId, email, t), 'Invitación enviada por correo.')
 export const useAddCard = () => useAction((t, { personId, ...data }) => runly.attendance.addCard(personId, data, t), 'Tarjeta asignada.')
 export const useRevokeCredential = () => useAction((t, id) => runly.attendance.revokeCredential(id, t), 'Credencial revocada.')
 export const useSaveSettings = () => useAction((t, data) => runly.attendance.saveSettings(data, t), 'Guardado.')

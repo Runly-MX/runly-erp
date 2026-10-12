@@ -219,6 +219,21 @@ export function createAttendanceService({ prisma, signFile = null }) {
     return { code, expiresAt }
   }
 
+  async function cancelEnrollInvite(companyId, personId) {
+    const person = await prisma.attPerson.findFirst({ where: { id: personId, companyId } })
+    if (!person) throw new AttendanceError('La persona no existe.', 404)
+    await prisma.attPerson.update({ where: { id: personId }, data: { enrollCode: null, enrollExpiresAt: null } })
+    return { cancelled: Boolean(person.enrollCode) }
+  }
+
+  // Email address to offer when sending the invite: HR work/personal email of the linked employee.
+  async function inviteEmailSuggestion(companyId, personId) {
+    const person = await prisma.attPerson.findFirst({ where: { id: personId, companyId }, select: { hrEmployeeId: true } })
+    if (!person?.hrEmployeeId) return null
+    const e = await prisma.hrEmployee.findFirst({ where: { id: person.hrEmployeeId, companyId }, select: { workEmail: true, personalEmail: true } })
+    return e?.workEmail || e?.personalEmail || null
+  }
+
   async function addCardCredential(companyId, personId, body) {
     const person = await prisma.attPerson.findFirst({ where: { id: personId, companyId }, select: { id: true } })
     if (!person) throw new AttendanceError('La persona no existe.', 404)
@@ -440,7 +455,7 @@ export function createAttendanceService({ prisma, signFile = null }) {
     unlinkHr: async (companyId, personId) => getPerson(companyId, await hrLink.unlink(companyId, personId)),
     personFromHr: async (companyId, hrEmployeeId) => getPerson(companyId, await hrLink.fromHr(companyId, hrEmployeeId, uniqueCode)),
     employeeAttendance: (companyId, hrEmployeeId) => hrLink.employeeAttendance(companyId, hrEmployeeId),
-    uniqueCode, createEnrollInvite, addCardCredential, setCredentialStatus,
+    uniqueCode, createEnrollInvite, cancelEnrollInvite, inviteEmailSuggestion, addCardCredential, setCredentialStatus,
     listPunches, createManualPunch, voidPunch,
     presence, hours, compliance, summary,
     listKiosks, saveKiosk, approveKiosk, resetKiosk, revokeKiosk,

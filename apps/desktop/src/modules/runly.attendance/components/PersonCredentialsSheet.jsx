@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from '../../../auth/AuthProvider.jsx'
+import { runly } from '../../../lib/runly.js'
 import { CreditCard, KeyRound, LockKeyhole, Smartphone, Trash2 } from 'lucide-react'
 import { Badge, Button, ConfirmDialog, EmptyState, TextField } from '@runly/ui'
-import { useAddCard, useEnrollInvite, useRevokeCredential, useSavePerson } from '../hooks/useAttendanceData.js'
+import { useAddCard, useCancelInvite, useEnrollInvite, useRevokeCredential, useSavePerson, useSendInvite } from '../hooks/useAttendanceData.js'
 import { enrollLink, formatDateTime, fullName } from '../lib/attendanceLabels.js'
 import { PinField } from './fields/PinField.jsx'
 import { CopyButton, FormSheet, LinkBlock } from './shared.jsx'
@@ -11,12 +13,14 @@ const CREDENTIAL_LABELS = { card: 'Tarjeta', phone: 'Llave de teléfono', phone_
 // Per-person panel: assign a card, list/revoke credentials and invite a phone key.
 export function PersonCredentialsSheet({ person, onClose, canManage }) {
   const open = Boolean(person)
-  const addCard = useAddCard(), invite = useEnrollInvite(), revoke = useRevokeCredential(), savePerson = useSavePerson()
+  const { session } = useAuth()
+  const addCard = useAddCard(), invite = useEnrollInvite(), revoke = useRevokeCredential(), savePerson = useSavePerson(), cancelInvite = useCancelInvite(), sendInvite = useSendInvite()
+  const [email, setEmail] = useState('')
   const [pin, setPin] = useState(''), [pinError, setPinError] = useState(''), [issuedPin, setIssuedPin] = useState(null), [removingPin, setRemovingPin] = useState(false)
   const [uid, setUid] = useState(''), [label, setLabel] = useState('')
   const [issued, setIssued] = useState(null)
   const [toRevoke, setToRevoke] = useState(null)
-  useEffect(() => { setUid(''); setLabel(''); setIssued(null); setToRevoke(null); setPin(''); setPinError(''); setIssuedPin(null); setRemovingPin(false) }, [person?.id])
+  useEffect(() => { setUid(''); setLabel(''); setIssued(null); setToRevoke(null); setPin(''); setPinError(''); setEmail(''); setIssuedPin(null); setRemovingPin(false) }, [person?.id])
 
   if (!person) return <FormSheet open={false} onOpenChange={onClose} title="" />
   const credentials = person.credentials ?? []
@@ -35,7 +39,16 @@ export function PersonCredentialsSheet({ person, onClose, canManage }) {
     try { await addCard.mutateAsync({ personId: person.id, uid: uid.trim(), label: label.trim() || null }); setUid(''); setLabel('') } catch { /* toast */ }
   }
   async function createInvite() {
-    try { setIssued(await invite.mutateAsync(person.id)) } catch { /* toast */ }
+    try {
+      setIssued(await invite.mutateAsync(person.id))
+      if (!email) { const r = await runly.attendance.getInviteEmail(person.id, session?.access_token).catch(() => null); const e = (r?.data ?? r)?.email; if (e) setEmail(e) }
+    } catch { /* toast */ }
+  }
+  async function sendByEmail() {
+    try { await sendInvite.mutateAsync({ personId: person.id, email: email.trim() }) } catch { /* toast */ }
+  }
+  async function cancelPending() {
+    try { await cancelInvite.mutateAsync(person.id); setIssued(null) } catch { /* toast */ }
   }
 
   return (
@@ -131,6 +144,7 @@ export function PersonCredentialsSheet({ person, onClose, canManage }) {
                 La invitación dura 48 horas y reemplaza la anterior.
                 {person.enrollPending ? ' Ya hay una invitación pendiente; generar otra la reemplaza.' : ''}
               </p>
+              {person.enrollPending || issued ? <Button variant="ghost" onClick={cancelPending} disabled={cancelInvite.isPending}><Trash2 className="h-4 w-4" />Cancelar invitación</Button> : null}
               <Button variant="outline" onClick={createInvite} disabled={invite.isPending}><Smartphone className="h-4 w-4" />{invite.isPending ? 'Generando…' : phoneKey ? 'Invitar otro teléfono' : 'Invitar llave de teléfono'}</Button>
               {issued ? (
                 <div className="space-y-3">
@@ -143,6 +157,10 @@ export function PersonCredentialsSheet({ person, onClose, canManage }) {
                     <CopyButton value={issued.code} label="Copiar código" />
                   </div>
                   <LinkBlock label="Enlace de registro" value={enrollLink(window.location.origin, issued.code)} />
+                  <div className="space-y-2 rounded-xl border border-[hsl(var(--border))] p-3" data-no-enter-submit="">
+                    <TextField label="Enviar por correo" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" hint="Le llega el enlace y el código para instalar la app." />
+                    <Button variant="outline" onClick={sendByEmail} disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || sendInvite.isPending}>{sendInvite.isPending ? 'Enviando…' : 'Enviar invitación'}</Button>
+                  </div>
                 </div>
               ) : null}
             </section>

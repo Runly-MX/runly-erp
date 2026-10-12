@@ -15,7 +15,7 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createAttendanceRouter({ prisma, requirePermission, requireAnyPermission = null, broadcaster = null, service = null, geocoder = createGeocoder(), signFile = null }) {
+export function createAttendanceRouter({ prisma, sendMail = null, appBaseUrl = () => null, requirePermission, requireAnyPermission = null, broadcaster = null, service = null, geocoder = createGeocoder(), signFile = null }) {
   const app = new Hono()
   const svc = service ?? createAttendanceService({ prisma, signFile })
   const importer = createAttendanceImport({ prisma })
@@ -54,6 +54,33 @@ export function createAttendanceRouter({ prisma, requirePermission, requireAnyPe
   app.post('/attendance/people/import-hr', people, run('Error al importar desde RH.', async (c) => c.json({ data: await svc.importFromHr(companyId(c)) })))
   app.patch('/attendance/people/:id', people, run('Error al guardar la persona.', async (c) => c.json({ data: await svc.savePerson(companyId(c), c.req.param('id'), await c.req.json().catch(() => ({}))) })))
   app.post('/attendance/people/:id/enroll-invite', people, run('Error al crear la invitación.', async (c) => c.json({ data: await svc.createEnrollInvite(companyId(c), c.req.param('id')) })))
+  app.delete('/attendance/people/:id/enroll-invite', people, run('Error al cancelar la invitación.', async (c) => c.json({ data: await svc.cancelEnrollInvite(companyId(c), c.req.param('id')) })))
+  app.get('/attendance/people/:id/invite-email', people, run('Error al consultar el correo.', async (c) => c.json({ data: { email: await svc.inviteEmailSuggestion(companyId(c), c.req.param('id')), canSend: Boolean(sendMail) } })))
+  // Sends the already generated invite (code + link) by e-mail.
+  app.post('/attendance/people/:id/enroll-invite/send', people, run('Error al enviar la invitación.', async (c) => {
+    if (!sendMail) throw new AttendanceError('El envío de correo no está configurado en esta instancia.', 503, 'MAIL_OFF')
+    const body = await c.req.json().catch(() => ({}))
+    const email = String(body.email ?? '').trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new AttendanceError('Escribe un correo válido.', 400)
+    const person = await prisma.attPerson.findFirst({ where: { id: c.req.param('id'), companyId: companyId(c) } })
+    if (!person) throw new AttendanceError('La persona no existe.', 404)
+    if (!person.enrollCode || !person.enrollExpiresAt || person.enrollExpiresAt < new Date()) throw new AttendanceError('Primero genera una invitación vigente.', 409)
+    const base = appBaseUrl()
+    if (!base) throw new AttendanceError('No se pudo determinar la dirección de la aplicación.', 503)
+    const link = `${base}/app/attendance/phone?c=${encodeURIComponent(person.enrollCode)}`
+    const name = person.firstName
+    const until = person.enrollExpiresAt.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })
+    const esc = (v) => String(v).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]))
+    try { await sendMail({
+      to: email,
+      subject: 'Activa tu app Checador',
+      text: `Hola ${name}, abre este enlace en tu teléfono para activar la app Checador: ${link}\nTu código de invitación es ${person.enrollCode} y tu código de empleado es ${person.code}. Vence el ${until}.`,
+      html: `<p>Hola ${esc(name)},</p><p>Abre este enlace <b>en tu teléfono</b> para activar la app Checador y poder checar y ver tus horas:</p><p><a href="${esc(link)}">${esc(link)}</a></p><p>Código de invitación: <b>${esc(person.enrollCode)}</b><br>Tu código de empleado: <b>${esc(person.code)}</b><br>Vence: ${esc(until)}</p><p>Si no esperabas este correo, ignóralo.</p>`,
+    }) } catch (error) {
+      throw new AttendanceError(/no configurado/i.test(error?.message ?? '') ? 'El envío de correo no está configurado en esta instancia.' : 'No se pudo enviar el correo. Revisa la dirección e inténtalo de nuevo.', 502, 'MAIL_FAILED')
+    }
+    return c.json({ data: { sent: true } })
+  }))
   app.post('/attendance/people/:id/cards', people, run('Error al asignar la tarjeta.', async (c) => c.json({ data: await svc.addCardCredential(companyId(c), c.req.param('id'), await c.req.json().catch(() => ({}))) }, 201)))
   app.post('/attendance/credentials/:id/revoke', people, run('Error al revocar.', async (c) => c.json({ data: await svc.setCredentialStatus(companyId(c), c.req.param('id'), 'revoked') })))
 
