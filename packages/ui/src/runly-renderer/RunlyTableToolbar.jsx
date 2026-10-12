@@ -2,8 +2,8 @@ import { Columns3, RefreshCw } from "lucide-react";
 import { Button } from "../components/Button.jsx";
 import { Badge } from "../components/Badge.jsx";
 import { SearchInput } from "../components/SearchInput.jsx";
-import { FilterBar } from "../components/FilterBar.jsx";
-import { MobileFiltersSheet } from "../components/MobileFiltersSheet.jsx";
+import { FilterMenu } from "../components/FilterMenu.jsx";
+import { ActiveFilterChips } from "../components/ActiveFilterChips.jsx";
 import { ViewModeSwitch } from "../components/ViewModeSwitch.jsx";
 import { RunlySortMenu } from "./RunlySortMenu.jsx";
 
@@ -47,25 +47,11 @@ export function RunlyTableToolbar({
         )}
 
         {filterBarFilters.length > 0 && (
-          <>
-            <div className="hidden md:flex items-center gap-2">
-              <FilterBar
-                filters={filterBarFilters}
-                value={filterValues}
-                onChange={onFilterChange}
-              />
-            </div>
-            <MobileFiltersSheet
-              activeCount={filtersActiveCount}
-              onClear={onFiltersClear}
-            >
-              <FilterBar
-                filters={filterBarFilters}
-                value={filterValues}
-                onChange={onFilterChange}
-              />
-            </MobileFiltersSheet>
-          </>
+          <FilterMenu
+            filters={filterBarFilters}
+            value={filterValues}
+            onChange={onFilterChange}
+          />
         )}
 
         {/* Table view sorts from the column headers; list/grid views have
@@ -111,6 +97,14 @@ export function RunlyTableToolbar({
           </Button>
         )}
       </div>
+
+      {filterBarFilters.length > 0 && (
+        <ActiveFilterChips
+          filters={filterBarFilters}
+          value={filterValues}
+          onChange={onFilterChange}
+        />
+      )}
 
       {/* Row 2: Actions — count/selection left, reload + Agregar right */}
       <div className="flex items-center gap-2">

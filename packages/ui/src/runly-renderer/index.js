@@ -12,6 +12,6 @@ export { RunlyTimelineView } from "./RunlyTimelineView.jsx";
 export { RunlyReportView } from "./RunlyReportView.jsx";
 export { columnKey, moveKanbanRecord, recordsForColumn } from "./kanban-state.js";
 export { BulkActionBar } from "./BulkActionBar.jsx";
-export { shouldUsePageMode, normalizeToFilterBarFilters, normalizeSpanishLabel } from "./renderer-adapters.js";
+export { shouldUsePageMode, normalizeToFilterBarFilters, normalizeToFilterMenuSpecs, normalizeSpanishLabel } from "./renderer-adapters.js";
 export { CostsSummaryPanel } from "./CostsSummaryPanel.jsx";
 export { fetchSignedUrl, fetchUserAvatarSignedUrl } from "./runly-detail-hero.jsx";

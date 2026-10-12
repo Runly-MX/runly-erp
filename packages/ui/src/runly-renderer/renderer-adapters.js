@@ -250,3 +250,36 @@ export function normalizeToFilterBarFilters(normalizedFilters) {
       }),
     }));
 }
+
+/**
+ * Converts the normalized filter array used by RunlyTable to FilterMenu specs
+ * (type 'select' | 'daterange' | 'multiselect', optional icon on the spec and
+ * icon/color on options). Same inclusion rules as normalizeToFilterBarFilters:
+ * only date ranges and selects with at least one option. The flat value keys
+ * (spec.key, or fromKey/toKey for ranges) are unchanged, so URL deep links and
+ * API params keep working. `multi: true` on a blueprint filter yields a
+ * multiselect (value is a string[]; only use when the API accepts several).
+ */
+export function normalizeToFilterMenuSpecs(normalizedFilters) {
+  return (normalizedFilters ?? [])
+    .filter((f) => f.type === "daterange" || (f.type === "select" && Array.isArray(f.options) && f.options.length > 0))
+    .map((f) => {
+      const spec = { key: f.key, label: f.label };
+      if (f.icon) spec.icon = f.icon;
+      if (f.type === "daterange") return { ...spec, type: "daterange", fromKey: f.fromKey, toKey: f.toKey };
+      return {
+        ...spec,
+        type: f.multi ? "multiselect" : "select",
+        options: f.options.map((o) => {
+          if (o && typeof o === "object") {
+            const value = o.value ?? o.key ?? o.id ?? "";
+            const option = { value: String(value), label: String(o.label ?? o.name ?? value) };
+            if (o.icon) option.icon = o.icon;
+            if (o.color) option.color = o.color;
+            return option;
+          }
+          return { value: String(o), label: String(o) };
+        }),
+      };
+    });
+}

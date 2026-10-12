@@ -175,6 +175,10 @@ const filters = [
 <ActiveFilterChips filters={filters} value={value} onChange={setValue} />
 ```
 
+### Migrar de FilterBar o MobileFiltersSheet a FilterMenu
+
+Cambia `<FilterBar filters value onChange />` por `<FilterMenu filters value onChange />` (misma forma de `value` y `onChange`, así que el estado, los parámetros de la API y los enlaces con filtros no cambian), añade `<ActiveFilterChips />` debajo de la fila y elimina el `MobileFiltersSheet` duplicado: `FilterMenu` ya se adapta al móvil. Puedes darle `icon` a cada filtro y `icon` o `color` a las opciones. Usa `multiselect` solo si el filtro admite varios valores. Con 1 o 2 filtros rápidos de una sola elección, `FilterBar` sigue siendo válido. Las tablas `RunlyTable` basadas en blueprint ya usan `FilterMenu`; en `filters` del blueprint acepta `icon` y opciones con `icon` o `color`.
+
 ### ActiveFilterChips
 
 Chips quitables ("Tipo: Alfa", o "Tipo: Alfa, Beta" con varias opciones; con el icono del filtro y de la opción) de los filtros activos de un `FilterMenu`; no muestra nada si no hay filtros activos. Props: `filters`, `value`, `onChange` (los mismos que `FilterMenu`).

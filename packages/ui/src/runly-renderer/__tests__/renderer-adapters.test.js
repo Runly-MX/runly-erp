@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   normalizeRelationDescriptor,
   normalizeToFilterBarFilters,
+  normalizeToFilterMenuSpecs,
   shouldUsePageMode,
 } from "../renderer-adapters.js";
 
@@ -104,4 +105,20 @@ test("normalizeToFilterBarFilters includes only select filters", () => {
     label: "Estado",
     options: [{ value: "active", label: "Activo" }],
   });
+});
+
+test("normalizeToFilterMenuSpecs maps selects, ranges, icons and option colors", () => {
+  const Icon = () => null;
+  const specs = normalizeToFilterMenuSpecs([
+    { key: "status", label: "Estado", type: "select", icon: Icon, options: [{ value: "a", label: "A", color: "#16a34a" }, "b"] },
+    { key: "created", label: "Alta", type: "daterange", fromKey: "createdFrom", toKey: "createdTo", options: [] },
+    { key: "tags", label: "Etiquetas", type: "select", multi: true, options: [{ value: 1, label: "Uno" }] },
+    { key: "empty", label: "Vacío", type: "select", options: [] },
+    { key: "q", label: "Texto", type: "text", options: [] },
+  ]);
+  assert.deepEqual(specs.map((s) => [s.key, s.type]), [["status", "select"], ["created", "daterange"], ["tags", "multiselect"]]);
+  assert.equal(specs[0].icon, Icon);
+  assert.deepEqual(specs[0].options, [{ value: "a", label: "A", color: "#16a34a" }, { value: "b", label: "b" }]);
+  assert.equal(specs[1].fromKey, "createdFrom");
+  assert.equal(specs[2].options[0].value, "1");
 });

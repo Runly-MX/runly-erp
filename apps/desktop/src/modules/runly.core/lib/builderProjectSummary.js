@@ -1,3 +1,4 @@
+import { Code2, GitCommit, Hammer } from "lucide-react";
 // Module Builder — display summary of a project for list cards and the
 // editor header. Name/description/icon/color/version live in the module
 // definition (edited in the General tab); the project row keeps only the
@@ -67,12 +68,14 @@ export const PROJECT_FILTERS = [
   {
     key: "install",
     label: "Estado",
+    icon: Hammer,
     options: Object.entries(INSTALL_STATE).map(([value, meta]) => ({ value, label: meta.label })),
     match: (summary, value) => summary.install === value,
   },
   {
     key: "edition",
     label: "Edición",
+    icon: Code2,
     options: [
       { value: "visual", label: "Visual" },
       { value: "advanced", label: "Modo desarrollador" },
@@ -82,6 +85,7 @@ export const PROJECT_FILTERS = [
   {
     key: "changes",
     label: "Cambios",
+    icon: GitCommit,
     options: [
       { value: "pending", label: "Sin publicar" },
       { value: "clean", label: "Al día" },

@@ -25,7 +25,7 @@ import { ColumnHeaderMenu } from "./ColumnHeaderMenu.jsx";
 import { TablePaginationFooter } from "./TablePaginationFooter.jsx";
 import { useColumnConfig } from "./useColumnConfig.js";
 import {
-  normalizeToFilterBarFilters,
+  normalizeToFilterMenuSpecs,
   normalizeSpanishLabel,
   stripMarkdown,
 } from "./renderer-adapters.js";
@@ -97,7 +97,7 @@ export function RunlyTable({
   const blueprintColumns = useMemo(() => normalizeColumns(schema), [schema]);
   const filters = useMemo(() => normalizeFilters(schema), [schema]);
   const filterBarFilters = useMemo(
-    () => normalizeToFilterBarFilters(filters),
+    () => normalizeToFilterMenuSpecs(filters),
     [filters],
   );
   const searchable = schema.searchable !== false && blueprintColumns.length > 0;

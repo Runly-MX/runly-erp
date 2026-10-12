@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Sparkles, Upload } from 'lucide-react'
+import { Activity, Boxes, CalendarPlus, MapPin, Plus, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, Wrench } from 'lucide-react'
 import { RunlyTable, Button, ConfirmDialog, PageHeader } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -18,6 +18,7 @@ import { InventoryAdminTransitionDialog } from '../components/InventoryAdminTran
 import { useInventoryCan, useInventoryConditions, useInventorySummary } from '../hooks/useInventoryAdmin.js'
 import { ADMIN_ACTIONS, ADMIN_FILTER_OPTIONS, ADMIN_STATUSES } from '../lib/admin-status.js'
 
+const ADMIN_COLORS = Object.fromEntries(ADMIN_STATUSES.map(s => [s.value, s.color]))
 const STATUS_OPTIONS = ITEM_STATUSES.map(s => ({ value: s.value, label: s.label }))
 // Deep links from Catálogos (e.g. ?categoryId=...) open the list pre-filtered.
 const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo']
@@ -128,16 +129,16 @@ export default function InventoryScreen() {
         { field: 'updatedAt',      label: 'Actualizado', sortable: true,  type: 'date', defaultVisible: false },
       ],
       filters: [
-        { key: 'adminStatus', label: 'Estado', type: 'select', options: ADMIN_FILTER_OPTIONS },
-        { key: 'status',     label: 'Disponibilidad', type: 'select', options: STATUS_OPTIONS },
-        { key: 'conditionId', label: 'Condición', type: 'select', options: conditionOptions },
-        { key: 'categoryId', label: 'Tipo', type: 'select', options: categoryOptions },
-        { key: 'brandId',    label: 'Marca',     type: 'select', options: brandOptions },
-        { key: 'locationId', label: 'Ubicacion', type: 'select', options: locationOptions },
+        { key: 'adminStatus', label: 'Estado', type: 'select', icon: ShieldCheck, options: ADMIN_FILTER_OPTIONS.map(o => ({ ...o, color: ADMIN_COLORS[o.value] })) },
+        { key: 'status',     label: 'Disponibilidad', type: 'select', icon: Activity, options: STATUS_OPTIONS },
+        { key: 'conditionId', label: 'Condición', type: 'select', icon: Wrench, options: conditionOptions },
+        { key: 'categoryId', label: 'Tipo', type: 'select', icon: Boxes, options: categoryOptions },
+        { key: 'brandId',    label: 'Marca',     type: 'select', icon: Tag, options: brandOptions },
+        { key: 'locationId', label: 'Ubicación', type: 'select', icon: MapPin, options: locationOptions },
         ...(initialFilters.modelId ? [{ key: 'modelId', label: 'Modelo', type: 'select', options: modelOptions }] : []),
         // -> createdFrom/createdTo and purchaseFrom/purchaseTo on /inventory/items.
-        { key: 'created',    label: 'Fecha de alta',   type: 'daterange' },
-        { key: 'purchase',   label: 'Fecha de compra', type: 'daterange' },
+        { key: 'created',    label: 'Fecha de alta',   type: 'daterange', icon: CalendarPlus },
+        { key: 'purchase',   label: 'Fecha de compra', type: 'daterange', icon: ShoppingCart },
       ],
       emptyState: { message: 'No hay activos registrados.' },
     },

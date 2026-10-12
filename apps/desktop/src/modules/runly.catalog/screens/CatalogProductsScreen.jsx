@@ -4,11 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Button, Checkbox, ConfirmDialog, Dialog, DialogContent, DialogHeader, DialogTitle,
-  EmptyState, ErrorState, FilterBar, PageHeader, SearchInput, Skeleton,
+  EmptyState, ErrorState, FilterMenu, ActiveFilterChips, PageHeader, SearchInput, Skeleton,
   TextField, ViewModeSwitch, getStoredViewMode,
 } from '@runly/ui'
 import {
-  Boxes, CircleCheck, EyeOff, FileClock, Globe, Package, Plus, Trash2, TriangleAlert, X,
+  Boxes, CircleCheck, Eye, EyeOff, FileClock, Layers, Globe, Package, Plus, Trash2, TriangleAlert, X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
@@ -34,9 +34,9 @@ const STOCK_OPTIONS = [
 ]
 
 const FILTERS = [
-  { key: 'type', label: 'Tipo', options: TYPE_OPTIONS },
-  { key: 'published', label: 'Estado', options: PUBLISHED_OPTIONS },
-  { key: 'stockStatus', label: 'Stock', options: STOCK_OPTIONS },
+  { key: 'type', label: 'Tipo', icon: Layers, options: TYPE_OPTIONS },
+  { key: 'published', label: 'Estado', icon: Eye, options: PUBLISHED_OPTIONS },
+  { key: 'stockStatus', label: 'Stock', icon: Package, options: STOCK_OPTIONS },
 ]
 
 export default function CatalogProductsScreen() {
@@ -225,7 +225,8 @@ export default function CatalogProductsScreen() {
           placeholder="Buscar por nombre, SKU..."
           className="sm:max-w-xs"
         />
-        <FilterBar filters={FILTERS} value={filters} onChange={handleFiltersChange} className="flex-1" />
+        <FilterMenu filters={FILTERS} value={filters} onChange={handleFiltersChange} />
+        <div className="hidden flex-1 sm:block" />
         <ViewModeSwitch
           modes={['cards', 'table']}
           value={viewMode}
@@ -233,6 +234,7 @@ export default function CatalogProductsScreen() {
           storageKey="catalog-products"
         />
       </div>
+      <ActiveFilterChips filters={FILTERS} value={filters} onChange={handleFiltersChange} />
 
       {selectedIds.size > 0 && (canUpdate || canDelete) && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-(--brand-primary)/30 bg-(--brand-soft) px-4 py-2.5">

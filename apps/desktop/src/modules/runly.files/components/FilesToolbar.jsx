@@ -1,17 +1,18 @@
 import {
   Badge,
   Button,
-  FilterBar,
-  MobileFiltersSheet,
+  FilterMenu,
+  ActiveFilterChips,
   SearchInput,
   ViewModeSwitch,
 } from "@runly/ui";
-import { Download, Archive, CheckSquare } from "lucide-react";
+import { Download, Archive, CheckSquare, Boxes, File, ToggleRight } from "lucide-react";
 
 const FILTERS = [
   {
     key: "enabled",
     label: "Estado",
+    icon: ToggleRight,
     options: [
       { value: "true", label: "Activo" },
       { value: "false", label: "Deshabilitado" },
@@ -20,6 +21,7 @@ const FILTERS = [
   {
     key: "kind",
     label: "Tipo",
+    icon: File,
     options: [
       { value: "image", label: "Imagen" },
       { value: "video", label: "Video" },
@@ -57,7 +59,8 @@ export function FilesToolbar({
     ...FILTERS,
     {
       key: "moduleKey",
-      label: "Modulo",
+      label: "Módulo",
+      icon: Boxes,
       options: moduleOptions,
     },
   ].filter((filter) => filter.options?.length);
@@ -71,31 +74,23 @@ export function FilesToolbar({
           placeholder="Buscar archivo..."
           className="flex-1 min-w-0 sm:max-w-sm"
         />
-        {/* Desktop filters inline */}
-        <div className="hidden md:flex items-center gap-2">
-          <FilterBar
-            filters={resolvedFilters}
-            value={filters}
-            onChange={onFiltersChange}
-          />
-        </div>
-        {/* Mobile filters sheet */}
-        <MobileFiltersSheet
-          activeCount={Object.values(filters).filter(Boolean).length}
-          onClear={() => onFiltersChange({})}
-        >
-          <FilterBar
-            filters={resolvedFilters}
-            value={filters}
-            onChange={onFiltersChange}
-          />
-        </MobileFiltersSheet>
+        <FilterMenu
+          filters={resolvedFilters}
+          value={filters}
+          onChange={onFiltersChange}
+        />
         <ViewModeSwitch
           value={viewMode}
           onChange={onViewModeChange}
           storageKey="files"
         />
       </div>
+
+      <ActiveFilterChips
+        filters={resolvedFilters}
+        value={filters}
+        onChange={onFiltersChange}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         {selectedCount > 0 && (

@@ -188,6 +188,7 @@ export function normalizeFilters(schema) {
             type: "daterange",
             fromKey: entry.fromKey ?? `${key}From`,
             toKey: entry.toKey ?? `${key}To`,
+            icon: entry.icon,
             options: [],
           };
         }
@@ -197,6 +198,8 @@ export function normalizeFilters(schema) {
             entry.label ?? entry.title ?? String(key),
           ),
           type: entry.type === "select" ? "select" : "text",
+          icon: entry.icon,
+          multi: entry.multi === true,
           options: Array.isArray(entry.options) ? entry.options : [],
         };
       })

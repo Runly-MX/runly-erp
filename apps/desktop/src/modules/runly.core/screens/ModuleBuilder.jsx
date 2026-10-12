@@ -13,7 +13,8 @@ import {
   Skeleton,
   ConfirmDialog,
   SearchInput,
-  FilterBar,
+  FilterMenu,
+  ActiveFilterChips,
   ListPager,
   usePagedList,
 } from "@runly/ui";
@@ -153,8 +154,9 @@ export default function ModuleBuilder() {
                 placeholder="Buscar módulo..."
                 className="w-full sm:w-72"
               />
-              <FilterBar filters={PROJECT_FILTERS} value={filters} onChange={(next) => { setFilters(next); paged.setPage(0); }} />
+              <FilterMenu filters={PROJECT_FILTERS} value={filters} onChange={(next) => { setFilters(next); paged.setPage(0); }} />
             </div>
+            <ActiveFilterChips filters={PROJECT_FILTERS} value={filters} onChange={(next) => { setFilters(next); paged.setPage(0); }} />
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
               {hasQuery ? `${visibleRows.length} de ${projects.length} módulos` : `${projects.length} ${projects.length === 1 ? "módulo" : "módulos"}`}
             </p>
