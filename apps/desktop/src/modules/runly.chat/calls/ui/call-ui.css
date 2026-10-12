@@ -167,3 +167,14 @@
 @media (prefers-reduced-motion: reduce) {
   .call-panel-in, .call-panel-out, .call-fade-up { animation-duration: 1ms; }
 }
+
+/* Touch has no hover (see the hover variant in tailwind-theme.css): a brief
+   press state instead, which clears as soon as the finger lifts. */
+@media (pointer: coarse) {
+  .runly-call button:not(:disabled):active,
+  .call-dialog button:not(:disabled):active {
+    filter: brightness(1.3);
+    transform: scale(0.97);
+    transition: transform 80ms ease-out, filter 80ms ease-out;
+  }
+}

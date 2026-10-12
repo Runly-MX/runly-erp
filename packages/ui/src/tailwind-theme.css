@@ -3,6 +3,17 @@
    the same theme as the app. Keep only @custom-variant / @theme here. */
 /* Use .dark class for dark mode (class strategy), not OS preference */
 @custom-variant dark (&:where(.dark, .dark *));
+/* Hover only for real mouse/trackpad pointers. Tailwind's default (hover:
+   hover) also matches many Android phones and WebViews, where a tap leaves
+   the hover style stuck on (dark rows, highlighted options). Touch gets its
+   feedback from active: styles instead. group-hover/peer-hover follow. */
+@custom-variant hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
 
 @theme {
   --color-primary: var(--brand-primary-computed, var(--brand-primary));

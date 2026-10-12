@@ -10,6 +10,7 @@ import { getConversationDisplayName } from "../lib/chatUtils";
 import { playCallSound } from "./callSounds";
 import { CallChatPanel } from "./CallChatPanel";
 import { CallShareDialog } from "./CallShareDialog";
+import { LobbyBanner } from "./layout/LobbyBanner";
 import { CallReactionsOverlay } from "./CallReactionsOverlay";
 import { RaisedHandsBar } from "./RaisedHandsBar";
 import { CallTopBar, MobileCallTopBar } from "./layout/CallTopBar";
@@ -461,6 +462,17 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
             )}
             <CallReactionsOverlay reactions={live.reactions} />
             {people.isHost && <RaisedHandsBar raisedHands={live.raisedHands} onLower={live.lowerHand} />}
+            {people.isHost && roster.lobby.length > 0 && shownPanel !== "people" && (
+              <div className="pointer-events-none absolute inset-x-2 top-2 z-20">
+                <LobbyBanner
+                  lobby={roster.lobby}
+                  onAdmit={people.guestsApi.admit}
+                  onDeny={people.guestsApi.deny}
+                  onAdmitAll={() => roster.lobby.forEach((g) => people.guestsApi.admit(g.id))}
+                  onOpen={() => openPanel("people")}
+                />
+              </div>
+            )}
           </div>
 
           {!isPhone && view !== "inperson" && (
