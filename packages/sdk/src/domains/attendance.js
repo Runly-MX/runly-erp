@@ -18,6 +18,7 @@ export function createAttendanceDomain({ request, withAuthHeaders, toQueryString
     createPerson: (data, token) => send('POST', '/attendance/people', data, token),
     updatePerson: (personId, data, token) => send('PATCH', `/attendance/people/${id(personId)}`, data, token),
     importPeopleFromHr: (token) => send('POST', '/attendance/people/import-hr', {}, token),
+    geocode: (q, token) => send('GET', `/attendance/geocode${toQueryString({ q })}`, undefined, token),
     // HR link: suggest employees by name/code, link or unlink a person, create a person from an employee.
     searchHrSuggestions: (query, token) => send('GET', `/attendance/hr-suggestions${toQueryString(query)}`, undefined, token),
     linkHr: (personId, data, token) => send('POST', `/attendance/people/${id(personId)}/link-hr`, data, token),

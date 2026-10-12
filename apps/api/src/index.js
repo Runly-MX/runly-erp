@@ -2132,7 +2132,7 @@ app.route("/", createCanvasPublicRouter({
 }));
 
 // Attendance kiosks: /public/attendance/* (device-token gated, no user auth).
-app.route("/", createAttendancePublicRouter({ prisma }));
+app.route("/", createAttendancePublicRouter({ prisma, supabaseAdmin, bucket: STORAGE_BUCKET_NAME }));
 
 // File view/download public links: /public/files/:token (path-scoped, no auth).
 app.route("/", createFilesPublicRouter({
@@ -2424,7 +2424,7 @@ mountWithAuth(app, createPosRouter({ prisma, requirePermission, broadcaster }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission, broadcaster, supabaseAdmin }));
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService), broadcaster }));
 mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, entityResolver: resolveCanvasEntityLink, dataSources: createCanvasDataSources({ prisma, relationTargets }), removeFiles: createCanvasFileRemover({ prisma, supabaseAdmin }) }));
-mountWithAuth(app, createAttendanceRouter({ prisma, requirePermission, requireAnyPermission, broadcaster }));
+mountWithAuth(app, createAttendanceRouter({ prisma, requirePermission, requireAnyPermission, broadcaster, signFile: (fileId) => getSignedUrlByFileId(fileId, "card", { prisma, supabaseAdmin }).catch(() => null) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));

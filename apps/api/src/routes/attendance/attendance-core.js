@@ -187,3 +187,39 @@ export function computeCompliance({ quotas, people, punches, at = new Date(), fr
     }
   })
 }
+
+// Seal a short secret with a key derived from another secret (AES-256-GCM), so
+// the server can hand a device token back to the one holder of the poll secret
+// without keeping the token itself.
+export function sealWithSecret(plain, secret) {
+  const key = crypto.createHash('sha256').update(String(secret)).digest()
+  const iv = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
+  const body = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()])
+  return [iv, cipher.getAuthTag(), body].map((b) => b.toString('base64url')).join('.')
+}
+
+export function openWithSecret(sealed, secret) {
+  try {
+    const [iv, tag, body] = String(sealed).split('.').map((p) => Buffer.from(p, 'base64url'))
+    const key = crypto.createHash('sha256').update(String(secret)).digest()
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
+    decipher.setAuthTag(tag)
+    return Buffer.concat([decipher.update(body), decipher.final()]).toString('utf8')
+  } catch {
+    return null
+  }
+}
+
+export function distanceMeters(lat1, lng1, lat2, lng2) {
+  const rad = (d) => (d * Math.PI) / 180
+  const a = Math.sin(rad(lat2 - lat1) / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lng2 - lng1) / 2) ** 2
+  return 2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(a)))
+}
+
+// 'outside_geofence' when the punch carries coordinates farther than the site radius.
+export function geofenceFlag(site, latitude, longitude) {
+  if (!site || site.latitude == null || site.longitude == null || !site.radiusM) return null
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+  return distanceMeters(site.latitude, site.longitude, latitude, longitude) > site.radiusM ? 'outside_geofence' : null
+}

@@ -4874,6 +4874,7 @@ model AttKiosk {
   pairingCode        String?   @map("pairing_code")
   pairingSecretHash  String?   @map("pairing_secret_hash")
   pairingLabel       String?   @map("pairing_label")
+  pairingTokenEnc    String?   @map("pairing_token_enc") // device token sealed with the poll secret until the kiosk confirms receipt
   pairingRequestedAt DateTime? @map("pairing_requested_at") @db.Timestamptz(6)
   approvedAt         DateTime? @map("approved_at") @db.Timestamptz(6)
   deviceTokenHash    String?   @map("device_token_hash")

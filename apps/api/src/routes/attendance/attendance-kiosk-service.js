@@ -1,7 +1,7 @@
 // Public (unauthenticated) side of runly.attendance: kiosk pairing, roster
 // download, idempotent punch sync and phone-key enrollment.
 import {
-  AttendanceError, nextDirection, normalizeUid, parsePhonePayload, randomDigits, randomToken, resolvePunchTime, sha256, verifyPhonePayload,
+  AttendanceError, geofenceFlag, nextDirection, openWithSecret, sealWithSecret, normalizeUid, parsePhonePayload, randomDigits, randomToken, resolvePunchTime, sha256, verifyPhonePayload,
 } from './attendance-core.js'
 
 const METHODS = ['pin', 'code', 'card', 'phone_qr']
@@ -31,7 +31,7 @@ export function createAttendanceKioskService({ prisma }) {
     const pollSecret = randomToken(24)
     await prisma.attKiosk.update({
       where: { id: kiosk.id },
-      data: { pairingCode: code, pairingSecretHash: sha256(pollSecret), pairingLabel: String(label ?? '').trim().slice(0, 80) || null, pairingRequestedAt: new Date(), approvedAt: null },
+      data: { pairingCode: code, pairingSecretHash: sha256(pollSecret), pairingLabel: String(label ?? '').trim().slice(0, 80) || null, pairingRequestedAt: new Date(), approvedAt: null, pairingTokenEnc: null },
     })
     return { code, pollSecret, kioskName: kiosk.name }
   }
@@ -40,11 +40,17 @@ export function createAttendanceKioskService({ prisma }) {
     const kiosk = await kioskByLink(linkToken)
     if (!pollSecret || !kiosk.pairingSecretHash || sha256(pollSecret) !== kiosk.pairingSecretHash) throw new AttendanceError('Solicitud de emparejamiento no válida.', 401, 'BAD_POLL_SECRET')
     if (kiosk.pairingRequestedAt && Date.now() - kiosk.pairingRequestedAt.getTime() > PAIRING_TTL_MS) return { status: 'expired' }
+    // Already handed out once: the same poll secret gets the token again until the
+    // kiosk confirms receipt with its first authenticated call (lost-response recovery).
+    if (kiosk.deviceTokenHash && kiosk.pairingTokenEnc) {
+      const again = openWithSecret(kiosk.pairingTokenEnc, pollSecret)
+      return again ? { status: 'paired', deviceToken: again } : { status: 'expired' }
+    }
     if (!kiosk.approvedAt) return { status: 'pending', code: kiosk.pairingCode }
     const deviceToken = randomToken(32)
     await prisma.attKiosk.update({
       where: { id: kiosk.id },
-      data: { deviceTokenHash: sha256(deviceToken), pairedAt: new Date(), pairingCode: null, pairingSecretHash: null, approvedAt: null, lastSeenAt: new Date() },
+      data: { deviceTokenHash: sha256(deviceToken), pairingTokenEnc: sealWithSecret(deviceToken, pollSecret), pairedAt: new Date(), pairingCode: null, approvedAt: null, lastSeenAt: new Date() },
     })
     return { status: 'paired', deviceToken }
   }
@@ -59,7 +65,7 @@ export function createAttendanceKioskService({ prisma }) {
       kiosk.siteId ? prisma.attSite.findFirst({ where: { id: kiosk.siteId, companyId } }) : null,
       prisma.company?.findUnique ? prisma.company.findUnique({ where: { id: companyId }, select: { name: true } }).catch(() => null) : null,
     ])
-    await prisma.attKiosk.update({ where: { id: kiosk.id }, data: { lastSeenAt: new Date() } })
+    await prisma.attKiosk.update({ where: { id: kiosk.id }, data: { lastSeenAt: new Date(), ...(kiosk.pairingTokenEnc ? { pairingTokenEnc: null, pairingSecretHash: null } : {}) } })
     const active = new Set(people.map((p) => p.id))
     // Last punch per person (24h) lets the offline kiosk alternate in/out.
     const since = new Date(Date.now() - 24 * 3_600_000)
@@ -67,7 +73,7 @@ export function createAttendanceKioskService({ prisma }) {
     const last = new Map(recent.map((p) => [p.personId, p]))
     return {
       serverTime: new Date().toISOString(),
-      kiosk: { id: kiosk.id, name: kiosk.name, mode: kiosk.mode, requireSelfie: kiosk.requireSelfie, allowPin: kiosk.allowPin, siteId: kiosk.siteId, siteName: site?.name ?? null, companyName: company?.name ?? null },
+      kiosk: { id: kiosk.id, name: kiosk.name, mode: kiosk.mode, requireSelfie: kiosk.requireSelfie, allowPin: kiosk.allowPin, siteId: kiosk.siteId, siteName: site?.name ?? null, geofence: site && site.latitude != null && site.radiusM ? { latitude: site.latitude, longitude: site.longitude, radiusM: site.radiusM } : null, companyName: company?.name ?? null },
       groups, categories,
       people: people.map((p) => ({
         id: p.id, code: p.code, firstName: p.firstName, lastName: p.lastName, kind: p.kind, groupId: p.groupId, categoryId: p.categoryId,
@@ -110,6 +116,7 @@ export function createAttendanceKioskService({ prisma }) {
     const offsetMs = deviceNow && !Number.isNaN(deviceNow.getTime()) ? serverNow.getTime() - deviceNow.getTime() : 0
     const ids = incoming.map((p) => p?.id).filter((id) => typeof id === 'string')
     const existing = new Set((await prisma.attPunch.findMany({ where: { id: { in: ids }, companyId: kiosk.companyId }, select: { id: true } })).map((p) => p.id))
+    const site = kiosk.siteId ? await prisma.attSite.findFirst({ where: { id: kiosk.siteId, companyId: kiosk.companyId } }) : null
     const accepted = []
     const rejected = []
     // Oldest first so in/out sequence checks see earlier punches of the same batch.
@@ -126,9 +133,11 @@ export function createAttendanceKioskService({ prisma }) {
         const previous = await prisma.attPunch.findFirst({ where: { personId: person.id, status: { not: 'voided' }, occurredAt: { lte: time.occurredAt } }, orderBy: { occurredAt: 'desc' }, select: { direction: true, occurredAt: true, status: true } })
         const expected = nextDirection(previous, 'both', time.occurredAt)
         const flags = [...time.flags, ...proof.flags]
+        const outside = geofenceFlag(site, Number(punch.latitude), Number(punch.longitude))
+        if (outside) flags.push(outside)
         if (previous && expected !== punch.direction && punch.direction === previous.direction) flags.push('sequence')
         if (punch.offline) flags.push('offline')
-        const suspicious = flags.some((f) => ['proof_failed', 'replay', 'clock_skew', 'future_time', 'sequence'].includes(f))
+        const suspicious = flags.some((f) => ['proof_failed', 'replay', 'clock_skew', 'future_time', 'sequence', 'outside_geofence'].includes(f))
         await prisma.attPunch.create({
           data: {
             id: punch.id, companyId: kiosk.companyId, personId: person.id, siteId: kiosk.siteId ?? null, kioskId: kiosk.id, direction: punch.direction,
@@ -161,5 +170,26 @@ export function createAttendanceKioskService({ prisma }) {
     return { personId: person.id, credentialId: credential.id, name: [person.firstName, person.lastName].filter(Boolean).join(' '), code: person.code }
   }
 
-  return { kioskByLink, authenticate, requestPairing, pairingStatus, roster, sync, enrollPhone }
+  const SELFIE_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+  const SELFIE_MAX_BYTES = 400 * 1024
+
+  // Evidence photo for a punch the kiosk already synced. Stored as a FileAsset
+  // owned by the punch; the kiosk never learns the file location.
+  async function attachSelfie(kiosk, punchId, file, { supabaseAdmin, bucket }) {
+    if (!supabaseAdmin || !bucket) throw new AttendanceError('El almacenamiento no está disponible.', 503)
+    const punch = await prisma.attPunch.findFirst({ where: { id: punchId, companyId: kiosk.companyId, kioskId: kiosk.id } })
+    if (!punch) throw new AttendanceError('La checada no existe.', 404)
+    if (punch.selfieFileId) return { fileId: punch.selfieFileId, duplicate: true }
+    const ext = SELFIE_TYPES[file?.type]
+    if (!ext) throw new AttendanceError('La imagen debe ser JPG, PNG o WebP.', 400)
+    if (!file.size || file.size > SELFIE_MAX_BYTES) throw new AttendanceError('La imagen es demasiado grande.', 413)
+    const objectKey = `modules/runly-attendance/selfies/${kiosk.companyId}/${punchId}.${ext}`
+    const { error } = await supabaseAdmin.storage.from(bucket).upload(objectKey, Buffer.from(await file.arrayBuffer()), { contentType: file.type, upsert: true })
+    if (error) throw new AttendanceError('No se pudo guardar la imagen.', 502)
+    const asset = await prisma.fileAsset.create({ data: { bucket, objectKey, originalName: `${punchId}.${ext}`, mimeType: file.type, sizeBytes: file.size, moduleKey: 'runly.attendance', entityType: 'AttPunch', entityId: punchId } })
+    await prisma.attPunch.update({ where: { id: punchId }, data: { selfieFileId: asset.id } })
+    return { fileId: asset.id }
+  }
+
+  return { attachSelfie, kioskByLink, authenticate, requestPairing, pairingStatus, roster, sync, enrollPhone }
 }

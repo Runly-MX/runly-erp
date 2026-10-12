@@ -14,7 +14,7 @@ const deviceToken = (c) => (c.req.header('authorization') ?? '').replace(/^Kiosk
 
 // /public/attendance/* — path-scoped and unauthenticated. The kiosk link only
 // starts a pairing; roster and sync require the approved device token.
-export function createAttendancePublicRouter({ prisma, service = null, limiter = createTokenBucketLimiter({ capacity: 60, refillPerSecond: 2 }), strictLimiter = createTokenBucketLimiter({ capacity: 8, refillPerSecond: 0.1 }) }) {
+export function createAttendancePublicRouter({ prisma, supabaseAdmin = null, bucket = null, service = null, limiter = createTokenBucketLimiter({ capacity: 60, refillPerSecond: 2 }), strictLimiter = createTokenBucketLimiter({ capacity: 8, refillPerSecond: 0.1 }) }) {
   const app = new Hono()
   const kiosks = service ?? createAttendanceKioskService({ prisma })
 
@@ -56,6 +56,16 @@ export function createAttendancePublicRouter({ prisma, service = null, limiter =
       const kiosk = await kiosks.authenticate(c.req.param('link'), deviceToken(c))
       return c.json({ data: await kiosks.sync(kiosk, await c.req.json().catch(() => ({}))) })
     } catch (error) { return fail(c, error, 'No se pudieron sincronizar las checadas.') }
+  })
+
+  app.post('/public/attendance/kiosk/:link/punches/:punchId/selfie', async (c) => {
+    try {
+      const kiosk = await kiosks.authenticate(c.req.param('link'), deviceToken(c))
+      const form = await c.req.formData()
+      const file = form.get('file')
+      if (!file || typeof file === 'string' || typeof file.arrayBuffer !== 'function') throw new AttendanceError('Adjunta una imagen.', 400)
+      return c.json({ data: await kiosks.attachSelfie(kiosk, c.req.param('punchId'), file, { supabaseAdmin, bucket }) }, 201)
+    } catch (error) { return fail(c, error, 'No se pudo guardar la selfie.') }
   })
 
   app.post('/public/attendance/enroll', async (c) => {

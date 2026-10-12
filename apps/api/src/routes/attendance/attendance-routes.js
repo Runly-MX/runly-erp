@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import { AttendanceError } from './attendance-core.js'
 import { createAttendanceService } from './attendance-service.js'
+import { createAttendanceExport } from './attendance-export.js'
+import { createGeocoder } from '../canvas/canvas-geocoder.js'
 import { IMPORT_FIELDS, createAttendanceImport, isTemplate, parseImportFile, suggestMapping } from './attendance-import.js'
 
 const companyId = (c) => c.get('companyId')
@@ -12,9 +14,10 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createAttendanceRouter({ prisma, requirePermission, requireAnyPermission = null, broadcaster = null, service = null }) {
+export function createAttendanceRouter({ prisma, requirePermission, requireAnyPermission = null, broadcaster = null, service = null, geocoder = createGeocoder(), signFile = null }) {
   const app = new Hono()
-  const svc = service ?? createAttendanceService({ prisma })
+  const svc = service ?? createAttendanceService({ prisma, signFile })
+  const exporter = createAttendanceExport({ prisma, service: svc })
   const importer = createAttendanceImport({ prisma })
   const view = requirePermission('attendance.view')
   const people = requirePermission('attendance.people.manage')
@@ -26,6 +29,14 @@ export function createAttendanceRouter({ prisma, requirePermission, requireAnyPe
     try { return await fn(c) } catch (error) { return fail(c, error, fallback) }
   }
   const changed = (c, action) => broadcaster?.broadcastToChannel?.(`attendance:${companyId(c)}`, 'attendance.changed', { action }).catch(() => {})
+
+  // Address search for the site location picker (same Nominatim proxy as Canvas maps).
+  app.get('/attendance/geocode', config, run('Error al buscar la dirección.', async (c) => {
+    try { return c.json({ data: await geocoder.search(c.req.query('q')) }) } catch (error) {
+      if (Number.isInteger(error?.status)) return c.json({ error: error.message }, error.status)
+      throw error
+    }
+  }))
 
   // ---- catalogs: sites, groups, categories, shifts, quotas ------------
   for (const kind of svc.CATALOG_KINDS) {
@@ -86,6 +97,12 @@ export function createAttendanceRouter({ prisma, requirePermission, requireAnyPe
     changed(c, 'punch')
     return c.json({ data })
   }))
+
+  // ---- xlsx exports (tz offset in minutes keeps dates in the caller's local time) ----
+  const xlsx = (buffer, name) => new Response(buffer, { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': `attachment; filename="${name}.xlsx"` } })
+  app.get('/attendance/export/people', view, run('Error al exportar.', async (c) => xlsx(await exporter.people(companyId(c)), 'personas-asistencia')))
+  app.get('/attendance/export/punches', view, run('Error al exportar.', async (c) => xlsx(await exporter.punches(companyId(c), c.req.query()), 'checadas')))
+  app.get('/attendance/export/hours', view, run('Error al exportar.', async (c) => xlsx(await exporter.hours(companyId(c), c.req.query()), 'horas-trabajadas')))
 
   // ---- reports ----------------------------------------------------------
   app.get('/attendance/summary', view, run('Error al cargar el resumen.', async (c) => c.json({ data: await svc.summary(companyId(c)) })))

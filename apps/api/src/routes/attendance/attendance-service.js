@@ -49,7 +49,7 @@ const CATALOGS = {
 const defined = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
 const isUnique = (e) => e?.code === 'P2002'
 
-export function createAttendanceService({ prisma }) {
+export function createAttendanceService({ prisma, signFile = null }) {
   const hrLink = createAttendanceHr({ prisma })
   async function catalogList(kind, companyId) {
     const cfg = CATALOGS[kind]
@@ -233,10 +233,13 @@ export function createAttendanceService({ prisma }) {
   }
 
   async function listPunches(companyId, q = {}) {
-    return prisma.attPunch.findMany({
+    const rows = await prisma.attPunch.findMany({
       where: punchWhere(companyId, q), orderBy: { occurredAt: 'desc' }, take: Math.min(intOr(q.limit, 200), 1000),
       include: { person: { select: { id: true, code: true, firstName: true, lastName: true, kind: true, groupId: true, categoryId: true } } },
     })
+    if (!signFile) return rows
+    // Evidence photos: short-lived signed URL per punch that has one.
+    return Promise.all(rows.map(async (row) => (row.selfieFileId ? { ...row, selfieUrl: await signFile(row.selfieFileId) } : row)))
   }
 
   async function createManualPunch(companyId, actorId, body) {
