@@ -53,7 +53,7 @@ export function createAttendanceRouter({ prisma, sendMail = null, appBaseUrl = (
   app.post('/attendance/people', people, run('Error al crear la persona.', async (c) => c.json({ data: await svc.savePerson(companyId(c), null, await c.req.json().catch(() => ({}))) }, 201)))
   app.post('/attendance/people/import-hr', people, run('Error al importar desde RH.', async (c) => c.json({ data: await svc.importFromHr(companyId(c)) })))
   app.patch('/attendance/people/:id', people, run('Error al guardar la persona.', async (c) => c.json({ data: await svc.savePerson(companyId(c), c.req.param('id'), await c.req.json().catch(() => ({}))) })))
-  app.post('/attendance/people/:id/enroll-invite', people, run('Error al crear la invitación.', async (c) => c.json({ data: await svc.createEnrollInvite(companyId(c), c.req.param('id')) })))
+  app.post('/attendance/people/:id/enroll-invite', people, run('Error al crear la invitación.', async (c) => c.json({ data: await svc.createEnrollInvite(companyId(c), c.req.param('id'), { reuse: (await c.req.json().catch(() => ({}))).reuse === true }) })))
   app.delete('/attendance/people/:id/enroll-invite', people, run('Error al cancelar la invitación.', async (c) => c.json({ data: await svc.cancelEnrollInvite(companyId(c), c.req.param('id')) })))
   app.get('/attendance/people/:id/invite-email', people, run('Error al consultar el correo.', async (c) => c.json({ data: { email: await svc.inviteEmailSuggestion(companyId(c), c.req.param('id')), canSend: Boolean(sendMail) } })))
   // Sends the already generated invite (code + link) by e-mail.

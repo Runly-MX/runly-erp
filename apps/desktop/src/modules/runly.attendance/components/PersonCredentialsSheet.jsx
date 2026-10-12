@@ -38,9 +38,9 @@ export function PersonCredentialsSheet({ person, onClose, canManage }) {
     if (uid.trim().length < 4) return
     try { await addCard.mutateAsync({ personId: person.id, uid: uid.trim(), label: label.trim() || null }); setUid(''); setLabel('') } catch { /* toast */ }
   }
-  async function createInvite() {
+  async function createInvite(reuse = false) {
     try {
-      setIssued(await invite.mutateAsync(person.id))
+      setIssued(await invite.mutateAsync({ personId: person.id, reuse }))
       if (!email) { const r = await runly.attendance.getInviteEmail(person.id, session?.access_token).catch(() => null); const e = (r?.data ?? r)?.email; if (e) setEmail(e) }
     } catch { /* toast */ }
   }
@@ -141,11 +141,12 @@ export function PersonCredentialsSheet({ person, onClose, canManage }) {
                 <li>En el kiosko abre «Mi teléfono» y escanea con la app.</li>
               </ol>
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                La invitación dura 48 horas y reemplaza la anterior.
+                La invitación dura 48 horas y reemplaza la anterior. Un teléfono nuevo sustituye al anterior: el anterior deja de funcionar al activarse el nuevo. Si la persona perdió el enlace, vuelve a mostrarlo o envíalo por correo.
                 {person.enrollPending ? ' Ya hay una invitación pendiente; generar otra la reemplaza.' : ''}
               </p>
+              {person.enrollPending && !issued ? <Button variant="outline" onClick={() => createInvite(true)} disabled={invite.isPending}>Ver enlace de la invitación pendiente</Button> : null}
               {person.enrollPending || issued ? <Button variant="ghost" onClick={cancelPending} disabled={cancelInvite.isPending}><Trash2 className="h-4 w-4" />Cancelar invitación</Button> : null}
-              <Button variant="outline" onClick={createInvite} disabled={invite.isPending}><Smartphone className="h-4 w-4" />{invite.isPending ? 'Generando…' : phoneKey ? 'Invitar otro teléfono' : 'Invitar llave de teléfono'}</Button>
+              <Button variant="outline" onClick={() => createInvite(false)} disabled={invite.isPending}><Smartphone className="h-4 w-4" />{invite.isPending ? 'Generando…' : phoneKey ? 'Invitar otro teléfono' : 'Invitar llave de teléfono'}</Button>
               {issued ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2 rounded-xl border border-teal-600/30 bg-teal-600/5 p-3">

@@ -209,9 +209,11 @@ export function createAttendanceService({ prisma, signFile = null }) {
     return { created, skipped: employees.length - created }
   }
 
-  async function createEnrollInvite(companyId, personId) {
+  // reuse: hand out the pending invite again (lost link) instead of replacing it.
+  async function createEnrollInvite(companyId, personId, { reuse = false } = {}) {
     const person = await prisma.attPerson.findFirst({ where: { id: personId, companyId } })
     if (!person) throw new AttendanceError('La persona no existe.', 404)
+    if (reuse && person.enrollCode && person.enrollExpiresAt && person.enrollExpiresAt > new Date()) return { code: person.enrollCode, expiresAt: person.enrollExpiresAt, reused: true }
     let code = ''
     for (let i = 0; i < 10; i += 1) code += ENROLL_ALPHABET[crypto.randomInt(0, ENROLL_ALPHABET.length)]
     const expiresAt = new Date(Date.now() + 48 * 3_600_000)

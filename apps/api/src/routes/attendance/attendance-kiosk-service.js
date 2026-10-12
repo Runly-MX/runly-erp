@@ -172,6 +172,9 @@ export function createAttendanceKioskService({ prisma }) {
     const valid = person && person.enrollExpiresAt && person.enrollExpiresAt > new Date() && String(code ?? '').trim().toLowerCase() === person.code.toLowerCase()
     if (!valid) throw new AttendanceError('El código de invitación o el código de empleado no coinciden, o la invitación venció.', 403, 'BAD_ENROLL')
     const { x, y, kty, crv } = publicKey
+    // One phone per person: a new enrollment replaces (revokes) the previous phone key, so a
+    // lost or shared phone stops working the moment the person re-enrolls.
+    await prisma.attCredential.updateMany({ where: { personId: person.id, type: 'device_key', status: 'active' }, data: { status: 'revoked' } })
     const credential = await prisma.attCredential.create({ data: { companyId: person.companyId, personId: person.id, type: 'device_key', publicKey: { kty, crv, x, y }, label: String(label ?? '').trim().slice(0, 80) || 'Teléfono', status: 'active' } })
     await prisma.attPerson.update({ where: { id: person.id }, data: { enrollCode: null, enrollExpiresAt: null } })
     return { personId: person.id, credentialId: credential.id, name: [person.firstName, person.lastName].filter(Boolean).join(' '), code: person.code }

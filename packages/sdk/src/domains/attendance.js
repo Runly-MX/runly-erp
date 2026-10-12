@@ -28,7 +28,7 @@ export function createAttendanceDomain({ request, withAuthHeaders, toQueryString
     cancelEnrollInvite: (personId, token) => send('DELETE', `/attendance/people/${id(personId)}/enroll-invite`, undefined, token),
     getInviteEmail: (personId, token) => send('GET', `/attendance/people/${id(personId)}/invite-email`, undefined, token),
     sendEnrollInvite: (personId, email, token) => send('POST', `/attendance/people/${id(personId)}/enroll-invite/send`, { email }, token),
-    createEnrollInvite: (personId, token) => send('POST', `/attendance/people/${id(personId)}/enroll-invite`, {}, token),
+    createEnrollInvite: (personId, token, options = {}) => send('POST', `/attendance/people/${id(personId)}/enroll-invite`, options, token),
     addCard: (personId, data, token) => send('POST', `/attendance/people/${id(personId)}/cards`, data, token),
     revokeCredential: (credentialId, token) => send('POST', `/attendance/credentials/${id(credentialId)}/revoke`, {}, token),
 
