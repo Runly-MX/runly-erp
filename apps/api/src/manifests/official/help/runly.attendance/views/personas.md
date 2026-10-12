@@ -1,7 +1,7 @@
 ---
 viewKey: /people
 title: Personas
-summary: Padrón de personas que checan: códigos, PIN, tarjetas, llave de teléfono, turno y vínculo con RH.
+summary: Padrón de personas que checan (códigos, PIN, tarjetas, llave de teléfono, turno y vínculo con RH).
 ---
 - **Nueva persona**: captura código, nombre, tipo, grupo, categoría y turno. Al escribir el nombre aparecen **sugerencias de RH**; elige **Vincular** para compartir identidad con el expediente. Activa **Crear otro** para seguir capturando sin cerrar la hoja.
 - **Importar**: sube un Excel o CSV (plantilla base o relacionando tus columnas), revisa la vista previa y confirma.
