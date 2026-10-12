@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { AttendanceError } from './attendance-core.js'
 import { createAttendanceService } from './attendance-service.js'
+import { createAttendanceHours } from './attendance-hours-service.js'
 import { createAttendanceExport } from './attendance-export.js'
 import { createGeocoder } from '../canvas/canvas-geocoder.js'
 import { IMPORT_FIELDS, createAttendanceImport, isTemplate, parseImportFile, suggestMapping } from './attendance-import.js'
@@ -17,8 +18,9 @@ function fail(c, error, fallback) {
 export function createAttendanceRouter({ prisma, requirePermission, requireAnyPermission = null, broadcaster = null, service = null, geocoder = createGeocoder(), signFile = null }) {
   const app = new Hono()
   const svc = service ?? createAttendanceService({ prisma, signFile })
-  const exporter = createAttendanceExport({ prisma, service: svc })
   const importer = createAttendanceImport({ prisma })
+  const hours = createAttendanceHours({ prisma, getSettings: (companyId) => svc.getSettings(companyId) })
+  const exporter = createAttendanceExport({ prisma, service: svc, hours })
   const view = requirePermission('attendance.view')
   const people = requirePermission('attendance.people.manage')
   const punches = requirePermission('attendance.punch.manage')
@@ -102,7 +104,22 @@ export function createAttendanceRouter({ prisma, requirePermission, requireAnyPe
   const xlsx = (buffer, name) => new Response(buffer, { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': `attachment; filename="${name}.xlsx"` } })
   app.get('/attendance/export/people', view, run('Error al exportar.', async (c) => xlsx(await exporter.people(companyId(c)), 'personas-asistencia')))
   app.get('/attendance/export/punches', view, run('Error al exportar.', async (c) => xlsx(await exporter.punches(companyId(c), c.req.query()), 'checadas')))
+  app.get('/attendance/export/days', view, run('Error al exportar.', async (c) => xlsx(await exporter.daily(companyId(c), c.req.query()), 'horas-por-dia')))
   app.get('/attendance/export/hours', view, run('Error al exportar.', async (c) => xlsx(await exporter.hours(companyId(c), c.req.query()), 'horas-trabajadas')))
+
+  // ---- daily hours, overtime review and corrections ----
+  app.get('/attendance/reports/days', view, run('Error al calcular las horas.', async (c) => c.json({ data: await hours.report(companyId(c), c.req.query()) })))
+  app.post('/attendance/days/review', punches, run('Error al guardar la revisión.', async (c) => {
+    const data = await hours.reviewDay(companyId(c), actorId(c), await c.req.json().catch(() => ({})))
+    changed(c, 'review')
+    return c.json({ data })
+  }))
+  app.get('/attendance/corrections', view, run('Error al cargar las solicitudes.', async (c) => c.json({ data: await hours.listCorrections(companyId(c), c.req.query()), meta: { pending: await hours.pendingCorrectionCount(companyId(c)) } })))
+  app.post('/attendance/corrections/:id/resolve', punches, run('Error al resolver la solicitud.', async (c) => {
+    const data = await hours.resolveCorrection(companyId(c), actorId(c), c.req.param('id'), await c.req.json().catch(() => ({})))
+    changed(c, 'punch')
+    return c.json({ data })
+  }))
 
   // ---- company policy (evidence retention, photo for QR punches) ----
   app.get('/attendance/settings', view, run('Error al cargar la configuración.', async (c) => c.json({ data: { ...(await svc.getSettings(companyId(c))), retentionChoices: svc.RETENTION_CHOICES } })))

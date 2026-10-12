@@ -11,6 +11,18 @@ const uuidOrNull = (v) => (v ? String(v) : null)
 const intOr = (v, fallback) => (Number.isInteger(Number(v)) && v !== '' && v != null ? Number(v) : fallback)
 const days = (v) => (Array.isArray(v) ? [...new Set(v.map(Number).filter((d) => d >= 0 && d <= 6))].sort() : undefined)
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
+// { "1": { start, end }, ... } with valid weekdays/times; null clears it; undefined leaves it untouched.
+function dayHours(v) {
+  if (v === undefined) return undefined
+  if (v === null) return null
+  if (typeof v !== 'object') return undefined
+  const out = {}
+  for (const [k, w] of Object.entries(v)) {
+    if (!/^[0-6]$/.test(k) || !w || !HHMM.test(w.start ?? '') || !HHMM.test(w.end ?? '')) continue
+    out[k] = { start: w.start, end: w.end }
+  }
+  return Object.keys(out).length ? out : null
+}
 const PERSON_KINDS = ['internal', 'contractor', 'visitor']
 const ENROLL_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
@@ -35,6 +47,7 @@ const CATALOGS = {
     pick: (b) => ({
       name: req(b.name, 120), startTime: HHMM.test(b.startTime ?? '') ? b.startTime : undefined, endTime: HHMM.test(b.endTime ?? '') ? b.endTime : undefined,
       days: days(b.days), graceMinutes: b.graceMinutes == null ? undefined : Math.max(0, Math.min(240, intOr(b.graceMinutes, 10))), enabled: b.enabled,
+      breakMinutes: b.breakMinutes == null ? undefined : Math.max(0, Math.min(240, intOr(b.breakMinutes, 0))), dayHours: dayHours(b.dayHours),
     }),
   },
   quotas: {
@@ -59,6 +72,8 @@ export function createAttendanceService({ prisma, signFile = null }) {
   async function catalogSave(kind, companyId, id, body) {
     const cfg = CATALOGS[kind]
     const data = defined(cfg.pick(body ?? {}))
+    if (kind === 'shifts' && data.dayHours) data.days = Object.keys(data.dayHours).map(Number).sort()
+    if (kind === 'shifts' && data.dayHours && !data.startTime) { const first = Object.values(data.dayHours)[0]; data.startTime = first.start; data.endTime = first.end }
     if (!id) {
       for (const key of cfg.required) if (data[key] == null) throw new AttendanceError(`Falta el campo obligatorio (${key}) del ${cfg.label}.`, 400)
     } else if (Object.keys(data).length === 0) throw new AttendanceError('No hay cambios que guardar.', 400)
@@ -325,17 +340,19 @@ export function createAttendanceService({ prisma, signFile = null }) {
       prisma.attKiosk.findMany({ where: { companyId, enabled: true }, select: { id: true, name: true, lastSeenAt: true, pairedAt: true, revokedAt: true } }),
       prisma.attPunch.count({ where: { companyId, status: 'flagged', occurredAt: { gte: new Date(Date.now() - 7 * 86_400_000) } } }),
     ])
+    const pendingCorrections = await prisma.attCorrection.count({ where: { companyId, status: 'pending' } })
     const failing = comp.rows.filter((r) => r.applies && !r.ok)
-    return { people, present: pres.counts, quotas: { total: comp.rows.length, failing: failing.length, rows: comp.rows }, kiosks, flaggedLast7d: flagged }
+    return { people, present: pres.counts, quotas: { total: comp.rows.length, failing: failing.length, rows: comp.rows }, kiosks, flaggedLast7d: flagged, pendingCorrections }
   }
 
   // ---- company policy ---------------------------------------------------
   const RETENTION_CHOICES = [7, 15, 30, 60, 90, 180, 365]
-  const DEFAULT_SETTINGS = { evidenceRetentionDays: 30, requirePhotoForQr: true }
+  const DEFAULT_SETTINGS = { evidenceRetentionDays: 30, requirePhotoForQr: true, timezone: 'America/Mexico_City', dailyThresholdMinutes: 480, overtimeRoundingMinutes: 0, requireOvertimeApproval: false, allowCorrections: true }
+  const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS)
 
   async function getSettings(companyId) {
     const row = await prisma.attSettings.findUnique({ where: { companyId } })
-    return { ...DEFAULT_SETTINGS, ...(row ? { evidenceRetentionDays: row.evidenceRetentionDays, requirePhotoForQr: row.requirePhotoForQr } : {}) }
+    return { ...DEFAULT_SETTINGS, ...(row ? Object.fromEntries(SETTING_KEYS.map((k) => [k, row[k]])) : {}) }
   }
 
   async function saveSettings(companyId, body = {}) {
@@ -346,6 +363,22 @@ export function createAttendanceService({ prisma, signFile = null }) {
       data.evidenceRetentionDays = days
     }
     if (typeof body.requirePhotoForQr === 'boolean') data.requirePhotoForQr = body.requirePhotoForQr
+    if (typeof body.requireOvertimeApproval === 'boolean') data.requireOvertimeApproval = body.requireOvertimeApproval
+    if (typeof body.allowCorrections === 'boolean') data.allowCorrections = body.allowCorrections
+    if (body.dailyThresholdMinutes !== undefined) {
+      const m = Number(body.dailyThresholdMinutes)
+      if (!Number.isInteger(m) || m < 60 || m > 960) throw new AttendanceError('La jornada diaria debe estar entre 1 y 16 horas.', 400)
+      data.dailyThresholdMinutes = m
+    }
+    if (body.overtimeRoundingMinutes !== undefined) {
+      const m = Number(body.overtimeRoundingMinutes)
+      if (![0, 5, 10, 15, 30, 60].includes(m)) throw new AttendanceError('El redondeo no es válido.', 400)
+      data.overtimeRoundingMinutes = m
+    }
+    if (body.timezone !== undefined) {
+      try { new Intl.DateTimeFormat('en', { timeZone: String(body.timezone) }) } catch { throw new AttendanceError('La zona horaria no es válida.', 400) }
+      data.timezone = String(body.timezone)
+    }
     if (!Object.keys(data).length) throw new AttendanceError('No hay cambios que guardar.', 400)
     await prisma.attSettings.upsert({ where: { companyId }, update: data, create: { companyId, ...data } })
     return getSettings(companyId)

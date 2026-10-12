@@ -4804,6 +4804,8 @@ model AttShift {
   endTime      String   @map("end_time")
   days         Int[]    @default([1, 2, 3, 4, 5]) // 0=Sunday .. 6=Saturday
   graceMinutes Int      @default(10) @map("grace_minutes")
+  breakMinutes Int      @default(0) @map("break_minutes")
+  dayHours     Json?    @map("day_hours") // { "1": { "start": "08:00", "end": "17:00" }, ... }
   enabled      Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -4945,8 +4947,50 @@ model AttSettings {
   companyId             String   @unique @map("company_id") @db.Uuid
   evidenceRetentionDays Int      @default(30) @map("evidence_retention_days")
   requirePhotoForQr     Boolean  @default(true) @map("require_photo_for_qr")
+  timezone              String   @default("America/Mexico_City")
+  dailyThresholdMinutes Int      @default(480) @map("daily_threshold_minutes")
+  overtimeRoundingMinutes Int    @default(0) @map("overtime_rounding_minutes")
+  requireOvertimeApproval Boolean @default(false) @map("require_overtime_approval")
+  allowCorrections      Boolean  @default(true) @map("allow_corrections")
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("att_settings")
+}
+
+// Admin decision on a person-day (approve or reject the overtime shown for that day).
+model AttDayReview {
+  id              String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  personId        String   @map("person_id") @db.Uuid
+  day             String   // YYYY-MM-DD in the company timezone
+  status          String   // approved | rejected
+  approvedMinutes Int?     @map("approved_minutes")
+  note            String?
+  reviewedById    String?  @map("reviewed_by_id") @db.Uuid
+  reviewedAt      DateTime @default(now()) @map("reviewed_at") @db.Timestamptz(6)
+
+  @@unique([personId, day])
+  @@index([companyId, day])
+  @@map("att_day_review")
+}
+
+// "I forgot to punch": requested by the person from their phone, resolved by an admin.
+model AttCorrection {
+  id             String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId      String    @map("company_id") @db.Uuid
+  personId       String    @map("person_id") @db.Uuid
+  direction      String    // in | out
+  occurredAt     DateTime  @map("occurred_at") @db.Timestamptz(6)
+  reason         String?
+  status         String    @default("pending") // pending | approved | rejected
+  requestedAt    DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
+  resolvedAt     DateTime? @map("resolved_at") @db.Timestamptz(6)
+  resolvedById   String?   @map("resolved_by_id") @db.Uuid
+  resolutionNote String?   @map("resolution_note")
+  punchId        String?   @map("punch_id") @db.Uuid
+
+  @@index([companyId, status, requestedAt(sort: Desc)])
+  @@index([personId, requestedAt(sort: Desc)])
+  @@map("att_correction")
 }

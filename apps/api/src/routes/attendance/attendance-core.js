@@ -263,3 +263,21 @@ export function verifyPhoneScan({ personId, challenge, signature, jwk }) {
     return false
   }
 }
+
+// Self-service from the phone app: every request is signed with the enrolled key over
+// `<action>|<personId>|<unixSeconds>[|extra...]` and is only valid for a few minutes.
+export const SELF_WINDOW_MS = 5 * 60_000
+export const selfMessage = (action, personId, ts, ...extra) => [action, personId, ts, ...extra].join('|')
+
+export function verifySelfRequest({ action, personId, ts, signature, jwks, extra = [], now = Date.now() }) {
+  const t = Number(ts)
+  if (!Number.isFinite(t) || Math.abs(now - t * 1000) > SELF_WINDOW_MS) return { ok: false, reason: 'expired' }
+  const message = Buffer.from(selfMessage(action, personId, t, ...extra))
+  for (const jwk of jwks) {
+    try {
+      const key = crypto.createPublicKey({ key: jwk, format: 'jwk' })
+      if (crypto.verify('sha256', message, { key, dsaEncoding: 'ieee-p1363' }, Buffer.from(String(signature), 'base64url'))) return { ok: true }
+    } catch { /* try the next key */ }
+  }
+  return { ok: false, reason: 'bad_signature' }
+}

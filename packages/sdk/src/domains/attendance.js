@@ -35,6 +35,10 @@ export function createAttendanceDomain({ request, withAuthHeaders, toQueryString
 
     getSummary: (token) => send('GET', '/attendance/summary', undefined, token),
     getPresenceReport: (query, token) => send('GET', `/attendance/reports/presence${toQueryString(query)}`, undefined, token),
+    getDaysReport: (query, token) => send('GET', `/attendance/reports/days${toQueryString(query)}`, undefined, token),
+    reviewDay: (data, token) => send('POST', '/attendance/days/review', data, token),
+    listCorrections: (query, token) => send('GET', `/attendance/corrections${toQueryString(query)}`, undefined, token),
+    resolveCorrection: (correctionId, data, token) => send('POST', `/attendance/corrections/${id(correctionId)}/resolve`, data, token),
     getHoursReport: (query, token) => send('GET', `/attendance/reports/hours${toQueryString(query)}`, undefined, token),
     getComplianceReport: (query, token) => send('GET', `/attendance/reports/compliance${toQueryString(query)}`, undefined, token),
 

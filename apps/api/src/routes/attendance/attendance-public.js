@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { createTokenBucketLimiter } from '../../lib/token-bucket-limiter.js'
-import { AttendanceError } from './attendance-core.js'
+import { AttendanceError, verifySelfRequest } from './attendance-core.js'
+import { createAttendanceHours } from './attendance-hours-service.js'
 import { createAttendanceKioskService } from './attendance-kiosk-service.js'
 
 function fail(c, error, fallback) {
@@ -14,9 +15,24 @@ const deviceToken = (c) => (c.req.header('authorization') ?? '').replace(/^Kiosk
 
 // /public/attendance/* — path-scoped and unauthenticated. The kiosk link only
 // starts a pairing; roster and sync require the approved device token.
-export function createAttendancePublicRouter({ prisma, supabaseAdmin = null, bucket = null, service = null, limiter = createTokenBucketLimiter({ capacity: 60, refillPerSecond: 2 }), strictLimiter = createTokenBucketLimiter({ capacity: 8, refillPerSecond: 0.1 }) }) {
+export function createAttendancePublicRouter({ prisma, getSettings = null, supabaseAdmin = null, bucket = null, service = null, limiter = createTokenBucketLimiter({ capacity: 60, refillPerSecond: 2 }), strictLimiter = createTokenBucketLimiter({ capacity: 8, refillPerSecond: 0.1 }) }) {
   const app = new Hono()
   const kiosks = service ?? createAttendanceKioskService({ prisma })
+  const readSettings = getSettings ?? (async (companyId) => {
+    const row = await prisma.attSettings.findUnique({ where: { companyId } })
+    return { evidenceRetentionDays: 30, requirePhotoForQr: true, timezone: 'America/Mexico_City', dailyThresholdMinutes: 480, overtimeRoundingMinutes: 0, requireOvertimeApproval: false, allowCorrections: true, ...(row ?? {}) }
+  })
+  const hours = createAttendanceHours({ prisma, getSettings: readSettings })
+
+  // Resolve the caller from a signed request: the person's own enrolled key is the credential.
+  async function authenticateSelf(c, action, extraOf = () => []) {
+    const body = await c.req.json().catch(() => ({}))
+    const person = body.personId ? await prisma.attPerson.findFirst({ where: { id: String(body.personId), enabled: true } }) : null
+    const keys = person ? await prisma.attCredential.findMany({ where: { personId: person.id, type: 'device_key', status: 'active' } }) : []
+    const check = person && keys.length ? verifySelfRequest({ action, personId: person.id, ts: body.ts, signature: body.signature, jwks: keys.map((k) => k.publicKey), extra: extraOf(body) }) : { ok: false, reason: 'unknown' }
+    if (!check.ok) throw new AttendanceError(check.reason === 'expired' ? 'La solicitud caducó. Vuelve a intentarlo.' : 'Este teléfono no está autorizado. Pide una nueva invitación a tu administrador.', 403, 'BAD_SIGNATURE')
+    return { person, body }
+  }
 
   app.use('/public/attendance/*', async (c, next) => {
     const result = limiter.consume(clientKey(c))
@@ -82,6 +98,25 @@ export function createAttendancePublicRouter({ prisma, supabaseAdmin = null, buc
       if (!strictLimiter.consume(`phone:${clientKey(c)}`).allowed) return c.json({ error: 'Demasiados intentos. Espera un momento.' }, 429)
       return c.json({ data: await kiosks.phonePunch(await c.req.json().catch(() => ({}))) }, 201)
     } catch (error) { return fail(c, error, 'No se pudo registrar la checada.') }
+  })
+
+  // "Mis horas": the phone asks for its owner's summary, signed with the enrolled key.
+  app.post('/public/attendance/me', async (c) => {
+    try {
+      if (!strictLimiter.consume(`me:${clientKey(c)}`).allowed) return c.json({ error: 'Demasiados intentos. Espera un momento.' }, 429)
+      const { person } = await authenticateSelf(c, 'me')
+      return c.json({ data: { name: [person.firstName, person.lastName].filter(Boolean).join(' '), code: person.code, ...(await hours.mySummary(person.companyId, person.id)) } })
+    } catch (error) { return fail(c, error, 'No se pudo cargar tu información.') }
+  })
+
+  // "I forgot to punch": creates a pending request an admin resolves.
+  app.post('/public/attendance/me/correction', async (c) => {
+    try {
+      if (!strictLimiter.consume(`corr:${clientKey(c)}`).allowed) return c.json({ error: 'Demasiados intentos. Espera un momento.' }, 429)
+      const { person, body } = await authenticateSelf(c, 'corr', (b) => [String(b.direction), String(b.occurredAt)])
+      const row = await hours.createCorrection({ companyId: person.companyId, personId: person.id, direction: body.direction, occurredAt: body.occurredAt, reason: body.reason })
+      return c.json({ data: { id: row.id, status: row.status } }, 201)
+    } catch (error) { return fail(c, error, 'No se pudo enviar la solicitud.') }
   })
 
   app.post('/public/attendance/enroll', async (c) => {

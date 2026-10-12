@@ -20,7 +20,7 @@ async function sheetBuffer(name, columns, rows) {
   return Buffer.from(await workbook.xlsx.writeBuffer())
 }
 
-export function createAttendanceExport({ prisma, service }) {
+export function createAttendanceExport({ prisma, service, hours: hoursSvc = null }) {
   async function lookups(companyId) {
     const [groups, categories, shifts, sites] = await Promise.all([
       prisma.attGroup.findMany({ where: { companyId }, select: { id: true, name: true } }),
@@ -67,5 +67,18 @@ export function createAttendanceExport({ prisma, service }) {
     })))
   }
 
-  return { people, punches, hours }
+  const hm = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
+
+  async function daily(companyId, query = {}) {
+    const report = await hoursSvc.report(companyId, query)
+    const rows = []
+    for (const r of report.rows) for (const d of r.days) rows.push({ code: r.person.code, name: fullName(r.person), day: d.day, plan: d.planStart ? `${d.planStart}-${d.planEnd}` : 'Descanso', expected: hm(d.expectedMinutes), worked: hm(d.workedMinutes), regular: hm(d.regularMinutes), overtime: hm(d.overtimeMinutes), counted: hm(d.countedOvertimeMinutes), status: { none: '', auto: 'Automática', pending: 'Pendiente', approved: 'Aprobada', rejected: 'Rechazada' }[d.overtimeStatus], late: d.lateMinutes ? hm(d.lateMinutes) : '', early: d.earlyLeaveMinutes ? hm(d.earlyLeaveMinutes) : '', absent: d.absent ? 'Falta' : '' })
+    return sheetBuffer('Horas por día', [
+      { header: 'Código', key: 'code' }, { header: 'Persona', key: 'name', width: 30 }, { header: 'Día', key: 'day', width: 12 }, { header: 'Horario', key: 'plan', width: 14 },
+      { header: 'Esperadas', key: 'expected', width: 11 }, { header: 'Trabajadas', key: 'worked', width: 11 }, { header: 'Ordinarias', key: 'regular', width: 11 }, { header: 'Extras', key: 'overtime', width: 10 },
+      { header: 'Extras contadas', key: 'counted', width: 14 }, { header: 'Estado de extras', key: 'status', width: 16 }, { header: 'Retardo', key: 'late', width: 10 }, { header: 'Salida temprana', key: 'early', width: 14 }, { header: 'Falta', key: 'absent', width: 8 },
+    ], rows)
+  }
+
+  return { people, punches, hours, daily }
 }
