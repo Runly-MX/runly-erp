@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { EnrollForm } from './components/EnrollForm.jsx'
+import { ForgotPunch } from './components/ForgotPunch.jsx'
 import { KeyCard } from './components/KeyCard.jsx'
+import { MyHours } from './components/MyHours.jsx'
 import { PhoneHome } from './components/PhoneHome.jsx'
 import { ScanFlow } from './components/ScanFlow.jsx'
 import { phoneStore } from './lib/phone-store.js'
+import { useMyHours } from './lib/use-my-hours.js'
 import { registerAttendanceWorker } from '../kiosk/lib/register-sw.js'
 import { RunlyWatermark } from '../components/RunlyWatermark.jsx'
 
@@ -14,7 +17,9 @@ import { RunlyWatermark } from '../components/RunlyWatermark.jsx'
 export default function PhoneKeyScreen() {
   const [params] = useSearchParams()
   const [identity, setIdentity] = useState(undefined) // undefined = loading, null = not enrolled
-  const [view, setView] = useState('home') // home | scan | qr
+  const [view, setView] = useState('home') // home | scan | qr | hours | forgot
+
+  const hours = useMyHours(identity)
 
   useEffect(() => {
     registerAttendanceWorker('/app/attendance/')
@@ -41,8 +46,20 @@ export default function PhoneKeyScreen() {
           <ScanFlow identity={identity} onClose={() => setView('home')} />
         ) : view === 'qr' ? (
           <KeyCard identity={identity} onBack={() => setView('home')} />
+        ) : view === 'hours' ? (
+          <MyHours hours={hours} onBack={() => setView('home')} />
+        ) : view === 'forgot' ? (
+          <ForgotPunch identity={identity} onBack={() => setView('home')} onSent={hours.refresh} />
         ) : (
-          <PhoneHome identity={identity} onScan={() => setView('scan')} onShowQr={() => setView('qr')} onRemove={remove} />
+          <PhoneHome
+            identity={identity}
+            hours={hours}
+            onScan={() => setView('scan')}
+            onShowQr={() => setView('qr')}
+            onShowHours={() => setView('hours')}
+            onForgot={() => setView('forgot')}
+            onRemove={remove}
+          />
         )}
       </div>
       <RunlyWatermark />

@@ -1,13 +1,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { CATALOGS, emptyForm, validateCatalogForm } from './catalogConfig.js'
+import { CATALOGS, emptyForm, formFromItem, validateCatalogForm } from './catalogConfig.js'
 
-test('shift form validates HH:MM and requires name', () => {
-  const form = { ...emptyForm(CATALOGS.shifts), name: '', startTime: '8am', endTime: '17:00' }
+test('shift form requires name and a valid weekly schedule', () => {
+  const form = { ...emptyForm(CATALOGS.shifts), name: '', dayHours: { 1: { start: '8am', end: '17:00' } } }
   const { errors } = validateCatalogForm(CATALOGS.shifts, form)
   assert.ok(errors.name)
-  assert.ok(errors.startTime)
-  assert.equal(errors.endTime, undefined)
+  assert.ok(errors.dayHours)
+  const ok = validateCatalogForm(CATALOGS.shifts, { ...emptyForm(CATALOGS.shifts), name: 'X' })
+  assert.deepEqual(ok.errors, {})
+  assert.equal(ok.payload.breakMinutes, 0)
+  assert.equal(Object.keys(ok.payload.dayHours).length, 5)
+})
+
+test('editing an old shift builds dayHours from startTime, endTime and days', () => {
+  const form = formFromItem(CATALOGS.shifts, { name: 'Viejo', startTime: '07:00', endTime: '15:00', days: [1, 2], graceMinutes: 5 })
+  assert.deepEqual(form.dayHours, { 1: { start: '07:00', end: '15:00' }, 2: { start: '07:00', end: '15:00' } })
+  assert.equal(form.breakMinutes, 0)
 })
 
 test('site location is flattened to address, coordinates and radius', () => {
@@ -31,7 +40,6 @@ test('site without a point clears coordinates and radius', () => {
 test('shift and quota names are generated when left empty', () => {
   const shift = { ...emptyForm(CATALOGS.shifts), name: '' }
   assert.equal(validateCatalogForm(CATALOGS.shifts, shift).payload.name, 'Matutino 08:00–17:00')
-  assert.deepEqual(validateCatalogForm(CATALOGS.shifts, shift).payload.days, [1, 2, 3, 4, 5])
   const lookups = { groups: new Map([['g', 'Contratista Uno']]), categories: new Map([['c', 'Soldadores']]), sites: new Map() }
   const quota = { ...emptyForm(CATALOGS.quotas), groupId: 'g', categoryId: 'c' }
   assert.equal(validateCatalogForm(CATALOGS.quotas, quota, lookups).payload.name, 'Soldadores · Contratista Uno')

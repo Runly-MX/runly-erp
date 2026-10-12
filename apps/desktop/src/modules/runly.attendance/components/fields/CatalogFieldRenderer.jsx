@@ -1,6 +1,8 @@
 import { ComboboxField, SelectField, TextareaField, TextField } from '@runly/ui'
 import { toOptions } from '../shared.jsx'
 import { DaysChipsField } from './DaysChipsField.jsx'
+import { formatHoursShort, weeklyMinutes } from '../../lib/shiftSchedule.js'
+import { ScheduleField } from './ScheduleField.jsx'
 import { SiteLocationField } from './SiteLocationField.jsx'
 import { StepperField } from './StepperField.jsx'
 import { TimeSelectField } from './TimeSelectField.jsx'
@@ -19,6 +21,8 @@ export default function CatalogFieldRenderer({ field, value, onChange, error, lo
       return <ComboboxField {...common} options={toOptions(lookups.rows[field.ref])} value={value} onChange={onChange} clearable placeholder="Cualquiera" />
     case 'days':
       return <DaysChipsField label={field.label} value={value} onChange={onChange} error={error} hint="Elige los días o usa un atajo." />
+    case 'schedule':
+      return <ScheduleField label={field.label} value={value} onChange={onChange} error={error} weeklySummary={`Horas por semana: ${formatHoursShort(weeklyMinutes(value, draft?.breakMinutes))} (esperadas)`} />
     case 'timezone':
       return <TimezoneField {...common} value={value} onChange={onChange} />
     case 'location':

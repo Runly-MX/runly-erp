@@ -1,6 +1,7 @@
 import { Camera } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, SelectField, SwitchField } from '@runly/ui'
 import { useSaveSettings, useSettings } from '../hooks/useAttendanceData.js'
+import { OvertimeSettings } from './OvertimeSettings.jsx'
 
 const DEFAULT_CHOICES = [7, 15, 30, 60, 90, 180, 365]
 
@@ -13,6 +14,7 @@ export function GeneralSettings({ canConfigure }) {
   const disabled = !canConfigure || !settings || save.isPending
 
   return (
+    <div className="space-y-4">
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Camera className="h-5 w-5 text-teal-600" /> Evidencia y privacidad</CardTitle>
@@ -37,5 +39,7 @@ export function GeneralSettings({ canConfigure }) {
         />
       </CardContent>
     </Card>
+    <OvertimeSettings canConfigure={canConfigure} />
+    </div>
   )
 }

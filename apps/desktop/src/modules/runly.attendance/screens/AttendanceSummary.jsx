@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ClipboardList, MonitorSmartphone, Radio, Target } from 'lucide-react'
 import { Button, EmptyState, ErrorState } from '@runly/ui'
+import { PendingReviewCards } from '../components/PendingReviewCards.jsx'
 import { KioskStatusBadge } from '../components/KioskStatusChips.jsx'
 import { PresenceChart } from '../components/PresenceChart.jsx'
 import { QuotaCards } from '../components/QuotaCards.jsx'
@@ -40,6 +41,7 @@ export default function AttendanceSummary() {
       />
 
       <SummaryStats data={data} loading={summary.isLoading} />
+      <PendingReviewCards pendingCorrections={data?.pendingCorrections ?? 0} />
 
       <SectionCard title="Presencia en vivo" description="Personas dentro en este momento" icon={Radio}>
         {summary.isLoading ? <CardSkeletons count={2} className="h-48" /> : (

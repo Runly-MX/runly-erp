@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildCsv, flagLabel, flagVariant, methodLabel, kioskStatus, minutesToHours, tallyBy } from './attendanceLabels.js'
+import { buildCsv, flagLabel, formatDayLabel, overtimeStatusLabel, overtimeStatusTone, planLabel, flagVariant, methodLabel, kioskStatus, minutesToHours, tallyBy } from './attendanceLabels.js'
 
 test('flag labels are Spanish with fallback', () => {
   assert.equal(flagLabel('clock_skew'), 'Reloj desfasado')
@@ -28,4 +28,14 @@ test('minutesToHours and tallyBy', () => {
   assert.equal(minutesToHours(125), '2 h 05 min')
   const rows = tallyBy({ a: 1, none: 3 }, new Map([['a', 'Grupo A']]), 'Sin grupo')
   assert.deepEqual(rows.map((r) => r.label), ['Sin grupo', 'Grupo A'])
+})
+
+test('correction flag and overtime review labels', () => {
+  assert.equal(flagLabel('correction'), 'Solicitada por la persona')
+  assert.equal(overtimeStatusLabel('pending'), 'Pendiente')
+  assert.equal(overtimeStatusLabel('auto'), 'Automática')
+  assert.equal(overtimeStatusTone('approved'), 'teal')
+  assert.equal(formatDayLabel('2026-10-12'), 'Lun 12 oct')
+  assert.equal(planLabel({ restDay: false, weekday: 1, planStart: '08:00', planEnd: '17:00' }), 'Lun 08:00-17:00')
+  assert.equal(planLabel({ restDay: true }), 'Descanso')
 })

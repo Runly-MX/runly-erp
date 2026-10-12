@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { BarChart3, Clock, ShieldCheck, Users } from 'lucide-react'
+import { BarChart3, CalendarDays, Clock, ShieldCheck, Users } from 'lucide-react'
 import { Badge, ChipTabPanel, ChipTabs, DataTable, DatePickerField, ErrorState, Skeleton } from '@runly/ui'
 import { PresenceChart } from '../components/PresenceChart.jsx'
 import { QuotaCard, quotaTitle } from '../components/QuotaCards.jsx'
 import { ExportButton } from '../components/ExportButton.jsx'
-import { PersonPhotoAvatar } from '../components/PersonPhotoAvatar.jsx'
+import { DailyHoursReport } from '../components/DailyHoursReport.jsx'
+import { PersonCell } from '../components/PersonCell.jsx'
 import { PageShell, ScreenHeader, Toolbar } from '../components/shared.jsx'
 import { useComplianceReport, useHoursReport, usePresence } from '../hooks/useAttendanceData.js'
 import { useLookups } from '../hooks/useLookups.js'
@@ -16,18 +17,6 @@ import { dayEndIso, dayStartIso, formatDateTime, fullName, minutesToHours, tally
 
 const dayOffset = (days) => toLocalIso(new Date(Date.now() + days * 86_400_000))
 const VIEW_MODES = ['table', 'cards']
-
-function PersonCell({ person, size = 'sm' }) {
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <PersonPhotoAvatar person={person} name={fullName(person)} size={size} />
-      <div className="min-w-0">
-        <p className="truncate font-medium leading-tight">{fullName(person)}</p>
-        <p className="text-xs tabular-nums text-[hsl(var(--muted-foreground))]">{person?.code}</p>
-      </div>
-    </div>
-  )
-}
 
 function HoursTab({ lookups }) {
   const [range, setRange] = useUrlRange({ from: dayOffset(-6), to: dayOffset(0) })
@@ -179,7 +168,7 @@ function PresenceTab({ lookups }) {
   )
 }
 
-const TAB_VALUES = ['hours', 'compliance', 'presence']
+const TAB_VALUES = ['days', 'hours', 'compliance', 'presence']
 const TABS = [
   { value: 'hours', label: 'Horas', icon: Clock, description: 'Horas trabajadas por persona en un rango de fechas, calculadas con pares de entrada y salida. Las sesiones sin salida se marcan para que las corrijas. Útil para nómina y control de contratistas.' },
   { value: 'compliance', label: 'Cumplimiento', icon: ShieldCheck, description: 'Compara, día por día, cuántas personas estuvieron presentes contra el mínimo de cada cuota (grupo, categoría o sitio) y cuántas faltan.' },
@@ -188,11 +177,12 @@ const TABS = [
 
 export default function AttendanceReports() {
   const lookups = useLookups()
-  const [tab, setTab] = usePersistedTab('attendance.reports.tab', TAB_VALUES, 'hours')
+  const [tab, setTab] = usePersistedTab('attendance.reports.tab', TAB_VALUES, 'days')
   return (
     <PageShell>
-      <ScreenHeader title="Reportes" description="Horas trabajadas, cumplimiento de cuotas y presencia en vivo." />
+      <ScreenHeader title="Reportes" description="Asistencia diaria y horas extra, horas trabajadas, cumplimiento de cuotas y presencia en vivo." />
       <ChipTabs tabs={TABS} value={tab} onChange={setTab} tone="blue" ariaLabel="Reportes de asistencia" />
+      <ChipTabPanel value="days" active={tab === 'days'}><DailyHoursReport lookups={lookups} /></ChipTabPanel>
       <ChipTabPanel value="hours" active={tab === 'hours'}><HoursTab lookups={lookups} /></ChipTabPanel>
       <ChipTabPanel value="compliance" active={tab === 'compliance'}><ComplianceTab lookups={lookups} /></ChipTabPanel>
       <ChipTabPanel value="presence" active={tab === 'presence'}><PresenceTab lookups={lookups} /></ChipTabPanel>

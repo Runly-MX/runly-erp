@@ -10,7 +10,8 @@ Asistencia registra quién entra y quién sale, sea personal propio, contratista
 - **Personas**: el padrón de quienes checan, con su código, PIN, tarjeta, llave de teléfono, turno y vínculo con RH.
 - **Checadas**: la bitácora de entradas y salidas, con marcas de revisión y captura manual.
 - **Kioskos**: las pantallas donde la gente checa, con enlace público y emparejamiento.
-- **Reportes**: horas trabajadas, cumplimiento de cuotas y presencia.
+- **Solicitudes**: checadas olvidadas que el personal pide desde su teléfono, para aprobar o rechazar.
+- **Reportes**: asistencia diaria con horas extra, retardos y faltas; horas trabajadas, cumplimiento de cuotas y presencia.
 - **Configuración**: la pestaña General (evidencia y privacidad) y los catálogos de sitios, grupos, categorías, turnos y cuotas. La pestaña que abriste se recuerda al recargar la página.
 
 ### Personas, grupos y categorías
@@ -38,6 +39,10 @@ El kiosko **funciona sin conexión**: guarda la lista de personas, registra las 
 - **Llave de teléfono (app Checador)**: un administrador genera una invitación; la persona la abre en su teléfono, escribe su código de empleado y toca **Instalar Checador** (en iPhone: Compartir > Añadir a pantalla de inicio). La app se abre directo, sin volver a escribir nada, y tiene dos formas de checar:
   - **Escanear kiosko** (la más segura): en el kiosko se abre «Mi teléfono» y la app escanea su código. Requiere internet, toma tu foto y, si el sitio tiene radio, envía tu ubicación.
   - **Mostrar mi QR** (pestaña «Mi QR»): el teléfono muestra un QR que cambia cada pocos segundos y el kiosko lo escanea. Funciona sin conexión, pero no toma foto.
+
+### Turnos, horas extra y solicitudes
+
+Un **turno** define el horario de cada día de la semana (puede haber días largos, un viernes corto y días de descanso), el descanso y la tolerancia. Con él, **Reportes > Asistencia diaria** calcula por persona y por día las horas ordinarias, las **horas extra** (más allá del turno de ese día; en domingo o descanso, todo), los retardos, las salidas tempranas y las faltas. Si activas que las extras requieran aprobación, se aprueban o rechazan en ese reporte. Si alguien olvida checar, puede **solicitar la checada** desde su teléfono y tú la resuelves en **Solicitudes**. Asistencia solo muestra horas, no calcula pagos.
 
 ### Cuotas de contratistas
 
@@ -69,5 +74,6 @@ Con la pestaña de MirAI abierta puedes pedirle, por ejemplo:
 - "¿Laura Navarro está presente? ¿Qué turno tiene?"
 - "¿Qué cuotas de contratistas no se están cumpliendo y cuántos faltan?"
 - "¿Cuántas horas trabajó cada persona esta semana?"
+- "¿Quién tuvo horas extra, retardos o faltas esta semana?" (MirAI usa el mismo cálculo del reporte de Asistencia diaria).
 
 MirAI solo consulta: no registra checadas ni modifica personas, y solo ve lo que tu rol permite en Asistencia.

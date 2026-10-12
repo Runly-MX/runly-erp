@@ -41,3 +41,8 @@ Spec: `docs/superpowers/specs/2026-10-11-attendance-design.md`. Each block is co
 - [x] Runly watermark on kiosk and phone screens
 - [x] `FilterMenu` (left categories, right options; bottom sheet in two steps on mobile) + removable chips, wired into DataTable and the attendance screens. Verified: 2026-10-12 (Playwright desktop and 390 px)
 - [ ] Still pending: Android HCE / BiometricPrompt / lock-task (needs APK build), BLE, optional face match, real-device checks
+
+## Round 5 (hours, overtime, requests, "Mis horas"), 2026-10-12
+- [x] Flexible shifts (per-weekday hours + break), daily hours engine (overtime vs the shift of that day, late, early leave, absence), optional overtime approval, rounding, company timezone; hours only. Verified: 2026-10-12 (unit tests of the engine incl. 9 h x4 + short Friday; API script; Playwright shift editor, daily report, approval)
+- [x] Forgotten-punch requests from the phone (signed with the enrolled key) approved/rejected in Solicitudes; "Mis horas" in the phone app. Verified: 2026-10-12 (API script incl. forged/stale/tampered requests; Playwright phone flow and admin list)
+- [ ] Not covered: weekly overtime cap, holidays/vacations calendar, real-device checks

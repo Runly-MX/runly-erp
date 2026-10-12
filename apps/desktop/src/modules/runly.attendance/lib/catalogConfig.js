@@ -1,9 +1,15 @@
 import { WEEKDAYS } from './attendanceLabels.js'
-import { browserTimeZone, normalizeDays, suggestQuotaName, suggestShiftName, toleranceOptionsFor } from './formHelpers.js'
+import { browserTimeZone, normalizeDays, suggestQuotaName, toleranceOptionsFor } from './formHelpers.js'
+import {
+  BREAK_CHOICES, cleanDayHours, dayHoursFromShift, formatHoursShort, presetWeekdays, suggestNameFromDayHours, summarizeSchedule, weeklyMinutes,
+} from './shiftSchedule.js'
+
+const BREAK_OPTIONS = BREAK_CHOICES.map((m) => ({ value: String(m), label: m ? `${m} min` : 'Sin descanso' }))
 
 // Declarative description of each configuration catalog: form fields, table
 // columns and Spanish copy. `ref` fields pick from another catalog.
-// field.type: text | textarea | number | time | select | ref | days | timezone | location
+// field.type: text | textarea | number | time | select | ref | days | schedule | timezone | location
+//   schedule               -> weekly editor, value { "1": { start, end }, ... } (shift dayHours)
 //   number + stepper:true  -> [- n +] control (min/max honoured)
 //   number + options       -> dropdown of presets, value coerced to a number
 //   time                   -> 15-minute time dropdown (value stays "HH:MM")
@@ -45,19 +51,19 @@ export const CATALOGS = {
     label: 'Turnos', singular: 'turno', newLabel: 'Nuevo turno', emptyTitle: 'Sin turnos',
     emptyDescription: 'Los turnos definen el horario esperado y la tolerancia de llegada.',
     fields: [
-      { key: 'startTime', label: 'Hora de entrada', type: 'time', required: true, defaultValue: '08:00' },
-      { key: 'endTime', label: 'Hora de salida', type: 'time', required: true, defaultValue: '17:00' },
-      { key: 'days', label: 'Días', type: 'days', defaultValue: [1, 2, 3, 4, 5] },
+      { key: 'dayHours', label: 'Horario semanal', type: 'schedule', required: true, defaultValue: presetWeekdays },
+      { key: 'breakMinutes', label: 'Descanso/comida (min)', type: 'number', defaultValue: 0, options: BREAK_OPTIONS },
       { key: 'graceMinutes', label: 'Tolerancia de llegada', type: 'number', defaultValue: 10, options: toleranceOptionsFor() },
       {
         key: 'name', label: 'Nombre', type: 'text', required: true, placeholder: 'Se genera con el horario',
-        autoName: (form) => suggestShiftName(form.startTime, form.endTime),
+        autoName: (form) => suggestNameFromDayHours(form.dayHours),
       },
     ],
     columns: [
       { key: 'name', header: 'Nombre' },
-      { key: 'schedule', header: 'Horario', render: (r) => `${r.startTime} – ${r.endTime}` },
-      { key: 'days', header: 'Días', render: (r) => dayList(r.days) },
+      { key: 'schedule', header: 'Horario', render: (r) => summarizeSchedule(dayHoursFromShift(r)) },
+      { key: 'weekly', header: 'Horas por semana', render: (r) => formatHoursShort(weeklyMinutes(dayHoursFromShift(r), r.breakMinutes)) },
+      { key: 'breakMinutes', header: 'Descanso', render: (r) => (r.breakMinutes ? `${r.breakMinutes} min` : 'Sin descanso') },
       { key: 'graceMinutes', header: 'Tolerancia', render: (r) => `${r.graceMinutes ?? 0} min` },
     ],
   },
@@ -95,6 +101,7 @@ function emptyValue(f) {
     return Array.isArray(f.defaultValue) ? [...f.defaultValue] : f.defaultValue
   }
   if (f.type === 'days') return []
+  if (f.type === 'schedule') return {}
   if (f.type === 'ref') return null
   if (f.type === 'location') return { ...EMPTY_LOCATION }
   return ''
@@ -109,8 +116,9 @@ export function formFromItem(config, item) {
     if (f.type === 'location') {
       return [f.key, { address: item.address ?? '', latitude: item.latitude ?? null, longitude: item.longitude ?? null, radiusM: item.radiusM ?? null }]
     }
+    if (f.type === 'schedule') return [f.key, dayHoursFromShift(item)]
     const v = item[f.key]
-    return [f.key, f.type === 'days' ? (Array.isArray(v) ? v : []) : f.type === 'ref' ? (v ?? null) : (v ?? '')]
+    return [f.key, f.type === 'days' ? (Array.isArray(v) ? v : []) : f.type === 'ref' ? (v ?? null) : (v ?? (f.options && typeof f.defaultValue === 'number' ? f.defaultValue : ''))]
   }))
 }
 
@@ -125,6 +133,12 @@ export function validateCatalogForm(config, form, lookups) {
   for (const f of config.fields) {
     const raw = form[f.key]
     if (f.type === 'days') { payload[f.key] = normalizeDays(raw); continue }
+    if (f.type === 'schedule') {
+      const clean = cleanDayHours(raw)
+      if (clean) payload[f.key] = clean
+      else errors[f.key] = 'Activa al menos un día con un horario válido.'
+      continue
+    }
     if (f.type === 'ref') { payload[f.key] = raw; continue }
     if (f.type === 'location') {
       const loc = raw ?? EMPTY_LOCATION

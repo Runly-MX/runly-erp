@@ -936,6 +936,7 @@ export const attendanceMap = createModuleManifest({
     { label: 'Personas', path: '/people', icon: 'Users', layout: 'main', permissionKey: 'attendance.access' },
     { label: 'Checadas', path: '/punches', icon: 'ClipboardList', layout: 'main', permissionKey: 'attendance.access' },
     { label: 'Kioskos', path: '/kiosks', icon: 'MonitorSmartphone', layout: 'main', permissionKey: 'attendance.access' },
+    { label: 'Solicitudes', path: '/requests', icon: 'ClipboardCheck', layout: 'main', permissionKey: 'attendance.access' },
     { label: 'Reportes', path: '/reports', icon: 'BarChart3', layout: 'main', permissionKey: 'attendance.access' },
     { label: 'Configuración', path: '/setup', icon: 'Settings', layout: 'main', permissionKey: 'attendance.access' },
   ],

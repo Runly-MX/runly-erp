@@ -9,15 +9,17 @@ export const FLAG_LABELS = {
   outside_geofence: 'Fuera del radio',
   manual: 'Manual',
   no_photo: 'Sin foto',
+  correction: 'Solicitada por la persona',
+  phone_scan: 'Teléfono (escaneo)',
 }
 
 // Flags that merit attention (red); the rest are informative.
 const SEVERE_FLAGS = new Set(['proof_failed', 'replay', 'clock_skew', 'outside_geofence', 'no_photo'])
 
 export const flagLabel = (flag) => FLAG_LABELS[flag] ?? String(flag)
-export const flagVariant = (flag) => (SEVERE_FLAGS.has(flag) ? 'destructive' : flag === 'manual' || flag === 'offline' ? 'secondary' : 'warning')
+export const flagVariant = (flag) => (SEVERE_FLAGS.has(flag) ? 'destructive' : flag === 'manual' || flag === 'offline' || flag === 'correction' || flag === 'phone_scan' ? 'secondary' : 'warning')
 
-export const flagTone = (flag) => (SEVERE_FLAGS.has(flag) ? 'rose' : flag === 'manual' ? 'slate' : flag === 'offline' ? 'blue' : 'amber')
+export const flagTone = (flag) => (SEVERE_FLAGS.has(flag) ? 'rose' : flag === 'manual' ? 'slate' : flag === 'offline' || flag === 'correction' || flag === 'phone_scan' ? 'blue' : 'amber')
 
 export const DIRECTION_LABELS = { in: 'Entrada', out: 'Salida' }
 
@@ -111,4 +113,28 @@ export function tallyBy(counts, lookup, noneLabel) {
   return Object.entries(counts ?? {})
     .map(([key, count]) => ({ key, label: key === 'none' ? noneLabel : (lookup.get(key) ?? 'Desconocido'), count }))
     .sort((a, b) => b.count - a.count)
+}
+
+// ---- Daily hours / overtime review -----------------------------------------
+export const OVERTIME_STATUS_LABELS = { pending: 'Pendiente', approved: 'Aprobada', rejected: 'Rechazada', auto: 'Automática' }
+export const overtimeStatusLabel = (status) => OVERTIME_STATUS_LABELS[status] ?? ''
+export const overtimeStatusTone = (status) => ({ pending: 'amber', approved: 'teal', rejected: 'rose', auto: 'slate' }[status] ?? 'slate')
+
+export const CORRECTION_STATUS_LABELS = { pending: 'Pendiente', approved: 'Aprobada', rejected: 'Rechazada' }
+export const correctionStatusTone = (status) => ({ pending: 'amber', approved: 'teal', rejected: 'rose' }[status] ?? 'slate')
+
+const DAY_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+
+// "Lun 12 oct" from a YYYY-MM-DD day (parsed as a local calendar date, never shifted by UTC).
+export function formatDayLabel(day) {
+  const [y, m, d] = String(day ?? '').split('-').map(Number)
+  if (!y || !m || !d) return '—'
+  const date = new Date(y, m - 1, d)
+  return `${DAY_SHORT[date.getDay()]} ${d} ${date.toLocaleDateString('es-MX', { month: 'short' }).replace('.', '')}`
+}
+
+// Plan of a day row from the days report: "Lun 08:00-17:00" or "Descanso".
+export function planLabel(day) {
+  if (!day || day.restDay || !day.planStart || !day.planEnd) return 'Descanso'
+  return `${DAY_SHORT[day.weekday]} ${day.planStart}-${day.planEnd}`
 }

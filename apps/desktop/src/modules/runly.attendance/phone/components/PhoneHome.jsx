@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import { QrCode, ScanLine, Trash2 } from 'lucide-react'
+import { BarChart3, ChevronRight, QrCode, ScanLine, Trash2, UserRoundCheck } from 'lucide-react'
 import { Button, ConfirmDialog } from '@runly/ui'
 import { InstallButton } from './InstallButton.jsx'
+import { hoursPreview } from '../lib/self-service.js'
 
-// Main screen of the installed Checador: scan the kiosk (primary) or show my QR (fallback).
-export function PhoneHome({ identity, onScan, onShowQr, onRemove }) {
+// Main screen of the installed Checador: scan the kiosk (primary), show my QR (fallback),
+// my hours and the forgotten-punch request.
+export function PhoneHome({ identity, hours, onScan, onShowQr, onShowHours, onForgot, onRemove }) {
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const preview = hoursPreview(hours?.data)
+  const allowCorrections = hours?.data ? hours.data.allowCorrections !== false : true
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-6 pb-12">
       <div className="text-center">
@@ -26,6 +30,32 @@ export function PhoneHome({ identity, onScan, onShowQr, onRemove }) {
           <QrCode className="size-5" /> Mostrar mi QR
         </Button>
         <p className="px-2 text-center text-sm text-slate-400">Sin señal o si el kiosko no tiene escaneo: muestra tu QR a su cámara.</p>
+      </div>
+
+      <div className="w-full space-y-3">
+        <button
+          type="button"
+          onClick={onShowHours}
+          className="flex min-h-16 w-full items-center gap-3 rounded-2xl bg-teal-500/15 px-4 py-3 text-left ring-1 ring-teal-400/40 transition hover:bg-teal-500/25"
+        >
+          <BarChart3 className="size-6 shrink-0 text-teal-300" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-lg font-semibold text-white">Mis horas</span>
+            <span className="block truncate text-sm text-teal-100/80">{preview || 'Revisa tu semana y tus checadas'}</span>
+          </span>
+          <ChevronRight className="size-5 shrink-0 text-teal-300" />
+        </button>
+        {allowCorrections ? (
+          <button
+            type="button"
+            onClick={onForgot}
+            className="flex min-h-14 w-full items-center gap-3 rounded-2xl px-4 py-3 text-left ring-1 ring-white/20 transition hover:bg-white/10"
+          >
+            <UserRoundCheck className="size-5 shrink-0 text-slate-300" />
+            <span className="min-w-0 flex-1 text-base font-medium text-white">Olvidé checar</span>
+            <ChevronRight className="size-5 shrink-0 text-slate-400" />
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-col items-center gap-2">

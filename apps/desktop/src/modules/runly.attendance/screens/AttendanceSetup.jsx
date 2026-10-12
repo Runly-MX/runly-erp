@@ -23,7 +23,7 @@ const TAB_META = {
   },
   shifts: {
     icon: CalendarClock,
-    description: 'Horario esperado de entrada y salida, con minutos de tolerancia de llegada. Las checadas fuera de tolerancia se marcan como retardo.',
+    description: 'Horario semanal esperado, día por día (por ejemplo, lunes a jueves largos y viernes corto), con descanso y minutos de tolerancia de llegada. Con el turno se calculan retardos, salidas tempranas, faltas y horas extra.',
   },
   quotas: {
     icon: Target,
@@ -35,7 +35,7 @@ const GENERAL_TAB = {
   value: 'general',
   label: 'General',
   icon: Settings2,
-  description: 'Reglas generales de Asistencia: cuánto tiempo se conservan las fotos y ubicaciones de las checadas y si la foto es obligatoria.',
+  description: 'Reglas generales de Asistencia: zona horaria, horas extra y jornada, cuánto tiempo se conservan las fotos y ubicaciones de las checadas y si la foto es obligatoria.',
 }
 const TAB_VALUES = ['general', ...CATALOG_ORDER]
 const TABS = [GENERAL_TAB, ...CATALOG_ORDER.map((kind) => ({ value: kind, label: CATALOGS[kind].label, icon: TAB_META[kind]?.icon ?? Users, description: TAB_META[kind]?.description }))]

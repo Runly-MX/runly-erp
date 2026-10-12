@@ -5,6 +5,7 @@
 // service the HTTP routes use, so answers never exceed what attendance.view
 // returns. No actions: punches are written by kiosks, never from chat.
 // publicLookup: not applicable — attendance data is private to the company.
+import { createAttendanceHours } from './attendance-hours-service.js'
 import { createAttendanceService } from './attendance-service.js'
 
 const LIST_MAX = 30
@@ -87,6 +88,39 @@ export function createAttendanceMiraiCapabilities({ prisma, service = null }) {
     },
   }
 
+  const attendance_overtime = {
+    name: 'attendance_overtime',
+    permission: 'attendance.view',
+    definition: {
+      description: 'Horas por persona frente a su turno en un rango de fechas (maximo 93 dias; sin rango, la ultima semana): horas trabajadas, extras (contadas y por aprobar), retardos, salidas tempranas y faltas. Solo horas, sin pagos. Hasta 30 personas ordenadas por horas extra.',
+      parameters: {
+        type: 'object',
+        properties: {
+          from: { type: 'string', description: 'Primer dia, formato YYYY-MM-DD.' },
+          to: { type: 'string', description: 'Ultimo dia, formato YYYY-MM-DD.' },
+        },
+      },
+    },
+    async run(args, actx) {
+      const day = (v) => (typeof v === 'string' && /^d{4}-d{2}-d{2}/.test(v) ? v.slice(0, 10) : undefined)
+      const report = await hours.report(actx.companyId, { from: day(args?.from), to: day(args?.to) })
+      const t = report.totals
+      return {
+        desde: report.from, hasta: report.to, zonaHoraria: report.timezone, extrasRequierenAprobacion: report.requireOvertimeApproval,
+        totales: {
+          horasTrabajadas: hm(t.workedMinutes), horasExtraContadas: hm(t.countedOvertimeMinutes), horasExtraPorAprobar: hm(t.pendingOvertimeMinutes),
+          retardos: t.lateDays, salidasTempranas: t.earlyLeaveDays, faltas: t.absentDays,
+        },
+        personas: [...report.rows].sort((a, b) => b.totals.overtimeMinutes - a.totals.overtimeMinutes || b.totals.workedMinutes - a.totals.workedMinutes).slice(0, LIST_MAX).map((r) => ({
+          personId: r.person.id, nombre: fullName(r.person), codigo: r.person.code ?? null,
+          horasTrabajadas: hm(r.totals.workedMinutes), horasEsperadas: hm(r.totals.expectedMinutes), horasExtra: hm(r.totals.overtimeMinutes),
+          horasExtraContadas: hm(r.totals.countedOvertimeMinutes), horasExtraPorAprobar: hm(r.totals.pendingOvertimeMinutes),
+          retardos: r.totals.lateDays, salidasTempranas: r.totals.earlyLeaveDays, faltas: r.totals.absentDays,
+        })),
+      }
+    },
+  }
+
   const attendance_person_status = {
     name: 'attendance_person_status',
     permission: 'attendance.view',
@@ -119,8 +153,8 @@ export function createAttendanceMiraiCapabilities({ prisma, service = null }) {
   return {
     moduleKey: 'runly.attendance',
     label: 'Asistencia',
-    summary: 'Checador: buscar personas y ver si estan dentro, quien esta dentro ahora, cumplimiento de cuotas de contratistas y horas trabajadas (solo consulta).',
-    tools: [attendance_person_status, attendance_presence_now, attendance_quota_compliance, attendance_hours],
+    summary: 'Checador: buscar personas y ver si estan dentro, quien esta dentro ahora, cumplimiento de cuotas de contratistas, horas trabajadas y horas extra, retardos y faltas por persona (solo consulta).',
+    tools: [attendance_person_status, attendance_presence_now, attendance_quota_compliance, attendance_hours, attendance_overtime],
     actions: [],
     publicLookup: [],
     async describeContext() { return null },

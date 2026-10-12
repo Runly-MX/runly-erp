@@ -82,3 +82,22 @@ export const useLinkHr = () => useAction(
   'Persona vinculada con RH.',
 )
 export const useUnlinkHr = () => useAction((t, personId) => runly.attendance.unlinkHr(personId, t), 'Vínculo con RH eliminado.')
+
+// ---- Daily hours, overtime review and forgotten-punch requests ---------------
+export const useDaysReport = (query, options = {}) => useRead(['days', query], (t) => runly.attendance.getDaysReport(query, t), { placeholderData: keepPreviousData, ...options })
+export const useReviewDay = () => useAction((t, data) => runly.attendance.reviewDay(data, t), 'Revisión guardada.')
+
+// Returns { data: [...rows], meta: { pending } } as-is (the list and the pending count come together).
+export function useCorrections(status = 'pending') {
+  const token = useToken()
+  return useQuery({
+    queryKey: [KEY, 'corrections', status],
+    queryFn: () => runly.attendance.listCorrections({ status }, token),
+    enabled: Boolean(token),
+    refetchInterval: POLL_MS,
+  })
+}
+export const useResolveCorrection = () => useAction(
+  (t, { id, status, note }) => runly.attendance.resolveCorrection(id, { status, note }, t),
+  'Solicitud resuelta.',
+)

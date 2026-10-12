@@ -1,6 +1,7 @@
 export { default as CatalogFieldRenderer } from './CatalogFieldRenderer.jsx'
 export { DaysChipsField } from './DaysChipsField.jsx'
 export { PinField } from './PinField.jsx'
+export { ScheduleField } from './ScheduleField.jsx'
 export { SiteLocationField } from './SiteLocationField.jsx'
 export { StepperField } from './StepperField.jsx'
 export { TimeSelectField } from './TimeSelectField.jsx'
