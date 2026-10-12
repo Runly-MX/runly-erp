@@ -44,6 +44,19 @@ export function computeDropdownStyle(
   return { top: viewportTop, left: viewportLeft, width };
 }
 
+// z-index for a dropdown portalled to <body>: above every stacked layer the
+// trigger lives in (a Dialog at z-50, a sheet or panel at 10000+ ...), and
+// never below the 9999 baseline that clears ordinary modals.
+export const DROPDOWN_BASE_Z = 9999;
+export function layerZIndexFor(el) {
+  let top = 0;
+  for (let node = el?.parentElement; node && node !== document.body; node = node.parentElement) {
+    const z = Number.parseInt(window.getComputedStyle(node).zIndex, 10);
+    if (Number.isFinite(z) && z > top) top = z;
+  }
+  return Math.max(DROPDOWN_BASE_Z, top + 10);
+}
+
 // Shared plumbing behind ComboboxField/RelationSelectField/CreatableComboboxField:
 // open state, portal position, outside-click-to-close, and reliable autofocus of
 // the search input (a requestAnimationFrame after `open` flips true — fires right
@@ -53,6 +66,7 @@ export function useComboboxPopover({ dropHeight = 260, minWidth = 220 } = {}) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [dropdownStyle, setDropdownStyle] = useState({});
+  const [zIndex, setZIndex] = useState(DROPDOWN_BASE_Z);
   const containerRef = useRef(null);
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
@@ -115,6 +129,7 @@ export function useComboboxPopover({ dropHeight = 260, minWidth = 220 } = {}) {
       const willOpen = !open;
       if (willOpen && containerRef.current) {
         setDropdownStyle(computeDropdownStyle(containerRef.current, dropHeight, minWidth, true));
+        setZIndex(layerZIndexFor(containerRef.current));
       }
       setOpen((o) => !o);
       if (willOpen) onWillOpen?.();
@@ -157,6 +172,7 @@ export function useComboboxPopover({ dropHeight = 260, minWidth = 220 } = {}) {
     search,
     setSearch,
     dropdownStyle,
+    zIndex,
     containerRef,
     dropdownRef,
     searchRef,

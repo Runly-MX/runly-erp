@@ -1125,12 +1125,16 @@ body,
   padding: 0.75rem 0.875rem;
 }
 
-/* Link dialog + toolbar dropdowns must appear above any modal overlay (z-50) */
+/* Popovers, menus and selects must appear above any modal overlay (z-50)
+   and above the high layers that open dialogs/menus of their own: call
+   room panels and sheets (10002), the file viewer (10000), chat sheets
+   (10000-10001). A popover only exists while its trigger is visible, so
+   sitting above those layers never covers anything unrelated. */
 [data-radix-popper-content-wrapper],
 .mdxeditor-popup-container,
 [data-radix-select-viewport],
 [data-radix-dropdown-menu-content] {
-  z-index: 9999 !important;
+  z-index: 10040 !important;
 }
 /* ...except menus that belong to a layer stacked above 9999 (the full-screen
    file viewer opens at z-index 10000), which the rule above would bury

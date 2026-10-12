@@ -118,7 +118,7 @@ export const Combobox = forwardRef(function Combobox(
   const emit = onChange ?? onValueChange;
   const options = rawOptions.map(normalizeOption);
   const {
-    open, search, setSearch, dropdownStyle,
+    open, search, setSearch, dropdownStyle, zIndex,
     containerRef, dropdownRef, searchRef, handleOpen: togglePopover, close,
   } = useComboboxPopover({ dropHeight, minWidth });
   useIsolatedScroll(dropdownRef, open);
@@ -515,7 +515,7 @@ export const Combobox = forwardRef(function Combobox(
                 ...(flipped ? { bottom: dropdownStyle.bottom } : { top: dropdownStyle.top }),
                 left: dropdownStyle.left,
                 width: dropdownStyle.width,
-                zIndex: 9999,
+                zIndex,
                 pointerEvents: open ? "auto" : "none",
               }}
               className={cn(

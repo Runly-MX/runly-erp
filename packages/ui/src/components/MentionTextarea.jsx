@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHand
 import { createPortal } from 'react-dom'
 import { Bot, Megaphone, Shield } from 'lucide-react'
 import { useIsolatedScroll } from '../hooks/useIsolatedScroll.js'
+import { layerZIndexFor } from '../hooks/useComboboxPopover.js'
 
 // Stored format:  @[uuid:DisplayName]
 // Display format: @[DisplayName]   (no UUID visible in textarea)
@@ -453,7 +454,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
             ...(menuPos.place === 'above'
               ? { bottom: Math.max(8, (window.visualViewport?.height ?? window.innerHeight) - menuPos.anchor) }
               : { top: menuPos.anchor }),
-            zIndex: 9999,
+            zIndex: layerZIndexFor(containerRef.current),
             maxHeight: menuPos.maxHeight,
             backdropFilter: 'blur(var(--glass-blur))',
             WebkitBackdropFilter: 'blur(var(--glass-blur))',
