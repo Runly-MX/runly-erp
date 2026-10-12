@@ -30,7 +30,7 @@ export function RunlyReportView({ schema, data }) {
                       {index === 0 ? (
                         <span className="inline-flex items-center justify-end gap-3">
                           <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-[hsl(var(--muted))] sm:block" aria-hidden="true">
-                            <span className="block h-full rounded-full bg-[hsl(var(--primary))]" style={{ width: `${(Number(value ?? 0) / leadMax) * 100}%` }} />
+                            <span className="block h-full rounded-full bg-[var(--brand-primary)]" style={{ width: `${(Number(value ?? 0) / leadMax) * 100}%` }} />
                           </span>
                           {formatMeasure(measure, fields.get(measure.field), value)}
                         </span>

@@ -52,7 +52,7 @@ function ExternalConversationItem({ conv, isActive, onClick }) {
       className={[
         "w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-colors touch-manipulation",
         isActive
-          ? "bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]"
+          ? "bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]"
           : "hover:bg-[hsl(var(--muted))]",
       ].join(" ")}
     >
@@ -74,7 +74,7 @@ function ExternalConversationItem({ conv, isActive, onClick }) {
           </span>
         </div>
         {conv.tracking_code && (
-          <p className="text-[9px] font-mono font-semibold text-[hsl(var(--primary))] opacity-60 mt-0.5 tracking-wide">
+          <p className="text-[9px] font-mono font-semibold text-[var(--brand-primary)] opacity-60 mt-0.5 tracking-wide">
             {conv.tracking_code}
           </p>
         )}
@@ -161,7 +161,7 @@ function ReassignDropdown({ conversationId, currentUserId, onReassigned }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={isPending}
-        className="flex items-center gap-1 text-xs text-[hsl(var(--primary))] hover:underline"
+        className="flex items-center gap-1 text-xs text-[var(--brand-primary)] hover:underline"
       >
         <UserCheck className="h-3 w-3 shrink-0" />
         <span>Reasignar</span>
@@ -181,7 +181,7 @@ function ReassignDropdown({ conversationId, currentUserId, onReassigned }) {
               onClick={() => mutate(op.id)}
               className={[
                 "w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[hsl(var(--muted))] transition-colors text-left",
-                op.id === currentUserId ? "text-[hsl(var(--primary))]" : "",
+                op.id === currentUserId ? "text-[var(--brand-primary)]" : "",
               ].join(" ")}
             >
               <div className="h-6 w-6 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center text-[10px] font-semibold shrink-0 uppercase">
@@ -232,7 +232,7 @@ function VisitorInfoPanel({ conversation, onReassigned }) {
         {trackingCode && (
           <div>
             <p className="text-[10px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-medium mb-1">Numero de seguimiento</p>
-            <p className="text-sm font-mono font-semibold text-[hsl(var(--primary))] tracking-wide select-all">
+            <p className="text-sm font-mono font-semibold text-[var(--brand-primary)] tracking-wide select-all">
               {trackingCode}
             </p>
           </div>
@@ -246,7 +246,7 @@ function VisitorInfoPanel({ conversation, onReassigned }) {
               href={pageUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-[hsl(var(--primary))] hover:underline"
+              className="flex items-center gap-1 text-xs text-[var(--brand-primary)] hover:underline"
             >
               <ExternalLink className="h-3 w-3 shrink-0" />
               <span className="truncate">{pageUrl.replace(/^https?:\/\//, "")}</span>
@@ -424,7 +424,7 @@ export function ExternalInboxScreen() {
                 className={[
                   "flex-1 py-2 text-xs font-medium transition-colors",
                   statusFilter === opt.value
-                    ? "text-[hsl(var(--primary))] border-b-2 border-[hsl(var(--primary))]"
+                    ? "text-[var(--brand-primary)] border-b-2 border-[var(--brand-primary)]"
                     : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
                 ].join(" ")}
               >
@@ -481,7 +481,7 @@ export function ExternalInboxScreen() {
             <div className="flex-1 hidden md:flex items-center justify-center text-[hsl(var(--muted-foreground))]">
               <div className="text-center space-y-3">
                 <div className="mx-auto h-14 w-14 rounded-2xl bg-[hsl(var(--muted))] flex items-center justify-center">
-                  <MessageSquare className="h-7 w-7 text-[hsl(var(--primary)/0.4)]" />
+                  <MessageSquare className="h-7 w-7 text-[var(--brand-primary)]/40" />
                 </div>
                 <p className="text-sm">Selecciona una conversacion</p>
               </div>

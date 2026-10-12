@@ -18,7 +18,7 @@ export function FieldPinButton({ pinned, visible, label, onToggle }) {
       className={cn(
         "absolute right-0 top-0 z-10 flex h-6 w-6 items-center justify-center rounded-md transition-colors",
         pinned
-          ? "bg-[hsl(var(--primary))]/15 text-[hsl(var(--primary))]"
+          ? "bg-[var(--brand-primary)]/15 text-[var(--brand-primary)]"
           : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]",
         visible ? "cursor-pointer" : "cursor-default",
       )}

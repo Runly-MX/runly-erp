@@ -17,7 +17,7 @@ export function DaysChipsField({ label, value, onChange, error, hint }) {
               className={cn(
                 'h-9 min-w-[2.75rem] rounded-full border px-3 text-sm font-medium transition-colors max-sm:h-11',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
-                on ? 'border-transparent bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
+                on ? 'border-transparent bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]' : 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
               )}
             >
               {day.label}

@@ -34,16 +34,16 @@ export function PinnedMessagesBar({
 
   return (
     <div className="shrink-0 flex items-stretch gap-2 border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2)/0.8)] px-2.5 py-1.5">
-      <span className="w-0.5 rounded-full bg-[hsl(var(--primary))] shrink-0" />
+      <span className="w-0.5 rounded-full bg-[var(--brand-primary)] shrink-0" />
       <button
         type="button"
         onClick={handleBarClick}
         className="flex-1 min-w-0 flex items-center gap-2 text-left"
         title="Ir al mensaje fijado"
       >
-        <Pin className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary))]" />
+        <Pin className="h-3.5 w-3.5 shrink-0 text-[var(--brand-primary)]" />
         <span className="min-w-0 flex flex-col">
-          <span className="text-[11px] font-semibold text-[hsl(var(--primary))] leading-tight">
+          <span className="text-[11px] font-semibold text-[var(--brand-primary)] leading-tight">
             {count > 1 ? `Mensajes fijados ${idx + 1}/${count}` : "Mensaje fijado"}
           </span>
           <span className="text-xs text-[hsl(var(--muted-foreground))] truncate leading-tight">

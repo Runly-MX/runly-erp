@@ -40,11 +40,11 @@ function FlagPill({ active, onClick, label = "Principal" }) {
       className={cn(
         "inline-flex h-10 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
         active
-          ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
+          ? "border-[var(--brand-primary)] bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]"
           : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
       )}
     >
-      <span className={cn("h-2 w-2 rounded-full", active ? "bg-[hsl(var(--primary))]" : "bg-[hsl(var(--muted-foreground))]/40")} />
+      <span className={cn("h-2 w-2 rounded-full", active ? "bg-[var(--brand-primary)]" : "bg-[hsl(var(--muted-foreground))]/40")} />
       {label}
     </button>
   );

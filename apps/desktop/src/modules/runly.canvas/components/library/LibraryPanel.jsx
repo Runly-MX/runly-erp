@@ -102,9 +102,9 @@ function LibraryEmpty({ canCreate, importing, onPick, onCreate, onHelp }) {
         <div className="mt-2 w-full space-y-2">
           <button
             type="button" onClick={onPick} disabled={importing}
-            className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-[hsl(var(--border))] px-4 py-5 text-center transition-colors hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.05)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:opacity-60"
+            className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-[hsl(var(--border))] px-4 py-5 text-center transition-colors hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:opacity-60"
           >
-            {importing ? <Loader2 className="size-5 animate-spin text-[hsl(var(--primary))] motion-reduce:animate-none" /> : <FolderUp className="size-5 text-[hsl(var(--primary))]" />}
+            {importing ? <Loader2 className="size-5 animate-spin text-[var(--brand-primary)] motion-reduce:animate-none" /> : <FolderUp className="size-5 text-[var(--brand-primary)]" />}
             <span className="text-sm font-medium">{importing ? 'Importando…' : 'Suelta archivos o elige desde tu equipo'}</span>
             <span className="flex flex-wrap justify-center gap-1">{IMPORT_CHIPS.map((format) => <FormatChip key={format} format={format} />)}</span>
           </button>
@@ -302,12 +302,12 @@ export function LibraryPanel({ open, onOpenChange, onInsert, docked = false }) {
 
   // Indeterminate bar under the header while an import runs.
   const progress = importing ? (
-    <div role="status" aria-label="Importando archivos" className="h-0.5 shrink-0 animate-pulse bg-[hsl(var(--primary))] motion-reduce:animate-none" />
+    <div role="status" aria-label="Importando archivos" className="h-0.5 shrink-0 animate-pulse bg-[var(--brand-primary)] motion-reduce:animate-none" />
   ) : <div className="h-0.5 shrink-0" aria-hidden />
 
   const dropOverlay = fileDrag ? (
-    <div className="pointer-events-none absolute inset-2 z-10 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[hsl(var(--primary))] bg-[hsl(var(--card)/0.92)] p-4 text-center">
-      <FolderUp className="size-6 text-[hsl(var(--primary))]" />
+    <div className="pointer-events-none absolute inset-2 z-10 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--brand-primary)] bg-[hsl(var(--card)/0.92)] p-4 text-center">
+      <FolderUp className="size-6 text-[var(--brand-primary)]" />
       <p className="text-sm font-semibold">Suelta para importar</p>
       <p className="text-xs text-[hsl(var(--muted-foreground))]">Se creará una biblioteca nueva con el nombre del archivo.</p>
       <span className="flex flex-wrap justify-center gap-1">{IMPORT_CHIPS.map((format) => <FormatChip key={format} format={format} />)}</span>

@@ -26,7 +26,7 @@ export function SegmentedControl({ options = [], value, onChange, disabled = fal
               "flex-1 min-w-[88px] rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
               active
-                ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-sm"
+                ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-sm"
                 : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
             )}
           >

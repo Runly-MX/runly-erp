@@ -60,7 +60,7 @@ export function ContactActivityTab({ activity, isLoading, isError }) {
               className={cn(
                 "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
                 moduleFilter === key
-                  ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"
+                  ? "border-[var(--brand-primary)] bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]"
                   : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
               )}
             >
@@ -81,7 +81,7 @@ export function ContactActivityTab({ activity, isLoading, isError }) {
               return (
                 <li key={item.id} className="relative">
                   <span className="absolute -left-[29px] top-3 flex h-4 w-4 items-center justify-center rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand-primary)]" />
                   </span>
                   <button
                     type="button"
@@ -89,10 +89,10 @@ export function ContactActivityTab({ activity, isLoading, isError }) {
                     onClick={() => clickable && navigate(item.url)}
                     className={cn(
                       "flex w-full items-center gap-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-3 text-left",
-                      clickable && "transition-colors hover:border-[hsl(var(--primary))]",
+                      clickable && "transition-colors hover:border-[var(--brand-primary)]",
                     )}
                   >
-                    <Icon className="h-4 w-4 shrink-0 text-[hsl(var(--primary))]" />
+                    <Icon className="h-4 w-4 shrink-0 text-[var(--brand-primary)]" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{item.title}</p>
                       {item.meta && <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{item.meta}</p>}

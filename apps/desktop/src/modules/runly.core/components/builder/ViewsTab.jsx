@@ -297,9 +297,9 @@ function NewViewDialog({ open, onOpenChange, definition, onCreate }) {
                   role="radio"
                   aria-checked={active}
                   onClick={() => setKind(value)}
-                  className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-left transition-colors ${active ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5" : "border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/40"}`}
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-left transition-colors ${active ? "border-[var(--brand-primary)] bg-[var(--brand-primary)]/5" : "border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/40"}`}
                 >
-                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${active ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]" : "bg-[hsl(var(--muted))]"}`}><Icon className="h-4 w-4" /></span>
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${active ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]" : "bg-[hsl(var(--muted))]"}`}><Icon className="h-4 w-4" /></span>
                   <span className="min-w-0">
                     <span className="block text-sm font-medium">{meta.label}</span>
                     <span className="block text-xs text-[hsl(var(--muted-foreground))]">{meta.description}</span>

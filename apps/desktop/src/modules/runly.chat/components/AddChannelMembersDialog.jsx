@@ -80,7 +80,7 @@ export function AddChannelMembersDialog({ open, onClose, conversationId, existin
       <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-[hsl(var(--border))]">
           <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <UserPlus className="h-4 w-4 text-[var(--brand-primary)]" />
             Anadir miembros
           </DialogTitle>
           <DialogDescription>
@@ -102,7 +102,7 @@ export function AddChannelMembersDialog({ open, onClose, conversationId, existin
               {selected.map((u) => (
                 <span
                   key={u.id}
-                  className="inline-flex items-center gap-1.5 text-xs pl-1 pr-2 py-0.5 rounded-full bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]"
+                  className="inline-flex items-center gap-1.5 text-xs pl-1 pr-2 py-0.5 rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]"
                 >
                   <UserAvatar user={u} size="sm" />
                   {u.displayName?.split(" ")[0]}

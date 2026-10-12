@@ -77,7 +77,7 @@ function ConvButton({ conv, currentUserId, isSelected, onClick }) {
       className={[
         "w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors text-left",
         isSelected
-          ? "bg-[hsl(var(--primary)/0.12)] ring-1 ring-inset ring-[hsl(var(--primary)/0.5)]"
+          ? "bg-[var(--brand-primary)]/12 ring-1 ring-inset ring-[var(--brand-primary)]/50"
           : "hover:bg-[hsl(var(--muted))]",
       ].join(" ")}
     >
@@ -117,7 +117,7 @@ function ConvButton({ conv, currentUserId, isSelected, onClick }) {
           className={[
             "absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full flex items-center justify-center transition-all duration-150",
             isSelected
-              ? "bg-[hsl(var(--primary))] scale-100 opacity-100"
+              ? "bg-[var(--brand-primary)] scale-100 opacity-100"
               : "bg-[hsl(var(--border))] scale-75 opacity-0",
           ].join(" ")}
           style={{ boxShadow: "0 0 0 2px hsl(var(--card))" }}
@@ -129,7 +129,7 @@ function ConvButton({ conv, currentUserId, isSelected, onClick }) {
       <div className="flex-1 min-w-0">
         <p className={[
           "text-sm font-medium truncate transition-colors",
-          isSelected ? "text-[hsl(var(--primary))]" : "",
+          isSelected ? "text-[var(--brand-primary)]" : "",
         ].join(" ")}>
           {name}
         </p>
@@ -238,7 +238,7 @@ export function ForwardMessageModal({ open, onClose, messageIds = [], sourceMess
               placeholder="Buscar conversacion..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-[hsl(var(--muted))] rounded-xl border border-[hsl(var(--border))] outline-none placeholder:text-[hsl(var(--muted-foreground))] focus:ring-2 focus:ring-[hsl(var(--primary)/0.35)] transition-shadow"
+              className="w-full pl-10 pr-4 py-2.5 text-sm bg-[hsl(var(--muted))] rounded-xl border border-[hsl(var(--border))] outline-none placeholder:text-[hsl(var(--muted-foreground))] focus:ring-2 focus:ring-[var(--brand-primary)]/35 transition-shadow"
             />
           </div>
 

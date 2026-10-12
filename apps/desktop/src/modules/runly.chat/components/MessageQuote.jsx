@@ -118,7 +118,7 @@ export function MessageQuote({ reply, variant = "inline", context = "standalone"
       onPointerDown={(e) => e.stopPropagation()}
       onPointerUp={(e) => e.stopPropagation()}
       className={[
-        "w-full mb-1.5 block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.35)]",
+        "w-full mb-1.5 block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)]/35",
         reply.isDeleted ? "cursor-default" : "cursor-pointer hover:opacity-90",
       ].join(" ")}
     >

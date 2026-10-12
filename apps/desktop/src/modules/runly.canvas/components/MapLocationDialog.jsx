@@ -77,7 +77,7 @@ export function MapLocationDialog({ open, onOpenChange, current, hasManualCalibr
                       className={cn(
                         'w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors',
                         index === pickedIndex
-                          ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)]'
+                          ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/8'
                           : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted)/0.5)]',
                       )}
                     >

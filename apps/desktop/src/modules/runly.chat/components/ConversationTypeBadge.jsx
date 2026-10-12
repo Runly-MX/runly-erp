@@ -17,7 +17,7 @@ export function ConversationTypeBadge({ type, className = "" }) {
   if (type === "channel") {
     return (
       <span className={`absolute -bottom-0.5 -right-0.5 flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(var(--background))] ring-2 ring-[hsl(var(--background))] shadow-sm ${className}`}>
-        <Hash className="h-2.5 w-2.5 text-[hsl(var(--primary))] stroke-3" />
+        <Hash className="h-2.5 w-2.5 text-[var(--brand-primary)] stroke-3" />
       </span>
     );
   }

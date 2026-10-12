@@ -24,7 +24,7 @@ function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = fals
         >
           <Sparkles className="h-4 w-4" />
         </div>
-        <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-[hsl(var(--background))] px-1 text-[9px] font-bold leading-tight text-[hsl(var(--primary))] ring-1 ring-[hsl(var(--primary)/0.4)]">
+        <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-[hsl(var(--background))] px-1 text-[9px] font-bold leading-tight text-[var(--brand-primary)] ring-1 ring-[var(--brand-primary)]/40">
           IA
         </span>
       </div>
@@ -103,7 +103,7 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
         className={[
           "w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-colors",
           isActive
-            ? "bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] shadow-[0_0_16px_hsl(var(--primary)/0.18)] ring-1 ring-[hsl(var(--primary)/0.25)]"
+            ? "bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] shadow-[0_0_16px_color-mix(in_srgb,var(--brand-primary)_18%,transparent)] ring-1 ring-[var(--brand-primary)]/25"
             : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
         ].join(" ")}
       >
@@ -137,7 +137,7 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
                 </span>
               )}
               {unread > 0 && (
-                <span className="inline-flex items-center justify-center h-4.5 min-w-[1.125rem] px-1 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-[10px] font-semibold">
+                <span className="inline-flex items-center justify-center h-4.5 min-w-[1.125rem] px-1 rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] text-[10px] font-semibold">
                   {unread > 99 ? "99+" : unread}
                 </span>
               )}

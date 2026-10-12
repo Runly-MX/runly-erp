@@ -55,7 +55,7 @@ function CopyButton({ text, label = 'Copiar', size = 'sm' }) {
           : 'text-sm px-3 py-1.5',
         copied
           ? 'border-green-500/40 bg-green-500/10 text-green-500'
-          : 'border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary))]',
+          : 'border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:border-[var(--brand-primary)]',
       ].join(' ')}
     >
       {copied
@@ -152,17 +152,17 @@ function FormCard({ form, active, onClick }) {
       className={[
         'w-full text-left rounded-xl border p-3.5 cursor-pointer',
         active
-          ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.06)] shadow-sm'
+          ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/6 shadow-sm'
           : 'border-[hsl(var(--border))]',
       ].join(' ')}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
-        <span className={`text-sm font-semibold leading-tight truncate ${active ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--foreground))]'}`}>
+        <span className={`text-sm font-semibold leading-tight truncate ${active ? 'text-[var(--brand-primary)]' : 'text-[hsl(var(--foreground))]'}`}>
           {form.name}
         </span>
         {form.wizardMode
           ? <span className="text-[10px] font-semibold shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-500 border border-violet-500/20">WIZARD</span>
-          : <FileText size={13} className={`shrink-0 mt-0.5 ${active ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]'}`} />
+          : <FileText size={13} className={`shrink-0 mt-0.5 ${active ? 'text-[var(--brand-primary)]' : 'text-[hsl(var(--muted-foreground))]'}`} />
         }
       </div>
 
@@ -509,7 +509,7 @@ export default function WebsiteFormsScreen() {
                       <TabsTrigger value="envios">
                         Envíos
                         {subCount > 0 && (
-                          <span className="ml-1.5 text-[10px] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-full px-1.5 py-0.5 leading-none">
+                          <span className="ml-1.5 text-[10px] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] rounded-full px-1.5 py-0.5 leading-none">
                             {subCount}
                           </span>
                         )}

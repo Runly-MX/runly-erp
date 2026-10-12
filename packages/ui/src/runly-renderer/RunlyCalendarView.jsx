@@ -24,7 +24,7 @@ function gridDays(month) {
 }
 
 function Chip({ record, schema, titleField, colorField, onOpen }) {
-  const color = colorField ? accentFor(colorField, record[schema.colorField]) : "hsl(var(--primary))";
+  const color = colorField ? accentFor(colorField, record[schema.colorField]) : "var(--brand-primary)";
   const label = formatFieldValue(titleField, record[schema.titleField]);
   const Tag = onOpen ? "button" : "span";
   return (
@@ -92,7 +92,7 @@ export function RunlyCalendarView({ schema, data, month, onMonthChange, onOpen }
             const inMonth = date.getMonth() === month.getMonth();
             return (
               <div key={key} className={`min-h-28 space-y-1 border-b border-r border-[hsl(var(--border))] p-1.5 [&:nth-child(7n)]:border-r-0 ${inMonth ? "" : "bg-[hsl(var(--muted))]/30"}`}>
-                <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs tabular-nums ${key === todayKey ? "bg-[hsl(var(--primary))] font-semibold text-[hsl(var(--primary-foreground))]" : inMonth ? "" : "text-[hsl(var(--muted-foreground))]"}`}>
+                <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs tabular-nums ${key === todayKey ? "bg-[var(--brand-primary)] font-semibold text-[var(--brand-primary-foreground)]" : inMonth ? "" : "text-[hsl(var(--muted-foreground))]"}`}>
                   {date.getDate()}
                 </span>
                 {records.slice(0, MAX_CHIPS).map((record) => (
@@ -108,7 +108,7 @@ export function RunlyCalendarView({ schema, data, month, onMonthChange, onOpen }
       <div className="space-y-3 sm:hidden">
         {agendaDays.map((key) => (
           <section key={key} className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3">
-            <h3 className={`mb-1 text-sm font-medium capitalize ${key === todayKey ? "text-[hsl(var(--primary))]" : ""}`}>{agendaDayFmt.format(toLocalDate(key))}</h3>
+            <h3 className={`mb-1 text-sm font-medium capitalize ${key === todayKey ? "text-[var(--brand-primary)]" : ""}`}>{agendaDayFmt.format(toLocalDate(key))}</h3>
             {byDay.get(key).map((record) => (
               <Chip key={record.id} record={record} schema={schema} titleField={titleField} colorField={colorField} onOpen={onOpen} />
             ))}

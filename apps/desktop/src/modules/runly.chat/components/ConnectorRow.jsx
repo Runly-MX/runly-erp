@@ -33,7 +33,7 @@ export function ConnectorRow({ entityType, opt, isSelected = false, disabled = f
       title={opt.label}
       className={[
         "flex items-center gap-2 w-full rounded-lg px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
-        isSelected ? "bg-[hsl(var(--primary)/0.1)] ring-1 ring-[hsl(var(--primary))]" : "hover:bg-[hsl(var(--muted))]",
+        isSelected ? "bg-[var(--brand-primary)]/10 ring-1 ring-[var(--brand-primary)]" : "hover:bg-[hsl(var(--muted))]",
         disabled ? "opacity-40 cursor-not-allowed" : "",
       ].join(" ")}
     >

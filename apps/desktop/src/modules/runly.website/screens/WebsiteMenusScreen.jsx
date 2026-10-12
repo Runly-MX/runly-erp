@@ -181,7 +181,7 @@ export default function WebsiteMenusScreen() {
                 onClick={() => setSelectedMenuId(menu.id)}
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   activeId === menu.id
-                    ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-medium"
+                    ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] font-medium"
                     : "text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]"
                 }`}
               >

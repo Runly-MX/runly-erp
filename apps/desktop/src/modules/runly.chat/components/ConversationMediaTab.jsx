@@ -115,7 +115,7 @@ export function ConversationMediaTab({ conversationId, messages: loadedMessages,
         <button
           type="button"
           onClick={onShowAll}
-          className="mx-3 mb-3 text-xs font-medium text-[hsl(var(--primary))] hover:underline text-center"
+          className="mx-3 mb-3 text-xs font-medium text-[var(--brand-primary)] hover:underline text-center"
         >
           Mostrar mas
         </button>
@@ -128,7 +128,7 @@ export function ConversationMediaTab({ conversationId, messages: loadedMessages,
           <button
             type="button"
             onClick={handleBulkDownload}
-            className="text-xs font-medium px-3 py-1.5 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity"
+            className="text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] hover:opacity-90 transition-opacity"
           >
             Descargar ({selectedIds.size})
           </button>

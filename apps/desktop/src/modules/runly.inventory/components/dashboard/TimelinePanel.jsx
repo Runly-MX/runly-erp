@@ -75,7 +75,7 @@ export function TimelinePanel({ onOpenList }) {
             {[{ value: 'bar', icon: BarChart3, label: 'Barras' }, { value: 'line', icon: LineIcon, label: 'Líneas' }, { value: 'area', icon: AreaIcon, label: 'Áreas' }].map((o) => (
               <button key={o.value} type="button" role="radio" aria-checked={kind === o.value} title={o.label} onClick={() => setKind(o.value)}
                 className={cn('flex h-8 w-8 items-center justify-center rounded-full transition-colors',
-                  kind === o.value ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]')}>
+                  kind === o.value ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]' : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]')}>
                 <o.icon className="h-4 w-4" />
               </button>
             ))}
@@ -118,12 +118,12 @@ export function TimelinePanel({ onOpenList }) {
               <XAxis dataKey="label" tick={AXIS} axisLine={false} tickLine={false} minTickGap={16} />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
               <Tooltip content={<ChartTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.35)' }} />
-              {point ? <ReferenceArea x1={point.label} x2={point.label} fill="hsl(var(--primary))" fillOpacity={0.08} /> : null}
+              {point ? <ReferenceArea x1={point.label} x2={point.label} fill="var(--brand-primary)" fillOpacity={0.08} /> : null}
               {view === 'growth'
                 ? <Area dataKey="vigentes" name="Activos vigentes" type="monotone" stroke="var(--viz-7)" strokeWidth={3} fill="url(#tl-vigentes)" activeDot={{ r: 6 }} isAnimationActive={false} />
                 : shown.map(renderSeries)}
               {view === 'movements' ? <Legend iconType="circle" iconSize={9} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} /> : null}
-              {rows.length > 8 ? <Brush dataKey="label" height={26} travellerWidth={10} stroke="hsl(var(--primary))" fill="hsl(var(--card))" /> : null}
+              {rows.length > 8 ? <Brush dataKey="label" height={26} travellerWidth={10} stroke="var(--brand-primary)" fill="hsl(var(--card))" /> : null}
             </ComposedChart>
           </ResponsiveContainer>
         </div>

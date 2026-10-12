@@ -44,6 +44,14 @@ html {
   /* Field borders: darker than --border so inputs stay legible on white cards. */
   --input: 214 14% 78%;
   --ring: 195 98% 56%;
+  /* shadcn-style raw tokens other components read through hsl(var(--x)); they were
+     undefined, which silently dropped those declarations. */
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
 
   /* Realistic notebook paper effects (runly.notes "Estilo de hoja" +
      "Efectos de papel") — deliberately distinct from --border, warm/paper
@@ -1087,10 +1095,10 @@ body,
 /* ── MDXEditor theme overrides ────────────────────────────── */
 /* Adapt MDXEditor's CSS variables to the app's design tokens  */
 .mdxeditor {
-  --accentBase: hsl(var(--primary));
-  --accentBgSubtle: hsl(var(--primary) / 0.08);
-  --accentBgHover: hsl(var(--primary) / 0.12);
-  --accentText: hsl(var(--primary));
+  --accentBase: var(--brand-primary);
+  --accentBgSubtle: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+  --accentBgHover: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  --accentText: var(--brand-primary);
   --baseBase: hsl(var(--foreground));
   --baseBg: hsl(var(--card));
   --basePageBg: hsl(var(--card));
@@ -1098,8 +1106,8 @@ body,
   --baseBgHover: hsl(var(--muted));
   --baseBgActive: hsl(var(--border));
   --baseBorder: hsl(var(--border));
-  --baseSolid: hsl(var(--primary));
-  --baseSolidHover: hsl(var(--primary));
+  --baseSolid: var(--brand-primary);
+  --baseSolidHover: var(--brand-primary);
   --baseText: hsl(var(--foreground));
   --baseTextContrast: hsl(var(--foreground));
   font-family: inherit;
@@ -1240,8 +1248,8 @@ body,
     border-color 0.1s;
 }
 .mdx-prose .task-list-item input[type="checkbox"]:checked {
-  background-color: var(--md-accent-color, hsl(var(--primary)));
-  border-color: var(--md-accent-color, hsl(var(--primary)));
+  background-color: var(--md-accent-color, var(--brand-primary));
+  border-color: var(--md-accent-color, var(--brand-primary));
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 5.5L4 7.5L8 3' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
@@ -1260,11 +1268,11 @@ body,
 }
 
 .mdx-prose a {
-  color: hsl(var(--primary));
+  color: var(--brand-primary);
   font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: hsl(var(--primary) / 0.45);
+  text-decoration-color: color-mix(in srgb, var(--brand-primary) 45%, transparent);
   border-radius: 2px;
   padding: 0 1px;
   transition:
@@ -1272,8 +1280,8 @@ body,
     text-decoration-color 0.12s;
 }
 .mdx-prose a:hover {
-  text-decoration-color: hsl(var(--primary));
-  background: hsl(var(--primary) / 0.08);
+  text-decoration-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
 }
 
 .mdx-prose code {

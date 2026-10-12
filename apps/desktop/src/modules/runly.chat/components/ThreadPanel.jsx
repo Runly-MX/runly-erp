@@ -130,7 +130,7 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
           {wallpaperLayer}
           <SheetHeader className="px-4 pt-1">
             <SheetTitle className="chat-font-display flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-[hsl(var(--primary))]" />
+              <MessageSquare className="h-4 w-4 text-[var(--brand-primary)]" />
               Hilo
             </SheetTitle>
           </SheetHeader>

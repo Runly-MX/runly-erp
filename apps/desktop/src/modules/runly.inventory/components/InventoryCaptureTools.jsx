@@ -64,7 +64,7 @@ export function InventoryCaptureTools({ values, patchValues, disabled, settings,
             <Pin className={cn('mr-1.5 h-3.5 w-3.5', pinnedCount > 0 && 'fill-current')} />
             {settings.pinMode ? 'Listo' : 'Fijar campos'}
             {pinnedCount > 0 ? (
-              <span className="ml-1.5 rounded-full bg-[hsl(var(--primary))]/15 px-1.5 text-xs tabular-nums">{pinnedCount}</span>
+              <span className="ml-1.5 rounded-full bg-[var(--brand-primary)]/15 px-1.5 text-xs tabular-nums">{pinnedCount}</span>
             ) : null}
           </Button>
           <SwitchField label="Captura continua" checked={settings.continuous} disabled={disabled}
@@ -73,7 +73,7 @@ export function InventoryCaptureTools({ values, patchValues, disabled, settings,
       </div>
 
       {settings.pinMode ? (
-        <p className="border-t border-[hsl(var(--border))] bg-[hsl(var(--primary))]/5 px-4 py-2 text-xs text-[hsl(var(--muted-foreground))]">
+        <p className="border-t border-[hsl(var(--border))] bg-[var(--brand-primary)]/5 px-4 py-2 text-xs text-[hsl(var(--muted-foreground))]">
           Toca el pin de cada campo para fijarlo. Los campos fijados conservan su valor al guardar y al recargar la página en este navegador.
         </p>
       ) : null}

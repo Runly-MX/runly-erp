@@ -30,7 +30,7 @@ export function RunlyTimelineView({ schema, data, onOpen }) {
           </h3>
           <ol className="relative ml-2 space-y-3 border-l-2 border-[hsl(var(--border))] pl-6">
             {group.records.map((record) => {
-              const accent = badgeField ? accentFor(badgeField, record[schema.badgeField]) : "hsl(var(--primary))";
+              const accent = badgeField ? accentFor(badgeField, record[schema.badgeField]) : "var(--brand-primary)";
               const Tag = onOpen ? "button" : "div";
               return (
                 <li key={record.id} className="relative">

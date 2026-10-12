@@ -80,7 +80,7 @@ export function TagsComboboxField({
           {value.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/10 px-2.5 py-0.5 text-xs font-medium text-[hsl(var(--primary))]"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--brand-primary)]/30 bg-[var(--brand-primary)]/10 px-2.5 py-0.5 text-xs font-medium text-[var(--brand-primary)]"
             >
               {tag}
               {!disabled && (
@@ -129,7 +129,7 @@ export function TagsComboboxField({
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => add(trimmed)}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-[hsl(var(--primary))] hover:bg-[hsl(var(--accent))]"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-[var(--brand-primary)] hover:bg-[hsl(var(--accent))]"
                 >
                   <Plus className="h-3.5 w-3.5" /> Crear «{trimmed}»
                 </button>

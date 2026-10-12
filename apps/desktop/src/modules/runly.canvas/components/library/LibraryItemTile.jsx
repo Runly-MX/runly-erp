@@ -72,7 +72,7 @@ export function LibraryItemTile({ item, libraryId, imageUrl, onInsert, onRename,
               // not the OS "save image / select text" one.
               className="group flex min-w-0 cursor-pointer touch-manipulation select-none flex-col [-webkit-touch-callout:none] items-center gap-1 rounded-lg p-1 text-center outline-none transition-colors hover:bg-[hsl(var(--muted)/0.7)] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] active:scale-[0.97] data-[state=open]:bg-[hsl(var(--muted))] motion-reduce:active:scale-100"
             >
-              <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.45)] p-1.5 transition-colors group-hover:border-[hsl(var(--primary)/0.5)]">
+              <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.45)] p-1.5 transition-colors group-hover:border-[var(--brand-primary)]/50">
                 {thumbnail ? (
                   <img src={thumbnail} alt="" className="max-h-full max-w-full object-contain" draggable={false} />
                 ) : item.kind === 'image' ? (

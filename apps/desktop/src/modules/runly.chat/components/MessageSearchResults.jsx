@@ -26,7 +26,7 @@ function HighlightedSpan({ text, matchRanges, radius, className }) {
         s.mark ? (
           <mark
             key={i}
-            className="rounded px-0.5 bg-[hsl(var(--primary)/0.25)] text-[hsl(var(--foreground))]"
+            className="rounded px-0.5 bg-[var(--brand-primary)]/25 text-[hsl(var(--foreground))]"
           >
             {s.text}
           </mark>

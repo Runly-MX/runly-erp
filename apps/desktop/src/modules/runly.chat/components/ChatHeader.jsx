@@ -203,7 +203,7 @@ export function ChatHeader({
           type="button"
           onClick={onToggleFilesView}
           title={filesView ? "Ver mensajes" : "Ver archivos"}
-          className={[headerBtnCls, filesView ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]" : ""].join(" ")}
+          className={[headerBtnCls, filesView ? "text-[var(--brand-primary)] bg-[var(--brand-primary)]/10" : ""].join(" ")}
         >
           {filesView ? <MessageSquare className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
         </button>
@@ -371,7 +371,7 @@ export function ChatHeader({
           className={[
             headerBtnCls,
             "hidden sm:flex",
-            filesView ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]" : "",
+            filesView ? "text-[var(--brand-primary)] bg-[var(--brand-primary)]/10" : "",
           ].join(" ")}
         >
           {filesView ? <MessageSquare className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
@@ -381,7 +381,7 @@ export function ChatHeader({
         {pinnedCount > 0 && (
           <button type="button" onClick={onOpenPinned} title="Mensajes fijados" className={[headerBtnCls, "relative hidden sm:flex"].join(" ")}>
             <Pin className="h-4 w-4" />
-            <span className="absolute -top-1 -right-1 h-4 min-w-4 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-[9px] font-bold flex items-center justify-center px-1 ring-2 ring-[hsl(var(--background))]">
+            <span className="absolute -top-1 -right-1 h-4 min-w-4 rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] text-[9px] font-bold flex items-center justify-center px-1 ring-2 ring-[hsl(var(--background))]">
               {pinnedCount > 9 ? "9+" : pinnedCount}
             </span>
           </button>

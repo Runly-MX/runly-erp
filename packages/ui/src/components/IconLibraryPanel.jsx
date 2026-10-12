@@ -32,7 +32,7 @@ function IconButton({ name, label, active, color, onSelect }) {
         "flex aspect-square w-full cursor-pointer items-center justify-center rounded-lg border transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
         active
-          ? cn("border-transparent", color ? "text-white" : "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]")
+          ? cn("border-transparent", color ? "text-white" : "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]")
           : "border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted)/0.7)]",
       )}
       style={active && color ? { backgroundColor: color } : undefined}

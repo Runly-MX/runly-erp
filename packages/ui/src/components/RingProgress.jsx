@@ -37,7 +37,7 @@ export function RingProgress({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={color || "hsl(var(--primary))"}
+          stroke={color || "var(--brand-primary)"}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}

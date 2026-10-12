@@ -54,7 +54,7 @@ function Bubble({ role, content, ttsEnabled, speech }) {
           // toward min-content in a flex/grid context (see chatRichText.jsx).
           "min-w-0 max-w-[80%] wrap-anywhere rounded-2xl px-3 py-2 text-sm",
           isUser
-            ? "whitespace-pre-wrap bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
+            ? "whitespace-pre-wrap bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]"
             : "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
         ].join(" ")}
       >
@@ -65,7 +65,7 @@ function Bubble({ role, content, ttsEnabled, speech }) {
           type="button"
           onClick={handleSpeak}
           title={playing ? "Detener" : "Leer en voz alta"}
-          className="flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-full text-[hsl(var(--muted-foreground))] opacity-0 transition hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] group-hover/bubble:opacity-100 focus-visible:opacity-100"
+          className="flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-full text-[hsl(var(--muted-foreground))] opacity-0 transition hover:bg-[var(--brand-primary)]/10 hover:text-[var(--brand-primary)] group-hover/bubble:opacity-100 focus-visible:opacity-100"
         >
           {loading
             ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -134,7 +134,7 @@ export function MirAIPanel({ open, onOpenChange, conversationId, focusMessage })
       >
         <SheetHeader>
           <SheetTitle className="chat-font-display flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <Sparkles className="h-4 w-4 text-[var(--brand-primary)]" />
             <AssistantWordmark />
             <span className="text-xs font-normal text-[hsl(var(--muted-foreground))]">· solo tú ves esto</span>
           </SheetTitle>

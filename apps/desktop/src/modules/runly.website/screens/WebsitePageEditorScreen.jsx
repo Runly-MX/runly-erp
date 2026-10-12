@@ -211,7 +211,7 @@ export default function WebsitePageEditorScreen({
       <div className="flex flex-col items-center justify-center h-screen gap-3 text-sm">
         <p className="text-red-400">No se pudo cargar la pagina.</p>
         <button
-          className="text-[hsl(var(--primary))] hover:underline"
+          className="text-[var(--brand-primary)] hover:underline"
           onClick={() => window.location.reload()}
         >
           Reintentar

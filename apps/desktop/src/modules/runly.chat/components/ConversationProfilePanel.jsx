@@ -61,9 +61,9 @@ function ProfileCallActions({ disabled, onStartAudioCall, onStartVideoCall }) {
           disabled={disabled}
           aria-label={`Iniciar ${label.toLowerCase()}`}
           aria-busy={disabled || undefined}
-          className="h-auto min-h-[72px] flex-col gap-1.5 rounded-xl border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-3 text-center shadow-sm hover:border-[hsl(var(--primary)/0.45)] hover:bg-[hsl(var(--primary)/0.06)]"
+          className="h-auto min-h-[72px] flex-col gap-1.5 rounded-xl border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-3 text-center shadow-sm hover:border-[var(--brand-primary)]/45 hover:bg-[var(--brand-primary)]/6"
         >
-          <Icon className="h-4 w-4 text-[hsl(var(--primary))]" />
+          <Icon className="h-4 w-4 text-[var(--brand-primary)]" />
           <span className="text-xs font-semibold leading-none">{label}</span>
           <span className="text-[10px] font-normal leading-none text-[hsl(var(--muted-foreground))]">
             {disabled ? "Conectando..." : description}
@@ -257,7 +257,7 @@ export function ConversationProfilePanel({
             <button
               type="button"
               onClick={() => setDescExpanded((v) => !v)}
-              className="mx-auto mt-0.5 flex items-center gap-0.5 text-[11px] font-medium text-[hsl(var(--primary))] hover:underline"
+              className="mx-auto mt-0.5 flex items-center gap-0.5 text-[11px] font-medium text-[var(--brand-primary)] hover:underline"
             >
               {descExpanded ? "Ver menos" : "Ver mas"}
               <ChevronDown className={["h-3 w-3 transition-transform", descExpanded ? "rotate-180" : ""].join(" ")} />
@@ -314,7 +314,7 @@ export function ConversationProfilePanel({
                 {otherMemberForHero.email && (
                   <a
                     href={`mailto:${otherMemberForHero.email}`}
-                    className="flex items-center gap-2.5 text-sm hover:text-[hsl(var(--primary))] transition-colors"
+                    className="flex items-center gap-2.5 text-sm hover:text-[var(--brand-primary)] transition-colors"
                   >
                     <Mail className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
                     <span className="truncate">{otherMemberForHero.email}</span>
@@ -323,7 +323,7 @@ export function ConversationProfilePanel({
                 {otherMemberForHero.phone && (
                   <a
                     href={`tel:${otherMemberForHero.phone}`}
-                    className="flex items-center gap-2.5 text-sm hover:text-[hsl(var(--primary))] transition-colors"
+                    className="flex items-center gap-2.5 text-sm hover:text-[var(--brand-primary)] transition-colors"
                   >
                     <Phone className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
                     <span className="truncate">{otherMemberForHero.phone}</span>

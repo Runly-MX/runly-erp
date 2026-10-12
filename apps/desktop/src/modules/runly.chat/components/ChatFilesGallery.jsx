@@ -174,7 +174,7 @@ function MediaSelectionCircle({ isSelected }) {
         "absolute top-1.5 right-1.5 h-4 w-4 rounded-full flex items-center justify-center transition-all duration-150",
         "shadow-[0_1px_4px_rgba(0,0,0,0.7)]",
         isSelected
-          ? "bg-[hsl(var(--primary))] ring-2 ring-white scale-110"
+          ? "bg-[var(--brand-primary)] ring-2 ring-white scale-110"
           : "bg-black/30 ring-2 ring-white/90",
       ].join(" ")}
     >
@@ -295,7 +295,7 @@ export function ChatFilesGallery({
                 <button
                   type="button"
                   onClick={onCancelSelection}
-                  className="text-[10px] font-medium text-[hsl(var(--primary))] hover:underline"
+                  className="text-[10px] font-medium text-[var(--brand-primary)] hover:underline"
                 >
                   Cancelar
                 </button>
@@ -304,7 +304,7 @@ export function ChatFilesGallery({
               <button
                 type="button"
                 onClick={onEnterSelection}
-                className="text-[10px] font-medium text-[hsl(var(--primary))] hover:underline"
+                className="text-[10px] font-medium text-[var(--brand-primary)] hover:underline"
               >
                 Seleccionar
               </button>

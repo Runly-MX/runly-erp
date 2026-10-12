@@ -25,7 +25,7 @@ export function PinnedMessagesSheet({ open, onOpenChange, conversationId, curren
       >
         <SheetHeader>
           <SheetTitle className="chat-font-display flex items-center gap-2">
-            <Pin className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <Pin className="h-4 w-4 text-[var(--brand-primary)]" />
             Mensajes fijados
           </SheetTitle>
         </SheetHeader>

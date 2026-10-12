@@ -83,11 +83,11 @@ export function LibraryHelpView({ canImport, onImport }) {
                   className="group flex items-start gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[hsl(var(--muted))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium leading-snug group-hover:text-[hsl(var(--primary))]">{title}</p>
+                    <p className="text-sm font-medium leading-snug group-hover:text-[var(--brand-primary)]">{title}</p>
                     <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{host}</p>
                     {hint ? <p className="mt-1 text-xs leading-snug text-[hsl(var(--muted-foreground))]">{hint}</p> : null}
                   </div>
-                  <ExternalLink className="mt-0.5 size-3.5 shrink-0 text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--primary))]" aria-hidden />
+                  <ExternalLink className="mt-0.5 size-3.5 shrink-0 text-[hsl(var(--muted-foreground))] group-hover:text-[var(--brand-primary)]" aria-hidden />
                 </a>
               </li>
             ))}
@@ -98,7 +98,7 @@ export function LibraryHelpView({ canImport, onImport }) {
           <ol className="space-y-2 px-1">
             {SAVE_STEPS.map((step, index) => (
               <li key={step} className="flex items-start gap-2.5 text-sm">
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.12)] text-[11px] font-semibold text-[hsl(var(--primary))]">{index + 1}</span>
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)]/12 text-[11px] font-semibold text-[var(--brand-primary)]">{index + 1}</span>
                 <span className="leading-snug">{step}</span>
               </li>
             ))}

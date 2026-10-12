@@ -108,7 +108,7 @@ export function SiteLocationField({ label = 'Ubicación', value, onChange }) {
               <span className="flex items-center gap-1.5 text-sm tabular-nums"><MapPin className="h-4 w-4 text-teal-600" aria-hidden="true" />{located ? formatCoords(loc.latitude, loc.longitude) : 'Coordenadas incompletas'}</span>
               {located ? <a
                 href={osmUrl(loc.latitude, loc.longitude)} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-sm text-[hsl(var(--primary))] underline-offset-2 hover:underline"
+                className="inline-flex items-center gap-1 text-sm text-[var(--brand-primary)] underline-offset-2 hover:underline"
               >
                 Abrir en el mapa<ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
               </a> : null}

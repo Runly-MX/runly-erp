@@ -50,7 +50,7 @@ function ImageTile({ file, thumbnailUrl, loading, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="relative group aspect-square rounded-lg overflow-hidden border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] hover:border-[hsl(var(--primary)/0.6)] transition-colors"
+      className="relative group aspect-square rounded-lg overflow-hidden border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] hover:border-[var(--brand-primary)]/60 transition-colors"
     >
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center">

@@ -30,7 +30,7 @@ function PanelShell({ icon: Icon, title, subtitle, children }) {
     <div className="absolute inset-0 overflow-auto p-4 md:p-8">
       <div className="mx-auto w-full max-w-3xl space-y-4">
         <div className="flex items-center gap-3">
-          <Icon className="h-5 w-5 shrink-0 text-[hsl(var(--primary))]" />
+          <Icon className="h-5 w-5 shrink-0 text-[var(--brand-primary)]" />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-[hsl(var(--foreground))]">{title}</p>
             {subtitle && <p className="text-xs text-[hsl(var(--muted-foreground))]">{subtitle}</p>}

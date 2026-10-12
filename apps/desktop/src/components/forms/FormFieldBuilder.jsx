@@ -77,13 +77,13 @@ function CardOptionsEditor({ value, onChange }) {
         <div key={i} className="flex gap-2 items-start rounded-lg border border-[hsl(var(--border))] p-2.5 bg-[hsl(var(--background))]">
           <div className="flex-1 space-y-1.5">
             <input
-              className="w-full text-sm border border-[hsl(var(--border))] rounded-md px-2.5 py-1.5 bg-[hsl(var(--background))] text-[hsl(var(--foreground))] outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
+              className="w-full text-sm border border-[hsl(var(--border))] rounded-md px-2.5 py-1.5 bg-[hsl(var(--background))] text-[hsl(var(--foreground))] outline-none focus:ring-1 focus:ring-[var(--brand-primary)]"
               placeholder="Titulo de la opcion"
               value={opt.label}
               onChange={e => update(i, 'label', e.target.value)}
             />
             <input
-              className="w-full text-xs border border-[hsl(var(--border))] rounded-md px-2.5 py-1.5 bg-[hsl(var(--background))] text-[hsl(var(--muted-foreground))] outline-none focus:ring-1 focus:ring-[hsl(var(--primary))]"
+              className="w-full text-xs border border-[hsl(var(--border))] rounded-md px-2.5 py-1.5 bg-[hsl(var(--background))] text-[hsl(var(--muted-foreground))] outline-none focus:ring-1 focus:ring-[var(--brand-primary)]"
               placeholder="Descripcion (opcional)"
               value={opt.description}
               onChange={e => update(i, 'description', e.target.value)}
@@ -101,7 +101,7 @@ function CardOptionsEditor({ value, onChange }) {
       <button
         type="button"
         onClick={add}
-        className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))] transition-colors flex items-center justify-center gap-1"
+        className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors flex items-center justify-center gap-1"
       >
         <Plus size={12} /> Agregar opcion
       </button>
@@ -337,7 +337,7 @@ function SortableField({ field, onEdit, onDelete, wizardMode }) {
       {field.required && <span className="text-[10px] text-red-500 font-mono">*</span>}
       <span className="text-xs font-mono text-[hsl(var(--muted-foreground))]">{field.fieldType}</span>
       {wizardMode && (
-        <span className="text-[10px] rounded-full bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] px-2 py-0.5 font-semibold">
+        <span className="text-[10px] rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] px-2 py-0.5 font-semibold">
           Paso {field.stepNumber ?? 1}
         </span>
       )}
@@ -495,7 +495,7 @@ export default function FormFieldBuilder({ formId, fields = [], onRefresh, wizar
 
       <button
         onClick={() => setAddOpen(true)}
-        className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-2 text-sm text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))] transition-colors"
+        className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-2 text-sm text-[hsl(var(--muted-foreground))] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
       >
         + Agregar campo
       </button>

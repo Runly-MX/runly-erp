@@ -796,15 +796,15 @@ export function AttachmentsPanel({
     <div className={`${wrapperClass} ${className}`.trim()}>
       {isDragOver && canChooseFiles && (
         <div className="pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center">
-          <div className="absolute inset-4 rounded-3xl border-2 border-dashed border-[hsl(var(--primary))]/50 bg-[hsl(var(--primary))]/8 backdrop-blur-sm" />
+          <div className="absolute inset-4 rounded-3xl border-2 border-dashed border-[var(--brand-primary)]/50 bg-[var(--brand-primary)]/8 backdrop-blur-sm" />
           <div className="relative flex flex-col items-center gap-3">
-            <span className="flex h-20 w-20 items-center justify-center rounded-3xl border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/15">
-              <Upload className="h-10 w-10 text-[hsl(var(--primary))]" />
+            <span className="flex h-20 w-20 items-center justify-center rounded-3xl border border-[var(--brand-primary)]/30 bg-[var(--brand-primary)]/15">
+              <Upload className="h-10 w-10 text-[var(--brand-primary)]" />
             </span>
-            <p className="text-base font-semibold text-[hsl(var(--primary))]">
+            <p className="text-base font-semibold text-[var(--brand-primary)]">
               Suelta para adjuntar
             </p>
-            <p className="text-sm text-[hsl(var(--primary))]/70">{heading}</p>
+            <p className="text-sm text-[var(--brand-primary)]/70">{heading}</p>
           </div>
         </div>
       )}
@@ -893,10 +893,10 @@ export function AttachmentsPanel({
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled || readOnly}
               aria-label="Seleccionar archivos adjuntos"
-              className="group w-full cursor-pointer rounded-xl border border-dashed border-[hsl(var(--border))] bg-transparent p-5 transition-colors hover:border-[hsl(var(--primary))]/50 hover:bg-[hsl(var(--primary))]/5 disabled:pointer-events-none disabled:opacity-50"
+              className="group w-full cursor-pointer rounded-xl border border-dashed border-[hsl(var(--border))] bg-transparent p-5 transition-colors hover:border-[var(--brand-primary)]/50 hover:bg-[var(--brand-primary)]/5 disabled:pointer-events-none disabled:opacity-50"
             >
               <div className="pointer-events-none flex flex-col items-center gap-2">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] transition-colors group-hover:bg-[hsl(var(--primary))]/10 group-hover:text-[hsl(var(--primary))]">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] transition-colors group-hover:bg-[var(--brand-primary)]/10 group-hover:text-[var(--brand-primary)]">
                   <Upload className="h-4 w-4" />
                 </span>
                 <span className="space-y-0.5 text-center">

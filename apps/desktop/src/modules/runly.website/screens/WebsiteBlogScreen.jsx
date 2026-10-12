@@ -194,7 +194,7 @@ export default function WebsiteBlogScreen() {
                                 `/app/m/runly.website/blog/${post.id}/editor`,
                               );
                             }}
-                            className="text-xs text-[hsl(var(--primary))] hover:underline"
+                            className="text-xs text-[var(--brand-primary)] hover:underline"
                           >
                             Editar
                           </button>

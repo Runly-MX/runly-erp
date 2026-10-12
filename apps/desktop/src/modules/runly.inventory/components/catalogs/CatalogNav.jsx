@@ -20,11 +20,11 @@ export function CatalogNav({ active, counts, onSelect }) {
                 className={cn(
                   'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors',
                   active === key
-                    ? 'bg-[hsl(var(--primary))]/10 font-medium text-[hsl(var(--foreground))]'
+                    ? 'bg-[var(--brand-primary)]/10 font-medium text-[hsl(var(--foreground))]'
                     : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]',
                 )}
               >
-                <Icon className={cn('h-4 w-4 shrink-0', active === key && 'text-[hsl(var(--primary))]')} />
+                <Icon className={cn('h-4 w-4 shrink-0', active === key && 'text-[var(--brand-primary)]')} />
                 <span className="flex-1 truncate">{label}</span>
                 <span className="rounded-full bg-[hsl(var(--muted))] px-2 py-0.5 text-xs tabular-nums">{counts[key] ?? 0}</span>
               </button>

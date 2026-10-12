@@ -23,7 +23,7 @@ const PERSON_TYPE_LABEL = { moral: "Persona moral", fisica: "Persona física" };
 function CardTitle({ icon: Icon, children }) {
   return (
     <span className="flex items-center gap-2">
-      <Icon className="h-4 w-4 text-[hsl(var(--primary))]" />
+      <Icon className="h-4 w-4 text-[var(--brand-primary)]" />
       {children}
     </span>
   );
@@ -65,7 +65,7 @@ export function ChannelList({ channels = [] }) {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Abrir WhatsApp"
-                className="rounded-md p-1.5 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--primary))]"
+                className="rounded-md p-1.5 text-[hsl(var(--muted-foreground))] hover:text-[var(--brand-primary)]"
               >
                 <MessageCircle className="h-4 w-4" />
               </a>
@@ -74,7 +74,7 @@ export function ChannelList({ channels = [] }) {
               <a
                 href={href}
                 aria-label={isPhone ? "Llamar" : "Enviar correo"}
-                className="rounded-md p-1.5 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--primary))]"
+                className="rounded-md p-1.5 text-[hsl(var(--muted-foreground))] hover:text-[var(--brand-primary)]"
               >
                 <Icon className="h-4 w-4" />
               </a>
@@ -94,7 +94,7 @@ export function PeopleList({ persons = [], emptyText = "Sin personas registradas
     <ul className="space-y-2">
       {persons.map((person) => (
         <li key={person.id} className="flex items-start gap-3 rounded-xl border border-[hsl(var(--border))] px-3 py-2.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--primary))]/10 text-xs font-semibold text-[hsl(var(--primary))]">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)]/10 text-xs font-semibold text-[var(--brand-primary)]">
             {initials(person.name)}
           </span>
           <div className="min-w-0 flex-1">
@@ -105,12 +105,12 @@ export function PeopleList({ persons = [], emptyText = "Sin personas registradas
             {person.role && <p className="text-xs text-[hsl(var(--muted-foreground))]">{person.role}</p>}
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
               {person.phone && (
-                <a href={telHref(person.phone)} className="inline-flex items-center gap-1 hover:text-[hsl(var(--primary))]">
+                <a href={telHref(person.phone)} className="inline-flex items-center gap-1 hover:text-[var(--brand-primary)]">
                   <Phone className="h-3 w-3" /> {person.phone}
                 </a>
               )}
               {person.email && (
-                <a href={mailtoHref(person.email)} className="inline-flex min-w-0 items-center gap-1 truncate hover:text-[hsl(var(--primary))]">
+                <a href={mailtoHref(person.email)} className="inline-flex min-w-0 items-center gap-1 truncate hover:text-[var(--brand-primary)]">
                   <Mail className="h-3 w-3" /> {person.email}
                 </a>
               )}
@@ -136,7 +136,7 @@ function AddressCard({ address }) {
         {lines.map((line) => <p key={line}>{line}</p>)}
       </div>
       {href && (
-        <a href={href} target="_blank" rel="noreferrer" className="mt-auto inline-flex items-center gap-1 self-start text-xs font-medium text-[hsl(var(--primary))] hover:underline">
+        <a href={href} target="_blank" rel="noreferrer" className="mt-auto inline-flex items-center gap-1 self-start text-xs font-medium text-[var(--brand-primary)] hover:underline">
           <ExternalLink className="h-3 w-3" /> Ver en mapa
         </a>
       )}
@@ -159,7 +159,7 @@ export function ContactSummaryTab({ contact }) {
               value={contact.website}
               display={
                 contact.website && (
-                  <a href={contact.website} target="_blank" rel="noreferrer" className="text-[hsl(var(--primary))] hover:underline">
+                  <a href={contact.website} target="_blank" rel="noreferrer" className="text-[var(--brand-primary)] hover:underline">
                     {contact.website.replace(/^https?:\/\//, "")}
                   </a>
                 )

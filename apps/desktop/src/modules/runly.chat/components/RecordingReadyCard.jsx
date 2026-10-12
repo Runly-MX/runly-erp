@@ -13,7 +13,7 @@ export function RecordingReadyCard({ message }) {
   return (
     <div className="flex justify-center my-2 px-4">
       <div className="flex items-center gap-2.5 rounded-2xl bg-[hsl(var(--muted))] px-3.5 py-2 text-xs">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)]/12 text-[var(--brand-primary)]">
           <Video className="h-3.5 w-3.5" />
         </span>
         <span className="font-medium text-[hsl(var(--foreground))]">{message.body}</span>

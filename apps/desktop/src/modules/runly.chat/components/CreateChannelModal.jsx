@@ -98,7 +98,7 @@ export function CreateChannelModal({ open, onClose, onCreated, defaultLinkedProj
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Hash className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <Hash className="h-4 w-4 text-[var(--brand-primary)]" />
             Crear canal
           </DialogTitle>
           <DialogDescription>

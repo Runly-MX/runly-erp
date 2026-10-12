@@ -12,7 +12,7 @@ export function CatalogCountLink({ label, to }) {
   return (
     <Link
       to={to}
-      className="inline-flex items-center rounded-full border border-[hsl(var(--border))] px-2.5 py-0.5 text-xs font-medium text-[hsl(var(--foreground))] transition-colors hover:border-[hsl(var(--primary))] hover:bg-[hsl(var(--primary))]/10 hover:text-[hsl(var(--primary))]"
+      className="inline-flex items-center rounded-full border border-[hsl(var(--border))] px-2.5 py-0.5 text-xs font-medium text-[hsl(var(--foreground))] transition-colors hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10 hover:text-[var(--brand-primary)]"
     >
       {label}
     </Link>
@@ -24,9 +24,9 @@ export function ActiveFilterChip({ label, onClear }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <span className="text-[hsl(var(--muted-foreground))]">Filtrado por</span>
-      <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--primary))]/10 px-2.5 py-0.5 text-xs font-medium text-[hsl(var(--primary))]">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--brand-primary)]/10 px-2.5 py-0.5 text-xs font-medium text-[var(--brand-primary)]">
         {label}
-        <button type="button" onClick={onClear} aria-label="Quitar filtro" className="ml-0.5 rounded-full px-1 hover:bg-[hsl(var(--primary))]/20"><X className="h-3 w-3" /></button>
+        <button type="button" onClick={onClear} aria-label="Quitar filtro" className="ml-0.5 rounded-full px-1 hover:bg-[var(--brand-primary)]/20"><X className="h-3 w-3" /></button>
       </span>
     </div>
   )

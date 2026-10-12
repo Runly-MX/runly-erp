@@ -268,7 +268,7 @@ export function MiraiSidebarThread({ conversationId, onSent }) {
       onDrop={handleDrop}
     >
       {dragging && (
-        <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-[hsl(var(--primary))] bg-[hsl(var(--background))]/85 text-sm font-medium text-[hsl(var(--primary))]">
+        <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-[var(--brand-primary)] bg-[hsl(var(--background))]/85 text-sm font-medium text-[var(--brand-primary)]">
           Suelta los archivos para adjuntarlos
         </div>
       )}

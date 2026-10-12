@@ -22,7 +22,7 @@ function PreviewField({ field }) {
   const inputClass = [
     'w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))]',
     'px-3 py-2.5 text-sm text-[hsl(var(--foreground))] outline-none',
-    'focus:ring-2 focus:ring-[hsl(var(--primary))] focus:border-transparent',
+    'focus:ring-2 focus:ring-[var(--brand-primary)] focus:border-transparent',
     'transition-colors placeholder:text-[hsl(var(--muted-foreground))]',
   ].join(' ')
 
@@ -79,7 +79,7 @@ function PreviewField({ field }) {
                 value={opt}
                 checked={value === opt}
                 onChange={() => setValue(opt)}
-                className="accent-[hsl(var(--primary))]"
+                className="accent-[var(--brand-primary)]"
               />
               {opt}
             </label>
@@ -96,7 +96,7 @@ function PreviewField({ field }) {
           type="checkbox"
           checked={value === 'true'}
           onChange={e => setValue(String(e.target.checked))}
-          className="accent-[hsl(var(--primary))] w-4 h-4"
+          className="accent-[var(--brand-primary)] w-4 h-4"
         />
         <span className="text-[hsl(var(--foreground))]">
           {field.placeholder ?? field.label}
@@ -126,8 +126,8 @@ function PreviewField({ field }) {
                 className={[
                   'px-3 py-1.5 rounded-full text-sm border transition-colors',
                   active
-                    ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
-                    : 'border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--foreground))] hover:border-[hsl(var(--primary)/0.5)]',
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
+                    : 'border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--foreground))] hover:border-[var(--brand-primary)]/50',
                 ].join(' ')}
               >
                 {opt}
@@ -157,11 +157,11 @@ function PreviewField({ field }) {
                 className={[
                   'text-left rounded-lg border p-3 transition-colors',
                   active
-                    ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.06)]'
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/6'
                     : 'border-[hsl(var(--border))] bg-[hsl(var(--background))]',
                 ].join(' ')}
               >
-                <p className={`text-sm font-semibold ${active ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--foreground))]'}`}>
+                <p className={`text-sm font-semibold ${active ? 'text-[var(--brand-primary)]' : 'text-[hsl(var(--foreground))]'}`}>
                   {opt.label}
                 </p>
                 {opt.description && (
@@ -228,7 +228,7 @@ function FlatPreview({ form, fields }) {
       <button
         type="button"
         disabled
-        className="w-full rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] py-2.5 text-sm font-semibold opacity-80 cursor-not-allowed"
+        className="w-full rounded-lg bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] py-2.5 text-sm font-semibold opacity-80 cursor-not-allowed"
       >
         {form.submitLabel || 'Enviar'}
       </button>
@@ -273,7 +273,7 @@ function WizardPreview({ form, fields }) {
         {/* Progress bar */}
         <div className="w-full bg-[hsl(var(--muted))] rounded-full h-1.5">
           <div
-            className="bg-[hsl(var(--primary))] h-1.5 rounded-full transition-all duration-300"
+            className="bg-[var(--brand-primary)] h-1.5 rounded-full transition-all duration-300"
             style={{ width: `${((current + 1) / total) * 100}%` }}
           />
         </div>
@@ -287,9 +287,9 @@ function WizardPreview({ form, fields }) {
               className={[
                 'rounded-full transition-all duration-200',
                 i === current
-                  ? 'w-6 h-2 bg-[hsl(var(--primary))]'
+                  ? 'w-6 h-2 bg-[var(--brand-primary)]'
                   : i < current
-                    ? 'w-2 h-2 bg-[hsl(var(--primary))]/50'
+                    ? 'w-2 h-2 bg-[var(--brand-primary)]/50'
                     : 'w-2 h-2 bg-[hsl(var(--muted-foreground))]/30',
               ].join(' ')}
             />
@@ -326,7 +326,7 @@ function WizardPreview({ form, fields }) {
           <button
             type="button"
             disabled
-            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold opacity-80 cursor-not-allowed"
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] text-sm font-semibold opacity-80 cursor-not-allowed"
           >
             {form.submitLabel || 'Enviar'}
           </button>
@@ -334,7 +334,7 @@ function WizardPreview({ form, fields }) {
           <button
             type="button"
             onClick={() => setCurrent(c => c + 1)}
-            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-semibold hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] text-sm font-semibold hover:opacity-90 transition-opacity"
           >
             Siguiente <ChevronRight size={15} />
           </button>

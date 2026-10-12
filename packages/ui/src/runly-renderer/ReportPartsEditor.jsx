@@ -168,7 +168,7 @@ export function ReportPartsEditor({
       <div className="flex items-center justify-end border-t border-[hsl(var(--border))] pt-3">
         <p className="text-sm font-semibold text-[hsl(var(--foreground))]">
           Total refacciones:{" "}
-          <span className="text-[hsl(var(--primary))]">{formatMoney(partsTotal)}</span>
+          <span className="text-[var(--brand-primary)]">{formatMoney(partsTotal)}</span>
         </p>
       </div>
     </div>

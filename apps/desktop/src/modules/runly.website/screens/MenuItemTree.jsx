@@ -167,7 +167,7 @@ export default function MenuItemTree({ menuId, items = [], onReorder, onRefresh 
         </div>
         <button
           onClick={() => setAddOpen(true)}
-          className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-2 text-sm text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))] transition-colors"
+          className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-2 text-sm text-[hsl(var(--muted-foreground))] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           + Agregar elemento
         </button>
@@ -204,7 +204,7 @@ export default function MenuItemTree({ menuId, items = [], onReorder, onRefresh 
 
       <button
         onClick={() => setAddOpen(true)}
-        className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-2 text-sm text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))] transition-colors"
+        className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-2 text-sm text-[hsl(var(--muted-foreground))] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
       >
         + Agregar elemento
       </button>

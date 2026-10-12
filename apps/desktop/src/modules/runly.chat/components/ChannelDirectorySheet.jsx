@@ -69,7 +69,7 @@ export function ChannelDirectorySheet({ open, onOpenChange, onJoined }) {
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            <Compass className="h-4 w-4 text-[hsl(var(--primary))]" />
+            <Compass className="h-4 w-4 text-[var(--brand-primary)]" />
             Explorar canales
           </SheetTitle>
           <SheetDescription>Canales publicos de tu empresa a los que aun no perteneces.</SheetDescription>

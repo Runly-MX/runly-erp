@@ -163,7 +163,7 @@ function LeadPickerDialog({ token, selectedId, onSelect }) {
                   type="button"
                   onClick={() => pick(lead)}
                   className="flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  style={lead.id === selectedId ? { backgroundColor: "hsl(var(--primary)/0.06)", borderColor: "hsl(var(--primary)/0.3)" } : {}}
+                  style={lead.id === selectedId ? { backgroundColor: "color-mix(in srgb, var(--brand-primary) 6%, transparent)", borderColor: "color-mix(in srgb, var(--brand-primary) 30%, transparent)" } : {}}
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
                     <UserRoundSearch className="h-4 w-4 text-muted-foreground" />

@@ -35,7 +35,7 @@ export function UserPickerItem({ user, selected, onToggle }) {
       className={[
         "flex items-center gap-3 w-full px-3 py-2 rounded-lg text-left transition-colors",
         selected
-          ? "bg-[hsl(var(--primary)/0.1)] ring-1 ring-inset ring-[hsl(var(--primary))]"
+          ? "bg-[var(--brand-primary)]/10 ring-1 ring-inset ring-[var(--brand-primary)]"
           : "hover:bg-[hsl(var(--muted))]",
       ].join(" ")}
     >
@@ -45,8 +45,8 @@ export function UserPickerItem({ user, selected, onToggle }) {
         <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">{user.email}</p>
       </div>
       {selected && (
-        <div className="shrink-0 h-5 w-5 rounded-full bg-[hsl(var(--primary))] flex items-center justify-center">
-          <Check className="h-3 w-3 text-[hsl(var(--primary-foreground))]" />
+        <div className="shrink-0 h-5 w-5 rounded-full bg-[var(--brand-primary)] flex items-center justify-center">
+          <Check className="h-3 w-3 text-[var(--brand-primary-foreground)]" />
         </div>
       )}
     </button>

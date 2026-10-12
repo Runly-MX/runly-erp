@@ -33,7 +33,7 @@ export function CallLogCard({ message }) {
             "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
             isMissed
               ? "bg-red-500/15 text-red-500"
-              : "bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]",
+              : "bg-[var(--brand-primary)]/12 text-[var(--brand-primary)]",
           ].join(" ")}
         >
           <Icon className="h-3.5 w-3.5" />

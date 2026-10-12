@@ -222,7 +222,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
             type="button"
             onClick={() => setCreateOpen(true)}
             title="Nueva conversacion"
-            className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity touch-manipulation"
+            className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] hover:opacity-90 transition-opacity touch-manipulation"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -260,7 +260,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
                   <button
                     type="button"
                     onClick={handleSelectExternal}
-                    className="text-[10px] text-[hsl(var(--primary))] hover:underline touch-manipulation"
+                    className="text-[10px] text-[var(--brand-primary)] hover:underline touch-manipulation"
                   >
                     Ver todas
                   </button>
@@ -303,7 +303,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
                 <button
                   type="button"
                   onClick={handleSelectExternal}
-                  className="w-full px-3 py-2 text-[10px] text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] transition-colors text-center touch-manipulation"
+                  className="w-full px-3 py-2 text-[10px] text-[var(--brand-primary)] hover:bg-[hsl(var(--muted))] transition-colors text-center touch-manipulation"
                 >
                   +{filteredExternal.length - 3} mas en bandeja externa
                 </button>
@@ -388,7 +388,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
             <button
               type="button"
               onClick={handleViewAll}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation"
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium text-[var(--brand-primary)] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation"
             >
               <ExternalLink className="h-3.5 w-3.5" />
               Ver todos los chats

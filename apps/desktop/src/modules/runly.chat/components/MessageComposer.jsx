@@ -740,7 +740,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
         // crucially, its safe-area bottom inset blends with the bar instead
         // of showing as a band of page background below the input on
         // iOS/tablet PWA.
-        !dropZoneDisabled && isDragOver ? "bg-[hsl(var(--primary)/0.05)]" : "bg-[hsl(var(--surface-2))]",
+        !dropZoneDisabled && isDragOver ? "bg-[var(--brand-primary)]/5" : "bg-[hsl(var(--surface-2))]",
       ].join(" ")}
       onDragOver={dropZoneDisabled ? undefined : handleDragOver}
       onDragLeave={dropZoneDisabled ? undefined : handleDragLeave}
@@ -754,9 +754,9 @@ export const MessageComposer = forwardRef(function MessageComposer(
       {/* Editing banner — mutually exclusive with the reply preview below;
           the caller clears replyingTo when it starts an edit and vice versa. */}
       {editingMessage ? (
-        <div className="flex items-center gap-2 rounded-lg border-l-2 border-[hsl(var(--primary))] bg-[hsl(var(--muted))]/60 px-2.5 py-1.5 mb-1.5">
-          <Pencil className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary))]" />
-          <span className="flex-1 min-w-0 text-xs font-medium text-[hsl(var(--primary))]">Editar mensaje</span>
+        <div className="flex items-center gap-2 rounded-lg border-l-2 border-[var(--brand-primary)] bg-[hsl(var(--muted))]/60 px-2.5 py-1.5 mb-1.5">
+          <Pencil className="h-3.5 w-3.5 shrink-0 text-[var(--brand-primary)]" />
+          <span className="flex-1 min-w-0 text-xs font-medium text-[var(--brand-primary)]">Editar mensaje</span>
           <button
             type="button"
             onClick={exitEdit}
@@ -976,7 +976,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
                     "shrink-0 flex items-center justify-center rounded-full transition-colors touch-manipulation",
                     btnSize,
                     showEntityPicker
-                      ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
+                      ? "text-[var(--brand-primary)] bg-[var(--brand-primary)]/10"
                       : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]",
                   ].join(" ")}
                   title={
@@ -1009,7 +1009,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
                     "shrink-0 flex items-center justify-center rounded-full transition-colors touch-manipulation",
                     btnSize,
                     showEmoji
-                      ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
+                      ? "text-[var(--brand-primary)] bg-[var(--brand-primary)]/10"
                       : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]",
                   ].join(" ")}
                   title="Emojis"

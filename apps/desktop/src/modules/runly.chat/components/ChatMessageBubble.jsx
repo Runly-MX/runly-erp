@@ -92,7 +92,7 @@ function SwipeReplyHint({ translateX, isOwn }) {
   const progress = Math.min(1, Math.abs(translateX) / SWIPE_THRESHOLD);
   return (
     <span
-      className="absolute top-1/2 z-10 flex items-center justify-center h-8 w-8 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-md pointer-events-none"
+      className="absolute top-1/2 z-10 flex items-center justify-center h-8 w-8 rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] shadow-md pointer-events-none"
       style={{
         [isOwn ? "right" : "left"]: 6,
         transform: `translateX(${-translateX}px) translateY(-50%) scale(${0.6 + 0.4 * progress})`,
@@ -746,7 +746,7 @@ export function ChatMessageBubble({
               <button
                 type="button"
                 onClick={() => onOpenThread?.()}
-                className="mt-1 inline-flex items-center gap-1.5 text-xs text-[hsl(var(--primary))] hover:underline"
+                className="mt-1 inline-flex items-center gap-1.5 text-xs text-[var(--brand-primary)] hover:underline"
               >
                 <MessageSquare className="h-3 w-3" />
                 {message.thread_reply_count} {message.thread_reply_count === 1 ? "respuesta" : "respuestas"}
@@ -969,7 +969,7 @@ export function ChatMessageBubble({
             <button
               type="button"
               onClick={() => onOpenThread?.()}
-              className="mt-1 inline-flex items-center gap-1.5 text-xs text-[hsl(var(--primary))] hover:underline"
+              className="mt-1 inline-flex items-center gap-1.5 text-xs text-[var(--brand-primary)] hover:underline"
             >
               <MessageSquare className="h-3 w-3" />
               {message.thread_reply_count} {message.thread_reply_count === 1 ? "respuesta" : "respuestas"}

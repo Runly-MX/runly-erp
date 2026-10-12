@@ -128,7 +128,7 @@ export default function OverviewScreen() {
                 action={
                   <button
                     type="button"
-                    className="text-xs font-medium text-[hsl(var(--primary))] hover:underline"
+                    className="text-xs font-medium text-[var(--brand-primary)] hover:underline"
                     onClick={() => navigate("/app/m/runly.pfm/budgets")}
                   >
                     Ver todos
@@ -142,7 +142,7 @@ export default function OverviewScreen() {
                 action={
                   <button
                     type="button"
-                    className="text-xs font-medium text-[hsl(var(--primary))] hover:underline"
+                    className="text-xs font-medium text-[var(--brand-primary)] hover:underline"
                     onClick={() => navigate("/app/m/runly.pfm/budgets")}
                   >
                     Ver todas

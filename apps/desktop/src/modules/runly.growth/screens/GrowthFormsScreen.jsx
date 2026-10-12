@@ -38,15 +38,15 @@ function FormCard({ form, active, onClick }) {
       className={[
         "w-full text-left rounded-xl border p-3.5 cursor-pointer",
         active
-          ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.06)] shadow-sm"
+          ? "border-[var(--brand-primary)] bg-[var(--brand-primary)]/6 shadow-sm"
           : "border-[hsl(var(--border))]",
       ].join(" ")}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
-        <span className={`text-sm font-semibold leading-tight truncate ${active ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--foreground))]"}`}>
+        <span className={`text-sm font-semibold leading-tight truncate ${active ? "text-[var(--brand-primary)]" : "text-[hsl(var(--foreground))]"}`}>
           {form.name}
         </span>
-        <FileText size={13} className={`shrink-0 mt-0.5 ${active ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]"}`} />
+        <FileText size={13} className={`shrink-0 mt-0.5 ${active ? "text-[var(--brand-primary)]" : "text-[hsl(var(--muted-foreground))]"}`} />
       </div>
       <div className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
         <span>{fieldCount} campo{fieldCount !== 1 ? "s" : ""}</span>
@@ -272,7 +272,7 @@ export default function GrowthFormsScreen() {
                       <TabsTrigger value="envios">
                         Envios
                         {subCount > 0 && (
-                          <span className="ml-1.5 text-[10px] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-full px-1.5 py-0.5 leading-none">
+                          <span className="ml-1.5 text-[10px] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] rounded-full px-1.5 py-0.5 leading-none">
                             {subCount}
                           </span>
                         )}

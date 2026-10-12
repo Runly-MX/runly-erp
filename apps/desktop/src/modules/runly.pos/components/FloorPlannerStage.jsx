@@ -158,7 +158,7 @@ export default function FloorPlannerStage({
           title={showGrid ? 'Ocultar cuadrícula' : 'Mostrar cuadrícula'}
           className={[
             'pointer-events-auto glass flex h-11 w-11 items-center justify-center rounded-2xl shadow-lg transition-colors sm:h-9 sm:w-9',
-            showGrid ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]',
+            showGrid ? 'text-[var(--brand-primary)]' : 'text-[hsl(var(--muted-foreground))]',
           ].join(' ')}
         >
           <Grid3x3 size={16} />

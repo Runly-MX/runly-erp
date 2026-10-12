@@ -35,7 +35,7 @@ const KPI_ICONS = { "growth.leads": TrendingUp, "dispatch.tickets": Ticket, file
 
 function QuickAction({ icon: Icon, label, href, onClick }) {
   const className =
-    "flex flex-col items-center justify-center gap-1 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2 text-xs font-medium text-[hsl(var(--foreground))] transition-colors hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))] sm:flex-row sm:gap-2 sm:rounded-full sm:px-4 sm:text-sm";
+    "flex flex-col items-center justify-center gap-1 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2 text-xs font-medium text-[hsl(var(--foreground))] transition-colors hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] sm:flex-row sm:gap-2 sm:rounded-full sm:px-4 sm:text-sm";
   if (href) {
     const external = href.startsWith("http");
     return (
@@ -61,7 +61,7 @@ function KpiTile({ icon: Icon, label, value, hint }) {
         <p className="mt-0.5 truncate text-lg font-semibold tabular-nums text-[hsl(var(--foreground))]">{value}</p>
         {hint && <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{hint}</p>}
       </div>
-      <Icon className="h-5 w-5 shrink-0 text-[hsl(var(--primary))]" />
+      <Icon className="h-5 w-5 shrink-0 text-[var(--brand-primary)]" />
     </div>
   );
 }

@@ -128,7 +128,7 @@ export function DistributionPanel({ data, onOpenList }) {
           {KINDS.map((o) => (
             <button key={o.value} type="button" role="radio" aria-checked={kind === o.value} title={o.label} onClick={() => setKind(o.value)}
               className={cn('flex h-8 w-8 items-center justify-center rounded-full transition-colors',
-                kind === o.value ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]')}>
+                kind === o.value ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]' : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]')}>
               <o.icon className="h-4 w-4" />
             </button>
           ))}

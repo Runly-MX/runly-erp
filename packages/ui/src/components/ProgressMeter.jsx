@@ -25,7 +25,7 @@ export function ProgressMeter({
           ? "warning"
           : "success";
   const fill = {
-    brand: "bg-[hsl(var(--primary))]",
+    brand: "bg-[var(--brand-primary)]",
     success: "bg-emerald-500",
     warning: "bg-amber-500",
     danger: "bg-red-500",

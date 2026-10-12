@@ -2,7 +2,7 @@ import { previewFor } from '../lib/templatePreviews.js'
 
 const TONES = {
   line: { fill: 'none', stroke: 'hsl(var(--foreground) / 0.55)' },
-  accent: { fill: 'hsl(var(--primary) / 0.18)', stroke: 'hsl(var(--primary))' },
+  accent: { fill: 'color-mix(in srgb, var(--brand-primary) 18%, transparent)', stroke: 'var(--brand-primary)' },
   soft: { fill: 'hsl(var(--muted-foreground) / 0.18)', stroke: 'hsl(var(--muted-foreground) / 0.4)' },
 }
 

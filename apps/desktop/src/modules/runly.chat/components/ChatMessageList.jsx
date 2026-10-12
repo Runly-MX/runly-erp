@@ -602,7 +602,7 @@ export function ChatMessageList({
                   showUnreadBanner ? "opacity-100 max-h-10 my-2" : "opacity-0 max-h-0 my-0",
                 ].join(" ")}
               >
-                <span className="text-[11px] font-semibold px-3 py-1 rounded-full bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))] whitespace-nowrap">
+                <span className="text-[11px] font-semibold px-3 py-1 rounded-full bg-[var(--brand-primary)]/12 text-[var(--brand-primary)] whitespace-nowrap">
                   {unreadBoundary.count} mensaje{unreadBoundary.count === 1 ? "" : "s"} sin leer
                 </span>
               </div>

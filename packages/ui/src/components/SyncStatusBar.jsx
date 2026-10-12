@@ -30,7 +30,7 @@ export function SyncStatusBar({ isOnline = true, isSyncing = false, lastSyncAt =
         {isSyncing && (
           <RefreshCw
             size={16}
-            className="animate-spin text-[hsl(var(--primary))]"
+            className="animate-spin text-[var(--brand-primary)]"
             aria-label="Sincronizando"
           />
         )}

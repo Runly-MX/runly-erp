@@ -193,7 +193,7 @@ function LogoZone({
                   type="button"
                   onClick={() => !uploading && inputRef.current?.click()}
                   disabled={uploading}
-                  className="text-xs font-medium text-[hsl(var(--primary))] hover:underline disabled:opacity-50 disabled:cursor-default"
+                  className="text-xs font-medium text-[var(--brand-primary)] hover:underline disabled:opacity-50 disabled:cursor-default"
                 >
                   {uploading ? "Subiendo..." : "Cambiar logo"}
                 </button>

@@ -72,7 +72,7 @@ function FilePickerTile({ opt, isSelected, atCap, onToggle, onPreview }) {
           "absolute top-1.5 right-1.5 h-4 w-4 rounded-full flex items-center justify-center pointer-events-none transition-all duration-150",
           "shadow-[0_1px_4px_rgba(0,0,0,0.7)]",
           isSelected
-            ? "bg-[hsl(var(--primary))] ring-2 ring-white scale-110"
+            ? "bg-[var(--brand-primary)] ring-2 ring-white scale-110"
             : "bg-black/30 ring-2 ring-white/90",
         ].join(" ")}
       >
@@ -161,7 +161,7 @@ function FilePickerGrid({ options, isLoading, search, maxSelect, onConfirm }) {
           type="button"
           onClick={() => onConfirm(selected)}
           disabled={selected.length === 0}
-          className="text-xs font-medium px-3 py-1.5 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+          className="text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
         >
           Adjuntar{selected.length > 0 ? ` (${selected.length})` : ""}
         </button>
@@ -258,7 +258,7 @@ function MultiSelectList({ entityType, query, search, maxSelect, onConfirm }) {
           type="button"
           onClick={() => onConfirm(selected)}
           disabled={selected.length === 0}
-          className="text-xs font-medium px-3 py-1.5 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+          className="text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
         >
           Adjuntar{selected.length > 0 ? ` (${selected.length})` : ""}
         </button>
@@ -331,7 +331,7 @@ function TypeChip({ label, Icon, active, onClick }) {
       className={[
         "inline-flex items-center gap-1 shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
         active
-          ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"
+          ? "border-[var(--brand-primary)] bg-[var(--brand-primary)]/12 text-[var(--brand-primary)]"
           : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]",
       ].join(" ")}
     >
@@ -461,7 +461,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
                       <button
                         type="button"
                         onClick={() => setActiveType(type.value)}
-                        className="text-[10px] font-medium text-[hsl(var(--primary))] hover:underline"
+                        className="text-[10px] font-medium text-[var(--brand-primary)] hover:underline"
                       >
                         Ver los {total}
                       </button>

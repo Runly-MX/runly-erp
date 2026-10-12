@@ -104,7 +104,7 @@ export function HelpCenterScreen() {
           <button
             type="button"
             onClick={() => setSelectedModuleKey(null)}
-            className="mb-4 text-xs text-[hsl(var(--primary))] hover:underline"
+            className="mb-4 text-xs text-[var(--brand-primary)] hover:underline"
           >
             Volver a modulos
           </button>

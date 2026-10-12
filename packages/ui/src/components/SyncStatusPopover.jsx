@@ -54,7 +54,7 @@ export function SyncStatusPopover({
     statusLabel = 'Sin conexion'
   } else if (busy) {
     StatusIcon = RefreshCw
-    iconClass = 'text-[hsl(var(--primary))]'
+    iconClass = 'text-[var(--brand-primary)]'
     statusLabel = 'Sincronizando...'
   } else {
     StatusIcon = CheckCircle

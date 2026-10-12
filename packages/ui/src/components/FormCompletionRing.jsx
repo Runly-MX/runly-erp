@@ -7,7 +7,7 @@ export function FormCompletionRing({ percent, filledCount, totalCount }) {
         <div
           className="absolute inset-0 rounded-full"
           style={{
-            background: `conic-gradient(hsl(var(--primary)) ${pct * 3.6}deg, hsl(var(--border)) 0deg)`,
+            background: `conic-gradient(var(--brand-primary) ${pct * 3.6}deg, hsl(var(--border)) 0deg)`,
           }}
         />
         <div className="absolute inset-1 flex items-center justify-center rounded-full bg-[hsl(var(--card))]">

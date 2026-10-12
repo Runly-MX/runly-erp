@@ -120,7 +120,7 @@ function TemplateFormDialog({ open, onClose, initial }) {
 
 function TemplateCard({ template, onEdit, onDelete }) {
   return (
-    <div className="group relative flex flex-col gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] p-4 hover:border-[hsl(var(--primary)/0.4)] transition-colors">
+    <div className="group relative flex flex-col gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] p-4 hover:border-[var(--brand-primary)]/40 transition-colors">
       {/* Actions — top right corner */}
       <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(template)}>

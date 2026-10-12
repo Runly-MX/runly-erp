@@ -13,7 +13,7 @@ export function TtsNowPlayingBar({ speech }) {
   const loading = speech.isAnyLoading;
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[hsl(var(--border))] bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))] shrink-0">
+    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[hsl(var(--border))] bg-[var(--brand-primary)]/8 text-[var(--brand-primary)] shrink-0">
       {loading
         ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
         : <Volume2 className="h-3.5 w-3.5 shrink-0" />}
@@ -25,7 +25,7 @@ export function TtsNowPlayingBar({ speech }) {
         onClick={() => speech.stop()}
         title="Detener"
         aria-label="Detener lectura"
-        className="h-6 w-6 shrink-0 flex items-center justify-center rounded-full hover:bg-[hsl(var(--primary)/0.15)] transition-colors touch-manipulation"
+        className="h-6 w-6 shrink-0 flex items-center justify-center rounded-full hover:bg-[var(--brand-primary)]/15 transition-colors touch-manipulation"
       >
         <Square className="h-3.5 w-3.5" />
       </button>

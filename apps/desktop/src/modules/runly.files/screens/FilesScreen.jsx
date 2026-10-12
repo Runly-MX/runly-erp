@@ -780,10 +780,10 @@ export default function FilesScreen() {
 
       {isDragOver && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-4 rounded-3xl bg-[hsl(var(--primary))]/8 border-2 border-dashed border-[hsl(var(--primary))]/50 backdrop-blur-sm" />
+          <div className="absolute inset-4 rounded-3xl bg-[var(--brand-primary)]/8 border-2 border-dashed border-[var(--brand-primary)]/50 backdrop-blur-sm" />
           <div className="relative flex flex-col items-center gap-4 text-center">
-            <div className="flex h-24 w-24 items-center justify-center rounded-3xl border border-[hsl(var(--primary))]/30 bg-[hsl(var(--primary))]/15">
-              <Upload className="h-12 w-12 text-[hsl(var(--primary))]" />
+            <div className="flex h-24 w-24 items-center justify-center rounded-3xl border border-[var(--brand-primary)]/30 bg-[var(--brand-primary)]/15">
+              <Upload className="h-12 w-12 text-[var(--brand-primary)]" />
             </div>
             <div className="space-y-1">
               <p className="text-2xl font-bold text-[hsl(var(--foreground))]">
@@ -838,7 +838,7 @@ export default function FilesScreen() {
                   </p>
                   {item.status === "uploading" && (
                     <div className="mt-1 h-1 rounded-full bg-[hsl(var(--muted))]">
-                      <div className="h-1 w-1/2 rounded-full bg-[hsl(var(--primary))] animate-pulse" />
+                      <div className="h-1 w-1/2 rounded-full bg-[var(--brand-primary)] animate-pulse" />
                     </div>
                   )}
                   <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">

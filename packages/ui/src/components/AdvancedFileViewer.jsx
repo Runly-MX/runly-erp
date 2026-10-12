@@ -986,7 +986,7 @@ export function AdvancedFileViewer({
                         onOpenChange(false);
                         onOpenInOffice(file);
                       }}
-                      className="w-full h-9 mb-2 rounded-lg flex items-center justify-center gap-1.5 text-xs font-medium text-[hsl(var(--primary-foreground))] bg-[hsl(var(--primary))] hover:opacity-90 transition-opacity"
+                      className="w-full h-9 mb-2 rounded-lg flex items-center justify-center gap-1.5 text-xs font-medium text-[var(--brand-primary-foreground)] bg-[var(--brand-primary)] hover:opacity-90 transition-opacity"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                       Abrir en editor de Office

@@ -286,7 +286,7 @@ export function UserMenu({
               </p>
               <button
                 onClick={handleDesktopDownload}
-                className="flex items-center gap-1.5 w-full rounded-md px-2 py-1.5 text-xs font-medium bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity"
+                className="flex items-center gap-1.5 w-full rounded-md px-2 py-1.5 text-xs font-medium bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] hover:opacity-90 transition-opacity"
               >
                 <Download size={11} />
                 Descargar para Windows

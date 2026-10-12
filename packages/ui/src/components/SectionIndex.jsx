@@ -59,7 +59,7 @@ export function SectionIndex({ sections = [], scrollRoot = null, title, footer, 
                   className={cn(
                     "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors",
                     isActive
-                      ? "bg-[hsl(var(--primary))]/10 font-semibold text-[hsl(var(--primary))]"
+                      ? "bg-[var(--brand-primary)]/10 font-semibold text-[var(--brand-primary)]"
                       : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent))] hover:text-[hsl(var(--foreground))]",
                   )}
                 >

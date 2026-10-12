@@ -137,7 +137,7 @@ export function HelpButton() {
                     setOpen(false);
                     navigate("/app/help");
                   }}
-                  className="text-xs text-[hsl(var(--primary))] hover:underline"
+                  className="text-xs text-[var(--brand-primary)] hover:underline"
                 >
                   Ver toda la documentación
                 </button>
@@ -148,7 +148,7 @@ export function HelpButton() {
               if (m.role === "user") {
                 return (
                   <div key={i} className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl px-3 py-2 text-sm bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]">
+                    <div className="max-w-[85%] rounded-2xl px-3 py-2 text-sm bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]">
                       {m.content}
                     </div>
                   </div>

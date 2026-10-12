@@ -277,7 +277,7 @@ export default function ContactFormScreen() {
                   {duplicates.map((dup) => (
                     <p key={dup.id}>
                       Ya existe un contacto con {dup.matchedOn === "taxId" ? "este RFC" : dup.matchedOn === "email" ? "este correo" : "este teléfono"}:{" "}
-                      <Link to={detailPath(dup.id)} target="_blank" className="font-semibold text-[hsl(var(--primary))] hover:underline">
+                      <Link to={detailPath(dup.id)} target="_blank" className="font-semibold text-[var(--brand-primary)] hover:underline">
                         {dup.name}
                       </Link>
                     </p>

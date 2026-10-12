@@ -89,7 +89,7 @@ function RecordingTitle({ recording, renameRecording }) {
           disabled={renameRecording.isPending}
           title="Guardar"
           aria-label="Guardar nombre"
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.1)]"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10"
         >
           <Check className="h-3.5 w-3.5" />
         </button>
@@ -186,7 +186,7 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
             <button
               type="button"
               onClick={() => onPlay(recording)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]"
               aria-label="Reproducir"
             >
               <Play className="h-4 w-4" />

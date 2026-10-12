@@ -67,7 +67,7 @@ export function CostsSummaryPanel({ laborCost = 0, partsCost = 0, totalCost = 0 
 
       <div className="border-t border-[hsl(var(--border))] pt-3 flex items-center justify-between">
         <span className="text-sm font-semibold text-[hsl(var(--foreground))]">TOTAL</span>
-        <span className="text-base font-bold text-[hsl(var(--primary))]">{formatMXN(totalCost)}</span>
+        <span className="text-base font-bold text-[var(--brand-primary)]">{formatMXN(totalCost)}</span>
       </div>
     </div>
   );

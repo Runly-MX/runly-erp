@@ -95,8 +95,8 @@ export function FileRenameModal({
           <div className="flex-1 flex flex-col min-w-0">
             {/* Header */}
             <div className="flex items-center gap-2 px-5 pt-5 pb-3 border-b border-[hsl(var(--border))]">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[hsl(var(--primary))]/10">
-                <Pencil className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--brand-primary)]/10">
+                <Pencil className="h-3.5 w-3.5 text-[var(--brand-primary)]" />
               </div>
               <div>
                 <DialogTitle className="text-sm font-semibold text-[hsl(var(--foreground))] leading-none">

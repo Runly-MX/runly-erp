@@ -553,7 +553,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="mx-auto h-14 w-14 rounded-2xl bg-[hsl(var(--muted))] flex items-center justify-center">
-            <MessageSquare className="h-7 w-7 text-[hsl(var(--primary)/0.4)]" />
+            <MessageSquare className="h-7 w-7 text-[var(--brand-primary)]/40" />
           </div>
           <div className="space-y-0.5">
             <p className="text-sm font-medium text-[hsl(var(--foreground))]">Selecciona una conversacion</p>
@@ -674,7 +674,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
                   <button
                     type="button"
                     onClick={handleFilesBulkDownload}
-                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity"
+                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] hover:opacity-90 transition-opacity"
                   >
                     Descargar ({filesSelectedIds.size})
                   </button>

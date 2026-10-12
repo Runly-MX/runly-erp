@@ -103,14 +103,14 @@ function LinkedUserChip({ linkedUser, onClick }) {
       aria-label={`Ver usuario ${linkedUser.displayName}`}
       className={cn(
         "flex items-center gap-1.5 rounded-full px-2 py-0.5 w-full",
-        "bg-[hsl(var(--primary))]/8 dark:bg-[hsl(var(--primary))]/15",
-        "border border-[hsl(var(--primary))]/15 dark:border-[hsl(var(--primary))]/20",
-        "hover:bg-[hsl(var(--primary))]/15 dark:hover:bg-[hsl(var(--primary))]/25",
+        "bg-[var(--brand-primary)]/8 dark:bg-[var(--brand-primary)]/15",
+        "border border-[var(--brand-primary)]/15 dark:border-[var(--brand-primary)]/20",
+        "hover:bg-[var(--brand-primary)]/15 dark:hover:bg-[var(--brand-primary)]/25",
         "transition-colors group/chip",
       )}
     >
       {/* Mini avatar */}
-      <div className="h-5 w-5 shrink-0 rounded-full overflow-hidden bg-[hsl(var(--primary))]/20 flex items-center justify-center">
+      <div className="h-5 w-5 shrink-0 rounded-full overflow-hidden bg-[var(--brand-primary)]/20 flex items-center justify-center">
         {linkedUser.avatarUrl ? (
           <img
             src={linkedUser.avatarUrl}
@@ -118,12 +118,12 @@ function LinkedUserChip({ linkedUser, onClick }) {
             className="h-full w-full object-cover"
           />
         ) : (
-          <span className="text-[8px] font-semibold text-[hsl(var(--primary))]/70">
+          <span className="text-[8px] font-semibold text-[var(--brand-primary)]/70">
             {initials}
           </span>
         )}
       </div>
-      <span className="text-[10px] font-medium text-[hsl(var(--primary))]/80 group-hover/chip:text-[hsl(var(--primary))] truncate leading-none transition-colors">
+      <span className="text-[10px] font-medium text-[var(--brand-primary)]/80 group-hover/chip:text-[var(--brand-primary)] truncate leading-none transition-colors">
         {linkedUser.displayName}
       </span>
     </button>
@@ -146,7 +146,7 @@ function OrgCard({ node, token, onOpen, onOpenUser }) {
         "shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_16px_rgba(0,0,0,0.4)]",
         "transition-all duration-200 hover:scale-[1.025] hover:-translate-y-0.5",
         "hover:shadow-[0_8px_24px_rgba(0,0,0,0.10)] dark:hover:shadow-[0_8px_24px_rgba(0,0,0,0.55)]",
-        "hover:border-[hsl(var(--primary))]/40",
+        "hover:border-[var(--brand-primary)]/40",
         "p-4",
       )}
       onClick={onOpen}
@@ -193,7 +193,7 @@ function OrgCard({ node, token, onOpen, onOpenUser }) {
             <div className="flex items-start gap-2">
               <Briefcase
                 size={11}
-                className="shrink-0 mt-px text-[hsl(var(--primary))]/60"
+                className="shrink-0 mt-px text-[var(--brand-primary)]/60"
               />
               <span className="text-xs text-[hsl(var(--foreground))]/70 leading-tight break-words">
                 {node.jobTitle}
@@ -204,7 +204,7 @@ function OrgCard({ node, token, onOpen, onOpenUser }) {
             <div className="flex items-start gap-2">
               <Building2
                 size={11}
-                className="shrink-0 mt-px text-[hsl(var(--primary))]/60"
+                className="shrink-0 mt-px text-[var(--brand-primary)]/60"
               />
               <span className="text-xs text-[hsl(var(--foreground))]/70 leading-tight break-words">
                 {node.department}
@@ -217,9 +217,9 @@ function OrgCard({ node, token, onOpen, onOpenUser }) {
       {/* Footer: people count pill */}
       {reportCount > 0 && (
         <div className="mt-3 flex">
-          <div className="flex items-center gap-1.5 rounded-full bg-[hsl(var(--primary))]/8 dark:bg-[hsl(var(--primary))]/15 px-2.5 py-1">
-            <Network size={10} className="text-[hsl(var(--primary))]/70" />
-            <span className="text-[10px] font-medium text-[hsl(var(--primary))]/80">
+          <div className="flex items-center gap-1.5 rounded-full bg-[var(--brand-primary)]/8 dark:bg-[var(--brand-primary)]/15 px-2.5 py-1">
+            <Network size={10} className="text-[var(--brand-primary)]/70" />
+            <span className="text-[10px] font-medium text-[var(--brand-primary)]/80">
               {reportCount} {reportCount !== 1 ? "personas" : "persona"} a cargo
             </span>
           </div>
@@ -560,7 +560,7 @@ export default function HrOrgChartScreen() {
                   "px-3 h-9 transition-colors",
                   i > 0 && "border-l border-[hsl(var(--border))]",
                   direction === key
-                    ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] font-medium"
+                    ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] font-medium"
                     : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]",
                 )}
               >

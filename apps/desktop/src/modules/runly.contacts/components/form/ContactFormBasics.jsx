@@ -80,7 +80,7 @@ function AvatarPicker({ name, type, currentUrl, pending, onPick, onClear }) {
         }}
       />
       <div className="flex gap-2 text-xs">
-        <button type="button" className="font-medium text-[hsl(var(--primary))] hover:underline" onClick={() => input.current?.click()}>
+        <button type="button" className="font-medium text-[var(--brand-primary)] hover:underline" onClick={() => input.current?.click()}>
           Cambiar foto
         </button>
         {shown && (

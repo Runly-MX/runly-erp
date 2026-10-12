@@ -43,7 +43,7 @@ export function RecordingTranscriptAction({ recording, transcript, conversationI
               type="button"
               onClick={handleRequest}
               disabled={requestTranscript.isPending}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] disabled:opacity-50"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:bg-[var(--brand-primary)]/10 hover:text-[var(--brand-primary)] disabled:opacity-50"
               aria-label="Transcribir"
             >
               {requestTranscript.isPending
@@ -109,7 +109,7 @@ export function RecordingTranscriptAction({ recording, transcript, conversationI
             <button
               type="button"
               onClick={() => setViewerOpen(true)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]"
               aria-label="Ver transcripción"
             >
               <FileText className="h-4 w-4" />

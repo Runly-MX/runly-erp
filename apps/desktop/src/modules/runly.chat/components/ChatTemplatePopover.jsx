@@ -55,7 +55,7 @@ export function ChatTemplatePopover({ onSelect, vars = {} }) {
         className={[
           "h-8 w-8 shrink-0 flex items-center justify-center rounded-full transition-colors touch-manipulation",
           open
-            ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]"
+            ? "text-[var(--brand-primary)] bg-[var(--brand-primary)]/10"
             : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))]",
         ].join(" ")}
         title="Plantillas de respuesta"

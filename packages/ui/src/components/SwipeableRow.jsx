@@ -156,7 +156,7 @@ export function SwipeableRow({
 
   const toneBg = {
     default: 'bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]',
-    primary: 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]',
+    primary: 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
     danger: 'bg-red-600 text-white',
   }
 
