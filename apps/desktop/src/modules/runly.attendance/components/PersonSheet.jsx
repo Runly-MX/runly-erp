@@ -3,15 +3,14 @@ import { Button, ComboboxField, SelectField, SwitchField, TextField } from '@run
 import { usePeople, useSavePerson } from '../hooks/useAttendanceData.js'
 import { KIND_OPTIONS } from '../lib/attendanceLabels.js'
 import { suggestNextCode } from '../lib/formHelpers.js'
-import { PinField } from './fields/PinField.jsx'
 import { HrLinkPanel, HrLinkedChip, HrSuggestions, hrName } from './HrLinkPanel.jsx'
 import { FormSheet, toOptions, useCreateAnother } from './shared.jsx'
 
-const EMPTY = { code: '', firstName: '', lastName: '', kind: 'internal', groupId: null, categoryId: null, shiftId: null, pin: '', enabled: true }
+const EMPTY = { code: '', firstName: '', lastName: '', kind: 'internal', groupId: null, categoryId: null, shiftId: null, enabled: true }
 
 const fromPerson = (p) => ({
   code: p.code ?? '', firstName: p.firstName ?? '', lastName: p.lastName ?? '', kind: p.kind ?? 'internal',
-  groupId: p.groupId ?? null, categoryId: p.categoryId ?? null, shiftId: p.shiftId ?? null, pin: '', enabled: p.enabled !== false,
+  groupId: p.groupId ?? null, categoryId: p.categoryId ?? null, shiftId: p.shiftId ?? null, enabled: p.enabled !== false,
 })
 
 // Splits "Nombre Apellido" when the HR record only has a full name.
@@ -71,14 +70,12 @@ export function PersonSheet({ open, onOpenChange, person, lookups, canManage = t
     const next = {}
     if (!form.code.trim()) next.code = 'El código es obligatorio.'
     if (!form.firstName.trim()) next.firstName = 'El nombre es obligatorio.'
-    if (form.pin && !/^\d{4,8}$/.test(form.pin)) next.pin = 'El PIN debe tener de 4 a 8 dígitos.'
     setErrors(next)
     if (Object.keys(next).length) return
     const payload = {
       id: person?.id, code: form.code.trim(), firstName: form.firstName.trim(), lastName: form.lastName.trim() || null, kind: form.kind,
       groupId: form.groupId || null, categoryId: form.categoryId || null, shiftId: form.shiftId || null, enabled: form.enabled,
     }
-    if (form.pin) payload.pin = form.pin
     if (!person && hrDraft) { payload.hrEmployeeId = hrDraft.id; payload.syncProfile = true }
     try {
       await save.mutateAsync(payload)
@@ -123,10 +120,6 @@ export function PersonSheet({ open, onOpenChange, person, lookups, canManage = t
       <ComboboxField label="Grupo" options={toOptions(lookups.rows.groups)} value={form.groupId} onChange={setGroup} clearable placeholder="Sin grupo" />
       <ComboboxField label="Categoría" options={toOptions(lookups.rows.categories)} value={form.categoryId} onChange={set('categoryId')} clearable placeholder="Sin categoría" />
       <ComboboxField label="Turno" options={toOptions(lookups.rows.shifts)} value={form.shiftId} onChange={set('shiftId')} clearable placeholder="Sin turno" />
-      <PinField
-        value={form.pin} onChange={set('pin')} error={errors.pin}
-        hint={person?.hasPin ? 'Ya tiene un PIN. Déjalo vacío para conservarlo o genera uno nuevo.' : 'Opcional. Usa Generar y compártelo con la persona: no se vuelve a mostrar.'}
-      />
       {person ? <SwitchField label="Activo" description="Las personas inactivas no pueden checar." checked={form.enabled} onChange={set('enabled')} /> : null}
       {person ? <HrLinkPanel person={person} canManage={canManage} /> : null}
     </FormSheet>

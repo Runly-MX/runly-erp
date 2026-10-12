@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { CreditCard, KeyRound, Smartphone, Trash2 } from 'lucide-react'
+import { CreditCard, KeyRound, LockKeyhole, Smartphone, Trash2 } from 'lucide-react'
 import { Badge, Button, ConfirmDialog, EmptyState, TextField } from '@runly/ui'
-import { useAddCard, useEnrollInvite, useRevokeCredential } from '../hooks/useAttendanceData.js'
+import { useAddCard, useEnrollInvite, useRevokeCredential, useSavePerson } from '../hooks/useAttendanceData.js'
 import { enrollLink, formatDateTime, fullName } from '../lib/attendanceLabels.js'
+import { PinField } from './fields/PinField.jsx'
 import { CopyButton, FormSheet, LinkBlock } from './shared.jsx'
 
 const CREDENTIAL_LABELS = { card: 'Tarjeta', phone: 'Llave de teléfono', phone_key: 'Llave de teléfono', device_key: 'Llave de teléfono' }
@@ -10,16 +11,25 @@ const CREDENTIAL_LABELS = { card: 'Tarjeta', phone: 'Llave de teléfono', phone_
 // Per-person panel: assign a card, list/revoke credentials and invite a phone key.
 export function PersonCredentialsSheet({ person, onClose, canManage }) {
   const open = Boolean(person)
-  const addCard = useAddCard(), invite = useEnrollInvite(), revoke = useRevokeCredential()
+  const addCard = useAddCard(), invite = useEnrollInvite(), revoke = useRevokeCredential(), savePerson = useSavePerson()
+  const [pin, setPin] = useState(''), [pinError, setPinError] = useState(''), [issuedPin, setIssuedPin] = useState(null), [removingPin, setRemovingPin] = useState(false)
   const [uid, setUid] = useState(''), [label, setLabel] = useState('')
   const [issued, setIssued] = useState(null)
   const [toRevoke, setToRevoke] = useState(null)
-  useEffect(() => { setUid(''); setLabel(''); setIssued(null); setToRevoke(null) }, [person?.id])
+  useEffect(() => { setUid(''); setLabel(''); setIssued(null); setToRevoke(null); setPin(''); setPinError(''); setIssuedPin(null); setRemovingPin(false) }, [person?.id])
 
   if (!person) return <FormSheet open={false} onOpenChange={onClose} title="" />
   const credentials = person.credentials ?? []
   const phoneKey = credentials.find((c) => c.type === 'device_key' && c.status === 'active')
 
+  async function savePin() {
+    if (!/^\d{4,8}$/.test(pin)) { setPinError('El PIN debe tener de 4 a 8 dígitos.'); return }
+    setPinError('')
+    try { await savePerson.mutateAsync({ id: person.id, pin }); setIssuedPin(pin); setPin('') } catch { /* toast */ }
+  }
+  async function removePin() {
+    try { await savePerson.mutateAsync({ id: person.id, pin: null }); setIssuedPin(null); setRemovingPin(false) } catch { /* toast */ }
+  }
   async function assignCard() {
     if (uid.trim().length < 4) return
     try { await addCard.mutateAsync({ personId: person.id, uid: uid.trim(), label: label.trim() || null }); setUid(''); setLabel('') } catch { /* toast */ }
@@ -34,11 +44,40 @@ export function PersonCredentialsSheet({ person, onClose, canManage }) {
         open={open}
         onOpenChange={(next) => !next && onClose()}
         title={fullName(person)}
-        description={`Credenciales de ${person.code}. El PIN se edita desde la ficha de la persona.`}
+        description={`Acceso de ${person.code}: PIN, tarjeta y llave de teléfono.`}
         footer={<Button variant="outline" onClick={onClose}>Cerrar</Button>}
       >
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold">PIN</h3>
+            <Badge variant={person.hasPin ? 'success' : 'secondary'}>{person.hasPin ? 'Tiene PIN' : 'Sin PIN'}</Badge>
+          </div>
+          {canManage ? (
+            <>
+              <PinField
+                value={pin} onChange={(v) => { setPin(v); setPinError('') }} error={pinError}
+                label={person.hasPin ? 'Nuevo PIN (4 a 8 dígitos)' : 'PIN (4 a 8 dígitos)'}
+                hint="Con el código de empleado y este PIN la persona checa en el kiosko. Se guarda cifrado: no se puede volver a ver."
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={savePin} disabled={!pin || savePerson.isPending}><LockKeyhole className="h-4 w-4" />{person.hasPin ? 'Cambiar PIN' : 'Guardar PIN'}</Button>
+                {person.hasPin ? <Button variant="outline" onClick={() => setRemovingPin(true)} disabled={savePerson.isPending}><Trash2 className="h-4 w-4" />Quitar PIN</Button> : null}
+              </div>
+              {issuedPin ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-teal-600/30 bg-teal-600/5 p-3">
+                  <div>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">PIN guardado. Compártelo ahora; no se vuelve a mostrar.</p>
+                    <p className="font-mono text-xl font-bold tracking-widest">{issuedPin}</p>
+                  </div>
+                  <CopyButton value={issuedPin} label="Copiar PIN" />
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </section>
+
         <section className="space-y-2">
-          <h3 className="text-sm font-semibold">Credenciales activas</h3>
+          <h3 className="text-sm font-semibold">Tarjetas y llaves de teléfono</h3>
           {credentials.length === 0 ? (
             <EmptyState variant="compact" icon={KeyRound} title="Sin tarjetas ni llaves de teléfono." />
           ) : credentials.map((cred) => (
@@ -111,6 +150,16 @@ export function PersonCredentialsSheet({ person, onClose, canManage }) {
         ) : null}
       </FormSheet>
 
+      <ConfirmDialog
+        open={removingPin}
+        onOpenChange={(next) => !next && setRemovingPin(false)}
+        title="Quitar PIN"
+        description="La persona ya no podrá checar con código y PIN. Podrá seguir usando su tarjeta o su teléfono."
+        detail={fullName(person)}
+        confirmLabel="Quitar PIN"
+        loading={savePerson.isPending}
+        onConfirm={removePin}
+      />
       <ConfirmDialog
         open={Boolean(toRevoke)}
         onOpenChange={(next) => !next && setToRevoke(null)}

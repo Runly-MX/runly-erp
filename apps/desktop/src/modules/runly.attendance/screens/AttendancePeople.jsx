@@ -73,7 +73,7 @@ export default function AttendancePeople() {
       id: 'actions', header: '', enableSorting: false,
       cell: ({ row }) => (
         <div className="flex justify-end gap-1">
-          <Button variant="ghost" size="sm" className="max-sm:h-11 max-sm:w-11" aria-label="Credenciales" onClick={() => setCredentialsId(row.original.id)}><KeyRound className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" className="max-sm:h-11 max-sm:w-11" aria-label="Acceso: PIN, tarjeta y teléfono" title="Acceso: PIN, tarjeta y teléfono" onClick={() => setCredentialsId(row.original.id)}><KeyRound className="h-4 w-4" /></Button>
           {canManagePeople ? <Button variant="ghost" size="sm" className="max-sm:h-11 max-sm:w-11" aria-label="Editar" onClick={() => setEditing({ open: true, personId: row.original.id })}><Pencil className="h-4 w-4" /></Button> : null}
         </div>
       ),
