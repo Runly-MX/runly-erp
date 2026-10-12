@@ -77,7 +77,7 @@ export function SiteLocationField({ label = 'Ubicación', value, onChange }) {
 
   return (
     <FieldShell label={label}>
-      <div className="space-y-3 rounded-xl border border-[hsl(var(--border))] p-3">
+      <div data-no-enter-submit="" className="space-y-3 rounded-xl border border-[hsl(var(--border))] p-3">
         <div className="space-y-2">
           <TextField
             label="Dirección o lugar" value={loc.address ?? ''} placeholder="Escribe la dirección o el nombre del lugar"

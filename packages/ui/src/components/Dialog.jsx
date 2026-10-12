@@ -3,6 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "../lib/utils.js";
 import { useDragToDismiss } from "../hooks/useDragToDismiss.js";
+import { handleEnterSubmit } from "../hooks/useEnterSubmit.js";
 import { useIsMobile } from "../hooks/useIsMobile.js";
 import { useKeyboardViewport } from "../hooks/useKeyboardInset.js";
 import {
@@ -46,7 +47,7 @@ const SIZE_CLASSES = {
 };
 
 const DialogContent = forwardRef(function DialogContent(
-  { className, style, children, size = "md", mobileVariant = "sheet", scrollable = false, onInteractOutside, ...props },
+  { className, style, children, size = "md", mobileVariant = "sheet", scrollable = false, onInteractOutside, submitOnEnter = true, onKeyDown, ...props },
   ref,
 ) {
   const {
@@ -80,6 +81,10 @@ const DialogContent = forwardRef(function DialogContent(
         ref={setRef}
         aria-describedby={undefined}
         {...props}
+        onKeyDown={(event) => {
+          onKeyDown?.(event)
+          if (submitOnEnter) handleEnterSubmit(event)
+        }}
         onInteractOutside={(event) => {
           if (event.target?.closest?.('[data-sonner-toaster]')) event.preventDefault();
           onInteractOutside?.(event);
@@ -169,6 +174,7 @@ const DialogHeader = function DialogHeader({ className, ...props }) {
 const DialogFooter = function DialogFooter({ className, ...props }) {
   return (
     <div
+      data-dialog-footer=""
       className={cn(
         "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-6",
         className,

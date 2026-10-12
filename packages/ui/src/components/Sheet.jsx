@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils.js";
 import { useDragToDismiss } from "../hooks/useDragToDismiss.js";
+import { handleEnterSubmit } from "../hooks/useEnterSubmit.js";
 import { useIsMobile } from "../hooks/useIsMobile.js";
 import { useKeyboardViewport } from "../hooks/useKeyboardInset.js";
 import {
@@ -39,7 +40,7 @@ const SheetOverlay = forwardRef(function SheetOverlay(
 });
 
 const sheetVariants = cva(
-  "fixed z-50 glass-strong flex flex-col gap-4 p-6 shadow-lg transition ease-in-out data-[state=closed]:duration-200 data-[state=open]:duration-300 focus:outline-none",
+  "fixed z-50 glass-strong flex flex-col gap-4 p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:duration-300 focus:outline-none",
   {
     variants: {
       side: {
@@ -65,6 +66,8 @@ const SheetContent = forwardRef(function SheetContent(
     children,
     "aria-describedby": ariaDescribedby,
     onOpenAutoFocus,
+    submitOnEnter = true,
+    onKeyDown,
     ...props
   },
   forwardedRef,
@@ -128,6 +131,10 @@ const SheetContent = forwardRef(function SheetContent(
           isBottom && isMobile && "w-full! max-w-none!",
         )}
         {...props}
+        onKeyDown={(event) => {
+          onKeyDown?.(event);
+          if (submitOnEnter) handleEnterSubmit(event);
+        }}
         style={
           isBottom
             ? bottomSheetDragStyle({
@@ -186,6 +193,7 @@ const SheetHeader = function SheetHeader({ className, ...props }) {
 const SheetFooter = function SheetFooter({ className, ...props }) {
   return (
     <div
+      data-dialog-footer=""
       className={cn(
         "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-auto",
         className,

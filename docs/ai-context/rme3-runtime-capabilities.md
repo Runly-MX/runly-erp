@@ -714,3 +714,8 @@ Use this instruction before generating module code:
 > **UI-first rule:** Never use native HTML form elements (`<select>`, `<input>`, `<textarea>`) — always use the `@runly/ui` equivalent. For any searchable select with optional inline creation, use `CreatableComboboxField` with `placeholder="Buscar o crear..."`. For read-only searchable selects, use `ComboboxField`. Plain `SelectField` only for short fixed lists. All screens start with `PageHeader`. All destructive confirmations use `ConfirmDialog`. File attachments use `AttachmentsPanel` / `FileUploader` inline — never redirect to atlas.files.
 >
 > If a fix touches the shared runtime host in `apps/desktop` (importmap, shims, externals) or credentialed browser/API CORS behavior in `apps/api`, publish new Docker images for `web` and/or `api`. Dynamic module bundling only avoids rebuilds for module-local code changes.
+
+
+### Modales (Dialog / Sheet)
+
+Animan entrada y salida por defecto (utilidades `animate-in` / `slide-in-from-*` definidas en `packages/ui/src/tailwind-theme.css`). Enter en un input de texto dispara el botón principal del pie (`data-dialog-footer`); opt-out con `submitOnEnter={false}` o `data-no-enter-submit`.

@@ -661,3 +661,10 @@ const titulo = resolveRecordLabel(registro, [findEntityBlueprint(blueprints, 'DE
 ```js
 const res = await fetch(`${apiBaseUrl}/visitas/visitas?pageSize=50`, { headers: buildApiHeaders(token, companyId) })
 ```
+
+
+## Modales: animación y Enter para enviar
+
+`Dialog` y `Sheet` animan su entrada y salida por defecto (el panel lateral se desliza, el diálogo se desvanece y escala; se respeta `prefers-reduced-motion`). Las utilidades `animate-in`, `fade-in-*`, `zoom-in-*` y `slide-in-from-*` ya están definidas en el tema compartido, así que también puedes usarlas en tus propios componentes con `data-[state=open]:`.
+
+Dentro de un modal, pulsar **Enter** en un campo de texto ejecuta la acción principal del pie (el último botón de variante principal o destructiva dentro de `DialogFooter`/`SheetFooter`), como lo haría un formulario. No se activa en áreas de texto, casillas, selectores ni campos de búsqueda con sugerencias. Para desactivarlo en todo el modal usa `submitOnEnter={false}` en `DialogContent`/`SheetContent`; para excluir un campo o una zona, márcala con `data-no-enter-submit`. Si construyes un pie propio, márcalo con `data-dialog-footer`.

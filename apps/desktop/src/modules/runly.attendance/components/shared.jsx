@@ -23,7 +23,7 @@ export function FormSheet({ open, onOpenChange, title, description, children, fo
         </SheetHeader>
         <div ref={bodyRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">{children}</div>
         {footer || showSwitch ? (
-          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[hsl(var(--border))] px-5 py-3">
+          <div data-dialog-footer="" className="flex shrink-0 items-center justify-between gap-3 border-t border-[hsl(var(--border))] px-5 py-3">
             {showSwitch ? <SwitchField label="Crear otro" checked={Boolean(createAnother.checked)} onChange={createAnother.onChange} /> : <span />}
             <div className="flex items-center gap-2">{footer}</div>
           </div>

@@ -62,6 +62,7 @@ const Button = forwardRef(function Button(
     <Comp
       className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}
+      data-variant={variant ?? "default"}
       disabled={disabled || loading}
       {...props}
     >
