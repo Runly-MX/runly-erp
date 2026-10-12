@@ -17,7 +17,7 @@ function testSpeaker(deviceId) {
   } catch { /* no audio output */ }
 }
 
-function DeviceSelect({ label, kind, mediaDevices, emptyText }) {
+export function DeviceSelect({ label, kind, mediaDevices, emptyText }) {
   const list = mediaDevices.devices[kind] ?? [];
   if (!list.length) {
     return (
@@ -34,6 +34,35 @@ function DeviceSelect({ label, kind, mediaDevices, emptyText }) {
       onValueChange={(id) => mediaDevices.select(kind, id)}
       options={list.map((d) => ({ value: d.deviceId, label: d.label }))}
     />
+  );
+}
+
+// Speaker (or Android audio route) picker plus a "Probar altavoz" button.
+export function AudioOutputPicker({ mediaDevices, audioRoute = null }) {
+  return (
+    <>
+      {audioRoute?.supported ? (
+        <SelectField
+          label="Salida de audio"
+          value={audioRoute.active ?? ""}
+          onValueChange={audioRoute.select}
+          options={audioRoute.routes.map((r) => ({ value: r.id, label: r.label }))}
+        />
+      ) : mediaDevices.outputSupported ? (
+        <DeviceSelect label="Altavoz" kind="audiooutput" mediaDevices={mediaDevices} emptyText="Usando el altavoz del sistema." />
+      ) : (
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+          Este navegador usa la salida de audio del sistema; cámbiala desde la configuración del dispositivo.
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={() => testSpeaker(mediaDevices.active.audiooutput)}
+        className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white/10 px-4 text-sm font-semibold text-white hover:bg-white/15"
+      >
+        <Volume2 className="h-4 w-4" aria-hidden /> Probar altavoz
+      </button>
+    </>
   );
 }
 
@@ -69,27 +98,7 @@ export function DeviceSettingsDialog({ open, onOpenChange, room, mediaDevices, m
             </div>
             <DeviceSelect label="Cámara" kind="videoinput" mediaDevices={mediaDevices} emptyText="No se detectaron cámaras." />
             <div className="space-y-2 md:col-span-2">
-              {audioRoute?.supported ? (
-                <SelectField
-                  label="Salida de audio"
-                  value={audioRoute.active ?? ""}
-                  onValueChange={audioRoute.select}
-                  options={audioRoute.routes.map((r) => ({ value: r.id, label: r.label }))}
-                />
-              ) : mediaDevices.outputSupported ? (
-                <DeviceSelect label="Altavoz" kind="audiooutput" mediaDevices={mediaDevices} emptyText="Usando el altavoz del sistema." />
-              ) : (
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                  Este navegador usa la salida de audio del sistema; cámbiala desde la configuración del dispositivo.
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={() => testSpeaker(mediaDevices.active.audiooutput)}
-                className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-white/10 px-4 text-sm font-semibold text-white hover:bg-white/15"
-              >
-                <Volume2 className="h-4 w-4" aria-hidden /> Probar altavoz
-              </button>
+              <AudioOutputPicker mediaDevices={mediaDevices} audioRoute={audioRoute} />
             </div>
           </div>
         </div>

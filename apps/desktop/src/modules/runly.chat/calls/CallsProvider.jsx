@@ -22,7 +22,9 @@ import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 import { playCallSound, playCallEndSound, unlockCallSounds } from "./callSounds";
 import {
   claimCallForDevice,
+  getRememberedMeetingMode,
   releaseCallForDevice,
+  rememberCallMeetingMode,
   shouldResumeCallOnDevice,
 } from "./callDeviceSession";
 import { useCallSynchronization } from "./useCallSynchronization";
@@ -224,10 +226,11 @@ export function CallsProvider({ children }) {
     if (!raw?.call || !raw?.token || !raw?.livekitUrl) return false;
     // Client-only session flags (e.g. meetingMode) survive a token refresh
     // for the same call (rejoin after a dropped connection).
+    // After a page reload, the mode comes back from this tab's storage.
     const previous = activeRef.current?.call?.id === raw.call.id ? activeRef.current : null;
     const payload = {
       ...raw,
-      meetingMode: extra?.meetingMode ?? previous?.meetingMode ?? null,
+      meetingMode: extra?.meetingMode ?? previous?.meetingMode ?? getRememberedMeetingMode(raw.call.id),
       joinPrefs: extra?.joinPrefs ?? previous?.joinPrefs ?? null,
     };
     incomingRef.current = null;
@@ -236,6 +239,7 @@ export function CallsProvider({ children }) {
     activeRef.current = payload;
     dismissSystemCallNotification(payload.call.id).catch(() => {});
     claimCallForDevice(payload.callId ?? payload.call.id);
+    rememberCallMeetingMode(payload.call.id, payload.meetingMode);
     return true;
   }, []);
 
@@ -321,7 +325,10 @@ export function CallsProvider({ children }) {
       if (joiningCallRef.current === current.call.id) return current;
       joiningCallRef.current = current.call.id;
       try {
-        connectWithResponse(await runly.calls.join(current.call.id, token));
+        // This tab was in the call (page reloaded or restored by the browser).
+        if (connectWithResponse(await runly.calls.join(current.call.id, token))) {
+          toast.info("Te reconectamos a la llamada.", { id: `call-resumed:${current.call.id}` });
+        }
       } finally {
         joiningCallRef.current = null;
       }

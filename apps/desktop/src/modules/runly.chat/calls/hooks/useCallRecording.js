@@ -31,14 +31,17 @@ export function useCallRecording({ callId, conversationId, getOrientation = null
   }, [conversationId, token, refresh]);
 
   // `getOrientation` (optional) returns "portrait" | "landscape" for the
-  // recording canvas, read at the moment the recording starts.
+  // recording canvas, read at the moment the recording starts. Resolves true
+  // once the recording was accepted.
   const start = useCallback(async () => {
     setBusy(true);
     try {
       await runly.calls.startRecording(callId, token, { orientation: getOrientation?.() });
       await refresh();
+      return true;
     } catch (e) {
       toast.error(e?.message || "No se pudo iniciar la grabación.");
+      return false;
     } finally {
       setBusy(false);
     }

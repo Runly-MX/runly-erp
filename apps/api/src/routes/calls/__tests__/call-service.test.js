@@ -1027,3 +1027,70 @@ describe("createCallService — leaving a group meeting", () => {
     assert.equal(ended, false);
   });
 });
+
+describe("createCallService — page reloads keep your place", () => {
+  function directCall() {
+    return {
+      id: CALL_ID, conversationId: CONVERSATION_ID, kind: "VIDEO", status: "ACTIVE",
+      initiatedByUserId: CALLER_ID, livekitRoomName: `call_${CALL_ID}`,
+      participants: [{ userId: CALLER_ID, status: "JOINED" }, { userId: CALLEE_ID, status: "JOINED" }],
+      initiator: { id: CALLER_ID, displayName: "Host" }, calendarEvent: null,
+    };
+  }
+
+  it("a soft leave only marks the participant as disconnected", async () => {
+    const marks = [];
+    let ended = false;
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Host" }) },
+      call: { findUnique: async () => directCall(), update: async () => { ended = true; return {}; } },
+      callParticipant: {
+        update: async () => { throw new Error("must not mark LEFT"); },
+        updateMany: async (args) => { marks.push(args); return { count: 1 }; },
+      },
+      $queryRaw: async (strings) => (strings.join("?").includes("SELECT type") ? [{ type: "direct" }] : [{ id: "member-row" }]),
+      $transaction: async (ops) => Promise.all(ops),
+    };
+    const service = createCallService({ prisma, env: enabledEnv() });
+    await service.leaveCall({ authUserId: "host-auth", callId: CALL_ID, soft: true });
+    assert.equal(ended, false);
+    assert.equal(marks.length, 1);
+    assert.equal(marks[0].where.status, "JOINED");
+    assert.ok(marks[0].data.leftAt instanceof Date);
+    assert.equal(marks[0].data.status, undefined);
+  });
+
+  it("the sweep makes a disconnected participant leave after the grace and ends a direct call", async () => {
+    const statusUpdates = [];
+    let endedReason = null;
+    const prisma = {
+      callParticipant: {
+        findMany: async () => [{ callId: CALL_ID, userId: CALLER_ID }],
+        updateMany: async (args) => { statusUpdates.push(args); return { count: 1 }; },
+        count: async () => 1,
+      },
+      call: { findUnique: async () => directCall(), update: async ({ data }) => { endedReason = data.endReason; return {}; } },
+      $queryRaw: async (strings) => (strings.join("?").includes("SELECT type") ? [{ type: "direct" }] : []),
+      $transaction: async (ops) => Promise.all(ops),
+    };
+    const service = createCallService({ prisma, env: enabledEnv() });
+    await service.expireDisconnectedParticipants();
+    assert.equal(statusUpdates[0].data.status, "LEFT");
+    assert.ok(statusUpdates[0].where.leftAt.lte instanceof Date);
+    assert.equal(endedReason, "ended");
+  });
+
+  it("the sweep skips someone who rejoined in the meantime", async () => {
+    let ended = false;
+    const prisma = {
+      callParticipant: {
+        findMany: async () => [{ callId: CALL_ID, userId: CALLER_ID }],
+        updateMany: async () => ({ count: 0 }),
+      },
+      call: { findUnique: async () => { ended = true; return directCall(); } },
+    };
+    const service = createCallService({ prisma, env: enabledEnv() });
+    await service.expireDisconnectedParticipants();
+    assert.equal(ended, false);
+  });
+});

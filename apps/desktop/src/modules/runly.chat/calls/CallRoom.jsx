@@ -14,6 +14,7 @@ import { useCallRecording } from "./hooks/useCallRecording";
 import { useTrackTranscription } from "./hooks/useTrackTranscription";
 import { useScreenWakeLock } from "./hooks/useScreenWakeLock";
 import { useCallAutoRejoin, useNativeCallKeepAlive } from "./hooks/useCallBackgroundKeepAlive";
+import { useResumeMediaOnReturn } from "./hooks/useResumeMediaOnReturn";
 import { CallRoomLayout } from "./CallRoomLayout";
 import { roomDeviceDefaults } from "./hooks/useMediaDevices";
 import { useAudioRoute } from "./hooks/useAudioRoute";
@@ -82,17 +83,17 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
     if (recording.active) onRecordingActive?.(session.call.id);
   }, [recording.active]); // eslint-disable-line react-hooks/exhaustive-deps
   const trackTranscription = useTrackTranscription({ callId: session.call.id, conversationId });
-  // "Grabar reunión presencial": recording (and per-speaker transcription when
-  // allowed) starts by itself once media is up, exactly once per room.
+  // "Grabar reunión presencial": the recorder opens on a preparation stage
+  // (devices + mic check); recording starts when the user presses "Comenzar a
+  // grabar". Per-speaker transcription (when allowed) rides along, but only
+  // with a published microphone — the server refuses a capture without one.
   const inPerson = session.meetingMode === "inperson";
-  const inPersonAutoRef = useRef(false);
-  useEffect(() => {
-    if (!inPerson || !engineReady || inPersonAutoRef.current) return;
-    inPersonAutoRef.current = true;
-    if (!canRecord) return;
-    recording.start();
-    if (canTranscribeTracks) trackTranscription.start();
-  }, [inPerson, engineReady, canRecord, canTranscribeTracks]); // eslint-disable-line react-hooks/exhaustive-deps
+  const startInPersonRecording = useCallback(async () => {
+    if (!canRecord || !(await recording.start())) return;
+    if (!canTranscribeTracks || trackTranscription.active) return;
+    const micPublished = Boolean(room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track);
+    if (micPublished) trackTranscription.start();
+  }, [canRecord, canTranscribeTracks, recording, trackTranscription, room]);
 
   // Guest access: only the initiator polls the roster (a non-manager member
   // gets a swallowed 403); the share dialog + roster are hidden otherwise.
@@ -305,6 +306,7 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
     connected: connectionState === "connected",
     rejoin: onReconnect,
   });
+  useResumeMediaOnReturn({ room, micEnabled, cameraEnabled });
   useNativeCallKeepAlive({
     video: session.call.kind === "VIDEO" || cameraEnabled,
     micLive: micEnabled && engineReady,
@@ -583,6 +585,7 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
         toggleScreen,
         canRecord,
         recording,
+        startInPersonRecording,
         canTranscribeTracks,
         trackTranscription,
         audioRoute,

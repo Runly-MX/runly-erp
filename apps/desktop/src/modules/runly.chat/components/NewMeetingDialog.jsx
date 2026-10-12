@@ -53,8 +53,9 @@ const MODES = [
     label: "Presencial",
     hint: "Graba una reunión en sala o una exposición desde un solo dispositivo.",
     points: [
+      "Antes de grabar eliges y pruebas micrófono, altavoz y cámara",
       "Empieza con audio; activa cámara o presenta tu pantalla si expones",
-      "Se graba y transcribe automáticamente",
+      "Se graba y transcribe al pulsar Comenzar a grabar",
       "Nadie recibe timbre ni notificación de llamada",
       "Al terminar, la grabación queda en la conversación",
     ],
@@ -66,7 +67,7 @@ const MODES = [
 const ACTION = {
   now: { label: "Iniciar reunión", busy: "Abriendo...", Icon: Video },
   schedule: { label: "Continuar al calendario", busy: "Preparando...", Icon: Calendar },
-  inperson: { label: "Empezar a grabar", busy: "Abriendo...", Icon: Mic },
+  inperson: { label: "Preparar grabación", busy: "Abriendo...", Icon: Mic },
 };
 
 function ModeCard({ mode, selected, disabled, onSelect }) {

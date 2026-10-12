@@ -2,7 +2,7 @@ import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 import { buildCallSystemMessage } from "./call-system-messages.js";
 import { createCallScreenShareService } from './call-screen-share-service.js';
 import { createCallInviteService } from "./call-invite-service.js";
-import { LIVE_CALL_STATUSES, RING_TIMEOUT_MS } from "./call-constants.js";
+import { DISCONNECT_GRACE_MS, LIVE_CALL_STATUSES, RING_TIMEOUT_MS } from "./call-constants.js";
 
 function isLiveCallConflict(error) {
   return error?.code === "P2002"
@@ -744,21 +744,38 @@ export function createCallService({
     }
   }
 
-  async function leaveCall({ authUserId, callId }) {
+  // `soft`: the page is unloading (reload, tab closed, browser killed). The
+  // participant stays JOINED with leftAt as a "disconnected since" marker, so
+  // a reload resumes the call; expireDisconnectedParticipants() turns it into
+  // a real leave once DISCONNECT_GRACE_MS passes without a rejoin.
+  async function leaveCall({ authUserId, callId, soft = false }) {
     assertEnabled();
     const profile = await resolveProfile(authUserId);
     const call = await getCallRecord(callId);
     await assertCallAccess(call, profile.id);
     if (call.status === "ENDED") return call;
+    if (soft) {
+      await prisma.callParticipant.updateMany({
+        where: { callId, userId: profile.id, status: "JOINED" },
+        data: { leftAt: now() },
+      });
+      return getCallRecord(callId);
+    }
     await prisma.callParticipant.update({
       where: { callId_userId: { callId, userId: profile.id } },
       data: { status: "LEFT", leftAt: now() },
     });
-    // A 1:1 call ends when either side hangs up. A group call or meeting keeps
-    // going while anyone is still in it — even after the host leaves (the host
-    // ends it for everyone with endCall, "Finalizar para todos").
+    await endCallIfEmptied(call, profile.id);
+    return getCallRecord(callId);
+  }
+
+  // A 1:1 call ends when either side hangs up. A group call or meeting keeps
+  // going while anyone is still in it — even after the host leaves (the host
+  // ends it for everyone with endCall, "Finalizar para todos"). Someone still
+  // inside the reconnect grace counts as in it.
+  async function endCallIfEmptied(call, leftProfileId) {
     const remaining = await prisma.callParticipant.count({
-      where: { callId, userId: { not: profile.id }, status: "JOINED" },
+      where: { callId: call.id, userId: { not: leftProfileId }, status: "JOINED" },
     });
     const [conversation] = await prisma.$queryRaw`
       SELECT type FROM chat_conversations WHERE id = ${call.conversationId} LIMIT 1
@@ -766,7 +783,27 @@ export function createCallService({
     if (conversation?.type === "direct" || remaining === 0) {
       await endCallRecord(call, "ended");
     }
-    return getCallRecord(callId);
+  }
+
+  // Participants whose page unloaded (soft leave) and did not come back within
+  // the grace period leave for real — which may end the call.
+  async function expireDisconnectedParticipants() {
+    const cutoff = new Date(now().getTime() - DISCONNECT_GRACE_MS);
+    const stale = await prisma.callParticipant.findMany({
+      where: { status: "JOINED", leftAt: { not: null, lte: cutoff }, call: { status: { in: LIVE_CALL_STATUSES } } },
+      select: { callId: true, userId: true },
+    });
+    for (const row of stale) {
+      // Guarded on the marker: a rejoin in the meantime clears leftAt.
+      const { count } = await prisma.callParticipant.updateMany({
+        where: { callId: row.callId, userId: row.userId, status: "JOINED", leftAt: { not: null, lte: cutoff } },
+        data: { status: "LEFT" },
+      });
+      if (!count) continue;
+      const call = await getCallRecord(row.callId);
+      if (call.status !== "ENDED") await endCallIfEmptied(call, row.userId);
+    }
+    return stale.length;
   }
 
   async function endCall({ authUserId, callId }) {
@@ -877,7 +914,7 @@ export function createCallService({
   function startExpirySweeper() {
     if (!getConfig().enabled) return () => {};
     const timer = setInterval(() => {
-      Promise.all([expireStaleCalls(), revokeUnauthorizedParticipants()]).catch((error) => {
+      Promise.all([expireStaleCalls(), expireDisconnectedParticipants(), revokeUnauthorizedParticipants()]).catch((error) => {
         console.error("[atlas.calls] Error expirando llamadas:", error?.message ?? error);
       });
     }, 15_000);
@@ -897,6 +934,7 @@ export function createCallService({
     leaveCall,
     endCall,
     expireStaleCalls,
+    expireDisconnectedParticipants,
     startExpirySweeper,
     revokeUnauthorizedParticipants,
     assertCanManageCall,

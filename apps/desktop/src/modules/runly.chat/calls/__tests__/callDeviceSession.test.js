@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import {
   claimCallForDevice,
   getClaimedCallId,
+  getRememberedMeetingMode,
   releaseCallForDevice,
+  rememberCallMeetingMode,
   shouldResumeCallOnDevice,
 } from "../callDeviceSession.js";
 
@@ -36,5 +38,16 @@ describe("call device session", () => {
     assert.equal(getClaimedCallId(storage), "call-new");
     assert.equal(releaseCallForDevice("call-new", storage), true);
     assert.equal(getClaimedCallId(storage), null);
+  });
+
+  it("remembers the meeting mode of the claimed call until it is released", () => {
+    const storage = createStorage();
+    claimCallForDevice("call-1", storage);
+    rememberCallMeetingMode("call-1", "inperson", storage);
+
+    assert.equal(getRememberedMeetingMode("call-1", storage), "inperson");
+    assert.equal(getRememberedMeetingMode("call-2", storage), null);
+    releaseCallForDevice("call-1", storage);
+    assert.equal(getRememberedMeetingMode("call-1", storage), null);
   });
 });

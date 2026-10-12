@@ -476,7 +476,9 @@ export function createCallsRouter({
     internal.post(`/:id/${action}`, async (c) => {
       try {
         const id = callIdSchema.parse(c.req.param("id"));
-        const data = await calls[method]({ authUserId: c.get("authUserId"), callId: id });
+        // leave { soft: true }: sent while the page unloads (see leaveCall).
+        const body = action === "leave" ? await c.req.json().catch(() => ({})) : {};
+        const data = await calls[method]({ authUserId: c.get("authUserId"), callId: id, soft: body?.soft === true });
         return c.json({ data });
       } catch (error) { return handleError(c, error, `Error procesando la accion ${action}.`); }
     });
