@@ -1,5 +1,5 @@
 import { ActionMenu, Button, Skeleton, Tooltip, TooltipContent, TooltipTrigger, cn, useIsMobile, PersonAvatar } from '@runly/ui'
-import { ArrowLeft, Check, Eye, History, Loader2, Maximize2, Minimize2, PanelLeft, PanelRight, Pencil, Redo2, Share2, Trash2, Undo2 } from 'lucide-react'
+import { ArrowLeft, Check, Eye, Fullscreen, History, Loader2, Maximize2, Minimize2, PanelLeft, PanelRight, Pencil, Redo2, Share2, Trash2, Undo2 } from 'lucide-react'
 import { canEditBoard } from '../lib/roles.js'
 import { ToolButton } from './CanvasToolbar.jsx'
 import { ExportMenu } from './ExportMenu.jsx'
@@ -32,7 +32,9 @@ function SaveStatus({ saving }) {
   )
 }
 
-export function EditorTopBar({ title, subtitle, loading, saving, presence, onBack, leftOpen, rightOpen, onToggleLeft, onToggleRight, zen, onToggleZen, history, readOnly = false, onShare, onVersions, onExport, exportDisabled, myRole, onRenameBoard, onDeleteBoard }) {
+const VIEW_MODE_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
+
+export function EditorTopBar({ title, subtitle, loading, saving, presence, onBack, leftOpen, rightOpen, onToggleLeft, onToggleRight, viewMode = 'normal', onCycleViewMode, history, readOnly = false, onShare, onVersions, onExport, exportDisabled, myRole, onRenameBoard, onDeleteBoard }) {
   const phone = useIsMobile()
   const moreItems = [
     canEditBoard(myRole) && onRenameBoard ? { label: 'Renombrar Board', icon: Pencil, onClick: onRenameBoard } : null,
@@ -108,8 +110,8 @@ export function EditorTopBar({ title, subtitle, loading, saving, presence, onBac
         <ToolButton label={rightOpen ? 'Ocultar inspector' : 'Inspector'} active={rightOpen} onClick={onToggleRight} className={cn(rightOpen && 'bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]')}>
           <PanelRight />
         </ToolButton>
-        <ToolButton label={zen ? 'Salir de pantalla completa (Esc)' : 'Pantalla completa'} active={false} onClick={onToggleZen} className="max-sm:hidden">
-          {zen ? <Minimize2 /> : <Maximize2 />}
+        <ToolButton label={VIEW_MODE_LABELS[viewMode]} active={false} onClick={onCycleViewMode} className="max-sm:hidden">
+          {viewMode === 'normal' ? <Maximize2 /> : viewMode === 'clean' ? <Fullscreen /> : <Minimize2 />}
         </ToolButton>
       </div>
     </header>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, ErrorState, Sheet, SheetContent, SheetHeader, SheetTitle, cn, useIsMobile } from '@runly/ui'
+import { Button, ErrorState, Sheet, SheetContent, SheetHeader, SheetTitle, cn, useIsMobile, useViewMode } from '@runly/ui'
 import { CanvasLoadingSkeleton, LayersPanelSkeleton } from '../components/skeletons.jsx'
 import { BoardActionsDialogs } from '../components/BoardActionsDialogs.jsx'
 import { BoardInspector } from '../components/BoardInspector.jsx'
@@ -97,7 +97,8 @@ export default function BoardEditor() {
   const [pageId, setPageId] = useState(null), [layerId, setLayerId] = useState(null), [selectedIds, setSelectedIds] = useState([]), [tool, setTool] = useState('select')
   const [viewport, setViewport] = useState(DEFAULT_VIEWPORT), [size, setSize] = useState({ width: 0, height: 0 })
   const [desktopPanels, setDesktopPanels] = useState({ left: true, right: true }), [mobileSheet, setMobileSheet] = useState(null)
-  const [dialog, setDialog] = useState(null), [zen, setZen] = useState(false), [shareOpen, setShareOpen] = useState(false), [versionsOpen, setVersionsOpen] = useState(false)
+  const viewMode = useViewMode()
+  const [dialog, setDialog] = useState(null), [shareOpen, setShareOpen] = useState(false), [versionsOpen, setVersionsOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [boardDialogMode, setBoardDialogMode] = useState(null)
   // The server broadcasts board.deleted to every session, including the one
@@ -237,7 +238,7 @@ export default function BoardEditor() {
     onRedo: () => { if (!readOnly) actions.redo() },
     onSelectAll: selectAll,
     onEscape: () => {
-      if (selectedIds.length || tool !== 'select') { setSelectedIds([]); setTool('select') } else if (zen) setZen(false)
+      if (selectedIds.length || tool !== 'select') { setSelectedIds([]); setTool('select') } else viewMode.stepBack()
     },
     onZoomIn: () => zoomBy(1.2), onZoomOut: () => zoomBy(1 / 1.2), onReset: resetZoom, onFit: fit,
   })
@@ -310,12 +311,12 @@ export default function BoardEditor() {
   }
 
   return (
-    <div className={cn('flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))]', zen ? 'fixed inset-0 z-50 h-dvh' : 'h-full')}>
+    <div className={cn('flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))]', viewMode.isImmersive ? 'fixed inset-0 z-50 h-dvh' : 'h-full')}>
       <EditorTopBar
         title={board.data?.name ?? 'Board'} subtitle={subtitle || 'Sin páginas'} loading={board.isLoading} saving={actions.saving}
         presence={presence} onBack={() => navigate('/app/m/runly.canvas')}
         leftOpen={leftOpen} rightOpen={rightOpen} onToggleLeft={() => togglePanel('left')} onToggleRight={() => togglePanel('right')}
-        zen={zen} onToggleZen={() => setZen((value) => !value)}
+        viewMode={viewMode.mode} onCycleViewMode={viewMode.cycle}
         history={{ undo: actions.undo, redo: actions.redo, canUndo: actions.canUndo, canRedo: actions.canRedo, undoLabel: actions.undoLabel, redoLabel: actions.redoLabel }}
         readOnly={readOnly} onShare={() => setShareOpen(true)} onVersions={() => setVersionsOpen(true)}
         onExport={exportPage.exportAs} exportDisabled={exportPage.exportDisabled}

@@ -1,5 +1,24 @@
 # Runly ERP v2 — Agent Instructions
 
+## Desktop and Android publication destination
+
+The established download destination for Windows and Android is GitHub Releases
+in `Runly-MX/runly-erp`. The user confirmed this destination on 2026-10-12;
+do not ask again where to upload when they request a Runly installer/APK release.
+Inspect the current release and assets before publishing; do not hardcode its tag.
+Canonical asset names and stable download URLs are defined in
+`apps/desktop/src/lib/appConfig.js`:
+- Windows: `Runly-ERP-Setup.exe`
+- Android: `Runly-ERP.apk`
+
+Use GitHub release URLs, never temporary signed redirects from
+`release-assets.githubusercontent.com`. Keep their query strings out of tracked
+files. For an Android-only publication, upload only the verified APK and preserve
+the Windows assets. `apps/desktop/scripts/publish-release.mjs` requires a Windows
+installer, may upload both platforms, overwrites matching assets and marks latest;
+review its scope before using it. This destination preference does not authorize
+unsolicited releases or replacing an unrelated artifact.
+
 ## Public repository privacy
 
 Never copy real infrastructure addresses, personal emails, credentials, production

@@ -302,6 +302,7 @@ export { ChatAttachMenu } from "./components/ChatAttachMenu.jsx";
 export { ListLayout } from "./components/ListLayout.jsx";
 export { useAttachmentsController, resolveAttachmentFileType } from "./hooks/useAttachmentsController.js";
 export { useIsMobile } from "./hooks/useIsMobile.js";
+export { useViewMode } from "./hooks/useViewMode.js";
 export { useKeyboardInset, useKeyboardOpen, useKeyboardViewport } from "./hooks/useKeyboardInset.js";
 export {
   computeKeyboardInset,
