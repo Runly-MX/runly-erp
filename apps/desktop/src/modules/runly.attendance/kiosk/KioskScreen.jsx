@@ -93,12 +93,12 @@ export default function KioskScreen() {
         </div>
       )}
 
-      <main className="flex flex-1 gap-6 px-4 pb-16 sm:px-8 portrait:flex-col landscape:flex-row landscape:items-center">
+      <main className="flex flex-1 gap-6 px-4 pb-2 sm:px-8 sm:pb-16 portrait:flex-col landscape:flex-row landscape:items-center">
         <section className="flex flex-1 items-center justify-center py-2">
           <div className="flex flex-col items-center gap-4">
             <KioskClock siteName={kiosk.kiosk?.siteName} companyName={kiosk.kiosk?.companyName} />
             {kiosk.roster?.qrSecret && active?.id !== 'phone' && (
-              <button type="button" onClick={() => setTab('phone')} className="flex items-center gap-2 rounded-full bg-white/[0.06] px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400">
+              <button type="button" onClick={() => setTab('phone')} className="flex items-center gap-2 [@media(max-height:760px)]:hidden rounded-full bg-white/[0.06] px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400">
                 <Smartphone className="size-4 text-teal-300" /> También puedes checar escaneando con tu teléfono
               </button>
             )}
