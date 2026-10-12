@@ -124,9 +124,9 @@ export function LoginScreen({ returnTo = '/app' }) {
     setTimeout(() => setForgotPhase('form'), 200)
   }
 
-  async function handleChangeServer() {
+  async function handleChangeServer(section = 'manage') {
     if (native.isMobile()) {
-      try { await native.instances.open() }
+      try { await native.instances.open(section) }
       catch (error) { setError(error.message || 'Actualiza la app Android para cambiar de instancia.') }
       return
     }
@@ -277,12 +277,20 @@ export function LoginScreen({ returnTo = '/app' }) {
               {isTauriRuntime() || native.isMobile() ? (
                 <Button variant="ghost"
                   type="button"
-                  onClick={handleChangeServer}
+                  onClick={() => handleChangeServer()}
                   className="text-sm text-(--brand-primary) hover:text-(--brand-primary-hover) transition-colors duration-150 cursor-pointer"
                 >
                   Cambiar instancia
                 </Button>
               ) : null}
+              {native.isMobile() && (
+                <Button variant="ghost" type="button"
+                  onClick={() => handleChangeServer('device')}
+                  className="text-sm text-muted-foreground"
+                >
+                  Permisos del dispositivo
+                </Button>
+              )}
             </div>
           </div>
         </section>

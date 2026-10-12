@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { isNativeMobile } from "@runly/core/native-runtime";
-import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug } from "lucide-react";
+import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug, Server, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
+import { native } from "../native/index.js";
 import { useThemeStore } from "../stores/theme";
 import { useChatFloatStore } from "../modules/runly.chat/store/chatFloatStore";
 import { useChatUnreadCount } from "../modules/runly.chat/hooks/useChatConversations";
@@ -85,10 +87,12 @@ export function UserMenu({
   const navigate = useNavigate();
   const [showReminder, setShowReminder] = useState(() => shouldShowDesktopReminder());
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
+  const [openingNativeSettings, setOpeningNativeSettings] = useState(false);
 
   const platform = getDevicePlatform();
   const standalone = isStandaloneMode();
   const isWindows = platform === "windows";
+  const nativeMobile = isNativeMobile();
   const mobileInstallMode = getMobilePwaInstallMode({
     platform,
     standalone,
@@ -101,6 +105,18 @@ export function UserMenu({
     window.open(RUNLY_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer");
     dismissDesktopReminder();
     setShowReminder(false);
+  }
+
+  async function handleNativeSettings(section) {
+    if (openingNativeSettings) return;
+    setOpeningNativeSettings(true);
+    try {
+      await native.instances.open(section);
+    } catch {
+      toast.error("No se pudo abrir el gestor. Actualiza la app o intenta de nuevo.");
+    } finally {
+      setOpeningNativeSettings(false);
+    }
   }
 
   function handleDismissReminder(e) {
@@ -127,7 +143,7 @@ export function UserMenu({
 
   // Module PWA installation and the Android APK are independent actions.
   const showMobileInstall = mobileInstallMode !== null;
-  const showAndroidDownload = platform === "android" && !isNativeMobile();
+  const showAndroidDownload = platform === "android" && !nativeMobile;
   const showWindowsApp = isWindows && showReminder;
 
   return (
@@ -186,6 +202,28 @@ export function UserMenu({
             <Settings size={14} />
             Configuración
           </DropdownMenuItem>
+        )}
+
+        {nativeMobile && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={openingNativeSettings}
+              onClick={() => handleNativeSettings("manage")}
+              className="gap-2 cursor-pointer"
+            >
+              <Server size={14} />
+              Cambiar instancia
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={openingNativeSettings}
+              onClick={() => handleNativeSettings("device")}
+              className="gap-2 cursor-pointer"
+            >
+              <ShieldCheck size={14} />
+              Permisos del dispositivo
+            </DropdownMenuItem>
+          </>
         )}
 
         {/* ── Mobile PWA install section ── */}

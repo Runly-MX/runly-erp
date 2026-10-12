@@ -25,12 +25,14 @@ class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     installSplashScreen()
     normalizeIntent(intent)
+    HostControls.handleIntent(intent)
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
   }
 
   override fun onNewIntent(intent: Intent) {
     normalizeIntent(intent)
+    HostControls.handleIntent(intent)
     super.onNewIntent(intent)
   }
 

@@ -1,5 +1,30 @@
 # Runly Native Host
 
+## Android 1.2.2 — navegación integrada
+
+Se elimina el botón nativo flotante que tapaba acciones de los módulos. En la
+web actualizada, el menú del usuario y el login muestran **Cambiar instancia** y
+**Permisos del dispositivo** dentro del host móvil, sin requerir permisos de
+administrador. Ambos abren las secciones del gestor local mediante `host_manage`.
+La descarga del APK en Chrome Android es independiente de la instalación PWA y
+del módulo activo.
+
+Como acceso de respaldo, mantener pulsado el icono de Runly en el launcher Android
+muestra **Instancias** y **Permisos**. Los accesos funcionan con la app cerrada o
+abierta, incluso sobre una versión web anterior; no añaden una capa sobre el ERP.
+Un acceso desde la shell cancela la conexión pendiente antes de abrir el gestor.
+Las pantallas de error conservan el selector local. Las nuevas opciones de login
+y del menú requieren desplegar la web actualizada en cada instancia.
+
+Verificación: build web y 20 pruebas Node correctos; React Doctor sin errores,
+con advertencias de tamaño/complejidad de los dos componentes existentes. Pruebas
+de navegador con los componentes reales y servicios simulados: descarga desde
+Chrome Android fuera de módulos, ambas opciones para usuario no administrador y
+ambas opciones sin sesión en el login. En emulador Android 16 se verificó la
+actualización sobre 1.2.1, ausencia del botón nativo sobre el login remoto,
+accesos del launcher con arranque frío y app abierta y registro de ambos accesos
+en Android. APK ARM64 1.2.2/versionCode 1002002, con la misma firma debug anterior.
+
 ## Android 1.2.1 — marca, nombre y scroll
 
 La app se muestra como **Runly** en Android y en el gestor local. El launcher,
