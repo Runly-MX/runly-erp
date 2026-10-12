@@ -15,7 +15,7 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createAttendanceRouter({ prisma, sendMail = null, appBaseUrl = () => null, requirePermission, requireAnyPermission = null, broadcaster = null, service = null, geocoder = createGeocoder(), signFile = null }) {
+export function createAttendanceRouter({ prisma, sendMail = null, buildInviteMail = null, getBrand = null, appBaseUrl = () => null, requirePermission, requireAnyPermission = null, broadcaster = null, service = null, geocoder = createGeocoder(), signFile = null }) {
   const app = new Hono()
   const svc = service ?? createAttendanceService({ prisma, signFile })
   const importer = createAttendanceImport({ prisma })
@@ -58,7 +58,7 @@ export function createAttendanceRouter({ prisma, sendMail = null, appBaseUrl = (
   app.get('/attendance/people/:id/invite-email', people, run('Error al consultar el correo.', async (c) => c.json({ data: { email: await svc.inviteEmailSuggestion(companyId(c), c.req.param('id')), canSend: Boolean(sendMail) } })))
   // Sends the already generated invite (code + link) by e-mail.
   app.post('/attendance/people/:id/enroll-invite/send', people, run('Error al enviar la invitación.', async (c) => {
-    if (!sendMail) throw new AttendanceError('El envío de correo no está configurado en esta instancia.', 503, 'MAIL_OFF')
+    if (!sendMail || !buildInviteMail) throw new AttendanceError('El envío de correo no está configurado en esta instancia.', 503, 'MAIL_OFF')
     const body = await c.req.json().catch(() => ({}))
     const email = String(body.email ?? '').trim()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new AttendanceError('Escribe un correo válido.', 400)
@@ -68,15 +68,9 @@ export function createAttendanceRouter({ prisma, sendMail = null, appBaseUrl = (
     const base = appBaseUrl()
     if (!base) throw new AttendanceError('No se pudo determinar la dirección de la aplicación.', 503)
     const link = `${base}/app/attendance/phone?c=${encodeURIComponent(person.enrollCode)}`
-    const name = person.firstName
-    const until = person.enrollExpiresAt.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })
-    const esc = (v) => String(v).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]))
-    try { await sendMail({
-      to: email,
-      subject: 'Activa tu app Checador',
-      text: `Hola ${name}, abre este enlace en tu teléfono para activar la app Checador: ${link}\nTu código de invitación es ${person.enrollCode} y tu código de empleado es ${person.code}. Vence el ${until}.`,
-      html: `<p>Hola ${esc(name)},</p><p>Abre este enlace <b>en tu teléfono</b> para activar la app Checador y poder checar y ver tus horas:</p><p><a href="${esc(link)}">${esc(link)}</a></p><p>Código de invitación: <b>${esc(person.enrollCode)}</b><br>Tu código de empleado: <b>${esc(person.code)}</b><br>Vence: ${esc(until)}</p><p>Si no esperabas este correo, ignóralo.</p>`,
-    }) } catch (error) {
+    const brand = getBrand ? await getBrand(companyId(c)).catch(() => null) : null
+    const mail = buildInviteMail({ inviteUrl: link, inviteCode: person.enrollCode, employeeCode: person.code, firstName: person.firstName, expiresAt: person.enrollExpiresAt, brand })
+    try { await sendMail({ to: email, subject: mail.subject, html: mail.html, text: mail.text, fromName: brand?.name ?? undefined }) } catch (error) {
       throw new AttendanceError(/no configurado/i.test(error?.message ?? '') ? 'El envío de correo no está configurado en esta instancia.' : 'No se pudo enviar el correo. Revisa la dirección e inténtalo de nuevo.', 502, 'MAIL_FAILED')
     }
     return c.json({ data: { sent: true } })

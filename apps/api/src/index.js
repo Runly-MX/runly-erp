@@ -115,7 +115,7 @@ import { createNotificationDeliveryWorker } from "./services/notification-delive
 import { createNotificationService } from "./services/notification-service.js";
 import { createRealtimeBroadcaster } from "./services/realtime-broadcaster.js";
 import { createSmtpService } from "./services/smtp-service.js";
-import { resolveAppBaseUrl } from "./services/email-templates.js";
+import { buildAttendancePhoneInviteEmail, resolveAppBaseUrl } from "./services/email-templates.js";
 import { sendPasswordResetEmail } from "./lib/send-password-reset-email.js";
 import { uploadIdentityAvatar } from "./lib/upload-identity-avatar.js";
 import { getSignedUrlByFileId } from "./lib/signed-url-by-file-id.js";
@@ -2441,7 +2441,7 @@ mountWithAuth(app, createPosRouter({ prisma, requirePermission, broadcaster }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission, broadcaster, supabaseAdmin }));
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService), broadcaster }));
 mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, entityResolver: resolveCanvasEntityLink, dataSources: createCanvasDataSources({ prisma, relationTargets }), removeFiles: createCanvasFileRemover({ prisma, supabaseAdmin }) }));
-mountWithAuth(app, createAttendanceRouter({ prisma, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail), appBaseUrl: () => resolveAppBaseUrl(process.env), requirePermission, requireAnyPermission, broadcaster, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
+mountWithAuth(app, createAttendanceRouter({ prisma, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail), buildInviteMail: buildAttendancePhoneInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env), requirePermission, requireAnyPermission, broadcaster, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));

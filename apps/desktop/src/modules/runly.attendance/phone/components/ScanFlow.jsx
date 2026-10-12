@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CameraOff, CheckCircle2, Loader2, LogOut, X } from 'lucide-react'
+import { AlertTriangle, CameraOff, CheckCircle2, Loader2, LogOut } from 'lucide-react'
+import { isRevokedError } from '../lib/self-service.js'
 import { Button } from '@runly/ui'
 import { beep, haptic } from '../../kiosk/lib/feedback.js'
 import { currentPosition, isChallenge, postPhonePunch, signChallenge } from '../lib/phone-punch.js'
@@ -69,7 +70,7 @@ function ResultView({ result, onDone }) {
 }
 
 // Full scan-and-punch flow. identity = { personId, privateKey }.
-export function ScanFlow({ identity, onClose }) {
+export function ScanFlow({ identity, onClose, onRevoked }) {
   const [phase, setPhase] = useState('scanning') // scanning | sending | result | error
   const [result, setResult] = useState(null)
   const [message, setMessage] = useState('')
@@ -101,23 +102,20 @@ export function ScanFlow({ identity, onClose }) {
       setResult(data)
       setPhase('result')
     } catch (e) {
+      if (isRevokedError(e)) { onRevoked?.(); return }
       haptic(200)
       beep('error')
       setMessage(e.message)
       setPhase('error')
     }
-  }, [identity])
+  }, [identity, onRevoked])
 
   const retry = () => { busyRef.current = false; setPhase('scanning') }
 
   if (phase === 'result') return <ResultView result={result} onDone={onClose} />
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-4">
-      <div className="flex w-full items-center justify-between">
-        <h2 className="text-xl font-semibold text-white">Escanear kiosko</h2>
-        <Button variant="ghost" size="sm" className="text-slate-300 hover:bg-white/10 hover:text-white" onClick={onClose} aria-label="Cerrar"><X /></Button>
-      </div>
+    <div className="flex w-full flex-col items-center gap-4">
       {phase === 'error' ? (
         <div role="alert" className="flex w-full flex-col items-center gap-4 rounded-3xl bg-red-500/15 p-6 text-center ring-1 ring-red-400/40">
           <AlertTriangle className="size-12 text-red-300" />

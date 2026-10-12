@@ -11,7 +11,7 @@ export function PhoneHome({ identity, hours, onScan, onShowQr, onShowHours, onFo
   const preview = hoursPreview(hours?.data)
   const allowCorrections = hours?.data ? hours.data.allowCorrections !== false : true
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-6 pb-12">
+    <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-6">
       <div className="text-center">
         <p className="text-sm text-slate-400">Hola</p>
         <h1 className="text-2xl font-semibold text-white">{identity.name}</h1>

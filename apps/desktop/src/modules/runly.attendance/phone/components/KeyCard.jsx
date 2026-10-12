@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-import { ArrowLeft } from 'lucide-react'
-import { Button } from '@runly/ui'
 import { buildPhonePayload, ROTATE_SECONDS } from '../lib/phone-key.js'
 import { requestWakeLock } from '../../kiosk/lib/feedback.js'
 
 const RING = 2 * Math.PI * 28
 
-export function KeyCard({ identity, onBack }) {
+export function KeyCard({ identity }) {
   const [qr, setQr] = useState(null)
   const [issuedAt, setIssuedAt] = useState(0)
   const [remaining, setRemaining] = useState(ROTATE_SECONDS)
@@ -65,8 +63,6 @@ export function KeyCard({ identity, onBack }) {
         </div>
         <p className="mt-3 text-center text-sm text-slate-600">Acércalo a la cámara del kiosko. Funciona sin internet, pero no toma tu foto.</p>
       </div>
-
-      <Button variant="ghost" className="text-slate-300 hover:bg-white/10 hover:text-white" onClick={onBack}><ArrowLeft /> Volver</Button>
     </div>
   )
 }

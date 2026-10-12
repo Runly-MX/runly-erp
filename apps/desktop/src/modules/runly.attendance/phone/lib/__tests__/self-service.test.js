@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import { generatePhoneKey } from '../phone-key.js'
 import {
   signSelf, selfServiceErrorMessage, formatMinutes, formatDayLabel, formatSchedule, hoursPreview, buildOccurredAt, OFFLINE_MESSAGE,
+  buildDayOptions, buildMinuteOptions, defaultTimeParts, isRevokedError,
 } from '../self-service.js'
 
 const verify = (publicJwk, message, sig) => crypto.verify('sha256', Buffer.from(message), { key: crypto.createPublicKey({ key: publicJwk, format: 'jwk' }), dsaEncoding: 'ieee-p1363' }, Buffer.from(sig, 'base64url'))
@@ -47,4 +48,28 @@ test('buildOccurredAt validates future and 14-day window', () => {
   assert.match(buildOccurredAt('2026-10-12', '13:00', now).error, /futura/)
   assert.match(buildOccurredAt('2026-09-20', '08:00', now).error, /14 días/)
   assert.match(buildOccurredAt('', '', now).error, /fecha/)
+})
+
+test('buildDayOptions lists today, yesterday and 14 days back with local values', () => {
+  const options = buildDayOptions(new Date(2026, 9, 12, 12, 0, 0))
+  assert.equal(options.length, 15)
+  assert.deepEqual(options[0], { value: '2026-10-12', label: 'Hoy' })
+  assert.deepEqual(options[1], { value: '2026-10-11', label: 'Ayer' })
+  assert.deepEqual(options[2], { value: '2026-10-10', label: 'Sáb 10 oct' })
+  assert.equal(options[14].value, '2026-09-28')
+})
+
+test('time helpers round to 5 and keep an exact minute selectable', () => {
+  assert.deepEqual(defaultTimeParts(new Date(2026, 9, 12, 9, 7)), { hour: '09', minute: '05' })
+  assert.deepEqual(defaultTimeParts(new Date(2026, 9, 12, 9, 7), true), { hour: '09', minute: '07' })
+  assert.equal(buildMinuteOptions().length, 12)
+  assert.deepEqual(buildMinuteOptions('07').slice(0, 3), ['00', '05', '07'])
+})
+
+test('isRevokedError detects revoked or replaced phones', () => {
+  assert.equal(isRevokedError({ status: 403, code: 'BAD_SIGNATURE' }), true)
+  assert.equal(isRevokedError({ status: 404, code: 'UNKNOWN_PERSON' }), true)
+  assert.equal(isRevokedError({ status: 0, code: 'NETWORK' }), false)
+  assert.equal(isRevokedError({ status: 429 }), false)
+  assert.equal(isRevokedError(null), false)
 })

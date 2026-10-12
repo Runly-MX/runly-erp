@@ -164,3 +164,38 @@ export function localDateInput(d = new Date()) {
 export function localTimeInput(d = new Date()) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
+
+// ---- day / time pickers for "Olvidé checar" (no native date/time inputs) ----
+// Today, yesterday and the previous days up to MAX_CORRECTION_DAYS back. value = local YYYY-MM-DD.
+export function buildDayOptions(now = new Date(), days = MAX_CORRECTION_DAYS) {
+  const options = []
+  for (let i = 0; i <= days; i += 1) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)
+    const value = localDateInput(d)
+    options.push({ value, label: i === 0 ? 'Hoy' : i === 1 ? 'Ayer' : formatDayLabel(value) })
+  }
+  return options
+}
+
+export const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'))
+
+// Minutes in steps of 5, plus `selected` when it is not a multiple of 5 (after "Ahora").
+export function buildMinuteOptions(selected) {
+  const list = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
+  if (selected && !list.includes(selected)) list.push(selected)
+  return list.sort()
+}
+
+// { hour, minute } as 2-digit strings; minute rounded down to 5 unless `exact`.
+export function defaultTimeParts(now = new Date(), exact = false) {
+  const minutes = exact ? now.getMinutes() : now.getMinutes() - (now.getMinutes() % 5)
+  return { hour: String(now.getHours()).padStart(2, '0'), minute: String(minutes).padStart(2, '0') }
+}
+
+// True when the server says this phone is no longer linked (revoked, replaced or unknown person).
+export function isRevokedError(error) {
+  const code = error?.code
+  return code === 'BAD_SIGNATURE' || code === 'UNKNOWN_PERSON'
+}
+
+export const REVOKED_NOTICE = 'Este teléfono fue desvinculado o reemplazado. Escribe el código de la nueva invitación y tu código de empleado para activarlo de nuevo.'

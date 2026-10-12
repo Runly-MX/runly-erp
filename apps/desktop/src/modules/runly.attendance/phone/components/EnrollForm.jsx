@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { KeyRound } from 'lucide-react'
+import { KeyRound, X } from 'lucide-react'
 import { Button, Input } from '@runly/ui'
 import { kioskApi } from '../../kiosk/lib/kiosk-api.js'
 import { deviceLabel } from '../../kiosk/lib/feedback.js'
@@ -9,7 +9,7 @@ import { phoneStore } from '../lib/phone-store.js'
 
 const inputClass = 'h-14 rounded-2xl border-white/15 bg-white/[0.07] px-4 text-lg text-white placeholder:text-slate-500'
 
-export function EnrollForm({ initialCode, onEnrolled }) {
+export function EnrollForm({ initialCode, onEnrolled, notice, onDismissNotice }) {
   const [enrollCode, setEnrollCode] = useState(initialCode)
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
@@ -36,6 +36,12 @@ export function EnrollForm({ initialCode, onEnrolled }) {
 
   return (
     <form onSubmit={submit} className="mx-auto flex w-full max-w-sm flex-col gap-5">
+      {notice ? (
+        <div role="alert" className="flex items-start gap-3 rounded-2xl bg-amber-400/15 p-4 text-sm text-amber-50 ring-1 ring-amber-300/40">
+          <p className="min-w-0 flex-1">{notice}</p>
+          <button type="button" onClick={onDismissNotice} aria-label="Cerrar aviso" className="-m-1 flex size-8 shrink-0 items-center justify-center rounded-lg text-amber-100 hover:bg-white/10"><X className="size-4" /></button>
+        </div>
+      ) : null}
       <div className="text-center">
         <span className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-teal-600/20 text-teal-300 ring-1 ring-teal-400/40"><KeyRound className="size-8" /></span>
         <h1 className="mt-4 text-2xl font-semibold text-white">Activa tu Checador</h1>

@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
-import { Button } from '@runly/ui'
+import { Loader2 } from 'lucide-react'
 import {
   CORRECTION_STATUS, formatDateTime, formatDayLabel, formatMinutes, formatSchedule, methodLabel, OVERTIME_STATUS,
 } from '../lib/self-service.js'
@@ -66,23 +65,16 @@ function Section({ title, children }) {
 
 // "Mis horas": weekly/monthly summary, schedule, daily list, recent punches and requests.
 // `hours` comes from useMyHours (data + savedAt + loading + error).
-export function MyHours({ hours, onBack }) {
+export function MyHours({ hours }) {
   const [tab, setTab] = useState('week')
-  const { data, loading, error, savedAt, refresh } = hours
+  const { data, error, savedAt } = hours
   const totals = data ? data[tab === 'week' ? 'week' : 'month']?.totals : null
   const schedule = data ? formatSchedule(data.shift) : ''
   const pending = totals?.pendingOvertimeMinutes ?? 0
   const pendingNote = data?.requireOvertimeApproval && pending > 0 ? `Pendientes de aprobar ${formatMinutes(pending)}` : null
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col gap-5 pb-12">
-      <div className="flex items-center justify-between">
-        <Button type="button" variant="ghost" size="sm" className="-ml-2 min-h-11 text-slate-300 hover:bg-white/10 hover:text-white" onClick={onBack}><ArrowLeft /> Volver</Button>
-        <Button type="button" variant="ghost" size="sm" className="min-h-11 text-slate-300 hover:bg-white/10 hover:text-white" onClick={refresh} disabled={loading}>
-          {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />} Actualizar
-        </Button>
-      </div>
-
+    <div className="flex w-full flex-col gap-5">
       {!data ? (
         error ? (
           <p role="alert" className="rounded-2xl bg-red-500/15 p-4 text-center text-red-100 ring-1 ring-red-400/40">{error}</p>

@@ -314,6 +314,57 @@ export function buildCompanyInvitationEmail({ invitationUrl, brand = null, env =
   return { subject: `Te invitaron a ${orgName}`, html, text };
 }
 
+// Attendance: invite to install the "Checador" phone app and link the employee's phone.
+// `inviteUrl` opens the app on the phone; the codes are repeated in case the link fails.
+export function buildAttendancePhoneInviteEmail({ inviteUrl, inviteCode, employeeCode, firstName = null, expiresAt = null, brand = null, env = process.env }) {
+  const orgName = brand?.name ? brand.name : "tu empresa";
+  const until = expiresAt ? new Date(expiresAt).toLocaleString("es-MX", { dateStyle: "long", timeStyle: "short" }) : null;
+  const hello = firstName ? `Hola ${escapeHtml(firstName)},` : "Hola,";
+  const codeBox = (label, value) => `
+          <td style="padding:0 8px 8px 0">
+            <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280">${escapeHtml(label)}</div>
+            <div style="margin-top:4px;padding:10px 14px;border:1px solid #e4e7ec;border-radius:10px;background:#f8fafc;font-family:Consolas,Menlo,monospace;font-size:18px;font-weight:700;letter-spacing:.14em;color:#0c172d">${escapeHtml(value)}</div>
+          </td>`;
+  const bodyHtml = `
+        <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155">
+          ${hello} <strong>${escapeHtml(orgName)}</strong> te invitó a activar la app <strong>Checador</strong> en tu teléfono para checar entradas y salidas y consultar tus horas.
+        </p>
+        <ol style="margin:0 0 16px 18px;padding:0;font-size:14px;line-height:1.7;color:#334155">
+          <li>Abre este correo <strong>en tu teléfono</strong> y toca el botón.</li>
+          <li>Escribe tu código de empleado y toca Activar.</li>
+          <li>Instálala en tu pantalla de inicio para abrirla como una app.</li>
+        </ol>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 12px 0"><tr>
+          ${codeBox("Código de invitación", inviteCode)}
+          ${codeBox("Tu código de empleado", employeeCode)}
+        </tr></table>
+        ${until ? `<p style="margin:0 0 14px 0;font-size:13px;color:#64748b">Esta invitación vence el <strong>${escapeHtml(until)}</strong></p>` : ""}
+        <p style="margin:0 0 18px 0;font-size:13px;line-height:1.6;color:#64748b">
+          Si el botón no funciona, copia este enlace en el navegador de tu teléfono:<br />
+          <span style="word-break:break-all;color:#334155">${escapeHtml(inviteUrl)}</span>
+        </p>`;
+  const html = renderRunlyEmailLayout({
+    kicker: "Asistencia",
+    heading: "Activa tu app Checador",
+    bodyHtml,
+    cta: { label: "Activar en mi teléfono", url: inviteUrl },
+    footnote: "Si no esperabas este correo, puedes ignorarlo: la invitación no se activa hasta que alguien la abre con tu código de empleado.",
+    brand,
+    env,
+  });
+  const text = [
+    "Activa tu app Checador",
+    "",
+    `${firstName ? `Hola ${firstName}, ` : ""}${orgName} te invitó a activar la app Checador en tu teléfono.`,
+    "",
+    `Abre este enlace en tu teléfono: ${inviteUrl}`,
+    `Código de invitación: ${inviteCode}`,
+    `Tu código de empleado: ${employeeCode}`,
+    ...(until ? [`Vence: ${until}`] : []),
+  ].join("\n");
+  return { subject: `Activa tu app Checador${brand?.name ? ` · ${brand.name}` : ""}`, html, text };
+}
+
 // Sent only when the admin opts in (notifyByEmail) after directly creating
 // and activating a user — the account already works, so this is informational,
 // not an invitation the recipient must accept.
