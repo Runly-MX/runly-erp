@@ -24,10 +24,13 @@ export const kindFromEmployment = (employmentType) => (employmentType === 'contr
 
 // The employee's picture: own cover photo (FileAsset isCover) first, else the linked
 // Runly user's avatar - same priority the HR detail screen uses.
-async function withPhotos(prisma, rows, signFile) {
+async function withPhotos(prisma, companyId, rows, signFile) {
   if (!signFile || !rows.length) return rows.map((e) => ({ ...serializeHr(e), avatarUrl: null, photoUrl: null }))
-  const covers = await prisma.fileAsset.findMany({ where: { entityType: 'HrEmployee', entityId: { in: rows.map((e) => e.id) }, isCover: true, enabled: true }, select: { id: true, entityId: true } })
-  const coverByEmployee = new Map(covers.map((c) => [c.entityId, c.id]))
+  // HR stores an employee's picture as a company-owned FileAsset tagged with
+  // metadata.sourceEntityId (see hr-service resolveCoverFileIdsBatch).
+  const ids = new Set(rows.map((e) => e.id))
+  const covers = await prisma.fileAsset.findMany({ where: { entityId: companyId, moduleKey: { in: ['runly.hr', 'atlas.hr'] }, entityType: 'HrEmployee', isCover: true }, select: { id: true, metadata: true } })
+  const coverByEmployee = new Map(covers.filter((c) => ids.has(c.metadata?.sourceEntityId)).map((c) => [c.metadata.sourceEntityId, c.id]))
   return Promise.all(rows.map(async (e) => {
     const fileId = coverByEmployee.get(e.id) ?? e.userProfile?.avatarFileId ?? null
     const [avatarUrl, photoUrl] = fileId ? await Promise.all([signFile(fileId, 'card'), signFile(fileId, 'full')]) : [null, null]
@@ -39,7 +42,7 @@ export async function loadHrMap(prisma, companyId, ids, signFile = null) {
   const unique = [...new Set(ids.filter(Boolean))]
   if (!unique.length) return new Map()
   const rows = await prisma.hrEmployee.findMany({ where: { companyId, id: { in: unique } }, select: HR_SELECT })
-  return new Map((await withPhotos(prisma, rows, signFile)).map((e) => [e.id, e]))
+  return new Map((await withPhotos(prisma, companyId, rows, signFile)).map((e) => [e.id, e]))
 }
 
 export async function attachHr(prisma, companyId, people, signFile = null) {

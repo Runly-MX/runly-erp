@@ -35,3 +35,14 @@ test('chips and clear patch cover only the right keys', () => {
   assert.deepEqual(chips[1].patch, { from: '', to: '' })
   assert.deepEqual(clearAllPatch(filters), { type: '', tags: [], flag: false, from: '', to: '' })
 })
+
+test('multiselect chips list every picked option and expose icons', () => {
+  const Icon = () => null
+  const spec = { key: 'tags', label: 'Etiquetas', type: 'multiselect', icon: Icon, options: [{ value: 'x', label: 'X', icon: Icon }, { value: 'y', label: 'Y' }] }
+  const [two] = buildChips([spec], { tags: ['x', 'y'] })
+  assert.equal(two.text, 'X, Y')
+  assert.equal(two.optionIcon, null)
+  const [one] = buildChips([spec], { tags: ['x'] })
+  assert.equal(one.icon, Icon)
+  assert.equal(one.optionIcon, Icon)
+})

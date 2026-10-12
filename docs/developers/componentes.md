@@ -91,7 +91,7 @@ Encabezado de la ficha de un registro.
 
 ### FilterBar
 
-Filtros en forma de chips para listas.
+Filtros en forma de chips (píldoras) para listas con 1 a 3 filtros rápidos de una sola elección. Para más filtros, selección múltiple o móvil usa `FilterMenu`.
 
 | Prop | Tipo | Qué hace |
 |---|---|---|
@@ -107,7 +107,7 @@ Barra de búsqueda y filtros para listas. En escritorio es una sola fila (buscad
 |---|---|---|
 | `search` | ReactNode | Normalmente un `SearchInput` |
 | `filters` | ReactNode | Controles de filtro (`FilterBar`, `DateRangeFilter`, `ToggleFilter`...) |
-| `actions` | ReactNode | Acción principal de la pantalla |
+| `actions` | ReactNode | Acciones de la pantalla. En móvil van en una segunda fila: la última es la principal y ocupa el ancho disponible; las anteriores deben ser solo icono (etiqueta en un `<span className="max-sm:sr-only">` más `aria-label`/`title`) para no desbordar |
 | `activeCount` | number | Filtros activos (se muestra en el botón móvil) |
 | `onClear` | `() => void` | Limpia todos los filtros |
 
@@ -143,19 +143,32 @@ import { DateRangeFilter } from '@runly/ui'
 
 ### FilterMenu
 
-Un solo botón "Filtros" (con contador de filtros activos) que sustituye una fila de chips de filtro. En escritorio abre un panel con las categorías a la izquierda y las opciones a la derecha; en móvil, una hoja inferior con dos pasos (categorías, luego opciones). `DataTable` ya lo usa con su prop `filters`.
+Un solo botón "Filtros" (con contador de filtros activos) que sustituye una fila de chips de filtro. En escritorio abre un panel con las categorías a la izquierda y las opciones a la derecha; en móvil, una hoja inferior con dos pasos (categorías, luego opciones). `DataTable` ya lo usa por defecto con su prop `filters` (`filtersLayout: 'menu'`).
+
+**Cuándo usarlo:** cuando la lista tiene varios filtros (4 o más), de tipos mezclados (opciones, selección múltiple, interruptores, rangos de fecha) o cuando la pantalla se usa en móvil. Para 1 a 3 filtros rápidos de una sola elección usa las píldoras de `FilterBar` (en `DataTable`: `filtersLayout="pills"`, que solo admite `select`, `combobox` y `daterange`).
 
 | Prop | Tipo | Qué hace |
 |---|---|---|
-| `filters` | `[{ key, label, type?, options?, icon?, fromKey?, toKey?, allLabel?, description? }]` | `type`: `select` (por defecto), `multiselect`, `daterange` (usa `fromKey`/`toKey`), `toggle`, `combobox` (con búsqueda) |
+| `filters` | `[{ key, label, type?, options?, icon?, fromKey?, toKey?, allLabel?, description?, value?, onChange? }]` | `type`: `select` (por defecto), `multiselect` (cualquiera de las opciones elegidas), `daterange` (usa `fromKey`/`toKey`), `toggle`, `combobox` (con búsqueda). `icon` (componente lucide) aparece en la lista de categorías y en el chip |
+| `filters[].options` | `[{ value, label, icon?, color? }]` | `icon` (lucide) o `color` (punto de color) se muestran junto a cada opción y en el chip cuando hay una sola elegida |
 | `value` | objeto plano | `key -> string \| string[] \| boolean`; para rangos, `fromKey`/`toKey` |
 | `onChange` | `(nuevoValor) => void` | Recibe el objeto completo con el cambio aplicado |
 
+Con `DataTable`, un filtro que trae su propio `value` y `onChange` es controlado (por ejemplo para filtrar en el servidor); los demás filtran las filas en el cliente comparando `String(row[key])` (en `multiselect`, cualquiera de los valores elegidos) o con `match(row, valor)`. Los chips de `multiselect` muestran todas las opciones ("Tipo: Interno, Contratista").
+
 ```jsx
+import { CircleCheck, CircleOff, HardHat, Shapes, UserCheck, Users } from 'lucide-react'
 import { ActiveFilterChips, FilterMenu } from '@runly/ui'
 
 const filters = [
-  { key: 'tipo', label: 'Tipo', options: [{ value: 'a', label: 'Alfa' }] },
+  {
+    key: 'tipo', label: 'Tipo', type: 'multiselect', icon: Shapes,
+    options: [{ value: 'interno', label: 'Interno', icon: Users }, { value: 'contratista', label: 'Contratista', icon: HardHat }],
+  },
+  {
+    key: 'estado', label: 'Estado', icon: UserCheck,
+    options: [{ value: 'activo', label: 'Activo', icon: CircleCheck }, { value: 'inactivo', label: 'Inactivo', icon: CircleOff }],
+  },
   { key: 'fechas', label: 'Fechas', type: 'daterange', fromKey: 'desde', toKey: 'hasta' },
 ]
 <FilterMenu filters={filters} value={value} onChange={setValue} />
@@ -164,7 +177,7 @@ const filters = [
 
 ### ActiveFilterChips
 
-Chips quitables ("Tipo: Alfa") de los filtros activos de un `FilterMenu`; no muestra nada si no hay filtros activos. Props: `filters`, `value`, `onChange` (los mismos que `FilterMenu`).
+Chips quitables ("Tipo: Alfa", o "Tipo: Alfa, Beta" con varias opciones; con el icono del filtro y de la opción) de los filtros activos de un `FilterMenu`; no muestra nada si no hay filtros activos. Props: `filters`, `value`, `onChange` (los mismos que `FilterMenu`).
 
 ### DateRangePanel
 

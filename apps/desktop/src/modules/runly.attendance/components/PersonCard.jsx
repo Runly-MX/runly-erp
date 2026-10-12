@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import { CreditCard, KeyRound, Link2, Pencil, Smartphone } from 'lucide-react'
-import { Badge, Button, PersonAvatar } from '@runly/ui'
+import { Badge, Button } from '@runly/ui'
 import { KIND_LABELS, fullName } from '../lib/attendanceLabels.js'
 import { hrExpedienteUrl, hrName } from './HrLinkPanel.jsx'
+import { PersonPhotoAvatar } from './PersonPhotoAvatar.jsx'
 import { ToneBadge } from './shared.jsx'
 
 export const KIND_TONES = { internal: 'teal', contractor: 'amber', visitor: 'violet' }
@@ -35,12 +36,12 @@ export function HrBadge({ hr }) {
 
 export function PersonCard({ person, lookups, canManage, onCredentials, onEdit }) {
   const inactive = person.enabled === false
-  const meta = [lookups.groups.get(person.groupId), lookups.categories.get(person.categoryId)].filter(Boolean).join(' · ')
+  const meta = [person.groupName ?? lookups.groups.get(person.groupId), person.categoryName ?? lookups.categories.get(person.categoryId), person.shiftName ?? lookups.shifts.get(person.shiftId)].filter(Boolean).join(' · ')
   return (
     <div className="flex h-full flex-col gap-3 rounded-2xl surface-card p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">
-          <PersonAvatar name={fullName(person)} size="md" />
+          <PersonPhotoAvatar person={person} name={fullName(person)} size="md" />
           <div className="min-w-0">
             <p className="truncate font-semibold leading-tight">{fullName(person)}</p>
             <p className={`${MUTED} tabular-nums`}>{person.code}</p>

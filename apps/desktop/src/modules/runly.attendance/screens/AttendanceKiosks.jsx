@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link2, MonitorSmartphone, Pencil, Plus, RotateCcw, ShieldCheck, ShieldOff } from 'lucide-react'
+import { ArrowLeftRight, Link2, MapPin, MonitorSmartphone, Pencil, Plus, RotateCcw, ShieldCheck, ShieldOff } from 'lucide-react'
 import {
   Badge, Button, ConfirmDialog, DataTable, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, TextField,
 } from '@runly/ui'
@@ -12,15 +12,9 @@ import {
 } from '../hooks/useAttendanceData.js'
 import { useLookups } from '../hooks/useLookups.js'
 import { KIOSK_MODE_OPTIONS, formatDateTime, kioskLink, kioskStatus } from '../lib/attendanceLabels.js'
+import { KIOSK_MODE_ICONS, KIOSK_STATUS_OPTIONS } from '../lib/filterOptions.js'
 
 const MODE_LABELS = Object.fromEntries(KIOSK_MODE_OPTIONS.map((o) => [o.value, o.label]))
-const STATUS_OPTIONS = [
-  { value: 'online', label: 'En línea' },
-  { value: 'offline', label: 'Sin conexión' },
-  { value: 'pending', label: 'Pendiente de aprobar' },
-  { value: 'unpaired', label: 'Sin emparejar' },
-  { value: 'revoked', label: 'Revocado' },
-]
 const VIEW_MODES = ['table', 'cards']
 
 export default function AttendanceKiosks() {
@@ -40,9 +34,9 @@ export default function AttendanceKiosks() {
   })), [kiosks.data, lookups.sites])
   const pending = rows.filter((k) => k.pairingPending).length
   const filters = useMemo(() => [
-    { key: 'statusKey', label: 'Estado', options: STATUS_OPTIONS },
-    { key: 'siteId', label: 'Sitio', options: lookups.rows.sites.filter((s) => s.enabled !== false).map((s) => ({ value: s.id, label: s.name })) },
-    { key: 'mode', label: 'Modo', options: KIOSK_MODE_OPTIONS },
+    { key: 'statusKey', label: 'Estado', type: 'multiselect', icon: MonitorSmartphone, options: KIOSK_STATUS_OPTIONS },
+    { key: 'siteId', label: 'Sitio', type: 'multiselect', icon: MapPin, options: lookups.rows.sites.filter((s) => s.enabled !== false).map((s) => ({ value: s.id, label: s.name })) },
+    { key: 'mode', label: 'Modo', type: 'multiselect', icon: ArrowLeftRight, options: KIOSK_MODE_OPTIONS.map((o) => ({ ...o, icon: KIOSK_MODE_ICONS[o.value] })) },
   ], [lookups.rows.sites])
 
   const confirmCopy = {

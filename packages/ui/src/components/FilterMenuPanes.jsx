@@ -7,9 +7,16 @@ import { cn } from '../lib/utils.js'
 
 const norm = (text) => String(text ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
+// Leading glyph of an option: a lucide icon component or a color dot.
+export function OptionGlyph({ icon: Icon, color, className }) {
+  if (Icon) return <Icon className={cn('h-4 w-4 shrink-0 opacity-70', className)} aria-hidden="true" />
+  if (color) return <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', className)} style={{ backgroundColor: color }} aria-hidden="true" />
+  return null
+}
+
 const ROW = 'flex min-h-10 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors md:min-h-9'
 
-function OptionRow({ selected, onClick, children, multi }) {
+function OptionRow({ selected, onClick, children, multi, icon, color }) {
   return (
     <button
       type="button"
@@ -24,6 +31,7 @@ function OptionRow({ selected, onClick, children, multi }) {
           {selected ? <Check className="h-3 w-3" aria-hidden="true" /> : null}
         </span>
       ) : null}
+      <OptionGlyph icon={icon} color={color} />
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {!multi && selected ? <Check className="h-4 w-4 shrink-0 text-(--brand-primary)" aria-hidden="true" /> : null}
     </button>
@@ -75,9 +83,9 @@ function OptionList({ filter, value, onChange }) {
         )}
         {visible.map((option) => (
           multi ? (
-            <OptionRow key={option.value} multi selected={picked.includes(String(option.value))} onClick={() => toggle(option.value)}>{option.label}</OptionRow>
+            <OptionRow key={option.value} multi icon={option.icon} color={option.color} selected={picked.includes(String(option.value))} onClick={() => toggle(option.value)}>{option.label}</OptionRow>
           ) : (
-            <OptionRow key={option.value} selected={current === String(option.value)} onClick={() => onChange({ [filter.key]: option.value })}>{option.label}</OptionRow>
+            <OptionRow key={option.value} icon={option.icon} color={option.color} selected={current === String(option.value)} onClick={() => onChange({ [filter.key]: option.value })}>{option.label}</OptionRow>
           )
         ))}
         {visible.length === 0 ? <p className="px-3 py-6 text-center text-sm text-[hsl(var(--muted-foreground))]">Sin resultados</p> : null}

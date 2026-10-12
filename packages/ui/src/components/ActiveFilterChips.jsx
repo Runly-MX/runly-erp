@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import { OptionGlyph } from './FilterMenuPanes.jsx'
 import { buildChips, clearAllPatch } from './filter-menu-helpers.js'
 import { cn } from '../lib/utils.js'
 
@@ -13,7 +14,9 @@ export function ActiveFilterChips({ filters = [], value = {}, onChange, classNam
     <div className={cn('flex items-center gap-1.5 overflow-x-auto md:flex-wrap md:overflow-visible', className)} aria-label="Filtros activos">
       {chips.map((chip) => (
         <span key={chip.key} className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-(--brand-primary) bg-(--brand-soft) pl-2.5 pr-1 text-xs">
+          {chip.icon ? <chip.icon className="h-3 w-3 shrink-0 text-[hsl(var(--muted-foreground))]" aria-hidden="true" /> : null}
           <span className="text-[hsl(var(--muted-foreground))]">{chip.label}:</span>
+          <OptionGlyph icon={chip.optionIcon} color={chip.optionColor} className="h-3 w-3" />
           <span className="max-w-48 truncate font-medium">{chip.text}</span>
           <button
             type="button"

@@ -39,7 +39,7 @@ function HoursTab({ lookups }) {
 
   const columns = useMemo(() => [
     { id: 'person', header: 'Persona', accessorFn: (r) => `${r.person?.code ?? ''} ${fullName(r.person)}`, cell: ({ row }) => <PersonCell person={row.original.person} /> },
-    { id: 'group', header: 'Grupo', accessorFn: (r) => lookups.groups.get(r.person?.groupId) ?? '—' },
+    { id: 'group', header: 'Grupo', accessorFn: (r) => lookups.groups.get(r.person?.groupId) ?? '—', cell: ({ row }) => lookups.groups.get(row.original.person?.groupId) ?? '—' },
     { id: 'minutes', header: 'Horas', accessorFn: (r) => r.minutes, cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{minutesToHours(row.original.minutes)}</span> },
     { id: 'sessions', header: 'Sesiones', accessorFn: (r) => r.sessions, cell: ({ row }) => <span className="tabular-nums">{row.original.sessions}</span> },
     {
@@ -146,9 +146,9 @@ function PresenceTab({ lookups }) {
 
   const columns = useMemo(() => [
     { id: 'person', header: 'Persona', accessorFn: (r) => `${r.code ?? ''} ${fullName(r)}`, cell: ({ row }) => <PersonCell person={row.original} /> },
-    { id: 'group', header: 'Grupo', accessorFn: (r) => lookups.groups.get(r.groupId) ?? '—' },
-    { id: 'category', header: 'Categoría', accessorFn: (r) => lookups.categories.get(r.categoryId) ?? '—' },
-    { id: 'site', header: 'Sitio', accessorFn: (r) => lookups.sites.get(r.siteId) ?? '—' },
+    { id: 'group', header: 'Grupo', accessorFn: (r) => lookups.groups.get(r.groupId) ?? '—', cell: ({ row }) => lookups.groups.get(row.original.groupId) ?? '—' },
+    { id: 'category', header: 'Categoría', accessorFn: (r) => lookups.categories.get(r.categoryId) ?? '—', cell: ({ row }) => lookups.categories.get(row.original.categoryId) ?? '—' },
+    { id: 'site', header: 'Sitio', accessorFn: (r) => lookups.sites.get(r.siteId) ?? '—', cell: ({ row }) => lookups.sites.get(row.original.siteId) ?? '—' },
     { id: 'since', header: 'Desde', accessorFn: (r) => r.since, cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{formatDateTime(row.original.since)}</span> },
   ], [lookups])
 

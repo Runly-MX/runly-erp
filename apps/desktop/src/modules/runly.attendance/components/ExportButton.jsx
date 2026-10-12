@@ -9,7 +9,7 @@ import { attendanceRequest, saveBlob } from '../lib/attendanceRequest.js'
 
 // Downloads one of the server-built xlsx exports (people | punches | hours).
 // `query` is appended as-is; the browser timezone offset is added so Excel shows local time.
-export function ExportButton({ kind, query = {}, fileName, label = 'Exportar Excel', variant = 'outline', disabled = false }) {
+export function ExportButton({ kind, query = {}, fileName, label = 'Exportar Excel', variant = 'outline', disabled = false, secondary = false }) {
   const { session } = useAuth()
   const { activeCompanyId } = useActiveCompany()
   const [busy, setBusy] = useState(false)
@@ -29,8 +29,15 @@ export function ExportButton({ kind, query = {}, fileName, label = 'Exportar Exc
   }
 
   return (
-    <Button variant={variant} onClick={run} disabled={disabled || busy}>
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}{label}
+    <Button
+      variant={variant}
+      onClick={run}
+      disabled={disabled || busy}
+      aria-label={secondary ? label : undefined}
+      title={secondary ? label : undefined}
+      className={secondary ? 'max-sm:w-11 max-sm:px-0' : undefined}
+    >
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}<span className={secondary ? 'max-sm:sr-only' : undefined}>{label}</span>
     </Button>
   )
 }

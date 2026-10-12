@@ -33,11 +33,11 @@ El kiosko **funciona sin conexión**: guarda la lista de personas, registra las 
 
 ### Formas de checar
 
-- **Código y PIN**: la persona escribe su código de empleado y su PIN.
-- **Tarjeta o llavero NFC**: se asigna el identificador de la tarjeta a la persona.
+- **PIN** (pestaña «PIN» del kiosko): la persona escribe su código de empleado y su PIN.
+- **Tarjeta o llavero NFC** (pestaña «Tarjeta»): se asigna el identificador de la tarjeta a la persona.
 - **Llave de teléfono (app Checador)**: un administrador genera una invitación; la persona la abre en su teléfono, escribe su código de empleado y toca **Instalar Checador** (en iPhone: Compartir > Añadir a pantalla de inicio). La app se abre directo, sin volver a escribir nada, y tiene dos formas de checar:
-  - **Escanear kiosko** (la más segura): en el kiosko se abre «Con mi teléfono» y la app escanea su código. Requiere internet, toma tu foto y, si el sitio tiene radio, envía tu ubicación.
-  - **Mostrar mi QR**: el teléfono muestra un QR que cambia cada pocos segundos y el kiosko lo escanea. Funciona sin conexión, pero no toma foto.
+  - **Escanear kiosko** (la más segura): en el kiosko se abre «Mi teléfono» y la app escanea su código. Requiere internet, toma tu foto y, si el sitio tiene radio, envía tu ubicación.
+  - **Mostrar mi QR** (pestaña «Mi QR»): el teléfono muestra un QR que cambia cada pocos segundos y el kiosko lo escanea. Funciona sin conexión, pero no toma foto.
 
 ### Cuotas de contratistas
 

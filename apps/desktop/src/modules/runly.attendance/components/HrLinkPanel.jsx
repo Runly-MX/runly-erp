@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink, Link2, Unlink, UserCheck, X } from 'lucide-react'
 import { Button, ConfirmDialog, PersonAvatar, Skeleton, TextField } from '@runly/ui'
+import { PersonPhotoAvatar } from './PersonPhotoAvatar.jsx'
 import { ToneBadge } from './shared.jsx'
 import { useHrSuggestions, useLinkHr, useUnlinkHr } from '../hooks/useAttendanceData.js'
 
@@ -98,7 +99,7 @@ export function HrLinkPanel({ person, canManage }) {
       {hr ? (
         <>
           <div className="flex items-start gap-3">
-            <PersonAvatar name={hrName(hr)} size="lg" />
+            <PersonPhotoAvatar person={person} name={hrName(hr)} size="lg" />
             <div className="min-w-0 flex-1 space-y-0.5">
               <p className="truncate text-sm font-semibold">{hrName(hr)}</p>
               <p className="truncate text-xs text-[hsl(var(--muted-foreground))]"><span className="tabular-nums">{hr.employeeCode || 'Sin código'}</span>{hrRole(hr) ? ` · ${hrRole(hr)}` : ''}</p>

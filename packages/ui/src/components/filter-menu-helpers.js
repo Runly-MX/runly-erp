@@ -30,12 +30,17 @@ export function countActiveFilters(filters = [], value = {}) {
   return filters.filter((f) => isFilterActive(f, value)).length
 }
 
+function findOption(filter, optionValue) {
+  return (filter.options ?? []).find((o) => String(o.value) === String(optionValue))
+}
+
 function optionLabel(filter, optionValue) {
-  return (filter.options ?? []).find((o) => String(o.value) === String(optionValue))?.label ?? String(optionValue)
+  return findOption(filter, optionValue)?.label ?? String(optionValue)
 }
 
 // Short text for the current value of one filter ('' when inactive).
-export function summarizeFilter(filter, value = {}) {
+// `full` lists every picked option of a multiselect (chips); otherwise "First +N" (compact rows).
+export function summarizeFilter(filter, value = {}, { full = false } = {}) {
   if (!isFilterActive(filter, value)) return ''
   const type = filterType(filter)
   if (type === 'daterange') {
@@ -46,7 +51,7 @@ export function summarizeFilter(filter, value = {}) {
   if (type === 'toggle') return 'Sí'
   if (type === 'multiselect') {
     const picked = value[filter.key]
-    if (picked.length === 1) return optionLabel(filter, picked[0])
+    if (full || picked.length === 1) return picked.map((v) => optionLabel(filter, v)).join(', ')
     return `${optionLabel(filter, picked[0])} +${picked.length - 1}`
   }
   return optionLabel(filter, value[filter.key])
@@ -58,8 +63,23 @@ export function clearAllPatch(filters = []) {
 }
 
 // One entry per active filter for ActiveFilterChips.
+// Icon/color of the single picked option (chips show it only when exactly one is picked).
+function chipOption(filter, value) {
+  const type = filterType(filter)
+  if (type === 'select' || type === 'combobox') return findOption(filter, value[filter.key])
+  if (type === 'multiselect' && value[filter.key]?.length === 1) return findOption(filter, value[filter.key][0])
+  return null
+}
+
+// One entry per active filter for ActiveFilterChips.
 export function buildChips(filters = [], value = {}) {
   return filters
     .filter((f) => isFilterActive(f, value))
-    .map((f) => ({ key: f.key, label: f.label, text: summarizeFilter(f, value), patch: emptyValueFor(f) }))
+    .map((f) => {
+      const option = chipOption(f, value)
+      return {
+        key: f.key, label: f.label, text: summarizeFilter(f, value, { full: true }), patch: emptyValueFor(f),
+        icon: f.icon ?? null, optionIcon: option?.icon ?? null, optionColor: option?.color ?? null,
+      }
+    })
 }

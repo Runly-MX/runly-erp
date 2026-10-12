@@ -1,10 +1,11 @@
 import { ExportButton } from '../components/ExportButton.jsx'
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, DownloadCloud, FileUp, KeyRound, Pencil, Plus, Users } from 'lucide-react'
+import { ChevronDown, DownloadCloud, FileUp, KeyRound, Layers, Pencil, Plus, Tags, Users, UserCheck, Link2, Shapes } from 'lucide-react'
 import { toast } from 'sonner'
-import { Badge, Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, PersonAvatar } from '@runly/ui'
+import { Badge, Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@runly/ui'
 import { hrName } from '../components/HrLinkPanel.jsx'
+import { PersonPhotoAvatar } from '../components/PersonPhotoAvatar.jsx'
 import { PeopleImportDialog } from '../components/import/PeopleImportDialog.jsx'
 import { PersonCredentialsSheet } from '../components/PersonCredentialsSheet.jsx'
 import { AccessChips, HrBadge, KIND_TONES, PersonCard } from '../components/PersonCard.jsx'
@@ -12,11 +13,11 @@ import { PersonSheet } from '../components/PersonSheet.jsx'
 import { PageShell, ScreenHeader, ToneBadge } from '../components/shared.jsx'
 import { useAttendancePermissions, useImportFromHr, usePeople } from '../hooks/useAttendanceData.js'
 import { useLookups } from '../hooks/useLookups.js'
-import { KIND_LABELS, KIND_OPTIONS, fullName } from '../lib/attendanceLabels.js'
+import { KIND_LABELS, fullName } from '../lib/attendanceLabels.js'
+import { HR_FILTER_OPTIONS, KIND_FILTER_OPTIONS, PERSON_STATUS_OPTIONS } from '../lib/filterOptions.js'
+import { enrichPeople } from '../lib/personDisplay.js'
 
 const VIEW_MODES = ['table', 'cards']
-const STATUS_OPTIONS = [{ value: 'active', label: 'Activo' }, { value: 'inactive', label: 'Inactivo' }]
-const HR_OPTIONS = [{ value: 'yes', label: 'Vinculada a RH' }, { value: 'no', label: 'Sin vínculo con RH' }]
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 
 export default function AttendancePeople() {
@@ -30,10 +31,10 @@ export default function AttendancePeople() {
   const [confirmImport, setConfirmImport] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
 
-  // Derived fields so the toolbar filters can work on computed values.
-  const rows = useMemo(() => (people.data ?? []).map((p) => ({
-    ...p, statusKey: p.enabled === false ? 'inactive' : 'active', hrLinked: p.hr ? 'yes' : 'no',
-  })), [people.data])
+  // Derived fields (status, HR link, group/category/shift names) are baked into the rows. They must
+  // NOT be resolved inside column accessors: TanStack Table caches accessor values per row, so names
+  // looked up before the catalogs loaded would stay as '—' until the people list itself changed.
+  const rows = useMemo(() => enrichPeople(people.data, lookups), [people.data, lookups])
   const credentialsPerson = rows.find((p) => p.id === credentialsId) ?? null
   const editingPerson = rows.find((p) => p.id === editing.personId) ?? null
 
@@ -42,7 +43,7 @@ export default function AttendancePeople() {
       id: 'person', header: 'Persona', accessorFn: (p) => `${p.code} ${fullName(p)}`,
       cell: ({ row }) => (
         <div className="flex min-w-0 items-center gap-3">
-          <PersonAvatar name={fullName(row.original)} size="md" />
+          <PersonPhotoAvatar person={row.original} name={fullName(row.original)} size="md" />
           <div className="min-w-0">
             <p className="truncate font-medium leading-tight">{fullName(row.original)}</p>
             <p className={`${MUTED} tabular-nums`}>{row.original.code}</p>
@@ -54,9 +55,17 @@ export default function AttendancePeople() {
       id: 'kind', header: 'Tipo', accessorFn: (p) => KIND_LABELS[p.kind] ?? p.kind,
       cell: ({ row }) => <ToneBadge tone={KIND_TONES[row.original.kind] ?? 'slate'}>{KIND_LABELS[row.original.kind] ?? row.original.kind}</ToneBadge>,
     },
-    { id: 'group', header: 'Grupo', accessorFn: (p) => lookups.groups.get(p.groupId) ?? '—' },
-    { id: 'category', header: 'Categoría', accessorFn: (p) => lookups.categories.get(p.categoryId) ?? '—' },
-    { id: 'shift', header: 'Turno', accessorFn: (p) => lookups.shifts.get(p.shiftId) ?? '—' },
+    { id: 'group', header: 'Grupo', accessorFn: (p) => p.groupName, cell: ({ row }) => (row.original.groupName || <span className={MUTED}>—</span>) },
+    { id: 'category', header: 'Categoría', accessorFn: (p) => p.categoryName, cell: ({ row }) => (row.original.categoryName || <span className={MUTED}>—</span>) },
+    {
+      id: 'shift', header: 'Turno', accessorFn: (p) => p.shiftName,
+      cell: ({ row }) => (row.original.shiftName ? (
+        <div className="min-w-0">
+          <p className="truncate leading-tight">{row.original.shiftName}</p>
+          {row.original.shiftHours ? <p className={`${MUTED} tabular-nums`}>{row.original.shiftHours}</p> : null}
+        </div>
+      ) : <span className={MUTED}>—</span>),
+    },
     {
       id: 'hr', header: 'RH', accessorFn: (p) => (p.hr ? hrName(p.hr) : ''),
       cell: ({ row }) => <HrBadge hr={row.original.hr} />,
@@ -78,14 +87,14 @@ export default function AttendancePeople() {
         </div>
       ),
     },
-  ], [lookups, canManagePeople])
+  ], [canManagePeople])
 
   const filters = useMemo(() => [
-    { key: 'kind', label: 'Tipo', options: KIND_OPTIONS },
-    { key: 'groupId', label: 'Grupo', options: lookups.rows.groups.map((g) => ({ value: g.id, label: g.name })) },
-    { key: 'categoryId', label: 'Categoría', options: lookups.rows.categories.map((c) => ({ value: c.id, label: c.name })) },
-    { key: 'statusKey', label: 'Estado', options: STATUS_OPTIONS },
-    { key: 'hrLinked', label: 'RH', options: HR_OPTIONS },
+    { key: 'kind', label: 'Tipo', type: 'multiselect', icon: Shapes, options: KIND_FILTER_OPTIONS },
+    { key: 'groupId', label: 'Grupo', type: 'multiselect', icon: Layers, options: lookups.rows.groups.map((g) => ({ value: g.id, label: g.name })) },
+    { key: 'categoryId', label: 'Categoría', type: 'multiselect', icon: Tags, options: lookups.rows.categories.map((c) => ({ value: c.id, label: c.name })) },
+    { key: 'statusKey', label: 'Estado', type: 'multiselect', icon: UserCheck, options: PERSON_STATUS_OPTIONS },
+    { key: 'hrLinked', label: 'RH', type: 'multiselect', icon: Link2, options: HR_FILTER_OPTIONS },
   ], [lookups.rows.groups, lookups.rows.categories])
 
   async function runImport() {
@@ -126,11 +135,11 @@ export default function AttendancePeople() {
         emptyAction={canManagePeople ? { label: 'Nueva persona', onClick: () => setEditing({ open: true, personId: null }) } : undefined}
         toolbarActions={(
           <>
-            <ExportButton kind="people" fileName="personas-asistencia" label="Exportar" />
+            <ExportButton kind="people" fileName="personas-asistencia" label="Exportar" secondary />
             {canManagePeople ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline"><FileUp className="h-4 w-4" />Importar<ChevronDown className="h-3.5 w-3.5 opacity-60" /></Button>
+                  <Button variant="outline" aria-label="Importar" title="Importar" className="max-sm:w-11 max-sm:px-0"><FileUp className="h-4 w-4" /><span className="max-sm:sr-only">Importar</span><ChevronDown className="h-3.5 w-3.5 opacity-60 max-sm:hidden" /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onSelect={() => setConfirmImport(true)}><DownloadCloud className="h-4 w-4" />Importar desde RH</DropdownMenuItem>

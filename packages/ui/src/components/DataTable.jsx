@@ -12,8 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Button } from './Button.jsx'
 import { Skeleton } from './Skeleton.jsx'
 import { SearchInput } from './SearchInput.jsx'
+import { FilterBar } from './FilterBar.jsx'
 import { FilterToolbar } from './FilterToolbar.jsx'
-import { filterType, isFilterActive } from './filter-menu-helpers.js'
+import { clearAllPatch, countActiveFilters, filterType, isFilterActive } from './filter-menu-helpers.js'
 import { EmptyState } from './EmptyState.jsx'
 import { ErrorState } from './ErrorState.jsx'
 import { PageFooter } from './PageFooter.jsx'
@@ -81,6 +82,7 @@ export function DataTable({
   defaultViewMode,
   renderCard,
   cardGridClassName,
+  filtersLayout = 'menu',
 }) {
   const EMPTY_ROWS = useMemo(() => [], [])
   const [sorting, setSorting] = useState([])
@@ -126,6 +128,9 @@ export function DataTable({
     setPagination((p) => ({ ...p, pageIndex: 0 }))
   }
 
+  // `filtersLayout="pills"` renders FilterBar pills (select / daterange only) instead of the Filtros menu.
+  const pillSpecs = useMemo(() => (filtersLayout === 'pills' ? specs.filter((s) => ['select', 'combobox', 'daterange'].includes(filterType(s))) : []), [specs, filtersLayout])
+
   const filteredData = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) return EMPTY_ROWS
     const clientSpecs = specs.filter((spec) => !isControlledFilter(spec) && isFilterActive(spec, filterValues))
@@ -167,9 +172,13 @@ export function DataTable({
               className="w-full"
             />
           )}
-          filterSpecs={specs}
-          filterValue={menuValue}
-          onFilterChange={handleFilterChange}
+          {...(filtersLayout === 'pills'
+            ? (pillSpecs.length ? {
+              filters: <FilterBar filters={pillSpecs} value={menuValue} onChange={(next) => handleFilterChange({ ...menuValue, ...next })} />,
+              activeCount: countActiveFilters(pillSpecs, menuValue),
+              onClear: () => handleFilterChange({ ...menuValue, ...clearAllPatch(pillSpecs) }),
+            } : {})
+            : { filterSpecs: specs, filterValue: menuValue, onFilterChange: handleFilterChange })}
           start={toolbarStart}
           actions={toolbarActions}
           viewSwitch={switchModes ? <ViewModeSwitch modes={switchModes} value={currentViewMode} onChange={changeViewMode} storageKey={viewStorageKey} /> : null}

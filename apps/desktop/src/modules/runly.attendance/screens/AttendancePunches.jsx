@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Ban, ClipboardList, Flag, Plus } from 'lucide-react'
+import { ArrowLeftRight, Ban, ClipboardList, Fingerprint, Flag, MapPin, Plus } from 'lucide-react'
 import { Badge, Button, ConfirmDialog, DataTable, PersonAvatar, TextField } from '@runly/ui'
 import { ManualPunchDialog } from '../components/ManualPunchDialog.jsx'
 import { ExportButton } from '../components/ExportButton.jsx'
@@ -11,6 +11,7 @@ import { useUrlRange } from '../hooks/useUrlRange.js'
 import {
   DIRECTION_LABELS, METHOD_LABELS, dayEndIso, dayStartIso, flagLabel, flagTone, formatDateTime, fullName, methodLabel,
 } from '../lib/attendanceLabels.js'
+import { DIRECTION_FILTER_OPTIONS, METHOD_FILTER_OPTIONS } from '../lib/filterOptions.js'
 
 const VIEW_MODES = ['table', 'cards']
 
@@ -56,9 +57,9 @@ export default function AttendancePunches() {
     { key: 'range', label: 'Fechas', type: 'daterange', fromKey: 'from', toKey: 'to', value: range, onChange: setRange },
     { key: 'personId', label: 'Persona', type: 'combobox', options: personOptions, searchPlaceholder: 'Buscar persona…', allLabel: 'Todas las personas', value: filters.personId ?? '', onChange: (v) => setFilters((f) => ({ ...f, personId: v || null })) },
     { key: 'flaggedOnly', label: 'Solo marcadas', type: 'toggle', icon: Flag, description: 'Muestra solo checadas con alguna marca del sistema.', value: Boolean(filters.flaggedOnly), onChange: (v) => setFilters((f) => ({ ...f, flaggedOnly: v })) },
-    { key: 'direction', label: 'Dirección', options: Object.entries(DIRECTION_LABELS).map(([value, label]) => ({ value, label })) },
-    { key: 'method', label: 'Método', options: Object.entries(METHOD_LABELS).map(([value, label]) => ({ value, label })) },
-    { key: 'siteId', label: 'Sitio', options: lookups.rows.sites.map((s) => ({ value: s.id, label: s.name })) },
+    { key: 'direction', label: 'Dirección', type: 'multiselect', icon: ArrowLeftRight, options: DIRECTION_FILTER_OPTIONS },
+    { key: 'method', label: 'Método', type: 'multiselect', icon: Fingerprint, options: METHOD_FILTER_OPTIONS },
+    { key: 'siteId', label: 'Sitio', type: 'multiselect', icon: MapPin, options: lookups.rows.sites.map((s) => ({ value: s.id, label: s.name })) },
   ], [range, setRange, filters, personOptions, lookups.rows.sites])
 
   const columns = useMemo(() => [
@@ -136,7 +137,7 @@ export default function AttendancePunches() {
         emptyDescription="No hay checadas con estos filtros. Prueba con otro rango de fechas."
         toolbarActions={(
           <>
-            <ExportButton kind="punches" query={query} fileName="checadas" label="Exportar" />
+            <ExportButton kind="punches" query={query} fileName="checadas" label="Exportar" secondary />
             {canManagePunches ? <Button onClick={() => setManualOpen(true)}><Plus className="h-4 w-4" />Checada manual</Button> : null}
           </>
         )}
