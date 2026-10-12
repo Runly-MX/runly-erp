@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BarChart3, Clock, ShieldCheck, Users } from 'lucide-react'
-import { Badge, ChipTabPanel, ChipTabs, DataTable, DatePickerField, ErrorState, PersonAvatar, Skeleton } from '@runly/ui'
+import { Badge, ChipTabPanel, ChipTabs, DataTable, DatePickerField, ErrorState, Skeleton } from '@runly/ui'
 import { PresenceChart } from '../components/PresenceChart.jsx'
 import { QuotaCard, quotaTitle } from '../components/QuotaCards.jsx'
 import { ExportButton } from '../components/ExportButton.jsx'
+import { PersonPhotoAvatar } from '../components/PersonPhotoAvatar.jsx'
 import { PageShell, ScreenHeader, Toolbar } from '../components/shared.jsx'
 import { useComplianceReport, useHoursReport, usePresence } from '../hooks/useAttendanceData.js'
 import { useLookups } from '../hooks/useLookups.js'
@@ -19,7 +20,7 @@ const VIEW_MODES = ['table', 'cards']
 function PersonCell({ person, size = 'sm' }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <PersonAvatar name={fullName(person)} size={size} />
+      <PersonPhotoAvatar person={person} name={fullName(person)} size={size} />
       <div className="min-w-0">
         <p className="truncate font-medium leading-tight">{fullName(person)}</p>
         <p className="text-xs tabular-nums text-[hsl(var(--muted-foreground))]">{person?.code}</p>

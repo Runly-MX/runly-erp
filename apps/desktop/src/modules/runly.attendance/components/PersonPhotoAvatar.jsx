@@ -2,12 +2,13 @@ import { useCallback, useState } from 'react'
 import { AdvancedFileViewer, PersonAvatar } from '@runly/ui'
 
 // Avatar of an attendance person. The picture is inherited from the linked HR employee
-// (`person.hr.avatarUrl` thumbnail, `person.hr.photoUrl` full size). With a full-size photo the
+// (`person.hr.avatarUrl` thumbnail, `person.hr.photoUrl` full size; lists that return flat rows
+// carry `avatarUrl` / `photoUrl` on the person instead). With a full-size photo the
 // avatar becomes a button that opens the shared image viewer; without one it is plain initials.
 export function PersonPhotoAvatar({ person, name, size = 'md' }) {
   const [open, setOpen] = useState(false)
-  const photoUrl = person?.hr?.photoUrl ?? null
-  const avatar = <PersonAvatar name={name} src={person?.hr?.avatarUrl ?? photoUrl} size={size} />
+  const photoUrl = person?.hr?.photoUrl ?? person?.photoUrl ?? null
+  const avatar = <PersonAvatar name={name} src={person?.hr?.avatarUrl ?? person?.avatarUrl ?? photoUrl} size={size} />
   const resolve = useCallback(async () => photoUrl, [photoUrl])
   if (!photoUrl) return avatar
   return (
@@ -25,7 +26,7 @@ export function PersonPhotoAvatar({ person, name, size = 'md' }) {
         <AdvancedFileViewer
           open={open}
           onOpenChange={setOpen}
-          files={[{ id: person.id, mimeType: 'image/jpeg', originalName: name, sizeBytes: 0 }]}
+          files={[{ id: person.id ?? person.personId ?? name, mimeType: 'image/jpeg', originalName: name, sizeBytes: 0 }]}
           activeIndex={0}
           onIndexChange={() => {}}
           onResolveSignedUrl={resolve}

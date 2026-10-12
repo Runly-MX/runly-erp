@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { ArrowLeftRight, Ban, ClipboardList, Fingerprint, Flag, MapPin, Plus } from 'lucide-react'
-import { Badge, Button, ConfirmDialog, DataTable, PersonAvatar, TextField } from '@runly/ui'
+import { Badge, Button, ConfirmDialog, DataTable, TextField } from '@runly/ui'
 import { ManualPunchDialog } from '../components/ManualPunchDialog.jsx'
 import { ExportButton } from '../components/ExportButton.jsx'
+import { PersonPhotoAvatar } from '../components/PersonPhotoAvatar.jsx'
 import { PunchSelfie } from '../components/PunchSelfie.jsx'
 import { PageShell, ScreenHeader, ToneBadge } from '../components/shared.jsx'
 import { useAttendancePermissions, useKiosks, usePeople, usePunches, useVoidPunch } from '../hooks/useAttendanceData.js'
@@ -18,7 +19,7 @@ const VIEW_MODES = ['table', 'cards']
 function PunchFlags({ punch: p }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <PunchSelfie url={p.selfieUrl} caption={`${fullName(p.person)} · ${formatDateTime(p.occurredAt)}`} />
+      <PunchSelfie id={p.id} url={p.selfieUrl} fullUrl={p.selfieFullUrl} caption={`${fullName(p.person)} · ${formatDateTime(p.occurredAt)}`} />
       {p.status === 'voided' ? <ToneBadge tone="rose" icon={Ban}>Anulada</ToneBadge> : null}
       {(p.flags ?? []).map((flag) => <ToneBadge key={flag} tone={flagTone(flag)} icon={Flag}>{flagLabel(flag)}</ToneBadge>)}
       {p.status !== 'voided' && !(p.flags ?? []).length ? <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span> : null}
@@ -68,7 +69,7 @@ export default function AttendancePunches() {
       id: 'person', header: 'Persona', accessorFn: (p) => fullName(p.person),
       cell: ({ row }) => (
         <div className="flex min-w-0 items-center gap-3">
-          <PersonAvatar name={fullName(row.original.person)} size="sm" />
+          <PersonPhotoAvatar person={row.original.person} name={fullName(row.original.person)} size="sm" />
           <div className="min-w-0">
             <p className="truncate font-medium leading-tight">{fullName(row.original.person)}</p>
             <p className="text-xs tabular-nums text-[hsl(var(--muted-foreground))]">{row.original.person?.code}</p>
@@ -113,7 +114,7 @@ export default function AttendancePunches() {
           <div className="flex h-full flex-col gap-3 rounded-2xl surface-card p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 items-center gap-3">
-                <PersonAvatar name={fullName(p.person)} size="md" />
+                <PersonPhotoAvatar person={p.person} name={fullName(p.person)} size="md" />
                 <div className="min-w-0">
                   <p className="truncate font-semibold leading-tight">{fullName(p.person)}</p>
                   <p className="text-xs tabular-nums text-[hsl(var(--muted-foreground))]">{p.person?.code}</p>

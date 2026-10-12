@@ -8,22 +8,22 @@ import { pickCoords, waitForPosition } from '../geo.js'
 const blobOf = (size) => ({ size })
 
 test('encodeUnderCap lowers quality until the target size fits', async () => {
-  const sizes = { 0.6: 200_000, 0.5: 160_000, 0.4: 120_000 }
+  const sizes = { 0.85: 300_000, 0.75: 260_000, 0.65: 200_000 }
   const tried = []
   const result = await encodeUnderCap(async (q) => { tried.push(q); return blobOf(sizes[q] ?? 50_000) })
-  assert.deepEqual(tried, [0.6, 0.5, 0.4])
-  assert.equal(result.quality, 0.4)
+  assert.deepEqual(tried, [0.85, 0.75, 0.65])
+  assert.equal(result.quality, 0.65)
 })
 
 test('encodeUnderCap returns the smallest blob under the hard cap, or null above it', async () => {
   const under = await encodeUnderCap(async (q) => blobOf(300_000 + q * 1000))
-  assert.equal(under.quality, 0.2)
+  assert.equal(under.quality, 0.45)
   assert.equal(await encodeUnderCap(async () => blobOf(500_000)), null)
   assert.equal(await encodeUnderCap(async () => null), null)
 })
 
-test('scaleToFit caps the longest side at 480 and never upscales', () => {
-  assert.deepEqual(scaleToFit(1920, 1080), { width: 480, height: 270 })
+test('scaleToFit caps the longest side at 720 and never upscales', () => {
+  assert.deepEqual(scaleToFit(1920, 1080), { width: 720, height: 405 })
   assert.deepEqual(scaleToFit(320, 240), { width: 320, height: 240 })
 })
 

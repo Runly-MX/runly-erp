@@ -1,9 +1,9 @@
 // Evidence photo from the front camera: one JPEG frame, small enough to queue
 // offline and upload later.
-export const SELFIE_MAX_SIDE = 480
-export const SELFIE_START_QUALITY = 0.6
-export const SELFIE_MIN_QUALITY = 0.2
-export const SELFIE_TARGET_BYTES = 150 * 1024
+export const SELFIE_MAX_SIDE = 720
+export const SELFIE_START_QUALITY = 0.85
+export const SELFIE_MIN_QUALITY = 0.4
+export const SELFIE_TARGET_BYTES = 220 * 1024
 export const SELFIE_HARD_CAP_BYTES = 380 * 1024
 export const SELFIE_SMILE_MS = 1_000
 

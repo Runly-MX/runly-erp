@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import {
   AttendanceError, buildSessions, computeCompliance, hashPin, normalizeUid, presentAt, randomToken,
 } from './attendance-core.js'
-import { assertLinkable, attachHr, createAttendanceHr, kindFromEmployment } from './attendance-hr.js'
+import { assertLinkable, attachHr, createAttendanceHr, kindFromEmployment, photosByPerson } from './attendance-hr.js'
 
 // text: undefined stays undefined (untouched on update), blank becomes null. req: for NOT NULL columns.
 const text = (v, max = 200) => (v === undefined ? undefined : v == null ? null : String(v).trim().slice(0, max) || null)
@@ -238,8 +238,16 @@ export function createAttendanceService({ prisma, signFile = null }) {
       include: { person: { select: { id: true, code: true, firstName: true, lastName: true, kind: true, groupId: true, categoryId: true } } },
     })
     if (!signFile) return rows
-    // Evidence photos: short-lived signed URL per punch that has one.
-    return Promise.all(rows.map(async (row) => (row.selfieFileId ? { ...row, selfieUrl: await signFile(row.selfieFileId) } : row)))
+    // Evidence photos: thumbnail for the table and full size for the viewer (the thumbnail
+    // variant is small, so enlarging it looked blurry). Each person also carries the
+    // linked HR picture so the avatar is the real photo.
+    const photos = await photosByPerson(prisma, companyId, rows.map((r) => r.personId), signFile)
+    return Promise.all(rows.map(async (row) => {
+      const withPerson = { ...row, person: { ...row.person, ...(photos.get(row.personId) ?? {}) } }
+      if (!row.selfieFileId) return withPerson
+      const [selfieUrl, selfieFullUrl] = await Promise.all([signFile(row.selfieFileId, 'card'), signFile(row.selfieFileId, 'full')])
+      return { ...withPerson, selfieUrl, selfieFullUrl }
+    }))
   }
 
   async function createManualPunch(companyId, actorId, body) {
@@ -273,7 +281,8 @@ export function createAttendanceService({ prisma, signFile = null }) {
     const inside = presentAt(punches, at)
     const people = await prisma.attPerson.findMany({ where: { companyId, enabled: true }, select: { id: true, code: true, firstName: true, lastName: true, kind: true, groupId: true, categoryId: true, shiftId: true } })
     const byId = new Map(people.map((p) => [p.id, p]))
-    const present = inside.map((p) => ({ ...byId.get(p.personId), personId: p.personId, since: p.occurredAt, siteId: p.siteId ?? null, method: p.method })).filter((p) => p.id)
+    const photos = await photosByPerson(prisma, companyId, inside.map((p) => p.personId), signFile)
+    const present = inside.map((p) => ({ ...byId.get(p.personId), ...(photos.get(p.personId) ?? {}), personId: p.personId, since: p.occurredAt, siteId: p.siteId ?? null, method: p.method })).filter((p) => p.id)
     const tally = (key) => present.reduce((acc, p) => { const k = p[key] ?? 'none'; acc[k] = (acc[k] ?? 0) + 1; return acc }, {})
     return { at, total: people.length, present, counts: { total: present.length, byKind: tally('kind'), byGroup: tally('groupId'), byCategory: tally('categoryId') } }
   }
@@ -293,6 +302,8 @@ export function createAttendanceService({ prisma, signFile = null }) {
       if (s.end && (!row.lastOut || new Date(s.end) > new Date(row.lastOut))) row.lastOut = s.end
       rows.set(s.personId, row)
     }
+    const photos = await photosByPerson(prisma, companyId, [...rows.keys()], signFile)
+    for (const [personId, row] of rows) if (photos.has(personId)) row.person = { ...row.person, ...photos.get(personId) }
     return { from, to, rows: [...rows.values()].sort((a, b) => b.minutes - a.minutes), totalMinutes: [...rows.values()].reduce((n, r) => n + r.minutes, 0), sessions }
   }
 

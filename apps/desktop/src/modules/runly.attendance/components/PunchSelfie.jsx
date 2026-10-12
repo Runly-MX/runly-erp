@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Camera } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@runly/ui'
+import { AdvancedFileViewer } from '@runly/ui'
 
-// Evidence photo taken by the kiosk at punch time: small thumbnail that opens
-// a larger view. The URL is a short-lived signed link from the API.
-export function PunchSelfie({ url, caption }) {
+// Evidence photo taken by the kiosk at punch time: small thumbnail that opens the shared
+// image viewer with the FULL-size file (the thumbnail variant is low resolution, enlarging it
+// looked blurry). URLs are short-lived signed links from the API.
+export function PunchSelfie({ url, fullUrl, caption, id }) {
   const [open, setOpen] = useState(false)
+  const full = fullUrl ?? url
+  const resolve = useCallback(async () => full, [full])
   if (!url) return null
   return (
     <>
@@ -18,13 +21,16 @@ export function PunchSelfie({ url, caption }) {
         <img src={url} alt="" className="h-full w-full object-cover" loading="lazy" />
         <Camera className="absolute bottom-0.5 right-0.5 h-3 w-3 rounded bg-black/50 p-0.5 text-white" aria-hidden="true" />
       </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Foto de la checada</DialogTitle></DialogHeader>
-          <img src={url} alt="Foto tomada en el kiosko al checar" className="mx-auto max-h-[70vh] w-full rounded-xl object-contain" />
-          {caption ? <p className="text-center text-sm text-[hsl(var(--muted-foreground))]">{caption}</p> : null}
-        </DialogContent>
-      </Dialog>
+      {open ? (
+        <AdvancedFileViewer
+          open={open}
+          onOpenChange={setOpen}
+          files={[{ id: id ?? caption ?? 'selfie', mimeType: 'image/jpeg', originalName: caption ?? 'Foto de la checada', sizeBytes: 0 }]}
+          activeIndex={0}
+          onIndexChange={() => {}}
+          onResolveSignedUrl={resolve}
+        />
+      ) : null}
     </>
   )
 }

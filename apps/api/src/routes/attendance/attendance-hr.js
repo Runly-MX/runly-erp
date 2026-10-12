@@ -45,6 +45,22 @@ export async function loadHrMap(prisma, companyId, ids, signFile = null) {
   return new Map((await withPhotos(prisma, companyId, rows, signFile)).map((e) => [e.id, e]))
 }
 
+// personId -> { avatarUrl, photoUrl } for people linked to an HR employee that has a picture.
+// Used by every list that shows a person (punches, presence, hours) so the avatar is the
+// person's photo wherever one exists, initials otherwise.
+export async function photosByPerson(prisma, companyId, personIds, signFile = null) {
+  const ids = [...new Set(personIds.filter(Boolean))]
+  const out = new Map()
+  if (!signFile || !ids.length) return out
+  const linked = await prisma.attPerson.findMany({ where: { companyId, id: { in: ids }, hrEmployeeId: { not: null } }, select: { id: true, hrEmployeeId: true } })
+  const hr = await loadHrMap(prisma, companyId, linked.map((p) => p.hrEmployeeId), signFile)
+  for (const p of linked) {
+    const e = hr.get(p.hrEmployeeId)
+    if (e?.avatarUrl || e?.photoUrl) out.set(p.id, { avatarUrl: e.avatarUrl ?? null, photoUrl: e.photoUrl ?? null })
+  }
+  return out
+}
+
 export async function attachHr(prisma, companyId, people, signFile = null) {
   const map = await loadHrMap(prisma, companyId, people.map((p) => p.hrEmployeeId), signFile)
   return people.map((p) => ({ ...p, hr: p.hrEmployeeId ? map.get(p.hrEmployeeId) ?? null : null }))
