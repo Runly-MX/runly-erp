@@ -110,3 +110,11 @@ infra/docker/.release-state.json
 
 .artifacts/shared-release/
 apps/desktop/native-host/dist/
+# Native density icons and bundled legacy mark are derived by brand:native.
+apps/desktop/src-tauri/gen/android/app/src/main/res/mipmap-*/ic_launcher*.png
+apps/desktop/src-tauri/gen/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher*.xml
+apps/desktop/src-tauri/gen/android/app/src/main/res/values/ic_launcher_background.xml
+apps/desktop/native-host/shell/runly-mark.svg
+# Kotlin daemon/session diagnostics and machine-specific compiler state.
+.kotlin/
+kotlin-compiler-*.log

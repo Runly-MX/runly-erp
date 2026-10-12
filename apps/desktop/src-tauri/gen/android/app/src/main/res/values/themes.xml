@@ -4,9 +4,9 @@
         <!-- Customize your theme here. -->
     </style>
     <style name="Theme.Runly.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#E6EAF0</item>
+        <item name="windowSplashScreenBackground">#070D18</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/Theme.runly_erp</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

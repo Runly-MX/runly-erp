@@ -10,12 +10,16 @@ import android.widget.ImageButton
 import android.widget.PopupMenu
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 // Bundled native navigation also works with older instance web deployments.
 object HostControls {
   fun attach(activity: Activity, webView: WebView) {
     webView.post {
       val root = activity.findViewById<FrameLayout>(android.R.id.content)
+      val barsController = WindowInsetsControllerCompat(activity.window, root)
+      val defaultLightStatusBar = barsController.isAppearanceLightStatusBars
+      var previousLocal: Boolean? = null
       val density = activity.resources.displayMetrics.density
       fun dp(value: Int) = (value * density).toInt()
       val button = ImageButton(activity).apply {
@@ -47,6 +51,11 @@ object HostControls {
         override fun run() {
           if (activity.isDestroyed) return
           val url = Uri.parse(webView.url ?: "")
+          val local = url.host == "tauri.localhost" || url.scheme == "tauri" || url.scheme == null
+          if (previousLocal != local) {
+            barsController.isAppearanceLightStatusBars = if (local) false else defaultLightStatusBar
+            previousLocal = local
+          }
           button.visibility = if (url.scheme == "https" && url.path?.startsWith("/app/") == true && url.host != "tauri.localhost") View.VISIBLE else View.GONE
           button.postDelayed(this, 750)
         }

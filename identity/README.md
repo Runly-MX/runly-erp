@@ -1,6 +1,11 @@
 # Identity Assets
 
-This directory is the source of truth for Atlas ERP brand resources.
+This directory preserves the historical Atlas ERP brand resources. The `runly-erp_*`
+filenames were renamed during migration, but the artwork remains the Atlas A.
+
+Current Runly branding is in `apps/desktop/public/runly/`. Native builds use
+`runly-isotipo-dark.png` and `runly-app-icon-dark.png` there. Do not regenerate the
+Android app from this legacy directory. See `docs/10_brand_assets_strategy.md`.
 
 ## Canonical sources
 

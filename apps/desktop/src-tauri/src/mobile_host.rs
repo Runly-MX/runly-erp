@@ -617,7 +617,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let init = format!("Object.defineProperty(window, '__RUNLY_NATIVE_HOST__', {{value: Object.freeze({metadata}), writable:false}});{device_bridge}");
     let nav_state = state.clone();
     WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-        .title("Runly ERP")
+        .title("Runly")
         .user_agent(USER_AGENT)
         .initialization_script(init)
         .on_navigation(move |url| {

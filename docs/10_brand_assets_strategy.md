@@ -1,14 +1,16 @@
 # 10 - Brand Assets Strategy
 
-This document defines how Atlas ERP branding resources are stored and generated for desktop, web metadata, and sharing cards.
+This document records the legacy Atlas asset pipeline and the current Runly native branding flow.
 
 ## Source of truth
 
-All master brand files live in `identity/`.
+Current Runly masters are in `apps/desktop/public/runly/`: the native host uses
+`runly-isotipo-dark.png` and `runly-app-icon-dark.png`. `identity/runly-erp_*`
+contains historical Atlas artwork; those filenames do not make it current Runly branding.
 
 ## Official color palette
 
-Atlas ERP official palette:
+Historical Atlas palette (current Runly tokens are in `packages/ui/src/runtime.css`):
 
 ```css
 :root {
@@ -59,9 +61,23 @@ What it does:
 
 ### Native Android host
 
-`pnpm brand:native` uses the installed Tauri icon CLI and the vector master `identity/runly-erp_isotype.svg`. It separates the master's background, preserves the logo paths/colors, and uses the official `#E6EAF0` surface. Adaptive foregrounds include padding for circular masks; Android 13 themed icons use a monochrome silhouette.
+`pnpm brand:native` uses the installed Tauri icon CLI and the current Runly PNG masters in
+`apps/desktop/public/runly/`. Temporary SVG wrappers preserve the original artwork,
+provide the `#070D18` background and produce a monochrome alpha silhouette for Android
+13 themed icons. Tauri exports all density variants and adaptive icon resources.
 
-The command updates the initialized Android project's launcher resources and the bundled recovery logo. Intermediate platform exports go to ignored `.tmp/native-brand/`. Native builds run this command automatically, and `brand:build` runs it last so its legacy raster generation cannot overwrite mobile branding. Keep the Android resources used by the APK in version control; do not add the temporary exports.
+The command regenerates the Android launcher resources. They are ignored and removed
+from version control: `mipmap-*/ic_launcher*.png`, the two adaptive icon XML files, and
+`values/ic_launcher_background.xml`. Intermediate exports go to ignored `.tmp/native-brand/`.
+The recovery UI imports the current Runly master directly, so it does not duplicate a
+generated logo. Native builds execute the generator before packaging; `brand:build`
+runs it last so its historical raster flow cannot overwrite mobile branding.
+
+Keep the master logos, Kotlin source, Gradle wrapper/configuration, manifest, themes
+and string resources in Git: they contain custom behavior and cannot be reconstructed
+from the logo masters. Build directories, Kotlin/Gradle caches, compiled libraries,
+APK/AAB files, secrets and per-machine settings remain ignored. On a fresh checkout
+use the native wrapper, or run `pnpm brand:native` before invoking Gradle directly.
 
 Android startup uses `androidx.core:core-splashscreen:1.2.0` with the same mark/background and a normal transition into Tauri. It does not add a second Activity or artificially delay loading. The recovery shell remains responsible for network errors after startup. iOS icon exports can be generated, but iOS launch-screen integration still requires the pending Xcode project.
 

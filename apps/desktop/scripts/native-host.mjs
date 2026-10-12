@@ -58,6 +58,7 @@ export function useUniversalHost(platform, action, environment, extra = []) {
 
 export function makeConfig(origin) {
   return {
+    productName: 'Runly',
     version: environments.nativeHostVersion,
     build: { beforeDevCommand: '', beforeBuildCommand: '', devUrl: null, frontendDist: '../native-host/dist' },
     app: {

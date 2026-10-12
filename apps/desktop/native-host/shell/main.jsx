@@ -6,7 +6,7 @@ import { createInstanceManager } from './manager.js'
 import { InstancesPanel } from './InstancesPanel.jsx'
 import { DevicePanel } from './DevicePanel.jsx'
 import './style.css'
-import mark from './runly-mark.svg'
+import mark from '../../public/runly/runly-isotipo-dark.png'
 
 const manager = createInstanceManager()
 
@@ -17,7 +17,7 @@ function NativeManager() {
   return (
     <main className="manager-shell">
       <header className="flex items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-3"><img src={mark} width="36" height="36" alt="Runly" /><span className="text-sm font-semibold">Runly ERP</span></div>
+        <div className="flex items-center gap-3"><img src={mark} width="36" height="36" alt="Runly" /><span className="text-sm font-semibold">Runly</span></div>
         <span className="text-xs text-muted-foreground">Android · {state.info?.nativeHostVersion ?? '…'}</span>
       </header>
       <PageHeader title={tab === 'instances' ? 'Tus instancias' : 'Tu dispositivo'} description={tab === 'instances' ? 'Conecta Runly con tu organización y cambia de instancia cuando lo necesites.' : 'Activa las funciones que quieras usar. Puedes cambiar los permisos desde Android.'} />
