@@ -99,6 +99,28 @@ Filtros en forma de chips para listas.
 | `value` | objeto | Valores activos `{ [key]: value }` |
 | `onChange` | `(nuevoValor) => void` | Recibe el objeto completo de filtros |
 
+### FilterToolbar
+
+Barra de búsqueda y filtros para listas. En escritorio es una sola fila (buscador, filtros y acciones); en móvil muestra el buscador y un botón "Filtros" (con el número de filtros activos) que abre los filtros en una hoja inferior.
+
+| Prop | Tipo | Qué hace |
+|---|---|---|
+| `search` | ReactNode | Normalmente un `SearchInput` |
+| `filters` | ReactNode | Controles de filtro (`FilterBar`, `DateRangeFilter`, `ToggleFilter`...) |
+| `actions` | ReactNode | Acción principal de la pantalla |
+| `activeCount` | number | Filtros activos (se muestra en el botón móvil) |
+| `onClear` | `() => void` | Limpia todos los filtros |
+
+### ToggleFilter
+
+Interruptor en forma de píldora para filtros de sí/no.
+
+| Prop | Tipo | Qué hace |
+|---|---|---|
+| `label` | string | Texto |
+| `checked` | boolean | Estado |
+| `onChange` | `(checked) => void` | Cambio |
+
 ### DateRangeFilter
 
 Selector de rango de fechas en forma de chip: atajos (Hoy, Últimos 7 días, Este mes...), calendario con vista previa del rango y botón "Quitar rango". Es el mismo que usa `FilterBar` cuando un filtro es `type: 'daterange'`; úsalo suelto cuando solo necesitas el rango (por ejemplo junto a un buscador).
@@ -272,7 +294,7 @@ Pie de `Card`, normalmente con acciones (`justify-end`).
 
 ### Tabs
 
-Pestañas (Radix). Se compone con `TabsList`, `TabsTrigger` y `TabsContent`.
+Pestañas (Radix). Por defecto se muestran como píldoras animadas. Se compone con `TabsList`, `TabsTrigger` y `TabsContent`.
 
 | Prop (`Tabs`) | Tipo | Qué hace |
 |---|---|---|
@@ -298,6 +320,31 @@ Pestaña individual; `value` debe coincidir con su `TabsContent`.
 ### TabsContent
 
 Contenido de una pestaña.
+
+### ChipTabs y ChipTabPanel
+
+Pestañas controladas en forma de chips de color con indicador deslizante y, opcionalmente, un recuadro con la explicación de la pestaña activa. Úsalas cuando quieras controlar la pestaña (por ejemplo, guardarla en la URL).
+
+| Prop (`ChipTabs`) | Tipo | Qué hace |
+|---|---|---|
+| `tabs` | `[{ value, label, icon, description, badge }]` | Pestañas; `description` se muestra bajo los chips, `badge` es un contador |
+| `value` / `onChange` | string / `(value) => void` | Pestaña activa y cambio |
+| `tone` | `teal` (por defecto), `blue`, `violet`, `amber`, `rose` | Color |
+| `ariaLabel` | string | Etiqueta accesible |
+| `showDescription` | boolean | `false` oculta el recuadro de descripción |
+
+```jsx
+import { ChipTabs, ChipTabPanel } from '@runly/ui'
+
+<ChipTabs
+  ariaLabel="Secciones"
+  tabs={[{ value: 'general', label: 'General', description: 'Datos básicos.' }, { value: 'historial', label: 'Historial', badge: 3 }]}
+  value={tab}
+  onChange={setTab}
+/>
+<ChipTabPanel value="general" active={tab === 'general'}>...</ChipTabPanel>
+<ChipTabPanel value="historial" active={tab === 'historial'}>...</ChipTabPanel>
+```
 
 ## Acciones e indicadores
 

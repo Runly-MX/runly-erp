@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BarChart3, Clock, Download, ShieldCheck, Users } from 'lucide-react'
-import { Badge, Button, ChipTabPanel, ChipTabs, DataTable, DatePickerField, DateRangeFilter, ErrorState, PersonAvatar, Skeleton } from '@runly/ui'
+import { Badge, Button, ChipTabPanel, ChipTabs, DataTable, DatePickerField, DateRangeFilter, ErrorState, FilterToolbar, PersonAvatar, Skeleton } from '@runly/ui'
 import { PresenceChart } from '../components/PresenceChart.jsx'
 import { quotaTitle } from '../components/QuotaCards.jsx'
 import { PageShell, ScreenHeader, Toolbar } from '../components/shared.jsx'
@@ -79,7 +79,7 @@ function HoursTab({ lookups }) {
       toolbarStart={(
         <>
           <DateRangeFilter filter={RANGE_FILTER} value={range} onChange={(next) => setRange({ from: next.from, to: next.to })} />
-          {report.data ? <p className="text-sm text-[hsl(var(--muted-foreground))]">Total: <span className="font-semibold tabular-nums text-[hsl(var(--foreground))]">{minutesToHours(report.data.totalMinutes)}</span></p> : null}
+          {report.data ? <span className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-3 text-sm text-[hsl(var(--muted-foreground))] sm:h-9">Total <span className="font-semibold tabular-nums text-[hsl(var(--foreground))]">{minutesToHours(report.data.totalMinutes)}</span></span> : null}
         </>
       )}
       toolbarActions={<Button onClick={exportCsv} disabled={!rows.length}><Download className="h-4 w-4" />Exportar CSV</Button>}
@@ -119,10 +119,8 @@ function ComplianceTab({ lookups }) {
 
   return (
     <div className="space-y-4">
-      <Toolbar
-        start={<DatePickerField className="w-full sm:w-52" value={day} onChange={setDay} />}
-        description="Compara las personas presentes contra el mínimo de cada cuota en el día elegido."
-      />
+      <FilterToolbar filters={<DatePickerField className="w-full sm:w-52" value={day} onChange={setDay} />} />
+      <p className="text-sm text-[hsl(var(--muted-foreground))]">Compara las personas presentes contra el mínimo de cada cuota en el día elegido.</p>
       <DataTable
         columns={columns}
         data={report.data?.rows ?? []}

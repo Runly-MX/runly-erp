@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Ban, ClipboardList, Flag, Plus } from 'lucide-react'
-import { Badge, Button, CheckboxField, ComboboxField, ConfirmDialog, DataTable, DateRangeFilter, PersonAvatar, TextField } from '@runly/ui'
+import { Badge, Button, ComboboxField, ConfirmDialog, DataTable, DateRangeFilter, PersonAvatar, TextField, ToggleFilter } from '@runly/ui'
 import { ManualPunchDialog } from '../components/ManualPunchDialog.jsx'
 import { PageShell, ScreenHeader, ToneBadge } from '../components/shared.jsx'
 import { useAttendancePermissions, useKiosks, usePeople, usePunches, useVoidPunch } from '../hooks/useAttendanceData.js'
@@ -98,7 +98,7 @@ export default function AttendancePunches() {
           <>
             <DateRangeFilter filter={{ key: 'range', label: 'Fechas', fromKey: 'from', toKey: 'to' }} value={range} onChange={(next) => setRange({ from: next.from, to: next.to })} />
             <ComboboxField className="w-full sm:w-64" aria-label="Persona" options={personOptions} value={filters.personId} onChange={set('personId')} clearable placeholder="Todas las personas" />
-            <CheckboxField id="att-flagged" className="min-h-11 justify-center sm:min-h-0" checked={filters.flaggedOnly} onChange={(e) => set('flaggedOnly')(e.target.checked)}>Solo marcadas</CheckboxField>
+            <ToggleFilter icon={Flag} label="Solo marcadas" checked={Boolean(filters.flaggedOnly)} onChange={set('flaggedOnly')} />
           </>
         )}
         toolbarActions={canManagePunches ? <Button onClick={() => setManualOpen(true)}><Plus className="h-4 w-4" />Checada manual</Button> : null}

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, ConfirmDialog, Input, PageHeader, Skeleton, cn } from "@runly/ui";
+import { Badge, Button, ChipTabs, ConfirmDialog, Input, PageHeader, Skeleton, cn } from "@runly/ui";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
+import { usePersistedTab } from "../../../hooks/usePersistedTab.js";
 import { runly } from "../../../lib/runly";
 
 // ── Row skeleton ──────────────────────────────────────────────────────────────
@@ -327,6 +328,7 @@ const TABS = [
   {
     key: "departments",
     label: "Departamentos",
+    description: "Áreas de la empresa a las que se asignan los colaboradores.",
     icon: Building2,
     queryKey: "hr-departments",
     fetcher: (token) => runly.hr.listDepartments(token, { limit: 300 }),
@@ -341,6 +343,7 @@ const TABS = [
   {
     key: "job-titles",
     label: "Puestos",
+    description: "Cargos o posiciones que pueden ocupar los colaboradores.",
     icon: Briefcase,
     queryKey: "hr-job-titles",
     fetcher: (token) => runly.hr.listJobTitles(token, { limit: 300 }),
@@ -353,12 +356,13 @@ const TABS = [
     readPermission: "hr.job_title.read",
   },
 ];
+const TAB_KEYS = TABS.map((t) => t.key);
 
 export default function HrCatalogsScreen() {
   const { userProfile } = useAuth();
   const permissions = userProfile?.permissions ?? [];
   const hasPermission = (key) => Boolean(userProfile?.isAdmin || permissions.includes(key));
-  const [activeTab, setActiveTab] = useState("departments");
+  const [activeTab, setActiveTab] = usePersistedTab("runly.hr.catalogsTab", TAB_KEYS, "departments");
 
   const tab = TABS.find((t) => t.key === activeTab) ?? TABS[0];
   const canCreate = hasPermission(tab.createPermission);
@@ -373,28 +377,12 @@ export default function HrCatalogsScreen() {
       />
 
       {/* tabs */}
-      <div className="flex items-center gap-1 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 p-1 w-fit">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = t.key === activeTab;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setActiveTab(t.key)}
-              className={cn(
-                "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150",
-                active
-                  ? "bg-[hsl(var(--background))] text-[hsl(var(--foreground))] shadow-sm"
-                  : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
-              )}
-            >
-              <Icon size={15} />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
+      <ChipTabs
+        ariaLabel="Catálogos"
+        tabs={TABS.map((t) => ({ value: t.key, label: t.label, icon: t.icon, description: t.description }))}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
 
       {/* panel */}
       <AnimatePresence mode="wait">

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { RunlyCrudView, PageHeader } from '@runly/ui'
+import { RunlyCrudView, PageHeader, ChipTabs } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -8,7 +8,7 @@ import { getApiUrl } from '../../../lib/runtimeConfig.js'
 const API_BASE = getApiUrl()
 
 const CATALOG_TABS = [
-  { key: 'vehicle-types',  label: 'Tipos de vehiculo' },
+  { key: 'vehicle-types',  label: 'Tipos de vehículo' },
   { key: 'vehicle-brands', label: 'Marcas'            },
   { key: 'vehicle-models', label: 'Modelos'           },
 ]
@@ -21,7 +21,7 @@ const CATALOG_BLUEPRINTS = {
       schema: {
         entity: 'FleetVehicleType',
         apiPath: '/fleet/catalogs/vehicle-types',
-        title: 'Tipos de vehiculo',
+        title: 'Tipos de vehículo',
         columns: [
           { field: 'name',                  label: 'Nombre' },
           { field: 'economic_group_number', label: 'No. economico grupo' },
@@ -137,25 +137,16 @@ export default function CatalogsScreen() {
     <div className="p-4 md:p-6 space-y-4">
       <PageHeader
         eyebrow="Runly Fleet"
-        title="Catalogos de Flota"
-        description="Tipos de vehiculo, marcas y modelos disponibles."
+        title="Catálogos de Flota"
+        description="Tipos de vehículo, marcas y modelos disponibles."
       />
-      <div className="flex gap-2 border-b border-[hsl(var(--border))] pb-0">
-        {CATALOG_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => handleTabChange(tab.key)}
-            className={[
-              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-              catalogKey === tab.key
-                ? 'border-(--module-accent,hsl(var(--primary))) text-[hsl(var(--foreground))]'
-                : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
-            ].join(' ')}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <ChipTabs
+        ariaLabel="Catálogos de flota"
+        showDescription={false}
+        tabs={CATALOG_TABS.map((tab) => ({ value: tab.key, label: tab.label }))}
+        value={catalogKey}
+        onChange={handleTabChange}
+      />
       <RunlyCrudView
         tableBlueprint={tableBlueprint}
         formBlueprint={formBlueprint}

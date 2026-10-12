@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { RunlyTable, Button, PageHeader } from '@runly/ui'
+import { RunlyTable, Button, PageHeader, ChipTabs } from '@runly/ui'
 import { Plus } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -12,7 +12,7 @@ const API_BASE = getApiUrl()
 const REPORT_TABS = [
   { key: 'maintenance', label: 'Mantenimiento' },
   { key: 'service',     label: 'Servicio'      },
-  { key: 'repair',      label: 'Reparacion'    },
+  { key: 'repair',      label: 'Reparación'    },
   { key: 'other',       label: 'Otro'          },
 ]
 
@@ -172,22 +172,13 @@ export default function ReportsScreen() {
           </Button>
         }
       />
-      <div className="flex gap-2 border-b border-[hsl(var(--border))] pb-0">
-        {REPORT_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => handleTabChange(tab.key)}
-            className={[
-              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-              reportType === tab.key
-                ? 'border-(--module-accent,hsl(var(--primary))) text-[hsl(var(--foreground))]'
-                : 'border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
-            ].join(' ')}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <ChipTabs
+        ariaLabel="Tipos de reporte"
+        showDescription={false}
+        tabs={REPORT_TABS.map((tab) => ({ value: tab.key, label: tab.label }))}
+        value={reportType}
+        onChange={handleTabChange}
+      />
       <RunlyTable
         blueprint={currentBlueprint}
         token={token}

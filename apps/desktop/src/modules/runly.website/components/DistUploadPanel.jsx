@@ -1,7 +1,7 @@
 import { companyFetch } from '../../../lib/companyFetch.js'
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, ConfirmDialog, DistDropZone, LoadingState } from "@runly/ui";
+import { Button, ChipTabs, ConfirmDialog, DistDropZone, LoadingState } from "@runly/ui";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
   Upload,
@@ -596,22 +596,14 @@ const sdk = createStorefrontClient({
             </p>
 
             {/* Tab strip */}
-            <div className="flex gap-1 px-4 pb-2 overflow-x-auto">
-              {GUIDE_TABS.map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setGuideTab(tab.key)}
-                  className={[
-                    "shrink-0 px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer",
-                    guideTab === tab.key
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted/60 text-muted-foreground hover:bg-muted",
-                  ].join(" ")}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            <div className="px-4 pb-2">
+              <ChipTabs
+                ariaLabel="Guía de integración"
+                showDescription={false}
+                tabs={GUIDE_TABS.map((tab) => ({ value: tab.key, label: tab.label }))}
+                value={guideTab}
+                onChange={setGuideTab}
+              />
             </div>
 
             {/* Code block */}

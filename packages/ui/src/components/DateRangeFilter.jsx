@@ -159,10 +159,10 @@ export function DateRangeFilter({ filter, value = {}, onChange }) {
         <button
           type="button"
           className={cn(
-            'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors',
+            'inline-flex h-10 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors sm:h-9',
             active
               ? 'border-(--brand-primary) bg-(--brand-soft) text-[hsl(var(--foreground))]'
-              : 'border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]',
+              : 'border-[hsl(var(--border))] bg-card text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]',
           )}
         >
           <CalendarDays className="h-3.5 w-3.5 opacity-70" />

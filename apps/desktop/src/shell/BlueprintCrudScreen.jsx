@@ -10,6 +10,7 @@ import {
   Card,
   CardHeader,
   CardTitle,
+  ChipTabs,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -559,33 +560,16 @@ export function BlueprintCrudScreen() {
         </div>
       )}
 
-      {/* Underline tab bar — only when sidebar children do NOT handle navigation */}
+      {/* Chip tab bar — only when sidebar children do NOT handle navigation */}
       {usesCrudLayout && showTabBar ? (
-        <div className="px-4 md:px-6 mt-2 border-b border-[hsl(var(--border))]">
-          <div className="flex items-end gap-0 -mb-px">
-            {groupedTabs.tabs.map((tab) => {
-              const isActive = tab.path === groupedTabs.activePath;
-              return (
-                <button
-                  key={tab.path}
-                  type="button"
-                  onClick={() => navigate(tab.path)}
-                  className={`px-4 py-2.5 text-sm font-medium transition-colors duration-150 border-b-2 whitespace-nowrap cursor-pointer ${
-                    isActive
-                      ? "text-[hsl(var(--foreground))]"
-                      : "border-b-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
-                  }`}
-                  style={
-                    isActive
-                      ? { borderBottomColor: module?.color ?? "hsl(var(--primary))" }
-                      : {}
-                  }
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+        <div className="px-4 md:px-6 mt-2">
+          <ChipTabs
+            ariaLabel="Secciones"
+            showDescription={false}
+            tabs={groupedTabs.tabs.map((tab) => ({ value: tab.path, label: tab.label }))}
+            value={groupedTabs.activePath}
+            onChange={(path) => navigate(path)}
+          />
         </div>
       ) : null}
 

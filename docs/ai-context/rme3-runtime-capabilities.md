@@ -561,7 +561,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | Export | Description |
 |---|---|
 | `AppShell` | Main app layout: fixed sidebar + scrollable content |
-| `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | Tab navigation |
+| `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | Tab navigation (Radix). The base component now renders the animated pill style by default; use `ChipTabs` for controlled, colored, URL-persisted tab bars |
 | `SectionIndex` | Scroll-spy section index for long forms/pages (`sections=[{id,label,icon,badge}]`); collapses to a jump `SelectField` below md |
 | `Accordion`, `AccordionItem`, `AccordionTrigger`, `AccordionContent` | Collapsible sections (Radix accordion). Use `type="single" collapsible` on `Accordion` for one-open-at-a-time; wrap each section in `AccordionItem value="..."` |
 | `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, `DropdownMenuLabel`, `DropdownMenuCheckboxItem`, `DropdownMenuRadioItem`, `DropdownMenuSub`, `DropdownMenuSubTrigger`, `DropdownMenuSubContent`, `DropdownMenuRadioGroup`, `DropdownMenuShortcut`, `DropdownMenuGroup`, `DropdownMenuPortal` | Dropdown / context menu |
@@ -603,6 +603,8 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `FilterBar` | Horizontal filter control bar |
 | `DateRangeFilter` | Date-range chip (presets + range calendar); what `FilterBar` renders for `type: 'daterange'`, usable standalone with `filter={{ key, label, fromKey, toKey }}` |
 | `ChipTabs` + `ChipTabPanel` | Controlled colored chip tabs: `tabs=[{ value, label, icon, description, badge }]`, `value`, `onChange`, `tone` (`teal` default, `blue`, `violet`, `amber`, `rose`), `ariaLabel`, `showDescription`. Solid active chip with a sliding indicator (translateX/width, reduced-motion aware), roving tabindex + arrow/Home/End keys, horizontally scrollable on mobile, and a description banner (icon + title + sentence) under the chips. Render content with `<ChipTabPanel value active>` (fades/rises in, unmounts when inactive). Persist the selection in the URL with the module's `usePersistedTab` pattern. |
+| `FilterToolbar` | Filter row for list screens: `{ search, filters, actions, activeCount, onClear }`. One row on desktop (search, filters, actions); on mobile it shows the search plus a `Filtros` button (with the active-filter count) that opens the filters in a bottom sheet. |
+| `ToggleFilter` | Pill toggle for boolean filters: `{ label, checked, onChange }`. Meant to live inside `FilterToolbar` `filters`. |
 | `ListPager` + `usePagedList` | Client-side paging for in-memory lists/cards ("1–12 de 40 < 1 / 4 >"); hidden for a single page |
 | `DynamicTable` | Blueprint-driven table renderer |
 | `DynamicForm` | Blueprint-driven form renderer |

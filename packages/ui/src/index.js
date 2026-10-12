@@ -233,6 +233,8 @@ export { ImportStepIndicator } from "./components/ImportStepIndicator.jsx";
 export { DetailActionBar } from "./components/DetailActionBar.jsx";
 export { SearchInput } from "./components/SearchInput.jsx";
 export { FilterBar } from "./components/FilterBar.jsx";
+export { FilterToolbar } from "./components/FilterToolbar.jsx";
+export { ToggleFilter } from "./components/ToggleFilter.jsx";
 export { DateRangeFilter } from "./components/DateRangeFilter.jsx";
 export { ChipTabs, ChipTabPanel } from "./components/ChipTabs.jsx";
 export { ListPager, usePagedList } from "./components/ListPager.jsx";

@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import {
   Badge, Button, Card, ComboboxField, ConfirmDialog, CurrencyField, EmptyState,
   MarkdownField, NumberField, Popover, PopoverContent, PopoverTrigger, SelectField,
-  Skeleton, SortableList, Switch, TextareaField, TextField, cn,
+  ChipTabs, Skeleton, SortableList, Switch, TextareaField, TextField, cn,
 } from '@runly/ui'
 import {
   ArrowLeft, Boxes, ChevronDown, EyeOff, FileEdit, FileSpreadsheet, FileText,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
+import { usePersistedTab } from '../../../hooks/usePersistedTab.js'
 import { companyFetch } from '../../../lib/companyFetch.js'
 import { runly } from '../../../lib/runly.js'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -29,12 +30,13 @@ import VariantMatrix        from '../components/VariantMatrix.jsx'
 const API_BASE = getApiUrl()
 
 const ALL_TABS = [
-  { key: 'General',    label: 'General',                icon: FileEdit },
-  { key: 'Precios',    label: 'Precio e inventario',     icon: Tag },
-  { key: 'Variantes',  label: 'Variantes',               icon: Layers },
-  { key: 'Historial',  label: 'Historial de movimientos', icon: History },
-  { key: 'SEO',        label: 'SEO y meta',              icon: Search },
+  { key: 'General',    label: 'General',                icon: FileEdit, description: 'Nombre, descripción, categoría y datos básicos del producto.' },
+  { key: 'Precios',    label: 'Precio e inventario',     icon: Tag, description: 'Precio de venta, costo, impuestos y existencias.' },
+  { key: 'Variantes',  label: 'Variantes',               icon: Layers, description: 'Opciones como talla o color y la combinación de cada variante.' },
+  { key: 'Historial',  label: 'Historial de movimientos', icon: History, description: 'Entradas, salidas y ajustes de inventario de este producto.' },
+  { key: 'SEO',        label: 'SEO y meta',              icon: Search, description: 'Título y descripción que verán los buscadores.' },
 ]
+const ALL_TAB_KEYS = ALL_TABS.map((t) => t.key)
 
 const CURRENCY_OPTIONS = [
   { value: 'USD', label: 'USD — Dólar estadounidense' },
@@ -94,7 +96,7 @@ export default function CatalogProductDetailScreen() {
   const hasPermission = key => Boolean(userProfile?.isAdmin || permissions.includes(key))
   const canUpdate = hasPermission('catalog.products.update')
 
-  const [tab, setTab] = useState('General')
+  const [tab, setTab] = usePersistedTab('runly.catalog.productTab', ALL_TAB_KEYS, 'General')
   const [stockModalOpen, setStockModalOpen] = useState(false)
   const [typeMenuOpen, setTypeMenuOpen] = useState(false)
   const [confirmTypeChange, setConfirmTypeChange] = useState(null)
@@ -279,24 +281,12 @@ export default function CatalogProductDetailScreen() {
 
       {/* ── Pill tabs ── */}
       <div className="px-4 md:px-6 pt-4">
-        <div className="flex items-center gap-1 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 p-1 w-fit overflow-x-auto">
-          {visibleTabs.map(t => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={cn(
-                'flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150 whitespace-nowrap',
-                tab === t.key
-                  ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))] shadow-sm'
-                  : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
-              )}
-            >
-              <t.icon className="h-3.5 w-3.5 shrink-0" />
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <ChipTabs
+          ariaLabel="Secciones del producto"
+          tabs={visibleTabs.map((t) => ({ value: t.key, label: t.label, icon: t.icon, description: t.description }))}
+          value={tab}
+          onChange={setTab}
+        />
       </div>
 
       {/* ── Tab content ── */}

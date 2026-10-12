@@ -5,6 +5,7 @@ import { cn } from '../lib/utils.js'
 // Controlled: pass `value` / `onChange`. Pair with <ChipTabPanel> for content.
 
 const TONES = {
+  brand: { solid: 'bg-(--brand-primary)', shadow: 'shadow-black/15', banner: 'border-(--brand-primary)/25 bg-(--brand-soft)', icon: 'bg-(--brand-primary) text-(--brand-primary-foreground)', focus: 'focus-visible:ring-(--brand-primary)' },
   teal: { solid: 'bg-teal-600', shadow: 'shadow-teal-600/30', banner: 'border-teal-600/25 bg-teal-600/10', icon: 'bg-teal-600 text-white', focus: 'focus-visible:ring-teal-600' },
   blue: { solid: 'bg-blue-600', shadow: 'shadow-blue-600/30', banner: 'border-blue-600/25 bg-blue-600/10', icon: 'bg-blue-600 text-white', focus: 'focus-visible:ring-blue-600' },
   violet: { solid: 'bg-violet-600', shadow: 'shadow-violet-600/30', banner: 'border-violet-600/25 bg-violet-600/10', icon: 'bg-violet-600 text-white', focus: 'focus-visible:ring-violet-600' },
@@ -26,9 +27,9 @@ function useEntered(key) {
   return entered
 }
 
-export function ChipTabs({ tabs = [], value, onChange, tone = 'teal', ariaLabel, showDescription = true, className }) {
+export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel, showDescription = true, className }) {
   const baseId = useId()
-  const palette = TONES[tone] ?? TONES.teal
+  const palette = TONES[tone] ?? TONES.brand
   const listRef = useRef(null)
   const tabRefs = useRef(new Map())
   const [indicator, setIndicator] = useState(null) // { x, w }

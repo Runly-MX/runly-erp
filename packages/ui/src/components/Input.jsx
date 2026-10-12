@@ -13,7 +13,7 @@ const Input = forwardRef(function Input(
       ref={ref}
       autoComplete={resolvedAutoComplete}
       className={cn(
-        "flex h-10 w-full rounded-lg border bg-transparent px-3 py-1 text-base sm:h-9 sm:text-sm shadow-sm transition-colors",
+        "flex h-10 w-full rounded-xl border bg-transparent px-3 py-1 text-base sm:h-9 sm:text-sm shadow-sm transition-colors",
         "placeholder:text-[hsl(var(--muted-foreground))]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-0",
         "disabled:cursor-not-allowed disabled:opacity-50",

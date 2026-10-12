@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Button } from './Button.jsx'
 import { Skeleton } from './Skeleton.jsx'
 import { SearchInput } from './SearchInput.jsx'
+import { FilterToolbar } from './FilterToolbar.jsx'
 import { FilterBar } from './FilterBar.jsx'
 import { EmptyState } from './EmptyState.jsx'
 import { ErrorState } from './ErrorState.jsx'
@@ -81,29 +82,38 @@ export function DataTable({
   return (
     <div className={cn('flex flex-col gap-0', className)}>
       {showToolbar && (columns.length > 0 || filters) && (
-        <div className="flex flex-wrap items-center gap-2 pb-3">
-          <SearchInput
-            value={globalFilter}
-            onChange={(e) => {
-              setGlobalFilter(e.target.value)
-              setPagination((p) => ({ ...p, pageIndex: 0 }))
-            }}
-            placeholder={searchPlaceholder}
-            className="w-full sm:max-w-xs"
-          />
-          {toolbarStart}
-          {filters && (
-            <FilterBar
-              filters={filters}
-              value={filterValues}
-              onChange={(next) => {
-                setFilterValues(next)
+        <FilterToolbar
+          className="pb-3"
+          search={(
+            <SearchInput
+              value={globalFilter}
+              onChange={(e) => {
+                setGlobalFilter(e.target.value)
                 setPagination((p) => ({ ...p, pageIndex: 0 }))
               }}
+              placeholder={searchPlaceholder}
+              className="w-full"
             />
           )}
-          {toolbarActions ? <div className="flex flex-wrap items-center gap-2 sm:ml-auto">{toolbarActions}</div> : null}
-        </div>
+          filters={(filters || toolbarStart) ? (
+            <>
+              {toolbarStart}
+              {filters && (
+                <FilterBar
+                  filters={filters}
+                  value={filterValues}
+                  onChange={(next) => {
+                    setFilterValues(next)
+                    setPagination((p) => ({ ...p, pageIndex: 0 }))
+                  }}
+                />
+              )}
+            </>
+          ) : null}
+          activeCount={Object.values(filterValues ?? {}).filter(Boolean).length}
+          onClear={() => { setFilterValues({}); setPagination((p) => ({ ...p, pageIndex: 0 })) }}
+          actions={toolbarActions}
+        />
       )}
 
       <div className="rounded-2xl surface-card overflow-clip">

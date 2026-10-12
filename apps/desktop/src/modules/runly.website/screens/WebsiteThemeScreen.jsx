@@ -12,15 +12,18 @@ import {
   DialogTitle,
   DialogFooter,
   EmptyState,
+  ChipTabs,
   PageHeader,
   TextField,
   LoadingState,
 } from "@runly/ui";
 import { toast } from "sonner";
+import { usePersistedTab } from "../../../hooks/usePersistedTab.js";
 import ThemeColorEditor from "./ThemeColorEditor.jsx";
 import ThemeTypographyEditor from "./ThemeTypographyEditor.jsx";
 
 const TABS = ["Colores", "Tipografia"];
+const TAB_LABELS = { Colores: "Colores", Tipografia: "Tipografía" };
 
 async function apiGet(path, token) {
   const res = await companyFetch(`${getApiUrl()}${path}`, {
@@ -36,7 +39,7 @@ export default function WebsiteThemeScreen() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState("Colores");
+  const [activeTab, setActiveTab] = usePersistedTab("runly.website.themeTab", TABS, "Colores");
   const [selectedThemeId, setSelectedThemeId] = useState(null);
   const [newThemeOpen, setNewThemeOpen] = useState(false);
   const [newThemeName, setNewThemeName] = useState("");
@@ -236,24 +239,13 @@ export default function WebsiteThemeScreen() {
             ) : themeDetail ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex gap-1 border border-border rounded-lg p-0.5">
-                    {TABS.map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                          activeTab === tab
-                            ? "bg-background shadow-sm font-medium"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        {tab}
-                        {isDirty && (
-                          <span className="ml-1 text-primary">*</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                  <ChipTabs
+                    ariaLabel="Secciones del tema"
+                    showDescription={false}
+                    tabs={TABS.map((tab) => ({ value: tab, label: TAB_LABELS[tab], badge: isDirty ? "*" : undefined }))}
+                    value={activeTab}
+                    onChange={setActiveTab}
+                  />
 
                   <div className="flex items-center gap-2">
                     {site?.themeId !== activeThemeId && (
