@@ -100,7 +100,18 @@ describe("calls recording routes", () => {
 
     assert.equal(response.status, 201);
     assert.deepEqual(body, { data: { id: "rec-1", status: "STARTING" } });
-    assert.deepEqual(received, { callId: ID, startedByUserId: PROFILE_ID, profileId: PROFILE_ID });
+    assert.deepEqual(received, { callId: ID, startedByUserId: PROFILE_ID, profileId: PROFILE_ID, orientation: "landscape" });
+  });
+
+  it("passes a vertical canvas through only when asked for one", async () => {
+    let received;
+    const app = createApp({}, { startRecording: async (args) => { received = args; return { id: "rec-1", status: "STARTING" }; } });
+    await app.request(`/calls/${ID}/recording/start`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ orientation: "portrait" }),
+    });
+    assert.equal(received.orientation, "portrait");
   });
 
   it("rejects starting a recording when the caller is not a member of the call's conversation (chat.calls.record alone is not enough)", async () => {

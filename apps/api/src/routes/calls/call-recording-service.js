@@ -1,4 +1,4 @@
-import { EgressClient, RoomServiceClient, SegmentedFileOutput, SegmentedFileProtocol, S3Upload } from "livekit-server-sdk";
+import { EgressClient, EncodingOptionsPreset, RoomServiceClient, SegmentedFileOutput, SegmentedFileProtocol, S3Upload } from "livekit-server-sdk";
 import { readLiveKitConfig } from "./call-service.js";
 
 const MAX_DURATION_MS = 4 * 60 * 60 * 1000; // hard cap — spec §24 risk 3
@@ -123,7 +123,7 @@ export function createCallRecordingService({
   // requirePermission's middleware, which is user_profile.id — but are kept
   // as distinct params: the DB column is about provenance, this param is
   // about the access-control decision, and they need not always coincide.
-  async function startRecording({ callId, startedByUserId, profileId }) {
+  async function startRecording({ callId, startedByUserId, profileId, orientation = "landscape" }) {
     const existing = await prisma.callRecording.findFirst({
       where: { callId, status: { in: ["STARTING", "ACTIVE"] } },
     });
@@ -156,6 +156,10 @@ export function createCallRecordingService({
     // the layout string starts with "grid".
     const templateUrl = String(env.LIVEKIT_EGRESS_TEMPLATE_URL ?? "").trim();
     const compositeOptions = templateUrl ? { layout: "runly", customBaseUrl: templateUrl } : { layout: "grid-dark" };
+    // A phone-to-phone call with upright cameras records as a vertical video
+    // (the canvas size is fixed for the whole file). Only with Runly's own
+    // template, which lays out a portrait canvas; LiveKit's grid can't.
+    if (templateUrl && orientation === "portrait") compositeOptions.encodingOptions = EncodingOptionsPreset.PORTRAIT_H264_720P_30;
     if (templateUrl) await publishRecordingTitle(call).catch(() => {});
 
     let info;

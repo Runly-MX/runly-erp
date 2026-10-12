@@ -4,6 +4,7 @@ import { cn } from "@runly/ui";
 import { ParticipantTile } from "../ParticipantTile";
 import { bestFitGrid, pageCount, pageSlice } from "../lib/gridFit";
 import { useElementSize } from "./useElementSize";
+import { cameraAspect, tileWidthFor, useVideoAspectVersion } from "../lib/videoAspect";
 
 const GAP = 10;
 
@@ -13,6 +14,7 @@ const GAP = 10;
 // (phones, where letterboxing tiles wastes most of a tall screen).
 export function BestFitGrid({ entries, tileProps, aspect = 16 / 9, gap = GAP, fill = false, className = "" }) {
   const [ref, size] = useElementSize();
+  useVideoAspectVersion();
   const [page, setPage] = useState(0);
   const pages = pageCount(entries.length);
   useEffect(() => {
@@ -43,7 +45,12 @@ export function BestFitGrid({ entries, tileProps, aspect = 16 / 9, gap = GAP, fi
           {visible.map((entry) => (
             <div
               key={`${entry.participant?.sid || entry.participant?.identity || "local"}:${entry.source ?? "cam"}`}
-              style={{ width: `${fit.tileWidth}px`, height: `${fit.tileHeight}px` }}
+              // Upright phone cameras: same height, their own narrower width
+              // (not when `fill` stretches tiles to the cell on phones).
+              style={{
+                width: `${fill || entry.source === "screen" ? fit.tileWidth : tileWidthFor(cameraAspect(entry.participant), fit.tileHeight, fit.tileWidth)}px`,
+                height: `${fit.tileHeight}px`,
+              }}
             >
               <ParticipantTile
                 participant={entry.participant}

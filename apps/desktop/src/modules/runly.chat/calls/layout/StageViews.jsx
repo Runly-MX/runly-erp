@@ -6,6 +6,7 @@ import { DraggablePip } from "../DraggablePip";
 import { CallAvatar } from "../ui/CallAvatar";
 import { Filmstrip } from "./Filmstrip";
 import { ZoomableStage } from "./ZoomableStage";
+import { cameraAspect, useVideoAspectVersion } from "../lib/videoAspect";
 
 function stripProps(isPhone, landscape) {
   if (landscape) return { orientation: "vertical", className: "h-full w-[150px]" };
@@ -70,6 +71,7 @@ export function PresentationView({
   screenEntries, activeScreenIdentity, onSelectScreen, cameraEntries, tileProps, presenterInfo,
   isPhone, landscape, stripCollapsed, onToggleStrip, onStopSharing, mirrorLocalCamera,
 }) {
+  useVideoAspectVersion();
   const active = screenEntries.find((e) => e.participant?.identity === activeScreenIdentity) ?? screenEntries[0];
   const presenter = active?.participant;
   const presenterIdentity = presenter?.identity?.replace(/^screen:/, "") ?? null;
@@ -116,7 +118,7 @@ export function PresentationView({
               <MonitorUp className="h-3.5 w-3.5" /> {presenterName} está presentando
             </span>
             {cameraLive && (
-              <DraggablePip label={presenterName} initial={presenterName.slice(0, 1).toUpperCase()}>
+              <DraggablePip label={presenterName} initial={presenterName.slice(0, 1).toUpperCase()} aspect={cameraAspect(presenterCamera.participant)}>
                 <ParticipantTile participant={presenterCamera.participant} isLocal={false} preferSource="camera" avatarSize="sm" compact mirrorLocalCamera={mirrorLocalCamera} {...tileProps(presenterCamera)} />
               </DraggablePip>
             )}

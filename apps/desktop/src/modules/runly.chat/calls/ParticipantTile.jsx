@@ -7,43 +7,57 @@ import { Hand, MicOff, MoreHorizontal, Pin, PinOff, SignalLow, UserX, MonitorUp 
 import { ConnectionQuality, Track } from "livekit-client";
 import { CallAvatar } from "./ui/CallAvatar";
 import { isGuestIdentity } from "./ui/callTheme";
+import { reportVideoAspect } from "./lib/videoAspect";
 import "./ui/call-ui.css";
 
 // A caller-requested "auto" fit means cover for camera, contain for screen.
-// A portrait phone camera forced to `cover` in a landscape tile crops so much
-// it reads as distorted, so camera "auto" is resolved from the decoded track
-// orientation. See docs/superpowers/specs/2026-09-23-call-spotlight-polish-round2-design.md §8.1.
-function resolveAutoFit(isPortrait) {
-  return isPortrait ? "contain" : "cover";
+// Cover only when the video and its box share an orientation (portrait
+// camera in a portrait box, landscape in landscape): forcing a portrait phone
+// camera to `cover` a landscape box crops away most of the person. See
+// docs/superpowers/specs/2026-09-23-call-spotlight-polish-round2-design.md §8.1.
+function resolveAutoFit(videoRatio, boxRatio) {
+  if (!videoRatio || !boxRatio) return "cover";
+  return (videoRatio < 1) === (boxRatio < 1) ? "cover" : "contain";
 }
 
 export function TrackRenderer({ participant, source, muted = false, mirror = false, fit = "cover", className = "" }) {
   const elementRef = useRef(null);
   const publication = participant?.getTrackPublication?.(source);
   const track = publication?.track;
-  const [isPortrait, setIsPortrait] = useState(false);
+  const identity = participant?.identity;
+  const [videoRatio, setVideoRatio] = useState(null);
+  const [boxRatio, setBoxRatio] = useState(null);
 
   useEffect(() => {
     const element = elementRef.current;
     if (!track || !element) return undefined;
     track.attach(element);
-    const checkOrientation = () => {
+    const measureVideo = () => {
       if (element.videoWidth && element.videoHeight) {
-        setIsPortrait(element.videoHeight > element.videoWidth);
+        const ratio = element.videoWidth / element.videoHeight;
+        setVideoRatio(ratio);
+        reportVideoAspect(identity, source, ratio);
       }
     };
-    checkOrientation();
-    element.addEventListener("loadedmetadata", checkOrientation);
-    element.addEventListener("resize", checkOrientation);
+    const measureBox = () => {
+      if (element.clientWidth && element.clientHeight) setBoxRatio(element.clientWidth / element.clientHeight);
+    };
+    measureVideo();
+    measureBox();
+    element.addEventListener("loadedmetadata", measureVideo);
+    element.addEventListener("resize", measureVideo);
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measureBox) : null;
+    observer?.observe(element);
     return () => {
-      element.removeEventListener("loadedmetadata", checkOrientation);
-      element.removeEventListener("resize", checkOrientation);
+      element.removeEventListener("loadedmetadata", measureVideo);
+      element.removeEventListener("resize", measureVideo);
+      observer?.disconnect();
       track.detach(element);
     };
-  }, [track]);
+  }, [track, identity, source]);
 
   if (!track || publication?.isMuted) return null;
-  const effectiveFit = fit === "auto" ? resolveAutoFit(isPortrait) : fit;
+  const effectiveFit = fit === "auto" ? resolveAutoFit(videoRatio, boxRatio) : fit;
   return (
     // react-doctor-disable-next-line media-has-caption -- LiveKit attaches a video-only WebRTC track; remote audio is rendered separately.
     <video

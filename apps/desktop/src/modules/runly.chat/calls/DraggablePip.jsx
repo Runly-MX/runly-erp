@@ -16,6 +16,10 @@ export function DraggablePip({
   // Called on a plain tap/click that wasn't a drag — used by the 1:1 focus
   // layout to swap which participant is big vs. small (WhatsApp-style).
   onTap = null,
+  // Width/height of the video inside (see lib/videoAspect.js): the bubble
+  // takes the camera's own shape, upright for a phone held vertically.
+  // null keeps the default 3:4 (phones) / 16:9 box.
+  aspect = null,
 }) {
   const nodeRef = useRef(null);
   const dragRef = useRef(null); // { pointerId, startX, startY, originX, originY, moved }
@@ -124,6 +128,13 @@ export function DraggablePip({
     );
   }
 
+  const portrait = aspect != null && aspect < 0.95;
+  const sizeClass = aspect == null
+    ? "aspect-[3/4] w-[34%] max-w-56 sm:aspect-video sm:w-[28%]"
+    : portrait
+      ? "w-[28%] max-w-40 sm:w-[15%] sm:max-w-44"
+      : "w-[44%] max-w-64 sm:w-[26%] sm:max-w-80";
+
   return (
     <div
       ref={nodeRef}
@@ -131,8 +142,8 @@ export function DraggablePip({
       onPointerMove={onPointerMove}
       onPointerUp={(e) => { if (!wasDrag()) onTap?.(); endDrag(e); }}
       onPointerCancel={endDrag}
-      style={baseStyle}
-      className={`absolute z-20 aspect-[3/4] w-[34%] max-w-56 touch-none select-none overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/20 sm:aspect-video sm:w-[28%] ${className}`}
+      style={aspect ? { ...baseStyle, aspectRatio: String(aspect) } : baseStyle}
+      className={`absolute z-20 touch-none select-none overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/20 ${sizeClass} ${className}`}
     >
       {children}
       <button

@@ -2,9 +2,11 @@ import { BestFitGrid } from "./BestFitGrid";
 import { FocusView, PresentationView, AudioView } from "./StageViews";
 import { DirectFocusLayout } from "../DirectFocusLayout";
 import { InPersonRecorder } from "../InPersonRecorder";
+import { LANDSCAPE, PORTRAIT, cameraAspect, isPortraitAspect, useVideoAspectVersion } from "../lib/videoAspect";
 
 // Renders the stage for the resolved view (see lib/callViewMode.js).
 export function CallStage({ view, stage }) {
+  useVideoAspectVersion();
   const {
     entries, screenEntries, activeScreenIdentity, onSelectScreen, focusMain, tileProps, tileInfo,
     speakingIds, isPhone, landscape, stripCollapsed, onToggleStrip, onStopSharing, mirrorLocalCamera,
@@ -77,5 +79,9 @@ export function CallStage({ view, stage }) {
     ...screenEntries.map((e) => ({ ...e, source: "screen" })),
     ...entries,
   ];
-  return <BestFitGrid entries={gridEntries} tileProps={tileProps} aspect={isPhone && !landscape ? 3 / 4 : 16 / 9} fill={isPhone} />;
+  // Everyone on an upright phone camera: lay the grid out for portrait tiles.
+  const cameraRatios = entries.map((e) => cameraAspect(e.participant)).filter(Boolean);
+  const allPortrait = !screenEntries.length && cameraRatios.length > 0 && cameraRatios.every(isPortraitAspect);
+  const aspect = isPhone && !landscape ? 3 / 4 : allPortrait ? PORTRAIT : LANDSCAPE;
+  return <BestFitGrid entries={gridEntries} tileProps={tileProps} aspect={aspect} fill={isPhone} />;
 }

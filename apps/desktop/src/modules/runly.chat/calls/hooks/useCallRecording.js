@@ -8,7 +8,7 @@ const ACTIVE = new Set(["STARTING", "ACTIVE"]);
 
 // Polls for the currently-active recording of this call's conversation (if
 // any) every 5s while the call is open, and exposes start/stop actions.
-export function useCallRecording({ callId, conversationId }) {
+export function useCallRecording({ callId, conversationId, getOrientation = null }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const [activeRecording, setActiveRecording] = useState(null);
@@ -30,17 +30,19 @@ export function useCallRecording({ callId, conversationId }) {
     return () => clearInterval(timer.current);
   }, [conversationId, token, refresh]);
 
+  // `getOrientation` (optional) returns "portrait" | "landscape" for the
+  // recording canvas, read at the moment the recording starts.
   const start = useCallback(async () => {
     setBusy(true);
     try {
-      await runly.calls.startRecording(callId, token);
+      await runly.calls.startRecording(callId, token, { orientation: getOrientation?.() });
       await refresh();
     } catch (e) {
       toast.error(e?.message || "No se pudo iniciar la grabación.");
     } finally {
       setBusy(false);
     }
-  }, [callId, token, refresh]);
+  }, [callId, token, refresh, getOrientation]);
 
   const stop = useCallback(async () => {
     setBusy(true);

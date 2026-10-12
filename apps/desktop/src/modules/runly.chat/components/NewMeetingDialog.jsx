@@ -51,9 +51,10 @@ const MODES = [
   {
     key: "inperson",
     label: "Presencial",
-    hint: "Graba una reunión en sala desde un solo dispositivo.",
+    hint: "Graba una reunión en sala o una exposición desde un solo dispositivo.",
     points: [
-      "Solo audio, se graba y transcribe automáticamente",
+      "Empieza con audio; activa cámara o presenta tu pantalla si expones",
+      "Se graba y transcribe automáticamente",
       "Nadie recibe timbre ni notificación de llamada",
       "Al terminar, la grabación queda en la conversación",
     ],

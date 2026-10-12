@@ -268,7 +268,11 @@ export function createCallsRouter({
         // conversation" (assertMember) — chat.calls.record alone only
         // proves the caller's role carries the permission somewhere.
         const profileId = c.get("userId");
-        const data = await recordingService.startRecording({ callId, startedByUserId: profileId, profileId });
+        // The client picks the canvas orientation from the cameras in the
+        // call (see calls/lib/videoAspect.js recordingOrientation).
+        const body = await c.req.json().catch(() => ({}));
+        const orientation = body?.orientation === "portrait" ? "portrait" : "landscape";
+        const data = await recordingService.startRecording({ callId, startedByUserId: profileId, profileId, orientation });
         // Not awaited: starting track egress can take many seconds (or time
         // out) while the composite egress spins up; the recording response
         // must not wait for it.

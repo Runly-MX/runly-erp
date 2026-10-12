@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@runly
 import { useAuth } from "../../../auth/AuthProvider";
 import { playCallSound, playCallEndSound } from "./callSounds";
 import { CallInvitePanel } from "./CallInvitePanel";
+import { hasLiveVideo, recordingOrientation } from "./lib/videoAspect";
 import { MiniCallBubble } from "./MiniCallBubble";
 import { RemoteAudio } from "./RemoteAudio";
 import { useCallGuests } from "./hooks/useCallGuests";
@@ -68,7 +69,14 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   const { userProfile } = useAuth();
   const canRecord = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes("chat.calls.record"));
   const canTranscribeTracks = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes("chat.calls.transcript.request"));
-  const recording = useCallRecording({ callId: session.call.id, conversationId });
+  // Vertical recording only for a phone-style call (see recordingOrientation).
+  const getRecordingOrientation = useCallback(() => {
+    const all = [room.localParticipant, ...room.remoteParticipants.values()].filter(Boolean);
+    const people = all.filter((p) => !p.identity?.startsWith("screen:"));
+    const hasScreenShare = all.some((p) => hasLiveVideo(p, Track.Source.ScreenShare));
+    return recordingOrientation({ people, hasScreenShare });
+  }, [room]);
+  const recording = useCallRecording({ callId: session.call.id, conversationId, getOrientation: getRecordingOrientation });
   const audioRoute = useAudioRoute({ enabled: !minimized });
   useEffect(() => {
     if (recording.active) onRecordingActive?.(session.call.id);

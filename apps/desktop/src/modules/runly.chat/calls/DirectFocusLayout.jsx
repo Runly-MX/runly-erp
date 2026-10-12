@@ -1,5 +1,6 @@
 import { ParticipantTile } from "./ParticipantTile";
 import { DraggablePip } from "./DraggablePip";
+import { cameraAspect, useVideoAspectVersion } from "./lib/videoAspect";
 
 // WhatsApp-style 1:1 layout: one big tile + one small draggable camera in a
 // corner. `swapped`/`onToggleSwap` let mobile tap the small pip to invert
@@ -9,6 +10,7 @@ export function DirectFocusLayout({ localEntry, remoteEntry, raisedHands, myHand
   const mainEntry = swapped ? localEntry : remoteEntry;
   const pipEntry = swapped ? remoteEntry : localEntry;
   const mainIsLocal = swapped;
+  useVideoAspectVersion();
   const pipName = tileProps?.(pipEntry)?.info?.name || pipEntry.participant?.name || (pipEntry.isLocal ? "Tú" : "Participante");
 
   return (
@@ -19,12 +21,12 @@ export function DirectFocusLayout({ localEntry, remoteEntry, raisedHands, myHand
         handRaised={mainIsLocal ? myHandRaised : raisedHands.has(remoteEntry.participant?.identity)}
         mirrorLocalCamera={mirrorLocalCamera}
         className="rounded-3xl"
-        fit="contain"
+        fit="auto"
         avatarSize="xl"
         speaking={speakingIds.has(mainEntry.participant?.identity)}
         {...(tileProps?.(mainEntry) ?? {})}
       />
-      <DraggablePip label={pipName} initial={pipName.slice(0, 1).toUpperCase()} onTap={onToggleSwap}>
+      <DraggablePip label={pipName} initial={pipName.slice(0, 1).toUpperCase()} onTap={onToggleSwap} aspect={cameraAspect(pipEntry.participant)}>
         <ParticipantTile
           participant={pipEntry.participant}
           isLocal={pipEntry.isLocal}

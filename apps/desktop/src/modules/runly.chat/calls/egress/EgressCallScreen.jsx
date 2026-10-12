@@ -3,6 +3,8 @@ import { Room, RoomEvent, Track } from "livekit-client";
 import { CallStage } from "../layout/CallStage";
 import { resolveCallView } from "../lib/callViewMode";
 import { formatClock } from "../ui/callTheme";
+import { useFocusedSpeaker } from "../hooks/useFocusedSpeaker";
+import { PortraitRecordingStage } from "./PortraitRecordingStage";
 import "../ui/call-ui.css";
 
 const LOGO = "/runly/runly-logo-horizontal-dark.png";
@@ -39,11 +41,14 @@ export default function EgressCallScreen() {
   const [, force] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const startedRef = useRef(false);
+  // The egress browser window has the output's size: a vertical recording
+  // (see call-recording-service.js) opens it taller than wide.
+  const portrait = window.innerHeight > window.innerWidth;
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
     // Recordings are watched full-screen at 1080p: scale every rem-based size.
-    document.documentElement.style.fontSize = "20px";
+    document.documentElement.style.fontSize = window.innerHeight > window.innerWidth ? "18px" : "20px";
     const refresh = () => force((n) => n + 1);
     const events = [
       RoomEvent.ParticipantConnected, RoomEvent.ParticipantDisconnected, RoomEvent.TrackSubscribed,
@@ -84,6 +89,7 @@ export default function EgressCallScreen() {
     .filter((p) => hasLiveTrack(p, Track.Source.ScreenShare))
     .map((participant) => ({ participant, isLocal: false }));
   const speakingIds = new Set(room.activeSpeakers.map((p) => p.identity));
+  const focusedId = useFocusedSpeaker(speakingIds, null);
   const isVideoActive = remote.some((p) => hasLiveTrack(p, Track.Source.Camera) || hasLiveTrack(p, Track.Source.ScreenShare));
   const meta = readMeta(room);
   const view = entries.length
@@ -121,14 +127,26 @@ export default function EgressCallScreen() {
     onToggleDirectSwap: null,
     waitingText: entries.length ? null : "Esperando a los participantes…",
   };
+  const presenterId = screenEntries[0]?.participant?.identity?.replace(/^screen:/, "");
+  const presenterName = tileInfo(presenterId)?.name ?? screenEntries[0]?.participant?.name ?? "Alguien";
   const date = new Date(meta.recordingStartedAt ?? Date.now()).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" });
 
   return (
     <div className="runly-call fixed inset-0 flex flex-col overflow-hidden p-6">
       <div className="relative min-h-0 flex-1">
-        <CallStage view={view === "direct" || view === "audio" ? "grid" : view} stage={stage} />
+        {portrait ? (
+          <PortraitRecordingStage
+            entries={entries}
+            screenEntries={screenEntries}
+            mainEntry={entries.find((e) => e.participant?.identity === focusedId) ?? null}
+            tileProps={tileProps}
+            presenterName={presenterName}
+          />
+        ) : (
+          <CallStage view={view === "direct" || view === "audio" ? "grid" : view} stage={stage} />
+        )}
       </div>
-      <footer className="flex shrink-0 items-center gap-4 pt-4 text-white/80">
+      <footer className={portrait ? "flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 pt-4 text-white/80" : "flex shrink-0 items-center gap-4 pt-4 text-white/80"}>
         <img src={LOGO} alt="Runly" className="h-6 opacity-80" />
         <span className="h-5 w-px bg-white/15" aria-hidden />
         <span className="truncate text-base font-semibold text-white">{meta.title ?? "Reunión"}</span>

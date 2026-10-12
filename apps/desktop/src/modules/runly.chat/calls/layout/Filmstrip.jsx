@@ -1,16 +1,21 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@runly/ui";
 import { ParticipantTile } from "../ParticipantTile";
+import { cameraAspect, tileWidthFor, useVideoAspectVersion } from "../lib/videoAspect";
+
+const SIZES = { sm: { w: 112, h: 84 }, md: { w: 176, h: 112 }, vertical: { w: 150, h: 96 } };
 
 // A strip of small tiles beside the stage: horizontal (below on desktop /
 // portrait phones, scroll-snapping like a carousel) or vertical (right side
 // on landscape phones). Optional collapse toggle for desktop.
 export function Filmstrip({ entries, tileProps, orientation = "horizontal", size = "md", collapsed = false, onToggleCollapsed = null, className = "" }) {
+  useVideoAspectVersion();
   if (!entries.length) return null;
   const horizontal = orientation === "horizontal";
-  const tileClass = horizontal
-    ? size === "sm" ? "h-[84px] w-[112px]" : "h-[112px] w-[176px]"
-    : "h-[96px] w-[150px]";
+  const box = horizontal ? SIZES[size] ?? SIZES.md : SIZES.vertical;
+  // Same height for every tile; an upright phone camera gets a narrow tile
+  // in its own shape instead of a cropped landscape one.
+  const widthOf = (entry) => (entry.source === "screen" ? box.w : tileWidthFor(cameraAspect(entry.participant), box.h, box.w));
 
   return (
     <div className={cn("relative shrink-0", className)}>
@@ -33,15 +38,17 @@ export function Filmstrip({ entries, tileProps, orientation = "horizontal", size
           )}
         >
           {entries.map((entry) => (
-            <div key={`${entry.participant?.sid || entry.participant?.identity}:${entry.source ?? "cam"}`} className={cn("shrink-0", tileClass)}>
-              <ParticipantTile
-                participant={entry.participant}
-                isLocal={entry.isLocal}
-                preferSource={entry.source === "screen" ? "screen" : "camera"}
-                avatarSize="sm"
-                compact
-                {...tileProps(entry)}
-              />
+            <div key={`${entry.participant?.sid || entry.participant?.identity}:${entry.source ?? "cam"}`} className={cn("shrink-0", !horizontal && "flex justify-center")} style={{ height: box.h, width: horizontal ? widthOf(entry) : box.w }}>
+              <div className="h-full" style={{ width: widthOf(entry) }}>
+                <ParticipantTile
+                  participant={entry.participant}
+                  isLocal={entry.isLocal}
+                  preferSource={entry.source === "screen" ? "screen" : "camera"}
+                  avatarSize="sm"
+                  compact
+                  {...tileProps(entry)}
+                />
+              </div>
             </div>
           ))}
         </div>
