@@ -104,6 +104,10 @@ export function createAttendanceRouter({ prisma, requirePermission, requireAnyPe
   app.get('/attendance/export/punches', view, run('Error al exportar.', async (c) => xlsx(await exporter.punches(companyId(c), c.req.query()), 'checadas')))
   app.get('/attendance/export/hours', view, run('Error al exportar.', async (c) => xlsx(await exporter.hours(companyId(c), c.req.query()), 'horas-trabajadas')))
 
+  // ---- company policy (evidence retention, photo for QR punches) ----
+  app.get('/attendance/settings', view, run('Error al cargar la configuración.', async (c) => c.json({ data: { ...(await svc.getSettings(companyId(c))), retentionChoices: svc.RETENTION_CHOICES } })))
+  app.patch('/attendance/settings', config, run('Error al guardar la configuración.', async (c) => c.json({ data: await svc.saveSettings(companyId(c), await c.req.json().catch(() => ({}))) })))
+
   // ---- reports ----------------------------------------------------------
   app.get('/attendance/summary', view, run('Error al cargar el resumen.', async (c) => c.json({ data: await svc.summary(companyId(c)) })))
   app.get('/attendance/reports/presence', view, run('Error al cargar la presencia.', async (c) => c.json({ data: await svc.presence(companyId(c), c.req.query()) })))

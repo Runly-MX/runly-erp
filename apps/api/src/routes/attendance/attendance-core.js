@@ -223,3 +223,43 @@ export function geofenceFlag(site, latitude, longitude) {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
   return distanceMeters(site.latitude, site.longitude, latitude, longitude) > site.radiusM ? 'outside_geofence' : null
 }
+
+// "Scan with your phone": the kiosk shows RK1.<kioskId>.<unixSeconds>.<hmac>; the phone
+// signs it with its enrolled key and posts it. The HMAC key lives on the server and in
+// the paired kiosk, so a kiosk can mint challenges offline and the server can verify them.
+export const KIOSK_CHALLENGE_PREFIX = 'RK1'
+export const KIOSK_CHALLENGE_WINDOW_MS = 120_000
+
+export function kioskChallengeMac(secret, kioskId, ts) {
+  return crypto.createHmac('sha256', String(secret)).update(`${kioskId}.${ts}`).digest('base64url').slice(0, 22)
+}
+
+export function parseKioskChallenge(challenge) {
+  const parts = String(challenge ?? '').trim().split('.')
+  if (parts.length !== 4 || parts[0] !== KIOSK_CHALLENGE_PREFIX) return null
+  const [, kioskId, ts, mac] = parts
+  if (!/^[0-9a-f-]{36}$/i.test(kioskId) || !/^\d{9,12}$/.test(ts) || !mac) return null
+  return { kioskId, ts: Number(ts), mac }
+}
+
+export function verifyKioskChallenge({ challenge, secret, now = Date.now(), windowMs = KIOSK_CHALLENGE_WINDOW_MS }) {
+  const parsed = parseKioskChallenge(challenge)
+  if (!parsed || !secret) return { ok: false, reason: 'malformed' }
+  if (Math.abs(now - parsed.ts * 1000) > windowMs) return { ok: false, reason: 'expired' }
+  const expected = Buffer.from(kioskChallengeMac(secret, parsed.kioskId, parsed.ts))
+  const given = Buffer.from(parsed.mac)
+  if (expected.length !== given.length || !crypto.timingSafeEqual(expected, given)) return { ok: false, reason: 'bad_mac' }
+  return { ok: true, kioskId: parsed.kioskId, ts: parsed.ts }
+}
+
+// What the phone signs for a scan: bound to the person and to that exact challenge.
+export const phoneScanMessage = (personId, challenge) => `${personId}|${challenge}`
+
+export function verifyPhoneScan({ personId, challenge, signature, jwk }) {
+  try {
+    const key = crypto.createPublicKey({ key: jwk, format: 'jwk' })
+    return crypto.verify('sha256', Buffer.from(phoneScanMessage(personId, challenge)), { key, dsaEncoding: 'ieee-p1363' }, Buffer.from(String(signature), 'base64url'))
+  } catch {
+    return false
+  }
+}

@@ -318,6 +318,28 @@ export function createAttendanceService({ prisma, signFile = null }) {
     return { people, present: pres.counts, quotas: { total: comp.rows.length, failing: failing.length, rows: comp.rows }, kiosks, flaggedLast7d: flagged }
   }
 
+  // ---- company policy ---------------------------------------------------
+  const RETENTION_CHOICES = [7, 15, 30, 60, 90, 180, 365]
+  const DEFAULT_SETTINGS = { evidenceRetentionDays: 30, requirePhotoForQr: true }
+
+  async function getSettings(companyId) {
+    const row = await prisma.attSettings.findUnique({ where: { companyId } })
+    return { ...DEFAULT_SETTINGS, ...(row ? { evidenceRetentionDays: row.evidenceRetentionDays, requirePhotoForQr: row.requirePhotoForQr } : {}) }
+  }
+
+  async function saveSettings(companyId, body = {}) {
+    const data = {}
+    if (body.evidenceRetentionDays !== undefined) {
+      const days = Number(body.evidenceRetentionDays)
+      if (!RETENTION_CHOICES.includes(days)) throw new AttendanceError('Elige un periodo de conservación válido.', 400)
+      data.evidenceRetentionDays = days
+    }
+    if (typeof body.requirePhotoForQr === 'boolean') data.requirePhotoForQr = body.requirePhotoForQr
+    if (!Object.keys(data).length) throw new AttendanceError('No hay cambios que guardar.', 400)
+    await prisma.attSettings.upsert({ where: { companyId }, update: data, create: { companyId, ...data } })
+    return getSettings(companyId)
+  }
+
   // ---- kiosks (admin side) ---------------------------------------------
   const serializeKiosk = ({ deviceTokenHash, pairingSecretHash, ...k }) => ({ ...k, paired: Boolean(deviceTokenHash) && !k.revokedAt, pairingPending: Boolean(k.pairingCode) && !k.approvedAt })
 
@@ -336,7 +358,7 @@ export function createAttendanceService({ prisma, signFile = null }) {
     if (data.siteId && !(await prisma.attSite.findFirst({ where: { id: data.siteId, companyId }, select: { id: true } }))) throw new AttendanceError('El sitio no existe.', 400)
     if (!id) {
       if (!data.name) throw new AttendanceError('El nombre del kiosko es obligatorio.', 400)
-      return serializeKiosk(await prisma.attKiosk.create({ data: { companyId, linkToken: randomToken(24), ...data } }))
+      return serializeKiosk(await prisma.attKiosk.create({ data: { companyId, linkToken: randomToken(24), qrSecret: randomToken(32), ...data } }))
     }
     const found = await prisma.attKiosk.findFirst({ where: { id, companyId }, select: { id: true } })
     if (!found) throw new AttendanceError('El kiosko no existe.', 404)
@@ -378,6 +400,7 @@ export function createAttendanceService({ prisma, signFile = null }) {
     listPunches, createManualPunch, voidPunch,
     presence, hours, compliance, summary,
     listKiosks, saveKiosk, approveKiosk, resetKiosk, revokeKiosk,
+    getSettings, saveSettings, RETENTION_CHOICES,
     CATALOG_KINDS: Object.keys(CATALOGS),
   }
 }

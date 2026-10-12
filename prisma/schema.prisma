@@ -4875,6 +4875,7 @@ model AttKiosk {
   pairingSecretHash  String?   @map("pairing_secret_hash")
   pairingLabel       String?   @map("pairing_label")
   pairingTokenEnc    String?   @map("pairing_token_enc") // device token sealed with the poll secret until the kiosk confirms receipt
+  qrSecret          String?   @map("qr_secret") // HMAC key for the offline "scan with your phone" challenge QR
   pairingRequestedAt DateTime? @map("pairing_requested_at") @db.Timestamptz(6)
   approvedAt         DateTime? @map("approved_at") @db.Timestamptz(6)
   deviceTokenHash    String?   @map("device_token_hash")
@@ -4911,6 +4912,7 @@ model AttPunch {
   status       String    @default("valid") // valid | flagged | voided
   note         String?
   createdById  String?   @map("created_by_id") @db.Uuid
+  evidencePurgedAt DateTime? @map("evidence_purged_at") @db.Timestamptz(6)
 
   person AttPerson @relation(fields: [personId], references: [id], onDelete: Cascade)
 
@@ -4935,4 +4937,16 @@ model AttQuota {
 
   @@index([companyId, enabled])
   @@map("att_quota")
+}
+
+// Per-company attendance policy.
+model AttSettings {
+  id                    String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId             String   @unique @map("company_id") @db.Uuid
+  evidenceRetentionDays Int      @default(30) @map("evidence_retention_days")
+  requirePhotoForQr     Boolean  @default(true) @map("require_photo_for_qr")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("att_settings")
 }

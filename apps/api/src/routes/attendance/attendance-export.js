@@ -4,8 +4,8 @@
 import ExcelJS from 'exceljs'
 
 const KIND = { internal: 'Interno', contractor: 'Contratista', visitor: 'Visitante' }
-const METHOD = { pin: 'PIN', code: 'Código', card: 'Tarjeta', phone_qr: 'Llave de teléfono', manual: 'Manual' }
-const FLAG = { clock_skew: 'Reloj desfasado', offline: 'Sin conexión', sequence: 'Secuencia irregular', proof_failed: 'Identidad no verificada', replay: 'QR reutilizado', manual: 'Manual', future_time: 'Hora futura', outside_geofence: 'Fuera del radio' }
+const METHOD = { pin: 'PIN', code: 'Código', card: 'Tarjeta', phone_qr: 'Llave de teléfono (QR)', phone_scan: 'Llave de teléfono (escaneo)', manual: 'Manual' }
+const FLAG = { clock_skew: 'Reloj desfasado', offline: 'Sin conexión', sequence: 'Secuencia irregular', proof_failed: 'Identidad no verificada', replay: 'QR reutilizado', manual: 'Manual', future_time: 'Hora futura', outside_geofence: 'Fuera del radio', no_photo: 'Sin foto' }
 const fullName = (p) => [p?.firstName, p?.lastName].filter(Boolean).join(' ')
 
 const local = (value, offsetMin) => (value ? new Date(new Date(value).getTime() - Number(offsetMin || 0) * 60_000) : null)

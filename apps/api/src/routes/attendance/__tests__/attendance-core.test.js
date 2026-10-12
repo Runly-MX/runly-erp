@@ -84,3 +84,19 @@ test('compliance counts people inside per group/category', () => {
   assert.equal(row.ok, false)
   assert.equal(presentAt(punches, at).length, 2)
 })
+
+test('kiosk challenge: valid, expired, tampered; phone scan signature binds person and challenge', async () => {
+  const { kioskChallengeMac, verifyKioskChallenge, phoneScanMessage, verifyPhoneScan } = await import('../attendance-core.js')
+  const kioskId = '0194b3a0-1111-7222-8333-444455556666'
+  const personId = '0194b3a0-aaaa-7222-8333-444455556666'
+  const ts = Math.floor(Date.now() / 1000)
+  const challenge = `RK1.${kioskId}.${ts}.${kioskChallengeMac('secret', kioskId, ts)}`
+  assert.equal(verifyKioskChallenge({ challenge, secret: 'secret' }).ok, true)
+  assert.equal(verifyKioskChallenge({ challenge, secret: 'other' }).reason, 'bad_mac')
+  assert.equal(verifyKioskChallenge({ challenge, secret: 'secret', now: Date.now() + 600_000 }).reason, 'expired')
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' })
+  const signature = crypto.sign('sha256', Buffer.from(phoneScanMessage(personId, challenge)), { key: privateKey, dsaEncoding: 'ieee-p1363' }).toString('base64url')
+  const jwk = publicKey.export({ format: 'jwk' })
+  assert.equal(verifyPhoneScan({ personId, challenge, signature, jwk }), true)
+  assert.equal(verifyPhoneScan({ personId: kioskId, challenge, signature, jwk }), false)
+})

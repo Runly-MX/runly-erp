@@ -68,6 +68,22 @@ export function createAttendancePublicRouter({ prisma, supabaseAdmin = null, buc
     } catch (error) { return fail(c, error, 'No se pudo guardar la selfie.') }
   })
 
+  app.get('/public/attendance/kiosk/:link/recent', async (c) => {
+    try {
+      const kiosk = await kiosks.authenticate(c.req.param('link'), deviceToken(c))
+      return c.json({ data: await kiosks.recent(kiosk, c.req.query('since')) })
+    } catch (error) { return fail(c, error, 'No se pudo consultar la actividad.') }
+  })
+
+  // The phone scans the kiosk's QR and posts it here (no kiosk device token: the
+  // proof is the kiosk MAC in the challenge plus the phone's own signature).
+  app.post('/public/attendance/phone-punch', async (c) => {
+    try {
+      if (!strictLimiter.consume(`phone:${clientKey(c)}`).allowed) return c.json({ error: 'Demasiados intentos. Espera un momento.' }, 429)
+      return c.json({ data: await kiosks.phonePunch(await c.req.json().catch(() => ({}))) }, 201)
+    } catch (error) { return fail(c, error, 'No se pudo registrar la checada.') }
+  })
+
   app.post('/public/attendance/enroll', async (c) => {
     try {
       if (!strictLimiter.consume(`enroll:${clientKey(c)}`).allowed) return c.json({ error: 'Demasiados intentos. Espera unos minutos.' }, 429)

@@ -13,6 +13,7 @@ import { createDomainEventDispatcher } from '../../api/src/services/domain-event
 import { createModuleServices } from '../../api/src/services/module-services/module-services.js'
 import { createTrashRegistry } from '../../api/src/services/trash/trash-registry.js'
 import { runAutoPurge } from '../../api/src/services/trash/trash-retention.js'
+import { purgeExpiredEvidence } from '../../api/src/routes/attendance/attendance-evidence.js'
 import { resolveModulesDir } from '../../api/src/services/module-upload-service.js'
 import { resolveGoogleCalendarConfig } from '../../api/src/routes/calendar/google/google-config.js'
 import { createGoogleTokenCrypto } from '../../api/src/routes/calendar/google/google-token-crypto.js'
@@ -178,7 +179,7 @@ async function reconnect() {
 // (slow SMTP, dead push endpoints) or when two worker processes overlap. A
 // per-tick in-flight flag keeps a single process from processing the same rows
 // twice; the delivery worker's atomic claim covers the multi-process case.
-const tickRunning = { calendar: false, delivery: false, tasksDueSoon: false, domainEvents: false, trashRetention: false }
+const tickRunning = { calendar: false, delivery: false, tasksDueSoon: false, domainEvents: false, trashRetention: false, attendanceEvidence: false }
 
 async function runCalendarReminderTick() {
   if (tickRunning.calendar) return
@@ -343,6 +344,22 @@ async function runGoogleImportRecoveryTick() {
   }
 }
 
+// Attendance evidence (selfies, punch coordinates) expires after each company's retention.
+const ATTENDANCE_EVIDENCE_INTERVAL_MS = Number(process.env.RUNLY_ATTENDANCE_EVIDENCE_INTERVAL_MS ?? 6 * 60 * 60 * 1000)
+async function runAttendanceEvidenceTick() {
+  if (tickRunning.attendanceEvidence) return
+  tickRunning.attendanceEvidence = true
+  try {
+    const totals = await purgeExpiredEvidence({ prisma, supabaseAdmin: workerSupabaseAdmin })
+    if (totals.punches) console.log(`[worker] attendance evidence ${formatLogTimestamp()} punches=${totals.punches} files=${totals.files}`)
+  } catch (err) {
+    console.error('[worker] attendance evidence tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  } finally {
+    tickRunning.attendanceEvidence = false
+  }
+}
+
 console.log('Runly Worker started')
 runCalendarReminderTick()
 runDeliveryTick()
@@ -366,6 +383,10 @@ setInterval(() => {
 setInterval(() => {
   runDomainEventsTick()
 }, DOMAIN_EVENTS_INTERVAL_MS)
+setTimeout(runAttendanceEvidenceTick, 90_000)
+setInterval(() => {
+  runAttendanceEvidenceTick()
+}, ATTENDANCE_EVIDENCE_INTERVAL_MS)
 setTimeout(runTrashRetentionTick, 60_000)
 setInterval(() => {
   runTrashRetentionTick()
