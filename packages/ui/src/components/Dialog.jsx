@@ -12,6 +12,8 @@ import {
   bottomSheetDragStyle,
   BottomSheetBody,
   BottomSheetHandle,
+  BottomSheetDragContext,
+  useBottomSheetHeaderDrag,
 } from "./bottom-sheet-shared.jsx";
 import { OverlaySurfaceContext } from "./overlay-surface-context.js";
 
@@ -141,13 +143,19 @@ const DialogContent = forwardRef(function DialogContent(
           </div>
         )}
         <OverlaySurfaceContext.Provider value={true}>
-          {mobileVariant === "center" ? (
-            children
-          ) : (
-            // Only scroll region on mobile; `md:contents` makes it vanish from
-            // layout on desktop so the centered modal behaves as before.
-            <BottomSheetBody className="md:contents">{children}</BottomSheetBody>
-          )}
+          <BottomSheetDragContext.Provider
+            value={isMobile && mobileVariant !== "center"
+              ? { onPointerDown: handleDragPointerDown, onPointerMove: handleDragPointerMove, onPointerUp: handleDragPointerUp }
+              : null}
+          >
+            {mobileVariant === "center" ? (
+              children
+            ) : (
+              // Only scroll region on mobile; `md:contents` makes it vanish from
+              // layout on desktop so the centered modal behaves as before.
+              <BottomSheetBody className="md:contents">{children}</BottomSheetBody>
+            )}
+          </BottomSheetDragContext.Provider>
         </OverlaySurfaceContext.Provider>
         {/* Hidden on the phone bottom sheet: it is dismissed by dragging. */}
         <DialogPrimitive.Close className={cn(mobileVariant !== "center" && "max-md:hidden", "absolute right-4 top-4 z-20 rounded-lg p-1 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40")}>
@@ -160,11 +168,14 @@ const DialogContent = forwardRef(function DialogContent(
 });
 
 const DialogHeader = function DialogHeader({ className, ...props }) {
+  const drag = useBottomSheetHeaderDrag();
   return (
     <div
+      {...drag}
       className={cn(
         "flex shrink-0 flex-col gap-1.5 text-left mb-4 pr-6",
         BOTTOM_SHEET_STICKY_HEADER_CLASS,
+        drag?.className,
         className,
       )}
       {...props}

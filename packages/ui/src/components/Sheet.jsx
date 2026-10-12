@@ -13,6 +13,8 @@ import {
   bottomSheetDragStyle,
   BottomSheetBody,
   BottomSheetHandle,
+  BottomSheetDragContext,
+  useBottomSheetHeaderDrag,
 } from "./bottom-sheet-shared.jsx";
 import { OverlaySurfaceContext } from "./overlay-surface-context.js";
 
@@ -175,7 +177,13 @@ const SheetContent = forwardRef(function SheetContent(
           </SheetPrimitive.Close>
         )}
         <OverlaySurfaceContext.Provider value={true}>
-          {isBottom ? <BottomSheetBody>{children}</BottomSheetBody> : children}
+          <BottomSheetDragContext.Provider
+            value={isBottom && isMobile
+              ? { onPointerDown: handleDragPointerDown, onPointerMove: handleDragPointerMove, onPointerUp: handleDragPointerUp }
+              : null}
+          >
+            {isBottom ? <BottomSheetBody>{children}</BottomSheetBody> : children}
+          </BottomSheetDragContext.Provider>
         </OverlaySurfaceContext.Provider>
       </SheetPrimitive.Content>
     </SheetPortal>
@@ -183,11 +191,14 @@ const SheetContent = forwardRef(function SheetContent(
 });
 
 const SheetHeader = function SheetHeader({ className, ...props }) {
+  const drag = useBottomSheetHeaderDrag();
   return (
     <div
+      {...drag}
       className={cn(
         "flex shrink-0 flex-col gap-1.5",
         BOTTOM_SHEET_STICKY_HEADER_CLASS,
+        drag?.className,
         className,
       )}
       {...props}

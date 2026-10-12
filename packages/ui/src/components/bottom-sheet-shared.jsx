@@ -1,5 +1,30 @@
+import { createContext, useContext } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cn } from "../lib/utils.js";
+
+// Drag handlers of the enclosing phone bottom sheet, so its header works as a
+// second, much larger grab area than the handle strip (null elsewhere).
+export const BottomSheetDragContext = createContext(null);
+
+const INTERACTIVE_SELECTOR =
+  "button, a, input, textarea, select, label, [role='button'], [role='switch'], [role='tab'], [contenteditable='true']";
+
+// Props that make a SheetHeader / DialogHeader drag the sheet on phones.
+// Pointer-downs on interactive children are left alone so they still work.
+export function useBottomSheetHeaderDrag() {
+  const drag = useContext(BottomSheetDragContext);
+  if (!drag) return null;
+  return {
+    className: "max-md:touch-none max-md:select-none",
+    onPointerDown: (event) => {
+      if (event.target.closest?.(INTERACTIVE_SELECTOR)) return;
+      drag.onPointerDown(event);
+    },
+    onPointerMove: drag.onPointerMove,
+    onPointerUp: drag.onPointerUp,
+    onPointerCancel: drag.onPointerUp,
+  };
+}
 
 // Canonical mobile bottom-sheet geometry shared by Dialog.jsx (its mobile
 // variant) and Sheet.jsx (side="bottom", and right/left panels on mobile).
@@ -135,13 +160,11 @@ export function BottomSheetHandle({
 }) {
   return (
     <>
-      {/* Generous, transparent grab zone pinned to the sheet's top edge —
-          not the 6px pill alone, which was almost impossible to hit so the
-          drag-to-dismiss gesture "did nothing". Centered and narrow so it
-          never sits over the top-right close button. The visible pill is
-          centered inside it, landing roughly level with that close button. */}
+      {/* Full-width transparent grab strip pinned to the sheet's top edge —
+          not the 6px pill alone, which was almost impossible to hit. On phones
+          the header right below it also drags (useBottomSheetHeaderDrag). */}
       <div
-        className="absolute left-1/2 top-0 z-20 flex h-6 w-40 -translate-x-1/2 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
+        className="absolute inset-x-0 top-0 z-20 flex h-7 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
         aria-hidden="true"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
