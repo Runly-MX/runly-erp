@@ -14,4 +14,8 @@ export function detectRuntime(scope = globalThis) {
 
 export const isNativeMobile = (scope) => ['tauri-android', 'tauri-ios'].includes(detectRuntime(scope))
 export const isNativeDesktop = (scope) => detectRuntime(scope) === 'tauri-desktop'
+export function isBundledDesktop(scope = globalThis) {
+  const win = scope.window ?? scope
+  return isNativeDesktop(scope) && !win.__RUNLY_NATIVE_HOST__
+}
 export const isNative = (scope) => detectRuntime(scope).startsWith('tauri-')

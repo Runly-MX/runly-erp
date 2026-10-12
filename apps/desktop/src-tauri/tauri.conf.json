@@ -1,40 +1,50 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Runly ERP",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "com.racoondevs.runlyerp",
   "build": {
-    "beforeDevCommand": "pnpm dev:web",
-    "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "pnpm build:web",
-    "frontendDist": "../dist"
+    "beforeDevCommand": "pnpm dev:host",
+    "devUrl": "http://localhost:5174",
+    "beforeBuildCommand": "pnpm build:host",
+    "frontendDist": "../native-host/dist"
   },
   "app": {
-    "windows": [
-      {
-        "title": "Runly ERP",
-        "url": "/app/login",
-        "width": 1280,
-        "height": 820,
-        "minWidth": 1100,
-        "minHeight": 720,
-        "resizable": true
-      }
-    ],
+    "windows": [],
     "security": {
-      "csp": null,
-      "capabilities": ["main-capability"]
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; frame-src 'none'; object-src 'none'; base-uri 'none'",
+      "capabilities": [
+        "desktop-shell",
+        "desktop-remote"
+      ]
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "shortDescription": "Runly ERP para Windows",
+    "category": "Business",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "Spanish"
+        ],
+        "displayLanguageSelector": false
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      }
+    }
   }
 }

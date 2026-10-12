@@ -206,7 +206,7 @@ export function UserMenu({
           </DropdownMenuItem>
         )}
 
-        {nativeMobile && (
+        {native.isRemoteHost() && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem

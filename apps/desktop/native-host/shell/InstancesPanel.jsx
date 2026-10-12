@@ -27,8 +27,8 @@ export function InstancesPanel({ state, manager }) {
       <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="font-semibold mb-4 flex items-center gap-2"><Plus size={18} />Agregar instancia</h2>
         <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); manager.connect(origin.trim(), name.trim()) }}>
-          <TextField label="Nombre (opcional)" placeholder="Mi organización" value={name} onChange={(event) => setName(event.target.value)} maxLength={80} disabled={busy} />
-          <TextField label="URL de la instancia" type="url" placeholder="https://runly.example.com" autoCapitalize="none" autoComplete="url" spellCheck={false} value={origin} onChange={(event) => setOrigin(event.target.value)} disabled={busy} required />
+          <TextField id="instance-name" label="Nombre (opcional)" placeholder="Mi organización" value={name} onChange={(event) => setName(event.target.value)} maxLength={80} disabled={busy} />
+          <TextField id="instance-origin" label="URL de la instancia" type="url" placeholder="https://runly.example.com" autoCapitalize="none" autoComplete="url" spellCheck={false} value={origin} onChange={(event) => setOrigin(event.target.value)} disabled={busy} required />
           <Button type="submit" className="w-full justify-center" disabled={busy || !origin.trim() || registry.instances.length >= 20}>Verificar y conectar<ArrowRight size={16} /></Button>
         </form>
       </section>

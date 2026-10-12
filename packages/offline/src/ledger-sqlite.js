@@ -205,7 +205,8 @@ async function loadTauriDatabase(path) {
   return Database.load(path)
 }
 
-export { isNativeDesktop as isTauriAvailable } from '@runly/core/native-runtime'
+// Remote instances use browser storage; native SQL must not be exposed across origins.
+export { isBundledDesktop as isTauriAvailable } from '@runly/core/native-runtime'
 
 export class LedgerSQLiteStore {
   #dbLoader

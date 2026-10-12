@@ -3,8 +3,9 @@ export const invoke = (command, args) => globalThis.window.__TAURI_INTERNALS__.i
 export function connectionError(error) {
   const code = String(error)
   if (code.includes('INVALID_ORIGIN')) return 'Ingresa una URL HTTPS sin rutas ni credenciales, por ejemplo https://runly.example.com.'
-  if (code.includes('MISSING_NATIVE_FRAME_POLICY')) return 'La instancia necesita habilitar la protección para la app Android. Contacta al administrador.'
+  if (code.includes('MISSING_NATIVE_FRAME_POLICY')) return 'La instancia necesita habilitar la protección para la app Runly. Contacta al administrador.'
   if (code.includes('INSTANCE_LIMIT')) return 'Puedes guardar hasta 20 instancias. Olvida alguna antes de agregar otra.'
+  if (code.includes('STORAGE_FAILED')) return 'No se pudo leer o guardar la configuración de instancias. Revisa el acceso a los datos de Runly antes de continuar.'
   if (code.includes('NETWORK')) return 'No se pudo conectar. Revisa la URL, la conexión y el certificado del servidor.'
   if (code.includes('HTTP_')) return 'El servidor no devolvió la aplicación Runly. Revisa la URL o contacta al administrador.'
   return 'No se pudo completar la operación. Intenta de nuevo.'

@@ -1,7 +1,8 @@
-#[cfg(any(mobile, test))]
 mod mobile_host;
 #[cfg(target_os = "android")]
 mod mobile_media;
+#[cfg(target_os = "windows")]
+mod windows_device;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -13,9 +14,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_sql::Builder::default().build());
-    #[cfg(mobile)]
     let builder = builder
-        .plugin(tauri_plugin_haptics::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
@@ -31,6 +30,8 @@ pub fn run() {
             mobile_host::host_events,
             mobile_host::host_ack_events,
             mobile_host::host_open_external,
+            #[cfg(target_os = "windows")]
+            windows_device::host_device,
             #[cfg(target_os = "android")]
             mobile_media::host_notification_show,
             #[cfg(target_os = "android")]
@@ -53,6 +54,8 @@ pub fn run() {
             mobile_media::host_device
         ])
         .setup(mobile_host::setup);
+    #[cfg(mobile)]
+    let builder = builder.plugin(tauri_plugin_haptics::init());
     builder
         .run(tauri::generate_context!())
         .expect("error while running Runly ERP");

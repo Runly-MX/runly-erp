@@ -125,9 +125,9 @@ export function LoginScreen({ returnTo = '/app' }) {
   }
 
   async function handleChangeServer(section = 'manage') {
-    if (native.isMobile()) {
+    if (native.isRemoteHost()) {
       try { await native.instances.open(section) }
-      catch (error) { setError(error.message || 'Actualiza la app Android para cambiar de instancia.') }
+      catch (error) { setError(error.message || 'Actualiza la app Runly para cambiar de instancia.') }
       return
     }
     await supabase.auth.signOut().catch(() => {})
@@ -274,7 +274,7 @@ export function LoginScreen({ returnTo = '/app' }) {
               >
                 ¿Olvidaste tu contraseña?
               </button>
-              {isTauriRuntime() || native.isMobile() ? (
+              {isTauriRuntime() || native.isRemoteHost() ? (
                 <Button variant="ghost"
                   type="button"
                   onClick={() => handleChangeServer()}
@@ -283,7 +283,7 @@ export function LoginScreen({ returnTo = '/app' }) {
                   Cambiar instancia
                 </Button>
               ) : null}
-              {native.isMobile() && (
+              {native.isRemoteHost() && (
                 <Button variant="ghost" type="button"
                   onClick={() => handleChangeServer('device')}
                   className="text-sm text-muted-foreground"

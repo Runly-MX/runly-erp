@@ -1,4 +1,4 @@
-//! Mobile-only remote host. Native checks supplement the command ACL, never replace it.
+//! Shared remote host. Native checks supplement the command ACL, never replace it.
 use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
@@ -16,11 +16,17 @@ use tauri_plugin_opener::OpenerExt;
 // and pinned production builds) that still compile with a fixed origin. A
 // `--universal` production build (see native-host.mjs) omits this entirely,
 // so HostState.origin starts empty and the local shell prompts the user.
+#[cfg(mobile)]
 const COMPILED_ORIGIN: Option<&str> = option_env!("ATLAS_NATIVE_ORIGIN");
+#[cfg(desktop)]
+const COMPILED_ORIGIN: Option<&str> = None;
+#[cfg(mobile)]
 const VERSION: &str = match option_env!("ATLAS_NATIVE_VERSION") {
     Some(value) => value,
-    None => "1.0.0",
+    None => env!("CARGO_PKG_VERSION"),
 };
+#[cfg(desktop)]
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 const USER_AGENT: &str = "Mozilla/5.0 RunlyNativeHost/1.0";
 
 #[derive(Clone, Serialize)]
@@ -45,6 +51,7 @@ pub struct HostState {
     // confirmation, by design (see spec's error-handling section).
     pending_origin: Mutex<Option<SavedServer>>,
     servers: Mutex<ServerRegistry>,
+    storage_error: Mutex<bool>,
     // Bumped at the start of every host_connect call. A call whose preflight
     // resolves after a newer call has started must not act on stale results —
     // see the race this guards against in the commit that introduced it.
@@ -122,6 +129,9 @@ pub fn validate_origin_format(input: &str) -> Result<String, &'static str> {
 }
 
 fn local_shell(url: &Url) -> bool {
+    if cfg!(debug_assertions) && url.origin().ascii_serialization() == "http://localhost:5174" {
+        return ["/", "/index.html"].contains(&url.path());
+    }
     ((url.scheme() == "tauri" && url.host_str() == Some("localhost"))
         || (["http", "https"].contains(&url.scheme()) && url.host_str() == Some("tauri.localhost")))
         && ["/", "/index.html"].contains(&url.path())
@@ -209,11 +219,20 @@ pub fn host_info(window: WebviewWindow) -> Result<serde_json::Value, String> {
     }
     let mut capabilities = vec![
         "host-info",
-        "haptics",
         "local-notifications",
         "deep-links",
         "external-links",
     ];
+    if cfg!(mobile) {
+        capabilities.push("haptics");
+    }
+    if cfg!(target_os = "windows") {
+        capabilities.extend([
+            "instance-manager",
+            "device-permissions",
+            "desktop-attention",
+        ]);
+    }
     if cfg!(target_os = "android") {
         capabilities.push("notification-actions");
         capabilities.push("screen-share");
@@ -310,7 +329,7 @@ async fn persist_servers(app: tauri::AppHandle, registry: &ServerRegistry) -> Re
     super::mobile_media::set_servers(app, serde_json::to_value(registry).unwrap()).await
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(target_os = "ios")]
 async fn persist_servers(_app: tauri::AppHandle, _registry: &ServerRegistry) -> Result<(), String> {
     Ok(())
 }
@@ -324,9 +343,58 @@ fn load_servers(app: tauri::AppHandle) -> ServerRegistry {
     seed_registry(registry)
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(target_os = "ios")]
 fn load_servers(_app: tauri::AppHandle) -> ServerRegistry {
     seed_registry(ServerRegistry::default())
+}
+
+#[cfg(desktop)]
+async fn persist_servers(app: tauri::AppHandle, registry: &ServerRegistry) -> Result<(), String> {
+    use tauri_plugin_store::StoreExt;
+    let store = app.store("instances.json").map_err(|_| "STORAGE_FAILED")?;
+    let previous = store.get("registry");
+    store.set(
+        "registry",
+        serde_json::to_value(registry).map_err(|_| "STORAGE_FAILED")?,
+    );
+    if store.save().is_err() {
+        if let Some(previous) = previous {
+            store.set("registry", previous);
+        } else {
+            store.delete("registry");
+        }
+        return Err("STORAGE_FAILED".into());
+    }
+    Ok(())
+}
+
+#[cfg(desktop)]
+fn load_servers(app: tauri::AppHandle) -> Result<ServerRegistry, String> {
+    use tauri_plugin_store::StoreExt;
+    let store = app.store("instances.json").map_err(|_| "STORAGE_FAILED")?;
+    if let Some(value) = store.get("registry") {
+        let registry = serde_json::from_value(value).map_err(|_| "STORAGE_FAILED")?;
+        return Ok(seed_registry(registry));
+    }
+    // Preserve the previous picker's saved address; reconnect still performs preflight.
+    let mut registry = ServerRegistry::default();
+    if let Some(origin) = app
+        .store("store.json")
+        .ok()
+        .and_then(|store| store.get("serverUrl"))
+        .and_then(|value| {
+            value
+                .as_str()
+                .and_then(|value| validate_origin_format(value).ok())
+        })
+    {
+        registry.instances.push(SavedServer {
+            origin,
+            name: "Instancia anterior".into(),
+        });
+        registry.configured = true;
+    }
+    Ok(seed_registry(registry))
 }
 
 fn seed_registry(mut registry: ServerRegistry) -> ServerRegistry {
@@ -369,6 +437,7 @@ pub(crate) fn check_host(window: &WebviewWindow) -> Result<(), String> {
 }
 
 fn activate(state: &HostState, registry: ServerRegistry) {
+    *state.storage_error.lock().unwrap() = false;
     let changed = *state.origin.lock().unwrap() != registry.active_origin;
     *state.origin.lock().unwrap() = registry.active_origin.clone();
     *state.servers.lock().unwrap() = registry;
@@ -384,6 +453,9 @@ pub fn host_servers(
     state: State<'_, Arc<HostState>>,
 ) -> Result<ServerRegistry, String> {
     check_local(&window)?;
+    if *state.storage_error.lock().unwrap() {
+        return Err("STORAGE_FAILED".into());
+    }
     Ok(state.servers.lock().unwrap().clone())
 }
 
@@ -597,8 +669,14 @@ pub fn host_open_external(window: WebviewWindow, url: String) -> Result<(), Stri
 
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let state = Arc::new(HostState::default());
-    let registry = load_servers(app.handle().clone());
+    #[cfg(desktop)]
+    let loaded = load_servers(app.handle().clone());
+    #[cfg(mobile)]
+    let loaded: Result<ServerRegistry, String> = Ok(load_servers(app.handle().clone()));
+    let storage_error = loaded.is_err();
+    let registry = loaded.unwrap_or_default();
     activate(&state, registry);
+    *state.storage_error.lock().unwrap() = storage_error;
     app.manage(state.clone());
     let events = state.clone();
     app.deep_link().on_open_url(move |event| {
@@ -616,8 +694,10 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let device_bridge = include_str!("../../native-host/device-bridge.js");
     let init = format!("Object.defineProperty(window, '__RUNLY_NATIVE_HOST__', {{value: Object.freeze({metadata}), writable:false}});{device_bridge}");
     let nav_state = state.clone();
-    WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+    let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("Runly")
+        .inner_size(1180.0, 800.0)
+        .min_inner_size(720.0, 600.0)
         .user_agent(USER_AGENT)
         .initialization_script(init)
         .on_navigation(move |url| {
@@ -652,8 +732,36 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             {
                 arm_watchdog(window, state.clone());
             }
-        })
-        .build()?;
+        });
+    let window = builder.build()?;
+    *app.state::<Arc<HostState>>().fallback.lock().unwrap() = Some(window.url()?);
+    #[cfg(desktop)]
+    {
+        use tauri::menu::{Menu, MenuItem};
+        let instances =
+            MenuItem::with_id(app, "instances", "Cambiar instancia", true, None::<&str>)?;
+        let device = MenuItem::with_id(
+            app,
+            "device",
+            "Permisos del dispositivo",
+            true,
+            None::<&str>,
+        )?;
+        app.set_menu(Menu::with_items(app, &[&instances, &device])?)?;
+        app.on_menu_event(move |app, event| {
+            let state = app.state::<Arc<HostState>>();
+            if let Some(mut target) = state.fallback.lock().unwrap().clone() {
+                state.generation.fetch_add(1, Ordering::SeqCst);
+                state.connect_generation.fetch_add(1, Ordering::SeqCst);
+                target.set_fragment(Some(if event.id().as_ref() == "device" {
+                    "device"
+                } else {
+                    "manage"
+                }));
+                let _ = window.navigate(target);
+            };
+        });
+    }
     Ok(())
 }
 

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { detectRuntime, isNativeMobile } from '@runly/core/native-runtime'
+import { detectRuntime, isNativeMobile, isBundledDesktop } from '@runly/core/native-runtime'
 import { compareVersions, supportsCapability, parseDeepLink, createEventPump } from '../policy.js'
 import { resolveEnvironment, makeConfig, nativeBuildEnvironment, useUniversalHost } from '../../../scripts/native-host.mjs'
 import { createInstanceManager } from '../../../native-host/shell/manager.js'
@@ -53,7 +53,11 @@ test('remote capability is restricted to main, selected origin/app path, and min
   assert.ok(!remote.permissions.some((p) => /sql|store|shell|window|allow-host-connect|allow-host-confirm-origin|allow-host-forget-origin/.test(p)))
   assert.deepEqual(shell.permissions, ['allow-host-info', 'allow-host-connect', 'allow-host-confirm-origin', 'allow-host-forget-origin', 'allow-host-servers', 'allow-host-device', 'notification:allow-is-permission-granted'])
   const desktop = JSON.parse(readFileSync(new URL('../../../src-tauri/tauri.conf.json', import.meta.url)))
-  assert.equal(desktop.build.frontendDist, '../dist')
+  assert.equal(desktop.build.frontendDist, '../native-host/dist')
+  const windowsRemote = JSON.parse(readFileSync(new URL('../../../src-tauri/capabilities/desktop-remote.json', import.meta.url)))
+  assert.equal(windowsRemote.local, false)
+  assert.deepEqual(windowsRemote.remote.urls, ['https://*/app/*'])
+  assert.ok(!windowsRemote.permissions.some((p) => /sql|store|shell|allow-host-connect|allow-host-confirm-origin|allow-host-servers/.test(p)))
 })
 
 test('semantic versions and capability negotiation fail closed', () => {
@@ -129,6 +133,15 @@ test('public Android builds default to universal; a fixed production origin requ
   assert.equal(useUniversalHost('android', 'build', 'staging'), false)
   assert.equal(useUniversalHost('ios', 'build', 'production'), false)
   assert.throws(() => useUniversalHost('android', 'build', 'production', ['--universal', '--pinned']))
+})
+
+test('remote Windows keeps desktop identity without opening bundled config or SQL stores', () => {
+  const legacy = { __TAURI_INTERNALS__: { invoke() {} }, navigator: { userAgent: 'Windows' } }
+  const remote = { ...legacy, __RUNLY_NATIVE_HOST__: { platform: 'windows' } }
+  assert.equal(detectRuntime(remote), 'tauri-desktop')
+  assert.equal(isBundledDesktop(legacy), true)
+  assert.equal(isBundledDesktop(remote), false)
+  assert.equal(isBundledDesktop({}), false)
 })
 
 function fixture(registry = { instances: [], activeOrigin: null }, overrides = {}) {

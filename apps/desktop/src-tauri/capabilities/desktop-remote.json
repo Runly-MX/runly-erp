@@ -1,0 +1,30 @@
+{
+  "identifier": "desktop-remote",
+  "windows": [
+    "main"
+  ],
+  "platforms": [
+    "windows",
+    "macOS",
+    "linux"
+  ],
+  "local": false,
+  "permissions": [
+    "allow-host-info",
+    "allow-host-ready",
+    "allow-host-events",
+    "allow-host-ack-events",
+    "allow-host-manage",
+    "allow-host-open-external",
+    "allow-host-device",
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-notify",
+    "core:window:allow-request-user-attention"
+  ],
+  "remote": {
+    "urls": [
+      "https://*/app/*"
+    ]
+  }
+}

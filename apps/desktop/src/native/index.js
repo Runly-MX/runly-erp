@@ -15,7 +15,7 @@ async function getHostInfo() {
   if (!isNative()) return null
   if (hostInfo) return hostInfo
   if (!initializing) initializing = (async () => {
-    if (isNativeMobile()) hostInfo = await invoke('host_info')
+    if (isNativeMobile() || window.__RUNLY_NATIVE_HOST__) hostInfo = await invoke('host_info')
     else {
       const { getVersion } = await import('@tauri-apps/api/app')
       hostInfo = { platform: 'desktop', nativeHostVersion: await getVersion(), osVersion: null,
@@ -31,6 +31,7 @@ export const native = {
   isAvailable: isNative,
   isMobile: isNativeMobile,
   isDesktop: isNativeDesktop,
+  isRemoteHost: () => isNative() && !!globalThis.window?.__RUNLY_NATIVE_HOST__,
   getHostInfo,
   instances: {
     async open(section = 'manage') {
@@ -49,13 +50,13 @@ export const native = {
   supports: (capability, minimumVersion) => supportsCapability(hostInfo, capability, minimumVersion),
   async requireCapability(capability, minimumVersion) {
     await getHostInfo()
-    if (!native.supports(capability, minimumVersion)) throw new Error('Necesitas actualizar Runly desde App Store / Google Play para utilizar esta función.')
+    if (!native.supports(capability, minimumVersion)) throw new Error('Necesitas actualizar Runly desde la página de descargas para utilizar esta función.')
   },
-  async ready() { if (isNativeMobile()) await invoke('host_ready') },
+  async ready() { if (native.isRemoteHost()) await invoke('host_ready') },
   async openExternal(value) {
     const url = new URL(value, globalThis.location?.href)
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('INVALID_EXTERNAL_URL')
-    if (isNativeMobile()) await invoke('host_open_external', { url: url.href })
+    if (native.isRemoteHost()) await invoke('host_open_external', { url: url.href })
     else globalThis.open(url.href, '_blank', 'noopener,noreferrer')
   },
   notifications: {
@@ -140,7 +141,7 @@ export const native = {
   },
   events: {
     subscribe(handler) {
-      if (!isNativeMobile()) return () => {}
+      if (!native.isRemoteHost()) return () => {}
       let disposed = false
       const pump = createEventPump({
         read: () => invoke('host_events'),
@@ -156,7 +157,7 @@ export const native = {
 }
 
 export async function initializeNativeHost() {
-  if (!isNativeMobile()) return
+  if (!native.isRemoteHost()) return
   await getHostInfo()
   // Dedicated WebView storage: remove only the Atlas worker if an earlier host registered it.
   if (globalThis.navigator?.serviceWorker) {

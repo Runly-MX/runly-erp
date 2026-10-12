@@ -3,13 +3,13 @@ import {
   RUNLY_SERVER_URL_KEY,
 } from './appConfig.js'
 import { getConfiguredApiUrl, setApiUrl } from './runtimeConfig.js'
-import { isNativeDesktop } from '@runly/core/native-runtime'
+import { isBundledDesktop } from '@runly/core/native-runtime'
 
 let storePromise = null
 
 export function isTauriRuntime() {
   // Historical name: these callers specifically manage the Desktop server picker.
-  return isNativeDesktop()
+  return isBundledDesktop()
 }
 
 export function normalizeServerUrl(value) {

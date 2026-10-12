@@ -1,6 +1,6 @@
 [package]
 name = "runly_erp"
-version = "0.2.0"
+version = "0.3.0"
 description = "Runly ERP Desktop"
 authors = ["Racoon Devs"]
 edition = "2021"
