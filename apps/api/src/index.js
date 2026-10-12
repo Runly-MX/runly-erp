@@ -900,26 +900,42 @@ app.post("/auth/forgot-password", async (c) => {
   }
 });
 
-const BRAND_DIR = path.resolve(currentDir, "../../../apps/desktop/public/brand");
+// Signed file URLs memoised for ~40 minutes (links last longer) so list screens that
+// show many avatars do not hit Storage on every refresh.
+function createCachedFileSigner({ prisma, supabaseAdmin }) {
+  const cache = new Map();
+  return async function signFile(fileId, variant = "card") {
+    if (!fileId) return null;
+    const key = `${fileId}:${variant}`;
+    const hit = cache.get(key);
+    if (hit && hit.expires > Date.now()) return hit.url;
+    const url = await getSignedUrlByFileId(fileId, variant, { prisma, supabaseAdmin }).catch(() => null);
+    if (url) {
+      cache.set(key, { url, expires: Date.now() + 40 * 60_000 });
+      if (cache.size > 2000) cache.delete(cache.keys().next().value);
+    }
+    return url;
+  };
+}
+
 const RUNLY_BRAND_DIR = path.resolve(currentDir, "../../../apps/desktop/public/runly");
-const ALLOWED_BRAND_FILES = new Set([
-  "runly-email-logo-light.png",
-  "runly-logo-horizontal.png",
-  "runly-logo-primary.png",
-  "runly-logo-isotype.png",
-  "runly-logo-vertical.png",
-  "runly-logo-monochrome-light.png",
-  "runly-logo-monochrome-dark.png",
-]);
+// Legacy file names (used by e-mails already sent and cached URLs) map onto the
+// current Runly brand assets in apps/desktop/public/runly.
+const BRAND_FILES = {
+  "runly-email-logo-light.png": "runly-logo-horizontal-light.png",
+  "runly-logo-horizontal.png": "runly-logo-horizontal-light.png",
+  "runly-logo-primary.png": "runly-logo-light.png",
+  "runly-logo-isotype.png": "runly-isotipo-light.png",
+  "runly-logo-vertical.png": "runly-logo-vertical-light.png",
+  "runly-logo-monochrome-light.png": "runly-isotipo-dark.png",
+  "runly-logo-monochrome-dark.png": "runly-isotipo-light.png",
+};
 app.get("/brand/:filename", async (c) => {
-  const filename = c.req.param("filename");
-  if (!ALLOWED_BRAND_FILES.has(filename)) return c.notFound();
-  const filePath = filename === "runly-email-logo-light.png"
-    ? path.join(RUNLY_BRAND_DIR, "runly-logo-horizontal-light.png")
-    : path.join(BRAND_DIR, filename);
+  const target = BRAND_FILES[c.req.param("filename")];
+  if (!target) return c.notFound();
   try {
     const { readFile } = await import("node:fs/promises");
-    const data = await readFile(filePath);
+    const data = await readFile(path.join(RUNLY_BRAND_DIR, target));
     return new Response(data, {
       headers: {
         "Content-Type": "image/png",
@@ -2424,7 +2440,7 @@ mountWithAuth(app, createPosRouter({ prisma, requirePermission, broadcaster }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission, broadcaster, supabaseAdmin }));
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService), broadcaster }));
 mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, entityResolver: resolveCanvasEntityLink, dataSources: createCanvasDataSources({ prisma, relationTargets }), removeFiles: createCanvasFileRemover({ prisma, supabaseAdmin }) }));
-mountWithAuth(app, createAttendanceRouter({ prisma, requirePermission, requireAnyPermission, broadcaster, signFile: (fileId) => getSignedUrlByFileId(fileId, "card", { prisma, supabaseAdmin }).catch(() => null) }));
+mountWithAuth(app, createAttendanceRouter({ prisma, requirePermission, requireAnyPermission, broadcaster, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));

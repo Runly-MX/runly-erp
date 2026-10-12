@@ -1,5 +1,5 @@
 ---
-description: "Apply when creating or editing animated logo components, brand loaders, SVG isotypes, splash screens, or any component in apps/desktop/src/components/ that references identity/ assets or brand/ files."
+description: "Apply when creating or editing animated logo components, brand loaders, SVG isotypes, splash screens, or any component in apps/desktop/src/components/ that references apps/desktop/public/runly/ assets or brand/ files."
 applyTo: "apps/desktop/src/components/AtlasLogo*.jsx, apps/desktop/src/components/*Loader*.jsx, apps/desktop/src/components/*Splash*.jsx"
 ---
 
@@ -9,16 +9,16 @@ applyTo: "apps/desktop/src/components/AtlasLogo*.jsx, apps/desktop/src/component
 
 **Never approximate SVG path geometry.** If you do not have a real traced SVG file, stop and ask for one.
 
-Clip-paths on `<img>` tags and manually estimated polygon coordinates are always wrong — they produce gaps, misaligned edges, and shapes that don't match the logo. The only acceptable source of path data is a traced SVG (from Inkscape, vectorizer.io, or an existing `.svg` file in `identity/`).
+Clip-paths on `<img>` tags and manually estimated polygon coordinates are always wrong — they produce gaps, misaligned edges, and shapes that don't match the logo. The only acceptable source of path data is a traced SVG (from Inkscape, vectorizer.io, or an existing `.svg` file in `apps/desktop/public/runly/`).
 
 ## Source of Truth for Logo Assets
 
 | Asset | Location |
 |---|---|
-| Traced SVG (isotype) | `identity/runly-erp_isotype_only.svg` (create if missing) |
-| PNG fallback | `identity/runly-erp_isotype_only.png` |
-| Runtime SVG | `apps/desktop/public/brand/runly-logo-isotype.svg` |
-| Runtime PNG | `apps/desktop/public/brand/runly-logo-isotype.png` |
+| Traced SVG (isotype) | `apps/desktop/public/runly/runly-isotipo-light.svg` (create if missing) |
+| PNG fallback | `apps/desktop/public/runly/runly-isotipo-light.png` |
+| Runtime SVG | `apps/desktop/public/runly/runly-isotipo-light.svg` |
+| Runtime PNG | `apps/desktop/public/runly/runly-isotipo-light.png` |
 
 Always prefer the SVG over the PNG for animated components.
 

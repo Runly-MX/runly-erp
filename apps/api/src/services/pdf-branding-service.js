@@ -382,7 +382,7 @@ export async function resolveRunlyWatermarkBuffer() {
       try {
         const { readFile } = await import("node:fs/promises");
         const assetUrl = new URL(
-          "../../../../apps/desktop/public/brand/runly-logo-isotype.png",
+          "../../../../apps/desktop/public/runly/runly-isotipo-light.png",
           import.meta.url,
         );
         return await readFile(assetUrl);

@@ -2,7 +2,7 @@
 name: "SVG Logo Animator"
 description: "Converts a Runly ERP brand logo (PNG or SVG) into a pixel-perfect animated React component. Handles the full pipeline: vectorization guidance, SVG path extraction, viewBox normalization, and Framer Motion assembly animation. Use when building logo loaders, splash screens, brand animations, or any component that must be visually faithful to the real logo. Triggers: animate logo, logo loader, brand animation, loading screen with logo, recreate isotype as component, assembly animation."
 tools: [read, edit, search, browser, execute]
-argument-hint: "Logo file path + animation style — e.g. 'identity/runly-erp_isotype_only.png, assembly' or 'identity/runly-erp_isotype_only.svg'"
+argument-hint: "Logo file path + animation style — e.g. 'apps/desktop/public/runly/runly-isotipo-light.png, assembly' or 'apps/desktop/public/runly/runly-isotipo-light.svg'"
 ---
 
 # SVG Logo Animator Agent — Runly ERP
@@ -18,10 +18,10 @@ I always follow the skill defined in `.github/skills/svg-logo-animator/SKILL.md`
 I start by checking what's available:
 
 ```bash
-find identity/ apps/desktop/public/brand -name "*.svg" -o -name "*.png" | sort
+find apps/desktop/public/runly -name "*.svg" -o -name "*.png" | sort
 ```
 
-**If an SVG source exists** (`identity/runly-erp_isotype_only.svg`):
+**If an SVG source exists** (`apps/desktop/public/runly/runly-isotipo-light.svg`):
 - Read it immediately, extract all `<path>` elements, `fill` colors, and `viewBox`
 - Skip to Step 3
 
@@ -75,14 +75,14 @@ The component follows the skeleton in the skill file, with these values filled i
 
 I open a browser tool or ask the user to:
 1. Run `pnpm dev:frontend`
-2. Compare `<StaticLogo>` render vs. the original PNG in `identity/`
+2. Compare `<StaticLogo>` render vs. the original PNG in `apps/desktop/public/runly/`
 3. Confirm all 3 faces render correctly with no gaps
 
 ## Step 6 — Save the SVG
 
 ```bash
-cp <vectorized-svg> identity/runly-erp_isotype_only.svg
-cp identity/runly-erp_isotype_only.svg apps/desktop/public/brand/runly-logo-isotype.svg
+cp <vectorized-svg> apps/desktop/public/runly/runly-isotipo-light.svg
+cp apps/desktop/public/runly/runly-isotipo-light.svg apps/desktop/public/runly/runly-isotipo-light.svg
 ```
 
 ## What I Will NOT Do

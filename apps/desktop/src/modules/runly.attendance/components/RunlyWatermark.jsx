@@ -1,13 +1,13 @@
 // Subtle Runly branding for the public attendance screens (kiosk, pairing, phone key):
-// the isotype plus "Runly" in a corner at low opacity. Decorative, never intercepts taps.
+// the horizontal logo (dark-surface variant) in a corner at reduced opacity. Decorative,
+// never intercepts taps.
 const base = (import.meta.env?.BASE_URL ?? '/').replace(/\/?$/, '/')
 
 export function RunlyWatermark({ position = 'bottom-right', className = '' }) {
-  const corner = position === 'bottom-left' ? 'bottom-3 left-4' : position === 'top-left' ? 'top-3 left-4' : 'bottom-3 right-4'
+  const corner = position === 'bottom-left' ? 'bottom-4 left-5' : position === 'top-left' ? 'top-4 left-5' : 'bottom-4 right-5'
   return (
-    <div aria-hidden="true" className={`pointer-events-none fixed ${corner} z-0 flex select-none items-center gap-2 opacity-40 ${className}`}>
-      <img src={`${base}brand/runly-logo-isotype.png`} alt="" className="h-6 w-6 object-contain" draggable="false" />
-      <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/80">Runly</span>
+    <div aria-hidden="true" className={`pointer-events-none fixed ${corner} z-0 select-none opacity-60 ${className}`}>
+      <img src={`${base}runly/runly-logo-horizontal-dark.png`} alt="" className="h-9 w-auto object-contain sm:h-11" draggable="false" />
     </div>
   )
 }

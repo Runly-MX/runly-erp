@@ -6,7 +6,7 @@ import { AttendanceError, buildSessions, presentAt } from './attendance-core.js'
 const HR_SELECT = {
   id: true, employeeCode: true, firstName: true, lastName: true, workEmail: true, jobTitle: true, department: true,
   employmentType: true, status: true, userProfileId: true, enabled: true,
-  userProfile: { select: { displayName: true } },
+  userProfile: { select: { displayName: true, avatarFileId: true } },
   jobTitleRef: { select: { name: true } },
   departmentRef: { select: { name: true } },
 }
@@ -22,15 +22,28 @@ export function serializeHr(e) {
 
 export const kindFromEmployment = (employmentType) => (employmentType === 'contractor' ? 'contractor' : 'internal')
 
-export async function loadHrMap(prisma, companyId, ids) {
+// The employee's picture: own cover photo (FileAsset isCover) first, else the linked
+// Runly user's avatar - same priority the HR detail screen uses.
+async function withPhotos(prisma, rows, signFile) {
+  if (!signFile || !rows.length) return rows.map((e) => ({ ...serializeHr(e), avatarUrl: null, photoUrl: null }))
+  const covers = await prisma.fileAsset.findMany({ where: { entityType: 'HrEmployee', entityId: { in: rows.map((e) => e.id) }, isCover: true, enabled: true }, select: { id: true, entityId: true } })
+  const coverByEmployee = new Map(covers.map((c) => [c.entityId, c.id]))
+  return Promise.all(rows.map(async (e) => {
+    const fileId = coverByEmployee.get(e.id) ?? e.userProfile?.avatarFileId ?? null
+    const [avatarUrl, photoUrl] = fileId ? await Promise.all([signFile(fileId, 'card'), signFile(fileId, 'full')]) : [null, null]
+    return { ...serializeHr(e), avatarUrl, photoUrl }
+  }))
+}
+
+export async function loadHrMap(prisma, companyId, ids, signFile = null) {
   const unique = [...new Set(ids.filter(Boolean))]
   if (!unique.length) return new Map()
   const rows = await prisma.hrEmployee.findMany({ where: { companyId, id: { in: unique } }, select: HR_SELECT })
-  return new Map(rows.map((e) => [e.id, serializeHr(e)]))
+  return new Map((await withPhotos(prisma, rows, signFile)).map((e) => [e.id, e]))
 }
 
-export async function attachHr(prisma, companyId, people) {
-  const map = await loadHrMap(prisma, companyId, people.map((p) => p.hrEmployeeId))
+export async function attachHr(prisma, companyId, people, signFile = null) {
+  const map = await loadHrMap(prisma, companyId, people.map((p) => p.hrEmployeeId), signFile)
   return people.map((p) => ({ ...p, hr: p.hrEmployeeId ? map.get(p.hrEmployeeId) ?? null : null }))
 }
 

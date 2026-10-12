@@ -125,7 +125,7 @@ export function PersonCredentialsSheet({ person, onClose, canManage }) {
               <ol className="list-decimal space-y-1 pl-5 text-sm text-[hsl(var(--muted-foreground))]">
                 <li>Comparte el enlace o el QR de la invitación con la persona.</li>
                 <li>La persona lo abre en su teléfono, escribe su código de empleado y toca Instalar.</li>
-                <li>En el kiosko abre «Con mi teléfono» y escanea con la app.</li>
+                <li>En el kiosko abre «Mi teléfono» y escanea con la app.</li>
               </ol>
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
                 La invitación dura 48 horas y reemplaza la anterior.

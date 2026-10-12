@@ -149,8 +149,6 @@ also start `collabora-dev` in the Docker `runlyerp` group. See the
 - If the tag does not exist, the script creates it; if it already exists, the script replaces the asset with `--clobber`
 | --------------------- | ------------ |
 | `pnpm build`          | Build all apps and packages |
-| `pnpm icons:generate` | Regenerate Tauri app icons |
-| `pnpm brand:build`    | Regenerate desktop/web branding assets |
 
 ### Docker images
 

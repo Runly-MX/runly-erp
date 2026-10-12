@@ -133,13 +133,13 @@ export function createAttendanceService({ prisma, signFile = null }) {
     const q = text(query.q, 80)
     if (q) where.OR = [{ code: { contains: q, mode: 'insensitive' } }, { firstName: { contains: q, mode: 'insensitive' } }, { lastName: { contains: q, mode: 'insensitive' } }]
     const rows = await prisma.attPerson.findMany({ where, orderBy: [{ firstName: 'asc' }, { code: 'asc' }], take: Math.min(intOr(query.limit, 500), 1000), include: personSelect })
-    return attachHr(prisma, companyId, rows.map(serializePerson))
+    return attachHr(prisma, companyId, rows.map(serializePerson), signFile)
   }
 
   async function getPerson(companyId, id) {
     const row = await prisma.attPerson.findFirst({ where: { id, companyId }, include: personSelect })
     if (!row) throw new AttendanceError('La persona no existe.', 404)
-    return (await attachHr(prisma, companyId, [serializePerson(row)]))[0]
+    return (await attachHr(prisma, companyId, [serializePerson(row)], signFile))[0]
   }
 
   async function savePerson(companyId, id, body) {

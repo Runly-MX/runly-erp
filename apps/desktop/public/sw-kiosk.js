@@ -5,7 +5,7 @@
 const CACHE_VERSION = "v1";
 const SHELL_CACHE = `runly-attendance-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `runly-attendance-assets-${CACHE_VERSION}`;
-const STATIC_PREFIXES = ["/assets/", "/app/assets/", "/fonts/", "/brand/", "/runly/"];
+const STATIC_PREFIXES = ["/assets/", "/app/assets/", "/fonts/", "/runly/"];
 const STATIC_FILES = new Set(["/favicon.ico", "/favicon-32x32.png", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png", "/site.webmanifest", "/attendance-phone.webmanifest", "/runtime-config.js", "/pwa-bootstrap.js"]);
 const STATIC_EXT = /\.(?:js|css|woff2?|ttf|otf|png|svg|ico|webp|mp3|wav)$/i;
 

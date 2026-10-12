@@ -1,7 +1,7 @@
 ---
 name: svg-logo-animator
 description: "Convert a PNG/SVG logo into a pixel-perfect animated React component. Use when building logo loaders, splash screens, brand animations, or any component that must be faithful to a real logo. Triggers: animate logo, logo loader, brand animation, convert logo to SVG, recreate logo as component, isotype animation, loading screen with logo."
-argument-hint: "Path to the logo file (PNG or SVG) + desired animation style — e.g. 'identity/runly-erp_isotype_only.png, assembly animation'"
+argument-hint: "Path to the logo file (PNG or SVG) + desired animation style — e.g. 'apps/desktop/public/runly/runly-isotipo-light.png, assembly animation'"
 ---
 
 # SVG Logo Animator — Runly ERP
@@ -16,7 +16,7 @@ You cannot reliably approximate logo geometry from a PNG using clip-paths or eye
 
 Search the repo:
 ```bash
-find identity/ apps/desktop/public/brand -name "*.svg" | head -20
+find apps/desktop/public/runly -name "*.svg" | head -20
 ```
 
 If an SVG exists, skip directly to Phase 2.
@@ -26,11 +26,11 @@ If an SVG exists, skip directly to Phase 2.
 **Recommended tool: Vectorizer.io (online, free, high quality)**
 
 1. Open https://vectorizer.io in a browser
-2. Upload the PNG from `identity/` (use the `_isotype_only.png` variant for the symbol)
+2. Upload the PNG from `apps/desktop/public/runly/` (use the `_isotype_only.png` variant for the symbol)
 3. Settings: Mode = "Logo", Colors = exact count (count manually from the PNG), Output = SVG
 4. Download the SVG
-5. Save it alongside the PNG in `identity/` with the same base name (e.g., `runly-erp_isotype_only.svg`)
-6. Also copy it to `apps/desktop/public/brand/` for runtime use
+5. Save it alongside the PNG in `apps/desktop/public/runly/` with the same base name (e.g., `runly-erp_isotype_only.svg`)
+6. Also copy it to `apps/desktop/public/runly/` for runtime use
 
 **Alternative: Inkscape (local)**
 ```
@@ -44,8 +44,8 @@ File → Save As → Plain SVG
 **Alternative: Potrace (CLI)**
 ```bash
 # Convert to BMP first (potrace requires BMP or PBM)
-magick identity/runly-erp_isotype_only.png identity/runly-erp_isotype_only.bmp
-potrace --svg --color "#0A1D44" -o identity/runly-erp_isotype_only.svg identity/runly-erp_isotype_only.bmp
+magick apps/desktop/public/runly/runly-isotipo-light.png apps/desktop/public/runly/runly-erp_isotype_only.bmp
+potrace --svg --color "#0A1D44" -o apps/desktop/public/runly/runly-isotipo-light.svg apps/desktop/public/runly/runly-erp_isotype_only.bmp
 ```
 
 ---
@@ -55,7 +55,7 @@ potrace --svg --color "#0A1D44" -o identity/runly-erp_isotype_only.svg identity/
 Open the SVG file and identify the logical "faces" or "pieces" of the logo. Read the file:
 
 ```bash
-cat identity/runly-erp_isotype_only.svg
+cat apps/desktop/public/runly/runly-isotipo-light.svg
 ```
 
 Look for:
@@ -260,7 +260,7 @@ Use the bounding box center of each path (from the DevTools trick in Phase 2) as
 After building the component:
 
 1. Open the app (`pnpm dev:frontend`)
-2. Compare side-by-side: the static `<StaticLogo>` render vs. the original PNG in `identity/`
+2. Compare side-by-side: the static `<StaticLogo>` render vs. the original PNG in `apps/desktop/public/runly/`
 3. Check:
    - [ ] All 3 faces present, correct colors
    - [ ] No gaps between faces (adjacent edges must share exact coordinates)
@@ -275,14 +275,14 @@ After building the component:
 Once paths are validated:
 
 ```bash
-# Save traced SVG in identity/ (source of truth)
-# identity/runly-erp_isotype_only.svg
+# Save traced SVG in apps/desktop/public/runly/ (source of truth)
+# apps/desktop/public/runly/runly-isotipo-light.svg
 
 # Copy to public for runtime use
-cp identity/runly-erp_isotype_only.svg apps/desktop/public/brand/runly-logo-isotype.svg
+cp apps/desktop/public/runly/runly-isotipo-light.svg apps/desktop/public/runly/runly-isotipo-light.svg
 ```
 
-Update `identity/README.md` to list the SVG file under canonical sources.
+Update `apps/desktop/public/runly/README.md` to list the SVG file under canonical sources.
 
 ---
 

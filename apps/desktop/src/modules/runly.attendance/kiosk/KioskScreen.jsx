@@ -52,9 +52,9 @@ export default function KioskScreen() {
 
   const tabs = useMemo(() => {
     const list = []
-    if (kiosk.kiosk?.allowPin !== false) list.push({ id: 'pin', label: 'Código y PIN', Icon: Keyboard })
-    list.push({ id: 'qr', label: 'Código QR', Icon: QrCode })
-    list.push({ id: 'phone', label: 'Con mi teléfono', Icon: Smartphone })
+    if (kiosk.kiosk?.allowPin !== false) list.push({ id: 'pin', label: 'PIN', Icon: Keyboard })
+    list.push({ id: 'qr', label: 'Mi QR', Icon: QrCode })
+    list.push({ id: 'phone', label: 'Mi teléfono', Icon: Smartphone })
     if (nfcSupported()) list.push({ id: 'nfc', label: 'Tarjeta', Icon: Nfc })
     return list
   }, [kiosk.kiosk?.allowPin])
@@ -109,7 +109,7 @@ export default function KioskScreen() {
           ) : (
             <>
               {tabs.length > 1 && (
-                <div role="tablist" className="mx-auto flex w-full max-w-sm rounded-2xl bg-white/[0.06] p-1 ring-1 ring-white/10">
+                <div role="tablist" className="mx-auto flex w-full max-w-md rounded-2xl bg-white/[0.06] p-1 ring-1 ring-white/10">
                   {tabs.map(({ id, label, Icon }) => (
                     <button
                       key={id}
@@ -117,9 +117,9 @@ export default function KioskScreen() {
                       type="button"
                       aria-selected={active?.id === id}
                       onClick={() => setTab(id)}
-                      className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 ${active?.id === id ? 'bg-teal-600 text-white shadow' : 'text-slate-300 hover:text-white'}`}
+                      className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 text-[13px] font-medium leading-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 ${active?.id === id ? 'bg-teal-600 text-white shadow' : 'text-slate-300 hover:text-white'}`}
                     >
-                      <Icon className="size-4" /> {label}
+                      <Icon className="size-5" />{label}
                     </button>
                   ))}
                 </div>
