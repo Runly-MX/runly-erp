@@ -17,13 +17,13 @@ export function FormSheet({ open, onOpenChange, title, description, children, fo
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
-        <SheetHeader className="shrink-0 border-b border-[hsl(var(--border))] px-5 py-4 pr-12">
+        <SheetHeader className="shrink-0 border-b border-[hsl(var(--border))] px-5 py-4 pr-12 max-md:pb-3 max-md:pr-5">
           <SheetTitle>{title}</SheetTitle>
           {description ? <SheetDescription>{description}</SheetDescription> : null}
         </SheetHeader>
         <div ref={bodyRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">{children}</div>
         {footer || showSwitch ? (
-          <div data-dialog-footer="" className="flex shrink-0 items-center justify-between gap-3 border-t border-[hsl(var(--border))] px-5 py-3">
+          <div data-dialog-footer="" className="flex shrink-0 items-center justify-between gap-3 border-t border-[hsl(var(--border))] px-5 py-3 max-md:py-2">
             {showSwitch ? <SwitchField label="Crear otro" checked={Boolean(createAnother.checked)} onChange={createAnother.onChange} /> : <span />}
             <div className="flex items-center gap-2">{footer}</div>
           </div>

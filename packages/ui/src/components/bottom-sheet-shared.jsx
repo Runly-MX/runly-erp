@@ -11,7 +11,7 @@ import { cn } from "../lib/utils.js";
 //   flex column on mobile so <BottomSheetBody> can fill it). The
 //   drag handle and the close button are absolutely positioned against it, so
 //   they always stay visible at the top.
-// - `pt-9!` reserves room under the drag handle. It is `!important` so a
+// - `pt-6!` reserves room under the drag handle. It is `!important` so a
 //   consumer passing `p-0` can no longer push its header under the handle.
 // - All consumer content goes through <BottomSheetBody>, the only scroll
 //   region. SheetHeader / DialogHeader are sticky inside it, so a header that
@@ -22,13 +22,15 @@ import { cn } from "../lib/utils.js";
 //   exact same color: a translucent header stacked on the translucent glass
 //   surface rendered as a visibly lighter band.
 export const BOTTOM_SHEET_SURFACE_CLASS =
-  "overflow-hidden rounded-t-2xl px-6 pt-9! pb-6 min-h-[50dvh] max-h-[85dvh] max-md:bg-[hsl(var(--card))]!";
+  "overflow-hidden rounded-t-2xl px-6 pt-6! pb-6 min-h-[50dvh] max-h-[85dvh] max-md:bg-[hsl(var(--card))]!";
 
 // Mobile-only sticky header behavior for SheetHeader / DialogHeader. Has no
 // effect when the header already sits outside the scroll region. Its
 // background matches the opaque surface so it never reads as a separate band.
+// On phones the header hugs the drag handle (no top padding);
+// there is no close button there: the sheet is dismissed by dragging.
 export const BOTTOM_SHEET_STICKY_HEADER_CLASS =
-  "max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-[hsl(var(--card))]";
+  "max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-[hsl(var(--card))] max-md:pt-0";
 
 const SHEET_EASING = "280ms cubic-bezier(0.32, 0.72, 0, 1)";
 
@@ -48,6 +50,7 @@ export function bottomSheetDragStyle({
   baseHeight = null,
   style,
   keyboard,
+  mobile = true,
 }) {
   const keyboardOpen = keyboard?.inset > 0 && keyboard.visibleHeight;
   const fullHeight = keyboardOpen
@@ -76,8 +79,12 @@ export function bottomSheetDragStyle({
   }
 
   return {
+    // Phones: a slim bottom edge (the footer brings its own padding) that only
+    // grows to clear the home indicator. Desktop keeps the roomier padding.
     paddingBottom: keyboardOpen
-      ? "1rem"
+      ? "0.5rem"
+      : mobile
+      ? "max(0.5rem, env(safe-area-inset-bottom, 0px))"
       : "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
     ...(keyboardOpen ? { bottom: `${keyboard.inset}px` } : null),
     ...sizing,
@@ -134,7 +141,7 @@ export function BottomSheetHandle({
           never sits over the top-right close button. The visible pill is
           centered inside it, landing roughly level with that close button. */}
       <div
-        className="absolute left-1/2 top-0 z-20 flex h-9 w-28 -translate-x-1/2 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
+        className="absolute left-1/2 top-0 z-20 flex h-6 w-40 -translate-x-1/2 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
         aria-hidden="true"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

@@ -91,7 +91,7 @@ const DialogContent = forwardRef(function DialogContent(
         }}
         style={mobileVariant === "center"
           ? style
-          : bottomSheetDragStyle({ dragY, dragging, expanded, baseHeight, style, keyboard })}
+          : bottomSheetDragStyle({ dragY, dragging, expanded, baseHeight, style, keyboard, mobile: isMobile })}
         className={cn(
           "fixed z-50 glass-overlay shadow-xl focus:outline-none",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
@@ -149,7 +149,8 @@ const DialogContent = forwardRef(function DialogContent(
             <BottomSheetBody className="md:contents">{children}</BottomSheetBody>
           )}
         </OverlaySurfaceContext.Provider>
-        <DialogPrimitive.Close className="absolute right-4 top-4 z-20 rounded-lg p-1 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40">
+        {/* Hidden on the phone bottom sheet: it is dismissed by dragging. */}
+        <DialogPrimitive.Close className={cn(mobileVariant !== "center" && "max-md:hidden", "absolute right-4 top-4 z-20 rounded-lg p-1 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40")}>
           <X className="h-4 w-4" />
           <span className="sr-only">Cerrar</span>
         </DialogPrimitive.Close>
