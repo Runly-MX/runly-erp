@@ -1,8 +1,8 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SelectField, EmptyState, Label, Button, Sheet, SheetContent, SheetTitle, Dialog, DialogContent, DialogHeader, DialogTitle } from '@runly/ui'
+import { useViewMode, SelectField, EmptyState, Label, Button, Sheet, SheetContent, SheetTitle, Dialog, DialogContent, DialogHeader, DialogTitle } from '@runly/ui'
 import { toast } from 'sonner'
-import { LayoutGrid, List, Maximize2, Minimize2, CalendarCheck, CalendarX, Sparkles, UtensilsCrossed, UserCheck } from 'lucide-react'
+import { LayoutGrid, List, Fullscreen, Maximize2, Minimize2, CalendarCheck, CalendarX, Sparkles, UtensilsCrossed, UserCheck } from 'lucide-react'
 import { usePosFloors, usePosFloorDetail, useUpdateTableStatus, useUpdateTableWaiter } from '../hooks/usePosFloor'
 import { useCreatePosReservation, useUpdatePosReservation, useSeatPosReservation } from '../hooks/usePosReservation'
 import { ReservationFormDialog } from '../components/ReservationFormDialog'
@@ -185,14 +185,15 @@ function TableActionPanel({ actionTable, onClose, onNavigateToOrder, onMarkClean
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
+const VIEW_MODE_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
+
 export default function PosTablesScreen({ comanderoMode = false }) {
   const navigate = useNavigate()
-  const containerRef = useRef(null)
+  const screenView = useViewMode()
   const { data: outlets = [] } = usePosOutlets()
   const [outletId, setOutletId] = useState('')
   const [selectedFloorId, setSelectedFloorId] = useState('')
   const [viewMode, setViewMode] = useState('canvas') // 'canvas' | 'grid'
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const [reserveMode, setReserveMode] = useState(false)
   const [actionTable, setActionTable] = useState(null) // { id, name, status, action }
   const [myTablesOnly, setMyTablesOnly] = useState(false)
@@ -204,17 +205,6 @@ export default function PosTablesScreen({ comanderoMode = false }) {
   const createReservation = useCreatePosReservation()
   const updateReservation = useUpdatePosReservation()
   const seatReservation = useSeatPosReservation()
-
-  useEffect(() => {
-    function onFsChange() { setIsFullscreen(Boolean(document.fullscreenElement)) }
-    document.addEventListener('fullscreenchange', onFsChange)
-    return () => document.removeEventListener('fullscreenchange', onFsChange)
-  }, [])
-
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) containerRef.current?.requestFullscreen()
-    else document.exitFullscreen()
-  }, [])
 
   const effectiveOutletId = outletId || outlets[0]?.id || ''
 
@@ -370,7 +360,7 @@ export default function PosTablesScreen({ comanderoMode = false }) {
   const activeMode = hasCanvasElements ? viewMode : 'grid'
 
   return (
-    <div ref={containerRef} className="flex h-full flex-col bg-background overflow-hidden">
+    <div className={`flex flex-col bg-background overflow-hidden ${screenView.isImmersive ? 'fixed inset-0 z-50 h-dvh' : 'h-full'}`}>
       {/* Toolbar */}
       <div className="flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-border shrink-0 bg-card/60 flex-wrap">
         <div className="flex-1 min-w-0">
@@ -442,10 +432,10 @@ export default function PosTablesScreen({ comanderoMode = false }) {
         <Button
           variant="ghost" size="sm"
           className="shrink-0 px-2.5"
-          onClick={toggleFullscreen}
-          title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+          onClick={screenView.cycle}
+          title={VIEW_MODE_LABELS[screenView.mode]}
         >
-          {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+          {screenView.mode === 'normal' ? <Maximize2 size={15} /> : screenView.mode === 'clean' ? <Fullscreen size={15} /> : <Minimize2 size={15} />}
         </Button>
       </div>
 

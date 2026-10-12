@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Maximize2, Minimize2, Keyboard, QrCode, Nfc, Smartphone, TriangleAlert } from 'lucide-react'
+import { useViewMode } from '@runly/ui'
+import { Fullscreen, Maximize2, Minimize2, Keyboard, QrCode, Nfc, Smartphone, TriangleAlert } from 'lucide-react'
 import { useKiosk } from './useKiosk.js'
 import { KioskClock } from './components/KioskClock.jsx'
 import { PinPad } from './components/PinPad.jsx'
@@ -11,17 +12,19 @@ import { PhoneChallenge } from './components/PhoneChallenge.jsx'
 import { RunlyWatermark } from '../components/RunlyWatermark.jsx'
 import { PairingView } from './components/PairingView.jsx'
 import { DiagnosticsSheet, StatusPill } from './components/StatusPill.jsx'
-import { fullscreenSupported, requestWakeLock, toggleFullscreen } from './lib/feedback.js'
+import { requestWakeLock } from './lib/feedback.js'
 import { registerAttendanceWorker } from './lib/register-sw.js'
 import { startNativeNfcLoop } from '../../../native/nfc-loop.js'
 
 // Public offline-first time clock at /app/kiosk/:link. No login, no app shell.
+const VIEW_MODE_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
+
 export default function KioskScreen() {
   const { link } = useParams()
   const kiosk = useKiosk(link)
   const [tab, setTab] = useState(null)
   const [diagnostics, setDiagnostics] = useState(false)
-  const [fullscreen, setFullscreen] = useState(false)
+  const view = useViewMode()
 
   useEffect(() => {
     registerAttendanceWorker('/app/kiosk/')
@@ -39,14 +42,11 @@ export default function KioskScreen() {
     const acquire = async () => { lock = await requestWakeLock(); if (cancelled) lock?.release?.() }
     acquire()
     const onVisible = () => { if (document.visibilityState === 'visible') acquire() }
-    const onFs = () => setFullscreen(Boolean(document.fullscreenElement))
     document.addEventListener('visibilitychange', onVisible)
-    document.addEventListener('fullscreenchange', onFs)
     return () => {
       cancelled = true
       lock?.release?.()
       document.removeEventListener('visibilitychange', onVisible)
-      document.removeEventListener('fullscreenchange', onFs)
     }
   }, [])
 
@@ -69,17 +69,18 @@ export default function KioskScreen() {
   return (
     <div className={`fixed inset-0 flex flex-col overflow-y-auto overflow-x-hidden ${shell}`}>
       <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <p className="text-sm font-medium text-slate-300">{kiosk.kiosk?.name ?? 'Kiosko'}</p>
-        <div className="flex items-center gap-2">
-          <StatusPill online={kiosk.online} pending={kiosk.pending} onClick={() => setDiagnostics(true)} />
-          {fullscreenSupported() && (
+        {!view.isImmersive && <p className="text-sm font-medium text-slate-300">{kiosk.kiosk?.name ?? 'Kiosko'}</p>}
+        <div className={`flex items-center gap-2 ${view.isImmersive ? 'ml-auto' : ''}`}>
+          {!view.isImmersive && <StatusPill online={kiosk.online} pending={kiosk.pending} onClick={() => setDiagnostics(true)} />}
+          {(
             <button
               type="button"
-              onClick={toggleFullscreen}
+              onClick={view.cycle}
               className="flex size-10 items-center justify-center rounded-full bg-white/10 text-slate-200 transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
-              aria-label={fullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+              aria-label={VIEW_MODE_LABELS[view.mode]}
+              title={VIEW_MODE_LABELS[view.mode]}
             >
-              {fullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
+              {view.mode === 'normal' ? <Maximize2 className="size-5" /> : view.mode === 'clean' ? <Fullscreen className="size-5" /> : <Minimize2 className="size-5" />}
             </button>
           )}
         </div>

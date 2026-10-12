@@ -6,10 +6,10 @@ import {
   Plus, ArrowLeft,
   Settings2, Share2, RotateCcw, Trash2, PenLine,
   FileText, Shapes, ChevronLeft, ChevronRight,
-  Maximize2, Minimize2, Eye,
+  Maximize2, Minimize2, Fullscreen, Eye,
 } from 'lucide-react'
 import {
-  ConfirmDialog, Button,
+  ConfirmDialog, Button, useViewMode,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '@runly/ui'
 import { NoteIcon } from './noteIcons.jsx'
@@ -61,6 +61,8 @@ function persistListCollapsed(val) {
   }
 }
 
+const VIEW_MODE_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
+
 export default function NotesScreen() {
   const { pathname } = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -96,7 +98,8 @@ export default function NotesScreen() {
   }, [])
   const effectiveListCollapsed = listCollapsed && isDesktop
 
-  const [isZenMode, setIsZenMode] = useState(false)
+  const viewMode = useViewMode()
+  const isZenMode = viewMode.isImmersive
   const [zoom, setZoom] = useNoteZoom()
 
   const [search, setSearch] = useState('')
@@ -107,14 +110,15 @@ export default function NotesScreen() {
     return () => clearTimeout(handle)
   }, [search])
 
+  const stepBackView = viewMode.stepBack
   useEffect(() => {
     if (!isZenMode) return
     function onKeyDown(e) {
-      if (e.key === 'Escape' && !e.defaultPrevented) setIsZenMode(false)
+      if (e.key === 'Escape' && !e.defaultPrevented) stepBackView()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [isZenMode])
+  }, [isZenMode, stepBackView])
 
   // Restore selected note from URL on mount / page reload
   const { data: urlNoteData } = useNote(urlNoteId)
@@ -371,11 +375,11 @@ export default function NotesScreen() {
                 <span className="hidden sm:inline">Compartir</span>
               </button>
               <button
-                onClick={() => setIsZenMode(z => !z)}
+                onClick={viewMode.cycle}
                 className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
-                title={isZenMode ? 'Salir de pantalla completa' : 'Pantalla completa'}
+                title={VIEW_MODE_LABELS[viewMode.mode]}
               >
-                {isZenMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                {viewMode.mode === 'normal' ? <Maximize2 size={13} /> : viewMode.mode === 'clean' ? <Fullscreen size={13} /> : <Minimize2 size={13} />}
               </button>
               <button
                 onClick={() => setSettingsOpen(true)}
