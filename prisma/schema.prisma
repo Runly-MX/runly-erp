@@ -4746,3 +4746,191 @@ model ConnectionRecord {
   @@index([moduleKey, connectionKey])
   @@map("connection_record")
 }
+
+// ---------------------------------------------------------------------------
+// runly.attendance — time clock with public kiosks (spec 2026-10-11-attendance)
+// ---------------------------------------------------------------------------
+
+model AttSite {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  name      String
+  address   String?
+  timezone  String   @default("America/Mexico_City")
+  latitude  Float?
+  longitude Float?
+  radiusM   Int?     @map("radius_m")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, name])
+  @@map("att_site")
+}
+
+// Contractor company, crew or area people belong to.
+model AttGroup {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  name      String
+  kind      String   @default("contractor") // internal | contractor
+  notes     String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, name])
+  @@map("att_group")
+}
+
+// Type of element (trade / role) used by quotas: "Soldador", "Electricista".
+model AttCategory {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  name      String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, name])
+  @@map("att_category")
+}
+
+model AttShift {
+  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  name         String
+  startTime    String   @map("start_time") // HH:MM local
+  endTime      String   @map("end_time")
+  days         Int[]    @default([1, 2, 3, 4, 5]) // 0=Sunday .. 6=Saturday
+  graceMinutes Int      @default(10) @map("grace_minutes")
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, name])
+  @@map("att_shift")
+}
+
+model AttPerson {
+  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId       String    @map("company_id") @db.Uuid
+  code            String
+  firstName       String    @map("first_name")
+  lastName        String?   @map("last_name")
+  kind            String    @default("internal") // internal | contractor | visitor
+  groupId         String?   @map("group_id") @db.Uuid
+  categoryId      String?   @map("category_id") @db.Uuid
+  shiftId         String?   @map("shift_id") @db.Uuid
+  hrEmployeeId    String?   @map("hr_employee_id") @db.Uuid
+  photoFileId     String?   @map("photo_file_id") @db.Uuid
+  pinHash         String?   @map("pin_hash")
+  enrollCode      String?   @map("enroll_code") // one-time code to enroll a phone key
+  enrollExpiresAt DateTime? @map("enroll_expires_at") @db.Timestamptz(6)
+  enabled         Boolean   @default(true)
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  credentials AttCredential[]
+  punches     AttPunch[]
+
+  @@unique([companyId, code])
+  @@index([companyId, kind, enabled])
+  @@index([companyId, groupId])
+  @@map("att_person")
+}
+
+model AttCredential {
+  id         String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId  String    @map("company_id") @db.Uuid
+  personId   String    @map("person_id") @db.Uuid
+  type       String // card | device_key
+  uid        String? // normalized card UID / NDEF payload
+  publicKey  Json?     @map("public_key") // ES256 JWK for device_key
+  label      String?
+  status     String    @default("active") // pending | active | revoked
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  person AttPerson @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, type, uid])
+  @@index([personId, status])
+  @@map("att_credential")
+}
+
+model AttKiosk {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId          String    @map("company_id") @db.Uuid
+  siteId             String?   @map("site_id") @db.Uuid
+  name               String
+  mode               String    @default("both") // both | in | out
+  linkToken          String    @unique @map("link_token")
+  requireSelfie      Boolean   @default(false) @map("require_selfie")
+  allowPin           Boolean   @default(true) @map("allow_pin")
+  pairingCode        String?   @map("pairing_code")
+  pairingSecretHash  String?   @map("pairing_secret_hash")
+  pairingLabel       String?   @map("pairing_label")
+  pairingRequestedAt DateTime? @map("pairing_requested_at") @db.Timestamptz(6)
+  approvedAt         DateTime? @map("approved_at") @db.Timestamptz(6)
+  deviceTokenHash    String?   @map("device_token_hash")
+  pairedAt           DateTime? @map("paired_at") @db.Timestamptz(6)
+  lastSeenAt         DateTime? @map("last_seen_at") @db.Timestamptz(6)
+  revokedAt          DateTime? @map("revoked_at") @db.Timestamptz(6)
+  enabled            Boolean   @default(true)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([companyId, enabled])
+  @@index([deviceTokenHash])
+  @@map("att_kiosk")
+}
+
+// id is supplied by the client (UUID v7) so a retried sync batch is idempotent.
+model AttPunch {
+  id           String    @id @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  personId     String    @map("person_id") @db.Uuid
+  siteId       String?   @map("site_id") @db.Uuid
+  kioskId      String?   @map("kiosk_id") @db.Uuid
+  direction    String // in | out
+  occurredAt   DateTime  @map("occurred_at") @db.Timestamptz(6)
+  deviceTime   DateTime? @map("device_time") @db.Timestamptz(6)
+  receivedAt   DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
+  method       String // pin | code | card | phone_qr | manual
+  offline      Boolean   @default(false)
+  clockSkewMs  Int?      @map("clock_skew_ms")
+  latitude     Float?
+  longitude    Float?
+  selfieFileId String?   @map("selfie_file_id") @db.Uuid
+  flags        String[]  @default([])
+  status       String    @default("valid") // valid | flagged | voided
+  note         String?
+  createdById  String?   @map("created_by_id") @db.Uuid
+
+  person AttPerson @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, occurredAt(sort: Desc)])
+  @@index([personId, occurredAt(sort: Desc)])
+  @@index([kioskId, occurredAt(sort: Desc)])
+  @@map("att_punch")
+}
+
+model AttQuota {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId  String   @map("company_id") @db.Uuid
+  name       String?
+  groupId    String?  @map("group_id") @db.Uuid
+  categoryId String?  @map("category_id") @db.Uuid
+  siteId     String?  @map("site_id") @db.Uuid
+  minCount   Int      @map("min_count")
+  days       Int[]    @default([1, 2, 3, 4, 5])
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([companyId, enabled])
+  @@map("att_quota")
+}
