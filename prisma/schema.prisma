@@ -4836,6 +4836,7 @@ model AttPerson {
   punches     AttPunch[]
 
   @@unique([companyId, code])
+  @@unique([companyId, hrEmployeeId])
   @@index([companyId, kind, enabled])
   @@index([companyId, groupId])
   @@map("att_person")

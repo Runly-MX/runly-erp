@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import {
   AttendanceError, buildSessions, computeCompliance, hashPin, normalizeUid, presentAt, randomToken,
 } from './attendance-core.js'
+import { assertLinkable, attachHr, createAttendanceHr, kindFromEmployment } from './attendance-hr.js'
 
 // text: undefined stays undefined (untouched on update), blank becomes null. req: for NOT NULL columns.
 const text = (v, max = 200) => (v === undefined ? undefined : v == null ? null : String(v).trim().slice(0, max) || null)
@@ -49,6 +50,7 @@ const defined = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) =
 const isUnique = (e) => e?.code === 'P2002'
 
 export function createAttendanceService({ prisma }) {
+  const hrLink = createAttendanceHr({ prisma })
   async function catalogList(kind, companyId) {
     const cfg = CATALOGS[kind]
     return prisma[cfg.model].findMany({ where: { companyId }, orderBy: kind === 'quotas' ? { createdAt: 'desc' } : { name: 'asc' } })
@@ -131,21 +133,49 @@ export function createAttendanceService({ prisma }) {
     const q = text(query.q, 80)
     if (q) where.OR = [{ code: { contains: q, mode: 'insensitive' } }, { firstName: { contains: q, mode: 'insensitive' } }, { lastName: { contains: q, mode: 'insensitive' } }]
     const rows = await prisma.attPerson.findMany({ where, orderBy: [{ firstName: 'asc' }, { code: 'asc' }], take: Math.min(intOr(query.limit, 500), 1000), include: personSelect })
-    return rows.map(serializePerson)
+    return attachHr(prisma, companyId, rows.map(serializePerson))
+  }
+
+  async function getPerson(companyId, id) {
+    const row = await prisma.attPerson.findFirst({ where: { id, companyId }, include: personSelect })
+    if (!row) throw new AttendanceError('La persona no existe.', 404)
+    return (await attachHr(prisma, companyId, [serializePerson(row)]))[0]
   }
 
   async function savePerson(companyId, id, body) {
-    const data = personData(body ?? {}, { partial: Boolean(id) })
+    const data = personData(body ?? {}, { partial: true })
     await assertRefs(companyId, data)
+    if (data.hrEmployeeId) {
+      const employee = await assertLinkable(prisma, companyId, data.hrEmployeeId, id)
+      if (body?.syncProfile) Object.assign(data, { firstName: employee.firstName, lastName: employee.lastName, kind: kindFromEmployment(employee.employmentType) })
+      if (!id) {
+        data.firstName ??= employee.firstName
+        data.lastName ??= employee.lastName
+        data.code ??= (await uniqueCode(companyId, employee)) ?? undefined
+      }
+    }
+    if (!id && (!data.code || !data.firstName)) personData(body ?? {}, { partial: false })
     try {
-      if (!id) return serializePerson(await prisma.attPerson.create({ data: { companyId, ...data }, include: personSelect }))
+      if (!id) {
+        const created = await prisma.attPerson.create({ data: { companyId, ...data } })
+        return getPerson(companyId, created.id)
+      }
       const found = await prisma.attPerson.findFirst({ where: { id, companyId }, select: { id: true } })
       if (!found) throw new AttendanceError('La persona no existe.', 404)
-      return serializePerson(await prisma.attPerson.update({ where: { id }, data, include: personSelect }))
+      await prisma.attPerson.update({ where: { id }, data })
+      return getPerson(companyId, id)
     } catch (error) {
       if (isUnique(error)) throw new AttendanceError('Ya existe una persona con ese código.', 409)
       throw error
     }
+  }
+
+  // Employee code when free, else a stable fallback derived from the HR id.
+  async function uniqueCode(companyId, employee, taken = null) {
+    const used = taken ?? new Set((await prisma.attPerson.findMany({ where: { companyId }, select: { code: true } })).map((p) => p.code))
+    let code = text(employee.employeeCode, 40) || `RH-${employee.id.slice(-6).toUpperCase()}`
+    if (used.has(code)) code = `${code}-${employee.id.slice(-4).toUpperCase()}`
+    return used.has(code) ? null : code
   }
 
   async function importFromHr(companyId) {
@@ -155,11 +185,10 @@ export function createAttendanceService({ prisma }) {
     let created = 0
     for (const employee of employees) {
       if (linked.has(employee.id)) continue
-      let code = text(employee.employeeCode, 40) || `RH-${employee.id.slice(-6).toUpperCase()}`
-      if (codes.has(code)) code = `${code}-${employee.id.slice(-4).toUpperCase()}`
-      if (codes.has(code)) continue
+      const code = await uniqueCode(companyId, employee, codes)
+      if (!code) continue
       codes.add(code)
-      await prisma.attPerson.create({ data: { companyId, code, firstName: employee.firstName, lastName: employee.lastName, kind: employee.employmentType === 'contractor' ? 'contractor' : 'internal', hrEmployeeId: employee.id } })
+      await prisma.attPerson.create({ data: { companyId, code, firstName: employee.firstName, lastName: employee.lastName, kind: kindFromEmployment(employee.employmentType), hrEmployeeId: employee.id } })
       created += 1
     }
     return { created, skipped: employees.length - created }
@@ -336,7 +365,13 @@ export function createAttendanceService({ prisma }) {
 
   return {
     catalogList, catalogSave, catalogRemove,
-    listPeople, savePerson, importFromHr, createEnrollInvite, addCardCredential, setCredentialStatus,
+    listPeople, getPerson, savePerson, importFromHr,
+    hrSuggestions: (companyId, q) => hrLink.suggestions(companyId, q),
+    linkHr: async (companyId, personId, body) => getPerson(companyId, await hrLink.link(companyId, personId, body)),
+    unlinkHr: async (companyId, personId) => getPerson(companyId, await hrLink.unlink(companyId, personId)),
+    personFromHr: async (companyId, hrEmployeeId) => getPerson(companyId, await hrLink.fromHr(companyId, hrEmployeeId, uniqueCode)),
+    employeeAttendance: (companyId, hrEmployeeId) => hrLink.employeeAttendance(companyId, hrEmployeeId),
+    uniqueCode, createEnrollInvite, addCardCredential, setCredentialStatus,
     listPunches, createManualPunch, voidPunch,
     presence, hours, compliance, summary,
     listKiosks, saveKiosk, approveKiosk, resetKiosk, revokeKiosk,

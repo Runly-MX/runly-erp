@@ -18,6 +18,12 @@ export function createAttendanceDomain({ request, withAuthHeaders, toQueryString
     createPerson: (data, token) => send('POST', '/attendance/people', data, token),
     updatePerson: (personId, data, token) => send('PATCH', `/attendance/people/${id(personId)}`, data, token),
     importPeopleFromHr: (token) => send('POST', '/attendance/people/import-hr', {}, token),
+    // HR link: suggest employees by name/code, link or unlink a person, create a person from an employee.
+    searchHrSuggestions: (query, token) => send('GET', `/attendance/hr-suggestions${toQueryString(query)}`, undefined, token),
+    linkHr: (personId, data, token) => send('POST', `/attendance/people/${id(personId)}/link-hr`, data, token),
+    unlinkHr: (personId, token) => send('DELETE', `/attendance/people/${id(personId)}/link-hr`, undefined, token),
+    createPersonFromHr: (hrEmployeeId, token) => send('POST', '/attendance/people/from-hr', { hrEmployeeId }, token),
+    getEmployeeAttendance: (hrEmployeeId, token) => send('GET', `/attendance/employees/${id(hrEmployeeId)}`, undefined, token),
     createEnrollInvite: (personId, token) => send('POST', `/attendance/people/${id(personId)}/enroll-invite`, {}, token),
     addCard: (personId, data, token) => send('POST', `/attendance/people/${id(personId)}/cards`, data, token),
     revokeCredential: (credentialId, token) => send('POST', `/attendance/credentials/${id(credentialId)}/revoke`, {}, token),

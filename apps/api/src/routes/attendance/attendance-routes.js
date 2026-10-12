@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { AttendanceError } from './attendance-core.js'
 import { createAttendanceService } from './attendance-service.js'
+import { IMPORT_FIELDS, createAttendanceImport, isTemplate, parseImportFile, suggestMapping } from './attendance-import.js'
 
 const companyId = (c) => c.get('companyId')
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
@@ -11,13 +12,16 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createAttendanceRouter({ prisma, requirePermission, broadcaster = null, service = null }) {
+export function createAttendanceRouter({ prisma, requirePermission, requireAnyPermission = null, broadcaster = null, service = null }) {
   const app = new Hono()
   const svc = service ?? createAttendanceService({ prisma })
+  const importer = createAttendanceImport({ prisma })
   const view = requirePermission('attendance.view')
   const people = requirePermission('attendance.people.manage')
   const punches = requirePermission('attendance.punch.manage')
   const config = requirePermission('attendance.config.manage')
+  // Attendance data on the HR employee screen: attendance.view or hr.employee.read.
+  const employeeView = requireAnyPermission ? requireAnyPermission(['attendance.view', 'hr.employee.read']) : view
   const run = (fallback, fn) => async (c) => {
     try { return await fn(c) } catch (error) { return fail(c, error, fallback) }
   }
@@ -39,6 +43,35 @@ export function createAttendanceRouter({ prisma, requirePermission, broadcaster 
   app.post('/attendance/people/:id/enroll-invite', people, run('Error al crear la invitación.', async (c) => c.json({ data: await svc.createEnrollInvite(companyId(c), c.req.param('id')) })))
   app.post('/attendance/people/:id/cards', people, run('Error al asignar la tarjeta.', async (c) => c.json({ data: await svc.addCardCredential(companyId(c), c.req.param('id'), await c.req.json().catch(() => ({}))) }, 201)))
   app.post('/attendance/credentials/:id/revoke', people, run('Error al revocar.', async (c) => c.json({ data: await svc.setCredentialStatus(companyId(c), c.req.param('id'), 'revoked') })))
+
+  app.get('/attendance/hr-suggestions', people, run('Error al buscar en RH.', async (c) => c.json({ data: await svc.hrSuggestions(companyId(c), c.req.query()) })))
+  app.post('/attendance/people/from-hr', people, run('Error al crear desde RH.', async (c) => {
+    const body = await c.req.json().catch(() => ({}))
+    return c.json({ data: await svc.personFromHr(companyId(c), body.hrEmployeeId) }, 201)
+  }))
+  app.post('/attendance/people/:id/link-hr', people, run('Error al vincular con RH.', async (c) => c.json({ data: await svc.linkHr(companyId(c), c.req.param('id'), await c.req.json().catch(() => ({}))) })))
+  app.delete('/attendance/people/:id/link-hr', people, run('Error al desvincular de RH.', async (c) => c.json({ data: await svc.unlinkHr(companyId(c), c.req.param('id')) })))
+  app.get('/attendance/employees/:hrEmployeeId', employeeView, run('Error al cargar la asistencia del colaborador.', async (c) => c.json({ data: await svc.employeeAttendance(companyId(c), c.req.param('hrEmployeeId')) })))
+
+  // ---- bulk import (template, parse, preview, commit) -----------------
+  app.get('/attendance/people/import/template', people, run('Error al generar la plantilla.', async (c) => {
+    const file = await importer.template(companyId(c))
+    return new Response(file, { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': 'attachment; filename="plantilla-personas-asistencia.xlsx"' } })
+  }))
+  app.post('/attendance/people/import/parse', people, run('Error al leer el archivo.', async (c) => {
+    const form = await c.req.formData()
+    const file = form.get('file')
+    if (!file || typeof file === 'string' || typeof file.arrayBuffer !== 'function') throw new AttendanceError('Adjunta un archivo.', 400)
+    const parsed = await parseImportFile(Buffer.from(await file.arrayBuffer()), file.name)
+    const template = isTemplate(parsed.headers)
+    return c.json({ data: { fileName: file.name, headers: parsed.headers, rows: parsed.rows, truncated: parsed.truncated, fields: IMPORT_FIELDS.map(({ aliases, ...f }) => f), suggestedMapping: suggestMapping(parsed.headers), templateDetected: template } })
+  }))
+  app.post('/attendance/people/import/preview', people, run('Error al validar la importación.', async (c) => c.json({ data: await importer.preview(companyId(c), await c.req.json().catch(() => ({}))) })))
+  app.post('/attendance/people/import/commit', people, run('Error al importar.', async (c) => {
+    const data = await importer.commit(companyId(c), await c.req.json().catch(() => ({})))
+    changed(c, 'people')
+    return c.json({ data })
+  }))
 
   // ---- punches ----------------------------------------------------------
   app.get('/attendance/punches', view, run('Error al cargar checadas.', async (c) => c.json({ data: await svc.listPunches(companyId(c), c.req.query()) })))
