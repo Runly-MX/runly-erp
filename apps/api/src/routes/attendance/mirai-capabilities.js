@@ -87,11 +87,40 @@ export function createAttendanceMiraiCapabilities({ prisma, service = null }) {
     },
   }
 
+  const attendance_person_status = {
+    name: 'attendance_person_status',
+    permission: 'attendance.view',
+    definition: {
+      description: 'Busca personas de Asistencia por nombre o codigo y dice si estan dentro ahora, su turno, grupo, categoria y si estan vinculadas a RH. Hasta 10 resultados.',
+      parameters: { type: 'object', properties: { search: { type: 'string', description: 'Nombre o codigo.' } }, required: ['search'] },
+    },
+    async run(args, actx) {
+      const [list, report, label, shifts] = await Promise.all([
+        svc.listPeople(actx.companyId, { q: args?.search, limit: 10, enabled: 'true' }), svc.presence(actx.companyId),
+        names(actx.companyId), prisma.attShift.findMany({ where: { companyId: actx.companyId }, select: { id: true, name: true, startTime: true, endTime: true } }),
+      ])
+      const inside = new Map(report.present.map((p) => [p.personId, p.since]))
+      const shiftById = new Map(shifts.map((s) => [s.id, s]))
+      return {
+        total: list.length,
+        personas: list.map((p) => {
+          const shift = shiftById.get(p.shiftId)
+          return {
+            personId: p.id, nombre: fullName(p), codigo: p.code, tipo: KIND_LABEL[p.kind] ?? p.kind,
+            grupo: label.group.get(p.groupId) ?? null, categoria: label.category.get(p.categoryId) ?? null,
+            turno: shift ? `${shift.name} (${shift.startTime}-${shift.endTime})` : null,
+            presenteAhora: inside.has(p.id), dentroDesde: inside.get(p.id) ?? null, vinculadaARH: Boolean(p.hr), colaboradorRH: p.hr?.fullName ?? null,
+          }
+        }),
+      }
+    },
+  }
+
   return {
     moduleKey: 'runly.attendance',
     label: 'Asistencia',
-    summary: 'Checador: quien esta dentro ahora, cumplimiento de cuotas de contratistas y horas trabajadas (solo consulta).',
-    tools: [attendance_presence_now, attendance_quota_compliance, attendance_hours],
+    summary: 'Checador: buscar personas y ver si estan dentro, quien esta dentro ahora, cumplimiento de cuotas de contratistas y horas trabajadas (solo consulta).',
+    tools: [attendance_person_status, attendance_presence_now, attendance_quota_compliance, attendance_hours],
     actions: [],
     publicLookup: [],
     async describeContext() { return null },
