@@ -931,7 +931,14 @@ export const attendanceMap = createModuleManifest({
     ownedEntities: ['AttSite', 'AttGroup', 'AttCategory', 'AttShift', 'AttPerson', 'AttCredential', 'AttKiosk', 'AttPunch', 'AttQuota'],
     sharedEntities: ['Company', 'UserProfile', 'HrEmployee', 'FileAsset', 'AuditLog'],
   },
-  navigation: [{ label: 'Asistencia', path: '/', icon: 'Clock', layout: 'main', permissionKey: 'attendance.access' }],
+  navigation: [
+    { label: 'Resumen', path: '/', icon: 'LayoutDashboard', layout: 'main', permissionKey: 'attendance.access' },
+    { label: 'Personas', path: '/people', icon: 'Users', layout: 'main', permissionKey: 'attendance.access' },
+    { label: 'Checadas', path: '/punches', icon: 'ClipboardList', layout: 'main', permissionKey: 'attendance.access' },
+    { label: 'Kioskos', path: '/kiosks', icon: 'MonitorSmartphone', layout: 'main', permissionKey: 'attendance.access' },
+    { label: 'Reportes', path: '/reports', icon: 'BarChart3', layout: 'main', permissionKey: 'attendance.access' },
+    { label: 'Configuración', path: '/setup', icon: 'Settings', layout: 'main', permissionKey: 'attendance.access' },
+  ],
   acl: {
     module: 'attendance.access',
     actions: { read: 'attendance.view', create: 'attendance.people.manage', update: 'attendance.people.manage', delete: 'attendance.config.manage' },

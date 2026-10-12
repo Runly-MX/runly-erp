@@ -275,6 +275,13 @@ const SCREEN_MAP = {
   "runly.projects:/": lazy(
     () => import("../modules/runly.projects/screens/ProjectsScreen.jsx"),
   ),
+  // runly.attendance
+  "runly.attendance:/": lazy(() => import("../modules/runly.attendance/screens/AttendanceSummary.jsx")),
+  "runly.attendance:/people": lazy(() => import("../modules/runly.attendance/screens/AttendancePeople.jsx")),
+  "runly.attendance:/punches": lazy(() => import("../modules/runly.attendance/screens/AttendancePunches.jsx")),
+  "runly.attendance:/kiosks": lazy(() => import("../modules/runly.attendance/screens/AttendanceKiosks.jsx")),
+  "runly.attendance:/reports": lazy(() => import("../modules/runly.attendance/screens/AttendanceReports.jsx")),
+  "runly.attendance:/setup": lazy(() => import("../modules/runly.attendance/screens/AttendanceSetup.jsx")),
   "runly.canvas:/": lazy(
     () => import("../modules/runly.canvas/screens/CanvasHome.jsx"),
   ),

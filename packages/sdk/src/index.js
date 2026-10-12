@@ -6,6 +6,7 @@ import { createCallsDomain } from "./domains/calls.js";
 import { createSettingsDomain } from "./domains/settings.js";
 import { createBuilderDomain } from "./domains/builder.js";
 import { createCanvasDomain } from "./domains/canvas.js";
+import { createAttendanceDomain } from "./domains/attendance.js";
 import { createConnectionsDomain } from "./domains/connections.js";
 import { createTrashDomain } from "./domains/trash.js";
 import { createModuleCatalogDomain } from "./domains/module-catalog.js";
@@ -2081,6 +2082,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
     },
     canvas: createCanvasDomain({ request, withAuthHeaders, toQueryString }),
+    attendance: createAttendanceDomain({ request, withAuthHeaders, toQueryString }),
     connections: createConnectionsDomain({ request, withAuthHeaders, toQueryString }),
     trash: createTrashDomain({ request, withAuthHeaders, toQueryString }),
     moduleCatalog: createModuleCatalogDomain({ request, withAuthHeaders }),

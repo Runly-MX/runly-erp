@@ -199,6 +199,10 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     if (subPath === "/chat/templates") return screenMap["runly.chat:/chat/templates"] ?? null;
     return null;
   }
+  if (moduleKey === "runly.attendance") {
+    if (["/", "/people", "/punches", "/kiosks", "/reports", "/setup"].includes(subPath)) return screenMap[`runly.attendance:${subPath}`] ?? null;
+    return null;
+  }
   if (moduleKey === "runly.canvas") {
     if (subPath === "/") return screenMap["runly.canvas:/"] ?? null;
     if (/^\/[^/]+\/?$/.test(subPath)) return screenMap["runly.canvas:/:boardId"] ?? null;

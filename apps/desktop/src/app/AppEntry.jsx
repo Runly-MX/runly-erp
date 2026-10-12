@@ -48,6 +48,8 @@ const GuestCallScreen = lazy(() => import("../modules/runly.chat/calls/guest/Gue
 const EgressCallScreen = lazy(() => import("../modules/runly.chat/calls/egress/EgressCallScreen.jsx"));
 const PublicBoardScreen = lazy(() => import("../modules/runly.canvas/screens/PublicBoardScreen.jsx"));
 const PublicFileScreen = lazy(() => import("../modules/runly.files/screens/PublicFileScreen.jsx"));
+const AttendanceKioskScreen = lazy(() => import("../modules/runly.attendance/kiosk/KioskScreen.jsx"));
+const AttendancePhoneKeyScreen = lazy(() => import("../modules/runly.attendance/phone/PhoneKeyScreen.jsx"));
 import { useCallSoundUnlock } from "../modules/runly.chat/calls/useCallSoundUnlock.js";
 import "../styles.css";
 
@@ -168,6 +170,9 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     path="/app/google/calendar/callback"
                     element={<GoogleCalendarCallbackScreen />}
                   />
+                  {/* Public attendance pages (no login, no shell): offline kiosk + phone key */}
+                  <Route path="/app/kiosk/:link" element={<Suspense fallback={null}><AttendanceKioskScreen /></Suspense>} />
+                  <Route path="/app/attendance/phone" element={<Suspense fallback={null}><AttendancePhoneKeyScreen /></Suspense>} />
                   <Route path="/app/egress/call" element={<Suspense fallback={null}><EgressCallScreen /></Suspense>} />
                   {/* Public notes under /app/p/ — accessible without auth, served by same SPA */}
                   <Route path="/app/p" element={<PublicShell />}>
