@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { isNativeMobile } from "@runly/core/native-runtime";
 import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug } from "lucide-react";
 import { useThemeStore } from "../stores/theme";
 import { useChatFloatStore } from "../modules/runly.chat/store/chatFloatStore";
@@ -124,10 +125,9 @@ export function UserMenu({
   const email = userProfile?.email ?? "";
   const firstName = userProfile?.firstName ?? "Usuario";
 
-  // Show install section:
-  // - Mobile: always (unless already in standalone), show platform-appropriate UI
-  // - Windows desktop: show if reminder not dismissed
+  // Module PWA installation and the Android APK are independent actions.
   const showMobileInstall = mobileInstallMode !== null;
+  const showAndroidDownload = platform === "android" && !isNativeMobile();
   const showWindowsApp = isWindows && showReminder;
 
   return (
@@ -230,19 +230,23 @@ export function UserMenu({
                   <span className="font-medium text-[hsl(var(--foreground))]">⋮ → Añadir a pantalla de inicio</span>.
                 </p>
               )}
-
-              {platform === "android" && (
-                <a
-                  href={RUNLY_MOBILE_DOWNLOAD_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 w-full text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors pt-0.5"
-                >
-                  <Download size={11} />
-                  o descarga la app nativa (.apk)
-                </a>
-              )}
             </div>
+          </>
+        )}
+
+        {showAndroidDownload && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+              <a
+                href={RUNLY_MOBILE_DOWNLOAD_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Download size={14} />
+                Descargar Runly para Android (.apk)
+              </a>
+            </DropdownMenuItem>
           </>
         )}
 
