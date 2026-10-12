@@ -200,7 +200,7 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     return null;
   }
   if (moduleKey === "runly.attendance") {
-    if (["/", "/people", "/punches", "/kiosks", "/reports", "/setup"].includes(subPath)) return screenMap[`runly.attendance:${subPath}`] ?? null;
+    if (["/", "/people", "/punches", "/kiosks", "/requests", "/reports", "/setup"].includes(subPath)) return screenMap[`runly.attendance:${subPath}`] ?? null;
     return null;
   }
   if (moduleKey === "runly.canvas") {

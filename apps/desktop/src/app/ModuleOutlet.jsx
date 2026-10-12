@@ -280,6 +280,7 @@ const SCREEN_MAP = {
   "runly.attendance:/people": lazy(() => import("../modules/runly.attendance/screens/AttendancePeople.jsx")),
   "runly.attendance:/punches": lazy(() => import("../modules/runly.attendance/screens/AttendancePunches.jsx")),
   "runly.attendance:/kiosks": lazy(() => import("../modules/runly.attendance/screens/AttendanceKiosks.jsx")),
+  "runly.attendance:/requests": lazy(() => import("../modules/runly.attendance/screens/AttendanceRequests.jsx")),
   "runly.attendance:/reports": lazy(() => import("../modules/runly.attendance/screens/AttendanceReports.jsx")),
   "runly.attendance:/setup": lazy(() => import("../modules/runly.attendance/screens/AttendanceSetup.jsx")),
   "runly.canvas:/": lazy(
