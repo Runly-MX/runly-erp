@@ -35,7 +35,7 @@ export function EmptyState({
       <div className="space-y-1.5">
         <p className="text-sm font-semibold text-[hsl(var(--foreground))]">{title}</p>
         {description && (
-          <p className="max-w-xs text-sm text-[hsl(var(--muted-foreground))] leading-relaxed">{description}</p>
+          <p className="max-w-md text-sm text-[hsl(var(--muted-foreground))] leading-relaxed sm:max-w-lg">{description}</p>
         )}
       </div>
       {/* `action` accepts either { label, onClick } or a ready-made element

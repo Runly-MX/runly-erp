@@ -151,7 +151,7 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
                 <CircleHelp className="h-5 w-5" aria-hidden="true" />
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)]">
+            <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)] p-4">
               <div className="flex items-start gap-3">
                 {ActiveIcon ? (
                   <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', palette.icon)}>
