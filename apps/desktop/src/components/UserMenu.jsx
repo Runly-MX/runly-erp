@@ -145,6 +145,8 @@ export function UserMenu({
   const showMobileInstall = mobileInstallMode !== null;
   const showAndroidDownload = platform === "android" && !nativeMobile;
   const showWindowsApp = isWindows && showReminder;
+  // The install group above already covers the module install on mobile.
+  const showModuleInstallItem = canInstall && Boolean(activeModuleKey) && !showMobileInstall;
 
   return (
     <DropdownMenu>
@@ -226,65 +228,38 @@ export function UserMenu({
           </>
         )}
 
-        {/* ── Mobile PWA install section ── */}
-        {showMobileInstall && (
+        {/* ── Install: one compact group (PWA + Android APK) ── */}
+        {(showMobileInstall || showAndroidDownload) && (
           <>
             <DropdownMenuSeparator />
-            <div className="px-2 py-2 space-y-1.5">
-              <div className="flex items-center gap-1.5">
-                <Smartphone size={12} className="text-[hsl(var(--muted-foreground))] shrink-0" />
-                <p className="text-xs font-medium text-[hsl(var(--foreground))]">Instalar app</p>
-              </div>
-
-              {mobileInstallMode === "prompt" ? (
-                /* Android Chrome — browser offered install prompt */
-                <button
-                  type="button"
-                  onClick={onInstall}
-                  className="flex items-center gap-1.5 w-full rounded-md px-2 py-1.5 text-xs font-medium bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity"
-                >
-                  <Download size={11} />
-                  Agregar a pantalla de inicio
-                </button>
-              ) : mobileInstallMode === "prepare" ? (
-                <button
-                  type="button"
-                  onClick={onInstall}
-                  className="flex items-center gap-1.5 w-full rounded-md px-2 py-1.5 text-xs font-medium bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity"
-                >
-                  <Download size={11} />
-                  Preparar este módulo
-                </button>
-              ) : platform === "ios" ? (
-                /* iOS Safari — manual flow */
-                <p className="text-xs text-[hsl(var(--muted-foreground))] leading-snug">
-                  En Safari, toca <Share size={10} className="inline-block align-middle mx-0.5" /> y selecciona{" "}
-                  <span className="font-medium text-[hsl(var(--foreground))]">Añadir a pantalla de inicio</span>.
-                </p>
+            {showMobileInstall && (
+              mobileInstallMode === "prompt" || mobileInstallMode === "prepare" ? (
+                <DropdownMenuItem onClick={onInstall} className="gap-2 cursor-pointer">
+                  <Smartphone size={14} />
+                  {mobileInstallMode === "prepare" ? "Preparar este módulo como app" : "Instalar como app"}
+                </DropdownMenuItem>
               ) : (
-                /* Android Chrome — criteria not met yet */
-                <p className="text-xs text-[hsl(var(--muted-foreground))] leading-snug">
-                  En Chrome, toca{" "}
-                  <span className="font-medium text-[hsl(var(--foreground))]">⋮ → Añadir a pantalla de inicio</span>.
-                </p>
-              )}
-            </div>
-          </>
-        )}
-
-        {showAndroidDownload && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="gap-2 cursor-pointer">
-              <a
-                href={RUNLY_MOBILE_DOWNLOAD_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Download size={14} />
-                Descargar Runly para Android (.apk)
-              </a>
-            </DropdownMenuItem>
+                <div className="flex items-start gap-2 px-2 py-1.5">
+                  <Smartphone size={14} className="mt-0.5 shrink-0 text-[hsl(var(--muted-foreground))]" />
+                  <p className="text-xs leading-snug text-[hsl(var(--muted-foreground))]">
+                    <span className="block text-sm font-medium text-[hsl(var(--foreground))]">Instalar como app</span>
+                    {platform === "ios" ? (
+                      <>En Safari, toca <Share size={10} className="mx-0.5 inline-block align-middle" /> y luego «Añadir a pantalla de inicio».</>
+                    ) : (
+                      <>En Chrome, toca ⋮ y luego «Añadir a pantalla de inicio».</>
+                    )}
+                  </p>
+                </div>
+              )
+            )}
+            {showAndroidDownload && (
+              <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+                <a href={RUNLY_MOBILE_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
+                  <Download size={14} />
+                  Descargar app Android (.apk)
+                </a>
+              </DropdownMenuItem>
+            )}
           </>
         )}
 
@@ -344,7 +319,7 @@ export function UserMenu({
             (used to be always-on topbar icons; moved in to free up space in a
             crowded right-hand cluster that was colliding with the centered
             search bar around the lg breakpoint — see Topbar.jsx). */}
-        {(canReadChat || canReadActivity || (canInstall && activeModuleKey)) && (
+        {(canReadChat || canReadActivity || showModuleInstallItem) && (
           <>
             <DropdownMenuSeparator />
             {canReadChat && (
@@ -370,7 +345,7 @@ export function UserMenu({
                 Actividad
               </DropdownMenuItem>
             )}
-            {canInstall && activeModuleKey && (
+            {showModuleInstallItem && (
               <DropdownMenuItem
                 onClick={onInstall}
                 className="gap-2 cursor-pointer"
