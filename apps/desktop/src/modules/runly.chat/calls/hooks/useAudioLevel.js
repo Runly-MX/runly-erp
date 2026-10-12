@@ -11,6 +11,8 @@ export function useAudioLevel(mediaStreamTrack, { historySize = 48 } = {}) {
   useEffect(() => {
     if (!mediaStreamTrack || mediaStreamTrack.readyState === "ended") {
       setLevel(0);
+      historyRef.current = new Array(historySize).fill(0);
+      setHistory(historyRef.current);
       return undefined;
     }
     const AudioCtx = globalThis.AudioContext || globalThis.webkitAudioContext;
@@ -46,7 +48,7 @@ export function useAudioLevel(mediaStreamTrack, { historySize = 48 } = {}) {
       try { source?.disconnect(); } catch { /* already gone */ }
       ctx?.close?.().catch(() => {});
     };
-  }, [mediaStreamTrack]);
+  }, [mediaStreamTrack, historySize]);
 
   return { level, history };
 }
