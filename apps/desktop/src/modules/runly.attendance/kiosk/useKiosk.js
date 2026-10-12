@@ -5,6 +5,10 @@ import { kioskApi } from './lib/kiosk-api.js'
 import { kioskDb } from './lib/kiosk-db.js'
 import { deviceLabel, beep, haptic } from './lib/feedback.js'
 import { uuidv7 } from './lib/uuidv7.js'
+import { createGeoTracker, pickCoords, waitForPosition, GEO_PUNCH_WAIT_MS } from './lib/geo.js'
+import { captureSelfie, selfieSupported } from './lib/selfie.js'
+import { overflowIds } from './lib/selfie-queue.js'
+import { uploadPendingSelfies } from './lib/selfie-sync.js'
 import {
   createPinThrottle, createReplayGuard, isDuplicatePunch, latestPunch, nextDirection, normalizeUid, parsePhonePayload, verifyPhonePayload, verifyPin,
 } from './lib/punch-logic.js'
@@ -27,6 +31,9 @@ export function useKiosk(link) {
   const [authIssue, setAuthIssue] = useState(null)
   const [rejectedLog, setRejectedLog] = useState([])
   const [result, setResult] = useState(null)
+  const [pendingPhotos, setPendingPhotos] = useState(0)
+  const [geoStatus, setGeoStatus] = useState(null) // null | ok | denied | unavailable
+  const [notes, setNotes] = useState([]) // short diagnostics log (in memory)
 
   const tokenRef = useRef(null)
   const secretRef = useRef(null)
@@ -37,6 +44,28 @@ export function useKiosk(link) {
   const replay = useRef(createReplayGuard())
   const syncing = useRef(false)
   const resultTimer = useRef(null)
+  const geoRef = useRef(null)
+  const photosBusy = useRef(false)
+  const secretCleared = useRef(false)
+
+  const addNote = useCallback((text) => setNotes((list) => [{ at: new Date().toISOString(), text }, ...list].slice(0, 20)), [])
+  const refreshPhotos = useCallback(async () => {
+    setPendingPhotos((await kioskDb.listSelfies(link).catch(() => [])).length)
+  }, [link])
+
+  // Lazily created so the permission prompt only appears on the first punch.
+  const getGeo = useCallback(async () => {
+    if (geoRef.current) return geoRef.current
+    const initial = await kioskDb.getMeta(`geo:${link}`).catch(() => null)
+    geoRef.current ??= createGeoTracker({
+      initial,
+      onChange: ({ status, last }) => {
+        setGeoStatus(status)
+        if (last) kioskDb.setMeta(`geo:${link}`, last).catch(() => {})
+      },
+    })
+    return geoRef.current
+  }, [link])
 
   const refreshPending = useCallback(async () => {
     setPending((await kioskDb.listPunches(link)).length)
@@ -52,8 +81,10 @@ export function useKiosk(link) {
 
   const show = useCallback((value) => {
     clearTimeout(resultTimer.current)
-    setResult({ ...value, key: Date.now() })
+    const key = Date.now()
+    setResult({ ...value, key })
     resultTimer.current = setTimeout(() => setResult(null), RESULT_MS)
+    return key
   }, [])
   const clearResult = useCallback(() => { clearTimeout(resultTimer.current); setResult(null) }, [])
 
@@ -76,11 +107,35 @@ export function useKiosk(link) {
       applyRoster(next)
       setAuthIssue(null)
       setReachable(true)
+      // The device token is confirmed: the pairing poll secret is no longer needed.
+      if (!secretCleared.current) {
+        secretCleared.current = true
+        kioskDb.deleteMeta(`pairSecret:${link}`).catch(() => { secretCleared.current = false })
+      }
+      return true
     } catch (error) {
       if (error.status === 0) setReachable(false)
       else handleAuthError(error)
+      return false
     }
   }, [link, applyRoster, handleAuthError])
+
+  const flushSelfies = useCallback(async () => {
+    if (photosBusy.current || !tokenRef.current || !navigator.onLine) return
+    photosBusy.current = true
+    try {
+      const outboxIds = (await kioskDb.listPunches(link)).map((p) => p.id)
+      const rejectedIds = (await kioskDb.listRejected(link)).map((r) => r.id)
+      await uploadPendingSelfies({
+        store: { list: () => kioskDb.listSelfies(link), put: (row) => kioskDb.putSelfie(row), remove: (ids) => kioskDb.deleteSelfies(ids) },
+        upload: (punchId, blob) => kioskApi.uploadSelfie(link, tokenRef.current, punchId, blob),
+        outboxIds, rejectedIds, log: addNote,
+      })
+    } catch { /* retried on the next sync cycle */ } finally {
+      photosBusy.current = false
+      refreshPhotos()
+    }
+  }, [link, addNote, refreshPhotos])
 
   const syncNow = useCallback(async () => {
     if (syncing.current || !tokenRef.current || !navigator.onLine) return
@@ -90,7 +145,9 @@ export function useKiosk(link) {
       for (let round = 0; round < 20; round += 1) {
         const batch = (await kioskDb.listPunches(link)).slice(0, BATCH)
         if (!batch.length) break
-        const payload = batch.map(({ id, personId, direction, method, proof, deviceTime, offline }) => ({ id, personId, direction, method, proof, deviceTime, offline }))
+        const payload = batch.map(({ id, personId, direction, method, proof, deviceTime, offline, latitude, longitude }) => ({
+          id, personId, direction, method, proof, deviceTime, offline, ...(latitude != null && longitude != null ? { latitude, longitude } : {}),
+        }))
         const data = await kioskApi.sync(link, tokenRef.current, payload)
         setReachable(true)
         setAuthIssue(null)
@@ -114,8 +171,9 @@ export function useKiosk(link) {
       await refreshPending()
       setRejectedLog(await kioskDb.listRejected(link))
     }
+    await flushSelfies()
     if (synced) refreshRoster()
-  }, [link, refreshPending, refreshRoster, handleAuthError])
+  }, [link, refreshPending, refreshRoster, handleAuthError, flushSelfies])
 
   // ---------- pairing ----------
   const startPairing = useCallback(async () => {
@@ -123,9 +181,18 @@ export function useKiosk(link) {
     try {
       const info = await kioskApi.info(link)
       if (info.revoked) { setPhase('revoked'); return }
-      if (info.paired) { setPhase('already'); return }
+      if (info.paired) {
+        // Lost response / reload after approval: the stored secret re-fetches the token.
+        const stored = await kioskDb.getMeta(`pairSecret:${link}`).catch(() => null)
+        if (!stored) { setPhase('already'); return }
+        secretRef.current = stored
+        setPairing({ code: null, recovering: true, kioskName: info.name, expired: false })
+        setPhase('pairing')
+        return
+      }
       const data = await kioskApi.requestPair(link, deviceLabel())
       secretRef.current = data.pollSecret
+      await kioskDb.setMeta(`pairSecret:${link}`, data.pollSecret).catch(() => {})
       setPairing({ code: data.code, kioskName: data.kioskName ?? info.name, expired: false })
       setPhase('pairing')
     } catch (error) {
@@ -153,13 +220,14 @@ export function useKiosk(link) {
       }
       if (cached) applyRoster(cached)
       setPending(outbox.length)
+      refreshPhotos()
       setRejectedLog(await kioskDb.listRejected(link).catch(() => []))
       setPhase('ready')
       refreshRoster()
       syncNow()
     })()
     return () => { cancelled = true }
-  }, [link, startPairing, applyRoster, refreshRoster, syncNow])
+  }, [link, startPairing, applyRoster, refreshRoster, syncNow, refreshPhotos])
 
   useEffect(() => {
     if (phase !== 'pairing' || pairing?.expired) return undefined
@@ -171,7 +239,7 @@ export function useKiosk(link) {
         const data = await kioskApi.pairStatus(link, secretRef.current)
         if (data.status === 'paired') {
           clearInterval(id)
-          await kioskDb.setMeta(`token:${link}`, data.deviceToken) // issued only once
+          await kioskDb.setMeta(`token:${link}`, data.deviceToken)
           tokenRef.current = data.deviceToken
           setPhase('loading')
           await refreshRoster()
@@ -183,7 +251,7 @@ export function useKiosk(link) {
           setPairing((p) => (p && p.code !== data.code ? { ...p, code: data.code } : p))
         }
       } catch (error) {
-        if (error.status === 401) startPairing()
+        if (error.status === 401) { await kioskDb.deleteMeta(`pairSecret:${link}`).catch(() => {}); startPairing() }
         else if (error.status === 403) setPhase('revoked')
         else if (error.status === 409) setPhase('already')
       } finally { busy = false }
@@ -211,6 +279,26 @@ export function useKiosk(link) {
   useEffect(() => () => clearTimeout(resultTimer.current), [])
 
   // ---------- punches ----------
+  // Evidence photo after the punch is already stored; failures never affect it.
+  const takeSelfie = useCallback((punchId, key) => {
+    const endSmile = () => setResult((r) => (r && r.key === key ? { ...r, smile: false } : r))
+    captureSelfie()
+      .then(async ({ blob }) => {
+        endSmile()
+        await kioskDb.putSelfie({ punchId, link, blob, createdAt: Date.now(), attempts: 0 })
+        const extra = overflowIds(await kioskDb.listSelfies(link))
+        if (extra.length) { await kioskDb.deleteSelfies(extra); addNote(`${extra.length} foto(s) antiguas descartadas (límite de cola)`) }
+        await kioskDb.patchPunch(punchId, { selfie: 'captured' })
+        await refreshPhotos()
+        flushSelfies()
+      })
+      .catch(async () => {
+        endSmile()
+        addNote('Cámara no disponible: checada sin foto')
+        await kioskDb.patchPunch(punchId, { selfie: 'unavailable' }).catch(() => {})
+      })
+  }, [link, addNote, refreshPhotos, flushSelfies])
+
   const record = useCallback(async (person, method, proof) => {
     const now = Date.now()
     if (isDuplicatePunch(recentRef.current.get(person.id), now)) {
@@ -218,20 +306,33 @@ export function useKiosk(link) {
       show({ kind: 'info', title: 'Ya registraste tu checada', person: fullName(person), group: groupName(rosterRef.current, person), message: 'Espera unos segundos antes de volver a checar.' })
       return false
     }
+    const config = rosterRef.current?.kiosk
+    let coords = null
+    if (config?.geofence) {
+      // Started now, never allowed to hold the punch for more than ~1.5 s.
+      const tracker = await getGeo()
+      const fresh = await waitForPosition(() => tracker.request(), GEO_PUNCH_WAIT_MS)
+      coords = pickCoords(fresh, tracker.last(), now)
+    }
+    const wantsSelfie = Boolean(config?.requireSelfie)
+    const canSelfie = wantsSelfie && selfieSupported()
     const direction = nextDirection(lastRef.current.get(person.id), rosterRef.current?.kiosk?.mode ?? 'both', new Date(now))
     const punch = {
       id: uuidv7(now), link, personId: person.id, direction, method, proof: proof ?? null,
       deviceTime: new Date(now).toISOString(), offline: !navigator.onLine,
+      ...(coords ? { latitude: coords.latitude, longitude: coords.longitude } : {}),
+      ...(wantsSelfie ? { selfie: canSelfie ? 'pending' : 'unavailable' } : {}),
     }
     await kioskDb.putPunch(punch) // durable before anything else
     lastRef.current.set(person.id, { direction, occurredAt: punch.deviceTime })
     recentRef.current.set(person.id, now)
     setPending((n) => n + 1)
     beep(direction); haptic(direction === 'in' ? 40 : [30, 40, 30])
-    show({ kind: direction, title: direction === 'in' ? 'Entrada registrada' : 'Salida registrada', person: fullName(person), group: groupName(rosterRef.current, person), time: punch.deviceTime, offline: punch.offline })
+    const key = show({ kind: direction, title: direction === 'in' ? 'Entrada registrada' : 'Salida registrada', person: fullName(person), group: groupName(rosterRef.current, person), time: punch.deviceTime, offline: punch.offline, smile: canSelfie })
     syncNow()
+    if (canSelfie) takeSelfie(punch.id, key)
     return true
-  }, [link, show, syncNow])
+  }, [link, show, syncNow, getGeo, takeSelfie])
 
   const submitPin = useCallback(async (code, pin) => {
     const people = rosterRef.current?.people
@@ -286,7 +387,7 @@ export function useKiosk(link) {
   }, [phase, submitCard])
 
   return {
-    phase, pairing, roster, kiosk: roster?.kiosk ?? null, online: reachable && browserOnline, pending, authIssue, rejectedLog, result,
+    phase, pairing, roster, kiosk: roster?.kiosk ?? null, online: reachable && browserOnline, pending, authIssue, rejectedLog, result, pendingPhotos, geoStatus, notes,
     clearResult, submitPin, submitQr, submitCard, retryPairing: startPairing, syncNow,
   }
 }

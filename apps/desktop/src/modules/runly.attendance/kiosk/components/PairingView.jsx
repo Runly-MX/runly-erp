@@ -12,6 +12,14 @@ export function PairingView({ phase, pairing, onRetry }) {
   if (phase === 'loading') {
     return <div className="flex min-h-dvh items-center justify-center"><Loader2 className="size-10 animate-spin text-teal-400" aria-label="Cargando" /></div>
   }
+  if (phase === 'pairing' && pairing?.recovering) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+        <Loader2 className="size-10 animate-spin text-teal-400" aria-hidden="true" />
+        <p className="text-xl text-white">Recuperando el emparejamiento…</p>
+      </div>
+    )
+  }
   if (phase === 'pairing' && pairing) {
     return (
       <div className="mx-auto flex min-h-dvh max-w-3xl flex-col items-center justify-center gap-8 px-6 text-center">

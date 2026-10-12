@@ -1,35 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Badge, Button, ComboboxField, ConfirmDialog, DataTable, SelectField, SwitchField, TextareaField, TextField } from '@runly/ui'
+import { Badge, Button, ConfirmDialog, DataTable, SwitchField } from '@runly/ui'
 import { useCatalog, useDeleteCatalogItem, useSaveCatalogItem } from '../hooks/useAttendanceData.js'
-import { WEEKDAYS } from '../lib/attendanceLabels.js'
 import { CATALOGS, emptyForm, formFromItem, validateCatalogForm } from '../lib/catalogConfig.js'
-import { FormSheet, toOptions, useCreateAnother } from './shared.jsx'
+import CatalogFieldRenderer from './fields/CatalogFieldRenderer.jsx'
+import { FormSheet, useCreateAnother } from './shared.jsx'
 
-function CatalogField({ field, value, error, onChange, lookups }) {
-  const common = { label: field.label, required: field.required, error }
-  switch (field.type) {
-    case 'textarea':
-      return <TextareaField {...common} value={value} onChange={(e) => onChange(e.target.value)} />
-    case 'select':
-      return <SelectField {...common} options={field.options} value={value} onValueChange={onChange} />
-    case 'ref':
-      return <ComboboxField {...common} options={toOptions(lookups.rows[field.ref])} value={value} onChange={onChange} clearable placeholder="Cualquiera" />
-    case 'days':
-      return (
-        <ComboboxField
-          {...common} multiple options={WEEKDAYS} value={value} onChange={(next) => onChange([...(next ?? [])].map(Number).sort())}
-          placeholder="Todos los días" hint="Déjalo vacío para aplicar todos los días."
-        />
-      )
-    default:
-      return <TextField {...common} value={value} onChange={(e) => onChange(e.target.value)} placeholder={field.placeholder} inputMode={field.type === 'number' ? 'decimal' : undefined} />
-  }
-}
+const VIEW_MODES = ['table', 'cards']
 
 // Generic CRUD for one attendance catalog (sites, groups, categories, shifts, quotas).
-export function CatalogManager({ kind, canConfigure, lookups }) {
+export function CatalogManager({ kind, canConfigure, lookups, description }) {
   const config = CATALOGS[kind]
   const list = useCatalog(kind)
   const save = useSaveCatalogItem(kind)
@@ -69,8 +50,37 @@ export function CatalogManager({ kind, canConfigure, lookups }) {
     },
   ], [config, lookups, canConfigure])
 
+  const cellText = (col, row) => (col.render ? col.render(row, lookups) : (row[col.key] ?? '—'))
+
+  function renderCard(row) {
+    const [titleCol, ...detailCols] = config.columns
+    const inactive = row.enabled === false
+    return (
+      <div className="flex h-full flex-col gap-3 rounded-2xl surface-card p-4">
+        <div className="flex items-start justify-between gap-2">
+          <p className="min-w-0 truncate font-semibold">{cellText(titleCol, row)}</p>
+          <Badge variant={inactive ? 'secondary' : 'success'}>{inactive ? 'Inactivo' : 'Activo'}</Badge>
+        </div>
+        <dl className="space-y-1 text-sm">
+          {detailCols.map((col) => (
+            <div key={col.key} className="flex justify-between gap-3">
+              <dt className="shrink-0 text-[hsl(var(--muted-foreground))]">{col.header}</dt>
+              <dd className="min-w-0 truncate text-right">{cellText(col, row)}</dd>
+            </div>
+          ))}
+        </dl>
+        {canConfigure ? (
+          <div className="mt-auto flex justify-end gap-1">
+            <Button variant="ghost" size="sm" className="max-sm:h-11 max-sm:w-11" aria-label="Editar" onClick={() => setEditing({ open: true, item: row })}><Pencil className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="sm" className="max-sm:h-11 max-sm:w-11" aria-label="Eliminar" onClick={() => setToDelete(row)}><Trash2 className="h-4 w-4" /></Button>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   async function submit() {
-    const result = validateCatalogForm(config, form)
+    const result = validateCatalogForm(config, form, lookups)
     setErrors(result.errors)
     if (Object.keys(result.errors).length) return
     try {
@@ -103,8 +113,12 @@ export function CatalogManager({ kind, canConfigure, lookups }) {
         pageSize={15}
         searchPlaceholder={`Buscar ${config.label.toLowerCase()}…`}
         toolbarActions={canConfigure ? <Button onClick={() => setEditing({ open: true, item: null })}><Plus className="h-4 w-4" />{config.newLabel}</Button> : null}
-        emptyTitle={config.emptyTitle}
-        emptyDescription={config.emptyDescription}
+        viewModes={VIEW_MODES}
+        viewStorageKey={`attendance-catalog-${kind}`}
+        renderCard={renderCard}
+        emptyTitle={list.data?.length ? 'Sin resultados' : config.emptyTitle}
+        emptyDescription={list.data?.length ? 'Ningún registro coincide con la búsqueda.' : (description ?? config.emptyDescription)}
+        emptyAction={canConfigure && !list.data?.length ? { label: config.newLabel, onClick: () => setEditing({ open: true, item: null }) } : undefined}
       />
 
       <FormSheet
@@ -121,7 +135,7 @@ export function CatalogManager({ kind, canConfigure, lookups }) {
         )}
       >
         {config.fields.map((field) => (
-          <CatalogField key={field.key} field={field} value={form[field.key]} error={errors[field.key]} lookups={lookups} onChange={(value) => setForm((f) => ({ ...f, [field.key]: value }))} />
+          <CatalogFieldRenderer key={field.key} field={field} value={form[field.key]} error={errors[field.key]} lookups={lookups} draft={form} onChange={(value) => setForm((f) => ({ ...f, [field.key]: value }))} />
         ))}
         {editing.item ? <SwitchField label="Activo" checked={enabled} onChange={setEnabled} /> : null}
       </FormSheet>

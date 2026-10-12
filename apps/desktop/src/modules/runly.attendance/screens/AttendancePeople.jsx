@@ -1,19 +1,22 @@
+import { ExportButton } from '../components/ExportButton.jsx'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { CreditCard, DownloadCloud, FileUp, KeyRound, Link2, Pencil, Plus, Smartphone, Users } from 'lucide-react'
+import { DownloadCloud, FileUp, KeyRound, Pencil, Plus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge, Button, ConfirmDialog, DataTable, PersonAvatar } from '@runly/ui'
-import { hrExpedienteUrl, hrName } from '../components/HrLinkPanel.jsx'
+import { hrName } from '../components/HrLinkPanel.jsx'
 import { PeopleImportDialog } from '../components/import/PeopleImportDialog.jsx'
 import { PersonCredentialsSheet } from '../components/PersonCredentialsSheet.jsx'
+import { AccessChips, HrBadge, KIND_TONES, PersonCard } from '../components/PersonCard.jsx'
 import { PersonSheet } from '../components/PersonSheet.jsx'
 import { PageShell, ScreenHeader, ToneBadge } from '../components/shared.jsx'
 import { useAttendancePermissions, useImportFromHr, usePeople } from '../hooks/useAttendanceData.js'
 import { useLookups } from '../hooks/useLookups.js'
 import { KIND_LABELS, KIND_OPTIONS, fullName } from '../lib/attendanceLabels.js'
 
-const KIND_TONES = { internal: 'teal', contractor: 'amber', visitor: 'violet' }
+const VIEW_MODES = ['table', 'cards']
+const STATUS_OPTIONS = [{ value: 'active', label: 'Activo' }, { value: 'inactive', label: 'Inactivo' }]
+const HR_OPTIONS = [{ value: 'yes', label: 'Vinculada a RH' }, { value: 'no', label: 'Sin vínculo con RH' }]
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 
 export default function AttendancePeople() {
@@ -27,7 +30,10 @@ export default function AttendancePeople() {
   const [confirmImport, setConfirmImport] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
 
-  const rows = useMemo(() => people.data ?? [], [people.data])
+  // Derived fields so the toolbar filters can work on computed values.
+  const rows = useMemo(() => (people.data ?? []).map((p) => ({
+    ...p, statusKey: p.enabled === false ? 'inactive' : 'active', hrLinked: p.hr ? 'yes' : 'no',
+  })), [people.data])
   const credentialsPerson = rows.find((p) => p.id === credentialsId) ?? null
   const editingPerson = rows.find((p) => p.id === editing.personId) ?? null
 
@@ -53,32 +59,11 @@ export default function AttendancePeople() {
     { id: 'shift', header: 'Turno', accessorFn: (p) => lookups.shifts.get(p.shiftId) ?? '—' },
     {
       id: 'hr', header: 'RH', accessorFn: (p) => (p.hr ? hrName(p.hr) : ''),
-      cell: ({ row }) => {
-        const hr = row.original.hr
-        if (!hr) return <span className={MUTED}>—</span>
-        return (
-          <Link to={hrExpedienteUrl(hr.id)} title={`Abrir expediente de ${hrName(hr)}`} className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600">
-            <ToneBadge tone="teal" icon={Link2}>{hr.employeeCode || 'RH'}</ToneBadge>
-          </Link>
-        )
-      },
+      cell: ({ row }) => <HrBadge hr={row.original.hr} />,
     },
     {
       id: 'access', header: 'Acceso', enableSorting: false,
-      cell: ({ row }) => {
-        const p = row.original
-        const cards = (p.credentials ?? []).filter((c) => c.type === 'card').length
-        const phones = (p.credentials ?? []).length - cards
-        return (
-          <div className="flex flex-wrap gap-1">
-            {p.hasPin ? <ToneBadge tone="blue" icon={KeyRound}>PIN</ToneBadge> : null}
-            {cards ? <ToneBadge tone="violet" icon={CreditCard}>{cards} tarjeta{cards > 1 ? 's' : ''}</ToneBadge> : null}
-            {phones ? <ToneBadge tone="teal" icon={Smartphone}>Teléfono</ToneBadge> : null}
-            {p.enrollPending ? <ToneBadge tone="amber">Invitación pendiente</ToneBadge> : null}
-            {!p.hasPin && !(p.credentials ?? []).length && !p.enrollPending ? <span className={MUTED}>Sin credenciales</span> : null}
-          </div>
-        )
-      },
+      cell: ({ row }) => <AccessChips person={row.original} />,
     },
     {
       id: 'status', header: 'Estado', accessorFn: (p) => (p.enabled === false ? 'Inactivo' : 'Activo'),
@@ -98,7 +83,10 @@ export default function AttendancePeople() {
   const filters = useMemo(() => [
     { key: 'kind', label: 'Tipo', options: KIND_OPTIONS },
     { key: 'groupId', label: 'Grupo', options: lookups.rows.groups.map((g) => ({ value: g.id, label: g.name })) },
-  ], [lookups.rows.groups])
+    { key: 'categoryId', label: 'Categoría', options: lookups.rows.categories.map((c) => ({ value: c.id, label: c.name })) },
+    { key: 'statusKey', label: 'Estado', options: STATUS_OPTIONS },
+    { key: 'hrLinked', label: 'RH', options: HR_OPTIONS },
+  ], [lookups.rows.groups, lookups.rows.categories])
 
   async function runImport() {
     try {
@@ -120,18 +108,30 @@ export default function AttendancePeople() {
         isError={people.isError}
         onRetry={() => people.refetch()}
         pageSize={25}
+        viewModes={VIEW_MODES}
+        viewStorageKey="attendance-people"
+        renderCard={(person) => (
+          <PersonCard
+            person={person}
+            lookups={lookups}
+            canManage={canManagePeople}
+            onCredentials={setCredentialsId}
+            onEdit={(personId) => setEditing({ open: true, personId })}
+          />
+        )}
         searchPlaceholder="Buscar por nombre o código…"
         emptyIcon={Users}
         emptyTitle="Aún no hay personas"
         emptyDescription="Crea personas manualmente o impórtalas desde Recursos Humanos."
         emptyAction={canManagePeople ? { label: 'Nueva persona', onClick: () => setEditing({ open: true, personId: null }) } : undefined}
-        toolbarActions={canManagePeople ? (
+        toolbarActions={(
           <>
-            <Button variant="outline" onClick={() => setConfirmImport(true)}><DownloadCloud className="h-4 w-4" />Importar desde RH</Button>
-            <Button variant="outline" onClick={() => setImportOpen(true)}><FileUp className="h-4 w-4" />Importar</Button>
-            <Button onClick={() => setEditing({ open: true, personId: null })}><Plus className="h-4 w-4" />Nueva persona</Button>
+            <ExportButton kind="people" fileName="personas-asistencia" label="Exportar" />
+            {canManagePeople ? <Button variant="outline" onClick={() => setConfirmImport(true)}><DownloadCloud className="h-4 w-4" />Importar desde RH</Button> : null}
+            {canManagePeople ? <Button variant="outline" onClick={() => setImportOpen(true)}><FileUp className="h-4 w-4" />Importar</Button> : null}
+            {canManagePeople ? <Button onClick={() => setEditing({ open: true, personId: null })}><Plus className="h-4 w-4" />Nueva persona</Button> : null}
           </>
-        ) : null}
+        )}
       />
 
       <PersonSheet open={editing.open} onOpenChange={(open) => setEditing((e) => ({ ...e, open }))} person={editingPerson} lookups={lookups} canManage={canManagePeople} />

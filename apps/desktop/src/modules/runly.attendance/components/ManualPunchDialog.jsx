@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Button, ComboboxField, DateTimeField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-  SelectField, TextareaField,
+  SegmentedControl, TextareaField,
 } from '@runly/ui'
 import { useManualPunch } from '../hooks/useAttendanceData.js'
 import { DIRECTION_LABELS, fullName } from '../lib/attendanceLabels.js'
@@ -46,7 +46,10 @@ export function ManualPunchDialog({ open, onOpenChange, people, lookups }) {
         </DialogHeader>
         <div className="space-y-4">
           <ComboboxField label="Persona" required options={personOptions} value={form.personId} onChange={set('personId')} placeholder="Buscar persona…" error={error && !form.personId ? error : undefined} />
-          <SelectField label="Dirección" options={DIRECTIONS} value={form.direction} onValueChange={set('direction')} />
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium">Dirección</p>
+            <SegmentedControl ariaLabel="Dirección" options={DIRECTIONS} value={form.direction} onChange={set('direction')} />
+          </div>
           <DateTimeField label="Fecha y hora" value={form.occurredAt} onChange={(e) => set('occurredAt')(e.target.value)} />
           <ComboboxField label="Sitio" options={toOptions(lookups.rows.sites)} value={form.siteId} onChange={set('siteId')} clearable placeholder="Sin sitio" />
           <TextareaField label="Nota" value={form.note} onChange={(e) => set('note')(e.target.value)} placeholder="Motivo de la checada manual" />

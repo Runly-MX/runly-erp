@@ -6,7 +6,9 @@ import { cn } from '../lib/utils.js'
 // (h-9) and radius (rounded-xl). Mobile: search plus one "Filtros" button that
 // opens a bottom sheet with the filters stacked, and actions on their own row,
 // so nothing is cramped. Pass the same `filters` node for both layouts.
-export function FilterToolbar({ search, filters, actions, activeCount = 0, onClear, className }) {
+// `viewSwitch` (a ViewModeSwitch) stays on the first row at the far right on every breakpoint,
+// after the desktop actions, so it sits next to the Filtros button on mobile.
+export function FilterToolbar({ search, filters, actions, viewSwitch, activeCount = 0, onClear, className }) {
   return (
     <div className={cn('runly-toolbar-controls flex flex-col gap-2', className)}>
       <div className="flex items-center gap-2">
@@ -17,7 +19,12 @@ export function FilterToolbar({ search, filters, actions, activeCount = 0, onCle
             <div className="runly-toolbar-controls flex flex-col gap-3 [&>*]:w-full [&>button]:justify-start [&>button>svg:last-child:not(:first-child)]:ml-auto">{filters}</div>
           </MobileFiltersSheet>
         ) : null}
-        {actions ? <div className="ml-auto hidden shrink-0 items-center gap-2 md:flex">{actions}</div> : null}
+        {actions || viewSwitch ? (
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {actions ? <div className="hidden items-center gap-2 md:flex">{actions}</div> : null}
+            {viewSwitch}
+          </div>
+        ) : null}
       </div>
       {actions ? <div className="flex items-center gap-2 md:hidden [&>*]:flex-1">{actions}</div> : null}
     </div>

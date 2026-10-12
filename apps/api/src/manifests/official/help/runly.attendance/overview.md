@@ -41,6 +41,14 @@ El kiosko **funciona sin conexión**: guarda la lista de personas, registra las 
 
 Una **cuota** define el mínimo de personas de un grupo y categoría que deben estar presentes (por sitio y días). El Resumen muestra cuántos hay, cuántos faltan y quién cumple.
 
+### Evidencia y ubicación
+
+Cada sitio puede tener una **ubicación** (se busca por dirección o con "Usar mi ubicación actual") y un **radio permitido**. Si un kiosko con ese sitio envía una checada fuera del radio, se marca como "Fuera del radio" para revisión. Los kioskos que lo requieran toman una **foto** al checar; la foto se guarda como evidencia y se ve en Checadas. Si el dispositivo no da permiso de cámara o ubicación, la checada se registra igual.
+
+### Vistas, filtros y exportación
+
+Personas, Checadas, Kioskos, Configuración y Reportes se pueden ver como **tabla o tarjetas** con el interruptor junto a los filtros; tu elección se recuerda en cada pantalla. Los filtros se agrupan en un botón "Filtros" en el teléfono. Personas, Checadas y Horas se exportan a **Excel** con el botón Exportar (las fechas salen en tu hora local).
+
 ### Alcances y límites
 
 - La huella o el rostro del teléfono no identifican a nadie en el kiosko; solo pueden proteger la llave del propio teléfono (próximamente).

@@ -1,30 +1,21 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { BarChart3, Clock, Download, ShieldCheck, Users } from 'lucide-react'
-import { Badge, Button, ChipTabPanel, ChipTabs, DataTable, DatePickerField, DateRangeFilter, ErrorState, FilterToolbar, PersonAvatar, Skeleton } from '@runly/ui'
+import { BarChart3, Clock, ShieldCheck, Users } from 'lucide-react'
+import { Badge, ChipTabPanel, ChipTabs, DataTable, DatePickerField, DateRangeFilter, ErrorState, PersonAvatar, Skeleton } from '@runly/ui'
 import { PresenceChart } from '../components/PresenceChart.jsx'
-import { quotaTitle } from '../components/QuotaCards.jsx'
+import { QuotaCard, quotaTitle } from '../components/QuotaCards.jsx'
+import { ExportButton } from '../components/ExportButton.jsx'
 import { PageShell, ScreenHeader, Toolbar } from '../components/shared.jsx'
 import { useComplianceReport, useHoursReport, usePresence } from '../hooks/useAttendanceData.js'
 import { useLookups } from '../hooks/useLookups.js'
 import { usePersistedTab } from '../hooks/usePersistedTab.js'
 import { useUrlRange } from '../hooks/useUrlRange.js'
 import { toLocalIso } from '../../../lib/localDate.js'
-import { buildCsv, dayEndIso, dayStartIso, formatDateTime, fullName, minutesToHours, tallyBy } from '../lib/attendanceLabels.js'
+import { dayEndIso, dayStartIso, formatDateTime, fullName, minutesToHours, tallyBy } from '../lib/attendanceLabels.js'
 
 const dayOffset = (days) => toLocalIso(new Date(Date.now() + days * 86_400_000))
+const VIEW_MODES = ['table', 'cards']
 const RANGE_FILTER = { key: 'range', label: 'Fechas', fromKey: 'from', toKey: 'to' }
-
-function downloadCsv(filename, content) {
-  const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }))
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
-}
 
 function PersonCell({ person, size = 'sm' }) {
   return (
@@ -55,14 +46,6 @@ function HoursTab({ lookups }) {
     },
   ], [lookups.groups])
 
-  function exportCsv() {
-    const csv = buildCsv(
-      ['Código', 'Persona', 'Grupo', 'Horas', 'Minutos', 'Sesiones', 'Sesiones abiertas'],
-      rows.map((r) => [r.person?.code, fullName(r.person), lookups.groups.get(r.person?.groupId) ?? '', (r.minutes / 60).toFixed(2), Math.round(r.minutes), r.sessions, r.openSessions]),
-    )
-    downloadCsv(`horas-${range.from || 'inicio'}_${range.to || 'hoy'}.csv`, csv)
-  }
-
   return (
     <DataTable
       columns={columns}
@@ -73,6 +56,20 @@ function HoursTab({ lookups }) {
       onRetry={() => report.refetch()}
       pageSize={25}
       searchPlaceholder="Buscar persona…"
+      viewModes={VIEW_MODES}
+      viewStorageKey="attendance-report-hours"
+      renderCard={(r) => (
+        <div className="flex h-full flex-col gap-3 rounded-2xl surface-card p-4">
+          <PersonCell person={r.person} size="md" />
+          <p className="text-2xl font-bold tabular-nums">{minutesToHours(r.minutes)}</p>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]">
+            <span>{lookups.groups.get(r.person?.groupId) ?? 'Sin grupo'}</span>
+            <span aria-hidden="true">·</span>
+            <span className="tabular-nums">{r.sessions} {r.sessions === 1 ? 'sesión' : 'sesiones'}</span>
+            {r.openSessions ? <Badge variant="warning">{r.openSessions} sin salida</Badge> : null}
+          </div>
+        </div>
+      )}
       emptyIcon={BarChart3}
       emptyTitle="Sin horas en este rango"
       emptyDescription="No hay sesiones de trabajo entre estas fechas. Prueba con otro rango."
@@ -82,7 +79,7 @@ function HoursTab({ lookups }) {
           {report.data ? <span className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-3 text-sm text-[hsl(var(--muted-foreground))] sm:h-9">Total <span className="font-semibold tabular-nums text-[hsl(var(--foreground))]">{minutesToHours(report.data.totalMinutes)}</span></span> : null}
         </>
       )}
-      toolbarActions={<Button onClick={exportCsv} disabled={!rows.length}><Download className="h-4 w-4" />Exportar CSV</Button>}
+      toolbarActions={<ExportButton kind="hours" query={query} fileName={`horas-${range.from || 'inicio'}_${range.to || 'hoy'}`} variant="default" disabled={!rows.length} />}
     />
   )
 }
@@ -118,23 +115,23 @@ function ComplianceTab({ lookups }) {
   ], [lookups])
 
   return (
-    <div className="space-y-4">
-      <FilterToolbar filters={<DatePickerField className="w-full sm:w-52" value={day} onChange={setDay} />} />
-      <p className="text-sm text-[hsl(var(--muted-foreground))]">Compara las personas presentes contra el mínimo de cada cuota en el día elegido.</p>
-      <DataTable
-        columns={columns}
-        data={report.data?.rows ?? []}
-        getRowId={(r) => r.quotaId}
-        isLoading={report.isLoading}
-        isError={report.isError}
-        onRetry={() => report.refetch()}
-        showToolbar={false}
-        showPagination={false}
-        emptyIcon={BarChart3}
-        emptyTitle="Sin cuotas"
-        emptyDescription="Configura cuotas en Configuración para medir el cumplimiento."
-      />
-    </div>
+    <DataTable
+      columns={columns}
+      data={report.data?.rows ?? []}
+      getRowId={(r) => r.quotaId}
+      isLoading={report.isLoading}
+      isError={report.isError}
+      onRetry={() => report.refetch()}
+      pageSize={25}
+      searchPlaceholder="Buscar cuota…"
+      toolbarStart={<DatePickerField className="w-full sm:w-52" value={day} onChange={setDay} />}
+      viewModes={VIEW_MODES}
+      viewStorageKey="attendance-report-compliance"
+      renderCard={(row) => <QuotaCard row={row} lookups={lookups} />}
+      emptyIcon={BarChart3}
+      emptyTitle="Sin cuotas"
+      emptyDescription="Configura cuotas en Configuración para medir el cumplimiento."
+    />
   )
 }
 

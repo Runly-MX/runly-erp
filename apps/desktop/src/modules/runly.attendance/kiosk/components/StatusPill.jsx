@@ -16,7 +16,7 @@ export function StatusPill({ online, pending, onClick }) {
   )
 }
 
-export function DiagnosticsSheet({ open, onOpenChange, kiosk, online, pending, rejected, onSync }) {
+export function DiagnosticsSheet({ open, onOpenChange, kiosk, online, pending, rejected, onSync, photos = 0, geoStatus = null, notes = [] }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="!bg-slate-900 !text-slate-100 border-slate-700 overflow-y-auto">
@@ -26,7 +26,15 @@ export function DiagnosticsSheet({ open, onOpenChange, kiosk, online, pending, r
         </SheetHeader>
         <div className="space-y-4">
           <p className="text-sm">Checadas pendientes de enviar: <strong>{pending}</strong></p>
+          {(kiosk?.requireSelfie || photos > 0) && <p className="text-sm">{photos} fotos pendientes de enviar</p>}
+          {kiosk?.geofence && geoStatus === 'denied' && <p className="text-xs text-slate-400">Ubicación no permitida en este dispositivo: las checadas se envían sin coordenadas.</p>}
+          {kiosk?.geofence && geoStatus === 'unavailable' && <p className="text-xs text-slate-400">Ubicación no disponible: las checadas se envían sin coordenadas.</p>}
           <Button className="bg-teal-600 text-white hover:bg-teal-500" onClick={onSync}><RefreshCw /> Sincronizar ahora</Button>
+          {notes.length > 0 && (
+            <ul className="space-y-1 text-xs text-slate-400">
+              {notes.map((n, i) => <li key={`${n.at}-${i}`}>{new Date(n.at).toLocaleTimeString('es-MX')} · {n.text}</li>)}
+            </ul>
+          )}
           <div>
             <p className="mb-2 text-sm font-medium text-slate-300">Checadas rechazadas por el servidor</p>
             {rejected.length === 0 ? (

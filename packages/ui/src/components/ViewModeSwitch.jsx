@@ -3,7 +3,7 @@ import { cn } from "../lib/utils.js";
 
 const VIEW_META = {
   table: { Icon: Rows3, label: "Tabla" },
-  cards: { Icon: LayoutList, label: "Cards" },
+  cards: { Icon: LayoutList, label: "Tarjetas" },
   grid: { Icon: Grid3X3, label: "Cuadrícula" },
   timeline: { Icon: Activity, label: "Línea de tiempo" },
 };
@@ -28,7 +28,7 @@ export function ViewModeSwitch({
   }
 
   return (
-    <div className="inline-flex rounded-xl border border-[hsl(var(--border))] overflow-hidden shrink-0">
+    <div className="inline-flex rounded-xl border border-[hsl(var(--border))] bg-card overflow-hidden shrink-0">
       {modes.map((mode) => {
         const meta = VIEW_META[mode];
         if (!meta) return null;
@@ -43,7 +43,7 @@ export function ViewModeSwitch({
             aria-label={label}
             aria-pressed={active}
             className={cn(
-              "h-9 w-9 flex items-center justify-center transition-colors duration-150",
+              "h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center transition-colors duration-150",
               active
                 ? "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]"
                 : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]/60 hover:text-[hsl(var(--foreground))]",

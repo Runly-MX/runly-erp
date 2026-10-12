@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { CircleHelp } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from './Popover.jsx'
 import { cn } from '../lib/utils.js'
 
-// Colored chip tabs with a sliding indicator and a description banner.
+// Colored chip tabs with a sliding indicator and a description popover.
 // Controlled: pass `value` / `onChange`. Pair with <ChipTabPanel> for content.
 
 const TONES = {
@@ -27,7 +29,7 @@ function useEntered(key) {
   return entered
 }
 
-export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel, showDescription = true, className }) {
+export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel, showDescription = true, descriptionMode = 'popover', className }) {
   const baseId = useId()
   const palette = TONES[tone] ?? TONES.brand
   const listRef = useRef(null)
@@ -80,11 +82,15 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
 
   const bannerEntered = useEntered(activeValue)
   const ActiveIcon = activeTab?.icon
+  // showDescription={false} (legacy) means no description at all.
+  const mode = showDescription === false ? 'none' : descriptionMode
+  const hasDescription = Boolean(activeTab?.description)
 
   return (
     <PanelContext.Provider value={{ baseId }}>
       <div className={cn('min-w-0', className)}>
-        <div className="-mx-1 overflow-x-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex items-center gap-1">
+        <div className="-mx-1 min-w-0 overflow-x-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div
             ref={listRef}
             role="tablist"
@@ -133,8 +139,36 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
             })}
           </div>
         </div>
+        {mode === 'popover' && hasDescription ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Qué es esto"
+                title="Qué es esto"
+                className={cn('inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[hsl(var(--muted-foreground))] outline-none transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] focus-visible:ring-2 focus-visible:ring-offset-1 sm:h-9 sm:w-9', palette.focus)}
+              >
+                <CircleHelp className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)]">
+              <div className="flex items-start gap-3">
+                {ActiveIcon ? (
+                  <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', palette.icon)}>
+                    <ActiveIcon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                ) : null}
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[hsl(var(--foreground))]">{activeTab.label}</p>
+                  <p className="text-sm leading-relaxed text-[hsl(var(--muted-foreground))]">{activeTab.description}</p>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        ) : null}
+        </div>
 
-        {showDescription && activeTab?.description ? (
+        {mode === 'banner' && hasDescription ? (
           <div
             key={activeValue}
             className={cn(

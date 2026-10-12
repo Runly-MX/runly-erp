@@ -9,13 +9,13 @@ export class KioskApiError extends Error {
   }
 }
 
-async function call(path, { method = 'GET', headers = {}, body } = {}) {
+async function call(path, { method = 'GET', headers = {}, body, form } = {}) {
   let response
   try {
     response = await fetch(`${getApiUrl()}/public/attendance/${path}`, {
       method,
       headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers },
-      body: body ? JSON.stringify(body) : undefined,
+      body: form ?? (body ? JSON.stringify(body) : undefined),
     })
   } catch {
     throw new KioskApiError('Sin conexión', 0, 'NETWORK')
@@ -34,5 +34,11 @@ export const kioskApi = {
   pairStatus: (link, secret) => call(`${base(link)}/pair-status`, { headers: { 'x-pair-secret': secret } }),
   roster: (link, token) => call(`${base(link)}/roster`, { headers: auth(token) }),
   sync: (link, token, punches) => call(`${base(link)}/sync`, { method: 'POST', headers: auth(token), body: { deviceNow: new Date().toISOString(), punches } }),
+  // Multipart evidence photo for a punch that is already on the server.
+  uploadSelfie: (link, token, punchId, blob) => {
+    const form = new FormData()
+    form.append('file', blob, 'selfie.jpg')
+    return call(`${base(link)}/punches/${encodeURIComponent(punchId)}/selfie`, { method: 'POST', headers: auth(token), form })
+  },
   enroll: (payload) => call('enroll', { method: 'POST', body: payload }),
 }

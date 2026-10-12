@@ -9,3 +9,5 @@ summary: Padrón de personas que checan: códigos, PIN, tarjetas, llave de telé
 - **Credenciales** (icono de llave): asigna una tarjeta NFC, revoca credenciales y genera la **invitación de llave de teléfono** (código de 10 caracteres y enlace con QR, vigente 48 horas).
 - **Vínculo con RH**: al editar una persona puedes ver, cambiar o quitar el vínculo. En el expediente de RH aparece la sección Asistencia.
 - Filtra por tipo, grupo o texto. Una persona inactiva deja de aparecer en los kioskos.
+
+El formulario te ahorra escribir: sugiere el siguiente código libre, genera un PIN de 4 dígitos con un botón (se muestra una vez para que se lo des a la persona) y elige el tipo según el grupo. **Exportar** descarga el padrón en Excel, y puedes alternar **tabla o tarjetas**.

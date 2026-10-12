@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -17,7 +17,13 @@ import { FilterBar } from './FilterBar.jsx'
 import { EmptyState } from './EmptyState.jsx'
 import { ErrorState } from './ErrorState.jsx'
 import { PageFooter } from './PageFooter.jsx'
+import { ViewModeSwitch, getStoredViewMode } from './ViewModeSwitch.jsx'
 import { cn } from '../lib/utils.js'
+
+const GRID_CLASSES = {
+  cards: 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3',
+  grid: 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4',
+}
 
 export function DataTable({
   columns,
@@ -40,12 +46,31 @@ export function DataTable({
   showPagination = true,
   toolbarStart,
   toolbarActions,
+  viewModes,
+  viewMode: controlledViewMode,
+  onViewModeChange,
+  viewStorageKey,
+  defaultViewMode,
+  renderCard,
+  cardGridClassName,
 }) {
   const EMPTY_ROWS = useMemo(() => [], [])
   const [sorting, setSorting] = useState([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [filterValues, setFilterValues] = useState({})
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: initialPageSize })
+
+  // Optional Tabla / Tarjetas toggle. Controlled via viewMode + onViewModeChange, otherwise
+  // uncontrolled and persisted under viewStorageKey. Only active when renderCard is provided.
+  const switchModes = renderCard && viewModes?.length > 1 ? viewModes : null
+  const [storedViewMode, setStoredViewMode] = useState(() => getStoredViewMode(viewStorageKey, defaultViewMode ?? viewModes?.[0] ?? 'table'))
+  const requestedMode = controlledViewMode ?? storedViewMode
+  const currentViewMode = switchModes ? (switchModes.includes(requestedMode) ? requestedMode : (defaultViewMode ?? switchModes[0])) : 'table'
+  const cardsActive = currentViewMode !== 'table'
+  const changeViewMode = (mode) => {
+    if (controlledViewMode === undefined) setStoredViewMode(mode)
+    onViewModeChange?.(mode)
+  }
 
   const filteredData = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) return EMPTY_ROWS
@@ -113,9 +138,25 @@ export function DataTable({
           activeCount={Object.values(filterValues ?? {}).filter(Boolean).length}
           onClear={() => { setFilterValues({}); setPagination((p) => ({ ...p, pageIndex: 0 })) }}
           actions={toolbarActions}
+          viewSwitch={switchModes ? <ViewModeSwitch modes={switchModes} value={currentViewMode} onChange={changeViewMode} storageKey={viewStorageKey} /> : null}
         />
       )}
 
+      {cardsActive ? (
+        isLoading ? (
+          <div className={cn('grid gap-4', cardGridClassName ?? GRID_CLASSES[currentViewMode] ?? GRID_CLASSES.cards)}>
+            {Array.from({ length: Math.min(pagination.pageSize, 6) }).map((_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}
+          </div>
+        ) : isError ? (
+          <ErrorState title="Error al cargar los datos" description="No se pudieron obtener los registros." onRetry={onRetry} />
+        ) : rows.length === 0 ? (
+          <EmptyState icon={emptyIcon ?? FileSearch} title={emptyTitle} description={emptyDescription} action={emptyAction} />
+        ) : (
+          <div className={cn('grid gap-4', cardGridClassName ?? GRID_CLASSES[currentViewMode] ?? GRID_CLASSES.cards)}>
+            {rows.map((row) => <Fragment key={row.id}>{renderCard(row.original, row)}</Fragment>)}
+          </div>
+        )
+      ) : (
       <div className="rounded-2xl surface-card overflow-clip">
         <Table>
           <TableHeader>
@@ -196,6 +237,7 @@ export function DataTable({
           </TableBody>
         </Table>
       </div>
+      )}
 
       {showPagination && <PageFooter
         total={table.getFilteredRowModel().rows.length}

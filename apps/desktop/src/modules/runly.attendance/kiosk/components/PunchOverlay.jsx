@@ -55,7 +55,8 @@ export function PunchOverlay({ result, onDismiss, durationMs = 4000 }) {
         {result.group && <p className="mt-1 text-[clamp(1rem,2.8vmin,1.5rem)] text-slate-300">{result.group}</p>}
         {time && <p className="mt-4 text-[clamp(1.4rem,4vmin,2.4rem)] font-light tabular-nums text-white/90">{time}</p>}
         {result.message && <p className="mt-3 text-[clamp(1rem,2.6vmin,1.4rem)] text-slate-200">{result.message}</p>}
-        {result.offline && <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm text-slate-200"><CloudOff className="size-4" /> Sin conexión: se enviará al reconectar</p>}
+        {result.smile && <p className="mt-4 animate-pulse text-[clamp(1.2rem,3.4vmin,2rem)] font-medium text-white">Sonríe a la cámara</p>}
+        {result.offline &&<p className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm text-slate-200"><CloudOff className="size-4" /> Sin conexión: se enviará al reconectar</p>}
       </div>
       <div className="absolute inset-x-0 bottom-0 h-1.5 bg-white/10">
         <div className={`h-full ${tone.bar}`} style={{ width: drawn ? '0%' : '100%', transition: `width ${durationMs}ms linear` }} />

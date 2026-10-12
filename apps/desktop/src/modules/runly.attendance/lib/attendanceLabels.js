@@ -6,11 +6,12 @@ export const FLAG_LABELS = {
   sequence: 'Secuencia irregular',
   proof_failed: 'Identidad no verificada',
   replay: 'QR reutilizado',
+  outside_geofence: 'Fuera del radio',
   manual: 'Manual',
 }
 
 // Flags that merit attention (red); the rest are informative.
-const SEVERE_FLAGS = new Set(['proof_failed', 'replay', 'clock_skew'])
+const SEVERE_FLAGS = new Set(['proof_failed', 'replay', 'clock_skew', 'outside_geofence'])
 
 export const flagLabel = (flag) => FLAG_LABELS[flag] ?? String(flag)
 export const flagVariant = (flag) => (SEVERE_FLAGS.has(flag) ? 'destructive' : flag === 'manual' || flag === 'offline' ? 'secondary' : 'warning')

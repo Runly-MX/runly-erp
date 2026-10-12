@@ -9,3 +9,7 @@ Las **marcas** explican por qué una checada pide revisión: Reloj desfasado (la
 
 - **Checada manual**: para olvidos; queda registrada como manual.
 - **Anular**: la checada se conserva pero deja de contar en horas y presencia. Pide confirmación.
+
+- **Foto**: si el kiosko toma foto al checar, aparece una miniatura en la columna de marcas; tócala para verla grande.
+- **Fuera del radio**: la checada llegó con coordenadas fuera del radio del sitio.
+- **Exportar** descarga las checadas filtradas en Excel. Cambia entre **tabla y tarjetas** con el interruptor de la barra.

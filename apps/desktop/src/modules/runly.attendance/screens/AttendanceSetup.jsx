@@ -42,7 +42,7 @@ export default function AttendanceSetup() {
       <ChipTabs tabs={TABS} value={tab} onChange={setTab} ariaLabel="Catálogos de configuración" />
       {CATALOG_ORDER.map((kind) => (
         <ChipTabPanel key={kind} value={kind} active={tab === kind}>
-          <CatalogManager kind={kind} canConfigure={canConfigure} lookups={lookups} />
+          <CatalogManager kind={kind} canConfigure={canConfigure} lookups={lookups} description={TAB_META[kind]?.description} />
         </ChipTabPanel>
       ))}
     </PageShell>

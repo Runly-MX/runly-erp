@@ -131,6 +131,9 @@ export default function KioskScreen() {
         pending={kiosk.pending}
         rejected={kiosk.rejectedLog}
         onSync={kiosk.syncNow}
+        photos={kiosk.pendingPhotos}
+        geoStatus={kiosk.geoStatus}
+        notes={kiosk.notes}
       />
     </div>
   )

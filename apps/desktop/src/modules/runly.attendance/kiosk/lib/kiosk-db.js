@@ -5,11 +5,13 @@ import { openDatabase, requestResult, runStore } from './idb.js'
 
 let dbPromise = null
 function db() {
-  dbPromise ??= openDatabase('runly-attendance-kiosk', 1, (d) => {
-    d.createObjectStore('meta', { keyPath: 'key' })
-    d.createObjectStore('roster', { keyPath: 'link' })
-    d.createObjectStore('outbox', { keyPath: 'id' }).createIndex('link', 'link')
-    d.createObjectStore('rejected', { autoIncrement: true }).createIndex('link', 'link')
+  dbPromise ??= openDatabase('runly-attendance-kiosk', 2, (d) => {
+    // Idempotent: v1 -> v2 only adds the selfies store and keeps existing data.
+    if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'key' })
+    if (!d.objectStoreNames.contains('roster')) d.createObjectStore('roster', { keyPath: 'link' })
+    if (!d.objectStoreNames.contains('outbox')) d.createObjectStore('outbox', { keyPath: 'id' }).createIndex('link', 'link')
+    if (!d.objectStoreNames.contains('rejected')) d.createObjectStore('rejected', { autoIncrement: true }).createIndex('link', 'link')
+    if (!d.objectStoreNames.contains('selfies')) d.createObjectStore('selfies', { keyPath: 'punchId' }).createIndex('link', 'link')
   })
   return dbPromise
 }
@@ -46,6 +48,19 @@ export const kioskDb = {
     const d = await db()
     await runStore(d, 'outbox', 'readwrite', (s) => { s.put(punch) })
   },
+  // Patches a punch only if it is still in the outbox (never resurrects a synced one).
+  async patchPunch(id, patch) {
+    const d = await db()
+    await new Promise((resolve, reject) => {
+      const tx = d.transaction('outbox', 'readwrite')
+      const store = tx.objectStore('outbox')
+      const get = store.get(id)
+      get.onsuccess = () => { if (get.result) store.put({ ...get.result, ...patch }) }
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+      tx.onabort = () => reject(tx.error)
+    })
+  },
   async deletePunches(ids) {
     if (!ids.length) return
     const d = await db()
@@ -54,6 +69,20 @@ export const kioskDb = {
   async listPunches(link) {
     const rows = await getAllByLink('outbox', link)
     return rows.sort((a, b) => String(a.deviceTime).localeCompare(String(b.deviceTime)))
+  },
+  // Evidence photos waiting for their punch to sync: { punchId, link, blob, createdAt, attempts }.
+  async putSelfie(row) {
+    const d = await db()
+    await runStore(d, 'selfies', 'readwrite', (s) => { s.put(row) })
+  },
+  async listSelfies(link) {
+    const rows = await getAllByLink('selfies', link)
+    return rows.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))
+  },
+  async deleteSelfies(ids) {
+    if (!ids.length) return
+    const d = await db()
+    await runStore(d, 'selfies', 'readwrite', (s) => { for (const id of ids) s.delete(id) })
   },
   async addRejected(link, entries) {
     if (!entries.length) return

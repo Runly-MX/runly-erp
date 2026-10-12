@@ -22,3 +22,13 @@ Spec: `docs/superpowers/specs/2026-10-11-attendance-design.md`. Each block is co
 - [x] People import with template and column mapping (generic `ColumnMappingStep` in @runly/ui). Verified: 2026-10-12 (API: parse, preview, commit, template round trip; Playwright: mapping step with detected columns)
 - [x] Layout pass over all screens; no horizontal overflow at 390px. Verified: 2026-10-12
 - [x] Help views per screen, MirAI person-status tool, module notes in `docs/ai-context/attendance-module.md`
+
+## Round 3 (write less, views, pending items), 2026-10-12
+- [x] Site form: timezone dropdown, single "Dirección o lugar" search that fixes the point (geocode proxy), "usar mi ubicación", radius presets. Verified: 2026-10-12 (Playwright: site saved with timezone, coordinates and a 200 m radius)
+- [x] Shift/quota/person/kiosk forms with pickers, chips, steppers, suggested names/codes, PIN generator
+- [x] Table/cards switch (DataTable `renderCard`, `viewModes`) on people, punches, kiosks, catalogs, reports; kiosk filters; "?" popover instead of the always-on banner. Verified: 2026-10-12 (Playwright)
+- [x] Geofence: server flags `outside_geofence`; kiosk sends coordinates. Verified: 2026-10-12 (API script and Playwright with a mocked position)
+- [x] Selfie evidence: kiosk captures, uploads after sync, admin sees thumbnail. Verified: 2026-10-12 (Playwright with Chromium's fake camera: punch carries a signed selfie URL)
+- [x] xlsx exports (people, punches, hours). Verified: 2026-10-12 (API script; Playwright downloads an .xlsx from each screen)
+- [x] Pairing hand-off recovery (device token re-fetchable until the first authenticated call). Verified: 2026-10-12 (API script)
+- [ ] Still pending: Android HCE / BiometricPrompt / lock-task (needs APK build), BLE, optional face match, real-device checks (camera QR, Web NFC, geolocation prompt on phones)

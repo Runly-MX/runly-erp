@@ -323,15 +323,16 @@ Contenido de una pestaña.
 
 ### ChipTabs y ChipTabPanel
 
-Pestañas controladas en forma de chips de color con indicador deslizante y, opcionalmente, un recuadro con la explicación de la pestaña activa. Úsalas cuando quieras controlar la pestaña (por ejemplo, guardarla en la URL).
+Pestañas controladas en forma de chips de color con indicador deslizante y, opcionalmente, la explicación de la pestaña activa (por defecto en un botón "?" que abre un popover). Úsalas cuando quieras controlar la pestaña (por ejemplo, guardarla en la URL).
 
 | Prop (`ChipTabs`) | Tipo | Qué hace |
 |---|---|---|
-| `tabs` | `[{ value, label, icon, description, badge }]` | Pestañas; `description` se muestra bajo los chips, `badge` es un contador |
+| `tabs` | `[{ value, label, icon, description, badge }]` | Pestañas; `description` se muestra según `descriptionMode`, `badge` es un contador |
 | `value` / `onChange` | string / `(value) => void` | Pestaña activa y cambio |
 | `tone` | `teal` (por defecto), `blue`, `violet`, `amber`, `rose` | Color |
 | `ariaLabel` | string | Etiqueta accesible |
-| `showDescription` | boolean | `false` oculta el recuadro de descripción |
+| `descriptionMode` | `popover` (por defecto), `banner`, `none` | `popover`: botón "?" al final de los chips con icono, título y descripción; `banner`: recuadro siempre visible bajo los chips |
+| `showDescription` | boolean | `false` equivale a `descriptionMode="none"` (compatibilidad) |
 
 ```jsx
 import { ChipTabs, ChipTabPanel } from '@runly/ui'
@@ -517,6 +518,13 @@ Tabla con orden, búsqueda, filtros y paginación (TanStack Table).
 | `emptyTitle`, `emptyDescription`, `emptyIcon`, `emptyAction` | | Estado vacío |
 | `pageSize` | number | Filas por página (10) |
 | `getRowId` | `(row) => id` | Id estable de cada fila |
+| `viewModes` | `['table','cards']` (o con `'grid'`) | Activa el conmutador Tabla / Tarjetas en la barra (junto al botón Filtros en móvil). Requiere `renderCard`. Sin esta prop la tabla se comporta igual que siempre |
+| `renderCard` | `(row, tableRow) => nodo` | Tarjeta de cada fila; con el modo tarjetas se aplican la misma búsqueda, filtros, paginación y estados vacío/error/carga |
+| `viewMode` / `onViewModeChange` | string / `(mode) => void` | Modo controlado |
+| `viewStorageKey`, `defaultViewMode` | string | Modo no controlado: se guarda en localStorage con esa clave; `defaultViewMode` es el inicial (el primero de `viewModes` si se omite) |
+| `cardGridClassName` | string | Clases de la cuadrícula de tarjetas (por defecto 1/2/3 columnas) |
+
+Los filtros de `filters` comparan `String(row[key])` con la opción elegida, o usan `match(row, value)` si lo defines; para valores calculados agrega campos derivados a los datos que pasas.
 
 ```jsx
 const columns = [
