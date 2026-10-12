@@ -58,5 +58,5 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_haptics::init());
     builder
         .run(tauri::generate_context!())
-        .expect("error while running Runly ERP");
+        .expect("error while running Runly");
 }

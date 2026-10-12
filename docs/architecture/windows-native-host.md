@@ -1,9 +1,27 @@
 # Runly para Windows
 
-El instalador NSIS 0.3.0 instala para el usuario actual, en español, y descarga
+El instalador NSIS 0.3.1 instala para el usuario actual, en español, y descarga
 WebView2 si falta. La pantalla inicial se incluye en el instalador y comparte
 el administrador de instancias con Android. Windows añade un diseño de dos
 paneles y controles propios del dispositivo.
+
+El nombre visible de la aplicación, el instalador y los accesos directos es
+**Runly**. El identificador nativo y los nombres canónicos de descarga se conservan.
+El instalador migra la instalación por usuario anteriormente llamada Runly ERP
+mediante su desinstalador en modo `/UPDATE`, que conserva los datos de la app.
+Retira únicamente los accesos directos que apuntan a ese ejecutable anterior.
+
+## Actualizar la distribución
+
+`pnpm docker:release` publica las imágenes del servidor; no actualiza las
+instancias ni genera instaladores de Windows o APK. En la carpeta de una
+instancia existente, ejecutar `bash ./update-local.sh` o
+`bash ./update-external.sh`, según su modalidad. Estos scripts refrescan los
+archivos del instalador, descargan las imágenes, ejecutan migraciones y recrean
+los contenedores. Después basta volver a abrir Runly para cargar la web nueva.
+
+Un cambio del host nativo, como el nombre visible, requiere descargar y ejecutar
+el instalador publicado. Actualmente no hay actualizador automático de Windows.
 
 La URL corresponde al frontend público HTTPS, por ejemplo
 `https://runly.example.com`, sin rutas ni credenciales. El host verifica `/app/`

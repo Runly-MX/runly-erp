@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Runly ERP",
-  "version": "0.3.0",
+  "productName": "Runly",
+  "version": "0.3.1",
   "identifier": "com.racoondevs.runlyerp",
   "build": {
     "beforeDevCommand": "pnpm dev:host",
@@ -31,10 +31,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "shortDescription": "Runly ERP para Windows",
+    "shortDescription": "Runly para Windows",
     "category": "Business",
     "windows": {
       "nsis": {
+        "installerHooks": "windows/installer-hooks.nsh",
         "installMode": "currentUser",
         "languages": [
           "Spanish"
