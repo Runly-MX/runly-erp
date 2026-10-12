@@ -47,10 +47,10 @@ export function buildTimeOptions(step = 15, current) {
   const options = []
   for (let min = 0; min < 24 * 60; min += step) {
     const value = `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`
-    options.push({ value, label: formatTime12(value), keywords: value })
+    options.push({ value, label: value, keywords: value })
   }
   if (current && /^\d{2}:\d{2}$/.test(current) && !options.some((o) => o.value === current)) {
-    options.push({ value: current, label: formatTime12(current), keywords: current })
+    options.push({ value: current, label: current, keywords: current })
     options.sort((a, b) => a.value.localeCompare(b.value))
   }
   return options

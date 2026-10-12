@@ -72,7 +72,7 @@ export default function PhoneKeyScreen() {
   ) : null
 
   return (
-    <div className="min-h-dvh bg-slate-950 bg-[radial-gradient(ellipse_at_top,rgba(13,148,136,0.22),transparent_60%)] text-slate-50">
+    <div className="fixed inset-0 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch] bg-slate-950 bg-[radial-gradient(ellipse_at_top,rgba(13,148,136,0.22),transparent_60%)] text-slate-50">
       {subView ? (
         <>
           <AppBar title={VIEW_TITLES[subView]} onBack={back} action={refreshAction} />

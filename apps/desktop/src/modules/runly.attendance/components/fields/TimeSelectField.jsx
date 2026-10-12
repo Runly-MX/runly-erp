@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { ComboboxField } from '@runly/ui'
 import { buildTimeOptions } from '../../lib/formHelpers.js'
 
-// "HH:MM" picked from a 15-minute dropdown (12h labels, searchable by 24h text).
+// "HH:MM" picked from a 15-minute dropdown in 24-hour format (00:00 - 23:45), in order.
 export function TimeSelectField({ label, value, onChange, error, required, step = 15, hint }) {
   const options = useMemo(() => buildTimeOptions(step, value), [step, value])
   return (

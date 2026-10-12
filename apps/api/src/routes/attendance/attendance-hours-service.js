@@ -1,10 +1,29 @@
 // Daily hours, overtime review and forgotten-punch corrections (admin + self-service).
 import { AttendanceError, buildSessions } from './attendance-core.js'
-import { addDays, computeDays, daysBetween, localParts, totalsOf } from './attendance-days.js'
+import { addDays, computeDays, daysBetween, localParts, planForDay, totalsOf } from './attendance-days.js'
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/
 const MAX_RANGE_DAYS = 93
 const text = (v, max = 300) => (v == null ? null : String(v).trim().slice(0, max) || null)
+
+// Where the person is relative to their shift right now (company timezone):
+// on_shift | before_shift | after_shift | rest_day | no_shift, plus today's plan and the next start.
+export function shiftStatus(shift, tz, now = new Date()) {
+  if (!shift) return { state: 'no_shift' }
+  const here = localParts(now, tz)
+  const plan = planForDay(shift, here.weekday)
+  if (!plan) {
+    for (let i = 1; i <= 7; i += 1) {
+      const next = planForDay(shift, (here.weekday + i) % 7)
+      if (next) return { state: 'rest_day', nextDay: addDays(here.day, i), nextStart: next.start, nextEnd: next.end }
+    }
+    return { state: 'rest_day' }
+  }
+  const base = { start: plan.start, end: plan.end, expectedMinutes: plan.expectedMinutes }
+  if (here.minutes < plan.startMin) return { state: 'before_shift', ...base, minutesToStart: plan.startMin - here.minutes }
+  if (here.minutes >= plan.endMin) return { state: 'after_shift', ...base }
+  return { state: 'on_shift', ...base, minutesLeft: plan.endMin - here.minutes }
+}
 
 export function createAttendanceHours({ prisma, getSettings }) {
   function parseRange(q = {}, tz) {
@@ -128,10 +147,12 @@ export function createAttendanceHours({ prisma, getSettings }) {
       prisma.attCorrection.findMany({ where: { personId }, orderBy: { requestedAt: 'desc' }, take: 5, select: { id: true, direction: true, occurredAt: true, status: true, reason: true, resolutionNote: true, requestedAt: true } }),
     ])
     const lastPunch = recent[0] ?? null
+    const shiftNow = shiftStatus(shift, settings.timezone)
     const slim = (d) => ({ day: d.day, weekday: d.weekday, workedMinutes: d.workedMinutes, expectedMinutes: d.expectedMinutes, overtimeMinutes: d.overtimeMinutes, countedOvertimeMinutes: d.countedOvertimeMinutes, overtimeStatus: d.overtimeStatus, lateMinutes: d.lateMinutes, earlyLeaveMinutes: d.earlyLeaveMinutes, absent: d.absent, restDay: d.restDay, openSession: d.openSession, firstIn: d.firstIn, lastOut: d.lastOut })
     return {
       timezone: settings.timezone, today, allowCorrections: settings.allowCorrections, requireOvertimeApproval: settings.requireOvertimeApproval,
-      shift: shift ? { name: shift.name, dayHours: shift.dayHours ?? null, startTime: shift.startTime, endTime: shift.endTime, days: shift.days } : null,
+      shiftNow,
+      shift: shift ? { name: shift.name, breakMinutes: shift.breakMinutes ?? 0, dayHours: shift.dayHours ?? null, startTime: shift.startTime, endTime: shift.endTime, days: shift.days } : null,
       insideNow: lastPunch?.direction === 'in',
       week: { from: weekStart, totals: totalsOf(inRange(weekStart)) },
       month: { from: monthStart, totals: totalsOf(inRange(monthStart)) },

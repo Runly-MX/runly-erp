@@ -5,11 +5,11 @@ import {
   suggestQuotaName, suggestShiftName, timezoneLabel, toggleDay, formatCoords, osmUrl, radiusOptionsFor,
 } from './formHelpers.js'
 
-test('time options step every 15 minutes with friendly labels', () => {
+test('time options step every 15 minutes in 24-hour format', () => {
   const options = buildTimeOptions(15)
   assert.equal(options.length, 96)
-  assert.deepEqual(options[0], { value: '00:00', label: '12:00 a. m.', keywords: '00:00' })
-  assert.equal(options.find((o) => o.value === '16:45').label, '4:45 p. m.')
+  assert.deepEqual(options[0], { value: '00:00', label: '00:00', keywords: '00:00' })
+  assert.equal(options.find((o) => o.value === '16:45').label, '16:45')
   assert.equal(buildTimeOptions(15, '08:05').some((o) => o.value === '08:05'), true)
 })
 

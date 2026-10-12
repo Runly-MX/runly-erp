@@ -5,6 +5,7 @@ import { ChevronDown, DownloadCloud, FileUp, KeyRound, Layers, Pencil, Plus, Tag
 import { toast } from 'sonner'
 import { Badge, Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@runly/ui'
 import { hrName } from '../components/HrLinkPanel.jsx'
+import { ShiftNowBadge } from '../components/ShiftNowBadge.jsx'
 import { PersonPhotoAvatar } from '../components/PersonPhotoAvatar.jsx'
 import { PeopleImportDialog } from '../components/import/PeopleImportDialog.jsx'
 import { PersonCredentialsSheet } from '../components/PersonCredentialsSheet.jsx'
@@ -59,12 +60,17 @@ export default function AttendancePeople() {
     { id: 'category', header: 'Categoría', accessorFn: (p) => p.categoryName, cell: ({ row }) => (row.original.categoryName || <span className={MUTED}>—</span>) },
     {
       id: 'shift', header: 'Turno', accessorFn: (p) => p.shiftName,
-      cell: ({ row }) => (row.original.shiftName ? (
-        <div className="min-w-0">
-          <p className="truncate leading-tight">{row.original.shiftName}</p>
-          {row.original.shiftHours ? <p className={`${MUTED} tabular-nums`}>{row.original.shiftHours}</p> : null}
+      cell: ({ row }) => (
+        <div className="min-w-0 space-y-1">
+          {row.original.shiftName ? (
+            <div>
+              <p className="truncate leading-tight">{row.original.shiftName}</p>
+              {row.original.shiftHours ? <p className={`${MUTED} tabular-nums`}>{row.original.shiftHours}</p> : null}
+            </div>
+          ) : null}
+          <ShiftNowBadge person={row.original} />
         </div>
-      ) : <span className={MUTED}>—</span>),
+      ),
     },
     {
       id: 'hr', header: 'RH', accessorFn: (p) => (p.hr ? hrName(p.hr) : ''),

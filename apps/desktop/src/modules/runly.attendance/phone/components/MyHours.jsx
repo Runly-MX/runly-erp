@@ -1,7 +1,8 @@
+import { ScheduleCard } from './ScheduleCard.jsx'
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import {
-  CORRECTION_STATUS, formatDateTime, formatDayLabel, formatMinutes, formatSchedule, methodLabel, OVERTIME_STATUS,
+  CORRECTION_STATUS, formatDateTime, formatDayLabel, formatMinutes, methodLabel, OVERTIME_STATUS,
 } from '../lib/self-service.js'
 
 const TONES = {
@@ -63,13 +64,33 @@ function Section({ title, children }) {
   )
 }
 
+const hm = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
+
+// "En turno" / "Turno a las 08:00" / "Día de descanso" for right now.
+function ShiftNowBanner({ now }) {
+  if (!now) return null
+  const map = {
+    on_shift: { cls: 'bg-emerald-400/15 text-emerald-100 ring-emerald-300/30', title: 'En turno', sub: `${now.start} – ${now.end}${now.minutesLeft ? ` · faltan ${hm(now.minutesLeft)} h` : ''}` },
+    before_shift: { cls: 'bg-amber-400/10 text-amber-100 ring-amber-300/30', title: `Tu turno empieza a las ${now.start}`, sub: now.minutesToStart ? `en ${hm(now.minutesToStart)} h` : '' },
+    after_shift: { cls: 'bg-white/5 text-slate-200 ring-white/10', title: 'Tu turno de hoy terminó', sub: `${now.start} – ${now.end}` },
+    rest_day: { cls: 'bg-white/5 text-slate-200 ring-white/10', title: 'Hoy es tu día de descanso', sub: now.nextStart ? `Próximo turno ${now.nextStart} – ${now.nextEnd}` : '' },
+    no_shift: { cls: 'bg-white/5 text-slate-300 ring-white/10', title: 'Sin turno asignado', sub: 'Pide a tu administrador que te asigne uno.' },
+  }[now.state]
+  if (!map) return null
+  return (
+    <div className={`rounded-2xl px-4 py-3 ring-1 ${map.cls}`}>
+      <p className="text-sm font-semibold">{map.title}</p>
+      {map.sub ? <p className="text-xs opacity-80">{map.sub}</p> : null}
+    </div>
+  )
+}
+
 // "Mis horas": weekly/monthly summary, schedule, daily list, recent punches and requests.
 // `hours` comes from useMyHours (data + savedAt + loading + error).
 export function MyHours({ hours }) {
   const [tab, setTab] = useState('week')
   const { data, error, savedAt } = hours
   const totals = data ? data[tab === 'week' ? 'week' : 'month']?.totals : null
-  const schedule = data ? formatSchedule(data.shift) : ''
   const pending = totals?.pendingOvertimeMinutes ?? 0
   const pendingNote = data?.requireOvertimeApproval && pending > 0 ? `Pendientes de aprobar ${formatMinutes(pending)}` : null
 
@@ -89,6 +110,8 @@ export function MyHours({ hours }) {
               {data.insideNow ? 'Dentro ahora' : 'Fuera'}
             </span>
           </div>
+
+          <ShiftNowBanner now={data.shiftNow} />
 
           {error ? (
             <p role="status" className="rounded-xl bg-amber-400/10 p-3 text-sm text-amber-100 ring-1 ring-amber-300/30">
@@ -122,9 +145,7 @@ export function MyHours({ hours }) {
           ) : null}
 
           <Section title="Tu horario">
-            <p className="rounded-2xl bg-white/5 p-3 text-sm text-slate-200 ring-1 ring-white/10">
-              {schedule ? <><span className="font-medium text-white">{data.shift.name}</span><br />{schedule}</> : 'Sin horario asignado.'}
-            </p>
+            <ScheduleCard shift={data.shift} todayWeekday={data.today ? new Date(`${data.today}T12:00:00`).getDay() : null} />
           </Section>
 
           <Section title="Esta semana">

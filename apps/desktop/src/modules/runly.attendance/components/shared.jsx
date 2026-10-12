@@ -140,6 +140,7 @@ export function SectionCard({ title, description, icon: Icon, actions, children,
 }
 
 const BADGE_TONES = {
+  emerald: 'border-emerald-600/30 bg-emerald-600/10 text-emerald-800 dark:text-emerald-300',
   teal: 'border-teal-600/30 bg-teal-600/10 text-teal-800 dark:text-teal-300',
   blue: 'border-blue-600/30 bg-blue-600/10 text-blue-800 dark:text-blue-300',
   violet: 'border-violet-600/30 bg-violet-600/10 text-violet-800 dark:text-violet-300',

@@ -3,6 +3,7 @@ import { CreditCard, KeyRound, Link2, Pencil, Smartphone } from 'lucide-react'
 import { Badge, Button } from '@runly/ui'
 import { KIND_LABELS, fullName } from '../lib/attendanceLabels.js'
 import { hrExpedienteUrl, hrName } from './HrLinkPanel.jsx'
+import { ShiftNowBadge } from './ShiftNowBadge.jsx'
 import { PersonPhotoAvatar } from './PersonPhotoAvatar.jsx'
 import { ToneBadge } from './shared.jsx'
 
@@ -52,6 +53,7 @@ export function PersonCard({ person, lookups, canManage, onCredentials, onEdit }
       <div className="flex flex-wrap items-center gap-1.5">
         <ToneBadge tone={KIND_TONES[person.kind] ?? 'slate'}>{KIND_LABELS[person.kind] ?? person.kind}</ToneBadge>
         <HrBadge hr={person.hr} />
+        <ShiftNowBadge person={person} />
       </div>
       {meta ? <p className="truncate text-sm text-[hsl(var(--muted-foreground))]">{meta}</p> : null}
       <AccessChips person={person} />

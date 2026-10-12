@@ -15,8 +15,11 @@ export function computeDropdownStyle(
   const r = containerEl.getBoundingClientRect();
   const spaceBelow = window.innerHeight - r.bottom;
   const flipped = spaceBelow < dropHeight;
-  const viewportLeft = r.left;
-  const width = Math.max(r.width, minWidth);
+  // Keep the panel inside the viewport: never wider than the screen and shifted left when the
+  // trigger sits near the right edge (e.g. the second column of a form in a narrow side sheet).
+  const margin = 8;
+  const width = Math.min(Math.max(r.width, minWidth), Math.max(160, window.innerWidth - margin * 2));
+  const viewportLeft = Math.max(margin, Math.min(r.left, window.innerWidth - width - margin));
 
   if (forPortal) {
     if (flipped) {

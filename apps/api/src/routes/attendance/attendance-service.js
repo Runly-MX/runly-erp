@@ -1,7 +1,8 @@
 import crypto from 'node:crypto'
 import {
-  AttendanceError, buildSessions, computeCompliance, hashPin, normalizeUid, presentAt, randomToken,
+  AttendanceError, PRESENCE_WINDOW_MS, buildSessions, computeCompliance, hashPin, normalizeUid, presentAt, randomToken,
 } from './attendance-core.js'
+import { shiftStatus } from './attendance-hours-service.js'
 import { assertLinkable, attachHr, createAttendanceHr, kindFromEmployment, photosByPerson } from './attendance-hr.js'
 
 // text: undefined stays undefined (untouched on update), blank becomes null. req: for NOT NULL columns.
@@ -148,7 +149,13 @@ export function createAttendanceService({ prisma, signFile = null }) {
     const q = text(query.q, 80)
     if (q) where.OR = [{ code: { contains: q, mode: 'insensitive' } }, { firstName: { contains: q, mode: 'insensitive' } }, { lastName: { contains: q, mode: 'insensitive' } }]
     const rows = await prisma.attPerson.findMany({ where, orderBy: [{ firstName: 'asc' }, { code: 'asc' }], take: Math.min(intOr(query.limit, 500), 1000), include: personSelect })
-    return attachHr(prisma, companyId, rows.map(serializePerson), signFile)
+    const withHr = await attachHr(prisma, companyId, rows.map(serializePerson), signFile)
+    // Shift state right now and presence, so the list shows who is on shift and who is inside.
+    const settings = await getSettings(companyId)
+    const shifts = new Map((await prisma.attShift.findMany({ where: { companyId } })).map((sh) => [sh.id, sh]))
+    const recent = await prisma.attPunch.findMany({ where: { companyId, personId: { in: rows.map((r) => r.id) }, status: { not: 'voided' }, occurredAt: { gte: new Date(Date.now() - PRESENCE_WINDOW_MS) } }, orderBy: { occurredAt: 'asc' }, select: { personId: true, direction: true, occurredAt: true, status: true } })
+    const inside = new Set(presentAt(recent.map((p) => ({ ...p, siteId: null })), new Date()).map((p) => p.personId))
+    return withHr.map((p) => ({ ...p, shiftNow: shiftStatus(p.shiftId ? shifts.get(p.shiftId) : null, settings.timezone), inside: inside.has(p.id) }))
   }
 
   async function getPerson(companyId, id) {
