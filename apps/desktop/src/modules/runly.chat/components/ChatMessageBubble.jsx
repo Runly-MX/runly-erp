@@ -733,7 +733,7 @@ export function ChatMessageBubble({
                     ) : (
                       renderRichText(message.body, { highlightQuery: isAssistant ? "" : searchQuery })
                     )}
-                    {!isDeleted && !isPending && <LinkPreviewCard body={message.body} isOwn />}
+                    {!isDeleted && !isPending && message.metadata?.linkPreview !== false && <LinkPreviewCard body={message.body} isOwn />}
                   </div>
                 )}
                 {firstEntityRefAttached && (
@@ -956,7 +956,7 @@ export function ChatMessageBubble({
                   ) : (
                     renderRichText(message.body, { highlightQuery: isAssistant ? "" : searchQuery })
                   )}
-                  {!isDeleted && !isAssistant && <LinkPreviewCard body={message.body} isOwn={false} />}
+                  {!isDeleted && !isAssistant && message.metadata?.linkPreview !== false && <LinkPreviewCard body={message.body} isOwn={false} />}
                 </div>
               )}
               {firstEntityRefAttached && (

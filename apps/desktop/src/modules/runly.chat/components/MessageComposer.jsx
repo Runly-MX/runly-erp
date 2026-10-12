@@ -9,7 +9,7 @@ import {
 import {
   Button, MentionTextarea, Popover, PopoverAnchor, PopoverContent,
   Dialog, DialogContent, DialogHeader, DialogTitle, useCoarsePointer,
-  ThemedEmojiPicker,
+  ThemedEmojiPicker, findFirstUrl,
 } from "@runly/ui";
 import {
   Send, Paperclip, Smile, X, Loader2, AlertCircle, Plus, Link2, Pencil, Check,
@@ -23,6 +23,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { EntityReferencePicker } from "./EntityReferencePicker";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { MessageQuote } from "./MessageQuote";
+import { ComposerLinkPreview } from "./ComposerLinkPreview";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { AttachmentPreviewCard } from "./AttachmentPreviewCard";
 import { VoiceMicButton, VoiceRecordingBar } from "./VoiceRecordingControls";
@@ -122,6 +123,10 @@ export const MessageComposer = forwardRef(function MessageComposer(
   ref,
 ) {
   const [body, setBody] = useState("");
+  // Link preview while composing: the first URL in the draft, unless the
+  // user dismissed the preview for that exact URL.
+  const [dismissedPreviewUrl, setDismissedPreviewUrl] = useState(null);
+  const draftUrl = findFirstUrl(body);
   // WhatsApp-style formatting toolbar (desktop only, see `coarse` gate below —
   // touch devices already get the OS's own text-selection menu, and the
   // keyboard shortcuts this toolbar mirrors are gated the same way).
@@ -564,6 +569,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
         // title/subtitle/url from the target module's own service.
         entityRefs: pendingEntityRefs.map(({ entityType, recordId }) => ({ entityType, recordId })),
         replyToMessageId: replyingTo?.id ?? undefined,
+        ...(draftUrl && dismissedPreviewUrl === draftUrl ? { metadata: { linkPreview: false } } : {}),
       });
 
       // Delay the revoke so the optimistic bubble's blob preview outlives the
@@ -579,6 +585,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
       }
       for (const f of pendingFiles) sentLocalIdsRef.current.add(f.localId);
       setBody("");
+      setDismissedPreviewUrl(null);
       setPendingFiles([]);
       setPendingEntityRefs([]);
       onCancelReply?.();
@@ -587,7 +594,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
     }
   }, [
     body, isSending, onSend, onTyping, pendingFiles, pendingEntityRefs, replyingTo, onCancelReply,
-    editingMessage, onSubmitEdit, exitEdit,
+    editingMessage, onSubmitEdit, exitEdit, draftUrl, dismissedPreviewUrl,
   ]);
 
   // Keep ref in sync so the auto-send effect never holds a stale closure.
@@ -765,6 +772,10 @@ export const MessageComposer = forwardRef(function MessageComposer(
           reply={toReplyPreview(replyingTo)}
           onCancel={onCancelReply}
         />
+      )}
+
+      {!editingMessage && draftUrl && draftUrl !== dismissedPreviewUrl && (
+        <ComposerLinkPreview url={draftUrl} onDismiss={() => setDismissedPreviewUrl(draftUrl)} />
       )}
 
       {/* Recording error */}

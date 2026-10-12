@@ -216,7 +216,7 @@ export function useSendMessage(conversationId) {
         body: data.body ?? null,
         message_type: data.messageType ?? "text",
         attachment_count: data.attachmentIds?.length ?? optimisticAttachments.length ?? 0,
-        metadata: {},
+        metadata: data.metadata ?? {},
         created_at: new Date().toISOString(),
         edited_at: null,
         deleted_at: null,
