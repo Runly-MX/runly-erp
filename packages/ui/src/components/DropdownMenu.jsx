@@ -38,7 +38,10 @@ const DropdownMenuSubContent = forwardRef(function DropdownMenuSubContent(
   { className, ...props },
   ref
 ) {
+  // Portalled: inline, it lives inside the parent menu's overflow-hidden box
+  // and gets clipped (unreachable items in nested menus).
   return (
+    <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.SubContent
       ref={ref}
       className={cn(
@@ -52,6 +55,7 @@ const DropdownMenuSubContent = forwardRef(function DropdownMenuSubContent(
       )}
       {...props}
     />
+    </DropdownMenuPrimitive.Portal>
   )
 })
 

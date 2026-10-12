@@ -16,7 +16,7 @@ function Badge({ value, tone = "accent" }) {
   return (
     <span
       className={cn(
-        "absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold ring-2 ring-(--call-stage)",
+        "absolute -right-3.5 -top-2.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold ring-2 ring-(--call-stage)",
         tone === "warning" ? "bg-(--call-hand) text-amber-950" : "bg-(--call-accent) text-(--brand-primary-foreground)",
       )}
     >
@@ -79,7 +79,7 @@ export function DockSplitButton({ menu, menuLabel, compact = false, menuClassNam
             <ChevronUp className="h-3.5 w-3.5" aria-hidden />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="start" sideOffset={10} className={cn("dark z-60 w-72 text-white", menuClassName)}>
+        <DropdownMenuContent side="top" align="start" sideOffset={10} className={cn("call-dialog z-60 w-72", menuClassName)}>
           {menu}
         </DropdownMenuContent>
       </DropdownMenu>

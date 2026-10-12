@@ -101,7 +101,7 @@ export function CallControlDock({ ctl, room, mediaDevices, compact = false, clas
         <DropdownMenuTrigger asChild>
           <DockButton icon={MoreHorizontal} label="Más" title="Más opciones" compact={compact} />
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="center" sideOffset={10} className="dark z-60 w-72 text-white">
+        <DropdownMenuContent side="top" align="center" sideOffset={10} className="call-dialog z-60 w-72">
           {ctl.canRecord && (
             <DropdownMenuItem onSelect={ctl.toggleRecording} disabled={ctl.recordingBusy}>
               {ctl.recordingActive ? <StopCircle className="mr-2 h-4 w-4 text-red-400" /> : <Circle className="mr-2 h-4 w-4 text-red-400" />}
@@ -119,7 +119,7 @@ export function CallControlDock({ ctl, room, mediaDevices, compact = false, clas
             <DropdownMenuSubTrigger>
               <LayoutGrid className="mr-2 h-4 w-4" /> Diseño
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="dark z-60 text-white">
+            <DropdownMenuSubContent className="call-dialog z-60">
               <DropdownMenuRadioGroup value={ctl.layoutPref} onValueChange={ctl.setLayoutPref}>
                 {LAYOUT_OPTIONS.map((o) => (
                   <DropdownMenuRadioItem key={o.value} value={o.value}>{o.label}</DropdownMenuRadioItem>

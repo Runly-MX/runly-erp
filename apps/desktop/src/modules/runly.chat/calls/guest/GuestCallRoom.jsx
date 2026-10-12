@@ -330,7 +330,7 @@ export function GuestCallRoom({
 
       {isPhone && (
         <Sheet open={chatOpen} onOpenChange={setChatOpen}>
-          <SheetContent side="bottom" className="dark h-[85dvh] max-h-[85dvh] gap-0 overflow-hidden border-white/10 bg-[#0c172d] p-0 text-white" style={{ zIndex: 10002 }}>
+          <SheetContent side="bottom" className="call-dialog h-[85dvh] max-h-[85dvh] gap-0 overflow-hidden p-0" style={{ zIndex: 10002 }}>
             <SheetTitle className="sr-only">Chat de la llamada</SheetTitle>
             <SheetDescription className="sr-only">Mensajes con los participantes</SheetDescription>
             <div className="min-h-0 flex-1 pt-2">{chatNode}</div>

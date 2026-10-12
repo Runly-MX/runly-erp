@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { cn, SelectField } from "@runly/ui";
-import { Camera, CameraOff, Mic, MicOff } from "lucide-react";
+import { Camera, CameraOff, Mic, MicOff, Volume2 } from "lucide-react";
 import { useAudioLevel } from "./hooks/useAudioLevel";
 import { readDevicePrefs, writeDevicePref } from "./hooks/useMediaDevices";
+import { CALL_SOUND_URLS } from "./callSounds";
+
+const OUTPUT_SUPPORTED = typeof HTMLMediaElement !== "undefined" && "setSinkId" in HTMLMediaElement.prototype;
+
+function testSpeaker(deviceId) {
+  try {
+    const audio = new Audio(CALL_SOUND_URLS.join);
+    audio.volume = 0.8;
+    const play = () => audio.play().catch(() => {});
+    if (deviceId && typeof audio.setSinkId === "function") audio.setSinkId(deviceId).then(play, play);
+    else play();
+  } catch { /* no audio output */ }
+}
 
 function useLocalPreview({ mic, camera, audioId, videoId }) {
   const [stream, setStream] = useState(null);
@@ -31,13 +44,17 @@ function useLocalPreview({ mic, camera, audioId, videoId }) {
 }
 
 function useDeviceList(trigger) {
-  const [list, setList] = useState({ audioinput: [], videoinput: [] });
+  const [list, setList] = useState({ audioinput: [], videoinput: [], audiooutput: [] });
   useEffect(() => {
     navigator.mediaDevices?.enumerateDevices?.().then((all) => {
       const pick = (kind, noun) => all
         .filter((d) => d.kind === kind && d.deviceId && d.deviceId !== "communications")
         .map((d, i) => ({ value: d.deviceId, label: d.label || `${noun} ${i + 1}` }));
-      setList({ audioinput: pick("audioinput", "Micrófono"), videoinput: pick("videoinput", "Cámara") });
+      setList({
+        audioinput: pick("audioinput", "Micrófono"),
+        videoinput: pick("videoinput", "Cámara"),
+        audiooutput: pick("audiooutput", "Altavoz"),
+      });
     }).catch(() => {});
   }, [trigger]);
   return list;
@@ -52,6 +69,7 @@ export function PreJoinPreview({ initialMic = true, initialCamera = true, name =
   const prefs = readDevicePrefs();
   const [audioId, setAudioId] = useState(prefs.audioinput ?? null);
   const [videoId, setVideoId] = useState(prefs.videoinput ?? null);
+  const [outputId, setOutputId] = useState(prefs.audiooutput ?? null);
   const { stream, error } = useLocalPreview({ mic, camera, audioId, videoId });
   const devices = useDeviceList(stream);
   const videoRef = useRef(null);
@@ -104,24 +122,53 @@ export function PreJoinPreview({ initialMic = true, initialCamera = true, name =
           </button>
         </div>
       </div>
-      {showDevices && (devices.audioinput.length > 1 || devices.videoinput.length > 1) && (
-        <div className={cn("grid gap-3 sm:grid-cols-2", dark && "dark")}>
-          {devices.audioinput.length > 1 && (
-            <SelectField
-              label="Micrófono"
-              value={audioId ?? devices.audioinput[0]?.value}
-              onValueChange={(id) => { setAudioId(id); writeDevicePref("audioinput", id); }}
-              options={devices.audioinput}
-            />
-          )}
-          {devices.videoinput.length > 1 && (
-            <SelectField
-              label="Cámara"
-              value={videoId ?? devices.videoinput[0]?.value}
-              onValueChange={(id) => { setVideoId(id); writeDevicePref("videoinput", id); }}
-              options={devices.videoinput}
-            />
-          )}
+      {showDevices && (
+        <div className={cn("space-y-3 rounded-2xl p-3 ring-1", dark ? "bg-white/5 ring-white/10" : "bg-gray-50 ring-black/5")}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {devices.audioinput.length > 0 && (
+              <SelectField
+                label="Micrófono"
+                value={audioId ?? devices.audioinput[0]?.value}
+                onValueChange={(id) => { setAudioId(id); writeDevicePref("audioinput", id); }}
+                options={devices.audioinput}
+              />
+            )}
+            {devices.videoinput.length > 0 && (
+              <SelectField
+                label="Cámara"
+                value={videoId ?? devices.videoinput[0]?.value}
+                onValueChange={(id) => { setVideoId(id); writeDevicePref("videoinput", id); }}
+                options={devices.videoinput}
+              />
+            )}
+            {OUTPUT_SUPPORTED && devices.audiooutput.length > 0 && (
+              <SelectField
+                label="Altavoz"
+                value={outputId ?? devices.audiooutput[0]?.value}
+                onValueChange={(id) => { setOutputId(id); writeDevicePref("audiooutput", id); }}
+                options={devices.audiooutput}
+              />
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex min-w-40 flex-1 items-center gap-2" aria-label="Nivel del micrófono">
+              <Mic className={cn("h-4 w-4 shrink-0", dark ? "text-white/50" : "text-gray-400")} aria-hidden />
+              <div className={cn("h-2 flex-1 overflow-hidden rounded-full", dark ? "bg-white/10" : "bg-gray-200")}>
+                <div className="h-full rounded-full bg-emerald-400 transition-[width] duration-75" style={{ width: `${mic ? Math.round(level * 100) : 0}%` }} />
+              </div>
+              <span className={cn("shrink-0 text-xs", dark ? "text-white/50" : "text-gray-500")}>{mic ? "Habla para probar" : "Silenciado"}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => testSpeaker(outputId)}
+              className={cn(
+                "inline-flex min-h-10 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-colors",
+                dark ? "bg-white/10 text-white hover:bg-white/15" : "bg-white text-gray-800 ring-1 ring-black/10 hover:bg-gray-100",
+              )}
+            >
+              <Volume2 className="h-4 w-4" aria-hidden /> Probar altavoz
+            </button>
+          </div>
         </div>
       )}
     </div>

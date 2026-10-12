@@ -112,3 +112,58 @@
     transform: none;
   }
 }
+
+/* Dialogs/sheets opened from the call room: always the call's dark surface,
+   whatever theme the rest of the app is in (portalled to <body>, so they
+   don't inherit .runly-call). Same tokens as .dark, set on the element. */
+.call-dialog {
+  --background: 222 47% 5%;
+  --foreground: 210 40% 96%;
+  --card: 222 47% 9%;
+  --card-foreground: 210 40% 96%;
+  --muted: 222 40% 15%;
+  --muted-foreground: 215 20% 70%;
+  --border: 222 30% 22%;
+  --input: 222 28% 28%;
+  --popover: 222 47% 9%;
+  --popover-foreground: 210 40% 96%;
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-bg-strong: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  /* Tailwind's @theme colors resolve var(--foreground) etc. at :root, so the
+     overrides above only reach utilities like text-foreground / bg-card if
+     the --color-* tokens are recomputed here too. */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  color-scheme: dark;
+  color: hsl(var(--foreground));
+  background: #0c172d !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: none !important;
+}
+
+/* Side panel (Mensajes | Personas) enter/leave + tab content fade. */
+@keyframes call-panel-in {
+  from { opacity: 0; transform: translateX(32px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes call-panel-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateX(32px) scale(0.98); }
+}
+@keyframes call-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.call-panel-in { animation: call-panel-in 320ms cubic-bezier(0.32, 0.72, 0, 1) both; }
+.call-panel-out { animation: call-panel-out 200ms ease-in both; }
+.call-fade-up { animation: call-fade-up 220ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .call-panel-in, .call-panel-out, .call-fade-up { animation-duration: 1ms; }
+}

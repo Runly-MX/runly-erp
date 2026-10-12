@@ -82,7 +82,7 @@ export function MobileCallBar({ ctl, hidden = false }) {
       </nav>
 
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="dark gap-3 border-white/10 bg-[#0c172d]/95 text-white" style={{ zIndex: 10002 }}>
+        <SheetContent side="bottom" className="call-dialog gap-3" style={{ zIndex: 10002 }}>
           <SheetHeader className="text-left">
             <SheetTitle className="text-base text-white">Más opciones</SheetTitle>
             <SheetDescription className="sr-only">Acciones adicionales de la llamada</SheetDescription>

@@ -61,7 +61,7 @@ export function IncomingCallDialog({ call, isStarting, onAccept, onDecline }) {
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onDecline(); }}>
-      <DialogContent size="sm" mobileVariant="center" className="dark runly-call overflow-hidden border-white/10">
+      <DialogContent size="sm" mobileVariant="center" className="call-dialog runly-call overflow-hidden">
         <DialogHeader className="items-center text-center">
           <CallAvatar name={callerName} seed={callerId} url={call?.initiator?.avatarUrl} size="lg" speaking className="mb-2" />
           <DialogTitle className="text-center text-xl text-white">{callerName}</DialogTitle>

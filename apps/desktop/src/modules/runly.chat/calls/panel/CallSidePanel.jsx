@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { cn, Sheet, SheetContent, SheetTitle, SheetDescription } from "@runly/ui";
 import { MessageSquare, Users, X } from "lucide-react";
+import "../ui/call-ui.css";
 
 const TABS = [
   { value: "chat", label: "Mensajes", Icon: MessageSquare },
@@ -43,15 +45,36 @@ function PanelTabs({ tab, onTab, counts, onClose }) {
   );
 }
 
-// Desktop: a column beside the stage with Mensajes | Personas tabs.
-export function CallSidePanel({ tab, onTab, onClose, counts, chat, people }) {
+const EXIT_MS = 200;
+
+// Desktop: a column beside the stage with Mensajes | Personas tabs. Slides
+// in from the right; on close it slides out before unmounting. Switching tabs
+// fades the new content in (display none -> block restarts the animation).
+export function CallSidePanel({ open, tab, onTab, onClose, counts, chat, people }) {
+  const [mounted, setMounted] = useState(open);
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    if (open) { setMounted(true); setLeaving(false); return undefined; }
+    if (!mounted) return undefined;
+    setLeaving(true);
+    const t = setTimeout(() => { setMounted(false); setLeaving(false); }, EXIT_MS);
+    return () => clearTimeout(t);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!mounted) return null;
+
   return (
-    <aside className="call-glass m-3 ml-0 flex w-[380px] shrink-0 flex-col overflow-hidden rounded-2xl" aria-label="Panel de la llamada">
+    <aside
+      className={cn(
+        "call-glass m-3 ml-0 flex w-[380px] shrink-0 flex-col overflow-hidden rounded-2xl",
+        leaving ? "call-panel-out" : "call-panel-in",
+      )}
+      aria-label="Panel de la llamada"
+    >
       <PanelTabs tab={tab} onTab={onTab} counts={counts} onClose={onClose} />
       <div className="min-h-0 flex-1">
         {/* Both stay mounted so the chat keeps its scroll/draft when switching tabs. */}
-        <div className={cn("dark h-full", tab === "chat" ? "block" : "hidden")}>{chat}</div>
-        <div className={cn("dark h-full", tab === "people" ? "block" : "hidden")}>{people}</div>
+        <div className={cn("dark h-full call-fade-up", tab === "chat" ? "block" : "hidden")}>{chat}</div>
+        <div className={cn("dark h-full call-fade-up", tab === "people" ? "block" : "hidden")}>{people}</div>
       </div>
     </aside>
   );
@@ -63,13 +86,13 @@ export function CallPanelSheet({ open, tab, onTab, onClose, counts, chat, people
     <Sheet open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
       <SheetContent
         side="bottom"
-        className="dark h-[88dvh] max-h-[88dvh] gap-0 overflow-hidden border-white/10 bg-[#0c172d] p-0 text-white sm:max-w-xl"
+        className="call-dialog h-[88dvh] max-h-[88dvh] gap-0 overflow-hidden p-0 sm:max-w-xl"
         style={{ zIndex: 10002 }}
       >
         <SheetTitle className="sr-only">{tab === "chat" ? "Mensajes" : "Personas"}</SheetTitle>
         <SheetDescription className="sr-only">Panel de la llamada</SheetDescription>
         <PanelTabs tab={tab} onTab={onTab} counts={counts} onClose={onClose} />
-        <div className="dark min-h-0 flex-1">
+        <div key={tab} className="dark min-h-0 flex-1 call-fade-up">
           {tab === "chat" ? chat : people}
         </div>
       </SheetContent>

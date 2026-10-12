@@ -42,7 +42,10 @@ const ContextMenuSubContent = forwardRef(function ContextMenuSubContent(
   { className, ...props },
   ref
 ) {
+  // Portalled: inline, it lives inside the parent menu's overflow-hidden box
+  // and gets clipped (unreachable items in nested menus).
   return (
+    <ContextMenuPrimitive.Portal>
     <ContextMenuPrimitive.SubContent
       ref={ref}
       className={cn(
@@ -54,6 +57,7 @@ const ContextMenuSubContent = forwardRef(function ContextMenuSubContent(
       )}
       {...props}
     />
+    </ContextMenuPrimitive.Portal>
   )
 })
 

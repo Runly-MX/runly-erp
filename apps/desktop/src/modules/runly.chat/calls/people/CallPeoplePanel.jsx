@@ -3,7 +3,7 @@ import {
   cn, Input, ConfirmDialog,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@runly/ui";
-import { Check, Hand, Link2, MicOff, MoreVertical, Phone, PhoneCall, Pin, Search, UserPlus, UserX, X } from "lucide-react";
+import { Check, Hand, Link2, MicOff, MoreVertical, Phone, PhoneCall, Pin, PinOff, Search, UserPlus, UserX, X } from "lucide-react";
 import { CallAvatar } from "../ui/CallAvatar";
 
 function SectionTitle({ children, count, action }) {
@@ -100,6 +100,9 @@ export function CallPeoplePanel({
 
         <section aria-label="En la llamada">
           <SectionTitle count={inCall.length}>En la llamada</SectionTitle>
+          {onPin && (
+            <p className="px-1 pb-1.5 text-[11px] text-white/45">Fijar a alguien lo deja en grande solo en tu pantalla.</p>
+          )}
           <ul className="space-y-0.5">
             {inCall.map((person) => {
               const isMe = person.identity === myIdentity;
@@ -122,27 +125,39 @@ export function CallPeoplePanel({
                     <>
                       {hand && <Hand className="h-4 w-4 text-(--call-hand)" aria-label="Mano levantada" />}
                       {micOff && <MicOff className="h-4 w-4 text-white/40" aria-label="Micrófono apagado" />}
-                      {(canModerate || onPin) && (
+                      {onPin && (
+                        <button
+                          type="button"
+                          onClick={() => onPin(person.identity)}
+                          aria-pressed={pinnedIdentity === person.identity}
+                          aria-label={pinnedIdentity === person.identity ? `Dejar de fijar a ${person.name}` : `Fijar a ${person.name} en tu pantalla`}
+                          title={pinnedIdentity === person.identity ? "Dejar de fijar" : "Fijar en tu pantalla (solo para ti)"}
+                          className={cn(
+                            "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+                            pinnedIdentity === person.identity
+                              ? "bg-(--call-accent) text-(--brand-primary-foreground)"
+                              : "text-white/60 hover:bg-white/10 hover:text-white",
+                          )}
+                        >
+                          {pinnedIdentity === person.identity ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                        </button>
+                      )}
+                      {canModerate && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button type="button" aria-label={`Opciones de ${person.name}`} className="flex h-9 w-9 items-center justify-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                               <MoreVertical className="h-4 w-4" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="dark z-10010 w-52 text-white">
-                            {onPin && (
-                              <DropdownMenuItem onSelect={() => onPin(person.identity)}>
-                                <Pin className="mr-2 h-4 w-4" /> {pinnedIdentity === person.identity ? "Dejar de fijar" : "Fijar en pantalla"}
-                              </DropdownMenuItem>
-                            )}
-                            {canModerate && !micOff && (
+                          <DropdownMenuContent align="end" className="call-dialog z-10010 w-52">
+                            {!micOff && (
                               <DropdownMenuItem onSelect={() => onMute(person)}>
                                 <MicOff className="mr-2 h-4 w-4" /> Silenciar
                               </DropdownMenuItem>
                             )}
-                            {canModerate && (
+                            {(
                               <>
-                                <DropdownMenuSeparator />
+                                {!micOff && <DropdownMenuSeparator />}
                                 <DropdownMenuItem className="text-red-400 focus:text-red-400" onSelect={() => setConfirmRemove(person)}>
                                   <UserX className="mr-2 h-4 w-4" /> Quitar de la llamada
                                 </DropdownMenuItem>

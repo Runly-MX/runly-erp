@@ -8,7 +8,7 @@ export function ReactionPopover({ children, onReact, side = "top", onToggleHand 
   return (
     <Popover>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent side={side} align="center" sideOffset={10} className="dark z-60 w-auto rounded-full p-1.5">
+      <PopoverContent side={side} align="center" sideOffset={10} className="call-dialog z-60 w-auto rounded-full p-1.5">
         <div className="flex items-center gap-0.5" role="group" aria-label="Reacciones">
           {QUICK_REACTIONS.map((emoji) => (
             <button

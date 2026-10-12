@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Button } from "@runly/ui";
 import { Video } from "lucide-react";
 import { PreJoinPreview } from "./PreJoinPreview";
+import "./ui/call-ui.css";
 
 // "¿Listo para unirte?": check camera and microphone before entering a
 // meeting that is already running.
@@ -9,7 +10,7 @@ export function PreJoinDialog({ open, onOpenChange, title = "Reunión", subtitle
   const [prefs, setPrefs] = useState({ mic: true, camera: defaultCamera });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="md" className="dark">
+      <DialogContent size="xl" className="call-dialog">
         <DialogHeader>
           <DialogTitle>¿Listo para unirte?</DialogTitle>
           <DialogDescription>{subtitle ?? title}</DialogDescription>

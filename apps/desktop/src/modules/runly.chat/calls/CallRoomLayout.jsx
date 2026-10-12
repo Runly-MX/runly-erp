@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn, ConfirmDialog, useCoarsePointer } from "@runly/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -123,6 +123,9 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
   }, [useSheets, sheetOpen, panel, openPanel, closePanel]);
   useEffect(() => { if (peoplePanelNonce) openPanel("people"); }, [peoplePanelNonce]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownPanel = useSheets ? (sheetOpen ? panel : null) : panel;
+  // Remembered so the closing panel keeps its content while it slides out.
+  const lastPanelRef = useRef("chat");
+  if (panel) lastPanelRef.current = panel;
   const chatVisible = shownPanel === "chat";
 
   // Unread chat messages while the chat is not on screen.
@@ -162,6 +165,8 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
     speakingIds: live.speakingIds,
   });
   const tileInfo = useCallback((identity) => roster.infoByIdentity.get(identity) ?? null, [roster]);
+  const inCallIds = useMemo(() => new Set(roster.inCall.map((p) => p.identity)), [roster]);
+  const memberIds = useMemo(() => new Set((conversation?.members ?? []).map((m) => m.userId)), [conversation?.members]);
 
   const [ringing, setRinging] = useState(() => new Set());
   const ring = useCallback(async (profileId) => {
@@ -447,7 +452,11 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
             <CallStage view={view} stage={stage} />
             {invitePanel && view !== "presentation" && view !== "inperson" && (
               <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center p-3 sm:items-center">
-                <div className="pointer-events-auto w-full max-w-sm" onClick={(e) => e.stopPropagation()}>{invitePanel}</div>
+                <div className="call-fade-up pointer-events-auto w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                  {isValidElement(invitePanel) && people.canShare
+                    ? cloneElement(invitePanel, { onOpenInvite: () => setShareOpen(true) })
+                    : invitePanel}
+                </div>
               </div>
             )}
             <CallReactionsOverlay reactions={live.reactions} />
@@ -461,8 +470,8 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
           )}
         </main>
 
-        {!useSheets && panel && (
-          <CallSidePanel tab={panel} onTab={setPanel} onClose={closePanel} counts={panelCounts} chat={chatNode} people={peopleNode} />
+        {!useSheets && (
+          <CallSidePanel open={Boolean(panel)} tab={panel ?? lastPanelRef.current} onTab={setPanel} onClose={closePanel} counts={panelCounts} chat={chatNode} people={peopleNode} />
         )}
       </div>
 
@@ -493,7 +502,17 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
         />
       )}
 
-      {people.canShare && <CallShareDialog open={shareOpen} onOpenChange={setShareOpen} conversationId={conversationId} />}
+      {people.canShare && (
+        <CallShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          conversationId={conversationId}
+          callId={call.session.call.id}
+          inCallIds={inCallIds}
+          memberIds={memberIds}
+          inCall
+        />
+      )}
       <DeviceSettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}

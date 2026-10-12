@@ -43,7 +43,7 @@ function Shell({ children }) {
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-1/2 w-[min(70vw,520px)] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-[0.04] select-none"
       />
-      <div className="relative z-10 w-full max-w-sm">
+      <div className="relative z-10 w-full max-w-lg">
         {children}
         <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
           <img src={RUNLY_LOGO} alt="" className="h-3 opacity-60" /> Reunión con tecnología de Runly ERP
@@ -167,7 +167,7 @@ export default function GuestCallScreen() {
         {gc.phase === "gate" && (
           <form onSubmit={submitGate} className="space-y-4">
             <h1 className="text-lg font-semibold text-gray-900">Unirte a la llamada</h1>
-            <PreJoinPreview initialCamera={false} name={name.trim()} onChange={setMediaPrefs} tone="light" showDevices={false} />
+            <PreJoinPreview initialMic={mediaPrefs.mic} initialCamera={mediaPrefs.camera} name={name.trim()} onChange={setMediaPrefs} tone="light" />
             <TextField label="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
             {!inviteToken && (
               <TextField label="Correo (opcional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -209,13 +209,28 @@ export default function GuestCallScreen() {
         )}
 
         {gc.phase === "lobby" && (
-          <div className="space-y-3 text-center">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
-            <p className="text-sm text-gray-700">
-              {gc.state.status === "waiting"
-                ? "La llamada aún no ha comenzado. Te uniremos automáticamente."
-                : "Esperando a que el anfitrión te admita..."}
-            </p>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200/70">
+              <Loader2 className="h-5 w-5 shrink-0 animate-spin text-amber-600" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900">
+                  {gc.state.status === "waiting" ? "La reunión aún no ha comenzado" : "Estás en la sala de espera"}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {gc.state.status === "waiting"
+                    ? "Te uniremos automáticamente en cuanto empiece."
+                    : "El anfitrión ya sabe que estás aquí y te admitirá en un momento."}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs font-medium text-gray-500">Mientras tanto, revisa tu micrófono, cámara y altavoz:</p>
+            <PreJoinPreview
+              initialMic={mediaPrefs.mic}
+              initialCamera={mediaPrefs.camera}
+              name={formRef.current.name || name.trim()}
+              onChange={setMediaPrefs}
+              tone="light"
+            />
           </div>
         )}
 

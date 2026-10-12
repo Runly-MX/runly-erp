@@ -797,6 +797,9 @@ export function createCallService({
     if (me?.status !== "JOINED") throw new CallServiceError("Únete a la llamada para llamar a alguien.", 403);
     const targets = [...new Set(profileIds ?? [])].filter((id) => id && id !== profile.id);
     if (!targets.length) return { rung: [] };
+    // Conversation members, plus anyone active in the conversation's company
+    // (the "Personas de la empresa" invite): inviteMembersToLiveCall adds
+    // those to the conversation before ringing them. MirAI is never rung.
     const memberRows = await prisma.$queryRaw`
       SELECT m.user_id AS "userId", up.email
       FROM chat_conversation_members m
@@ -805,6 +808,13 @@ export function createCallService({
         AND m.user_id = ANY(${targets}::uuid[])
         AND m.left_at IS NULL
         AND public.runly_chat_user_access(m.conversation_id, m.user_id)
+      UNION
+      SELECT up.id AS "userId", up.email
+      FROM user_profile up
+      JOIN membership mem ON mem.user_id = up.id AND mem.enabled = true
+      WHERE up.id = ANY(${targets}::uuid[])
+        AND COALESCE(up.is_bot, false) = false
+        AND mem.company_id = (SELECT company_id FROM chat_conversations WHERE id = ${call.conversationId} LIMIT 1)
     `;
     const joined = new Set(call.participants.filter((p) => p.status === "JOINED").map((p) => p.userId));
     const users = memberRows.filter((row) => !joined.has(row.userId));
