@@ -69,6 +69,13 @@ function nsToMs(ns) {
   return Math.round(Number(ns) / 1_000_000);
 }
 
+// "auto"/empty -> null (Whisper auto-detects); otherwise a short ISO 639-1 code.
+export function normalizeLanguage(value) {
+  const code = String(value ?? "").trim().toLowerCase();
+  if (!code || code === "auto") return null;
+  return /^[a-z]{2,3}$/.test(code) ? code : null;
+}
+
 export function createCallTranscriptService({
   prisma,
   supabaseAdmin = null, // unused today (no Storage objects for V1 text-only transcripts), kept for parity/future use
@@ -80,6 +87,11 @@ export function createCallTranscriptService({
   RoomServiceClientImpl = RoomServiceClient,
   callService = null, // needed for V2 only: getLiveCallOrThrow (a live call, not just any call row)
 }) {
+  // Default speech language for new transcripts ("auto" = let Whisper detect).
+  function defaultLanguage() {
+    return normalizeLanguage(env.CALL_TRANSCRIPT_LANGUAGE ?? "es");
+  }
+
   function liveKit() {
     return readLiveKitConfig(env);
   }
@@ -144,21 +156,20 @@ export function createCallTranscriptService({
     return rows.length > 0;
   }
 
-  async function requestTranscript({ callId, requestedByUserId, profileId }) {
+  // `recordingId` pins the exact recording (a call can have several); without
+  // it, the call's latest READY recording is used. One transcript per
+  // recording: an existing one is returned as-is (it's only rebuilt through
+  // regenerateTranscript, to avoid paying for the work twice).
+  async function requestTranscript({ callId, recordingId = null, language, requestedByUserId, profileId }) {
     const call = await prisma.call.findUnique({ where: { id: callId } });
     if (!call) throw new CallTranscriptError("Llamada no encontrada.", 404);
     await assertMember(call.conversationId, profileId);
-
-    const existing = await prisma.callTranscript.findFirst({
-      where: { callId, status: { in: ["CAPTURING", "PENDING", "PROCESSING"] } },
-    });
-    if (existing) throw new CallTranscriptError("Ya hay una transcripción en curso para esta llamada.", 409);
 
     // V1 (Alternativa A): depende de que exista una grabacion ya lista. Esta
     // es una limitacion conocida y documentada (spec §0.1), resuelta en V2
     // con captura por pista independiente de la grabacion de video.
     const recording = await prisma.callRecording.findFirst({
-      where: { callId, status: "READY" },
+      where: { callId, status: "READY", ...(recordingId ? { id: recordingId } : {}) },
       orderBy: { startedAt: "desc" },
     });
     if (!recording) {
@@ -167,6 +178,12 @@ export function createCallTranscriptService({
         422,
       );
     }
+
+    const existing = await prisma.callTranscript.findFirst({
+      where: { recordingId: recording.id, status: { not: "FAILED" } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (existing) return { id: existing.id, status: existing.status, existing: true };
 
     // chat_conversations is a raw-SQL-managed table — company_id lives there,
     // not on Call itself (Call.conversationId carries no Prisma FK, same
@@ -186,6 +203,7 @@ export function createCallTranscriptService({
         sourceKind: "MIXED",
         status: "PENDING",
         requestedByUserId,
+        requestedLanguage: language === undefined ? defaultLanguage() : normalizeLanguage(language),
       },
     });
 
@@ -338,6 +356,7 @@ export function createCallTranscriptService({
         sourceKind: "PER_TRACK",
         status: "CAPTURING",
         requestedByUserId,
+        requestedLanguage: defaultLanguage(),
       },
     });
 
@@ -597,7 +616,9 @@ export function createCallTranscriptService({
   // keyed by transcript_id (see apps/transcriber/main.py), so resetting this
   // row back to PENDING and letting it get claimed again is enough to
   // "replace the previous version" — no separate supersede/versioning model.
-  async function regenerateTranscript({ transcriptId, profileId }) {
+  // `language` ("es", "en", "auto"...) re-runs it in a chosen language;
+  // omitted keeps the transcript's current choice.
+  async function regenerateTranscript({ transcriptId, profileId, language }) {
     const transcript = await prisma.callTranscript.findUnique({ where: { id: transcriptId } });
     if (!transcript) throw new CallTranscriptError("Transcripción no encontrada.", 404);
     await assertMember(transcript.conversationId, profileId);
@@ -623,6 +644,7 @@ export function createCallTranscriptService({
         durationMs: null,
         model: null,
         language: null,
+        ...(language === undefined ? {} : { requestedLanguage: normalizeLanguage(language) }),
         finalizedAt: null,
         expiresAt: null,
       },

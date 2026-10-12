@@ -44,7 +44,9 @@ export function useRequestTranscript(conversationId) {
   const { session } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (callId) => runly.calls.requestTranscript(callId, session.access_token),
+    // { callId, recordingId, language } — pinned to that exact recording.
+    mutationFn: ({ callId, recordingId, language }) =>
+      runly.calls.requestTranscript(callId, session.access_token, { recordingId, ...(language ? { language } : {}) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-transcripts", conversationId] }),
   });
 }
@@ -69,8 +71,9 @@ export function useRegenerateTranscript(conversationId) {
   const { session } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (transcriptId) => runly.calls.regenerateTranscript(transcriptId, session.access_token),
-    onSuccess: (_data, transcriptId) => {
+    // { transcriptId, language } — language "es" | "en" | "auto".
+    mutationFn: ({ transcriptId, language }) => runly.calls.regenerateTranscript(transcriptId, session.access_token, language),
+    onSuccess: (_data, { transcriptId }) => {
       qc.invalidateQueries({ queryKey: ["chat-transcripts", conversationId] });
       qc.invalidateQueries({ queryKey: ["chat-transcript", transcriptId] });
     },

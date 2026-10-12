@@ -38,17 +38,37 @@ describe("createCallTranscriptService.requestTranscript", () => {
     );
   });
 
-  it("rejects when a transcript is already PENDING/PROCESSING for this call", async () => {
+  it("returns the recording's existing transcript instead of transcribing it again", async () => {
+    let recordingWhere;
     const prisma = {
       call: { findUnique: async () => call },
       $queryRaw: async () => memberRows(),
-      callTranscript: { findFirst: async () => ({ id: TRANSCRIPT, status: "PROCESSING" }) },
+      callRecording: { findFirst: async ({ where }) => { recordingWhere = where; return { id: "rec-2", callId: CALL, status: "READY" }; } },
+      callTranscript: {
+        findFirst: async () => ({ id: TRANSCRIPT, status: "READY" }),
+        create: async () => { throw new Error("must not create a second transcript"); },
+      },
     };
     const svc = createCallTranscriptService({ prisma });
-    await assert.rejects(
-      svc.requestTranscript({ callId: CALL, requestedByUserId: USER, profileId: USER }),
-      (e) => e instanceof CallTranscriptError && e.status === 409,
-    );
+    const out = await svc.requestTranscript({ callId: CALL, recordingId: "rec-2", requestedByUserId: USER, profileId: USER });
+    assert.equal(out.id, TRANSCRIPT);
+    assert.equal(out.existing, true);
+    assert.equal(recordingWhere.id, "rec-2");
+  });
+
+  it("stores the requested language (default es, auto -> null)", async () => {
+    const created = [];
+    const prisma = {
+      call: { findUnique: async () => call },
+      $queryRaw: async () => [{ company_id: "co", ...memberRows()[0] }],
+      callRecording: { findFirst: async () => ({ id: "rec-1", callId: CALL, status: "READY" }) },
+      callTranscript: { findFirst: async () => null, create: async ({ data }) => { created.push(data); return { id: "t", status: "PENDING" }; } },
+    };
+    const svc = createCallTranscriptService({ prisma, env: {} });
+    await svc.requestTranscript({ callId: CALL, requestedByUserId: USER, profileId: USER });
+    await svc.requestTranscript({ callId: CALL, language: "auto", requestedByUserId: USER, profileId: USER });
+    assert.equal(created[0].requestedLanguage, "es");
+    assert.equal(created[1].requestedLanguage, null);
   });
 
   it("rejects (422) when there is no READY recording to transcribe yet — V1 depends on it", async () => {

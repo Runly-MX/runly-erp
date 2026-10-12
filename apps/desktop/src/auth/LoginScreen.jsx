@@ -11,6 +11,7 @@ import { normalizeAuthReturnPath } from './authReturnPath.js'
 import { useThemeStore } from '../stores/theme'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { RUNLY_EDITION_NAME } from '../lib/appConfig.js'
+import { native } from '../native/index.js'
 
 const SIDEBAR_FEATURES = [
   { icon: Server, label: 'Autoalojado en tu infraestructura' },
@@ -124,6 +125,11 @@ export function LoginScreen({ returnTo = '/app' }) {
   }
 
   async function handleChangeServer() {
+    if (native.isMobile()) {
+      try { await native.instances.open() }
+      catch (error) { setError(error.message || 'Actualiza la app Android para cambiar de instancia.') }
+      return
+    }
     await supabase.auth.signOut().catch(() => {})
     await clearServerUrl().catch(() => {})
     window.location.reload()
@@ -268,14 +274,14 @@ export function LoginScreen({ returnTo = '/app' }) {
               >
                 ¿Olvidaste tu contraseña?
               </button>
-              {isTauriRuntime() ? (
-                <button
+              {isTauriRuntime() || native.isMobile() ? (
+                <Button variant="ghost"
                   type="button"
                   onClick={handleChangeServer}
                   className="text-sm text-(--brand-primary) hover:text-(--brand-primary-hover) transition-colors duration-150 cursor-pointer"
                 >
-                  Cambiar servidor
-                </button>
+                  Cambiar instancia
+                </Button>
               ) : null}
             </div>
           </div>

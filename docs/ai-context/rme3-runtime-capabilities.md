@@ -16,6 +16,20 @@ keep their existing contracts.
 
 ## Scope
 
+### Android: funciones del dispositivo
+
+Runly Android 1.2.0 expone `window.__RUNLY_DEVICE__` con `status()`,
+`requestPermission(name)`, `openSettings(name)`, `pairedBluetoothDevices()`,
+`readNfcTag()` y `stopNfcReader()`. Los permisos solicitables son `camera`,
+`microphone`, `notifications` y `bluetooth`. Consultar disponibilidad primero
+y solicitar permisos desde una acción del usuario. NFC devuelve identificador
+y tecnologías; no ofrece pagos/escritura. Bluetooth consulta emparejados, sin
+escaneo BLE ni conexión genérica. Cámara/audio conservan `getUserMedia`.
+
+En imágenes web con el SDK actualizado también está disponible
+`createRunlyDeviceClient` desde `@runly/sdk`. El bridge inyectado por el APK
+funciona con imágenes web anteriores. Guía: `docs/mobile/RUNLY_NATIVE_HOST.md`.
+
 Installer mode means:
 - API and worker run from published images.
 - Web runs from a prebuilt Vite bundle image.

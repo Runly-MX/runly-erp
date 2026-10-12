@@ -108,7 +108,8 @@ def claim_next_job(conn):
                 LIMIT 1
                 FOR UPDATE SKIP LOCKED
             )
-            RETURNING id, call_id, conversation_id, company_id, recording_id, source_kind, attempts
+            RETURNING id, call_id, conversation_id, company_id, recording_id, source_kind, attempts,
+                      requested_language
             """,
             {"lease_minutes": LEASE_MINUTES, "worker_id": WORKER_INSTANCE_ID},
         )
@@ -271,10 +272,13 @@ def get_model():
     return _model_cache[key]
 
 
-def transcribe(audio_path: Path):
+def transcribe(audio_path: Path, language=None):
+    """language: codigo ISO pedido por la transcripcion; None -> WHISPER_LANGUAGE
+    del entorno o autodeteccion (que solo escucha los primeros segundos y suele
+    confundir clips cortos en espanol con ingles)."""
     model = get_model()
     segments_iter, info = model.transcribe(
-        str(audio_path), language=WHISPER_LANGUAGE, vad_filter=True, condition_on_previous_text=True,
+        str(audio_path), language=language or WHISPER_LANGUAGE, vad_filter=True, condition_on_previous_text=True,
     )
     segments = [
         {"start_ms": round(seg.start * 1000), "end_ms": round(seg.end * 1000), "text": seg.text.strip()}
@@ -284,7 +288,7 @@ def transcribe(audio_path: Path):
     return segments, duration_ms, getattr(info, "language", None)
 
 
-def transcribe_tracks(tracks):
+def transcribe_tracks(tracks, language=None):
     """V2 (PER_TRACK, spec §2.2): transcribe cada pista por separado y fusiona
     los segmentos en la linea de tiempo de la llamada, atribuyendo cada uno a
     la identidad ya conocida de esa pista — sin diarizacion acustica.
@@ -297,10 +301,10 @@ def transcribe_tracks(tracks):
     max_duration_ms = 0
     detected_language = None
     for track in tracks:
-        segments, duration_ms, language = transcribe(track["path"])
+        segments, duration_ms, detected = transcribe(track["path"], language)
         offset_ms = track.get("offset_ms") or 0
         max_duration_ms = max(max_duration_ms, offset_ms + duration_ms)
-        detected_language = detected_language or language
+        detected_language = detected_language or detected
         for seg in segments:
             all_segments.append({
                 **seg,
@@ -377,10 +381,10 @@ def process_job(conn, job):
             workdir = Path(tmp)
             if job["source_kind"] == "PER_TRACK":
                 tracks = download_track_audio(conn, transcript_id, workdir)
-                segments, duration_ms, language = transcribe_tracks(tracks)
+                segments, duration_ms, language = transcribe_tracks(tracks, job.get("requested_language"))
             else:
                 audio_path = download_recording_audio(conn, job["recording_id"], workdir)
-                segments, duration_ms, language = transcribe(audio_path)
+                segments, duration_ms, language = transcribe(audio_path, job.get("requested_language"))
             write_result(conn, transcript_id, segments, duration_ms, language)
             print(f"{LOG_PREFIX} Transcripción {transcript_id} lista — {len(segments)} segmentos, {duration_ms}ms.")
     except TransientError as error:

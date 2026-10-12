@@ -43,17 +43,30 @@ export function resolveEnvironment(name, devOrigin, action, debug = false) {
   return url.origin
 }
 
+export function nativeBuildEnvironment(environment, origin, source = process.env) {
+  const env = { ...source, RUNLY_NATIVE_ENV: environment }
+  delete env.RUNLY_NATIVE_ORIGIN
+  delete env.ATLAS_NATIVE_ORIGIN
+  if (origin) env.RUNLY_NATIVE_ORIGIN = origin
+  return env
+}
+
+export function useUniversalHost(platform, action, environment, extra = []) {
+  if (extra.includes('--universal') && extra.includes('--pinned')) throw new Error('Choose --universal or --pinned')
+  return extra.includes('--universal') || (platform === 'android' && ['build', 'config'].includes(action) && environment === 'production' && !extra.includes('--pinned'))
+}
+
 export function makeConfig(origin) {
   return {
     version: environments.nativeHostVersion,
-    build: { beforeDevCommand: '', beforeBuildCommand: '', devUrl: null, frontendDist: '../native-host/shell' },
+    build: { beforeDevCommand: '', beforeBuildCommand: '', devUrl: null, frontendDist: '../native-host/dist' },
     app: {
       windows: [],
       security: {
-        csp: "default-src 'self'; script-src 'self'; style-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'",
+        csp: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; frame-src 'none'; object-src 'none'; base-uri 'none'",
         capabilities: [
           { identifier: 'native-shell', windows: ['main'], platforms: ['android', 'iOS'], local: true,
-            permissions: ['allow-host-info', 'allow-host-connect', 'allow-host-confirm-origin', 'allow-host-forget-origin'] },
+            permissions: ['allow-host-info', 'allow-host-connect', 'allow-host-confirm-origin', 'allow-host-forget-origin', 'allow-host-servers', 'allow-host-device', 'notification:allow-is-permission-granted'] },
           { identifier: 'native-remote', windows: ['main'], platforms: ['android', 'iOS'], local: false,
             remote: { urls: origin ? [`${origin}/app/*`] : ['https://*/app/*'] },
             permissions: ['allow-host-info', 'allow-host-ready', 'allow-host-events', 'allow-host-ack-events',
@@ -62,7 +75,7 @@ export function makeConfig(origin) {
               'allow-host-screen-start', 'allow-host-screen-stop', 'allow-host-screen-status',
               'allow-host-call-keepalive-start', 'allow-host-call-keepalive-stop',
               'allow-host-audio-routes', 'allow-host-audio-route-set',
-              'haptics:allow-impact-feedback', 'allow-host-open-external', 'allow-host-fcm-token'] },
+              'haptics:allow-impact-feedback', 'allow-host-open-external', 'allow-host-fcm-token', 'allow-host-manage', 'allow-host-device'] },
         ],
       },
     },
@@ -74,8 +87,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const [platform = 'android', action = 'dev', environment = process.env.RUNLY_NATIVE_ENV || 'staging'] = process.argv.slice(2)
   if (!['android', 'ios'].includes(platform) || !['init', 'dev', 'build', 'config'].includes(action)) throw new Error('Usage: native-host.mjs android|ios init|dev|build|config development|staging|production')
   const extra = process.argv.slice(5)
-  if (extra.some((arg) => !['--debug', '--apk', '--aab', '--universal'].includes(arg))) throw new Error('Only --debug/--apk/--aab/--universal supported; use RUNLY_NATIVE_TARGET for ABI')
-  const universal = extra.includes('--universal')
+  if (extra.some((arg) => !['--debug', '--apk', '--aab', '--universal', '--pinned'].includes(arg))) throw new Error('Only --debug/--apk/--aab/--universal/--pinned supported; use RUNLY_NATIVE_TARGET for ABI')
+  const universal = useUniversalHost(platform, action, environment, extra)
   if (universal && (platform !== 'android' || !['build', 'config'].includes(action))) throw new Error('--universal only applies to `android build` or `android config`')
   if (universal && environment !== 'production') throw new Error('--universal builds must use the production environment')
   const origin = universal ? null : resolveEnvironment(environment, process.env.RUNLY_NATIVE_DEV_ORIGIN, action, extra.includes('--debug'))
@@ -93,15 +106,20 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     // `tauri dev` can replace App URLs with its development asset server, so dev here
     // builds a debug host. Web edits still appear remotely without rebuilding it.
     const tauriAction = action === 'dev' ? 'build' : action
-    if (tauriAction === 'build') buildNativeBrandAssets()
+    if (tauriAction === 'build') {
+      buildNativeBrandAssets()
+      const shell = spawnSync(process.execPath, [resolve(desktop, 'node_modules/vite/bin/vite.js'), 'build', '--config', resolve(desktop, 'native-host/vite.config.js')], { cwd: desktop, stdio: 'inherit' })
+      if (shell.error) throw shell.error
+      if (shell.status !== 0) throw new Error('Native shell build failed')
+    }
     const args = [cli, platform, tauriAction, '--config', configPath, ...(action === 'init' ? ['--ci'] : [])]
     if (action === 'dev') args.push('--debug')
     if (platform === 'android' && tauriAction === 'build') args.push('--target', target)
     if (platform === 'ios' && extra.some((arg) => ['--apk', '--aab'].includes(arg))) throw new Error('APK/AAB apply only to Android')
-    if (tauriAction === 'build') args.push(...extra.filter((arg) => arg !== '--universal'))
+    if (tauriAction === 'build') args.push(...extra.filter((arg) => !['--universal', '--pinned'].includes(arg)))
     const result = spawnSync(process.execPath, args, {
       cwd: desktop, stdio: 'inherit',
-      env: { ...process.env, RUNLY_NATIVE_ENV: environment, ...(origin ? { RUNLY_NATIVE_ORIGIN: origin } : {}) },
+      env: nativeBuildEnvironment(environment, origin),
     })
     if (result.error) throw result.error
     if (action === 'init' && result.status === 0) buildNativeBrandAssets()

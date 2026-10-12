@@ -1,5 +1,74 @@
 # Runly Native Host
 
+## Android 1.2.0 — instancias y dispositivo (2026-10-11)
+
+El APK público arranca sin URL incorporada. En la primera instalación muestra
+un formulario HTTPS y pide confirmar el dominio antes de conectarse. Guarda
+hasta 20 instancias con nombre opcional; en arranques posteriores reconecta a
+la activa. El menú nativo de opciones, disponible también sobre versiones web
+anteriores, permite volver al gestor desde el login o una sesión abierta.
+El login web actualizado incluye además **Cambiar instancia**.
+
+El gestor está empaquetado en React con `@runly/ui/primitives`; funciona aunque
+el servidor esté caído. Permite elegir otra instancia, olvidar una o restablecer
+la lista. Restablecer no recupera una URL incorporada después de reiniciar.
+Las sesiones web conservan el aislamiento de almacenamiento por origen. Entrar
+al gestor detiene llamadas/captura; cambiar de origen descarta eventos pendientes,
+retira avisos y rota el token FCM para invalidar registros de la instancia anterior.
+La lista de URLs no contiene credenciales. Los permisos del sistema pertenecen
+a la app Android y se administran separadamente de las instancias.
+
+La pestaña **Dispositivo** muestra disponibilidad y permisos para notificaciones,
+cámara, micrófono, Bluetooth, NFC y pantalla. Permite solicitar los permisos
+opcionales y abrir los ajustes de Android. Pantalla conserva consentimiento por
+sesión en el flujo de llamadas. Bluetooth ofrece audio y consulta de dispositivos
+emparejados; no implementa escaneo BLE ni un transporte genérico de periféricos.
+NFC lee el identificador y tecnologías de una etiqueta en primer plano, con
+cancelación y timeout de 30 segundos; no implementa pagos ni escritura de etiquetas.
+No se añaden permisos de telefonía celular para las llamadas VoIP de Runly.
+
+Producción Android es universal por defecto. Para QA con origen fijo usar
+`--pinned`; staging/development conservan su configuración de build. El wrapper
+elimina las variables de origen heredadas antes de compilar en modo universal.
+
+```powershell
+# Descarga directa, con la firma debug existente; no para Play Store:
+pnpm native:android build production --debug --apk
+# Build para futura distribución firmada:
+pnpm native:android build production --apk
+# QA de una instancia fija, URL tomada del entorno privado:
+pnpm native:android build production --pinned --debug --apk
+```
+
+El host mantiene las validaciones HTTPS, TLS, ruta `/app/`, preflight sin redirects
+y CSP anti-frames. La confirmación de confianza nunca se realiza desde el servidor
+remoto: éste solo puede volver al gestor local. No se amplían Store, SQL, filesystem
+ni shell remoto.
+
+### API para módulos
+
+El APK inyecta `window.__RUNLY_DEVICE__` desde el inicio, incluso cuando la instancia
+todavía sirve un SDK web anterior. Las instancias con el SDK actualizado pueden usar:
+
+```js
+import { createRunlyDeviceClient } from '@runly/sdk'
+const device = createRunlyDeviceClient()
+const status = await device.status()
+// Solicitar desde una acción explícita del usuario:
+await device.permissions.request('bluetooth')
+const { devices } = await device.bluetooth.pairedDevices()
+const tag = await device.nfc.readTag()
+await device.nfc.stop()
+```
+
+El cliente falla claramente fuera del host Android compatible. Las operaciones
+están enumeradas y vuelven a comprobar el origen confiado en Rust. Una nueva
+capacidad nativa requiere otra versión del APK; un módulo no puede añadir permisos
+ni comandos Android arbitrarios.
+
+Los apartados siguientes conservan la auditoría y evidencia histórica de 1.0/1.1;
+las restricciones históricas de origen fijo se sustituyen por este flujo en el APK 1.2.
+
 ## Android 1.1.0 — llamadas y pantalla (2026-09-12)
 
 El host añade captura nativa con MediaProjection y LiveKit Android 2.28.2 (Kotlin 2.2.21). El participante auxiliar `screen:<profileId>` publica exclusivamente video de pantalla en la sala existente; no adquiere audio, cámara ni suscripciones. La API exige pertenencia a la conversación, llamada activa y participante JOINED para emitir un token de un minuto limitado a SCREEN_SHARE. Los participantes auxiliares no cuentan como personas ni disparan sonidos de entrada/salida. Web/Desktop conservan `getDisplayMedia`.

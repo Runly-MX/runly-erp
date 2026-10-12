@@ -18,9 +18,8 @@ In Progress — implemented 2026-09-23; lint/build/existing-tests/global-chrome-
 
 ## 3. Context
 
-The user is working from a Stitch-generated redesign reference located at
-`C:\Users\raulb\Downloads\stitch_runly_ledger_finance_manager` (`DESIGN.md` design-token
-doc, `code.html` static markup, `screen.png` rendered mock — all local reference files,
+The user is working from a local Stitch-generated redesign reference containing
+a design document, `code.html` static markup and a `screen.png` rendered mock — all local reference files,
 not committed to the repo). The reference reimagines `runly.ledger`'s "Cuentas" screen as
 a dense fintech ledger: KPI strip, filter/search strip, a sticky-header spreadsheet-style
 transaction grid with a totals footer, and a slide-over sheet for transaction detail. The

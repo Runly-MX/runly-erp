@@ -109,3 +109,4 @@ infra/docker/.release-state.json
 .e2e/
 
 .artifacts/shared-release/
+apps/desktop/native-host/dist/

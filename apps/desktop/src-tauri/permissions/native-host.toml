@@ -77,3 +77,18 @@ commands.allow = ["host_confirm_origin"]
 identifier = "allow-host-forget-origin"
 description = "Clear the currently trusted server origin."
 commands.allow = ["host_forget_origin"]
+
+[[permission]]
+identifier = "allow-host-servers"
+description = "Manage saved instances exclusively from the bundled shell."
+commands.allow = ["host_servers", "host_remove_server", "host_cancel_origin"]
+
+[[permission]]
+identifier = "allow-host-manage"
+description = "Return to the bundled instance and device manager."
+commands.allow = ["host_manage"]
+
+[[permission]]
+identifier = "allow-host-device"
+description = "Check/request named device permissions and use bounded NFC/Bluetooth operations."
+commands.allow = ["host_device"]

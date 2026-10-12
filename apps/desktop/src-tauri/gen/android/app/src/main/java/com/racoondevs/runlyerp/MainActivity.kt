@@ -18,6 +18,7 @@ class MainActivity : TauriActivity() {
     applyRendererPriority(webView)
     // Preserve the real Chromium/Android UA for LiveKit and browser feature detection.
     webView.settings.userAgentString = WebSettings.getDefaultUserAgent(this) + " AtlasNativeHost/1.0"
+    HostControls.attach(this, webView)
     webView.settings.setSupportMultipleWindows(false)
   }
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-  Button, Skeleton, ErrorState, ConfirmDialog, AssistantWordmark,
+  Button, Skeleton, ErrorState, ConfirmDialog, AssistantWordmark, SelectField,
 } from "@runly/ui";
 import { Copy, Download, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -135,11 +135,36 @@ function TranscriptBody({ segments }) {
   );
 }
 
+const LANGUAGE_NAMES = { es: "Español", en: "Inglés", pt: "Portugués", fr: "Francés", de: "Alemán", it: "Italiano" };
+const LANGUAGE_OPTIONS = [
+  { value: "es", label: "Español" },
+  { value: "en", label: "Inglés" },
+  { value: "pt", label: "Portugués" },
+  { value: "fr", label: "Francés" },
+  { value: "auto", label: "Detectar automáticamente" },
+];
+
+// Which language the speech was transcribed as: the requested one, or the
+// auto-detected one (flagged, since detection on short clips is unreliable).
+function TranscriptLanguageBadge({ transcript }) {
+  const requested = transcript.requestedLanguage;
+  const code = requested ?? transcript.language;
+  if (!code) return null;
+  const name = LANGUAGE_NAMES[code] ?? code.toUpperCase();
+  return (
+    <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+      Idioma: <span className="font-medium text-[hsl(var(--foreground))]">{name}</span>
+      {requested ? "" : " (detectado automáticamente — si no es correcto, usa «Generar de nuevo» y elige el idioma)"}
+    </p>
+  );
+}
+
 export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conversationId, callTitle }) {
   const { data, isLoading, isError, refetch } = useTranscript(transcriptId, open);
   const retryTranscript = useRetryTranscript(conversationId);
   const regenerateTranscript = useRegenerateTranscript(conversationId);
   const [confirmRegenerate, setConfirmRegenerate] = useState(false);
+  const [regenLanguage, setRegenLanguage] = useState("es");
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const transcript = data?.data ?? data;
 
@@ -162,7 +187,7 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
 
   async function handleRegenerate() {
     try {
-      await regenerateTranscript.mutateAsync(transcriptId);
+      await regenerateTranscript.mutateAsync({ transcriptId, language: regenLanguage });
     } catch (err) {
       toast.error(err?.message ?? "No se pudo regenerar la transcripción.");
     } finally {
@@ -180,6 +205,7 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
               ? "Generada automáticamente — puede contener errores de reconocimiento."
               : "El contenido puede tardar unos minutos en procesarse."}
           </DialogDescription>
+          {transcript && <TranscriptLanguageBadge transcript={transcript} />}
         </DialogHeader>
 
         {isLoading && (
@@ -240,7 +266,10 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
                 variant="outline"
                 size="sm"
                 disabled={regenerateTranscript.isPending}
-                onClick={() => setConfirmRegenerate(true)}
+                onClick={() => {
+                  setRegenLanguage(transcript.requestedLanguage ?? transcript.language ?? "es");
+                  setConfirmRegenerate(true);
+                }}
               >
                 <RefreshCw className="h-3.5 w-3.5" />
                 Generar de nuevo
@@ -291,7 +320,14 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
         variant="destructive"
         loading={regenerateTranscript.isPending}
         onConfirm={handleRegenerate}
-      />
+      >
+        <SelectField
+          label="Idioma de la conversación"
+          value={regenLanguage}
+          onValueChange={setRegenLanguage}
+          options={LANGUAGE_OPTIONS}
+        />
+      </ConfirmDialog>
 
       <TranscriptAnalysisDialog transcriptId={transcriptId} open={analysisOpen} onOpenChange={setAnalysisOpen} />
     </Dialog>

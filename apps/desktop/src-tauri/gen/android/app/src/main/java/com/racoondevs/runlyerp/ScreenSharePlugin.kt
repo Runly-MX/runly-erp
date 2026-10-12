@@ -12,6 +12,12 @@ import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
+import app.tauri.annotation.Permission
+import app.tauri.annotation.PermissionCallback
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.suspendCancellableCoroutine
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
@@ -40,7 +46,12 @@ class ScreenShareArgs {
   lateinit var ownerIdentity: String
 }
 
-@TauriPlugin
+@TauriPlugin(permissions = [
+  Permission(alias = "camera", strings = ["android.permission.CAMERA"]),
+  Permission(alias = "microphone", strings = ["android.permission.RECORD_AUDIO"]),
+  Permission(alias = "notifications", strings = ["android.permission.POST_NOTIFICATIONS"]),
+  Permission(alias = "bluetooth", strings = ["android.permission.BLUETOOTH_CONNECT"]),
+])
 class ScreenSharePlugin(private val activity: Activity) : Plugin(activity) {
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
   private var room: Room? = null
@@ -49,6 +60,8 @@ class ScreenSharePlugin(private val activity: Activity) : Plugin(activity) {
   private var pendingInvoke: Invoke? = null
   private var callId: String? = null
   private var active = false
+  private val devices = DeviceAccess(activity)
+  private var permissionPending = false
 
   init { instance = this }
 
@@ -74,6 +87,93 @@ class ScreenSharePlugin(private val activity: Activity) : Plugin(activity) {
     else prefs.edit().putString("origin", args.getString("origin")).apply()
     invoke.resolve()
   }
+
+  @Command
+  fun getServers(invoke: Invoke) {
+    val prefs = activity.getSharedPreferences("runly_server", Context.MODE_PRIVATE)
+    val stored = prefs.getString("servers", null)
+    if (stored != null) { invoke.resolve(JSObject(stored)); return }
+    val old = prefs.getString("origin", null)
+    val instances = app.tauri.plugin.JSArray()
+    if (old != null) instances.put(JSObject().apply { put("origin", old); put("name", old) })
+    invoke.resolve(JSObject().apply {
+      put("instances", instances); put("activeOrigin", old); put("configured", prefs.contains("origin"))
+    })
+  }
+
+  @Command
+  fun setServers(invoke: Invoke) {
+    val registry = invoke.getArgs()
+    val prefs = activity.getSharedPreferences("runly_server", Context.MODE_PRIVATE)
+    val old = prefs.getString("servers", null)?.let { JSObject(it).optString("activeOrigin", "") }
+      ?: prefs.getString("origin", "")
+    val next = registry.optString("activeOrigin", "")
+    scope.launch {
+      try {
+        if (old != next) {
+          // Invalidate registrations on the previous instance before activating another.
+          // A fresh token is exposed only after Firebase finishes rotating it.
+          RunlyMessagingService.prefs(activity).edit().remove("token").commit()
+          if (com.google.firebase.FirebaseApp.getApps(activity).isNotEmpty()) {
+            suspendCancellableCoroutine<Unit> { continuation ->
+              FirebaseMessaging.getInstance().deleteToken().addOnCompleteListener { task ->
+                if (continuation.isActive) {
+                  if (task.isSuccessful) continuation.resume(Unit)
+                  else continuation.resumeWithException(task.exception ?: IllegalStateException("PUSH_RESET_FAILED"))
+                }
+              }
+            }
+          }
+          (activity.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
+        }
+        check(prefs.edit().putString("servers", registry.toString()).remove("origin").commit()) { "STORAGE_FAILED" }
+        if (old != next && next.isNotEmpty() && next != "null" && com.google.firebase.FirebaseApp.getApps(activity).isNotEmpty()) {
+          FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+            RunlyMessagingService.prefs(activity).edit().putString("token", token).apply()
+          }
+        }
+        invoke.resolve()
+      } catch (_: Exception) {
+        invoke.reject("No se pudo guardar la instancia. Comprueba tu conexión e intenta de nuevo.")
+      }
+    }
+  }
+
+  @Command
+  fun deviceStatus(invoke: Invoke) { invoke.resolve(devices.status()) }
+
+  @Command
+  fun deviceSettings(invoke: Invoke) { devices.settings(invoke) }
+
+  @Command
+  fun deviceRequest(invoke: Invoke) {
+    val permission = invoke.getArgs().optString("permission", "")
+    if (permission !in listOf("camera", "microphone", "notifications", "bluetooth")) { invoke.reject("INVALID_PERMISSION"); return }
+    if (!activity.hasWindowFocus()) { invoke.reject("Abre Runly para activar un permiso."); return }
+    if (permissionPending) { invoke.reject("Ya hay una solicitud de permiso activa."); return }
+    if ((permission == "notifications" && Build.VERSION.SDK_INT < 33) || (permission == "bluetooth" && Build.VERSION.SDK_INT < 31)) {
+      invoke.resolve(devices.status()); return
+    }
+    if (devices.granted(permission)) { invoke.resolve(devices.status()); return }
+    permissionPending = true
+    devices.markRequested(permission)
+    requestPermissionForAlias(permission, invoke, "devicePermissionResult")
+  }
+
+  @PermissionCallback
+  private fun devicePermissionResult(invoke: Invoke) {
+    permissionPending = false
+    invoke.resolve(devices.status())
+  }
+
+  @Command
+  fun bluetoothPaired(invoke: Invoke) { devices.bluetoothPaired(invoke) }
+
+  @Command
+  fun nfcRead(invoke: Invoke) { devices.nfcRead(invoke) }
+
+  @Command
+  fun nfcStop(invoke: Invoke) { devices.cancel(); invoke.resolve() }
 
   @Command
   fun start(invoke: Invoke) {
@@ -162,6 +262,7 @@ class ScreenSharePlugin(private val activity: Activity) : Plugin(activity) {
 
   @Command
   fun stop(invoke: Invoke) {
+    devices.cancel()
     release()
     operation?.cancel()
     invoke.resolve(snapshot())
@@ -211,6 +312,7 @@ class ScreenSharePlugin(private val activity: Activity) : Plugin(activity) {
     private var instance: ScreenSharePlugin? = null
     fun stopCurrent() {
       instance?.release()
+      instance?.devices?.cancel()
       instance?.scope?.cancel()
       instance = null
     }

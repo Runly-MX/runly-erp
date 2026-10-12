@@ -32,6 +32,17 @@ export const native = {
   isMobile: isNativeMobile,
   isDesktop: isNativeDesktop,
   getHostInfo,
+  instances: {
+    async open(section = 'manage') {
+      await native.requireCapability('instance-manager')
+      return invoke('host_manage', { section })
+    },
+  },
+  device: {
+    async status() { await native.requireCapability('device-permissions'); return invoke('host_device', { action: 'status' }) },
+    async requestPermission(permission) { await native.requireCapability('device-permissions'); return invoke('host_device', { action: 'request', permission }) },
+    async openSettings(permission) { await native.requireCapability('device-permissions'); return invoke('host_device', { action: 'settings', permission }) },
+  },
   supports: (capability, minimumVersion) => supportsCapability(hostInfo, capability, minimumVersion),
   async requireCapability(capability, minimumVersion) {
     await getHostInfo()

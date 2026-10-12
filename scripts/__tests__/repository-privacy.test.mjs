@@ -45,6 +45,9 @@ test('SSRF protocol constants have an exact exception, never arbitrary infrastru
   assert.equal(inspectFile('docs/example.md', reserved)[0].rule, 'non-example-ipv4')
   const real = ['172', '30', '4', '5'].join('.')
   assert.equal(inspectFile(policy, real)[0].rule, 'non-example-ipv4')
+  const inventoryFixture = 'apps/api/src/services/__tests__/inventory-item-import-service.test.js'
+  assert.deepEqual(inspectFile(inventoryFixture, reserved), [])
+  assert.equal(inspectFile(inventoryFixture, real)[0].rule, 'non-example-ipv4')
 })
 
 test('la comprobación staged lee el índice, aunque el archivo de trabajo esté limpio', () => {

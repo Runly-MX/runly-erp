@@ -3,7 +3,7 @@ import { Button } from './Button.jsx'
 import { cn } from '../lib/utils.js'
 import { requestBugReport } from '../lib/bugReportBus.js'
 
-export function ErrorState({ title = 'Error al cargar', description, onRetry, className }) {
+export function ErrorState({ title = 'Error al cargar', description, onRetry, className, showReport = true }) {
   return (
     <div className={cn('flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-destructive/30 bg-destructive/5 px-6 py-14 text-center', className)}>
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
@@ -21,7 +21,7 @@ export function ErrorState({ title = 'Error al cargar', description, onRetry, cl
             Reintentar
           </Button>
         )}
-        <Button
+        {showReport && <Button
           size="sm"
           variant="ghost"
           onClick={() => requestBugReport({
@@ -30,7 +30,7 @@ export function ErrorState({ title = 'Error al cargar', description, onRetry, cl
           })}
         >
           Reportar bug
-        </Button>
+        </Button>}
       </div>
     </div>
   )

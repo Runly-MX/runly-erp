@@ -23,6 +23,10 @@ pub fn run() {
             mobile_host::host_connect,
             mobile_host::host_confirm_origin,
             mobile_host::host_forget_origin,
+            mobile_host::host_servers,
+            mobile_host::host_cancel_origin,
+            mobile_host::host_remove_server,
+            mobile_host::host_manage,
             mobile_host::host_ready,
             mobile_host::host_events,
             mobile_host::host_ack_events,
@@ -44,7 +48,9 @@ pub fn run() {
             #[cfg(target_os = "android")]
             mobile_media::host_audio_route_set,
             #[cfg(target_os = "android")]
-            mobile_media::host_fcm_token
+            mobile_media::host_fcm_token,
+            #[cfg(target_os = "android")]
+            mobile_media::host_device
         ])
         .setup(mobile_host::setup);
     builder

@@ -1,5 +1,5 @@
 //! Mobile-only remote host. Native checks supplement the command ACL, never replace it.
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
     sync::{
@@ -43,11 +43,57 @@ pub struct HostState {
     // A candidate origin that passed preflight but hasn't been confirmed by
     // the user yet. Lives only in memory — lost if the app is killed before
     // confirmation, by design (see spec's error-handling section).
-    pending_origin: Mutex<Option<String>>,
+    pending_origin: Mutex<Option<SavedServer>>,
+    servers: Mutex<ServerRegistry>,
     // Bumped at the start of every host_connect call. A call whose preflight
     // resolves after a newer call has started must not act on stale results —
     // see the race this guards against in the commit that introduced it.
     connect_generation: AtomicU64,
+}
+
+#[derive(Clone, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedServer {
+    origin: String,
+    name: String,
+}
+
+#[derive(Clone, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerRegistry {
+    #[serde(default)]
+    instances: Vec<SavedServer>,
+    active_origin: Option<String>,
+    #[serde(default)]
+    configured: bool,
+}
+
+impl ServerRegistry {
+    fn select(&mut self, server: SavedServer) -> Result<(), String> {
+        if let Some(saved) = self
+            .instances
+            .iter_mut()
+            .find(|s| s.origin == server.origin)
+        {
+            saved.name = server.name.clone();
+        } else {
+            if self.instances.len() >= 20 {
+                return Err("INSTANCE_LIMIT".into());
+            }
+            self.instances.push(server.clone());
+        }
+        self.active_origin = Some(server.origin);
+        self.configured = true;
+        Ok(())
+    }
+
+    fn remove(&mut self, origin: &str) {
+        self.instances.retain(|s| s.origin != origin);
+        if self.active_origin.as_deref() == Some(origin) {
+            self.active_origin = None;
+        }
+        self.configured = true;
+    }
 }
 
 pub fn allowed_remote(url: &Url, origin: &str) -> bool {
@@ -173,6 +219,10 @@ pub fn host_info(window: WebviewWindow) -> Result<serde_json::Value, String> {
         capabilities.push("screen-share");
         capabilities.push("call-keepalive");
         capabilities.push("audio-route");
+        capabilities.push("instance-manager");
+        capabilities.push("device-permissions");
+        capabilities.push("bluetooth-paired-devices");
+        capabilities.push("nfc-reader");
     }
     Ok(serde_json::json!({
         "platform": std::env::consts::OS, "nativeHostVersion": VERSION,
@@ -256,26 +306,137 @@ fn navigate_to_origin(
 }
 
 #[cfg(target_os = "android")]
-async fn persist_origin(app: tauri::AppHandle, origin: Option<String>) -> Result<(), String> {
-    super::mobile_media::set_origin(app, origin).await
+async fn persist_servers(app: tauri::AppHandle, registry: &ServerRegistry) -> Result<(), String> {
+    super::mobile_media::set_servers(app, serde_json::to_value(registry).unwrap()).await
 }
 
 #[cfg(not(target_os = "android"))]
-async fn persist_origin(_app: tauri::AppHandle, _origin: Option<String>) -> Result<(), String> {
+async fn persist_servers(_app: tauri::AppHandle, _registry: &ServerRegistry) -> Result<(), String> {
     Ok(())
 }
 
 #[cfg(target_os = "android")]
-fn load_persisted_origin(app: tauri::AppHandle) -> Option<String> {
-    tauri::async_runtime::block_on(super::mobile_media::get_origin(app))
+fn load_servers(app: tauri::AppHandle) -> ServerRegistry {
+    let registry = tauri::async_runtime::block_on(super::mobile_media::get_servers(app))
         .ok()
-        .flatten()
-        .or_else(|| COMPILED_ORIGIN.map(String::from))
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or_default();
+    seed_registry(registry)
 }
 
 #[cfg(not(target_os = "android"))]
-fn load_persisted_origin(_app: tauri::AppHandle) -> Option<String> {
-    COMPILED_ORIGIN.map(String::from)
+fn load_servers(_app: tauri::AppHandle) -> ServerRegistry {
+    seed_registry(ServerRegistry::default())
+}
+
+fn seed_registry(mut registry: ServerRegistry) -> ServerRegistry {
+    registry
+        .instances
+        .retain(|s| validate_origin_format(&s.origin).is_ok());
+    registry.instances.truncate(20);
+    if !registry.configured {
+        if let Some(origin) = COMPILED_ORIGIN {
+            let _ = registry.select(SavedServer {
+                origin: origin.into(),
+                name: "Runly".into(),
+            });
+        }
+    }
+    if !registry
+        .instances
+        .iter()
+        .any(|s| Some(&s.origin) == registry.active_origin.as_ref())
+    {
+        registry.active_origin = None;
+    }
+    registry
+}
+
+fn check_local(window: &WebviewWindow) -> Result<(), String> {
+    if window.label() == "main" && local_shell(&window.url().map_err(|_| "URL_UNAVAILABLE")?) {
+        Ok(())
+    } else {
+        Err("LOCAL_ONLY".into())
+    }
+}
+
+pub(crate) fn check_host(window: &WebviewWindow) -> Result<(), String> {
+    if check_local(window).is_ok() {
+        Ok(())
+    } else {
+        check_remote(window)
+    }
+}
+
+fn activate(state: &HostState, registry: ServerRegistry) {
+    let changed = *state.origin.lock().unwrap() != registry.active_origin;
+    *state.origin.lock().unwrap() = registry.active_origin.clone();
+    *state.servers.lock().unwrap() = registry;
+    *state.pending_origin.lock().unwrap() = None;
+    if changed {
+        state.events.lock().unwrap().clear();
+    }
+}
+
+#[tauri::command]
+pub fn host_servers(
+    window: WebviewWindow,
+    state: State<'_, Arc<HostState>>,
+) -> Result<ServerRegistry, String> {
+    check_local(&window)?;
+    Ok(state.servers.lock().unwrap().clone())
+}
+
+#[tauri::command]
+pub fn host_cancel_origin(
+    window: WebviewWindow,
+    state: State<'_, Arc<HostState>>,
+) -> Result<(), String> {
+    check_local(&window)?;
+    state.connect_generation.fetch_add(1, Ordering::SeqCst);
+    *state.pending_origin.lock().unwrap() = None;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn host_remove_server(
+    window: WebviewWindow,
+    state: State<'_, Arc<HostState>>,
+    origin: String,
+) -> Result<(), String> {
+    check_local(&window)?;
+    let mut registry = state.servers.lock().unwrap().clone();
+    registry.remove(&validate_origin_format(&origin)?);
+    persist_servers(window.app_handle().clone(), &registry).await?;
+    activate(&state, registry);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn host_manage(
+    window: WebviewWindow,
+    state: State<'_, Arc<HostState>>,
+    section: Option<String>,
+) -> Result<(), String> {
+    check_remote(&window)?;
+    state.generation.fetch_add(1, Ordering::SeqCst);
+    state.connect_generation.fetch_add(1, Ordering::SeqCst);
+    #[cfg(target_os = "android")]
+    super::mobile_media::stop_for_manager(window.app_handle().clone()).await?;
+    let mut target = state
+        .fallback
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("SHELL_UNAVAILABLE")?;
+    target.set_fragment(Some(if section.as_deref() == Some("device") {
+        "device"
+    } else {
+        "manage"
+    }));
+    window
+        .navigate(target)
+        .map_err(|_| "NAVIGATION_FAILED".into())
 }
 
 #[tauri::command]
@@ -283,6 +444,7 @@ pub async fn host_connect(
     window: WebviewWindow,
     state: State<'_, Arc<HostState>>,
     origin: Option<String>,
+    name: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let local = window.url().map_err(|_| "URL_UNAVAILABLE")?;
     if window.label() != "main" || !local_shell(&local) {
@@ -290,6 +452,8 @@ pub async fn host_connect(
     }
     *state.fallback.lock().unwrap() = Some(local);
 
+    let my_generation = state.connect_generation.fetch_add(1, Ordering::SeqCst) + 1;
+    *state.pending_origin.lock().unwrap() = None;
     let candidate = match origin {
         Some(value) => validate_origin_format(&value)?,
         None => state
@@ -300,18 +464,42 @@ pub async fn host_connect(
             .ok_or("NO_ORIGIN_CONFIGURED")?,
     };
 
-    let my_generation = state.connect_generation.fetch_add(1, Ordering::SeqCst) + 1;
     preflight(&candidate).await?;
     if state.connect_generation.load(Ordering::SeqCst) != my_generation {
         return Err("SUPERSEDED".into());
     }
 
-    let already_trusted = state.origin.lock().unwrap().as_deref() == Some(candidate.as_str());
-    if !already_trusted {
-        *state.pending_origin.lock().unwrap() = Some(candidate.clone());
+    let registry = state.servers.lock().unwrap().clone();
+    let saved = registry
+        .instances
+        .iter()
+        .find(|s| s.origin == candidate)
+        .cloned();
+    let server = SavedServer {
+        origin: candidate.clone(),
+        name: name
+            .unwrap_or_else(|| {
+                saved
+                    .as_ref()
+                    .map(|s| s.name.clone())
+                    .unwrap_or_else(|| candidate.clone())
+            })
+            .trim()
+            .chars()
+            .take(80)
+            .collect(),
+    };
+    if saved.is_none() {
+        if registry.instances.len() >= 20 {
+            return Err("INSTANCE_LIMIT".into());
+        }
+        *state.pending_origin.lock().unwrap() = Some(server);
         return Ok(serde_json::json!({ "status": "pending_confirmation", "origin": candidate }));
     }
-
+    let mut registry = registry;
+    registry.select(server)?;
+    persist_servers(window.app_handle().clone(), &registry).await?;
+    activate(&state, registry);
     navigate_to_origin(&window, state.inner(), &candidate)?;
     Ok(serde_json::json!({ "status": "connected" }))
 }
@@ -329,11 +517,13 @@ pub async fn host_confirm_origin(
         .pending_origin
         .lock()
         .unwrap()
-        .take()
+        .clone()
         .ok_or("NO_PENDING_ORIGIN")?;
-    persist_origin(window.app_handle().clone(), Some(origin.clone())).await?;
-    *state.origin.lock().unwrap() = Some(origin.clone());
-    navigate_to_origin(&window, state.inner(), &origin)
+    let mut registry = state.servers.lock().unwrap().clone();
+    registry.select(origin.clone())?;
+    persist_servers(window.app_handle().clone(), &registry).await?;
+    activate(&state, registry);
+    navigate_to_origin(&window, state.inner(), &origin.origin)
 }
 
 #[tauri::command]
@@ -345,9 +535,13 @@ pub async fn host_forget_origin(
     if window.label() != "main" || !local_shell(&local) {
         return Err("LOCAL_ONLY".into());
     }
-    persist_origin(window.app_handle().clone(), None).await?;
-    *state.origin.lock().unwrap() = None;
-    *state.pending_origin.lock().unwrap() = None;
+    state.connect_generation.fetch_add(1, Ordering::SeqCst);
+    let registry = ServerRegistry {
+        configured: true,
+        ..Default::default()
+    };
+    persist_servers(window.app_handle().clone(), &registry).await?;
+    activate(&state, registry);
     Ok(())
 }
 
@@ -403,7 +597,8 @@ pub fn host_open_external(window: WebviewWindow, url: String) -> Result<(), Stri
 
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let state = Arc::new(HostState::default());
-    *state.origin.lock().unwrap() = load_persisted_origin(app.handle().clone());
+    let registry = load_servers(app.handle().clone());
+    activate(&state, registry);
     app.manage(state.clone());
     let events = state.clone();
     app.deep_link().on_open_url(move |event| {
@@ -418,7 +613,8 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     }
     let handle = app.handle().clone();
     let metadata = serde_json::json!({ "platform": std::env::consts::OS, "bridgeVersion": 1 });
-    let init = format!("Object.defineProperty(window, '__RUNLY_NATIVE_HOST__', {{value: Object.freeze({metadata}), writable:false}});");
+    let device_bridge = include_str!("../../native-host/device-bridge.js");
+    let init = format!("Object.defineProperty(window, '__RUNLY_NATIVE_HOST__', {{value: Object.freeze({metadata}), writable:false}});{device_bridge}");
     let nav_state = state.clone();
     WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("Runly ERP")
@@ -464,6 +660,73 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn registry_switch_and_remove_preserve_other_instances() {
+        let mut registry = ServerRegistry::default();
+        for name in ["a", "b"] {
+            registry
+                .select(SavedServer {
+                    origin: format!("https://{name}.example.com"),
+                    name: name.into(),
+                })
+                .unwrap();
+        }
+        assert_eq!(registry.instances.len(), 2);
+        assert_eq!(
+            registry.active_origin.as_deref(),
+            Some("https://b.example.com")
+        );
+        registry.remove("https://b.example.com");
+        assert_eq!(registry.instances.len(), 1);
+        assert_eq!(registry.active_origin, None);
+        assert!(registry.configured);
+    }
+
+    #[test]
+    fn switching_origin_discards_events_from_previous_instance() {
+        let state = HostState::default();
+        state.enqueue(&Url::parse("runly://call/a").unwrap());
+        let mut registry = ServerRegistry::default();
+        registry
+            .select(SavedServer {
+                origin: "https://b.example.com".into(),
+                name: "B".into(),
+            })
+            .unwrap();
+        activate(&state, registry);
+        assert!(state.events.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn registry_is_bounded_and_updates_existing_name() {
+        let mut registry = ServerRegistry::default();
+        for n in 0..20 {
+            registry
+                .select(SavedServer {
+                    origin: format!("https://i{n}.example.com"),
+                    name: "Test".into(),
+                })
+                .unwrap();
+        }
+        assert!(registry
+            .select(SavedServer {
+                origin: "https://extra.example.com".into(),
+                name: "Extra".into()
+            })
+            .is_err());
+        registry
+            .select(SavedServer {
+                origin: "https://i0.example.com".into(),
+                name: "Renamed".into(),
+            })
+            .unwrap();
+        assert_eq!(registry.instances[0].name, "Renamed");
+        let reset = ServerRegistry {
+            configured: true,
+            ..Default::default()
+        };
+        assert!(seed_registry(reset).active_origin.is_none());
+    }
     #[test]
     fn exact_origin_and_app_path() {
         for value in [

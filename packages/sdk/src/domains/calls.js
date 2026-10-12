@@ -75,14 +75,16 @@ export function createCallsDomain(request, withAuthHeaders) {
       json(`/calls/recordings/${encodeURIComponent(recordingId)}`, "DELETE", undefined, token),
 
     // --- transcripts (V1 — audio mezclado de una grabación existente) ---
-    requestTranscript: (callId, token) => json(`/calls/${callId}/transcript/request`, "POST", {}, token),
+    // `options`: { recordingId, language } — language "es" | "en" | "auto"...
+    requestTranscript: (callId, token, options = {}) => json(`/calls/${callId}/transcript/request`, "POST", options, token),
     // --- transcripts (V2 — captura por pista, identificación de hablantes) ---
     startTrackTranscription: (callId, token) => json(`/calls/${callId}/transcript-tracks/start`, "POST", {}, token),
     stopTrackTranscription: (callId, token) => json(`/calls/${callId}/transcript-tracks/stop`, "POST", {}, token),
     retryTranscript: (transcriptId, token) =>
       json(`/calls/transcripts/${encodeURIComponent(transcriptId)}/retry`, "POST", {}, token),
-    regenerateTranscript: (transcriptId, token) =>
-      json(`/calls/transcripts/${encodeURIComponent(transcriptId)}/regenerate`, "POST", {}, token),
+    // `language` ("es", "en", "auto") re-runs it in that language.
+    regenerateTranscript: (transcriptId, token, language) =>
+      json(`/calls/transcripts/${encodeURIComponent(transcriptId)}/regenerate`, "POST", language ? { language } : {}, token),
     listTranscripts: (conversationId, token) =>
       json(`/calls/conversations/${encodeURIComponent(conversationId)}/transcripts`, "GET", undefined, token),
     getTranscript: (transcriptId, token) =>

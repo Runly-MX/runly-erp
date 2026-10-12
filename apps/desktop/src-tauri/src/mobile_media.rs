@@ -12,14 +12,39 @@ pub fn stop_on_navigation(app: AppHandle) {
     });
 }
 
-pub async fn get_origin(app: AppHandle) -> Result<Option<String>, String> {
-    let result = run(app, "getOrigin", json!({})).await?;
-    Ok(result.get("origin").and_then(|v| v.as_str()).map(String::from))
+pub async fn get_servers(app: AppHandle) -> Result<Value, String> {
+    run(app, "getServers", json!({})).await
 }
 
-pub async fn set_origin(app: AppHandle, origin: Option<String>) -> Result<(), String> {
-    run(app, "setOrigin", json!({ "origin": origin })).await?;
+pub async fn set_servers(app: AppHandle, registry: Value) -> Result<(), String> {
+    run(app, "setServers", registry).await?;
     Ok(())
+}
+
+pub async fn stop_for_manager(app: AppHandle) -> Result<(), String> {
+    run(app.clone(), "stop", json!({})).await?;
+    run(app, "callKeepAliveStop", json!({})).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn host_device(
+    window: WebviewWindow,
+    app: AppHandle,
+    action: String,
+    permission: Option<String>,
+) -> Result<Value, String> {
+    super::mobile_host::check_host(&window)?;
+    let command = match action.as_str() {
+        "status" => "deviceStatus",
+        "request" => "deviceRequest",
+        "settings" => "deviceSettings",
+        "bluetooth-paired" => "bluetoothPaired",
+        "nfc-read" => "nfcRead",
+        "nfc-stop" => "nfcStop",
+        _ => return Err("INVALID_DEVICE_ACTION".into()),
+    };
+    run(app, command, json!({ "permission": permission })).await
 }
 
 pub fn init() -> TauriPlugin<Wry> {
@@ -102,7 +127,10 @@ pub async fn host_call_keepalive_start(
 }
 
 #[tauri::command]
-pub async fn host_call_keepalive_stop(window: WebviewWindow, app: AppHandle) -> Result<Value, String> {
+pub async fn host_call_keepalive_stop(
+    window: WebviewWindow,
+    app: AppHandle,
+) -> Result<Value, String> {
     super::mobile_host::check_remote(&window)?;
     run(app, "callKeepAliveStop", json!({})).await
 }

@@ -102,7 +102,7 @@ lógica de recorte del prefijo `/app`.
           </span>
         )}
         <a
-          href="https://racoondevs.com"
+          href="https://runly.example.com"
           target="_blank"
           rel="noopener noreferrer"
           className="text-[11px] text-[hsl(var(--muted-foreground))] leading-none hover:text-[hsl(var(--foreground))] transition-colors duration-150 shrink-0"

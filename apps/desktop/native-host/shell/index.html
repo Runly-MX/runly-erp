@@ -1,30 +1,12 @@
 <!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Runly ERP</title>
-  <link rel="stylesheet" href="shell.css">
-  <script src="shell.js" defer></script>
-</head>
-<body>
-  <main>
-    <img class="mark" src="runly-mark.svg" width="96" height="96" alt="">
-    <h1>Runly ERP</h1>
-    <p id="status" role="status">Conectando con Runly…</p>
-    <form id="connect-form" hidden novalidate>
-      <label for="origin-input">URL de tu servidor Runly</label>
-      <input id="origin-input" type="url" placeholder="https://runly.tuempresa.com" autocomplete="off" autocapitalize="off" spellcheck="false">
-      <button id="connect-button" type="submit">Conectar</button>
-    </form>
-    <div id="confirm-panel" hidden>
-      <p>Vas a conectar a <strong id="confirm-origin"></strong>. Esta app confiará en este servidor y le dará acceso a notificaciones, vibración y captura de pantalla cuando lo uses.</p>
-      <button id="confirm-button" type="button">Confirmar</button>
-      <button id="cancel-button" type="button">Cancelar</button>
-    </div>
-    <button id="retry" type="button" hidden>Reintentar</button>
-    <details><summary>Diagnóstico</summary><pre id="diagnostics"></pre></details>
-    <p class="forget"><a id="forget-link" href="#" hidden>Cambiar de servidor</a></p>
-  </main>
-</body>
+<html lang="es" class="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Runly - Instancias y dispositivo</title>
+  </head>
+  <body>
+    <div id="root"><p class="boot-message">Preparando Runly...</p></div>
+    <script type="module" src="./main.jsx"></script>
+  </body>
 </html>

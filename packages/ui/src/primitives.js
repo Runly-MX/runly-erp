@@ -7,4 +7,8 @@ export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 export { Badge } from './components/Badge.jsx'
 export { PageHeader } from './components/PageHeader.jsx'
 export { EmptyState } from './components/EmptyState.jsx'
+export { ErrorState } from './components/ErrorState.jsx'
+export { TextField } from './components/FormFields.jsx'
+export { ConfirmDialog } from './components/ConfirmDialog.jsx'
+export { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './components/Dialog.jsx'
 export { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from './components/Select.jsx'

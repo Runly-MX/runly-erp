@@ -332,8 +332,11 @@ export function createCallsRouter({
       try {
         const callId = callIdSchema.parse(c.req.param("callId"));
         const profileId = c.get("userId");
-        const data = await transcriptService.requestTranscript({ callId, requestedByUserId: profileId, profileId });
-        return c.json({ data }, 201);
+        const body = await c.req.json().catch(() => ({}));
+        const recordingId = body?.recordingId ? callIdSchema.parse(body.recordingId) : null;
+        const language = typeof body?.language === "string" ? body.language : undefined;
+        const data = await transcriptService.requestTranscript({ callId, recordingId, language, requestedByUserId: profileId, profileId });
+        return c.json({ data }, data?.existing ? 200 : 201);
       } catch (error) { return handleError(c, error, "Error solicitando la transcripción."); }
     },
   );
@@ -378,7 +381,12 @@ export function createCallsRouter({
     async (c) => {
       try {
         const transcriptId = transcriptIdSchema.parse(c.req.param("transcriptId"));
-        const data = await transcriptService.regenerateTranscript({ transcriptId, profileId: c.get("userId") });
+        const body = await c.req.json().catch(() => ({}));
+        const data = await transcriptService.regenerateTranscript({
+          transcriptId,
+          profileId: c.get("userId"),
+          language: typeof body?.language === "string" ? body.language : undefined,
+        });
         return c.json({ data });
       } catch (error) { return handleError(c, error, "Error regenerando la transcripción."); }
     },

@@ -28,7 +28,7 @@ export function RecordingTranscriptAction({ recording, transcript, conversationI
 
   async function handleRequest() {
     try {
-      await requestTranscript.mutateAsync(recording.callId);
+      await requestTranscript.mutateAsync({ callId: recording.callId, recordingId: recording.id });
     } catch (err) {
       toast.error(err?.message ?? "No se pudo solicitar la transcripción.");
     }

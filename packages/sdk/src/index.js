@@ -10,6 +10,7 @@ import { createConnectionsDomain } from "./domains/connections.js";
 import { createTrashDomain } from "./domains/trash.js";
 import { createModuleCatalogDomain } from "./domains/module-catalog.js";
 export { createCompanyFetch } from "./company-fetch.js";
+export { createRunlyDeviceClient } from './native-device.js';
 
 export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImpl = (...args) => globalThis.fetch(...args) } = {}) {
   let _offlineTransport = null;

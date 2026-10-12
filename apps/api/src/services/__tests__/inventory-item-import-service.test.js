@@ -112,8 +112,8 @@ test('commit creates missing type, brand and model, custom values and photos', a
 });
 
 test('remote image guard rejects internal addresses and non-http links', () => {
-  for (const ip of ['127.0.0.1', '10.1.2.3', '192.168.0.10', '172.20.0.1', '169.254.169.254', '::1', '::ffff:10.0.0.1']) assert.ok(isPrivateAddress(ip), ip);
-  assert.equal(isPrivateAddress('8.8.8.8'), false);
+  for (const ip of ['127.0.0.1', '10.0.0.1', '192.168.0.1', '172.16.0.1', '169.254.169.254', '::1', '::ffff:10.0.0.1']) assert.ok(isPrivateAddress(ip), ip);
+  assert.equal(isPrivateAddress('203.0.113.1'), false);
   assert.deepEqual(splitImageUrls('https://a.com/1.jpg, ftp://x, http://b.com/2.png'), ['https://a.com/1.jpg', 'http://b.com/2.png']);
 });
 

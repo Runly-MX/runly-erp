@@ -1,10 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import vm from 'node:vm'
 import { detectRuntime, isNativeMobile } from '@runly/core/native-runtime'
 import { compareVersions, supportsCapability, parseDeepLink, createEventPump } from '../policy.js'
-import { resolveEnvironment, makeConfig } from '../../../scripts/native-host.mjs'
+import { resolveEnvironment, makeConfig, nativeBuildEnvironment, useUniversalHost } from '../../../scripts/native-host.mjs'
+import { createInstanceManager } from '../../../native-host/shell/manager.js'
 import { nativeHostHeaders, NATIVE_CSP } from '../../../native-host/web-policy.js'
 
 test('runtime distinguishes browser, PWA, Desktop, Android, iOS and missing bridge', () => {
@@ -45,13 +45,13 @@ test('production/staging origins can be overridden by the deployer\'s own enviro
 test('remote capability is restricted to main, selected origin/app path, and minimal commands', () => {
   const config = makeConfig('https://app.example.com')
   const [shell, remote] = config.app.security.capabilities
-  assert.equal(config.build.frontendDist, '../native-host/shell')
+  assert.equal(config.build.frontendDist, '../native-host/dist')
   assert.equal(config.build.devUrl, null)
   assert.equal(remote.local, false)
   assert.deepEqual(remote.windows, ['main'])
   assert.deepEqual(remote.remote.urls, ['https://app.example.com/app/*'])
   assert.ok(!remote.permissions.some((p) => /sql|store|shell|window|allow-host-connect|allow-host-confirm-origin|allow-host-forget-origin/.test(p)))
-  assert.deepEqual(shell.permissions, ['allow-host-info', 'allow-host-connect', 'allow-host-confirm-origin', 'allow-host-forget-origin'])
+  assert.deepEqual(shell.permissions, ['allow-host-info', 'allow-host-connect', 'allow-host-confirm-origin', 'allow-host-forget-origin', 'allow-host-servers', 'allow-host-device', 'notification:allow-is-permission-granted'])
   const desktop = JSON.parse(readFileSync(new URL('../../../src-tauri/tauri.conf.json', import.meta.url)))
   assert.equal(desktop.build.frontendDist, '../dist')
 })
@@ -112,22 +112,92 @@ test('Vite applies frame restriction only to native host requests', () => {
   }
 })
 
-test('fallback stops auto retries after failed navigation and retries on explicit action', async () => {
-  const nodes = Object.fromEntries(['status', 'retry', 'diagnostics', 'connect-form', 'origin-input', 'confirm-panel', 'confirm-origin', 'confirm-button', 'cancel-button', 'forget-link'].map((id) => [id, { textContent: '', value: '', addEventListener(_type, cb) { this.click = cb } }]))
-  let attempts = 0
-  const context = {
-    document: { getElementById: (id) => nodes[id] }, location: { hash: '#failed' }, navigator: { onLine: false },
-    window: { __TAURI_INTERNALS__: { invoke: async (command) => {
-      if (command === 'host_info') return { nativeHostVersion: '1.0.0', platform: 'android', osVersion: '14', frontendUrl: 'https://app.example.com/app/' }
-      attempts++; throw 'NETWORK_TLS_OR_TIMEOUT'
-    } } },
+test('universal build strips both inherited native origins', () => {
+  const env = nativeBuildEnvironment('production', null, { RUNLY_NATIVE_ORIGIN: 'https://old.example.com', ATLAS_NATIVE_ORIGIN: 'https://legacy.example.com', PATH: 'tools' })
+  assert.equal(env.RUNLY_NATIVE_ORIGIN, undefined)
+  assert.equal(env.ATLAS_NATIVE_ORIGIN, undefined)
+  assert.equal(env.PATH, 'tools')
+  assert.equal(env.RUNLY_NATIVE_ENV, 'production')
+  assert.equal(nativeBuildEnvironment('staging', 'https://qa.example.com', env).RUNLY_NATIVE_ORIGIN, 'https://qa.example.com')
+  assert.deepEqual(makeConfig(null).app.security.capabilities[1].remote.urls, ['https://*/app/*'])
+})
+
+test('public Android builds default to universal; a fixed production origin requires explicit opt-in', () => {
+  assert.equal(useUniversalHost('android', 'build', 'production'), true)
+  assert.equal(useUniversalHost('android', 'config', 'production'), true)
+  assert.equal(useUniversalHost('android', 'build', 'production', ['--pinned']), false)
+  assert.equal(useUniversalHost('android', 'build', 'staging'), false)
+  assert.equal(useUniversalHost('ios', 'build', 'production'), false)
+  assert.throws(() => useUniversalHost('android', 'build', 'production', ['--universal', '--pinned']))
+})
+
+function fixture(registry = { instances: [], activeOrigin: null }, overrides = {}) {
+  const calls = []
+  const manager = createInstanceManager(async (command, args) => {
+    calls.push([command, args])
+    if (overrides[command]) return overrides[command](args)
+    if (command === 'host_info') return { nativeHostVersion: '1.2.0' }
+    if (command === 'host_servers') return registry
+    if (command === 'host_connect') return { status: 'pending_confirmation', origin: args.origin }
+    return null
+  })
+  return { manager, calls }
+}
+
+test('clean installation prompts without attempting any fixed instance', async () => {
+  const { manager, calls } = fixture()
+  await manager.initialize('')
+  assert.equal(manager.getSnapshot().phase, 'manager')
+  assert.equal(calls.some(([command]) => command === 'host_connect'), false)
+})
+
+test('manager and fallback never automatically reconnect a saved instance', async () => {
+  for (const hash of ['#manage', '#device', '#failed']) {
+    const { manager, calls } = fixture({ instances: [{ origin: 'https://a.example.com' }], activeOrigin: 'https://a.example.com' })
+    await manager.initialize(hash)
+    assert.equal(manager.getSnapshot().phase, 'manager')
+    assert.equal(calls.some(([command]) => command === 'host_connect'), false)
   }
-  vm.runInNewContext(readFileSync(new URL('../../../native-host/shell/shell.js', import.meta.url), 'utf8'), context)
-  await new Promise((resolve) => setImmediate(resolve))
-  assert.equal(attempts, 0)
-  assert.match(nodes.status.textContent, /No se pudo conectar/)
-  await nodes.retry.click()
-  assert.equal(attempts, 1)
-  assert.equal(nodes.retry.hidden, false)
-  assert.match(nodes.diagnostics.textContent, /NETWORK_TLS_OR_TIMEOUT/)
+})
+
+test('normal startup reconnects using the persisted origin in native storage', async () => {
+  const { manager, calls } = fixture({ instances: [{ origin: 'https://a.example.com' }], activeOrigin: 'https://a.example.com' }, { host_connect: () => ({ status: 'connected' }) })
+  await manager.initialize('')
+  assert.deepEqual(calls.at(-1), ['host_connect', { origin: null, name: null }])
+  assert.equal(manager.getSnapshot().phase, 'connecting')
+})
+
+test('new instance requires confirmation; cancel clears the native candidate', async () => {
+  const { manager, calls } = fixture()
+  await manager.initialize('#manage')
+  await manager.connect('https://b.example.com', 'Oficina')
+  assert.equal(manager.getSnapshot().phase, 'confirm')
+  assert.equal(calls.some(([command]) => command === 'host_confirm_origin'), false)
+  await manager.cancel()
+  assert.equal(calls.at(-1)[0], 'host_cancel_origin')
+  assert.equal(manager.getSnapshot().pending, null)
+  await manager.connect('https://b.example.com')
+  await manager.confirm()
+  assert.equal(calls.at(-1)[0], 'host_confirm_origin')
+})
+
+test('storage failure is surfaced and does not pretend reset succeeded', async () => {
+  const { manager } = fixture(undefined, { host_forget_origin: () => { throw 'STORAGE_FAILED' } })
+  await manager.initialize('#manage')
+  await manager.reset()
+  assert.equal(manager.getSnapshot().diagnostic, 'STORAGE_FAILED')
+  assert.equal(manager.getSnapshot().busy, false)
+})
+
+test('simultaneous connect attempts are serialized and network failure recovers', async () => {
+  let finish
+  const preflight = new Promise((resolve) => { finish = resolve })
+  const { manager, calls } = fixture(undefined, { host_connect: async () => { await preflight; throw 'NETWORK_TLS_OR_TIMEOUT' } })
+  await manager.initialize('#manage')
+  const first = manager.connect('https://a.example.com')
+  await manager.connect('https://b.example.com')
+  finish(); await first
+  assert.equal(calls.filter(([command]) => command === 'host_connect').length, 1)
+  assert.match(manager.getSnapshot().error, /certificado/)
+  assert.equal(manager.getSnapshot().phase, 'manager')
 })

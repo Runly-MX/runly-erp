@@ -19,7 +19,7 @@ fn main() {
         match environment.as_str() {
             "production" => {
                 if let Some(value) = &origin {
-                    assert_eq!(Some(value.as_str()), config["production"].as_str())
+                    assert!(value.starts_with("https://"), "HTTPS required")
                 }
                 // No origin: universal build, resolved by the user at runtime.
             }
@@ -27,7 +27,7 @@ fn main() {
                 let value = origin
                     .as_deref()
                     .expect("Missing compiled native origin for staging");
-                assert_eq!(Some(value), config["staging"].as_str())
+                assert!(value.starts_with("https://"), "HTTPS required")
             }
             "development" => {
                 let value = origin
@@ -56,6 +56,11 @@ fn main() {
             "host_connect",
             "host_confirm_origin",
             "host_forget_origin",
+            "host_servers",
+            "host_cancel_origin",
+            "host_remove_server",
+            "host_manage",
+            "host_device",
             "host_ready",
             "host_events",
             "host_ack_events",
