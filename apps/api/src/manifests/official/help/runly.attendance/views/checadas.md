@@ -5,11 +5,11 @@ summary: Bitácora de entradas y salidas con marcas de revisión, captura manual
 ---
 Filtra por rango de fechas (calendario con atajos como Hoy o Últimos 7 días), por persona o solo por las marcadas.
 
-Las **marcas** explican por qué una checada pide revisión: Reloj desfasado (la hora del dispositivo se corrigió), Sin conexión (se envió después), Secuencia irregular (dos entradas o dos salidas seguidas), Identidad no verificada (tarjeta o QR que no coincide) y QR reutilizado.
+Las **marcas** explican por qué una checada pide revisión: Reloj desfasado (la hora del dispositivo se corrigió), Sin conexión (se envió después), Secuencia irregular (dos entradas o dos salidas seguidas), Identidad no verificada (tarjeta o QR que no coincide), QR reutilizado y **Sin foto** (la política exige foto y la checada llegó sin ella).
 
 - **Checada manual**: para olvidos; queda registrada como manual.
 - **Anular**: la checada se conserva pero deja de contar en horas y presencia. Pide confirmación.
 
-- **Foto**: si el kiosko toma foto al checar, aparece una miniatura en la columna de marcas; tócala para verla grande.
+- **Foto**: si el kiosko toma foto al checar, aparece una miniatura en la columna de marcas; tócala para verla grande. Las fotos y ubicaciones se borran solas tras el plazo definido en Configuración > General (30 días por defecto); la checada y sus horas permanecen. El método **Teléfono (escaneo)** indica que la persona escaneó el kiosko con la app Checador.
 - **Fuera del radio**: la checada llegó con coordenadas fuera del radio del sitio.
 - **Exportar** descarga las checadas filtradas en Excel. Cambia entre **tabla y tarjetas** con el interruptor de la barra.

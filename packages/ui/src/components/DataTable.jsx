@@ -13,7 +13,7 @@ import { Button } from './Button.jsx'
 import { Skeleton } from './Skeleton.jsx'
 import { SearchInput } from './SearchInput.jsx'
 import { FilterToolbar } from './FilterToolbar.jsx'
-import { FilterBar } from './FilterBar.jsx'
+import { filterType, isFilterActive } from './filter-menu-helpers.js'
 import { EmptyState } from './EmptyState.jsx'
 import { ErrorState } from './ErrorState.jsx'
 import { PageFooter } from './PageFooter.jsx'
@@ -23,6 +23,34 @@ import { cn } from '../lib/utils.js'
 const GRID_CLASSES = {
   cards: 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3',
   grid: 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4',
+}
+
+const isControlledFilter = (spec) => typeof spec.onChange === 'function'
+const filterKeys = (spec) => (filterType(spec) === 'daterange' ? [spec.fromKey, spec.toKey] : [spec.key])
+
+// Value slice a controlled spec owns, as flat keys of the menu value.
+function controlledSlice(spec) {
+  const value = spec.value
+  if (filterType(spec) === 'daterange') return { [spec.fromKey]: value?.[spec.fromKey] || '', [spec.toKey]: value?.[spec.toKey] || '' }
+  if (filterType(spec) === 'multiselect') return { [spec.key]: Array.isArray(value) ? value : [] }
+  if (filterType(spec) === 'toggle') return { [spec.key]: value === true }
+  return { [spec.key]: value ?? '' }
+}
+
+// Client-side match of one (uncontrolled, active) spec against a row.
+function matchesFilter(spec, row, values) {
+  const type = filterType(spec)
+  if (type === 'daterange') {
+    const from = values[spec.fromKey]
+    const to = values[spec.toKey]
+    if (spec.match) return spec.match(row, { from, to })
+    const day = String(row[spec.key] ?? '').slice(0, 10)
+    return Boolean(day) && (!from || day >= from) && (!to || day <= to)
+  }
+  const active = values[spec.key]
+  if (type === 'multiselect') return spec.match ? spec.match(row, active) : active.includes(String(row[spec.key]))
+  if (type === 'toggle') return spec.match ? spec.match(row, true) : Boolean(row[spec.key])
+  return spec.match ? spec.match(row, active) : String(row[spec.key]) === String(active)
 }
 
 export function DataTable({
@@ -72,19 +100,38 @@ export function DataTable({
     onViewModeChange?.(mode)
   }
 
+  const specs = useMemo(() => filters ?? [], [filters])
+  // Controlled specs (they carry their own onChange) keep their value in the
+  // caller, e.g. filters that refetch from the API; the rest filter client-side.
+  const menuValue = useMemo(() => {
+    const merged = { ...filterValues }
+    specs.filter(isControlledFilter).forEach((spec) => Object.assign(merged, controlledSlice(spec)))
+    return merged
+  }, [specs, filterValues])
+
+  const handleFilterChange = (next) => {
+    const local = {}
+    specs.forEach((spec) => {
+      if (!isControlledFilter(spec)) {
+        filterKeys(spec).forEach((key) => { local[key] = next[key] })
+        return
+      }
+      const before = controlledSlice(spec)
+      const after = {}
+      filterKeys(spec).forEach((key) => { after[key] = next[key] })
+      if (JSON.stringify(before) === JSON.stringify(after)) return
+      spec.onChange(filterType(spec) === 'daterange' ? after : after[spec.key])
+    })
+    setFilterValues(local)
+    setPagination((p) => ({ ...p, pageIndex: 0 }))
+  }
+
   const filteredData = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) return EMPTY_ROWS
-    if (!filters?.length) return data
-    return data.filter((row) =>
-      filters.every((filter) => {
-        const active = filterValues[filter.key]
-        if (!active) return true
-        return filter.match
-          ? filter.match(row, active)
-          : String(row[filter.key]) === active
-      }),
-    )
-  }, [data, filters, filterValues, EMPTY_ROWS])
+    const clientSpecs = specs.filter((spec) => !isControlledFilter(spec) && isFilterActive(spec, filterValues))
+    if (!clientSpecs.length) return data
+    return data.filter((row) => clientSpecs.every((spec) => matchesFilter(spec, row, filterValues)))
+  }, [data, specs, filterValues, EMPTY_ROWS])
 
   const table = useReactTable({
     data: filteredData,
@@ -120,23 +167,10 @@ export function DataTable({
               className="w-full"
             />
           )}
-          filters={(filters || toolbarStart) ? (
-            <>
-              {toolbarStart}
-              {filters && (
-                <FilterBar
-                  filters={filters}
-                  value={filterValues}
-                  onChange={(next) => {
-                    setFilterValues(next)
-                    setPagination((p) => ({ ...p, pageIndex: 0 }))
-                  }}
-                />
-              )}
-            </>
-          ) : null}
-          activeCount={Object.values(filterValues ?? {}).filter(Boolean).length}
-          onClear={() => { setFilterValues({}); setPagination((p) => ({ ...p, pageIndex: 0 })) }}
+          filterSpecs={specs}
+          filterValue={menuValue}
+          onFilterChange={handleFilterChange}
+          start={toolbarStart}
           actions={toolbarActions}
           viewSwitch={switchModes ? <ViewModeSwitch modes={switchModes} value={currentViewMode} onChange={changeViewMode} storageKey={viewStorageKey} /> : null}
         />

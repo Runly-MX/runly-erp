@@ -1,5 +1,6 @@
 import { Loader2, ShieldAlert, WifiOff, Lock, MonitorSmartphone } from 'lucide-react'
 import { Button } from '@runly/ui'
+import { RunlyWatermark } from '../../components/RunlyWatermark.jsx'
 
 const MESSAGES = {
   unavailable: { Icon: ShieldAlert, title: 'Kiosko no disponible', text: 'Este enlace ya no es válido o el kiosko fue desactivado. Pide un enlace nuevo a un administrador.' },
@@ -8,13 +9,22 @@ const MESSAGES = {
   offline: { Icon: WifiOff, title: 'Se necesita conexión', text: 'Conéctate a internet una vez para emparejar este dispositivo. Después podrá trabajar sin conexión.', retry: true },
 }
 
-export function PairingView({ phase, pairing, onRetry }) {
+export function PairingView(props) {
+  return (
+    <>
+      <PairingBody {...props} />
+      <RunlyWatermark />
+    </>
+  )
+}
+
+function PairingBody({ phase, pairing, onRetry }) {
   if (phase === 'loading') {
     return <div className="flex min-h-dvh items-center justify-center"><Loader2 className="size-10 animate-spin text-teal-400" aria-label="Cargando" /></div>
   }
   if (phase === 'pairing' && pairing?.recovering) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 pb-16 text-center">
         <Loader2 className="size-10 animate-spin text-teal-400" aria-hidden="true" />
         <p className="text-xl text-white">Recuperando el emparejamiento…</p>
       </div>
@@ -22,7 +32,7 @@ export function PairingView({ phase, pairing, onRetry }) {
   }
   if (phase === 'pairing' && pairing) {
     return (
-      <div className="mx-auto flex min-h-dvh max-w-3xl flex-col items-center justify-center gap-8 px-6 text-center">
+      <div className="mx-auto flex min-h-dvh max-w-3xl flex-col items-center justify-center gap-8 px-6 pb-16 text-center">
         <p className="text-sm font-medium uppercase tracking-[0.3em] text-teal-300">Emparejar kiosko{pairing.kioskName ? ` · ${pairing.kioskName}` : ''}</p>
         {pairing.expired ? (
           <>
@@ -45,7 +55,7 @@ export function PairingView({ phase, pairing, onRetry }) {
   }
   const info = MESSAGES[phase] ?? MESSAGES.unavailable
   return (
-    <div className="mx-auto flex min-h-dvh max-w-xl flex-col items-center justify-center gap-5 px-6 text-center">
+    <div className="mx-auto flex min-h-dvh max-w-xl flex-col items-center justify-center gap-5 px-6 pb-16 text-center">
       <info.Icon className="size-16 text-slate-400" />
       <h1 className="text-3xl font-semibold text-white">{info.title}</h1>
       <p className="text-lg text-slate-300">{info.text}</p>

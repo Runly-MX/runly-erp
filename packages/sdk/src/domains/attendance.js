@@ -38,6 +38,9 @@ export function createAttendanceDomain({ request, withAuthHeaders, toQueryString
     getHoursReport: (query, token) => send('GET', `/attendance/reports/hours${toQueryString(query)}`, undefined, token),
     getComplianceReport: (query, token) => send('GET', `/attendance/reports/compliance${toQueryString(query)}`, undefined, token),
 
+    getSettings: (token) => send('GET', '/attendance/settings', undefined, token),
+    saveSettings: (data, token) => send('PATCH', '/attendance/settings', data, token),
+
     listKiosks: (token) => send('GET', '/attendance/kiosks', undefined, token),
     createKiosk: (data, token) => send('POST', '/attendance/kiosks', data, token),
     updateKiosk: (kioskId, data, token) => send('PATCH', `/attendance/kiosks/${id(kioskId)}`, data, token),

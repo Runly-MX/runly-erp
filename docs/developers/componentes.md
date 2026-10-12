@@ -141,6 +141,35 @@ import { DateRangeFilter } from '@runly/ui'
 />
 ```
 
+### FilterMenu
+
+Un solo botón "Filtros" (con contador de filtros activos) que sustituye una fila de chips de filtro. En escritorio abre un panel con las categorías a la izquierda y las opciones a la derecha; en móvil, una hoja inferior con dos pasos (categorías, luego opciones). `DataTable` ya lo usa con su prop `filters`.
+
+| Prop | Tipo | Qué hace |
+|---|---|---|
+| `filters` | `[{ key, label, type?, options?, icon?, fromKey?, toKey?, allLabel?, description? }]` | `type`: `select` (por defecto), `multiselect`, `daterange` (usa `fromKey`/`toKey`), `toggle`, `combobox` (con búsqueda) |
+| `value` | objeto plano | `key -> string \| string[] \| boolean`; para rangos, `fromKey`/`toKey` |
+| `onChange` | `(nuevoValor) => void` | Recibe el objeto completo con el cambio aplicado |
+
+```jsx
+import { ActiveFilterChips, FilterMenu } from '@runly/ui'
+
+const filters = [
+  { key: 'tipo', label: 'Tipo', options: [{ value: 'a', label: 'Alfa' }] },
+  { key: 'fechas', label: 'Fechas', type: 'daterange', fromKey: 'desde', toKey: 'hasta' },
+]
+<FilterMenu filters={filters} value={value} onChange={setValue} />
+<ActiveFilterChips filters={filters} value={value} onChange={setValue} />
+```
+
+### ActiveFilterChips
+
+Chips quitables ("Tipo: Alfa") de los filtros activos de un `FilterMenu`; no muestra nada si no hay filtros activos. Props: `filters`, `value`, `onChange` (los mismos que `FilterMenu`).
+
+### DateRangePanel
+
+Cuerpo del selector de rango (atajos, cajas Desde/Hasta y calendario) que usan `DateRangeFilter` y `FilterMenu`. Props: `from`, `to`, `onChange(from, to)`, `layout` (`side` o `stacked`).
+
 ### EntityTable
 
 Tabla paginada con búsqueda y filtros de una entidad, igual a la vista TABLE del Constructor.

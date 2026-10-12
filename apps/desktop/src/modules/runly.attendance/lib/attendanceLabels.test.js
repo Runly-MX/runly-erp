@@ -1,11 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildCsv, flagLabel, kioskStatus, minutesToHours, tallyBy } from './attendanceLabels.js'
+import { buildCsv, flagLabel, flagVariant, methodLabel, kioskStatus, minutesToHours, tallyBy } from './attendanceLabels.js'
 
 test('flag labels are Spanish with fallback', () => {
   assert.equal(flagLabel('clock_skew'), 'Reloj desfasado')
   assert.equal(flagLabel('replay'), 'QR reutilizado')
   assert.equal(flagLabel('otro'), 'otro')
+  assert.equal(flagLabel('no_photo'), 'Sin foto')
+  assert.equal(flagVariant('no_photo'), flagVariant('proof_failed'))
+  assert.equal(methodLabel('phone_scan'), 'Teléfono (escaneo)')
 })
 
 test('buildCsv quotes cells and prefixes BOM', () => {

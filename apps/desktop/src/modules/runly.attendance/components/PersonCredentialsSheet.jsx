@@ -5,7 +5,7 @@ import { useAddCard, useEnrollInvite, useRevokeCredential } from '../hooks/useAt
 import { enrollLink, formatDateTime, fullName } from '../lib/attendanceLabels.js'
 import { CopyButton, FormSheet, LinkBlock } from './shared.jsx'
 
-const CREDENTIAL_LABELS = { card: 'Tarjeta', phone: 'Llave de teléfono', phone_key: 'Llave de teléfono' }
+const CREDENTIAL_LABELS = { card: 'Tarjeta', phone: 'Llave de teléfono', phone_key: 'Llave de teléfono', device_key: 'Llave de teléfono' }
 
 // Per-person panel: assign a card, list/revoke credentials and invite a phone key.
 export function PersonCredentialsSheet({ person, onClose, canManage }) {
@@ -18,6 +18,7 @@ export function PersonCredentialsSheet({ person, onClose, canManage }) {
 
   if (!person) return <FormSheet open={false} onOpenChange={onClose} title="" />
   const credentials = person.credentials ?? []
+  const phoneKey = credentials.find((c) => c.type === 'device_key' && c.status === 'active')
 
   async function assignCard() {
     if (uid.trim().length < 4) return
@@ -70,11 +71,28 @@ export function PersonCredentialsSheet({ person, onClose, canManage }) {
 
             <section className="space-y-3">
               <h3 className="text-sm font-semibold">Llave de teléfono</h3>
-              <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                Genera una invitación válida 48 horas. La persona la abre en su teléfono para registrar su llave.
+              {phoneKey ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-teal-600/30 bg-teal-600/5 p-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Smartphone className="h-4 w-4 shrink-0 text-teal-600" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">Teléfono enrolado</p>
+                      <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{phoneKey.label ? `${phoneKey.label} · ` : ''}Último uso: {formatDateTime(phoneKey.lastUsedAt)}</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setToRevoke(phoneKey)}>Revocar</Button>
+                </div>
+              ) : null}
+              <ol className="list-decimal space-y-1 pl-5 text-sm text-[hsl(var(--muted-foreground))]">
+                <li>Comparte el enlace o el QR de la invitación con la persona.</li>
+                <li>La persona lo abre en su teléfono, escribe su código de empleado y toca Instalar.</li>
+                <li>En el kiosko abre «Con mi teléfono» y escanea con la app.</li>
+              </ol>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                La invitación dura 48 horas y reemplaza la anterior.
                 {person.enrollPending ? ' Ya hay una invitación pendiente; generar otra la reemplaza.' : ''}
               </p>
-              <Button variant="outline" onClick={createInvite} disabled={invite.isPending}><Smartphone className="h-4 w-4" />{invite.isPending ? 'Generando…' : 'Invitar llave de teléfono'}</Button>
+              <Button variant="outline" onClick={createInvite} disabled={invite.isPending}><Smartphone className="h-4 w-4" />{invite.isPending ? 'Generando…' : phoneKey ? 'Invitar otro teléfono' : 'Invitar llave de teléfono'}</Button>
               {issued ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2 rounded-xl border border-teal-600/30 bg-teal-600/5 p-3">

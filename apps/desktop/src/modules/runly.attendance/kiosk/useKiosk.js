@@ -9,6 +9,8 @@ import { createGeoTracker, pickCoords, waitForPosition, GEO_PUNCH_WAIT_MS } from
 import { captureSelfie, selfieSupported } from './lib/selfie.js'
 import { overflowIds } from './lib/selfie-queue.js'
 import { uploadPendingSelfies } from './lib/selfie-sync.js'
+import { photoRequired, splitForSync, selfieStatus } from './lib/photo-policy.js'
+import { useRecentPolling } from './useRecentPolling.js'
 import {
   createPinThrottle, createReplayGuard, isDuplicatePunch, latestPunch, nextDirection, normalizeUid, parsePhonePayload, verifyPhonePayload, verifyPin,
 } from './lib/punch-logic.js'
@@ -47,6 +49,7 @@ export function useKiosk(link) {
   const geoRef = useRef(null)
   const photosBusy = useRef(false)
   const secretCleared = useRef(false)
+  const syncNowRef = useRef(null)
 
   const addNote = useCallback((text) => setNotes((list) => [{ at: new Date().toISOString(), text }, ...list].slice(0, 20)), [])
   const refreshPhotos = useCallback(async () => {
@@ -141,12 +144,15 @@ export function useKiosk(link) {
     if (syncing.current || !tokenRef.current || !navigator.onLine) return
     syncing.current = true
     let synced = false
+    let holdRetry = false
     try {
       for (let round = 0; round < 20; round += 1) {
-        const batch = (await kioskDb.listPunches(link)).slice(0, BATCH)
+        const { ready, held } = splitForSync(await kioskDb.listPunches(link))
+        if (held.length) holdRetry = true
+        const batch = ready.slice(0, BATCH)
         if (!batch.length) break
-        const payload = batch.map(({ id, personId, direction, method, proof, deviceTime, offline, latitude, longitude }) => ({
-          id, personId, direction, method, proof, deviceTime, offline, ...(latitude != null && longitude != null ? { latitude, longitude } : {}),
+        const payload = batch.map(({ id, personId, direction, method, proof, deviceTime, offline, latitude, longitude, selfie }) => ({
+          id, personId, direction, method, proof, deviceTime, offline, selfie: selfieStatus({ selfie }), ...(latitude != null && longitude != null ? { latitude, longitude } : {}),
         }))
         const data = await kioskApi.sync(link, tokenRef.current, payload)
         setReachable(true)
@@ -171,9 +177,12 @@ export function useKiosk(link) {
       await refreshPending()
       setRejectedLog(await kioskDb.listRejected(link))
     }
+    if (holdRetry) setTimeout(() => syncNowRef.current?.(), 2_000) // punches waiting on their photo
     await flushSelfies()
     if (synced) refreshRoster()
   }, [link, refreshPending, refreshRoster, handleAuthError, flushSelfies])
+
+  syncNowRef.current = syncNow
 
   // ---------- pairing ----------
   const startPairing = useCallback(async () => {
@@ -280,7 +289,7 @@ export function useKiosk(link) {
 
   // ---------- punches ----------
   // Evidence photo after the punch is already stored; failures never affect it.
-  const takeSelfie = useCallback((punchId, key) => {
+  const takeSelfie = useCallback((punchId, key, existing = false) => {
     const endSmile = () => setResult((r) => (r && r.key === key ? { ...r, smile: false } : r))
     captureSelfie()
       .then(async ({ blob }) => {
@@ -288,14 +297,14 @@ export function useKiosk(link) {
         await kioskDb.putSelfie({ punchId, link, blob, createdAt: Date.now(), attempts: 0 })
         const extra = overflowIds(await kioskDb.listSelfies(link))
         if (extra.length) { await kioskDb.deleteSelfies(extra); addNote(`${extra.length} foto(s) antiguas descartadas (límite de cola)`) }
-        await kioskDb.patchPunch(punchId, { selfie: 'captured' })
+        if (!existing) await kioskDb.patchPunch(punchId, { selfie: 'captured' })
         await refreshPhotos()
         flushSelfies()
       })
       .catch(async () => {
         endSmile()
         addNote('Cámara no disponible: checada sin foto')
-        await kioskDb.patchPunch(punchId, { selfie: 'unavailable' }).catch(() => {})
+        if (!existing) await kioskDb.patchPunch(punchId, { selfie: 'unavailable' }).catch(() => {})
       })
   }, [link, addNote, refreshPhotos, flushSelfies])
 
@@ -314,7 +323,7 @@ export function useKiosk(link) {
       const fresh = await waitForPosition(() => tracker.request(), GEO_PUNCH_WAIT_MS)
       coords = pickCoords(fresh, tracker.last(), now)
     }
-    const wantsSelfie = Boolean(config?.requireSelfie)
+    const wantsSelfie = photoRequired({ method, kiosk: config, settings: rosterRef.current?.settings })
     const canSelfie = wantsSelfie && selfieSupported()
     const direction = nextDirection(lastRef.current.get(person.id), rosterRef.current?.kiosk?.mode ?? 'both', new Date(now))
     const punch = {
@@ -333,6 +342,24 @@ export function useKiosk(link) {
     if (canSelfie) takeSelfie(punch.id, key)
     return true
   }, [link, show, syncNow, getGeo, takeSelfie])
+
+  // Punch received from a phone: it already exists on the server, so nothing goes to the outbox.
+  const handleRecent = useCallback((item) => {
+    const current = rosterRef.current
+    const person = current?.people.find((p) => p.id === item.personId)
+    const direction = item.direction === 'out' ? 'out' : 'in'
+    lastRef.current.set(item.personId, latestPunch(lastRef.current.get(item.personId), { direction, occurredAt: item.occurredAt }))
+    recentRef.current.set(item.personId, Math.max(recentRef.current.get(item.personId) ?? 0, Date.now()))
+    beep(direction); haptic(direction === 'in' ? 40 : [30, 40, 30])
+    const wantsPhoto = !item.hasSelfie && photoRequired({ method: 'phone_qr', kiosk: current?.kiosk, settings: current?.settings }) && selfieSupported()
+    const key = show({
+      kind: direction, title: direction === 'in' ? 'Entrada registrada' : 'Salida registrada',
+      person: person ? fullName(person) : item.name, group: groupName(current, { groupId: item.groupId ?? person?.groupId }), time: item.occurredAt, offline: false, smile: wantsPhoto,
+    })
+    if (wantsPhoto) takeSelfie(item.id, key, true)
+  }, [show, takeSelfie])
+
+  useRecentPolling({ enabled: phase === 'ready' && reachable && browserOnline, link, tokenRef, onItem: handleRecent, onAuthError: handleAuthError })
 
   const submitPin = useCallback(async (code, pin) => {
     const people = rosterRef.current?.people

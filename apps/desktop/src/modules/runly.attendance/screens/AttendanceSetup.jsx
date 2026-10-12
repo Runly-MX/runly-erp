@@ -1,5 +1,6 @@
-import { Building2, CalendarClock, MapPin, Target, Users, Wrench } from 'lucide-react'
+import { Building2, CalendarClock, MapPin, Settings2, Target, Users, Wrench } from 'lucide-react'
 import { ChipTabPanel, ChipTabs } from '@runly/ui'
+import { GeneralSettings } from '../components/GeneralSettings.jsx'
 import { CatalogManager } from '../components/CatalogManager.jsx'
 import { PageShell, ScreenHeader } from '../components/shared.jsx'
 import { useAttendancePermissions } from '../hooks/useAttendanceData.js'
@@ -30,16 +31,26 @@ const TAB_META = {
   },
 }
 
-const TABS = CATALOG_ORDER.map((kind) => ({ value: kind, label: CATALOGS[kind].label, icon: TAB_META[kind]?.icon ?? Users, description: TAB_META[kind]?.description }))
+const GENERAL_TAB = {
+  value: 'general',
+  label: 'General',
+  icon: Settings2,
+  description: 'Reglas generales de Asistencia: cuánto tiempo se conservan las fotos y ubicaciones de las checadas y si la foto es obligatoria.',
+}
+const TAB_VALUES = ['general', ...CATALOG_ORDER]
+const TABS = [GENERAL_TAB, ...CATALOG_ORDER.map((kind) => ({ value: kind, label: CATALOGS[kind].label, icon: TAB_META[kind]?.icon ?? Users, description: TAB_META[kind]?.description }))]
 
 export default function AttendanceSetup() {
   const lookups = useLookups()
   const { canConfigure } = useAttendancePermissions()
-  const [tab, setTab] = usePersistedTab('attendance.setup.tab', CATALOG_ORDER, 'sites')
+  const [tab, setTab] = usePersistedTab('attendance.setup.tab', TAB_VALUES, 'general')
   return (
     <PageShell>
-      <ScreenHeader title="Configuración" description="Catálogos que usa Asistencia: dónde, quién, cuándo y cuántos." />
+      <ScreenHeader title="Configuración" description="Reglas generales y catálogos que usa Asistencia: dónde, quién, cuándo y cuántos." />
       <ChipTabs tabs={TABS} value={tab} onChange={setTab} ariaLabel="Catálogos de configuración" />
+      <ChipTabPanel value="general" active={tab === 'general'}>
+        <GeneralSettings canConfigure={canConfigure} />
+      </ChipTabPanel>
       {CATALOG_ORDER.map((kind) => (
         <ChipTabPanel key={kind} value={kind} active={tab === kind}>
           <CatalogManager kind={kind} canConfigure={canConfigure} lookups={lookups} description={TAB_META[kind]?.description} />

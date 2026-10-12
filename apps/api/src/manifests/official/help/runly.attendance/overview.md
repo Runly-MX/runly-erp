@@ -11,7 +11,7 @@ Asistencia registra quién entra y quién sale, sea personal propio, contratista
 - **Checadas**: la bitácora de entradas y salidas, con marcas de revisión y captura manual.
 - **Kioskos**: las pantallas donde la gente checa, con enlace público y emparejamiento.
 - **Reportes**: horas trabajadas, cumplimiento de cuotas y presencia.
-- **Configuración**: sitios, grupos, categorías, turnos y cuotas. La pestaña que abriste se recuerda al recargar la página.
+- **Configuración**: la pestaña General (evidencia y privacidad) y los catálogos de sitios, grupos, categorías, turnos y cuotas. La pestaña que abriste se recuerda al recargar la página.
 
 ### Personas, grupos y categorías
 
@@ -35,7 +35,9 @@ El kiosko **funciona sin conexión**: guarda la lista de personas, registra las 
 
 - **Código y PIN**: la persona escribe su código de empleado y su PIN.
 - **Tarjeta o llavero NFC**: se asigna el identificador de la tarjeta a la persona.
-- **Llave de teléfono**: un administrador genera una invitación; la persona la abre en su teléfono, escribe su código de empleado y el teléfono crea una llave única. Después muestra un QR que cambia cada pocos segundos y el kiosko lo escanea. Funciona sin conexión.
+- **Llave de teléfono (app Checador)**: un administrador genera una invitación; la persona la abre en su teléfono, escribe su código de empleado y toca **Instalar Checador** (en iPhone: Compartir > Añadir a pantalla de inicio). La app se abre directo, sin volver a escribir nada, y tiene dos formas de checar:
+  - **Escanear kiosko** (la más segura): en el kiosko se abre «Con mi teléfono» y la app escanea su código. Requiere internet, toma tu foto y, si el sitio tiene radio, envía tu ubicación.
+  - **Mostrar mi QR**: el teléfono muestra un QR que cambia cada pocos segundos y el kiosko lo escanea. Funciona sin conexión, pero no toma foto.
 
 ### Cuotas de contratistas
 
@@ -44,6 +46,10 @@ Una **cuota** define el mínimo de personas de un grupo y categoría que deben e
 ### Evidencia y ubicación
 
 Cada sitio puede tener una **ubicación** (se busca por dirección o con "Usar mi ubicación actual") y un **radio permitido**. Si un kiosko con ese sitio envía una checada fuera del radio, se marca como "Fuera del radio" para revisión. Los kioskos que lo requieran toman una **foto** al checar; la foto se guarda como evidencia y se ve en Checadas. Si el dispositivo no da permiso de cámara o ubicación, la checada se registra igual.
+
+### Política de foto y retención
+
+En **Configuración > General** eliges cuánto tiempo se conservan las fotos y ubicaciones de las checadas: 7, 15, 30, 60, 90, 180 o 365 días (por defecto, 30). Pasado ese plazo se eliminan solas; las horas y el historial se conservan. Las fotos no aparecen en el módulo de Archivos. Si activas **Exigir foto en checadas con tarjeta o QR**, una checada sin foto se marca como **Sin foto** para revisión.
 
 ### Vistas, filtros y exportación
 

@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-import { Smartphone, Trash2, Plus } from 'lucide-react'
-import { Button, ConfirmDialog } from '@runly/ui'
+import { ArrowLeft } from 'lucide-react'
+import { Button } from '@runly/ui'
 import { buildPhonePayload, ROTATE_SECONDS } from '../lib/phone-key.js'
 import { requestWakeLock } from '../../kiosk/lib/feedback.js'
 
 const RING = 2 * Math.PI * 28
 
-export function KeyCard({ identity, onRemove }) {
+export function KeyCard({ identity, onBack }) {
   const [qr, setQr] = useState(null)
   const [issuedAt, setIssuedAt] = useState(0)
   const [remaining, setRemaining] = useState(ROTATE_SECONDS)
-  const [confirmRemove, setConfirmRemove] = useState(false)
-  const [installEvent, setInstallEvent] = useState(null)
 
   const rotate = useCallback(async () => {
     const now = Date.now()
@@ -38,18 +36,13 @@ export function KeyCard({ identity, onRemove }) {
     const acquire = async () => { lock = await requestWakeLock(); if (cancelled) lock?.release?.() }
     acquire()
     const onVisible = () => { if (document.visibilityState === 'visible') { acquire(); rotate() } }
-    const onPrompt = (e) => { e.preventDefault(); setInstallEvent(e) }
     document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('beforeinstallprompt', onPrompt)
     return () => {
       cancelled = true
       lock?.release?.()
       document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('beforeinstallprompt', onPrompt)
     }
   }, [rotate])
-
-  const install = async () => { await installEvent.prompt(); setInstallEvent(null) }
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-5">
@@ -70,23 +63,10 @@ export function KeyCard({ identity, onRemove }) {
         <div className="mt-4 aspect-square w-full overflow-hidden rounded-2xl bg-white">
           {qr ? <img src={qr} alt="Código QR de asistencia" className="size-full" /> : <div className="size-full animate-pulse bg-slate-100" />}
         </div>
-        <p className="mt-3 text-center text-sm text-slate-600">Acércalo a la cámara del kiosko. Funciona sin internet.</p>
+        <p className="mt-3 text-center text-sm text-slate-600">Acércalo a la cámara del kiosko. Funciona sin internet, pero no toma tu foto.</p>
       </div>
 
-      <div className="flex w-full flex-col items-center gap-2 text-center text-sm text-slate-400">
-        <p className="flex items-center gap-2"><Smartphone className="size-4" /> Para tenerlo siempre a la mano, usa «Agregar a pantalla de inicio» en el menú de tu navegador.</p>
-        {installEvent && <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={install}><Plus /> Agregar a pantalla de inicio</Button>}
-        <Button variant="ghost" className="text-slate-400 hover:bg-white/10 hover:text-red-300" onClick={() => setConfirmRemove(true)}><Trash2 /> Quitar este teléfono</Button>
-      </div>
-
-      <ConfirmDialog
-        open={confirmRemove}
-        onOpenChange={setConfirmRemove}
-        title="Quitar este teléfono"
-        description="Se borrará la llave guardada en este dispositivo. Para volver a usarlo necesitarás una invitación nueva de tu administrador."
-        confirmLabel="Quitar"
-        onConfirm={onRemove}
-      />
+      <Button variant="ghost" className="text-slate-300 hover:bg-white/10 hover:text-white" onClick={onBack}><ArrowLeft /> Volver</Button>
     </div>
   )
 }

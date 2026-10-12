@@ -1,5 +1,23 @@
 # Runly Native Host
 
+## Destino de publicación de Windows y Android
+
+El destino habitual, confirmado por el usuario el 2026-10-12, es GitHub Releases
+de [Runly-MX/runly-erp](https://github.com/Runly-MX/runly-erp/releases). No volver
+a preguntar el destino en solicitudes de publicación de instaladores Runly.
+Consultar el tag vigente antes de subir; en esta revisión ambos assets están
+en `v0.2.0`. Para actualizar solo Android, conservar los assets de Windows.
+
+- [Android: Runly-ERP.apk](https://github.com/Runly-MX/runly-erp/releases/latest/download/Runly-ERP.apk).
+- [Windows: Runly-ERP-Setup.exe](https://github.com/Runly-MX/runly-erp/releases/latest/download/Runly-ERP-Setup.exe).
+
+Los nombres y enlaces estables están en `apps/desktop/src/lib/appConfig.js`.
+Las URLs de release-assets.githubusercontent.com son redirecciones temporales
+firmadas, no el destino de publicación, y no deben copiarse a archivos versionados.
+El script `apps/desktop/scripts/publish-release.mjs` publica el instalador Windows
+y opcionalmente el APK, sobrescribe assets coincidentes y marca latest; revisar
+ese alcance antes de usarlo para una actualización exclusiva de Android.
+
 ## Android 1.2.2 — navegación integrada
 
 Se elimina el botón nativo flotante que tapaba acciones de los módulos. En la

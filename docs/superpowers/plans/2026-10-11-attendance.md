@@ -32,3 +32,12 @@ Spec: `docs/superpowers/specs/2026-10-11-attendance-design.md`. Each block is co
 - [x] xlsx exports (people, punches, hours). Verified: 2026-10-12 (API script; Playwright downloads an .xlsx from each screen)
 - [x] Pairing hand-off recovery (device token re-fetchable until the first authenticated call). Verified: 2026-10-12 (API script)
 - [ ] Still pending: Android HCE / BiometricPrompt / lock-task (needs APK build), BLE, optional face match, real-device checks (camera QR, Web NFC, geolocation prompt on phones)
+
+## Round 4 (QR integrity, privacy, mini app, filters), 2026-10-12
+- [x] "Scan with your phone": kiosk shows an HMAC challenge QR, the enrolled phone signs it and posts it (the key never leaves the phone; a forwarded screenshot cannot punch for someone else). Verified: 2026-10-12 (API script: valid scan, replay 409, wrong key 403, expired/wrong MAC 400, direction toggle; Playwright: kiosk tab renders the QR, greets the person from a phone scan and attaches the evidence photo with Chromium's fake camera)
+- [x] Photo policy: `no_photo` flag for QR/card punches without a captured photo (company setting, default on). Verified: 2026-10-12 (API script)
+- [x] Evidence retention: selfies and punch coordinates auto-deleted after the company's window (default 30 days) by a worker tick; evidence files belong to the punch so Files never lists them; General tab in Configuración. Verified: 2026-10-12 (unit test of the purge with fakes; settings via API script and Playwright). The worker tick itself was not run against the live database.
+- [x] Phone page is an installable mini app ("Checador", own manifest, install button, iOS steps) with the scan flow. Verified: 2026-10-12 (Playwright: own manifest linked, standalone and start_url without the invite code, home shows Escanear kiosko / Mostrar mi QR). Not verified: real install on Android/iOS and camera scan on a phone
+- [x] Runly watermark on kiosk and phone screens
+- [x] `FilterMenu` (left categories, right options; bottom sheet in two steps on mobile) + removable chips, wired into DataTable and the attendance screens. Verified: 2026-10-12 (Playwright desktop and 390 px)
+- [ ] Still pending: Android HCE / BiometricPrompt / lock-task (needs APK build), BLE, optional face match, real-device checks

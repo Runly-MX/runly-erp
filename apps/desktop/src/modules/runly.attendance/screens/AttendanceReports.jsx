@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BarChart3, Clock, ShieldCheck, Users } from 'lucide-react'
-import { Badge, ChipTabPanel, ChipTabs, DataTable, DatePickerField, DateRangeFilter, ErrorState, PersonAvatar, Skeleton } from '@runly/ui'
+import { Badge, ChipTabPanel, ChipTabs, DataTable, DatePickerField, ErrorState, PersonAvatar, Skeleton } from '@runly/ui'
 import { PresenceChart } from '../components/PresenceChart.jsx'
 import { QuotaCard, quotaTitle } from '../components/QuotaCards.jsx'
 import { ExportButton } from '../components/ExportButton.jsx'
@@ -15,7 +15,6 @@ import { dayEndIso, dayStartIso, formatDateTime, fullName, minutesToHours, tally
 
 const dayOffset = (days) => toLocalIso(new Date(Date.now() + days * 86_400_000))
 const VIEW_MODES = ['table', 'cards']
-const RANGE_FILTER = { key: 'range', label: 'Fechas', fromKey: 'from', toKey: 'to' }
 
 function PersonCell({ person, size = 'sm' }) {
   return (
@@ -34,6 +33,9 @@ function HoursTab({ lookups }) {
   const query = useMemo(() => ({ from: dayStartIso(range.from), to: dayEndIso(range.to) }), [range])
   const report = useHoursReport(query)
   const rows = report.data?.rows ?? []
+  const filters = useMemo(() => [
+    { key: 'range', label: 'Fechas', type: 'daterange', fromKey: 'from', toKey: 'to', value: range, onChange: setRange },
+  ], [range, setRange])
 
   const columns = useMemo(() => [
     { id: 'person', header: 'Persona', accessorFn: (r) => `${r.person?.code ?? ''} ${fullName(r.person)}`, cell: ({ row }) => <PersonCell person={row.original.person} /> },
@@ -73,9 +75,9 @@ function HoursTab({ lookups }) {
       emptyIcon={BarChart3}
       emptyTitle="Sin horas en este rango"
       emptyDescription="No hay sesiones de trabajo entre estas fechas. Prueba con otro rango."
+      filters={filters}
       toolbarStart={(
         <>
-          <DateRangeFilter filter={RANGE_FILTER} value={range} onChange={(next) => setRange({ from: next.from, to: next.to })} />
           {report.data ? <span className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-3 text-sm text-[hsl(var(--muted-foreground))] sm:h-9">Total <span className="font-semibold tabular-nums text-[hsl(var(--foreground))]">{minutesToHours(report.data.totalMinutes)}</span></span> : null}
         </>
       )}

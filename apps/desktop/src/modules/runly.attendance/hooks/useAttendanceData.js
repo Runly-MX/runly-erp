@@ -26,6 +26,7 @@ function useRead(key, fn, options = {}) {
 
 export const useSummary = () => useRead(['summary'], (t) => runly.attendance.getSummary(t), { refetchInterval: POLL_MS })
 export const usePresence = () => useRead(['presence'], (t) => runly.attendance.getPresenceReport({}, t), { refetchInterval: POLL_MS })
+export const useSettings = () => useRead(['settings'], (t) => runly.attendance.getSettings(t), { staleTime: 30_000 })
 export const useKiosks = (options) => useRead(['kiosks'], (t) => runly.attendance.listKiosks(t), options)
 export const useCatalog = (kind) => useRead(['catalog', kind], (t) => runly.attendance.listCatalog(kind, t), { staleTime: 30_000 })
 export const usePeople = (query) => useRead(['people', query], (t) => runly.attendance.listPeople(query, t), { placeholderData: keepPreviousData })
@@ -59,6 +60,7 @@ export const useImportFromHr = () => useAction((t) => runly.attendance.importPeo
 export const useEnrollInvite = () => useAction((t, personId) => runly.attendance.createEnrollInvite(personId, t))
 export const useAddCard = () => useAction((t, { personId, ...data }) => runly.attendance.addCard(personId, data, t), 'Tarjeta asignada.')
 export const useRevokeCredential = () => useAction((t, id) => runly.attendance.revokeCredential(id, t), 'Credencial revocada.')
+export const useSaveSettings = () => useAction((t, data) => runly.attendance.saveSettings(data, t), 'Guardado.')
 export const useManualPunch = () => useAction((t, data) => runly.attendance.createManualPunch(data, t), 'Checada registrada.')
 export const useVoidPunch = () => useAction((t, { id, note }) => runly.attendance.voidPunch(id, { note }, t), 'Checada anulada.')
 export const useSaveKiosk = () => useAction(

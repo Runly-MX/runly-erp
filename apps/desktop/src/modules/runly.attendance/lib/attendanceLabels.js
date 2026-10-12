@@ -8,10 +8,11 @@ export const FLAG_LABELS = {
   replay: 'QR reutilizado',
   outside_geofence: 'Fuera del radio',
   manual: 'Manual',
+  no_photo: 'Sin foto',
 }
 
 // Flags that merit attention (red); the rest are informative.
-const SEVERE_FLAGS = new Set(['proof_failed', 'replay', 'clock_skew', 'outside_geofence'])
+const SEVERE_FLAGS = new Set(['proof_failed', 'replay', 'clock_skew', 'outside_geofence', 'no_photo'])
 
 export const flagLabel = (flag) => FLAG_LABELS[flag] ?? String(flag)
 export const flagVariant = (flag) => (SEVERE_FLAGS.has(flag) ? 'destructive' : flag === 'manual' || flag === 'offline' ? 'secondary' : 'warning')
@@ -25,6 +26,7 @@ export const METHOD_LABELS = {
   pin: 'PIN',
   code: 'Código',
   phone_qr: 'Llave de teléfono',
+  phone_scan: 'Teléfono (escaneo)',
   manual: 'Manual',
 }
 export const methodLabel = (method) => METHOD_LABELS[method] ?? (method || '—')

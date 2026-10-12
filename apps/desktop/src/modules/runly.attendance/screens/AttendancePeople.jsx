@@ -1,9 +1,9 @@
 import { ExportButton } from '../components/ExportButton.jsx'
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { DownloadCloud, FileUp, KeyRound, Pencil, Plus, Users } from 'lucide-react'
+import { ChevronDown, DownloadCloud, FileUp, KeyRound, Pencil, Plus, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { Badge, Button, ConfirmDialog, DataTable, PersonAvatar } from '@runly/ui'
+import { Badge, Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, PersonAvatar } from '@runly/ui'
 import { hrName } from '../components/HrLinkPanel.jsx'
 import { PeopleImportDialog } from '../components/import/PeopleImportDialog.jsx'
 import { PersonCredentialsSheet } from '../components/PersonCredentialsSheet.jsx'
@@ -127,8 +127,17 @@ export default function AttendancePeople() {
         toolbarActions={(
           <>
             <ExportButton kind="people" fileName="personas-asistencia" label="Exportar" />
-            {canManagePeople ? <Button variant="outline" onClick={() => setConfirmImport(true)}><DownloadCloud className="h-4 w-4" />Importar desde RH</Button> : null}
-            {canManagePeople ? <Button variant="outline" onClick={() => setImportOpen(true)}><FileUp className="h-4 w-4" />Importar</Button> : null}
+            {canManagePeople ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline"><FileUp className="h-4 w-4" />Importar<ChevronDown className="h-3.5 w-3.5 opacity-60" /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => setConfirmImport(true)}><DownloadCloud className="h-4 w-4" />Importar desde RH</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setImportOpen(true)}><FileUp className="h-4 w-4" />Importar desde archivo</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
             {canManagePeople ? <Button onClick={() => setEditing({ open: true, personId: null })}><Plus className="h-4 w-4" />Nueva persona</Button> : null}
           </>
         )}

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Ban, ClipboardList, Flag, Plus } from 'lucide-react'
-import { Badge, Button, ComboboxField, ConfirmDialog, DataTable, DateRangeFilter, PersonAvatar, TextField, ToggleFilter } from '@runly/ui'
+import { Badge, Button, ConfirmDialog, DataTable, PersonAvatar, TextField } from '@runly/ui'
 import { ManualPunchDialog } from '../components/ManualPunchDialog.jsx'
 import { ExportButton } from '../components/ExportButton.jsx'
 import { PunchSelfie } from '../components/PunchSelfie.jsx'
@@ -50,12 +50,16 @@ export default function AttendancePunches() {
   const rows = useMemo(() => (punches.data ?? []).map((p) => ({
     ...p, originLabel: [kioskNames.get(p.kioskId), lookups.sites.get(p.siteId)].filter(Boolean).join(' · ') || '—',
   })), [punches.data, kioskNames, lookups.sites])
+  // Server-side filters (date range, person, flagged) are controlled specs: they live in this
+  // screen and refetch; direction / method / site filter the fetched rows client-side.
   const tableFilters = useMemo(() => [
+    { key: 'range', label: 'Fechas', type: 'daterange', fromKey: 'from', toKey: 'to', value: range, onChange: setRange },
+    { key: 'personId', label: 'Persona', type: 'combobox', options: personOptions, searchPlaceholder: 'Buscar persona…', allLabel: 'Todas las personas', value: filters.personId ?? '', onChange: (v) => setFilters((f) => ({ ...f, personId: v || null })) },
+    { key: 'flaggedOnly', label: 'Solo marcadas', type: 'toggle', icon: Flag, description: 'Muestra solo checadas con alguna marca del sistema.', value: Boolean(filters.flaggedOnly), onChange: (v) => setFilters((f) => ({ ...f, flaggedOnly: v })) },
     { key: 'direction', label: 'Dirección', options: Object.entries(DIRECTION_LABELS).map(([value, label]) => ({ value, label })) },
     { key: 'method', label: 'Método', options: Object.entries(METHOD_LABELS).map(([value, label]) => ({ value, label })) },
     { key: 'siteId', label: 'Sitio', options: lookups.rows.sites.map((s) => ({ value: s.id, label: s.name })) },
-  ], [lookups.rows.sites])
-  const set = (key) => (value) => setFilters((f) => ({ ...f, [key]: value }))
+  ], [range, setRange, filters, personOptions, lookups.rows.sites])
 
   const columns = useMemo(() => [
     { id: 'when', header: 'Fecha y hora', accessorFn: (p) => p.occurredAt, cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{formatDateTime(row.original.occurredAt)}</span> },
@@ -130,13 +134,6 @@ export default function AttendancePunches() {
         emptyIcon={ClipboardList}
         emptyTitle="Sin checadas"
         emptyDescription="No hay checadas con estos filtros. Prueba con otro rango de fechas."
-        toolbarStart={(
-          <>
-            <DateRangeFilter filter={{ key: 'range', label: 'Fechas', fromKey: 'from', toKey: 'to' }} value={range} onChange={(next) => setRange({ from: next.from, to: next.to })} />
-            <ComboboxField className="w-full sm:w-64" aria-label="Persona" options={personOptions} value={filters.personId} onChange={set('personId')} clearable placeholder="Todas las personas" />
-            <ToggleFilter icon={Flag} label="Solo marcadas" checked={Boolean(filters.flaggedOnly)} onChange={set('flaggedOnly')} />
-          </>
-        )}
         toolbarActions={(
           <>
             <ExportButton kind="punches" query={query} fileName="checadas" label="Exportar" />

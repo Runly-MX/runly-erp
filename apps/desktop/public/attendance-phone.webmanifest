@@ -1,0 +1,19 @@
+{
+  "name": "Checador · Runly",
+  "short_name": "Checador",
+  "description": "Checa tu entrada y salida escaneando el kiosko con tu teléfono.",
+  "id": "/app/attendance/phone",
+  "scope": "/app/attendance/",
+  "lang": "es-MX",
+  "start_url": "/app/attendance/phone",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "prefer_related_applications": false,
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

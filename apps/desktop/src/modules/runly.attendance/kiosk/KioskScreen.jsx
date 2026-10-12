@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Maximize2, Minimize2, Keyboard, QrCode, Nfc, TriangleAlert } from 'lucide-react'
+import { Maximize2, Minimize2, Keyboard, QrCode, Nfc, Smartphone, TriangleAlert } from 'lucide-react'
 import { useKiosk } from './useKiosk.js'
 import { KioskClock } from './components/KioskClock.jsx'
 import { PinPad } from './components/PinPad.jsx'
 import { QrScanner } from './components/QrScanner.jsx'
 import { NfcPanel, nfcSupported } from './components/NfcPanel.jsx'
 import { PunchOverlay } from './components/PunchOverlay.jsx'
+import { PhoneChallenge } from './components/PhoneChallenge.jsx'
+import { RunlyWatermark } from '../components/RunlyWatermark.jsx'
 import { PairingView } from './components/PairingView.jsx'
 import { DiagnosticsSheet, StatusPill } from './components/StatusPill.jsx'
 import { fullscreenSupported, requestWakeLock, toggleFullscreen } from './lib/feedback.js'
@@ -52,6 +54,7 @@ export default function KioskScreen() {
     const list = []
     if (kiosk.kiosk?.allowPin !== false) list.push({ id: 'pin', label: 'Código y PIN', Icon: Keyboard })
     list.push({ id: 'qr', label: 'Código QR', Icon: QrCode })
+    list.push({ id: 'phone', label: 'Con mi teléfono', Icon: Smartphone })
     if (nfcSupported()) list.push({ id: 'nfc', label: 'Tarjeta', Icon: Nfc })
     return list
   }, [kiosk.kiosk?.allowPin])
@@ -60,7 +63,7 @@ export default function KioskScreen() {
   const shell = 'min-h-dvh bg-slate-950 bg-[radial-gradient(ellipse_at_top,rgba(13,148,136,0.22),transparent_60%)] text-slate-50'
 
   if (kiosk.phase !== 'ready') {
-    return <div className={shell}><PairingView phase={kiosk.phase} pairing={kiosk.pairing} onRetry={kiosk.retryPairing} /></div>
+    return <div className={shell}><PairingView phase={kiosk.phase} pairing={kiosk.pairing} onRetry={kiosk.retryPairing} /><RunlyWatermark /></div>
   }
 
   return (
@@ -89,9 +92,16 @@ export default function KioskScreen() {
         </div>
       )}
 
-      <main className="flex flex-1 gap-6 px-4 pb-6 sm:px-8 portrait:flex-col landscape:flex-row landscape:items-center">
+      <main className="flex flex-1 gap-6 px-4 pb-16 sm:px-8 portrait:flex-col landscape:flex-row landscape:items-center">
         <section className="flex flex-1 items-center justify-center py-2">
-          <KioskClock siteName={kiosk.kiosk?.siteName} companyName={kiosk.kiosk?.companyName} />
+          <div className="flex flex-col items-center gap-4">
+            <KioskClock siteName={kiosk.kiosk?.siteName} companyName={kiosk.kiosk?.companyName} />
+            {kiosk.roster?.qrSecret && active?.id !== 'phone' && (
+              <button type="button" onClick={() => setTab('phone')} className="flex items-center gap-2 rounded-full bg-white/[0.06] px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400">
+                <Smartphone className="size-4 text-teal-300" /> También puedes checar escaneando con tu teléfono
+              </button>
+            )}
+          </div>
         </section>
         <section className="flex flex-1 flex-col justify-center gap-4 py-2">
           {!kiosk.roster ? (
@@ -116,12 +126,14 @@ export default function KioskScreen() {
               )}
               {active?.id === 'pin' && <PinPad onSubmit={kiosk.submitPin} resetKey={kiosk.result?.key} disabled={Boolean(kiosk.result)} />}
               {active?.id === 'qr' && <QrScanner onResult={kiosk.submitQr} paused={Boolean(kiosk.result)} />}
+              {active?.id === 'phone' && <PhoneChallenge secret={kiosk.roster.qrSecret} kioskId={kiosk.kiosk?.id} />}
               {active?.id === 'nfc' && <NfcPanel onCard={kiosk.submitCard} />}
             </>
           )}
         </section>
       </main>
 
+      <RunlyWatermark />
       <PunchOverlay result={kiosk.result} onDismiss={kiosk.clearResult} />
       <DiagnosticsSheet
         open={diagnostics}
