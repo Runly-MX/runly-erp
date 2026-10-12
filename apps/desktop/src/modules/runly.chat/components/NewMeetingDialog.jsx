@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-  Button, SelectField, TagsField, ErrorState, SwitchField,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+  Button, SelectField, TagsField, ErrorState, SwitchField, cn,
 } from "@runly/ui";
-import { Video, Calendar, Mic } from "lucide-react";
+import { Video, Calendar, Mic, Check, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import EventFormModal from "../../runly.calendar/components/EventFormModal";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -24,10 +24,89 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NEW_ROOM = "__new__";
 
 const MODES = [
-  { key: "now", label: "Ahora", hint: "Entra ya y espera a los demás", Icon: Video },
-  { key: "schedule", label: "Programar", hint: "Elige fecha y hora", Icon: Calendar },
-  { key: "inperson", label: "Presencial", hint: "Graba una reunión en sala", Icon: Mic },
+  {
+    key: "now",
+    label: "Reunión ahora",
+    hint: "Entra a la sala en este momento y los demás se unen.",
+    points: [
+      "Sin timbre: avisamos que empezó y cada quien se une",
+      "Desde la llamada puedes llamar a quien falte",
+      "Comparte el enlace o el ID para invitados externos",
+    ],
+    Icon: Video,
+    tint: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
+  },
+  {
+    key: "schedule",
+    label: "Programar",
+    hint: "Elige fecha y hora y envía las invitaciones.",
+    points: [
+      "Se crea el evento en tu calendario",
+      "Invita por correo a personas externas",
+      "Decide si entran con sala de espera, PIN o libre",
+    ],
+    Icon: Calendar,
+    tint: "bg-sky-500/15 text-sky-600 dark:text-sky-300",
+  },
+  {
+    key: "inperson",
+    label: "Presencial",
+    hint: "Graba una reunión en sala desde un solo dispositivo.",
+    points: [
+      "Solo audio, se graba y transcribe automáticamente",
+      "Nadie recibe timbre ni notificación de llamada",
+      "Al terminar, la grabación queda en la conversación",
+    ],
+    Icon: Mic,
+    tint: "bg-rose-500/15 text-rose-600 dark:text-rose-300",
+  },
 ];
+
+const ACTION = {
+  now: { label: "Iniciar reunión", busy: "Abriendo...", Icon: Video },
+  schedule: { label: "Continuar al calendario", busy: "Preparando...", Icon: Calendar },
+  inperson: { label: "Empezar a grabar", busy: "Abriendo...", Icon: Mic },
+};
+
+function ModeCard({ mode, selected, disabled, onSelect }) {
+  const { label, hint, points, Icon, tint } = mode;
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      disabled={disabled}
+      onClick={onSelect}
+      className={cn(
+        "relative grid h-full grid-cols-[auto_1fr] items-start gap-x-3 gap-y-3 rounded-2xl border p-4 text-left transition-all duration-150 md:flex md:flex-col",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary)",
+        selected
+          ? "border-(--brand-primary) bg-(--brand-soft) shadow-sm"
+          : "border-[hsl(var(--border))] bg-[hsl(var(--card))]/60 hover:border-(--brand-primary)/50 hover:bg-[hsl(var(--muted))]/50",
+      )}
+    >
+      {selected && (
+        <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-(--brand-primary)" aria-hidden />
+      )}
+      <span className={cn("flex h-11 w-11 items-center justify-center rounded-xl", tint)}>
+        <Icon className="h-5 w-5" aria-hidden />
+      </span>
+      <span className="space-y-1 pr-6 md:pr-0">
+        <span className="block text-base font-semibold text-[hsl(var(--foreground))]">{label}</span>
+        <span className="block text-sm leading-snug text-[hsl(var(--muted-foreground))]">{hint}</span>
+      </span>
+      {/* Phones show the details only for the chosen mode. */}
+      <ul className={cn("col-span-2 mt-auto space-y-1.5", !selected && "hidden md:block")}>
+        {points.map((point) => (
+          <li key={point} className="flex items-start gap-2 text-[13px] leading-snug text-[hsl(var(--foreground))]/80">
+            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-(--brand-primary)" aria-hidden />
+            {point}
+          </li>
+        ))}
+      </ul>
+    </button>
+  );
+}
 
 // Meet-style:
 //  - Ahora      -> opens the call room immediately. By default nobody's phone
@@ -202,24 +281,31 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     );
   }
 
+  const action = ACTION[mode];
+  const actionDisabled = mode === "schedule" ? busy : busy || isStarting || Boolean(activeCall);
+  const runAction = mode === "now" ? () => startNow() : mode === "inperson" ? () => startNow({ inPerson: true }) : continueToSchedule;
+
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
-      <DialogContent size="sm" scrollable>
-        <DialogHeader><DialogTitle>Nueva reunión</DialogTitle></DialogHeader>
-        <div className="min-h-0 overflow-y-auto overscroll-contain">
+      <DialogContent size="2xl" scrollable className="gap-0 p-0 md:p-0">
+        <DialogHeader className="shrink-0 space-y-1 px-6 pb-4 pt-6">
+          <DialogTitle className="text-xl">Nueva reunión</DialogTitle>
+          <DialogDescription>Elige cómo quieres reunirte. Puedes usar una sala nueva o un canal o grupo existente.</DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-5">
         {!callsEnabled ? (
           <p className="py-6 text-center text-sm text-[hsl(var(--muted-foreground))]">
             Las llamadas no están configuradas en esta instancia.
           </p>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <SelectField
               label="Sala"
               value={conversationId}
               disabled={busy}
               onValueChange={setConversationId}
               options={[
-                { value: NEW_ROOM, label: "➕ Nueva sala de reunión" },
+                { value: NEW_ROOM, label: "Nueva sala de reunión" },
                 ...conversations.map((c) => ({
                   value: c.id,
                   label: getConversationDisplayName(c, userProfile?.id),
@@ -227,51 +313,28 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
               ]}
             />
 
-            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tipo de reunión">
-              {MODES.map(({ key, label, hint, Icon }) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="radio"
-                  aria-checked={mode === key}
-                  disabled={busy}
-                  onClick={() => setMode(key)}
-                  className={[
-                    "flex min-h-[84px] flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary)",
-                    mode === key
-                      ? "border-(--brand-primary) bg-(--brand-soft)"
-                      : "border-border hover:border-(--brand-primary)/40",
-                  ].join(" ")}
-                >
-                  <Icon className="h-4 w-4 text-[hsl(var(--foreground))]" aria-hidden />
-                  <span className="text-sm font-semibold text-[hsl(var(--foreground))]">{label}</span>
-                  <span className="text-[11px] leading-snug text-[hsl(var(--muted-foreground))]">{hint}</span>
-                </button>
+            <div className="grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="Tipo de reunión">
+              {MODES.map((m) => (
+                <ModeCard key={m.key} mode={m} selected={mode === m.key} disabled={busy} onSelect={() => setMode(m.key)} />
               ))}
             </div>
 
             {mode === "now" && otherMemberCount > 0 && (
-              <SwitchField
-                label="Llamar a los miembros"
-                description={ringMembers
-                  ? "Sonará el timbre en los dispositivos de todos."
-                  : "Nadie recibe timbre: les avisamos que la reunión empezó y pueden unirse. Desde la llamada puedes llamar a quien quieras."}
-                checked={ringMembers}
-                onChange={setRingMembers}
-                disabled={busy}
-              />
-            )}
-
-            {mode === "inperson" && (
-              <p className="rounded-xl bg-[hsl(var(--muted))]/60 px-3 py-2.5 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">
-                Inicia una reunión solo de audio que se graba y transcribe automáticamente. Nadie recibe timbre.
-                Deja el dispositivo cerca de quienes hablan; al terminar, la grabación queda en la conversación.
-              </p>
+              <div className="rounded-2xl border border-[hsl(var(--border))] p-4">
+                <SwitchField
+                  label="Llamar a los miembros"
+                  description={ringMembers
+                    ? "Sonará el timbre en los dispositivos de todos."
+                    : "Nadie recibe timbre: les avisamos que la reunión empezó y pueden unirse."}
+                  checked={ringMembers}
+                  onChange={setRingMembers}
+                  disabled={busy}
+                />
+              </div>
             )}
 
             {mode === "schedule" && (
-              <>
+              <div className="space-y-4 rounded-2xl border border-[hsl(var(--border))] p-4">
                 <TagsField
                   label="Invitados externos por correo (opcional)"
                   placeholder="ana@empresa.com  (Enter para agregar)"
@@ -290,29 +353,29 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
                     disabled={busy}
                   />
                 </div>
-              </>
+              </div>
             )}
 
             {error && <ErrorState className="py-3" title="No se pudo iniciar la reunión" description={error} />}
-            {activeCall && <p className="text-sm text-muted-foreground">Ya tienes una llamada en curso. Termínala antes de iniciar otra reunión.</p>}
-            <div className="flex justify-end pt-1">
-              {mode === "now" ? (
-                <Button onClick={() => startNow()} disabled={busy || isStarting || Boolean(activeCall)}>
-                  <Video className="mr-2 h-4 w-4" /> {busy ? "Abriendo..." : "Iniciar reunión"}
-                </Button>
-              ) : mode === "inperson" ? (
-                <Button onClick={() => startNow({ inPerson: true })} disabled={busy || isStarting || Boolean(activeCall)}>
-                  <Mic className="mr-2 h-4 w-4" /> {busy ? "Abriendo..." : "Empezar a grabar"}
-                </Button>
-              ) : (
-                <Button onClick={continueToSchedule} disabled={busy}>
-                  <Calendar className="mr-2 h-4 w-4" /> {busy ? "Preparando..." : "Continuar"}
-                </Button>
-              )}
-            </div>
+            {activeCall && mode !== "schedule" && (
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">Ya tienes una llamada en curso. Termínala antes de iniciar otra reunión.</p>
+            )}
           </div>
         )}
         </div>
+        {callsEnabled && (
+          <div
+            className="flex shrink-0 flex-col-reverse gap-3 border-t border-[hsl(var(--border))] px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+            style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
+          >
+            <p className="hidden text-xs text-[hsl(var(--muted-foreground))] sm:block">
+              {MODES.find((m) => m.key === mode)?.hint}
+            </p>
+            <Button size="lg" className="sm:min-w-52" onClick={runAction} disabled={actionDisabled}>
+              <action.Icon className="mr-2 h-4 w-4" /> {busy ? action.busy : action.label}
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
