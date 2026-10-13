@@ -1,7 +1,7 @@
 # Notes: guardado pendiente durante desmontaje
 
 Date: 2026-10-13
-Status: Authorized autonomous local scope
+Status: Complete — local save/teardown correction; durable and real persistence acceptance pending
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md.
 
 ## 1. Feature title

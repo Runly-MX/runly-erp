@@ -1,7 +1,7 @@
 # Notes: plan de guardado en curso
 
 Date: 2026-10-13
-Status: In Progress
+Status: Complete — local scope; durable recovery and operational acceptance pending
 Spec: docs/superpowers/specs/2026-10-13-notes-inflight-save-design.md.
 
 ## Goal and architecture
@@ -35,7 +35,7 @@ Validation: node --test apps/desktop/src/modules/runly.notes/lib/__tests__/flush
 
 ## Task 4 — Close
 
-- [ ] Notes/browser suite, build web y React Doctor completo.
-- [ ] Privacy/secrets/whitespace, evidencias y trackers, commit documental. Limitaciones de persistencia y keepalive explícitas.
+- [x] Notes/browser 168/168, build web 5.35 s; React Doctor completo, cero errores/cinco warnings previos.
+- [x] Privacy/secrets: 4,367 archivos, cero hallazgos; whitespace pasa. Evidencias/trackers, límites de persistencia/keepalive y commit documental de cierre. Implementación 1b7305ed.
 
 No provider/DB/producción. No introducir timers/retries indefinidos ni registrar cuerpos/credenciales/contenido real.
