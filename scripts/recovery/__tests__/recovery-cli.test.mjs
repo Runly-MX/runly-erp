@@ -21,12 +21,24 @@ test('CLI rejects mutation commands, duplicate flags, latest snapshots and arbit
     ['inspect', '--config', 'a', '--image', 'evil:1']]) assert.throws(() => parseArguments(args), { exitCode: 2 });
 });
 
+test('remote Docker context is rejected before credentials reach a container', async t => {
+  const { config } = await fixture(t);
+  const calls = [];
+  await assert.rejects(runRecovery(['inspect', '--config', config, '--image', digest], { run: async (_, args) => {
+    calls.push(args);
+    return JSON.stringify('ssh://docker.example.test');
+  } }), { exitCode: 2 });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], 'context');
+});
+
 test('inspect pins the resolved image, never forwards secrets in argv and cleans temporary config', async t => {
   const { config } = await fixture(t);
   const calls = [];
   let envFile;
   const result = await runRecovery(['inspect', '--config', config, '--image', digest], { run: async (_, args) => {
     calls.push(args);
+    if (args[0] === 'context') return JSON.stringify('npipe:////./pipe/docker_engine');
     if (args[0] === 'image') return JSON.stringify({ Id: digest });
     envFile = args[args.indexOf('--env-file') + 1];
     assert.ok(!(await readFile(envFile, 'utf8')).includes('do-not-forward'));
@@ -35,8 +47,8 @@ test('inspect pins the resolved image, never forwards secrets in argv and cleans
   assert.equal(result.snapshots[0].coverage, 'legacy-unknown');
   assert.ok(!JSON.stringify(result).includes('private-path'));
   assert.ok(!JSON.stringify(calls).includes('test-password'));
-  assert.ok(calls[1].includes('--no-lock'));
-  assert.ok(calls[1].includes('--no-cache'));
+  assert.ok(calls[2].includes('--no-lock'));
+  assert.ok(calls[2].includes('--no-cache'));
   await assert.rejects(stat(envFile), { code: 'ENOENT' });
 });
 
@@ -46,7 +58,8 @@ test('a foreign snapshot and malicious node fail before creating output', async 
   const base = ['extract', '--config', config, '--image', digest, '--snapshot', snapshotId, '--output', output];
   for (const foreign of [true, false]) {
     await assert.rejects(runRecovery(base, { run: async (_, args) => {
-      if (args[0] === 'image') return JSON.stringify({ Id: digest });
+      if (args[0] === 'context') return JSON.stringify('npipe:////./pipe/docker_engine');
+    if (args[0] === 'image') return JSON.stringify({ Id: digest });
       if (args.includes('snapshots')) return JSON.stringify([{ id: snapshotId, hostname: foreign ? 'other' : 'fixture', time: '2026-10-12T00:00:00Z' }]);
       return [JSON.stringify({ struct_type: 'snapshot', id: snapshotId }), JSON.stringify({ struct_type: 'node', type: 'symlink', path: '/link' })].join('\n');
     } }), { exitCode: 2 });
@@ -60,6 +73,7 @@ test('child failure cleans credentials and never retries with repository mutatio
   const calls = [];
   await assert.rejects(runRecovery(['inspect', '--config', config, '--image', digest], { run: async (_, args) => {
     calls.push(args);
+    if (args[0] === 'context') return JSON.stringify('npipe:////./pipe/docker_engine');
     if (args[0] === 'image') return JSON.stringify({ Id: digest });
     envFile = args[args.indexOf('--env-file') + 1];
     throw new Error('fixture failure');
@@ -77,7 +91,8 @@ test('interrupted extraction retains an incomplete marker and cleans only its ow
   await assert.rejects(runRecovery(['extract', '--config', config, '--image', digest, '--snapshot', snapshotId, '--output', output], {
     signal: controller.signal,
     run: async (_, args) => {
-      if (args[0] === 'image') return JSON.stringify({ Id: digest });
+      if (args[0] === 'context') return JSON.stringify('npipe:////./pipe/docker_engine');
+    if (args[0] === 'image') return JSON.stringify({ Id: digest });
       if (args[0] === 'rm') { removed.push(args.at(-1)); return ''; }
       envFile = args[args.indexOf('--env-file') + 1];
       if (args.includes('snapshots')) return JSON.stringify([{ id: snapshotId, hostname: 'fixture', time: '2026-10-12T00:00:00Z' }]);

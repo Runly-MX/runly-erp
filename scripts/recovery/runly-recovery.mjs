@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { inputError, resolveRecoveryConfig, serializeRecoveryEnv, validateImage, validateSnapshotId } from './recovery-config.mjs';
+import { inputError, resolveRecoveryConfig, serializeRecoveryEnv, validateImage, validateSnapshotId, validateDockerEndpoint } from './recovery-config.mjs';
 import { validateOutputPath, validateSnapshotNodes, assertNoLinks } from './recovery-paths.mjs';
 import { assessRecovery, publicAssessment } from './recovery-assessment.mjs';
 
@@ -60,6 +60,8 @@ export async function runRecovery(argv, { run = defaultRun, signal, assess = ass
   }
   const config = resolveRecoveryConfig(await readFile(options.config));
   if (options.command === 'extract') await validateOutputPath(options.output);
+  if (process.env.DOCKER_HOST) validateDockerEndpoint(process.env.DOCKER_HOST);
+  validateDockerEndpoint(parseJson(await run('docker', ['context', 'inspect', '--format', '{{json .Endpoints.docker.Host}}'], { signal })));
   const inspect = parseJson(await run('docker', ['image', 'inspect', '--format', '{{json .}}', options.image], { signal }));
   const imageId = inspect.Id;
   if (!/^sha256:[a-f0-9]{64}$/.test(imageId ?? '')) throw inputError('No se pudo resolver el digest de la imagen local.');

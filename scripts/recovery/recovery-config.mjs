@@ -61,3 +61,9 @@ export function validateSnapshotId(id) {
   if (!/^[a-f0-9]{8,64}$/.test(id ?? '')) throw inputError('Selecciona un ID hexadecimal de snapshot; latest no está permitido.');
   return id;
 }
+
+export function validateDockerEndpoint(endpoint) {
+  if (typeof endpoint !== 'string' || !/^(unix|npipe):\/\//.test(endpoint)) {
+    throw inputError('La extracción requiere Docker local mediante socket Unix o named pipe; no se permite un daemon remoto.');
+  }
+}

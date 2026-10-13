@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveRecoveryConfig, serializeRecoveryEnv, validateImage, validateSnapshotId } from '../recovery-config.mjs';
+import { resolveRecoveryConfig, serializeRecoveryEnv, validateImage, validateSnapshotId, validateDockerEndpoint } from '../recovery-config.mjs';
 
 const values = { BACKUP_S3_ENDPOINT: 'https://s3.example.test', BACKUP_S3_BUCKET: 'test-bucket',
   RUNLY_INSTANCE_ID: 'original-instance', BACKUP_S3_ACCESS_KEY_ID: 'fixture-id',
@@ -34,4 +34,10 @@ test('images are official versioned backups or explicit immutable local digests'
   for (const image of ['evil/image:1', 'raulbellosom/runlyerp:backup-latest', 'raulbellosom/runlyerp:api-v1', '--privileged']) assert.throws(() => validateImage(image), { exitCode: 2 });
   validateSnapshotId('abcdef12');
   for (const id of ['latest', '../test', '--help', '123']) assert.throws(() => validateSnapshotId(id), { exitCode: 2 });
+});
+
+test('a Docker bind mount can only target the local daemon', () => {
+  validateDockerEndpoint('unix:///var/run/docker.sock');
+  validateDockerEndpoint('npipe:////./pipe/docker_engine');
+  for (const endpoint of ['ssh://docker.example.test', 'tcp://127.0.0.1:2375', undefined]) assert.throws(() => validateDockerEndpoint(endpoint), { exitCode: 2 });
 });
