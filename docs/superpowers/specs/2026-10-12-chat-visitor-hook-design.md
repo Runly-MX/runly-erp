@@ -1,7 +1,7 @@
 # Chat: hook del panel de visitante
 
 Date: 2026-10-12
-Status: In Progress
+Status: Complete
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md (Task 2)
 
 ## 1. Feature title
@@ -10,7 +10,7 @@ Orden estable de hooks y limpieza del contador del panel de visitante.
 
 ## 2. Status
 
-In Progress. Corrección de Task 2 autorizada al continuar el programa; alcance local sin servicios reales.
+Complete. Corrección de Task 2 autorizada al continuar el programa; alcance local sin servicios reales. Verified: 2026-10-12 (regresión Chrome reproducida antes y resuelta después; build web, React Doctor del archivo, privacidad y whitespace).
 
 ## 3. Context
 

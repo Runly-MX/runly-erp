@@ -114,7 +114,7 @@ function useExpiryCountdown(idleExpiresAt) {
     return () => clearInterval(id);
   }, [idleExpiresAt]);
 
-  return remaining;
+  return idleExpiresAt ? remaining : "";
 }
 
 // ------------------------------------------------------------------
@@ -202,14 +202,14 @@ function ReassignDropdown({ conversationId, currentUserId, onReassigned }) {
 // ------------------------------------------------------------------
 
 function VisitorInfoPanel({ conversation, onReassigned }) {
+  const idleExpiresAt = conversation?.idle_expires_at ?? conversation?.idleExpiresAt;
+  const countdown = useExpiryCountdown(conversation?.status !== "closed" ? idleExpiresAt : null);
   if (!conversation) return null;
   const name = conversation.guest_name ?? conversation.guest_email ?? "Visitante";
   const email = conversation.guest_email;
   const pageUrl = conversation.guest_page_url;
   const createdAt = conversation.created_at;
   const trackingCode = conversation.tracking_code ?? null;
-  const idleExpiresAt = conversation.idle_expires_at ?? conversation.idleExpiresAt;
-  const countdown = useExpiryCountdown(conversation.status !== "closed" ? idleExpiresAt : null);
 
   return (
     <aside className="hidden lg:flex w-64 shrink-0 border-l border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] flex-col overflow-y-auto">
