@@ -4,6 +4,7 @@ import { readLiveKitConfig } from "./call-service.js";
 const MAX_DURATION_MS = 4 * 60 * 60 * 1000; // hard cap — spec §24 risk 3
 const RETENTION_MS = 90 * 24 * 60 * 60 * 1000; // spec §5 goal 4
 const RECORDING_BUCKET = "runly-chat";
+const EGRESS_REQUEST_TIMEOUT_S = 45;
 const SEGMENT_SIGN_TTL_SECONDS = 3600;
 const ACTIVE_STATUSES = ["STARTING", "ACTIVE", "PROCESSING"];
 const STORAGE_LIST_PAGE_SIZE = 1000;
@@ -46,7 +47,11 @@ export function createCallRecordingService({
     // livekit-server-sdk EgressClient) or an already-constructed fake
     // instance handed in directly by a test — support both.
     return typeof EgressClientImpl === "function"
-      ? new EgressClientImpl(c.internalUrl, c.apiKey, c.apiSecret)
+      // The SDK aborts a request after 10s by default; starting an egress while
+      // the composite recording (headless Chrome, 1080p) spins up on a small
+      // host routinely takes longer, so the capture failed with "aborted due
+      // to timeout" even though LiveKit was still starting it.
+      ? new EgressClientImpl(c.internalUrl, c.apiKey, c.apiSecret, { requestTimeout: EGRESS_REQUEST_TIMEOUT_S })
       : EgressClientImpl;
   }
 

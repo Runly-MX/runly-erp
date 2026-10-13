@@ -379,38 +379,49 @@ export function ChatRecordingsGallery({ conversationId }) {
   // call-recording-service.js) is wrapped in its own blob: URL here and
   // handed back as if it were one; useHlsPlayback (@runly/ui) handles the
   // actual hls.js attachment once the viewer renders the <video>.
-  const [viewerIndex, setViewerIndex] = useState(null);
+  // The open recording is tracked by id, not index: the list polls every 8s
+  // while another recording is processing, and a newly READY one shifts every
+  // index — the viewer then jumped to (or reloaded) a different video.
+  const [viewerId, setViewerId] = useState(null);
   // recordingId -> blob url, so paging back to an already-viewed recording
   // (A -> B -> A) doesn't rebuild the Blob, and every entry can be revoked on close.
   const blobUrlCacheRef = useRef(new Map());
+  // Latest list for the resolver below, which must keep one identity: a new
+  // function on every poll made the viewer re-resolve and restart the player.
+  const playableRef = useRef(playableRecordings);
+  playableRef.current = playableRecordings;
 
-  const viewerFiles = useMemo(() => playableRecordings.map((r) => ({
+  // Rebuilt only when the set of playable recordings (or a title) changes,
+  // not on every poll that returns the same rows with fresh signed URLs.
+  const filesKey = playableRecordings.map((r) => `${r.id}:${r.title ?? ""}`).join("|");
+  const viewerFiles = useMemo(() => playableRef.current.map((r) => ({
     id: r.id,
     mimeType: "application/vnd.apple.mpegurl",
     originalName: r.title || `Grabación ${formatRecordingDateTime(r.startedAt)}`,
     sizeBytes: r.sizeBytes,
-  })), [playableRecordings]);
+  })), [filesKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resolveRecordingUrl = useCallback(async (file) => {
     const cached = blobUrlCacheRef.current.get(file.id);
     if (cached) return cached;
-    const recording = playableRecordings.find((r) => r.id === file.id);
+    const recording = playableRef.current.find((r) => r.id === file.id);
     if (!recording?.playlistManifest) return null;
     const url = URL.createObjectURL(new Blob([recording.playlistManifest], { type: "application/vnd.apple.mpegurl" }));
     blobUrlCacheRef.current.set(file.id, url);
     return url;
-  }, [playableRecordings]);
+  }, []);
+
+  const viewerIndex = viewerId ? viewerFiles.findIndex((f) => f.id === viewerId) : -1;
 
   function handlePlay(recording) {
-    const idx = playableRecordings.findIndex((r) => r.id === recording.id);
-    if (idx >= 0) setViewerIndex(idx);
+    setViewerId(recording.id);
   }
 
   const closeViewer = useCallback((nextOpen) => {
     if (nextOpen) return;
     for (const url of blobUrlCacheRef.current.values()) URL.revokeObjectURL(url);
     blobUrlCacheRef.current.clear();
-    setViewerIndex(null);
+    setViewerId(null);
   }, []);
 
   if (isLoading) {
@@ -464,11 +475,11 @@ export function ChatRecordingsGallery({ conversationId }) {
       ))}
       </div>
       <AdvancedFileViewer
-        open={viewerIndex !== null}
+        open={viewerIndex >= 0}
         onOpenChange={closeViewer}
         files={viewerFiles}
-        activeIndex={viewerIndex ?? 0}
-        onIndexChange={setViewerIndex}
+        activeIndex={Math.max(0, viewerIndex)}
+        onIndexChange={(i) => setViewerId(viewerFiles[i]?.id ?? null)}
         onResolveSignedUrl={resolveRecordingUrl}
         zIndex={10000}
       />

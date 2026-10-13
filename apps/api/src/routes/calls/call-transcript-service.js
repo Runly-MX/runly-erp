@@ -40,6 +40,7 @@ const DEFAULT_RETENTION_DAYS = 365; // decisión de producto confirmada 2026-09-
 const RETENTION_CONFIG_KEY = "transcription.retentionDays";
 const LOG_PREFIX = "[runly.calls/transcript]";
 const RECORDING_BUCKET = "runly-chat"; // mismo bucket que grabaciones/adjuntos — call-recording-service.js
+const EGRESS_REQUEST_TIMEOUT_S = 45;
 const TRACK_ACTIVE_STATUSES = ["STARTING", "ACTIVE", "PROCESSING"];
 
 export class CallTranscriptError extends Error {
@@ -102,7 +103,11 @@ export function createCallTranscriptService({
   function egressClient() {
     const c = liveKit();
     return typeof EgressClientImpl === "function"
-      ? new EgressClientImpl(c.internalUrl, c.apiKey, c.apiSecret)
+      // The SDK aborts a request after 10s by default; starting an egress while
+      // the composite recording (headless Chrome, 1080p) spins up on a small
+      // host routinely takes longer, so the capture failed with "aborted due
+      // to timeout" even though LiveKit was still starting it.
+      ? new EgressClientImpl(c.internalUrl, c.apiKey, c.apiSecret, { requestTimeout: EGRESS_REQUEST_TIMEOUT_S })
       : EgressClientImpl;
   }
 
