@@ -1,0 +1,670 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-12",
+  "status": "initial-topology-triage; detailed-reachability-and-remaining-patches-open",
+  "baseline": {
+    "info": 0,
+    "low": 3,
+    "moderate": 19,
+    "high": 22,
+    "critical": 1
+  },
+  "afterShellQuotePatch": {
+    "info": 0,
+    "low": 3,
+    "moderate": 19,
+    "high": 22,
+    "critical": 0
+  },
+  "acceptedExceptions": [],
+  "families": [
+    {
+      "module": "@hono/node-server",
+      "scope": "prisma-tooling",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "1.19.11"
+      ],
+      "importers": [
+        ".",
+        "apps/api",
+        "apps/worker"
+      ],
+      "representativeDependencyPath": ". > prisma@7.8.0 > @prisma/dev@0.24.3 > @hono/node-server@1.19.11",
+      "currentAdvisoryRows": 2,
+      "advisories": [
+        {
+          "id": "GHSA-92pp-h63x-v22m",
+          "severity": "moderate",
+          "affected": "<1.19.13",
+          "patchedRange": ">=1.19.13",
+          "url": "https://github.com/advisories/GHSA-92pp-h63x-v22m"
+        },
+        {
+          "id": "GHSA-frvp-7c67-39w9",
+          "severity": "moderate",
+          "affected": "<1.19.15",
+          "patchedRange": ">=1.19.15",
+          "url": "https://github.com/advisories/GHSA-frvp-7c67-39w9"
+        }
+      ]
+    },
+    {
+      "module": "@tiptap/core",
+      "scope": "browser-runtime",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "3.27.1"
+      ],
+      "importers": [
+        "apps/desktop"
+      ],
+      "representativeDependencyPath": "apps/desktop > @tiptap/core@3.27.1",
+      "currentAdvisoryRows": 2,
+      "advisories": [
+        {
+          "id": "GHSA-cp6q-959q-f8rh",
+          "severity": "moderate",
+          "affected": ">=2.0.0-alpha.0 <3.30.4",
+          "patchedRange": ">=3.30.4",
+          "url": "https://github.com/advisories/GHSA-cp6q-959q-f8rh"
+        },
+        {
+          "id": "GHSA-j95f-988m-3j2f",
+          "severity": "high",
+          "affected": ">=3.7.0 <3.30.5",
+          "patchedRange": ">=3.30.5",
+          "url": "https://github.com/advisories/GHSA-j95f-988m-3j2f"
+        }
+      ]
+    },
+    {
+      "module": "brace-expansion",
+      "scope": "development-and-api-tooling",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "1.1.18",
+        "2.1.4"
+      ],
+      "importers": [
+        ".",
+        "apps/api"
+      ],
+      "representativeDependencyPath": ". > eslint@9.39.5 > minimatch@3.1.5 > brace-expansion@1.1.18",
+      "currentAdvisoryRows": 6,
+      "advisories": [
+        {
+          "id": "GHSA-q2hr-2g5m-vwhr",
+          "severity": "moderate",
+          "affected": "<1.1.21",
+          "patchedRange": ">=1.1.21",
+          "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr"
+        },
+        {
+          "id": "GHSA-q2hr-2g5m-vwhr",
+          "severity": "moderate",
+          "affected": ">=2.0.0 <2.1.7",
+          "patchedRange": ">=2.1.7",
+          "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr"
+        },
+        {
+          "id": "GHSA-qhr7-859c-m2p7",
+          "severity": "high",
+          "affected": "<1.1.20",
+          "patchedRange": ">=1.1.20",
+          "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7"
+        },
+        {
+          "id": "GHSA-qhr7-859c-m2p7",
+          "severity": "high",
+          "affected": ">=2.0.0 <2.1.6",
+          "patchedRange": ">=2.1.6",
+          "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7"
+        },
+        {
+          "id": "GHSA-6j4f-fj2g-mc7p",
+          "severity": "high",
+          "affected": "<1.1.19",
+          "patchedRange": ">=1.1.19",
+          "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p"
+        },
+        {
+          "id": "GHSA-6j4f-fj2g-mc7p",
+          "severity": "high",
+          "affected": ">=2.0.0 <2.1.5",
+          "patchedRange": ">=2.1.5",
+          "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p"
+        }
+      ]
+    },
+    {
+      "module": "braces",
+      "scope": "browser-build-tooling",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "3.0.3"
+      ],
+      "importers": [
+        "apps/desktop"
+      ],
+      "representativeDependencyPath": "apps/desktop > @excalidraw/excalidraw@0.18.1 > sass@1.51.0 > chokidar@3.6.0 > braces@3.0.3",
+      "currentAdvisoryRows": 1,
+      "advisories": [
+        {
+          "id": "GHSA-vfj7-8cjw-p6xm",
+          "severity": "high",
+          "affected": "<=3.0.3",
+          "patchedRange": "<0.0.0",
+          "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"
+        }
+      ]
+    },
+    {
+      "module": "csv-parse",
+      "scope": "api-runtime",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "5.6.0"
+      ],
+      "importers": [
+        "apps/api"
+      ],
+      "representativeDependencyPath": "apps/api > csv-parse@5.6.0",
+      "currentAdvisoryRows": 1,
+      "advisories": [
+        {
+          "id": "GHSA-8cw4-87c7-c6xx",
+          "severity": "moderate",
+          "affected": "<7.0.2",
+          "patchedRange": ">=7.0.2",
+          "url": "https://github.com/advisories/GHSA-8cw4-87c7-c6xx"
+        }
+      ]
+    },
+    {
+      "module": "deepmerge-ts",
+      "scope": "prisma-tooling",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "7.1.5"
+      ],
+      "importers": [
+        ".",
+        "apps/api",
+        "apps/worker"
+      ],
+      "representativeDependencyPath": ". > prisma@7.8.0 > @prisma/config@7.8.0 > deepmerge-ts@7.1.5",
+      "currentAdvisoryRows": 1,
+      "advisories": [
+        {
+          "id": "GHSA-ggr8-5vv4-36mx",
+          "severity": "high",
+          "affected": "<8.0.0",
+          "patchedRange": ">=8.0.0",
+          "url": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx"
+        }
+      ]
+    },
+    {
+      "module": "dompurify",
+      "scope": "browser-runtime-transitive",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "3.4.14"
+      ],
+      "importers": [
+        "apps/desktop"
+      ],
+      "representativeDependencyPath": "apps/desktop > jspdf@4.2.1 > dompurify@3.4.14",
+      "currentAdvisoryRows": 2,
+      "advisories": [
+        {
+          "id": "GHSA-p98j-92pf-mc4p",
+          "severity": "low",
+          "affected": ">=3.4.13 <=3.4.15",
+          "patchedRange": ">=3.4.16",
+          "url": "https://github.com/advisories/GHSA-p98j-92pf-mc4p"
+        },
+        {
+          "id": "GHSA-6688-9rhm-gjv2",
+          "severity": "low",
+          "affected": "<=3.4.15",
+          "patchedRange": ">=3.4.16",
+          "url": "https://github.com/advisories/GHSA-6688-9rhm-gjv2"
+        }
+      ]
+    },
+    {
+      "module": "fast-uri",
+      "scope": "prisma-tooling",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "3.1.2"
+      ],
+      "importers": [
+        ".",
+        "apps/api",
+        "apps/worker"
+      ],
+      "representativeDependencyPath": ". > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.2",
+      "currentAdvisoryRows": 8,
+      "advisories": [
+        {
+          "id": "GHSA-v2hh-gcrm-f6hx",
+          "severity": "high",
+          "affected": ">=3.0.0 <=3.1.3",
+          "patchedRange": ">=3.1.4",
+          "url": "https://github.com/advisories/GHSA-v2hh-gcrm-f6hx"
+        },
+        {
+          "id": "GHSA-7p8r-x3mc-p8w7",
+          "severity": "high",
+          "affected": ">=3.0.0 <3.1.5",
+          "patchedRange": ">=3.1.5",
+          "url": "https://github.com/advisories/GHSA-7p8r-x3mc-p8w7"
+        },
+        {
+          "id": "GHSA-f65p-4m7j-42xc",
+          "severity": "high",
+          "affected": ">=3.0.0 <3.1.6",
+          "patchedRange": ">=3.1.6",
+          "url": "https://github.com/advisories/GHSA-f65p-4m7j-42xc"
+        },
+        {
+          "id": "GHSA-fph4-wmhf-6fwf",
+          "severity": "high",
+          "affected": ">=3.1.2 <3.1.6",
+          "patchedRange": ">=3.1.6",
+          "url": "https://github.com/advisories/GHSA-fph4-wmhf-6fwf"
+        },
+        {
+          "id": "GHSA-jqff-g426-hqxp",
+          "severity": "high",
+          "affected": ">=3.0.0 <3.1.6",
+          "patchedRange": ">=3.1.6",
+          "url": "https://github.com/advisories/GHSA-jqff-g426-hqxp"
+        },
+        {
+          "id": "GHSA-4c8g-83qw-93j6",
+          "severity": "high",
+          "affected": ">=3.0.0 <3.1.3",
+          "patchedRange": ">=3.1.3",
+          "url": "https://github.com/advisories/GHSA-4c8g-83qw-93j6"
+        },
+        {
+          "id": "GHSA-qw65-cvwx-89v3",
+          "severity": "high",
+          "affected": ">=3.0.0 <3.1.7",
+          "patchedRange": ">=3.1.7",
+          "url": "https://github.com/advisories/GHSA-qw65-cvwx-89v3"
+        },
+        {
+          "id": "GHSA-hrr3-gc8f-f4qj",
+          "severity": "moderate",
+          "affected": ">=3.0.0 <3.1.8",
+          "patchedRange": ">=3.1.8",
+          "url": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj"
+        }
+      ]
+    },
+    {
+      "module": "hono",
+      "scope": "api-worker-runtime",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "4.13.5"
+      ],
+      "importers": [
+        ".",
+        "apps/api",
+        "apps/worker"
+      ],
+      "representativeDependencyPath": ". > hono@4.13.5",
+      "currentAdvisoryRows": 1,
+      "advisories": [
+        {
+          "id": "GHSA-hxh3-vqpv-xpqv",
+          "severity": "moderate",
+          "affected": "<4.13.7",
+          "patchedRange": ">=4.13.7",
+          "url": "https://github.com/advisories/GHSA-hxh3-vqpv-xpqv"
+        }
+      ]
+    },
+    {
+      "module": "katex",
+      "scope": "browser-runtime-transitive",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "0.16.47"
+      ],
+      "importers": [
+        "apps/desktop"
+      ],
+      "representativeDependencyPath": "apps/desktop > @excalidraw/excalidraw@0.18.1 > @excalidraw/mermaid-to-excalidraw@2.2.2 > mermaid@11.17.2 > katex@0.16.47",
+      "currentAdvisoryRows": 1,
+      "advisories": [
+        {
+          "id": "GHSA-238p-pmpm-9mq7",
+          "severity": "low",
+          "affected": ">=0.11.0 <0.18.2",
+          "patchedRange": ">=0.18.2",
+          "url": "https://github.com/advisories/GHSA-238p-pmpm-9mq7"
+        }
+      ]
+    },
+    {
+      "module": "lodash-es",
+      "scope": "browser-runtime-transitive",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "4.17.21"
+      ],
+      "importers": [
+        "apps/desktop"
+      ],
+      "representativeDependencyPath": "apps/desktop > @excalidraw/excalidraw@0.18.1 > @excalidraw/mermaid-to-excalidraw@2.2.2 > @mermaid-js/parser@0.6.3 > langium@3.3.1 > chevrotain@11.0.3 > lodash-es@4.17.21",
+      "currentAdvisoryRows": 3,
+      "advisories": [
+        {
+          "id": "GHSA-r5fr-rjxr-66jc",
+          "severity": "high",
+          "affected": ">=4.0.0 <=4.17.23",
+          "patchedRange": ">=4.18.0",
+          "url": "https://github.com/advisories/GHSA-r5fr-rjxr-66jc"
+        },
+        {
+          "id": "GHSA-f23m-r3pf-42rh",
+          "severity": "moderate",
+          "affected": "<=4.17.23",
+          "patchedRange": ">=4.18.0",
+          "url": "https://github.com/advisories/GHSA-f23m-r3pf-42rh"
+        },
+        {
+          "id": "GHSA-xxjr-mmjv-4gpg",
+          "severity": "moderate",
+          "affected": ">=4.0.0 <=4.17.22",
+          "patchedRange": ">=4.17.23",
+          "url": "https://github.com/advisories/GHSA-xxjr-mmjv-4gpg"
+        }
+      ]
+    },
+    {
+      "module": "mysql2",
+      "scope": "prisma-tooling",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "3.15.3"
+      ],
+      "importers": [
+        ".",
+        "apps/api",
+        "apps/worker"
+      ],
+      "representativeDependencyPath": ". > prisma@7.8.0 > mysql2@3.15.3",
+      "currentAdvisoryRows": 2,
+      "advisories": [
+        {
+          "id": "GHSA-3f6p-5ww8-9rcr",
+          "severity": "high",
+          "affected": "<3.22.0",
+          "patchedRange": ">=3.22.0",
+          "url": "https://github.com/advisories/GHSA-3f6p-5ww8-9rcr"
+        },
+        {
+          "id": "GHSA-rgwj-5xj2-c3m3",
+          "severity": "moderate",
+          "affected": "<=3.23.0",
+          "patchedRange": ">=3.23.1",
+          "url": "https://github.com/advisories/GHSA-rgwj-5xj2-c3m3"
+        }
+      ]
+    },
+    {
+      "module": "nodemailer",
+      "scope": "api-runtime",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "8.0.10"
+      ],
+      "importers": [
+        "apps/api"
+      ],
+      "representativeDependencyPath": "apps/api > nodemailer@8.0.10",
+      "currentAdvisoryRows": 8,
+      "advisories": [
+        {
+          "id": "GHSA-p6gq-j5cr-w38f",
+          "severity": "high",
+          "affected": "<=9.0.0",
+          "patchedRange": ">=9.0.1",
+          "url": "https://github.com/advisories/GHSA-p6gq-j5cr-w38f"
+        },
+        {
+          "id": "GHSA-8m3c-c648-2xjj",
+          "severity": "moderate",
+          "affected": "<=9.1.0",
+          "patchedRange": ">=9.1.1",
+          "url": "https://github.com/advisories/GHSA-8m3c-c648-2xjj"
+        },
+        {
+          "id": "GHSA-wmmp-3585-3rmp",
+          "severity": "moderate",
+          "affected": "<9.1.0",
+          "patchedRange": ">=9.1.0",
+          "url": "https://github.com/advisories/GHSA-wmmp-3585-3rmp"
+        },
+        {
+          "id": "GHSA-2x7j-588g-ccc2",
+          "severity": "high",
+          "affected": "<9.1.0",
+          "patchedRange": ">=9.1.0",
+          "url": "https://github.com/advisories/GHSA-2x7j-588g-ccc2"
+        },
+        {
+          "id": "GHSA-cc9r-2j5m-2m83",
+          "severity": "moderate",
+          "affected": ">=6.9.16 <9.1.0",
+          "patchedRange": ">=9.1.0",
+          "url": "https://github.com/advisories/GHSA-cc9r-2j5m-2m83"
+        },
+        {
+          "id": "GHSA-6vj9-mwq6-2f5v",
+          "severity": "moderate",
+          "affected": ">=5.0.0 <10.0.2",
+          "patchedRange": ">=10.0.2",
+          "url": "https://github.com/advisories/GHSA-6vj9-mwq6-2f5v"
+        },
+        {
+          "id": "GHSA-8vvx-rff5-p5rq",
+          "severity": "moderate",
+          "affected": "<10.0.2",
+          "patchedRange": ">=10.0.2",
+          "url": "https://github.com/advisories/GHSA-8vvx-rff5-p5rq"
+        },
+        {
+          "id": "GHSA-v53p-9fqp-m79j",
+          "severity": "high",
+          "affected": "<=10.0.5",
+          "patchedRange": ">=10.0.6",
+          "url": "https://github.com/advisories/GHSA-v53p-9fqp-m79j"
+        }
+      ]
+    },
+    {
+      "module": "prosemirror-view",
+      "scope": "browser-runtime",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "1.41.9"
+      ],
+      "importers": [
+        "apps/desktop"
+      ],
+      "representativeDependencyPath": "apps/desktop > @tiptap/pm@3.27.1 > prosemirror-view@1.41.9",
+      "currentAdvisoryRows": 1,
+      "advisories": [
+        {
+          "id": "GHSA-c8x8-7fp4-3x9w",
+          "severity": "high",
+          "affected": "<1.42.3",
+          "patchedRange": ">=1.42.3",
+          "url": "https://github.com/advisories/GHSA-c8x8-7fp4-3x9w"
+        }
+      ]
+    },
+    {
+      "module": "sharp",
+      "scope": "api-runtime",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "0.35.4"
+      ],
+      "importers": [
+        "apps/api"
+      ],
+      "representativeDependencyPath": "apps/api > sharp@0.35.4",
+      "currentAdvisoryRows": 1,
+      "advisories": [
+        {
+          "id": "GHSA-wq5f-xc86-pv6w",
+          "severity": "high",
+          "affected": "<0.35.5",
+          "patchedRange": ">=0.35.5",
+          "url": "https://github.com/advisories/GHSA-wq5f-xc86-pv6w"
+        }
+      ]
+    },
+    {
+      "module": "shell-quote",
+      "scope": "development",
+      "status": "patched",
+      "owner": null,
+      "nextStep": "Compatible targeted override and tests passed.",
+      "observedVersions": [
+        "1.9.0"
+      ],
+      "importers": [
+        "."
+      ],
+      "representativeDependencyPath": ". > concurrently@10.0.5 > shell-quote@1.9.0",
+      "currentAdvisoryRows": 0,
+      "advisories": [
+        {
+          "id": "GHSA-pqg4-j6r4-53mv",
+          "severity": "critical",
+          "affected": ">=1.8.4 <1.11.0",
+          "patchedRange": ">=1.11.0",
+          "url": "https://github.com/advisories/GHSA-pqg4-j6r4-53mv"
+        }
+      ]
+    },
+    {
+      "module": "source-map-js",
+      "scope": "api-and-browser-tooling",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "1.2.1"
+      ],
+      "importers": [
+        "apps/api",
+        "apps/desktop"
+      ],
+      "representativeDependencyPath": "apps/desktop > postcss@8.5.28 > source-map-js@1.2.1",
+      "currentAdvisoryRows": 1,
+      "advisories": [
+        {
+          "id": "GHSA-68fv-2mgg-jv7q",
+          "severity": "high",
+          "affected": ">=1.0.0 <1.2.2",
+          "patchedRange": ">=1.2.2",
+          "url": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q"
+        }
+      ]
+    },
+    {
+      "module": "uuid",
+      "scope": "api-runtime-transitive",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "8.3.2",
+        "9.0.1"
+      ],
+      "importers": [
+        ".",
+        "apps/api"
+      ],
+      "representativeDependencyPath": ". > exceljs@4.4.0 > uuid@8.3.2",
+      "currentAdvisoryRows": 1,
+      "advisories": [
+        {
+          "id": "GHSA-w5hq-g745-h8pq",
+          "severity": "moderate",
+          "affected": "<11.1.1",
+          "patchedRange": ">=11.1.1",
+          "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq"
+        }
+      ]
+    },
+    {
+      "module": "valibot",
+      "scope": "prisma-tooling",
+      "status": "review-required",
+      "owner": null,
+      "nextStep": "Detailed reachability and compatible/major remediation review required; see companion Markdown.",
+      "observedVersions": [
+        "1.2.0"
+      ],
+      "importers": [
+        ".",
+        "apps/api",
+        "apps/worker"
+      ],
+      "representativeDependencyPath": ". > prisma@7.8.0 > @prisma/dev@0.24.3 > valibot@1.2.0",
+      "currentAdvisoryRows": 1,
+      "advisories": [
+        {
+          "id": "GHSA-5qjj-4xww-7phc",
+          "severity": "moderate",
+          "affected": "<=1.4.1",
+          "patchedRange": ">=1.4.2",
+          "url": "https://github.com/advisories/GHSA-5qjj-4xww-7phc"
+        }
+      ]
+    }
+  ]
+}

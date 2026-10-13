@@ -1,7 +1,7 @@
 # Parche de dependencia de desarrollo shell-quote
 
 Date: 2026-10-12
-Status: In Progress
+Status: Complete
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md (Task 3)
 
 ## 1. Feature title
@@ -10,7 +10,7 @@ Aplicar el parche de shell-quote usado por concurrently de desarrollo.
 
 ## 2. Status
 
-In Progress. Task 3 de estabilización autorizado; alcance de una sola familia compatible.
+Complete. Task 3 de estabilización autorizado; alcance de una sola familia compatible. Verified: 2026-10-12 (baseline 1/2; después 10/10 dirigidas, frozen install sin scripts, CLI, audit 0 críticas/44 restantes, privacidad y whitespace).
 
 ## 3. Context
 

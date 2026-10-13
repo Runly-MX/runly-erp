@@ -49,12 +49,28 @@ resultados generales anteriores conservan su estado fallido. Todas las familias
 fallidas identificadas arriba pasan en sus suites dirigidas; un nuevo barrido
 general tiene que verificar la revisión posterior antes de declararlo verde.
 
+## Barrido posterior a las correcciones
+
+Ejecutado después de ac06bd92 y antes del parche shell-quote, con los mismos
+flags acotados. Se añadió scripts/scaffold/__tests__/*.test.js al grupo shared.
+API: 2363 tests, 2361 pass, 0 fail, 2 skip, 0 cancelled; 221.8 segundos.
+Shared ampliado: 1623 tests, 1616 pass, 0 fail, 7 skip, 0 cancelled;
+198.8 segundos. En total 3977 aprobadas y 9 omitidas; las omisiones y límites de
+enumeración indicados arriba siguen abiertos. El resultado describe el workspace
+durante la ejecución, no una certificación de release inmutable o de servicios reales.
+
+El único cambio de dependencias posterior fue shell-quote de desarrollo:
+se probó con 10 tests dirigidos (seguridad/startup/runtime), frozen install y CLI.
+Los barridos generales anteriores no se atribuyen al lockfile posterior.
+
 ## Dependencias y gates pendientes
 
-pnpm audit --json: 45 alertas (1 critical, 22 high, 19 moderate, 3 low).
-shell-quote 1.9.0 vía concurrently de desarrollo continúa siendo la crítica.
-Clasificación completa de rutas alcanzables, parches y excepciones por responsable
-queda pendiente; no se probó explotación ni se modificó lockfile en esta etapa.
+pnpm audit --json inicialmente: 45 alertas (1 critical, 22 high, 19 moderate, 3 low).
+Después del parche exclusivo shell-quote 1.11.0 vía concurrently: 44 alertas,
+0 critical, 22 high, 19 moderate, 3 low. Las 19 familias tienen clasificación
+inicial y rutas representativas en dependency-triage.md/.json; alcance detallado,
+parches restantes y responsables siguen pendientes. No hay excepciones aceptadas.
+El escaneo Gitleaks local pasó, sin afirmar limpieza del historial o CI ya instalado.
 
 Transporte empresarial: diferido por indicación del usuario el 2026-10-12;
 los nueve hallazgos permanecen descritos en company-transport-findings. Simulacro

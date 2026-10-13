@@ -39,7 +39,7 @@ Dates above identify this program's intended artifacts; use actual creation date
 - [x] Write program and B2 plans, dependencies, commit boundaries and initial tracker.
 - [x] Confirm the proposed program/B2 specs/plans before implementation per `docs/spec-driven-development.md`; declare `Mode: IMPLEMENTATION` with the relevant paths. Confirmed: 2026-10-12 (user continuation; declaration in chat). Later child workstreams retain their own design tasks.
 - [ ] Assign a named owner for code/CI, a recovery operator and a product/hardware acceptance owner. One person may hold multiple roles; unassigned roles remain visible.
-- [ ] Refresh baseline suites on the implementation revision; record Node/pnpm versions and omitted integration groups. Do not assume the October 12 audit describes later commits.
+- [x] Refresh baseline suites on the implementation revision; record Node/pnpm versions and omitted integration groups. Verified: 2026-10-12 (Node 22.12.0/pnpm 9.15.0; initial red baseline and corrected general sweeps recorded in regression-ledger; final API 2361 pass/2 skip and shared 1616 pass/7 skip, zero failures; force-exit and omitted groups remain visible).
 
 Validation: numbered spec headings, file references, `pnpm check:privacy`, `git diff --check`; only planning tasks are marked complete. Baseline commands listed below run when implementation begins, not repeatedly for documentation edits.
 
@@ -92,8 +92,12 @@ Dependencies: Task 2 for confirmed regression families. Other classification may
 - [x] Update scaffolder expectations to its supported files; syntax-check JavaScript rather than Markdown. Verified: 2026-10-12 (67/67 scaffold tests; ba092bc4; exact 15-file inventory and 12 JavaScript syntax checks).
 - [x] Reconcile runtime catalog, public library docs and exported Dev Kit with lockfile/current exports. Read preview-runtime's actual external map; replace the QR test's old-location assertion with real Vite plugin/importmap checks. Verified: 2026-10-12 (runtime/Dev Kit 8/8, compiler 112/112; lockfile lucide 1.51.0, canonical LF, reviewed snapshot, web build/dist map and privacy passed). Focused spec/plan: `2026-10-12-remaining-regression-contracts-design.md` / `2026-10-12-remaining-regression-contracts.md`.
 - [ ] Capture current `pnpm audit --json`; classify by runtime/development, version, reachable input and patch feasibility.
+
+Progress: 2026-10-12, all 19 families have initial dependency topology and version/advisory evidence in dependency-triage.md/.json. Detailed reachable-input analysis and other patches remain open. The critical shell-quote family was patched independently with a narrow override, frozen install and 10 directed tests: audit now reports zero critical, 22 high, 19 moderate and 3 low alerts. No accepted exceptions or deployment performed.
 - [ ] Patch one compatible dependency family per commit, with targeted regressions and packed-package verification where relevant. Significant major upgrades need additional design.
 - [ ] Configure Gitleaks tooling for CI; missing binary remains visible as a failed secret gate.
+
+Local evidence: 2026-10-12, verified official Gitleaks 8.30.1 Windows archive checksum and ran check:secrets successfully with a temporary process PATH. No detected leaks in tracked-file snapshot; history scan/rotation and CI provisioning are not claimed complete.
 
 Cierre: no unclassified failures or dependency alerts. A remaining exception includes scope, owner, reason, review date and mitigating evidence; do not turn assertions off to claim success.
 
