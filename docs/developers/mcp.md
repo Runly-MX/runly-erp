@@ -12,12 +12,15 @@ El servidor **no puede firmar, publicar, aprobar reviews ni moderar**. Esas acci
 
 | Herramienta | Para qué | Permiso | Aprobación humana |
 |---|---|---|---|
+| `runly_docs_search` | Buscar conceptos en documentación y contratos RME3; devuelve referencias y extractos | `hub:docs:read` | No |
+| `runly_doc_get` | Leer un documento o contrato por el ID/URI devuelto por search | `hub:docs:read` | No |
 | `runly_tenants_list` | Espacios autorizados y tu rol | Leer proyectos | No |
 | `runly_projects_list`, `runly_project_get` | Proyectos, versiones, jobs y artifacts | Leer proyectos | No |
 | `runly_project_create` | Crear un proyecto | Crear proyectos | No |
 | `runly_revision_get`, `runly_revision_create` | Leer o guardar la definición | Leer / guardar revisiones | No |
 | `runly_validate` | Validar una definición sin guardarla | Ejecutar validaciones | No |
-| `runly_build`, `runly_job_status` | Encolar un build y seguir su estado | Solicitar builds | **Sí** (build) |
+| `runly_build` | Encolar un build | `hub:build:run` | **Sí** |
+| `runly_job_status` | Estado y reporte de jobs build, inspect o custom existentes | `hub:projects:read` | No |
 | `runly_artifacts_list`, `runly_artifact_metadata` | ZIP privados: digest y tamaño | Leer artifacts | No |
 | `runly_artifact_download` | Descargar un ZIP privado (máx. 4 MiB) | Leer artifacts | **Sí** |
 | `runly_version_create`, `runly_releases_list` | Registrar versiones y ver releases | Preparar / leer releases | No |
@@ -25,11 +28,15 @@ El servidor **no puede firmar, publicar, aprobar reviews ni moderar**. Esas acci
 | `runly_review_request` | Pedir review oficial o enviar a moderación | Solicitar reviews | **Sí** |
 | `runly_marketplace_search`, `runly_marketplace_get` | Marketplace público | Leer Marketplace | No |
 
-También publica **recursos** de solo lectura: esta documentación (`runly-hub://v1/docs/...`), la toolchain y contratos vigentes, y por proyecto la metadata, las revisiones, los diagnósticos y las releases.
+También publica **recursos** de solo lectura: esta documentación (`runly-hub://v1/docs/...`), la toolchain y contratos vigentes, y por proyecto la metadata, las revisiones, los diagnósticos y las releases. Search/get consultan la misma fuente que los Resources; no hay una segunda copia de los documentos.
+
+Antes de escribir una definición declarativa, busca `ModuleDefinition` y lee **runly-hub://v1/contracts/module-definition**. El compiler vigente no exporta un JSON Schema: esta referencia expone un ejemplo normalizado, catálogos y el validador canónico, con referencias a sus contratos auxiliares. Usa `runly_validate` para comprobar tu definición en el proyecto; una lectura de docs no ejecuta ni valida un módulo.
+
+Al crear un proyecto con `runly_project_create`, la key permanente usa namespace `custom.` y un slug de 2 a 40 caracteres en minúsculas: solo letras `a-z` y números, empezando con letra; sin `_`, `-` ni espacios. Por ejemplo, `custom.mantenimientopreventivo` es válida y `custom.mantenimiento_preventivo` no. Esta es la regla de creación de proyectos de Developer Hub; no sustituye las reglas generales RME3 para keys de entidades, campos, conexiones u otros identificadores.
 
 ## Conectarlo
 
-1. En tu cliente MCP agrega un servidor remoto (HTTP) con la URL MCP de Developer Hub. El cliente descubre el servidor de autorización automáticamente (OAuth Protected Resource Metadata).
+1. En tu cliente MCP agrega un servidor remoto (HTTP) con la URL pública **https://mcp.devs.runly.mx/**. El endpoint MCP está en la raíz `/`. El cliente descubre el servidor de autorización automáticamente (OAuth Protected Resource Metadata).
 2. El cliente se registra y abre el navegador en **Developer Hub**. Inicia sesión con tu cuenta habitual.
 3. La pantalla de autorización muestra el cliente, a dónde volverás al terminar y los permisos. **El nombre del cliente lo declara la propia aplicación y no está verificado**: comprueba el dominio de retorno.
 4. Elige los **espacios** y los **permisos**. Por defecto solo se marcan permisos de lectura y validación.
@@ -51,7 +58,11 @@ Las operaciones sensibles no se ejecutan con la primera llamada. Developer Hub c
 2. Pulsa **Autorizar** o **Rechazar**.
 3. El asistente vuelve a llamar a la herramienta con el `approvalId`.
 
-Cada aprobación sirve **una sola vez**, expira a los 10 minutos y deja de servir si cambia la revisión, la versión, el digest o los argumentos. El asistente no puede aprobar por ti: no existe ninguna herramienta ni argumento para hacerlo.
+Cada aprobación sirve **una sola vez**, expira a los 10 minutos y deja de servir si cambia alguno de los argumentos o evidencias vinculados a esa operación. Un build vincula su revisión guardada; una descarga vincula el ID, digest y tamaño del ZIP, sin depender de la revisión actual del proyecto. El asistente no puede aprobar por ti: no existe ninguna herramienta ni argumento para hacerlo.
+
+Registrar una versión (`runly_version_create`) exige un job exitoso con artifact válido y toolchain vigente, pero no una aprobación adicional. Preparar un borrador comunitario exige un publisher activo y el claim del módulo; estos prerequisitos se preparan en el portal. Enviar el borrador a moderación requiere otra aprobación mediante `runly_review_request` con `target=community`.
+
+Antes de crear release comunitaria, consulta `runly_releases_list`: `communityReadiness` informa publisher existente/estado/handle/nombre, claim presente y asociado al proyecto/publisher correcto, blockers y compatibilidad por defecto. `ready` cubre esos prerequisitos y el rol; no certifica la versión ni su evidencia. Solo los blockers reales requieren resolver publisher/claim en el portal. `runly_release_create` permite omitir `runlyMin`: aplica el mínimo canónico publicado en `communityReadiness.compatibility.runly.min`, con máximo `null` si se omite `runlyMax`. El mínimo resuelto forma parte del binding y del resumen de aprobación; omitirlo no supone inventar un rango. Un rango explícito mantiene su valor y también se vincula a la aprobación. Review oficial no requiere readiness comunitaria.
 
 ## Contenido no confiable
 
@@ -67,4 +78,6 @@ En **Configuración > Aplicaciones conectadas** pulsa **Revocar**. Se eliminan l
 
 ## Estado actual
 
-El servidor MCP está implementado y probado en desarrollo local; todavía no hay una URL pública de producción.
+El MCP público de Runly Developer está disponible en **https://mcp.devs.runly.mx/**, con OAuth y acceso limitado a los espacios autorizados. El portal de consentimiento y aprobaciones está en **https://devs.runly.mx**. La disponibilidad de un paquete/plugin en ChatGPT y su review por OpenAI son pasos separados.
+
+Las 20 herramientas anuncian annotations, el scope OAuth exacto y un outputSchema para sus respuestas estructuradas. `approval_required` es una respuesta de éxito pendiente de intervención humana; un error usa `isError=true` y queda fuera del schema de éxito. Search/get y los Resources de documentación requieren `hub:docs:read`; todavía no hay tools de importación/CUSTOM ni cancelación de jobs.
