@@ -73,6 +73,8 @@ Discovery locations: `packages/sdk/src/index.js`, `company-fetch.js`, SDK compan
 - [x] Correct the confirmed conditional hook; verify transitions between no selection and selected conversation. Verified: 2026-10-12 (real React/Chrome fixture reproduced leaked countdown interval and passed after correction; closed/absent-expiry/unmount covered; targeted React Doctor has zero errors and 3 unrelated warnings; build/privacy/whitespace passed). Focused spec/plan: `2026-10-12-chat-visitor-hook-design.md` / `2026-10-12-chat-visitor-hook.md`.
 - [ ] Classify all nine transport gate findings and add only evidenced narrow exceptions or use the transport. A substring header check is not a substitute for behavior tests.
 
+Discovery: 2026-10-12, all nine current findings classified in `docs/architecture/2026-10-12-company-transport-findings.md`. Six public/asset contracts and three business calls that already send company headers but lack a post-body check. Behavioral proofs, code correction and narrow guardrail reconciliation remain pending; check:company-scope still exits 1.
+
 Validation: SDK company-fetch, identity/registration and focused screen tests; React Doctor for changed React scope and web build when React changes. `pnpm check:company-scope` must pass without broad directory exclusions.
 
 Commits: SDK race + tests; identity catalog + tests; hook fix; reviewed transport guardrail reconciliation. Do not combine them solely to make one green result.
