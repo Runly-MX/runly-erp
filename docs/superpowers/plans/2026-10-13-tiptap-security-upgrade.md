@@ -18,14 +18,14 @@ No módulos de producto, schema, cliente Supabase, CI o contenido persistido mod
 
 ## Task 2 — Pruebas
 
-- [ ] Regresiones de mergeAttributes y parsers acotados, baseline.
-- [ ] Fixture Chrome con DOMSerializer y sincronización local de Y.Doc; smoke normal existente.
+- [x] Baseline final: 4 tests, 1 pass/3 fail (prototipo heredado y ambos parsers exceden 3 s). Inputs via stdin para respetar límite Windows; errores de fixture iniciales corregidos antes de registrar baseline.
+- [x] Chrome DOMSerializer, clipboard/Notes, EditorContent React y dos Y.Doc en memoria con undo/redo/roundtrip pasan; no proveedor Realtime real.
 
 ## Task 3 — Paquetes
 
-- [ ] Actualizar directos exactos y 43 paquetes de familia, y-tiptap/model mínimos y peers.
-- [ ] Frozen install, inventario y comparación estructural de YAML; ninguna versión ajena.
-- [ ] Seguridad/browser/audit; commit de cambio de familia.
+- [x] 21 directos exactos, 43 paquetes 3.30.5, y-tiptap 3.0.7/model 1.25.11 y peers; otras versiones preservadas.
+- [x] Frozen install y comparación estructural de YAML/manifiesto pasan contra 74dff345; sin resoluciones ajenas.
+- [x] Seguridad/browser 5/5; audit 27 (0 críticas, 13 altas, 13 moderadas, 1 baja), sin core alertado. Commit de familia.
 
 ## Task 4 — Cierre
 

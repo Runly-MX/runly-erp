@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { chromium } from 'playwright';
 
 const desktop = createRequire(new URL('../../apps/desktop/package.json', import.meta.url));
@@ -10,8 +11,14 @@ const { build } = compiler('esbuild');
 
 test('Tiptap ProseMirror clipboard validates context attributes and retains ordinary editing in Chrome', { timeout: 30_000 }, async () => {
   const bundle = await build({ entryPoints: [fileURLToPath(new URL('../fixtures/security/prosemirror-clipboard.mjs', import.meta.url))],
-    alias: Object.fromEntries(['model', 'state', 'view'].map(name => [`@tiptap/pm/${name}`, desktop.resolve(`@tiptap/pm/${name}`).replace(/\.cjs$/, '.js')])),
-    plugins: [{ name: 'fixture-core-resolution', setup(builder) { builder.onResolve({ filter: /^@tiptap\/core$/ }, () => ({ path: desktop.resolve('@tiptap/core').replace(/\.cjs$/, '.js') })); } }],
+    alias: { ...Object.fromEntries(['model', 'state', 'view'].map(name => [`@tiptap/pm/${name}`, desktop.resolve(`@tiptap/pm/${name}`).replace(/\.cjs$/, '.js')])),
+      yjs: desktop.resolve('yjs').replace(/\.cjs$/, '.mjs'),
+      'y-protocols/awareness': join(dirname(desktop.resolve('y-protocols/package.json')), 'awareness.js'),
+    },
+    plugins: [{ name: 'fixture-core-resolution', setup(builder) {
+      builder.onResolve({ filter: /^@tiptap\/(?:core|react)$/ }, args => ({ path: desktop.resolve(args.path).replace(/\.cjs$/, '.js') }));
+      builder.onResolve({ filter: /^react(?:-dom)?(?:\/.*)?$/ }, args => ({ path: desktop.resolve(args.path) }));
+    } }],
     loader: { '.css': 'empty', '.svg': 'dataurl', '.png': 'dataurl', '.woff2': 'dataurl', '.ttf': 'dataurl' },
     define: { 'process.env.NODE_ENV': '"production"' },
     bundle: true, write: false, format: 'iife', platform: 'browser', logLevel: 'silent', metafile: true,
@@ -33,6 +40,9 @@ test('Tiptap ProseMirror clipboard validates context attributes and retains ordi
     assert.deepEqual(result.edit, { text: 'Edicion!', roundtrip: true });
     const notes = await page.evaluate(() => window.runNotesEditorFixture());
     assert.deepEqual(notes, { pasted: true, formatted: true, tableInserted: true, undoRemovedTable: true, redoRestoredTable: true, roundtrip: true });
+    assert.deepEqual(await page.evaluate(() => window.runMergedAttributesFixture()), { title: 'safe', inheritedEvent: false, inheritedCanary: false, ordinaryPrototype: true });
+    assert.deepEqual(await page.evaluate(() => window.runNotesCollabFixture()), { aToB: true, bToA: true, undoSynced: true, redoSynced: true, roundtrip: true });
+    assert.deepEqual(await page.evaluate(() => window.runReactEditorFixture()), { mounted: true, edited: true });
     for (const item of result.invalid) {
       assert.deepEqual(item.captured, [], 'Invalid clipboard context must be discarded before transaction application');
       assert.equal(item.text, 'Fixture');
