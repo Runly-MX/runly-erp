@@ -60,7 +60,7 @@ Sin cambios.
 
 ## 14. Validator contract
 
-No alterar Zod generado. Campos condicionales ocultos pueden omitirse o limpiarse con null; cuando son visibles, findMissingConditionalRequired detecta ausencia/null. Los campos obligatorios no condicionales conservan min(1) y rechazo de null.
+No alterar Zod generado. En create, campos condicionales ocultos pueden omitirse o aceptar null; cuando son visibles, findMissingConditionalRequired detecta ausencia/null. En update, el contrato vigente conserva campos originalmente requeridos como no-nullable: permite omitirlos, pero no limpiarlos con null. Los campos obligatorios no condicionales conservan min(1) y rechazo de null. Una política diferente de limpieza requiere diseño separado.
 
 ## 15. Module manifest impact
 

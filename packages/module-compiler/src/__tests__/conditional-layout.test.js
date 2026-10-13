@@ -88,7 +88,7 @@ test('conditional required fields are optional in the validator and enforced by 
   const compiled = compileModule(withLayout(LAYOUT))
   const validators = compiled.files.find((file) => file.path === 'validators/cliente.validators.js').content
   const createBlock = validators.slice(0, validators.indexOf('updateClienteSchema'))
-  assert.match(createBlock, /rfc: z\.string\(\)\.optional\(\)/)
+  assert.match(createBlock, /rfc: z\.string\(\)\.nullable\(\)\.optional\(\)/)
   assert.match(createBlock, /nombre: z\.string\(\)\.min\(1\)/)
   const routes = compiled.files.find((file) => file.path === 'api/cliente-routes.js').content
   assert.equal((routes.match(/findMissingConditionalRequired\(/g) ?? []).length, 2)
@@ -99,10 +99,28 @@ test('conditional required fields are optional in the validator and enforced by 
   try {
     await writeFile(join(dir, 'visibility.mjs'), visibility)
     await writeFile(join(dir, 'routes.mjs'), routes)
+    await writeFile(join(dir, 'validators.mjs'), validators)
     execFileSync(process.execPath, ['--check', join(dir, 'routes.mjs')])
+    const { createClienteSchema, updateClienteSchema } = await import(pathToFileURL(join(dir, 'validators.mjs')).href)
+    for (const data of [
+      { nombre: 'Ejemplo', tipo: 'PERSONA' },
+      { nombre: 'Ejemplo', tipo: 'PERSONA', rfc: null, limite: null },
+      { nombre: 'Ejemplo', tipo: 'EMPRESA', rfc: 'XAXX010101000' },
+    ]) assert.equal(createClienteSchema.safeParse(data).success, true)
+    assert.equal(updateClienteSchema.safeParse({}).success, true)
+    assert.equal(updateClienteSchema.safeParse({ rfc: 'XAXX010101000', limite: 100 }).success, true)
+    // Required fields stay non-nullable on update, even when conditionally shown.
+    assert.equal(updateClienteSchema.safeParse({ rfc: null, limite: null }).success, false)
+    for (const nombre of [undefined, null, '']) {
+      assert.equal(createClienteSchema.safeParse({ nombre, tipo: 'PERSONA' }).success, false)
+    }
     const { findMissingConditionalRequired } = await import(pathToFileURL(join(dir, 'visibility.mjs')).href)
     assert.equal(findMissingConditionalRequired({ tipo: 'PERSONA' }), null)
     assert.equal(findMissingConditionalRequired({ tipo: 'EMPRESA' })?.field, 'rfc')
+    for (const rfc of [null, '']) {
+      assert.equal(findMissingConditionalRequired({ tipo: 'EMPRESA', rfc })?.field, 'rfc')
+      assert.equal(findMissingConditionalRequired({ tipo: 'PERSONA', rfc }), null)
+    }
     assert.equal(findMissingConditionalRequired({ tipo: 'EMPRESA', rfc: 'XAXX010101000' }), null)
     assert.equal(findMissingConditionalRequired({ credito: true, tipo: 'PERSONA' })?.field, 'limite')
   } finally {
