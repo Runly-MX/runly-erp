@@ -33,11 +33,11 @@ Modify:
 - [x] Baseline 3/7; corregido 7/7. Override/lock sólo de la familia; frozen install pasa.
 - [x] Bundler/compiler 21/21; audit 33 (0 críticas, 16 altas, 16 moderadas, 1 baja). Commit con evidencia local.
 
-## Task 3 — lodash-es
+## Task 3 — lodash-es [COMPLETE]
 
-- [ ] Resolver copia Mermaid/Chevrotain; fixtures imports/path y utilidades normales.
-- [ ] Baseline; reutilizar 4.18.1 existente; frozen install; pruebas/bundle y audit.
-- [ ] Commit de familia.
+- [x] Resolver copia Mermaid/Chevrotain; baseline 2/6: imports y ambos paths fallan, utilidades/parser normal pasan.
+- [x] Reutilizar 4.18.1 existente; frozen pasa. Corregido 6/6; añadido control de bundle browser con esbuild, total 7/7. Audit 30 (0 críticas, 15 altas, 14 moderadas, 1 baja).
+- [x] Commit de familia; sin actualizar Excalidraw/Mermaid o las demás resoluciones.
 
 ## Task 4 — prosemirror-view
 
