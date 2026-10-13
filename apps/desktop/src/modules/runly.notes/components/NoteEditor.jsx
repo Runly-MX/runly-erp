@@ -9,6 +9,7 @@ import { NotebookPen } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useIsDark } from '../hooks/useIsDark.js'
+import { useCommitRefValue } from '../hooks/useCommitRefValue.js'
 import { NoteSheet } from './NoteSheet.jsx'
 import { runly } from '../../../lib/runly'
 import { supabase } from '../../../lib/supabase'
@@ -253,6 +254,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
   const savingRef = useRef(false)
   const rerunRef = useRef(false)
   const saveTimerRef = useRef(null)
+  const flushRef = useRef(null)
   // Last title pushed to the query caches (optimistic, per keystroke).
   const lastTitleRef = useRef(note?.title ?? '')
   useEffect(() => { lastTitleRef.current = note?.title ?? '' }, [note?.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -392,14 +394,13 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
   }, [viewing, flushSave])
 
   // Flush once on unmount so switching notes fast never drops the last edits.
-  const flushRef = useRef(flushSave)
-  flushRef.current = flushSave
+  useCommitRefValue(flushRef, flushSave)
   useEffect(
     () => () => {
       clearTimeout(saveTimerRef.current)
       flushRef.current()
     },
-    [],
+    [flushRef],
   )
 
   // Immediate (non-debounced) update for discrete meta fields — icon and cover

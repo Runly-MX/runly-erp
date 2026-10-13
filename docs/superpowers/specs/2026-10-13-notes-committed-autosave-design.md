@@ -94,7 +94,7 @@ N/A; acciones persistentes conservadas.
 
 ## 23. Edge cases
 
-Actualización suspendida, callback cambiado en commit, cambio de key, unmount antes del debounce, StrictMode y callback usado por rerun. La inicialización useRef conserva el primer callback; el update ocurre en useLayoutEffect antes de eventos/microtasks posteriores al commit.
+Actualización suspendida, callback cambiado en commit, cambio de key, unmount antes del debounce, StrictMode y callback usado por rerun. useRef se declara antes de flushSave; useCommitRefValue publica el callback en useLayoutEffect antes de eventos/microtasks posteriores al commit. El cleanup pasivo sólo puede ejecutarse después de ese commit.
 
 ## 24. Risks
 
