@@ -71,7 +71,7 @@ export function TagsComboboxField({
       <div className="relative">
         <div
           className={cn(
-            "flex min-h-10 flex-wrap items-center gap-1.5 rounded-lg border bg-[hsl(var(--background))] px-2 py-1.5",
+            "flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border bg-[hsl(var(--background))] px-2 py-1.5",
             "focus-within:ring-2 focus-within:ring-[hsl(var(--ring))]",
             error ? "border-[hsl(var(--destructive))]" : "border-[hsl(var(--input))]",
             disabled && "opacity-60",

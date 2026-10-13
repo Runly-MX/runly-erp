@@ -22,7 +22,7 @@ export function DateRangeFilter({ filter, value = {}, onChange }) {
         <button
           type="button"
           className={cn(
-            'inline-flex h-10 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors sm:h-9',
+            'inline-flex h-10 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors sm:h-9',
             active
               ? 'border-(--brand-primary) bg-(--brand-soft) text-[hsl(var(--foreground))]'
               : 'border-[hsl(var(--border))] bg-card text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]',

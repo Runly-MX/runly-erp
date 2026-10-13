@@ -101,9 +101,9 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
         type="button"
         onClick={onClick}
         className={[
-          "w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-colors",
+          "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-colors",
           isActive
-            ? "bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] shadow-[0_0_16px_color-mix(in_srgb,var(--brand-primary)_18%,transparent)] ring-1 ring-[var(--brand-primary)]/25"
+            ? "bg-[var(--brand-primary)]/15 text-[var(--brand-primary)]"
             : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
         ].join(" ")}
       >

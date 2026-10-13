@@ -7,7 +7,7 @@ import { cn } from "../lib/utils.js";
 // `fieldCls` (or `FIELD_BASE`/`FIELD_NORMAL`/`FIELD_ERROR` for custom composition).
 
 export const FIELD_BASE = [
-  "h-11 w-full rounded-lg border px-3.5 text-sm glass-subtle",
+  "h-11 w-full rounded-md border px-3.5 text-sm glass-subtle",
   "bg-card text-foreground placeholder:text-muted-foreground",
   "transition-all duration-150 outline-none",
   "focus:ring-2 focus:ring-primary/20 focus:border-primary",

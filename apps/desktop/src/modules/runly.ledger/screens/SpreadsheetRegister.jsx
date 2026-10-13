@@ -300,7 +300,7 @@ export default function SpreadsheetRegister({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, concepto, referencia..."
-            className="flex-1 min-w-0 sm:max-w-md [&_input]:h-8 [&_input]:rounded-full [&_input]:text-xs"
+            className="flex-1 min-w-0 sm:max-w-md [&_input]:h-8 [&_input]:rounded-md [&_input]:text-xs"
           />
           {hasMobileFilters && (
             <Button

@@ -166,7 +166,7 @@ export function ConversationRowActions({
                 type="button"
                 onClick={() => run(a)}
                 className={[
-                  "flex items-center gap-3 w-full px-3 py-3 rounded-xl text-sm text-left transition-colors touch-manipulation",
+                  "flex items-center gap-3 w-full px-3 py-3 rounded-md text-sm text-left transition-colors touch-manipulation",
                   a.destructive
                     ? "text-red-600 dark:text-red-400 hover:bg-red-500/10"
                     : "hover:bg-[hsl(var(--muted))]",

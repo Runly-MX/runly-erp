@@ -10,7 +10,7 @@ export function ToggleFilter({ label, checked = false, onChange, icon: Icon, cla
       aria-checked={checked}
       onClick={() => onChange?.(!checked)}
       className={cn(
-        'inline-flex h-10 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors sm:h-9',
+        'inline-flex h-10 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors sm:h-9',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-1',
         checked
           ? 'border-(--brand-primary) bg-(--brand-soft) text-[hsl(var(--foreground))]'

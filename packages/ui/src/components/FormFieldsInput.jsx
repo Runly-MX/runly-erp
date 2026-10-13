@@ -303,7 +303,7 @@ export const TextareaField = forwardRef(function TextareaField(
         maxLength={maxLength}
         onBlur={handleBlur}
         className={cn(
-          "w-full rounded-lg border px-3.5 py-3 text-sm glass-subtle bg-card resize-y",
+          "w-full rounded-md border px-3.5 py-3 text-sm glass-subtle bg-card resize-y",
           "min-h-25 text-foreground placeholder:text-muted-foreground",
           "transition-all duration-150 outline-none",
           "focus:ring-2 focus:ring-primary/20 focus:border-primary",

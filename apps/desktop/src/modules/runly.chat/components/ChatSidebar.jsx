@@ -216,7 +216,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
             <button
               type="button"
               onClick={() => setShowArchived((v) => !v)}
-              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] rounded-lg transition-colors touch-manipulation"
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] rounded-md transition-colors touch-manipulation"
             >
               {showArchived ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
               <Archive className="h-3.5 w-3.5 shrink-0" />

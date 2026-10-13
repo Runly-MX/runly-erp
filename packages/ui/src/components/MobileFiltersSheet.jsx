@@ -33,7 +33,7 @@ export function MobileFiltersSheet({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm transition-colors md:hidden",
+          "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors md:hidden",
           activeCount > 0
             ? "border-(--brand-primary) bg-(--brand-soft) text-[hsl(var(--foreground))]"
             : "border-[hsl(var(--border))] bg-[hsl(var(--background))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]",
