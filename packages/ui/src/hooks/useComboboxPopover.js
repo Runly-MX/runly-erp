@@ -13,7 +13,11 @@ export function computeDropdownStyle(
   forPortal = false,
 ) {
   const r = containerEl.getBoundingClientRect();
-  const spaceBelow = window.innerHeight - r.bottom;
+  // The visible bottom, not the layout one: with the phone keyboard up the
+  // lower part of the layout viewport is hidden behind it.
+  const vv = window.visualViewport;
+  const visibleBottom = vv ? Math.min(window.innerHeight, vv.offsetTop + vv.height) : window.innerHeight;
+  const spaceBelow = visibleBottom - r.bottom;
   const flipped = spaceBelow < dropHeight;
   // Keep the panel inside the viewport: never wider than the screen and shifted left when the
   // trigger sits near the right edge (e.g. the second column of a form in a narrow side sheet).
@@ -98,9 +102,18 @@ export function useComboboxPopover({ dropHeight = 260, minWidth = 220 } = {}) {
     };
   }, [open]);
 
+  // On touch screens a focused search input pops the keyboard over the list
+  // (and slides a bottom-sheet dialog away from the panel), so the options
+  // seemed not to open. There the list gets focus; tapping the search box
+  // still brings the keyboard up.
   useEffect(() => {
     if (!open) return undefined;
-    const id = requestAnimationFrame(() => searchRef.current?.focus());
+    const coarse = window.matchMedia?.("(pointer: coarse)").matches;
+    const id = requestAnimationFrame(() => {
+      const target = searchRef.current;
+      if (coarse && target?.tagName === "INPUT") return;
+      target?.focus({ preventScroll: true });
+    });
     return () => cancelAnimationFrame(id);
   }, [open]);
 
@@ -157,10 +170,16 @@ export function useComboboxPopover({ dropHeight = 260, minWidth = 220 } = {}) {
     }
     window.addEventListener("scroll", reposition, true);
     window.addEventListener("resize", reposition);
+    // iOS reports the keyboard only through visualViewport, not window resize.
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", reposition);
+    vv?.addEventListener("scroll", reposition);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("scroll", reposition, true);
       window.removeEventListener("resize", reposition);
+      vv?.removeEventListener("resize", reposition);
+      vv?.removeEventListener("scroll", reposition);
     };
   }, [open, dropHeight, minWidth]);
 

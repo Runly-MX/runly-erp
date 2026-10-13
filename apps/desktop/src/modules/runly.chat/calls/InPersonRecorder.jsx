@@ -1,6 +1,7 @@
 import {
   Camera, CameraOff, Circle, Mic, MicOff, MonitorUp, Pause, Play, ScreenShareOff, Settings2, Square, SwitchCamera, Users,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Track } from "livekit-client";
 import { cn } from "@runly/ui";
 import { useAudioLevel } from "./hooks/useAudioLevel";
@@ -9,18 +10,34 @@ import { AudioOutputPicker, DeviceSelect } from "./controls/CallDialogs";
 import { formatClock } from "./ui/callTheme";
 import { LANDSCAPE, useVideoAspectVersion, videoAspectOf } from "./lib/videoAspect";
 
-// Largest box with the video's own aspect ratio that fits the available area
-// (container query units), so the preview never shows letterbox bars.
+// Largest box with the video's own aspect ratio that fits the available area,
+// so the preview never shows letterbox bars nor grows over the controls. Sized
+// from a measured box (container query units were not reliable on mobile
+// WebKit: the in-flow <video> then took its natural portrait height).
 function FitFrame({ ratio, className = "", children }) {
   const r = ratio || LANDSCAPE;
+  const [box, setBox] = useState(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    if (!box) return undefined;
+    const measure = () => setSize({ width: box.clientWidth, height: box.clientHeight });
+    measure();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    observer?.observe(box);
+    return () => observer?.disconnect();
+  }, [box]);
+  const width = Math.min(size.width, size.height * r);
+  const height = width / r;
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center @container-size">
-      <div
-        className={cn("relative overflow-hidden rounded-3xl bg-black ring-1 ring-white/10", className)}
-        style={{ width: `min(100cqw, calc(100cqh * ${r}))`, height: `min(100cqh, calc(100cqw / ${r}))` }}
-      >
-        {children}
-      </div>
+    <div ref={setBox} className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
+      {width > 0 && height > 0 && (
+        <div
+          className={cn("relative shrink-0 overflow-hidden rounded-3xl bg-black ring-1 ring-white/10", className)}
+          style={{ width: Math.floor(width), height: Math.floor(height) }}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -147,9 +164,9 @@ export function InPersonRecorder({
             <div className="flex min-h-0 w-full flex-1 items-stretch gap-3">
               <FitFrame ratio={screenEnabled ? screenRatio : cameraRatio}>
                 {screenEnabled ? (
-                  <TrackRenderer participant={localParticipant} source={Track.Source.ScreenShare} muted fit="contain" />
+                  <TrackRenderer participant={localParticipant} source={Track.Source.ScreenShare} muted fit="contain" className="absolute inset-0" />
                 ) : (
-                  <TrackRenderer participant={localParticipant} source={Track.Source.Camera} muted mirror={mirror} fit="cover" />
+                  <TrackRenderer participant={localParticipant} source={Track.Source.Camera} muted mirror={mirror} fit="cover" className="absolute inset-0" />
                 )}
                 {screenEnabled && cameraEnabled && (
                   <div

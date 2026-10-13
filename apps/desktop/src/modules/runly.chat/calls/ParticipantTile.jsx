@@ -123,6 +123,10 @@ export function ParticipantTile({
   // "auto" = contain for screen-share, cover-or-contain for camera depending
   // on its orientation. "contain" forces letterboxing (main stage tiles).
   fit = "auto",
+  // Recording page: camera always shown whole (contain) over a blurred copy
+  // of itself, so a portrait phone camera is never cropped into a landscape
+  // tile and the bars aren't flat black.
+  blurFill = false,
   speaking = false,
   avatarSize = "lg",
   compact = false,
@@ -170,7 +174,12 @@ export function ParticipantTile({
       onDoubleClick={onPin ? () => onPin(identity) : undefined}
     >
       <div className="relative h-full min-h-0 overflow-hidden rounded-2xl bg-(--call-tile)">
-        {hasVideo ? (
+        {hasVideo && blurFill && !isScreen ? (
+          <>
+            <TrackRenderer participant={participant} source={source} muted fit="cover" className="absolute inset-0 scale-110 opacity-60 blur-2xl" />
+            <TrackRenderer participant={participant} source={source} muted={isLocal} fit="contain" className="relative" />
+          </>
+        ) : hasVideo ? (
           <TrackRenderer
             participant={participant}
             source={source}
