@@ -2,11 +2,33 @@
 
 ## Herramienta de inspección y extracción (2026-10-12)
 
+Los nuevos respaldos usan `BACKUP_COVERAGE_MODE=complete` por defecto: base,
+todos los buckets inventariados, fuentes de módulos y configuración. En modo
+externo son obligatorias las credenciales de Storage; `database-only` debe elegirse
+explícitamente y se identifica como parcial. Un snapshot pendiente no cuenta como
+respaldo verificado. Los snapshots heredados se conservan para revisión manual:
+la nueva retención solo elimina snapshots verificados de la misma cobertura.
+
+`BACKUP_MAX_AGE_HOURS=36` es el máximo predeterminado para un trabajo diario;
+ajústalo al horario y pérdida de datos tolerada. Es independiente de
+`BACKUP_RETENTION_DAYS=14`. El verificador falla si no hay snapshot con cobertura
+verificada compatible, si está antiguo o si falla la integridad. Un parcial más
+nuevo no renueva la antigüedad de un respaldo completo.
+
+La alerta del propio job no detecta un contenedor apagado o un cron que nunca
+arrancó. Programa `verify-backup.sh` desde un monitor independiente y comprueba
+su código de salida; mantén una alerta externa de ausencia de ejecución. La
+configuración de ese monitor y su responsable son un pendiente operativo.
+
 Desde el repositorio, `node scripts/recovery/runly-recovery.mjs --help` muestra
 los comandos. Esta herramienta extrae archivos; no restaura PostgreSQL, modifica
 Storage ni inicia una instalación. La evaluación separa cobertura completa,
 incompleta y heredada desconocida. Una extracción completa no certifica que la
 aplicación esté recuperada.
+
+Requiere Node.js, las dependencias del repositorio instaladas y Docker local.
+Un contexto Docker remoto se rechaza: el directorio validado debe estar en la
+misma máquina que recibe la extracción.
 
 Prepara un archivo privado, por ejemplo `infra/installer/.env.recovery`, con los
 valores **originales** de `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`,

@@ -1,5 +1,27 @@
 # Runly ERP Docker Installer
 
+## Recuperación y cobertura del respaldo
+
+La guía actual de recuperación está en
+[`docs/deployment/backup-recovery.md`](../../docs/deployment/backup-recovery.md).
+El respaldo `complete` incluye base, todos los buckets inventariados, fuentes de
+módulos y configuración. En modo externo requiere `BACKUP_STORAGE_S3_*`;
+`database-only` debe elegirse explícitamente y no recupera una instalación completa.
+El instalador conserva la contraseña existente de Restic. Guarda el material de
+recuperación fuera del servidor: acceso a B2, contraseña de cifrado, identificador
+original y versiones de las imágenes. No pegues esos valores en el repositorio.
+
+La antigüedad máxima usa `BACKUP_MAX_AGE_HOURS` (36 por defecto para un job diario)
+y no depende de `BACKUP_RETENTION_DAYS`. Los respaldos pendientes y parciales no
+renuevan la vigencia de uno completo. Configura un monitor independiente para
+detectar la ausencia del job. Una restauración de prueba debe utilizar un destino
+aislado y mantener detenidos API/worker hasta recuperar base y archivos.
+
+Actualización desde un backup anterior: revisa las credenciales de Storage y el
+montaje de `custom-modules` antes de habilitar `complete`. Los snapshots heredados
+no se borran automáticamente por la nueva política de retención. La herramienta
+de extracción puede evaluarlos como cobertura desconocida o incompleta.
+
 Los comandos `runly:*` son los nombres principales; los atajos `atlas:*` siguen disponibles.
 Las instalaciones nuevas usan `custom-modules/_runly-devkit/`. Si ya existe `_atlas-devkit/`, el instalador lo reutiliza; si existen ambas carpetas, prefiere `_runly-devkit/`.
 

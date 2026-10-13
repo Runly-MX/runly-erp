@@ -26,6 +26,8 @@ Create:
 - `scripts/recovery/__tests__/recovery-cli.test.mjs`
 - `scripts/recovery/__tests__/recovery-s3.integration.test.mjs`
 - `apps/backup/tests/backup-pipeline.test.mjs` — Docker-backed fake tool failure tests.
+- `apps/backup/tests/backup-freshness.test.mjs` — Docker fixture verification of age, coverage and read-only checks.
+- `infra/installer/lib/backup-installer-preservation.test.mjs` — execute isolated installer backup configuration/rendering against synthetic env files.
 - `apps/backup/tests/fixtures/` — generated synthetic tool fixtures, no credentials/data.
 - `docs/deployment/backup-acceptance.md` — sanitized checklist and dated results.
 
@@ -90,14 +92,16 @@ Verified: 2026-10-12 (Docker pipeline 20/20, local/external sources, empty bucke
 
 ## Task 5 — Installer preservation and independent freshness
 
-- [ ] Introduce `BACKUP_COVERAGE_MODE=complete|database-only` and positive `BACKUP_MAX_AGE_HOURS`; proposed default 36 for daily operation, independently configurable from retention.
-- [ ] Preserve existing secrets, region, original instance ID and source location across reruns; reject missing required complete-mode sources before starting jobs.
-- [ ] Forward configured S3 region consistently to backup/verification/recovery where applicable; verify compatibility with B2 rather than assuming an AWS default.
-- [ ] Select freshness from snapshots matching expected coverage; a newer database-only snapshot cannot conceal an old complete snapshot.
-- [ ] Test both installers, disabled mode, historical config upgrade, changed schedule, fresh/old/missing snapshots, partial newest snapshot and SMTP absence.
-- [ ] Explain how an independent watchdog checks for a job that never started; configuring a real monitoring service is a later operational task.
+- [x] Introduce `BACKUP_COVERAGE_MODE=complete|database-only` and positive `BACKUP_MAX_AGE_HOURS`; default 36 for daily operation, independently configurable from retention. This is a configurable implementation default, not an installation SLA.
+- [x] Preserve existing secrets, region, original instance ID and source location across backup config reruns; reject missing required complete-mode sources before starting jobs. Verified with isolated actual external config function and local resolver/render block; full installer Docker reruns are not claimed.
+- [x] Forward configured S3 region consistently to backup/verification/recovery where applicable. B2 provider acceptance remains Task 7.
+- [x] Select freshness from snapshots matching expected coverage; a newer database-only or pending snapshot cannot conceal an old complete snapshot.
+- [x] Test installer backup configuration/rendering, disabled mode and defaults, fresh/old/missing snapshots and partial newest snapshot. Pipeline failure tests run without SMTP and fail without sending mail. Custom cron schedule and acceptable maximum age still require operator policy review.
+- [x] Explain how an independent watchdog checks for a job that never started in the recovery runbook; configuring a real monitoring service is a later operational task.
 
 Validation: config/failure fixture tests, targeted installer regression tests and Docker Compose rendered from synthetic env fixtures. Confirm no legacy password/instance regeneration. Commit: `fix: preserve recovery inputs and decouple backup freshness from retention`.
+
+Verified: 2026-10-12 (installer backup config + isolated installer preservation 13/13; Docker freshness fixture 13/13, including stale complete/new partial, pending tags, wrong host, future clock and independent age; Node syntax checks on both installers). Real cron execution, B2-specific region/access and operator RPO/RTO remain unaccepted.
 
 ## Task 6 — Spanish restore runbook and disposable rehearsal
 

@@ -876,6 +876,8 @@ async function writeLocalEnv(supabaseInput, identity) {
       mode: fromLocalEnv("BACKUP_MODE"),
       scheduleCron: fromLocalEnv("BACKUP_SCHEDULE_CRON"),
       retentionDays: fromLocalEnv("BACKUP_RETENTION_DAYS"),
+      coverageMode: fromLocalEnv("BACKUP_COVERAGE_MODE"),
+      maxAgeHours: fromLocalEnv("BACKUP_MAX_AGE_HOURS"),
       s3Endpoint: fromLocalEnv("BACKUP_S3_ENDPOINT"),
       s3Bucket: fromLocalEnv("BACKUP_S3_BUCKET"),
       s3Region: fromLocalEnv("BACKUP_S3_REGION"),
@@ -885,6 +887,7 @@ async function writeLocalEnv(supabaseInput, identity) {
       storageS3Endpoint: fromLocalEnv("BACKUP_STORAGE_S3_ENDPOINT"),
       storageS3AccessKeyId: fromLocalEnv("BACKUP_STORAGE_S3_ACCESS_KEY_ID"),
       storageS3SecretAccessKey: fromLocalEnv("BACKUP_STORAGE_S3_SECRET_ACCESS_KEY"),
+      storageS3Region: fromLocalEnv("BACKUP_STORAGE_S3_REGION") || fromLocalEnv("REGION"),
     },
   });
 
@@ -1034,6 +1037,8 @@ MIRAI_TTS_URL=${miraiTtsUrl}
 BACKUP_MODE=${backup.mode}
 BACKUP_SCHEDULE_CRON=${backup.scheduleCron}
 BACKUP_RETENTION_DAYS=${backup.retentionDays}
+BACKUP_COVERAGE_MODE=${backup.coverageMode}
+BACKUP_MAX_AGE_HOURS=${backup.maxAgeHours}
 BACKUP_S3_ENDPOINT=${backup.s3Endpoint}
 BACKUP_S3_BUCKET=${backup.s3Bucket}
 BACKUP_S3_REGION=${backup.s3Region}
@@ -1045,6 +1050,7 @@ RESTIC_PASSWORD=${backup.resticPassword}
 BACKUP_STORAGE_S3_ENDPOINT=${backup.storageS3Endpoint}
 BACKUP_STORAGE_S3_ACCESS_KEY_ID=${backup.storageS3AccessKeyId}
 BACKUP_STORAGE_S3_SECRET_ACCESS_KEY=${backup.storageS3SecretAccessKey}
+BACKUP_STORAGE_S3_REGION=${backup.storageS3Region}
 `;
 
   await fs.writeFile(localEnvFile, mergeRunlyEnvText(envContent, existingEnvContent, process.env), { encoding: "utf8", mode: 0o600 });

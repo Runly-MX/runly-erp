@@ -72,6 +72,7 @@ test('resolveBackupConfig generates RESTIC_PASSWORD once and preserves it on re-
     deployment: 'external',
     values: {
       mode: 'enabled',
+      coverageMode: 'database-only',
       s3Endpoint: 'https://s3.example.com',
       s3Bucket: 'bucket',
       s3AccessKeyId: 'id',
@@ -85,6 +86,7 @@ test('resolveBackupConfig generates RESTIC_PASSWORD once and preserves it on re-
     deployment: 'external',
     values: {
       mode: 'enabled',
+      coverageMode: 'database-only',
       s3Endpoint: 'https://s3.example.com',
       s3Bucket: 'bucket',
       s3AccessKeyId: 'id',
@@ -94,6 +96,31 @@ test('resolveBackupConfig generates RESTIC_PASSWORD once and preserves it on re-
   });
   assert.equal(again.resticPassword, first.resticPassword);
   assert.equal(again.resticPasswordGenerated, false);
+});
+
+test('complete external backups require storage while database-only remains explicitly partial', () => {
+  const values = { mode: 'enabled', s3Endpoint: 'https://s3.example.test', s3Bucket: 'test-bucket', s3AccessKeyId: 'fixture', s3SecretAccessKey: 'fixture' };
+  assert.throws(() => resolveBackupConfig({ deployment: 'external', values }), /requires BACKUP_STORAGE_S3/);
+  const partial = resolveBackupConfig({ deployment: 'external', values: { ...values, coverageMode: 'database-only' } });
+  assert.equal(partial.coverageMode, 'database-only');
+  const complete = resolveBackupConfig({ deployment: 'external', values: { ...values,
+    storageS3Endpoint: 'https://storage.example.test', storageS3AccessKeyId: 'fixture', storageS3SecretAccessKey: 'fixture' } });
+  assert.equal(complete.coverageMode, 'complete');
+});
+
+test('freshness is independent of retention and reruns preserve recovery password and regions', () => {
+  const values = { mode: 'enabled', coverageMode: 'database-only', maxAgeHours: '48', retentionDays: '90',
+    s3Endpoint: 'https://s3.example.test', s3Bucket: 'test-bucket', s3AccessKeyId: 'fixture', s3SecretAccessKey: 'fixture',
+    resticPassword: 'original-fixture-password', s3Region: 'fixture-region', storageS3Region: 'source-region' };
+  const config = resolveBackupConfig({ deployment: 'external', values });
+  assert.equal(config.maxAgeHours, 48);
+  assert.equal(config.retentionDays, 90);
+  assert.equal(config.resticPassword, values.resticPassword);
+  assert.equal(config.resticPasswordGenerated, false);
+  assert.equal(config.s3Region, 'fixture-region');
+  assert.equal(config.storageS3Region, 'source-region');
+  for (const maxAgeHours of ['0', '-1', '1.5', 'bad', '1000000']) assert.throws(() => resolveBackupConfig({ deployment: 'external', values: { ...values, maxAgeHours } }), /BACKUP_MAX_AGE_HOURS/);
+  assert.throws(() => resolveBackupConfig({ deployment: 'external', values: { ...values, coverageMode: 'unknown' } }), /BACKUP_COVERAGE_MODE/);
 });
 
 test('resolveBackupConfig applies defaults for schedule/retention/region when enabled', () => {

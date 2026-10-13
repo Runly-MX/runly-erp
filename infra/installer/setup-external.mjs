@@ -375,15 +375,18 @@ const OPTIONAL_VAR_GROUPS = [
       { key: "BACKUP_MODE",             placeholder: "disabled", comment: null },
       { key: "BACKUP_SCHEDULE_CRON",    placeholder: "0 3 * * *", comment: null },
       { key: "BACKUP_RETENTION_DAYS",   placeholder: "14",       comment: null },
+      { key: "BACKUP_COVERAGE_MODE",    placeholder: "complete", comment: null },
+      { key: "BACKUP_MAX_AGE_HOURS",    placeholder: "36",       comment: null },
       { key: "BACKUP_S3_ENDPOINT",      placeholder: "",         comment: null },
       { key: "BACKUP_S3_BUCKET",        placeholder: "",         comment: null },
       { key: "BACKUP_S3_REGION",        placeholder: "us-east-1", comment: null },
       { key: "BACKUP_S3_ACCESS_KEY_ID", placeholder: "",         comment: null },
       { key: "BACKUP_S3_SECRET_ACCESS_KEY", placeholder: "",     comment: null },
       { key: "RESTIC_PASSWORD",         placeholder: "",         comment: "# Autogenerada — no editar a mano. Perderla vuelve irrecuperables los backups." },
-      { key: "BACKUP_STORAGE_S3_ENDPOINT",             placeholder: "", comment: "# Opcional: solo si tu Supabase expone el protocolo S3 de Storage" },
+      { key: "BACKUP_STORAGE_S3_ENDPOINT",             placeholder: "", comment: "# Requerido para cobertura complete: protocolo S3 de Supabase Storage" },
       { key: "BACKUP_STORAGE_S3_ACCESS_KEY_ID",        placeholder: "", comment: null },
       { key: "BACKUP_STORAGE_S3_SECRET_ACCESS_KEY",    placeholder: "", comment: null },
+      { key: "BACKUP_STORAGE_S3_REGION",              placeholder: "us-east-1", comment: null },
     ],
   },
   {
@@ -742,6 +745,8 @@ async function configureBackup(filePath) {
       mode: parseEnvValue(content, "BACKUP_MODE"),
       scheduleCron: parseEnvValue(content, "BACKUP_SCHEDULE_CRON"),
       retentionDays: parseEnvValue(content, "BACKUP_RETENTION_DAYS"),
+      coverageMode: parseEnvValue(content, "BACKUP_COVERAGE_MODE"),
+      maxAgeHours: parseEnvValue(content, "BACKUP_MAX_AGE_HOURS"),
       s3Endpoint: parseEnvValue(content, "BACKUP_S3_ENDPOINT"),
       s3Bucket: parseEnvValue(content, "BACKUP_S3_BUCKET"),
       s3Region: parseEnvValue(content, "BACKUP_S3_REGION"),
@@ -751,6 +756,7 @@ async function configureBackup(filePath) {
       storageS3Endpoint: parseEnvValue(content, "BACKUP_STORAGE_S3_ENDPOINT"),
       storageS3AccessKeyId: parseEnvValue(content, "BACKUP_STORAGE_S3_ACCESS_KEY_ID"),
       storageS3SecretAccessKey: parseEnvValue(content, "BACKUP_STORAGE_S3_SECRET_ACCESS_KEY"),
+      storageS3Region: parseEnvValue(content, "BACKUP_STORAGE_S3_REGION") || parseEnvValue(content, "REGION"),
     },
   });
 
@@ -758,6 +764,8 @@ async function configureBackup(filePath) {
     ["BACKUP_MODE", config.mode],
     ["BACKUP_SCHEDULE_CRON", config.scheduleCron],
     ["BACKUP_RETENTION_DAYS", String(config.retentionDays)],
+    ["BACKUP_COVERAGE_MODE", config.coverageMode],
+    ["BACKUP_MAX_AGE_HOURS", String(config.maxAgeHours)],
     ["BACKUP_S3_ENDPOINT", config.s3Endpoint],
     ["BACKUP_S3_BUCKET", config.s3Bucket],
     ["BACKUP_S3_REGION", config.s3Region],
@@ -767,6 +775,7 @@ async function configureBackup(filePath) {
     ["BACKUP_STORAGE_S3_ENDPOINT", config.storageS3Endpoint],
     ["BACKUP_STORAGE_S3_ACCESS_KEY_ID", config.storageS3AccessKeyId],
     ["BACKUP_STORAGE_S3_SECRET_ACCESS_KEY", config.storageS3SecretAccessKey],
+    ["BACKUP_STORAGE_S3_REGION", config.storageS3Region],
   ]) {
     content = setEnvValue(content, key, value);
   }

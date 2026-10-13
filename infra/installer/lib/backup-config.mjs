@@ -42,6 +42,8 @@ export function resolveBackupConfig({
   const scheduleCron = clean(values.scheduleCron) || "0 3 * * *";
   const retentionDaysRaw = clean(values.retentionDays) || "14";
   const retentionDays = Number(retentionDaysRaw);
+  const coverageMode = clean(values.coverageMode) || 'complete';
+  const maxAgeHours = Number(clean(values.maxAgeHours) || '36');
   const s3Endpoint = clean(values.s3Endpoint);
   const s3Bucket = clean(values.s3Bucket);
   const s3Region = clean(values.s3Region) || "us-east-1";
@@ -51,12 +53,15 @@ export function resolveBackupConfig({
   const storageS3Endpoint = clean(values.storageS3Endpoint);
   const storageS3AccessKeyId = clean(values.storageS3AccessKeyId);
   const storageS3SecretAccessKey = clean(values.storageS3SecretAccessKey);
+  const storageS3Region = clean(values.storageS3Region) || 'us-east-1';
 
   if (mode === "disabled") {
     return {
       mode,
       scheduleCron,
       retentionDays: Number.isInteger(retentionDays) && retentionDays > 0 ? retentionDays : 14,
+      coverageMode: ['complete', 'database-only'].includes(coverageMode) ? coverageMode : 'complete',
+      maxAgeHours: Number.isInteger(maxAgeHours) && maxAgeHours > 0 && maxAgeHours <= 999999 ? maxAgeHours : 36,
       s3Endpoint,
       s3Bucket,
       s3Region,
@@ -66,6 +71,7 @@ export function resolveBackupConfig({
       storageS3Endpoint,
       storageS3AccessKeyId,
       storageS3SecretAccessKey,
+      storageS3Region,
       storageMountEnabled: false,
       resticPasswordGenerated: false,
     };
@@ -84,11 +90,21 @@ export function resolveBackupConfig({
   if (!Number.isInteger(retentionDays) || retentionDays < 1) {
     throw new Error(`BACKUP_RETENTION_DAYS must be a positive integer (got "${retentionDaysRaw}").`);
   }
+  if (!['complete', 'database-only'].includes(coverageMode)) {
+    throw new Error('BACKUP_COVERAGE_MODE must be complete or database-only.');
+  }
+  if (!Number.isInteger(maxAgeHours) || maxAgeHours < 1 || maxAgeHours > 999999) {
+    throw new Error('BACKUP_MAX_AGE_HOURS must be a positive integer (up to 999999).');
+  }
   if (!s3Endpoint || !s3Bucket || !s3AccessKeyId || !s3SecretAccessKey) {
     throw new Error(
       "BACKUP_MODE=enabled requires BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET, "
       + "BACKUP_S3_ACCESS_KEY_ID, and BACKUP_S3_SECRET_ACCESS_KEY.",
     );
+  }
+  if (deployment === 'external' && coverageMode === 'complete' &&
+      (!storageS3Endpoint || !storageS3AccessKeyId || !storageS3SecretAccessKey)) {
+    throw new Error('Complete external backup requires BACKUP_STORAGE_S3_*; choose database-only explicitly if full recovery is unavailable.');
   }
 
   const resticPasswordGenerated = !resticPassword;
@@ -98,6 +114,8 @@ export function resolveBackupConfig({
     mode,
     scheduleCron,
     retentionDays,
+    coverageMode,
+    maxAgeHours,
     s3Endpoint,
     s3Bucket,
     s3Region,
@@ -107,6 +125,7 @@ export function resolveBackupConfig({
     storageS3Endpoint,
     storageS3AccessKeyId,
     storageS3SecretAccessKey,
+    storageS3Region,
     storageMountEnabled: deployment === "local",
     resticPasswordGenerated,
   };
