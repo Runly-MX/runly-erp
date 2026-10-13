@@ -48,11 +48,17 @@ describe('e2e scaffold smoke test', () => {
     rmSync(tempRoot, { recursive: true, force: true })
   })
 
-  test('writes the expected number of files', () => {
-    // 1 manifest + 1 service-helpers + 1 api/index + 1 validators/index
-    // + per entity: 1 model + 4 views + 1 routes + 1 service + 1 validators = 8
-    // total = source definition + 4 shared + 8 entity files = 13
-    assert.equal(result.written.length, 13)
+  test('writes the exact supported source and documentation inventory', () => {
+    assert.deepEqual([...result.written].sort(), [
+      '.module-definition.json', 'AGENTS.md', 'GUIA_DESARROLLO_RUNLY.md',
+      'api/index.js', 'api/item-routes.js', 'api/item-service.js', 'api/service-helpers.js',
+      'models/item.model.js', 'module.manifest.js',
+      'validators/index.js', 'validators/item.validators.js',
+      'views/item.detail.js', 'views/item.form.js', 'views/item.page.js', 'views/item.table.js',
+    ].sort())
+    for (const name of ['AGENTS.md', 'GUIA_DESARROLLO_RUNLY.md']) {
+      assert.match(readFileSync(resolve(result.outDir, name), 'utf8'), /Runly|RME3/)
+    }
   })
 
   test('module.manifest.js exists', () => {
@@ -95,9 +101,10 @@ describe('e2e scaffold smoke test', () => {
     assert.ok(existsSync(resolve(result.outDir, 'validators/item.validators.js')))
   })
 
-  test('all generated files pass node --check (syntax valid)', () => {
-    for (const relPath of result.written) {
-      if (relPath.endsWith('.json')) continue
+  test('all generated JavaScript files pass node --check (syntax valid)', () => {
+    const javascriptFiles = result.written.filter((relPath) => relPath.endsWith('.js'))
+    assert.equal(javascriptFiles.length, 12)
+    for (const relPath of javascriptFiles) {
       const absPath = resolve(result.outDir, relPath)
       try {
         execFileSync(process.execPath, ['--check', absPath], { stdio: 'pipe' })
