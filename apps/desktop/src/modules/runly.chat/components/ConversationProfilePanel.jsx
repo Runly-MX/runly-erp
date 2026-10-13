@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/runly.chat/components/ConversationProfilePanel.jsx
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, Video, ChevronDown } from "lucide-react";
+import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, Video, ChevronDown, Disc } from "lucide-react";
 import {
   Button, Tabs, TabsList, TabsTrigger, TabsContent,
   Accordion, AccordionItem, AccordionTrigger, AccordionContent,
@@ -34,7 +34,7 @@ function SectionHeader({ icon: Icon, label }) {
   );
 }
 
-function ProfileCallActions({ disabled, onStartAudioCall, onStartVideoCall }) {
+function ProfileCallActions({ disabled, onStartAudioCall, onStartVideoCall, onShowRecordings }) {
   const actions = [
     {
       label: "Llamada",
@@ -70,6 +70,18 @@ function ProfileCallActions({ disabled, onStartAudioCall, onStartVideoCall }) {
           </span>
         </Button>
       ))}
+      {onShowRecordings && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onShowRecordings}
+          className="col-span-2 justify-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]"
+        >
+          <Disc className="h-3.5 w-3.5" />
+          Ver grabaciones de llamadas
+        </Button>
+      )}
     </div>
   );
 }
@@ -118,6 +130,7 @@ export function ConversationProfilePanel({
   callPending,
   onStartAudioCall,
   onStartVideoCall,
+  onShowRecordings,
 }) {
   const conversationId = conversation?.id;
   const type = conversation?.type;
@@ -289,6 +302,15 @@ export function ConversationProfilePanel({
     />
   ) : null;
 
+  const callActions = callsEnabled ? (
+    <ProfileCallActions
+      disabled={callPending}
+      onStartAudioCall={onStartAudioCall}
+      onStartVideoCall={onStartVideoCall}
+      onShowRecordings={onShowRecordings}
+    />
+  ) : null;
+
   const hasContactInfo = Boolean(otherMemberForHero?.email || otherMemberForHero?.phone || otherMemberForHero?.bio);
 
   if (type === "direct") {
@@ -296,13 +318,7 @@ export function ConversationProfilePanel({
       <>
         {backHeader}
         {hero}
-        {callsEnabled && (
-          <ProfileCallActions
-            disabled={callPending}
-            onStartAudioCall={onStartAudioCall}
-            onStartVideoCall={onStartVideoCall}
-          />
-        )}
+        {callActions}
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
           {hasContactInfo && (
             <div data-section="contact-info">
@@ -378,6 +394,7 @@ export function ConversationProfilePanel({
     <>
       {backHeader}
       {hero}
+      {callActions}
       <Tabs defaultValue={defaultTab} className="flex-1 min-h-0 flex flex-col">
         <div className="px-4 pb-2 shrink-0">
           <TabsList className="grid grid-cols-2 w-full">

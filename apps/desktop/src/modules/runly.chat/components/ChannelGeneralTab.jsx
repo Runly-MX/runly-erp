@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/runly.chat/components/ChannelGeneralTab.jsx
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Popover, PopoverTrigger, PopoverContent, ImageViewer, ComboboxField, Label, Textarea, SwitchField, ThemedEmojiPicker } from "@runly/ui";
+import { Button, Popover, PopoverTrigger, PopoverContent, ImageViewer, ComboboxField, Input, Label, Textarea, SwitchField, ThemedEmojiPicker } from "@runly/ui";
 import { Image as ImageIcon, Smile, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import EventFormModal from "../../runly.calendar/components/EventFormModal";
@@ -30,6 +30,8 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
 
   const { data: convData } = useChatConversationDetail(conversationId);
   const conversation = convData?.data;
@@ -112,6 +114,25 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
     },
     onError: () => toast.error("No se pudo actualizar la descripcion."),
   });
+
+  const titleMutation = useMutation({
+    mutationFn: (title) => runly.chat.updateConversation(conversationId, { title }, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      setEditingTitle(false);
+    },
+    onError: () => toast.error("No se pudo cambiar el nombre."),
+  });
+
+  function handleSaveTitle() {
+    const next = titleDraft.trim();
+    if (!next || next === conversation?.title) {
+      setEditingTitle(false);
+      return;
+    }
+    titleMutation.mutate(next);
+  }
 
   const uploadMutation = useMutation({
     mutationFn: async (file) => {
@@ -260,6 +281,51 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
           Solo un administrador del canal puede cambiar esta imagen.
         </p>
       )}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <Label>Nombre</Label>
+          {canManage && !editingTitle && (
+            <button
+              type="button"
+              onClick={() => {
+                setTitleDraft(conversation?.title ?? "");
+                setEditingTitle(true);
+              }}
+              className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+            >
+              <Pencil className="h-3 w-3" />
+              Editar
+            </button>
+          )}
+        </div>
+        {editingTitle ? (
+          <div className="space-y-1.5">
+            <Input
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); handleSaveTitle(); }
+                if (e.key === "Escape") { e.stopPropagation(); setEditingTitle(false); }
+              }}
+              placeholder="Nombre de la conversacion"
+              maxLength={200}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <Button size="sm" disabled={titleMutation.isPending || !titleDraft.trim()} onClick={handleSaveTitle}>
+                Guardar
+              </Button>
+              <Button size="sm" variant="outline" disabled={titleMutation.isPending} onClick={() => setEditingTitle(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm whitespace-pre-wrap wrap-break-word">
+            {conversation?.title || "Sin nombre"}
+          </p>
+        )}
+      </div>
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <Label>Descripcion</Label>

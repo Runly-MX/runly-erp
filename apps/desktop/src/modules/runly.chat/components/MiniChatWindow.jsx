@@ -366,7 +366,7 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
             onShowAllFiles={handleViewFiles}
             onOpenConversation={(conv) => openChat(conv)}
             onDeleted={onClose}
-            callsEnabled={callsEnabled}
+            callsEnabled={callsEnabled && conversation?.type !== "external_support"}
             callPending={callPending}
             onStartAudioCall={() => startCall({ conversationId: id, kind: "AUDIO" })}
             onStartVideoCall={() => startCall({ conversationId: id, kind: "VIDEO" })}

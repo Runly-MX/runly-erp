@@ -817,7 +817,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       {/* True full-height sidebar, alongside the whole chat column above —
           header included — not nested inside just the message-body row. */}
       {membersView && (
-        <div className="w-full xl:w-96 xl:shrink-0 xl:border-l xl:border-[hsl(var(--border))] flex flex-col min-h-0 min-w-0">
+        <div className="w-full xl:w-104 xl:shrink-0 xl:border-l xl:border-[hsl(var(--border))] flex flex-col min-h-0 min-w-0">
           <ConversationProfilePanel
             key={profileInitialTab ?? "default"}
             conversation={conversation}
@@ -829,10 +829,11 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
             onShowAllFiles={showAllFiles}
             onOpenConversation={(conv) => navigate(`/app/m/runly.chat/chat/inbox/${conv.id}`)}
             onDeleted={onClose}
-            callsEnabled={callsEnabled}
+            callsEnabled={isExternal ? false : callsEnabled}
             callPending={callPending}
             onStartAudioCall={() => startCall({ conversationId, kind: "AUDIO" })}
             onStartVideoCall={() => startCall({ conversationId, kind: "VIDEO" })}
+            onShowRecordings={() => { setMembersView(false); setProfileInitialTab(null); setFilesView(false); setRecordingsView(true); }}
           />
         </div>
       )}
