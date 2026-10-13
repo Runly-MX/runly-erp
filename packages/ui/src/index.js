@@ -247,6 +247,7 @@ export { DynamicTable } from "./components/DynamicTable.jsx";
 export { DynamicForm } from "./components/DynamicForm.jsx";
 export { ActionMenu } from "./components/ActionMenu.jsx";
 export { ConfirmDialog } from "./components/ConfirmDialog.jsx";
+export { BackButton } from "./components/BackButton.jsx";
 export { PublicLinksPanel, QrDialog, createPublicLinksApi, publicLinkUrl } from "./components/PublicLinksPanel.jsx";
 export { ShareLinkDialog } from "./components/ShareLinkDialog.jsx";
 export { PublicLinkFrame } from "./components/PublicLinkFrame.jsx";

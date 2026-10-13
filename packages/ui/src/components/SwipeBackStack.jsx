@@ -95,11 +95,15 @@ export const SwipeBackStack = forwardRef(function SwipeBackStack(
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Safari reserves edge touches for browser history; keep them for us.
+  // Never for a touch that starts on a control: preventDefault on touchstart
+  // also cancels the click, and the header back arrow lives right on that
+  // left edge — taps on it were silently swallowed.
   useEffect(() => {
     const node = detailRef.current;
     if (!node || phase === "closed") return undefined;
     function contain(event) {
       if (event.touches.length !== 1) return;
+      if (event.target?.closest?.('button, a, input, textarea, select, [role="button"], [data-swipe-ignore]')) return;
       const x = event.touches[0].clientX;
       if (x < EDGE_PX || x > window.innerWidth - 20) event.preventDefault();
     }

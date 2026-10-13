@@ -1,9 +1,9 @@
 // apps/desktop/src/modules/runly.chat/components/ConversationProfilePanel.jsx
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, Video, ChevronDown, Disc, Mic } from "lucide-react";
+import { Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, Video, ChevronDown, Disc, Mic } from "lucide-react";
 import {
-  Button, Tabs, TabsList, TabsTrigger, TabsContent,
+  BackButton, Button, Tabs, TabsList, TabsTrigger, TabsContent,
   Accordion, AccordionItem, AccordionTrigger, AccordionContent,
 } from "@runly/ui";
 import { AdvancedFileViewer } from "@runly/ui";
@@ -225,15 +225,8 @@ export function ConversationProfilePanel({
   }, [initialTab]);
 
   const backHeader = (
-    <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-[hsl(var(--border))] shrink-0">
-      <button
-        type="button"
-        onClick={onBack}
-        title="Volver a mensajes"
-        className="h-7 w-7 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation"
-      >
-        <ArrowLeft className="h-4 w-4" />
-      </button>
+    <div className="flex items-center gap-1 px-3 py-0.5 md:gap-2 md:py-1.5 border-b border-[hsl(var(--border))] shrink-0">
+      <BackButton onClick={onBack} label="Volver a mensajes" className="-ml-1.5" />
       <p className="text-sm font-semibold">Perfil</p>
     </div>
   );

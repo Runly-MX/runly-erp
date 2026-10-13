@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import {
   Button,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-  ConfirmDialog, AssistantWordmark,
+  ConfirmDialog, AssistantWordmark, BackButton,
 } from "@runly/ui";
 import {
-  ArrowLeft, Users, FolderOpen, MessageSquare,
+  Users, FolderOpen, MessageSquare,
   MoreVertical, Trash2, X as XIcon, Search, Forward, Copy, CheckSquare,
   ChevronUp, ChevronDown, ChevronRight, Archive, ArchiveRestore, Pin,
   Phone, Video, UserPlus, Sparkles, Mic,
@@ -176,14 +176,7 @@ export function ChatHeader({
     return (
       <div className="chat-glass flex items-center gap-3 px-3 sm:px-4 py-3 shrink-0 border-x-0! border-t-0! border-b! border-[hsl(var(--border))]!">
         {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="md:hidden text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors shrink-0 touch-manipulation"
-            aria-label="Volver"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+          <BackButton onClick={onClose} className="-mr-1 md:hidden" />
         )}
         <div className="h-9 w-9 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-sm font-semibold text-violet-600 dark:text-violet-300 uppercase shrink-0">
           {guestName[0]}
@@ -243,14 +236,7 @@ export function ChatHeader({
             <ChevronRight className="h-5 w-5" />
           </button>
         ) : onClose ? (
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors md:hidden touch-manipulation shrink-0"
-            aria-label="Volver"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+          <BackButton onClick={onClose} className="-mr-1 md:hidden" />
         ) : null}
         <button type="button" onClick={() => onOpenProfile(null)} className="relative shrink-0" title="Ver perfil">
           {avatarUrl && !avatarErr ? (

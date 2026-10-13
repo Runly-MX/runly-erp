@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { runly } from "../../../lib/runly";
 import { ChatTemplatePopover } from "./ChatTemplatePopover";
 import { useConversationFiles } from "../hooks/useConversationFiles";
-import { ErrorState } from "@runly/ui";
+import { BackButton, ErrorState } from "@runly/ui";
 import { ChatFilesGallery } from "./ChatFilesGallery";
 import { ChatRecordingsGallery } from "./ChatRecordingsGallery";
 import { DropZoneOverlay } from "./DropZoneOverlay";
@@ -41,15 +41,8 @@ import { LiveMeetingBanner } from "../calls/LiveMeetingBanner";
 // always-visible way out of a view that replaces the message list in place.
 function ExchangeViewBackHeader({ title, onBack }) {
   return (
-    <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-[hsl(var(--border))] shrink-0">
-      <button
-        type="button"
-        onClick={onBack}
-        title="Volver a mensajes"
-        className="h-7 w-7 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation"
-      >
-        <ArrowLeft className="h-4 w-4" />
-      </button>
+    <div className="flex items-center gap-1 px-3 py-0.5 md:gap-2 md:py-1.5 border-b border-[hsl(var(--border))] shrink-0">
+      <BackButton onClick={onBack} label="Volver a mensajes" className="-ml-1.5" />
       <p className="text-sm font-semibold">{title}</p>
     </div>
   );

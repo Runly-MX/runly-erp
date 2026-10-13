@@ -614,6 +614,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `DynamicForm` | Blueprint-driven form renderer |
 | `ActionMenu` | Row action dropdown button |
 | `ConfirmDialog` | Confirmation dialog with destructive variant |
+| `BackButton` | "Back" arrow for headers and sub-panels: 44px touch target on phones (pulled into the gutter, layout unchanged), compact 32px on md+. Props: `onClick`, `label` (default "Volver"), `className`, `iconClassName`. |
 | `ContactPicker` | Contact search and select picker |
 | `FileCard` | File display card with metadata |
 | `FileUploader` | File upload widget with progress |
