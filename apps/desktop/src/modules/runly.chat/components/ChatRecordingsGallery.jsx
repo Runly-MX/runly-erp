@@ -3,7 +3,7 @@ import {
   AdvancedFileViewer, ConfirmDialog, EmptyState, ErrorState, Input, Skeleton,
   cn, useCoarsePointer, useHlsPosterFrame,
 } from "@runly/ui";
-import { AlertCircle, CalendarDays, Check, Clock, Loader2, Pencil, Play, Trash2, User, Video, X } from "lucide-react";
+import { AlertCircle, CalendarDays, Check, Clock, Loader2, MessageSquare, Pencil, Play, Trash2, User, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { useConversationRecordings, useDeleteRecording, useRenameRecording } from "../hooks/useConversationRecordings";
 import { useConversationTranscripts } from "../hooks/useConversationTranscripts";
@@ -13,7 +13,7 @@ import { CardActionButton, RecordingTranscriptAction } from "./RecordingTranscri
 // collapses "today" down to just a time) — recordings are reviewed well
 // after the fact and several can share a day, so the date is load-bearing
 // here, not just decoration.
-function formatRecordingDateTime(dateStr) {
+export function formatRecordingDateTime(dateStr) {
   if (!dateStr) return "";
   return new Date(dateStr).toLocaleString("es-MX", {
     day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
@@ -33,7 +33,7 @@ function formatFileSize(bytes) {
 }
 
 // Cards fill the panel: one column on a phone, several on a wide screen.
-const GRID_CLASS = "grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3";
+export const GRID_CLASS = "grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3";
 
 function formatDuration(ms) {
   if (ms == null) return null;
@@ -174,8 +174,13 @@ function RecordingTitle({ recording, renameRecording }) {
   );
 }
 
-function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, transcript, conversationId }) {
+// `conversation` ({ name, onOpen }) switches the card to the cross-chat
+// "Todas las grabaciones" mode: rows come without playback data (it is signed
+// per recording only on play), so there is no poster frame, every READY row
+// counts as playable, and the transcript action becomes "Abrir chat".
+export function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, transcript, conversationId, conversation = null }) {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const lazy = Boolean(conversation);
 
   const isReady = recording.status === "READY";
   const isFailed = recording.status === "FAILED";
@@ -184,7 +189,7 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
   // sign every segment it references (call-recording-service.js
   // listRecordings) — a READY recording can still have no manifest if any of
   // that failed.
-  const hasPlaylist = Boolean(recording.playlistManifest);
+  const hasPlaylist = lazy ? !recording.playlistUrlError : Boolean(recording.playlistManifest);
   const isUnavailable = isReady && !hasPlaylist;
   // The real reason, when the backend has one: failureReason is persisted on
   // FAILED rows (call-recording-service.js startRecording/reconcileActiveRecordings);
@@ -209,7 +214,7 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
 
   const [thumbRef, inView] = useInView();
   const playable = isReady && hasPlaylist;
-  const { frame, loading: frameLoading } = useHlsPosterFrame(recording.id, playable ? recording.playlistManifest : null, { enabled: inView });
+  const { frame, loading: frameLoading } = useHlsPosterFrame(recording.id, playable && !lazy ? recording.playlistManifest : null, { enabled: inView && !lazy });
   const duration = isReady ? formatDuration(recording.durationMs) : null;
 
   async function handleDelete() {
@@ -286,6 +291,11 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
         </div>
 
         <dl className="space-y-1.5 text-xs text-[hsl(var(--muted-foreground))]">
+          {conversation && (
+            <MetaRow icon={MessageSquare} label="Conversación">
+              <span className="font-medium text-[hsl(var(--foreground))]">{conversation.name}</span>
+            </MetaRow>
+          )}
           {recording.title && (
             <MetaRow icon={CalendarDays} label="Fecha">{formatRecordingDateTime(recording.startedAt)}</MetaRow>
           )}
@@ -318,7 +328,11 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
             disabled={!playable}
             title={playable ? "Reproducir" : isActive ? "Disponible cuando termine de procesarse" : "Esta grabación no tiene video reproducible"}
           />
-          <RecordingTranscriptAction recording={recording} transcript={transcript} conversationId={conversationId} />
+          {conversation ? (
+            <CardActionButton icon={MessageSquare} label="Abrir chat" onClick={conversation.onOpen} disabled={!conversation.onOpen} />
+          ) : (
+            <RecordingTranscriptAction recording={recording} transcript={transcript} conversationId={conversationId} />
+          )}
           <button
             type="button"
             onClick={() => setConfirmDeleteOpen(true)}

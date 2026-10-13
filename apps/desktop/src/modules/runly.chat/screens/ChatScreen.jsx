@@ -4,6 +4,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import "../chat-theme.css";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ChatWindow } from "../components/ChatWindow";
+import { AllRecordingsView } from "../components/AllRecordingsView";
 import { useChatConversations, useArchivedConversations } from "../hooks/useChatConversations";
 import { useEnsureMiraiConversation } from "../hooks/useMirAI";
 import { ChatPreferencesProvider, useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPreferences";
@@ -30,7 +31,10 @@ function ChatScreenInner() {
     return match ? match[1] : null;
   }, [wildcard]);
 
-  const mobileShowWindow = Boolean(conversationIdFromUrl);
+  // /chat/inbox?view=recordings — a query param, not a new sub-path, because
+  // the module's navigation only authorizes /chat/inbox(/...).
+  const recordingsRoute = !conversationIdFromUrl && searchParams.get("view") === "recordings";
+  const mobileShowWindow = Boolean(conversationIdFromUrl) || recordingsRoute;
   const isMobile = useIsMobile();
   const stackRef = useRef(null);
 
@@ -100,9 +104,16 @@ function ChatScreenInner() {
       activeId={activeConversation?.id}
       onSelect={handleSelect}
       onCreated={handleCreated}
+      recordingsActive={recordingsRoute}
+      onOpenRecordings={() => navigate("/app/m/runly.chat/chat/inbox?view=recordings", { replace: Boolean(conversationIdFromUrl) || recordingsRoute })}
     />
   );
-  const chatWindow = (
+  const chatWindow = recordingsRoute ? (
+    <AllRecordingsView
+      onBack={handleClose}
+      onOpenConversation={(id) => navigate(`/app/m/runly.chat/chat/inbox/${id}`)}
+    />
+  ) : (
     <ChatWindow
       conversation={activeConversation}
       onClose={handleClose}

@@ -3,7 +3,7 @@ import {
   Button, EmptyState, SearchInput, Skeleton,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@runly/ui";
-import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video } from "lucide-react";
+import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Disc } from "lucide-react";
 import { ChatConversationItem } from "./ChatConversationItem";
 import { ConversationRowActions } from "./ConversationRowActions";
 import { MessageSearchResults } from "./MessageSearchResults";
@@ -19,7 +19,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { useArchivedConversations, useConversationActionHandler } from "../hooks/useChatConversations";
 
-export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCreated }) {
+export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCreated, recordingsActive = false, onOpenRecordings }) {
   const { userProfile } = useAuth();
   const { isUserOnline } = useGlobalPresence();
   const [search, setSearch] = useState("");
@@ -119,6 +119,22 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           onClear={() => setSearch('')}
           placeholder="Buscar conversaciones..."
         />
+        {onOpenRecordings && (
+          <button
+            type="button"
+            onClick={onOpenRecordings}
+            aria-current={recordingsActive ? "page" : undefined}
+            className={[
+              "mt-2 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors touch-manipulation",
+              recordingsActive
+                ? "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]"
+                : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]",
+            ].join(" ")}
+          >
+            <Disc className="h-3.5 w-3.5 shrink-0" />
+            Todas las grabaciones
+          </button>
+        )}
       </div>
 
       {/* Conversation list */}

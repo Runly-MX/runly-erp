@@ -304,6 +304,25 @@ export function createCallsRouter({
       return c.json({ data });
     } catch (error) { return handleError(c, error, "Error obteniendo grabaciones."); }
   });
+  internal.get("/recordings", async (c) => {
+    try {
+      const cursor = c.req.query("cursor");
+      const data = await recordingService.listAllRecordings({
+        profileId: await profileId(c),
+        companyId: c.get("companyId") ?? null,
+        cursor: cursor ? recordingIdSchema.parse(cursor) : null,
+        limit: c.req.query("limit"),
+      });
+      return c.json(data);
+    } catch (error) { return handleError(c, error, "Error obteniendo grabaciones."); }
+  });
+  internal.get("/recordings/:recordingId/playback", async (c) => {
+    try {
+      const recordingId = recordingIdSchema.parse(c.req.param("recordingId"));
+      const data = await recordingService.getRecordingPlayback({ recordingId, profileId: await profileId(c) });
+      return c.json({ data });
+    } catch (error) { return handleError(c, error, "Error preparando la reproducción."); }
+  });
   internal.patch(
     "/recordings/:recordingId",
     requirePermission("chat.calls.record"),

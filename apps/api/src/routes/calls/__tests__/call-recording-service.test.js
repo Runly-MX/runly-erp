@@ -463,6 +463,74 @@ describe("createCallRecordingService.listRecordings", () => {
   });
 });
 
+describe("createCallRecordingService.listAllRecordings / getRecordingPlayback", () => {
+  it("lists only the caller's conversations, paginates by cursor and never signs manifests", async () => {
+    let findManyArgs;
+    const prisma = {
+      $queryRaw: async () => [{ conversationId: CONV }],
+      callRecording: {
+        findMany: async (args) => {
+          findManyArgs = args;
+          return [
+            { id: "r3", conversationId: CONV, status: "READY", playlistObjectKey: "k", sizeBytes: 5n },
+            { id: "r2", conversationId: CONV, status: "READY", playlistObjectKey: "k" },
+            { id: "r1", conversationId: CONV, status: "FAILED" },
+          ];
+        },
+      },
+    };
+    const supabaseAdmin = { storage: { from: () => { throw new Error("must not touch storage"); } } };
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: FakeEgress, supabaseAdmin });
+    const result = await svc.listAllRecordings({ profileId: USER, cursor: "r9", limit: 2 });
+    assert.deepEqual(findManyArgs.where, { conversationId: { in: [CONV] } });
+    assert.deepEqual(findManyArgs.cursor, { id: "r9" });
+    assert.equal(findManyArgs.take, 3);
+    assert.deepEqual(result.data.map((r) => r.id), ["r3", "r2"]);
+    assert.equal(result.nextCursor, "r2");
+    assert.equal(result.data[0].sizeBytes, 5);
+    assert.equal(result.data[0].playlistManifest, undefined);
+  });
+
+  it("returns an empty page without querying recordings when the caller has no conversations", async () => {
+    const prisma = { $queryRaw: async () => [], callRecording: { findMany: async () => { throw new Error("unexpected"); } } };
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: FakeEgress });
+    assert.deepEqual(await svc.listAllRecordings({ profileId: USER }), { data: [], nextCursor: null });
+  });
+
+  it("signs the playback manifest of one recording after the membership check", async () => {
+    const prisma = {
+      $queryRaw: async () => [{ id: "member-row" }],
+      callRecording: { findUnique: async () => ({ id: REC, conversationId: CONV, status: "READY", playlistObjectKey: "recordings/conv/rec/index.m3u8" }) },
+    };
+    const supabaseAdmin = {
+      storage: {
+        from: () => ({
+          download: async () => ({ data: { text: async () => "#EXTM3U\nsegment_00000.ts\n" }, error: null }),
+          createSignedUrls: async (paths) => ({ data: paths.map((path) => ({ path, signedUrl: `https://signed.example/${path}` })), error: null }),
+        }),
+      },
+    };
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: FakeEgress, supabaseAdmin });
+    const data = await svc.getRecordingPlayback({ recordingId: REC, profileId: USER });
+    assert.ok(data.playlistManifest.includes("https://signed.example/recordings/conv/rec/segment_00000.ts"));
+    assert.equal(data.playlistUrlError, null);
+  });
+
+  it("rejects playback for a non-member (IDOR guard) and for a recording that is not READY", async () => {
+    const record = { id: REC, conversationId: CONV, status: "READY", playlistObjectKey: "k" };
+    const outsider = createCallRecordingService({
+      prisma: { $queryRaw: async () => [], callRecording: { findUnique: async () => record } },
+      env: env(), EgressClientImpl: FakeEgress,
+    });
+    await assert.rejects(outsider.getRecordingPlayback({ recordingId: REC, profileId: "x" }), (e) => e.status === 404);
+    const processing = createCallRecordingService({
+      prisma: { $queryRaw: async () => [{ id: "m" }], callRecording: { findUnique: async () => ({ ...record, status: "PROCESSING" }) } },
+      env: env(), EgressClientImpl: FakeEgress,
+    });
+    await assert.rejects(processing.getRecordingPlayback({ recordingId: REC, profileId: USER }), (e) => e.status === 409);
+  });
+});
+
 describe("createCallRecordingService.cleanupExpiredRecordings", () => {
   it("deletes expired rows and their storage objects", async () => {
     const removedKeys = [];

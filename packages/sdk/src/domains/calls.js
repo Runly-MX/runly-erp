@@ -70,6 +70,15 @@ export function createCallsDomain(request, withAuthHeaders) {
     stopRecording: (callId, token) => json(`/calls/${callId}/recording/stop`, "POST", {}, token),
     listRecordings: (conversationId, token) =>
       json(`/calls/conversations/${encodeURIComponent(conversationId)}/recordings`, "GET", undefined, token),
+    // Every recording across the caller's conversations, without playback
+    // data; `getRecordingPlayback` signs one recording's manifest on demand.
+    listAllRecordings: ({ cursor = null, limit = 24 } = {}, token) => {
+      const qs = new URLSearchParams({ limit: String(limit) });
+      if (cursor) qs.set("cursor", cursor);
+      return json(`/calls/recordings?${qs}`, "GET", undefined, token);
+    },
+    getRecordingPlayback: (recordingId, token) =>
+      json(`/calls/recordings/${encodeURIComponent(recordingId)}/playback`, "GET", undefined, token),
     renameRecording: (recordingId, title, token) =>
       json(`/calls/recordings/${encodeURIComponent(recordingId)}`, "PATCH", { title }, token),
     deleteRecording: (recordingId, token) =>

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
 
@@ -23,20 +23,41 @@ export function useConversationRecordings(conversationId, enabled = true) {
   });
 }
 
-export function useDeleteRecording(conversationId) {
+// All recordings across the user's conversations ("Todas las grabaciones"),
+// page by page. Rows carry no playback data — see useRecordingPlayback.
+export function useAllRecordings() {
+  const { session } = useAuth();
+  return useInfiniteQuery({
+    queryKey: ["chat-recordings", "all"],
+    enabled: Boolean(session?.access_token),
+    staleTime: 15_000,
+    initialPageParam: null,
+    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
+    queryFn: ({ pageParam }) => runly.calls.listAllRecordings({ cursor: pageParam }, session.access_token),
+  });
+}
+
+// Signs one recording's HLS manifest only when the user presses play.
+export function fetchRecordingPlayback(recordingId, token) {
+  return runly.calls.getRecordingPlayback(recordingId, token).then(unwrap);
+}
+
+// Both views (one conversation and "all") share the "chat-recordings" prefix,
+// so a rename/delete in either refreshes the other.
+export function useDeleteRecording() {
   const { session } = useAuth();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (recordingId) => runly.calls.deleteRecording(recordingId, session.access_token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-recordings", conversationId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-recordings"] }),
   });
 }
 
-export function useRenameRecording(conversationId) {
+export function useRenameRecording() {
   const { session } = useAuth();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ recordingId, title }) => runly.calls.renameRecording(recordingId, title, session.access_token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-recordings", conversationId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-recordings"] }),
   });
 }

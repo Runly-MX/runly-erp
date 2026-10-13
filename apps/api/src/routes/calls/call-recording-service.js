@@ -256,6 +256,34 @@ export function createCallRecordingService({
       .join("\n");
   }
 
+  // Adds playlistManifest (segments signed) or playlistUrlError to a READY row.
+  async function withPlayback(row) {
+    if (!supabaseAdmin || row.status !== "READY" || !row.playlistObjectKey) return row;
+    try {
+      const { data, error } = await supabaseAdmin.storage.from(RECORDING_BUCKET).download(row.playlistObjectKey);
+      if (error || !data) {
+        console.warn(`${LOG_PREFIX} No se pudo leer el manifest de reproducción:`, row.id, row.playlistObjectKey, error?.message ?? error);
+        // playlistUrlError is computed live (never persisted) so the UI can
+        // show the actual reason instead of a bare "no disponible" — see
+        // ChatRecordingsGallery.jsx.
+        return { ...row, playlistUrlError: error?.message || "No se pudo leer el manifest de reproducción." };
+      }
+      const dir = row.playlistObjectKey.split("/").slice(0, -1).join("/");
+      const playlistManifest = await signManifestSegments(await data.text(), dir);
+      return { ...row, playlistManifest };
+    } catch (err) {
+      console.warn(`${LOG_PREFIX} Error inesperado preparando la reproducción:`, row.id, row.playlistObjectKey, err?.message ?? err);
+      return { ...row, playlistUrlError: err?.message || "No se pudo preparar la reproducción." };
+    }
+  }
+
+  // sizeBytes is a Prisma BigInt column — JSON.stringify (which Hono's
+  // c.json() uses) throws on a raw BigInt, so serialize it before it can
+  // leave this service.
+  function serialize(row) {
+    return row.sizeBytes != null ? { ...row, sizeBytes: Number(row.sizeBytes) } : row;
+  }
+
   async function listRecordings({ conversationId, profileId }) {
     await assertMember(conversationId, profileId);
     const rows = await prisma.callRecording.findMany({
@@ -263,34 +291,49 @@ export function createCallRecordingService({
       orderBy: { startedAt: "desc" },
       include: { startedBy: { select: { displayName: true } } },
     });
-    const withSignedUrls = !supabaseAdmin
-      ? rows
-      : await Promise.all(rows.map(async (row) => {
-        if (row.status !== "READY" || !row.playlistObjectKey) return row;
-        try {
-          const { data, error } = await supabaseAdmin.storage.from(RECORDING_BUCKET).download(row.playlistObjectKey);
-          if (error || !data) {
-            console.warn(`${LOG_PREFIX} No se pudo leer el manifest de reproducción:`, row.id, row.playlistObjectKey, error?.message ?? error);
-            // playlistUrlError is computed live on every listRecordings call
-            // (never persisted) so the UI can show the actual reason instead
-            // of a bare "no disponible" — see ChatRecordingsGallery.jsx.
-            return { ...row, playlistUrlError: error?.message || "No se pudo leer el manifest de reproducción." };
-          }
-          const dir = row.playlistObjectKey.split("/").slice(0, -1).join("/");
-          const playlistManifest = await signManifestSegments(await data.text(), dir);
-          return { ...row, playlistManifest };
-        } catch (err) {
-          console.warn(`${LOG_PREFIX} Error inesperado preparando la reproducción:`, row.id, row.playlistObjectKey, err?.message ?? err);
-          return { ...row, playlistUrlError: err?.message || "No se pudo preparar la reproducción." };
-        }
-      }));
+    return (await Promise.all(rows.map(withPlayback))).map(serialize);
+  }
 
-    // sizeBytes is a Prisma BigInt column — JSON.stringify (which Hono's
-    // c.json() uses) throws on a raw BigInt, so serialize it before it can
-    // leave this service.
-    return withSignedUrls.map((row) => (
-      row.sizeBytes != null ? { ...row, sizeBytes: Number(row.sizeBytes) } : row
-    ));
+  // Every recording across the conversations the caller is an active member
+  // of, newest first, cursor-paginated. Deliberately WITHOUT playback data:
+  // signing a manifest downloads it and signs every segment, so the global
+  // view fetches it per recording only when the user presses play
+  // (getRecordingPlayback below).
+  // Scoped to the active company when known, like the conversation list, so a
+  // user in several companies only sees this company's recordings.
+  async function listAllRecordings({ profileId, companyId = null, cursor = null, limit = 24 }) {
+    const take = Math.min(Math.max(Number(limit) || 24, 1), 60);
+    const memberships = await prisma.$queryRaw`
+      SELECT m.conversation_id AS "conversationId" FROM chat_conversation_members m
+      JOIN chat_conversations c ON c.id = m.conversation_id
+      WHERE m.user_id = ${profileId} AND m.left_at IS NULL AND c.deleted_at IS NULL
+        AND (${companyId}::uuid IS NULL OR c.company_id = ${companyId}::uuid)
+    `;
+    const conversationIds = memberships.map((m) => m.conversationId);
+    if (!conversationIds.length) return { data: [], nextCursor: null };
+    const rows = await prisma.callRecording.findMany({
+      where: { conversationId: { in: conversationIds } },
+      orderBy: [{ startedAt: "desc" }, { id: "desc" }],
+      include: { startedBy: { select: { displayName: true } } },
+      take: take + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+    const page = rows.slice(0, take);
+    return {
+      data: page.map(serialize),
+      nextCursor: rows.length > take ? page[page.length - 1].id : null,
+    };
+  }
+
+  async function getRecordingPlayback({ recordingId, profileId }) {
+    const record = await prisma.callRecording.findUnique({ where: { id: recordingId } });
+    if (!record) throw new CallRecordingError("Grabación no encontrada.", 404);
+    await assertMember(record.conversationId, profileId);
+    if (record.status !== "READY" || !record.playlistObjectKey) {
+      throw new CallRecordingError("Esta grabación todavía no se puede reproducir.", 409);
+    }
+    const { playlistManifest = null, playlistUrlError = null } = await withPlayback(record);
+    return { id: record.id, playlistManifest, playlistUrlError };
   }
 
   function nsToMs(ns) {
@@ -512,5 +555,5 @@ export function createCallRecordingService({
     return cleaned;
   }
 
-  return { startRecording, stopRecording, listRecordings, renameRecording, deleteRecording, reconcileActiveRecordings, cleanupExpiredRecordings };
+  return { startRecording, stopRecording, listRecordings, listAllRecordings, getRecordingPlayback, renameRecording, deleteRecording, reconcileActiveRecordings, cleanupExpiredRecordings };
 }
