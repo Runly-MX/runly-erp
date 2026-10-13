@@ -32,6 +32,10 @@ function makePrisma(overrides = {}) {
     // createTask bumps the project's taskCounter inside a transaction.
     project: {
       findFirst: async () => ({ companyId: 'co-1' }),
+      findUnique: async (args) => {
+        assert.deepEqual(args, { where: { id: 'proj-1' }, select: { companyId: true } })
+        return { companyId: 'co-1' }
+      },
       update: async () => ({ taskCounter: 1 }),
     },
     $transaction: async (fn) => fn(makePrisma(overrides)),
@@ -42,7 +46,9 @@ function makePrisma(overrides = {}) {
 describe('createTasksService', () => {
   describe('createTask', () => {
     it('creates task with trimmed title and calculated position', async () => {
-      const svc = createTasksService({ prisma: makePrisma() })
+      const events = []
+      const prisma = makePrisma({ domainEventOutbox: { create: async ({ data }) => { events.push(data); return data } } })
+      const svc = createTasksService({ prisma })
       const task = await svc.createTask('proj-1', 'user-1', {
         title: '  Nueva tarea  ',
         statusId: 'status-1',
@@ -50,6 +56,9 @@ describe('createTasksService', () => {
       assert.equal(task.title, 'Nueva tarea')
       assert.equal(task.position, 0)
       assert.equal(task.createdBy, 'user-1')
+      assert.equal(task.taskNumber, 1)
+      assert.deepEqual(events, [{ companyId: 'co-1', event: 'projects.task.created',
+        payload: { id: task.id, projectId: 'proj-1', title: 'Nueva tarea' } }])
     })
 
     it('throws 400 when title is empty', async () => {
