@@ -14,7 +14,8 @@ import { NoteSheet } from './NoteSheet.jsx'
 import { runly } from '../../../lib/runly'
 import { supabase } from '../../../lib/supabase'
 import { SupabaseYjsProvider } from '../lib/SupabaseYjsProvider.js'
-import { buildYDocSave, applyServerCatchUp } from '../lib/ydocPersistence.js'
+import { buildYDocSave } from '../lib/ydocPersistence.js'
+import { flushNoteSave } from '../lib/flushNoteSave.js'
 import { buildExtensions } from '../lib/editor-extensions.js'
 import { usePresence } from '../hooks/usePresence.js'
 import { shouldFocusDocumentEnd } from '../lib/clickBelowContent.js'
@@ -259,64 +260,10 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
   const lastTitleRef = useRef(note?.title ?? '')
   useEffect(() => { lastTitleRef.current = note?.title ?? '' }, [note?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const flushSave = useCallback(async () => {
-    if (readOnly || !note?.id || !token) return
-    if (savingRef.current) {
-      rerunRef.current = true
-      return
-    }
-    // Build both payloads synchronously: on note switch the engine's Y.Doc is
-    // destroyed right after this unmount flush starts, so nothing may be read
-    // from it after the first await.
-    const snap = pendingRef.current
-    const ydocSave = ydoc && provider && ydocDirtyRef.current
-      ? buildYDocSave(ydoc, provider.serverStateVector)
-      : null
-    if (!snap && !ydocSave) return
-    savingRef.current = true
-    pendingRef.current = null
-    ydocDirtyRef.current = false
-    try {
-      // The Y.js state goes first: it is the collaborative source of truth
-      // (the HTML column is a derived preview). The server MERGES it, so this
-      // save can never erase a collaborator's work.
-      if (ydocSave) {
-        try {
-          const res = await runly.notes.saveYDoc(note.id, ydocSave.update, token, {
-            stateVector: ydocSave.stateVector,
-          })
-          provider.serverStateVector = ydocSave.sentStateVector
-          applyServerCatchUp(ydoc, res)
-        } catch (err) {
-          ydocDirtyRef.current = true
-          console.error('[NoteEditor] Y.js state save failed:', err?.message ?? err)
-        }
-      }
-      if (snap) {
-        try {
-          await runly.notes.update(note.id, snap, token)
-          // While newer edits are still pending, a refetch would bring back
-          // this older title over the optimistic one; the next save refreshes.
-          if (!pendingRef.current) {
-            queryClient.invalidateQueries({ queryKey: ['notes'] })
-            queryClient.invalidateQueries({ queryKey: ['notes', note.id] })
-          }
-        } catch (err) {
-          console.warn('[NoteEditor] content autosave failed:', err?.message)
-          // Keep the snapshot so the next edit (or the unmount flush) retries.
-          if (!pendingRef.current) pendingRef.current = snap
-        }
-      }
-    } finally {
-      savingRef.current = false
-      // A flush requested while this one was in flight (switch to view, a new
-      // debounce) runs now, even without another edit.
-      if (rerunRef.current) {
-        rerunRef.current = false
-        queueMicrotask(() => flushRef.current())
-      }
-    }
-  }, [note?.id, token, readOnly, ydoc, provider, queryClient])
+  const flushSave = useCallback(() => flushNoteSave({
+    readOnly, noteId: note?.id, token, ydoc, provider, notes: runly.notes, queryClient,
+    state: { pendingRef, ydocDirtyRef, savingRef, rerunRef, flushRef },
+  }), [note?.id, token, readOnly, ydoc, provider, queryClient])
 
   // A reload or closed tab kills in-flight fetches and never runs the unmount
   // flush. keepalive requests survive the unload; the Y.js part is an
