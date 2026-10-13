@@ -98,6 +98,7 @@ infra/installer/.supabase-local/
 infra/installer/livekit/livekit.yaml
 infra/installer/livekit/Caddyfile
 infra/installer/livekit/reverse-proxy.nginx.conf
+infra/installer/docker-compose.hairpin.yml
 
 # Superpowers brainstorming scratch
 .superpowers/

@@ -372,6 +372,27 @@ sudo ufw allow 7881/tcp comment 'Runly LiveKit RTC TCP'
 sudo ufw allow 7882/udp comment 'Runly LiveKit RTC UDP'
 ```
 
+### Servidor detras de un modem sin NAT loopback
+
+Cuando el servidor esta en una red privada (IP publica en el modem + port
+forwarding), muchos modems de proveedor no hacen *NAT loopback*: una peticion
+desde la LAN hacia la IP publica la contesta el propio modem con el certificado
+autofirmado de su panel (`self-signed certificate` en la prueba API -> LiveKit).
+
+El instalador lo detecta solo, en cada ejecucion: si la URL publica de un
+dominio (`LIVEKIT_URL`, `RUNLY_APP_URL`, `RUNLY_API_URL`,
+`RUNLY_SUPABASE_PUBLIC_URL`) falla por TLS/red y el mismo dominio servido por el
+proxy local (`127.0.0.1`, SNI del dominio) tiene certificado valido, genera
+`docker-compose.hairpin.yml` con `extra_hosts: <dominio>:host-gateway` para la
+API, el worker y Collabora, y valida el TLS publico contra el proxy local. En
+instancias sin el problema no se genera nada, y el archivo se elimina en cuanto
+el loopback vuelve a funcionar. El proxy del host debe escuchar en todas las
+interfaces (no solo en la IP publica) para que los contenedores lo alcancen.
+
+Esto solo cubre los contenedores. Los navegadores de la LAN siguen necesitando
+un DNS local (modem, Pi-hole, AdGuard Home) que resuelva esos dominios a la IP
+privada del servidor, o un router que si haga NAT loopback.
+
 Nunca expongas `LIVEKIT_API_SECRET` al frontend. Runly solo entrega tokens de
 sala de corta duracion desde la API.
 

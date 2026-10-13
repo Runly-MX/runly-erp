@@ -22,6 +22,7 @@ import {
   resolveLiveKitConfig,
   toLiveKitHttpUrl,
 } from "./lib/livekit-config.mjs";
+import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME, probePublicHealth } from "./lib/hairpin-nat.mjs";
 import { buildTranscriberDatabaseUrl, generateTranscriberPassword } from "./lib/transcriber-db.mjs";
 import { resolveBackupConfig, getBackupComposeProfiles } from "./lib/backup-config.mjs";
 
@@ -39,6 +40,9 @@ const __dirname = path.dirname(__filename);
 const installerDir = __dirname;
 const composeFile = path.resolve(__dirname, "docker-compose.yml");
 const linuxComposeOverride = path.resolve(__dirname, "docker-compose.linux.yml");
+const hairpinComposeOverride = path.resolve(__dirname, HAIRPIN_OVERRIDE_FILENAME);
+// Public hostnames the router fails to loop back (see lib/hairpin-nat.mjs).
+let hairpinHosts = [];
 const supabaseComposeFile = path.resolve(__dirname, "supabase", "docker-compose.supabase.yml");
 const localEnvFile = path.resolve(__dirname, ".env.local");
 const supabaseWorkdir = path.resolve(__dirname, ".supabase-local");
@@ -584,12 +588,12 @@ async function validateLiveKitRuntime(config) {
     let lastError = "no response";
     for (let attempt = 1; attempt <= 24; attempt += 1) {
       try {
-        const response = await fetch(healthUrl, { signal: AbortSignal.timeout(10_000) });
-        if (response.ok) {
+        const response = await probePublicHealth(healthUrl, hairpinHosts);
+        if (response.ok && response.status >= 200 && response.status < 300) {
           console.log(`  Public TLS/WSS: ${config.publicUrl}`);
           return;
         }
-        lastError = `HTTP ${response.status}`;
+        lastError = response.ok ? `HTTP ${response.status}` : response.error;
       } catch (error) {
         lastError = error.message;
       }
@@ -1208,6 +1212,17 @@ async function main() {
   const { liveKit, office, supabase, transcriptionMode, miraiTtsMode, backup } = await writeLocalEnv(supabaseInput, identity);
   await validateLiveKitDns(liveKit);
   console.log(`Generated ${localEnvFile}`);
+  const generatedEnvContent = await fs.readFile(localEnvFile, "utf8");
+  const hairpin = await configureHairpinNat({
+    hostnames: collectPublicHttpsHosts({
+      domains: [liveKit.domain],
+      urls: ["LIVEKIT_URL", "RUNLY_APP_URL", "RUNLY_API_URL", "RUNLY_SUPABASE_PUBLIC_URL"]
+        .map((key) => parseEnvValue(generatedEnvContent, key)),
+    }),
+    overrideFile: hairpinComposeOverride,
+  });
+  hairpinHosts = hairpin.hostnames;
+  composeFiles = [...composeFiles, ...hairpin.composeArgs];
   if (supabase.mode === "selfhosted") {
     console.log(`  Supabase gateway (Kong): port ${supabase.ports.kongPort} (bind: ${process.env.RUNLY_PUBLIC_BIND_ADDR || "0.0.0.0"})`);
     console.log(`  Supabase Studio: 127.0.0.1:${supabase.ports.studioPort} (loopback only — use an SSH tunnel)`);

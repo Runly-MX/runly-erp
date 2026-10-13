@@ -33,6 +33,7 @@ import {
   resolveLiveKitConfig,
   toLiveKitHttpUrl,
 } from "./lib/livekit-config.mjs";
+import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME, probePublicHealth } from "./lib/hairpin-nat.mjs";
 import { buildTranscriberDatabaseUrl, generateTranscriberPassword } from "./lib/transcriber-db.mjs";
 import { resolveBackupConfig, getBackupComposeProfiles } from "./lib/backup-config.mjs";
 
@@ -57,9 +58,12 @@ const liveKitEgressConfigFile = path.resolve(__dirname, "livekit", "egress.yaml"
 const liveKitCaddyFile = path.resolve(__dirname, "livekit", "Caddyfile");
 const legacyLiveKitExternalProxyFile = path.resolve(__dirname, "livekit", "reverse-proxy.nginx.conf");
 const isLinux = process.platform === "linux";
-const composeFiles = isLinux && fsSync.existsSync(linuxComposeOverride)
+const hairpinComposeOverride = path.resolve(__dirname, HAIRPIN_OVERRIDE_FILENAME);
+let composeFiles = isLinux && fsSync.existsSync(linuxComposeOverride)
   ? ["-f", composeFile, "-f", linuxComposeOverride]
   : ["-f", composeFile];
+// Public hostnames the router fails to loop back (see lib/hairpin-nat.mjs).
+let hairpinHosts = [];
 
 const docsRepoOwner = (process.env.RUNLY_DOCS_REPO_OWNER ?? process.env.ATLAS_DOCS_REPO_OWNER) ?? "Runly-MX";
 const docsRepoName  = (process.env.RUNLY_DOCS_REPO_NAME ?? process.env.ATLAS_DOCS_REPO_NAME)  ?? "runly-erp";
@@ -870,12 +874,12 @@ async function validateLiveKitRuntime(config) {
   let lastError = "no response";
   for (let attempt = 1; attempt <= 24; attempt += 1) {
     try {
-      const response = await fetch(healthUrl, { signal: AbortSignal.timeout(10_000) });
-      if (response.ok) {
+      const response = await probePublicHealth(healthUrl, hairpinHosts);
+      if (response.ok && response.status >= 200 && response.status < 300) {
         console.log(`  Public TLS/WSS: ${config.publicUrl}`);
         return;
       }
-      lastError = `HTTP ${response.status}`;
+      lastError = response.ok ? `HTTP ${response.status}` : response.error;
     } catch (error) {
       lastError = error.message;
     }
@@ -1013,6 +1017,20 @@ async function main() {
     transcription = await configureTranscription(envFile);
     miraiTts = await configureMiraiTts(envFile);
     backup = await configureBackup(envFile);
+  }
+
+  if (await exists(envFile)) {
+    const envContent = await fs.readFile(envFile, "utf8");
+    const hairpin = await configureHairpinNat({
+      hostnames: collectPublicHttpsHosts({
+        domains: [liveKit?.domain],
+        urls: ["LIVEKIT_URL", "RUNLY_APP_URL", "RUNLY_API_URL", "RUNLY_SUPABASE_PUBLIC_URL"]
+          .map((key) => parseEnvValue(envContent, key)),
+      }),
+      overrideFile: hairpinComposeOverride,
+    });
+    hairpinHosts = hairpin.hostnames;
+    composeFiles = [...composeFiles, ...hairpin.composeArgs];
   }
 
   // ── 2. Validate Docker ─────────────────────────────────────────────────────
