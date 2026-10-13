@@ -1,7 +1,7 @@
 # Tiptap: plan de actualización coordinada
 
 Date: 2026-10-13
-Status: In Progress
+Status: Complete — local dependency scope; operational acceptance and Notes diagnostics pending
 Spec: docs/superpowers/specs/2026-10-13-tiptap-security-upgrade-design.md.
 
 ## File Structure Map
@@ -29,5 +29,5 @@ No módulos de producto, schema, cliente Supabase, CI o contenido persistido mod
 
 ## Task 4 — Cierre
 
-- [ ] Shared/build/React Doctor/privacidad/secrets/whitespace.
-- [ ] Evidence JSON/Markdown y trackers, límites operativos y commit.
+- [x] Shared 1617 pass/7 skip/0 fail, build web pasan; React Doctor completo registra un error previo y cinco warnings, no revisión limpia. Privacidad/secrets/whitespace verificados al cierre.
+- [x] Evidence JSON/Markdown y trackers; proveedor real, imágenes y autoguardado pendientes separados. Commit de cierre documental tras checks.

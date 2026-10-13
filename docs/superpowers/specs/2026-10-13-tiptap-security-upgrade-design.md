@@ -1,7 +1,7 @@
 # Actualización coordinada de Tiptap
 
 Date: 2026-10-13
-Status: Approved for autonomous local implementation
+Status: Complete — local dependency scope; operational acceptance pending
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md, Task 3.
 
 ## 1. Feature title

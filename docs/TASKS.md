@@ -7,6 +7,9 @@ Spec: `docs/superpowers/specs/2026-10-12-runly-stabilization-design.md`.
 Program: `docs/superpowers/plans/2026-10-12-runly-stabilization.md`.
 Current review: `docs/architecture/2026-10-13-stabilization-current-state.md` (dated evidence, independent scopes and operational acceptance matrix).
 
+- [x] Coordinated Tiptap security upgrade: 21 direct dependencies and 43 family packages at 3.30.5, y-tiptap 3.0.7/model 1.25.11; unrelated resolutions preserved (4bfba14c). Verified: 2026-10-13, five directed tests, Notes/React/local Y.Doc collaboration in Chrome, shared 1617 pass/7 skip/0 fail and web build. Audit 27 remains open in ten families. Evidence: `docs/architecture/2026-10-13-tiptap-security-results.md` / `.json`.
+- [ ] Notes autosave/render purity: React Doctor found a pre-existing ref write during render plus five warnings in unchanged consumers. Separate scope needs discarded-render, note-switch and unmount regressions; real provider/image interactions also remain unaccepted. See Tiptap results.
+
 - [x] Authentication cache: middleware extracted (5f27efce); whole-token SHA256 key and remote expiry/configuration clamp (e08c07aa). Verified: 2026-10-13 (suffix/expiry failures reproduced; middleware 12/12, related tests 49/49; final API 2386 pass/2 skip/0 fail). Unknown expiry is not cached; authority still determines identity. Real revocation, issuer/audience/principal/rotation policies remain open in `docs/architecture/2026-10-13-auth-cache-verification.md`.
 
 - [x] Local JWT contract: require valid HS256 header/claim object/finite numeric exp, validate optional nbf and preserve ten-second leeway and guest signer. Verified: 2026-10-13, c11cefe3 (baseline JWT/guests 11 pass/8 fail, corrected 19/19; related group 37/37; API 2374 pass/2 skip/0 fail). Cache/fallback, issuer/audience, principal separation and revocation remain open in `docs/architecture/2026-10-13-authentication-review.md`.

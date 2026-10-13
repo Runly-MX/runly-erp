@@ -1,0 +1,147 @@
+{
+  "date": "2026-10-13",
+  "sourceRevision": "4bfba14c6be955eba9fb8cc8d9de395844cee651",
+  "scope": "local dependency upgrade",
+  "packages": {
+    "directExact": 21,
+    "familyPackages": 43,
+    "tiptap": "3.30.5",
+    "yTiptap": "3.0.7",
+    "prosemirrorModel": "1.25.11",
+    "prosemirrorView": "1.42.3"
+  },
+  "unrelatedResolutionsPreserved": true,
+  "frozenInstall": {
+    "passed": true,
+    "scripts": false
+  },
+  "baseline": {
+    "pass": 1,
+    "fail": 3,
+    "parserTimeoutMs": 3000
+  },
+  "directed": {
+    "tests": 5,
+    "pass": 5,
+    "fail": 0
+  },
+  "shared": {
+    "tests": 1624,
+    "pass": 1617,
+    "skip": 7,
+    "fail": 0,
+    "durationMs": 189877.0672
+  },
+  "webBuild": {
+    "passed": true,
+    "durationSeconds": 7.54,
+    "existingChunkWarning": true
+  },
+  "audit": {
+    "before": 29,
+    "after": 27,
+    "severities": {
+      "info": 0,
+      "low": 1,
+      "moderate": 13,
+      "high": 13,
+      "critical": 0
+    },
+    "families": [
+      "@hono/node-server",
+      "braces",
+      "csv-parse",
+      "deepmerge-ts",
+      "fast-uri",
+      "katex",
+      "mysql2",
+      "nodemailer",
+      "uuid",
+      "valibot"
+    ],
+    "acceptedExceptions": []
+  },
+  "reactDoctor": {
+    "version": "0.9.18",
+    "analyzedFiles": [
+      "src/modules/runly.notes/components/NoteEditor.jsx",
+      "src/modules/runly.notes/lib/editor-extensions.js",
+      "src/modules/runly.notes/lib/extensions/AnnotatableImage.jsx"
+    ],
+    "complete": true,
+    "skippedChecks": [],
+    "summary": {
+      "errorCount": 1,
+      "warningCount": 5,
+      "affectedFileCount": 1,
+      "totalDiagnosticCount": 6,
+      "score": null,
+      "scoreLabel": null
+    },
+    "diagnostics": [
+      {
+        "filePath": "src/modules/runly.notes/components/NoteEditor.jsx",
+        "line": 177,
+        "rule": "no-high-complexity-react-function",
+        "severity": "warning"
+      },
+      {
+        "filePath": "src/modules/runly.notes/components/NoteEditor.jsx",
+        "line": 177,
+        "rule": "no-giant-component",
+        "severity": "warning"
+      },
+      {
+        "filePath": "src/modules/runly.notes/components/NoteEditor.jsx",
+        "line": 396,
+        "rule": "no-ref-current-in-render",
+        "severity": "error"
+      },
+      {
+        "filePath": "src/modules/runly.notes/components/NoteEditor.jsx",
+        "line": 499,
+        "rule": "exhaustive-deps",
+        "severity": "warning"
+      },
+      {
+        "filePath": "src/modules/runly.notes/components/NoteEditor.jsx",
+        "line": 662,
+        "rule": "click-events-have-key-events",
+        "severity": "warning"
+      },
+      {
+        "filePath": "src/modules/runly.notes/components/NoteEditor.jsx",
+        "line": 662,
+        "rule": "no-static-element-interactions",
+        "severity": "warning"
+      }
+    ],
+    "consumersUnchanged": true,
+    "clean": false
+  },
+  "pending": [
+    "real collaboration provider and reconnection",
+    "image interactions",
+    "Notes autosave render purity",
+    "remaining advisory families",
+    "deferred real B2 rehearsal",
+    "deferred reproducible CI",
+    "deferred company transport corrections"
+  ],
+  "deployed": false,
+  "published": false,
+  "repositoryChecks": {
+    "privacy": {
+      "files": 4353,
+      "findings": 0
+    },
+    "secrets": {
+      "gitleaks": "8.30.1",
+      "findings": 0,
+      "scope": "tracked-file snapshot, not history"
+    },
+    "whitespace": {
+      "passed": true
+    }
+  }
+}
