@@ -1,7 +1,7 @@
 # Reconciliación de contratos de regresión
 
 Date: 2026-10-12
-Status: In Progress
+Status: Complete
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md (Task 3)
 
 ## 1. Feature title
@@ -10,7 +10,7 @@ Reconciliar pruebas históricas con contratos actuales de Growth, campos condici
 
 ## 2. Status
 
-In Progress. Continuación autorizada de Task 3; transporte empresarial y simulacro real B2 diferidos por el usuario.
+Complete. Continuación autorizada de Task 3; transporte empresarial y simulacro real B2 diferidos por el usuario. Verified: 2026-10-12 (Growth 14/14, conditional/layout/nullable 19/19, scaffolder 67/67; detalles y límites en regression-ledger).
 
 ## 3. Context
 

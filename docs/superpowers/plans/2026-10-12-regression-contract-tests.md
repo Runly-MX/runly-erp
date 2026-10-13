@@ -1,7 +1,7 @@
 # Reconciliación de pruebas: plan
 
 Date: 2026-10-12
-Status: In Progress
+Status: Complete
 Spec: docs/superpowers/specs/2026-10-12-regression-contract-tests-design.md
 
 ## File Structure Map
@@ -20,19 +20,21 @@ Modify:
 - [x] Revisar nullable-validation y scaffolder; conservar código de producción.
 - [x] Iniciar refresh general de baseline y auditoría de dependencias (resultados pendientes).
 
-## Task 2 — Contratos [IN PROGRESS]
+## Task 2 — Contratos [COMPLETE]
 
-- [ ] Actualizar navegación exacta de Growth según contrato actual.
-- [ ] Ejecutar schemas generados y visibility para null/ausencia/valor requerido.
-- [ ] Reproducir scaffolder y comprobar inventario exacto, sintaxis .js y documentos requeridos.
+- [x] Actualizar navegación exacta de Growth según contrato actual.
+- [x] Ejecutar schemas generados y visibility para null/ausencia/valor requerido.
+- [x] Reproducir scaffolder y comprobar inventario exacto, sintaxis .js y documentos requeridos.
 
 Validation: node --test apps/api/src/manifests/official/__tests__/storefront-capture-foundation-contract.test.js packages/module-compiler/src/__tests__/conditional-layout.test.js packages/module-compiler/src/__tests__/nullable-validation.test.js scripts/scaffold/__tests__/e2e.test.js
 
 ## Task 3 — Evidencia y commits
 
-- [ ] Suites dirigidas y catálogo RBAC, privacidad, diff check.
-- [ ] Registrar ledger del baseline y causas, dejando fallos ajenos pendientes.
-- [ ] Un commit por familia verificada; no publicación ni despliegue.
+- [x] Suites dirigidas y catálogo RBAC, privacidad, diff check.
+- [x] Registrar ledger del baseline y causas, dejando fallos ajenos pendientes.
+- [x] Un commit por familia verificada; no publicación ni despliegue.
+
+Verified: 2026-10-12. Growth: 14/14; conditional/layout/nullable: 19/19; scaffolder: 67/67. RBAC 321/321; privacidad y whitespace pasan. En update, campos originalmente requeridos conservan rechazo de null; se precisó el spec tras contrastar la prueba nullable-validation. No se cambió generador/servidor para hacer pasar expectativas.
 
 ## Rollback
 

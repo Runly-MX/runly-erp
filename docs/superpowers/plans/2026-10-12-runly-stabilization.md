@@ -75,6 +75,8 @@ Discovery locations: `packages/sdk/src/index.js`, `company-fetch.js`, SDK compan
 
 Discovery: 2026-10-12, all nine current findings classified in `docs/architecture/2026-10-12-company-transport-findings.md`. Six public/asset contracts and three business calls that already send company headers but lack a post-body check. Behavioral proofs, code correction and narrow guardrail reconciliation remain pending; check:company-scope still exits 1.
 
+Deferred: 2026-10-12 by user instruction; continue independent workstreams.
+
 Validation: SDK company-fetch, identity/registration and focused screen tests; React Doctor for changed React scope and web build when React changes. `pnpm check:company-scope` must pass without broad directory exclusions.
 
 Commits: SDK race + tests; identity catalog + tests; hook fix; reviewed transport guardrail reconciliation. Do not combine them solely to make one green result.
@@ -83,11 +85,11 @@ Commits: SDK race + tests; identity catalog + tests; hook fix; reviewed transpor
 
 Dependencies: Task 2 for confirmed regression families. Other classification may proceed earlier.
 
-- [ ] Build a failure ledger: test, reproducible trigger, true regression/obsolete test/generated drift, owner and resolution evidence.
+- [x] Build a failure ledger: test, reproducible trigger, true regression/obsolete test/generated drift, owner and resolution evidence. Verified: 2026-10-12 (`docs/architecture/2026-10-12-regression-ledger.md`; refreshed bounded API/shared baseline, omissions and unassigned owner recorded).
 - [ ] Refresh project mocks against the service's real authorization contract.
-- [ ] Validate Growth navigation intent; reconcile the assertion with that intent.
-- [ ] Validate conditional-field nullability semantics before changing compiler/test expectations.
-- [ ] Update scaffolder expectations to its supported files; syntax-check JavaScript rather than Markdown.
+- [x] Validate Growth navigation intent; reconcile the assertion with that intent. Verified: 2026-10-12 (14/14 manifest tests, RBAC 321/321; 34e308d6).
+- [x] Validate conditional-field nullability semantics before changing compiler/test expectations. Verified: 2026-10-12 (19/19 conditional/layout/nullable tests; 759e1fd7; generated schemas executed, required update values retain non-nullability).
+- [x] Update scaffolder expectations to its supported files; syntax-check JavaScript rather than Markdown. Verified: 2026-10-12 (67/67 scaffold tests; ba092bc4; exact 15-file inventory and 12 JavaScript syntax checks).
 - [ ] Reconcile runtime catalog, public library docs and exported Dev Kit with lockfile/current exports. Read preview-runtime's actual external map; the QR test currently checks the old location.
 - [ ] Capture current `pnpm audit --json`; classify by runtime/development, version, reachable input and patch feasibility.
 - [ ] Patch one compatible dependency family per commit, with targeted regressions and packed-package verification where relevant. Significant major upgrades need additional design.
