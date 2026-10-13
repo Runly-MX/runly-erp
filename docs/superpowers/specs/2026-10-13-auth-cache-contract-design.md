@@ -1,7 +1,7 @@
 # Identidad y vigencia de la caché de autenticación
 
 Date: 2026-10-13
-Status: Approved for autonomous local implementation
+Status: Complete (local verification)
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md, Task 6.
 
 ## 1. Feature title
@@ -121,3 +121,5 @@ Revertir hardening o extracción por commit y reiniciar desde código previo. Si
 ## 28. Future enhancements
 
 Issuer/audience, tipo de sub/separación invitado, revocación sensible, rotación/JWK y CORS con scopes propios. Readiness y recuperación MirAI pendientes. CI/B2/transporte continúan diferidos.
+
+Verified: 2026-10-13, extracción 5f27efce, hardening e08c07aa. Middleware 12/12, grupo relacionado 49/49; API 2386 pass/2 skip/0 fail. Sin dependencias o sesiones reales.

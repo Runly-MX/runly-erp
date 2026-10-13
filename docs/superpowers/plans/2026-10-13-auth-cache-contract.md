@@ -1,7 +1,7 @@
 # Middleware de autenticación: extracción y caché
 
 Date: 2026-10-13
-Status: In Progress
+Status: Complete (local verification)
 Spec: docs/superpowers/specs/2026-10-13-auth-cache-contract-design.md.
 
 ## File Structure Map
@@ -29,5 +29,7 @@ Sin dependencies, frontend, configuración real o base de datos.
 
 ## Task 4 — Cierre
 
-- [ ] Regresión API, syntax/privacy/secrets/whitespace.
-- [ ] Evidence doc y riesgos abiertos actualizados; commit. Sin aceptación real de revocación.
+- [x] API 2388 tests, 2386 pass/2 skip/0 fail (208.47 s); syntax/privacy/secrets/whitespace.
+- [x] auth-cache-verification.md y authentication-review.md actualizados; commit de cierre. Sin aceptación real de revocación.
+
+Node 22.12.0, timeout 60000 ms, concurrency 8 y force-exit en barrido API; globs y omisiones del regression-ledger. Grupo dirigido 49/49 termina sin force-exit. Se revisaron otros usos del literal auth:token: y sólo la factory lo construye. Las verificaciones shared/web de dependencias son evidencia de su propio scope, no una repetición tras esta extracción de API.

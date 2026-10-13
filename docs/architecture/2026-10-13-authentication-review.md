@@ -3,6 +3,8 @@
 Date: 2026-10-13
 Status: contrato local corregido; aceptación global de autenticación abierta.
 Source: c11cefe3.
+
+Cache follow-up: extracción 5f27efce y hardening e08c07aa. Key y TTL corregidos con 12/12 fixtures HTTP, grupo relacionado 49/49 y API 2386 pass/2 skip/0 fail; ver auth-cache-verification.md. Emisor/audiencia/principal/revocación permanecen abiertos.
 Spec/plan: 2026-10-13-local-jwt-contract-design.md / 2026-10-13-local-jwt-contract.md.
 
 ## Cambio del contrato local
@@ -40,8 +42,8 @@ por HTTP contra una instancia real ni se alteraron sus decisiones.
 
 | Frente | Evidencia de source | Siguiente criterio de cierre |
 |---|---|---|
-| Identidad de caché | Cache key usa los últimos 32 caracteres del token, sin revalidación en un hit | Clave derivada de todo el token; dos entradas con el mismo sufijo no comparten autenticación. Test del middleware con getUser/cache simulados y solicitudes Hono |
-| TTL del fallback | getUser exitoso almacena userId durante TTL.USER_CONTEXT; no lo limita explícitamente a exp | Clamp conservador a vigencia conocida y configuración; tokens próximos a vencer no mantienen identidad después del límite. Reloj controlado; no autorizar por claims sin verificar |
+| Identidad de caché | Corregido en e08c07aa: SHA256 del token completo, mismo prefix | Fixture con payload manipulado y sufijo conservado recibe 401; no aceptación real de revocación por un hit |
+| TTL del fallback | Corregido en e08c07aa: exp/buffer y máximo configurado; vigencia desconocida no cachea | Fixture de vencimiento revalida y deniega; identidad proviene de getUser, no de exp decodificado |
 | Issuer/audience | Verificador local no comprueba iss/aud | Inventario de emisores/algoritmos y tokens de usuario/invitado; configuración por instalación y fixtures. No imponer valores de nube a self-hosted |
 | Principal/claims | El middleware toma sub truthy de payload válido; el helper devuelve claims sin inferir permisos | Definir tipo/uso de sub y separar usuario de token Realtime de invitado; conservar restricciones de perfiles/empresas existentes |
 | Revocación | Firma local y caché no consultan auth.sessions en cada operación | Política explícita para operaciones sensibles, TTL de propagación y sesión revocada; pruebas locales de fallo/negación antes de aceptación real |
@@ -58,12 +60,10 @@ por sí sola. [Sesiones](https://supabase.com/docs/guides/auth/sessions).
 
 ## Siguiente scope independiente recomendado
 
-Extraer el middleware a una factory comprobable sin importar index.js, que
-arranca servidor y dependencias. Primero conservar su comportamiento con
-fixtures Hono; después reemplazar el key de sufijo y limitar el TTL del fallback
-con reloj fijo y pruebas de manipulación, expiración y rotación. Mantener mensajes
-externos y no registrar tokens. Esto no exige adoptar ahora una política comercial
-de revocación, ni consultar auth.sessions real.
+La extracción, key y TTL ya están implementados en el follow-up con fixtures
+Hono, sin importar index.js, iniciar servidor o consultar auth.sessions real.
+Mensajes externos conservados. Rotación/asimétricos reales y política de
+revocación sensible continúan como siguiente diseño independiente.
 
 Las políticas de sesiones sensibles/issuer/audience necesitan un diseño separado
 con valores de configuración y compatibilidad claros. La revisión local puede
