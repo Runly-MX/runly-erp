@@ -37,7 +37,7 @@ Resultado: baseline 3/4; corregido 4/4. Sharp 0.35.5 carga librsvg 2.63.2 en Win
 ## Task 5 — brace-expansion
 
 - [ ] Resolver copias usadas por minimatch/globs, probar contratos y límites del advisory.
-- [ ] Overrides 1.1.21 y 2.1.7; diff/frozen/test/audit; commit.
+- [x] Overrides 1.1.21 y 2.1.7; diff exclusivo, frozen/tests pasan. Audit 34 (0 cr?ticas, 17 altas, 16 moderadas, 1 baja). Commit por familia.
 
 ## Task 6 — Cierre
 
