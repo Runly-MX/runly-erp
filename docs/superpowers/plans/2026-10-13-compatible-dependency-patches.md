@@ -18,9 +18,11 @@ Temporales y logs quedan en ubicaciones locales no versionadas. No workflow CI o
 
 ## Task 2 — Sharp [IN PROGRESS]
 
-- [ ] Crear test de librsvg corregida y pipeline SVG/PNG/JPEG/inválido; baseline antes del cambio.
-- [ ] Actualizar Sharp 0.35.5 y closure nativa; revisar diff y frozen install.
-- [ ] Tests dirigidos y audit; commit de familia.
+- [x] Crear test de librsvg corregida y pipeline SVG/PNG/JPEG/inválido; baseline antes del cambio.
+- [x] Actualizar Sharp 0.35.5 y closure nativa; revisar diff y frozen install.
+- [x] Tests dirigidos y audit; commit de familia.
+
+Resultado: baseline 3/4; corregido 4/4. Sharp 0.35.5 carga librsvg 2.63.2 en Windows. Frozen install pasa; comparaci?n YAML confirma ninguna resoluci?n ajena cambi?. Audit 43 (0 cr?ticas, 21 altas, 19 moderadas, 3 bajas). Linux y explotaci?n no probados.
 
 ## Task 3 — Hono
 
