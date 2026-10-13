@@ -56,7 +56,9 @@ test('remote capability is restricted to main, selected origin/app path, and min
   assert.equal(desktop.build.frontendDist, '../native-host/dist')
   const windowsRemote = JSON.parse(readFileSync(new URL('../../../src-tauri/capabilities/desktop-remote.json', import.meta.url)))
   assert.equal(windowsRemote.local, false)
-  assert.deepEqual(windowsRemote.remote.urls, ['https://*/app/*'])
+  // WebView2 IPC supplies the Origin header, without the document's /app/ path.
+  // Rust checks the active origin AND /app/ path on every host command.
+  assert.deepEqual(windowsRemote.remote.urls, ['https://*'])
   assert.ok(!windowsRemote.permissions.some((p) => /sql|store|shell|allow-host-connect|allow-host-confirm-origin|allow-host-servers/.test(p)))
 })
 

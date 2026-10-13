@@ -1,0 +1,22 @@
+/* First paint while the main module initializes the host and instance config. */
+.runly-bootstrap {
+  --boot-background: 220 30% 98%;
+  --boot-foreground: 222 47% 11%;
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: 24px;
+  box-sizing: border-box;
+  background: hsl(var(--background, var(--boot-background)));
+  color: hsl(var(--foreground, var(--boot-foreground)));
+  font: 14px system-ui, sans-serif;
+}
+.dark .runly-bootstrap {
+  --boot-background: 222 47% 6%;
+  --boot-foreground: 210 40% 98%;
+}
+body:has(.runly-bootstrap) { margin: 0; }
+.boot-logo-dark, .dark .boot-logo-light { display: none; }
+.dark .boot-logo-dark { display: block; }

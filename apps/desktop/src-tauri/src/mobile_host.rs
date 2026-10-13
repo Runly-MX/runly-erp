@@ -737,7 +737,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     *app.state::<Arc<HostState>>().fallback.lock().unwrap() = Some(window.url()?);
     #[cfg(desktop)]
     {
-        use tauri::menu::{Menu, MenuItem};
+        use tauri::menu::{Menu, MenuItem, Submenu};
         let instances =
             MenuItem::with_id(app, "instances", "Cambiar instancia", true, None::<&str>)?;
         let device = MenuItem::with_id(
@@ -747,7 +747,8 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             true,
             None::<&str>,
         )?;
-        app.set_menu(Menu::with_items(app, &[&instances, &device])?)?;
+        let menu = Submenu::with_items(app, "Runly", true, &[&instances, &device])?;
+        app.set_menu(Menu::with_items(app, &[&menu])?)?;
         app.on_menu_event(move |app, event| {
             let state = app.state::<Arc<HostState>>();
             if let Some(mut target) = state.fallback.lock().unwrap().clone() {
@@ -768,6 +769,30 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(desktop)]
+    #[test]
+    fn desktop_acl_accepts_webview2_origin_without_document_path() {
+        use tauri::utils::acl::ExecutionContext;
+        let capability: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/desktop-remote.json")).unwrap();
+        let pattern = capability["remote"]["urls"][0].as_str().unwrap();
+        let context = ExecutionContext::Remote {
+            url: pattern.parse().unwrap(),
+        };
+        let ExecutionContext::Remote { url } = context else {
+            unreachable!()
+        };
+        assert!(url.test(&Url::parse("https://tenant.example.com/").unwrap()));
+        assert!(!url.test(&Url::parse("http://tenant.example.com/").unwrap()));
+        assert!(!allowed_remote(
+            &Url::parse("https://tenant.example.com/").unwrap(),
+            "https://tenant.example.com"
+        ));
+        assert!(!allowed_remote(
+            &Url::parse("https://other.example.com/app/").unwrap(),
+            "https://tenant.example.com"
+        ));
+    }
     #[test]
     fn registry_switch_and_remove_preserve_other_instances() {
         let mut registry = ServerRegistry::default();

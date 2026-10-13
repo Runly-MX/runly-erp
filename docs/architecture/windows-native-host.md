@@ -1,6 +1,6 @@
 # Runly para Windows
 
-El instalador NSIS 0.3.1 instala para el usuario actual, en español, y descarga
+El instalador NSIS 0.3.2 instala para el usuario actual, en español, y descarga
 WebView2 si falta. La pantalla inicial se incluye en el instalador y comparte
 el administrador de instancias con Android. Windows añade un diseño de dos
 paneles y controles propios del dispositivo.
@@ -48,7 +48,18 @@ ventana. Los comandos de almacenamiento, SQL y ejecución de procesos no están
 expuestos. La caché SQLite exclusiva del antiguo desktop queda deshabilitada en
 el host remoto; la caché web sigue disponible. El listado de instancias solo se
 puede consultar o modificar desde la pantalla local. Los controles nativos
-verifican además el origen activo, aunque la ACL permita `/app/*` en HTTPS.
+verifican además el origen activo y la ruta `/app/` del documento. En Windows,
+la ACL declara orígenes HTTPS: WebView2 envía el encabezado `Origin` sin la ruta
+del documento. Restringir esa ACL a `/app/*` bloqueaba `host_info`, dejaba la web
+en blanco y disparaba el watchdog. La navegación y cada comando propio del host
+siguen comprobando el origen guardado y `/app/`; no se habilitan SQL ni acceso a
+la lista local desde páginas remotas.
+
+El frontend muestra un indicador antes de inicializar la conexión y una pantalla
+de recuperación si el arranque falla. El menú de usuario mantiene el reporte de
+problemas en todos los tamaños, la descarga Windows aunque se haya descartado
+antes, y la preparación de la PWA del módulo sin depender de recibir el prompt.
+Desde el host nativo, instalar la PWA abre el módulo en el navegador del sistema.
 
 ## Dispositivos
 

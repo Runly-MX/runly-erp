@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { isNativeMobile } from "@runly/core/native-runtime";
-import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug, Server, ShieldCheck } from "lucide-react";
+import { ChevronDown, User, Settings, LogOut, Monitor, Download, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug, Server, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { native } from "../native/index.js";
 import { useThemeStore } from "../stores/theme";
@@ -18,32 +18,16 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Button,
   requestBugReport,
 } from "@runly/ui";
 import { useAuth } from "../auth/AuthProvider";
 import { RUNLY_DESKTOP_DOWNLOAD_URL, RUNLY_MOBILE_DOWNLOAD_URL } from "../lib/appConfig.js";
 import { getMobilePwaInstallMode } from "../lib/pwaInstallUi.js";
 
-const DESKTOP_REMINDER_KEY = "runly_desktop_reminder_dismissed_at";
-const REMINDER_INTERVAL_MS = 2.5 * 24 * 60 * 60 * 1000;
-
-function shouldShowDesktopReminder() {
-  try {
-    const ts = localStorage.getItem(DESKTOP_REMINDER_KEY);
-    if (!ts) return true;
-    return Date.now() - Number(ts) > REMINDER_INTERVAL_MS;
-  } catch {
-    return false;
-  }
-}
-
-function dismissDesktopReminder() {
-  try {
-    localStorage.setItem(DESKTOP_REMINDER_KEY, String(Date.now()));
-  } catch { /* ignore */ }
-}
-
 function getDevicePlatform() {
+  const platform = globalThis.window?.__RUNLY_NATIVE_HOST__?.platform;
+  if (["windows", "android", "ios"].includes(platform)) return platform;
   if (typeof navigator === "undefined") return "unknown";
   const ua = navigator.userAgent;
   if (/iPhone|iPod/i.test(ua)) return "ios";
@@ -85,7 +69,6 @@ export function UserMenu({
   const chatUnreadCount = useChatUnreadCount();
   const { activeCompany } = useActiveCompany();
   const navigate = useNavigate();
-  const [showReminder, setShowReminder] = useState(() => shouldShowDesktopReminder());
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
   const [openingNativeSettings, setOpeningNativeSettings] = useState(false);
 
@@ -103,8 +86,6 @@ export function UserMenu({
 
   function handleDesktopDownload() {
     window.open(RUNLY_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer");
-    dismissDesktopReminder();
-    setShowReminder(false);
   }
 
   async function handleNativeSettings(section) {
@@ -119,10 +100,14 @@ export function UserMenu({
     }
   }
 
-  function handleDismissReminder(e) {
-    e.stopPropagation();
-    dismissDesktopReminder();
-    setShowReminder(false);
+  function handlePwaInstall() {
+    if (native.isRemoteHost()) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("pwa-install", "1");
+      native.openExternal(url.href).catch(() => toast.error("No se pudo abrir el navegador para instalar la PWA."));
+      return;
+    }
+    onInstall?.();
   }
 
   function handleReportBug() {
@@ -142,11 +127,11 @@ export function UserMenu({
   const firstName = userProfile?.firstName ?? "Usuario";
 
   // Module PWA installation and the Android APK are independent actions.
-  const showMobileInstall = mobileInstallMode !== null;
+  const showMobileInstall = mobileInstallMode !== null && !native.isRemoteHost();
   const showAndroidDownload = platform === "android" && !nativeMobile;
-  const showWindowsApp = isWindows && showReminder;
+  const showWindowsApp = isWindows;
   // The install group above already covers the module install on mobile.
-  const showModuleInstallItem = canInstall && Boolean(activeModuleKey) && !showMobileInstall;
+  const showModuleInstallItem = !standalone && !showMobileInstall;
 
   return (
     <DropdownMenu>
@@ -175,7 +160,7 @@ export function UserMenu({
           />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60">
+      <DropdownMenuContent align="end" className="w-64 max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
         {/* User info header */}
         <div className="px-2 py-2.5 border-b border-[hsl(var(--border))] mb-1">
           <p className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">
@@ -273,24 +258,18 @@ export function UserMenu({
                   <Monitor size={12} className="text-[hsl(var(--muted-foreground))] shrink-0" />
                   <p className="text-xs font-medium text-[hsl(var(--foreground))]">App de escritorio</p>
                 </div>
-                <button
-                  onClick={handleDismissReminder}
-                  className="flex items-center justify-center h-4 w-4 rounded-full text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0"
-                  aria-label="Descartar"
-                >
-                  <X size={10} />
-                </button>
               </div>
               <p className="text-xs text-[hsl(var(--muted-foreground))] leading-snug">
                 Descarga la app nativa para Windows y conéctala a esta instancia.
               </p>
-              <button
+              <Button
+                type="button"
                 onClick={handleDesktopDownload}
-                className="flex items-center gap-1.5 w-full rounded-md px-2 py-1.5 text-xs font-medium bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] hover:opacity-90 transition-opacity"
+                className="w-full justify-start text-xs"
               >
                 <Download size={11} />
                 Descargar para Windows
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -346,13 +325,18 @@ export function UserMenu({
               </DropdownMenuItem>
             )}
             {showModuleInstallItem && (
+              <>
               <DropdownMenuItem
-                onClick={onInstall}
+                onClick={handlePwaInstall}
+                disabled={!activeModuleKey}
                 className="gap-2 cursor-pointer"
               >
                 <Download size={14} />
-                Instalar modulo como app
+                {!activeModuleKey ? "Instalar módulo como PWA" : native.isRemoteHost() ? "Instalar PWA en el navegador" : canInstall ? "Instalar módulo como PWA" : "Preparar módulo como PWA"}
               </DropdownMenuItem>
+              {manualInstallReady && !canInstall && !native.isRemoteHost() && <p className="px-2 pb-2 text-xs text-muted-foreground leading-relaxed">Usa el menú de Chrome o Edge para instalar este módulo como aplicación.</p>}
+              {!activeModuleKey && <p className="px-2 pb-2 text-xs text-muted-foreground leading-relaxed">Abre primero el módulo que quieres instalar.</p>}
+              </>
             )}
           </>
         )}
@@ -379,7 +363,7 @@ export function UserMenu({
           </>
         )}
 
-        <div className="lg:hidden">
+        <div>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleReportBug} className="gap-2 cursor-pointer">
             <Bug size={14} />

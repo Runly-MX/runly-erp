@@ -24,7 +24,7 @@
   ],
   "remote": {
     "urls": [
-      "https://*/app/*"
+      "https://*"
     ]
   }
 }

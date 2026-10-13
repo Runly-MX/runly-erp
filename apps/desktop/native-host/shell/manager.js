@@ -31,7 +31,7 @@ export function createInstanceManager(call = invoke) {
         update({ info: await call('host_info') })
         await refresh()
         update({ phase: 'manager' })
-        if (hash === '#failed') { update({ error: 'No se pudo abrir la instancia. Puedes reintentar o elegir otra.' }); return }
+        if (hash === '#failed') { update({ error: 'La URL se verificó, pero la aplicación no terminó de cargar. Reintenta o revisa que Runly y la web estén actualizados.', diagnostic: 'WEB_BOOT_TIMEOUT' }); return }
         if (!hash && snapshot.registry.activeOrigin) await connect(null)
       })
     },
