@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  valibot@>=1.0.0 <1.4.2: 1.4.2
   fast-uri@>=3.0.0 <3.1.8: 3.1.8
   '@hono/node-server@<1.19.15': 1.19.17
   concurrently>shell-quote: 1.11.0
@@ -721,6 +722,15 @@ importers:
         version: 4.6.5
 
 packages:
+
+  valibot@1.4.2:
+    resolution:
+      integrity: sha512-gjdCvJ6d3RyHAneqxMYMW9QMCwYMb3jpOO0IyHZV1bnRHFBHrX3VkIILt5XYR0WhwHiH7Mty8ovuPZ/O3gamrg==
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   fast-uri@3.1.8:
     resolution:
@@ -6746,14 +6756,6 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
-  valibot@1.2.0:
-    resolution: {integrity: sha512-mm1rxUsmOxzrwnX5arGS+U4T25RdvpPjPN4yR0u9pUBov9+zGVtO84tif1eY4r6zWxVxu3KzIyknJy3rxfRZZg==}
-    peerDependencies:
-      typescript: '>=5'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-
   vfile-message@4.0.3:
     resolution: {integrity: sha512-QTHzsGd1EhbZs4AsQ20JX1rC3cOlt/IWJruk893DfLRr57lcnOeMaWG4K0JrRta4mIJZKth2Au3mM3u03/JWKw==}
 
@@ -8433,7 +8435,7 @@ snapshots:
       proper-lockfile: 4.1.2
       remeda: 2.33.4
       std-env: 3.10.0
-      valibot: 1.2.0
+      valibot: 1.4.2
       zeptomatch: 2.1.0
     transitivePeerDependencies:
       - typescript
@@ -14107,7 +14109,7 @@ snapshots:
       kleur: 4.1.5
       sade: 1.8.1
 
-  valibot@1.2.0: {}
+  valibot@1.4.2: {}
 
   vfile-message@4.0.3:
     dependencies:
