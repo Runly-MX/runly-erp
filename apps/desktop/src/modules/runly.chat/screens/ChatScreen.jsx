@@ -4,7 +4,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import "../chat-theme.css";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ChatWindow } from "../components/ChatWindow";
-import { AllRecordingsView } from "../components/AllRecordingsView";
+import { ChatMediaView } from "../components/media/ChatMediaView";
 import { useChatConversations, useArchivedConversations } from "../hooks/useChatConversations";
 import { useEnsureMiraiConversation } from "../hooks/useMirAI";
 import { ChatPreferencesProvider, useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPreferences";
@@ -31,10 +31,13 @@ function ChatScreenInner() {
     return match ? match[1] : null;
   }, [wildcard]);
 
-  // /chat/inbox?view=recordings — a query param, not a new sub-path, because
-  // the module's navigation only authorizes /chat/inbox(/...).
-  const recordingsRoute = !conversationIdFromUrl && searchParams.get("view") === "recordings";
-  const mobileShowWindow = Boolean(conversationIdFromUrl) || recordingsRoute;
+  // /chat/inbox?view=media&tab=<type> — a query param, not a new sub-path,
+  // because the module's navigation only authorizes /chat/inbox(/...).
+  // "view=recordings" is the older link to the same page.
+  const viewParam = searchParams.get("view");
+  const mediaRoute = !conversationIdFromUrl && (viewParam === "media" || viewParam === "recordings");
+  const mediaTab = viewParam === "recordings" ? "recordings" : (searchParams.get("tab") ?? "media");
+  const mobileShowWindow = Boolean(conversationIdFromUrl) || mediaRoute;
   const isMobile = useIsMobile();
   const stackRef = useRef(null);
 
@@ -104,12 +107,14 @@ function ChatScreenInner() {
       activeId={activeConversation?.id}
       onSelect={handleSelect}
       onCreated={handleCreated}
-      recordingsActive={recordingsRoute}
-      onOpenRecordings={() => navigate("/app/m/runly.chat/chat/inbox?view=recordings", { replace: Boolean(conversationIdFromUrl) || recordingsRoute })}
+      mediaActive={mediaRoute}
+      onOpenMedia={() => navigate("/app/m/runly.chat/chat/inbox?view=media", { replace: Boolean(conversationIdFromUrl) || mediaRoute })}
     />
   );
-  const chatWindow = recordingsRoute ? (
-    <AllRecordingsView
+  const chatWindow = mediaRoute ? (
+    <ChatMediaView
+      initialTab={mediaTab}
+      onTabChange={(tab) => navigate(`/app/m/runly.chat/chat/inbox?view=media&tab=${tab}`, { replace: true })}
       onBack={handleClose}
       onOpenConversation={(id) => navigate(`/app/m/runly.chat/chat/inbox/${id}`)}
     />

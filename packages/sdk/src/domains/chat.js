@@ -242,6 +242,13 @@ export function createChatDomain(request, withAuthHeaders, toQueryString, reques
         body: JSON.stringify(data),
       }),
 
+    // Cross-chat "Multimedia": type = media | documents | audio | links.
+    // Metadata only — sign each file with getAttachmentSignedUrl on demand.
+    listMedia: ({ type = "media", cursor = null, limit = 40, q = "" } = {}, token) =>
+      request(`/chat/media${toQueryString({ type, cursor: cursor || undefined, limit, q: q || undefined })}`, {
+        headers: withAuthHeaders(token),
+      }),
+
     getAttachmentSignedUrl: (attachmentId, token, options = {}) =>
       request(`/chat/attachments/${encodeURIComponent(attachmentId)}/signed-url${toQueryString({ variant: options.variant })}`, {
         headers: withAuthHeaders(token),

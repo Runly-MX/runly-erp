@@ -3,7 +3,7 @@ import {
   Button, EmptyState, SearchInput, Skeleton,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@runly/ui";
-import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Disc } from "lucide-react";
+import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Images } from "lucide-react";
 import { ChatConversationItem } from "./ChatConversationItem";
 import { ConversationRowActions } from "./ConversationRowActions";
 import { MessageSearchResults } from "./MessageSearchResults";
@@ -19,7 +19,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { useArchivedConversations, useConversationActionHandler } from "../hooks/useChatConversations";
 
-export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCreated, recordingsActive = false, onOpenRecordings }) {
+export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCreated, mediaActive = false, onOpenMedia }) {
   const { userProfile } = useAuth();
   const { isUserOnline } = useGlobalPresence();
   const [search, setSearch] = useState("");
@@ -71,10 +71,23 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
       <div className="flex items-center justify-between h-14 px-3 border-b border-[hsl(var(--border))] shrink-0">
         <h2 className="text-sm font-semibold">Chat</h2>
         <div className="flex items-center gap-1">
+          {onOpenMedia && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className={["h-9 w-9 md:h-7 md:w-7", mediaActive ? "bg-(--brand-primary)/10 text-(--brand-primary)" : ""].join(" ")}
+              title="Multimedia de todos los chats"
+              aria-label="Multimedia"
+              aria-pressed={mediaActive}
+              onClick={onOpenMedia}
+            >
+              <Images className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7"
+            className="h-9 w-9 md:h-7 md:w-7"
             title="Configuracion del chat"
             onClick={() => setShowSettings(true)}
           >
@@ -82,7 +95,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7" title="Nueva conversacion o canal">
+              <Button size="icon" variant="ghost" className="h-9 w-9 md:h-7 md:w-7" title="Nueva conversacion o canal">
                 <Plus className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -119,22 +132,6 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           onClear={() => setSearch('')}
           placeholder="Buscar conversaciones..."
         />
-        {onOpenRecordings && (
-          <button
-            type="button"
-            onClick={onOpenRecordings}
-            aria-current={recordingsActive ? "page" : undefined}
-            className={[
-              "mt-2 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors touch-manipulation",
-              recordingsActive
-                ? "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]"
-                : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]",
-            ].join(" ")}
-          >
-            <Disc className="h-3.5 w-3.5 shrink-0" />
-            Todas las grabaciones
-          </button>
-        )}
       </div>
 
       {/* Conversation list */}
