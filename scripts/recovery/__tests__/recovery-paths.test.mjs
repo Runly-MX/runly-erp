@@ -20,7 +20,8 @@ test('extraction requires a new destination and rejects junction ancestors and t
 test('snapshot validation rejects links, traversal, Windows collisions and file ancestors', () => {
   const file = p => ({ path: p, type: 'file' });
   validateSnapshotNodes([{ path: '/tmp', type: 'dir' }, file('/tmp/db.dump')]);
-  for (const nodes of [[file('/')], [file('/tmp/')], [file('/../bad')], [file('/tmp/../bad')], [file('/tmp\\bad')],
+  validateSnapshotNodes([file('/tmp/storage/.runly-recovery-result.json')]);
+  for (const nodes of [[file('/.runly-recovery-incomplete')], [file('/')], [file('/tmp/')], [file('/../bad')], [file('/tmp/../bad')], [file('/tmp\\bad')],
     [{ path: '/tmp/link', type: 'symlink' }], [file('/a'), file('/a/b')]]) assert.throws(() => validateSnapshotNodes(nodes), { exitCode: 2 });
   for (const nodes of [[file('/a'), file('/A')], [file('/a:stream')], [file('/NUL.txt')], [file('/name.')]]) assert.throws(() => validateSnapshotNodes(nodes, { windows: true }), { exitCode: 2 });
 });

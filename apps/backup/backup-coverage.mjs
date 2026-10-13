@@ -79,6 +79,17 @@ export function validateSourceInventory(metadata) {
   return metadata;
 }
 
+export function configuredReleaseImages(values) {
+  const references = {};
+  for (const key of ['RUNLY_API_IMAGE', 'RUNLY_API_LOCAL_IMAGE', 'RUNLY_WORKER_IMAGE', 'RUNLY_WORKER_LOCAL_IMAGE',
+    'RUNLY_WEB_EXTERNAL_IMAGE', 'RUNLY_WEB_LOCAL_IMAGE', 'RUNLY_BACKUP_IMAGE']) {
+    if (!values[key]) continue;
+    if (!/^[a-zA-Z0-9_.:/@-]+$/.test(values[key]) || values[key].includes('://')) throw new Error('Referencia de imagen no válida.');
+    references[key] = values[key];
+  }
+  return references;
+}
+
 export async function collectBackup(root, { values = process.env, run = execute } = {}) {
   const startedAt = new Date().toISOString();
   const rootInfo = await lstat(root);
@@ -167,7 +178,7 @@ export async function collectBackup(root, { values = process.env, run = execute 
   const files = await inventoryFiles(root);
   const manifest = { schemaVersion: 1, coverageMode: mode, instanceId: values.RUNLY_INSTANCE_ID,
     createdAt: new Date().toISOString(), startedAt, consistency: 'metadata-stable-not-atomic',
-    sourceRevision: values.RUNLY_RELEASE_REVISION || null, resources, files };
+    sourceRevision: values.RUNLY_RELEASE_REVISION || null, configuredImages: configuredReleaseImages(values), resources, files };
   await writeFile(path.join(root, 'backup-manifest.json'), JSON.stringify(manifest, null, 2) + '\n', { mode: 0o600 });
   return { coverageMode: mode, fileCount: files.length, bucketCount: resources.storage.buckets?.length ?? 0 };
 }

@@ -42,7 +42,7 @@ export function validateSnapshotNodes(nodes, { windows = process.platform === 'w
     if (!node.path.startsWith('/') || (node.path === '/' && node.type !== 'dir') ||
       (node.path !== '/' && node.path.endsWith('/')) ||
       path.posix.normalize(node.path) !== node.path || /[\\\x00-\x1f\x7f]/.test(node.path) || node.path.includes('//') ||
-      parts.some(p => p === '..' || p === '.' || p.startsWith('.runly-recovery-'))) {
+      parts.some(p => p === '..' || p === '.') || parts[0]?.startsWith('.runly-recovery-')) {
       throw inputError('El snapshot contiene una ruta insegura.');
     }
     if (windows && parts.some(p => /[:<>"|?*]/.test(p) || /[. ]$/.test(p) ||

@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { validateSourceInventory, postgresEnv, relativeParts } from '../backup-coverage.mjs';
+import { validateSourceInventory, postgresEnv, relativeParts, configuredReleaseImages } from '../backup-coverage.mjs';
 import { assessRecovery } from '../../../scripts/recovery/recovery-assessment.mjs';
 
 const execute = promisify(execFile);
@@ -23,6 +23,10 @@ test('source inventory rejects traversal, unaccounted buckets, duplicates and un
   const pg = postgresEnv({ DATABASE_URL: 'postgresql://fixture:encoded%20password@database.example.test:5432/fixture?sslmode=require' });
   assert.equal(pg.PGPASSWORD, 'encoded password');
   assert.equal(pg.PGSSLMODE, 'require');
+  assert.deepEqual(configuredReleaseImages({ RUNLY_API_IMAGE: 'runly-fixture/api@sha256:' + 'a'.repeat(64), DATABASE_URL: 'private' }),
+    { RUNLY_API_IMAGE: 'runly-fixture/api@sha256:' + 'a'.repeat(64) });
+  assert.deepEqual(configuredReleaseImages({}), {}, 'unknown deployed image versions must not be invented');
+  assert.throws(() => configuredReleaseImages({ RUNLY_API_IMAGE: 'https://user:password@registry.example.test/image' }));
 });
 
 const fake = String.raw`#!/usr/bin/env node
