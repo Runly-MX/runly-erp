@@ -1,7 +1,7 @@
 # B2 recovery and complete backup evidence
 
 Date: 2026-10-12
-Status: Proposed
+Status: In Progress
 Spec file: docs/superpowers/specs/2026-10-12-b2-recovery-hardening-design.md
 Plan file: docs/superpowers/plans/2026-10-12-b2-recovery-hardening.md
 
@@ -11,7 +11,7 @@ Recover Runly from its Restic repository on Backblaze B2 and make incomplete bac
 
 ## 2. Status
 
-Proposed. Implementation and a real B2 rehearsal have not started. This updates the backup design from 2026-09-26 specifically where it accepted omitted Storage and used retention as the freshness threshold. It preserves encrypted Restic/S3 repositories and manual database/Storage restoration.
+In Progress. The user confirmed continuation on 2026-10-12 after reviewing the committed plan. Source implementation and synthetic verification are authorized; real B2 inputs/isolated destination remain to be identified. This updates the backup design from 2026-09-26 specifically where it accepted omitted Storage and used retention as the freshness threshold. It preserves encrypted Restic/S3 repositories and manual database/Storage restoration.
 
 ## 3. Context
 

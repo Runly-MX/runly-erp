@@ -2,7 +2,7 @@
 
 Date: 2026-10-12
 Spec: docs/superpowers/specs/2026-10-12-b2-recovery-hardening-design.md
-Status: Proposed
+Status: In Progress
 
 ## Goal
 
@@ -42,8 +42,8 @@ Update this map before adding helper files. Do not modify API startup, Prisma mi
 
 ## Task 1 — Recovery prerequisites and baseline
 
-- [ ] Declare implementation mode after confirming the spec/plan.
-- [ ] Recheck existing scripts/config/runbook and relevant tests against current HEAD.
+- [x] Declare implementation mode after confirming the spec/plan. Confirmed: 2026-10-12 (user continuation; declaration in chat).
+- [x] Recheck existing scripts/config/runbook and relevant tests against current HEAD. Verified: 2026-10-12 (baseline installer backup tests 9/9; local backup image built; no deployment).
 - [ ] Privately identify deployment mode, PostgreSQL/Supabase version, original instance ID/repository, pinned backup image and isolated target.
 - [ ] Confirm RESTIC_PASSWORD is available outside the original server, without displaying it. Identify required B2 read/list scope.
 - [ ] Confirm proposed daily maximum age (36 hours) and installation RPO/RTO with the operator. These are proposed policy values, not verified service guarantees.
@@ -53,9 +53,9 @@ Validation: existing `node --test infra/installer/lib/backup-config.test.mjs`; p
 
 ## Task 2 — Recovery configuration and path safety
 
-- [ ] Parse dotenv as data, validate required original source inputs and pinned image; never generate a missing password/instance ID.
+- [x] Parse dotenv as data, validate required original source inputs and pinned image; never generate a missing password/instance ID. Verified: 2026-10-12 (recovery config/path tests 6/6).
 - [ ] Use argument-array process invocation, allowlisted temporary env-file and finally cleanup; redact errors/logs and avoid forwarding full deployment config.
-- [ ] Reject nonempty output, roots, ancestor traversal, symlink/junction/reparse points and paths escaping the chosen new destination. Inspect snapshot paths before extraction.
+- [x] Reject existing output, roots, ancestor traversal, symlink/junction/reparse points and unsafe snapshot paths. Verified: 2026-10-12 (config/path tests 6/6 including a real junction fixture); runtime invocation remains Task 3.
 - [ ] Test wrong config/flags/image/snapshot/path and interruption behavior with fake process results. Secrets must not appear in child argv or public logs.
 
 Validation: `node --test scripts/recovery/__tests__/recovery-config.test.mjs scripts/recovery/__tests__/recovery-paths.test.mjs scripts/recovery/__tests__/recovery-cli.test.mjs`; syntax-check entry/helpers; privacy. Commit: `feat: add validated recovery configuration and safe extraction paths`.
