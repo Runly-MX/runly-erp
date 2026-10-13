@@ -66,10 +66,13 @@ describe("hairpin NAT detection", () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
-  it("renders every server-side service", () => {
-    const yaml = renderHairpinComposeOverride(["a.example.com"]);
-    for (const service of ["runly-api-local", "runly-worker-local", "runly-api-external", "runly-worker-external", "collabora"]) {
+  it("renders every server-side service, host-network ones via 127.0.0.1", () => {
+    const yaml = renderHairpinComposeOverride(["a.example.com"], { hostNetworkServices: ["egress"] });
+    for (const service of ["runly-api-local", "runly-worker-local", "runly-api-external", "runly-worker-external",
+      "runly-transcriber-local", "runly-backup-local", "collabora"]) {
       assert.match(yaml, new RegExp(`  ${service}:\\n    extra_hosts:\\n      - "a\\.example\\.com:host-gateway"`));
     }
+    assert.match(yaml, /  egress:\n    extra_hosts:\n      - "a\.example\.com:127\.0\.0\.1"/);
+    assert.match(renderHairpinComposeOverride(["a.example.com"]), /  egress:\n    extra_hosts:\n      - "a\.example\.com:host-gateway"/);
   });
 });

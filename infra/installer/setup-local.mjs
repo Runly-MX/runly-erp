@@ -22,7 +22,7 @@ import {
   resolveLiveKitConfig,
   toLiveKitHttpUrl,
 } from "./lib/livekit-config.mjs";
-import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME, probePublicHealth } from "./lib/hairpin-nat.mjs";
+import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME, LINUX_HOST_NETWORK_SERVICES, probePublicHealth } from "./lib/hairpin-nat.mjs";
 import { buildTranscriberDatabaseUrl, generateTranscriberPassword } from "./lib/transcriber-db.mjs";
 import { resolveBackupConfig, getBackupComposeProfiles } from "./lib/backup-config.mjs";
 
@@ -1216,10 +1216,11 @@ async function main() {
   const hairpin = await configureHairpinNat({
     hostnames: collectPublicHttpsHosts({
       domains: [liveKit.domain],
-      urls: ["LIVEKIT_URL", "RUNLY_APP_URL", "RUNLY_API_URL", "RUNLY_SUPABASE_PUBLIC_URL"]
+      urls: ["LIVEKIT_URL", "RUNLY_APP_URL", "RUNLY_API_URL", "RUNLY_SUPABASE_PUBLIC_URL", "SUPABASE_S3_ENDPOINT"]
         .map((key) => parseEnvValue(generatedEnvContent, key)),
     }),
     overrideFile: hairpinComposeOverride,
+    hostNetworkServices: isLinux ? LINUX_HOST_NETWORK_SERVICES : [],
   });
   hairpinHosts = hairpin.hostnames;
   composeFiles = [...composeFiles, ...hairpin.composeArgs];
