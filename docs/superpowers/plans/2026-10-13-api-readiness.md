@@ -1,7 +1,7 @@
 # API readiness — implementación
 
 Date: 2026-10-13
-Status: In Progress
+Status: Complete — local implementation; operational acceptance pending
 Spec: docs/superpowers/specs/2026-10-13-api-readiness-design.md.
 
 ## Goal and architecture
@@ -29,7 +29,7 @@ Validation: node --test apps/api/src/services/__tests__/readiness-service.test.j
 
 ## Task 3 — Close
 
-- [ ] Barrido API sin flags de DB real; docs operativas/evidencias y trackers.
-- [ ] Privacy/secrets/whitespace; commit documental. Audit permanece failing, sin excepciones.
+- [x] API: 2404 pass/2 skip/0 fail, 220.83 s, sin flags de DB real. Docs operativas/evidencias y trackers; implementación 6de59edd.
+- [x] Privacy/secrets: 4,375 archivos, cero hallazgos; syntax/whitespace pasan. Commit documental al cierre. Audit permanece failing con 27, sin excepciones.
 
 Sin publicar/desplegar/cambiar Compose. No marcar recorridos ERP, módulos completos o servicios externos como aceptados.

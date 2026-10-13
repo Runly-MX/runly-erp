@@ -4,6 +4,8 @@ Date: 2026-10-13
 Status: revisión local; aceptación operativa pendiente.
 Parent: docs/superpowers/plans/2026-10-12-runly-stabilization.md.
 
+Readiness update: 6de59edd implementa /ready con DB probe acotado, coalescing/cache y gates de bootstrap/routeStatus/shutdown; /health conserva liveness independiente. Dirigidos 18/18 pasan; aceptación real e integración operativa siguen abiertas. Audit ejecutado de nuevo: 27 alertas (13 altas/13 moderadas/una baja), diez familias, cero críticas; no fueron corregidas por este scope. Ver 2026-10-13-readiness-verification.md y docs/deployment/api-health.md. Las observaciones de readiness inferiores son el baseline anterior a esta implementación.
+
 Notes in-flight update: 1b7305ed captura bytes pendientes antes de busy y teardown; evita catch-up a doc destruido y conserva payload fallido sin sobrescribir el nuevo. Baseline 5 pass/3 fail, dirigidos 16/16, Notes/browser 168/168 y build pasan; React Doctor cero errores/cinco warnings previos. Cola volátil, recuperación durable, keepalive y aceptación real siguen pendientes. Ver 2026-10-13-notes-inflight-save-results.md. Los updates inferiores conservan historia.
 
 Notes callback update: publicación de flushSave trasladada de render a layout commit. Suspense/StrictMode reproducidos y corregidos; seis tests del hook, suite Notes/browser 158/158 y build pasan. React Doctor: cero errores/cinco warnings previos. No aceptación completa de persistencia; requests en curso, red, keepalive y proveedor vivo siguen abiertos. Ver 2026-10-13-notes-committed-autosave-results.md. Los updates inferiores son históricos.

@@ -1,7 +1,7 @@
 # API: readiness acotado e independiente de liveness
 
 Date: 2026-10-13
-Status: Authorized autonomous local scope
+Status: Complete — local implementation; operational acceptance and dependency remediation pending
 
 ## 1. Feature title
 
