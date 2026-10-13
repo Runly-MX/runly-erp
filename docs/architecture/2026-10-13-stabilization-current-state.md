@@ -4,6 +4,8 @@ Date: 2026-10-13
 Status: revisión local; aceptación operativa pendiente.
 Parent: docs/superpowers/plans/2026-10-12-runly-stabilization.md.
 
+Authentication update: contrato local HS256/exp/nbf corregido en c11cefe3, con tokens de invitados y tolerancia conservados; JWT 19/19, grupo relacionado 37/37 y API 2374 pass/2 skip. Caché/fallback y políticas de sesiones siguen abiertas; ver authentication-review.md. No aceptación global o revocación real.
+
 Update: parches transitivos posteriores verificados en `2026-10-13-transitive-security-results.md/.json`: source-map-js, lodash-es y prosemirror-view; audit ahora 29 alertas en 11 familias, sin excepciones. API/shared, build y Notes local pasan; aceptación real continúa pendiente. La tabla siguiente conserva el punto de revisión anterior como evidencia histórica.
 
 Este documento actualiza la lectura del FODA del 12 de octubre sin reemplazar

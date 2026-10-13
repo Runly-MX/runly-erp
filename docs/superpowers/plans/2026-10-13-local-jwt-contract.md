@@ -1,7 +1,7 @@
 # Verificación JWT local: plan acotado
 
 Date: 2026-10-13
-Status: In Progress
+Status: Complete (local verification)
 Spec: docs/superpowers/specs/2026-10-13-local-jwt-contract-design.md.
 
 ## File Structure Map
@@ -28,6 +28,8 @@ No cambios index.js, middleware, dependencies, schema o clientes.
 
 ## Task 4 — Cierre
 
-- [ ] Regresión API acotada, privacidad/secrets/whitespace.
-- [ ] Review/documento con pruebas, límites y scopes siguientes de caché/revocación.
-- [ ] Commit del verificador y evidencia; mantener CI/B2/transporte diferidos.
+- [x] API: 2376 tests, 2374 pass/2 skip/0 fail (213.38 s); controles de privacidad/secrets/whitespace.
+- [x] Review con límites y scopes siguientes de caché/revocación, sin consultas o sesiones reales.
+- [x] Verificador commiteado en c11cefe3 y evidencia registrada; CI/B2/transporte diferidos.
+
+Node 22.12.0, concurrency 8, timeout 60000 ms, force-exit. Mismos globs/exclusiones del regression-ledger; force-exit no prueba limpieza de handles. Grupo relacionado sin force-exit: 37/37, finaliza normalmente. Sin cambios de dependencies/frontend; shared/build de la etapa previa no se atribuyen a este verificador.

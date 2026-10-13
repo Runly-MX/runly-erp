@@ -1,7 +1,7 @@
 # Contrato del verificador JWT local
 
 Date: 2026-10-13
-Status: Approved for autonomous local implementation
+Status: Complete (local verification)
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md, Task 6.
 
 ## 1. Feature title
@@ -122,3 +122,5 @@ Revertir el commit local; reaparecen los contratos permisivos anteriores. Sin da
 Extraer/revisar middleware y caché: clave de token completa, expiración en fallback y límites de revocación. Diseñar issuer/audience con configuración por instalación, sesiones sensibles y separación de invitados; validar algoritmos asimétricos con SDK/JWK compatible. Readiness/MirAI siguen pendientes.
 
 Sources consulted: [JWTs](https://supabase.com/docs/guides/auth/jwts), [sesiones](https://supabase.com/docs/guides/auth/sessions), [changelog](https://supabase.com/changelog). El índice Markdown se leyó mediante fetch directo después de que web rechazara text/markdown. No breaking change detectado que sustituya este contrato HS256 local; no cambio TLS/gateway/issuer en este scope.
+
+Verified: 2026-10-13, implementation c11cefe3. JWT/invitados 19/19; grupo relacionado 37/37; API 2374 pass/2 skip/0 fail. Límites y siguiente scope en authentication-review.md.
