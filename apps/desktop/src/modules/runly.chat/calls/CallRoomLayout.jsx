@@ -300,11 +300,13 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
   };
 
   useCallShortcuts({
-    toggleMic: media.toggleMic,
+    // While an in-person recording runs, the mic shortcut is the pause button.
+    toggleMic: view === "inperson" && media.recording.active && media.togglePause ? media.togglePause : media.toggleMic,
     toggleCamera: media.toggleCamera,
     toggleHand: live.toggleHand,
     toggleChat: () => togglePanel("chat"),
     togglePeople: () => togglePanel("people"),
+    openShortcuts: () => setShortcutsOpen(true),
   }, { enabled: !isPhone });
 
   // Stage width decides whether the dock keeps its labels.
@@ -315,7 +317,7 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
   // In-person recorder: the top bar is the one recording status (REC / EN
   // PAUSA / not started), so the stage keeps its space for the preview.
   const inPersonView = view === "inperson";
-  const recordingPaused = inPersonView && media.recording.active && !media.micEnabled;
+  const recordingPaused = inPersonView && media.recording.active && Boolean(media.paused);
   const idleLabel = inPersonView
     ? (media.recording.busy ? "PREPARANDO…" : media.canRecord ? "LISTO PARA GRABAR" : "SIN GRABAR")
     : null;
@@ -392,9 +394,12 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
       canRecord: media.canRecord,
       onStartRecording: media.startInPersonRecording ?? media.recording.start,
       onToggleMic: media.toggleMic,
+      paused: Boolean(media.paused),
+      onTogglePause: media.togglePause,
       mediaDevices,
       audioRoute: media.audioRoute ?? null,
       onOpenDeviceSettings: () => setSettingsOpen(true),
+      onOpenShortcuts: isPhone ? null : () => setShortcutsOpen(true),
       canSwitchCamera: media.canSwitchCamera,
       onSwitchCamera: media.switchCamera,
       cameraEnabled: media.cameraEnabled,

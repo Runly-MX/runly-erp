@@ -426,6 +426,51 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
     }
   }
 
+  // In-person recording pause: the recording keeps running as one continuous
+  // file, but nothing is sent while paused — microphone, camera and screen
+  // share. Camera/screen are muted (not unpublished) so resuming does not ask
+  // to pick the screen again; the native (desktop app) share runs as its own
+  // participant, so it is stopped and restarted instead.
+  const [paused, setPaused] = useState(false);
+  const pausedMediaRef = useRef(null);
+  async function togglePause() {
+    if (engineNotReady()) return;
+    const local = room.localParticipant;
+    const camera = local.getTrackPublication(Track.Source.Camera);
+    const screen = local.getTrackPublication(Track.Source.ScreenShare);
+    try {
+      if (!paused) {
+        const saved = {
+          mic: micEnabled,
+          camera: Boolean(camera?.track && !camera.isMuted),
+          screen: Boolean(screen?.track && !screen.isMuted),
+          nativeScreen: nativeScreen.supported && nativeScreen.active,
+        };
+        pausedMediaRef.current = saved;
+        if (saved.mic) { await local.setMicrophoneEnabled(false); setMicEnabled(false); }
+        if (saved.camera) await camera.mute();
+        if (saved.screen) await screen.mute();
+        if (saved.nativeScreen) await nativeScreen.toggle();
+        setPaused(true);
+      } else {
+        const saved = pausedMediaRef.current ?? { mic: true };
+        if (saved.mic) { await local.setMicrophoneEnabled(true); setMicEnabled(true); }
+        if (saved.camera) await camera?.unmute();
+        if (saved.screen) await screen?.unmute();
+        if (saved.nativeScreen && !nativeScreen.active) await nativeScreen.toggle();
+        pausedMediaRef.current = null;
+        setPaused(false);
+      }
+      refresh();
+    } catch (error) {
+      toast.error(error?.message || "No se pudo pausar o reanudar la grabación.");
+    }
+  }
+  // A recording that stops while paused leaves nothing to resume.
+  useEffect(() => {
+    if (!recording.active && paused) { setPaused(false); pausedMediaRef.current = null; }
+  }, [recording.active, paused]);
+
   // { endForAll } — the host ends the meeting for everyone.
   function handleLeave(options) {
     playCallEndSound();
@@ -579,6 +624,8 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
         needsAudio,
         activateAudio: () => room.startAudio().then(() => setNeedsAudio(false)),
         toggleMic: toggleMicrophone,
+        paused,
+        togglePause,
         toggleCamera,
         switchCamera,
         toggleTorch,

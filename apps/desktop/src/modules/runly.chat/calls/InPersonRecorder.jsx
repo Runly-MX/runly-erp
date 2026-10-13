@@ -1,5 +1,5 @@
 import {
-  Camera, CameraOff, Circle, Mic, MicOff, MonitorUp, Pause, Play, ScreenShareOff, Settings2, Square, SwitchCamera, Users,
+  Camera, CameraOff, Circle, Keyboard, Mic, MicOff, MonitorUp, Pause, Play, ScreenShareOff, Settings2, Square, SwitchCamera, Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Track } from "livekit-client";
@@ -80,9 +80,10 @@ function PrepDevices({ mediaDevices, audioRoute, cameraEnabled }) {
 
 // "Grabar reunión presencial": one device records the room. It opens on a
 // preparation stage (pick and test the microphone, speaker and camera); the
-// recording starts on "Comenzar a grabar". Pausing mutes the microphone
-// instead of stopping the recording, so the meeting ends up as one continuous
-// file with the paused stretch as silence. Turning on the camera and/or
+// recording starts on "Comenzar a grabar". Pausing mutes the microphone,
+// camera and screen share (CallRoom togglePause) instead of stopping the
+// recording, so the meeting ends up as one continuous file with the paused
+// stretch silent and without video. Turning on the camera and/or
 // sharing the screen makes it an exposition: both are part of the recording.
 export function InPersonRecorder({
   localParticipant,
@@ -94,9 +95,12 @@ export function InPersonRecorder({
   canRecord,
   onStartRecording,
   onToggleMic,
+  paused = false,
+  onTogglePause,
   mediaDevices = null,
   audioRoute = null,
   onOpenDeviceSettings,
+  onOpenShortcuts = null,
   canSwitchCamera = false,
   onSwitchCamera,
   cameraEnabled = false,
@@ -114,7 +118,8 @@ export function InPersonRecorder({
   const cameraRatio = videoAspectOf(localParticipant, Track.Source.Camera);
   const screenRatio = videoAspectOf(localParticipant, Track.Source.ScreenShare);
   const preparing = canRecord && !recordingActive;
-  const paused = recordingActive && !micEnabled;
+  // While paused the camera/screen are muted, not turned off, so the
+  // exposition layout (and its controls) stays put until resume.
   const exposition = cameraEnabled || screenEnabled;
   // The recording status (REC / EN PAUSA / LISTO PARA GRABAR) is shown once,
   // in the call top bar — see CallRoomLayout idleLabel / recordingPaused.
@@ -138,7 +143,7 @@ export function InPersonRecorder({
       label={paused ? "Reanudar" : "Pausar"}
       tone={paused ? "warn" : "default"}
       pressed={paused}
-      onClick={onToggleMic}
+      onClick={onTogglePause ?? onToggleMic}
     />
   ) : (
     <ActionButton
@@ -179,6 +184,12 @@ export function InPersonRecorder({
                 <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
                   {screenEnabled ? "Presentando pantalla" : "Cámara"} · {recordingActive ? "se incluye en la grabación" : "se incluirá en la grabación"}
                 </span>
+                {paused && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/75 text-white">
+                    <Pause className="h-8 w-8" aria-hidden />
+                    <p className="text-sm font-medium">En pausa: no se envía audio, cámara ni pantalla.</p>
+                  </div>
+                )}
               </FitFrame>
               {screenEnabled && cameraEnabled && (
                 <div className="hidden w-60 shrink-0 flex-col justify-end lg:flex xl:w-72">
@@ -205,7 +216,7 @@ export function InPersonRecorder({
                   <p className="font-mono text-6xl font-semibold tabular-nums tracking-tight text-white sm:text-7xl">{formatClock(elapsed)}</p>
                   <p className="max-w-sm text-sm text-slate-400">
                     {paused
-                      ? "En pausa: la grabación sigue, sin audio, hasta que reanudes."
+                      ? "En pausa: no se envía audio, cámara ni pantalla hasta que reanudes."
                       : "Reunión presencial. Deja el dispositivo cerca de las personas que hablan."}
                   </p>
                 </>
@@ -233,10 +244,11 @@ export function InPersonRecorder({
               label={cameraEnabled ? "Apagar cámara" : "Cámara"}
               tone={cameraEnabled ? "active" : "default"}
               pressed={cameraEnabled}
+              disabled={paused}
               onClick={onToggleCamera}
             />
           )}
-          {cameraEnabled && canSwitchCamera && onSwitchCamera && (
+          {cameraEnabled && !paused && canSwitchCamera && onSwitchCamera && (
             <ActionButton icon={SwitchCamera} label="Girar cámara" onClick={onSwitchCamera} />
           )}
           {onToggleScreen && (
@@ -245,7 +257,7 @@ export function InPersonRecorder({
               label={screenEnabled ? "Dejar de presentar" : "Presentar pantalla"}
               tone={screenEnabled ? "active" : "default"}
               pressed={screenEnabled}
-              disabled={!screenShareSupported && !screenEnabled}
+              disabled={paused || (!screenShareSupported && !screenEnabled)}
               onClick={onToggleScreen}
             />
           )}
@@ -253,6 +265,7 @@ export function InPersonRecorder({
             <ActionButton icon={Settings2} label="Dispositivos" onClick={onOpenDeviceSettings} />
           )}
           {onInvite && <ActionButton icon={Users} label="Invitar" onClick={onInvite} />}
+          {onOpenShortcuts && <ActionButton icon={Keyboard} label="Atajos" onClick={onOpenShortcuts} />}
           <button
             type="button"
             onClick={onFinish}
