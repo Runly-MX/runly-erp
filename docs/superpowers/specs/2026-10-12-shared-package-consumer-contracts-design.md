@@ -29,7 +29,7 @@ Un paquete puede compilar dentro del ERP gracias a hoisting, fuentes hermanas o 
 
 ## 6. Non-goals
 
-No migrar ERP a dependencias de registry, modificar Hub, publicar, editar workflows CI, usar GitHub credentials, declarar aceptación de registry real o ejecutar módulos externos no revisados.
+No migrar ERP a dependencias de registry, modificar Hub, publicar, editar workflows CI, usar GitHub credentials, declarar aceptación de registry real o ejecutar módulos externos no revisados. Hallazgo de implementación 2026-10-12: restaurar exports históricos AtlasTable/AtlasForm/AtlasDetail/AtlasCrudView/AtlasCardView documentados por el spec de migración 2026-09-13, como aliases de los mismos componentes Runly. El consumer reprodujo AtlasTable faltante; no crear componentes duplicados o aliases para identidades que nunca existieron.
 
 ## 7. User stories
 

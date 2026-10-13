@@ -325,6 +325,11 @@ export { ActivityBellTrigger } from "./components/ActivityBellTrigger.jsx";
 
 // Runly blueprint renderer
 export {
+  AtlasTable,
+  AtlasForm,
+  AtlasDetail,
+  AtlasCrudView,
+  AtlasCardView,
   RunlyTable,
   RunlyForm,
   RunlyDetail,

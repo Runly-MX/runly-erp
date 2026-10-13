@@ -25,6 +25,7 @@ First workstream: `docs/superpowers/specs/2026-10-12-b2-recovery-hardening-desig
 - [x] Local tracked-file secret scan: verified Gitleaks 8.30.1 archive checksum and check:secrets passed. Verified: 2026-10-12 (no leaks detected; history cleanup/rotation and CI tooling remain separate pending work).
 - [ ] P1 delivery: reproducible regression/build/isolation/privacy CI and exact release artifact provenance.
 - [ ] P1 shared packages: retain ERP workspace consumption, verify isolated packed/registry consumers with exact versions and logical imports.
+- [x] Restore historical renderer exports discovered by isolated consumer: AtlasTable/Form/Detail/CrudView/CardView point to existing Runly implementations. Verified: 2026-10-12 (scope/browser bundling 3/3, Dev Kit 2/2, web build, targeted React Doctor and privacy passed). Isolated packed consumer verification remains in progress; no publication.
 - [ ] P1 operational acceptance: real web/Android journeys, LiveKit/Egress/transcription, file recovery, readiness/monitoring, AI execution recovery and extension/auth trust boundaries.
 - [ ] P2 consolidation: accounting/product scope, measured performance/accessibility and backlog/current-status reconciliation.
 

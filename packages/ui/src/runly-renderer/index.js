@@ -1,8 +1,8 @@
-export { RunlyTable } from "./RunlyTable.jsx";
-export { RunlyForm } from "./RunlyForm.jsx";
-export { RunlyDetail } from "./RunlyDetail.jsx";
-export { RunlyCrudView } from "./RunlyCrudView.jsx";
-export { RunlyCardView } from "./RunlyCardView.jsx";
+export { RunlyTable, RunlyTable as AtlasTable } from "./RunlyTable.jsx";
+export { RunlyForm, RunlyForm as AtlasForm } from "./RunlyForm.jsx";
+export { RunlyDetail, RunlyDetail as AtlasDetail } from "./RunlyDetail.jsx";
+export { RunlyCrudView, RunlyCrudView as AtlasCrudView } from "./RunlyCrudView.jsx";
+export { RunlyCardView, RunlyCardView as AtlasCardView } from "./RunlyCardView.jsx";
 export { RunlyDashboard, dashboardWidgetRegistry } from "./RunlyDashboard.jsx";
 export { RunlyKanban } from "./RunlyKanban.jsx";
 export { RunlyRecordsView, RECORDS_VIEW_KINDS as RUNLY_RECORDS_VIEW_KINDS } from "./RunlyRecordsView.jsx";

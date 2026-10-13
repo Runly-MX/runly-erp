@@ -59,3 +59,19 @@ test('dynamic bundles accept mixed package scopes and both importmaps share shim
     }
   }
 })
+
+test('public UI entrypoints expose all documented legacy renderer names in a browser bundle', async () => {
+  const pairs = ['Table', 'Form', 'Detail', 'CrudView', 'CardView']
+  const result = await build({
+    stdin: { resolveDir: fileURLToPath(new URL('../../', import.meta.url)),
+      contents: `import { ${pairs.flatMap(name => [`Runly${name}`, `Atlas${name}`]).join(', ')} } from '@runly/ui';
+        import { AtlasTable as LegacyScopeTable } from '@atlas/ui';
+        export const aliases = [${pairs.map(name => `Runly${name} === Atlas${name}`).join(', ')}, RunlyTable === LegacyScopeTable];` },
+    bundle: true, write: false, format: 'esm', platform: 'browser', outdir: 'ignored-consumer-build',
+    external: BUNDLE_EXTERNALS.filter(name => !['@runly/ui', '@atlas/ui'].includes(name)),
+    loader: { '.woff2': 'dataurl', '.woff': 'dataurl', '.ttf': 'dataurl', '.png': 'dataurl', '.svg': 'dataurl' },
+    metafile: true, logLevel: 'silent',
+  })
+  assert.ok(Object.values(result.metafile.outputs).some(output => output.exports.includes('aliases')))
+  assert.equal(Object.keys(result.metafile.inputs).filter(path => /packages[\\/]ui[\\/]src[\\/]index\.js$/.test(path)).length, 1)
+})
