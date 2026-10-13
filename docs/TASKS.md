@@ -6,6 +6,8 @@ Audit: `docs/architecture/2026-10-12-foda-runly-erp.md`.
 Spec: `docs/superpowers/specs/2026-10-12-runly-stabilization-design.md`.
 Program: `docs/superpowers/plans/2026-10-12-runly-stabilization.md`.
 Current review: `docs/architecture/2026-10-13-stabilization-current-state.md` (dated evidence, independent scopes and operational acceptance matrix).
+
+- [x] Transitive security follow-up: source-map-js, Mermaid lodash-es and prosemirror-view patched in separate commits. Verified: 2026-10-13 (15/15 directed tests, frozen installs, Notes editor in Chrome, web build and unchanged unrelated resolutions). API 2365 pass/2 skip, shared 1617 pass/7 skip; no failures. Audit 29 remains open in 11 families, no accepted exceptions. Evidence: `docs/architecture/2026-10-13-transitive-security-results.md` / `.json`.
 First workstream: `docs/superpowers/specs/2026-10-12-b2-recovery-hardening-design.md` and `docs/superpowers/plans/2026-10-12-b2-recovery-hardening.md`.
 
 - [x] Planning: requirements, stages, dependencies, file maps, verification and scoped commit sequence documented. Verified: 2026-10-12 (document structure/reference review, privacy and whitespace checks; no implementation or real B2 rehearsal).

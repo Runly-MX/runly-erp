@@ -4,6 +4,8 @@ Date: 2026-10-13
 Status: revisión local; aceptación operativa pendiente.
 Parent: docs/superpowers/plans/2026-10-12-runly-stabilization.md.
 
+Update: parches transitivos posteriores verificados en `2026-10-13-transitive-security-results.md/.json`: source-map-js, lodash-es y prosemirror-view; audit ahora 29 alertas en 11 familias, sin excepciones. API/shared, build y Notes local pasan; aceptación real continúa pendiente. La tabla siguiente conserva el punto de revisión anterior como evidencia histórica.
+
 Este documento actualiza la lectura del FODA del 12 de octubre sin reemplazar
 sus evidencias históricas. Implementado, verificado localmente, desplegado y
 aceptado por usuarios son estados distintos. Ningún resultado local confirma

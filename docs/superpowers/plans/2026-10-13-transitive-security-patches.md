@@ -1,7 +1,7 @@
 # Parches transitivos: ejecución por familia
 
 Date: 2026-10-13
-Status: In Progress
+Status: Complete (local verification)
 Spec: docs/superpowers/specs/2026-10-13-transitive-security-patches-design.md.
 
 ## File Structure Map
@@ -47,8 +47,10 @@ Modify:
 
 ## Task 5 — Verificación y cierre
 
-- [ ] Build web y suites pertinentes de Notes/Canvas/compiler/runtime; secretos, privacidad y diff.
-- [ ] Comparación estructural del lockfile: ninguna resolución ajena cambia.
-- [ ] JSON/Markdown con versiones, conteos, evidencia y límites; tracker actualizado y commit.
+- [x] Build web y barridos acotados API/shared, incluyendo Notes/Canvas/compiler/runtime; controles finales de secretos, privacidad y diff.
+- [x] Comparación estructural del lockfile y manifiesto: ninguna resolución ajena cambia.
+- [x] JSON/Markdown con versiones, conteos, evidencia y límites; tracker actualizado y commit de cierre.
+
+Regresión: API 2367 tests, 2365 pass/2 skip/0 fail (222.34 s); shared 1624 tests, 1617 pass/7 skip/0 fail (200.86 s). Node 22.12.0, concurrency 8, timeout 60000 ms, force-exit; globs y omisiones iguales al regression-ledger. Nuevos scripts/tests/*.mjs ejecutados por separado, 15/15. No opt-ins de servicios reales.
 
 CI, B2 real y transporte permanecen diferidos. No publicación, push o deployment.
