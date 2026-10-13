@@ -39,7 +39,8 @@ export function validateSnapshotNodes(nodes, { windows = process.platform === 'w
       throw inputError('El snapshot contiene enlaces o tipos de archivo no admitidos.');
     }
     const parts = node.path.split('/').filter(Boolean);
-    if (!node.path.startsWith('/') || /[\\\0\r\n]/.test(node.path) || parts.some(p => p === '..' || p === '.')) {
+    if (!node.path.startsWith('/') || /[\\\x00-\x1f\x7f]/.test(node.path) || node.path.includes('//') ||
+      parts.some(p => p === '..' || p === '.' || p.startsWith('.runly-recovery-'))) {
       throw inputError('El snapshot contiene una ruta insegura.');
     }
     if (windows && parts.some(p => /[:<>"|?*]/.test(p) || /[. ]$/.test(p) ||

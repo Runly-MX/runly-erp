@@ -1,5 +1,52 @@
 # Backup and Recovery Runbook
 
+## Herramienta de inspección y extracción (2026-10-12)
+
+Desde el repositorio, `node scripts/recovery/runly-recovery.mjs --help` muestra
+los comandos. Esta herramienta extrae archivos; no restaura PostgreSQL, modifica
+Storage ni inicia una instalación. La evaluación separa cobertura completa,
+incompleta y heredada desconocida. Una extracción completa no certifica que la
+aplicación esté recuperada.
+
+Prepara un archivo privado, por ejemplo `infra/installer/.env.recovery`, con los
+valores **originales** de `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`,
+`RUNLY_INSTANCE_ID`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY`,
+`RESTIC_PASSWORD` y, si corresponde, `BACKUP_S3_REGION`. No hace falta incluir
+credenciales de la base de datos. La contraseña de Restic es distinta de la clave
+de B2. Si no existe una copia local, recupérala del gestor privado o de la
+configuración de la instalación antes del simulacro; no se puede reemplazar por
+una contraseña nueva para leer los snapshots anteriores.
+
+La imagen de backup debe existir localmente y ser una versión oficial fija o un
+ID local `sha256:...`. Define `RECOVERY_IMAGE_ID` con el ID verificado de esa imagen
+y `RECOVERY_SNAPSHOT_ID` con el ID que elijas después de inspeccionar. No uses
+`latest` como snapshot ni como versión de imagen.
+
+```powershell
+node scripts/recovery/runly-recovery.mjs inspect --config infra/installer/.env.recovery --image $env:RECOVERY_IMAGE_ID
+node scripts/recovery/runly-recovery.mjs extract --config infra/installer/.env.recovery --image $env:RECOVERY_IMAGE_ID --snapshot $env:RECOVERY_SNAPSHOT_ID --output ./restore-selected
+node scripts/recovery/runly-recovery.mjs assess --input ./restore-selected
+```
+
+`restore-selected` todavía no debe existir; su carpeta padre sí. Se rechazan
+enlaces/junctions y tipos de archivo especiales. En Windows, archivos cuyos
+nombres no se pueden representar fielmente requieren un destino Linux.
+La configuración temporal se limita a las variables necesarias y se elimina al
+terminar. Los comandos usan `--no-lock` y no crean ni desbloquean el repositorio.
+No ejecutes prune mientras realizas el simulacro con lectura sin lock.
+
+Códigos de salida: 0 operación terminada (puede haber cobertura heredada
+desconocida), 1 fallo de ejecución/integridad, 2 entrada o destino inválido,
+3 cobertura conocida incompleta. Si se interrumpe una extracción, queda
+`.runly-recovery-incomplete`; revisa la carpeta y utiliza un destino nuevo en el
+siguiente intento. `.runly-recovery-result.json` contiene el resumen privado.
+Antes de restaurar una instalación, revisa qué falta y mantén detenidos API,
+worker y cron: la API aplica migraciones y seed al arrancar.
+
+Verificación sintética: 2026-10-12, MinIO con usuario de solo lectura, cinco
+buckets, snapshots completo/heredado, PostgreSQL 17 recuperado en una base nueva.
+No se ejecutó todavía un simulacro con el repositorio B2 real.
+
 Spec: [docs/superpowers/specs/2026-09-26-backup-recovery-system-design.md](../superpowers/specs/2026-09-26-backup-recovery-system-design.md)
 
 This feature is opt-in (`BACKUP_MODE=enabled` in `.env.local`/`.env.external`).

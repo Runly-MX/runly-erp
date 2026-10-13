@@ -54,21 +54,23 @@ Validation: existing `node --test infra/installer/lib/backup-config.test.mjs`; p
 ## Task 2 — Recovery configuration and path safety
 
 - [x] Parse dotenv as data, validate required original source inputs and pinned image; never generate a missing password/instance ID. Verified: 2026-10-12 (recovery config/path tests 6/6).
-- [ ] Use argument-array process invocation, allowlisted temporary env-file and finally cleanup; redact errors/logs and avoid forwarding full deployment config.
+- [x] Use argument-array process invocation, allowlisted temporary env-file and finally cleanup; redact errors/logs and avoid forwarding full deployment config. Verified: 2026-10-12 (14 unit tests; Windows caller-only temporary ACL; interruption fixture).
 - [x] Reject existing output, roots, ancestor traversal, symlink/junction/reparse points and unsafe snapshot paths. Verified: 2026-10-12 (config/path tests 6/6 including a real junction fixture); runtime invocation remains Task 3.
-- [ ] Test wrong config/flags/image/snapshot/path and interruption behavior with fake process results. Secrets must not appear in child argv or public logs.
+- [x] Test wrong config/flags/image/snapshot/path and interruption behavior with fake process results. Secrets must not appear in child argv or public logs. Verified: 2026-10-12 (14/14 unit tests; real read-only S3 integration passed separately).
 
 Validation: `node --test scripts/recovery/__tests__/recovery-config.test.mjs scripts/recovery/__tests__/recovery-paths.test.mjs scripts/recovery/__tests__/recovery-cli.test.mjs`; syntax-check entry/helpers; privacy. Commit: `feat: add validated recovery configuration and safe extraction paths`.
 
 ## Task 3 — Inspect, extract and assess
 
-- [ ] Implement explicit original-instance snapshot listing and explicit snapshot extraction with tested read-only/no-lock behavior.
-- [ ] Prevent source `init`, `unlock`, `forget`, `prune` and any source-write subcommand from reaching the runner.
-- [ ] Assess DB dump readability, Storage/config/modules, manifest, checksums and honest legacy coverage. Operational success differs from full recovery success.
-- [ ] Build a disposable S3-compatible repository with synthetic data and both legacy/new layouts; use ephemeral credentials isolated from deployment.
+- [x] Implement explicit original-instance snapshot listing and explicit snapshot extraction with tested read-only/no-lock behavior.
+- [x] Prevent source `init`, `unlock`, `forget`, `prune` and any source-write subcommand from reaching the runner.
+- [x] Assess DB dump readability, Storage/config/modules, manifest, checksums and honest legacy coverage. Operational success differs from full recovery success.
+- [x] Build a disposable S3-compatible repository with synthetic data and both legacy/new layouts; use ephemeral credentials isolated from deployment.
 - [ ] Test wrong password, foreign snapshot, malformed snapshot paths, corrupted data, disk/download interruption and nonempty output. Preserve failed extraction as clearly incomplete.
 
 Validation: assessment/CLI unit tests and opt-in `recovery-s3.integration.test.mjs` against its self-created disposable repository. Record chosen Restic/image versions and prove source repository identity/snapshots unchanged. Commit: `feat: inspect and extract B2-compatible recovery snapshots`.
+
+Verified: 2026-10-12 (`node --test scripts/recovery/__tests__/*.test.mjs`: 14 pass, real S3 test intentionally skipped; separate RUN_RECOVERY_S3_TESTS=1: 1/1 pass in 41.2s). Restic 0.18.1, PostgreSQL 17, five synthetic buckets, complete + legacy snapshots, read-only MinIO IAM credential, source objects unchanged, known file recovered and dump restored into a new database. This is not actual B2/Supabase/user-login acceptance. Local installer/root env files were checked for field presence only; none had recovery inputs. Original source ID/key and a real isolated target remain pending.
 
 ## Task 4 — Complete backup coverage
 

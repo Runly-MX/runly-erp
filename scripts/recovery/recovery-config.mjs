@@ -30,7 +30,7 @@ export function resolveRecoveryConfig(source) {
   try { endpoint = new URL(clean.BACKUP_S3_ENDPOINT); } catch { throw inputError('BACKUP_S3_ENDPOINT no es una URL válida.'); }
   if (!['https:', 'http:'].includes(endpoint.protocol) || endpoint.username || endpoint.password ||
     endpoint.search || endpoint.hash || !['', '/'].includes(endpoint.pathname) ||
-    (endpoint.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(endpoint.hostname))) {
+    (endpoint.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]', 'host.docker.internal'].includes(endpoint.hostname))) {
     throw inputError('El endpoint debe usar HTTPS, sin credenciales ni rutas; HTTP solo se admite en loopback.');
   }
   if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(clean.BACKUP_S3_BUCKET) || clean.BACKUP_S3_BUCKET.includes('..')) {

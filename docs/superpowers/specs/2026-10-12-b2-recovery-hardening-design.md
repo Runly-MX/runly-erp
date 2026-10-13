@@ -74,7 +74,7 @@ N/A. No browser or @runly/sdk recovery method.
 
 ## 14. Validator contract
 
-CLI validates command/flags, config presence, allowed image reference, snapshot ID, original instance ID and safe paths. Pass child-process arguments as an array without shell interpolation. Allowlist recovery variables when creating a restricted temporary Docker env-file; delete it in finally. Never mount a full installer env into an untrusted image.
+CLI validates command/flags, config presence, allowed image reference, snapshot ID, original instance ID and safe paths. Pass child-process arguments as an array without shell interpolation. Allowlist recovery variables when creating a restricted temporary Docker env-file; delete it in finally. Never mount a full installer env into an untrusted image. Execution accepts official versioned backup references or an explicitly supplied immutable local image ID; resolve to the image ID before running. Extraction requires a nonexistent output directory, rejects links/special files in the snapshot, and uses the caller UID on Linux. HTTPS is required except loopback/Docker-host endpoints for disposable local fixtures. Windows temporary config directories use a caller-only ACL.
 
 ## 15. Module manifest impact
 
