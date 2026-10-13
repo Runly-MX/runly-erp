@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AdvancedFileViewer, ConfirmDialog, EmptyState, ErrorState, Input, Skeleton,
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, cn, useCoarsePointer, useHlsPosterFrame,
+  cn, useCoarsePointer, useHlsPosterFrame,
 } from "@runly/ui";
-import { AlertCircle, Check, Loader2, Pencil, Play, Trash2, Video, X } from "lucide-react";
+import { AlertCircle, CalendarDays, Check, Clock, Loader2, Pencil, Play, Trash2, User, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { useConversationRecordings, useDeleteRecording, useRenameRecording } from "../hooks/useConversationRecordings";
 import { useConversationTranscripts } from "../hooks/useConversationTranscripts";
-import { RecordingTranscriptAction } from "./RecordingTranscriptAction";
+import { CardActionButton, RecordingTranscriptAction } from "./RecordingTranscriptAction";
 
 // Always shows the full date, unlike chatUtils' formatMessageTime (which
 // collapses "today" down to just a time) — recordings are reviewed well
@@ -42,6 +42,27 @@ function formatDuration(ms) {
   const m = Math.floor((total % 3600) / 60);
   const s = String(total % 60).padStart(2, "0");
   return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
+}
+
+// Infra errors arrive in English from LiveKit/S3; say what happened in plain
+// Spanish and keep the original only when nothing matches.
+function friendlyReason(detail) {
+  const text = String(detail ?? "");
+  if (/timeout|timed out|aborted/i.test(text)) return "El servidor de grabación tardó demasiado en responder.";
+  if (/egress/i.test(text)) return "El servicio de grabación no aceptó la solicitud.";
+  if (/not found|NoSuchKey|404/i.test(text)) return "El archivo de video ya no existe en el almacenamiento.";
+  if (/sign|credential|access denied|403/i.test(text)) return "No se pudo generar el enlace seguro del video.";
+  return text;
+}
+
+function MetaRow({ icon: Icon, label, children }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <dt className="sr-only">{label}</dt>
+      <dd className="min-w-0 truncate">{children}</dd>
+    </div>
+  );
 }
 
 // True once the element has come near the viewport (and stays true), so
@@ -176,21 +197,15 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
       ? (recording.playlistUrlError || "No se pudo generar el enlace de reproducción.")
       : null;
 
-  // When there's a problem, lead with it instead of size — a "5.3 MB"
-  // subtitle next to a warning icon told the user nothing was wrong. The raw
-  // reason (often an English infra message) goes in the tooltip.
-  const metaParts = [];
-  // The date is the primary title when there's no custom name — once a
-  // recording is renamed, it would otherwise disappear from the card entirely.
-  if (recording.title) metaParts.push(formatRecordingDateTime(recording.startedAt));
-  if (isFailed) metaParts.push("No se pudo procesar");
-  else if (isUnavailable) metaParts.push("No disponible para reproducir");
-  else if (isActive) metaParts.push(recording.status === "PROCESSING" ? "Procesando…" : "Grabando…");
-  else {
-    const fileSize = formatFileSize(recording.sizeBytes);
-    if (fileSize) metaParts.push(fileSize);
-  }
-  if (recording.startedBy?.displayName) metaParts.push(`Por ${recording.startedBy.displayName}`);
+  const status = isFailed
+    ? { label: "Falló", cls: "bg-red-500/10 text-red-600 dark:text-red-400" }
+    : isUnavailable
+      ? { label: "No disponible", cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300" }
+      : isActive
+        ? { label: recording.status === "PROCESSING" ? "Procesando" : "Grabando", cls: "bg-sky-500/10 text-sky-700 dark:text-sky-300" }
+        : { label: "Lista", cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" };
+  const sizeLabel = isReady ? formatFileSize(recording.sizeBytes) : null;
+  const author = recording.startedBy?.displayName || "Alguien de la conversación";
 
   const [thumbRef, inView] = useInView();
   const playable = isReady && hasPlaylist;
@@ -213,14 +228,20 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
       ) : (
         <div
           className={cn(
-            "absolute inset-0 flex items-center justify-center",
+            "absolute inset-0 flex flex-col items-center justify-center gap-2 text-xs font-medium",
             isFailed ? "bg-red-500/10 text-red-500" : isUnavailable ? "bg-amber-500/10 text-amber-500" : "bg-[linear-gradient(135deg,color-mix(in_srgb,var(--brand-primary)_22%,transparent),hsl(var(--muted)))] text-(--brand-primary)",
           )}
         >
           {isFailed || isUnavailable ? (
-            <AlertCircle className="h-9 w-9" aria-hidden />
+            <>
+              <Video className="h-9 w-9 opacity-80" aria-hidden />
+              <span>{isFailed ? "Sin video" : "Video no disponible"}</span>
+            </>
           ) : isActive || frameLoading ? (
-            <Loader2 className="h-8 w-8 animate-spin opacity-70" aria-hidden />
+            <>
+              <Loader2 className="h-8 w-8 animate-spin opacity-70" aria-hidden />
+              {isActive && <span>{recording.status === "PROCESSING" ? "Procesando video…" : "Grabando…"}</span>}
+            </>
           ) : (
             <Video className="h-10 w-10 opacity-80" aria-hidden />
           )}
@@ -236,17 +257,11 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
       {duration && (
         <span className="absolute bottom-2 right-2 rounded-md bg-black/65 px-1.5 py-0.5 font-mono text-[11px] font-medium tabular-nums text-white">{duration}</span>
       )}
-      {isActive && (
-        <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">
-          <span className={cn("h-1.5 w-1.5 rounded-full", recording.status === "PROCESSING" ? "bg-amber-300" : "animate-pulse bg-red-500")} aria-hidden />
-          {recording.status === "PROCESSING" ? "Procesando" : "Grabando"}
-        </span>
-      )}
     </>
   );
 
   return (
-    <article className="group overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-shadow hover:shadow-md">
+    <article className="group flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-shadow hover:shadow-md">
       {playable ? (
         <button
           ref={thumbRef}
@@ -262,41 +277,58 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
           {thumb}
         </div>
       )}
-      <div className="flex items-start justify-between gap-2 p-3">
-        <div className="min-w-0 flex-1">
-          <RecordingTitle recording={recording} renameRecording={renameRecording} />
-          <p className="flex min-w-0 items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]">
-            <span className="truncate">{metaParts.join(" · ")}</span>
-            {errorDetail && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button type="button" aria-label={errorDetail} className={cn("shrink-0", isFailed ? "text-red-500" : "text-amber-500")}>
-                      <AlertCircle className="h-3.5 w-3.5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs text-xs">
-                    {errorDetail}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </p>
+      <div className="flex flex-1 flex-col gap-2.5 p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <RecordingTitle recording={recording} renameRecording={renameRecording} />
+          </div>
+          <span className={cn("shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold", status.cls)}>{status.label}</span>
         </div>
-        <div className="-mr-1 -mt-1 flex shrink-0 items-center gap-0.5">
-          {isReady && (
-            <RecordingTranscriptAction recording={recording} transcript={transcript} conversationId={conversationId} />
+
+        <dl className="space-y-1.5 text-xs text-[hsl(var(--muted-foreground))]">
+          {recording.title && (
+            <MetaRow icon={CalendarDays} label="Fecha">{formatRecordingDateTime(recording.startedAt)}</MetaRow>
           )}
-          {!isActive && (
-            <button
-              type="button"
-              onClick={() => setConfirmDeleteOpen(true)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:bg-red-500/10 hover:text-red-500"
-              aria-label="Eliminar grabación"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+          <MetaRow icon={User} label="Grabado por">
+            <span className="text-[hsl(var(--foreground))]">{author}</span>
+          </MetaRow>
+          {(duration || sizeLabel) && (
+            <MetaRow icon={Clock} label="Duración">{[duration, sizeLabel].filter(Boolean).join(" · ")}</MetaRow>
           )}
+        </dl>
+
+        {errorDetail && (
+          <div className={cn("flex items-start gap-2 rounded-md px-2.5 py-2 text-xs", isFailed ? "bg-red-500/10 text-red-700 dark:text-red-300" : "bg-amber-500/10 text-amber-800 dark:text-amber-200")}>
+            <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+            <p className="min-w-0">
+              <span className="font-medium">{isFailed ? "No se pudo procesar la grabación." : "No se puede reproducir por ahora."}</span>{" "}
+              <span className="opacity-80" title={errorDetail}>{friendlyReason(errorDetail)}</span>
+            </p>
+          </div>
+        )}
+
+        {/* Fixed action bar: same buttons on every card, disabled with the
+            reason when they don't apply, so the grid reads consistently. */}
+        <div className="mt-auto flex items-center gap-2 border-t border-[hsl(var(--border))] pt-2.5">
+          <CardActionButton
+            icon={Play}
+            label="Reproducir"
+            tone="brand"
+            onClick={() => onPlay(recording)}
+            disabled={!playable}
+            title={playable ? "Reproducir" : isActive ? "Disponible cuando termine de procesarse" : "Esta grabación no tiene video reproducible"}
+          />
+          <RecordingTranscriptAction recording={recording} transcript={transcript} conversationId={conversationId} />
+          <button
+            type="button"
+            onClick={() => setConfirmDeleteOpen(true)}
+            disabled={isActive}
+            title={isActive ? "Espera a que termine para eliminarla" : "Eliminar grabación"}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[hsl(var(--muted-foreground))] transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[hsl(var(--muted-foreground))]"
+            aria-label="Eliminar grabación"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       </div>
       <ConfirmDialog
