@@ -6,6 +6,10 @@ import { toast } from "sonner";
 import { runly } from "../../../../lib/runly";
 
 const RING_UI_MS = 36_000;
+// Without a search the pane shows a few quick suggestions, not the whole
+// company; typing searches everyone.
+const SUGGESTIONS = 6;
+const SEARCH_LIMIT = 30;
 
 function useDebounced(value, ms) {
   const [debounced, setDebounced] = useState(value);
@@ -28,17 +32,20 @@ export function InternalInvitePane({ callId, token, inCallIds, memberIds, selfId
 
   const { data, isLoading } = useQuery({
     queryKey: ["call-invite-candidates", term],
-    queryFn: () => runly.identity.listCandidates(token, { action: "chat", search: term || undefined, pageSize: 60 }),
+    // +2: room for self and one extra row, so "hay más" can be detected.
+    queryFn: () => runly.identity.listCandidates(token, { action: "chat", search: term || undefined, pageSize: (term ? SEARCH_LIMIT : SUGGESTIONS) + 2 }),
     enabled: Boolean(token),
     staleTime: 60_000,
   });
 
-  const people = useMemo(() => {
+  const { people, hasMore } = useMemo(() => {
     const rows = (data?.data ?? []).filter((u) => u.id !== selfId && !u.isBot);
     // People already in the call last; then members before the rest.
     const rank = (u) => (inCallIds.has(u.id) ? 2 : memberIds.has(u.id) ? 0 : 1);
-    return rows.sort((a, b) => rank(a) - rank(b) || String(a.displayName).localeCompare(String(b.displayName), "es"));
-  }, [data, selfId, inCallIds, memberIds]);
+    rows.sort((a, b) => rank(a) - rank(b) || String(a.displayName).localeCompare(String(b.displayName), "es"));
+    const limit = term ? SEARCH_LIMIT : SUGGESTIONS;
+    return { people: rows.slice(0, limit), hasMore: rows.length > limit };
+  }, [data, selfId, inCallIds, memberIds, term]);
 
   function toggle(id) {
     setSelected((prev) => {
@@ -76,7 +83,12 @@ export function InternalInvitePane({ callId, token, inCallIds, memberIds, selfId
           aria-label="Buscar personas de la empresa"
         />
       </div>
-      <div className="min-h-64 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
+      <div className="min-h-48 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
+        {!isLoading && people.length > 0 && (
+          <p className="px-3 pb-1.5 pt-1 text-left text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+            {term ? "Resultados" : "Sugerencias"}
+          </p>
+        )}
         {isLoading ? (
           <p className="px-3 py-8 text-center text-sm text-[hsl(var(--muted-foreground))]">Cargando personas…</p>
         ) : !people.length ? (
@@ -136,6 +148,11 @@ export function InternalInvitePane({ callId, token, inCallIds, memberIds, selfId
               );
             })}
           </ul>
+        )}
+        {!isLoading && hasMore && (
+          <p className="px-3 pt-3 text-center text-xs text-[hsl(var(--muted-foreground))]">
+            {term ? "Hay más coincidencias: escribe un nombre más completo." : "Escribe un nombre o correo para buscar a más personas."}
+          </p>
         )}
       </div>
       <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[hsl(var(--border))] px-6 py-4">

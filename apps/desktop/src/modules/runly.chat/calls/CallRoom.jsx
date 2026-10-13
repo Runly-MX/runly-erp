@@ -85,15 +85,14 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   const trackTranscription = useTrackTranscription({ callId: session.call.id, conversationId });
   // "Grabar reunión presencial": the recorder opens on a preparation stage
   // (devices + mic check); recording starts when the user presses "Comenzar a
-  // grabar". Per-speaker transcription (when allowed) rides along, but only
-  // with a published microphone — the server refuses a capture without one.
+  // grabar". POST /recording/start already starts the per-speaker capture
+  // linked to it (startLinkedTrackCapture), so requesting it again here only
+  // raced it into a 409 "Ya hay una transcripción en curso".
   const inPerson = session.meetingMode === "inperson";
   const startInPersonRecording = useCallback(async () => {
-    if (!canRecord || !(await recording.start())) return;
-    if (!canTranscribeTracks || trackTranscription.active) return;
-    const micPublished = Boolean(room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track);
-    if (micPublished) trackTranscription.start();
-  }, [canRecord, canTranscribeTracks, recording, trackTranscription, room]);
+    if (!canRecord) return;
+    await recording.start();
+  }, [canRecord, recording]);
 
   // Guest access: only the initiator polls the roster (a non-manager member
   // gets a swallowed 403); the share dialog + roster are hidden otherwise.

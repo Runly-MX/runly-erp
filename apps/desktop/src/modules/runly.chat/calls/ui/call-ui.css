@@ -130,6 +130,9 @@
   --glass-bg: rgba(255, 255, 255, 0.06);
   --glass-bg-strong: rgba(255, 255, 255, 0.1);
   --glass-border: rgba(255, 255, 255, 0.1);
+  /* The light theme's glass shadow carries a near-white inset top line; on
+     this dark surface it read as a stray white top border. */
+  --glass-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   /* Tailwind's @theme colors resolve var(--foreground) etc. at :root, so the
      overrides above only reach utilities like text-foreground / bg-card if
      the --color-* tokens are recomputed here too. */
@@ -143,9 +146,20 @@
   --color-input: hsl(var(--input));
   color-scheme: dark;
   color: hsl(var(--foreground));
-  background: #0c172d !important;
+  /* Same liquid glass as the app's modals (.glass-overlay), tinted to the
+     call's navy so text stays legible over a bright shared screen. */
+  background: rgba(12, 23, 45, 0.72) !important;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: none !important;
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(28px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(150%) !important;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .call-dialog {
+    background: #0c172d !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
 }
 
 /* Side panel (Mensajes | Personas) enter/leave + tab content fade. */

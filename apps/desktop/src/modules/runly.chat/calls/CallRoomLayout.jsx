@@ -312,6 +312,13 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
   const compactDock = stageSize.width > 0 && stageSize.width < 760;
 
   const status = call.outgoingToneActive ? "ringing" : call.connectionState;
+  // In-person recorder: the top bar is the one recording status (REC / EN
+  // PAUSA / not started), so the stage keeps its space for the preview.
+  const inPersonView = view === "inperson";
+  const recordingPaused = inPersonView && media.recording.active && !media.micEnabled;
+  const idleLabel = inPersonView
+    ? (media.recording.busy ? "PREPARANDO…" : media.canRecord ? "LISTO PARA GRABAR" : "SIN GRABAR")
+    : null;
   const waitingText = call.participants.length === 1
     ? (call.outgoingToneActive ? "Llamando…" : "Esperando a que alguien se una…")
     : null;
@@ -414,7 +421,9 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
           status={status}
           elapsed={call.elapsed}
           recordingActive={media.recording.active}
+          recordingPaused={recordingPaused}
           recordingElapsed={recordingElapsed}
+          idleLabel={idleLabel}
           meetingId={link?.meetingId}
           onMinimize={actions.minimize}
           canSwitchCamera={media.canSwitchCamera && media.cameraEnabled}
@@ -433,11 +442,13 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
           status={status}
           elapsed={call.elapsed}
           recordingActive={media.recording.active}
+          recordingPaused={recordingPaused}
           recordingElapsed={recordingElapsed}
+          idleLabel={idleLabel}
           meetingId={link?.meetingId}
           quality={room.localParticipant?.connectionQuality}
           layoutPref={layoutPref}
-          onLayoutChange={view === "inperson" ? null : setLayoutPref}
+          onLayoutChange={inPersonView ? null : setLayoutPref}
           canInvite={people.canShare}
           onInvite={() => setShareOpen(true)}
           lobbyCount={ctl.lobbyCount}

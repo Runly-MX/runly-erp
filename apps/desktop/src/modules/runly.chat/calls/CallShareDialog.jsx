@@ -27,7 +27,7 @@ export function CallShareDialog({ open, onOpenChange, conversationId, callId = n
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="2xl" scrollable className={cn("gap-0 p-0 md:h-[min(46rem,90dvh)] md:p-0", inCall && "call-dialog")}>
+      <DialogContent size="2xl" scrollable className={cn("gap-0 p-0 md:min-h-[min(30rem,90dvh)] md:max-h-[min(46rem,90dvh)] md:p-0", inCall && "call-dialog")}>
         <DialogHeader className="shrink-0 space-y-1 px-6 pb-4 pt-6">
           <DialogTitle className="text-xl">Invitar a la reunión</DialogTitle>
           <DialogDescription>

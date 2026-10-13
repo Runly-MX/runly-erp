@@ -10,12 +10,30 @@ const LAYOUTS = [
   { value: "grid", label: "Cuadrícula", Icon: LayoutGrid },
 ];
 
-function StatusPill({ status, elapsed, recordingActive, recordingElapsed }) {
+// The single recording status of the room: REC / EN PAUSA (in-person recorder
+// with the mic paused) / idleLabel (in-person recorder not started yet, so a
+// running "EN VIVO" clock doesn't read as a recording).
+function StatusPill({ status, elapsed, recordingActive, recordingPaused = false, recordingElapsed, idleLabel = null }) {
   if (recordingActive) {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-red-500/15 px-2.5 py-1 text-xs font-bold tracking-wide text-red-300 ring-1 ring-red-400/30" role="status">
-        <span className="call-rec-dot h-2 w-2 rounded-full bg-red-500" aria-hidden />
-        REC <span className="font-mono font-semibold tabular-nums">{formatClock(recordingElapsed)}</span>
+      <span
+        role="status"
+        aria-live="polite"
+        className={cn(
+          "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold tracking-wide ring-1",
+          recordingPaused ? "bg-amber-400/15 text-amber-200 ring-amber-300/30" : "bg-red-500/15 text-red-300 ring-red-400/30",
+        )}
+      >
+        <span className={cn("h-2 w-2 rounded-full", recordingPaused ? "bg-amber-300" : "call-rec-dot bg-red-500")} aria-hidden />
+        {recordingPaused ? "EN PAUSA" : "REC"} <span className="font-mono font-semibold tabular-nums">{formatClock(recordingElapsed)}</span>
+      </span>
+    );
+  }
+  if (idleLabel && status === "connected") {
+    return (
+      <span role="status" aria-live="polite" className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold tracking-wide text-slate-300 ring-1 ring-white/10">
+        <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
+        {idleLabel}
       </span>
     );
   }
@@ -67,14 +85,14 @@ function NetworkBadge({ quality }) {
 }
 
 // Desktop top bar.
-export function CallTopBar({ title, subtitle, status, elapsed, recordingActive, recordingElapsed, meetingId, quality, layoutPref, onLayoutChange, canInvite, onInvite, lobbyCount = 0, onMinimize, hidden = false }) {
+export function CallTopBar({ title, subtitle, status, elapsed, recordingActive, recordingPaused = false, recordingElapsed, idleLabel = null, meetingId, quality, layoutPref, onLayoutChange, canInvite, onInvite, lobbyCount = 0, onMinimize, hidden = false }) {
   return (
     <header
       data-hidden={hidden}
       className="call-chrome call-chrome-top flex shrink-0 items-center gap-3 px-4 pb-3"
       style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
     >
-      <StatusPill status={status} elapsed={elapsed} recordingActive={recordingActive} recordingElapsed={recordingElapsed} />
+      <StatusPill status={status} elapsed={elapsed} recordingActive={recordingActive} recordingPaused={recordingPaused} recordingElapsed={recordingElapsed} idleLabel={idleLabel} />
       <div className="min-w-0">
         <h1 className="truncate text-[15px] font-semibold leading-tight text-white">{title}</h1>
         {subtitle && <p className="truncate text-xs text-white/55">{subtitle}</p>}
@@ -135,9 +153,11 @@ export function CallTopBar({ title, subtitle, status, elapsed, recordingActive, 
 }
 
 // Phone top bar: minimize, title + clock + ID, quick camera flip and invite.
-export function MobileCallTopBar({ title, status, elapsed, recordingActive, recordingElapsed, meetingId, onMinimize, canSwitchCamera, onSwitchCamera, canInvite, onInvite, onOpenPeople, lobbyCount = 0, hidden = false, dragHandlers = null }) {
-  const clock = recordingActive ? formatClock(recordingElapsed) : formatClock(elapsed);
-  const statusText = status === "connected" ? clock : status === "reconnecting" ? "Reconectando…" : status === "ringing" ? "Llamando…" : status === "failed" ? "Sin conexión" : "Conectando…";
+export function MobileCallTopBar({ title, status, elapsed, recordingActive, recordingPaused = false, recordingElapsed, idleLabel = null, meetingId, onMinimize, canSwitchCamera, onSwitchCamera, canInvite, onInvite, onOpenPeople, lobbyCount = 0, hidden = false, dragHandlers = null }) {
+  const clock = recordingActive
+    ? `${recordingPaused ? "En pausa · " : ""}${formatClock(recordingElapsed)}`
+    : idleLabel ?? formatClock(elapsed);
+  const statusText = status === "connected" ? clock :status === "reconnecting" ? "Reconectando…" : status === "ringing" ? "Llamando…" : status === "failed" ? "Sin conexión" : "Conectando…";
   return (
     <header
       data-hidden={hidden}
@@ -152,7 +172,9 @@ export function MobileCallTopBar({ title, status, elapsed, recordingActive, reco
       ) : <span className="h-10 w-10 shrink-0" aria-hidden />}
       <div className="min-w-0 flex-1 text-center">
         <p className="flex items-center justify-center gap-1.5 truncate text-sm font-semibold">
-          {recordingActive && <span className="call-rec-dot h-2 w-2 shrink-0 rounded-full bg-red-500" aria-label="Grabando" />}
+          {recordingActive && (recordingPaused
+            ? <span className="h-2 w-2 shrink-0 rounded-full bg-amber-300" aria-label="Grabación en pausa" />
+            : <span className="call-rec-dot h-2 w-2 shrink-0 rounded-full bg-red-500" aria-label="Grabando" />)}
           <span className="truncate">{title}</span>
         </p>
         <p className="flex items-center justify-center gap-1.5 text-[11px] text-white/60">

@@ -7,6 +7,23 @@ import { useAudioLevel } from "./hooks/useAudioLevel";
 import { TrackRenderer } from "./ParticipantTile";
 import { AudioOutputPicker, DeviceSelect } from "./controls/CallDialogs";
 import { formatClock } from "./ui/callTheme";
+import { LANDSCAPE, useVideoAspectVersion, videoAspectOf } from "./lib/videoAspect";
+
+// Largest box with the video's own aspect ratio that fits the available area
+// (container query units), so the preview never shows letterbox bars.
+function FitFrame({ ratio, className = "", children }) {
+  const r = ratio || LANDSCAPE;
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center @container-size">
+      <div
+        className={cn("relative overflow-hidden rounded-3xl bg-black ring-1 ring-white/10", className)}
+        style={{ width: `min(100cqw, calc(100cqh * ${r}))`, height: `min(100cqh, calc(100cqw / ${r}))` }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function ActionButton({ icon: Icon, label, onClick, tone = "default", disabled = false, pressed }) {
   const tones = {
@@ -76,28 +93,14 @@ export function InPersonRecorder({
 }) {
   const micTrack = localParticipant?.getTrackPublication?.(Track.Source.Microphone)?.track?.mediaStreamTrack ?? null;
   const { history } = useAudioLevel(micEnabled ? micTrack : null);
+  useVideoAspectVersion();
+  const cameraRatio = videoAspectOf(localParticipant, Track.Source.Camera);
+  const screenRatio = videoAspectOf(localParticipant, Track.Source.ScreenShare);
   const preparing = canRecord && !recordingActive;
   const paused = recordingActive && !micEnabled;
   const exposition = cameraEnabled || screenEnabled;
-  const status = recordingActive
-    ? paused ? "EN PAUSA" : "GRABANDO"
-    : recordingBusy ? "PREPARANDO…" : canRecord ? "LISTO PARA GRABAR" : "SIN GRABAR";
-
-  const statusPill = (
-    <span
-      role="status"
-      aria-live="polite"
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold tracking-wide",
-        recordingActive && !paused && "bg-red-500/15 text-red-300 ring-1 ring-red-400/30",
-        paused && "bg-amber-400/15 text-amber-200 ring-1 ring-amber-300/30",
-        !recordingActive && "bg-white/10 text-slate-300 ring-1 ring-white/10",
-      )}
-    >
-      <span className={cn("h-2 w-2 rounded-full", recordingActive && !paused ? "call-rec-dot bg-red-500" : paused ? "bg-amber-300" : "bg-slate-400")} aria-hidden />
-      {status}
-    </span>
-  );
+  // The recording status (REC / EN PAUSA / LISTO PARA GRABAR) is shown once,
+  // in the call top bar — see CallRoomLayout idleLabel / recordingPaused.
 
   const waveform = (
     <div className={cn("flex w-full max-w-md shrink-0 items-center justify-center gap-0.75", exposition ? "h-10" : "h-24")} aria-hidden>
@@ -133,36 +136,46 @@ export function InPersonRecorder({
   const showInlineDevices = preparing && !exposition;
 
   return (
-    <div className="h-full overflow-y-auto overscroll-contain">
-      <div className={cn("flex min-h-full flex-col items-center px-4 text-center", exposition ? "justify-between gap-4 py-2" : "justify-center gap-6 py-4")}>
+    <div className={cn("h-full overscroll-contain", exposition ? "overflow-hidden" : "overflow-y-auto")}>
+      <div className={cn("flex flex-col items-center px-4 text-center", exposition ? "h-full gap-3 pb-2 pt-1" : "min-h-full justify-center gap-6 py-4")}>
         {exposition ? (
           <>
-            <div className="flex w-full items-center justify-center gap-3">
-              {statusPill}
-              {recordingActive && <span className="font-mono text-2xl font-semibold tabular-nums text-white">{formatClock(elapsed)}</span>}
-            </div>
-            {/* Exposition preview: what goes into the recording. */}
-            <div className="relative min-h-48 w-full max-w-5xl flex-1 overflow-hidden rounded-3xl bg-black ring-1 ring-white/10">
-              {screenEnabled ? (
-                <TrackRenderer participant={localParticipant} source={Track.Source.ScreenShare} muted fit="contain" />
-              ) : (
-                <TrackRenderer participant={localParticipant} source={Track.Source.Camera} muted mirror={mirror} fit="contain" />
-              )}
-              {screenEnabled && cameraEnabled && (
-                <div className="absolute bottom-3 right-3 aspect-video w-[26%] max-w-64 overflow-hidden rounded-2xl ring-2 ring-white/20 shadow-2xl">
+            {/* Exposition preview: what goes into the recording. Its status
+                lives in the top bar (REC / EN PAUSA), so the preview takes
+                all the height. Screen + camera: the camera sits beside the
+                screen (overlaid in a corner on narrow screens). */}
+            <div className="flex min-h-0 w-full flex-1 items-stretch gap-3">
+              <FitFrame ratio={screenEnabled ? screenRatio : cameraRatio}>
+                {screenEnabled ? (
+                  <TrackRenderer participant={localParticipant} source={Track.Source.ScreenShare} muted fit="contain" />
+                ) : (
                   <TrackRenderer participant={localParticipant} source={Track.Source.Camera} muted mirror={mirror} fit="cover" />
+                )}
+                {screenEnabled && cameraEnabled && (
+                  <div
+                    className="absolute bottom-3 right-3 w-[26%] max-w-56 overflow-hidden rounded-2xl shadow-2xl ring-2 ring-white/20 lg:hidden"
+                    style={{ aspectRatio: cameraRatio || LANDSCAPE }}
+                  >
+                    <TrackRenderer participant={localParticipant} source={Track.Source.Camera} muted mirror={mirror} fit="cover" />
+                  </div>
+                )}
+                <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
+                  {screenEnabled ? "Presentando pantalla" : "Cámara"} · {recordingActive ? "se incluye en la grabación" : "se incluirá en la grabación"}
+                </span>
+              </FitFrame>
+              {screenEnabled && cameraEnabled && (
+                <div className="hidden w-60 shrink-0 flex-col justify-end lg:flex xl:w-72">
+                  <div className="w-full overflow-hidden rounded-2xl bg-black ring-1 ring-white/10" style={{ aspectRatio: cameraRatio || LANDSCAPE }}>
+                    <TrackRenderer participant={localParticipant} source={Track.Source.Camera} muted mirror={mirror} fit="cover" />
+                  </div>
                 </div>
               )}
-              <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-                {screenEnabled ? "Presentando pantalla" : "Cámara"} · {recordingActive ? "se incluye en la grabación" : "se incluirá en la grabación"}
-              </span>
             </div>
             {waveform}
           </>
         ) : (
           <>
             <div className="flex flex-col items-center gap-3">
-              {statusPill}
               {preparing ? (
                 <>
                   <h2 className="text-2xl font-semibold text-white sm:text-3xl">Prepara la grabación</h2>
