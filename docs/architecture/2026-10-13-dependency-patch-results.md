@@ -70,6 +70,15 @@ Los advisories específicos y rutas de cada familia están enlazados en el JSON.
 
 Build web pasó. El escaneo local de secretos/privacidad pasó sobre 4332 archivos,
 con Gitleaks 8.30.1 previamente verificado y PATH temporal; no es escaneo histórico.
-Las regresiones generales posteriores al lockfile se registran al completar la
-ejecución. CI, restauración real B2 y transporte empresarial siguen diferidos.
+Regresiones completadas: API 2367 tests, 2365 pass, 2 skip, 0 fail (216.0 s).
+Primer shared: 1624 tests, 1616 pass, 7 skip, 1 fail (192.8 s), por
+AGENTS.md del Dev Kit desactualizado frente a su fuente. Regenerado en
+064c6ec9: test dirigido 1/1; nuevo shared 1617 pass, 7 skip, 0 fail (176.4 s).
+
+Node 22.12.0, timeout 60000 ms, concurrency 8 y force-exit. Los patrones
+seleccionados no enumeran todas las suites .mjs/Prisma/Docker; no se activaron
+servicios reales. Force-exit no demuestra limpieza de handles. Los 17 tests
+dirigidos pasan; cuatro de Sharp ya forman parte del conteo API.
+
+CI, restauración real B2 y transporte empresarial siguen diferidos.
 No se publicaron paquetes, artefactos o imágenes, ni se modificó una instalación.
