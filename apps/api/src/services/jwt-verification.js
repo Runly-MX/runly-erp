@@ -35,8 +35,13 @@ export function signHs256Jwt(payload, secret, expiresInSecs) {
 export function verifySupabaseJwt(token, secret) {
   try {
     const parts = token.split(".");
-    if (parts.length !== 3) return null;
+    if (parts.length !== 3 || parts.some((part) => !/^[A-Za-z0-9_-]+$/.test(part))) return null;
     const [headerB64, payloadB64, signatureB64] = parts;
+
+    const header = JSON.parse(Buffer.from(headerB64, "base64url").toString("utf8"));
+    if (!header || typeof header !== "object" || Array.isArray(header) || header.alg !== "HS256") return null;
+    // This local verifier implements ordinary encoded HS256 JWTs only.
+    if (Object.hasOwn(header, "crit") || (Object.hasOwn(header, "b64") && header.b64 !== true)) return null;
 
     const expectedSig = crypto
       .createHmac("sha256", secret)
@@ -50,8 +55,12 @@ export function verifySupabaseJwt(token, secret) {
     if (!crypto.timingSafeEqual(expectedBuf, receivedBuf)) return null;
 
     const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8"));
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+    if (typeof payload.exp !== "number" || !Number.isFinite(payload.exp)) return null;
     const now = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp + JWT_CLOCK_SKEW_LEEWAY_SECS <= now) return null;
+    if (payload.exp + JWT_CLOCK_SKEW_LEEWAY_SECS <= now) return null;
+    if (Object.hasOwn(payload, "nbf") &&
+        (typeof payload.nbf !== "number" || !Number.isFinite(payload.nbf) || payload.nbf > now + JWT_CLOCK_SKEW_LEEWAY_SECS)) return null;
     return payload;
   } catch {
     return null;

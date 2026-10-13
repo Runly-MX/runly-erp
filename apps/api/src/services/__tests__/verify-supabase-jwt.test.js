@@ -3,23 +3,28 @@ import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { verifySupabaseJwt, signHs256Jwt } from "../jwt-verification.js";
 
-// Minimal local HS256 JWT signer, deliberately mirroring the exact parsing logic
-// in verifySupabaseJwt (header.payload.signature, '.'-joined base64url segments,
-// signature = HMAC-SHA256(`${headerB64}.${payloadB64}`, secret) base64url-encoded)
-// so this test does not depend on an external JWT library.
+// Independent compact-token fixture generator. It can sign malformed headers
+// and claims without using the production signer or any real secret.
 function base64url(input) {
   return Buffer.from(input).toString("base64url");
 }
 
-function signJwt(payload, secret) {
-  const header = { alg: "HS256", typ: "JWT" };
-  const headerB64 = base64url(JSON.stringify(header));
-  const payloadB64 = base64url(JSON.stringify(payload));
+function signEncoded(headerB64, payloadB64, secret) {
   const signatureB64 = crypto
     .createHmac("sha256", secret)
     .update(`${headerB64}.${payloadB64}`)
     .digest("base64url");
   return `${headerB64}.${payloadB64}.${signatureB64}`;
+}
+
+function signJwt(payload, secret, header = { alg: "HS256", typ: "JWT" }) {
+  return signEncoded(base64url(JSON.stringify(header)), base64url(JSON.stringify(payload)), secret);
+}
+
+function fixedClock(t) {
+  const now = 1_800_000_000;
+  t.mock.method(Date, "now", () => now * 1000);
+  return now;
 }
 
 const SECRET = "test-secret-for-verify-supabase-jwt";
@@ -52,13 +57,12 @@ test("rejects a token with an invalid signature", () => {
   assert.equal(payload, null);
 });
 
-test("accepts a token with no exp field", () => {
+test("rejects a token with no exp field", () => {
   const token = signJwt({ sub: "user-1" }, SECRET);
 
   const payload = verifySupabaseJwt(token, SECRET);
 
-  assert.ok(payload, "expected token without exp to be accepted");
-  assert.equal(payload.sub, "user-1");
+  assert.equal(payload, null, "an access token must have a finite numeric expiry");
 });
 
 test("signHs256Jwt round-trips through verifySupabaseJwt with the given claims and a future exp", () => {
@@ -80,4 +84,69 @@ test("signHs256Jwt output is rejected by verifySupabaseJwt under a different sec
   const payload = verifySupabaseJwt(token, "a-different-secret");
 
   assert.equal(payload, null);
+});
+
+test("rejects signed headers that do not declare HS256", (t) => {
+  const now = fixedClock(t);
+  for (const header of [{ alg: "none" }, { alg: "RS256" }, { alg: "HS512" }, {}, null, [], "HS256"]) {
+    assert.equal(verifySupabaseJwt(signJwt({ sub: "user-1", exp: now + 60 }, SECRET, header), SECRET), null);
+  }
+});
+
+test("rejects unsupported critical headers and unencoded payload declarations", (t) => {
+  const now = fixedClock(t);
+  for (const extension of [{ crit: ["fixture"] }, { crit: [] }, { crit: null }, { b64: false }, { b64: "true" }]) {
+    assert.equal(verifySupabaseJwt(signJwt({ exp: now + 60 }, SECRET, { alg: "HS256", ...extension }), SECRET), null);
+  }
+});
+
+test("rejects signed payloads that are not claim objects", () => {
+  for (const payload of ["fixture", [1, 2], 42, true, null]) {
+    assert.equal(verifySupabaseJwt(signJwt(payload, SECRET), SECRET), null);
+  }
+});
+
+test("rejects non-numeric and non-finite expiry claims", (t) => {
+  const now = fixedClock(t);
+  for (const exp of [String(now + 60), null, [], {}, false]) {
+    assert.equal(verifySupabaseJwt(signJwt({ sub: "user-1", exp }, SECRET), SECRET), null);
+  }
+  const token = signEncoded(base64url('{"alg":"HS256"}'), base64url('{"sub":"user-1","exp":1e999}'), SECRET);
+  assert.equal(verifySupabaseJwt(token, SECRET), null);
+});
+
+test("rejects a signed token that is not yet valid beyond clock leeway", (t) => {
+  const now = fixedClock(t);
+  assert.equal(verifySupabaseJwt(signJwt({ sub: "user-1", exp: now + 60, nbf: now + 11 }, SECRET), SECRET), null);
+});
+
+test("rejects malformed optional not-before claims", (t) => {
+  const now = fixedClock(t);
+  for (const nbf of [String(now), null, {}, [], true, Infinity]) {
+    assert.equal(verifySupabaseJwt(signJwt({ exp: now + 60, nbf }, SECRET), SECRET), null);
+  }
+});
+
+test("preserves exact clock leeway, optional typ and fractional NumericDate", (t) => {
+  const now = fixedClock(t);
+  assert.equal(verifySupabaseJwt(signJwt({ exp: now - 10 }, SECRET), SECRET), null);
+  assert.ok(verifySupabaseJwt(signJwt({ exp: now - 9 }, SECRET), SECRET));
+  assert.ok(verifySupabaseJwt(signJwt({ exp: now + 60, nbf: now + 10 }, SECRET), SECRET));
+  assert.ok(verifySupabaseJwt(signJwt({ exp: now + 0.5, nbf: now + 0.5 }, SECRET, { alg: "HS256" }), SECRET));
+});
+
+test("rejects non-base64url or empty compact segments even when their bytes are signed", (t) => {
+  const now = fixedClock(t);
+  const header = base64url('{"alg":"HS256"}');
+  const payload = base64url(JSON.stringify({ exp: now + 60 }));
+  for (const token of [signEncoded(header + "*", payload, SECRET), signEncoded(header, payload + "=", SECRET), signEncoded("", payload, SECRET), signEncoded("not-json", payload, SECRET)]) {
+    assert.equal(verifySupabaseJwt(token, SECRET), null);
+  }
+  for (const token of [null, undefined, 42, "", "a.b", "a.b.c.d"]) assert.equal(verifySupabaseJwt(token, SECRET), null);
+});
+
+test("returns valid claims unchanged without inferring authorization from metadata", (t) => {
+  const now = fixedClock(t);
+  const claims = { sub: "user-1", exp: now + 60, role: "authenticated", user_metadata: { fixture: true } };
+  assert.deepEqual(verifySupabaseJwt(signJwt(claims, SECRET), SECRET), claims);
 });

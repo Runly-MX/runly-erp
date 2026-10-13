@@ -18,13 +18,13 @@ No cambios index.js, middleware, dependencies, schema o clientes.
 
 ## Task 2 — Regresiones
 
-- [ ] Helper independiente con header configurable; reloj fijo y nuevos casos negativos.
-- [ ] Cambiar expectativa sin exp explícitamente; ejecutar y registrar baseline fallida.
+- [x] Helper independiente con header configurable; reloj fijo y nuevos casos negativos.
+- [x] Expectativa sin exp cambiada deliberadamente; baseline JWT/invitados 11 pass/8 fail de 19.
 
 ## Task 3 — Verificador
 
-- [ ] Validar estructura/header/alg y exp/nbf; preservar firma y leeway.
-- [ ] JWT/invitados y pruebas PWA pertinentes; investigar fallos sin ocultarlos.
+- [x] Estructura/header/alg y exp/nbf validados; firma y leeway conservados.
+- [x] JWT/invitados 19/19; grupo sesión/Realtime/login/JWT 37/37, sin skips o servicios reales. Fracciones NumericDate y límites exactos probados.
 
 ## Task 4 — Cierre
 
