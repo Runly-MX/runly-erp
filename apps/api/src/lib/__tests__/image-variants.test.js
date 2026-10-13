@@ -6,6 +6,7 @@ import {
   signedUrlWithVariant,
   signedUrlsWithVariant,
   publicUrlWithVariant,
+  transformOptions,
 } from '../image-variants.js'
 
 function fakeSupabaseAdmin({ signedUrl = 'https://x/signed', signedUrls = null, publicUrl = 'https://x/public' } = {}) {
@@ -120,4 +121,11 @@ describe('publicUrlWithVariant', () => {
     publicUrlWithVariant(supabaseAdmin, 'runly-website', 'a/b.png', 'full')
     assert.deepEqual(supabaseAdmin.calls.getPublicUrl[0].options, {})
   })
+})
+
+it('SUPABASE_IMAGE_TRANSFORMS=off signs the original instead of an imgproxy transform', () => {
+  assert.deepEqual(transformOptions('thumb', { SUPABASE_IMAGE_TRANSFORMS: 'off' }), {})
+  assert.deepEqual(transformOptions('thumb', { SUPABASE_IMAGE_TRANSFORMS: 'false' }), {})
+  assert.ok(transformOptions('thumb', {}).transform)
+  assert.ok(transformOptions('thumb', { SUPABASE_IMAGE_TRANSFORMS: 'on' }).transform)
 })

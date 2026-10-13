@@ -1,8 +1,9 @@
 // apps/api/src/lib/image-variants.js
 
 // Named image-transform presets applied to Supabase Storage signed/public URLs
-// via the imgproxy sidecar (confirmed active on the self-hosted instance —
-// see docs/superpowers/specs/2026-08-03-image-thumbnail-variants-design.md).
+// via the imgproxy sidecar when the instance has one (see
+// docs/superpowers/specs/2026-08-03-image-thumbnail-variants-design.md and
+// imageTransformsEnabled below).
 // `full` means "no transform, serve the original".
 export const IMAGE_VARIANTS = Object.freeze({
   thumb: Object.freeze({ width: 40, height: 40, resize: 'cover', quality: 70 }),
@@ -24,12 +25,21 @@ export const IMAGE_VARIANTS = Object.freeze({
 // Exported (not just used internally) so callers that need to route through
 // a caching layer — e.g. getCachedSignedUrls in signed-url-cache.js — can
 // compute the same transform shape without duplicating the variant lookup.
-export function transformOptions(variant) {
+// Storage instances without image transformation (no imgproxy — e.g. the
+// installer's self-hosted Supabase, or a Supabase Cloud project on a plan
+// without transforms) answer /render/image/ URLs with 4xx, so every avatar
+// and thumbnail fell back to initials/placeholders. SUPABASE_IMAGE_TRANSFORMS=off
+// signs the original object instead; unset keeps transforms on.
+export function imageTransformsEnabled(env = process.env) {
+  return !/^(off|false|0|disabled)$/i.test(String(env.SUPABASE_IMAGE_TRANSFORMS ?? '').trim())
+}
+
+export function transformOptions(variant, env = process.env) {
   if (variant !== 'full' && !(variant in IMAGE_VARIANTS)) {
     console.warn(`[image-variants] unrecognized variant "${variant}" — serving full resolution`)
   }
   const preset = IMAGE_VARIANTS[variant]
-  return preset ? { transform: preset } : {}
+  return preset && imageTransformsEnabled(env) ? { transform: preset } : {}
 }
 
 export async function signedUrlWithVariant(supabaseAdmin, bucket, objectKey, variant, expiresIn = 3600) {

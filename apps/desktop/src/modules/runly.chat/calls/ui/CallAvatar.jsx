@@ -13,8 +13,9 @@ const SIZES = {
 // Round avatar for the call room: photo when there is one, tinted initials
 // otherwise; a soft pulse while the person is speaking.
 export function CallAvatar({ name, seed, url = null, size = "md", speaking = false, className = "" }) {
-  const [broken, setBroken] = useState(false);
-  const showImage = url && !broken;
+  // Keyed by URL: a failed signed URL must not hide a later, valid one.
+  const [brokenUrl, setBrokenUrl] = useState(null);
+  const showImage = url && brokenUrl !== url;
   return (
     <span
       className={cn(
@@ -27,7 +28,7 @@ export function CallAvatar({ name, seed, url = null, size = "md", speaking = fal
       aria-hidden
     >
       {showImage ? (
-        <img src={url} alt="" className="h-full w-full object-cover" onError={() => setBroken(true)} draggable={false} />
+        <img src={url} alt="" className="h-full w-full object-cover" onError={() => setBrokenUrl(url)} draggable={false} />
       ) : (
         initialsOf(name)
       )}

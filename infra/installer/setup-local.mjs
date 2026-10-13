@@ -1012,6 +1012,9 @@ SUPABASE_S3_ENDPOINT=${supabaseS3Endpoint}
 SUPABASE_S3_ACCESS_KEY_ID=${supabaseS3AccessKeyId}
 SUPABASE_S3_SECRET_ACCESS_KEY=${supabaseS3SecretKey}
 SUPABASE_S3_REGION=${supabaseS3Region}
+# Image thumbnails via Storage transforms (imgproxy). The self-hosted stack
+# ships without imgproxy, so Runly signs the original images there ("off").
+SUPABASE_IMAGE_TRANSFORMS=${fromLocalEnv("SUPABASE_IMAGE_TRANSFORMS") || (supabase.mode === "selfhosted" ? "off" : "")}
 
 # ── Runly Calls / LiveKit ──────────────────────────────────────────────────
 LIVEKIT_MODE=${liveKit.mode}
