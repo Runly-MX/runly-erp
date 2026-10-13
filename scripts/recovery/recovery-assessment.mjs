@@ -27,7 +27,8 @@ export async function locateBackupRoot(input) {
 }
 
 export function safeManifestPath(value) {
-  if (typeof value !== 'string' || !value || value.startsWith('/') || /[\\:\x00-\x1f]/.test(value) ||
+  if (typeof value !== 'string' || !value || value.startsWith('/') || /[\\\x00-\x1f]/.test(value) ||
+    (process.platform === 'win32' && value.includes(':')) ||
     value.split('/').some(p => !p || p === '.' || p === '..')) throw inputError('El manifiesto contiene una ruta insegura.');
   return value;
 }

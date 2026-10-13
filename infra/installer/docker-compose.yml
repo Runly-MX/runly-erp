@@ -295,11 +295,15 @@ services:
     profiles: ["backup-local"]
     env_file:
       - ./.env.local
+    environment:
+      BACKUP_STORAGE_VOLUME_PREFIX: ${BACKUP_STORAGE_VOLUME_PREFIX:-stub/stub}
+      BACKUP_STORAGE_VERSION_SEPARATOR: ${BACKUP_STORAGE_VERSION_SEPARATOR:-/}
     volumes:
       # Solo lectura: el backup nunca debe poder modificar Storage.
       - supabase-storage-data:/storage-source:ro
       - ./.env.local:/config-source/.env.local:ro
       - ./supabase/volumes/db:/config-source/supabase-db-init:ro
+      - ./custom-modules:/modules-source:ro
     restart: unless-stopped
 
   runly-backup-external:
@@ -310,6 +314,7 @@ services:
       - ./.env.external
     volumes:
       - ./.env.external:/config-source/.env.external:ro
+      - ./custom-modules:/modules-source:ro
     restart: unless-stopped
 
   livekit-caddy:

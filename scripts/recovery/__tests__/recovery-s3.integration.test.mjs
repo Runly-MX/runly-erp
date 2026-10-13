@@ -7,7 +7,7 @@ import { mkdtemp, mkdir, writeFile, readFile, stat, rm } from 'node:fs/promises'
 import os from 'node:os';
 import path from 'node:path';
 import { runRecovery } from '../runly-recovery.mjs';
-import { hashFile } from '../recovery-assessment.mjs';
+import { hashFile, locateBackupRoot } from '../recovery-assessment.mjs';
 
 const execute = promisify(execFile);
 test('read-only S3 recovery extracts complete and legacy snapshots and restores an isolated PostgreSQL dump',
@@ -16,12 +16,15 @@ test('read-only S3 recovery extracts complete and legacy snapshots and restores 
     const token = randomBytes(8).toString('hex');
     const minio = `runly-recovery-s3-${token}`;
     const postgres = `runly-recovery-pg-${token}`;
+    const network = `runly-recovery-net-${token}`;
     const containers = [];
     t.after(async () => {
       for (const name of containers) await execute('docker', ['rm', '--force', name], { windowsHide: true }).catch(() => {});
+      await execute('docker', ['network', 'rm', network], { windowsHide: true }).catch(() => {});
       await rm(dir, { recursive: true, force: true });
     });
     const docker = async args => (await execute('docker', args, { maxBuffer: 32 * 1024 * 1024, windowsHide: true })).stdout.trim();
+    await docker(['network', 'create', network]);
     const backupImage = await docker(['image', 'inspect', '--format', '{{.Id}}', 'runly-backup-recovery:verification']);
     const minioImage = await docker(['image', 'inspect', '--format', '{{.Id}}', 'minio/minio:latest']);
     const pgImage = await docker(['image', 'inspect', '--format', '{{.Id}}', 'postgres:17-alpine']);
@@ -29,7 +32,7 @@ test('read-only S3 recovery extracts complete and legacy snapshots and restores 
     const readPassword = randomBytes(24).toString('hex');
     const envFile = path.join(dir, 'minio.env');
     await writeFile(envFile, `MINIO_ROOT_USER=fixtureadmin\nMINIO_ROOT_PASSWORD=${password}\n`, { mode: 0o600 });
-    await docker(['run', '-d', '--name', minio, '--env-file', envFile, '-p', '127.0.0.1::9000', minioImage, 'server', '/data']);
+    await docker(['run', '-d', '--name', minio, '--network', network, '--env-file', envFile, '-p', '127.0.0.1::9000', minioImage, 'server', '/data']);
     containers.push(minio);
     const port = (await docker(['port', minio, '9000/tcp'])).match(/:(\d+)$/)?.[1];
     const endpoint = `http://host.docker.internal:${port}`;
@@ -49,7 +52,7 @@ test('read-only S3 recovery extracts complete and legacy snapshots and restores 
     await restic(['init']);
     const pgEnv = path.join(dir, 'pg.env');
     await writeFile(pgEnv, `POSTGRES_PASSWORD=${password}\n`, { mode: 0o600 });
-    await docker(['run', '-d', '--name', postgres, '--env-file', pgEnv, pgImage]);
+    await docker(['run', '-d', '--name', postgres, '--network', network, '--env-file', pgEnv, pgImage]);
     containers.push(postgres);
     for (let i = 0; i < 50; i++) {
       try { await docker(['exec', postgres, 'pg_isready', '-U', 'postgres']); break; } catch {}
@@ -79,8 +82,22 @@ test('read-only S3 recovery extracts complete and legacy snapshots and restores 
     await writeFile(path.join(source, 'backup-manifest.json'), JSON.stringify({ schemaVersion: 1, coverageMode: 'complete', instanceId: 'original-instance',
       createdAt: new Date().toISOString(), resources: Object.fromEntries(['database', 'storage', 'modules', 'config'].map(k => [k, { status: 'complete' }])), files: inventory }));
     await restic(['backup', '/fixture/source', '--host', 'original-instance', '--tag', 'runly-complete-v1']);
+    // Exercise the actual collector, SQL inventory, rclone, upload, check and tag.
+    await docker(['exec', postgres, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c',
+      "CREATE SCHEMA storage; CREATE TABLE storage.buckets(id text PRIMARY KEY); CREATE TABLE storage.objects(bucket_id text,name text,version text,metadata jsonb); CREATE TABLE runly_module(key text,status text); INSERT INTO runly_module VALUES ('custom.fixture','INSTALLED');"]);
+    for (const bucket of ['runly-files', 'runly-website', 'runly-chat', 'runly-notes', 'runly-storefront']) {
+      await mc(['mb', `fixture/${bucket}`]);
+      await mc(['cp', `/fixture/source/storage/${bucket}/known.txt`, `fixture/${bucket}/known.txt`]);
+      await docker(['exec', postgres, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c',
+        `INSERT INTO storage.buckets VALUES ('${bucket}'); INSERT INTO storage.objects VALUES ('${bucket}','known.txt',NULL,'{"size":${`known-${bucket}`.length}}');`]);
+    }
+    const collectionEnv = path.join(dir, 'collection.env');
+    await writeFile(collectionEnv, `RUNLY_INSTANCE_ID=original-instance\nDATABASE_URL=postgresql://postgres:${password}@${postgres}:5432/postgres\nRESTIC_PASSWORD=${password}\nBACKUP_S3_ENDPOINT=${endpoint}\nBACKUP_S3_BUCKET=test-bucket\nBACKUP_S3_ACCESS_KEY_ID=fixtureadmin\nBACKUP_S3_SECRET_ACCESS_KEY=${password}\nBACKUP_STORAGE_S3_ENDPOINT=${endpoint}\nBACKUP_STORAGE_S3_ACCESS_KEY_ID=fixtureadmin\nBACKUP_STORAGE_S3_SECRET_ACCESS_KEY=${password}\nBACKUP_COVERAGE_MODE=complete\n`, { mode: 0o600 });
+    await docker(['run', '--rm', '--network', network, '--env-file', collectionEnv,
+      '--mount', `type=bind,source=${path.join(source, 'modules')},target=/modules-source,readonly`,
+      '--mount', `type=bind,source=${path.join(source, 'config')},target=/config-source,readonly`, backupImage, '/app/run-backup.sh']);
     const snapshots = JSON.parse(await restic(['snapshots', '--json']));
-    const complete = snapshots.find(s => s.tags?.includes('runly-complete-v1')).id;
+    const complete = snapshots.find(s => s.tags?.includes('runly-complete-v1') && s.paths?.[0]?.startsWith('/tmp/')).id;
     const policyFile = path.join(dir, 'readonly.json');
     await writeFile(policyFile, JSON.stringify({ Version: '2012-10-17', Statement: [
       { Effect: 'Allow', Action: ['s3:ListBucket', 's3:GetBucketLocation'], Resource: ['arn:aws:s3:::test-bucket'] },
@@ -93,14 +110,15 @@ test('read-only S3 recovery extracts complete and legacy snapshots and restores 
     await writeFile(recoveryConfig, `BACKUP_S3_ENDPOINT=${endpoint}\nBACKUP_S3_BUCKET=test-bucket\nRUNLY_INSTANCE_ID=original-instance\nRESTIC_PASSWORD=${password}\nBACKUP_S3_ACCESS_KEY_ID=recoveryreader\nBACKUP_S3_SECRET_ACCESS_KEY=${readPassword}\n`, { mode: 0o600 });
     const before = await mc(['ls', '--recursive', '--json', 'fixture/test-bucket/original-instance']);
     const inspected = await runRecovery(['inspect', '--config', recoveryConfig, '--image', backupImage]);
-    assert.equal(inspected.snapshots.length, 2);
+    assert.equal(inspected.snapshots.length, 3);
     const output = path.join(dir, 'complete');
     const result = await runRecovery(['extract', '--config', recoveryConfig, '--image', backupImage, '--snapshot', complete, '--output', output]);
     assert.equal(result.exitCode, 0);
     assert.equal(result.assessment.status, 'complete');
     assert.equal(result.assessment.databaseValidation, 'pg_restore-list');
-    assert.equal(await readFile(path.join(output, 'fixture', 'source', 'storage', 'runly-chat', 'known.txt'), 'utf8'), 'known-runly-chat');
-    const restoredDump = path.join(output, 'fixture', 'source', 'db.dump');
+    const recoveredRoot = await locateBackupRoot(output);
+    assert.equal(await readFile(path.join(recoveredRoot, 'storage', 'runly-chat', 'known.txt'), 'utf8'), 'known-runly-chat');
+    const restoredDump = path.join(recoveredRoot, 'db.dump');
     await docker(['cp', restoredDump, `${postgres}:/tmp/recovered.dump`]);
     await docker(['exec', postgres, 'createdb', '-U', 'postgres', 'recovered']);
     await docker(['exec', postgres, 'pg_restore', '-U', 'postgres', '-d', 'recovered', '/tmp/recovered.dump']);

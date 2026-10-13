@@ -15,6 +15,7 @@ Node CLI parses an explicit private config, passes allowlisted values to Docker 
 ## File Structure Map
 
 Create:
+- `apps/backup/backup-coverage.mjs` — source metadata, copy validation and private checksum manifest; uses Node built-ins and PostgreSQL CLI already in the image.
 - `scripts/recovery/runly-recovery.mjs` — entry point, no target DB mutations.
 - `scripts/recovery/recovery-config.mjs` — pure validation and secret allowlist.
 - `scripts/recovery/recovery-paths.mjs` — canonical destination/snapshot path checks.
@@ -31,6 +32,8 @@ Create:
 Modify:
 - `apps/backup/run-backup.sh`, `verify-backup.sh` — coverage/manifest and freshness.
 - `infra/docker/backup.Dockerfile` — only tooling actually required by verified scripts.
+
+Implementation detail: add Node.js to the backup image for bounded JSON/path validation and hashing; preserve raw local Storage metadata with `cp -a`, not a contents-only JS copy. Local file layout defaults to the installer's `stub/stub` prefix and slash version separator; explicit overrides are recorded in the manifest. Source metadata is compared before/after collection, without claiming atomic DB/Storage consistency.
 - `infra/installer/lib/backup-config.mjs`, `backup-config.test.mjs` — coverage/max-age contract.
 - `infra/installer/setup-local.mjs`, `setup-external.mjs` — preserve/write new config values.
 - `infra/installer/.env.local.example`, `.env.external.example` — no actual targets/secrets.
@@ -74,14 +77,16 @@ Verified: 2026-10-12 (`node --test scripts/recovery/__tests__/*.test.mjs`: 14 pa
 
 ## Task 4 — Complete backup coverage
 
-- [ ] Inventory required buckets from source metadata and validate bucket names/object path mapping.
-- [ ] Capture the existing DB dump, all required buckets, module source and config; record coverageMode/version/time bounds in private manifest.
-- [ ] Mount module source read-only; exclude transient directories according to the spec and document every intentional omission.
-- [ ] Stop before snapshot/prune for any required source/copy failure; empty valid buckets succeed. Do not automatically unlock another running job.
-- [ ] Retain explicit database-only mode with unmistakable partial tags/manifest.
-- [ ] In Docker fixtures induce failure at dump, each Storage source/copy, modules/config, snapshot and integrity check; assert command order and absence of prune after failure.
+- [x] Inventory required buckets from source metadata and validate bucket names/object path mapping.
+- [x] Capture the existing DB dump, all required buckets, module source and config; record coverageMode/version/time bounds in private manifest.
+- [x] Mount module source read-only; exclude top-level installer transient directories and document every intentional omission.
+- [x] Stop before snapshot/prune for any required source/copy failure; empty valid buckets succeed. Do not automatically unlock another running job.
+- [x] Retain explicit database-only mode with unmistakable partial tags/manifest.
+- [x] In Docker fixtures induce failure at dump, required Storage copy, modules/config, snapshot and integrity check; assert command order and absence of prune after failure.
 
 Validation: `node --test apps/backup/tests/backup-pipeline.test.mjs`; shell `bash -n` in a compatible Docker image; relevant installer tests; disposable successful snapshot/extraction and known file checksum comparison. Commit: `fix: require complete backup coverage before success and prune`.
+
+Verified: 2026-10-12 (Docker pipeline 20/20, local/external sources, empty bucket and unaccounted object; actual PostgreSQL inventory + rclone collection + Restic pending/upload/check/tag/prune exercised in separate S3 integration, 1/1 in 59.5s; known dump restored into a new PostgreSQL database). Matching coverage only is pruned; legacy snapshots remain for manual review. The test models Storage metadata in PostgreSQL and objects in MinIO; real Supabase authentication, Storage metadata restoration and module UI acceptance remain Tasks 6/7.
 
 ## Task 5 — Installer preservation and independent freshness
 

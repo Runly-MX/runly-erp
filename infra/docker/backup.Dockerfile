@@ -6,7 +6,7 @@
 # exactly, without guessing an Alpine postgresql-client package name.
 FROM postgres:17-alpine
 
-RUN apk add --no-cache bash coreutils tzdata curl jq restic rclone
+RUN apk add --no-cache bash coreutils tzdata curl jq restic rclone nodejs
 
 # supercronic (cron built for containers: forwards job stdout/stderr to its
 # own stdout, which is what `docker compose logs` shows) has no apk package —
@@ -25,6 +25,7 @@ RUN case "${TARGETARCH}" in \
 
 WORKDIR /app
 COPY apps/backup/entrypoint.sh apps/backup/run-backup.sh apps/backup/verify-backup.sh ./
+COPY apps/backup/backup-coverage.mjs ./
 RUN chmod +x /app/*.sh
 
 # Clear the inherited `CMD ["postgres"]` from postgres:17-alpine — this image

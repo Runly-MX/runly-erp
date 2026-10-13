@@ -102,6 +102,8 @@ Complete backup inventories all required Storage buckets from existing metadata 
 
 Local mode mounts Storage, config and custom-module data read-only. External mode inventories and copies all required buckets via configured Storage access and mounts custom modules read-only. Empty valid buckets differ from inaccessible sources. Required source/copy failure aborts before snapshot publication or prune. No completed marker if restic backup/check fails. No automatic unlock while another backup may be active.
 
+Collection uses a Node built-in helper in the backup image to validate bucket/object paths, compare expected bytes, require source folders for installed custom modules, and create per-file SHA-256 inventory. `cp -a` preserves local Storage filesystem metadata. Its local backend prefix is configurable as `BACKUP_STORAGE_VOLUME_PREFIX` (default matches the installer: `stub/stub`); `BACKUP_STORAGE_VERSION_SEPARATOR` accepts `/` or `-$v-`. Record both and require manual compatibility review for a different backend layout. Include `.backups` for source recovery; exclude only the declared transient module directories. Capture metadata before/after collection and abort on drift; this is not an atomic DB/Storage snapshot.
+
 Instance config and module sources are required for `complete`; `database-only` is an explicit opt-in limitation, visibly distinct in snapshot tags and manifest. Changing that setting must not silently remove existing recovery coverage.
 
 ## 21. Export/import requirements
