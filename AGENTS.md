@@ -37,6 +37,17 @@ Runly ERP v2 is a Node.js + React + Hono monorepo. ERP features are built as sel
 
 ---
 
+## Developer documentation (single source)
+
+`docs/developers/*.md` is the only place the module developer docs are edited.
+Everything else is a generated copy:
+
+- `packages/module-compiler/src/developer-docs.json` (Builder ZIP) — `node scripts/generate-module-developer-docs.mjs`
+- `../runly-web/src/content/developers/` (runly.mx) — `node scripts/sync-help-content.mjs` in runly-web; fails on hand-edited copies
+- `../runly-developer-hub/apps/api/src/mcp/docs/` (Hub MCP, read by the Claude/OpenAI plugins) — `node scripts/sync-mcp-docs.mjs ../runly-web` in the Hub
+
+Never edit those copies by hand; change `docs/developers/` and re-run the chain.
+
 ## Before working on any module
 
 Read **`docs/ai-context/rme3-modules.md`** — it contains the full pattern guide with

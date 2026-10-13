@@ -5,6 +5,8 @@ order: 7
 ---
 Los módulos de Runly están pensados para que un asistente de IA pueda trabajar en ellos con poca explicación. Todo lo que necesita está en el ZIP y en esta documentación.
 
+Si tu asistente soporta MCP remoto, también puede trabajar directamente con tus proyectos de Developer Hub —con tu identidad, permisos que eliges y aprobación humana para operaciones sensibles—: ver [Conectar asistentes de IA por MCP](mcp.md).
+
 ## Qué darle al asistente
 
 | Recurso | Qué contiene | Cómo usarlo |

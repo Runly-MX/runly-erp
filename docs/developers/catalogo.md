@@ -1,4 +1,8 @@
-# Catálogo de módulos v1
+---
+title: Catálogo oficial de módulos
+summary: Reviews humanas, releases inmutables y verificación Ed25519 del catálogo v1. Preparación local sin despliegue público.
+order: 9
+---
 
 **Módulos > Disponibles** verifica cada ZIP antes de mostrar permisos. **Oficial verificado** exige firma válida con una clave oficial fijada en Runly, además de SHA-256, tamaño e identidad del manifiesto correctos. Un campo official del paquete o del índice no otorga ese estado.
 
@@ -12,7 +16,7 @@ El administrador revisa servicios, eventos, Connections, capacidades y grants re
 4. Un publisher oficial confirma expresamente los bytes aprobados. El build no firma ni publica automáticamente.
 5. Un publicador separado revalida, llama al signer aislado, registra ledger y exporta ZIPs inmutables e índice v1.
 
-La clave privada oficial permanece fuera de API, worker, frontend, Supabase y repositorios. La firma Ed25519 sigue cubriendo exactamente el payload UTF-8 `<key>@<version>:<sha256>`. El digest corresponde al ZIP completo. El JSON del índice v1 no está firmado; v1 no garantiza frescura u omisión de entradas por un host comprometido. Para eso existe el Marketplace (más abajo), que consume snapshots firmados y secuenciados sin cambiar el v1.
+La clave privada oficial permanece fuera de API, worker, frontend, Supabase y repositorios. La firma Ed25519 sigue cubriendo exactamente el payload UTF-8 `<key>@<version>:<sha256>`. El digest corresponde al ZIP completo. El JSON del índice v1 no está firmado; v1 no garantiza frescura u omisión de entradas por un host comprometido. El catálogo v2, paralelo y opcional, añade snapshots firmados y secuenciados, comunidad y revocaciones sin cambiar el v1: ver [Marketplace comunitario y catálogo v2](catalogo-comunitario.md). Cómo los consume una instancia se explica en la sección Marketplace, más abajo.
 
 ## Schema y descargas
 
@@ -61,3 +65,17 @@ Antes de confiar se validan el esquema estricto, la representación canónica, e
 - Sólo URLs HTTPS o `file://` explícito.
 
 La publicación productiva sigue desactivada y no hay claves de producción fijadas para comunidad; el Marketplace se prueba con catálogos firmados con claves efímeras de prueba.
+
+## Preparar archivos estáticos en Runly Web
+
+public/catalog/v1/index.json es un fixture fuente vacío. No contiene nuevas publicaciones oficiales. El export del publicador contiene índice, ZIPs por digest y snapshots históricos.
+
+```bash
+pnpm catalog:prepare --from /ruta/export/catalog/v1 --output .artifacts/catalog/v1
+```
+
+El comando verifica tamaños, hashes y firmas contra el pin oficial antes de copiar. Sólo copia índice y ZIPs referenciados, nunca claves, receipts o configuración. Escribe paquetes inmutables antes de cambiar el índice. Preparar archivos no despliega el sitio.
+
+Fixtures locales admiten `--fixture-key /ruta/public-test-spki.txt`, únicamente con salida bajo .artifacts/. Nunca se usa para poblar public/ o dist/, ni convierte esa clave en oficial.
+
+La distribución futura debe conservar ZIPs históricos, servir application/json y application/zip, evitar cache largo del índice y permitir cache inmutable de paquetes por digest. Hosting, activación pública, TLS y backup operativo siguen pendientes.
