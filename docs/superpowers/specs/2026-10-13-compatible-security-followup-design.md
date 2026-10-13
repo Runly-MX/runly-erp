@@ -1,7 +1,7 @@
 # Parches compatibles: Hono, fast-uri y Valibot
 
 Date: 2026-10-13
-Status: Authorized autonomous local scope
+Status: Complete — three local patches; remaining families and operational acceptance pending
 
 ## 1. Feature title
 

@@ -7,6 +7,8 @@ Spec: `docs/superpowers/specs/2026-10-12-runly-stabilization-design.md`.
 Program: `docs/superpowers/plans/2026-10-12-runly-stabilization.md`.
 Current review: `docs/architecture/2026-10-13-stabilization-current-state.md` (dated evidence, independent scopes and operational acceptance matrix).
 
+- [x] Compatible security follow-up: Prisma Hono adapter, Ajv fast-uri and Prisma Valibot patched in separate commits (45b74cad/9908761a/05a97872). Verified: 2026-10-13, baseline 4 pass/10 fail, corrected 14/14; frozen installs and unrelated resolution preservation pass. API 2404 pass/2 skip/0 fail, shared 1626 pass/7 skip/0 fail, privacy/secrets/whitespace pass. Audit 27 → 16 (0 critical/6 high/9 moderate/1 low), seven families remain, no exceptions. Evidence: `docs/architecture/2026-10-13-compatible-security-followup-results.md`.
+
 - [x] API readiness local implementation: GET /ready separate from /health, bounded single DB probe, timeout/cache/late-client cleanup, runtime bootstrap/status and shutdown gates (6de59edd). Verified: 2026-10-13, 18/18 directed tests; API 2404 pass/2 skip/0 fail, privacy/secrets/syntax/whitespace pass. Operational acceptance and Compose/traffic integration remain open. Evidence: `docs/architecture/2026-10-13-readiness-verification.md`; operator contract: `docs/deployment/api-health.md`.
 - [ ] Dependency security remains open: current audit rerun 2026-10-13 confirms 27 alerts (0 critical, 13 high, 13 moderate, 1 low) across ten families. Readiness does not patch packages; no exceptions accepted. Family review recorded in readiness-verification.md.
 
