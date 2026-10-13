@@ -680,6 +680,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `useIsMobile` | `boolean` — true below the given breakpoint (default 768px), updates on resize |
 | `useLongPress` | `useLongPress({ onLongPress, delay=450, moveTolerance=10, disabled })` → pointer handlers; fires after a stationary press, cancels on move/scroll, ignores interactive targets, vibrates |
 | `useSwipeToReply` | `useSwipeToReply({ onReply, threshold=64, direction, disabled })` → `{ handlers, translateX }`; fires only on a horizontal drag past the threshold, yields to vertical scroll |
+| `useHlsPosterFrame` | `useHlsPosterFrame(key, manifestText, { enabled, width=480 })` → `{ frame, loading }`; grabs one JPEG data-URL frame from an HLS manifest (segments already signed) for card thumbnails. Pass `enabled` = "is visible"; cached per `key` for the session, at most 2 extractions at once |
 | `cn` | Tailwind class merge utility (from `lib/utils`) |
 
 ---

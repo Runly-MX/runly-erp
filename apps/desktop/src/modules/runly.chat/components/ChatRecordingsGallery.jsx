@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AdvancedFileViewer, ConfirmDialog, EmptyState, ErrorState, Input, Skeleton,
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, useCoarsePointer,
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, cn, useCoarsePointer, useHlsPosterFrame,
 } from "@runly/ui";
 import { AlertCircle, Check, Loader2, Pencil, Play, Trash2, Video, X } from "lucide-react";
 import { toast } from "sonner";
@@ -30,6 +30,35 @@ function formatFileSize(bytes) {
     unitIndex += 1;
   }
   return `${value.toFixed(unitIndex > 0 && value < 10 ? 1 : 0)} ${units[unitIndex]}`;
+}
+
+// Cards fill the panel: one column on a phone, several on a wide screen.
+const GRID_CLASS = "grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3";
+
+function formatDuration(ms) {
+  if (ms == null) return null;
+  const total = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
+}
+
+// True once the element has come near the viewport (and stays true), so
+// poster frames are only fetched for cards the user can actually see.
+function useInView() {
+  const [node, setNode] = useState(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    if (!node || inView) return undefined;
+    if (typeof IntersectionObserver === "undefined") { setInView(true); return undefined; }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setInView(true);
+    }, { rootMargin: "200px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [node, inView]);
+  return [setNode, inView];
 }
 
 // Click the pencil to edit in place; Enter/blur saves, Escape cancels. An
@@ -147,23 +176,26 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
       ? (recording.playlistUrlError || "No se pudo generar el enlace de reproducción.")
       : null;
 
-  // When there's a problem, lead with it instead of duration/size — a "13s ·
-  // 5.3 MB" subtitle next to a warning icon told the user nothing was wrong
-  // beyond a vague icon (the bug reported: recordings with a real S3 object
-  // and real metadata still can't be signed into a playable URL).
+  // When there's a problem, lead with it instead of size — a "5.3 MB"
+  // subtitle next to a warning icon told the user nothing was wrong. The raw
+  // reason (often an English infra message) goes in the tooltip.
   const metaParts = [];
   // The date is the primary title when there's no custom name — once a
-  // recording is renamed, it would otherwise disappear from the row entirely.
+  // recording is renamed, it would otherwise disappear from the card entirely.
   if (recording.title) metaParts.push(formatRecordingDateTime(recording.startedAt));
-  if (errorDetail) {
-    metaParts.push(errorDetail);
-  } else {
-    if (isReady && recording.durationMs != null) metaParts.push(`${Math.round(recording.durationMs / 1000)}s`);
-    const fileSize = isReady ? formatFileSize(recording.sizeBytes) : null;
+  if (isFailed) metaParts.push("No se pudo procesar");
+  else if (isUnavailable) metaParts.push("No disponible para reproducir");
+  else if (isActive) metaParts.push(recording.status === "PROCESSING" ? "Procesando…" : "Grabando…");
+  else {
+    const fileSize = formatFileSize(recording.sizeBytes);
     if (fileSize) metaParts.push(fileSize);
   }
   if (recording.startedBy?.displayName) metaParts.push(`Por ${recording.startedBy.displayName}`);
-  if (!metaParts.length) metaParts.push("Procesando...");
+
+  const [thumbRef, inView] = useInView();
+  const playable = isReady && hasPlaylist;
+  const { frame, loading: frameLoading } = useHlsPosterFrame(recording.id, playable ? recording.playlistManifest : null, { enabled: inView });
+  const duration = isReady ? formatDuration(recording.durationMs) : null;
 
   async function handleDelete() {
     try {
@@ -174,42 +206,84 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
     }
   }
 
-  return (
-    <div className="rounded-xl border border-[hsl(var(--border))] p-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <RecordingTitle recording={recording} renameRecording={renameRecording} />
-          <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{metaParts.join(" · ")}</p>
+  const thumb = (
+    <>
+      {frame ? (
+        <img src={frame} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+      ) : (
+        <div
+          className={cn(
+            "absolute inset-0 flex items-center justify-center",
+            isFailed ? "bg-red-500/10 text-red-500" : isUnavailable ? "bg-amber-500/10 text-amber-500" : "bg-[linear-gradient(135deg,color-mix(in_srgb,var(--brand-primary)_22%,transparent),hsl(var(--muted)))] text-(--brand-primary)",
+          )}
+        >
+          {isFailed || isUnavailable ? (
+            <AlertCircle className="h-9 w-9" aria-hidden />
+          ) : isActive || frameLoading ? (
+            <Loader2 className="h-8 w-8 animate-spin opacity-70" aria-hidden />
+          ) : (
+            <Video className="h-10 w-10 opacity-80" aria-hidden />
+          )}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          {isReady && hasPlaylist && (
-            <button
-              type="button"
-              onClick={() => onPlay(recording)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]"
-              aria-label="Reproducir"
-            >
-              <Play className="h-4 w-4" />
-            </button>
-          )}
-          {(isFailed || isUnavailable) && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertCircle
-                    className={`h-5 w-5 shrink-0 ${isFailed ? "text-red-500" : "text-amber-500"}`}
-                    aria-label={errorDetail}
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs text-xs">
-                  {errorDetail}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-          {!isReady && !isFailed && (
-            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[hsl(var(--muted-foreground))]" aria-label="Procesando" />
-          )}
+      )}
+      {playable && (
+        <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/25">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white shadow-lg backdrop-blur-sm transition-transform group-hover:scale-110">
+            <Play className="ml-0.5 h-5 w-5 fill-current" aria-hidden />
+          </span>
+        </span>
+      )}
+      {duration && (
+        <span className="absolute bottom-2 right-2 rounded-md bg-black/65 px-1.5 py-0.5 font-mono text-[11px] font-medium tabular-nums text-white">{duration}</span>
+      )}
+      {isActive && (
+        <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">
+          <span className={cn("h-1.5 w-1.5 rounded-full", recording.status === "PROCESSING" ? "bg-amber-300" : "animate-pulse bg-red-500")} aria-hidden />
+          {recording.status === "PROCESSING" ? "Procesando" : "Grabando"}
+        </span>
+      )}
+    </>
+  );
+
+  return (
+    <article className="group overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-shadow hover:shadow-md">
+      {playable ? (
+        <button
+          ref={thumbRef}
+          type="button"
+          onClick={() => onPlay(recording)}
+          aria-label={`Reproducir ${recording.title || formatRecordingDateTime(recording.startedAt)}`}
+          className="relative block aspect-video w-full overflow-hidden bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--brand-primary)"
+        >
+          {thumb}
+        </button>
+      ) : (
+        <div ref={thumbRef} className="relative aspect-video w-full overflow-hidden">
+          {thumb}
+        </div>
+      )}
+      <div className="flex items-start justify-between gap-2 p-3">
+        <div className="min-w-0 flex-1">
+          <RecordingTitle recording={recording} renameRecording={renameRecording} />
+          <p className="flex min-w-0 items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]">
+            <span className="truncate">{metaParts.join(" · ")}</span>
+            {errorDetail && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" aria-label={errorDetail} className={cn("shrink-0", isFailed ? "text-red-500" : "text-amber-500")}>
+                      <AlertCircle className="h-3.5 w-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">
+                    {errorDetail}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </p>
+        </div>
+        <div className="-mr-1 -mt-1 flex shrink-0 items-center gap-0.5">
           {isReady && (
             <RecordingTranscriptAction recording={recording} transcript={transcript} conversationId={conversationId} />
           )}
@@ -234,7 +308,7 @@ function RecordingRow({ recording, deleteRecording, renameRecording, onPlay, tra
         loading={deleteRecording.isPending}
         onConfirm={handleDelete}
       />
-    </div>
+    </article>
   );
 }
 
@@ -309,9 +383,16 @@ export function ChatRecordingsGallery({ conversationId }) {
 
   if (isLoading) {
     return (
-      <div className="space-y-2 p-3">
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-16 w-full" />
+      <div className={cn(GRID_CLASS, "p-3")}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="overflow-hidden rounded-xl border border-[hsl(var(--border))]">
+            <Skeleton className="aspect-video w-full rounded-none" />
+            <div className="space-y-2 p-3">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -336,7 +417,8 @@ export function ChatRecordingsGallery({ conversationId }) {
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto space-y-2 p-3">
+    <div className="flex-1 min-h-0 overflow-y-auto p-3">
+      <div className={GRID_CLASS}>
       {recordings.map((r) => (
         <RecordingRow
           key={r.id}
@@ -348,6 +430,7 @@ export function ChatRecordingsGallery({ conversationId }) {
           conversationId={conversationId}
         />
       ))}
+      </div>
       <AdvancedFileViewer
         open={viewerIndex !== null}
         onOpenChange={closeViewer}

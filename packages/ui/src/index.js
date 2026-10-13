@@ -272,6 +272,7 @@ export { FileUploader } from "./components/FileUploader.jsx";
 export { AIUploadDropzone } from "./components/AIUploadDropzone.jsx";
 export { AIFlowSteps } from "./components/AIFlowSteps.jsx";
 export { AdvancedFileViewer } from "./components/AdvancedFileViewer.jsx";
+export { useHlsPosterFrame } from "./lib/useHlsPosterFrame.js";
 export { FileVisual } from "./components/FileVisual.jsx";
 export {
   getFileKind,
