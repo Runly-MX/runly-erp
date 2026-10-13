@@ -20,7 +20,8 @@
 // sliding active highlight), autofocus of the search box on open, match
 // highlighting, grouped sections, results count, empty / loading / error
 // states, inline "Crear «X»" footer, clear button, multi-select with chips,
-// full keyboard support and focus return to the trigger.
+// full keyboard support and focus return to the trigger. On phones (narrow +
+// touch) the options open in a bottom Sheet instead of the floating panel.
 import { forwardRef, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, List, X } from "lucide-react";
@@ -28,6 +29,9 @@ import { autoFieldIcon } from "../lib/field-icon-inference.js";
 import { cn } from "../lib/utils.js";
 import { useIsolatedScroll } from "../hooks/useIsolatedScroll.js";
 import { useComboboxPopover } from "../hooks/useComboboxPopover.js";
+import { useIsMobile } from "../hooks/useIsMobile.js";
+import { useCoarsePointer } from "../hooks/usePointerCapabilities.js";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./Sheet.jsx";
 import { fieldCls, FieldWrapper } from "./form-field-base.jsx";
 import { optionMatchesSearch, shouldOfferCreate, useListboxNav } from "./combobox-parts.jsx";
 import {
@@ -123,6 +127,12 @@ export const Combobox = forwardRef(function Combobox(
   } = useComboboxPopover({ dropHeight, minWidth });
   useIsolatedScroll(dropdownRef, open);
   const { mounted, visible } = usePresence(open);
+  // Phones get the options in a bottom sheet (a Radix layer like every other
+  // mobile overlay) instead of the fixed floating panel: on real iOS WebKit
+  // that panel, portalled over a bottom-sheet Dialog, never showed up.
+  const isMobile = useIsMobile();
+  const coarse = useCoarsePointer();
+  const asSheet = isMobile && coarse;
 
   const triggerRef = useRef(null);
   const setTriggerRef = useCallback(
@@ -458,6 +468,57 @@ export const Combobox = forwardRef(function Combobox(
 
   const flipped = Boolean(dropdownStyle.flipped);
 
+  const panelInner = (
+    <>
+      {showSearch && (
+        <ComboboxSearch
+          inputRef={searchRef}
+          value={effSearch}
+          onChange={handleSearchChange}
+          onClear={() => {
+            setSearch("");
+            onSearchChange?.("");
+            nav.resetActive(1);
+            searchRef.current?.focus();
+          }}
+          onKeyDown={nav.onKeyDown}
+          placeholder={searchPlaceholder}
+          busy={loading && Boolean(term)}
+          listId={listId}
+          activeId={activeId}
+        />
+      )}
+      <div
+        ref={(node) => {
+          listRef.current = node;
+          if (!showSearch) searchRef.current = node;
+        }}
+        id={listId}
+        role="listbox"
+        aria-multiselectable={multiple || undefined}
+        aria-activedescendant={showSearch ? undefined : activeId}
+        tabIndex={showSearch ? undefined : -1}
+        onKeyDown={showSearch ? undefined : handleListKeyDown}
+        className={cn("overflow-y-auto overscroll-contain p-1 outline-none", asSheet ? "max-h-[55dvh]" : "max-h-64")}
+      >
+        {renderBody()}
+      </div>
+      {canCreate && (
+        <CreateFooter
+          id={optionId(listOptions.length)}
+          index={listOptions.length}
+          active={nav.activeIndex === listOptions.length}
+          term={term}
+          text={createMode === "empty-search" ? createLabel || "Crear nuevo" : createLabel}
+          isCreating={isCreating}
+          disabled={createDisabled}
+          onClick={handleCreate}
+          onHover={() => nav.activeIndex !== listOptions.length && nav.setActiveIndex(listOptions.length)}
+        />
+      )}
+    </>
+  );
+
   return (
     <FieldWrapper label={label} labelFor={id} error={error} hint={hint} required={required}>
       <div ref={containerRef} className={cn("relative", className)}>
@@ -506,7 +567,16 @@ export const Combobox = forwardRef(function Combobox(
           />
         </button>
 
-        {mounted &&
+        {asSheet ? (
+          <Sheet open={open} onOpenChange={(next) => { if (!next) close(); }}>
+            <SheetContent ref={dropdownRef} side="bottom" className="gap-0 p-0 pb-[env(safe-area-inset-bottom)]" style={{ zIndex }}>
+              <SheetHeader className="px-4 pb-2 pt-1">
+                <SheetTitle className="text-base">{label || placeholder || "Selecciona una opción"}</SheetTitle>
+              </SheetHeader>
+              <div className="flex flex-col">{panelInner}</div>
+            </SheetContent>
+          </Sheet>
+        ) : mounted &&
           createPortal(
             <div
               ref={dropdownRef}
@@ -527,52 +597,7 @@ export const Combobox = forwardRef(function Combobox(
                   : cn("opacity-0 scale-[0.97] duration-100", flipped ? "translate-y-1" : "-translate-y-1"),
               )}
             >
-              {showSearch && (
-                <ComboboxSearch
-                  inputRef={searchRef}
-                  value={effSearch}
-                  onChange={handleSearchChange}
-                  onClear={() => {
-                    setSearch("");
-                    onSearchChange?.("");
-                    nav.resetActive(1);
-                    searchRef.current?.focus();
-                  }}
-                  onKeyDown={nav.onKeyDown}
-                  placeholder={searchPlaceholder}
-                  busy={loading && Boolean(term)}
-                  listId={listId}
-                  activeId={activeId}
-                />
-              )}
-              <div
-                ref={(node) => {
-                  listRef.current = node;
-                  if (!showSearch) searchRef.current = node;
-                }}
-                id={listId}
-                role="listbox"
-                aria-multiselectable={multiple || undefined}
-                aria-activedescendant={showSearch ? undefined : activeId}
-                tabIndex={showSearch ? undefined : -1}
-                onKeyDown={showSearch ? undefined : handleListKeyDown}
-                className="max-h-64 overflow-y-auto overscroll-contain p-1 outline-none"
-              >
-                {renderBody()}
-              </div>
-              {canCreate && (
-                <CreateFooter
-                  id={optionId(listOptions.length)}
-                  index={listOptions.length}
-                  active={nav.activeIndex === listOptions.length}
-                  term={term}
-                  text={createMode === "empty-search" ? createLabel || "Crear nuevo" : createLabel}
-                  isCreating={isCreating}
-                  disabled={createDisabled}
-                  onClick={handleCreate}
-                  onHover={() => nav.activeIndex !== listOptions.length && nav.setActiveIndex(listOptions.length)}
-                />
-              )}
+              {panelInner}
             </div>,
             document.body,
           )}

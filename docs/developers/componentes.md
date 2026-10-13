@@ -453,6 +453,8 @@ Menú de acciones. Se compone con `DropdownMenuTrigger`, `DropdownMenuContent`, 
 
 Todos aceptan `label`, `required`, `error` (texto rojo bajo el campo), `hint` (ayuda), `disabled` y `className`.
 
+En el teléfono (pantalla angosta y táctil) los selectores (`SelectField`, `ComboboxField`, `CreatableComboboxField`, `RelationSelectField`) abren sus opciones en una hoja inferior con el `label` como título, en lugar del panel flotante; el buscador no abre el teclado hasta que lo tocas. No hace falta ningún prop.
+
 Icono automático: `TextField`, `NumberField`, `PasswordField` y los selectores (`SelectField`, `ComboboxField`, `CreatableComboboxField`, `RelationSelectField`) muestran un icono representativo a la izquierda aunque no pases `icon`: se deduce del `name` y del `label` (por ejemplo "Correo" → sobre, "Teléfono" → teléfono, "Dirección" → pin, "Puesto" → maletín). Solo ocurre si el campo tiene `label`. Pasa `icon={Otro}` para elegir uno o `icon={null}` para quitarlo.
 
 ### TextField
