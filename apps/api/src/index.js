@@ -39,7 +39,7 @@ import {
   createFilesService,
 } from "./services/files-service.js";
 import { createCompanyModuleService } from "./services/company-module-service.js";
-import { verifySupabaseJwt } from "./services/jwt-verification.js";
+import { createAuthMiddleware } from "./services/auth-middleware.js";
 import { createCompanyRouter } from "./routes/company-routes.js";
 import { createContactsRouter } from "./routes/contacts-routes.js";
 import { createHrRouter } from "./routes/hr-routes.js";
@@ -277,48 +277,12 @@ function mapSetupError(err) {
   return { status: 500, error: "Error interno al inicializar la instancia." };
 }
 
-async function authMiddleware(c, next) {
-  const authHeader = c.req.header("Authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token)
-    return c.json({ error: "No autorizado. Debes iniciar sesion." }, 401);
-
-  const cacheKey = `auth:token:${token.slice(-32)}`;
-  let userId = cacheGet(cacheKey);
-  if (!userId) {
-    // Prefer local JWT verification — no network call, resilient to VPS connectivity issues.
-    // SUPABASE_JWT_SECRET is the secret Supabase uses to sign its access tokens.
-    const jwtSecret = process.env.SUPABASE_JWT_SECRET;
-    const payload = jwtSecret ? verifySupabaseJwt(token, jwtSecret) : null;
-
-    if (payload?.sub) {
-      userId = payload.sub;
-      // Cache until token expiry minus 30s buffer (cap at 5 min for safety)
-      const ttlSecs = payload.exp
-        ? Math.min(payload.exp - Math.floor(Date.now() / 1000) - 30, 300)
-        : TTL.USER_CONTEXT;
-      if (ttlSecs > 0) cacheSet(cacheKey, userId, ttlSecs);
-    } else {
-      // Fallback: verify via Supabase network call (handles unknown alg, rotated secrets)
-      const { data, error } = await supabaseAdmin.auth.getUser(token);
-      if (error || !data.user) {
-        // Never log the token itself — only why Supabase rejected it.
-        console.warn(
-          "[auth] token rejected:",
-          error?.status ?? "",
-          error?.message ?? "no user",
-          jwtSecret ? "(local HS256 verify failed)" : "(SUPABASE_JWT_SECRET unset)",
-        );
-        return c.json({ error: "No autorizado. Token invalido o expirado." }, 401);
-      }
-      userId = data.user.id;
-      cacheSet(cacheKey, userId, TTL.USER_CONTEXT);
-    }
-  }
-
-  c.set("authUserId", userId);
-  await next();
-}
+const authMiddleware = createAuthMiddleware({
+  supabaseAdmin,
+  cacheGet,
+  cacheSet,
+  userContextTtlSeconds: TTL.USER_CONTEXT,
+});
 
 const ADMIN_ROLE_KEYS = new Set(["runly.admin", "system.admin"]);
 const BASE_PERMISSION_KEYS = new Set(["profile.self.read", "runly.help.read"]);

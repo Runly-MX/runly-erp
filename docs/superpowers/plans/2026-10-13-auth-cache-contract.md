@@ -18,8 +18,8 @@ Sin dependencies, frontend, configuración real o base de datos.
 
 ## Task 2 — Extracción
 
-- [ ] Factory con lógica original y conexión en index.js.
-- [ ] Fixtures HTTP: local/remoto/hit/401/no secret/casi expirado; tests y commit de extracción.
+- [x] Factory con lógica original y conexión en index.js; usos posteriores a inicialización revisados.
+- [x] Seis fixtures HTTP local/remoto/hit/401/no secret/casi expirado pasan; JWT/invitados incluidos, 25/25. Syntax index/factory y privacidad/whitespace pasan; commit de extracción separado.
 
 ## Task 3 — Corrección
 
