@@ -159,7 +159,8 @@ export function createCallRecordingService({
     // LiveKit's default template. "grid-dark" (not an empty layout) matters
     // for the default: it only upgrades grid->speaker on a screen share when
     // the layout string starts with "grid".
-    const templateUrl = String(env.LIVEKIT_EGRESS_TEMPLATE_URL ?? "").trim();
+    const rawTemplateUrl = String(env.LIVEKIT_EGRESS_TEMPLATE_URL ?? "").trim();
+    const templateUrl = /^(off|none|false)$/i.test(rawTemplateUrl) ? "" : rawTemplateUrl;
     const compositeOptions = templateUrl ? { layout: "runly", customBaseUrl: templateUrl } : { layout: "grid-dark" };
     // A phone-to-phone call with upright cameras records as a vertical video
     // (the canvas size is fixed for the whole file). Only with Runly's own

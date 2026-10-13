@@ -731,6 +731,15 @@ async function writeLocalEnv(supabaseInput, identity) {
   // Public root URL of the web app (email links, Office, storefront). Defaults
   // to the first CORS origin, which is the frontend the browser loads.
   const appUrl = (deploymentValues.RUNLY_APP_URL || corsOrigin.split(",")[0].trim()).replace(/\/+$/, "");
+  // Runly-branded recording page for LiveKit Egress (apps/desktop /app/egress/call).
+  // Without it recordings fall back to LiveKit's "grid-dark" template, which
+  // crops every camera to fill its cell (an upright phone camera came out as a
+  // zoomed horizontal slice). On Linux egress shares the host network, so it
+  // reaches the web container through its published port; elsewhere it is on
+  // the Compose network and uses the service name. "off" keeps LiveKit's grid.
+  const webHostPort = process.env.RUNLY_WEB_HOST_PORT || parseEnvValue(existingEnvContent, "RUNLY_WEB_HOST_PORT") || "5173";
+  const egressTemplateUrl = parseEnvValue(existingEnvContent, "LIVEKIT_EGRESS_TEMPLATE_URL")
+    || (isLinux ? `http://127.0.0.1:${webHostPort}/app/egress/call` : "http://runly-web-local/app/egress/call");
   const googleClientId     = parseEnvValue(existingEnvContent, "GOOGLE_OAUTH_CLIENT_ID")     || "<YOUR_GOOGLE_OAUTH_CLIENT_ID>";
   const googleClientSecret = parseEnvValue(existingEnvContent, "GOOGLE_OAUTH_CLIENT_SECRET") || "<YOUR_GOOGLE_OAUTH_CLIENT_SECRET>";
   const googleRedirectUri  = parseEnvValue(existingEnvContent, "GOOGLE_OAUTH_REDIRECT_URI")  || "https://your-atlas-domain.com/app/google/calendar/callback";
@@ -1009,6 +1018,8 @@ LIVEKIT_URL=${liveKit.publicUrl}
 LIVEKIT_INTERNAL_URL=${liveKit.internalUrl}
 LIVEKIT_API_KEY=${liveKit.apiKey}
 LIVEKIT_API_SECRET=${liveKit.apiSecret}
+# Runly recording layout page reached by the Egress container ("off" = LiveKit grid).
+LIVEKIT_EGRESS_TEMPLATE_URL=${egressTemplateUrl}
 
 # ── Runly Transcription (faster-whisper, optional) ───────────────────────────
 # local: instala y ejecuta faster-whisper en un contenedor propio en esta VPS.
