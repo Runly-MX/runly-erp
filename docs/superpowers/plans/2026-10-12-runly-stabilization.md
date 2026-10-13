@@ -103,6 +103,8 @@ Cierre: no unclassified failures or dependency alerts. A remaining exception inc
 
 ## Task 4 — CI and reproducible releases (P1)
 
+Deferred: 2026-10-12 by user instruction; continue all independent local stabilization work without requiring user presence. No workflow or branch-protection changes in the consumer workstream.
+
 Dependency: Tasks 2/3 enough to define a truthful baseline; child spec/plan required.
 
 - [ ] Add PR/push gates: frozen install, API/shared tests, disposable isolation, build web, privacy/secrets, UUID/schema/RBAC and company transport.
