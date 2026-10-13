@@ -3,7 +3,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
   Button, SelectField, TagsField, ErrorState, SwitchField, cn,
 } from "@runly/ui";
-import { Video, Calendar, Mic, Check, CheckCircle2 } from "lucide-react";
+import { Video, Calendar, Mic, Check, CheckCircle2, Plus } from "lucide-react";
+import { ConversationTypeBadge } from "./ConversationTypeBadge";
 import { toast } from "sonner";
 import EventFormModal from "../../runly.calendar/components/EventFormModal";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -19,6 +20,32 @@ import { CallAccessSettings } from "../calls/CallAccessSettings";
 function unwrap(r) {
   return r?.data ?? r;
 }
+
+// Same identity as the chat list: photo, emoji or initials plus the
+// channel/group corner badge, so rooms are told apart at a glance.
+function RoomAvatar({ conversation, name }) {
+  const url = conversation.avatarUrl ?? null;
+  const emoji = conversation.avatar_emoji ?? null;
+  const initials = String(name || "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <span className="relative inline-flex shrink-0">
+      {url ? (
+        <img src={url} alt="" className="h-8 w-8 rounded-full object-cover" />
+      ) : emoji ? (
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--muted))] text-base leading-none">{emoji}</span>
+      ) : (
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-(--brand-primary) text-xs font-semibold text-(--brand-primary-foreground)">{initials}</span>
+      )}
+      <ConversationTypeBadge type={conversation.type} />
+    </span>
+  );
+}
+
+const NEW_ROOM_ICON = (
+  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-(--brand-primary)/50 bg-(--brand-primary)/10 text-(--brand-primary)">
+    <Plus className="h-4 w-4" aria-hidden />
+  </span>
+);
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NEW_ROOM = "__new__";
@@ -307,11 +334,19 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
               disabled={busy}
               onValueChange={setConversationId}
               options={[
-                { value: NEW_ROOM, label: "Nueva sala de reunión" },
-                ...conversations.map((c) => ({
-                  value: c.id,
-                  label: getConversationDisplayName(c, userProfile?.id),
-                })),
+                { value: NEW_ROOM, label: "Nueva sala de reunión", description: "Se crea un canal privado solo para esta reunión", icon: NEW_ROOM_ICON },
+                ...conversations.map((c) => {
+                  const name = getConversationDisplayName(c, userProfile?.id);
+                  const count = c.members?.length ?? 0;
+                  return {
+                    value: c.id,
+                    label: c.type === "channel" ? `#${name}` : name,
+                    keywords: [name],
+                    group: c.type === "channel" ? "Canales" : "Grupos",
+                    description: `${c.type === "channel" ? "Canal" : "Grupo"}${count ? ` · ${count} ${count === 1 ? "miembro" : "miembros"}` : ""}`,
+                    icon: <RoomAvatar conversation={c} name={name} />,
+                  };
+                }),
               ]}
             />
 
