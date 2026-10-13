@@ -14,5 +14,5 @@
 
 - Use `import { toast } from 'sonner'` for toast notifications.
 - Never use `import { toast } from '@runly/ui'` — that export does not exist in installer mode.
-- Use `@runly/ui` for UI primitives such as `Accordion`, `AccordionContent`, `AccordionItem`, `AccordionTrigger`, `ActionMenu`, `ActivityBellTrigger`, `ActivityDrawer`, `ActivityTimeline`.
+- Use `@runly/ui` for UI primitives such as `Accordion`, `AccordionContent`, `AccordionItem`, `AccordionTrigger`, `ActionMenu`, `ActiveFilterChips`, `ActivityBellTrigger`, `ActivityDrawer`.
 

@@ -22,7 +22,7 @@ Every new module requires an approved spec and implementation plan before any co
 2. Get spec approved (explicit confirmation — not implied)
 3. Write implementation plan at `docs/superpowers/plans/YYYY-MM-DD-rme3-<moduleKey>.md`
 4. Get plan approved (explicit confirmation — not implied)
-5. Create module folder at `modules/custom/<moduleKey>/`
+5. Create module folder at `modules/custom/<moduleKey>/` (git-ignored instance folder: keep the module's source in its own repository or as a ZIP; see the note in [02_module_system.md](02_module_system.md#module-locations))
 6. Write `module.manifest.js` using `defineRunlyModule`
 7. Declare models in `models/*.model.js` using `defineModel`
 8. Declare views in `views/*.view.js` using `defineView` (TABLE, FORM, DETAIL, CUSTOM kinds)
@@ -65,10 +65,10 @@ If the RME3 layer needed to avoid these edits is not yet available, wait for it.
 
 | Prefix | Who | Example |
 |---|---|---|
-| `atlas.*` | Atlas core team only | `atlas.catalog` |
+| `runly.*` | Runly core team only | `runly.catalog` |
 | `custom.*` | Private / company modules | `custom.deliveries` |
 | `community.*` | Open-source community modules | `community.crm` |
-| `atlas.*`, `core.*`, `system.*`, `identity.*` | Reserved — rejected by discovery | — |
+| `runly.*`, `atlas.*`, `core.*`, `system.*`, `identity.*` | Reserved — rejected by discovery | — |
 
 ---
 
@@ -119,9 +119,9 @@ export default defineRunlyModule({
   category: 'operaciones',
 
   dependencies: [
-    { key: 'atlas.core' },
-    { key: 'atlas.identity' },
-    { key: 'atlas.files', optional: true },
+    { key: 'runly.core' },
+    { key: 'runly.identity' },
+    { key: 'runly.files', optional: true },
   ],
 
   lifecycle: {
@@ -206,7 +206,7 @@ import { defineModel } from '@runly/module-engine'
 export default defineModel({
   key: 'shipment',
   label: 'Envio',
-  tableName: 'atlas_deliveries_shipment',
+  tableName: 'deliveries_shipment',
   companyScoped: true,
   softDelete: true,
   fields: [
@@ -250,8 +250,8 @@ export default defineView({
   schema: {
     entity: 'shipment',
     label: 'Envios',
-    shell: 'atlas.dashboardShell',
-    layout: 'atlas.crudLayout',
+    shell: 'runly.dashboardShell',
+    layout: 'runly.crudLayout',
     component: 'RunlyTable',
     columns: ['tracking_number', 'origin', 'destination', 'status'],
     defaultSort: { field: 'tracking_number', direction: 'asc' },
@@ -276,7 +276,7 @@ export default defineView({
   schema: {
     entity: 'shipment',
     label: 'Envio',
-    layout: 'atlas.crudLayout',
+    layout: 'runly.crudLayout',
     component: 'RunlyForm',
     sections: [
       {
@@ -328,17 +328,20 @@ Available from Phase 3. In Phase 1–2, register screens manually in `apps/deskt
 
 `api/index.js` exports a default factory function that returns a Hono router. The Route Loader mounts this automatically in Phase 4. In Phase 1–2, import and mount it manually in `apps/api/src/index.js`.
 
+`requirePermission` and `moduleContext` are not importable — they are injected by the Route Loader as parameters to the factory function (`apps/api/src/services/route-loader-service.js`). There is no resolvable `@runly/api` package to import them from.
+
+`moduleContext` also carries `files`, `relations`, `notifications`, `cleanup` and `ai` (MirAI tool loop + user-initiated internet lookup restricted to the fields declared under the manifest `ai.publicLookup`; see `docs/ai-context/rme3-runtime-capabilities.md`, section "Module AI").
+
 ```js
 // modules/custom/custom.deliveries/api/index.js
 import { Hono } from 'hono'
-import { requirePermission } from '@runly/api/middleware'
 import { deliveriesService } from './deliveries-service.js'
-import { registerModuleHandler } from '@runly/api/services/module-cleanup-registry'
 import { deliveriesCleanupHandler } from './deliveries-cleanup.js'
 
-registerModuleHandler('custom.deliveries', deliveriesCleanupHandler)
+export default function createDeliveriesRouter({ prisma, requirePermission, moduleContext }) {
+  // Bound to this module's own key by the Route Loader — see "Cleanup handler" below.
+  moduleContext?.cleanup?.registerHandler(deliveriesCleanupHandler)
 
-export default function createDeliveriesRouter() {
   const app = new Hono()
 
   app.get('/deliveries/shipments', requirePermission('deliveries.shipments.read'), async (c) => {
@@ -388,7 +391,9 @@ export const updateShipmentSchema = createShipmentSchema.partial()
 
 Required when `resettable: true` or `supportsDataPurge: true`. Must scope all deletes to the active company. Delete child rows before parent rows to respect FK constraints.
 
-RME3 tables are not Prisma models — use `prisma.$queryRaw` tagged template literals, never `prisma.<model>` accessors.
+RME3 tables are not Prisma models — use `prisma.$queryRaw`/`tx.$executeRaw` tagged template literals, never `prisma.<model>` accessors.
+
+Register the handler by calling `moduleContext.cleanup.registerHandler(handler)` from inside the `api/index.js` factory function (see above) — it is bound to this module's own key, so there is no `moduleKey` argument to get wrong. `count` receives the real `prisma` client (used for dry-run reporting outside a transaction); `purge` receives `tx`, the transaction client the platform runs the whole reset/uninstall inside — mixing these up silently breaks the transaction. Use `$executeRaw` for the deletes, not `$queryRaw`: `$executeRaw` returns the affected row count directly, while a `DELETE ... RETURNING COUNT(*)` (aggregating inside `RETURNING`) is invalid SQL — `RETURNING` is evaluated per affected row, it cannot contain an aggregate.
 
 ```js
 // modules/custom/custom.deliveries/api/deliveries-cleanup.js
@@ -396,10 +401,10 @@ RME3 tables are not Prisma models — use `prisma.$queryRaw` tagged template lit
 export const deliveriesCleanupHandler = {
   async count({ prisma, companyId }) {
     const [shipmentRows] = await prisma.$queryRaw`
-      SELECT COUNT(*)::int AS count FROM atlas_deliveries_shipment WHERE company_id = ${companyId}
+      SELECT COUNT(*)::int AS count FROM deliveries_shipment WHERE company_id = ${companyId}::uuid
     `
     const [carrierRows] = await prisma.$queryRaw`
-      SELECT COUNT(*)::int AS count FROM atlas_deliveries_carrier WHERE company_id = ${companyId}
+      SELECT COUNT(*)::int AS count FROM deliveries_carrier WHERE company_id = ${companyId}::uuid
     `
     return [
       { entity: 'Shipment', rows: shipmentRows.count, companyScoped: true },
@@ -407,12 +412,13 @@ export const deliveriesCleanupHandler = {
     ]
   },
 
-  async purge({ prisma, companyId }) {
-    const [{ count: shipmentsDeleted }] = await prisma.$queryRaw`
-      DELETE FROM atlas_deliveries_shipment WHERE company_id = ${companyId} RETURNING COUNT(*)::int AS count
+  async purge({ tx, companyId }) {
+    // Shipment references Carrier — delete it first.
+    const shipmentsDeleted = await tx.$executeRaw`
+      DELETE FROM deliveries_shipment WHERE company_id = ${companyId}::uuid
     `
-    const [{ count: carriersDeleted }] = await prisma.$queryRaw`
-      DELETE FROM atlas_deliveries_carrier WHERE company_id = ${companyId} RETURNING COUNT(*)::int AS count
+    const carriersDeleted = await tx.$executeRaw`
+      DELETE FROM deliveries_carrier WHERE company_id = ${companyId}::uuid
     `
     return shipmentsDeleted + carriersDeleted
   },
@@ -526,6 +532,13 @@ Important distinction:
 - Editing credentialed browser/API behavior in `apps/api` (for example CORS with `credentials: 'include'`) does require publishing a new `api` image.
 
 ---
+
+## Public links (enlaces públicos)
+
+Optional. A module (or its ZIP) can include `publicResources` in the manifest,
+a public CUSTOM view under `/p/`, and `api/public.js`. The ZIP validation
+rejects invalid `publicResources`. Full recipe, security rules and status
+codes: [ai-context/rme3-public-links.md](ai-context/rme3-public-links.md).
 
 ## Module checklist
 
@@ -642,6 +655,103 @@ POST /modules/custom.deliveries/reset
 { "confirmation": "ACEPTO" }
 ```
 
+### Hard purge (delete the package completely)
+
+Hard purge is separate from uninstall. It removes the custom module's owned
+tables, metadata, migrations, permissions and grants, company activations,
+dependency rows, dynamic routes, local and Storage bundles, package directory,
+and module caches. Historical `AuditLog` rows are preserved.
+
+Inspect the exact resource inventory first:
+
+```json
+POST /modules/custom.deliveries/purge/dry-run
+```
+
+Then confirm the irreversible operation explicitly:
+
+```json
+DELETE /modules/custom.deliveries/purge
+{ "confirmation": "ACEPTO" }
+```
+
+The endpoint reports success only after post-purge verification finds no live
+owned resources. It rejects core/official modules, installed dependents, unsafe
+module keys, and any `ownedTables` entry that is not both a non-core table and a
+`RunlyModel.tableName` belonging to the same module.
+
+### Atomic ZIP package publishing
+
+`POST /modules/:key/upload` keeps its multipart `file` contract, but extraction
+never targets the active package. The publication flow is:
+
+```text
+uploaded ZIP
+  -> RUNLY_MODULES_DIR/.staging/<operationId>/package
+  -> inspect + validate + dependency/model preflight
+  -> compile a temporary bundle
+  -> READY_TO_PUBLISH
+  -> current -> .backups/<operationId>/<moduleKey>
+  -> staged -> current
+  -> publish bundle + reconcile metadata/runtime
+  -> remove backup and staging
+```
+
+`.staging`, `.backups` and `.locks` are hidden from discovery. Because staging
+and backup live below the same `RUNLY_MODULES_DIR` as the canonical package,
+the package swaps use same-filesystem `rename`. An atomic lock directory per
+module key serializes publishers across API processes sharing that volume.
+
+A published package is not necessarily installed. Upload does not install or
+enable an `UNINSTALLED` module, and an update preserves enabled/disabled state.
+Only a previously enabled installed module is unloaded and reloaded.
+
+Model differences on an installed module are reported as
+`requiresSchemaMigration: true`; upload does not apply schema evolution. If a
+post-swap bundle, metadata or runtime step fails, Runly attempts to restore the
+previous package, bundle and runtime. Structured errors report the failed
+stage, restoration status, cleanup status and any rollback error.
+
+### Additive schema evolution
+
+For an update of an installed module, upload now compares three schemas before
+the package swap:
+
+```text
+RunlyModel.schema (previous applied definition)
+  + information_schema / pg_catalog (actual PostgreSQL schema)
+  + staged model definition (desired schema)
+  -> MigrationPlan
+```
+
+The automatic subset is intentionally backward-compatible:
+
+- a new model produces `CREATE_TABLE`;
+- a nullable field, or a field with a safe literal default, produces
+  `ADD_COLUMN`;
+- a required field without a default is accepted only when the table is empty;
+- a new non-unique index produces `ADD_INDEX`.
+
+For example, adding `mileage: { type: 'number' }` produces:
+
+```sql
+ALTER TABLE "fleet_vehicle"
+ADD COLUMN IF NOT EXISTS "mileage" INTEGER;
+```
+
+Removing or renaming fields, changing types/nullability, removing tables or
+indexes, and creating unique indexes are reported as destructive or unsupported
+and block publication before the filesystem swap. Renames are represented as a
+drop plus an addition; they are never inferred from similar names.
+
+Unexpected differences between `RunlyModel.schema` and PostgreSQL produce
+`SCHEMA_DRIFT_DETECTED`. Extra unknown columns are retained and reported as
+warnings, while missing managed columns or incompatible types/defaults block the
+migration. DDL, verification and the deterministic `ModuleMigration` entry run
+inside one database transaction. If runtime activation later fails, the package
+can roll back safely because every automatically applied database change is
+additive and compatible with the previous package.
+
 ---
 
 ## Versioning
@@ -671,3 +781,29 @@ POST /modules/custom.deliveries/reset
 **Cleanup handler failed, module stuck**
 - The Prisma transaction rolled back. Module status unchanged.
 - Check the API error for the specific exception. Fix the handler, redeploy, retry.
+# Compiler declarativo compartido
+
+Para generación automatizada, el scaffolder CLI es un adapter de
+`@runly/module-compiler`. Una `ModuleDefinition` v1 JSON-compatible se valida,
+normaliza y compila de forma pura a los mismos artifacts RME3 que un módulo
+escrito manualmente. Consulta
+[`docs/ai-context/rme3-module-compiler.md`](ai-context/rme3-module-compiler.md)
+para el contrato, API, defaults y modo no interactivo.
+
+### Dashboard declarativo
+
+Una vista `DASHBOARD` renderiza indicadores sin `ModuleDashboard.jsx`. Declara
+widgets `stat`, `chart` o `list` y fuentes sobre modelos owned por el mismo
+módulo. El runtime consulta todos los widgets mediante un endpoint batch,
+revalida la definición persistida, exige permisos `read`, aplica compañía y
+soft-delete, y aísla errores por widget. SQL, joins y fuentes cross-module no
+están permitidos. Los dashboards `CUSTOM` siguen siendo compatibles.
+
+### Kanban declarativo
+
+Una vista `KANBAN` agrupa una entity owned por un campo `select` o `boolean` y
+define los campos visibles de sus tarjetas. La consulta se resuelve desde el
+blueprint persistido, con tenant, soft-delete y permiso `read`; mover una
+tarjeta usa el `PATCH` existente y exige `update`. Las columnas vacías y “Sin
+asignar” permanecen visibles; valores legacy aparecen en columnas de solo
+salida. Véase `examples/module-definitions/declarative-kanban.json`.

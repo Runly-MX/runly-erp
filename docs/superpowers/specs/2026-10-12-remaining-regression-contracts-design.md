@@ -1,7 +1,7 @@
 # Contratos restantes de regresión
 
 Date: 2026-10-12
-Status: In Progress
+Status: Complete
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md (Task 3)
 
 ## 1. Feature title
@@ -10,7 +10,7 @@ Restablecer mocks de tareas y contratos generados de runtime/Dev Kit.
 
 ## 2. Status
 
-In Progress. Continuación de Task 3 autorizada por el usuario; no extender a transporte o B2 diferidos.
+Complete. Continuación de Task 3 autorizada por el usuario; no extender a transporte o B2 diferidos. Verified: 2026-10-12 (Projects 65/65, runtime/Dev Kit 8/8, compilador 112/112; build web e importmap final, privacidad y whitespace).
 
 ## 3. Context
 
@@ -28,7 +28,7 @@ Mock project carece de findUnique para la publicación del evento. QR inspeccion
 
 ## 6. Non-goals
 
-Sin cambios de servicios, autorización, librerías instaladas, generadores, manifiestos de módulos, paquetes publicados o fuentes de instancia.
+Sin cambios de servicios, autorización, librerías instaladas, manifiestos de módulos, paquetes publicados o fuentes de instancia. Tras revisar el diff generado, se incluye reconciliar el inventario de componentes de la tabla documental con exports reales y normalizar los textos del exportador a LF; sin cambiar sus contratos de módulos.
 
 ## 7. User stories
 
@@ -84,11 +84,11 @@ Fixture de evento debe usar el companyId del proyecto consultado. Sin acceso a i
 
 ## 20. Files/storage impact
 
-Staging en carpeta temporal nueva; copiar solo diferencias revisadas al snapshot. No ejecutar exportador destructivo directamente sobre carpeta tracked. Inventario revisado sin archivos añadidos o retirados.
+Staging en carpeta temporal nueva; copiar solo diferencias revisadas al snapshot. No ejecutar exportador destructivo directamente sobre carpeta tracked. Inventario revisado sin archivos añadidos o retirados. Normalizar los textos leídos por el exportador a LF para que promptStarter no dependa del checkout Windows/Linux; añadir regresión explícita.
 
 ## 21. Export/import requirements
 
-Catálogo/documento mediante generate-module-runtime-catalog; snapshot mediante exportRme3Devkit y comparación. generatedAt es metadato variable; no inventar SHA de release para fuente posterior.
+Catálogo/documento mediante generate-module-runtime-catalog; snapshot mediante exportRme3Devkit y comparación. El snapshot developer-docs del compilador depende de librerias.md y debe regenerarse después mediante generate-module-developer-docs. generatedAt es metadato variable; no inventar SHA de release para fuente posterior.
 
 ## 22. Audit log requirements
 

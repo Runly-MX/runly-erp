@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { BUNDLE_EXTERNALS } from "../module-bundler-service.js";
 import { buildCatalog } from "../../../../../scripts/generate-module-runtime-catalog.mjs";
+import { MODULE_EXTERNALS_IMPORTMAP } from "../../../../../packages/preview-runtime/src/externals.js";
 
 const catalog = JSON.parse(readFileSync(new URL("../../../../../packages/module-compiler/src/runtime-catalog.json", import.meta.url), "utf8"));
 
@@ -17,10 +18,19 @@ test("every shared bundler external is documented in the catalog", () => {
   assert.deepEqual([...shared].filter((name) => !BUNDLE_EXTERNALS.includes(name)), []);
 });
 
-test("QR libraries have browser import-map shims", () => {
-  const viteConfig = readFileSync(new URL("../../../../desktop/vite.config.js", import.meta.url), "utf8");
+test("QR libraries use shared shims in the actual Vite development and production importmaps", async () => {
+  const { default: config } = await import("../../../../desktop/vite.config.js");
+  const dev = config.plugins.find(plugin => plugin?.name === "runly-module-externals-importmap-dev");
+  const build = config.plugins.find(plugin => plugin?.name === "runly-module-externals-importmap-build");
+  assert.ok(dev, 'development importmap plugin must be enabled');
+  assert.ok(build, 'production importmap plugin must be enabled');
+  const developmentMap = JSON.parse(dev.transformIndexHtml.handler()[0].children).imports;
+  build.configResolved({ base: '/preview/' });
+  const productionMap = JSON.parse(build.transformIndexHtml.handler()[0].children).imports;
   for (const [library, shim] of [["qrcode", "ext-qrcode"], ["@zxing/browser", "ext-zxing-browser"]]) {
-    assert.match(viteConfig, new RegExp(`"${library.replace("/", "\\/")}"\\s*:\\s*"${shim}"`));
+    assert.equal(MODULE_EXTERNALS_IMPORTMAP[library], shim);
+    assert.equal(developmentMap[library], `/src/shims/${shim}.js`);
+    assert.equal(productionMap[library], `/preview/shims/${shim}.js`);
     assert.equal(existsSync(new URL(`../../../../desktop/src/shims/${shim}.js`, import.meta.url)), true);
   }
 });

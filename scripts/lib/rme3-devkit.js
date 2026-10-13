@@ -23,7 +23,7 @@ function uniqueSorted(values) {
 }
 
 async function readRepoFile(...relativeParts) {
-  return fs.readFile(path.join(REPO_ROOT, ...relativeParts), 'utf8')
+  return (await fs.readFile(path.join(REPO_ROOT, ...relativeParts), 'utf8')).replace(/\r\n/g, '\n')
 }
 
 async function copyDir(sourceDir, targetDir) {

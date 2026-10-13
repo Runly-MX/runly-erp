@@ -16,6 +16,20 @@ keep their existing contracts.
 
 ## Scope
 
+### Android: funciones del dispositivo
+
+Runly Android 1.2.0 expone `window.__RUNLY_DEVICE__` con `status()`,
+`requestPermission(name)`, `openSettings(name)`, `pairedBluetoothDevices()`,
+`readNfcTag()` y `stopNfcReader()`. Los permisos solicitables son `camera`,
+`microphone`, `notifications` y `bluetooth`. Consultar disponibilidad primero
+y solicitar permisos desde una acción del usuario. NFC devuelve identificador
+y tecnologías; no ofrece pagos/escritura. Bluetooth consulta emparejados, sin
+escaneo BLE ni conexión genérica. Cámara/audio conservan `getUserMedia`.
+
+En imágenes web con el SDK actualizado también está disponible
+`createRunlyDeviceClient` desde `@runly/sdk`. El bridge inyectado por el APK
+funciona con imágenes web anteriores. Guía: `docs/mobile/RUNLY_NATIVE_HOST.md`.
+
 Installer mode means:
 - API and worker run from published images.
 - Web runs from a prebuilt Vite bundle image.
@@ -186,6 +200,43 @@ export default defineView({
 })
 ```
 
+#### Tabs and file fields (FORM and DETAIL)
+
+- `schema.tabs: [{ key, label }]` plus `section.tab: '<key>'` groups the flat
+  `sections` list into tabs (RunlyForm and RunlyDetail). Tabs render only with
+  2+ entries; a section without a known `tab` joins the first tab. The form
+  keeps every tab mounted and jumps to the first tab holding a validation
+  error. Sections stay flat so field extraction and the page-mode heuristic
+  keep working.
+- `visibleWhen` (`{ field, equals | notEquals | in | notIn | truthy }`) works on
+  fields, sections and `schema.tabs[]` entries, evaluated against live form
+  values (RunlyForm) or the record (RunlyDetail) through the shared
+  `runly-renderer/visibility-rules.js`. Fields of hidden tabs/sections are not
+  validated nor sent (stored values stay). Builder modules with required
+  fields inside conditional elements get a generated
+  `api/<entity>-visibility.js` so the API requires them only while visible.
+- Builder same-module relations (`targetEntity`) get integrity from the
+  generated API (`api/<entity>-relations.js`): targets must exist, be enabled
+  and share the company (400 otherwise); disabling a referenced record follows
+  each relation's `onDisable` (`restrict` -> 409 with the count, `setNull`,
+  `cascade` through the child's own service) inside one transaction. List/get
+  return `<field>__label` (the target's `labelField`), lists accept
+  `?<relationField>=<uuid>`, and a layout section `{ type: 'related', source:
+  { entity, field } }` renders as a detail-only `relation-list`.
+- `schema.formMode: 'page' | 'sheet' | 'auto'` forces full page vs side sheet.
+- A `file` form field with `filesPath` (plus `accept: 'image' | 'document' |
+  'any'`, `camera`, `maxSizeMB`, `signedUrlPath`) renders `FileAssetField`: it
+  uploads immediately and stores the FileAsset id. A DETAIL field with
+  `type: 'file-asset'` renders a thumbnail (images) or a "Ver archivo" button.
+- `schema.hero.signedUrlPath` and TABLE `image-asset` columns'
+  `signedUrlPath` (`:id` template) resolve images through a module-scoped
+  route instead of `/files/:id/signed-url`.
+- Builder-made modules get these from `entity.layout` (see
+  `docs/superpowers/specs/2026-09-27-rme3-builder-layout-media-design.md`);
+  entities with a file field or an attachments section also get generated
+  `/<slug>/<entities>/files` routes backed by `moduleContext.files`
+  (`upload`, `list`, `link`, `remove`, `signedUrl`, bound to the module key).
+
 ### DETAIL — read-only entity detail
 
 ```js
@@ -229,9 +280,23 @@ renders as a plain stack of `label / value` sections (unchanged behaviour).
   `relationCard.contactActions: [{ type: 'call', field }]` add an avatar
   (initials fallback) and `tel:` buttons.
 
+### DASHBOARD — declarative analytics screen
+
+Use `DASHBOARD` for no-code KPI, chart and recent-record surfaces. Its schema
+declares `path`, title, a 12-column layout and widgets. Supported widget types
+are `stat`, `chart` (`bar`, `line`, `pie`, `donut`) and `list`. Sources may use
+`count`, `sum`, `avg`, `min`, `max`, one `groupBy`, safe filters and bounded
+lists. Sources are restricted to models owned by the same module; the server
+enforces entity read permission, company scope and soft-delete automatically.
+
+See `examples/module-definitions/declarative-dashboard.json`. Do not place SQL,
+Recharts props or functions in the schema.
+
 ### CUSTOM — full custom React screen
 
 Use CUSTOM when TABLE/FORM/DETAIL renderers are insufficient. Requires a component registered via the dynamic bundle. No SCREEN_MAP entry needed.
+
+**Module runtime and kit (2026-10-03, spec `2026-10-03-rme3-module-platform-v2`):** every CUSTOM component is rendered inside `ModuleRuntimeProvider` (`apps/desktop/src/shell/CustomViewHost.jsx`) carrying `moduleKey`, `token`, `companyId`, `apiBaseUrl`, `navigate` and the module's blueprints. Inside it, screens use `ModulePage`, `FormSection`/`FieldGrid`, `DetailHeader`, `EntityTable`/`EntityForm`/`EntityDetail` (thin wrappers over `RunlyTable`/`RunlyForm`/`RunlyDetail` fed with the entity's own TABLE/FORM/DETAIL blueprint) and `useEntityList`/`useEntityRecord`/`useEntityMutations` — no prop threading. Module components get their own Tailwind CSS (`GET /modules/:key/bundle.css`), so any utility class works. Public reference for authors: `docs/developers/componentes.md`; golden screens ship in the Builder ZIP under `docs/ejemplos/`.
 
 **Three files are always required together:**
 
@@ -244,7 +309,7 @@ export default defineView({
   kind: 'CUSTOM',
   version: '0.1.0',
   schema: {
-    path: '/mymodule/dashboard',
+    path: '/app/m/custom.mymodule/dashboard', // full URL: matched against location.pathname
     component: 'custom.mymodule:MyDashboard',
     title: 'Dashboard',
   },
@@ -270,25 +335,17 @@ import {
   Button,
   EmptyState,
   Skeleton,
+  buildApiHeaders,
 } from '@runly/ui'
 
-// Helpers
-function useAtlasToken() {
-  // The Atlas token is stored in localStorage by the auth provider.
-  // Key: sb-<project>-auth-token  (Supabase session)
-  // Simplest approach: read from window.__atlas_token if your shell exposes it,
-  // or grab it from localStorage directly.
-  return localStorage.getItem('atlas_token') ?? ''
-}
-
-export default function MyDashboard() {
-  const token = useAtlasToken()
-
+// CUSTOM components receive { token, companyId, apiBaseUrl, navigate, moduleKey }
+// as props from BlueprintCrudScreen — never read tokens from localStorage.
+export default function MyDashboard({ token, companyId, apiBaseUrl }) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['mymodule.dashboard'],
     queryFn: async () => {
-      const res = await fetch('/api/mymodule/summary', {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`${apiBaseUrl}/mymodule/summary`, {
+        headers: buildApiHeaders(token, companyId),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return res.json()
@@ -345,6 +402,28 @@ export default function MyDashboard() {
 `BlueprintCrudScreen` resolves `component` from the registry automatically.
 
 Cell components used in TABLE blueprints (badge renderers, custom cells) do not need a CUSTOM view — register them and reference via `schema.columns[].component`.
+
+---
+
+## Module services (`moduleContext.services`)
+
+Spec: `docs/superpowers/specs/2026-10-04-module-services-v2-design.md`. A module creates/reads/updates records of system modules (calendar, files, notifications, contacts, inventory, projects, ledger, fleet, pfm) **only** through this gateway — never `prisma` on their tables. Contract: `SERVICE_CONTRACTS` in `@runly/module-engine/contracts` (32 services; args schema, permission, `mutates`, `scope: 'own'`, `system`). Developer doc: `docs/developers/servicios-y-eventos.md`.
+
+```js
+// module.manifest.js — admin grants each one at install (Módulos > detalle)
+consumes: { 'runly.calendar': ['events.create'], 'runly.notifications': ['notifications.send'] },
+
+// api/*.js
+const services = moduleContext.services.forRequest(c)
+const event = await services.module('runly.calendar').events.create({ title: 'Visita', startAt, sourceEntityId: record.id })
+```
+
+- Checks in order: unknown 404 → company 400 → `system_not_supported` 403 → `service_not_granted` 403 → `permission_denied` 403 → `invalid_args` 422 (`error.fields`); ledger/fleet/pfm business rules → 400 `rejected`.
+- Undeclared args are dropped; `null` clears optional fields on updates; `sourceEntityId` is a UUID (your record id).
+- Every mutating service accepts `idempotencyKey` (returns the earlier result instead of writing again).
+- `api/events.js` handlers receive `services` (= `forSystem`, no user): only contracts with `system: true`. Always pass an `idempotencyKey` there (delivery is at-least-once). It is never on `moduleContext`.
+- Builder modules use the same services through `definition.automations` (see `rme3-module-compiler.md`).
+- Developer Hub: `createServiceSimulator` (same contract) simulates them in memory.
 
 ---
 
@@ -419,6 +498,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | Export | Description |
 |---|---|
 | `Button`, `buttonVariants` | Action button with size/variant props |
+| `AssistantWordmark` | Two-tone MirAI label: “Mir” inherits the text color, “AI” uses `var(--brand-primary)`. Accepts `className`; use for assistant names and headings, not flowing prose. |
 | `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter` | Content card container |
 | `Badge`, `badgeVariants` | Status and label badge |
 | `TypeBadge` | Accent-coloured pill (`accent` hex, e.g. file/asset type). Background/border derived via `color-mix` for light+dark. |
@@ -428,7 +508,14 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `ProgressMeter` | Threshold-aware bar with an optional label/value row. `value`/`max`; `tone="auto"` colours green→amber (`warnAt`, default 0.8)→red (≥1). Use for budgets, quota, reorder points. |
 | `RingProgress` | Circular SVG progress ring. `value`/`max`, `size`, `stroke`, `color`; renders `children` centred. Use for goals/completion. |
 | `SectionCard` | Glass `Card` with a `title` (+ optional `description`, `action` slot) header and a body. Standardises the "titled card" pattern; `variant` passes through to `Card`. |
+| `ImportStepIndicator` | Multi-step wizard rail. `steps` (`{ key, label, icon }[]`), `current` (active step key). Vertical rail on desktop (`sm:` and up), compact icon-only horizontal strip on mobile — keeps wizard chrome from eating width from step content like a review table. |
+| `ColumnMappingStep` | Generic import-wizard step that relates file columns to target fields. Props: `headers` (string[]), `rows` (objects keyed by header, used for sample values), `fields` (`{ key, label, group, required, hint }[]`), `mapping` (`{ [fieldKey]: header }`), `onMappingChange(next)`, `title?`. Groups fields by `group`, one `SelectField` per field with a "No importar" option, hides headers already used elsewhere, shows a check when mapped and a warning badge when a required field is unmapped. |
 | `Avatar`, `AvatarImage`, `AvatarFallback` | User avatar with fallback initials |
+| `DetailSkeleton`, `FormSkeleton` | Page-level loading placeholders shaped like a record detail (hero + KPIs + two columns) or a sectioned form. Use instead of `LoadingState` while a detail/form screen loads its record |
+| `FormSaveBar` | Universal save/cancel bar for forms (RunlyForm uses it). `floating` (full page): sticky glass bar on phones; on `lg+` a bottom-right pill that slides in only while `dirty`/`submitting`/`forceVisible`. `floating={false}` inside Dialog/Sheet: always-visible buttons. Render inside the `<form>` |
+| Field `icon` (RunlyForm/RunlyDetail) | Blueprint fields accept `icon` (any lucide name, PascalCase or kebab-case): RunlyForm shows it inside the input, RunlyDetail next to the label. Without it, the icon is inferred (`resolveFieldIcon`): strong type default (date, email, phone, currency, url), then the field name, then the Spanish label (`lib/field-icon-inference.js` rules: correo, telefono, puesto, direccion, estado...), then a generic per-type icon. Base fields (`TextField`, `NumberField`, `PasswordField`, every `Combobox` flavor) apply the same name/label inference when `icon` is omitted and a `label` is set; `icon={null}` opts out. Comboboxes whose options carry avatar/color/icon keep showing the selected option visual instead |
+| `AuditTrail` | Record audit trail (who changed what and when; each entry shows up to 2 one-line plain-text diffs and opens `AuditEntryDialog` with every field's full before/after, markdown rendered; category/person filters; "Ver historial completo" Sheet). Reads `GET /activity/entity/:entityType/:entityId` (`before`/`category`/`actorId`). Blueprint detail section `type: "audit"`; generated RME3 details include it |
+| `PersonAvatar` | Person photo (`src` = an API-embedded `avatarUrl`) with a name-colored initials bubble fallback; sizes `xs`/`sm`/`md`/`lg`. Use for every user/employee/actor mention. API side: `attachUserAvatarUrls` (`apps/api/src/lib/attach-user-avatars.js`) embeds `avatarUrl` from `avatarFileId` or a linked `userProfileId` |
 
 ### Forms
 
@@ -438,6 +525,9 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `Input` | Single-line text input |
 | `Textarea` | Multi-line text input |
 | `Checkbox` | Checkbox control |
+| `TagsComboboxField` | Multi-value creatable tag input with suggestion dropdown (unlike `TagsField`, which is free-entry only); props `value` (string[]), `onChange`, `suggestions`, `onSearchChange`. Case-insensitive dedupe |
+| `SegmentedControl` | Pill single-choice control for short fixed sets; props `options`, `value`, `onChange` |
+| `CopyableValue` | Read-only label/value with a hover copy button; `mono` for RFC/ids, `copyable={false}` for descriptive values |
 | `Switch` | Toggle switch |
 | `Select`, `SelectTrigger`, `SelectContent`, `SelectItem`, `SelectValue`, `SelectLabel`, `SelectGroup`, `SelectSeparator` | Native select dropdown |
 | `Form`, `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormMessage`, `FormDescription`, `useFormField` | React Hook Form wrappers |
@@ -455,9 +545,10 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `DateField` | Date picker |
 | `DateTimeField` | Date + time picker |
 | `YearField` | Year-only picker |
-| `SelectField` | Controlled select dropdown |
-| `ComboboxField` | Searchable select with autocomplete; use for read-only option sets |
-| `CreatableComboboxField` | Searchable combobox that shows a "+ Crear «X»" row when the typed term doesn't match any option; calls `onCreate(name)` on select. Use `placeholder="Buscar o crear..."`. Preferred over `SelectField` whenever new entries are possible. |
+| `Combobox` | The single select/combobox engine; every field below is a preset over it, and all of them accept its props. Options: string or `{ value, label, disabled, group, icon, avatar (URL or {src,name}, initials fallback), color, description, hint, badge, keywords }`. Props: `multiple` (chips + checkboxes, `maxChips`), `clearable`, `searchable` (`true`/`false`/`"auto"` = more than 8 options), `onSearchChange` + `filter={false}` for remote search, `minSearchLength`, `loading`/`loadError`/`onRetry`, `onCreate` + `createMode` (`"search"`/`"empty-search"`), `createLabel`, `isCreating`, `missingLabel`, `emptyText`/`emptyDescription`, `onOpenChange`. Animated open/close, search box focused on open, sliding active highlight, match highlighting, grouped sections, results count, type-ahead when there is no search box, focus returns to the trigger |
+| `SelectField` | `Combobox` preset for short fixed lists (`searchable="auto"`); `validate` runs on close; `className` styles the trigger |
+| `ComboboxField` | `Combobox` preset, always searchable; use for read-only option sets |
+| `CreatableComboboxField` | Searchable combobox that shows a "+ Crear «X»" row when the typed term doesn't match any option; calls `onCreate(name)` on select. Search is per word: every typed word must appear in the option `label` or its optional `keywords` string. Use `placeholder="Buscar o crear..."`. Preferred over `SelectField` whenever new entries are possible. |
 | `CheckboxField` | Controlled checkbox |
 | `SwitchField` | Controlled toggle switch |
 | `RadioGroupField` | Controlled radio group |
@@ -470,7 +561,8 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | Export | Description |
 |---|---|
 | `AppShell` | Main app layout: fixed sidebar + scrollable content |
-| `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | Tab navigation |
+| `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | Tab navigation (Radix). The base component now renders the animated pill style by default; use `ChipTabs` for controlled, colored, URL-persisted tab bars |
+| `SectionIndex` | Scroll-spy section index for long forms/pages (`sections=[{id,label,icon,badge}]`); collapses to a jump `SelectField` below md |
 | `Accordion`, `AccordionItem`, `AccordionTrigger`, `AccordionContent` | Collapsible sections (Radix accordion). Use `type="single" collapsible` on `Accordion` for one-open-at-a-time; wrap each section in `AccordionItem value="..."` |
 | `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, `DropdownMenuLabel`, `DropdownMenuCheckboxItem`, `DropdownMenuRadioItem`, `DropdownMenuSub`, `DropdownMenuSubTrigger`, `DropdownMenuSubContent`, `DropdownMenuRadioGroup`, `DropdownMenuShortcut`, `DropdownMenuGroup`, `DropdownMenuPortal` | Dropdown / context menu |
 | `Breadcrumb`, `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink`, `BreadcrumbPage`, `BreadcrumbSeparator`, `BreadcrumbEllipsis` | Breadcrumb navigation |
@@ -480,7 +572,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | Export | Description |
 |---|---|
 | `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableHead`, `TableRow`, `TableCell`, `TableCaption` | HTML table primitives |
-| `DataTable` | Feature-rich sortable/filterable table |
+| `DataTable` | Feature-rich sortable/filterable table. `toolbarStart` adds custom filters (e.g. `DateRangeFilter`) after the search box and `toolbarActions` renders the screen primary action at the right end of the search/filter row (wraps on mobile). Optional Tabla/Tarjetas toggle: `viewModes` (e.g. `['table','cards']`) + `renderCard(row)` + `viewStorageKey` (persisted) or controlled `viewMode`/`onViewModeChange`, `defaultViewMode`, `cardGridClassName`; the switch sits in `FilterToolbar`'s `viewSwitch` slot and search, filters, pagination and empty/error/loading states are shared by both views. `filters` feed a `FilterMenu` by default (`filtersLayout="pills"` switches to `FilterBar` pills for 1-3 quick select/combobox/daterange filters): specs accept `type` (`select` default, `multiselect`, `toggle`, `daterange`, `combobox`) and compare `String(row[key])` (or `match(row, value)`) client-side, so add derived fields to rows for computed values. A spec carrying its own `value` + `onChange` is controlled (for server-side filters: `daterange` value is `{ [fromKey], [toKey] }` and onChange receives that object) and is not applied client-side. |
 | `Pagination`, `PaginationContent`, `PaginationItem`, `PaginationLink`, `PaginationPrevious`, `PaginationNext`, `PaginationEllipsis` | Paginator |
 
 ### Overlays and feedback
@@ -490,7 +582,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogFooter`, `DialogTitle`, `DialogDescription`, `DialogClose`, `DialogPortal`, `DialogOverlay` | Modal dialog |
 | `Sheet`, `SheetTrigger`, `SheetContent`, `SheetHeader`, `SheetFooter`, `SheetTitle`, `SheetDescription`, `SheetClose`, `SheetPortal`, `SheetOverlay` | Slide-in panel |
 | `Popover`, `PopoverTrigger`, `PopoverContent`, `PopoverAnchor` | Floating popover |
-| `SyncStatusPopover` | One-icon Topbar site status (online/offline/syncing/pending) with a popover detail panel |
+| `SyncStatusPopover` | One-icon Topbar site status (online/offline/syncing/pending) with a popover detail panel; `onReconnect` (resolves to the new online state) shows "Reintentar conexion" while offline, `onSyncNow` shows "Sincronizar ahora" while online |
 | `Tooltip`, `TooltipTrigger`, `TooltipContent`, `TooltipProvider` | Tooltip |
 | `Toaster` | Toast notification renderer (mount once in app root) |
 | `Alert`, `AlertTitle`, `AlertDescription` | Inline alert banner |
@@ -508,7 +600,15 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `StatStrip` | Responsive key-figures strip — a 6-up grid on desktop, a horizontal snap-scroll carousel on mobile. Consumed by `RunlyDetail` when the DETAIL blueprint declares `schema.kpis`. Items: `[{ key, label, value (node), icon (lucide name), href }]`. |
 | `DetailHero` | Redesigned entity-detail header: a representative image (or a branded fallback panel tinted by an accent colour) + title + subtitle + status pill + meta chips + an actions slot. Presentational only; consumed by `RunlyDetail` when the DETAIL blueprint declares `schema.hero`. |
 | `SearchInput` | Search text field with icon |
-| `FilterBar` | Horizontal filter control bar |
+| `FilterBar` | Horizontal filter control bar (pills). Lists built on `DataTable` now use `FilterMenu` instead; `FilterBar` stays for standalone screens |
+| `FilterMenu` | One `Filtros` button (active-count badge) that opens a two-pane popover (categories left, options right; bottom sheet with two steps on mobile). Use it for 4+ filters, mixed types or mobile screens; use `FilterBar` pills only for 1-3 quick single-select filters. `{ filters, value, onChange }`; spec `{ key, label, type?: select (default) / multiselect / toggle / daterange (fromKey, toKey) / combobox, icon? (lucide component), options?: [{ value, label, icon? or color? }], allLabel?, description?, value?+onChange? (controlled, DataTable) }`. Value is a flat object (multiselect = string[], matched any-of). Example: `{ key: 'kind', label: 'Tipo', type: 'multiselect', icon: Shapes, options: [{ value: 'internal', label: 'Interno', icon: Users }, { value: 'contractor', label: 'Contratista', icon: HardHat }] }`. |
+| _Migrating from FilterBar/MobileFiltersSheet_ | Replace `FilterBar` with `FilterMenu` (same `value`/`onChange` shape, so state, API params and deep links are unchanged), add `ActiveFilterChips` under the row and drop the duplicated `MobileFiltersSheet`. Keep `FilterBar` for 1-2 quick filters. `RunlyTable` (blueprint tables) renders `FilterMenu` + chips via `normalizeToFilterMenuSpecs`; blueprint filters accept `icon`, `multi` (only when the API takes several values) and options with `icon`/`color`. |
+| `ActiveFilterChips` | Removable chips (`Tipo: Empleado`, `Tipo: Interno, Contratista` for several picks, with spec/option icons) for the active filters of a `FilterMenu`: `{ filters, value, onChange }`; renders nothing when none are active |
+| `DateRangePanel` | Range picker body (presets + Desde/Hasta + calendar) extracted from `DateRangeFilter`: `{ from, to, onChange(from, to), layout: 'side' \| 'stacked' }` |
+| `DateRangeFilter` | Date-range chip (presets + range calendar); what `FilterBar` renders for `type: 'daterange'`, usable standalone with `filter={{ key, label, fromKey, toKey }}` |
+| `ChipTabs` + `ChipTabPanel` | Controlled colored chip tabs: `tabs=[{ value, label, icon, description, badge }]`, `value`, `onChange`, `tone` (`teal` default, `blue`, `violet`, `amber`, `rose`), `ariaLabel`, `descriptionMode` (`popover` default: a "?" info button at the end of the chip strip opening icon + title + description; `banner`: always-visible recuadro; `none`; legacy `showDescription={false}` = none). Solid active chip with a sliding indicator (translateX/width, reduced-motion aware), roving tabindex + arrow/Home/End keys, horizontally scrollable on mobile, and an optional description (see `descriptionMode`). Render content with `<ChipTabPanel value active>` (fades/rises in, unmounts when inactive). Persist the selection in the URL with the module's `usePersistedTab` pattern. |
+| `FilterToolbar` | Filter row for list screens: `{ search, filterSpecs, filterValue, onFilterChange, start, actions, viewSwitch }` (menu API: search + `FilterMenu` + chips row) or the legacy `{ filters (node), activeCount, onClear }`. One row on desktop (search, filters, actions); on mobile it shows the search plus a `Filtros` button (with the active-filter count) that opens the filters in a bottom sheet. Mobile actions row: the LAST action is the primary (fills the row), earlier ones are secondary and should be icon-only (label in a `max-sm:sr-only` span + `aria-label`/`title`). |
+| `ToggleFilter` | Pill toggle for boolean filters: `{ label, checked, onChange }`. Meant to live inside `FilterToolbar` `filters`. |
 | `ListPager` + `usePagedList` | Client-side paging for in-memory lists/cards ("1–12 de 40 < 1 / 4 >"); hidden for a single page |
 | `DynamicTable` | Blueprint-driven table renderer |
 | `DynamicForm` | Blueprint-driven form renderer |
@@ -519,10 +619,20 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `FileUploader` | File upload widget with progress |
 | `FileViewer` | File preview (PDF, image, etc.) |
 | `AttachmentsPanel` | File attachments list panel |
+| `PublicLinksPanel` | Public links of one module resource: list (status, uses, expiry), create, copy, QR and revoke. Props: `apiBaseUrl`, `token`, `companyId`, `moduleKey`, `resource`, `recordId`; optional `api` (`{ list, create, revoke }`, links with `path`) lets an official module use its own endpoints (runly.canvas board links, runly.files file links); optional `modes` (`[{ value, label }]`) adds a mode picker to the create dialog and a mode badge per link. See `rme3-public-links.md`. |
+| `ShareLinkDialog` | Create-one-link dialog (label, expiry, max uses, optional `modes` picker sent as `mode`) used by `PublicLinksPanel`; `onCreate(payload)` must return the link. |
+| `PublicLinkFrame` | Branded frame for public pages opened by a link: company logo/name header and Runly footer. Prop: `publicLink` (from the page props), `title`. |
+| `RunlyCrudView` `extraDetailActions` | Host-provided detail actions `[{ key, label, icon, onClick(record) }]`; used for the public-links "Compartir" action. |
 | `DocumentsPanel` | Documents list panel |
 | `ImageViewer` | Image lightbox |
-| `ThemedEmojiPicker` | Emoji picker themed with Runly tokens (native emojis, compact grid of ~9 per row at 300px, no preview). Props: `onEmojiClick(emojiData)` (`emojiData.emoji` is the character), `width`, `height`, `className`, `style`, `dark` (force a theme; defaults to following the app). Scrolls correctly inside a `Popover` opened from a `Dialog`/`Sheet`. Use it instead of importing `emoji-picker-react` directly. |
+| `ThemedEmojiPicker` | Emoji picker themed with Runly tokens (native emojis, compact grid of ~9 per row at 300px, no preview). Props: `onEmojiClick(emojiData)` (`emojiData.emoji` is the character), `width`, `height`, `className`, `style`, `dark` (force a theme; defaults to following the app). Scrolls correctly inside a `Popover` opened from a `Dialog`/`Sheet`. Use it instead of importing `emoji-picker-react` directly (the library is lazy-loaded on first render). |
+| `IconLibraryPanel` | Full lucide icon library picker: Spanish search (labels + keywords), checkable curated categories, and every lucide icon under "Todos los iconos". Props: `value` (kebab-case lucide name), `onChoose(name)`, `color` (selected tile color; defaults to primary), `gridClassName` (set a max height), `placeholder`. Place it inside a `Popover`/`Dialog`. Used by note icons and canvas hotspots. Prefer it over emojis for entity icons. |
+| `IconGlyph` | Renders a lucide icon by kebab-case name (`name`, `className`, `strokeWidth`, `style`); pairs with `IconLibraryPanel`. `isKnownIcon(name)` tells whether a stored value is a lucide name. JSX-free registry + catalog are also importable from `@runly/ui/icons` (engines, node tests). |
+| `useGeoData({ cities })` | Lazy-loads `country-state-city` data and returns `{ Country, State, City }` (each `null` until loaded). Countries + states (~650 KB) load on mount; cities (~8 MB) only when `cities: true`. Never import `country-state-city` statically: it would land 8.7 MB in the chunk shared by every screen. `AddressFieldsSection` already uses it. |
 | `ImageUploader` | Image crop and upload widget |
+| `ImageSourceSheet` | Camera-vs-gallery picker for touch devices — gate with `useCoarsePointer()`; on a fine-pointer device just open a plain `<input type="file">` directly instead. Props: `open, onOpenChange, onPickFile, accept?`. |
+| `CameraCaptureDialog` | Desktop webcam capture (`getUserMedia`, capture, retake, confirm; stops the stream on close; inline error + file fallback). Props: `open, onOpenChange, onCapture(file), fileName?`. |
+| `FileAssetField` / `FileAssetValue` | Uploading file field whose value is a FileAsset id (`filesPath`, `signedUrlPath`, `accept`, `camera`, `maxSizeMB`, `apiBaseUrl`, `token`, `companyId`), and its read-only display. Camera uses `ImageSourceSheet` on touch and `CameraCaptureDialog` on desktop. |
 | `SwatchField` | Pick an accent colour from a small preset palette (`swatches` prop, defaults to `DEFAULT_SWATCHES`). Use instead of a raw `<input type="color">` when only a themeable accent is needed. |
 | `DatePickerField` | Standalone date picker |
 | `PageFooter` | Page footer bar |
@@ -533,11 +643,18 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 
 | Export | Description |
 |---|---|
-| `RunlyTable` | Renders TABLE kind blueprints |
+| `RunlyTable` | Renders TABLE kind blueprints. `sortable: true` columns sort from the header (click cycles asc/desc/none; list/grid views get a sort menu). Filters accept `type: 'daterange'` (sends `${key}From`/`${key}To` as YYYY-MM-DD, override with `fromKey`/`toKey`). List/grid cards use the link column as title, an `image`/`image-asset` column as photo, optional `schema.subtitleField` under the title, optional `schema.statusField` as the badge (default: a status/estado/published column) and `schema.cardMedia: 'avatar'` to show the photo as an avatar beside the title (initials fallback) instead of a cover. `type: 'image'` columns holding a pre-signed thumb URL accept `avatarLabelField` (initials without photo) and `avatarUserField` or `avatarSignedUrlPath` (e.g. `/contacts/:id/avatar/signed-url`, :id = row id) to open the full-size photo; array values render comma-separated |
 | `RunlyForm` | Renders FORM kind blueprints |
 | `RunlyDetail` | Renders DETAIL kind blueprints |
 | `RunlyCrudView` | Combined list + form + detail view |
 | `RunlyCardView` | Card grid alternative to RunlyTable |
+| `RunlyDashboard` | Declarative DASHBOARD renderer |
+| `RunlyKanban` | Declarative KANBAN renderer with pointer, touch and keyboard drag/drop; read-only ACL fallback |
+| `RunlyRecordsView` | Runtime entry for the CARDS / CALENDAR / TIMELINE / REPORT view kinds: queries `POST /modules/:key/records-view/query` (month range for CALENDAR) and delegates to the renderers below. Routed by `schema.path` in `BlueprintCrudScreen` like KANBAN |
+| `RunlyCardsView` | CARDS renderer: responsive card grid (title, subtitle, description, badge, image via signed URL) |
+| `RunlyCalendarView` | CALENDAR renderer: Monday-first month grid with color legend; agenda list on phones |
+| `RunlyTimelineView` | TIMELINE renderer: records on a vertical line grouped by day |
+| `RunlyReportView` | REPORT renderer: grouped rows with 1-6 measures, relative bar and totals footer |
 | `BulkActionBar` | Multi-select action toolbar |
 | `CostsSummaryPanel` | Costs summary panel |
 | `normalizeSpanishLabel` | Label normalization helper |
@@ -551,6 +668,8 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `MobileFiltersSheet` | Mobile filter slide-in panel |
 | `ListLayout` | Responsive list container |
 | `SwipeableRow` | WhatsApp/Telegram-style swipeable list row (touch only; inert on non-coarse pointers). `rightActions` (tray revealed on left-swipe), `onFullSwipeRight` + `fullSwipeLabel`/`fullSwipeIcon`/`fullSwipeTone` (right-swipe past threshold), `onLongPress`, controlled `open`/`onOpenChange`. Axis-locked so vertical list scroll is never hijacked. Pair with `ContextMenu` for the desktop equivalent. |
+| `SwipeBackStack` | Phone navigation stack (list -> detail) with iOS-style interactive back: `open`, `onBack`, `base`, `detail`, optional `onThresholdCross` (haptic tick). The detail slides in from the right; dragging from the left edge (28px) pulls it away with a parallax/scrim on the base; release past 35% or a flick completes. `ref.back()` runs the same exit animation for a header back button. Use only on phones; render the desktop layout separately. |
+| `AdvancedFileViewer` | Full-screen file viewer (images, PDF, video/HLS, audio, XML/ZIP previews) with filmstrip: `open`, `onOpenChange`, `files`, `activeIndex`, `onIndexChange`, `onResolveSignedUrl`, `zIndex`, optional Office hooks. Desktop: right-click menu, wheel zoom, drag pan. Touch: long press opens an actions sheet (`ViewerActionsSheet`), swipe left/right changes file, swipe down closes, tap hides the chrome, images pinch/pan/double-tap (`useViewerTouchGestures`). |
 | `ContextMenu`, `ContextMenuTrigger`, `ContextMenuContent`, `ContextMenuItem`, `ContextMenuCheckboxItem`, `ContextMenuRadioItem`, `ContextMenuLabel`, `ContextMenuSeparator`, `ContextMenuShortcut`, `ContextMenuGroup`, `ContextMenuPortal`, `ContextMenuSub`, `ContextMenuSubContent`, `ContextMenuSubTrigger`, `ContextMenuRadioGroup` | Right-click / long-press context menu (Radix-backed, same visual language as `DropdownMenu`). Anchored at the pointer instead of a trigger element. |
 
 ### Hooks
@@ -561,6 +680,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `useIsMobile` | `boolean` — true below the given breakpoint (default 768px), updates on resize |
 | `useLongPress` | `useLongPress({ onLongPress, delay=450, moveTolerance=10, disabled })` → pointer handlers; fires after a stationary press, cancels on move/scroll, ignores interactive targets, vibrates |
 | `useSwipeToReply` | `useSwipeToReply({ onReply, threshold=64, direction, disabled })` → `{ handlers, translateX }`; fires only on a horizontal drag past the threshold, yields to vertical scroll |
+| `useHlsPosterFrame` | `useHlsPosterFrame(key, manifestText, { enabled, width=480 })` → `{ frame, loading }`; grabs one JPEG data-URL frame from an HLS manifest (segments already signed) for card thumbnails. Pass `enabled` = "is visible"; cached per `key` for the session, at most 2 extractions at once |
 | `cn` | Tailwind class merge utility (from `lib/utils`) |
 
 ---
@@ -599,3 +719,8 @@ Use this instruction before generating module code:
 > **UI-first rule:** Never use native HTML form elements (`<select>`, `<input>`, `<textarea>`) — always use the `@runly/ui` equivalent. For any searchable select with optional inline creation, use `CreatableComboboxField` with `placeholder="Buscar o crear..."`. For read-only searchable selects, use `ComboboxField`. Plain `SelectField` only for short fixed lists. All screens start with `PageHeader`. All destructive confirmations use `ConfirmDialog`. File attachments use `AttachmentsPanel` / `FileUploader` inline — never redirect to atlas.files.
 >
 > If a fix touches the shared runtime host in `apps/desktop` (importmap, shims, externals) or credentialed browser/API CORS behavior in `apps/api`, publish new Docker images for `web` and/or `api`. Dynamic module bundling only avoids rebuilds for module-local code changes.
+
+
+### Modales (Dialog / Sheet)
+
+Animan entrada y salida por defecto (utilidades `animate-in` / `slide-in-from-*` definidas en `packages/ui/src/tailwind-theme.css`). Enter en un input de texto dispara el botón principal del pie (`data-dialog-footer`); opt-out con `submitOnEnter={false}` o `data-no-enter-submit`.

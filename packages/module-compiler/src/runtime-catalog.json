@@ -56,7 +56,7 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.50.0",
+      "version": "1.51.0",
       "category": "shared",
       "imports": "Iconos por uso en docs/iconos.md: Plus, Pencil, Trash2, Search, Calendar ..."
     },

@@ -16,7 +16,7 @@ Estas son las librerías que un componente de `components/` puede importar. Las 
 | `react-router-dom` | 7.18.3 | Incluida en la app (no pesa en tu módulo) | useNavigate, useParams, useLocation, Link |
 | `zustand` | 5.0.15 | Incluida en la app (no pesa en tu módulo) | create |
 | `sonner` | 2.0.7 | Incluida en la app (no pesa en tu módulo) | toast |
-| `lucide-react` | 1.50.0 | Incluida en la app (no pesa en tu módulo) | Iconos por uso en docs/iconos.md: Plus, Pencil, Trash2, Search, Calendar ... |
+| `lucide-react` | 1.51.0 | Incluida en la app (no pesa en tu módulo) | Iconos por uso en docs/iconos.md: Plus, Pencil, Trash2, Search, Calendar ... |
 | `recharts` | 3.8.1 | Incluida en la app (no pesa en tu módulo) | ResponsiveContainer, BarChart, LineChart, PieChart, AreaChart, Tooltip, Legend |
 | `qrcode` | 1.5.4 | Incluida en la app (no pesa en tu módulo) | QRCode (default), create, toCanvas, toDataURL, toString para generar códigos QR |
 | `@zxing/browser` | 0.2.1 | Incluida en la app (no pesa en tu módulo) | BrowserQRCodeReader, BrowserMultiFormatReader para leer códigos QR desde cámara, imagen o video |

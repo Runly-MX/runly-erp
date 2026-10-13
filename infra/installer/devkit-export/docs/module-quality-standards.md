@@ -1,6 +1,6 @@
-# Atlas ERP — Module Quality Standards
+# Runly ERP — Module Quality Standards
 
-This document defines the 17 UX and quality criteria that every Atlas ERP module is evaluated against. It is the basis for module audits done before marking a module as production-ready.
+This document defines the 17 UX and quality criteria that every Runly ERP module is evaluated against. It is the basis for module audits done before marking a module as production-ready.
 
 **Applicability:**
 
@@ -63,17 +63,17 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 ---
 
-### 4. Table views / AtlasTable
+### 4. Table views / RunlyTable
 
-**Description:** All list screens that display entity rows must use `AtlasTable` (or `AtlasCrudView` which wraps it). Hand-rolled `<table>` / `<ul>` grids for entity data are not allowed.
+**Description:** All list screens that display entity rows must use `RunlyTable` (or `RunlyCrudView` which wraps it). Hand-rolled `<table>` / `<ul>` grids for entity data are not allowed.
 
-**Implementation:** `AtlasTable` receives `columns` (blueprint or manual), `data`, `isLoading`, `pagination`, and optional `toolbar` / `bulkActions` props.
+**Implementation:** `RunlyTable` receives `columns` (blueprint or manual), `data`, `isLoading`, `pagination`, and optional `toolbar` / `bulkActions` props.
 
 | Core | Custom |
 |---|---|
 | REQUIRED (when list views exist) | RECOMMENDED |
 
-**Pass:** Entity list is rendered by `AtlasTable` with proper columns, loading, and empty states.
+**Pass:** Entity list is rendered by `RunlyTable` with proper columns, loading, and empty states.
 
 **Fail:** Hand-rolled table or `<ul>` used for entity data listing.
 
@@ -81,13 +81,13 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 ### 5. Column visibility
 
-**Description:** Non-essential columns in `AtlasTable` must have `defaultVisible: false` in the blueprint so the table starts clean. Users can toggle visibility via the column picker.
+**Description:** Non-essential columns in `RunlyTable` must have `defaultVisible: false` in the blueprint so the table starts clean. Users can toggle visibility via the column picker.
 
 **Implementation:** In the TABLE blueprint (or view schema), set `defaultVisible: false` on auxiliary fields (IDs, timestamps, secondary codes). Always expose at least the primary identifier and one status column by default.
 
 | Core | Custom |
 |---|---|
-| REQUIRED (when AtlasTable is used) | RECOMMENDED |
+| REQUIRED (when RunlyTable is used) | RECOMMENDED |
 
 **Pass:** Blueprint or column definition marks secondary columns as hidden by default.
 
@@ -99,7 +99,7 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 **Description:** List screens that allow multiple selection must expose bulk actions: at minimum **Export** (Excel) and **Delete** (for deletable entities). Enable/disable bulk toggle applies when the entity has an `enabled` or `status` field.
 
-**Implementation:** Pass a `bulkActions` array to `AtlasTable`. Each action receives the selected row array.
+**Implementation:** Pass a `bulkActions` array to `RunlyTable`. Each action receives the selected row array.
 
 | Core | Custom |
 |---|---|
@@ -115,9 +115,9 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 ### 7. Forms
 
-**Description:** Create and edit screens must use `AtlasForm` (blueprint-driven) or `DynamicForm` + React Hook Form. Hand-rolled `<form>` with uncontrolled inputs is not acceptable.
+**Description:** Create and edit screens must use `RunlyForm` (blueprint-driven) or `DynamicForm` + React Hook Form. Hand-rolled `<form>` with uncontrolled inputs is not acceptable.
 
-**Implementation:** Use `AtlasForm` when the form maps directly to a blueprint. Use React Hook Form + Zod resolver for complex multi-step or computed-field forms. Never use `useState` to track individual form field values.
+**Implementation:** Use `RunlyForm` when the form maps directly to a blueprint. Use React Hook Form + Zod resolver for complex multi-step or computed-field forms. Never use `useState` to track individual form field values.
 
 | Core | Custom |
 |---|---|
@@ -149,7 +149,7 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 **Description:** Modules that produce documents (invoices, reports, dossiers, certifications) must offer a branded PDF download using `pdf-branding-service` from the API. General list screens do not need PDF export.
 
-**Implementation:** `POST /pdf/generate` with template key and data payload. The service applies the company logo, colors, and footer from `atlas.company` branding config.
+**Implementation:** `POST /pdf/generate` with template key and data payload. The service applies the company logo, colors, and footer from `runly.company` branding config.
 
 | Core | Custom |
 |---|---|
@@ -167,7 +167,7 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 **Description:** All screens must be usable on mobile viewports (375px+). No horizontal scroll on phones. Toolbars must collapse or stack gracefully.
 
-**Implementation:** Use Tailwind responsive prefixes (`sm:`, `md:`, `lg:`). `AtlasTable` handles horizontal scroll internally on small viewports — do not wrap it in an additional overflow container.
+**Implementation:** Use Tailwind responsive prefixes (`sm:`, `md:`, `lg:`). `RunlyTable` handles horizontal scroll internally on small viewports — do not wrap it in an additional overflow container.
 
 | Core | Custom |
 |---|---|
@@ -183,7 +183,7 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 **Description:** Every data-fetching surface must show a loading indicator while the request is in flight. Never render empty content without first determining whether data is loading or genuinely absent.
 
-**Implementation:** `AtlasTable` shows a skeleton loader automatically when `isLoading={true}`. For non-table surfaces, use the `Skeleton` component or `Spinner` from `@runly/ui`.
+**Implementation:** `RunlyTable` shows a skeleton loader automatically when `isLoading={true}`. For non-table surfaces, use the `Skeleton` component or `Spinner` from `@runly/ui`.
 
 | Core | Custom |
 |---|---|
@@ -258,7 +258,7 @@ Do not import `toast` from `@runly/ui`. Call the toast in the `onSuccess` / `onE
 
 ### 15. Liquid Glass design
 
-**Description:** All module screens must use the Atlas Liquid Glass design language — frosted glass cards, consistent border-radius, backdrop blur, and design tokens. This is automatically satisfied when using `@runly/ui` components.
+**Description:** All module screens must use the Runly Liquid Glass design language — frosted glass cards, consistent border-radius, backdrop blur, and design tokens. This is automatically satisfied when using `@runly/ui` components.
 
 **Implementation:** This criterion passes automatically when criteria 1 and 2 are met (`PageHeader` + `@runly/ui` components). Do not apply custom `backdrop-filter` or glass styles manually — use the `glass` Tailwind class from the design system or components that already apply it.
 
@@ -274,7 +274,7 @@ Do not import `toast` from `@runly/ui`. Call the toast in the `onSuccess` / `onE
 
 ### 16. File uploads
 
-**Description:** Any entity that can have attachments (contracts, documents, images) must allow uploading directly from the entity's own screen using `AttachmentsPanel` or `FileUploader`. Users must never be sent to the atlas.files module to attach a document.
+**Description:** Any entity that can have attachments (contracts, documents, images) must allow uploading directly from the entity's own screen using `AttachmentsPanel` or `FileUploader`. Users must never be sent to the runly.files module to attach a document.
 
 **Implementation:** Use `AttachmentsPanel` from `@runly/ui` inside the entity detail sheet or page. Pass the `entityType` and `entityId` props. The panel handles upload, list, rename, and delete internally.
 
@@ -286,7 +286,7 @@ Do not import `toast` from `@runly/ui`. Call the toast in the `onSuccess` / `onE
 
 **Pass:** Files can be uploaded, viewed, and deleted from within the entity detail without navigating away.
 
-**Fail:** The UI links to atlas.files for document attachment, or there is no inline upload capability despite the entity needing it.
+**Fail:** The UI links to runly.files for document attachment, or there is no inline upload capability despite the entity needing it.
 
 ---
 
@@ -317,8 +317,8 @@ Use this table to track compliance for each module. Mark `PASS`, `FAIL`, `N/A`, 
 | 1 | Layout | REQUIRED | REQUIRED |
 | 2 | UI components | REQUIRED | REQUIRED |
 | 3 | Dialogs | REQUIRED | REQUIRED |
-| 4 | Table views / AtlasTable | REQUIRED (if list) | RECOMMENDED |
-| 5 | Column visibility | REQUIRED (if AtlasTable) | RECOMMENDED |
+| 4 | Table views / RunlyTable | REQUIRED (if list) | RECOMMENDED |
+| 5 | Column visibility | REQUIRED (if RunlyTable) | RECOMMENDED |
 | 6 | Bulk actions | CONDITIONAL | RECOMMENDED |
 | 7 | Forms | REQUIRED (if create/edit) | RECOMMENDED |
 | 8 | Excel export | REQUIRED (if list) | RECOMMENDED |
@@ -347,24 +347,24 @@ For each module under review:
 Example audit output format:
 
 ```
-Diagnostico atlas.contacts — 2026-06-07
+Diagnostico runly.contacts — 2026-06-07
 
 #   Criterio                  Estado    Accion
 1   Layout                    PASS      —
 2   UI components             PASS      —
 3   Dialogs                   PASS      —
-4   Vistas tabla / AtlasTable PASS      —
+4   Vistas tabla / RunlyTable PASS      —
 5   Column visibility         PASS      Blueprint tiene defaultVisible: false
 6   Bulk actions              PASS      Export, enable/disable, delete
 7   Formularios               PASS      DynamicForm + blueprint
 8   Excel export              PASS      —
 9   PDF export                FAIL      Implementar pdf-branding-service
 10  Responsividad             PASS      —
-11  Loading states            PASS      AtlasTable lo maneja
+11  Loading states            PASS      RunlyTable lo maneja
 12  Empty/Error states        PARTIAL   Permiso denegado usa texto plano -> ErrorState
 13  Toast notifications       PASS      —
 14  Notificaciones modulo     N/A       Contacts no genera eventos push
-15  Liquid Glass              PASS      AtlasTable/PageHeader lo aplican
+15  Liquid Glass              PASS      RunlyTable/PageHeader lo aplican
 16  File uploads              N/A       —
 17  ActivityTimeline          FAIL      activity-bridge ya registra contacts — agregar componente
 ```

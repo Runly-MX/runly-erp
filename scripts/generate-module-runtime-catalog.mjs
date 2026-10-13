@@ -63,11 +63,11 @@ const USAGE = `## Componentes de @runly/ui por uso
 
 | Para | Usa |
 |---|---|
-| Estructura de pantalla | \`PageHeader\`, \`SectionCard\`, \`Card\` (\`CardHeader\`, \`CardTitle\`, \`CardContent\`), \`Tabs\` (\`TabsList\`, \`TabsTrigger\`, \`TabsContent\`), \`Separator\`, \`PageFooter\` |
+| Estructura de pantalla | \`PageHeader\`, \`SectionCard\`, \`Card\` (\`CardHeader\`, \`CardTitle\`, \`CardContent\`), \`Tabs\` (\`TabsList\`, \`TabsTrigger\`, \`TabsContent\`), \`ChipTabs\`, \`ChipTabPanel\`, \`Separator\`, \`PageFooter\` |
 | Estados | \`Skeleton\`, \`LoadingState\`, \`EmptyState\`, \`ErrorState\`, \`Alert\` |
 | Indicadores | \`StatCard\`, \`StatStrip\`, \`Badge\`, \`ProgressBar\`, \`ProgressMeter\`, \`RingProgress\` |
 | Formularios | \`TextField\`, \`TextareaField\`, \`NumberField\`, \`CurrencyField\`, \`SelectField\`, \`ComboboxField\`, \`CreatableComboboxField\`, \`TagsComboboxField\`, \`CheckboxField\`, \`SwitchField\`, \`DatePickerField\`, \`SwatchField\`, \`IconPickerField\`, \`MarkdownField\`, \`SegmentedControl\` |
-| Tablas y listas | \`DataTable\`, \`RunlyTable\`, \`SearchInput\`, \`FilterBar\`, \`SortableList\` |
+| Tablas y listas | \`DataTable\`, \`RunlyTable\`, \`SearchInput\`, \`FilterBar\`, \`FilterToolbar\`, \`ToggleFilter\`, \`DateRangeFilter\`, \`SortableList\` |
 | Ventanas y menús | \`Dialog\`, \`Sheet\`, \`ConfirmDialog\`, \`DropdownMenu\`, \`ActionMenu\`, \`Popover\`, \`Tooltip\` |
 | Archivos y cámara | \`FileUploader\`, \`FileAssetField\`, \`AttachmentsPanel\`, \`ImageViewer\`, \`CameraCaptureDialog\` |
 | Utilidades | \`Button\`, \`CopyableValue\`, \`MarkdownViewer\`, \`buildApiHeaders\`, \`cn\`, \`useIsMobile\` |

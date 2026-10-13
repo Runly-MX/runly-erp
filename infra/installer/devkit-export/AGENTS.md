@@ -1,5 +1,33 @@
 # Runly ERP v2 — Agent Instructions
 
+## Desktop and Android publication destination
+
+The established download destination for Windows and Android is GitHub Releases
+in `Runly-MX/runly-erp`. The user confirmed this destination on 2026-10-12;
+do not ask again where to upload when they request a Runly installer/APK release.
+Inspect the current release and assets before publishing; do not hardcode its tag.
+Canonical asset names and stable download URLs are defined in
+`apps/desktop/src/lib/appConfig.js`:
+- Windows: `Runly-ERP-Setup.exe`
+- Android: `Runly-ERP.apk`
+
+Use GitHub release URLs, never temporary signed redirects from
+`release-assets.githubusercontent.com`. Keep their query strings out of tracked
+files. For an Android-only publication, upload only the verified APK and preserve
+the Windows assets. `apps/desktop/scripts/publish-release.mjs` requires a Windows
+installer, may upload both platforms, overwrites matching assets and marks latest;
+review its scope before using it. This destination preference does not authorize
+unsolicited releases or replacing an unrelated artifact.
+
+## Public repository privacy
+
+Never copy real infrastructure addresses, personal emails, credentials, production
+logs or workstation paths into tracked files, including plans and verification notes.
+Use `example.com`, `.example`, `.test`, `.invalid` and RFC 5737 documentation IPs.
+Keep deployment values in ignored `.env` files or private operational documentation.
+Scripts must get connection targets from configuration, never a real server fallback.
+Run `pnpm check:privacy` before sharing changes; see `docs/REPOSITORY_PRIVACY.md`.
+
 New code uses `@runly/*`, `defineRunlyModule`, `createRunlyClient`, and `RunlyTable`/`RunlyForm`.
 Legacy `@atlas/*` imports and `defineAtlasModule`, `createAtlasClient`, and `Atlas*` renderer exports remain supported aliases of the same implementation.
 Keep existing `atlas.*` module keys, permissions and stored identities until the separate data migration.
@@ -87,9 +115,21 @@ After changes: `curl -X POST http://localhost:4010/modules/sync -H "Authorizatio
 
 ---
 
+## Public links and public pages
+
+To let people without a session view a record or submit a form, declare
+`publicResources` in the manifest, add a CUSTOM view with `schema.public: true`
+under `/p/`, and implement `api/public.js` (never expose `api/index.js`
+routes). Runly handles token, expiry, revocation, uses and rate limits. Recipe
+and security rules: `docs/ai-context/rme3-public-links.md`.
+
+---
+
 ## Reference implementation
 
-`modules/custom/custom.fleet/` is the canonical example of a complete RME3 module.
+`scripts/fixtures/rme3-devkit/custom.goldenpath/` is the canonical example of a complete RME3 module.
+
+`modules/custom/` is git-ignored instance data (Builder output, ZIP uploads, installs). Never commit a module folder there; a module's source lives in its own repository or ZIP. `modules/official/` is legacy and unused.
 
 ---
 

@@ -21,5 +21,5 @@ This folder is generated from Runly ERP and downloaded into `custom-modules/_run
 
 - `toast` comes from `sonner`, not from `@runly/ui`.
 - `@runly/ui` is for UI components only.
-- Supported externals: @atlas/sdk, @atlas/ui, @atlas/validators, @runly/sdk, @runly/ui, @runly/validators, @tanstack/react-query, lucide-react, react, react-dom, react-router-dom, react/jsx-dev-runtime, react/jsx-runtime, recharts, sonner, zustand
+- Supported externals: @atlas/sdk, @atlas/ui, @atlas/validators, @runly/sdk, @runly/ui, @runly/validators, @tanstack/react-query, @zxing/browser, lucide-react, qrcode, react, react-dom, react-router-dom, react/jsx-dev-runtime, react/jsx-runtime, recharts, sonner, zustand
 

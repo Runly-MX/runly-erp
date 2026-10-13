@@ -19,6 +19,7 @@ test('RME3 devkit helpers derive machine-readable capabilities from code and exp
   assert.equal(typeof mod.exportRme3Devkit, 'function', 'exportRme3Devkit must be exported')
 
   const contract = await mod.buildRme3RuntimeContract()
+  assert.ok(!contract.promptStarter.includes('\r'), 'generated prompt must use canonical LF on every platform')
   assert.ok(Array.isArray(contract.externals), 'runtime contract must include externals[]')
   assert.ok(contract.externals.includes('sonner'), 'runtime contract must include sonner external')
   assert.ok(Array.isArray(contract.atlasUiExports), 'runtime contract must include atlasUiExports[]')

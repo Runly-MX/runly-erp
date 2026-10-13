@@ -86,11 +86,11 @@ Commits: SDK race + tests; identity catalog + tests; hook fix; reviewed transpor
 Dependencies: Task 2 for confirmed regression families. Other classification may proceed earlier.
 
 - [x] Build a failure ledger: test, reproducible trigger, true regression/obsolete test/generated drift, owner and resolution evidence. Verified: 2026-10-12 (`docs/architecture/2026-10-12-regression-ledger.md`; refreshed bounded API/shared baseline, omissions and unassigned owner recorded).
-- [ ] Refresh project mocks against the service's real authorization contract.
+- [x] Refresh project mocks against the service's real contract. Verified: 2026-10-12 (65/65 Projects tests; missing findUnique was the event-publication query, not an authorization change; event/companyId asserted, b4afbdc2).
 - [x] Validate Growth navigation intent; reconcile the assertion with that intent. Verified: 2026-10-12 (14/14 manifest tests, RBAC 321/321; 34e308d6).
 - [x] Validate conditional-field nullability semantics before changing compiler/test expectations. Verified: 2026-10-12 (19/19 conditional/layout/nullable tests; 759e1fd7; generated schemas executed, required update values retain non-nullability).
 - [x] Update scaffolder expectations to its supported files; syntax-check JavaScript rather than Markdown. Verified: 2026-10-12 (67/67 scaffold tests; ba092bc4; exact 15-file inventory and 12 JavaScript syntax checks).
-- [ ] Reconcile runtime catalog, public library docs and exported Dev Kit with lockfile/current exports. Read preview-runtime's actual external map; the QR test currently checks the old location.
+- [x] Reconcile runtime catalog, public library docs and exported Dev Kit with lockfile/current exports. Read preview-runtime's actual external map; replace the QR test's old-location assertion with real Vite plugin/importmap checks. Verified: 2026-10-12 (runtime/Dev Kit 8/8, compiler 112/112; lockfile lucide 1.51.0, canonical LF, reviewed snapshot, web build/dist map and privacy passed). Focused spec/plan: `2026-10-12-remaining-regression-contracts-design.md` / `2026-10-12-remaining-regression-contracts.md`.
 - [ ] Capture current `pnpm audit --json`; classify by runtime/development, version, reachable input and patch feasibility.
 - [ ] Patch one compatible dependency family per commit, with targeted regressions and packed-package verification where relevant. Significant major upgrades need additional design.
 - [ ] Configure Gitleaks tooling for CI; missing binary remains visible as a failed secret gate.
