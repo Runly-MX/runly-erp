@@ -1,7 +1,7 @@
 # Parcheo compatible de dependencias
 
 Date: 2026-10-13
-Status: In Progress
+Status: Complete (local verification)
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md (Task 3)
 
 ## 1. Feature title
@@ -76,7 +76,7 @@ N/A.
 
 ## 18. RBAC/permissions
 
-Sin cambios. Fixtures autentican con valores ficticios.
+Sin cambios. Fixtures usan encabezados y datos ficticios; no verifican una autenticaci?n real.
 
 ## 19. Multi-company behavior
 
@@ -96,7 +96,7 @@ Resumen sanitizado de audit, versiones y resultados; logs privados en temporal o
 
 ## 23. Edge cases
 
-Hono string SSR, rutas JSON, auth y context header; SVG/PNG a JPEG, input corrupto, dimension limits; DOM event attributes/script sanitization; glob 1.x/2.x con Node consumers reales.
+Hono string SSR, rutas JSON y context header; SVG/PNG a JPEG, input corrupto, dimension limits; DOM event attributes/script sanitization; glob 1.x/2.x con Node consumers reales.
 
 ## 24. Risks
 
@@ -111,7 +111,7 @@ pnpm puede refrescar latest accidentalmente: revisar diff y preservar todas las 
 
 ## 26. Verification plan
 
-node:test Hono SSR/HTTP, Sharp/librsvg/prepareVisionImage, DOM browser opt-in y brace consumers; pnpm install frozen sin scripts, audit, API/shared acotados, web build, privacidad/secrets y diff check.
+node:test Hono SSR/HTTP, Sharp/librsvg/prepareVisionImage, DOM en Chrome local y brace consumers; pnpm install frozen sin scripts, audit, API/shared acotados, web build, privacidad/secrets y diff check.
 
 ## 27. Rollback plan
 
@@ -121,3 +121,5 @@ Revertir por familia y reinstalar desde lockfile anterior; reaparecen sus alerta
 
 Nodemailer/CSV/UUID y otras majors con diseño propio; actualización coordinada Tiptap y parches transitorios Prisma. Confirmación de artefactos Linux/deploy separada.
 
+
+Verified: 2026-10-13. Evidencia y l?mites en docs/architecture/2026-10-13-dependency-patch-results.md/.json. Cierre de estas cuatro familias; no cierre de la auditor?a general.

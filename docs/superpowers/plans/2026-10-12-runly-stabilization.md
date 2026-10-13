@@ -191,3 +191,9 @@ Source rollback uses focused revert commits. No branch reset, historical migrati
 ## Verification evidence
 
 Verified: 2026-10-12 (planning documents only: spec section structure, document references, privacy and whitespace checks; no implementation, deployment or real B2 rehearsal performed).
+
+## Update ? 2026-10-13 independent local work
+
+Compatible child scope completed: four dependency families, frozen installs, 17/17 directed tests, web build and final API/shared regressions passed. Audit 34 remains failing, no exceptions; 14 families need detailed reachability/upgrade scopes. See dependency-patch-results.md/.json. A generated Dev Kit AGENTS.md mismatch found by the sweep was regenerated and verified. CI, B2 real rehearsal and company-transport corrections remain deferred.
+
+Current-state matrix and proposed operational journeys/readiness signals documented in docs/architecture/2026-10-13-stabilization-current-state.md; the historical project-status document now links to it. Task 6 implementation, real acceptance and Task 7 business/performance closures remain open; this matrix is planning/review evidence, not an implemented readiness endpoint or operational pass.

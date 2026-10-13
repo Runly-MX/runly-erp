@@ -1,5 +1,7 @@
 # Runly ERP - Project Status
 
+Historical snapshot: the implementation statements below retain their original verification date. Current stabilization evidence and pending operational acceptance: [2026-10-13 current state](architecture/2026-10-13-stabilization-current-state.md).
+
 Last verified: 2026-05-25
 Current phase: RME3 Phase 4 complete, Phase 5 retired, Phase 6 renderer complete, Phase 7 cleanup complete
 

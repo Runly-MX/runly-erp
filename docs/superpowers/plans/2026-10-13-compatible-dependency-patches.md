@@ -1,13 +1,13 @@
 # Dependencias compatibles: plan por familia
 
 Date: 2026-10-13
-Status: In Progress
+Status: Complete (local verification)
 Spec: docs/superpowers/specs/2026-10-13-compatible-dependency-patches-design.md
 
 ## File Structure Map
 
-Create: este spec/plan; apps/api/src/services/__tests__/vision-image.test.js; scripts/tests/hono-security.test.mjs; scripts/tests/dom-purify-browser.test.mjs; scripts/tests/brace-expansion.test.mjs; docs/architecture/2026-10-13-dependency-patch-results.md y .json.
-Modify: infra/installer/devkit-export/AGENTS.md (regeneraci?n ante divergencia detectada por el barrido), package.json, apps/api/package.json, pnpm-lock.yaml, docs/TASKS.md, docs/superpowers/plans/2026-10-12-runly-stabilization.md.
+Create: este spec/plan; apps/api/src/services/__tests__/vision-image.test.js; scripts/tests/hono-security.test.mjs; scripts/tests/dom-purify-browser.test.mjs; scripts/tests/brace-expansion.test.mjs; docs/architecture/2026-10-13-dependency-patch-results.md y .json; docs/architecture/2026-10-13-stabilization-current-state.md.
+Modify: infra/installer/devkit-export/AGENTS.md (regeneraci?n ante divergencia detectada por el barrido), package.json, apps/api/package.json, pnpm-lock.yaml, docs/TASKS.md, docs/00_project_status.md (enlace a estado actual; conservar hist?rico), docs/superpowers/plans/2026-10-12-runly-stabilization.md.
 Temporales y logs quedan en ubicaciones locales no versionadas. No workflow CI o scripts de producción modificados.
 
 ## Task 1 — Descubrimiento [COMPLETE]
@@ -41,7 +41,7 @@ Resultado: baseline 3/4; corregido 4/4. Sharp 0.35.5 carga librsvg 2.63.2 en Win
 
 ## Task 6 — Cierre
 
-- [ ] API/shared acotados y web build, audit, privacidad/secrets/whitespace.
+- [x] API/shared acotados y web build, audit, privacidad/secrets/whitespace.
 - [ ] Registrar resultados, plataformas y límites; sin deployment.
 
 ## Rollback
@@ -51,3 +51,5 @@ Revertir commits por familia; no tocar datos, credenciales o instancias.
 ## Hallazgo del barrido posterior
 
 API: 2365 pass, 2 skip, 0 fail. Shared: 1616 pass, 7 skip, 1 fail: AGENTS.md exportado no incluye la secci?n Developer documentation presente en el documento fuente. Se regenera ?nicamente ese archivo mediante exportRme3Devkit; sin cambiar el documento fuente ni el test. Verificaci?n dirigida y nuevo barrido shared necesarios antes de declarar cierre.
+
+Cierre verificado: API 2365 pass/2 skip/0 fail (216.0 s); shared posterior a regeneraci?n 1617 pass/7 skip/0 fail (176.4 s), test snapshot dirigido 1/1. Node 22.12.0, timeout 60000 ms, concurrency 8, force-exit. Los patrones no enumeran todas las suites .mjs/integraciones y no activan servicios reales. Web build pasa. JSON/docs conservan audit restante, responsables pendientes y l?mites.
