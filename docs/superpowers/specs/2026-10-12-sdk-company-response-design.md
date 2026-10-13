@@ -1,7 +1,7 @@
 # SDK: respuestas pendientes y cambio de empresa
 
 Date: 2026-10-12
-Status: In Progress
+Status: Complete
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md (Task 2)
 
 ## 1. Feature title
@@ -10,7 +10,7 @@ Validar la empresa después de consumir el cuerpo JSON del SDK.
 
 ## 2. Status
 
-In Progress. Continuación autorizada por el usuario del programa de estabilización; el simulacro real de B2 queda pendiente por indicación del usuario. Este documento concreta únicamente la corrección ya descrita en Task 2.
+Complete. Continuación autorizada por el usuario del programa de estabilización; el simulacro real de B2 queda pendiente por indicación del usuario. Este documento concreta únicamente la corrección ya descrita en Task 2. Verified: 2026-10-12 (52/52 pruebas SDK, sin omisiones; privacidad 4296 archivos sin hallazgos; git diff --check).
 
 ## 3. Context
 

@@ -12,7 +12,7 @@ First workstream: `docs/superpowers/specs/2026-10-12-b2-recovery-hardening-desig
 - [ ] P0 recovery: inspect/extract/assess original B2 snapshots, complete backup coverage and independently configured freshness; disposable tests followed by a separate real B2 rehearsal.
 - [x] B2 source implementation: recovery CLI, safe paths/local Docker, verified source coverage, pending-to-verified snapshots, independent age and installer preservation. Verified: 2026-10-12 (synthetic unit/Docker/SQL/S3 tests and Compose fixtures; acceptance scope and actual B2 prerequisites remain open in `docs/deployment/backup-acceptance.md`).
 - [ ] Real B2 rehearsal: deferred by user instruction on 2026-10-12; requires original private configuration and an isolated target. Independent stabilization continues.
-- [ ] SDK pending JSON response: focused scope in `docs/superpowers/specs/2026-10-12-sdk-company-response-design.md` and its plan; local regression reproduced (2 passed, 1 failed).
+- [x] SDK pending JSON response: focused scope in `docs/superpowers/specs/2026-10-12-sdk-company-response-design.md` and its plan. Verified: 2026-10-12 (baseline regression reproduced; after fix, 52/52 SDK tests passed, no skips; privacy and whitespace passed). Attendance, conditional hook and transport gate remain open.
 - [ ] P0/P1 correctness: SDK delayed JSON company-switch race, current-only Attendance identity, conditional chat hook and reviewed company-transport gate findings.
 - [ ] P1 regressions/security: classify baseline failures, reconcile generated contracts, patch reachable dependency risks and supply secret-scan tooling.
 - [ ] P1 delivery: reproducible regression/build/isolation/privacy CI and exact release artifact provenance.

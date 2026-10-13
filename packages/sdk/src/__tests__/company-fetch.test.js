@@ -52,3 +52,90 @@ test('module ZIP upload includes company without overriding multipart boundary',
   assert.equal(headers.get('X-Runly-Company-Id'), 'a');
   assert.equal(headers.get('Content-Type'), null);
 });
+
+test('SDK checks company after a pending JSON body resolves', async (t) => {
+  for (const nextCompany of ['b', null, 'a']) {
+    await t.test(`active company becomes ${nextCompany}`, async () => {
+      let company = 'a';
+      let releaseBody;
+      let bodyStarted;
+      const started = new Promise((resolve) => { bodyStarted = resolve; });
+      const body = new Promise((resolve) => { releaseBody = resolve; });
+      const client = createRunlyClient({
+        baseUrl: 'https://api.example.test', getActiveCompanyId: () => company,
+        fetch: async (_url, options) => {
+          assert.equal(new Headers(options.headers).get('X-Runly-Company-Id'), 'a');
+          return { ok: true, json: () => { bodyStarted(); return body; } };
+        },
+      });
+      const pending = client.auth.me('test');
+      const result = nextCompany === 'a'
+        ? pending.then((value) => assert.deepEqual(value, { private: true }))
+        : assert.rejects(pending, { code: 'company_changed', status: 409 });
+      await started;
+      company = nextCompany;
+      releaseBody({ private: true });
+      await result;
+    });
+  }
+});
+
+test('SDK preserves Blob rejection and multipart scoping on company changes', async () => {
+  let company = 'a';
+  const client = createRunlyClient({
+    baseUrl: 'https://api.example.test', getActiveCompanyId: () => company,
+    fetch: async (_url, options) => {
+      assert.equal(new Headers(options.headers).get('X-Runly-Company-Id'), 'a');
+      return { ok: true, blob: async () => { company = 'b'; return new Blob(['private']); } };
+    },
+  });
+  await assert.rejects(client.files.downloadOfficeFile('example', 'test'), { code: 'company_changed', status: 409 });
+  company = 'a';
+  const multipartClient = createRunlyClient({
+    baseUrl: 'https://api.example.test', getActiveCompanyId: () => company,
+    fetch: async (_url, options) => {
+      assert.ok(options.body instanceof FormData);
+      assert.equal(new Headers(options.headers).get('Content-Type'), null);
+      assert.equal(new Headers(options.headers).get('X-Runly-Company-Id'), 'a');
+      return { ok: true, json: async () => { company = 'b'; return { uploaded: true }; } };
+    },
+  });
+  await assert.rejects(multipartClient.modules.uploadModuleZip('custom.example', new FormData(), 'test'), { code: 'company_changed', status: 409 });
+});
+
+test('SDK preserves empty responses, unscoped calls, JSON errors and HTTP details', async (t) => {
+  for (const status of [204, 205]) {
+    const client = createRunlyClient({ fetch: async () => ({ ok: true, status, json: () => assert.fail('empty response must not consume JSON') }) });
+    assert.equal(await client.health(), null);
+  }
+  let company = 'a';
+  const client = createRunlyClient({ getActiveCompanyId: () => company,
+    fetch: async () => ({ ok: true, json: async () => { company = 'b'; return { public: true }; } }) });
+  assert.deepEqual(await client.health(), { public: true });
+  await t.test('invalid JSON retains parsing error', async () => {
+    const parseError = new SyntaxError('invalid JSON');
+    const client = createRunlyClient({ fetch: async () => ({ ok: true, json: async () => { throw parseError; } }) });
+    await assert.rejects(client.health(), (error) => error === parseError);
+  });
+  await t.test('HTTP error retains its details', async () => {
+    const client = createRunlyClient({ fetch: async () => new Response('{"error":"denied"}', { status: 403 }) });
+    await assert.rejects(client.health(), { message: 'denied', status: 403, responseText: '{"error":"denied"}', details: { error: 'denied' } });
+  });
+});
+
+test('SDK keeps offline queued mutations scoped without consuming a response', async (t) => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  t.after(() => {
+    if (descriptor) Object.defineProperty(globalThis, 'navigator', descriptor);
+    else delete globalThis.navigator;
+  });
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: false } });
+  const queued = { queued: true };
+  const client = createRunlyClient({ getActiveCompanyId: () => 'a', fetch: async () => assert.fail('queued mutation must not fetch') });
+  client.setOfflineTransport({ queue: async (path, options) => {
+    assert.equal(path, '/profile/me');
+    assert.equal(new Headers(options.headers).get('X-Runly-Company-Id'), 'a');
+    return queued;
+  } });
+  assert.equal(await client.profile.updateMe({ name: 'Example' }, 'test'), queued);
+});

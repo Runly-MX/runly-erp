@@ -50,11 +50,13 @@ Commit boundary: specifications, then plans/tracker. Existing FODA commit remain
 Dependency: Task 0 confirmation. Child plan: `2026-10-12-b2-recovery-hardening.md`.
 
 - [ ] Inspect original snapshot availability using explicitly provided private recovery configuration; keep the source repository read-only.
-- [ ] Implement inspect/extract/assess and legacy coverage reporting.
-- [ ] Make required source/copy failures abort new complete backups; inventory all required buckets, modules and config.
-- [ ] Separate snapshot maximum age from retention; preserve old repository passwords/identities across reruns.
-- [ ] Verify in disposable fixtures and a disposable S3-compatible repository.
+- [x] Implement inspect/extract/assess and legacy coverage reporting.
+- [x] Make required source/copy failures abort new complete backups; inventory all required buckets, modules and config.
+- [x] Separate snapshot maximum age from retention; preserve old repository passwords/identities across reruns.
+- [x] Verify in disposable fixtures and a disposable S3-compatible repository.
 - [ ] Rehearse a real B2 snapshot on an explicitly identified isolated target and record missing assets, time and data age.
+
+Verified: 2026-10-12 (63/63 synthetic targeted tests and subsequent fixture checks recorded in `docs/deployment/backup-acceptance.md`). Real B2 rehearsal deferred by user instruction; no real installation accepted.
 
 Cierre: the operator can recover without the original server; login, resources, module source and company isolation are tested. Synthetic success alone cannot close the real rehearsal.
 
@@ -66,7 +68,7 @@ Can progress independently of Task 1 code; deployment waits for a usable recover
 
 Discovery locations: `packages/sdk/src/index.js`, `company-fetch.js`, SDK company-fetch tests, `packages/core/src/module-identity.js`, official manifests/registration tests, external-chat visitor panel, `scripts/check-company-scope.mjs`.
 
-- [ ] Fix JSON-body company changes with the existing error semantics; test delayed JSON, blob, multipart, unchanged company, explicit-company and offline behaviors.
+- [x] Fix JSON-body company changes with the existing error semantics; test delayed JSON, blob, multipart, unchanged company, explicit-company and offline behaviors. Verified: 2026-10-12 (52/52 SDK tests, no skips; privacy and whitespace passed). Focused spec/plan: `2026-10-12-sdk-company-response-design.md` / `2026-10-12-sdk-company-response.md`. Other Task 2 corrections remain pending.
 - [ ] Add `runly.attendance` to current-only identities without inventing an Atlas alias; prove both identity and fallback tests.
 - [ ] Correct the confirmed conditional hook; verify transitions between no selection and selected conversation.
 - [ ] Classify all nine transport gate findings and add only evidenced narrow exceptions or use the transport. A substring header check is not a substitute for behavior tests.
