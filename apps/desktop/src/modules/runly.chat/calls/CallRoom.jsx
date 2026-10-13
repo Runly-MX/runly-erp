@@ -6,6 +6,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { playCallSound, playCallEndSound } from "./callSounds";
 import { CallInvitePanel } from "./CallInvitePanel";
 import { hasLiveVideo, recordingOrientation } from "./lib/videoAspect";
+import { SCREEN_CAPTURE_OPTIONS, SCREEN_PUBLISH_OPTIONS } from "./lib/screenShareOptions";
 import { MiniCallBubble } from "./MiniCallBubble";
 import { RemoteAudio } from "./RemoteAudio";
 import { useCallGuests } from "./hooks/useCallGuests";
@@ -413,7 +414,7 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
     }
     try {
       const next = !screenEnabled;
-      await room.localParticipant.setScreenShareEnabled(next);
+      await room.localParticipant.setScreenShareEnabled(next, SCREEN_CAPTURE_OPTIONS, SCREEN_PUBLISH_OPTIONS);
       setScreenEnabled(next);
       refresh();
     } catch (error) {

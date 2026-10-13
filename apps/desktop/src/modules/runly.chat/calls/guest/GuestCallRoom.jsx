@@ -15,6 +15,7 @@ import { DockButton, DockSplitButton, MobileCallButton } from "../ui/DockButton"
 import { ReactionPopover } from "../controls/ReactionPopover";
 import { MicDeviceMenu, CameraDeviceMenu } from "../controls/DeviceMenus";
 import { resolveCallView, resolveViewport } from "../lib/callViewMode";
+import { SCREEN_CAPTURE_OPTIONS, SCREEN_PUBLISH_OPTIONS } from "../lib/screenShareOptions";
 import "../ui/call-ui.css";
 
 function RemoteAudio({ participant }) {
@@ -174,7 +175,7 @@ export function GuestCallRoom({
     try { const n = !cam; await room.localParticipant.setCameraEnabled(n); setCam(n); refresh(); } catch { /* noop */ }
   }
   async function toggleScreen() {
-    try { const n = !screen; await room.localParticipant.setScreenShareEnabled(n); setScreen(n); refresh(); } catch { /* noop */ }
+    try { const n = !screen; await room.localParticipant.setScreenShareEnabled(n, SCREEN_CAPTURE_OPTIONS, SCREEN_PUBLISH_OPTIONS); setScreen(n); refresh(); } catch { /* noop */ }
   }
 
   const view = resolveCallView({

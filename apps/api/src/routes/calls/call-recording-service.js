@@ -159,7 +159,11 @@ export function createCallRecordingService({
     // A phone-to-phone call with upright cameras records as a vertical video
     // (the canvas size is fixed for the whole file). Only with Runly's own
     // template, which lays out a portrait canvas; LiveKit's grid can't.
+    // Landscape records at 1080p: LiveKit's default (720p) made shared-screen
+    // text unreadable. LIVEKIT_RECORDING_QUALITY=720p keeps the smaller files.
+    const hd = String(env.LIVEKIT_RECORDING_QUALITY ?? "").trim().toLowerCase() !== "720p";
     if (templateUrl && orientation === "portrait") compositeOptions.encodingOptions = EncodingOptionsPreset.PORTRAIT_H264_720P_30;
+    else if (hd) compositeOptions.encodingOptions = EncodingOptionsPreset.H264_1080P_30;
     if (templateUrl) await publishRecordingTitle(call).catch(() => {});
 
     let info;
