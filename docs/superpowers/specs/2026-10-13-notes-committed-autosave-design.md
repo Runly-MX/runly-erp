@@ -1,7 +1,7 @@
 # Notes: callback de guardado confirmado por React
 
 Date: 2026-10-13
-Status: Authorized autonomous local scope
+Status: Complete — local callback correction; persistence acceptance pending
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md.
 
 ## 1. Feature title

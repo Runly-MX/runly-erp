@@ -4,6 +4,8 @@ Date: 2026-10-13
 Status: revisión local; aceptación operativa pendiente.
 Parent: docs/superpowers/plans/2026-10-12-runly-stabilization.md.
 
+Notes callback update: publicación de flushSave trasladada de render a layout commit. Suspense/StrictMode reproducidos y corregidos; seis tests del hook, suite Notes/browser 158/158 y build pasan. React Doctor: cero errores/cinco warnings previos. No aceptación completa de persistencia; requests en curso, red, keepalive y proveedor vivo siguen abiertos. Ver 2026-10-13-notes-committed-autosave-results.md. Los updates inferiores son históricos.
+
 Tiptap update: 4bfba14c fija la familia en 3.30.5; cinco tests dirigidos, Notes/React y dos Y.Doc en memoria pasan, shared 1617 pass/7 skip/0 fail y build web pasan. Audit actual: 27 alertas en diez familias. React Doctor registra un error previo de ref durante render y cinco advertencias; autoguardado y proveedor real requieren scopes propios. Ver 2026-10-13-tiptap-security-results.md/.json. Las cifras inferiores conservan evidencia histórica.
 
 Cache update: e08c07aa corrige key de token completo y TTL remoto limitado por exp/configuración, sin cachear vigencia desconocida. Middleware 12/12, grupo relacionado 49/49 y API 2386 pass/2 skip pasan. Revocación real/issuer/audience siguen abiertos; ver auth-cache-verification.md. Este avance no modifica las decisiones diferidas.

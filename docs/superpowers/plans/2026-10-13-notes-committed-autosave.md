@@ -1,7 +1,7 @@
 # Notes: plan de callback confirmado
 
 Date: 2026-10-13
-Status: In Progress
+Status: Complete — local scope; persistence acceptance pending
 Spec: docs/superpowers/specs/2026-10-13-notes-committed-autosave-design.md.
 
 ## Goal and architecture
@@ -31,7 +31,7 @@ Validation: node --test scripts/tests/notes-committed-ref.test.mjs.
 
 ## Task 3 — Verification and close
 
-- [ ] Tests Notes existentes y fixture Tiptap; build web y React Doctor dirigido.
-- [ ] Privacy/secrets y diff checks; evidencia con límites, trackers y commits por alcance.
+- [x] Notes/browser 158/158, build web 5.10 s; React Doctor cero errores/cinco warnings previos, scan completo.
+- [x] Privacy/secrets: 4,359 archivos, cero hallazgos; whitespace pasa. Evidencia y trackers actualizados; implementación 4c282078 y commit documental de cierre.
 
 No push/deploy/provider real. Renders suspendidos deben observarse en fixture antes de desmontar; no usar sleeps como evidencia de render ocurrido. Retener pendientes anteriores.
