@@ -39,11 +39,11 @@ Modify:
 - [x] Reutilizar 4.18.1 existente; frozen pasa. Corregido 6/6; añadido control de bundle browser con esbuild, total 7/7. Audit 30 (0 críticas, 15 altas, 14 moderadas, 1 baja).
 - [x] Commit de familia; sin actualizar Excalidraw/Mermaid o las demás resoluciones.
 
-## Task 4 — prosemirror-view
+## Task 4 — prosemirror-view [COMPLETE]
 
-- [ ] Fixture EditorView real: contexto clipboard válido e inválido, pegado ordinario y edición/serialización.
-- [ ] Baseline; override/lock/peer references 1.42.3; frozen install; Chrome/pruebas/audit.
-- [ ] Commit de familia.
+- [x] Fixture EditorView real: baseline falla por array aceptado como atributo string en contexto clipboard. Corregido 1/1; cuatro tipos inválidos rechazados, texto/formato y contexto válido conservados.
+- [x] Añadido smoke con buildExtensions de Notes y Editor Tiptap reales: pegado, formato, tabla, undo/redo y roundtrip pasan. CSS excluido sólo del fixture lógico; colaboración/redes/plugin de imágenes no aceptados por este test.
+- [x] Override/lock/peer references 1.42.3; frozen pasa. Audit 29 (0 críticas, 14 altas, 14 moderadas, 1 baja); Tiptap/core conserva alertas independientes. Commit de familia.
 
 ## Task 5 — Verificación y cierre
 
