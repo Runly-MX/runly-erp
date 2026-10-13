@@ -2,7 +2,7 @@
 
 Date: 2026-10-12
 Spec: docs/superpowers/specs/2026-10-12-runly-stabilization-design.md
-Status: Proposed
+Status: In Progress
 
 ## Goal
 
@@ -37,7 +37,7 @@ Dates above identify this program's intended artifacts; use actual creation date
 - [x] Review the audit and current source status; preserve the subsequent installer/device changes.
 - [x] Write program and B2 specifications (28 sections each).
 - [x] Write program and B2 plans, dependencies, commit boundaries and initial tracker.
-- [ ] Confirm the proposed specs/plans before implementation per `docs/spec-driven-development.md`; declare `Mode: IMPLEMENTATION` with the relevant paths.
+- [x] Confirm the proposed program/B2 specs/plans before implementation per `docs/spec-driven-development.md`; declare `Mode: IMPLEMENTATION` with the relevant paths. Confirmed: 2026-10-12 (user continuation; declaration in chat). Later child workstreams retain their own design tasks.
 - [ ] Assign a named owner for code/CI, a recovery operator and a product/hardware acceptance owner. One person may hold multiple roles; unassigned roles remain visible.
 - [ ] Refresh baseline suites on the implementation revision; record Node/pnpm versions and omitted integration groups. Do not assume the October 12 audit describes later commits.
 

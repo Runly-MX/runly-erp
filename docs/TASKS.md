@@ -1,6 +1,6 @@
 ﻿# Runly ERP - Tasks and Roadmap
 
-## Runly stabilization - recovery, isolation and delivery [PLANNED]
+## Runly stabilization - recovery, isolation and delivery [IN PROGRESS]
 
 Audit: `docs/architecture/2026-10-12-foda-runly-erp.md`.
 Spec: `docs/superpowers/specs/2026-10-12-runly-stabilization-design.md`.
@@ -10,6 +10,7 @@ First workstream: `docs/superpowers/specs/2026-10-12-b2-recovery-hardening-desig
 - [x] Planning: requirements, stages, dependencies, file maps, verification and scoped commit sequence documented. Verified: 2026-10-12 (document structure/reference review, privacy and whitespace checks; no implementation or real B2 rehearsal).
 - [ ] Confirm proposed specs/plans and assign implementation, recovery and product/hardware owners.
 - [ ] P0 recovery: inspect/extract/assess original B2 snapshots, complete backup coverage and independently configured freshness; disposable tests followed by a separate real B2 rehearsal.
+- [x] B2 source implementation: recovery CLI, safe paths/local Docker, verified source coverage, pending-to-verified snapshots, independent age and installer preservation. Verified: 2026-10-12 (synthetic unit/Docker/SQL/S3 tests and Compose fixtures; acceptance scope and actual B2 prerequisites remain open in `docs/deployment/backup-acceptance.md`).
 - [ ] P0/P1 correctness: SDK delayed JSON company-switch race, current-only Attendance identity, conditional chat hook and reviewed company-transport gate findings.
 - [ ] P1 regressions/security: classify baseline failures, reconcile generated contracts, patch reachable dependency risks and supply secret-scan tooling.
 - [ ] P1 delivery: reproducible regression/build/isolation/privacy CI and exact release artifact provenance.

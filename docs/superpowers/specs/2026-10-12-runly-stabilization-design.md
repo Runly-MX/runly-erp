@@ -1,7 +1,7 @@
 # Runly stabilization and operational acceptance
 
 Date: 2026-10-12
-Status: Proposed
+Status: In Progress
 Spec file: docs/superpowers/specs/2026-10-12-runly-stabilization-design.md
 Plan file: docs/superpowers/plans/2026-10-12-runly-stabilization.md
 
@@ -11,7 +11,7 @@ Runly stabilization: recoverability, isolation, delivery and acceptance.
 
 ## 2. Status
 
-Proposed. The user requested written planning and incremental commits. This records planning authorization, not completed implementation, deployment or acceptance of an unseen specification.
+In Progress. The user requested written planning and incremental commits, then confirmed continuation on 2026-10-12. The B2 workstream's safe source implementation is underway; operational targets/credentials and other child workstreams remain open. This is not deployment or acceptance of an unseen specification.
 
 ## 3. Context
 

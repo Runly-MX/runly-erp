@@ -72,7 +72,7 @@ No se ejecutó todavía un simulacro con el repositorio B2 real.
 Spec: [docs/superpowers/specs/2026-09-26-backup-recovery-system-design.md](../superpowers/specs/2026-09-26-backup-recovery-system-design.md)
 
 This feature is opt-in (`BACKUP_MODE=enabled` in `.env.local`/`.env.external`).
-Restore is **always manual** — there is no automated restore path, by design
+Database, Storage and installation activation remain **manual** — the extraction CLI does not perform these installation changes
 (see the spec's Non-goals). Follow this runbook step by step.
 
 ## Prerequisites
@@ -93,11 +93,11 @@ docker run --rm \
   -e RESTIC_PASSWORD="$RESTIC_PASSWORD" \
   -e AWS_ACCESS_KEY_ID="$BACKUP_S3_ACCESS_KEY_ID" \
   -e AWS_SECRET_ACCESS_KEY="$BACKUP_S3_SECRET_ACCESS_KEY" \
-  raulbellosom/runlyerp:backup-latest \
-  restic snapshots --host "$RUNLY_INSTANCE_ID"
+  "$RECOVERY_IMAGE_ID" \
+  restic --no-lock snapshots --host "$RUNLY_INSTANCE_ID"
 ```
 
-Note the snapshot ID (or use `latest`) you want to restore.
+Choose an explicit snapshot ID preceding the incident and set RECOVERY_SNAPSHOT_ID. Do not select latest implicitly.
 
 ## 2. Restore the snapshot to a local directory
 
@@ -108,41 +108,41 @@ docker run --rm \
   -e AWS_ACCESS_KEY_ID="$BACKUP_S3_ACCESS_KEY_ID" \
   -e AWS_SECRET_ACCESS_KEY="$BACKUP_S3_SECRET_ACCESS_KEY" \
   -v "$PWD/restore:/restore" \
-  raulbellosom/runlyerp:backup-latest \
-  restic restore latest --target /restore --host "$RUNLY_INSTANCE_ID"
+  "$RECOVERY_IMAGE_ID" \
+  restic --no-lock restore "$RECOVERY_SNAPSHOT_ID" --target /restore --verify
 ```
 
-This produces `./restore/<scratch-dir-name>/{db.dump, storage/, config/}` on
-your machine.
+The extracted directory preserves the snapshot path (often tmp/<scratch-dir-name>).
+Locate db.dump and use its relative path as RECOVERY_DUMP_PATH. The new snapshots
+also contain modules and a private backup-manifest.json; legacy content varies.
 
 ## 3. Restore Postgres
 
-Point this at the target Postgres instance (a fresh one, or the same one
-after fixing the underlying disk issue):
+Use a newly bootstrapped, isolated target for the rehearsal. Keep API/worker/jobs
+stopped. Prepare a separate private RECOVERY_TARGET_DB_ENV file containing the
+target PGHOST, PGPORT, PGUSER and PGPASSWORD. Set RECOVERY_TARGET_DATABASE and
+RECOVERY_DUMP_PATH explicitly after reviewing the isolated destination and the
+actual extracted db.dump location. Never reuse the source DATABASE_URL or source
+env file as the target. Production/in-place restore needs its own reviewed scope:
 
 ```bash
 docker run --rm \
-  --network <compose-project>_default \
+  --network <isolated-compose-project>_default \
+  --env-file "$RECOVERY_TARGET_DB_ENV" \
   -v "$PWD/restore:/restore" \
-  raulbellosom/runlyerp:backup-latest \
-  pg_restore --clean --if-exists -d "$DATABASE_URL" /restore/<scratch-dir-name>/db.dump
+  "$RECOVERY_IMAGE_ID" \
+  pg_restore --clean --if-exists --dbname "$RECOVERY_TARGET_DATABASE" "/restore/$RECOVERY_DUMP_PATH"
 ```
 
-`--network <compose-project>_default` is only needed when `DATABASE_URL` resolves a
+`--network <isolated-compose-project>_default` is only needed when PGHOST resolves a
 Docker Compose service name (local mode) — omit it when the target Postgres is
 reachable directly (typical for external mode).
 
-**Expect `pg_restore` to report hundreds of ignored errors about event triggers
-(e.g. `issue_pg_cron_access`, `pgrst_ddl_watch`) — this is normal, not a failed
-restore.** The dump includes Supabase's own internal event triggers, which a
-fresh `supabase-db` container already creates from its own init scripts before
-you ever restore anything; `pg_restore` cannot recreate them as the non-superuser
-`postgres` role Supabase self-hosted uses. Verified against a real restore
-(disposable Backblaze B2 bucket, 2026-09-27): despite ~750 such warnings,
-`_prisma_migrations` and every Runly application table (`company`, `membership`,
-`runly_module`, `permission`, `role`, etc.) restored with their exact row counts
-intact. Confirm the restore actually worked by querying your own data, not by
-checking `pg_restore`'s exit code.
+Do not treat a nonzero pg_restore exit as an automatic success. The historical
+2026-09-27 B2 rehearsal encountered pre-existing Supabase event-trigger/ownership
+errors while application row counts matched. Classify each failure against the
+actual bootstrap and version: unexpected missing tables, roles, grants, data or
+objects fail acceptance. Never hide all errors or use an ignore-errors blanket.
 
 Verify: connect and confirm `Company`/`Membership`/module tables have the
 expected row counts for the snapshot's date.
@@ -164,8 +164,10 @@ Only needed when rebuilding a destroyed VPS from scratch: copy
 `./restore/<scratch-dir-name>/config/.env.local` (or `.env.external`) and, in
 local mode, `./restore/<scratch-dir-name>/config/supabase-db-init/*` back
 into a fresh `infra/installer` checkout at the same paths, **before**
-running `setup-local.mjs`/`setup-external.mjs` for the first time on the new
-machine.
+bootstrapping only the compatible Supabase target services. Review all target
+connection settings and keep API/worker/backup/email/push/sync jobs disabled until
+data and Storage are restored. Do not run a full setup that starts the API and
+automatically applies migrations/seed against an incomplete target.
 
 ## 6. Verify a backup without restoring anything
 
@@ -189,8 +191,9 @@ docker compose -f docker-compose.yml -f docker-compose.linux.yml \
   --profile backup-external run --rm runly-backup-external ./verify-backup.sh
 ```
 
-Exits non-zero if the latest snapshot is older than half the retention
-window, or if `restic check` finds repository corruption.
+Exits non-zero when no verified matching-coverage snapshot exists, its age exceeds
+BACKUP_MAX_AGE_HOURS, its clock is inconsistent, or restic check fails. A newer
+partial/pending snapshot cannot hide stale complete coverage.
 
 ## 7. Failure alerts
 

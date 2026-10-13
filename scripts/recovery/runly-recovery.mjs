@@ -40,7 +40,7 @@ async function defaultRun(executable, args, options = {}) {
   }
 }
 
-async function protectTempDirectory(directory) {
+async function protectPrivateDirectory(directory) {
   if (process.platform !== 'win32') return chmod(directory, 0o700);
   const identity = (await execute('whoami', [], { windowsHide: true })).stdout.trim();
   if (!identity || /[\r\n]/.test(identity)) throw new Error('No se pudo proteger la configuración temporal.');
@@ -67,7 +67,7 @@ export async function runRecovery(argv, { run = defaultRun, signal, assess = ass
   if (!/^sha256:[a-f0-9]{64}$/.test(imageId ?? '')) throw inputError('No se pudo resolver el digest de la imagen local.');
   const temp = await mkdtemp(path.join(os.tmpdir(), 'runly-recovery-'));
   try {
-    await protectTempDirectory(temp);
+    await protectPrivateDirectory(temp);
     const envFile = path.join(temp, 'recovery.env');
     await writeFile(envFile, serializeRecoveryEnv(config.env), { mode: 0o600, flag: 'wx' });
     async function docker(command, { mount, entrypoint = 'restic' } = {}) {
@@ -103,6 +103,7 @@ export async function runRecovery(argv, { run = defaultRun, signal, assess = ass
     validateSnapshotNodes(nodes);
     const output = await validateOutputPath(options.output);
     await mkdir(output, { mode: 0o700 });
+    await protectPrivateDirectory(output);
     // Recheck links after creation; destination belongs only to this operation.
     await assertNoLinks(output);
     await writeFile(path.join(output, '.runly-recovery-incomplete'), 'Extracción en curso; no usar como instalación.\n', { flag: 'wx', mode: 0o600 });

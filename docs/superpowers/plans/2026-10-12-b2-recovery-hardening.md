@@ -105,9 +105,9 @@ Verified: 2026-10-12 (installer backup config + isolated installer preservation 
 
 ## Task 6 — Spanish restore runbook and disposable rehearsal
 
-- [ ] Document B2 access versus Restic decryption key, original prefix/instance, selected pre-incident snapshot and independent recovery kit.
-- [ ] Document read-only source access → new extraction → coverage assessment → compatible target bootstrap → DB restore → Storage/modules/config → controlled startup → user validation → explicit cutover.
-- [ ] Keep API/worker/jobs stopped until DB/Storage recovery is ready; never start the API against an incomplete restored DB to let migrate/seed run implicitly.
+- [x] Document B2 access versus Restic decryption key, original prefix/instance, selected pre-incident snapshot and independent recovery kit.
+- [x] Document read-only source access → new extraction → coverage assessment → compatible target bootstrap → DB restore → Storage/modules/config → controlled startup → user validation → explicit cutover.
+- [x] Document keeping API/worker/jobs stopped until DB/Storage recovery is ready; never start the API against an incomplete restored DB to let migrate/seed run implicitly. Actual target execution remains pending.
 - [ ] Classify expected bootstrap/ownership/extension errors against actual target version; unexpected errors fail acceptance. Test transcriber role reprovisioning where required.
 - [ ] Restore synthetic companies/users/files/modules and verify login, two-company negative access, referenced file checksums, module route/UI and continued backup.
 - [ ] Record source/target version compatibility, snapshot age, extraction/restore/validation times and known limitations in sanitized evidence.
