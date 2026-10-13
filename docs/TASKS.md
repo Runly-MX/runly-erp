@@ -26,6 +26,7 @@ First workstream: `docs/superpowers/specs/2026-10-12-b2-recovery-hardening-desig
 - [ ] P1 delivery: reproducible regression/build/isolation/privacy CI and exact release artifact provenance.
 - [ ] P1 shared packages: retain ERP workspace consumption, verify isolated packed/registry consumers with exact versions and logical imports.
 - [x] Restore historical renderer exports discovered by isolated consumer: AtlasTable/Form/Detail/CrudView/CardView point to existing Runly implementations. Verified: 2026-10-12 (scope/browser bundling 3/3, Dev Kit 2/2, web build, targeted React Doctor and privacy passed). Isolated packed consumer verification remains in progress; no publication.
+- [x] Local isolated shared consumer: six exact aliases installed outside ERP, Node/compiler/SDK/preview, browser JSX/CSS, checksums, runtime singletons and second frozen install passed. Verified: 2026-10-12 (source 257771de..., 4539 isolated bundle inputs; policy/registry 8/8; full evidence in shared-consumer-verification.md). Actual GitHub/Hub acceptance remains open (read returned 404); ERP stays workspace:*; CI deferred by user instruction.
 - [ ] P1 operational acceptance: real web/Android journeys, LiveKit/Egress/transcription, file recovery, readiness/monitoring, AI execution recovery and extension/auth trust boundaries.
 - [ ] P2 consolidation: accounting/product scope, measured performance/accessibility and backlog/current-status reconciliation.
 

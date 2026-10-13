@@ -124,12 +124,14 @@ Commits: reproducible test runner/reporting; mandatory workflow gates; lint base
 Dependency: Task 3 generated-contract reconciliation. Keep ERP workspace consumption throughout. Child spec/plan required.
 
 - [ ] Confirm approved six-package allowlist and current external consumer pins through read-only evidence.
-- [ ] Pack from an exact clean committed revision into staging; do not claim dirty workspace artifacts are released versions.
-- [ ] Test public exports, JSX/CSS processing and compiler/preview contracts in a consumer without sibling ERP source, local workspace resolution or undeclared hoisted dependencies.
-- [ ] Verify no duplicate React/runtime caused by packaging; retain logical @runly imports and intended Atlas aliases.
-- [ ] Validate exact dependency versions and shared manifest checksums; frozen external install must reproduce the contract.
-- [ ] Add consumer tests to preparation/release verification; real registry retrieval is a separate acceptance check requiring existing read access.
-- [ ] Document coordinated consumer updates and rollback to a prior exact package revision; do not migrate ERP imports to @runly-mx.
+- [x] Pack from an exact clean committed revision into staging; do not claim dirty workspace artifacts are released versions. Verified: 2026-10-12, source 257771de39f3f9d966eae1c0e47d9ca2598309c9.
+- [x] Test public exports, JSX/CSS processing and compiler/preview contracts in a consumer without sibling ERP source, local workspace resolution or undeclared hoisted dependencies. Verified: two consumer directories, real Node/Chrome/build; scoped limits in shared-consumer-verification.md.
+- [x] Verify no duplicate React/runtime caused by packaging; retain logical @runly imports and intended Atlas aliases. Verified: explicit host singleton pins and one implementation each; five historical renderer aliases restored, no source import migration.
+- [x] Validate exact dependency versions and shared manifest checksums; frozen external install must reproduce the contract. Verified: local-registry artifacts, installed file inventory and second clean frozen install; GitHub Packages retrieval remains open.
+- [x] Add consumer tests to preparation/release verification; real registry retrieval is a separate acceptance check requiring existing read access. Standalone verify:shared-consumer command and documented local verification step; workflow integration deferred with CI.
+- [x] Document coordinated consumer updates and rollback to a prior exact package revision; do not migrate ERP imports to @runly-mx.
+
+Remote acceptance: six-package allowlist confirmed from source config; latest recorded Hub pin is historical. GitHub connector read-only package lookup returned 404; actual consumer pin and real registry install remain pending, without requesting user presence during independent work.
 
 Commits: isolated consumer fixtures; release preparation gate; registry acceptance/docs. Cierre: pack and registry consumers pass without local source fallback. Publishing a new set requires a separate concrete release request.
 

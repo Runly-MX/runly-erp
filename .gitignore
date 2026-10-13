@@ -109,6 +109,8 @@ infra/docker/.release-state.json
 .e2e/
 
 .artifacts/shared-release/
+.artifacts/shared-consumer/
+.artifacts/shared-consumer-source-*/
 apps/desktop/native-host/dist/
 # Native density icons and bundled legacy mark are derived by brand:native.
 apps/desktop/src-tauri/gen/android/app/src/main/res/mipmap-*/ic_launcher*.png

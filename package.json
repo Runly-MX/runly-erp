@@ -53,7 +53,8 @@
     "db:advisor-equivalent": "node scripts/check-supabase-advisor-equivalent.mjs",
     "test:isolation": "node --test apps/api/src/services/__tests__/user-isolation.integration.test.js",
     "test:isolation:fresh": "node scripts/verify-user-isolation.mjs",
-    "release:shared": "node scripts/shared-package-release.mjs"
+    "release:shared": "node scripts/shared-package-release.mjs",
+    "verify:shared-consumer": "node scripts/verify-shared-consumer.mjs"
   },
   "dependencies": {
     "@atlas/core": "workspace:@runly/core@*",

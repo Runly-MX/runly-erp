@@ -69,3 +69,20 @@ Consumer operations: Hub docs/RUNLY_SHARED_PACKAGES.md.
 [package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility),
 [npm aliases](https://docs.npmjs.com/cli/v11/using-npm/package-spec/).
 Local preparation does not publish, push or deploy.
+
+## Isolated local consumer verification
+
+After preparing a clean revision, run
+`pnpm verify:shared-consumer --manifest .artifacts/shared-release/<FULL_SHA>/manifest.json`.
+This installs exact logical npm aliases through a localhost fixture registry in
+two outside-repository directories, including a frozen reinstall. Node contracts,
+installed-file checksums, browser JSX/CSS, original Atlas aliases and runtime
+singletons are checked. Consumer runtime pins are explicit; no sibling source or
+ERP node_modules is used by its build. Scripts and user registry credentials are
+disabled. Public dependencies may be downloaded; local caches are allowed.
+
+Logs/receipt/fixture lock remain under ignored .artifacts/shared-consumer/<SHA>.
+The ephemeral-registry lock is test evidence, not a production Hub lockfile.
+GitHub Packages retrieval/access and actual Hub adoption remain separate checks;
+the command neither publishes nor changes the consumer. Local evidence and limits:
+`docs/architecture/2026-10-12-shared-consumer-verification.md`.

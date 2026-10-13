@@ -1,7 +1,7 @@
 # Consumidor aislado de paquetes Runly
 
 Date: 2026-10-12
-Status: In Progress
+Status: Complete
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md (Task 5)
 
 ## 1. Feature title
@@ -10,7 +10,7 @@ Verificar paquetes compartidos en un consumidor externo aislado.
 
 ## 2. Status
 
-In Progress. El usuario autorizó continuar autónomamente el trabajo local el 2026-10-12 y difirió CI. Este alcance ejecuta Task 5 sin publicación, cambios del Hub o credenciales.
+Complete (local packed consumer). El usuario autorizó continuar autónomamente el trabajo local el 2026-10-12 y difirió CI. Este alcance ejecuta Task 5 sin publicación, cambios del Hub o credenciales. Dos instalaciones y Node/browser/build/aliases/checksums/singletons verificados; registry real y pin Hub siguen pendientes.
 
 ## 3. Context
 
