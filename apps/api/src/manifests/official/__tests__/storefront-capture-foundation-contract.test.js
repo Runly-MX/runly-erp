@@ -68,7 +68,7 @@ test("forward migration creates capture tables and idempotency constraints", asy
   assert.match(migration, /DROP COLUMN "submitter_ip"/);
 });
 
-test("atlas.growth is an official core module with analytics and lead navigation", () => {
+test("runly.growth is an official core module with analytics, leads, sites and forms navigation", () => {
   const manifest = featureModules.runlyGrowthManifest;
 
   assert.ok(manifest);
@@ -91,6 +91,20 @@ test("atlas.growth is an official core module with analytics and lead navigation
       layout: "main",
       permissionKey: "growth.leads.read",
     },
+    {
+      label: "Sitios conectados",
+      path: "/sites",
+      icon: "Globe",
+      layout: "main",
+      permissionKey: "growth.access",
+    },
+    {
+      label: "Formularios",
+      path: "/forms",
+      icon: "FileText",
+      layout: "main",
+      permissionKey: "growth.forms.read",
+    },
   ]);
   assert.ok(coreModules.some((moduleManifest) => moduleManifest.key === "runly.growth"));
 
@@ -107,7 +121,11 @@ test("atlas.growth is an official core module with analytics and lead navigation
     "growth.leads.convert",
     "growth.analytics.read",
     "growth.analytics.export",
+    "growth.forms.read",
   ]) {
     assert.equal(permissionKeys.has(permissionKey), true, permissionKey);
+  }
+  for (const entry of manifest.navigation) {
+    assert.equal(permissionKeys.has(entry.permissionKey), true, entry.path);
   }
 });
