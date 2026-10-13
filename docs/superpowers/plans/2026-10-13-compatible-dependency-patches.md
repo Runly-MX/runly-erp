@@ -26,7 +26,7 @@ Resultado: baseline 3/4; corregido 4/4. Sharp 0.35.5 carga librsvg 2.63.2 en Win
 
 ## Task 3 — Hono
 
-- [ ] Test SSR root string/HTTP local; baseline.
+- [x] Test SSR root string/HTTP local; baseline 2/6, corregido 6/6 en ra?z y API.
 - [ ] Actualizar Hono 4.13.7 en raíz/API; review/frozen/tests/audit; commit.
 
 ## Task 4 — DOMPurify

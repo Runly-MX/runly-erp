@@ -27,7 +27,7 @@
     "exceljs": "^4.4.0",
     "fast-xml-parser": "^5.11.1",
     "firebase-admin": "^13.0.0",
-    "hono": "^4.13.5",
+    "hono": "^4.13.7",
     "jszip": "^3.10.1",
     "livekit-server-sdk": "^2.18.0",
     "lucide-react": "latest",
