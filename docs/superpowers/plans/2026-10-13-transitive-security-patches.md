@@ -27,11 +27,11 @@ Modify:
 - [x] Consultar advisories primarios, metadata npm y copias instaladas.
 - [x] Comparar patch source-map y clipboard del tarball verificado; sin ejecutar payloads reales.
 
-## Task 2 — source-map-js
+## Task 2 — source-map-js [COMPLETE]
 
-- [ ] Fixture negativo de offsets con consumidores Tailwind/PostCSS y roundtrip válido.
-- [ ] Baseline; override/lock sólo de la familia; frozen install; pruebas y audit.
-- [ ] Commit con evidencia local.
+- [x] Fixture negativo de offsets con consumidores Tailwind/PostCSS y roundtrip válido.
+- [x] Baseline 3/7; corregido 7/7. Override/lock sólo de la familia; frozen install pasa.
+- [x] Bundler/compiler 21/21; audit 33 (0 críticas, 16 altas, 16 moderadas, 1 baja). Commit con evidencia local.
 
 ## Task 3 — lodash-es
 
