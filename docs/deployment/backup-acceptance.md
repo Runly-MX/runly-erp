@@ -3,6 +3,11 @@
 Date: 2026-10-12
 Status: implementation verified with synthetic infrastructure; real B2/Supabase acceptance pending.
 
+Deferred: 2026-10-12, by user instruction. The real B2 recovery rehearsal remains
+open until original private recovery configuration and an isolated target are
+available. Continue independent stabilization work; synthetic verification does
+not close this acceptance item.
+
 ## What was verified
 
 Verified: 2026-10-12 (combined targeted suite: 63/63, no skips; fixture Compose,
