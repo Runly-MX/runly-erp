@@ -64,6 +64,11 @@ const DialogContent = forwardRef(function DialogContent(
     handleDragPointerUp,
   } = useDragToDismiss();
   const isMobile = useIsMobile();
+  // The bottom-sheet surface forces `pt-6!` (room under the drag handle), so the
+  // desktop modal must restate its top padding as important too. A consumer
+  // that lays out its own header/body/footer padding (`p-0`/`md:p-0`) gets 0
+  // instead — otherwise its header sat under a doubled ~48px top gap.
+  const flush = /(?:^|\s)(?:md:)?p-0(?:\s|$)/.test(className ?? "");
   // Only the mobile bottom sheet follows the keyboard; the desktop/tablet
   // centered modal must keep its own positioning.
   const keyboard = useKeyboardViewport({
@@ -120,7 +125,8 @@ const DialogContent = forwardRef(function DialogContent(
           "md:-translate-x-1/2 md:-translate-y-1/2",
           "md:w-full md:max-h-[90dvh] md:overflow-y-auto md:overscroll-contain",
           SIZE_CLASSES[size] ?? SIZE_CLASSES.md,
-          "md:rounded-2xl md:p-6 md:pt-6!",
+          "md:rounded-2xl md:p-6",
+          flush ? "md:pt-0!" : "md:pt-5!",
           "md:data-[state=open]:slide-in-from-top-2",
           "md:data-[state=closed]:slide-out-to-top-2",
           "md:data-[state=closed]:zoom-out-95 md:data-[state=open]:zoom-in-95",

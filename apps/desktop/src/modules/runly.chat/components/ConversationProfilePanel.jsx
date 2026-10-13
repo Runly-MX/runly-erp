@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/runly.chat/components/ConversationProfilePanel.jsx
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, Video, ChevronDown, Disc } from "lucide-react";
+import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, Video, ChevronDown, Disc, Mic } from "lucide-react";
 import {
   Button, Tabs, TabsList, TabsTrigger, TabsContent,
   Accordion, AccordionItem, AccordionTrigger, AccordionContent,
@@ -34,7 +34,7 @@ function SectionHeader({ icon: Icon, label }) {
   );
 }
 
-function ProfileCallActions({ disabled, onStartAudioCall, onStartVideoCall, onShowRecordings }) {
+function ProfileCallActions({ disabled, onStartAudioCall, onStartVideoCall, onStartInPerson, onShowRecordings }) {
   const actions = [
     {
       label: "Llamada",
@@ -48,10 +48,16 @@ function ProfileCallActions({ disabled, onStartAudioCall, onStartVideoCall, onSh
       icon: Video,
       onClick: onStartVideoCall,
     },
+    ...(onStartInPerson ? [{
+      label: "Presencial",
+      description: "Grabar en sala",
+      icon: Mic,
+      onClick: onStartInPerson,
+    }] : []),
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+    <div className={["grid gap-2 px-4 pb-4", actions.length === 3 ? "grid-cols-3" : "grid-cols-2"].join(" ")}>
       {actions.map(({ label, description, icon: Icon, onClick }) => (
         <Button
           key={label}
@@ -76,7 +82,7 @@ function ProfileCallActions({ disabled, onStartAudioCall, onStartVideoCall, onSh
           variant="ghost"
           size="sm"
           onClick={onShowRecordings}
-          className="col-span-2 justify-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]"
+          className="col-span-full justify-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]"
         >
           <Disc className="h-3.5 w-3.5" />
           Ver grabaciones de llamadas
@@ -130,6 +136,7 @@ export function ConversationProfilePanel({
   callPending,
   onStartAudioCall,
   onStartVideoCall,
+  onStartInPerson,
   onShowRecordings,
 }) {
   const conversationId = conversation?.id;
@@ -307,6 +314,7 @@ export function ConversationProfilePanel({
       disabled={callPending}
       onStartAudioCall={onStartAudioCall}
       onStartVideoCall={onStartVideoCall}
+      onStartInPerson={onStartInPerson}
       onShowRecordings={onShowRecordings}
     />
   ) : null;

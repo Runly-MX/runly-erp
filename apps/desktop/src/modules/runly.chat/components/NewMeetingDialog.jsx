@@ -54,11 +54,11 @@ const MODES = [
   {
     key: "now",
     label: "Reunión ahora",
-    hint: "Entra a la sala en este momento y los demás se unen.",
+    hint: "Entra ya y los demás se unen.",
     points: [
       "Sin timbre: avisamos que empezó y cada quien se une",
       "Desde la llamada puedes llamar a quien falte",
-      "Comparte el enlace o el ID para invitados externos",
+      "Comparte el enlace o el ID con invitados externos",
     ],
     Icon: Video,
     tint: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
@@ -66,11 +66,11 @@ const MODES = [
   {
     key: "schedule",
     label: "Programar",
-    hint: "Elige fecha y hora y envía las invitaciones.",
+    hint: "Fecha, hora e invitaciones.",
     points: [
       "Se crea el evento en tu calendario",
       "Invita por correo a personas externas",
-      "Decide si entran con sala de espera, PIN o libre",
+      "Elige sala de espera, PIN o acceso libre",
     ],
     Icon: Calendar,
     tint: "bg-sky-500/15 text-sky-600 dark:text-sky-300",
@@ -78,13 +78,11 @@ const MODES = [
   {
     key: "inperson",
     label: "Presencial",
-    hint: "Graba una reunión en sala o una exposición desde un solo dispositivo.",
+    hint: "Graba en sala desde un dispositivo.",
     points: [
-      "Antes de grabar eliges y pruebas micrófono, altavoz y cámara",
-      "Empieza con audio; activa cámara o presenta tu pantalla si expones",
+      "Pruebas micrófono, altavoz y cámara antes de grabar",
       "Se graba y transcribe al pulsar Comenzar a grabar",
-      "Nadie recibe timbre ni notificación de llamada",
-      "Al terminar, la grabación queda en la conversación",
+      "Nadie recibe timbre; la grabación queda en la conversación",
     ],
     Icon: Mic,
     tint: "bg-rose-500/15 text-rose-600 dark:text-rose-300",
@@ -97,8 +95,10 @@ const ACTION = {
   inperson: { label: "Preparar grabación", busy: "Abriendo...", Icon: Mic },
 };
 
+// Compact selector: icon + title + one line. The selected mode's details
+// live once in <ModeDetails> below the row instead of three long lists.
 function ModeCard({ mode, selected, disabled, onSelect }) {
-  const { label, hint, points, Icon, tint } = mode;
+  const { label, hint, Icon, tint } = mode;
   return (
     <button
       type="button"
@@ -107,33 +107,40 @@ function ModeCard({ mode, selected, disabled, onSelect }) {
       disabled={disabled}
       onClick={onSelect}
       className={cn(
-        "relative grid h-full grid-cols-[auto_1fr] items-start gap-x-3 gap-y-3 rounded-2xl border p-4 text-left transition-all duration-150 md:flex md:flex-col",
+        "relative flex items-center gap-3 rounded-xl border p-3 text-left transition-all duration-150",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary)",
         selected
           ? "border-(--brand-primary) bg-(--brand-soft) shadow-sm"
           : "border-[hsl(var(--border))] bg-[hsl(var(--card))]/60 hover:border-(--brand-primary)/50 hover:bg-[hsl(var(--muted))]/50",
       )}
     >
+      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", tint)}>
+        <Icon className="h-4 w-4" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1 pr-5">
+        <span className="block text-sm font-semibold text-[hsl(var(--foreground))]">{label}</span>
+        <span className="block text-xs leading-snug text-[hsl(var(--muted-foreground))]">{hint}</span>
+      </span>
       {selected && (
-        <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-(--brand-primary)" aria-hidden />
+        <CheckCircle2 className="absolute right-2.5 top-2.5 h-4 w-4 text-(--brand-primary)" aria-hidden />
       )}
-      <span className={cn("flex h-11 w-11 items-center justify-center rounded-xl", tint)}>
-        <Icon className="h-5 w-5" aria-hidden />
-      </span>
-      <span className="space-y-1 pr-6 md:pr-0">
-        <span className="block text-base font-semibold text-[hsl(var(--foreground))]">{label}</span>
-        <span className="block text-sm leading-snug text-[hsl(var(--muted-foreground))]">{hint}</span>
-      </span>
-      {/* Phones show the details only for the chosen mode. */}
-      <ul className={cn("col-span-2 mt-auto space-y-1.5", !selected && "hidden md:block")}>
-        {points.map((point) => (
+    </button>
+  );
+}
+
+function ModeDetails({ mode, children }) {
+  return (
+    <div className="space-y-4 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/25 p-4">
+      <ul className="space-y-1.5">
+        {mode.points.map((point) => (
           <li key={point} className="flex items-start gap-2 text-[13px] leading-snug text-[hsl(var(--foreground))]/80">
             <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-(--brand-primary)" aria-hidden />
             {point}
           </li>
         ))}
       </ul>
-    </button>
+      {children}
+    </div>
   );
 }
 
@@ -317,9 +324,9 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
       <DialogContent size="2xl" scrollable className="gap-0 p-0 md:p-0">
-        <DialogHeader className="shrink-0 space-y-1 px-6 pb-4 pt-6">
-          <DialogTitle className="text-xl">Nueva reunión</DialogTitle>
-          <DialogDescription>Elige cómo quieres reunirte. Puedes usar una sala nueva o un canal o grupo existente.</DialogDescription>
+        <DialogHeader className="mb-0 shrink-0 space-y-1 px-6 pb-3 pt-5">
+          <DialogTitle className="text-lg">Nueva reunión</DialogTitle>
+          <DialogDescription>Usa una sala nueva o un canal o grupo existente.</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-5">
         {!callsEnabled ? (
@@ -327,7 +334,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
             Las llamadas no están configuradas en esta instancia.
           </p>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <SelectField
               label="Sala"
               value={conversationId}
@@ -350,14 +357,14 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
               ]}
             />
 
-            <div className="grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="Tipo de reunión">
+            <div className="grid gap-2 md:grid-cols-3" role="radiogroup" aria-label="Tipo de reunión">
               {MODES.map((m) => (
                 <ModeCard key={m.key} mode={m} selected={mode === m.key} disabled={busy} onSelect={() => setMode(m.key)} />
               ))}
             </div>
 
-            {mode === "now" && otherMemberCount > 0 && (
-              <div className="rounded-2xl border border-[hsl(var(--border))] p-4">
+            <ModeDetails mode={MODES.find((m) => m.key === mode)}>
+              {mode === "now" && otherMemberCount > 0 && (
                 <SwitchField
                   label="Llamar a los miembros"
                   description={ringMembers
@@ -367,11 +374,9 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
                   onChange={setRingMembers}
                   disabled={busy}
                 />
-              </div>
-            )}
-
-            {mode === "schedule" && (
-              <div className="space-y-4 rounded-2xl border border-[hsl(var(--border))] p-4">
+              )}
+              {mode === "schedule" && (
+                <>
                 <TagsField
                   label="Invitados externos por correo (opcional)"
                   placeholder="ana@empresa.com  (Enter para agregar)"
@@ -390,8 +395,9 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
                     disabled={busy}
                   />
                 </div>
-              </div>
-            )}
+                </>
+              )}
+            </ModeDetails>
 
             {error && <ErrorState className="py-3" title="No se pudo iniciar la reunión" description={error} />}
             {activeCall && mode !== "schedule" && (
@@ -402,13 +408,10 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
         </div>
         {callsEnabled && (
           <div
-            className="flex shrink-0 flex-col-reverse gap-3 border-t border-[hsl(var(--border))] px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
-            style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}
+            className="flex shrink-0 justify-end border-t border-[hsl(var(--border))] px-6 py-3"
+            style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
           >
-            <p className="hidden text-xs text-[hsl(var(--muted-foreground))] sm:block">
-              {MODES.find((m) => m.key === mode)?.hint}
-            </p>
-            <Button size="lg" className="sm:min-w-52" onClick={runAction} disabled={actionDisabled}>
+            <Button className="w-full sm:w-auto sm:min-w-48" onClick={runAction} disabled={actionDisabled}>
               <action.Icon className="mr-2 h-4 w-4" /> {busy ? action.busy : action.label}
             </Button>
           </div>

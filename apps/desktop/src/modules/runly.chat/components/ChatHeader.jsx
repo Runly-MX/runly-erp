@@ -8,7 +8,7 @@ import {
   ArrowLeft, Users, FolderOpen, MessageSquare,
   MoreVertical, Trash2, X as XIcon, Search, Forward, Copy, CheckSquare,
   ChevronUp, ChevronDown, ChevronRight, Archive, ArchiveRestore, Pin,
-  Phone, Video, UserPlus, Sparkles,
+  Phone, Video, UserPlus, Sparkles, Mic,
 } from "lucide-react";
 import { usePinnedMessages } from "../hooks/usePinnedMessages";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
@@ -43,7 +43,7 @@ export function ChatHeader({
   onArchive, isArchived,
   onOpenProfile,
   onOpenPinned,
-  callsEnabled, callPending, onStartAudioCall, onStartVideoCall, onStartMeeting, onOpenGuestLink,
+  callsEnabled, callPending, onStartAudioCall, onStartVideoCall, onStartMeeting, onStartInPerson, onOpenGuestLink,
   isMirai = false,
   onOpenMirai, miraiDisabled = false,
   embedded = null, onCollapse = null,
@@ -333,6 +333,12 @@ export function ChatHeader({
                 <DropdownMenuItem onSelect={onStartMeeting} disabled={callPending}>
                   <Users className="h-3.5 w-3.5 mr-2" />
                   Iniciar reunión (sin timbre)
+                </DropdownMenuItem>
+              )}
+              {onStartInPerson && (
+                <DropdownMenuItem onSelect={onStartInPerson} disabled={callPending}>
+                  <Mic className="h-3.5 w-3.5 mr-2" />
+                  Grabación presencial
                 </DropdownMenuItem>
               )}
               {onOpenGuestLink && (conversation?.type === "channel" || conversation?.type === "group") && (

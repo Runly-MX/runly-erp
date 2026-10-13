@@ -304,6 +304,13 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
     setRecordingsView(false);
   }, []);
 
+  // Same entry as NewMeetingDialog's "Presencial", but on this conversation:
+  // audio-only, no ringing, records and transcribes into this chat.
+  const startInPerson = useCallback(
+    () => startCall({ conversationId, kind: "AUDIO", ring: false, meetingMode: "inperson" }),
+    [startCall, conversationId],
+  );
+
   const showAllFiles = useCallback(() => {
     setMembersView(false);
     setProfileInitialTab(null);
@@ -632,6 +639,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         onStartAudioCall={() => startCall({ conversationId, kind: "AUDIO" })}
         onStartVideoCall={() => startCall({ conversationId, kind: "VIDEO" })}
         onStartMeeting={() => startCall({ conversationId, kind: "VIDEO", ring: false })}
+        onStartInPerson={startInPerson}
         onOpenGuestLink={!isExternal && callsEnabled ? () => setShareOpen(true) : undefined}
         isArchived={conversation?.is_archived ?? false}
         onArchive={!isExternal && conversationId
@@ -833,6 +841,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
             callPending={callPending}
             onStartAudioCall={() => startCall({ conversationId, kind: "AUDIO" })}
             onStartVideoCall={() => startCall({ conversationId, kind: "VIDEO" })}
+            onStartInPerson={isExternal ? undefined : startInPerson}
             onShowRecordings={() => { setMembersView(false); setProfileInitialTab(null); setFilesView(false); setRecordingsView(true); }}
           />
         </div>
