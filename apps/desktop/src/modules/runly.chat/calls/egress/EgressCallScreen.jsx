@@ -104,10 +104,10 @@ export default function EgressCallScreen() {
     speaking: speakingIds.has(entry.participant?.identity),
     onPin: null,
     mirrorLocalCamera: false,
-    // Never crop a camera in the file: a phone held upright (whose measured
-    // aspect can arrive late or wrong) is shown whole over a blurred fill.
+    // Never crop a camera in the file: a phone held upright is recorded whole,
+    // in its own vertical shape, not zoomed to fill a landscape tile. Doesn't
+    // depend on the measured aspect (it can arrive late or wrong from iOS).
     fit: "contain",
-    blurFill: true,
   });
   const stage = {
     entries,
