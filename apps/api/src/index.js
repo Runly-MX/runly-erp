@@ -9,6 +9,8 @@ import { createIdentitySessionsRouter } from "./routes/identity/identity-session
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { createHealthRoutes } from './routes/health-routes.js';
+import { createReadinessService, createPoolReadinessProbe, isModuleRuntimeReady } from './services/readiness-service.js';
 import { config as loadEnv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -784,6 +786,12 @@ const routeLoader = createRouteLoaderService({
   },
 });
 
+let moduleRuntimeInitialized = false;
+const readiness = createReadinessService({
+  probeDatabase: createPoolReadinessProbe(pgPool),
+  isRuntimeReady: () => isModuleRuntimeReady(moduleRuntimeInitialized, routeLoader.getModuleRouteStatus()),
+});
+
 app.use(
   "*",
   cors({
@@ -795,8 +803,11 @@ app.use(
   }),
 );
 
+// Operational routes precede module delegation and cannot be claimed by a module.
+app.route('/', createHealthRoutes({ readiness, formatLogTimestamp, getConfiguredTimeZone }));
 await routeLoader.initialize(app);
 await bundlerService.restoreModuleBundlesOnBoot();
+moduleRuntimeInitialized = true;
 // The dev watcher holds an open fs.watch handle that keeps the process alive
 // indefinitely — desired for `node --watch src/index.js`, but it would
 // prevent the opt-in cross-tenant test suite (which imports this module,
@@ -816,17 +827,6 @@ if (process.env.RUNLY_API_TEST_MODE !== "1") {
     .then((keys) => { if (keys.length) console.log(`[modules] core inline models ensured: ${keys.join(", ")}`); })
     .catch((err) => console.error("[modules] core inline model provisioning failed:", err?.message ?? err));
 }
-
-app.get("/health", (c) => {
-  const now = new Date();
-  return c.json({
-    ok: true,
-    name: "Runly API",
-    time: now.toISOString(),
-    localTime: formatLogTimestamp(now),
-    timeZone: getConfiguredTimeZone(),
-  });
-});
 
 // Public login with email or username. The client receives the Supabase
 // session tokens and installs them with supabase.auth.setSession().
@@ -2481,8 +2481,8 @@ if (process.env.RUNLY_API_TEST_MODE !== "1") {
   const server = serve({ fetch: app.fetch, port });
   console.log(`Runly API running on http://localhost:${port}`);
 
-  process.on("SIGTERM", () => server.close(() => process.exit(0)));
-  process.on("SIGINT", () => server.close(() => process.exit(0)));
+  process.on("SIGTERM", () => { moduleRuntimeInitialized = false; server.close(() => process.exit(0)); });
+  process.on("SIGINT", () => { moduleRuntimeInitialized = false; server.close(() => process.exit(0)); });
 }
 
 // Prevent stale-connection errors from the Prisma pg pool from crashing the

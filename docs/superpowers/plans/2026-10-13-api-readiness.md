@@ -17,13 +17,13 @@ Modify: apps/api/src/index.js; docs/TASKS.md; docs/architecture/2026-10-13-stabi
 ## Task 1 — Scope
 
 - [x] Graph/source, pg y skills; audit 27 confirmado (13 high/13 moderate/1 low), diez familias.
-- [ ] Mode IMPLEMENTATION y commit documental.
+- [x] Mode IMPLEMENTATION y commit documental 92272d82.
 
 ## Task 2 — Service and HTTP
 
-- [ ] Service/adaptador/tests: timeout, errores, client release, concurrencia, late settlement y recuperación.
-- [ ] Router/tests: contratos health/ready, privacidad, no-store, runtime y wiring antes de módulos.
-- [ ] Integración bootstrap y shutdown; commit tras tests dirigidos.
+- [x] Service/adaptador/tests: timeout, errores, client release, concurrencia, late settlement y recuperación.
+- [x] Router/tests: contratos health/ready, privacidad, no-store, runtime y wiring antes de módulos.
+- [x] Integración bootstrap y shutdown; 18/18 dirigidos y syntax/diff pasan. Commit de implementación tras revisar paths.
 
 Validation: node --test apps/api/src/services/__tests__/readiness-service.test.js apps/api/src/routes/__tests__/health-routes.test.js.
 
