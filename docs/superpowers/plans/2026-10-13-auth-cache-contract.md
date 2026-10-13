@@ -23,9 +23,9 @@ Sin dependencies, frontend, configuración real o base de datos.
 
 ## Task 3 — Corrección
 
-- [ ] Casos negativos key/TTL sobre factory original; registrar baseline.
-- [ ] SHA256 del token completo y clamp remoto/no cache de exp desconocido.
-- [ ] Fixtures HTTP/reloj y JWT/invitados relacionados; commit por alcance.
+- [x] Factory original: 12 tests, 7 pass/5 fail; cuatro comportamientos key/TTL y forma del key reproducidos.
+- [x] SHA256 del token completo; clamp remoto al exp/buffer y TTL existente; no cache de exp desconocido/inválido. Identidad viene sólo de verificación local o getUser.
+- [x] Middleware 12/12 y grupo relacionado total 49/49, sin skips o servicios reales; commit de hardening separado de extracción.
 
 ## Task 4 — Cierre
 

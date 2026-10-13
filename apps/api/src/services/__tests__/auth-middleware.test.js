@@ -81,3 +81,76 @@ test("a local token inside the expiry leeway is accepted without creating a stal
   assert.equal(f.writes.length, 0);
   assert.equal(f.calls.length, 0);
 });
+
+test("a changed token with the same signature suffix cannot reuse a cached identity", async t => {
+  const f = fixture(t);
+  const token = signHs256Jwt({ sub: "local-user" }, SECRET, 3600);
+  assert.equal((await f.request(token)).status, 200);
+  const [header, , signature] = token.split(".");
+  const changedPayload = Buffer.from(JSON.stringify({ sub: "changed-fixture-user", exp: 1_800_003_600 })).toString("base64url");
+  const changed = `${header}.${changedPayload}.${signature}`;
+  assert.equal(changed.slice(-32), token.slice(-32));
+  assert.equal((await f.request(changed)).status, 401, "An invalid signature must not inherit cached authentication from a matching suffix");
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.writes.length, 1);
+});
+
+test("a remotely validated identity is not served from cache after token expiry", async t => {
+  const f = fixture(t);
+  const token = signHs256Jwt({ sub: "untrusted-sub" }, "different-fixture-secret", 40);
+  f.remoteTokens.set(token, "remote-user");
+  assert.equal((await f.request(token)).status, 200);
+  f.advance(41);
+  f.remoteTokens.delete(token);
+  assert.equal((await f.request(token)).status, 401, "Expired identity must be revalidated instead of using the five-minute fallback cache");
+  assert.equal(f.calls.length, 2);
+  assert.equal(f.writes[0].seconds, 10);
+});
+
+test("a fallback token inside the expiry buffer is not cached", async t => {
+  const f = fixture(t);
+  const token = signHs256Jwt({ sub: "untrusted-sub" }, "different-fixture-secret", 20);
+  f.remoteTokens.set(token, "remote-user");
+  assert.equal((await f.request(token)).status, 200);
+  assert.equal((await f.request(token)).status, 200);
+  assert.equal(f.writes.length, 0);
+  assert.equal(f.calls.length, 2);
+});
+
+test("fallback authority remains authoritative but unknown or invalid expiry is never cached", async t => {
+  const f = fixture(t);
+  const tokens = [
+    signHs256Jwt({ exp: undefined }, "different-fixture-secret", 3600),
+    signHs256Jwt({ exp: "1800003600" }, "different-fixture-secret", 3600),
+    signHs256Jwt({ exp: null }, "different-fixture-secret", 3600),
+    "opaque-fixture-authority-token",
+  ];
+  for (const token of tokens) {
+    // Simulate a successful authority without pretending these are real Auth tokens.
+    f.remoteTokens.set(token, "remote-user");
+    assert.deepEqual(await (await f.request(token)).json(), { userId: "remote-user" });
+    assert.deepEqual(await (await f.request(token)).json(), { userId: "remote-user" });
+  }
+  assert.equal(f.writes.length, 0);
+  assert.equal(f.calls.length, tokens.length * 2);
+});
+
+test("fallback TTL also respects the existing configured maximum", async t => {
+  const f = fixture(t, { ttl: 20 });
+  const token = signHs256Jwt({ sub: "untrusted-sub" }, "different-fixture-secret", 3600);
+  f.remoteTokens.set(token, "remote-user");
+  assert.equal((await f.request(token)).status, 200);
+  assert.equal(f.writes[0].seconds, 20);
+  f.advance(21);
+  assert.equal((await f.request(token)).status, 200);
+  assert.equal(f.calls.length, 2);
+});
+
+test("local expiry buffer and cache key prefix remain compatible without storing token text", async t => {
+  const f = fixture(t);
+  const token = signHs256Jwt({ sub: "local-user" }, SECRET, 40);
+  assert.equal((await f.request(token)).status, 200);
+  assert.equal(f.writes[0].seconds, 10);
+  assert.match(f.writes[0].key, /^auth:token:[a-f0-9]{64}$/);
+  assert.equal(f.writes[0].key.includes(token), false);
+});
