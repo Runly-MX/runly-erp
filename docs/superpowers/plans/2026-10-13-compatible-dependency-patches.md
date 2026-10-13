@@ -32,7 +32,7 @@ Resultado: baseline 3/4; corregido 4/4. Sharp 0.35.5 carga librsvg 2.63.2 en Win
 ## Task 4 — DOMPurify
 
 - [ ] Test en Chrome de sanitización/hook conforme a advisory, sin datos reales.
-- [ ] Override 3.4.16; diff/frozen/test/build/audit; commit.
+- [x] Override 3.4.16; frozen/test/build pasan, sin cambios de versiones ajenas. Audit 40 (0 cr?ticas, 21 altas, 18 moderadas, 1 baja). Commit de familia.
 
 ## Task 5 — brace-expansion
 
