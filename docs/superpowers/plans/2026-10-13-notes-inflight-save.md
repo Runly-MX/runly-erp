@@ -17,19 +17,19 @@ Modify: apps/desktop/src/modules/runly.notes/components/NoteEditor.jsx; scripts/
 ## Task 1 — Scope
 
 - [x] Graph/source, lifecycle, skills y spec/plan; autorización local vigente.
-- [ ] Mode IMPLEMENTATION y commit documental.
+- [x] Mode IMPLEMENTATION y commit documental 9d6839bd.
 
 ## Task 2 — Extraction and baseline
 
-- [ ] Extraer flujo original con refs/SDK inyectados y tests de comportamiento conservado.
-- [ ] Commit de extracción validado antes del fix.
-- [ ] Reproducir flush en curso + Y.Doc destruido y respuesta tardía; errores más nuevos cubiertos.
+- [x] Extraer flujo original con refs/SDK inyectados; cinco tests pasan antes de fix.
+- [x] Commit de extracción cf73a259 antes del fix.
+- [x] Baseline: cinco pass/tres fail; se lee doc destruido, catch-up emite update tardío y payload fallido no se conserva. No pérdida real demostrada.
 
 ## Task 3 — Fix
 
-- [ ] Capturar antes de busy; conservar/restaurar payload más reciente; no catch-up a doc destruido.
-- [ ] Hook de salida layout; fixture React con teardown pasivo y callback regresiones usando hook real.
-- [ ] Tests dirigidos pasan; commit de implementación.
+- [x] Capturar antes de busy; conservar/restaurar payload más reciente; no catch-up a doc destruido. Dirty permanece visible al keepalive existente mientras espera y ante error.
+- [x] Hook de salida layout; fixture React con teardown pasivo y callback regresiones usando hook real.
+- [x] Tests dirigidos 16/16; commit de implementación tras revisión del diff.
 
 Validation: node --test apps/desktop/src/modules/runly.notes/lib/__tests__/flush-note-save.test.js scripts/tests/notes-inflight-save.test.mjs scripts/tests/notes-committed-ref.test.mjs.
 

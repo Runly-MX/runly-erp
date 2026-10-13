@@ -2,6 +2,7 @@ import { createElement, useEffect, useLayoutEffect, useRef, Suspense, StrictMode
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { useCommitRefValue } from '../../apps/desktop/src/modules/runly.notes/hooks/useCommitRefValue.js'
+import { useNoteSaveOnUnmount } from '../../apps/desktop/src/modules/runly.notes/hooks/useNoteSaveOnUnmount.js'
 
 window.runNotesCommittedRef = async (scenario) => {
   const mount = document.createElement('div')
@@ -20,14 +21,9 @@ window.runNotesCommittedRef = async (scenario) => {
     useCommitRefValue(ref, callback)
     const timer = useRef(null)
     useLayoutEffect(() => { refs.set(id, ref) }, [id, ref])
-    // Same lifecycle as NoteEditorSurface: cancel debounce and invoke the
-    // shared ref on unmount, without flushing on every callback change.
+    useNoteSaveOnUnmount(ref, timer)
     useEffect(() => {
       timer.current = setTimeout(() => { timerFired = true }, 1000)
-      return () => {
-        clearTimeout(timer.current)
-        ref.current()
-      }
     }, [ref])
     rendered.push(label)
     if (suspend) throw blocked

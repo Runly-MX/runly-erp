@@ -94,3 +94,103 @@ test('Y update goes first; active document receives server catch-up', async () =
     assert.ok(f.args.provider.serverStateVector instanceof Uint8Array)
   } finally { doc.destroy(); peer.destroy() }
 })
+
+test('busy flush captures latest Y payload before document destruction', async () => {
+  const doc = new Y.Doc(), server = new Y.Doc(), first = gate(), sent = []
+  let readsAfterDestroy = 0
+  const store = doc.store
+  Object.defineProperty(doc, 'store', { get() { if (doc.isDestroyed) readsAfterDestroy++; return store } })
+  const f = fixture({ ydoc: doc, provider: { serverStateVector: null } })
+  f.args.notes.saveYDoc = async (_, update) => {
+    sent.push(update)
+    if (sent.length === 1) await first.promise
+    Y.applyUpdate(server, base64ToBytes(update))
+    return {}
+  }
+  try {
+    doc.getText('text').insert(0, 'first')
+    f.state.ydocDirtyRef.current = true
+    const saving = f.flush()
+    doc.getText('text').insert(5, ' second')
+    f.state.ydocDirtyRef.current = true
+    f.state.pendingRef.current = snapshot('second')
+    await f.flush() // Exact request made by the unmount flush while busy.
+    assert.equal(f.state.ydocDirtyRef.current, true, 'Keepalive must still see unsent edits while the doc is alive')
+    doc.destroy()
+    first.resolve()
+    await saving
+    await tick()
+    assert.equal(sent.length, 2)
+    assert.equal(readsAfterDestroy, 0, 'Rerun must use captured bytes, not encode a destroyed Y.Doc')
+    assert.equal(server.getText('text').toString(), 'first second')
+    assert.equal(f.calls[0][2].title, 'second')
+  } finally { if (!doc.isDestroyed) doc.destroy(); server.destroy() }
+})
+
+test('late response cannot mutate a destroyed Y.Doc or acknowledge its provider', async () => {
+  const doc = new Y.Doc(), peer = new Y.Doc(), response = gate()
+  const provider = { serverStateVector: null }
+  const f = fixture({ ydoc: doc, provider })
+  let lateUpdates = 0
+  f.args.notes.saveYDoc = () => response.promise
+  try {
+    doc.getText('text').insert(0, 'local')
+    peer.getText('peer').insert(0, 'late')
+    f.state.ydocDirtyRef.current = true
+    const saving = f.flush()
+    doc.destroy()
+    doc.on('update', () => lateUpdates++)
+    response.resolve({ missing: bytesToBase64(Y.encodeStateAsUpdate(peer)) })
+    await saving
+    assert.equal(lateUpdates, 0)
+    assert.equal(provider.serverStateVector, null)
+  } finally { if (!doc.isDestroyed) doc.destroy(); peer.destroy() }
+})
+
+test('failed Y payload remains retryable after destruction without an automatic retry loop', async () => {
+  const doc = new Y.Doc(), first = gate(), server = new Y.Doc()
+  const f = fixture({ ydoc: doc, provider: { serverStateVector: null } })
+  let attempts = 0, fail = true
+  f.args.notes.saveYDoc = async (_, update) => {
+    attempts++
+    if (attempts === 1) await first.promise
+    if (fail) throw new Error('fixture outage')
+    Y.applyUpdate(server, base64ToBytes(update))
+  }
+  try {
+    doc.getText('text').insert(0, 'first')
+    f.state.ydocDirtyRef.current = true
+    const saving = f.flush()
+    doc.getText('text').insert(5, ' second')
+    f.state.ydocDirtyRef.current = true
+    await f.flush()
+    doc.destroy()
+    first.resolve()
+    await saving
+    await tick()
+    assert.equal(attempts, 2, 'Only the explicitly requested rerun is attempted')
+    assert.ok(f.state.capturedYDocRef.current, 'Newest failed bytes must remain available')
+    assert.equal(f.state.ydocDirtyRef.current, true, 'Existing active-editor retry/exit path must see the failure')
+    fail = false
+    await f.flush()
+    assert.equal(attempts, 3)
+    assert.equal(server.getText('text').toString(), 'first second')
+    assert.equal(f.state.capturedYDocRef.current, null)
+  } finally { if (!doc.isDestroyed) doc.destroy(); server.destroy() }
+})
+
+test('separate note instances keep their own destinations and pending state', async () => {
+  const first = gate(), sent = []
+  const a = fixture(), b = fixture({ noteId: 'note-b', token: 'other-fixture-token' })
+  a.args.notes.update = async (...values) => { sent.push(values); await first.promise }
+  b.args.notes.update = async (...values) => { sent.push(values) }
+  a.state.pendingRef.current = snapshot('a')
+  b.state.pendingRef.current = snapshot('b')
+  const savingA = a.flush()
+  await b.flush()
+  assert.deepEqual(sent.map(x => [x[0], x[1].title, x[2]]), [['note-a', 'a', 'fixture-token'], ['note-b', 'b', 'other-fixture-token']])
+  assert.equal(a.state.savingRef.current, true)
+  assert.equal(b.state.savingRef.current, false)
+  first.resolve()
+  await savingA
+})

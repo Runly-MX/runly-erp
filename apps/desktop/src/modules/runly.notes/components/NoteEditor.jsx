@@ -10,6 +10,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useIsDark } from '../hooks/useIsDark.js'
 import { useCommitRefValue } from '../hooks/useCommitRefValue.js'
+import { useNoteSaveOnUnmount } from '../hooks/useNoteSaveOnUnmount.js'
 import { NoteSheet } from './NoteSheet.jsx'
 import { runly } from '../../../lib/runly'
 import { supabase } from '../../../lib/supabase'
@@ -256,13 +257,14 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
   const rerunRef = useRef(false)
   const saveTimerRef = useRef(null)
   const flushRef = useRef(null)
+  const capturedYDocRef = useRef(null)
   // Last title pushed to the query caches (optimistic, per keystroke).
   const lastTitleRef = useRef(note?.title ?? '')
   useEffect(() => { lastTitleRef.current = note?.title ?? '' }, [note?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const flushSave = useCallback(() => flushNoteSave({
     readOnly, noteId: note?.id, token, ydoc, provider, notes: runly.notes, queryClient,
-    state: { pendingRef, ydocDirtyRef, savingRef, rerunRef, flushRef },
+    state: { pendingRef, ydocDirtyRef, savingRef, rerunRef, flushRef, capturedYDocRef },
   }), [note?.id, token, readOnly, ydoc, provider, queryClient])
 
   // A reload or closed tab kills in-flight fetches and never runs the unmount
@@ -342,13 +344,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
 
   // Flush once on unmount so switching notes fast never drops the last edits.
   useCommitRefValue(flushRef, flushSave)
-  useEffect(
-    () => () => {
-      clearTimeout(saveTimerRef.current)
-      flushRef.current()
-    },
-    [flushRef],
-  )
+  useNoteSaveOnUnmount(flushRef, saveTimerRef)
 
   // Immediate (non-debounced) update for discrete meta fields — icon and cover
   // banner are single user actions, not continuous typing.
