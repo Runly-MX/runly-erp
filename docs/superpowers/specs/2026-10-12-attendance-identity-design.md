@@ -1,7 +1,7 @@
 # Attendance: integridad de identidad oficial
 
 Date: 2026-10-12
-Status: In Progress
+Status: Complete
 Program: docs/superpowers/plans/2026-10-12-runly-stabilization.md (Task 2)
 
 ## 1. Feature title
@@ -10,7 +10,7 @@ Completar el catálogo de identidades oficiales con runly.attendance.
 
 ## 2. Status
 
-In Progress. Alcance explícito de Task 2 del programa confirmado por el usuario al indicar «ok continuemos». Esta especificación concreta esa corrección sin ampliar el programa.
+Complete. Alcance explícito de Task 2 del programa confirmado por el usuario al indicar «ok continuemos». Esta especificación concreta esa corrección sin ampliar el programa. Verified: 2026-10-12 (31/31 pruebas core, identidad y registro, sin omisiones; RBAC 321/321; privacidad sin hallazgos; whitespace).
 
 ## 3. Context
 

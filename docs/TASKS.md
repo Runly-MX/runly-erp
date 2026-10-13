@@ -14,6 +14,7 @@ First workstream: `docs/superpowers/specs/2026-10-12-b2-recovery-hardening-desig
 - [ ] Real B2 rehearsal: deferred by user instruction on 2026-10-12; requires original private configuration and an isolated target. Independent stabilization continues.
 - [x] SDK pending JSON response: focused scope in `docs/superpowers/specs/2026-10-12-sdk-company-response-design.md` and its plan. Verified: 2026-10-12 (baseline regression reproduced; after fix, 52/52 SDK tests passed, no skips; privacy and whitespace passed). Attendance, conditional hook and transport gate remain open.
 - [ ] P0/P1 correctness: SDK delayed JSON company-switch race, current-only Attendance identity, conditional chat hook and reviewed company-transport gate findings.
+- [x] Attendance identity catalog: added runly.attendance without an Atlas alias. Verified: 2026-10-12 (31/31 core/identity/registration tests; exact lookup and fallback covered; RBAC 321/321, privacy and whitespace passed). Focused spec/plan: `2026-10-12-attendance-identity-design.md` / `2026-10-12-attendance-identity.md`. Functional/hardware acceptance remains separate.
 - [ ] P1 regressions/security: classify baseline failures, reconcile generated contracts, patch reachable dependency risks and supply secret-scan tooling.
 - [ ] P1 delivery: reproducible regression/build/isolation/privacy CI and exact release artifact provenance.
 - [ ] P1 shared packages: retain ERP workspace consumption, verify isolated packed/registry consumers with exact versions and logical imports.

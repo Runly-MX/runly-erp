@@ -69,7 +69,7 @@ Can progress independently of Task 1 code; deployment waits for a usable recover
 Discovery locations: `packages/sdk/src/index.js`, `company-fetch.js`, SDK company-fetch tests, `packages/core/src/module-identity.js`, official manifests/registration tests, external-chat visitor panel, `scripts/check-company-scope.mjs`.
 
 - [x] Fix JSON-body company changes with the existing error semantics; test delayed JSON, blob, multipart, unchanged company, explicit-company and offline behaviors. Verified: 2026-10-12 (52/52 SDK tests, no skips; privacy and whitespace passed). Focused spec/plan: `2026-10-12-sdk-company-response-design.md` / `2026-10-12-sdk-company-response.md`. Other Task 2 corrections remain pending.
-- [ ] Add `runly.attendance` to current-only identities without inventing an Atlas alias; prove both identity and fallback tests.
+- [x] Add `runly.attendance` to current-only identities without inventing an Atlas alias; prove both identity and fallback tests. Verified: 2026-10-12 (31/31 core/identity/registration tests, both Registry implementations; RBAC 321/321, privacy and whitespace passed). Focused spec/plan: `2026-10-12-attendance-identity-design.md` / `2026-10-12-attendance-identity.md`.
 - [ ] Correct the confirmed conditional hook; verify transitions between no selection and selected conversation.
 - [ ] Classify all nine transport gate findings and add only evidenced narrow exceptions or use the transport. A substring header check is not a substitute for behavior tests.
 

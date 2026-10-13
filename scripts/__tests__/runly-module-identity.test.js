@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CURRENT_ONLY_OFFICIAL_MODULE_KEYS, OFFICIAL_MODULE_KEY_PAIRS, getModuleKeyAliases, findModuleByKey, resolveModuleAliasPath } from '../../packages/core/src/module-identity.js';
+import { CURRENT_ONLY_OFFICIAL_MODULE_KEYS, OFFICIAL_MODULE_KEY_PAIRS, getModuleKeyAliases, getLegacyModuleKey, getCurrentModuleKey, findModuleByKey, resolveModuleAliasPath } from '../../packages/core/src/module-identity.js';
 import { ModuleRegistry as CoreRegistry } from '@runly/core';
 import { ModuleRegistry as EngineRegistry } from '@runly/module-engine';
 import { coreModules } from '../../apps/api/src/manifests/official/core-modules.js';
@@ -31,6 +31,27 @@ test('both registries resolve the same object and preserve exact-match collision
   assert.equal(engine.has('runly.company'), true);
   engine.unregister('runly.company');
   assert.equal(engine.has('atlas.company'), false);
+});
+
+test('Attendance remains a current-only identity in both registries and URLs', () => {
+  const attendance = Object.freeze({ key: 'runly.attendance' });
+  assert.deepEqual(getModuleKeyAliases('runly.attendance'), ['runly.attendance']);
+  assert.deepEqual(getModuleKeyAliases('atlas.attendance'), ['atlas.attendance']);
+  assert.equal(getLegacyModuleKey('runly.attendance'), 'runly.attendance');
+  assert.equal(getCurrentModuleKey('atlas.attendance'), 'atlas.attendance');
+  for (const Registry of [CoreRegistry, EngineRegistry]) {
+    const registry = new Registry();
+    registry.register(attendance);
+    assert.equal(registry.get('runly.attendance'), attendance);
+    assert.ok(registry.get('atlas.attendance') == null);
+    assert.deepEqual(registry.list(), [attendance]);
+  }
+  const visible = new Map([[attendance.key, attendance]]);
+  const currentPath = '/app/m/runly.attendance/days?tab=hours#today';
+  const unknownPath = '/app/m/atlas.attendance/days?tab=hours#today';
+  assert.equal(resolveModuleAliasPath(visible, currentPath), currentPath);
+  assert.equal(resolveModuleAliasPath(visible, unknownPath), unknownPath);
+  assert.equal(findModuleByKey(visible, 'atlas.attendance'), undefined);
 });
 
 test('core dependency checks and module URL lookup use aliases without editing manifests', () => {

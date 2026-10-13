@@ -25,6 +25,15 @@ test('fallbacks do not recreate an old name when its Runly counterpart was disco
   assert.equal(listOfficialModuleManifests().length, officialCurrentKeys.length);
 });
 
+test('Attendance fallback uses its exact current identity without inventing an Atlas alias', () => {
+  const attendance = listOfficialModuleManifests().find(manifest => manifest.key === 'runly.attendance');
+  assert.ok(attendance);
+  assert.equal(isOfficialCoreModuleKey('runly.attendance'), attendance.core === true);
+  assert.equal(isOfficialCoreModuleKey('atlas.attendance'), false);
+  assert.equal(listOfficialFallbackManifests(new Set(['runly.attendance'])).some(manifest => manifest.key === attendance.key), false);
+  assert.equal(listOfficialFallbackManifests(new Set(['atlas.attendance'])).find(manifest => manifest.key === attendance.key), attendance);
+});
+
 test('cleanup aliases share implementations and preserve exact registrations', () => {
   const before = listRegisteredHandlers();
   assert.equal(getModuleHandler('runly.contacts'), getModuleHandler('atlas.contacts'));
