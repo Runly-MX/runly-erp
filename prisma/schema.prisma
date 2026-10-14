@@ -3749,6 +3749,7 @@ model InvCustody {
   completedAt              DateTime? @map("completed_at")
   cancelledAt              DateTime? @map("cancelled_at")
   cancelReason             String?   @map("cancel_reason") @db.VarChar(500)
+  completionError          String?   @map("completion_error") @db.VarChar(1000)
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")
 

@@ -208,3 +208,47 @@ New `@runly/ui` component `SignaturePad` (canvas, pointer events, clear, toPng).
    table from `md`, comments, a legal notice, and a sticky signing area on
    phones (large pad, "Firmar resguardo"). Success shows a check and summary;
    expired, cancelled and already-signed states use EmptyState-style panels.
+
+## 11. Revision 4 (2026-10-13, user feedback after the revision 3 test)
+
+1. **Receiver signature visible after a public signature.** The detail showed
+   "Firmado el ..." for the receiver next to an empty drawable pad. The API
+   returns `receiverSignatureUrl` for public-link signatures (same store,
+   entity and visibility as in-app ones; verified on the real record), but the
+   slot fell back to a blank drawable pad whenever `receiverSigned` was true
+   and the URL was missing (signed-URL generation errors were swallowed to
+   `null`) or after "Volver a firmar". Now: the URL generation retries once and
+   logs a failure; a captured signature never renders as a blank pad (it shows
+   "Firma capturada" with a reload action when the image is unavailable).
+2. **Auto-complete.** Whenever a signature is saved (`POST /signatures` for
+   either role, `useSaved`, or the public `POST .../sign`) and the record then
+   has both signatures, it is completed in the same request with the same
+   logic as `complete` (assignments/returns with the custody date, document,
+   item links, best-effort e-mail). Actor: the caller in-app; for the public
+   route the custody's deliverer, falling back to `createdById`. Audit action
+   `inventory.custody.auto_completed`. If completion fails, the signature is
+   kept, the status stays `PENDING_SIGNATURE` (or `DRAFT`), and the reason is
+   stored in the new nullable column `inv_custody.completion_error
+   varchar(1000)` (new forward migration), returned as `completionError`, and
+   cleared on a successful completion or when signatures are cleared. The
+   detail shows it in an alert next to the manual "Completar" button.
+   Responses: in-app signature endpoints keep returning `{ custody }` (possibly
+   `COMPLETED`); public sign returns `{ ok, signedAt, completed }`, and the
+   public success state says the record was completed or is pending the
+   deliverer's signature.
+3. **Receiver signature locked once captured.** No redraw/clear in the UI;
+   `POST /signatures {role:'receiver'}` and the public sign return 409 when it
+   exists. Only content-changing edits (kind, employee, items, item fields,
+   which already confirm first) clear it. The deliverer's can be redrawn until
+   completion.
+4. **Fixed-size, cropped signatures.** `SignaturePad` keeps a 5:2 drawing
+   surface (CSS aspect-ratio, full width, capped height) and stores strokes in
+   normalized 0..1 coordinates, repainting on resize/rotation without
+   distortion. Export crops to the strokes' bounding box (small padding),
+   scales uniformly into a fixed 600 x 240 transparent PNG (centered) with a
+   constant ~4 px stroke in `exportColor`. Template images stay 220 x 88 (same
+   5:2 ratio) in DOCX and XLSX. The public page and the profile signature use
+   the same pad.
+5. **Detail skeleton.** The custody detail has its own loading skeleton that
+   mirrors the real layout (header with back link, title and actions; summary
+   card; items table; signatures with two 5:2 pads).

@@ -5,8 +5,10 @@ import assert from 'node:assert/strict';
 import {
   assertCustodyAction, assertDelivererChoice, buildItemSnapshot, completionConflicts, decodeSignaturePng, formatCustodyFolio,
   generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, mergeSnapshot, nextEditedFields, normalizeCustodyInput,
-  normalizeItemOverrides, savedSignatureDecision, signatureResetFor,
+  normalizeItemOverrides, savedSignatureDecision, signatureResetFor, shouldAutoComplete, autoCompleteActorId,
+  assertSignatureReplaceable, completionErrorMessage,
 } from '../inventory-custody-helpers.js';
+import { InventoryServiceError } from '../inventory-guards.js';
 import { serializeTemplate } from '../inventory-document-template-service.js';
 import { NO_TAGS_WARNING } from '../document-templates/custody-template-data.js';
 import { serializeCustody } from '../inventory-custody-service.js';
@@ -161,5 +163,31 @@ describe('revision 3: hand-edited item fields', () => {
     assert.deepEqual(merged.editedFields, ['features']);
     assert.deepEqual(mergeSnapshot(fresh, null).editedFields, []);
     assert.deepEqual(nextEditedFields(['features'], { set: { model: 'X' }, clear: ['features'] }), ['model']);
+  });
+});
+
+describe('revision 4: auto-complete and locked receiver signature', () => {
+  const base = { status: 'PENDING_SIGNATURE', receiverSignatureFileId: 'r', delivererSignatureFileId: 'd', items: [{ itemId: ITEM }] };
+  it('auto-completes only open records with items and both signatures', () => {
+    assert.equal(shouldAutoComplete(base), true);
+    assert.equal(shouldAutoComplete({ ...base, status: 'DRAFT' }), true);
+    assert.equal(shouldAutoComplete({ ...base, delivererSignatureFileId: null }), false);
+    assert.equal(shouldAutoComplete({ ...base, receiverSignatureFileId: null }), false);
+    assert.equal(shouldAutoComplete({ ...base, items: [] }), false);
+    assert.equal(shouldAutoComplete({ ...base, status: 'COMPLETED' }), false);
+  });
+  it('picks the caller, else the deliverer, else the creator', () => {
+    assert.equal(autoCompleteActorId({ delivererId: 'd', createdById: 'c' }, 'p'), 'p');
+    assert.equal(autoCompleteActorId({ delivererId: 'd', createdById: 'c' }, null), 'd');
+    assert.equal(autoCompleteActorId({ delivererId: null, createdById: 'c' }, null), 'c');
+  });
+  it('locks the receiver signature once captured', () => {
+    assert.throws(() => assertSignatureReplaceable({ receiverSignatureFileId: 'r' }, 'receiver'), (err) => err.status === 409);
+    assert.doesNotThrow(() => assertSignatureReplaceable({ receiverSignatureFileId: null }, 'receiver'));
+    assert.doesNotThrow(() => assertSignatureReplaceable({ delivererSignatureFileId: 'd' }, 'deliverer'));
+  });
+  it('keeps service messages and caps the stored reason', () => {
+    assert.equal(completionErrorMessage(new InventoryServiceError('x'.repeat(1200), 409)).length, 1000);
+    assert.equal(completionErrorMessage(new Error('db down')), 'No se pudo completar el resguardo.');
   });
 });

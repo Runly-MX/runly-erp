@@ -40,6 +40,8 @@ export function createInventoryCustodyPublicRouter({
     } catch (err) { return fail(c, err, 'No se pudo cargar el resguardo.'); }
   });
 
+  // -> { ok, signedAt, completed }: completes the record when the deliverer
+  // already signed (spec §11.2); 409 when the receiver already signed.
   app.post('/:token/sign', async (c) => {
     const blocked = limited(c);
     if (blocked) return blocked;

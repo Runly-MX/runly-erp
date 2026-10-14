@@ -192,6 +192,33 @@ export function savedSignatureDecision({ actorId, ownerId, canDeliverOnBehalf, a
   return { allowed: true, reason: null };
 }
 
+// ── Revision 4: auto-complete and locked receiver signature (spec §11) ─────
+// Whether a record should complete right after a signature was saved: open,
+// with items, and both signatures captured.
+export function shouldAutoComplete(custody) {
+  return Boolean(custody)
+    && CUSTODY_ACTIONS.complete.includes(custody.status)
+    && Boolean(custody.receiverSignatureFileId) && Boolean(custody.delivererSignatureFileId)
+    && (custody.items?.length ?? 0) > 0;
+}
+
+// Actor recorded for an automatic completion: the caller in-app; for the
+// public link, the deliverer, falling back to whoever created the record.
+export function autoCompleteActorId(custody, profileId = null) {
+  return profileId || custody.delivererId || custody.createdById || null;
+}
+
+export const RECEIVER_LOCKED_MESSAGE = 'La firma de quien recibe ya fue capturada y no puede reemplazarse.';
+
+// The receiver's signature is locked once captured (spec §11.3).
+export function assertSignatureReplaceable(custody, role) {
+  if (role === 'receiver' && custody.receiverSignatureFileId) throw new InventoryServiceError(RECEIVER_LOCKED_MESSAGE, 409);
+}
+
+export const COMPLETION_ERROR_MAX = 1000;
+export const completionErrorMessage = (err) => String(err instanceof InventoryServiceError ? err.message : 'No se pudo completar el resguardo.')
+  .slice(0, COMPLETION_ERROR_MAX);
+
 // ── Revision 3: hand-edited snapshot fields (spec §10.2) ───────────────────
 // Field -> max length (column size, capped at 500).
 export const EDITABLE_SNAPSHOT_FIELDS = {

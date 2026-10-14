@@ -13,7 +13,8 @@ import { createCustodyDeliverers } from './inventory-custody-deliverers.js';
 import {
   assertCustodyAction, assertDelivererChoice, buildItemSnapshot, completionConflicts, decodeSignaturePng, formatCustodyFolio,
   generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, mergeSnapshot, nextEditedFields, normalizeCustodyInput,
-  normalizeItemOverrides, savedSignatureDecision, signatureResetFor,
+  normalizeItemOverrides, savedSignatureDecision, signatureResetFor, shouldAutoComplete, autoCompleteActorId,
+  assertSignatureReplaceable, completionErrorMessage,
 } from './inventory-custody-helpers.js';
 
 const MODULE_KEY = 'runly.inventory';
@@ -156,14 +157,22 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
   }
 
   // Short-lived signed URL of a signature PNG (spec §10.1); null when absent.
+  // One retry: a transient storage error must not hide a captured signature.
   async function signatureUrl(companyId, fileId) {
     if (!fileId) return null;
-    try {
-      const asset = await files.findAsset(companyId, fileId);
-      return asset ? (await files.signedUrl(asset, { download: false })).url : null;
-    } catch {
-      return null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const asset = await files.findAsset(companyId, fileId);
+        if (!asset) {
+          console.warn('[inventory-custody] signature file not found or disabled', { fileId });
+          return null;
+        }
+        return (await files.signedUrl(asset, { download: false })).url;
+      } catch (err) {
+        if (attempt === 1) console.warn('[inventory-custody] signature URL failed', { fileId, error: err?.message });
+      }
     }
+    return null;
   }
 
   async function get(id, companyId) {
@@ -243,6 +252,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
           ...fields,
           ...(reset.receiver ? { receiverSignatureFileId: null, receiverSignedAt: null } : {}),
           ...(reset.deliverer ? { delivererSignatureFileId: null, delivererSignedAt: null } : {}),
+          ...(cleared.length ? { completionError: null } : {}),
         },
       });
       if (cleared.length) await tx.fileAsset.updateMany({ where: { id: { in: cleared } }, data: { enabled: false } });
@@ -283,6 +293,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     await audit(custody.companyId, profileId, custody.id, 'inventory.custody.signed', {
       role: 'deliverer', via: 'saved_signature', signatureOwnerId: ownerId, appliedById: profileId,
     }, { summary: `Firma guardada de ${names.get(ownerId) ?? 'quien entrega'} aplicada por ${names.get(profileId) ?? 'un usuario'}` });
+    await autoComplete(custody.id, custody.companyId, profileId);
     return get(custody.id, custody.companyId);
   }
 
@@ -290,6 +301,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     if (!['receiver', 'deliverer'].includes(role)) throw new InventoryServiceError('Indica quién firma (receiver o deliverer).', 400);
     const custody = await load(id, companyId);
     assertCustodyAction(custody, 'sign');
+    assertSignatureReplaceable(custody, role);
     if (useSaved === true) {
       if (role !== 'deliverer') throw new InventoryServiceError('Solo quien entrega puede usar una firma guardada.', 400);
       return signWithSaved(custody, profileId, canDeliverOnBehalf);
@@ -298,7 +310,28 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     if (role === 'deliverer' && !custody.delivererId && !custody.delivererName) data.delivererId = profileId;
     await prisma.invCustody.update({ where: { id }, data });
     await audit(companyId, profileId, id, 'inventory.custody.signed', { role, via: 'app' });
+    await autoComplete(id, companyId, profileId);
     return get(id, companyId);
+  }
+
+  // Spec §11.2: once both signatures exist the record completes in the same
+  // request. A failure keeps the signature and the open status, and stores
+  // the reason in completion_error. Returns true when it completed.
+  async function autoComplete(id, companyId, profileId = null) {
+    const custody = await load(id, companyId);
+    if (!shouldAutoComplete(custody)) return false;
+    const actorId = autoCompleteActorId(custody, profileId);
+    try {
+      await finalize(custody, actorId, { auditAction: 'inventory.custody.auto_completed', via: profileId ? 'app' : 'public_link' });
+      return true;
+    } catch (err) {
+      if (!(err instanceof InventoryServiceError)) console.error('[inventory-custody] auto-complete failed', err);
+      await prisma.invCustody.updateMany({
+        where: { id, companyId, status: { in: ['DRAFT', 'PENDING_SIGNATURE'] } },
+        data: { completionError: completionErrorMessage(err) },
+      }).catch(() => null);
+      return false;
+    }
   }
 
   // Re-reads the items into the snapshot, keeping hand-edited fields.
@@ -334,7 +367,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
       if (cleared.length) {
         await tx.invCustody.update({
           where: { id },
-          data: { receiverSignatureFileId: null, receiverSignedAt: null, delivererSignatureFileId: null, delivererSignedAt: null },
+          data: { receiverSignatureFileId: null, receiverSignedAt: null, delivererSignatureFileId: null, delivererSignedAt: null, completionError: null },
         });
         await tx.fileAsset.updateMany({ where: { id: { in: cleared } }, data: { enabled: false } });
       }
@@ -386,9 +419,14 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     }
   }
 
-  async function complete(id, companyId, profileId, { allowUnsigned = false, sendEmail = true } = {}) {
+  async function complete(id, companyId, profileId, options = {}) {
     if (!profileId) throw new InventoryServiceError('Usuario no encontrado.', 400);
-    const custody = await load(id, companyId);
+    return finalize(await load(id, companyId), profileId, options);
+  }
+
+  async function finalize(custody, profileId, { allowUnsigned = false, sendEmail = true, auditAction = 'inventory.custody.completed', via = null } = {}) {
+    const { id, companyId } = custody;
+    if (!profileId) throw new InventoryServiceError('No hay un usuario responsable para completar el resguardo.', 409);
     assertCustodyAction(custody, 'complete');
     if (!custody.items.length) throw new InventoryServiceError('Agrega al menos un artículo al resguardo.', 409);
     if (!custody.receiverSignatureFileId && allowUnsigned !== true) {
@@ -402,10 +440,15 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
       await applyAssignments(tx, fresh, profileId);
       await tx.invCustody.update({
         where: { id },
-        data: { status: 'COMPLETED', completedAt: new Date(), publicTokenHash: null, tokenExpiresAt: null, delivererId: fresh.delivererId ?? (fresh.delivererName ? null : profileId) },
+        data: {
+          status: 'COMPLETED', completedAt: new Date(), publicTokenHash: null, tokenExpiresAt: null, completionError: null,
+          delivererId: fresh.delivererId ?? (fresh.delivererName ? null : profileId),
+        },
       });
     }, { timeout: 60_000, maxWait: 10_000 });
-    await audit(companyId, profileId, id, 'inventory.custody.completed', { folio: custody.folio, kind: custody.kind, itemIds: custody.items.map((row) => row.itemId) }, allowUnsigned === true && !custody.receiverSignatureFileId ? { allowUnsigned: true } : null);
+    await audit(companyId, profileId, id, auditAction, {
+      folio: custody.folio, kind: custody.kind, itemIds: custody.items.map((row) => row.itemId), ...(via ? { via } : {}),
+    }, allowUnsigned === true && !custody.receiverSignatureFileId ? { allowUnsigned: true } : null);
 
     let documentError = null;
     let emailSent = false;
@@ -497,10 +540,12 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
 
   async function signPublic(token, { pngBase64 } = {}) {
     const custody = await findByToken(token);
+    assertSignatureReplaceable(custody, 'receiver');
     const data = await storeSignature(custody, 'receiver', pngBase64, null);
     await prisma.invCustody.update({ where: { id: custody.id }, data });
     await audit(custody.companyId, null, custody.id, 'inventory.custody.signed', { role: 'receiver', via: 'public_link' });
-    return { ok: true, signedAt: data.receiverSignedAt };
+    const completed = await autoComplete(custody.id, custody.companyId, null);
+    return { ok: true, signedAt: data.receiverSignedAt, completed };
   }
 
   return {
