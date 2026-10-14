@@ -170,6 +170,29 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
+      // Saved signature reusable across modules -> { signature: { url, allowDelegation, updatedAt } | null }
+      getSignature: (token) =>
+        request("/profile/me/signature", { headers: withAuthHeaders(token) }),
+      saveSignature: ({ pngBase64, allowDelegation }, token) =>
+        request("/profile/me/signature", {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(allowDelegation === undefined ? { pngBase64 } : { pngBase64, allowDelegation }),
+          onlineOnly: true,
+        }),
+      updateSignature: ({ allowDelegation }, token) =>
+        request("/profile/me/signature", {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ allowDelegation }),
+          onlineOnly: true,
+        }),
+      deleteSignature: (token) =>
+        request("/profile/me/signature", {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+          onlineOnly: true,
+        }),
       getPreference: (key, token) =>
         request(`/profile/me/preferences/${encodeURIComponent(key)}`, {
           headers: withAuthHeaders(token),

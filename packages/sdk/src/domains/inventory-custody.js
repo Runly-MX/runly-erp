@@ -14,10 +14,15 @@ export function createInventoryCustodyDomain({ request, requestBlob, withAuthHea
     custodies: {
       list: (params, token) => send('GET', `/inventory/custodies${toQueryString(params)}`, undefined, token),
       get: (custodyId, token) => send('GET', `/inventory/custodies/${id(custodyId)}`, undefined, token),
+      // Users who can appear as deliverer ({ users }); only the caller without deliver_on_behalf.
+      deliverers: (token) => send('GET', '/inventory/custodies/deliverers', undefined, token),
       create: (data, token) => send('POST', '/inventory/custodies', data, token),
       update: (custodyId, data, token) => send('PATCH', `/inventory/custodies/${id(custodyId)}`, data, token),
-      sign: (custodyId, { role, pngBase64 }, token) => send('POST', `/inventory/custodies/${id(custodyId)}/signatures`, { role, pngBase64 }, token),
-      publicLink: (custodyId, token) => send('POST', `/inventory/custodies/${id(custodyId)}/public-link`, {}, token),
+      // { role, pngBase64 } draws a signature; { role: 'deliverer', useSaved: true } applies the saved one.
+      sign: (custodyId, { role, pngBase64, useSaved }, token) => send('POST', `/inventory/custodies/${id(custodyId)}/signatures`,
+        useSaved ? { role, useSaved: true } : { role, pngBase64 }, token),
+      publicLink: (custodyId, options, token) => send('POST', `/inventory/custodies/${id(custodyId)}/public-link`,
+        options?.sendEmail ? { sendEmail: true } : {}, token),
       complete: (custodyId, data, token) => send('POST', `/inventory/custodies/${id(custodyId)}/complete`, data ?? {}, token),
       cancel: (custodyId, reason, token) => send('POST', `/inventory/custodies/${id(custodyId)}/cancel`, { reason }, token),
       document: (custodyId, token) => send('GET', `/inventory/custodies/${id(custodyId)}/document`, undefined, token),
