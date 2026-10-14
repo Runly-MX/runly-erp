@@ -3,6 +3,7 @@ import { EmptyState, LoadingState } from '@runly/ui'
 import { Boxes } from 'lucide-react'
 import { useInventoryItemsByEmployee } from '../hooks/useInventoryItems.js'
 import { InventoryStatusBadge } from './InventoryStatusBadge.jsx'
+import { CustodyRelatedList } from './custody/CustodyRelatedList.jsx'
 
 // No own card/header chrome — this widget's sole caller,
 // runly.hr's AssignedEquipmentSection (a RunlyDetail "component" section),
@@ -63,6 +64,11 @@ export function InventoryEmployeeWidget({ employeeId }) {
           )}
         </div>
       )}
+
+      <div className="space-y-2 border-t border-[hsl(var(--border)/0.6)] pt-3">
+        <p className="text-xs font-medium text-[hsl(var(--muted-foreground))]">Resguardos</p>
+        <CustodyRelatedList employeeId={employeeId} limit={5} />
+      </div>
     </div>
   )
 }

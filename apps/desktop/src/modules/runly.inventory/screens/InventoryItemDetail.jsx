@@ -11,6 +11,7 @@ import { useInventoryItem, useDeleteInventoryItem } from '../hooks/useInventoryI
 import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
 import { CanvasReferences } from '../../runly.canvas/components/CanvasReferences.jsx'
 import { ConnectionSections } from '../../../shell/connections/ConnectionSections.jsx'
+import { CustodyRelatedCard } from '../components/custody/CustodyRelatedList.jsx'
 import { useMiraiRecordContext, openMiraiSidebar } from '../../runly.chat/lib/miraiPageContext.js'
 
 const API_BASE = getApiUrl()
@@ -66,7 +67,7 @@ export default function InventoryItemDetail() {
         componentRegistry={componentRegistry}
         onBack={() => navigate('/app/m/runly.inventory/inventory')}
         onEdit={readOnly ? undefined : () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`)}
-        mainExtra={<ConnectionSections targetType="inventory_item" targetId={id} />}
+        mainExtra={<><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /></>}
         asideExtra={<CanvasReferences moduleKey="runly.inventory" entityType="inventory_item" entityId={id} />}
         heroActions={
           <DetailActionBar

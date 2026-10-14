@@ -412,6 +412,12 @@ const SCREEN_MAP = {
   "runly.inventory:/inventory/assignments": lazy(
     () => import("../modules/runly.inventory/screens/InventoryAssignmentsScreen.jsx"),
   ),
+  "runly.inventory:/inventory/custodies": lazy(
+    () => import("../modules/runly.inventory/screens/InventoryCustodyScreen.jsx"),
+  ),
+  "runly.inventory:/inventory/custodies/:id": lazy(
+    () => import("../modules/runly.inventory/screens/InventoryCustodyDetailScreen.jsx"),
+  ),
   "runly.inventory:/inventory/summary": lazy(
     () => import("../modules/runly.inventory/screens/InventorySummaryScreen.jsx"),
   ),

@@ -50,6 +50,8 @@ const PublicBoardScreen = lazy(() => import("../modules/runly.canvas/screens/Pub
 const PublicFileScreen = lazy(() => import("../modules/runly.files/screens/PublicFileScreen.jsx"));
 const AttendanceKioskScreen = lazy(() => import("../modules/runly.attendance/kiosk/KioskScreen.jsx"));
 const AttendancePhoneKeyScreen = lazy(() => import("../modules/runly.attendance/phone/PhoneKeyScreen.jsx"));
+// Public custody (resguardo) signing page: token link, no login, no shell.
+const PublicCustodySignScreen = lazy(() => import("../modules/runly.inventory/screens/PublicCustodySignScreen.jsx"));
 import { useCallSoundUnlock } from "../modules/runly.chat/calls/useCallSoundUnlock.js";
 import "../styles.css";
 
@@ -173,6 +175,8 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                   {/* Public attendance pages (no login, no shell): offline kiosk + phone key */}
                   <Route path="/app/kiosk/:link" element={<Suspense fallback={null}><AttendanceKioskScreen /></Suspense>} />
                   <Route path="/app/attendance/phone" element={<Suspense fallback={null}><AttendancePhoneKeyScreen /></Suspense>} />
+                  <Route path="/sign/custody/:token" element={<Suspense fallback={null}><PublicCustodySignScreen /></Suspense>} />
+                  <Route path="/app/sign/custody/:token" element={<Suspense fallback={null}><PublicCustodySignScreen /></Suspense>} />
                   <Route path="/app/egress/call" element={<Suspense fallback={null}><EgressCallScreen /></Suspense>} />
                   {/* Public notes under /app/p/ — accessible without auth, served by same SPA */}
                   <Route path="/app/p" element={<PublicShell />}>
