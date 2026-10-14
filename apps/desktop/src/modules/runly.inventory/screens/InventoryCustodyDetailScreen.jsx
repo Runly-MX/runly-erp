@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, AlertDescription, AlertTitle, Button, Card, CheckboxField, ConfirmDialog, DataTable, ErrorState, PageHeader, TextareaField,
 } from '@runly/ui'
-import { AlertTriangle, Ban, CheckCheck, Download, Eye } from 'lucide-react'
+import { AlertTriangle, Ban, CheckCheck, Download, Eye, FileCheck2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCancelCustody, useCompleteCustody, useCustody, useCustodyFileUrl } from '../hooks/useInventoryCustody.js'
 import { CUSTODY_KIND, formatCustodyDate, isCustodyEditable } from '../lib/custody-api.js'
@@ -146,6 +146,8 @@ export default function InventoryCustodyDetailScreen() {
         open={completeOpen}
         onOpenChange={setCompleteOpen}
         title="Completar resguardo"
+        icon={FileCheck2}
+        tone="primary"
         description={custody.kind === 'RETURN'
           ? 'Se generará el documento final y los artículos quedarán devueltos. El resguardo ya no podrá editarse.'
           : 'Se generará el documento final y los artículos quedarán asignados al colaborador. El resguardo ya no podrá editarse.'}
@@ -163,6 +165,8 @@ export default function InventoryCustodyDetailScreen() {
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         title="Cancelar resguardo"
+        icon={Ban}
+        confirmDisabled={reason.trim().length < 3}
         description="El resguardo quedará cancelado y no podrá completarse. Para corregirlo, crea uno nuevo."
         confirmLabel="Cancelar resguardo"
         cancelLabel="Volver"

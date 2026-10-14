@@ -99,6 +99,7 @@ export function ProfileSignatureCard() {
         open={deleting}
         onOpenChange={setDeleting}
         title="Eliminar mi firma"
+        icon={Trash2}
         description="Ya no podrá aplicarse en documentos nuevos. Los documentos firmados antes no cambian."
         confirmLabel="Eliminar"
         loading={remove.isPending}

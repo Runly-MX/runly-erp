@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@runly/ui'
-import { AlertTriangle, CheckCircle2, Download, Upload } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Download, Upload, WandSparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { useReplaceDocumentTemplateFile, useSuggestTemplateTags } from '../../hooks/useInventoryCustody.js'
 
@@ -64,10 +64,15 @@ export function TemplateSuggestDialog({ template, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="md">
         <DialogHeader>
+          <div className="flex items-start gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--primary))]/12 text-[hsl(var(--primary))]" aria-hidden="true"><WandSparkles className="h-5 w-5" /></span>
+            <div className="min-w-0 flex-1 space-y-1.5">
           <DialogTitle>Etiquetas sugeridas</DialogTitle>
           <DialogDescription>
             Se colocaron las etiquetas en tu propio formato «{template?.name}». Descárgalo para revisarlo en Word o aplícalo directamente; tu archivo original solo se reemplaza si eliges aplicar.
           </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
         <div className="max-h-[50vh] space-y-3 overflow-y-auto">
           {suggest.isPending || !result ? (

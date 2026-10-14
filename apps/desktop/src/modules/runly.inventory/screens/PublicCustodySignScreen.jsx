@@ -73,7 +73,7 @@ export default function PublicCustodySignScreen() {
 
   if (body) {
     return (
-      <div className="min-h-dvh">
+      <div className="h-dvh overflow-y-auto overscroll-contain">
         <BrandBar companyName={custody?.companyName} logoUrl={custody?.companyLogoUrl} />
         {body}
       </div>
@@ -91,7 +91,7 @@ export default function PublicCustodySignScreen() {
   }
 
   return (
-    <div className="min-h-dvh">
+    <div className="h-dvh overflow-y-auto overscroll-contain">
       <BrandBar companyName={custody?.companyName} logoUrl={custody?.companyLogoUrl} loading={query.isLoading} />
       <main className="mx-auto flex max-w-4xl flex-col gap-6 px-4 pt-6 pb-32 md:px-8 md:py-10">
         {query.isLoading ? <LoadingBody /> : (

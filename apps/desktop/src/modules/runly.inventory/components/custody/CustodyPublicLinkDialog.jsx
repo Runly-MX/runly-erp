@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, TextField,
 } from '@runly/ui'
-import { Copy, Link2, Mail } from 'lucide-react'
+import { Copy, Link2, Mail, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCustodyPublicLink } from '../../hooks/useInventoryCustody.js'
 
@@ -42,11 +42,16 @@ export function CustodyPublicLinkDialog({ open, onOpenChange, custody }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="md">
         <DialogHeader>
-          <DialogTitle>Enlace de firma</DialogTitle>
-          <DialogDescription>
-            {custody.employeeName} podrá revisar el resguardo y firmar desde su teléfono, sin iniciar sesión.
-            {custody.hasPublicLink ? ' Generar uno nuevo invalida el enlace anterior.' : ''}
-          </DialogDescription>
+          <div className="flex items-start gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--primary))]/12 text-[hsl(var(--primary))]" aria-hidden="true"><Smartphone className="h-5 w-5" /></span>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <DialogTitle>Enlace de firma</DialogTitle>
+              <DialogDescription>
+                {custody.employeeName} podrá revisar el resguardo y firmar desde su teléfono, sin iniciar sesión.
+                {custody.hasPublicLink ? ' Generar uno nuevo invalida el enlace anterior.' : ''}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
         <div className="space-y-3">
           {link?.url ? (

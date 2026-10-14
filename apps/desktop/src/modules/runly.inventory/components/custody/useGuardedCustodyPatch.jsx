@@ -1,3 +1,4 @@
+import { Eraser } from 'lucide-react'
 import { useState } from 'react'
 import { ConfirmDialog } from '@runly/ui'
 import { toast } from 'sonner'
@@ -43,6 +44,8 @@ export function useGuardedCustodyPatch(custody) {
       open={Boolean(pending)}
       onOpenChange={(open) => { if (!open) close(false) }}
       title="Se borrarán las firmas"
+      icon={Eraser}
+      tone="warning"
       description="Cambiar el tipo, el colaborador, los artículos o sus datos invalida las firmas ya capturadas. Tendrán que firmar de nuevo; el enlace de firma sigue siendo válido."
       confirmLabel="Guardar y borrar firmas"
       cancelLabel="Volver"

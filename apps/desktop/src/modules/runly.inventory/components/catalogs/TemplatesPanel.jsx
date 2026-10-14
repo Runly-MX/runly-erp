@@ -206,6 +206,7 @@ export function TemplatesPanel() {
         open={Boolean(deleting)}
         onOpenChange={(v) => { if (!v) setDeleting(null) }}
         title={`Eliminar «${deleting?.name ?? ''}»`}
+        icon={Trash2}
         description="La plantilla deja de ofrecerse para nuevos resguardos. Los documentos ya generados no cambian."
         confirmLabel="Eliminar"
         loading={remove.isPending}
