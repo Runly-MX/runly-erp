@@ -49,7 +49,7 @@ const ContextMenuSubContent = forwardRef(function ContextMenuSubContent(
     <ContextMenuPrimitive.SubContent
       ref={ref}
       className={cn(
-        'z-50 min-w-[8rem] overflow-hidden rounded-xl glass-strong p-1 shadow-lg',
+        'z-50 min-w-[8rem] overflow-hidden rounded-xl glass-floating p-1',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -75,7 +75,7 @@ const ContextMenuContent = forwardRef(function ContextMenuContent(
         ref={mergeRefs(ref, scrollRef)}
         onCloseAutoFocus={keepFocusInOpenDialog(onCloseAutoFocus)}
         className={cn(
-          'z-50 min-w-[9rem] overflow-hidden rounded-xl glass-strong p-1 shadow-lg',
+          'z-50 min-w-[9rem] overflow-hidden rounded-xl glass-floating p-1',
           'data-[state=open]:animate-in data-[state=closed]:animate-out',
           'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
           'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',

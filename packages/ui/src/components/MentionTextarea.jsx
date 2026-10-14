@@ -489,7 +489,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
           data-mention-dropdown
           role="listbox"
           aria-label="Mencionar"
-          className="rounded-xl py-1.5 overflow-y-auto overscroll-contain flex flex-col scroll-pt-1 [@media(pointer:fine)]:scroll-pb-9"
+          className="glass-floating rounded-xl py-1.5 overflow-y-auto overscroll-contain flex flex-col scroll-pt-1 [@media(pointer:fine)]:scroll-pb-9"
           style={{
             position: 'fixed',
             left: menuPos.left,
@@ -500,11 +500,6 @@ const MentionTextarea = forwardRef(function MentionTextarea({
               : { top: menuPos.anchor }),
             zIndex: layerZIndexFor(containerRef.current),
             maxHeight: menuPos.maxHeight,
-            backdropFilter: 'blur(var(--glass-blur))',
-            WebkitBackdropFilter: 'blur(var(--glass-blur))',
-            background: 'var(--glass-bg-strong)',
-            border: '1px solid var(--glass-border)',
-            boxShadow: 'var(--glass-shadow)',
           }}
         >
           {visible.map((m, i) => {
@@ -550,7 +545,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
               +{filtered.length - MENTION_VISIBLE_LIMIT} más — sigue escribiendo para filtrar
             </span>
           )}
-          <p className="sticky -bottom-1.5 mt-1 hidden border-t border-(--glass-border) bg-(--glass-bg-strong) px-3 pt-1.5 pb-1 text-[11px] text-muted-foreground backdrop-blur [@media(pointer:fine)]:block">
+          <p className="sticky -bottom-1.5 mt-1 hidden border-t border-(--glass-border) bg-white/80 dark:bg-slate-800/85 px-3 pt-1.5 pb-1 text-[11px] text-muted-foreground backdrop-blur [@media(pointer:fine)]:block">
             ↑↓ moverte · Enter elegir · Esc cerrar
           </p>
         </div>,

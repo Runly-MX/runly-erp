@@ -589,7 +589,7 @@ export const Combobox = forwardRef(function Combobox(
                 pointerEvents: open ? "auto" : "none",
               }}
               className={cn(
-                "glass-strong flex flex-col overflow-hidden rounded-xl",
+                "glass-floating flex flex-col overflow-hidden rounded-xl",
                 "transition-[opacity,transform] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
                 flipped ? "origin-bottom" : "origin-top",
                 visible
