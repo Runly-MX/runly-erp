@@ -3,7 +3,7 @@ import { Button, SignaturePad } from '@runly/ui'
 import { ChevronDown, PenLine } from 'lucide-react'
 import { muted } from './PublicCustodyParts.jsx'
 
-// Pad height from the viewport so it stays usable for a finger in portrait
+// Max pad height (the pad is 5:2) from the viewport so it stays usable for a finger in portrait
 // and still fits with the button in landscape.
 function usePadHeight({ ratio, min, max }) {
   const compute = () => (typeof window === 'undefined' ? max : Math.round(Math.min(max, Math.max(min, window.innerHeight * ratio))))
@@ -49,7 +49,7 @@ export function InlineSigning({ signature, onChange, onSign, pending, disabled, 
         <h2 className="text-base font-semibold">Tu firma</h2>
         <p className={`text-sm ${muted}`}>Firma dentro del recuadro con el mouse, un lápiz o el dedo.</p>
       </div>
-      <SignaturePad onChange={onChange} disabled={disabled || pending} height={200} />
+      <SignaturePad onChange={onChange} disabled={disabled || pending} height={240} />
       <SignButton disabled={!signature || pending || disabled} pending={pending} onSign={onSign} />
       <Footnote error={error} expiresAt={expiresAt} />
     </section>

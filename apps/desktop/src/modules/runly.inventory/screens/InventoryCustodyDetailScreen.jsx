@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Button, Card, CheckboxField, ConfirmDialog, DataTable, DetailSkeleton, ErrorState, PageHeader, TextareaField,
+  Alert, AlertDescription, AlertTitle, Button, Card, CheckboxField, ConfirmDialog, DataTable, ErrorState, PageHeader, TextareaField,
 } from '@runly/ui'
-import { Ban, CheckCheck, Download, Eye } from 'lucide-react'
+import { AlertTriangle, Ban, CheckCheck, Download, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCancelCustody, useCompleteCustody, useCustody, useCustodyFileUrl } from '../hooks/useInventoryCustody.js'
 import { CUSTODY_KIND, formatCustodyDate, isCustodyEditable } from '../lib/custody-api.js'
 import { CustodyStatusBadge } from '../components/custody/CustodyStatusBadge.jsx'
+import { CustodyDetailSkeleton } from '../components/custody/CustodyDetailSkeleton.jsx'
 import { CustodySignaturesSection } from '../components/custody/CustodySignaturesSection.jsx'
 import { CustodyDetailsEditor } from '../components/custody/CustodyDetailsEditor.jsx'
 import { CustodyItemsSection } from '../components/custody/CustodyItemsSection.jsx'
@@ -30,7 +31,7 @@ export default function InventoryCustodyDetailScreen() {
   const [cancelOpen, setCancelOpen] = useState(false)
   const [reason, setReason] = useState('')
 
-  if (isLoading) return <div className="p-4 md:p-6"><DetailSkeleton /></div>
+  if (isLoading) return <CustodyDetailSkeleton />
   if (isError || !custody) {
     return (
       <div className="p-4 md:p-6">
@@ -105,6 +106,19 @@ export default function InventoryCustodyDetailScreen() {
           </div>
         )}
       />
+
+      {open && custody.completionError ? (
+        <Alert variant="warning">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>No se pudo completar automáticamente</AlertTitle>
+          <AlertDescription>
+            <p>{custody.completionError}</p>
+            <p className="mt-1">Las firmas se conservaron. Corrige lo indicado y usa <strong>Completar</strong>.</p>
+            <Button size="sm" className="mt-3" disabled={custody.items.length === 0}
+              onClick={() => { setAllowUnsigned(false); setCompleteOpen(true) }}><CheckCheck className="mr-1.5 h-3.5 w-3.5" />Completar</Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {open ? (
         <OpenCustodyEditor custody={custody} />

@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button, Card, SignaturePad } from '@runly/ui'
-import { CheckCircle2, Link2, PenLine } from 'lucide-react'
+import { CheckCircle2, Link2, PenLine, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../../auth/AuthProvider'
 import { useSavedSignature } from '../../../../hooks/useSavedSignature.js'
@@ -32,20 +33,56 @@ function useSavedDelivererOption(custody, enabled) {
   return null
 }
 
-// Saved signatures stay visible (spec §10.1): the pad shows the stored image
-// with "Volver a firmar" while the record is open, read-only once closed.
+// A captured signature never renders as a blank pad (spec §11.1): when its
+// image is unavailable it shows "Firma capturada" with a reload action.
+function SignatureImage({ imageUrl, alt }) {
+  const qc = useQueryClient()
+  const [failed, setFailed] = useState(false)
+  return (
+    <div className="mx-auto flex aspect-[5/2] w-full max-w-[600px] items-center justify-center rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] p-2">
+      {imageUrl && !failed ? (
+        <img src={imageUrl} alt={alt} className="h-full w-full object-contain dark:invert" onError={() => setFailed(true)} />
+      ) : (
+        <div className="flex flex-col items-center gap-1 text-center text-sm text-[hsl(var(--muted-foreground))]">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <span>Firma capturada</span>
+          <Button type="button" variant="ghost" size="sm"
+            onClick={() => { setFailed(false); qc.invalidateQueries({ queryKey: ['inventory', 'custodies', 'detail'] }) }}>
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />Volver a cargar la imagen
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function signedToast(custody, message) {
+  if (custody?.status === 'COMPLETED') {
+    toast.success('Resguardo completado', { description: 'Ambas firmas quedaron capturadas; se generó el documento y se actualizaron las asignaciones.' })
+  } else if (custody?.completionError) {
+    toast.warning('Firma guardada, pero el resguardo no se pudo completar', { description: custody.completionError })
+  } else {
+    toast.success(message)
+  }
+}
+
+// Saved signatures stay visible (spec §10.1). The receiver's is locked once
+// captured (spec §11.3); the deliverer's can be redrawn until completion.
 function SignatureSlot({ custody, role, title, person, signed, signedAt, imageUrl, editable }) {
   const [dataUrl, setDataUrl] = useState(null)
   const [padKey, setPadKey] = useState(0)
   const [drawing, setDrawing] = useState(false)
   const sign = useSignCustody()
+  const locked = role === 'receiver' && signed
   const saved = useSavedDelivererOption(custody, role === 'deliverer' && editable)
   const showPad = signed || drawing || !saved
+  // Signed URLs change on every refetch; keep the pad keyed by the file, not the URL.
+  const signedKey = signed ? (signedAt ?? 'signed') : 'empty'
 
   async function submit(vars, message) {
     try {
-      await sign.mutateAsync({ id: custody.id, role, ...vars })
-      toast.success(message)
+      const next = await sign.mutateAsync({ id: custody.id, role, ...vars })
+      signedToast(next, message)
       setDataUrl(null)
       setDrawing(false)
       setPadKey((k) => k + 1)
@@ -68,13 +105,11 @@ function SignatureSlot({ custody, role, title, person, signed, signedAt, imageUr
           </span>
         ) : null}
       </div>
-      {!editable ? (
-        signed && imageUrl ? (
-          <div className="flex h-40 items-center justify-center rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] p-2">
-            <img src={imageUrl} alt={`Firma de ${person || title}`} className="h-full w-full object-contain dark:invert" />
-          </div>
+      {!editable || locked || (signed && !imageUrl) ? (
+        signed ? (
+          <SignatureImage imageUrl={imageUrl} alt={`Firma de ${person || title}`} />
         ) : (
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">{signed ? 'Firmado' : 'Sin firma'}</p>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">Sin firma</p>
         )
       ) : (
         <>
@@ -93,13 +128,20 @@ function SignatureSlot({ custody, role, title, person, signed, signedAt, imageUr
           ) : null}
           {showPad ? (
             <>
-              <SignaturePad key={`${padKey}-${imageUrl ?? ''}`} onChange={setDataUrl} disabled={sign.isPending} height={160}
+              <SignaturePad key={`${padKey}-${signedKey}`} onChange={setDataUrl} disabled={sign.isPending}
                 initialImage={signed ? imageUrl : null} />
               {dataUrl || !signed ? (
-                <Button type="button" size="sm" variant={saved && !signed ? 'outline' : 'default'}
-                  onClick={() => submit({ dataUrl }, signed ? 'Firma reemplazada' : 'Firma guardada')} disabled={!dataUrl || sign.isPending}>
-                  {sign.isPending ? 'Guardando...' : signed ? 'Guardar nueva firma' : 'Guardar firma'}
-                </Button>
+                <div className="mx-auto w-full max-w-[600px]">
+                  <Button type="button" size="sm" variant={saved && !signed ? 'outline' : 'default'}
+                    onClick={() => submit({ dataUrl }, signed ? 'Firma reemplazada' : 'Firma guardada')} disabled={!dataUrl || sign.isPending}>
+                    {sign.isPending ? 'Guardando...' : signed ? 'Guardar nueva firma' : 'Guardar firma'}
+                  </Button>
+                </div>
+              ) : null}
+              {role === 'receiver' && !signed ? (
+                <p className="mx-auto w-full max-w-[600px] text-xs text-[hsl(var(--muted-foreground))]">
+                  Una vez guardada, la firma de quien recibe no puede reemplazarse.
+                </p>
               ) : null}
             </>
           ) : null}

@@ -57,11 +57,14 @@ export default function PublicCustodySignScreen() {
     )
   } else if (custody && (sign.isSuccess || custody.receiverSigned || custody.status === 'COMPLETED')) {
     const justSigned = sign.isSuccess
+    const completed = sign.data?.completed === true
     body = (
       <StatusPanel icon={CheckCircle2} tone="success"
-        title={justSigned ? 'Resguardo firmado' : 'Este resguardo ya está firmado'}
+        title={justSigned ? (completed ? 'Resguardo completado' : 'Resguardo firmado') : 'Este resguardo ya está firmado'}
         description={justSigned
-          ? 'Tu firma quedó registrada. Recibirás el documento final cuando se complete el resguardo. Ya puedes cerrar esta página.'
+          ? (completed
+            ? 'Tu firma quedó registrada y el resguardo quedó completado. Recibirás el documento final por correo si tienes uno registrado. Ya puedes cerrar esta página.'
+            : 'Tu firma quedó registrada. El resguardo está pendiente de la firma de quien entrega; recibirás el documento final cuando se complete. Ya puedes cerrar esta página.')
           : 'No necesitas hacer nada más. Si crees que es un error, comunícate con quien te entregó el equipo.'}>
         <SignedSummary custody={custody} signedAt={justSigned ? (sign.data?.signedAt ?? new Date().toISOString()) : null} />
       </StatusPanel>
