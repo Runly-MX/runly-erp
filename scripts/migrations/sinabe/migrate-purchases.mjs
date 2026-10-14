@@ -9,6 +9,15 @@ const byDate = (a, b) => ts(a.createdAt) - ts(b.createdAt) || String(a.id).local
 const short = (id) => String(id).replace(/-/g, '').slice(0, 8).toUpperCase()
 const isReal = (id) => id && !String(id).startsWith('dry:')
 
+const sameText = (a, b) => String(a ?? '').replace(/\s+/g, ' ').trim().toLowerCase() === String(b ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
+
+// Notes from sinabe's free text (invoice concept / order description). Users often
+// type the code again there; repeating it as a note adds nothing, so it is dropped.
+export function noteFor(text, code) {
+  const value = String(text ?? '').trim()
+  return value && !sameText(value, code) ? value : null
+}
+
 export function documentNumber(doc, prefix, report) {
   const code = String(doc.code ?? '').trim()
   if (code) return code
@@ -45,7 +54,7 @@ export async function migratePurchaseOrders(run, scope, supplierIds) {
       const result = await run.toolkit.importPurchaseOrder({
         companyId, actorId: run.actorId, source: run.sourceName, legacyId: order.id, number, status: 'CLOSED',
         issueDate: dayOf(order.createdAt ?? new Date(), run.model.timeZone), createdAt: order.createdAt, closedAt: order.updatedAt ?? order.createdAt,
-        supplierId: isReal(supplierId) ? supplierId : null, notes: order.description ?? null,
+        supplierId: isReal(supplierId) ? supplierId : null, notes: noteFor(order.description, number),
       })
       if (result.conflict) { run.report.conflict('purchaseOrders', 'PO_NUMBER_TAKEN', order.id); continue }
       ids.set(order.id, result.id)
@@ -106,7 +115,7 @@ export async function migrateInvoices(run, scope, supplierIds, orderIds) {
         const result = await run.toolkit.importPurchaseInvoice({
           companyId, actorId: run.actorId, source: run.sourceName, legacyId: invoice.id, number, status: 'PAID',
           issueDate: dayOf(invoice.createdAt ?? new Date(), run.model.timeZone), createdAt: invoice.createdAt,
-          supplierId: isReal(supplierId) ? supplierId : null, purchaseOrderId: orderId, xmlBuffer: buffers.get('xml') ?? null, notes: invoice.concept ?? null,
+          supplierId: isReal(supplierId) ? supplierId : null, purchaseOrderId: orderId, xmlBuffer: buffers.get('xml') ?? null, notes: noteFor(invoice.concept, number),
         })
         if (result.conflict) { run.report.conflict('invoices', 'INVOICE_NUMBER_TAKEN', invoice.id); continue }
         invoiceId = result.id

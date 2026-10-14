@@ -24,3 +24,12 @@ test('descriptions keep the sinabe facts', () => {
   const ev = eventDescription({ type: 'MAINTENANCE', status: 'COMPLETED', provider: 'Acme', completedDate: new Date('2025-03-02T18:00:00Z') }, 'America/Mexico_City')
   assert.match(ev, /Mantenimiento/); assert.match(ev, /Completado: 2025-03-02/)
 })
+
+import { noteFor } from '../migrate-purchases.mjs'
+
+test('purchase notes: drop the text when it only repeats the code', () => {
+  assert.equal(noteFor('FAC-2024-001', 'FAC-2024-001'), null)
+  assert.equal(noteFor('  fac-2024-001 ', 'FAC-2024-001'), null)
+  assert.equal(noteFor('Laptops sala 2', 'FAC-2024-001'), 'Laptops sala 2')
+  assert.equal(noteFor(null, 'PO-1'), null)
+})
