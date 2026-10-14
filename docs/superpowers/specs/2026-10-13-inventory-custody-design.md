@@ -143,3 +143,40 @@ New `@runly/ui` component `SignaturePad` (canvas, pointer events, clear, toPng).
 - Unit: template engine (docx + xlsx) with synthetic templates, no `{{` left; custody service transitions and conflicts; token expiry; folio sequence.
 - Lint, build, boot smoke against the running API.
 - Playwright: create → public sign → complete → download.
+
+## 9. Revision 2 (2026-10-13, user feedback after first browser test)
+
+1. **Templates without tags.** A template with zero `{{ }}` tags is accepted but
+   carries the warning "La plantilla no contiene etiquetas {{…}}; el documento se
+   generará sin datos." (computed at upload and when serializing existing rows).
+   The templates table shows the detected tag count.
+2. **Theme-aware signature pad, print-ready output.** The pad follows the app
+   theme (surface/foreground tokens); the exported PNG is always re-rendered as
+   dark strokes (`#111827`) on a transparent background so it prints correctly
+   in the template.
+3. **Richer public signing page.** Public GET adds `delivererName`,
+   `receiverDepartment`, `receiverJobTitle`, `itemCount`, `companyLogoUrl`
+   (signed, optional) and per item `invoiceNumber`, `features`, `index`.
+   Employee number and e-mail stay private.
+4. **Editable until completion.** The detail screen is the editor: while
+   DRAFT or PENDING_SIGNATURE the user edits comments, date, employee,
+   deliverer, template and items (add/remove) inline. `PATCH` is allowed in both
+   states; changing kind, employee or items clears captured signatures (status
+   stays PENDING_SIGNATURE if a link exists); comments/date/template do not.
+   Creation is a minimal sheet (kind + employee) that lands on the detail.
+5. **Deliverer is a Runly user.** `delivererId` defaults to the current user.
+   Choosing another user requires the new permission
+   `inventory.custody.deliver_on_behalf` ("Generar resguardos a nombre de otra
+   persona"). `GET /inventory/custodies/deliverers` lists eligible users
+   (company members, never bots) with `hasSavedSignature` and `allowDelegation`.
+6. **Saved user signature (reusable across modules).** New table
+   `UserSignature` (userProfileId unique, fileAssetId, allowDelegation,
+   updatedAt). Endpoints `GET|PUT|PATCH|DELETE /profile/me/signature`
+   (`PUT {pngBase64, allowDelegation?}`, `PATCH {allowDelegation}`; GET returns
+   `{ signature: { url, allowDelegation, updatedAt } | null }`). Custody
+   `POST /signatures {role:'deliverer', useSaved:true}` copies the deliverer's
+   saved signature: allowed for one's own signature, or for another user's when
+   the caller has `deliver_on_behalf` **and** that user enabled
+   `allowDelegation`. Every use is audited ("firma aplicada por …").
+7. **Send the link.** `POST /public-link {sendEmail?: true}` also e-mails the
+   link to the employee (best effort) → adds `emailSent`.
