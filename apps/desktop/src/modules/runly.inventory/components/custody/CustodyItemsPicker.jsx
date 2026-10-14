@@ -44,7 +44,7 @@ export function CustodyItemsPicker({ value, onChange, disabled, excludeIds = [],
         loading={query.isFetching}
         disabled={disabled || value.length >= limit}
         placeholder="Agregar artículo..."
-        searchPlaceholder="Buscar por nombre, etiqueta o serie..."
+        searchPlaceholder="Buscar por nombre, número de activo o serie..."
         emptyText="Sin artículos que coincidan"
         hint={`${value.length + excludeIds.length} de ${max} artículos como máximo`}
       />

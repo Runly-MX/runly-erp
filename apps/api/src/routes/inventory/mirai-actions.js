@@ -103,7 +103,7 @@ export function createInventoryMiraiActions({ prisma, inventoryService }) {
     operation: 'update',
     label: 'Editar equipo',
     permission: 'inventory.item.update',
-    description: 'Cambia un equipo existente (nombre, estado, ubicacion, serie, etiqueta, notas, modelo, fechas de compra/garantia). Requiere el itemId de inventory_search; envia solo los campos que cambian.',
+    description: 'Cambia un equipo existente (nombre, estado, ubicacion, serie, numero de activo, notas, modelo, fechas de compra/garantia). Requiere el itemId de inventory_search; envia solo los campos que cambian.',
     parameters: {
       type: 'object',
       properties: {
@@ -139,7 +139,7 @@ export function createInventoryMiraiActions({ prisma, inventoryService }) {
         if (newId !== (item.locationId ?? null)) { data.locationId = newId; fields.push({ label: 'Ubicacion', before: item.locationName ?? '(sin ubicacion)', value: loc.location?.name ?? '(sin ubicacion)' }); }
       }
       if (a.serialNumber !== undefined && (a.serialNumber ?? null) !== (item.serialNumber ?? null)) { data.serialNumber = a.serialNumber ?? null; fields.push({ label: 'Serie', before: item.serialNumber ?? '(vacio)', value: a.serialNumber ?? '(vacio)' }); }
-      if (a.assetTag !== undefined && (a.assetTag ?? null) !== (item.assetTag ?? null)) { data.assetTag = a.assetTag ?? null; fields.push({ label: 'Etiqueta', before: item.assetTag ?? '(vacio)', value: a.assetTag ?? '(vacio)' }); }
+      if (a.assetTag !== undefined && (a.assetTag ?? null) !== (item.assetTag ?? null)) { data.assetTag = a.assetTag ?? null; fields.push({ label: 'Número de activo', before: item.assetTag ?? '(vacio)', value: a.assetTag ?? '(vacio)' }); }
       if (a.notes !== undefined && (a.notes ?? null) !== (item.notes ?? null)) { data.notes = a.notes ?? null; fields.push({ label: 'Notas', before: item.notes ?? '(vacio)', value: a.notes ?? '(vacio)' }); }
       if (a.model !== undefined && a.model !== (item.model ?? '')) { data.model = a.model; fields.push({ label: 'Modelo', before: item.model ?? '(vacio)', value: a.model }); }
       if (a.purchaseDate !== undefined && a.purchaseDate !== dayKey(item.purchaseDate)) { data.purchaseDate = a.purchaseDate; fields.push({ label: 'Compra', before: dayKey(item.purchaseDate) ?? '(vacio)', value: a.purchaseDate ?? '(vacio)' }); }
@@ -175,7 +175,7 @@ export function createInventoryMiraiActions({ prisma, inventoryService }) {
           title: 'Eliminar equipo',
           fields: [
             { label: 'Equipo', value: item.name },
-            item.assetTag ? { label: 'Etiqueta', value: item.assetTag } : null,
+            item.assetTag ? { label: 'Número de activo', value: item.assetTag } : null,
             item.serialNumber ? { label: 'Serie', value: item.serialNumber } : null,
           ].filter(Boolean),
         },

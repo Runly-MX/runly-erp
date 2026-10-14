@@ -10,7 +10,7 @@ const ITEM_FIELDS = [
   ['typeBrand', 'Tipo / marca'],
   ['model', 'Modelo'],
   ['serialNumber', 'Serie', true],
-  ['assetTag', 'Etiqueta', true],
+  ['assetTag', 'Núm. de activo', true],
   ['invoiceNumber', 'Factura'],
   ['features', 'Características'],
 ]

@@ -65,7 +65,7 @@ export function CustodyItemsSection({ custody, editable, apply, applyItem, busy 
         <DialogContent scrollable size="lg" className="gap-0 p-0 md:p-0 md:pt-0!">
           <DialogHeader className="mb-0 shrink-0 border-b border-[hsl(var(--border))] px-5 pt-4 pb-3">
             <DialogTitle>Agregar artículos</DialogTitle>
-            <DialogDescription>Busca por nombre, etiqueta o serie. Los datos se copian al resguardo al guardar.</DialogDescription>
+            <DialogDescription>Busca por nombre, número de activo o serie. Los datos se copian al resguardo al guardar.</DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             <CustodyItemsPicker value={selection} onChange={setSelection} excludeIds={currentIds} disabled={busy} />

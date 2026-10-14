@@ -19,7 +19,7 @@ const ROWS = [
   ['{{typeBrand}}', 'Tipo y marca (dentro de items)'],
   ['{{model}}', 'Modelo (dentro de items)'],
   ['{{serialNumber}}', 'Número de serie (dentro de items)'],
-  ['{{assetNumber}}', 'Etiqueta o número de activo (dentro de items)'],
+  ['{{assetNumber}}', 'Número de activo (dentro de items)'],
   ['{{invoiceNumber}}', 'Factura (dentro de items)'],
   ['{{features}}', 'Características (dentro de items)'],
   ['{{%receiverSignature}}', 'Imagen de la firma de quien recibe (220 × 88 px)'],

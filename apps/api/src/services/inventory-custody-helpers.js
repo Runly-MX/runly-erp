@@ -225,7 +225,7 @@ export const EDITABLE_SNAPSHOT_FIELDS = {
   typeBrand: 255, model: 255, serialNumber: 255, assetTag: 100, invoiceNumber: 100, features: 500,
 };
 const FIELD_LABELS = {
-  typeBrand: 'Tipo / marca', model: 'Modelo', serialNumber: 'Serie', assetTag: 'Etiqueta', invoiceNumber: 'Factura', features: 'Características',
+  typeBrand: 'Tipo / marca', model: 'Modelo', serialNumber: 'Serie', assetTag: 'Núm. de activo', invoiceNumber: 'Factura', features: 'Características',
 };
 
 // PATCH item body -> { set: { field: value }, clear: [field] }. A value of

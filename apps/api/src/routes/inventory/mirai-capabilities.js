@@ -24,7 +24,7 @@ export function createInventoryMiraiCapabilities({ prisma, publicLookup = create
         const item = await inventoryService.getItem(String(pageContext.recordId), actx.companyId).catch(() => null);
         if (!item) return null;
         const bits = [
-          item.assetTag ? `etiqueta ${item.assetTag}` : null,
+          item.assetTag ? `activo ${item.assetTag}` : null,
           item.serialNumber ? `serie ${item.serialNumber}` : null,
           item.brandName ? `marca ${item.brandName}` : null,
           item.model ? `modelo ${item.model}` : null,
