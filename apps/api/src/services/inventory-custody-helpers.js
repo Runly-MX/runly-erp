@@ -126,9 +126,9 @@ export function normalizeCustodyInput(body = {}, { partial = false } = {}) {
   const templateId = optionalUuid(body.templateId, 'La plantilla');
   if (templateId !== undefined) out.templateId = templateId;
   if (!partial || body.itemIds !== undefined) {
-    if (!Array.isArray(body.itemIds)) throw new InventoryServiceError('Selecciona al menos un artículo.', 400);
+    // Drafts may start empty; items are required to send the link or complete.
+    if (!Array.isArray(body.itemIds)) throw new InventoryServiceError('La lista de artículos no es válida.', 400);
     const ids = [...new Set(body.itemIds.map((id) => optionalUuid(id, 'El artículo')).filter(Boolean))];
-    if (!ids.length) throw new InventoryServiceError('Selecciona al menos un artículo.', 400);
     if (ids.length > MAX_CUSTODY_ITEMS) throw new InventoryServiceError(`Un resguardo admite hasta ${MAX_CUSTODY_ITEMS} artículos.`, 400);
     out.itemIds = ids;
   }

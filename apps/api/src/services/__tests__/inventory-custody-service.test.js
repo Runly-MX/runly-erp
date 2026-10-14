@@ -77,7 +77,8 @@ describe('snapshot and input', () => {
     assert.equal(input.kind, 'DELIVERY');
     assert.deepEqual(input.itemIds, [ITEM]);
     assert.equal(input.date.toISOString(), '2026-03-05T00:00:00.000Z');
-    assert.throws(() => normalizeCustodyInput({ employeeId: EMP, itemIds: [] }), (err) => err.status === 400);
+    assert.deepEqual(normalizeCustodyInput({ employeeId: EMP, itemIds: [] }).itemIds, []);
+    assert.throws(() => normalizeCustodyInput({ employeeId: EMP, itemIds: 'x' }), (err) => err.status === 400);
     assert.throws(() => normalizeCustodyInput({ kind: 'LOAN', employeeId: EMP, itemIds: [ITEM] }), (err) => err.status === 400);
     assert.deepEqual(normalizeCustodyInput({ comments: 'x' }, { partial: true }), { comments: 'x' });
   });

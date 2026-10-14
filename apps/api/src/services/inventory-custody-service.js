@@ -292,6 +292,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
   async function createPublicLink(id, companyId, profileId, { origin, sendEmail = false } = {}) {
     const custody = await load(id, companyId);
     assertCustodyAction(custody, 'publicLink');
+    if (!custody.items.length) throw new InventoryServiceError('Agrega al menos un artículo al resguardo.', 409);
     if (custody.status === 'DRAFT' && !custody.receiverSignatureFileId) await refreshSnapshot(custody);
     const { token, hash, expiresAt } = generatePublicToken();
     await prisma.invCustody.update({ where: { id }, data: { status: 'PENDING_SIGNATURE', publicTokenHash: hash, tokenExpiresAt: expiresAt } });
@@ -333,6 +334,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     if (!profileId) throw new InventoryServiceError('Usuario no encontrado.', 400);
     const custody = await load(id, companyId);
     assertCustodyAction(custody, 'complete');
+    if (!custody.items.length) throw new InventoryServiceError('Agrega al menos un artículo al resguardo.', 409);
     if (!custody.receiverSignatureFileId && allowUnsigned !== true) {
       throw new InventoryServiceError('Falta la firma de quien recibe. Captúrala o envía el enlace de firma.', 409);
     }
