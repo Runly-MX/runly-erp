@@ -408,6 +408,15 @@ const MentionTextarea = forwardRef(function MentionTextarea({
     }
   }
 
+  // Arrow-key navigation: keep the highlighted option in view.
+  useEffect(() => {
+    if (!open) return
+    // The row's wrapper also holds its section title, so the first row of a
+    // group brings its header along when scrolling up.
+    const row = menuRef.current?.querySelector('[aria-selected="true"]')
+    ;(row?.closest('[role="presentation"]') ?? row)?.scrollIntoView({ block: 'nearest' })
+  }, [activeIdx, open])
+
   // Keep the menu glued to the textarea while it's open: re-anchor when the
   // result count changes (width/flip can change) and on scroll/resize.
   useEffect(() => {
@@ -480,7 +489,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
           data-mention-dropdown
           role="listbox"
           aria-label="Mencionar"
-          className="rounded-xl py-1.5 overflow-y-auto overscroll-contain flex flex-col"
+          className="rounded-xl py-1.5 overflow-y-auto overscroll-contain flex flex-col scroll-pt-1 [@media(pointer:fine)]:scroll-pb-9"
           style={{
             position: 'fixed',
             left: menuPos.left,
@@ -542,7 +551,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
             </span>
           )}
           <p className="sticky -bottom-1.5 mt-1 hidden border-t border-(--glass-border) bg-(--glass-bg-strong) px-3 pt-1.5 pb-1 text-[11px] text-muted-foreground backdrop-blur [@media(pointer:fine)]:block">
-            ↑ ↓ para moverte · Enter para elegir · Esc para cerrar
+            ↑↓ moverte · Enter elegir · Esc cerrar
           </p>
         </div>,
         portalContainer ?? document.body

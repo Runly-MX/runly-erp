@@ -47,7 +47,9 @@ export function useMentionCandidates(conversationId, currentUserId) {
     // matches the stored-token regex), and that garbled literal text ships
     // straight to the external website visitor reading the reply.
     const memberCandidates = members
-      .filter((m) => m.userId && m.userId !== currentUserId)
+      // MirAI's bot profile can be a conversation member, but MirAI is never
+      // listed as a person — it is offered once, as the assistant candidate.
+      .filter((m) => m.userId && m.userId !== currentUserId && !m.isBot)
       .map((m) => ({ id: m.userId, displayName: m.displayName ?? "Usuario", avatarUrl: m.avatarUrl, email: m.email, description: m.email || null }));
 
     const roleCandidates = roles.map((r) => ({ id: r.id, displayName: r.name, kind: "role", color: r.color ?? null, description: "Rol · avisa a sus miembros" }));
