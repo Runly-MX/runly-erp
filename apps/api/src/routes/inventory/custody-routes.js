@@ -1,0 +1,135 @@
+// runly.inventory custody records (resguardos) and document templates.
+// Spec: docs/superpowers/specs/2026-10-13-inventory-custody-design.md §5
+import { Hono } from 'hono';
+import { createInventoryCustodyService } from '../../services/inventory-custody-service.js';
+import { CUSTODY_PLACEHOLDERS } from '../../services/inventory-document-template-service.js';
+
+export function createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin = null, custodyService = null }) {
+  const router = new Hono();
+  let service = custodyService;
+  const svc = () => (service ??= createInventoryCustodyService({ prisma, supabaseAdmin }));
+  const read = requirePermission('inventory.custody.read');
+  const manage = requirePermission('inventory.custody.manage');
+  const manageTemplates = requirePermission('inventory.template.manage');
+  const fail = (c, err, fallback) => (err instanceof InventoryServiceError || (err?.status && err?.name === 'InventoryServiceError')
+    ? c.json({ error: err.message }, err.status)
+    : c.json({ error: fallback }, 500));
+  const body = (c) => c.req.json().catch(() => ({}));
+
+  // ── Templates (read with custody.read, write with template.manage) ─────────
+  router.get('/inventory/document-templates', read, async (c) => {
+    try {
+      return c.json({ templates: await svc().templates.list(c.get('companyId')), placeholders: CUSTODY_PLACEHOLDERS });
+    } catch (err) { return fail(c, err, 'No se pudieron cargar las plantillas.'); }
+  });
+
+  router.post('/inventory/document-templates', manageTemplates, async (c) => {
+    try {
+      const form = await c.req.formData();
+      const result = await svc().templates.upload({
+        companyId: c.get('companyId'),
+        profileId: c.get('userId'),
+        file: form.get('file'),
+        name: form.get('name'),
+        isDefault: ['true', '1'].includes(String(form.get('isDefault') ?? '')),
+      });
+      return c.json(result, 201);
+    } catch (err) { return fail(c, err, 'No se pudo subir la plantilla.'); }
+  });
+
+  router.get('/inventory/document-templates/:id/file', read, async (c) => {
+    try {
+      return c.json(await svc().templates.fileUrl(c.req.param('id'), c.get('companyId')));
+    } catch (err) { return fail(c, err, 'No se pudo descargar la plantilla.'); }
+  });
+
+  router.patch('/inventory/document-templates/:id', manageTemplates, async (c) => {
+    try {
+      return c.json({ template: await svc().templates.update(c.req.param('id'), c.get('companyId'), await body(c)) });
+    } catch (err) { return fail(c, err, 'No se pudo actualizar la plantilla.'); }
+  });
+
+  router.delete('/inventory/document-templates/:id', manageTemplates, async (c) => {
+    try {
+      return c.json(await svc().templates.remove(c.req.param('id'), c.get('companyId')));
+    } catch (err) { return fail(c, err, 'No se pudo eliminar la plantilla.'); }
+  });
+
+  // ── Custody records ──────────────────────────────────────────────────────
+  router.get('/inventory/custodies', read, async (c) => {
+    try {
+      const { status, employeeId, itemId, q, page, pageSize } = c.req.query();
+      return c.json(await svc().list({ companyId: c.get('companyId'), status, employeeId, itemId, q, page, pageSize }));
+    } catch (err) { return fail(c, err, 'No se pudieron cargar los resguardos.'); }
+  });
+
+  router.post('/inventory/custodies', manage, async (c) => {
+    try {
+      return c.json({ custody: await svc().create(await body(c), c.get('companyId'), c.get('userId')) }, 201);
+    } catch (err) { return fail(c, err, 'No se pudo crear el resguardo.'); }
+  });
+
+  router.get('/inventory/custodies/:id', read, async (c) => {
+    try {
+      return c.json({ custody: await svc().get(c.req.param('id'), c.get('companyId')) });
+    } catch (err) { return fail(c, err, 'No se pudo cargar el resguardo.'); }
+  });
+
+  router.patch('/inventory/custodies/:id', manage, async (c) => {
+    try {
+      return c.json({ custody: await svc().update(c.req.param('id'), await body(c), c.get('companyId'), c.get('userId')) });
+    } catch (err) { return fail(c, err, 'No se pudo actualizar el resguardo.'); }
+  });
+
+  router.post('/inventory/custodies/:id/signatures', manage, async (c) => {
+    try {
+      return c.json({ custody: await svc().sign(c.req.param('id'), await body(c), c.get('companyId'), c.get('userId')) });
+    } catch (err) { return fail(c, err, 'No se pudo guardar la firma.'); }
+  });
+
+  router.post('/inventory/custodies/:id/public-link', manage, async (c) => {
+    try {
+      const origin = c.req.header('origin') ?? null;
+      return c.json(await svc().createPublicLink(c.req.param('id'), c.get('companyId'), c.get('userId'), { origin }));
+    } catch (err) { return fail(c, err, 'No se pudo generar el enlace de firma.'); }
+  });
+
+  router.post('/inventory/custodies/:id/complete', manage, async (c) => {
+    try {
+      const { allowUnsigned, sendEmail } = await body(c);
+      return c.json(await svc().complete(c.req.param('id'), c.get('companyId'), c.get('userId'), { allowUnsigned: allowUnsigned === true, sendEmail: sendEmail !== false }));
+    } catch (err) { return fail(c, err, 'No se pudo completar el resguardo.'); }
+  });
+
+  router.post('/inventory/custodies/:id/document/regenerate', manage, async (c) => {
+    try {
+      return c.json({ custody: await svc().regenerateDocument(c.req.param('id'), c.get('companyId'), c.get('userId')) });
+    } catch (err) { return fail(c, err, 'No se pudo generar el documento.'); }
+  });
+
+  router.post('/inventory/custodies/:id/cancel', manage, async (c) => {
+    try {
+      return c.json({ custody: await svc().cancel(c.req.param('id'), await body(c), c.get('companyId'), c.get('userId')) });
+    } catch (err) { return fail(c, err, 'No se pudo cancelar el resguardo.'); }
+  });
+
+  router.get('/inventory/custodies/:id/document', read, async (c) => {
+    try {
+      return c.json(await svc().documentUrl(c.req.param('id'), c.get('companyId')));
+    } catch (err) { return fail(c, err, 'No se pudo descargar el documento.'); }
+  });
+
+  // Binary response: PDF when Office is configured, else the filled DOCX/XLSX.
+  router.post('/inventory/custodies/:id/preview', read, async (c) => {
+    try {
+      const document = await svc().preview(c.req.param('id'), c.get('companyId'));
+      return c.body(document.buffer, 200, {
+        'Content-Type': document.mimeType,
+        'Content-Disposition': `inline; filename="${encodeURIComponent(document.fileName)}"`,
+        'X-Document-Format': document.format,
+      });
+    } catch (err) { return fail(c, err, 'No se pudo generar la vista previa.'); }
+  });
+
+  return router;
+}

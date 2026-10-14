@@ -1362,6 +1362,13 @@ export const inventoryMap = createModuleManifest({
       permissionKey: 'inventory.assignment.read',
     },
     {
+      label: 'Resguardos',
+      path: '/inventory/custodies',
+      icon: 'FileText',
+      layout: 'main',
+      permissionKey: 'inventory.custody.read',
+    },
+    {
       label: 'Catalogos',
       path: '/inventory/catalogs',
       icon: 'FolderOpen',
@@ -1390,6 +1397,9 @@ export const inventoryMap = createModuleManifest({
     { key: 'inventory.catalog.manage',     name: 'Gestionar catalogos de inventario' },
     { key: 'inventory.customfield.manage', name: 'Gestionar campos personalizados de inventario' },
     { key: 'inventory.connections.manage', name: 'Gestionar conexiones de inventario' },
+    { key: 'inventory.custody.read',       name: 'Ver resguardos de inventario' },
+    { key: 'inventory.custody.manage',     name: 'Gestionar resguardos de inventario' },
+    { key: 'inventory.template.manage',    name: 'Gestionar plantillas de documentos de inventario' },
   ],
   acl: {
     module: 'inventory.access',
@@ -1406,6 +1416,9 @@ export const inventoryMap = createModuleManifest({
       'inventory.catalog.manage':     'inventory.catalog.manage',
       'inventory.customfield.manage': 'inventory.customfield.manage',
       'inventory.connections.manage': 'inventory.connections.manage',
+      'inventory.custody.read':       'inventory.custody.read',
+      'inventory.custody.manage':     'inventory.custody.manage',
+      'inventory.template.manage':    'inventory.template.manage',
     },
   },
   blueprints: [

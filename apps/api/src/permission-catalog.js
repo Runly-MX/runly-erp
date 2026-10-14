@@ -1648,6 +1648,24 @@ export const PERMISSION_CATALOG = {
     groupKey: "inventory",
     order: 51,
   },
+  "inventory.custody.read": {
+    displayNameEs: "Ver resguardos de inventario",
+    descriptionEs: "Permite consultar los resguardos (entregas y devoluciones firmadas) y descargar sus documentos.",
+    groupKey: "inventory",
+    order: 32,
+  },
+  "inventory.custody.manage": {
+    displayNameEs: "Gestionar resguardos de inventario",
+    descriptionEs: "Permite crear, firmar, enviar enlaces de firma, completar y cancelar resguardos.",
+    groupKey: "inventory",
+    order: 33,
+  },
+  "inventory.template.manage": {
+    displayNameEs: "Gestionar plantillas de documentos de inventario",
+    descriptionEs: "Permite subir y administrar las plantillas Word o Excel de los resguardos.",
+    groupKey: "inventory",
+    order: 34,
+  },
   // -----------------------------------------------------------------------
   // runly.purchases
   // -----------------------------------------------------------------------

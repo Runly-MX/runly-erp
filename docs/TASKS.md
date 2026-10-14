@@ -588,6 +588,8 @@ Verified: 2026-06-20 (all 5 screens present in `apps/desktop/src/modules/atlas.i
 
 Note: Activity feed bridge deferred — no `activityBridge` pattern for inventory events yet.
 
+- [ ] Resguardos (custody records) with company Word/Excel templates, signatures and public signing link. Spec: `docs/superpowers/specs/2026-10-13-inventory-custody-design.md`; plan: `docs/superpowers/plans/2026-10-13-inventory-custody.md`. Backend (T1-T4, T6) done: migration `20261019000000_inventory_custody`, template engine `services/document-templates/`, `inventory-custody-service.js`, routes `/inventory/custodies*`, `/inventory/document-templates*`, `/public/inventory/custody/:token`, help `resguardos.md`. Verified: 2026-10-13 (new tests 18/18, `services/__tests__` 792/794 with 2 skipped, inventory + router tests 214/215 with 1 skipped, `pnpm lint` clean, backend E2E on the test company: create, sign, public link + public sign, preview, complete with PDF, return, cancel, template upload/delete). UI (T5) and Playwright verification (T7) pending.
+
 ## Atlas Comments System [COMPLETE]
 
 Plans: `docs/superpowers/plans/2026-06-14-generic-comments-api.md`, `2026-06-14-generic-comments-ui.md`, `2026-06-14-growth-comments-api.md`, `2026-06-14-growth-comments-ui.md`

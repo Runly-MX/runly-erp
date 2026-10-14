@@ -6,6 +6,7 @@ import { InventoryServiceError, assertCompany, createRefGuard } from './inventor
 import { createInventoryCatalogService } from './inventory-catalog-service.js';
 import { DEFAULT_LISTED_ADMIN_STATUSES } from './inventory-admin-service.js';
 import { publishDomainEvent } from './domain-events/events.js';
+import { assignItemTx, returnItemTx } from './inventory-assignment-tx.js';
 
 // Operational statuses a user can set by hand; `assigned` only comes from
 // the assign/return flow, bajas from the administrative transitions.
@@ -641,22 +642,18 @@ export function createInventoryService({ prisma, activityBridge }) {
     const activeAssignment = await prisma.invAssignment.findFirst({ where: { itemId, returnedAt: null } });
     if (activeAssignment) throw new InventoryServiceError('Item is already assigned', 409);
 
-    const result = await prisma.$transaction(async (tx) => {
-      const assignment = await tx.invAssignment.create({
-        data: { itemId, employeeId, assignedById: actorProfileId, notes: notes ?? null },
-      });
-      const updatedItem = await tx.invItem.update({
-        where: { id: itemId },
-        data: { status: 'assigned', assignedToId: employeeId, assignedAt: new Date() },
-        include: {
-          category: { select: { id: true, name: true, icon: true, color: true } },
-          brand: { select: { id: true, name: true } },
-          location: { select: { id: true, name: true } },
-          assignedTo: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
-        },
-      });
-      return { item: updatedItem, assignment };
-    });
+    const result = await prisma.$transaction((tx) => assignItemTx(tx, {
+      itemId,
+      employeeId,
+      assignedById: actorProfileId,
+      notes,
+      include: {
+        category: { select: { id: true, name: true, icon: true, color: true } },
+        brand: { select: { id: true, name: true } },
+        location: { select: { id: true, name: true } },
+        assignedTo: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
+      },
+    }));
     await bridge.logAndPublish({
       auditEntry: {
         actorId: actorProfileId ?? null,
@@ -683,22 +680,16 @@ export function createInventoryService({ prisma, activityBridge }) {
     });
     if (!activeAssignment) throw new InventoryServiceError('Item is not currently assigned', 409);
 
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.invAssignment.update({
-        where: { id: activeAssignment.id },
-        data: { returnedAt: new Date(), ...(notes !== undefined ? { notes } : {}) },
-      });
-
-      return tx.invItem.update({
-        where: { id: itemId },
-        data: { status: 'available', assignedToId: null, assignedAt: null },
-        include: {
-          category: { select: { id: true, name: true, icon: true, color: true } },
-          brand: { select: { id: true, name: true } },
-          location: { select: { id: true, name: true } },
-        },
-      });
-    });
+    const result = await prisma.$transaction(async (tx) => (await returnItemTx(tx, {
+      assignmentId: activeAssignment.id,
+      itemId,
+      notes,
+      include: {
+        category: { select: { id: true, name: true, icon: true, color: true } },
+        brand: { select: { id: true, name: true } },
+        location: { select: { id: true, name: true } },
+      },
+    })).item);
     await bridge.logAndPublish({
       auditEntry: {
         actorId: actorProfileId ?? null,

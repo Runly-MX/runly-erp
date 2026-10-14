@@ -10,6 +10,7 @@ import { tenantActiveContext } from '../../lib/active-context.js';
 import { createInventoryModelsRouter } from './models-routes.js';
 import { createInventoryImportRouter } from './import-routes.js';
 import { createInventoryAdminRouter } from './admin-routes.js';
+import { createInventoryCustodyRouter } from './custody-routes.js';
 import { createInventoryModelService } from '../../services/inventory-model-service.js';
 import { createCoreTargetConnections } from '../../services/connections/core-target-connections.js';
 import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js';
@@ -33,6 +34,7 @@ export function createInventoryRouter({
   router.route('/', createInventoryModelsRouter({ prisma, requirePermission, inventoryService, InventoryServiceError }));
   router.route('/', createInventoryAdminRouter({ prisma, requirePermission, InventoryServiceError, inventoryNotifSvc, supabaseAdmin }));
   router.route('/', createInventoryImportRouter({ prisma, requirePermission, InventoryServiceError, inventoryService, filesService }));
+  router.route('/', createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin }));
   const modelDefaults = createInventoryModelService({ prisma });
 
   const isInvErr = (err) => err instanceof InventoryServiceError;
