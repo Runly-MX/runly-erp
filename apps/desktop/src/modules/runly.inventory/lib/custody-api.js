@@ -45,7 +45,7 @@ export const parseCustody = (res) => normalizeCustody(res?.custody ?? res?.data 
 // POST public-link -> { url, expiresAt }
 export const parsePublicLink = (res) => ({ url: res?.url ?? null, expiresAt: res?.expiresAt ?? null })
 
-// GET document -> { url }; POST preview -> { url, format }
+// GET document -> { url, expiresIn, fileName, mimeType } (signed URL). Preview is a blob (see useCustodyFileUrl).
 export const parseFileUrl = (res) => ({ url: res?.url ?? res?.signedUrl ?? null, format: res?.format ?? null })
 
 // GET /inventory/document-templates -> { templates }; single -> { template }

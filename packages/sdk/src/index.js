@@ -2425,7 +2425,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       return api;
     })(),
     inventory: {
-      ...createInventoryCustodyDomain({ request, withAuthHeaders, toQueryString }),
+      ...createInventoryCustodyDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
       // Items
       listItems: (params, token) =>
         request(`/inventory/items${toQueryString(params)}`, {

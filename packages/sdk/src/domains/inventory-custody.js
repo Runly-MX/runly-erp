@@ -3,7 +3,7 @@
 // the desktop normalizes them in modules/runly.inventory/lib/custody-api.js.
 const id = (value) => encodeURIComponent(value)
 
-export function createInventoryCustodyDomain({ request, withAuthHeaders, toQueryString }) {
+export function createInventoryCustodyDomain({ request, requestBlob, withAuthHeaders, toQueryString }) {
   const send = (method, path, data, token) => request(path, {
     method,
     headers: withAuthHeaders(token),
@@ -21,7 +21,12 @@ export function createInventoryCustodyDomain({ request, withAuthHeaders, toQuery
       complete: (custodyId, data, token) => send('POST', `/inventory/custodies/${id(custodyId)}/complete`, data ?? {}, token),
       cancel: (custodyId, reason, token) => send('POST', `/inventory/custodies/${id(custodyId)}/cancel`, { reason }, token),
       document: (custodyId, token) => send('GET', `/inventory/custodies/${id(custodyId)}/document`, undefined, token),
-      preview: (custodyId, token) => send('POST', `/inventory/custodies/${id(custodyId)}/preview`, {}, token),
+      // Returns the rendered file itself (PDF, or DOCX/XLSX when Office is off).
+      preview: (custodyId, token) => requestBlob(`/inventory/custodies/${id(custodyId)}/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...withAuthHeaders(token) },
+        body: '{}',
+      }),
     },
     documentTemplates: {
       list: (params, token) => send('GET', `/inventory/document-templates${toQueryString(params)}`, undefined, token),

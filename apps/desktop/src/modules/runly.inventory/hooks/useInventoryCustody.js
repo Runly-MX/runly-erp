@@ -84,9 +84,14 @@ export function useCustodyPublicLink() {
 export function useCustodyFileUrl() {
   const token = useToken()
   return useMutation({
-    mutationFn: async ({ id, mode }) => parseFileUrl(mode === 'preview'
-      ? await runly.inventory.custodies.preview(id, token)
-      : await runly.inventory.custodies.document(id, token)),
+    mutationFn: async ({ id, mode }) => {
+      if (mode !== 'preview') return parseFileUrl(await runly.inventory.custodies.document(id, token))
+      // Preview streams the file; object URLs are revoked once the new tab had time to load.
+      const blob = await runly.inventory.custodies.preview(id, token)
+      const url = URL.createObjectURL(blob)
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      return { url, format: blob.type === 'application/pdf' ? 'pdf' : 'office' }
+    },
   })
 }
 
