@@ -49,6 +49,8 @@ export const FILE_ACCESS_RULES = {
   FleetMaintenance: permission("fleet.vehicles.read"),
   FleetReport: permission("fleet.reports.read"),
   InvItem: permission("inventory.item.read"),
+  InvCustody: permission("inventory.custody.read"),
+  InvDocumentTemplate: permission("inventory.custody.read"),
   GrowthLead: permission("growth.leads.read"),
   GeneratedDocument: permission("documents.generated.read"),
   purchase_order: permission("purchases.order.read"),

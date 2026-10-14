@@ -483,6 +483,8 @@ model Company {
   invLocations    InvLocation[]    @relation("CompanyInvLocations")
   invConditions   InvCondition[]   @relation("CompanyInvConditions")
   invAdminEvents  InvItemAdminEvent[] @relation("CompanyInvAdminEvents")
+  invCustodies    InvCustody[]          @relation("CompanyInvCustodies")
+  invDocumentTemplates InvDocumentTemplate[] @relation("CompanyInvDocumentTemplates")
   invItems        InvItem[]        @relation("CompanyInvItems")
   invCustomFields InvCustomField[] @relation("CompanyInvCustomFields")
 
@@ -558,6 +560,9 @@ model UserProfile {
   invAssignedBy   InvAssignment[]      @relation("UserInvAssignments")
   createdInvItems InvItem[]            @relation("UserCreatedInvItems")
   invAdminEvents  InvItemAdminEvent[]   @relation("UserInvAdminEvents")
+  invCustodiesCreated   InvCustody[] @relation("UserInvCustodiesCreated")
+  invCustodiesDelivered InvCustody[] @relation("UserInvCustodiesDelivered")
+  invDocumentTemplates  InvDocumentTemplate[] @relation("UserInvDocumentTemplates")
 
   entityComments  EntityComment[]         @relation("UserEntityComments")
   entityMentions  EntityCommentMention[]  @relation("UserEntityMentions")
@@ -925,6 +930,7 @@ model HrEmployee {
 
   assignedInvItems InvItem[]       @relation("EmployeeAssignedItems")
   invAssignments   InvAssignment[] @relation("EmployeeInvAssignments")
+  invCustodies     InvCustody[]    @relation("EmployeeInvCustodies")
 
   @@unique([companyId, userProfileId])
   @@index([companyId, enabled])
@@ -3627,6 +3633,7 @@ model InvItem {
   assignments  InvAssignment[]
   customValues InvCustomFieldValue[]
   files        InvItemFile[]
+  custodyItems InvCustodyItem[]
 
   @@unique([companyId, assetTag])
   @@index([companyId, status])
@@ -3650,6 +3657,7 @@ model InvAssignment {
   item       InvItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
   employee   HrEmployee  @relation("EmployeeInvAssignments", fields: [employeeId], references: [id], onDelete: Restrict)
   assignedBy UserProfile @relation("UserInvAssignments", fields: [assignedById], references: [id], onDelete: Restrict)
+  custodyItems InvCustodyItem[]
 
   @@index([itemId])
   @@index([employeeId])
@@ -3709,6 +3717,97 @@ model InvItemFile {
   @@index([itemId])
   @@index([fileAssetId])
   @@map("inv_item_file")
+}
+
+// Formal custody record (resguardo): a numbered, signed delivery or return of
+// items to an employee. Items are snapshotted at signing time. File ids point
+// to FileAsset rows (entityType InvCustody / InvDocumentTemplate).
+model InvCustody {
+  id                       String    @id @default(uuid(7)) @db.Uuid
+  companyId                String    @map("company_id") @db.Uuid
+  folio                    String    @db.VarChar(40)
+  sequence                 Int
+  kind                     String    @default("DELIVERY") @db.VarChar(20)
+  status                   String    @default("DRAFT") @db.VarChar(30)
+  employeeId               String    @map("employee_id") @db.Uuid
+  delivererId              String?   @map("deliverer_id") @db.Uuid
+  delivererName            String?   @map("deliverer_name") @db.VarChar(200)
+  date                     DateTime  @db.Date
+  comments                 String?   @db.VarChar(2000)
+  publicTokenHash          String?   @unique @map("public_token_hash") @db.Char(64)
+  tokenExpiresAt           DateTime? @map("token_expires_at")
+  receiverSignatureFileId  String?   @map("receiver_signature_file_id") @db.Uuid
+  delivererSignatureFileId String?   @map("deliverer_signature_file_id") @db.Uuid
+  receiverSignedAt         DateTime? @map("receiver_signed_at")
+  delivererSignedAt        DateTime? @map("deliverer_signed_at")
+  documentFileId           String?   @map("document_file_id") @db.Uuid
+  templateId               String?   @map("template_id") @db.Uuid
+  source                   String    @default("runly") @db.VarChar(20)
+  legacyId                 String?   @map("legacy_id") @db.VarChar(64)
+  createdById              String    @map("created_by_id") @db.Uuid
+  completedAt              DateTime? @map("completed_at")
+  cancelledAt              DateTime? @map("cancelled_at")
+  cancelReason             String?   @map("cancel_reason") @db.VarChar(500)
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+
+  company   Company              @relation("CompanyInvCustodies", fields: [companyId], references: [id])
+  employee  HrEmployee           @relation("EmployeeInvCustodies", fields: [employeeId], references: [id], onDelete: Restrict)
+  deliverer UserProfile?         @relation("UserInvCustodiesDelivered", fields: [delivererId], references: [id], onDelete: SetNull)
+  createdBy UserProfile          @relation("UserInvCustodiesCreated", fields: [createdById], references: [id], onDelete: Restrict)
+  template  InvDocumentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  items     InvCustodyItem[]
+
+  @@unique([companyId, folio])
+  @@unique([companyId, legacyId])
+  @@index([companyId, status])
+  @@index([employeeId])
+  @@map("inv_custody")
+}
+
+model InvCustodyItem {
+  id            String  @id @default(uuid(7)) @db.Uuid
+  custodyId     String  @map("custody_id") @db.Uuid
+  itemId        String  @map("item_id") @db.Uuid
+  assignmentId  String? @map("assignment_id") @db.Uuid
+  typeBrand     String? @map("type_brand") @db.VarChar(255)
+  model         String? @db.VarChar(255)
+  serialNumber  String? @map("serial_number") @db.VarChar(255)
+  assetTag      String? @map("asset_tag") @db.VarChar(100)
+  invoiceNumber String? @map("invoice_number") @db.VarChar(100)
+  features      String? @db.VarChar(2000)
+  sortOrder     Int     @default(0) @map("sort_order")
+
+  custody    InvCustody     @relation(fields: [custodyId], references: [id], onDelete: Cascade)
+  item       InvItem        @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  assignment InvAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+
+  @@unique([custodyId, itemId])
+  @@index([itemId])
+  @@map("inv_custody_item")
+}
+
+// Company document template (.docx via docxtemplater, .xlsx via exceljs).
+model InvDocumentTemplate {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  kind         String   @default("custody") @db.VarChar(30)
+  format       String   @db.VarChar(10)
+  name         String   @db.VarChar(200)
+  fileAssetId  String   @map("file_asset_id") @db.Uuid
+  placeholders Json     @default("[]")
+  isDefault    Boolean  @default(false) @map("is_default")
+  enabled      Boolean  @default(true)
+  createdById  String?  @map("created_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company   Company      @relation("CompanyInvDocumentTemplates", fields: [companyId], references: [id])
+  createdBy UserProfile? @relation("UserInvDocumentTemplates", fields: [createdById], references: [id], onDelete: SetNull)
+  custodies InvCustody[]
+
+  @@index([companyId, kind, enabled])
+  @@map("inv_document_template")
 }
 
 // runly.purchases â€” Compras y abastecimiento configurable por empresa

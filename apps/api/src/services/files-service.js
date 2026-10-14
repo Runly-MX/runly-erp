@@ -25,6 +25,9 @@ const ALLOWED_FILE_ENTITY_TYPES = [
   "FleetReport",
   "Task",
   "InvItem",
+  // runly.inventory custody records (signatures, generated document) and templates.
+  "InvCustody",
+  "InvDocumentTemplate",
   "GrowthLead",
   "GeneratedDocument",
   "PfmReceipt",

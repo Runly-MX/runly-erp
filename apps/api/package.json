@@ -18,11 +18,14 @@
     "@runly/core": "workspace:^",
     "@runly/module-compiler": "workspace:*",
     "@runly/module-engine": "workspace:*",
+    "@runly/preview-runtime": "workspace:*",
     "@runly/validators": "workspace:*",
     "@supabase/supabase-js": "^2.105.1",
     "@tailwindcss/node": "4.2.4",
     "@tailwindcss/oxide": "4.2.4",
     "csv-parse": "^5.6.0",
+    "docxtemplater": "^3.71.0",
+    "docxtemplater-image-module-free": "^1.1.1",
     "esbuild": "^0.25.0",
     "exceljs": "^4.4.0",
     "fast-xml-parser": "^5.11.1",
@@ -37,6 +40,7 @@
     "nodemailer": "^8.0.10",
     "pdfjs-dist": "5.4.296",
     "pdfkit": "^0.18.0",
+    "pizzip": "^3.3.0",
     "qrcode": "^1.5.4",
     "react": "latest",
     "react-dom": "latest",
@@ -48,7 +52,6 @@
     "web-push": "^3.6.7",
     "yauzl": "^3.4.0",
     "yjs": "^13.6.31",
-    "zod": "latest",
-    "@runly/preview-runtime": "workspace:*"
+    "zod": "latest"
   }
 }
