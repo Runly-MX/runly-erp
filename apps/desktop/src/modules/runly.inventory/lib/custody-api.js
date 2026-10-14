@@ -18,19 +18,55 @@ export const CUSTODY_KIND_OPTIONS = Object.entries(CUSTODY_KIND).map(([value, la
 
 const personName = (person) => (person ? [person.firstName, person.lastName].filter(Boolean).join(' ') || person.name || person.displayName || null : null)
 
+const flag = (value, fallback) => (typeof value === 'boolean' ? value : Boolean(fallback))
+
 export function normalizeCustody(raw) {
   if (!raw) return null
   const items = Array.isArray(raw.items) ? raw.items : []
+  const employee = raw.employee ?? null
   return {
     ...raw,
     items,
-    employeeName: raw.employeeName ?? personName(raw.employee) ?? '—',
+    employeeName: raw.employeeName ?? personName(employee) ?? '—',
+    employeeEmail: raw.employeeEmail ?? employee?.workEmail ?? employee?.email ?? employee?.personalEmail ?? null,
+    delivererId: raw.delivererId ?? raw.deliverer?.id ?? null,
     delivererName: raw.delivererName ?? personName(raw.deliverer) ?? null,
     itemCount: raw.itemCount ?? raw._count?.items ?? items.length,
-    receiverSigned: Boolean(raw.receiverSignedAt ?? raw.receiverSignatureFileId),
-    delivererSigned: Boolean(raw.delivererSignedAt ?? raw.delivererSignatureFileId),
-    hasDocument: Boolean(raw.documentFileId),
+    receiverSigned: flag(raw.receiverSigned, raw.receiverSignedAt ?? raw.receiverSignatureFileId),
+    delivererSigned: flag(raw.delivererSigned, raw.delivererSignedAt ?? raw.delivererSignatureFileId),
+    hasPublicLink: flag(raw.hasPublicLink, raw.tokenExpiresAt),
+    hasDocument: flag(raw.hasDocument, raw.documentFileId),
   }
+}
+
+export const isCustodyEditable = (custody) => custody?.status === 'DRAFT' || custody?.status === 'PENDING_SIGNATURE'
+
+// Changing kind, employee or items clears captured signatures (spec §9.4).
+export const SIGNATURE_RESET_FIELDS = ['kind', 'employeeId', 'itemIds']
+export function editClearsSignatures(custody, patch) {
+  if (!custody?.receiverSigned && !custody?.delivererSigned) return false
+  return SIGNATURE_RESET_FIELDS.some((key) => key in (patch ?? {}))
+}
+
+// Snapshot rows -> picker rows ({ id, name, assetTag, serialNumber }).
+export const custodyPickerRows = (custody) => (custody?.items ?? []).map((row) => ({
+  id: row.itemId ?? row.item?.id ?? row.id,
+  name: row.item?.name ?? ([row.typeBrand, row.model].filter(Boolean).join(' ') || null),
+  assetTag: row.assetTag ?? row.item?.assetTag ?? null,
+  serialNumber: row.serialNumber ?? row.item?.serialNumber ?? null,
+}))
+
+// GET /inventory/custodies/deliverers -> { users: [{ id, name, email, avatarUrl, hasSavedSignature, allowDelegation }] }
+export function parseDeliverers(res) {
+  const rows = res?.users ?? res?.data ?? (Array.isArray(res) ? res : [])
+  return rows.filter((u) => u && !u.isBot).map((u) => ({
+    id: u.id,
+    name: u.name ?? u.displayName ?? u.email ?? '—',
+    email: u.email ?? null,
+    avatarUrl: u.avatarUrl ?? null,
+    hasSavedSignature: Boolean(u.hasSavedSignature),
+    allowDelegation: Boolean(u.allowDelegation),
+  }))
 }
 
 // GET /inventory/custodies -> { items, total }
@@ -42,8 +78,8 @@ export function parseCustodyList(res) {
 // Single custody endpoints -> { custody }
 export const parseCustody = (res) => normalizeCustody(res?.custody ?? res?.data ?? res)
 
-// POST public-link -> { url, expiresAt }
-export const parsePublicLink = (res) => ({ url: res?.url ?? null, expiresAt: res?.expiresAt ?? null })
+// POST public-link -> { url, path, token, expiresAt, emailSent }
+export const parsePublicLink = (res) => ({ url: res?.url ?? null, expiresAt: res?.expiresAt ?? null, emailSent: Boolean(res?.emailSent) })
 
 // GET document -> { url, expiresIn, fileName, mimeType } (signed URL). Preview is a blob (see useCustodyFileUrl).
 export const parseFileUrl = (res) => ({ url: res?.url ?? res?.signedUrl ?? null, format: res?.format ?? null })
@@ -51,6 +87,13 @@ export const parseFileUrl = (res) => ({ url: res?.url ?? res?.signedUrl ?? null,
 // GET /inventory/document-templates -> { templates }; single -> { template }
 export const parseTemplates = (res) => res?.templates ?? res?.data ?? (Array.isArray(res) ? res : [])
 export const parseTemplate = (res) => res?.template ?? res?.data ?? res
+
+// Detected {{ }} tag count; falls back to the stored placeholder list.
+export function templateTagCount(template) {
+  if (typeof template?.tagCount === 'number') return template.tagCount
+  const tags = template?.placeholders?.tags ?? template?.placeholders?.known ?? (Array.isArray(template?.placeholders) ? template.placeholders : null)
+  return Array.isArray(tags) ? tags.length : null
+}
 
 // Upload/validation warnings may come as strings or { tag, message }.
 export function templateWarnings(template) {
@@ -61,6 +104,7 @@ export function templateWarnings(template) {
 // GET /public/inventory/custody/:token
 export function parsePublicCustody(res) {
   const raw = res?.custody ?? res?.data ?? res ?? {}
+  const items = (Array.isArray(raw.items) ? raw.items : []).map((row, i) => ({ ...row, index: row.index ?? i + 1 }))
   return {
     folio: raw.folio,
     date: raw.date,
@@ -69,9 +113,14 @@ export function parsePublicCustody(res) {
     companyName: raw.companyName ?? raw.company?.name ?? null,
     companyLogoUrl: raw.companyLogoUrl ?? raw.company?.logoUrl ?? null,
     receiverName: raw.receiverName ?? personName(raw.receiver) ?? null,
+    receiverDepartment: raw.receiverDepartment ?? null,
+    receiverJobTitle: raw.receiverJobTitle ?? null,
+    delivererName: raw.delivererName ?? null,
+    comments: raw.comments ?? null,
+    itemCount: raw.itemCount ?? items.length,
     receiverSigned: Boolean(raw.receiverSigned ?? raw.receiverSignedAt),
     expiresAt: raw.expiresAt ?? raw.tokenExpiresAt ?? null,
-    items: Array.isArray(raw.items) ? raw.items : [],
+    items,
   }
 }
 

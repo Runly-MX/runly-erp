@@ -1,6 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { dataUrlToBase64, formatCustodyDate, parseCustody, parseCustodyList, parsePublicCustody, templateWarnings } from '../custody-api.js'
+import {
+  dataUrlToBase64, editClearsSignatures, formatCustodyDate, parseCustody, parseCustodyList, parseDeliverers, parsePublicCustody,
+  templateTagCount, templateWarnings,
+} from '../custody-api.js'
 
 test('parseCustodyList unwraps { items, total } and derives display fields', () => {
   const { items, total } = parseCustodyList({ items: [{ id: 'a', employee: { firstName: 'Ana', lastName: 'Ruiz' }, items: [{}, {}], receiverSignedAt: '2026-10-13' }], total: 7 })
@@ -26,4 +29,17 @@ test('helpers', () => {
   assert.equal(dataUrlToBase64('data:image/png;base64,AAAA'), 'AAAA')
   assert.equal(formatCustodyDate('2026-10-13T00:00:00.000Z'), '13/10/2026')
   assert.deepEqual(templateWarnings({ warnings: ['x', { tag: 'foo' }] }), ['x', 'Etiqueta desconocida: foo'])
+})
+
+test('revision 2: flags, deliverers, saved signature, signature reset', () => {
+  const c = parseCustody({ custody: { id: 'x', receiverSigned: true, hasPublicLink: true, deliverer: { id: 'u1', name: 'Luis' }, employee: { workEmail: 'a@example.com' } } })
+  assert.equal(c.delivererId, 'u1')
+  assert.equal(c.delivererName, 'Luis')
+  assert.equal(c.employeeEmail, 'a@example.com')
+  assert.equal(c.hasPublicLink, true)
+  assert.equal(editClearsSignatures(c, { comments: 'x' }), false)
+  assert.equal(editClearsSignatures(c, { itemIds: [] }), true)
+  assert.deepEqual(parseDeliverers({ users: [{ id: 'u1', name: 'Luis', hasSavedSignature: true }, { id: 'b', isBot: true }] }).map((u) => u.id), ['u1'])
+  assert.equal(templateTagCount({ tagCount: 0 }), 0)
+  assert.equal(parsePublicCustody({ custody: { items: [{ model: 'A' }] } }).items[0].index, 1)
 })

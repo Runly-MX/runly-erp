@@ -7,10 +7,12 @@ const MAX_ITEMS = 200
 
 // value: [{ id, name, assetTag, serialNumber }]. Search runs on the API
 // (name, asset tag, serial); selected rows stay listed below the picker.
-export function CustodyItemsPicker({ value, onChange, disabled }) {
+// excludeIds hides items already on the record; max caps value + excluded.
+export function CustodyItemsPicker({ value, onChange, disabled, excludeIds = [], max = MAX_ITEMS }) {
   const [search, setSearch] = useState('')
   const query = useItemSearch(search)
-  const selectedIds = useMemo(() => new Set(value.map((row) => row.id)), [value])
+  const selectedIds = useMemo(() => new Set([...excludeIds, ...value.map((row) => row.id)]), [value, excludeIds])
+  const limit = Math.max(0, max - excludeIds.length)
 
   const options = useMemo(() => (query.data ?? [])
     .filter((item) => !selectedIds.has(item.id))
@@ -24,7 +26,7 @@ export function CustodyItemsPicker({ value, onChange, disabled }) {
 
   function add(id) {
     const option = options.find((o) => o.value === id)
-    if (!option || value.length >= MAX_ITEMS) return
+    if (!option || value.length >= limit) return
     const { item } = option
     onChange([...value, { id: item.id, name: item.name, assetTag: item.assetTag, serialNumber: item.serialNumber }])
   }
@@ -40,11 +42,11 @@ export function CustodyItemsPicker({ value, onChange, disabled }) {
         onSearchChange={setSearch}
         filter={false}
         loading={query.isFetching}
-        disabled={disabled || value.length >= MAX_ITEMS}
+        disabled={disabled || value.length >= limit}
         placeholder="Agregar artículo..."
         searchPlaceholder="Buscar por nombre, etiqueta o serie..."
         emptyText="Sin artículos que coincidan"
-        hint={`${value.length} de ${MAX_ITEMS} artículos como máximo`}
+        hint={`${value.length + excludeIds.length} de ${max} artículos como máximo`}
       />
       {value.length === 0 ? (
         <EmptyState icon={Boxes} title="Sin artículos" description="Busca y agrega los artículos que forman parte del resguardo." />

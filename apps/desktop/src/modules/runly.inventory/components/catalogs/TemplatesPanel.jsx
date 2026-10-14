@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import {
   useDeleteDocumentTemplate, useDocumentTemplates, useUpdateDocumentTemplate, useUploadDocumentTemplate,
 } from '../../hooks/useInventoryCustody.js'
-import { templateWarnings } from '../../lib/custody-api.js'
+import { templateTagCount, templateWarnings } from '../../lib/custody-api.js'
 import { CatalogPanel } from './CatalogPanel.jsx'
 import { CatalogEditSheet } from './CatalogEditSheet.jsx'
 import { TemplatePlaceholderReference } from './TemplatePlaceholderReference.jsx'
@@ -82,6 +82,13 @@ export function TemplatesPanel() {
       </span>
     ) },
     { accessorKey: 'format', header: 'Formato', cell: ({ row }) => <span className="font-mono text-xs uppercase">{row.original.format}</span> },
+    { id: 'tags', header: 'Etiquetas', enableSorting: false, cell: ({ row }) => {
+      const count = templateTagCount(row.original)
+      if (count === null) return <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span>
+      return count === 0
+        ? <Badge variant="warning" title="La plantilla no contiene etiquetas {{…}}; el documento se generará sin datos.">Sin etiquetas</Badge>
+        : <span className="tabular-nums text-sm">{count}</span>
+    } },
     { id: 'warnings', header: 'Advertencias', enableSorting: false, cell: ({ row }) => {
       const list = templateWarnings(row.original)
       return list.length

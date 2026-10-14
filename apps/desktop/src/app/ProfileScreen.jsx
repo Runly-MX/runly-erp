@@ -33,6 +33,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthProvider";
 import { runly } from "../lib/runly";
+import { ProfileSignatureCard } from "./ProfileSignatureCard.jsx";
 
 function toDateInputValue(value) {
   if (!value) return "";
@@ -443,6 +444,8 @@ export function ProfileScreen() {
             )}
           </div>
         </Card>
+
+        <ProfileSignatureCard />
 
         {/* Password card */}
         <Card className="p-0 overflow-hidden">

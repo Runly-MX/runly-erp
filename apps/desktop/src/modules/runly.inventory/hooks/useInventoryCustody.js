@@ -5,6 +5,7 @@ import {
   dataUrlToBase64,
   parseCustody,
   parseCustodyList,
+  parseDeliverers,
   parseFileUrl,
   parsePublicLink,
   parseTemplate,
@@ -62,9 +63,10 @@ export const useCreateCustody = () =>
 export const useUpdateCustody = () =>
   useCustodyMutation(async ({ id, ...data }, token) => parseCustody(await runly.inventory.custodies.update(id, data, token)))
 
+// { id, role, dataUrl } draws; { id, role: 'deliverer', useSaved: true } applies the deliverer's saved signature.
 export const useSignCustody = () =>
-  useCustodyMutation(async ({ id, role, dataUrl }, token) =>
-    parseCustody(await runly.inventory.custodies.sign(id, { role, pngBase64: dataUrlToBase64(dataUrl) }, token)))
+  useCustodyMutation(async ({ id, role, dataUrl, useSaved }, token) =>
+    parseCustody(await runly.inventory.custodies.sign(id, useSaved ? { role, useSaved: true } : { role, pngBase64: dataUrlToBase64(dataUrl) }, token)))
 
 export const useCompleteCustody = () =>
   useCustodyMutation(async ({ id, ...data }, token) => parseCustody(await runly.inventory.custodies.complete(id, data, token)))
@@ -76,8 +78,19 @@ export function useCustodyPublicLink() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (id) => parsePublicLink(await runly.inventory.custodies.publicLink(id, token)),
+    mutationFn: async ({ id, sendEmail = false }) => parsePublicLink(await runly.inventory.custodies.publicLink(id, { sendEmail }, token)),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  })
+}
+
+// Users who can be the deliverer (only the caller without deliver_on_behalf).
+export function useCustodyDeliverers({ enabled = true } = {}) {
+  const token = useToken()
+  return useQuery({
+    queryKey: [...KEY, 'deliverers'],
+    queryFn: async () => parseDeliverers(await runly.inventory.custodies.deliverers(token)),
+    enabled: Boolean(token) && enabled,
+    staleTime: 60 * 1000,
   })
 }
 

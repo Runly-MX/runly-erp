@@ -5,7 +5,7 @@ import { FileSignature, Plus } from 'lucide-react'
 import { useCustodies, useEmployeeOptions } from '../hooks/useInventoryCustody.js'
 import { CUSTODY_KIND, CUSTODY_STATUS_OPTIONS, formatCustodyDate } from '../lib/custody-api.js'
 import { CustodyStatusBadge } from '../components/custody/CustodyStatusBadge.jsx'
-import { CustodyEditorSheet } from '../components/custody/CustodyEditorSheet.jsx'
+import { CustodyCreateSheet } from '../components/custody/CustodyCreateSheet.jsx'
 
 const CUSTODY_PATH = '/app/m/runly.inventory/inventory/custodies'
 const ALL = 'all'
@@ -79,11 +79,11 @@ export default function InventoryCustodyScreen() {
         emptyDescription={status !== ALL || employeeId ? 'Ningún resguardo coincide con los filtros.' : 'Registra la entrega de equipo a un colaborador para generar su resguardo firmado.'}
         emptyAction={{ label: 'Nuevo resguardo', onClick: () => setCreating(true) }}
       />
-      <CustodyEditorSheet
+      <CustodyCreateSheet
         open={creating}
         onOpenChange={setCreating}
         defaults={editorDefaults}
-        onSaved={(custody) => { if (custody?.id) open(custody) }}
+        onCreated={(custody) => { if (custody?.id) open(custody) }}
       />
     </div>
   )

@@ -3,25 +3,19 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Button, Card, CheckboxField, ConfirmDialog, DataTable, DetailSkeleton, ErrorState, PageHeader, TextareaField,
 } from '@runly/ui'
-import { Ban, CheckCheck, Download, Eye, Pencil } from 'lucide-react'
+import { Ban, CheckCheck, Download, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCancelCustody, useCompleteCustody, useCustody, useCustodyFileUrl } from '../hooks/useInventoryCustody.js'
-import { CUSTODY_KIND, formatCustodyDate } from '../lib/custody-api.js'
+import { CUSTODY_KIND, formatCustodyDate, isCustodyEditable } from '../lib/custody-api.js'
 import { CustodyStatusBadge } from '../components/custody/CustodyStatusBadge.jsx'
 import { CustodySignaturesSection } from '../components/custody/CustodySignaturesSection.jsx'
-import { CustodyEditorSheet } from '../components/custody/CustodyEditorSheet.jsx'
+import { CustodyDetailsEditor } from '../components/custody/CustodyDetailsEditor.jsx'
+import { CustodyItemsSection } from '../components/custody/CustodyItemsSection.jsx'
+import { custodyItemColumns } from '../components/custody/custodyItemColumns.jsx'
+import { useGuardedCustodyPatch } from '../components/custody/useGuardedCustodyPatch.jsx'
 
 const LIST_PATH = '/app/m/runly.inventory/inventory/custodies'
-
-const ITEM_COLUMNS = [
-  { id: 'index', header: '#', enableSorting: false, cell: ({ row }) => <span className="tabular-nums text-[hsl(var(--muted-foreground))]">{row.index + 1}</span> },
-  { accessorKey: 'typeBrand', header: 'Tipo / marca', cell: ({ row }) => row.original.typeBrand || '—' },
-  { accessorKey: 'model', header: 'Modelo', cell: ({ row }) => row.original.model || '—' },
-  { accessorKey: 'serialNumber', header: 'Serie', cell: ({ row }) => <span className="font-mono text-xs">{row.original.serialNumber || '—'}</span> },
-  { accessorKey: 'assetTag', header: 'Etiqueta', cell: ({ row }) => <span className="font-mono text-xs">{row.original.assetTag || '—'}</span> },
-  { accessorKey: 'invoiceNumber', header: 'Factura', cell: ({ row }) => row.original.invoiceNumber || '—' },
-  { accessorKey: 'features', header: 'Características', cell: ({ row }) => <span className="line-clamp-2">{row.original.features || '—'}</span> },
-]
+const READ_ONLY_COLUMNS = custodyItemColumns()
 
 export default function InventoryCustodyDetailScreen() {
   const { '*': wildcard } = useParams()
@@ -31,7 +25,6 @@ export default function InventoryCustodyDetailScreen() {
   const complete = useCompleteCustody()
   const cancel = useCancelCustody()
   const fileUrl = useCustodyFileUrl()
-  const [editing, setEditing] = useState(false)
   const [completeOpen, setCompleteOpen] = useState(false)
   const [allowUnsigned, setAllowUnsigned] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
@@ -46,7 +39,7 @@ export default function InventoryCustodyDetailScreen() {
     )
   }
 
-  const open = custody.status === 'DRAFT' || custody.status === 'PENDING_SIGNATURE'
+  const open = isCustodyEditable(custody)
 
   async function openFile(mode) {
     try {
@@ -92,9 +85,6 @@ export default function InventoryCustodyDetailScreen() {
         onBack={() => navigate(LIST_PATH)}
         actions={(
           <div className="flex flex-wrap gap-2">
-            {custody.status === 'DRAFT' ? (
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Pencil className="mr-1.5 h-3.5 w-3.5" />Editar</Button>
-            ) : null}
             {open ? (
               <Button variant="outline" size="sm" onClick={() => openFile('preview')} disabled={fileUrl.isPending}>
                 <Eye className="mr-1.5 h-3.5 w-3.5" />Vista previa
@@ -109,30 +99,34 @@ export default function InventoryCustodyDetailScreen() {
               <Button variant="outline" size="sm" onClick={() => setCancelOpen(true)}><Ban className="mr-1.5 h-3.5 w-3.5" />Cancelar resguardo</Button>
             ) : null}
             {open ? (
-              <Button size="sm" onClick={() => { setAllowUnsigned(false); setCompleteOpen(true) }}><CheckCheck className="mr-1.5 h-3.5 w-3.5" />Completar</Button>
+              <Button size="sm" disabled={custody.items.length === 0} title={custody.items.length === 0 ? 'Agrega al menos un artículo' : undefined}
+                onClick={() => { setAllowUnsigned(false); setCompleteOpen(true) }}><CheckCheck className="mr-1.5 h-3.5 w-3.5" />Completar</Button>
             ) : null}
           </div>
         )}
       />
 
-      <Card className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Estado"><CustodyStatusBadge status={custody.status} /></Field>
-        <Field label="Colaborador">{custody.employeeName}</Field>
-        <Field label="Entrega">{custody.delivererName || '—'}</Field>
-        <Field label="Artículos">{custody.itemCount}</Field>
-        {custody.comments ? <Field label="Comentarios" wide>{custody.comments}</Field> : null}
-        {custody.status === 'CANCELLED' && custody.cancelReason ? <Field label="Motivo de cancelación" wide>{custody.cancelReason}</Field> : null}
-      </Card>
-
-      <section className="space-y-2">
-        <h3 className="text-sm font-semibold">Artículos del resguardo</h3>
-        <DataTable columns={ITEM_COLUMNS} data={custody.items} getRowId={(row) => row.id ?? row.itemId}
-          showToolbar={false} showPagination={custody.items.length > 10} emptyTitle="Sin artículos" />
-      </section>
+      {open ? (
+        <OpenCustodyEditor custody={custody} />
+      ) : (
+        <>
+          <Card className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Estado"><CustodyStatusBadge status={custody.status} /></Field>
+            <Field label="Colaborador">{custody.employeeName}</Field>
+            <Field label="Entrega">{custody.delivererName || '—'}</Field>
+            <Field label="Artículos">{custody.itemCount}</Field>
+            {custody.comments ? <Field label="Comentarios" wide>{custody.comments}</Field> : null}
+            {custody.status === 'CANCELLED' && custody.cancelReason ? <Field label="Motivo de cancelación" wide>{custody.cancelReason}</Field> : null}
+          </Card>
+          <section className="space-y-2">
+            <h3 className="text-sm font-semibold">Artículos del resguardo</h3>
+            <DataTable columns={READ_ONLY_COLUMNS} data={custody.items} getRowId={(row) => row.id ?? row.itemId}
+              showToolbar={false} showPagination={custody.items.length > 10} emptyTitle="Sin artículos" />
+          </section>
+        </>
+      )}
 
       {custody.status !== 'CANCELLED' ? <CustodySignaturesSection custody={custody} /> : null}
-
-      <CustodyEditorSheet open={editing} onOpenChange={setEditing} custody={custody} />
 
       <ConfirmDialog
         open={completeOpen}
@@ -165,6 +159,18 @@ export default function InventoryCustodyDetailScreen() {
           placeholder="Por qué se cancela este resguardo" />
       </ConfirmDialog>
     </div>
+  )
+}
+
+// DRAFT / PENDING_SIGNATURE: the detail is the editor (spec §9.4).
+function OpenCustodyEditor({ custody }) {
+  const { apply, busy, confirm } = useGuardedCustodyPatch(custody)
+  return (
+    <>
+      <CustodyDetailsEditor custody={custody} apply={apply} busy={busy} />
+      <CustodyItemsSection custody={custody} editable apply={apply} busy={busy} />
+      {confirm}
+    </>
   )
 }
 
