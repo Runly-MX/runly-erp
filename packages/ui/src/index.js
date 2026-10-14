@@ -271,6 +271,7 @@ export { FileCard } from "./components/FileCard.jsx";
 export { DistDropZone } from "./components/DistDropZone.jsx";
 export { ColumnMappingStep } from "./components/ColumnMappingStep.jsx";
 export { FileUploader } from "./components/FileUploader.jsx";
+export { SignaturePad } from "./components/SignaturePad.jsx";
 export { AIUploadDropzone } from "./components/AIUploadDropzone.jsx";
 export { AIFlowSteps } from "./components/AIFlowSteps.jsx";
 export { AdvancedFileViewer } from "./components/AdvancedFileViewer.jsx";

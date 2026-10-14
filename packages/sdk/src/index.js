@@ -9,6 +9,7 @@ import { createCanvasDomain } from "./domains/canvas.js";
 import { createAttendanceDomain } from "./domains/attendance.js";
 import { createConnectionsDomain } from "./domains/connections.js";
 import { createTrashDomain } from "./domains/trash.js";
+import { createInventoryCustodyDomain } from "./domains/inventory-custody.js";
 import { createModuleCatalogDomain } from "./domains/module-catalog.js";
 export { createCompanyFetch } from "./company-fetch.js";
 export { createRunlyDeviceClient } from './native-device.js';
@@ -2424,6 +2425,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       return api;
     })(),
     inventory: {
+      ...createInventoryCustodyDomain({ request, withAuthHeaders, toQueryString }),
       // Items
       listItems: (params, token) =>
         request(`/inventory/items${toQueryString(params)}`, {

@@ -634,6 +634,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `ImageUploader` | Image crop and upload widget |
 | `ImageSourceSheet` | Camera-vs-gallery picker for touch devices — gate with `useCoarsePointer()`; on a fine-pointer device just open a plain `<input type="file">` directly instead. Props: `open, onOpenChange, onPickFile, accept?`. |
 | `CameraCaptureDialog` | Desktop webcam capture (`getUserMedia`, capture, retake, confirm; stops the stream on close; inline error + file fallback). Props: `open, onOpenChange, onCapture(file), fileName?`. |
+| `SignaturePad` | Hand-drawn signature capture on a high-DPI canvas (pointer events: mouse, pen, touch), "Limpiar firma" button, baseline guide. Props: `label?, hint?, onChange(pngDataUrl or null), disabled?, height? (180), strokeColor?, strokeWidth?`. Used by inventory custody records (resguardos) and their public signing page. |
 | `FileAssetField` / `FileAssetValue` | Uploading file field whose value is a FileAsset id (`filesPath`, `signedUrlPath`, `accept`, `camera`, `maxSizeMB`, `apiBaseUrl`, `token`, `companyId`), and its read-only display. Camera uses `ImageSourceSheet` on touch and `CameraCaptureDialog` on desktop. |
 | `SwatchField` | Pick an accent colour from a small preset palette (`swatches` prop, defaults to `DEFAULT_SWATCHES`). Use instead of a raw `<input type="color">` when only a themeable accent is needed. |
 | `DatePickerField` | Standalone date picker |
