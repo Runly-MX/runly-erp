@@ -68,8 +68,9 @@ Desde el repositorio (equipo con acceso a la base de Runly), en la raíz del rep
 node --env-file=.env scripts/migrations/sinabe/cli.mjs <comando> ...
 ```
 
-Dentro del contenedor de la API: la imagen no incluye `scripts/`, así que se copia la carpeta del
-migrador (no hace falta `npm install` ni internet; las dependencias salen de `apps/api`). El
+Dentro del contenedor de la API: la imagen debe estar construida con este código (el migrador importa
+`apps/api/src/services/legacy-import`; una imagen anterior falla con `ERR_MODULE_NOT_FOUND`). La imagen no
+incluye `scripts/`, así que se copia la carpeta del migrador (no hace falta `npm install` ni internet; las dependencias salen de `apps/api`). El
 contenedor ya tiene las variables de entorno, por eso ahí no se usa `--env-file`. Para ubicar el
 contenedor de la API se usa `docker ps` (termina en `-api-local` o `-api-external`).
 
