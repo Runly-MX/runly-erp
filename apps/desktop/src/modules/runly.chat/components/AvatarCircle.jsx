@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { MiraiAvatar } from "@runly/ui";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
 
 // Extracted out of MiniChatWindow.jsx so components that only need the avatar
@@ -17,7 +18,9 @@ export function AvatarCircle({ avatarUrl, avatarEmoji, type, name, size = "md", 
       {online && (
         <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[hsl(var(--card))] z-10" />
       )}
-      {avatarUrl && !avatarErr ? (
+      {type === "mirai" ? (
+        <MiraiAvatar size={size === "sm" ? 28 : 32} />
+      ) : avatarUrl && !avatarErr ? (
         <img
           src={avatarUrl}
           alt={name}

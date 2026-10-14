@@ -6,6 +6,7 @@ import {
 } from "@runly/ui";
 import { Archive, ArchiveRestore, MoreHorizontal } from "lucide-react";
 import { buildConversationActions, fullSwipeAction } from "../lib/buildConversationActions.js";
+import { getConversationDisplayName } from "../lib/chatUtils";
 
 // Wraps a single conversation row with per-platform affordances:
 //   - touch  -> SwipeableRow (left = action tray, right = archive/unarchive)
@@ -155,7 +156,7 @@ export function ConversationRowActions({
         <SheetContent side="bottom" className="gap-1 p-2 pb-4">
           <SheetHeader className="px-3 pt-2 pb-1">
             <SheetTitle className="text-sm truncate">
-              {conversation.title ?? "Conversación"}
+              {getConversationDisplayName(conversation, currentUserId)}
             </SheetTitle>
           </SheetHeader>
           {actions.map((a) => {

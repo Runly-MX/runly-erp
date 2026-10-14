@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Paperclip } from "lucide-react";
 import { EmptyState, Skeleton, ErrorState } from "@runly/ui";
 import { AvatarCircle } from "./AvatarCircle";
+import { getConversationDisplayName } from "../lib/chatUtils";
 import { buildSnippetSegments } from "../lib/searchSnippet";
 
 function relativeDate(iso) {
@@ -102,13 +103,13 @@ export function MessageSearchResults({ hits, isSearching, isError, truncated, on
             <div className="flex items-center gap-2 px-2 py-1">
               <AvatarCircle
                 size="sm"
-                name={conversation.title ?? "Chat"}
+                name={getConversationDisplayName(conversation) || "Chat"}
                 type={conversation.type}
                 avatarUrl={conversation.avatarUrl}
                 avatarEmoji={conversation.avatarEmoji}
               />
               <span className="text-xs font-medium truncate">
-                {conversation.title ?? "Chat"}
+                {getConversationDisplayName(conversation) || "Chat"}
               </span>
             </div>
             {items.map((h) => (

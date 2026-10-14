@@ -45,10 +45,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const filtered = (conversations ?? [])
     .filter((c) => {
       if (!search.trim()) return true;
-      const displayName =
-        c.title ??
-        (c.members ?? []).find((m) => m.userId !== userProfile?.id)?.displayName ??
-        "";
+      const displayName = getConversationDisplayName(c, userProfile?.id) ?? "";
       return displayName.toLowerCase().includes(search.toLowerCase());
     })
     // Pinned conversations float to the top; the server already returns them
@@ -58,10 +55,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
 
   const filteredArchived = archivedConversations.filter((c) => {
     if (!search.trim()) return true;
-    const displayName =
-      c.title ??
-      (c.members ?? []).find((m) => m.userId !== userProfile?.id)?.displayName ??
-      "";
+    const displayName = getConversationDisplayName(c, userProfile?.id) ?? "";
     return displayName.toLowerCase().includes(search.toLowerCase());
   });
 

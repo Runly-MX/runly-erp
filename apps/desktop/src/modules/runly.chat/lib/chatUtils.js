@@ -1,3 +1,4 @@
+import { MIRAI_NAME } from "./mirai.js";
 export function formatMessageTime(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -62,7 +63,10 @@ export function groupMessagesByDate(messages) {
   return groups;
 }
 
+// MirAI's conversation can carry a stored title (its first prompt); it is
+// always shown as MirAI, never as that text.
 export function getConversationDisplayName(conversation, currentUserId) {
+  if (conversation?.type === "mirai") return MIRAI_NAME;
   if (conversation?.title) return conversation.title;
   if (conversation?.type === "direct") {
     const other = (conversation.members ?? []).find(
