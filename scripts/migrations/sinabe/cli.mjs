@@ -11,6 +11,7 @@ import { runMigrate, DEFAULT_MAX_FILE_BYTES } from './migrate.mjs'
 import { runVerify } from './verify.mjs'
 import { runRollback } from './rollback.mjs'
 import { summarize } from './report.mjs'
+import { runTargets } from './targets.mjs'
 
 const USAGE = `Uso:
   cli.mjs census    --dump <archivo.sql> [--listing <listado.tsv>] --out <carpeta>
@@ -21,6 +22,7 @@ const USAGE = `Uso:
                     [--batch-size 50] [--only <ids.txt>] [--rate <bytes/s>] [--pause-ms <ms>] [--max-errors <n>]
                     [--deliverers-map <correo-perfil.json>] [--include-projects] [--max-file-mb 50] [--timezone America/Mexico_City] --out <carpeta>
   cli.mjs verify    --dump <archivo.sql> --company <uuid> [--listing ...] [--files-dir ... | --files-base-url ...] [--source sinabe] --out <carpeta>
+  cli.mjs targets   (lista las empresas y perfiles de la instancia a la que apunta el entorno; solo lectura)
   cli.mjs rollback  --company <uuid> [--source sinabe] [--only <ids.txt> --dump <archivo.sql>] --out <carpeta>`
 
 const number = (value, name) => {
@@ -109,6 +111,7 @@ export async function main(argv) {
     console.log(summarize(data))
     return data.errors ? 1 : 0
   }
+  if (command === 'targets') return runTargets((line) => console.log(line))
   console.error(USAGE)
   return 2
 }

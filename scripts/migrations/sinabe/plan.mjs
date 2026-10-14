@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { loadSinabe } from './source.mjs'
 import { readFilesListing } from './files-listing.mjs'
 import { buildModel, buildScope } from './mapping/index.mjs'
+import { pickPilot, pilotFileKeys } from './pilot.mjs'
 
 export const DEFAULT_BATCH_SIZE = 50
 
@@ -58,6 +59,12 @@ export async function runPlan({ dump, listing = null, only = null, batchSize = D
   for (const batch of plan.batches) {
     await writeFile(join(out, 'batches', `batch-${String(batch.index).padStart(3, '0')}.txt`), `${batch.inventoryIds.join('\n')}\n`)
   }
+  // Representative pilot: ids for --only and the exact upload keys it needs.
+  const pilotIds = pickPilot(model, plan.batchSize)
+  await writeFile(join(out, 'pilot.txt'), `${pilotIds.join('\n')}\n`)
+  const pilotKeys = pilotFileKeys(model, pilotIds)
+  await writeFile(join(out, 'pilot-files.txt'), pilotKeys.length ? `${pilotKeys.join('\n')}\n` : '')
+  plan.pilot = { items: pilotIds.length, files: pilotKeys.length }
   await writeFile(join(out, 'plan.json'), JSON.stringify({ generatedAt: new Date().toISOString(), ...plan }, null, 2))
   return { ...plan, ms: Date.now() - started }
 }

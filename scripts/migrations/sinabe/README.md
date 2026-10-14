@@ -60,6 +60,40 @@ Archivos: hay dos formas.
 - Alternativa: que el migrador los descargue uno por uno desde el nginx de sinabe con
   `--files-base-url https://<HOST_SINABE>/api/uploads`, siempre con `--rate` y `--pause-ms`.
 
+### 4.1 Piloto sin copiar toda la carpeta `uploads`
+
+Si `uploads` pesa gigas, no hace falta copiarla para el piloto. El comando `plan` genera dos
+archivos más (rutas de archivos reales: tratarlos como datos privados):
+
+- `pilot.txt`: 50 activos representativos (resguardos completos, con factura y OC, con muchos
+  archivos y una mezcla de estados). Se usa como `--only`.
+- `pilot-files.txt`: las rutas exactas de los archivos que necesita ese piloto (unos cientos).
+
+Copiar solo esos archivos, ejecutando en el VPS de sinabe (con `pilot-files.txt` ya copiado ahí):
+
+```bash
+cd <CARPETA_BACKEND>/src/uploads
+rsync -a --files-from=/ruta/pilot-files.txt . <USUARIO>@<SERVIDOR_RUNLY>:/srv/sinabe-migracion/uploads-piloto/
+```
+
+Con `--files-dir /srv/sinabe-migracion/uploads-piloto` el piloto corre con esos archivos. Para la
+migración completa no se copia nada si se usa `--files-base-url`, que descarga uno por uno desde
+el nginx de sinabe (ver 4 y 6.5).
+
+### 4.2 Apuntar a la instancia correcta
+
+El migrador escribe en la instancia cuyo `.env` (o contenedor del API) use. Para saber a cuál
+apunta y obtener sus UUID, en el mismo lugar donde se va a correr:
+
+```bash
+node --env-file=.env scripts/migrations/sinabe/cli.mjs targets
+```
+
+Muestra el servidor de base de datos (sin credenciales), las empresas con su `--company` y los
+perfiles de cada una con su `--actor`. Cada instancia (pruebas, real) tiene UUID distintos: se
+corre `targets` en cada una y se copian los valores de ahí. En el contenedor del API se usa
+`node scripts/migrations/sinabe/cli.mjs targets`, sin `--env-file`.
+
 ## 5. Dónde correr el migrador
 
 Desde el repositorio (equipo con acceso a la base de Runly), en la raíz del repo:
@@ -127,7 +161,7 @@ aceptar que esos registros se omitan.
 ### 6.4 Piloto (50 activos)
 
 ```bash
-node --env-file=.env scripts/migrations/sinabe/cli.mjs migrate --commit --only <SALIDA>/plan/batches/batch-001.txt --dump sinabe.sql --listing uploads-listing.tsv --files-dir uploads --company <UUID_EMPRESA> --actor <UUID_PERFIL> --rate 2000000 --pause-ms 2000 --max-errors 20 --deliverers-map deliverers.json --out <SALIDA>/piloto
+node --env-file=.env scripts/migrations/sinabe/cli.mjs migrate --commit --only <SALIDA>/plan/pilot.txt --dump sinabe.sql --listing uploads-listing.tsv --files-dir uploads --company <UUID_EMPRESA> --actor <UUID_PERFIL> --rate 2000000 --pause-ms 2000 --max-errors 20 --deliverers-map deliverers.json --out <SALIDA>/piloto
 node --env-file=.env scripts/migrations/sinabe/cli.mjs verify --dump sinabe.sql --listing uploads-listing.tsv --files-dir uploads --company <UUID_EMPRESA> --out <SALIDA>/piloto
 ```
 
