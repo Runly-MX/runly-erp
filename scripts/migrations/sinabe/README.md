@@ -151,7 +151,8 @@ completa debe terminar con 0 creados.
 
 Los resguardos se migran cuando todos sus activos ya están en Runly; los que dependen de activos
 de otros lotes aparecen como omitidos (`CUSTODY_ITEMS_PENDING`) hasta que se migran esos lotes.
-Al final de una corrida completa (sin `--only`; en el piloto solo se cuentan) se migran:
+Proyectos y eventos son opcionales: solo se migran con `--include-projects` en una corrida completa
+(sin `--only`). Sin esa bandera el reporte los cuenta como "Pendiente etapa C". Con ella se migran:
 
 - Proyectos a runly.projects, con el actor como dueño. El código, proveedor y presupuesto de
   sinabe pasan a la descripción. Un proyecto deshabilitado o cancelado queda archivado.
@@ -224,6 +225,7 @@ node --env-file=.env scripts/migrations/sinabe/cli.mjs rollback --company <UUID_
 | `--rate` | Límite de bytes por segundo al leer archivos |
 | `--pause-ms` | Pausa entre lotes |
 | `--max-errors` | Aborta limpio al superar ese número de errores |
+| `--include-projects` | Migra también proyectos, hitos, tareas y eventos (por defecto solo se cuentan) |
 | `--deliverers-map` | JSON correo → perfil de Runly para quien entrega |
 | `--max-file-mb` | Tamaño máximo por archivo (50) |
 | `--out` | Carpeta de reportes |

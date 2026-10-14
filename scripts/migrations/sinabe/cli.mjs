@@ -19,7 +19,7 @@ const USAGE = `Uso:
   cli.mjs migrate   --dump <archivo.sql> --company <uuid> [--actor <perfil>] [--listing <listado.tsv>]
                     [--files-dir <carpeta> | --files-base-url <url>] [--dry-run | --commit] [--source sinabe]
                     [--batch-size 50] [--only <ids.txt>] [--rate <bytes/s>] [--pause-ms <ms>] [--max-errors <n>]
-                    [--deliverers-map <correo-perfil.json>] [--max-file-mb 50] [--timezone America/Mexico_City] --out <carpeta>
+                    [--deliverers-map <correo-perfil.json>] [--include-projects] [--max-file-mb 50] [--timezone America/Mexico_City] --out <carpeta>
   cli.mjs verify    --dump <archivo.sql> --company <uuid> [--listing ...] [--files-dir ... | --files-base-url ...] [--source sinabe] --out <carpeta>
   cli.mjs rollback  --company <uuid> [--source sinabe] [--only <ids.txt> --dump <archivo.sql>] --out <carpeta>`
 
@@ -37,7 +37,7 @@ const OPTIONS = {
   source: { type: 'string' }, 'batch-size': { type: 'string' }, only: { type: 'string' }, rate: { type: 'string' },
   'pause-ms': { type: 'string' }, 'max-errors': { type: 'string' }, 'deliverers-map': { type: 'string' },
   'max-file-mb': { type: 'string' }, timezone: { type: 'string' }, commit: { type: 'boolean' }, 'dry-run': { type: 'boolean' },
-  debug: { type: 'boolean' },
+  debug: { type: 'boolean' }, 'include-projects': { type: 'boolean' },
 }
 
 function runOptions(values) {
@@ -49,7 +49,7 @@ function runOptions(values) {
     batchSize: opt(values, 'batch-size'), only: values.only ?? null, rate: opt(values, 'rate', 0), pauseMs: opt(values, 'pause-ms', 0),
     maxErrors: opt(values, 'max-errors', Infinity), deliverersMap: values['deliverers-map'] ?? null,
     maxFileBytes: values['max-file-mb'] ? number(values['max-file-mb'], 'max-file-mb') * 1024 * 1024 : DEFAULT_MAX_FILE_BYTES,
-    timeZone: values.timezone, commit: Boolean(values.commit),
+    timeZone: values.timezone, commit: Boolean(values.commit), includeProjects: Boolean(values['include-projects']),
     log: (line) => console.log(line),
     onUnexpected: values.debug ? (error) => console.error(error) : null,
   }

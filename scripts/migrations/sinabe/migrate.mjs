@@ -2,7 +2,7 @@
 // catalogs + custom fields -> suppliers -> employees -> purchase orders ->
 // invoices (+PDF/XML) -> items by batch (item, files, relations) -> custody
 // records in date order -> audit logs as item comments -> projects (deadlines as
-// tasks) -> calendar events (stage C; skipped on --only pilots). Every step is idempotent through
+// tasks) -> calendar events (stage C; opt-in with --include-projects, never on --only pilots). Every step is idempotent through
 // LegacyRef: a rerun resumes where a crash stopped.
 import { readFile } from 'node:fs/promises'
 import { loadSinabe } from './source.mjs'
@@ -99,7 +99,7 @@ export async function runMigrate(options) {
     await timed(run, 'comentarios', () => migrateComments(run, itemIds))
 
     const s = run.model.source
-    if (options.only) {
+    if (options.only || !options.includeProjects) {
       for (const [name, rows] of Object.entries({ proyectos: s.projects, hitos: s.deadlines, tareas: s.deadlineTasks, eventos: s.events })) report.pending(name, rows.length)
     } else {
       await timed(run, 'proyectos', () => migrateProjects(run))
