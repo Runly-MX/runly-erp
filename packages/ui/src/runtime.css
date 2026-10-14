@@ -287,22 +287,51 @@ html {
      feel it has in dark mode. Pair it with .overlay-scrim. Never put either
      inside an ancestor that animates opacity: that makes the ancestor a
      backdrop root and the blur only pops in once the fade ends. */
+  /* Frosted, pale panel that still lets the blurred page glow through, but
+     sits clearly in front of it: a stronger blur, a near-white wash, a
+     hairline outer ring plus an inner top highlight, and a deeper drop
+     shadow. Secondary text is darkened (light) / lightened (dark) inside the
+     panel so it keeps >= 4.5:1 over the glass. */
   .glass-overlay {
-    backdrop-filter: blur(24px) saturate(140%);
-    background: rgba(241, 245, 249, 0.42);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: var(--glass-shadow);
+    --muted-foreground: 215 22% 30%;
+    --input: 214 18% 70%;
+    /* Tailwind's --color-* tokens are resolved at :root; re-derive them here
+       so utility classes (text-muted-foreground, border-border, border-input)
+       pick up the panel's values too. */
+    --color-muted-foreground: hsl(var(--muted-foreground));
+    --color-border: hsl(var(--border));
+    --color-input: hsl(var(--input));
+    backdrop-filter: blur(32px) saturate(160%);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(248, 250, 252, 0.76) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow:
+      0 24px 64px -12px rgba(15, 23, 42, 0.3),
+      0 0 0 1px rgba(15, 23, 42, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
     isolation: isolate;
   }
   .dark .glass-overlay {
-    background: var(--glass-bg-strong);
-    border-color: var(--glass-border);
+    --muted-foreground: 215 20% 72%;
+    /* Page-level dark borders (15%/24% lightness) vanish on the lighter
+       glass; lift them so radios, inputs and option cards keep an edge. */
+    --border: 217 22% 30%;
+    --input: 217 20% 42%;
+    --color-muted-foreground: hsl(var(--muted-foreground));
+    --color-border: hsl(var(--border));
+    --color-input: hsl(var(--input));
+    background: linear-gradient(180deg, rgba(51, 65, 85, 0.66) 0%, rgba(30, 41, 59, 0.62) 100%);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow:
+      0 24px 64px -12px rgba(0, 0, 0, 0.65),
+      0 0 0 1px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
   /* Scrim behind modal overlays. A black/40 scrim turns the light page into a
-     flat gray sheet, so the panel had nothing colorful left to blur. */
+     flat gray sheet, so the panel had nothing colorful left to blur; a light
+     tint + blur pushes the page back without killing its color. */
   .overlay-scrim {
-    background: rgba(15, 23, 42, 0.18);
-    backdrop-filter: blur(6px) saturate(140%);
+    background: rgba(15, 23, 42, 0.24);
+    backdrop-filter: blur(8px) saturate(140%);
   }
   .dark .overlay-scrim {
     background: rgba(0, 0, 0, 0.4);

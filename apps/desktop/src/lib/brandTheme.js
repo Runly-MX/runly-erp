@@ -76,13 +76,18 @@ function relativeLuminance({ r, g, b }) {
 //   Neutral / low-saturation (S < 30): use WCAG relative luminance.
 //     Grays and near-grays have no hue bias, so luminance is the right axis.
 //     Crossover at ≈ 0.179 (equal contrast point between white and black).
+//
+//   Either path: dark text is only kept when white would fail WCAG AA. Light
+//   violets/pinks (e.g. #8b5cf6, L 66%) crossed the HSL threshold and got
+//   #111827 at 3.9:1 while white reaches 4.6:1.
 function pickForeground({ r, g, b }) {
   const { s, l } = rgbToHsl({ r, g, b });
-  if (s >= 30) {
-    return l < 65 ? "#ffffff" : "#111827";
-  }
   const L = relativeLuminance({ r, g, b });
-  return L <= 0.179 ? "#ffffff" : "#111827";
+  const whitePassesAA = 1.05 / (L + 0.05) >= 4.5;
+  if (s >= 30) {
+    return l < 65 || whitePassesAA ? "#ffffff" : "#111827";
+  }
+  return L <= 0.179 || whitePassesAA ? "#ffffff" : "#111827";
 }
 
 export function applyBrandTheme(primaryColor) {
