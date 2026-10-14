@@ -22,6 +22,7 @@ import { HomeScreen } from "./HomeScreen";
 import { HelpCenterScreen } from "./HelpCenterScreen";
 import { ModuleOutlet } from "./ModuleOutlet";
 import { ProfileScreen } from "./ProfileScreen";
+import { LegacyPublicRedirect } from "./LegacyPublicRedirect.jsx";
 import { GoogleCalendarCallbackScreen } from "./GoogleCalendarCallbackScreen";
 import { runly } from "../lib/runly";
 import { applyBrandTheme } from "../lib/brandTheme";
@@ -172,11 +173,11 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     path="/app/google/calendar/callback"
                     element={<GoogleCalendarCallbackScreen />}
                   />
-                  {/* Public attendance pages (no login, no shell): offline kiosk + phone key */}
-                  <Route path="/app/kiosk/:link" element={<Suspense fallback={null}><AttendanceKioskScreen /></Suspense>} />
-                  <Route path="/app/attendance/phone" element={<Suspense fallback={null}><AttendancePhoneKeyScreen /></Suspense>} />
-                  <Route path="/sign/custody/:token" element={<Suspense fallback={null}><PublicCustodySignScreen /></Suspense>} />
-                  <Route path="/app/sign/custody/:token" element={<Suspense fallback={null}><PublicCustodySignScreen /></Suspense>} />
+                  {/* Legacy public URLs outside /app/p: redirect, keeping query/hash (shared links, QR codes, installed mini apps) */}
+                  <Route path="/app/kiosk/:link" element={<LegacyPublicRedirect to={({ link }) => `/app/p/kiosk/${link}`} />} />
+                  <Route path="/app/attendance/phone" element={<LegacyPublicRedirect to={() => '/app/p/attendance/phone'} />} />
+                  <Route path="/sign/custody/:token" element={<LegacyPublicRedirect to={({ token }) => `/app/p/custody/${token}`} />} />
+                  <Route path="/app/sign/custody/:token" element={<LegacyPublicRedirect to={({ token }) => `/app/p/custody/${token}`} />} />
                   <Route path="/app/egress/call" element={<Suspense fallback={null}><EgressCallScreen /></Suspense>} />
                   {/* Public notes under /app/p/ — accessible without auth, served by same SPA */}
                   <Route path="/app/p" element={<PublicShell />}>
@@ -185,6 +186,10 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="call" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
                     <Route path="canvas/:token" element={<Suspense fallback={null}><PublicBoardScreen /></Suspense>} />
                     <Route path="files/:token" element={<Suspense fallback={null}><PublicFileScreen /></Suspense>} />
+                    {/* Attendance: offline kiosk + phone key (no login, no shell) */}
+                    <Route path="kiosk/:link" element={<Suspense fallback={null}><AttendanceKioskScreen /></Suspense>} />
+                    <Route path="attendance/phone" element={<Suspense fallback={null}><AttendancePhoneKeyScreen /></Suspense>} />
+                    <Route path="custody/:token" element={<Suspense fallback={null}><PublicCustodySignScreen /></Suspense>} />
                   </Route>
                   <Route element={<AppRouteGuard mode="access" />}>
                     <Route path="/app/accept-invitation" element={<AcceptInvitationScreen />} />
