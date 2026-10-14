@@ -151,8 +151,21 @@ completa debe terminar con 0 creados.
 
 Los resguardos se migran cuando todos sus activos ya están en Runly; los que dependen de activos
 de otros lotes aparecen como omitidos (`CUSTODY_ITEMS_PENDING`) hasta que se migran esos lotes.
-Proyectos, hitos, tareas y eventos quedan para la etapa C (el reporte los cuenta como
-"Pendiente etapa C").
+Al final de una corrida completa (sin `--only`; en el piloto solo se cuentan) se migran:
+
+- Proyectos a runly.projects, con el actor como dueño. El código, proveedor y presupuesto de
+  sinabe pasan a la descripción. Un proyecto deshabilitado o cancelado queda archivado.
+- Hitos como tareas del proyecto y las tareas de cada hito como subtareas. Pendiente, en
+  progreso y completado van a "Por hacer", "En progreso" y "Listo"; lo cancelado va a "Listo"
+  con una nota.
+- Eventos a un calendario nuevo "Sinabe - eventos" (todo el día). Tipo, estado, proveedor y
+  fecha de cierre pasan a la descripción. La recurrencia no se migra (aviso
+  `EVENT_RECURRENCE_NOT_MIGRATED`).
+- Integrantes, responsables y asistentes solo se asignan si su correo coincide con un perfil de
+  Runly (`--deliverers-map` primero, luego el correo del perfil). Quien no tiene perfil se cuenta
+  en el aviso `USER_WITHOUT_RUNLY_PROFILE`.
+- No se migran los documentos de proyecto ni los activos ligados a hitos; el reporte los cuenta
+  como "Pendiente etapa C".
 
 ### 6.6 Verificación
 

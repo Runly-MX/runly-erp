@@ -1,8 +1,8 @@
 // `migrate` command: dry-run (default) or --commit, in the spec order:
 // catalogs + custom fields -> suppliers -> employees -> purchase orders ->
 // invoices (+PDF/XML) -> items by batch (item, files, relations) -> custody
-// records in date order -> audit logs as item comments. Projects, deadlines and
-// events are stage C (only counted). Every step is idempotent through
+// records in date order -> audit logs as item comments -> projects (deadlines as
+// tasks) -> calendar events (stage C; skipped on --only pilots). Every step is idempotent through
 // LegacyRef: a rerun resumes where a crash stopped.
 import { readFile } from 'node:fs/promises'
 import { loadSinabe } from './source.mjs'
@@ -17,6 +17,7 @@ import { migrateCatalogs } from './migrate-catalogs.mjs'
 import { migrateSuppliers, migrateEmployees } from './migrate-people.mjs'
 import { migratePurchaseOrders, migrateInvoices } from './migrate-purchases.mjs'
 import { migrateItemBatch } from './migrate-items.mjs'
+import { migrateProjects, migrateEvents } from './migrate-projects.mjs'
 import { custodyCandidates, migrateCustody, migrateComments } from './migrate-custody.mjs'
 
 export const DEFAULT_SOURCE = 'sinabe'
@@ -98,8 +99,11 @@ export async function runMigrate(options) {
     await timed(run, 'comentarios', () => migrateComments(run, itemIds))
 
     const s = run.model.source
-    for (const [name, rows] of Object.entries({ proyectos: s.projects, hitos: s.deadlines, tareas: s.deadlineTasks, integrantes: s.projectMembers, documentosProyecto: s.projectDocuments, eventos: s.events, asistentes: s.eventAttendees })) {
-      report.pending(name, rows.length)
+    if (options.only) {
+      for (const [name, rows] of Object.entries({ proyectos: s.projects, hitos: s.deadlines, tareas: s.deadlineTasks, eventos: s.events })) report.pending(name, rows.length)
+    } else {
+      await timed(run, 'proyectos', () => migrateProjects(run))
+      await timed(run, 'eventos', () => migrateEvents(run))
     }
   } catch (error) {
     if (!(error instanceof RunAborted)) report.abort(`Error inesperado (${error?.code ?? error?.name ?? 'Error'})`)

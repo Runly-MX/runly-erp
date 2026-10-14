@@ -161,6 +161,35 @@ export async function runRollback(options) {
         }
       }
 
+      // 7b. Stage C: calendar events and calendar, then projects (tasks first:
+      // task.status is RESTRICT, so they must go before the statuses cascade).
+      const eventRefs = selectRefs(refs, 'calendar_event')
+      for (const part of chunks(eventRefs)) {
+        const { count } = await prisma.calendarEvent.deleteMany({ where: { id: { in: part.map((ref) => ref.targetId) } } })
+        report.count('events', 'created', count)
+        await deleteAudit(run, part.map((ref) => ref.targetId))
+        deletedRefIds.push(...part.map((ref) => ref.id))
+      }
+      for (const ref of selectRefs(refs, 'calendar')) {
+        try {
+          const left = await prisma.calendarEvent.count({ where: { calendarId: ref.targetId } })
+          if (left) { report.count('calendars', 'matched'); report.warn('ROLLBACK_CALENDAR_HAS_OTHER_EVENTS') } else report.count('calendars', (await prisma.calendarCalendar.deleteMany({ where: { id: ref.targetId } })).count ? 'created' : 'skipped')
+          deletedRefIds.push(ref.id)
+        } catch (error) { report.error('calendars', errorCode('ROLLBACK_CALENDAR', error), ref.legacyId) }
+      }
+      const taskRefs = selectRefs(refs, 'project_task')
+      deletedRefIds.push(...taskRefs.map((ref) => ref.id))
+      for (const ref of selectRefs(refs, 'project')) {
+        try {
+          const tasks = await prisma.task.deleteMany({ where: { projectId: ref.targetId, parentTaskId: { not: null } } })
+          const top = await prisma.task.deleteMany({ where: { projectId: ref.targetId } })
+          report.count('tasks', 'created', tasks.count + top.count)
+          report.count('projects', (await prisma.project.deleteMany({ where: { id: ref.targetId, companyId } })).count ? 'created' : 'skipped')
+          await deleteAudit(run, [ref.targetId])
+          deletedRefIds.push(ref.id)
+        } catch (error) { report.error('projects', errorCode('ROLLBACK_PROJECT', error), ref.legacyId) }
+      }
+
       // 8. Catalogs the migrator created (created.<entity> marker).
       const CATALOGS = [['inv_custom_field', 'invCustomField', 'customFields'], ['inv_model', 'invModel', 'models'], ['inv_category', 'invCategory', 'categories'],
         ['inv_brand', 'invBrand', 'brands'], ['inv_location', 'invLocation', 'locations'], ['inv_condition', 'invCondition', 'conditions']]

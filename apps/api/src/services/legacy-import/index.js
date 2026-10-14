@@ -9,6 +9,7 @@ import { createInventoryHistorical } from './inventory-historical.js';
 import { createPurchasesHistorical } from './purchases-historical.js';
 import { createCustodyHistorical } from './custody-historical.js';
 import { createPeopleAndSuppliers } from './people-and-suppliers.js';
+import { createProjectsHistorical } from './projects-historical.js';
 import { extractCfdiUuid } from './cfdi.js';
 
 export { LegacyImportError, extractCfdiUuid };
@@ -27,5 +28,6 @@ export function createLegacyImportToolkit({ prisma, supabaseAdmin = null, source
     ...createPurchasesHistorical(deps),
     ...createCustodyHistorical(deps),
     ...createPeopleAndSuppliers(deps),
+    ...createProjectsHistorical(deps),
   };
 }

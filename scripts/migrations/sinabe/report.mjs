@@ -11,7 +11,7 @@ export class RunAborted extends Error {
 const ENTITY_LABELS = {
   categories: 'Tipos', brands: 'Marcas', models: 'Modelos', locations: 'Ubicaciones', conditions: 'Condiciones', customFields: 'Campos personalizados',
   suppliers: 'Proveedores', employees: 'Colaboradores', purchaseOrders: 'Órdenes de compra', invoices: 'Facturas', invoiceFiles: 'Archivos de factura',
-  items: 'Activos', itemFiles: 'Archivos de activos', relations: 'Relaciones activo-compra', custody: 'Resguardos', comments: 'Comentarios (bitácora)',
+  items: 'Activos', itemFiles: 'Archivos de activos', relations: 'Relaciones activo-compra', custody: 'Resguardos', comments: 'Comentarios (bitácora)', projects: 'Proyectos', tasks: 'Tareas (hitos y subtareas)', events: 'Eventos', calendars: 'Calendarios',
 }
 const OUTCOMES = ['created', 'matched', 'skipped', 'conflict', 'failed']
 const OUTCOME_LABELS = { created: 'Creados', matched: 'Existentes', skipped: 'Omitidos', conflict: 'Conflictos', failed: 'Fallidos' }
