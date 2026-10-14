@@ -36,7 +36,7 @@ Internal (`/attendance/*`, permissions `attendance.view | people.manage | punch.
 Public (`/public/attendance/*`): kiosk info, pair, pair-status, roster, sync, enroll.
 
 ## 9. UI
-Admin: Resumen (live presence, quota progress, kiosk status), Personas, Checadas, Kioskos, Reportes, Configuración. Public: `/app/kiosk/:link` dark full-screen kiosk with large clock, keypad, QR scanner, NFC; `/app/attendance/phone` phone key with rotating QR. Service worker caches the shell for offline cold starts; never caches API calls.
+Admin: Resumen (live presence, quota progress, kiosk status), Personas, Checadas, Kioskos, Reportes, Configuración. Public: `/app/p/kiosk/:link` dark full-screen kiosk with large clock, keypad, QR scanner, NFC; `/app/p/attendance/phone` phone key with rotating QR. Service worker caches the shell for offline cold starts; never caches API calls.
 
 ## 10. Verification
 Unit tests for the pure rules; scripted end-to-end run against a local API (`.e2e/attendance-e2e.mjs`, git-ignored): pairing, approval, idempotent retry, skewed offline punch, bad proof, phone enrollment, signed QR, replay, reports, revocation.

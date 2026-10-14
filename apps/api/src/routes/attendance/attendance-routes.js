@@ -67,7 +67,7 @@ export function createAttendanceRouter({ prisma, sendMail = null, buildInviteMai
     if (!person.enrollCode || !person.enrollExpiresAt || person.enrollExpiresAt < new Date()) throw new AttendanceError('Primero genera una invitación vigente.', 409)
     const base = appBaseUrl()
     if (!base) throw new AttendanceError('No se pudo determinar la dirección de la aplicación.', 503)
-    const link = `${base}/app/attendance/phone?c=${encodeURIComponent(person.enrollCode)}`
+    const link = `${base}/app/p/attendance/phone?c=${encodeURIComponent(person.enrollCode)}`
     const brand = getBrand ? await getBrand(companyId(c)).catch(() => null) : null
     const mail = buildInviteMail({ inviteUrl: link, inviteCode: person.enrollCode, employeeCode: person.code, firstName: person.firstName, expiresAt: person.enrollExpiresAt, brand })
     try { await sendMail({ to: email, subject: mail.subject, html: mail.html, text: mail.text, fromName: brand?.name ?? undefined }) } catch (error) {

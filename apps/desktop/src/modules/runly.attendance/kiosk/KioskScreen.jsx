@@ -16,7 +16,7 @@ import { requestWakeLock } from './lib/feedback.js'
 import { registerAttendanceWorker } from './lib/register-sw.js'
 import { startNativeNfcLoop } from '../../../native/nfc-loop.js'
 
-// Public offline-first time clock at /app/kiosk/:link. No login, no app shell.
+// Public offline-first time clock at /app/p/kiosk/:link. No login, no app shell.
 const VIEW_MODE_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
 
 export default function KioskScreen() {
@@ -27,7 +27,7 @@ export default function KioskScreen() {
   const view = useViewMode()
 
   useEffect(() => {
-    registerAttendanceWorker('/app/kiosk/')
+    registerAttendanceWorker('/app/p/kiosk/')
     const previous = document.title
     document.title = 'Kiosko de asistencia'
     return () => { document.title = previous }

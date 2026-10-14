@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildCsv, flagLabel, formatDayLabel, overtimeStatusLabel, overtimeStatusTone, planLabel, flagVariant, methodLabel, kioskStatus, minutesToHours, tallyBy } from './attendanceLabels.js'
+import { buildCsv, flagLabel, formatDayLabel, overtimeStatusLabel, overtimeStatusTone, planLabel, flagVariant, methodLabel, kioskStatus, minutesToHours, tallyBy, enrollLink, kioskLink } from './attendanceLabels.js'
 
 test('flag labels are Spanish with fallback', () => {
   assert.equal(flagLabel('clock_skew'), 'Reloj desfasado')
@@ -38,4 +38,9 @@ test('correction flag and overtime review labels', () => {
   assert.equal(formatDayLabel('2026-10-12'), 'Lun 12 oct')
   assert.equal(planLabel({ restDay: false, weekday: 1, planStart: '08:00', planEnd: '17:00' }), 'Lun 08:00-17:00')
   assert.equal(planLabel({ restDay: true }), 'Descanso')
+})
+
+test('public links live under /app/p/', () => {
+  assert.equal(enrollLink('https://erp.example.com', 'A B'), 'https://erp.example.com/app/p/attendance/phone?c=A%20B')
+  assert.equal(kioskLink('https://erp.example.com', 'tok'), 'https://erp.example.com/app/p/kiosk/tok')
 })

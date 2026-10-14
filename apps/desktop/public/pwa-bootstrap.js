@@ -2,7 +2,7 @@
   if (window.__RUNLY_NATIVE_HOST__) return;
   var match = window.location.pathname.match(/^\/app\/m\/([^/]+)/);
   var moduleKey = match ? match[1] : "";
-  var isAttendancePhone = window.location.pathname.indexOf("/app/attendance/phone") === 0;
+  var isAttendancePhone = window.location.pathname.indexOf("/app/p/attendance/phone") === 0;
   var searchParams = new URLSearchParams(window.location.search || "");
   var link = document.createElement("link");
 

@@ -1,8 +1,21 @@
 // Offline shell for the public attendance pages (kiosk + phone key).
-// Registered with scope /app/kiosk/ and /app/attendance/ only. It caches the
+// Registered with scope /app/p/kiosk/ and /app/p/attendance/ only. It caches the
 // app shell for navigations and same-origin static assets. It NEVER touches API
 // calls (/public/attendance/*, or any other non-static path).
-const CACHE_VERSION = "v1";
+//
+// Legacy scopes: before 2026-10-13 the pages lived at /app/kiosk/:link and
+// /app/attendance/phone, so devices may still hold a registration of THIS same
+// script at /app/kiosk/ or /app/attendance/. We deliberately keep those alive
+// instead of unregistering them: a bookmarked kiosk URL or an iOS home-screen
+// app that never refreshes its manifest still cold-starts at the old URL, and
+// only the legacy registration can serve it offline. They cannot trap anyone
+// on a stale shell because (1) the browser re-fetches /sw-kiosk.js (served
+// no-store) on every navigation in scope, so both old and new registrations run
+// this file; (2) navigations are network-first, so online users always get the
+// current index.html, whose SPA routes redirect the old path to /app/p/...;
+// (3) bumping CACHE_VERSION below drops every older shell/asset cache on
+// activate (caches are origin-wide, shared by all registrations).
+const CACHE_VERSION = "v2";
 const SHELL_CACHE = `runly-attendance-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `runly-attendance-assets-${CACHE_VERSION}`;
 const STATIC_PREFIXES = ["/assets/", "/app/assets/", "/fonts/", "/runly/"];

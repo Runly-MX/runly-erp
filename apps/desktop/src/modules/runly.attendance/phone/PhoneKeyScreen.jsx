@@ -30,7 +30,7 @@ function AppBar({ title, onBack, action }) {
   )
 }
 
-// Public page at /app/attendance/phone, installable as the "Checador" mini app.
+// Public page at /app/p/attendance/phone, installable as the "Checador" mini app.
 // Not enrolled: activation form. Enrolled: scan the kiosk (primary) or show the rotating QR.
 export default function PhoneKeyScreen() {
   const [params] = useSearchParams()
@@ -49,7 +49,7 @@ export default function PhoneKeyScreen() {
   const hours = useMyHours(identity, handleRevoked)
 
   useEffect(() => {
-    registerAttendanceWorker('/app/attendance/')
+    registerAttendanceWorker('/app/p/attendance/')
     const previous = document.title
     document.title = 'Checador'
     phoneStore.load().then(setIdentity).catch(() => setIdentity(null))

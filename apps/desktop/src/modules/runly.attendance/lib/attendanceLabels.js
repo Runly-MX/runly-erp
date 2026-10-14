@@ -102,10 +102,10 @@ export function dayEndIso(day) {
 }
 
 export function enrollLink(origin, code) {
-  return `${origin}/app/attendance/phone?c=${encodeURIComponent(code)}`
+  return `${origin}/app/p/attendance/phone?c=${encodeURIComponent(code)}`
 }
 export function kioskLink(origin, linkToken) {
-  return `${origin}/app/kiosk/${linkToken}`
+  return `${origin}/app/p/kiosk/${linkToken}`
 }
 
 // Groups the live presence list into [{ key, label, count }] for charts.
