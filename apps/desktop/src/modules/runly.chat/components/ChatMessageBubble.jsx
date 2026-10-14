@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import {
   CheckCheck, MoreHorizontal, Copy, Trash2, Forward, EyeOff, CheckSquare,
-  Pin, PinOff, Smile, MessageSquare, CornerUpLeft, Sparkles, Volume2, Square, Loader2,
+  Pin, PinOff, Smile, MessageSquare, CornerUpLeft, Volume2, Square, Loader2,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-  AssistantWordmark, renderMentionText, renderRichText, useLongPress, useSwipeToReply, useCoarsePointer, useIsMobile,
+  AssistantWordmark, MiraiAvatar, renderMentionText, renderRichText, useLongPress, useSwipeToReply, useCoarsePointer, useIsMobile,
 } from "@runly/ui";
 import { formatMessageTime } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -893,12 +893,7 @@ export function ChatMessageBubble({
       {/* Avatar — invisible on non-last to keep column alignment */}
       <div className={["shrink-0", isLast ? "visible" : "invisible"].join(" ")}>
         {isAssistant ? (
-          <div
-            className="h-7 w-7 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-          </div>
+          <MiraiAvatar size={28} />
         ) : message.sender?.avatarUrl && !avatarErr ? (
           <img
             src={message.sender.avatarUrl}

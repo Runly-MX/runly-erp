@@ -1,4 +1,5 @@
-import { AtSign, Pin, Sparkles } from "lucide-react";
+import { AtSign, Pin } from "lucide-react";
+import { MiraiAvatar } from "@runly/ui";
 import { AssistantWordmark, renderMentionText } from "@runly/ui";
 import { formatMessageTime } from "../lib/chatUtils";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
@@ -18,12 +19,7 @@ function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = fals
   if (isBot) {
     return (
       <div className="relative shrink-0">
-        <div
-          className={`${sizeClass} rounded-full flex items-center justify-center`}
-          style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
-        >
-          <Sparkles className="h-4 w-4" />
-        </div>
+        <MiraiAvatar size={size === "sm" ? 32 : 40} />
         <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-[hsl(var(--background))] px-1 text-[9px] font-bold leading-tight text-[var(--brand-primary)] ring-1 ring-[var(--brand-primary)]/40">
           IA
         </span>

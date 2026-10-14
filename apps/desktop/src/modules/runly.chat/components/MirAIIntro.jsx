@@ -1,6 +1,5 @@
 // apps/desktop/src/modules/runly.chat/components/MirAIIntro.jsx
-import { Sparkles } from "lucide-react";
-import { AssistantWordmark } from "@runly/ui";
+import { AssistantWordmark, MiraiAvatar } from "@runly/ui";
 import { MIRAI_EXAMPLE_PROMPTS } from "../lib/mirai";
 
 // Shown at the top of the MirAI conversation while it is still short.
@@ -8,12 +7,7 @@ import { MIRAI_EXAMPLE_PROMPTS } from "../lib/mirai";
 export function MirAIIntro({ onPickPrompt }) {
   return (
     <div className="mx-auto my-6 max-w-md px-4 text-center">
-      <div
-        className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full"
-        style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
-      >
-        <Sparkles className="h-6 w-6" />
-      </div>
+      <MiraiAvatar size={88} animated className="mx-auto mb-3" />
       <p className="text-sm font-semibold"><AssistantWordmark /></p>
       <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
         Puedo resumir mensajes, explicarte un mensaje o un archivo, y responder preguntas sobre tus chats.

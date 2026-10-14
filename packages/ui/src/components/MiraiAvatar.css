@@ -1,0 +1,29 @@
+/* MiraiAvatar `animated`: a slow blink and a spark twinkle. */
+.mirai-avatar-animated .mirai-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mirai-blink 5.5s ease-in-out infinite;
+}
+
+.mirai-avatar-animated .mirai-spark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mirai-twinkle 3.2s ease-in-out infinite;
+}
+
+@keyframes mirai-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.12); }
+}
+
+@keyframes mirai-twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(0.82) rotate(18deg); opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mirai-avatar-animated .mirai-eyes,
+  .mirai-avatar-animated .mirai-spark {
+    animation: none;
+  }
+}

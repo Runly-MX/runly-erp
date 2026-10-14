@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
-  Button, EmptyState, Skeleton, ConfirmDialog, Textarea, AssistantWordmark, renderRichText,
+  Button, EmptyState, Skeleton, ConfirmDialog, Textarea, AssistantWordmark, MiraiAvatar, renderRichText,
 } from "@runly/ui";
 import { Sparkles, Send, Trash2, Volume2, Square, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,12 +18,7 @@ const FOCUS_PROMPT = "¿Qué me puedes decir de este mensaje?";
 
 function BotAvatar() {
   return (
-    <div
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-      style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
-    >
-      <Sparkles className="h-3.5 w-3.5" />
-    </div>
+    <MiraiAvatar size={28} />
   );
 }
 

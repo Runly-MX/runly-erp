@@ -615,6 +615,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `ActionMenu` | Row action dropdown button |
 | `ConfirmDialog` | Confirmation dialog with destructive variant |
 | `BackButton` | "Back" arrow for headers and sub-panels: 44px touch target on phones (pulled into the gutter, layout unchanged), compact 32px on md+. Props: `onClick`, `label` (default "Volver"), `className`, `iconClassName`. |
+| `MiraiAvatar` | MirAI identity mark (SVG): brand-tinted orb with a friendly visor face, AI spark and orbit ring; follows `--brand-primary`. Props: `size` (px, default 40), `animated` (slow blink + spark twinkle, off under reduced motion), `title`. |
 | `ContactPicker` | Contact search and select picker |
 | `FileCard` | File display card with metadata |
 | `FileUploader` | File upload widget with progress |
