@@ -3,9 +3,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  assertCustodyAction, buildItemSnapshot, completionConflicts, decodeSignaturePng, formatCustodyFolio,
+  assertCustodyAction, assertDelivererChoice, buildItemSnapshot, completionConflicts, decodeSignaturePng, formatCustodyFolio,
   generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, normalizeCustodyInput,
+  savedSignatureDecision, signatureResetFor,
 } from '../inventory-custody-helpers.js';
+import { serializeTemplate } from '../inventory-document-template-service.js';
+import { NO_TAGS_WARNING } from '../document-templates/custody-template-data.js';
 import { serializeCustody } from '../inventory-custody-service.js';
 
 const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
@@ -21,7 +24,8 @@ describe('custody folio and transitions', () => {
 
   it('guards actions by status', () => {
     assert.doesNotThrow(() => assertCustodyAction({ status: 'DRAFT' }, 'update'));
-    assert.throws(() => assertCustodyAction({ status: 'PENDING_SIGNATURE' }, 'update'), (err) => err.status === 409);
+    assert.doesNotThrow(() => assertCustodyAction({ status: 'PENDING_SIGNATURE' }, 'update'));
+    assert.throws(() => assertCustodyAction({ status: 'COMPLETED' }, 'update'), (err) => err.status === 409);
     assert.throws(() => assertCustodyAction({ status: 'COMPLETED' }, 'complete'), (err) => err.status === 409);
     assert.throws(() => assertCustodyAction({ status: 'CANCELLED' }, 'cancel'), (err) => err.status === 409);
     assert.doesNotThrow(() => assertCustodyAction({ status: 'COMPLETED' }, 'cancel'));
@@ -95,5 +99,43 @@ describe('completion conflicts', () => {
   it('return: requires the item assigned to that employee', () => {
     assert.deepEqual(completionConflicts({ kind: 'RETURN', employeeId: EMP, items: [item], itemIds: [ITEM], activeByItem: new Map([[ITEM, { employeeId: EMP }]]) }), []);
     assert.equal(completionConflicts({ kind: 'RETURN', employeeId: EMP, items: [item], itemIds: [ITEM], activeByItem: new Map() }).length, 1);
+  });
+});
+
+describe('revision 2: editing, deliverer and saved signatures', () => {
+  const current = { kind: 'DELIVERY', employeeId: EMP, delivererId: 'u1', items: [{ itemId: ITEM }] };
+
+  it('PATCH clears signatures only for kind, employee, items or deliverer', () => {
+    assert.deepEqual(signatureResetFor(current, { comments: 'x', date: new Date(), templateId: null }), { receiver: false, deliverer: false });
+    assert.deepEqual(signatureResetFor(current, { itemIds: [ITEM] }), { receiver: false, deliverer: false });
+    assert.deepEqual(signatureResetFor(current, { itemIds: [ITEM, OTHER] }), { receiver: true, deliverer: true });
+    assert.deepEqual(signatureResetFor(current, { employeeId: OTHER }), { receiver: true, deliverer: true });
+    assert.deepEqual(signatureResetFor(current, { kind: 'RETURN' }), { receiver: true, deliverer: true });
+    assert.deepEqual(signatureResetFor(current, { delivererId: 'u2' }), { receiver: false, deliverer: true });
+  });
+
+  it('choosing another deliverer requires deliver_on_behalf', () => {
+    assert.doesNotThrow(() => assertDelivererChoice({ actorId: 'u1', delivererId: 'u1', canDeliverOnBehalf: false }));
+    assert.throws(() => assertDelivererChoice({ actorId: 'u1', delivererId: 'u2', canDeliverOnBehalf: false }), (err) => err.status === 403);
+    assert.doesNotThrow(() => assertDelivererChoice({ actorId: 'u1', delivererId: 'u2', canDeliverOnBehalf: true }));
+  });
+
+  it('saved signature: own always, others need permission and delegation', () => {
+    const decide = (overrides) => savedSignatureDecision({ actorId: 'u1', ownerId: 'u2', canDeliverOnBehalf: true, allowDelegation: true, ...overrides }).allowed;
+    assert.equal(decide({ ownerId: 'u1', canDeliverOnBehalf: false, allowDelegation: false }), true);
+    assert.equal(decide({}), true);
+    assert.equal(decide({ canDeliverOnBehalf: false }), false);
+    assert.equal(decide({ allowDelegation: false }), false);
+    assert.equal(decide({ ownerId: null }), false);
+  });
+
+  it('templates without tags carry a warning and the tag count', () => {
+    const base = { id: 't', kind: 'custody', format: 'docx', name: 'P', fileAssetId: 'f', isDefault: true, enabled: true };
+    const empty = serializeTemplate({ ...base, placeholders: [] });
+    assert.equal(empty.tagCount, 0);
+    assert.deepEqual(empty.warnings, [NO_TAGS_WARNING]);
+    const tagged = serializeTemplate({ ...base, placeholders: ['folio', 'receiverName'] });
+    assert.equal(tagged.tagCount, 2);
+    assert.deepEqual(tagged.warnings, []);
   });
 });

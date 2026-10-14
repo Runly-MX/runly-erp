@@ -98,5 +98,27 @@ export function createCustodyDocumentRenderer({ prisma, files, templates, conver
     }
   }
 
-  return { render, generateAndAttach, emailToEmployee };
+  // Signing link to the employee (spec §9.7). Never throws.
+  async function emailSigningLink(custody, url, expiresAt) {
+    const to = custody.employee?.workEmail || custody.employee?.personalEmail;
+    if (!to || !url || !smtpFactory) return false;
+    try {
+      const smtp = smtpFactory(custody.companyId);
+      if (!(await smtp.isConfigured(custody.companyId))) return false;
+      const name = [custody.employee.firstName, custody.employee.lastName].filter(Boolean).join(' ');
+      const until = new Date(expiresAt).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+      await smtp.sendEmail({
+        to,
+        companyId: custody.companyId,
+        subject: `Firma tu resguardo ${custody.folio}`,
+        html: `<p>Hola ${escapeXml(name)},</p><p>Revisa y firma el resguardo <strong>${escapeXml(custody.folio)}</strong> en el siguiente enlace:</p><p><a href="${escapeXml(url)}">${escapeXml(url)}</a></p><p>El enlace vence el ${escapeXml(until)}.</p>`,
+        text: `Hola ${name},\n\nRevisa y firma el resguardo ${custody.folio} en este enlace:\n${url}\n\nEl enlace vence el ${until}.`,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  return { render, generateAndAttach, emailToEmployee, emailSigningLink };
 }

@@ -7,7 +7,7 @@ import { createCustodyFileStore } from './inventory-custody-files.js';
 import { TemplateError } from './document-templates/template-tags.js';
 import {
   CUSTODY_IMAGE_TAGS, CUSTODY_ITEM_TAGS, CUSTODY_SCALAR_TAGS, buildDefaultCustodyTemplate,
-  inspectCustodyTemplate, templateFormatOf, unknownCustodyTags,
+  NO_TAGS_WARNING, inspectCustodyTemplate, templateFormatOf, unknownCustodyTags,
 } from './document-templates/custody-template-data.js';
 
 const MAX_TEMPLATE_BYTES = 10 * 1024 * 1024;
@@ -32,7 +32,11 @@ export function serializeTemplate(row) {
     name: row.name,
     fileAssetId: row.fileAssetId,
     placeholders: tags,
-    warnings: unknownCustodyTags(tags).map((tag) => `Etiqueta desconocida: {{${tag.replace(/^items\./, '')}}}`),
+    tagCount: tags.length,
+    warnings: [
+      ...unknownCustodyTags(tags).map((tag) => `Etiqueta desconocida: {{${tag.replace(/^items\./, '')}}}`),
+      ...(tags.length ? [] : [NO_TAGS_WARNING]),
+    ],
     isDefault: row.isDefault,
     enabled: row.enabled,
     createdAt: row.createdAt,

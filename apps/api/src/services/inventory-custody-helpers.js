@@ -3,13 +3,14 @@
 // normalization and completion conflict checks. No database access here.
 import crypto from 'node:crypto';
 import { InventoryServiceError } from './inventory-guards.js';
+import { SignaturePngError, decodePngSignature } from '../lib/signature-png.js';
+
+export { MAX_SIGNATURE_BYTES } from '../lib/signature-png.js';
 
 export const CUSTODY_KINDS = ['DELIVERY', 'RETURN'];
 export const CUSTODY_STATUSES = ['DRAFT', 'PENDING_SIGNATURE', 'COMPLETED', 'CANCELLED'];
 export const MAX_CUSTODY_ITEMS = 200;
-export const MAX_SIGNATURE_BYTES = 300 * 1024;
 export const PUBLIC_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
-const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // RES-2026-0001 for deliveries, DEV-2026-0001 for returns.
@@ -20,7 +21,7 @@ export function formatCustodyFolio(kind, year, sequence) {
 
 // Which statuses each action may start from.
 export const CUSTODY_ACTIONS = {
-  update: ['DRAFT'],
+  update: ['DRAFT', 'PENDING_SIGNATURE'],
   sign: ['DRAFT', 'PENDING_SIGNATURE'],
   publicLink: ['DRAFT', 'PENDING_SIGNATURE'],
   preview: ['DRAFT', 'PENDING_SIGNATURE', 'COMPLETED'],
@@ -58,14 +59,12 @@ export function isPlausibleToken(token) {
 
 // Accepts raw base64 or a data URL; returns the PNG buffer or throws 400.
 export function decodeSignaturePng(input) {
-  const raw = String(input ?? '').replace(/^data:image\/png;base64,/i, '').trim();
-  if (!raw || !/^[A-Za-z0-9+/=\s]+$/.test(raw)) throw new InventoryServiceError('La firma no es una imagen PNG válida.', 400);
-  const buffer = Buffer.from(raw, 'base64');
-  if (buffer.length > MAX_SIGNATURE_BYTES) throw new InventoryServiceError('La firma supera 300 KB.', 400);
-  if (buffer.length < PNG_MAGIC.length || !buffer.subarray(0, PNG_MAGIC.length).equals(PNG_MAGIC)) {
-    throw new InventoryServiceError('La firma no es una imagen PNG válida.', 400);
+  try {
+    return decodePngSignature(input);
+  } catch (err) {
+    if (err instanceof SignaturePngError) throw new InventoryServiceError(err.message, 400);
+    throw err;
   }
-  return buffer;
 }
 
 const clip = (value, max) => {
@@ -157,4 +156,38 @@ export function completionConflicts({ kind, employeeId, items, itemIds, activeBy
     }
   }
   return problems;
+}
+
+const sameList = (a, b) => a.length === b.length && a.every((value, index) => value === b[index]);
+
+// Which captured signatures a PATCH invalidates (spec §9.4): changing kind,
+// employee or items clears both; changing the deliverer clears only the
+// deliverer's. Comments, date and template keep them.
+// `current`: { kind, employeeId, delivererId, items: [{ itemId }] }.
+export function signatureResetFor(current, input) {
+  const currentItemIds = (current.items ?? []).map((row) => row.itemId);
+  const content = (input.kind !== undefined && input.kind !== current.kind)
+    || (input.employeeId !== undefined && input.employeeId !== current.employeeId)
+    || (input.itemIds !== undefined && !sameList(input.itemIds, currentItemIds));
+  const deliverer = content || (input.delivererId !== undefined && input.delivererId !== current.delivererId);
+  return { receiver: content, deliverer };
+}
+
+// Choosing someone other than oneself as deliverer requires
+// inventory.custody.deliver_on_behalf (spec §9.5).
+export function assertDelivererChoice({ actorId, delivererId, canDeliverOnBehalf }) {
+  if (delivererId && delivererId !== actorId && !canDeliverOnBehalf) {
+    throw new InventoryServiceError('No tienes permiso para generar resguardos a nombre de otra persona.', 403);
+  }
+}
+
+// Whether `actorId` may apply the saved signature of `ownerId` (spec §9.6):
+// always one's own; another user's only with deliver_on_behalf AND that user
+// allowing delegation. Returns { allowed, reason } (reason in Spanish).
+export function savedSignatureDecision({ actorId, ownerId, canDeliverOnBehalf, allowDelegation }) {
+  if (!ownerId) return { allowed: false, reason: 'El resguardo no tiene a un usuario de Runly como quien entrega.' };
+  if (ownerId === actorId) return { allowed: true, reason: null };
+  if (!canDeliverOnBehalf) return { allowed: false, reason: 'No tienes permiso para firmar a nombre de otra persona.' };
+  if (!allowDelegation) return { allowed: false, reason: 'Quien entrega no autorizó que otras personas usen su firma guardada.' };
+  return { allowed: true, reason: null };
 }

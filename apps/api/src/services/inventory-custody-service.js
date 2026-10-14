@@ -7,9 +7,12 @@ import { createCustodyFileStore } from './inventory-custody-files.js';
 import { createCustodyDocumentRenderer } from './inventory-custody-document.js';
 import { createInventoryDocumentTemplateService } from './inventory-document-template-service.js';
 import { createSmtpService } from './smtp-service.js';
+import { createCompanyBrandService } from './company-brand-service.js';
+import { createUserSignatureService } from './user-signature-service.js';
+import { createCustodyDeliverers } from './inventory-custody-deliverers.js';
 import {
-  assertCustodyAction, buildItemSnapshot, completionConflicts, decodeSignaturePng, formatCustodyFolio,
-  generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, normalizeCustodyInput,
+  assertCustodyAction, assertDelivererChoice, buildItemSnapshot, completionConflicts, decodeSignaturePng, formatCustodyFolio,
+  generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, normalizeCustodyInput, savedSignatureDecision, signatureResetFor,
 } from './inventory-custody-helpers.js';
 
 const MODULE_KEY = 'runly.inventory';
@@ -55,8 +58,11 @@ function appBaseUrl(env, origin) {
   return '';
 }
 
-export function createInventoryCustodyService({ prisma, supabaseAdmin = null, env = process.env, smtpFactory, convert } = {}) {
+export function createInventoryCustodyService({ prisma, supabaseAdmin = null, env = process.env, smtpFactory, convert, userSignatures = null } = {}) {
   const files = createCustodyFileStore({ prisma, supabaseAdmin });
+  const deliverers = createCustodyDeliverers({ prisma, supabaseAdmin });
+  const savedSignatures = userSignatures ?? createUserSignatureService({ prisma, supabaseAdmin });
+  const brand = createCompanyBrandService({ prisma, supabaseAdmin });
   const templates = createInventoryDocumentTemplateService({ prisma, supabaseAdmin });
   const documents = createCustodyDocumentRenderer({
     prisma, files, templates, convert,
@@ -152,10 +158,20 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     return serializeCustody(await load(id, companyId));
   }
 
-  async function create(body, companyId, profileId) {
+  // Deliverer: a company user (default: the caller); someone else, or a free
+  // text name, requires deliver_on_behalf (spec §9.5).
+  async function checkDeliverer(input, companyId, profileId, canDeliverOnBehalf) {
+    if (input.delivererName && !input.delivererId) assertDelivererChoice({ actorId: profileId, delivererId: 'external', canDeliverOnBehalf });
+    if (!input.delivererId) return;
+    assertDelivererChoice({ actorId: profileId, delivererId: input.delivererId, canDeliverOnBehalf });
+    await deliverers.assertMember(companyId, input.delivererId);
+  }
+
+  async function create(body, companyId, profileId, { canDeliverOnBehalf = false } = {}) {
     assertCompany(companyId);
     if (!profileId) throw new InventoryServiceError('Usuario no encontrado.', 400);
     const input = normalizeCustodyInput(body);
+    await checkDeliverer(input, companyId, profileId, canDeliverOnBehalf);
     await assertEmployee(prisma, companyId, input.employeeId);
     await assertTemplate(prisma, companyId, input.templateId);
     const items = await loadItems(prisma, companyId, input.itemIds);
@@ -165,8 +181,8 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
         data: {
           companyId, folio, sequence, kind: input.kind, employeeId: input.employeeId, date: input.date,
           comments: input.comments ?? null, templateId: input.templateId ?? null,
-          delivererName: input.delivererName ?? null,
-          delivererId: input.delivererId !== undefined ? input.delivererId : (input.delivererName ? null : profileId),
+          delivererName: input.delivererId ? null : (input.delivererName ?? null),
+          delivererId: input.delivererId || (input.delivererName ? null : profileId),
           createdById: profileId,
           items: { create: snapshotRows(items) },
         },
@@ -176,16 +192,27 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     return get(created.id, companyId);
   }
 
-  // DRAFT only. Changing who/what is signed for clears captured signatures.
-  async function update(id, body, companyId, profileId) {
+  // DRAFT or PENDING_SIGNATURE (spec §9.4). itemIds is the full replacement
+  // list. Changing kind, employee or items clears both signatures, changing
+  // the deliverer clears the deliverer's; the status and link are kept.
+  async function update(id, body, companyId, profileId, { canDeliverOnBehalf = false } = {}) {
     const current = await load(id, companyId);
     assertCustodyAction(current, 'update');
     const input = normalizeCustodyInput(body, { partial: true });
+    if (input.delivererId === null) throw new InventoryServiceError('Selecciona quién entrega.', 400);
+    if (input.delivererId && input.delivererId !== current.delivererId) await checkDeliverer(input, companyId, profileId, canDeliverOnBehalf);
+    else if (input.delivererName !== undefined && !input.delivererId) await checkDeliverer(input, companyId, profileId, canDeliverOnBehalf);
     if (input.employeeId) await assertEmployee(prisma, companyId, input.employeeId);
     if (input.templateId) await assertTemplate(prisma, companyId, input.templateId);
-    const items = input.itemIds ? await loadItems(prisma, companyId, input.itemIds) : null;
-    const contentChanged = Boolean(items) || (input.employeeId && input.employeeId !== current.employeeId) || (input.kind && input.kind !== current.kind);
+    const reset = signatureResetFor(current, input);
+    const itemsChanged = input.itemIds !== undefined && input.itemIds.join(',') !== current.items.map((row) => row.itemId).join(',');
+    const items = itemsChanged ? await loadItems(prisma, companyId, input.itemIds) : null;
     const { itemIds, ...fields } = input;
+    if (fields.delivererId) fields.delivererName = null;
+    const cleared = [
+      ...(reset.receiver && current.receiverSignatureFileId ? [current.receiverSignatureFileId] : []),
+      ...(reset.deliverer && current.delivererSignatureFileId ? [current.delivererSignatureFileId] : []),
+    ];
     await prisma.$transaction(async (tx) => {
       if (items) {
         await tx.invCustodyItem.deleteMany({ where: { custodyId: id } });
@@ -195,16 +222,20 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
         where: { id },
         data: {
           ...fields,
-          ...(contentChanged ? { receiverSignatureFileId: null, receiverSignedAt: null, delivererSignatureFileId: null, delivererSignedAt: null } : {}),
+          ...(reset.receiver ? { receiverSignatureFileId: null, receiverSignedAt: null } : {}),
+          ...(reset.deliverer ? { delivererSignatureFileId: null, delivererSignedAt: null } : {}),
         },
       });
+      if (cleared.length) await tx.fileAsset.updateMany({ where: { id: { in: cleared } }, data: { enabled: false } });
     });
-    await audit(companyId, profileId, id, 'inventory.custody.updated', { fields: Object.keys(input) });
+    await audit(companyId, profileId, id, 'inventory.custody.updated', {
+      fields: Object.keys(input), status: current.status, clearedSignatures: cleared.length ? reset : undefined,
+    });
     return get(id, companyId);
   }
 
-  async function storeSignature(custody, role, pngBase64, uploadedById) {
-    const buffer = decodeSignaturePng(pngBase64);
+  async function storeSignature(custody, role, pngBase64, uploadedById, { buffer: savedBuffer = null } = {}) {
+    const buffer = savedBuffer ?? decodeSignaturePng(pngBase64);
     const asset = await files.store({
       companyId: custody.companyId, uploadedById, buffer, fileName: `firma-${role}-${custody.folio}.png`, mimeType: 'image/png',
       entityType: 'InvCustody', sourceEntityId: custody.id, metadata: { label: `signature:${role}` },
@@ -217,10 +248,33 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
       : { delivererSignatureFileId: asset.id, delivererSignedAt: now };
   }
 
-  async function sign(id, { role, pngBase64 } = {}, companyId, profileId) {
+  // { role: 'deliverer', useSaved: true }: copies the deliverer's saved
+  // signature into a new custody file (spec §9.6), so deleting the saved one
+  // never breaks the record. Every use is audited with the actor.
+  async function signWithSaved(custody, profileId, canDeliverOnBehalf) {
+    const ownerId = custody.delivererId ?? (custody.delivererName ? null : profileId);
+    const saved = ownerId ? await savedSignatures.readSaved(ownerId) : null;
+    const decision = savedSignatureDecision({ actorId: profileId, ownerId, canDeliverOnBehalf, allowDelegation: saved?.allowDelegation ?? false });
+    if (!decision.allowed) throw new InventoryServiceError(decision.reason, ownerId ? 403 : 400);
+    if (!saved) throw new InventoryServiceError(ownerId === profileId ? 'No tienes una firma guardada. Guárdala en tu perfil.' : 'Quien entrega no tiene una firma guardada.', 409);
+    const data = await storeSignature(custody, 'deliverer', null, profileId, { buffer: saved.buffer });
+    if (!custody.delivererId) data.delivererId = ownerId;
+    await prisma.invCustody.update({ where: { id: custody.id }, data });
+    const names = await deliverers.names([ownerId, profileId]);
+    await audit(custody.companyId, profileId, custody.id, 'inventory.custody.signed', {
+      role: 'deliverer', via: 'saved_signature', signatureOwnerId: ownerId, appliedById: profileId,
+    }, { summary: `Firma guardada de ${names.get(ownerId) ?? 'quien entrega'} aplicada por ${names.get(profileId) ?? 'un usuario'}` });
+    return get(custody.id, custody.companyId);
+  }
+
+  async function sign(id, { role, pngBase64, useSaved } = {}, companyId, profileId, { canDeliverOnBehalf = false } = {}) {
     if (!['receiver', 'deliverer'].includes(role)) throw new InventoryServiceError('Indica quién firma (receiver o deliverer).', 400);
     const custody = await load(id, companyId);
     assertCustodyAction(custody, 'sign');
+    if (useSaved === true) {
+      if (role !== 'deliverer') throw new InventoryServiceError('Solo quien entrega puede usar una firma guardada.', 400);
+      return signWithSaved(custody, profileId, canDeliverOnBehalf);
+    }
     const data = await storeSignature(custody, role, pngBase64, profileId);
     if (role === 'deliverer' && !custody.delivererId && !custody.delivererName) data.delivererId = profileId;
     await prisma.invCustody.update({ where: { id }, data });
@@ -235,15 +289,20 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     })));
   }
 
-  async function createPublicLink(id, companyId, profileId, { origin } = {}) {
+  async function createPublicLink(id, companyId, profileId, { origin, sendEmail = false } = {}) {
     const custody = await load(id, companyId);
     assertCustodyAction(custody, 'publicLink');
     if (custody.status === 'DRAFT' && !custody.receiverSignatureFileId) await refreshSnapshot(custody);
     const { token, hash, expiresAt } = generatePublicToken();
     await prisma.invCustody.update({ where: { id }, data: { status: 'PENDING_SIGNATURE', publicTokenHash: hash, tokenExpiresAt: expiresAt } });
-    await audit(companyId, profileId, id, 'inventory.custody.public_link', { expiresAt: expiresAt.toISOString() });
     const path = `/sign/custody/${token}`;
-    return { url: `${appBaseUrl(env, origin)}${path}`, path, token, expiresAt };
+    const url = `${appBaseUrl(env, origin)}${path}`;
+    // Best effort; only an absolute link is worth e-mailing.
+    const emailSent = sendEmail === true && /^https?:\/\//.test(url)
+      ? await documents.emailSigningLink(custody, url, expiresAt)
+      : false;
+    await audit(companyId, profileId, id, 'inventory.custody.public_link', { expiresAt: expiresAt.toISOString(), emailSent });
+    return { url, path, token, expiresAt, emailSent };
   }
 
   async function applyAssignments(tx, custody, profileId) {
@@ -350,15 +409,28 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
 
   async function getPublic(token) {
     const custody = await findByToken(token);
-    const company = await prisma.company.findUnique({ where: { id: custody.companyId }, select: { name: true } });
+    const [company, companyBrand] = await Promise.all([
+      prisma.company.findUnique({ where: { id: custody.companyId }, select: { name: true } }),
+      brand.getBrandForCompany(custody.companyId),
+    ]);
+    const { employee, deliverer } = custody;
+    const delivererFullName = deliverer ? (deliverer.displayName?.trim() || [deliverer.firstName, deliverer.lastName].filter(Boolean).join(' ')) : '';
+    // Employee number and e-mail stay private (spec §7, §9.3).
     return {
       folio: custody.folio,
       kind: custody.kind,
       date: dateOnly(custody.date),
       status: custody.status,
       companyName: company?.name ?? '',
-      receiverName: [custody.employee.firstName, custody.employee.lastName].filter(Boolean).join(' '),
-      items: custody.items.map(({ typeBrand, model, serialNumber, assetTag }) => ({ typeBrand, model, serialNumber, assetTag })),
+      companyLogoUrl: companyBrand?.logoUrl ?? null,
+      receiverName: [employee.firstName, employee.lastName].filter(Boolean).join(' '),
+      receiverDepartment: employee.departmentRef?.name ?? employee.department ?? null,
+      receiverJobTitle: employee.jobTitleRef?.name ?? employee.jobTitle ?? null,
+      delivererName: custody.delivererName || delivererFullName || null,
+      itemCount: custody.items.length,
+      items: custody.items.map(({ typeBrand, model, serialNumber, assetTag, invoiceNumber, features }, index) => ({
+        index: index + 1, typeBrand, model, serialNumber, assetTag, invoiceNumber, features,
+      })),
       comments: custody.comments ?? null,
       receiverSigned: Boolean(custody.receiverSignatureFileId),
       expiresAt: custody.tokenExpiresAt,
@@ -376,5 +448,6 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
   return {
     list, get, create, update, sign, createPublicLink, complete, regenerateDocument, cancel, documentUrl, preview,
     getPublic, signPublic, templates,
+    listDeliverers: deliverers.list,
   };
 }

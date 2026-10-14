@@ -15,6 +15,11 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
     ? c.json({ error: err.message }, err.status)
     : c.json({ error: fallback }, 500));
   const body = (c) => c.req.json().catch(() => ({}));
+  // inventory.custody.deliver_on_behalf (spec §9.5): admins hold every permission.
+  const onBehalf = (c) => {
+    const tenant = c.get('tenantContext');
+    return { canDeliverOnBehalf: Boolean(tenant?.isAdmin || tenant?.permissionSet?.has?.('inventory.custody.deliver_on_behalf')) };
+  };
 
   // ── Templates (read with custody.read, write with template.manage) ─────────
   router.get('/inventory/document-templates', read, async (c) => {
@@ -65,8 +70,15 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
 
   router.post('/inventory/custodies', manage, async (c) => {
     try {
-      return c.json({ custody: await svc().create(await body(c), c.get('companyId'), c.get('userId')) }, 201);
+      return c.json({ custody: await svc().create(await body(c), c.get('companyId'), c.get('userId'), onBehalf(c)) }, 201);
     } catch (err) { return fail(c, err, 'No se pudo crear el resguardo.'); }
+  });
+
+  // Declared before /:id. Without deliver_on_behalf only the caller is listed.
+  router.get('/inventory/custodies/deliverers', manage, async (c) => {
+    try {
+      return c.json(await svc().listDeliverers(c.get('companyId'), c.get('userId'), onBehalf(c)));
+    } catch (err) { return fail(c, err, 'No se pudieron cargar las personas que entregan.'); }
   });
 
   router.get('/inventory/custodies/:id', read, async (c) => {
@@ -77,20 +89,21 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
 
   router.patch('/inventory/custodies/:id', manage, async (c) => {
     try {
-      return c.json({ custody: await svc().update(c.req.param('id'), await body(c), c.get('companyId'), c.get('userId')) });
+      return c.json({ custody: await svc().update(c.req.param('id'), await body(c), c.get('companyId'), c.get('userId'), onBehalf(c)) });
     } catch (err) { return fail(c, err, 'No se pudo actualizar el resguardo.'); }
   });
 
   router.post('/inventory/custodies/:id/signatures', manage, async (c) => {
     try {
-      return c.json({ custody: await svc().sign(c.req.param('id'), await body(c), c.get('companyId'), c.get('userId')) });
+      return c.json({ custody: await svc().sign(c.req.param('id'), await body(c), c.get('companyId'), c.get('userId'), onBehalf(c)) });
     } catch (err) { return fail(c, err, 'No se pudo guardar la firma.'); }
   });
 
   router.post('/inventory/custodies/:id/public-link', manage, async (c) => {
     try {
       const origin = c.req.header('origin') ?? null;
-      return c.json(await svc().createPublicLink(c.req.param('id'), c.get('companyId'), c.get('userId'), { origin }));
+      const { sendEmail } = await body(c);
+      return c.json(await svc().createPublicLink(c.req.param('id'), c.get('companyId'), c.get('userId'), { origin, sendEmail: sendEmail === true }));
     } catch (err) { return fail(c, err, 'No se pudo generar el enlace de firma.'); }
   });
 

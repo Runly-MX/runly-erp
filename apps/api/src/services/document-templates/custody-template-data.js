@@ -85,12 +85,15 @@ export function templateFormatOf(fileName) {
   throw new TemplateError('La plantilla debe ser un archivo .docx o .xlsx.');
 }
 
+// Shown for templates without any {{ }} tag (accepted, but rendered without data).
+export const NO_TAGS_WARNING = 'La plantilla no contiene etiquetas {{…}}; el documento se generará sin datos.';
+
 // Validates an uploaded template; throws TemplateError when malformed.
 export async function inspectCustodyTemplate(buffer, format) {
   const { tags } = format === 'xlsx' ? await inspectXlsx(buffer) : inspectDocx(buffer);
   const unknown = unknownCustodyTags(tags);
   const warnings = unknown.map((tag) => `Etiqueta desconocida: {{${tag.replace(/^items\./, '')}}}`);
-  if (!tags.length) warnings.push('La plantilla no contiene etiquetas {{ }}; el documento saldrá sin datos.');
+  if (!tags.length) warnings.push(NO_TAGS_WARNING);
   return { tags, warnings };
 }
 

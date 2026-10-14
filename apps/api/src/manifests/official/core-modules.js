@@ -1399,6 +1399,7 @@ export const inventoryMap = createModuleManifest({
     { key: 'inventory.connections.manage', name: 'Gestionar conexiones de inventario' },
     { key: 'inventory.custody.read',       name: 'Ver resguardos de inventario' },
     { key: 'inventory.custody.manage',     name: 'Gestionar resguardos de inventario' },
+    { key: 'inventory.custody.deliver_on_behalf', name: 'Generar resguardos a nombre de otra persona' },
     { key: 'inventory.template.manage',    name: 'Gestionar plantillas de documentos de inventario' },
   ],
   acl: {
@@ -1418,6 +1419,7 @@ export const inventoryMap = createModuleManifest({
       'inventory.connections.manage': 'inventory.connections.manage',
       'inventory.custody.read':       'inventory.custody.read',
       'inventory.custody.manage':     'inventory.custody.manage',
+      'inventory.custody.deliver_on_behalf': 'inventory.custody.deliver_on_behalf',
       'inventory.template.manage':    'inventory.template.manage',
     },
   },

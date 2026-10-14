@@ -1660,6 +1660,12 @@ export const PERMISSION_CATALOG = {
     groupKey: "inventory",
     order: 33,
   },
+  "inventory.custody.deliver_on_behalf": {
+    displayNameEs: "Generar resguardos a nombre de otra persona",
+    descriptionEs: "Permite elegir a otro usuario como quien entrega y aplicar su firma guardada cuando esa persona lo autoriza.",
+    groupKey: "inventory",
+    order: 33,
+  },
   "inventory.template.manage": {
     displayNameEs: "Gestionar plantillas de documentos de inventario",
     descriptionEs: "Permite subir y administrar las plantillas Word o Excel de los resguardos.",
