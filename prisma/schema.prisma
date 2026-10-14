@@ -774,6 +774,23 @@ model AuditLog {
   @@map("audit_log")
 }
 
+// Ledger of rows written by a legacy data migration (e.g. sinabe): maps each
+// legacy identifier to the Runly row created for it, so a rerun or a resume
+// never duplicates anything. Written only by services/legacy-import.
+model LegacyRef {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  source    String   @db.VarChar(40)
+  entity    String   @db.VarChar(60)
+  legacyId  String   @map("legacy_id") @db.VarChar(120)
+  targetId  String   @map("target_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([companyId, source, entity, legacyId])
+  @@index([companyId, targetId])
+  @@map("legacy_ref")
+}
+
 model Activity {
   id         String   @id @default(uuid(7)) @db.Uuid
   companyId  String   @db.Uuid @map("company_id")
