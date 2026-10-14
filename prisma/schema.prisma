@@ -563,6 +563,7 @@ model UserProfile {
   invCustodiesCreated   InvCustody[] @relation("UserInvCustodiesCreated")
   invCustodiesDelivered InvCustody[] @relation("UserInvCustodiesDelivered")
   invDocumentTemplates  InvDocumentTemplate[] @relation("UserInvDocumentTemplates")
+  savedSignature        UserSignature?        @relation("UserSavedSignature")
 
   entityComments  EntityComment[]         @relation("UserEntityComments")
   entityMentions  EntityCommentMention[]  @relation("UserEntityMentions")
@@ -3808,6 +3809,22 @@ model InvDocumentTemplate {
 
   @@index([companyId, kind, enabled])
   @@map("inv_document_template")
+}
+
+// Saved handwritten signature of a user, reusable across modules (custody
+// records first). The PNG is a private FileAsset owned by the user; modules
+// copy it into their own file when applied, never reference it.
+model UserSignature {
+  id              String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userProfileId   String   @unique @map("user_profile_id") @db.Uuid
+  fileAssetId     String   @map("file_asset_id") @db.Uuid
+  allowDelegation Boolean  @default(false) @map("allow_delegation")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  userProfile UserProfile @relation("UserSavedSignature", fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  @@map("user_signature")
 }
 
 // runly.purchases â€” Compras y abastecimiento configurable por empresa

@@ -59,6 +59,8 @@ export const FILE_ACCESS_RULES = {
   purchase_quote: permission("purchases.quote.read"),
   purchase_request: permission("purchases.request.read"),
   PfmReceipt: owner,
+  // Saved user signatures: only their owner (uploader) reads them.
+  UserSignature: owner,
   Task: {
     kind: "records",
     permission: "projects.task.read",

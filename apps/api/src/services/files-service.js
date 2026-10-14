@@ -32,6 +32,8 @@ const ALLOWED_FILE_ENTITY_TYPES = [
   "GeneratedDocument",
   "PfmReceipt",
   "UserProfile",
+  // Saved user signature (profile): private to its owner.
+  "UserSignature",
   // runly.purchases attachments (AttachmentsPanel; invoice PDF/XML use metadata label pdf/xml)
   "purchase_order",
   "purchase_invoice",

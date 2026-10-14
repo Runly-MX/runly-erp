@@ -6,6 +6,7 @@ import { createOfficeRouter } from "./routes/office.js";
 import { createFilesRouter } from "./routes/files.js";
 import { createFilesPublicRouter } from "./routes/files-public.js";
 import { createIdentitySessionsRouter } from "./routes/identity/identity-sessions-routes.js";
+import { createProfileSignatureRouter } from "./routes/profile-signature-routes.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -1621,6 +1622,8 @@ app.delete(
     }
   },
 );
+
+app.route("/", createProfileSignatureRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission }));
 
 app.get("/memberships/me", authMiddleware, async (c) => {
   const authUserId = c.get("authUserId");
