@@ -1,12 +1,11 @@
 // apps/desktop/src/modules/runly.chat/components/ConversationProfilePanel.jsx
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, Video, ChevronDown, Disc, Mic } from "lucide-react";
+import { Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, ChevronDown, Sparkles } from "lucide-react";
 import {
-  BackButton, Button, Tabs, TabsList, TabsTrigger, TabsContent,
-  Accordion, AccordionItem, AccordionTrigger, AccordionContent,
+  AdvancedFileViewer, AssistantWordmark, BackButton, Tabs, TabsList, TabsTrigger, TabsContent,
+  Accordion, AccordionItem, AccordionTrigger, AccordionContent, cn,
 } from "@runly/ui";
-import { AdvancedFileViewer } from "@runly/ui";
 import { ChannelGeneralTab } from "./ChannelGeneralTab";
 import { ChannelMembersTab } from "./ChannelMembersTab";
 import { ChannelRolesTab } from "./ChannelRolesTab";
@@ -16,112 +15,43 @@ import { ConversationMediaTab } from "./ConversationMediaTab";
 import { ChannelEventsTab } from "./ChannelEventsTab";
 import { GroupsInCommonTab } from "./GroupsInCommonTab";
 import { NotificationsTab } from "./NotificationsTab";
+import { AvatarFace, ProfileAvatar } from "./profile/ProfileAvatar";
+import { ProfileCallActions } from "./profile/ProfileCallActions";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { getConversationDisplayName } from "../lib/chatUtils";
+import { MIRAI_EXAMPLE_PROMPTS, MIRAI_NAME, MIRAI_SUBTITLE } from "../lib/mirai";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 
+// Same height as ChatHeader (h-16), so the panel's top line continues the
+// chat header's bottom border once the hero has collapsed.
+const BAR = "h-16";
+
 function SectionHeader({ icon: Icon, label }) {
   return (
-    <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+    <div className="flex items-center gap-2 px-4 pt-5 pb-2">
       <Icon className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-        {label}
-      </p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{label}</p>
     </div>
   );
 }
 
-function ProfileCallActions({ disabled, onStartAudioCall, onStartVideoCall, onStartInPerson, onShowRecordings }) {
-  const actions = [
-    {
-      label: "Llamada",
-      description: "Solo audio",
-      icon: Phone,
-      onClick: onStartAudioCall,
-    },
-    {
-      label: "Videollamada",
-      description: "Audio y video",
-      icon: Video,
-      onClick: onStartVideoCall,
-    },
-    ...(onStartInPerson ? [{
-      label: "Presencial",
-      description: "Grabar en sala",
-      icon: Mic,
-      onClick: onStartInPerson,
-    }] : []),
-  ];
-
-  return (
-    <div className={["grid gap-2 px-4 pb-4", actions.length === 3 ? "grid-cols-3" : "grid-cols-2"].join(" ")}>
-      {actions.map(({ label, description, icon: Icon, onClick }) => (
-        <Button
-          key={label}
-          type="button"
-          variant="outline"
-          onClick={onClick}
-          disabled={disabled}
-          aria-label={`Iniciar ${label.toLowerCase()}`}
-          aria-busy={disabled || undefined}
-          className="h-auto min-h-[72px] flex-col gap-1.5 rounded-xl border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-3 text-center shadow-sm hover:border-[var(--brand-primary)]/45 hover:bg-[var(--brand-primary)]/6"
-        >
-          <Icon className="h-4 w-4 text-[var(--brand-primary)]" />
-          <span className="text-xs font-semibold leading-none">{label}</span>
-          <span className="text-[10px] font-normal leading-none text-[hsl(var(--muted-foreground))]">
-            {disabled ? "Conectando..." : description}
-          </span>
-        </Button>
-      ))}
-      {onShowRecordings && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onShowRecordings}
-          className="col-span-full justify-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]"
-        >
-          <Disc className="h-3.5 w-3.5" />
-          Ver grabaciones de llamadas
-        </Button>
-      )}
-    </div>
-  );
-}
-
-// Replaces ChatMembersPanel — same swap-into-content-slot contract (root
-// carries flex-1/min-h-0/flex-col/overflow-hidden so it fills ChatWindow's
-// or MiniChatWindow's content area identically to the message list it
-// replaces), but now handles every conversation type, not just group/
-// channel. `type === "direct"` still renders a flat scrollable column of
-// stacked sections (data-section-anchored); group/channel renders two tabs
-// (Informacion / Miembros y roles) instead — section set is type-dependent
-// per spec Section 8.
+// Conversation profile, swapped into ChatWindow/MiniChatWindow's content slot
+// (root carries flex-1/min-h-0 so it fills it like the message list).
 //
-// `initialTab` lets a caller open straight to a specific section on mount.
-// For "direct" it scrolls a `data-section` into view. For group/channel the
-// only value any caller passes is "members" (MemberAvatarStack, "Ver
-// miembros" menu item in ChatWindow.jsx), used to pick the Tabs
-// `defaultValue`. Either way the CALLER must remount this component when
-// initialTab changes (e.g. `<ConversationProfilePanel key={initialTab} .../>`),
-// since neither the scroll effect nor an uncontrolled Tabs re-derives after mount.
+// Layout: one scroll area. No header strip — the back arrow floats over the
+// hero. Scrolling past the hero turns the top bar solid (same 64px as the chat
+// header, so both bottom borders line up) and shows a compact avatar + name +
+// short description in it; group/channel tabs then stick right under it so
+// the tab content gets the whole height.
 //
-// `onBack` renders an explicit "back to messages" row above the sections —
-// this was the other half of the user's complaint: the only way back used
-// to be remembering that the same header icon that opened the panel also
-// closes it, which wasn't discoverable.
-//
-// `onOpenConversation(conv)` is how a clicked member's row (group/channel
-// "Miembros y roles" tab) opens a DM — each host decides what that means
-// (ChatWindow navigates the route, MiniChatWindow opens another float window).
-//
-// `messages`/`isLoadingMessages` come from the caller's own already-mounted
-// useChatMessages(conversationId) call — never call that hook a second time
-// here, it would open a second Supabase Realtime subscription for the same
-// conversation and silently kill the caller's own live updates.
+// `initialTab`: "members" opens group/channel on the members tab; for direct
+// it scrolls a `data-section` into view. Callers remount on change
+// (`key={initialTab}`). `messages`/`isLoadingMessages` come from the caller's
+// own useChatMessages — never call that hook again here (it would open a
+// second Realtime subscription and kill the caller's live updates).
 export function ConversationProfilePanel({
   conversation,
   currentUserId,
@@ -141,26 +71,30 @@ export function ConversationProfilePanel({
 }) {
   const conversationId = conversation?.id;
   const type = conversation?.type;
+  const isMirai = type === "mirai";
   const { data: convData } = useChatConversationDetail(conversationId);
   const detail = convData?.data ?? conversation;
-  // is_muted only ever comes from `conversation` (the listConversations row) —
-  // getConversation's own `SELECT c.*` never joins the per-member muted_at the
-  // way listConversations does, so `detail.is_muted` is always undefined here.
+  // is_muted only comes from the listConversations row (getConversation's
+  // SELECT c.* never joins the per-member muted_at).
   const isMuted = Boolean(conversation?.is_muted);
 
   const { isUserOnline, getLastSeen } = useGlobalPresence();
-  const displayName = getConversationDisplayName(conversation, currentUserId);
-  const otherMemberForHero = type === "direct"
+  const displayName = isMirai ? MIRAI_NAME : getConversationDisplayName(detail ?? conversation, currentUserId);
+  const otherMember = type === "direct"
     ? (detail?.members ?? conversation?.members ?? []).find((m) => m.userId !== currentUserId)
     : null;
-  const heroAvatarUrl = conversation?.avatarUrl ?? otherMemberForHero?.avatarUrl ?? null;
-  const heroAvatarFileId = conversation?.avatar_file_id ?? otherMemberForHero?.avatarFileId ?? null;
-  const heroAvatarEmoji = conversation?.avatar_emoji ?? null;
+  const heroAvatarUrl = detail?.avatarUrl ?? conversation?.avatarUrl ?? otherMember?.avatarUrl ?? null;
+  const heroAvatarFileId = detail?.avatar_file_id ?? conversation?.avatar_file_id ?? otherMember?.avatarFileId ?? null;
+  const heroAvatarEmoji = detail?.avatar_emoji ?? conversation?.avatar_emoji ?? null;
   const memberCount = (detail?.members ?? conversation?.members ?? []).length;
+  const description = detail?.description ?? conversation?.description ?? null;
+
   let statusLine;
-  if (type === "direct") {
-    const online = otherMemberForHero ? isUserOnline(otherMemberForHero.userId) : false;
-    const lastSeen = otherMemberForHero ? getLastSeen(otherMemberForHero.userId) : null;
+  if (isMirai) {
+    statusLine = MIRAI_SUBTITLE;
+  } else if (type === "direct") {
+    const online = otherMember ? isUserOnline(otherMember.userId) : false;
+    const lastSeen = otherMember ? getLastSeen(otherMember.userId) : null;
     statusLine = online
       ? "En linea"
       : lastSeen
@@ -169,54 +103,50 @@ export function ConversationProfilePanel({
   } else {
     statusLine = `${memberCount} ${memberCount === 1 ? "miembro" : "miembros"}`;
   }
+
   const [avatarErr, setAvatarErr] = useState(false);
   const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
-  const description = detail?.description ?? conversation?.description ?? null;
-
   const { session } = useAuth();
 
-  // Resolve a signed avatar URL at a given variant. Direct chats go through
-  // the chat-specific member-avatar endpoint — the generic files endpoint
-  // (runly.files.getSignedUrl) 404s on identity avatar files, and the identity
-  // endpoint needs a permission chat users lack. Group/channel avatars are
-  // real company files, so those still resolve through runly.files.
-  const resolveAvatarSignedUrl = useCallback(
-    async (variant) => {
-      const token = session?.access_token;
-      if (!token) return null;
-      if (type === "direct") {
-        if (!conversationId || !otherMemberForHero?.userId) return null;
-        const res = await runly.chat.getMemberAvatarSignedUrl(
-          conversationId,
-          otherMemberForHero.userId,
-          token,
-          { variant },
-        );
-        return res?.data?.signedUrl ?? null;
-      }
-      if (!heroAvatarFileId) return null;
-      const res = await runly.files.getSignedUrl(heroAvatarFileId, token, { variant });
+  // Direct chats resolve the other member's avatar through the chat endpoint
+  // (the files endpoint 404s on identity avatars); group/channel avatars are
+  // company files.
+  const resolveAvatarSignedUrl = useCallback(async (variant) => {
+    const token = session?.access_token;
+    if (!token) return null;
+    if (type === "direct") {
+      if (!conversationId || !otherMember?.userId) return null;
+      const res = await runly.chat.getMemberAvatarSignedUrl(conversationId, otherMember.userId, token, { variant });
       return res?.data?.signedUrl ?? null;
-    },
-    [type, conversationId, otherMemberForHero?.userId, heroAvatarFileId, session?.access_token],
-  );
+    }
+    if (!heroAvatarFileId) return null;
+    const res = await runly.files.getSignedUrl(heroAvatarFileId, token, { variant });
+    return res?.data?.signedUrl ?? null;
+  }, [type, conversationId, otherMember?.userId, heroAvatarFileId, session?.access_token]);
 
-  // The hero circle would otherwise render the 40px `thumb` variant that
-  // batchSignAvatarUrls embeds into member/conversation rows — upgrade it to
-  // `card` (96px) so the 80px circle is crisp, matching ProfileScreen.
+  // The list embeds a 40px thumb; the 96px hero asks for the "card" variant.
   const { data: heroCrispUrl } = useQuery({
-    queryKey: ["chat-hero-avatar-card", type, conversationId, heroAvatarFileId, otherMemberForHero?.userId],
+    queryKey: ["chat-hero-avatar-card", type, conversationId, heroAvatarFileId, otherMember?.userId],
     queryFn: () => resolveAvatarSignedUrl("card"),
-    enabled: Boolean(heroAvatarUrl && !avatarErr && session?.access_token),
+    enabled: Boolean(heroAvatarUrl && !avatarErr && session?.access_token && !isMirai),
     staleTime: 50 * 60 * 1000,
   });
-
-  // Stable identity so AdvancedFileViewer's fetch effect doesn't re-run on
-  // every parent render while the viewer is open.
   const resolveFullAvatarUrl = useCallback(() => resolveAvatarSignedUrl("full"), [resolveAvatarSignedUrl]);
+  const avatarUrl = heroAvatarUrl && !avatarErr ? (heroCrispUrl ?? heroAvatarUrl) : null;
 
+  // ---- collapsing hero ----------------------------------------------------
   const scrollRef = useRef(null);
+  const heroRef = useRef(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    const hero = heroRef.current;
+    if (!el || !hero) return;
+    // Collapse once the name has slid under the 64px bar.
+    const next = el.scrollTop > hero.offsetHeight - 72;
+    setCollapsed((prev) => (prev === next ? prev : next));
+  }, []);
 
   useEffect(() => {
     if (!initialTab || !scrollRef.current) return;
@@ -224,56 +154,69 @@ export function ConversationProfilePanel({
     target?.scrollIntoView({ block: "start" });
   }, [initialTab]);
 
-  const backHeader = (
-    <div className="flex items-center gap-1 px-3 py-0.5 md:gap-2 md:py-1.5 border-b border-[hsl(var(--border))] shrink-0">
-      <BackButton onClick={onBack} label="Volver a mensajes" className="-ml-1.5" />
-      <p className="text-sm font-semibold">Perfil</p>
+  const ownMember = findOwnMember(detail?.members ?? [], currentUserId);
+  const canManageRoles = roleHasPermission(ownMember, CHAT_PERMISSIONS.ROLES_MANAGE);
+  const canManageChannel = roleHasPermission(ownMember, CHAT_PERMISSIONS.CHANNEL_MANAGE);
+  const isRoom = type === "group" || type === "channel";
+
+  const topBar = (
+    <div
+      className={cn(
+        "absolute inset-x-0 top-0 z-20 flex items-center gap-2 border-b px-3 transition-colors duration-200",
+        BAR,
+        collapsed
+          ? "border-[hsl(var(--border))] bg-[hsl(var(--background))]/92 backdrop-blur-md"
+          : "border-transparent bg-transparent",
+      )}
+    >
+      <BackButton
+        onClick={onBack}
+        label="Volver a mensajes"
+        className={cn("ml-0 md:ml-0", !collapsed && "bg-[hsl(var(--card))]/85 shadow-sm ring-1 ring-[hsl(var(--border))] backdrop-blur")}
+      />
+      <div
+        aria-hidden={!collapsed}
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-2.5 transition-[opacity,transform] duration-200 motion-reduce:transition-none",
+          collapsed ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-1.5 opacity-0",
+        )}
+      >
+        <AvatarFace size="compact" url={avatarUrl} emoji={heroAvatarEmoji} name={displayName} mirai={isMirai} />
+        <div className="min-w-0">
+          <p className="chat-font-display truncate text-sm font-semibold leading-tight">{isMirai ? <AssistantWordmark /> : displayName}</p>
+          <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{(isRoom && description) || statusLine}</p>
+        </div>
+      </div>
     </div>
   );
 
   const hero = (
-    <div className="flex flex-col items-center gap-2 px-4 py-5 text-center">
-      {heroAvatarUrl && !avatarErr ? (
-        <button
-          type="button"
-          onClick={() => setAvatarViewerOpen(true)}
-          title="Ver foto de perfil"
-          aria-label="Ver foto de perfil"
-          className="h-20 w-20 rounded-full overflow-hidden bg-[hsl(var(--muted))] flex items-center justify-center hover:opacity-90 transition-opacity"
-        >
-          <img
-            src={heroCrispUrl ?? heroAvatarUrl}
-            alt={displayName}
-            className="h-full w-full object-cover"
-            onError={() => setAvatarErr(true)}
-          />
-        </button>
-      ) : (
-        <div className="h-20 w-20 rounded-full overflow-hidden bg-[hsl(var(--muted))] flex items-center justify-center">
-          {heroAvatarEmoji ? (
-            <span className="text-4xl">{heroAvatarEmoji}</span>
-          ) : (
-            <span className="text-2xl font-semibold text-[hsl(var(--muted-foreground))]">
-              {(displayName ?? "?")[0]?.toUpperCase()}
-            </span>
-          )}
-        </div>
-      )}
-      <p className="chat-font-display text-lg font-bold truncate max-w-full">{displayName}</p>
+    <div ref={heroRef} className="flex flex-col items-center gap-2 px-4 pb-4 pt-16 text-center">
+      <ProfileAvatar
+        conversationId={conversationId}
+        canEdit={isRoom && canManageChannel}
+        url={avatarUrl}
+        emoji={heroAvatarEmoji}
+        name={displayName}
+        mirai={isMirai}
+        onView={() => setAvatarViewerOpen(true)}
+        onImageError={() => setAvatarErr(true)}
+      />
+      <h2 className="chat-font-display mt-1 max-w-full text-lg font-bold leading-snug wrap-anywhere line-clamp-2">
+        {isMirai ? <AssistantWordmark /> : displayName}
+      </h2>
       <p className="text-xs text-[hsl(var(--muted-foreground))]">{statusLine}</p>
-      {type !== "direct" && description && (
+      {isRoom && description && (
         <div className="w-full max-w-full">
-          <p className={["text-xs text-[hsl(var(--muted-foreground))] whitespace-pre-wrap", descExpanded ? "" : "line-clamp-2"].join(" ")}>
-            {description}
-          </p>
+          <p className={cn("whitespace-pre-wrap text-xs text-[hsl(var(--muted-foreground))]", !descExpanded && "line-clamp-2")}>{description}</p>
           {description.length > 80 && (
             <button
               type="button"
               onClick={() => setDescExpanded((v) => !v)}
-              className="mx-auto mt-0.5 flex items-center gap-0.5 text-[11px] font-medium text-[var(--brand-primary)] hover:underline"
+              className="mx-auto mt-0.5 flex min-h-8 items-center gap-0.5 text-[11px] font-medium text-(--brand-primary) hover:underline"
             >
               {descExpanded ? "Ver menos" : "Ver mas"}
-              <ChevronDown className={["h-3 w-3 transition-transform", descExpanded ? "rotate-180" : ""].join(" ")} />
+              <ChevronDown className={cn("h-3 w-3 transition-transform", descExpanded && "rotate-180")} />
             </button>
           )}
         </div>
@@ -281,20 +224,11 @@ export function ConversationProfilePanel({
     </div>
   );
 
-  // Same viewer used for every other avatar in the app (ProfileScreen,
-  // UserEditorScreen) and for chat image attachments — not a bespoke modal.
-  const avatarViewer = heroAvatarUrl ? (
+  const avatarViewer = heroAvatarUrl && !isMirai ? (
     <AdvancedFileViewer
       open={avatarViewerOpen}
       onOpenChange={setAvatarViewerOpen}
-      files={[
-        {
-          id: heroAvatarFileId ?? "avatar",
-          mimeType: "image/jpeg",
-          originalName: displayName ?? "Foto de perfil",
-          sizeBytes: 0,
-        },
-      ]}
+      files={[{ id: heroAvatarFileId ?? "avatar", mimeType: "image/jpeg", originalName: displayName ?? "Foto de perfil", sizeBytes: 0 }]}
       activeIndex={0}
       onIndexChange={() => {}}
       onResolveSignedUrl={resolveFullAvatarUrl}
@@ -302,7 +236,7 @@ export function ConversationProfilePanel({
     />
   ) : null;
 
-  const callActions = callsEnabled ? (
+  const callActions = callsEnabled && !isMirai ? (
     <ProfileCallActions
       disabled={callPending}
       onStartAudioCall={onStartAudioCall}
@@ -312,105 +246,92 @@ export function ConversationProfilePanel({
     />
   ) : null;
 
-  const hasContactInfo = Boolean(otherMemberForHero?.email || otherMemberForHero?.phone || otherMemberForHero?.bio);
+  const media = (
+    <div data-section="media">
+      <SectionHeader icon={FolderOpen} label="Multimedia" />
+      <ConversationMediaTab conversationId={conversationId} messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
+    </div>
+  );
 
-  if (type === "direct") {
-    return (
+  let body;
+  if (isMirai) {
+    body = (
       <>
-        {backHeader}
-        {hero}
-        {callActions}
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
-          {hasContactInfo && (
-            <div data-section="contact-info">
-              <SectionHeader icon={Info} label="Informacion" />
-              <div className="px-4 pb-3 space-y-2.5">
-                {otherMemberForHero.bio && (
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">{otherMemberForHero.bio}</p>
-                )}
-                {otherMemberForHero.email && (
-                  <a
-                    href={`mailto:${otherMemberForHero.email}`}
-                    className="flex items-center gap-2.5 text-sm hover:text-[var(--brand-primary)] transition-colors"
-                  >
-                    <Mail className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
-                    <span className="truncate">{otherMemberForHero.email}</span>
-                  </a>
-                )}
-                {otherMemberForHero.phone && (
-                  <a
-                    href={`tel:${otherMemberForHero.phone}`}
-                    className="flex items-center gap-2.5 text-sm hover:text-[var(--brand-primary)] transition-colors"
-                  >
-                    <Phone className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
-                    <span className="truncate">{otherMemberForHero.phone}</span>
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-          <div data-section="media">
-            <SectionHeader icon={FolderOpen} label="Multimedia" />
-            <ConversationMediaTab conversationId={conversationId} messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
-          </div>
-          <div data-section="common">
-            <SectionHeader icon={Users} label="En comun" />
-            <GroupsInCommonTab otherUserId={otherMemberForHero?.userId} />
-          </div>
-          <div data-section="notifications">
-            <SectionHeader icon={Bell} label="Notificaciones" />
-            <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
-          </div>
-          <div data-section="info">
-            <SectionHeader icon={Info} label="Zona de peligro" />
-            <ConversationInfoTab
-              conversationId={conversationId}
-              otherUserId={otherMemberForHero?.userId}
-              otherDisplayName={otherMemberForHero?.displayName}
-            />
+        <div className="px-4">
+          <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/70 p-4">
+            <p className="text-sm leading-relaxed">
+              Soy tu asistente dentro de Runly: resumo conversaciones, explico mensajes y archivos, y consulto la información de tus módulos por ti.
+            </p>
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">Prueba pedirme</p>
+            <ul className="mt-2 space-y-1.5">
+              {MIRAI_EXAMPLE_PROMPTS.map((prompt) => (
+                <li key={prompt} className="flex items-start gap-2 text-xs text-[hsl(var(--foreground))]/85">
+                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-(--brand-primary)" aria-hidden />
+                  {prompt}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
-        {avatarViewer}
+        {media}
       </>
     );
-  }
-
-  // group / channel — two tabs (Informacion / Miembros y roles) instead of a
-  // flat scroll: this is what actually moves Eventos up out of the bottom
-  // half of the panel and gives Roles a dedicated, collapsed-by-default home
-  // instead of sitting in the middle of the member list. Both tabs are
-  // visible to every member — only the roles-management Accordion below is
-  // gated, matching the existing roleHasPermission check.
-  const ownMember = findOwnMember(detail?.members ?? [], currentUserId);
-  const canManageRoles = roleHasPermission(ownMember, CHAT_PERMISSIONS.ROLES_MANAGE);
-  const canManageChannel = roleHasPermission(ownMember, CHAT_PERMISSIONS.CHANNEL_MANAGE);
-  // The only initialTab value any caller ever passes for group/channel is
-  // "members" (MemberAvatarStack, "Ver miembros" menu item in ChatWindow.jsx)
-  // — used here just to pick which tab opens by default. The parent remounts
-  // this whole component on initialTab change (key={profileInitialTab}), so
-  // an uncontrolled Tabs defaultValue is enough; no controlled state needed.
-  const defaultTab = initialTab === "members" ? "members" : "info";
-
-  return (
-    <>
-      {backHeader}
-      {hero}
-      {callActions}
-      <Tabs defaultValue={defaultTab} className="flex-1 min-h-0 flex flex-col">
-        <div className="px-4 pb-2 shrink-0">
-          <TabsList className="grid grid-cols-2 w-full">
+  } else if (type === "direct") {
+    const hasContactInfo = Boolean(otherMember?.email || otherMember?.phone || otherMember?.bio);
+    body = (
+      <>
+        {hasContactInfo && (
+          <div data-section="contact-info">
+            <SectionHeader icon={Info} label="Informacion" />
+            <div className="space-y-1 px-4 pb-1">
+              {otherMember.bio && <p className="pb-1 text-sm text-[hsl(var(--muted-foreground))]">{otherMember.bio}</p>}
+              {otherMember.email && (
+                <a href={`mailto:${otherMember.email}`} className="flex min-h-10 items-center gap-2.5 text-sm transition-colors hover:text-(--brand-primary)">
+                  <Mail className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
+                  <span className="truncate">{otherMember.email}</span>
+                </a>
+              )}
+              {otherMember.phone && (
+                <a href={`tel:${otherMember.phone}`} className="flex min-h-10 items-center gap-2.5 text-sm transition-colors hover:text-(--brand-primary)">
+                  <Phone className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
+                  <span className="truncate">{otherMember.phone}</span>
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+        {media}
+        <div data-section="common">
+          <SectionHeader icon={Users} label="En comun" />
+          <GroupsInCommonTab otherUserId={otherMember?.userId} />
+        </div>
+        <div data-section="notifications">
+          <SectionHeader icon={Bell} label="Notificaciones" />
+          <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
+        </div>
+        <div data-section="info">
+          <SectionHeader icon={Info} label="Zona de peligro" />
+          <ConversationInfoTab conversationId={conversationId} otherUserId={otherMember?.userId} otherDisplayName={otherMember?.displayName} />
+        </div>
+      </>
+    );
+  } else {
+    // group / channel: Informacion / Miembros y roles. The tab bar sticks
+    // under the top bar so each tab's content gets the full height.
+    body = (
+      <Tabs defaultValue={initialTab === "members" ? "members" : "info"}>
+        <div className={cn("sticky top-16 z-10 border-b bg-[hsl(var(--background))]/92 px-4 py-2 backdrop-blur-md transition-colors", collapsed ? "border-[hsl(var(--border))]" : "border-transparent")}>
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="info">Informacion</TabsTrigger>
             <TabsTrigger value="members">Miembros y roles</TabsTrigger>
           </TabsList>
         </div>
-
-        <TabsContent value="info" className="flex-1 min-h-0 overflow-y-auto mt-0">
+        <TabsContent value="info" className="mt-0">
           <SectionHeader icon={Settings} label="Ajustes" />
           <ChannelGeneralTab conversationId={conversationId} currentUserId={currentUserId} />
           <SectionHeader icon={CalendarDays} label="Eventos" />
           <ChannelEventsTab conversationId={conversationId} />
-          <SectionHeader icon={FolderOpen} label="Multimedia" />
-          <ConversationMediaTab conversationId={conversationId} messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
+          {media}
           <SectionHeader icon={Bell} label="Notificaciones" />
           <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
           {canManageChannel && (
@@ -420,8 +341,7 @@ export function ConversationProfilePanel({
             </>
           )}
         </TabsContent>
-
-        <TabsContent value="members" className="flex-1 min-h-0 overflow-y-auto mt-0">
+        <TabsContent value="members" className="mt-0">
           <SectionHeader icon={Users} label="Miembros" />
           <div className="px-4 pb-3">
             <ChannelMembersTab conversationId={conversationId} currentUserId={currentUserId} onOpenConversation={onOpenConversation} />
@@ -445,7 +365,18 @@ export function ConversationProfilePanel({
           )}
         </TabsContent>
       </Tabs>
+    );
+  }
+
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      {topBar}
+      <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-6">
+        {hero}
+        {callActions}
+        {body}
+      </div>
       {avatarViewer}
-    </>
+    </div>
   );
 }

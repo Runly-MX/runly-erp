@@ -1,8 +1,7 @@
 // apps/desktop/src/modules/runly.chat/components/ChannelGeneralTab.jsx
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Popover, PopoverTrigger, PopoverContent, ImageViewer, ComboboxField, Input, Label, Textarea, SwitchField, ThemedEmojiPicker } from "@runly/ui";
-import { Image as ImageIcon, Smile, X, Pencil } from "lucide-react";
+import { Button, ComboboxField, Label, SwitchField } from "@runly/ui";
 import { toast } from "sonner";
 import EventFormModal from "../../runly.calendar/components/EventFormModal";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -11,27 +10,16 @@ import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { useChannelRoles, useUpdateChannelRole } from "../hooks/useChannelRoles";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { CallAccessSettings } from "../calls/CallAccessSettings";
+import { InlineEditableField } from "./profile/InlineEditableField";
 
-// "General" tab of ConversationProfilePanel — avatar-editing UI for a channel/group
-// conversation. Mirrors MessageReactionPicker.jsx's Popover + ThemedEmojiPicker
-// pattern for the emoji button (but with a real PopoverTrigger, since the button
-// itself is the trigger here, not opened externally) and CompanyBranding.jsx's
-// uploadLogoMutation for the image button (FormData -> runly.files.upload ->
-// use the returned file id). `toast` comes from "sonner" directly, matching the
-// convention used by every other toast-using screen in this app (@runly/ui only
-// exports the <Toaster/> container, not the `toast()` function itself).
+// "Ajustes" of a group/channel profile: name and description (edited in
+// place), posting rights, guest access to meetings and the linked project.
+// The avatar is edited from the profile hero (ProfileAvatar), not here.
 export function ChannelGeneralTab({ conversationId, currentUserId }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
-  const fileInputRef = useRef(null);
-  const [emojiOpen, setEmojiOpen] = useState(false);
-  const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [editingDescription, setEditingDescription] = useState(false);
-  const [descriptionDraft, setDescriptionDraft] = useState("");
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState("");
 
   const { data: convData } = useChatConversationDetail(conversationId);
   const conversation = convData?.data;
@@ -75,15 +63,6 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
     staleTime: 30_000,
   });
 
-  const updateMutation = useMutation({
-    mutationFn: (updates) => runly.chat.updateConversation(conversationId, updates, token),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-    },
-    onError: () => toast.error("No se pudo actualizar la imagen del canal."),
-  });
-
   const linkMutation = useMutation({
     mutationFn: (linkedProjectId) => runly.chat.updateConversation(conversationId, {
       linkedModule: linkedProjectId ? "runly.projects" : null,
@@ -110,7 +89,6 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-      setEditingDescription(false);
     },
     onError: () => toast.error("No se pudo actualizar la descripcion."),
   });
@@ -120,40 +98,9 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-      setEditingTitle(false);
     },
     onError: () => toast.error("No se pudo cambiar el nombre."),
   });
-
-  function handleSaveTitle() {
-    const next = titleDraft.trim();
-    if (!next || next === conversation?.title) {
-      setEditingTitle(false);
-      return;
-    }
-    titleMutation.mutate(next);
-  }
-
-  const uploadMutation = useMutation({
-    mutationFn: async (file) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("moduleKey", "runly.chat");
-      formData.append("entityType", "ChatConversation");
-      const uploaded = await runly.files.upload(formData, token);
-      return uploaded?.data?.id ?? null;
-    },
-    onSuccess: (fileId) => {
-      if (fileId) updateMutation.mutate({ avatarFileId: fileId });
-    },
-    onError: () => toast.error("No se pudo subir la imagen."),
-  });
-
-  function handleFileChange(e) {
-    const file = e.target.files?.[0];
-    if (file) uploadMutation.mutate(file);
-    e.target.value = "";
-  }
 
   // atlas.calls guest-link access mode. The CallLink row is unique + persistent
   // per conversation, so requireLobby here IS the per-conversation default that
@@ -186,188 +133,30 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
     onError: () => toast.error("No se pudo cambiar el acceso a las llamadas."),
   });
 
-  const hasAvatar = Boolean(conversation?.avatarUrl || conversation?.avatar_emoji);
-
-  const { data: fullAvatarUrl } = useQuery({
-    queryKey: ["chat-avatar-full-url", conversation?.avatar_file_id],
-    queryFn: async () => {
-      const res = await runly.files.getSignedUrl(conversation.avatar_file_id, token, { variant: "full" });
-      return res?.data?.signedUrl ?? null;
-    },
-    enabled: Boolean(avatarViewerOpen && conversation?.avatar_file_id && token),
-    staleTime: 50 * 60 * 1000,
-  });
-
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-start gap-4">
-        {conversation?.avatarUrl ? (
-          <button
-            type="button"
-            onClick={() => setAvatarViewerOpen(true)}
-            title="Ver imagen del canal"
-            aria-label="Ver imagen del canal"
-            className="h-16 w-16 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center overflow-hidden shrink-0 hover:opacity-90 transition-opacity"
-          >
-            <img src={conversation.avatarUrl} alt="" className="h-full w-full object-cover" />
-          </button>
-        ) : (
-          <div className="h-16 w-16 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center overflow-hidden shrink-0">
-            {conversation?.avatar_emoji ? (
-              // snake_case is correct here, not a typo: getConversation/listConversations
-              // rename avatar_file_id's resolved URL to camelCase avatarUrl, but pass
-              // avatar_emoji straight through unaliased from `SELECT c.*` — the backend's
-              // own response shape is genuinely inconsistent between these two fields.
-              <span className="text-3xl">{conversation.avatar_emoji}</span>
-            ) : (
-              <span className="text-lg font-semibold text-[hsl(var(--muted-foreground))]">
-                {(conversation?.title ?? "?")[0]?.toUpperCase()}
-              </span>
-            )}
-          </div>
-        )}
-        <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-              disabled={!canManage}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!canManage || uploadMutation.isPending || updateMutation.isPending}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
-              Cambiar imagen
-            </Button>
-            <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
-              <PopoverTrigger asChild>
-                <Button size="sm" variant="outline" disabled={!canManage || uploadMutation.isPending || updateMutation.isPending}>
-                  <Smile className="h-3.5 w-3.5 mr-1.5" />
-                  Cambiar emoji
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent side="bottom" align="start" className="w-auto p-0 overflow-hidden">
-                <ThemedEmojiPicker
-                  onEmojiClick={(emojiData) => {
-                    updateMutation.mutate({ avatarEmoji: emojiData.emoji });
-                    setEmojiOpen(false);
-                  }}
-                  width="min(300px, calc(100vw - 1.5rem))"
-                  height={340}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-          {hasAvatar && canManage && (
-            <button
-              type="button"
-              onClick={() => updateMutation.mutate({ avatarFileId: null, avatarEmoji: null })}
-              className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] hover:text-red-500 transition-colors self-start"
-            >
-              <X className="h-3 w-3" />
-              Quitar imagen o emoji
-            </button>
-          )}
-        </div>
-      </div>
-      {!canManage && (
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">
-          Solo un administrador del canal puede cambiar esta imagen.
-        </p>
-      )}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <Label>Nombre</Label>
-          {canManage && !editingTitle && (
-            <button
-              type="button"
-              onClick={() => {
-                setTitleDraft(conversation?.title ?? "");
-                setEditingTitle(true);
-              }}
-              className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
-            >
-              <Pencil className="h-3 w-3" />
-              Editar
-            </button>
-          )}
-        </div>
-        {editingTitle ? (
-          <div className="space-y-1.5">
-            <Input
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); handleSaveTitle(); }
-                if (e.key === "Escape") { e.stopPropagation(); setEditingTitle(false); }
-              }}
-              placeholder="Nombre de la conversacion"
-              maxLength={200}
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <Button size="sm" disabled={titleMutation.isPending || !titleDraft.trim()} onClick={handleSaveTitle}>
-                Guardar
-              </Button>
-              <Button size="sm" variant="outline" disabled={titleMutation.isPending} onClick={() => setEditingTitle(false)}>
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm whitespace-pre-wrap wrap-break-word">
-            {conversation?.title || "Sin nombre"}
-          </p>
-        )}
-      </div>
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <Label>Descripcion</Label>
-          {canManage && !editingDescription && (
-            <button
-              type="button"
-              onClick={() => {
-                setDescriptionDraft(conversation?.description ?? "");
-                setEditingDescription(true);
-              }}
-              className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
-            >
-              <Pencil className="h-3 w-3" />
-              Editar
-            </button>
-          )}
-        </div>
-        {editingDescription ? (
-          <div className="space-y-1.5">
-            <Textarea
-              value={descriptionDraft}
-              onChange={(e) => setDescriptionDraft(e.target.value)}
-              placeholder="Que trata este canal..."
-              maxLength={2000}
-              rows={3}
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <Button size="sm" disabled={descriptionMutation.isPending} onClick={() => descriptionMutation.mutate(descriptionDraft.trim() || null)}>
-                Guardar
-              </Button>
-              <Button size="sm" variant="outline" disabled={descriptionMutation.isPending} onClick={() => setEditingDescription(false)}>
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-[hsl(var(--muted-foreground))] whitespace-pre-wrap">
-            {conversation?.description || "Sin descripcion."}
-          </p>
-        )}
-      </div>
+    <div className="space-y-4 px-4 pb-4 pt-1">
+      <InlineEditableField
+        label="Nombre"
+        value={conversation?.title ?? ""}
+        placeholder="Nombre de la conversacion"
+        emptyText="Sin nombre"
+        required
+        maxLength={200}
+        canEdit={canManage}
+        saving={titleMutation.isPending}
+        onSave={(title) => titleMutation.mutateAsync(title)}
+      />
+      <InlineEditableField
+        label="Descripcion"
+        value={conversation?.description ?? ""}
+        placeholder="De que trata esta conversacion..."
+        emptyText="Sin descripcion."
+        multiline
+        maxLength={2000}
+        canEdit={canManage}
+        saving={descriptionMutation.isPending}
+        onSave={(description) => descriptionMutation.mutateAsync(description)}
+      />
       {memberRole && canManageRoles && (
         <SwitchField
           label="Solo administradores pueden escribir"
@@ -445,12 +234,6 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
           }}
         />
       )}
-      <ImageViewer
-        src={fullAvatarUrl ?? conversation?.avatarUrl}
-        alt={conversation?.title ?? "Canal"}
-        open={avatarViewerOpen}
-        onClose={() => setAvatarViewerOpen(false)}
-      />
     </div>
   );
 }

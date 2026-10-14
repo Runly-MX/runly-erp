@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Button,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-  ConfirmDialog, AssistantWordmark, BackButton,
+  ConfirmDialog, AssistantWordmark, BackButton, MiraiAvatar,
 } from "@runly/ui";
 import {
   Users, FolderOpen, MessageSquare,
@@ -174,7 +174,7 @@ export function ChatHeader({
     const guestName = conversation?.guest_name ?? conversation?.guest_email ?? "Visitante";
     const closed = externalStatus === "closed";
     return (
-      <div className="chat-glass flex items-center gap-3 px-3 sm:px-4 py-3 shrink-0 border-x-0! border-t-0! border-b! border-[hsl(var(--border))]!">
+      <div className="chat-glass flex h-16 items-center gap-3 px-3 sm:px-4 shrink-0 border-x-0! border-t-0! border-b! border-[hsl(var(--border))]!">
         {onClose && (
           <BackButton onClick={onClose} className="-mr-1 md:hidden" />
         )}
@@ -225,7 +225,7 @@ export function ChatHeader({
   // ── Normal mode ─────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="chat-glass flex items-center gap-3 px-3 sm:px-4 py-3 shrink-0 border-x-0! border-t-0! border-b! border-[hsl(var(--border))]!">
+      <div className="chat-glass flex h-16 items-center gap-3 px-3 sm:px-4 shrink-0 border-x-0! border-t-0! border-b! border-[hsl(var(--border))]!">
         {embedded === "call" ? (
           <button
             type="button"
@@ -239,7 +239,9 @@ export function ChatHeader({
           <BackButton onClick={onClose} className="-mr-1 md:hidden" />
         ) : null}
         <button type="button" onClick={() => onOpenProfile(null)} className="relative shrink-0" title="Ver perfil">
-          {avatarUrl && !avatarErr ? (
+          {isMirai ? (
+            <MiraiAvatar size={38} />
+          ) : avatarUrl && !avatarErr ? (
             <img
               src={avatarUrl}
               alt={displayName}
