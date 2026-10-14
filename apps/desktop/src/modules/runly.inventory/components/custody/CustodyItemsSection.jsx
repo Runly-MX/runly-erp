@@ -5,12 +5,14 @@ import {
 import { Plus } from 'lucide-react'
 import { CustodyItemsPicker } from './CustodyItemsPicker.jsx'
 import { custodyItemColumns } from './custodyItemColumns.jsx'
+import { itemFieldPatch } from '../../lib/custody-api.js'
 
 const itemIdOf = (row) => row.itemId ?? row.item?.id ?? row.id
 
 // Items snapshot. While the record is open, items can be added (picker
-// dialog) or removed per row; `apply` is the guarded PATCH.
-export function CustodyItemsSection({ custody, editable, apply, busy }) {
+// dialog), removed per row and their snapshot fields edited inline;
+// `apply` / `applyItem` are the guarded PATCHes.
+export function CustodyItemsSection({ custody, editable, apply, applyItem, busy }) {
   const [adding, setAdding] = useState(false)
   const [selection, setSelection] = useState([])
   const currentIds = useMemo(() => custody.items.map(itemIdOf), [custody.items])
@@ -21,7 +23,11 @@ export function CustodyItemsSection({ custody, editable, apply, busy }) {
       const id = itemIdOf(row)
       apply({ itemIds: currentIds.filter((x) => x !== id) }, 'Artículo quitado del resguardo')
     },
-  } : {}), [editable, busy, apply, currentIds])
+    onEdit: applyItem ? (row, field, text) => {
+      const patch = itemFieldPatch(row, field, text)
+      if (patch) applyItem(row.id ?? itemIdOf(row), patch, patch[field] === null ? 'Se restauró el dato del artículo' : 'Artículo actualizado')
+    } : undefined,
+  } : {}), [editable, busy, apply, applyItem, currentIds])
 
   function openAdd() {
     setSelection([])
@@ -37,7 +43,14 @@ export function CustodyItemsSection({ custody, editable, apply, busy }) {
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Artículos del resguardo <span className="font-normal text-[hsl(var(--muted-foreground))]">({custody.items.length})</span></h3>
+        <div>
+          <h3 className="text-sm font-semibold">Artículos del resguardo <span className="font-normal text-[hsl(var(--muted-foreground))]">({custody.items.length})</span></h3>
+          {editable && applyItem && custody.items.length ? (
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Haz clic en un dato para corregirlo. Los editados a mano llevan un punto y se conservan aunque cambie el artículo.
+            </p>
+          ) : null}
+        </div>
         {editable ? (
           <Button type="button" variant="outline" size="sm" onClick={openAdd} disabled={busy}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />Agregar artículos

@@ -1,18 +1,42 @@
 import { Button } from '@runly/ui'
 import { X } from 'lucide-react'
+import { CustodyEditableCell } from './CustodyEditableCell.jsx'
 
 const muted = 'text-[hsl(var(--muted-foreground))]'
 
+// [field, header, mono, clamp]
+const FIELDS = [
+  ['typeBrand', 'Tipo / marca'],
+  ['model', 'Modelo'],
+  ['serialNumber', 'Serie', true],
+  ['assetTag', 'Etiqueta', true],
+  ['invoiceNumber', 'Factura'],
+  ['features', 'Características', false, true],
+]
+
+function readOnlyCell(field, mono, clamp) {
+  return ({ row }) => {
+    const value = row.original[field] || '—'
+    if (mono) return <span className="font-mono text-xs">{value}</span>
+    return clamp ? <span className="line-clamp-2">{value}</span> : value
+  }
+}
+
 // Snapshot item columns shared by the read-only and editable custody tables.
-export function custodyItemColumns({ onRemove, disabled } = {}) {
+// `onEdit(row, field, text)` turns the snapshot cells into inline editors.
+export function custodyItemColumns({ onRemove, onEdit, disabled } = {}) {
   const columns = [
     { id: 'index', header: '#', enableSorting: false, cell: ({ row }) => <span className={`tabular-nums ${muted}`}>{row.index + 1}</span> },
-    { accessorKey: 'typeBrand', header: 'Tipo / marca', cell: ({ row }) => row.original.typeBrand || '—' },
-    { accessorKey: 'model', header: 'Modelo', cell: ({ row }) => row.original.model || '—' },
-    { accessorKey: 'serialNumber', header: 'Serie', cell: ({ row }) => <span className="font-mono text-xs">{row.original.serialNumber || '—'}</span> },
-    { accessorKey: 'assetTag', header: 'Etiqueta', cell: ({ row }) => <span className="font-mono text-xs">{row.original.assetTag || '—'}</span> },
-    { accessorKey: 'invoiceNumber', header: 'Factura', cell: ({ row }) => row.original.invoiceNumber || '—' },
-    { accessorKey: 'features', header: 'Características', cell: ({ row }) => <span className="line-clamp-2">{row.original.features || '—'}</span> },
+    ...FIELDS.map(([field, header, mono, clamp]) => ({
+      accessorKey: field,
+      header,
+      enableSorting: !onEdit,
+      cell: onEdit
+        ? ({ row }) => (
+          <CustodyEditableCell row={row.original} field={field} label={header} mono={mono} clamp={clamp} disabled={disabled} onSave={onEdit} />
+        )
+        : readOnlyCell(field, mono, clamp),
+    })),
   ]
   if (!onRemove) return columns
   return [...columns, {

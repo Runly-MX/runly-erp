@@ -63,6 +63,10 @@ export const useCreateCustody = () =>
 export const useUpdateCustody = () =>
   useCustodyMutation(async ({ id, ...data }, token) => parseCustody(await runly.inventory.custodies.update(id, data, token)))
 
+// { id, rowId, patch } edits snapshot fields of one row (null restores the item value).
+export const useUpdateCustodyItem = () =>
+  useCustodyMutation(async ({ id, rowId, patch }, token) => parseCustody(await runly.inventory.custodies.updateItem(id, rowId, patch, token)))
+
 // { id, role, dataUrl } draws; { id, role: 'deliverer', useSaved: true } applies the deliverer's saved signature.
 export const useSignCustody = () =>
   useCustodyMutation(async ({ id, role, dataUrl, useSaved }, token) =>

@@ -22,11 +22,15 @@ const flag = (value, fallback) => (typeof value === 'boolean' ? value : Boolean(
 
 export function normalizeCustody(raw) {
   if (!raw) return null
-  const items = Array.isArray(raw.items) ? raw.items : []
+  const items = (Array.isArray(raw.items) ? raw.items : []).map((row) => ({
+    ...row, editedFields: Array.isArray(row?.editedFields) ? row.editedFields : [],
+  }))
   const employee = raw.employee ?? null
   return {
     ...raw,
     items,
+    receiverSignatureUrl: raw.receiverSignatureUrl ?? null,
+    delivererSignatureUrl: raw.delivererSignatureUrl ?? null,
     employeeName: raw.employeeName ?? personName(employee) ?? '—',
     employeeEmail: raw.employeeEmail ?? employee?.workEmail ?? employee?.email ?? employee?.personalEmail ?? null,
     delivererId: raw.delivererId ?? raw.deliverer?.id ?? null,
@@ -46,6 +50,23 @@ export const SIGNATURE_RESET_FIELDS = ['kind', 'employeeId', 'itemIds']
 export function editClearsSignatures(custody, patch) {
   if (!custody?.receiverSigned && !custody?.delivererSigned) return false
   return SIGNATURE_RESET_FIELDS.some((key) => key in (patch ?? {}))
+}
+
+// Editing a snapshot row (spec §10.2) also clears captured signatures.
+export const itemEditClearsSignatures = (custody) => Boolean(custody?.receiverSigned || custody?.delivererSigned)
+
+// Hand-editable snapshot fields -> max length (mirrors the API).
+export const EDITABLE_ITEM_FIELDS = { typeBrand: 255, model: 255, serialNumber: 255, assetTag: 100, invoiceNumber: 100, features: 500 }
+
+export const isEditedField = (row, key) => Array.isArray(row?.editedFields) && row.editedFields.includes(key)
+
+// Inline cell text -> PATCH item body; null when nothing changes. Empty text
+// clears the override (restores the item value).
+export function itemFieldPatch(row, key, text) {
+  if (!(key in EDITABLE_ITEM_FIELDS)) return null
+  const value = String(text ?? '').trim().slice(0, EDITABLE_ITEM_FIELDS[key])
+  if (!value) return isEditedField(row, key) ? { [key]: null } : null
+  return value === (row?.[key] ?? '') ? null : { [key]: value }
 }
 
 // Snapshot rows -> picker rows ({ id, name, assetTag, serialNumber }).

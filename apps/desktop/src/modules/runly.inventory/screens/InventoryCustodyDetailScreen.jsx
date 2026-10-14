@@ -164,11 +164,11 @@ export default function InventoryCustodyDetailScreen() {
 
 // DRAFT / PENDING_SIGNATURE: the detail is the editor (spec §9.4).
 function OpenCustodyEditor({ custody }) {
-  const { apply, busy, confirm } = useGuardedCustodyPatch(custody)
+  const { apply, applyItem, busy, confirm } = useGuardedCustodyPatch(custody)
   return (
     <>
       <CustodyDetailsEditor custody={custody} apply={apply} busy={busy} />
-      <CustodyItemsSection custody={custody} editable apply={apply} busy={busy} />
+      <CustodyItemsSection custody={custody} editable apply={apply} applyItem={applyItem} busy={busy} />
       {confirm}
     </>
   )

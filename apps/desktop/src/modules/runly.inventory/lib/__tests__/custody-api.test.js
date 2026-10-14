@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  dataUrlToBase64, editClearsSignatures, formatCustodyDate, parseCustody, parseCustodyList, parseDeliverers, parsePublicCustody,
+  dataUrlToBase64, editClearsSignatures, formatCustodyDate, isEditedField, itemEditClearsSignatures, itemFieldPatch, parseCustody, parseCustodyList, parseDeliverers, parsePublicCustody,
   templateTagCount, templateWarnings,
 } from '../custody-api.js'
 
@@ -42,4 +42,23 @@ test('revision 2: flags, deliverers, saved signature, signature reset', () => {
   assert.deepEqual(parseDeliverers({ users: [{ id: 'u1', name: 'Luis', hasSavedSignature: true }, { id: 'b', isBot: true }] }).map((u) => u.id), ['u1'])
   assert.equal(templateTagCount({ tagCount: 0 }), 0)
   assert.equal(parsePublicCustody({ custody: { items: [{ model: 'A' }] } }).items[0].index, 1)
+})
+
+test('parseCustody exposes signature URLs and edited fields (revision 3)', () => {
+  const custody = parseCustody({ custody: { id: 'x', receiverSignatureUrl: 'https://files.example.com/r.png', items: [{ id: 'r1', editedFields: ['features'] }, { id: 'r2' }] } })
+  assert.equal(custody.receiverSignatureUrl, 'https://files.example.com/r.png')
+  assert.equal(custody.delivererSignatureUrl, null)
+  assert.equal(isEditedField(custody.items[0], 'features'), true)
+  assert.deepEqual(custody.items[1].editedFields, [])
+  assert.equal(itemEditClearsSignatures({ receiverSigned: true }), true)
+  assert.equal(itemEditClearsSignatures({}), false)
+})
+
+test('itemFieldPatch builds the PATCH body for an inline cell edit', () => {
+  const row = { features: 'Laptop', model: 'X1', editedFields: ['model'] }
+  assert.deepEqual(itemFieldPatch(row, 'features', ' 16 GB RAM, 512 GB SSD '), { features: '16 GB RAM, 512 GB SSD' })
+  assert.equal(itemFieldPatch(row, 'features', 'Laptop'), null)
+  assert.equal(itemFieldPatch(row, 'features', '  '), null)
+  assert.deepEqual(itemFieldPatch(row, 'model', ''), { model: null })
+  assert.equal(itemFieldPatch(row, 'itemId', 'x'), null)
 })

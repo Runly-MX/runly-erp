@@ -1,18 +1,19 @@
 import { useState } from 'react'
 import { ConfirmDialog } from '@runly/ui'
 import { toast } from 'sonner'
-import { useUpdateCustody } from '../../hooks/useInventoryCustody.js'
-import { editClearsSignatures } from '../../lib/custody-api.js'
+import { useUpdateCustody, useUpdateCustodyItem } from '../../hooks/useInventoryCustody.js'
+import { editClearsSignatures, itemEditClearsSignatures } from '../../lib/custody-api.js'
 
-// PATCH helper for the inline custody editor. Edits that clear captured
-// signatures (kind, employee, items) ask for confirmation first.
+// PATCH helpers for the inline custody editor. Edits that clear captured
+// signatures (kind, employee, items, an item's data) ask for confirmation first.
 export function useGuardedCustodyPatch(custody) {
   const update = useUpdateCustody()
+  const updateItem = useUpdateCustodyItem()
   const [pending, setPending] = useState(null)
 
-  async function send(patch, message) {
+  async function run(mutation, vars, message) {
     try {
-      await update.mutateAsync({ id: custody.id, ...patch })
+      await mutation.mutateAsync({ id: custody.id, ...vars })
       toast.success(message ?? 'Resguardo actualizado')
       return true
     } catch (err) {
@@ -22,28 +23,33 @@ export function useGuardedCustodyPatch(custody) {
   }
 
   // Resolves true when saved, false when failed or declined.
-  function apply(patch, message) {
-    if (!editClearsSignatures(custody, patch)) return send(patch, message)
-    return new Promise((resolve) => setPending({ patch, message, resolve }))
+  function guard(clears, send) {
+    if (!clears) return send()
+    return new Promise((resolve) => setPending({ send, resolve }))
   }
+
+  const apply = (patch, message) => guard(editClearsSignatures(custody, patch), () => run(update, patch, message))
+  const applyItem = (rowId, patch, message) =>
+    guard(itemEditClearsSignatures(custody), () => run(updateItem, { rowId, patch }, message ?? 'Artículo actualizado'))
 
   function close(result) {
     pending?.resolve(result)
     setPending(null)
   }
 
+  const busy = update.isPending || updateItem.isPending
   const confirm = (
     <ConfirmDialog
       open={Boolean(pending)}
       onOpenChange={(open) => { if (!open) close(false) }}
       title="Se borrarán las firmas"
-      description="Cambiar el tipo, el colaborador o los artículos invalida las firmas ya capturadas. Tendrán que firmar de nuevo; el enlace de firma sigue siendo válido."
+      description="Cambiar el tipo, el colaborador, los artículos o sus datos invalida las firmas ya capturadas. Tendrán que firmar de nuevo; el enlace de firma sigue siendo válido."
       confirmLabel="Guardar y borrar firmas"
       cancelLabel="Volver"
-      loading={update.isPending}
-      onConfirm={async () => close(await send(pending.patch, pending.message))}
+      loading={busy}
+      onConfirm={async () => close(await pending.send())}
     />
   )
 
-  return { apply, busy: update.isPending, confirm }
+  return { apply, applyItem, busy, confirm }
 }
