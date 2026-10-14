@@ -42,6 +42,17 @@ export function createInventoryCustodyDomain({ request, requestBlob, withAuthHea
         body: formData,
         onlineOnly: true,
       }),
+      // formData: file. Keeps the template id, name and default flag.
+      replaceFile: (templateId, formData, token) => request(`/inventory/document-templates/${id(templateId)}/file`, {
+        method: 'PUT',
+        headers: withAuthHeaders(token),
+        body: formData,
+        onlineOnly: true,
+      }),
+      // Signed URL of the current .docx/.xlsx ({ url, expiresIn, fileName }).
+      fileUrl: (templateId, token) => send('GET', `/inventory/document-templates/${id(templateId)}/file`, undefined, token),
+      // Built-in example .docx with every tag (blob).
+      sample: (token) => requestBlob('/inventory/document-templates/sample', { headers: withAuthHeaders(token) }),
       update: (templateId, data, token) => send('PATCH', `/inventory/document-templates/${id(templateId)}`, data, token),
       remove: (templateId, token) => send('DELETE', `/inventory/document-templates/${id(templateId)}`, undefined, token),
     },

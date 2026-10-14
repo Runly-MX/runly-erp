@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Badge, Button, CheckboxField, ConfirmDialog, DataTable, DistDropZone, TextField } from '@runly/ui'
-import { AlertTriangle, FileText, Star, Trash2 } from 'lucide-react'
+import { AlertTriangle, Download, FileText, RefreshCw, Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  useDeleteDocumentTemplate, useDocumentTemplates, useUpdateDocumentTemplate, useUploadDocumentTemplate,
+  useDeleteDocumentTemplate, useDocumentTemplates, useDownloadDocumentTemplate, useReplaceDocumentTemplateFile,
+  useUpdateDocumentTemplate, useUploadDocumentTemplate,
 } from '../../hooks/useInventoryCustody.js'
 import { templateTagCount, templateWarnings } from '../../lib/custody-api.js'
 import { CatalogPanel } from './CatalogPanel.jsx'
@@ -36,6 +37,11 @@ export function TemplatesPanel() {
   const [form, setForm] = useState(EMPTY)
   const [lastWarnings, setLastWarnings] = useState([])
   const [deleting, setDeleting] = useState(null)
+  const download = useDownloadDocumentTemplate()
+  const replace = useReplaceDocumentTemplateFile()
+  const [replacing, setReplacing] = useState(null)
+  const [replaceFile, setReplaceFile] = useState(null)
+  const [replaceWarnings, setReplaceWarnings] = useState([])
 
   function openUpload() {
     setForm({ ...EMPTY, isDefault: rows.length === 0 })
@@ -65,6 +71,32 @@ export function TemplatesPanel() {
     } catch (err) {
       toast.error(err?.message ?? 'No se pudo subir la plantilla')
     }
+  }
+
+  async function downloadTemplate(row) {
+    try {
+      await download.mutateAsync(row ? { id: row.id, fileName: `${row.name}.${row.format}` } : {})
+    } catch (err) { toast.error(err?.message ?? 'No se pudo descargar la plantilla') }
+  }
+
+  function openReplace(row) {
+    setReplaceFile(null)
+    setReplaceWarnings([])
+    setReplacing(row)
+  }
+
+  async function submitReplace() {
+    try {
+      const template = await replace.mutateAsync({ id: replacing.id, file: replaceFile })
+      const warnings = templateWarnings(template)
+      if (warnings.length) {
+        setReplaceWarnings(warnings)
+        toast.warning('Plantilla actualizada con advertencias')
+        return
+      }
+      toast.success(`«${replacing.name}» actualizada`)
+      setReplacing(null)
+    } catch (err) { toast.error(err?.message ?? 'No se pudo reemplazar la plantilla') }
   }
 
   async function makeDefault(row) {
@@ -102,6 +134,14 @@ export function TemplatesPanel() {
             <Star className="mr-1.5 h-3.5 w-3.5" />Predeterminar
           </Button>
         ) : null}
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Descargar para editar"
+          aria-label={`Descargar ${row.original.name}`} onClick={() => downloadTemplate(row.original)} disabled={download.isPending}>
+          <Download className="h-3.5 w-3.5" />
+        </Button>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Reemplazar archivo"
+          aria-label={`Reemplazar ${row.original.name}`} onClick={() => openReplace(row.original)}>
+          <RefreshCw className="h-3.5 w-3.5" />
+        </Button>
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-[hsl(var(--destructive))]"
           aria-label={`Eliminar ${row.original.name}`} onClick={() => setDeleting(row.original)}>
           <Trash2 className="h-3.5 w-3.5" />
@@ -116,7 +156,27 @@ export function TemplatesPanel() {
         searchPlaceholder="Buscar plantilla..." emptyTitle="Sin plantillas"
         emptyDescription="Sube tu formato de resguardo en Word o Excel. Sin plantilla se usa el formato estándar."
         emptyIcon={FileText} emptyAction={{ label: 'Subir plantilla', onClick: openUpload }} />
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
+        <span>Para cambiar una plantilla: descárgala, edítala en Word o Excel respetando las etiquetas y usa «Reemplazar archivo». ¿Empiezas desde cero? Descarga el ejemplo con todas las etiquetas.</span>
+        <Button type="button" variant="outline" size="sm" onClick={() => downloadTemplate(null)} disabled={download.isPending}>
+          <Download className="mr-1.5 h-3.5 w-3.5" />Descargar ejemplo
+        </Button>
+      </div>
       <TemplatePlaceholderReference />
+
+      <CatalogEditSheet open={Boolean(replacing)} onOpenChange={(v) => { if (!v) setReplacing(null) }}
+        title={`Reemplazar «${replacing?.name ?? ''}»`} busy={replace.isPending}
+        saveDisabled={!replaceFile || replaceWarnings.length > 0} onSave={submitReplace}>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">Sube la versión editada. Se conservan el nombre, si es predeterminada y los resguardos que la usan; los documentos ya generados no cambian.</p>
+        <DistDropZone accept=".docx,.xlsx" maxSizeMB={10} file={replaceFile}
+          onFile={(file) => { if (!formatOf(file)) { toast.error('Sube un archivo .docx o .xlsx'); return } setReplaceFile(file); setReplaceWarnings([]) }}
+          onClear={() => setReplaceFile(null)} isUploading={replace.isPending}
+          emptyLabel="Arrastra la plantilla editada .docx o .xlsx" />
+        <Warnings list={replaceWarnings} />
+        {replaceWarnings.length ? (
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">El archivo se reemplazó. Corrige las etiquetas y vuelve a subirlo si lo necesitas, o cierra este panel.</p>
+        ) : null}
+      </CatalogEditSheet>
 
       <CatalogEditSheet open={uploading} onOpenChange={setUploading} title="Subir plantilla" busy={upload.isPending}
         saveDisabled={!form.file || !form.name.trim() || lastWarnings.length > 0} onSave={submit}>

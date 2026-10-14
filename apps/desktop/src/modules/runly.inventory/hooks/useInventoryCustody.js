@@ -143,6 +143,46 @@ export const useUploadDocumentTemplate = () =>
 export const useUpdateDocumentTemplate = () =>
   useTemplateMutation(async ({ id, ...data }, token) => parseTemplate(await runly.inventory.documentTemplates.update(id, data, token)))
 
+export const useReplaceDocumentTemplateFile = () =>
+  useTemplateMutation(async ({ id, file }, token) => {
+    const form = new FormData()
+    form.append('file', file)
+    return parseTemplate(await runly.inventory.documentTemplates.replaceFile(id, form, token))
+  })
+
+// Downloads the template file (or the built-in example when id is omitted).
+export function useDownloadDocumentTemplate() {
+  const token = useToken()
+  return useMutation({
+    mutationFn: async ({ id, fileName } = {}) => {
+      if (id) {
+        const res = await runly.inventory.documentTemplates.fileUrl(id, token)
+        if (!res?.url) throw new Error('El archivo de la plantilla no está disponible')
+        return saveFromUrl(res.url, res.fileName ?? fileName ?? 'plantilla')
+      }
+      const blob = await runly.inventory.documentTemplates.sample(token)
+      return saveBlob(blob, 'plantilla-resguardo-ejemplo.docx')
+    },
+  })
+}
+
+function saveBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 30_000)
+}
+
+async function saveFromUrl(url, fileName) {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('No se pudo descargar la plantilla')
+  saveBlob(await res.blob(), fileName)
+}
+
 export const useDeleteDocumentTemplate = () =>
   useTemplateMutation((id, token) => runly.inventory.documentTemplates.remove(id, token))
 

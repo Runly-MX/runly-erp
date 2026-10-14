@@ -61,19 +61,22 @@ export function createInventoryDocumentTemplateService({ prisma, supabaseAdmin }
     return rows.map(serializeTemplate);
   }
 
-  async function upload({ companyId, profileId, file, name, isDefault = false }) {
+  // Validates an uploaded .docx/.xlsx and returns its buffer, format and tags.
+  async function readUpload(file) {
     if (!file || typeof file.arrayBuffer !== 'function' || !file.size) throw new InventoryServiceError('Adjunta un archivo .docx o .xlsx.', 400);
     if (file.size > MAX_TEMPLATE_BYTES) throw new InventoryServiceError('La plantilla supera 10 MB.', 400);
-    let format;
-    let inspection;
     const buffer = Buffer.from(await file.arrayBuffer());
     try {
-      format = templateFormatOf(file.name);
-      inspection = await inspectCustodyTemplate(buffer, format);
+      const format = templateFormatOf(file.name);
+      return { buffer, format, inspection: await inspectCustodyTemplate(buffer, format) };
     } catch (err) {
       if (err instanceof TemplateError) throw new InventoryServiceError(err.message, 400);
       throw err;
     }
+  }
+
+  async function upload({ companyId, profileId, file, name, isDefault = false }) {
+    const { buffer, format, inspection } = await readUpload(file);
     const cleanName = String(name ?? '').trim().slice(0, 200) || String(file.name).replace(/\.[^.]+$/, '').slice(0, 200) || 'Plantilla';
     const asset = await files.store({
       companyId, uploadedById: profileId, buffer, fileName: file.name, mimeType: MIME_TYPES[format], entityType: 'InvDocumentTemplate',
@@ -106,6 +109,21 @@ export function createInventoryDocumentTemplateService({ prisma, supabaseAdmin }
     return serializeTemplate(updated);
   }
 
+  // Replaces the file of an existing template (edited offline and re-uploaded):
+  // keeps id, name, default flag and every custody that references it.
+  async function replaceFile({ id, companyId, profileId, file }) {
+    const row = await find(id, companyId);
+    const { buffer, format, inspection } = await readUpload(file);
+    const asset = await files.store({
+      companyId, uploadedById: profileId, buffer, fileName: file.name, mimeType: MIME_TYPES[format], entityType: 'InvDocumentTemplate',
+    });
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.fileAsset.update({ where: { id: asset.id }, data: { metadata: { ...(asset.metadata ?? {}), sourceEntityId: row.id } } });
+      return tx.invDocumentTemplate.update({ where: { id: row.id }, data: { format, fileAssetId: asset.id, placeholders: inspection.tags } });
+    });
+    return { template: serializeTemplate(updated), warnings: inspection.warnings };
+  }
+
   async function remove(id, companyId) {
     await find(id, companyId);
     await prisma.invDocumentTemplate.update({ where: { id }, data: { enabled: false, isDefault: false } });
@@ -133,5 +151,5 @@ export function createInventoryDocumentTemplateService({ prisma, supabaseAdmin }
     return { template: null, format: 'docx', buffer: buildDefaultCustodyTemplate() };
   }
 
-  return { list, upload, update, remove, fileUrl, resolveForCustody };
+  return { list, upload, replaceFile, update, remove, fileUrl, resolveForCustody };
 }

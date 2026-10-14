@@ -19,6 +19,10 @@ Un resguardo es el documento formal con el que entregas (o recibes de vuelta) eq
 
 En **Catalogos > Plantillas** sube tu formato en `.docx` o `.xlsx`. Las etiquetas van entre llaves dobles, por ejemplo `{{folio}}`. Al subir, la plantilla se valida: si esta mal formada se rechaza, y las etiquetas que no reconoce se muestran como advertencia. Una plantilla sin ninguna etiqueta se acepta, pero con la advertencia de que el documento saldra sin datos; la lista de plantillas muestra cuantas etiquetas detecto cada una. Si no subes ninguna, se usa un formato basico.
 
+Para cambiar una plantilla, usa **Descargar** en su fila, editala en Word o Excel respetando las etiquetas y subela con **Reemplazar archivo**: conserva el nombre, si es predeterminada y los resguardos que la usan (los documentos ya generados no cambian). Si empiezas desde cero, **Descargar ejemplo** te da un formato basico con todas las etiquetas ya colocadas.
+
+La lista de articulos es dinamica: escribe una sola fila con `{{#items}}` en la primera celda y `{{/items}}` en la ultima, y esa fila se repite por cada articulo. En Word conviene marcar la fila de titulos como "Repetir como fila de encabezado" y desmarcar "Permitir que las filas se dividan entre paginas" para que un resguardo largo pase bien a la segunda hoja.
+
 | Etiqueta | Valor |
 |---|---|
 | `{{folio}}`, `{{date}}`, `{{kind}}` | Folio, fecha (dd/mm/aaaa) y tipo (Entrega o Devolucion) |

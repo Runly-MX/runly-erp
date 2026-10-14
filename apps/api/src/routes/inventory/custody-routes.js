@@ -3,6 +3,7 @@
 import { Hono } from 'hono';
 import { createInventoryCustodyService } from '../../services/inventory-custody-service.js';
 import { CUSTODY_PLACEHOLDERS } from '../../services/inventory-document-template-service.js';
+import { buildDefaultCustodyTemplate } from '../../services/document-templates/custody-template-data.js';
 
 export function createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin = null, custodyService = null }) {
   const router = new Hono();
@@ -40,6 +41,25 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
       });
       return c.json(result, 201);
     } catch (err) { return fail(c, err, 'No se pudo subir la plantilla.'); }
+  });
+
+  // Built-in example with every tag, as a starting point for a company format.
+  router.get('/inventory/document-templates/sample', read, (c) => {
+    const bytes = buildDefaultCustodyTemplate();
+    return c.body(bytes, 200, {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Disposition': 'attachment; filename="plantilla-resguardo-ejemplo.docx"',
+    });
+  });
+
+  // Re-upload an edited version over the same template.
+  router.put('/inventory/document-templates/:id/file', manageTemplates, async (c) => {
+    try {
+      const form = await c.req.formData();
+      return c.json(await svc().templates.replaceFile({
+        id: c.req.param('id'), companyId: c.get('companyId'), profileId: c.get('userId'), file: form.get('file'),
+      }));
+    } catch (err) { return fail(c, err, 'No se pudo reemplazar la plantilla.'); }
   });
 
   router.get('/inventory/document-templates/:id/file', read, async (c) => {
