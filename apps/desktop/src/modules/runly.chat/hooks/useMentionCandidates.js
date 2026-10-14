@@ -36,7 +36,7 @@ export function useMentionCandidates(conversationId, currentUserId) {
       miraiStatus?.available === true &&
       convType !== "mirai" &&
       convType !== "external_support"
-        ? [{ id: MIRAI_MENTION_ID, displayName: MIRAI_NAME, kind: "assistant" }]
+        ? [{ id: MIRAI_MENTION_ID, displayName: MIRAI_NAME, kind: "assistant", description: "Asistente de IA" }]
         : [];
 
     // Excludes guest members (userId is NULL for a chat_conversation_members row
@@ -48,16 +48,16 @@ export function useMentionCandidates(conversationId, currentUserId) {
     // straight to the external website visitor reading the reply.
     const memberCandidates = members
       .filter((m) => m.userId && m.userId !== currentUserId)
-      .map((m) => ({ id: m.userId, displayName: m.displayName ?? "Usuario", avatarUrl: m.avatarUrl, email: m.email }));
+      .map((m) => ({ id: m.userId, displayName: m.displayName ?? "Usuario", avatarUrl: m.avatarUrl, email: m.email, description: m.email || null }));
 
-    const roleCandidates = roles.map((r) => ({ id: r.id, displayName: r.name, kind: "role" }));
+    const roleCandidates = roles.map((r) => ({ id: r.id, displayName: r.name, kind: "role", color: r.color ?? null, description: "Rol · avisa a sus miembros" }));
 
     const sentinelCandidates = [];
     if (roleHasPermission(ownMember, CHAT_PERMISSIONS.MENTIONS_EVERYONE)) {
-      sentinelCandidates.push({ id: EVERYONE_MENTION_ID, displayName: "everyone", kind: "sentinel" });
+      sentinelCandidates.push({ id: EVERYONE_MENTION_ID, displayName: "everyone", kind: "sentinel", description: "Avisa a todos los miembros" });
     }
     if (roleHasPermission(ownMember, CHAT_PERMISSIONS.MENTIONS_HERE)) {
-      sentinelCandidates.push({ id: HERE_MENTION_ID, displayName: "here", kind: "sentinel" });
+      sentinelCandidates.push({ id: HERE_MENTION_ID, displayName: "here", kind: "sentinel", description: "Avisa a quien está en línea" });
     }
 
     return [...miraiCandidate, ...memberCandidates, ...roleCandidates, ...sentinelCandidates];

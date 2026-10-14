@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createPortal } from 'react-dom'
 import { Bot, Megaphone, Shield } from 'lucide-react'
+import { MiraiAvatar } from './MiraiAvatar.jsx'
 import { useIsolatedScroll } from '../hooks/useIsolatedScroll.js'
 import { layerZIndexFor } from '../hooks/useComboboxPopover.js'
 
@@ -96,12 +97,25 @@ const KIND_ICON = {
 // tells the user there are more instead of silently truncating.
 const MENTION_VISIBLE_LIMIT = 8
 
+// Section order in the dropdown; rows keep their incoming order within it.
+const KIND_GROUPS = [
+  { kind: 'assistant', label: 'Asistente' },
+  { kind: 'person', label: 'Personas' },
+  { kind: 'role', label: 'Roles' },
+  { kind: 'sentinel', label: 'Avisar a todos' },
+]
+const kindOf = (m) => (KIND_ICON[m.kind] ? m.kind : 'person')
+
 function MemberAvatar({ member }) {
   const [imgErr, setImgErr] = useState(false)
+  if (member.kind === 'assistant') return <MiraiAvatar size={28} />
   const Icon = KIND_ICON[member.kind]
   if (Icon) {
     return (
-      <span className="w-6 h-6 rounded-full bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] flex items-center justify-center shrink-0 select-none">
+      <span
+        className="w-7 h-7 rounded-full bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] flex items-center justify-center shrink-0 select-none"
+        style={member.color ? { color: member.color, backgroundColor: `color-mix(in srgb, ${member.color} 16%, transparent)` } : undefined}
+      >
         <Icon className="w-3.5 h-3.5" />
       </span>
     )
@@ -110,16 +124,29 @@ function MemberAvatar({ member }) {
     return (
       <img
         src={member.avatarUrl}
-        alt={member.displayName}
+        alt=""
         onError={() => setImgErr(true)}
-        className="w-6 h-6 rounded-full object-cover shrink-0"
+        className="w-7 h-7 rounded-full object-cover shrink-0"
       />
     )
   }
   return (
-    <span className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs font-medium shrink-0 select-none">
+    <span className="w-7 h-7 rounded-full bg-(--brand-primary) text-(--brand-primary-foreground) flex items-center justify-center text-xs font-semibold shrink-0 select-none">
       {member.displayName.charAt(0).toUpperCase()}
     </span>
+  )
+}
+
+// Bold the part of the name that matches what the user typed after "@".
+function HighlightMatch({ text, query }) {
+  const idx = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1
+  if (idx < 0) return text
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-transparent font-semibold text-(--brand-primary)">{text.slice(idx, idx + query.length)}</mark>
+      {text.slice(idx + query.length)}
+    </>
   )
 }
 
@@ -276,6 +303,12 @@ const MentionTextarea = forwardRef(function MentionTextarea({
       })
     : members
 
+  // What the dropdown shows: grouped by kind, capped at the visible limit.
+  // Keyboard navigation indexes into this same array.
+  const visible = KIND_GROUPS
+    .flatMap(({ kind }) => filtered.filter((m) => kindOf(m) === kind))
+    .slice(0, MENTION_VISIBLE_LIMIT)
+
   // Anchor the menu to the textarea. Default: floating just above it, its
   // bottom pinned so it grows upward with more results. Flip below only when
   // the field is too close to the top of the viewport.
@@ -283,7 +316,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
     const GAP = 6
     const MIN_W = 200
     const MAX_W = 340
-    const DESIRED_H = 260
+    const DESIRED_H = 360
     const rect = textarea.getBoundingClientRect()
     const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth
     const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight
@@ -355,7 +388,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
       // Clamp navigation to the visible slice — filtered can hold more
       // results than are rendered (see MENTION_VISIBLE_LIMIT below), and
       // arrowing onto a hidden one would leave nothing highlighted.
-      const visibleCount = Math.min(MENTION_VISIBLE_LIMIT, filtered.length)
+      const visibleCount = visible.length
       if (e.key === 'ArrowDown') {
         e.preventDefault()
         setActiveIdx((i) => Math.min(i + 1, visibleCount - 1))
@@ -363,9 +396,9 @@ const MentionTextarea = forwardRef(function MentionTextarea({
         e.preventDefault()
         setActiveIdx((i) => Math.max(i - 1, 0))
       } else if (e.key === 'Enter' || e.key === 'Tab') {
-        if (filtered[activeIdx]) {
+        if (visible[activeIdx]) {
           e.preventDefault()
-          insertMention(filtered[activeIdx])
+          insertMention(visible[activeIdx])
         }
       } else if (e.key === 'Escape') {
         setOpen(false)
@@ -445,7 +478,9 @@ const MentionTextarea = forwardRef(function MentionTextarea({
         <div
           ref={menuRef}
           data-mention-dropdown
-          className="rounded-xl py-1 overflow-y-auto overscroll-contain flex flex-col"
+          role="listbox"
+          aria-label="Mencionar"
+          className="rounded-xl py-1.5 overflow-y-auto overscroll-contain flex flex-col"
           style={{
             position: 'fixed',
             left: menuPos.left,
@@ -463,28 +498,52 @@ const MentionTextarea = forwardRef(function MentionTextarea({
             boxShadow: 'var(--glass-shadow)',
           }}
         >
-          {filtered.slice(0, MENTION_VISIBLE_LIMIT).map((m, i) => (
-            <button
-              key={m.id}
-              type="button"
-              className={`w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 ${
-                i === activeIdx ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
-              }`}
-              onMouseEnter={() => setActiveIdx(i)}
-              onPointerDown={(e) => {
-                e.preventDefault()
-                insertMention(m)
-              }}
-            >
-              <MemberAvatar member={m} />
-              <span className="truncate">{m.displayName}</span>
-            </button>
-          ))}
+          {visible.map((m, i) => {
+            const groupStart = i === 0 || kindOf(visible[i - 1]) !== kindOf(m)
+            const group = KIND_GROUPS.find((g) => g.kind === kindOf(m))
+            const active = i === activeIdx
+            return (
+              <div key={m.id} role="presentation">
+                {groupStart && (
+                  <p className={`px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground ${i === 0 ? 'pt-1' : 'pt-2.5'}`}>
+                    {group?.label}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  className={`mx-1 flex min-h-11 w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-2 text-left text-sm transition-colors md:min-h-10 ${
+                    active ? 'bg-(--brand-primary)/12 text-foreground' : 'text-foreground hover:bg-[hsl(var(--muted))]/70'
+                  }`}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  onPointerDown={(e) => {
+                    e.preventDefault()
+                    insertMention(m)
+                  }}
+                >
+                  <MemberAvatar member={m} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium leading-tight">
+                      {m.kind === 'sentinel' || m.kind === 'role' ? '@' : ''}
+                      <HighlightMatch text={m.displayName} query={query} />
+                    </span>
+                    {m.description && (
+                      <span className="block truncate text-xs leading-tight text-muted-foreground">{m.description}</span>
+                    )}
+                  </span>
+                </button>
+              </div>
+            )
+          })}
           {filtered.length > MENTION_VISIBLE_LIMIT && (
             <span className="px-3 py-1 text-xs text-muted-foreground border-t border-(--glass-border) mt-1 pt-1.5">
               +{filtered.length - MENTION_VISIBLE_LIMIT} más — sigue escribiendo para filtrar
             </span>
           )}
+          <p className="sticky -bottom-1.5 mt-1 hidden border-t border-(--glass-border) bg-(--glass-bg-strong) px-3 pt-1.5 pb-1 text-[11px] text-muted-foreground backdrop-blur [@media(pointer:fine)]:block">
+            ↑ ↓ para moverte · Enter para elegir · Esc para cerrar
+          </p>
         </div>,
         portalContainer ?? document.body
       )}
