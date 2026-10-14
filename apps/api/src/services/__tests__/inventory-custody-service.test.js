@@ -4,8 +4,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   assertCustodyAction, assertDelivererChoice, buildItemSnapshot, completionConflicts, decodeSignaturePng, formatCustodyFolio,
-  generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, normalizeCustodyInput,
-  savedSignatureDecision, signatureResetFor,
+  generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, mergeSnapshot, nextEditedFields, normalizeCustodyInput,
+  normalizeItemOverrides, savedSignatureDecision, signatureResetFor,
 } from '../inventory-custody-helpers.js';
 import { serializeTemplate } from '../inventory-document-template-service.js';
 import { NO_TAGS_WARNING } from '../document-templates/custody-template-data.js';
@@ -138,5 +138,28 @@ describe('revision 2: editing, deliverer and saved signatures', () => {
     const tagged = serializeTemplate({ ...base, placeholders: ['folio', 'receiverName'] });
     assert.equal(tagged.tagCount, 2);
     assert.deepEqual(tagged.warnings, []);
+  });
+});
+
+describe('revision 3: hand-edited item fields', () => {
+  it('validates the PATCH item body', () => {
+    assert.deepEqual(normalizeItemOverrides({ features: '  16 GB RAM, 512 GB SSD ', model: null, serialNumber: '' }), {
+      set: { features: '16 GB RAM, 512 GB SSD' }, clear: ['model', 'serialNumber'],
+    });
+    assert.throws(() => normalizeItemOverrides({}), (err) => err.status === 400);
+    assert.throws(() => normalizeItemOverrides({ itemId: 'x' }), (err) => err.status === 400);
+    assert.throws(() => normalizeItemOverrides({ features: { a: 1 } }), (err) => err.status === 400);
+    assert.throws(() => normalizeItemOverrides({ features: 'x'.repeat(501) }), (err) => err.status === 400);
+    assert.throws(() => normalizeItemOverrides({ assetTag: 'x'.repeat(101) }), (err) => err.status === 400);
+  });
+
+  it('refresh keeps edited fields and tracks the edited list', () => {
+    const fresh = { typeBrand: 'Laptop Dell', model: 'Latitude', features: 'desc', serialNumber: 'S1' };
+    const merged = mergeSnapshot(fresh, { editedFields: ['features'], features: '16 GB RAM', model: 'old' });
+    assert.equal(merged.features, '16 GB RAM');
+    assert.equal(merged.model, 'Latitude');
+    assert.deepEqual(merged.editedFields, ['features']);
+    assert.deepEqual(mergeSnapshot(fresh, null).editedFields, []);
+    assert.deepEqual(nextEditedFields(['features'], { set: { model: 'X' }, clear: ['features'] }), ['model']);
   });
 });

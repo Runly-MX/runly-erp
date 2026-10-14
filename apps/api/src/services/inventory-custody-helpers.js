@@ -191,3 +191,53 @@ export function savedSignatureDecision({ actorId, ownerId, canDeliverOnBehalf, a
   if (!allowDelegation) return { allowed: false, reason: 'Quien entrega no autorizó que otras personas usen su firma guardada.' };
   return { allowed: true, reason: null };
 }
+
+// ── Revision 3: hand-edited snapshot fields (spec §10.2) ───────────────────
+// Field -> max length (column size, capped at 500).
+export const EDITABLE_SNAPSHOT_FIELDS = {
+  typeBrand: 255, model: 255, serialNumber: 255, assetTag: 100, invoiceNumber: 100, features: 500,
+};
+const FIELD_LABELS = {
+  typeBrand: 'Tipo / marca', model: 'Modelo', serialNumber: 'Serie', assetTag: 'Etiqueta', invoiceNumber: 'Factura', features: 'Características',
+};
+
+// PATCH item body -> { set: { field: value }, clear: [field] }. A value of
+// null or an empty string clears the override (restores the item value).
+export function normalizeItemOverrides(body = {}) {
+  const set = {};
+  const clear = [];
+  const source = body && typeof body === 'object' ? body : {};
+  for (const key of Object.keys(source)) {
+    if (!(key in EDITABLE_SNAPSHOT_FIELDS)) throw new InventoryServiceError(`El campo ${key} no se puede editar.`, 400);
+    const value = source[key];
+    if (value === undefined) continue;
+    if (value !== null && typeof value !== 'string' && typeof value !== 'number') {
+      throw new InventoryServiceError(`${FIELD_LABELS[key]} no es válido.`, 400);
+    }
+    const text = value === null ? '' : String(value).trim();
+    if (!text) { clear.push(key); continue; }
+    if (text.length > EDITABLE_SNAPSHOT_FIELDS[key]) {
+      throw new InventoryServiceError(`${FIELD_LABELS[key]} admite hasta ${EDITABLE_SNAPSHOT_FIELDS[key]} caracteres.`, 400);
+    }
+    set[key] = text;
+  }
+  if (!Object.keys(set).length && !clear.length) throw new InventoryServiceError('Indica qué campo del artículo cambia.', 400);
+  return { set, clear };
+}
+
+// Fresh item snapshot with the hand-edited fields of `row` kept.
+// `row`: existing InvCustodyItem ({ editedFields, ...snapshot }) or null.
+export function mergeSnapshot(fresh, row) {
+  const edited = (row?.editedFields ?? []).filter((key) => key in EDITABLE_SNAPSHOT_FIELDS);
+  const out = { ...fresh, editedFields: edited };
+  for (const key of edited) out[key] = row[key] ?? null;
+  return out;
+}
+
+// New editedFields list after applying an override patch.
+export function nextEditedFields(current = [], { set = {}, clear = [] } = {}) {
+  const fields = new Set(current.filter((key) => key in EDITABLE_SNAPSHOT_FIELDS));
+  for (const key of Object.keys(set)) fields.add(key);
+  for (const key of clear) fields.delete(key);
+  return Object.keys(EDITABLE_SNAPSHOT_FIELDS).filter((key) => fields.has(key));
+}

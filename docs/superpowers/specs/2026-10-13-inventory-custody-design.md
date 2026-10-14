@@ -125,7 +125,7 @@ created with `assignedAt = custody.date`.
 - List screen (`PageHeader`, `RunlyTable`): folio, tipo, colaborador, artículos, estado, fecha.
 - Editor sheet: employee combobox, kind, date, items picker (search by name/tag/serial), comments, template select; signatures section (canvas `SignaturePad` for deliverer and receiver, or "Enviar enlace de firma" with copy button); preview; "Completar" with `ConfirmDialog`.
 - Detail: status, items snapshot, signatures, download document, cancel.
-- Public page `/sign/custody/:token` (no shell): items list, policy note, signature pad, submit.
+- Public page `/app/p/custody/:token` (public shell; was `/sign/custody/:token`): items list, policy note, signature pad, submit.
 - Catalogs → "Plantillas" tab: upload .docx/.xlsx, default flag, warnings list, placeholder reference.
 - Item detail and employee widget: list of custody records.
 
@@ -180,3 +180,31 @@ New `@runly/ui` component `SignaturePad` (canvas, pointer events, clear, toPng).
    `allowDelegation`. Every use is audited ("firma aplicada por …").
 7. **Send the link.** `POST /public-link {sendEmail?: true}` also e-mails the
    link to the employee (best effort) → adds `emailSent`.
+
+## 10. Revision 3 (2026-10-13, user feedback after the revision 2 test)
+
+1. **Signatures stay visible.** Every endpoint returning `{ custody }` adds
+   `receiverSignatureUrl` and `delivererSignatureUrl` (short-lived signed URLs
+   from the custody file store, `null` when absent). The detail screen shows the
+   saved image in the pad with "Volver a firmar" (and, for the deliverer, "Usar
+   mi firma guardada"). Signatures stay editable until completion; completed or
+   cancelled records show them read-only.
+2. **Editable snapshot fields.** New forward migration: `inv_custody_item.edited_fields
+   text[] NOT NULL DEFAULT '{}'` lists the snapshot fields typed by hand.
+   `PATCH /inventory/custodies/:id/items/:itemId` (row id or item id)
+   `{ typeBrand?, model?, serialNumber?, assetTag?, invoiceNumber?, features? }`
+   → `{ custody }`, DRAFT/PENDING_SIGNATURE only. Values are trimmed and must fit
+   the column (≤ 255, `assetTag`/`invoiceNumber` ≤ 100, `features` ≤ 500);
+   `null` (or an empty string) removes the override and restores the item's
+   current value. Snapshot refreshes (link generation, completion, item list
+   replacement) keep edited fields. Editing a row clears captured signatures
+   (same rule as changing items; the UI confirms first). The items table edits
+   cells inline (click, Enter/blur saves, Esc cancels) and marks edited cells.
+3. **Public link path.** Links are `/app/p/custody/<token>`; the old
+   `/sign/custody/<token>` and `/app/sign/custody/<token>` redirect there.
+4. **Public signing page redesign.** Mobile-first page inside `PublicShell`:
+   branded header (logo/name), "Resguardo de equipo" + folio + kind badge +
+   date, "Quién entrega / Quién recibe" cards, items as cards on phones and a
+   table from `md`, comments, a legal notice, and a sticky signing area on
+   phones (large pad, "Firmar resguardo"). Success shows a check and summary;
+   expired, cancelled and already-signed states use EmptyState-style panels.

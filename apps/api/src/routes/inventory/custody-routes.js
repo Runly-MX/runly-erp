@@ -120,6 +120,13 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
     } catch (err) { return fail(c, err, 'No se pudo actualizar el resguardo.'); }
   });
 
+  // Hand-edited snapshot fields of one row (spec §10.2); :itemId is the row id or the item id.
+  router.patch('/inventory/custodies/:id/items/:itemId', manage, async (c) => {
+    try {
+      return c.json({ custody: await svc().updateItem(c.req.param('id'), c.req.param('itemId'), await body(c), c.get('companyId'), c.get('userId')) });
+    } catch (err) { return fail(c, err, 'No se pudo actualizar el artículo del resguardo.'); }
+  });
+
   router.post('/inventory/custodies/:id/signatures', manage, async (c) => {
     try {
       return c.json({ custody: await svc().sign(c.req.param('id'), await body(c), c.get('companyId'), c.get('userId'), onBehalf(c)) });

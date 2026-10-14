@@ -12,7 +12,8 @@ import { createUserSignatureService } from './user-signature-service.js';
 import { createCustodyDeliverers } from './inventory-custody-deliverers.js';
 import {
   assertCustodyAction, assertDelivererChoice, buildItemSnapshot, completionConflicts, decodeSignaturePng, formatCustodyFolio,
-  generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, normalizeCustodyInput, savedSignatureDecision, signatureResetFor,
+  generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, mergeSnapshot, nextEditedFields, normalizeCustodyInput,
+  normalizeItemOverrides, savedSignatureDecision, signatureResetFor,
 } from './inventory-custody-helpers.js';
 
 const MODULE_KEY = 'runly.inventory';
@@ -154,8 +155,24 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     return { items: rows.map(serializeCustody), total, page: currentPage, pageSize: take };
   }
 
+  // Short-lived signed URL of a signature PNG (spec §10.1); null when absent.
+  async function signatureUrl(companyId, fileId) {
+    if (!fileId) return null;
+    try {
+      const asset = await files.findAsset(companyId, fileId);
+      return asset ? (await files.signedUrl(asset, { download: false })).url : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function get(id, companyId) {
-    return serializeCustody(await load(id, companyId));
+    const row = await load(id, companyId);
+    const [receiverSignatureUrl, delivererSignatureUrl] = await Promise.all([
+      signatureUrl(companyId, row.receiverSignatureFileId),
+      signatureUrl(companyId, row.delivererSignatureFileId),
+    ]);
+    return { ...serializeCustody(row), receiverSignatureUrl, delivererSignatureUrl };
   }
 
   // Deliverer: a company user (default: the caller); someone else, or a free
@@ -213,10 +230,12 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
       ...(reset.receiver && current.receiverSignatureFileId ? [current.receiverSignatureFileId] : []),
       ...(reset.deliverer && current.delivererSignatureFileId ? [current.delivererSignatureFileId] : []),
     ];
+    // Items kept in the list keep their hand-edited fields (spec §10.2).
+    const previousRows = new Map(current.items.map((row) => [row.itemId, row]));
     await prisma.$transaction(async (tx) => {
       if (items) {
         await tx.invCustodyItem.deleteMany({ where: { custodyId: id } });
-        await tx.invCustodyItem.createMany({ data: snapshotRows(items).map((row) => ({ ...row, custodyId: id })) });
+        await tx.invCustodyItem.createMany({ data: snapshotRows(items).map((row) => ({ ...mergeSnapshot(row, previousRows.get(row.itemId)), custodyId: id })) });
       }
       await tx.invCustody.update({
         where: { id },
@@ -282,11 +301,48 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     return get(id, companyId);
   }
 
+  // Re-reads the items into the snapshot, keeping hand-edited fields.
   async function refreshSnapshot(custody) {
     const items = await loadItems(prisma, custody.companyId, custody.items.map((row) => row.itemId));
+    const byItem = new Map(custody.items.map((row) => [row.itemId, row]));
     await prisma.$transaction(snapshotRows(items).map(({ itemId, sortOrder, ...snapshot }) => prisma.invCustodyItem.updateMany({
-      where: { custodyId: custody.id, itemId }, data: { ...snapshot, sortOrder },
+      where: { custodyId: custody.id, itemId }, data: { ...mergeSnapshot(snapshot, byItem.get(itemId)), sortOrder },
     })));
+  }
+
+  // PATCH one snapshot row (spec §10.2). `rowId` is the custody row id or the
+  // item id. A real change clears captured signatures, like changing items.
+  async function updateItem(id, rowId, body, companyId, profileId) {
+    const custody = await load(id, companyId);
+    assertCustodyAction(custody, 'update');
+    const patch = normalizeItemOverrides(body);
+    const row = custody.items.find((r) => r.id === rowId || r.itemId === rowId);
+    if (!row) throw new InventoryServiceError('El artículo no está en este resguardo.', 404);
+    const data = { ...patch.set, editedFields: nextEditedFields(row.editedFields, patch) };
+    if (patch.clear.length) {
+      const item = await prisma.invItem.findFirst({ where: { id: row.itemId, companyId }, select: ITEM_SNAPSHOT_SELECT });
+      const fresh = item ? buildItemSnapshot(item) : {};
+      for (const key of patch.clear) data[key] = fresh[key] ?? null;
+    }
+    const changed = Object.entries(data).some(([key, value]) => (key === 'editedFields'
+      ? value.join(',') !== (row.editedFields ?? []).join(',')
+      : (value ?? null) !== (row[key] ?? null)));
+    if (!changed) return get(id, companyId);
+    const cleared = [custody.receiverSignatureFileId, custody.delivererSignatureFileId].filter(Boolean);
+    await prisma.$transaction(async (tx) => {
+      await tx.invCustodyItem.update({ where: { id: row.id }, data });
+      if (cleared.length) {
+        await tx.invCustody.update({
+          where: { id },
+          data: { receiverSignatureFileId: null, receiverSignedAt: null, delivererSignatureFileId: null, delivererSignedAt: null },
+        });
+        await tx.fileAsset.updateMany({ where: { id: { in: cleared } }, data: { enabled: false } });
+      }
+    });
+    await audit(companyId, profileId, id, 'inventory.custody.item_edited', {
+      itemId: row.itemId, set: Object.keys(patch.set), restored: patch.clear, clearedSignatures: cleared.length > 0 || undefined,
+    });
+    return get(id, companyId);
   }
 
   async function createPublicLink(id, companyId, profileId, { origin, sendEmail = false } = {}) {
@@ -296,7 +352,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     if (custody.status === 'DRAFT' && !custody.receiverSignatureFileId) await refreshSnapshot(custody);
     const { token, hash, expiresAt } = generatePublicToken();
     await prisma.invCustody.update({ where: { id }, data: { status: 'PENDING_SIGNATURE', publicTokenHash: hash, tokenExpiresAt: expiresAt } });
-    const path = `/sign/custody/${token}`;
+    const path = `/app/p/custody/${token}`;
     const url = `${appBaseUrl(env, origin)}${path}`;
     // Best effort; only an absolute link is worth e-mailing.
     const emailSent = sendEmail === true && /^https?:\/\//.test(url)
@@ -448,7 +504,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
   }
 
   return {
-    list, get, create, update, sign, createPublicLink, complete, regenerateDocument, cancel, documentUrl, preview,
+    list, get, create, update, updateItem, sign, createPublicLink, complete, regenerateDocument, cancel, documentUrl, preview,
     getPublic, signPublic, templates,
     listDeliverers: deliverers.list,
   };

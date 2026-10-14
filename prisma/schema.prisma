@@ -3777,6 +3777,7 @@ model InvCustodyItem {
   assetTag      String? @map("asset_tag") @db.VarChar(100)
   invoiceNumber String? @map("invoice_number") @db.VarChar(100)
   features      String? @db.VarChar(2000)
+  editedFields  String[] @default([]) @map("edited_fields")
   sortOrder     Int     @default(0) @map("sort_order")
 
   custody    InvCustody     @relation(fields: [custodyId], references: [id], onDelete: Cascade)

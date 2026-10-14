@@ -18,6 +18,8 @@ export function createInventoryCustodyDomain({ request, requestBlob, withAuthHea
       deliverers: (token) => send('GET', '/inventory/custodies/deliverers', undefined, token),
       create: (data, token) => send('POST', '/inventory/custodies', data, token),
       update: (custodyId, data, token) => send('PATCH', `/inventory/custodies/${id(custodyId)}`, data, token),
+      // Hand-edited snapshot fields of one row; null restores the item value -> { custody }.
+      updateItem: (custodyId, rowId, data, token) => send('PATCH', `/inventory/custodies/${id(custodyId)}/items/${id(rowId)}`, data, token),
       // { role, pngBase64 } draws a signature; { role: 'deliverer', useSaved: true } applies the saved one.
       sign: (custodyId, { role, pngBase64, useSaved }, token) => send('POST', `/inventory/custodies/${id(custodyId)}/signatures`,
         useSaved ? { role, useSaved: true } : { role, pngBase64 }, token),
