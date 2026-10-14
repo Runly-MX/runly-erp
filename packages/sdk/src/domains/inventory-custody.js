@@ -49,6 +49,8 @@ export function createInventoryCustodyDomain({ request, requestBlob, withAuthHea
         body: formData,
         onlineOnly: true,
       }),
+      // Template's own .docx with suggested tags ({ applied, missing, fileName, contentBase64 }); nothing is saved.
+      suggestTags: (templateId, token) => send('POST', `/inventory/document-templates/${id(templateId)}/suggest`, {}, token),
       // Signed URL of the current .docx/.xlsx ({ url, expiresIn, fileName }).
       fileUrl: (templateId, token) => send('GET', `/inventory/document-templates/${id(templateId)}/file`, undefined, token),
       // Built-in example .docx with every tag (blob).

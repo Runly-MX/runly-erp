@@ -150,6 +150,11 @@ export const useReplaceDocumentTemplateFile = () =>
     return parseTemplate(await runly.inventory.documentTemplates.replaceFile(id, form, token))
   })
 
+export function useSuggestTemplateTags() {
+  const token = useToken()
+  return useMutation({ mutationFn: (id) => runly.inventory.documentTemplates.suggestTags(id, token) })
+}
+
 // Downloads the template file (or the built-in example when id is omitted).
 export function useDownloadDocumentTemplate() {
   const token = useToken()

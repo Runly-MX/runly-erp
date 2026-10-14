@@ -62,6 +62,13 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
     } catch (err) { return fail(c, err, 'No se pudo reemplazar la plantilla.'); }
   });
 
+  // Same file with suggested tags placed, for review (nothing is saved).
+  router.post('/inventory/document-templates/:id/suggest', manageTemplates, async (c) => {
+    try {
+      return c.json(await svc().templates.suggestTags(c.req.param('id'), c.get('companyId')));
+    } catch (err) { return fail(c, err, 'No se pudieron sugerir etiquetas.'); }
+  });
+
   router.get('/inventory/document-templates/:id/file', read, async (c) => {
     try {
       return c.json(await svc().templates.fileUrl(c.req.param('id'), c.get('companyId')));

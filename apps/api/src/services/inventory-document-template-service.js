@@ -5,6 +5,7 @@
 import { InventoryServiceError } from './inventory-guards.js';
 import { createCustodyFileStore } from './inventory-custody-files.js';
 import { TemplateError } from './document-templates/template-tags.js';
+import { suggestDocxTags } from './document-templates/docx-autotag.js';
 import {
   CUSTODY_IMAGE_TAGS, CUSTODY_ITEM_TAGS, CUSTODY_SCALAR_TAGS, buildDefaultCustodyTemplate,
   NO_TAGS_WARNING, inspectCustodyTemplate, templateFormatOf, unknownCustodyTags,
@@ -124,6 +125,29 @@ export function createInventoryDocumentTemplateService({ prisma, supabaseAdmin }
     return { template: serializeTemplate(updated), warnings: inspection.warnings };
   }
 
+  // Returns the template's own file with suggested tags placed (not saved):
+  // the user reviews it and applies it with replaceFile.
+  async function suggestTags(id, companyId) {
+    const row = await find(id, companyId);
+    if (row.format !== 'docx') throw new InventoryServiceError('Por ahora las etiquetas sugeridas funcionan con plantillas de Word (.docx).', 400);
+    const asset = await files.findAsset(companyId, row.fileAssetId);
+    if (!asset) throw new InventoryServiceError('El archivo de la plantilla ya no existe.', 404);
+    let result;
+    try {
+      result = suggestDocxTags(await files.read(asset));
+    } catch (err) {
+      if (err instanceof TemplateError) throw new InventoryServiceError(err.message, 400);
+      throw err;
+    }
+    const baseName = String(asset.originalName ?? row.name).replace(/\.docx$/i, '');
+    return {
+      applied: result.applied,
+      missing: result.missing,
+      fileName: `${baseName} (con etiquetas).docx`,
+      contentBase64: result.buffer.toString('base64'),
+    };
+  }
+
   async function remove(id, companyId) {
     await find(id, companyId);
     await prisma.invDocumentTemplate.update({ where: { id }, data: { enabled: false, isDefault: false } });
@@ -151,5 +175,5 @@ export function createInventoryDocumentTemplateService({ prisma, supabaseAdmin }
     return { template: null, format: 'docx', buffer: buildDefaultCustodyTemplate() };
   }
 
-  return { list, upload, replaceFile, update, remove, fileUrl, resolveForCustody };
+  return { list, upload, replaceFile, suggestTags, update, remove, fileUrl, resolveForCustody };
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Badge, Button, CheckboxField, ConfirmDialog, DataTable, DistDropZone, TextField } from '@runly/ui'
-import { AlertTriangle, Download, FileText, RefreshCw, Star, Trash2 } from 'lucide-react'
+import { AlertTriangle, Download, FileText, RefreshCw, Star, Trash2, WandSparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useDeleteDocumentTemplate, useDocumentTemplates, useDownloadDocumentTemplate, useReplaceDocumentTemplateFile,
@@ -10,6 +10,7 @@ import { templateTagCount, templateWarnings } from '../../lib/custody-api.js'
 import { CatalogPanel } from './CatalogPanel.jsx'
 import { CatalogEditSheet } from './CatalogEditSheet.jsx'
 import { TemplatePlaceholderReference } from './TemplatePlaceholderReference.jsx'
+import { TemplateSuggestDialog } from './TemplateSuggestDialog.jsx'
 
 const EMPTY = { file: null, name: '', isDefault: false }
 const formatOf = (file) => (/\.xlsx$/i.test(file?.name ?? '') ? 'xlsx' : /\.docx$/i.test(file?.name ?? '') ? 'docx' : null)
@@ -42,6 +43,7 @@ export function TemplatesPanel() {
   const [replacing, setReplacing] = useState(null)
   const [replaceFile, setReplaceFile] = useState(null)
   const [replaceWarnings, setReplaceWarnings] = useState([])
+  const [suggesting, setSuggesting] = useState(null)
 
   function openUpload() {
     setForm({ ...EMPTY, isDefault: rows.length === 0 })
@@ -134,6 +136,12 @@ export function TemplatesPanel() {
             <Star className="mr-1.5 h-3.5 w-3.5" />Predeterminar
           </Button>
         ) : null}
+        {row.original.format === 'docx' && templateTagCount(row.original) === 0 ? (
+          <Button type="button" variant="ghost" size="sm" className="h-8" title="Colocar las etiquetas en tu propio formato"
+            onClick={() => setSuggesting(row.original)}>
+            <WandSparkles className="mr-1.5 h-3.5 w-3.5" />Sugerir etiquetas
+          </Button>
+        ) : null}
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Descargar para editar"
           aria-label={`Descargar ${row.original.name}`} onClick={() => downloadTemplate(row.original)} disabled={download.isPending}>
           <Download className="h-3.5 w-3.5" />
@@ -163,6 +171,7 @@ export function TemplatesPanel() {
         </Button>
       </div>
       <TemplatePlaceholderReference />
+      <TemplateSuggestDialog template={suggesting} onOpenChange={(v) => { if (!v) setSuggesting(null) }} />
 
       <CatalogEditSheet open={Boolean(replacing)} onOpenChange={(v) => { if (!v) setReplacing(null) }}
         title={`Reemplazar «${replacing?.name ?? ''}»`} busy={replace.isPending}
