@@ -71,7 +71,9 @@ export function LabelSettingsPanel({
           onValueChange={(v) => onPrinterChange(v === NO_PRINTER ? null : v)} />
         <p className="text-xs text-[hsl(var(--muted-foreground))]">
           {plan.available
-            ? (plan.format === 'zpl' ? 'Se descarga un archivo .zpl para enviarlo a la impresora Zebra.' : plan.transportId === 'file' ? 'Se descarga el archivo de etiquetas.' : 'Se abre el PDF; imprímelo desde el diálogo del sistema al tamaño real.')
+            ? (plan.transportId === 'bluetooth' ? 'Se envía en ZPL por Bluetooth a la impresora emparejada con este teléfono.'
+              : plan.transportId === 'network' ? 'Se descarga el archivo: el servidor no llega a impresoras de tu red local. Envíalo desde una computadora de la misma red.'
+              : plan.format === 'zpl' ? 'Se descarga un archivo .zpl para enviarlo a la impresora Zebra.' : plan.transportId === 'file' ? 'Se descarga el archivo de etiquetas.' : 'Se abre el PDF; imprímelo desde el diálogo del sistema al tamaño real.')
             : `${plan.reason}. Usa Descargar mientras tanto.`}
         </p>
         {canManage ? (

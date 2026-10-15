@@ -26,7 +26,7 @@ export function LabelOutputActions({ plan, busy, disabled, onPrint, onDownload, 
       </DropdownMenu>
       <Button type="button" onClick={onPrint} disabled={disabled || Boolean(busy) || !plan.available}
         title={plan.available ? undefined : plan.reason} className={stacked ? 'w-full' : undefined}>
-        {plan.format === 'zpl' && plan.available ? <Download className="mr-2 h-4 w-4" /> : <Printer className="mr-2 h-4 w-4" />}
+        {plan.available && plan.label.startsWith('Descargar') ? <Download className="mr-2 h-4 w-4" /> : <Printer className="mr-2 h-4 w-4" />}
         {busy === 'print' ? 'Generando...' : plan.available ? plan.label : 'Disponible en la app'}
       </Button>
     </div>

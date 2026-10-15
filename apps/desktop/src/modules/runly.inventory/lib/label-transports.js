@@ -1,8 +1,8 @@
 // Output layer of the Etiquetas screen. Each printer transport is a small
 // object; the screen asks the registry for a plan (what "Imprimir" will do)
-// and runs it with the rendered file. Phase 4 registers real `bluetooth` and
-// `network` transports with registry.register(id, transport) — nothing else
-// changes.
+// and runs it with the rendered file. Phase 4: `bluetooth` sends ZPL to a
+// paired printer from the Android app (env.bluetooth); `network` is a download
+// because the API server cannot reach a printer on the customer's LAN.
 //
 // transport: {
 //   id,
@@ -12,10 +12,13 @@
 //   actionLabel(format) -> string  button text,
 //   prepare?(format, env) -> handle  runs synchronously on the click (before
 //                                    rendering) so a new tab is not popup-blocked,
-//   send({ blob, format, printer, filename, handle }, env) -> Promise<{ ok, mode }>,
+//   send({ blob, format, printer, filename, handle }, env) -> Promise<{ ok, mode, code?, message? }>,
 // }
 // env: { openUrl(url) -> boolean, openBlank() -> handle|null, navigate(handle, url),
-//        close(handle), download(blob, filename), objectUrl(blob), revokeLater(url) }
+//        close(handle), download(blob, filename), objectUrl(blob), revokeLater(url),
+//        bluetooth?: { available, print(address, bytes) -> Promise<{ ok, code? }> } }
+
+import { bluetoothErrorMessage, normalizeBluetoothAddress } from './bluetooth-print.js'
 
 export const FORMAT_OPTIONS = [
   { value: 'pdf', label: 'PDF (cualquier impresora)' },
@@ -75,17 +78,36 @@ const fileTransport = {
   send: download,
 }
 
-// Placeholders until Phase 4 (direct printing from the native app).
-const pendingTransport = (id) => ({
-  id,
+// LAN printers: the server cannot open a socket to 192.168.x.x:9100, so the
+// file is downloaded and sent from a computer on the same network.
+const networkTransport = {
+  id: 'network',
   formats: ['zpl', 'pdf'],
-  isAvailable: () => false,
-  unavailableReason: 'Disponible en la app (próximamente)',
-  actionLabel: () => 'Imprimir',
-  send: async () => ({ ok: false, mode: 'unavailable' }),
-})
+  isAvailable: () => true,
+  actionLabel: (format) => `Descargar .${FILE_EXTENSIONS[format] ?? format}`,
+  send: download,
+}
 
-export function createTransportRegistry(transports = [browserTransport, fileTransport, pendingTransport('network'), pendingTransport('bluetooth')]) {
+const failed = (code) => ({ ok: false, mode: 'bluetooth', code, message: bluetoothErrorMessage(code) })
+
+// Android app only: ZPL over Bluetooth SPP to the paired printer whose MAC is
+// stored in printer.address. Elsewhere the plan is unavailable.
+const bluetoothTransport = {
+  id: 'bluetooth',
+  formats: ['zpl'],
+  isAvailable: (printer, env) => Boolean(env?.bluetooth?.available),
+  unavailableReason: 'Disponible en la app Android',
+  actionLabel: () => 'Imprimir',
+  async send({ blob, printer }, env) {
+    const address = normalizeBluetoothAddress(printer?.address)
+    if (!address) return failed('invalid_address')
+    if (!env?.bluetooth?.available) return failed('unsupported')
+    const result = await env.bluetooth.print(address, new Uint8Array(await blob.arrayBuffer()))
+    return result?.ok ? { ok: true, mode: 'bluetooth' } : failed(result?.code ?? 'write_failed')
+  },
+}
+
+export function createTransportRegistry(transports = [browserTransport, fileTransport, networkTransport, bluetoothTransport]) {
   const map = new Map(transports.map((t) => [t.id, t]))
   return {
     register(id, transport) { map.set(id, { ...transport, id }) },

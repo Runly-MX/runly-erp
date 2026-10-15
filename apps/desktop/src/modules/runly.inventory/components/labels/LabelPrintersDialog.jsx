@@ -8,14 +8,15 @@ import { toast } from 'sonner'
 import { useDeleteLabelPrinter, useSaveLabelPrinter } from '../../hooks/useInventoryLabels.js'
 import { DPI_OPTIONS } from '../../lib/label-layout.js'
 import { FORMAT_OPTIONS, TRANSPORT_OPTIONS, labelTransports, resolvePrintPlan } from '../../lib/label-transports.js'
+import { useBluetoothPrinting } from '../../hooks/useBluetoothPrinting.js'
+import { PrinterAddressFields } from './PrinterAddressFields.jsx'
 
 const EMPTY = { name: '', format: 'pdf', dpi: 203, transport: 'browser', address: '', mediaWidthMm: '', mediaHeightMm: '', defaultTemplateId: '', isDefault: false }
 const optionLabel = (options, value) => options.find((o) => o.value === value)?.label ?? value
 
-function PrinterForm({ form, setForm, templates, errors }) {
+function PrinterForm({ form, setForm, templates, errors, bluetooth }) {
   const set = (patch) => setForm((f) => ({ ...f, ...patch }))
-  const plan = resolvePrintPlan(form, labelTransports)
-  const needsAddress = form.transport === 'network' || form.transport === 'bluetooth'
+  const plan = resolvePrintPlan(form, labelTransports, { bluetooth })
   return (
     <div className="space-y-4">
       <TextField label="Nombre" required value={form.name} error={errors.name} placeholder="Zebra del almacén"
@@ -26,15 +27,7 @@ function PrinterForm({ form, setForm, templates, errors }) {
       </div>
       <SelectField label="Conexión" options={TRANSPORT_OPTIONS} value={form.transport} onValueChange={(transport) => set({ transport })}
         hint={plan.available ? undefined : plan.reason} />
-      {!plan.available ? (
-        <p className="rounded-md bg-[hsl(var(--muted))] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
-          La impresión directa por {form.transport === 'bluetooth' ? 'Bluetooth' : 'red'} estará disponible en la app. Mientras tanto puedes descargar el archivo y enviarlo a la impresora.
-        </p>
-      ) : null}
-      {needsAddress ? (
-        <TextField label={form.transport === 'network' ? 'Dirección IP y puerto' : 'Dirección del dispositivo'} value={form.address ?? ''}
-          placeholder={form.transport === 'network' ? '192.168.1.50:9100' : 'AA:BB:CC:DD:EE:FF'} onChange={(e) => set({ address: e.target.value })} />
-      ) : null}
+      <PrinterAddressFields form={form} set={set} bluetooth={bluetooth} />
       <div className="grid grid-cols-2 gap-3">
         <NumberField label="Ancho del rollo (mm)" min={1} max={500} allowNegative={false} value={form.mediaWidthMm ?? ''}
           onChange={(e) => set({ mediaWidthMm: e.target.value })} />
@@ -54,6 +47,7 @@ function PrinterForm({ form, setForm, templates, errors }) {
 export function LabelPrintersDialog({ open, onOpenChange, printers, templates }) {
   const save = useSaveLabelPrinter()
   const remove = useDeleteLabelPrinter()
+  const bluetooth = useBluetoothPrinting()
   const [form, setForm] = useState(null)
   const [errors, setErrors] = useState({})
   const [confirm, setConfirm] = useState(null)
@@ -106,7 +100,7 @@ export function LabelPrintersDialog({ open, onOpenChange, printers, templates })
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-0.5">
             {form ? (
-              <PrinterForm form={form} setForm={setForm} templates={templates} errors={errors} />
+              <PrinterForm form={form} setForm={setForm} templates={templates} errors={errors} bluetooth={bluetooth} />
             ) : printers.length === 0 ? (
               <EmptyState icon={Printer} title="Sin impresoras"
                 description="Sin impresora guardada, Imprimir genera un PDF para el diálogo de impresión del navegador." />

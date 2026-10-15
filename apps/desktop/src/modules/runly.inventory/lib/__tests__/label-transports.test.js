@@ -45,15 +45,35 @@ describe('label transports', () => {
     const out = await runPrintPlan(resolvePrintPlan(null, registry), { blob: {} }, registry, env)
     assert.equal(out.mode, 'download')
   })
-  it('keeps bluetooth and network disabled until a transport is registered', async () => {
-    const plan = resolvePrintPlan({ transport: 'bluetooth', format: 'zpl' }, registry)
-    assert.equal(plan.available, false)
-    assert.match(plan.reason, /Disponible en la app/)
-    assert.equal((await runPrintPlan(plan, { blob: {} }, registry, fakeEnv())).ok, false)
-    const local = createTransportRegistry()
-    local.register('bluetooth', { formats: ['zpl'], isAvailable: () => true, actionLabel: () => 'Imprimir', send: async () => ({ ok: true, mode: 'bluetooth' }) })
-    const ready = resolvePrintPlan({ transport: 'bluetooth', format: 'pdf' }, local)
-    assert.deepEqual([ready.available, ready.format], [true, 'zpl'])
-    assert.equal((await runPrintPlan(ready, { blob: {} }, local, fakeEnv())).mode, 'bluetooth')
+  it('downloads for network printers (the server cannot reach the LAN)', async () => {
+    const plan = resolvePrintPlan({ transport: 'network', format: 'zpl' }, registry)
+    assert.deepEqual([plan.available, plan.label], [true, 'Descargar .zpl'])
+    assert.equal(resolvePrintPlan({ transport: 'network', format: 'png' }, registry).format, 'zpl')
+    assert.equal((await runPrintPlan(plan, { blob: {} }, registry, fakeEnv())).mode, 'download')
+  })
+  it('enables bluetooth only inside the Android app and always sends ZPL', () => {
+    const web = resolvePrintPlan({ transport: 'bluetooth', format: 'pdf' }, registry)
+    assert.deepEqual([web.available, web.format], [false, 'zpl'])
+    assert.match(web.reason, /app Android/)
+    const app = resolvePrintPlan({ transport: 'bluetooth', format: 'pdf' }, registry, { bluetooth: { available: true } })
+    assert.deepEqual([app.available, app.format, app.label], [true, 'zpl', 'Imprimir'])
+  })
+  it('sends the rendered bytes to the paired address and maps failures', async () => {
+    const sent = []
+    let result = { ok: true }
+    const bluetooth = { available: true, print: async (address, bytes) => { sent.push([address, [...bytes]]); return result } }
+    const env = { ...fakeEnv(), bluetooth }
+    const blob = { arrayBuffer: async () => new Uint8Array([94, 88, 65]).buffer }
+    const printer = { transport: 'bluetooth', address: 'aa:bb:cc:dd:ee:ff' }
+    const plan = resolvePrintPlan(printer, registry, env)
+    assert.deepEqual(await runPrintPlan(plan, { blob, printer }, registry, env), { ok: true, mode: 'bluetooth' })
+    assert.deepEqual(sent[0], ['AA:BB:CC:DD:EE:FF', [94, 88, 65]])
+    result = { ok: false, code: 'not_paired' }
+    const failed = await runPrintPlan(plan, { blob, printer }, registry, env)
+    assert.deepEqual([failed.ok, failed.code], [false, 'not_paired'])
+    assert.match(failed.message, /emparejada/)
+    const bad = await runPrintPlan(plan, { blob, printer: { ...printer, address: 'x' } }, registry, env)
+    assert.equal(bad.code, 'invalid_address')
+    assert.equal(sent.length, 2)
   })
 })

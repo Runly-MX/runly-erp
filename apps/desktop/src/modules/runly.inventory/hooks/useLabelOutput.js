@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { useRegisterLabelPrints, useRenderLabels } from './useInventoryLabels.js'
+import { useBluetoothPrinting } from './useBluetoothPrinting.js'
 import { toRenderItems, totalLabels } from '../lib/label-queue.js'
 import { createBrowserEnv, labelFilename, labelTransports, preparePrintPlan, resolvePrintPlan, runPrintPlan } from '../lib/label-transports.js'
 
@@ -11,7 +12,8 @@ export function useLabelOutput({ rows, templateId, layout, printer }) {
   const render = useRenderLabels()
   const register = useRegisterLabelPrints()
   const [busy, setBusy] = useState(null)
-  const plan = useMemo(() => resolvePrintPlan(printer, labelTransports), [printer])
+  const bluetooth = useBluetoothPrinting()
+  const plan = useMemo(() => resolvePrintPlan(printer, labelTransports, { bluetooth }), [printer, bluetooth])
 
   async function logPrint(printed) {
     try {
@@ -36,15 +38,17 @@ export function useLabelOutput({ rows, templateId, layout, printer }) {
   async function print() {
     if (!rows.length || !plan.available) return
     setBusy('print')
-    const env = createBrowserEnv()
+    const env = { ...createBrowserEnv(), bluetooth }
     // Opened before the await so the browser does not block the new tab.
     const handle = preparePrintPlan(plan, labelTransports, env)
     try {
       const blob = await renderBlob(plan.format)
       const out = await runPrintPlan(plan, { blob, printer, handle }, labelTransports, env)
-      if (!out.ok) throw new Error('No se pudo enviar a la impresora')
+      // Logged only after the printer (or the browser) accepted the file.
+      if (!out.ok) throw new Error(out.message ?? 'No se pudo enviar a la impresora')
       await logPrint(true)
-      toast.success(out.mode === 'open' ? 'Etiquetas listas para imprimir' : 'Archivo de etiquetas descargado', {
+      const title = out.mode === 'open' ? 'Etiquetas listas para imprimir' : out.mode === 'bluetooth' ? 'Etiquetas enviadas a la impresora' : 'Archivo de etiquetas descargado'
+      toast.success(title, {
         description: `${totalLabels(rows)} ${totalLabels(rows) === 1 ? 'etiqueta' : 'etiquetas'}${out.mode === 'open' ? ' · imprime desde la pestaña nueva' : ''}`,
       })
     } catch (err) {
