@@ -69,6 +69,10 @@ archivos más (rutas de archivos reales: tratarlos como datos privados):
   archivos y una mezcla de estados). Se usa como `--only`.
 - `pilot-files.txt`: las rutas exactas de los archivos que necesita ese piloto (unos cientos).
 
+`plan` escribe además `files-needed.txt`: todo lo que la migración completa lee (solo las imágenes
+originales, sin miniaturas ni archivos que la base no referencia). Para la migración completa se copia
+solo esa lista, con el mismo `tar -T` o `rsync --files-from`.
+
 Copiar solo esos archivos, ejecutando en el VPS de sinabe (con `pilot-files.txt` ya copiado ahí):
 
 ```bash

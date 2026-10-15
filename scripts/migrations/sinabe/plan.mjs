@@ -64,7 +64,11 @@ export async function runPlan({ dump, listing = null, only = null, batchSize = D
   await writeFile(join(out, 'pilot.txt'), `${pilotIds.join('\n')}\n`)
   const pilotKeys = pilotFileKeys(model, pilotIds)
   await writeFile(join(out, 'pilot-files.txt'), pilotKeys.length ? `${pilotKeys.join('\n')}\n` : '')
+  // Every upload the whole migration reads (originals only: no thumbnails, no orphans).
+  const neededKeys = pilotFileKeys(model, null)
+  await writeFile(join(out, 'files-needed.txt'), neededKeys.length ? `${neededKeys.join('\n')}\n` : '')
   plan.pilot = { items: pilotIds.length, files: pilotKeys.length }
+  plan.needed = { files: neededKeys.length }
   await writeFile(join(out, 'plan.json'), JSON.stringify({ generatedAt: new Date().toISOString(), ...plan }, null, 2))
   return { ...plan, ms: Date.now() - started }
 }

@@ -87,6 +87,7 @@ export async function main(argv) {
     const t = plan.totals
     console.log(`Plan listo en ${o.out} (plan.json, batches/batch-NNN.txt).`)
     console.log(`  Activos: ${t.items} en ${plan.batches.length} lotes de ${plan.batchSize}; OC: ${plan.purchaseOrders}; facturas: ${plan.invoices}.`)
+    if (plan.needed) console.log(`  Archivos que la migración completa necesita: ${plan.needed.files} (lista en files-needed.txt). Piloto: ${plan.pilot.items} activos, ${plan.pilot.files} archivos.`)
     console.log(`  Archivos: ${t.files} (${t.bytes} bytes); faltantes: ${t.missing}; exceden límite: ${t.oversize}; sin tamaño: ${t.unknownSize}.`)
     if (t.unknownOnly) console.log(`  Aviso: ${t.unknownOnly} ids de --only no están en el dump.`)
     console.log(`  Duración: ${plan.ms} ms.`)

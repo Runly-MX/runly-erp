@@ -48,13 +48,14 @@ export function pickPilot(model, size = 50) {
 
 // Upload keys (relative to the uploads folder) needed by a set of items.
 export function pilotFileKeys(model, itemIds) {
-  const ids = new Set(itemIds)
+  const ids = new Set(itemIds ?? [])
   const keys = new Set()
+  // itemIds null = the whole migration (every invoice, every custody record).
   const scope = buildScope(model, itemIds)
   for (const inv of scope.items) for (const attachment of model.mapItem(inv).attachments) keys.add(attachment.key)
   for (const id of scope.invoiceIds) for (const file of invoiceFiles(model.invoices.get(id))) keys.add(file.key)
   for (const record of model.custodyRecords) {
-    if (!(model.custodyItemsByRecord.get(record.id) ?? []).every((row) => ids.has(row.inventoryId))) continue
+    if (itemIds && !(model.custodyItemsByRecord.get(record.id) ?? []).every((row) => ids.has(row.inventoryId))) continue
     for (const text of [model.filesById.get(record.fileId)?.url, record.receiverSignature, record.delivererSignature]) {
       const key = text && !String(text).startsWith('data:') ? normalizeUploadKey(text) : null
       if (key) keys.add(key)
