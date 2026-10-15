@@ -1,4 +1,4 @@
-import { isOfficialCoreModuleKey } from './module-manifests-service.js'
+import { isOfficialCoreModuleKey, isOfficialModuleKey } from './module-manifests-service.js'
 import { getPermissionPresentation } from '../permission-catalog.js'
 import { getModuleHandler } from './module-cleanup-registry.js'
 import { createModuleMigrationService } from './module-migration-service.js'
@@ -700,7 +700,7 @@ export function createModuleLifecycleService({ prisma }) {
 
   // ── Public operations ─────────────────────────────────────────────────────
 
-  async function installModule({ manifest, actorId, requestId = null }) {
+  async function installModule({ manifest, actorId, requestId = null, companyId = null }) {
     const requestedManifest = toPlainObject(manifest)
     const requestedKey =
       typeof requestedManifest.key === 'string' ? requestedManifest.key.trim() : ''
@@ -832,6 +832,16 @@ export function createModuleLifecycleService({ prisma }) {
           },
         })
 
+        // Custom modules are opt-in per company: the installing company gets
+        // it enabled, every other company keeps it off (company-module-service.js).
+        if (companyId && !isCore && !isOfficialModuleKey(installManifest.key)) {
+          await tx.companyModule.upsert({
+            where: { companyId_moduleId: { companyId, moduleId: upserted.id } },
+            update: { enabled: true },
+            create: { companyId, moduleId: upserted.id, enabled: true },
+          })
+        }
+
         await syncDependencies(tx, upserted.id, installManifest.dependencies ?? [])
         await upsertManifestPermissions(
           tx,
@@ -935,7 +945,7 @@ export function createModuleLifecycleService({ prisma }) {
     return updated
   }
 
-  async function retryInstallModule({ key, actorId, requestId = null }) {
+  async function retryInstallModule({ key, actorId, requestId = null, companyId = null }) {
     const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
     if (!mod.manifest || typeof mod.manifest !== 'object') {
@@ -981,7 +991,7 @@ export function createModuleLifecycleService({ prisma }) {
       }
     }
 
-    return installModule({ manifest, actorId, requestId })
+    return installModule({ manifest, actorId, requestId, companyId })
   }
 
   async function clearFailedInstall({ key, actorId, mode = 'preserve-data', confirmation = null }) {

@@ -12,6 +12,12 @@ export function isOfficialCoreModuleKey(key) {
   return officialCoreKeys.has(getLegacyModuleKey(key));
 }
 
+const officialKeys = new Set(listOfficialModuleManifests().map(manifest => getLegacyModuleKey(manifest.key)));
+
+export function isOfficialModuleKey(key) {
+  return officialKeys.has(getLegacyModuleKey(key));
+}
+
 export function listOfficialFallbackManifests(discoveredKeys = new Set()) {
   return listOfficialModuleManifests().filter(manifest => !getModuleKeyAliases(manifest.key).some(key => discoveredKeys.has(key)));
 }

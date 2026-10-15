@@ -386,7 +386,7 @@ export function createCatalogV2Service({ prisma, bundlerSvc = null, routeLoader 
     })
   }
 
-  async function apply({ key, version, confirmation, acceptCommunity = false, acceptStale = false, grants = [], decisions = {}, actorId = null, expect }) {
+  async function apply({ key, version, confirmation, acceptCommunity = false, acceptStale = false, grants = [], decisions = {}, actorId = null, companyId = null, expect }) {
     const phases = []
     return withPhases(phases, async () => {
       const current = await prisma.runlyModule.findUnique({ where: { key }, select: { status: true, version: true } })
@@ -404,7 +404,7 @@ export function createCatalogV2Service({ prisma, bundlerSvc = null, routeLoader 
       const row = await prisma.runlyModule.findUnique({ where: { key } })
       let installedNow = false
       if (row && row.status !== 'INSTALLED') {
-        await wiring.lifecycleSvc.installModule({ manifest: row.manifest, actorId, requestId: randomUUID() })
+        await wiring.lifecycleSvc.installModule({ manifest: row.manifest, actorId, requestId: randomUUID(), companyId })
         if (routeLoader) await routeLoader.reloadModule(key).catch(() => null)
         if (bundlerSvc) await bundlerSvc.buildModuleBundle(key).catch(() => null)
         installedNow = true

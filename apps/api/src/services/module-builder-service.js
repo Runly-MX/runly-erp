@@ -338,7 +338,7 @@ export function createModuleBuilderService({ prisma, bundlerSvc = null, routeLoa
         if (!manifestValidation.valid) {
           throw new ModuleBuilderError('El manifiesto generado no es instalable.', { code: 'INVALID_GENERATED_MANIFEST', statusCode: 500, details: manifestValidation.errors })
         }
-        installResult = await wiring.lifecycleSvc.installModule({ manifest: moduleRow.manifest, actorId, requestId: randomUUID() })
+        installResult = await wiring.lifecycleSvc.installModule({ manifest: moduleRow.manifest, actorId, requestId: randomUUID(), companyId })
         if (routeLoader) await routeLoader.reloadModule(project.moduleKey).catch(() => null)
         if (bundlerSvc) await bundlerSvc.buildModuleBundle(project.moduleKey).catch(() => null)
         // publishZip() already busted the module caches, but BEFORE this

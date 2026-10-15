@@ -1010,6 +1010,7 @@ export function createModulesRouter({
           manifest: parsed.manifest,
           actorId,
           requestId,
+          companyId: c.get("companyId") ?? null,
         });
         const rlStatus = await safeRouteReload(moduleKey);
         await safeBuildBundle(moduleKey);
@@ -2015,6 +2016,7 @@ export function createModulesRouter({
           key,
           actorId,
           requestId,
+          companyId: c.get("companyId") ?? null,
         });
         const rlStatus = await safeRouteReload(key);
         cacheDel("blueprints:raw");

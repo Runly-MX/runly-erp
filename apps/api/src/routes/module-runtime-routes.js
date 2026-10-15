@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { createCompanyModuleService } from '../services/company-module-service.js';
 import { consumedServiceKeys } from '../services/module-services/module-services.js';
 
 // Declared module runtime operations. These are ordinary tenant APIs, not a
@@ -6,11 +7,12 @@ import { consumedServiceKeys } from '../services/module-services/module-services
 // remain mandatory. Event replay is an audited administrator operation.
 export function createModuleRuntimeRoutes({ prisma, authMiddleware, requirePermission, moduleServices }) {
   const app = new Hono();
+  const companyModules = createCompanyModuleService({ prisma });
   async function active(c, key) {
     const row = await prisma.runlyModule.findUnique({ where: { key } });
     if (!row || row.status !== 'INSTALLED' || !row.enabled) return null;
-    const disabled = await prisma.companyModule.findFirst({where:{companyId:c.get('companyId'),moduleId:row.id,enabled:false}});
-    return disabled ? null : row;
+    const enabled = row.core || await companyModules.isModuleEnabledForCompany({companyId:c.get('companyId'),moduleId:row.id});
+    return enabled ? row : null;
   }
   app.post('/:key/services/:serviceKey/invoke', authMiddleware, requirePermission('core.modules.read'), async c => {
     const key = c.req.param('key'), serviceKey = c.req.param('serviceKey');

@@ -2,8 +2,9 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { createCompanyModuleService } from '../company-module-service.js'
 
-function makePrisma({ rows = [] } = {}) {
+function makePrisma({ rows = [], modules = [] } = {}) {
   return {
+    runlyModule: { findMany: async () => modules },
     companyModule: {
       findMany: async ({ where }) => rows.filter((r) => r.companyId === where.companyId && (where.enabled === undefined || r.enabled === where.enabled)),
       upsert: async ({ where, update, create }) => {
@@ -43,6 +44,18 @@ describe('company-module-service', () => {
     const prisma = makePrisma({ rows: [] })
     const service = createCompanyModuleService({ prisma })
     assert.equal(await service.isModuleEnabledForCompany({ companyId: 'c1', moduleId: 'm9' }), true)
+  })
+
+  it('custom modules are disabled by default and enabled only with an explicit row', async () => {
+    const modules = [
+      { id: 'custom1', key: 'custom.fleet' },
+      { id: 'off1', key: 'runly.inventory' },
+    ]
+    const prisma = makePrisma({ modules, rows: [{ companyId: 'c1', moduleId: 'custom1', enabled: true }] })
+    const service = createCompanyModuleService({ prisma })
+    assert.equal(await service.isModuleEnabledForCompany({ companyId: 'c1', moduleId: 'custom1' }), true)
+    assert.equal(await service.isModuleEnabledForCompany({ companyId: 'new', moduleId: 'custom1' }), false)
+    assert.equal(await service.isModuleEnabledForCompany({ companyId: 'new', moduleId: 'off1' }), true)
   })
 
   it('isModuleEnabledForCompany returns false when explicitly disabled', async () => {

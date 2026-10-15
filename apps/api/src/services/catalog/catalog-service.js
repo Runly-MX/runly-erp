@@ -143,7 +143,7 @@ export function createCatalogService({ prisma, bundlerSvc = null, routeLoader = 
   }
 
   // install and update share the flow; `expect` guards against the wrong action.
-  async function apply({ key, grants = [], decisions = {}, actorId = null, expect }) {
+  async function apply({ key, grants = [], decisions = {}, actorId = null, companyId = null, expect }) {
     const index = await loadIndex()
     if (index.offline) throw new CatalogError('Sin conexión con el catálogo: no se puede descargar el módulo ahora.', 503, 'catalog_offline')
     const entry = sanitizeEntries(index.payload).find((item) => item.key === key)
@@ -162,7 +162,7 @@ export function createCatalogService({ prisma, bundlerSvc = null, routeLoader = 
     let installed = false
     const row = await prisma.runlyModule.findUnique({ where: { key } })
     if (row && row.status !== 'INSTALLED') {
-      await wiring.lifecycleSvc.installModule({ manifest: row.manifest, actorId, requestId: randomUUID() })
+      await wiring.lifecycleSvc.installModule({ manifest: row.manifest, actorId, requestId: randomUUID(), companyId })
       if (routeLoader) await routeLoader.reloadModule(key).catch(() => null)
       if (bundlerSvc) await bundlerSvc.buildModuleBundle(key).catch(() => null)
       installed = true

@@ -2,10 +2,17 @@
 // module installed on this deployment" catalog; CompanyModule adds the
 // missing per-tenant dimension: a company only sees a module in
 // /runtime/modules and /blueprints when it's both globally INSTALLED and
-// (enabled here OR has no CompanyModule row at all -- absence defaults to
-// enabled, matching the backfill migration's intent that nothing regresses
-// for companies/modules that existed before this feature).
+// enabled for the company.
+//
+// Defaults differ by origin:
+// - Official/core modules: absence of a CompanyModule row means enabled
+//   (nothing regresses for companies that existed before this feature).
+// - Custom modules (not in the official manifests): absence means DISABLED. A
+//   custom module is only active in the company that installed it (or where an
+//   admin enabled it), so new companies never inherit another company's modules.
 // Spec: docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §9.4
+
+import { isOfficialModuleKey } from './module-manifests-service.js'
 
 export function createCompanyModuleService({ prisma }) {
   async function listEnabledModuleIds(companyId) {
@@ -17,11 +24,16 @@ export function createCompanyModuleService({ prisma }) {
   }
 
   async function listDisabledModuleIds(companyId) {
-    const rows = await prisma.companyModule.findMany({
-      where: { companyId, enabled: false },
-      select: { moduleId: true },
-    })
-    return new Set(rows.map((r) => r.moduleId))
+    const [rows, modules] = await Promise.all([
+      prisma.companyModule.findMany({ where: { companyId }, select: { moduleId: true, enabled: true } }),
+      prisma.runlyModule.findMany({ where: { status: 'INSTALLED', core: false }, select: { id: true, key: true } }),
+    ])
+    const byModuleId = new Map(rows.map((r) => [r.moduleId, r.enabled]))
+    const disabled = new Set(rows.filter((r) => !r.enabled).map((r) => r.moduleId))
+    for (const mod of modules) {
+      if (!byModuleId.has(mod.id) && !isOfficialModuleKey(mod.key)) disabled.add(mod.id)
+    }
+    return disabled
   }
 
   async function isModuleEnabledForCompany({ companyId, moduleId }) {

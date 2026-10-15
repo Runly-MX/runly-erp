@@ -41,7 +41,7 @@ export function createCatalogRouter({ prisma, requirePermission, bundlerSvc = nu
 
   app.post("/module-catalog/:key/install", requirePermission("core.modules.manage"), async (c) => {
     try {
-      return c.json({ data: await catalog.install({ key: c.req.param("key"), ...(await body(c)), actorId: actor(c) }) });
+      return c.json({ data: await catalog.install({ key: c.req.param("key"), ...(await body(c)), actorId: actor(c), companyId: c.get("companyId") ?? null }) });
     } catch (error) {
       return fail(c, error, "No se pudo instalar el módulo.");
     }
@@ -49,7 +49,7 @@ export function createCatalogRouter({ prisma, requirePermission, bundlerSvc = nu
 
   app.post("/module-catalog/:key/update", requirePermission("core.modules.manage"), async (c) => {
     try {
-      return c.json({ data: await catalog.update({ key: c.req.param("key"), ...(await body(c)), actorId: actor(c) }) });
+      return c.json({ data: await catalog.update({ key: c.req.param("key"), ...(await body(c)), actorId: actor(c), companyId: c.get("companyId") ?? null }) });
     } catch (error) {
       return fail(c, error, "No se pudo actualizar el módulo.");
     }

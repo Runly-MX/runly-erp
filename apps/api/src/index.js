@@ -44,6 +44,10 @@ import {
 import { createCompanyModuleService } from "./services/company-module-service.js";
 import { createAuthMiddleware } from "./services/auth-middleware.js";
 import { createCompanyRouter } from "./routes/company-routes.js";
+import { createCompanyDeletionService } from './services/company-deletion-service.js';
+import { createCompanyAccessPolicy } from './services/company-access-policy.js';
+import { createCompanyDeletionRouter } from './routes/company-deletion-routes.js';
+import { createPublicCompanyFence } from './services/company-public-fence.js';
 import { createContactsRouter } from "./routes/contacts-routes.js";
 import { createHrRouter } from "./routes/hr-routes.js";
 import { createHelpRouter } from "./routes/help/help-routes.js";
@@ -286,6 +290,7 @@ const authMiddleware = createAuthMiddleware({
   cacheGet,
   cacheSet,
   userContextTtlSeconds: TTL.USER_CONTEXT,
+  authorizeIdentity: createCompanyAccessPolicy({ prisma }),
 });
 
 const ADMIN_ROLE_KEYS = new Set(["runly.admin", "system.admin"]);
@@ -806,6 +811,13 @@ app.use(
 );
 
 // Operational routes precede module delegation and cannot be claimed by a module.
+app.use('*', createPublicCompanyFence({ prisma }));
+app.route('/', createCompanyDeletionRouter({
+  service: createCompanyDeletionService({ prisma, supabaseAdmin }), authMiddleware,
+  supabaseAnon: createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  }),
+}));
 app.route('/', createHealthRoutes({ readiness, formatLogTimestamp, getConfiguredTimeZone }));
 await routeLoader.initialize(app);
 await bundlerService.restoreModuleBundlesOnBoot();
@@ -2025,16 +2037,15 @@ app.get(
         where: { status: "INSTALLED" },
         select: { id: true, key: true, name: true, core: true },
       }),
-      companyModuleService.listForCompany(companyId),
+      companyModuleService.listDisabledModuleIds(companyId),
     ]);
-    const byModuleId = new Map(companyModules.map((cm) => [cm.moduleId, cm]));
     return c.json({
       data: modules.map((m) => ({
         moduleId: m.id,
         key: m.key,
         name: m.name,
         core: m.core,
-        enabled: m.core ? true : (byModuleId.get(m.id)?.enabled ?? true),
+        enabled: m.core ? true : !companyModules.has(m.id),
       })),
     });
   },

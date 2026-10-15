@@ -13,6 +13,7 @@ import {
   validateConnectionsAgainstModels,
 } from '@runly/module-engine'
 import { connectionTarget } from '@runly/module-compiler'
+import { isOfficialModuleKey } from '../module-manifests-service.js'
 
 export class ConnectionSyncError extends Error {
   constructor(code, message, details = null) {
@@ -55,7 +56,12 @@ export function createConnectionLifecycle({ prisma }) {
     return { ...row, models }
   }
 
-  async function enabledCompanyIds(moduleId, db) {
+  async function enabledCompanyIds(moduleId, db, moduleKey) {
+    // Custom modules are opt-in per company: only companies with an enabled row.
+    if (!isOfficialModuleKey(moduleKey)) {
+      const rows = await db.companyModule.findMany({ where: { moduleId, enabled: true }, select: { companyId: true } })
+      return rows.map((row) => row.companyId)
+    }
     const [companies, disabled] = await Promise.all([
       db.company.findMany({ select: { id: true } }),
       db.companyModule.findMany({ where: { moduleId, enabled: false }, select: { companyId: true } }),
@@ -129,7 +135,7 @@ export function createConnectionLifecycle({ prisma }) {
       }
       if (!resolved.length) return { synced: 0 }
 
-      const companyIds = await enabledCompanyIds(mod.id, tx)
+      const companyIds = await enabledCompanyIds(mod.id, tx, moduleKey)
       for (const { connection, spec } of resolved) {
         const [{ orphans }] = await tx.$queryRawUnsafe(buildOrphanCountSql(spec))
         if (orphans > 0) {
@@ -224,12 +230,15 @@ export function createConnectionLifecycle({ prisma }) {
     const modules = (await db.runlyModule.findMany({ where: { status: 'INSTALLED' }, select: { id: true, key: true, manifest: true, version: true } }))
       .filter((mod) => Array.isArray(mod.manifest?.connections) && mod.manifest.connections.length)
     if (!modules.length) return { created: 0 }
-    const [existing, disabled] = await Promise.all([
+    const [existing, companyRows] = await Promise.all([
       db.moduleConnection.findMany({ where: { companyId }, select: { moduleKey: true, connectionKey: true } }),
-      db.companyModule.findMany({ where: { companyId, enabled: false }, select: { moduleId: true } }),
+      db.companyModule.findMany({ where: { companyId }, select: { moduleId: true, enabled: true } }),
     ])
     const have = new Set(existing.map((row) => `${row.moduleKey}:${row.connectionKey}`))
-    const off = new Set(disabled.map((row) => row.moduleId))
+    // Custom modules are opt-in per company: no enabled row means off.
+    const enabledIds = new Set(companyRows.filter((row) => row.enabled).map((row) => row.moduleId))
+    const disabledIds = new Set(companyRows.filter((row) => !row.enabled).map((row) => row.moduleId))
+    const off = new Set(modules.filter((mod) => disabledIds.has(mod.id) || (!isOfficialModuleKey(mod.key) && !enabledIds.has(mod.id))).map((mod) => mod.id))
     let created = 0
     for (const mod of modules) {
       if (off.has(mod.id) || mod.manifest.connections.every((c) => have.has(`${mod.key}:${c.key}`))) continue
