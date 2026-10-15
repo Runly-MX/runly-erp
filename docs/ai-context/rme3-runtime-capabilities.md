@@ -20,7 +20,9 @@ keep their existing contracts.
 
 Runly Android 1.2.0 expone `window.__RUNLY_DEVICE__` con `status()`,
 `requestPermission(name)`, `openSettings(name)`, `pairedBluetoothDevices()`,
-`readNfcTag()` y `stopNfcReader()`. Los permisos solicitables son `camera`,
+`readNfcTag()` y `stopNfcReader()`; los hosts con la capacidad `bluetooth-print`
+agregan `printBluetoothRaw(address, base64)` (SDK: `device.bluetooth.print`, ver
+`docs/mobile/RUNLY_NATIVE_HOST.md`). Los permisos solicitables son `camera`,
 `microphone`, `notifications` y `bluetooth`. Consultar disponibilidad primero
 y solicitar permisos desde una acción del usuario. NFC devuelve identificador
 y tecnologías; no ofrece pagos/escritura. Bluetooth consulta emparejados, sin

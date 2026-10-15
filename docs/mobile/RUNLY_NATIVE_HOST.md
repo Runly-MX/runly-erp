@@ -118,6 +118,31 @@ const tag = await device.nfc.readTag()
 await device.nfc.stop()
 ```
 
+### Impresión Bluetooth (SPP)
+
+`device.bluetooth.print(address, bytes | string)` envía bytes crudos (por ejemplo
+ZPL) a una impresora Bluetooth Classic **ya emparejada**, por RFCOMM con el UUID
+SPP `00001101-0000-1000-8000-00805F9B34FB`. No lanza excepciones: resuelve
+`{ ok: true, bytes }` o `{ ok: false, code, error }`.
+
+- `address`: MAC del dispositivo emparejado (`AA:BB:CC:DD:EE:FF`, como lo devuelve
+  `pairedDevices()`); un texto se codifica en UTF-8. Máximo 2 MiB.
+- Códigos: `unsupported` (fuera del APK, APK anterior o Windows), `permission_denied`,
+  `bluetooth_unavailable` (Bluetooth apagado), `not_paired`, `connect_failed`,
+  `timeout` (20 s), `write_failed`, `busy` (una impresión a la vez),
+  `invalid_address`, `invalid_data`.
+- El permiso `BLUETOOTH_CONNECT` (Android 12+) se solicita antes con
+  `device.permissions.request('bluetooth')` desde un clic; en Android 11 o anterior
+  bastan `BLUETOOTH`/`BLUETOOTH_ADMIN` del manifiesto. No se usa descubrimiento,
+  así que no hace falta `BLUETOOTH_SCAN` ni ubicación.
+- Nativo: `BluetoothPrinter.kt` (hilo propio, socket seguro y luego inseguro,
+  bloques de 512 B con `flush`, vigilancia de 20 s que cierra el socket). Rust
+  valida MAC y base64 (`valid_bluetooth_print`) en la acción `bluetooth-print` de
+  `host_device`; el host anuncia la capacidad `bluetooth-print` en `host_info`.
+- Puente: `window.__RUNLY_DEVICE__.printBluetoothRaw(address, base64)`.
+- Compilado (`cargo test`, Gradle `compileArm64DebugKotlin`) pero no probado con
+  una impresora real.
+
 El cliente falla claramente fuera del host Android compatible. Las operaciones
 están enumeradas y vuelven a comprobar el origen confiado en Rust. Una nueva
 capacidad nativa requiere otra versión del APK; un módulo no puede añadir permisos
