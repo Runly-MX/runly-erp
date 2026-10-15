@@ -34,6 +34,8 @@ export const kioskApi = {
   pairStatus: (link, secret) => call(`${base(link)}/pair-status`, { headers: { 'x-pair-secret': secret } }),
   roster: (link, token) => call(`${base(link)}/roster`, { headers: auth(token) }),
   recent: (link, token, since) => call(`${base(link)}/recent?since=${encodeURIComponent(since)}`, { headers: auth(token) }),
+  // Phone punches since the cursor + the roster fingerprint, in one request.
+  changes: (link, token, since) => call(`${base(link)}/changes?since=${encodeURIComponent(since)}`, { headers: auth(token) }),
   sync: (link, token, punches) => call(`${base(link)}/sync`, { method: 'POST', headers: auth(token), body: { deviceNow: new Date().toISOString(), punches } }),
   // Multipart evidence photo for a punch that is already on the server.
   uploadSelfie: (link, token, punchId, blob) => {

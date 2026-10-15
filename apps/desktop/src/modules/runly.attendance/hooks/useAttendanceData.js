@@ -7,6 +7,11 @@ const useToken = () => useAuth().session?.access_token
 const unwrap = (response) => response?.data ?? response
 const KEY = 'attendance'
 const POLL_MS = 20_000
+// Safety net behind the realtime push (attendance.changed on the company channel):
+// the app-wide default keeps data fresh for 5 min and never refetches on focus,
+// which is what made these screens look frozen until a manual reload.
+const LIVE = { staleTime: 5_000, refetchOnWindowFocus: true, refetchOnReconnect: true }
+const FALLBACK_POLL_MS = 30_000
 
 export function useAttendancePermissions() {
   const profile = useAuth().userProfile
@@ -21,18 +26,18 @@ export function useAttendancePermissions() {
 
 function useRead(key, fn, options = {}) {
   const token = useToken()
-  return useQuery({ queryKey: [KEY, ...key], queryFn: async () => unwrap(await fn(token)), enabled: Boolean(token), ...options })
+  return useQuery({ queryKey: [KEY, ...key], queryFn: async () => unwrap(await fn(token)), enabled: Boolean(token), ...LIVE, ...options })
 }
 
 export const useSummary = () => useRead(['summary'], (t) => runly.attendance.getSummary(t), { refetchInterval: POLL_MS })
 export const usePresence = () => useRead(['presence'], (t) => runly.attendance.getPresenceReport({}, t), { refetchInterval: POLL_MS })
 export const useSettings = () => useRead(['settings'], (t) => runly.attendance.getSettings(t), { staleTime: 30_000 })
-export const useKiosks = (options) => useRead(['kiosks'], (t) => runly.attendance.listKiosks(t), options)
+export const useKiosks = (options) => useRead(['kiosks'], (t) => runly.attendance.listKiosks(t), { refetchInterval: POLL_MS, ...options })
 export const useCatalog = (kind) => useRead(['catalog', kind], (t) => runly.attendance.listCatalog(kind, t), { staleTime: 30_000 })
-export const usePeople = (query) => useRead(['people', query], (t) => runly.attendance.listPeople(query, t), { placeholderData: keepPreviousData })
-export const usePunches = (query) => useRead(['punches', query], (t) => runly.attendance.listPunches(query, t), { placeholderData: keepPreviousData })
-export const useHoursReport = (query) => useRead(['hours', query], (t) => runly.attendance.getHoursReport(query, t), { placeholderData: keepPreviousData })
-export const useComplianceReport = (query) => useRead(['compliance', query], (t) => runly.attendance.getComplianceReport(query, t), { placeholderData: keepPreviousData })
+export const usePeople = (query) => useRead(['people', query], (t) => runly.attendance.listPeople(query, t), { placeholderData: keepPreviousData, refetchInterval: FALLBACK_POLL_MS })
+export const usePunches = (query) => useRead(['punches', query], (t) => runly.attendance.listPunches(query, t), { placeholderData: keepPreviousData, refetchInterval: FALLBACK_POLL_MS })
+export const useHoursReport = (query) => useRead(['hours', query], (t) => runly.attendance.getHoursReport(query, t), { placeholderData: keepPreviousData, refetchInterval: FALLBACK_POLL_MS })
+export const useComplianceReport = (query) => useRead(['compliance', query], (t) => runly.attendance.getComplianceReport(query, t), { placeholderData: keepPreviousData, refetchInterval: FALLBACK_POLL_MS })
 
 // Generic mutation: runs fn(token, vars), then invalidates the whole attendance cache.
 function useAction(fn, successMessage) {
@@ -86,7 +91,7 @@ export const useLinkHr = () => useAction(
 export const useUnlinkHr = () => useAction((t, personId) => runly.attendance.unlinkHr(personId, t), 'Vínculo con RH eliminado.')
 
 // ---- Daily hours, overtime review and forgotten-punch requests ---------------
-export const useDaysReport = (query, options = {}) => useRead(['days', query], (t) => runly.attendance.getDaysReport(query, t), { placeholderData: keepPreviousData, ...options })
+export const useDaysReport = (query, options = {}) => useRead(['days', query], (t) => runly.attendance.getDaysReport(query, t), { placeholderData: keepPreviousData, refetchInterval: FALLBACK_POLL_MS, ...options })
 export const useReviewDay = () => useAction((t, data) => runly.attendance.reviewDay(data, t), 'Revisión guardada.')
 
 // Returns { data: [...rows], meta: { pending } } as-is (the list and the pending count come together).
@@ -96,6 +101,7 @@ export function useCorrections(status = 'pending') {
     queryKey: [KEY, 'corrections', status],
     queryFn: () => runly.attendance.listCorrections({ status }, token),
     enabled: Boolean(token),
+    ...LIVE,
     refetchInterval: POLL_MS,
   })
 }

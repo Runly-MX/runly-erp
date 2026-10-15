@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
 import { EnrollForm } from './components/EnrollForm.jsx'
 import { ForgotPunch } from './components/ForgotPunch.jsx'
 import { KeyCard } from './components/KeyCard.jsx'
 import { MyHours } from './components/MyHours.jsx'
+import { MyRequests } from './components/MyRequests.jsx'
 import { PhoneHome } from './components/PhoneHome.jsx'
 import { ScanFlow } from './components/ScanFlow.jsx'
 import { REVOKED_NOTICE } from './lib/self-service.js'
@@ -13,7 +14,7 @@ import { useMyHours } from './lib/use-my-hours.js'
 import { registerAttendanceWorker } from '../kiosk/lib/register-sw.js'
 import { RunlyWatermark } from '../components/RunlyWatermark.jsx'
 
-const VIEW_TITLES = { scan: 'Escanear kiosko', qr: 'Mi QR', hours: 'Mis horas', forgot: 'Olvidé checar' }
+const VIEW_TITLES = { scan: 'Escanear kiosko', qr: 'Mi QR', hours: 'Mis horas', requests: 'Mis solicitudes', forgot: 'Olvidé checar' }
 
 // Sticky top app bar shared by every sub-view: back on the left, title in the middle, optional action on the right.
 function AppBar({ title, onBack, action }) {
@@ -35,7 +36,7 @@ function AppBar({ title, onBack, action }) {
 export default function PhoneKeyScreen() {
   const [params] = useSearchParams()
   const [identity, setIdentity] = useState(undefined) // undefined = loading, null = not enrolled
-  const [view, setView] = useState('home') // home | scan | qr | hours | forgot
+  const [view, setView] = useState('home') // home | scan | qr | hours | requests | forgot
   const [revokedNotice, setRevokedNotice] = useState(false)
 
   // The server no longer recognises this phone: drop the key and go back to the activation form.
@@ -47,6 +48,18 @@ export default function PhoneKeyScreen() {
   }, [])
 
   const hours = useMyHours(identity, handleRevoked)
+
+  // A request that was pending and now has an answer: nudge the person once.
+  const pendingIds = useRef(null)
+  useEffect(() => {
+    const list = hours.data?.corrections
+    if (!list) return
+    const stillPending = new Set(list.filter((r) => r.status === 'pending').map((r) => r.id))
+    if (pendingIds.current && [...pendingIds.current].some((id) => !stillPending.has(id))) {
+      try { navigator.vibrate?.([80, 60, 80]) } catch { /* not supported */ }
+    }
+    pendingIds.current = stillPending
+  }, [hours.data])
 
   useEffect(() => {
     registerAttendanceWorker('/app/p/attendance/')
@@ -65,7 +78,7 @@ export default function PhoneKeyScreen() {
   const back = () => setView('home')
   const subView = identity && view !== 'home' ? view : null
 
-  const refreshAction = subView === 'hours' ? (
+  const refreshAction = subView === 'hours' || subView === 'requests' ? (
     <button type="button" onClick={hours.refresh} disabled={hours.loading} className="flex min-h-11 items-center gap-1 rounded-xl px-2 text-base text-slate-200 hover:bg-white/10 disabled:opacity-60">
       {hours.loading ? <Loader2 className="size-5 animate-spin" /> : <RefreshCw className="size-5" />} Actualizar
     </button>
@@ -83,8 +96,10 @@ export default function PhoneKeyScreen() {
               <KeyCard identity={identity} />
             ) : subView === 'hours' ? (
               <MyHours hours={hours} />
+            ) : subView === 'requests' ? (
+              <MyRequests identity={identity} hours={hours} allowNew={hours.data?.allowCorrections !== false} onNew={() => setView('forgot')} />
             ) : (
-              <ForgotPunch identity={identity} onBack={back} onSent={hours.refresh} onRevoked={handleRevoked} />
+              <ForgotPunch identity={identity} onBack={() => setView('requests')} onSent={hours.refresh} onRevoked={handleRevoked} />
             )}
           </main>
         </>
@@ -107,6 +122,7 @@ export default function PhoneKeyScreen() {
                 onScan={() => setView('scan')}
                 onShowQr={() => setView('qr')}
                 onShowHours={() => setView('hours')}
+                onRequests={() => setView('requests')}
                 onForgot={() => setView('forgot')}
                 onRemove={remove}
               />

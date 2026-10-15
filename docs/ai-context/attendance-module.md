@@ -18,3 +18,9 @@ Spec `docs/superpowers/specs/2026-10-11-attendance-design.md`, plan `docs/superp
 - Import maps columns with aliases (`IMPORT_FIELDS`); unknown groups/categories are created only with `createMissing`, shifts are never created by import.
 - Credential types: `card`, `device_key` (status `active|pending|revoked`).
 - Local verification: scripts in `.e2e/attendance-*.mjs` (git-ignored) run against a throwaway API on another port (`RUNLY_API_PORT`); never touch the user's 4010/5173 servers.
+
+## Live updates (how screens stay current)
+- Admin panel: every successful write under `/attendance/*` and the public kiosk/phone writes (pairing request, sync, phone punch, selfie, enroll, correction) call `createAttendanceEvents().changed()` (`attendance-events.js`), which broadcasts `attendance.changed` on `company:<id>:events`. `RealtimeProvider` invalidates the `['attendance']` queries. Hooks keep a 20-30 s poll plus refetch-on-focus/reconnect as a safety net (the app-wide default is 5 min stale and no refetch on focus).
+- A new forgotten-punch request also publishes a notification (`attendance.correction.requested`) to admins and anyone with `attendance.punch.manage` / `attendance.config.manage`.
+- Kiosk (no Supabase session, so no websocket): polls `GET /public/attendance/kiosk/:link/changes` every 2 s. It returns phone punches plus `rosterVersion` (fingerprint of people, active credentials, groups, categories, sites, settings and kiosk config; `lastUsedAt` is deliberately excluded). The kiosk re-downloads the roster when the version differs from its cached one, so new phone keys/cards appear within seconds. A successful poll also clears the "offline" state.
+- Phone (public page): `POST /public/attendance/me` is refreshed every 15 s while visible, on focus and on reconnect. "Mis solicitudes" shows pending vs answered requests (`corrections`, last 40) and a badge for answers not yet opened (seen ids kept in localStorage).

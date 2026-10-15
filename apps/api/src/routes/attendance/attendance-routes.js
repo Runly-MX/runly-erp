@@ -3,6 +3,7 @@ import { AttendanceError } from './attendance-core.js'
 import { createAttendanceService } from './attendance-service.js'
 import { createAttendanceHours } from './attendance-hours-service.js'
 import { createAttendanceExport } from './attendance-export.js'
+import { createAttendanceEvents } from './attendance-events.js'
 import { createGeocoder } from '../canvas/canvas-geocoder.js'
 import { IMPORT_FIELDS, createAttendanceImport, isTemplate, parseImportFile, suggestMapping } from './attendance-import.js'
 
@@ -15,7 +16,7 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createAttendanceRouter({ prisma, sendMail = null, buildInviteMail = null, getBrand = null, appBaseUrl = () => null, requirePermission, requireAnyPermission = null, broadcaster = null, service = null, geocoder = createGeocoder(), signFile = null }) {
+export function createAttendanceRouter({ prisma, sendMail = null, buildInviteMail = null, getBrand = null, appBaseUrl = () => null, requirePermission, requireAnyPermission = null, broadcaster = null, events = null, service = null, geocoder = createGeocoder(), signFile = null }) {
   const app = new Hono()
   const svc = service ?? createAttendanceService({ prisma, signFile })
   const importer = createAttendanceImport({ prisma })
@@ -30,7 +31,14 @@ export function createAttendanceRouter({ prisma, sendMail = null, buildInviteMai
   const run = (fallback, fn) => async (c) => {
     try { return await fn(c) } catch (error) { return fail(c, error, fallback) }
   }
-  const changed = (c, action) => broadcaster?.broadcastToChannel?.(`attendance:${companyId(c)}`, 'attendance.changed', { action }).catch(() => {})
+  const live = events ?? createAttendanceEvents({ broadcaster })
+  // Any successful write tells every open screen of the company to refetch; the
+  // action is the resource segment (people, kiosks, punches, corrections...).
+  app.use('/attendance/*', async (c, next) => {
+    await next()
+    if (c.req.method === 'GET' || c.res.status >= 400) return
+    live.changed(companyId(c), c.req.path.split('/')[2] ?? 'data')
+  })
 
   // Address search for the site location picker (same Nominatim proxy as Canvas maps).
   app.get('/attendance/geocode', config, run('Error al buscar la dirección.', async (c) => {
@@ -103,7 +111,6 @@ export function createAttendanceRouter({ prisma, sendMail = null, buildInviteMai
   app.post('/attendance/people/import/preview', people, run('Error al validar la importación.', async (c) => c.json({ data: await importer.preview(companyId(c), await c.req.json().catch(() => ({}))) })))
   app.post('/attendance/people/import/commit', people, run('Error al importar.', async (c) => {
     const data = await importer.commit(companyId(c), await c.req.json().catch(() => ({})))
-    changed(c, 'people')
     return c.json({ data })
   }))
 
@@ -111,13 +118,11 @@ export function createAttendanceRouter({ prisma, sendMail = null, buildInviteMai
   app.get('/attendance/punches', view, run('Error al cargar checadas.', async (c) => c.json({ data: await svc.listPunches(companyId(c), c.req.query()) })))
   app.post('/attendance/punches', punches, run('Error al registrar la checada.', async (c) => {
     const data = await svc.createManualPunch(companyId(c), actorId(c), await c.req.json().catch(() => ({})))
-    changed(c, 'punch')
     return c.json({ data }, 201)
   }))
   app.post('/attendance/punches/:id/void', punches, run('Error al anular la checada.', async (c) => {
     const body = await c.req.json().catch(() => ({}))
     const data = await svc.voidPunch(companyId(c), actorId(c), c.req.param('id'), body.note)
-    changed(c, 'punch')
     return c.json({ data })
   }))
 
@@ -132,13 +137,11 @@ export function createAttendanceRouter({ prisma, sendMail = null, buildInviteMai
   app.get('/attendance/reports/days', view, run('Error al calcular las horas.', async (c) => c.json({ data: await hours.report(companyId(c), c.req.query()) })))
   app.post('/attendance/days/review', punches, run('Error al guardar la revisión.', async (c) => {
     const data = await hours.reviewDay(companyId(c), actorId(c), await c.req.json().catch(() => ({})))
-    changed(c, 'review')
     return c.json({ data })
   }))
   app.get('/attendance/corrections', view, run('Error al cargar las solicitudes.', async (c) => c.json({ data: await hours.listCorrections(companyId(c), c.req.query()), meta: { pending: await hours.pendingCorrectionCount(companyId(c)) } })))
   app.post('/attendance/corrections/:id/resolve', punches, run('Error al resolver la solicitud.', async (c) => {
     const data = await hours.resolveCorrection(companyId(c), actorId(c), c.req.param('id'), await c.req.json().catch(() => ({})))
-    changed(c, 'punch')
     return c.json({ data })
   }))
 

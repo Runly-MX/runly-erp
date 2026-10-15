@@ -116,6 +116,25 @@ export const CORRECTION_STATUS = {
   rejected: { label: 'Rechazada', tone: 'gray' },
 }
 
+// "Mis solicitudes": pending first, then the resolved ones (newest answer first).
+// `seen` is the set of resolved request ids the person already opened.
+export function groupRequests(corrections, seen = []) {
+  const list = Array.isArray(corrections) ? corrections : []
+  const seenSet = new Set(seen)
+  const pending = list.filter((r) => r.status === 'pending')
+  const resolved = list.filter((r) => r.status !== 'pending')
+    .sort((a, b) => Date.parse(b.resolvedAt ?? b.requestedAt ?? 0) - Date.parse(a.resolvedAt ?? a.requestedAt ?? 0))
+  return { pending, resolved, unseen: resolved.filter((r) => !seenSet.has(r.id)) }
+}
+
+const SEEN_PREFIX = 'runly.attendance.requests-seen.'
+export function loadSeenRequests(personId, storage = globalThis.localStorage) {
+  try { const parsed = JSON.parse(storage?.getItem(SEEN_PREFIX + personId) ?? '[]'); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
+}
+export function saveSeenRequests(personId, ids, storage = globalThis.localStorage) {
+  try { storage?.setItem(SEEN_PREFIX + personId, JSON.stringify([...new Set(ids)].slice(-100))) } catch { /* ignore */ }
+}
+
 // Compact schedule: groups consecutive weekdays with the same hours. dayHours keys: 0..6 (0 = Sunday).
 export function formatSchedule(shift) {
   if (!shift) return ''

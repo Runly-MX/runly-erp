@@ -353,7 +353,14 @@ export function RealtimeProvider({ children }) {
       .on('broadcast', { event: 'calendar.event.updated' }, () => {
         queryClient.invalidateQueries({ queryKey: ['calendar'] })
       })
-      .subscribe()
+      .on('broadcast', { event: 'attendance.changed' }, ({ payload }) => {
+        queryClient.invalidateQueries({ queryKey: ['attendance'] })
+        dispatch('attendance.changed', payload)
+      })
+      // A reconnect may have skipped broadcasts: refetch whatever the screens show.
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') queryClient.invalidateQueries({ queryKey: ['attendance'] })
+      })
     return () => { client.removeChannel(channel) }
   }, [userProfile?.id, activeCompanyId, queryClient])
 

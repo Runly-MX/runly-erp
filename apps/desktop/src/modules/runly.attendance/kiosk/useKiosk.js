@@ -268,6 +268,15 @@ export function useKiosk(link) {
     return () => clearInterval(id)
   }, [phase, pairing?.expired, link, refreshRoster, syncNow, startPairing])
 
+  // First contact failed (no signal at install time): keep trying instead of waiting for a tap.
+  useEffect(() => {
+    if (phase !== 'offline') return undefined
+    const id = setInterval(() => { if (navigator.onLine) startPairing() }, 8_000)
+    const onOnline = () => startPairing()
+    window.addEventListener('online', onOnline)
+    return () => { clearInterval(id); window.removeEventListener('online', onOnline) }
+  }, [phase, startPairing])
+
   // ---------- background loops ----------
   useEffect(() => {
     if (phase !== 'ready') return undefined
@@ -359,7 +368,20 @@ export function useKiosk(link) {
     if (wantsPhoto) takeSelfie(item.id, key, true)
   }, [show, takeSelfie])
 
-  useRecentPolling({ enabled: phase === 'ready' && reachable && browserOnline, link, tokenRef, onItem: handleRecent, onAuthError: handleAuthError })
+  // The change feed also tells us when the roster moved on the server (new phone key,
+  // card, person...). Each fingerprint is fetched once; a failed fetch is retried by the 5 min loop.
+  const requestedVersion = useRef(null)
+  const handleVersion = useCallback((version) => {
+    if (version === rosterRef.current?.rosterVersion || version === requestedVersion.current) return
+    requestedVersion.current = version
+    refreshRoster().then((ok) => { if (!ok) requestedVersion.current = null })
+  }, [refreshRoster])
+  const handleReachable = useCallback((ok) => {
+    setReachable(ok)
+    if (ok) setAuthIssue(null)
+  }, [])
+
+  useRecentPolling({ enabled: phase === 'ready' && browserOnline, link, tokenRef, onItem: handleRecent, onVersion: handleVersion, onReachable: handleReachable, onAuthError: handleAuthError })
 
   const submitPin = useCallback(async (code, pin) => {
     const people = rosterRef.current?.people

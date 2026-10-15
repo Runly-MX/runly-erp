@@ -8,7 +8,38 @@ const METHODS = ['pin', 'code', 'card', 'phone_qr']
 const MAX_BATCH = 200
 const PAIRING_TTL_MS = 30 * 60_000
 
+const VERSION_TTL_MS = 2_000
+
 export function createAttendanceKioskService({ prisma }) {
+  const versionCache = new Map() // companyId -> { at, value }
+
+  // Cheap fingerprint of everything the roster is built from (people, credentials,
+  // groups, categories, policy, site): kiosks poll it and re-download only when it moves.
+  async function companyRosterVersion(companyId) {
+    const hit = versionCache.get(companyId)
+    if (hit && Date.now() - hit.at < VERSION_TTL_MS) return hit.value
+    const stamp = (agg) => [agg._count._all, agg._max.updatedAt?.getTime() ?? 0]
+    // Credentials bump updatedAt on every punch (lastUsedAt), so only the active set matters.
+    const credentialStamp = (agg) => [agg._count._all, agg._max.createdAt?.getTime() ?? 0]
+    const where = { companyId }
+    const [people, credentials, groups, categories, sites, settings] = await Promise.all([
+      prisma.attPerson.aggregate({ where, _count: { _all: true }, _max: { updatedAt: true } }),
+      prisma.attCredential.aggregate({ where: { companyId, status: 'active' }, _count: { _all: true }, _max: { createdAt: true } }),
+      prisma.attGroup.aggregate({ where, _count: { _all: true }, _max: { updatedAt: true } }),
+      prisma.attCategory.aggregate({ where, _count: { _all: true }, _max: { updatedAt: true } }),
+      prisma.attSite.aggregate({ where, _count: { _all: true }, _max: { updatedAt: true } }),
+      prisma.attSettings.findUnique({ where: { companyId }, select: { updatedAt: true } }),
+    ])
+    const value = sha256(JSON.stringify([stamp(people), credentialStamp(credentials), stamp(groups), stamp(categories), stamp(sites), settings?.updatedAt?.getTime() ?? 0])).slice(0, 16)
+    versionCache.set(companyId, { at: Date.now(), value })
+    return value
+  }
+
+  async function rosterVersion(kiosk) {
+    const { name, mode, requireSelfie, allowPin, siteId } = kiosk
+    return sha256(`${await companyRosterVersion(kiosk.companyId)}|${JSON.stringify([name, mode, requireSelfie, allowPin, siteId])}`).slice(0, 16)
+  }
+
   async function kioskByLink(linkToken) {
     const kiosk = linkToken ? await prisma.attKiosk.findUnique({ where: { linkToken: String(linkToken) } }) : null
     if (!kiosk || !kiosk.enabled) throw new AttendanceError('Este kiosko no está disponible.', 404, 'KIOSK_NOT_FOUND')
@@ -177,7 +208,7 @@ export function createAttendanceKioskService({ prisma }) {
     await prisma.attCredential.updateMany({ where: { personId: person.id, type: 'device_key', status: 'active' }, data: { status: 'revoked' } })
     const credential = await prisma.attCredential.create({ data: { companyId: person.companyId, personId: person.id, type: 'device_key', publicKey: { kty, crv, x, y }, label: String(label ?? '').trim().slice(0, 80) || 'Teléfono', status: 'active' } })
     await prisma.attPerson.update({ where: { id: person.id }, data: { enrollCode: null, enrollExpiresAt: null } })
-    return { personId: person.id, credentialId: credential.id, name: [person.firstName, person.lastName].filter(Boolean).join(' '), code: person.code }
+    return { companyId: person.companyId, personId: person.id, credentialId: credential.id, name: [person.firstName, person.lastName].filter(Boolean).join(' '), code: person.code }
   }
 
   const SELFIE_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
@@ -212,6 +243,12 @@ export function createAttendanceKioskService({ prisma }) {
     return rows.map((p) => ({ id: p.id, personId: p.personId, name: [p.person.firstName, p.person.lastName].filter(Boolean).join(' '), code: p.person.code, groupId: p.person.groupId, direction: p.direction, occurredAt: p.occurredAt, receivedAt: p.receivedAt, hasSelfie: Boolean(p.selfieFileId) }))
   }
 
+  // One cheap poll for the kiosk: phone punches it received plus the roster fingerprint.
+  async function changes(kiosk, since) {
+    const [items, version] = await Promise.all([recent(kiosk, since), rosterVersion(kiosk)])
+    return { items, rosterVersion: version }
+  }
+
   // The person's phone scanned the kiosk's challenge QR: verify the kiosk MAC, the
   // phone's signature and replay, then record the punch as that kiosk's.
   async function phonePunch({ challenge, personId, signature, latitude, longitude }) {
@@ -241,8 +278,8 @@ export function createAttendanceKioskService({ prisma }) {
       data: { companyId: kiosk.companyId, personId, siteId: kiosk.siteId ?? null, kioskId: kiosk.id, direction, occurredAt: now, deviceTime: now, method: 'phone_scan', offline: false, latitude: lat, longitude: lng, flags, status: flags.length ? 'flagged' : 'valid', note },
     })
     await prisma.attCredential.update({ where: { id: key.id }, data: { lastUsedAt: now } }).catch(() => {})
-    return { id: punch.id, direction, occurredAt: now, name: [person.firstName, person.lastName].filter(Boolean).join(' '), kioskName: kiosk.name }
+    return { companyId: kiosk.companyId, id: punch.id, direction, occurredAt: now, name: [person.firstName, person.lastName].filter(Boolean).join(' '), kioskName: kiosk.name }
   }
 
-  return { recent, phonePunch, attachSelfie, kioskByLink, authenticate, requestPairing, pairingStatus, roster, sync, enrollPhone }
+  return { recent, changes, phonePunch, attachSelfie, kioskByLink, authenticate, requestPairing, pairingStatus, roster, sync, enrollPhone }
 }

@@ -144,7 +144,7 @@ export function createAttendanceHours({ prisma, getSettings }) {
     const [shift, recent, corrections] = await Promise.all([
       person?.shiftId ? prisma.attShift.findFirst({ where: { id: person.shiftId, companyId } }) : null,
       prisma.attPunch.findMany({ where: { companyId, personId, status: { not: 'voided' } }, orderBy: { occurredAt: 'desc' }, take: 8, select: { id: true, direction: true, occurredAt: true, method: true } }),
-      prisma.attCorrection.findMany({ where: { personId }, orderBy: { requestedAt: 'desc' }, take: 5, select: { id: true, direction: true, occurredAt: true, status: true, reason: true, resolutionNote: true, requestedAt: true } }),
+      prisma.attCorrection.findMany({ where: { personId }, orderBy: { requestedAt: 'desc' }, take: 40, select: { id: true, direction: true, occurredAt: true, status: true, reason: true, resolutionNote: true, requestedAt: true, resolvedAt: true } }),
     ])
     const lastPunch = recent[0] ?? null
     const shiftNow = shiftStatus(shift, settings.timezone)

@@ -73,3 +73,17 @@ test('isRevokedError detects revoked or replaced phones', () => {
   assert.equal(isRevokedError({ status: 429 }), false)
   assert.equal(isRevokedError(null), false)
 })
+
+test('groupRequests separates pending from answered and flags unseen answers', async () => {
+  const { groupRequests } = await import('../self-service.js')
+  const list = [
+    { id: 'a', status: 'pending', requestedAt: '2026-10-14T10:00:00Z' },
+    { id: 'b', status: 'approved', requestedAt: '2026-10-10T10:00:00Z', resolvedAt: '2026-10-11T10:00:00Z' },
+    { id: 'c', status: 'rejected', requestedAt: '2026-10-12T10:00:00Z', resolvedAt: '2026-10-13T10:00:00Z' },
+  ]
+  const grouped = groupRequests(list, ['b'])
+  assert.deepEqual(grouped.pending.map((r) => r.id), ['a'])
+  assert.deepEqual(grouped.resolved.map((r) => r.id), ['c', 'b'])
+  assert.deepEqual(grouped.unseen.map((r) => r.id), ['c'])
+  assert.deepEqual(groupRequests(undefined).pending, [])
+})
