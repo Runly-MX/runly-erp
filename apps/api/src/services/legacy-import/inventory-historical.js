@@ -5,6 +5,7 @@
 import { ADMIN_STATUSES, DEREGISTRATION_REASONS } from '../inventory-admin-service.js';
 import { ACQUISITION_ORIGINS } from '../inventory-service.js';
 import { assignItemTx } from '../inventory-assignment-tx.js';
+import { FOLIO_MAX, createFolioAllocator, normalizeFolio } from '../inventory-folio.js';
 import { findActiveDuplicates } from '../inventory-identifiers.js';
 import { LegacyImportError, clip, toDateOnly, toTimestamp, writeImportAudit, sha256 } from './shared.js';
 
@@ -95,6 +96,7 @@ function itemFields(data) {
 }
 
 export function createInventoryHistorical({ prisma, refs, fileStore, defaultSource }) {
+  const folios = createFolioAllocator();
   async function assertRefs(companyId, data) {
     const checks = [['invCategory', data.categoryId, 'tipo'], ['invBrand', data.brandId, 'marca'], ['invLocation', data.locationId, 'ubicación'],
       ['invCondition', data.conditionId, 'condición'], ['invModel', data.modelId, 'modelo']];
@@ -143,12 +145,21 @@ export function createInventoryHistorical({ prisma, refs, fileStore, defaultSour
     }
     await assertRefs(companyId, fields);
     const warnings = [];
+    // Requested folio (sinabe's internal folio) when free; otherwise a generated one.
+    let folio = normalizeFolio(data.folio);
+    if (folio && folio.length > FOLIO_MAX) { folio = null; warnings.push('FOLIO_TOO_LONG'); }
+    if (folio && enabled && await prisma.invItem.findFirst({ where: { companyId, folio, enabled: true }, select: { id: true } })) {
+      folio = null;
+      warnings.push('FOLIO_DUPLICATE');
+    }
+    if (folio) await folios.observe(prisma, companyId, folio);
+    else folio = await folios.forItem(prisma, companyId, fields);
     const customValues = await resolveCustomValues(companyId, fields.categoryId, data.customValues, warnings);
     const events = buildAdminEvents(statusFields, { source, events: data.adminEvents, legacyActor: clip(data.legacyActor, 120) });
     const result = await refs.ensure({ companyId, source, entity: 'inv_item', legacyId }, async (tx) => {
       const item = await tx.invItem.create({
         data: {
-          companyId, assetTag, enabled, ...fields, ...statusFields,
+          companyId, assetTag, folio, enabled, ...fields, ...statusFields,
           name: fields.name || `Activo ${assetTag ?? fields.serialNumber ?? ''}`.trim(),
           createdById: null, // written by the data migration: shows as "Migración", never as the operator
           ...(data.createdAt ? { createdAt: toTimestamp(data.createdAt) } : {}),
@@ -162,7 +173,7 @@ export function createInventoryHistorical({ prisma, refs, fileStore, defaultSour
       }
       await writeImportAudit(tx, {
         companyId, actorId, moduleKey: MODULE_KEY, entityType: 'InvItem', entityId: item.id, action: 'inventory.item.imported',
-        after: { assetTag, name: item.name, adminStatus: item.adminStatus }, source, legacyId,
+        after: { assetTag, folio, name: item.name, adminStatus: item.adminStatus }, source, legacyId,
       });
       return item.id;
     });
