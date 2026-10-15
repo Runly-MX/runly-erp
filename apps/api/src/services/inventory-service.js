@@ -8,6 +8,7 @@ import { createInventoryCatalogService } from './inventory-catalog-service.js';
 import { DEFAULT_LISTED_ADMIN_STATUSES } from './inventory-admin-service.js';
 import { assertNoActiveDuplicates, cleanIdentifier } from './inventory-identifiers.js';
 import { publishDomainEvent } from './domain-events/events.js';
+import { FOLIO_MAX, createFolioAllocator, normalizeFolio } from './inventory-folio.js';
 import { assignItemTx, returnItemTx } from './inventory-assignment-tx.js';
 
 // Operational statuses a user can set by hand; `assigned` only comes from
@@ -45,6 +46,7 @@ function normalizePage(page) {
 // row's name; unknown keys fall back to newest first.
 const ITEM_SORTS = {
   assetTag: (dir) => ({ assetTag: dir }),
+  folio: (dir) => ({ folio: dir }),
   name: (dir) => ({ name: dir }),
   status: (dir) => ({ status: dir }),
   adminStatus: (dir) => ({ adminStatus: dir }),
@@ -91,6 +93,26 @@ export function createInventoryService({ prisma, activityBridge }) {
     });
 
   const assertRefInCompany = createRefGuard(prisma);
+  const folios = createFolioAllocator();
+
+  // Throws when another active item of the company already uses this folio.
+  async function assertFolioFree(folio, companyId, excludeId = null) {
+    if (folio.length > FOLIO_MAX) throw new InventoryServiceError(`El folio admite hasta ${FOLIO_MAX} caracteres.`, 400);
+    const taken = await prisma.invItem.findFirst({
+      where: { companyId, folio, enabled: true, ...(excludeId ? { id: { not: excludeId } } : {}) },
+      select: { id: true },
+    });
+    if (taken) throw new InventoryServiceError(`El folio ${folio} ya existe.`, 409);
+  }
+
+  // A manual folio wins (and moves the counter past it); otherwise one is generated.
+  async function resolveCreateFolio(data, companyId) {
+    const manual = normalizeFolio(data.folio);
+    if (!manual) return folios.forItem(prisma, companyId, data);
+    await assertFolioFree(manual, companyId);
+    await folios.observe(prisma, companyId, manual);
+    return manual;
+  }
 
   // Custom field ids from a request that really belong to this company.
   async function companyFieldIds(db, companyId, values) {
@@ -240,6 +262,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     return {
       name: item.name ?? null,
       assetTag: item.assetTag ?? null,
+      folio: item.folio ?? null,
       itemType: item.itemType ?? null,
       categoryName: item.category?.name ?? null,
       brandName: item.brand?.name ?? null,
@@ -331,6 +354,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       const count = await prisma.invItem.count({ where: { companyId } });
       assetTag = `INV-${year}-${String(count + 1).padStart(4, '0')}`;
     }
+    const folio = await resolveCreateFolio(data, companyId);
 
     const {
       name,
@@ -360,6 +384,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     let itemData = {
       companyId,
       assetTag,
+      folio,
       name: String(name ?? '').trim() || await autoItemName({ brandId, categoryId, model, assetTag }),
       status: status ?? 'available',
       adminStatus,
@@ -430,7 +455,7 @@ export function createInventoryService({ prisma, activityBridge }) {
           entityType: 'InvItem',
           entityId: created.id,
           action: 'inventory.item.created',
-          after: { name: created.name, assetTag: created.assetTag },
+          after: { name: created.name, assetTag: created.assetTag, folio: created.folio ?? null },
         },
         hint: { verb: 'created', label: created.name },
         companyId,
@@ -468,7 +493,7 @@ export function createInventoryService({ prisma, activityBridge }) {
         entityType: 'InvItem',
         entityId: created.id,
         action: 'inventory.item.created',
-        after: { name: created.name, assetTag: created.assetTag },
+        after: { name: created.name, assetTag: created.assetTag, folio: created.folio ?? null },
       },
       hint: { verb: 'created', label: created.name },
       companyId,
@@ -531,6 +556,18 @@ export function createInventoryService({ prisma, activityBridge }) {
       await assertNoActiveDuplicates(prisma, companyId, { assetTag: tagChanged ? assetTag : null, serialNumber: serialChanged ? serialNumber : null, excludeId: id });
     }
 
+    // Forms resend the current folio; only a real change is validated. An item
+    // without folio (pre-backfill) ignores a blank value.
+    let nextFolio;
+    if (data.folio !== undefined) {
+      const wanted = normalizeFolio(data.folio);
+      if (!wanted && existing.folio) throw new InventoryServiceError('El folio no puede quedar vacío.', 400);
+      if (wanted && wanted !== existing.folio) {
+        await assertFolioFree(wanted, companyId, id);
+        nextFolio = wanted;
+      }
+    }
+
     const updateData = {};
     if (name !== undefined) {
       updateData.name = String(name ?? '').trim() || await autoItemName({
@@ -541,6 +578,10 @@ export function createInventoryService({ prisma, activityBridge }) {
       });
     }
     if (assetTag !== undefined) updateData.assetTag = assetTag;
+    if (nextFolio) {
+      updateData.folio = nextFolio;
+      await folios.observe(prisma, companyId, nextFolio);
+    }
     if (description !== undefined) updateData.description = description;
     if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (brandId !== undefined) updateData.brandId = brandId;

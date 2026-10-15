@@ -85,6 +85,11 @@ function buildPrismaMock(overrides = {}) {
       updateMany: async () => ({ count: 0 }),
       ...(overrides.invItemFile ?? {}),
     },
+    invModel: {
+      findFirst: async () => ({ id: 'model-1' }),
+      ...(overrides.invModel ?? {}),
+    },
+    $queryRaw: async () => [{ last_value: 1 }],
     $transaction: async (fnOrArray) =>
       Array.isArray(fnOrArray) ? Promise.all(fnOrArray) : fnOrArray(makeTx(overrides._tx ?? {})),
     ...(overrides._root ?? {}),
@@ -626,5 +631,55 @@ describe('normalizeAcquisitionOrigin', () => {
     assert.equal(normalizeAcquisitionOrigin(null), 'OTHER')
     assert.equal(normalizeAcquisitionOrigin('donation'), 'DONATION')
     assert.throws(() => normalizeAcquisitionOrigin('GIFT'), (err) => err instanceof InventoryServiceError && err.status === 400)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// folio
+// ---------------------------------------------------------------------------
+
+describe('item folio', () => {
+  it('generates a folio on create', async () => {
+    let capturedData = null
+    const prisma = buildPrismaMock({
+      invCategory: { findFirst: async () => ({ id: 'cat-1', name: 'Teléfono', code: null }) },
+      invBrand: { findFirst: async () => ({ id: 'brand-1', name: 'Cisco', code: null }) },
+      invItem: { count: async () => 0, create: async (args) => { capturedData = args.data; return { id: ITEM_ID, ...args.data } }, findFirst: async () => null },
+    })
+    const svc = createInventoryService({ prisma })
+    await svc.createItem({ name: 'Tel', categoryId: 'cat-1', brandId: 'brand-1', model: 'cp7821' }, COMPANY_ID, USER_ID)
+    assert.equal(capturedData.folio, 'TEL-CIS-CP7-1')
+  })
+
+  it('keeps a manual folio, normalized, and rejects a duplicate', async () => {
+    let capturedData = null
+    const prisma = buildPrismaMock({
+      invItem: { count: async () => 0, create: async (args) => { capturedData = args.data; return { id: ITEM_ID, ...args.data } }, findFirst: async () => null },
+    })
+    await createInventoryService({ prisma }).createItem({ name: 'A', folio: ' tel-cis-cp7-158 ' }, COMPANY_ID, USER_ID)
+    assert.equal(capturedData.folio, 'TEL-CIS-CP7-158')
+
+    const taken = buildPrismaMock({ invItem: { count: async () => 0, findFirst: async () => ({ id: 'other' }) } })
+    await assert.rejects(
+      () => createInventoryService({ prisma: taken }).createItem({ name: 'B', folio: 'TEL-CIS-CP7-158' }, COMPANY_ID, USER_ID),
+      (err) => err instanceof InventoryServiceError && err.status === 409,
+    )
+  })
+
+  it('updates the folio only when it really changes and never blanks it', async () => {
+    let updated = null
+    const existing = { id: ITEM_ID, companyId: COMPANY_ID, enabled: true, name: 'X', folio: 'INV-1', category: null, brand: null, location: null }
+    const prisma = buildPrismaMock({
+      invItem: {
+        findFirst: async (args) => (args?.where?.folio ? null : existing),
+        update: async (args) => { updated = args.data; return { ...existing, ...args.data } },
+      },
+    })
+    const svc = createInventoryService({ prisma, activityBridge: { logAndPublish: async () => {} } })
+    await svc.updateItem(ITEM_ID, { folio: 'INV-1', notes: 'n' }, COMPANY_ID)
+    assert.equal(updated.folio, undefined)
+    await svc.updateItem(ITEM_ID, { folio: ' inv-9 ' }, COMPANY_ID)
+    assert.equal(updated.folio, 'INV-9')
+    await assert.rejects(() => svc.updateItem(ITEM_ID, { folio: '  ' }, COMPANY_ID), (err) => err.status === 400)
   })
 })
