@@ -261,8 +261,11 @@ la bandera: lo que coincide por número de empleado, correo o nombre exacto se r
   inventarios activos, como en Runly: un inventario desactivado en sinabe conserva su número.
   Si dos activos habilitados comparten número (`ASSET_NUMBER_DUPLICATE`), lo conserva el más
   "vivo" (Alta, luego Propuesta, luego Baja; a igualdad, el más antiguo) y los demás quedan sin
-  número. El número original y el folio interno siempre quedan en los campos "Número de activo
-  (sinabe)" y "Folio interno (sinabe)".
+  número. El número original siempre queda en el campo "Número de activo (sinabe)".
+- Folio: `internalFolio` pasa al folio nativo del activo (`TIPO-MARCA-MODELO-N`) y además se
+  conserva en "Folio interno (sinabe)". Si está vacío o duplicado (`FOLIO_DUPLICATE`) o excede
+  100 caracteres (`FOLIO_TOO_LONG`), el activo recibe un folio generado. Las empresas ya
+  migradas ejecutan `scripts/migrations/inventory-folio-backfill.mjs`.
 - Serie: si un activo habilitado tiene una serie que ya usa otro inventario activo de Runly, no
   se importa y se reporta como conflicto `SERIAL_TAKEN` (igual para `ASSET_TAG_TAKEN`).
 - Condición: se elige la peor (Descompuesto > En Reparación > En Mantenimiento > Usado >

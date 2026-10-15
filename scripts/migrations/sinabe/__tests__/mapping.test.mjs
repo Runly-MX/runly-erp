@@ -152,6 +152,16 @@ test('model maps an item and scopes documents for --only', () => {
   assert.deepEqual([plan.totals.files, plan.totals.bytes, plan.totals.missing, plan.totals.oversize], [3, 109, 1, 1])
 })
 
+test('internalFolio maps to the native folio and stays in the custom value', () => {
+  const src = tinySource()
+  src.inventories[0].internalFolio = ' TEL-CIS-CP7-158 '
+  const model = buildModel(src, { timeZone: 'UTC' })
+  const item = model.mapItem(model.inventories[0])
+  assert.equal(item.data.folio, 'TEL-CIS-CP7-158')
+  assert.ok(item.customValues.some((v) => v.fieldKey === 'sinabe_folio_interno'))
+  assert.equal(model.mapItem(model.inventories[1]).data.folio, null)
+})
+
 test('report holds codes and ids only and aborts past --max-errors', () => {
   const report = createReport({ command: 'migrate', mode: 'dry-run', source: 's', companyId: 'c', maxErrors: 1 })
   report.count('items', 'created', 2)

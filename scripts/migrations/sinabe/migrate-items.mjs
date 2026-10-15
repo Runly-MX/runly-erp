@@ -123,7 +123,7 @@ export async function migrateItemBatch(run, inventories, catalogs, docIds) {
         const result = await run.toolkit.importItem({ companyId, actorId: run.actorId, source: run.sourceName, legacyId: mapped.legacyId, data: resolveItemData(mapped, catalogs) })
         if (result.conflict) { run.report.conflict('items', result.conflict.reason === 'serial_taken' ? 'SERIAL_TAKEN' : 'ASSET_TAG_TAKEN', mapped.legacyId, result.conflict.existingId); continue }
         itemId = result.id
-        if (result.warnings?.length) run.report.warn('ITEM_CUSTOM_FIELD_UNKNOWN', result.warnings.length)
+        for (const code of result.warnings ?? []) run.report.warn(code === 'FOLIO_DUPLICATE' || code === 'FOLIO_TOO_LONG' ? code : 'ITEM_CUSTOM_FIELD_UNKNOWN')
         run.report.count('items', result.created ? 'created' : 'matched')
       }
       if (!mapped.enabled) run.report.warn('ITEM_DISABLED_IN_SINABE')

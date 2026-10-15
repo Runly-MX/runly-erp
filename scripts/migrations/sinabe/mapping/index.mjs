@@ -7,6 +7,8 @@ import { itemCustomValues } from './custom-fields.mjs'
 import { normalizeSupplierName, supplierLegacyId } from './people.mjs'
 import { orderCustodyRecords, latestCompletedByItem } from './custody.mjs'
 
+const clean = (value) => { const text = value == null ? '' : String(value).trim(); return text || null }
+
 const groupBy = (rows, key) => {
   const out = new Map()
   for (const row of rows) {
@@ -89,6 +91,8 @@ export function buildModel(source, { timeZone = DEFAULT_TIMEZONE } = {}) {
       assetTagOrigin: tag.origin,
       data: {
         assetTag: tag.assetTag,
+        // Native folio; importItem falls back to a generated one when empty or duplicated.
+        folio: clean(inv.internalFolio),
         name: itemName({ typeName, brandName, modelName: model?.name, assetTag: tag.assetTag, serialNumber: inv.serialNumber }),
         enabled: inv.enabled !== false,
         legacyActor: fullName(users.get(inv.createdById)),

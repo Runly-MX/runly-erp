@@ -46,7 +46,8 @@ Conditions N:M → one InvCondition (priority table: Descompuesto > En Reparaci�
 (from the model). CustomField/InventoryCustomField → InvCustomField/Value.
 Inventory: activeNumber→assetTag (empty or duplicate → internalFolio as tag and
 original kept in custom field "Número de activo (sinabe)"; conflicts reported);
-internalFolio → custom field "Folio interno (sinabe)"; serialNumber kept even if
+internalFolio → native `folio` (TYPE-BRAND-MODEL-N; empty or duplicated gets a generated one,
+backfill script for already-migrated companies) and also kept in custom field "Folio interno (sinabe)"; serialNumber kept even if
 duplicated; status ALTA/PROPUESTA/BAJA → registered/deregistration_proposed/
 deregistered with altaDate/bajaDate (missing dates → createdAt/updatedAt,
 warning); receptionDate→purchaseDate; comments→notes; details JSON → custom
