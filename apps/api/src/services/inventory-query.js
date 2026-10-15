@@ -24,6 +24,7 @@ export const inventoryFiltersSchema = z.object({
   model: z.string().max(255).optional(), modelId: z.uuid().optional(),
   missingSerial: z.boolean().optional(), createdFrom: z.iso.date().optional(), createdTo: z.iso.date().optional(),
   purchaseFrom: z.iso.date().optional(), purchaseTo: z.iso.date().optional(),
+  labeled: z.enum(['true', 'false']).optional(),
 }).strict();
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -42,6 +43,9 @@ export function buildInventoryWhere(companyId, filters = {}) {
     .map((v) => String(v).trim()).filter((v) => ADMIN_STATUS_SET.has(v));
   if (adminStatuses.length) where.adminStatus = adminStatuses.length === 1 ? adminStatuses[0] : { in: adminStatuses };
   if (filters.missingSerial) where.AND = [{ OR: [{ serialNumber: null }, { serialNumber: '' }] }];
+  // labeled=false -> never printed; labeled=true -> printed at least once (inv_label_print).
+  const labeled = filters.labeled === true || filters.labeled === 'true' ? true : (filters.labeled === false || filters.labeled === 'false' ? false : null);
+  if (labeled !== null) where.labelPrints = labeled ? { some: {} } : { none: {} };
   const createdFrom = ISO_DAY.test(String(filters.createdFrom ?? '')) ? filters.createdFrom : null;
   const createdTo = ISO_DAY.test(String(filters.createdTo ?? '')) ? filters.createdTo : null;
   if (createdFrom || createdTo) where.createdAt = {

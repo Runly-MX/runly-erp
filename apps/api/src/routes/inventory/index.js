@@ -11,6 +11,8 @@ import { createInventoryModelsRouter } from './models-routes.js';
 import { createInventoryImportRouter } from './import-routes.js';
 import { createInventoryAdminRouter } from './admin-routes.js';
 import { createInventoryCustodyRouter } from './custody-routes.js';
+import { createInventoryLabelRouter } from './label-routes.js';
+import { createInventoryLabelService, appBaseUrlFromEnv } from '../../services/inventory-label-service.js';
 import { createInventoryModelService } from '../../services/inventory-model-service.js';
 import { createCoreTargetConnections } from '../../services/connections/core-target-connections.js';
 import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js';
@@ -38,6 +40,8 @@ export function createInventoryRouter({
   router.route('/', createInventoryAdminRouter({ prisma, requirePermission, InventoryServiceError, inventoryNotifSvc, supabaseAdmin }));
   router.route('/', createInventoryImportRouter({ prisma, requirePermission, InventoryServiceError, inventoryService, filesService }));
   router.route('/', createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin }));
+  const labelService = createInventoryLabelService({ prisma, publicBaseUrl: appBaseUrlFromEnv() });
+  router.route('/', createInventoryLabelRouter({ requirePermission, InventoryServiceError, labelService }));
   const modelDefaults = createInventoryModelService({ prisma });
 
   const isInvErr = (err) => err instanceof InventoryServiceError;
@@ -93,9 +97,13 @@ export function createInventoryRouter({
   router.get("/inventory/items", requirePermission("inventory.item.read"), async (c) => {
     try {
       const companyId = c.get("companyId");
-      const { search, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, createdFrom, createdTo, purchaseFrom, purchaseTo, page, limit, pageSize, sortBy, sortDir } = c.req.query();
+      const { search, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, page, limit, pageSize, sortBy, sortDir } = c.req.query();
       const connectionMatchIds = await itemConnections.searchIds(c, search);
-      const result = await inventoryService.listItems({ companyId, search, connectionMatchIds, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, createdFrom, createdTo, purchaseFrom, purchaseTo, sortBy, sortDir, page: Number(page) || 1, limit: Number(pageSize ?? limit) || 50 });
+      const result = await inventoryService.listItems({ companyId, search, connectionMatchIds, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, sortBy, sortDir, page: Number(page) || 1, limit: Number(pageSize ?? limit) || 50 });
+      if (hasPerm(c, "inventory.label.read")) {
+        const stats = await labelService.statsForItems(companyId, result.data.map((item) => item.id));
+        result.data = result.data.map((item) => ({ ...item, labelPrintedAt: stats.get(item.id)?.labelPrintedAt ?? null, labelPrintCount: stats.get(item.id)?.labelPrintCount ?? 0 }));
+      }
       if (hasPerm(c, "purchases.relation.read")) {
         const numbers = await loadPurchaseNumbersForItems(prisma, companyId, result.data.map((item) => item.id));
         result.data = result.data.map((item) => ({ ...item, purchaseOrderNumber: numbers.get(item.id)?.purchaseOrderNumber ?? null, purchaseInvoiceNumber: numbers.get(item.id)?.purchaseInvoiceNumber ?? null }));

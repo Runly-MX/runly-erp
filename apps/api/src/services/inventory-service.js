@@ -160,6 +160,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     createdTo,
     purchaseFrom,
     purchaseTo,
+    labeled,
     sortBy,
     sortDir,
     page = 1,
@@ -170,7 +171,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     const skip = (normalizePage(page) - 1) * take;
 
     const filters = {
-      categoryId, brandId, locationId, conditionId, status, assignedToId, modelId, createdFrom, createdTo, purchaseFrom, purchaseTo,
+      categoryId, brandId, locationId, conditionId, status, assignedToId, modelId, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled,
       adminStatus: adminStatus === 'all' ? undefined : (adminStatus || DEFAULT_LISTED_ADMIN_STATUSES),
     };
     let where;
