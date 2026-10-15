@@ -23,7 +23,7 @@ export function inventorySearchSources(companyId, pattern) {
       LEFT JOIN inv_model mdl ON mdl.id = i.model_id
       LEFT JOIN hr_employee cur ON cur.id = i.assigned_to_id
       WHERE ${co('i')} AND i.enabled = true AND (${like([
-        'i.name', 'i.asset_tag', 'i.serial_number', 'i.part_number', 'i.model', 'i.description', 'i.notes', 'i.vendor_name',
+        'i.name', 'i.asset_tag', 'i.folio', 'i.serial_number', 'i.part_number', 'i.model', 'i.description', 'i.notes', 'i.vendor_name',
         'i.invoice_number', 'i.warranty_notes', 'i.item_type', "to_char(i.purchase_date, 'YYYY-MM-DD')",
         'cat.name', 'br.name', 'loc.name', 'cond.name', 'mdl.name', ...EMPLOYEE_COLS('cur'),
       ])})`,

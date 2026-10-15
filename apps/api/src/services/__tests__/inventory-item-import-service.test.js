@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
 import {
-  createInventoryItemImportService, parseImportDate, parseImportPrice, parseItemFile, suggestItemMapping,
+  ITEM_IMPORT_FIELDS, createInventoryItemImportService, parseImportDate, parseImportPrice, parseItemFile, suggestItemMapping,
 } from '../inventory-item-import-service.js';
 import { isPrivateAddress, splitImageUrls } from '../inventory-import-remote-image.js';
 import { itemOrderBy } from '../inventory-service.js';
@@ -179,4 +179,10 @@ test('buildAutoItemName prefers brand + model, then type, then the asset tag', a
   assert.equal(buildAutoItemName({ typeName: 'Laptop', model: 'XPS 15' }), 'Laptop XPS 15');
   assert.equal(buildAutoItemName({ typeName: 'Monitor' }), 'Monitor');
   assert.equal(buildAutoItemName({ assetTag: 'INV-2026-0007' }), 'Activo INV-2026-0007');
+});
+
+test('folio import column maps the Folio header to folio, not to the asset number', () => {
+  const field = (key) => ITEM_IMPORT_FIELDS.find((f) => f.key === key);
+  assert.ok(field('folio').aliases.includes('folio'));
+  assert.ok(!field('assetTag').aliases.includes('folio'));
 });

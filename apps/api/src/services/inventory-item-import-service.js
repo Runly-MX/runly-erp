@@ -26,7 +26,8 @@ export { MAX_ITEM_IMPORT_ROWS, parseImportDate, parseImportPrice, parseItemFile,
 // `aliases` are normalized header spellings used to pre-fill the mapping.
 export const ITEM_IMPORT_FIELDS = [
   { key: 'name', label: 'Nombre', group: 'Identificación', aliases: ['nombre', 'name', 'equipo', 'activo', 'articulo', 'descripcion_corta'] },
-  { key: 'assetTag', label: 'Número de activo', group: 'Identificación', aliases: ['numero_de_activo', 'no_activo', 'etiqueta', 'etiqueta_de_activo', 'tag', 'asset_tag', 'codigo', 'codigo_de_activo', 'folio', 'no_inventario', 'numero_de_inventario'] },
+  { key: 'assetTag', label: 'Número de activo', group: 'Identificación', aliases: ['numero_de_activo', 'no_activo', 'etiqueta', 'etiqueta_de_activo', 'tag', 'asset_tag', 'codigo', 'codigo_de_activo', 'no_inventario', 'numero_de_inventario'] },
+  { key: 'folio', label: 'Folio', group: 'Identificación', aliases: ['folio', 'folio_interno', 'folio_de_activo'] },
   { key: 'serialNumber', label: 'Número de serie', group: 'Identificación', aliases: ['serie', 'numero_de_serie', 'no_serie', 'no_de_serie', 'serial', 'serial_number', 's/n', 'sn'] },
   { key: 'partNumber', label: 'Número de parte', group: 'Identificación', aliases: ['numero_de_parte', 'no_parte', 'part_number', 'pn', 'sku'] },
   { key: 'type', label: 'Tipo', group: 'Modelo, tipo y marca', aliases: ['tipo', 'categoria', 'type', 'category', 'clase'] },
@@ -443,6 +444,7 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
         item = await inventoryService.createItem({
           name: d.autoName ? undefined : d.name,
           assetTag: d.assetTag || undefined,
+          folio: d.folio || undefined,
           serialNumber: d.serialNumber || undefined,
           partNumber: d.partNumber || undefined,
           model: d.model || undefined,
