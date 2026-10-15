@@ -15,7 +15,7 @@ import { createInventoryModelService } from '../../services/inventory-model-serv
 import { createCoreTargetConnections } from '../../services/connections/core-target-connections.js';
 import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js';
 import { findActiveDuplicates } from '../../services/inventory-identifiers.js';
-import { preparePurchaseLinks, withoutPurchaseLinkFields, composeAfterWrite, loadPurchaseLinks, purchaseLinkFields } from '../../services/inventory-purchase-links.js';
+import { preparePurchaseLinks, withoutPurchaseLinkFields, composeAfterWrite, loadPurchaseLinks, loadPurchaseNumbersForItems, purchaseLinkFields } from '../../services/inventory-purchase-links.js';
 import { publishActivityFromContext, getActivityContext } from '../../services/activity-publisher.js';
 
 export function createInventoryRouter({
@@ -95,6 +95,10 @@ export function createInventoryRouter({
       const { search, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, createdFrom, createdTo, purchaseFrom, purchaseTo, page, limit, pageSize, sortBy, sortDir } = c.req.query();
       const connectionMatchIds = await itemConnections.searchIds(c, search);
       const result = await inventoryService.listItems({ companyId, search, connectionMatchIds, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, createdFrom, createdTo, purchaseFrom, purchaseTo, sortBy, sortDir, page: Number(page) || 1, limit: Number(pageSize ?? limit) || 50 });
+      if (hasPerm(c, "purchases.relation.read")) {
+        const numbers = await loadPurchaseNumbersForItems(prisma, companyId, result.data.map((item) => item.id));
+        result.data = result.data.map((item) => ({ ...item, purchaseOrderNumber: numbers.get(item.id)?.purchaseOrderNumber ?? null, purchaseInvoiceNumber: numbers.get(item.id)?.purchaseInvoiceNumber ?? null }));
+      }
       // `pagination` is the shape RunlyTable reads for its page footer.
       return c.json({ ...result, pagination: { page: result.page, pageSize: result.limit, total: result.total } });
     } catch (err) {

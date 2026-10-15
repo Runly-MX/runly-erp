@@ -17,3 +17,18 @@ export function quickCreatePayload({ number, supplierId, issueDate }) {
     ...(issueDate ? { issueDate } : {}),
   }
 }
+
+// Documents seen by the two pickers, shared so that filling the order from the
+// chosen invoice can show its label without another request.
+export const purchaseDocCache = { order: new Map(), invoice: new Map() }
+
+// An order has many invoices, an invoice belongs to one order. Decides what the
+// item form does after the order or the invoice changes. `invoice.order` is
+// undefined when unknown (never ask), null when the invoice has no order yet.
+//   fill-order -> the invoice already belongs to `order`: use that one
+//   ask-relate -> both chosen but unrelated: offer to relate them
+export function planPurchaseLinkRule({ invoice, orderId }) {
+  if (!invoice || invoice.order === undefined) return { type: 'none' }
+  if (invoice.order) return invoice.order.id === orderId ? { type: 'none' } : { type: 'fill-order', order: invoice.order }
+  return orderId ? { type: 'ask-relate' } : { type: 'none' }
+}

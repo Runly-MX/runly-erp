@@ -120,6 +120,8 @@ export default function InventoryScreen() {
         },
         { field: 'adminStatus',    label: 'Estado',      sortable: true,  type: 'select', options: ADMIN_OPTIONS },
         { field: 'assignedToName', label: 'Responsable', sortable: true  },
+        { field: 'purchaseInvoiceNumber', label: 'Factura', sortable: false },
+        { field: 'purchaseOrderNumber', label: 'Orden de compra', sortable: false },
         { field: 'conditionName',  label: 'Condición',   sortable: true,  defaultVisible: false },
         { field: 'locationName',   label: 'Ubicacion',   sortable: true,  defaultVisible: false },
         { field: 'serialNumber',   label: 'No. Serie',   sortable: true,  defaultVisible: false },

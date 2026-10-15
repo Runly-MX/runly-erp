@@ -93,6 +93,33 @@ export async function loadPurchaseLinks(client, companyId, itemId) {
   return out
 }
 
+// List columns: itemId -> { purchaseOrderNumber, purchaseInvoiceNumber } in two queries per page.
+export async function loadPurchaseNumbersForItems(client, companyId, itemIds) {
+  const out = new Map()
+  if (!itemIds.length) return out
+  const relations = await client.entityRelation.findMany({
+    where: {
+      companyId, sourceModule: MODULE_KEY, targetModule: 'runly.inventory', targetType: 'inventory_item', targetId: { in: itemIds },
+      sourceType: { in: KIND_KEYS.map(kind => PURCHASE_LINK_KINDS[kind].sourceType) },
+      relationType: { in: KIND_KEYS.map(kind => PURCHASE_LINK_KINDS[kind].relationType) },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+  for (const kind of KIND_KEYS) {
+    const meta = PURCHASE_LINK_KINDS[kind]
+    const rows = relations.filter(row => row.sourceType === meta.sourceType && row.relationType === meta.relationType)
+    if (!rows.length) continue
+    const docs = await client[meta.model].findMany({ where: { companyId, id: { in: [...new Set(rows.map(row => row.sourceId))] } }, select: { id: true, number: true } })
+    const numbers = new Map(docs.map(doc => [doc.id, doc.number]))
+    for (const row of rows) {
+      const number = numbers.get(row.sourceId)
+      const entry = out.get(row.targetId) ?? {}
+      if (number && entry[`${kind}Number`] === undefined) out.set(row.targetId, { ...entry, [`${kind}Number`]: number })
+    }
+  }
+  return new Map([...out].map(([id, value]) => [id, { purchaseOrderNumber: value.orderNumber ?? null, purchaseInvoiceNumber: value.invoiceNumber ?? null }]))
+}
+
 // Fields merged into the item detail/form payload.
 export function purchaseLinkFields(links) {
   return {

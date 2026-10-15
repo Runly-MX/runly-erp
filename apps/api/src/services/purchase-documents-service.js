@@ -106,6 +106,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
   async function validateOrderIds(client, companyId, orderIds) {
     const ids = [...new Set((orderIds ?? []).filter(Boolean))]
     if (!ids.length) return []
+    if (ids.length > 1) throw new PurchasesServiceError('Una factura solo puede relacionarse con una orden de compra.', 422, 'VALIDATION')
     const rows = await client.purchaseOrder.findMany({ where: { companyId, id: { in: ids } }, select: { id: true, caseId: true } })
     if (rows.length !== ids.length) throw notFound('Una o más órdenes no existen o pertenecen a otra empresa.')
     return rows
@@ -121,7 +122,11 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     return unique
   }
 
+  // An invoice bills a single order: linking another one replaces the previous link.
   async function linkOrders(tx, { companyId, actorId, invoiceId, orders, inheritItems }) {
+    await tx.entityRelation.deleteMany({
+      where: { companyId, sourceModule: MODULE_KEY, sourceType: 'purchase_invoice', sourceId: invoiceId, targetType: 'purchase_order', relationType: 'BILLED_FROM', targetId: { notIn: orders.map(order => order.id) } },
+    })
     for (const order of orders) {
       await relate(tx, { companyId, actorId, sourceType: 'purchase_invoice', sourceId: invoiceId, targetType: 'purchase_order', targetId: order.id, relationType: 'BILLED_FROM' })
     }
@@ -191,7 +196,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     const updated = await prisma.$transaction(async tx => {
       const doc = await tx[meta.model].update({ where: { id }, data })
       if (lines) await replaceLines(tx, companyId, meta.ownerType, id, lines)
-      if (orders.length) await linkOrders(tx, { companyId, actorId, invoiceId: id, orders, inheritItems: input.inheritItems === true })
+      if (kind === 'invoices' && Array.isArray(input.orderIds)) await linkOrders(tx, { companyId, actorId, invoiceId: id, orders, inheritItems: input.inheritItems === true })
       await writeAudit(tx, { companyId, actorId, entityType: meta.entityType, entityId: id, action: `${EVENT[kind]}.updated`, before, after: doc })
       return doc
     })

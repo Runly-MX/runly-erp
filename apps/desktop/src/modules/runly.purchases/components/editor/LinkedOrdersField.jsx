@@ -4,7 +4,7 @@ import { ComboboxField, SwitchField } from '@runly/ui'
 import { usePropagationPreview, useSearchDocuments } from '../../hooks/usePurchases.js'
 import { formatMoney } from '../../lib/format.js'
 
-// Orders this invoice bills. When the orders already have inventory items,
+// The order this invoice bills (an order can have many invoices, an invoice only one). When the orders already have inventory items,
 // the API can copy those relations to the invoice (inheritItems, origin INHERITED).
 export function LinkedOrdersField({ value = [], onChange, known = {}, inherit, onInheritChange, invoiceId, supplierId, disabled }) {
   const [search, setSearch] = useState('')
@@ -33,11 +33,11 @@ export function LinkedOrdersField({ value = [], onChange, known = {}, inherit, o
   return (
     <div className="space-y-3">
       <ComboboxField
-        label="Órdenes que cubre esta factura"
-        multiple
+        label="Orden de compra de esta factura"
         options={options}
-        value={value}
-        onChange={(next) => onChange(next ?? [])}
+        value={value[0] ?? ''}
+        onChange={(next) => onChange(next ? [next] : [])}
+        clearable
         onSearchChange={setSearch}
         filter={false}
         loading={query.isFetching && !rows.length}
@@ -45,13 +45,13 @@ export function LinkedOrdersField({ value = [], onChange, known = {}, inherit, o
         placeholder="Buscar orden por folio"
         searchPlaceholder="OC-000123"
         emptyText="Sin órdenes"
-        hint={supplierId ? 'Se muestran las órdenes del proveedor elegido.' : 'Elige primero el proveedor para acotar la búsqueda.'}
+        hint={supplierId ? 'Una factura se relaciona con una sola orden. Se muestran las del proveedor elegido.' : 'Una factura se relaciona con una sola orden. Elige el proveedor para acotar la búsqueda.'}
       />
       {value.length && inheritable.length ? (
         <div className="flex items-start gap-3 rounded-xl border border-teal-600/25 bg-teal-500/[0.07] p-3">
           <GitMerge className="mt-0.5 h-4 w-4 shrink-0 text-teal-700 dark:text-teal-300" />
           <div className="min-w-0 flex-1">
-            <SwitchField id="inherit-items" label={`Heredar ${inheritable.length} ${inheritable.length === 1 ? 'activo' : 'activos'} de las órdenes`}
+            <SwitchField id="inherit-items" label={`Heredar ${inheritable.length} ${inheritable.length === 1 ? 'activo' : 'activos'} de la orden`}
               description={inheritable.slice(0, 3).map((i) => i.label ?? i.name ?? i.other?.label).filter(Boolean).join(', ') + (inheritable.length > 3 ? ` y ${inheritable.length - 3} más` : '')}
               checked={inherit} onChange={onInheritChange} disabled={disabled} />
           </div>

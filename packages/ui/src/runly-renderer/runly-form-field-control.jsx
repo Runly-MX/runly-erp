@@ -233,6 +233,7 @@ export function renderFormFieldControl(field, ctx) {
           error={fieldErrors[field.name]}
           initialData={initialData}
           values={formValues}
+          onFieldChange={handleChange}
         />
       );
     }

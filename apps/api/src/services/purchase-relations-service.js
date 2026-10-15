@@ -90,6 +90,10 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
       where: { companyId, sourceModule: data.sourceModule, sourceType, sourceId: data.sourceId, targetModule: data.targetModule, targetType, targetId: data.targetId, relationType: data.relationType },
     })
     if (existing) return existing
+    if (data.relationType === 'BILLED_FROM' && sourceType === 'purchase_invoice' && targetType === 'purchase_order') {
+      const other = await prisma.entityRelation.findFirst({ where: { companyId, sourceModule: MODULE_KEY, sourceType, sourceId: data.sourceId, targetType, relationType: 'BILLED_FROM' } })
+      if (other) throw conflict('La factura ya está relacionada con otra orden de compra.', 409, 'INVOICE_HAS_ORDER')
+    }
     const singleLink = isUniqueItemRelation(data.relationType) && targetType === 'inventory_item'
     // `replace: true` ("Cambiar" in the item card) swaps the item's current document atomically.
     const replace = singleLink && input.replace === true
@@ -205,6 +209,21 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     return { supplierIds: suppliers.map(row => row.id), documentIds }
   }
 
+  // invoiceId -> { id, number, supplierName } of the order it bills (an invoice has at most one).
+  async function orderOfInvoices(companyId, invoiceIds) {
+    if (!invoiceIds.length) return new Map()
+    const relations = await prisma.entityRelation.findMany({
+      where: { companyId, sourceModule: MODULE_KEY, sourceType: 'purchase_invoice', sourceId: { in: invoiceIds }, targetType: 'purchase_order', relationType: 'BILLED_FROM' },
+      orderBy: { createdAt: 'desc' },
+    })
+    const orders = await prisma.purchaseOrder.findMany({ where: { companyId, id: { in: relations.map(row => row.targetId) } }, select: { id: true, number: true, supplierId: true, status: true } })
+    const names = await supplierNames(prisma, companyId, orders.map(order => order.supplierId))
+    const byId = new Map(orders.map(order => [order.id, { id: order.id, number: order.number, status: order.status, supplierName: names.get(order.supplierId) ?? null }]))
+    const out = new Map()
+    for (const relation of relations) if (byId.has(relation.targetId) && !out.has(relation.sourceId)) out.set(relation.sourceId, byId.get(relation.targetId))
+    return out
+  }
+
   // "Relacionar existente": orders or invoices of the company.
   async function searchDocuments(companyId, query = {}) {
     const type = String(query.type ?? 'order').toLowerCase().replace(/s$/, '')
@@ -231,8 +250,10 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
       model.count({ where }),
     ])
     const names = await supplierNames(prisma, companyId, rows.map(row => row.supplierId))
+    const orders = kind === 'invoices' ? await orderOfInvoices(companyId, rows.map(row => row.id)) : new Map()
     const data = rows.map(row => ({
       ...plain(row), type: KINDS[kind].entityType, kind, supplierName: names.get(row.supplierId) ?? null,
+      ...(kind === 'invoices' ? { order: orders.get(row.id) ?? null } : {}),
       date: dateKey(row.issueDate), total: num(row.total), path: `${KINDS[kind].path}/${row.id}`,
     }))
     return { data, total, page, pageSize }
