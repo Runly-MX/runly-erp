@@ -13,7 +13,7 @@ export const INVENTORY_ITEM_DETAIL = {
     copyOnDoubleClick: true,
     hero: {
       titleField: 'name',
-      // Tipo / Marca / Modelo and the identifiers live in the chips below.
+      // Tipo / Marca / Modelo are chips; identifiers and state live in the strip.
       subtitleFields: [],
       // Disponibilidad next to the title; the administrative Estado is the
       // first, emphasized KPI below.
@@ -25,14 +25,14 @@ export const INVENTORY_ITEM_DETAIL = {
         { field: 'categoryName', label: 'Tipo', icon: 'Layers' },
         { field: 'brandName', label: 'Marca', icon: 'Tag' },
         { field: 'model', label: 'Modelo', icon: 'Package' },
-        { field: 'serialNumber', label: 'Número de serie', icon: 'Barcode', copyable: true, prominent: true, emptyLabel: 'Sin número de serie' },
-        { field: 'assetTag', label: 'Número de activo', icon: 'Hash', copyable: true, prominent: true, emptyLabel: 'Sin número de activo' },
-        { field: 'conditionName', label: 'Condición', icon: 'Activity' },
       ],
     },
     kpis: [
       { label: 'Estado', field: 'adminStatus', type: 'select', options: ADMIN_STATUSES, emphasis: true, icon: 'ClipboardList' },
+      { label: 'Condición', field: 'conditionName', icon: 'Activity' },
       { label: 'Asignado a', field: 'assignedToName', icon: 'UserCheck' },
+      { label: 'Número de serie', field: 'serialNumber', icon: 'Barcode', copyable: true, prominent: true, emptyLabel: 'Sin número de serie' },
+      { label: 'Número de activo', field: 'assetTag', icon: 'Hash', copyable: true, prominent: true, emptyLabel: 'Sin número de activo' },
     ],
     sections: [
       {

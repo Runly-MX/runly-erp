@@ -211,3 +211,13 @@ test("splitSectionsByColumn: column full goes to the bottom row", () => {
   assert.deepEqual(r.full.map((s) => s.id), ["p"]);
   assert.deepEqual(r.main.map((s) => s.id), ["a"]);
 });
+
+test("resolveKpis carries identifier options (copyable, prominent, emptyLabel)", () => {
+  const [kpi] = resolveKpis(
+    { kpis: [{ label: "Serie", field: "serialNumber", copyable: true, prominent: true, emptyLabel: "Sin número de serie" }] },
+    {},
+  );
+  assert.equal(kpi.copyable, true);
+  assert.equal(kpi.prominent, true);
+  assert.equal(kpi.emptyLabel, "Sin número de serie");
+});

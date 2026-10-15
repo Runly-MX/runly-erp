@@ -61,9 +61,9 @@ export default function InventoryPurchaseSection({ data: item }) {
   if (summary.isLoading) {
     return (
       <div className="space-y-3" aria-busy="true">
-        <Skeleton className="h-16 w-full rounded-xl" />
-        <Skeleton className="h-12 w-full rounded-xl" />
-        <Skeleton className="h-12 w-full rounded-xl" />
+        <Skeleton className="h-16 w-full rounded-lg" />
+        <Skeleton className="h-12 w-full rounded-lg" />
+        <Skeleton className="h-12 w-full rounded-lg" />
       </div>
     )
   }
@@ -91,7 +91,7 @@ export default function InventoryPurchaseSection({ data: item }) {
         </div>
       ) : null}
       {canLink ? (
-        <Button type="button" size="sm" variant="ghost" className="w-full text-teal-700 hover:text-teal-800 dark:text-teal-300" onClick={() => setLinkOpen(true)}>
+        <Button type="button" size="sm" variant="outline" className="w-full" onClick={() => setLinkOpen(true)}>
           <Link2 className="mr-1.5 h-3.5 w-3.5" />Relacionar existente
         </Button>
       ) : null}
@@ -99,20 +99,13 @@ export default function InventoryPurchaseSection({ data: item }) {
   ) : null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {stages.length ? (
         <>
-          <div className="flex items-end justify-between gap-3 rounded-xl border border-teal-500/20 bg-linear-to-br from-teal-500/10 via-teal-500/5 to-transparent px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-teal-800/80 dark:text-teal-200/80">Monto asignado</p>
-              <p className="truncate text-xl font-semibold tabular-nums text-[hsl(var(--foreground))]">
-                {allocated > 0 ? formatMoney(allocated, model?.currency) : 'Sin monto asignado'}
-              </p>
-            </div>
-            <p className="shrink-0 text-xs text-[hsl(var(--muted-foreground))]">
-              {documentCount} {documentCount === 1 ? 'documento' : 'documentos'}
-            </p>
-          </div>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            {documentCount} {documentCount === 1 ? 'documento' : 'documentos'}
+            {allocated > 0 ? ` · ${formatMoney(allocated, model?.currency)} asignado` : ''}
+          </p>
           <InventoryPurchaseTimeline stages={stages} onOpen={(href) => navigate(href)} onUnlink={setUnlinkDoc} canUnlink={canManage} />
           {actions}
         </>

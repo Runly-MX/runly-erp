@@ -2,6 +2,8 @@
 // signed URL client-side and composes DetailHero + StatStrip. Kept out of
 // RunlyDetail.jsx to keep that file under the repo file-size budget.
 import { useCallback, useEffect, useState } from "react";
+import { Copy } from "lucide-react";
+import { useCopyValue } from "../hooks/useCopyValue.js";
 import { Badge } from "../components/Badge.jsx";
 import { Card } from "../components/Card.jsx";
 import { DetailHero } from "../components/DetailHero.jsx";
@@ -10,6 +12,40 @@ import { StatStrip } from "../components/StatStrip.jsx";
 import { AdvancedFileViewer } from "../components/AdvancedFileViewer.jsx";
 import { replacePathTokens } from "./detail-presentation.js";
 import { buildApiHeaders } from "../lib/apiHeaders.js";
+
+// KPI value for identifiers (serial / asset number): optional monospace
+// `prominent` text, a `copyable` button and a muted `emptyLabel` placeholder.
+function KpiIdentifierValue({ item }) {
+  const copy = useCopyValue();
+  const raw = item.rawValue;
+  const empty = raw === null || raw === undefined || String(raw).trim() === "";
+  if (empty) {
+    return item.emptyLabel ? (
+      <span className="text-xs font-normal italic text-[hsl(var(--muted-foreground))]">{item.emptyLabel}</span>
+    ) : (
+      "—"
+    );
+  }
+  const value = String(raw);
+  return (
+    <span className="inline-flex max-w-full items-center gap-1">
+      <CopyOnDoubleClick text={value} className={item.prominent ? "truncate font-mono text-base font-semibold" : "truncate"}>
+        {value}
+      </CopyOnDoubleClick>
+      {item.copyable ? (
+        <button
+          type="button"
+          onClick={() => void copy(value)}
+          className="shrink-0 rounded p-0.5 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          aria-label={`Copiar ${item.label}`}
+          title="Copiar"
+        >
+          <Copy className="h-3 w-3" />
+        </button>
+      ) : null}
+    </span>
+  );
+}
 
 function joinUrl(baseUrl, apiPath) {
   const base = String(baseUrl ?? "")
@@ -240,9 +276,14 @@ export function HeroContainer({
     label: item.label,
     icon: item.icon,
     href: item.href,
-    value: copyOnDoubleClick ? (
-      <CopyOnDoubleClick>{renderValue({ type: item.type, options: item.options, emphasis: item.emphasis }, item.rawValue, data)}</CopyOnDoubleClick>
-    ) : renderValue({ type: item.type, options: item.options, emphasis: item.emphasis }, item.rawValue, data),
+    value:
+      item.prominent || item.copyable || item.emptyLabel ? (
+        <KpiIdentifierValue item={item} />
+      ) : copyOnDoubleClick ? (
+        <CopyOnDoubleClick>{renderValue({ type: item.type, options: item.options, emphasis: item.emphasis }, item.rawValue, data)}</CopyOnDoubleClick>
+      ) : (
+        renderValue({ type: item.type, options: item.options, emphasis: item.emphasis }, item.rawValue, data)
+      ),
   }));
 
   return (

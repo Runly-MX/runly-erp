@@ -13,8 +13,8 @@ export function InventoryPurchaseTimeline({ stages, onOpen, onUnlink, canUnlink 
         const last = index === stages.length - 1
         return (
           <li key={stage.stage} className="relative pl-10">
-            {!last ? <span aria-hidden className="absolute left-[15px] top-8 bottom-[-16px] w-px bg-linear-to-b from-teal-500/40 to-[hsl(var(--border))]" /> : null}
-            <span className="absolute left-0 top-0 grid h-8 w-8 place-items-center rounded-full bg-teal-600 text-white shadow-sm ring-4 ring-teal-500/10 dark:bg-teal-500">
+            {!last ? <span aria-hidden className="absolute left-[15px] top-8 bottom-[-16px] w-px bg-[hsl(var(--border))]" /> : null}
+            <span className="absolute left-0 top-0 grid h-8 w-8 place-items-center rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
               <Icon className="h-4 w-4" />
             </span>
             <div className="flex h-8 items-center justify-between gap-2">
@@ -44,12 +44,12 @@ function InventoryPurchaseDocCard({ doc, onOpen, onUnlink }) {
   const origin = ORIGIN_LABELS[doc.origin] ?? null
   const hasTotal = doc.total !== null && doc.total !== undefined && doc.total !== ''
   return (
-    <div className="group flex items-stretch overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-colors hover:border-teal-500/40">
+    <div className="group flex items-stretch overflow-hidden rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-colors hover:bg-[hsl(var(--muted))]/40">
       <button
         type="button"
         disabled={!href}
         onClick={() => href && onOpen(href)}
-        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500 disabled:cursor-default"
+        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))] disabled:cursor-default"
       >
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-1.5">

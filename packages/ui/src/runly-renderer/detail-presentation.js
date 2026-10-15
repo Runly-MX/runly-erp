@@ -158,6 +158,9 @@ export function resolveKpis(schema, record) {
         type: def.type ? String(def.type) : "text",
         options: Array.isArray(def.options) ? def.options : null,
         emphasis: def.emphasis === true,
+        copyable: def.copyable === true,
+        prominent: def.prominent === true,
+        emptyLabel: typeof def.emptyLabel === "string" ? def.emptyLabel : null,
         icon:
           typeof def.icon === "string" && def.icon.trim() ? def.icon.trim() : null,
         href,
