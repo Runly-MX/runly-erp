@@ -51,8 +51,28 @@ export const IMPORT_STATUSES = [
   { value: 'available', label: 'Disponible' },
   { value: 'maintenance', label: 'Mantenimiento' },
 ];
-// Baja spellings are refused: bajas go through the administrative flow.
-const BAJA_WORDS = new Set(['retired', 'retirado', 'baja', 'dado_de_baja', 'lost', 'perdido', 'stolen', 'robado', 'disposed', 'desechado']);
+// Baja spellings are respected on import: the item lands as "baja propuesta"
+// or "dado de baja" (with its admin event) instead of being refused.
+const BAJA_REASON_BY_WORD = new Map([
+  ['retired', 'obsolescence'], ['retirado', 'obsolescence'], ['obsoleto', 'obsolescence'],
+  ['lost', 'loss'], ['perdido', 'loss'], ['extraviado', 'loss'],
+  ['stolen', 'theft'], ['robado', 'theft'],
+  ['disposed', 'destruction'], ['desechado', 'destruction'],
+]);
+// Returns { adminStatus, reason } for a normalized baja spelling, else null.
+// "Propuesta (de baja)", "baja propuesta", "en proceso de baja", "pendiente de
+// baja" are proposals; any other baja word is a completed baja.
+function matchBaja(normalized) {
+  if (!normalized) return null;
+  const reason = BAJA_REASON_BY_WORD.get(normalized) ?? 'other';
+  if (/propuest|proceso_de_baja|baja_en_proceso|pendiente_de_baja|baja_pendiente|solicitud_de_baja|proposed/.test(normalized)) {
+    return { adminStatus: 'deregistration_proposed', reason };
+  }
+  if (normalized.includes('baja') || BAJA_REASON_BY_WORD.has(normalized) || normalized === 'deregistered') {
+    return { adminStatus: 'deregistered', reason };
+  }
+  return null;
+}
 const ADMIN_BY_KEY = new Map([
   ['registered', 'registered'], ['alta', 'registered'], ['de_alta', 'registered'], ['si', 'registered'],
   ['registration_pending', 'registration_pending'], ['pendiente', 'registration_pending'], ['pendiente_de_alta', 'registration_pending'],
@@ -201,12 +221,13 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
     if (d.name && d.name.length > 255) errors.push('El nombre admite hasta 255 caracteres.');
 
     let status = 'available';
+    let baja = null;
     if (d.status) {
       const normalized = normalizeHeader(d.status);
       const chosen = statusMap?.[normalized];
       if (chosen && IMPORTABLE_STATUS.has(chosen)) status = chosen;
       else if (STATUS_BY_KEY.has(normalized)) status = STATUS_BY_KEY.get(normalized);
-      else if (BAJA_WORDS.has(normalized)) errors.push(`«${d.status}» es una baja: importa el activo y propón su baja desde su ficha.`);
+      else if (matchBaja(normalized)) baja = matchBaja(normalized);
       else {
         // "Asignado" needs a collaborator, so it is resolved like any unknown
         // spelling: the user picks the status it should import as.
@@ -220,9 +241,10 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
       if (ADMIN_BY_KEY.has(normalized)) adminStatus = ADMIN_BY_KEY.get(normalized);
       // An "Estado" column holding availability words (Disponible, Mantenimiento).
       else if (STATUS_BY_KEY.has(normalized) && !d.status) status = STATUS_BY_KEY.get(normalized);
-      else if (BAJA_WORDS.has(normalized) || normalized.includes('baja')) errors.push(`«${d.adminStatus}»: las bajas no se importan; propónla desde la ficha del activo.`);
-      else errors.push(`Estado «${d.adminStatus}» no válido: usa Alta o Pendiente de alta.`);
+      else if (matchBaja(normalized)) baja = matchBaja(normalized);
+      else errors.push(`Estado «${d.adminStatus}» no válido: usa Alta, Pendiente de alta, Propuesta de baja o Baja.`);
     }
+    if (baja) notes.push(baja.adminStatus === 'deregistered' ? 'Se importará como dado de baja.' : 'Se importará con propuesta de baja.');
     const purchaseDate = d.purchaseDate ? parseImportDate(d.purchaseDate) : null;
     if (d.purchaseDate && !purchaseDate) errors.push(`Fecha de compra «${d.purchaseDate}» no válida (usa AAAA-MM-DD o DD/MM/AAAA).`);
     const warrantyExpiry = d.warrantyExpiry ? parseImportDate(d.warrantyExpiry) : null;
@@ -263,7 +285,7 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
     if (tag && seen.tags.has(tag)) errors.push(`Etiqueta repetida en el archivo (fila ${seen.tags.get(tag)}).`);
     if (serial && seen.serials.has(serial)) errors.push(`Serie repetida en el archivo (fila ${seen.serials.get(serial)}).`);
 
-    const data = { ...d, name, autoName, status, adminStatus, purchaseDate, warrantyExpiry, purchasePrice, customValues, photoUrls };
+    const data = { ...d, name, autoName, status, adminStatus, baja, purchaseDate, warrantyExpiry, purchasePrice, customValues, photoUrls };
     const base = { data, missing, unknownStatus };
     if (errors.length) return { ...base, status: 'error', errors, notes };
     const tagId = tag ? ctx.tags.get(tag) : undefined;
@@ -333,6 +355,29 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
 
   // `file` = parseItemFile(..., { withImages: true }) output. `attachImage`
   // uploads one picture to the created item: (itemId, { buffer, type, name }).
+  // createItem only accepts Alta / Pendiente de alta, so a baja in the file is
+  // applied right after, with the same admin events the transitions write.
+  async function applyBaja(itemId, baja, companyId) {
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const done = baja.adminStatus === 'deregistered';
+    const note = 'Importado con estado de baja desde archivo';
+    await prisma.$transaction(async (tx) => {
+      await tx.invItem.update({
+        where: { id: itemId },
+        data: { adminStatus: baja.adminStatus, deregistrationReason: baja.reason, ...(done ? { deregisteredAt: today, status: 'available' } : {}) },
+      });
+      await tx.invItemAdminEvent.create({
+        data: { companyId, itemId, action: 'propose_deregistration', fromStatus: 'registered', toStatus: 'deregistration_proposed', reason: baja.reason, comment: note, effectiveDate: null },
+      });
+      if (done) {
+        await tx.invItemAdminEvent.create({
+          data: { companyId, itemId, action: 'approve_deregistration', fromStatus: 'deregistration_proposed', toStatus: 'deregistered', reason: baja.reason, comment: note, effectiveDate: today },
+        });
+      }
+    });
+  }
+
   async function commit(file, mapping, companyId, authUserId, { createMissing = false, statusMap = {}, attachImage, updateExisting = false } = {}) {
     assertCompany(companyId);
     const ctx = await loadContext(companyId);
@@ -417,6 +462,7 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
           notes: d.notes || undefined,
           customValues: d.customValues.length ? d.customValues : undefined,
         }, companyId, authUserId);
+        if (d.baja) await applyBaja(item.id, d.baja, companyId);
         created += 1;
       } catch (err) {
         failures.push({ line: row.line, message: err?.message ?? 'No se pudo crear.' });

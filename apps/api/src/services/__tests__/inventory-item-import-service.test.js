@@ -83,6 +83,20 @@ test('preview flags existing serials, file duplicates, missing catalogs and unkn
   assert.equal(resolved.rows[4].status, 'new');
 });
 
+test('baja spellings import as proposed or deregistered instead of erroring', async () => {
+  const service = createInventoryItemImportService({ prisma: fakePrisma(), inventoryService: {} });
+  const rows = [
+    { n: 'A', e: 'Propuesta de baja' }, { n: 'B', e: 'Propuesta' }, { n: 'C', e: 'En proceso de baja' },
+    { n: 'D', e: 'Baja' }, { n: 'E', e: 'Dado de baja' }, { n: 'F', e: 'Pendiente de alta' }, { n: 'G', e: 'Robado' },
+  ];
+  const result = await service.preview(rows, { name: 'n', adminStatus: 'e' }, COMPANY, {});
+  const admin = result.rows.map((r) => r.data?.adminStatus);
+  assert.deepEqual(result.rows.map((r) => r.status), Array(7).fill('new'));
+  assert.deepEqual(result.rows.map((r) => r.data.baja?.adminStatus ?? null), ['deregistration_proposed', 'deregistration_proposed', 'deregistration_proposed', 'deregistered', 'deregistered', null, 'deregistered']);
+  assert.equal(result.rows[6].data.baja.reason, 'theft');
+  assert.equal(admin[5], 'registration_pending');
+});
+
 test('preview suggests an update for rows matching an active item, with the field diff', async () => {
   const existing = { id: 'i1', name: 'Laptop', assetTag: 'INV-1', serialNumber: 'OLD', model: 'XPS', notes: 'keep me', brandId: null, brand: null, partNumber: null };
   const same = { id: 'i2', name: 'Mouse', assetTag: 'INV-2', serialNumber: 'TWO', model: 'M1' };
