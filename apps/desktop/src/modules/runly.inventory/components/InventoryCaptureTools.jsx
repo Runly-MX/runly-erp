@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
-import { Button, SwitchField, TextareaField, cn } from '@runly/ui'
-import { Pin, Rows3, Square } from 'lucide-react'
+import { Button, Popover, PopoverContent, PopoverTrigger, SwitchField, TextareaField, cn } from '@runly/ui'
+import { Pin, Rows3, SlidersHorizontal, Square } from 'lucide-react'
 import { MAX_BULK_SERIALS, parseSerials, pinnedValues, saveCapture } from '../lib/capture.js'
 
 const MODES = [
@@ -27,9 +27,9 @@ export function InventoryCaptureTools({ values, patchValues, disabled, settings,
   const pinnedCount = settings.pinned.length
 
   return (
-    <section className="glass-shell-flat mb-4 overflow-hidden rounded-2xl">
-      <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-        <div role="radiogroup" aria-label="Modo de captura" className="inline-flex w-full rounded-xl bg-[hsl(var(--muted))]/60 p-1 sm:w-auto">
+    <section className="mb-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div role="radiogroup" aria-label="Modo de captura" className="inline-flex rounded-lg bg-[hsl(var(--muted))]/60 p-0.5">
           {MODES.map(({ multi, label, icon: Icon }) => {
             const active = settings.multi === multi
             return (
@@ -41,45 +41,53 @@ export function InventoryCaptureTools({ values, patchValues, disabled, settings,
                 disabled={disabled}
                 onClick={() => update({ multi })}
                 className={cn(
-                  'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all sm:flex-none',
+                  'flex items-center justify-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all',
                   active
                     ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))] shadow-sm'
                     : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
                 )}
               >
-                <Icon className="h-4 w-4" />{label}
+                <Icon className="h-3.5 w-3.5" />{label}
               </button>
             )
           })}
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            size="sm"
-            variant={settings.pinMode ? 'default' : 'outline'}
-            disabled={disabled}
-            aria-pressed={settings.pinMode}
-            onClick={() => update({ pinMode: !settings.pinMode })}
-          >
-            <Pin className={cn('mr-1.5 h-3.5 w-3.5', pinnedCount > 0 && 'fill-current')} />
-            {settings.pinMode ? 'Listo' : 'Fijar campos'}
-            {pinnedCount > 0 ? (
-              <span className="ml-1.5 rounded-full bg-[var(--brand-primary)]/15 px-1.5 text-xs tabular-nums">{pinnedCount}</span>
-            ) : null}
-          </Button>
-          <SwitchField label="Captura continua" checked={settings.continuous} disabled={disabled}
-            onChange={(continuous) => update({ continuous: Boolean(continuous) })} />
-        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button type="button" size="sm" variant={settings.pinMode ? 'default' : 'outline'} disabled={disabled}>
+              <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />Opciones de captura
+              {pinnedCount > 0 || settings.continuous ? (
+                <span className="ml-1.5 rounded-full bg-[var(--brand-primary)]/15 px-1.5 text-xs tabular-nums">{pinnedCount + (settings.continuous ? 1 : 0)}</span>
+              ) : null}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 space-y-4">
+            <div className="space-y-1.5">
+              <Button type="button" size="sm" className="w-full justify-start" variant={settings.pinMode ? 'default' : 'outline'}
+                aria-pressed={settings.pinMode} onClick={() => update({ pinMode: !settings.pinMode })}>
+                <Pin className={cn('mr-1.5 h-3.5 w-3.5', pinnedCount > 0 && 'fill-current')} />
+                {settings.pinMode ? 'Listo' : 'Fijar campos'}
+                {pinnedCount > 0 ? <span className="ml-1.5 rounded-full bg-[var(--brand-primary)]/15 px-1.5 text-xs tabular-nums">{pinnedCount}</span> : null}
+              </Button>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">Los campos fijados conservan su valor al guardar, para capturar equipos parecidos.</p>
+            </div>
+            <div className="space-y-1.5">
+              <SwitchField label="Captura continua" checked={settings.continuous}
+                onChange={(continuous) => update({ continuous: Boolean(continuous) })} />
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">Después de guardar, se abre otro formulario en blanco en lugar de ir al detalle.</p>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {settings.pinMode ? (
-        <p className="border-t border-[hsl(var(--border))] bg-[var(--brand-primary)]/5 px-4 py-2 text-xs text-[hsl(var(--muted-foreground))]">
+        <p className="rounded-lg bg-[var(--brand-primary)]/5 px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
           Toca el pin de cada campo para fijarlo. Los campos fijados conservan su valor al guardar y al recargar la página en este navegador.
         </p>
       ) : null}
 
       {settings.multi ? (
-        <div className="space-y-1.5 border-t border-[hsl(var(--border))] p-4">
+        <div className="glass-shell-flat space-y-1.5 rounded-2xl p-4">
           <TextareaField
             label="Números de serie"
             rows={4}

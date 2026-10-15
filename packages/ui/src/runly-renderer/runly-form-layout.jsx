@@ -21,7 +21,7 @@ export function FormColumns({ main, asideTop = null, aside = [] }) {
           <div key={item.id} className={MOBILE_ORDER} style={{ "--mobile-order": mainOrder.get(item.id) }}>{item.node}</div>
         ))}
       </div>
-      <div className="contents xl:sticky xl:top-4 xl:block xl:space-y-3 xl:self-start">
+      <div className="contents xl:sticky xl:top-[var(--form-sticky-offset,1rem)] xl:block xl:space-y-3 xl:self-start">
         {asideTop ? <div className={`space-y-3 ${MOBILE_ORDER}`} style={{ "--mobile-order": 0 }}>{asideTop}</div> : null}
         {aside.map((item) => (
           <div key={item.id} className={MOBILE_ORDER} style={{ "--mobile-order": asideOrder(item) }}>{item.node}</div>

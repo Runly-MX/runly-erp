@@ -202,6 +202,9 @@ export default defineView({
 
 #### Tabs and file fields (FORM and DETAIL)
 
+- RunlyForm's sticky aside column (xl) sticks at the CSS variable `--form-sticky-offset` (default `1rem`);
+  a screen with its own sticky header sets it on a wrapper (e.g. `[--form-sticky-offset:6rem]`). A
+  screen-level submit button can target the form with `<button type="submit" form="<id>">` (RunlyForm `id` prop).
 - `schema.tabs: [{ key, label }]` plus `section.tab: '<key>'` groups the flat
   `sections` list into tabs (RunlyForm and RunlyDetail). Tabs render only with
   2+ entries; a section without a known `tab` joins the first tab. The form

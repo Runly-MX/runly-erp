@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { itemLabel } from '../lib/item-label.js'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { PageHeader, ErrorState, Button, ConfirmDialog, FormSkeleton } from '@runly/ui'
-import { Eye, Trash2 } from 'lucide-react'
+import { ErrorState, ConfirmDialog, FormSkeleton } from '@runly/ui'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -11,6 +10,7 @@ import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { useInventoryItem, useDeleteInventoryItem } from '../hooks/useInventoryItems.js'
 import { buildItemFormBlueprint } from '../blueprints/inventory-item-form.blueprint.js'
 import { inventoryFormComponents } from '../components/InventoryItemClassification.jsx'
+import { InventoryFormHeader, INVENTORY_FORM_ID } from '../components/InventoryFormHeader.jsx'
 import { InventoryCaptureTools } from '../components/InventoryCaptureTools.jsx'
 import { MAX_BULK_SERIALS, bulkUnitName, canPinField, captureStorageKey, loadCapture, parseSerials } from '../lib/capture.js'
 import { intakeRequest } from '../lib/intake.js'
@@ -19,6 +19,7 @@ import { InventoryIdentifierConflict } from '../components/InventoryIdentifierCo
 import { ConnectedRunlyForm } from '../../../shell/connections/ConnectedRunlyForm.jsx'
 
 const API_BASE = getApiUrl()
+const LIST_PATH = '/app/m/runly.inventory/inventory'
 
 // Reports the typed serial / asset number up to the screen (renders nothing).
 function IdentifierWatcher({ values, onChange }) {
@@ -127,14 +128,19 @@ export default function InventoryItemForm() {
   }
 
   return (
-    <div className="p-4 md:p-6 pb-24">
-      <PageHeader
-        eyebrow={isEdit ? 'Editar activo' : 'Inventario'}
-        title={isEdit ? (editItem?.name || 'Editar activo') : 'Nuevo activo'}
-        description={isEdit ? undefined : 'Completa la información del activo'}
+    <div className="px-4 pb-24 md:px-6 [--form-sticky-offset:6rem]">
+      <InventoryFormHeader
+        isEdit={isEdit}
+        item={editItem}
+        id={id}
+        onCancel={() => navigate(isEdit ? `${LIST_PATH}/${id}` : LIST_PATH)}
+        onView={() => navigate(`${LIST_PATH}/${id}`)}
+        onNew={() => navigate(`${LIST_PATH}/new`)}
+        onDeactivate={() => setDeleteOpen(true)}
       />
-      <div className="mt-6">
+      <div className="mt-4">
         <ConnectedRunlyForm
+          id={INVENTORY_FORM_ID}
           targetType="inventory_item"
           targetId={id}
           key={isEdit ? 'edit' : `create-${formKey}`}
@@ -167,30 +173,6 @@ export default function InventoryItemForm() {
           companyId={activeCompanyId}
           apiBaseUrl={API_BASE}
           componentRegistry={inventoryFormComponents}
-          asideActions={
-            isEdit && editItem?.id ? (
-              <div className="glass-shell-flat flex flex-col gap-2 rounded-2xl p-3 sm:flex-row sm:items-stretch xl:flex-col">
-                <Button
-                  type="button"
-                  variant="glass"
-                  className="justify-start sm:justify-center xl:justify-start"
-                  onClick={() => navigate(`/app/m/runly.inventory/inventory/${id}`)}
-                >
-                  <Eye className="h-4 w-4" />
-                  Ver activo
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  className="justify-start sm:justify-center xl:justify-start"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Desactivar activo
-                </Button>
-              </div>
-            ) : null
-          }
           onSuccess={(result) => {
             if (!isEdit && (result?.bulk || settings.continuous)) {
               const count = result?.data?.items?.length
