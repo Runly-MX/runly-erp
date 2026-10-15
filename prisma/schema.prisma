@@ -481,6 +481,7 @@ model Company {
   invCategories   InvCategory[]    @relation("CompanyInvCategories")
   invBrands       InvBrand[]       @relation("CompanyInvBrands")
   invModels       InvModel[]       @relation("CompanyInvModels")
+  invFolioCounters InvFolioCounter[] @relation("CompanyInvFolioCounters")
   invLocations    InvLocation[]    @relation("CompanyInvLocations")
   invConditions   InvCondition[]   @relation("CompanyInvConditions")
   invAdminEvents  InvItemAdminEvent[] @relation("CompanyInvAdminEvents")
@@ -3497,6 +3498,8 @@ model InvCategory {
   id          String   @id @default(uuid(7)) @db.Uuid
   companyId   String   @db.Uuid @map("company_id")
   name        String   @db.VarChar(100)
+  // Short prefix used in item folios (letters/digits, max 6). Empty = derived from the name.
+  code        String?  @db.VarChar(6)
   description String?  @db.VarChar(500)
   icon        String?  @db.VarChar(50)
   color       String?  @db.VarChar(7)
@@ -3522,6 +3525,8 @@ model InvBrand {
   id          String   @id @default(uuid(7)) @db.Uuid
   companyId   String   @db.Uuid @map("company_id")
   name        String   @db.VarChar(100)
+  // Short prefix used in item folios (letters/digits, max 6). Empty = derived from the name.
+  code        String?  @db.VarChar(6)
   description String?  @db.VarChar(500)
   website     String?  @db.VarChar(255)
   enabled     Boolean  @default(true)
@@ -3604,6 +3609,8 @@ model InvModel {
   id          String   @id @default(uuid(7)) @db.Uuid
   companyId   String   @db.Uuid @map("company_id")
   name        String   @db.VarChar(255)
+  // Short prefix used in item folios (letters/digits, max 6). Empty = derived from the name.
+  code        String?  @db.VarChar(6)
   nameKey     String   @db.VarChar(255) @map("name_key")
   typeId      String   @db.Uuid @map("type_id")
   brandId     String   @db.Uuid @map("brand_id")
@@ -3632,6 +3639,8 @@ model InvItem {
   companyId     String    @db.Uuid @map("company_id")
   // Optional; unique per company among enabled items only (partial unique index in the migration).
   assetTag      String?   @db.VarChar(100) @map("asset_tag")
+  // Auto-generated TYPE-BRAND-MODEL-N identifier; unique per company among enabled items (partial unique index in the migration).
+  folio         String?   @db.VarChar(100)
   name          String    @db.VarChar(255)
   description   String?   @db.VarChar(2000)
   itemType      String?   @db.VarChar(50) @map("item_type")
@@ -3681,6 +3690,7 @@ model InvItem {
   custodyItems InvCustodyItem[]
 
   @@index([companyId, assetTag])
+  @@index([companyId, folio])
   @@index([companyId, status])
   @@index([companyId, adminStatus])
   @@index([conditionId])
@@ -3688,6 +3698,17 @@ model InvItem {
   @@index([assignedToId])
   @@index([modelId])
   @@map("inv_item")
+}
+
+model InvFolioCounter {
+  companyId String @db.Uuid @map("company_id")
+  prefix    String @db.VarChar(100)
+  lastValue Int    @default(0) @map("last_value")
+
+  company Company @relation("CompanyInvFolioCounters", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([companyId, prefix])
+  @@map("inv_folio_counter")
 }
 
 model InvAssignment {
