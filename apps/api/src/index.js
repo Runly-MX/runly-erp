@@ -45,6 +45,7 @@ import { createCompanyModuleService } from "./services/company-module-service.js
 import { createAuthMiddleware } from "./services/auth-middleware.js";
 import { createCompanyRouter } from "./routes/company-routes.js";
 import { createCompanyDeletionService } from './services/company-deletion-service.js';
+import { createCompanyDeletionNotifier } from './services/company-deletion-notice.js';
 import { createCompanyAccessPolicy } from './services/company-access-policy.js';
 import { createCompanyDeletionRouter } from './routes/company-deletion-routes.js';
 import { createPublicCompanyFence } from './services/company-public-fence.js';
@@ -813,7 +814,7 @@ app.use(
 // Operational routes precede module delegation and cannot be claimed by a module.
 app.use('*', createPublicCompanyFence({ prisma }));
 app.route('/', createCompanyDeletionRouter({
-  service: createCompanyDeletionService({ prisma, supabaseAdmin }), authMiddleware,
+  service: createCompanyDeletionService({ prisma, supabaseAdmin, notifier: createCompanyDeletionNotifier({ prisma, companyBrandService }) }), authMiddleware,
   supabaseAnon: createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   }),

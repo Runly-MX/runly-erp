@@ -30,7 +30,7 @@ test('scheduling requires a verified password and never forwards it to deletion 
   f.accept()
   const response=await f.post(path,{confirmation:'Empresa',password:'fixture-only'})
   assert.equal(response.status,200)
-  assert.deepEqual(f.calls,[{companyId,authUserId:'actor',confirmation:'Empresa'}])
+  assert.deepEqual(f.calls,[{companyId,authUserId:'actor',confirmation:'Empresa',notifyMembers:false}])
   assert.equal((await response.text()).includes('fixture-only'),false)
 })
 

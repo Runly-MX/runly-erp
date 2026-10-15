@@ -5,11 +5,11 @@ export class CompanyDeletionError extends Error {
   constructor(message, status = 409) { super(message); this.status = status }
 }
 
-export function createCompanyDeletionService({ prisma, supabaseAdmin, resources = {} }) {
+export function createCompanyDeletionService({ prisma, supabaseAdmin, resources = {}, notifier = null }) {
   async function authorize(db, companyId, authUserId) {
     const member = await db.membership.findFirst({
       where: { companyId, enabled: true, user: { authUserId, enabled: true }, role: { enabled: true, key: 'runly.admin' } },
-      include: { role: true, company: true },
+      include: { role: true, company: true, user: { select: { displayName: true } } },
     })
     if (!member || (member.role.companyId && member.role.companyId !== companyId)) throw new CompanyDeletionError('Solo un administrador de esta empresa puede realizar esta acción.', 403)
     return member
@@ -25,14 +25,14 @@ export function createCompanyDeletionService({ prisma, supabaseAdmin, resources 
       AND (r.company_id IS NULL OR r.company_id = c.id) AND d.state IN ('PENDING','PURGING','FAILED')`, authUserId)
   }
 
-  async function request({ companyId, authUserId, confirmation }) {
+  async function request({ companyId, authUserId, confirmation, notifyMembers = false }) {
     const result = await prisma.$transaction(async db => {
       await db.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext('runly.lifecycle.structure'))")
       await db.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 731))', companyId)
       const member = await authorize(db, companyId, authUserId)
       if (confirmation !== member.company.name) throw new CompanyDeletionError('Escribe el nombre exacto de la empresa.', 422)
       const [existing] = await db.$queryRawUnsafe('SELECT state FROM runly_lifecycle.company_deletion WHERE company_id = $1::uuid FOR UPDATE', companyId)
-      if (existing && existing.state !== 'CANCELLED') return { companyId }
+      if (existing && existing.state !== 'CANCELLED') return { companyId, created: false }
       await db.$executeRawUnsafe('SELECT runly_lifecycle.install_guards()')
       await db.$executeRawUnsafe("SELECT set_config('runly.lifecycle_purge', 'on', true)")
       await db.$executeRawUnsafe(`INSERT INTO runly_lifecycle.company_deletion(company_id, requested_by, previous_enabled)
@@ -40,10 +40,14 @@ export function createCompanyDeletionService({ prisma, supabaseAdmin, resources 
         requested_by = EXCLUDED.requested_by, requested_at = now(), purge_after = now() + interval '72 hours',
         previous_enabled = EXCLUDED.previous_enabled, updated_at = now(), error_code = NULL, attempts = 0, completed_at = NULL`, companyId, member.userId, member.company.enabled)
       await db.company.update({ where: { id: companyId }, data: { enabled: false } })
-      return { companyId }
+      return { companyId, created: true, companyName: member.company.name, requestedByName: member.user?.displayName ?? null }
     }, { timeout: 120_000 })
     invalidateCache(companyId); invalidatePrimaryCache()
-    return { ...result, pending: (await list(authUserId)).find(x => x.companyId === companyId) }
+    const pending = (await list(authUserId)).find(x => x.companyId === companyId)
+    const { created, companyName, requestedByName, ...base } = result
+    let notice = null
+    if (created && notifyMembers && notifier) notice = await notifier.notify({ companyId, companyName, purgeAfter: pending?.purgeAfter, requestedByName })
+    return { ...base, pending, notice }
   }
 
   async function cancel({ companyId, authUserId }) {

@@ -522,3 +522,41 @@ export function buildBugReportEmail({ errorMessage, description, fields = [], st
 
   return { subject: `[Bug] ${heading}`, html, text };
 }
+
+// Sent to every member of a company when an admin schedules its deletion and
+// ticks the optional notice, so they can export their own data before the purge.
+export function buildCompanyDeletionEmail({ companyName, purgeAfter, requestedByName = null, brand = null, env = process.env }) {
+  const orgName = companyName || brand?.name || "la empresa";
+  const deadline = formatScheduledDateTime(purgeAfter);
+  const heading = "Tu empresa será eliminada";
+
+  const bodyHtml = `
+        <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155">
+          ${requestedByName ? `<strong>${escapeHtml(requestedByName)}</strong> programó` : "Un administrador programó"} la eliminación de <strong>${escapeHtml(orgName)}</strong> en Runly ERP.
+          El acceso a la empresa ya está suspendido.
+        </p>
+        ${deadline ? `<p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155">Después del <strong>${escapeHtml(deadline)}</strong> comenzará el borrado definitivo de sus datos, archivos y recursos exclusivos.</p>` : ""}
+        <p style="margin:0 0 14px 0;font-size:13px;line-height:1.6;color:#64748b">
+          Si necesitas conservar información, solicita a un administrador que recupere la empresa antes de esa fecha para que puedas respaldarla.
+          Tu cuenta y los recursos compartidos con otras empresas se conservarán.
+        </p>`;
+
+  const html = renderRunlyEmailLayout({
+    kicker: "Aviso importante",
+    heading,
+    bodyHtml,
+    footnote: `Recibiste este correo porque eres miembro de ${orgName} en Runly ERP.`,
+    brand,
+    env,
+  });
+
+  const text = [
+    orgName,
+    "",
+    `${requestedByName ?? "Un administrador"} programó la eliminación de ${orgName}. El acceso ya está suspendido.`,
+    deadline ? `Después del ${deadline} comenzará el borrado definitivo de sus datos.` : "",
+    "Si necesitas conservar información, solicita a un administrador que recupere la empresa antes de esa fecha.",
+  ].filter((line, i, all) => line || all[i - 1]).join("\n");
+
+  return { subject: `Aviso: ${orgName} será eliminada`, html, text };
+}

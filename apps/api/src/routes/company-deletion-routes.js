@@ -23,7 +23,7 @@ export function createCompanyDeletionRouter({ service, authMiddleware, supabaseA
         const verified = await supabaseAnon.auth.signInWithPassword({ email: data.user.email, password: body.password })
         if (verified.error || verified.data.user?.id !== c.get('authUserId')) return c.json({ error: 'No se pudo confirmar tu contraseña.' }, 401)
       }
-      const data = await service[cancel ? 'cancel' : 'request']({ companyId, authUserId: c.get('authUserId'), confirmation: body.confirmation })
+      const data = await service[cancel ? 'cancel' : 'request']({ companyId, authUserId: c.get('authUserId'), confirmation: body.confirmation, ...(cancel ? {} : { notifyMembers: body.notifyMembers === true }) })
       return c.json({ data })
     } catch (error) {
       if (error instanceof CompanyDeletionError) return c.json({ error: error.message }, error.status)
