@@ -11,7 +11,7 @@ export function createInventoryIntakeRouter({ prisma, requirePermission, intake 
   function failure(c, err) {
     if (err instanceof SyntaxError) return c.json({ error: 'La solicitud no contiene JSON válido.' }, 400);
     const status = [400, 403, 409, 413, 429, 503].includes(err.status) ? err.status : 500;
-    return c.json({ error: status === 500 ? 'No se pudo completar la operación. Tus datos siguen en el formulario.' : err.message, issues: err.issues ?? [] }, status);
+    return c.json({ error: status === 500 ? 'No se pudo completar la operación. Tus datos siguen en el formulario.' : err.message, issues: err.issues ?? [], ...(err.code ? { code: err.code } : {}), ...(err.details ? { details: err.details } : {}) }, status);
   }
   router.get('/inventory/ai/status', read, c => c.json({ data: { available: intake.isConfigured() } }));
   router.post('/inventory/ai/recognize', read, write, bodyLimit({ maxSize: 42 * 1024 * 1024 }), async c => {
@@ -28,15 +28,18 @@ export function createInventoryIntakeRouter({ prisma, requirePermission, intake 
   router.post('/inventory/items/validate-batch', read, write, bodyLimit({ maxSize: 2 * 1024 * 1024 }), async c => {
     try {
       await authorize(context(c), ['inventory.item.read', 'inventory.item.create']);
-      const { issues, duplicates } = await intake.validate({ input: await c.req.json(), ...context(c) });
+      const { issues, updates } = await intake.validate({ input: await c.req.json(), ...context(c) });
       await authorize(context(c), ['inventory.item.read', 'inventory.item.create']);
-      return c.json({ data: { issues, duplicates, valid: issues.length === 0 } });
+      return c.json({ data: { issues, updates: (updates ?? []).map(({ patch, ...rest }) => rest), valid: issues.length === 0 } });
     } catch (err) { return failure(c, err); }
   });
   router.post('/inventory/items/bulk', read, write, bodyLimit({ maxSize: 2 * 1024 * 1024 }), async c => {
     try {
-      await authorize(context(c), ['inventory.item.read', 'inventory.item.create']);
-      const data = await intake.create({ input: await c.req.json(), ...context(c) });
+      const input = await c.req.json();
+      // Updating a matched item needs the update permission on top of create.
+      const needed = ['inventory.item.read', 'inventory.item.create', ...(input?.units?.some?.(u => u?.mode === 'update') ? ['inventory.item.update'] : [])];
+      await authorize(context(c), needed);
+      const data = await intake.create({ input, ...context(c) });
       await authorize(context(c), ['inventory.item.read', 'inventory.item.create']);
       return c.json({ data }, 201);
     }

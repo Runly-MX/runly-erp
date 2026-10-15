@@ -4,6 +4,15 @@ import { inventoryCommonSchema } from '../routes/inventory/intake-validators.js'
 import { createInventoryService, InventoryServiceError } from './inventory-service.js';
 import { createInventoryAccess } from './inventory-access.js';
 import { createInventoryModelService } from './inventory-model-service.js';
+import { findActiveDuplicates } from './inventory-identifiers.js';
+
+// Serial / asset number must be unique among ACTIVE items: tell the user (and MirAI) to update the existing one.
+async function assertNotDuplicated(db, companyId, data) {
+  const found = await findActiveDuplicates(db, companyId, { serialNumber: data.serialNumber, assetTag: data.assetTag });
+  const [kind, item] = found.serialNumber ? ['la serie', found.serialNumber] : found.assetTag ? ['el número de activo', found.assetTag] : [];
+  if (!item) return;
+  throw new InventoryServiceError(`Ya existe un equipo activo con ${kind} ${kind === 'la serie' ? data.serialNumber : data.assetTag}: «${item.name}»${item.assetTag ? ` (N.º ${item.assetTag})` : ''}. No se crean duplicados; ofrece actualizar ese equipo con los datos nuevos en vez de crear otro.`, 409, kind === 'la serie' ? 'SERIAL_EXISTS' : 'ASSET_TAG_EXISTS', { item });
+}
 
 const name = z.string().trim().min(1).max(255);
 const optionalName = name.nullable().optional();
@@ -47,6 +56,7 @@ export function createInventoryChatActions({ prisma, authorize = createInventory
     for (const action of parsed.data.actions) {
       await authorize(scope, ['inventory.item.read', permission(action.kind)]);
       if (action.kind === 'customField' && action.data.fieldType === 'select' && !action.data.options?.length) throw new InventoryServiceError('Indica las opciones del campo de selección.', 400);
+      if (action.kind === 'item' && prisma.invItem) await assertNotDuplicated(prisma, scope.companyId, action.data);
     }
     return { id: createHash('sha256').update(JSON.stringify(parsed.data)).digest('hex'), status: 'pending', actions: parsed.data.actions };
   }
@@ -101,7 +111,7 @@ export function createInventoryChatActions({ prisma, authorize = createInventory
         const categoryId = await resolve('invCategory', data.categoryName);
         const brandId = await resolve('invBrand', data.brandName);
         const locationId = await resolve('invLocation', data.locationName);
-        if (data.serialNumber && await db.invItem.findFirst({ where: { companyId: scope.companyId, serialNumber: data.serialNumber } })) throw new InventoryServiceError('La serie ya existe. Revisa el equipo o usa el formulario para registrar una coincidencia intencional.', 409);
+        await assertNotDuplicated(db, scope.companyId, data);
         const definitions = await db.invCustomField.findMany({ where: { companyId: scope.companyId, enabled: true, OR: [{ categoryId: null }, ...(categoryId ? [{ categoryId }] : [])] } });
         const values = [];
         for (const value of data.customValues ?? []) {
@@ -114,7 +124,7 @@ export function createInventoryChatActions({ prisma, authorize = createInventory
         if (definitions.some(field => field.required && !values.some(value => value.fieldId === field.id && value.value.trim()))) throw new InventoryServiceError('Faltan campos personalizados obligatorios. Pide completar la propuesta.', 400);
         const tagKey = createHash('sha256').update(`${scope.id}:${proposal.id}`).digest('hex').slice(0, 16);
         const assetTag = data.assetTag || `INV-${new Date().getFullYear()}-${tagKey}-${results.length + 1}`;
-        if (await db.invItem.findFirst({ where: { companyId: scope.companyId, assetTag } })) throw new InventoryServiceError('La etiqueta interna ya existe. Revisa el equipo o corrige la propuesta.', 409);
+        if (data.assetTag) await assertNotDuplicated(db, scope.companyId, { assetTag });
         row = await service.createItem({ ...data, assetTag, categoryId, brandId, locationId, customValues: values }, scope.companyId, scope.authUserId);
       }
       const result = { kind, id: row.id, name: row.name ?? row.label, reused, ...(kind === 'item' ? { assetTag: row.assetTag } : {}) };

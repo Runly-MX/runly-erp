@@ -123,15 +123,39 @@ test('rejects unconfirmed identifiers, duplicate serials and fabricated evidence
   assert.ok(issues.some(i => i.message.includes('repetida')));
   assert.ok(issues.some(i => i.message.includes('fotografía')));
 });
-test('queries duplicates only in the authenticated company, including disabled assets', async () => {
-  const { service, state } = fixture({ matches: [{ id: 'existing', assetTag: 'INV-1', serialNumber: 'O0-I1-B8', enabled: false }] });
+test('a unit matching an active item is suggested as an update, never duplicated', async () => {
+  const existing = { id: '01900000-0000-7000-8000-0000000000aa', name: 'Laptop', assetTag: 'INV-1', serialNumber: 'o0-i1-b8', model: 'Old', enabled: true };
+  const { service, state } = fixture({ matches: [existing] });
   const body = input();
-  assert.equal((await service.validate({ ...context, input: body })).issues.length, 1);
-  assert.equal(state().queries[0].where.companyId, COMPANY);
-  body.units[0].duplicateAcknowledged = true;
+  const first = await service.validate({ ...context, input: body });
+  assert.equal(first.issues.length, 1);
+  assert.equal(first.updates[0].item.id, existing.id);
+  assert.deepEqual(first.updates[0].changes.map(c => [c.field, c.current, c.incoming]), [['model', 'Old', 'XPS']]);
+  assert.deepEqual(state().queries[0].where, { companyId: COMPANY, enabled: true, OR: [{ serialNumber: { equals: 'O0-I1-B8', mode: 'insensitive' } }] });
+  body.units[0].mode = 'update'; body.units[0].existingItemId = existing.id;
   assert.equal((await service.validate({ ...context, input: body })).issues.length, 0);
-  body.units[0].assetTag = 'INV-1'; body.units[0].confirmedIdentifiers.assetTag = 'INV-1';
-  assert.ok((await service.validate({ ...context, input: body })).issues.some(i => i.field === 'assetTag'));
+  body.units[0].mode = 'skip';
+  assert.equal((await service.validate({ ...context, input: body })).issues.length, 0);
+  body.units[0].mode = 'update'; body.units[0].existingItemId = COMPANY;
+  assert.equal((await service.validate({ ...context, input: body })).issues.length, 1);
+});
+test('create applies the update through updateItem with only differing fields and stays idempotent', async () => {
+  const existing = { id: '01900000-0000-7000-8000-0000000000aa', name: 'Laptop', assetTag: 'INV-1', serialNumber: 'O0-I1-B8', model: 'Old', enabled: true, status: 'assigned' };
+  const { service, db, state } = fixture({ matches: [existing] });
+  const patches = [];
+  db.invItem.findFirst = async ({ where }) => (where.id === existing.id ? existing : null);
+  db.invItem.update = async ({ data }) => { patches.push(data); return { ...existing, ...data }; };
+  db.auditLog.findFirst = async ({ where }) => state().audits.find(a => a.action === where.action && a.metadata.key === where.metadata.equals);
+  const body = input(); body.units[0].mode = 'update'; body.units[0].existingItemId = existing.id;
+  const first = await service.create({ ...context, input: body });
+  assert.deepEqual(first.items.map(i => i.action), ['updated']);
+  assert.deepEqual(patches, [{ model: 'XPS' }]);
+  assert.equal(state().items.length, 0);
+  assert.equal(state().audits.some(a => a.action === 'inventory.item.updated'), true);
+  assert.equal((await service.create({ ...context, input: body })).replayed, true);
+  assert.equal(patches.length, 1);
+  const dup = input(); dup.key = 'b'.repeat(32);
+  await assert.rejects(service.create({ ...context, input: dup }), e => e.status === 409 && e.issues.length === 1);
 });
 test('foreign catalogs and custom fields cannot be written', async () => {
   const { service } = fixture();

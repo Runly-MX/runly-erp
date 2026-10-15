@@ -1,7 +1,10 @@
 // inventory-item-import-service.js — CSV/XLSX import of inventory items with
 // user-defined column mapping (file header -> item field). No AI involved.
-// - Rows whose asset tag or serial number already exists are skipped, never
-//   updated.
+// - Rows whose asset tag or serial number already exist are never duplicated:
+//   they come back as "update" suggestions (existing item + field diff) and,
+//   when the user opts in, are applied through inventoryService.updateItem
+//   with only the non-empty incoming fields that differ (never blanking a
+//   value, never touching identifiers, status or custom fields).
 // - Missing types, brands, locations and models can be created on the fly
 //   (models need their type and brand).
 // - Custom fields are mappable (`custom:<fieldId>`), one column each.
@@ -16,6 +19,7 @@ import {
 } from './inventory-import-file.js';
 import { fetchRemoteImage, splitImageUrls } from './inventory-import-remote-image.js';
 import { buildAutoItemName } from './inventory-service.js';
+import { EXISTING_ITEM_INCLUDE, diffItemFields } from './inventory-update-diff.js';
 
 export { MAX_ITEM_IMPORT_ROWS, parseImportDate, parseImportPrice, parseItemFile, normalizeHeader } from './inventory-import-file.js';
 
@@ -110,6 +114,21 @@ export function suggestItemMapping(headers, customFields = []) {
   return mapping;
 }
 
+const NEW_REF = '__new__';
+// Incoming values for diffItemFields. `refs` holds the resolved catalog ids
+// (or NEW_REF when the entry would be created, undefined to leave it alone).
+function incomingFor(d, refs) {
+  const ref = (name, id) => (name && id ? { value: id === NEW_REF ? `${NEW_REF}:${name}` : id, label: name } : undefined);
+  return {
+    name: d.autoName ? undefined : d.name,
+    model: d.model, partNumber: d.partNumber, description: d.description, notes: d.notes,
+    vendorName: d.vendorName, invoiceNumber: d.invoiceNumber,
+    purchaseDate: d.purchaseDate, purchasePrice: d.purchasePrice, warrantyExpiry: d.warrantyExpiry,
+    categoryId: ref(d.type, refs.categoryId), brandId: ref(d.brand, refs.brandId),
+    locationId: ref(d.location, refs.locationId), conditionId: ref(d.condition, refs.conditionId),
+  };
+}
+
 export function createInventoryItemImportService({ prisma, inventoryService, fetchImage = fetchRemoteImage }) {
   async function loadCustomFields(companyId) {
     const rows = await prisma.invCustomField.findMany({
@@ -140,7 +159,7 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
       prisma.invBrand.findMany({ where: { companyId }, select: { id: true, name: true } }),
       prisma.invLocation.findMany({ where: { companyId }, select: { id: true, name: true } }),
       prisma.invModel.findMany({ where: { companyId, enabled: true }, select: { id: true, brandId: true, typeId: true, nameKey: true } }),
-      prisma.invItem.findMany({ where: { companyId, enabled: true }, select: { assetTag: true, serialNumber: true } }),
+      prisma.invItem.findMany({ where: { companyId, enabled: true }, select: { id: true, assetTag: true, serialNumber: true } }),
       loadCustomFields(companyId),
       prisma.invCondition.findMany({ where: { companyId, enabled: true }, select: { id: true, name: true } }),
     ]);
@@ -148,8 +167,8 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
     return {
       types: byName(types), brands: byName(brands), locations: byName(locations), conditions: byName(conditions), models,
       customFields: new Map(customFields.map((f) => [f.id, f])),
-      tags: new Set(existing.map((i) => key(i.assetTag)).filter(Boolean)),
-      serials: new Set(existing.map((i) => key(i.serialNumber)).filter(Boolean)),
+      tags: new Map(existing.filter((i) => key(i.assetTag)).map((i) => [key(i.assetTag), i.id])),
+      serials: new Map(existing.filter((i) => key(i.serialNumber)).map((i) => [key(i.serialNumber), i.id])),
     };
   }
 
@@ -247,8 +266,13 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
     const data = { ...d, name, autoName, status, adminStatus, purchaseDate, warrantyExpiry, purchasePrice, customValues, photoUrls };
     const base = { data, missing, unknownStatus };
     if (errors.length) return { ...base, status: 'error', errors, notes };
-    if ((tag && ctx.tags.has(tag)) || (serial && ctx.serials.has(serial))) {
-      return { ...base, status: 'exists', errors: [], notes: [tag && ctx.tags.has(tag) ? `La etiqueta ${d.assetTag} ya existe.` : `La serie ${d.serialNumber} ya existe.`] };
+    const tagId = tag ? ctx.tags.get(tag) : undefined;
+    const serialId = serial ? ctx.serials.get(serial) : undefined;
+    if (tagId && serialId && tagId !== serialId) {
+      return { ...base, status: 'error', errors: ['El número de activo y la serie pertenecen a equipos distintos de tu inventario.'], notes };
+    }
+    if (tagId || serialId) {
+      return { ...base, status: 'exists', matchId: tagId ?? serialId, matchedBy: tagId ? 'assetTag' : 'serialNumber', errors: [], notes: [tagId ? `El número de activo ${d.assetTag} ya existe.` : `La serie ${d.serialNumber} ya existe.`] };
     }
     if (Object.keys(missing).length && !createMissing) {
       return { ...base, status: 'error', errors: ['Falta en catálogos: activa «Crear lo que falta».'], notes };
@@ -269,17 +293,38 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
     });
   }
 
+  // Rows matching an ACTIVE item: attach the existing item and the field diff.
+  // The row becomes 'update' only when something would actually change.
+  async function attachExisting(analyzed, companyId, ctx, createMissing) {
+    const ids = [...new Set(analyzed.filter((r) => r.matchId).map((r) => r.matchId))];
+    if (!ids.length) return;
+    const items = await prisma.invItem.findMany({ where: { companyId, enabled: true, id: { in: ids } }, include: EXISTING_ITEM_INCLUDE });
+    const byId = new Map(items.map((i) => [i.id, i]));
+    const lookup = (map, name) => (name ? (map.get(key(name)) ?? (createMissing ? NEW_REF : undefined)) : undefined);
+    for (const row of analyzed) {
+      const item = row.matchId ? byId.get(row.matchId) : null;
+      if (!item) continue;
+      const d = row.data;
+      const refs = { categoryId: lookup(ctx.types, d.type), brandId: lookup(ctx.brands, d.brand), locationId: lookup(ctx.locations, d.location), conditionId: lookup(ctx.conditions, d.condition) };
+      row.existing = { id: item.id, name: item.name, assetTag: item.assetTag ?? null, serialNumber: item.serialNumber ?? null };
+      row.changes = diffItemFields(item, incomingFor(d, refs)).changes;
+      row.item = item;
+      if (row.changes.length) row.status = 'update';
+    }
+  }
+
   async function preview(rows, mapping, companyId, { createMissing = false, statusMap = {}, rowNumbers } = {}) {
     assertCompany(companyId);
     const ctx = await loadContext(companyId);
     assertInput(rows, mapping, ctx);
     const analyzed = run(rows, mapping, ctx, { createMissing, statusMap }, (i) => rowNumbers?.[i] ?? i + 2);
-    const counts = { new: 0, exists: 0, error: 0 };
+    await attachExisting(analyzed, companyId, ctx, createMissing);
+    const counts = { new: 0, update: 0, exists: 0, error: 0 };
     for (const row of analyzed) counts[row.status] += 1;
     const unique = (values) => [...new Map(values.filter(Boolean).map((v) => [key(v), v])).values()];
     const pick = (field) => unique(analyzed.map((r) => r.missing?.[field]));
     return {
-      rows: analyzed,
+      rows: analyzed.map(({ item, matchId, ...row }) => row),
       counts,
       missing: { types: pick('type'), brands: pick('brand'), locations: pick('location'), conditions: pick('condition'), models: pick('model') },
       unknownStatuses: unique(analyzed.flatMap((r) => r.unknownStatus)),
@@ -288,11 +333,12 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
 
   // `file` = parseItemFile(..., { withImages: true }) output. `attachImage`
   // uploads one picture to the created item: (itemId, { buffer, type, name }).
-  async function commit(file, mapping, companyId, authUserId, { createMissing = false, statusMap = {}, attachImage } = {}) {
+  async function commit(file, mapping, companyId, authUserId, { createMissing = false, statusMap = {}, attachImage, updateExisting = false } = {}) {
     assertCompany(companyId);
     const ctx = await loadContext(companyId);
     assertInput(file.rows, mapping, ctx);
     const analyzed = run(file.rows, mapping, ctx, { createMissing, statusMap }, (i) => file.rowNumbers?.[i] ?? i + 2);
+    await attachExisting(analyzed, companyId, ctx, createMissing);
     const ensure = async (map, table, name) => {
       if (!name) return undefined;
       const existing = map.get(key(name));
@@ -310,10 +356,35 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
       return row;
     };
     let created = 0;
+    let updated = 0;
+    let notApplied = 0;
     let photos = 0;
     const failures = [];
     const photoFailures = [];
     for (const row of analyzed) {
+      if (row.status === 'update') {
+        if (!updateExisting) { notApplied += 1; continue; }
+        try {
+          const d = row.data;
+          const find = (map, table, name) => (createMissing ? ensure(map, table, name) : Promise.resolve(name ? map.get(key(name)) : undefined));
+          const brandId = await find(ctx.brands, 'invBrand', d.brand);
+          const categoryId = await find(ctx.types, 'invCategory', d.type);
+          const locationId = await find(ctx.locations, 'invLocation', d.location);
+          const conditionId = await find(ctx.conditions, 'invCondition', d.condition);
+          const modelBrandId = brandId ?? row.item.brandId;
+          const model = d.model && (createMissing
+            ? await ensureModel(d.model, categoryId ?? row.item.categoryId, modelBrandId)
+            : ctx.models.find((m) => m.brandId === modelBrandId && m.nameKey === key(d.model)));
+          const { patch } = diffItemFields(row.item, incomingFor(d, { categoryId, brandId, locationId, conditionId }));
+          if (model?.id && patch.model) patch.modelId = model.id;
+          if (!Object.keys(patch).length) { notApplied += 1; continue; }
+          await inventoryService.updateItem(row.existing.id, patch, companyId, { actorAuthId: authUserId });
+          updated += 1;
+        } catch (err) {
+          failures.push({ line: row.line, message: err?.message ?? 'No se pudo actualizar.' });
+        }
+        continue;
+      }
       if (row.status !== 'new') continue;
       const d = row.data;
       let item;
@@ -366,8 +437,9 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
     }
     return {
       created,
+      updated,
       photos,
-      skipped: analyzed.filter((r) => r.status === 'exists').length,
+      skipped: analyzed.filter((r) => r.status === 'exists').length + notApplied,
       failed: analyzed.filter((r) => r.status === 'error').length + failures.length,
       failures,
       photoFailures: photoFailures.slice(0, 50),

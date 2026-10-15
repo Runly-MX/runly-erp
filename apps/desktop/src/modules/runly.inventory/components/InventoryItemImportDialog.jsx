@@ -34,6 +34,7 @@ export function InventoryItemImportDialog({ open, onOpenChange, onImported }) {
   const [mapping, setMapping] = useState({})
   const [preview, setPreview] = useState(null)
   const [createMissing, setCreateMissing] = useState(true)
+  const [updateExisting, setUpdateExisting] = useState(true)
   const [statusMap, setStatusMap] = useState({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -44,7 +45,7 @@ export function InventoryItemImportDialog({ open, onOpenChange, onImported }) {
   function close(next) {
     if (!next) {
       setStep('file'); setFile(null); setParsed(null); setMapping({}); setPreview(null)
-      setError(''); setCreateMissing(true); setStatusMap({})
+      setError(''); setCreateMissing(true); setUpdateExisting(true); setStatusMap({})
     }
     onOpenChange(next)
   }
@@ -95,10 +96,11 @@ export function InventoryItemImportDialog({ open, onOpenChange, onImported }) {
     try {
       const form = new FormData()
       form.append('file', file)
-      form.append('options', JSON.stringify({ mapping, createMissing, statusMap }))
+      form.append('options', JSON.stringify({ mapping, createMissing, statusMap, updateExisting }))
       const result = await call('/commit', form)
       const parts = [`${result.created} activos creados`]
       if (result.photos) parts.push(`${result.photos} fotos adjuntas`)
+      if (result.updated) parts.push(`${result.updated} actualizados`)
       if (result.skipped) parts.push(`${result.skipped} omitidos`)
       if (result.failed) parts.push(`${result.failed} con error`)
       toast.success(`${parts.join(', ')}.`)
@@ -110,7 +112,7 @@ export function InventoryItemImportDialog({ open, onOpenChange, onImported }) {
     finally { setBusy(false) }
   }
 
-  const creatable = preview?.counts.new ?? 0
+  const creatable = (preview?.counts.new ?? 0) + (updateExisting ? (preview?.counts.update ?? 0) : 0)
 
   return (
     <Dialog open={open} onOpenChange={close}>
@@ -169,6 +171,8 @@ export function InventoryItemImportDialog({ open, onOpenChange, onImported }) {
               statusMap={statusMap}
               statuses={parsed.statuses}
               onStatusMapChange={(next) => { setStatusMap(next); runPreview({ statusMap: next }) }}
+              updateExisting={updateExisting}
+              onUpdateExistingChange={setUpdateExisting}
               busy={busy}
             />
           ) : null}
@@ -184,7 +188,7 @@ export function InventoryItemImportDialog({ open, onOpenChange, onImported }) {
           ) : null}
           {step === 'preview' ? (
             <Button type="button" disabled={busy || creatable === 0} onClick={commit}>
-              {busy ? 'Importando...' : creatable === 0 ? 'Nada que importar' : `Importar ${creatable} ${creatable === 1 ? 'activo' : 'activos'}`}
+              {busy ? 'Importando...' : creatable === 0 ? 'Nada que importar' : `Aplicar ${creatable} ${creatable === 1 ? 'cambio' : 'cambios'}`}
             </Button>
           ) : null}
         </DialogFooter>

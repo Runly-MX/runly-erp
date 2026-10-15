@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ImageIcon, MinusCircle, Sparkles } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ExternalLink, ImageIcon, MinusCircle, RefreshCw, Sparkles } from 'lucide-react'
 import { Badge, CheckboxField, DataTable, SegmentedControl, SelectField, cn } from '@runly/ui'
+import { InventoryChangesDiff } from '../InventoryMatchPanel.jsx'
+import { itemUrl } from '../InventoryIdentifierConflict.jsx'
 
 const RESULT = {
   new: { label: 'Se crea', variant: 'success', icon: CheckCircle2 },
-  exists: { label: 'Se omite', variant: 'outline', icon: MinusCircle },
+  update: { label: 'Actualizar', variant: 'warning', icon: RefreshCw },
+  exists: { label: 'Sin cambios', variant: 'outline', icon: MinusCircle },
   error: { label: 'Con error', variant: 'destructive', icon: AlertTriangle },
 }
 
@@ -21,7 +24,19 @@ function ItemCell({ data }) {
   )
 }
 
-function DetailCell({ row }) {
+function DetailCell({ row, updateExisting }) {
+  if (row.status === 'update' || (row.status === 'exists' && row.existing)) {
+    return (
+      <div className="space-y-1.5">
+        <a className="inline-flex items-center gap-1 text-xs font-medium underline" href={itemUrl(row.existing.id)} target="_blank" rel="noreferrer">
+          {row.existing.name}{row.existing.assetTag ? ` · N.º ${row.existing.assetTag}` : ''}<ExternalLink className="h-3 w-3" aria-hidden="true" />
+        </a>
+        {row.status === 'update'
+          ? (updateExisting ? <InventoryChangesDiff changes={row.changes} incomingLabel="Archivo" /> : <p className="text-xs text-muted-foreground">No se actualizará (opción desactivada).</p>)
+          : <p className="text-xs text-muted-foreground">Ya existe y no hay datos nuevos.</p>}
+      </div>
+    )
+  }
   if (!row.errors.length && !row.notes.length) return <span className="text-xs text-[hsl(var(--muted-foreground))]">Listo</span>
   return (
     <ul className="space-y-0.5 text-xs">
@@ -31,7 +46,7 @@ function DetailCell({ row }) {
   )
 }
 
-const COLUMNS = [
+const buildColumns = (updateExisting) => [
   { accessorKey: 'line', header: 'Fila', size: 60 },
   { id: 'result', header: 'Resultado', accessorFn: (r) => RESULT[r.status].label,
     cell: ({ row }) => <Badge variant={RESULT[row.original.status].variant}>{RESULT[row.original.status].label}</Badge> },
@@ -40,15 +55,16 @@ const COLUMNS = [
     cell: ({ row }) => <span className="text-xs">{[row.original.data.serialNumber, row.original.data.assetTag].filter(Boolean).join(' · ') || '—'}</span> },
   { id: 'photos', header: 'Fotos', accessorFn: (r) => r.photoCount,
     cell: ({ row }) => row.original.photoCount ? <span className="inline-flex items-center gap-1 text-xs"><ImageIcon className="h-3.5 w-3.5" />{row.original.photoCount}</span> : <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span> },
-  { id: 'detail', header: 'Detalle', enableSorting: false, cell: ({ row }) => <DetailCell row={row.original} /> },
+  { id: 'detail', header: 'Detalle', enableSorting: false, cell: ({ row }) => <DetailCell row={row.original} updateExisting={updateExisting} /> },
 ]
 
 // Step 3: what will happen, in order — the headline count, catalog entries to
 // create, status spellings to resolve, then the per-row table filtered by
 // result.
-export function ImportPreviewStep({ preview, imageCounts, createMissing, onCreateMissingChange, statusMap, statuses, onStatusMapChange, busy }) {
+export function ImportPreviewStep({ preview, imageCounts, createMissing, onCreateMissingChange, statusMap, statuses, onStatusMapChange, updateExisting = true, onUpdateExistingChange, busy }) {
   const [filter, setFilter] = useState('all')
   const rows = useMemo(() => preview.rows.map((row, i) => ({ ...row, photoCount: (imageCounts[i] ?? 0) + (row.data.photoUrls?.length ?? 0) })), [preview.rows, imageCounts])
+  const columns = useMemo(() => buildColumns(updateExisting), [updateExisting])
   const visible = filter === 'all' ? rows : rows.filter((r) => r.status === filter)
   const { counts } = preview
   const toCreate = [
@@ -69,12 +85,22 @@ export function ImportPreviewStep({ preview, imageCounts, createMissing, onCreat
         </p>
         <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
           {[
-            counts.exists ? `${counts.exists} ${counts.exists === 1 ? 'fila se omite porque ya existe' : 'filas se omiten porque ya existen'}` : null,
+            counts.update ? `${counts.update} ${counts.update === 1 ? 'equipo existente se actualizará' : 'equipos existentes se actualizarán'}` : null,
+            counts.exists ? `${counts.exists} ${counts.exists === 1 ? 'fila ya existe sin cambios' : 'filas ya existen sin cambios'}` : null,
             counts.error ? `${counts.error} ${counts.error === 1 ? 'fila tiene errores y no se importará' : 'filas tienen errores y no se importarán'}` : null,
             photos ? `${photos} ${photos === 1 ? 'foto se adjuntará' : 'fotos se adjuntarán'}` : null,
           ].filter(Boolean).join(' · ') || 'Todas las filas están listas.'}
         </p>
       </div>
+
+      {counts.update > 0 ? (
+        <section className="space-y-2 rounded-2xl border border-[hsl(var(--border))] p-4">
+          <p className="text-sm font-medium text-[hsl(var(--foreground))]">Estos equipos ya existen en tu inventario</p>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">No se crean duplicados. Se actualizan solo los campos con datos nuevos del archivo; nunca se borran valores existentes ni se cambian la serie o el número de activo.</p>
+          <CheckboxField label={`Actualizar los ${counts.update} ${counts.update === 1 ? 'equipo existente' : 'equipos existentes'}`} checked={updateExisting} disabled={busy}
+            onChange={(e) => onUpdateExistingChange?.(e.target.checked)} />
+        </section>
+      ) : null}
 
       {preview.unknownStatuses.length > 0 ? (
         <section className="space-y-2 rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
@@ -114,11 +140,12 @@ export function ImportPreviewStep({ preview, imageCounts, createMissing, onCreat
           options={[
             { value: 'all', label: `Todas (${rows.length})` },
             { value: 'new', label: `Se crean (${counts.new})` },
-            { value: 'exists', label: `Se omiten (${counts.exists})` },
+            { value: 'update', label: `Se actualizan (${counts.update})` },
+            { value: 'exists', label: `Sin cambios (${counts.exists})` },
             { value: 'error', label: `Con error (${counts.error})` },
           ]} />
         <div className={cn(busy && 'pointer-events-none opacity-60')}>
-          <DataTable columns={COLUMNS} data={visible} pageSize={10} getRowId={(row) => String(row.line)} searchPlaceholder="Buscar por nombre, serie o detalle..."
+          <DataTable columns={columns} data={visible} pageSize={10} getRowId={(row) => String(row.line)} searchPlaceholder="Buscar por nombre, serie o detalle..."
             emptyTitle="Sin filas en este filtro" />
         </div>
       </div>

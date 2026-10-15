@@ -6,17 +6,18 @@ import {
   createInventoryItemImportService, parseItemFile, suggestItemMapping,
 } from '../../services/inventory-item-import-service.js';
 import { tenantActiveContext } from '../../lib/active-context.js';
+import { createInventoryAccess } from '../../services/inventory-access.js';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 // Item files may carry embedded photos.
 const MAX_ITEM_BYTES = 25 * 1024 * 1024;
 
-export function createInventoryImportRouter({ prisma, requirePermission, InventoryServiceError, inventoryService, filesService }) {
+export function createInventoryImportRouter({ prisma, requirePermission, InventoryServiceError, inventoryService, filesService, authorize = createInventoryAccess({ prisma }).assertCurrent }) {
   const router = new Hono();
   const imports = createInventoryCatalogImportService({ prisma });
   const itemImports = createInventoryItemImportService({ prisma, inventoryService });
   const fail = (c, err, fallback) => err instanceof InventoryServiceError
-    ? c.json({ error: err.message }, err.status)
+    ? c.json({ error: err.message, ...(err.code ? { code: err.code } : {}), ...(err.details ? { details: err.details } : {}) }, err.status)
     : c.json({ error: fallback }, 500);
   const guard = requirePermission('inventory.catalog.manage');
   const itemGuard = requirePermission('inventory.item.create');
@@ -64,6 +65,9 @@ export function createInventoryImportRouter({ prisma, requirePermission, Invento
       try { options = JSON.parse(String(form.get('options') ?? '{}')); } catch { return c.json({ error: 'Opciones de importación no válidas.' }, 400); }
       const companyId = c.get('companyId');
       const authUserId = c.get('authUserId');
+      const updateExisting = options.updateExisting === true;
+      // Updating existing items needs the update permission on top of create.
+      if (updateExisting) await authorize({ companyId, actorId: c.get('userId') }, ['inventory.item.update']);
       const activeContext = tenantActiveContext(c);
       const attachImage = filesService ? async (itemId, image) => {
         const asset = await filesService.upload({
@@ -75,7 +79,7 @@ export function createInventoryImportRouter({ prisma, requirePermission, Invento
         await inventoryService.addItemFile(itemId, asset.id, companyId, null);
       } : null;
       const result = await itemImports.commit(parsed, options.mapping, companyId, authUserId, {
-        createMissing: options.createMissing === true, statusMap: options.statusMap, attachImage,
+        createMissing: options.createMissing === true, statusMap: options.statusMap, attachImage, updateExisting,
       });
       return c.json({ data: result });
     } catch (err) { return fail(c, err, 'No se pudo importar.'); }

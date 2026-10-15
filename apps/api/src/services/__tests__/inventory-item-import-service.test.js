@@ -20,7 +20,7 @@ function fakePrisma({ items = [], types = [], brands = [], models = [], customFi
     invLocation: make('invLocation'),
     invCondition: make('invCondition'),
     invModel: make('invModel'),
-    invItem: { findMany: async () => items },
+    invItem: { findMany: async ({ where } = {}) => (where?.id?.in ? items.filter((i) => where.id.in.includes(i.id)) : items) },
     invCustomField: { findMany: async () => customFields },
   };
 }
@@ -63,7 +63,7 @@ test('parseItemFile maps pictures placed over an XLSX row to that row', async ()
 
 test('preview flags existing serials, file duplicates, missing catalogs and unknown status', async () => {
   const service = createInventoryItemImportService({
-    prisma: fakePrisma({ items: [{ assetTag: 'INV-1', serialNumber: 'OLD' }], brands: [{ id: 'b1', name: 'Dell' }] }),
+    prisma: fakePrisma({ items: [{ id: 'i1', name: 'Laptop', assetTag: 'INV-1', serialNumber: 'OLD' }], brands: [{ id: 'b1', name: 'Dell' }] }),
     inventoryService: {},
   });
   const mapping = { name: 'n', serialNumber: 's', brand: 'b', status: 'e' };
@@ -75,12 +75,48 @@ test('preview flags existing serials, file duplicates, missing catalogs and unkn
     { n: 'Mouse', e: 'Alta' },
   ];
   const result = await service.preview(rows, mapping, COMPANY, { createMissing: false });
-  assert.deepEqual(result.rows.map((r) => r.status), ['new', 'exists', 'error', 'error', 'error']);
+  assert.deepEqual(result.rows.map((r) => r.status), ['new', 'update', 'error', 'error', 'error']);
   assert.deepEqual(result.missing.brands, ['Acme']);
   assert.deepEqual(result.unknownStatuses, ['Alta']);
   const resolved = await service.preview(rows, mapping, COMPANY, { createMissing: true, statusMap: { alta: 'available' } });
   assert.equal(resolved.rows[3].status, 'new');
   assert.equal(resolved.rows[4].status, 'new');
+});
+
+test('preview suggests an update for rows matching an active item, with the field diff', async () => {
+  const existing = { id: 'i1', name: 'Laptop', assetTag: 'INV-1', serialNumber: 'OLD', model: 'XPS', notes: 'keep me', brandId: null, brand: null, partNumber: null };
+  const same = { id: 'i2', name: 'Mouse', assetTag: 'INV-2', serialNumber: 'TWO', model: 'M1' };
+  const service = createInventoryItemImportService({ prisma: fakePrisma({ items: [existing, same], brands: [{ id: 'b1', name: 'Dell' }] }), inventoryService: {} });
+  const mapping = { name: 'n', serialNumber: 's', brand: 'b', model: 'm', notes: 'o', partNumber: 'p' };
+  const rows = [
+    { n: 'Laptop', s: 'old', b: 'Dell', m: 'XPS 15', o: '', p: 'PN-9' },
+    { n: 'Mouse', s: 'two', m: 'M1' },
+  ];
+  const result = await service.preview(rows, mapping, COMPANY);
+  assert.deepEqual(result.rows.map((r) => r.status), ['update', 'exists']);
+  assert.deepEqual(result.counts, { new: 0, update: 1, exists: 1, error: 0 });
+  assert.equal(result.rows[0].existing.id, 'i1');
+  assert.deepEqual(result.rows[0].changes.map((c) => [c.field, c.current, c.incoming]), [['model', 'XPS', 'XPS 15'], ['partNumber', null, 'PN-9'], ['brandId', null, 'Dell']]);
+  assert.equal(result.rows[0].patch, undefined);
+});
+
+test('commit applies updates only when asked, never blanks values and reports counts', async () => {
+  const existing = { id: 'i1', name: 'Laptop', assetTag: 'INV-1', serialNumber: 'OLD', model: 'XPS', notes: 'keep me', brandId: null, brand: null };
+  const same = { id: 'i2', name: 'Mouse', assetTag: 'INV-2', serialNumber: 'TWO', model: 'M1' };
+  const updates = [];
+  const build = () => createInventoryItemImportService({
+    prisma: fakePrisma({ items: [existing, same], brands: [{ id: 'b1', name: 'Dell' }] }),
+    inventoryService: { updateItem: async (id, patch, companyId, opts) => { updates.push([id, patch, companyId, opts]); return { id }; } },
+  });
+  const file = { rows: [{ n: 'Laptop', s: 'OLD', b: 'Dell', m: 'XPS 15', o: '' }, { n: 'Mouse', s: 'TWO', m: 'M1' }], rowNumbers: [2, 3] };
+  const mapping = { name: 'n', serialNumber: 's', brand: 'b', model: 'm', notes: 'o' };
+  const skipped = await build().commit(file, mapping, COMPANY, 'user', {});
+  assert.deepEqual([skipped.created, skipped.updated, skipped.skipped], [0, 0, 2]);
+  assert.equal(updates.length, 0);
+  const applied = await build().commit(file, mapping, COMPANY, 'user', { updateExisting: true });
+  assert.deepEqual([applied.created, applied.updated, applied.skipped], [0, 1, 1]);
+  assert.deepEqual(updates[0].slice(0, 2), ['i1', { model: 'XPS 15', brandId: 'b1' }]);
+  assert.deepEqual(updates[0][3], { actorAuthId: 'user' });
 });
 
 test('preview derives the name from brand + model and plans the new model', async () => {

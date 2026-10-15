@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Sparkles, Barcode, Camera, Trash2, Plus, Check, ZoomIn, Loader2, CheckCircle2, AlertCircle, Clock3 } from 'lucide-react'
-import { RunlyForm, Button, AIUploadDropzone, AIFlowSteps, Input, Textarea, Checkbox, Card, Badge,
+import { RunlyForm, Button, AIUploadDropzone, AIFlowSteps, Input, Textarea, Card, Badge,
   Alert, AlertTitle, AlertDescription, ImageSourceSheet, ImageViewer, AttachmentsPanel, ErrorState, ConfirmDialog, useCoarsePointer, cn } from '@runly/ui'
 import { InventoryCaptureTable } from './InventoryCaptureTable.jsx'
+import { InventoryMatchPanel } from './InventoryMatchPanel.jsx'
 import { INVENTORY_ITEM_FORM } from '../blueprints/inventory-item-form.blueprint.js'
 import { INVENTORY_ITEM_FORM as formBlueprint } from '../blueprints/inventory-item-form.blueprint.js'
 import { inventoryFormComponents } from './InventoryItemClassification.jsx'
@@ -13,6 +14,12 @@ import { useInventoryBrands, useInventoryCategories, useCreateInventoryBrand, us
 import { collectSuggestions, confirmationKey, identifiersFor, intakeRequest } from '../lib/intake.js'
 
 const LABELS = { name: 'Nombre', brandName: 'Marca', categoryName: 'Tipo', model: 'Modelo', partNumber: 'Número de parte', serialNumber: 'Número de serie', productCode: 'Código de producto', description: 'Descripción visible' }
+function savedSummary(items) {
+  const count = action => items.filter(i => (i.action ?? 'created') === action).length
+  const parts = [[count('created'), 'creado', 'creados'], [count('updated'), 'actualizado', 'actualizados'], [count('skipped'), 'omitido', 'omitidos']]
+    .filter(([n]) => n).map(([n, one, many]) => `${n} ${n === 1 ? one : many}`)
+  return `Equipos: ${parts.join(', ')}`
+}
 const ATTACHMENTS = INVENTORY_ITEM_FORM.schema.sections.find(s => s.type === 'attachments').attachments
 const INITIAL_UNIT = { id: 'unit-0', serialNumber: '', assetTag: '', photoIds: [] }
 const FLOW_STEPS = [
@@ -56,6 +63,7 @@ export function InventorySmartForm({ token, companyId, apiBaseUrl, onCancel }) {
   const [analysisSummary, setAnalysisSummary] = useState('')
   const [error, setError] = useState('')
   const [issues, setIssues] = useState([])
+  const [matches, setMatches] = useState([])
   const [camera, setCamera] = useState(false)
   const [viewer, setViewer] = useState(null)
   const [saved, setSaved] = useState(null)
@@ -97,7 +105,8 @@ export function InventorySmartForm({ token, companyId, apiBaseUrl, onCancel }) {
       fields: s.fields?.filter(f => !['assetTag', 'serialNumber'].includes(f.field)) })),
   } }), [units.length])
 
-  const updateUnit = (id, patch) => { setUnits(current => current.map(u => u.id === id ? { ...u, ...patch, confirmation: null, duplicateAcknowledged: false } : u)); setIssues([]) }
+  const updateUnit = (id, patch) => { setUnits(current => current.map(u => u.id === id ? { ...u, ...patch, confirmation: null, mode: undefined, existingItemId: undefined } : u)); setIssues([]); setMatches([]) }
+  const setUnitMode = (index, mode) => setUnits(current => current.map((u, i) => i === index ? { ...u, mode } : u))
   function addSerials(entries) {
     const extra = new Set(entries.filter(entry => entry.value.trim() && !units.some(unit => unit.serialNumber === entry.value)).map(entry => entry.value))
     if (units.filter(unit => unit.serialNumber || unit.assetTag || unit.photoIds.length).length + extra.size > 200) {
@@ -200,7 +209,7 @@ export function InventorySmartForm({ token, companyId, apiBaseUrl, onCancel }) {
       proofs: photos.flatMap(p => p.result?.proof ? [p.result.proof] : []),
       units: units.map(unit => ({ ...identifiersFor(unit, payload),
         confirmedIdentifiers: unit.confirmation === confirmationKey(unit, payload) ? identifiersFor(unit, payload) : undefined,
-        duplicateAcknowledged: unit.duplicateAcknowledged ?? false,
+        mode: unit.mode ?? 'create', existingItemId: unit.mode ? unit.existingItemId ?? null : null,
         sourceImageIds: unit.photoIds.flatMap(id => { const p = photos.find(photo => photo.id === id); return p?.result?.proof ? [p.result.imageId] : [] }),
       })),
     }
@@ -211,8 +220,13 @@ export function InventorySmartForm({ token, companyId, apiBaseUrl, onCancel }) {
     try {
       if (!requestSnapshot.current) {
         const checked = await intakeRequest({ apiBaseUrl, token, companyId, path: '/inventory/items/validate-batch', body: { ...body, key: requestKey.current } })
-        setIssues(checked.issues)
-        if (!checked.valid) throw new Error('Revisa las advertencias de la captura antes de crear los equipos.')
+        setIssues(checked.issues); setMatches(checked.updates ?? [])
+        if (!checked.valid) {
+          // Units matching an active item default to updating it; the user reviews the diff and saves again.
+          const found = checked.updates ?? []
+          setUnits(current => current.map((u, i) => { const m = found.find(x => x.index === i); return m && !u.mode ? { ...u, mode: 'update', existingItemId: m.item.id } : u }))
+          throw new Error(found.length ? 'Algunos equipos ya existen. Revisa los cambios sugeridos y vuelve a guardar.' : 'Revisa las advertencias de la captura antes de crear los equipos.')
+        }
       }
       requestSnapshot.current = snapshot
       const result = await intakeRequest({ apiBaseUrl, token, companyId, path: '/inventory/items/bulk', body: { ...body, key: requestKey.current } })
@@ -311,7 +325,8 @@ export function InventorySmartForm({ token, companyId, apiBaseUrl, onCancel }) {
         <InventoryCaptureTable units={units} values={values} busy={busy} photos={photos} updateUnit={updateUnit} setUnits={setUnits} />
       </div>
       {(batch || !units.length) && <Button type="button" variant="outline" disabled={busy || units.length >= 200} onClick={addBlank}><Plus className="mr-2 h-4 w-4" />Agregar equipo sin serie</Button>}
-      {issues.length > 0 && <Alert><AlertTitle>Revisa la captura</AlertTitle><AlertDescription><div className="space-y-2">{issues.map((issue, i) => <div key={i}><p>Equipo {issue.index + 1}: {issue.message} {issue.item && <a className="underline" href={`/app/m/runly.inventory/inventory/${issue.item.id}`} target="_blank" rel="noreferrer">Ver {issue.item.assetTag}</a>}</p>{issue.item && issue.field === 'serialNumber' && <label className="flex items-center gap-2"><Checkbox checked={Boolean(units[issue.index]?.duplicateAcknowledged)} onCheckedChange={checked => setUnits(current => current.map((u, index) => index === issue.index ? { ...u, duplicateAcknowledged: Boolean(checked) } : u))} />Revisé la coincidencia y es otra unidad</label>}</div>)}</div></AlertDescription></Alert>}
+      <InventoryMatchPanel matches={matches} modeOf={index => units[index]?.mode} onMode={setUnitMode} disabled={busy} />
+      {issues.filter(issue => !(issue.item && matches.some(m => m.index === issue.index))).length > 0 && <Alert><AlertTitle>Revisa la captura</AlertTitle><AlertDescription><div className="space-y-2">{issues.filter(issue => !(issue.item && matches.some(m => m.index === issue.index))).map((issue, i) => <p key={i}>Equipo {issue.index + 1}: {issue.message}</p>)}</div></AlertDescription></Alert>}
       {photos.some(photo => !units.some(unit => unit.photoIds.includes(photo.id))) && <Alert><AlertDescription>Hay fotografías sin equipo asignado. Márcalas en la columna Fotos o quítalas antes de guardar.</AlertDescription></Alert>}
       <p className="text-xs text-muted-foreground">Hasta 200 equipos por lote. El número de parte corresponde al modelo y puede repetirse. Confirma que el código leído sea realmente la serie. Las fotos marcadas se asociarán a cada equipo.</p>
     </Card>
@@ -319,8 +334,8 @@ export function InventorySmartForm({ token, companyId, apiBaseUrl, onCancel }) {
 
   if (saved) return <div className="space-y-4">
     <AIFlowSteps steps={FLOW_STEPS} activeIndex={flowActiveIndex} />
-    <Alert variant="success"><Check className="h-4 w-4" /><AlertTitle>{saved.length} {saved.length === 1 ? 'equipo creado' : 'equipos creados'}</AlertTitle><AlertDescription>{photosPending ? 'Las fotografías se están asociando. Si alguna falla, reintenta desde su panel sin crear el equipo de nuevo.' : 'El registro y sus fotografías están guardados.'}</AlertDescription></Alert>
-    {saved.map((item, index) => units[index].photoIds.length > 0 && <SavedPhotos key={item.id} item={item} files={photos.filter(p => units[index].photoIds.includes(p.id)).map(p => p.file)} apiBaseUrl={apiBaseUrl} token={token} companyId={companyId} onStatus={updatePhotoStatus} />)}
+    <Alert variant="success"><Check className="h-4 w-4" /><AlertTitle>{savedSummary(saved)}</AlertTitle><AlertDescription>{photosPending ? 'Las fotografías se están asociando. Si alguna falla, reintenta desde su panel sin crear el equipo de nuevo.' : 'El registro y sus fotografías están guardados.'}</AlertDescription></Alert>
+    {saved.map((item, index) => item.action !== 'skipped' && units[index].photoIds.length > 0 && <SavedPhotos key={item.id} item={item} files={photos.filter(p => units[index].photoIds.includes(p.id)).map(p => p.file)} apiBaseUrl={apiBaseUrl} token={token} companyId={companyId} onStatus={updatePhotoStatus} />)}
     <Button onClick={() => photosPending ? setLeaveSaved(true) : navigate('/app/m/runly.inventory/inventory')}>Volver al inventario</Button>
     <ConfirmDialog open={leaveSaved} onOpenChange={setLeaveSaved} title="Hay fotografías pendientes" description="Los equipos ya están creados. Si sales, podrías tener que adjuntar nuevamente las fotografías pendientes desde sus detalles." confirmLabel="Salir" onConfirm={() => navigate('/app/m/runly.inventory/inventory')} />
   </div>

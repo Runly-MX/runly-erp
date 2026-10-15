@@ -26,7 +26,9 @@ export const intakeSchema = z.object({
     confirmedIdentifiers: identifiers.optional(),
     // Optional per-unit name (bulk capture by serial uses "Nombre · serie").
     name: z.string().trim().min(1).max(255).optional(),
-    duplicateAcknowledged: z.boolean().default(false),
+    // A unit matching an ACTIVE item is updated or skipped, never duplicated.
+    mode: z.enum(['create', 'update', 'skip']).default('create'),
+    existingItemId: z.uuid().nullable().optional(),
     sourceImageIds: z.array(z.string().regex(/^[a-f0-9]{64}$/)).max(50).default([]),
   })).min(1).max(200),
   proofs: z.array(z.string().max(80000)).max(50).default([]),

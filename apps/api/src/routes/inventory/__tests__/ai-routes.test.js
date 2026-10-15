@@ -12,7 +12,7 @@ function appFor({ deny, authorize = async () => {}, recognize } = {}) {
   app.route('/', createInventoryIntakeRouter({ prisma: {}, requirePermission, authorize, intake: {
     isConfigured: () => true, create: record,
     recognize: recognize ?? (async args => { calls.push(args); return { images: [] }; }),
-    validate: async args => { calls.push(args); return { issues: [], duplicates: [] }; },
+    validate: async args => { calls.push(args); return { issues: [], updates: [] }; },
   } }));
   return { app, calls, permissions };
 }

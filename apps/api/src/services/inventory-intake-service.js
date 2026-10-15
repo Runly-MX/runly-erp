@@ -4,6 +4,12 @@ import { prepareVisionImage } from './vision-image.js';
 import { createInventoryService, InventoryServiceError } from './inventory-service.js';
 import { intakeSchema, observationSchema } from '../routes/inventory/intake-validators.js';
 import { createInventoryModelService } from './inventory-model-service.js';
+import { EXISTING_ITEM_INCLUDE, diffItemFields } from './inventory-update-diff.js';
+
+const lower = (value) => String(value ?? '').trim().toLocaleLowerCase('es');
+const brief = (item) => ({ id: item.id, name: item.name, assetTag: item.assetTag ?? null, serialNumber: item.serialNumber ?? null });
+// Fields the AI intake may fill on an existing item (never status, identifiers or custom values).
+const COMMON_UPDATE_KEYS = ['model', 'categoryId', 'brandId', 'locationId', 'conditionId', 'description', 'notes', 'vendorName', 'invoiceNumber', 'purchaseDate', 'purchasePrice', 'warrantyExpiry', 'warrantyNotes'];
 
 // The vision model doesn't reliably tag serialNumber under a tight token
 // budget (see vision-service.js's DEFAULT_MAX_TOKENS), but rawText transcription
@@ -155,22 +161,42 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
     if (definitions.some(d => d.required && !values.some(v => v.fieldId === d.id && String(v.value ?? '').trim()))) {
       throw new InventoryServiceError('Completa los campos personalizados obligatorios.', 400);
     }
+    // Labels for the incoming catalog values, shown in the side-by-side diff.
+    const labels = {};
+    for (const [field, model] of [['categoryId', 'invCategory'], ['brandId', 'invBrand'], ['locationId', 'invLocation'], ['conditionId', 'invCondition']]) {
+      const id = data.common[field];
+      if (id && db[model]) labels[field] = (await db[model].findFirst({ where: { id, companyId }, select: { name: true } }))?.name ?? null;
+    }
     const alternatives = [];
-    if (seenSerials.size) alternatives.push({ serialNumber: { in: [...seenSerials] } });
-    if (seenTags.size) alternatives.push({ assetTag: { in: [...seenTags] } });
-    const matches = alternatives.length ? await db.invItem.findMany({ where: { companyId, OR: alternatives },
-      select: { id: true, name: true, assetTag: true, serialNumber: true, brandId: true, model: true, enabled: true } }) : [];
-    const duplicates = [];
+    for (const serial of seenSerials) alternatives.push({ serialNumber: { equals: serial, mode: 'insensitive' } });
+    for (const tag of seenTags) alternatives.push({ assetTag: { equals: tag, mode: 'insensitive' } });
+    // Only ACTIVE items conflict; logically deleted ones never do.
+    const matches = alternatives.length ? await db.invItem.findMany({ where: { companyId, enabled: true, OR: alternatives }, include: EXISTING_ITEM_INCLUDE }) : [];
+    const updates = [];
     data.units.forEach((unit, index) => {
-      for (const item of matches) {
-        if (unit.assetTag && item.assetTag === unit.assetTag) issues.push({ index, field: 'assetTag', message: 'Esta etiqueta interna ya existe.', item });
-        else if (unit.serialNumber && item.serialNumber === unit.serialNumber) {
-          duplicates.push({ index, item });
-          if (!unit.duplicateAcknowledged) issues.push({ index, field: 'serialNumber', message: 'Existe un equipo con esta serie. Revisa la coincidencia.', item });
-        }
+      const found = new Map();
+      if (unit.serialNumber) for (const item of matches) if (lower(item.serialNumber) === lower(unit.serialNumber)) found.set(item.id, { item, by: 'serialNumber' });
+      if (unit.assetTag) for (const item of matches) if (lower(item.assetTag) === lower(unit.assetTag) && !found.has(item.id)) found.set(item.id, { item, by: 'assetTag' });
+      if (found.size === 0) {
+        if (unit.mode !== 'create') issues.push({ index, message: 'Ese equipo ya no existe como activo; vuelve a revisar el lote.' });
+        return;
+      }
+      if (found.size > 1) {
+        issues.push({ index, field: 'serialNumber', message: 'La serie y el número de activo pertenecen a equipos distintos. Corrige uno de los dos.', items: [...found.values()].map(f => brief(f.item)) });
+        return;
+      }
+      const [{ item, by }] = found.values();
+      const incoming = { name: unit.name ?? data.common.name, partNumber: unit.partNumber ?? data.common.partNumber };
+      for (const key of COMMON_UPDATE_KEYS) incoming[key] = { value: data.common[key], label: labels[key] };
+      const { changes, patch } = diffItemFields(item, incoming);
+      updates.push({ index, matchedBy: by, item: brief(item), changes, patch });
+      if (unit.mode === 'create') {
+        issues.push({ index, field: by, message: by === 'serialNumber' ? 'Ya existe un equipo activo con esta serie. Actualízalo u omite la unidad.' : 'Ya existe un equipo activo con este número de activo. Actualízalo u omite la unidad.', item: brief(item) });
+      } else if (unit.mode === 'update' && unit.existingItemId !== item.id) {
+        issues.push({ index, message: 'El equipo a actualizar no coincide con el actual. Vuelve a revisar el lote.' });
       }
     });
-    return { data, proofs, issues, duplicates };
+    return { data, proofs, issues, updates };
   }
 
   async function create({ input, companyId, actorId, authUserId }) {
@@ -200,15 +226,27 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
         const service = createInventoryService({ prisma: transactionalClient, activityBridge: noopBridge });
         const items = [];
         for (const [index, unit] of checked.data.units.entries()) {
+          const evidence = checked.proofs.filter(p => unit.sourceImageIds.includes(p.imageId)).map(({ imageId, model, observations }) => ({ imageId, model, observations }));
+          const plan = checked.updates.find(u => u.index === index);
+          if (plan && unit.mode === 'skip') { items.push({ ...plan.item, action: 'skipped' }); continue; }
+          if (plan) {
+            // Only differing, non-empty fields; identifiers are never touched.
+            const saved = Object.keys(plan.patch).length ? await service.updateItem(plan.item.id, plan.patch, companyId, { actorAuthId: authUserId }) : null;
+            const item = { id: plan.item.id, name: saved?.name ?? plan.item.name, assetTag: saved?.assetTag ?? plan.item.assetTag, serialNumber: saved?.serialNumber ?? plan.item.serialNumber, action: 'updated' };
+            items.push(item);
+            await tx.auditLog.create({ data: { companyId, actorId, moduleKey: 'runly.inventory', entityType: 'InvItem', entityId: item.id,
+              action: 'inventory.item.updated', before: Object.fromEntries(plan.changes.map(c => [c.field, c.current])), after: Object.fromEntries(plan.changes.map(c => [c.field, c.incoming])),
+              metadata: { intakeKey: parsed.key, matchedBy: plan.matchedBy, confirmedIdentifiers: unit.confirmedIdentifiers ?? {}, evidence } } });
+            continue;
+          }
           const assetTag = unit.assetTag || `INV-${new Date().getFullYear()}-${parsed.key.slice(0, 12)}-${String(index + 1).padStart(3, '0')}`;
           const created = await service.createItem({ ...parsed.common, name: unit.name ?? parsed.common.name, serialNumber: unit.serialNumber || null,
             partNumber: unit.partNumber ?? parsed.common.partNumber, assetTag }, companyId, authUserId);
-          const item = { id: created.id, name: created.name, assetTag: created.assetTag, serialNumber: created.serialNumber ?? null };
+          const item = { id: created.id, name: created.name, assetTag: created.assetTag, serialNumber: created.serialNumber ?? null, action: 'created' };
           items.push(item);
           await tx.auditLog.create({ data: { companyId, actorId, moduleKey: 'runly.inventory', entityType: 'InvItem', entityId: item.id,
             action: 'inventory.item.created', after: item,
-            metadata: { intakeKey: parsed.key, confirmedIdentifiers: unit.confirmedIdentifiers ?? {}, duplicateAcknowledged: unit.duplicateAcknowledged,
-              evidence: checked.proofs.filter(p => unit.sourceImageIds.includes(p.imageId)).map(({ imageId, model, observations }) => ({ imageId, model, observations })) } } });
+            metadata: { intakeKey: parsed.key, confirmedIdentifiers: unit.confirmedIdentifiers ?? {}, evidence } } });
         }
         await tx.auditLog.create({ data: { companyId, actorId, moduleKey: 'runly.inventory', action: 'inventory.intake.created',
           metadata: { key: parsed.key, fingerprint }, after: { items } } });
