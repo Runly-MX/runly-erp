@@ -14,9 +14,19 @@ import { inventoryFormComponents } from '../components/InventoryItemClassificati
 import { InventoryCaptureTools } from '../components/InventoryCaptureTools.jsx'
 import { MAX_BULK_SERIALS, bulkUnitName, canPinField, captureStorageKey, loadCapture, parseSerials } from '../lib/capture.js'
 import { intakeRequest } from '../lib/intake.js'
+import { useIdentifierConflicts, IDENTIFIER_CONFLICT_MESSAGES } from '../hooks/useIdentifierConflicts.js'
+import { InventoryIdentifierConflict } from '../components/InventoryIdentifierConflict.jsx'
 import { ConnectedRunlyForm } from '../../../shell/connections/ConnectedRunlyForm.jsx'
 
 const API_BASE = getApiUrl()
+
+// Reports the typed serial / asset number up to the screen (renders nothing).
+function IdentifierWatcher({ values, onChange }) {
+  const serialNumber = values?.serialNumber ?? ''
+  const assetTag = values?.assetTag ?? ''
+  useEffect(() => { onChange({ serialNumber, assetTag }) }, [serialNumber, assetTag]) // eslint-disable-line react-hooks/exhaustive-deps
+  return null
+}
 
 export default function InventoryItemForm() {
   const { '*': wildcard } = useParams()
@@ -79,6 +89,28 @@ export default function InventoryItemForm() {
   const blueprint = useMemo(() => buildItemFormBlueprint(isEdit, { showLegacyPurchase }), [isEdit, showLegacyPurchase])
   const deleteItem = useDeleteInventoryItem()
 
+  const [typedIds, setTypedIds] = useState({ serialNumber: '', assetTag: '' })
+  const [serverConflict, setServerConflict] = useState(null)
+  const liveConflicts = useIdentifierConflicts({
+    apiBaseUrl: API_BASE, token, companyId: activeCompanyId,
+    serialNumber: typedIds.serialNumber, assetTag: typedIds.assetTag,
+    excludeId: id, original: isEdit ? editItem : null, enabled: !settings.multi,
+  })
+  // A 409 from save stays shown until the user edits the offending field.
+  const conflicts = {
+    serialNumber: liveConflicts.serialNumber ?? (serverConflict?.field === 'serialNumber' && serverConflict.value === typedIds.serialNumber ? serverConflict.item : null),
+    assetTag: liveConflicts.assetTag ?? (serverConflict?.field === 'assetTag' && serverConflict.value === typedIds.assetTag ? serverConflict.item : null),
+  }
+  const conflictField = conflicts.serialNumber ? 'serialNumber' : conflicts.assetTag ? 'assetTag' : null
+  const fieldNotes = {
+    serialNumber: <InventoryIdentifierConflict field="serialNumber" item={conflicts.serialNumber} />,
+    assetTag: <InventoryIdentifierConflict field="assetTag" item={conflicts.assetTag} />,
+  }
+  function handleSubmitError(err) {
+    const field = err?.code === 'SERIAL_EXISTS' ? 'serialNumber' : err?.code === 'ASSET_TAG_EXISTS' ? 'assetTag' : null
+    if (field && err.details?.item) setServerConflict({ field, item: err.details.item, value: typedIds[field] })
+  }
+
   if (isEdit && itemQuery.isLoading) {
     return <div className="p-4 md:p-6"><FormSkeleton sections={4} /></div>
   }
@@ -116,10 +148,18 @@ export default function InventoryItemForm() {
               pinned: pin ? [...new Set([...prev.pinned, ...names])] : prev.pinned.filter((name) => !names.includes(name)),
             })),
           }}
-          renderTools={isEdit ? null : (tools) => (
-            <InventoryCaptureTools {...tools} settings={settings} setSettings={setSettings} storageKey={storageKey}
-              serialsText={serialsText} setSerialsText={setSerialsText} />
+          renderTools={(tools) => (
+            <>
+              <IdentifierWatcher values={tools.values} onChange={setTypedIds} />
+              {isEdit ? null : (
+                <InventoryCaptureTools {...tools} settings={settings} setSettings={setSettings} storageKey={storageKey}
+                  serialsText={serialsText} setSerialsText={setSerialsText} />
+              )}
+            </>
           )}
+          fieldNotes={fieldNotes}
+          submitBlockedReason={conflictField ? `${IDENTIFIER_CONFLICT_MESSAGES[conflictField]}. Actualiza ese equipo en lugar de crear uno nuevo.` : ''}
+          onSubmitError={handleSubmitError}
           mode={isEdit ? 'edit' : 'create'}
           token={token}
           companyId={activeCompanyId}

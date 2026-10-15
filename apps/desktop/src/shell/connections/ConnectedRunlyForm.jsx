@@ -25,7 +25,10 @@ export function ConnectedRunlyForm({ targetType, targetId = null, blueprint, com
     const body = await response.json().catch(() => null)
     if (!response.ok) {
       connectionForm.applyErrorResponse(body)
-      throw new Error(body?.error ?? 'No se pudo guardar la información.')
+      const failure = new Error(body?.error ?? 'No se pudo guardar la información.')
+      if (body?.code) failure.code = body.code
+      if (body?.details) failure.details = body.details
+      throw failure
     }
     void queryClient.invalidateQueries({ queryKey: ['connections'] })
     void connectionForm.reset()

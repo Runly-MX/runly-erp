@@ -114,6 +114,12 @@ export function RunlyForm({
   // Changes kept outside this form's state (e.g. connected-module sections)
   // that also need the save bar.
   extraDirty = false,
+  // Optional nodes rendered under a field's control: { fieldName: ReactNode }.
+  fieldNotes = null,
+  // When set, saving is refused with this message (e.g. a known duplicate).
+  submitBlockedReason = "",
+  // Called with the error (it may carry `code`/`details`) when saving fails.
+  onSubmitError = null,
 }) {
   const runtimeFetch = useRuntimeFetch();
   const schema = blueprint?.schema ?? {};
@@ -411,6 +417,11 @@ export function RunlyForm({
     event.preventDefault();
     event.stopPropagation();
     setSubmitError("");
+    if (submitBlockedReason) {
+      setSubmitError(submitBlockedReason);
+      toast.error(submitBlockedReason);
+      return;
+    }
     if (!validate()) return;
     if (isEditMode && !recordId) {
       setSubmitError("No se pudo guardar la información.");
@@ -464,13 +475,17 @@ export function RunlyForm({
       if (!response.ok) {
         const text = await response.text();
         let message = "No se pudo guardar la información.";
+        let parsed = null;
         try {
-          const parsed = text ? JSON.parse(text) : null;
+          parsed = text ? JSON.parse(text) : null;
           if (parsed?.error) message = parsed.error;
         } catch {
           if (text) message = text;
         }
-        throw new Error(message);
+        const failure = new Error(message);
+        if (parsed?.code) failure.code = parsed.code;
+        if (parsed?.details) failure.details = parsed.details;
+        throw failure;
       }
       result = await response.json();
       }
@@ -501,6 +516,7 @@ export function RunlyForm({
           : "No se pudo guardar la información.";
       setSubmitError(message);
       toast.error(message);
+      onSubmitError?.(err);
     } finally {
       setSubmitting(false);
     }
@@ -703,6 +719,7 @@ export function RunlyForm({
               >
                 {pin ? <FieldPinButton {...pin} label={field.label} /> : null}
                 {renderFieldControl(field)}
+                {fieldNotes?.[field.name] ?? null}
               </div>
             );
           })}
