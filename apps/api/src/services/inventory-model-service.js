@@ -2,9 +2,11 @@
 // defined by type + brand + name (+ optional year). Items reference it via modelId.
 import { z } from 'zod';
 import { InventoryServiceError, assertCompany, createRefGuard } from './inventory-guards.js';
+import { normalizeCode } from './inventory-folio.js';
 
 const modelInput = z.object({
   name: z.string().trim().min(1).max(255),
+  code: z.string().trim().max(6).nullable().optional(),
   typeId: z.uuid().optional(),
   typeName: z.string().trim().min(1).max(100).optional(),
   brandId: z.uuid().optional(),
@@ -104,7 +106,7 @@ export function createInventoryModelService({ prisma }) {
     }
     try {
       const created = await prisma.invModel.create({
-        data: { companyId, name: data.name, nameKey, typeId, brandId, year: data.year ?? null, description: data.description ?? null },
+        data: { companyId, name: data.name, ...(data.code !== undefined ? { code: normalizeCode(data.code) } : {}), nameKey, typeId, brandId, year: data.year ?? null, description: data.description ?? null },
         include: INCLUDE,
       });
       return toRow(created);
@@ -131,6 +133,7 @@ export function createInventoryModelService({ prisma }) {
       data: {
         name, nameKey: nameKeyOf(name), typeId, brandId, year,
         ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.code !== undefined ? { code: normalizeCode(data.code) } : {}),
       },
       include: INCLUDE,
     });

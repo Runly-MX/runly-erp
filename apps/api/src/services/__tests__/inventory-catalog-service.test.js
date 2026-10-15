@@ -44,3 +44,19 @@ test('deleteCategory refuses a type that enabled models still use', async () => 
   await assert.rejects(createInventoryCatalogService({ prisma }).deleteCategory(TYPE, COMPANY), (err) => err.status === 409 && /2 modelo/.test(err.message));
   assert.equal(prisma.calls.update.length, 0);
 });
+
+test('createBrand and updateCategory normalize the folio code', async () => {
+  const calls = { brand: null, category: null }
+  const prisma = {
+    invBrand: { create: async (args) => { calls.brand = args.data; return { id: 'b1', ...args.data } } },
+    invCategory: {
+      findFirst: async () => ({ id: TYPE }),
+      update: async (args) => { calls.category = args.data; return { id: TYPE, ...args.data } },
+    },
+  }
+  const svc = createInventoryCatalogService({ prisma })
+  await svc.createBrand({ name: 'Cisco', code: ' cis ' }, COMPANY)
+  await svc.updateCategory(TYPE, { code: 'te-l' }, COMPANY)
+  assert.equal(calls.brand.code, 'CIS')
+  assert.equal(calls.category.code, 'TEL')
+})

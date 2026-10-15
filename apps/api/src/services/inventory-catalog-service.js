@@ -1,6 +1,7 @@
 // inventory-catalog-service.js — runly.inventory catalogs: types (InvCategory),
 // brands, locations, conditions and custom fields. Extracted from inventory-service.js.
 import { InventoryServiceError, assertCompany, createRefGuard } from './inventory-guards.js';
+import { normalizeCode } from './inventory-folio.js';
 
 // Seeded once per company (see listCategories) and by the 20260928120000 migration.
 export const DEFAULT_INVENTORY_TYPES = [
@@ -70,9 +71,10 @@ export function createInventoryCatalogService({ prisma }) {
 
   async function createCategory(data, companyId) {
     assertCompany(companyId);
-    const { name, description, icon, color, parentId, sortOrder } = data;
+    const { name, code, description, icon, color, parentId, sortOrder } = data;
     await assertRefInCompany('invCategory', parentId, companyId, 'El tipo padre');
     const createData = { companyId, name };
+    if (code !== undefined) createData.code = normalizeCode(code);
     if (description !== undefined) createData.description = description;
     if (icon !== undefined) createData.icon = icon;
     if (color !== undefined) createData.color = color;
@@ -85,13 +87,14 @@ export function createInventoryCatalogService({ prisma }) {
     assertCompany(companyId);
     const existing = await prisma.invCategory.findFirst({ where: { id, companyId, enabled: true } });
     if (!existing) throw new InventoryServiceError('Category not found', 404);
-    const { name, description, icon, color, parentId, sortOrder } = data;
+    const { name, code, description, icon, color, parentId, sortOrder } = data;
     if (parentId !== undefined && parentId !== null && parentId === id) {
       throw new InventoryServiceError('Un tipo no puede ser su propio padre.', 400);
     }
     await assertRefInCompany('invCategory', parentId, companyId, 'El tipo padre');
     const updateData = {};
     if (name !== undefined) updateData.name = name;
+    if (code !== undefined) updateData.code = normalizeCode(code);
     if (description !== undefined) updateData.description = description;
     if (icon !== undefined) updateData.icon = icon;
     if (color !== undefined) updateData.color = color;
@@ -122,8 +125,9 @@ export function createInventoryCatalogService({ prisma }) {
 
   async function createBrand(data, companyId) {
     assertCompany(companyId);
-    const { name, description, website } = data;
+    const { name, code, description, website } = data;
     const createData = { companyId, name };
+    if (code !== undefined) createData.code = normalizeCode(code);
     if (description !== undefined) createData.description = description;
     if (website !== undefined) createData.website = website;
     return prisma.invBrand.create({ data: createData });
@@ -133,9 +137,10 @@ export function createInventoryCatalogService({ prisma }) {
     assertCompany(companyId);
     const existing = await prisma.invBrand.findFirst({ where: { id, companyId, enabled: true } });
     if (!existing) throw new InventoryServiceError('Brand not found', 404);
-    const { name, description, website } = data;
+    const { name, code, description, website } = data;
     const updateData = {};
     if (name !== undefined) updateData.name = name;
+    if (code !== undefined) updateData.code = normalizeCode(code);
     if (description !== undefined) updateData.description = description;
     if (website !== undefined) updateData.website = website;
     return prisma.invBrand.update({ where: { id }, data: updateData });
