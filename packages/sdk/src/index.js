@@ -10,6 +10,7 @@ import { createAttendanceDomain } from "./domains/attendance.js";
 import { createConnectionsDomain } from "./domains/connections.js";
 import { createTrashDomain } from "./domains/trash.js";
 import { createInventoryCustodyDomain } from "./domains/inventory-custody.js";
+import { createInventoryLabelsDomain } from "./domains/inventory-labels.js";
 import { createModuleCatalogDomain } from "./domains/module-catalog.js";
 export { createCompanyFetch } from "./company-fetch.js";
 export { createRunlyDeviceClient } from './native-device.js';
@@ -2464,6 +2465,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
     })(),
     inventory: {
       ...createInventoryCustodyDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
+      ...createInventoryLabelsDomain({ request, requestBlob, withAuthHeaders }),
       listMedia: (params, token) =>
         request(`/inventory/media${toQueryString(params)}`, {
           headers: withAuthHeaders(token),
