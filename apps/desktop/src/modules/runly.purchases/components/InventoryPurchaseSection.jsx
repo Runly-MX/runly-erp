@@ -91,7 +91,7 @@ export default function InventoryPurchaseSection({ data: item }) {
   const actions = (canOrder || canInvoice || canLink) ? (
     <div className="space-y-2">
       {((canOrder && !hasOrder) || (canInvoice && !hasInvoice)) ? (
-        <div className={canOrder && !hasOrder && canInvoice && !hasInvoice ? 'grid grid-cols-2 gap-2' : 'grid gap-2'}>
+        <div className={canOrder && !hasOrder && canInvoice && !hasInvoice ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'grid grid-cols-1 gap-2'}>
           {canOrder && !hasOrder ? <Button type="button" size="sm" variant="outline" onClick={() => create('orders')}><Plus className="mr-1.5 h-3.5 w-3.5" />Crear orden</Button> : null}
           {canInvoice && !hasInvoice ? <Button type="button" size="sm" variant="outline" onClick={() => create('invoices')}><Plus className="mr-1.5 h-3.5 w-3.5" />Crear factura</Button> : null}
         </div>

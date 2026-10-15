@@ -145,7 +145,7 @@ function CommentRow({ comment, currentUserId, members, onUpdate, onDelete, onTog
             </div>
           </div>
         ) : (
-          <p className="mt-0.5 text-sm leading-relaxed">{renderMentionText(comment.body)}</p>
+          <p className="mt-0.5 whitespace-pre-wrap [overflow-wrap:anywhere] text-sm leading-relaxed">{renderMentionText(comment.body)}</p>
         )}
 
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
@@ -252,7 +252,7 @@ export function CommentThread({
   }
 
   return (
-    <Card className="p-4 space-y-4">
+    <Card className="min-w-0 [overflow-wrap:anywhere] p-4 space-y-4">
       <h3 className="text-sm font-medium">Comentarios</h3>
 
       {loading ? (

@@ -63,7 +63,7 @@ const STATUS_COLORS = {
 
 
 const matchesFieldRule = matchesVisibilityRule;
-const MOBILE_ORDER = "order-(--mobile-order) lg:order-none";
+const MOBILE_ORDER = "min-w-0 order-(--mobile-order) lg:order-none";
 
 function normalizeField(fieldLike) {
   if (!fieldLike || typeof fieldLike !== "object") return null;
@@ -468,10 +468,10 @@ function renderValue(field, value, record = {}) {
 }
 
 function gridClass(columns) {
-  if (columns === 1) return "grid gap-4";
-  if (columns === 2) return "grid gap-4 md:grid-cols-2";
-  if (columns === 3) return "grid gap-4 md:grid-cols-3";
-  return "grid gap-4 lg:grid-cols-2";
+  if (columns === 1) return "grid grid-cols-1 gap-4";
+  if (columns === 2) return "grid grid-cols-1 gap-4 md:grid-cols-2";
+  if (columns === 3) return "grid grid-cols-1 gap-4 md:grid-cols-3";
+  return "grid grid-cols-1 gap-4 lg:grid-cols-2";
 }
 
 
@@ -689,7 +689,7 @@ export function RunlyDetail({
               return (
                 <div
                   key={field.name}
-                  className={`space-y-1.5${isMarkdown ? " col-span-full" : ""}`}
+                  className={`min-w-0 space-y-1.5${isMarkdown ? " col-span-full" : ""}`}
                 >
                   <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                     <FieldLabel field={field} />
@@ -746,7 +746,7 @@ export function RunlyDetail({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {heroModel ? (
         <HeroContainer
           heroModel={heroModel}
@@ -798,7 +798,7 @@ export function RunlyDetail({
         // Below lg the columns are flattened (display: contents) so an aside
         // section with `mobileAfter: "<section id>"` can sit right after that
         // main section on mobile instead of after all of them.
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
           <div className="contents lg:block lg:min-w-0 lg:space-y-6">
             {mainSections.map((section) => (
               <div key={section.id} className={MOBILE_ORDER} style={{ "--mobile-order": mobileOrder.get(section.id) }}>{renderSection(section)}</div>

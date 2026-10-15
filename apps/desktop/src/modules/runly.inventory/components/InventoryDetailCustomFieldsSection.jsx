@@ -17,12 +17,12 @@ export default function InventoryDetailCustomFieldsSection({ data }) {
   const entries = filledCustomValues(data?.customValues)
   if (!entries.length) return null
   return (
-    <dl className="grid gap-4 md:grid-cols-2">
+    <dl className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {entries.map((cv) => {
         const value = formatValue(cv.field, cv.value)
         const isLink = cv.field.fieldType === 'url'
         return (
-          <div key={cv.fieldId ?? cv.field.id} className={cv.field.fieldType === 'textarea' ? 'col-span-full space-y-1.5' : 'space-y-1.5'}>
+          <div key={cv.fieldId ?? cv.field.id} className={cv.field.fieldType === 'textarea' ? 'min-w-0 col-span-full space-y-1.5' : 'min-w-0 space-y-1.5'}>
             <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
               {cv.field.label}
               {cv.field.onDemand ? <span className="ml-1.5 normal-case tracking-normal text-[10px] text-[hsl(var(--muted-foreground))]">(de este activo)</span> : null}

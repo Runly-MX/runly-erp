@@ -30,7 +30,7 @@ export function DetailSectionShell({ section, className, children }) {
   );
 
   return (
-    <div className={cn("glass-shell-flat rounded-xl px-5 py-4", isOpen && "space-y-4", className)}>
+    <div className={cn("glass-shell-flat min-w-0 [overflow-wrap:anywhere] rounded-xl px-5 py-4", isOpen && "space-y-4", className)}>
       {section.title ? (
         collapsible ? (
           <button
