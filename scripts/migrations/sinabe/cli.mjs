@@ -12,6 +12,7 @@ import { runVerify } from './verify.mjs'
 import { runRollback } from './rollback.mjs'
 import { summarize } from './report.mjs'
 import { runTargets } from './targets.mjs'
+import { runWipe } from './wipe.mjs'
 
 const USAGE = `Uso:
   cli.mjs census    --dump <archivo.sql> [--listing <listado.tsv>] --out <carpeta>
@@ -20,8 +21,9 @@ const USAGE = `Uso:
   cli.mjs migrate   --dump <archivo.sql> --company <uuid> [--actor <perfil>] [--listing <listado.tsv>]
                     [--files-dir <carpeta> | --files-base-url <url>] [--dry-run | --commit] [--source sinabe]
                     [--batch-size 50] [--only <ids.txt>] [--rate <bytes/s>] [--pause-ms <ms>] [--max-errors <n>]
-                    [--deliverers-map <correo-perfil.json>] [--include-projects] [--max-file-mb 50] [--timezone America/Mexico_City] --out <carpeta>
+                    [--deliverers-map <correo-perfil.json>] [--include-projects] [--skip-custody] [--max-file-mb 50] [--timezone America/Mexico_City] --out <carpeta>
   cli.mjs verify    --dump <archivo.sql> --company <uuid> [--listing ...] [--files-dir ... | --files-base-url ...] [--source sinabe] --out <carpeta>
+  cli.mjs wipe      --company <uuid> [--commit --confirm <uuid>] [--allow-many]   (borra inventario y compras de la empresa; sin --commit solo cuenta)
   cli.mjs targets   (lista las empresas y perfiles de la instancia a la que apunta el entorno; solo lectura)
   cli.mjs rollback  --company <uuid> [--source sinabe] [--only <ids.txt> --dump <archivo.sql>] --out <carpeta>`
 
@@ -39,7 +41,7 @@ const OPTIONS = {
   source: { type: 'string' }, 'batch-size': { type: 'string' }, only: { type: 'string' }, rate: { type: 'string' },
   'pause-ms': { type: 'string' }, 'max-errors': { type: 'string' }, 'deliverers-map': { type: 'string' },
   'max-file-mb': { type: 'string' }, timezone: { type: 'string' }, commit: { type: 'boolean' }, 'dry-run': { type: 'boolean' },
-  debug: { type: 'boolean' }, 'include-projects': { type: 'boolean' },
+  debug: { type: 'boolean' }, 'include-projects': { type: 'boolean' }, 'skip-custody': { type: 'boolean' }, confirm: { type: 'string' }, 'allow-many': { type: 'boolean' },
 }
 
 function runOptions(values) {
@@ -51,7 +53,7 @@ function runOptions(values) {
     batchSize: opt(values, 'batch-size'), only: values.only ?? null, rate: opt(values, 'rate', 0), pauseMs: opt(values, 'pause-ms', 0),
     maxErrors: opt(values, 'max-errors', Infinity), deliverersMap: values['deliverers-map'] ?? null,
     maxFileBytes: values['max-file-mb'] ? number(values['max-file-mb'], 'max-file-mb') * 1024 * 1024 : DEFAULT_MAX_FILE_BYTES,
-    timeZone: values.timezone, commit: Boolean(values.commit), includeProjects: Boolean(values['include-projects']),
+    timeZone: values.timezone, commit: Boolean(values.commit), includeProjects: Boolean(values['include-projects']), skipCustody: Boolean(values['skip-custody']), confirm: values.confirm ?? null, allowMany: Boolean(values['allow-many']),
     log: (line) => console.log(line),
     onUnexpected: values.debug ? (error) => console.error(error) : null,
   }
@@ -112,6 +114,7 @@ export async function main(argv) {
     console.log(summarize(data))
     return data.errors ? 1 : 0
   }
+  if (command === 'wipe') return runWipe(runOptions(values), (line) => console.log(line))
   if (command === 'targets') return runTargets((line) => console.log(line))
   console.error(USAGE)
   return 2

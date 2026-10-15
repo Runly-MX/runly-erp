@@ -228,6 +228,32 @@ node --env-file=.env scripts/migrations/sinabe/cli.mjs rollback --company <UUID_
 node --env-file=.env scripts/migrations/sinabe/cli.mjs rollback --company <UUID_EMPRESA> --only <SALIDA>/plan/batches/batch-001.txt --dump sinabe.sql --out <SALIDA>/reversion-piloto
 ```
 
+### 6.8 Vaciar Inventario y Compras antes de migrar (`wipe`)
+
+Si la empresa tiene equipos o compras de prueba que no deben mezclarse con la migración, `wipe`
+vacía los módulos Inventario y Compras de una sola empresa: inventarios, asignaciones, resguardos,
+comentarios, relaciones, archivos (también del almacenamiento) y todo el flujo de compras. No toca
+catálogos (tipos, marcas, ubicaciones, modelos, campos personalizados, plantillas), colaboradores,
+proveedores ni nada de otros módulos. Es destructivo:
+
+- sin `--commit` solo cuenta lo que borraría;
+- para borrar exige `--commit --confirm <UUID_EMPRESA>` (el mismo id);
+- se niega si la empresa tiene datos migrados (para deshacer una migración se usa `rollback`);
+- se niega si hay más de 100 inventarios, salvo `--allow-many`.
+
+```bash
+node --env-file=.env scripts/migrations/sinabe/cli.mjs wipe --company <UUID_EMPRESA>
+node --env-file=.env scripts/migrations/sinabe/cli.mjs wipe --company <UUID_EMPRESA> --commit --confirm <UUID_EMPRESA>
+```
+
+Tomar un respaldo de la base antes del segundo comando.
+
+### 6.9 Sin resguardos ni colaboradores (`--skip-custody`)
+
+Con `--skip-custody`, `migrate` no importa resguardos ni, por tanto, colaboradores (solo se crean
+como receptores de resguardos). Se crean a mano los colaboradores y luego se repite el comando sin
+la bandera: lo que coincide por número de empleado, correo o nombre exacto se reutiliza.
+
 ## 7. Decisiones de mapeo que el cliente debe conocer
 
 - Número de activo: nunca se inventa. Si el activo de sinabe no tiene número, queda sin número

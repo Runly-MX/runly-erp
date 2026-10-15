@@ -78,8 +78,12 @@ export async function runMigrate(options) {
     const priorItems = await run.refs.findMany('inv_item', custodyInventoryIds)
     const expected = new Map(priorItems)
     for (const id of scope.itemIds) if (!expected.has(id)) expected.set(id, `dry:item:${id}`)
-    const receivers = custodyCandidates(run.model, expected, scope.itemIds).filter((c) => c.state === 'eligible').map((c) => c.record.receiverId)
-    const employees = await timed(run, 'colaboradores', () => migrateEmployees(run, receivers))
+    // --skip-custody: no resguardos and therefore no employees are imported (they are only needed as
+    // custody receivers). Create the employees by hand, then rerun without the flag: whatever matches
+    // by employee number, e-mail or exact name is reused.
+    const skipCustody = Boolean(options.skipCustody)
+    const receivers = skipCustody ? [] : custodyCandidates(run.model, expected, scope.itemIds).filter((c) => c.state === 'eligible').map((c) => c.record.receiverId)
+    const employees = skipCustody ? new Map() : await timed(run, 'colaboradores', () => migrateEmployees(run, receivers))
     const orderIds = await timed(run, 'ordenes', () => migratePurchaseOrders(run, scope, supplierIds))
     const invoiceIds = await timed(run, 'facturas', () => migrateInvoices(run, scope, supplierIds, orderIds))
 
@@ -95,7 +99,8 @@ export async function runMigrate(options) {
 
     const known = new Map(await run.refs.findMany('inv_item', custodyInventoryIds))
     if (!commit) for (const [legacyId, id] of itemIds) if (!known.has(legacyId)) known.set(legacyId, id)
-    await timed(run, 'resguardos', () => migrateCustody(run, custodyCandidates(run.model, known, scope.itemIds), known, employees))
+    if (skipCustody) report.pending('resguardos', run.model.source.custodyRecords.length)
+    else await timed(run, 'resguardos', () => migrateCustody(run, custodyCandidates(run.model, known, scope.itemIds), known, employees))
     await timed(run, 'comentarios', () => migrateComments(run, itemIds))
 
     const s = run.model.source
