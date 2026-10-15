@@ -18,7 +18,7 @@ const MODES = [
 ];
 
 const suggestKey = (name) => {
-  const slug = String(name ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 24);
+  const slug = String(name ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "").replace(/^[0-9]+/, "").slice(0, 24);
   return slug ? `custom.${slug}` : "";
 };
 
