@@ -5,15 +5,15 @@ Conventions: same as `2026-10-15-inventory-folio.md` (commit only own files, `ma
 
 ## Tasks
 
-- [ ] 1. Schema + forward migration `20261026000000_inv_label_tables`: `InvLabelTemplate`, `InvLabelPrinter`, `InvLabelPrint` (`inv_label_template|printer|print`), relations on `Company`, `UserProfile`, `InvItem`.
-- [ ] 2. Pure rendering package `apps/api/src/services/inventory-labels/`:
+- [x] 1. Schema + forward migration `20261026000000_inv_label_tables`: `InvLabelTemplate`, `InvLabelPrinter`, `InvLabelPrint` (`inv_label_template|printer|print`), relations on `Company`, `UserProfile`, `InvItem`.
+- [x] 2. Pure rendering package `apps/api/src/services/inventory-labels/`:
   `layout.js` (presets, validation, field selection, quantity expansion), `geometry.js` (mm geometry shared by all renderers),
   `qr-content.js` (url | embedded content), `zpl.js` (native `^BQ`), `pdf.js` (pdfkit + `qrcode` matrix), `png.js` (SVG -> sharp), `index.js`.
-- [ ] 3. `apps/api/src/services/inventory-label-service.js` (`createInventoryLabelService({ prisma, publicBaseUrl, resolveItemQrUrl })`): template/printer CRUD, lazy default templates, render, print log, history, per-item label stats.
-- [ ] 4. Permissions `inventory.label.read|print|manage` (catalog, manifest permissions + acl) and routes `apps/api/src/routes/inventory/label-routes.js` mounted from `routes/inventory/index.js`; item list gets `labeled` filter and `labelPrintedAt`/`labelPrintCount`.
-- [ ] 5. SDK `inventory.labels*` methods (`packages/sdk/src/domains/inventory-labels.js`).
-- [ ] 6. Tests (`apps/api/src/services/__tests__/inventory-labels.test.js`, `inventory-label-service.test.js`).
-- [ ] 7. Docs `docs/ai-context/inventory-labels.md`.
+- [x] 3. `apps/api/src/services/inventory-label-service.js` (`createInventoryLabelService({ prisma, publicBaseUrl, resolveItemQrUrl })`): template/printer CRUD, lazy default templates, render, print log, history, per-item label stats.
+- [x] 4. Permissions `inventory.label.read|print|manage` (catalog, manifest permissions + acl) and routes `apps/api/src/routes/inventory/label-routes.js` mounted from `routes/inventory/index.js`; item list gets `labeled` filter and `labelPrintedAt`/`labelPrintCount`.
+- [x] 5. SDK `inventory.labels*` methods (`packages/sdk/src/domains/inventory-labels.js`).
+- [x] 6. Tests (`apps/api/src/services/__tests__/inventory-labels.test.js`, `inventory-label-service.test.js`).
+- [x] 7. Docs `docs/ai-context/inventory-labels.md`.
 
 ## Routes
 
@@ -30,3 +30,5 @@ Conventions: same as `2026-10-15-inventory-folio.md` (commit only own files, `ma
 
 - QR URL comes from an injected `resolveItemQrUrl(item)`; default is the placeholder `<base>/app/p/inv/f-<folio>`. Phase 3 replaces it with the opaque token.
 - Native ZPL `^BQ` QR; PDF/PNG draw the same `qrcode` module matrix so all outputs agree.
+
+Verified: 2026-10-15 (migration applied to dev DB; 15 label tests + 232 inventory/API tests pass; pnpm lint clean; PNG preview inspected visually). Not verified: real printers, browser UI.
