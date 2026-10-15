@@ -1,23 +1,20 @@
 // GET /search — global record search across permission-gated providers.
+// Contract: ?q=&module=<moduleKey>&limit= -> { query, scope, scopeLabel, fallback, groups, suggestions }
+// (docs/ai-context/rme3-runtime-capabilities.md, "Global search").
 import { Hono } from "hono";
-import { SEARCH_PROVIDERS } from "../services/search-providers.js";
+import { SEARCH_PROVIDERS, SEARCH_MODULE_LABELS } from "../services/search/index.js";
+import { runSearch } from "../services/search/run-search.js";
 
 const MIN_QUERY_LENGTH = 2;
-const DEFAULT_LIMIT = 5;
-const MAX_LIMIT = 10;
-
-function clampLimit(raw) {
-  const parsed = Number.parseInt(String(raw ?? ""), 10);
-  if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_LIMIT;
-  return Math.min(parsed, MAX_LIMIT);
-}
 
 // resolveTenantContext: the same X-Runly-Company-Id-validating resolver
 // requirePermission/requireAnyPermission use, injected rather than imported
 // (index.js imports this router — importing back from index.js would be
 // circular). See
 // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
-export function createSearchRouter({ prisma, getUserContext, resolveTenantContext }) {
+export function createSearchRouter({
+  prisma, getUserContext, resolveTenantContext, providers = SEARCH_PROVIDERS, providerTimeoutMs, suggest,
+}) {
   const app = new Hono();
 
   app.get("/search", async (c) => {
@@ -32,60 +29,30 @@ export function createSearchRouter({ prisma, getUserContext, resolveTenantContex
     }
 
     // Non-strict: /search has no dedicated permission gate of its own (it
-    // filters providers per-provider below), so a multi-company user with no
+    // filters providers per-provider), so a multi-company user with no
     // active-company header yet still gets a (permission-less, hence empty)
     // response instead of a hard 400 — matches /runtime/modules' bootstrap
     // treatment, not requirePermission's strict one.
     const resolved = await resolveTenantContext(c, context, { strict: false });
     if (!resolved.ok) return resolved.response;
     const { tenant } = resolved;
-
-    const companyId = tenant.companyId;
-    if (!companyId) {
+    if (!tenant.companyId) {
       return c.json({ query: q, groups: [] });
     }
 
-    const limit = clampLimit(c.req.query("limit"));
-    const allowed = SEARCH_PROVIDERS.filter(
-      (provider) =>
-        tenant.isAdmin || tenant.permissionSet?.has(provider.permission),
-    );
-
-    const settled = await Promise.allSettled(
-      allowed.map((provider) =>
-        provider.run({
-          prisma,
-          companyId,
-          actorId: context.profile.id,
-          q,
-          limit,
-        }),
-      ),
-    );
-
-    const groups = [];
-    settled.forEach((result, index) => {
-      const provider = allowed[index];
-      if (result.status === "rejected") {
-        if (process.env.NODE_ENV !== "production") {
-          console.error(`[search:${provider.source}]`, result.reason?.message);
-        }
-        return;
-      }
-      const items = Array.isArray(result.value) ? result.value : [];
-      if (items.length === 0) return;
-      groups.push({
-        source: provider.source,
-        label: provider.label,
-        items: items.map((item) => ({
-          ...item,
-          source: provider.source,
-          target: provider.target(item.id),
-        })),
-      });
+    const response = await runSearch({
+      prisma,
+      providers,
+      moduleLabels: SEARCH_MODULE_LABELS,
+      tenant,
+      actorId: context.profile.id,
+      q,
+      moduleKey: String(c.req.query("module") ?? "").trim() || null,
+      limit: c.req.query("limit"),
+      ...(providerTimeoutMs ? { timeoutMs: providerTimeoutMs } : {}),
+      ...(suggest ? { suggest } : {}),
     });
-
-    return c.json({ query: q, groups });
+    return c.json(response);
   });
 
   return app;

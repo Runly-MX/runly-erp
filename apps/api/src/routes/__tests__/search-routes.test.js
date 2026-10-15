@@ -3,55 +3,34 @@ import { describe, it } from "node:test";
 
 import { createSearchRouter } from "../search-routes.js";
 
-const CONTACT_ROWS = [
-  { id: "c1", name: "Acme", email: "a@acme.com", phone: null, type: "company" },
-];
-const USER_ROWS = [
-  { user: { id: "u1", displayName: "Jane", email: "jane@x.com" } },
-];
-const EMPLOYEE_ROWS = [
-  {
-    id: "e1",
-    firstName: "Ana",
-    lastName: "Lopez",
-    jobTitle: "Ventas",
-    workEmail: null,
-    employeeCode: null,
-  },
-];
-
-function makePrisma(overrides = {}) {
+function fakeProvider(source, moduleKey, { items = [], permission = `${source}.read`, delay = 0, fail = false, seen } = {}) {
   return {
-    contact: { findMany: async () => CONTACT_ROWS },
-    membership: { findMany: async () => USER_ROWS },
-    hrEmployee: { findMany: async () => EMPLOYEE_ROWS },
-    ...overrides,
+    source,
+    moduleKey,
+    label: source.toUpperCase(),
+    permission,
+    target: (id) => `/t/${source}/${id}`,
+    seeAllTarget: (q) => `/all/${source}?q=${q}`,
+    async search(ctx) {
+      seen?.push({ source, limit: ctx.limit, companyId: ctx.companyId });
+      if (delay) await new Promise((r) => setTimeout(r, delay));
+      if (fail) throw new Error("boom");
+      return { items: items.map((id) => ({ id, title: `${source}-${id}`, icon: "X" })), total: items.length };
+    },
   };
 }
 
 function makeContext({ isAdmin = false, permissions = [] } = {}) {
-  return {
-    profile: { id: "actor-1" },
-    isAdmin,
-    permissionSet: new Set(permissions),
-    memberships: [{ companyId: "co-1" }],
-  };
+  return { profile: { id: "actor-1" }, isAdmin, permissionSet: new Set(permissions), memberships: [{ companyId: "co-1" }] };
 }
 
-// Minimal stand-in for index.js's real resolveTenantContext: derives the
-// tenant view straight from the flat makeContext() shape these tests already
-// use (isAdmin/permissionSet/memberships[0]), rather than pulling in the
-// full nested-membership permission computation.
 async function resolveTenantContext(c, context) {
   const companyId = context.memberships?.[0]?.companyId ?? null;
-  return {
-    ok: true,
-    tenant: { companyId, isAdmin: context.isAdmin, permissionSet: context.permissionSet },
-  };
+  return { ok: true, tenant: { companyId, isAdmin: context.isAdmin, permissionSet: context.permissionSet } };
 }
 
-function makeApp(context, prisma = makePrisma()) {
-  return createSearchRouter({ prisma, getUserContext: async () => context, resolveTenantContext });
+function makeApp(context, providers, extra = {}) {
+  return createSearchRouter({ prisma: {}, getUserContext: async () => context, resolveTenantContext, providers, suggest: async () => [], ...extra });
 }
 
 async function get(app, path) {
@@ -60,82 +39,104 @@ async function get(app, path) {
 }
 
 describe("GET /search", () => {
-  it("returns empty groups and calls no provider when q is too short", async () => {
-    let called = false;
-    const prisma = makePrisma({
-      contact: {
-        findMany: async () => {
-          called = true;
-          return CONTACT_ROWS;
-        },
-      },
+  it("short query or no company returns empty groups without running providers", async () => {
+    const seen = [];
+    const app = makeApp(makeContext({ isAdmin: true }), [fakeProvider("a", "m.a", { items: ["1"], seen })]);
+    assert.deepEqual((await get(app, "/search?q=a")).body, { query: "a", groups: [] });
+    const ctx = makeContext({ isAdmin: true });
+    ctx.memberships = [];
+    assert.deepEqual((await get(makeApp(ctx, [fakeProvider("a", "m.a", { seen })]), "/search?q=abc")).body.groups, []);
+    assert.equal(seen.length, 0);
+  });
+
+  it("unscoped: every allowed provider, contract fields present", async () => {
+    const app = makeApp(makeContext({ isAdmin: true }), [fakeProvider("a", "m.a", { items: ["1"] }), fakeProvider("b", "m.b", { items: ["2"] })]);
+    const { body } = await get(app, "/search?q=abc");
+    assert.equal(body.scope, null);
+    assert.equal(body.scopeLabel, null);
+    assert.equal(body.fallback, false);
+    assert.deepEqual(body.groups.map((g) => g.source), ["a", "b"]);
+    assert.deepEqual(body.groups[0], {
+      source: "a", moduleKey: "m.a", label: "A", total: 1, seeAllTarget: "/all/a?q=abc",
+      items: [{ id: "1", title: "a-1", icon: "X", source: "a", target: "/t/a/1" }],
     });
-    const app = makeApp(
-      makeContext({ permissions: ["contacts.contacts.read"] }),
-      prisma,
-    );
-    const { status, body } = await get(app, "/search?q=a");
-    assert.equal(status, 200);
-    assert.deepEqual(body, { query: "a", groups: [] });
-    assert.equal(called, false);
+    assert.deepEqual(body.suggestions, []);
   });
 
-  it("only runs providers the user has permission for", async () => {
-    const app = makeApp(
-      makeContext({
-        permissions: ["contacts.contacts.read", "identity.users.read"],
-      }),
-    );
-    const { body } = await get(app, "/search?q=an");
-    assert.deepEqual(
-      body.groups.map((g) => g.source),
-      ["contacts", "users"],
-    );
-    assert.equal(body.groups[0].items[0].target, "/app/m/runly.contacts/contacts/c1");
-    assert.equal(body.groups[0].items[0].source, "contacts");
+  it("scoped with results returns only the scope module, limit up to 10", async () => {
+    const seen = [];
+    const app = makeApp(makeContext({ isAdmin: true }), [
+      fakeProvider("a", "m.a", { items: ["1"], seen }),
+      fakeProvider("b", "m.b", { items: ["2"], seen }),
+    ]);
+    const { body } = await get(app, "/search?q=abc&module=m.a");
+    assert.equal(body.scope, "m.a");
+    assert.equal(body.fallback, false);
+    assert.deepEqual(body.groups.map((g) => g.source), ["a"]);
+    assert.deepEqual(seen, [{ source: "a", limit: 10, companyId: "co-1" }]);
   });
 
-  it("admin gets every group", async () => {
-    const app = makeApp(makeContext({ isAdmin: true }));
-    const { body } = await get(app, "/search?q=an");
-    assert.deepEqual(
-      body.groups.map((g) => g.source),
-      ["contacts", "users", "employees"],
-    );
+  it("scoped with no results falls back to other modules (limit 5)", async () => {
+    const seen = [];
+    const app = makeApp(makeContext({ isAdmin: true }), [
+      fakeProvider("a", "m.a", { items: [], seen }),
+      fakeProvider("b", "m.b", { items: ["2"], seen }),
+    ]);
+    const { body } = await get(app, "/search?q=abc&module=m.a&limit=9");
+    assert.equal(body.scope, "m.a");
+    assert.equal(body.fallback, true);
+    assert.deepEqual(body.groups.map((g) => g.source), ["b"]);
+    assert.equal(seen.find((s) => s.source === "b").limit, 5);
   });
 
-  it("a throwing provider is omitted, the rest still return 200", async () => {
-    const prisma = makePrisma({
-      membership: {
-        findMany: async () => {
-          throw new Error("boom");
-        },
-      },
+  it("unknown module is ignored; nothing anywhere returns suggestions", async () => {
+    const app = makeApp(makeContext({ isAdmin: true }), [fakeProvider("a", "m.a")], {
+      suggest: async () => [{ text: "Lenovo", source: "a", label: "A", target: "/t/a/1" }],
     });
-    const app = makeApp(makeContext({ isAdmin: true }), prisma);
-    const { status, body } = await get(app, "/search?q=an");
-    assert.equal(status, 200);
-    assert.deepEqual(
-      body.groups.map((g) => g.source),
-      ["contacts", "employees"],
-    );
-  });
-
-  it("no active company -> empty groups", async () => {
-    const context = makeContext({ isAdmin: true });
-    context.memberships = [];
-    const app = makeApp(context);
-    const { body } = await get(app, "/search?q=anything");
+    const { body } = await get(app, "/search?q=lenvo&module=nope");
+    assert.equal(body.scope, null);
+    assert.equal(body.fallback, false);
     assert.deepEqual(body.groups, []);
+    assert.equal(body.suggestions.length, 1);
   });
 
-  it("empty provider results produce no group", async () => {
-    const prisma = makePrisma({ contact: { findMany: async () => [] } });
+  it("never leaks modules the user has no permission for, scoped or not", async () => {
+    const providers = [fakeProvider("a", "m.a", { items: ["1"] }), fakeProvider("b", "m.b", { items: ["2"] })];
+    const app = makeApp(makeContext({ permissions: ["a.read"] }), providers);
+    assert.deepEqual((await get(app, "/search?q=abc")).body.groups.map((g) => g.source), ["a"]);
+    const scopedForbidden = (await get(app, "/search?q=abc&module=m.b")).body;
+    assert.equal(scopedForbidden.fallback, true);
+    assert.deepEqual(scopedForbidden.groups.map((g) => g.source), ["a"]);
+    const none = await get(makeApp(makeContext(), providers), "/search?q=abc&module=m.b");
+    assert.deepEqual(none.body.groups, []);
+  });
+
+  it("a failing or slow provider is isolated and the response is still 200", async () => {
     const app = makeApp(
-      makeContext({ permissions: ["contacts.contacts.read"] }),
-      prisma,
+      makeContext({ isAdmin: true }),
+      [fakeProvider("ok", "m.ok", { items: ["1"] }), fakeProvider("bad", "m.bad", { fail: true }), fakeProvider("slow", "m.slow", { items: ["3"], delay: 300 })],
+      { providerTimeoutMs: 50 },
     );
-    const { body } = await get(app, "/search?q=zzz");
-    assert.deepEqual(body.groups, []);
+    const { status, body } = await get(app, "/search?q=abc");
+    assert.equal(status, 200);
+    assert.deepEqual(body.groups.map((g) => g.source), ["ok"]);
+  });
+
+  it("401 without profile", async () => {
+    const app = createSearchRouter({ prisma: {}, getUserContext: async () => null, resolveTenantContext, providers: [] });
+    assert.equal((await get(app, "/search?q=abc")).status, 401);
+  });
+});
+
+describe("GET /search help-only results", () => {
+  it("still suggests close matches and does not trigger the module fallback", async () => {
+    const providers = [fakeProvider("a", "m.a"), { ...fakeProvider("help", null, { items: ["h"] }), permission: "help.read" }];
+    const app = makeApp(makeContext({ isAdmin: true }), providers, {
+      suggest: async () => [{ text: "Lenovo", source: "a", label: "A", target: "/t/a/1" }],
+    });
+    const scoped = (await get(app, "/search?q=abc&module=m.a")).body;
+    assert.equal(scoped.fallback, false);
+    assert.equal(scoped.suggestions.length, 1);
+    assert.equal((await get(app, "/search?q=abc")).body.suggestions.length, 1);
   });
 });

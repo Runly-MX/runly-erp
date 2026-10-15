@@ -746,3 +746,31 @@ Reusable backend helper for list searches that must find a record by text in its
 The global palette (Ctrl+K, `CommandPalette.jsx`) sends `GET /search?q=&module=<moduleKey>&limit=` where `module` is the active module derived from the route (`/app/m/<moduleKey>/...`); on home the search is global. A scope chip ("Buscar en Inventario") and a "Buscar en todos los módulos" row re-run the search without `module`. The response may carry `fallback`, `groups[].total` / `seeAllTarget`, `items[].matchedIn` and `suggestions` ("Quizá buscabas"); older responses without those fields still work. Pure logic lives in `apps/desktop/src/lib/commandSearch.js` (request building, scope, stale-response reducer) and `useCommandSearch.js` (250 ms debounce + AbortController).
 
 `RunlyTable` accepts an optional `initialSearch` prop (like `initialFilters`) so a list can open with the search box pre-filled. `InventoryScreen` maps `?search=<text>` to it, which is the `seeAllTarget` of the inventory group.
+
+## Global search (`GET /search`, `services/search/`)
+
+Backs the command palette (Ctrl+K) and MirAI's `search_runly`. Request: `GET /search?q=<text>&module=<moduleKey optional>&limit=<per group, default 5 (10 when scoped), max 10>`. `q` shorter than 2 chars returns `{ query, groups: [] }`.
+
+Response: `{ query, scope, scopeLabel, fallback, groups: [{ source, moduleKey, label, total, seeAllTarget, items: [{ id, title, subtitle, icon, source, target, matchedIn? }] }], suggestions: [{ text, source, label, target }] }`.
+
+- Without `module`: every provider the user may use, 5 items per group.
+- With a valid `module` (a known provider `moduleKey`): that module's groups first, up to 10 items each. If it finds something the response contains ONLY those groups. If it finds nothing, the other modules are searched (max 5 per group) and `fallback: true`. An unknown `module` is ignored (`scope: null`).
+- `suggestions` is only filled when `groups` is empty: close matches by `pg_trgm` (`similarity` / `word_similarity` >= 0.3) over names, serials, asset tags and document numbers (single UNION ALL query, max 5, empty on any failure).
+- Each provider runs isolated (`Promise.allSettled` + 2500 ms timeout); a failing or slow provider is simply omitted. Providers are gated by `tenant.isAdmin || permissionSet.has(provider.permission)`.
+
+Provider contract (`services/search/index.js` exports `SEARCH_PROVIDERS`; `services/search-providers.js` re-exports it):
+
+```js
+defineProvider({
+  source: "purchase_orders",        // unique
+  moduleKey: "runly.purchases",     // null only for global sources (help)
+  label: "Ordenes de compra", permission: "purchases.order.read", icon: "ClipboardList",
+  target: (id) => `/app/m/runly.purchases/purchases/orders/${id}`,   // SPA route of the record
+  seeAllTarget: (q) => "/app/m/runly.purchases/purchases/orders",    // list route (inventory reads ?search=)
+  search: ({ prisma, companyId, actorId, q, limit }) => tokenSearch(prisma, { ... }), // -> { items, total }
+});
+```
+
+Rules for a provider: scope every table by `company_id`, exclude logically deleted rows (`enabled = false`, `deleted_at`, archived), respect per-user visibility (owner / member / share) for personal data, never return null titles (`safeTitle`), pass user text only as bound parameters (`tokenSearch` + `lib/search-tokens.js` give token AND, accent/case-insensitive substring). An item may set its own `target` (e.g. a ledger movement opens its account) and `matchedIn` when the hit came from related data. Chat searches only conversations the actor belongs to, never message bodies.
+
+To register a new module: add a provider file in `services/search/`, append it to `SEARCH_PROVIDERS`, add its label to `SEARCH_MODULE_LABELS`, optionally add a fuzzy source to `SUGGESTION_SOURCES` (`suggestions.js`). RME3 custom modules (Runly ORM tables) are not searched yet; the planned extension point is a provider factory that builds `tokenSearch` calls from each installed module's searchable `defineModel` fields.
