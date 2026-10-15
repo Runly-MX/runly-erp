@@ -2,7 +2,7 @@ import { useChatFloatStore } from '../modules/runly.chat/store/chatFloatStore.js
 import { Fragment, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider'
-import { runly, setActiveCompanyId as setSdkActiveCompanyId } from '../lib/runly'
+import { runly, setActiveCompanyId as setSdkActiveCompanyId, getActiveCompanyId as getSdkActiveCompanyId } from '../lib/runly'
 import { pickActiveCompany } from './pickActiveCompany.js'
 import { useBootLoader } from '../stores/bootLoader'
 import { clearCompanyQueryCache } from './companyQueryCache.js'
@@ -33,6 +33,8 @@ export function ActiveCompanyProvider({ children }) {
   const token = session?.access_token
   const authUserId = session?.user?.id
   const queryClient = useQueryClient()
+  const refreshProfileRef = useRef(refreshProfile)
+  useEffect(() => { refreshProfileRef.current = refreshProfile }, [refreshProfile])
 
   const [activeCompanyId, setActiveCompanyIdState] = useState(null)
   // Ref, not just state: getActiveCompanyId (passed to the SDK, see
@@ -54,9 +56,10 @@ export function ActiveCompanyProvider({ children }) {
   const accessDenied = [401, 403].includes(membershipsError?.status)
   const memberships = useMemo(() => accessDenied ? [] : Array.isArray(data) ? data : (data?.data ?? []), [accessDenied, data])
   const revisionRef = useRef(null)
-  const revision = memberships.find((m) => String(m.companyId ?? m.company?.id) === activeCompanyId)?.authorizationRevision
+  const activeMembership = memberships.find((m) => String(m.companyId ?? m.company?.id) === activeCompanyId)
+  const revision = activeMembership?.authorizationRevision
   useEffect(() => {
-    if (!activeCompanyId) return
+    if (!activeCompanyId || !activeMembership) return
     const previous = revisionRef.current
     revisionRef.current = { companyId: activeCompanyId, revision }
     if (previous?.companyId === activeCompanyId && previous.revision !== revision) {
@@ -64,20 +67,26 @@ export function ActiveCompanyProvider({ children }) {
       useChatFloatStore.setState({ openChats: [], isOpen: false })
     }
     if (previous?.companyId !== activeCompanyId || previous?.revision !== revision) refreshProfile(session)
-  }, [revision, activeCompanyId, queryClient, refreshProfile, session])
+  }, [revision, activeCompanyId, activeMembership, queryClient, refreshProfile, session])
   const companies = useMemo(
     () => memberships.map((m) => m.company ?? m).filter((c) => c && c.name),
     [memberships],
   )
 
   const applyActiveCompany = useCallback((id) => {
-    if (activeCompanyIdRef.current !== id) {
+    const changed = activeCompanyIdRef.current !== id || getSdkActiveCompanyId() !== id
+    activeCompanyIdRef.current = id
+    setSdkActiveCompanyId(id)
+    writeStoredCompanyId(id)
+    if (changed) {
+      revisionRef.current = null
       clearCompanyQueryCache(queryClient)
       useChatFloatStore.setState({ openChats: [], isOpen: false })
     }
-    activeCompanyIdRef.current = id
     setActiveCompanyIdState(id)
-    setSdkActiveCompanyId(id)
+    // Providers above the company gate (Office, etc.) must also lose the old
+    // company permissions. Refresh only after the SDK header has been cleared.
+    if (changed && id == null) refreshProfileRef.current()
   }, [queryClient])
 
   // Resolve on load / whenever the membership list changes (a membership was
@@ -87,7 +96,7 @@ export function ActiveCompanyProvider({ children }) {
   useEffect(() => {
     if (membershipsLoading) return
     const next = pickActiveCompany({ companies, storedId: readStoredCompanyId() })
-    if (next !== activeCompanyIdRef.current) {
+    if (next !== activeCompanyIdRef.current || next !== getSdkActiveCompanyId()) {
       applyActiveCompany(next)
     }
   }, [membershipsLoading, companies, applyActiveCompany])
@@ -104,6 +113,24 @@ export function ActiveCompanyProvider({ children }) {
 
   const getActiveCompanyId = useCallback(() => activeCompanyIdRef.current, [])
 
+  const refreshCompanyAccess = useCallback(async ({ removedCompanyId = null } = {}) => {
+    if (removedCompanyId) {
+      // The mutation has already suspended this company on the server. Remove
+      // it locally before any refetch, including its SDK/persisted selection.
+      queryClient.setQueryData(['memberships-me', authUserId], previous => {
+        const keep = rows => rows.filter(m => String(m.companyId ?? m.company?.id) !== String(removedCompanyId))
+        if (Array.isArray(previous)) return keep(previous)
+        return previous ? { ...previous, data: keep(previous.data ?? []) } : previous
+      })
+      const remaining = companies.filter(c => String(c.id) !== String(removedCompanyId))
+      applyActiveCompany(pickActiveCompany({ companies: remaining, storedId: readStoredCompanyId() }))
+    }
+    // Never invalidate the entire ERP after revoking its active tenant: doing
+    // so refetches mounted business queries with a now-forbidden company.
+    await queryClient.invalidateQueries({ queryKey: ['memberships-me', authUserId] })
+    await queryClient.invalidateQueries({ queryKey: ['company-deletions', authUserId] })
+  }, [queryClient, authUserId, companies, applyActiveCompany])
+
   const isLoading = membershipsLoading || (companies.length > 0 && activeCompanyId == null)
 
   const value = useMemo(() => ({
@@ -114,7 +141,8 @@ export function ActiveCompanyProvider({ children }) {
     setActiveCompany,
     getActiveCompanyId,
     membershipsError,
-  }), [activeCompanyId, companies, isLoading, setActiveCompany, getActiveCompanyId, membershipsError])
+    refreshCompanyAccess,
+  }), [activeCompanyId, companies, isLoading, setActiveCompany, getActiveCompanyId, membershipsError, refreshCompanyAccess])
 
   return (
     <ActiveCompanyContext.Provider value={value}>

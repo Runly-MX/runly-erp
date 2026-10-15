@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Archive, Clock, MailCheck, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -16,9 +16,17 @@ const CONSEQUENCES = [
   { icon: Archive, text: 'Tu cuenta y los recursos compartidos con otras empresas se conservan.' },
 ]
 
+const NOTICE_FAILURES = {
+  smtp_not_configured: 'No hay un remitente SMTP configurado.',
+  smtp_auth_failed: 'El servidor de correo rechazó las credenciales.',
+  smtp_connection_failed: 'No se pudo conectar con el servidor de correo.',
+  smtp_secret_unreadable: 'Es necesario volver a guardar la contraseña SMTP.',
+  smtp_attachment_unavailable: 'Falta una imagen del aviso en el servidor.',
+}
+
 function useDeletionJobs() {
   const { userProfile, session } = useAuth()
-  const client = useQueryClient()
+  const { refreshCompanyAccess } = useActiveCompany()
   const token = session?.access_token
   const jobs = useQuery({
     queryKey: ['company-deletions', session?.user?.id],
@@ -28,7 +36,7 @@ function useDeletionJobs() {
   })
   const restore = useMutation({
     mutationFn: id => runly.company.cancelDeletion(id, token),
-    onSuccess: () => { toast.success('La empresa fue recuperada.'); client.invalidateQueries() },
+    onSuccess: () => { toast.success('La empresa fue recuperada.'); return refreshCompanyAccess() },
     onError: error => toast.error(error.message ?? 'No se pudo recuperar la empresa.'),
   })
   return { isAdmin: Boolean(userProfile?.isAdmin), jobs: jobs.data?.data ?? [], restore }
@@ -58,20 +66,20 @@ export function CompanyDeletionBanner() {
 
 function ScheduleDeletionDialog({ open, onOpenChange }) {
   const { session } = useAuth()
-  const { activeCompany } = useActiveCompany()
-  const client = useQueryClient()
+  const { activeCompany, refreshCompanyAccess } = useActiveCompany()
   const [confirmation, setConfirmation] = useState('')
   const [password, setPassword] = useState('')
   const [notifyMembers, setNotifyMembers] = useState(false)
   const name = activeCompany?.name ?? ''
   const schedule = useMutation({
-    mutationFn: () => runly.company.requestDeletion(activeCompany.id, { confirmation, password, notifyMembers }, session?.access_token),
-    onSuccess: result => {
+    mutationFn: companyId => runly.company.requestDeletion(companyId, { confirmation, password, notifyMembers }, session?.access_token),
+    onSuccess: (result, companyId) => {
+      toast.success('La eliminación de la empresa quedó programada. Puedes recuperarla durante 72 horas.')
       const notice = result?.data?.notice
       if (notice?.sent) toast.success(`Aviso enviado a ${notice.sent} ${notice.sent === 1 ? 'miembro' : 'miembros'}.`)
-      if (notice?.failed) toast.warning('No se pudo enviar el aviso a algunos miembros. Revisa la configuración SMTP.')
+      if (notice?.failed) toast.warning(`La eliminación sigue programada, pero no se pudo enviar el aviso a algunos miembros. ${NOTICE_FAILURES[notice.reasons?.[0]] ?? 'No se confirmó el envío del correo.'}`)
       close(false)
-      client.invalidateQueries()
+      return refreshCompanyAccess({ removedCompanyId: companyId })
     },
   })
   function close(value) {
@@ -119,7 +127,7 @@ function ScheduleDeletionDialog({ open, onOpenChange }) {
       </div>
       <DialogFooter className="mt-0 shrink-0 gap-2 border-t border-[hsl(var(--border))] px-6 py-4 sm:gap-3">
         <Button variant="outline" onClick={() => close(false)} disabled={schedule.isPending}>Cancelar</Button>
-        <Button variant="destructive" loading={schedule.isPending} disabled={!ready} onClick={() => schedule.mutate()}>Suspender y programar eliminación</Button>
+        <Button variant="destructive" loading={schedule.isPending} disabled={!ready} onClick={() => schedule.mutate(activeCompany.id)}>Suspender y programar eliminación</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

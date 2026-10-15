@@ -16,8 +16,18 @@ export function createCompanyDeletionNotifier({ prisma, companyBrandService, cre
     try { await smtp.company.sendEmail(mail) } catch { await smtp.instance.sendEmail(mail) }
   }
 
+  function failureReason(error) {
+    if (error?.reason === 'undecryptable_password') return 'smtp_secret_unreadable'
+    if (error?.code === 'ENOENT') return 'smtp_attachment_unavailable'
+    if (error?.code === 'EAUTH') return 'smtp_auth_failed'
+    if (['ESOCKET', 'ECONNECTION', 'ETIMEDOUT', 'EDNS', 'ECONNREFUSED', 'ENOTFOUND'].includes(error?.code)) return 'smtp_connection_failed'
+    if (error?.message === 'SMTP no configurado') return 'smtp_not_configured'
+    return 'smtp_send_failed'
+  }
+
   async function notify({ companyId, companyName, purgeAfter, requestedByName }) {
     const result = { sent: 0, failed: 0 }
+    const reasons = new Set()
     try {
       const to = await recipients(companyId)
       const brand = await companyBrandService?.getBrandForCompany(companyId)
@@ -25,13 +35,13 @@ export function createCompanyDeletionNotifier({ prisma, companyBrandService, cre
       const smtp = { company: createSmtp({ prisma, companyId }), instance: createSmtp({ prisma }) }
       for (const address of to) {
         try { await send(smtp, { to: address, ...content, fromName: companyBrandService?.fromNameFor(brand) }); result.sent += 1 }
-        catch (error) { result.failed += 1; console.warn('[company-deletion] notice failed:', error?.message ?? error) }
+        catch (error) { result.failed += 1; reasons.add(failureReason(error)) }
       }
     } catch (error) {
-      console.warn('[company-deletion] notice aborted:', error?.message ?? error)
+      reasons.add(failureReason(error))
       result.failed += 1
     }
-    return result
+    return reasons.size ? { ...result, reasons: [...reasons] } : result
   }
 
   return { notify }

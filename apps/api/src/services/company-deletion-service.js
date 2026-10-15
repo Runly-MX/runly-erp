@@ -46,7 +46,10 @@ export function createCompanyDeletionService({ prisma, supabaseAdmin, resources 
     const pending = (await list(authUserId)).find(x => x.companyId === companyId)
     const { created, companyName, requestedByName, ...base } = result
     let notice = null
-    if (created && notifyMembers && notifier) notice = await notifier.notify({ companyId, companyName, purgeAfter: pending?.purgeAfter, requestedByName })
+    if (created && notifyMembers && notifier) {
+      try { notice = await notifier.notify({ companyId, companyName, purgeAfter: pending?.purgeAfter, requestedByName }) }
+      catch { notice = { sent: 0, failed: 1, reasons: ['smtp_send_failed'] } }
+    }
     return { ...base, pending, notice }
   }
 

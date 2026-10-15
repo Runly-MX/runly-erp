@@ -30,7 +30,22 @@ test('notice goes once to each distinct member and falls back to instance SMTP',
 test('notice failures are counted and never thrown', async () => {
   const createSmtp = () => ({ sendEmail: async () => { throw new Error('down') } })
   const result = await createCompanyDeletionNotifier({ prisma, createSmtp }).notify({ companyId: 'c1', companyName: 'Acme' })
-  assert.deepEqual(result, { sent: 0, failed: 2 })
+  assert.deepEqual(result, { sent: 0, failed: 2, reasons: ['smtp_send_failed'] })
+})
+
+test('mail failures expose safe reasons without SMTP hosts, credentials or raw errors', async () => {
+  for (const [error, reason] of [
+    [{code:'ENOENT'}, 'smtp_attachment_unavailable'],
+    [{code:'EAUTH'}, 'smtp_auth_failed'],
+    [{code:'ECONNREFUSED'}, 'smtp_connection_failed'],
+    [{reason:'undecryptable_password'}, 'smtp_secret_unreadable'],
+    [{message:'SMTP no configurado'}, 'smtp_not_configured'],
+  ]) {
+    const createSmtp = () => ({sendEmail:async()=>{throw {...error, response:'private SMTP response'}}})
+    const result=await createCompanyDeletionNotifier({prisma,createSmtp}).notify({companyId:'c1',companyName:'Empresa'})
+    assert.deepEqual(result,{sent:0,failed:2,reasons:[reason]})
+    assert.equal(JSON.stringify(result).includes('private SMTP response'),false)
+  }
 })
 
 test('deletion email escapes the company name', () => {

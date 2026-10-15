@@ -41,4 +41,5 @@ COPY packages packages
 COPY modules modules
 COPY apps/api apps/api
 COPY apps/worker apps/worker
+COPY apps/desktop/public/runly/runly-logo-horizontal-light.png apps/desktop/public/runly/runly-logo-horizontal-light.png
 CMD ["pnpm", "--filter", "@runly/worker", "start"]

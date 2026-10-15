@@ -40,6 +40,7 @@ COPY packages packages
 COPY modules modules
 COPY apps/api apps/api
 COPY apps/desktop/public/module-logos apps/desktop/public/module-logos
+COPY apps/desktop/public/runly/runly-logo-horizontal-light.png apps/desktop/public/runly/runly-logo-horizontal-light.png
 COPY infra/docker/api-entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 EXPOSE 4010

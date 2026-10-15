@@ -1,16 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Button, Card, EmptyState, ErrorState, PageHeader } from '@runly/ui'
 import { useAuth } from '../auth/AuthProvider'
 import { runly } from '../lib/runly'
+import { useActiveCompany } from './ActiveCompanyProvider.jsx'
 
 export function CompanyAccessScreen() {
   const { session, logout } = useAuth()
-  const client = useQueryClient()
+  const { refreshCompanyAccess } = useActiveCompany()
   const token = session?.access_token
   const pending = useQuery({ queryKey: ['company-deletions', session?.user?.id], queryFn: () => runly.company.pendingDeletions(token), refetchInterval: 15000 })
   const restore = useMutation({
     mutationFn: id => runly.company.cancelDeletion(id, token),
-    onSuccess: () => client.invalidateQueries(),
+    onSuccess: () => refreshCompanyAccess(),
   })
   return <main className="min-h-screen bg-background p-6 md:p-12"><div className="mx-auto max-w-2xl space-y-6">
     <PageHeader title="Acceso a Runly" description="Tu cuenta se conserva. Necesitas una membresía activa para entrar al ERP." />
@@ -22,6 +23,6 @@ export function CompanyAccessScreen() {
       {job.canRestore && <Button onClick={() => restore.mutate(job.companyId)} disabled={restore.isPending}>Cancelar eliminación y recuperar empresa</Button>}
     </Card>)}
     {restore.error && <ErrorState title="No se pudo recuperar la empresa" description={restore.error.message} />}
-    <div className="flex gap-3"><Button variant="outline" onClick={() => client.invalidateQueries()}>Volver a comprobar acceso</Button><Button variant="outline" onClick={logout}>Cerrar sesión</Button></div>
+    <div className="flex gap-3"><Button variant="outline" onClick={() => refreshCompanyAccess()}>Volver a comprobar acceso</Button><Button variant="outline" onClick={logout}>Cerrar sesión</Button></div>
   </div></main>
 }

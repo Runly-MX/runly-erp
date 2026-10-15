@@ -21,6 +21,7 @@ test('company forms survive access polling, token rotation and background update
       export const Context = React.createContext(null);
       export const useAuth = () => ({...React.useContext(Context),profileCompanyId:window.activeCompany});`
     const sdk = `export let company = 'company-a';
+      export const getActiveCompanyId = () => company;
       export const setActiveCompanyId = (id) => { company = id; window.activeCompany=id };
       export const runly = {
         memberships: { me: async () => {
@@ -30,17 +31,29 @@ test('company forms survive access polling, token rotation and background update
           return structuredClone(window.memberships);
         } },
         company: {
-          pendingDeletions: async () => ({data:[]}),
+          pendingDeletions: async () => ({data:window.jobs??[]}),
+          requestDeletion: async (id) => {
+            window.savedMemberships=structuredClone(window.memberships.data);
+            window.memberships.data=window.memberships.data.filter(m=>m.companyId!==id);
+            window.jobs=[{companyId:id,name:'A',state:'PENDING',purgeAfter:'2099-01-01',canRestore:true}];
+            return {data:{notice:{sent:0,failed:1,reasons:['smtp_attachment_unavailable']}}};
+          },
+          cancelDeletion: async () => {window.memberships.data=window.savedMemberships;window.jobs=[];return {data:{}}},
           getProfile: async () => { window.profileRequests++; return {data:{ ...window.companyProfile, id:company }} },
           updateProfile: async (data) => { window.companyProfile=data; return {data} },
         },
       };`
     const ui = `import React from 'react';
       export const Card=({children})=><div>{children}</div>;
-      export const Button=({children,...props})=><button {...props}>{children}</button>;
+      export const Button=({children,loading,variant,size,...props})=><button {...props}>{children}</button>;
       export const PageHeader=()=>null, ErrorState=()=>null, Skeleton=()=>null, ConfirmDialog=()=>null;
       export const EmptyState=({title,description})=><section><h2>{title}</h2><p>{description}</p></section>;
-      export const TextField=({label,value,onChange,disabled})=><label>{label}<input aria-label={label} value={value} onChange={onChange} disabled={disabled}/></label>;
+      export const TextField=({label,hint,...props})=><label>{label}<input aria-label={label} {...props}/></label>;
+      export const CheckboxField=({label,hint,...props})=><label>{label}<input type="checkbox" aria-label={label} {...props}/></label>;
+      export const Dialog=({open,children})=>open?<div role="dialog">{children}</div>:null;
+      export const DialogContent=({children})=><div>{children}</div>;
+      export const DialogTitle=DialogContent,DialogDescription=DialogContent,DialogFooter=DialogContent;
+      export const Alert=DialogContent,AlertTitle=DialogContent,AlertDescription=DialogContent;
       export const SelectField=({label,value,onValueChange,options,disabled})=><label>{label}<select aria-label={label} value={value} onChange={e=>onValueChange(e.target.value)} disabled={disabled}><option value=""/>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>;
       export const ComboboxField=({onChange,onValueChange,...props})=><SelectField {...props} onValueChange={onValueChange??onChange}/>;`
     const mocks = {
@@ -49,25 +62,30 @@ test('company forms survive access polling, token rotation and background update
       ui,
       loader: `export const AppLoader=()=>null`,
       floats: `export const useChatFloatStore={setState(){}}`,
-      toast: `export const toast={success(){},error(){}}`,
+      toast: `export const toast={success(){},error(){},warning(message){window.mailWarning=message}}`,
     }
     await build({
       stdin: {
         resolveDir: fileURLToPath(new URL('../', import.meta.url)), loader: 'jsx', contents: `
           import React, {useEffect,useState} from 'react';
           import {createRoot} from 'react-dom/client';
-          import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
+          import {QueryClient,QueryClientProvider,useQuery} from '@tanstack/react-query';
           import {Context} from '../auth/AuthProvider';
           import {ActiveCompanyProvider,ActiveCompanyGate,useActiveCompany} from './ActiveCompanyProvider.jsx';
           import CompanyProfile from '../modules/runly.company/screens/CompanyProfile.jsx';
-          window.membershipRequests=0; window.profileRequests=0; window.mounts=0; window.profileRefreshes=0;
+          window.membershipRequests=0; window.profileRequests=0; window.mounts=0; window.profileRefreshes=0;window.forbiddenRequests=0;
           window.memberships={authorizationRevision:'global-1',data:[
             {companyId:'company-a',authorizationRevision:'access-a',company:{id:'company-a',name:'A'}},
             {companyId:'company-b',authorizationRevision:'access-b',company:{id:'company-b',name:'B'}}]};
+          if(window.startWithoutCompanies) window.memberships.data=[];
           window.companyProfile={name:'Server name',companyType:'sa_de_cv',companySize:'micro'};
           const client=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:60000,refetchOnWindowFocus:false}}});
           window.client=client;
-          function Form(){useEffect(()=>{window.mounts++},[]);const scope=useActiveCompany();window.switchCompany=scope.setActiveCompany;return <CompanyProfile/>}
+          function Form(){useEffect(()=>{window.mounts++},[]);const scope=useActiveCompany();window.switchCompany=scope.setActiveCompany;
+            useQuery({queryKey:['business-probe',scope.activeCompanyId],queryFn:async()=>{
+              if(!window.memberships.data.some(m=>m.companyId===window.activeCompany)){window.forbiddenRequests++;throw new Error('Forbidden company')}
+              return 'authorized';
+            }});return <CompanyProfile/>}
           function App(){const [token,setToken]=useState('token-1');window.rotateToken=()=>setToken('token-2');
             return <Context.Provider value={{session:{access_token:token,user:{id:'user-a'}},userProfile:{isAdmin:true},refreshProfile:()=>{window.profileRefreshes++}}}>
               <ActiveCompanyProvider><ActiveCompanyGate><Form/></ActiveCompanyGate></ActiveCompanyProvider>
@@ -151,6 +169,43 @@ test('company forms survive access polling, token rotation and background update
       await window.client.refetchQueries({queryKey:['memberships-me']})
     })
     await name.waitFor()
+    // Schedule the last company through the real modal. A mail failure must
+    // still leave the ERP, clear the tenant header and offer recovery.
+    await page.getByRole('button',{name:'Eliminar esta empresa',exact:true}).click()
+    await page.getByLabel(/Escribe .*A.* para confirmar/).fill('A')
+    await page.getByLabel('Confirma tu contrase\u00f1a',{exact:true}).fill('fixture-password')
+    await page.getByRole('button',{name:'Suspender y programar eliminaci\u00f3n',exact:true}).click()
+    await name.waitFor({state:'detached'})
+    await page.getByRole('button',{name:/Cancelar .* y recuperar empresa/i}).waitFor()
+    assert.equal(await page.evaluate(()=>window.activeCompany),null)
+    assert.equal(await page.evaluate(()=>localStorage.getItem('runly-active-company')),null)
+    assert.match(await page.evaluate(()=>window.mailWarning),/eliminaci\u00f3n sigue programada/)
+    assert.match(await page.evaluate(()=>window.mailWarning),/Falta una imagen/)
+    await page.getByRole('button',{name:/Cancelar .* y recuperar empresa/i}).click()
+    await name.waitFor()
+    assert.equal(await page.evaluate(()=>window.activeCompany),'company-a')
+    // With another membership, suspension selects that company immediately.
+    await page.evaluate(async()=>{
+      window.memberships.data.push({companyId:'company-b',authorizationRevision:'access-b',company:{id:'company-b',name:'B'}})
+      await window.client.refetchQueries({queryKey:['memberships-me']})
+    })
+    await page.getByRole('button',{name:'Eliminar esta empresa',exact:true}).click()
+    await page.getByLabel(/Escribe .*A.* para confirmar/).fill('A')
+    await page.getByLabel('Confirma tu contrase\u00f1a',{exact:true}).fill('fixture-password')
+    await page.getByRole('button',{name:'Suspender y programar eliminaci\u00f3n',exact:true}).click()
+    await page.waitForFunction(()=>window.activeCompany==='company-b')
+    await name.waitFor()
+    assert.equal(await page.evaluate(()=>window.forbiddenRequests),0)
+    // A persisted company from an earlier session must also be cleared when
+    // the initial membership response has no companies.
+    await page.addInitScript(() => {
+      window.startWithoutCompanies=true
+      localStorage.setItem('runly-active-company','company-a')
+    })
+    await page.reload()
+    await page.getByRole('button',{name:'Volver a comprobar acceso',exact:true}).waitFor()
+    await page.waitForFunction(()=>window.activeCompany===null)
+    assert.equal(await page.evaluate(()=>localStorage.getItem('runly-active-company')),null)
     assert.deepEqual(errors, [])
   } finally {
     await browser?.close()

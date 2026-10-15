@@ -121,6 +121,21 @@ UUID de empresa en su ruta para evitar esa ambigüedad.
 
 ## Validación aislada
 
+Al programar la eliminación, el cliente retira inmediatamente la empresa de sus
+membresías locales y de la selección persistida antes de actualizar consultas.
+Selecciona otra empresa disponible o muestra la pantalla de recuperación si era
+la última. Solo actualiza membresías y eliminaciones pendientes: refrescar todo
+el ERP en ese momento provoca peticiones con una empresa ya suspendida y errores
+403. Recuperar la empresa vuelve a cargar su perfil y permisos.
+
+El aviso opcional por correo se envía después de confirmar la suspensión. Un
+fallo SMTP no cancela la eliminación ni modifica el plazo de 72 horas. La interfaz
+informa por separado el resultado del correo mediante motivos seguros, sin
+mostrar respuestas privadas del servidor SMTP. Las imágenes de API y worker
+deben incluir el logotipo que las plantillas adjuntan mediante CID; reconstruir
+ambas imágenes al actualizar ese empaquetado y el cliente web para la transición
+de acceso. Esta corrección no requiere una nueva migración.
+
 La suite destructiva exige `RUNLY_LIFECYCLE_TEST_DATABASE_URL` apuntando a una base
 **desechable llamada `runly_lifecycle_test`**. No usa `DATABASE_URL` ni `DIRECT_URL`.
 Recrea sus esquemas y genera el core desde el esquema Prisma del repositorio.
