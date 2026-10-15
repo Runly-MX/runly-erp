@@ -4,6 +4,7 @@ import { Boxes } from 'lucide-react'
 import { useInventoryModels, modelLabel } from '../hooks/useInventoryModels.js'
 import { InventoryBrandPicker, InventoryTypePicker } from './InventoryCatalogPickers.jsx'
 import { InventoryModelDialog } from './InventoryModelDialog.jsx'
+import { InventoryPurchaseLinkField } from './InventoryPurchaseLinkField.jsx'
 
 const LEGACY = '__legacy__'
 const NONE = '__none__'
@@ -69,5 +70,9 @@ export function InventoryItemClassification({ value, onChange, errors = {}, disa
 }
 
 export const inventoryFormComponents = {
-  resolve: (key) => (key === 'inventory.item-classification' ? InventoryItemClassification : null),
+  resolve: (key) => {
+    if (key === 'inventory.item-classification') return InventoryItemClassification
+    if (key === 'inventory.purchase-link') return InventoryPurchaseLinkField
+    return null
+  },
 }

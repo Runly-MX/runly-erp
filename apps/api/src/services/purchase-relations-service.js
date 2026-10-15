@@ -166,6 +166,28 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
       })
   }
 
+  // Documents of `kind` whose supplier name matches the text, or that are
+  // billed from / billing a document of the other kind whose folio matches.
+  async function matchesBySupplierOrLinkedDocument(companyId, kind, search) {
+    const contains = { contains: search, mode: 'insensitive' }
+    const suppliers = await prisma.contact.findMany({ where: { companyId, name: contains }, select: { id: true }, take: 50 })
+    const otherModel = kind === 'invoices' ? 'purchaseOrder' : 'purchaseInvoice'
+    const others = await prisma[otherModel].findMany({ where: { companyId, number: contains }, select: { id: true }, take: 30 })
+    let documentIds = []
+    if (others.length) {
+      const ids = others.map(row => row.id)
+      const relations = await prisma.entityRelation.findMany({
+        where: {
+          companyId, sourceModule: MODULE_KEY, targetModule: MODULE_KEY, sourceType: 'purchase_invoice', targetType: 'purchase_order', relationType: 'BILLED_FROM',
+          ...(kind === 'invoices' ? { targetId: { in: ids } } : { sourceId: { in: ids } }),
+        },
+        select: { sourceId: true, targetId: true },
+      })
+      documentIds = relations.map(row => (kind === 'invoices' ? row.sourceId : row.targetId))
+    }
+    return { supplierIds: suppliers.map(row => row.id), documentIds }
+  }
+
   // "Relacionar existente": orders or invoices of the company.
   async function searchDocuments(companyId, query = {}) {
     const type = String(query.type ?? 'order').toLowerCase().replace(/s$/, '')
@@ -175,10 +197,17 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     const { page, pageSize, skip, take } = pagination(query, { defaultSize: 10, max: 50 })
     const search = cleanText(query.search, 120)
     const model = prisma[KINDS[kind].model]
+    const extra = search ? await matchesBySupplierOrLinkedDocument(companyId, kind, search) : null
     const where = {
       companyId,
       status: { not: 'CANCELLED' },
-      ...(search ? { OR: [{ number: { contains: search, mode: 'insensitive' } }, { notes: { contains: search, mode: 'insensitive' } }] } : {}),
+      ...(search ? { OR: [
+        { number: { contains: search, mode: 'insensitive' } },
+        { notes: { contains: search, mode: 'insensitive' } },
+        ...(kind === 'orders' ? [{ supplierReference: { contains: search, mode: 'insensitive' } }] : []),
+        ...(extra?.supplierIds.length ? [{ supplierId: { in: extra.supplierIds } }] : []),
+        ...(extra?.documentIds.length ? [{ id: { in: extra.documentIds } }] : []),
+      ] } : {}),
     }
     const [rows, total] = await Promise.all([
       model.findMany({ where, orderBy: { issueDate: 'desc' }, skip, take }),

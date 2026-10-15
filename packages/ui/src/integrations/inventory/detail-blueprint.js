@@ -36,6 +36,7 @@ export const INVENTORY_ITEM_DETAIL = {
     ],
     sections: [
       {
+        id: 'identification',
         label: 'Identificación',
         icon: 'IdCard',
         column: 'main',
@@ -44,6 +45,9 @@ export const INVENTORY_ITEM_DETAIL = {
           { field: 'serialNumber', label: 'Número de serie', icon: 'Barcode' },
           { field: 'assetTag', label: 'Número de activo', icon: 'Hash' },
           { field: 'partNumber', label: 'Número de parte', icon: 'Hash' },
+          // Related Compras documents (EntityRelation); only for users who can read Compras.
+          { field: 'purchaseOrderLink', label: 'Orden de compra', type: 'document-link', icon: 'ClipboardList', emptyLabel: 'Sin orden de compra', visibleWhen: { field: 'canReadPurchases', truthy: true } },
+          { field: 'purchaseInvoiceLink', label: 'Factura', type: 'document-link', icon: 'ReceiptText', emptyLabel: 'Sin factura', visibleWhen: { field: 'canReadPurchases', truthy: true } },
         ],
       },
       {
@@ -58,7 +62,7 @@ export const INVENTORY_ITEM_DETAIL = {
         ],
       },
       {
-        label: 'Ubicación y origen',
+        label: 'Ubicación',
         icon: 'MapPin',
         column: 'main',
         columns: 2,
@@ -66,7 +70,17 @@ export const INVENTORY_ITEM_DETAIL = {
           { field: 'locationName', label: 'Ubicación', icon: 'MapPin' },
           { field: 'conditionName', label: 'Condición', icon: 'Activity' },
           { field: 'assignedAt', label: 'Fecha de asignación', type: 'date', icon: 'CalendarDays' },
+        ],
+      },
+      {
+        label: 'Adquisición y garantía',
+        icon: 'ShieldCheck',
+        column: 'main',
+        columns: 2,
+        fields: [
           { field: 'acquisitionOrigin', label: 'Origen de adquisición', type: 'select', options: ACQUISITION_ORIGIN_OPTIONS, icon: 'Receipt' },
+          { field: 'warrantyExpiry', label: 'Vencimiento de garantía', type: 'date', icon: 'CalendarDays' },
+          { field: 'warrantyNotes', label: 'Notas de garantía', type: 'markdown', icon: 'FileText' },
         ],
       },
       {
@@ -87,22 +101,14 @@ export const INVENTORY_ITEM_DETAIL = {
         icon: 'History',
         column: 'main',
         columns: 2,
+        collapsible: true,
+        defaultCollapsed: true,
         visibleWhen: { field: 'hasLegacyPurchaseData', truthy: true },
         fields: [
           { field: 'purchaseDate', label: 'Fecha de compra', type: 'date', icon: 'CalendarDays' },
           { field: 'purchasePrice', label: 'Precio de compra', type: 'currency', icon: 'Tag' },
           { field: 'vendorName', label: 'Proveedor', icon: 'Building2' },
           { field: 'invoiceNumber', label: 'Número de factura', icon: 'Hash' },
-        ],
-      },
-      {
-        label: 'Garantía',
-        icon: 'ShieldCheck',
-        column: 'main',
-        columns: 2,
-        fields: [
-          { field: 'warrantyExpiry', label: 'Vencimiento de garantía', type: 'date', icon: 'CalendarDays' },
-          { field: 'warrantyNotes', label: 'Notas de garantía', type: 'markdown', icon: 'FileText' },
         ],
       },
       {
@@ -125,7 +131,9 @@ export const INVENTORY_ITEM_DETAIL = {
         type: 'attachments',
         label: 'Archivos',
         icon: 'Paperclip',
+        // Top of the right column on desktop; right after Identificación on mobile.
         column: 'aside',
+        mobileAfter: 'identification',
         attachments: {
           listPath: '/inventory/items/:id/files',
           addPath: '/inventory/items/:id/files',

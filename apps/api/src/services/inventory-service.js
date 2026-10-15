@@ -286,7 +286,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       // Drives the read-only "Datos de compra heredados" detail section.
       hasLegacyPurchaseData: Boolean(item.purchaseDate || item.purchasePrice != null || item.vendorName || item.invoiceNumber),
       // Drives the detail's "Campos personalizados" section.
-      hasCustomValues: (item.customValues ?? []).some((cv) => cv.value !== null && cv.value !== ''),
+      hasCustomValues: (item.customValues ?? []).some((cv) => cv.value != null && String(cv.value).trim() !== '' && !(cv.field?.fieldType === 'boolean' && String(cv.value).toLowerCase() === 'false')),
     };
   }
 

@@ -38,7 +38,7 @@ export default function InventoryItemForm() {
   const navigate = useNavigate()
   const [deleteOpen, setDeleteOpen] = useState(false)
 
-  const { session } = useAuth()
+  const { session, userProfile } = useAuth()
   const token = session?.access_token
   const { activeCompanyId } = useActiveCompany()
 
@@ -86,7 +86,9 @@ export default function InventoryItemForm() {
   // Legacy purchase fields only stay editable on items that already carry them;
   // new commercial data is recorded in Compras.
   const showLegacyPurchase = Boolean(isEdit && editItem?.hasLegacyPurchaseData)
-  const blueprint = useMemo(() => buildItemFormBlueprint(isEdit, { showLegacyPurchase }), [isEdit, showLegacyPurchase])
+  // Order / invoice pickers need to read Compras; saving them needs manage (checked server side too).
+  const showPurchaseLinks = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('purchases.relation.read'))
+  const blueprint = useMemo(() => buildItemFormBlueprint(isEdit, { showLegacyPurchase, showPurchaseLinks }), [isEdit, showLegacyPurchase, showPurchaseLinks])
   const deleteItem = useDeleteInventoryItem()
 
   const [typedIds, setTypedIds] = useState({ serialNumber: '', assetTag: '' })

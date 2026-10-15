@@ -1,6 +1,9 @@
 import { ITEM_STATUSES, ACQUISITION_ORIGIN_OPTIONS } from './constants.js'
 
 export const LEGACY_PURCHASE_SECTION_ID = 'legacy-purchase'
+// Purchase order / invoice pickers (custom controls, registry key below).
+export const PURCHASE_LINK_FIELDS = ['purchaseOrderId', 'purchaseInvoiceId']
+export const PURCHASE_LINK_COMPONENT = 'inventory.purchase-link'
 
 const STATUS_OPTIONS = ITEM_STATUSES.map((s) => ({ value: s.value, label: s.label }))
 // On create an item can only start available or in maintenance.
@@ -50,6 +53,7 @@ export const INVENTORY_ITEM_FORM = {
         ],
       },
       {
+        id: 'identification',
         label: 'Identificación',
         icon: 'IdCard',
         collapsible: true,
@@ -59,6 +63,9 @@ export const INVENTORY_ITEM_FORM = {
           // After the identifiers on purpose; the API generates it when blank.
           { field: 'name', label: 'Nombre', type: 'text', icon: 'Package', hint: 'Si lo dejas vacío se genera con tipo, marca y modelo (p. ej. «Dell XPS 15»).' },
           { field: 'partNumber', label: 'Número de parte', type: 'text', icon: 'ScanLine' },
+          // Searchable Compras documents; saved as relations with the item (shown only with Compras access).
+          { field: 'purchaseOrderId', label: 'Orden de compra', type: 'custom', component: PURCHASE_LINK_COMPONENT, icon: 'ClipboardList' },
+          { field: 'purchaseInvoiceId', label: 'Factura', type: 'custom', component: PURCHASE_LINK_COMPONENT, icon: 'ReceiptText' },
         ],
       },
       {
@@ -111,19 +118,14 @@ export const INVENTORY_ITEM_FORM = {
         ],
       },
       {
-        label: 'Origen de adquisición',
-        icon: 'Receipt',
+        label: 'Adquisición y garantía',
+        icon: 'ShieldCheck',
         collapsible: true,
         defaultCollapsed: true,
         fields: [
-          {
-            field: 'acquisitionOrigin',
-            label: 'Origen',
-            type: 'select',
-            icon: 'Receipt',
-            options: ACQUISITION_ORIGIN_OPTIONS,
-            hint: 'Las órdenes, facturas y montos de compra se registran en Compras y se relacionan desde la ficha del activo.',
-          },
+          { field: 'acquisitionOrigin', label: 'Origen de adquisición', type: 'select', icon: 'Receipt', options: ACQUISITION_ORIGIN_OPTIONS },
+          { field: 'warrantyExpiry', label: 'Vencimiento de garantía', type: 'date', icon: 'ShieldCheck' },
+          { field: 'warrantyNotes', label: 'Notas de garantía', type: 'markdown' },
         ],
       },
       {
@@ -140,16 +142,6 @@ export const INVENTORY_ITEM_FORM = {
           { field: 'purchasePrice', label: 'Precio de compra', type: 'currency', icon: 'Tag', currency: 'USD', locale: 'es-PE' },
           { field: 'vendorName', label: 'Proveedor', type: 'text', icon: 'Building2' },
           { field: 'invoiceNumber', label: 'Número de factura', type: 'text', icon: 'FileText' },
-        ],
-      },
-      {
-        label: 'Garantía',
-        icon: 'ShieldCheck',
-        collapsible: true,
-        defaultCollapsed: true,
-        fields: [
-          { field: 'warrantyExpiry', label: 'Vencimiento de garantía', type: 'date', icon: 'ShieldCheck' },
-          { field: 'warrantyNotes', label: 'Notas de garantía', type: 'markdown' },
         ],
       },
       {
@@ -179,6 +171,9 @@ export const INVENTORY_ITEM_FORM = {
         label: 'Archivos',
         icon: 'Paperclip',
         collapsible: true,
+        // Right sidebar on desktop; right after Identificación on mobile.
+        placement: 'aside',
+        mobileAfter: 'identification',
         attachments: {
           createMode: 'stage-until-parent-create',
           editMode: 'upload-immediately',
@@ -209,14 +204,16 @@ export const INVENTORY_ITEM_FORM = {
 // Edit drops the create-only "Estado inicial" field and keeps "Asignado"
 // in the status options so an assigned item still shows its status.
 // Legacy purchase fields only appear when `showLegacyPurchase` (edit of an
-// item that already has them).
-export function buildItemFormBlueprint(isEdit, { showLegacyPurchase = false } = {}) {
+// item that already has them); the order / invoice pickers when
+// `showPurchaseLinks` (the user can read Compras).
+export function buildItemFormBlueprint(isEdit, { showLegacyPurchase = false, showPurchaseLinks = false } = {}) {
   const sections = INVENTORY_ITEM_FORM.schema.sections
     .filter((section) => showLegacyPurchase || section.id !== LEGACY_PURCHASE_SECTION_ID)
     .map((section) => {
       if (!section.fields) return section
       const fields = section.fields
         .filter((f) => !(isEdit && f.field === 'adminStatus'))
+        .filter((f) => showPurchaseLinks || !PURCHASE_LINK_FIELDS.includes(f.field))
         .map((f) => (f.field === 'status' && !isEdit ? { ...f, options: CREATE_STATUS_OPTIONS } : f))
       return { ...section, fields }
     })

@@ -15,6 +15,7 @@ import { createInventoryModelService } from '../../services/inventory-model-serv
 import { createCoreTargetConnections } from '../../services/connections/core-target-connections.js';
 import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js';
 import { findActiveDuplicates } from '../../services/inventory-identifiers.js';
+import { preparePurchaseLinks, withoutPurchaseLinkFields, composeAfterWrite, loadPurchaseLinks, purchaseLinkFields } from '../../services/inventory-purchase-links.js';
 import { publishActivityFromContext, getActivityContext } from '../../services/activity-publisher.js';
 
 export function createInventoryRouter({
@@ -60,6 +61,23 @@ export function createInventoryRouter({
     (await prisma.fileAsset.findUnique({ where: { id: fileAssetId }, select: { originalName: true } }).catch(() => null))?.originalName ?? null;
   const isCommentErr = (err) => err instanceof CommentsServiceError || err?.status === 404;
 
+
+  const hasPerm = (c, key) => {
+    const ctx = c.get("userContext");
+    return Boolean(ctx?.isAdmin || ctx?.permissionSet?.has?.(key));
+  };
+  // Body + afterWrite for an item write: connections plus the purchase order /
+  // invoice links (purchaseOrderId / purchaseInvoiceId), all in one transaction.
+  async function prepareItemWrite(c, itemId = null) {
+    const raw = await c.req.json();
+    const links = await preparePurchaseLinks({
+      prisma, companyId: c.get("companyId"), actorId: c.get("userContext")?.profile?.id ?? null, itemId, body: raw,
+      canManage: hasPerm(c, "purchases.relation.manage"), fail: (message, status) => new InventoryServiceError(message, status),
+    });
+    const { data, afterWrite } = await itemConnections.prepare(c, withoutPurchaseLinkFields(raw), itemId ?? undefined);
+    return { body: data, afterWrite: composeAfterWrite(afterWrite, links.afterWrite) };
+  }
+
   // ── Items ────────────────────────────────────────────────────────────────
   // Live duplicate check for the forms: which ACTIVE item already uses this serial / asset number.
   router.get("/inventory/items/check-identifiers", requirePermission("inventory.item.read"), async (c) => {
@@ -89,7 +107,7 @@ export function createInventoryRouter({
     try {
       const companyId = c.get("companyId");
       const authUserId = c.get("authUserId");
-      const { data: body, afterWrite } = await itemConnections.prepare(c, await c.req.json());
+      const { body, afterWrite } = await prepareItemWrite(c);
       const data = await modelDefaults.applyModelDefaults(body, companyId);
       const item = await inventoryService.createItem(data, companyId, authUserId, { afterWrite });
       return c.json({ data: item }, 201);
@@ -119,7 +137,10 @@ export function createInventoryRouter({
       const { id } = c.req.param();
       const item = await inventoryService.getItem(id, companyId);
       await attachUserAvatarUrls([item.assignedTo], { prisma, supabaseAdmin });
-      return c.json({ data: item });
+      // Purchase order / invoice shown as fields; only for users who can read Compras.
+      const canReadPurchases = hasPerm(c, "purchases.relation.read");
+      const links = canReadPurchases ? purchaseLinkFields(await loadPurchaseLinks(prisma, companyId, id)) : {};
+      return c.json({ data: { ...item, ...links, canReadPurchases, canManagePurchases: hasPerm(c, "purchases.relation.manage") } });
     } catch (err) {
       if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo cargar el item." }, 500);
@@ -130,7 +151,7 @@ export function createInventoryRouter({
     try {
       const companyId = c.get("companyId");
       const { id } = c.req.param();
-      const { data: body, afterWrite } = await itemConnections.prepare(c, await c.req.json(), id);
+      const { body, afterWrite } = await prepareItemWrite(c, id);
       const data = await modelDefaults.applyModelDefaults(body, companyId);
       const item = await inventoryService.updateItem(id, data, companyId, { afterWrite, actorAuthId: c.get("authUserId") });
       return c.json({ data: item });
@@ -149,7 +170,7 @@ export function createInventoryRouter({
     try {
       const companyId = c.get("companyId");
       const { id } = c.req.param();
-      const { data: body, afterWrite } = await itemConnections.prepare(c, await c.req.json(), id);
+      const { body, afterWrite } = await prepareItemWrite(c, id);
       const data = await modelDefaults.applyModelDefaults(body, companyId);
       const item = await inventoryService.updateItem(id, data, companyId, { afterWrite, actorAuthId: c.get("authUserId") });
       return c.json({ data: item });

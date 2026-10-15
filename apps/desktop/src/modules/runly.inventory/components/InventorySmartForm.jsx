@@ -102,7 +102,7 @@ export function InventorySmartForm({ token, companyId, apiBaseUrl, onCancel }) {
   const blueprint = useMemo(() => ({ ...formBlueprint, schema: { ...formBlueprint.schema,
     submitLabel: `Crear ${units.length} ${units.length === 1 ? 'equipo' : 'equipos'}`,
     sections: formBlueprint.schema.sections.filter(s => s.type !== 'attachments').map(s => ({ ...s,
-      fields: s.fields?.filter(f => !['assetTag', 'serialNumber'].includes(f.field)) })),
+      fields: s.fields?.filter(f => !['assetTag', 'serialNumber', 'purchaseOrderId', 'purchaseInvoiceId'].includes(f.field)) })),
   } }), [units.length])
 
   const updateUnit = (id, patch) => { setUnits(current => current.map(u => u.id === id ? { ...u, ...patch, confirmation: null, mode: undefined, existingItemId: undefined } : u)); setIssues([]); setMatches([]) }
