@@ -9,6 +9,7 @@ import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { useInventoryItem, useDeleteInventoryItem } from '../hooks/useInventoryItems.js'
+import { useInventoryCan } from '../hooks/useInventoryAdmin.js'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
 import { CanvasReferences } from '../../runly.canvas/components/CanvasReferences.jsx'
 import { ConnectionSections } from '../../../shell/connections/ConnectionSections.jsx'
@@ -30,6 +31,9 @@ export default function InventoryItemDetail() {
   const { data, isLoading } = useInventoryItem(id)
   const deleteItem = useDeleteInventoryItem()
   const item = data?.data ?? data
+  // The "Etiqueta / QR" section is shown only with inventory.label.read.
+  const canReadLabels = useInventoryCan()('inventory.label.read')
+  const detailData = useMemo(() => (item ? { ...item, canReadLabels } : item), [item, canReadLabels])
   useMiraiRecordContext({ recordType: 'item', recordId: id, label: item?.name })
 
   if (isLoading) {
@@ -61,7 +65,7 @@ export default function InventoryItemDetail() {
     <div className="p-4 md:p-6 space-y-6 min-h-dvh">
       <Button variant="outline" onClick={() => openMiraiSidebar()}><Sparkles className="mr-2 h-4 w-4" />Consultar este equipo con IA</Button>
       <InventoryItemPresentation
-        data={item}
+        data={detailData}
         token={token}
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE}

@@ -1,6 +1,6 @@
 # Etiquetas de Inventario (backend, fase 2)
 
-Spec: `docs/superpowers/specs/2026-10-15-inventory-labels-qr-design.md`. Plan: `docs/superpowers/plans/2026-10-15-inventory-labels-backend.md`. Este documento cubre solo la API; la interfaz React es otra tarea.
+Spec: `docs/superpowers/specs/2026-10-15-inventory-labels-qr-design.md`. Plan: `docs/superpowers/plans/2026-10-15-inventory-labels-backend.md`. La interfaz React se describe al final.
 
 ## Modelo
 
@@ -34,3 +34,13 @@ SDK: `client.inventory.labels.*` (`packages/sdk/src/domains/inventory-labels.js`
 ## Verificacion
 
 Pruebas: `node --test apps/api/src/services/__tests__/inventory-labels.test.js apps/api/src/services/__tests__/inventory-label-service.test.js`. No se ha impreso en hardware real ni se ha probado la interfaz.
+
+## Interfaz (runly.inventory)
+
+- Pantalla `InventoryLabelsScreen.jsx` en `/app/m/runly.inventory/inventory/labels` (navegacion "Etiquetas", permiso `inventory.label.read`). Escritorio: tres paneles (cola, vista previa, plantilla e impresora). Telefono: pasos con barra fija inferior (Cola, Vista previa, Ajustes, Imprimir); en Ajustes la vista previa queda fija arriba.
+- Componentes en `components/labels/`; logica pura en `lib/label-queue.js` (reductor de la cola, cantidades, enlace `?items=a,b&qty=N`), `lib/label-layout.js` (borrador de plantilla) y `lib/label-transports.js`.
+- `label-transports.js`: registro de transportes (`browser`, `file`; `network` y `bluetooth` deshabilitados con "Disponible en la app"). `resolvePrintPlan(printer)` decide que hace "Imprimir" (PDF en pestana nueva, ZPL descargado); la fase 4 registra `bluetooth`/`network` con `labelTransports.register(id, transport)`. La pestana se abre en el clic (`prepare`) para que el navegador no la bloquee.
+- La impresion se registra (`POST /inventory/labels/prints`) solo despues de imprimir o descargar PDF/ZPL; la descarga PNG (una etiqueta) no se registra. Reimprimir equipos ya etiquetados pide confirmacion.
+- Lista de Inventario: accion masiva "Imprimir etiquetas" (lleva la seleccion en `location.state.labelItems` y en `?items=`), columna "Etiqueta" (con `inventory.label.read`) y filtro "Etiqueta: Sin etiquetar" (`labeled=false`).
+- Ficha del equipo: seccion "Etiqueta / QR" (`runly.inventory:LabelSection`, visible con `inventory.label.read` via `canReadLabels`), con QR, estado, Imprimir/Reimprimir y "Ver con detalles" (QR grande, enlace, historial). El enlace copiado es el provisional `/app/p/inv/f-<folio>` hasta la fase 3.
+- Pruebas: `node --test apps/desktop/src/modules/runly.inventory/lib/__tests__/label-queue.test.js apps/desktop/src/modules/runly.inventory/lib/__tests__/label-transports.test.js`.

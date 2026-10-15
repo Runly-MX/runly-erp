@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Activity, Boxes, CalendarPlus, MapPin, Plus, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, Wrench } from 'lucide-react'
+import { Activity, Boxes, CalendarPlus, MapPin, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, Wrench } from 'lucide-react'
 import { RunlyTable, Button, ConfirmDialog, PageHeader } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -17,11 +17,14 @@ import { InventoryAdminKpis } from '../components/InventoryAdminKpis.jsx'
 import { InventoryAdminTransitionDialog } from '../components/InventoryAdminTransitionDialog.jsx'
 import { useInventoryCan, useInventoryConditions, useInventorySummary } from '../hooks/useInventoryAdmin.js'
 import { ADMIN_ACTIONS, ADMIN_FILTER_OPTIONS, ADMIN_STATUSES } from '../lib/admin-status.js'
+import { buildLabelsPath } from '../lib/label-queue.js'
+import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
 
 const ADMIN_COLORS = Object.fromEntries(ADMIN_STATUSES.map(s => [s.value, s.color]))
 const STATUS_OPTIONS = ITEM_STATUSES.map(s => ({ value: s.value, label: s.label }))
 // Deep links from Catálogos (e.g. ?categoryId=...) open the list pre-filtered.
-const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo']
+const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo', 'labeled']
+const LABELED_OPTIONS = [{ value: 'false', label: 'Sin etiquetar' }, { value: 'true', label: 'Etiquetados' }]
 const ADMIN_OPTIONS = ADMIN_STATUSES.map(s => ({ value: s.value, label: s.label }))
 
 export default function InventoryScreen() {
@@ -43,6 +46,9 @@ export default function InventoryScreen() {
   const [refreshSignal, setRefreshSignal] = useState(0)
   const [bulk, setBulk] = useState(null)
   const can = useInventoryCan()
+  // Label stats come only with inventory.label.read; printing needs inventory.label.print.
+  const canReadLabels = can('inventory.label.read')
+  const canPrintLabels = can('inventory.label.print')
   const summary = useInventorySummary()
   // Published to the global MirAI sidebar (shared contract: selection =
   // { mode: "filtered" | "selected", ids, filters }) — null when the list has
@@ -83,11 +89,18 @@ export default function InventoryScreen() {
 
   // One bulk action per administrative transition the user may perform,
   // shown only when every selected item is in that action's source status.
-  const bulkActions = useMemo(() => Object.entries(ADMIN_ACTIONS)
-    .filter(([, action]) => can(action.permission))
-    .map(([key, action]) => (rows) => (rows.length && rows.every(r => r.adminStatus === action.from)
-      ? { label: action.label, variant: action.destructive ? 'destructive' : undefined, onClick: (selected) => setBulk({ action: key, ids: selected.map(r => r.id) }) }
-      : null)), [can])
+  const bulkActions = useMemo(() => [
+    ...(canPrintLabels ? [(rows) => (rows.length ? {
+      label: 'Imprimir etiquetas',
+      icon: QrCode,
+      onClick: (selected) => navigate(buildLabelsPath({ itemIds: selected.map(r => r.id) }), { state: { labelItems: selected } }),
+    } : null)] : []),
+    ...Object.entries(ADMIN_ACTIONS)
+      .filter(([, action]) => can(action.permission))
+      .map(([key, action]) => (rows) => (rows.length && rows.every(r => r.adminStatus === action.from)
+        ? { label: action.label, variant: action.destructive ? 'destructive' : undefined, onClick: (selected) => setBulk({ action: key, ids: selected.map(r => r.id) }) }
+        : null)),
+  ], [can, canPrintLabels, navigate])
 
   // Only needed to label a ?modelId= deep link; the list has no model filter otherwise.
   const { data: modelsData } = useInventoryModels()
@@ -123,6 +136,7 @@ export default function InventoryScreen() {
         { field: 'assignedToName', label: 'Responsable', sortable: true  },
         { field: 'purchaseInvoiceNumber', label: 'Factura', sortable: false },
         { field: 'purchaseOrderNumber', label: 'Orden de compra', sortable: false },
+        ...(canReadLabels ? [{ field: 'labelPrintCount', label: 'Etiqueta', sortable: false, component: 'runly.inventory:LabelStateCell' }] : []),
         { field: 'conditionName',  label: 'Condición',   sortable: true,  defaultVisible: false },
         { field: 'locationName',   label: 'Ubicacion',   sortable: true,  defaultVisible: false },
         { field: 'serialNumber',   label: 'No. Serie',   sortable: true,  defaultVisible: false },
@@ -139,6 +153,8 @@ export default function InventoryScreen() {
         { key: 'categoryId', label: 'Tipo', type: 'select', icon: Boxes, options: categoryOptions },
         { key: 'brandId',    label: 'Marca',     type: 'select', icon: Tag, options: brandOptions },
         { key: 'locationId', label: 'Ubicación', type: 'select', icon: MapPin, options: locationOptions },
+        // -> labeled=false|true on /inventory/items (print log based).
+        { key: 'labeled',    label: 'Etiqueta', type: 'select', icon: QrCode, options: LABELED_OPTIONS },
         ...(initialFilters.modelId ? [{ key: 'modelId', label: 'Modelo', type: 'select', options: modelOptions }] : []),
         // -> createdFrom/createdTo and purchaseFrom/purchaseTo on /inventory/items.
         { key: 'created',    label: 'Fecha de alta',   type: 'daterange', icon: CalendarPlus },
@@ -146,7 +162,7 @@ export default function InventoryScreen() {
       ],
       emptyState: { message: 'No hay activos registrados.' },
     },
-  }), [categoryOptions, brandOptions, locationOptions, conditionOptions, modelOptions, initialFilters.modelId])
+  }), [categoryOptions, brandOptions, locationOptions, conditionOptions, modelOptions, initialFilters.modelId, canReadLabels])
 
   const deleteMutation = useMutation({
     mutationFn: id => runly.inventory.deleteItem(id, token),
@@ -206,6 +222,7 @@ export default function InventoryScreen() {
         initialSearch={initialSearch}
         onContextChange={updateMiraiSelection}
         blueprint={blueprint}
+        componentRegistry={componentRegistry}
         token={token}
         companyId={activeCompanyId}
         apiBaseUrl={getApiUrl()}

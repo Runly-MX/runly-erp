@@ -148,6 +148,17 @@ export const INVENTORY_ITEM_DETAIL = {
         },
       },
       {
+        // QR preview, label print state and reprint (runly.inventory labels).
+        // The ERP sets canReadLabels from inventory.label.read.
+        id: 'label',
+        type: 'component',
+        label: 'Etiqueta / QR',
+        icon: 'QrCode',
+        column: 'aside',
+        visibleWhen: { field: 'canReadLabels', truthy: true },
+        component: 'runly.inventory:LabelSection',
+      },
+      {
         id: 'admin-status',
         type: 'component',
         label: 'Estado del activo',

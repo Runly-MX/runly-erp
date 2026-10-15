@@ -20,6 +20,8 @@ import InventoryDetailCommentsSection from "../modules/runly.inventory/component
 import InventoryDetailHistorySection from "../modules/runly.inventory/components/InventoryDetailHistorySection.jsx";
 import InventoryDetailCustomFieldsSection from "../modules/runly.inventory/components/InventoryDetailCustomFieldsSection.jsx";
 import InventoryDetailAdminSection from "../modules/runly.inventory/components/InventoryDetailAdminSection.jsx";
+import InventoryDetailLabelSection from "../modules/runly.inventory/components/labels/InventoryDetailLabelSection.jsx";
+import LabelStateCell from "../modules/runly.inventory/components/labels/LabelStateBadge.jsx";
 import InventoryPurchaseSection from "../modules/runly.purchases/components/InventoryPurchaseSection.jsx";
 
 import HrEmployeeActivityPanel from "../modules/runly.hr/components/HrEmployeeActivityPanel.jsx";
@@ -99,6 +101,11 @@ componentRegistry.register(
   "runly.inventory:AdminSection",
   InventoryDetailAdminSection,
 );
+componentRegistry.register(
+  "runly.inventory:LabelSection",
+  InventoryDetailLabelSection,
+);
+componentRegistry.register("runly.inventory:LabelStateCell", LabelStateCell);
 componentRegistry.register(
   "runly.purchases:InventoryPurchaseSection",
   InventoryPurchaseSection,
