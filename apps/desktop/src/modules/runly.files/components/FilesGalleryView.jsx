@@ -40,6 +40,19 @@ export function FilesGalleryView({ files, token, loading, onOpenFile, onMove }) 
     [token],
   );
 
+  const resolveSignedUrls = useCallback(
+    async (ids, variant) => {
+      if (!token) return {};
+      try {
+        const response = await runly.files.batchSignedUrls(ids, token, { variant });
+        return response?.data ?? {};
+      } catch {
+        return {};
+      }
+    },
+    [token],
+  );
+
   async function download(list) {
     const ids = [...new Set(list.map((item) => item.fileAssetId))];
     const chunks = Array.from({ length: Math.ceil(ids.length / ZIP_CHUNK) }, (_, i) => ids.slice(i * ZIP_CHUNK, (i + 1) * ZIP_CHUNK));
@@ -67,6 +80,7 @@ export function FilesGalleryView({ files, token, loading, onOpenFile, onMove }) 
       items={items}
       loading={loading}
       resolveSignedUrl={resolveSignedUrl}
+      resolveSignedUrls={resolveSignedUrls}
       onDownload={download}
       groupings={GROUPINGS}
       storageKey="files"

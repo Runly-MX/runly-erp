@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, File as FileIcon, FileText, Film, Image as ImageIcon, Images, Music } from "lucide-react";
 import { cn } from "../lib/utils.js";
-import { cachedUrl, useInView } from "../lib/lazy-media.js";
+import { cachedUrl, createUrlBatcher, forgetUrl, useNearViewport } from "../lib/lazy-media.js";
 import { groupMedia } from "../lib/media-grouping.js";
 import { AdvancedFileViewer } from "./AdvancedFileViewer.jsx";
 import { Button } from "./Button.jsx";
@@ -24,6 +24,8 @@ import { useColumnResize } from "../hooks/useColumnResize.js";
 // groupings: extra groupings, [{ key: "group", label: "Por inventario" }] using groupId / groupLabel.
 // Optional: views (subset of grid/cards/table), showKindFilter (false hides Todo/Imágenes/Archivos when the host already filters),
 // selectionActions({ items, clear }) -> node rendered beside Descargar while something is selected,
+// resolveSignedUrls(ids, variant) -> Promise<{ [id]: url }>: batch lookup for thumbnails (far fewer requests; preferred over one resolveSignedUrl call per tile).
+// resolveSignedUrls(ids, variant) -> Promise<{ [id]: url }>: batched thumbnail lookup (one request per ~50 tiles instead of one each).
 // onOpenItem(item) -> true when the host opened the item itself (e.g. an Office editor).
 // Touch: long-press a tile to start selecting; while a selection exists a tap toggles instead of opening.
 
@@ -54,43 +56,45 @@ function formatBytes(bytes) {
 
 const dayKey = (value) => String(value ?? "").slice(0, 10);
 
-function MediaThumb({ item, resolveSignedUrl, sharp = true, className }) {
-  const [ref, inView] = useInView();
+// One small image per tile, loaded only while the tile is near the viewport and
+// released (no <img>, so the decoded bitmap can be freed) once it is far away.
+// `variant` is "tile" in the grid and "card" for the small cards/table thumbs;
+// the original is only fetched by the viewer.
+function MediaThumb({ item, resolveSignedUrl, variant = "card", className }) {
+  const [ref, near] = useNearViewport();
   const [url, setUrl] = useState(null);
-  const [low, setLow] = useState(false);
   const [ready, setReady] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const image = isImage(item);
   const Icon = iconFor(item.mimeType);
 
   useEffect(() => {
-    if (!image || !inView || !item.fileAssetId) return undefined;
+    if (!image || !near || !item.fileAssetId) return undefined;
     let cancelled = false;
-    const load = (variant) => cachedUrl(`media|${item.fileAssetId}|${variant}`, () => resolveSignedUrl(item.fileAssetId, variant));
-    load("card").then((small) => {
-      if (cancelled || !small) return;
-      setUrl(small);
-      setLow(sharp);
+    cachedUrl(`media|${item.fileAssetId}|${variant}`, () => resolveSignedUrl(item.fileAssetId, variant)).then((next) => {
+      if (!cancelled && next) setUrl(next);
     });
-    if (sharp) {
-      load("preview").then((big) => {
-        if (cancelled || !big) return;
-        setUrl(big);
-        setLow(false);
-      });
-    }
     return () => { cancelled = true; };
-  }, [image, inView, item.fileAssetId, resolveSignedUrl, sharp]);
+  }, [image, near, item.fileAssetId, resolveSignedUrl, variant, attempt]);
 
+  const show = image && near && url;
   return (
     <div ref={ref} className={cn("relative flex items-center justify-center overflow-hidden bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]", className)}>
-      {image && url ? (
+      {show ? (
         <img
           src={url}
           alt=""
-          loading="lazy"
           decoding="async"
+          draggable={false}
           onLoad={() => setReady(true)}
-          className={cn("h-full w-full object-cover transition duration-300", ready ? "opacity-100" : "opacity-0", low && "scale-105 blur-md")}
+          onError={() => {
+            // Expired or failed URL: ask again once instead of staying blank.
+            forgetUrl(`media|${item.fileAssetId}|${variant}`);
+            setUrl(null);
+            setReady(false);
+            setAttempt((n) => (n < 2 ? n + 1 : n));
+          }}
+          className={cn("h-full w-full object-cover transition-opacity duration-200", ready ? "opacity-100" : "opacity-0")}
         />
       ) : (
         <Icon className="h-1/3 w-1/3 min-h-4 min-w-4 opacity-60" aria-hidden="true" />
@@ -127,28 +131,33 @@ function useLongPress(onLongPress, ms = 450) {
   };
 }
 
-function SelectBox({ checked, onChange, label, className }) {
+function SelectBox({ checked, onChange, label, className, shiftHeld }) {
   return (
-    <span className={cn("rounded-md bg-[hsl(var(--background))]/80 p-1 backdrop-blur", className)} onClick={(e) => e.stopPropagation()}>
+    <span
+      className={cn("rounded-md bg-[hsl(var(--background))]/80 p-1 backdrop-blur", className)}
+      onClickCapture={(e) => { if (shiftHeld) shiftHeld.current = e.shiftKey; }}
+      onClick={(e) => e.stopPropagation()}
+    >
       <Checkbox checked={checked} onCheckedChange={onChange} aria-label={label} />
     </span>
   );
 }
 
-function MediaTile({ item, isSelected, selecting, resolveSignedUrl, onOpen, onToggle }) {
+function MediaTile({ item, isSelected, selecting, resolveSignedUrl, onOpen, onToggle, shiftHeld }) {
   const press = useLongPress(onToggle);
   return (
     <div className="group relative">
       <button
         type="button"
         {...press.handlers}
-        onClick={() => { if (!press.consumed()) onOpen(); }}
+        onClick={(e) => { if (!press.consumed()) onOpen(e); }}
         className={cn("block w-full select-none overflow-hidden rounded-xl border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]/40 [-webkit-touch-callout:none]", isSelected ? "border-(--brand-primary) ring-2 ring-(--brand-primary)/40" : "border-[hsl(var(--border))]")}
       >
-        <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} className="aspect-square w-full" />
+        <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} variant="tile" className="aspect-square w-full" />
         {!isImage(item) ? <span className="block truncate px-2 py-1.5 text-xs">{item.name}</span> : null}
       </button>
       <SelectBox
+        shiftHeld={shiftHeld}
         checked={isSelected}
         onChange={onToggle}
         label={`Seleccionar ${item.name}`}
@@ -158,12 +167,12 @@ function MediaTile({ item, isSelected, selecting, resolveSignedUrl, onOpen, onTo
   );
 }
 
-function MediaCard({ item, isSelected, resolveSignedUrl, onOpen, onToggle, onOpenGroup, openGroupLabel }) {
+function MediaCard({ item, isSelected, resolveSignedUrl, onOpen, onToggle, onOpenGroup, openGroupLabel, shiftHeld }) {
   const press = useLongPress(onToggle);
   return (
     <div className={cn("group relative flex items-center gap-3 rounded-xl border bg-[hsl(var(--card))] p-2.5", isSelected ? "border-(--brand-primary)" : "border-[hsl(var(--border))]")}>
-      <button type="button" {...press.handlers} onClick={() => { if (!press.consumed()) onOpen(); }} className="shrink-0 select-none overflow-hidden rounded-lg [-webkit-touch-callout:none]">
-        <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} sharp={false} className="h-16 w-16" />
+      <button type="button" {...press.handlers} onClick={(e) => { if (!press.consumed()) onOpen(e); }} className="shrink-0 select-none overflow-hidden rounded-lg [-webkit-touch-callout:none]">
+        <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} className="h-16 w-16" />
       </button>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{item.name}</p>
@@ -172,7 +181,7 @@ function MediaCard({ item, isSelected, resolveSignedUrl, onOpen, onToggle, onOpe
           <button type="button" onClick={() => onOpenGroup(item)} className="text-xs text-(--brand-primary) hover:underline">{openGroupLabel}</button>
         ) : null}
       </div>
-      <SelectBox checked={isSelected} onChange={onToggle} label={`Seleccionar ${item.name}`} />
+      <SelectBox shiftHeld={shiftHeld} checked={isSelected} onChange={onToggle} label={`Seleccionar ${item.name}`} />
     </div>
   );
 }
@@ -197,7 +206,12 @@ export function MediaGallery({
   views = ["grid", "cards", "table"],
   selectionActions = null,
   onOpenItem = null,
+  resolveSignedUrls = null,
 }) {
+  const thumbResolver = useMemo(
+    () => (resolveSignedUrls ? createUrlBatcher(resolveSignedUrls) : resolveSignedUrl),
+    [resolveSignedUrls, resolveSignedUrl],
+  );
   const resize = useColumnResize(`media-${storageKey ?? "table"}`);
   const storedKey = storageKey ? `runly-media-${storageKey}` : null;
   const read = (name, fallback) => {
@@ -229,6 +243,20 @@ export function MediaGallery({
   const indexById = useMemo(() => new Map(sequence.map((item, i) => [item.id, i])), [sequence]);
 
   const selectedItems = sequence.filter((item) => selected.has(item.id));
+  // Shift+click selects the range from the last toggled item (Google Photos style).
+  const anchor = useRef(null);
+  const shiftHeld = useRef(false);
+  const pick = (item, shift = shiftHeld.current) => {
+    shiftHeld.current = false;
+    const from = anchor.current != null ? indexById.get(anchor.current) : undefined;
+    const to = indexById.get(item.id);
+    anchor.current = item.id;
+    if (shift && from !== undefined && to !== undefined) {
+      setMany(sequence.slice(Math.min(from, to), Math.max(from, to) + 1), true);
+    } else {
+      toggle(item.id);
+    }
+  };
   const toggle = (id) => setSelected((prev) => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -268,8 +296,9 @@ export function MediaGallery({
   );
 
   // Tap = open (or toggle while a selection exists); long-press = select.
-  const open = (item) => {
-    if (selected.size) { toggle(item.id); return; }
+  const open = (item, event) => {
+    if (event?.shiftKey) { pick(item, true); return; }
+    if (selected.size) { pick(item, false); return; }
     if (onOpenItem?.(item)) return;
     setViewerIndex(indexById.get(item.id) ?? 0);
   };
@@ -278,9 +307,10 @@ export function MediaGallery({
     item,
     isSelected: selected.has(item.id),
     selecting: selected.size > 0,
-    resolveSignedUrl,
-    onOpen: () => open(item),
-    onToggle: () => toggle(item.id),
+    resolveSignedUrl: thumbResolver,
+    onOpen: (event) => open(item, event),
+    onToggle: () => pick(item),
+    shiftHeld,
   });
   const renderTile = (item) => <MediaTile key={item.id} {...tileProps(item)} />;
   const renderCard = (item) => <MediaCard key={item.id} {...tileProps(item)} onOpenGroup={onOpenGroup} openGroupLabel={openGroupLabel} />;
@@ -307,9 +337,9 @@ export function MediaGallery({
         </TableHeader>
         <TableBody>
           {list.map((item) => (
-            <TableRow key={item.id} className="cursor-pointer" onClick={() => open(item)}>
-              <TableCell onClick={(e) => e.stopPropagation()}><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggle(item.id)} aria-label={`Seleccionar ${item.name}`} /></TableCell>
-              <TableCell><MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} sharp={false} className="h-10 w-10 rounded-lg" /></TableCell>
+            <TableRow key={item.id} className="cursor-pointer" onClick={(e) => open(item, e)}>
+              <TableCell onClickCapture={(e) => { shiftHeld.current = e.shiftKey; }} onClick={(e) => e.stopPropagation()}><Checkbox checked={selected.has(item.id)} onCheckedChange={() => pick(item)} aria-label={`Seleccionar ${item.name}`} /></TableCell>
+              <TableCell><MediaThumb item={item} resolveSignedUrl={thumbResolver} className="h-10 w-10 rounded-lg" /></TableCell>
               <TableCell className="max-w-64 truncate font-medium">{item.name}</TableCell>
               <TableCell className="max-w-48 truncate text-[hsl(var(--muted-foreground))]">{item.groupLabel ?? ""}</TableCell>
               <TableCell className="tabular-nums text-[hsl(var(--muted-foreground))]">{formatBytes(item.sizeBytes)}</TableCell>
@@ -338,7 +368,18 @@ export function MediaGallery({
                   label={`Seleccionar ${group.label}`}
                   className="bg-transparent p-0"
                 />
-                <h3 className="text-sm font-semibold capitalize">{group.label}</h3>
+                {onOpenGroup && grouping !== "date" && grouping !== "none" ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenGroup(group.items[0])}
+                    title={openGroupLabel}
+                    className="truncate text-left text-sm font-semibold capitalize hover:text-(--brand-primary) hover:underline focus-visible:outline-none focus-visible:underline"
+                  >
+                    {group.label}
+                  </button>
+                ) : (
+                  <h3 className="text-sm font-semibold capitalize">{group.label}</h3>
+                )}
                 <span className="text-xs text-[hsl(var(--muted-foreground))]">{group.items.length}</span>
               </header>
             ) : null}

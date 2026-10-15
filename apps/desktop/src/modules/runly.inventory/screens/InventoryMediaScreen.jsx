@@ -53,6 +53,17 @@ export default function InventoryMediaScreen() {
     }
   }, [token])
 
+  // Thumbnails are looked up in batches of up to 50 (the files API limit).
+  const resolveSignedUrls = useCallback(async (ids, variant) => {
+    if (!token) return {}
+    try {
+      const response = await runly.files.batchSignedUrls(ids, token, { variant })
+      return response?.data ?? {}
+    } catch {
+      return {}
+    }
+  }, [token])
+
   async function download(list) {
     const ids = [...new Set(list.map((item) => item.fileAssetId))]
     const chunks = Array.from({ length: Math.ceil(ids.length / ZIP_CHUNK) }, (_, i) => ids.slice(i * ZIP_CHUNK, (i + 1) * ZIP_CHUNK))
@@ -88,6 +99,7 @@ export default function InventoryMediaScreen() {
           loadingMore={query.isFetchingNextPage}
           onLoadMore={() => query.fetchNextPage()}
           resolveSignedUrl={resolveSignedUrl}
+          resolveSignedUrls={resolveSignedUrls}
           onDownload={download}
           groupings={GROUPINGS}
           onOpenGroup={(item) => navigate(`/app/m/runly.inventory/inventory/${item.groupId}`)}

@@ -219,7 +219,19 @@ export default function FilesScreen() {
     if (files.length > 50)
       toast.info("Se seleccionaron los primeros 50 archivos de esta página.");
   };
+  const lastToggled = useRef(null);
+  explorer.rangeSelect = (id) => {
+    const ids = files.map((file) => file.id);
+    const from = ids.indexOf(lastToggled.current);
+    const to = ids.indexOf(id);
+    if (from < 0 || to < 0) return explorer.toggleSelect(id);
+    const range = ids.slice(Math.min(from, to), Math.max(from, to) + 1);
+    if (range.length > 50) toast.info("Puedes seleccionar hasta 50 archivos por descarga.");
+    resetSelection(Array.from(new Set([...explorer.selectedIds, ...range])).slice(0, 50));
+    lastToggled.current = id;
+  };
   explorer.toggleSelect = (id) => {
+    lastToggled.current = id;
     if (!explorer.selectedSet.has(id) && explorer.selectedCount >= 50) {
       toast.info("Puedes seleccionar hasta 50 archivos por descarga.");
       return;
@@ -702,6 +714,7 @@ export default function FilesScreen() {
                 files={explorer.filteredFiles}
                 selectedSet={explorer.selectedSet}
                 onToggleSelect={explorer.toggleSelect}
+                onRangeSelect={explorer.rangeSelect}
                 onSelectVisible={explorer.selectVisible}
                 onClearSelection={explorer.clearSelection}
                 onShare={setShareFile}

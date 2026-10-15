@@ -30,6 +30,7 @@ export function FilesWorkspaceTable({
   files,
   selectedSet,
   onToggleSelect,
+  onRangeSelect,
   onSelectVisible,
   onClearSelection,
   onPreview,
@@ -67,6 +68,13 @@ export function FilesWorkspaceTable({
             <Checkbox
               aria-label={`Seleccionar ${row.original.originalName}`}
               checked={selectedSet.has(row.original.id)}
+              onClick={(event) => {
+                // Shift+click selects the range from the last toggled row.
+                if (event.shiftKey && onRangeSelect) {
+                  event.preventDefault();
+                  onRangeSelect(row.original.id);
+                }
+              }}
               onCheckedChange={() => onToggleSelect(row.original.id)}
             />
           ),
@@ -231,6 +239,7 @@ export function FilesWorkspaceTable({
       files,
       selectedSet,
       onToggleSelect,
+      onRangeSelect,
       onSelectVisible,
       onClearSelection,
       onPreview,
