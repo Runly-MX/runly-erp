@@ -143,8 +143,12 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
 
   router.post('/inventory/custodies/:id/complete', manage, async (c) => {
     try {
-      const { allowUnsigned, sendEmail } = await body(c);
-      return c.json(await svc().complete(c.req.param('id'), c.get('companyId'), c.get('userId'), { allowUnsigned: allowUnsigned === true, sendEmail: sendEmail !== false }));
+      const { allowUnsigned, unsignedReason, sendEmail } = await body(c);
+      const tenant = c.get('tenantContext');
+      const canCompleteUnsigned = Boolean(tenant?.isAdmin || tenant?.permissionSet?.has?.('inventory.custody.complete_unsigned'));
+      return c.json(await svc().complete(c.req.param('id'), c.get('companyId'), c.get('userId'), {
+        allowUnsigned: allowUnsigned === true, unsignedReason, canCompleteUnsigned, sendEmail: sendEmail !== false,
+      }));
     } catch (err) { return fail(c, err, 'No se pudo completar el resguardo.'); }
   });
 

@@ -1400,6 +1400,7 @@ export const inventoryMap = createModuleManifest({
     { key: 'inventory.custody.read',       name: 'Ver resguardos de inventario' },
     { key: 'inventory.custody.manage',     name: 'Gestionar resguardos de inventario' },
     { key: 'inventory.custody.deliver_on_behalf', name: 'Generar resguardos a nombre de otra persona' },
+    { key: 'inventory.custody.complete_unsigned', name: 'Completar resguardos sin firma' },
     { key: 'inventory.template.manage',    name: 'Gestionar plantillas de documentos de inventario' },
   ],
   acl: {
@@ -1420,6 +1421,7 @@ export const inventoryMap = createModuleManifest({
       'inventory.custody.read':       'inventory.custody.read',
       'inventory.custody.manage':     'inventory.custody.manage',
       'inventory.custody.deliver_on_behalf': 'inventory.custody.deliver_on_behalf',
+      'inventory.custody.complete_unsigned': 'inventory.custody.complete_unsigned',
       'inventory.template.manage':    'inventory.template.manage',
     },
   },

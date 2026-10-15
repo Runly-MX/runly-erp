@@ -268,3 +268,17 @@ export function nextEditedFields(current = [], { set = {}, clear = [] } = {}) {
   for (const key of clear) fields.delete(key);
   return Object.keys(EDITABLE_SNAPSHOT_FIELDS).filter((key) => fields.has(key));
 }
+
+// Completing without the receiver signature (e.g. a temporary loan): needs the
+// dedicated permission and a written reason. Returns the clean reason, or null
+// when the record is (or will be) signed.
+export const UNSIGNED_REASON_MIN = 10;
+export function unsignedCompletionDecision({ custody, allowUnsigned, reason, canCompleteUnsigned }) {
+  if (custody.receiverSignatureFileId || allowUnsigned !== true) return null;
+  if (!canCompleteUnsigned) throw new InventoryServiceError('No tienes permiso para completar un resguardo sin firma.', 403);
+  const clean = String(reason ?? '').trim().slice(0, 500);
+  if (clean.length < UNSIGNED_REASON_MIN) {
+    throw new InventoryServiceError(`Escribe el motivo para completar sin firma (mínimo ${UNSIGNED_REASON_MIN} caracteres).`, 400);
+  }
+  return clean;
+}

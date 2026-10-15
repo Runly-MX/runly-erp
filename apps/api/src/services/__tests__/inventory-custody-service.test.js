@@ -6,7 +6,7 @@ import {
   assertCustodyAction, assertDelivererChoice, buildItemSnapshot, completionConflicts, decodeSignaturePng, formatCustodyFolio,
   generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, mergeSnapshot, nextEditedFields, normalizeCustodyInput,
   normalizeItemOverrides, savedSignatureDecision, signatureResetFor, shouldAutoComplete, autoCompleteActorId,
-  assertSignatureReplaceable, completionErrorMessage,
+  assertSignatureReplaceable, completionErrorMessage, unsignedCompletionDecision,
 } from '../inventory-custody-helpers.js';
 import { InventoryServiceError } from '../inventory-guards.js';
 import { serializeTemplate } from '../inventory-document-template-service.js';
@@ -189,5 +189,18 @@ describe('revision 4: auto-complete and locked receiver signature', () => {
   it('keeps service messages and caps the stored reason', () => {
     assert.equal(completionErrorMessage(new InventoryServiceError('x'.repeat(1200), 409)).length, 1000);
     assert.equal(completionErrorMessage(new Error('db down')), 'No se pudo completar el resguardo.');
+  });
+});
+
+describe('completion without receiver signature', () => {
+  const unsigned = { receiverSignatureFileId: null };
+  it('does nothing when signed or not requested', () => {
+    assert.equal(unsignedCompletionDecision({ custody: { receiverSignatureFileId: 'f' }, allowUnsigned: true, canCompleteUnsigned: false }), null);
+    assert.equal(unsignedCompletionDecision({ custody: unsigned, allowUnsigned: false, canCompleteUnsigned: true }), null);
+  });
+  it('requires the permission (403) and a reason of 10+ characters (400)', () => {
+    assert.throws(() => unsignedCompletionDecision({ custody: unsigned, allowUnsigned: true, reason: 'prestamo temporal', canCompleteUnsigned: false }), (err) => err.status === 403);
+    assert.throws(() => unsignedCompletionDecision({ custody: unsigned, allowUnsigned: true, reason: 'corto', canCompleteUnsigned: true }), (err) => err.status === 400);
+    assert.equal(unsignedCompletionDecision({ custody: unsigned, allowUnsigned: true, reason: '  Préstamo temporal de una semana ', canCompleteUnsigned: true }), 'Préstamo temporal de una semana');
   });
 });

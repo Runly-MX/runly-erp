@@ -775,6 +775,8 @@ export function createInventoryService({ prisma, activityBridge }) {
           },
           employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
           assignedBy: { select: { id: true, firstName: true, lastName: true } },
+          // Resguardos that produced / closed this assignment (inv_custody_item.assignment_id).
+          custodyItems: { select: { custody: { select: { id: true, folio: true, status: true, kind: true } } } },
         },
         orderBy: { assignedAt: 'desc' },
         skip,

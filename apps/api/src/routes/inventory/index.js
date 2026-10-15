@@ -173,6 +173,7 @@ export function createInventoryRouter({
     }
   });
 
+  // Internal/automation (MirAI, integrations); the UI uses resguardos instead.
   router.post("/inventory/items/:id/assign", requirePermission("inventory.assignment.manage"), async (c) => {
     try {
       const companyId = c.get("companyId");
@@ -187,6 +188,7 @@ export function createInventoryRouter({
     }
   });
 
+  // Internal/automation (MirAI, integrations); the UI uses resguardos instead.
   router.post("/inventory/items/:id/return", requirePermission("inventory.assignment.manage"), async (c) => {
     try {
       const companyId = c.get("companyId");

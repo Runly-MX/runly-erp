@@ -1666,6 +1666,12 @@ export const PERMISSION_CATALOG = {
     groupKey: "inventory",
     order: 33,
   },
+  "inventory.custody.complete_unsigned": {
+    displayNameEs: "Completar resguardos sin firma",
+    descriptionEs: "Permite completar un resguardo sin la firma del colaborador (por ejemplo un préstamo temporal) indicando el motivo, que queda en la bitácora.",
+    groupKey: "inventory",
+    order: 33,
+  },
   "inventory.template.manage": {
     displayNameEs: "Gestionar plantillas de documentos de inventario",
     descriptionEs: "Permite subir y administrar las plantillas Word o Excel de los resguardos.",

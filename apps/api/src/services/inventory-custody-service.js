@@ -14,7 +14,7 @@ import {
   assertCustodyAction, assertDelivererChoice, buildItemSnapshot, completionConflicts, decodeSignaturePng, formatCustodyFolio,
   generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, mergeSnapshot, nextEditedFields, normalizeCustodyInput,
   normalizeItemOverrides, savedSignatureDecision, signatureResetFor, shouldAutoComplete, autoCompleteActorId,
-  assertSignatureReplaceable, completionErrorMessage,
+  assertSignatureReplaceable, completionErrorMessage, unsignedCompletionDecision,
 } from './inventory-custody-helpers.js';
 
 const MODULE_KEY = 'runly.inventory';
@@ -424,12 +424,13 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     return finalize(await load(id, companyId), profileId, options);
   }
 
-  async function finalize(custody, profileId, { allowUnsigned = false, sendEmail = true, auditAction = 'inventory.custody.completed', via = null } = {}) {
+  async function finalize(custody, profileId, { allowUnsigned = false, unsignedReason = null, canCompleteUnsigned = false, sendEmail = true, auditAction = 'inventory.custody.completed', via = null } = {}) {
     const { id, companyId } = custody;
     if (!profileId) throw new InventoryServiceError('No hay un usuario responsable para completar el resguardo.', 409);
     assertCustodyAction(custody, 'complete');
     if (!custody.items.length) throw new InventoryServiceError('Agrega al menos un artículo al resguardo.', 409);
-    if (!custody.receiverSignatureFileId && allowUnsigned !== true) {
+    const noSignatureReason = unsignedCompletionDecision({ custody, allowUnsigned, reason: unsignedReason, canCompleteUnsigned });
+    if (!custody.receiverSignatureFileId && !noSignatureReason) {
       throw new InventoryServiceError('Falta la firma de quien recibe. Captúrala o envía el enlace de firma.', 409);
     }
     if (custody.status === 'DRAFT' && !custody.receiverSignatureFileId && !custody.delivererSignatureFileId) await refreshSnapshot(custody);
@@ -442,13 +443,15 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
         where: { id },
         data: {
           status: 'COMPLETED', completedAt: new Date(), publicTokenHash: null, tokenExpiresAt: null, completionError: null,
+          ...(noSignatureReason && !fresh.receiverSignatureFileId ? { unsignedReason: noSignatureReason } : {}),
           delivererId: fresh.delivererId ?? (fresh.delivererName ? null : profileId),
         },
       });
     }, { timeout: 60_000, maxWait: 10_000 });
     await audit(companyId, profileId, id, auditAction, {
       folio: custody.folio, kind: custody.kind, itemIds: custody.items.map((row) => row.itemId), ...(via ? { via } : {}),
-    }, allowUnsigned === true && !custody.receiverSignatureFileId ? { allowUnsigned: true } : null);
+      ...(noSignatureReason ? { unsignedReason: noSignatureReason } : {}),
+    }, noSignatureReason ? { allowUnsigned: true, summary: `Completado sin firma: ${noSignatureReason}` } : null);
 
     let documentError = null;
     let emailSent = false;
