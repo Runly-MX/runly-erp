@@ -100,7 +100,7 @@ export default function InventoryScreen() {
       // List/grid cards show the tag under the item's name.
       subtitleField: 'assetTag',
       searchable: true,
-      searchPlaceholder: 'Buscar item...',
+      searchPlaceholder: 'Buscar por serie, activo, nombre, colaborador, compra, comentario...',
       columns: [
         {
           field: 'coverImageFileId',
@@ -155,6 +155,15 @@ export default function InventoryScreen() {
     onError: err => toast.error(err?.message ?? 'No se pudo eliminar el activo'),
   })
 
+  const openItem = useCallback(row => {
+    queryClient.prefetchQuery({
+      queryKey: ['inventory', 'items', row.id],
+      queryFn: () => runly.inventory.getItem(row.id, token),
+      staleTime: 5 * 60 * 1000,
+    })
+    navigate(`/app/m/runly.inventory/inventory/${row.id}`)
+  }, [queryClient, token, navigate])
+
   return (
     <div className="p-4 md:p-6 space-y-6 min-h-dvh">
       <PageHeader
@@ -195,14 +204,8 @@ export default function InventoryScreen() {
         token={token}
         companyId={activeCompanyId}
         apiBaseUrl={getApiUrl()}
-        onView={row => {
-          queryClient.prefetchQuery({
-            queryKey: ['inventory', 'items', row.id],
-            queryFn: () => runly.inventory.getItem(row.id, token),
-            staleTime: 5 * 60 * 1000,
-          })
-          navigate(`/app/m/runly.inventory/inventory/${row.id}`)
-        }}
+        onView={openItem}
+        onRowOpen={openItem}
         onEdit={row => navigate(`/app/m/runly.inventory/inventory/${row.id}/edit`)}
         onDelete={row => setConfirmDelete(row)}
         deleteLabel="Desactivar"

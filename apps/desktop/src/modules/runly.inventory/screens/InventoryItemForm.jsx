@@ -200,7 +200,7 @@ export default function InventoryItemForm() {
             const savedId = result?.data?.id ?? editItem?.id
             navigate(savedId ? `/app/m/runly.inventory/inventory/${savedId}` : '/app/m/runly.inventory/inventory')
           }}
-          onCancel={() => navigate(-1)}
+          onCancel={() => navigate(isEdit ? `/app/m/runly.inventory/inventory/${id}` : '/app/m/runly.inventory/inventory')}
         />
       </div>
 

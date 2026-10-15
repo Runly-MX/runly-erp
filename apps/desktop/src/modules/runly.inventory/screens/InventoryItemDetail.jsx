@@ -3,7 +3,7 @@ import { itemLabel } from '../lib/item-label.js'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ErrorState, ConfirmDialog, DetailActionBar, Button, DetailSkeleton } from '@runly/ui'
 import { InventoryItemPresentation } from '@runly/ui/integrations'
-import { ArrowLeft, PowerOff, Sparkles } from 'lucide-react'
+import { ArrowLeft, Plus, PowerOff, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -81,6 +81,11 @@ export default function InventoryItemDetail() {
                 label: 'Volver',
                 icon: <ArrowLeft className="h-4 w-4" />,
                 onClick: () => navigate('/app/m/runly.inventory/inventory'),
+              },
+              {
+                label: 'Nuevo inventario',
+                icon: <Plus className="h-4 w-4" />,
+                onClick: () => navigate('/app/m/runly.inventory/inventory/new'),
               },
               {
                 label: 'Desactivar',

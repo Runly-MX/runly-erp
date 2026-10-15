@@ -3,6 +3,7 @@ import { Skeleton } from "../components/Skeleton.jsx";
 import { ActionMenu } from "../components/ActionMenu.jsx";
 import { resolveColorHex } from "./runly-form-utils.js";
 import { ImageAssetCell } from "./ImageAssetCell.jsx";
+import { rowOpenProps } from "./row-open.js";
 import { formatCellText, getByPath, pickCardColumns } from "./table-card-columns.js";
 
 export function RunlyListSkeleton() {
@@ -46,6 +47,7 @@ export function RunlyListView({
   getRowId,
   rowMenuItems,
   onView,
+  onRowOpen = null,
   accentColor = null,
   token,
   apiBaseUrl,
@@ -105,7 +107,8 @@ export function RunlyListView({
         return (
           <div
             key={id}
-            className={`flex items-center gap-3 px-4 py-3.5 border-b border-[hsl(var(--border))] last:border-0 hover:bg-[hsl(var(--muted))]/30 transition-colors${isSelected ? " bg-indigo-500/5" : ""}`}
+            {...rowOpenProps(onRowOpen, row)}
+            className={`flex items-center gap-3 px-4 py-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))] border-b border-[hsl(var(--border))] last:border-0 hover:bg-[hsl(var(--muted))]/30 transition-colors${isSelected ? " bg-indigo-500/5" : ""}`}
           >
             <Checkbox
               checked={isSelected}

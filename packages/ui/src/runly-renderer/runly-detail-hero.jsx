@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "../components/Badge.jsx";
 import { Card } from "../components/Card.jsx";
 import { DetailHero } from "../components/DetailHero.jsx";
+import { CopyOnDoubleClick } from "../components/CopyOnDoubleClick.jsx";
 import { StatStrip } from "../components/StatStrip.jsx";
 import { AdvancedFileViewer } from "../components/AdvancedFileViewer.jsx";
 import { replacePathTokens } from "./detail-presentation.js";
@@ -140,6 +141,7 @@ export function HeroContainer({
   companyId = null,
   actions,
   renderValue,
+  copyOnDoubleClick = false,
 }) {
   const [imageUrl, setImageUrl] = useState(null);
   const [imageLoading, setImageLoading] = useState(
@@ -238,7 +240,9 @@ export function HeroContainer({
     label: item.label,
     icon: item.icon,
     href: item.href,
-    value: renderValue({ type: item.type, options: item.options, emphasis: item.emphasis }, item.rawValue, data),
+    value: copyOnDoubleClick ? (
+      <CopyOnDoubleClick>{renderValue({ type: item.type, options: item.options, emphasis: item.emphasis }, item.rawValue, data)}</CopyOnDoubleClick>
+    ) : renderValue({ type: item.type, options: item.options, emphasis: item.emphasis }, item.rawValue, data),
   }));
 
   return (
@@ -266,6 +270,7 @@ export function HeroContainer({
         accentHex={heroModel.accentHex}
         chips={heroModel.chips}
         actions={actions}
+        copyOnDoubleClick={copyOnDoubleClick}
         onImageClick={viewerAssetId ? () => setViewerOpen(true) : null}
       />
       {kpiRenderItems.length > 0 ? <StatStrip bare items={kpiRenderItems} /> : null}

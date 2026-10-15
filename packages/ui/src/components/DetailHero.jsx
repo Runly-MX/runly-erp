@@ -1,12 +1,57 @@
 import * as LucideIcons from "lucide-react";
 import { Card } from "./Card.jsx";
 import { Skeleton } from "./Skeleton.jsx";
+import { CopyOnDoubleClick } from "./CopyOnDoubleClick.jsx";
+import { useCopyValue } from "../hooks/useCopyValue.js";
+
+const Copy = LucideIcons.Copy;
 
 function GlyphIcon({ name, className, fallback = "FileText" }) {
   const Icon =
     (name && LucideIcons[name]) || LucideIcons[fallback] || LucideIcons.FileText;
   return <Icon className={className} aria-hidden="true" />;
 }
+
+// Meta chip. `prominent` chips (serial / asset number) are larger with a
+// monospace value; `copyable` ones get a small copy button; `empty` ones show
+// their muted placeholder text.
+function HeroChip({ chip, copyOnDoubleClick }) {
+  const copy = useCopyValue();
+  const value = chip.empty ? null : String(chip.value);
+  const valueNode = chip.empty ? (
+    <span className="italic text-[hsl(var(--muted-foreground))]">{chip.emptyLabel}</span>
+  ) : copyOnDoubleClick || chip.copyable ? (
+    <CopyOnDoubleClick text={value} className={chip.prominent ? "font-mono font-semibold" : "font-medium"}>{value}</CopyOnDoubleClick>
+  ) : (
+    <span className="font-medium">{value}</span>
+  );
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 text-xs text-[hsl(var(--foreground))] ${chip.prominent ? "py-1.5 text-sm" : "py-1"}`}
+    >
+      {chip.icon ? (
+        <GlyphIcon name={chip.icon} className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
+      ) : null}
+      {chip.label ? <span className="text-[hsl(var(--muted-foreground))]">{chip.label}:</span> : null}
+      {chip.type === "color" && chip.colorHex ? (
+        <span className="inline-block h-3 w-3 rounded-full border border-[hsl(var(--border))]" style={{ backgroundColor: chip.colorHex }} />
+      ) : null}
+      {valueNode}
+      {chip.copyable && !chip.empty ? (
+        <button
+          type="button"
+          onClick={() => void copy(value)}
+          className="ml-0.5 rounded p-0.5 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          aria-label={`Copiar ${chip.label ?? "valor"}`}
+          title="Copiar"
+        >
+          <Copy className="h-3 w-3" />
+        </button>
+      ) : null}
+    </span>
+  );
+}
+
 
 // Presentational only. All props are fully resolved by the caller.
 //   title       string
@@ -36,6 +81,7 @@ export function DetailHero({
   actions,
   onImageClick,
   bare = false,
+  copyOnDoubleClick = false,
 }) {
   const chipList = Array.isArray(chips) ? chips : [];
   const inner = (
@@ -102,29 +148,7 @@ export function DetailHero({
           {chipList.length > 0 ? (
             <div className="mt-1 flex flex-wrap gap-2">
               {chipList.map((chip) => (
-                <span
-                  key={chip.key}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1 text-xs text-[hsl(var(--foreground))]"
-                >
-                  {chip.icon ? (
-                    <GlyphIcon
-                      name={chip.icon}
-                      className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]"
-                    />
-                  ) : null}
-                  {chip.label ? (
-                    <span className="text-[hsl(var(--muted-foreground))]">
-                      {chip.label}:
-                    </span>
-                  ) : null}
-                  {chip.type === "color" && chip.colorHex ? (
-                    <span
-                      className="inline-block h-3 w-3 rounded-full border border-[hsl(var(--border))]"
-                      style={{ backgroundColor: chip.colorHex }}
-                    />
-                  ) : null}
-                  <span className="font-medium">{String(chip.value)}</span>
-                </span>
+                <HeroChip key={chip.key} chip={chip} copyOnDoubleClick={copyOnDoubleClick} />
               ))}
             </div>
           ) : null}

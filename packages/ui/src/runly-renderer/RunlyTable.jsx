@@ -31,6 +31,7 @@ import {
 } from "./renderer-adapters.js";
 import { resolveColorHex } from "./runly-form-utils.js";
 import { accentFor } from "./records-view-format.js";
+import { rowOpenProps } from "./row-open.js";
 
 // Select value as a tinted pill: stable color per option (or option.color).
 function SelectBadge({ label, color }) {
@@ -76,6 +77,9 @@ export function RunlyTable({
   accentColor = null,
   onCreate,
   onView,
+  // Optional: double click / Enter on a row or card opens the record, and the
+  // row menu gets "Ver detalle". Off by default.
+  onRowOpen = null,
   onEdit,
   onDelete,
   // Row menu text for onDelete; screens whose delete only deactivates pass "Desactivar".
@@ -235,7 +239,17 @@ export function RunlyTable({
   );
 
   const [page, setPage] = useState(1);
+  // `searchInput` follows the keystrokes; `search` (what the API receives) trails by 300ms.
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  useEffect(() => {
+    if (searchInput === search) return undefined;
+    const timer = setTimeout(() => {
+      setPage(1);
+      setSearch(searchInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, search]);
   const [filterValues, setFilterValues] = useState(() => initialFilters ?? {});
   const [sortBy, setSortBy] = useState("");
   const [sortDir, setSortDir] = useState("asc");
@@ -374,13 +388,14 @@ export function RunlyTable({
 
   const rowActions = Array.isArray(schema.rowActions) ? schema.rowActions : [];
 
+  const openRow = onView ?? onRowOpen;
   const rowMenuItems = (row) => {
     if (rowActions.length === 0) {
       return [
-        onView && {
-          label: "Ver",
+        openRow && {
+          label: onRowOpen ? "Ver detalle" : "Ver",
           icon: Eye,
-          onClick: () => onView(row),
+          onClick: () => openRow(row),
         },
         onEdit && {
           label: "Editar",
@@ -405,7 +420,7 @@ export function RunlyTable({
       onDelete &&
       (typeof canDeleteRow === "function" ? canDeleteRow(row) : true);
     const fallbackQueue = [
-      onView ? { kind: "view", icon: Eye, run: () => onView(row) } : null,
+      openRow ? { kind: "view", icon: Eye, run: () => openRow(row) } : null,
       onEdit ? { kind: "edit", icon: Pencil, run: () => onEdit(row) } : null,
       onToggleEnabled
         ? {
@@ -431,7 +446,7 @@ export function RunlyTable({
         const kind = inferRowActionKind(label);
         let chosen = null;
 
-        if (kind === "view" && onView)
+        if (kind === "view" && openRow)
           chosen = fallbackQueue.find((item) => item.kind === "view");
         else if (kind === "edit" && onEdit)
           chosen = fallbackQueue.find((item) => item.kind === "edit");
@@ -608,7 +623,8 @@ export function RunlyTable({
                 <TableRow
                   key={id}
                   data-selected={isSelected || undefined}
-                  className={zebraClass}
+                  className={onRowOpen ? `${zebraClass ?? ""} cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]` : zebraClass}
+                  {...rowOpenProps(onRowOpen, row)}
                 >
                   <TableCell>
                     <Checkbox
@@ -768,6 +784,7 @@ export function RunlyTable({
         getRowId={getRowId}
         rowMenuItems={rowMenuItems}
         onView={onView}
+        onRowOpen={onRowOpen}
         accentColor={accentColor}
         token={token}
         apiBaseUrl={apiBaseUrl}
@@ -826,6 +843,7 @@ export function RunlyTable({
         accentColor={accentColor}
         resolveItemColor={resolveItemColor}
         onView={onView}
+        onRowOpen={onRowOpen}
         token={token}
         apiBaseUrl={apiBaseUrl}
         companyId={companyId}
@@ -838,15 +856,8 @@ export function RunlyTable({
       <div className="flex flex-col gap-4">
         <RunlyTableToolbar
           storageKey={storageKey}
-          search={searchable ? search : ""}
-          onSearchChange={
-            searchable
-              ? (val) => {
-                  setPage(1);
-                  setSearch(val);
-                }
-              : undefined
-          }
+          search={searchable ? searchInput : ""}
+          onSearchChange={searchable ? setSearchInput : undefined}
           searchPlaceholder={schema?.searchPlaceholder ?? "Buscar..."}
           filterBarFilters={filterBarFilters}
           filterValues={filterValues}

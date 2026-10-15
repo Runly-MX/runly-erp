@@ -50,7 +50,9 @@ export function buildChipList(chipDefs, record, fieldMap = null) {
     .map((def) => {
       if (!def || typeof def !== "object" || !def.field) return null;
       const raw = getByPath(record, def.field);
-      if (isEmpty(raw)) return null;
+      const emptyLabel = typeof def.emptyLabel === "string" ? def.emptyLabel : null;
+      // A chip with `emptyLabel` stays visible (muted) when the value is blank.
+      if (isEmpty(raw) && !emptyLabel) return null;
       const chip = {
         key: def.field,
         label: def.label ? String(def.label) : null,
@@ -58,6 +60,10 @@ export function buildChipList(chipDefs, record, fieldMap = null) {
         type: def.type ?? "text",
         icon:
           typeof def.icon === "string" && def.icon.trim() ? def.icon.trim() : null,
+        copyable: def.copyable === true,
+        prominent: def.prominent === true,
+        empty: isEmpty(raw),
+        emptyLabel,
       };
       if (chip.type === "color") chip.colorHex = resolveColorHex(String(raw));
       return chip;

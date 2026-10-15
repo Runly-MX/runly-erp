@@ -54,9 +54,10 @@ export const INVENTORY_ITEM_FORM = {
         icon: 'IdCard',
         collapsible: true,
         fields: [
-          { field: 'name', label: 'Nombre', type: 'text', icon: 'Package', hint: 'Opcional. Si lo dejas vacío se genera con la marca y el modelo (p. ej. «Dell XPS 15»).' },
-          { field: 'assetTag', label: 'Número de activo', type: 'text', icon: 'Hash', hint: 'Dejar vacío para auto-generar', hiddenWhen: { field: '__multi', truthy: true } },
           { field: 'serialNumber', label: 'Número de serie', type: 'text', icon: 'Barcode', hiddenWhen: { field: '__multi', truthy: true } },
+          { field: 'assetTag', label: 'Número de activo', type: 'text', icon: 'Hash', hint: 'Opcional', hiddenWhen: { field: '__multi', truthy: true } },
+          // After the identifiers on purpose; the API generates it when blank.
+          { field: 'name', label: 'Nombre', type: 'text', icon: 'Package', hint: 'Si lo dejas vacío se genera con tipo, marca y modelo (p. ej. «Dell XPS 15»).' },
           { field: 'partNumber', label: 'Número de parte', type: 'text', icon: 'ScanLine' },
         ],
       },

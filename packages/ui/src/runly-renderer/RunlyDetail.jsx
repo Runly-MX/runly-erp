@@ -23,6 +23,7 @@ import {
 import { HeroContainer } from "./runly-detail-hero.jsx";
 import { resolveSchemaTabs, tabOfSection } from "./schema-tabs.js";
 import { isElementVisible, matchesVisibilityRule, visibleSections as filterVisibleSections } from "./visibility-rules.js";
+import { CopyOnDoubleClick } from "../components/CopyOnDoubleClick.jsx";
 import { SchemaTabBar } from "./SchemaTabBar.jsx";
 import { resolveFieldIcon } from "./field-icons.js";
 import { cn } from "../lib/utils.js";
@@ -709,6 +710,8 @@ export function RunlyDetail({
                         token={token}
                         companyId={companyId}
                       />
+                    ) : schema.copyOnDoubleClick ? (
+                      <CopyOnDoubleClick>{renderValue(field, value, data)}</CopyOnDoubleClick>
                     ) : (
                       renderValue(field, value, data)
                     )}
@@ -743,6 +746,7 @@ export function RunlyDetail({
           companyId={companyId}
           actions={heroActions ?? fallbackActions}
           renderValue={renderValue}
+          copyOnDoubleClick={schema.copyOnDoubleClick === true}
         />
       ) : (
         (onBack || onEdit) && (

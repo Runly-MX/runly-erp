@@ -4,6 +4,7 @@ import { initialsFromName } from "./runly-detail-hero.jsx";
 import { Checkbox } from "../components/Checkbox.jsx";
 import { ActionMenu } from "../components/ActionMenu.jsx";
 import { ImageAssetCell } from "./ImageAssetCell.jsx";
+import { rowOpenProps } from "./row-open.js";
 import { formatCellText, getByPath, pickCardColumns } from "./table-card-columns.js";
 
 function CardAvatar({ url, title, tint }) {
@@ -42,6 +43,7 @@ export function RunlyCardView({
   accentColor = null,
   resolveItemColor = null,
   onView,
+  onRowOpen = null,
   onEdit,
   onDelete,
   token,
@@ -88,7 +90,8 @@ export function RunlyCardView({
         return (
           <div
             key={id}
-            className={`surface-card group flex flex-col overflow-hidden rounded-2xl border transition-all duration-150 hover:bg-[hsl(var(--muted))]/20${
+            {...rowOpenProps(onRowOpen, row)}
+            className={`surface-card group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] flex flex-col overflow-hidden rounded-2xl border transition-all duration-150 hover:bg-[hsl(var(--muted))]/20${
               isSelected
                 ? " border-indigo-500/60 bg-indigo-500/5"
                 : " border-[hsl(var(--border))] hover:border-[hsl(var(--border))]/60"

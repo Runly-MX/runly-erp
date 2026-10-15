@@ -9,9 +9,12 @@ export const INVENTORY_ITEM_DETAIL = {
     component: 'RunlyDetail',
     apiPath: '/inventory/items',
     layout: 'two-column',
+    // Double click on any displayed value copies it (CopyOnDoubleClick).
+    copyOnDoubleClick: true,
     hero: {
       titleField: 'name',
-      subtitleFields: ['categoryName', 'model'],
+      // Tipo / Marca / Modelo and the identifiers live in the chips below.
+      subtitleFields: [],
       // Disponibilidad next to the title; the administrative Estado is the
       // first, emphasized KPI below.
       statusField: 'status',
@@ -19,19 +22,30 @@ export const INVENTORY_ITEM_DETAIL = {
       imageDocsPath: '/inventory/items/:id/files',
       fallbackIcon: 'Package',
       metaChips: [
-        { field: 'assetTag', label: 'N.º de activo', icon: 'Hash' },
         { field: 'categoryName', label: 'Tipo', icon: 'Layers' },
         { field: 'brandName', label: 'Marca', icon: 'Tag' },
+        { field: 'model', label: 'Modelo', icon: 'Package' },
+        { field: 'serialNumber', label: 'Número de serie', icon: 'Barcode', copyable: true, prominent: true, emptyLabel: 'Sin número de serie' },
+        { field: 'assetTag', label: 'Número de activo', icon: 'Hash', copyable: true, prominent: true, emptyLabel: 'Sin número de activo' },
         { field: 'conditionName', label: 'Condición', icon: 'Activity' },
       ],
     },
     kpis: [
       { label: 'Estado', field: 'adminStatus', type: 'select', options: ADMIN_STATUSES, emphasis: true, icon: 'ClipboardList' },
       { label: 'Asignado a', field: 'assignedToName', icon: 'UserCheck' },
-      { label: 'Fecha de asignación', field: 'assignedAt', type: 'date', icon: 'CalendarDays' },
-      { label: 'Vencimiento de garantía', field: 'warrantyExpiry', type: 'date', icon: 'ShieldCheck' },
     ],
     sections: [
+      {
+        label: 'Identificación',
+        icon: 'IdCard',
+        column: 'main',
+        columns: 2,
+        fields: [
+          { field: 'serialNumber', label: 'Número de serie', icon: 'Barcode' },
+          { field: 'assetTag', label: 'Número de activo', icon: 'Hash' },
+          { field: 'partNumber', label: 'Número de parte', icon: 'Hash' },
+        ],
+      },
       {
         label: 'Modelo, tipo y marca',
         icon: 'Boxes',
@@ -44,17 +58,6 @@ export const INVENTORY_ITEM_DETAIL = {
         ],
       },
       {
-        label: 'Identificación',
-        icon: 'IdCard',
-        column: 'main',
-        columns: 2,
-        fields: [
-          { field: 'assetTag', label: 'Número de activo', icon: 'Hash' },
-          { field: 'serialNumber', label: 'Número de serie', icon: 'Hash' },
-          { field: 'partNumber', label: 'Número de parte', icon: 'Hash' },
-        ],
-      },
-      {
         label: 'Ubicación y origen',
         icon: 'MapPin',
         column: 'main',
@@ -62,6 +65,7 @@ export const INVENTORY_ITEM_DETAIL = {
         fields: [
           { field: 'locationName', label: 'Ubicación', icon: 'MapPin' },
           { field: 'conditionName', label: 'Condición', icon: 'Activity' },
+          { field: 'assignedAt', label: 'Fecha de asignación', type: 'date', icon: 'CalendarDays' },
           { field: 'acquisitionOrigin', label: 'Origen de adquisición', type: 'select', options: ACQUISITION_ORIGIN_OPTIONS, icon: 'Receipt' },
         ],
       },
