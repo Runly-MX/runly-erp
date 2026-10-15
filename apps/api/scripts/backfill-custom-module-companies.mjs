@@ -8,14 +8,17 @@
 // Modules with no recorded installer are left untouched and reported.
 //
 // Dry run (default): prints counts only.
-//   node --env-file=.env scripts/backfill-custom-module-companies.mjs
+//   (VPS) docker exec <api-container> node apps/api/scripts/backfill-custom-module-companies.mjs
+//   (dev)  node --env-file=.env apps/api/scripts/backfill-custom-module-companies.mjs
 // Apply:
-//   node --env-file=.env scripts/backfill-custom-module-companies.mjs --apply
-import { PrismaClient } from '@prisma/client';
+//   (VPS) docker exec <api-container> node apps/api/scripts/backfill-custom-module-companies.mjs --apply
+//   (dev)  node --env-file=.env apps/api/scripts/backfill-custom-module-companies.mjs --apply
+import pkg from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { isOfficialModuleKey } from '../apps/api/src/services/module-manifests-service.js';
+import { isOfficialModuleKey } from '../src/services/module-manifests-service.js';
 
 const APPLY = process.argv.includes('--apply');
+const { PrismaClient } = pkg;
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });
