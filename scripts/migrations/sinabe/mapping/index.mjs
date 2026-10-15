@@ -1,5 +1,6 @@
 // Builds the in-memory migration model from a loaded sinabe source: lookups,
 // the asset tag decision and one pure mapping per inventory. No I/O.
+import { fullName } from './people.mjs'
 import { normalizeUploadKey, isThumbnailKey } from '../paths.mjs'
 import { mapStatus, decideAssetTags, pickCondition, itemName, dayOf, DEFAULT_TIMEZONE } from './item.mjs'
 import { itemCustomValues } from './custom-fields.mjs'
@@ -90,6 +91,7 @@ export function buildModel(source, { timeZone = DEFAULT_TIMEZONE } = {}) {
         assetTag: tag.assetTag,
         name: itemName({ typeName, brandName, modelName: model?.name, assetTag: tag.assetTag, serialNumber: inv.serialNumber }),
         enabled: inv.enabled !== false,
+        legacyActor: fullName(users.get(inv.createdById)),
         serialNumber: inv.serialNumber ?? null,
         model: model?.name ?? null,
         notes: inv.comments ?? null,

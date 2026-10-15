@@ -151,7 +151,8 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
     });
     return rows.map(({ actor, ...row }) => ({
       ...row,
-      actorName: actor ? (actor.displayName || [actor.firstName, actor.lastName].filter(Boolean).join(' ')) : null,
+      // No actor = a row written by the data migration (see InvItemAdminEvent.actorId).
+      actorName: actor ? (actor.displayName || [actor.firstName, actor.lastName].filter(Boolean).join(' ')) : 'Migración',
     }));
   }
 

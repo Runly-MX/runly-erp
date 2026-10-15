@@ -45,8 +45,10 @@ export function normalizeItemStatus(data = {}) {
 
 // Admin event ledger for an imported item. Explicit events win; otherwise the
 // history is reconstructed from the final status with the original dates.
-export function buildAdminEvents({ adminStatus, registeredAt, deregisteredAt, deregistrationReason }, { source, events } = {}) {
-  const note = `Importado desde ${source}`;
+// legacyActor: name of whoever registered the item in the source system, kept as plain text
+// (there is no Runly user for it); the rows themselves carry no actor and show as "Migración".
+export function buildAdminEvents({ adminStatus, registeredAt, deregisteredAt, deregistrationReason }, { source, events, legacyActor } = {}) {
+  const note = `Importado desde ${source}${legacyActor ? ` · registrado por ${legacyActor}` : ''}`;
   if (Array.isArray(events) && events.length) {
     return events.map((event) => {
       if (!ADMIN_STATUSES.includes(event.toStatus)) throw new LegacyImportError(`Estado de evento no válido: ${event.toStatus}.`);
@@ -142,20 +144,20 @@ export function createInventoryHistorical({ prisma, refs, fileStore, defaultSour
     await assertRefs(companyId, fields);
     const warnings = [];
     const customValues = await resolveCustomValues(companyId, fields.categoryId, data.customValues, warnings);
-    const events = buildAdminEvents(statusFields, { source, events: data.adminEvents });
+    const events = buildAdminEvents(statusFields, { source, events: data.adminEvents, legacyActor: clip(data.legacyActor, 120) });
     const result = await refs.ensure({ companyId, source, entity: 'inv_item', legacyId }, async (tx) => {
       const item = await tx.invItem.create({
         data: {
           companyId, assetTag, enabled, ...fields, ...statusFields,
           name: fields.name || `Activo ${assetTag ?? fields.serialNumber ?? ''}`.trim(),
-          createdById: actorId ?? undefined,
+          createdById: null, // written by the data migration: shows as "Migración", never as the operator
           ...(data.createdAt ? { createdAt: toTimestamp(data.createdAt) } : {}),
         },
       });
       if (customValues.length) await tx.invCustomFieldValue.createMany({ data: customValues.map((value) => ({ ...value, itemId: item.id })) });
       for (const event of events) {
         await tx.invItemAdminEvent.create({
-          data: { companyId, itemId: item.id, ...event, actorId, ...(event.effectiveDate ? { createdAt: event.effectiveDate } : {}) },
+          data: { companyId, itemId: item.id, ...event, actorId: null, ...(event.effectiveDate ? { createdAt: event.effectiveDate } : {}) },
         });
       }
       await writeImportAudit(tx, {
