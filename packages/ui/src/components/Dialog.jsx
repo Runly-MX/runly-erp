@@ -173,7 +173,16 @@ const DialogContent = forwardRef(function DialogContent(
   );
 });
 
-const DialogHeader = function DialogHeader({ className, ...props }) {
+// Standard modal header: tinted icon tile + title/description. Pass `icon` (a
+// lucide component) for the house look; children are then the title and
+// description. Without `icon` it is the plain stacked header.
+const ICON_TONES = {
+  primary: "bg-[hsl(var(--primary))]/12 text-[hsl(var(--primary))]",
+  warning: "bg-amber-500/12 text-amber-600 dark:text-amber-400",
+  destructive: "bg-[hsl(var(--destructive))]/12 text-[hsl(var(--destructive))]",
+};
+
+const DialogHeader = function DialogHeader({ className, icon: Icon = null, tone = "primary", children, ...props }) {
   const drag = useBottomSheetHeaderDrag();
   return (
     <div
@@ -185,7 +194,18 @@ const DialogHeader = function DialogHeader({ className, ...props }) {
         className,
       )}
       {...props}
-    />
+    >
+      {Icon ? (
+        <div className="flex items-start gap-4">
+          <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full", ICON_TONES[tone] ?? ICON_TONES.primary)} aria-hidden="true">
+            <Icon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1 space-y-1.5">{children}</div>
+        </div>
+      ) : (
+        children
+      )}
+    </div>
   );
 };
 

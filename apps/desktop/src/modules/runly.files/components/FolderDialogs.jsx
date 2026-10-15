@@ -12,7 +12,7 @@ import {
   SelectField,
   cn,
 } from "@runly/ui";
-import { ChevronRight, Folder, FolderTree, Users } from "lucide-react";
+import { ChevronRight, Folder, FolderPen, FolderPlus, FolderSymlink, FolderTree, Share2, Users } from "lucide-react";
 import { runly } from "../../../lib/runly";
 import { ROOT_FOLDER, childrenOf, descendantIds, publicFolderPath } from "../lib/folders";
 
@@ -32,7 +32,7 @@ export function FolderNameDialog({ open, folder, parentShared, pending, onSubmit
   const trimmed = name.trim();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
+      <DialogContent size="md">
         <form
           className="grid gap-4"
           onSubmit={(event) => {
@@ -40,7 +40,7 @@ export function FolderNameDialog({ open, folder, parentShared, pending, onSubmit
             if (trimmed) onSubmit({ name: trimmed, scope });
           }}
         >
-          <DialogHeader>
+          <DialogHeader icon={folder ? FolderPen : FolderPlus}>
             <DialogTitle>{folder ? "Renombrar carpeta" : "Nueva carpeta"}</DialogTitle>
             <DialogDescription>
               {folder ? "Cambia el nombre de la carpeta." : "Organiza tus archivos en carpetas y subcarpetas."}
@@ -104,8 +104,8 @@ export function FolderPickerDialog({ open, title, description, folders, moving =
   const blocked = useMemo(() => (moving ? descendantIds(folders, moving) : new Set()), [folders, moving]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
-        <DialogHeader>
+      <DialogContent size="md">
+        <DialogHeader icon={FolderSymlink}>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
@@ -150,8 +150,8 @@ export function FolderShareDialog({ folder, token, pending, onChangeScope, onOpe
   }, [folder.id, token]);
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent size="md">
-        <DialogHeader>
+      <DialogContent size="lg">
+        <DialogHeader icon={Share2}>
           <DialogTitle>Compartir «{folder.name}»</DialogTitle>
           <DialogDescription>Define quién ve la carpeta dentro de Runly y crea enlaces para personas externas.</DialogDescription>
         </DialogHeader>

@@ -41,17 +41,12 @@ export function CustodyPublicLinkDialog({ open, onOpenChange, custody }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="md">
-        <DialogHeader>
-          <div className="flex items-start gap-4">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--primary))]/12 text-[hsl(var(--primary))]" aria-hidden="true"><Smartphone className="h-5 w-5" /></span>
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <DialogTitle>Enlace de firma</DialogTitle>
+        <DialogHeader icon={Smartphone}>
+          <DialogTitle>Enlace de firma</DialogTitle>
               <DialogDescription>
                 {custody.employeeName} podrá revisar el resguardo y firmar desde su teléfono, sin iniciar sesión.
                 {custody.hasPublicLink ? ' Generar uno nuevo invalida el enlace anterior.' : ''}
               </DialogDescription>
-            </div>
-          </div>
         </DialogHeader>
         <div className="space-y-3">
           {link?.url ? (

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ConfirmDialog } from "@runly/ui";
+import { Trash2 } from "lucide-react";
 import { FolderExplorerBar } from "./FolderExplorerBar";
 import { FolderNameDialog, FolderPickerDialog, FolderShareDialog } from "./FolderDialogs";
 import { ROOT_FOLDER } from "../lib/folders";
@@ -103,6 +104,7 @@ export function FilesFolderManager({
         open={dialog?.type === "delete"}
         onOpenChange={(open) => !open && close()}
         title="¿Eliminar carpeta?"
+        icon={Trash2}
         description="Los archivos y subcarpetas que contiene no se borran: pasan a la carpeta superior. Sus enlaces públicos dejan de funcionar."
         detail={dialog?.folder?.name}
         confirmLabel="Eliminar"

@@ -597,7 +597,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 
 | Export | Description |
 |---|---|
-| `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogFooter`, `DialogTitle`, `DialogDescription`, `DialogClose`, `DialogPortal`, `DialogOverlay` | Modal dialog |
+| `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogFooter`, `DialogTitle`, `DialogDescription`, `DialogClose`, `DialogPortal`, `DialogOverlay` | Modal dialog. Standard form: `<DialogContent size="md">` (never `sm` for forms), `<DialogHeader icon={LucideIcon} tone?>` (tinted icon tile + `DialogTitle` + `DialogDescription`), body as children, `DialogFooter` with Cancelar + primary action. `ConfirmDialog` takes the same `icon`/`tone`. |
 | `Sheet`, `SheetTrigger`, `SheetContent`, `SheetHeader`, `SheetFooter`, `SheetTitle`, `SheetDescription`, `SheetClose`, `SheetPortal`, `SheetOverlay` | Slide-in panel |
 | `Popover`, `PopoverTrigger`, `PopoverContent`, `PopoverAnchor` | Floating popover |
 | `SyncStatusPopover` | One-icon Topbar site status (online/offline/syncing/pending) with a popover detail panel; `onReconnect` (resolves to the new online state) shows "Reintentar conexion" while offline, `onSyncNow` shows "Sincronizar ahora" while online |
