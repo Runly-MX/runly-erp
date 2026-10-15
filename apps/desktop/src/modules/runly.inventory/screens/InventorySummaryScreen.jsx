@@ -16,6 +16,8 @@ import { DistributionPanel } from '../components/dashboard/DistributionPanel.jsx
 import { TypeRadarPanel } from '../components/dashboard/TypeRadarPanel.jsx'
 
 const LIST_PATH = '/app/m/runly.inventory/inventory'
+// The card lists only the oldest few; the rest are one click away in the list.
+const PROPOSALS_VISIBLE = 5
 const formatDay = (value) => { const [y, m, d] = String(value).slice(0, 10).split('-'); return `${d}/${m}/${y}` }
 
 // Module landing page. One loud element (the status hero), metrics with small
@@ -66,11 +68,11 @@ export default function InventorySummaryScreen() {
                 <EmptyState icon={ClipboardCheck} title="Todo al día" description="No hay propuestas de baja pendientes." />
               ) : (
                 <ul className="space-y-2">
-                  {data.pendingProposals.map((item) => (
+                  {data.pendingProposals.slice(0, PROPOSALS_VISIBLE).map((item) => (
                     <li key={item.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-[hsl(var(--muted))]/35 p-3">
                       <button type="button" onClick={() => navigate(`${LIST_PATH}/${item.id}`)} className="min-w-0 flex-1 text-left">
                         <p className="truncate text-sm font-medium hover:underline">{item.name}</p>
-                        <p className="text-xs text-[hsl(var(--muted-foreground))]">{item.assetTag}{item.deregistrationReason ? `, ${reasonLabel(item.deregistrationReason).toLowerCase()}` : ''}</p>
+                        <p className="text-xs text-[hsl(var(--muted-foreground))]">{[item.assetTag, item.deregistrationReason ? reasonLabel(item.deregistrationReason).toLowerCase() : null].filter(Boolean).join(', ')}</p>
                       </button>
                       {canDecide ? (
                         <div className="flex gap-2">
@@ -80,7 +82,7 @@ export default function InventorySummaryScreen() {
                       ) : null}
                     </li>
                   ))}
-                  {data.byAdminStatus.deregistration_proposed > data.pendingProposals.length ? (
+                  {data.byAdminStatus.deregistration_proposed > PROPOSALS_VISIBLE ? (
                     <Button variant="ghost" size="sm" className="w-full" onClick={() => go({ adminStatus: 'deregistration_proposed' })}>Ver todas las propuestas</Button>
                   ) : null}
                 </ul>

@@ -932,6 +932,17 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       createLink: (id, data, token) => request(`/files/${encodeURIComponent(id)}/links`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
       revokeLink: (id, linkId, token) => request(`/files/${encodeURIComponent(id)}/links/${encodeURIComponent(linkId)}/revoke`, { method: 'POST', headers: withAuthHeaders(token), onlineOnly: true }),
       getPublic: (linkToken) => request(`/public/files/${encodeURIComponent(linkToken)}`, { onlineOnly: true }),
+      getPublicFolder: (linkToken, folderId) => request(`/public/folders/${encodeURIComponent(linkToken)}${toQueryString({ folder: folderId })}`, { onlineOnly: true }),
+      folders: {
+        tree: (token) => request('/files/folders', { headers: withAuthHeaders(token), onlineOnly: true }),
+        create: (data, token) => request('/files/folders', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+        update: (id, data, token) => request(`/files/folders/${encodeURIComponent(id)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+        remove: (id, token) => request(`/files/folders/${encodeURIComponent(id)}`, { method: 'DELETE', headers: withAuthHeaders(token), onlineOnly: true }),
+        moveFiles: (data, token) => request('/files/folders/move-files', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+        listLinks: (id, token) => request(`/files/folders/${encodeURIComponent(id)}/links`, { headers: withAuthHeaders(token), onlineOnly: true }),
+        createLink: (id, data, token) => request(`/files/folders/${encodeURIComponent(id)}/links`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+        revokeLink: (id, linkId, token) => request(`/files/folders/${encodeURIComponent(id)}/links/${encodeURIComponent(linkId)}/revoke`, { method: 'POST', headers: withAuthHeaders(token), onlineOnly: true }),
+      },
       officeStatus: (token) => request('/files/office/status', { headers: withAuthHeaders(token) }),
       downloadOfficeFile: (id, token) => requestBlob(`/files/${encodeURIComponent(id)}/office/download`, { headers: withAuthHeaders(token) }),
       createOfficeSession: (id, mode = 'auto', token) => request(`/files/${encodeURIComponent(id)}/office/session`, {
@@ -2453,6 +2464,10 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
     })(),
     inventory: {
       ...createInventoryCustodyDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
+      listMedia: (params, token) =>
+        request(`/inventory/media${toQueryString(params)}`, {
+          headers: withAuthHeaders(token),
+        }),
       // Items
       listItems: (params, token) =>
         request(`/inventory/items${toQueryString(params)}`, {

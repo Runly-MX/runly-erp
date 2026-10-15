@@ -1348,6 +1348,13 @@ export const inventoryMap = createModuleManifest({
       permissionKey: 'inventory.item.read',
     },
     {
+      label: 'Multimedia',
+      path: '/inventory/media',
+      icon: 'Images',
+      layout: 'main',
+      permissionKey: 'inventory.item.read',
+    },
+    {
       label: 'Registro con IA',
       path: '/inventory/intake',
       icon: 'Sparkles',

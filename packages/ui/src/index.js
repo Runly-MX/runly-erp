@@ -156,6 +156,8 @@ export {
   TableCaption,
 } from "./components/Table.jsx";
 export { DataTable } from "./components/DataTable.jsx";
+export { MediaGallery } from "./components/MediaGallery.jsx";
+export { groupMedia } from "./lib/media-grouping.js";
 export {
   Pagination,
   PaginationContent,
