@@ -184,7 +184,8 @@ export function createInventoryService({ prisma, activityBridge }) {
       prisma.invItem.count({ where }),
     ]);
 
-    const enriched = await Promise.all(data.map(async (item) => ({
+    const covers = await resolveCoverImageFileIds(data.map((item) => item.id));
+    const enriched = data.map((item) => ({
       ...item,
       categoryName: item.category?.name ?? null,
       brandName: item.brand?.name ?? null,
@@ -193,8 +194,8 @@ export function createInventoryService({ prisma, activityBridge }) {
       assignedToName: item.assignedTo
         ? [item.assignedTo.firstName, item.assignedTo.lastName].filter(Boolean).join(' ')
         : null,
-      coverImageFileId: await resolveCoverImageFileId(item.id),
-    })));
+      coverImageFileId: covers.get(item.id) ?? null,
+    }));
 
     return { data: enriched, total, page: normalizePage(page), limit: take };
   }
@@ -203,9 +204,17 @@ export function createInventoryService({ prisma, activityBridge }) {
   // marked isCover, else the earliest-uploaded image attachment, else null.
   // Only selects mimeType (not the full FileAsset row) to keep this cheap.
   async function resolveCoverImageFileId(itemId) {
+    return (await resolveCoverImageFileIds([itemId])).get(itemId) ?? null;
+  }
+
+  // One query for a whole page of items (the list used to run one per row).
+  async function resolveCoverImageFileIds(itemIds) {
+    const covers = new Map();
+    if (!itemIds.length) return covers;
     const files = await prisma.invItemFile.findMany({
-      where: { itemId },
+      where: { itemId: { in: itemIds } },
       select: {
+        itemId: true,
         fileAssetId: true,
         isCover: true,
         sortOrder: true,
@@ -214,10 +223,12 @@ export function createInventoryService({ prisma, activityBridge }) {
       },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
-    const explicit = files.find((f) => f.isCover);
-    if (explicit) return explicit.fileAssetId;
-    const firstImage = files.find((f) => String(f.fileAsset?.mimeType ?? '').startsWith('image/'));
-    return firstImage?.fileAssetId ?? null;
+    for (const itemId of itemIds) {
+      const own = files.filter((f) => f.itemId === itemId);
+      const pick = own.find((f) => f.isCover) ?? own.find((f) => String(f.fileAsset?.mimeType ?? '').startsWith('image/'));
+      if (pick) covers.set(itemId, pick.fileAssetId);
+    }
+    return covers;
   }
 
   // Same flat shape getItem()/listItems() already expose (relation IDs

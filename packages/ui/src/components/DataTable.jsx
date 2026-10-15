@@ -9,6 +9,8 @@ import {
 } from '@tanstack/react-table'
 import { ArrowUp, ArrowDown, ChevronsUpDown, FileSearch } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './Table.jsx'
+import { useColumnResize } from '../hooks/useColumnResize.js'
+import { ColumnResizeHandle } from './ColumnResizeHandle.jsx'
 import { Button } from './Button.jsx'
 import { Skeleton } from './Skeleton.jsx'
 import { SearchInput } from './SearchInput.jsx'
@@ -80,12 +82,15 @@ export function DataTable({
   viewMode: controlledViewMode,
   onViewModeChange,
   viewStorageKey,
+  // Where column widths are remembered (this browser only). Defaults to the view key or the column ids.
+  resizeKey,
   defaultViewMode,
   renderCard,
   cardGridClassName,
   filtersLayout = 'menu',
 }) {
   const EMPTY_ROWS = useMemo(() => [], [])
+  const resize = useColumnResize(resizeKey ?? viewStorageKey ?? `cols:${columns.map((c) => c.id ?? c.accessorKey ?? '').join('|')}`)
   const [sorting, setSorting] = useState([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [filterValues, setFilterValues] = useState({})
@@ -210,14 +215,16 @@ export function DataTable({
         )
       ) : (
       <div className="rounded-2xl surface-card overflow-clip">
-        <Table>
+        <Table {...resize.tableProps(table.getVisibleLeafColumns().map((c) => c.id))}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
+                    className="relative"
                     style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                    {...resize.headerProps(header.column.id)}
                   >
                     {header.isPlaceholder ? null : header.column.getCanSort() ? (
                       <button
@@ -236,6 +243,7 @@ export function DataTable({
                     ) : (
                       flexRender(header.column.columnDef.header, header.getContext())
                     )}
+                    {header.isPlaceholder ? null : <ColumnResizeHandle {...resize.handleProps(header.column.id)} />}
                   </TableHead>
                 ))}
               </TableRow>
@@ -279,7 +287,7 @@ export function DataTable({
               rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className={resize.resized ? 'overflow-hidden' : undefined}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

@@ -24,6 +24,8 @@ import { ColumnConfigPanel } from "./ColumnConfigPanel.jsx";
 import { ColumnHeaderMenu } from "./ColumnHeaderMenu.jsx";
 import { TablePaginationFooter } from "./TablePaginationFooter.jsx";
 import { useColumnConfig } from "./useColumnConfig.js";
+import { useColumnResize } from "../hooks/useColumnResize.js";
+import { ColumnResizeHandle } from "../components/ColumnResizeHandle.jsx";
 import {
   normalizeToFilterMenuSpecs,
   normalizeSpanishLabel,
@@ -114,6 +116,7 @@ export function RunlyTable({
     ? Math.max(1, Number(schema.pagination.defaultPageSize))
     : DEFAULT_PAGE_SIZE;
 
+  const resize = useColumnResize(tableKey);
   const colConfig = useColumnConfig({
     columns: blueprintColumns,
     savedPreference: null,
@@ -574,7 +577,7 @@ export function RunlyTable({
 
     return (
       <div className="rounded-2xl glass-shell-flat overflow-clip">
-        <Table>
+        <Table {...resize.tableProps(visibleColumns.map((c) => c.key), 88)}>
           <TableHeader>
             <TableRow className="bg-[hsl(var(--muted))]/40 hover:bg-[hsl(var(--muted))]/40">
               <TableHead className="w-10">
@@ -587,7 +590,7 @@ export function RunlyTable({
                 />
               </TableHead>
               {visibleColumns.map((col, colIdx) => (
-                <TableHead key={col.key}>
+                <TableHead key={col.key} className="relative" {...resize.headerProps(col.key)}>
                   <ColumnHeaderMenu
                     column={col}
                     canMoveLeft={!col.pinned && colIdx > 0}
@@ -608,6 +611,7 @@ export function RunlyTable({
                   >
                     {col.label}
                   </ColumnHeaderMenu>
+                  <ColumnResizeHandle {...resize.handleProps(col.key)} />
                 </TableHead>
               ))}
               <TableHead className="w-12" />
@@ -737,7 +741,7 @@ export function RunlyTable({
                     return (
                       <TableCell
                         key={`${col.key}-${rowIndex}`}
-                        className={truncateCell ? "max-w-50" : undefined}
+                        className={truncateCell && !resize.resized ? "max-w-50" : undefined}
                       >
                         {truncateCell ? (
                           <div

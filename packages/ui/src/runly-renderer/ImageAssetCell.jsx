@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ImageIcon } from "lucide-react";
 import { AdvancedFileViewer } from "../components/AdvancedFileViewer.jsx";
 import { buildApiHeaders } from "../lib/apiHeaders.js";
@@ -10,6 +10,41 @@ function joinUrl(baseUrl, apiPath) {
   const path = String(apiPath ?? "").trim();
   if (!path.startsWith("/")) return `${base}/${path}`;
   return `${base}${path}`;
+}
+
+// Signed URLs stay valid for an hour: keep them for 50 minutes so paging back,
+// re-sorting or re-rendering never asks again, and share in-flight requests.
+const URL_TTL_MS = 50 * 60 * 1000;
+const urlCache = new Map();
+
+function cachedUrl(key, load) {
+  const hit = urlCache.get(key);
+  if (hit && Date.now() - hit.at < URL_TTL_MS) return hit.promise;
+  const promise = load().then((url) => {
+    if (!url) urlCache.delete(key);
+    return url;
+  });
+  urlCache.set(key, { at: Date.now(), promise });
+  return promise;
+}
+
+// True once the element is (about to be) on screen; stays true afterwards.
+function useInView(rootMargin = "200px") {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(() => typeof IntersectionObserver === "undefined");
+  useEffect(() => {
+    const node = ref.current;
+    if (inView || !node) return undefined;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setInView(true);
+        observer.disconnect();
+      }
+    }, { rootMargin });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [inView, rootMargin]);
+  return [ref, inView];
 }
 
 // Generic "image column" cell for RunlyTable's `type: "image-asset"` columns.
@@ -42,6 +77,10 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
       : null;
   const [thumbUrl, setThumbUrl] = useState(null);
   const [thumbLoading, setThumbLoading] = useState(false);
+  // Covers first show a tiny blurred version, then swap in the sharper one.
+  const [lowRes, setLowRes] = useState(false);
+  const [imageReady, setImageReady] = useState(false);
+  const [viewRef, inView] = useInView();
   const [open, setOpen] = useState(false);
   const [viewerLoading, setViewerLoading] = useState(false);
   const [viewerFiles, setViewerFiles] = useState([]);
@@ -52,16 +91,20 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
       if (!assetId) return null;
       const base = String(column?.signedUrlPath ?? "/files/:id/signed-url").replace(":id", encodeURIComponent(assetId));
       const path = size ? `${base}${base.includes("?") ? "&" : "?"}variant=${encodeURIComponent(size)}` : base;
-      try {
-        const res = await fetch(joinUrl(apiBaseUrl, path), {
-          headers: buildApiHeaders(token, companyId),
-        });
-        if (!res.ok) return null;
-        const json = await res.json();
-        return json?.data?.signedUrl ?? json?.data?.url ?? null;
-      } catch {
-        return null;
-      }
+      const load = async () => {
+        try {
+          const res = await fetch(joinUrl(apiBaseUrl, path), {
+            headers: buildApiHeaders(token, companyId),
+          });
+          if (!res.ok) return null;
+          const json = await res.json();
+          return json?.data?.signedUrl ?? json?.data?.url ?? null;
+        } catch {
+          return null;
+        }
+      };
+      // The full-size viewer URL is not cached: it is only fetched on demand.
+      return size ? cachedUrl(`${companyId ?? ""}|${apiBaseUrl}|${path}`, load) : load();
     },
     [apiBaseUrl, token, companyId, column?.signedUrlPath],
   );
@@ -74,22 +117,40 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
         cancelled = true;
       };
     }
+    if (!inView) return () => {
+      cancelled = true;
+    };
     setThumbLoading(true);
+    setImageReady(false);
     // Cells/rows get the 96px "card" variant, card covers the medium
-    // "preview"; the original only loads when the viewer opens.
-    const resolve = fileAssetId
-      ? resolveSignedUrl(fileAssetId, variant === "cover" ? "preview" : "card")
-      : fetchUserAvatarSignedUrl(apiBaseUrl, token, avatarUserId, companyId, "thumb");
-    resolve.then((url) => {
-      if (!cancelled) {
-        setThumbUrl(url);
-        setThumbLoading(false);
-      }
-    });
+    // "preview" (after a tiny blurred "thumb"); the original only loads when
+    // the viewer opens.
+    const done = (url) => {
+      if (cancelled) return;
+      setThumbUrl(url);
+      setThumbLoading(false);
+    };
+    if (fileAssetId && variant === "cover") {
+      setLowRes(true);
+      resolveSignedUrl(fileAssetId, "thumb").then((low) => {
+        if (cancelled || !low) return;
+        done(low);
+      });
+      resolveSignedUrl(fileAssetId, "preview").then((url) => {
+        if (cancelled) return;
+        setLowRes(false);
+        done(url);
+      });
+    } else {
+      const resolve = fileAssetId
+        ? resolveSignedUrl(fileAssetId, "card")
+        : fetchUserAvatarSignedUrl(apiBaseUrl, token, avatarUserId, companyId, "thumb");
+      resolve.then(done);
+    }
     return () => {
       cancelled = true;
     };
-  }, [fileAssetId, avatarUserId, resolveSignedUrl, apiBaseUrl, token, companyId, variant]);
+  }, [fileAssetId, avatarUserId, resolveSignedUrl, apiBaseUrl, token, companyId, variant, inView]);
 
   const handleOpen = useCallback(async () => {
     if (!fileAssetId) {
@@ -139,6 +200,7 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
   return (
     <>
       <button
+        ref={viewRef}
         type="button"
         onClick={handleOpen}
         disabled={viewerLoading || !clickable}
@@ -148,7 +210,14 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
         {thumbLoading || viewerLoading ? (
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
         ) : thumbUrl ? (
-          <img src={thumbUrl} alt="" className="h-full w-full object-cover" />
+          <img
+            src={thumbUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setImageReady(true)}
+            className={`h-full w-full object-cover transition duration-300 ${imageReady ? "opacity-100" : "opacity-0"} ${lowRes ? "scale-105 blur-md" : ""}`}
+          />
         ) : avatarLabel ? (
           <span className="text-[11px] font-semibold">{initialsFromName(avatarLabel)}</span>
         ) : (

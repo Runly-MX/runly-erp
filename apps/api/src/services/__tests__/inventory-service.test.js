@@ -416,8 +416,8 @@ describe('getItem', () => {
       },
       invItemFile: {
         findMany: async () => [
-          { id: 'f1', fileAssetId: 'asset-1', isCover: false, sortOrder: 0, createdAt: new Date('2026-01-01'), fileAsset: { mimeType: 'image/png' } },
-          { id: 'f2', fileAssetId: 'asset-2', isCover: true, sortOrder: 1, createdAt: new Date('2026-01-02'), fileAsset: { mimeType: 'image/png' } },
+          { id: 'f1', itemId: ITEM_ID, fileAssetId: 'asset-1', isCover: false, sortOrder: 0, createdAt: new Date('2026-01-01'), fileAsset: { mimeType: 'image/png' } },
+          { id: 'f2', itemId: ITEM_ID, fileAssetId: 'asset-2', isCover: true, sortOrder: 1, createdAt: new Date('2026-01-02'), fileAsset: { mimeType: 'image/png' } },
         ],
       },
     })
@@ -436,8 +436,8 @@ describe('getItem', () => {
       },
       invItemFile: {
         findMany: async () => [
-          { id: 'f1', fileAssetId: 'pdf-1', isCover: false, sortOrder: 0, createdAt: new Date('2026-01-01'), fileAsset: { mimeType: 'application/pdf' } },
-          { id: 'f2', fileAssetId: 'asset-2', isCover: false, sortOrder: 1, createdAt: new Date('2026-01-02'), fileAsset: { mimeType: 'image/png' } },
+          { id: 'f1', itemId: ITEM_ID, fileAssetId: 'pdf-1', isCover: false, sortOrder: 0, createdAt: new Date('2026-01-01'), fileAsset: { mimeType: 'application/pdf' } },
+          { id: 'f2', itemId: ITEM_ID, fileAssetId: 'asset-2', isCover: false, sortOrder: 1, createdAt: new Date('2026-01-02'), fileAsset: { mimeType: 'image/png' } },
         ],
       },
     })
