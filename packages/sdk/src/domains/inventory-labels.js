@@ -38,5 +38,15 @@ export function createInventoryLabelsDomain({ request, requestBlob, withAuthHead
       // No auth: the opaque token in the QR link is the credential -> { item }.
       publicItem: (publicToken) => request(`/public/inventory/items/${id(publicToken)}`),
     },
+    // Scan kiosk ("Escanear"): resolve up to 50 codes -> { data: [{ code, item, matchedBy }] }.
+    scan: {
+      resolve: (codes, token) => send('POST', '/inventory/scan/resolve', { codes }, token),
+      // body: { columns: [string], rows: [[string]] } -> XLSX Blob
+      exportXlsx: (body, token) => requestBlob('/inventory/scan/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...withAuthHeaders(token) },
+        body: JSON.stringify(body),
+      }),
+    },
   }
 }

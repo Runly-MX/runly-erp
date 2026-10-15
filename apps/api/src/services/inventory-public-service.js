@@ -152,7 +152,16 @@ export function createInventoryPublicService({
     return data;
   }
 
+  // Authenticated scan lookup: the item id behind an active token of THIS
+  // company, else null (unknown, revoked, malformed or another company's).
+  async function itemIdForToken(companyId, token) {
+    assertCompany(companyId);
+    if (!isPlausiblePublicToken(token)) return null;
+    const row = await prisma.invPublicToken.findUnique({ where: { tokenHash: hashPublicToken(token) } });
+    return row && !row.revokedAt && row.companyId === companyId ? row.itemId : null;
+  }
+
   const urlFor = (baseUrl, token) => `${String(baseUrl ?? '').replace(/\/$/, '')}/app/p/inv/${token}`;
 
-  return { getSettings, updateSettings, ensureToken, ensureTokens, revoke, revokeAll, resolve, urlFor };
+  return { getSettings, updateSettings, ensureToken, ensureTokens, revoke, revokeAll, resolve, itemIdForToken, urlFor };
 }

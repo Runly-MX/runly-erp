@@ -12,6 +12,7 @@ import { createInventoryImportRouter } from './import-routes.js';
 import { createInventoryAdminRouter } from './admin-routes.js';
 import { createInventoryCustodyRouter } from './custody-routes.js';
 import { createInventoryLabelRouter } from './label-routes.js';
+import { createInventoryScanRouter } from './scan-routes.js';
 import { createInventoryLabelService, appBaseUrlFromEnv } from '../../services/inventory-label-service.js';
 import { createInventoryPublicService } from '../../services/inventory-public-service.js';
 import { createInventoryModelService } from '../../services/inventory-model-service.js';
@@ -44,6 +45,7 @@ export function createInventoryRouter({
   const publicService = createInventoryPublicService({ prisma, supabaseAdmin });
   const labelService = createInventoryLabelService({ prisma, publicBaseUrl: appBaseUrlFromEnv(), publicService });
   router.route('/', createInventoryLabelRouter({ requirePermission, InventoryServiceError, labelService, publicService, publicBaseUrl: appBaseUrlFromEnv() }));
+  router.route('/', createInventoryScanRouter({ prisma, requirePermission, InventoryServiceError, publicService }));
   const modelDefaults = createInventoryModelService({ prisma });
 
   const isInvErr = (err) => err instanceof InventoryServiceError;
