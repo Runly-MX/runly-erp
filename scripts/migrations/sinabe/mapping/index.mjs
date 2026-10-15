@@ -88,7 +88,8 @@ export function buildModel(source, { timeZone = DEFAULT_TIMEZONE } = {}) {
       assetTagOrigin: tag.origin,
       data: {
         assetTag: tag.assetTag,
-        name: itemName({ typeName, brandName, modelName: model?.name, assetTag: tag.assetTag }),
+        name: itemName({ typeName, brandName, modelName: model?.name, assetTag: tag.assetTag, serialNumber: inv.serialNumber }),
+        enabled: inv.enabled !== false,
         serialNumber: inv.serialNumber ?? null,
         model: model?.name ?? null,
         notes: inv.comments ?? null,

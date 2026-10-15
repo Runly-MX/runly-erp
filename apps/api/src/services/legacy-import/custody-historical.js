@@ -76,14 +76,14 @@ export function createCustodyHistorical({ prisma, refs, fileStore, defaultSource
       let assignmentId = null;
       if (custody.kind === 'DELIVERY') {
         if (active && active.employeeId === custody.employeeId) assignmentId = active.id;
-        else if (active) warnings.push(`${item.assetTag}: ya está asignado a otro colaborador; no se reasignó.`);
-        else if (item.adminStatus === 'deregistered') warnings.push(`${item.assetTag}: está dado de baja; no se asignó.`);
+        else if (active) warnings.push(`${item.assetTag ?? item.id}: ya está asignado a otro colaborador; no se reasignó.`);
+        else if (item.adminStatus === 'deregistered') warnings.push(`${item.assetTag ?? item.id}: está dado de baja; no se asignó.`);
         else ({ assignment: { id: assignmentId } } = await assignItemTx(tx, { itemId: row.itemId, employeeId: custody.employeeId, assignedById: actorId, notes, assignedAt: custody.date }));
       } else if (active && active.employeeId === custody.employeeId) {
         assignmentId = active.id;
         await returnItemTx(tx, { assignmentId: active.id, itemId: row.itemId, returnedAt: custody.date < active.assignedAt ? active.assignedAt : custody.date });
       } else {
-        warnings.push(`${item.assetTag}: no tiene una asignación activa con este colaborador; no se registró la devolución.`);
+        warnings.push(`${item.assetTag ?? item.id}: no tiene una asignación activa con este colaborador; no se registró la devolución.`);
       }
       if (assignmentId) await tx.invCustodyItem.update({ where: { id: row.id }, data: { assignmentId } });
     }

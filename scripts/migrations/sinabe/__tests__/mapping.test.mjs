@@ -42,24 +42,28 @@ test('condition priority picks the worst state and keeps the full list', () => {
   assert.deepEqual(pickCondition([null, '']), { primary: null, list: [] })
 })
 
-test('asset tag: unique active number, else unique folio, else deterministic synthetic', () => {
+test('asset tag: never invented; unique only among enabled items (best status keeps the number)', () => {
+  const d = (n) => new Date(`2025-01-0${n}T00:00:00Z`)
   const tags = decideAssetTags([
-    { id: 'aaaaaaaa-1111-4111-8111-111111111111', activeNumber: ' AN-1 ', internalFolio: 'F-1' },
-    { id: 'bbbbbbbb-2222-4222-8222-222222222222', activeNumber: 'AN-2', internalFolio: 'F-2' },
-    { id: 'cccccccc-3333-4333-8333-333333333333', activeNumber: 'AN-2', internalFolio: 'F-3' },
-    { id: 'dddddddd-4444-4444-8444-444444444444', activeNumber: '', internalFolio: 'F-4' },
-    { id: 'eeeeeeee-5555-4555-8555-555555555555', activeNumber: null, internalFolio: 'F-4' },
-    { id: 'ffffffff-6666-4666-8666-666666666666', activeNumber: null, internalFolio: 'AN-1' },
+    { id: 'a1', activeNumber: ' AN-1 ', internalFolio: 'F-1', status: 'ALTA', enabled: true, createdAt: d(1) },
+    { id: 'b1', activeNumber: 'AN-2', status: 'BAJA', enabled: true, createdAt: d(1) },
+    { id: 'c1', activeNumber: 'an-2 ', status: 'ALTA', enabled: true, createdAt: d(5) },
+    { id: 'd1', activeNumber: '', internalFolio: 'F-4', status: 'ALTA', enabled: true, createdAt: d(1) },
+    { id: 'e1', activeNumber: null, status: 'ALTA', enabled: true, createdAt: d(1) },
+    { id: 'f1', activeNumber: 'AN-1', status: 'BAJA', enabled: false, createdAt: d(2) },
+    { id: 'g1', activeNumber: 'X'.repeat(101), status: 'ALTA', enabled: true, createdAt: d(1) },
   ])
-  assert.deepEqual(tags.get('aaaaaaaa-1111-4111-8111-111111111111'), { assetTag: 'AN-1', origin: 'activeNumber', warnings: [] })
-  assert.equal(tags.get('bbbbbbbb-2222-4222-8222-222222222222').assetTag, 'F-2')
-  assert.deepEqual(tags.get('cccccccc-3333-4333-8333-333333333333').warnings, ['ASSET_NUMBER_DUPLICATE', 'ASSET_TAG_FROM_FOLIO'])
-  assert.equal(tags.get('dddddddd-4444-4444-8444-444444444444').assetTag, 'SINABE-DDDDDDDD')
-  assert.equal(tags.get('eeeeeeee-5555-4555-8555-555555555555').origin, 'synthetic')
-  assert.equal(tags.get('ffffffff-6666-4666-8666-666666666666').assetTag, 'SINABE-FFFFFFFF')
-  assert.equal(new Set([...tags.values()].map((t) => t.assetTag)).size, 6)
+  assert.deepEqual(tags.get('a1'), { assetTag: 'AN-1', origin: 'activeNumber', warnings: [] })
+  assert.equal(tags.get('c1').assetTag, 'an-2', 'ALTA beats BAJA among enabled duplicates')
+  assert.deepEqual(tags.get('b1'), { assetTag: null, origin: 'none', warnings: ['ASSET_NUMBER_DUPLICATE'] })
+  assert.deepEqual(tags.get('d1'), { assetTag: null, origin: 'none', warnings: ['ASSET_NUMBER_EMPTY'] })
+  assert.equal(tags.get('e1').assetTag, null)
+  assert.equal(tags.get('f1').assetTag, 'AN-1', 'a disabled item keeps its number even if an active one has it')
+  assert.deepEqual(tags.get('g1').warnings, ['ASSET_NUMBER_TOO_LONG'])
   assert.equal(itemName({ typeName: 'Laptop', brandName: ' Marca ', modelName: null, assetTag: 'X' }), 'Laptop Marca')
   assert.equal(itemName({ assetTag: 'X' }), 'Activo X')
+  assert.equal(itemName({ serialNumber: 'SN9' }), 'Activo SN9')
+  assert.equal(itemName({}), 'Activo')
 })
 
 test('custom fields keep originals, lists, details and sinabe fields', () => {

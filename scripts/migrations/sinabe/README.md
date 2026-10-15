@@ -230,10 +230,15 @@ node --env-file=.env scripts/migrations/sinabe/cli.mjs rollback --company <UUID_
 
 ## 7. Decisiones de mapeo que el cliente debe conocer
 
-- Número de activo: se usa el número de activo de sinabe si no está vacío ni repetido; si no, el
-  folio interno (si es único); si tampoco, `SINABE-<8 primeros caracteres del id>`. El número
-  original siempre queda en el campo "Número de activo (sinabe)" y el folio en
-  "Folio interno (sinabe)".
+- Número de activo: nunca se inventa. Si el activo de sinabe no tiene número, queda sin número
+  en Runly (aviso `ASSET_NUMBER_EMPTY`). El número y la serie solo deben ser únicos entre
+  inventarios activos, como en Runly: un inventario desactivado en sinabe conserva su número.
+  Si dos activos habilitados comparten número (`ASSET_NUMBER_DUPLICATE`), lo conserva el más
+  "vivo" (Alta, luego Propuesta, luego Baja; a igualdad, el más antiguo) y los demás quedan sin
+  número. El número original y el folio interno siempre quedan en los campos "Número de activo
+  (sinabe)" y "Folio interno (sinabe)".
+- Serie: si un activo habilitado tiene una serie que ya usa otro inventario activo de Runly, no
+  se importa y se reporta como conflicto `SERIAL_TAKEN` (igual para `ASSET_TAG_TAKEN`).
 - Condición: se elige la peor (Descompuesto > En Reparación > En Mantenimiento > Usado >
   Semi Nuevo > Nuevo > otras); la lista completa queda en "Condiciones (sinabe)".
 - Verticales del modelo → campo "Vertical". Los campos personalizados y los `details` de sinabe

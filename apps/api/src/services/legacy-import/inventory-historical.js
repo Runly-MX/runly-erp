@@ -5,6 +5,7 @@
 import { ADMIN_STATUSES, DEREGISTRATION_REASONS } from '../inventory-admin-service.js';
 import { ACQUISITION_ORIGINS } from '../inventory-service.js';
 import { assignItemTx } from '../inventory-assignment-tx.js';
+import { findActiveDuplicates } from '../inventory-identifiers.js';
 import { LegacyImportError, clip, toDateOnly, toTimestamp, writeImportAudit, sha256 } from './shared.js';
 
 const MODULE_KEY = 'runly.inventory';
@@ -122,16 +123,22 @@ export function createInventoryHistorical({ prisma, refs, fileStore, defaultSour
   }
 
   // Returns { id, created, warnings } or { id: null, created: false, conflict }
-  // when the asset tag already belongs to an item this import did not create.
+  // when an ACTIVE item already uses the serial or asset number (reason
+  // 'serial_taken' / 'asset_tag_taken'). The asset number is optional: it is
+  // never invented. data.enabled = false imports the item logically deleted,
+  // and those never conflict.
   async function importItem({ companyId, actorId = null, source = defaultSource, legacyId, data = {} }) {
     const assetTag = clip(data.assetTag, 100);
-    if (!assetTag) throw new LegacyImportError('El número de activo (assetTag) es obligatorio en la importación.');
+    const enabled = data.enabled !== false;
     const statusFields = normalizeItemStatus(data);
     const fields = itemFields(data);
     const previous = await refs.find({ companyId, source, entity: 'inv_item', legacyId });
     if (previous) return { id: previous, created: false, warnings: [] };
-    const taken = await prisma.invItem.findFirst({ where: { companyId, assetTag }, select: { id: true, enabled: true } });
-    if (taken) return { id: null, created: false, conflict: { reason: 'asset_tag_taken', assetTag, existingId: taken.id }, warnings: [] };
+    if (enabled) {
+      const found = await findActiveDuplicates(prisma, companyId, { assetTag, serialNumber: fields.serialNumber });
+      if (found.serialNumber) return { id: null, created: false, conflict: { reason: 'serial_taken', existingId: found.serialNumber.id }, warnings: [] };
+      if (found.assetTag) return { id: null, created: false, conflict: { reason: 'asset_tag_taken', assetTag, existingId: found.assetTag.id }, warnings: [] };
+    }
     await assertRefs(companyId, fields);
     const warnings = [];
     const customValues = await resolveCustomValues(companyId, fields.categoryId, data.customValues, warnings);
@@ -139,8 +146,8 @@ export function createInventoryHistorical({ prisma, refs, fileStore, defaultSour
     const result = await refs.ensure({ companyId, source, entity: 'inv_item', legacyId }, async (tx) => {
       const item = await tx.invItem.create({
         data: {
-          companyId, assetTag, ...fields, ...statusFields,
-          name: fields.name || `Activo ${assetTag}`,
+          companyId, assetTag, enabled, ...fields, ...statusFields,
+          name: fields.name || `Activo ${assetTag ?? fields.serialNumber ?? ''}`.trim(),
           createdById: actorId ?? undefined,
           ...(data.createdAt ? { createdAt: toTimestamp(data.createdAt) } : {}),
         },

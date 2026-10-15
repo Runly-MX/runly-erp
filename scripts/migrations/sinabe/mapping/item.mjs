@@ -66,46 +66,40 @@ const countBy = (values) => {
   return counts
 }
 
-// Asset tag per inventory id. Order: activeNumber (trimmed, non-empty, unique
-// among sinabe rows, <= 100 chars) -> internalFolio (same rules, not taken by
-// an activeNumber tag) -> deterministic `SINABE-<first 8 of id>` (InvItem.assetTag
-// is NOT NULL). Returns Map<id, { assetTag, origin, warnings[] }>.
+// Asset tag per inventory id. It is NEVER invented: an item without a usable
+// activeNumber simply has no asset number (InvItem.assetTag is optional). The
+// original value (and the folio) always stay in their sinabe custom fields.
+// Uniqueness only matters among ENABLED items (case/space-insensitive), as in
+// Runly: logically deleted items keep their number. Among enabled duplicates the
+// most "alive" one keeps the number (ALTA > PROPUESTA > BAJA, then oldest); the
+// others get no number (ASSET_NUMBER_DUPLICATE). Numbers over 100 chars are not
+// stored (ASSET_NUMBER_TOO_LONG). Returns Map<id, { assetTag|null, origin, warnings[] }>.
+const STATUS_RANK = { ALTA: 0, PROPUESTA: 1, BAJA: 2 }
+const timeOf = (inv) => inv.createdAt?.getTime?.() ?? 0
 export function decideAssetTags(inventories) {
-  const actives = countBy(inventories.map((inv) => clean(inv.activeNumber)))
-  const folios = countBy(inventories.map((inv) => clean(inv.internalFolio)))
   const out = new Map()
-  const taken = new Set()
-  const pending = []
+  const groups = new Map()
   for (const inv of inventories) {
     const active = clean(inv.activeNumber)
-    const warnings = []
-    if (!active) warnings.push('ASSET_NUMBER_EMPTY')
-    else if (actives.get(active) > 1) warnings.push('ASSET_NUMBER_DUPLICATE')
-    else if (active.length > ASSET_TAG_MAX) warnings.push('ASSET_NUMBER_TOO_LONG')
-    else { out.set(inv.id, { assetTag: active, origin: 'activeNumber', warnings }); taken.add(active); continue }
-    pending.push([inv, warnings])
+    if (!active) { out.set(inv.id, { assetTag: null, origin: 'none', warnings: ['ASSET_NUMBER_EMPTY'] }); continue }
+    if (active.length > ASSET_TAG_MAX) { out.set(inv.id, { assetTag: null, origin: 'none', warnings: ['ASSET_NUMBER_TOO_LONG'] }); continue }
+    if (inv.enabled === false) { out.set(inv.id, { assetTag: active, origin: 'activeNumber', warnings: [] }); continue }
+    const key = active.toLowerCase()
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(inv)
   }
-  const synthetic = []
-  for (const [inv, warnings] of pending) {
-    const folio = clean(inv.internalFolio)
-    if (folio && folios.get(folio) === 1 && folio.length <= ASSET_TAG_MAX && !taken.has(folio)) {
-      warnings.push('ASSET_TAG_FROM_FOLIO')
-      out.set(inv.id, { assetTag: folio, origin: 'internalFolio', warnings })
-      taken.add(folio)
-    } else synthetic.push([inv, warnings])
-  }
-  for (const [inv, warnings] of synthetic) {
-    let tag = `SINABE-${String(inv.id).replace(/-/g, '').slice(0, 8).toUpperCase()}`
-    if (taken.has(tag)) tag = `SINABE-${String(inv.id).replace(/-/g, '').toUpperCase()}`.slice(0, ASSET_TAG_MAX)
-    warnings.push('ASSET_TAG_SYNTHETIC')
-    out.set(inv.id, { assetTag: tag, origin: 'synthetic', warnings })
-    taken.add(tag)
+  for (const rows of groups.values()) {
+    rows.sort((a, b) => (STATUS_RANK[a.status] ?? 3) - (STATUS_RANK[b.status] ?? 3) || timeOf(a) - timeOf(b) || String(a.id).localeCompare(String(b.id)))
+    rows.forEach((inv, index) => {
+      if (index === 0) out.set(inv.id, { assetTag: clean(inv.activeNumber), origin: 'activeNumber', warnings: [] })
+      else out.set(inv.id, { assetTag: null, origin: 'none', warnings: ['ASSET_NUMBER_DUPLICATE'] })
+    })
   }
   return out
 }
 
 // Display name like the inventory UI's auto name: "<tipo> <marca> <modelo>".
-export function itemName({ typeName, brandName, modelName, assetTag }) {
+export function itemName({ typeName, brandName, modelName, assetTag, serialNumber }) {
   const parts = [typeName, brandName, modelName].map(clean).filter(Boolean)
-  return (parts.join(' ') || `Activo ${assetTag}`).slice(0, 255)
+  return (parts.join(' ') || `Activo ${clean(assetTag) ?? clean(serialNumber) ?? ''}`.trim()).slice(0, 255)
 }
