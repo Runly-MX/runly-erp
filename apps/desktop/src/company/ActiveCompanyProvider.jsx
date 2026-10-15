@@ -6,6 +6,8 @@ import { runly, setActiveCompanyId as setSdkActiveCompanyId } from '../lib/runly
 import { pickActiveCompany } from './pickActiveCompany.js'
 import { useBootLoader } from '../stores/bootLoader'
 import { clearCompanyQueryCache } from './companyQueryCache.js'
+import { CompanyAccessScreen } from './CompanyAccessScreen.jsx'
+import { ErrorState, Button } from '@runly/ui'
 
 const STORAGE_KEY = 'runly-active-company'
 
@@ -50,7 +52,7 @@ export function ActiveCompanyProvider({ children }) {
   // A failed background request does not revoke an existing membership. Explicit
   // auth rejection or a successful response removing it does revoke access.
   const accessDenied = [401, 403].includes(membershipsError?.status)
-  const memberships = accessDenied ? [] : Array.isArray(data) ? data : (data?.data ?? [])
+  const memberships = useMemo(() => accessDenied ? [] : Array.isArray(data) ? data : (data?.data ?? []), [accessDenied, data])
   const revisionRef = useRef(null)
   const revision = memberships.find((m) => String(m.companyId ?? m.company?.id) === activeCompanyId)?.authorizationRevision
   useEffect(() => {
@@ -111,7 +113,8 @@ export function ActiveCompanyProvider({ children }) {
     isLoading,
     setActiveCompany,
     getActiveCompanyId,
-  }), [activeCompanyId, companies, isLoading, setActiveCompany, getActiveCompanyId])
+    membershipsError,
+  }), [activeCompanyId, companies, isLoading, setActiveCompany, getActiveCompanyId, membershipsError])
 
   return (
     <ActiveCompanyContext.Provider value={value}>
@@ -131,12 +134,15 @@ export function useActiveCompany() {
 // module screens from firing tenant-scoped queries with no
 // X-Runly-Company-Id header during the brief window before resolution.
 export function ActiveCompanyGate({ children }) {
-  const { isLoading, activeCompanyId } = useActiveCompany()
+  const { isLoading, activeCompanyId, membershipsError } = useActiveCompany()
+  const queryClient = useQueryClient()
   const { profileCompanyId } = useAuth()
   // Screens read permissions from userProfile; wait for the profile refreshed
   // for this company, otherwise they flash "Sin acceso" with the company-less one.
   const awaitingProfile = activeCompanyId != null && profileCompanyId !== activeCompanyId
   useBootLoader('company', isLoading || awaitingProfile)
   if (isLoading || awaitingProfile) return null
+  if (membershipsError && !activeCompanyId) return <div className="p-8"><ErrorState title="No se pudo verificar tu acceso" description="Vuelve a comprobar la conexión para continuar." /><Button onClick={() => queryClient.invalidateQueries({ queryKey: ['memberships-me'] })}>Reintentar</Button></div>
+  if (!activeCompanyId) return <CompanyAccessScreen />
   return <Fragment key={activeCompanyId}>{children}</Fragment>
 }

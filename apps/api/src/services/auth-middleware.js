@@ -6,6 +6,7 @@ export function createAuthMiddleware({
   cacheGet,
   cacheSet,
   userContextTtlSeconds,
+  authorizeIdentity = async () => null,
   getJwtSecret = () => process.env.SUPABASE_JWT_SECRET,
   warn = (...args) => console.warn(...args),
 }) {
@@ -58,6 +59,8 @@ export function createAuthMiddleware({
     }
 
     c.set("authUserId", userId);
+    const denied = await authorizeIdentity(c, userId);
+    if (denied) return denied;
     await next();
   };
 }

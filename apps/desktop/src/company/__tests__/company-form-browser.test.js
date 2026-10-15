@@ -19,9 +19,9 @@ test('company forms survive access polling, token rotation and background update
   try {
     const auth = `import React from 'react';
       export const Context = React.createContext(null);
-      export const useAuth = () => React.useContext(Context);`
+      export const useAuth = () => ({...React.useContext(Context),profileCompanyId:window.activeCompany});`
     const sdk = `export let company = 'company-a';
-      export const setActiveCompanyId = (id) => { company = id };
+      export const setActiveCompanyId = (id) => { company = id; window.activeCompany=id };
       export const runly = {
         memberships: { me: async () => {
           window.membershipRequests++;
@@ -30,6 +30,7 @@ test('company forms survive access polling, token rotation and background update
           return structuredClone(window.memberships);
         } },
         company: {
+          pendingDeletions: async () => ({data:[]}),
           getProfile: async () => { window.profileRequests++; return {data:{ ...window.companyProfile, id:company }} },
           updateProfile: async (data) => { window.companyProfile=data; return {data} },
         },
@@ -37,7 +38,8 @@ test('company forms survive access polling, token rotation and background update
     const ui = `import React from 'react';
       export const Card=({children})=><div>{children}</div>;
       export const Button=({children,...props})=><button {...props}>{children}</button>;
-      export const PageHeader=()=>null, ErrorState=()=>null, Skeleton=()=>null;
+      export const PageHeader=()=>null, ErrorState=()=>null, Skeleton=()=>null, ConfirmDialog=()=>null;
+      export const EmptyState=({title,description})=><section><h2>{title}</h2><p>{description}</p></section>;
       export const TextField=({label,value,onChange,disabled})=><label>{label}<input aria-label={label} value={value} onChange={onChange} disabled={disabled}/></label>;
       export const SelectField=({label,value,onValueChange,options,disabled})=><label>{label}<select aria-label={label} value={value} onChange={e=>onValueChange(e.target.value)} disabled={disabled}><option value=""/>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>;
       export const ComboboxField=({onChange,onValueChange,...props})=><SelectField {...props} onValueChange={onValueChange??onChange}/>;`
@@ -137,6 +139,18 @@ test('company forms survive access polling, token rotation and background update
       await window.client.refetchQueries({queryKey:['memberships-me']})
     })
     await page.waitForFunction(() => window.mounts === 3)
+    await page.evaluate(async () => {
+      window.savedMemberships=structuredClone(window.memberships.data)
+      window.memberships.data=[]
+      await window.client.refetchQueries({queryKey:['memberships-me']})
+    })
+    await page.getByText('Tu cuenta no tiene acceso a ninguna empresa',{exact:true}).waitFor()
+    assert.equal(await name.count(),0,'the ERP form must unmount after losing the last membership')
+    await page.evaluate(async () => {
+      window.memberships.data=window.savedMemberships
+      await window.client.refetchQueries({queryKey:['memberships-me']})
+    })
+    await name.waitFor()
     assert.deepEqual(errors, [])
   } finally {
     await browser?.close()

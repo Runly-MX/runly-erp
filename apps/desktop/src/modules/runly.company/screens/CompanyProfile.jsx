@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
+import { CompanyDeletionPanel } from '../../../company/CompanyDeletionPanel.jsx';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -246,6 +247,7 @@ export default function CompanyProfile() {
             title="Perfil de empresa"
             description="Informacion legal y de contacto de la organizacion."
           />
+          <CompanyDeletionPanel />
 
           {!canManage && (
             <ErrorState title="Perfil en modo lectura" description="Tu rol en esta empresa no permite editar el perfil." />

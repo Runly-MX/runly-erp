@@ -21,7 +21,7 @@ describe("hairpin NAT detection", () => {
     assert.deepEqual(
       collectPublicHttpsHosts({
         domains: ["RTC.example.com", undefined],
-        urls: ["wss://rtc.example.com", "https://app.example.com/x", "http://localhost:5173", "https://10.0.0.5", "", undefined],
+        urls: ["wss://rtc.example.com", "https://app.example.com/x", "http://localhost:5173", "https://192.0.2.5", "", undefined],
       }),
       ["rtc.example.com", "app.example.com"],
     );

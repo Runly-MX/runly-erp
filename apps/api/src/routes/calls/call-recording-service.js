@@ -523,6 +523,9 @@ export function createCallRecordingService({
     let cleaned = 0;
     for (const rec of expired) {
       try {
+        const [blocked] = await prisma.$queryRaw`SELECT EXISTS(SELECT 1 FROM call c JOIN chat_conversations conv ON conv.id=c.conversation_id JOIN runly_lifecycle.company_deletion d
+          ON d.company_id = conv.company_id WHERE c.id = ${rec.callId}::uuid AND d.state <> 'CANCELLED') AS found`
+        if (blocked.found) continue
         if (rec.playlistObjectKey && supabaseAdmin) {
           const prefix = rec.playlistObjectKey.split("/").slice(0, -1).join("/");
           let files;

@@ -12,6 +12,8 @@ export async function purgeExpiredEvidence({ prisma, supabaseAdmin = null, now =
   const companies = await prisma.attPunch.groupBy({ by: ['companyId'], where: { evidencePurgedAt: null, OR: [{ selfieFileId: { not: null } }, { latitude: { not: null } }] } })
   const totals = { punches: 0, files: 0, companies: companies.length }
   for (const { companyId } of companies) {
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { enabled: true } })
+    if (!company?.enabled) continue
     const cutoff = new Date(now.getTime() - (daysByCompany.get(companyId) ?? DEFAULT_DAYS) * 86_400_000)
     for (;;) {
       const punches = await prisma.attPunch.findMany({

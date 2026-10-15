@@ -34,7 +34,7 @@ async function retentionSince(prisma, now) {
 
 export async function runAutoPurge({ prisma, registry, now = new Date(), perProviderLimit = 200 }) {
   const since = await retentionSince(prisma, now)
-  const companies = await prisma.company.findMany({ select: { id: true } })
+  const companies = await prisma.company.findMany({ where: { enabled: true }, select: { id: true } })
   const summary = []
   for (const company of companies) {
     const days = await getRetentionDays(prisma, company.id)

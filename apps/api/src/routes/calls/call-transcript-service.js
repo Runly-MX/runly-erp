@@ -795,7 +795,7 @@ export function createCallTranscriptService({
   // half-delete" principle as call-recording-service.js's own cleanup.
   async function cleanupExpiredTranscripts() {
     const expired = await prisma.callTranscript.findMany({
-      where: { status: "READY", expiresAt: { lt: now() } },
+      where: { status: "READY", expiresAt: { lt: now() }, NOT: { companyId: { in: (await prisma.$queryRaw`SELECT company_id FROM runly_lifecycle.company_deletion WHERE state <> 'CANCELLED'`).map(r => r.company_id) } } },
       include: { tracks: { select: { objectKey: true } } },
     });
     if (!expired.length) return 0;

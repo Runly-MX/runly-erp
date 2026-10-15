@@ -18,8 +18,10 @@ export async function sweepOrphanChatAttachments({
 }) {
   const rows = await prisma.$queryRaw`
     SELECT id, bucket, object_key
-    FROM chat_attachments
+    FROM chat_attachments a
     WHERE message_id IS NULL
+      AND NOT EXISTS (SELECT 1 FROM runly_lifecycle.owners('public.chat_attachments'::regclass, to_jsonb(a)) o
+        JOIN runly_lifecycle.company_deletion d ON d.company_id = o WHERE d.state <> 'CANCELLED')
       AND created_at < NOW() - (${olderThanMinutes} * INTERVAL '1 minute')
     ORDER BY created_at ASC
     LIMIT ${limit}

@@ -9,6 +9,8 @@ import { createNotificationDeliveryWorker } from '../../api/src/services/notific
 import { createCalendarNotificationService } from '../../api/src/routes/calendar/calendar-notification-service.js'
 import { createSyncLogCleanupWorker } from '../../api/src/services/sync-cleanup-worker.js'
 import { createModuleBackupService } from '../../api/src/services/module-backup-service.js'
+import { createCompanyDeletionService } from '../../api/src/services/company-deletion-service.js'
+import { createCompanyDeletionResources } from '../../api/src/services/company-deletion-resources.js'
 import { createDomainEventDispatcher } from '../../api/src/services/domain-events/dispatcher.js'
 import { createModuleServices } from '../../api/src/services/module-services/module-services.js'
 import { createTrashRegistry } from '../../api/src/services/trash/trash-registry.js'
@@ -75,6 +77,21 @@ const pgPool = new pg.Pool({
 const prismaAdapter = new PrismaPg(pgPool)
 const prisma = new PrismaClient({ adapter: prismaAdapter })
 const workerSupabaseAdmin = createSupabaseAdminClient(process.env)
+const companyDeletionService = createCompanyDeletionService({ prisma, supabaseAdmin: workerSupabaseAdmin,
+  resources: createCompanyDeletionResources({ supabaseAdmin: workerSupabaseAdmin }),
+})
+let companyDeletionRunning = false
+async function runCompanyDeletionTick() {
+  if (companyDeletionRunning) return
+  companyDeletionRunning = true
+  try {
+    const results = await companyDeletionService.tick()
+    for (const result of results) if (!result.ok) console.error('[company-deletion]', result.code)
+  } catch { console.error('[company-deletion] worker unavailable') }
+  finally { companyDeletionRunning = false }
+}
+runCompanyDeletionTick()
+setInterval(runCompanyDeletionTick, 60_000)
 const deliveryWorker = createNotificationDeliveryWorker({ prisma, supabaseAdmin: workerSupabaseAdmin })
 const calendarNotificationService = createCalendarNotificationService({ prisma })
 const DELIVERY_INTERVAL_MS = Number(process.env.RUNLY_NOTIFICATION_DELIVERY_INTERVAL_MS ?? 30000)

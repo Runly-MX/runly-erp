@@ -57,6 +57,7 @@ export function createModuleBackupService({ prisma }) {
 
   // renames: { [table]: { [currentColumn]: columnInBackup } } from the plan.
   async function snapshotModuleTables(tx, { moduleKey, tables, versionFrom = null, versionTo = null, actorId = null, renames = {}, now = new Date() }) {
+    await assertLifecycleAllowsBackup(tx)
     const present = await existingTables(tx, tables.map((table) => ident(table, 'table')))
     if (!present.length) return null
     await tx.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${BACKUP_SCHEMA}"`)
@@ -108,6 +109,7 @@ export function createModuleBackupService({ prisma }) {
   // Row deletes fire the module's triggers, so the Connections index stays
   // consistent; deletes run child-first and inserts parent-first (FKs).
   async function restoreInTx(tx, backup, actorId = null) {
+    await assertLifecycleAllowsBackup(tx, backup.createdAt)
     const entries = (backup.tables ?? []).map((entry) => ({ ...entry, table: ident(entry.table, 'table'), backupTable: ident(entry.backupTable, 'backup table') }))
     const tables = entries.map((entry) => entry.table)
     const fks = await tx.$queryRawUnsafe(
@@ -176,4 +178,11 @@ export function createModuleBackupService({ prisma }) {
   }
 
   return { snapshotModuleTables, listBackups, restoreBackup, restoreInTx, dropExpiredBackups }
+}
+
+async function assertLifecycleAllowsBackup(db, backupCreatedAt = null) {
+  await db.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext('runly.lifecycle.structure'))")
+  const [blocked] = await db.$queryRawUnsafe(`SELECT EXISTS(SELECT 1 FROM runly_lifecycle.company_deletion
+    WHERE state IN ('PENDING','PURGING','FAILED') OR (state = 'COMPLETED' AND $1::timestamptz IS NOT NULL AND completed_at >= $1::timestamptz)) AS found`, backupCreatedAt)
+  if (blocked.found) throw Object.assign(new Error('COMPANY_LIFECYCLE_BACKUP_BLOCKED'), { statusCode: 409 })
 }

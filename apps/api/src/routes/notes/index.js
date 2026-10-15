@@ -160,7 +160,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   // POST /notes/presign-image
   internal.post('/presign-image', requirePermission('notes.notes.create'), async (c) => {
     try {
-      const { userId } = getAuth(c)
+      const { userId, companyId } = getAuth(c)
       const body = await c.req.json()
       const { fileName, mimeType, noteId } = body
       // If a real note is targeted, the caller must be able to edit it.
@@ -181,7 +181,8 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       }
       const ext = fileName?.split('.')?.pop()?.toLowerCase() ?? 'jpg'
       const safeNoteId = noteId && noteId !== 'draft' ? noteId : 'draft'
-      const key = `notes/${userId}/${safeNoteId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const prefix = companyId ? `companies/${companyId}/notes/${safeNoteId}` : `notes/${userId}/${safeNoteId}`
+      const key = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { data, error } = await supabaseAdmin.storage.from('runly-notes').createSignedUploadUrl(key)
       if (error) return c.json({ error: error.message }, 500)
       const { data: publicData } = supabaseAdmin.storage.from('runly-notes').getPublicUrl(key)

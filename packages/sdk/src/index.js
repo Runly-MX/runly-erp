@@ -239,6 +239,9 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
     },
     company: {
+      pendingDeletions: (token) => request('/companies/deletions', { headers: withAuthHeaders(token) }),
+      requestDeletion: (companyId, data, token) => request(`/companies/${companyId}/deletion`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      cancelDeletion: (companyId, token) => request(`/companies/${companyId}/deletion/cancel`, { method: 'POST', headers: withAuthHeaders(token), body: '{}' }),
       // Platform-level: creates a brand-new company/tenant (system-admin
       // only). Distinct from the rest of this group, which always operates
       // on the requester's currently-active company.

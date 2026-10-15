@@ -6,6 +6,20 @@ import { signHs256Jwt } from "../jwt-verification.js";
 
 const SECRET = "fixture-only-auth-middleware-secret";
 
+test('cached authentication still rechecks platform authorization on every request', async () => {
+  let checks = 0
+  const app = new Hono()
+  app.use('*', createAuthMiddleware({
+    cacheGet: () => 'existing-identity', cacheSet: () => {}, supabaseAdmin: {},
+    authorizeIdentity: async c => ++checks > 1 ? c.json({error:'no_active_company'},403) : null,
+  }))
+  app.get('/', c => c.json({ok:true}))
+  const options={headers:{Authorization:'Bearer fixture-token'}}
+  assert.equal((await app.request('/',options)).status,200)
+  assert.equal((await app.request('/',options)).status,403)
+  assert.equal(checks,2)
+})
+
 function fixture(t, { secret = SECRET, remoteTokens = new Map(), ttl = 300 } = {}) {
   let now = 1_800_000_000;
   t.mock.method(Date, "now", () => now * 1000);

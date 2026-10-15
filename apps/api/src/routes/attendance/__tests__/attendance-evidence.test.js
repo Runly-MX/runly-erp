@@ -12,6 +12,7 @@ test('purge removes photo, asset and coordinates of expired punches and keeps th
   ]
   const assets = [{ id: 'f1', bucket: 'b', objectKey: 'k1', moduleKey: 'runly.attendance' }, { id: 'f2', bucket: 'b', objectKey: 'k2', moduleKey: 'runly.attendance' }]
   const prisma = {
+    company: { findUnique: async () => ({ enabled: true }) },
     attSettings: { findMany: async () => [{ companyId: 'c2', evidenceRetentionDays: 7 }] },
     attPunch: {
       groupBy: async () => [{ companyId: 'c1' }, { companyId: 'c2' }],
@@ -34,4 +35,15 @@ test('purge removes photo, asset and coordinates of expired punches and keeps th
   assert.equal(punches[1].selfieFileId, 'f2') // inside the 30-day default window
   assert.equal(punches[2].latitude, null) // company retention of 7 days
   assert.equal(assets.length, 1)
+})
+
+test('suspended company evidence remains recoverable and never reaches Storage cleanup', async () => {
+  const prisma = {
+    company: { findUnique: async () => ({ enabled:false }) },
+    attSettings: { findMany: async () => [] },
+    attPunch: { groupBy: async () => [{companyId:'suspended'}], findMany: async () => { throw new Error('must not read purge candidates') } },
+  }
+  const result=await purgeExpiredEvidence({prisma})
+  assert.equal(result.files,0)
+  assert.equal(result.punches,0)
 })

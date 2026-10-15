@@ -310,9 +310,15 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     if (host) {
       const map = await loadDomainSiteMap()
       const bySite = map.get(host)
-      if (bySite) return bySite
+        if (bySite) {
+          const company = await prisma.company.findUnique({ where: { id: bySite.company_id }, select: { enabled: true } })
+          return company?.enabled ? bySite : null
+        }
     }
-    return getPrimaryCompany()
+    const primary = await getPrimaryCompany()
+    if (!primary) return null
+    const company = await prisma.company.findUnique({ where: { id: primary.company_id }, select: { enabled: true } })
+    return company?.enabled ? primary : null
   }
 
   async function serve(c, urlPath) {

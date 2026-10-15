@@ -535,6 +535,7 @@ describe("createCallRecordingService.cleanupExpiredRecordings", () => {
   it("deletes expired rows and their storage objects", async () => {
     const removedKeys = [];
     const prisma = {
+      $queryRaw: async () => [{ found: false }],
       callRecording: {
         findMany: async () => [{ id: REC, playlistObjectKey: "recordings/conv/rec/index.m3u8" }],
         delete: async () => ({}),
@@ -551,6 +552,7 @@ describe("createCallRecordingService.cleanupExpiredRecordings", () => {
 
   it("returns only the count actually cleaned up, not the total expired, when one deletion fails", async () => {
     const prisma = {
+      $queryRaw: async () => [{ found: false }],
       callRecording: {
         findMany: async () => [
           { id: "rec-a", playlistObjectKey: "recordings/conv/rec-a/index.m3u8" },
@@ -574,6 +576,7 @@ describe("createCallRecordingService.cleanupExpiredRecordings", () => {
     const deleted = [];
     const removed = [];
     const prisma = {
+      $queryRaw: async () => [{ found: false }],
       callRecording: {
         findMany: async () => [{ id: REC, playlistObjectKey: "recordings/conv/rec/index.m3u8" }],
         delete: async ({ where }) => { deleted.push(where.id); return {}; },

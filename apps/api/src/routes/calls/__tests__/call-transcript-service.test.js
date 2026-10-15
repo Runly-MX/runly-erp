@@ -387,6 +387,7 @@ describe("createCallTranscriptService.cleanupExpiredTranscripts", () => {
   it("hard-deletes expired READY transcripts (cascades segments via FK)", async () => {
     let deleteWhere;
     const prisma = {
+      $queryRaw: async () => [{ found: false }],
       callTranscript: {
         findMany: async () => [{ id: TRANSCRIPT }],
         deleteMany: async ({ where }) => { deleteWhere = where; return { count: 1 }; },
@@ -401,6 +402,7 @@ describe("createCallTranscriptService.cleanupExpiredTranscripts", () => {
   it("returns 0 without querying deleteMany when nothing is expired", async () => {
     let deleteManyCalled = false;
     const prisma = {
+      $queryRaw: async () => [{ found: false }],
       callTranscript: {
         findMany: async () => [],
         deleteMany: async () => { deleteManyCalled = true; return { count: 0 }; },
