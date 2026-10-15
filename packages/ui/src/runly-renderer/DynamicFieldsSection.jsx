@@ -84,16 +84,14 @@ async function fetchDefinitions({ apiBaseUrl, apiPath, categoryId, token, compan
   return Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
 }
 
-// Custom fields of a record in two modes (spec
-// 2026-10-03-inventory-custom-fields-modes):
-// 1. Type fields: definitions for the current category value (plus global
-//    ones), always shown.
-// 2. Extra fields: any field of the library added to THIS record — from the
-//    record's stored values (`initialEntries`), the "Agregar campo" search or
-//    the inline creator ("Solo este registro"). Each can be removed.
-// Values are written into formValues under `${valuePrefix}.${fieldKey}`;
-// RunlyForm turns them into `customValues` + `removedCustomFieldIds`.
-// `config.createPath` (POST) enables creating definitions inline.
+// Custom fields of a record, all opt-in: a field is shown only when the record
+// already holds a value for it (or it is on-demand), or the user added it from
+// the "Agregar campo" search / the inline creator. Empty fields never appear on
+// their own — the record's type only ranks them first in the search. Each shown
+// field can be removed. Values are written into formValues under
+// `${valuePrefix}.${fieldKey}`; RunlyForm turns them into `customValues` +
+// `removedCustomFieldIds`. `config.createPath` (POST) enables creating
+// definitions inline.
 export function DynamicFieldsSection({
   config,
   formValues,
@@ -104,9 +102,6 @@ export function DynamicFieldsSection({
   token,
   companyId,
 }) {
-  const [typeDefs, setTypeDefs] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [library, setLibrary] = useState(null);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [addedExtras, setAddedExtras] = useState([]);
@@ -116,43 +111,26 @@ export function DynamicFieldsSection({
   const removedKey = `${prefix}.${REMOVED_SUFFIX}`;
   const removedIds = useMemo(() => (Array.isArray(formValues[removedKey]) ? formValues[removedKey] : []), [formValues, removedKey]);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!config?.apiPath || !categoryValue) {
-      setTypeDefs([]);
-      setError(null);
-      return undefined;
-    }
-    setLoading(true);
-    setError(null);
-    fetchDefinitions({ apiBaseUrl, apiPath: config.apiPath, categoryId: categoryValue, token, companyId })
-      .then((rows) => { if (!cancelled) setTypeDefs(rows); })
-      .catch(() => { if (!cancelled) { setTypeDefs([]); setError("No se pudieron cargar los campos personalizados."); } })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [apiBaseUrl, token, companyId, config?.apiPath, categoryValue]);
-
-  // Extra fields: stored on the record + added in this session, minus the
-  // ones now covered by the type and the ones the user removed.
   const extraDefs = useMemo(() => {
-    const typeIds = new Set(typeDefs.map((def) => def.id));
     const seen = new Set();
-    return [...extraDefinitionsFrom(initialEntries, typeDefs), ...addedExtras].filter((def) => {
-      if (!def?.id || typeIds.has(def.id) || removedIds.includes(def.id) || seen.has(def.id)) return false;
+    return [...extraDefinitionsFrom(initialEntries, []), ...addedExtras].filter((def) => {
+      if (!def?.id || removedIds.includes(def.id) || seen.has(def.id)) return false;
       seen.add(def.id);
       return true;
     });
-  }, [initialEntries, typeDefs, addedExtras, removedIds]);
+  }, [initialEntries, addedExtras, removedIds]);
 
   useEffect(() => {
-    onDefinitionsChange?.([...typeDefs, ...extraDefs.map((def) => ({ ...def, _extra: true }))]);
+    onDefinitionsChange?.(extraDefs.map((def) => ({ ...def, _extra: true })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeDefs, extraDefs]);
+  }, [extraDefs]);
 
-  const shownIds = new Set([...typeDefs, ...extraDefs].map((def) => def.id));
+  const shownIds = new Set(extraDefs.map((def) => def.id));
+  const sameType = (def) => Boolean(categoryValue) && String(def.categoryId ?? "") === String(categoryValue);
   const libraryOptions = (library ?? [])
     .filter((def) => !shownIds.has(def.id))
-    .map((def) => ({ value: def.id, label: def.label, description: def.onDemand ? "A demanda" : def.categoryId ? "De otro tipo" : "Todos los tipos" }));
+    .sort((a, b) => Number(sameType(b)) - Number(sameType(a)))
+    .map((def) => ({ value: def.id, label: def.label, description: def.onDemand ? "A demanda" : sameType(def) ? "De este tipo" : def.categoryId ? "De otro tipo" : "Todos los tipos" }));
 
   function loadLibrary(open) {
     if (!open || library || libraryLoading || !config?.apiPath) return;
@@ -178,8 +156,7 @@ export function DynamicFieldsSection({
   function handleCreated(def, scope) {
     if (!def?.id) return;
     setLibrary((prev) => (prev ? [...prev, def] : prev));
-    if (scope === "item") addExtra(def);
-    else if (scope === "all" || String(def.categoryId ?? "") === String(categoryValue ?? "")) setTypeDefs((prev) => [...prev, def]);
+    addExtra(def);
   }
 
   const renderControl = (def, removable) => {
@@ -204,24 +181,11 @@ export function DynamicFieldsSection({
 
   return (
     <div className="space-y-4">
-      {!categoryValue ? (
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Selecciona un tipo para ver sus campos fijos; también puedes agregar campos solo a este registro.</p>
-      ) : loading ? (
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Cargando campos...</p>
-      ) : error ? (
-        <p className="text-sm text-[hsl(var(--destructive))]">{error}</p>
-      ) : typeDefs.length === 0 ? (
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Este tipo no tiene campos fijos.</p>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">{typeDefs.map((def) => renderControl(def, false))}</div>
-      )}
-
       {extraDefs.length > 0 ? (
-        <div className="space-y-3 border-t border-[hsl(var(--border))] pt-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">Campos de este registro</p>
-          <div className="grid gap-4 md:grid-cols-2">{extraDefs.map((def) => renderControl(def, true))}</div>
-        </div>
-      ) : null}
+        <div className="grid gap-4 md:grid-cols-2">{extraDefs.map((def) => renderControl(def, true))}</div>
+      ) : (
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">Sin campos personalizados. Busca y agrega solo los que necesites.</p>
+      )}
 
       {config?.apiPath ? (
         <div className="flex flex-wrap items-end gap-2">
@@ -255,7 +219,7 @@ export function DynamicFieldsSection({
           onClose={() => setCreator({ open: false, label: "" })}
           createPath={config.createPath}
           categoryValue={categoryValue}
-          existingKeys={[...(library ?? []), ...typeDefs, ...extraDefs].map((def) => def.fieldKey)}
+          existingKeys={[...(library ?? []), ...extraDefs].map((def) => def.fieldKey)}
           apiBaseUrl={apiBaseUrl}
           token={token}
           companyId={companyId}
