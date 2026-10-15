@@ -13,7 +13,7 @@ import { CatalogEditSheet } from './CatalogEditSheet.jsx'
 
 const COLORS = ['#7c3aed', '#2563eb', '#0891b2', '#16a34a', '#ca8a04', '#ea580c', '#dc2626', '#db2777', '#475569']
 const NO_PARENT = '__none__'
-const EMPTY = { name: '', description: '', icon: 'Package', color: COLORS[0], parentId: NO_PARENT }
+const EMPTY = { name: '', code: '', description: '', icon: 'Package', color: COLORS[0], parentId: NO_PARENT }
 
 export function TypesPanel({ onImport }) {
   const { data, isLoading } = useInventoryCategories()
@@ -37,12 +37,12 @@ export function TypesPanel({ onImport }) {
   function open(row) {
     setEditing(row ?? {})
     setForm(row
-      ? { name: row.name, description: row.description ?? '', icon: row.icon ?? 'Package', color: row.color ?? COLORS[0], parentId: row.parentId ?? NO_PARENT }
+      ? { name: row.name, code: row.code ?? '', description: row.description ?? '', icon: row.icon ?? 'Package', color: row.color ?? COLORS[0], parentId: row.parentId ?? NO_PARENT }
       : EMPTY)
   }
 
   async function save() {
-    const payload = { ...form, name: form.name.trim(), parentId: form.parentId === NO_PARENT ? null : form.parentId }
+    const payload = { ...form, name: form.name.trim(), code: form.code.trim() || null, parentId: form.parentId === NO_PARENT ? null : form.parentId }
     try {
       if (editing?.id) { await update.mutateAsync({ id: editing.id, ...payload }); toast.success('Tipo actualizado') }
       else { await create.mutateAsync(payload); toast.success('Tipo creado') }
@@ -93,6 +93,9 @@ export function TypesPanel({ onImport }) {
         title={editing?.id ? 'Editar tipo' : 'Nuevo tipo'} busy={create.isPending || update.isPending}
         saveDisabled={!form.name.trim()} onSave={save}>
         <TextField label="Nombre" required value={form.name} maxLength={100} placeholder="Laptop" onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <TextField label="Código para folios" value={form.code} maxLength={6} placeholder="LAP"
+          hint="Hasta 6 letras o números. Si lo dejas vacío se usa el inicio del nombre."
+          onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))} />
         <IconPickerField label="Ícono" value={form.icon} onChange={(icon) => setForm((f) => ({ ...f, icon }))} />
         <div className="space-y-1.5">
           <p className="text-sm font-medium text-[hsl(var(--foreground))]">Color</p>

@@ -58,6 +58,7 @@ export const INVENTORY_ITEM_FORM = {
         icon: 'IdCard',
         collapsible: true,
         fields: [
+          { field: 'folio', label: 'Folio', type: 'text', icon: 'Hash', hint: 'Se genera solo si lo dejas vacío', hiddenWhen: { field: '__multi', truthy: true } },
           { field: 'serialNumber', label: 'Número de serie', type: 'text', icon: 'Barcode', hiddenWhen: { field: '__multi', truthy: true } },
           { field: 'assetTag', label: 'Número de activo', type: 'text', icon: 'Hash', hint: 'Opcional', hiddenWhen: { field: '__multi', truthy: true } },
           // After the identifiers on purpose; the API generates it when blank.

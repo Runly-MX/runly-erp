@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { useSaveInventoryModel } from '../hooks/useInventoryModels.js'
 import { InventoryBrandPicker, InventoryTypePicker } from './InventoryCatalogPickers.jsx'
 
-const EMPTY = { name: '', typeId: '', brandId: '', year: '', description: '' }
+const EMPTY = { name: '', code: '', typeId: '', brandId: '', year: '', description: '' }
 
 // Creates or edits a catalog model. No <form>: it can open inside RunlyForm,
 // and a portaled submit would bubble to that form through the React tree.
@@ -17,7 +17,7 @@ export function InventoryModelDialog({ open, onOpenChange, model = null, initial
     if (!open) return
     setErrors({})
     setValues(model
-      ? { name: model.name, typeId: model.typeId, brandId: model.brandId, year: model.year ? String(model.year) : '', description: model.description ?? '' }
+      ? { name: model.name, code: model.code ?? '', typeId: model.typeId, brandId: model.brandId, year: model.year ? String(model.year) : '', description: model.description ?? '' }
       : { ...EMPTY, ...initialValues })
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -36,6 +36,7 @@ export function InventoryModelDialog({ open, onOpenChange, model = null, initial
       const row = await save.mutateAsync({
         ...(model ? { id: model.id } : {}),
         name: values.name.trim(), typeId: values.typeId, brandId: values.brandId, year,
+        code: values.code.trim() || null,
         description: values.description.trim() || null,
       })
       toast.success(model ? 'Modelo actualizado' : 'Modelo creado')
@@ -62,6 +63,8 @@ export function InventoryModelDialog({ open, onOpenChange, model = null, initial
             <TextField label="Año" type="number" min={1900} max={2100} value={values.year}
               onChange={(e) => set('year', e.target.value)} error={errors.year} />
           </div>
+          <TextField label="Código para folios" value={values.code} maxLength={6} hint="XPS. Si lo dejas vacío se usa el inicio del nombre."
+            onChange={(e) => set('code', e.target.value.toUpperCase())} />
           <TextareaField label="Descripción" value={values.description} onChange={(e) => set('description', e.target.value)} />
         </div>
         <DialogFooter className="shrink-0">

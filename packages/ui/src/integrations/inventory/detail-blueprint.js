@@ -31,6 +31,7 @@ export const INVENTORY_ITEM_DETAIL = {
       { label: 'Estado', field: 'adminStatus', type: 'select', options: ADMIN_STATUSES, emphasis: true, icon: 'ClipboardList' },
       { label: 'Condición', field: 'conditionName', icon: 'Activity' },
       { label: 'Asignado a', field: 'assignedToName', icon: 'UserCheck' },
+      { label: 'Folio', field: 'folio', icon: 'Hash', copyable: true, prominent: true, emptyLabel: 'Sin folio' },
       { label: 'Número de serie', field: 'serialNumber', icon: 'Barcode', copyable: true, prominent: true, emptyLabel: 'Sin número de serie' },
       { label: 'Número de activo', field: 'assetTag', icon: 'Hash', copyable: true, prominent: true, emptyLabel: 'Sin número de activo' },
     ],
@@ -42,6 +43,7 @@ export const INVENTORY_ITEM_DETAIL = {
         column: 'main',
         columns: 2,
         fields: [
+          { field: 'folio', label: 'Folio', icon: 'Hash' },
           { field: 'serialNumber', label: 'Número de serie', icon: 'Barcode' },
           { field: 'assetTag', label: 'Número de activo', icon: 'Hash' },
           { field: 'partNumber', label: 'Número de parte', icon: 'Hash' },

@@ -8,7 +8,7 @@ import { CatalogRowActions } from './CatalogRowActions.jsx'
 import { CATALOGS_PATH, CatalogCountLink, INVENTORY_PATH } from './CatalogCountLink.jsx'
 import { CatalogEditSheet } from './CatalogEditSheet.jsx'
 
-const EMPTY = { name: '', description: '', website: '' }
+const EMPTY = { name: '', code: '', description: '', website: '' }
 
 export function BrandsPanel({ onImport }) {
   const { data, isLoading, isError, refetch } = useInventoryBrands()
@@ -21,12 +21,13 @@ export function BrandsPanel({ onImport }) {
 
   function open(row) {
     setEditing(row ?? {})
-    setForm(row ? { name: row.name, description: row.description ?? '', website: row.website ?? '' } : EMPTY)
+    setForm(row ? { name: row.name, code: row.code ?? '', description: row.description ?? '', website: row.website ?? '' } : EMPTY)
   }
   async function save() {
     try {
-      if (editing?.id) { await update.mutateAsync({ id: editing.id, ...form }); toast.success('Marca actualizada') }
-      else { await create.mutateAsync(form); toast.success('Marca creada') }
+      const payload = { ...form, code: form.code.trim() || null }
+      if (editing?.id) { await update.mutateAsync({ id: editing.id, ...payload }); toast.success('Marca actualizada') }
+      else { await create.mutateAsync(payload); toast.success('Marca creada') }
       setEditing(null)
     } catch (err) { toast.error(err?.message ?? 'No se pudo guardar la marca') }
   }
@@ -57,6 +58,9 @@ export function BrandsPanel({ onImport }) {
         title={editing?.id ? 'Editar marca' : 'Nueva marca'} busy={create.isPending || update.isPending}
         saveDisabled={!form.name.trim()} onSave={save}>
         <TextField label="Nombre" required value={form.name} maxLength={100} placeholder="Dell" onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <TextField label="Código para folios" value={form.code} maxLength={6} placeholder="DEL"
+          hint="Hasta 6 letras o números. Si lo dejas vacío se usa el inicio del nombre."
+          onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))} />
         <TextField label="Sitio web" value={form.website} maxLength={255} placeholder="https://..." onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))} />
         <TextareaField label="Descripción" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
       </CatalogEditSheet>
