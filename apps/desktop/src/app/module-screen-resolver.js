@@ -174,6 +174,7 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     if (subPath === "/inventory/catalogs") return screenMap["runly.inventory:/inventory/catalogs"] ?? null;
     if (subPath === "/inventory/summary") return screenMap["runly.inventory:/inventory/summary"] ?? null;
     if (subPath === "/inventory/labels") return screenMap["runly.inventory:/inventory/labels"] ?? null;
+    if (subPath === "/inventory/scan") return screenMap["runly.inventory:/inventory/scan"] ?? null;
     if (subPath === "/inventory/connections") return screenMap["runly.inventory:/inventory/connections"] ?? null;
     if (subPath === "/inventory/custodies") return screenMap["runly.inventory:/inventory/custodies"] ?? null;
     if (/^\/inventory\/custodies\/[^/]+$/.test(subPath)) return screenMap["runly.inventory:/inventory/custodies/:id"] ?? null;
