@@ -96,6 +96,8 @@ export function createCompanyDeletionService({ prisma, supabaseAdmin, resources 
     // stopping egress is retried separately from the 72-hour data purge.
     if (resources.stopCaptures) {
       const suspended = await prisma.$queryRawUnsafe("SELECT company_id FROM runly_lifecycle.company_deletion WHERE state='PENDING' AND purge_after>now()")
+      // Module syncs allowed during the recovery window may add tables; guard them.
+      if (suspended.length) await prisma.$executeRawUnsafe('SELECT runly_lifecycle.install_guards()').catch(() => {})
       for (const row of suspended) {
         try { await resources.stopCaptures({ db: prisma, companyId: row.company_id }) }
         catch { /* Retry next minute; data remains untouched and recoverable. */ }
