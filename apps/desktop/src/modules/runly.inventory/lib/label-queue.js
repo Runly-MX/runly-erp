@@ -87,11 +87,3 @@ export function parseLabelsParams(searchParams) {
   const itemIds = [...new Set((searchParams.get('items') ?? '').split(',').map((id) => id.trim()).filter(Boolean))].slice(0, MAX_QUEUE_ITEMS)
   return { itemIds, quantity: clampQuantity(searchParams.get('qty') ?? 1) }
 }
-
-// Link encoded in the QR. Phase 2 placeholder, same as the API
-// (services/inventory-labels/qr-content.js): /app/p/inv/f-<folio>. Phase 3
-// replaces it with an opaque token served by the API.
-export function itemQrUrl(item, base = '') {
-  if (!item?.id) return ''
-  return `${String(base).replace(/\/$/, '')}/app/p/inv/f-${encodeURIComponent(item.folio || item.id)}`
-}

@@ -29,6 +29,14 @@ export function createInventoryLabelsDomain({ request, requestBlob, withAuthHead
       // body: { items: [{ itemId, quantity }], templateId?, printerId? } -> { data: { count, labels } }
       registerPrints: (body, token) => send('POST', '/inventory/labels/prints', body, token),
       itemHistory: (itemId, token) => send('GET', `/inventory/items/${id(itemId)}/labels`, undefined, token),
+      // Public item link (QR target). Ensure creates the token lazily -> { data: { url } }.
+      publicLink: (itemId, token) => send('GET', `/inventory/items/${id(itemId)}/public-link`, undefined, token),
+      revokePublicLink: (itemId, token) => send('DELETE', `/inventory/items/${id(itemId)}/public-link`, undefined, token),
+      revokeAllPublicLinks: (token) => send('POST', '/inventory/public-links/revoke-all', {}, token),
+      getPublicSettings: (token) => send('GET', '/inventory/public-page-settings', undefined, token),
+      updatePublicSettings: (data, token) => send('PUT', '/inventory/public-page-settings', data, token),
+      // No auth: the opaque token in the QR link is the credential -> { item }.
+      publicItem: (publicToken) => request(`/public/inventory/items/${id(publicToken)}`),
     },
   }
 }

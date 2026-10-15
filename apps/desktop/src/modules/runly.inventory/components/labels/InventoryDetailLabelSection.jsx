@@ -20,6 +20,7 @@ export default function InventoryDetailLabelSection({ data }) {
   const navigate = useNavigate()
   const can = useInventoryCan()
   const canPrint = can('inventory.label.print')
+  const canManage = can('inventory.label.manage')
   const itemId = data?.id
   const history = useItemLabelHistory(itemId)
   const preview = useLabelPreview(itemId ? qrOnlyBody(itemId, 300) : null, { enabled: canPrint, delay: 0 })
@@ -67,7 +68,7 @@ export default function InventoryDetailLabelSection({ data }) {
           </Button>
         </div>
       ) : null}
-      <LabelDetailsDialog open={detailsOpen} onOpenChange={setDetailsOpen} item={data} history={history} canPrint={canPrint} />
+      <LabelDetailsDialog open={detailsOpen} onOpenChange={setDetailsOpen} item={data} history={history} canPrint={canPrint} canManage={canManage} />
     </div>
   )
 }

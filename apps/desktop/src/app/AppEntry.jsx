@@ -54,6 +54,7 @@ const AttendanceKioskScreen = lazy(() => import("../modules/runly.attendance/kio
 const AttendancePhoneKeyScreen = lazy(() => import("../modules/runly.attendance/phone/PhoneKeyScreen.jsx"));
 // Public custody (resguardo) signing page: token link, no login, no shell.
 const PublicCustodySignScreen = lazy(() => import("../modules/runly.inventory/screens/PublicCustodySignScreen.jsx"));
+const PublicInventoryItemScreen = lazy(() => import("../modules/runly.inventory/screens/PublicInventoryItemScreen.jsx"));
 import { useCallSoundUnlock } from "../modules/runly.chat/calls/useCallSoundUnlock.js";
 import "../styles.css";
 
@@ -192,6 +193,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="kiosk/:link" element={<Suspense fallback={null}><AttendanceKioskScreen /></Suspense>} />
                     <Route path="attendance/phone" element={<Suspense fallback={null}><AttendancePhoneKeyScreen /></Suspense>} />
                     <Route path="custody/:token" element={<Suspense fallback={null}><PublicCustodySignScreen /></Suspense>} />
+                    <Route path="inv/:token" element={<Suspense fallback={null}><PublicInventoryItemScreen /></Suspense>} />
                   </Route>
                   <Route element={<AppRouteGuard mode="access" />}>
                     <Route path="/app/accept-invitation" element={<AcceptInvitationScreen />} />

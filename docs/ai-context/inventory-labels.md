@@ -14,7 +14,7 @@ Paquete puro: `layout.js` (validacion, presets, campos, cantidades), `geometry.j
 
 Campos disponibles, en orden: `folio`, `name`, `serial`, `model`, `location`, `company`, `assetTag`. Distribuciones: `qr-left`, `qr-top`, `text-only`. Opciones de QR: `errorCorrection` L|M|Q|H, `quietZoneMm`, `contentMode` `url` | `embedded` (`folio|serie|modelo`, puede quedar desactualizado).
 
-Contenido del QR: provisional `<base>/app/p/inv/f-<folio>`. La fase 3 inyecta `resolveItemQrUrl(item)` en `createInventoryLabelService` para devolver `<base>/app/p/inv/<token>`; nada mas cambia. La base sale de `RUNLY_APP_URL`/`APP_URL`/`PUBLIC_APP_URL`/`WEB_APP_URL` o, si faltan, del origen de la peticion.
+Contenido del QR: `<base>/app/p/inv/<token>` (fase 3, ver "Pagina publica"). `createInventoryLabelService` recibe `publicService`, que emite el token perezosamente por equipo antes de renderizar; sin `publicService` se usa el enlace provisional `f-<folio>` (solo pruebas). La base sale de `RUNLY_APP_URL`/`APP_URL`/`PUBLIC_APP_URL`/`WEB_APP_URL` o, si faltan, del origen de la peticion.
 
 ## Endpoints y permisos
 
@@ -42,5 +42,16 @@ Pruebas: `node --test apps/api/src/services/__tests__/inventory-labels.test.js a
 - `label-transports.js`: registro de transportes (`browser`, `file`; `network` y `bluetooth` deshabilitados con "Disponible en la app"). `resolvePrintPlan(printer)` decide que hace "Imprimir" (PDF en pestana nueva, ZPL descargado); la fase 4 registra `bluetooth`/`network` con `labelTransports.register(id, transport)`. La pestana se abre en el clic (`prepare`) para que el navegador no la bloquee.
 - La impresion se registra (`POST /inventory/labels/prints`) solo despues de imprimir o descargar PDF/ZPL; la descarga PNG (una etiqueta) no se registra. Reimprimir equipos ya etiquetados pide confirmacion.
 - Lista de Inventario: accion masiva "Imprimir etiquetas" (lleva la seleccion en `location.state.labelItems` y en `?items=`), columna "Etiqueta" (con `inventory.label.read`) y filtro "Etiqueta: Sin etiquetar" (`labeled=false`).
-- Ficha del equipo: seccion "Etiqueta / QR" (`runly.inventory:LabelSection`, visible con `inventory.label.read` via `canReadLabels`), con QR, estado, Imprimir/Reimprimir y "Ver con detalles" (QR grande, enlace, historial). El enlace copiado es el provisional `/app/p/inv/f-<folio>` hasta la fase 3.
+- Ficha del equipo: seccion "Etiqueta / QR" (`runly.inventory:LabelSection`, visible con `inventory.label.read` via `canReadLabels`), con QR, estado, Imprimir/Reimprimir y "Ver con detalles" (QR grande, enlace, historial). El enlace mostrado es el publico real (`GET /inventory/items/:id/public-link`); con `inventory.label.manage` aparece "Revocar enlace" (ConfirmDialog).
 - Pruebas: `node --test apps/desktop/src/modules/runly.inventory/lib/__tests__/label-queue.test.js apps/desktop/src/modules/runly.inventory/lib/__tests__/label-transports.test.js`.
+
+## Pagina publica del equipo (fase 3)
+
+- Tabla `inv_public_token` (migracion `20261027000000_inv_public_token`): una fila activa por equipo (indice unico parcial `revoked_at IS NULL`), `nonce`, `token_hash` (sha256), `revoked_at`. El token es `HMAC-SHA256(secreto, nonce)` en base64url (43 caracteres); la base solo guarda nonce y hash, y el QR se puede volver a renderizar. Secreto: `INV_PUBLIC_TOKEN_SECRET` o, si falta, `JWT_SECRET`. Cambiar el secreto invalida todos los enlaces.
+- Servicio `services/inventory-public-service.js`: `ensureToken`, `ensureTokens`, `revoke` (el siguiente `ensureToken` emite uno nuevo), `revokeAll`, `resolve(token)`, `getSettings/updateSettings`.
+- Ajustes por empresa en `InstanceConfig` (clave `inventory.public_page.<companyId>`): `showPhoto`, `showStatus`, `showLocation` (activos) y `showSerial`, `showHolder`, `showCosts` (ocultos por defecto). Nombre, folio y empresa siempre se muestran. `resolve` devuelve solo los campos permitidos.
+- API publica sin autenticacion: `GET /public/inventory/items/:token` (limite por IP como el resguardo; `Cache-Control: no-store`). Token desconocido, revocado, mal formado o heredado (`f-<folio>`) responde el mismo 404 `Enlace no valido.`. Devuelve `itemId` (UUID, inutil sin sesion) para los botones privados.
+- API autenticada: `GET /inventory/items/:id/public-link` (`inventory.label.print`, crea el token si falta), `DELETE` el mismo (`inventory.label.manage`), `POST /inventory/public-links/revoke-all` (manage), `GET/PUT /inventory/public-page-settings` (read / manage).
+- Pagina `PublicInventoryItemScreen` en `/app/p/inv/:token`: foto, nombre, folio, estado, ubicacion, empresa; botones "Ver detalles" y "Editar" navegan a `/app/m/runly.inventory/inventory/<id>[/edit]`, y `AppRouteGuard` pide inicio de sesion y regresa. Ajustes en la pantalla Etiquetas, boton "Pagina publica" (manage).
+- Las etiquetas impresas en la fase 2 con `/app/p/inv/f-<folio>` ya no funcionan (pagina "Enlace no valido"): deben reimprimirse. Los folios no dan acceso publico.
+- Pruebas: `node --test apps/api/src/services/__tests__/inventory-public-service.test.js`. No se ha probado en navegador ni con Supabase real (foto/logo firmados).

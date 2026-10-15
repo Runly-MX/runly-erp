@@ -1,10 +1,10 @@
+import { useState } from 'react'
 import {
-  Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, Skeleton, TextField,
+  Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, Skeleton, TextField,
 } from '@runly/ui'
-import { Copy, History, QrCode } from 'lucide-react'
+import { Copy, History, QrCode, Unlink } from 'lucide-react'
 import { toast } from 'sonner'
-import { useLabelPreview } from '../../hooks/useInventoryLabels.js'
-import { itemQrUrl } from '../../lib/label-queue.js'
+import { useItemPublicLink, useLabelPreview, useRevokePublicLink } from '../../hooks/useInventoryLabels.js'
 
 // Render body for a square image with only the QR (default template's QR options).
 export const qrOnlyBody = (itemId, dpi) => ({
@@ -16,9 +16,12 @@ export const qrOnlyBody = (itemId, dpi) => ({
 const formatDateTime = (value) => new Date(value).toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 // "Ver con detalles": large QR, its link and the print history of one item.
-export function LabelDetailsDialog({ open, onOpenChange, item, history, canPrint }) {
+export function LabelDetailsDialog({ open, onOpenChange, item, history, canPrint, canManage = false }) {
   const preview = useLabelPreview(open && item?.id ? qrOnlyBody(item.id, 600) : null, { enabled: canPrint, delay: 0 })
-  const link = itemQrUrl(item, typeof window === 'undefined' ? '' : window.location.origin)
+  const linkQuery = useItemPublicLink(item?.id, { enabled: open && canPrint })
+  const link = linkQuery.data?.url ?? ''
+  const revoke = useRevokePublicLink(item?.id)
+  const [confirmRevoke, setConfirmRevoke] = useState(false)
   const rows = history.data ?? []
 
   function copy() {
@@ -49,9 +52,20 @@ export function LabelDetailsDialog({ open, onOpenChange, item, history, canPrint
             </div>
           </div>
           <div className="flex items-end gap-2">
-            <div className="min-w-0 flex-1"><TextField label="Enlace del código" value={link} readOnly /></div>
+            <div className="min-w-0 flex-1">
+              <TextField label="Enlace del código" value={link} readOnly
+                placeholder={linkQuery.isLoading ? 'Generando enlace…' : (canPrint ? '' : 'Necesitas el permiso Imprimir etiquetas')} />
+            </div>
             <Button type="button" variant="outline" onClick={copy} disabled={!link}><Copy className="mr-1.5 h-3.5 w-3.5" />Copiar</Button>
           </div>
+          {canManage ? (
+            <div className="flex items-start justify-between gap-3 rounded-md border border-[hsl(var(--border))] px-3 py-2">
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">Si el código se filtró o la etiqueta se perdió, revoca el enlace: las etiquetas impresas dejan de funcionar y se genera un enlace nuevo.</p>
+              <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setConfirmRevoke(true)} disabled={!link}>
+                <Unlink className="mr-1.5 h-3.5 w-3.5" />Revocar enlace
+              </Button>
+            </div>
+          ) : null}
           <section className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">Historial de impresión</h3>
             {history.isLoading ? (
@@ -79,6 +93,24 @@ export function LabelDetailsDialog({ open, onOpenChange, item, history, canPrint
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>
+      <ConfirmDialog
+        open={confirmRevoke}
+        onOpenChange={setConfirmRevoke}
+        title="Revocar enlace público"
+        description="El enlace y el código QR actuales dejarán de funcionar. Las etiquetas ya impresas de este equipo deberán reimprimirse."
+        detail={[item?.folio, item?.name].filter(Boolean).join(' · ')}
+        confirmLabel="Revocar enlace"
+        loading={revoke.isPending}
+        onConfirm={async () => {
+          try {
+            await revoke.mutateAsync()
+            toast.success('Enlace revocado. Se generó uno nuevo.')
+          } catch (err) {
+            toast.error(err?.message ?? 'No se pudo revocar el enlace')
+          }
+          setConfirmRevoke(false)
+        }}
+      />
     </Dialog>
   )
 }

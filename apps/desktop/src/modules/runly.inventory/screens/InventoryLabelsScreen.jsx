@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { ConfirmDialog, EmptyState, ErrorState, PageHeader, Skeleton, cn } from '@runly/ui'
-import { Lock } from 'lucide-react'
+import { Button, ConfirmDialog, EmptyState, ErrorState, PageHeader, Skeleton, cn } from '@runly/ui'
+import { Globe, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { useInventoryCan } from '../hooks/useInventoryAdmin.js'
 import {
@@ -15,6 +15,7 @@ import { LabelPreviewPanel } from '../components/labels/LabelPreviewPanel.jsx'
 import { LabelSettingsPanel } from '../components/labels/LabelSettingsPanel.jsx'
 import { LabelOutputActions, LabelStepBar } from '../components/labels/LabelOutputActions.jsx'
 import { LabelPrintersDialog } from '../components/labels/LabelPrintersDialog.jsx'
+import { PublicPageSettingsDialog } from '../components/labels/PublicPageSettingsDialog.jsx'
 import { LabelTemplateSaveDialog } from '../components/labels/LabelTemplateSaveDialog.jsx'
 
 function Panel({ title, children, className }) {
@@ -127,6 +128,7 @@ export default function InventoryLabelsScreen() {
   const [saveAsOpen, setSaveAsOpen] = useState(false)
   const [confirmDeleteTemplate, setConfirmDeleteTemplate] = useState(false)
   const [printersOpen, setPrintersOpen] = useState(false)
+  const [publicPageOpen, setPublicPageOpen] = useState(false)
 
   async function persistTemplate(data, success, { keepDraft = false } = {}) {
     try {
@@ -191,7 +193,16 @@ export default function InventoryLabelsScreen() {
         description="Imprime etiquetas con código QR para tus equipos."
         onBack={() => navigate('/app/m/runly.inventory/inventory')}
         backLabel="Inventario"
-        actions={<div className="hidden lg:block">{actions(false)}</div>}
+        actions={(
+          <div className="flex items-center gap-2">
+            {canManage ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => setPublicPageOpen(true)}>
+                <Globe className="mr-1.5 h-4 w-4" />Página pública
+              </Button>
+            ) : null}
+            <div className="hidden lg:block">{actions(false)}</div>
+          </div>
+        )}
       />
 
       {/* Desktop: queue | live preview | settings */}
@@ -259,6 +270,7 @@ export default function InventoryLabelsScreen() {
         onSave={async ({ name, isDefault }) => {
           if (await persistTemplate({ name, isDefault, ...draftToLayout(draft) }, 'Plantilla guardada')) setSaveAsOpen(false)
         }} />
+      {canManage ? <PublicPageSettingsDialog open={publicPageOpen} onOpenChange={setPublicPageOpen} /> : null}
       {canManage ? <LabelPrintersDialog open={printersOpen} onOpenChange={setPrintersOpen} printers={printers} templates={templates} /> : null}
     </div>
   )

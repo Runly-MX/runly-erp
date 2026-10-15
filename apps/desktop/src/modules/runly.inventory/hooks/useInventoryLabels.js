@@ -143,3 +143,44 @@ export function useLabelPreview(body, { enabled = true, delay = 400 } = {}) {
   useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current) }, [])
   return state
 }
+
+// ── Public item link and page settings ─────────────────────────────────────
+export function useItemPublicLink(itemId, { enabled = true } = {}) {
+  const token = useToken()
+  return useQuery({
+    queryKey: [...KEY, 'public-link', itemId],
+    queryFn: async () => unwrap(await runly.inventory.labels.publicLink(itemId, token)),
+    enabled: Boolean(token && itemId) && enabled,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useRevokePublicLink(itemId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => unwrap(await runly.inventory.labels.revokePublicLink(itemId, token)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...KEY, 'public-link', itemId] }),
+  })
+}
+
+export function useRevokeAllPublicLinks() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => unwrap(await runly.inventory.labels.revokeAllPublicLinks(token)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...KEY, 'public-link'] }),
+  })
+}
+
+export function usePublicPageSettings({ enabled = true } = {}) {
+  const token = useToken()
+  return useQuery({
+    queryKey: [...KEY, 'public-settings'],
+    queryFn: async () => unwrap(await runly.inventory.labels.getPublicSettings(token)),
+    enabled: Boolean(token) && enabled,
+    staleTime: 60 * 1000,
+  })
+}
+
+export const useSavePublicPageSettings = () => useLabelMutation((data, token) => runly.inventory.labels.updatePublicSettings(data, token), 'public-settings')
