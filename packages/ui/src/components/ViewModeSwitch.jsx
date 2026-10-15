@@ -1,10 +1,11 @@
-import { Activity, Grid3X3, LayoutList, Rows3 } from "lucide-react";
+import { Activity, Grid3X3, Images, LayoutList, Rows3 } from "lucide-react";
 import { cn } from "../lib/utils.js";
 
 const VIEW_META = {
   table: { Icon: Rows3, label: "Tabla" },
   cards: { Icon: LayoutList, label: "Tarjetas" },
   grid: { Icon: Grid3X3, label: "Cuadrícula" },
+  gallery: { Icon: Images, label: "Galería" },
   timeline: { Icon: Activity, label: "Línea de tiempo" },
 };
 

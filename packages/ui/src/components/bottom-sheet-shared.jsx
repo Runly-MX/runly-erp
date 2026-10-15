@@ -51,11 +51,12 @@ export const BOTTOM_SHEET_SURFACE_CLASS =
 
 // Mobile-only sticky header behavior for SheetHeader / DialogHeader. Has no
 // effect when the header already sits outside the scroll region. Its
-// background matches the opaque surface so it never reads as a separate band.
+// background is transparent (a separate fill never matched the glass surface and
+// read as a darker band); the blur keeps scrolled content under it legible.
 // On phones the header hugs the drag handle (no top padding);
 // there is no close button there: the sheet is dismissed by dragging.
 export const BOTTOM_SHEET_STICKY_HEADER_CLASS =
-  "max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-[hsl(var(--card))] max-md:pt-0";
+  "max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-transparent max-md:backdrop-blur-md max-md:pt-0";
 
 const SHEET_EASING = "280ms cubic-bezier(0.32, 0.72, 0, 1)";
 

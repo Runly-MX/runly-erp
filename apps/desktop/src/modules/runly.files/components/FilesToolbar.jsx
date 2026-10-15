@@ -1,12 +1,14 @@
 import {
-  Badge,
   Button,
-  FilterMenu,
-  ActiveFilterChips,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  FilterToolbar,
   SearchInput,
   ViewModeSwitch,
 } from "@runly/ui";
-import { Download, Archive, CheckSquare, Boxes, File, ToggleRight, FolderSymlink } from "lucide-react";
+import { ArrowUpDown, Boxes, Check, CheckSquare, File, ToggleRight } from "lucide-react";
 
 const FILTERS = [
   {
@@ -38,6 +40,18 @@ const FILTERS = [
   },
 ];
 
+const SORTS = [
+  { by: "updatedAt", dir: "desc", label: "Más recientes" },
+  { by: "updatedAt", dir: "asc", label: "Más antiguos" },
+  { by: "originalName", dir: "asc", label: "Nombre (A-Z)" },
+  { by: "originalName", dir: "desc", label: "Nombre (Z-A)" },
+  { by: "sizeBytes", dir: "desc", label: "Más pesados" },
+  { by: "sizeBytes", dir: "asc", label: "Más ligeros" },
+];
+
+// Search + filters + sort + view switch on the shared FilterToolbar (one row
+// on desktop; search/filters/view on top and actions below on phones).
+// Selection actions live in FilesSelectionBar, not here.
 export function FilesToolbar({
   search,
   onSearchChange,
@@ -45,160 +59,56 @@ export function FilesToolbar({
   onFiltersChange,
   viewMode,
   onViewModeChange,
-  selectedCount,
   onSelectVisible,
-  onClearSelection,
-  onBulkDirect,
-  onBulkZip,
-  onMoveSelected,
-  bulkLoading,
   sort,
   onSortChange,
   moduleOptions = [],
 }) {
-  const resolvedFilters = [
-    ...FILTERS,
-    {
-      key: "moduleKey",
-      label: "Módulo",
-      icon: Boxes,
-      options: moduleOptions,
-    },
-  ].filter((filter) => filter.options?.length);
+  const specs = [...FILTERS, { key: "moduleKey", label: "Módulo", icon: Boxes, options: moduleOptions }].filter(
+    (filter) => filter.options?.length,
+  );
+  const current = SORTS.find((item) => item.by === sort.by && item.dir === sort.dir) ?? SORTS[0];
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+    <FilterToolbar
+      search={
         <SearchInput
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
+          onClear={() => onSearchChange("")}
           placeholder="Buscar archivo..."
-          className="flex-1 min-w-0 sm:max-w-sm"
         />
-        <FilterMenu
-          filters={resolvedFilters}
-          value={filters}
-          onChange={onFiltersChange}
-        />
-        <ViewModeSwitch
-          value={viewMode}
-          onChange={onViewModeChange}
-          storageKey="files"
-        />
-      </div>
-
-      <ActiveFilterChips
-        filters={resolvedFilters}
-        value={filters}
-        onChange={onFiltersChange}
-      />
-
-      <div className="flex flex-wrap items-center gap-2">
-        {selectedCount > 0 && (
-          <Badge variant="outline">Seleccionados: {selectedCount}</Badge>
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-label="Seleccionar visibles"
-          onClick={onSelectVisible}
-        >
-          <CheckSquare className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Seleccionar visibles</span>
-        </Button>
-        {selectedCount > 0 && (
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-label="Descargar seleccionados"
-              onClick={onBulkDirect}
-              disabled={selectedCount === 0 || bulkLoading}
-            >
-              <Download className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Descargar seleccionados</span>
+      }
+      filterSpecs={specs}
+      filterValue={filters}
+      onFilterChange={onFiltersChange}
+      actions={
+        <>
+          {viewMode === "table" && (
+            <Button type="button" variant="outline" aria-label="Seleccionar visibles" title="Seleccionar visibles" onClick={onSelectVisible}>
+              <CheckSquare className="h-4 w-4" />
+              <span className="max-sm:sr-only">Seleccionar visibles</span>
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              aria-label="Descargar ZIP"
-              onClick={onBulkZip}
-              disabled={selectedCount === 0 || bulkLoading}
-            >
-              <Archive className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Descargar ZIP</span>
-            </Button>
-            {onMoveSelected && (
-              <Button type="button" variant="outline" size="sm" aria-label="Mover a carpeta" onClick={onMoveSelected} disabled={bulkLoading}>
-                <FolderSymlink className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Mover a carpeta</span>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" aria-label="Ordenar">
+                <ArrowUpDown className="h-4 w-4" />
+                {current.label}
               </Button>
-            )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onClearSelection}
-              disabled={selectedCount === 0 || bulkLoading}
-            >
-              <span className="hidden sm:inline">Limpiar selección</span>
-              <span className="sm:hidden">Limpiar</span>
-            </Button>
-          </>
-        )}
-        <div className="sm:ml-auto inline-flex items-center gap-1.5 rounded-xl border border-[hsl(var(--border))] px-1.5 py-1">
-          <Button
-            type="button"
-            variant={sort.by === "updatedAt" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() =>
-              onSortChange({
-                by: "updatedAt",
-                dir:
-                  sort.by === "updatedAt" && sort.dir === "desc"
-                    ? "asc"
-                    : "desc",
-              })
-            }
-          >
-            Reciente
-          </Button>
-          <Button
-            type="button"
-            variant={sort.by === "originalName" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() =>
-              onSortChange({
-                by: "originalName",
-                dir:
-                  sort.by === "originalName" && sort.dir === "asc"
-                    ? "desc"
-                    : "asc",
-              })
-            }
-          >
-            Nombre
-          </Button>
-          <Button
-            type="button"
-            variant={sort.by === "sizeBytes" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() =>
-              onSortChange({
-                by: "sizeBytes",
-                dir:
-                  sort.by === "sizeBytes" && sort.dir === "asc"
-                    ? "desc"
-                    : "asc",
-              })
-            }
-          >
-            Tamaño
-          </Button>
-        </div>
-      </div>
-    </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {SORTS.map((item) => (
+                <DropdownMenuItem key={item.label} onClick={() => onSortChange({ by: item.by, dir: item.dir })}>
+                  <Check className={item === current ? "mr-2 h-4 w-4" : "mr-2 h-4 w-4 opacity-0"} />
+                  {item.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      }
+      viewSwitch={<ViewModeSwitch modes={["table", "gallery"]} value={viewMode} onChange={onViewModeChange} storageKey="files" />}
+    />
   );
 }

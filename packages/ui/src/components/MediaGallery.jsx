@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, File as FileIcon, FileText, Film, Image as ImageIcon, Images, Music } from "lucide-react";
 import { cn } from "../lib/utils.js";
 import { cachedUrl, useInView } from "../lib/lazy-media.js";
@@ -10,6 +10,8 @@ import { EmptyState } from "./EmptyState.jsx";
 import { Skeleton } from "./Skeleton.jsx";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./Table.jsx";
 import { ViewModeSwitch } from "./ViewModeSwitch.jsx";
+import { ColumnResizeHandle } from "./ColumnResizeHandle.jsx";
+import { useColumnResize } from "../hooks/useColumnResize.js";
 
 // Reusable multimedia gallery: photos and documents from any record set, with
 // Cuadrícula / Tarjetas / Tabla views, kind filter (todo / imágenes / archivos),
@@ -20,6 +22,10 @@ import { ViewModeSwitch } from "./ViewModeSwitch.jsx";
 // resolveSignedUrl(fileAssetId, variant?) -> Promise<url> (variant: "card" | "preview" | undefined = original)
 // onDownload(items) -> Promise (receives the selection, or every visible item)
 // groupings: extra groupings, [{ key: "group", label: "Por inventario" }] using groupId / groupLabel.
+// Optional: views (subset of grid/cards/table), showKindFilter (false hides Todo/Imágenes/Archivos when the host already filters),
+// selectionActions({ items, clear }) -> node rendered beside Descargar while something is selected,
+// onOpenItem(item) -> true when the host opened the item itself (e.g. an Office editor).
+// Touch: long-press a tile to start selecting; while a selection exists a tap toggles instead of opening.
 
 const KINDS = [
   { key: "all", label: "Todo" },
@@ -93,11 +99,81 @@ function MediaThumb({ item, resolveSignedUrl, sharp = true, className }) {
   );
 }
 
+// Long-press (touch/pen) selection. `handlers` go on the tappable element;
+// `consumed()` tells the click handler the press already became a selection.
+function useLongPress(onLongPress, ms = 450) {
+  const timer = useRef(null);
+  const fired = useRef(false);
+  const origin = useRef(null);
+  const cancel = () => { clearTimeout(timer.current); timer.current = null; };
+  return {
+    handlers: {
+      onPointerDown: (e) => {
+        if (e.pointerType === "mouse") return;
+        fired.current = false;
+        origin.current = { x: e.clientX, y: e.clientY };
+        cancel();
+        timer.current = setTimeout(() => { fired.current = true; onLongPress(); navigator.vibrate?.(10); }, ms);
+      },
+      onPointerMove: (e) => {
+        const start = origin.current;
+        if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) cancel();
+      },
+      onPointerUp: cancel,
+      onPointerCancel: cancel,
+      onContextMenu: (e) => { if (fired.current) e.preventDefault(); },
+    },
+    consumed: () => { const was = fired.current; fired.current = false; return was; },
+  };
+}
+
 function SelectBox({ checked, onChange, label, className }) {
   return (
     <span className={cn("rounded-md bg-[hsl(var(--background))]/80 p-1 backdrop-blur", className)} onClick={(e) => e.stopPropagation()}>
       <Checkbox checked={checked} onCheckedChange={onChange} aria-label={label} />
     </span>
+  );
+}
+
+function MediaTile({ item, isSelected, selecting, resolveSignedUrl, onOpen, onToggle }) {
+  const press = useLongPress(onToggle);
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        {...press.handlers}
+        onClick={() => { if (!press.consumed()) onOpen(); }}
+        className={cn("block w-full select-none overflow-hidden rounded-xl border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]/40 [-webkit-touch-callout:none]", isSelected ? "border-(--brand-primary) ring-2 ring-(--brand-primary)/40" : "border-[hsl(var(--border))]")}
+      >
+        <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} className="aspect-square w-full" />
+        {!isImage(item) ? <span className="block truncate px-2 py-1.5 text-xs">{item.name}</span> : null}
+      </button>
+      <SelectBox
+        checked={isSelected}
+        onChange={onToggle}
+        label={`Seleccionar ${item.name}`}
+        className={cn("absolute left-1.5 top-1.5", selecting ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100")}
+      />
+    </div>
+  );
+}
+
+function MediaCard({ item, isSelected, resolveSignedUrl, onOpen, onToggle, onOpenGroup, openGroupLabel }) {
+  const press = useLongPress(onToggle);
+  return (
+    <div className={cn("group relative flex items-center gap-3 rounded-xl border bg-[hsl(var(--card))] p-2.5", isSelected ? "border-(--brand-primary)" : "border-[hsl(var(--border))]")}>
+      <button type="button" {...press.handlers} onClick={() => { if (!press.consumed()) onOpen(); }} className="shrink-0 select-none overflow-hidden rounded-lg [-webkit-touch-callout:none]">
+        <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} sharp={false} className="h-16 w-16" />
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{item.name}</p>
+        <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{[item.groupLabel, formatBytes(item.sizeBytes)].filter(Boolean).join(" · ")}</p>
+        {onOpenGroup && item.groupId ? (
+          <button type="button" onClick={() => onOpenGroup(item)} className="text-xs text-(--brand-primary) hover:underline">{openGroupLabel}</button>
+        ) : null}
+      </div>
+      <SelectBox checked={isSelected} onChange={onToggle} label={`Seleccionar ${item.name}`} />
+    </div>
   );
 }
 
@@ -117,7 +193,12 @@ export function MediaGallery({
   emptyTitle = "Sin archivos",
   emptyDescription = "Aquí aparecen las fotos y documentos adjuntos.",
   onKindChange,
+  showKindFilter = true,
+  views = ["grid", "cards", "table"],
+  selectionActions = null,
+  onOpenItem = null,
 }) {
+  const resize = useColumnResize(`media-${storageKey ?? "table"}`);
   const storedKey = storageKey ? `runly-media-${storageKey}` : null;
   const read = (name, fallback) => {
     try { return (storedKey && localStorage.getItem(`${storedKey}-${name}`)) || fallback; } catch { return fallback; }
@@ -172,7 +253,7 @@ export function MediaGallery({
   );
 
   const segmented = (options, value, onChange) => (
-    <div className="inline-flex overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-card">
+    <div className="inline-flex shrink-0 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-card">
       {options.map((option) => (
         <button
           key={option.key}
@@ -186,53 +267,47 @@ export function MediaGallery({
     </div>
   );
 
-  const renderTile = (item) => (
-    <div key={item.id} className="group relative">
-      <button type="button" onClick={() => setViewerIndex(indexById.get(item.id) ?? 0)} className="block w-full overflow-hidden rounded-xl border border-[hsl(var(--border))] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]/40">
-        <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} className="aspect-square w-full" />
-        {!isImage(item) ? <span className="block truncate px-2 py-1.5 text-xs">{item.name}</span> : null}
-      </button>
-      <SelectBox
-        checked={selected.has(item.id)}
-        onChange={() => toggle(item.id)}
-        label={`Seleccionar ${item.name}`}
-        className={cn("absolute left-1.5 top-1.5", selected.size ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100")}
-      />
-    </div>
-  );
+  // Tap = open (or toggle while a selection exists); long-press = select.
+  const open = (item) => {
+    if (selected.size) { toggle(item.id); return; }
+    if (onOpenItem?.(item)) return;
+    setViewerIndex(indexById.get(item.id) ?? 0);
+  };
 
-  const renderCard = (item) => (
-    <div key={item.id} className="group relative flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-2.5">
-      <button type="button" onClick={() => setViewerIndex(indexById.get(item.id) ?? 0)} className="shrink-0 overflow-hidden rounded-lg">
-        <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} sharp={false} className="h-16 w-16" />
-      </button>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{item.name}</p>
-        <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{[item.groupLabel, formatBytes(item.sizeBytes)].filter(Boolean).join(" · ")}</p>
-        {onOpenGroup && item.groupId ? (
-          <button type="button" onClick={() => onOpenGroup(item)} className="text-xs text-(--brand-primary) hover:underline">{openGroupLabel}</button>
-        ) : null}
-      </div>
-      <SelectBox checked={selected.has(item.id)} onChange={() => toggle(item.id)} label={`Seleccionar ${item.name}`} />
-    </div>
-  );
+  const tileProps = (item) => ({
+    item,
+    isSelected: selected.has(item.id),
+    selecting: selected.size > 0,
+    resolveSignedUrl,
+    onOpen: () => open(item),
+    onToggle: () => toggle(item.id),
+  });
+  const renderTile = (item) => <MediaTile key={item.id} {...tileProps(item)} />;
+  const renderCard = (item) => <MediaCard key={item.id} {...tileProps(item)} onOpenGroup={onOpenGroup} openGroupLabel={openGroupLabel} />;
 
   const renderTable = (list) => (
     <div className="overflow-clip rounded-2xl surface-card">
-      <Table>
+      <Table {...resize.tableProps(["select", "thumb", "name", "group", "size", "date"])}>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="w-10"><Checkbox checked={list.every((i) => selected.has(i.id)) ? true : list.some((i) => selected.has(i.id)) ? "indeterminate" : false} onCheckedChange={(on) => setMany(list, Boolean(on))} aria-label="Seleccionar grupo" /></TableHead>
-            <TableHead className="w-16" />
-            <TableHead>Nombre</TableHead>
-            <TableHead>{groupings[0]?.label?.replace(/^Por /, "").replace(/^./, (c) => c.toUpperCase()) ?? "Origen"}</TableHead>
-            <TableHead>Tamaño</TableHead>
-            <TableHead>Fecha</TableHead>
+            <TableHead className="relative w-10" {...resize.headerProps("select")}><Checkbox checked={list.every((i) => selected.has(i.id)) ? true : list.some((i) => selected.has(i.id)) ? "indeterminate" : false} onCheckedChange={(on) => setMany(list, Boolean(on))} aria-label="Seleccionar grupo" /></TableHead>
+            <TableHead className="relative w-16" {...resize.headerProps("thumb")} />
+            {[
+              ["name", "Nombre"],
+              ["group", groupings[0]?.label?.replace(/^Por /, "").replace(/^./, (c) => c.toUpperCase()) ?? "Origen"],
+              ["size", "Tamaño"],
+              ["date", "Fecha"],
+            ].map(([key, label]) => (
+              <TableHead key={key} className="relative" {...resize.headerProps(key)}>
+                {label}
+                <ColumnResizeHandle {...resize.handleProps(key)} />
+              </TableHead>
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {list.map((item) => (
-            <TableRow key={item.id} className="cursor-pointer" onClick={() => setViewerIndex(indexById.get(item.id) ?? 0)}>
+            <TableRow key={item.id} className="cursor-pointer" onClick={() => open(item)}>
               <TableCell onClick={(e) => e.stopPropagation()}><Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggle(item.id)} aria-label={`Seleccionar ${item.name}`} /></TableCell>
               <TableCell><MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} sharp={false} className="h-10 w-10 rounded-lg" /></TableCell>
               <TableCell className="max-w-64 truncate font-medium">{item.name}</TableCell>
@@ -285,17 +360,20 @@ export function MediaGallery({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         {toolbarStart}
-        {segmented(KINDS, kind, (next) => { setKind(next); onKindChange?.(next); })}
-        {segmented(groupingOptions, grouping, (next) => { setGrouping(next); write("grouping", next); })}
+        <div className="-mx-4 flex max-w-[calc(100%+2rem)] items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:max-w-full sm:flex-wrap sm:overflow-visible sm:px-0 max-sm:basis-full">
+          {showKindFilter ? segmented(KINDS, kind, (next) => { setKind(next); onKindChange?.(next); }) : null}
+          {segmented(groupingOptions, grouping, (next) => { setGrouping(next); write("grouping", next); })}
+        </div>
         <div className="ml-auto flex items-center gap-2">
-          {selected.size ? <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Quitar selección ({selected.size})</Button> : null}
+          {selected.size ? <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Quitar ({selected.size})</Button> : null}
+          {selected.size && selectionActions ? selectionActions({ items: selectedItems, clear: () => setSelected(new Set()) }) : null}
           {onDownload ? (
-            <Button variant="outline" size="sm" onClick={download} loading={downloading} disabled={!sequence.length}>
-              <Download className="mr-1.5 h-4 w-4" />
-              {selected.size ? `Descargar selección (${selected.size})` : "Descargar todo"}
+            <Button variant="outline" size="sm" onClick={download} loading={downloading} disabled={!sequence.length} aria-label={selected.size ? "Descargar selección" : "Descargar todo"}>
+              <Download className="h-4 w-4 sm:mr-1.5" />
+              <span className="max-sm:sr-only">{selected.size ? `Descargar selección (${selected.size})` : "Descargar todo"}</span>
             </Button>
           ) : null}
-          <ViewModeSwitch modes={["grid", "cards", "table"]} value={view} onChange={(mode) => { setView(mode); write("view", mode); }} />
+          <ViewModeSwitch modes={views} value={views.includes(view) ? view : views[0]} onChange={(mode) => { setView(mode); write("view", mode); }} />
         </div>
       </div>
       {body()}

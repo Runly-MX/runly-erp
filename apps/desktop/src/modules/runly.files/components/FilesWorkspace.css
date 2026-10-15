@@ -145,3 +145,35 @@
     transition: none;
   }
 }
+
+/* Phones: the three create tiles become a compact icon row and the intro line goes. */
+@media (max-width: 640px) {
+  .files-workspace-intro {
+    display: none;
+  }
+  .files-create-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .files-create-strip .files-create-tile {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    padding: 12px 6px;
+    gap: 8px;
+    text-align: center;
+  }
+  .files-create-copy > span,
+  .files-create-arrow {
+    display: none;
+  }
+  .files-create-copy strong {
+    font-size: 12px;
+    text-align: center;
+  }
+  .files-create-icon {
+    width: 40px;
+    height: 40px;
+  }
+}

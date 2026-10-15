@@ -8,6 +8,7 @@ import {
   ErrorState,
   PageFooter,
   PageHeader,
+  useIsMobile,
   useOfficeActions,
 } from "@runly/ui";
 import { getOfficeFormat } from "@runly/core";
@@ -22,13 +23,14 @@ import { FilesWorkspaceHeader } from "../components/FilesWorkspaceHeader";
 import { CreateDocumentDialog } from "../components/CreateDocumentDialog";
 import { FileSharingDialog } from "../components/FileSharingDialog";
 import { FileInvitations } from "../components/FileInvitations";
-import { FilesCardView } from "../components/FilesCardView";
-import { FilesGridView } from "../components/FilesGridView";
+import { FilesGalleryView } from "../components/FilesGalleryView";
+import { FilesSelectionBar } from "../components/FilesSelectionBar";
 import { AdvancedFileViewer, getFileKind } from "@runly/ui";
 import { FileDetailPanel } from "../components/FileDetailPanel";
 import { FileRenameModal } from "../components/FileRenameModal";
 import { FilesUploadDialog } from "../components/FilesUploadDialog";
-import { FilesSidebar, FILES_WORKSPACES } from "../components/FilesSidebar";
+import { FILES_WORKSPACES } from "../components/FilesSidebar";
+import { FilesNavigation } from "../components/FilesNavigation";
 import { FilesFolderManager } from "../components/FilesFolderManager";
 import { FilesUploadQueue } from "../components/FilesUploadQueue";
 import { useFilesFolders } from "../hooks/useFilesFolders";
@@ -115,6 +117,17 @@ export default function FilesScreen() {
       { replace: true },
     );
   }
+  const isMobile = useIsMobile();
+  // Two modes: table, and the shared MediaGallery ("gallery"). Phones default
+  // to the gallery; the old cards/grid choices fold into it.
+  const [storedView, setStoredView] = useState(() => {
+    try {
+      return localStorage.getItem("runly-view-mode-files");
+    } catch {
+      return null;
+    }
+  });
+  const viewMode = storedView === "table" ? "table" : storedView ? "gallery" : isMobile ? "gallery" : "table";
   const [moveFileIds, setMoveFileIds] = useState(null);
   const folderApi = useFilesFolders({ token, userId: session?.user?.id, enabled: canReadFiles });
   const currentFolder = inFolders && folder !== ROOT_FOLDER ? folderApi.folders.find((f) => f.id === folder) : null;
@@ -440,6 +453,15 @@ export default function FilesScreen() {
     }
   }, [routeQuery.data]);
 
+  // The gallery owns its viewer; Office documents still open in the editor.
+  function openGalleryFile(file) {
+    if (office?.enabled && file.enabled !== false && getOfficeFormat(file)) {
+      office.open(file.id);
+      return true;
+    }
+    return false;
+  }
+
   function openViewer(file) {
     if (office?.enabled && file.enabled !== false && getOfficeFormat(file)) {
       office.open(file.id);
@@ -598,17 +620,15 @@ export default function FilesScreen() {
           onShareWithCompanyChange={setShareWithCompany}
         />
         <div className="flex flex-col gap-4 md:flex-row md:items-start">
-          <aside className="md:sticky md:top-4 md:w-52 md:shrink-0">
-            <FilesSidebar
-              workspace={workspace}
-              folder={folder}
-              moduleKey={queryParams.moduleKey}
-              folders={folderApi.folders}
-              modules={folderApi.modules}
-              isCompanyAdmin={Boolean(userProfile?.isAdmin)}
-              onSelect={selectView}
-            />
-          </aside>
+          <FilesNavigation
+            workspace={workspace}
+            folder={folder}
+            moduleKey={queryParams.moduleKey}
+            folders={folderApi.folders}
+            modules={folderApi.modules}
+            isCompanyAdmin={Boolean(userProfile?.isAdmin)}
+            onSelect={selectView}
+          />
           <div className="min-w-0 flex-1 space-y-6">
         {routeQuery.isError && (
           <ErrorState
@@ -647,15 +667,9 @@ export default function FilesScreen() {
               onSearchChange={explorer.setSearch}
               filters={explorer.filters}
               onFiltersChange={explorer.setFilters}
-              viewMode={explorer.viewMode}
-              onViewModeChange={explorer.setViewMode}
-              selectedCount={explorer.selectedCount}
+              viewMode={viewMode}
+              onViewModeChange={setStoredView}
               onSelectVisible={explorer.selectVisible}
-              onClearSelection={explorer.clearSelection}
-              onBulkDirect={handleBulkDirect}
-              onBulkZip={handleBulkZip}
-              onMoveSelected={hasPermission("files.assets.update") ? () => setMoveFileIds(explorer.selectedIds) : null}
-              bulkLoading={bulkDownloadMutation.isPending}
               sort={explorer.sort}
               onSortChange={explorer.setSort}
               moduleOptions={moduleOptions}
@@ -683,7 +697,7 @@ export default function FilesScreen() {
                 title="Sin resultados"
                 description="No hay archivos que coincidan con los filtros actuales."
               />
-            ) : explorer.viewMode === "table" ? (
+            ) : viewMode === "table" ? (
               <FilesWorkspaceTable
                 files={explorer.filteredFiles}
                 selectedSet={explorer.selectedSet}
@@ -715,34 +729,12 @@ export default function FilesScreen() {
                 isAdmin={isAdmin}
                 previewMap={previewMap}
               />
-            ) : explorer.viewMode === "cards" ? (
-              <FilesCardView
-                files={explorer.filteredFiles}
-                selectedSet={explorer.selectedSet}
-                onToggleSelect={explorer.toggleSelect}
-                onPreview={openViewer}
-                onDownload={downloadFile}
-                onCopyLink={copyLink}
-                onRename={(file) => {
-                  setRenameTarget(file);
-                  setRenameValue(file.originalName || "");
-                }}
-                onDetail={(file) => openDetail(file, true)}
-                previewMap={previewMap}
-                isAdmin={isAdmin}
-                onDelete={(file) => setDeleteTarget(file)}
-              />
             ) : (
-              <FilesGridView
+              <FilesGalleryView
                 files={explorer.filteredFiles}
-                selectedSet={explorer.selectedSet}
-                onToggleSelect={explorer.toggleSelect}
-                onPreview={openViewer}
-                onDownload={downloadFile}
-                onDetail={(file) => openDetail(file, true)}
-                previewMap={previewMap}
-                isAdmin={isAdmin}
-                onDelete={(file) => setDeleteTarget(file)}
+                token={token}
+                onOpenFile={openGalleryFile}
+                onMove={hasPermission("files.assets.update") ? (ids) => setMoveFileIds(ids) : null}
               />
             )}
             <PageFooter
@@ -787,6 +779,16 @@ export default function FilesScreen() {
         )}
       </div>
 
+      {viewMode === "table" && (
+        <FilesSelectionBar
+          count={explorer.selectedCount}
+          loading={bulkDownloadMutation.isPending}
+          onClear={explorer.clearSelection}
+          onDownload={handleBulkDirect}
+          onZip={handleBulkZip}
+          onMove={hasPermission("files.assets.update") ? () => setMoveFileIds(explorer.selectedIds) : null}
+        />
+      )}
       <FilesUploadQueue isDragOver={isDragOver} queue={uploadQueue} onClear={() => setUploadQueue([])} dropTarget={dropTarget} />
 
       <AdvancedFileViewer

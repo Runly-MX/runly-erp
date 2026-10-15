@@ -18,6 +18,8 @@ import {
   TableHead,
   TableCell,
   LoadingState,
+  ColumnResizeHandle,
+  useColumnResize,
 } from "@runly/ui";
 import { toast } from "sonner";
 import WebsiteNewBlogPostDialog from "./WebsiteNewBlogPostDialog.jsx";
@@ -46,6 +48,7 @@ export default function WebsiteBlogScreen() {
   const { session } = useAuth();
   const token = session?.access_token;
   const navigate = useNavigate();
+  const resize = useColumnResize("website-blog");
   const queryClient = useQueryClient();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -152,14 +155,15 @@ export default function WebsiteBlogScreen() {
             />
           ) : (
             <div className="rounded-xl border border-[hsl(var(--border))] overflow-hidden">
-              <Table>
+              <Table {...resize.tableProps(["title", "category", "status", "published", "actions"])}>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Titulo</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Publicado</TableHead>
-                    <TableHead className="w-24" />
+                    {[["title", "Titulo"], ["category", "Categoria"], ["status", "Estado"], ["published", "Publicado"], ["actions", ""]].map(([key, label]) => (
+                      <TableHead key={key} className={key === "actions" ? "relative w-24" : "relative"} {...resize.headerProps(key)}>
+                        {label}
+                        <ColumnResizeHandle {...resize.handleProps(key)} />
+                      </TableHead>
+                    ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>

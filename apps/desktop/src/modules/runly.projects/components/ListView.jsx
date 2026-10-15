@@ -9,6 +9,8 @@ import {
   Table,
   TableHeader,
   TableBody,
+  ColumnResizeHandle,
+  useColumnResize,
 } from "@runly/ui";
 import { ChevronRight, CornerDownRight, Trash2, X, Lock, RefreshCw, Paperclip } from "lucide-react";
 import { toast } from "sonner";
@@ -70,6 +72,7 @@ export default function ListView({
   const statuses = statusesData?.data ?? statusesData ?? [];
   const tasks = tasksData?.data ?? tasksData ?? [];
 
+  const resize = useColumnResize(`projects-list-${projectId}`);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("__all__");
   const [filterPriority, setFilterPriority] = useState("__all__");
@@ -212,10 +215,10 @@ export default function ListView({
             />
           )}
           {filtered.length > 0 && (
-            <Table className="text-sm">
+            <Table className="text-sm" {...resize.tableProps(["select", "task", "assignee", "priority", "start", "due", "status"])}>
               <TableHeader className="sticky top-0 bg-background border-b border-border z-10">
                 <tr>
-                  <th className="px-3 py-2 w-8">
+                  <th className="px-3 py-2 w-8" {...resize.headerProps("select")}>
                     <Checkbox
                       checked={
                         filtered.length > 0 &&
@@ -224,23 +227,29 @@ export default function ListView({
                       onCheckedChange={toggleAll}
                     />
                   </th>
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <th className="relative text-left px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide" {...resize.headerProps("task")}>
                     Tarea
+                  <ColumnResizeHandle {...resize.handleProps("task")} />
                   </th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">
+                  <th className="relative text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36" {...resize.headerProps("assignee")}>
                     Asignado
+                  <ColumnResizeHandle {...resize.handleProps("assignee")} />
                   </th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">
+                  <th className="relative text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24" {...resize.headerProps("priority")}>
                     Prioridad
+                  <ColumnResizeHandle {...resize.handleProps("priority")} />
                   </th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">
+                  <th className="relative text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24" {...resize.headerProps("start")}>
                     Inicio
+                  <ColumnResizeHandle {...resize.handleProps("start")} />
                   </th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24">
+                  <th className="relative text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-24" {...resize.headerProps("due")}>
                     Vence
+                  <ColumnResizeHandle {...resize.handleProps("due")} />
                   </th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-40">
+                  <th className="relative text-left px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide w-40" {...resize.headerProps("status")}>
                     Estado
+                  <ColumnResizeHandle {...resize.handleProps("status")} />
                   </th>
                 </tr>
               </TableHeader>

@@ -10,12 +10,12 @@ export function FolderExplorerBar({ folders, folder, canCreate, canManage, onOpe
   return (
     <section aria-label="Carpetas" className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <nav aria-label="Ruta" className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
+        <nav aria-label="Ruta" className="-mx-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 text-sm [scrollbar-width:none] sm:flex-initial sm:flex-wrap sm:overflow-visible">
           <Button variant="ghost" size="sm" className={cn("h-7 px-2", path.length === 0 && "font-semibold")} onClick={() => onOpen(ROOT_FOLDER)}>
             Mis carpetas
           </Button>
           {path.map((item, index) => (
-            <span key={item.id} className="flex min-w-0 items-center gap-1">
+            <span key={item.id} className="flex shrink-0 items-center gap-1">
               <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--muted-foreground))]" />
               <Button
                 variant="ghost"
@@ -29,14 +29,14 @@ export function FolderExplorerBar({ folders, folder, canCreate, canManage, onOpe
           ))}
         </nav>
         {canCreate && (
-          <Button variant="outline" size="sm" onClick={onCreate}>
+          <Button variant="outline" size="sm" aria-label="Nueva carpeta" onClick={onCreate}>
             <FolderPlus className="h-4 w-4" />
-            Nueva carpeta
+            <span className="max-sm:sr-only">Nueva carpeta</span>
           </Button>
         )}
       </div>
       {subfolders.length > 0 && (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(210px,1fr))]">
           {subfolders.map((item) => (
             <div
               key={item.id}
