@@ -23,6 +23,7 @@ import {
 import { HeroContainer } from "./runly-detail-hero.jsx";
 import { resolveSchemaTabs, tabOfSection } from "./schema-tabs.js";
 import { isElementVisible, matchesVisibilityRule, visibleSections as filterVisibleSections } from "./visibility-rules.js";
+import { DocumentLinkValue } from "./detail-document-link.jsx";
 import { CopyOnDoubleClick } from "../components/CopyOnDoubleClick.jsx";
 import { SchemaTabBar } from "./SchemaTabBar.jsx";
 import { resolveFieldIcon } from "./field-icons.js";
@@ -62,6 +63,7 @@ const STATUS_COLORS = {
 
 
 const matchesFieldRule = matchesVisibilityRule;
+const MOBILE_ORDER = "order-(--mobile-order) lg:order-none";
 
 function normalizeField(fieldLike) {
   if (!fieldLike || typeof fieldLike !== "object") return null;
@@ -81,6 +83,7 @@ function normalizeField(fieldLike) {
     accept: fieldLike.accept ?? null,
     signedUrlPath: fieldLike.signedUrlPath ?? null,
     urlField: fieldLike.urlField ?? null,
+    emptyLabel: typeof fieldLike.emptyLabel === "string" ? fieldLike.emptyLabel : null,
   };
 }
 
@@ -362,6 +365,7 @@ function normalizeSections(schema, fieldMap) {
         ...section,
         ...(typeof rawSections[i]?.tab === "string" ? { tab: rawSections[i].tab } : {}),
         ...(rawSections[i]?.visibleWhen ? { visibleWhen: rawSections[i].visibleWhen } : {}),
+        ...(typeof rawSections[i]?.mobileAfter === "string" ? { mobileAfter: rawSections[i].mobileAfter } : {}),
       };
       return withCollapseConfig(withTab, rawSections[i]);
     })
@@ -565,6 +569,11 @@ export function RunlyDetail({
     );
   }
 
+  // Mobile order of main sections, and of aside ones that ask to follow one.
+  const mobileOrder = new Map(mainSections.map((section, index) => [section.id, (index + 1) * 10]));
+  const asideMobileOrder = (section) =>
+    section.mobileAfter && mobileOrder.has(section.mobileAfter) ? mobileOrder.get(section.mobileAfter) + 5 : 10000;
+
   const fallbackActions =
     onBack || onEdit ? (
       <>
@@ -701,6 +710,8 @@ export function RunlyDetail({
                       ) : (
                         <span>{String(value)}</span>
                       )
+                    ) : field.type === "document-link" ? (
+                      <DocumentLinkValue value={value} emptyLabel={field.emptyLabel} />
                     ) : field.type === "file-asset" ? (
                       <FileAssetValue
                         value={value}
@@ -784,17 +795,24 @@ export function RunlyDetail({
         // The aside column keeps a 300px floor so file lists, thumbnails and
         // activity feeds never collapse to an unreadable width on narrow
         // lg viewports (sidebar open); the main column absorbs the squeeze.
+        // Below lg the columns are flattened (display: contents) so an aside
+        // section with `mobileAfter: "<section id>"` can sit right after that
+        // main section on mobile instead of after all of them.
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-          <div className="min-w-0 space-y-6">
-            {mainSections.map(renderSection)}
-            {mainExtra}
+          <div className="contents lg:block lg:min-w-0 lg:space-y-6">
+            {mainSections.map((section) => (
+              <div key={section.id} className={MOBILE_ORDER} style={{ "--mobile-order": mobileOrder.get(section.id) }}>{renderSection(section)}</div>
+            ))}
+            {mainExtra ? <div className={MOBILE_ORDER} style={{ "--mobile-order": 5000 }}>{mainExtra}</div> : null}
           </div>
-          <div className="min-w-0 space-y-6">
-            {asideSections.map(renderSection)}
-            {asideExtra}
+          <div className="contents lg:block lg:min-w-0 lg:space-y-6">
+            {asideSections.map((section) => (
+              <div key={section.id} className={MOBILE_ORDER} style={{ "--mobile-order": asideMobileOrder(section) }}>{renderSection(section)}</div>
+            ))}
+            {asideExtra ? <div className={MOBILE_ORDER} style={{ "--mobile-order": 20000 }}>{asideExtra}</div> : null}
           </div>
           {fullSections.length > 0 && (
-            <div className="min-w-0 space-y-6 lg:col-span-2">
+            <div className="min-w-0 space-y-6 lg:col-span-2 order-last">
               {fullSections.map(renderSection)}
             </div>
           )}

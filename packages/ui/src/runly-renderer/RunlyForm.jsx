@@ -2,6 +2,7 @@ import { useRuntimeFetch } from '../lib/module-runtime/RuntimeAdapters.jsx';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as LucideIcons from "lucide-react";
 import { renderFormFieldControl } from "./runly-form-field-control.jsx";
+import { FormColumns } from "./runly-form-layout.jsx";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import {
@@ -437,7 +438,7 @@ export function RunlyForm({
         payload[name] = Boolean(casted);
         continue;
       }
-      if (field.type === "relation" || (field.type === "file" && field.file)) {
+      if (field.type === "relation" || field.type === "custom" || (field.type === "file" && field.file)) {
         payload[name] = casted === "" ? null : casted;
         continue;
       }
@@ -523,7 +524,7 @@ export function RunlyForm({
   };
 
   const renderFieldControl = (field) =>
-    renderFormFieldControl(field, { formValues, fieldErrors, handleChange, apiBaseUrl, token, companyId, relationState, relationInlineErrors, initialData, allowInlineCreate, inlineCreateDepth, quickCreatingField, inlineCreateState, loadRelationOptions, handleRelationSearch, handleQuickCreate, openInlineCreate });
+    renderFormFieldControl(field, { componentRegistry, formValues, fieldErrors, handleChange, apiBaseUrl, token, companyId, relationState, relationInlineErrors, initialData, allowInlineCreate, inlineCreateDepth, quickCreatingField, inlineCreateState, loadRelationOptions, handleRelationSearch, handleQuickCreate, openInlineCreate });
 
   const mainSections = shownSections.filter(
     (section) =>
@@ -835,34 +836,20 @@ export function RunlyForm({
         </Alert>
       )}
 
-      <div className={hasAsideColumn ? "grid gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]" : "space-y-3"}>
-        {/* Below xl there's no side-by-side column, so the aside content
-            (completion ring, quick actions) would otherwise fall after every
-            field, at the very bottom of a long form. order-first puts it
-            right below the header instead; xl:order-none restores normal
-            (right-column) source order once the two columns sit side by side. */}
-        <div className="space-y-3 order-last xl:order-none">
-          {/* Every tab stays mounted (only hidden) so no typed value is lost. */}
-          {mainSections.map((section) =>
-            allFormTabs.length ? (
-              <div key={section.id} hidden={tabOfSection(section, allFormTabs) !== currentTab}>
-                {renderSection(section)}
-              </div>
-            ) : (
-              renderSection(section)
-            ),
-          )}
-        </div>
-        {hasAsideColumn ? (
-          <div className="space-y-3 order-first xl:order-none xl:sticky xl:top-4 xl:self-start">
+      <FormColumns
+        main={mainSections.map((section) => ({
+          id: section.id,
+          // Every tab stays mounted (only hidden) so no typed value is lost.
+          node: allFormTabs.length ? (
+            <div hidden={tabOfSection(section, allFormTabs) !== currentTab}>{renderSection(section)}</div>
+          ) : renderSection(section),
+        }))}
+        asideTop={hasAsideColumn && (showCompletion || asideActions || previewModel) ? (
+          <>
             {showCompletion || asideActions ? (
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:flex-col xl:items-stretch">
                 {showCompletion ? (
-                  <FormCompletionRing
-                    percent={completionPercent}
-                    filledCount={filledCount}
-                    totalCount={allFieldNames.length}
-                  />
+                  <FormCompletionRing percent={completionPercent} filledCount={filledCount} totalCount={allFieldNames.length} />
                 ) : null}
                 {asideActions}
               </div>
@@ -876,10 +863,10 @@ export function RunlyForm({
                 fallbackIcon={previewConfig?.fallbackIcon}
               />
             ) : null}
-            {asideSections.map((section) => renderSection(section))}
-          </div>
+          </>
         ) : null}
-      </div>
+        aside={asideSections.map((section) => ({ id: section.id, mobileAfter: section.mobileAfter, node: renderSection(section) }))}
+      />
 
       <Dialog
         modal={inlineCreateDepth === 0}

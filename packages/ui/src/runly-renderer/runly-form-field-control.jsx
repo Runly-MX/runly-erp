@@ -13,7 +13,7 @@ import { formatDisplayValue } from "./runly-form-preview.js";
 import { resolveFieldIcon } from "./field-icons.js";
 
 export function renderFormFieldControl(field, ctx) {
-  const { formValues, fieldErrors, handleChange, apiBaseUrl, token, companyId, relationState, relationInlineErrors, initialData, allowInlineCreate, inlineCreateDepth, quickCreatingField, inlineCreateState, loadRelationOptions, handleRelationSearch, handleQuickCreate, openInlineCreate } = ctx;
+  const { componentRegistry, formValues, fieldErrors, handleChange, apiBaseUrl, token, companyId, relationState, relationInlineErrors, initialData, allowInlineCreate, inlineCreateDepth, quickCreatingField, inlineCreateState, loadRelationOptions, handleRelationSearch, handleQuickCreate, openInlineCreate } = ctx;
   const value = formValues[field.name];
   const sharedProps = {
     label: field.label,
@@ -218,6 +218,22 @@ export function renderFormFieldControl(field, ctx) {
             </span>
           </div>
         </FieldWrapper>
+      );
+    }
+
+    // Control owned by the screen (e.g. inventory purchase order search).
+    case "custom": {
+      const Control = componentRegistry?.resolve?.(field.component) ?? null;
+      if (!Control) return null;
+      return (
+        <Control
+          field={field}
+          value={value ?? ""}
+          onChange={(next) => handleChange(field.name, next ?? "")}
+          error={fieldErrors[field.name]}
+          initialData={initialData}
+          values={formValues}
+        />
       );
     }
 

@@ -224,6 +224,16 @@ export default defineView({
   `?<relationField>=<uuid>`, and a layout section `{ type: 'related', source:
   { entity, field } }` renders as a detail-only `relation-list`.
 - `schema.formMode: 'page' | 'sheet' | 'auto'` forces full page vs side sheet.
+- Form field `type: 'custom'` + `component: '<registry key>'` renders a control
+  owned by the screen: RunlyForm resolves it through `componentRegistry` and
+  passes `{ field, value, onChange(next), error, initialData, values }`. The
+  value is submitted like a relation (empty string becomes `null`). Used by the
+  inventory item form for its purchase order / invoice pickers.
+- Form: an `attachments` section with `placement: 'aside'` renders in the
+  right sidebar. `mobileAfter: '<section id>'` (FORM and DETAIL sections) moves
+  an aside section, below `xl` (FORM) / `lg` (DETAIL), to right after that main
+  section instead of after all of them; columns are flattened with
+  `display: contents` plus CSS `order`, so the section is mounted only once.
 - A `file` form field with `filesPath` (plus `accept: 'image' | 'document' |
   'any'`, `camera`, `maxSizeMB`, `signedUrlPath`) renders `FileAssetField`: it
   uploads immediately and stores the FileAsset id. A DETAIL field with
@@ -276,6 +286,10 @@ renders as a plain stack of `label / value` sections (unchanged behaviour).
 - `schema.layout: 'two-column'` + `section.column: 'main' | 'aside'` — on `lg+`
   the body becomes a main column (2/3) plus an aside column (1/3). Default
   `column` is `main`.
+- DETAIL field `type: 'document-link'` shows a related record of another module:
+  the value is `{ number, path|href, statusLabel?, supplierName|sublabel? }`
+  (monospace link, small status chip, muted subtitle) or `null` (muted
+  `emptyLabel`). Used for the inventory item's order / invoice.
 - On a `relation-card` section, `relationCard.avatarField` (a file-asset id) plus
   `relationCard.contactActions: [{ type: 'call', field }]` add an avatar
   (initials fallback) and `tel:` buttons.

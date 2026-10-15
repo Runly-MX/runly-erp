@@ -19,6 +19,8 @@ export function normalizeField(fieldLike) {
     icon: typeof fieldLike.icon === "string" && fieldLike.icon.trim() ? fieldLike.icon.trim() : null,
     options: fieldLike.options,
     relation: fieldLike.relation,
+    // type "custom": control provided by the screen's componentRegistry.
+    component: typeof fieldLike.component === "string" ? fieldLike.component : null,
     visibleWhen: fieldLike.visibleWhen ?? null,
     hiddenWhen: fieldLike.hiddenWhen ?? null,
     currency: fieldLike.currency ?? null,
@@ -284,6 +286,7 @@ export function normalizeSections(schema, fieldMap) {
         ...section,
         ...(typeof raw?.tab === "string" ? { tab: raw.tab } : {}),
         ...(raw?.visibleWhen ? { visibleWhen: raw.visibleWhen } : {}),
+        ...(typeof raw?.mobileAfter === "string" ? { mobileAfter: raw.mobileAfter } : {}),
       };
     })
     .filter(Boolean);
