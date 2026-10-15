@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -18,6 +18,7 @@ import { clearAllPatch, countActiveFilters, filterType, isFilterActive } from '.
 import { EmptyState } from './EmptyState.jsx'
 import { ErrorState } from './ErrorState.jsx'
 import { PageFooter } from './PageFooter.jsx'
+import { isAllPageSize } from '../lib/page-size.js'
 import { ViewModeSwitch, getStoredViewMode } from './ViewModeSwitch.jsx'
 import { cn } from '../lib/utils.js'
 
@@ -89,6 +90,7 @@ export function DataTable({
   const [globalFilter, setGlobalFilter] = useState('')
   const [filterValues, setFilterValues] = useState({})
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: initialPageSize })
+  const [showAll, setShowAll] = useState(false)
 
   // Optional Tabla / Tarjetas toggle. Controlled via viewMode + onViewModeChange, otherwise
   // uncontrolled and persisted under viewStorageKey. Only active when renderCard is provided.
@@ -153,6 +155,13 @@ export function DataTable({
     manualPagination,
     getPaginationRowModel: manualPagination ? undefined : getPaginationRowModel(),
   })
+
+  const filteredCount = table.getFilteredRowModel().rows.length
+  useEffect(() => {
+    if (!showAll) return
+    const size = Math.max(filteredCount, 1)
+    setPagination((p) => (p.pageSize === size && p.pageIndex === 0 ? p : { ...p, pageIndex: 0, pageSize: size }))
+  }, [showAll, filteredCount])
 
   const rows = table.getRowModel().rows
 
@@ -291,9 +300,13 @@ export function DataTable({
         canNext={table.getCanNextPage()}
         onPrevious={() => table.previousPage()}
         onNext={() => table.nextPage()}
+        allSelected={showAll}
         onPageSizeChange={(size) => {
-          table.setPageSize(size)
-          setPagination((p) => ({ ...p, pageIndex: 0, pageSize: size }))
+          const all = isAllPageSize(size)
+          setShowAll(all)
+          const effective = all ? Math.max(table.getFilteredRowModel().rows.length, 1) : size
+          table.setPageSize(effective)
+          setPagination((p) => ({ ...p, pageIndex: 0, pageSize: effective }))
         }}
       />}
     </div>

@@ -4,7 +4,7 @@
 import { normalizeSpanishLabel } from "./renderer-adapters.js";
 import { resolveColorHex } from "./runly-form-utils.js";
 
-export const DEFAULT_PAGE_SIZE = 20;
+export { DEFAULT_PAGE_SIZE } from "../lib/page-size.js";
 
 export function inferRowActionKind(label) {
   const normalized = String(label ?? "")

@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
 
-export const DEFAULT_PAGE_SIZE = 20;
+import { DEFAULT_PAGE_SIZE } from "../lib/page-size.js";
+export { DEFAULT_PAGE_SIZE };
 
 export function useColumnConfig({ columns, savedPreference, defaultPageSize = DEFAULT_PAGE_SIZE }) {
   const [columnOrder, setColumnOrder] = useState(() =>

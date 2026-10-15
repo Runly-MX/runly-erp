@@ -46,6 +46,7 @@ function SelectBadge({ label, color }) {
 }
 import { formatTableDate } from "../lib/utils.js";
 import { buildApiHeaders } from "../lib/apiHeaders.js";
+import { ALL_ROWS_LIMIT, PAGE_SIZE_ALL, SERVER_MAX_PAGE_SIZE, isAllPageSize } from "../lib/page-size.js";
 import { ImageAssetCell } from "./ImageAssetCell.jsx";
 import { UserAvatarCell } from "./UserAvatarCell.jsx";
 import {
@@ -269,32 +270,48 @@ export function RunlyTable({
       setLoading(true);
       setError("");
       try {
-        const params = new URLSearchParams();
-        params.set("page", String(page));
-        params.set("pageSize", String(pageSize));
-        if (searchable && !isBlank(search))
-          params.set("search", String(search).trim());
-        for (const [key, value] of Object.entries(filterValues)) {
-          if (isBlank(value)) continue;
-          params.set(key, String(value).trim());
-        }
-        if (sortBy) {
-          params.set("sortBy", sortBy);
-          params.set("sortDir", sortDir);
-        }
-        const endpoint = `${joinUrl(apiBaseUrl, apiPath)}?${params.toString()}`;
-        const response = await runtimeFetch(endpoint, {
-          method: "GET",
-          headers: buildApiHeaders(token, companyId),
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          const body = await response.text();
-          throw new Error(body || "No se pudo cargar la información.");
-        }
-        const payload = await response.json();
+        // "Todos": the API caps a page, so walk the pages until every row is loaded.
+        const showAll = isAllPageSize(pageSize);
+        const requestSize = showAll ? SERVER_MAX_PAGE_SIZE : pageSize;
+        const fetchPage = async (pageNumber) => {
+          const params = new URLSearchParams();
+          params.set("page", String(pageNumber));
+          params.set("pageSize", String(requestSize));
+          if (searchable && !isBlank(search))
+            params.set("search", String(search).trim());
+          for (const [key, value] of Object.entries(filterValues)) {
+            if (isBlank(value)) continue;
+            params.set(key, String(value).trim());
+          }
+          if (sortBy) {
+            params.set("sortBy", sortBy);
+            params.set("sortDir", sortDir);
+          }
+          const endpoint = `${joinUrl(apiBaseUrl, apiPath)}?${params.toString()}`;
+          const response = await runtimeFetch(endpoint, {
+            method: "GET",
+            headers: buildApiHeaders(token, companyId),
+            signal: controller.signal,
+          });
+          if (!response.ok) {
+            const body = await response.text();
+            throw new Error(body || "No se pudo cargar la información.");
+          }
+          return response.json();
+        };
+        const payload = await fetchPage(showAll ? 1 : page);
         if (controller.signal.aborted) return;
         const nextRowsRaw = Array.isArray(payload?.data) ? payload.data : [];
+        if (showAll) {
+          const total = Number(payload?.pagination?.total) || nextRowsRaw.length;
+          for (let next = 2; nextRowsRaw.length < Math.min(total, ALL_ROWS_LIMIT); next++) {
+            const more = await fetchPage(next);
+            if (controller.signal.aborted) return;
+            const chunk = Array.isArray(more?.data) ? more.data : [];
+            if (!chunk.length) break;
+            nextRowsRaw.push(...chunk);
+          }
+        }
         const nextRows = withUniqueRowKeys(nextRowsRaw);
         const nextPagination = readPagination(
           payload,
@@ -302,6 +319,7 @@ export function RunlyTable({
           pageSize,
           nextRows.length,
         );
+        if (showAll) nextPagination.pageSize = PAGE_SIZE_ALL;
         setRows(nextRows);
         setPagination(nextPagination);
       } catch (err) {
