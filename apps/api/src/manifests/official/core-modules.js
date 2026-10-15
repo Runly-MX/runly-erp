@@ -1376,6 +1376,13 @@ export const inventoryMap = createModuleManifest({
       permissionKey: 'inventory.custody.read',
     },
     {
+      label: 'Etiquetas',
+      path: '/inventory/labels',
+      icon: 'QrCode',
+      layout: 'main',
+      permissionKey: 'inventory.label.read',
+    },
+    {
       label: 'Catalogos',
       path: '/inventory/catalogs',
       icon: 'FolderOpen',
