@@ -1,5 +1,7 @@
 // Registry key: runly.inventory:CustomFieldsSection — the item's custom field
 // values (its type's fields and the ones added to this item only).
+import { filledCustomValues } from '../lib/custom-values.js'
+
 const YES_NO = { true: 'Sí', false: 'No' }
 
 function formatValue(field, value) {
@@ -12,7 +14,7 @@ function formatValue(field, value) {
 }
 
 export default function InventoryDetailCustomFieldsSection({ data }) {
-  const entries = (data?.customValues ?? []).filter((cv) => cv?.field && cv.value !== null && cv.value !== '')
+  const entries = filledCustomValues(data?.customValues)
   if (!entries.length) return null
   return (
     <dl className="grid gap-4 md:grid-cols-2">
