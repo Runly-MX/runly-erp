@@ -33,7 +33,9 @@ export function buildInventoryWhere(companyId, filters = {}) {
   if (!companyId) throw new Error('Empresa requerida.');
   const where = { companyId, enabled: true };
   const q = String(filters.search ?? '').trim();
-  if (q) where.OR = ['name', 'assetTag', 'serialNumber'].map(field => ({ [field]: { contains: q, mode: 'insensitive' } }));
+  // searchIds (from inventory-search-service) replaces the 3-column contains.
+  if (Array.isArray(filters.searchIds)) where.id = { in: filters.searchIds };
+  else if (q) where.OR =['name', 'assetTag', 'serialNumber'].map(field => ({ [field]: { contains: q, mode: 'insensitive' } }));
   for (const field of ['categoryId', 'brandId', 'locationId', 'conditionId', 'assignedToId', 'status', 'model', 'modelId']) if (filters[field]) where[field] = filters[field];
   // adminStatus: one value, a CSV/array of values, or 'all' (no filter).
   const adminStatuses = (Array.isArray(filters.adminStatus) ? filters.adminStatus : String(filters.adminStatus ?? '').split(','))

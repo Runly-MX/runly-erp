@@ -2,6 +2,7 @@
 import { createActivityService } from './activity-service.js';
 import { createActivityBridge } from './activity-bridge.js';
 import { buildInventoryWhere } from './inventory-query.js';
+import { createInventorySearch } from './inventory-search-service.js';
 import { InventoryServiceError, assertCompany, createRefGuard } from './inventory-guards.js';
 import { createInventoryCatalogService } from './inventory-catalog-service.js';
 import { DEFAULT_LISTED_ADMIN_STATUSES } from './inventory-admin-service.js';
@@ -81,6 +82,7 @@ export function buildAutoItemName({ brandName, typeName, model, assetTag }) {
 }
 
 export function createInventoryService({ prisma, activityBridge }) {
+  const inventorySearch = createInventorySearch({ prisma });
   const bridge =
     activityBridge ??
     createActivityBridge({
@@ -149,9 +151,21 @@ export function createInventoryService({ prisma, activityBridge }) {
       categoryId, brandId, locationId, conditionId, status, assignedToId, modelId, createdFrom, createdTo, purchaseFrom, purchaseTo,
       adminStatus: adminStatus === 'all' ? undefined : (adminStatus || DEFAULT_LISTED_ADMIN_STATUSES),
     };
-    const where = search && connectionMatchIds.length
-      ? { AND: [buildInventoryWhere(companyId, filters), { OR: [buildInventoryWhere(companyId, { ...filters, search }), { id: { in: connectionMatchIds } }] }] }
-      : buildInventoryWhere(companyId, { ...filters, search });
+    let where;
+    const term = String(search ?? '').trim();
+    let searchIds = null;
+    if (term) {
+      try {
+        searchIds = [...new Set([...(await inventorySearch.searchItemIds(companyId, term)), ...connectionMatchIds])];
+      } catch (error) {
+        // Search must never fail the list: fall back to the 3-column contains.
+        console.warn('[inventory] search failed, using basic search:', error?.code ?? error?.name ?? 'error');
+      }
+    }
+    if (searchIds) where = buildInventoryWhere(companyId, { ...filters, searchIds });
+    else if (term && connectionMatchIds.length) {
+      where = { AND: [buildInventoryWhere(companyId, filters), { OR: [buildInventoryWhere(companyId, { ...filters, search }), { id: { in: connectionMatchIds } }] }] };
+    } else where = buildInventoryWhere(companyId, { ...filters, search });
 
     const [data, total] = await Promise.all([
       prisma.invItem.findMany({

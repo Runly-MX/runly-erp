@@ -599,6 +599,9 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `StatCard` | KPI metric card with label, value, trend |
 | `StatStrip` | Responsive key-figures strip — a 6-up grid on desktop, a horizontal snap-scroll carousel on mobile. Consumed by `RunlyDetail` when the DETAIL blueprint declares `schema.kpis`. Items: `[{ key, label, value (node), icon (lucide name), href }]`. |
 | `DetailHero` | Redesigned entity-detail header: a representative image (or a branded fallback panel tinted by an accent colour) + title + subtitle + status pill + meta chips + an actions slot. Presentational only; consumed by `RunlyDetail` when the DETAIL blueprint declares `schema.hero`. |
+| `CopyOnDoubleClick` / `useCopyValue` / `copyText` | Double click copies the displayed text (or `text`) to the clipboard and shows a "Copiado: ..." toast; blank values and "—" are ignored, links/buttons/inputs inside keep their behavior, the wrapper is `select-none` with a "Doble clic para copiar" title. `copyText` falls back to a hidden textarea + `execCommand` when `navigator.clipboard` is unavailable. `RunlyDetail` applies it to every value, hero chip and KPI when the DETAIL blueprint sets `schema.copyOnDoubleClick: true`. |
+| `DetailHero` chips (extra keys) | A `hero.metaChips` entry accepts `copyable` (small copy button), `prominent` (larger, monospace value) and `emptyLabel` (the chip stays visible with this muted text when the value is blank). |
+| `RunlyTable` `onRowOpen(row)` | Optional prop: double click on a table row / list row / card (ignored when it starts on a link, button, checkbox or input) and Enter on the focused row open the record; the row menu shows "Ver detalle". Off by default. The search box is debounced 300ms before calling the API. |
 | `SearchInput` | Search text field with icon |
 | `FilterBar` | Horizontal filter control bar (pills). Lists built on `DataTable` now use `FilterMenu` instead; `FilterBar` stays for standalone screens |
 | `FilterMenu` | One `Filtros` button (active-count badge) that opens a two-pane popover (categories left, options right; bottom sheet with two steps on mobile). Use it for 4+ filters, mixed types or mobile screens; use `FilterBar` pills only for 1-3 quick single-select filters. `{ filters, value, onChange }`; spec `{ key, label, type?: select (default) / multiselect / toggle / daterange (fromKey, toKey) / combobox, icon? (lucide component), options?: [{ value, label, icon? or color? }], allLabel?, description?, value?+onChange? (controlled, DataTable) }`. Value is a flat object (multiselect = string[], matched any-of). Example: `{ key: 'kind', label: 'Tipo', type: 'multiselect', icon: Shapes, options: [{ value: 'internal', label: 'Interno', icon: Users }, { value: 'contractor', label: 'Contratista', icon: HardHat }] }`. |
@@ -727,3 +730,13 @@ Use this instruction before generating module code:
 ### Modales (Dialog / Sheet)
 
 Animan entrada y salida por defecto (utilidades `animate-in` / `slide-in-from-*` definidas en `packages/ui/src/tailwind-theme.css`). Enter en un input de texto dispara el botón principal del pie (`data-dialog-footer`); opt-out con `submitOnEnter={false}` o `data-no-enter-submit`.
+
+## Multi-source list search (`lib/search-tokens.js`)
+
+Reusable backend helper for list searches that must find a record by text in its own columns or in related records (Inventory is the reference: `services/inventory-search-service.js`).
+
+- `tokenizeSearch(term)`: lowercase + accent stripping (mirrors Postgres `atlas_unaccent(lower(x))`), whitespace split, tokens of 2+ chars (a lone 1-char token is kept only when it is the only one), max 8 tokens of 64 chars.
+- Semantics: AND across tokens; each token may match ANY source (`dell juan 2024` finds a Dell assigned to Juan bought in 2024). Substring match, case/accent-insensitive.
+- `likeAny(columns, pattern)` / `buildTokenIntersectQuery({ tokens, sourcesFor, base })`: builds one `Prisma.sql` query (a CTE per token that UNIONs the ids of every source, intersected against `base`). All user text is a bound parameter, LIKE wildcards are escaped.
+- Pattern for another module: write `createXSearch({ prisma })` with `searchIds(companyId, term)` returning ids from `prisma.$queryRaw(buildTokenIntersectQuery(...))`, declare one SELECT-id fragment per source (own columns, comments `entity_comment`, relations `entity_relation`, files, employees...), and make `buildXWhere` accept an optional `searchIds` filter (`id IN`) so it stays synchronous.
+- Always fall back to the old simple `contains` on any search error (log a short warning, never fail the list). Add `gin_trgm_ops` indexes on `atlas_unaccent(lower(col))` only if EXPLAIN shows a need.
