@@ -4,6 +4,7 @@ import { Button, cn } from '@runly/ui'
 import { native } from '../../../../native/index.js'
 
 const REPEAT_WINDOW_MS = 2500
+const SCAN_FORMATS = ['QR_CODE', 'DATA_MATRIX', 'CODE_128', 'CODE_39', 'EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'ITF']
 const FLASH_RING = {
   ok: 'border-emerald-400',
   duplicate: 'border-amber-400',
@@ -43,8 +44,10 @@ export function ScanCamera({ active = true, onRead, flash = null, className }) {
       try {
         if (!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported')
         await ensureNativeCameraPermission()
-        const { BrowserMultiFormatReader } = await import('@zxing/browser')
+        const { BrowserMultiFormatReader, BarcodeFormat } = await import('@zxing/browser')
         const reader = new BrowserMultiFormatReader(undefined, { delayBetweenScanAttempts: 100, delayBetweenScanSuccess: 300 })
+        // Label QR plus the barcodes found on asset/serial stickers (fewer formats = faster, quieter).
+        reader.possibleFormats = SCAN_FORMATS.map((name) => BarcodeFormat[name])
         const video = deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: 'environment' } }
         const controls = await reader.decodeFromConstraints({ video }, videoRef.current, (result) => {
           if (!result) return

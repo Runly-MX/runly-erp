@@ -193,8 +193,8 @@ function ScanKiosk({ companyId }) {
 
   const summary = (
     <p className="text-xs text-[hsl(var(--muted-foreground))]" aria-live="polite">
-      {counts.total === 1 ? '1 código' : `${counts.total} códigos`} · {counts.matched} encontrados
-      {counts.unmatched ? <span className="text-red-600 dark:text-red-400"> · {counts.unmatched} no encontrados</span> : null}
+      {counts.total === 1 ? '1 código' : `${counts.total} códigos`} · {counts.matched} {counts.matched === 1 ? 'encontrado' : 'encontrados'}
+      {counts.unmatched ? <span className="text-red-600 dark:text-red-400"> · {counts.unmatched} no {counts.unmatched === 1 ? 'encontrado' : 'encontrados'}</span> : null}
     </p>
   )
 
@@ -226,14 +226,14 @@ function ScanKiosk({ companyId }) {
               ref={inputRef}
               value={manual}
               onChange={(e) => setManual(e.target.value)}
-              placeholder="Folio, serie, n.º de activo o lector USB"
+              placeholder="Folio, serie o n.º de activo"
               aria-label="Código a buscar"
               autoFocus={finePointer}
               autoComplete="off"
               autoCapitalize="off"
               spellCheck={false}
               enterKeyHint="search"
-              className="h-11 rounded-md font-mono"
+              className="h-11 rounded-md font-mono placeholder:font-sans"
             />
             <Button type="submit" className="h-11 shrink-0" disabled={!manual.trim()} aria-label="Buscar código"><Search /><span className="hidden sm:inline">Buscar</span></Button>
           </form>
@@ -266,7 +266,7 @@ function ScanKiosk({ companyId }) {
       <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
         <div className="min-w-0">
           <p className="text-sm font-semibold">{counts.matched} {counts.matched === 1 ? 'equipo' : 'equipos'}</p>
-          {summary}
+          {counts.unmatched ? <p className="text-xs text-red-600 dark:text-red-400">{counts.unmatched} no {counts.unmatched === 1 ? 'encontrado' : 'encontrados'}</p> : null}
         </div>
         <ScanSessionActions actions={actions} compact />
       </div>

@@ -4,7 +4,7 @@ import { InventoryAdminStatusBadge } from '../InventoryAdminStatusBadge.jsx'
 import { InventoryStatusBadge } from '../InventoryStatusBadge.jsx'
 import { useScanCoverUrl } from '../../hooks/useInventoryScan.js'
 
-const MATCHED_BY = { link: 'Código QR de Runly', folio: 'Folio', assetTag: 'Número de activo', serial: 'Número de serie' }
+const MATCHED_BY = { link: 'código QR de Runly', folio: 'folio', assetTag: 'número de activo', serial: 'número de serie' }
 
 export function ScanThumb({ fileId, className }) {
   const { data: url } = useScanCoverUrl(fileId)
@@ -68,7 +68,7 @@ export function ScanResultCard({ result, onAdd, onOpen }) {
         </div>
       </div>
       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-[hsl(var(--muted-foreground))]">
-        <span className="truncate">{[item.locationName, MATCHED_BY[result.matchedBy] ? `por ${MATCHED_BY[result.matchedBy].toLowerCase()}` : null].filter(Boolean).join(' · ')}</span>
+        <span className="truncate">{[item.locationName, MATCHED_BY[result.matchedBy] ? `por ${MATCHED_BY[result.matchedBy]}` : null].filter(Boolean).join(' · ')}</span>
         {result.state === 'pending' && onAdd ? <Button type="button" size="sm" onClick={onAdd}><Plus />Agregar a la lista</Button> : null}
       </div>
     </div>
