@@ -17,7 +17,7 @@ const TYPES = {
 
 // "Relacionar existente": pick one order or invoice of the company and link
 // it to the inventory item (origin MANUAL).
-export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, token, types, linkedIds, onLinked }) {
+export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, token, types, linkedIds, replaceTypes = [], onLinked }) {
   const client = useQueryClient()
   const [type, setType] = useState(types[0] ?? 'order')
   const [search, setSearch] = useState('')
@@ -56,6 +56,7 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
       targetId: inventoryId,
       relationType: TYPES[type].relationType,
       origin: 'MANUAL',
+      replace: replaceTypes.includes(type) || undefined,
     }, token),
     onSuccess: (_, doc) => {
       client.invalidateQueries({ queryKey: ['purchases', 'relations'] })
@@ -72,8 +73,12 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="md" scrollable>
         <DialogHeader className="shrink-0">
-          <DialogTitle>Relacionar documento existente</DialogTitle>
-          <DialogDescription>Busca la orden o factura con la que se adquirió este activo.</DialogDescription>
+          <DialogTitle>{replaceTypes.length ? 'Cambiar o relacionar documento' : 'Relacionar documento existente'}</DialogTitle>
+          <DialogDescription>
+            {replaceTypes.includes(type)
+              ? `Este activo ya tiene ${type === 'order' ? 'una orden de compra' : 'una factura'}; la que elijas la reemplaza.`
+              : 'Busca la orden o factura con la que se adquirió este activo.'}
+          </DialogDescription>
         </DialogHeader>
         <div className="shrink-0 space-y-3 pt-4">
           {typeOptions.length > 1 ? (
@@ -148,7 +153,7 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
           <div className="flex gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="button" className="bg-teal-600 text-white hover:bg-teal-700" disabled={!selected || link.isPending} onClick={() => link.mutate(selected)}>
-              {link.isPending ? 'Relacionando…' : 'Relacionar'}
+              {link.isPending ? 'Guardando…' : (replaceTypes.includes(type) ? 'Cambiar' : 'Relacionar')}
             </Button>
           </div>
         </DialogFooter>

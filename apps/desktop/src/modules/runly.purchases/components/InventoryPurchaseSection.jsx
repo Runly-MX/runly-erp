@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link2, Plus, ShoppingCart } from 'lucide-react'
+import { Link2, Plus, Replace, ShoppingCart } from 'lucide-react'
 import { Button, ConfirmDialog, EmptyState, ErrorState, Skeleton } from '@runly/ui'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
-import { PURCHASES_BASE_PATH, STAGE_ORDER, formatMoney, hasPermission } from './InventoryPurchaseMeta.js'
+import { PURCHASES_BASE_PATH, STAGE_ORDER, formatMoney, hasPermission, hasStageDocs } from './InventoryPurchaseMeta.js'
 import { InventoryPurchaseTimeline } from './InventoryPurchaseTimeline.jsx'
 import { InventoryPurchaseLinkDialog } from './InventoryPurchaseLinkDialog.jsx'
 
@@ -24,6 +24,7 @@ export default function InventoryPurchaseSection({ data: item }) {
   const navigate = useNavigate()
   const client = useQueryClient()
   const [linkOpen, setLinkOpen] = useState(false)
+  const [linkType, setLinkType] = useState(null)
   const [unlinkDoc, setUnlinkDoc] = useState(null)
   const itemId = item?.id
   const canRead = hasPermission(userProfile, 'purchases.relation.read')
@@ -79,22 +80,32 @@ export default function InventoryPurchaseSection({ data: item }) {
   const linkTypes = [capabilities.purchaseOrders !== false && 'order', capabilities.invoices !== false && 'invoice'].filter(Boolean)
   const canLink = canManage && linkTypes.length > 0
   const create = (kind) => navigate(`${PURCHASES_BASE_PATH}/${kind}/new?inventoryId=${encodeURIComponent(itemId)}`)
+  // One order and one invoice per item: once linked, offer "Cambiar" instead of adding another.
+  const hasOrder = hasStageDocs(stages, 'purchase_order')
+  const hasInvoice = hasStageDocs(stages, 'purchase_invoice')
+  const replaceTypes = [hasOrder && 'order', hasInvoice && 'invoice'].filter(Boolean)
+  const openLink = (type) => { setLinkType(type); setLinkOpen(true) }
   const documentCount = linkedIds.size
   const allocated = Number(model?.allocatedAmount ?? 0)
 
   const actions = (canOrder || canInvoice || canLink) ? (
     <div className="space-y-2">
-      {(canOrder || canInvoice) ? (
-        <div className={canOrder && canInvoice ? 'grid grid-cols-2 gap-2' : 'grid gap-2'}>
-          {canOrder ? <Button type="button" size="sm" variant="outline" onClick={() => create('orders')}><Plus className="mr-1.5 h-3.5 w-3.5" />Crear orden</Button> : null}
-          {canInvoice ? <Button type="button" size="sm" variant="outline" onClick={() => create('invoices')}><Plus className="mr-1.5 h-3.5 w-3.5" />Crear factura</Button> : null}
+      {((canOrder && !hasOrder) || (canInvoice && !hasInvoice)) ? (
+        <div className={canOrder && !hasOrder && canInvoice && !hasInvoice ? 'grid grid-cols-2 gap-2' : 'grid gap-2'}>
+          {canOrder && !hasOrder ? <Button type="button" size="sm" variant="outline" onClick={() => create('orders')}><Plus className="mr-1.5 h-3.5 w-3.5" />Crear orden</Button> : null}
+          {canInvoice && !hasInvoice ? <Button type="button" size="sm" variant="outline" onClick={() => create('invoices')}><Plus className="mr-1.5 h-3.5 w-3.5" />Crear factura</Button> : null}
         </div>
       ) : null}
-      {canLink ? (
-        <Button type="button" size="sm" variant="outline" className="w-full" onClick={() => setLinkOpen(true)}>
+      {canLink && linkTypes.some((type) => !replaceTypes.includes(type)) ? (
+        <Button type="button" size="sm" variant="outline" className="w-full" onClick={() => openLink(null)}>
           <Link2 className="mr-1.5 h-3.5 w-3.5" />Relacionar existente
         </Button>
       ) : null}
+      {canLink ? replaceTypes.filter((type) => linkTypes.includes(type)).map((type) => (
+        <Button key={type} type="button" size="sm" variant="outline" className="w-full" onClick={() => openLink(type)}>
+          <Replace className="mr-1.5 h-3.5 w-3.5" />{type === 'order' ? 'Cambiar orden' : 'Cambiar factura'}
+        </Button>
+      )) : null}
     </div>
   ) : null
 
@@ -128,7 +139,8 @@ export default function InventoryPurchaseSection({ data: item }) {
           onOpenChange={setLinkOpen}
           inventoryId={itemId}
           token={token}
-          types={linkTypes}
+          types={linkType ? [linkType] : linkTypes.filter((type) => !replaceTypes.includes(type))}
+          replaceTypes={replaceTypes}
           linkedIds={linkedIds}
           onLinked={refresh}
         />

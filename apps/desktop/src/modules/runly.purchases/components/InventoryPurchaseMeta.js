@@ -92,3 +92,9 @@ export function documentHref(doc) {
 export function hasPermission(userProfile, key) {
   return Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes(key))
 }
+
+// True when the timeline already holds a document of `docType` (e.g. 'purchase_order').
+// An item has one order and one invoice, so the card offers "Cambiar" instead of adding.
+export function hasStageDocs(stages, docType) {
+  return (stages ?? []).some((stage) => (stage?.docs ?? []).some((doc) => doc?.type === docType))
+}

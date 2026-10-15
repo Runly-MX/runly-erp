@@ -3,6 +3,7 @@
 import { buildStageMap, policyBlockers, resolveTransition } from './purchase-policies.js'
 import { policyCheckFor } from './purchase-case-bundle.js'
 import { inheritFromOrders } from './purchase-relations-service.js'
+import { assertItemsFreeOfKind } from './inventory-purchase-uniqueness.js'
 import {
   DECISION_STATUS, KINDS, MODULE_KEY, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertLineCategories, assertSupplier,
   broadcast, cleanText, createApproval, createCase, currency, dateKey, invalidTransition, markCaseInProgress, allocateNumber,
@@ -110,12 +111,13 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     return rows
   }
 
-  async function validateInventoryIds(companyId, ids) {
+  async function validateInventoryIds(companyId, ids, kind) {
     const unique = [...new Set((ids ?? []).filter(Boolean))]
     if (!unique.length) return []
     await workflowService.assertCapability(companyId, 'inventoryRelations')
     const rows = await prisma.invItem.findMany({ where: { companyId, id: { in: unique }, enabled: true }, select: { id: true } })
     if (rows.length !== unique.length) throw notFound('Uno o más inventarios no existen o pertenecen a otra empresa.')
+    await assertItemsFreeOfKind(prisma, companyId, kind === 'orders' ? 'PURCHASED_IN' : 'INVOICED_ITEM', unique, null, (message, status, code) => new PurchasesServiceError(message, status, code))
     return unique
   }
 
@@ -133,7 +135,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     const lines = (Array.isArray(input.lines) ? input.lines : []).map(normalizeLine).filter(Boolean)
     await assertLineCategories(prisma, companyId, lines)
     const orders = kind === 'invoices' ? await validateOrderIds(prisma, companyId, input.orderIds) : []
-    const inventoryIds = await validateInventoryIds(companyId, input.inventoryIds)
+    const inventoryIds = await validateInventoryIds(companyId, input.inventoryIds, kind)
     let caseRow = null
     if (input.caseId) {
       caseRow = await prisma.purchaseCase.findFirst({ where: { id: input.caseId, companyId } })

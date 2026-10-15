@@ -2,8 +2,9 @@
 // The links are EntityRelation rows owned by runly.purchases (PURCHASED_IN for
 // orders, INVOICED_ITEM for invoices). The item form sends `purchaseOrderId` /
 // `purchaseInvoiceId`; changes are applied in the same transaction as the item
-// write. Only the relation the form displays (the newest of that kind) is
-// replaced or cleared; other linked documents stay (see "Compras relacionadas").
+// write. An item has exactly one order and one invoice: setting or clearing a
+// kind replaces/removes EVERY existing link of that kind (including legacy
+// duplicates), atomically with the item write.
 import { MODULE_KEY, supplierNames, writeAudit } from './purchases-shared.js'
 
 export const PURCHASE_LINK_KINDS = {
@@ -44,8 +45,13 @@ export function planPurchaseLinkChanges(current = {}, desired = {}) {
     if (!(kind in desired)) continue
     const target = desired[kind] ?? null
     const existing = current[kind] ?? null
-    if ((existing?.documentId ?? null) === target) continue
-    if (existing) remove.push(existing.relationId)
+    const ids = existing?.relationIds ?? (existing ? [existing.relationId] : [])
+    if (target !== null && existing?.documentId === target) {
+      // Same document shown: just drop any extra legacy links of this kind.
+      remove.push(...ids.filter(id => id !== existing?.relationId))
+      continue
+    }
+    remove.push(...ids)
     if (target) add.push({ kind, documentId: target })
   }
   return { remove, add }
@@ -71,11 +77,16 @@ export async function loadPurchaseLinks(client, companyId, itemId) {
       select: { id: true, number: true, status: true, supplierId: true },
     })
     const relation = rows.find(row => docs.some(doc => doc.id === row.sourceId))
+    const relationIds = rows.map(row => row.id)
     const doc = relation && docs.find(entry => entry.id === relation.sourceId)
-    if (!doc) continue
+    if (!doc) {
+      // Only dangling links: still expose them so a replace/clear removes them.
+      out[kind] = { relationId: null, documentId: null, relationIds }
+      continue
+    }
     const names = await supplierNames(client, companyId, [doc.supplierId])
     out[kind] = {
-      relationId: relation.id, documentId: doc.id, id: doc.id, number: doc.number, status: doc.status, statusLabel: STATUS_LABELS[doc.status] ?? null,
+      relationId: relation.id, relationIds, documentId: doc.id, id: doc.id, number: doc.number, status: doc.status, statusLabel: STATUS_LABELS[doc.status] ?? null,
       supplierName: names.get(doc.supplierId) ?? null, path: `${meta.path}/${doc.id}`,
     }
   }
@@ -87,11 +98,11 @@ export function purchaseLinkFields(links) {
   return {
     purchaseOrderId: links.order?.id ?? null,
     purchaseInvoiceId: links.invoice?.id ?? null,
-    purchaseOrderLink: links.order ? stripIds(links.order) : null,
-    purchaseInvoiceLink: links.invoice ? stripIds(links.invoice) : null,
+    purchaseOrderLink: links.order?.id ? stripIds(links.order) : null,
+    purchaseInvoiceLink: links.invoice?.id ? stripIds(links.invoice) : null,
   }
 }
-const stripIds = ({ relationId: _relationId, documentId: _documentId, ...rest }) => rest
+const stripIds = ({ relationId: _relationId, relationIds: _relationIds, documentId: _documentId, ...rest }) => rest
 
 // Validates the request and returns `{ afterWrite }` (null when nothing to do).
 // `fail(message, status)` throws the caller's error type.

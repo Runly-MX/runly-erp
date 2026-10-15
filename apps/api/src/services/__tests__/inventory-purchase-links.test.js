@@ -26,3 +26,10 @@ test('composeAfterWrite runs hooks in order and returns null when empty', async 
   await composeAfterWrite(async () => calls.push('a'), null, async () => calls.push('b'))({}, { id: 1 })
   assert.deepEqual(calls, ['a', 'b'])
 })
+
+test('planPurchaseLinkChanges: replacing or clearing removes every link of the kind (legacy duplicates)', () => {
+  const dup = { order: { relationId: 'r1', relationIds: ['r1', 'r2'], documentId: 'o1' }, invoice: null }
+  assert.deepEqual(planPurchaseLinkChanges(dup, { order: 'o3' }), { remove: ['r1', 'r2'], add: [{ kind: 'order', documentId: 'o3' }] })
+  assert.deepEqual(planPurchaseLinkChanges(dup, { order: null }), { remove: ['r1', 'r2'], add: [] })
+  assert.deepEqual(planPurchaseLinkChanges(dup, { order: 'o1' }), { remove: ['r2'], add: [] })
+})

@@ -4,6 +4,7 @@ import {
   KINDS, MODULE_KEY, PurchasesServiceError, broadcast, dateKey, notFound, num, pagination, plain, supplierNames, writeAudit, cleanText,
 } from './purchases-shared.js'
 import { PURCHASE_ENTITY_TYPES } from './purchase-relation-hydration.js'
+import { assertItemsFreeOfKind, isUniqueItemRelation, itemsWithOtherDocument } from './inventory-purchase-uniqueness.js'
 
 const ITEM_RELATION_TYPE = {
   purchase_order: 'PURCHASED_IN',
@@ -21,6 +22,7 @@ export function defaultRelationType(sourceType, targetType) {
   return 'RELATED'
 }
 
+const conflict = (message, status, code) => new PurchasesServiceError(message, status, code)
 const moduleForType = type => (type === 'inventory_item' ? 'runly.inventory' : MODULE_KEY)
 
 // Copies the inventory relations of the given orders onto an invoice
@@ -31,8 +33,12 @@ export async function inheritFromOrders(tx, { companyId, actorId, invoiceId, ord
     where: { companyId, sourceModule: MODULE_KEY, sourceType: 'purchase_order', sourceId: { in: orderIds }, targetType: 'inventory_item' },
   })
   if (!inherited.length) return 0
+  // An item keeps a single invoice: skip the ones already invoiced by another document.
+  const invoiced = new Set(await itemsWithOtherDocument(tx, companyId, 'INVOICED_ITEM', inherited.map(relation => relation.targetId), invoiceId))
+  const eligible = inherited.filter(relation => !invoiced.has(relation.targetId))
+  if (!eligible.length) return 0
   const result = await tx.entityRelation.createMany({
-    data: inherited.map(relation => ({
+    data: eligible.map(relation => ({
       companyId, sourceModule: MODULE_KEY, sourceType: 'purchase_invoice', sourceId: invoiceId,
       targetModule: 'runly.inventory', targetType: 'inventory_item', targetId: relation.targetId,
       relationType: 'INVOICED_ITEM', origin: 'INHERITED', sourceRelationId: relation.id, createdById: actorId || null,
@@ -84,7 +90,17 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
       where: { companyId, sourceModule: data.sourceModule, sourceType, sourceId: data.sourceId, targetModule: data.targetModule, targetType, targetId: data.targetId, relationType: data.relationType },
     })
     if (existing) return existing
+    const singleLink = isUniqueItemRelation(data.relationType) && targetType === 'inventory_item'
+    // `replace: true` ("Cambiar" in the item card) swaps the item's current document atomically.
+    const replace = singleLink && input.replace === true
+    if (singleLink && !replace) await assertItemsFreeOfKind(prisma, companyId, data.relationType, [data.targetId], data.sourceId, conflict)
     const relation = await prisma.$transaction(async tx => {
+      if (replace) {
+        const removed = await tx.entityRelation.deleteMany({
+          where: { companyId, sourceModule: MODULE_KEY, targetModule: 'runly.inventory', targetType, targetId: data.targetId, relationType: data.relationType, sourceId: { not: data.sourceId } },
+        })
+        if (removed.count) await writeAudit(tx, { companyId, actorId, entityType: 'entity_relation', entityId: data.targetId, action: 'purchase.relation.replaced', metadata: { relationType: data.relationType, removed: removed.count } })
+      }
       const value = await tx.entityRelation.create({ data })
       await writeAudit(tx, { companyId, actorId, entityType: 'entity_relation', entityId: value.id, action: 'purchase.relation.created', after: value })
       return value
@@ -106,6 +122,7 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     const items = await prisma.invItem.findMany({ where: { companyId, id: { in: targetIds }, enabled: true }, select: { id: true } })
     if (items.length !== targetIds.length) throw notFound('Uno o más inventarios no existen o pertenecen a otra empresa.')
     const relationType = defaultRelationType(sourceType, targetType)
+    await assertItemsFreeOfKind(prisma, companyId, relationType, targetIds, sourceId, conflict)
     const result = await prisma.$transaction(async tx => {
       const created = await tx.entityRelation.createMany({
         data: targetIds.map(targetId => ({
