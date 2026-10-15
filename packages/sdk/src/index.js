@@ -505,8 +505,9 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
     },
     search: {
-      global: (q, { limit } = {}, token) =>
-        request(`/search${toQueryString({ q, limit })}`, {
+      global: (q, { limit, module, signal } = {}, token) =>
+        request(`/search${toQueryString({ q, module, limit })}`, {
+          signal,
           headers: withAuthHeaders(token),
         }),
     },

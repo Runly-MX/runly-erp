@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
-import { Search, X, WifiOff } from "lucide-react";
-import { ModuleNavIcon } from "@runly/ui";
+import { Search, X, WifiOff, Loader2, Info } from "lucide-react";
+import { ModuleNavIcon, EmptyState, ErrorState } from "@runly/ui";
 import { useCommandStore } from "../stores/command";
 import { useRuntimeModules } from "../app/useRuntimeModules";
 import { useOfflineStore, OFFLINE_MODULES } from "@runly/offline";
@@ -11,10 +10,16 @@ import { useAuth } from "../auth/AuthProvider";
 import { runly } from "../lib/runly";
 import { ModuleIcon } from "./ModuleCard";
 import { buildCommandItems } from "../lib/commandPalette";
+import {
+  SEARCH_MIN_LENGTH,
+  buildSearchExtras,
+  fallbackNotice,
+  isReallyEmpty,
+  orderGroups,
+  resolveSearchScope,
+} from "../lib/commandSearch";
+import { useCommandSearch } from "../lib/useCommandSearch";
 import { useQuickNoteStore } from "../modules/runly.notes/quick/quickNoteStore";
-
-const SEARCH_MIN_LENGTH = 2;
-const SEARCH_DEBOUNCE_MS = 200;
 
 export function CommandPalette({ activeModule }) {
   const { isOpen, closeCommand, openCommand } = useCommandStore();
@@ -28,44 +33,46 @@ export function CommandPalette({ activeModule }) {
   const { session } = useAuth();
   const token = session?.access_token;
 
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  useEffect(() => {
-    const trimmed = query.trim();
-    const t = setTimeout(() => setDebouncedQuery(trimmed), SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(t);
-  }, [query]);
-
-  const searchEnabled =
-    isOpen &&
-    isOnline &&
-    Boolean(token) &&
-    debouncedQuery.length >= SEARCH_MIN_LENGTH;
-
-  const searchQuery = useQuery({
-    queryKey: ["command-search", debouncedQuery],
-    queryFn: () => runly.search.global(debouncedQuery, { limit: 5 }, token),
-    enabled: searchEnabled,
-    staleTime: 15000,
-    retry: false,
+  const [widened, setWidened] = useState(false);
+  const scope = resolveSearchScope(activeModule, widened);
+  const trimmedQuery = query.trim();
+  const searchActive = isOpen && isOnline && trimmedQuery.length >= SEARCH_MIN_LENGTH;
+  const { response, loading, error, retry } = useCommandSearch({
+    enabled: searchActive,
+    query,
+    moduleKey: scope.moduleKey,
+    token,
   });
 
-  const { sections, flat } = useMemo(
-    () =>
-      buildCommandItems({
-        availableModules,
-        activeModule,
-        query,
-        isOnline,
-        offlineModuleKeys: OFFLINE_MODULES,
-        searchGroups: searchQuery.data?.groups ?? [],
-      }),
-    [availableModules, activeModule, query, isOnline, searchQuery.data],
-  );
+  const { sections, flat } = useMemo(() => {
+    const base = buildCommandItems({
+      availableModules,
+      activeModule,
+      query,
+      isOnline,
+      offlineModuleKeys: OFFLINE_MODULES,
+      searchGroups: orderGroups(response?.groups ?? [], scope.moduleKey),
+    });
+    const extras = buildSearchExtras({ scope, response, searching: searchActive });
+    const all = [...extras.top, ...base.sections, ...extras.bottom];
+    return { sections: all, flat: all.flatMap((sec) => sec.items) };
+  }, [availableModules, activeModule, query, isOnline, response, scope.moduleKey, scope.canWiden, scope.label, searchActive]);
 
-  const searching = searchEnabled && searchQuery.isFetching;
+  const notice = fallbackNotice(response, scope.label);
+  const showEmpty = searchActive && !loading && !error && flat.length === 0 && isReallyEmpty(response);
+
+  const searching = searchActive && loading;
 
   function runItem(item) {
     if (!item || item.blocked) return;
+    if (item.kind === "widen") {
+      setWidened(true);
+      return;
+    }
+    if (item.kind === "suggestion" && !item.target) {
+      setQuery(item.text);
+      return;
+    }
     if (item.action === "quick-note") useQuickNoteStore.getState().open();
     else navigate(item.target);
     closeCommand();
@@ -118,6 +125,7 @@ export function CommandPalette({ activeModule }) {
       return () => clearTimeout(t);
     }
     setQuery("");
+    setWidened(false);
     setSelectedIndex(0);
   }, [isOpen]);
 
@@ -158,7 +166,7 @@ export function CommandPalette({ activeModule }) {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar módulos, acciones, páginas..."
+                placeholder={scope.moduleKey ? `Buscar en ${scope.label}...` : "Buscar módulos, acciones, páginas..."}
                 className="flex-1 bg-transparent text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] outline-none"
               />
               <button
@@ -172,22 +180,68 @@ export function CommandPalette({ activeModule }) {
               </button>
             </div>
 
+            {(scope.moduleKey || widened) && (
+              <div className="shrink-0 px-4 py-1.5 border-b border-[hsl(var(--border))] flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">
+                <span className="rounded-md bg-[hsl(var(--muted))] px-2 py-0.5 font-medium text-[hsl(var(--foreground))]">
+                  {widened ? "Todos los módulos" : scope.label}
+                </span>
+                {widened && (
+                  <button
+                    type="button"
+                    onClick={() => setWidened(false)}
+                    className="cursor-pointer underline-offset-2 hover:underline"
+                  >
+                    Volver a {scope.label}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {notice && (
+              <div className="shrink-0 px-4 py-2 border-b border-[hsl(var(--border))] flex items-start gap-2 text-xs text-[hsl(var(--muted-foreground))]">
+                <Info size={13} className="mt-0.5 shrink-0" />
+                <span>{notice}</span>
+              </div>
+            )}
+
             {searching && (
-              <div className="shrink-0 px-4 py-1.5 border-b border-[hsl(var(--border))] text-[11px] text-[hsl(var(--muted-foreground))]">
+              <div className="shrink-0 px-4 py-1.5 border-b border-[hsl(var(--border))] flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">
+                <Loader2 size={12} className="animate-spin" />
                 Buscando...
               </div>
             )}
 
             <div ref={listRef} className="overflow-y-auto max-h-[50dvh] p-2">
-              {flat.length === 0 ? (
-                <p className="text-sm text-center text-[hsl(var(--muted-foreground))] py-8">
-                  {searching ? "Buscando..." : "Sin resultados"}
-                </p>
+              {error && (
+                <ErrorState
+                  className="py-6 mb-2"
+                  title="No se pudo buscar"
+                  description="Revisa tu conexión e inténtalo de nuevo."
+                  showReport={false}
+                  onRetry={retry}
+                />
+              )}
+              {flat.length === 0 && !error ? (
+                searching ? (
+                  <div className="space-y-2 p-3" aria-busy="true">
+                    {[0, 1, 2].map((n) => (
+                      <div key={n} className="h-9 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    variant="compact"
+                    icon={Search}
+                    title={showEmpty ? "Sin resultados" : "Escribe para buscar"}
+                    description={showEmpty ? `No encontramos nada para "${trimmedQuery}".` : undefined}
+                  />
+                )
               ) : (
                 sections.map((section) => (
                   <div key={section.id} className="mb-2">
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] px-3 py-1.5">
                       {section.title}
+                      {section.count != null ? ` · ${section.count}` : ""}
                     </p>
                     {section.items.map((item) => {
                       runningIndex += 1;
@@ -245,6 +299,11 @@ export function CommandPalette({ activeModule }) {
                             {item.subtitle && (
                               <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
                                 {item.subtitle}
+                              </p>
+                            )}
+                            {item.matchedIn && (
+                              <p className="text-[11px] italic text-[hsl(var(--muted-foreground))] truncate">
+                                Coincide en: {item.matchedIn}
                               </p>
                             )}
                           </div>

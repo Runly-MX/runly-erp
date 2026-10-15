@@ -31,7 +31,8 @@ export default function InventoryScreen() {
     () => Object.fromEntries(URL_FILTERS.map(key => [key, searchParams.get(key)]).filter(([, value]) => value)),
     [searchParams],
   )
-  const filterKey = JSON.stringify(initialFilters)
+  const initialSearch = searchParams.get('search') ?? ''
+  const filterKey = JSON.stringify({ ...initialFilters, search: initialSearch })
   const { session } = useAuth()
   const token = session?.access_token
   const { activeCompanyId } = useActiveCompany()
@@ -199,6 +200,7 @@ export default function InventoryScreen() {
         key={`${activeCompanyId}:${filterKey}`}
         bulkActions={bulkActions}
         initialFilters={initialFilters}
+        initialSearch={initialSearch}
         onContextChange={updateMiraiSelection}
         blueprint={blueprint}
         token={token}

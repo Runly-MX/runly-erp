@@ -740,3 +740,9 @@ Reusable backend helper for list searches that must find a record by text in its
 - `likeAny(columns, pattern)` / `buildTokenIntersectQuery({ tokens, sourcesFor, base })`: builds one `Prisma.sql` query (a CTE per token that UNIONs the ids of every source, intersected against `base`). All user text is a bound parameter, LIKE wildcards are escaped.
 - Pattern for another module: write `createXSearch({ prisma })` with `searchIds(companyId, term)` returning ids from `prisma.$queryRaw(buildTokenIntersectQuery(...))`, declare one SELECT-id fragment per source (own columns, comments `entity_comment`, relations `entity_relation`, files, employees...), and make `buildXWhere` accept an optional `searchIds` filter (`id IN`) so it stays synchronous.
 - Always fall back to the old simple `contains` on any search error (log a short warning, never fail the list). Add `gin_trgm_ops` indexes on `atlas_unaccent(lower(col))` only if EXPLAIN shows a need.
+
+## Command palette: module-scoped search and `?search=` deep link
+
+The global palette (Ctrl+K, `CommandPalette.jsx`) sends `GET /search?q=&module=<moduleKey>&limit=` where `module` is the active module derived from the route (`/app/m/<moduleKey>/...`); on home the search is global. A scope chip ("Buscar en Inventario") and a "Buscar en todos los módulos" row re-run the search without `module`. The response may carry `fallback`, `groups[].total` / `seeAllTarget`, `items[].matchedIn` and `suggestions` ("Quizá buscabas"); older responses without those fields still work. Pure logic lives in `apps/desktop/src/lib/commandSearch.js` (request building, scope, stale-response reducer) and `useCommandSearch.js` (250 ms debounce + AbortController).
+
+`RunlyTable` accepts an optional `initialSearch` prop (like `initialFilters`) so a list can open with the search box pre-filled. `InventoryScreen` maps `?search=<text>` to it, which is the `seeAllTarget` of the inventory group.

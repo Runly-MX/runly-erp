@@ -143,21 +143,33 @@ export function mapSearchGroups(groups = []) {
         seen.set(id, count + 1);
         return count ? `record:${g.source}:${id}:${count}` : `record:${g.source}:${id}`;
       };
-      return {
-        id: `search:${g.source}`,
-        title: g.label,
-        items: g.items.map((it) => ({
-          key: uniqueKey(it.id),
-          kind: "record",
-          title: it.title,
-          subtitle: it.subtitle || null,
+      const items = g.items.map((it) => ({
+        key: uniqueKey(it.id),
+        kind: "record",
+        title: it.title,
+        subtitle: it.subtitle || null,
+        keywords: [],
+        icon: it.icon,
+        color: null,
+        target: it.target,
+        blocked: false,
+        ...(it.matchedIn ? { matchedIn: String(it.matchedIn) } : {}),
+      }));
+      const total = Number.isFinite(g.total) ? g.total : items.length;
+      if (g.seeAllTarget && total > items.length) {
+        items.push({
+          key: `see-all:${g.source}`,
+          kind: "see-all",
+          title: `Ver todos los resultados en ${g.label}`,
+          subtitle: `${total} resultados`,
           keywords: [],
-          icon: it.icon,
+          icon: "ArrowRight",
           color: null,
-          target: it.target,
+          target: g.seeAllTarget,
           blocked: false,
-        })),
-      };
+        });
+      }
+      return { id: `search:${g.source}`, title: g.label, count: total, items };
     });
 }
 

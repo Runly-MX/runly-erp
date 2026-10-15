@@ -92,6 +92,8 @@ export function RunlyTable({
   onContextChange = null,
   // Filter values to start with, e.g. from a deep link (?categoryId=...).
   initialFilters = null,
+  // Search text to start with, e.g. from a deep link (?search=...).
+  initialSearch = "",
 }) {
   const runtimeFetch = useRuntimeFetch();
   const adapters = useRuntimeAdapters();
@@ -240,8 +242,8 @@ export function RunlyTable({
 
   const [page, setPage] = useState(1);
   // `searchInput` follows the keystrokes; `search` (what the API receives) trails by 300ms.
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState(initialSearch ?? "");
+  const [search, setSearch] = useState(initialSearch ?? "");
   useEffect(() => {
     if (searchInput === search) return undefined;
     const timer = setTimeout(() => {
