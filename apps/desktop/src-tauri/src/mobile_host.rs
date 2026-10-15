@@ -241,6 +241,7 @@ pub fn host_info(window: WebviewWindow) -> Result<serde_json::Value, String> {
         capabilities.push("instance-manager");
         capabilities.push("device-permissions");
         capabilities.push("bluetooth-paired-devices");
+        capabilities.push("bluetooth-print");
         capabilities.push("nfc-reader");
     }
     Ok(serde_json::json!({
@@ -766,6 +767,22 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Bluetooth print payload sent to the Android host: a MAC address and base64
+/// bytes (at most ~2 MiB decoded). Kotlin re-checks both.
+#[allow(dead_code)]
+pub fn valid_bluetooth_print(address: &str, data: &str) -> bool {
+    let parts: Vec<&str> = address.split(':').collect();
+    parts.len() == 6
+        && parts
+            .iter()
+            .all(|p| p.len() == 2 && p.chars().all(|c| c.is_ascii_hexdigit()))
+        && !data.is_empty()
+        && data.len() <= 2_800_000
+        && data
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'/' | b'='))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -931,5 +948,17 @@ mod tests {
                 "expected {input} to be rejected"
             );
         }
+    }
+    #[test]
+    fn bluetooth_print_payload_is_bounded() {
+        assert!(valid_bluetooth_print("00:1A:2b:3C:4D:5E", "XlhB"));
+        assert!(!valid_bluetooth_print("00:1A:2B:3C:4D", "XlhB"));
+        assert!(!valid_bluetooth_print("00:1A:2B:3C:4D:ZZ", "XlhB"));
+        assert!(!valid_bluetooth_print("00:1A:2B:3C:4D:5E", ""));
+        assert!(!valid_bluetooth_print("00:1A:2B:3C:4D:5E", "Xl hB"));
+        assert!(!valid_bluetooth_print(
+            "00:1A:2B:3C:4D:5E",
+            &"A".repeat(2_800_001)
+        ));
     }
 }

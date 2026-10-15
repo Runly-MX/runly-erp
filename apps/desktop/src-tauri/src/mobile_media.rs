@@ -33,8 +33,23 @@ pub async fn host_device(
     app: AppHandle,
     action: String,
     permission: Option<String>,
+    address: Option<String>,
+    data: Option<String>,
 ) -> Result<Value, String> {
     super::mobile_host::check_host(&window)?;
+    if action == "bluetooth-print" {
+        let address = address.unwrap_or_default();
+        let data = data.unwrap_or_default();
+        if !super::mobile_host::valid_bluetooth_print(&address, &data) {
+            return Err("INVALID_PRINT_DATA".into());
+        }
+        return run(
+            app,
+            "bluetoothPrint",
+            json!({ "address": address, "data": data }),
+        )
+        .await;
+    }
     let command = match action.as_str() {
         "status" => "deviceStatus",
         "request" => "deviceRequest",

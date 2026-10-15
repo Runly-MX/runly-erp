@@ -87,6 +87,13 @@ class DeviceAccess(private val activity: Activity) {
     } catch (_: SecurityException) { invoke.reject("BLUETOOTH_PERMISSION_REQUIRED") }
   }
 
+  fun bluetoothPrint(invoke: Invoke) {
+    if (!granted("bluetooth")) { invoke.reject("BLUETOOTH_PERMISSION_REQUIRED"); return }
+    val current = adapter
+    if (current == null || !current.isEnabled) { invoke.reject("BLUETOOTH_UNAVAILABLE"); return }
+    BluetoothPrinter.print(activity, current, invoke)
+  }
+
   fun nfcRead(invoke: Invoke) {
     val current = nfc
     if (current == null || !current.isEnabled) { invoke.reject("NFC_UNAVAILABLE"); return }

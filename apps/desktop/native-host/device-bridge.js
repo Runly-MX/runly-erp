@@ -6,6 +6,8 @@
     requestPermission: (permission) => call('request', permission),
     openSettings: (permission) => call('settings', permission),
     pairedBluetoothDevices: () => call('bluetooth-paired'),
+    // address: paired device MAC; data: base64 bytes (ZPL). SPP/RFCOMM.
+    printBluetoothRaw: (address, data) => window.__TAURI_INTERNALS__.invoke('host_device', { action: 'bluetooth-print', permission: null, address, data }),
     readNfcTag: () => call('nfc-read'),
     stopNfcReader: () => call('nfc-stop'),
   })

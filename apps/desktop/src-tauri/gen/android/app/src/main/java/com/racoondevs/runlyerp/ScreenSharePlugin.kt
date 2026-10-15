@@ -170,6 +170,9 @@ class ScreenSharePlugin(private val activity: Activity) : Plugin(activity) {
   fun bluetoothPaired(invoke: Invoke) { devices.bluetoothPaired(invoke) }
 
   @Command
+  fun bluetoothPrint(invoke: Invoke) { devices.bluetoothPrint(invoke) }
+
+  @Command
   fun nfcRead(invoke: Invoke) { devices.nfcRead(invoke) }
 
   @Command
