@@ -34,11 +34,12 @@ export function createReport({ command, mode, source, companyId, maxErrors = Inf
   const entity = (name) => (entities[name] ??= Object.fromEntries(OUTCOMES.map((o) => [o, 0])))
   const report = {
     count(name, outcome, n = 1) { entity(name)[outcome] += n },
-    conflict(name, code, legacyId) {
+    // existingId (optional): the Runly row that causes the conflict, so the operator can open it.
+    conflict(name, code, legacyId, existingId = null) {
       entity(name).conflict++
       const bucket = (conflicts[code] ??= { count: 0, ids: [] })
       bucket.count++
-      if (legacyId != null) bucket.ids.push(String(legacyId))
+      if (legacyId != null) bucket.ids.push(existingId ? `${legacyId} -> runly:${existingId}` : String(legacyId))
     },
     warn(code, n = 1) { if (n) warnings[code] = (warnings[code] ?? 0) + n },
     warnAll(codes) { for (const code of codes ?? []) report.warn(code) },

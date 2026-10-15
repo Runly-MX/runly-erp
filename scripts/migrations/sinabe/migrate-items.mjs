@@ -95,19 +95,19 @@ export async function migrateItemBatch(run, inventories, catalogs, docIds) {
   const fileRefs = await run.refs.findMany('inv_item_file', mappedList.flatMap((m) => m.attachments.map((a) => a.legacyId)))
   const fresh = mappedList.filter((m) => !refs.has(m.legacyId))
   // Active Runly items that already use a serial / asset number (case-insensitive).
-  const takenTags = new Set()
-  const takenSerials = new Set()
+  const takenTags = new Map() // lower-cased value -> id of the active Runly item that uses it
+  const takenSerials = new Map()
   const freshActive = fresh.filter((m) => m.enabled)
   const tags = freshActive.map((m) => m.assetTag).filter(Boolean)
   const serials = freshActive.map((m) => String(m.data.serialNumber ?? '').trim()).filter(Boolean)
   if (tags.length || serials.length) {
     const rows = await prisma.invItem.findMany({
       where: { companyId, enabled: true, OR: [...(tags.length ? [{ assetTag: { in: tags, mode: 'insensitive' } }] : []), ...(serials.length ? [{ serialNumber: { in: serials, mode: 'insensitive' } }] : [])] },
-      select: { assetTag: true, serialNumber: true },
+      select: { id: true, assetTag: true, serialNumber: true },
     })
     for (const row of rows) {
-      if (row.assetTag) takenTags.add(row.assetTag.toLowerCase())
-      if (row.serialNumber) takenSerials.add(row.serialNumber.trim().toLowerCase())
+      if (row.assetTag) takenTags.set(row.assetTag.toLowerCase(), row.id)
+      if (row.serialNumber) takenSerials.set(row.serialNumber.trim().toLowerCase(), row.id)
     }
   }
   run.seenSerials ??= new Set() // dry-run: serials of items this run would create
@@ -116,12 +116,12 @@ export async function migrateItemBatch(run, inventories, catalogs, docIds) {
     try {
       let itemId = refs.get(mapped.legacyId) ?? null
       if (itemId) run.report.count('items', 'matched')
-      else if (mapped.enabled && mapped.assetTag && takenTags.has(mapped.assetTag.toLowerCase())) { run.report.conflict('items', 'ASSET_TAG_TAKEN', mapped.legacyId); continue }
-      else if (mapped.enabled && isSerialTaken(mapped, takenSerials, run)) { run.report.conflict('items', 'SERIAL_TAKEN', mapped.legacyId); continue }
+      else if (mapped.enabled && mapped.assetTag && takenTags.has(mapped.assetTag.toLowerCase())) { run.report.conflict('items', 'ASSET_TAG_TAKEN', mapped.legacyId, takenTags.get(mapped.assetTag.toLowerCase())); continue }
+      else if (mapped.enabled && isSerialTaken(mapped, takenSerials, run)) { run.report.conflict('items', 'SERIAL_TAKEN', mapped.legacyId, takenSerials.get(String(mapped.data.serialNumber ?? '').trim().toLowerCase())); continue }
       else if (!run.commit) { run.report.count('items', 'created'); itemId = `dry:item:${mapped.legacyId}` }
       else {
         const result = await run.toolkit.importItem({ companyId, actorId: run.actorId, source: run.sourceName, legacyId: mapped.legacyId, data: resolveItemData(mapped, catalogs) })
-        if (result.conflict) { run.report.conflict('items', result.conflict.reason === 'serial_taken' ? 'SERIAL_TAKEN' : 'ASSET_TAG_TAKEN', mapped.legacyId); continue }
+        if (result.conflict) { run.report.conflict('items', result.conflict.reason === 'serial_taken' ? 'SERIAL_TAKEN' : 'ASSET_TAG_TAKEN', mapped.legacyId, result.conflict.existingId); continue }
         itemId = result.id
         if (result.warnings?.length) run.report.warn('ITEM_CUSTOM_FIELD_UNKNOWN', result.warnings.length)
         run.report.count('items', result.created ? 'created' : 'matched')
