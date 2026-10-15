@@ -16,12 +16,12 @@ export function CustodyCreateSheet({ open, onOpenChange, defaults = null, onCrea
   const { userProfile } = useAuth()
   const can = useInventoryCan()
   const canDelegate = can(DELIVER_ON_BEHALF)
-  const [form, setForm] = useState({ kind: 'DELIVERY', employeeId: '', delivererId: '' })
+  const [form, setForm] = useState({ kind: 'DELIVERY', employeeId: '', itemIds: [], delivererId: '' })
   const employees = useEmployeeOptions({ enabled: open })
   const create = useCreateCustody()
 
   useEffect(() => {
-    if (open) setForm({ kind: defaults?.kind ?? 'DELIVERY', employeeId: defaults?.employeeId ?? '', delivererId: userProfile?.id ?? '' })
+    if (open) setForm({ kind: defaults?.kind ?? 'DELIVERY', employeeId: defaults?.employeeId ?? '', itemIds: defaults?.itemIds ?? [], delivererId: userProfile?.id ?? '' })
   }, [open, defaults, userProfile?.id])
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }))
@@ -32,10 +32,10 @@ export function CustodyCreateSheet({ open, onOpenChange, defaults = null, onCrea
         kind: form.kind,
         employeeId: form.employeeId,
         date: toLocalIso(),
-        itemIds: [],
+        itemIds: form.itemIds ?? [],
         ...(canDelegate && form.delivererId ? { delivererId: form.delivererId } : {}),
       })
-      toast.success('Resguardo creado', { description: 'Agrega los artículos y recaba las firmas.' })
+      toast.success('Resguardo creado', { description: form.itemIds?.length ? 'Revisa el resguardo y recaba las firmas, o complétalo sin firma.' : 'Agrega los artículos y recaba las firmas.' })
       onOpenChange(false)
       onCreated?.(created)
     } catch (err) {

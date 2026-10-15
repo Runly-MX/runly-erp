@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, ComboboxField, DataTable, PageHeader, SelectField } from '@runly/ui'
 import { FileSignature, Plus } from 'lucide-react'
@@ -6,6 +6,7 @@ import { useCustodies, useEmployeeOptions } from '../hooks/useInventoryCustody.j
 import { CUSTODY_KIND, CUSTODY_STATUS_OPTIONS, formatCustodyDate } from '../lib/custody-api.js'
 import { CustodyStatusBadge } from '../components/custody/CustodyStatusBadge.jsx'
 import { CustodyCreateSheet } from '../components/custody/CustodyCreateSheet.jsx'
+import { parseNewCustodyParams } from '../lib/custody-links.js'
 
 const CUSTODY_PATH = '/app/m/runly.inventory/inventory/custodies'
 const ALL = 'all'
@@ -17,7 +18,19 @@ export default function InventoryCustodyScreen() {
   const employeeId = searchParams.get('employee') ?? ''
   const [creating, setCreating] = useState(false)
   const employees = useEmployeeOptions()
-  const editorDefaults = useMemo(() => (employeeId ? { employeeId } : null), [employeeId])
+  const [linkDefaults, setLinkDefaults] = useState(null)
+  const editorDefaults = useMemo(() => linkDefaults ?? (employeeId ? { employeeId } : null), [linkDefaults, employeeId])
+
+  // Deep link from an item (Asignar / Devolver): open the sheet prefilled once.
+  useEffect(() => {
+    const requested = parseNewCustodyParams(searchParams)
+    if (!requested) return
+    setLinkDefaults(requested)
+    setCreating(true)
+    const next = new URLSearchParams(searchParams)
+    for (const key of ['new', 'kind', 'items', 'employee']) next.delete(key)
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const params = useMemo(() => ({
     status: status === ALL ? undefined : status,
@@ -81,7 +94,7 @@ export default function InventoryCustodyScreen() {
       />
       <CustodyCreateSheet
         open={creating}
-        onOpenChange={setCreating}
+        onOpenChange={(value) => { setCreating(value); if (!value) setLinkDefaults(null) }}
         defaults={editorDefaults}
         onCreated={(custody) => { if (custody?.id) open(custody) }}
       />

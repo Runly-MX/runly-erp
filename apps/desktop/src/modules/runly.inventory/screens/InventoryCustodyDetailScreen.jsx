@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Alert, AlertDescription, AlertTitle, Button, Card, CheckboxField, ConfirmDialog, DataTable, ErrorState, PageHeader, TextareaField,
+  Alert, AlertDescription, AlertTitle, Badge, Button, Card, ConfirmDialog, DataTable, ErrorState, PageHeader, TextareaField,
 } from '@runly/ui'
-import { AlertTriangle, Ban, CheckCheck, Download, Eye, FileCheck2 } from 'lucide-react'
+import { AlertTriangle, Ban, CheckCheck, Download, Eye, FileCheck2, PenOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCancelCustody, useCompleteCustody, useCustody, useCustodyFileUrl } from '../hooks/useInventoryCustody.js'
+import { useInventoryCan } from '../hooks/useInventoryAdmin.js'
 import { CUSTODY_KIND, formatCustodyDate, isCustodyEditable } from '../lib/custody-api.js'
 import { CustodyStatusBadge } from '../components/custody/CustodyStatusBadge.jsx'
 import { CustodyDetailSkeleton } from '../components/custody/CustodyDetailSkeleton.jsx'
@@ -15,6 +16,8 @@ import { CustodyItemsSection } from '../components/custody/CustodyItemsSection.j
 import { custodyItemColumns } from '../components/custody/custodyItemColumns.jsx'
 import { useGuardedCustodyPatch } from '../components/custody/useGuardedCustodyPatch.jsx'
 
+const UNSIGNED_PERMISSION = 'inventory.custody.complete_unsigned'
+const UNSIGNED_REASON_MIN = 10
 const LIST_PATH = '/app/m/runly.inventory/inventory/custodies'
 const READ_ONLY_COLUMNS = custodyItemColumns()
 
@@ -28,6 +31,8 @@ export default function InventoryCustodyDetailScreen() {
   const fileUrl = useCustodyFileUrl()
   const [completeOpen, setCompleteOpen] = useState(false)
   const [allowUnsigned, setAllowUnsigned] = useState(false)
+  const [unsignedReason, setUnsignedReason] = useState('')
+  const canCompleteUnsigned = useInventoryCan()(UNSIGNED_PERMISSION)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [reason, setReason] = useState('')
 
@@ -54,9 +59,10 @@ export default function InventoryCustodyDetailScreen() {
 
   async function handleComplete() {
     try {
-      await complete.mutateAsync({ id: custody.id, ...(allowUnsigned ? { allowUnsigned: true } : {}) })
+      await complete.mutateAsync({ id: custody.id, ...(allowUnsigned ? { allowUnsigned: true, unsignedReason: unsignedReason.trim() } : {}) })
       toast.success('Resguardo completado', { description: 'Se generó el documento y se actualizaron las asignaciones.' })
       setCompleteOpen(false)
+      setUnsignedReason('')
     } catch (err) {
       toast.error(err?.message ?? 'No se pudo completar el resguardo')
     }
@@ -99,6 +105,11 @@ export default function InventoryCustodyDetailScreen() {
             {open ? (
               <Button variant="outline" size="sm" onClick={() => setCancelOpen(true)}><Ban className="mr-1.5 h-3.5 w-3.5" />Cancelar resguardo</Button>
             ) : null}
+            {open && !custody.receiverSigned && canCompleteUnsigned ? (
+              <Button variant="outline" size="sm" disabled={custody.items.length === 0}
+                title="Para casos como un préstamo temporal; queda registrado en la bitácora"
+                onClick={() => { setAllowUnsigned(true); setCompleteOpen(true) }}><PenOff className="mr-1.5 h-3.5 w-3.5" />Completar sin firma</Button>
+            ) : null}
             {open ? (
               <Button size="sm" disabled={custody.items.length === 0} title={custody.items.length === 0 ? 'Agrega al menos un artículo' : undefined}
                 onClick={() => { setAllowUnsigned(false); setCompleteOpen(true) }}><CheckCheck className="mr-1.5 h-3.5 w-3.5" />Completar</Button>
@@ -129,7 +140,11 @@ export default function InventoryCustodyDetailScreen() {
             <Field label="Colaborador">{custody.employeeName}</Field>
             <Field label="Entrega">{custody.delivererName || '—'}</Field>
             <Field label="Artículos">{custody.itemCount}</Field>
+            {custody.status === 'COMPLETED' && custody.unsignedReason ? (
+              <Field label="Firma"><Badge variant="warning">Completado sin firma</Badge></Field>
+            ) : null}
             {custody.comments ? <Field label="Comentarios" wide>{custody.comments}</Field> : null}
+            {custody.status === 'COMPLETED' && custody.unsignedReason ? <Field label="Motivo de la falta de firma" wide>{custody.unsignedReason}</Field> : null}
             {custody.status === 'CANCELLED' && custody.cancelReason ? <Field label="Motivo de cancelación" wide>{custody.cancelReason}</Field> : null}
           </Card>
           <section className="space-y-2">
@@ -145,19 +160,21 @@ export default function InventoryCustodyDetailScreen() {
       <ConfirmDialog
         open={completeOpen}
         onOpenChange={setCompleteOpen}
-        title="Completar resguardo"
-        icon={FileCheck2}
+        title={allowUnsigned ? 'Completar sin firma' : 'Completar resguardo'}
+        icon={allowUnsigned ? PenOff : FileCheck2}
+        confirmDisabled={allowUnsigned && unsignedReason.trim().length < UNSIGNED_REASON_MIN}
         tone="primary"
         description={custody.kind === 'RETURN'
           ? 'Se generará el documento final y los artículos quedarán devueltos. El resguardo ya no podrá editarse.'
           : 'Se generará el documento final y los artículos quedarán asignados al colaborador. El resguardo ya no podrá editarse.'}
-        confirmLabel="Completar"
+        confirmLabel={allowUnsigned ? 'Completar sin firma' : 'Completar'}
         loading={complete.isPending}
         onConfirm={handleComplete}
       >
-        {!custody.receiverSigned ? (
-          <CheckboxField checked={allowUnsigned} onChange={(e) => setAllowUnsigned(Boolean(e?.target ? e.target.checked : e))}
-            label="Completar sin la firma del colaborador" hint="Queda registrado en la bitácora." />
+        {allowUnsigned ? (
+          <TextareaField label="Motivo" required value={unsignedReason} maxLength={500} onChange={(e) => setUnsignedReason(e.target.value)}
+            hint={`Mínimo ${UNSIGNED_REASON_MIN} caracteres. Queda en la bitácora y en el detalle del resguardo; el documento lleva los recuadros de firma en blanco.`}
+            placeholder="Por ejemplo: préstamo temporal de una semana, el colaborador está en otra sede" />
         ) : null}
       </ConfirmDialog>
 
