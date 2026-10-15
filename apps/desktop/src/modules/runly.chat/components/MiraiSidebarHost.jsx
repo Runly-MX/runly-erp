@@ -9,10 +9,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  AssistantWordmark, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input,
+  AssistantWordmark, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input,
   ModuleAssistantPanel, Sheet, SheetContent, SheetTitle, useCoarsePointer,
 } from "@runly/ui";
-import { ExternalLink, Pencil, Sparkles } from "lucide-react";
+import { ExternalLink, MoreVertical, Pencil, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useEnsureMiraiConversation, useMiraiStatus } from "../hooks/useMirAI";
 import { useMiraiThreads } from "../hooks/useMiraiThreads";
@@ -176,7 +176,7 @@ export function MiraiSidebarHost() {
 
       {coarse ? (
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetContent side="right" className="chat-glass-theme flex h-[90dvh] w-full flex-col gap-0 p-0 sm:max-w-lg" style={chatPreferencesStyle(prefs)}>
+          <SheetContent side="right" className="chat-glass-theme flex h-dvh max-h-dvh w-full flex-col gap-0 p-0 sm:max-w-lg" style={chatPreferencesStyle(prefs)}>
             <SheetTitle className="sr-only">MirAI</SheetTitle>
             {panel}
           </SheetContent>
@@ -256,16 +256,20 @@ function MiraiPanel({ open, coarse, onClose }) {
           catch (err) { toast.error(err?.message ?? "No se pudo eliminar la conversación."); }
         }}
         chatTitle={active?.title ?? "MirAI"}
-        chatContext={
-          <div className="flex flex-wrap gap-1">
-            <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={!active} onClick={() => setRenaming({ id: active.id, title: active.title })}>
-              <Pencil className="mr-1 h-3.5 w-3.5" />Renombrar
-            </Button>
-            <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={!conversationId}
-              onClick={() => navigate(`/app/m/runly.chat/chat/inbox/${conversationId}`)}>
-              <ExternalLink className="mr-1 h-3.5 w-3.5" />Abrir en Chat
-            </Button>
-          </div>
+        chatActions={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" aria-label="Más opciones de la conversación"><MoreVertical className="h-4 w-4" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem disabled={!active} onSelect={() => setRenaming({ id: active.id, title: active.title })}>
+                <Pencil className="mr-2 h-4 w-4" />Renombrar
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!conversationId} onSelect={() => navigate(`/app/m/runly.chat/chat/inbox/${conversationId}`)}>
+                <ExternalLink className="mr-2 h-4 w-4" />Abrir en Chat
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         }
         busy={create.isPending}
       >

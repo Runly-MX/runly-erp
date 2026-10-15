@@ -16,7 +16,8 @@ function PanelAvatar() {
 // fetching, the thread and the composer stay in the module (`children`).
 // Header and composer stay fixed; only the list / thread scroll. Inside a
 // Sheet (which draws its own close button), omit onClose and pass
-// headerClassName="pr-12".
+// headerClassName="pr-12". `chatActions` (e.g. an overflow menu) renders on the
+// same single header row as the title; when set, `chatContext` is not shown.
 export function ModuleAssistantPanel({
   subtitle,
   view,
@@ -31,6 +32,7 @@ export function ModuleAssistantPanel({
   onDelete,
   chatTitle = 'Nueva consulta',
   chatContext,
+  chatActions,
   busy = false,
   listLabel = 'Conversaciones',
   className,
@@ -42,14 +44,15 @@ export function ModuleAssistantPanel({
 
   if (view === 'chat') {
     return <div className={cn('flex min-h-0 flex-1 flex-col', className)}>
-      <div className={cn('shrink-0 space-y-2 border-b p-3', headerClassName)}>
-        <div className="flex items-center gap-1">
+      <div className={cn('shrink-0 border-b px-2 py-1.5', !chatActions && 'space-y-2', headerClassName)}>
+        <div className="flex min-h-10 items-center gap-1">
           <Button size="icon" variant="ghost" aria-label="Volver a las conversaciones" disabled={busy} onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
           <PanelAvatar />
           <span className="min-w-0 flex-1 truncate pl-1 text-sm font-semibold" title={chatTitle}>{chatTitle}</span>
+          {chatActions}
           {closeButton}
         </div>
-        {chatContext && <div className="pl-10">{chatContext}</div>}
+        {!chatActions && chatContext && <div className="pl-10">{chatContext}</div>}
       </div>
       {children}
     </div>

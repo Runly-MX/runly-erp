@@ -8,7 +8,7 @@
 // ModuleAssistantPanel in MiraiSidebarHost.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Button, Textarea, EmptyState, Skeleton, renderRichText } from "@runly/ui";
+import { Button, Textarea, Skeleton, renderRichText } from "@runly/ui";
 import { Sparkles, Send, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { useChatMessages, useSendMessage } from "../hooks/useChatMessages";
@@ -116,6 +116,14 @@ export function MiraiSidebarThread({ conversationId, onSent }) {
   const [pendingFiles, setPendingFiles] = useState([]);
   const listEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
+  // Auto-grow the composer up to ~5 lines (max-h on the element caps it).
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
   const objectUrlsRef = useRef(new Set());
   const uploadingRef = useRef({});
   // Latest pendingFiles, readable from the unmount cleanup closure below
@@ -272,9 +280,11 @@ export function MiraiSidebarThread({ conversationId, onSent }) {
           Suelta los archivos para adjuntarlos
         </div>
       )}
-      {/* Same wallpaper as the Chat module (chat-theme.css), behind the list. */}
-      <div className="chat-scale-target chat-wallpaper relative isolate flex-1 min-h-0 space-y-3 overflow-y-auto p-3">
+      {/* Same wallpaper as the Chat module (chat-theme.css). The layer lives
+          OUTSIDE the scroller so only the messages move over it. */}
+      <div className="chat-scale-target chat-wallpaper relative isolate flex min-h-0 flex-1 flex-col">
         {prefs.wallpaper && <div className="chat-wallpaper-layer" data-accent={prefs.accentColorKey} aria-hidden="true" />}
+        <div className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain p-2.5 sm:p-3">
         {(isLoading || !conversationId) && (
           <div className="space-y-3">
             <Skeleton className="h-12 w-3/4 rounded-2xl" />
@@ -283,27 +293,18 @@ export function MiraiSidebarThread({ conversationId, onSent }) {
         )}
 
         {!isLoading && conversationId && messages.length <= 1 && (
-          <EmptyState
-            variant="compact"
-            icon={Sparkles}
-            title={`Pregúntale a ${MIRAI_NAME}`}
-            description="Consulto y analizo tus módulos, busco en internet, leo tus archivos y preparo acciones que tú confirmas."
-          >
-            <div className="mt-3 w-full space-y-2">
-              {prompts.map((prompt) => (
-                <Button
-                  key={prompt}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDraft(prompt)}
-                  className="h-auto w-full justify-start whitespace-normal py-2 text-left text-xs font-normal"
-                >
-                  {prompt}
-                </Button>
-              ))}
-            </div>
-          </EmptyState>
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {prompts.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => setDraft(prompt)}
+                className="max-w-full rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--background))]/80 px-3 py-1.5 text-left text-xs text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
         )}
 
         {messages.map((m, i) => (m.sender_type === "system" ? (
@@ -339,9 +340,10 @@ export function MiraiSidebarThread({ conversationId, onSent }) {
         {miraiTyping && <TypingDots />}
 
         <div ref={listEndRef} />
+        </div>
       </div>
 
-      <div className="shrink-0 border-t border-[hsl(var(--border))] p-3">
+      <div className="shrink-0 border-t border-[hsl(var(--border))] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3 sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {pendingFiles.length > 0 && (
           <div className="mb-2 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
             {pendingFiles.map((entry) => (
@@ -362,7 +364,7 @@ export function MiraiSidebarThread({ conversationId, onSent }) {
           <Button
             size="icon"
             variant="ghost"
-            className="h-9 w-9 shrink-0"
+            className="h-10 w-10 shrink-0"
             aria-label="Adjuntar archivo"
             disabled={!conversationId || pendingFiles.length >= MAX_FILES}
             onClick={() => fileInputRef.current?.click()}
@@ -376,21 +378,23 @@ export function MiraiSidebarThread({ conversationId, onSent }) {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
             }}
             onPaste={handlePaste}
-            rows={2}
+            ref={textareaRef}
+            rows={1}
             disabled={!conversationId || send.isPending}
             placeholder={`Escribe a ${MIRAI_NAME}...`}
-            className="min-h-[44px] flex-1 resize-none"
+            className="max-h-[7.5rem] min-h-10 flex-1 resize-none py-2"
           />
           <Button
             size="icon"
-            className="h-9 w-9 shrink-0"
+            className="h-10 w-10 shrink-0"
+            aria-label="Enviar mensaje"
             disabled={(!draft.trim() && !pendingFiles.length) || send.isPending || !conversationId}
             onClick={() => submit()}
           >
             <Send className="h-4 w-4" />
           </Button>
         </div>
-        <p className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">Enter para enviar · Shift+Enter para nueva línea · Pega o arrastra archivos</p>
+        <p className="mt-1 hidden text-[10px] sm:block text-[hsl(var(--muted-foreground))]">Enter para enviar · Shift+Enter para nueva línea · Pega o arrastra archivos</p>
       </div>
 
       <ChatAttachmentViewer
