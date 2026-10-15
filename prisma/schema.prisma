@@ -487,6 +487,9 @@ model Company {
   invAdminEvents  InvItemAdminEvent[] @relation("CompanyInvAdminEvents")
   invCustodies    InvCustody[]          @relation("CompanyInvCustodies")
   invDocumentTemplates InvDocumentTemplate[] @relation("CompanyInvDocumentTemplates")
+  invLabelTemplates InvLabelTemplate[] @relation("CompanyInvLabelTemplates")
+  invLabelPrinters  InvLabelPrinter[]  @relation("CompanyInvLabelPrinters")
+  invLabelPrints    InvLabelPrint[]    @relation("CompanyInvLabelPrints")
   invItems        InvItem[]        @relation("CompanyInvItems")
   invCustomFields InvCustomField[] @relation("CompanyInvCustomFields")
 
@@ -565,6 +568,7 @@ model UserProfile {
   invCustodiesCreated   InvCustody[] @relation("UserInvCustodiesCreated")
   invCustodiesDelivered InvCustody[] @relation("UserInvCustodiesDelivered")
   invDocumentTemplates  InvDocumentTemplate[] @relation("UserInvDocumentTemplates")
+  invLabelPrints        InvLabelPrint[]       @relation("UserInvLabelPrints")
   savedSignature        UserSignature?        @relation("UserSavedSignature")
 
   entityComments  EntityComment[]         @relation("UserEntityComments")
@@ -3688,6 +3692,7 @@ model InvItem {
   customValues InvCustomFieldValue[]
   files        InvItemFile[]
   custodyItems InvCustodyItem[]
+  labelPrints  InvLabelPrint[]
 
   @@index([companyId, assetTag])
   @@index([companyId, folio])
@@ -5177,4 +5182,81 @@ model AttCorrection {
   @@index([companyId, status, requestedAt(sort: Desc)])
   @@index([personId, requestedAt(sort: Desc)])
   @@map("att_correction")
+}
+
+// Label layout (size, fields, QR options) shared by the ZPL/PDF/PNG renderers.
+model InvLabelTemplate {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  name        String   @db.VarChar(120)
+  widthMm     Float    @map("width_mm")
+  heightMm    Float    @map("height_mm")
+  dpi         Int      @default(203)
+  // qr-left | qr-top | text-only
+  layout      String   @default("qr-left") @db.VarChar(20)
+  // Ordered list of visible fields (folio, name, serial, model, location, company, assetTag).
+  fields      Json     @default("[]")
+  // { errorCorrection: L|M|Q|H, quietZoneMm: number, contentMode: url|embedded }
+  qrOptions   Json     @default("{}") @map("qr_options")
+  logoFileId  String?  @map("logo_file_id") @db.Uuid
+  isDefault   Boolean  @default(false) @map("is_default")
+  enabled     Boolean  @default(true)
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company  Company           @relation("CompanyInvLabelTemplates", fields: [companyId], references: [id])
+  printers InvLabelPrinter[]
+  prints   InvLabelPrint[]
+
+  @@index([companyId, enabled])
+  @@map("inv_label_template")
+}
+
+// Where labels go: format (zpl | pdf | png) plus transport and media size.
+model InvLabelPrinter {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  companyId         String   @map("company_id") @db.Uuid
+  name              String   @db.VarChar(120)
+  format            String   @default("pdf") @db.VarChar(10)
+  dpi               Int      @default(203)
+  // browser | network | bluetooth | file
+  transport         String   @default("browser") @db.VarChar(20)
+  address           String?  @db.VarChar(255)
+  defaultTemplateId String?  @map("default_template_id") @db.Uuid
+  mediaWidthMm      Float?   @map("media_width_mm")
+  mediaHeightMm     Float?   @map("media_height_mm")
+  isDefault         Boolean  @default(false) @map("is_default")
+  enabled           Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  company         Company           @relation("CompanyInvLabelPrinters", fields: [companyId], references: [id])
+  defaultTemplate InvLabelTemplate? @relation(fields: [defaultTemplateId], references: [id], onDelete: SetNull)
+  prints          InvLabelPrint[]
+
+  @@index([companyId, enabled])
+  @@map("inv_label_printer")
+}
+
+// Print log: source of truth for "labeled", "last printed" and reprint history.
+model InvLabelPrint {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  companyId  String   @map("company_id") @db.Uuid
+  itemId     String   @map("item_id") @db.Uuid
+  templateId String?  @map("template_id") @db.Uuid
+  printerId  String?  @map("printer_id") @db.Uuid
+  quantity   Int      @default(1)
+  userId     String?  @map("user_id") @db.Uuid
+  printedAt  DateTime @default(now()) @map("printed_at")
+
+  company  Company           @relation("CompanyInvLabelPrints", fields: [companyId], references: [id])
+  item     InvItem           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  template InvLabelTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  printer  InvLabelPrinter?  @relation(fields: [printerId], references: [id], onDelete: SetNull)
+  user     UserProfile?      @relation("UserInvLabelPrints", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, itemId, printedAt])
+  @@index([companyId, printedAt])
+  @@map("inv_label_print")
 }
