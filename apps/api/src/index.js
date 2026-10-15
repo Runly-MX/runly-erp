@@ -58,6 +58,7 @@ import { createInventoryNotificationService } from "./services/inventory-notific
 import { createCommentsService, CommentsServiceError } from "./services/comments-service.js";
 import { createInventoryRouter } from "./routes/inventory/index.js";
 import { createInventoryCustodyPublicRouter } from "./routes/inventory/custody-public-routes.js";
+import { createInventoryItemPublicRouter } from "./routes/inventory/item-public-routes.js";
 import { createPurchasesRouter } from "./routes/purchases/index.js";
 import { isPurchasesNavVisible } from "./services/purchases-service.js";
 import { createModulesRouter } from "./routes/modules.js";
@@ -2107,6 +2108,7 @@ app.route("/public/website", publicWebsiteRouter);
 const publicCatalogRouter = createPublicCatalogRouter({ prisma });
 app.route("/public/catalog", publicCatalogRouter);
 app.route("/public/inventory/custody", createInventoryCustodyPublicRouter({ prisma, supabaseAdmin }));
+app.route("/public/inventory/items", createInventoryItemPublicRouter({ prisma, supabaseAdmin }));
 
 const publicFormsRouter = createPublicFormsRouter({ prisma });
 app.route("/public/website", publicFormsRouter);

@@ -64,10 +64,18 @@ export function appBaseUrlFromEnv(env = process.env) {
   return '';
 }
 
-export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolveItemQrUrl = null } = {}) {
-  // Phase 3 passes the opaque-token resolver here; until then the placeholder
-  // URL (/app/p/inv/f-<folio>) is encoded.
+// `publicService` (inventory-public-service) issues the opaque per-item token
+// encoded in the QR; without it the Phase 2 placeholder URL is used (tests only).
+export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolveItemQrUrl = null, publicService = null } = {}) {
   const qrUrlFor = (requestBaseUrl) => resolveItemQrUrl ?? createPlaceholderQrUrl(publicBaseUrl || requestBaseUrl || '');
+
+  async function tokenResolver(companyId, items, layout, requestBaseUrl) {
+    const needsUrl = layout.layout !== 'text-only' && layout.qrOptions?.contentMode !== 'embedded';
+    if (!publicService || resolveItemQrUrl || !needsUrl) return qrUrlFor(requestBaseUrl);
+    const base = publicBaseUrl || requestBaseUrl || '';
+    const tokens = await publicService.ensureTokens(companyId, items.map((item) => item.id));
+    return (item) => publicService.urlFor(base, tokens.get(item.id));
+  }
 
   async function ensureDefaultTemplates(companyId) {
     if (await prisma.invLabelTemplate.count({ where: { companyId } })) return;
@@ -189,7 +197,7 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
       loadItems(companyId, rows),
       prisma.company.findUnique({ where: { id: companyId }, select: { name: true } }),
     ]);
-    return renderLabels({ layout, format, rows, items, companyName: company?.name ?? '', resolveItemQrUrl: qrUrlFor(baseUrl) });
+    return renderLabels({ layout, format, rows, items, companyName: company?.name ?? '', resolveItemQrUrl: await tokenResolver(companyId, items, layout, baseUrl) });
   }
 
   // ── Print log ───────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 // services/inventory-label-service.js.
 import { Hono } from 'hono';
 
-export function createInventoryLabelRouter({ requirePermission, InventoryServiceError, labelService }) {
+export function createInventoryLabelRouter({ requirePermission, InventoryServiceError, labelService, publicService = null, publicBaseUrl = '' }) {
   const router = new Hono();
   const labels = labelService;
   const read = requirePermission('inventory.label.read');
@@ -49,6 +49,25 @@ export function createInventoryLabelRouter({ requirePermission, InventoryService
     c.json({ data: await labels.registerPrints(company(c), userId(c), await c.req.json()) }, 201)
   )));
   router.get('/inventory/items/:id/labels', read, run('No se pudo cargar el historial de etiquetas.', async (c) => c.json({ data: await labels.history(company(c), c.req.param('id')) })));
+
+  // Public item link (QR target). Ensuring creates the token lazily, so it needs
+  // the print permission; revoking and the page settings need manage.
+  if (publicService) {
+    const linkUrl = (c, token) => publicService.urlFor(publicBaseUrl || new URL(c.req.url).origin, token);
+    router.get('/inventory/items/:id/public-link', print, run('No se pudo obtener el enlace público.', async (c) => (
+      c.json({ data: { url: linkUrl(c, await publicService.ensureToken(company(c), c.req.param('id'))) } })
+    )));
+    router.delete('/inventory/items/:id/public-link', manage, run('No se pudo revocar el enlace.', async (c) => (
+      c.json({ data: await publicService.revoke(company(c), c.req.param('id')) })
+    )));
+    router.post('/inventory/public-links/revoke-all', manage, run('No se pudieron revocar los enlaces.', async (c) => (
+      c.json({ data: await publicService.revokeAll(company(c)) })
+    )));
+    router.get('/inventory/public-page-settings', read, run('No se pudo cargar la configuración.', async (c) => c.json({ data: await publicService.getSettings(company(c)) })));
+    router.put('/inventory/public-page-settings', manage, run('No se pudo guardar la configuración.', async (c) => (
+      c.json({ data: await publicService.updateSettings(company(c), await c.req.json()) })
+    )));
+  }
 
   return router;
 }

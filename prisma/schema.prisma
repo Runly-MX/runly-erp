@@ -490,6 +490,7 @@ model Company {
   invLabelTemplates InvLabelTemplate[] @relation("CompanyInvLabelTemplates")
   invLabelPrinters  InvLabelPrinter[]  @relation("CompanyInvLabelPrinters")
   invLabelPrints    InvLabelPrint[]    @relation("CompanyInvLabelPrints")
+  invPublicTokens   InvPublicToken[]   @relation("CompanyInvPublicTokens")
   invItems        InvItem[]        @relation("CompanyInvItems")
   invCustomFields InvCustomField[] @relation("CompanyInvCustomFields")
 
@@ -3693,6 +3694,7 @@ model InvItem {
   files        InvItemFile[]
   custodyItems InvCustodyItem[]
   labelPrints  InvLabelPrint[]
+  publicTokens InvPublicToken[]
 
   @@index([companyId, assetTag])
   @@index([companyId, folio])
@@ -5259,4 +5261,23 @@ model InvLabelPrint {
   @@index([companyId, itemId, printedAt])
   @@index([companyId, printedAt])
   @@map("inv_label_print")
+}
+
+// Opaque, revocable public link of an item (QR `/app/p/inv/<token>`). The token is
+// HMAC(secret, nonce): only its sha256 is stored for lookup. One active token per
+// item (partial unique index in the migration).
+model InvPublicToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  companyId String    @map("company_id") @db.Uuid
+  itemId    String    @map("item_id") @db.Uuid
+  nonce     String    @db.VarChar(64)
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  company Company @relation("CompanyInvPublicTokens", fields: [companyId], references: [id])
+  item    InvItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, itemId])
+  @@map("inv_public_token")
 }

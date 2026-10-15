@@ -13,6 +13,7 @@ import { createInventoryAdminRouter } from './admin-routes.js';
 import { createInventoryCustodyRouter } from './custody-routes.js';
 import { createInventoryLabelRouter } from './label-routes.js';
 import { createInventoryLabelService, appBaseUrlFromEnv } from '../../services/inventory-label-service.js';
+import { createInventoryPublicService } from '../../services/inventory-public-service.js';
 import { createInventoryModelService } from '../../services/inventory-model-service.js';
 import { createCoreTargetConnections } from '../../services/connections/core-target-connections.js';
 import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js';
@@ -40,8 +41,9 @@ export function createInventoryRouter({
   router.route('/', createInventoryAdminRouter({ prisma, requirePermission, InventoryServiceError, inventoryNotifSvc, supabaseAdmin }));
   router.route('/', createInventoryImportRouter({ prisma, requirePermission, InventoryServiceError, inventoryService, filesService }));
   router.route('/', createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin }));
-  const labelService = createInventoryLabelService({ prisma, publicBaseUrl: appBaseUrlFromEnv() });
-  router.route('/', createInventoryLabelRouter({ requirePermission, InventoryServiceError, labelService }));
+  const publicService = createInventoryPublicService({ prisma, supabaseAdmin });
+  const labelService = createInventoryLabelService({ prisma, publicBaseUrl: appBaseUrlFromEnv(), publicService });
+  router.route('/', createInventoryLabelRouter({ requirePermission, InventoryServiceError, labelService, publicService, publicBaseUrl: appBaseUrlFromEnv() }));
   const modelDefaults = createInventoryModelService({ prisma });
 
   const isInvErr = (err) => err instanceof InventoryServiceError;
