@@ -25,7 +25,7 @@ function fixture({ matches = [], definitions = [], vision, configured = true } =
         audits.find(a => a.action === where.action && a.companyId === where.companyId && a.actorId === where.actorId && a.metadata.key === where.metadata?.equals),
       create: async ({ data }) => { audits.push(data); return data; },
     },
-    $queryRaw: async () => { locks++; return []; },
+    $queryRaw: async () => { locks++; return [{ last_value: locks }]; }, // also serves the folio counter
   };
   db.$transaction = async fn => {
     const oldAudits = [...audits], oldItems = [...items];
