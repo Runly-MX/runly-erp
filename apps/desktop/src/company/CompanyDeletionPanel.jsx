@@ -42,10 +42,7 @@ function useDeletionJobs() {
   return { isAdmin: Boolean(userProfile?.isAdmin), jobs: jobs.data?.data ?? [], restore }
 }
 
-// Status strip shown at the top of the profile whenever a deletion is scheduled or running.
-export function CompanyDeletionBanner() {
-  const { isAdmin, jobs, restore } = useDeletionJobs()
-  if (!isAdmin || !jobs.length) return null
+function DeletionNotices({ jobs, restore }) {
   return <div className="space-y-3">
     {jobs.map(job => <Alert key={job.companyId} variant="destructive">
       <AlertTriangle className="h-4 w-4" />
@@ -62,6 +59,33 @@ export function CompanyDeletionBanner() {
       </div>
     </Alert>)}
   </div>
+}
+
+// The profile status must only describe the company currently being viewed.
+export function CompanyDeletionBanner() {
+  const { activeCompanyId } = useActiveCompany()
+  const { isAdmin, jobs, restore } = useDeletionJobs()
+  const current = jobs.filter(job => String(job.companyId) === String(activeCompanyId))
+  if (!isAdmin || !current.length) return null
+  return <DeletionNotices jobs={current} restore={restore} />
+}
+
+// Keep recovery reachable after suspension selects another company, without
+// presenting another company's deletion as the active profile's status.
+export function CompanyDeletionRecoveryPanel() {
+  const { activeCompanyId, activeCompany } = useActiveCompany()
+  const { isAdmin, jobs, restore } = useDeletionJobs()
+  const others = jobs.filter(job => String(job.companyId) !== String(activeCompanyId))
+  if (!isAdmin || !others.length) return null
+  return <Card className="space-y-4 p-6">
+    <div className="space-y-1">
+      <h2 className="text-sm font-semibold">Eliminaciones de otras empresas</h2>
+      <p className="text-sm text-[hsl(var(--muted-foreground))]">
+        Estas solicitudes corresponden a otras empresas que administras. No afectan a «{activeCompany?.name}», la empresa abierta.
+      </p>
+    </div>
+    <DeletionNotices jobs={others} restore={restore} />
+  </Card>
 }
 
 function ScheduleDeletionDialog({ open, onOpenChange }) {

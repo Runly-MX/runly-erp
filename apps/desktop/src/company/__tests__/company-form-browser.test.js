@@ -33,12 +33,13 @@ test('company forms survive access polling, token rotation and background update
         company: {
           pendingDeletions: async () => ({data:window.jobs??[]}),
           requestDeletion: async (id) => {
+            window.requestedDeletion=id;
             window.savedMemberships=structuredClone(window.memberships.data);
             window.memberships.data=window.memberships.data.filter(m=>m.companyId!==id);
             window.jobs=[{companyId:id,name:'A',state:'PENDING',purgeAfter:'2099-01-01',canRestore:true}];
             return {data:{notice:{sent:0,failed:1,reasons:['smtp_attachment_unavailable']}}};
           },
-          cancelDeletion: async () => {window.memberships.data=window.savedMemberships;window.jobs=[];return {data:{}}},
+          cancelDeletion: async (id) => {window.cancelledDeletion=id;window.memberships.data=window.savedMemberships;window.jobs=[];return {data:{}}},
           getProfile: async () => { window.profileRequests++; return {data:{ ...window.companyProfile, id:company }} },
           updateProfile: async (data) => { window.companyProfile=data; return {data} },
         },
@@ -195,6 +196,20 @@ test('company forms survive access polling, token rotation and background update
     await page.getByRole('button',{name:'Suspender y programar eliminaci\u00f3n',exact:true}).click()
     await page.waitForFunction(()=>window.activeCompany==='company-b')
     await name.waitFor()
+    await page.getByRole('heading',{name:'Eliminaciones de otras empresas',exact:true}).waitFor()
+    assert.equal(await page.evaluate(()=>window.requestedDeletion),'company-a')
+    assert.deepEqual(await page.evaluate(()=>window.jobs.map(job=>job.companyId)),['company-a'])
+    assert.equal(await page.getByText(/Estas solicitudes corresponden a otras empresas/).textContent(),
+      'Estas solicitudes corresponden a otras empresas que administras. No afectan a «B», la empresa abierta.')
+    const notice = page.getByText(/^A: eliminaci\u00f3n programada$/)
+    await notice.waitFor()
+    assert.equal(await notice.evaluate(element => Boolean(
+      document.querySelector('input[aria-label="Nombre comercial"]').compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING
+    )),true,'another company deletion must not appear as a status above the active profile')
+    await page.getByRole('button',{name:'Recuperar empresa',exact:true}).click()
+    await page.getByRole('heading',{name:'Eliminaciones de otras empresas',exact:true}).waitFor({state:'detached'})
+    assert.equal(await page.evaluate(()=>window.cancelledDeletion),'company-a')
+    assert.equal(await page.evaluate(()=>window.activeCompany),'company-b','recovery must preserve the active company')
     assert.equal(await page.evaluate(()=>window.forbiddenRequests),0)
     // A persisted company from an earlier session must also be cleared when
     // the initial membership response has no companies.

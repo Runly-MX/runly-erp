@@ -136,6 +136,12 @@ deben incluir el logotipo que las plantillas adjuntan mediante CID; reconstruir
 ambas imágenes al actualizar ese empaquetado y el cliente web para la transición
 de acceso. Esta corrección no requiere una nueva migración.
 
+El aviso superior del perfil solo describe la empresa abierta. Las solicitudes
+de otras empresas administradas se muestran al final del perfil, en la sección
+«Eliminaciones de otras empresas», indicando que no afectan a la empresa abierta.
+La recuperación usa el identificador de la solicitud y conserva la selección
+actual si sigue disponible.
+
 La suite destructiva exige `RUNLY_LIFECYCLE_TEST_DATABASE_URL` apuntando a una base
 **desechable llamada `runly_lifecycle_test`**. No usa `DATABASE_URL` ni `DIRECT_URL`.
 Recrea sus esquemas y genera el core desde el esquema Prisma del repositorio.

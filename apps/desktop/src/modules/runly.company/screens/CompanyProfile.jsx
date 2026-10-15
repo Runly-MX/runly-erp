@@ -26,7 +26,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
-import { CompanyDeletionBanner, CompanyDeletionPanel } from '../../../company/CompanyDeletionPanel.jsx';
+import { CompanyDeletionBanner, CompanyDeletionPanel, CompanyDeletionRecoveryPanel } from '../../../company/CompanyDeletionPanel.jsx';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -574,6 +574,7 @@ export default function CompanyProfile() {
             </aside>
           </form>
 
+          <CompanyDeletionRecoveryPanel />
           <CompanyDeletionPanel />
         </div>
       </div>
