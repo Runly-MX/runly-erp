@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { createFilesWorkspaceRouter } from './files-workspace.js';
+import { createFilesFoldersRouter } from './files-folders.js';
 import { fileBulkDownloadSchema, fileRenameSchema, fileShareLinkCreateSchema } from "@runly/validators";
 import { createFilePublicLinksService } from "../services/files/public-links.js";
 import { FilesServiceError } from "../services/files-service.js";
@@ -11,6 +12,7 @@ import { IMAGE_VARIANTS, publicUrlWithVariant, signedUrlWithVariant } from "../l
 export function createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }) {
   const app = new Hono();
   app.route('/', createFilesWorkspaceRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }));
+  app.route('/', createFilesFoldersRouter({ prisma, filesService, authMiddleware, requirePermission }));
   const WEBSITE_BUCKET_NAME = "runly-website";
   const linksService = createFilePublicLinksService({ prisma, filesService });
   const linkHandler = (fallback, run) => async (c) => {
@@ -71,6 +73,7 @@ app.post(
           visibility: body.visibility,
           metadata: body.metadata,
           shareWithCompany: body.shareWithCompany,
+          folderId: body.folderId,
         },
       });
 
@@ -182,6 +185,7 @@ app.get(
           q: c.req.query("q"),
           kind: c.req.query("kind"),
           workspace: c.req.query("workspace"),
+          folderId: c.req.query("folderId"),
           moduleKey: c.req.query("moduleKey"),
           entityType: c.req.query("entityType"),
           entityId: c.req.query("entityId"),

@@ -3,26 +3,15 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
-  Button,
-  SelectField,
   ConfirmDialog,
   EmptyState,
   ErrorState,
+  PageFooter,
   PageHeader,
   useOfficeActions,
 } from "@runly/ui";
 import { getOfficeFormat } from "@runly/core";
-import {
-  CheckCircle2,
-  File as FileIcon,
-  Loader2,
-  ChevronLeft,
-  ChevronRight,
-  SearchX,
-  Upload,
-  X,
-  XCircle,
-} from "lucide-react";
+import { FolderOpen, Loader2, SearchX } from "lucide-react";
 import { toast } from "sonner";
 import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -39,7 +28,11 @@ import { AdvancedFileViewer, getFileKind } from "@runly/ui";
 import { FileDetailPanel } from "../components/FileDetailPanel";
 import { FileRenameModal } from "../components/FileRenameModal";
 import { FilesUploadDialog } from "../components/FilesUploadDialog";
-import { FilesWorkspaceTabs, FILES_WORKSPACES } from "../components/FilesWorkspaceTabs";
+import { FilesSidebar, FILES_WORKSPACES } from "../components/FilesSidebar";
+import { FilesFolderManager } from "../components/FilesFolderManager";
+import { FilesUploadQueue } from "../components/FilesUploadQueue";
+import { useFilesFolders } from "../hooks/useFilesFolders";
+import { ROOT_FOLDER, moduleLabel } from "../lib/folders";
 
 function useFileIdFromPath(pathname) {
   return useMemo(() => {
@@ -52,6 +45,8 @@ function useFileIdFromPath(pathname) {
     }
   }, [pathname]);
 }
+
+const PAGE_SIZES = [20, 50, 100];
 
 export default function FilesScreen() {
   const office = useOfficeActions();
@@ -81,7 +76,7 @@ export default function FilesScreen() {
     1,
     Math.min(100000, Number.parseInt(searchParams.get("page"), 10) || 1),
   );
-  const pageSize = [20, 50, 100].includes(Number(searchParams.get("pageSize")))
+  const pageSize = PAGE_SIZES.includes(Number(searchParams.get("pageSize")))
     ? Number(searchParams.get("pageSize"))
     : 20;
   const requestedWorkspace = searchParams.get("workspace");
@@ -90,10 +85,15 @@ export default function FilesScreen() {
     (requestedWorkspace !== "all" || userProfile?.isAdmin)
       ? requestedWorkspace
       : "mine";
+  // "folders" is client-side only: the API lists by folderId and applies its
+  // own read visibility, so it gets no workspace filter.
+  const inFolders = workspace === "folders";
+  const folder = inFolders ? searchParams.get("folder") || ROOT_FOLDER : null;
   const queryParams = {
     page,
     pageSize,
-    workspace,
+    workspace: inFolders ? "" : workspace,
+    folderId: folder ?? "",
     q: searchParams.get("q") || "",
     kind: searchParams.get("kind") || "",
     moduleKey: searchParams.get("moduleKey") || "",
@@ -115,6 +115,12 @@ export default function FilesScreen() {
       { replace: true },
     );
   }
+  const [moveFileIds, setMoveFileIds] = useState(null);
+  const folderApi = useFilesFolders({ token, userId: session?.user?.id, enabled: canReadFiles });
+  const currentFolder = inFolders && folder !== ROOT_FOLDER ? folderApi.folders.find((f) => f.id === folder) : null;
+  const dropTarget = inFolders ? (currentFolder ? `«${currentFolder.name}»` : "Mis carpetas") : "Mis archivos";
+  const selectView = ({ workspace: next, folder: nextFolder = "", moduleKey = "" }) =>
+    changeQuery({ workspace: next, folder: nextFolder, moduleKey, q: "", kind: "", enabled: "" });
   const [viewerOpen, setViewerOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -259,6 +265,7 @@ export default function FilesScreen() {
           formData.append("moduleKey", "runly.files");
           formData.append("entityType", "AtlasFile");
           if (shareWithCompany) formData.append("shareWithCompany", "true");
+          if (currentFolder) formData.append("folderId", currentFolder.id);
           await runly.files.upload(formData, token);
           setUploadQueue((prev) =>
             prev.map((q) => (q.id === item.id ? { ...q, status: "done" } : q)),
@@ -271,12 +278,13 @@ export default function FilesScreen() {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["files-list"] });
+      queryClient.invalidateQueries({ queryKey: ["files-folders"] });
 
       setTimeout(() => {
         setUploadQueue((prev) => prev.filter((q) => q.status === "error"));
       }, 3500);
     },
-    [token, queryClient, canUploadFiles, shareWithCompany],
+    [token, queryClient, canUploadFiles, shareWithCompany, currentFolder],
   );
 
   useEffect(() => {
@@ -589,11 +597,19 @@ export default function FilesScreen() {
           shareWithCompany={shareWithCompany}
           onShareWithCompanyChange={setShareWithCompany}
         />
-        <FilesWorkspaceTabs
-          workspace={workspace}
-          isCompanyAdmin={Boolean(userProfile?.isAdmin)}
-          onChange={(key) => changeQuery({ workspace: key })}
-        />
+        <div className="flex flex-col gap-4 md:flex-row md:items-start">
+          <aside className="md:sticky md:top-4 md:w-52 md:shrink-0">
+            <FilesSidebar
+              workspace={workspace}
+              folder={folder}
+              moduleKey={queryParams.moduleKey}
+              folders={folderApi.folders}
+              modules={folderApi.modules}
+              isCompanyAdmin={Boolean(userProfile?.isAdmin)}
+              onSelect={selectView}
+            />
+          </aside>
+          <div className="min-w-0 flex-1 space-y-6">
         {routeQuery.isError && (
           <ErrorState
             title="No se pudo abrir el archivo enlazado"
@@ -609,6 +625,23 @@ export default function FilesScreen() {
           />
         ) : (
           <>
+            <FilesFolderManager
+              api={folderApi}
+              token={token}
+              folder={folder}
+              showBar={inFolders}
+              canCreate={canUploadFiles}
+              canUpdate={hasPermission("files.assets.update")}
+              canDelete={hasPermission("files.assets.delete")}
+              profileId={userProfile?.id}
+              isCompanyAdmin={Boolean(userProfile?.isAdmin)}
+              moveFileIds={moveFileIds}
+              onMoveFilesClose={(moved) => {
+                setMoveFileIds(null);
+                if (moved) resetSelection([]);
+              }}
+              onOpen={(id) => selectView({ workspace: "folders", folder: id })}
+            />
             <FilesToolbar
               search={explorer.search}
               onSearchChange={explorer.setSearch}
@@ -621,6 +654,7 @@ export default function FilesScreen() {
               onClearSelection={explorer.clearSelection}
               onBulkDirect={handleBulkDirect}
               onBulkZip={handleBulkZip}
+              onMoveSelected={hasPermission("files.assets.update") ? () => setMoveFileIds(explorer.selectedIds) : null}
               bulkLoading={bulkDownloadMutation.isPending}
               sort={explorer.sort}
               onSortChange={explorer.setSort}
@@ -636,6 +670,12 @@ export default function FilesScreen() {
                 title="No se pudieron cargar los archivos"
                 message="Reintenta la carga para continuar."
                 onRetry={() => filesQuery.refetch()}
+              />
+            ) : explorer.filteredFiles.length === 0 && inFolders && !queryParams.q ? (
+              <EmptyState
+                icon={FolderOpen}
+                title={currentFolder ? "Esta carpeta está vacía" : "No hay archivos sueltos aquí"}
+                description="Sube archivos o arrástralos a esta pantalla; también puedes mover archivos existentes desde su menú."
               />
             ) : explorer.filteredFiles.length === 0 ? (
               <EmptyState
@@ -667,6 +707,7 @@ export default function FilesScreen() {
                   })
                 }
                 onDelete={(file) => setDeleteTarget(file)}
+                onMove={hasPermission("files.assets.update") ? (file) => setMoveFileIds([file.id]) : null}
                 canUpdate={hasPermission("files.assets.update")}
                 canDelete={hasPermission("files.assets.delete")}
                 profileId={userProfile?.id}
@@ -704,54 +745,22 @@ export default function FilesScreen() {
                 onDelete={(file) => setDeleteTarget(file)}
               />
             )}
-            <div className="files-workspace-pagination">
-              <span
-                className="text-sm text-[hsl(var(--muted-foreground))]"
-                role="status"
-              >
-                {filesQuery.isFetching
-                  ? "Actualizando…"
-                  : `${pagination?.total ? (page - 1) * pageSize + 1 : 0}–${Math.min(page * pageSize, pagination?.total ?? 0)} de ${pagination?.total ?? 0} archivos`}
-              </span>
-              <div>
-                <SelectField
-                  id="files-page-size"
-                  label="Por página"
-                  value={String(pageSize)}
-                  options={[20, 50, 100].map((size) => ({
-                    value: String(size),
-                    label: String(size),
-                  }))}
-                  onChange={(value) => changeQuery({ pageSize: value })}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label="Página anterior"
-                  disabled={page <= 1 || filesQuery.isFetching}
-                  onClick={() => changeQuery({ page: page - 1 }, false)}
-                >
-                  <ChevronLeft />
-                </Button>
-                <span className="text-sm whitespace-nowrap">
-                  {page} / {pagination?.totalPages ?? 1}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label="Página siguiente"
-                  disabled={
-                    page >= (pagination?.totalPages ?? 1) ||
-                    filesQuery.isFetching
-                  }
-                  onClick={() => changeQuery({ page: page + 1 }, false)}
-                >
-                  <ChevronRight />
-                </Button>
-              </div>
-            </div>
+            <PageFooter
+              total={pagination?.total ?? 0}
+              pageIndex={page - 1}
+              pageCount={pagination?.totalPages ?? 1}
+              pageSize={pageSize}
+              pageSizeOptions={PAGE_SIZES}
+              canPrevious={page > 1 && !filesQuery.isFetching}
+              canNext={page < (pagination?.totalPages ?? 1) && !filesQuery.isFetching}
+              onPrevious={() => changeQuery({ page: page - 1 }, false)}
+              onNext={() => changeQuery({ page: page + 1 }, false)}
+              onPageSizeChange={(size) => changeQuery({ pageSize: size })}
+            />
           </>
         )}
+          </div>
+        </div>
         {newFormat && (
           <CreateDocumentDialog
             key={newFormat}
@@ -778,93 +787,7 @@ export default function FilesScreen() {
         )}
       </div>
 
-      {isDragOver && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-4 rounded-3xl bg-[var(--brand-primary)]/8 border-2 border-dashed border-[var(--brand-primary)]/50 backdrop-blur-sm" />
-          <div className="relative flex flex-col items-center gap-4 text-center">
-            <div className="flex h-24 w-24 items-center justify-center rounded-3xl border border-[var(--brand-primary)]/30 bg-[var(--brand-primary)]/15">
-              <Upload className="h-12 w-12 text-[var(--brand-primary)]" />
-            </div>
-            <div className="space-y-1">
-              <p className="text-2xl font-bold text-[hsl(var(--foreground))]">
-                Suelta los archivos aqui
-              </p>
-              <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                Se subirán a Mis archivos · Máx. 10 MB por archivo
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {uploadQueue.length > 0 && (
-        <div className="fixed bottom-6 right-6 z-40 w-80 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/95 backdrop-blur-sm shadow-2xl overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(var(--border))]">
-            {uploadQueue.some(
-              (q) => q.status === "pending" || q.status === "uploading",
-            ) ? (
-              <Loader2 className="h-4 w-4 animate-spin text-[hsl(var(--muted-foreground))] shrink-0" />
-            ) : (
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium leading-none">
-                {uploadQueue.some(
-                  (q) => q.status === "pending" || q.status === "uploading",
-                )
-                  ? "Subiendo archivos"
-                  : "Carga completada"}
-              </p>
-              <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
-                {uploadQueue.filter((q) => q.status === "done").length} /{" "}
-                {uploadQueue.length} archivos
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setUploadQueue([])}
-              className="ml-1 rounded-md p-1 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="max-h-64 overflow-y-auto divide-y divide-[hsl(var(--border))]">
-            {uploadQueue.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 px-4 py-2.5">
-                <FileIcon className="h-4 w-4 text-[hsl(var(--muted-foreground))] shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs truncate text-[hsl(var(--foreground))]">
-                    {item.name}
-                  </p>
-                  {item.status === "uploading" && (
-                    <div className="mt-1 h-1 rounded-full bg-[hsl(var(--muted))]">
-                      <div className="h-1 w-1/2 rounded-full bg-[var(--brand-primary)] animate-pulse" />
-                    </div>
-                  )}
-                  <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">
-                    {item.status === "pending" && "En cola..."}
-                    {item.status === "uploading" && "Subiendo..."}
-                    {item.status === "done" && "Listo"}
-                    {item.status === "error" && "Error al subir"}
-                  </p>
-                </div>
-                <div className="shrink-0 mt-0.5">
-                  {(item.status === "pending" ||
-                    item.status === "uploading") && (
-                    <Loader2 className="h-4 w-4 animate-spin text-[hsl(var(--muted-foreground))]" />
-                  )}
-                  {item.status === "done" && (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  )}
-                  {item.status === "error" && (
-                    <XCircle className="h-4 w-4 text-[hsl(var(--destructive))]" />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <FilesUploadQueue isDragOver={isDragOver} queue={uploadQueue} onClear={() => setUploadQueue([])} dropTarget={dropTarget} />
 
       <AdvancedFileViewer
         open={viewerOpen}

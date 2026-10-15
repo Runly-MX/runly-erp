@@ -470,6 +470,7 @@ model Company {
   permissionGrants UserPermissionGrant[]
   moduleBuilderProjects ModuleBuilderProject[]
   modulePublicLinks     ModulePublicLink[]
+  fileFolders           FileFolder[]
 
   hrEmployees    HrEmployee[]
   hrDepartments  HrDepartment[]
@@ -707,6 +708,8 @@ model FileAsset {
   enabled       Boolean @default(true)
   isCover       Boolean @default(false) @map("is_cover")
   sortOrder     Int     @default(0) @map("sort_order")
+  folderId      String? @db.Uuid @map("folder_id")
+  folder        FileFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   calendarFiles      CalendarEventFile[]
@@ -716,8 +719,31 @@ model FileAsset {
   @@index([moduleKey, entityType, entityId])
   @@index([entityId, enabled, createdAt, id])
   @@index([entityId, updatedAt, id])
+  @@index([folderId])
   @@unique([uploadedById, creationKey])
   @@map("file_asset")
+}
+
+// Folders of the runly.files explorer. A folder is a company-scoped container
+// for files-origin documents; module attachments stay in their module and show
+// up under the virtual per-module folders instead. scope PRIVATE = only the
+// creator (and admins), COMPANY = the whole company.
+model FileFolder {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId   String   @db.Uuid @map("company_id")
+  parentId    String?  @db.Uuid @map("parent_id")
+  name        String
+  scope       String   @default("PRIVATE")
+  createdById String   @db.Uuid @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent      FileFolder?  @relation("FileFolderTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children    FileFolder[] @relation("FileFolderTree")
+  files       FileAsset[]
+
+  @@index([companyId, parentId])
+  @@map("file_folder")
 }
 
 model FileAssetShare {

@@ -83,22 +83,6 @@
 .files-workspace-tabs button {
   flex-shrink: 0;
 }
-.files-workspace-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 16px 0;
-}
-.files-workspace-pagination > div {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-#files-page-size {
-  min-width: 90px;
-}
 .dark .files-create-tile[data-format="docx"] {
   --file-color: #6aa5f8;
 }

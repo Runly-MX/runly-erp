@@ -23,6 +23,7 @@ import {
   LockKeyhole,
   Building2,
   Power,
+  FolderSymlink,
 } from "lucide-react";
 
 export function FilesWorkspaceTable({
@@ -39,6 +40,7 @@ export function FilesWorkspaceTable({
   onRename,
   onDelete,
   onToggleEnabled,
+  onMove,
   canUpdate,
   canDelete,
   profileId,
@@ -191,6 +193,9 @@ export function FilesWorkspaceTable({
                       icon: Download,
                       onClick: () => onDownload(f),
                     },
+                    ...(onMove && f.entityType === "AtlasFile" && (isCompanyAdmin || f.uploadedById === profileId)
+                      ? [{ label: "Mover a carpeta", icon: FolderSymlink, onClick: () => onMove(f) }]
+                      : []),
                     ...(canUpdate && manageable
                       ? [
                           {
@@ -236,6 +241,7 @@ export function FilesWorkspaceTable({
       onRename,
       onDelete,
       onToggleEnabled,
+      onMove,
       canUpdate,
       canDelete,
       profileId,

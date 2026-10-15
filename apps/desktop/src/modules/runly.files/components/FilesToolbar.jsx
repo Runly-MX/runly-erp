@@ -6,7 +6,7 @@ import {
   SearchInput,
   ViewModeSwitch,
 } from "@runly/ui";
-import { Download, Archive, CheckSquare, Boxes, File, ToggleRight } from "lucide-react";
+import { Download, Archive, CheckSquare, Boxes, File, ToggleRight, FolderSymlink } from "lucide-react";
 
 const FILTERS = [
   {
@@ -50,6 +50,7 @@ export function FilesToolbar({
   onClearSelection,
   onBulkDirect,
   onBulkZip,
+  onMoveSelected,
   bulkLoading,
   sort,
   onSortChange,
@@ -129,6 +130,12 @@ export function FilesToolbar({
               <Archive className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Descargar ZIP</span>
             </Button>
+            {onMoveSelected && (
+              <Button type="button" variant="outline" size="sm" aria-label="Mover a carpeta" onClick={onMoveSelected} disabled={bulkLoading}>
+                <FolderSymlink className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Mover a carpeta</span>
+              </Button>
+            )}
             <Button
               type="button"
               variant="ghost"

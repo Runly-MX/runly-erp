@@ -400,7 +400,25 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       // them with the company; module attachments keep their module's access.
       const filesOrigin = isFilesOrigin({ entityType, moduleKey });
       const shareWithCompany = ["true", "1", true].includes(fields.shareWithCompany);
-      const accessScope = filesOrigin && !shareWithCompany ? "RESTRICTED" : "COMPANY";
+      let accessScope = filesOrigin && !shareWithCompany ? "RESTRICTED" : "COMPANY";
+
+      // Files-explorer uploads can target a folder; uploading into a shared
+      // folder shares the file with the company like moving one there does.
+      let folderId = null;
+      const requestedFolderId = String(fields.folderId ?? "").trim();
+      if (requestedFolderId && filesOrigin) {
+        const folder = await prisma.fileFolder.findFirst({
+          where: {
+            id: requestedFolderId,
+            companyId: context.companyId,
+            ...(context.admin ? {} : { OR: [{ scope: "COMPANY" }, { createdById: context.profileId }] }),
+          },
+          select: { id: true, scope: true },
+        });
+        if (!folder) throw new FilesServiceError("Carpeta no encontrada.", 404);
+        folderId = folder.id;
+        if (folder.scope === "COMPANY") accessScope = "COMPANY";
+      }
 
       const objectKey = buildModuleObjectKey({
         moduleKey,
@@ -437,6 +455,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
           entityType,
           entityId,
           accessScope,
+          folderId,
           uploadedById: context.profileId,
           metadata: {
             ...metadata,
@@ -496,6 +515,10 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       if (workspace === "documents") where.AND.push(filesOriginWhere);
       if (workspace === "modules" || workspace === "attachments") where.AND.push({ NOT: filesOriginWhere });
       if (workspace === "shared") where.AND.push({ shares: { some: { userId: context.profileId, status: "ACCEPTED" } } });
+      // Folder browsing: "root" = files-origin documents not filed in a folder.
+      const folderId = String(query.folderId ?? "").trim();
+      if (folderId === "root") where.AND.push(filesOriginWhere, { folderId: null });
+      else if (folderId) where.AND.push({ folderId });
       if (query.kind) where.AND.push(fileKindWhere(query.kind));
       if (enabled !== undefined) where.enabled = enabled;
       if (moduleKey) where.moduleKey = moduleKey;
@@ -891,6 +914,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     },
     getCompanyAssets,
     getUserCompanyContext,
+    visibility,
     canReadFile: (file, context) => visibility.canRead(file, context),
 
     async enrichFilesWithSignedUrls(associations) {

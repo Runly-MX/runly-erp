@@ -1,9 +1,7 @@
-export function filesError(error) {
+export function filesError(error, fallback = "No se pudo completar la operación.") {
   try {
-    return (
-      JSON.parse(error.message).error || "No se pudo completar la operación."
-    );
+    return JSON.parse(error.message).error || fallback;
   } catch {
-    return "No se pudo completar la operación.";
+    return fallback;
   }
 }

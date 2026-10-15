@@ -49,6 +49,7 @@ const GuestCallScreen = lazy(() => import("../modules/runly.chat/calls/guest/Gue
 const EgressCallScreen = lazy(() => import("../modules/runly.chat/calls/egress/EgressCallScreen.jsx"));
 const PublicBoardScreen = lazy(() => import("../modules/runly.canvas/screens/PublicBoardScreen.jsx"));
 const PublicFileScreen = lazy(() => import("../modules/runly.files/screens/PublicFileScreen.jsx"));
+const PublicFolderScreen = lazy(() => import("../modules/runly.files/screens/PublicFolderScreen.jsx"));
 const AttendanceKioskScreen = lazy(() => import("../modules/runly.attendance/kiosk/KioskScreen.jsx"));
 const AttendancePhoneKeyScreen = lazy(() => import("../modules/runly.attendance/phone/PhoneKeyScreen.jsx"));
 // Public custody (resguardo) signing page: token link, no login, no shell.
@@ -186,6 +187,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="call" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
                     <Route path="canvas/:token" element={<Suspense fallback={null}><PublicBoardScreen /></Suspense>} />
                     <Route path="files/:token" element={<Suspense fallback={null}><PublicFileScreen /></Suspense>} />
+                    <Route path="folders/:token" element={<Suspense fallback={null}><PublicFolderScreen /></Suspense>} />
                     {/* Attendance: offline kiosk + phone key (no login, no shell) */}
                     <Route path="kiosk/:link" element={<Suspense fallback={null}><AttendanceKioskScreen /></Suspense>} />
                     <Route path="attendance/phone" element={<Suspense fallback={null}><AttendancePhoneKeyScreen /></Suspense>} />
@@ -221,6 +223,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="call/:token" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
                     <Route path="call" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
                     <Route path="files/:token" element={<Suspense fallback={null}><PublicFileScreen /></Suspense>} />
+                    <Route path="folders/:token" element={<Suspense fallback={null}><PublicFolderScreen /></Suspense>} />
                     <Route path="*" element={<PublicModuleOutlet />} />
                   </Route>
                   <Route path="*" element={<PublicWebsiteEntry />} />
