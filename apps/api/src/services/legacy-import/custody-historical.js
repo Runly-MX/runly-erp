@@ -99,6 +99,9 @@ export function createCustodyHistorical({ prisma, refs, fileStore, defaultSource
       if (linkItems) {
         const linkLabel = `Resguardo ${custody.folio}`.slice(0, 100);
         for (const { itemId } of custody.items) {
+          // Legacy systems often already attached the same PDF to the item: link it once.
+          const same = assetData.checksum ? await tx.invItemFile.findFirst({ where: { itemId, fileAsset: { checksum: assetData.checksum } }, select: { id: true } }) : null;
+          if (same) continue;
           const count = await tx.invItemFile.count({ where: { itemId } });
           if (count >= MAX_FILES_PER_ITEM) { warnings.push(`El activo ${itemId} ya tiene ${MAX_FILES_PER_ITEM} archivos; el documento no se vinculó.`); continue; }
           await tx.invItemFile.create({ data: { itemId, fileAssetId: asset.id, label: linkLabel, sortOrder: count } });
