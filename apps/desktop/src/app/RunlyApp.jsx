@@ -7,6 +7,7 @@ import { OfflineProvider } from "@runly/offline";
 import { useThemeStore } from "../stores/theme";
 import { useLauncherStore } from "../stores/launcher";
 import { Topbar } from "../components/Topbar";
+import { CompanyDeletionBanner } from "../company/CompanyDeletionPanel.jsx";
 import { AppLauncher } from "../components/AppLauncher";
 import { CommandPalette } from "../components/CommandPalette";
 import { useRuntimeModules } from "./useRuntimeModules";
@@ -306,6 +307,7 @@ export function RunlyApp() {
                 composer). */}
             {/* MirAI docks next to <main> (below the top bar); <main> stays the
                 page scroll container. */}
+            <CompanyDeletionBanner />
             <div className="flex flex-1 min-h-0 min-w-0">
               <div className="relative flex flex-1 min-w-0 min-h-0">
                 <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-clip scrollbar-gutter-stable">

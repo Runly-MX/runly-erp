@@ -105,6 +105,9 @@ export function CompanySwitcher() {
             <span className="hidden xl:inline max-w-30 truncate">
               {activeCompany?.name ?? (companies.length === 0 ? "Sin empresa" : "Empresa")}
             </span>
+            {activeCompany?.deletion && (
+              <span className="h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--destructive))]" title="Esta empresa será eliminada" />
+            )}
             <ChevronDown
               size={12}
               className="text-[hsl(var(--muted-foreground))] shrink-0"
@@ -124,6 +127,11 @@ export function CompanySwitcher() {
                 >
                   <CompanyLogo company={company} size={18} />
                   <span className="flex-1 truncate">{company.name}</span>
+                  {company.deletion && (
+                    <span className="shrink-0 rounded-md bg-[hsl(var(--destructive))]/12 px-1.5 py-0.5 text-[10px] font-medium text-[hsl(var(--destructive))]">
+                      En eliminación
+                    </span>
+                  )}
                   {String(company.id) === String(activeCompany?.id) && (
                     <Check size={13} className="shrink-0" />
                   )}

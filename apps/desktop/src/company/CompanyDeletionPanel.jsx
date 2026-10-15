@@ -11,7 +11,7 @@ import { useActiveCompany } from './ActiveCompanyProvider'
 import { runly } from '../lib/runly'
 
 const CONSEQUENCES = [
-  { icon: Clock, text: 'Todos los accesos a la empresa se suspenden de inmediato. Tendrás 72 horas para recuperarla.' },
+  { icon: Clock, text: 'La empresa pasa a solo lectura de inmediato: nadie podrá hacer cambios, pero los miembros podrán consultar y respaldar su información durante 72 horas. Puedes recuperarla en ese plazo.' },
   { icon: Trash2, text: 'Pasado el plazo se borran de forma definitiva sus datos, archivos y recursos exclusivos.' },
   { icon: Archive, text: 'Tu cuenta y los recursos compartidos con otras empresas se conservan.' },
 ]
@@ -61,13 +61,29 @@ function DeletionNotices({ jobs, restore }) {
   </div>
 }
 
-// The profile status must only describe the company currently being viewed.
+// Shown on every screen while the active company is awaiting deletion. Any
+// member sees the notice; only admins can cancel it.
 export function CompanyDeletionBanner() {
-  const { activeCompanyId } = useActiveCompany()
-  const { isAdmin, jobs, restore } = useDeletionJobs()
-  const current = jobs.filter(job => String(job.companyId) === String(activeCompanyId))
-  if (!isAdmin || !current.length) return null
-  return <DeletionNotices jobs={current} restore={restore} />
+  const { activeCompany } = useActiveCompany()
+  const { isAdmin, restore } = useDeletionJobs()
+  const deletion = activeCompany?.deletion
+  if (!deletion) return null
+  const pending = deletion.state === 'PENDING'
+  const canRestore = isAdmin && pending && new Date(deletion.purgeAfter) > new Date()
+  return <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
+    <AlertTriangle className="h-4 w-4" />
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="min-w-0">
+        <AlertTitle>Esta empresa será eliminada</AlertTitle>
+        <AlertDescription>
+          {pending
+            ? `Puedes consultar y respaldar tu información, pero no hacer cambios. El borrado definitivo comenzará el ${new Date(deletion.purgeAfter).toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' })}.`
+            : 'Se están eliminando los datos y archivos de la empresa.'}
+        </AlertDescription>
+      </div>
+      {canRestore && <Button variant="outline" size="sm" loading={restore.isPending} onClick={() => restore.mutate(activeCompany.id)}>Cancelar eliminación</Button>}
+    </div>
+  </Alert>
 }
 
 // Keep recovery reachable after suspension selects another company, without
@@ -97,13 +113,13 @@ function ScheduleDeletionDialog({ open, onOpenChange }) {
   const name = activeCompany?.name ?? ''
   const schedule = useMutation({
     mutationFn: companyId => runly.company.requestDeletion(companyId, { confirmation, password, notifyMembers }, session?.access_token),
-    onSuccess: (result, companyId) => {
+    onSuccess: result => {
       toast.success('La eliminación de la empresa quedó programada. Puedes recuperarla durante 72 horas.')
       const notice = result?.data?.notice
       if (notice?.sent) toast.success(`Aviso enviado a ${notice.sent} ${notice.sent === 1 ? 'miembro' : 'miembros'}.`)
       if (notice?.failed) toast.warning(`La eliminación sigue programada, pero no se pudo enviar el aviso a algunos miembros. ${NOTICE_FAILURES[notice.reasons?.[0]] ?? 'No se confirmó el envío del correo.'}`)
       close(false)
-      return refreshCompanyAccess({ removedCompanyId: companyId })
+      return refreshCompanyAccess()
     },
   })
   function close(value) {
@@ -120,7 +136,7 @@ function ScheduleDeletionDialog({ open, onOpenChange }) {
           </span>
           <div className="min-w-0 space-y-1.5">
             <DialogTitle>Eliminar empresa</DialogTitle>
-            <DialogDescription>Esta acción suspende «{name}» y programa su borrado definitivo.</DialogDescription>
+            <DialogDescription>Esta acción deja «{name}» en solo lectura y programa su borrado definitivo.</DialogDescription>
           </div>
         </div>
       </div>
@@ -151,7 +167,7 @@ function ScheduleDeletionDialog({ open, onOpenChange }) {
       </div>
       <DialogFooter className="mt-0 shrink-0 gap-2 border-t border-[hsl(var(--border))] px-6 py-4 sm:gap-3">
         <Button variant="outline" onClick={() => close(false)} disabled={schedule.isPending}>Cancelar</Button>
-        <Button variant="destructive" loading={schedule.isPending} disabled={!ready} onClick={() => schedule.mutate(activeCompany.id)}>Suspender y programar eliminación</Button>
+        <Button variant="destructive" loading={schedule.isPending} disabled={!ready} onClick={() => schedule.mutate(activeCompany.id)}>Programar eliminación</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
@@ -166,7 +182,7 @@ export function CompanyDeletionPanel() {
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="min-w-0 max-w-2xl space-y-1">
         <h3 className="text-sm font-semibold text-[hsl(var(--destructive))]">Zona de peligro</h3>
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Eliminar esta empresa suspende el acceso de todos sus miembros. Podrás recuperarla durante 72 horas; después se borrarán sus datos de forma definitiva.</p>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">Eliminar esta empresa la deja en solo lectura para todos sus miembros. Podrás recuperarla durante 72 horas; después se borrarán sus datos de forma definitiva.</p>
       </div>
       <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => setOpen(true)}>Eliminar esta empresa</Button>
     </div>

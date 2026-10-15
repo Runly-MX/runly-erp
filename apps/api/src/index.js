@@ -1685,6 +1685,11 @@ app.get("/memberships/me", authMiddleware, async (c) => {
       );
     }
 
+    const deletionRows = memberships.length
+      ? await prisma.$queryRaw`SELECT company_id::text AS "companyId", state, purge_after AS "purgeAfter" FROM runly_lifecycle.company_deletion
+          WHERE company_id = ANY(${memberships.map((m) => m.companyId)}::uuid[]) AND state IN ('PENDING','PURGING','FAILED')`
+      : [];
+    const deletionByCompany = new Map(deletionRows.map((r) => [r.companyId, r]));
     const data = memberships.filter((m) => !m.role?.companyId || m.role.companyId === m.companyId).map((m) => {
       const logoFileId = m.company?.brandingConfig?.logoFileId;
       return {
@@ -1698,6 +1703,7 @@ app.get("/memberships/me", authMiddleware, async (c) => {
               slug: m.company.slug,
               logoUrl: logoFileId ? (logoUrlMap.get(logoFileId) ?? null) : null,
               primaryColor: m.company.brandingConfig?.primaryColor ?? null,
+              deletion: deletionByCompany.get(m.companyId) ?? null,
             }
           : null,
       };

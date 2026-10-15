@@ -39,7 +39,8 @@ export function createCompanyDeletionService({ prisma, supabaseAdmin, resources 
         VALUES ($1::uuid, $2::uuid, $3) ON CONFLICT (company_id) DO UPDATE SET state = 'PENDING',
         requested_by = EXCLUDED.requested_by, requested_at = now(), purge_after = now() + interval '72 hours',
         previous_enabled = EXCLUDED.previous_enabled, updated_at = now(), error_code = NULL, attempts = 0, completed_at = NULL`, companyId, member.userId, member.company.enabled)
-      await db.company.update({ where: { id: companyId }, data: { enabled: false } })
+      // The company stays enabled during the recovery window so members can still
+      // read and rescue data; DB guards freeze writes. It is disabled when purging starts.
       return { companyId, created: true, companyName: member.company.name, requestedByName: member.user?.displayName ?? null }
     }, { timeout: 120_000 })
     invalidateCache(companyId); invalidatePrimaryCache()
@@ -112,6 +113,8 @@ export function createCompanyDeletionService({ prisma, supabaseAdmin, resources 
           const [job] = await db.$queryRawUnsafe(`UPDATE runly_lifecycle.company_deletion SET state = 'PURGING', attempts = attempts + 1, updated_at = now(), error_code = NULL
             WHERE company_id = $1::uuid AND state IN ('PENDING','PURGING','FAILED') AND purge_after <= now() RETURNING company_id`, companyId)
           if (!job) return false
+          await db.$executeRawUnsafe("SELECT set_config('runly.lifecycle_purge', 'on', true)")
+          await db.company.update({ where: { id: companyId }, data: { enabled: false } })
           await resources.stopCaptures?.({ db, companyId })
           await inventoryCompany(db, companyId)
           await resources.prepare?.({ db, companyId })
