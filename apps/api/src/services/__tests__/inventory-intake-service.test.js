@@ -14,6 +14,7 @@ function fixture({ matches = [], definitions = [], vision, configured = true } =
   const db = {
     invItem: {
       findMany: async q => { queries.push(q); return matches; },
+      findFirst: async () => null,
       create: async ({ data }) => { const row = { id: `item-${items.length}`, ...data }; items.push(row); return row; },
     },
     invCustomField: { findMany: async () => definitions },

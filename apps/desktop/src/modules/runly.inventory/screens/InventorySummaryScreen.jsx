@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { itemLabel } from '../lib/item-label.js'
 import { useNavigate } from 'react-router-dom'
 import { Button, EmptyState, ErrorState } from '@runly/ui'
 import { ClipboardCheck, List, ShieldCheck } from 'lucide-react'
@@ -108,7 +109,7 @@ export default function InventorySummaryScreen() {
       )}
 
       <InventoryAdminTransitionDialog action={review?.action} itemId={review?.item.id}
-        itemLabel={review ? `${review.item.name} (${review.item.assetTag})` : ''}
+        itemLabel={review ? itemLabel(review.item) : ''}
         open={Boolean(review)} onOpenChange={(open) => { if (!open) setReview(null) }} />
     </div>
   )

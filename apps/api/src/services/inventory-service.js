@@ -5,6 +5,7 @@ import { buildInventoryWhere } from './inventory-query.js';
 import { InventoryServiceError, assertCompany, createRefGuard } from './inventory-guards.js';
 import { createInventoryCatalogService } from './inventory-catalog-service.js';
 import { DEFAULT_LISTED_ADMIN_STATUSES } from './inventory-admin-service.js';
+import { assertNoActiveDuplicates, cleanIdentifier } from './inventory-identifiers.js';
 import { publishDomainEvent } from './domain-events/events.js';
 import { assignItemTx, returnItemTx } from './inventory-assignment-tx.js';
 
@@ -298,6 +299,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     const adminStatus = data.adminStatus ?? 'registered';
     if (!CREATABLE_ADMIN_STATUSES.has(adminStatus)) throw new InventoryServiceError('Un activo nuevo solo puede registrarse como Alta o Pendiente de alta.', 400);
     const creatorProfileId = await resolveProfileId(creatorId);
+    await assertNoActiveDuplicates(prisma, companyId, { assetTag: data.assetTag, serialNumber: data.serialNumber });
     let assetTag = data.assetTag;
     if (!assetTag) {
       const year = new Date().getFullYear();
@@ -497,6 +499,12 @@ export function createInventoryService({ prisma, activityBridge }) {
       customValues,
       removedCustomFieldIds,
     } = data;
+
+    const serialChanged = serialNumber !== undefined && cleanIdentifier(serialNumber) !== cleanIdentifier(existing.serialNumber);
+    const tagChanged = assetTag !== undefined && cleanIdentifier(assetTag) !== cleanIdentifier(existing.assetTag);
+    if (serialChanged || tagChanged) {
+      await assertNoActiveDuplicates(prisma, companyId, { assetTag: tagChanged ? assetTag : null, serialNumber: serialChanged ? serialNumber : null, excludeId: id });
+    }
 
     const updateData = {};
     if (name !== undefined) {

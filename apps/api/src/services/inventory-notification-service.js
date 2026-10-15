@@ -94,7 +94,7 @@ export function createInventoryNotificationService({ prisma, notificationService
         input: {
           eventType: 'inventory.item.deregistration_proposed',
           title: 'Propuesta de baja por autorizar',
-          body: `«${item.name}» (${item.assetTag})${reason ? ` · ${REASON_LABELS[reason] ?? reason}` : ''}`,
+          body: `«${item.name}»${item.assetTag ? ` (${item.assetTag})` : ""}${reason ? ` · ${REASON_LABELS[reason] ?? reason}` : ''}`,
           link: `/app/m/runly.inventory/inventory/${item.id}`,
           recipients: { userIds: recipients },
           channels: ['in_app', 'email', 'web_push'],

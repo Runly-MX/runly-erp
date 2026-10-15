@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { itemLabel } from '../lib/item-label.js'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ErrorState, ConfirmDialog, DetailActionBar, Button, DetailSkeleton } from '@runly/ui'
 import { InventoryItemPresentation } from '@runly/ui/integrations'
@@ -95,7 +96,7 @@ export default function InventoryItemDetail() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Desactivar activo"
-        description={`"${item.name}" (${item.assetTag}): Dejará de mostrarse en el inventario; sus datos se conservan. Podrás reactivarlo o eliminarlo definitivamente en Inventario > Desactivados.`}
+        description={`"${itemLabel(item)}": Dejará de mostrarse en el inventario; sus datos se conservan. Podrás reactivarlo o eliminarlo definitivamente en Inventario > Desactivados.`}
         confirmLabel="Desactivar"
         onConfirm={handleDelete}
       />

@@ -1,9 +1,12 @@
 // inventory-guards.js — error type and tenant guards shared by the inventory services.
 export class InventoryServiceError extends Error {
-  constructor(message, status = 500) {
+  // code/details travel to the client (e.g. SERIAL_EXISTS + the existing item).
+  constructor(message, status = 500, code = null, details = null) {
     super(message);
     this.name = 'InventoryServiceError';
     this.status = status;
+    this.code = code;
+    this.details = details;
   }
 }
 

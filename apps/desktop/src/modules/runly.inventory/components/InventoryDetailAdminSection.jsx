@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { itemLabel } from '../lib/item-label.js'
 import { Button, Skeleton } from '@runly/ui'
 import { FileText } from 'lucide-react'
 import { ADMIN_ACTIONS, ADMIN_STATUS_BY_VALUE, actionsFor, reasonLabel } from '../lib/admin-status.js'
@@ -83,7 +84,7 @@ export default function InventoryDetailAdminSection({ data: item }) {
         )}
       </div>
 
-      <InventoryAdminTransitionDialog action={action} itemId={item.id} itemLabel={`${item.name} (${item.assetTag})`}
+      <InventoryAdminTransitionDialog action={action} itemId={item.id} itemLabel={itemLabel(item)}
         open={Boolean(action)} onOpenChange={(open) => { if (!open) setAction(null) }} />
     </div>
   )

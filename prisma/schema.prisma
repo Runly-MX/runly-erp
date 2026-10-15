@@ -3604,7 +3604,8 @@ model InvModel {
 model InvItem {
   id            String    @id @default(uuid(7)) @db.Uuid
   companyId     String    @db.Uuid @map("company_id")
-  assetTag      String    @db.VarChar(100) @map("asset_tag")
+  // Optional; unique per company among enabled items only (partial unique index in the migration).
+  assetTag      String?   @db.VarChar(100) @map("asset_tag")
   name          String    @db.VarChar(255)
   description   String?   @db.VarChar(2000)
   itemType      String?   @db.VarChar(50) @map("item_type")
@@ -3653,7 +3654,7 @@ model InvItem {
   files        InvItemFile[]
   custodyItems InvCustodyItem[]
 
-  @@unique([companyId, assetTag])
+  @@index([companyId, assetTag])
   @@index([companyId, status])
   @@index([companyId, adminStatus])
   @@index([conditionId])

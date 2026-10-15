@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { itemLabel } from '../lib/item-label.js'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { PageHeader, ErrorState, Button, ConfirmDialog, FormSkeleton } from '@runly/ui'
@@ -168,7 +169,7 @@ export default function InventoryItemForm() {
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
           title="Desactivar activo"
-          description={`"${editItem.name}" (${editItem.assetTag}): Dejará de mostrarse en el inventario; sus datos se conservan. Podrás reactivarlo o eliminarlo definitivamente en Inventario > Desactivados.`}
+          description={`"${itemLabel(editItem)}": Dejará de mostrarse en el inventario; sus datos se conservan. Podrás reactivarlo o eliminarlo definitivamente en Inventario > Desactivados.`}
           confirmLabel="Desactivar"
           onConfirm={handleDelete}
         />

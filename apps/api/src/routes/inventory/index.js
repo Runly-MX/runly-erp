@@ -14,6 +14,7 @@ import { createInventoryCustodyRouter } from './custody-routes.js';
 import { createInventoryModelService } from '../../services/inventory-model-service.js';
 import { createCoreTargetConnections } from '../../services/connections/core-target-connections.js';
 import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js';
+import { findActiveDuplicates } from '../../services/inventory-identifiers.js';
 import { publishActivityFromContext, getActivityContext } from '../../services/activity-publisher.js';
 
 export function createInventoryRouter({
@@ -38,6 +39,8 @@ export function createInventoryRouter({
   const modelDefaults = createInventoryModelService({ prisma });
 
   const isInvErr = (err) => err instanceof InventoryServiceError;
+  // `code` + `details` (e.g. SERIAL_EXISTS with the existing item) reach the client when present.
+  const invErrorBody = (err) => ({ error: err.message, ...(err.code ? { code: err.code, details: err.details ?? null } : {}) });
 
   // Audit-trail entries for files on an item (comments publish from comments-service) (spec
   // 2026-10-03-audit-trail-design §2.5). Best effort: never fails the write.
@@ -58,6 +61,16 @@ export function createInventoryRouter({
   const isCommentErr = (err) => err instanceof CommentsServiceError || err?.status === 404;
 
   // ── Items ────────────────────────────────────────────────────────────────
+  // Live duplicate check for the forms: which ACTIVE item already uses this serial / asset number.
+  router.get("/inventory/items/check-identifiers", requirePermission("inventory.item.read"), async (c) => {
+    try {
+      const { assetTag, serialNumber, excludeId } = c.req.query();
+      const data = await findActiveDuplicates(prisma, c.get("companyId"), { assetTag, serialNumber, excludeId: excludeId || null });
+      return c.json({ data });
+    } catch (err) {
+      return c.json({ error: "No se pudo comprobar el número." }, 500);
+    }
+  });
   router.get("/inventory/items", requirePermission("inventory.item.read"), async (c) => {
     try {
       const companyId = c.get("companyId");
@@ -67,7 +80,7 @@ export function createInventoryRouter({
       // `pagination` is the shape RunlyTable reads for its page footer.
       return c.json({ ...result, pagination: { page: result.page, pageSize: result.limit, total: result.total } });
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudieron cargar los items." }, 500);
     }
   });
@@ -83,7 +96,7 @@ export function createInventoryRouter({
     } catch (err) {
       const connectionError = itemConnections.errorResponse(c, err);
       if (connectionError) return connectionError;
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo crear el item." }, 500);
     }
   });
@@ -95,7 +108,7 @@ export function createInventoryRouter({
       const items = await inventoryService.getItemsByEmployee(empId, companyId);
       return c.json({ data: items });
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudieron cargar los items del colaborador." }, 500);
     }
   });
@@ -108,7 +121,7 @@ export function createInventoryRouter({
       await attachUserAvatarUrls([item.assignedTo], { prisma, supabaseAdmin });
       return c.json({ data: item });
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo cargar el item." }, 500);
     }
   });
@@ -124,7 +137,7 @@ export function createInventoryRouter({
     } catch (err) {
       const connectionError = itemConnections.errorResponse(c, err);
       if (connectionError) return connectionError;
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo actualizar el item." }, 500);
     }
   });
@@ -143,7 +156,7 @@ export function createInventoryRouter({
     } catch (err) {
       const connectionError = itemConnections.errorResponse(c, err);
       if (connectionError) return connectionError;
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo actualizar el item." }, 500);
     }
   });
@@ -155,7 +168,7 @@ export function createInventoryRouter({
       await inventoryService.deleteItem(id, companyId, c.get("authUserId"));
       return c.json({ success: true });
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo eliminar el item." }, 500);
     }
   });
@@ -169,7 +182,7 @@ export function createInventoryRouter({
       const result = await inventoryService.assignItem(id, employeeId, authUserId, notes, companyId);
       return c.json({ data: result }, 201);
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo asignar el item." }, 500);
     }
   });
@@ -183,7 +196,7 @@ export function createInventoryRouter({
       const result = await inventoryService.returnItem(id, authUserId, body.notes, companyId);
       return c.json({ data: result });
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo registrar la devolucion del item." }, 500);
     }
   });
@@ -196,7 +209,7 @@ export function createInventoryRouter({
       await attachUserAvatarUrls(history.flatMap((row) => [row.employee, row.assignedBy]), { prisma, supabaseAdmin });
       return c.json({ data: history });
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo cargar el historial de asignaciones." }, 500);
     }
   });
@@ -210,7 +223,7 @@ export function createInventoryRouter({
       const enriched = enrichFilesWithSignedUrls ? await enrichFilesWithSignedUrls(files) : files;
       return c.json({ data: enriched });
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudieron cargar los archivos." }, 500);
     }
   });
@@ -229,7 +242,7 @@ export function createInventoryRouter({
       await itemActivity(c, id, 'file.add', 'adjuntó un archivo', await fileName(fileAssetId));
       return c.json({ data: record }, 201);
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo asociar el archivo." }, 500);
     }
   });
@@ -244,7 +257,7 @@ export function createInventoryRouter({
       await itemActivity(c, id, 'file.remove', 'eliminó un archivo', removedName);
       return c.json({ success: true });
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo eliminar el archivo." }, 500);
     }
   });
@@ -256,7 +269,7 @@ export function createInventoryRouter({
       const record = await inventoryService.setItemFileCover(id, docId, companyId);
       return c.json({ data: record });
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo marcar la portada." }, 500);
     }
   });
@@ -269,7 +282,7 @@ export function createInventoryRouter({
       await inventoryService.reorderItemFiles(id, companyId, items);
       return c.json({ ok: true });
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo reordenar." }, 500);
     }
   });
@@ -364,7 +377,7 @@ export function createInventoryRouter({
       const result = await inventoryService.listAllAssignments({ companyId, employeeId, itemId, active: active === "true", page: Number(page) || 1, limit: Number(limit) || 50 });
       return c.json(result);
     } catch (err) {
-      if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudieron cargar las asignaciones." }, 500);
     }
   });
@@ -388,7 +401,7 @@ export function createInventoryRouter({
             : await inventoryService[listFn](companyId);
         return c.json({ data: rows });
       } catch (err) {
-        if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+        if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
         return c.json({ error: `No se pudieron cargar ${plural}.` }, 500);
       }
     });
@@ -400,7 +413,7 @@ export function createInventoryRouter({
         const row = await inventoryService[createFn](data, companyId);
         return c.json({ data: row }, 201);
       } catch (err) {
-        if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+        if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
         return c.json({ error: `No se pudo crear ${singular}.` }, 500);
       }
     });
@@ -412,7 +425,7 @@ export function createInventoryRouter({
         await inventoryService[reorderFn](companyId, items);
         return c.json({ ok: true });
       } catch (err) {
-        if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+        if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
         return c.json({ error: "No se pudo reordenar." }, 500);
       }
     });
@@ -425,7 +438,7 @@ export function createInventoryRouter({
         const row = await inventoryService[updateFn](id, data, companyId);
         return c.json({ data: row });
       } catch (err) {
-        if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+        if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
         return c.json({ error: `No se pudo actualizar ${singular}.` }, 500);
       }
     });
@@ -437,7 +450,7 @@ export function createInventoryRouter({
         await inventoryService[deleteFn](id, companyId);
         return c.json({ success: true });
       } catch (err) {
-        if (isInvErr(err)) return c.json({ error: err.message }, err.status);
+        if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
         return c.json({ error: `No se pudo eliminar ${singular}.` }, 500);
       }
     });

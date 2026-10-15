@@ -3,11 +3,12 @@
 // generic RME3 provider; Prisma FK errors (P2003, including Connections
 // "Impedir la eliminación") become TrashInUseError.
 import { TrashError, TrashInUseError, isForeignKeyViolation } from './trash-errors.js'
+import { findActiveDuplicates } from '../inventory-identifiers.js'
 
 const PAGE_SIZE = 25
 
 // scope: where-fragment that ties a row to the company (default: its own companyId column).
-export function prismaProvider({ id, table, moduleKey, moduleName, label, pluralLabel, restorePermission, purgePermission = null, delegate, toLabel, searchWhere, select, scope = (companyId) => ({ companyId }) }) {
+export function prismaProvider({ id, table, moduleKey, moduleName, label, pluralLabel, restorePermission, purgePermission = null, delegate, toLabel, searchWhere, select, beforeRestore = null, scope = (companyId) => ({ companyId }) }) {
   const where = (companyId, extra = {}) => ({ ...scope(companyId), enabled: false, ...extra })
   const find = async (prisma, companyId, recordId) => {
     const row = await prisma[delegate].findFirst({ where: where(companyId, { id: recordId }), select })
@@ -34,6 +35,7 @@ export function prismaProvider({ id, table, moduleKey, moduleName, label, plural
     },
     async restore({ prisma, companyId }, recordId) {
       const row = await find(prisma, companyId, recordId)
+      if (beforeRestore) await beforeRestore({ prisma, companyId }, row)
       await prisma[delegate].update({ where: { id: row.id }, data: { enabled: true } })
       return { id: row.id, label: toLabel(row) }
     },
@@ -56,7 +58,13 @@ export const CORE_TRASH_PROVIDERS = Object.freeze([
   prismaProvider({
     id: 'runly.inventory:item', table: 'inv_item', moduleKey: 'runly.inventory', moduleName: 'Inventario',
     label: 'Artículo', pluralLabel: 'Artículos', restorePermission: 'inventory.item.delete', delegate: 'invItem',
-    select: { id: true, name: true, assetTag: true, updatedAt: true },
+    select: { id: true, name: true, assetTag: true, serialNumber: true, updatedAt: true },
+    // A reactivated item must not repeat the serial / asset number of an active one.
+    beforeRestore: async ({ prisma, companyId }, row) => {
+      const found = await findActiveDuplicates(prisma, companyId, { assetTag: row.assetTag, serialNumber: row.serialNumber, excludeId: row.id })
+      if (found.serialNumber) throw new TrashError(`No se puede reactivar: ya existe un inventario activo con el número de serie ${row.serialNumber}. Cámbialo o desactiva el otro primero.`, 409, 'identifier_exists', { item: found.serialNumber })
+      if (found.assetTag) throw new TrashError(`No se puede reactivar: ya existe un inventario activo con el número de activo ${row.assetTag}. Cámbialo o desactiva el otro primero.`, 409, 'identifier_exists', { item: found.assetTag })
+    },
     toLabel: (row) => [row.name, row.assetTag].filter(Boolean).join(' · '),
     searchWhere: (term) => ({ OR: [{ name: contains(term) }, { assetTag: contains(term) }] }),
   }),

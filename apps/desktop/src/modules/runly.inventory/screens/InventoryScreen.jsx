@@ -225,7 +225,7 @@ export default function InventoryScreen() {
         onOpenChange={v => !v && setConfirmDelete(null)}
         title="Desactivar activo"
         description="Dejará de mostrarse en el inventario; sus datos se conservan. Podrás reactivarlo o eliminarlo definitivamente en Inventario > Desactivados."
-        detail={confirmDelete ? `${confirmDelete.assetTag} — ${confirmDelete.name}` : ''}
+        detail={confirmDelete ? [confirmDelete.assetTag, confirmDelete.name].filter(Boolean).join(' — ') : ''}
         confirmLabel="Desactivar"
         onConfirm={() => deleteMutation.mutate(confirmDelete.id)}
         loading={deleteMutation.isPending}
