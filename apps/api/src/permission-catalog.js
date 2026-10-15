@@ -1678,6 +1678,24 @@ export const PERMISSION_CATALOG = {
     groupKey: "inventory",
     order: 34,
   },
+  "inventory.label.read": {
+    displayNameEs: "Ver etiquetas de inventario",
+    descriptionEs: "Permite ver las plantillas e impresoras de etiquetas, el historial de impresion y el estado de etiquetado de los equipos.",
+    groupKey: "inventory",
+    order: 35,
+  },
+  "inventory.label.print": {
+    displayNameEs: "Imprimir etiquetas de inventario",
+    descriptionEs: "Permite generar e imprimir etiquetas con codigo QR de los equipos.",
+    groupKey: "inventory",
+    order: 36,
+  },
+  "inventory.label.manage": {
+    displayNameEs: "Gestionar etiquetas de inventario",
+    descriptionEs: "Permite crear y editar las plantillas e impresoras de etiquetas.",
+    groupKey: "inventory",
+    order: 37,
+  },
   // -----------------------------------------------------------------------
   // runly.purchases
   // -----------------------------------------------------------------------

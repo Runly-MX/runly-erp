@@ -1409,6 +1409,9 @@ export const inventoryMap = createModuleManifest({
     { key: 'inventory.custody.deliver_on_behalf', name: 'Generar resguardos a nombre de otra persona' },
     { key: 'inventory.custody.complete_unsigned', name: 'Completar resguardos sin firma' },
     { key: 'inventory.template.manage',    name: 'Gestionar plantillas de documentos de inventario' },
+    { key: 'inventory.label.read',         name: 'Ver etiquetas de inventario' },
+    { key: 'inventory.label.print',        name: 'Imprimir etiquetas de inventario' },
+    { key: 'inventory.label.manage',       name: 'Gestionar etiquetas de inventario' },
   ],
   acl: {
     module: 'inventory.access',
@@ -1430,6 +1433,9 @@ export const inventoryMap = createModuleManifest({
       'inventory.custody.deliver_on_behalf': 'inventory.custody.deliver_on_behalf',
       'inventory.custody.complete_unsigned': 'inventory.custody.complete_unsigned',
       'inventory.template.manage':    'inventory.template.manage',
+      'inventory.label.read':         'inventory.label.read',
+      'inventory.label.print':        'inventory.label.print',
+      'inventory.label.manage':       'inventory.label.manage',
     },
   },
   blueprints: [
