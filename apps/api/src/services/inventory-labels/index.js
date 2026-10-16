@@ -11,6 +11,8 @@ import { renderPng } from './png.js';
 
 export * from './layout.js';
 export { createPlaceholderQrUrl, embeddedQrText } from './qr-content.js';
+// The API geometry (QR matrix injected), not the bare core one re-exported by layout.js.
+export { computeGeometry };
 
 export function buildLabel(layout, item, { companyName, resolveItemQrUrl }) {
   const lines = selectLines(layout, item, { companyName });

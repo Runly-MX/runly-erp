@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.js",
     "./native-runtime": "./src/native-runtime.js",
-    "./browser": "./src/browser.js"
+    "./browser": "./src/browser.js",
+    "./labels": "./src/labels/index.js"
   },
   "scripts": {
     "test": "node --test src/__tests__/*.test.js"

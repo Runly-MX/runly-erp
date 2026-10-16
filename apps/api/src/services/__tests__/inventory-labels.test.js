@@ -96,7 +96,8 @@ describe('studio options (text, qr-only, sheet)', () => {
     assert.deepEqual(lines.map((l) => l.text), ['Folio: TEL-CIS-CP7-1', 'Serie: SN123']);
     const fine = computeGeometry(layout, lines, 'x');
     assert.ok(fine.text[1].fontMm <= 3);
-    const long = computeGeometry(layout, [{ key: 'name', text: 'Nombre larguisimo '.repeat(6) }], 'x');
+    // Long text wraps first; only a block that cannot fit even at the floor size overflows.
+    const long = computeGeometry(layout, [{ key: 'name', text: 'Nombre larguisimo '.repeat(30) }], 'x');
     assert.ok(long.overflow > 0);
     assert.throws(() => normalizeLayout({ preset: '50x25', textOptions: { fontMm: 40 } }), /tamaño del texto/);
   });

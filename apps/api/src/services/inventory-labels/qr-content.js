@@ -1,27 +1,9 @@
-// qr-content.js — what the QR of a label encodes.
-//
-// PHASE 2 PLACEHOLDER: the default resolver builds `<base>/app/p/inv/f-<folio>`
-// so labels can be printed before Phase 3. Phase 3 (public page) replaces it by
-// injecting a resolveItemQrUrl(item) that returns the opaque revocable token
-// URL `<base>/app/p/inv/<token>`; nothing else in this package changes.
+// qr-content.js — what the QR of a label encodes and its module matrix.
+// The default resolver builds the provisional `<base>/app/p/inv/f-<folio>`;
+// the label service injects resolveItemQrUrl(item) with the public token URL.
 import QRCode from 'qrcode';
 
-export function createPlaceholderQrUrl(publicBaseUrl) {
-  const base = String(publicBaseUrl ?? '').replace(/\/+$/, '');
-  return (item) => `${base}/app/p/inv/f-${encodeURIComponent(item.folio || item.id)}`;
-}
-
-// "embedded" mode: plain text folio|serial|model for offline scanners. It can
-// go stale when the item changes (the UI warns about it).
-export function embeddedQrText(item) {
-  return [item.folio ?? '', item.serialNumber ?? '', item.model ?? item.modelName ?? '']
-    .map((part) => String(part).replace(/\|/g, '/'))
-    .join('|');
-}
-
-export function qrContent(item, qrOptions, resolveItemQrUrl) {
-  return qrOptions.contentMode === 'embedded' ? embeddedQrText(item) : resolveItemQrUrl(item);
-}
+export { createPlaceholderQrUrl, embeddedQrText, qrContent } from '@runly/core/labels';
 
 // Boolean module matrix: { count, isDark(row, col) }.
 export function qrMatrix(content, errorCorrection = 'M') {

@@ -1,5 +1,5 @@
 // inventory-labels-composition.test.js — text/QR alignment, QR scale, margin and
-// gap in the shared label geometry, plus the legacy-output regression.
+// gap in the shared label geometry, plus the legacy QR-placement regression.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeLayout, recommendedComposition, renderLabels, withNewTemplateDefaults, createPlaceholderQrUrl } from '../inventory-labels/index.js';
@@ -7,73 +7,44 @@ import { computeGeometry } from '../inventory-labels/geometry.js';
 import { renderLabelSvg } from '../inventory-labels/png.js';
 import { qrMatrix } from '../inventory-labels/qr-content.js';
 
-// Frozen copy of computeGeometry before composition options existed (2026-10-15).
-function legacyGeometry(layout, lines, content) {
+// Frozen copy of the QR placement before composition options existed
+// (2026-10-15). The text part of that frozen copy was dropped on purpose when
+// text became one uniform, wrapping size (see inventory-labels-text.test.js).
+function legacyQr(layout, lines, content) {
   const PAD_MM = 1.5;
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  const truncate = (text, maxChars) => (text.length > maxChars ? `${text.slice(0, Math.max(1, maxChars - 1))}…` : text);
   const { widthMm: w, heightMm: h, qrOptions } = layout;
-  let qr = null;
-  let area = { x: PAD_MM, y: PAD_MM, w: w - 2 * PAD_MM, h: h - 2 * PAD_MM };
-  if (layout.layout !== 'text-only' && content != null) {
-    const matrix = qrMatrix(content, qrOptions.errorCorrection);
-    if (layout.layout === 'qr-only') {
-      const size = Math.min(w, h) - 2 * PAD_MM;
-      qr = { x: (w - size) / 2, y: (h - size) / 2, size };
-      area = { x: 0, y: 0, w: 0, h: 0 };
-    } else if (layout.layout === 'qr-left') {
-      const size = Math.min(h - 2 * PAD_MM, w * 0.45);
-      qr = { x: PAD_MM, y: (h - size) / 2, size };
-      area = { x: PAD_MM * 2 + size, y: PAD_MM, w: w - size - PAD_MM * 3, h: h - 2 * PAD_MM };
-    } else {
-      const size = Math.min(h * (lines.length ? 0.55 : 0.9), w - 2 * PAD_MM);
-      qr = { x: (w - size) / 2, y: PAD_MM, size };
-      area = { x: PAD_MM, y: PAD_MM * 2 + size, w: w - 2 * PAD_MM, h: h - size - PAD_MM * 3 };
-    }
-    const quiet = Math.min(qrOptions.quietZoneMm, qr.size / 4);
-    qr = { ...qr, quiet, matrix, moduleMm: (qr.size - 2 * quiet) / matrix.count };
+  if (layout.layout === 'text-only' || content == null) return null;
+  let qr;
+  if (layout.layout === 'qr-only') {
+    const size = Math.min(w, h) - 2 * PAD_MM;
+    qr = { x: (w - size) / 2, y: (h - size) / 2, size };
+  } else if (layout.layout === 'qr-left') {
+    const size = Math.min(h - 2 * PAD_MM, w * 0.45);
+    qr = { x: PAD_MM, y: (h - size) / 2, size };
+  } else {
+    const size = Math.min(h * (lines.length ? 0.55 : 0.9), w - 2 * PAD_MM);
+    qr = { x: (w - size) / 2, y: PAD_MM, size };
   }
-  const text = [];
-  let overflow = 0;
-  if (lines.length && !(area.w > 4 && area.h > 2)) overflow = lines.length;
-  if (lines.length && area.w > 4 && area.h > 2) {
-    const lineH = area.h / lines.length;
-    if (lineH < 1.8) overflow += 1;
-    const fixedFont = layout.textOptions?.fontMm ?? null;
-    const fit = (line, wanted, em) => clamp(Math.min(wanted, area.w / (line.text.length * em)), 1.8, Math.max(1.8, wanted));
-    const headWanted = fixedFont ? Math.min(fixedFont * 1.15, lineH * 0.95) : clamp(lineH * 0.9, 1.8, 5);
-    const headFont = fit(lines[0], headWanted, 0.6);
-    const bodyWanted = fixedFont ? Math.min(fixedFont, lineH * 0.9) : Math.min(clamp(lineH * 0.78, 1.8, 4), headFont);
-    const bodyFont = lines.length > 1 ? Math.min(...lines.slice(1).map((line) => fit(line, bodyWanted, 0.52))) : bodyWanted;
-    for (const [index, line] of lines.entries()) {
-      const fontMm = index === 0 ? headFont : bodyFont;
-      const maxChars = Math.max(3, Math.floor(area.w / (fontMm * (index === 0 ? 0.6 : 0.52))));
-      if (line.text.length > maxChars) overflow += 1;
-      text.push({ key: line.key, text: truncate(line.text, maxChars), x: area.x, y: area.y + index * lineH + (lineH - fontMm) / 2, w: area.w, fontMm, bold: index === 0 });
-    }
-  }
-  return { widthMm: w, heightMm: h, qr, text, overflow };
+  const quiet = Math.min(qrOptions.quietZoneMm, qr.size / 4);
+  const matrix = qrMatrix(content, qrOptions.errorCorrection);
+  return { ...qr, quiet, matrix: matrix.count, moduleMm: (qr.size - 2 * quiet) / matrix.count };
 }
 
-// Rounds numbers so floating-point summation order does not matter; drops the
-// QR matrix (same input -> same matrix) and the new `align` key.
-const comparable = (g) => JSON.parse(JSON.stringify({ ...g, qr: g.qr ? { ...g.qr, matrix: g.qr.matrix.count } : null, text: g.text.map(({ align, ...t }) => t) }),
-  (_, v) => (typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v));
+const round = (g) => JSON.parse(JSON.stringify(g), (_, v) => (typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v));
+const comparableQr = (g) => round(g.qr ? { ...g.qr, matrix: g.qr.matrix.count } : null);
 
 const LINES = [{ key: 'folio', text: 'TEL-CIS-CP7-1' }, { key: 'name', text: 'Telefono IP' }, { key: 'serial', text: 'S/N SN123' }];
 const geo = (raw, lines = LINES) => computeGeometry(normalizeLayout({ preset: '60x40', fields: ['folio', 'name', 'serial'], ...raw }), lines, 'https://x/y');
 
 describe('label composition', () => {
-  it('default options reproduce the legacy geometry for every layout', () => {
+  it('default options keep the legacy QR placement for every layout', () => {
     for (const preset of ['50x25', '60x40', '100x50']) {
       for (const layoutName of ['qr-left', 'qr-top', 'qr-only', 'text-only']) {
         for (const lines of [LINES, LINES.slice(0, 1), []]) {
           if (layoutName === 'text-only' && !lines.length) continue;
-          for (const textOptions of [{}, { fontMm: 3 }]) {
-            const layout = normalizeLayout({ preset, layout: layoutName, fields: ['folio'], textOptions });
-            const content = layoutName === 'text-only' ? null : 'https://erp.example.com/app/p/inv/abc';
-            assert.deepEqual(comparable(computeGeometry(layout, lines, content)), comparable(legacyGeometry(layout, lines, content)), `${preset} ${layoutName} ${lines.length}`);
-          }
+          const layout = normalizeLayout({ preset, layout: layoutName, fields: ['folio'] });
+          const content = layoutName === 'text-only' ? null : 'https://erp.example.com/app/p/inv/abc';
+          assert.deepEqual(comparableQr(computeGeometry(layout, lines, content)), round(legacyQr(layout, lines, content)), `${preset} ${layoutName} ${lines.length}`);
         }
       }
     }
@@ -161,7 +132,7 @@ describe('label composition', () => {
     assert.throws(() => normalizeLayout({ preset: '60x40', textOptions: { marginMm: 'abc' } }), /margen/);
     assert.throws(() => normalizeLayout({ preset: '60x40', qrOptions: { align: 'top' } }), /QR/);
     const legacy = normalizeLayout({ preset: '60x40' }).textOptions;
-    assert.deepEqual(legacy, { showFieldNames: false, fontMm: null, align: 'left', valign: 'spread', marginMm: 1.5, gapMm: 1.5 });
+    assert.deepEqual(legacy, { showFieldNames: false, fontMm: null, align: 'left', valign: 'middle', marginMm: 1.5, gapMm: 1.5 });
   });
 
   it('new templates default to centred content for qr-top and text-only', () => {
