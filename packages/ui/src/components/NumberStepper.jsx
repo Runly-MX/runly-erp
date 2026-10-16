@@ -2,13 +2,16 @@ import { useEffect, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { cn } from "../lib/utils.js";
 
-const clampInt = (value, min, max, fallback) => {
-  const n = Math.floor(Number(value));
+// precision 0 keeps integers (floor); precision > 0 rounds to that many decimals.
+const clampNumber = (value, min, max, fallback, precision = 0) => {
+  const raw = Number(String(value).replace(",", "."));
+  const factor = 10 ** precision;
+  const n = precision > 0 ? Math.round(raw * factor) / factor : Math.floor(raw);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, n));
 };
 
-// Compact integer stepper: [-] value [+]. The text commits on blur/Enter so
+// Compact numeric stepper: [-] value [+] (integers unless `precision` > 0). The text commits on blur/Enter so
 // typing "25" is not clamped mid-way. size "md" gives 44px touch targets,
 // "sm" 36px for dense desktop rows. `label` is the accessible name.
 export function NumberStepper({
@@ -17,6 +20,7 @@ export function NumberStepper({
   min = 1,
   max = 999,
   step = 1,
+  precision = 0,
   label,
   size = "md",
   disabled = false,
@@ -26,7 +30,7 @@ export function NumberStepper({
   useEffect(() => { setText(String(value ?? min)); }, [value, min]);
 
   const commit = (raw) => {
-    const next = clampInt(raw, min, max, Number(value) || min);
+    const next = clampNumber(raw, min, max, Number(value) || min, precision);
     setText(String(next));
     if (next !== value) onChange?.(next);
   };
@@ -55,11 +59,11 @@ export function NumberStepper({
       </button>
       <input
         type="text"
-        inputMode="numeric"
+        inputMode={precision > 0 ? "decimal" : "numeric"}
         aria-label={label}
         value={text}
         disabled={disabled}
-        onChange={(e) => setText(e.target.value.replace(/[^\d]/g, ""))}
+        onChange={(e) => setText(e.target.value.replace(precision > 0 ? /[^\d.,]/g : /[^\d]/g, ""))}
         onBlur={() => commit(text)}
         onKeyDown={(e) => {
           if (e.key === "Enter") { e.preventDefault(); commit(text); }

@@ -5,7 +5,7 @@ import { autoSheet, clampSheet, maxGrid, sheetCells, sheetFit, sheetPages } from
 import { loadDesign, saveDesign } from '../label-design-store.js'
 import { matchContext } from '../label-search.js'
 import { groupPrintBatches, reprintItems } from '../label-history.js'
-import { draftToLayout, templateToDraft } from '../label-layout.js'
+import { activeCompositionPreset, applyCompositionPreset, applyLayout, draftToLayout, templateToDraft } from '../label-layout.js'
 
 function memoryStorage() {
   const map = new Map()
@@ -63,8 +63,21 @@ describe('saved design per company', () => {
     assert.equal(back.output.mode, 'sheet')
     assert.equal(back.output.sheet.columns, 2)
     assert.equal(back.printerId, null)
-    assert.deepEqual(draftToLayout(back.draft).textOptions, { showFieldNames: true, fontMm: 3 })
+    assert.deepEqual(draftToLayout(back.draft).textOptions, { showFieldNames: true, fontMm: 3, align: 'left', valign: 'spread', marginMm: 1.5, gapMm: 1.5 })
     assert.equal(loadDesign('c2', storage), null)
+  })
+  it('remembers composition options and applies layout recommendations', () => {
+    const storage = memoryStorage()
+    const draft = applyLayout(templateToDraft({ fields: ['folio'] }), 'qr-top')
+    assert.equal(draft.textOptions.align, 'center')
+    assert.equal(activeCompositionPreset(draft), 'center')
+    const tuned = { ...draft, textOptions: { ...draft.textOptions, marginMm: 2.5 }, qrOptions: { ...draft.qrOptions, scalePct: 80 } }
+    saveDesign('c1', { templateId: 't1', draft: tuned }, storage)
+    const layout = draftToLayout(loadDesign('c1', storage).draft)
+    assert.equal(layout.textOptions.marginMm, 2.5)
+    assert.equal(layout.qrOptions.scalePct, 80)
+    assert.equal(layout.qrOptions.align, 'center')
+    assert.equal(applyCompositionPreset(tuned, 'left').textOptions.align, 'left')
   })
   it('survives broken storage and garbage', () => {
     const storage = memoryStorage()

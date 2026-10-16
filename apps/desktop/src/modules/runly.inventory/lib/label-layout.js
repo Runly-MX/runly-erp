@@ -41,7 +41,63 @@ export const FONT_OPTIONS = [
   { value: '5', label: '5 mm' },
 ]
 
-const DEFAULT_TEXT = { showFieldNames: false, fontMm: null }
+// Missing composition keys mean "as before composition existed" (API LEGACY_COMPOSITION).
+const DEFAULT_TEXT = { showFieldNames: false, fontMm: null, align: 'left', valign: 'spread', marginMm: 1.5, gapMm: 1.5 }
+
+export const TEXT_ALIGN_OPTIONS = [
+  { value: 'left', label: 'Izquierda' },
+  { value: 'center', label: 'Centro' },
+  { value: 'right', label: 'Derecha' },
+]
+export const TEXT_VALIGN_OPTIONS = [
+  { value: 'top', label: 'Arriba' },
+  { value: 'middle', label: 'Centro' },
+  { value: 'bottom', label: 'Abajo' },
+  { value: 'spread', label: 'Repartir' },
+]
+export const QR_SCALE = { min: 50, max: 100, step: 5 }
+export const SPACING_MM = { min: 0, max: 10, step: 0.5 }
+
+// QR position choices per layout (qr-left has no right edge option).
+export function qrAlignOptions(layout) {
+  if (layout === 'qr-left') return [{ value: 'left', label: 'Al borde' }, { value: 'center', label: 'Centrado' }]
+  if (layout === 'qr-top') return [{ value: 'left', label: 'Izquierda' }, { value: 'center', label: 'Centro' }, { value: 'right', label: 'Derecha' }]
+  return []
+}
+export const effectiveQrAlign = (draft) => draft.qrOptions?.align ?? (draft.layout === 'qr-left' ? 'left' : 'center')
+
+// Recommended composition per layout (mirrors the API recommendedComposition):
+// centred content for qr-top and text-only, left-aligned text beside a left QR.
+export function recommendedComposition(layout) {
+  const centred = layout === 'qr-top' || layout === 'text-only'
+  return { align: centred ? 'center' : 'left', valign: 'middle', qrAlign: layout === 'qr-left' ? 'left' : 'center' }
+}
+
+// Changing the layout applies that layout's recommended alignment.
+export function applyLayout(draft, layout) {
+  const rec = recommendedComposition(layout)
+  return {
+    ...draft,
+    layout,
+    textOptions: { ...draft.textOptions, align: rec.align, valign: rec.valign },
+    qrOptions: { ...draft.qrOptions, align: rec.qrAlign },
+  }
+}
+
+// Quick presets for the Composición section.
+export const COMPOSITION_PRESETS = [
+  { value: 'center', label: 'Centrado', text: { align: 'center', valign: 'middle' }, qrAlign: 'center' },
+  { value: 'left', label: 'A la izquierda', text: { align: 'left', valign: 'middle' }, qrAlign: 'left' },
+]
+export function applyCompositionPreset(draft, value) {
+  const preset = COMPOSITION_PRESETS.find((p) => p.value === value)
+  if (!preset) return draft
+  return { ...draft, textOptions: { ...draft.textOptions, ...preset.text }, qrOptions: { ...draft.qrOptions, align: preset.qrAlign } }
+}
+export function activeCompositionPreset(draft) {
+  return COMPOSITION_PRESETS.find((p) => p.text.align === draft.textOptions?.align && p.text.valign === draft.textOptions?.valign
+    && (draft.layout === 'text-only' || p.qrAlign === effectiveQrAlign(draft)))?.value ?? null
+}
 
 export const ERROR_CORRECTION_OPTIONS = [
   { value: 'L', label: 'Baja (L, 7 %)' },
@@ -61,7 +117,7 @@ export const DPI_OPTIONS = [
   { value: '600', label: '600 dpi' },
 ]
 
-const DEFAULT_QR = { errorCorrection: 'M', quietZoneMm: 1, contentMode: 'url' }
+const DEFAULT_QR = { errorCorrection: 'M', quietZoneMm: 1, contentMode: 'url', scalePct: null, align: null }
 
 export function presetFor(widthMm, heightMm) {
   return SIZE_PRESETS.find((p) => p.widthMm === Number(widthMm) && p.heightMm === Number(heightMm))?.value ?? 'custom'
@@ -90,10 +146,19 @@ export function draftToLayout(draft) {
     dpi: Number(draft.dpi),
     layout: draft.layout,
     fields: [...draft.fields],
-    qrOptions: { ...draft.qrOptions, quietZoneMm: Number(draft.qrOptions.quietZoneMm) },
+    qrOptions: {
+      ...draft.qrOptions,
+      quietZoneMm: Number(draft.qrOptions.quietZoneMm),
+      scalePct: draft.qrOptions.scalePct == null || draft.qrOptions.scalePct === '' ? null : Number(draft.qrOptions.scalePct),
+      align: draft.qrOptions.align ?? null,
+    },
     textOptions: {
       showFieldNames: Boolean(draft.textOptions?.showFieldNames),
       fontMm: draft.textOptions?.fontMm == null || draft.textOptions.fontMm === '' ? null : Number(draft.textOptions.fontMm),
+      align: draft.textOptions?.align ?? DEFAULT_TEXT.align,
+      valign: draft.textOptions?.valign ?? DEFAULT_TEXT.valign,
+      marginMm: Number(draft.textOptions?.marginMm ?? DEFAULT_TEXT.marginMm),
+      gapMm: Number(draft.textOptions?.gapMm ?? DEFAULT_TEXT.gapMm),
     },
   }
 }

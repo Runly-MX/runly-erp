@@ -6,7 +6,8 @@ import { ChevronDown } from 'lucide-react'
 
 // Single choice for 2-4 short options: rounded-md, selected = flat fill.
 // (The shared SegmentedControl is pill-shaped; the studio keeps rounded-md.)
-export function SegmentTabs({ options, value, onChange, ariaLabel, size = 'md', className, disabled = false }) {
+// compactIcons: below the sm breakpoint options with an icon show only the icon (label stays for screen readers).
+export function SegmentTabs({ options, value, onChange, ariaLabel, size = 'md', className, disabled = false, compactIcons = false }) {
   return (
     <div role="radiogroup" aria-label={ariaLabel}
       className={cn('grid gap-1 rounded-md bg-[hsl(var(--muted)/0.7)] p-1', className)}
@@ -15,11 +16,11 @@ export function SegmentTabs({ options, value, onChange, ariaLabel, size = 'md', 
         const active = option.value === value
         const Icon = option.icon
         return (
-          <button key={option.value} type="button" role="radio" aria-checked={active} disabled={disabled}
+          <button key={option.value} type="button" role="radio" aria-checked={active} disabled={disabled} title={compactIcons ? option.label : undefined}
             onClick={() => onChange(option.value)}
             className={cn(
               'flex min-w-0 items-center justify-center gap-1.5 rounded-[5px] px-2 font-medium transition-colors',
-              size === 'sm' ? 'min-h-8 text-xs' : 'min-h-10 text-sm',
+              size === 'sm' ? 'min-h-8 text-xs' : size === 'touch' ? 'min-h-11 text-sm lg:min-h-10' : 'min-h-10 text-sm',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
               'disabled:cursor-not-allowed disabled:opacity-50',
               active
@@ -27,7 +28,7 @@ export function SegmentTabs({ options, value, onChange, ariaLabel, size = 'md', 
                 : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
             )}>
             {Icon ? <Icon className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
-            <span className="truncate">{option.label}</span>
+            <span className={cn('truncate', compactIcons && Icon && 'sr-only sm:not-sr-only')}>{option.label}</span>
             {option.count != null ? (
               <span className={cn('rounded-md px-1.5 text-[11px] tabular-nums', active ? 'bg-(--brand-primary) text-(--brand-primary-foreground)' : 'bg-[hsl(var(--background)/0.7)]')}>
                 {option.count}

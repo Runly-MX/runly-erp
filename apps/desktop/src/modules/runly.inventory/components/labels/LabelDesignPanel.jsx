@@ -4,6 +4,7 @@ import { FileOutput, LayoutPanelLeft, QrCode, Ruler, Type } from 'lucide-react'
 import {
   CONTENT_MODE_OPTIONS, DPI_OPTIONS, ERROR_CORRECTION_OPTIONS, FIELD_OPTIONS, LAYOUT_OPTIONS, SIZE_PRESETS, presetFor,
 } from '../../lib/label-layout.js'
+import { LabelCompositionSection } from './LabelCompositionSection.jsx'
 import { LabelContentSection } from './LabelContentSection.jsx'
 import { LabelOutputSection } from './LabelOutputSection.jsx'
 import { LabelPrinterSelect } from './LabelPrinterSelect.jsx'
@@ -26,6 +27,7 @@ const LAYOUT_PREVIEWS = {
 }
 const LAYOUT_CARDS = LAYOUT_OPTIONS.map((o) => ({ value: o.value, label: o.label, preview: LAYOUT_PREVIEWS[o.value] }))
 const SIZE_CARDS = SIZE_PRESETS.map((p) => ({ value: p.value, label: p.label, description: p.hint }))
+const ALIGN_SUMMARY = { left: 'a la izquierda', center: 'centrado', right: 'a la derecha' }
 const fieldLabel = (key) => FIELD_OPTIONS.find((f) => f.value === key)?.label ?? key
 
 // Design column: printer and size, composition, content, QR and output, as
@@ -39,6 +41,8 @@ export function LabelDesignPanel({
   const set = (patch) => onDraftChange({ ...draft, ...patch })
   const setQr = (patch) => onDraftChange({ ...draft, qrOptions: { ...draft.qrOptions, ...patch } })
   const layoutLabel = LAYOUT_OPTIONS.find((o) => o.value === draft.layout)?.label
+  const alignLabel = ALIGN_SUMMARY[draft.textOptions?.align]
+  const compositionSummary = draft.layout === 'qr-only' || !alignLabel ? layoutLabel : `${layoutLabel} · texto ${alignLabel}`
   const hasText = draft.layout !== 'qr-only'
   const hasQr = draft.layout !== 'text-only'
 
@@ -70,9 +74,8 @@ export function LabelDesignPanel({
         {printerId ? <FieldHint>Se usa la resolución configurada en la impresora.</FieldHint> : null}
       </StudioSection>
 
-      <StudioSection title="Composición" icon={LayoutPanelLeft} summary={layoutLabel}>
-        <ChoiceCardGroup columns={4} ariaLabel="Composición" options={LAYOUT_CARDS} value={draft.layout} disabled={busy}
-          onChange={(layout) => set({ layout })} />
+      <StudioSection title="Composición" icon={LayoutPanelLeft} summary={compositionSummary}>
+        <LabelCompositionSection draft={draft} onChange={onDraftChange} layoutCards={LAYOUT_CARDS} disabled={busy} />
       </StudioSection>
 
       {hasText ? (
