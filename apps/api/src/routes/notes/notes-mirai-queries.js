@@ -10,7 +10,7 @@ const SEARCH_MAX = 30;
 const EXCERPT_MAX = 200;
 const CONTENT_MAX = 6000;
 
-export function createNotesMiraiQueries({ prisma, notesSvc }) {
+export function createNotesMiraiQueries({ prisma, notesSvc, restrictCompany = false }) {
   const notes_search = {
     name: "notes_search",
     permission: "notes.notes.read",
@@ -59,6 +59,7 @@ export function createNotesMiraiQueries({ prisma, notesSvc }) {
         LEFT JOIN note_folders nf ON nf.id = n.folder_id
         LEFT JOIN note_shares ns_mine ON ns_mine.note_id = n.id AND ns_mine.shared_with_user_id = ${userId}::uuid
         WHERE (n.company_id = ${companyId ?? null}::uuid OR n.company_id IS NULL OR ns_mine.external_access)
+          AND (NOT ${restrictCompany}::boolean OR n.company_id = ${companyId ?? null}::uuid OR n.company_id IS NULL)
           AND n.deleted_at IS NULL
           AND n.is_trashed = false
           AND public.runly_note_user_access(n.id, ${userId}::uuid, false)

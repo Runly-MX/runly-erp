@@ -65,7 +65,7 @@ test('MCP screen: all requests use the frontend origin and preserve web authoriz
       } else if (request.url === '/mcp/oauth/consent') {
         response.end(JSON.stringify({ redirect: '/completed' }));
       } else if (request.url.startsWith('/mcp/proposals/')) {
-        response.end(JSON.stringify(request.method === 'POST' ? { approved: body.approve } : { companyId: 'company-a', preview: { title: 'Propuesta de prueba', fields: [{ label: 'Nombre', value: 'Equipo' }] }, proposed: {} }));
+        response.end(JSON.stringify(request.method === 'POST' ? { approved: body.approve } : { companyId: 'company-a', sensitive: request.url.includes('sensitive'), preview: { title: 'Propuesta de prueba', fields: [{ label: 'Nombre', value: 'Equipo' }] }, proposed: { effects: ['Guardar cambios y notificar destinatarios.'] } }));
       } else response.writeHead(404).end('{}');
     });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -105,6 +105,17 @@ test('MCP screen: all requests use the frontend origin and preserve web authoriz
       await page.getByRole('button', { name: approve ? 'Aprobar propuesta' : 'Rechazar', exact: true }).click();
       await page.getByRole('status').waitFor();
       assert.deepEqual(requests.filter(r => r.path === '/mcp/proposals/proposal-a' && r.method === 'POST').at(-1).body, { approve });
+    }
+    for (const id of ['sensitive-a', 'sensitive-b']) {
+      await page.goto(`${origin}/app/mcp?proposal=${id}`);
+      await page.getByText('Guardar cambios y notificar destinatarios.', { exact: true }).waitFor();
+      const approve = page.getByRole('button', { name: 'Aprobar propuesta', exact: true });
+      assert.equal(await approve.isDisabled(), true);
+      assert.equal(await page.getByRole('checkbox').isChecked(), false);
+      await page.getByRole('checkbox').click();
+      await approve.click();
+      await page.getByRole('status').waitFor();
+      assert.deepEqual(requests.filter(r => r.path === `/mcp/proposals/${id}` && r.method === 'POST').at(-1).body, { approve: true, acknowledgeSensitive: true });
     }
     denyAccount = true;
     await page.goto(`${origin}/app/mcp`);

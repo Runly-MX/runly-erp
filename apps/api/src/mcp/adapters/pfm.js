@@ -8,6 +8,7 @@ import { createPfmMiraiQueries } from '../../routes/pfm/pfm-mirai-queries.js';
 import { createPfmMiraiActions } from '../../routes/pfm/mirai-actions.js';
 import { createBudgetSchema, updateBudgetSchema } from '../../routes/pfm/validators.js';
 import { insist } from '../config.js';
+import { pageInput } from '../contracts.js';
 
 export function createPfmAdapter({ prisma }) {
   const wallets = createWalletsService({ prisma }), movements = createMovementsService({ prisma, wallets }), summary = createSummaryService({ prisma }), budgets = createBudgetsService({ prisma }), categories = createCategoriesService({ prisma });
@@ -30,7 +31,8 @@ export function createPfmAdapter({ prisma }) {
     execute: async (input, a) => operation === 'create' ? budgets.createBudget({ ...ctx(a), data: input.data }) : budgets.updateBudget({ ...ctx(a), budgetId: input.budgetId, data: input.data }),
   }));
   return { moduleKey: 'runly.pfm', label: 'Finanzas personales',
-    queries: createPfmMiraiQueries({ prisma, summary, wallets, budgets, categories }),
+    queries: [...createPfmMiraiQueries({ prisma, summary, wallets, budgets, categories }),
+      { name: 'pfm_native_movements_page', permission: 'pfm.movements.read', definition: { description: 'Movimientos nativos de una cartera autorizada; paginación por página. Para movimientos reflejados de Ledger usar la búsqueda unificada.' }, inputSchema: z.object({ ...pageInput, walletId: z.uuid(), month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional() }).strict(), async run(input, a) { const result = await movements.listMovements({ ...ctx(a), walletId: input.walletId, query: { month: input.month, offset: (input.page - 1) * input.limit, limit: input.limit } }); return { items: result.data, ...input, hasMore: result.data.length === input.limit }; } }],
     actions: [...createPfmMiraiActions({ wallets, movements, categories }).filter(a => ['pfm.movement.create', 'pfm.movement.update'].includes(a.key)), ...budgetActions],
     revision: async (definition, prepared, a) => !prepared.targetId ? null : definition.key.includes('budget') ? (await budgets.listBudgets(ctx(a))).data.find(b => b.id === prepared.targetId) : movements.getOwnedMovement({ companyId: a.companyId, movementId: prepared.targetId }),
     effects: ['Movimientos internos y saldos de carteras autorizadas o presupuestos propios. Sin transferencias bancarias ni proveedores externos.'],

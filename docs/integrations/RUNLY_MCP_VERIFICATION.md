@@ -3,7 +3,38 @@
 Verificación del 16 de octubre de 2026. Implementación y configuración descritas
 en [RUNLY_MCP.md](RUNLY_MCP.md).
 
-## Resultados ejecutados
+## Ampliación de módulos oficiales
+
+La [entrega transversal](RUNLY_MCP_OFFICIAL_MODULES.md) y su
+[catálogo generado](RUNLY_MCP_CATALOG.md) amplían la base descrita abajo.
+
+| Comprobación final | Resultado |
+| --- | --- |
+| `RUNLY_MCP_TEST_INSPECTOR=true pnpm test:mcp` | 118 aprobadas, 0 fallos, 0 omitidas; PostgreSQL 18 efímero, operaciones de negocio reales, OAuth propio de Inspector 2.11.0, 48 herramientas y regresión de las 12 anteriores |
+| Servicios compartidos de dominios | 739 pruebas: 738 aprobadas, 1 omitida y 0 fallos; la omitida es una integración Files que requiere su propio entorno PostgreSQL |
+| Navegador MCP + runtimeConfig | 3 aprobadas; origen del frontend, consentir/rechazar/revocar, propuestas y confirmación sensible independiente por propuesta |
+| `pnpm lint` | Correcto |
+| `pnpm check:company-scope` | Correcto |
+| `pnpm build` | Correcto; workspace y build local del host Windows/instalador, sin publicar assets |
+| `pnpm --filter @runly/desktop build:web` | Correcto; advertencia de tamaño de chunks existente |
+| React Doctor | 86/100, sin errores; 15 avisos de mantenimiento/performance (API `.strict()` compatible con Zod 4, búsqueda y escrituras secuenciales en la misma transacción) |
+| `pnpm check:privacy` | Sin hallazgos |
+| `pnpm check:secrets` | Sin hallazgos; Gitleaks sobre snapshot del árbol público con redacción activada |
+
+Selección reproducible de pruebas de los servicios compartidos (PowerShell):
+
+```powershell
+$domainTests = @(rg --files apps/api/src/routes -g '*.test.js' | Where-Object { $_ -match '[/\\](hr|fleet|notes|pfm|ledger|projects|calendar|contacts|purchases|canvas|attendance)[/\\]__tests__[/\\]' -and $_ -notmatch '(integration|e2e|realtime)' })
+$sharedTests = @(rg --files apps/api/src/services/__tests__ -g '*.test.js' | Where-Object { $_ -match '[/\\](hr-service|files-|contacts-service|purchases-core|purchase-(policies|numbering|relations|receipts))' })
+node --test --test-concurrency=4 @domainTests @sharedTests apps/api/src/routes/chat/__tests__/chat-service.test.js
+```
+
+Los conteos no se suman con las comprobaciones históricas: son selecciones con
+posibles intersecciones. No se probó una cuenta comercial de ChatGPT ni se tocó
+el VPS. No hay migraciones nuevas para esta ampliación; los requisitos originales
+de activación y URLs siguen aplicando a quien todavía no haya instalado MCP.
+
+## Resultados de la implementación inicial (histórico)
 
 | Comprobación | Resultado |
 | --- | --- |

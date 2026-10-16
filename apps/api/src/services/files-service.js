@@ -473,7 +473,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       return asset;
     },
 
-    async list({ authUserId, activeContext, query = {} }) {
+    async list({ authUserId, activeContext, query = {}, includeSignedUrls = true }) {
       const context = await getUserCompanyContext(authUserId, activeContext);
       const { companyId } = context;
       const { page, pageSize, skip, take } = normalizePagination(query);
@@ -553,7 +553,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         }),
       ]);
 
-      const enrichedRows = await batchEnrichFileAssets(rows, supabaseAdmin.storage);
+      const enrichedRows = includeSignedUrls ? await batchEnrichFileAssets(rows, supabaseAdmin.storage) : rows;
       return {
         data: enrichedRows.map((row) => ({ ...row, ...describeFile(row) })),
         pagination: {

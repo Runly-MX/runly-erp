@@ -12,7 +12,6 @@ import {
   publishActivityFromContext,
   getActivityContext,
 } from "../../services/activity-publisher.js";
-import { publishNotificationFromContext } from "../../services/notification-publisher.js";
 import { createCalendarEventEffects, toAttendeeUserIds } from "./calendar-event-effects.js";
 
 function getUserId(c) {
@@ -323,23 +322,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
           getCompanyId(c),
         );
         const event = await eventSvc.getEvent(userId, c.req.param("id"), getCompanyId(c));
-        const { actorName } = getActivityContext(c);
-        await publishNotificationFromContext(prisma, c, {
-          eventType: "calendar.event.invite",
-          title: `Invitacion: ${event.title ?? "Evento"}`,
-          body: `${actorName} te invito a un evento del calendario.`,
-          link: `/app/m/runly.calendar?eventId=${event.id}`,
-          recipients: { userIds: [user_id] },
-          channels: ["in_app", "email", "web_push"],
-          priority: "high",
-          sourceType: "CalendarEvent",
-          sourceId: event.id,
-          metadata: {
-            startDate: event.startDate ?? null,
-            endDate: event.endDate ?? null,
-            calendarId: event.calendarId ?? null,
-          },
-        });
+        await effects.afterAddAttendee(c, event, user_id);
         return c.json(attendee, 201);
       } catch (err) {
         return handleError(c, err, "No se pudo agregar el invitado.");

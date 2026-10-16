@@ -15,7 +15,7 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
   // ./mirai-conversation-guard.js — the 'mirai' chat cannot be archived
   // or hidden from the list.
 
-  async function listConversations({ authUserId, companyId = null, limit = 50, cursor = null, archived = false }) {
+  async function listConversations({ authUserId, companyId = null, limit = 50, cursor = null, archived = false, restrictCompany = false }) {
     const profileId = await getUserProfileId(authUserId);
 
     const cursorClause = cursor ? Prisma.sql`AND c.last_message_at < ${new Date(cursor)}` : Prisma.empty;
@@ -131,6 +131,7 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
         AND public.runly_chat_user_access(ccm.conversation_id, ccm.user_id)
       WHERE c.deleted_at IS NULL
         AND (c.company_id = ${companyId}::uuid OR ccm.external_access)
+        AND (NOT ${restrictCompany}::boolean OR c.company_id = ${companyId}::uuid)
         AND c.type != 'external_support'
         -- Only the caller's most recent MirAI thread shows in the inbox; the
         -- MirAI sidebar lists the rest (mirai-threads-service.js).

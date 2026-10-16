@@ -74,10 +74,11 @@ export function createInventoryMcpCapabilities({ prisma, config, oauth }) {
     insist(grant.payload.companyIds.includes(companyId), 'company_not_granted', 'Empresa no autorizada para esta conexión.', 403);
     const actx = await createMcpAccess(db).company(auth.authUserId, companyId, permission);
     await createMcpAccess(db).module(actx, 'runly.inventory');
+    insist(actx.can('inventory.item.read'), 'permission_denied', 'No tienes permiso de lectura de Inventario.', 403);
     return actx;
   }
   async function prepare(auth, companyId, action, args) {
-    const actx = await context(auth, companyId, action === 'create' ? 'inventory.item.read' : 'inventory.item.update');
+    const actx = await context(auth, companyId, action === 'create' ? 'inventory.item.create' : 'inventory.item.update');
     const inventory = createInventoryService({ prisma });
     const definition = createInventoryMiraiActions({ prisma, inventoryService: inventory }).find(a => a.operation === action);
     const prepared = await definition.prepare(args, actx);
@@ -104,14 +105,14 @@ export function createInventoryMcpCapabilities({ prisma, config, oauth }) {
     const row = await store.get('proposal', id);
     insist(row?.payload.authUserId === authUserId, 'not_found', 'Propuesta no disponible.', 404);
     const p = row.payload;
-    await context(p, p.companyId, p.action === 'update' ? 'inventory.item.update' : 'inventory.item.read');
+    await context(p, p.companyId, p.action === 'update' ? 'inventory.item.update' : 'inventory.item.create');
     return { proposalId: id, companyId: p.companyId, action: p.action, preview: p.prepared.preview, proposed: p.args, approved: p.approved, completed: Boolean(p.result), expiresAt: row.expiresAt };
   }
   async function approve(authUserId, id, approved) {
     await prisma.$transaction(async db => {
       const s = createMcpState(db), row = await s.lock('proposal', id), p = row.payload;
       insist(p.authUserId === authUserId && !p.result, 'permission_denied', 'Propuesta no disponible.', 403);
-      await context(p, p.companyId, p.action === 'update' ? 'inventory.item.update' : 'inventory.item.read', db);
+      await context(p, p.companyId, p.action === 'update' ? 'inventory.item.update' : 'inventory.item.create', db);
       await s.save(row, { ...p, approved, rejected: !approved });
     });
     return { approved };
@@ -121,7 +122,7 @@ export function createInventoryMcpCapabilities({ prisma, config, oauth }) {
       const db = transactionClient(tx), s = createMcpState(db);
       // Lock the live grant first so revocation cannot race a confirmed write.
       await s.lock('grant', auth.grantId);
-      const actx = await context(auth, companyId, action === 'update' ? 'inventory.item.update' : 'inventory.item.read', db);
+      const actx = await context(auth, companyId, action === 'update' ? 'inventory.item.update' : 'inventory.item.create', db);
       // Share the intake lock across MCP creates/updates and MirAI intake,
       // including writes through different OAuth connections.
       await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`inventory-intake:${companyId}`}, 0))::text AS locked`;
@@ -158,7 +159,7 @@ export function createInventoryMcpCapabilities({ prisma, config, oauth }) {
       const actx = await access.company(auth.authUserId, args.companyId);
       const rows = await access.modules(actx);
       function exposed(row) {
-        if (['runly.inventory', 'atlas.inventory'].includes(row.key)) return { moduleKey: row.key, name: row.name, operations: inventoryDescriptors().filter(d => auth.scopes.includes(d[3]) && actx.can(d[0].includes('update') ? 'inventory.item.update' : 'inventory.item.read')).map(d => ({ name: d[0], inputSchema: z.toJSONSchema(z.object(d[2]).strict(), { io: 'input' }) })) };
+        if (['runly.inventory', 'atlas.inventory'].includes(row.key)) return { moduleKey: row.key, name: row.name, operations: inventoryDescriptors().filter(d => auth.scopes.includes(d[3]) && actx.can('inventory.item.read') && actx.can(d[0].includes('_create_') ? 'inventory.item.create' : d[0].includes('_update_') ? 'inventory.item.update' : 'inventory.item.read')).map(d => ({ name: d[0], inputSchema: z.toJSONSchema(z.object(d[2]).strict(), { io: 'input' }) })) };
         const parsed = rme3McpContract.safeParse(row.manifest?.mcp);
         if (!parsed.success) return null;
         return { moduleKey: row.key, name: row.name, discoveryOnly: true, entities: parsed.data.entities.filter(e => actx.can(e.permission)), operations: [] };

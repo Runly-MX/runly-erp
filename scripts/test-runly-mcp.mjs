@@ -26,7 +26,7 @@ try {
   const env = { ...process.env, DIRECT_URL: url, DATABASE_URL: url, RUNLY_MCP_TEST_DATABASE_URL: url };
   // New empty tmpfs database only. Never points at the workspace .env database.
   run(process.execPath, [require.resolve('prisma/build/index.js'), 'db', 'push', '--url', url], { env, stdio: 'inherit' });
-  const tests = spawnSync(process.execPath, ['--test', 'apps/api/src/mcp/__tests__/config.test.js', 'apps/api/src/mcp/__tests__/oauth.test.js', 'apps/api/src/mcp/__tests__/mcp.integration.test.js'], { env, stdio: 'inherit' });
+  const tests = spawnSync(process.execPath, ['--test', 'apps/api/src/mcp/__tests__/config.test.js', 'apps/api/src/mcp/__tests__/oauth.test.js', 'apps/api/src/mcp/__tests__/domain-contracts.test.js', 'apps/api/src/mcp/__tests__/mcp.integration.test.js'], { env, stdio: 'inherit' });
   process.exitCode = tests.status ?? 1;
 } finally {
   if (created) run('docker', ['stop', name]);

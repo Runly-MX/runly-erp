@@ -21,7 +21,7 @@ export function createMcpAccess(prisma) {
     const isAdmin = access.isCompanyAdmin || isSystemAdminMembership(actor.memberships);
     const can = key => isAdmin || access.permissionSet.has(key);
     insist(!permission || can(permission), 'permission_denied', 'No tienes el permiso requerido.', 403);
-    return { ...actor, companyId, can, actorProfileId: actor.profile.id, actorAuthUserId: authUserId, prisma };
+    return { ...actor, companyId, can, permissionSet: access.permissionSet, isAdmin, actorProfileId: actor.profile.id, actorAuthUserId: authUserId, prisma };
   }
   async function modules(actx) {
     const disabled = await createCompanyModuleService({ prisma }).listDisabledModuleIds(actx.companyId);

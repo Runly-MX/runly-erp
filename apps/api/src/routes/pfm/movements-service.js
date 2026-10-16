@@ -135,6 +135,7 @@ export function createMovementsService({ prisma, wallets }) {
       throw new PfmServiceError("Cartera no encontrada.", 404);
     }
     const limit = Math.min(200, Math.max(1, Number(query?.limit) || 100));
+    const offset = Math.min(1000000, Math.max(0, Math.trunc(Number(query?.offset) || 0)));
     const monthStart = query?.month ? `${query.month}-01` : null;
     const status = query?.status ?? null;
     const categoryId = query?.categoryId ?? null;
@@ -162,6 +163,7 @@ export function createMovementsService({ prisma, wallets }) {
         SELECT * FROM filtered
         ORDER BY occurred_on DESC, created_at DESC
         LIMIT ${limit}
+        OFFSET ${offset}
       `;
       return { data: rows.map((r) => ({ ...normalizeMovement(r), source: "native" })) };
     } catch (err) {

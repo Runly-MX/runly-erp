@@ -8,7 +8,7 @@ for (const moduleKey of registry.moduleKeys) {
   const adapter = registry.create(moduleKey);
   lines.push('', `## ${moduleKey}`, '', '| Operación | Modo | Permiso ERP |', '| --- | --- | --- |');
   for (const [mode, definitions] of [['Lectura', adapter.queries], ['Escritura aprobada', adapter.actions]]) {
-    for (const definition of definitions) lines.push(`| \`${definition.name ?? definition.key}\` | ${mode} | \`${definition.permission}\` |`);
+    for (const definition of definitions) lines.push(`| \`${definition.name ?? definition.key}\` | ${mode} | ${[...new Set([definition.permission, definition.readPermission].filter(Boolean))].map(key => `\`${key}\``).join(' + ')} |`);
   }
 }
 lines.push('', 'Inventario conserva sus ocho operaciones y sus cuatro herramientas base de identidad/descubrimiento. RME3 con metadata `mcp.version=1` continúa siendo solo descubrimiento; no se anuncia CRUD ejecutable.', '');

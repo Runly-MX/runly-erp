@@ -5,7 +5,7 @@ import { Button, Card, Checkbox, ConfirmDialog, EmptyState, ErrorState, LoadingS
 import { useAuth } from '../auth/AuthProvider';
 
 const SCOPE_LABELS = { 'runly:read': 'Ver tu identidad, empresas y módulos autorizados', 'inventory:read': 'Consultar equipos y catálogos de inventario', 'inventory:write': 'Preparar y ejecutar altas y ediciones con tu aprobación en Runly' };
-for (const [domain, label] of Object.entries({ hr: 'Recursos Humanos', fleet: 'Flota', notes: 'Notas', pfm: 'Finanzas personales', ledger: 'Libro de cuentas', projects: 'Proyectos', calendar: 'Calendario' })) {
+for (const [domain, label] of Object.entries({ hr: 'Recursos Humanos', fleet: 'Flota', notes: 'Notas', pfm: 'Finanzas personales', ledger: 'Libro de cuentas', projects: 'Proyectos', calendar: 'Calendario', contacts: 'Contactos', purchases: 'Compras', canvas: 'Canvas', attendance: 'Asistencia', files: 'Archivos', documents: 'Documentos', identity: 'Identidad', activity: 'Actividad propia', chat: 'Conversaciones propias' })) {
   SCOPE_LABELS[`${domain}:read`] = `Consultar ${label} con tus permisos actuales`;
   SCOPE_LABELS[`${domain}:write`] = `Preparar cambios en ${label}; requieren tu aprobación en Runly`;
 }
@@ -47,7 +47,7 @@ export function McpConnectionScreen() {
       <h2 className="text-lg font-semibold">Autorizar conexión: {detail.data.clientName}</h2>
       <p>El nombre lo proporciona la aplicación y no está verificado. Autoriza solo aplicaciones que reconozcas.</p>
       <p className="break-all text-sm">Destino: {detail.data.redirectUri}</p>
-      <ul className="list-disc pl-6">{detail.data.scopes.map(scope => <li key={scope}>{SCOPE_LABELS[scope]}</li>)}</ul>
+      <ul className="list-disc pl-6">{detail.data.scopes.map(scope => <li key={scope}>{SCOPE_LABELS[scope] ?? scope}</li>)}</ul>
       <p>Selecciona las empresas que podrá consultar. Se aplican tus permisos actuales en cada operación.</p>
       {account.data?.companies.map(company => <label className="flex items-center gap-3" key={company.id}>
         <Checkbox checked={companyIds.includes(company.id)} onCheckedChange={checked => setCompanyIds(ids => checked ? [...ids, company.id] : ids.filter(id => id !== company.id))} />
@@ -60,9 +60,10 @@ export function McpConnectionScreen() {
       <h2 className="text-lg font-semibold">{detail.data.preview.title}</h2>
       <p>Empresa: {account.data?.companies.find(c => c.id === detail.data.companyId)?.name}</p>
       <p>Revisa todos los datos antes de aprobar. La aprobación permite al asistente ejecutar esta propuesta una sola vez durante su vigencia.</p>
+      {Array.isArray(detail.data.proposed?.effects) && detail.data.proposed.effects.length > 0 && <div className="space-y-2"><h3 className="font-medium">Efectos previstos</h3><ul className="list-disc pl-6">{detail.data.proposed.effects.map(effect => <li key={effect}>{effect}</li>)}</ul></div>}
       <dl className="space-y-3">{detail.data.preview.fields.map((field, index) => <div key={index}><dt className="font-medium">{field.label}</dt><dd>{field.before !== undefined && <span>Antes: {String(field.before)} · </span>}Nuevo: {String(field.value)}</dd></div>)}</dl>
       <details><summary>Datos completos de la propuesta</summary><pre className="overflow-auto whitespace-pre-wrap rounded bg-muted p-3 text-sm">{JSON.stringify(detail.data.proposed, null, 2)}</pre></details>
-      {detail.data.sensitive && !done && <label className="flex items-start gap-3"><Checkbox checked={sensitiveAcknowledged} onCheckedChange={checked => setAcknowledgedProposal(checked === true ? proposalId : null)} />Confirmo los importes, relaciones y vínculos de identidad indicados en esta propuesta.</label>}
+      {detail.data.sensitive && !done && <label className="flex items-start gap-3"><Checkbox checked={sensitiveAcknowledged} onCheckedChange={checked => setAcknowledgedProposal(checked === true ? proposalId : null)} />Confirmo los importes, relaciones, vínculos de identidad, destinatarios y avisos indicados en esta propuesta.</label>}
       {done ? <p role="status">Decisión guardada. Vuelve al asistente para continuar.</p> : <div className="flex gap-3">
         <Button disabled={action.isPending || detail.data.completed || detail.data.rejected || detail.data.sensitive && !sensitiveAcknowledged} onClick={() => action.mutate(true)}>Aprobar propuesta</Button>
         <Button variant="outline" disabled={action.isPending || detail.data.completed} onClick={() => action.mutate(false)}>Rechazar</Button>
@@ -72,7 +73,7 @@ export function McpConnectionScreen() {
       <h2 className="text-lg font-semibold">Aplicaciones autorizadas</h2>
       {!account.data?.grants.length && <EmptyState title="Sin conexiones activas" description="Aquí aparecerán las aplicaciones que autorices." />}
       {account.data?.grants.map(grant => <div className="flex items-center justify-between gap-4" key={grant.id}>
-        <div><p>{grant.clientName}</p><p className="text-sm">{grant.scopes.map(s => SCOPE_LABELS[s]).join(' · ')}</p></div>
+        <div><p>{grant.clientName}</p><p className="text-sm">{grant.scopes.map(s => SCOPE_LABELS[s] ?? s).join(' · ')}</p></div>
         <Button variant="outline" onClick={() => setRevoking(grant)}>Revocar</Button>
       </div>)}
     </Card>}

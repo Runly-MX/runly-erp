@@ -26,6 +26,7 @@ export function createDomainRuntime({ prisma, config, registry }) {
     return definition;
   }
   async function prepareDefinition(adapter, definition, input, actx) {
+    insist(!definition.readPermission || actx.can(definition.readPermission), 'permission_denied', 'Se requiere permiso de lectura para revisar el recurso y sus cambios.', 403);
     input = (definition.inputSchema ?? parameterSchema(definition.parameters)).parse(input);
     if (adapter.guard) await adapter.guard(definition, input, actx);
     const prepared = await definition.prepare(input, actx);
@@ -48,9 +49,10 @@ export function createDomainRuntime({ prisma, config, registry }) {
     const prepared = await prepareDefinition(adapter, definition, args.request.input, actx);
     const hash = fingerprint(prepared);
     // Retried prepare calls for the same immutable proposal share one commit.
-    const id = Buffer.from(fingerprint({ grantId: auth.grantId, companyId: args.companyId, moduleKey, key, input: args.request.input, hash }), 'hex').toString('base64url');
+    const id = Buffer.from(fingerprint({ grantId: auth.grantId, companyId: args.companyId, moduleKey, key, input: prepared.input, hash }), 'hex').toString('base64url');
     const payload = { version: 2, authUserId: auth.authUserId, grantId: auth.grantId, companyId: args.companyId, moduleKey, operation: key, scope,
-      input: args.request.input, prepared, fingerprint: hash, sensitive: ['runly.pfm', 'runly.ledger'].includes(moduleKey) || moduleKey === 'runly.hr' && Object.hasOwn(args.request.input.data ?? {}, 'userProfileId'), approved: false, rejected: false };
+      input: args.request.input, prepared, fingerprint: hash,
+      sensitive: ['runly.pfm', 'runly.ledger', 'runly.purchases', 'runly.calendar', 'runly.projects'].includes(moduleKey) || moduleKey === 'runly.hr' && Object.hasOwn(args.request.input.data ?? {}, 'userProfileId'), approved: false, rejected: false };
     const store = createMcpState(prisma), existing = await store.get('proposal', id);
     if (!existing) {
       await prisma.mcpState.deleteMany({ where: { kind: 'proposal', key: digest(id), expiresAt: { lte: new Date() } } });
@@ -58,12 +60,13 @@ export function createDomainRuntime({ prisma, config, registry }) {
       catch (error) { if (error.code !== 'P2002') throw error; }
     }
     return { proposalId: id, status: 'approval_required', moduleKey, operation: key, preview: prepared.preview,
-      proposed: { moduleKey, companyId: args.companyId, operation: key, input: payload.input, resolved: prepared.input, effects: adapter.effects ?? ['Modificar datos internos; generar auditoría.'] },
+      proposed: { moduleKey, companyId: args.companyId, operation: key, input: payload.input, resolved: prepared.input, before: prepared.revision, effects: adapter.effects ?? ['Modificar datos internos; generar auditoría.'] },
       expiresIn: 600, approvalUrl: `${config.web}/app/mcp?proposal=${id}` };
   }
   async function proposalContext(p, db = prisma) {
     const adapter = registry.create(p.moduleKey, db), definition = operation(adapter, p.operation, true);
     const actx = await context(p, p.companyId, p.moduleKey, definition.permission, p.scope, db);
+    insist(!definition.readPermission || actx.can(definition.readPermission), 'permission_denied', 'No puedes revisar el recurso.', 403);
     return { adapter, definition, actx };
   }
   async function proposalInfo(authUserId, id) {
@@ -73,7 +76,7 @@ export function createDomainRuntime({ prisma, config, registry }) {
     const { adapter, definition, actx } = await proposalContext(p);
     if (!p.result) insist(fingerprint(await prepareDefinition(adapter, definition, p.input, actx)) === p.fingerprint, 'proposal_stale', 'La propuesta cambió. Prepárala de nuevo.', 409);
     return { proposalId: id, companyId: p.companyId, moduleKey: p.moduleKey, action: p.operation, preview: p.prepared.preview,
-      proposed: { operation: p.operation, input: p.input, resolved: p.prepared.input, effects: adapter.effects ?? [] }, sensitive: p.sensitive, approved: p.approved, rejected: p.rejected, completed: Boolean(p.result), expiresAt: row.expiresAt };
+      proposed: { operation: p.operation, input: p.input, resolved: p.prepared.input, before: p.prepared.revision, effects: adapter.effects ?? [] }, sensitive: p.sensitive, approved: p.approved, rejected: p.rejected, completed: Boolean(p.result), expiresAt: row.expiresAt };
   }
   async function approve(authUserId, id, approved, acknowledgeSensitive = false) {
     await prisma.$transaction(async db => {
@@ -89,7 +92,8 @@ export function createDomainRuntime({ prisma, config, registry }) {
   }
   async function commit(moduleKey, scope, args, auth) {
     // Retry only transactions PostgreSQL rolled back for serialization. All
-    // exposed adapters perform internal DB effects; no external sends/payments.
+    // exposed adapters write DB data/outbox jobs; they make no direct external
+    // calls. Queued notifications and their recipients are disclosed for approval.
     for (let attempt = 0; ; attempt++) try {
       return await prisma.$transaction(async tx => {
       const db = transactionClient(tx), store = createMcpState(db);
@@ -110,6 +114,7 @@ export function createDomainRuntime({ prisma, config, registry }) {
     } catch (error) {
       const serialized = error.code === 'P2034' || error.code === 'P2010' && (error.meta?.code === '40001' || error.meta?.driverAdapterError?.cause?.originalCode === '40001');
       if (serialized && attempt < 2) continue;
+      insist(!serialized, 'resource_conflict', 'Hubo cambios concurrentes. Reintenta el mismo commit.', 409);
       throw error;
     }
   }

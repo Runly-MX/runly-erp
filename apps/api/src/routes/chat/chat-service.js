@@ -49,7 +49,7 @@ export async function resolveUserProfileId(prisma, authUserId) {
 // Retained for older test fixtures; identity authorization is no longer cached.
 export function _resetProfileIdCacheForTests() {}
 
-export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null, permissionsService = null, mentionsService = null, entityReferencesService = null, channelLinksService = null }) {
+export function createChatService({ prisma, supabaseAdmin, notificationService = null, broadcaster = null, permissionsService = null, mentionsService = null, entityReferencesService = null, channelLinksService = null, includeAvatarUrls = true }) {
   // ------------------------------------------------------------------
   // Internal helpers
   // ------------------------------------------------------------------
@@ -178,6 +178,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   const FILE_ASSET_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
   async function batchSignAvatarUrls(fileIds) {
+    if (!includeAvatarUrls) return {};
     if (!fileIds.length) return {};
 
     // Split into cache hits and misses

@@ -728,6 +728,11 @@ export function createHrService({ prisma, activityBridge }) {
       });
     },
 
+    async findEmployeeDuplicates({ authUserId, companyId: activeCompanyId, firstName, lastName }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
+      return prisma.hrEmployee.findMany({ where: { companyId, firstName: { equals: firstName.trim(), mode: 'insensitive' }, lastName: { equals: lastName.trim(), mode: 'insensitive' } }, select: { id: true }, take: 2 });
+    },
+
     async validateEmployeeProposal({ authUserId, companyId: activeCompanyId, payload, id = null }) {
       const { companyId } = await getUserContext(authUserId, activeCompanyId);
       if (id) await assertEmployee({ id, companyId });
@@ -738,10 +743,12 @@ export function createHrService({ prisma, activityBridge }) {
         if (id) await assertNoHierarchyCycle({ employeeId: id, supervisorEmployeeId: payload.supervisorEmployeeId, companyId });
       }
       await assertUserLinkEligibility({ companyId, userProfileId: payload.userProfileId, currentEmployeeId: id });
+      return resolveDenormalizedFields({ companyId, departmentId: payload.departmentId, jobTitleId: payload.jobTitleId, supervisorEmployeeId: payload.supervisorEmployeeId });
     },
 
-    async listUserOptions({ authUserId, companyId: activeCompanyId, search, limit, id }) {
+    async listUserOptions({ authUserId, companyId: activeCompanyId, search, limit, id, eligibleOnly = false, employeeId = null }) {
       const { companyId } = await getUserContext(authUserId, activeCompanyId);
+      if (employeeId) await assertEmployee({ id: employeeId, companyId });
       const take = normalizeLimit(limit, 40, 100);
       const query = String(search ?? "").trim();
       const memberships = await prisma.membership.findMany({
@@ -750,7 +757,7 @@ export function createHrService({ prisma, activityBridge }) {
           enabled: true,
           user: {
             enabled: true,
-              ...(id ? { id } : {}),
+            ...(id ? { id } : {}),
             ...(query
               ? {
                   OR: [
@@ -773,9 +780,12 @@ export function createHrService({ prisma, activityBridge }) {
         take,
       });
 
+      const linked = eligibleOnly ? await prisma.hrEmployee.findMany({ where: { companyId, userProfileId: { in: memberships.map(member => member.user?.id).filter(Boolean) }, ...(employeeId ? { id: { not: employeeId } } : {}) }, select: { userProfileId: true } }) : [];
+      const unavailable = new Set(linked.map(employee => employee.userProfileId));
       return memberships
         .map((m) => m.user)
         .filter(Boolean)
+        .filter(user => !unavailable.has(user.id))
         .map((user) => ({
           id: user.id,
           label: user.displayName || user.email,

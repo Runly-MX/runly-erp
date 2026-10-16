@@ -200,6 +200,7 @@ export function createNotesService({ prisma, broadcaster = null }) {
     shared,
     page = 1,
     pageSize = 30,
+    restrictCompany = false,
   } = {}) {
     const offset = (page - 1) * pageSize;
     const isTrashed = trashed ?? false;
@@ -218,6 +219,7 @@ export function createNotesService({ prisma, broadcaster = null }) {
           ON ns_mine.note_id = n.id
           AND ns_mine.shared_with_user_id = ${userId}
         WHERE (n.company_id = ${companyId ?? null}::uuid OR n.company_id IS NULL OR ns_mine.external_access)
+          AND (NOT ${restrictCompany}::boolean OR n.company_id = ${companyId ?? null}::uuid OR n.company_id IS NULL)
           AND n.deleted_at IS NULL
           AND public.runly_note_user_access(n.id, ${userId}::uuid, false)
           AND n.is_trashed   = ${isTrashed}

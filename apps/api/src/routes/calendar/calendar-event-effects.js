@@ -36,6 +36,21 @@ export function actorContext({ companyId, profile }) {
 }
 
 export function createCalendarEventEffects({ prisma, broadcaster = null }) {
+  async function afterAddAttendee(c, event, userId) {
+    const { actorName } = getActivityContext(c);
+    await publishNotificationFromContext(prisma, c, {
+      eventType: "calendar.event.invite",
+      title: `Invitacion: ${event.title ?? "Evento"}`,
+      body: `${actorName} te invito a un evento del calendario.`,
+      link: `/app/m/runly.calendar?eventId=${event.id}`,
+      recipients: { userIds: [userId] },
+      channels: ["in_app", "email", "web_push"],
+      priority: "high",
+      sourceType: "CalendarEvent",
+      sourceId: event.id,
+      metadata: { startDate: event.startDate ?? null, endDate: event.endDate ?? null, calendarId: event.calendarId ?? null },
+    });
+  }
   function broadcast(c, eventId, action) {
     const companyId = c.get("companyId") ?? null;
     if (!broadcaster || !companyId) return;
@@ -180,5 +195,5 @@ export function createCalendarEventEffects({ prisma, broadcaster = null }) {
     broadcast(c, eventId, "deleted");
   }
 
-  return { afterCreate, afterUpdate, afterDelete, broadcast };
+  return { afterCreate, afterUpdate, afterDelete, afterAddAttendee, broadcast };
 }

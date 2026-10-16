@@ -23,9 +23,10 @@ export function createMcpCapabilities({ prisma, config, oauth }) {
       const canonicalKey = row.key.replace(/^atlas\./, 'runly.');
       const tools = registry.tools.filter(tool => tool.moduleKey === canonicalKey && auth.scopes.includes(tool.scope));
       if (registry.moduleKeys.includes(canonicalKey)) {
-        const operations = tools.flatMap(tool => tool.operations.filter(operation => actx.can(operation.permission)).map(operation => ({
+        const available = await registry.create(canonicalKey).availableOperations?.(actx);
+        const operations = tools.flatMap(tool => tool.operations.filter(operation => actx.can(operation.permission) && (!operation.readPermission || actx.can(operation.readPermission)) && (!available || available.has(operation.name ?? operation.key))).map(operation => ({
           name: tool.name, operation: operation.name ?? operation.key, description: operation.definition?.description ?? operation.description ?? operation.label,
-          scope: tool.scope, permission: operation.permission, approvalPolicy: tool.approvalPolicy, mode: tool.mode,
+          scope: tool.scope, permission: operation.permission, readPermission: operation.readPermission, approvalPolicy: tool.approvalPolicy, mode: tool.mode,
           inputSchema: z.toJSONSchema(tool.mode === 'commit' ? tool.inputSchema : operation.inputSchema ?? parameterSchema(operation.definition?.parameters ?? operation.parameters), { io: 'input' }),
         })));
         if (operations.length) modules.push({ moduleKey: row.key, name: row.name, operations });
@@ -41,6 +42,7 @@ export function createMcpCapabilities({ prisma, config, oauth }) {
   }
   async function run(name, args, auth) {
     const tool = registry.tools.find(tool => tool.name === name);
+    insist(tool, 'not_found', 'Herramienta no disponible.', 404);
     if (tool?.domain) return runtime.run(tool.domain, tool.mode, args, auth);
     if (name === 'runly_modules_list' || name === 'runly_module_schema') return discovery(name, args, auth);
     return inventory.run(name, args, auth);

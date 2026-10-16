@@ -235,7 +235,7 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
       assert.deepEqual(actual, { ...inspectorMetadata, redirect_uris: [callback], scope: config.scopes.join(' ') });
       const output = await runInspector('tools/list', ['--stored-auth-only']);
       const tools = JSON.parse(output).tools;
-      assert.equal(tools.length, 33);
+      assert.equal(tools.length, 48);
     } finally { await rm(storage, { recursive: true, force: true }); }
   });
   await t.test('MCP Inspector CLI: listado e invocación por Streamable HTTP', { skip: process.env.RUNLY_MCP_TEST_INSPECTOR !== 'true' }, async () => {
@@ -353,6 +353,9 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
     await prisma.mcpState.update({ where: { id: accessRow.id }, data: { expiresAt: new Date(0) } });
     assert.equal((await request('/mcp', null, tokens.access_token)).status, 401);
     const refresh = { grant_type: 'refresh_token', refresh_token: tokens.refresh_token, client_id: clientId, resource: config.resource };
+    const expanded = await request('/mcp/oauth/token', { ...refresh, scope: 'hr:read' }, null, true);
+    assert.equal(expanded.status, 400);
+    assert.equal((await expanded.json()).error, 'invalid_scope');
     const rotated = await request('/mcp/oauth/token', { ...refresh, scope: 'runly:read' }, null, true);
     assert.equal(rotated.status, 200);
     const newer = await rotated.json();

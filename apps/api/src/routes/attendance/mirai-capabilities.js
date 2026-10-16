@@ -14,6 +14,8 @@ const KIND_LABEL = { internal: 'interno', contractor: 'contratista', visitor: 'v
 
 export function createAttendanceMiraiCapabilities({ prisma, service = null }) {
   const svc = service ?? createAttendanceService({ prisma })
+  const hours = createAttendanceHours({ prisma, getSettings: svc.getSettings })
+  const hm = minutes => Math.round((Number(minutes) / 60) * 100) / 100
 
   const names = async (companyId) => {
     const [groups, categories] = await Promise.all([
@@ -102,7 +104,7 @@ export function createAttendanceMiraiCapabilities({ prisma, service = null }) {
       },
     },
     async run(args, actx) {
-      const day = (v) => (typeof v === 'string' && /^d{4}-d{2}-d{2}/.test(v) ? v.slice(0, 10) : undefined)
+      const day = (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : undefined)
       const report = await hours.report(actx.companyId, { from: day(args?.from), to: day(args?.to) })
       const t = report.totals
       return {

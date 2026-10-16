@@ -18,7 +18,7 @@ function contextIds(c) {
   return { userId, companyId };
 }
 
-export function createProjectsTaskEffects({ prisma, notifSvc, bridge, broadcaster = null }) {
+export function createProjectsTaskEffects({ prisma, notifSvc, bridge, broadcaster = null, awaitDatabaseEffects = false }) {
   async function broadcastTaskEvent(projectId, taskId, action) {
     if (!broadcaster || !projectId) return;
     try {
@@ -64,20 +64,22 @@ export function createProjectsTaskEffects({ prisma, notifSvc, bridge, broadcaste
     const oldStatusId = previous?.statusId ?? null;
     if (patch.statusId && oldStatusId && oldStatusId !== patch.statusId) {
       await notifSvc.notifyTaskStatusChanged({ companyId, actorId: userId, taskId: task.id, oldStatusId, newStatusId: patch.statusId });
-      prisma.taskStatus.findMany({
+      const publishing = prisma.taskStatus.findMany({
         where: { id: { in: [oldStatusId, patch.statusId] } },
         select: { id: true, name: true },
       }).then((statuses) => {
         const oldS = statuses.find((s) => s.id === oldStatusId);
         const newS = statuses.find((s) => s.id === patch.statusId);
         const { actorName } = getActivityContext(c);
-        publishActivityFromContext(prisma, c, {
+        return publishActivityFromContext(prisma, c, {
           type: "projects.task.status_changed",
           summary: `${actorName} cambió estado de ${oldS?.name ?? "—"} → ${newS?.name ?? "—"}`,
           entityType: "Task",
           entityId: task.id,
         });
-      }).catch(() => {});
+      });
+      if (awaitDatabaseEffects) await publishing;
+      else publishing.catch(() => {});
     }
     broadcastTaskEvent(task.projectId ?? previous?.projectId, task.id, "updated");
   }

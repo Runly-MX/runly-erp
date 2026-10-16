@@ -9,7 +9,9 @@ export const proposalSchema = z.object({ data: z.object({ proposalId: z.string()
 // closed at startup rather than exposing an arbitrary object argument.
 export function parameterSchema(definition) {
   let schema;
-  if (definition.enum) schema = z.enum(definition.enum);
+  if (Array.isArray(definition.type)) schema = z.union(definition.type.map(type => parameterSchema({ ...definition, type })));
+  else if (definition.type === 'null') schema = z.null();
+  else if (definition.enum) schema = z.enum(definition.enum);
   else if (definition.type === 'object') {
     const required = new Set(definition.required ?? []);
     schema = z.object(Object.fromEntries(Object.entries(definition.properties ?? {}).map(([key, value]) => {
@@ -22,8 +24,14 @@ export function parameterSchema(definition) {
   else if (definition.type === 'boolean') schema = z.boolean();
   else if (definition.type === 'string') schema = z.string().max(20000);
   else throw new Error(`Unsupported MCP parameter type: ${definition.type}`);
+  if (['integer', 'number'].includes(definition.type)) {
+    if (definition.minimum !== undefined) schema = schema.min(definition.minimum);
+    if (definition.maximum !== undefined) schema = schema.max(definition.maximum);
+  }
   return definition.description ? schema.describe(definition.description) : schema;
 }
+
+export const pageInput = { page: z.number().int().min(1).max(10000).default(1), limit: z.number().int().min(1).max(50).default(30) };
 
 export function operationRequest(operations) {
   return z.discriminatedUnion('operation', operations.map(operation => z.object({
