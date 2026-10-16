@@ -30,16 +30,17 @@ const listParams = ({ search, labeled, categoryId, locationId }) => ({
   locationId: locationId || undefined,
 })
 
-export function useLabelAssetSearch(filters, { enabled = true } = {}) {
+// pageSize: 50 for the Etiquetas picker, a few rows for the Escanear suggestions.
+export function useLabelAssetSearch(filters, { enabled = true, pageSize = PAGE_SIZE } = {}) {
   const token = useToken()
   const params = listParams(filters)
   return useInfiniteQuery({
-    queryKey: ['inventory', 'items', 'label-picker', params],
-    queryFn: async ({ pageParam }) => runly.inventory.listItems({ ...params, page: pageParam, limit: PAGE_SIZE }, token),
+    queryKey: ['inventory', 'items', 'label-picker', params, pageSize],
+    queryFn: async ({ pageParam }) => runly.inventory.listItems({ ...params, page: pageParam, limit: pageSize }, token),
     initialPageParam: 1,
     getNextPageParam: (last) => {
       const page = Number(last?.page ?? 1)
-      const limit = Number(last?.limit ?? PAGE_SIZE)
+      const limit = Number(last?.limit ?? pageSize)
       return page * limit < Number(last?.total ?? 0) ? page + 1 : undefined
     },
     placeholderData: keepPreviousData,
