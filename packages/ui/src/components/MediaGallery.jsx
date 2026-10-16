@@ -355,10 +355,30 @@ export function MediaGallery({
   const dense = zoom.columns >= 7;
   const renderTile = (item, fit = false) => <MediaTile key={item.id} {...tileProps(item)} fit={fit} dense={dense} />;
   const gap = dense ? 4 : 8;
+  // Mosaic: each tile is assigned to a column once (the shortest at that moment) and
+  // never moves afterwards, so late-loading photos only grow in place instead of
+  // reshuffling the whole layout.
+  const placement = useRef({ columns: 0, map: new Map() });
+  if (placement.current.columns !== zoom.columns) placement.current = { columns: zoom.columns, map: new Map() };
+  const masonryColumns = (list) => {
+    const cols = Array.from({ length: zoom.columns }, () => ({ items: [], height: 0 }));
+    const map = placement.current.map;
+    list.forEach((item) => {
+      let index = map.get(item.id);
+      if (index === undefined) {
+        index = cols.reduce((best, col, i) => (col.height < cols[best].height ? i : best), 0);
+        map.set(item.id, index);
+      }
+      cols[index].items.push(item);
+      cols[index].height += 1 / (isImage(item) ? ratioCache.get(item.fileAssetId) ?? 1 : 1);
+    });
+    return cols;
+  };
   const renderGrid = (list) => (layout === "masonry" ? (
-    // CSS columns: each column stacks tiles at their own height (reading order runs down each column).
-    <div style={{ columnCount: zoom.columns, columnGap: gap }}>
-      {list.map((item) => <div key={item.id} className="break-inside-avoid" style={{ marginBottom: gap }}>{renderTile(item, true)}</div>)}
+    <div className="flex items-start" style={{ gap }}>
+      {masonryColumns(list).map((col, i) => (
+        <div key={i} className="flex min-w-0 flex-1 flex-col" style={{ gap }}>{col.items.map((item) => renderTile(item, true))}</div>
+      ))}
     </div>
   ) : (
     <div className="grid" style={{ gridTemplateColumns: `repeat(${zoom.columns}, minmax(0, 1fr))`, gap }}>{list.map((item) => renderTile(item))}</div>
