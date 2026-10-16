@@ -132,6 +132,13 @@ export function useLabelPreview(body, { enabled = true, delay = 400 } = {}) {
         const { blob, overflow } = await runly.inventory.labels.renderWithMeta(JSON.parse(key), token)
         if (cancelled) return
         const url = URL.createObjectURL(blob)
+        // Decode before swapping: the previous image stays until the new one is ready (no flicker).
+        try {
+          const img = new Image()
+          img.src = url
+          await img.decode()
+        } catch { /* swap anyway */ }
+        if (cancelled) { URL.revokeObjectURL(url); return }
         if (urlRef.current) URL.revokeObjectURL(urlRef.current)
         urlRef.current = url
         setState({ url, loading: false, error: null, overflow })

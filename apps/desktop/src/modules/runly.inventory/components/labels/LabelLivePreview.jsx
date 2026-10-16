@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Button, ErrorState, Skeleton, cn } from '@runly/ui'
-import { AlertTriangle, ChevronLeft, ChevronRight, ScanLine } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, Move, ScanLine } from 'lucide-react'
 import { SegmentTabs } from './studio-ui.jsx'
 
 const ZOOMS = [
@@ -8,18 +8,52 @@ const ZOOMS = [
   { value: '1', label: 'Real' },
   { value: '2', label: '200 %' },
 ]
+const PX_PER_MM = 96 / 25.4
 
-// Live PNG of one label as the API renders it, at its true proportions.
-// "Real" shows it at physical size (CSS millimetres), "200 %" doubled.
+// Content-box size of the preview viewport, tracked with a ResizeObserver.
+function useContentBox() {
+  const ref = useRef(null)
+  const [box, setBox] = useState(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const measure = () => {
+      const cs = getComputedStyle(el)
+      const w = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+      const h = el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+      setBox((prev) => (prev && Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5 ? prev : { w, h }))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return [ref, box]
+}
+
+// Box (px) of the label: "Ajustar" contains it in the viewport keeping its
+// proportions; "Real" is the physical size (CSS millimetres), "200 %" doubled.
+export function previewBoxSize(zoom, widthMm, heightMm, box) {
+  if (zoom !== 'fit') return { width: widthMm * PX_PER_MM * Number(zoom), height: heightMm * PX_PER_MM * Number(zoom) }
+  if (!box) return null
+  const s = Math.max(0, Math.min(box.w / widthMm, box.h / heightMm))
+  return { width: Math.floor(widthMm * s), height: Math.floor(heightMm * s) }
+}
+
+// Live PNG of one label as the API renders it, at its true proportions, in a
+// fixed-height viewport. "Ajustar" never scrolls; "Real" and "200 %" scroll
+// only inside the viewport, and only when the label is larger than it.
 // preview: { url, loading, error, overflow }; item: the asset being previewed.
 export function LabelLivePreview({
   preview, draft, item, index = 0, count = 0, onIndex, sample = false, blockedReason = null, compact = false, hideTitle = false,
 }) {
   const [zoom, setZoom] = useState('fit')
+  const [viewportRef, box] = useContentBox()
   const w = Number(draft.widthMm) || 60
   const h = Number(draft.heightMm) || 40
-  const scaled = zoom !== 'fit'
-  const size = scaled ? { width: `${w * Number(zoom)}mm`, height: `${h * Number(zoom)}mm` } : { aspectRatio: `${w} / ${h}` }
+  const size = previewBoxSize(zoom, w, h, box) ?? { width: '100%', maxHeight: '100%', aspectRatio: `${w} / ${h}` }
+  const overflowing = zoom !== 'fit' && Boolean(box) && (size.width > box.w + 0.5 || size.height > box.h + 0.5)
+  const showImage = item && !blockedReason && !(preview.error && !preview.url)
 
   return (
     <div className="flex flex-col gap-3">
@@ -33,33 +67,50 @@ export function LabelLivePreview({
         </div>
       ) : null}
 
-      <div className={cn(
-        'relative flex items-center justify-center overflow-auto rounded-md border border-[hsl(var(--border))]',
-        'bg-[hsl(var(--muted)/0.55)] bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:12px_12px]',
-        compact ? 'h-40 p-3' : 'h-52 p-4 lg:h-44',
-      )}>
-        {!item ? (
-          <div className="flex flex-col items-center gap-2 px-6 text-center text-sm text-[hsl(var(--muted-foreground))]">
-            <ScanLine className="h-6 w-6" aria-hidden="true" />
-            Selecciona activos para ver su etiqueta.
-          </div>
-        ) : blockedReason ? (
-          <p className="px-6 text-center text-sm text-[hsl(var(--muted-foreground))]">{blockedReason}</p>
-        ) : preview.error && !preview.url ? (
-          <ErrorState title="Sin vista previa" description={preview.error} showReport={false} className="py-6" />
-        ) : (
-          <div className={cn('relative', scaled ? 'shrink-0' : 'max-h-full max-w-full')}
-            style={scaled ? size : { ...size, width: w >= h ? '100%' : 'auto', height: w >= h ? 'auto' : '100%' }}>
-            {preview.url ? (
-              <img src={preview.url} alt={`Etiqueta de ${item.name ?? item.folio ?? 'equipo'}`}
-                className={cn('h-full w-full rounded-[2px] bg-white object-contain shadow-md ring-1 ring-black/10 transition-opacity motion-reduce:transition-none', preview.loading && 'opacity-60')} />
-            ) : <Skeleton className="h-full w-full rounded-[2px]" />}
-          </div>
-        )}
+      <div className="relative">
+        <div ref={viewportRef} tabIndex={overflowing ? 0 : undefined}
+          aria-label={overflowing ? 'Vista previa ampliada; desplázate para verla completa' : undefined}
+          className={cn(
+            'flex rounded-md border border-[hsl(var(--border))]',
+            'bg-[hsl(var(--muted)/0.55)] bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:12px_12px]',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
+            overflowing ? 'overflow-auto overscroll-contain' : 'overflow-hidden',
+            compact ? 'h-40 p-3' : 'h-52 p-4 lg:h-44',
+          )}>
+          {!item ? (
+            <div className="m-auto flex flex-col items-center gap-2 px-6 text-center text-sm text-[hsl(var(--muted-foreground))]">
+              <ScanLine className="h-6 w-6" aria-hidden="true" />
+              Selecciona activos para ver su etiqueta.
+            </div>
+          ) : blockedReason ? (
+            <p className="m-auto px-6 text-center text-sm text-[hsl(var(--muted-foreground))]">{blockedReason}</p>
+          ) : !showImage ? (
+            <ErrorState title="Sin vista previa" description={preview.error} showReport={false} className="m-auto py-6" />
+          ) : (
+            // m-auto centres the label yet lets an oversized one scroll from its top-left corner.
+            <div className="relative m-auto shrink-0" style={size}>
+              {preview.url ? (
+                <img src={preview.url} alt={`Etiqueta de ${item.name ?? item.folio ?? 'equipo'}`} draggable={false}
+                  className="block h-full w-full rounded-[2px] bg-white object-contain shadow-md ring-1 ring-black/10" />
+              ) : <Skeleton className="h-full w-full rounded-[2px]" />}
+            </div>
+          )}
+        </div>
+        {showImage && preview.loading && preview.url ? (
+          <span role="status" aria-label="Actualizando vista previa"
+            className="pointer-events-none absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-[hsl(var(--card)/0.85)] text-[hsl(var(--muted-foreground))]">
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+          </span>
+        ) : null}
+        {showImage && overflowing ? (
+          <span className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-md bg-[hsl(var(--card)/0.9)] px-2 py-1 text-[11px] text-[hsl(var(--muted-foreground))] shadow-sm">
+            <Move className="h-3 w-3" aria-hidden="true" />Desplázate para verla completa
+          </span>
+        ) : null}
       </div>
 
       {item ? (
-        <div className="flex items-center gap-2">
+        <div className="flex min-h-10 items-center gap-2">
           {count > 1 ? (
             <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Etiqueta anterior"
               disabled={index <= 0} onClick={() => onIndex(index - 1)}>
