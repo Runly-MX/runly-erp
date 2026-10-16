@@ -1,26 +1,36 @@
 import { useEffect, useRef, useState } from 'react'
-import { CameraOff, Flashlight, FlashlightOff, SwitchCamera } from 'lucide-react'
+import { Flashlight, FlashlightOff, Pause, Play, SwitchCamera, Volume2, VolumeX } from 'lucide-react'
 import { Button, cn } from '@runly/ui'
 import { native } from '../../../../native/index.js'
+import { cameraErrorKind, cameraStatus } from '../../lib/scan-kiosk.js'
+import { FeedbackBanner, ScanFrame, StatusChip, ViewfinderPanel, edgeGlow } from './ScanViewfinder.jsx'
 
 const REPEAT_WINDOW_MS = 2500
 const SCAN_FORMATS = ['QR_CODE', 'DATA_MATRIX', 'CODE_128', 'CODE_39', 'EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'ITF']
-const FLASH_RING = {
-  ok: 'border-emerald-400',
-  duplicate: 'border-amber-400',
-  missing: 'border-red-400',
-}
 
 // The Android app asks for the OS camera permission through its bridge; in a
 // browser or the desktop shell getUserMedia prompts by itself.
 async function ensureNativeCameraPermission() {
   try { if (native.isMobile()) await native.device.requestPermission('camera') } catch { /* older app or web: getUserMedia decides */ }
 }
+const openNativeSettings = () => native.device.openSettings('camera').catch(() => {})
+
+function OverlayButton({ label, pressed, onClick, children }) {
+  return (
+    <Button type="button" size="icon" variant="ghost" onClick={onClick} aria-label={label} aria-pressed={pressed} title={label}
+      className="size-11 rounded-md bg-black/55 text-white backdrop-blur-sm hover:bg-black/75 hover:text-white focus-visible:ring-2 focus-visible:ring-white">
+      {children}
+    </Button>
+  )
+}
 
 // Continuous QR + barcode reader (zxing multi-format, back camera first).
 // The same text read again within REPEAT_WINDOW_MS is ignored so one code in
 // front of the lens is a single read; the parent decides what it means.
-export function ScanCamera({ active = true, onRead, flash = null, className }) {
+// Paused = the reader and the camera stream are stopped (light and battery).
+export function ScanCamera({
+  paused = false, onPausedChange, onRead, tone = null, feedback = null, muted = false, onMutedChange, onStatusChange, onManual, className,
+}) {
   const videoRef = useRef(null)
   const controlsRef = useRef(null)
   const handlerRef = useRef(onRead)
@@ -29,11 +39,14 @@ export function ScanCamera({ active = true, onRead, flash = null, className }) {
   const [torch, setTorch] = useState({ supported: false, on: false })
   const [error, setError] = useState(null)
   const [starting, setStarting] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const status = cameraStatus({ enabled: true, paused, starting, error })
 
   useEffect(() => { handlerRef.current = onRead }, [onRead])
+  useEffect(() => { onStatusChange?.(status) }, [status, onStatusChange])
 
   useEffect(() => {
-    if (!active) return undefined
+    if (paused) return undefined
     let stopped = false
     let lastText = ''
     let lastAt = 0
@@ -65,13 +78,7 @@ export function ScanCamera({ active = true, onRead, flash = null, className }) {
         const inputs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput')
         if (!stopped) setDevices(inputs)
       } catch (e) {
-        if (stopped) return
-        const name = e?.name ?? e?.message
-        setError(name === 'unsupported'
-          ? 'Este navegador no permite usar la cámara. Usa el campo de código o un lector USB.'
-          : name === 'NotAllowedError'
-            ? 'Permite el acceso a la cámara en el navegador o en los ajustes del teléfono.'
-            : 'No se pudo abrir la cámara. Usa el campo de código o un lector USB.')
+        if (!stopped) setError(cameraErrorKind(e))
       } finally {
         if (!stopped) setStarting(false)
       }
@@ -81,7 +88,7 @@ export function ScanCamera({ active = true, onRead, flash = null, className }) {
       controlsRef.current?.stop()
       controlsRef.current = null
     }
-  }, [active, deviceId])
+  }, [paused, deviceId, attempt])
 
   async function toggleTorch() {
     const next = !torch.on
@@ -100,37 +107,36 @@ export function ScanCamera({ active = true, onRead, flash = null, className }) {
     setDeviceId(devices[(index + 1) % devices.length].deviceId)
   }
 
+  const live = status === 'scanning' || status === 'starting'
   return (
-    <div className={cn('relative overflow-hidden rounded-md bg-black', className)}>
-      <video ref={videoRef} muted playsInline className="size-full object-cover" aria-label="Vista de la cámara" />
-      {error ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-sm text-slate-200">
-          <CameraOff className="size-10 text-slate-400" aria-hidden="true" />
-          <p>{error}</p>
-        </div>
-      ) : (
-        <div
-          aria-hidden="true"
-          className={cn(
-            'pointer-events-none absolute inset-[12%] rounded-md border-2 shadow-[0_0_0_9999px_rgba(2,6,23,0.4)] transition-colors duration-200 motion-reduce:transition-none',
-            FLASH_RING[flash] ?? 'border-white/70',
-          )}
-        />
+    <div className={cn('relative overflow-hidden rounded-lg bg-slate-950', className)}>
+      <video ref={videoRef} muted playsInline className={cn('size-full object-cover', !live && 'invisible')} aria-label="Vista de la cámara" />
+      {live ? <ScanFrame tone={tone} /> : null}
+      {live && tone ? <div aria-hidden="true" className={cn('pointer-events-none absolute inset-0 rounded-lg', edgeGlow(tone))} /> : null}
+      <ViewfinderPanel status={status} onResume={() => onPausedChange?.(false)} onRetry={() => setAttempt((n) => n + 1)}
+        onSettings={native.isMobile() ? openNativeSettings : null} onManual={onManual} />
+
+      {feedback ? <FeedbackBanner feedback={feedback} /> : (
+        <div className="pointer-events-none absolute left-2 top-2"><StatusChip status={status} /></div>
       )}
-      {starting && !error ? <p className="absolute inset-x-0 top-3 text-center text-xs text-white/80">Abriendo la cámara…</p> : null}
-      {!error ? (
-        <div className="absolute bottom-3 right-3 flex gap-2">
-          {torch.supported ? (
-            <Button type="button" size="icon" variant="secondary" className="size-11" onClick={toggleTorch}
-              aria-pressed={torch.on} aria-label={torch.on ? 'Apagar linterna' : 'Encender linterna'}>
+
+      {status !== 'denied' && status !== 'unavailable' && status !== 'failed' ? (
+        <div className="absolute inset-x-2 bottom-2 flex items-center gap-2">
+          <OverlayButton label={paused ? 'Reanudar lectura' : 'Pausar lectura'} pressed={paused} onClick={() => onPausedChange?.(!paused)}>
+            {paused ? <Play className="size-5" /> : <Pause className="size-5" />}
+          </OverlayButton>
+          <span className="flex-1" />
+          {torch.supported && !paused ? (
+            <OverlayButton label={torch.on ? 'Apagar linterna' : 'Encender linterna'} pressed={torch.on} onClick={toggleTorch}>
               {torch.on ? <FlashlightOff className="size-5" /> : <Flashlight className="size-5" />}
-            </Button>
+            </OverlayButton>
           ) : null}
-          {devices.length > 1 ? (
-            <Button type="button" size="icon" variant="secondary" className="size-11" onClick={switchCamera} aria-label="Cambiar cámara">
-              <SwitchCamera className="size-5" />
-            </Button>
+          {devices.length > 1 && !paused ? (
+            <OverlayButton label="Cambiar cámara" onClick={switchCamera}><SwitchCamera className="size-5" /></OverlayButton>
           ) : null}
+          <OverlayButton label={muted ? 'Activar sonido' : 'Silenciar'} pressed={muted} onClick={() => onMutedChange?.(!muted)}>
+            {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
+          </OverlayButton>
         </div>
       ) : null}
     </div>

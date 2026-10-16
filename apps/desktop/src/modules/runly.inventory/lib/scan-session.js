@@ -72,6 +72,12 @@ export function sessionReducer(state, action) {
       return state.map((r) => (r.item && action.items[r.item.id] ? { ...r, item: { ...r.item, ...action.items[r.item.id] } } : r))
     case 'remove':
       return state.filter((r) => r.key !== action.key)
+    // Undo of a remove: the row goes back to its position unless it was read again meanwhile.
+    case 'restore': {
+      if (!action.row?.key || state.some((r) => r.key === action.row.key)) return state
+      const index = Math.min(Math.max(0, action.index ?? 0), state.length)
+      return [...state.slice(0, index), action.row, ...state.slice(index)].slice(0, MAX_SESSION_ROWS)
+    }
     case 'clear':
       return []
     case 'load':
