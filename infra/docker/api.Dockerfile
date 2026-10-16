@@ -29,6 +29,10 @@ RUN DIRECT_URL=postgresql://postgres:postgres@localhost:5432/postgres pnpm prism
 
 FROM node:22-alpine
 WORKDIR /app
+# Alpine ships no fonts: sharp/librsvg needs at least one to draw text, otherwise
+# the label PNG preview shows empty boxes. Liberation Sans is metric-compatible
+# with Arial (the family the renderer asks for); DejaVu covers accents and symbols.
+RUN apk add --no-cache fontconfig font-liberation ttf-dejavu && fc-cache -f
 RUN corepack enable
 # Pruned production tree only — devDependencies stay behind in the deps stage.
 COPY --from=deps /app /app
