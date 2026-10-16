@@ -231,6 +231,7 @@ export { RingProgress } from "./components/RingProgress.jsx";
 export { SectionCard } from "./components/SectionCard.jsx";
 export { SegmentedControl } from "./components/SegmentedControl.jsx";
 export { NumberStepper } from "./components/NumberStepper.jsx";
+export { PeekSheet } from "./components/PeekSheet.jsx";
 export { ChoiceCardGroup } from "./components/ChoiceCardGroup.jsx";
 export { SwipeBackStack } from "./components/SwipeBackStack.jsx";
 export { CopyableValue } from "./components/CopyableValue.jsx";
