@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { itemLabel } from '../lib/item-label.js'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ErrorState, ConfirmDialog, DetailActionBar, Button, DetailSkeleton } from '@runly/ui'
+import { ErrorState, ConfirmDialog, RecordHeader, DetailSkeleton } from '@runly/ui'
 import { InventoryItemPresentation } from '@runly/ui/integrations'
 import { ArrowLeft, Plus, PowerOff, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
@@ -62,8 +62,22 @@ export default function InventoryItemDetail() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 min-h-dvh">
-      <Button variant="outline" onClick={() => openMiraiSidebar()}><Sparkles className="mr-2 h-4 w-4" />Consultar este equipo con IA</Button>
+    <div className="px-4 pb-6 md:px-6 space-y-6 min-h-dvh">
+      <RecordHeader
+        bleed
+        crumbs={[
+          { label: 'Inventario', onClick: () => navigate('/app/m/runly.inventory/inventory') },
+          { label: itemLabel(item) },
+        ]}
+        title={itemLabel(item)}
+        actions={[
+          { key: 'back', label: 'Volver', icon: <ArrowLeft className="h-4 w-4" />, placement: 'collapse', onClick: () => navigate('/app/m/runly.inventory/inventory') },
+          { key: 'ai', label: 'Consultar con IA', icon: <Sparkles className="h-4 w-4" />, placement: 'menu', onClick: () => openMiraiSidebar() },
+          { key: 'new', label: 'Nuevo inventario', icon: <Plus className="h-4 w-4" />, placement: 'menu', onClick: () => navigate('/app/m/runly.inventory/inventory/new') },
+          { key: 'deactivate', label: 'Desactivar', icon: <PowerOff className="h-4 w-4" />, placement: 'menu', destructive: true, onClick: () => setDeleteOpen(true) },
+          { key: 'edit', label: 'Editar', variant: 'default', hidden: readOnly, onClick: () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`) },
+        ]}
+      />
       <InventoryItemPresentation
         data={detailData}
         token={token}
@@ -75,32 +89,7 @@ export default function InventoryItemDetail() {
         onEdit={readOnly ? undefined : () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`)}
         mainExtra={<><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /></>}
         asideExtra={<CanvasReferences moduleKey="runly.inventory" entityType="inventory_item" entityId={id} />}
-        heroActions={
-          <DetailActionBar
-            primary={readOnly ? undefined : {
-              label: 'Editar',
-              onClick: () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`),
-            }}
-            secondary={[
-              {
-                label: 'Volver',
-                icon: <ArrowLeft className="h-4 w-4" />,
-                onClick: () => navigate('/app/m/runly.inventory/inventory'),
-              },
-              {
-                label: 'Nuevo inventario',
-                icon: <Plus className="h-4 w-4" />,
-                onClick: () => navigate('/app/m/runly.inventory/inventory/new'),
-              },
-              {
-                label: 'Desactivar',
-                icon: <PowerOff className="h-4 w-4" />,
-                onClick: () => setDeleteOpen(true),
-                destructive: true,
-              },
-            ]}
-          />
-        }
+        heroActions={false}
       />
       <ConfirmDialog
         open={deleteOpen}

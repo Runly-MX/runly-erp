@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { DetailActionBar } from "../components/DetailActionBar.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
+import { RecordHeader } from "../components/RecordHeader.jsx";
 import { FormSkeleton } from "../components/Skeleton.jsx";
 import { ConfirmDialog } from "../components/ConfirmDialog.jsx";
 import {
@@ -101,6 +102,9 @@ export const RunlyCrudView = forwardRef(function RunlyCrudView({
   // Host-provided detail actions: [{ key, label, onClick(record) }] (e.g. the
   // "Compartir" public-links action added by BlueprintCrudScreen).
   extraDetailActions = [],
+  // Page-mode create / detail / edit use the sticky RecordHeader (breadcrumb,
+  // title and actions). false keeps the plain compact PageHeader.
+  recordHeader = true,
 }, ref) {
   const runtimeFetch = useRuntimeFetch();
   const tableApiPath = getApiPath(tableBlueprint);
@@ -391,6 +395,14 @@ export const RunlyCrudView = forwardRef(function RunlyCrudView({
     [runtimeFetch, apiBaseUrl, fetchRecord, recordData, token, companyId],
   );
 
+  const collectionLabel = tableBlueprint?.schema?.title ?? tableBlueprint?.title ?? null;
+  const moduleLabel = module?.name ?? module?.manifest?.name ?? null;
+  const headerCrumbs = (current) => [
+    ...(moduleLabel ? [{ label: moduleLabel }] : []),
+    ...(collectionLabel ? [{ label: collectionLabel, onClick: goToList }] : [{ label: "Lista", onClick: goToList }]),
+    ...(current ? [{ label: current }] : []),
+  ];
+
   const renderRecordLoadingOrError = () => {
     if (loadingRecord) {
       return <FormSkeleton />;
@@ -427,25 +439,41 @@ export const RunlyCrudView = forwardRef(function RunlyCrudView({
         <div className="space-y-4">
           {mode === "create" && currentFormBlueprint && (
             <>
-              <PageHeader
-                compact
-                title={
-                  currentFormBlueprint?.schema?.title ??
-                  currentFormBlueprint?.title ??
-                  tableBlueprint?.schema?.actions?.[0]?.label ??
-                  "Nuevo registro"
-                }
-                actions={
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={goToList}>
-                      Cancelar
-                    </Button>
-                    <Button type="submit" form="runly-crud-form" size="sm">
-                      Guardar
-                    </Button>
-                  </div>
-                }
-              />
+              {recordHeader ? (
+                <RecordHeader
+                  crumbs={headerCrumbs("Nuevo")}
+                  title={
+                    currentFormBlueprint?.schema?.title ??
+                    currentFormBlueprint?.title ??
+                    tableBlueprint?.schema?.actions?.[0]?.label ??
+                    "Nuevo registro"
+                  }
+                  actions={[
+                    { key: "cancel", label: "Cancelar", onClick: goToList },
+                    { key: "save", label: "Guardar", type: "submit", form: "runly-crud-form" },
+                  ]}
+                />
+              ) : (
+                <PageHeader
+                  compact
+                  title={
+                    currentFormBlueprint?.schema?.title ??
+                    currentFormBlueprint?.title ??
+                    tableBlueprint?.schema?.actions?.[0]?.label ??
+                    "Nuevo registro"
+                  }
+                  actions={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={goToList}>
+                        Cancelar
+                      </Button>
+                      <Button type="submit" form="runly-crud-form" size="sm">
+                        Guardar
+                      </Button>
+                    </div>
+                  }
+                />
+              )}
               <RunlyForm
                 id="runly-crud-form"
                 blueprint={currentFormBlueprint}
@@ -497,9 +525,46 @@ export const RunlyCrudView = forwardRef(function RunlyCrudView({
                 ]}
               />
             );
+            const detailTitle =
+              (recordData ? resolveRowLabel(recordData) : null)
+                ?? (currentDetailBlueprint?.schema?.title ?? currentDetailBlueprint?.title ?? "Detalle");
+            const recordActions = [
+              ...(currentFormBlueprint
+                ? [{ key: "edit", label: "Editar", variant: "default", onClick: () => setMode("edit") }]
+                : []),
+              { key: "back", label: "Volver", icon: <ArrowLeft className="h-4 w-4" />, placement: "collapse", onClick: goToList },
+              ...extraDetailActions.map((action) => ({
+                key: action.key ?? action.label,
+                label: action.label,
+                icon: action.icon,
+                placement: "menu",
+                onClick: () => action.onClick(recordData),
+              })),
+              ...detailHeaderActions
+                .filter((action) => isActionVisible(action, recordData))
+                .map((action) => {
+                  const actionKey = String(action.key ?? action.label ?? "action");
+                  return {
+                    key: actionKey,
+                    label: action.label ?? "Accion",
+                    placement: "menu",
+                    loading: headerActionLoadingKey === actionKey,
+                    destructive: action.variant === "destructive",
+                    onClick: () => executeHeaderAction(action),
+                  };
+                }),
+            ];
             return (
               <>
-                {!heroEnabled && (
+                {recordHeader ? (
+                  <RecordHeader
+                    crumbs={headerCrumbs(detailTitle)}
+                    title={detailTitle}
+                    subtitle={heroEnabled ? null : (currentDetailBlueprint?.schema?.title ?? currentDetailBlueprint?.title ?? null)}
+                    actions={recordActions}
+                  />
+                ) : null}
+                {!recordHeader && !heroEnabled && (
                   <PageHeader
                     compact
                     eyebrow={
@@ -527,8 +592,8 @@ export const RunlyCrudView = forwardRef(function RunlyCrudView({
                 companyId={companyId}
                       apiBaseUrl={apiBaseUrl}
                       componentRegistry={componentRegistry}
-                      onBack={heroEnabled ? goToList : undefined}
-                      heroActions={heroEnabled ? detailActions : undefined}
+                      onBack={heroEnabled && !recordHeader ? goToList : undefined}
+                      heroActions={heroEnabled ? (recordHeader ? false : detailActions) : undefined}
                     />
                   ))}
               </>
@@ -537,25 +602,37 @@ export const RunlyCrudView = forwardRef(function RunlyCrudView({
 
           {mode === "edit" && currentFormBlueprint && (
             <>
-              <PageHeader
-                compact
-                eyebrow={
-                  currentFormBlueprint?.schema?.title ??
-                  currentFormBlueprint?.title ??
-                  null
-                }
-                title={(recordData ? resolveRowLabel(recordData) : null) ?? "Editar registro"}
-                actions={
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={goToList}>
-                      Cancelar
-                    </Button>
-                    <Button type="submit" form="runly-crud-form" size="sm">
-                      Guardar cambios
-                    </Button>
-                  </div>
-                }
-              />
+              {recordHeader ? (
+                <RecordHeader
+                  crumbs={headerCrumbs((recordData ? resolveRowLabel(recordData) : null) ?? "Editar")}
+                  title={(recordData ? resolveRowLabel(recordData) : null) ?? "Editar registro"}
+                  subtitle="Editar"
+                  actions={[
+                    { key: "cancel", label: "Cancelar", onClick: goToList },
+                    { key: "save", label: "Guardar cambios", type: "submit", form: "runly-crud-form" },
+                  ]}
+                />
+              ) : (
+                <PageHeader
+                  compact
+                  eyebrow={
+                    currentFormBlueprint?.schema?.title ??
+                    currentFormBlueprint?.title ??
+                    null
+                  }
+                  title={(recordData ? resolveRowLabel(recordData) : null) ?? "Editar registro"}
+                  actions={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={goToList}>
+                        Cancelar
+                      </Button>
+                      <Button type="submit" form="runly-crud-form" size="sm">
+                        Guardar cambios
+                      </Button>
+                    </div>
+                  }
+                />
+              )}
               {renderRecordLoadingOrError() ??
                 (recordData && (
                   <RunlyForm
