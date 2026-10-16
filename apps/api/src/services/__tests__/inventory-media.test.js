@@ -8,6 +8,7 @@ test('mediaWhere scopes to the company and filters by kind and search', () => {
   assert.deepEqual(mediaWhere('c1', { kind: 'file' }).fileAsset.NOT, { mimeType: { startsWith: 'image/' } })
   assert.equal(mediaWhere('c1', { search: ' cam ' }).OR.length, 4)
   assert.equal(mediaWhere('c1').OR, undefined)
+  assert.deepEqual(mediaWhere('c1', { search: 'cam', itemIds: ['i1'] }).OR.at(-1), { itemId: { in: ['i1'] } })
 })
 
 test('listInventoryMedia clamps the page size and flattens rows', async () => {

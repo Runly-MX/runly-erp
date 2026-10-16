@@ -20,6 +20,7 @@ import { createCoreTargetConnections } from '../../services/connections/core-tar
 import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js';
 import { findActiveDuplicates } from '../../services/inventory-identifiers.js';
 import { listInventoryMedia } from '../../services/inventory-media.js';
+import { createInventorySearch } from '../../services/inventory-search-service.js';
 import { preparePurchaseLinks, withoutPurchaseLinkFields, composeAfterWrite, loadPurchaseLinks, loadPurchaseNumbersForItems, purchaseLinkFields } from '../../services/inventory-purchase-links.js';
 import { publishActivityFromContext, getActivityContext } from '../../services/activity-publisher.js';
 
@@ -259,7 +260,18 @@ export function createInventoryRouter({
   router.get("/inventory/media", requirePermission("inventory.item.read"), async (c) => {
     try {
       const { kind, search, itemId, sort, page, pageSize } = c.req.query();
-      return c.json(await listInventoryMedia(prisma, c.get("companyId"), { kind, search, itemId, sort, page, pageSize }));
+      const companyId = c.get("companyId");
+      // Same matching as the item list: full-text across related records + connected fields.
+      let itemIds;
+      if (String(search ?? "").trim()) {
+        try {
+          const connectionMatchIds = await itemConnections.searchIds(c, search);
+          itemIds = [...new Set([...(await createInventorySearch({ prisma }).searchItemIds(companyId, search)), ...connectionMatchIds])];
+        } catch (searchErr) {
+          console.warn("[inventory] media search failed, using basic search:", searchErr?.code ?? searchErr?.name ?? "error");
+        }
+      }
+      return c.json(await listInventoryMedia(prisma, companyId, { kind, search, itemId, itemIds, sort, page, pageSize }));
     } catch (err) {
       return c.json({ error: "No se pudo cargar la galería." }, 500);
     }

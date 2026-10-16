@@ -3,7 +3,9 @@
 const MAX_PAGE_SIZE = 200
 const IMAGE = { startsWith: 'image/' }
 
-export function mediaWhere(companyId, { kind, search, itemId } = {}) {
+// itemIds: items matched by the full inventory search (same engine as the list);
+// when given, any file of those items matches, on top of its own label/name.
+export function mediaWhere(companyId, { kind, search, itemId, itemIds } = {}) {
   const term = String(search ?? '').trim()
   return {
     item: { companyId, enabled: true },
@@ -19,6 +21,7 @@ export function mediaWhere(companyId, { kind, search, itemId } = {}) {
         { fileAsset: { originalName: { contains: term, mode: 'insensitive' } } },
         { item: { name: { contains: term, mode: 'insensitive' } } },
         { item: { assetTag: { contains: term, mode: 'insensitive' } } },
+        ...(itemIds?.length ? [{ itemId: { in: itemIds } }] : []),
       ],
     } : {}),
   }
