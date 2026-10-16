@@ -17,7 +17,7 @@ describe('bluetooth printing helpers', () => {
   })
   it('normalizes MAC addresses', () => {
     assert.equal(normalizeBluetoothAddress(' aa-bb-cc-dd-ee-0f '), 'AA:BB:CC:DD:EE:0F')
-    assert.equal(normalizeBluetoothAddress('192.168.1.5:9100'), null)
+    assert.equal(normalizeBluetoothAddress('192.0.2.5:9100'), null)
   })
   it('requests the Bluetooth permission only when it is missing', async () => {
     assert.equal(await ensureBluetoothReady(device({ available: true, state: 'granted', enabled: true })), null)

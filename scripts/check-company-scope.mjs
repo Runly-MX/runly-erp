@@ -16,6 +16,17 @@ const exceptions = new Map([
   ['runly.notes/lib/canvasImages.js', 'Signed image URLs'],
   ['runly.notes/lib/noteClipboard.js', 'Public clipboard image with credentials omitted'],
   ['runly.inventory/lib/intake.js', 'Explicit companyId header and request signal'],
+  ['runly.attendance/kiosk/lib/kiosk-api.js', 'Public kiosk capability and pairing credentials; no user session'],
+  ['runly.attendance/lib/attendanceRequest.js', 'Shared transport includes explicit companyId header'],
+  ['runly.canvas/lib/media.js', 'Signed PDF asset download'],
+  ['runly.canvas/lib/renderScene.js', 'Signed image asset download'],
+  ['runly.canvas/screens/PublicBoardScreen.jsx', 'Public board capability; endpoints scoped by token'],
+  ['runly.chat/calls/guest/useGuestChatUpload.js', 'Presigned guest storage upload URL'],
+  ['runly.files/screens/PublicFileScreen.jsx', 'Public file capability; endpoint scoped by token'],
+  ['runly.files/screens/PublicFolderScreen.jsx', 'Public folder capability; endpoint scoped by token'],
+  ['runly.inventory/components/catalogs/CatalogImportDialog.jsx', 'Template download includes explicit active company header'],
+  ['runly.inventory/components/InventoryItemImportDialog.jsx', 'Template download includes explicit active company header'],
+  ['runly.inventory/hooks/useInventoryCustody.js', 'Signed document template download; business calls use SDK'],
 ]);
 let checked = 0;
 const failures = [];
