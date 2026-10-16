@@ -3,7 +3,6 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Button, Card, Checkbox, ConfirmDialog, EmptyState, ErrorState, LoadingState, PageHeader } from '@runly/ui';
 import { useAuth } from '../auth/AuthProvider';
-import { getApiUrl } from '../lib/runtimeConfig.js';
 
 const SCOPE_LABELS = { 'runly:read': 'Ver tu identidad, empresas y módulos autorizados', 'inventory:read': 'Consultar equipos y catálogos de inventario', 'inventory:write': 'Preparar y ejecutar altas y ediciones con tu aprobación en Runly' };
 
@@ -15,7 +14,8 @@ export function McpConnectionScreen() {
   const [revoking, setRevoking] = useState(null);
   const [done, setDone] = useState(false);
   async function api(path, body) {
-    const response = await fetch(`${getApiUrl()}${path}`, { method: body ? 'POST' : 'GET', headers: { Authorization: `Bearer ${session.access_token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    // MCP is published through the frontend proxy, independently of the ERP API.
+    const response = await fetch(path, { method: body ? 'POST' : 'GET', headers: { Authorization: `Bearer ${session.access_token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error_description ?? result.error ?? 'No se pudo completar la solicitud.');
     return result;

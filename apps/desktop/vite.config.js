@@ -283,6 +283,12 @@ export default defineConfig({
       }
 
       return {
+        // Match the production frontend proxy for the MCP consent/account UI.
+        "^/mcp(?:/|$)": {
+          target: apiTarget,
+          changeOrigin: true,
+          configure: (p) => suppressStartup(p, "/mcp"),
+        },
         // PWA push endpoints
         "^/pwa/": {
           target: apiTarget,

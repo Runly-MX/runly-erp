@@ -202,6 +202,14 @@ RUNLY_MCP_ALLOWED_ORIGINS=http://localhost:6274
 ```
 
 `RUNLY_MCP_WEB_URL` es el origen del frontend, sin ruta salvo `/app` opcional.
+La pantalla `/app/mcp` usa rutas absolutas relativas al origen (`/mcp/...`) para
+account, request, consent, proposals y revoke. Estas peticiones pasan por el
+proxy del frontend y conservan el bearer de la sesión web; no usan ni modifican
+`RUNLY_API_URL`, que puede apuntar a otro subdominio. Vite incluye el proxy MCP
+equivalente para desarrollo local. No se relajan las validaciones de host,
+origen, permisos ni autenticación de la API. El arreglo de esta pantalla requiere
+publicar únicamente la imagen `web-latest`; no cambia la API ni exige migraciones.
+
 La URL MCP debe terminar exactamente en `/mcp`. Las URLs remotas exigen HTTPS;
 HTTP se admite solo en localhost/loopback. Los orígenes adicionales son una lista
 exacta separada por comas; nunca se usa wildcard. No se confía en Host u Origin
