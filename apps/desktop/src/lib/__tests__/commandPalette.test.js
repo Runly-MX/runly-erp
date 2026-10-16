@@ -336,5 +336,7 @@ test("help search group is placed after modules, tools and pages", () => {
   });
   const ids = sections.map((s) => s.id);
   assert.equal(ids.at(-1), "search:help");
-  assert.equal(ids[0], "search:contacts");
+  // "contactos" is the module's own name, so the module outranks its records.
+  assert.equal(ids[0], "modules");
+  assert.ok(ids.includes("search:contacts"));
 });

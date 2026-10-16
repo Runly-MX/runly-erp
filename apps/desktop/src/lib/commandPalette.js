@@ -6,6 +6,7 @@
 // navigation + close.
 
 import { CATEGORY_LABELS } from "./sortModules.js";
+import { initialsOf } from "./commandQuery.js";
 
 export const STATIC_PAGES = [
   {
@@ -96,7 +97,12 @@ function moduleItem(module, isBlocked) {
     title: module.name,
     subtitle:
       module.summary || module.description || categoryLabel(module.category),
-    keywords: [module.key, categoryLabel(module.category)].filter(Boolean),
+    keywords: [
+      module.key,
+      module.key.split(".").pop(),
+      initialsOf(module.name),
+      categoryLabel(module.category),
+    ].filter(Boolean),
     icon: module.icon,
     color: module.color,
     module,
@@ -196,6 +202,8 @@ export function buildCommandItems({
   isOnline = true,
   offlineModuleKeys = [],
   searchGroups = [],
+  mode = null,
+  recents = [],
 } = {}) {
   const isBlocked = makeBlocked(isOnline, offlineModuleKeys);
   const q = normalizeText(query);
@@ -257,7 +265,17 @@ export function buildCommandItems({
     items: STATIC_PAGES.map(pageItem),
   });
 
+  const MODE_SECTIONS = {
+    actions: ["active", "tools", "actions"],
+    modules: ["modules"],
+    people: [],
+    records: [],
+    help: [],
+  };
+  const allowedIds = mode ? MODE_SECTIONS[mode] ?? [] : null;
+
   const localSections = rawSections
+    .filter((section) => !allowedIds || allowedIds.includes(section.id))
     .map((section) => {
       if (!q) return section;
       const scored = section.items
@@ -281,9 +299,40 @@ export function buildCommandItems({
   const helpSections = allSearchSections.filter((s) => s.id === "search:help");
   const searchSections = allSearchSections.filter((s) => s.id !== "search:help");
   const hasActive = localSections[0]?.id === "active";
-  const sections = hasActive
+  let sections = hasActive
     ? [localSections[0], ...searchSections, ...localSections.slice(1), ...helpSections]
     : [...searchSections, ...localSections, ...helpSections];
+
+  // A query that is a clear name/alias hit on a module ("inv" -> Inventario)
+  // means the person wants the module itself, so it outranks matching records.
+  if (q && !mode) {
+    const modulesSection = localSections.find((s) => s.id === "modules");
+    const top = modulesSection?.items[0];
+    if (top && scoreItem(q, top) >= 300) {
+      sections = [modulesSection, ...sections.filter((s) => s !== modulesSection)];
+    }
+  }
+
+  if (!q && !mode && recents.length > 0) {
+    sections = [
+      {
+        id: "recent",
+        title: "Recientes",
+        items: recents.map((r) => ({
+          key: `recent:${r.target}`,
+          kind: "recent",
+          title: r.title,
+          subtitle: r.subtitle ?? null,
+          keywords: [],
+          icon: r.icon,
+          color: r.color ?? undefined,
+          target: r.target,
+          blocked: false,
+        })),
+      },
+      ...sections,
+    ];
+  }
 
   const flat = sections.flatMap((section) => section.items);
 

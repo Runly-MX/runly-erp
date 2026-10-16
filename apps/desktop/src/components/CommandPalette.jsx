@@ -18,6 +18,16 @@ import {
   orderGroups,
   resolveSearchScope,
 } from "../lib/commandSearch";
+import {
+  PALETTE_MODES,
+  filterGroupsForMode,
+  isLocalMode,
+  loadRecents,
+  parseQuery,
+  pushRecent,
+  saveRecents,
+  toRecent,
+} from "../lib/commandQuery";
 import { useCommandSearch } from "../lib/useCommandSearch";
 import { useQuickNoteStore } from "../modules/runly.notes/quick/quickNoteStore";
 
@@ -35,28 +45,34 @@ export function CommandPalette({ activeModule }) {
 
   const [widened, setWidened] = useState(false);
   const scope = resolveSearchScope(activeModule, widened);
-  const trimmedQuery = query.trim();
-  const searchActive = isOpen && isOnline && trimmedQuery.length >= SEARCH_MIN_LENGTH;
+  const { mode, text } = useMemo(() => parseQuery(query), [query]);
+  const modeMeta = mode ? PALETTE_MODES[mode] : null;
+  const trimmedQuery = text.trim();
+  const searchActive =
+    isOpen && isOnline && !isLocalMode(mode) && trimmedQuery.length >= SEARCH_MIN_LENGTH;
   const { response, loading, error, retry } = useCommandSearch({
     enabled: searchActive,
-    query,
+    query: text,
     moduleKey: scope.moduleKey,
     token,
   });
+  const [recents, setRecents] = useState(() => loadRecents());
 
   const { sections, flat } = useMemo(() => {
     const base = buildCommandItems({
       availableModules,
       activeModule,
-      query,
+      query: text,
       isOnline,
       offlineModuleKeys: OFFLINE_MODULES,
-      searchGroups: orderGroups(response?.groups ?? [], scope.moduleKey),
+      searchGroups: filterGroupsForMode(orderGroups(response?.groups ?? [], scope.moduleKey), mode),
+      mode,
+      recents,
     });
     const extras = buildSearchExtras({ scope, response, searching: searchActive });
     const all = [...extras.top, ...base.sections, ...extras.bottom];
     return { sections: all, flat: all.flatMap((sec) => sec.items) };
-  }, [availableModules, activeModule, query, isOnline, response, scope.moduleKey, scope.canWiden, scope.label, searchActive]);
+  }, [availableModules, activeModule, text, mode, recents, isOnline, response, scope.moduleKey, scope.canWiden, scope.label, searchActive]);
 
   const notice = fallbackNotice(response, scope.label);
   const showEmpty = searchActive && !loading && !error && flat.length === 0 && isReallyEmpty(response);
@@ -72,6 +88,12 @@ export function CommandPalette({ activeModule }) {
     if (item.kind === "suggestion" && !item.target) {
       setQuery(item.text);
       return;
+    }
+    const recent = toRecent(item);
+    if (recent) {
+      const next = pushRecent(recents, recent);
+      setRecents(next);
+      saveRecents(next);
     }
     if (item.action === "quick-note") useQuickNoteStore.getState().open();
     else navigate(item.target);
@@ -180,7 +202,16 @@ export function CommandPalette({ activeModule }) {
               </button>
             </div>
 
-            {(scope.moduleKey || widened) && (
+            {modeMeta && (
+              <div className="shrink-0 px-4 py-1.5 border-b border-[hsl(var(--border))] flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">
+                <span className="rounded-md bg-[hsl(var(--muted))] px-2 py-0.5 font-medium text-[hsl(var(--foreground))]">
+                  {modeMeta.label}
+                </span>
+                Buscando solo {modeMeta.hint}. Borra «{modeMeta.prefix}» para volver a todo.
+              </div>
+            )}
+
+            {!modeMeta && (scope.moduleKey || widened) && (
               <div className="shrink-0 px-4 py-1.5 border-b border-[hsl(var(--border))] flex items-center gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">
                 <span className="rounded-md bg-[hsl(var(--muted))] px-2 py-0.5 font-medium text-[hsl(var(--foreground))]">
                   {widened ? "Todos los módulos" : scope.label}
@@ -324,6 +355,14 @@ export function CommandPalette({ activeModule }) {
               </span>
               <span>
                 <kbd className="font-mono mr-1">Esc</kbd>cerrar
+              </span>
+              <span className="ml-auto truncate">
+                {Object.values(PALETTE_MODES).map((m) => (
+                  <span key={m.prefix} className="ml-2">
+                    <kbd className="font-mono mr-0.5">{m.prefix}</kbd>
+                    {m.label.toLowerCase()}
+                  </span>
+                ))}
               </span>
             </div>
           </motion.div>
