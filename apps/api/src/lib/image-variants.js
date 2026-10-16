@@ -11,6 +11,8 @@ export const IMAGE_VARIANTS = Object.freeze({
   // Square gallery tiles (~150-250px on screen, 2x density). Small on purpose:
   // a grid of hundreds must not decode hundreds of 640px (or original) images.
   tile: Object.freeze({ width: 256, height: 256, resize: 'cover', quality: 70 }),
+  // Same size budget as `tile` but aspect-preserving, for the mosaic (masonry) gallery layout.
+  tilefit: Object.freeze({ width: 256, quality: 70 }),
   banner: Object.freeze({ width: 1600, height: 400, resize: 'cover', quality: 80 }),
   // Forces a height, so it letterboxes/pads into a fixed box — use only where
   // the source image's aspect ratio is known/controlled (e.g. product photos).

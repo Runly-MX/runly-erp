@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, File as FileIcon, FileText, Film, Image as ImageIcon, Images, Music } from "lucide-react";
+import { Columns3, Download, File as FileIcon, FileText, Film, Image as ImageIcon, Images, LayoutGrid, Music, ZoomIn, ZoomOut } from "lucide-react";
 import { cn } from "../lib/utils.js";
+import { useGridZoom } from "../hooks/useGridZoom.js";
 import { cachedUrl, createUrlBatcher, forgetUrl, useNearViewport } from "../lib/lazy-media.js";
 import { groupMedia } from "../lib/media-grouping.js";
 import { AdvancedFileViewer } from "./AdvancedFileViewer.jsx";
@@ -60,10 +61,16 @@ const dayKey = (value) => String(value ?? "").slice(0, 10);
 // released (no <img>, so the decoded bitmap can be freed) once it is far away.
 // `variant` is "tile" in the grid and "card" for the small cards/table thumbs;
 // the original is only fetched by the viewer.
-function MediaThumb({ item, resolveSignedUrl, variant = "card", className }) {
+// `fit` (mosaic layout) keeps the photo's own proportions: the box starts square
+// and takes the real ratio once the image loads; ratios are remembered so a
+// remount does not jump.
+const ratioCache = new Map();
+
+function MediaThumb({ item, resolveSignedUrl, variant = "card", className, fit = false }) {
   const [ref, near] = useNearViewport();
   const [url, setUrl] = useState(null);
   const [ready, setReady] = useState(false);
+  const [ratio, setRatio] = useState(() => ratioCache.get(item.fileAssetId) ?? 1);
   const [attempt, setAttempt] = useState(0);
   const image = isImage(item);
   const Icon = iconFor(item.mimeType);
@@ -79,14 +86,22 @@ function MediaThumb({ item, resolveSignedUrl, variant = "card", className }) {
 
   const show = image && near && url;
   return (
-    <div ref={ref} className={cn("relative flex items-center justify-center overflow-hidden bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]", className)}>
+    <div ref={ref} style={fit ? { aspectRatio: image ? ratio : 1 } : undefined} className={cn("relative flex items-center justify-center overflow-hidden bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]", className)}>
       {show ? (
         <img
           src={url}
           alt=""
           decoding="async"
           draggable={false}
-          onLoad={() => setReady(true)}
+          onLoad={(e) => {
+            setReady(true);
+            const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+            if (fit && w && h) {
+              const next = Math.min(3, Math.max(1 / 3, w / h));
+              ratioCache.set(item.fileAssetId, next);
+              setRatio(next);
+            }
+          }}
           onError={() => {
             // Expired or failed URL: ask again once instead of staying blank.
             forgetUrl(`media|${item.fileAssetId}|${variant}`);
@@ -131,6 +146,25 @@ function useLongPress(onLongPress, ms = 450) {
   };
 }
 
+function ZoomButton({ Icon, label, onClick, disabled, active }) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-pressed={active}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex h-10 w-10 items-center justify-center transition-colors duration-150 disabled:opacity-40 sm:h-9 sm:w-9",
+        active ? "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]/60 hover:text-[hsl(var(--foreground))]",
+      )}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
+
 function SelectBox({ checked, onChange, label, className, shiftHeld }) {
   return (
     <span
@@ -143,7 +177,7 @@ function SelectBox({ checked, onChange, label, className, shiftHeld }) {
   );
 }
 
-function MediaTile({ item, isSelected, selecting, resolveSignedUrl, onOpen, onToggle, shiftHeld }) {
+function MediaTile({ item, isSelected, selecting, resolveSignedUrl, onOpen, onToggle, shiftHeld, fit = false, dense = false }) {
   const press = useLongPress(onToggle);
   return (
     <div className="group relative">
@@ -151,10 +185,10 @@ function MediaTile({ item, isSelected, selecting, resolveSignedUrl, onOpen, onTo
         type="button"
         {...press.handlers}
         onClick={(e) => { if (!press.consumed()) onOpen(e); }}
-        className={cn("block w-full select-none overflow-hidden rounded-xl border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]/40 [-webkit-touch-callout:none]", isSelected ? "border-(--brand-primary) ring-2 ring-(--brand-primary)/40" : "border-[hsl(var(--border))]")}
+        className={cn("block w-full select-none overflow-hidden border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]/40 [-webkit-touch-callout:none]", dense ? "rounded-md" : "rounded-xl", isSelected ? "border-(--brand-primary) ring-2 ring-(--brand-primary)/40" : "border-[hsl(var(--border))]")}
       >
-        <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} variant="tile" className="aspect-square w-full" />
-        {!isImage(item) ? <span className="block truncate px-2 py-1.5 text-xs">{item.name}</span> : null}
+        <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} variant={fit ? "tilefit" : "tile"} fit={fit} className={fit ? "w-full" : "aspect-square w-full"} />
+        {!isImage(item) && !dense ? <span className="block truncate px-2 py-1.5 text-xs">{item.name}</span> : null}
       </button>
       <SelectBox
         shiftHeld={shiftHeld}
@@ -224,6 +258,12 @@ export function MediaGallery({
     [groupings],
   );
   const [view, setView] = useState(() => read("view", "grid"));
+  const [layout, setLayout] = useState(() => (read("layout", "uniform") === "masonry" ? "masonry" : "uniform"));
+  const zoom = useGridZoom({
+    enabled: view === "grid",
+    initial: read("columns", ""),
+    onPersist: (value) => write("columns", String(value)),
+  });
   const [kind, setKind] = useState("all");
   const [grouping, setGrouping] = useState(() => {
     const saved = read("grouping", "date");
@@ -312,7 +352,17 @@ export function MediaGallery({
     onToggle: () => pick(item),
     shiftHeld,
   });
-  const renderTile = (item) => <MediaTile key={item.id} {...tileProps(item)} />;
+  const dense = zoom.columns >= 7;
+  const renderTile = (item, fit = false) => <MediaTile key={item.id} {...tileProps(item)} fit={fit} dense={dense} />;
+  const gap = dense ? 4 : 8;
+  const renderGrid = (list) => (layout === "masonry" ? (
+    // CSS columns: each column stacks tiles at their own height (reading order runs down each column).
+    <div style={{ columnCount: zoom.columns, columnGap: gap }}>
+      {list.map((item) => <div key={item.id} className="break-inside-avoid" style={{ marginBottom: gap }}>{renderTile(item, true)}</div>)}
+    </div>
+  ) : (
+    <div className="grid" style={{ gridTemplateColumns: `repeat(${zoom.columns}, minmax(0, 1fr))`, gap }}>{list.map((item) => renderTile(item))}</div>
+  ));
   const renderCard = (item) => <MediaCard key={item.id} {...tileProps(item)} onOpenGroup={onOpenGroup} openGroupLabel={openGroupLabel} />;
 
   const renderTable = (list) => (
@@ -357,7 +407,7 @@ export function MediaGallery({
     }
     if (!visible.length) return <EmptyState icon={Images} title={emptyTitle} description={emptyDescription} />;
     return (
-      <div className="space-y-6">
+      <div className={cn("space-y-6", view === "grid" && "touch-pan-y")} {...zoom.containerProps}>
         {groups.map((group) => (
           <section key={group.id} className="space-y-3">
             {group.label ? (
@@ -385,7 +435,7 @@ export function MediaGallery({
             ) : null}
             {view === "table" ? renderTable(group.items) : null}
             {view === "cards" ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{group.items.map(renderCard)}</div> : null}
-            {view === "grid" ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8">{group.items.map(renderTile)}</div> : null}
+            {view === "grid" ? renderGrid(group.items) : null}
           </section>
         ))}
         {hasMore ? (
@@ -413,6 +463,18 @@ export function MediaGallery({
               <Download className="h-4 w-4 sm:mr-1.5" />
               <span className="max-sm:sr-only">{selected.size ? `Descargar selección (${selected.size})` : "Descargar todo"}</span>
             </Button>
+          ) : null}
+          {view === "grid" && views.includes("grid") ? (
+            <>
+              <div className="inline-flex shrink-0 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-card [@media(hover:none)]:hidden">
+                <ZoomButton label="Tiles más grandes" disabled={!zoom.canZoomIn} onClick={zoom.zoomIn} Icon={ZoomIn} />
+                <ZoomButton label="Tiles más pequeños" disabled={!zoom.canZoomOut} onClick={zoom.zoomOut} Icon={ZoomOut} />
+              </div>
+              <div className="inline-flex shrink-0 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-card">
+                <ZoomButton label="Cuadrícula uniforme" active={layout === "uniform"} onClick={() => { setLayout("uniform"); write("layout", "uniform"); }} Icon={LayoutGrid} />
+                <ZoomButton label="Mosaico (proporción original)" active={layout === "masonry"} onClick={() => { setLayout("masonry"); write("layout", "masonry"); }} Icon={Columns3} />
+              </div>
+            </>
           ) : null}
           <ViewModeSwitch modes={views} value={views.includes(view) ? view : views[0]} onChange={(mode) => { setView(mode); write("view", mode); }} />
         </div>
