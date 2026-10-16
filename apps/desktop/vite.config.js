@@ -149,6 +149,7 @@ export default defineConfig({
       "@atlas/validators": resolve(__dirname, "../../packages/validators/src/index.js"),
       "@runly/core/browser": resolve(__dirname, "../../packages/core/src/browser.js"),
       "@runly/core/native-runtime": resolve(__dirname, "../../packages/core/src/native-runtime.js"),
+      "@runly/core/labels": resolve(__dirname, "../../packages/core/src/labels/index.js"),
       "@runly/core": resolve(__dirname, "../../packages/core/src/index.js"),
       // Before "@runly/module-engine": browser-safe subpaths used by
       // @runly/module-compiler/browser (Builder automations).

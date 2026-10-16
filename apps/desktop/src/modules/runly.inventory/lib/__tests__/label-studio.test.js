@@ -63,7 +63,7 @@ describe('saved design per company', () => {
     assert.equal(back.output.mode, 'sheet')
     assert.equal(back.output.sheet.columns, 2)
     assert.equal(back.printerId, null)
-    assert.deepEqual(draftToLayout(back.draft).textOptions, { showFieldNames: true, fontMm: 3, align: 'left', valign: 'spread', marginMm: 1.5, gapMm: 1.5 })
+    assert.deepEqual(draftToLayout(back.draft).textOptions, { showFieldNames: true, fontMm: 3, align: 'left', valign: 'middle', marginMm: 1.5, gapMm: 1.5 })
     assert.equal(loadDesign('c2', storage), null)
   })
   it('remembers composition options and applies layout recommendations', () => {

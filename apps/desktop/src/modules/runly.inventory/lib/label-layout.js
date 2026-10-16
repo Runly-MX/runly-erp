@@ -30,19 +30,13 @@ export const FIELD_OPTIONS = [
   { value: 'assignee', label: 'Asignado a' },
 ]
 
-// Text size: automatic fits each line; a fixed size is capped by the line height.
-export const FONT_OPTIONS = [
-  { value: 'auto', label: 'Automático' },
-  { value: '2', label: '2 mm' },
-  { value: '2.5', label: '2.5 mm' },
-  { value: '3', label: '3 mm' },
-  { value: '3.5', label: '3.5 mm' },
-  { value: '4', label: '4 mm' },
-  { value: '5', label: '5 mm' },
-]
+// Text size: automatic (null) or a fixed size in mm (one size for every line;
+// the API shrinks it only when the block does not fit). Range mirrors the API.
+export const FONT_SIZE_MODES = [{ value: 'auto', label: 'Automático' }, { value: 'custom', label: 'Personalizado' }]
+export const FONT_MM = { min: 1.5, max: 10, step: 0.25, initial: 3 }
 
-// Missing composition keys mean "as before composition existed" (API LEGACY_COMPOSITION).
-const DEFAULT_TEXT = { showFieldNames: false, fontMm: null, align: 'left', valign: 'spread', marginMm: 1.5, gapMm: 1.5 }
+// Missing composition keys use the API LEGACY_COMPOSITION (left, middle, 1.5 mm).
+const DEFAULT_TEXT = { showFieldNames: false, fontMm: null, align: 'left', valign: 'middle', marginMm: 1.5, gapMm: 1.5 }
 
 export const TEXT_ALIGN_OPTIONS = [
   { value: 'left', label: 'Izquierda' },

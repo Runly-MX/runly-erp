@@ -9,13 +9,14 @@ import { toast } from 'sonner'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { useInventoryCan } from '../hooks/useInventoryAdmin.js'
 import {
-  useDeleteLabelTemplate, useItemsByIds, useLabelPreview, useLabelPrinters, useLabelTemplates, useQueueLabelStats, useSaveLabelTemplate,
+  useDeleteLabelTemplate, useItemPublicLink, useItemsByIds, useLabelPrinters, useLabelTemplates, useQueueLabelStats, useSaveLabelTemplate,
 } from '../hooks/useInventoryLabels.js'
 import { useLabelOutput } from '../hooks/useLabelOutput.js'
 import { MAX_LABELS, labeledRows, parseLabelsParams, queueReducer, statsAfterPrint, totalLabels } from '../lib/label-queue.js'
 import { draftError, draftToLayout, isDraftDirty, templateToDraft } from '../lib/label-layout.js'
 import { DEFAULT_SHEET, clampSheet, sheetFit, sheetPages } from '../lib/label-sheet.js'
 import { loadDesign, saveDesign } from '../lib/label-design-store.js'
+import { buildLabelPreview } from '../lib/label-preview.js'
 import { reprintItems } from '../lib/label-history.js'
 import { LabelAssetPicker } from '../components/labels/LabelAssetPicker.jsx'
 import { LabelLivePreview } from '../components/labels/LabelLivePreview.jsx'
@@ -60,7 +61,7 @@ function StudioSummary({ assets, labels, templateName, dirty, printerName, outpu
   )
 }
 
-function LabelStudio({ companyId }) {
+function LabelStudio({ companyId, companyName }) {
   const can = useInventoryCan()
   const canRead = can('inventory.label.read')
   const canPrint = can('inventory.label.print')
@@ -167,15 +168,19 @@ function LabelStudio({ companyId }) {
   const onSample = useCallback((item) => setSample(item), [])
   useEffect(() => { if (previewIndex > rows.length - 1) setPreviewIndex(Math.max(0, rows.length - 1)) }, [rows.length, previewIndex])
   const previewItem = rows[previewIndex] ?? (rows.length ? rows[0] : sample)
-  const previewBlocked = !canPrint ? 'Necesitas el permiso Imprimir etiquetas de inventario para ver la vista previa.' : invalidReason
-  const previewBody = previewItem && !previewBlocked && template ? {
-    items: [{ itemId: previewItem.id, quantity: 1 }],
-    templateId: template.id,
-    layout: draftToLayout(draft),
-    printerId: printer?.id,
-    format: 'png',
-  } : null
-  const preview = useLabelPreview(previewBody, { enabled: canPrint })
+  // The preview is computed locally, so it only needs a valid draft.
+  const previewBlocked = invalidReason
+  // Instant SVG preview from the shared geometry (no network). The QR uses the
+  // real public link once fetched, a folio placeholder until then.
+  const wantsLink = canPrint && !previewBlocked && draft.layout !== 'text-only' && draft.qrOptions?.contentMode !== 'embedded'
+  const publicLink = useItemPublicLink(previewItem?.id, { enabled: wantsLink })
+  const qrUrl = publicLink.data?.url ?? null
+  const preview = useMemo(
+    () => (previewItem && !previewBlocked
+      ? buildLabelPreview({ draft, item: previewItem, companyName, qrUrl, origin: typeof window !== 'undefined' ? window.location.origin : '' })
+      : { svg: null, overflow: 0, error: null }),
+    [draft, previewItem, previewBlocked, companyName, qrUrl],
+  )
 
   // ── Output guards ────────────────────────────────────────────────────────
   const reprinted = labeledRows(rows)
@@ -389,6 +394,6 @@ function LabelStudio({ companyId }) {
 }
 
 export default function InventoryLabelsScreen() {
-  const { activeCompanyId } = useActiveCompany()
-  return <LabelStudio key={activeCompanyId ?? 'none'} companyId={activeCompanyId} />
+  const { activeCompanyId, activeCompany } = useActiveCompany()
+  return <LabelStudio key={activeCompanyId ?? 'none'} companyId={activeCompanyId} companyName={activeCompany?.name ?? ''} />
 }

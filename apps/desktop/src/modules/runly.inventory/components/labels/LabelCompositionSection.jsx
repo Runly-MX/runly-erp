@@ -75,7 +75,7 @@ export function LabelCompositionSection({ draft, onChange, layoutCards, disabled
               onChange={(align) => setText({ align })} />
           </Control>
           <Control label="Posición vertical del texto" hint={text.valign === 'spread' ? 'Repartir distribuye las líneas en toda el área de texto.' : null}>
-            <SegmentTabs ariaLabel="Alineación vertical del texto" options={TEXT_VALIGNS} value={text.valign ?? 'spread'} size="touch" compactIcons disabled={disabled}
+            <SegmentTabs ariaLabel="Alineación vertical del texto" options={TEXT_VALIGNS} value={text.valign ?? 'middle'} size="touch" compactIcons disabled={disabled}
               onChange={(valign) => setText({ valign })} />
           </Control>
         </>

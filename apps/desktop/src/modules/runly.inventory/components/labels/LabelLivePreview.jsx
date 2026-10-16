@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import { Button, ErrorState, Skeleton, cn } from '@runly/ui'
-import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, Move, ScanLine } from 'lucide-react'
+import { Button, ErrorState, cn } from '@runly/ui'
+import { AlertTriangle, ChevronLeft, ChevronRight, ScanLine } from 'lucide-react'
 import { SegmentTabs } from './studio-ui.jsx'
 
 const ZOOMS = [
@@ -40,10 +40,11 @@ export function previewBoxSize(zoom, widthMm, heightMm, box) {
   return { width: Math.floor(widthMm * s), height: Math.floor(heightMm * s) }
 }
 
-// Live PNG of one label as the API renders it, at its true proportions, in a
+// Live SVG of one label (same geometry and SVG as the API renders, computed in
+// the browser: lib/label-preview.js), at its true proportions, in a
 // fixed-height viewport. "Ajustar" never scrolls; "Real" and "200 %" scroll
-// only inside the viewport, and only when the label is larger than it.
-// preview: { url, loading, error, overflow }; item: the asset being previewed.
+// only inside the viewport (native scrollbar), and only when the label is larger.
+// preview: { svg, error, overflow }; item: the asset being previewed.
 export function LabelLivePreview({
   preview, draft, item, index = 0, count = 0, onIndex, sample = false, blockedReason = null, compact = false, hideTitle = false,
 }) {
@@ -53,7 +54,7 @@ export function LabelLivePreview({
   const h = Number(draft.heightMm) || 40
   const size = previewBoxSize(zoom, w, h, box) ?? { width: '100%', maxHeight: '100%', aspectRatio: `${w} / ${h}` }
   const overflowing = zoom !== 'fit' && Boolean(box) && (size.width > box.w + 0.5 || size.height > box.h + 0.5)
-  const showImage = item && !blockedReason && !(preview.error && !preview.url)
+  const showImage = item && !blockedReason && Boolean(preview.svg)
 
   return (
     <div className="flex flex-col gap-3">
@@ -69,7 +70,7 @@ export function LabelLivePreview({
 
       <div className="relative">
         <div ref={viewportRef} tabIndex={overflowing ? 0 : undefined}
-          aria-label={overflowing ? 'Vista previa ampliada; desplázate para verla completa' : undefined}
+          aria-label={overflowing ? 'Vista previa ampliada' : undefined}
           className={cn(
             'flex rounded-md border border-[hsl(var(--border))]',
             'bg-[hsl(var(--muted)/0.55)] bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:12px_12px]',
@@ -89,24 +90,13 @@ export function LabelLivePreview({
           ) : (
             // m-auto centres the label yet lets an oversized one scroll from its top-left corner.
             <div className="relative m-auto shrink-0" style={size}>
-              {preview.url ? (
-                <img src={preview.url} alt={`Etiqueta de ${item.name ?? item.folio ?? 'equipo'}`} draggable={false}
-                  className="block h-full w-full rounded-[2px] bg-white object-contain shadow-md ring-1 ring-black/10" />
-              ) : <Skeleton className="h-full w-full rounded-[2px]" />}
+              {/* The SVG comes from renderLabelSvg, which escapes every text value. */}
+              <div role="img" aria-label={`Etiqueta de ${item.name ?? item.folio ?? 'equipo'}`}
+                className="h-full w-full overflow-hidden rounded-[2px] bg-white shadow-md ring-1 ring-black/10 [&>svg]:block"
+                dangerouslySetInnerHTML={{ __html: preview.svg }} />
             </div>
           )}
         </div>
-        {showImage && preview.loading && preview.url ? (
-          <span role="status" aria-label="Actualizando vista previa"
-            className="pointer-events-none absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-[hsl(var(--card)/0.85)] text-[hsl(var(--muted-foreground))]">
-            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-          </span>
-        ) : null}
-        {showImage && overflowing ? (
-          <span className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-md bg-[hsl(var(--card)/0.9)] px-2 py-1 text-[11px] text-[hsl(var(--muted-foreground))] shadow-sm">
-            <Move className="h-3 w-3" aria-hidden="true" />Desplázate para verla completa
-          </span>
-        ) : null}
       </div>
 
       {item ? (

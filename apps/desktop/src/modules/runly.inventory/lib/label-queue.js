@@ -15,7 +15,7 @@ export function clampQuantity(value) {
   return Math.min(n, MAX_QUANTITY)
 }
 
-// Keeps only the fields the queue shows; label stats stay undefined when the
+// Keeps only the fields the queue shows and the label preview prints; label stats stay undefined when the
 // source row did not carry them (the screen fills them from the item history).
 export function toQueueRow(item, quantity = 1) {
   return {
@@ -26,6 +26,10 @@ export function toQueueRow(item, quantity = 1) {
     serialNumber: item.serialNumber ?? null,
     categoryName: item.categoryName ?? null,
     locationName: item.locationName ?? null,
+    // Printed by some label fields (client preview); absent when the source did not carry them.
+    model: item.model ?? item.modelName ?? null,
+    brandName: item.brandName ?? item.brand?.name ?? null,
+    assigneeName: item.assigneeName ?? null,
     coverImageFileId: item.coverImageFileId ?? null,
     labelPrintCount: item.labelPrintCount,
     labelPrintedAt: item.labelPrintedAt,
