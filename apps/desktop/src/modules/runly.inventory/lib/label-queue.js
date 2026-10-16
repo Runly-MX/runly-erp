@@ -4,7 +4,10 @@
 export const LABELS_PATH = '/app/m/runly.inventory/inventory/labels'
 export const MAX_QUANTITY = 500
 export const MAX_LABELS = 1000
+// MAX_QUEUE_ITEMS caps the ?items= deep link (URL length); the studio selection
+// itself goes up to MAX_SELECTION items (still at most MAX_LABELS per render).
 export const MAX_QUEUE_ITEMS = 200
+export const MAX_SELECTION = 1000
 
 export function clampQuantity(value) {
   const n = Math.floor(Number(value))
@@ -21,8 +24,13 @@ export function toQueueRow(item, quantity = 1) {
     folio: item.folio ?? null,
     assetTag: item.assetTag ?? null,
     serialNumber: item.serialNumber ?? null,
+    categoryName: item.categoryName ?? null,
+    locationName: item.locationName ?? null,
+    coverImageFileId: item.coverImageFileId ?? null,
     labelPrintCount: item.labelPrintCount,
     labelPrintedAt: item.labelPrintedAt,
+    // Rows reloaded from the print log are known to be labeled before their stats load.
+    knownLabeled: Boolean(item.knownLabeled),
     quantity: clampQuantity(quantity),
   }
 }
@@ -31,12 +39,28 @@ export function queueReducer(state, action) {
   switch (action.type) {
     case 'add': {
       const known = new Set(state.map((row) => row.id))
-      const room = MAX_QUEUE_ITEMS - state.length
+      const room = MAX_SELECTION - state.length
       const added = action.items.filter((item) => item?.id && !known.has(item.id) && known.add(item.id)).slice(0, Math.max(0, room))
       return added.length ? [...state, ...added.map((item) => toQueueRow(item, action.quantity ?? 1))] : state
     }
     case 'remove':
       return state.filter((row) => row.id !== action.id)
+    case 'toggle':
+      return state.some((row) => row.id === action.item.id)
+        ? state.filter((row) => row.id !== action.item.id)
+        : queueReducer(state, { type: 'add', items: [action.item], quantity: action.quantity })
+    case 'removeMany': {
+      const drop = new Set(action.ids)
+      return state.filter((row) => !drop.has(row.id))
+    }
+    // Reprint: the selection becomes exactly these items with their quantities.
+    case 'replace': {
+      const seen = new Set()
+      return action.items
+        .filter((item) => item?.id && !seen.has(item.id) && seen.add(item.id))
+        .slice(0, MAX_SELECTION)
+        .map((item) => toQueueRow(item, item.quantity ?? 1))
+    }
     case 'quantity':
       return state.map((row) => (row.id === action.id ? { ...row, quantity: clampQuantity(action.quantity) } : row))
     case 'applyAll': {
@@ -57,7 +81,12 @@ export const totalLabels = (rows) => rows.reduce((sum, row) => sum + clampQuanti
 
 export const toRenderItems = (rows) => rows.map((row) => ({ itemId: row.id, quantity: clampQuantity(row.quantity) }))
 
-export const labeledRows = (rows) => rows.filter((row) => Number(row.labelPrintCount) > 0)
+export const labeledRows = (rows) => rows.filter((row) => Number(row.labelPrintCount) > 0 || row.knownLabeled)
+
+// Stats after a logged print of these rows (count + 1, printed now).
+export function statsAfterPrint(rows, now = new Date()) {
+  return Object.fromEntries(rows.map((row) => [row.id, { labelPrintCount: (Number(row.labelPrintCount) || 0) + 1, labelPrintedAt: now.toISOString() }]))
+}
 
 const formatDay = (value) => new Date(value).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
 

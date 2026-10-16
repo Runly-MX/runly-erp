@@ -8,7 +8,9 @@ import { createBrowserEnv, labelFilename, labelTransports, preparePrintPlan, res
 // Print / download for the queue: render on the API, hand the file to the
 // printer transport, and only then log the print (POST /inventory/labels/prints).
 // PNG downloads are a single-label preview, so they are not logged.
-export function useLabelOutput({ rows, templateId, layout, printer }) {
+// sheet: letter grid ({ columns, rows, gapMm, marginMm, guides }) applied to PDF only.
+// onLogged(rows) runs after the print was registered (to refresh label stats).
+export function useLabelOutput({ rows, templateId, layout, printer, sheet = null, onLogged }) {
   const render = useRenderLabels()
   const register = useRegisterLabelPrints()
   const [busy, setBusy] = useState(null)
@@ -18,6 +20,7 @@ export function useLabelOutput({ rows, templateId, layout, printer }) {
   async function logPrint(printed) {
     try {
       const res = await register.mutateAsync({ items: toRenderItems(rows), templateId: templateId ?? undefined, printerId: printed ? printer?.id : undefined })
+      onLogged?.(rows)
       return res
     } catch (err) {
       toast.warning('Las etiquetas se generaron, pero no se registró la impresión', { description: err?.message })
@@ -32,6 +35,7 @@ export function useLabelOutput({ rows, templateId, layout, printer }) {
       layout: layout ?? undefined,
       printerId: printer?.id ?? undefined,
       format,
+      ...(sheet && format === 'pdf' ? { sheet } : {}),
     })
   }
 

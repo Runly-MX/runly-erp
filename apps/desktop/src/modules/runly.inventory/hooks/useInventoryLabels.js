@@ -66,6 +66,7 @@ export function useRegisterLabelPrints() {
     mutationFn: async (body) => unwrap(await runly.inventory.labels.registerPrints(body, token)),
     onSuccess: (_, body) => {
       qc.invalidateQueries({ queryKey: ['inventory', 'items'] })
+      qc.invalidateQueries({ queryKey: [...KEY, 'print-log'] })
       for (const row of body?.items ?? []) qc.invalidateQueries({ queryKey: [...KEY, 'history', row.itemId] })
     },
   })
@@ -111,10 +112,11 @@ export function useItemsByIds(itemIds) {
 }
 
 // Debounced PNG preview from POST /inventory/labels/render. Returns
-// { url, loading, error }; the object URL is revoked when replaced or unmounted.
+// { url, loading, error, overflow } (overflow = truncated text lines of the
+// previewed label); the object URL is revoked when replaced or unmounted.
 export function useLabelPreview(body, { enabled = true, delay = 400 } = {}) {
   const token = useToken()
-  const [state, setState] = useState({ url: null, loading: false, error: null })
+  const [state, setState] = useState({ url: null, loading: false, error: null, overflow: 0 })
   const urlRef = useRef(null)
   const key = enabled && body ? JSON.stringify(body) : null
 
@@ -127,12 +129,12 @@ export function useLabelPreview(body, { enabled = true, delay = 400 } = {}) {
     setState((s) => ({ ...s, loading: true }))
     const timer = setTimeout(async () => {
       try {
-        const blob = await runly.inventory.labels.render(JSON.parse(key), token)
+        const { blob, overflow } = await runly.inventory.labels.renderWithMeta(JSON.parse(key), token)
         if (cancelled) return
         const url = URL.createObjectURL(blob)
         if (urlRef.current) URL.revokeObjectURL(urlRef.current)
         urlRef.current = url
-        setState({ url, loading: false, error: null })
+        setState({ url, loading: false, error: null, overflow })
       } catch (err) {
         if (!cancelled) setState((s) => ({ ...s, loading: false, error: err?.message ?? 'No se pudo generar la vista previa' }))
       }

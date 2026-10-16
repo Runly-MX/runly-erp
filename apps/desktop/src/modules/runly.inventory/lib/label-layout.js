@@ -1,15 +1,19 @@
 // Template editor model for the Etiquetas screen. Values mirror the API layout
 // model (apps/api/src/services/inventory-labels/layout.js); the API validates.
+// Common thermal rolls; hint names typical printers/media for each size.
 export const SIZE_PRESETS = [
-  { value: '50x25', label: '50 × 25 mm', widthMm: 50, heightMm: 25 },
-  { value: '60x40', label: '60 × 40 mm', widthMm: 60, heightMm: 40 },
-  { value: '100x50', label: '100 × 50 mm', widthMm: 100, heightMm: 50 },
-  { value: 'custom', label: 'Personalizado' },
+  { value: '50x25', label: '50 × 25 mm', hint: 'Rollo 2 × 1 in · Zebra ZD220/ZD420', widthMm: 50, heightMm: 25 },
+  { value: '50x30', label: '50 × 30 mm', hint: 'Rollo Zebra/Brother para activos', widthMm: 50, heightMm: 30 },
+  { value: '60x40', label: '60 × 40 mm', hint: 'Estándar de inventario', widthMm: 60, heightMm: 40 },
+  { value: '75x50', label: '75 × 50 mm', hint: 'Rollo 3 × 2 in · Zebra ZD421', widthMm: 75, heightMm: 50 },
+  { value: '100x50', label: '100 × 50 mm', hint: 'Rollo 4 × 2 in · Zebra ZT/ZD', widthMm: 100, heightMm: 50 },
+  { value: 'custom', label: 'Personalizado', hint: 'Ancho y alto a la medida' },
 ]
 
 export const LAYOUT_OPTIONS = [
   { value: 'qr-left', label: 'QR a la izquierda', description: 'Código y texto lado a lado' },
   { value: 'qr-top', label: 'QR arriba', description: 'Código centrado, texto debajo' },
+  { value: 'qr-only', label: 'Solo QR', description: 'Código grande, sin texto' },
   { value: 'text-only', label: 'Solo texto', description: 'Sin código QR' },
 ]
 
@@ -21,7 +25,23 @@ export const FIELD_OPTIONS = [
   { value: 'location', label: 'Ubicación' },
   { value: 'company', label: 'Empresa' },
   { value: 'assetTag', label: 'Número de activo' },
+  { value: 'category', label: 'Tipo' },
+  { value: 'brand', label: 'Marca' },
+  { value: 'assignee', label: 'Asignado a' },
 ]
+
+// Text size: automatic fits each line; a fixed size is capped by the line height.
+export const FONT_OPTIONS = [
+  { value: 'auto', label: 'Automático' },
+  { value: '2', label: '2 mm' },
+  { value: '2.5', label: '2.5 mm' },
+  { value: '3', label: '3 mm' },
+  { value: '3.5', label: '3.5 mm' },
+  { value: '4', label: '4 mm' },
+  { value: '5', label: '5 mm' },
+]
+
+const DEFAULT_TEXT = { showFieldNames: false, fontMm: null }
 
 export const ERROR_CORRECTION_OPTIONS = [
   { value: 'L', label: 'Baja (L, 7 %)' },
@@ -58,6 +78,7 @@ export function templateToDraft(template) {
     layout: t.layout ?? 'qr-left',
     fields: Array.isArray(t.fields) ? [...t.fields] : ['folio', 'name'],
     qrOptions: { ...DEFAULT_QR, ...(t.qrOptions ?? {}) },
+    textOptions: { ...DEFAULT_TEXT, ...(t.textOptions ?? {}) },
   }
 }
 
@@ -70,6 +91,10 @@ export function draftToLayout(draft) {
     layout: draft.layout,
     fields: [...draft.fields],
     qrOptions: { ...draft.qrOptions, quietZoneMm: Number(draft.qrOptions.quietZoneMm) },
+    textOptions: {
+      showFieldNames: Boolean(draft.textOptions?.showFieldNames),
+      fontMm: draft.textOptions?.fontMm == null || draft.textOptions.fontMm === '' ? null : Number(draft.textOptions.fontMm),
+    },
   }
 }
 
