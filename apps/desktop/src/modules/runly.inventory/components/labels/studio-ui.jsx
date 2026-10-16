@@ -43,11 +43,11 @@ export function SegmentTabs({ options, value, onChange, ariaLabel, size = 'md', 
 
 // Collapsible settings section (progressive disclosure). The header is a real
 // button with aria-expanded; the summary shows the current value when closed.
-export function StudioSection({ title, icon: Icon, summary, defaultOpen = true, children, actions }) {
+export function StudioSection({ title, icon: Icon, summary, defaultOpen = true, children, actions, className }) {
   const [open, setOpen] = useState(defaultOpen)
   const id = useId()
   return (
-    <section className="border-b border-[hsl(var(--border))] last:border-b-0">
+    <section className={cn('border-b border-[hsl(var(--border))] last:border-b-0', className)}>
       <div className="flex items-center gap-2">
         <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}
           className="flex min-h-12 min-w-0 flex-1 items-center gap-2.5 rounded-md py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">

@@ -297,7 +297,7 @@ function LabelStudio({ companyId, companyName }) {
       <ChipTabs tabs={TABS} value={tab} onChange={setTab} ariaLabel="Etiquetas" showDescription={false} />
 
       <ChipTabPanel value="create" active={tab === 'create'}>
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(400px,460px)] lg:items-start">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(400px,460px)] lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(480px,0.85fr)] 2xl:grid-cols-[minmax(420px,5fr)_minmax(620px,7fr)]">
           <section aria-label="Activos" className={cn('min-w-0 overflow-hidden rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))]', step !== 'select' && 'hidden lg:block')}>
             <LabelAssetPicker rows={rows} dispatch={dispatch} disabled={busy || !canPrint} onSample={onSample} />
           </section>

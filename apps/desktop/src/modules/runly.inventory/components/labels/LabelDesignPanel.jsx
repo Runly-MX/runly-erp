@@ -31,7 +31,9 @@ const ALIGN_SUMMARY = { left: 'a la izquierda', center: 'centrado', right: 'a la
 const fieldLabel = (key) => FIELD_OPTIONS.find((f) => f.value === key)?.label ?? key
 
 // Design column: printer and size, composition, content, QR and output, as
-// collapsible sections (QR options start collapsed).
+// collapsible sections (QR options start collapsed). When the column is wide
+// (container >= 54rem, column ~900 px) the sections flow in two columns: size/content/output
+// on the left, composition/QR on the right; narrower it is one column in order.
 export function LabelDesignPanel({
   draft, onDraftChange, output, onOutputChange, labelCount, printers, printerId, onPrinterChange, plan, canManage, busy, onManagePrinters,
 }) {
@@ -47,62 +49,68 @@ export function LabelDesignPanel({
   const hasQr = draft.layout !== 'text-only'
 
   return (
-    <div>
-      <StudioSection title="Tamaño e impresora" icon={Ruler} summary={`${Number(draft.widthMm)} × ${Number(draft.heightMm)} mm · ${draft.dpi} dpi`}>
-        <LabelPrinterSelect printers={printers} printerId={printerId} onChange={onPrinterChange} plan={plan}
-          canManage={canManage} busy={busy} onManage={onManagePrinters} />
-        <div className="space-y-2">
-          <p className="text-sm font-medium" id="label-size-title">Tamaño de la etiqueta</p>
-          <ChoiceCardGroup columns={3} size="sm" ariaLabel="Tamaño de la etiqueta" options={SIZE_CARDS} value={preset} disabled={busy}
-            className="grid-cols-2 sm:grid-cols-3"
-            onChange={(value) => {
-              const p = SIZE_PRESETS.find((s) => s.value === value)
-              setCustomSize(!p?.widthMm)
-              if (p?.widthMm) set({ widthMm: p.widthMm, heightMm: p.heightMm })
-            }} />
-          {preset === 'custom' ? (
-            <div className="grid grid-cols-2 gap-3">
-              <NumberField label="Ancho (mm)" min={10} max={300} allowNegative={false} value={draft.widthMm} disabled={busy}
-                onChange={(e) => set({ widthMm: e.target.value })} />
-              <NumberField label="Alto (mm)" min={10} max={300} allowNegative={false} value={draft.heightMm} disabled={busy}
-                onChange={(e) => set({ heightMm: e.target.value })} />
+    <div className="@container">
+      <div className="flex flex-col @[54rem]:grid @[54rem]:grid-cols-2 @[54rem]:items-start @[54rem]:gap-x-8">
+        <div className="contents @[54rem]:block">
+          <StudioSection className="order-1 @[54rem]:order-none" title="Tamaño e impresora" icon={Ruler} summary={`${Number(draft.widthMm)} × ${Number(draft.heightMm)} mm · ${draft.dpi} dpi`}>
+            <LabelPrinterSelect printers={printers} printerId={printerId} onChange={onPrinterChange} plan={plan}
+              canManage={canManage} busy={busy} onManage={onManagePrinters} />
+            <div className="space-y-2">
+              <p className="text-sm font-medium" id="label-size-title">Tamaño de la etiqueta</p>
+              <ChoiceCardGroup columns={3} size="sm" ariaLabel="Tamaño de la etiqueta" options={SIZE_CARDS} value={preset} disabled={busy}
+                className="grid-cols-2 sm:grid-cols-3"
+                onChange={(value) => {
+                  const p = SIZE_PRESETS.find((s) => s.value === value)
+                  setCustomSize(!p?.widthMm)
+                  if (p?.widthMm) set({ widthMm: p.widthMm, heightMm: p.heightMm })
+                }} />
+              {preset === 'custom' ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberField label="Ancho (mm)" min={10} max={300} allowNegative={false} value={draft.widthMm} disabled={busy}
+                    onChange={(e) => set({ widthMm: e.target.value })} />
+                  <NumberField label="Alto (mm)" min={10} max={300} allowNegative={false} value={draft.heightMm} disabled={busy}
+                    onChange={(e) => set({ heightMm: e.target.value })} />
+                </div>
+              ) : null}
             </div>
+            <SelectField label="Resolución de la impresora" options={DPI_OPTIONS} value={String(draft.dpi)} disabled={busy || Boolean(printerId)}
+              onValueChange={(v) => set({ dpi: Number(v) })} />
+            {printerId ? <FieldHint>Se usa la resolución configurada en la impresora.</FieldHint> : null}
+          </StudioSection>
+
+          {hasText ? (
+            <StudioSection className="order-3 @[54rem]:order-none" title="Contenido" icon={Type}
+              summary={draft.fields.length ? draft.fields.map(fieldLabel).join(', ') : 'Sin campos'}>
+              <LabelContentSection draft={draft} onChange={onDraftChange} disabled={busy} />
+            </StudioSection>
+          ) : null}
+
+          <StudioSection className="order-5 @[54rem]:order-none" title="Salida" icon={FileOutput} summary={output.mode === 'sheet' ? `Hoja carta ${output.sheet.columns} × ${output.sheet.rows}` : 'Rollo, una por etiqueta'}>
+            <LabelOutputSection output={output} onChange={onOutputChange} draft={draft} labelCount={labelCount} plan={plan} disabled={busy} />
+          </StudioSection>
+        </div>
+
+        <div className="contents @[54rem]:block">
+          <StudioSection className="order-2 @[54rem]:order-none" title="Composición" icon={LayoutPanelLeft} summary={compositionSummary}>
+            <LabelCompositionSection draft={draft} onChange={onDraftChange} layoutCards={LAYOUT_CARDS} disabled={busy} />
+          </StudioSection>
+
+          {hasQr ? (
+            <StudioSection className="order-4 @[54rem]:order-none" title="Código QR" icon={QrCode} defaultOpen={false}
+              summary={`${CONTENT_MODE_OPTIONS.find((o) => o.value === draft.qrOptions.contentMode)?.label} · corrección ${draft.qrOptions.errorCorrection}`}>
+              <SelectField label="Contenido del QR" options={CONTENT_MODE_OPTIONS} value={draft.qrOptions.contentMode} disabled={busy}
+                onValueChange={(contentMode) => setQr({ contentMode })} />
+              <div className="grid grid-cols-2 gap-3">
+                <SelectField label="Corrección de errores" options={ERROR_CORRECTION_OPTIONS} value={draft.qrOptions.errorCorrection} disabled={busy}
+                  onValueChange={(errorCorrection) => setQr({ errorCorrection })} />
+                <NumberField label="Margen del QR (mm)" min={0} max={10} allowNegative={false} value={draft.qrOptions.quietZoneMm} disabled={busy}
+                  onChange={(e) => setQr({ quietZoneMm: e.target.value })} />
+              </div>
+              <FieldHint>«Enlace al activo» abre la página pública del equipo al escanear. Más corrección resiste rayones, pero hace el código más denso.</FieldHint>
+            </StudioSection>
           ) : null}
         </div>
-        <SelectField label="Resolución de la impresora" options={DPI_OPTIONS} value={String(draft.dpi)} disabled={busy || Boolean(printerId)}
-          onValueChange={(v) => set({ dpi: Number(v) })} />
-        {printerId ? <FieldHint>Se usa la resolución configurada en la impresora.</FieldHint> : null}
-      </StudioSection>
-
-      <StudioSection title="Composición" icon={LayoutPanelLeft} summary={compositionSummary}>
-        <LabelCompositionSection draft={draft} onChange={onDraftChange} layoutCards={LAYOUT_CARDS} disabled={busy} />
-      </StudioSection>
-
-      {hasText ? (
-        <StudioSection title="Contenido" icon={Type}
-          summary={draft.fields.length ? draft.fields.map(fieldLabel).join(', ') : 'Sin campos'}>
-          <LabelContentSection draft={draft} onChange={onDraftChange} disabled={busy} />
-        </StudioSection>
-      ) : null}
-
-      {hasQr ? (
-        <StudioSection title="Código QR" icon={QrCode} defaultOpen={false}
-          summary={`${CONTENT_MODE_OPTIONS.find((o) => o.value === draft.qrOptions.contentMode)?.label} · corrección ${draft.qrOptions.errorCorrection}`}>
-          <SelectField label="Contenido del QR" options={CONTENT_MODE_OPTIONS} value={draft.qrOptions.contentMode} disabled={busy}
-            onValueChange={(contentMode) => setQr({ contentMode })} />
-          <div className="grid grid-cols-2 gap-3">
-            <SelectField label="Corrección de errores" options={ERROR_CORRECTION_OPTIONS} value={draft.qrOptions.errorCorrection} disabled={busy}
-              onValueChange={(errorCorrection) => setQr({ errorCorrection })} />
-            <NumberField label="Margen del QR (mm)" min={0} max={10} allowNegative={false} value={draft.qrOptions.quietZoneMm} disabled={busy}
-              onChange={(e) => setQr({ quietZoneMm: e.target.value })} />
-          </div>
-          <FieldHint>«Enlace al activo» abre la página pública del equipo al escanear. Más corrección resiste rayones, pero hace el código más denso.</FieldHint>
-        </StudioSection>
-      ) : null}
-
-      <StudioSection title="Salida" icon={FileOutput} summary={output.mode === 'sheet' ? `Hoja carta ${output.sheet.columns} × ${output.sheet.rows}` : 'Rollo, una por etiqueta'}>
-        <LabelOutputSection output={output} onChange={onOutputChange} draft={draft} labelCount={labelCount} plan={plan} disabled={busy} />
-      </StudioSection>
+      </div>
     </div>
   )
 }

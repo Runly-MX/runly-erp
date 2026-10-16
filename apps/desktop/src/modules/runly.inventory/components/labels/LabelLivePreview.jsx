@@ -76,7 +76,7 @@ export function LabelLivePreview({
             'bg-[hsl(var(--muted)/0.55)] bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:12px_12px]',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
             overflowing ? 'overflow-auto overscroll-contain' : 'overflow-hidden',
-            compact ? 'h-40 p-3' : 'h-52 p-4 lg:h-44',
+            compact ? 'h-40 p-3' : 'h-52 p-4 lg:h-[clamp(11rem,24dvh,15rem)] 2xl:h-[clamp(11rem,30dvh,22rem)]',
           )}>
           {!item ? (
             <div className="m-auto flex flex-col items-center gap-2 px-6 text-center text-sm text-[hsl(var(--muted-foreground))]">
