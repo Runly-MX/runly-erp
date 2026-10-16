@@ -14,6 +14,7 @@
     "@atlas/validators": "workspace:@runly/validators@*",
     "@hono/node-server": "^1.19.17",
     "@hono/zod-validator": "^0.8.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@prisma/client": "^7.8.0",
     "@runly/core": "workspace:^",
     "@runly/module-compiler": "workspace:*",

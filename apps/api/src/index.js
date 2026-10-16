@@ -43,6 +43,7 @@ import {
 } from "./services/files-service.js";
 import { createCompanyModuleService } from "./services/company-module-service.js";
 import { createAuthMiddleware } from "./services/auth-middleware.js";
+import { createMcpRouter } from "./mcp/router.js";
 import { createCompanyRouter } from "./routes/company-routes.js";
 import { createCompanyDeletionService } from './services/company-deletion-service.js';
 import { createCompanyDeletionNotifier } from './services/company-deletion-notice.js';
@@ -801,6 +802,8 @@ const readiness = createReadinessService({
   probeDatabase: createPoolReadinessProbe(pgPool),
   isRuntimeReady: () => isModuleRuntimeReady(moduleRuntimeInitialized, routeLoader.getModuleRouteStatus()),
 });
+
+app.route('/', createMcpRouter({ prisma, authMiddleware }));
 
 app.use(
   "*",

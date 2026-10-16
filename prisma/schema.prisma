@@ -2,6 +2,22 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Core OAuth grants, hashed tokens, one-use codes and MCP write approvals.
+// RLS is enabled without public policies: only the backend database role reads it.
+model McpState {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  key       String   @unique
+  kind      String
+  payload   Json
+  counter   Int      @default(0)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@index([kind])
+  @@map("mcp_state")
+}
+
 datasource db {
   provider = "postgresql"
 }

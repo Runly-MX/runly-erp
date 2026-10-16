@@ -1,5 +1,6 @@
 import { AcceptInvitationScreen } from '../company/AcceptInvitationScreen.jsx';
 import { SharedResourceScreen } from '../company/SharedResourceScreen.jsx';
+import { McpConnectionScreen } from './McpConnectionScreen.jsx';
 import { lazy, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -196,6 +197,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="inv/:token" element={<Suspense fallback={null}><PublicInventoryItemScreen /></Suspense>} />
                   </Route>
                   <Route element={<AppRouteGuard mode="access" />}>
+                    <Route path="/app/mcp" element={<McpConnectionScreen />} />
                     <Route path="/app/accept-invitation" element={<AcceptInvitationScreen />} />
                     <Route path="/app/shared/:resourceType/:id" element={<SharedResourceScreen />} />
                     <Route
