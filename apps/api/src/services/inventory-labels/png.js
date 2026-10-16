@@ -2,6 +2,7 @@
 // Builds an SVG from the shared geometry and rasterizes it with sharp.
 import sharp from 'sharp';
 
+const ANCHOR = { left: 'start', center: 'middle', right: 'end' };
 const esc = (text) => String(text).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 
 export function renderLabelSvg(geometry, dpi) {
@@ -26,7 +27,9 @@ export function renderLabelSvg(geometry, dpi) {
   }
   for (const line of geometry.text) {
     const size = px(line.fontMm);
-    parts.push(`<text x="${px(line.x)}" y="${px(line.y) + size * 0.85}" font-family="Arial, Helvetica, sans-serif" font-size="${size}" font-weight="${line.bold ? 700 : 400}" fill="black">${esc(line.text)}</text>`);
+    const anchor = ANCHOR[line.align] ?? 'start';
+    const x = line.align === 'center' ? line.x + line.w / 2 : line.align === 'right' ? line.x + line.w : line.x;
+    parts.push(`<text x="${px(x)}" text-anchor="${anchor}" y="${px(line.y) + size * 0.85}" font-family="Arial, Helvetica, sans-serif" font-size="${size}" font-weight="${line.bold ? 700 : 400}" fill="black">${esc(line.text)}</text>`);
   }
   parts.push('</svg>');
   return parts.join('');

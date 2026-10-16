@@ -23,7 +23,7 @@ function drawLabel(doc, geometry) {
   }
   for (const line of geometry.text) {
     doc.fillColor('black').font(line.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(pt(line.fontMm));
-    doc.text(line.text, pt(line.x), pt(line.y), { width: pt(line.w), height: pt(line.fontMm * 1.3), lineBreak: false, ellipsis: true });
+    doc.text(line.text, pt(line.x), pt(line.y), { width: pt(line.w), height: pt(line.fontMm * 1.3), lineBreak: false, ellipsis: true, align: line.align ?? 'left' });
   }
 }
 

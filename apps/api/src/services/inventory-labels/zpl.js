@@ -1,6 +1,7 @@
 // zpl.js — ZPL II renderer (Zebra ZD/DS). Uses the native ^BQ QR command and
 // scalable font 0; ^CI28 selects UTF-8 so accents print. One ^XA..^XZ block per
 // queue row, repeated with ^PQ for the quantity.
+const JUSTIFY = { left: 'L', center: 'C', right: 'R' };
 const dots = (mm, dpi) => Math.max(0, Math.round((mm * dpi) / 25.4));
 
 // ^ and ~ start ZPL commands; control characters never belong in a field.
@@ -27,7 +28,8 @@ export function renderLabelZpl(geometry, dpi, quantity = 1, errorCorrection = 'M
     const width = line.bold ? Math.round(height * 1.1) : height;
     out.push(`^FO${dots(line.x, dpi)},${dots(line.y, dpi)}`);
     out.push(`^A0N,${height},${width}`);
-    out.push(`^FB${dots(line.w, dpi)},1,0,L,0`);
+    // ^FB justification lets the printer centre/right-align with its own font metrics.
+    out.push(`^FB${dots(line.w, dpi)},1,0,${JUSTIFY[line.align] ?? 'L'},0`);
     out.push(`^FD${safe(line.text)}^FS`);
   }
   out.push(`^PQ${Math.max(1, quantity)},0,1,N`, '^XZ');

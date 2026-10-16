@@ -4,7 +4,7 @@
 // package in ./inventory-labels/.
 import { InventoryServiceError, assertCompany } from './inventory-guards.js';
 import {
-  DEFAULT_TEMPLATES, FORMATS, TRANSPORTS, clampQuantity, createPlaceholderQrUrl, normalizeLayout, renderLabels,
+  DEFAULT_TEMPLATES, FORMATS, TRANSPORTS, clampQuantity, createPlaceholderQrUrl, normalizeLayout, renderLabels, withNewTemplateDefaults,
 } from './inventory-labels/index.js';
 
 const fail = (message, status = 400) => new InventoryServiceError(message, status);
@@ -81,7 +81,7 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
   async function ensureDefaultTemplates(companyId) {
     if (await prisma.invLabelTemplate.count({ where: { companyId } })) return;
     await prisma.invLabelTemplate.createMany({
-      data: DEFAULT_TEMPLATES.map((t) => ({ companyId, ...templateData(t), isDefault: t.isDefault })),
+      data: DEFAULT_TEMPLATES.map((t) => ({ companyId, ...templateData(withNewTemplateDefaults(t)), isDefault: t.isDefault })),
     });
   }
 
@@ -109,7 +109,7 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
   async function createTemplate(companyId, input, userId = null) {
     assertCompany(companyId);
     await ensureDefaultTemplates(companyId);
-    const row = await prisma.invLabelTemplate.create({ data: { companyId, createdById: userId, ...templateData(input) } });
+    const row = await prisma.invLabelTemplate.create({ data: { companyId, createdById: userId, ...templateData(withNewTemplateDefaults(input)) } });
     if (input.isDefault) await makeDefault('invLabelTemplate', companyId, row.id);
     return prisma.invLabelTemplate.findUnique({ where: { id: row.id } });
   }
