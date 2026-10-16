@@ -31,6 +31,7 @@ $files = @(
   "docker-compose.linux.yml",
   "lib/devkit-installer.mjs",
   "lib/env-compat.mjs",
+  ".env.local.example",
   "lib/office-config.mjs",
   "lib/firebase-config.mjs",
   "lib/livekit-config.mjs",

@@ -152,6 +152,43 @@ los logs de transporte solo contienen herramienta, estado y correlation ID.
 
 ## Configuración y ejecución local
 
+Los instaladores sincronizan las declaraciones de configuración automáticamente.
+`setup-local.mjs` usa `.env.local.example` para completar `.env.local`; esto cubre
+Supabase local/embedded y el modo CLI. `setup-external.mjs` usa
+`.env.external.example`, tanto en la actualización normal como con `--up-only`.
+Los bootstraps locales Bash y PowerShell descargan también la plantilla vigente.
+Los wrappers `update-local.sh` y `update-external.sh` continúan utilizando estos
+flujos; no ejecutan un reset para incorporar variables.
+
+La utilidad existente `infra/installer/lib/env-compat.mjs` agrega únicamente
+declaraciones faltantes y deja sus valores vacíos. Nunca copia credenciales o
+hosts de ejemplo a una instalación existente. Conserva valores explícitamente
+vacíos, comillas, comentarios y ajustes MCP personalizados durante la
+regeneración local y de `.env` para Compose. No modifica bases, volúmenes ni
+contenedores para sincronizar variables. Docker recibe MCP desde el `env_file`
+correspondiente (`.env.local` o `.env.external`), no necesita duplicarlo en el
+archivo `.env` usado para interpolación de Compose.
+
+Para agregar futuras variables basta declararlas en la plantilla del entorno;
+la siguiente instalación/actualización agrega las que falten sin nuevos cambios
+en el sincronizador. En desarrollo del repositorio, el paso existente
+`scripts/start-office-dev.mjs`, ejecutado por `pnpm dev` y `pnpm dev:tauri`,
+completa las declaraciones faltantes de `.env` si existe, o de `.env.local` si es
+el único archivo, usando `.env.example` y sin cambiar sus valores. Conserva
+`.env.local` como capa de overrides cuando existe `.env`, para no ocultar valores
+heredados con declaraciones vacías.
+
+Las plantillas dejan MCP deshabilitado y sus URLs vacías. Una actualización no
+activa MCP automáticamente. Si `RUNLY_MCP_ENABLED=true` pero faltan URLs o son
+inválidas, la API omite el servicio y registra un diagnóstico con los nombres
+de las variables, sin imprimir valores privados. El resto del ERP puede iniciar.
+
+La sincronización puede verificarse sin iniciar instalaciones ni contenedores:
+
+```bash
+node --test infra/installer/lib/env-sync.test.mjs infra/installer/lib/env-compat.test.mjs infra/installer/__tests__/livekit-node-ip-env.test.js apps/api/src/mcp/__tests__/config.test.js
+```
+
 Agregar a un `.env` ignorado, conservando la configuración actual:
 
 ```dotenv

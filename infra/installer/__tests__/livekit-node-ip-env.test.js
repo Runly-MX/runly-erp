@@ -32,10 +32,12 @@ async function harness(t, deployment, { isLinux = true, environment = {} } = {})
   const envFile = path.join(root, `.env.${deployment}`);
   const yamlFile = path.join(root, "livekit", "livekit.yaml");
   const source = await fs.readFile(new URL(`../setup-${deployment}.mjs`, import.meta.url), "utf8");
+  const envExampleFile = path.join(root, `.env.${deployment}.example`);
+  await fs.copyFile(new URL(`../.env.${deployment}.example`, import.meta.url), envExampleFile);
   const context = vm.createContext({
     fs, path, crypto, ...livekit, ...envCompat, ...backupConfig, parseOfficeEnv, OFFICE_ENV_KEYS,
     process: { env: { ...environment } }, console: { log() {}, warn() {} },
-    isLinux, installerDir: root, localEnvFile: envFile,
+    isLinux, installerDir: root, localEnvFile: envFile, envExampleFile,
     liveKitConfigFile: yamlFile,
     liveKitEgressConfigFile: path.join(root, "livekit", "egress.yaml"),
     liveKitCaddyFile: path.join(root, "livekit", "Caddyfile"),
@@ -56,14 +58,15 @@ async function harness(t, deployment, { isLinux = true, environment = {} } = {})
   if (deployment === "local") {
     names.push("resolveMailerAutoconfirm", "composeInterpolationEnvLines", "writeLocalEnv");
   } else {
-    names.push("hasEnvKey", "appendMissingOptionalVars", "setEnvValue", "configureLiveKit");
+    names.push("hasEnvKey", "appendMissingOptionalVars", "setEnvValue", "configureLiveKit", "composeInterpolationEnvLines", "writeComposeEnv");
   }
   vm.runInContext([
     declaration(source, deployment === "local" ? "COMPOSE_INTERPOLATION_KEYS" : "OPTIONAL_VAR_GROUPS", "const"),
+    ...(deployment === "external" ? [declaration(source, "COMPOSE_INTERPOLATION_KEYS", "const")] : []),
     ...names.map((name) => declaration(source, name)),
   ].join("\n"), context);
   return {
-    envFile, yamlFile,
+    envFile, yamlFile, composeEnvFile: path.join(root, '.env'),
     readEnv: () => fs.readFile(envFile, "utf8"),
     writeEnv: (text) => fs.writeFile(envFile, text, "utf8"),
     value: (text, key) => context.parseEnvValue(text, key),
@@ -75,7 +78,10 @@ async function harness(t, deployment, { isLinux = true, environment = {} } = {})
       if (deployment === "local") return (await context.writeLocalEnv({}, {})).liveKit;
       // Actual upgrade sequence: placeholders must not mask an absent-key fallback.
       await context.appendMissingOptionalVars(envFile);
-      return context.configureLiveKit(envFile);
+      const config = await context.configureLiveKit(envFile);
+      await context.writeComposeEnv(envFile);
+      await context.syncMissingEnvFile(envFile, envExampleFile, { log() {} });
+      return config;
     },
   };
 }
@@ -90,6 +96,24 @@ function initialEnv(nodeIpLine, mode = "embedded") {
 
 for (const deployment of ["local", "external"]) {
   describe(`RTC env persistence: ${deployment}`, () => {
+    it('upgrade adds MCP declarations and preserves configured values through repeated real writes', async t => {
+      const h = await harness(t, deployment, { environment: { RUNLY_MCP_ENABLED: 'false', RUNLY_MCP_PUBLIC_URL: 'https://override.example/mcp' } });
+      const mcp = 'RUNLY_MCP_ENABLED=true\n  export RUNLY_MCP_PUBLIC_URL = "https://erp.example/mcp" # unchanged\nRUNLY_MCP_WEB_URL=\n';
+      await h.writeEnv(initialEnv('LIVEKIT_NODE_IP=') + mcp + 'CUSTOM_CREDENTIAL="fixture-only-value"\n');
+      await fs.writeFile(h.composeEnvFile, 'RUNLY_MCP_ALLOWED_ORIGINS="https://custom.example"\nCUSTOM_COMPOSE=value\n');
+      for (let pass = 0; pass < 2; pass++) {
+        await h.run();
+        const stored = await h.readEnv();
+        for (const entry of envCompat.envAssignments(mcp)) assert.ok(stored.includes(entry.raw));
+        assert.match(stored, /^CUSTOM_CREDENTIAL="fixture-only-value"$/m);
+        for (const key of ['RUNLY_MCP_ENABLED', 'RUNLY_MCP_PUBLIC_URL', 'RUNLY_MCP_WEB_URL', 'RUNLY_MCP_ALLOWED_ORIGINS']) {
+          assert.equal(envCompat.envAssignments(stored).filter(entry => entry.key === key).length, 1);
+        }
+        const compose = await fs.readFile(h.composeEnvFile, 'utf8');
+        assert.match(compose, /^RUNLY_MCP_ALLOWED_ORIGINS="https:\/\/custom.example"$/m);
+        assert.match(compose, /^CUSTOM_COMPOSE=value$/m);
+      }
+    });
     const cases = [
       ["stored IP wins", "LIVEKIT_NODE_IP=203.0.113.10", "198.51.100.20", "203.0.113.10"],
       ["empty wins", "LIVEKIT_NODE_IP=", "198.51.100.20", ""],

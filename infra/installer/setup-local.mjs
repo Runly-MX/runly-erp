@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { withRunlyEnvAliases, canonicalizeRunlyEnvText, mergeRunlyEnvText } from "./lib/env-compat.mjs";
+import { withRunlyEnvAliases, canonicalizeRunlyEnvText, mergeRunlyEnvText, preserveEnvAssignments, syncMissingEnvFile } from "./lib/env-compat.mjs";
 import { resolveDevKitDir } from './lib/devkit-installer.mjs';
 import { configureOffice, checkOfficeRuntime, OFFICE_ENV_KEYS, parseOfficeEnv } from "./lib/office-config.mjs";
 import { configureFirebase, preserveFirebaseEnv } from "./lib/firebase-config.mjs";
@@ -1071,7 +1071,8 @@ BACKUP_STORAGE_S3_SECRET_ACCESS_KEY=${backup.storageS3SecretAccessKey}
 BACKUP_STORAGE_S3_REGION=${backup.storageS3Region}
 `;
 
-  await fs.writeFile(localEnvFile, mergeRunlyEnvText(envContent, existingEnvContent, process.env), { encoding: "utf8", mode: 0o600 });
+  await fs.writeFile(localEnvFile, preserveEnvAssignments(mergeRunlyEnvText(envContent, existingEnvContent, process.env), existingEnvContent), { encoding: "utf8", mode: 0o600 });
+  await syncMissingEnvFile(localEnvFile, path.resolve(installerDir, '.env.local.example'));
   try { await fs.chmod(localEnvFile, 0o600); } catch { /* Windows does not apply POSIX modes. */ }
 
   // Docker Compose auto-loads a file named exactly ".env" in the same directory
@@ -1125,7 +1126,7 @@ ${publicApiUrl ? `RUNLY_API_URL=${publicApiUrl}` : "# ATLAS_API_URL defaults to 
 ${composeInterpolationEnvLines(existingEnvContent)}
 ${supabaseComposeSecrets}
 `;
-  await fs.writeFile(composeEnvFile, canonicalizeRunlyEnvText(composeEnvContent), { encoding: "utf8", mode: 0o600 });
+  await fs.writeFile(composeEnvFile, preserveEnvAssignments(canonicalizeRunlyEnvText(composeEnvContent), existingComposeContent), { encoding: "utf8", mode: 0o600 });
   try { await fs.chmod(composeEnvFile, 0o600); } catch { /* Windows does not apply POSIX modes. */ }
   const office = await configureOffice({ envFile: localEnvFile, composeEnvFile });
   await configureFirebase({ envFile: localEnvFile });

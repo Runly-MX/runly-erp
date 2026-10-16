@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { canonicalizeRunlyEnvText } from "./lib/env-compat.mjs";
+import { canonicalizeRunlyEnvText, preserveEnvAssignments, syncMissingEnvFile } from "./lib/env-compat.mjs";
 import { resolveDevKitDir } from './lib/devkit-installer.mjs';
 import { configureOffice, checkOfficeRuntime } from "./lib/office-config.mjs";
 import { configureFirebase } from "./lib/firebase-config.mjs";
@@ -445,7 +445,9 @@ async function writeComposeEnv(envFilePath) {
     composeInterpolationEnvLines(content),
     "",
   ].join("\n");
-  await fs.writeFile(composeEnvFile, canonicalizeRunlyEnvText(composeEnvContent), "utf8");
+  let stored = '';
+  try { stored = await fs.readFile(composeEnvFile, 'utf8'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  await fs.writeFile(composeEnvFile, preserveEnvAssignments(canonicalizeRunlyEnvText(composeEnvContent), stored), { encoding: 'utf8', mode: 0o600 });
 }
 
 async function appendMissingOptionalVars(filePath) {
@@ -1011,6 +1013,7 @@ async function main() {
   // if .env.external already exists (ensures ATLAS_API_URL is always up to date).
   if (upOnly && (await exists(envFile))) {
     await ensureInstanceIdentity(envFile);
+    await appendMissingOptionalVars(envFile);
     liveKit = await configureLiveKit(envFile);
     await validateLiveKitDns(liveKit);
     await writeComposeEnv(envFile);
@@ -1037,6 +1040,9 @@ async function main() {
   // ── 2. Validate Docker ─────────────────────────────────────────────────────
   const office = await configureOffice({ envFile, composeEnvFile: path.resolve(installerDir, ".env") });
   await configureFirebase({ envFile });
+  // Resolve existing optional-service fallbacks first. A new empty declaration
+  // must not mask a process value that those resolvers still need to consume.
+  await syncMissingEnvFile(envFile, envExampleFile);
   console.log("[2/5] Validating Docker...");
   run("docker", ["compose", "version"]);
 

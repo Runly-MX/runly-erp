@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises';
+
 // Normalize each configuration source before merging it. This lets an explicit
 // process override beat a stored value even when they use different brand names.
 export function withRunlyEnvAliases(...sources) {
@@ -51,4 +53,60 @@ export function mergeRunlyEnvText(generated, stored, environment = {}) {
     return assignment ? [assignment] : [];
   });
   return [...output, ...assignments.values(), ''].join('\n');
+}
+
+// Read assignments without evaluating values. Consume quoted multiline values
+// so an apparent KEY= inside a secret is never mistaken for an assignment.
+export function envAssignments(text) {
+  const expression = /^[\t \uFEFF]*(?:export[\t ]+)?([A-Za-z_][A-Za-z0-9_]*)[\t ]*=[\t ]*(?:'[^']*'|"(?:\\[\s\S]|[^"\\])*"|`[^`]*`|[^\r\n]*)[^\r\n]*/gm;
+  return [...text.matchAll(expression)].map(match => ({ key: match[1], raw: match[0], start: match.index, end: match.index + match[0].length }));
+}
+
+// Add only missing declarations, preserving every existing byte, including
+// explicit empty values, quoting, comments and line endings. New template keys
+// default to blank: example credentials/hosts must not become deployment values.
+export function appendMissingEnvText(stored, template) {
+  const present = new Set(envAssignments(stored).map(entry => entry.key));
+  const addedKeys = [], lines = [];
+  for (const entry of envAssignments(template)) {
+    if (present.has(entry.key)) continue;
+    present.add(entry.key);
+    addedKeys.push(entry.key);
+    lines.push(`${entry.key}=`);
+  }
+  if (!lines.length) return { text: stored, addedKeys };
+  const eol = stored.includes('\r\n') ? '\r\n' : '\n';
+  return { text: stored + (stored && !stored.endsWith('\n') ? eol : '') + lines.join(eol) + eol, addedKeys };
+}
+
+// The existing generators own their usual keys. Retain unknown custom settings
+// and exact MCP assignments even when a shell override or canonicalizing merge
+// would otherwise replace them. This also keeps newly synchronized template keys
+// through subsequent regenerations of .env.local and Compose's .env.
+export function preserveEnvAssignments(generated, stored) {
+  const entries = envAssignments(stored);
+  const preserved = entries.filter(entry => entry.key.startsWith('RUNLY_MCP_'));
+  const protectedKeys = new Set(preserved.map(entry => entry.key));
+  let output = generated;
+  for (const entry of envAssignments(generated).reverse()) {
+    if (protectedKeys.has(entry.key)) output = output.slice(0, entry.start) + output.slice(entry.end);
+  }
+  const present = new Set(envAssignments(output).map(entry => entry.key));
+  const retained = entries.filter(entry => !protectedKeys.has(entry.key) && !present.has(entry.key) && !present.has(entry.key.replace(/^(VITE_)?ATLAS_/, '$1RUNLY_')));
+  const extra = [...retained, ...preserved].map(entry => entry.raw).join('\n');
+  return extra ? output + (output.endsWith('\n') ? '' : '\n') + extra + '\n' : output;
+}
+
+export async function syncMissingEnvFile(file, templateFile, { log = console.info } = {}) {
+  const template = await fs.readFile(templateFile, 'utf8');
+  let stored = '';
+  try { stored = await fs.readFile(file, 'utf8'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  const result = appendMissingEnvText(stored, template);
+  if (result.addedKeys.length) {
+    // Append, rather than rewrite, an existing file so permissions and raw
+    // administrator configuration remain intact. No values are logged.
+    await fs.appendFile(file, result.text.slice(stored.length), { encoding: 'utf8', mode: 0o600 });
+    log(`[runly-env] Variables agregadas: ${result.addedKeys.join(', ')}. Los valores existentes se conservaron.`);
+  }
+  return result;
 }

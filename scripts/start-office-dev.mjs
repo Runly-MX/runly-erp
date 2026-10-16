@@ -4,9 +4,16 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import dotenv from 'dotenv';
 import { resolveOfficeConfig } from '../infra/installer/lib/office-config.mjs';
-import { withRunlyEnvAliases } from '../infra/installer/lib/env-compat.mjs';
+import { withRunlyEnvAliases, syncMissingEnvFile } from '../infra/installer/lib/env-compat.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+export async function syncDevelopmentEnv(directory = repoRoot) {
+  // .env.local is an override layer when .env exists. Blank defaults there
+  // would shadow working credentials/URLs inherited from .env.
+  const envFile = ['.env', '.env.local'].find(file => fs.existsSync(path.join(directory, file)));
+  if (envFile) return syncMissingEnvFile(path.join(directory, envFile), path.join(directory, '.env.example'));
+}
 
 export function startOfficeDev({ values, run = spawnSync } = {}) {
   if (!values) {
@@ -38,6 +45,7 @@ export function startOfficeDev({ values, run = spawnSync } = {}) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
+    await syncDevelopmentEnv();
     const result = startOfficeDev();
     if (result.status === 'started') console.log('[office] Editor local disponible en el grupo Docker runlyerp.');
   } catch (error) {
