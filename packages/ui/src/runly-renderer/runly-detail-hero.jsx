@@ -118,6 +118,27 @@ export async function fetchUserAvatarSignedUrl(apiBaseUrl, token, userId, compan
   }
 }
 
+// Every image attached to a record, in list order, shaped for AdvancedFileViewer.
+export async function fetchImageFiles(apiBaseUrl, token, docsPath, recordId, companyId = null) {
+  if (!docsPath || !recordId) return [];
+  try {
+    const path = replacePathTokens(docsPath, { id: recordId });
+    const res = await fetch(joinUrl(apiBaseUrl, path), { headers: buildApiHeaders(token, companyId) });
+    if (!res.ok) return [];
+    return extractArrayPayload(parseJsonSafe(await res.text()))
+      .map((item) => ({
+        id: item.id ?? item.fileAssetId ?? item.file_asset_id,
+        fileAssetId: item.fileAssetId ?? item.file_asset_id,
+        originalName: item?.fileAsset?.originalName ?? item?.file_asset?.originalName ?? item?.label ?? "Imagen",
+        mimeType: item?.fileAsset?.mimeType ?? item?.file_asset?.mimeType ?? item?.mimeType ?? "",
+        sizeBytes: item?.fileAsset?.sizeBytes ?? item?.file_asset?.sizeBytes ?? null,
+      }))
+      .filter((file) => file.fileAssetId && String(file.mimeType).toLowerCase().startsWith("image/"));
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchFirstImageAssetId(apiBaseUrl, token, docsPath, recordId, companyId = null) {
   if (!docsPath || !recordId) return null;
   try {
@@ -189,6 +210,9 @@ export function HeroContainer({
   // through the dedicated avatar signed-url route (full variant).
   const [avatarUserId, setAvatarUserId] = useState(null);
   const [viewerOpen, setViewerOpen] = useState(false);
+  // All the record's photos, loaded when the cover is clicked.
+  const [viewerFiles, setViewerFiles] = useState(null);
+  const [viewerIndex, setViewerIndex] = useState(0);
   const viewerAssetId = ownAssetId ?? (avatarUserId ? `user-avatar-${avatarUserId}` : null);
   const resolveViewerUrl = useCallback(
     () =>
@@ -197,6 +221,25 @@ export function HeroContainer({
         : fetchUserAvatarSignedUrl(apiBaseUrl, token, avatarUserId, companyId, "full"),
     [ownAssetId, avatarUserId, apiBaseUrl, token, companyId, heroModel.signedUrlPath],
   );
+
+  const resolveFileUrl = useCallback(
+    (file) => fetchSignedUrl(apiBaseUrl, token, file?.fileAssetId, companyId, heroModel.signedUrlPath ?? undefined),
+    [apiBaseUrl, token, companyId, heroModel.signedUrlPath],
+  );
+
+  // Opens the viewer on the cover; when the record has more photos they are
+  // loaded first so the viewer can move through all of them.
+  const openViewer = useCallback(async () => {
+    setViewerFiles(null);
+    if (ownAssetId && heroModel.imageDocsPath && data?.id) {
+      const files = await fetchImageFiles(apiBaseUrl, token, heroModel.imageDocsPath, data.id, companyId);
+      if (files.length > 1) {
+        setViewerFiles(files);
+        setViewerIndex(Math.max(0, files.findIndex((file) => file.fileAssetId === ownAssetId)));
+      }
+    }
+    setViewerOpen(true);
+  }, [ownAssetId, heroModel.imageDocsPath, data?.id, apiBaseUrl, token, companyId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -312,17 +355,17 @@ export function HeroContainer({
         chips={heroModel.chips}
         actions={actions}
         copyOnDoubleClick={copyOnDoubleClick}
-        onImageClick={viewerAssetId ? () => setViewerOpen(true) : null}
+        onImageClick={viewerAssetId ? openViewer : null}
       />
       {kpiRenderItems.length > 0 ? <StatStrip bare items={kpiRenderItems} /> : null}
       {viewerAssetId ? (
         <AdvancedFileViewer
           open={viewerOpen}
           onOpenChange={setViewerOpen}
-          files={[{ id: viewerAssetId, fileAssetId: ownAssetId, originalName: heroModel.title || "Imagen", mimeType: "image/*" }]}
-          activeIndex={0}
-          onIndexChange={() => {}}
-          onResolveSignedUrl={resolveViewerUrl}
+          files={viewerFiles ?? [{ id: viewerAssetId, fileAssetId: ownAssetId, originalName: heroModel.title || "Imagen", mimeType: "image/*" }]}
+          activeIndex={viewerFiles ? viewerIndex : 0}
+          onIndexChange={viewerFiles ? setViewerIndex : () => {}}
+          onResolveSignedUrl={viewerFiles ? resolveFileUrl : resolveViewerUrl}
         />
       ) : null}
     </Card>

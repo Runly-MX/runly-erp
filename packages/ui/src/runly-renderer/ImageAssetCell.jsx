@@ -3,8 +3,7 @@ import { ImageIcon } from "lucide-react";
 import { AdvancedFileViewer } from "../components/AdvancedFileViewer.jsx";
 import { buildApiHeaders } from "../lib/apiHeaders.js";
 import { cachedUrl, useInView } from "../lib/lazy-media.js";
-import { replacePathTokens } from "./detail-presentation.js";
-import { fetchUserAvatarSignedUrl, initialsFromName } from "./runly-detail-hero.jsx";
+import { fetchImageFiles, fetchUserAvatarSignedUrl, initialsFromName } from "./runly-detail-hero.jsx";
 
 function joinUrl(baseUrl, apiPath) {
   const base = String(baseUrl ?? "").trim().replace(/\/+$/, "");
@@ -129,17 +128,7 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
     setViewerLoading(true);
     try {
       if (column?.imagesApiPath && row?.id) {
-        const path = replacePathTokens(column.imagesApiPath, { id: row.id });
-        const res = await fetch(joinUrl(apiBaseUrl, path), { headers: buildApiHeaders(token, companyId) });
-        const json = await res.json().catch(() => null);
-        const rows = Array.isArray(json?.data) ? json.data : [];
-        const files = rows.map((item) => ({
-          id: item.id ?? item.fileAssetId ?? item.file_asset_id,
-          fileAssetId: item.fileAssetId ?? item.file_asset_id,
-          originalName: item?.fileAsset?.originalName ?? item?.file_asset?.originalName ?? item?.label ?? "Archivo",
-          mimeType: item?.fileAsset?.mimeType ?? item?.file_asset?.mimeType ?? "application/octet-stream",
-          sizeBytes: item?.fileAsset?.sizeBytes ?? item?.file_asset?.sizeBytes ?? null,
-        }));
+        const files = await fetchImageFiles(apiBaseUrl, token, column.imagesApiPath, row.id, companyId);
         const idx = files.findIndex((f) => f.fileAssetId === fileAssetId);
         setViewerFiles(files.length > 0 ? files : [{ id: fileAssetId, fileAssetId, originalName: "Imagen", mimeType: "image/*" }]);
         setActiveIndex(idx >= 0 ? idx : 0);
