@@ -2,8 +2,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  normalizeLayout, selectLines, expandQueue, renderLabels, createPlaceholderQrUrl, embeddedQrText, DEFAULT_TEMPLATES,
+  normalizeLayout, normalizeSheet, selectLines, expandQueue, renderLabels, createPlaceholderQrUrl, embeddedQrText, DEFAULT_TEMPLATES,
 } from '../inventory-labels/index.js';
+import { computeGeometry } from '../inventory-labels/geometry.js';
+import { sheetCells } from '../inventory-labels/pdf.js';
 
 const item = (id, extra = {}) => ({
   id, folio: `TEL-CIS-CP7-${id}`, name: 'Telefono IP', serialNumber: 'SN123', model: 'CP7821', locationName: 'Oficina', assetTag: null, ...extra,
@@ -84,5 +86,44 @@ describe('label rendering', () => {
   it('rejects an empty queue and unknown formats', async () => {
     await assert.rejects(renderLabels({ ...base, format: 'zpl', rows: [{ itemId: 'zzz' }] }), /No hay equipos/);
     await assert.rejects(renderLabels({ ...base, format: 'gif', rows: [{ itemId: '1' }] }), /Formato/);
+  });
+});
+
+describe('studio options (text, qr-only, sheet)', () => {
+  it('prints field names and a fixed font size, and flags overflow', () => {
+    const layout = normalizeLayout({ preset: '50x25', fields: ['folio', 'serial'], textOptions: { showFieldNames: true, fontMm: 3 } });
+    const lines = selectLines(layout, item('1'), {});
+    assert.deepEqual(lines.map((l) => l.text), ['Folio: TEL-CIS-CP7-1', 'Serie: SN123']);
+    const fine = computeGeometry(layout, lines, 'x');
+    assert.ok(fine.text[1].fontMm <= 3);
+    const long = computeGeometry(layout, [{ key: 'name', text: 'Nombre larguisimo '.repeat(6) }], 'x');
+    assert.ok(long.overflow > 0);
+    assert.throws(() => normalizeLayout({ preset: '50x25', textOptions: { fontMm: 40 } }), /tamaño del texto/);
+  });
+
+  it('qr-only centres the code and prints no text', () => {
+    const layout = normalizeLayout({ preset: '50x25', layout: 'qr-only', fields: ['folio'] });
+    assert.deepEqual(selectLines(layout, item('1'), {}), []);
+    const g = computeGeometry(layout, [], 'https://x');
+    assert.equal(g.text.length, 0);
+    assert.ok(Math.abs(g.qr.x + g.qr.size / 2 - 25) < 0.01);
+  });
+
+  it('validates the letter sheet and lays the grid centred from the top margin', () => {
+    assert.equal(normalizeSheet(null, { widthMm: 60, heightMm: 40 }), null);
+    const sheet = normalizeSheet({ columns: 3, rows: 6, gapMm: 3, marginMm: 8 }, { widthMm: 60, heightMm: 40 });
+    const cells = sheetCells(sheet, 60, 40);
+    assert.equal(cells.length, 18);
+    assert.ok(Math.abs(cells[0].x - (215.9 - 186) / 2) < 0.001);
+    assert.equal(cells[3].y, 8 + 43);
+    assert.throws(() => normalizeSheet({ columns: 4, rows: 1, gapMm: 3, marginMm: 8 }, { widthMm: 60, heightMm: 40 }), /ancho/);
+  });
+
+  it('renders a multi-page letter PDF only for the pdf format', async () => {
+    const layout = normalizeLayout({ preset: '60x40', fields: ['folio'] });
+    const base = { layout, items: [item('1')], companyName: 'Acme', resolveItemQrUrl };
+    const pdf = await renderLabels({ ...base, format: 'pdf', rows: [{ itemId: '1', quantity: 7 }], sheet: { columns: 3, rows: 2, gapMm: 2, marginMm: 5 } });
+    assert.equal((pdf.body.toString('latin1').match(/\/Type \/Page\b/g) ?? []).length, 2);
+    assert.equal(pdf.overflow, 0);
   });
 });

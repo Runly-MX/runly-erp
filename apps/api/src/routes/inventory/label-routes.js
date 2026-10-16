@@ -39,7 +39,12 @@ export function createInventoryLabelRouter({ requirePermission, InventoryService
   // Render: zpl -> text, pdf -> application/pdf, png -> image/png (first label preview).
   router.post('/inventory/labels/render', print, run('No se pudieron generar las etiquetas.', async (c) => {
     const out = await labels.render(company(c), await c.req.json(), { baseUrl: new URL(c.req.url).origin });
-    const headers = { 'Content-Type': out.contentType, 'X-Label-Count': String(out.labelCount), 'Cache-Control': 'no-store' };
+    const headers = {
+      'Content-Type': out.contentType,
+      'X-Label-Count': String(out.labelCount),
+      'X-Label-Overflow': String(out.overflow ?? 0),
+      'Cache-Control': 'no-store',
+    };
     if (c.req.query('download') === '1') headers['Content-Disposition'] = `attachment; filename="etiquetas.${out.extension}"`;
     return c.body(typeof out.body === 'string' ? new TextEncoder().encode(out.body) : out.body, 200, headers);
   }));
@@ -47,6 +52,10 @@ export function createInventoryLabelRouter({ requirePermission, InventoryService
   // Print log: one row per item (user, quantity, template, printer).
   router.post('/inventory/labels/prints', print, run('No se pudo registrar la impresión.', async (c) => (
     c.json({ data: await labels.registerPrints(company(c), userId(c), await c.req.json()) }, 201)
+  )));
+  // Company print log for Etiquetas > Historial (paginated, newest first).
+  router.get('/inventory/label-prints', read, run('No se pudo cargar el historial de impresiones.', async (c) => (
+    c.json(await labels.listPrints(company(c), { page: c.req.query('page'), limit: c.req.query('limit') }))
   )));
   router.get('/inventory/items/:id/labels', read, run('No se pudo cargar el historial de etiquetas.', async (c) => c.json({ data: await labels.history(company(c), c.req.param('id')) })));
 

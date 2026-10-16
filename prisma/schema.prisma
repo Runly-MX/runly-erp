@@ -5194,12 +5194,14 @@ model InvLabelTemplate {
   widthMm     Float    @map("width_mm")
   heightMm    Float    @map("height_mm")
   dpi         Int      @default(203)
-  // qr-left | qr-top | text-only
+  // qr-left | qr-top | qr-only | text-only
   layout      String   @default("qr-left") @db.VarChar(20)
   // Ordered list of visible fields (folio, name, serial, model, location, company, assetTag).
   fields      Json     @default("[]")
   // { errorCorrection: L|M|Q|H, quietZoneMm: number, contentMode: url|embedded }
   qrOptions   Json     @default("{}") @map("qr_options")
+  // { showFieldNames: boolean, fontMm: number | null (automatic) }
+  textOptions Json     @default("{}") @map("text_options")
   logoFileId  String?  @map("logo_file_id") @db.Uuid
   isDefault   Boolean  @default(false) @map("is_default")
   enabled     Boolean  @default(true)

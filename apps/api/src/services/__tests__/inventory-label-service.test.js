@@ -96,6 +96,43 @@ describe('inventory label service', () => {
   });
 });
 
+describe('company print log', () => {
+  it('lists prints newest first with item, user, template and printer names, paginated and company scoped', async () => {
+    const rows = [
+      { id: 'p1', companyId: A, itemId: 'i1', quantity: 2, printedAt: new Date('2026-10-01T10:00:00Z'), templateId: 't1', printerId: null, userId: 'u1' },
+      { id: 'p2', companyId: A, itemId: 'i1', quantity: 1, printedAt: new Date('2026-10-02T10:00:00Z'), templateId: null, printerId: 'r1', userId: 'u1' },
+      { id: 'p3', companyId: B, itemId: 'i2', quantity: 5, printedAt: new Date('2026-10-03T10:00:00Z'), templateId: null, printerId: null, userId: null },
+    ];
+    const calls = [];
+    const prisma = {
+      invLabelPrint: {
+        findMany: async (args) => {
+          calls.push(args);
+          return rows.filter((r) => r.companyId === args.where.companyId)
+            .sort((a, b) => b.printedAt - a.printedAt)
+            .slice(args.skip, args.skip + args.take)
+            .map((r) => ({
+              ...r,
+              item: { id: r.itemId, name: 'Laptop', folio: 'LT-1', enabled: true },
+              template: r.templateId ? { name: 'Estándar' } : null,
+              printer: r.printerId ? { name: 'Zebra' } : null,
+              user: r.userId ? { id: r.userId, displayName: 'Ana' } : null,
+            }));
+        },
+        count: async ({ where }) => rows.filter((r) => r.companyId === where.companyId).length,
+      },
+    };
+    const svc = createInventoryLabelService({ prisma });
+    const first = await svc.listPrints(A, { page: 1, limit: 1 });
+    assert.equal(first.total, 2);
+    assert.deepEqual(first.data.map((r) => [r.id, r.printerName, r.userName, r.itemFolio]), [['p2', 'Zebra', 'Ana', 'LT-1']]);
+    const second = await svc.listPrints(A, { page: '2', limit: '1' });
+    assert.deepEqual(second.data.map((r) => [r.id, r.templateName, r.quantity]), [['p1', 'Estándar', 2]]);
+    assert.equal(calls[0].where.companyId, A);
+    assert.equal((await svc.listPrints(A, { limit: 9999 })).limit, 100);
+  });
+});
+
 describe('label routes', () => {
   it('gate every endpoint with its permission and use the context company', async () => {
     const calls = [];
@@ -110,6 +147,7 @@ describe('label routes', () => {
       ['POST', '/inventory/labels/render', 'inventory.label.print'],
       ['POST', '/inventory/labels/prints', 'inventory.label.print'],
       ['GET', '/inventory/items/i1/labels', 'inventory.label.read'],
+      ['GET', '/inventory/label-prints?page=2', 'inventory.label.read'],
     ];
     for (const [method, path, key] of table) {
       calls.length = 0;

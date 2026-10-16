@@ -809,7 +809,7 @@ app.use(
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Site", "Idempotency-Key", "X-Pair-Secret"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id"],
+    exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id", "X-Label-Count", "X-Label-Overflow"],
   }),
 );
 

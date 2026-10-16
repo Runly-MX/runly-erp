@@ -2,6 +2,7 @@
 // so any printer driver prints it without scaling. The QR is drawn from the
 // same module matrix as the other renderers.
 import PDFDocument from 'pdfkit';
+import { LETTER } from './layout.js';
 
 const PT_PER_MM = 72 / 25.4;
 const pt = (mm) => mm * PT_PER_MM;
@@ -26,20 +27,59 @@ function drawLabel(doc, geometry) {
   }
 }
 
-// geometries: one entry per physical label (already expanded by quantity).
-export function renderPdf(geometries, title = 'Etiquetas') {
+// Top-left corner (mm) of each cell of a letter sheet; the grid is centred
+// horizontally and starts at the top margin (same rule as the client preview).
+export function sheetCells(sheet, widthMm, heightMm) {
+  const gridW = sheet.columns * widthMm + (sheet.columns - 1) * sheet.gapMm;
+  const x0 = (LETTER.widthMm - gridW) / 2;
+  const cells = [];
+  for (let row = 0; row < sheet.rows; row += 1) {
+    for (let col = 0; col < sheet.columns; col += 1) {
+      cells.push({ x: x0 + col * (widthMm + sheet.gapMm), y: sheet.marginMm + row * (heightMm + sheet.gapMm) });
+    }
+  }
+  return cells;
+}
+
+function collect(doc) {
   return new Promise((resolve, reject) => {
-    const first = geometries[0];
-    const size = [pt(first.widthMm), pt(first.heightMm)];
-    const doc = new PDFDocument({ size, margin: 0, autoFirstPage: false, info: { Title: title } });
     const chunks = [];
     doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
-    for (const geometry of geometries) {
-      doc.addPage({ size, margin: 0 });
-      drawLabel(doc, geometry);
-    }
-    doc.end();
   });
+}
+
+// geometries: one entry per physical label (already expanded by quantity).
+// sheet (normalizeSheet) lays them out on letter pages; otherwise one page per
+// label at the exact label size.
+export function renderPdf(geometries, title = 'Etiquetas', sheet = null) {
+  const first = geometries[0];
+  if (sheet) {
+    const size = [pt(LETTER.widthMm), pt(LETTER.heightMm)];
+    const doc = new PDFDocument({ size, margin: 0, autoFirstPage: false, info: { Title: title } });
+    const done = collect(doc);
+    const cells = sheetCells(sheet, first.widthMm, first.heightMm);
+    geometries.forEach((geometry, index) => {
+      const slot = index % cells.length;
+      if (slot === 0) doc.addPage({ size, margin: 0 });
+      const cell = cells[slot];
+      doc.save();
+      doc.translate(pt(cell.x), pt(cell.y));
+      if (sheet.guides) doc.lineWidth(0.3).strokeColor('#bbbbbb').rect(0, 0, pt(geometry.widthMm), pt(geometry.heightMm)).stroke();
+      drawLabel(doc, geometry);
+      doc.restore();
+    });
+    doc.end();
+    return done;
+  }
+  const size = [pt(first.widthMm), pt(first.heightMm)];
+  const doc = new PDFDocument({ size, margin: 0, autoFirstPage: false, info: { Title: title } });
+  const done = collect(doc);
+  for (const geometry of geometries) {
+    doc.addPage({ size, margin: 0 });
+    drawLabel(doc, geometry);
+  }
+  doc.end();
+  return done;
 }

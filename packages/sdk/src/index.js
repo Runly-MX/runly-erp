@@ -42,8 +42,9 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
     }
   }
 
+  // withMeta: resolve to { blob, headers } (response headers) instead of the Blob.
   async function requestBlob(path, options = {}) {
-    const { headers, ...rest } = options;
+    const { headers, withMeta = false, ...rest } = options;
     const response = await fetchImpl(`${baseUrl}${path}`, {
       headers: headers ?? {},
       ...rest,
@@ -59,7 +60,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
     }
     const blob = await response.blob();
     assertCurrentCompany(headers);
-    return blob;
+    return withMeta ? { blob, headers: response.headers } : blob;
   }
 
   async function request(path, options = {}) {

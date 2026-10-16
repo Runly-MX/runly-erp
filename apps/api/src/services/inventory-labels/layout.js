@@ -2,8 +2,15 @@
 // quantity expansion. Pure (no I/O); shared by the ZPL, PDF and PNG renderers.
 import { InventoryServiceError } from '../inventory-guards.js';
 
-export const LAYOUTS = ['qr-left', 'qr-top', 'text-only'];
-export const LABEL_FIELDS = ['folio', 'name', 'serial', 'model', 'location', 'company', 'assetTag'];
+export const LAYOUTS = ['qr-left', 'qr-top', 'qr-only', 'text-only'];
+export const LABEL_FIELDS = ['folio', 'name', 'serial', 'model', 'location', 'company', 'assetTag', 'brand', 'category', 'assignee'];
+// Printed name of each field when textOptions.showFieldNames is on.
+export const FIELD_NAMES = {
+  folio: 'Folio', name: 'Nombre', serial: 'Serie', model: 'Modelo', location: 'Ubicación', company: 'Empresa',
+  assetTag: 'Activo', brand: 'Marca', category: 'Tipo', assignee: 'Asignado a',
+};
+// US Letter in millimetres (sheet output).
+export const LETTER = { widthMm: 215.9, heightMm: 279.4 };
 export const FORMATS = ['zpl', 'pdf', 'png'];
 export const TRANSPORTS = ['browser', 'network', 'bluetooth', 'file'];
 export const ERROR_CORRECTION = ['L', 'M', 'Q', 'H'];
@@ -13,7 +20,9 @@ export const MAX_LABELS_PER_RENDER = 1000;
 
 export const PRESETS = {
   '50x25': { widthMm: 50, heightMm: 25 },
+  '50x30': { widthMm: 50, heightMm: 30 },
   '60x40': { widthMm: 60, heightMm: 40 },
+  '75x50': { widthMm: 75, heightMm: 50 },
   '100x50': { widthMm: 100, heightMm: 50 },
 };
 
@@ -44,6 +53,28 @@ export function normalizeQrOptions(raw = {}) {
   };
 }
 
+// { showFieldNames, fontMm (null = automatic) }.
+export function normalizeTextOptions(raw = {}) {
+  const input = raw && typeof raw === 'object' ? raw : {};
+  const fontMm = input.fontMm === null || input.fontMm === undefined || input.fontMm === '' ? null : num(input.fontMm, 'El tamaño del texto', 1.5, 10);
+  return { showFieldNames: Boolean(input.showFieldNames), fontMm };
+}
+
+// Letter sheet grid for PDF output; null means one label per page (roll).
+// The grid is centred horizontally and starts at the top margin.
+export function normalizeSheet(raw, { widthMm, heightMm }) {
+  if (!raw || typeof raw !== 'object') return null;
+  const columns = Math.round(num(raw.columns, 'Las columnas', 1, 20));
+  const rows = Math.round(num(raw.rows, 'Las filas', 1, 40));
+  const gapMm = num(raw.gapMm ?? 0, 'La separación', 0, 30);
+  const marginMm = num(raw.marginMm ?? 0, 'El margen', 0, 50);
+  const usedW = columns * widthMm + (columns - 1) * gapMm + 2 * marginMm;
+  const usedH = rows * heightMm + (rows - 1) * gapMm + 2 * marginMm;
+  if (usedW > LETTER.widthMm + 0.01) throw fail('Las etiquetas no caben a lo ancho de la hoja carta.');
+  if (usedH > LETTER.heightMm + 0.01) throw fail('Las etiquetas no caben a lo alto de la hoja carta.');
+  return { columns, rows, gapMm, marginMm, guides: Boolean(raw.guides) };
+}
+
 // Validates and completes a template-shaped object ({ widthMm, heightMm, ... }).
 export function normalizeLayout(raw = {}) {
   const preset = raw.preset && PRESETS[raw.preset] ? PRESETS[raw.preset] : {};
@@ -59,7 +90,7 @@ export function normalizeLayout(raw = {}) {
     if (!fields.includes(field)) fields.push(field);
   }
   if (!fields.length && layout === 'text-only') throw fail('Selecciona al menos un campo.');
-  return { widthMm, heightMm, dpi, layout, fields, qrOptions: normalizeQrOptions(raw.qrOptions) };
+  return { widthMm, heightMm, dpi, layout, fields, qrOptions: normalizeQrOptions(raw.qrOptions), textOptions: normalizeTextOptions(raw.textOptions) };
 }
 
 // Printed text of each field for one item; empty values are dropped by the caller.
@@ -72,13 +103,26 @@ export function fieldValues(item, { companyName = '' } = {}) {
     location: item.locationName ?? item.location?.name ?? '',
     company: companyName,
     assetTag: item.assetTag ? `Act. ${item.assetTag}` : '',
+    brand: item.brandName ?? item.brand?.name ?? '',
+    category: item.categoryName ?? item.category?.name ?? '',
+    assignee: item.assigneeName ?? '',
   };
 }
 
+const RAW_KEYS = { serial: 'serialNumber', assetTag: 'assetTag' };
+
 // Ordered, non-empty [{ key, text }] lines for one item.
+// With textOptions.showFieldNames each line reads "Serie: ABC" instead of "S/N ABC".
+// qr-only labels print no text.
 export function selectLines(layout, item, ctx) {
+  if (layout.layout === 'qr-only') return [];
   const values = fieldValues(item, ctx);
-  return layout.fields.map((key) => ({ key, text: String(values[key] ?? '').trim() })).filter((line) => line.text);
+  const named = Boolean(layout.textOptions?.showFieldNames);
+  return layout.fields.map((key) => {
+    const value = named && RAW_KEYS[key] ? (item[RAW_KEYS[key]] ?? '') : values[key];
+    const text = String(value ?? '').trim();
+    return { key, text: text && named ? `${FIELD_NAMES[key]}: ${text}` : text };
+  }).filter((line) => line.text);
 }
 
 export const clampQuantity = (value) => Math.max(1, Math.min(MAX_QUANTITY, Math.floor(Number(value) || 1)));

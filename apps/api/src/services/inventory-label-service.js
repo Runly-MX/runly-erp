@@ -26,6 +26,7 @@ function templateData(input, existing = null) {
     layout: layout.layout,
     fields: layout.fields,
     qrOptions: layout.qrOptions,
+    textOptions: layout.textOptions,
     logoFileId: merged.logoFileId || null,
   };
 }
@@ -175,12 +176,23 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
     if (!ids.length) throw fail('Selecciona al menos un equipo.');
     const items = await prisma.invItem.findMany({
       where: { companyId, enabled: true, id: { in: ids } },
-      select: { id: true, folio: true, name: true, serialNumber: true, model: true, assetTag: true, location: { select: { name: true } } },
+      select: {
+        id: true, folio: true, name: true, serialNumber: true, model: true, assetTag: true,
+        location: { select: { name: true } }, brand: { select: { name: true } }, category: { select: { name: true } },
+        assignedTo: { select: { firstName: true, lastName: true } },
+      },
     });
-    return items.map(({ location, ...item }) => ({ ...item, locationName: location?.name ?? '' }));
+    return items.map(({ location, brand, category, assignedTo, ...item }) => ({
+      ...item,
+      locationName: location?.name ?? '',
+      brandName: brand?.name ?? '',
+      categoryName: category?.name ?? '',
+      assigneeName: [assignedTo?.firstName, assignedTo?.lastName].filter(Boolean).join(' '),
+    }));
   }
 
-  // body: { items: [{ itemId, quantity }], templateId?, layout? (unsaved overrides), printerId?, format? }
+  // body: { items: [{ itemId, quantity }], templateId?, layout? (unsaved overrides), printerId?, format?,
+  //         sheet? ({ columns, rows, gapMm, marginMm, guides }: letter grid, PDF only) }
   async function render(companyId, body = {}, { baseUrl = '' } = {}) {
     assertCompany(companyId);
     const rows = Array.isArray(body.items) ? body.items : [];
@@ -197,7 +209,7 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
       loadItems(companyId, rows),
       prisma.company.findUnique({ where: { id: companyId }, select: { name: true } }),
     ]);
-    return renderLabels({ layout, format, rows, items, companyName: company?.name ?? '', resolveItemQrUrl: await tokenResolver(companyId, items, layout, baseUrl) });
+    return renderLabels({ layout, format, rows, items, companyName: company?.name ?? '', resolveItemQrUrl: await tokenResolver(companyId, items, layout, baseUrl), sheet: format === 'pdf' ? body.sheet ?? null : null });
   }
 
   // ── Print log ───────────────────────────────────────────────────────────
@@ -237,6 +249,47 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
     }));
   }
 
+  // Company-wide print log, newest first (Etiquetas > Historial). Rows written by
+  // one registerPrints call share printedAt + userId, which the client uses to
+  // group them into print runs.
+  async function listPrints(companyId, { page = 1, limit = 50 } = {}) {
+    assertCompany(companyId);
+    const take = Math.min(100, Math.max(1, Math.floor(Number(limit)) || 50));
+    const current = Math.max(1, Math.floor(Number(page)) || 1);
+    const where = { companyId };
+    const [rows, total] = await Promise.all([
+      prisma.invLabelPrint.findMany({
+        where,
+        orderBy: [{ printedAt: 'desc' }, { id: 'desc' }],
+        skip: (current - 1) * take,
+        take,
+        include: {
+          item: { select: { id: true, name: true, folio: true, enabled: true } },
+          template: { select: { name: true } },
+          printer: { select: { name: true } },
+          user: { select: { id: true, displayName: true } },
+        },
+      }),
+      prisma.invLabelPrint.count({ where }),
+    ]);
+    const data = rows.map(({ item, template, printer, user, ...row }) => ({
+      id: row.id,
+      itemId: row.itemId,
+      itemName: item?.name ?? null,
+      itemFolio: item?.folio ?? null,
+      itemEnabled: item?.enabled !== false,
+      quantity: row.quantity,
+      printedAt: row.printedAt,
+      templateId: row.templateId ?? null,
+      templateName: template?.name ?? null,
+      printerId: row.printerId ?? null,
+      printerName: printer?.name ?? null,
+      userId: row.userId ?? null,
+      userName: user?.displayName ?? null,
+    }));
+    return { data, page: current, limit: take, total };
+  }
+
   // Map itemId -> { labelPrintedAt, labelPrintCount (print events) } for a page of items (one query).
   async function statsForItems(companyId, itemIds) {
     const stats = new Map();
@@ -254,6 +307,6 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
   return {
     listTemplates, createTemplate, updateTemplate, removeTemplate,
     listPrinters, createPrinter, updatePrinter, removePrinter,
-    render, registerPrints, history, statsForItems,
+    render, registerPrints, history, listPrints, statsForItems,
   };
 }
