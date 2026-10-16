@@ -1,5 +1,8 @@
 # Runly MCP integrado
 
+Compatibilidad OAuth con Inspector 2.11.0, auditoría DCR y procedimiento de
+actualización: [RUNLY_MCP_OAUTH_COMPATIBILITY.md](RUNLY_MCP_OAUTH_COMPATIBILITY.md).
+
 Runly hospeda `/mcp` en la API Hono existente. Utiliza el SDK oficial
 `@modelcontextprotocol/sdk` 1.32.1 y Streamable HTTP sin sesiones, con respuestas
 JSON. El SDK procesa inicialización, negociación de versión, validación JSON-RPC,

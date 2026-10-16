@@ -7,7 +7,7 @@ en [RUNLY_MCP.md](RUNLY_MCP.md).
 
 | Comprobación | Resultado |
 | --- | --- |
-| `RUNLY_MCP_TEST_INSPECTOR=true pnpm test:mcp` | 13 pruebas aprobadas, sin omisiones; PostgreSQL temporal, Hono, SDK e Inspector CLI |
+| `RUNLY_MCP_TEST_INSPECTOR=true pnpm test:mcp` | 25 pruebas aprobadas, sin omisiones; PostgreSQL temporal, Hono, SDK e Inspector CLI 2.11.0 con OAuth propio |
 | Selección de Inventario/MirAI mediante `node --test` | 80 pruebas aprobadas |
 | Selección de autenticación, contexto empresarial, módulos y manifiestos | 61 pruebas aprobadas |
 | `pnpm --filter @runly/module-engine test` | 147 aprobadas, 1 omitida, 0 fallos |
@@ -47,7 +47,10 @@ la suite del monorepo.
 
 - Descubrimiento OAuth, DCR, PKCE, consentimiento y canje con el proveedor del
   SDK oficial; posterior consulta autenticada contra el endpoint HTTP.
-- Inspector CLI pudo listar las 12 herramientas e invocar una consulta.
+- Inspector CLI 2.11.0 completó DCR, PKCE, autorización y canje de tokens sin
+  bearer preinyectado; ejecutó `runly_whoami` y listó las 12 herramientas.
+  Metadatos reales capturados y alcance descritos en la
+  [auditoría OAuth](RUNLY_MCP_OAUTH_COMPATIBILITY.md).
 - Una alta aprobada creó un activo real con catálogos, serie, folio y audit log.
   Dos commits simultáneos produjeron un solo activo y el mismo resultado.
 - La ruta HTTP actual de Inventario pudo leer el activo creado por MCP.

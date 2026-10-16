@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, createHmac } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
 import { serve } from '@hono/node-server';
@@ -18,6 +21,7 @@ import { createMcpAccess } from '../access.js';
 import { createMcpRouter } from '../router.js';
 import { createMcpState, digest, nonce } from '../state.js';
 import { mcpConfig } from '../config.js';
+import { inspectorMetadata } from './inspector-metadata.js';
 
 const url = process.env.RUNLY_MCP_TEST_DATABASE_URL;
 const safe = url && new URL(url);
@@ -59,12 +63,16 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
   }
   const authMiddleware = createAuthMiddleware({ supabaseAdmin: { auth: { getUser: async () => ({ error: { status: 401 } }) } }, cacheGet: () => null, cacheSet: () => {}, getJwtSecret: () => secret, warn: () => {} });
   let router;
-  const http = serve({ fetch: req => router.fetch(req), port: 0, hostname: '127.0.0.1' });
+  const registrations = [], diagnostics = [];
+  const http = serve({ fetch: async req => {
+    if (new URL(req.url).pathname === '/mcp/oauth/register') registrations.push(await req.clone().json());
+    return router.fetch(req);
+  }, port: 0, hostname: '127.0.0.1' });
   await once(http, 'listening');
   t.after(() => new Promise(resolve => http.close(resolve)));
   const base = `http://127.0.0.1:${http.address().port}`;
   const env = { RUNLY_MCP_ENABLED: 'true', RUNLY_MCP_PUBLIC_URL: `${base}/mcp`, RUNLY_MCP_WEB_URL: base };
-  router = new Hono().route('/', createMcpRouter({ prisma, authMiddleware, env }));
+  router = new Hono().route('/', createMcpRouter({ prisma, authMiddleware, env, log: message => diagnostics.push(JSON.parse(message)) }));
   const httpInventory = new Hono();
   httpInventory.use('/inventory/*', authMiddleware);
   const requirePermission = permission => async (c, next) => {
@@ -83,11 +91,11 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
   const request = (path, body, token, form = false) => fetch(`${base}${path}`, { method: body ? 'POST' : 'GET', redirect: 'manual', headers: { ...(body ? { 'Content-Type': form ? 'application/x-www-form-urlencoded' : 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: form ? new URLSearchParams(body) : JSON.stringify(body) } : {}) });
   let clientId, tokens, grantId;
   async function connect(scopes = 'runly:read inventory:read inventory:write') {
-    const registration = await request('/mcp/oauth/register', { client_name: 'Cliente de pruebas', redirect_uris: ['http://127.0.0.1/callback'] });
+    const registration = await request('/mcp/oauth/register', { ...inspectorMetadata, redirect_uris: ['http://127.0.0.1/callback'] });
     assert.equal(registration.status, 201);
     clientId = (await registration.json()).client_id;
     const verifier = nonce();
-    const query = new URLSearchParams({ client_id: clientId, redirect_uri: 'http://127.0.0.1/callback', response_type: 'code', code_challenge: createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256', state: 'test-state', resource: config.resource, scope: scopes });
+    const query = new URLSearchParams({ client_id: clientId, redirect_uri: 'http://127.0.0.1/callback', response_type: 'code', code_challenge: createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256', state: 'test-state', resource: config.resource, scope: scopes, prompt: 'consent', extension: 'ignored' });
     const authorization = await request(`/mcp/oauth/authorize?${query}`);
     assert.equal(authorization.status, 302);
     const requestId = new URL(authorization.headers.get('location')).searchParams.get('request');
@@ -95,7 +103,7 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
     assert.equal(consent.status, 200, JSON.stringify(await consent.clone().json()));
     const redirect = new URL((await consent.json()).redirect);
     assert.equal(redirect.searchParams.get('state'), 'test-state');
-    const args = { grant_type: 'authorization_code', client_id: clientId, code: redirect.searchParams.get('code'), redirect_uri: 'http://127.0.0.1/callback', code_verifier: verifier, resource: config.resource };
+    const args = { grant_type: 'authorization_code', client_id: clientId, code: redirect.searchParams.get('code'), redirect_uri: 'http://127.0.0.1/callback', code_verifier: verifier, resource: config.resource, client_extension: 'ignored' };
     assert.equal((await request('/mcp/oauth/token', { ...args, code_verifier: nonce() }, null, true)).status, 400);
     const response = await request('/mcp/oauth/token', args, null, true);
     assert.equal(response.status, 200, JSON.stringify(await response.clone().json()));
@@ -150,7 +158,7 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
     let information, credentials, verifier, authorizationUrl;
     const provider = {
       redirectUrl: 'http://127.0.0.1/sdk-callback',
-      clientMetadata: { client_name: 'SDK OAuth', client_uri: 'https://client.example', redirect_uris: ['http://127.0.0.1/sdk-callback'], token_endpoint_auth_method: 'none', grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'] },
+      clientMetadata: { client_name: 'SDK OAuth', client_uri: 'https://client.example', redirect_uris: ['http://127.0.0.1/sdk-callback'], token_endpoint_auth_method: 'none', grant_types: ['authorization_code'], response_types: ['code'], application_type: 'web' },
       clientInformation: () => information, saveClientInformation: value => { information = value; },
       tokens: () => credentials, saveTokens: value => { credentials = value; },
       codeVerifier: () => verifier, saveCodeVerifier: value => { verifier = value; },
@@ -165,16 +173,74 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
     const redirect = new URL((await consent.json()).redirect);
     assert.equal(redirect.searchParams.get('iss'), base);
     assert.equal(await sdkAuth(provider, { serverUrl: config.resource, authorizationCode: redirect.searchParams.get('code') }), 'AUTHORIZED');
+    assert.equal(credentials.refresh_token, undefined);
     const oauthClient = new Client({ name: 'sdk-oauth', version: '1.0.0' });
     await oauthClient.connect(new StreamableHTTPClientTransport(new URL(config.resource), { authProvider: provider }));
     const result = await oauthClient.callTool({ name: 'runly_inventory_search', arguments: { companyId: company.id } });
     assert.equal(result.structuredContent.data.total, 0);
     await oauthClient.close();
   });
+  await t.test('errores DCR HTTP: campos internos, respuesta sin valores sensibles', async () => {
+    const response = await request('/mcp/oauth/register', { ...inspectorMetadata, application_type: 'secret-marker' });
+    assert.equal(response.status, 400);
+    const body = await response.json();
+    assert.equal(body.error, 'invalid_client_metadata');
+    assert.equal(JSON.stringify(body).includes('secret-marker'), false);
+    const event = diagnostics.find(entry => entry.correlationId === body.correlationId);
+    assert.deepEqual(event.validationIssues, [{ field: 'application_type', code: 'invalid_value' }]);
+    assert.equal(JSON.stringify(event).includes('secret-marker'), false);
+    assert.equal((await request('/mcp/oauth/authorize?client_id=a&client_id=b')).status, 400);
+    const duplicate = await fetch(`${base}/mcp/oauth/token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=refresh_token&client_id=a&client_id=b' });
+    assert.equal(duplicate.status, 400);
+  });
+  await t.test('Inspector 2.11.0 real: DCR, PKCE, consentimiento, tokens, whoami y 12 herramientas', { skip: process.env.RUNLY_MCP_TEST_INSPECTOR !== 'true', timeout: 90000 }, async () => {
+    const storage = await mkdtemp(join(tmpdir(), 'runly-inspector-test-'));
+    const reservation = createServer();
+    reservation.listen(0, '127.0.0.1');
+    await once(reservation, 'listening');
+    const callback = `http://127.0.0.1:${reservation.address().port}/oauth/callback`;
+    await new Promise(resolve => reservation.close(resolve));
+    const inspectorEnv = { ...process.env, MCP_STORAGE_DIR: storage, MCP_CATALOG_PATH: join(storage, 'catalog.json'), MCP_CLIENT_CONFIG_PATH: join(storage, 'client.json'), MCP_INSPECTOR_SECRET_STORE: 'file', MCP_AUTO_OPEN_ENABLED: 'false', NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${new URL('./inspector-tty.js', import.meta.url).href}` };
+    async function runInspector(method, extra) {
+      const child = spawn('pnpm', ['dlx', '@modelcontextprotocol/inspector@2.11.0', '--cli', config.resource, '--transport', 'http', '--callback-url', callback, '--method', method, ...extra], { shell: process.platform === 'win32', windowsHide: true, env: inspectorEnv });
+      let output = '', errors = '', navigation;
+      const timer = setTimeout(() => child.kill(), 60000);
+      const consume = () => {
+        const match = `${output}\n${errors}`.match(/Please navigate to: (http[^\s\u001b]+)/);
+        if (match && !navigation) navigation = (async () => {
+          const response = await fetch(match[1], { redirect: 'manual' });
+          assert.equal(response.status, 302);
+          const requestId = new URL(response.headers.get('location')).searchParams.get('request');
+          const consent = await request('/mcp/oauth/consent', { requestId, companyIds: [company.id], approve: true }, webToken());
+          assert.equal(consent.status, 200);
+          const redirect = (await consent.json()).redirect;
+          assert.equal(new URL(redirect).origin, new URL(callback).origin);
+          await fetch(redirect);
+        })();
+      };
+      child.stdout.on('data', chunk => { output += chunk; consume(); });
+      child.stderr.on('data', chunk => { errors += chunk; consume(); });
+      try {
+        const [code] = await once(child, 'close');
+        if (navigation) await navigation;
+        assert.equal(code, 0, errors);
+        return output;
+      } finally { clearTimeout(timer); child.kill(); }
+    }
+    try {
+      assert.match(await runInspector('tools/call', ['--tool-name', 'runly_whoami']), new RegExp(user.id));
+      const actual = registrations.find(input => input.redirect_uris?.includes(callback));
+      assert.ok(actual, 'Inspector debe registrar su propio cliente, sin bearer preinyectado');
+      assert.deepEqual(actual, { ...inspectorMetadata, redirect_uris: [callback], scope: config.scopes.join(' ') });
+      const output = await runInspector('tools/list', ['--stored-auth-only']);
+      const tools = JSON.parse(output).tools;
+      assert.equal(tools.length, 12);
+    } finally { await rm(storage, { recursive: true, force: true }); }
+  });
   await t.test('MCP Inspector CLI: listado e invocación por Streamable HTTP', { skip: process.env.RUNLY_MCP_TEST_INSPECTOR !== 'true' }, async () => {
     async function inspector(method, extra = []) {
       const header = `Authorization: Bearer ${tokens.access_token}`;
-      const child = spawn('pnpm', ['dlx', '@modelcontextprotocol/inspector', '--cli', config.resource, '--transport', 'http', '--method', method, '--header', process.platform === 'win32' ? `"${header}"` : header, ...extra], { shell: process.platform === 'win32', windowsHide: true });
+      const child = spawn('pnpm', ['dlx', '@modelcontextprotocol/inspector@2.11.0', '--cli', config.resource, '--transport', 'http', '--method', method, '--header', process.platform === 'win32' ? `"${header}"` : header, ...extra], { shell: process.platform === 'win32', windowsHide: true });
       let output = '', errors = '';
       child.stdout.on('data', chunk => { output += chunk; });
       child.stderr.on('data', chunk => { errors += chunk; });
@@ -283,9 +349,18 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
     await prisma.mcpState.update({ where: { id: accessRow.id }, data: { expiresAt: new Date(0) } });
     assert.equal((await request('/mcp', null, tokens.access_token)).status, 401);
     const refresh = { grant_type: 'refresh_token', refresh_token: tokens.refresh_token, client_id: clientId, resource: config.resource };
-    const rotated = await request('/mcp/oauth/token', refresh, null, true);
+    const rotated = await request('/mcp/oauth/token', { ...refresh, scope: 'runly:read' }, null, true);
     assert.equal(rotated.status, 200);
     const newer = await rotated.json();
+    assert.equal(newer.scope, 'runly:read');
+    const narrowed = new Client({ name: 'narrowed-refresh', version: '1.0.0' });
+    await narrowed.connect(new StreamableHTTPClientTransport(new URL(config.resource), { requestInit: { headers: { Authorization: `Bearer ${newer.access_token}` } } }));
+    assert.equal((await narrowed.callTool({ name: 'runly_whoami', arguments: {} })).isError, undefined);
+    assert.equal((await narrowed.callTool({ name: 'runly_inventory_search', arguments: { companyId: company.id } })).isError, true);
+    await narrowed.close();
+    const escalated = await request('/mcp/oauth/token', { ...refresh, refresh_token: newer.refresh_token, scope: 'inventory:read' }, null, true);
+    assert.equal(escalated.status, 400);
+    assert.equal((await escalated.json()).error, 'invalid_scope');
     assert.equal((await request('/mcp/oauth/token', refresh, null, true)).status, 400);
     assert.equal((await request('/mcp', null, newer.access_token)).status, 401);
     await connect('runly:read'); await sdkConnect();

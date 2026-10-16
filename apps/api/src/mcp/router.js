@@ -8,8 +8,9 @@ import { createMcpCapabilities } from './capabilities.js';
 import { createMcpAccess } from './access.js';
 import { digest, nonce } from './state.js';
 import { handleMcpRequest } from './server.js';
+import { oauthParameters } from './oauth-validation.js';
 
-export function createMcpRouter({ prisma, authMiddleware, env = process.env }) {
+export function createMcpRouter({ prisma, authMiddleware, env = process.env, log = message => console.info(message) }) {
   const router = new Hono(), config = mcpConfig(env);
   if (!config) return router;
   const oauth = createMcpOAuth({ prisma, config });
@@ -17,7 +18,7 @@ export function createMcpRouter({ prisma, authMiddleware, env = process.env }) {
   function errorResponse(err, c) {
     const correlationId = c.get('correlationId');
     const status = err instanceof z.ZodError || err instanceof SyntaxError || err.code === 'invalid_grant' && c.req.path === '/mcp/oauth/token' ? 400 : err.status ?? 500;
-    console.info(JSON.stringify({ event: 'mcp.http', correlationId, status, code: err.code ?? 'invalid_request' }));
+    log(JSON.stringify({ event: 'mcp.http', correlationId, status, code: err.code ?? 'invalid_request', ...(err.validationIssues ? { validationIssues: err.validationIssues } : {}) }));
     if (status === 401) c.header('WWW-Authenticate', `Bearer resource_metadata="${config.issuer}/.well-known/oauth-protected-resource/mcp", error="invalid_token"`);
     if (status === 403 && err.code === 'insufficient_scope') c.header('WWW-Authenticate', 'Bearer error="insufficient_scope"');
     return c.json({ error: err.code ?? (status < 500 ? 'invalid_request' : 'server_error'), error_description: status < 500 && !(err instanceof z.ZodError) ? err.message : status === 400 ? 'Parámetros inválidos.' : 'No se pudo completar la solicitud.', correlationId }, status);
@@ -32,6 +33,7 @@ export function createMcpRouter({ prisma, authMiddleware, env = process.env }) {
     c.set('correlationId', correlationId);
     c.header('X-Correlation-Id', correlationId);
     c.header('Cache-Control', 'no-store');
+    c.header('Pragma', 'no-cache');
     try {
       insist(new URL(c.req.url).host === new URL(config.resource).host, 'invalid_host', 'Host MCP no autorizado.', 403);
       const origin = c.req.header('Origin');
@@ -63,14 +65,20 @@ export function createMcpRouter({ prisma, authMiddleware, env = process.env }) {
   router.get('/.well-known/oauth-protected-resource', resourceMetadata);
   router.get('/.well-known/oauth-protected-resource/mcp', resourceMetadata);
   router.get('/.well-known/oauth-authorization-server', c => c.json(oauth.metadata));
-  router.post('/mcp/oauth/register', async c => c.json(await oauth.register(await c.req.json()), 201));
-  router.get('/mcp/oauth/authorize', async c => c.redirect(await oauth.authorize(c.req.query())));
+  router.post('/mcp/oauth/register', async c => {
+    insist(c.req.header('Content-Type')?.split(';')[0].trim().toLowerCase() === 'application/json', 'invalid_request', 'Usa application/json.');
+    return c.json(await oauth.register(await c.req.json()), 201);
+  });
+  router.get('/mcp/oauth/authorize', async c => c.redirect(await oauth.authorize(oauthParameters(new URL(c.req.url).searchParams))));
   router.get('/mcp/oauth/request/:id', async c => c.json(await oauth.requestInfo(c.req.param('id'))));
   router.post('/mcp/oauth/token', async c => {
     insist(c.req.header('Content-Type')?.startsWith('application/x-www-form-urlencoded'), 'invalid_request', 'Usa application/x-www-form-urlencoded.');
-    return c.json(await oauth.token(Object.fromEntries(new URLSearchParams(await c.req.text()))));
+    return c.json(await oauth.token(oauthParameters(new URLSearchParams(await c.req.text()))));
   });
-  router.post('/mcp/oauth/revoke', async c => { await oauth.revokeToken(Object.fromEntries(new URLSearchParams(await c.req.text()))); return c.body(null, 200); });
+  router.post('/mcp/oauth/revoke', async c => {
+    insist(c.req.header('Content-Type')?.startsWith('application/x-www-form-urlencoded'), 'invalid_request', 'Usa application/x-www-form-urlencoded.');
+    await oauth.revokeToken(oauthParameters(new URLSearchParams(await c.req.text()))); return c.body(null, 200);
+  });
   router.get('/mcp/account', authMiddleware, async c => {
     const actor = await createMcpAccess(prisma).identity(c.get('authUserId'));
     const grants = await prisma.mcpState.findMany({ where: { kind: 'grant', expiresAt: { gt: new Date() }, payload: { path: ['authUserId'], equals: c.get('authUserId') } }, take: 100 });
