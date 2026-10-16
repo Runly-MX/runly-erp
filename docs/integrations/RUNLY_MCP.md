@@ -1,5 +1,10 @@
 # Runly MCP integrado
 
+La ampliación transversal de módulos oficiales se describe en
+[RUNLY_MCP_OFFICIAL_MODULES.md](RUNLY_MCP_OFFICIAL_MODULES.md), con su
+[catálogo de capacidades](RUNLY_MCP_CATALOG.md). Las doce herramientas
+documentadas aquí conservan sus contratos como núcleo compatible.
+
 Compatibilidad OAuth con Inspector 2.11.0, auditoría DCR y procedimiento de
 actualización: [RUNLY_MCP_OAUTH_COMPATIBILITY.md](RUNLY_MCP_OAUTH_COMPATIBILITY.md).
 

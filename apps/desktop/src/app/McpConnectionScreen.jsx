@@ -5,6 +5,10 @@ import { Button, Card, Checkbox, ConfirmDialog, EmptyState, ErrorState, LoadingS
 import { useAuth } from '../auth/AuthProvider';
 
 const SCOPE_LABELS = { 'runly:read': 'Ver tu identidad, empresas y módulos autorizados', 'inventory:read': 'Consultar equipos y catálogos de inventario', 'inventory:write': 'Preparar y ejecutar altas y ediciones con tu aprobación en Runly' };
+for (const [domain, label] of Object.entries({ hr: 'Recursos Humanos', fleet: 'Flota', notes: 'Notas', pfm: 'Finanzas personales', ledger: 'Libro de cuentas', projects: 'Proyectos', calendar: 'Calendario' })) {
+  SCOPE_LABELS[`${domain}:read`] = `Consultar ${label} con tus permisos actuales`;
+  SCOPE_LABELS[`${domain}:write`] = `Preparar cambios en ${label}; requieren tu aprobación en Runly`;
+}
 
 export function McpConnectionScreen() {
   const { session } = useAuth();
@@ -12,7 +16,10 @@ export function McpConnectionScreen() {
   const requestId = params.get('request'), proposalId = params.get('proposal');
   const [companyIds, setCompanyIds] = useState([]);
   const [revoking, setRevoking] = useState(null);
-  const [done, setDone] = useState(false);
+  const [completedProposal, setCompletedProposal] = useState(null);
+  const [acknowledgedProposal, setAcknowledgedProposal] = useState(null);
+  const done = proposalId !== null && completedProposal === proposalId;
+  const sensitiveAcknowledged = proposalId !== null && acknowledgedProposal === proposalId;
   async function api(path, body) {
     // MCP is published through the frontend proxy, independently of the ERP API.
     const response = await fetch(path, { method: body ? 'POST' : 'GET', headers: { Authorization: `Bearer ${session.access_token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
@@ -24,11 +31,11 @@ export function McpConnectionScreen() {
   const detail = useQuery({ queryKey: ['mcp-request', requestId, proposalId, session.user.id], enabled: Boolean(requestId || proposalId), retry: false,
     queryFn: () => api(proposalId ? `/mcp/proposals/${encodeURIComponent(proposalId)}` : `/mcp/oauth/request/${encodeURIComponent(requestId)}`) });
   const action = useMutation({ mutationFn: async approve => {
-    if (proposalId) return api(`/mcp/proposals/${encodeURIComponent(proposalId)}`, { approve });
+    if (proposalId) return api(`/mcp/proposals/${encodeURIComponent(proposalId)}`, { approve, ...(detail.data?.sensitive ? { acknowledgeSensitive: sensitiveAcknowledged } : {}) });
     return api('/mcp/oauth/consent', { requestId, companyIds, approve });
   }, onSuccess: result => {
     if (result.redirect) window.location.assign(result.redirect);
-    else { setDone(true); detail.refetch(); }
+    else { setCompletedProposal(proposalId); detail.refetch(); }
   } });
   const revoke = useMutation({ mutationFn: grantId => api('/mcp/account/revoke', { grantId }), onSuccess: () => { setRevoking(null); account.refetch(); } });
   const error = account.error || detail.error || action.error || revoke.error;
@@ -55,8 +62,9 @@ export function McpConnectionScreen() {
       <p>Revisa todos los datos antes de aprobar. La aprobación permite al asistente ejecutar esta propuesta una sola vez durante su vigencia.</p>
       <dl className="space-y-3">{detail.data.preview.fields.map((field, index) => <div key={index}><dt className="font-medium">{field.label}</dt><dd>{field.before !== undefined && <span>Antes: {String(field.before)} · </span>}Nuevo: {String(field.value)}</dd></div>)}</dl>
       <details><summary>Datos completos de la propuesta</summary><pre className="overflow-auto whitespace-pre-wrap rounded bg-muted p-3 text-sm">{JSON.stringify(detail.data.proposed, null, 2)}</pre></details>
+      {detail.data.sensitive && !done && <label className="flex items-start gap-3"><Checkbox checked={sensitiveAcknowledged} onCheckedChange={checked => setAcknowledgedProposal(checked === true ? proposalId : null)} />Confirmo los importes, relaciones y vínculos de identidad indicados en esta propuesta.</label>}
       {done ? <p role="status">Decisión guardada. Vuelve al asistente para continuar.</p> : <div className="flex gap-3">
-        <Button disabled={action.isPending || detail.data.completed} onClick={() => action.mutate(true)}>Aprobar propuesta</Button>
+        <Button disabled={action.isPending || detail.data.completed || detail.data.rejected || detail.data.sensitive && !sensitiveAcknowledged} onClick={() => action.mutate(true)}>Aprobar propuesta</Button>
         <Button variant="outline" disabled={action.isPending || detail.data.completed} onClick={() => action.mutate(false)}>Rechazar</Button>
       </div>}
     </Card>}

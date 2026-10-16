@@ -22,6 +22,7 @@ import { createMcpRouter } from '../router.js';
 import { createMcpState, digest, nonce } from '../state.js';
 import { mcpConfig } from '../config.js';
 import { inspectorMetadata } from './inspector-metadata.js';
+import { officialDomainTests } from './official-domains.js';
 
 const url = process.env.RUNLY_MCP_TEST_DATABASE_URL;
 const safe = url && new URL(url);
@@ -234,7 +235,7 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
       assert.deepEqual(actual, { ...inspectorMetadata, redirect_uris: [callback], scope: config.scopes.join(' ') });
       const output = await runInspector('tools/list', ['--stored-auth-only']);
       const tools = JSON.parse(output).tools;
-      assert.equal(tools.length, 12);
+      assert.equal(tools.length, 33);
     } finally { await rm(storage, { recursive: true, force: true }); }
   });
   await t.test('MCP Inspector CLI: listado e invocación por Streamable HTTP', { skip: process.env.RUNLY_MCP_TEST_INSPECTOR !== 'true' }, async () => {
@@ -252,6 +253,9 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
     assert.match(await inspector('tools/call', ['--tool-name', 'runly_companies_list']), /Empresa de prueba A/);
   });
   let itemId;
+  await t.test('dominios oficiales con servicios y datos reales', async t => {
+    await officialDomainTests(t, { prisma, url, config, company, other, user, authUserId, role, membership, request, webToken });
+  });
   await t.test('alta real, aprobación humana y commits concurrentes idempotentes', async () => {
     const prepared = await call('runly_inventory_create_prepare', { companyId: company.id, plan: { actions: [{ kind: 'item', data: { name: 'Laptop Dell Latitude 5440', brandName: 'Dell', categoryName: 'Laptop', locationName: 'Sistemas', model: 'Latitude 5440', serialNumber: 'ABC123' } }] } });
     assert.equal(prepared.status, 'approval_required');

@@ -561,6 +561,7 @@ export function createNotesService({ prisma, broadcaster = null }) {
   // ------------------------------------------------------------------
 
   return {
+    assertAccess,
     createNote,
     getNote,
     listNotes,

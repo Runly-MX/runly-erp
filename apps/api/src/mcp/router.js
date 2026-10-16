@@ -91,8 +91,8 @@ export function createMcpRouter({ prisma, authMiddleware, env = process.env, log
   });
   router.get('/mcp/proposals/:id', authMiddleware, async c => c.json(await capabilities.proposalInfo(c.get('authUserId'), c.req.param('id'))));
   router.post('/mcp/proposals/:id', authMiddleware, async c => {
-    const { approve } = z.object({ approve: z.boolean() }).strict().parse(await c.req.json());
-    return c.json(await capabilities.approve(c.get('authUserId'), c.req.param('id'), approve));
+    const { approve, acknowledgeSensitive } = z.object({ approve: z.boolean(), acknowledgeSensitive: z.boolean().optional() }).strict().parse(await c.req.json());
+    return c.json(await capabilities.approve(c.get('authUserId'), c.req.param('id'), approve, acknowledgeSensitive));
   });
   router.all('/mcp', async c => {
     const header = c.req.header('Authorization') ?? '';

@@ -1,4 +1,4 @@
-export const SCOPES = ['runly:read', 'inventory:read', 'inventory:write'];
+export const SCOPES = ['runly:read', 'inventory:read', 'inventory:write', ...['hr', 'fleet', 'notes', 'pfm', 'ledger', 'projects', 'calendar'].flatMap(domain => [`${domain}:read`, `${domain}:write`])];
 
 export function mcpConfig(env = process.env, warn = console.warn) {
   if (env.RUNLY_MCP_ENABLED !== 'true') return null;

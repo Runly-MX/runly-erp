@@ -728,7 +728,19 @@ export function createHrService({ prisma, activityBridge }) {
       });
     },
 
-    async listUserOptions({ authUserId, companyId: activeCompanyId, search, limit }) {
+    async validateEmployeeProposal({ authUserId, companyId: activeCompanyId, payload, id = null }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
+      if (id) await assertEmployee({ id, companyId });
+      if (payload.departmentId) await assertDepartment({ id: payload.departmentId, companyId });
+      if (payload.jobTitleId) await assertJobTitle({ id: payload.jobTitleId, companyId });
+      if (payload.supervisorEmployeeId) {
+        await assertSupervisor({ supervisorEmployeeId: payload.supervisorEmployeeId, companyId, currentEmployeeId: id });
+        if (id) await assertNoHierarchyCycle({ employeeId: id, supervisorEmployeeId: payload.supervisorEmployeeId, companyId });
+      }
+      await assertUserLinkEligibility({ companyId, userProfileId: payload.userProfileId, currentEmployeeId: id });
+    },
+
+    async listUserOptions({ authUserId, companyId: activeCompanyId, search, limit, id }) {
       const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const take = normalizeLimit(limit, 40, 100);
       const query = String(search ?? "").trim();
@@ -738,6 +750,7 @@ export function createHrService({ prisma, activityBridge }) {
           enabled: true,
           user: {
             enabled: true,
+              ...(id ? { id } : {}),
             ...(query
               ? {
                   OR: [

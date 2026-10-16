@@ -29,7 +29,7 @@ export function createMcpAccess(prisma) {
     return rows.filter(m => !disabled.has(m.id) && typeof m.manifest?.acl?.module === 'string' && actx.can(m.manifest.acl.module));
   }
   async function module(actx, moduleKey) {
-    const row = (await modules(actx)).find(m => m.key === moduleKey || (moduleKey === 'runly.inventory' && m.key === 'atlas.inventory'));
+    const row = (await modules(actx)).find(m => m.key === moduleKey || m.key === moduleKey.replace(/^runly\./, 'atlas.'));
     insist(row, 'module_unavailable', 'El módulo no está habilitado o autorizado para esta empresa.', 403);
     return row;
   }
