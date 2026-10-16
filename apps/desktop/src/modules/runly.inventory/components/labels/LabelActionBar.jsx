@@ -35,12 +35,11 @@ function DownloadMenu({ busy, disabled, onDownload, compact }) {
 }
 
 function PrintButton({ plan, busy, disabled, onPrint, className }) {
-  const download = plan.available && plan.label.startsWith('Descargar')
+  const download = plan.label.startsWith('Descargar')
   return (
-    <Button type="button" className={cn('h-11 px-5', className)} onClick={onPrint} disabled={disabled || Boolean(busy) || !plan.available}
-      title={plan.available ? undefined : plan.reason}>
+    <Button type="button" className={cn('h-11 px-5', className)} onClick={onPrint} disabled={disabled || Boolean(busy)} title={plan.note ?? undefined}>
       {busy === 'print' ? <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" /> : download ? <Download className="mr-2 h-4 w-4" /> : <Printer className="mr-2 h-4 w-4" />}
-      {busy === 'print' ? 'Generando...' : plan.available ? plan.label : 'Disponible en la app'}
+      {busy === 'print' ? 'Generando...' : plan.label}
     </Button>
   )
 }

@@ -4,7 +4,7 @@
 // package in ./inventory-labels/.
 import { InventoryServiceError, assertCompany } from './inventory-guards.js';
 import {
-  DEFAULT_TEMPLATES, FORMATS, TRANSPORTS, clampQuantity, createPlaceholderQrUrl, normalizeLayout, renderLabels, withNewTemplateDefaults,
+  DEFAULT_TEMPLATES, FORMATS, TRANSPORTS, clampQuantity, normalizePrinterTransport, createPlaceholderQrUrl, normalizeLayout, renderLabels, withNewTemplateDefaults,
 } from './inventory-labels/index.js';
 
 const fail = (message, status = 400) => new InventoryServiceError(message, status);
@@ -34,7 +34,7 @@ function templateData(input, existing = null) {
 function printerData(input, existing = null) {
   const merged = { ...(existing ?? {}), ...input };
   const format = merged.format ?? 'pdf';
-  const transport = merged.transport ?? 'browser';
+  const transport = normalizePrinterTransport(merged.transport ?? 'browser', format);
   if (!FORMATS.includes(format)) throw fail('Formato de impresora no válido.');
   if (!TRANSPORTS.includes(transport)) throw fail('Transporte de impresora no válido.');
   const dpi = Math.round(Number(merged.dpi ?? 203));
@@ -54,6 +54,9 @@ function printerData(input, existing = null) {
     mediaHeightMm,
   };
 }
+
+// Rows written before the network transport was removed read as browser/file.
+const readPrinter = (row) => (row ? { ...row, transport: normalizePrinterTransport(row.transport, row.format) } : row);
 
 // Public app origin from the environment ('' when none is configured).
 export function appBaseUrlFromEnv(env = process.env) {
@@ -135,7 +138,8 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
   // ── Printers ────────────────────────────────────────────────────────────
   async function listPrinters(companyId) {
     assertCompany(companyId);
-    return prisma.invLabelPrinter.findMany({ where: { companyId, enabled: true }, orderBy: [{ isDefault: 'desc' }, { name: 'asc' }] });
+    const rows = await prisma.invLabelPrinter.findMany({ where: { companyId, enabled: true }, orderBy: [{ isDefault: 'desc' }, { name: 'asc' }] });
+    return rows.map(readPrinter);
   }
 
   async function assertPrinter(companyId, id) {
@@ -151,7 +155,7 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
     await assertTemplate(companyId, data.defaultTemplateId);
     const row = await prisma.invLabelPrinter.create({ data: { companyId, ...data } });
     if (input.isDefault) await makeDefault('invLabelPrinter', companyId, row.id);
-    return prisma.invLabelPrinter.findUnique({ where: { id: row.id } });
+    return readPrinter(await prisma.invLabelPrinter.findUnique({ where: { id: row.id } }));
   }
 
   async function updatePrinter(companyId, id, input) {
@@ -161,7 +165,7 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
     await assertTemplate(companyId, data.defaultTemplateId);
     await prisma.invLabelPrinter.update({ where: { id }, data });
     if (input.isDefault) await makeDefault('invLabelPrinter', companyId, id);
-    return prisma.invLabelPrinter.findUnique({ where: { id } });
+    return readPrinter(await prisma.invLabelPrinter.findUnique({ where: { id } }));
   }
 
   async function removePrinter(companyId, id) {

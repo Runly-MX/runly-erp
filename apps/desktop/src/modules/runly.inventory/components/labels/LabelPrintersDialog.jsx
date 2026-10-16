@@ -7,7 +7,7 @@ import { ArrowLeft, Pencil, Plus, Printer, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDeleteLabelPrinter, useSaveLabelPrinter } from '../../hooks/useInventoryLabels.js'
 import { DPI_OPTIONS } from '../../lib/label-layout.js'
-import { FORMAT_OPTIONS, TRANSPORT_OPTIONS, labelTransports, resolvePrintPlan } from '../../lib/label-transports.js'
+import { FORMAT_OPTIONS, normalizeTransport, transportLabel, transportOptions } from '../../lib/label-transports.js'
 import { useBluetoothPrinting } from '../../hooks/useBluetoothPrinting.js'
 import { PrinterAddressFields } from './PrinterAddressFields.jsx'
 
@@ -16,24 +16,28 @@ const optionLabel = (options, value) => options.find((o) => o.value === value)?.
 
 function PrinterForm({ form, setForm, templates, errors, bluetooth }) {
   const set = (patch) => setForm((f) => ({ ...f, ...patch }))
-  const plan = resolvePrintPlan(form, labelTransports, { bluetooth })
+  const isBluetooth = form.transport === 'bluetooth'
+  // Bluetooth always sends ZPL. Resolution and roll size matter only for ZPL/PNG.
+  const rasterOrZpl = isBluetooth || form.format !== 'pdf'
   return (
     <div className="space-y-4">
       <TextField label="Nombre" required value={form.name} error={errors.name} placeholder="Zebra del almacén"
         onChange={(e) => set({ name: e.target.value })} />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <SelectField label="Formato" options={FORMAT_OPTIONS} value={form.format} onValueChange={(format) => set({ format })} />
-        <SelectField label="Resolución" options={DPI_OPTIONS} value={String(form.dpi)} onValueChange={(v) => set({ dpi: Number(v) })} />
+      <SelectField label="Conexión" options={transportOptions({ bluetooth }, form.transport)} value={form.transport}
+        onValueChange={(transport) => set(transport === 'bluetooth' ? { transport, format: 'zpl' } : { transport })} />
+      <div className={isBluetooth || !rasterOrZpl ? 'grid gap-3' : 'grid gap-3 sm:grid-cols-2'}>
+        {isBluetooth ? null : <SelectField label="Formato" options={FORMAT_OPTIONS} value={form.format} onValueChange={(format) => set({ format })} />}
+        {rasterOrZpl ? <SelectField label="Resolución" options={DPI_OPTIONS} value={String(form.dpi)} onValueChange={(v) => set({ dpi: Number(v) })} /> : null}
       </div>
-      <SelectField label="Conexión" options={TRANSPORT_OPTIONS} value={form.transport} onValueChange={(transport) => set({ transport })}
-        hint={plan.available ? undefined : plan.reason} />
       <PrinterAddressFields form={form} set={set} bluetooth={bluetooth} />
-      <div className="grid grid-cols-2 gap-3">
-        <NumberField label="Ancho del rollo (mm)" min={1} max={500} allowNegative={false} value={form.mediaWidthMm ?? ''}
-          onChange={(e) => set({ mediaWidthMm: e.target.value })} />
-        <NumberField label="Alto de la etiqueta (mm)" min={1} max={500} allowNegative={false} value={form.mediaHeightMm ?? ''}
-          onChange={(e) => set({ mediaHeightMm: e.target.value })} />
-      </div>
+      {rasterOrZpl ? (
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField label="Ancho del rollo (mm)" min={1} max={500} allowNegative={false} value={form.mediaWidthMm ?? ''}
+            onChange={(e) => set({ mediaWidthMm: e.target.value })} />
+          <NumberField label="Alto de la etiqueta (mm)" min={1} max={500} allowNegative={false} value={form.mediaHeightMm ?? ''}
+            onChange={(e) => set({ mediaHeightMm: e.target.value })} />
+        </div>
+      ) : null}
       <SelectField label="Plantilla predeterminada" placeholder="Ninguna" value={form.defaultTemplateId || undefined}
         options={[{ value: 'none', label: 'Ninguna' }, ...templates.map((t) => ({ value: t.id, label: t.name }))]}
         onValueChange={(v) => set({ defaultTemplateId: v === 'none' ? '' : v })} />
@@ -57,7 +61,7 @@ export function LabelPrintersDialog({ open, onOpenChange, printers, templates })
   function edit(printer) {
     setErrors({})
     setForm(printer ? {
-      ...EMPTY, ...printer,
+      ...EMPTY, ...printer, transport: normalizeTransport(printer.transport, printer.format),
       address: printer.address ?? '', mediaWidthMm: printer.mediaWidthMm ?? '', mediaHeightMm: printer.mediaHeightMm ?? '', defaultTemplateId: printer.defaultTemplateId ?? '',
     } : { ...EMPTY, isDefault: printers.length === 0 })
   }
@@ -113,7 +117,7 @@ export function LabelPrintersDialog({ open, onOpenChange, printers, templates })
                         {printer.name}{printer.isDefault ? <Badge variant="secondary">Predeterminada</Badge> : null}
                       </p>
                       <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">
-                        {optionLabel(FORMAT_OPTIONS, printer.format)} · {printer.dpi} dpi · {optionLabel(TRANSPORT_OPTIONS, printer.transport)}
+                        {optionLabel(FORMAT_OPTIONS, printer.format)} · {printer.dpi} dpi · {transportLabel(printer.transport, { bluetooth })}
                       </p>
                     </div>
                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={`Editar ${printer.name}`} onClick={() => edit(printer)}>

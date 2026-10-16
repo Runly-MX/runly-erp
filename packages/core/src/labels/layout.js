@@ -21,7 +21,12 @@ export const FIELD_NAMES = {
 // US Letter in millimetres (sheet output).
 export const LETTER = { widthMm: 215.9, heightMm: 279.4 };
 export const FORMATS = ['zpl', 'pdf', 'png'];
-export const TRANSPORTS = ['browser', 'network', 'bluetooth', 'file'];
+// Printer transports. There is no network (IP) printing: legacy 'network' rows
+// (migrated by 20261029000000_inv_label_printer_drop_network) read as 'file' for
+// ZPL and 'browser' otherwise.
+export const TRANSPORTS = ['browser', 'bluetooth', 'file'];
+export const normalizePrinterTransport = (transport, format = 'pdf') =>
+  (transport === 'network' ? (format === 'zpl' ? 'file' : 'browser') : transport);
 export const ERROR_CORRECTION = ['L', 'M', 'Q', 'H'];
 export const CONTENT_MODES = ['url', 'embedded'];
 export const TEXT_ALIGNS = ['left', 'center', 'right'];

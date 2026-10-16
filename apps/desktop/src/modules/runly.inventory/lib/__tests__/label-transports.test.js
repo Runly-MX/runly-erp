@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { createTransportRegistry, preparePrintPlan, resolvePrintPlan, runPrintPlan } from '../label-transports.js'
+import { createTransportRegistry, normalizeTransport, preparePrintPlan, resolvePrintPlan, runPrintPlan, transportOptions } from '../label-transports.js'
 
 function fakeEnv({ popupBlocked = false } = {}) {
   const calls = []
@@ -20,7 +20,7 @@ describe('label transports', () => {
 
   it('defaults to browser PDF printing without a printer', () => {
     const plan = resolvePrintPlan(null, registry)
-    assert.deepEqual([plan.transportId, plan.format, plan.available, plan.label], ['browser', 'pdf', true, 'Imprimir'])
+    assert.deepEqual([plan.transportId, plan.format, plan.label, plan.note], ['browser', 'pdf', 'Imprimir', null])
   })
   it('downloads ZPL for browser printers and opens PDFs', async () => {
     const zpl = resolvePrintPlan({ transport: 'browser', format: 'zpl' }, registry)
@@ -45,18 +45,28 @@ describe('label transports', () => {
     const out = await runPrintPlan(resolvePrintPlan(null, registry), { blob: {} }, registry, env)
     assert.equal(out.mode, 'download')
   })
-  it('downloads for network printers (the server cannot reach the LAN)', async () => {
+  it('reads legacy network printers as file (ZPL) or browser (PDF/PNG)', () => {
+    assert.equal(normalizeTransport('network', 'zpl'), 'file')
+    assert.equal(normalizeTransport('network', 'pdf'), 'browser')
+    assert.equal(normalizeTransport('carrier-pigeon'), 'browser')
+    assert.equal(registry.get('network'), null)
     const plan = resolvePrintPlan({ transport: 'network', format: 'zpl' }, registry)
-    assert.deepEqual([plan.available, plan.label], [true, 'Descargar .zpl'])
-    assert.equal(resolvePrintPlan({ transport: 'network', format: 'png' }, registry).format, 'zpl')
-    assert.equal((await runPrintPlan(plan, { blob: {} }, registry, fakeEnv())).mode, 'download')
+    assert.deepEqual([plan.transportId, plan.label], ['file', 'Descargar .zpl'])
   })
-  it('enables bluetooth only inside the Android app and always sends ZPL', () => {
+  it('offers bluetooth only inside the Android app', () => {
+    const ids = (env, current) => transportOptions(env, current).map((o) => o.value)
+    assert.deepEqual(ids(null), ['browser', 'file'])
+    assert.deepEqual(ids({ bluetooth: { available: true } }), ['browser', 'file', 'bluetooth'])
+    const legacy = transportOptions(null, 'bluetooth').at(-1)
+    assert.deepEqual([legacy.value, legacy.label], ['bluetooth', 'Bluetooth (solo en la app)'])
+  })
+  it('bluetooth prints in the app and downloads the .zpl elsewhere', async () => {
     const web = resolvePrintPlan({ transport: 'bluetooth', format: 'pdf' }, registry)
-    assert.deepEqual([web.available, web.format], [false, 'zpl'])
-    assert.match(web.reason, /app Android/)
+    assert.deepEqual([web.transportId, web.format, web.label], ['file', 'zpl', 'Descargar .zpl'])
+    assert.match(web.note, /app Android/)
+    assert.equal((await runPrintPlan(web, { blob: {} }, registry, fakeEnv())).mode, 'download')
     const app = resolvePrintPlan({ transport: 'bluetooth', format: 'pdf' }, registry, { bluetooth: { available: true } })
-    assert.deepEqual([app.available, app.format, app.label], [true, 'zpl', 'Imprimir'])
+    assert.deepEqual([app.transportId, app.format, app.label, app.note], ['bluetooth', 'zpl', 'Imprimir', null])
   })
   it('sends the rendered bytes to the paired address and maps failures', async () => {
     const sent = []

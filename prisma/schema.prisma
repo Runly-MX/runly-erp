@@ -5224,7 +5224,7 @@ model InvLabelPrinter {
   name              String   @db.VarChar(120)
   format            String   @default("pdf") @db.VarChar(10)
   dpi               Int      @default(203)
-  // browser | network | bluetooth | file
+  // browser | bluetooth | file
   transport         String   @default("browser") @db.VarChar(20)
   address           String?  @db.VarChar(255)
   defaultTemplateId String?  @map("default_template_id") @db.Uuid

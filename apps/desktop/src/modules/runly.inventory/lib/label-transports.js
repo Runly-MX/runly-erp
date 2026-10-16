@@ -1,14 +1,15 @@
 // Output layer of the Etiquetas screen. Each printer transport is a small
 // object; the screen asks the registry for a plan (what "Imprimir" will do)
 // and runs it with the rendered file. Phase 4: `bluetooth` sends ZPL to a
-// paired printer from the Android app (env.bluetooth); `network` is a download
-// because the API server cannot reach a printer on the customer's LAN.
+// paired printer from the Android app (env.bluetooth); outside the app the plan
+// falls back to downloading the .zpl with a note. There is no network (IP)
+// transport: legacy 'network' rows are read as browser/file (normalizeTransport).
 //
 // transport: {
 //   id,
 //   formats: ['pdf', ...]          formats it can deliver (first is preferred),
 //   isAvailable(printer, env) -> boolean,
-//   unavailableReason?: string,
+//   fallback?: { transportId, note }  used when it is not available here,
 //   actionLabel(format) -> string  button text,
 //   prepare?(format, env) -> handle  runs synchronously on the click (before
 //                                    rendering) so a new tab is not popup-blocked,
@@ -26,12 +27,27 @@ export const FORMAT_OPTIONS = [
   { value: 'png', label: 'PNG (imagen)' },
 ]
 
-export const TRANSPORT_OPTIONS = [
-  { value: 'browser', label: 'Navegador' },
-  { value: 'file', label: 'Archivo' },
-  { value: 'network', label: 'Red (IP)' },
-  { value: 'bluetooth', label: 'Bluetooth' },
-]
+const TRANSPORT_LABELS = { browser: 'Navegador', file: 'Archivo', bluetooth: 'Bluetooth' }
+export const BLUETOOTH_APP_ONLY_LABEL = 'Bluetooth (solo en la app)'
+
+// Legacy/unknown transports: 'network' (removed, never printed directly) becomes
+// 'file' for ZPL and 'browser' otherwise; anything else unknown is 'browser'.
+export function normalizeTransport(transport, format = 'pdf') {
+  if (transport === 'network') return format === 'zpl' ? 'file' : 'browser'
+  return TRANSPORT_LABELS[transport] ? transport : 'browser'
+}
+
+export const transportLabel = (transport, env = null) =>
+  (transport === 'bluetooth' && !env?.bluetooth?.available ? BLUETOOTH_APP_ONLY_LABEL : TRANSPORT_LABELS[normalizeTransport(transport)])
+
+// Options for the printer editor: Bluetooth is offered only inside the Android
+// app; an existing Bluetooth printer edited elsewhere keeps its value, labeled.
+export function transportOptions(env = null, current = null) {
+  const options = [{ value: 'browser', label: 'Navegador' }, { value: 'file', label: 'Archivo' }]
+  if (env?.bluetooth?.available) options.push({ value: 'bluetooth', label: 'Bluetooth' })
+  else if (current === 'bluetooth') options.push({ value: 'bluetooth', label: BLUETOOTH_APP_ONLY_LABEL })
+  return options
+}
 
 export const FILE_EXTENSIONS = { pdf: 'pdf', zpl: 'zpl', png: 'png' }
 
@@ -78,25 +94,15 @@ const fileTransport = {
   send: download,
 }
 
-// LAN printers: the server cannot open a socket to 192.168.x.x:9100, so the
-// file is downloaded and sent from a computer on the same network.
-const networkTransport = {
-  id: 'network',
-  formats: ['zpl', 'pdf'],
-  isAvailable: () => true,
-  actionLabel: (format) => `Descargar .${FILE_EXTENSIONS[format] ?? format}`,
-  send: download,
-}
-
 const failed = (code) => ({ ok: false, mode: 'bluetooth', code, message: bluetoothErrorMessage(code) })
 
 // Android app only: ZPL over Bluetooth SPP to the paired printer whose MAC is
-// stored in printer.address. Elsewhere the plan is unavailable.
+// stored in printer.address. Elsewhere the .zpl is downloaded instead.
 const bluetoothTransport = {
   id: 'bluetooth',
   formats: ['zpl'],
   isAvailable: (printer, env) => Boolean(env?.bluetooth?.available),
-  unavailableReason: 'Disponible en la app Android',
+  fallback: { transportId: 'file', note: 'Bluetooth solo imprime desde la app Android; aquí se descarga el .zpl para enviarlo a la impresora.' },
   actionLabel: () => 'Imprimir',
   async send({ blob, printer }, env) {
     const address = normalizeBluetoothAddress(printer?.address)
@@ -107,7 +113,7 @@ const bluetoothTransport = {
   },
 }
 
-export function createTransportRegistry(transports = [browserTransport, fileTransport, networkTransport, bluetoothTransport]) {
+export function createTransportRegistry(transports = [browserTransport, fileTransport, bluetoothTransport]) {
   const map = new Map(transports.map((t) => [t.id, t]))
   return {
     register(id, transport) { map.set(id, { ...transport, id }) },
@@ -117,35 +123,27 @@ export function createTransportRegistry(transports = [browserTransport, fileTran
 }
 
 // What "Imprimir" does for a printer (null printer = browser + PDF).
-// -> { transportId, format, available, reason, label }
+// -> { transportId, format, label, note }; note explains a fallback (Bluetooth
+// outside the app downloads the .zpl). Always runnable.
 export function resolvePrintPlan(printer, registry, env = null) {
-  const transportId = printer?.transport ?? 'browser'
-  const transport = registry.get(transportId)
-  if (!transport) {
-    return { transportId, format: printer?.format ?? 'pdf', available: false, reason: 'Transporte no compatible', label: 'Imprimir' }
-  }
   const wanted = printer?.format ?? 'pdf'
-  const format = transport.formats.includes(wanted) ? wanted : transport.formats[0]
-  const available = Boolean(transport.isAvailable(printer, env))
-  return {
-    transportId,
-    format,
-    available,
-    reason: available ? null : (transport.unavailableReason ?? 'No disponible'),
-    label: transport.actionLabel(format),
-  }
+  const chosen = registry.get(normalizeTransport(printer?.transport, wanted)) ?? registry.get('browser')
+  const format = chosen.formats.includes(wanted) ? wanted : chosen.formats[0]
+  const fallback = !chosen.isAvailable(printer, env) && chosen.fallback ? chosen.fallback : null
+  const transport = fallback ? registry.get(fallback.transportId) : chosen
+  return { transportId: transport.id, format, label: transport.actionLabel(format), note: fallback?.note ?? null }
 }
 
 // Call synchronously inside the click handler; pass the result to runPrintPlan.
 export function preparePrintPlan(plan, registry, env) {
   const transport = registry.get(plan.transportId)
-  if (!transport?.prepare || !plan.available) return null
+  if (!transport?.prepare) return null
   return transport.prepare(plan.format, env) ?? null
 }
 
 export async function runPrintPlan(plan, { blob, printer, handle = null }, registry, env) {
   const transport = registry.get(plan.transportId)
-  if (!transport || !plan.available) return { ok: false, mode: 'unavailable' }
+  if (!transport) return { ok: false, mode: 'unavailable' }
   return transport.send({ blob, format: plan.format, printer, filename: labelFilename(plan.format), handle }, env)
 }
 

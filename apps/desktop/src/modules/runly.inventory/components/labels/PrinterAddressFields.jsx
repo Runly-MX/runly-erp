@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, SelectField, TextField } from '@runly/ui'
+import { Button, SelectField } from '@runly/ui'
 import { Bluetooth, Printer, RefreshCw, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { bluetoothErrorMessage, bluetoothSettingsCodes, normalizeBluetoothAddress, testLabelZpl } from '../../lib/bluetooth-print.js'
@@ -74,31 +74,15 @@ function BluetoothAppFields({ form, set, bluetooth }) {
   )
 }
 
-// Address part of the printer editor for the network and bluetooth transports.
+// Address part of the printer editor: only Bluetooth printers have one. In the
+// Android app the paired device is picked; elsewhere the saved one is shown.
 export function PrinterAddressFields({ form, set, bluetooth }) {
-  if (form.transport === 'network') {
-    return (
-      <div className="space-y-3">
-        <TextField label="Dirección IP y puerto" value={form.address ?? ''} placeholder="192.168.1.50:9100"
-          onChange={(e) => set({ address: e.target.value })} />
-        <Note>
-          Runly no envía directo a una impresora de red: el servidor no tiene acceso a la red de tu oficina. Imprimir descarga el
-          archivo ({form.format === 'pdf' ? '.pdf' : '.zpl'}); envíalo desde una computadora de la misma red, con Zebra Browser Print
-          o con el controlador de la impresora. La dirección queda como referencia.
-        </Note>
-      </div>
-    )
-  }
   if (form.transport !== 'bluetooth') return null
   if (bluetooth.available) return <BluetoothAppFields form={form} set={set} bluetooth={bluetooth} />
   return (
-    <div className="space-y-3">
-      <TextField label="Dirección del dispositivo" value={form.address ?? ''} placeholder="AA:BB:CC:DD:EE:FF"
-        onChange={(e) => set({ address: e.target.value })} />
-      <Note>
-        La impresión por Bluetooth funciona desde la app Android de Runly: abre esta impresora en el teléfono emparejado para elegir el
-        dispositivo y enviar una prueba. En el navegador usa Descargar para obtener el archivo .zpl.
-      </Note>
-    </div>
+    <Note>
+      {form.address ? `Dispositivo emparejado: ${form.address}. ` : ''}
+      Esta impresora solo imprime desde la app Android de Runly; aquí, Imprimir descarga el archivo .zpl.
+    </Note>
   )
 }

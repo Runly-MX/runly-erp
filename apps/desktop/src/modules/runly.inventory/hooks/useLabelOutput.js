@@ -40,7 +40,7 @@ export function useLabelOutput({ rows, templateId, layout, printer, sheet = null
   }
 
   async function print() {
-    if (!rows.length || !plan.available) return
+    if (!rows.length) return
     setBusy('print')
     const env = { ...createBrowserEnv(), bluetooth }
     // Opened before the await so the browser does not block the new tab.

@@ -94,6 +94,20 @@ describe('inventory label service', () => {
     assert.match(out.body, /\^PQ2,/);
     await assert.rejects(svc.render(A, { format: 'zpl', items: [{ itemId: 'i2' }] }), /No hay equipos/);
   });
+
+  it('reads legacy network printers as file/browser and normalizes them on save', async () => {
+    const prisma = fakePrisma();
+    prisma.store.prn.push(
+      { id: 'p1', companyId: A, enabled: true, isDefault: false, name: 'Zebra', format: 'zpl', dpi: 203, transport: 'network' },
+      { id: 'p2', companyId: A, enabled: true, isDefault: false, name: 'Laser', format: 'pdf', dpi: 300, transport: 'network' },
+    );
+    const svc = createInventoryLabelService({ prisma, publicBaseUrl: 'https://erp.example.com' });
+    assert.deepEqual((await svc.listPrinters(A)).map((p) => p.transport), ['file', 'browser']);
+    assert.equal((await svc.updatePrinter(A, 'p1', { name: 'Zebra 2' })).transport, 'file');
+    assert.equal(prisma.store.prn[0].transport, 'file');
+    assert.equal((await svc.createPrinter(A, { name: 'Nueva', format: 'pdf', transport: 'network' })).transport, 'browser');
+    await assert.rejects(svc.createPrinter(A, { name: 'X', transport: 'carrier' }), /Transporte/);
+  });
 });
 
 describe('company print log', () => {
