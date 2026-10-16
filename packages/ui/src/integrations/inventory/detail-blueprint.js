@@ -43,10 +43,10 @@ export const INVENTORY_ITEM_DETAIL = {
         column: 'main',
         columns: 2,
         fields: [
-          { field: 'folio', label: 'Folio', icon: 'Hash' },
-          { field: 'serialNumber', label: 'Número de serie', icon: 'Barcode' },
-          { field: 'assetTag', label: 'Número de activo', icon: 'Hash' },
-          { field: 'partNumber', label: 'Número de parte', icon: 'Hash' },
+          { field: 'folio', label: 'Folio', icon: 'Hash', filterBy: { param: 'folio' } },
+          { field: 'serialNumber', label: 'Número de serie', icon: 'Barcode', filterBy: { param: 'serialNumber' } },
+          { field: 'assetTag', label: 'Número de activo', icon: 'Hash', filterBy: { param: 'assetTag' } },
+          { field: 'partNumber', label: 'Número de parte', icon: 'Hash', filterBy: { param: 'partNumber' } },
           // Related Compras documents (EntityRelation); only for users who can read Compras.
           { field: 'purchaseOrderLink', label: 'Orden de compra', type: 'document-link', icon: 'ClipboardList', emptyLabel: 'Sin orden de compra', visibleWhen: { field: 'canReadPurchases', truthy: true } },
           { field: 'purchaseInvoiceLink', label: 'Factura', type: 'document-link', icon: 'ReceiptText', emptyLabel: 'Sin factura', visibleWhen: { field: 'canReadPurchases', truthy: true } },
@@ -58,9 +58,9 @@ export const INVENTORY_ITEM_DETAIL = {
         column: 'main',
         columns: 3,
         fields: [
-          { field: 'model', label: 'Modelo', icon: 'Package' },
-          { field: 'categoryName', label: 'Tipo', icon: 'Layers' },
-          { field: 'brandName', label: 'Marca', icon: 'Tag' },
+          { field: 'model', label: 'Modelo', icon: 'Package', filterBy: { param: 'model' } },
+          { field: 'categoryName', label: 'Tipo', icon: 'Layers', filterBy: { param: 'categoryId', valueField: 'categoryId' } },
+          { field: 'brandName', label: 'Marca', icon: 'Tag', filterBy: { param: 'brandId', valueField: 'brandId' } },
         ],
       },
       {
@@ -69,8 +69,8 @@ export const INVENTORY_ITEM_DETAIL = {
         column: 'main',
         columns: 2,
         fields: [
-          { field: 'locationName', label: 'Ubicación', icon: 'MapPin' },
-          { field: 'conditionName', label: 'Condición', icon: 'Activity' },
+          { field: 'locationName', label: 'Ubicación', icon: 'MapPin', filterBy: { param: 'locationId', valueField: 'locationId' } },
+          { field: 'conditionName', label: 'Condición', icon: 'Activity', filterBy: { param: 'conditionId', valueField: 'conditionId' } },
           { field: 'assignedAt', label: 'Fecha de asignación', type: 'date', icon: 'CalendarDays' },
         ],
       },

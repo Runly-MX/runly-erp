@@ -23,7 +23,9 @@ import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
 const ADMIN_COLORS = Object.fromEntries(ADMIN_STATUSES.map(s => [s.value, s.color]))
 const STATUS_OPTIONS = ITEM_STATUSES.map(s => ({ value: s.value, label: s.label }))
 // Deep links from Catálogos (e.g. ?categoryId=...) open the list pre-filtered.
-const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo', 'labeled']
+// Exact-match text filters opened from the detail view magnifier (?serialNumber=...).
+const TEXT_FILTER_LABELS = { model: 'Modelo', folio: 'Folio', assetTag: 'N.º de activo', serialNumber: 'No. Serie', partNumber: 'N.º de parte' }
+const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo', 'labeled', ...Object.keys(TEXT_FILTER_LABELS)]
 const LABELED_OPTIONS = [{ value: 'false', label: 'Sin etiquetar' }, { value: 'true', label: 'Etiquetados' }]
 const ADMIN_OPTIONS = ADMIN_STATUSES.map(s => ({ value: s.value, label: s.label }))
 
@@ -155,6 +157,9 @@ export default function InventoryScreen() {
         { key: 'locationId', label: 'Ubicación', type: 'select', icon: MapPin, options: locationOptions },
         // -> labeled=false|true on /inventory/items (print log based).
         { key: 'labeled',    label: 'Etiqueta', type: 'select', icon: QrCode, options: LABELED_OPTIONS },
+        ...Object.entries(TEXT_FILTER_LABELS)
+          .filter(([key]) => initialFilters[key])
+          .map(([key, label]) => ({ key, label, type: 'select', options: [{ value: initialFilters[key], label: initialFilters[key] }] })),
         ...(initialFilters.modelId ? [{ key: 'modelId', label: 'Modelo', type: 'select', options: modelOptions }] : []),
         // -> createdFrom/createdTo and purchaseFrom/purchaseTo on /inventory/items.
         { key: 'created',    label: 'Fecha de alta',   type: 'daterange', icon: CalendarPlus },
@@ -162,7 +167,7 @@ export default function InventoryScreen() {
       ],
       emptyState: { message: 'No hay activos registrados.' },
     },
-  }), [categoryOptions, brandOptions, locationOptions, conditionOptions, modelOptions, initialFilters.modelId, canReadLabels])
+  }), [categoryOptions, brandOptions, locationOptions, conditionOptions, modelOptions, initialFilters, canReadLabels])
 
   const deleteMutation = useMutation({
     mutationFn: id => runly.inventory.deleteItem(id, token),

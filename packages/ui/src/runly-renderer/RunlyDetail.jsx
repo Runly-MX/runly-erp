@@ -25,6 +25,7 @@ import { resolveSchemaTabs, tabOfSection } from "./schema-tabs.js";
 import { isElementVisible, matchesVisibilityRule, visibleSections as filterVisibleSections } from "./visibility-rules.js";
 import { DocumentLinkValue } from "./detail-document-link.jsx";
 import { CopyOnDoubleClick } from "../components/CopyOnDoubleClick.jsx";
+import { FilterByValueButton } from "../components/FilterByValueButton.jsx";
 import { SchemaTabBar } from "./SchemaTabBar.jsx";
 import { resolveFieldIcon } from "./field-icons.js";
 import { cn } from "../lib/utils.js";
@@ -84,6 +85,8 @@ function normalizeField(fieldLike) {
     signedUrlPath: fieldLike.signedUrlPath ?? null,
     urlField: fieldLike.urlField ?? null,
     emptyLabel: typeof fieldLike.emptyLabel === "string" ? fieldLike.emptyLabel : null,
+    // { param, valueField? }: shows a magnifier that calls onFilterByValue.
+    filterBy: fieldLike.filterBy && typeof fieldLike.filterBy.param === "string" ? fieldLike.filterBy : null,
   };
 }
 
@@ -341,6 +344,7 @@ function normalizeSections(schema, fieldMap) {
             accept: fieldDef.field.accept ?? existing?.accept ?? null,
             signedUrlPath: fieldDef.field.signedUrlPath ?? existing?.signedUrlPath ?? null,
             urlField: fieldDef.field.urlField ?? existing?.urlField ?? null,
+            filterBy: fieldDef.field.filterBy ?? existing?.filterBy ?? null,
           });
         }
         if (!fieldNames.includes(name)) fieldNames.push(name);
@@ -509,6 +513,10 @@ export function RunlyDetail({
   // under the whole detail. Single-column layouts append both in order.
   mainExtra = null,
   asideExtra = null,
+  // ({ param, value, label, displayValue, field }) => void. Fields declaring
+  // `filterBy: { param, valueField? }` get a magnifier that calls it so the
+  // host can open its list filtered by that exact value.
+  onFilterByValue = null,
 }) {
   const schema = blueprint?.schema ?? {};
   const fieldMap = useMemo(() => normalizeFieldMap(fields), [fields]);
@@ -686,6 +694,11 @@ export function RunlyDetail({
               const isMarkdown = field.type === "markdown";
               const strValue =
                 value != null && value !== "" ? String(value) : null;
+              const filterValue = field.filterBy
+                ? data[field.filterBy.valueField ?? field.name]
+                : null;
+              const canFilter =
+                Boolean(onFilterByValue) && strValue != null && filterValue != null && filterValue !== "";
               return (
                 <div
                   key={field.name}
@@ -694,7 +707,7 @@ export function RunlyDetail({
                   <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                     <FieldLabel field={field} />
                   </dt>
-                  <dd className="text-sm font-semibold text-[hsl(var(--foreground))]">
+                  <dd className={cn("text-sm font-semibold text-[hsl(var(--foreground))]", canFilter && "flex items-center gap-1")}>
                     {isMarkdown ? (
                       strValue ? (
                         <MarkdownViewer value={strValue} />
@@ -726,6 +739,21 @@ export function RunlyDetail({
                     ) : (
                       renderValue(field, value, data)
                     )}
+                    {canFilter ? (
+                      <FilterByValueButton
+                        label={field.label}
+                        value={strValue}
+                        onClick={() =>
+                          onFilterByValue({
+                            param: field.filterBy.param,
+                            value: String(filterValue),
+                            label: field.label,
+                            displayValue: strValue,
+                            field: field.name,
+                          })
+                        }
+                      />
+                    ) : null}
                   </dd>
                 </div>
               );

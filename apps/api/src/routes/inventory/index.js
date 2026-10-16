@@ -102,9 +102,9 @@ export function createInventoryRouter({
   router.get("/inventory/items", requirePermission("inventory.item.read"), async (c) => {
     try {
       const companyId = c.get("companyId");
-      const { search, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, page, limit, pageSize, sortBy, sortDir } = c.req.query();
+      const { search, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, page, limit, pageSize, sortBy, sortDir } = c.req.query();
       const connectionMatchIds = await itemConnections.searchIds(c, search);
-      const result = await inventoryService.listItems({ companyId, search, connectionMatchIds, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, sortBy, sortDir, page: Number(page) || 1, limit: Number(pageSize ?? limit) || 50 });
+      const result = await inventoryService.listItems({ companyId, search, connectionMatchIds, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, sortBy, sortDir, page: Number(page) || 1, limit: Number(pageSize ?? limit) || 50 });
       if (hasPerm(c, "inventory.label.read")) {
         const stats = await labelService.statsForItems(companyId, result.data.map((item) => item.id));
         result.data = result.data.map((item) => ({ ...item, labelPrintedAt: stats.get(item.id)?.labelPrintedAt ?? null, labelPrintCount: stats.get(item.id)?.labelPrintCount ?? 0 }));

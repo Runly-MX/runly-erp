@@ -71,6 +71,7 @@ export default function InventoryItemDetail() {
         apiBaseUrl={API_BASE}
         componentRegistry={componentRegistry}
         onBack={() => navigate('/app/m/runly.inventory/inventory')}
+        onFilterByValue={({ param, value }) => navigate(`/app/m/runly.inventory/inventory?${new URLSearchParams({ [param]: value })}`)}
         onEdit={readOnly ? undefined : () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`)}
         mainExtra={<><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /></>}
         asideExtra={<CanvasReferences moduleKey="runly.inventory" entityType="inventory_item" entityId={id} />}

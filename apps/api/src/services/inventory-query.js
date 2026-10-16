@@ -21,12 +21,14 @@ export const inventoryFiltersSchema = z.object({
   status: z.enum(['available', 'assigned', 'maintenance']).optional(),
   adminStatus: z.enum(['registration_pending', 'registered', 'deregistration_proposed', 'deregistered']).optional(),
   conditionId: z.uuid().optional(),
-  model: z.string().max(255).optional(), modelId: z.uuid().optional(),
+  model: z.string().max(255).optional(), folio: z.string().max(100).optional(), assetTag: z.string().max(100).optional(),
+  serialNumber: z.string().max(255).optional(), partNumber: z.string().max(255).optional(), modelId: z.uuid().optional(),
   missingSerial: z.boolean().optional(), createdFrom: z.iso.date().optional(), createdTo: z.iso.date().optional(),
   purchaseFrom: z.iso.date().optional(), purchaseTo: z.iso.date().optional(),
   labeled: z.enum(['true', 'false']).optional(),
 }).strict();
 
+const EXACT_TEXT_FILTERS = ['model', 'folio', 'assetTag', 'serialNumber', 'partNumber'];
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const ADMIN_STATUS_SET = new Set(['registration_pending', 'registered', 'deregistration_proposed', 'deregistered']);
 
@@ -37,7 +39,9 @@ export function buildInventoryWhere(companyId, filters = {}) {
   // searchIds (from inventory-search-service) replaces the 3-column contains.
   if (Array.isArray(filters.searchIds)) where.id = { in: filters.searchIds };
   else if (q) where.OR =['name', 'assetTag', 'serialNumber'].map(field => ({ [field]: { contains: q, mode: 'insensitive' } }));
-  for (const field of ['categoryId', 'brandId', 'locationId', 'conditionId', 'assignedToId', 'status', 'model', 'modelId']) if (filters[field]) where[field] = filters[field];
+  for (const field of ['categoryId', 'brandId', 'locationId', 'conditionId', 'assignedToId', 'status', 'modelId']) if (filters[field]) where[field] = filters[field];
+  // Exact (case-insensitive) match on free-text columns, e.g. from the detail view magnifier.
+  for (const field of EXACT_TEXT_FILTERS) { const v = String(filters[field] ?? '').trim(); if (v) where[field] = { equals: v, mode: 'insensitive' }; }
   // adminStatus: one value, a CSV/array of values, or 'all' (no filter).
   const adminStatuses = (Array.isArray(filters.adminStatus) ? filters.adminStatus : String(filters.adminStatus ?? '').split(','))
     .map((v) => String(v).trim()).filter((v) => ADMIN_STATUS_SET.has(v));
