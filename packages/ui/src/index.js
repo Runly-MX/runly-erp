@@ -230,6 +230,7 @@ export { ProgressMeter } from "./components/ProgressMeter.jsx";
 export { RingProgress } from "./components/RingProgress.jsx";
 export { SectionCard } from "./components/SectionCard.jsx";
 export { SegmentedControl } from "./components/SegmentedControl.jsx";
+export { NumberStepper } from "./components/NumberStepper.jsx";
 export { ChoiceCardGroup } from "./components/ChoiceCardGroup.jsx";
 export { SwipeBackStack } from "./components/SwipeBackStack.jsx";
 export { CopyableValue } from "./components/CopyableValue.jsx";

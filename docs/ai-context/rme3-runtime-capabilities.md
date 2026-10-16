@@ -547,6 +547,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `TagsComboboxField` | Multi-value creatable tag input with suggestion dropdown (unlike `TagsField`, which is free-entry only); props `value` (string[]), `onChange`, `suggestions`, `onSearchChange`. Case-insensitive dedupe |
 | `SegmentedControl` | Pill single-choice control for short fixed sets; props `options`, `value`, `onChange` |
 | `ChoiceCardGroup` | Single choice as selectable cards (radiogroup, flat-fill selection, rounded-md) for options that need a small visual; props `options` (`{ value, label, description?, icon?, preview?, disabled? }`), `value`, `onChange`, `columns` (2/3/4), `size` (`sm`/`md`) |
+| `NumberStepper` | Integer stepper `[-] value [+]` (rounded-md, commits typed text on blur/Enter, arrow keys step); props `value`, `onChange`, `min`, `max`, `step`, `label` (accessible name), `size` (`md` 44px touch targets / `sm` 36px), `disabled` |
 | `CopyableValue` | Read-only label/value with a hover copy button; `mono` for RFC/ids, `copyable={false}` for descriptive values |
 | `Switch` | Toggle switch |
 | `Select`, `SelectTrigger`, `SelectContent`, `SelectItem`, `SelectValue`, `SelectLabel`, `SelectGroup`, `SelectSeparator` | Native select dropdown |
