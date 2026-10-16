@@ -26,6 +26,7 @@ function accessOkPrisma(overrides = {}) {
     invBrand: { findMany: async () => [{ id: 'b1', name: 'Maker' }] },
     invCategory: { findMany: async () => [{ id: 'c1', name: 'Laptop' }] },
     invLocation: { findMany: async () => [] },
+    invCondition: { findMany: async () => [] },
     invItemFile: { findMany: async () => [] },
     auditLog: { create: async () => {} },
     ...overrides,

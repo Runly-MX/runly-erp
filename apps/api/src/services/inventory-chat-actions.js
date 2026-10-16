@@ -63,14 +63,15 @@ export function createInventoryChatActions({ prisma, authorize = createInventory
   async function catalogs(scope, search = '') {
     await authorize(scope);
     const where = { companyId: scope.companyId, enabled: true, ...(search ? { name: { contains: search.slice(0, 200), mode: 'insensitive' } } : {}) };
-    const [brands, categories, locations, fields, models] = await Promise.all([
+    const [brands, categories, locations, fields, models, conditions] = await Promise.all([
       prisma.invBrand.findMany({ where, take: 50, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
       prisma.invCategory.findMany({ where, take: 50, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
       prisma.invLocation.findMany({ where, take: 50, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
       prisma.invCustomField.findMany({ where: { companyId: scope.companyId, enabled: true, ...(search ? { label: { contains: search.slice(0, 200), mode: 'insensitive' } } : {}) }, take: 50, orderBy: { label: 'asc' }, include: { category: { select: { name: true } } } }),
       createInventoryModelService({ prisma }).list({ companyId: scope.companyId, search }),
+      prisma.invCondition.findMany({ where, take: 50, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
     ]);
-    return { brands, categories, locations, fields, limitPerCatalog: 50,
+    return { brands, categories, locations, fields, conditions, statuses: ['available', 'assigned', 'maintenance'], limitPerCatalog: 50,
       models: models.slice(0, 50).map(m => ({ id: m.id, name: m.name, typeName: m.typeName, brandName: m.brandName, year: m.year })) };
   }
   async function execute(proposal, scope, db) {

@@ -24,6 +24,7 @@ export const inventoryFiltersSchema = z.object({
   model: z.string().max(255).optional(), folio: z.string().max(100).optional(), assetTag: z.string().max(100).optional(),
   serialNumber: z.string().max(255).optional(), partNumber: z.string().max(255).optional(), modelId: z.uuid().optional(),
   missingSerial: z.boolean().optional(), createdFrom: z.iso.date().optional(), createdTo: z.iso.date().optional(),
+  unassigned: z.boolean().optional(),
   purchaseFrom: z.iso.date().optional(), purchaseTo: z.iso.date().optional(),
   labeled: z.enum(['true', 'false']).optional(),
 }).strict();
@@ -40,6 +41,7 @@ export function buildInventoryWhere(companyId, filters = {}) {
   if (Array.isArray(filters.searchIds)) where.id = { in: filters.searchIds };
   else if (q) where.OR =['name', 'assetTag', 'serialNumber'].map(field => ({ [field]: { contains: q, mode: 'insensitive' } }));
   for (const field of ['categoryId', 'brandId', 'locationId', 'conditionId', 'assignedToId', 'status', 'modelId']) if (filters[field]) where[field] = filters[field];
+  if (filters.unassigned) where.assignedToId = null;
   // Exact (case-insensitive) match on free-text columns, e.g. from the detail view magnifier.
   for (const field of EXACT_TEXT_FILTERS) { const v = String(filters[field] ?? '').trim(); if (v) where[field] = { equals: v, mode: 'insensitive' }; }
   // adminStatus: one value, a CSV/array of values, or 'all' (no filter).
