@@ -56,9 +56,9 @@ const KEYWORDS = [
   [/\b(nombre|alumno|alumna|participante|estudiante|trabajador|colaborador)\b/, 'alumno'],
 ]
 
-const SIGNATURE = /^(firma|nombre y firma|firma del instructor|firma de la instructora|firma autorizada|firma de quien otorga|firma del director|firma del responsable)\b/
+export const SIGNATURE = /^(firma|nombre y firma|firma del instructor|firma de la instructora|firma autorizada|firma de quien otorga|firma del director|firma del responsable)\b/
 const GRANT = /\b(otorga|otorgan|otorgado|otorgada|confiere|entrega|reconoce)\b(?: [a-z]+){0,4} a$/
-const IMPORTANT = ['alumno', 'curso', 'fecha', 'folio', '%qr']
+export const IMPORTANT = ['alumno', 'curso', 'fecha', 'folio', '%qr']
 const MAX_LABEL_WORDS = 7
 
 export function placeholderTag(content) {
@@ -77,13 +77,17 @@ export function labelBefore(prefix) {
   return GRANT.test(words.slice(-6).join(' ')) ? 'alumno' : null
 }
 
-const T_NODE = /(<w:t(?:\s[^>]*)?>)([^<]*)(<\/w:t>)/g
+// Text runs: <w:t> in Word, <a:t> in PowerPoint.
+const T_NODES = {
+  w: /(<w:t(?:\s[^>]*)?>)([^<]*)(<\/w:t>)/g,
+  a: /(<a:t(?:\s[^>]*)?>)([^<]*)(<\/a:t>)/g,
+}
 const PARAGRAPH = /<w:p(?=[\s>])[\s\S]*?<\/w:p>/g
 
-function textNodes(p) {
+function textNodes(p, ns = 'w') {
   const nodes = []
   let offset = 0
-  for (const m of p.matchAll(T_NODE)) {
+  for (const m of p.matchAll(T_NODES[ns])) {
     const contentStart = m.index + m[1].length
     nodes.push({ contentStart, contentEnd: contentStart + m[2].length, text: m[2], from: offset, to: offset + m[2].length })
     offset += m[2].length
@@ -94,8 +98,8 @@ function textNodes(p) {
 // Replaces text range [start, end) of a paragraph's concatenated text, even
 // when Word split it across runs: the first run gets the tag, the rest lose
 // their share of the range.
-export function replaceTextRange(p, start, end, replacement) {
-  const nodes = textNodes(p).filter((n) => n.to > start && n.from < end)
+export function replaceTextRange(p, start, end, replacement, ns = 'w') {
+  const nodes = textNodes(p, ns).filter((n) => n.to > start && n.from < end)
   let out = p
   for (let i = nodes.length - 1; i >= 0; i -= 1) {
     const n = nodes[i]
@@ -104,15 +108,16 @@ export function replaceTextRange(p, start, end, replacement) {
     const next = i === 0 ? `${keepBefore}${replacement}${keepAfter}` : keepAfter
     out = out.slice(0, n.contentStart) + next + out.slice(n.contentEnd)
   }
-  // Leading/trailing spaces around the tag must survive.
+  // Leading/trailing spaces around the tag must survive (Word only; <a:t> keeps them).
+  if (ns !== 'w') return out
   return out.replace(/<w:t>(?=[^<]*\{\{)/g, '<w:t xml:space="preserve">')
 }
 
-const BRACKETS = /\[\s*([^[\]{}]{2,60}?)\s*\]|«\s*([^«»{}]{2,60}?)\s*»|&lt;&lt;\s*((?:(?!&gt;)[^{}<]){2,60}?)\s*&gt;&gt;/g
-const BLANK = /_{4,}/g
+export const BRACKETS = /\[\s*([^[\]{}]{2,60}?)\s*\]|«\s*([^«»{}]{2,60}?)\s*»|&lt;&lt;\s*((?:(?!&gt;)[^{}<]){2,60}?)\s*&gt;&gt;/g
+export const BLANK = /_{4,}/g
 const tagText = (tag) => `{{${tag}}}`
-const paragraphText = (p) => textNodes(p).map((n) => n.text).join('')
-const plain = (text) => text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+export const paragraphText = (p, ns = 'w') => textNodes(p, ns).map((n) => n.text).join('')
+export const plain = (text) => text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
 
 function rewriteParagraph(p, applied, unplaced) {
   const text = paragraphText(p)

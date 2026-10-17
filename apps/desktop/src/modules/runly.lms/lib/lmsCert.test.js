@@ -63,3 +63,13 @@ test('docx template helpers', async () => {
   assert.equal(file.name, 'a.docx')
   assert.equal(await file.text(), 'PK')
 })
+
+test('uploaded template formats', async () => {
+  const { fileFormat, formatInfo, isFileTemplate, isPdfTemplate, isTaggedTemplate } = await import('./lmsCert.js')
+  assert.equal(fileFormat({ name: 'Constancia.PPTX' }), 'pptx')
+  assert.equal(fileFormat('cert.pdf'), 'pdf')
+  assert.equal(fileFormat({ name: 'cert.doc' }), null)
+  assert.equal(formatInfo('pptx').app, 'PowerPoint')
+  assert.ok(isTaggedTemplate({ source: 'pptx' }) && !isTaggedTemplate({ source: 'pdf' }))
+  assert.ok(isFileTemplate({ source: 'pdf' }) && isPdfTemplate({ source: 'pdf' }) && !isFileTemplate({ source: 'design' }))
+})

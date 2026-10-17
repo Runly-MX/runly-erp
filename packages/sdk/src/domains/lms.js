@@ -104,11 +104,22 @@ export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQuery
     replaceCertificateTemplateFile: (templateId, formData, token) => request(`/lms/certificate-templates/${id(templateId)}/file`, {
       method: 'PUT', headers: withAuthHeaders(token), body: formData, onlineOnly: true,
     }),
-    // { applied, missing, unplaced, fileName, contentBase64 }; nothing is saved.
+    // Word / PowerPoint: { applied, missing, unplaced, fileName, contentBase64 }; nothing is saved.
     suggestCertificateTemplateTags: (templateId, token) => send('POST', `/lms/certificate-templates/${id(templateId)}/suggest`, {}, token),
-    // Signed URL of the current .docx ({ url, expiresIn, fileName }).
+    // Signed URL of the current uploaded file ({ url, expiresIn, fileName }).
     getCertificateTemplateFileUrl: (templateId, token) => send('GET', `/lms/certificate-templates/${id(templateId)}/file`, undefined, token),
-    downloadCertificateTemplateSample: (token) => blob('/lms/certificate-templates/sample.docx', token),
+    // format: 'docx' (default) or 'pptx'.
+    downloadCertificateTemplateSample: (token, format = 'docx') => blob(`/lms/certificate-templates/sample.${format === 'pptx' ? 'pptx' : 'docx'}`, token),
+    // Any uploaded template (.docx, .pptx or .pdf by extension). formData: file, name.
+    uploadCertificateTemplateFile: (formData, token) => request('/lms/certificate-templates/upload', {
+      method: 'POST', headers: withAuthHeaders(token), body: formData, onlineOnly: true,
+    }),
+    // PDF templates: field layout ({ fields }), detected fields, and a sample-data preview of an unsaved layout.
+    saveCertificateTemplateLayout: (templateId, layout, token) => send('PUT', `/lms/certificate-templates/${id(templateId)}/layout`, layout, token),
+    suggestCertificateTemplateLayout: (templateId, token) => send('POST', `/lms/certificate-templates/${id(templateId)}/suggest-layout`, {}, token),
+    previewCertificateTemplateLayout: (templateId, layout, token) => requestBlob(`/lms/certificate-templates/${id(templateId)}/preview.pdf`, {
+      method: 'POST', headers: withAuthHeaders(token, { 'Content-Type': 'application/json' }), body: JSON.stringify({ layout }),
+    }),
     issueCertificate: (enrollmentId, token) => send('POST', `/lms/enrollments/${id(enrollmentId)}/certificate`, {}, token),
     revokeCertificate: (certificateId, reason, token) => send('POST', `/lms/certificates/${id(certificateId)}/revoke`, { reason }, token),
     listCourseCertificates: (courseId, token) => send('GET', `/lms/courses/${id(courseId)}/certificates`, undefined, token),

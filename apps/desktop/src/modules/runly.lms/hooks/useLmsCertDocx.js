@@ -1,5 +1,5 @@
-// Word (.docx) certificate templates: list info (Office availability), upload,
-// replace, suggested tags and file downloads.
+// Uploaded certificate templates (Word, PowerPoint, PDF): list info (Office
+// availability), upload, replace, suggested tags and file downloads.
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { runly } from '../../../lib/runly.js'
@@ -22,11 +22,12 @@ function useTemplateFileMutation(fn) {
   })
 }
 
-export const useUploadCertificateDocx = () => useTemplateFileMutation((t, { file, name }) => {
+// .docx, .pptx or .pdf (the API reads the format from the file name).
+export const useUploadCertificateTemplate = () => useTemplateFileMutation((t, { file, name }) => {
   const form = new FormData()
   form.append('file', file)
   if (name) form.append('name', name)
-  return runly.lms.uploadCertificateDocxTemplate(form, t)
+  return runly.lms.uploadCertificateTemplateFile(form, t)
 })
 
 export const useReplaceCertificateTemplateFile = () => useTemplateFileMutation((t, { id, file }) => {
@@ -46,20 +47,21 @@ export const saveSuggestion = (result) => {
   saveBlob(file, file.name)
 }
 
-// Downloads the template's .docx, or the built-in example when no id is given.
+// Downloads the template's file, or the built-in example (format docx | pptx) when no id is given.
 export function useDownloadCertificateDocx() {
   const token = useToken()
   return useMutation({
-    mutationFn: async ({ id, name } = {}) => {
+    mutationFn: async ({ id, name, format = 'docx' } = {}) => {
       if (!id) {
-        saveBlob(await toBlob(await runly.lms.downloadCertificateTemplateSample(token)), 'plantilla-certificado-ejemplo.docx')
+        const ext = format === 'pptx' ? 'pptx' : 'docx'
+        saveBlob(await toBlob(await runly.lms.downloadCertificateTemplateSample(token, ext)), `plantilla-certificado-ejemplo.${ext}`)
         return
       }
       const res = unwrap(await runly.lms.getCertificateTemplateFileUrl(id, token))
       if (!res?.url) throw new Error('El archivo de la plantilla no está disponible.')
       const download = await fetch(res.url)
       if (!download.ok) throw new Error('No se pudo descargar la plantilla.')
-      saveBlob(await download.blob(), res.fileName ?? `${name ?? 'plantilla'}.docx`)
+      saveBlob(await download.blob(), res.fileName ?? `${name ?? 'plantilla'}.${format}`)
     },
     onError: (error) => toast.error(certErrorMessage(error, 'No se pudo descargar la plantilla.')),
   })

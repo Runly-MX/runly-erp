@@ -123,8 +123,24 @@ export const docxTagLabel = (tag) => DOCX_TAG_LABELS[tag] ?? tag
 export const isDocxFile = (file) => /\.docx$/i.test(String(file?.name ?? ''))
 export const isDocxTemplate = (template) => template?.source === 'docx'
 
+// ---- Uploaded templates (Word, PowerPoint, PDF) ---------------------------------------
+export const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+export const CERT_FILE_FORMATS = {
+  docx: { app: 'Word', ext: '.docx', mime: DOCX_MIME, noun: 'archivo de Word (.docx)', badge: 'Word' },
+  pptx: { app: 'PowerPoint', ext: '.pptx', mime: PPTX_MIME, noun: 'presentación de PowerPoint (.pptx)', badge: 'PowerPoint' },
+  pdf: { app: 'PDF', ext: '.pdf', mime: 'application/pdf', noun: 'archivo PDF', badge: 'PDF' },
+}
+export const formatInfo = (format) => CERT_FILE_FORMATS[format] ?? CERT_FILE_FORMATS.docx
+// 'docx' | 'pptx' | 'pdf' from a file name; null when unsupported.
+export const fileFormat = (file) => /\.(docx|pptx|pdf)$/i.exec(String(file?.name ?? file ?? ''))?.[1].toLowerCase() ?? null
+export const isFileTemplate = (template) => Object.prototype.hasOwnProperty.call(CERT_FILE_FORMATS, template?.source ?? '')
+// Word and PowerPoint use {{tags}}; PDF uses a field layout.
+export const isTaggedTemplate = (template) => template?.source === 'docx' || template?.source === 'pptx'
+export const isPdfTemplate = (template) => template?.source === 'pdf'
+
 // Builds the File of a suggestion result ({ fileName, contentBase64 }).
 export function docxSuggestionFile(result) {
   const bytes = Uint8Array.from(atob(String(result?.contentBase64 ?? '')), (ch) => ch.charCodeAt(0))
-  return new File([bytes], result?.fileName || 'plantilla (con etiquetas).docx', { type: DOCX_MIME })
+  const fileName = result?.fileName || 'plantilla (con etiquetas).docx'
+  return new File([bytes], fileName, { type: formatInfo(fileFormat(fileName)).mime })
 }

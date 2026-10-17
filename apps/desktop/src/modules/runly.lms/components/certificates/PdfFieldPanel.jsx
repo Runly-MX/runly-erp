@@ -1,0 +1,97 @@
+import { Button, CheckboxField, SelectField, TextField, cn } from '@runly/ui'
+import { Plus, Trash2 } from 'lucide-react'
+import { ALIGN_OPTIONS, FIELD_KEYS, clampField, fieldLabel, isImageField } from '../../lib/certLayout.js'
+
+const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
+const HEX = /^#[0-9a-f]{6}$/i
+
+function NumberInput({ label, value, onCommit, min = 0, step = 1 }) {
+  return (
+    <TextField
+      label={label} type="number" inputMode="decimal" min={min} step={step} icon={null}
+      value={Number.isFinite(value) ? String(Math.round(value * 10) / 10) : ''}
+      onChange={(event) => { const next = Number(event.target.value); if (event.target.value !== '' && Number.isFinite(next)) onCommit(next) }}
+    />
+  )
+}
+
+function FieldProperties({ field, page, onChange }) {
+  const set = (patch) => onChange(clampField({ ...field, ...patch }, page))
+  const text = !isImageField(field.key)
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-medium">{fieldLabel(field.key)}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <NumberInput label="X (pt)" value={field.x} onCommit={(x) => set({ x })} />
+        <NumberInput label="Y (pt)" value={field.y} onCommit={(y) => set({ y })} />
+        <NumberInput label="Ancho" value={field.w} min={8} onCommit={(w) => set({ w })} />
+        <NumberInput label="Alto" value={field.h} min={8} onCommit={(h) => set({ h })} />
+      </div>
+      {text ? (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <NumberInput label="Tamaño (pt)" value={field.fontSize} min={4} step={0.5} onCommit={(fontSize) => set({ fontSize: Math.min(144, Math.max(4, fontSize)) })} />
+            <SelectField label="Alineación" options={ALIGN_OPTIONS} value={field.align} onValueChange={(align) => set({ align })} />
+          </div>
+          <div className="flex items-end gap-2">
+            <TextField
+              label="Color" icon={null} maxLength={7} value={field.color ?? ''} placeholder="#111827" className="font-mono"
+              error={field.color && !HEX.test(field.color) ? 'Usa un color como #111827.' : undefined}
+              onChange={(event) => onChange({ ...field, color: event.target.value.trim() })}
+            />
+            <span className="mb-1 h-8 w-8 shrink-0 rounded-md border border-[hsl(var(--border))]" style={{ backgroundColor: HEX.test(field.color ?? '') ? field.color : 'transparent' }} aria-hidden="true" />
+          </div>
+          <CheckboxField label="Negritas" checked={Boolean(field.bold)} onChange={(event) => set({ bold: event.target.checked })} />
+          <CheckboxField
+            label="Fondo blanco" hint="Cubre el texto de ejemplo que ya trae el PDF."
+            checked={Boolean(field.background)} onChange={(event) => set({ background: event.target.checked ? '#ffffff' : null })}
+          />
+          <p className={MUTED}>Si el texto no cabe en el ancho, se reduce automáticamente.</p>
+        </>
+      ) : (
+        <p className={MUTED}>La imagen se ajusta dentro del recuadro sin deformarse.{field.key === 'qr' ? ' Lleva a la página pública de verificación.' : ''}</p>
+      )}
+    </div>
+  )
+}
+
+// Side panel: which of the 11 fields are placed, and the selected one's properties.
+export function PdfFieldPanel({ page, fields, selectedKey, onSelect, onAdd, onRemove, onChange }) {
+  const byKey = new Map(fields.map((f) => [f.key, f]))
+  const selected = byKey.get(selectedKey) ?? null
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <p className="text-sm font-medium">Campos</p>
+        <ul className="divide-y divide-[hsl(var(--border))] rounded-md border border-[hsl(var(--border))]">
+          {FIELD_KEYS.map((key) => {
+            const placed = byKey.has(key)
+            return (
+              <li key={key} className={cn('flex items-center gap-1 pr-1', key === selectedKey && 'bg-[hsl(var(--muted))]')}>
+                <button
+                  type="button" disabled={!placed} onClick={() => onSelect(key)}
+                  className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-sm disabled:cursor-default"
+                >
+                  <span className={cn('truncate', !placed && 'text-[hsl(var(--muted-foreground))]')}>{fieldLabel(key)}</span>
+                  {isImageField(key) ? <span className={MUTED}>Imagen</span> : null}
+                </button>
+                {placed ? (
+                  <Button type="button" variant="ghost" size="icon-sm" aria-label={`Quitar ${fieldLabel(key)}`} onClick={() => onRemove(key)}><Trash2 /></Button>
+                ) : (
+                  <Button type="button" variant="ghost" size="icon-sm" aria-label={`Agregar ${fieldLabel(key)}`} onClick={() => onAdd(key)}><Plus /></Button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+      {selected ? (
+        <div className="rounded-md border border-[hsl(var(--border))] p-3">
+          <FieldProperties field={selected} page={page} onChange={onChange} />
+        </div>
+      ) : (
+        <p className={MUTED}>Selecciona un campo en la página para moverlo, cambiar su tamaño o su estilo. Usa las flechas para ajustarlo (Mayús + flecha: 10 puntos).</p>
+      )}
+    </div>
+  )
+}

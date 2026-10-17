@@ -5663,9 +5663,10 @@ model LmsCertificateTemplate {
   signatureFileId String?  @map("signature_file_id") @db.Uuid
   accentColor     String?  @map("accent_color") // hex; null = company brand color
   showLogo        Boolean  @default(true) @map("show_logo")
-  source          String   @default("design") // design (built-in pdfkit layout) | docx (uploaded Word file)
-  fileAssetId     String?  @map("file_asset_id") @db.Uuid // uploaded .docx when source = docx
-  placeholders    Json     @default("[]") // tags detected in the uploaded file
+  source          String   @default("design") // design (built-in pdfkit layout) | docx | pptx | pdf (uploaded file)
+  fileAssetId     String?  @map("file_asset_id") @db.Uuid // uploaded file when source != design
+  placeholders    Json     @default("[]") // tags detected in an uploaded .docx/.pptx
+  layout          Json     @default("{}") // pdf source: { page, fields: [{ key, x, y, w, h, fontSize, color, align, bold }] } in PDF points
   enabled         Boolean  @default(true)
   createdById     String?  @map("created_by_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)

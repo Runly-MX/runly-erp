@@ -3,7 +3,7 @@ import { Alert, AlertDescription, AlertTitle, Button, Dialog, DialogContent, Dia
 import { AlertTriangle, CheckCircle2, Download, Upload, WandSparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { saveSuggestion, useReplaceCertificateTemplateFile, useSuggestCertificateTags } from '../../hooks/useLmsCertDocx.js'
-import { docxSuggestionFile, docxTagLabel, docxTagText } from '../../lib/lmsCert.js'
+import { docxSuggestionFile, docxTagLabel, docxTagText, formatInfo } from '../../lib/lmsCert.js'
 
 const MISSING_HINT = { '%qr': 'agrega {{%qr}} donde quieras el código de verificación' }
 
@@ -31,6 +31,7 @@ export function CertSuggestDialog({ template, onOpenChange }) {
     } catch { /* toast shown by the mutation */ }
   }
 
+  const app = formatInfo(template?.source).app
   const applied = result?.applied ?? []
   const missing = result?.missing ?? []
   const unplaced = result?.unplaced ?? []
@@ -41,7 +42,7 @@ export function CertSuggestDialog({ template, onOpenChange }) {
         <DialogHeader icon={WandSparkles}>
           <DialogTitle>Etiquetas sugeridas</DialogTitle>
           <DialogDescription>
-            Se colocaron etiquetas en una copia de «{template?.name}». Descárgala para revisarla en Word o aplícala directamente; tu archivo solo se reemplaza si eliges aplicar.
+            Se colocaron etiquetas en una copia de «{template?.name}». Descárgala para revisarla en {app} o aplícala directamente; tu archivo solo se reemplaza si eliges aplicar.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[55vh] space-y-3 overflow-y-auto">
@@ -64,14 +65,14 @@ export function CertSuggestDialog({ template, onOpenChange }) {
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm">No se reconoció ningún campo. Escribe las etiquetas a mano en Word con la tabla de referencia.</p>
+                <p className="text-sm">No se reconoció ningún campo. Escribe las etiquetas a mano en {app} con la tabla de referencia.</p>
               )}
               {missing.length ? (
                 <Alert variant="warning" className="rounded-md p-3">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>No se encontró dónde poner</AlertTitle>
                   <AlertDescription className="text-xs">
-                    {missing.map((tag) => (MISSING_HINT[tag] ? `${docxTagLabel(tag)} (${MISSING_HINT[tag]})` : docxTagLabel(tag))).join(', ')}. Agrégalas a mano en Word si tu formato las necesita.
+                    {missing.map((tag) => (MISSING_HINT[tag] ? `${docxTagLabel(tag)} (${MISSING_HINT[tag]})` : docxTagLabel(tag))).join(', ')}. Agrégalas a mano en {app} si tu formato las necesita.
                   </AlertDescription>
                 </Alert>
               ) : null}

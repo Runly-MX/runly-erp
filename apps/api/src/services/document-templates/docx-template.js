@@ -19,7 +19,7 @@ function loadZip(buffer) {
   }
 }
 
-function describeCompileError(err) {
+export function describeCompileError(err) {
   const first = err?.properties?.errors?.[0] ?? err;
   const id = first?.properties?.id;
   const tag = first?.properties?.xtag ?? first?.properties?.context;
@@ -35,7 +35,8 @@ function describeCompileError(err) {
 
 const parser = (tag) => ({ get: (scope) => resolvePath(scope, tag.trim()) });
 
-function build(zip, { images = {}, imageSize = DEFAULT_IMAGE_SIZE } = {}) {
+// Shared by the docx and pptx engines (docxtemplater detects the file type).
+export function build(zip, { images = {}, imageSize = DEFAULT_IMAGE_SIZE } = {}) {
   const imageModule = new ImageModule({
     centered: false,
     fileType: 'docx',

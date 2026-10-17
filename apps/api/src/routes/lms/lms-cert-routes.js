@@ -1,6 +1,8 @@
 // runly.lms certificate routes (internal), registered from createLmsRouter.
 import { createLmsCertService } from './lms-cert-service.js'
 import { CERT_DOCX_PLACEHOLDERS, DOCX_MIME, buildSampleCertificateDocx } from './lms-cert-docx.js'
+import { PPTX_MIME, buildSampleCertificatePptx } from './lms-cert-pptx.js'
+import { CERT_FIELD_KEYS } from './lms-cert-pdf-layout.js'
 
 const companyId = (c) => c.get('companyId')
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
@@ -25,27 +27,44 @@ export function registerLmsCertRoutes(app, { prisma, requirePermission, signFile
   // ---- templates ----------------------------------------------------------
   // officeAvailable: false means Word templates render with the built-in design.
   app.get('/lms/certificate-templates', courses, run('Error al cargar las plantillas.', async (c) => c.json({
-    data: await certs.listTemplates(companyId(c)), officeAvailable: certs.officeAvailable?.() ?? false, placeholders: CERT_DOCX_PLACEHOLDERS,
+    data: await certs.listTemplates(companyId(c)), officeAvailable: certs.officeAvailable?.() ?? false,
+    placeholders: CERT_DOCX_PLACEHOLDERS, fieldKeys: CERT_FIELD_KEYS,
   })))
   app.post('/lms/certificate-templates', courses, run('Error al crear la plantilla.', async (c) => c.json({ data: await certs.createTemplate(companyId(c), actorId(c), await body(c)) }, 201)))
   app.patch('/lms/certificate-templates/:id', courses, run('Error al guardar la plantilla.', async (c) => c.json({ data: await certs.updateTemplate(companyId(c), id(c), await body(c)) })))
   app.delete('/lms/certificate-templates/:id', courses, run('Error al desactivar la plantilla.', async (c) => c.json({ data: await certs.disableTemplate(companyId(c), id(c)) })))
-  // Word templates (multipart: file, name). Warnings come inside the template.
-  app.post('/lms/certificate-templates/docx', courses, run('Error al subir la plantilla.', async (c) => {
+  // Uploaded templates (multipart: file, name): .docx, .pptx or .pdf by extension
+  // (/docx accepts Word only). Warnings come inside the template.
+  const uploadRoute = (format) => run('Error al subir la plantilla.', async (c) => {
     const form = await c.req.formData()
-    const result = await certs.uploadDocxTemplate(companyId(c), actorId(c), { file: form.get('file'), name: form.get('name') })
+    const result = await certs.uploadTemplateFile(companyId(c), actorId(c), { file: form.get('file'), name: form.get('name'), format })
     return c.json({ data: result.template }, 201)
-  }))
+  })
+  app.post('/lms/certificate-templates/upload', courses, uploadRoute(null))
+  app.post('/lms/certificate-templates/docx', courses, uploadRoute('docx'))
   app.get('/lms/certificate-templates/sample.docx', courses, (c) => c.body(buildSampleCertificateDocx(), 200, {
     'Content-Type': DOCX_MIME, 'Content-Disposition': 'attachment; filename="plantilla-certificado-ejemplo.docx"',
   }))
+  app.get('/lms/certificate-templates/sample.pptx', courses, (c) => c.body(buildSampleCertificatePptx(), 200, {
+    'Content-Type': PPTX_MIME, 'Content-Disposition': 'attachment; filename="plantilla-certificado-ejemplo.pptx"',
+  }))
+  // Same format as the current file.
   app.put('/lms/certificate-templates/:id/file', courses, run('Error al reemplazar la plantilla.', async (c) => {
     const form = await c.req.formData()
-    return c.json({ data: (await certs.replaceDocxTemplateFile(companyId(c), actorId(c), id(c), { file: form.get('file') })).template })
+    return c.json({ data: (await certs.replaceTemplateFile(companyId(c), actorId(c), id(c), { file: form.get('file') })).template })
   }))
-  app.post('/lms/certificate-templates/:id/suggest', courses, run('No se pudieron sugerir etiquetas.', async (c) => c.json({ data: await certs.suggestDocxTags(companyId(c), id(c)) })))
-  app.get('/lms/certificate-templates/:id/file', courses, run('Error al descargar la plantilla.', async (c) => c.json({ data: await certs.docxTemplateFileUrl(companyId(c), id(c)) })))
+  // Word / PowerPoint: a copy with suggested tags ({ applied, missing, unplaced, fileName, contentBase64 }).
+  app.post('/lms/certificate-templates/:id/suggest', courses, run('No se pudieron sugerir etiquetas.', async (c) => c.json({ data: await certs.suggestTemplateTags(companyId(c), id(c)) })))
+  app.get('/lms/certificate-templates/:id/file', courses, run('Error al descargar la plantilla.', async (c) => c.json({ data: await certs.templateFileUrl(companyId(c), id(c)) })))
+  // PDF: field layout ({ fields }) and detected fields ({ page, fields, matched, defaulted, missing }).
+  app.put('/lms/certificate-templates/:id/layout', courses, run('Error al guardar los campos.', async (c) => c.json({ data: await certs.saveTemplateLayout(companyId(c), id(c), await body(c)) })))
+  app.post('/lms/certificate-templates/:id/suggest-layout', courses, run('No se pudieron detectar los campos.', async (c) => c.json({ data: await certs.suggestTemplateLayout(companyId(c), id(c)) })))
   app.get('/lms/certificate-templates/:id/preview.pdf', courses, run('Error al generar la vista previa.', async (c) => pdfResponse(c, await certs.previewPdf(companyId(c), id(c)))))
+  // Preview of an unsaved PDF layout ({ layout }), sample data.
+  app.post('/lms/certificate-templates/:id/preview.pdf', courses, run('Error al generar la vista previa.', async (c) => {
+    const { layout = null } = await body(c)
+    return pdfResponse(c, await certs.previewPdf(companyId(c), id(c), { layout }))
+  }))
 
   // ---- issued certificates ------------------------------------------------
   app.post('/lms/enrollments/:id/certificate', enrollments, run('Error al emitir el certificado.', async (c) => c.json({ data: await certs.issueManual(companyId(c), actorId(c), id(c)) }, 201)))
