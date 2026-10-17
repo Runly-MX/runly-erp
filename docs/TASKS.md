@@ -1887,6 +1887,8 @@ Spec `docs/superpowers/specs/2026-10-16-lms-design.md`; plans `docs/superpowers/
 
 - [x] Phase 1 core: courses, sections, lessons (video/embed/text/file), internal learners, assignment with due date, self-enrollment, progress with resume and sequential unlock, learner home, player and authoring screens. Verified: 2026-10-17 (API E2E 47/47 against a local API on the dev DB; Playwright smoke of home, course list, editor, player, review with no console errors; unit tests, lint, web build)
 - [x] Phase 2 evaluation: quizzes (single/multiple/true-false/open, random draw, attempts, time limit, manual grading), assignments (return/approve, passing grade), grading queue, notifications. Verified: 2026-10-17 (API E2E 48/48; 55/55 unit tests; lint; web build)
-- [ ] Phase 3 social, phase 4 certificates (planned), phase 5 reporting/MirAI/MCP, phase 6 website + external learners + Stripe
-- [ ] Not verified in a browser: real video upload to Storage and playback resume, quiz attempt UI, assignment file upload UI, grading sheets
+- [x] Phase 3 social: lesson questions with replies, instructor flag, pin/resolve, soft delete; one review per learner with cached rating; announcements; notifications. Verified: 2026-10-17 (API E2E 30/30)
+- [x] Phase 4 certificates: templates, automatic issue on completion (folio lock), manual issue/revoke, pdfkit PDF with QR, public verification at /app/p/lms/cert/:token. Verified: 2026-10-17 (API E2E 28/28; full regression phase 1 48/48, phase 2 49/49; Playwright smoke of Certificados, Mis cursos, Alumnos certificate column, public valid/unknown pages; PDF rendered and inspected)
+- [ ] Phase 5 reporting/learning paths/mandatory courses/MirAI/MCP, phase 6 website + external learners + Stripe
+- [ ] Not verified in a browser: real video upload to Storage and playback resume, quiz attempt UI, assignment file upload UI, grading sheets, discussion/review UI, certificate template sheet live preview
 - [ ] Known limit: uploaded videos are capped at 50 MB by the self-hosted Storage FILE_SIZE_LIMIT; longer videos go as embed lessons. Presigned uploads that are never confirmed leave a pending FileAsset row (no cleanup job yet)

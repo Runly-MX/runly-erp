@@ -58,7 +58,8 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
       return { course: courses[index], enrollment, certificateId }
     })
     // Active: due soonest first, then most recently touched.
-    const active = items.filter((item) => item.enrollment.status === 'active')
+    // Archived courses only stay visible once completed (certificate, history).
+    const active = items.filter((item) => item.enrollment.status === 'active' && item.course.status !== 'archived')
       .sort((a, b) => (a.enrollment.dueAt ? Date.parse(a.enrollment.dueAt) : Infinity) - (b.enrollment.dueAt ? Date.parse(b.enrollment.dueAt) : Infinity))
     return { active, completed: items.filter((item) => item.enrollment.status === 'completed') }
   }
