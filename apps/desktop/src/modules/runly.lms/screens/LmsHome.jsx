@@ -2,8 +2,10 @@ import { useNavigate } from 'react-router-dom'
 import { Button, EmptyState, ErrorState, PageHeader, Skeleton } from '@runly/ui'
 import { GraduationCap, Settings2 } from 'lucide-react'
 import { CourseCard } from '../components/CourseCard.jsx'
+import { MyCertificates } from '../components/certificates/MyCertificates.jsx'
 import { PageShell } from '../components/shared.jsx'
 import { useCatalog, useEnroll, useLmsPermissions, useMyCourses } from '../hooks/useLmsData.js'
+import { useMyCertificates } from '../hooks/useLmsCerts.js'
 import { lmsPath } from '../lib/lmsLabels.js'
 
 const GRID = 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
@@ -26,7 +28,7 @@ function LoadingGrid() {
 
 export default function LmsHome() {
   const navigate = useNavigate()
-  const my = useMyCourses(), catalog = useCatalog(), enroll = useEnroll()
+  const my = useMyCourses(), catalog = useCatalog(), enroll = useEnroll(), certificates = useMyCertificates({ retry: false })
   const { canManageCourses } = useLmsPermissions()
   const open = (courseId) => navigate(lmsPath(`/learn/${courseId}`))
 
@@ -95,6 +97,7 @@ export default function LmsHome() {
           ))}
         </Section>
       ) : null}
+      {!loading ? <MyCertificates certificates={certificates.data} /> : null}
     </PageShell>
   )
 }

@@ -4,6 +4,7 @@ import { Badge, Button, EmptyState, ErrorState, PageHeader, ProgressBar, Skeleto
 import { BookOpen, ListTree, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { CourseOutline } from '../components/CourseOutline.jsx'
+import { CompletionBanner } from '../components/certificates/CompletionBanner.jsx'
 import { LessonContent } from '../components/LessonContent.jsx'
 import { FormSheet, useRouteId } from '../components/shared.jsx'
 import { CourseRating } from '../components/social/CourseRating.jsx'
@@ -145,6 +146,7 @@ export default function LmsPlayer() {
             <EmptyState icon={Lock} title="No hay lecciones disponibles" description="Todas las lecciones están bloqueadas por ahora." />
           ) : (
             <>
+              {!preview && status === 'completed' ? <CompletionBanner courseId={courseId} /> : null}
               {showRatePrompt ? <RateCoursePrompt key={courseId} courseId={courseId} completed={status === 'completed'} onRate={openReviews} /> : null}
               <LessonTabs
                 courseId={courseId} lessonId={lessonId} tab={tab} onTabChange={setTab}

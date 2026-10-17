@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button, CheckboxField, FieldWrapper, FileUploader, NumberField, SelectField, TextField, TextareaField } from '@runly/ui'
 import { useUpdateCourse, useUploadLmsFile } from '../hooks/useLmsData.js'
+import { useCertificateTemplates } from '../hooks/useLmsCerts.js'
+import { NO_TEMPLATE } from '../lib/lmsCert.js'
 import { LEVEL_LABELS, toOptions } from '../lib/lmsLabels.js'
 
 const LEVEL_OPTIONS = toOptions(LEVEL_LABELS)
@@ -17,6 +19,7 @@ const schema = z.object({
   estimatedMinutes: z.string().regex(/^\d*$/, 'Escribe minutos enteros.'),
   sequential: z.boolean(),
   selfEnroll: z.boolean(),
+  certificateTemplateId: z.string(),
 })
 
 const toValues = (course) => ({
@@ -24,11 +27,22 @@ const toValues = (course) => ({
   category: course?.category ?? '', level: course?.level ?? 'basic',
   estimatedMinutes: course?.estimatedMinutes ? String(course.estimatedMinutes) : '',
   sequential: Boolean(course?.sequential), selfEnroll: Boolean(course?.selfEnroll),
+  certificateTemplateId: course?.certificateTemplateId ?? NO_TEMPLATE,
 })
 
 // Configuración tab: metadata, cover and flags of a course.
 export function CourseSettingsForm({ course, readOnly = false }) {
   const update = useUpdateCourse('Configuración guardada.'), upload = useUploadLmsFile()
+  const templates = useCertificateTemplates()
+  // Enabled templates plus the current one even when it was disabled later.
+  const certificateOptions = useMemo(() => [
+    { value: NO_TEMPLATE, label: 'Sin certificado' },
+    ...(templates.data ?? [])
+      .filter((t) => t.enabled !== false || t.id === course.certificateTemplateId)
+      .map((t) => ({ value: t.id, label: t.enabled === false ? `${t.name} (desactivada)` : t.name })),
+    ...(course.certificateTemplateId && !(templates.data ?? []).some((t) => t.id === course.certificateTemplateId)
+      ? [{ value: course.certificateTemplateId, label: 'Plantilla actual' }] : []),
+  ], [templates.data, course.certificateTemplateId])
   const [cover, setCover] = useState(null) // { fileId, name, url } once a new cover is uploaded or removed
   const { control, handleSubmit, reset, formState: { errors, isDirty } } = useForm({ resolver: zodResolver(schema), defaultValues: toValues(course) })
   // Re-seed only when another course or a newer version arrives: a refetch that
@@ -48,6 +62,7 @@ export function CourseSettingsForm({ course, readOnly = false }) {
         category: values.category.trim() || null, level: values.level,
         estimatedMinutes: values.estimatedMinutes ? Number(values.estimatedMinutes) : null,
         sequential: values.sequential, selfEnroll: values.selfEnroll,
+        certificateTemplateId: values.certificateTemplateId === NO_TEMPLATE ? null : values.certificateTemplateId,
         ...(cover ? { coverFileId: cover.fileId ?? null } : {}),
       })
     } catch { /* toast shown by the mutation */ }
@@ -89,6 +104,12 @@ export function CourseSettingsForm({ course, readOnly = false }) {
             hint="Imagen horizontal (16:9), máximo 10 MB." emptyLabel="Subir portada"
           />
         </FieldWrapper>
+        <Controller name="certificateTemplateId" control={control} render={({ field }) => (
+          <SelectField
+            label="Certificado" options={certificateOptions} value={field.value} onValueChange={field.onChange} disabled={readOnly}
+            hint="Se emite automáticamente al completar el curso. Las plantillas se administran en Certificados."
+          />
+        )} />
         {!readOnly ? (
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" disabled={!dirty || update.isPending} onClick={() => { reset(toValues(course)); setCover(null) }}>Descartar</Button>

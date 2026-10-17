@@ -56,6 +56,7 @@ const AttendancePhoneKeyScreen = lazy(() => import("../modules/runly.attendance/
 // Public custody (resguardo) signing page: token link, no login, no shell.
 const PublicCustodySignScreen = lazy(() => import("../modules/runly.inventory/screens/PublicCustodySignScreen.jsx"));
 const PublicInventoryItemScreen = lazy(() => import("../modules/runly.inventory/screens/PublicInventoryItemScreen.jsx"));
+const LmsCertificateVerifyScreen = lazy(() => import("../modules/runly.lms/public/CertificateVerifyScreen.jsx"));
 import { useCallSoundUnlock } from "../modules/runly.chat/calls/useCallSoundUnlock.js";
 import "../styles.css";
 
@@ -195,6 +196,8 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="attendance/phone" element={<Suspense fallback={null}><AttendancePhoneKeyScreen /></Suspense>} />
                     <Route path="custody/:token" element={<Suspense fallback={null}><PublicCustodySignScreen /></Suspense>} />
                     <Route path="inv/:token" element={<Suspense fallback={null}><PublicInventoryItemScreen /></Suspense>} />
+                    {/* runly.lms: certificate verification from the PDF QR code */}
+                    <Route path="lms/cert/:token" element={<Suspense fallback={null}><LmsCertificateVerifyScreen /></Suspense>} />
                   </Route>
                   <Route element={<AppRouteGuard mode="access" />}>
                     <Route path="/app/mcp" element={<McpConnectionScreen />} />

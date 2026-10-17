@@ -3,11 +3,15 @@ import {
   Badge, Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent,
   DropdownMenuSubTrigger, DropdownMenuTrigger, ProgressBar,
 } from '@runly/ui'
-import { CalendarClock, ListChecks, MoreHorizontal, RotateCcw, UserMinus, UserPlus, Users } from 'lucide-react'
+import { CalendarClock, ListChecks, MoreHorizontal, RotateCcw, ShieldOff, UserMinus, UserPlus, Users } from 'lucide-react'
 import { useEnrollments, useLmsPermissions, useUpdateEnrollment } from '../hooks/useLmsData.js'
+import { useDownloadCertificate, useIssueCertificate, useRevokeCertificate } from '../hooks/useLmsCerts.js'
 import { useGrantExtraAttempt } from '../hooks/useLmsEval.js'
+import { hasValidCertificate } from '../lib/lmsCert.js'
 import { SOURCE_LABELS, formatShortDate, isOverdue } from '../lib/lmsLabels.js'
 import { AssignLearnersDialog } from './AssignLearnersDialog.jsx'
+import { CertificateCell } from './certificates/CertificateCell.jsx'
+import { RevokeCertificateDialog } from './certificates/RevokeCertificateDialog.jsx'
 import { DueDateDialog } from './DueDateDialog.jsx'
 import { EnrollmentStatusBadge } from './shared.jsx'
 
@@ -17,16 +21,26 @@ const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 export function EnrollmentsPanel({ courseId, readOnly = false }) {
   const enrollments = useEnrollments(courseId)
   const update = useUpdateEnrollment(), grant = useGrantExtraAttempt()
-  const { canGrade } = useLmsPermissions()
+  const issue = useIssueCertificate(), revoke = useRevokeCertificate(), download = useDownloadCertificate()
+  const { canGrade, canManageEnrollments } = useLmsPermissions()
+  const canCertify = !readOnly && canManageEnrollments
   const [assignOpen, setAssignOpen] = useState(false)
   const [dueFor, setDueFor] = useState(null)
   const [dropFor, setDropFor] = useState(null)
+  const [revokeFor, setRevokeFor] = useState(null)
   const rows = useMemo(() => enrollments.data ?? [], [enrollments.data])
 
   async function patch(id, data, after) {
     try {
       await update.mutateAsync({ id, ...data })
       after?.()
+    } catch { /* toast shown by the mutation */ }
+  }
+
+  async function confirmRevoke(reason) {
+    try {
+      await revoke.mutateAsync({ id: revokeFor.certificate.id, reason })
+      setRevokeFor(null)
     } catch { /* toast shown by the mutation */ }
   }
 
@@ -66,6 +80,15 @@ export function EnrollmentsPanel({ courseId, readOnly = false }) {
     { id: 'due', header: 'Vence', accessorFn: (e) => e.dueAt ?? '', cell: ({ row }) => <span className={MUTED}>{formatShortDate(row.original.dueAt) || '—'}</span> },
     { id: 'completed', header: 'Completado', accessorFn: (e) => e.completedAt ?? '', cell: ({ row }) => <span className={MUTED}>{formatShortDate(row.original.completedAt) || '—'}</span> },
     {
+      id: 'certificate', header: 'Certificado', accessorFn: (e) => e.certificate?.folio ?? '',
+      cell: ({ row }) => (
+        <CertificateCell
+          enrollment={row.original} canManage={canCertify} issuing={issue.isPending}
+          onDownload={(certificate) => download.mutate(certificate)} onIssue={(enrollment) => issue.mutate(enrollment.id)}
+        />
+      ),
+    },
+    {
       id: 'actions', header: '', enableSorting: false,
       cell: ({ row }) => (readOnly ? null : (
         <DropdownMenu>
@@ -88,13 +111,16 @@ export function EnrollmentsPanel({ courseId, readOnly = false }) {
               </DropdownMenuSub>
             ) : null}
             {row.original.status === 'dropped' ? <DropdownMenuItem onSelect={() => patch(row.original.id, { status: 'active' })}><RotateCcw />Reactivar</DropdownMenuItem> : null}
-            {row.original.status === 'completed' ? <DropdownMenuItem disabled>Curso completado</DropdownMenuItem> : null}
+            {canCertify && hasValidCertificate(row.original) ? (
+              <DropdownMenuItem onSelect={() => setRevokeFor(row.original)} className="text-[hsl(var(--destructive))]"><ShieldOff />Revocar certificado</DropdownMenuItem>
+            ) : null}
+            {row.original.status === 'completed' && !(canCertify && hasValidCertificate(row.original)) ? <DropdownMenuItem disabled>Curso completado</DropdownMenuItem> : null}
           </DropdownMenuContent>
         </DropdownMenu>
       )),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [readOnly, canGrade, grant.isPending])
+  ], [readOnly, canGrade, canCertify, grant.isPending, issue.isPending])
 
   return (
     <div className="space-y-3">
@@ -125,6 +151,10 @@ export function EnrollmentsPanel({ courseId, readOnly = false }) {
         confirmLabel="Dar de baja"
         loading={update.isPending}
         onConfirm={() => patch(dropFor.id, { status: 'dropped' }, () => setDropFor(null))}
+      />
+      <RevokeCertificateDialog
+        open={Boolean(revokeFor)} onOpenChange={(open) => { if (!open) setRevokeFor(null) }}
+        enrollment={revokeFor} pending={revoke.isPending} onSubmit={confirmRevoke}
       />
     </div>
   )
