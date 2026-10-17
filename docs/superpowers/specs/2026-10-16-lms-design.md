@@ -56,3 +56,46 @@ All `@runly/ui` components, Spanish UI text, `PageHeader` on every screen.
 
 ## 10. Verification
 Unit tests for the rules (§6) and for route permission/validation behaviour with a fake service; scripted end-to-end run against the local API (`.e2e/lms-e2e.mjs`, git-ignored): create course, sections, lessons, publish, assign, outline locks, progress + auto-complete, course completion, drop/reactivate. Web build (`pnpm build:web`). Manual browser smoke listed as pending if not run.
+
+## 11. Phase 2 — Evaluation (quizzes and assignments)
+
+### 11.1 Decision
+Quizzes and assignments are two more lesson kinds (`quiz`, `assignment`), not a parallel structure. They live in the curriculum, take part in sequential locking, and count toward `progressPct` like any required lesson. A course-wide question bank shared between quizzes is deferred; each quiz owns its questions and can draw a random subset per attempt, which covers the "bank" use case for a single quiz.
+
+### 11.2 Lesson settings
+`lms_lesson.settings JSONB NOT NULL DEFAULT '{}'`, normalized by kind:
+- quiz: `passingScore` 0-100 (default 70), `maxAttempts` (null = unlimited), `timeLimitMinutes` (null = none), `drawCount` (null = all questions), `shuffleQuestions`, `shuffleOptions` (default true), `showAnswers` `never | after_submit | after_pass` (default `after_submit`).
+- assignment: `allowText` (default true), `allowFiles` (default true), `maxFiles` 1-10 (default 5), `dueDaysAfterEnroll` (null = no deadline), `passingScore` (null = approve/return only, otherwise a 0-100 grade is required and approval needs grade >= passingScore).
+
+### 11.3 Data model (forward migration)
+- `lms_quiz_question`: company_id, lesson_id (FK cascade), kind `single | multiple | true_false | open`, prompt (markdown), options JSONB `[{ id, text, correct }]` (`id` is a short stable string generated server-side; true_false gets fixed ids `true`/`false`), explanation, points (int >= 1, default 1), position, enabled, timestamps.
+- `lms_quiz_attempt`: company_id, enrollment_id (FK cascade), lesson_id (FK cascade), number, status `in_progress | submitted | graded`, question_ids UUID[] (the drawn questions in display order), option_order JSONB `{ questionId: [optionId] }`, answers JSONB `{ questionId: { optionIds?: [], text?: string } }`, started_at, deadline_at, submitted_at, auto_points, manual_points JSONB `{ questionId: points }`, score_points, max_points, score_pct, passed, graded_by_id, graded_at, feedback; unique (enrollment_id, lesson_id, number).
+- `lms_submission`: company_id, enrollment_id (FK cascade), lesson_id (FK cascade), number, status `submitted | returned | approved`, text, file_ids UUID[], submitted_at, late bool, grade (0-100, null), feedback, graded_by_id, graded_at; unique (enrollment_id, lesson_id, number). The latest row is the current one; earlier rows are history.
+- `lms_lesson_progress` gains `extra_attempts INT NOT NULL DEFAULT 0` and two new status values: `pending_review` and `failed`. Only `completed` unlocks later lessons.
+
+### 11.4 Rules
+- Learners never receive `correct` flags or explanations before submitting. After submitting they get them according to `showAnswers`.
+- Scoring: `single` and `true_false` give full points when the one selected option is correct. `multiple` is all-or-nothing: full points only when the selected set equals the correct set. `open` is graded by hand from 0 to `points`.
+- An attempt with open questions is `submitted` and the lesson goes to `pending_review` until a grader scores every open answer. Then it becomes `graded`. An attempt without open questions is graded on submit.
+- `passed = score_pct >= passingScore`. A passed attempt completes the lesson, and a lesson that has been passed is never un-completed.
+- Attempts: starting an attempt while one is `in_progress` returns that attempt. A new attempt is allowed while `count < maxAttempts + extra_attempts`. When attempts run out without a pass, the lesson is `failed`. A grader can grant extra attempts, which moves `failed` back to `in_progress`.
+- Time limit: `deadline_at = started_at + timeLimitMinutes`. Answers are saved progressively. A save or submit after `deadline_at + 30 s` is rejected, and the attempt is auto-submitted with the answers saved so far. Any read of an expired `in_progress` attempt also auto-submits it.
+- Assignment: a submission needs text or at least one file, as allowed by the settings. `late` is set when `dueDaysAfterEnroll` is configured and `now > enrollment.created_at + days`; late work is still accepted. Submitting puts the lesson in `pending_review`. `returned` lets the learner submit again as number + 1. `approved` completes the lesson; when `passingScore` is set, approval requires a grade >= passingScore. A new submission is rejected while the latest one is `submitted` or `approved`.
+- Submission files are uploaded through `POST /lms/learn/uploads/presign` (learner, `lms.access`), because learners do not have `files.assets.create`. Allowed: PDF, images, office documents, zip, text, audio and video, up to 50 MB. The file is tagged `entityType: 'LmsSubmission'`, then confirmed as in phase 1. The API signs submission files only for the owning learner and for graders.
+
+### 11.5 Permissions and notifications
+New permission `lms.grade` ("Calificar actividades y tareas"). Notifications through `notificationService.publish` (in_app + web_push):
+- `lms.submission.graded`: learner, when an assignment is approved or returned, or an attempt with open answers is graded.
+- `lms.submission.received`: the course creator, when a submission or an attempt needing review arrives.
+Both labels are registered in the delivery worker event map.
+
+### 11.6 API additions
+Authoring (`lms.course.manage`): `GET|POST /lms/lessons/:id/questions`, `PATCH|DELETE /lms/questions/:id`, `POST /lms/lessons/:id/questions/reorder`. Lesson `settings` travel in the existing lesson PATCH.
+Learner (`lms.access`): `GET /lms/learn/lessons/:id/quiz` (summary: settings, attempts used and allowed, best score, current attempt id), `POST /lms/learn/lessons/:id/attempts` (start or resume; returns the questions without answers), `GET /lms/learn/attempts/:id`, `PUT /lms/learn/attempts/:id/answers` (`{ answers }` merge), `POST /lms/learn/attempts/:id/submit`, `GET /lms/learn/lessons/:id/submissions`, `POST /lms/learn/lessons/:id/submissions` (`{ text, fileIds }`), `POST /lms/learn/uploads/presign`, `POST /lms/learn/uploads/:fileId/confirm`.
+Grading (`lms.grade`): `GET /lms/review` (queue: submissions in `submitted` plus attempts in `submitted`; filter by `courseId`), `GET /lms/review/attempts/:id` (attempt with answers, correct flags and open answers), `POST /lms/review/attempts/:id/grade` (`{ points: { questionId: n }, feedback }`), `GET /lms/review/submissions/:id`, `POST /lms/review/submissions/:id/grade` (`{ decision: 'approve' | 'return', grade?, feedback }`), `POST /lms/enrollments/:id/lessons/:lessonId/extra-attempt`.
+
+### 11.7 UI
+- Authoring: `LessonSheet` gains the kinds `Examen` and `Tarea`. The quiz settings live in the sheet. "Editar preguntas" opens `QuizQuestionsSheet` (wide sheet): a question list with reorder plus a question form per kind (option rows with a correct toggle, points, explanation).
+- Learner: `QuizLesson` covers the start card (attempts, passing score, time limit, best score), the attempt view (all questions on one page, autosave debounced 800 ms, countdown, submit with ConfirmDialog) and the result (score, passed/failed, answers per `showAnswers`, retry while attempts remain). `AssignmentLesson` shows the instructions, the submission form (TextareaField plus file upload with progress) and the submission history with status, grade and feedback.
+- Grading: new navigation item `Revisión` (`/review`, `lms.grade`) with a queue table filtered by course, `GradeSubmissionSheet` and `GradeAttemptSheet` (open answers with a points input, auto-scored answers shown read-only). The course editor's Alumnos tab gains "Otorgar intento extra" for `failed` quiz lessons.
+- Outline icons for `pending_review` (clock) and `failed` (x).
