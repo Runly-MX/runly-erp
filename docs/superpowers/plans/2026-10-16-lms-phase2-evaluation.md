@@ -51,7 +51,7 @@ SDK additions on `runly.lms` (token last): `listQuestions(lessonId)`, `createQue
 
 ## Workstream A — Backend
 
-### Task A1: Migration `20261020000000_lms_evaluation`
+### Task A1: Migration `20261101000000_lms_evaluation` (must sort after the latest folder in `prisma/migrations/`; bump the timestamp if a newer one exists)
 - [ ] Prisma: `LmsLesson.settings Json @default("{}")`; `LmsLessonProgress.extraAttempts Int @default(0) @map("extra_attempts")`; models `LmsQuizQuestion` (`lms_quiz_question`), `LmsQuizAttempt` (`lms_quiz_attempt`, `questionIds String[] @db.Uuid`, `optionOrder Json`, `answers Json @default("{}")`, `manualPoints Json @default("{}")`, numeric scores as `Float?`), `LmsSubmission` (`lms_submission`, `fileIds String[] @db.Uuid`) per spec §11.3 with cascades and uniques; indexes `[lessonId, position]` on questions, `[status]` + `[enrollmentId, lessonId]` on attempts and submissions.
 - [ ] Hand-written SQL, `prisma migrate diff` empty, `pnpm db:migrate`. If phase 1 added a CHECK on `lms_lesson.kind` or `lms_lesson_progress.status`, drop and recreate it with the new values in this migration.
 
