@@ -12,6 +12,9 @@ function createGuestApi(request) {
   return {
     getCourse: (shareToken) => call('GET', base(shareToken)),
     join: (shareToken, data, guestToken) => call('POST', `${base(shareToken)}/join`, guestToken, data ?? {}),
+    // Invite-only links: { i: linkToken } or { email }, plus { code }; the first
+    // entry answers { needsProfile } until { name, answers } come along.
+    access: (shareToken, data) => call('POST', `${base(shareToken)}/access`, null, data ?? {}),
     me: (shareToken, guestToken) => call('GET', `${base(shareToken)}/me`, guestToken),
     openLesson: (shareToken, lessonId, guestToken) => call('GET', `${base(shareToken)}/lessons/${id(lessonId)}`, guestToken),
     saveProgress: (shareToken, lessonId, data, guestToken) => call('POST', `${base(shareToken)}/lessons/${id(lessonId)}/progress`, guestToken, data ?? {}),
@@ -155,6 +158,11 @@ export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQuery
     getCourseShare: (courseId, token) => send('GET', `/lms/courses/${id(courseId)}/share`, undefined, token),
     updateCourseShare: (courseId, data, token) => send('PUT', `/lms/courses/${id(courseId)}/share`, data, token),
     rotateCourseShare: (courseId, token) => send('POST', `/lms/courses/${id(courseId)}/share/rotate`, {}, token),
+    // Guest email invitations (invite-only links). create/resend return the plain code once.
+    listShareInvites: (courseId, token) => send('GET', `/lms/courses/${id(courseId)}/share/invites`, undefined, token),
+    createShareInvites: (courseId, invites, token) => send('POST', `/lms/courses/${id(courseId)}/share/invites`, { invites }, token),
+    resendShareInvite: (courseId, inviteId, token) => send('POST', `/lms/courses/${id(courseId)}/share/invites/${id(inviteId)}/resend`, {}, token),
+    revokeShareInvite: (courseId, inviteId, token) => send('POST', `/lms/courses/${id(courseId)}/share/invites/${id(inviteId)}/revoke`, {}, token),
 
     // Guest player on a share link: no user session, only `Authorization: Guest <guestToken>`.
     guest: createGuestApi(request),

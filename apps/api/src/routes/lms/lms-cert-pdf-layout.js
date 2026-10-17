@@ -11,13 +11,19 @@ import { LmsError } from './lms-error.js'
 import { CERT_DOCX_IMAGE_TAGS, CERT_DOCX_SCALAR_TAGS } from './lms-cert-docx.js'
 import { CERT_LABELS, SIGNATURE, labelBefore, placeholderTag } from './lms-cert-docx-suggest.js'
 import { sampleTag } from './lms-cert-pptx-suggest.js'
+import { CUSTOM_CERT_TAG_RE, MAX_CUSTOM_FIELDS } from './lms-intake-core.js'
 
 export const CERT_FIELD_KEYS = [...CERT_DOCX_SCALAR_TAGS, ...CERT_DOCX_IMAGE_TAGS]
 export const IMAGE_FIELDS = new Set(CERT_DOCX_IMAGE_TAGS)
 export const FIELD_LABELS = {
   alumno: 'Alumno', curso: 'Curso', fecha: 'Fecha', horas: 'Horas', folio: 'Folio', empresa: 'Empresa',
   instructor: 'Instructor', calificacion: 'Calificación', qr: 'Código QR', firma: 'Firma', logo: 'Logotipo',
+  empresa_alumno: 'Empresa del alumno', numero_empleado: 'Número de empleado', puesto: 'Puesto',
 }
+// Fixed keys plus campo_<key> (a custom intake answer of share-link guests).
+export const isCertFieldKey = (key) => CERT_FIELD_KEYS.includes(key) || CUSTOM_CERT_TAG_RE.test(String(key ?? ''))
+export const certFieldLabel = (key) => FIELD_LABELS[key] ?? (CUSTOM_CERT_TAG_RE.test(String(key ?? '')) ? `Campo ${String(key).slice(6)}` : String(key))
+const MAX_FIELDS = CERT_FIELD_KEYS.length + MAX_CUSTOM_FIELDS
 const ALIGNS = new Set(['left', 'center', 'right'])
 const HEX = /^#[0-9a-f]{6}$/i
 const MIN_SIZE = 4
@@ -47,14 +53,14 @@ export function normalizeCertLayout(input, page) {
   if (!(page?.width > 0 && page?.height > 0)) throw bad('La plantilla no tiene el tamaño de página; vuelve a subir el PDF.')
   const list = Array.isArray(input) ? input : input?.fields
   if (!Array.isArray(list)) throw bad('Envía la lista de campos.')
-  if (list.length > CERT_FIELD_KEYS.length) throw bad(`Máximo ${CERT_FIELD_KEYS.length} campos.`)
+  if (list.length > MAX_FIELDS) throw bad(`Máximo ${MAX_FIELDS} campos.`)
   const seen = new Set()
   const fields = list.map((raw) => {
     const key = String(raw?.key ?? '')
-    if (!CERT_FIELD_KEYS.includes(key)) throw bad(`Campo desconocido: «${key || 'sin clave'}».`)
-    if (seen.has(key)) throw bad(`El campo ${FIELD_LABELS[key]} está repetido.`)
+    if (!isCertFieldKey(key)) throw bad(`Campo desconocido: «${key || 'sin clave'}».`)
+    if (seen.has(key)) throw bad(`El campo ${certFieldLabel(key)} está repetido.`)
     seen.add(key)
-    const label = FIELD_LABELS[key]
+    const label = certFieldLabel(key)
     const x = number(raw.x, label, 'la posición horizontal')
     const y = number(raw.y, label, 'la posición vertical')
     const w = number(raw.w, label, 'el ancho')

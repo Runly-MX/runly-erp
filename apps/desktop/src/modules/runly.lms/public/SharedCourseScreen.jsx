@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button, EmptyState, Skeleton } from '@runly/ui'
 import { Link2Off, UserX } from 'lucide-react'
@@ -18,9 +18,12 @@ function Centered({ children }) {
 // Public course share link (/app/p/lms/curso/:token), signed out and without the
 // app shell. External guests type their name (email optional) and get a reduced
 // player over the shared lessons. The guest token lives in localStorage keyed by
-// the share token; "No soy <nombre>" forgets it and starts over.
+// the share token; "No soy <nombre>" forgets it and starts over. Invite-only
+// links ask for the emailed access code instead (`?i=` is the personal link).
 export default function SharedCourseScreen() {
   const { token } = useParams()
+  const [search] = useSearchParams()
+  const linkToken = /^[A-Za-z0-9_-]{32}$/.test(search.get('i') ?? '') ? search.get('i') : null
   const client = useQueryClient()
   const [guestToken, setGuestToken] = useState(() => readGuestToken(token))
   const summary = useSharedCourse(token)
@@ -63,7 +66,7 @@ export default function SharedCourseScreen() {
         <EmptyState
           icon={UserX} title="Tu acceso a este curso fue retirado"
           description="Si crees que es un error, pide a quien te compartió el curso que te vuelva a dar acceso."
-          action={<Button variant="outline" onClick={() => remember(null)}>Entrar con otro nombre</Button>}
+          action={<Button variant="outline" onClick={() => remember(null)}>{summary.data?.settings?.accessMode === 'invite' ? 'Volver' : 'Entrar con otro nombre'}</Button>}
         />
       </Centered>
     )
@@ -91,5 +94,5 @@ export default function SharedCourseScreen() {
       </Centered>
     )
   }
-  return <SharedCourseJoin shareToken={token} data={summary.data} onJoined={remember} />
+  return <SharedCourseJoin shareToken={token} data={summary.data} linkToken={linkToken} onJoined={remember} />
 }

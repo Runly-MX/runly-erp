@@ -12,6 +12,8 @@ import { TX_OPTS } from './lms-progress.js'
 import { createLmsQuizService } from './lms-quiz-service.js'
 import { createLmsSerializers } from './lms-serialize.js'
 import { loadPromo } from './lms-promo.js'
+import { createLmsGuestAccess } from './lms-guest-access.js'
+import { inviteRevoked } from './lms-invite-core.js'
 import {
   SHARE_TOKEN_RE, filterSharedSections, guestEnrollment, hashGuestToken, newGuestToken, normalizeJoinInput,
   isSharedLesson, normalizeShareSettings, parseGuestAuthorization,
@@ -28,8 +30,12 @@ const guestRequired = () => new LmsError('Escribe tu nombre para entrar al curso
 const guestRemoved = () => new LmsError('Tu acceso a este curso fue retirado.', 403, 'GUEST_REMOVED')
 const lessonGone = () => new LmsError('La lección no existe.', 404)
 
-// learn / quiz: optional overrides (tests).
-export function createLmsGuestService({ prisma, signFile = null, hlsManifest = null, notificationService = null, learn = null, quiz = null }) {
+const inviteOnly = () => new LmsError('Este curso es solo por invitación. Entra con el enlace y el código que recibiste por correo.', 403, 'INVITE_ONLY')
+const TOUCH_MS = 10 * 60_000
+
+// learn / quiz: optional overrides (tests). attemptGuard: failed access-code
+// counter (lms-invite-core createAttemptGuard).
+export function createLmsGuestService({ prisma, signFile = null, hlsManifest = null, notificationService = null, learn = null, quiz = null, attemptGuard = undefined }) {
   const ser = createLmsSerializers({ prisma, signFile })
   const sign = (fileId, variant) => ser.sign(fileId, variant).catch(() => null)
   const learnSvc = learn ?? createLmsLearnService({ prisma, signFile, hlsManifest })
@@ -90,19 +96,30 @@ export function createLmsGuestService({ prisma, signFile = null, hlsManifest = n
     })))
   }
 
-  // { learner, enrollment } for a raw guest token on this course, or null.
-  async function findGuest(course, raw) {
+  // { learner, enrollment } for a raw guest token on this course, or null. On an
+  // invite-only link the guest also needs a live invitation: a revoked one is
+  // 403 at once; a guest who joined while the link was open has none (401).
+  async function findGuest(course, raw, settings = normalizeShareSettings(course.shareSettings)) {
     if (!raw) return null
     const learner = await prisma.lmsLearner.findUnique({ where: { guestTokenHash: hashGuestToken(raw) } })
     if (!learner || !learner.enabled || learner.companyId !== course.companyId) return null
     const enrollment = await prisma.lmsEnrollment.findUnique({ where: { courseId_learnerId: { courseId: course.id, learnerId: learner.id } }, include: { learner: true } })
-    return enrollment ? { learner, enrollment } : null
+    if (!enrollment) return null
+    if (settings.accessMode === 'invite') {
+      const invite = await prisma.lmsGuestInvite.findFirst({ where: { courseId: course.id, learnerId: learner.id } })
+      if (!invite) return null
+      if (invite.revokedAt) throw inviteRevoked()
+      if (!invite.lastUsedAt || Date.now() - new Date(invite.lastUsedAt).getTime() > TOUCH_MS) {
+        await prisma.lmsGuestInvite.update({ where: { id: invite.id }, data: { lastUsedAt: new Date() } }).catch(() => null)
+      }
+    }
+    return { learner, enrollment }
   }
 
   // Link + guest + shared outline with progress and lock states.
   async function loadGuest(token, authorization) {
     const shared = await sharedCourse(token)
-    const found = await findGuest(shared.course, parseGuestAuthorization(authorization))
+    const found = await findGuest(shared.course, parseGuestAuthorization(authorization), shared.settings)
     if (!found) throw guestRequired()
     if (!OPEN_STATUSES.includes(found.enrollment.status)) throw guestRemoved()
     const { sections, lessons } = await loadOutline(shared)
@@ -135,32 +152,37 @@ export function createLmsGuestService({ prisma, signFile = null, hlsManifest = n
   }
 
   // Re-joining with a valid token for this course returns the same guest.
+  // Open links only. Re-joining with a valid token for this course returns the same guest.
   async function join(token, body, authorization) {
-    const { course } = await sharedCourse(token)
+    const { course, settings } = await sharedCourse(token)
+    if (settings.accessMode === 'invite') throw inviteOnly()
     const raw = parseGuestAuthorization(authorization)
-    const existing = await findGuest(course, raw)
+    const existing = await findGuest(course, raw, settings)
     if (existing) {
       if (!OPEN_STATUSES.includes(existing.enrollment.status)) throw guestRemoved()
       return { guestToken: raw, guest: { name: existing.learner.displayName, email: existing.learner.email }, resumed: true }
     }
-    const input = normalizeJoinInput(body)
-    const { guestToken } = await createGuestLearner({ course, name: input.name, email: input.email })
+    const input = normalizeJoinInput(body, settings.intakeFields)
+    const { guestToken } = await createGuestLearner({ course, name: input.name, email: input.email, profile: input.profile })
     return { guestToken, guest: { name: input.name, email: input.email }, resumed: false }
   }
 
-  // The one place a guest learner is created: learner (token hash only) plus its
-  // share enrollment. `profile` is reserved for intake data (follow-up task).
-  async function createGuestLearner({ course, name, email = null, profile = null }) {
-    void profile
+  // The one place a guest learner is created: learner (token hash only, intake
+  // answers in guest_profile) plus its share enrollment. `afterCreate(tx, learner)`
+  // runs in the same transaction (the invite links its learner there).
+  async function createGuestLearner({ course, name, email = null, profile = null, afterCreate = null }) {
     const guestToken = newGuestToken()
     const enrollment = await prisma.$transaction(async (tx) => {
       const learner = await tx.lmsLearner.create({
-        data: { companyId: course.companyId, displayName: name, email, guestTokenHash: hashGuestToken(guestToken) },
+        data: { companyId: course.companyId, displayName: name, email, guestProfile: profile ?? {}, guestTokenHash: hashGuestToken(guestToken) },
       })
+      if (afterCreate) await afterCreate(tx, learner)
       return tx.lmsEnrollment.create({ data: { companyId: course.companyId, courseId: course.id, learnerId: learner.id, source: 'share' } })
     }, TX_OPTS)
     return { guestToken, enrollment }
   }
+
+  const access = createLmsGuestAccess({ prisma, sharedCourse, createGuestLearner, guard: attemptGuard, openStatuses: OPEN_STATUSES })
 
   async function me(token, authorization) {
     const guest = await loadGuest(token, authorization)
@@ -261,5 +283,5 @@ export function createLmsGuestService({ prisma, signFile = null, hlsManifest = n
     return withGuestEnrollment(await quizSvc.submitAttempt(guest.course.companyId, guest, attemptId(id), body))
   }
 
-  return { summary, join, me, openLesson, saveProgress, getQuiz, startAttempt, getAttempt, saveAnswers, submitAttempt, lessonContext, createGuestLearner }
+  return { summary, join, access: access.access, me, openLesson, saveProgress, getQuiz, startAttempt, getAttempt, saveAnswers, submitAttempt, lessonContext, createGuestLearner }
 }

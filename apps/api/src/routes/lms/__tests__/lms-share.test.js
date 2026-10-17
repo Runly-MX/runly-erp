@@ -43,16 +43,17 @@ test('scope filter: preview-only, quizzes on request, assignments never', () => 
 })
 
 test('join validation: name 2-80, optional valid email', () => {
-  assert.deepEqual(normalizeJoinInput({ name: '  Ana   López ', email: ' ANA@X.COM ' }), { name: 'Ana López', email: 'ana@x.com' })
-  assert.deepEqual(normalizeJoinInput({ name: 'Bo' }), { name: 'Bo', email: null })
+  assert.deepEqual(normalizeJoinInput({ name: '  Ana   López ', email: ' ANA@X.COM ' }), { name: 'Ana López', email: 'ana@x.com', profile: { correo: 'ana@x.com' } })
+  assert.deepEqual(normalizeJoinInput({ name: 'Bo' }), { name: 'Bo', email: null, profile: {} })
   assert.throws(() => normalizeJoinInput({ name: 'A' }), LmsError)
   assert.throws(() => normalizeJoinInput({ name: 'x'.repeat(81) }), LmsError)
   assert.throws(() => normalizeJoinInput({ name: 'Ana', email: 'no-mail' }), LmsError)
 })
 
 test('share input keeps current settings for missing keys and rejects bad scopes', () => {
-  assert.deepEqual(normalizeShareInput({ enabled: true }, { scope: 'preview', allowQuizzes: true }), { enabled: true, settings: { scope: 'preview', allowQuizzes: true, issueCertificates: false } })
-  assert.deepEqual(normalizeShareInput({ allowQuizzes: false }), { enabled: null, settings: { scope: 'all', allowQuizzes: false, issueCertificates: false } })
+  const intake = [{ key: 'correo', label: 'Correo', type: 'email', required: false, preset: true }]
+  assert.deepEqual(normalizeShareInput({ enabled: true }, { scope: 'preview', allowQuizzes: true }), { enabled: true, settings: { scope: 'preview', allowQuizzes: true, issueCertificates: false, accessMode: 'open', intakeFields: intake } })
+  assert.deepEqual(normalizeShareInput({ allowQuizzes: false }), { enabled: null, settings: { scope: 'all', allowQuizzes: false, issueCertificates: false, accessMode: 'open', intakeFields: intake } })
   assert.throws(() => normalizeShareInput({ scope: 'everything' }), LmsError)
   assert.equal(learnerKind({ guestTokenHash: 'h' }), 'guest')
   assert.equal(learnerKind({ userProfileId: 'p' }), 'user')

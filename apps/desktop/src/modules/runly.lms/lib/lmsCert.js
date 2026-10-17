@@ -108,6 +108,10 @@ export const CERT_DOCX_REFERENCE = [
   ['{{empresa}}', 'Nombre de la empresa'],
   ['{{instructor}}', 'Quien firma la plantilla o, si no hay, quien creó el curso'],
   ['{{calificacion}}', 'Promedio de evaluaciones y tareas calificadas (0 a 100)'],
+  ['{{empresa_alumno}}', 'Invitados del enlace: empresa que escribió en el formulario'],
+  ['{{numero_empleado}}', 'Invitados del enlace: número de empleado del formulario'],
+  ['{{puesto}}', 'Invitados del enlace: puesto del formulario'],
+  ['{{campo_<clave>}}', 'Invitados del enlace: campo personalizado del formulario (la clave se ve en Compartir > Formulario)'],
   ['{{%qr}}', 'Código QR de verificación pública (110 × 110 px)'],
   ['{{%firma}}', 'Imagen de la firma de la plantilla (hasta 200 × 80 px)'],
   ['{{%logo}}', 'Logotipo de la empresa (hasta 200 × 80 px)'],
@@ -116,10 +120,11 @@ export const CERT_DOCX_REFERENCE = [
 const DOCX_TAG_LABELS = {
   alumno: 'Alumno', curso: 'Curso', fecha: 'Fecha', horas: 'Horas', folio: 'Folio', empresa: 'Empresa',
   instructor: 'Instructor', calificacion: 'Calificación', '%qr': 'Código QR', '%firma': 'Firma', '%logo': 'Logotipo',
+  empresa_alumno: 'Empresa del alumno', numero_empleado: 'Número de empleado', puesto: 'Puesto',
 }
 
 export const docxTagText = (tag) => `{{${tag}}}`
-export const docxTagLabel = (tag) => DOCX_TAG_LABELS[tag] ?? tag
+export const docxTagLabel = (tag) => DOCX_TAG_LABELS[tag] ?? (/^campo_[a-z][a-z0-9_]*$/.test(tag) ? `Campo ${tag.slice(6)}` : tag)
 export const isDocxFile = (file) => /\.docx$/i.test(String(file?.name ?? ''))
 export const isDocxTemplate = (template) => template?.source === 'docx'
 

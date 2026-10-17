@@ -3,9 +3,11 @@ import {
   Badge, Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent,
   DropdownMenuSubTrigger, DropdownMenuTrigger, ProgressBar,
 } from '@runly/ui'
-import { CalendarClock, ListChecks, MoreHorizontal, RotateCcw, ShieldOff, UserMinus, UserPlus, Users } from 'lucide-react'
+import { CalendarClock, Download, IdCard, ListChecks, MoreHorizontal, RotateCcw, ShieldOff, UserMinus, UserPlus, Users } from 'lucide-react'
 import { useEnrollments, useLmsPermissions, useUpdateEnrollment } from '../hooks/useLmsData.js'
-import { useDownloadCertificate, useIssueCertificate, useRevokeCertificate } from '../hooks/useLmsCerts.js'
+import { saveBlob, useDownloadCertificate, useIssueCertificate, useRevokeCertificate } from '../hooks/useLmsCerts.js'
+import { useCourseShare } from '../hooks/useLmsShare.js'
+import { guestsCsv, isGuestEnrollment } from '../lib/lmsIntake.js'
 import { useGrantExtraAttempt } from '../hooks/useLmsEval.js'
 import { hasValidCertificate } from '../lib/lmsCert.js'
 import { SOURCE_LABELS, formatShortDate, isOverdue } from '../lib/lmsLabels.js'
@@ -14,6 +16,7 @@ import { CertificateCell } from './certificates/CertificateCell.jsx'
 import { RevokeCertificateDialog } from './certificates/RevokeCertificateDialog.jsx'
 import { DueDateDialog } from './DueDateDialog.jsx'
 import { EnrollmentStatusBadge } from './shared.jsx'
+import { GuestDetailsDialog } from './share/GuestDetailsDialog.jsx'
 
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 
@@ -28,7 +31,16 @@ export function EnrollmentsPanel({ courseId, readOnly = false }) {
   const [dueFor, setDueFor] = useState(null)
   const [dropFor, setDropFor] = useState(null)
   const [revokeFor, setRevokeFor] = useState(null)
+  const [detailsFor, setDetailsFor] = useState(null)
   const rows = useMemo(() => enrollments.data ?? [], [enrollments.data])
+  // Intake field labels for guest answers (needs lms.course.manage; keys otherwise).
+  const hasGuests = rows.some(isGuestEnrollment)
+  const share = useCourseShare(courseId, { enabled: hasGuests })
+  const intakeFields = share.data?.settings?.intakeFields ?? []
+
+  function exportGuests() {
+    saveBlob(new Blob([guestsCsv(rows, intakeFields)], { type: 'text/csv;charset=utf-8' }), 'invitados.csv')
+  }
 
   async function patch(id, data, after) {
     try {
@@ -52,6 +64,9 @@ export function EnrollmentsPanel({ courseId, readOnly = false }) {
           <p className="flex min-w-0 items-center gap-1.5 font-medium leading-tight">
             <span className="truncate">{row.original.learner?.displayName ?? '—'}</span>
             {row.original.learner?.kind === 'guest' ? <Badge variant="outline" className="shrink-0" title="Entró con el enlace público del curso">Invitado</Badge> : null}
+            {row.original.learner?.kind === 'guest' ? (
+              <Button variant="ghost" size="icon-sm" className="shrink-0" aria-label="Ver datos del invitado" title="Ver datos del invitado" onClick={() => setDetailsFor(row.original)}><IdCard /></Button>
+            ) : null}
           </p>
           <p className={`${MUTED} truncate`}>{row.original.learner?.email || SOURCE_LABELS[row.original.source] || ''}</p>
         </div>
@@ -136,11 +151,17 @@ export function EnrollmentsPanel({ courseId, readOnly = false }) {
         onRetry={() => enrollments.refetch()}
         pageSize={25}
         searchPlaceholder="Buscar alumno…"
-        toolbarActions={readOnly ? null : <Button onClick={() => setAssignOpen(true)}><UserPlus />Asignar alumnos</Button>}
+        toolbarActions={(
+          <div className="flex flex-wrap gap-2">
+            {hasGuests ? <Button variant="outline" onClick={exportGuests}><Download />Exportar invitados</Button> : null}
+            {readOnly ? null : <Button onClick={() => setAssignOpen(true)}><UserPlus />Asignar alumnos</Button>}
+          </div>
+        )}
         emptyIcon={Users}
         emptyTitle="Nadie está inscrito todavía"
         emptyDescription="Asigna el curso a tu equipo o actívale la inscripción libre en Configuración."
       />
+      <GuestDetailsDialog open={Boolean(detailsFor)} onOpenChange={(open) => { if (!open) setDetailsFor(null) }} enrollment={detailsFor} fields={intakeFields} />
       <AssignLearnersDialog open={assignOpen} onOpenChange={setAssignOpen} courseId={courseId} enrollments={rows} />
       <DueDateDialog
         open={Boolean(dueFor)} onOpenChange={(open) => { if (!open) setDueFor(null) }} enrollment={dueFor} pending={update.isPending}

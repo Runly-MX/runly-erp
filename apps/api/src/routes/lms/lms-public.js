@@ -22,6 +22,8 @@ export function createLmsPublicRouter({
   limiter = createTokenBucketLimiter({ capacity: 30, refillPerSecond: 0.5 }),
   shareLimiter = createTokenBucketLimiter({ capacity: 300, refillPerSecond: 5 }),
   joinLimiter = createTokenBucketLimiter({ capacity: 20, refillPerSecond: 0.2 }),
+  // Invite code checks: 10 per IP, then one every 30 s.
+  accessLimiter = createTokenBucketLimiter({ capacity: 10, refillPerSecond: 1 / 30 }),
 }) {
   const app = new Hono()
   const certs = service ?? createLmsCertService({ prisma, signFile })
@@ -52,7 +54,7 @@ export function createLmsPublicRouter({
     } catch (error) { return fail(c, error, 'No se pudo generar el certificado.') }
   })
 
-  registerLmsSharePublicRoutes(app, { guest, limiter: shareLimiter, joinLimiter, clientKey, fail })
+  registerLmsSharePublicRoutes(app, { guest, limiter: shareLimiter, joinLimiter, accessLimiter, clientKey, fail })
 
   return app
 }

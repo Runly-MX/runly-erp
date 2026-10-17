@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, TextField } from '@runly/ui'
+import { Button } from '@runly/ui'
 import { BookOpen, Building2, Clock, Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 import { HeroBadges, ShareLinkButton } from '../components/course-page/CourseHero.jsx'
@@ -7,7 +7,9 @@ import { PromoHeroLayout } from '../components/course-page/PromoHeroLayout.jsx'
 import { useJoinSharedCourse } from '../hooks/useLmsShare.js'
 import { lessonCountLabel } from '../lib/lmsExperience.js'
 import { formatMinutes } from '../lib/lmsLabels.js'
-import { validateJoinForm } from '../lib/lmsShare.js'
+import { validateIntakeForm } from '../lib/lmsIntake.js'
+import { GuestIntakeFields } from './GuestIntakeFields.jsx'
+import { SharedCourseInviteForm } from './SharedCourseInviteForm.jsx'
 
 const MUTED = 'text-[hsl(var(--muted-foreground))]'
 
@@ -60,17 +62,15 @@ function CoverHero({ data }) {
   )
 }
 
-// Join screen of a shared course: hero (promo video or cover), shared outline
-// and the name form. `onJoined(guestToken)` stores the token.
-export function SharedCourseJoin({ shareToken, data, onJoined }) {
+// Open link: name plus the course intake fields.
+function OpenJoinForm({ shareToken, fields, disabled, onJoined }) {
   const join = useJoinSharedCourse(shareToken)
-  const [values, setValues] = useState({ name: '', email: '' })
+  const [values, setValues] = useState({ name: '', answers: {} })
   const [errors, setErrors] = useState({})
-  const lessons = (data?.sections ?? []).flatMap((section) => section.lessons ?? [])
 
   async function submit(event) {
     event.preventDefault()
-    const result = validateJoinForm(values)
+    const result = validateIntakeForm(values, fields)
     setErrors(result.errors)
     if (Object.keys(result.errors).length) return
     try {
@@ -81,7 +81,27 @@ export function SharedCourseJoin({ shareToken, data, onJoined }) {
     }
   }
 
-  const set = (key) => (event) => setValues((current) => ({ ...current, [key]: event.target.value }))
+  return (
+    <form onSubmit={submit} className="space-y-4" noValidate>
+      <div>
+        <h2 className="text-base font-semibold">Entrar al curso</h2>
+        <p className={`text-sm ${MUTED}`}>No necesitas cuenta. Tu avance se guarda en este navegador.</p>
+      </div>
+      <GuestIntakeFields fields={fields} values={values} errors={errors} onChange={setValues} disabled={join.isPending} />
+      <Button type="submit" className="w-full" disabled={join.isPending || disabled}>
+        {join.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : <LogIn />}Entrar
+      </Button>
+    </form>
+  )
+}
+
+// Join screen of a shared course: hero (promo video or cover), shared outline
+// and the entry form (open: name + intake fields; invite-only: access code).
+// `linkToken` is the personal invite link (?i=). `onJoined(guestToken)` stores the token.
+export function SharedCourseJoin({ shareToken, data, linkToken = null, onJoined }) {
+  const lessons = (data?.sections ?? []).flatMap((section) => section.lessons ?? [])
+  const fields = data?.settings?.intakeFields ?? []
+  const invite = data?.settings?.accessMode === 'invite'
   return (
     <div className="h-dvh overflow-y-auto overscroll-contain bg-[hsl(var(--background))]">
       {data.promo ? (
@@ -110,17 +130,11 @@ export function SharedCourseJoin({ shareToken, data, onJoined }) {
           {!lessons.length ? <p className={`text-sm ${MUTED}`}>Este enlace todavía no comparte lecciones.</p> : null}
         </section>
         <aside>
-          <form onSubmit={submit} className="space-y-4 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 lg:sticky lg:top-6" noValidate>
-            <div>
-              <h2 className="text-base font-semibold">Entrar al curso</h2>
-              <p className={`text-sm ${MUTED}`}>No necesitas cuenta. Tu avance se guarda en este navegador.</p>
-            </div>
-            <TextField label="Tu nombre" required value={values.name} onChange={set('name')} error={errors.name} maxLength={80} autoComplete="name" />
-            <TextField label="Correo (opcional)" type="email" value={values.email} onChange={set('email')} error={errors.email} maxLength={200} autoComplete="email" />
-            <Button type="submit" className="w-full" disabled={join.isPending || !lessons.length}>
-              {join.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : <LogIn />}Entrar
-            </Button>
-          </form>
+          <div className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 lg:sticky lg:top-6">
+            {invite
+              ? <SharedCourseInviteForm shareToken={shareToken} linkToken={linkToken} fields={fields} disabled={!lessons.length} onJoined={onJoined} />
+              : <OpenJoinForm shareToken={shareToken} fields={fields} disabled={!lessons.length} onJoined={onJoined} />}
+          </div>
         </aside>
       </main>
     </div>

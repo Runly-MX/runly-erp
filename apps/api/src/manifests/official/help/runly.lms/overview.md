@@ -85,14 +85,21 @@ En **Certificados** creas plantillas con un título, un texto, quién firma (nom
 
 ### Compartir con personas externas
 
-**Compartir**, en el encabezado del editor del curso, crea un enlace público para personas sin cuenta en Runly. Solo escriben su nombre (el correo es opcional) y entran a un reproductor reducido.
+**Compartir**, en el encabezado del editor del curso, crea un enlace para personas sin cuenta en Runly. Entran a un reproductor reducido. El diálogo tiene tres pestañas: **Enlace**, **Formulario** e **Invitaciones**.
+
+- **Quién puede entrar:** **Abierto** (cualquiera con el enlace escribe sus datos y entra; ideal para cursos cortos de una sesión) o **Solo por invitación** (para cursos largos: solo entran las personas que invitas por correo).
+- **Formulario:** el nombre siempre se pide. Puedes activar Número de empleado, Empresa, Puesto, Correo y Teléfono, marcar cada uno como obligatorio y agregar hasta 5 campos personalizados. Guarda con **Guardar formulario**.
+- **Invitaciones** (solo por invitación): escribe uno o varios correos, uno por línea, con nombre opcional («Nombre <correo>» o «correo, Nombre»). Cada persona recibe un correo con su enlace personal y un código de acceso de 8 caracteres. La primera vez escribe el código y llena el formulario; después puede continuar en cualquier dispositivo con su correo y el mismo código. Al entrar en otro dispositivo se cierra la sesión anterior.
+- En la lista de invitaciones ves el estado (**Pendiente**, **Activo**, **Revocado**) y el último acceso. **Reenviar** genera un código nuevo (el anterior deja de funcionar) y **Revocar acceso** corta la entrada de inmediato; el avance se conserva.
+- Si el envío de correo no está configurado, la invitación se crea igual y Runly te muestra el enlace y el código para que los envíes tú. El código solo se muestra en ese momento.
+- Tras varios códigos incorrectos seguidos, la invitación se bloquea unos minutos.
 
 - **Qué se comparte:** todo el curso, o solo las lecciones en vista previa y las de secciones gratis. Las tareas nunca se comparten.
 - **Permitir exámenes:** los invitados presentan los exámenes compartidos; las respuestas abiertas llegan a **Revisión** con su nombre.
-- **Emitir certificado al completar:** requiere que el curso tenga plantilla. El certificado lleva el nombre que escribió el invitado y se descarga al terminar.
-- Los invitados no tienen preguntas, reseñas, anuncios ni recursos descargables. Su avance se guarda en su navegador; **No soy…** empieza de nuevo con otro nombre.
-- En **Alumnos** aparecen con la etiqueta **Invitado** y puedes darlos de baja.
-- Desactivar el enlace o usar **Generar nuevo enlace** corta de inmediato el acceso de quien tenga el anterior.
+- **Emitir certificado al completar:** requiere que el curso tenga plantilla. El certificado lleva el nombre que escribió el invitado y se descarga al terminar. Las plantillas de Word, PowerPoint o PDF pueden imprimir sus datos del formulario con `{{empresa_alumno}}`, `{{numero_empleado}}`, `{{puesto}}` y `{{campo_<clave>}}` para los campos personalizados (la clave se ve en la pestaña Formulario).
+- Los invitados no tienen preguntas, reseñas, anuncios ni recursos descargables. Con el enlace abierto su avance se guarda en su navegador; **No soy…** empieza de nuevo con otro nombre.
+- En **Alumnos** aparecen con la etiqueta **Invitado**; el botón de ficha muestra lo que respondieron en el formulario y **Exportar invitados** descarga un CSV con sus datos, avance y folio de certificado. Puedes darlos de baja.
+- Desactivar el enlace o usar **Generar nuevo enlace** corta de inmediato el acceso de quien tenga el anterior. Con invitaciones, reenvíalas para que reciban el enlace nuevo (o entran con correo y código en la página nueva).
 
 ### Asignar cursos
 

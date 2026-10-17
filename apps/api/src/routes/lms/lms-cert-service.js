@@ -10,7 +10,8 @@ import { renderCertificatePdf } from './lms-cert-pdf.js'
 import { averageGrade, certTemplateWarnings, isOfficeAvailable } from './lms-cert-docx.js'
 import { createLmsCertFiles, createLmsCertTemplateFiles, isFileSource } from './lms-cert-templates.js'
 import { createCertFileRenderer } from './lms-cert-file-render.js'
-import { FIELD_LABELS, normalizeCertLayout, readLayout } from './lms-cert-pdf-layout.js'
+import { isCertFieldKey, normalizeCertLayout, readLayout } from './lms-cert-pdf-layout.js'
+import { SAMPLE_GUEST_CERT_VARS, guestCertVars } from './lms-intake-core.js'
 
 const iso = (value) => (value ? new Date(value).toISOString() : null)
 const TX = { maxWait: 10_000, timeout: 30_000 }
@@ -27,7 +28,7 @@ export function pdfLayoutWarnings(layout) {
   if (!layout?.page) return ['La plantilla no tiene el tamaño de página; vuelve a subir el PDF.']
   if (!layout.fields.length) return [PDF_NO_FIELDS_WARNING]
   const warnings = layout.fields.some((f) => f.key === 'qr') ? [] : [PDF_NO_QR_WARNING]
-  return warnings.concat(layout.fields.filter((f) => !FIELD_LABELS[f.key]).map((f) => `Campo desconocido: ${f.key}`))
+  return warnings.concat(layout.fields.filter((f) => !isCertFieldKey(f.key)).map((f) => `Campo desconocido: ${f.key}`))
 }
 
 // Best effort: a missing or slow image never blocks the PDF.
@@ -166,20 +167,31 @@ export function createLmsCertService({
     return averageGrade(quizzes.map((r) => ({ lessonId: r.lessonId, score: r.scorePct })), submissions.map((r) => ({ lessonId: r.lessonId, score: r.grade })))
   }
 
+  // Intake answers of a share-link guest, read from lms_learner.guest_profile at
+  // render time: lms_certificate has no JSON column to freeze them at issue, so
+  // a later edit of the profile shows up in a re-rendered PDF (spec §17.4).
+  async function guestVarsFor(certificate) {
+    if (certificate.sample) return SAMPLE_GUEST_CERT_VARS
+    if (!certificate.learnerId) return guestCertVars({})
+    const learner = await prisma.lmsLearner.findUnique({ where: { id: certificate.learnerId }, select: { guestProfile: true } }).catch(() => null)
+    return guestCertVars(learner?.guestProfile)
+  }
+
   // Uploaded file (Word/PowerPoint through Office, PDF with pdf-lib); null = built-in design.
   const fileRenderer = createCertFileRenderer({ store, convertPdf, env, instructorName, gradeFor })
 
   async function renderPdf(companyId, certificate, template, verifyUrl) {
     const brand = await companyBrand(companyId)
-    const [logoBuffer, signatureBuffer] = await Promise.all([
+    const [logoBuffer, signatureBuffer, guestVars] = await Promise.all([
       template?.showLogo !== false && brand.logoFileId ? sign(brand.logoFileId, 'full').then((url) => fetchImage(fetchImpl, url)) : null,
       template?.signatureFileId ? sign(template.signatureFileId, 'full').then((url) => fetchImage(fetchImpl, url)) : null,
+      guestVarsFor(certificate),
     ])
-    const fromFile = await fileRenderer.render(companyId, certificate, template, verifyUrl, { brand, logoBuffer, signatureBuffer })
+    const fromFile = await fileRenderer.render(companyId, certificate, template, verifyUrl, { brand, logoBuffer, signatureBuffer, guestVars })
     if (fromFile) return fromFile
     // An uploaded template has no body of its own: the fallback uses the default text.
     const design = isFileSource(template?.source) ? { ...template, body: template.body ?? DEFAULT_CERT_BODY } : template
-    return renderCertificatePdf({ certificate, template: design, brand, companyName: brand.name, verifyUrl, logoBuffer, signatureBuffer })
+    return renderCertificatePdf({ certificate, template: design, brand, companyName: brand.name, verifyUrl, logoBuffer, signatureBuffer, extraVars: guestVars })
   }
 
   async function certificatePdf(row) {

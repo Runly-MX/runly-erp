@@ -1,6 +1,8 @@
 // /public/lms/share/:token/* — course share links for external guests. No user
 // auth: the link token is in the path and the guest sends `Authorization: Guest <token>`.
-// Rate limited per client IP: one bucket for every guest call, a stricter one for /join.
+// Rate limited per client IP: one bucket for every guest call, a stricter one for
+// /join and the strictest for /access (invite code checks; failures are also
+// counted per invite inside the guest service).
 
 function limit(limiter, clientKey) {
   return async (c, next) => {
@@ -14,7 +16,7 @@ function limit(limiter, clientKey) {
 }
 
 // guest: createLmsGuestService. fail(c, error, fallback) maps LmsError to its status.
-export function registerLmsSharePublicRoutes(app, { guest, limiter, joinLimiter, clientKey, fail }) {
+export function registerLmsSharePublicRoutes(app, { guest, limiter, joinLimiter, accessLimiter = joinLimiter, clientKey, fail }) {
   const base = '/public/lms/share/:token'
   const token = (c) => c.req.param('token')
   const auth = (c) => c.req.header('authorization')
@@ -28,6 +30,7 @@ export function registerLmsSharePublicRoutes(app, { guest, limiter, joinLimiter,
 
   app.get(base, run('No se pudo abrir el curso.', (c) => guest.summary(token(c))))
   app.post(`${base}/join`, limit(joinLimiter, clientKey), run('No se pudo entrar al curso.', async (c) => guest.join(token(c), await body(c), auth(c))))
+  app.post(`${base}/access`, limit(accessLimiter, clientKey), run('No se pudo validar tu código.', async (c) => guest.access(token(c), await body(c))))
   app.get(`${base}/me`, run('No se pudo cargar el curso.', (c) => guest.me(token(c), auth(c))))
   app.get(`${base}/lessons/:lessonId`, run('No se pudo abrir la lección.', (c) => guest.openLesson(token(c), auth(c), c.req.param('lessonId'))))
   app.post(`${base}/lessons/:lessonId/progress`, run('No se pudo guardar el avance.', async (c) => guest.saveProgress(token(c), auth(c), c.req.param('lessonId'), await body(c))))

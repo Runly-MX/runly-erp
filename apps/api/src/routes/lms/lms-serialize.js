@@ -2,6 +2,7 @@
 import { isOverdue } from './lms-core.js'
 import { normalizeLessonSettings } from './lms-eval-core.js'
 import { learnerKind } from './lms-share-core.js'
+import { readGuestProfile } from './lms-intake-core.js'
 
 export const COURSE_COUNTS = {
   _count: { select: { sections: true, enrollments: { where: { status: { not: 'dropped' } } } } },
@@ -120,7 +121,11 @@ export function createLmsSerializers({ prisma, signFile = null }) {
       courseId: row.courseId,
       learnerId: row.learnerId,
       learner: row.learner
-        ? { id: row.learner.id, displayName: row.learner.displayName, email: row.learner.email, userProfileId: row.learner.userProfileId, kind: learnerKind(row.learner) }
+        ? {
+          id: row.learner.id, displayName: row.learner.displayName, email: row.learner.email, userProfileId: row.learner.userProfileId, kind: learnerKind(row.learner),
+          // Intake form answers of a share-link guest ({} for everyone else).
+          guestProfile: learnerKind(row.learner) === 'guest' ? readGuestProfile(row.learner.guestProfile) : {},
+        }
         : null,
       status: row.status,
       source: row.source,

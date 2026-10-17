@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { Button, CheckboxField, NumberField, SelectField, TextField, cn } from '@runly/ui'
 import { Plus, Trash2 } from 'lucide-react'
-import { ALIGN_OPTIONS, FIELD_KEYS, MIN_FIELD, clampField, fieldLabel, isImageField } from '../../lib/certLayout.js'
+import { ALIGN_OPTIONS, CUSTOM_FIELD_RE, FIELD_KEYS, MIN_FIELD, clampField, customFieldKey, fieldLabel, isImageField } from '../../lib/certLayout.js'
 
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 const HEX = /^#[0-9a-f]{6}$/i
@@ -56,16 +57,38 @@ function FieldProperties({ field, page, onChange }) {
   )
 }
 
-// Side panel: which of the 11 fields are placed, and the selected one's properties.
+// "Campo del formulario": a custom intake answer of share-link guests (campo_<clave>).
+function CustomFieldAdder({ onAdd, taken }) {
+  const [text, setText] = useState('')
+  const key = customFieldKey(text)
+  const add = () => { if (key && !taken.has(key)) { onAdd(key); setText('') } }
+  return (
+    <div className="flex items-end gap-2">
+      <div className="min-w-0 flex-1">
+        <TextField
+          label="Campo del formulario de invitados" icon={null} placeholder="planta" value={text} maxLength={30}
+          hint={key ? `Se imprime la respuesta de {{${key}}}.` : 'La clave se ve en Compartir > Formulario.'}
+          error={key && taken.has(key) ? 'Ese campo ya está en la página.' : undefined}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add() } }}
+        />
+      </div>
+      <Button type="button" variant="outline" size="icon" aria-label="Agregar campo del formulario" disabled={!key || taken.has(key)} onClick={add}><Plus /></Button>
+    </div>
+  )
+}
+
+// Side panel: which fields are placed (fixed ones plus campo_<clave>), and the selected one's properties.
 export function PdfFieldPanel({ page, fields, selectedKey, onSelect, onAdd, onRemove, onChange }) {
   const byKey = new Map(fields.map((f) => [f.key, f]))
   const selected = byKey.get(selectedKey) ?? null
+  const keys = [...FIELD_KEYS, ...fields.map((f) => f.key).filter((key) => CUSTOM_FIELD_RE.test(key))]
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
         <p className="text-sm font-medium">Campos</p>
         <ul className="divide-y divide-[hsl(var(--border))] rounded-md border border-[hsl(var(--border))]">
-          {FIELD_KEYS.map((key) => {
+          {keys.map((key) => {
             const placed = byKey.has(key)
             return (
               <li key={key} className={cn('flex items-center gap-1 pr-1', key === selectedKey && 'bg-[hsl(var(--muted))]')}>
@@ -85,6 +108,7 @@ export function PdfFieldPanel({ page, fields, selectedKey, onSelect, onAdd, onRe
             )
           })}
         </ul>
+        <CustomFieldAdder onAdd={onAdd} taken={new Set(byKey.keys())} />
       </div>
       {selected ? (
         <div className="rounded-md border border-[hsl(var(--border))] p-3">

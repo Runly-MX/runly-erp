@@ -21,7 +21,8 @@ export function templateKeys(template) {
 // store: createLmsCertFiles(); instructorName(template, certificate) and
 // gradeFor(certificate) resolve the optional values.
 export function createCertFileRenderer({ store, convertPdf, env, instructorName, gradeFor }) {
-  async function render(companyId, certificate, template, verifyUrl, { brand, logoBuffer, signatureBuffer }) {
+  // guestVars: intake answers of a share-link guest (guestCertVars), {} otherwise.
+  async function render(companyId, certificate, template, verifyUrl, { brand, logoBuffer, signatureBuffer, guestVars = {} }) {
     const source = template?.source
     if (!template?.fileAssetId || !(source === 'pdf' || OFFICE_RENDERERS[source])) return null
     if (source !== 'pdf' && certificate.revokedAt) return null
@@ -36,7 +37,7 @@ export function createCertFileRenderer({ store, convertPdf, env, instructorName,
         keys.has('calificacion') ? gradeFor(certificate).catch(() => '') : '',
       ])
       const images = { qr, firma: isPdfImage(signatureBuffer) ? signatureBuffer : null, logo: isPdfImage(logoBuffer) ? logoBuffer : null }
-      const data = buildCertDocxData({ certificate, companyName: brand.name, instructor, calificacion, images })
+      const data = buildCertDocxData({ certificate, companyName: brand.name, instructor, calificacion, images, guestVars })
       if (source === 'pdf') {
         return await renderCertificateOnPdf({
           buffer, layout: template.layout, data, images, revoked: Boolean(certificate.revokedAt),

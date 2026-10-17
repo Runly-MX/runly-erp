@@ -2,11 +2,14 @@
 // No I/O: tokens, hashing, payload normalizers and the shared-lesson filter.
 import crypto from 'node:crypto'
 import { LmsError } from './lms-error.js'
+import { DEFAULT_INTAKE_FIELDS, EMAIL_FIELD_KEY, normalizeIntakeAnswers, normalizeIntakeFields, readIntakeFields } from './lms-intake-core.js'
 
 export const SHARE_SCOPES = ['all', 'preview']
+// open: anyone with the link joins with the intake form. invite: only emailed
+// invitations (email + access code), for long courses.
+export const ACCESS_MODES = ['open', 'invite']
 export const SHARE_TOKEN_RE = /^[A-Za-z0-9_-]{24}$/
 const GUEST_TOKEN_RE = /^[A-Za-z0-9_-]{32,128}$/
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // 18 random bytes -> 24 url-safe characters.
 export const newShareToken = () => crypto.randomBytes(18).toString('base64url')
@@ -24,31 +27,48 @@ export function parseGuestAuthorization(header) {
 
 export function normalizeShareSettings(raw) {
   const value = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
-  return { scope: value.scope === 'preview' ? 'preview' : 'all', allowQuizzes: value.allowQuizzes === true, issueCertificates: value.issueCertificates === true }
+  return {
+    scope: value.scope === 'preview' ? 'preview' : 'all',
+    allowQuizzes: value.allowQuizzes === true,
+    issueCertificates: value.issueCertificates === true,
+    accessMode: ACCESS_MODES.includes(value.accessMode) ? value.accessMode : 'open',
+    intakeFields: readIntakeFields(value.intakeFields),
+  }
 }
 
 // PUT /lms/courses/:id/share body. Missing keys keep the current settings.
 export function normalizeShareInput(body = {}, current = {}) {
   const base = normalizeShareSettings(current)
   if (body.scope !== undefined && !SHARE_SCOPES.includes(body.scope)) throw new LmsError('Alcance inválido.', 400)
+  if (body.accessMode !== undefined && !ACCESS_MODES.includes(body.accessMode)) throw new LmsError('Modo de acceso inválido.', 400)
   return {
     enabled: body.enabled === undefined ? null : body.enabled === true,
     settings: {
       scope: body.scope ?? base.scope,
       allowQuizzes: body.allowQuizzes === undefined ? base.allowQuizzes : body.allowQuizzes === true,
       issueCertificates: body.issueCertificates === undefined ? base.issueCertificates : body.issueCertificates === true,
+      accessMode: body.accessMode ?? base.accessMode,
+      intakeFields: body.intakeFields === undefined ? base.intakeFields : normalizeIntakeFields(body.intakeFields),
     },
   }
 }
 
-// POST /join body: name 2-80 characters, optional email.
-export function normalizeJoinInput(body = {}) {
-  const name = String(body?.name ?? '').replace(/\s+/g, ' ').trim()
+export function normalizeGuestName(value) {
+  const name = String(value ?? '').replace(/\s+/g, ' ').trim()
   if (name.length < 2) throw new LmsError('Escribe tu nombre (al menos 2 caracteres).', 400)
   if (name.length > 80) throw new LmsError('El nombre no puede pasar de 80 caracteres.', 400)
-  const rawEmail = String(body?.email ?? '').trim().toLowerCase()
-  if (rawEmail && (rawEmail.length > 200 || !EMAIL_RE.test(rawEmail))) throw new LmsError('El correo no es válido.', 400)
-  return { name, email: rawEmail || null }
+  return name
+}
+
+// POST /join body: { name 2-80, answers: { key: value } } validated against the
+// course intake fields. The `correo` answer (or a legacy top-level `email`) is
+// also the learner email. `fixed` forces answers (the invited email).
+export function normalizeJoinInput(body = {}, fields = DEFAULT_INTAKE_FIELDS, fixed = {}) {
+  const name = normalizeGuestName(body?.name)
+  const answers = { ...(body?.answers && typeof body.answers === 'object' ? body.answers : {}) }
+  if (answers[EMAIL_FIELD_KEY] === undefined && body?.email !== undefined) answers[EMAIL_FIELD_KEY] = body.email
+  const profile = normalizeIntakeAnswers(fields, answers, fixed)
+  return { name, email: profile[EMAIL_FIELD_KEY] ?? fixed[EMAIL_FIELD_KEY] ?? null, profile }
 }
 
 // Copies each section's free flag onto its lessons as sectionFree (in place).

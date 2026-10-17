@@ -8,6 +8,7 @@ import { registerLmsSocialRoutes } from './lms-social-routes.js'
 import { registerLmsCertRoutes } from './lms-cert-routes.js'
 import { registerLmsExperienceRoutes } from './lms-experience-routes.js'
 import { createLmsShareService } from './lms-share-service.js'
+import { createLmsInviteService } from './lms-invite-service.js'
 
 const companyId = (c) => c.get('companyId')
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
@@ -25,12 +26,13 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null, experienceServices = null, shareService = null }) {
+export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null, experienceServices = null, shareService = null, inviteService = null, sendMail = null, buildMail = null, getBrand = null, appBaseUrl = undefined }) {
   const app = new Hono()
   const svc = service ?? createLmsService({ prisma, signFile })
   const files = media ?? createLmsMedia({ prisma, supabaseAdmin, bucket })
   const learn = learnService ?? createLmsLearnService({ prisma, signFile, authoring: svc, hlsManifest: files.manifestFor })
-  const share = shareService ?? createLmsShareService({ prisma })
+  const share = shareService ?? createLmsShareService({ prisma, ...(appBaseUrl ? { appBaseUrl } : {}) })
+  const invites = inviteService ?? createLmsInviteService({ prisma, sendMail, buildMail, getBrand, ...(appBaseUrl ? { appBaseUrl } : {}) })
   const access = requirePermission('lms.access')
   const courses = requirePermission('lms.course.manage')
   const enrollments = requirePermission('lms.enrollment.manage')
@@ -68,6 +70,10 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
   app.get('/lms/courses/:id/share', courses, run('Error al cargar el enlace.', async (c) => c.json({ data: await share.getShare(companyId(c), c.req.param('id')) })))
   app.put('/lms/courses/:id/share', courses, run('Error al guardar el enlace.', async (c) => c.json({ data: await share.updateShare(companyId(c), c.req.param('id'), await body(c)) })))
   app.post('/lms/courses/:id/share/rotate', courses, run('Error al generar el enlace.', async (c) => c.json({ data: await share.rotateShare(companyId(c), c.req.param('id')) })))
+  app.get('/lms/courses/:id/share/invites', courses, run('Error al cargar las invitaciones.', async (c) => c.json({ data: await invites.listInvites(companyId(c), c.req.param('id')) })))
+  app.post('/lms/courses/:id/share/invites', courses, run('Error al crear las invitaciones.', async (c) => c.json({ data: await invites.createInvites(companyId(c), actorId(c), c.req.param('id'), await body(c)) }, 201)))
+  app.post('/lms/courses/:id/share/invites/:inviteId/resend', courses, run('Error al reenviar la invitación.', async (c) => c.json({ data: await invites.resendInvite(companyId(c), c.req.param('id'), c.req.param('inviteId')) })))
+  app.post('/lms/courses/:id/share/invites/:inviteId/revoke', courses, run('Error al revocar la invitación.', async (c) => c.json({ data: await invites.revokeInvite(companyId(c), c.req.param('id'), c.req.param('inviteId')) })))
 
   // ---- enrollments --------------------------------------------------------
   app.get('/lms/courses/:id/enrollments', enrollments, run('Error al cargar los alumnos.', async (c) => c.json({ data: await svc.listEnrollments(companyId(c), c.req.param('id')) })))

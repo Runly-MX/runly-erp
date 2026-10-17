@@ -53,7 +53,8 @@ function drawQr(doc, text, x, y, size) {
 
 // certificate: { folio, learnerName, courseTitle, hours, issuedAt, revokedAt }.
 // template: stored template or null (defaults). verifyUrl: absolute URL or null (no QR).
-export function renderCertificatePdf({ certificate, template = null, brand = null, companyName = null, verifyUrl = null, logoBuffer = null, signatureBuffer = null }) {
+// extraVars: more body placeholders (guest intake answers: empresa_alumno, campo_*...).
+export function renderCertificatePdf({ certificate, template = null, brand = null, companyName = null, verifyUrl = null, logoBuffer = null, signatureBuffer = null, extraVars = {} }) {
   const accent = hex(template?.accentColor) ?? hex(brand?.primaryColor) ?? DEFAULT_ACCENT
   const issuedAt = new Date(certificate.issuedAt)
   const title = template?.title || DEFAULT_CERT_TITLE
@@ -66,7 +67,7 @@ export function renderCertificatePdf({ certificate, template = null, brand = nul
   const done = collect(doc)
   const fecha = formatIssueDate(issuedAt)
   const horas = formatHours(Number(certificate.hours) || 0)
-  const vars = { alumno: certificate.learnerName, curso: certificate.courseTitle, fecha, horas, folio: certificate.folio, empresa: companyName ?? '' }
+  const vars = { ...extraVars, alumno: certificate.learnerName, curso: certificate.courseTitle, fecha, horas, folio: certificate.folio, empresa: companyName ?? '' }
 
   // Frame
   doc.lineWidth(6).strokeColor(accent).rect(24, 24, W - 48, H - 48).stroke()

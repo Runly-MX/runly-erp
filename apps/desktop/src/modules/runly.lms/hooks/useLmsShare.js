@@ -26,6 +26,24 @@ function useShareMutation(fn, successMessage) {
 export const useUpdateCourseShare = () => useShareMutation((courseId, data, t) => runly.lms.updateCourseShare(courseId, data, t), 'Enlace actualizado.')
 export const useRotateCourseShare = () => useShareMutation((courseId, _data, t) => runly.lms.rotateCourseShare(courseId, t), 'Nuevo enlace generado. El anterior ya no funciona.')
 
+// ---- Manager: guest email invitations ------------------------------------------
+export const useShareInvites = (courseId, options = {}) => useRead(['share-invites', courseId], (t) => runly.lms.listShareInvites(courseId, t), {
+  enabled: Boolean(courseId) && (options.enabled ?? true), retry: false, refetchOnWindowFocus: false,
+})
+
+function useInviteMutation(fn, errorMessage) {
+  const token = useToken(), client = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ courseId, ...data }) => unwrap(await fn(courseId, data, token)),
+    onSuccess: (_result, { courseId }) => client.invalidateQueries({ queryKey: [KEY, 'share-invites', courseId] }),
+    onError: (error) => toast.error(error.message || errorMessage),
+  })
+}
+
+export const useCreateShareInvites = () => useInviteMutation((courseId, { invites }, t) => runly.lms.createShareInvites(courseId, invites, t), 'No se pudieron crear las invitaciones.')
+export const useResendShareInvite = () => useInviteMutation((courseId, { inviteId }, t) => runly.lms.resendShareInvite(courseId, inviteId, t), 'No se pudo reenviar la invitación.')
+export const useRevokeShareInvite = () => useInviteMutation((courseId, { inviteId }, t) => runly.lms.revokeShareInvite(courseId, inviteId, t), 'No se pudo revocar la invitación.')
+
 // ---- Guest (public share page, no session) ---------------------------------------
 const guestApi = () => runly.lms.guest
 
@@ -50,6 +68,11 @@ export const useGuestLesson = (shareToken, guestToken, lessonId) => useQuery({
 
 export function useJoinSharedCourse(shareToken) {
   return useMutation({ mutationFn: async ({ data, guestToken }) => unwrap(await guestApi().join(shareToken, data, guestToken)) })
+}
+
+// Invite-only links: code check, then (first time) the intake form.
+export function useGuestAccess(shareToken) {
+  return useMutation({ mutationFn: async (data) => unwrap(await guestApi().access(shareToken, data)) })
 }
 
 export function useGuestProgress(shareToken, guestToken) {

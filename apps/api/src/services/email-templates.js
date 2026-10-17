@@ -365,6 +365,49 @@ export function buildAttendancePhoneInviteEmail({ inviteUrl, inviteCode, employe
   return { subject: `Activa tu app Checador${brand?.name ? ` · ${brand.name}` : ""}`, html, text };
 }
 
+// Learning: invitation to a course shared by email (invite-only share link).
+// `inviteUrl` is the personal link; the access code also works from any device
+// with the guest's email on the course page.
+export function buildLmsCourseInviteEmail({ courseTitle, inviteUrl, accessCode, name = null, brand = null, env = process.env }) {
+  const orgName = brand?.name ? brand.name : "Una empresa";
+  const hello = name ? `Hola ${escapeHtml(name)},` : "Hola,";
+  const bodyHtml = `
+        <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155">
+          ${hello} <strong>${escapeHtml(orgName)}</strong> te invitó a tomar el curso <strong>${escapeHtml(courseTitle)}</strong>. No necesitas crear una cuenta.
+        </p>
+        <ol style="margin:0 0 16px 18px;padding:0;font-size:14px;line-height:1.7;color:#334155">
+          <li>Abre tu enlace personal con el botón.</li>
+          <li>Escribe tu código de acceso. La primera vez te pediremos algunos datos.</li>
+          <li>Para continuar en otro dispositivo, entra al curso con tu correo y el mismo código.</li>
+        </ol>
+        <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280">Tu código de acceso</div>
+        <div style="display:inline-block;margin:4px 0 14px 0;padding:10px 14px;border:1px solid #e4e7ec;border-radius:10px;background:#f8fafc;font-family:Consolas,Menlo,monospace;font-size:20px;font-weight:700;letter-spacing:.14em;color:#0c172d">${escapeHtml(accessCode)}</div>
+        <p style="margin:0 0 18px 0;font-size:13px;line-height:1.6;color:#64748b">
+          Si el botón no funciona, copia este enlace en tu navegador:<br />
+          <span style="word-break:break-all;color:#334155">${escapeHtml(inviteUrl)}</span>
+        </p>`;
+  const html = renderRunlyEmailLayout({
+    kicker: "Cursos",
+    heading: `Te invitaron a ${courseTitle}`,
+    bodyHtml,
+    cta: { label: "Abrir el curso", url: inviteUrl },
+    footnote: "El código es personal: no lo compartas. Al entrar en otro dispositivo se cierra la sesión anterior. Si no esperabas este correo, puedes ignorarlo.",
+    brand,
+    env,
+  });
+  const text = [
+    `Te invitaron a ${courseTitle}`,
+    "",
+    `${name ? `Hola ${name}, ` : ""}${orgName} te invitó a tomar el curso ${courseTitle}.`,
+    "",
+    `Tu enlace personal: ${inviteUrl}`,
+    `Tu código de acceso: ${accessCode}`,
+    "",
+    "Para continuar en otro dispositivo, entra al curso con tu correo y el mismo código.",
+  ].join("\n");
+  return { subject: `Invitación al curso ${courseTitle}${brand?.name ? ` · ${brand.name}` : ""}`, html, text };
+}
+
 // Sent only when the admin opts in (notifyByEmail) after directly creating
 // and activating a user — the account already works, so this is informational,
 // not an invitation the recipient must accept.

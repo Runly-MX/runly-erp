@@ -8,8 +8,11 @@ import { buildMinimalDocx, paragraph } from '../../services/document-templates/m
 import { TemplateError } from '../../services/document-templates/template-tags.js'
 import { readOfficeConfig } from '../../services/office/config.js'
 import { formatHours, formatIssueDate } from './lms-cert-core.js'
+import { GUEST_CERT_TAGS, isGuestCertTag } from './lms-intake-core.js'
 
-export const CERT_DOCX_SCALAR_TAGS = ['alumno', 'curso', 'fecha', 'horas', 'folio', 'empresa', 'instructor', 'calificacion']
+// The guest tags print share-link intake answers ('' for everyone else); any
+// other answer is {{campo_<key>}} (isGuestCertTag).
+export const CERT_DOCX_SCALAR_TAGS = ['alumno', 'curso', 'fecha', 'horas', 'folio', 'empresa', 'instructor', 'calificacion', ...GUEST_CERT_TAGS]
 export const CERT_DOCX_IMAGE_TAGS = ['qr', 'firma', 'logo']
 export const CERT_DOCX_MAX_BYTES = 10 * 1024 * 1024
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -28,7 +31,7 @@ export function unknownCertTags(tags = []) {
   return tags.filter((tag) => {
     if (tag.startsWith('#') || tag.startsWith('^')) return true
     if (tag.startsWith('%')) return !CERT_DOCX_IMAGE_TAGS.includes(tag.slice(1))
-    return !CERT_DOCX_SCALAR_TAGS.includes(tag)
+    return !CERT_DOCX_SCALAR_TAGS.includes(tag) && !isGuestCertTag(tag)
   })
 }
 
@@ -97,8 +100,10 @@ const text = (value) => (value === null || value === undefined ? '' : String(val
 
 // certificate: { folio, learnerName, courseTitle, hours, issuedAt }.
 // Image tags take the image key when the image exists, '' otherwise.
-export function buildCertDocxData({ certificate, companyName = '', instructor = '', calificacion = '', images = {} }) {
+// guestVars: guestCertVars(learner.guest_profile) (empresa_alumno, campo_*...).
+export function buildCertDocxData({ certificate, companyName = '', instructor = '', calificacion = '', images = {}, guestVars = {} }) {
   return {
+    ...Object.fromEntries(Object.entries(guestVars ?? {}).map(([key, value]) => [key, text(value)])),
     alumno: text(certificate.learnerName),
     curso: text(certificate.courseTitle),
     fecha: certificate.issuedAt ? formatIssueDate(certificate.issuedAt) : '',

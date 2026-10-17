@@ -128,7 +128,7 @@ import { createNotificationDeliveryWorker } from "./services/notification-delive
 import { createNotificationService } from "./services/notification-service.js";
 import { createRealtimeBroadcaster } from "./services/realtime-broadcaster.js";
 import { createSmtpService } from "./services/smtp-service.js";
-import { buildAttendancePhoneInviteEmail, resolveAppBaseUrl } from "./services/email-templates.js";
+import { buildAttendancePhoneInviteEmail, buildLmsCourseInviteEmail, resolveAppBaseUrl } from "./services/email-templates.js";
 import { sendPasswordResetEmail } from "./lib/send-password-reset-email.js";
 import { uploadIdentityAvatar } from "./lib/upload-identity-avatar.js";
 import { getSignedUrlByFileId } from "./lib/signed-url-by-file-id.js";
@@ -2198,6 +2198,7 @@ app.get("/public", (c) => {
       { method: "GET",  path: "/public/lms/certificates/:token/pdf",    auth: "link token", description: "Learning certificate PDF (revoked ones are stamped)" },
       { method: "GET",  path: "/public/lms/share/:token",               auth: "link token", description: "Shared course summary and outline for external guests" },
       { method: "POST", path: "/public/lms/share/:token/join",          auth: "link token", description: "Guest joins a shared course (returns the guest token once)" },
+      { method: "POST", path: "/public/lms/share/:token/access",        auth: "link token + access code", description: "Invited guest enters with the emailed access code (invite-only courses)" },
       { method: "GET",  path: "/public/lms/share/:token/me",            auth: "Guest token", description: "Guest player: enrollment and progress outline (also lessons/:id, progress and quiz attempts)" },
       // Storefront auth
       { method: "POST", path: "/public/storefront/auth/register",       auth: "none",       description: "Register a storefront user account" },
@@ -2445,7 +2446,7 @@ mountWithAuth(app, createCalendarRouter({ prisma, requirePermission, broadcaster
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService), broadcaster }));
 mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, entityResolver: resolveCanvasEntityLink, dataSources: createCanvasDataSources({ prisma, relationTargets }), removeFiles: createCanvasFileRemover({ prisma, supabaseAdmin }) }));
 mountWithAuth(app, createAttendanceRouter({ prisma, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail), buildInviteMail: buildAttendancePhoneInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env), requirePermission, requireAnyPermission, broadcaster, events: attendanceEvents, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
-mountWithAuth(app, createLmsRouter({ prisma, requirePermission, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
+mountWithAuth(app, createLmsRouter({ prisma, requirePermission, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail), buildMail: buildLmsCourseInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));
