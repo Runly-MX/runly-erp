@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Button, CheckboxField, FieldWrapper, FileUploader, NumberField, SelectField, TextField, TextareaField } from '@runly/ui'
-import { useSaveLesson, useToken, useUploadLmsFile } from '../hooks/useLmsData.js'
+import { useSaveLesson, useUploadLmsFile } from '../hooks/useLmsData.js'
 import { formToSettings, settingsToForm, validateSettings } from '../lib/lmsEval.js'
 import { KIND_LABELS, formatDuration, toOptions } from '../lib/lmsLabels.js'
-import { uploadLessonVideo } from '../lib/uploadLessonVideo.js'
+import { VideoUploadField } from './video/VideoUploadField.jsx'
 import { AssignmentSettingsFields } from './lesson-fields/AssignmentSettingsFields.jsx'
 import { QuizSettingsFields } from './lesson-fields/QuizSettingsFields.jsx'
 import { FormSheet } from './shared.jsx'
 
 const KIND_OPTIONS = toOptions(KIND_LABELS)
 const EMPTY = { title: '', kind: 'video', sectionId: null, body: '', embedUrl: '', durationMinutes: '', required: true, upload: null, settings: {} }
-const STAGE_LABELS = { uploading: 'Subiendo video…', confirming: 'Verificando video…' }
 const BODY_COPY = {
   text: { label: 'Contenido', rows: 12, hint: 'Admite formato Markdown: títulos (#), listas (-), negritas (**texto**) y enlaces.' },
   assignment: { label: 'Instrucciones', rows: 8, hint: 'Qué debe entregar el alumno y cómo se evalúa. Admite Markdown.' },
@@ -34,7 +33,6 @@ function fromLesson(lesson, sectionId) {
 // `onEditQuestions(lesson)` opens the quiz questions editor; it also runs right
 // after a quiz lesson is created so the author can add its questions.
 export function LessonSheet({ open, onOpenChange, lesson, sectionId, sections, onEditQuestions }) {
-  const token = useToken()
   const save = useSaveLesson(), uploadFile = useUploadLmsFile()
   const [form, setForm] = useState(EMPTY)
   const [errors, setErrors] = useState({})
@@ -50,14 +48,6 @@ export function LessonSheet({ open, onOpenChange, lesson, sectionId, sections, o
   const setKind = (kind) => setForm((current) => (kind === current.kind ? current : {
     ...current, kind, upload: null, settings: settingsToForm(kind, lesson?.kind === kind ? lesson.settings : null),
   }))
-
-  async function uploadVideo(file) {
-    try {
-      const result = await uploadLessonVideo(file, token, { onStage: setStage })
-      if (result.durationSeconds) setForm((current) => ({ ...current, durationMinutes: String(Math.max(1, Math.round(result.durationSeconds / 60))) }))
-      return result
-    } finally { setStage(null) }
-  }
 
   async function uploadDocument(file) {
     const asset = await uploadFile.mutateAsync({ file })
@@ -124,14 +114,14 @@ export function LessonSheet({ open, onOpenChange, lesson, sectionId, sections, o
       </div>
 
       {form.kind === 'video' ? (
-        <FieldWrapper label="Video" required error={errors.upload} hint={stage ? STAGE_LABELS[stage] : undefined}>
-          <FileUploader
-            value={fileValue} accept="video/*" maxSizeMB={50} disabled={uploading}
-            onUpload={uploadVideo} onChange={set('upload')}
-            hint="MP4 o WebM, máximo 50 MB. Para videos más largos usa el tipo «Enlace de video» (YouTube o Vimeo)."
-            emptyLabel="Subir video"
-          />
-        </FieldWrapper>
+        <VideoUploadField
+          value={form.upload} error={errors.upload} disabled={uploading}
+          onBusyChange={(busy) => setStage(busy ? 'uploading' : null)}
+          onChange={(upload) => setForm((current) => ({
+            ...current, upload,
+            ...(upload?.durationSeconds ? { durationMinutes: String(Math.max(1, Math.round(upload.durationSeconds / 60))) } : {}),
+          }))}
+        />
       ) : null}
       {form.kind === 'file' ? (
         <FieldWrapper label="Archivo" required error={errors.upload}>
