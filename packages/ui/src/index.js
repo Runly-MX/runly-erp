@@ -18,6 +18,7 @@ export { TypeBadge } from "./components/TypeBadge.jsx";
 export { Separator } from "./components/Separator.jsx";
 export { Skeleton, FormSkeleton, DetailSkeleton } from "./components/Skeleton.jsx";
 export { ProgressBar } from "./components/ProgressBar.jsx";
+export { StarRating } from "./components/StarRating.jsx";
 export { LoadingState } from "./components/LoadingState.jsx";
 export { Avatar, AvatarImage, AvatarFallback } from "./components/Avatar.jsx";
 export { PersonAvatar, personInitials } from "./components/PersonAvatar.jsx";

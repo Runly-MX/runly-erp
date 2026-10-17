@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Badge, Button, EmptyState, ErrorState, PageHeader, ProgressBar, Skeleton } from '@runly/ui'
 import { BookOpen, ListTree, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { CourseOutline } from '../components/CourseOutline.jsx'
 import { LessonContent } from '../components/LessonContent.jsx'
 import { FormSheet, useRouteId } from '../components/shared.jsx'
+import { CourseRating } from '../components/social/CourseRating.jsx'
+import { LessonTabs } from '../components/social/LessonTabs.jsx'
+import { RateCoursePrompt } from '../components/social/RateCoursePrompt.jsx'
+import { ReviewsDialog } from '../components/social/ReviewsDialog.jsx'
 import { useLesson, useLmsPermissions, useOutline, useSaveProgress } from '../hooks/useLmsData.js'
-import { flattenLessons, lmsPath, pickStartLesson } from '../lib/lmsLabels.js'
+import { useReviews } from '../hooks/useLmsSocial.js'
+import { flattenLessons, lmsPath, normalizePlayerTab, pickStartLesson } from '../lib/lmsLabels.js'
 
 function Centered({ children }) {
   return <div className="flex h-full min-h-[60dvh] items-center justify-center p-6">{children}</div>
@@ -31,20 +36,36 @@ export default function LmsPlayer() {
   const courseId = useRouteId()
   const outline = useOutline(courseId)
   const { canManageCourses } = useLmsPermissions()
-  const [lessonId, setLessonId] = useState(null)
+  // The open lesson and tab live in the URL (?lesson=&tab=) so notification
+  // links ("Respuesta en una pregunta", "Nuevo anuncio") land on the right place.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const lessonId = searchParams.get('lesson')
+  const tab = normalizePlayerTab(searchParams.get('tab'))
   const [outlineOpen, setOutlineOpen] = useState(false)
+  const [reviewsOpen, setReviewsOpen] = useState(false)
+  const [initialRating, setInitialRating] = useState(0)
   const lesson = useLesson(lessonId)
   const save = useSaveProgress(courseId)
 
   const data = outline.data
   const preview = Boolean(data) && !data.enrollment
+  const reviews = useReviews(courseId, { enabled: Boolean(data) })
   const lessons = useMemo(() => flattenLessons(data?.sections), [data?.sections])
   const current = lessons.find((item) => item.id === lessonId)
   const status = data?.enrollment?.status
   const statusRef = useRef(status)
 
+  const setParams = (patch) => setSearchParams((current) => {
+    const next = new URLSearchParams(current)
+    Object.entries(patch).forEach(([key, value]) => (value ? next.set(key, value) : next.delete(key)))
+    return next
+  }, { replace: true })
+
   useEffect(() => {
-    if (data && !lessonId) setLessonId(pickStartLesson(data.sections, data.enrollment?.lastLessonId))
+    if (!data || lessonId) return
+    const start = pickStartLesson(data.sections, data.enrollment?.lastLessonId)
+    if (start) setParams({ lesson: start })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, lessonId])
 
   // "Curso completado" fires once, when the enrollment flips to completed.
@@ -54,7 +75,9 @@ export default function LmsPlayer() {
   }, [status])
 
   const back = () => navigate(preview && canManageCourses ? lmsPath(`/courses/${courseId}`) : lmsPath('/'))
-  const select = (id) => { if (id) { setLessonId(id); setOutlineOpen(false) } }
+  const select = (id) => { if (id) { setParams({ lesson: id, tab: null }); setOutlineOpen(false) } }
+  const setTab = (value) => setParams({ tab: value === 'contenido' ? null : value })
+  const openReviews = (rating = 0) => { setInitialRating(rating); setReviewsOpen(true) }
 
   function report(progress) {
     if (!lessonId || preview) return
@@ -86,6 +109,8 @@ export default function LmsPlayer() {
   if (!data) return null
 
   const pct = data.enrollment?.progressPct ?? 0
+  const rating = reviews.data ?? data.course ?? {}
+  const showRatePrompt = !preview && Boolean(reviews.data?.canReview) && !reviews.data?.mine
   const outlineNode = <CourseOutline sections={data.sections} currentLessonId={lessonId} onSelect={select} />
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))]">
@@ -99,6 +124,7 @@ export default function LmsPlayer() {
           className="pb-3"
           actions={(
             <div className="flex items-center gap-3">
+              <CourseRating avg={rating.ratingAvg} count={rating.ratingCount} showEmpty onClick={() => openReviews()} />
               {preview ? <Badge variant="warning">Vista previa: el avance no se guarda</Badge> : (
                 <div className="hidden w-40 items-center gap-2 sm:flex">
                   <ProgressBar value={pct} />
@@ -118,16 +144,25 @@ export default function LmsPlayer() {
           ) : !lessonId ? (
             <EmptyState icon={Lock} title="No hay lecciones disponibles" description="Todas las lecciones están bloqueadas por ahora." />
           ) : (
-            <LessonPane
-              lesson={lesson} outlineLessons={lessons} courseId={courseId} status={current?.status} preview={preview}
-              onProgress={report} onComplete={complete} completing={save.isPending} onNavigate={select}
-            />
+            <>
+              {showRatePrompt ? <RateCoursePrompt key={courseId} courseId={courseId} completed={status === 'completed'} onRate={openReviews} /> : null}
+              <LessonTabs
+                courseId={courseId} lessonId={lessonId} tab={tab} onTabChange={setTab}
+                announcementCount={data.announcementCount} readOnly={status === 'dropped'}
+              >
+                <LessonPane
+                  lesson={lesson} outlineLessons={lessons} courseId={courseId} status={current?.status} preview={preview}
+                  onProgress={report} onComplete={complete} completing={save.isPending} onNavigate={select}
+                />
+              </LessonTabs>
+            </>
           )}
         </main>
       </div>
       <FormSheet open={outlineOpen} onOpenChange={setOutlineOpen} title="Contenido del curso" description={preview ? 'Vista previa' : `Avance: ${pct}%`}>
         {outlineNode}
       </FormSheet>
+      <ReviewsDialog open={reviewsOpen} onOpenChange={setReviewsOpen} courseId={courseId} courseTitle={data.course?.title} initialRating={initialRating} />
     </div>
   )
 }

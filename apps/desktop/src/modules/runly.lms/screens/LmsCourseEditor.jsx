@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, AlertDescription, Button, ChipTabPanel, ChipTabs, ConfirmDialog, ErrorState, PageHeader, Skeleton } from '@runly/ui'
-import { Archive, Eye, EyeOff, Globe, Layers, RotateCcw, Settings2, Users } from 'lucide-react'
+import { Archive, Eye, EyeOff, Globe, Layers, Megaphone, RotateCcw, Settings2, Star, Users } from 'lucide-react'
 import { CourseSettingsForm } from '../components/CourseSettingsForm.jsx'
 import { CurriculumEditor } from '../components/CurriculumEditor.jsx'
 import { EnrollmentsPanel } from '../components/EnrollmentsPanel.jsx'
 import { CourseStatusBadge, PageShell, useRouteId } from '../components/shared.jsx'
+import { AnnouncementsTab } from '../components/social/AnnouncementsTab.jsx'
+import { CourseRating } from '../components/social/CourseRating.jsx'
+import { ReviewsTab } from '../components/social/ReviewsTab.jsx'
 import { useArchiveCourse, useCourse, useLmsPermissions, useUpdateCourse } from '../hooks/useLmsData.js'
 import { lmsPath } from '../lib/lmsLabels.js'
 
@@ -13,6 +16,8 @@ const TABS = [
   { value: 'content', label: 'Contenido', icon: Layers, description: 'Secciones y lecciones del curso: videos, enlaces, textos y archivos.' },
   { value: 'settings', label: 'Configuración', icon: Settings2, description: 'Título, descripción, portada, nivel y reglas de avance e inscripción.' },
   { value: 'learners', label: 'Alumnos', icon: Users, description: 'Asigna el curso, define fechas límite y revisa el avance de cada persona.' },
+  { value: 'announcements', label: 'Anuncios', icon: Megaphone, description: 'Avisos para los alumnos del curso. Cada anuncio nuevo les llega como notificación.' },
+  { value: 'reviews', label: 'Reseñas', icon: Star, description: 'Calificaciones y opiniones de los alumnos. Puedes responderlas u ocultarlas.' },
 ]
 
 export default function LmsCourseEditor() {
@@ -71,6 +76,7 @@ export default function LmsCourseEditor() {
           <span className="inline-flex flex-wrap items-center gap-2">
             <CourseStatusBadge status={course.status} />
             <span>{course.lessonCount ?? 0} {course.lessonCount === 1 ? 'lección' : 'lecciones'} · {course.enrollmentCount ?? 0} {course.enrollmentCount === 1 ? 'alumno' : 'alumnos'}</span>
+            <CourseRating avg={course.ratingAvg} count={course.ratingCount} onClick={() => setTab('reviews')} />
           </span>
         )}
         actions={actions}
@@ -93,6 +99,12 @@ export default function LmsCourseEditor() {
           <EnrollmentsPanel courseId={course.id} readOnly={archived} />
         </ChipTabPanel>
       ) : null}
+      <ChipTabPanel value="announcements" active={tab === 'announcements'}>
+        <AnnouncementsTab courseId={course.id} readOnly={archived} />
+      </ChipTabPanel>
+      <ChipTabPanel value="reviews" active={tab === 'reviews'}>
+        <ReviewsTab courseId={course.id} />
+      </ChipTabPanel>
       <ConfirmDialog
         open={confirmArchive} onOpenChange={setConfirmArchive}
         icon={Archive}

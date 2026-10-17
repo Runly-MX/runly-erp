@@ -139,3 +139,64 @@ export function patchOutline(outline, lessonId, result) {
     })),
   }
 }
+
+// ---- Social (phase 3) ------------------------------------------------------------
+
+// "4.5" (one decimal) / '' when there is no rating yet.
+export function formatRating(avg) {
+  const value = Number(avg)
+  if (avg === null || avg === undefined || avg === '' || !Number.isFinite(value) || value <= 0) return ''
+  return value.toFixed(1)
+}
+
+// "(12 reseñas)" style count label.
+export const reviewCountLabel = (count) => `${count ?? 0} ${count === 1 ? 'reseña' : 'reseñas'}`
+
+// "ahora", "hace 5 min", "hace 3 h", "ayer", "12 oct" (+ year when not current).
+export function relativeTime(value, now = new Date()) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000)
+  if (minutes < 1) return 'ahora'
+  if (minutes < 60) return `hace ${minutes} min`
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  if (date.getTime() >= startOfToday) return `hace ${Math.floor(minutes / 60)} h`
+  if (date.getTime() >= startOfToday - 86_400_000) return 'ayer'
+  return formatShortDate(date, now)
+}
+
+// Distribution {1..5: n} -> rows from 5 to 1 with their share of the total.
+export function ratingRows(distribution, count) {
+  const total = Number(count) || 0
+  return [5, 4, 3, 2, 1].map((stars) => {
+    const n = Number(distribution?.[stars] ?? distribution?.[String(stars)] ?? 0)
+    return { stars, count: n, pct: total ? Math.round((n / total) * 100) : 0 }
+  })
+}
+
+export const PLAYER_TABS = ['contenido', 'preguntas', 'anuncios']
+export const normalizePlayerTab = (tab) => (PLAYER_TABS.includes(tab) ? tab : 'contenido')
+
+// "Califica este curso" dismissal, per course. Storage can be missing or throw
+// (private mode, blocked site data): every access is guarded.
+const RATE_PROMPT_KEY = 'runly.lms.ratePromptDismissed'
+
+function readDismissed(storage) {
+  try {
+    const parsed = JSON.parse(storage?.getItem(RATE_PROMPT_KEY) ?? '[]')
+    return Array.isArray(parsed) ? parsed : []
+  } catch { return [] }
+}
+
+export function isRatePromptDismissed(courseId, storage = globalThis.localStorage) {
+  try { return readDismissed(storage).includes(courseId) } catch { return false }
+}
+
+export function dismissRatePrompt(courseId, storage = globalThis.localStorage) {
+  try {
+    const list = readDismissed(storage).filter((id) => id !== courseId)
+    list.push(courseId)
+    storage?.setItem(RATE_PROMPT_KEY, JSON.stringify(list.slice(-200)))
+  } catch { /* storage unavailable: the prompt shows again next time */ }
+}

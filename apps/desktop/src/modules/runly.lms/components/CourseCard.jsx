@@ -1,6 +1,7 @@
 import { Badge, Button, ProgressBar, cn } from '@runly/ui'
 import { BookOpen, Clock, GraduationCap } from 'lucide-react'
 import { LEVEL_LABELS, dueLabel, formatMinutes, isOverdue } from '../lib/lmsLabels.js'
+import { CourseRating } from './social/CourseRating.jsx'
 
 // Course tile for the learner home. `actionLabel` + `onAction` drive the
 // single button (Continuar / Repasar / Inscribirme).
@@ -32,6 +33,7 @@ export function CourseCard({ course, enrollment, actionLabel, onAction, pending 
           {course.level ? <li>{LEVEL_LABELS[course.level] ?? course.level}</li> : null}
           <li className="inline-flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" aria-hidden="true" />{course.lessonCount ?? 0} {course.lessonCount === 1 ? 'lección' : 'lecciones'}</li>
           {course.estimatedMinutes ? <li className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" aria-hidden="true" />{formatMinutes(course.estimatedMinutes)}</li> : null}
+          {course.ratingCount ? <li><CourseRating avg={course.ratingAvg} count={course.ratingCount} /></li> : null}
         </ul>
         <div className="mt-auto space-y-3">
           {showProgress ? (
