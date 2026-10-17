@@ -4,7 +4,7 @@ import { createFilesService } from '../services/files-service.js';
 import { attachmentTargetSchema, normalizeAttachmentTarget, createAttachmentTargets, ATTACHMENT_TARGETS } from './attachment-targets.js';
 import { accessFor, liveGrant } from './access.js';
 import { createMcpState, digest, transactionClient } from './state.js';
-import { fingerprint } from './domain-runtime.js';
+import { fingerprint, decided } from './domain-runtime.js';
 import { companyInput, proposalSchema, resultSchema } from './contracts.js';
 import { insist } from './config.js';
 
@@ -123,7 +123,8 @@ export function createFileImport({ prisma, config, supabaseAdmin, download }) {
   async function approve(user, id, approved) {
     await prisma.$transaction(async tx => {
       const store = createMcpState(tx), row = await store.lock('proposal', id), p = row.payload;
-      insist(p.version === 3 && p.authUserId === user && !p.result && !p.rejected, 'permission_denied', 'Propuesta no disponible.', 403);
+      insist(p.version === 3 && p.authUserId === user, 'permission_denied', 'Propuesta no disponible.', 403);
+      if (decided(p, approved)) return;
       await validate(p, tx);
       await store.save(row, { ...p, approved, rejected: !approved });
     });

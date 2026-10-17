@@ -102,7 +102,13 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
     assert.equal(detail.refreshed, true);
     assert.ok(JSON.stringify(detail.preview).includes('José Luis López'));
     await approve(report);
+    await approve(report);
+    const reverse = await request(`/mcp/proposals/${report.proposalId}`, { approve: false }, webToken());
+    assert.equal(reverse.status, 409);
+    assert.equal((await reverse.json()).error, 'already_decided');
+    assert.equal((await (await request(`/mcp/proposals/${report.proposalId}`, null, webToken())).json()).approved, true);
     const created = await commit('hr', report);
+    assert.equal((await request(`/mcp/proposals/${report.proposalId}`, { approve: false }, webToken())).status, 409);
     assert.equal((await prisma.hrEmployee.findUnique({ where: { id: created.result.id } })).supervisorEmployeeId, supervisor.id);
     const late = await prepare('hr', 'hr.employee.create', { data: { firstName: 'Edgar', lastName: 'Cisneros', supervisorEmployeeId: supervisor.id } });
     await approve(late);

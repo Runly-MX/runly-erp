@@ -12,7 +12,16 @@ export const fingerprint = value => digest(JSON.stringify(canonical(wire(value))
 
 // Sensitive proposals need an extra explicit confirmation in the web approval.
 // Each write-capable adapter declares it (boolean or per-operation function).
-export const isSensitive = (adapter, definition, input) => typeof adapter.sensitive === 'function' ? Boolean(adapter.sensitive(definition, input)) : adapter.sensitive === true;
+// A decision is final. Repeating the same decision is a no-op (true); changing
+// it, or deciding an executed proposal differently, is refused.
+export function decided(p, approved) {
+  if (!p.approved && !p.rejected && !p.result) return false;
+  const same = approved ? p.approved && !p.rejected : p.rejected;
+  insist(same, 'already_decided', p.result ? 'Esta propuesta ya se ejecutó.' : 'Esta propuesta ya tiene una decisión.', 409);
+  return true;
+}
+
+export const isSensitive =(adapter, definition, input) => typeof adapter.sensitive === 'function' ? Boolean(adapter.sensitive(definition, input)) : adapter.sensitive === true;
 
 export function createDomainRuntime({ prisma, config, registry }) {
   async function context(auth, companyId, moduleKey, permission, scope, db = prisma) {
@@ -101,7 +110,8 @@ export function createDomainRuntime({ prisma, config, registry }) {
   async function approve(authUserId, id, approved, acknowledgeSensitive = false) {
     await prisma.$transaction(async db => {
       const store = createMcpState(db), row = await store.lock('proposal', id), p = row.payload;
-      insist(p.authUserId === authUserId && !p.result && !p.rejected, 'permission_denied', 'Propuesta no disponible.', 403);
+      insist(p.authUserId === authUserId, 'permission_denied', 'Propuesta no disponible.', 403);
+      if (decided(p, approved)) return;
       insist(!approved || !p.sensitive || acknowledgeSensitive, 'confirmation_required', 'Confirma explícitamente los cambios sensibles de la propuesta.', 403);
       const { adapter, definition, actx } = await proposalContext(p, db);
       const fresh = await prepareDefinition(adapter, definition, p.input, actx);

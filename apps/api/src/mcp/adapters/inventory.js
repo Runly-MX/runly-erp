@@ -7,6 +7,7 @@ import { inventoryFiltersSchema } from '../../services/inventory-query.js';
 import { accessFor, liveGrant } from '../access.js';
 import { createMcpState, nonce, wire, transactionClient, digest } from '../state.js';
 import { insist } from '../config.js';
+import { decided } from '../domain-runtime.js';
 
 export const companyInput = { companyId: z.uuid() };
 const filters = inventoryFiltersSchema.omit({ missingSerial: true }).extend({ unassigned: z.boolean().optional() }).strict();
@@ -106,12 +107,13 @@ export function createInventoryMcpCapabilities({ prisma, config, oauth }) {
     insist(row?.payload.authUserId === authUserId, 'not_found', 'Propuesta no disponible.', 404);
     const p = row.payload;
     await context(p, p.companyId, p.action === 'update' ? 'inventory.item.update' : 'inventory.item.create');
-    return { proposalId: id, companyId: p.companyId, action: p.action, preview: p.prepared.preview, proposed: p.args, approved: p.approved, completed: Boolean(p.result), expiresAt: row.expiresAt };
+    return { proposalId: id, companyId: p.companyId, action: p.action, preview: p.prepared.preview, proposed: p.args, approved: p.approved, rejected: Boolean(p.rejected), completed: Boolean(p.result), expiresAt: row.expiresAt };
   }
   async function approve(authUserId, id, approved) {
     await prisma.$transaction(async db => {
       const s = createMcpState(db), row = await s.lock('proposal', id), p = row.payload;
-      insist(p.authUserId === authUserId && !p.result, 'permission_denied', 'Propuesta no disponible.', 403);
+      insist(p.authUserId === authUserId, 'permission_denied', 'Propuesta no disponible.', 403);
+      if (decided(p, approved)) return;
       await context(p, p.companyId, p.action === 'update' ? 'inventory.item.update' : 'inventory.item.create', db);
       await s.save(row, { ...p, approved, rejected: !approved });
     });

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { ListChecks, PlugZap, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ListChecks, PlugZap, ShieldAlert } from 'lucide-react';
 import { Accordion, ConfirmDialog, EmptyState, ErrorState, LoadingState, Tabs, TabsContent, TabsList, TabsTrigger, Button } from '@runly/ui';
 import { useAuth } from '../auth/AuthProvider';
-import { ActionBar, CompanyOption, Destination, FieldChanges, McpPage, Notice, Panel, PanelHeader, ScopeList, SectionLabel, SensitiveCheck } from './McpConnectionParts.jsx';
+import { ActionBar, CompanyOption, Destination, FieldChanges, McpPage, Notice, Panel, PanelHeader, ProposalStatus, ScopeList, SectionLabel, SensitiveCheck } from './McpConnectionParts.jsx';
 import { ActivityList, ConnectionItem } from './McpActivityParts.jsx';
 
 export function McpConnectionScreen() {
@@ -40,6 +40,8 @@ export function McpConnectionScreen() {
   const error = account.error || detail.error || action.error || revoke.error;
   if (account.isPending || (detail.isPending && (requestId || proposalId))) return <LoadingState variant="page" />;
   const request = requestId && detail.data, proposal = proposalId && detail.data;
+  // A decision is final on the server; reopening the link shows its state, not the actions.
+  const decided = Boolean(proposal) && (done || proposal.approved || proposal.rejected || proposal.completed);
   const toggleCompany = id => checked => setCompanyIds(ids => checked ? [...ids, id] : ids.filter(x => x !== id));
   const items = activity.data?.activity ?? [], companies = account.data?.companies ?? [];
   const approvals = items.filter(entry => entry.type === 'approval' || entry.mode === 'prepare');
@@ -75,10 +77,10 @@ export function McpConnectionScreen() {
         {Array.isArray(detail.data.proposed?.effects) && detail.data.proposed.effects.length > 0 && <div className="space-y-2"><SectionLabel>Efectos previstos</SectionLabel><ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">{detail.data.proposed.effects.map(effect => <li key={effect}>{effect}</li>)}</ul></div>}
         <div className="space-y-2"><SectionLabel>Datos a aplicar</SectionLabel><FieldChanges fields={detail.data.preview.fields} /></div>
         <details className="rounded-md border border-[hsl(var(--border))]"><summary className="cursor-pointer select-none p-3 text-sm font-medium">Datos completos de la propuesta</summary><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-[hsl(var(--border))] bg-[hsl(var(--muted))] p-3 text-xs">{JSON.stringify(detail.data.proposed, null, 2)}</pre></details>
-        {detail.data.sensitive && !done && <SensitiveCheck checked={sensitiveAcknowledged} onChange={checked => setAcknowledgedProposal(checked === true ? proposalId : null)} />}
-        {done && <p role="status" className="flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm"><ShieldCheck size={18} aria-hidden="true" />Decisión guardada. Vuelve al asistente para continuar.</p>}
+        {detail.data.sensitive && !decided && <SensitiveCheck checked={sensitiveAcknowledged} onChange={checked => setAcknowledgedProposal(checked === true ? proposalId : null)} />}
+        {decided && <ProposalStatus completed={detail.data.completed} rejected={detail.data.rejected} justDecided={done} />}
       </div>
-      {!done && <ActionBar>
+      {!decided && <ActionBar>
         <Button variant="outline" disabled={action.isPending || detail.data.completed} onClick={() => action.mutate(false)}>Rechazar</Button>
         <Button disabled={action.isPending || detail.data.completed || detail.data.rejected || detail.data.sensitive && !sensitiveAcknowledged} onClick={() => action.mutate(true)}>Aprobar propuesta</Button>
       </ActionBar>}

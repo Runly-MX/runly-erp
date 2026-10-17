@@ -1,4 +1,4 @@
-import { Eye, PencilLine, ShieldCheck, ArrowRight, Check, Link2 } from 'lucide-react';
+import { Eye, PencilLine, ShieldCheck, ArrowRight, Check, CheckCircle2, Link2, XCircle } from 'lucide-react';
 import { Checkbox } from '@runly/ui';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useThemeStore } from '../stores/theme';
@@ -115,6 +115,14 @@ export function FieldChanges({ fields }) {
       </dd>
     </div>)}
   </dl>;
+}
+
+/** Final state of a decided proposal, shown instead of the approve/reject actions. */
+export function ProposalStatus({ completed, rejected, justDecided }) {
+  const [Icon, cls, text] = completed ? [CheckCircle2, 'border-emerald-500/40 bg-emerald-500/10', 'Propuesta ejecutada. El asistente ya aplicó estos cambios en Runly.']
+    : rejected ? [XCircle, 'border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.6)]', 'Propuesta rechazada. No se aplicará ningún cambio.']
+    : [ShieldCheck, 'border-emerald-500/40 bg-emerald-500/10', justDecided ? 'Propuesta aprobada. Vuelve al asistente para continuar.' : 'Propuesta aprobada. El asistente puede ejecutarla una sola vez mientras siga vigente.'];
+  return <p role="status" className={`flex items-center gap-2 rounded-md border p-3 text-sm ${cls}`}><Icon size={18} className="shrink-0" aria-hidden="true" />{text}</p>;
 }
 
 export function SensitiveCheck({ checked, onChange }) {
