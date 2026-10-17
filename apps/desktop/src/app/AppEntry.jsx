@@ -57,6 +57,7 @@ const AttendancePhoneKeyScreen = lazy(() => import("../modules/runly.attendance/
 const PublicCustodySignScreen = lazy(() => import("../modules/runly.inventory/screens/PublicCustodySignScreen.jsx"));
 const PublicInventoryItemScreen = lazy(() => import("../modules/runly.inventory/screens/PublicInventoryItemScreen.jsx"));
 const LmsCertificateVerifyScreen = lazy(() => import("../modules/runly.lms/public/CertificateVerifyScreen.jsx"));
+const LmsSharedCourseScreen = lazy(() => import("../modules/runly.lms/public/SharedCourseScreen.jsx"));
 import { useCallSoundUnlock } from "../modules/runly.chat/calls/useCallSoundUnlock.js";
 import "../styles.css";
 
@@ -198,6 +199,8 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="inv/:token" element={<Suspense fallback={null}><PublicInventoryItemScreen /></Suspense>} />
                     {/* runly.lms: certificate verification from the PDF QR code */}
                     <Route path="lms/cert/:token" element={<Suspense fallback={null}><LmsCertificateVerifyScreen /></Suspense>} />
+                    {/* runly.lms: public course share link for external guests */}
+                    <Route path="lms/curso/:token" element={<Suspense fallback={null}><LmsSharedCourseScreen /></Suspense>} />
                   </Route>
                   <Route element={<AppRouteGuard mode="access" />}>
                     <Route path="/app/mcp" element={<McpConnectionScreen />} />

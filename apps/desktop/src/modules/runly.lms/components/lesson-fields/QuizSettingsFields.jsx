@@ -1,5 +1,6 @@
 import { NumberField, SelectField, SwitchField } from '@runly/ui'
 import { SHOW_ANSWERS_LABELS, toOptions } from '../../lib/lmsLabels.js'
+import { LMS_BOUNDS as B } from '../../lib/lmsEval.js'
 
 const SHOW_OPTIONS = toOptions(SHOW_ANSWERS_LABELS)
 const INT = { allowNegative: false, allowDecimal: false }
@@ -13,16 +14,16 @@ export function QuizSettingsFields({ value, onChange, errors = {}, disabled = fa
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <NumberField
           label="Calificación mínima (%)" required value={value.passingScore} onChange={field('passingScore')} error={errors.passingScore}
-          hint="Porcentaje para aprobar, de 0 a 100." {...INT} disabled={disabled}
+          hint="Porcentaje para aprobar, de 0 a 100." {...INT} {...B.passingScore} disabled={disabled}
         />
-        <NumberField label="Intentos permitidos" value={value.maxAttempts} onChange={field('maxAttempts')} error={errors.maxAttempts} hint="Vacío: sin límite." {...INT} disabled={disabled} />
+        <NumberField label="Intentos permitidos" value={value.maxAttempts} onChange={field('maxAttempts')} error={errors.maxAttempts} hint="De 1 a 20. Vacío: sin límite." {...INT} {...B.maxAttempts} disabled={disabled} />
         <NumberField
           label="Tiempo límite (minutos)" value={value.timeLimitMinutes} onChange={field('timeLimitMinutes')} error={errors.timeLimitMinutes}
-          hint="Vacío: sin tiempo límite." {...INT} disabled={disabled}
+          hint="De 1 a 600 minutos. Vacío: sin tiempo límite." {...INT} {...B.timeLimitMinutes} disabled={disabled}
         />
         <NumberField
           label="Preguntas por intento" value={value.drawCount} onChange={field('drawCount')} error={errors.drawCount}
-          hint="Vacío: todas. Con un número, cada intento toma esa cantidad al azar." {...INT} disabled={disabled}
+          hint="De 1 a 200. Vacío: todas. Con un número, cada intento toma esa cantidad al azar." {...INT} {...B.drawCount} disabled={disabled}
         />
       </div>
       <SelectField

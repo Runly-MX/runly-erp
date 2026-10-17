@@ -1,6 +1,7 @@
 // Shared loaders and serializers for runly.lms (authoring and learner views).
 import { isOverdue } from './lms-core.js'
 import { normalizeLessonSettings } from './lms-eval-core.js'
+import { learnerKind } from './lms-share-core.js'
 
 export const COURSE_COUNTS = {
   _count: { select: { sections: true, enrollments: { where: { status: { not: 'dropped' } } } } },
@@ -54,6 +55,7 @@ export function createLmsSerializers({ prisma, signFile = null }) {
       ratingAvg: row.ratingAvg === null || row.ratingAvg === undefined ? null : Number(row.ratingAvg),
       ratingCount: row.ratingCount ?? 0,
       certificateTemplateId: row.certificateTemplateId ?? null,
+      promoLessonId: row.promoLessonId ?? null,
       createdAt: iso(row.createdAt),
       updatedAt: iso(row.updatedAt),
     }
@@ -88,6 +90,7 @@ export function createLmsSerializers({ prisma, signFile = null }) {
       durationSeconds: row.durationSeconds,
       position: row.position,
       required: row.required,
+      preview: row.preview === true,
       settings: normalizeLessonSettings(row.kind, row.settings),
       enabled: row.enabled,
     }
@@ -105,6 +108,7 @@ export function createLmsSerializers({ prisma, signFile = null }) {
       courseId: section.courseId,
       title: section.title,
       position: section.position,
+      free: section.free === true,
       lessons: await Promise.all(section.lessons.map(async (lesson) => lessonShape(lesson, names, await lessonCoverUrl(lesson)))),
     })))
   }
@@ -116,7 +120,7 @@ export function createLmsSerializers({ prisma, signFile = null }) {
       courseId: row.courseId,
       learnerId: row.learnerId,
       learner: row.learner
-        ? { id: row.learner.id, displayName: row.learner.displayName, email: row.learner.email, userProfileId: row.learner.userProfileId }
+        ? { id: row.learner.id, displayName: row.learner.displayName, email: row.learner.email, userProfileId: row.learner.userProfileId, kind: learnerKind(row.learner) }
         : null,
       status: row.status,
       source: row.source,

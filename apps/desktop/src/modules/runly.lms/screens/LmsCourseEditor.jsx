@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, AlertDescription, Button, ChipTabPanel, ChipTabs, ConfirmDialog, ErrorState, PageHeader, Skeleton } from '@runly/ui'
-import { Archive, Eye, EyeOff, Globe, Layers, Megaphone, RotateCcw, Settings2, Star, Users } from 'lucide-react'
+import { Archive, Eye, EyeOff, Globe, Layers, Link2, Megaphone, RotateCcw, Settings2, Star, Users } from 'lucide-react'
+import { ShareCourseDialog } from '../components/share/ShareCourseDialog.jsx'
 import { CourseSettingsForm } from '../components/CourseSettingsForm.jsx'
 import { CurriculumEditor } from '../components/CurriculumEditor.jsx'
 import { EnrollmentsPanel } from '../components/EnrollmentsPanel.jsx'
@@ -29,6 +30,7 @@ export default function LmsCourseEditor() {
   const archive = useArchiveCourse()
   const [tab, setTab] = useState('content')
   const [confirmArchive, setConfirmArchive] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const back = () => navigate(lmsPath('/courses'))
 
   if (query.isLoading) {
@@ -58,6 +60,7 @@ export default function LmsCourseEditor() {
   const actions = (
     <>
       <Button variant="outline" onClick={() => navigate(lmsPath(`/learn/${course.id}`))}><Eye />Vista previa</Button>
+      <Button variant="outline" onClick={() => setShareOpen(true)}><Link2 />Compartir</Button>
       {course.status === 'draft' ? <Button onClick={() => setStatus(publish, 'published')} disabled={publish.isPending}><Globe />Publicar</Button> : null}
       {course.status === 'published' ? <Button variant="outline" onClick={() => setStatus(unpublish, 'draft')} disabled={unpublish.isPending}><EyeOff />Despublicar</Button> : null}
       {archived ? <Button variant="outline" onClick={() => setStatus(unpublish, 'draft')} disabled={unpublish.isPending}><RotateCcw />Restaurar</Button> : null}
@@ -80,6 +83,8 @@ export default function LmsCourseEditor() {
           </span>
         )}
         actions={actions}
+        collapseOnScroll
+        sticky
         className="mb-2 pb-0"
       />
       {archived ? (
@@ -92,7 +97,7 @@ export default function LmsCourseEditor() {
         <CurriculumEditor courseId={course.id} sections={sections} readOnly={archived} />
       </ChipTabPanel>
       <ChipTabPanel value="settings" active={tab === 'settings'}>
-        <CourseSettingsForm course={course} readOnly={archived} />
+        <CourseSettingsForm course={course} sections={sections} readOnly={archived} />
       </ChipTabPanel>
       {canManageEnrollments ? (
         <ChipTabPanel value="learners" active={tab === 'learners'}>
@@ -114,6 +119,7 @@ export default function LmsCourseEditor() {
         loading={archive.isPending}
         onConfirm={doArchive}
       />
+      <ShareCourseDialog open={shareOpen} onOpenChange={setShareOpen} courseId={course.id} readOnly={archived} />
     </PageShell>
   )
 }

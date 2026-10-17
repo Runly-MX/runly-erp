@@ -12,7 +12,11 @@ const QUESTIONS_ORDERED = [{ position: 'asc' }, { createdAt: 'asc' }]
 const FULL_ATTEMPT = { enrollment: { include: { learner: true, course: true } }, lesson: true }
 const notQuiz = () => new LmsError('La lección no es un examen.', 409, 'NOT_QUIZ')
 
-export function createLmsQuizService({ prisma, learn, notifier, signFile = null }) {
+// ownsAttempt(row, actor): who may read/write an attempt. Internal learners match
+// by profile id; guest players (share links) pass their own check.
+const ownsByProfile = (row, profileId) => Boolean(profileId) && row.enrollment?.learner?.userProfileId === profileId
+
+export function createLmsQuizService({ prisma, learn, notifier, signFile = null, ownsAttempt = ownsByProfile }) {
   const ser = createLmsSerializers({ prisma, signFile })
 
   // ---- authoring ----------------------------------------------------------
@@ -89,7 +93,7 @@ export function createLmsQuizService({ prisma, learn, notifier, signFile = null 
 
   async function ownAttempt(companyId, profileId, attemptId) {
     const row = await prisma.lmsQuizAttempt.findFirst({ where: { id: attemptId, companyId }, include: FULL_ATTEMPT })
-    if (!row || !profileId || row.enrollment?.learner?.userProfileId !== profileId) throw new LmsError('El intento no existe.', 404)
+    if (!row || !ownsAttempt(row, profileId)) throw new LmsError('El intento no existe.', 404)
     return row
   }
 

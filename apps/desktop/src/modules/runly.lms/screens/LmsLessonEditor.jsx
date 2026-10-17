@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Badge, Button, ConfirmDialog, EmptyState, ErrorState, PageHeader, Skeleton } from '@runly/ui'
+import { Badge, Button, ConfirmDialog, EmptyState, ErrorState, PageHeader, Skeleton, useScrollCollapse } from '@runly/ui'
 import { FileQuestion, Layers, ListTree, Loader2, Undo2 } from 'lucide-react'
 import { CourseCurriculumNav } from '../components/curriculum/CourseCurriculumNav.jsx'
 import { LessonEditorForm } from '../components/lesson-editor/LessonEditorForm.jsx'
@@ -39,6 +39,7 @@ export default function LmsLessonEditor() {
   const [questionsDirty, setQuestionsDirty] = useState(false)
   const [pendingNav, setPendingNav] = useState(null)
   const [navOpen, setNavOpen] = useState(false)
+  const headerScroll = useScrollCollapse()
 
   const sections = query.data?.sections ?? []
   const course = query.data?.course
@@ -124,8 +125,8 @@ export default function LmsLessonEditor() {
   )
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))]">
-      <div className="sticky top-0 z-10 shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 pt-3 sm:px-6">
         <PageHeader
+          collapseOnScroll collapsed={headerScroll.collapsed}
           compact onBack={back} backLabel="Curso" eyebrow={course?.title ?? 'Curso'}
           title={form.title.trim() || (isNew ? 'Nueva lección' : lesson?.title ?? 'Lección')}
           description={(
@@ -134,7 +135,7 @@ export default function LmsLessonEditor() {
               <span aria-live="polite">{status}</span>
             </span>
           )}
-          className="pb-3"
+          className="shrink-0 border-[hsl(var(--border))] px-4 pt-3 pb-3 sm:px-6"
           actions={(
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="lg:hidden" onClick={() => setNavOpen(true)}><ListTree />Contenido</Button>
@@ -150,10 +151,10 @@ export default function LmsLessonEditor() {
             </div>
           )}
         />
-      </div>
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-80 shrink-0 overflow-y-auto border-r border-[hsl(var(--border))] p-3 lg:block">{nav}</aside>
         <main className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
+          <div ref={headerScroll.sentinelRef} aria-hidden="true" />
           <div className="mx-auto w-full max-w-5xl">
             <LessonEditorForm
               form={form} setForm={setForm} errors={errors} lesson={lesson} sections={sections} isNew={isNew} readOnly={readOnly}

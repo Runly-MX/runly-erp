@@ -17,7 +17,7 @@ export const SUBMISSION_STATUS_LABELS = { submitted: 'Enviada', returned: 'Devue
 export const SUBMISSION_VARIANTS = { submitted: 'secondary', returned: 'warning', approved: 'success' }
 export const REVIEW_TYPE_LABELS = { attempt: 'Examen', submission: 'Tarea' }
 export const ENROLLMENT_STATUS_LABELS = { active: 'En curso', completed: 'Completado', dropped: 'Baja' }
-export const SOURCE_LABELS = { self: 'Inscripción libre', assigned: 'Asignado' }
+export const SOURCE_LABELS = { self: 'Inscripción libre', assigned: 'Asignado', share: 'Enlace compartido' }
 
 export const STATUS_VARIANTS = { draft: 'secondary', published: 'success', archived: 'outline' }
 export const ENROLLMENT_VARIANTS = { active: 'secondary', completed: 'success', dropped: 'outline' }

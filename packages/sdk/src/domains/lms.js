@@ -1,5 +1,28 @@
 const id = (value) => encodeURIComponent(value)
 
+// Public guest client for /public/lms/share/:shareToken/*. Every call is online only.
+function createGuestApi(request) {
+  const base = (shareToken) => `/public/lms/share/${id(shareToken)}`
+  const call = (method, path, guestToken, data) => request(path, {
+    method,
+    onlineOnly: true,
+    headers: guestToken ? { Authorization: `Guest ${guestToken}` } : {},
+    ...(data === undefined ? {} : { body: JSON.stringify(data) }),
+  })
+  return {
+    getCourse: (shareToken) => call('GET', base(shareToken)),
+    join: (shareToken, data, guestToken) => call('POST', `${base(shareToken)}/join`, guestToken, data ?? {}),
+    me: (shareToken, guestToken) => call('GET', `${base(shareToken)}/me`, guestToken),
+    openLesson: (shareToken, lessonId, guestToken) => call('GET', `${base(shareToken)}/lessons/${id(lessonId)}`, guestToken),
+    saveProgress: (shareToken, lessonId, data, guestToken) => call('POST', `${base(shareToken)}/lessons/${id(lessonId)}/progress`, guestToken, data ?? {}),
+    getQuiz: (shareToken, lessonId, guestToken) => call('GET', `${base(shareToken)}/lessons/${id(lessonId)}/quiz`, guestToken),
+    startAttempt: (shareToken, lessonId, guestToken) => call('POST', `${base(shareToken)}/lessons/${id(lessonId)}/attempts`, guestToken, {}),
+    getAttempt: (shareToken, attemptId, guestToken) => call('GET', `${base(shareToken)}/attempts/${id(attemptId)}`, guestToken),
+    saveAnswers: (shareToken, attemptId, answers, guestToken) => call('PUT', `${base(shareToken)}/attempts/${id(attemptId)}/answers`, guestToken, { answers }),
+    submitAttempt: (shareToken, attemptId, answers, guestToken) => call('POST', `${base(shareToken)}/attempts/${id(attemptId)}/submit`, guestToken, answers === undefined ? {} : { answers }),
+  }
+}
+
 export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQueryString }) {
   const send = (method, path, data, token) => request(path, {
     method,
@@ -127,6 +150,14 @@ export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQuery
     listMyCertificates: (token) => send('GET', '/lms/my/certificates', undefined, token),
     downloadMyCertificate: (certificateId, token) => blob(`/lms/my/certificates/${id(certificateId)}/pdf`, token),
     getPublicCertificate: (certToken) => request(`/public/lms/certificates/${id(certToken)}`, { method: 'GET' }),
+
+    // Course share links (manager, lms.course.manage).
+    getCourseShare: (courseId, token) => send('GET', `/lms/courses/${id(courseId)}/share`, undefined, token),
+    updateCourseShare: (courseId, data, token) => send('PUT', `/lms/courses/${id(courseId)}/share`, data, token),
+    rotateCourseShare: (courseId, token) => send('POST', `/lms/courses/${id(courseId)}/share/rotate`, {}, token),
+
+    // Guest player on a share link: no user session, only `Authorization: Guest <guestToken>`.
+    guest: createGuestApi(request),
     publicCertificatePdfUrl: (certToken) => `/public/lms/certificates/${id(certToken)}/pdf`,
   }
 }

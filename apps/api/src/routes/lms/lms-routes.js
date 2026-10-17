@@ -7,6 +7,7 @@ import { registerLmsEvalRoutes } from './lms-eval-routes.js'
 import { registerLmsSocialRoutes } from './lms-social-routes.js'
 import { registerLmsCertRoutes } from './lms-cert-routes.js'
 import { registerLmsExperienceRoutes } from './lms-experience-routes.js'
+import { createLmsShareService } from './lms-share-service.js'
 
 const companyId = (c) => c.get('companyId')
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
@@ -24,11 +25,12 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null, experienceServices = null }) {
+export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null, experienceServices = null, shareService = null }) {
   const app = new Hono()
   const svc = service ?? createLmsService({ prisma, signFile })
   const files = media ?? createLmsMedia({ prisma, supabaseAdmin, bucket })
   const learn = learnService ?? createLmsLearnService({ prisma, signFile, authoring: svc, hlsManifest: files.manifestFor })
+  const share = shareService ?? createLmsShareService({ prisma })
   const access = requirePermission('lms.access')
   const courses = requirePermission('lms.course.manage')
   const enrollments = requirePermission('lms.enrollment.manage')
@@ -62,6 +64,11 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
   app.post('/lms/media/hls/presign', courses, run('Error al preparar la subida del video.', async (c) => c.json({ data: await files.presignHls(companyId(c), actorId(c), await body(c)) })))
   app.post('/lms/media/:fileId/confirm', courses, run('Error al confirmar la subida.', async (c) => c.json({ data: await files.confirm(companyId(c), c.req.param('fileId')) })))
 
+  // ---- public share link (external guests) --------------------------------
+  app.get('/lms/courses/:id/share', courses, run('Error al cargar el enlace.', async (c) => c.json({ data: await share.getShare(companyId(c), c.req.param('id')) })))
+  app.put('/lms/courses/:id/share', courses, run('Error al guardar el enlace.', async (c) => c.json({ data: await share.updateShare(companyId(c), c.req.param('id'), await body(c)) })))
+  app.post('/lms/courses/:id/share/rotate', courses, run('Error al generar el enlace.', async (c) => c.json({ data: await share.rotateShare(companyId(c), c.req.param('id')) })))
+
   // ---- enrollments --------------------------------------------------------
   app.get('/lms/courses/:id/enrollments', enrollments, run('Error al cargar los alumnos.', async (c) => c.json({ data: await svc.listEnrollments(companyId(c), c.req.param('id')) })))
   app.post('/lms/courses/:id/enrollments', enrollments, run('Error al asignar el curso.', async (c) => c.json({ data: await svc.assign(companyId(c), actorId(c), c.req.param('id'), await body(c)) })))
@@ -74,7 +81,7 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
   registerLmsSocialRoutes(app, { prisma, requirePermission, signFile, notificationService, run, service: socialService })
 
   // ---- course page and lesson resources -----------------------------------
-  registerLmsExperienceRoutes(app, { prisma, requirePermission, signFile, run, ...(experienceServices ?? {}) })
+  registerLmsExperienceRoutes(app, { prisma, requirePermission, signFile, run, resolveMedia: learn.resolveMedia ?? null, ...(experienceServices ?? {}) })
 
   // ---- certificates -------------------------------------------------------
   registerLmsCertRoutes(app, { prisma, requirePermission, signFile, supabaseAdmin, bucket, run, service: certService })

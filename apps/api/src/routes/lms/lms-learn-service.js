@@ -8,6 +8,7 @@ import { recordLessonOutcome } from './lms-progress.js'
 import { updateEnrollmentWithCertificate } from './lms-cert-issue.js'
 import { createLmsResourcesService } from './lms-resources-service.js'
 import { LESSON_THUMB_VARIANT } from './lms-overview-service.js'
+import { isOpenPreview, markSectionFree } from './lms-share-core.js'
 
 const OPEN_STATUSES = ['active', 'completed']
 const MANUAL_COMPLETE_KINDS = new Set(['text', 'file', 'embed'])
@@ -82,18 +83,25 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
 
   // Loads the course with ordered lessons, the caller's enrollment and progress,
   // and the per-lesson state. Throws when the caller may not view the course.
+  // access: 'enrolled', 'manage' (preview without enrollment) or 'free' (not
+  // enrolled: only free-section and preview lessons of a published course open).
   async function loadContext(companyId, userProfileId, courseId, { canManage }) {
     const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true }, include: COURSE_COUNTS })
     if (!course) throw new LmsError('El curso no existe.', 404)
     const enrollment = await openEnrollment(companyId, userProfileId, course.id)
-    if (!enrollment && !canManage) throw new LmsError('No estás inscrito en este curso.', 403, 'NOT_ENROLLED')
+    const notEnrolled = () => new LmsError('No estás inscrito en este curso.', 403, 'NOT_ENROLLED')
+    const access = enrollment ? 'enrolled' : canManage ? 'manage' : 'free'
+    if (access === 'free' && course.status !== 'published') throw notEnrolled()
     if (course.status === 'draft' && !canManage) throw new LmsError('El curso no existe.', 404)
-    const sections = await prisma.lmsSection.findMany({ where: { courseId: course.id }, ...SECTIONS_ORDERED })
+    const sections = markSectionFree(await prisma.lmsSection.findMany({ where: { courseId: course.id }, ...SECTIONS_ORDERED }))
     const lessons = orderLessons(sections)
+    if (access === 'free' && !lessons.some((lesson) => isOpenPreview(lesson))) throw notEnrolled()
     const progressRows = enrollment ? await prisma.lmsLessonProgress.findMany({ where: { enrollmentId: enrollment.id } }) : []
     const progressById = new Map(progressRows.map((row) => [row.lessonId, row]))
-    const states = lessonStates(lessons, progressById, { sequential: course.sequential, locked: Boolean(enrollment) })
-    return { course, enrollment, sections, lessons, progressById, states }
+    const states = access === 'free'
+      ? new Map(lessons.map((lesson) => [lesson.id, isOpenPreview(lesson) ? 'available' : 'locked']))
+      : lessonStates(lessons, progressById, { sequential: course.sequential, locked: Boolean(enrollment) })
+    return { course, enrollment, access, sections, lessons, progressById, states }
   }
 
   async function outline(companyId, userProfileId, courseId, { canManage = false } = {}) {
@@ -103,15 +111,18 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
       course: await ser.serializeCourse(ctx.course),
       announcementCount,
       enrollment: ctx.enrollment ? ser.serializeEnrollment(ctx.enrollment) : null,
+      access: ctx.access,
       sections: await Promise.all(ctx.sections.map(async (section) => ({
         id: section.id,
         title: section.title,
+        free: section.free === true,
         lessons: await Promise.all(section.lessons.map(async (lesson) => ({
           id: lesson.id,
           title: lesson.title,
           kind: lesson.kind,
           durationSeconds: lesson.durationSeconds,
           required: lesson.required,
+          free: isOpenPreview(lesson),
           coverUrl: await ser.sign(lesson.coverFileId, LESSON_THUMB_VARIANT),
           status: ctx.states.get(lesson.id) ?? 'available',
           positionSeconds: ctx.progressById.get(lesson.id)?.positionSeconds ?? 0,
@@ -124,6 +135,9 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     const lesson = await prisma.lmsLesson.findFirst({ where: { id: lessonId, companyId, enabled: true } })
     if (!lesson) throw new LmsError('La lección no existe.', 404)
     const ctx = await loadContext(companyId, userProfileId, lesson.courseId, { canManage })
+    if (ctx.access === 'free' && ctx.states.get(lesson.id) === 'locked') {
+      throw new LmsError('Inscríbete al curso para abrir esta lección.', 403, 'NOT_ENROLLED')
+    }
     if (ctx.states.get(lesson.id) === 'locked') throw new LmsError('Completa las lecciones anteriores para abrir esta.', 409, 'LOCKED')
     return { ...ctx, lesson }
   }
@@ -172,7 +186,8 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     const index = lessons.findIndex((item) => item.id === lesson.id)
     const names = await ser.fileNames([lesson.fileId])
     const { mediaUrl, media, poster } = await resolveMedia(lesson)
-    const lessonResources = await resources.lessonResources(lesson.id)
+    // Free preview (not enrolled): only the lesson itself, no resources.
+    const lessonResources = ctx.access === 'free' ? [] : await resources.lessonResources(lesson.id)
     return {
       lesson: {
         id: lesson.id,
@@ -200,8 +215,13 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
   }
 
   async function saveProgress(companyId, userProfileId, lessonId, body = {}) {
-    const ctx = await lessonContext(companyId, userProfileId, lessonId, { canManage: false })
+    return applyProgress(await lessonContext(companyId, userProfileId, lessonId, { canManage: false }), body)
+  }
+
+  // ctx: { lesson, enrollment, course, progressById } of an enrolled learner (also guests).
+  async function applyProgress(ctx, body = {}) {
     const { lesson, enrollment, course } = ctx
+    if (!enrollment) throw new LmsError('Inscríbete al curso para guardar tu avance.', 403, 'NOT_ENROLLED')
     if (course.status !== 'published') throw new LmsError('El curso no está disponible para guardar avance.', 409, 'NOT_PUBLISHED')
     const now = new Date()
     const position = seconds(body.positionSeconds)
@@ -233,5 +253,5 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     return { lessonStatus: result.lessonStatus, enrollment: { ...ser.serializeEnrollment(result.enrollment), certificate: enrollmentCertificate(certs) } }
   }
 
-  return { catalog, myCourses, enroll, outline, openLesson, lessonMedia, saveProgress, lessonContext }
+  return { catalog, myCourses, enroll, outline, openLesson, lessonMedia, saveProgress, applyProgress, resolveMedia, lessonContext }
 }

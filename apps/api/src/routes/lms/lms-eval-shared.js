@@ -2,6 +2,7 @@
 import {
   attemptOutcome, attemptsAllowed, learnerQuestion, normalizeQuizSettings, revealAllowed, revealedQuestion, scoreAttempt,
 } from './lms-eval-core.js'
+import { learnerKind } from './lms-share-core.js'
 
 const iso = (value) => (value ? new Date(value).toISOString() : null)
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -74,7 +75,7 @@ export async function serializeSubmissions(rows, ser) {
   })))
 }
 
-export const learnerShape = (learner) => (learner ? { id: learner.id, displayName: learner.displayName, userProfileId: learner.userProfileId } : null)
+export const learnerShape = (learner) => (learner ? { id: learner.id, displayName: learner.displayName, userProfileId: learner.userProfileId, kind: learnerKind(learner) } : null)
 
 // Lesson status a finished attempt leaves, counting every attempt and extra grants.
 export async function quizOutcome(db, { enrollmentId, lessonId, settings, needsReview, passed }) {

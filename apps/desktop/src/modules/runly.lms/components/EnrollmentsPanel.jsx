@@ -49,7 +49,10 @@ export function EnrollmentsPanel({ courseId, readOnly = false }) {
       id: 'learner', header: 'Alumno', accessorFn: (e) => `${e.learner?.displayName ?? ''} ${e.learner?.email ?? ''}`,
       cell: ({ row }) => (
         <div className="min-w-0">
-          <p className="truncate font-medium leading-tight">{row.original.learner?.displayName ?? '—'}</p>
+          <p className="flex min-w-0 items-center gap-1.5 font-medium leading-tight">
+            <span className="truncate">{row.original.learner?.displayName ?? '—'}</span>
+            {row.original.learner?.kind === 'guest' ? <Badge variant="outline" className="shrink-0" title="Entró con el enlace público del curso">Invitado</Badge> : null}
+          </p>
           <p className={`${MUTED} truncate`}>{row.original.learner?.email || SOURCE_LABELS[row.original.source] || ''}</p>
         </div>
       ),

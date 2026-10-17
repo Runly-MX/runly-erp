@@ -86,7 +86,7 @@ export function GradeSubmissionSheet({ submissionId, onOpenChange }) {
                 <div className="max-w-56">
                   <NumberField
                     label="Calificación (0 a 100)" value={score} onChange={(event) => setScore(event.target.value)}
-                    hint={`Mínima para aprobar: ${passingScore}.`} allowNegative={false} min={0} max={100}
+                    hint={`Mínima para aprobar: ${passingScore}.`} min={0} max={100}
                   />
                 </div>
               ) : null}

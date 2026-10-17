@@ -2,6 +2,7 @@
 // the manual endpoint. Must run inside a transaction: the folio sequence is
 // guarded by a per-company advisory lock that lasts until commit.
 import { certificateHours, formatFolio, newToken, nextSequence } from './lms-cert-core.js'
+import { normalizeShareSettings } from './lms-share-core.js'
 
 // tx: transaction client. enrollment: stored row (id, companyId, courseId, learnerId, status).
 // Returns { certificate, created } or null when the course has no usable template.
@@ -9,9 +10,11 @@ export async function issueCertificate(tx, { enrollment, issuedById = null, now 
   if (!enrollment || enrollment.status !== 'completed') return null
   const course = await tx.lmsCourse.findUnique({
     where: { id: enrollment.courseId },
-    select: { title: true, estimatedMinutes: true, certificateTemplateId: true, certificateTemplate: { select: { id: true, enabled: true } } },
+    select: { title: true, estimatedMinutes: true, certificateTemplateId: true, shareSettings: true, certificateTemplate: { select: { id: true, enabled: true } } },
   })
   if (!course?.certificateTemplate?.enabled) return null
+  // Share-link guests only when the link settings issue certificates (name = guest displayName).
+  if (enrollment.source === 'share' && !normalizeShareSettings(course.shareSettings).issueCertificates) return null
 
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`lms_cert:${enrollment.companyId}`}))::text AS locked`
   const existing = await tx.lmsCertificate.findFirst({ where: { enrollmentId: enrollment.id, revokedAt: null } })

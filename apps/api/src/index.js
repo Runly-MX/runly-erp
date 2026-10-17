@@ -2146,8 +2146,8 @@ app.route("/", createCanvasPublicRouter({
 const attendanceEvents = createAttendanceEvents({ prisma, broadcaster, notificationService });
 app.route("/", createAttendancePublicRouter({ prisma, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, events: attendanceEvents }));
 
-// Learning certificates verification: /public/lms/* (token in the path, no user auth).
-app.route("/", createLmsPublicRouter({ prisma, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
+// Learning: certificate verification and course share links for guests, /public/lms/* (token in the path, no user auth).
+app.route("/", createLmsPublicRouter({ prisma, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService }));
 
 // File view/download public links: /public/files/:token (path-scoped, no auth).
 app.route("/", createFilesPublicRouter({
@@ -2196,6 +2196,9 @@ app.get("/public", (c) => {
       { method: "ALL",  path: "/public/m/:moduleKey/:token/*",          auth: "link token", description: "Module public links: _context plus the module api/public.js routes" },
       { method: "GET",  path: "/public/lms/certificates/:token",        auth: "link token", description: "Learning certificate verification (valid or revoked)" },
       { method: "GET",  path: "/public/lms/certificates/:token/pdf",    auth: "link token", description: "Learning certificate PDF (revoked ones are stamped)" },
+      { method: "GET",  path: "/public/lms/share/:token",               auth: "link token", description: "Shared course summary and outline for external guests" },
+      { method: "POST", path: "/public/lms/share/:token/join",          auth: "link token", description: "Guest joins a shared course (returns the guest token once)" },
+      { method: "GET",  path: "/public/lms/share/:token/me",            auth: "Guest token", description: "Guest player: enrollment and progress outline (also lessons/:id, progress and quiz attempts)" },
       // Storefront auth
       { method: "POST", path: "/public/storefront/auth/register",       auth: "none",       description: "Register a storefront user account" },
       { method: "POST", path: "/public/storefront/auth/login",          auth: "none",       description: "Login and obtain access + refresh tokens" },

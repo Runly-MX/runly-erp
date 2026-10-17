@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Button, CheckboxField, FieldWrapper, FileUploader, MarkdownField, NumberField, SelectField, TextField, TextareaField } from '@runly/ui'
+import { CheckboxField, FieldWrapper, FileUploader, FormSaveBar, MarkdownField, NumberField, SelectField, TextField, TextareaField } from '@runly/ui'
 import { useUpdateCourse, useUploadLmsFile } from '../hooks/useLmsData.js'
 import { useCertificateTemplates } from '../hooks/useLmsCerts.js'
 import { NO_TEMPLATE } from '../lib/lmsCert.js'
 import { LEVEL_LABELS, toOptions } from '../lib/lmsLabels.js'
+import { NO_PROMO, promoLessonOptions } from '../lib/lmsShare.js'
 
 const LEVEL_OPTIONS = toOptions(LEVEL_LABELS)
 
@@ -16,10 +17,11 @@ const schema = z.object({
   description: z.string().max(20000, 'El texto es demasiado largo.'),
   category: z.string().max(100, 'Máximo 100 caracteres.'),
   level: z.enum(['basic', 'intermediate', 'advanced']),
-  estimatedMinutes: z.string().regex(/^\d*$/, 'Escribe minutos enteros.'),
+  estimatedMinutes: z.string().regex(/^\d*$/, 'Escribe minutos enteros.').refine((value) => !value || Number(value) <= 10000, 'Escribe de 0 a 10000 minutos.'),
   sequential: z.boolean(),
   selfEnroll: z.boolean(),
   certificateTemplateId: z.string(),
+  promoLessonId: z.string(),
 })
 
 const toValues = (course) => ({
@@ -28,10 +30,12 @@ const toValues = (course) => ({
   estimatedMinutes: course?.estimatedMinutes ? String(course.estimatedMinutes) : '',
   sequential: Boolean(course?.sequential), selfEnroll: Boolean(course?.selfEnroll),
   certificateTemplateId: course?.certificateTemplateId ?? NO_TEMPLATE,
+  promoLessonId: course?.promoLessonId ?? NO_PROMO,
 })
 
-// Configuración tab: metadata, cover and flags of a course.
-export function CourseSettingsForm({ course, readOnly = false }) {
+// Configuración tab: metadata, cover and flags of a course. `sections` feeds the
+// promo video select (free or preview video/embed lessons).
+export function CourseSettingsForm({ course, sections = [], readOnly = false }) {
   const update = useUpdateCourse('Configuración guardada.'), upload = useUploadLmsFile()
   const templates = useCertificateTemplates()
   // Enabled templates plus the current one even when it was disabled later.
@@ -43,6 +47,7 @@ export function CourseSettingsForm({ course, readOnly = false }) {
     ...(course.certificateTemplateId && !(templates.data ?? []).some((t) => t.id === course.certificateTemplateId)
       ? [{ value: course.certificateTemplateId, label: 'Plantilla actual' }] : []),
   ], [templates.data, course.certificateTemplateId])
+  const promoOptions = useMemo(() => promoLessonOptions(sections), [sections])
   const [cover, setCover] = useState(null) // { fileId, name, url } once a new cover is uploaded or removed
   const { control, handleSubmit, reset, formState: { errors, isDirty } } = useForm({ resolver: zodResolver(schema), defaultValues: toValues(course) })
   // Re-seed only when another course or a newer version arrives: a refetch that
@@ -63,6 +68,7 @@ export function CourseSettingsForm({ course, readOnly = false }) {
         estimatedMinutes: values.estimatedMinutes ? Number(values.estimatedMinutes) : null,
         sequential: values.sequential, selfEnroll: values.selfEnroll,
         certificateTemplateId: values.certificateTemplateId === NO_TEMPLATE ? null : values.certificateTemplateId,
+        promoLessonId: values.promoLessonId === NO_PROMO ? null : values.promoLessonId,
         ...(cover ? { coverFileId: cover.fileId ?? null } : {}),
       })
     } catch { /* toast shown by the mutation */ }
@@ -83,7 +89,7 @@ export function CourseSettingsForm({ course, readOnly = false }) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {text('category', 'Categoría', { placeholder: 'Ej. Seguridad' })}
           <Controller name="level" control={control} render={({ field }) => <SelectField label="Nivel" options={LEVEL_OPTIONS} value={field.value} onValueChange={field.onChange} disabled={readOnly} />} />
-          <Controller name="estimatedMinutes" control={control} render={({ field }) => <NumberField label="Duración estimada (min)" {...field} allowNegative={false} allowDecimal={false} error={errors.estimatedMinutes?.message} disabled={readOnly} />} />
+          <Controller name="estimatedMinutes" control={control} render={({ field }) => <NumberField label="Duración estimada (min)" {...field} allowNegative={false} allowDecimal={false} min={0} max={10000} error={errors.estimatedMinutes?.message} disabled={readOnly} />} />
         </div>
         <div className="space-y-3 rounded-xl border border-[hsl(var(--border))] p-4">
           <Controller name="sequential" control={control} render={({ field }) => (
@@ -103,6 +109,13 @@ export function CourseSettingsForm({ course, readOnly = false }) {
             hint="Imagen horizontal (16:9), máximo 10 MB." emptyLabel="Subir portada"
           />
         </FieldWrapper>
+        <Controller name="promoLessonId" control={control} render={({ field }) => (
+          <SelectField
+            label="Video de presentación" options={promoOptions} value={promoOptions.some((o) => o.value === field.value) ? field.value : NO_PROMO}
+            onValueChange={field.onChange} disabled={readOnly}
+            hint="Se muestra en la página del curso. Solo aparecen lecciones de video o enlace en una sección gratis o marcadas como vista previa."
+          />
+        )} />
         <Controller name="certificateTemplateId" control={control} render={({ field }) => (
           <SelectField
             label="Certificado" options={certificateOptions} value={field.value} onValueChange={field.onChange} disabled={readOnly}
@@ -119,10 +132,10 @@ export function CourseSettingsForm({ course, readOnly = false }) {
         />
       )} />
       {!readOnly ? (
-        <div className="flex justify-end gap-2 border-t border-[hsl(var(--border))] pt-4 lg:col-span-2">
-          <Button type="button" variant="outline" disabled={!dirty || update.isPending} onClick={() => { reset(toValues(course)); setCover(null) }}>Descartar</Button>
-          <Button type="submit" disabled={!dirty || update.isPending}>{update.isPending ? 'Guardando…' : 'Guardar cambios'}</Button>
-        </div>
+        <FormSaveBar
+          dock dirty={dirty} submitting={update.isPending} submitLabel="Guardar cambios" cancelLabel="Descartar"
+          onCancel={() => { reset(toValues(course)); setCover(null) }} className="lg:col-span-2"
+        />
       ) : null}
     </form>
   )

@@ -94,13 +94,23 @@ export function LessonEditorForm({ form, setForm, errors, lesson, sections, isNe
         ) : (
           <NumberField
             label={form.kind === 'assignment' ? 'Tiempo estimado (minutos)' : 'Duración (minutos)'} value={form.durationMinutes} onChange={setText('durationMinutes')}
-            allowNegative={false} allowDecimal={false} hint="Opcional. Se muestra al alumno en el contenido del curso." disabled={readOnly}
+            allowNegative={false} allowDecimal={false} min={0} max={10000} error={errors.durationMinutes}
+            hint="Opcional, hasta 10000. Se muestra al alumno en el contenido del curso." disabled={readOnly}
           />
         )}
         <CheckboxField
           label="Obligatoria" hint="Las lecciones opcionales no cuentan para el avance ni bloquean las siguientes." disabled={readOnly}
           checked={form.required} onChange={(event) => set('required')(event.target.checked)}
         />
+        {form.kind !== 'assignment' ? (
+          <CheckboxField
+            label="Vista previa gratis (sin inscripción)" disabled={readOnly}
+            hint={form.kind === 'quiz'
+              ? 'Los exámenes siempre piden inscripción; en un enlace compartido «Solo vista previa» se incluye si permites exámenes.'
+              : 'Cualquiera con acceso a Aprendizaje la abre desde la página del curso, y también los invitados de un enlace «Solo vista previa».'}
+            checked={form.preview === true} onChange={(event) => set('preview')(event.target.checked)}
+          />
+        ) : null}
       </div>
     </div>
   )

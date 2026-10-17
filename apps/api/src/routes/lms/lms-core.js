@@ -131,6 +131,7 @@ export function normalizeCourseInput(body = {}, { partial = false } = {}) {
   if (has(body, 'sequential')) data.sequential = body.sequential === true
   if (has(body, 'selfEnroll')) data.selfEnroll = body.selfEnroll === true
   if (has(body, 'certificateTemplateId')) data.certificateTemplateId = optionalUuid(body.certificateTemplateId)
+  if (has(body, 'promoLessonId')) data.promoLessonId = optionalUuid(body.promoLessonId)
   return data
 }
 
@@ -160,6 +161,8 @@ export function normalizeLessonInput(body = {}, { partial = false, currentKind =
   }
   if (has(body, 'durationSeconds')) data.durationSeconds = optionalInt(body.durationSeconds, 'La duración')
   if (has(body, 'required')) data.required = body.required !== false
+  // Public preview: shared with guests when the course share scope is `preview`.
+  if (has(body, 'preview')) data.preview = body.preview === true
   if (has(body, 'sectionId')) {
     const sectionId = optionalUuid(body.sectionId)
     if (!sectionId) throw new LmsError('La sección es obligatoria.', 400)

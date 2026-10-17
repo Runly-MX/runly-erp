@@ -29,7 +29,7 @@ export default function LmsReview() {
     { id: 'type', header: 'Tipo', accessorFn: (r) => REVIEW_TYPE_LABELS[r.type] ?? r.type, cell: ({ getValue }) => <Badge variant="secondary">{getValue()}</Badge> },
     { id: 'course', header: 'Curso', accessorFn: (r) => r.courseTitle ?? '', cell: ({ getValue }) => <span className="block max-w-56 truncate">{getValue() || '—'}</span> },
     { id: 'lesson', header: 'Lección', accessorFn: (r) => r.lessonTitle ?? '', cell: ({ getValue }) => <span className="block max-w-56 truncate font-medium">{getValue() || '—'}</span> },
-    { id: 'learner', header: 'Alumno', accessorFn: (r) => r.learner?.displayName ?? '', cell: ({ getValue }) => <span className="block max-w-48 truncate">{getValue() || '—'}</span> },
+    { id: 'learner', header: 'Alumno', accessorFn: (r) => (r.learner?.displayName ? `${r.learner.displayName}${r.learner.kind === 'guest' ? ' (invitado)' : ''}` : ''), cell: ({ getValue }) => <span className="block max-w-48 truncate">{getValue() || '—'}</span> },
     { id: 'submitted', header: 'Enviado', accessorFn: (r) => r.submittedAt ?? '', cell: ({ row }) => <span className={MUTED}>{formatShortDate(row.original.submittedAt) || '—'}</span> },
     { id: 'late', header: 'Tarde', accessorFn: (r) => (r.late ? 1 : 0), cell: ({ row }) => (row.original.late ? <Badge variant="warning">Tardía</Badge> : <span className={MUTED}>—</span>) },
     {

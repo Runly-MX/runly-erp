@@ -4,6 +4,8 @@
 import { LmsError } from './lms-error.js'
 import { isUuid } from './lms-eval-shared.js'
 import { COURSE_COUNTS, ENROLLMENT_INCLUDE, createLmsSerializers } from './lms-serialize.js'
+import { isOpenPreview } from './lms-share-core.js'
+import { loadPromo } from './lms-promo.js'
 
 const SECTIONS_ORDERED = {
   orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
@@ -40,7 +42,7 @@ export function profileDisplayName(profile) {
   return profile.displayName || [profile.firstName, profile.lastName].filter(Boolean).join(' ') || null
 }
 
-export function createLmsOverviewService({ prisma, signFile = null }) {
+export function createLmsOverviewService({ prisma, signFile = null, resolveMedia = null }) {
   const ser = createLmsSerializers({ prisma, signFile })
   const sign = (fileId, variant) => (signFile && fileId ? signFile(fileId, variant) : null)
 
@@ -68,21 +70,26 @@ export function createLmsOverviewService({ prisma, signFile = null }) {
     const enrolled = Boolean(enrollmentRow && enrollmentRow.status !== 'dropped')
     if (!canViewCourse(course, { canManage, enrolled })) throw new LmsError('El curso no existe.', 404)
 
-    const [sectionRows, instructor, serialized, heroUrl] = await Promise.all([
+    const [sectionRows, instructor, serialized, heroUrl, promo] = await Promise.all([
       prisma.lmsSection.findMany({ where: { courseId: course.id }, ...SECTIONS_ORDERED }),
       instructorOf(course.createdById),
       ser.serializeCourse(course),
       sign(course.coverFileId, 'preview'),
+      loadPromo(prisma, course, resolveMedia),
     ])
     const sections = await Promise.all(sectionRows.map(async (section) => ({
       id: section.id,
       title: section.title,
+      free: section.free === true,
       lessons: await Promise.all(section.lessons.map(async (lesson) => ({
         id: lesson.id,
         title: lesson.title,
         kind: lesson.kind,
         durationSeconds: lesson.durationSeconds,
         required: lesson.required,
+        preview: lesson.preview === true,
+        // Opens without enrolling (free section or preview lesson; never quizzes/assignments).
+        free: isOpenPreview({ ...lesson, sectionFree: section.free === true }),
         coverUrl: await sign(lesson.coverFileId, LESSON_THUMB_VARIANT),
       }))),
     })))
@@ -94,6 +101,7 @@ export function createLmsOverviewService({ prisma, signFile = null }) {
       sections,
       counts: { sections: sections.length, lessons: lessonCount, totalSeconds, learners: course._count?.enrollments ?? 0 },
       instructor,
+      promo,
       rating: { avg: serialized.ratingAvg, count: serialized.ratingCount },
       enrollment,
       certificate,

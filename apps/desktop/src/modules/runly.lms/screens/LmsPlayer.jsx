@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Badge, Button, EmptyState, ErrorState, PageHeader, ProgressBar, Skeleton, cn } from '@runly/ui'
+import { Badge, Button, EmptyState, ErrorState, PageHeader, ProgressBar, Skeleton, cn, useScrollCollapse } from '@runly/ui'
 import { BookOpen, ListTree, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { CourseOutline } from '../components/CourseOutline.jsx'
@@ -11,7 +11,7 @@ import { CourseRating } from '../components/social/CourseRating.jsx'
 import { LessonTabs } from '../components/social/LessonTabs.jsx'
 import { RateCoursePrompt } from '../components/social/RateCoursePrompt.jsx'
 import { ReviewsDialog } from '../components/social/ReviewsDialog.jsx'
-import { useLesson, useLmsPermissions, useOutline, useSaveProgress } from '../hooks/useLmsData.js'
+import { useEnroll, useLesson, useLmsPermissions, useOutline, useSaveProgress } from '../hooks/useLmsData.js'
 import { useReviews } from '../hooks/useLmsSocial.js'
 import { coursePagePath, readTheater, writeTheater } from '../lib/lmsExperience.js'
 import { flattenLessons, lmsPath, normalizePlayerTab, pickStartLesson } from '../lib/lmsLabels.js'
@@ -45,11 +45,15 @@ export default function LmsPlayer() {
   const [initialRating, setInitialRating] = useState(0)
   const [theater, setTheater] = useState(() => readTheater())
   const sidebarRef = useRef(null)
+  const headerScroll = useScrollCollapse()
   const lesson = useLesson(lessonId)
   const save = useSaveProgress(courseId)
+  const enroll = useEnroll()
 
   const data = outline.data
   const preview = Boolean(data) && !data.enrollment
+  // Not enrolled, published course: only free-section and preview lessons open, no progress, no tabs.
+  const freePreview = data?.access === 'free'
   const reviews = useReviews(courseId, { enabled: Boolean(data) })
   const lessons = useMemo(() => flattenLessons(data?.sections), [data?.sections])
   const current = lessons.find((item) => item.id === lessonId)
@@ -133,18 +137,21 @@ export default function LmsPlayer() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))]">
-      <div className="shrink-0 border-b border-[hsl(var(--border))] px-4 pt-3 sm:px-6">
         <PageHeader
+          collapseOnScroll collapsed={headerScroll.collapsed}
           compact
           onBack={back}
           backLabel={preview && canManageCourses ? 'Volver al editor' : 'Curso'}
-          eyebrow={preview ? 'Vista previa' : 'Aprendizaje'}
+          eyebrow={freePreview ? 'Vista previa gratuita' : preview ? 'Vista previa' : 'Aprendizaje'}
           title={data.course?.title ?? 'Curso'}
-          className="pb-3"
+          className="shrink-0 border-[hsl(var(--border))] px-4 pt-3 pb-3 sm:px-6"
           actions={(
             <div className="flex items-center gap-3">
               <CourseRating avg={rating.ratingAvg} count={rating.ratingCount} showEmpty onClick={() => openReviews()} />
-              {preview ? <Badge variant="warning">Vista previa: el avance no se guarda</Badge> : (
+              {freePreview && data.course?.selfEnroll ? (
+                <Button size="sm" disabled={enroll.isPending} onClick={() => enroll.mutate(courseId, { onSuccess: () => outline.refetch() })}>Inscribirme</Button>
+              ) : null}
+              {preview ? <Badge variant="warning">{freePreview ? 'Vista previa gratuita: el avance no se guarda' : 'Vista previa: el avance no se guarda'}</Badge> : (
                 <div className="hidden w-40 items-center gap-2 sm:flex">
                   <ProgressBar value={pct} />
                   <span className="text-xs font-medium tabular-nums">{pct}%</span>
@@ -154,8 +161,8 @@ export default function LmsPlayer() {
             </div>
           )}
         />
-      </div>
       <div data-player-scroll="" className="min-h-0 flex-1 overflow-y-auto">
+        <div ref={headerScroll.sentinelRef} aria-hidden="true" />
         {!lessons.length ? (
           <Centered><EmptyState icon={BookOpen} title="Este curso aún no tiene lecciones" description="Cuando se agregue contenido aparecerá aquí." /></Centered>
         ) : (
@@ -184,12 +191,16 @@ export default function LmsPlayer() {
                     onComplete={complete} completing={save.isPending} onNavigate={select}
                     canGoNext={Boolean(next) && next.status !== 'locked'}
                   />
-                  <LessonTabs
-                    courseId={courseId} lessonId={lessonId} tab={tab} onTabChange={setTab}
-                    resources={payload.lesson.resources} announcementCount={data.announcementCount} readOnly={status === 'dropped'}
-                  >
+                  {freePreview ? (
                     <LessonBody payload={payload} courseId={courseId} status={current?.status} preview={preview} />
-                  </LessonTabs>
+                  ) : (
+                    <LessonTabs
+                      courseId={courseId} lessonId={lessonId} tab={tab} onTabChange={setTab}
+                      resources={payload.lesson.resources} announcementCount={data.announcementCount} readOnly={status === 'dropped'}
+                    >
+                      <LessonBody payload={payload} courseId={courseId} status={current?.status} preview={preview} />
+                    </LessonTabs>
+                  )}
                 </>
               ) : null}
             </div>

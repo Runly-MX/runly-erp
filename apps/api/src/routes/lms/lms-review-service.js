@@ -4,6 +4,7 @@ import { LmsError } from './lms-core.js'
 import { normalizeLessonSettings, normalizeQuizSettings, scoreAttempt, validateGradeDecision } from './lms-eval-core.js'
 import { isUuid, learnerShape, loadAttemptQuestions, quizOutcome, serializeAttempt, serializeSubmissions } from './lms-eval-shared.js'
 import { createLmsSerializers } from './lms-serialize.js'
+import { learnerKind } from './lms-share-core.js'
 import { setLessonOutcome, TX_OPTS } from './lms-progress.js'
 
 const CONTEXT = { enrollment: { include: { learner: true, course: true } }, lesson: true }
@@ -46,7 +47,7 @@ export function createLmsReviewService({ prisma, notifier, signFile = null }) {
       courseTitle: row.enrollment.course.title,
       lessonId: row.lesson.id,
       lessonTitle: row.lesson.title,
-      learner: { id: row.enrollment.learner.id, displayName: row.enrollment.learner.displayName },
+      learner: { id: row.enrollment.learner.id, displayName: row.enrollment.learner.displayName, kind: learnerKind(row.enrollment.learner) },
       submittedAt: iso(row.submittedAt),
       ...(type === 'submission' ? { late: row.late } : {}),
     })

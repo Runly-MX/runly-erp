@@ -42,3 +42,11 @@ test('video thumbnail: loaded from the lesson, saved as coverFileId, dropped whe
   assert.equal(changeLessonKind(form, 'text').cover, null)
   assert.equal(lessonFormToPayload(lessonToForm(lesson), { id: 'l1' }).coverFileId, null)
 })
+
+test('validateLessonForm bounds the duration to 0-10000 minutes', () => {
+  const form = lessonToForm(lesson)
+  assert.ok(validateLessonForm({ ...form, durationMinutes: '10001' }).durationMinutes)
+  assert.ok(validateLessonForm({ ...form, durationMinutes: '-1' }).durationMinutes)
+  assert.equal(validateLessonForm({ ...form, durationMinutes: '' }).durationMinutes, undefined)
+  assert.equal(validateLessonForm({ ...form, durationMinutes: '10000' }).durationMinutes, undefined)
+})

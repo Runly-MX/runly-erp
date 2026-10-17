@@ -77,6 +77,23 @@ En **Certificados** creas plantillas con un título, un texto, quién firma (nom
 - El PDF incluye un código QR que abre una página pública de verificación, sin iniciar sesión, con el folio, el nombre, el curso, la fecha y si el certificado es válido o fue revocado. Un certificado revocado sigue apareciendo, marcado como **Revocado**.
 - Una plantilla que algún curso usa no se puede desactivar; primero quítala de esos cursos.
 
+### Lecciones gratis y video de presentación
+
+- En **Contenido**, el botón de regalo de cada sección la marca como **Gratis**. En el editor de una lección, **Vista previa gratis (sin inscripción)** hace lo mismo con una sola lección.
+- Cualquier persona con acceso a Aprendizaje abre esas lecciones desde la página de un curso publicado sin inscribirse. Las ve en **vista previa gratuita**: no se guarda avance y no hay preguntas, recursos ni anuncios. Los exámenes y las tareas siempre piden inscripción.
+- En **Configuración**, **Video de presentación** elige una lección de video o enlace que sea gratis o vista previa. Se muestra arriba en la página del curso; el botón de modo cine lo agranda y la elección se recuerda en tu navegador. Verlo no cuenta como avance.
+
+### Compartir con personas externas
+
+**Compartir**, en el encabezado del editor del curso, crea un enlace público para personas sin cuenta en Runly. Solo escriben su nombre (el correo es opcional) y entran a un reproductor reducido.
+
+- **Qué se comparte:** todo el curso, o solo las lecciones en vista previa y las de secciones gratis. Las tareas nunca se comparten.
+- **Permitir exámenes:** los invitados presentan los exámenes compartidos; las respuestas abiertas llegan a **Revisión** con su nombre.
+- **Emitir certificado al completar:** requiere que el curso tenga plantilla. El certificado lleva el nombre que escribió el invitado y se descarga al terminar.
+- Los invitados no tienen preguntas, reseñas, anuncios ni recursos descargables. Su avance se guarda en su navegador; **No soy…** empieza de nuevo con otro nombre.
+- En **Alumnos** aparecen con la etiqueta **Invitado** y puedes darlos de baja.
+- Desactivar el enlace o usar **Generar nuevo enlace** corta de inmediato el acceso de quien tenga el anterior.
+
 ### Asignar cursos
 
 En la pestaña **Alumnos**, **Asignar** permite elegir varios usuarios de la empresa y, si quieres, una fecha límite. Un curso asignado aparece en **Mis cursos** de cada persona. Si la fecha límite pasa sin terminarlo, el curso se marca como **Vencido**. Puedes cambiar la fecha, dar de baja a un alumno o reactivarlo; al reactivarlo conserva su avance.

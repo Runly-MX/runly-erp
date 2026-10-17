@@ -1,17 +1,21 @@
 import { useState } from 'react'
-import { Button, cn } from '@runly/ui'
+import { Badge, Button, cn } from '@runly/ui'
 import { ChevronDown, PlayCircle } from 'lucide-react'
 import { KIND_LABELS, formatDuration } from '../../lib/lmsLabels.js'
 import { initialOpenSections, lessonCountLabel, sectionSeconds } from '../../lib/lmsExperience.js'
 import { LessonThumb } from '../LessonThumb.jsx'
 
 function LessonLine({ lesson, onOpen }) {
+  const free = lesson.free === true
   const meta = [KIND_LABELS[lesson.kind], formatDuration(lesson.durationSeconds), lesson.required === false ? 'Opcional' : null].filter(Boolean).join(' · ')
   const content = (
     <>
       <LessonThumb lesson={lesson} className="w-24" showDuration={false} />
       <span className="min-w-0 flex-1">
-        <span className="line-clamp-2 text-sm font-medium leading-snug">{lesson.title}</span>
+        <span className="flex items-start gap-2">
+          <span className="line-clamp-2 text-sm font-medium leading-snug">{lesson.title}</span>
+          {free ? <Badge variant="success" className="shrink-0">Gratis</Badge> : null}
+        </span>
         <span className="block text-xs text-[hsl(var(--muted-foreground))]">{meta}</span>
       </span>
       {onOpen ? <PlayCircle className="h-5 w-5 shrink-0 text-violet-600 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none dark:text-violet-400" aria-hidden="true" /> : null}
@@ -30,9 +34,10 @@ function LessonLine({ lesson, onOpen }) {
 }
 
 // Accordion curriculum of the course page: sections with lesson count and
-// duration; lessons with thumbnail, kind and duration. `onOpenLesson` (enrolled
-// learners and managers) opens the player on that lesson.
-export function CourseCurriculum({ sections, onOpenLesson = null }) {
+// duration; lessons with thumbnail, kind and duration. `onOpenLesson` opens the
+// player on a lesson; `canOpen(lesson)` limits it (not enrolled: only free
+// lessons, played as a free preview). Free lessons show a "Gratis" badge.
+export function CourseCurriculum({ sections, onOpenLesson = null, canOpen = () => true }) {
   const list = sections ?? []
   const [open, setOpen] = useState(() => new Set(initialOpenSections(list)))
   const allOpen = list.length > 0 && list.every((section) => open.has(section.id))
@@ -73,7 +78,7 @@ export function CourseCurriculum({ sections, onOpenLesson = null }) {
               <div id={panelId} inert={!expanded} className={cn('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
                 <div className="min-h-0 overflow-hidden">
                   <ul className="space-y-0.5 p-2">
-                    {(section.lessons ?? []).map((lesson) => <LessonLine key={lesson.id} lesson={lesson} onOpen={onOpenLesson} />)}
+                    {(section.lessons ?? []).map((lesson) => <LessonLine key={lesson.id} lesson={lesson} onOpen={onOpenLesson && canOpen(lesson) ? onOpenLesson : null} />)}
                     {!section.lessons?.length ? <li className="px-2 py-1 text-xs text-[hsl(var(--muted-foreground))]">Sin lecciones.</li> : null}
                   </ul>
                 </div>

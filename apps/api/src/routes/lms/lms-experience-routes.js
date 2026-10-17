@@ -13,9 +13,10 @@ function canManage(c) {
 }
 
 // resources / overview: optional service overrides (tests).
-export function registerLmsExperienceRoutes(app, { prisma, requirePermission, signFile = null, run, resources = null, overview = null }) {
+// resolveMedia: the learn service's lesson media signer (promo video).
+export function registerLmsExperienceRoutes(app, { prisma, requirePermission, signFile = null, run, resources = null, overview = null, resolveMedia = null }) {
   const files = resources ?? createLmsResourcesService({ prisma, signFile })
-  const page = overview ?? createLmsOverviewService({ prisma, signFile })
+  const page = overview ?? createLmsOverviewService({ prisma, signFile, resolveMedia })
   const access = requirePermission('lms.access')
   const courses = requirePermission('lms.course.manage')
   const id = (c) => c.req.param('id')

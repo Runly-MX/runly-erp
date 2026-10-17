@@ -52,7 +52,7 @@ export function QuestionForm({ form, onChange, errors = {} }) {
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_10rem]">
         <SelectField label="Tipo de pregunta" options={KIND_OPTIONS} value={form.kind} onValueChange={(kind) => onChange(changeQuestionKind(form, kind))} />
-        <NumberField label="Puntos" required value={form.points} onChange={set('points')} error={errors.points} allowNegative={false} allowDecimal={false} />
+        <NumberField label="Puntos" required value={form.points} onChange={set('points')} error={errors.points} hint="De 1 a 100." allowNegative={false} allowDecimal={false} min={1} max={100} />
       </div>
       <MarkdownField
         label="Pregunta" required value={form.prompt} onChange={set('prompt')} error={errors.prompt} maxLength={10000}

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { KIND_LABELS, QUESTION_KIND_LABELS, SHOW_ANSWERS_LABELS } from './lmsLabels.js'
 import {
-  changeQuestionKind, countUnanswered, emptyQuestionForm, formToQuestion, formToSettings, formatCountdown, questionToForm,
+  LMS_BOUNDS, changeQuestionKind, countUnanswered, emptyQuestionForm, formToQuestion, formToSettings, formatCountdown, questionToForm,
   quizState, remainingMs, selectOption, setOptionCorrect, settingsToForm, validateManualPoints, validateQuestionForm, validateSettings,
 } from './lmsEval.js'
 
@@ -78,4 +78,22 @@ test('manual points validation', () => {
   const result = validateManualPoints(questions, { b: '4.5', c: '3' })
   assert.deepEqual(result.values, { b: 4.5 })
   assert.ok(result.errors.c)
+})
+
+test('editor bounds match the validators and the payload clamps', () => {
+  assert.deepEqual(LMS_BOUNDS.maxAttempts, { min: 1, max: 20 })
+  const quiz = settingsToForm('quiz')
+  const errors = validateSettings('quiz', { ...quiz, passingScore: '-123', maxAttempts: '21', timeLimitMinutes: '601', drawCount: '201' })
+  assert.deepEqual(Object.keys(errors).sort(), ['drawCount', 'maxAttempts', 'passingScore', 'timeLimitMinutes'])
+  assert.deepEqual(validateSettings('quiz', { ...quiz, maxAttempts: '20', timeLimitMinutes: '600', drawCount: '200' }), {})
+  const settings = formToSettings('quiz', { ...quiz, maxAttempts: '50', drawCount: '999' })
+  assert.equal(settings.maxAttempts, 20)
+  assert.equal(settings.drawCount, 200)
+  const assignment = settingsToForm('assignment')
+  const aErrors = validateSettings('assignment', { ...assignment, maxFiles: '11', dueDaysAfterEnroll: '366', passingScore: '101' })
+  assert.deepEqual(Object.keys(aErrors).sort(), ['dueDaysAfterEnroll', 'maxFiles', 'passingScore'])
+  assert.equal(formToSettings('assignment', { ...assignment, dueDaysAfterEnroll: '400' }).dueDaysAfterEnroll, 365)
+  assert.ok(validateQuestionForm({ ...emptyQuestionForm('open'), prompt: 'P', points: '101' }).points)
+  assert.equal(validateQuestionForm({ ...emptyQuestionForm('open'), prompt: 'P', points: '100' }).points, undefined)
+  assert.equal(formToQuestion({ ...emptyQuestionForm('open'), prompt: 'P', points: '500' }).points, 100)
 })

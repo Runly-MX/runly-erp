@@ -5,6 +5,7 @@ import { convertToPdf } from '../../services/document-templates/pdf-convert.js'
 import { LmsError } from './lms-error.js'
 import { DEFAULT_CERT_BODY, normalizeTemplateInput } from './lms-cert-core.js'
 import { issueCertificate } from './lms-cert-issue.js'
+import { normalizeShareSettings } from './lms-share-core.js'
 import { renderCertificatePdf } from './lms-cert-pdf.js'
 import { averageGrade, certTemplateWarnings, isOfficeAvailable } from './lms-cert-docx.js'
 import { createLmsCertFiles, createLmsCertTemplateFiles, isFileSource } from './lms-cert-templates.js'
@@ -230,7 +231,10 @@ export function createLmsCertService({
     const enrollment = await prisma.lmsEnrollment.findFirst({ where: { id: enrollmentId, companyId } })
     if (!enrollment) throw new LmsError('La inscripción no existe.', 404)
     if (enrollment.status !== 'completed') throw new LmsError('La persona aún no completa el curso.', 409, 'NOT_COMPLETED')
-    const course = await prisma.lmsCourse.findUnique({ where: { id: enrollment.courseId }, select: { certificateTemplate: { select: { enabled: true } } } })
+    const course = await prisma.lmsCourse.findUnique({ where: { id: enrollment.courseId }, select: { shareSettings: true, certificateTemplate: { select: { enabled: true } } } })
+    if (enrollment.source === 'share' && !normalizeShareSettings(course?.shareSettings).issueCertificates) {
+      throw new LmsError('El enlace compartido de este curso no emite certificados a invitados.', 409, 'GUEST_NO_CERTIFICATE')
+    }
     if (!course?.certificateTemplate?.enabled) throw new LmsError('El curso no tiene una plantilla de certificado.', 409, 'NO_TEMPLATE')
     const result = await prisma.$transaction((tx) => issueCertificate(tx, { enrollment, issuedById: actorId }), TX)
     if (!result) throw new LmsError('El curso no tiene una plantilla de certificado.', 409, 'NO_TEMPLATE')

@@ -1,14 +1,15 @@
-import { Button, CheckboxField, SelectField, TextField, cn } from '@runly/ui'
+import { Button, CheckboxField, NumberField, SelectField, TextField, cn } from '@runly/ui'
 import { Plus, Trash2 } from 'lucide-react'
-import { ALIGN_OPTIONS, FIELD_KEYS, clampField, fieldLabel, isImageField } from '../../lib/certLayout.js'
+import { ALIGN_OPTIONS, FIELD_KEYS, MIN_FIELD, clampField, fieldLabel, isImageField } from '../../lib/certLayout.js'
 
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 const HEX = /^#[0-9a-f]{6}$/i
 
-function NumberInput({ label, value, onCommit, min = 0, step = 1 }) {
+// Bounded to the page in points: out-of-range values are clamped on blur.
+function NumberInput({ label, value, onCommit, min = 0, max, step = 1 }) {
   return (
-    <TextField
-      label={label} type="number" inputMode="decimal" min={min} step={step} icon={null}
+    <NumberField
+      label={label} min={min} max={max} step={step} icon={null}
       value={Number.isFinite(value) ? String(Math.round(value * 10) / 10) : ''}
       onChange={(event) => { const next = Number(event.target.value); if (event.target.value !== '' && Number.isFinite(next)) onCommit(next) }}
     />
@@ -22,15 +23,15 @@ function FieldProperties({ field, page, onChange }) {
     <div className="space-y-3">
       <p className="text-sm font-medium">{fieldLabel(field.key)}</p>
       <div className="grid grid-cols-2 gap-2">
-        <NumberInput label="X (pt)" value={field.x} onCommit={(x) => set({ x })} />
-        <NumberInput label="Y (pt)" value={field.y} onCommit={(y) => set({ y })} />
-        <NumberInput label="Ancho" value={field.w} min={8} onCommit={(w) => set({ w })} />
-        <NumberInput label="Alto" value={field.h} min={8} onCommit={(h) => set({ h })} />
+        <NumberInput label="X (pt)" value={field.x} max={Math.max(0, page.width - field.w)} onCommit={(x) => set({ x })} />
+        <NumberInput label="Y (pt)" value={field.y} max={Math.max(0, page.height - field.h)} onCommit={(y) => set({ y })} />
+        <NumberInput label="Ancho" value={field.w} min={MIN_FIELD} max={page.width} onCommit={(w) => set({ w })} />
+        <NumberInput label="Alto" value={field.h} min={MIN_FIELD} max={page.height} onCommit={(h) => set({ h })} />
       </div>
       {text ? (
         <>
           <div className="grid grid-cols-2 gap-2">
-            <NumberInput label="Tamaño (pt)" value={field.fontSize} min={4} step={0.5} onCommit={(fontSize) => set({ fontSize: Math.min(144, Math.max(4, fontSize)) })} />
+            <NumberInput label="Tamaño (pt)" value={field.fontSize} min={4} max={144} step={0.5} onCommit={(fontSize) => set({ fontSize: Math.min(144, Math.max(4, fontSize)) })} />
             <SelectField label="Alineación" options={ALIGN_OPTIONS} value={field.align} onValueChange={(align) => set({ align })} />
           </div>
           <div className="flex items-end gap-2">

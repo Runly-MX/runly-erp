@@ -89,13 +89,17 @@ export default function LmsCoursePage() {
           ) : null}
           <Block title="Descripción"><CourseDescription markdown={data.course.description} /></Block>
           <Block title="Contenido del curso">
-            <CourseCurriculum sections={data.sections} onOpenLesson={canOpenLessons ? (lessonId) => navigate(playerPath(courseId, lessonId)) : null} />
+            {/* Not enrolled: free-section and preview lessons still open (vista previa gratuita). */}
+            <CourseCurriculum
+              sections={data.sections} onOpenLesson={(lessonId) => navigate(playerPath(courseId, lessonId))}
+              canOpen={canOpenLessons || data.course.status !== 'published' ? () => canOpenLessons : (lesson) => lesson.free === true}
+            />
           </Block>
           {data.instructor ? <Block title="Instructor"><InstructorCard instructor={data.instructor} /></Block> : null}
           <Block title="Reseñas"><CourseReviews courseId={courseId} onOpenAll={() => setReviewsOpen(true)} /></Block>
         </div>
         <aside className="hidden lg:block">
-          <div className="sticky top-6 lg:-mt-40">
+          <div className={data.promo ? 'sticky top-6' : 'sticky top-6 lg:-mt-40'}>
             <CourseCtaCard data={data} cta={cta} onAction={onAction} pending={pending} />
             {canManageCourses && cta.action !== 'preview' ? (
               <Button variant="ghost" size="sm" className="mt-3 w-full" onClick={() => navigate(lmsPath(`/courses/${courseId}`))}>Editar curso</Button>

@@ -1,4 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { createContext, useContext } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { runly } from '../../../lib/runly.js'
 import { patchOutline } from '../lib/lmsLabels.js'
@@ -65,16 +66,43 @@ export function useRefreshLearner(courseId, lessonId) {
   return () => refreshLearner(client, courseId, lessonId)
 }
 
-export const useQuiz = (lessonId) => useRead(['quiz', lessonId], (t) => runly.lms.getQuiz(lessonId, t), { enabled: Boolean(lessonId), retry: false, refetchOnWindowFocus: false })
+// Quiz transport. Internal learners use their session; the public share page
+// provides a guest transport through this context ({ getQuiz, startAttempt,
+// getAttempt, saveAnswers, submitAttempt }), so the quiz components are shared.
+export const LmsQuizSourceContext = createContext(null)
+
+function useQuizApi() {
+  const source = useContext(LmsQuizSourceContext)
+  const token = useToken()
+  if (source) return { ...source, ready: true }
+  return {
+    ready: Boolean(token),
+    getQuiz: (lessonId) => runly.lms.getQuiz(lessonId, token),
+    startAttempt: (lessonId) => runly.lms.startAttempt(lessonId, token),
+    getAttempt: (attemptId) => runly.lms.getAttempt(attemptId, token),
+    saveAnswers: (attemptId, answers) => runly.lms.saveAnswers(attemptId, answers, token),
+    submitAttempt: (attemptId, answers) => runly.lms.submitAttempt(attemptId, answers, token),
+  }
+}
+
+export function useQuiz(lessonId) {
+  const api = useQuizApi()
+  return useQuery({ queryKey: [KEY, 'quiz', lessonId], queryFn: async () => unwrap(await api.getQuiz(lessonId)), enabled: api.ready && Boolean(lessonId), retry: false, refetchOnWindowFocus: false })
+}
+
 // Attempts carry the learner's answers: read once, never refreshed in the background.
-export const useAttempt = (attemptId) => useRead(['attempt', attemptId], (t) => runly.lms.getAttempt(attemptId, t), {
-  enabled: Boolean(attemptId), retry: false, staleTime: Infinity, refetchOnWindowFocus: false,
-})
+export function useAttempt(attemptId) {
+  const api = useQuizApi()
+  return useQuery({
+    queryKey: [KEY, 'attempt', attemptId], queryFn: async () => unwrap(await api.getAttempt(attemptId)),
+    enabled: api.ready && Boolean(attemptId), retry: false, staleTime: Infinity, refetchOnWindowFocus: false,
+  })
+}
 
 export function useStartAttempt() {
-  const token = useToken(), client = useQueryClient()
+  const api = useQuizApi(), client = useQueryClient()
   return useMutation({
-    mutationFn: async (lessonId) => unwrap(await runly.lms.startAttempt(lessonId, token)),
+    mutationFn: async (lessonId) => unwrap(await api.startAttempt(lessonId)),
     onSuccess: (attempt, lessonId) => {
       if (attempt?.id) client.setQueryData([KEY, 'attempt', attempt.id], attempt)
       client.invalidateQueries({ queryKey: [KEY, 'quiz', lessonId] })
@@ -83,14 +111,14 @@ export function useStartAttempt() {
 }
 
 export function useSaveAnswers() {
-  const token = useToken()
-  return useMutation({ mutationFn: async ({ attemptId, answers }) => unwrap(await runly.lms.saveAnswers(attemptId, answers, token)) })
+  const api = useQuizApi()
+  return useMutation({ mutationFn: async ({ attemptId, answers }) => unwrap(await api.saveAnswers(attemptId, answers)) })
 }
 
 export function useSubmitAttempt(courseId, lessonId) {
-  const token = useToken(), client = useQueryClient()
+  const api = useQuizApi(), client = useQueryClient()
   return useMutation({
-    mutationFn: async ({ attemptId, answers }) => unwrap(await runly.lms.submitAttempt(attemptId, answers, token)),
+    mutationFn: async ({ attemptId, answers }) => unwrap(await api.submitAttempt(attemptId, answers)),
     onSuccess: (result) => {
       if (result?.id) client.setQueryData([KEY, 'attempt', result.id], result)
       refreshLearner(client, courseId, lessonId, result)

@@ -1,4 +1,5 @@
 import { NumberField, SwitchField } from '@runly/ui'
+import { LMS_BOUNDS as B } from '../../lib/lmsEval.js'
 
 const INT = { allowNegative: false, allowDecimal: false }
 
@@ -18,16 +19,16 @@ export function AssignmentSettingsFields({ value, onChange, errors = {}, disable
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {value.allowFiles ? (
-          <NumberField label="Máximo de archivos" required value={value.maxFiles} onChange={field('maxFiles')} error={errors.maxFiles} hint="De 1 a 10." {...INT} disabled={disabled} />
+          <NumberField label="Máximo de archivos" required value={value.maxFiles} onChange={field('maxFiles')} error={errors.maxFiles} hint="De 1 a 10." {...INT} {...B.maxFiles} disabled={disabled} />
         ) : null}
         <NumberField
           label="Días para entregar" value={value.dueDaysAfterEnroll} onChange={field('dueDaysAfterEnroll')} error={errors.dueDaysAfterEnroll}
-          hint="Desde la inscripción. Vacío: sin fecha límite. Las entregas tardías se aceptan y se marcan." {...INT} disabled={disabled}
+          hint="De 1 a 365, desde la inscripción. Vacío: sin fecha límite. Las entregas tardías se aceptan y se marcan." {...INT} {...B.dueDaysAfterEnroll} disabled={disabled}
         />
       </div>
       <NumberField
         label="Calificación mínima (opcional)" value={value.passingScore} onChange={field('passingScore')} error={errors.passingScore}
-        hint="Con un valor, se califica de 0 a 100 y aprobar exige al menos esa calificación. Vacío: solo aprobar o devolver." {...INT} disabled={disabled}
+        hint="Con un valor, se califica de 0 a 100 y aprobar exige al menos esa calificación. Vacío: solo aprobar o devolver." {...INT} {...B.passingScore} disabled={disabled}
       />
     </section>
   )

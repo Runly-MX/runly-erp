@@ -1,8 +1,11 @@
-// /public/lms/* — certificate verification, path-scoped and unauthenticated.
+// /public/lms/* — certificate verification and course share links, path-scoped and unauthenticated.
 import { Hono } from 'hono'
 import { createTokenBucketLimiter } from '../../lib/token-bucket-limiter.js'
 import { LmsError } from './lms-error.js'
 import { createLmsCertService } from './lms-cert-service.js'
+import { createLmsGuestService } from './lms-guest-service.js'
+import { registerLmsSharePublicRoutes } from './lms-share-public.js'
+import { createLmsHls } from './lms-hls.js'
 
 const clientKey = (c) => c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'local'
 
@@ -12,12 +15,20 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-// service: optional override (tests).
-export function createLmsPublicRouter({ prisma, signFile = null, service = null, limiter = createTokenBucketLimiter({ capacity: 30, refillPerSecond: 0.5 }) }) {
+// service / guestService: optional overrides (tests). Guests behind one office IP
+// share a bucket, so the share limiter is wider than the certificate one.
+export function createLmsPublicRouter({
+  prisma, signFile = null, supabaseAdmin = null, bucket = 'runly-files', notificationService = null, service = null, guestService = null,
+  limiter = createTokenBucketLimiter({ capacity: 30, refillPerSecond: 0.5 }),
+  shareLimiter = createTokenBucketLimiter({ capacity: 300, refillPerSecond: 5 }),
+  joinLimiter = createTokenBucketLimiter({ capacity: 20, refillPerSecond: 0.2 }),
+}) {
   const app = new Hono()
   const certs = service ?? createLmsCertService({ prisma, signFile })
+  const hlsManifest = supabaseAdmin ? createLmsHls({ prisma, supabaseAdmin, bucket }).manifestFor : null
+  const guest = guestService ?? createLmsGuestService({ prisma, signFile, hlsManifest, notificationService })
 
-  app.use('/public/lms/*', async (c, next) => {
+  app.use('/public/lms/certificates/*', async (c, next) => {
     const result = limiter.consume(clientKey(c))
     if (!result.allowed) {
       c.header('Retry-After', String(result.retryAfter))
@@ -40,6 +51,8 @@ export function createLmsPublicRouter({ prisma, signFile = null, service = null,
       return c.body(buffer, 200, { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${filename}"`, 'Cache-Control': 'no-store' })
     } catch (error) { return fail(c, error, 'No se pudo generar el certificado.') }
   })
+
+  registerLmsSharePublicRoutes(app, { guest, limiter: shareLimiter, joinLimiter, clientKey, fail })
 
   return app
 }

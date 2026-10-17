@@ -3,6 +3,7 @@
 import { COURSE_STATUSES, LmsError, normalizeCourseInput, normalizeLessonInput } from './lms-core.js'
 import { COURSE_COUNTS, ENROLLMENT_INCLUDE, createLmsSerializers } from './lms-serialize.js'
 import { updateEnrollmentWithCertificate } from './lms-cert-issue.js'
+import { assertPromoLesson } from './lms-promo.js'
 
 const LESSONS_ORDERED = { where: { enabled: true }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }
 const SECTIONS_ORDERED = { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], include: { lessons: LESSONS_ORDERED } }
@@ -79,6 +80,7 @@ export function createLmsService({ prisma, signFile = null }) {
     const data = normalizeCourseInput(body, { partial: true })
     if (data.coverFileId) await assertFile(companyId, data.coverFileId)
     await assertTemplate(companyId, data.certificateTemplateId)
+    await assertPromoLesson(prisma, companyId, current.id, data.promoLessonId)
     if (data.status === 'published' && current.status !== 'published') {
       const lessons = await prisma.lmsLesson.count({ where: { courseId, companyId, enabled: true } })
       if (!lessons) throw new LmsError('Agrega al menos una lección antes de publicar.', 409, 'EMPTY_COURSE')
@@ -112,14 +114,19 @@ export function createLmsService({ prisma, signFile = null }) {
     const course = await findCourse(companyId, courseId)
     const title = sectionTitle(body)
     const max = await prisma.lmsSection.aggregate({ where: { courseId: course.id }, _max: { position: true } })
-    const row = await prisma.lmsSection.create({ data: { companyId, courseId: course.id, title, position: (max._max.position ?? 0) + 1 } })
+    const row = await prisma.lmsSection.create({ data: { companyId, courseId: course.id, title, free: body?.free === true, position: (max._max.position ?? 0) + 1 } })
     await touchCourse(course.id)
     return serializeSection(row.id)
   }
 
   async function updateSection(companyId, sectionId, body) {
     const section = await findSection(companyId, sectionId)
-    await prisma.lmsSection.update({ where: { id: section.id }, data: { title: sectionTitle(body) } })
+    // Partial: title and/or free (lessons open without enrolling).
+    const data = {}
+    if (body?.title !== undefined) data.title = sectionTitle(body)
+    if (body?.free !== undefined) data.free = body.free === true
+    if (!Object.keys(data).length) throw new LmsError('Envía el título o la opción gratis de la sección.', 400)
+    await prisma.lmsSection.update({ where: { id: section.id }, data })
     await touchCourse(section.courseId)
     return serializeSection(section.id)
   }

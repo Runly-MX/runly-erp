@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, ConfirmDialog, EmptyState, cn } from '@runly/ui'
-import { Layers, MoveDown, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Gift, Layers, MoveDown, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useCreateSection, useDeleteLesson, useDeleteSection, useReorder, useUpdateSection } from '../hooks/useLmsData.js'
 import { KIND_LABELS, formatDuration, lessonEditorPath } from '../lib/lmsLabels.js'
 import { kindTone, lessonCountLabel, sectionSeconds } from '../lib/lmsExperience.js'
@@ -18,7 +18,7 @@ function IconButton({ label, onClick, disabled, children, destructive = false })
   )
 }
 
-function LessonRow({ lesson, handleProps, overlay, onOpen, onDelete, readOnly }) {
+function LessonRow({ lesson, handleProps, overlay, onOpen, onDelete, readOnly, free = false }) {
   const duration = formatDuration(lesson.durationSeconds)
   return (
     <div
@@ -38,6 +38,7 @@ function LessonRow({ lesson, handleProps, overlay, onOpen, onDelete, readOnly })
           </span>
         </span>
       </button>
+      {free ? <Badge variant="success" className="hidden sm:inline-flex" title="Se abre sin inscripción desde la página del curso">Gratis</Badge> : null}
       {lesson.required === false
         ? <Badge variant="outline" className="hidden sm:inline-flex">Opcional</Badge>
         : <Badge variant="secondary" className="hidden sm:inline-flex">Obligatoria</Badge>}
@@ -95,6 +96,10 @@ export function CurriculumEditor({ courseId, sections, readOnly = false }) {
   }
 
   const openLesson = (lesson) => navigate(lessonEditorPath(courseId, lesson.id))
+  // Lessons that open without enrolling: free section or preview (never quizzes/assignments).
+  const freeSectionLessons = new Set(list.filter((section) => section.free).flatMap((section) => (section.lessons ?? []).map((lesson) => lesson.id)))
+  const isFree = (lesson) => lesson.kind !== 'quiz' && lesson.kind !== 'assignment' && (lesson.preview === true || freeSectionLessons.has(lesson.id))
+  const toggleFree = (section) => updateSection.mutate({ id: section.id, free: !section.free })
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -118,11 +123,15 @@ export function CurriculumEditor({ courseId, sections, readOnly = false }) {
                   {index + 1}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-semibold sm:text-base">{section.title}</h3>
+                  <h3 className="flex min-w-0 items-center gap-2 text-sm font-semibold sm:text-base">
+                    <span className="truncate">{section.title}</span>
+                    {section.free ? <Badge variant="success" className="shrink-0">Gratis</Badge> : null}
+                  </h3>
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">{lessonCountLabel(count)}{duration ? ` · ${duration}` : ''}</p>
                 </div>
                 {!overlay && !readOnly ? (
                   <div className="flex items-center">
+                    <IconButton label={section.free ? 'Quitar sección gratis' : 'Marcar sección como gratis'} onClick={() => toggleFree(section)} disabled={updateSection.isPending}><Gift /></IconButton>
                     <IconButton label="Renombrar sección" onClick={() => setSectionDialog({ open: true, section })}><Pencil /></IconButton>
                     <IconButton label="Eliminar sección" onClick={() => setConfirm({ kind: 'section', item: section })} destructive><Trash2 /></IconButton>
                   </div>
@@ -147,7 +156,7 @@ export function CurriculumEditor({ courseId, sections, readOnly = false }) {
         }}
         renderLesson={({ lesson, handleProps, overlay }) => (
           <LessonRow
-            lesson={lesson} handleProps={handleProps} overlay={overlay} readOnly={readOnly}
+            lesson={lesson} handleProps={handleProps} overlay={overlay} readOnly={readOnly} free={isFree(lesson)}
             onOpen={() => openLesson(lesson)} onDelete={() => setConfirm({ kind: 'lesson', item: lesson })}
           />
         )}

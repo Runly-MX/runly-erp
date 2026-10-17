@@ -3,7 +3,7 @@
 import { formToSettings, settingsToForm, validateSettings } from './lmsEval.js'
 
 export const EMPTY_LESSON_FORM = {
-  title: '', kind: 'video', sectionId: null, body: '', embedUrl: '', durationMinutes: '', required: true, upload: null, cover: null, settings: {},
+  title: '', kind: 'video', sectionId: null, body: '', embedUrl: '', durationMinutes: '', required: true, preview: false, upload: null, cover: null, settings: {},
 }
 
 export function lessonToForm(lesson, sectionId = null) {
@@ -16,6 +16,7 @@ export function lessonToForm(lesson, sectionId = null) {
     embedUrl: lesson.embedUrl ?? '',
     durationMinutes: lesson.durationSeconds ? String(Math.round(lesson.durationSeconds / 60)) : '',
     required: lesson.required !== false,
+    preview: lesson.preview === true,
     upload: lesson.fileId ? { fileId: lesson.fileId, fileName: lesson.fileName, durationSeconds: lesson.durationSeconds } : null,
     cover: lesson.coverFileId ? { fileId: lesson.coverFileId, url: lesson.coverUrl ?? null } : null,
     settings: settingsToForm(lesson.kind, lesson.settings),
@@ -39,6 +40,8 @@ export function validateLessonForm(form) {
   if (form.kind === 'embed' && !/^https:\/\//i.test(String(form.embedUrl ?? '').trim())) errors.embedUrl = 'Escribe un enlace que empiece con https://'
   if (form.kind === 'text' && !String(form.body ?? '').trim()) errors.body = 'Escribe el contenido de la lección.'
   if (form.kind === 'assignment' && !String(form.body ?? '').trim()) errors.body = 'Escribe las instrucciones de la tarea.'
+  const minutes = String(form.durationMinutes ?? '').trim()
+  if (minutes && (!Number.isInteger(Number(minutes)) || Number(minutes) < 0 || Number(minutes) > 10000)) errors.durationMinutes = 'Escribe de 0 a 10000 minutos, o déjalo vacío.'
   const settingsErrors = validateSettings(form.kind, form.settings)
   if (Object.keys(settingsErrors).length) errors.settings = settingsErrors
   return errors
@@ -65,6 +68,7 @@ export function lessonFormToPayload(form, { id = null } = {}) {
     embedUrl: form.kind === 'embed' ? String(form.embedUrl ?? '').trim() : null,
     durationSeconds,
     required: form.required,
+    preview: form.preview === true,
     ...(settings ? { settings } : {}),
   }
 }
