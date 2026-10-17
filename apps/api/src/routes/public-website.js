@@ -207,9 +207,9 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
   return app
 }
 
-export function createPublicCatalogRouter({ prisma }) {
+export function createPublicCatalogRouter({ prisma, supabaseAdmin = null }) {
   const app = new Hono()
-  const publicSvc = createCatalogPublicService({ prisma })
+  const publicSvc = createCatalogPublicService({ prisma, supabaseAdmin })
   const siteResolver = createDistServeService({ prisma })
 
   // The npm storefront-sdk (packages/storefront-sdk) always sends

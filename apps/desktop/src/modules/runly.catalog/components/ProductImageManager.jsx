@@ -38,6 +38,10 @@ export default function ProductImageManager({ token, coverId, imageIds = [], onC
     mutationFn: async (file) => {
       const form = new FormData()
       form.append('file', file)
+      // Storefront images: PUBLIC bucket with permanent URLs, owned by the
+      // catalog module instead of the uploader's private Files.
+      form.append('visibility', 'PUBLIC')
+      form.append('moduleKey', 'runly.catalog')
       const res = await runly.files.upload(form, token)
       return res?.data ?? res
     },

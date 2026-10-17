@@ -32,16 +32,23 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
     }
   }
 
-  async function resolveImageUrls(rows) {
+  // companyId restricts covers to the company's own enabled files; the public
+  // storefront always passes it so a foreign asset id can never be signed.
+  async function resolveImageUrls(rows, { companyId = null } = {}) {
     if (!supabaseAdmin) return rows
     const ids = [...new Set(rows.map((r) => r.cover_asset_id).filter(Boolean))]
     if (!ids.length) return rows
 
     const placeholders = ids.map((_, i) => `$${i + 1}::uuid`).join(', ')
-    const assets = await prisma.$queryRawUnsafe(
-      `SELECT id, object_key, bucket, visibility FROM file_asset WHERE id IN (${placeholders})`,
-      ...ids,
-    )
+    const assets = companyId
+      ? await prisma.$queryRawUnsafe(
+        `SELECT id, object_key, bucket, visibility FROM file_asset WHERE id IN (${placeholders}) AND entity_id = $${ids.length + 1}::uuid AND enabled = true`,
+        ...ids, companyId,
+      )
+      : await prisma.$queryRawUnsafe(
+        `SELECT id, object_key, bucket, visibility FROM file_asset WHERE id IN (${placeholders})`,
+        ...ids,
+      )
     if (!assets.length) return rows
 
     const urlMap = new Map()
@@ -427,6 +434,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
   }
 
   return {
+    resolveImageUrls,
     listCategoriesTree,
     listCategories,
     listCategoriesPaginated,

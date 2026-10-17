@@ -2108,7 +2108,7 @@ const publicWebsiteRouter = createPublicWebsiteRouter({
 });
 app.route("/public/website", publicWebsiteRouter);
 
-const publicCatalogRouter = createPublicCatalogRouter({ prisma });
+const publicCatalogRouter = createPublicCatalogRouter({ prisma, supabaseAdmin });
 app.route("/public/catalog", publicCatalogRouter);
 app.route("/public/inventory/custody", createInventoryCustodyPublicRouter({ prisma, supabaseAdmin }));
 app.route("/public/inventory/items", createInventoryItemPublicRouter({ prisma, supabaseAdmin }));

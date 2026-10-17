@@ -1,6 +1,10 @@
 // apps/api/src/routes/catalog/catalog-public-service.js
+import { createCatalogProductService } from './catalog-product-service.js'
 
-export function createCatalogPublicService({ prisma }) {
+// supabaseAdmin adds image_url (the storefront blocks render it): permanent
+// for PUBLIC covers, short-lived signed for older private ones.
+export function createCatalogPublicService({ prisma, supabaseAdmin = null }) {
+  const images = createCatalogProductService({ prisma, supabaseAdmin })
 
   async function listPublicProducts({ companyId, categorySlug, search, limit = 20, offset = 0 }) {
     const safeLimit  = Math.min(Math.max(Number.parseInt(String(limit  ?? 20),  10) || 20,  1), 200)
@@ -37,7 +41,7 @@ export function createCatalogPublicService({ prisma }) {
       companyId, catSlug, likeSearch,
     )
 
-    return { data: rows, total }
+    return { data: await images.resolveImageUrls(rows, { companyId }), total }
   }
 
   async function getPublicProductBySlug({ companyId, slug }) {
@@ -61,7 +65,7 @@ export function createCatalogPublicService({ prisma }) {
     `
     if (!rows[0]) return null
 
-    const product = rows[0]
+    const [product] = await images.resolveImageUrls(rows, { companyId })
     if (product.product_type === 'VARIABLE') {
       product.variants = await prisma.$queryRaw`
         SELECT id, option_values, price, compare_price, stock, cover_asset_id, sku
