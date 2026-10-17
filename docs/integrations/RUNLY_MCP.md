@@ -85,8 +85,12 @@ Los access tokens son opacos, duran 15 minutos y se almacenan únicamente como
 hash SHA-256. Su registro está vinculado al recurso MCP y a una autorización
 persistente. No se aceptan JWT de Supabase en `/mcp`. La sesión web de Supabase
 solo sirve para consentimiento, revisión y revocación; la service role nunca
-representa al usuario MCP. El refresh y la autorización duran hasta 30 días;
-el refresh rota, invalida el access token anterior y revoca toda la conexión si
+representa al usuario MCP. La autorización tiene vigencia deslizante: vence a
+los 30 días sin uso y cada refresh la extiende 30 días desde ese momento, hasta
+un máximo de 180 días desde el consentimiento; después hay que reconectar. El
+refresh token nunca dura más que su autorización. `/app/mcp` muestra el
+vencimiento de cada conexión y avisa cuando faltan siete días o menos. El
+refresh rota, invalida el access token anterior y revoca toda la conexión si
 se reutiliza. Los códigos duran dos minutos y se consumen una vez.
 
 Se vuelven a consultar perfil, membresías, permisos, empresa y módulo. La pérdida

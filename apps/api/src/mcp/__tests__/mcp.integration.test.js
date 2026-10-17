@@ -401,6 +401,26 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
     assert.equal((await request('/mcp', null, tokens.access_token)).status, 401);
     await sdk.close();
   });
+  await t.test('vigencia deslizante: refresh renueva 30 días hasta el tope de 180', async () => {
+    const day = 86400000, near = (date, expected) => Math.abs(new Date(date).getTime() - expected) < 60000;
+    await connect('runly:read');
+    const grantKey = digest(grantId), refreshWith = token => request('/mcp/oauth/token', { grant_type: 'refresh_token', refresh_token: token, client_id: clientId, resource: config.resource }, null, true);
+    await prisma.mcpState.update({ where: { key: grantKey }, data: { createdAt: new Date(Date.now() - 20 * day), expiresAt: new Date(Date.now() + 10 * day) } });
+    const renewed = await refreshWith(tokens.refresh_token);
+    assert.equal(renewed.status, 200);
+    assert.ok(near((await prisma.mcpState.findUnique({ where: { key: grantKey } })).expiresAt, Date.now() + 30 * day));
+    const next = await renewed.json();
+    const createdAt = Date.now() - 175 * day;
+    await prisma.mcpState.update({ where: { key: grantKey }, data: { createdAt: new Date(createdAt) } });
+    const capped = await refreshWith(next.refresh_token);
+    assert.equal(capped.status, 200);
+    const cappedTokens = await capped.json();
+    assert.ok(near((await prisma.mcpState.findUnique({ where: { key: grantKey } })).expiresAt, createdAt + 180 * day));
+    assert.ok(near((await store.get('refresh', cappedTokens.refresh_token)).expiresAt, createdAt + 180 * day));
+    const account = await (await request('/mcp/account', null, webToken())).json();
+    const listed = account.grants.find(g => g.id === grantId);
+    assert.ok(near(listed.expiresAt, createdAt + 180 * day) && near(listed.maxExpiresAt, createdAt + 180 * day));
+  });
   await t.test('deshabilitado no afecta al resto de la API', async () => {
     const disabled = new Hono().route('/', createMcpRouter({ prisma, authMiddleware, env: {} })).get('/health', c => c.json({ ok: true }));
     assert.equal((await disabled.request('/mcp')).status, 404);

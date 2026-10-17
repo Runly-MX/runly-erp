@@ -3,7 +3,7 @@ import { cors } from 'hono/cors';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
 import { mcpConfig, insist } from './config.js';
-import { createMcpOAuth } from './oauth.js';
+import { createMcpOAuth, GRANT_MAX_SECONDS } from './oauth.js';
 import { createMcpCapabilities } from './capabilities.js';
 import { createMcpAccess } from './access.js';
 import { digest, nonce } from './state.js';
@@ -106,7 +106,8 @@ export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLog
     const recent = await activity.list(c.get('authUserId'));
     const lastByGrant = new Map();
     for (const row of recent) if (row.grantId && !lastByGrant.has(row.grantId)) lastByGrant.set(row.grantId, row.at);
-    return c.json({ companies: branded, grants: grants.filter(g => !g.payload.revoked).map(g => ({ id: g.payload.grantId, clientName: g.payload.clientName, companyIds: g.payload.companyIds, scopes: g.payload.scopes, lastActivityAt: lastByGrant.get(g.payload.grantId) ?? null })) });
+    return c.json({ companies: branded, grants: grants.filter(g => !g.payload.revoked).map(g => ({ id: g.payload.grantId, clientName: g.payload.clientName, companyIds: g.payload.companyIds, scopes: g.payload.scopes, lastActivityAt: lastByGrant.get(g.payload.grantId) ?? null,
+      expiresAt: g.expiresAt.toISOString(), maxExpiresAt: new Date(g.createdAt.getTime() + GRANT_MAX_SECONDS * 1000).toISOString() })) });
   });
   router.get('/mcp/account/activity', authMiddleware, async c => c.json({ activity: await activity.list(c.get('authUserId')) }));
   router.post('/mcp/oauth/consent', authMiddleware, async c => c.json(await oauth.consent(c.get('authUserId'), await c.req.json())));

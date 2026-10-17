@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AccordionContent, AccordionItem, AccordionTrigger, Button, EmptyState } from '@runly/ui';
-import { AlertTriangle, Building2, CheckCircle2, Clock, History, PencilLine, Search, ShieldCheck, XCircle } from 'lucide-react';
-import { DOMAINS, ScopeBadges, groupScopes } from './McpConnectionParts.jsx';
+import { AlertTriangle, Building2, CalendarClock, CheckCircle2, Clock, History, PencilLine, Search, ShieldCheck, XCircle } from 'lucide-react';
+import { DOMAINS, Notice, ScopeBadges, groupScopes } from './McpConnectionParts.jsx';
 
 const TOOL_LABELS = { runly_whoami: 'Consultó su identidad', runly_companies_list: 'Listó las empresas autorizadas', runly_modules_list: 'Listó los módulos disponibles', runly_module_schema: 'Consultó las operaciones de un módulo' };
 const MODE_VERB = { query: 'Consultó', prepare: 'Preparó un cambio en', commit: 'Ejecutó un cambio aprobado en' };
@@ -57,15 +57,34 @@ export function ActivityList({ items, companies, empty }) {
 }
 
 const heading = 'text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]';
+const DAY_MS = 86400000;
+const formatDate = iso => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** Sliding expiry: each token refresh extends the connection up to its maximum lifetime. */
+export function connectionExpiry(grant, now = Date.now()) {
+  if (!grant.expiresAt) return null;
+  const daysLeft = Math.max(0, Math.ceil((new Date(grant.expiresAt).getTime() - now) / DAY_MS));
+  const atMaximum = Boolean(grant.maxExpiresAt) && new Date(grant.maxExpiresAt).getTime() - new Date(grant.expiresAt).getTime() < DAY_MS;
+  return { daysLeft, atMaximum, soon: daysLeft <= 7, label: daysLeft === 0 ? 'Vence hoy' : `Vence en ${daysLeft} ${daysLeft === 1 ? 'día' : 'días'}` };
+}
+
+function ExpiryNotice({ grant, expiry }) {
+  const text = expiry.atMaximum
+    ? `Esta conexión alcanzó su vigencia máxima y vence el ${formatDate(grant.expiresAt)}. Después tendrás que volver a conectarla desde la aplicación.`
+    : `Se renueva sola mientras la aplicación la use. Sin actividad vence el ${formatDate(grant.expiresAt)}; su vigencia máxima termina el ${formatDate(grant.maxExpiresAt)}.`;
+  return <Notice icon={CalendarClock} tone={expiry.soon ? 'warning' : 'info'}>{text}</Notice>;
+}
 
 export function ConnectionItem({ grant, companies, onRevoke }) {
-  const groups = groupScopes(grant.scopes), granted = companies.filter(c => grant.companyIds?.includes(c.id));
+  const groups = groupScopes(grant.scopes), granted = companies.filter(c => grant.companyIds?.includes(c.id)), expiry = connectionExpiry(grant);
   return <AccordionItem value={grant.id} className="bg-[hsl(var(--card))]">
     <AccordionTrigger className="px-4 py-3">
       <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left"><span className="break-words text-sm font-semibold">{grant.clientName}</span>
-        <span className="flex flex-wrap items-center gap-x-3 text-xs font-normal text-[hsl(var(--muted-foreground))]"><span className="inline-flex items-center gap-1"><Clock size={12} aria-hidden="true" />{grant.lastActivityAt ? `Última actividad ${relativeTime(grant.lastActivityAt)}` : 'Sin actividad reciente'}</span><span>{groups.length} módulos · {granted.length} {granted.length === 1 ? 'empresa' : 'empresas'}</span></span></span>
+        <span className="flex flex-wrap items-center gap-x-3 text-xs font-normal text-[hsl(var(--muted-foreground))]"><span className="inline-flex items-center gap-1"><Clock size={12} aria-hidden="true" />{grant.lastActivityAt ? `Última actividad ${relativeTime(grant.lastActivityAt)}` : 'Sin actividad reciente'}</span><span>{groups.length} módulos · {granted.length} {granted.length === 1 ? 'empresa' : 'empresas'}</span>
+          {expiry?.soon && <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-0.5 text-amber-700 dark:text-amber-400"><CalendarClock size={12} aria-hidden="true" />{expiry.label}</span>}</span></span>
     </AccordionTrigger>
     <AccordionContent className="space-y-4 border-t border-[hsl(var(--border))] p-4">
+      {expiry && <ExpiryNotice grant={grant} expiry={expiry} />}
       <div className="space-y-2"><h4 className={heading}>Empresas autorizadas</h4><div className="flex flex-wrap gap-1.5">{granted.map(c => <span key={c.id} className="inline-flex items-center gap-1 rounded-md bg-[hsl(var(--muted))] px-2 py-1 text-xs"><Building2 size={12} aria-hidden="true" />{c.name}</span>)}</div></div>
       <div className="space-y-2"><h4 className={heading}>Permisos</h4><ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">{groups.map(g => <li key={g.domain} className="flex items-center justify-between gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-sm"><span className="min-w-0 truncate">{g.label}</span><ScopeBadges read={g.read} write={g.write} /></li>)}</ul></div>
       <div className="flex justify-end"><Button variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => onRevoke(grant)}>Revocar</Button></div>

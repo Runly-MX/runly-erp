@@ -59,7 +59,7 @@ test('MCP screen: all requests use the frontend origin and preserve web authoriz
         revoked = true;
         response.end(JSON.stringify({ revoked: true }));
       } else if (request.url === '/mcp/account') {
-        response.end(JSON.stringify({ companies: [{ id: 'company-a', name: 'Empresa de prueba' }], grants: revoked ? [] : [{ id: 'grant-a', clientName: 'Cliente de prueba', scopes: ['runly:read'] }] }));
+        response.end(JSON.stringify({ companies: [{ id: 'company-a', name: 'Empresa de prueba' }], grants: revoked ? [] : [{ id: 'grant-a', clientName: 'Cliente de prueba', scopes: ['runly:read'], companyIds: ['company-a'], expiresAt: new Date(Date.now() + 2.5 * 86400000).toISOString(), maxExpiresAt: new Date(Date.now() + 100 * 86400000).toISOString() }] }));
       } else if (request.url.startsWith('/mcp/oauth/request/')) {
         response.end(JSON.stringify({ clientName: 'Cliente de prueba', redirectUri: 'https://client.example/callback', scopes: ['runly:read'] }));
       } else if (request.url === '/mcp/oauth/consent') {
@@ -78,6 +78,10 @@ test('MCP screen: all requests use the frontend origin and preserve web authoriz
     page.on('pageerror', error => errors.push(error.message));
 
     await page.goto(`${origin}/app/mcp`);
+    // Connections are collapsed accordion items; the expiry badge shows on the trigger.
+    await page.getByText('Vence en 3 días').waitFor();
+    await page.getByRole('button', { name: /Cliente de prueba/ }).click();
+    await page.getByText('Se renueva sola mientras la aplicación la use.', { exact: false }).waitFor();
     await page.getByRole('button', { name: 'Revocar', exact: true }).click().catch(async error => {
       throw new Error(`${error.message}\nBrowser errors: ${errors.join('; ')}\n${await page.locator('body').innerText()}`);
     });

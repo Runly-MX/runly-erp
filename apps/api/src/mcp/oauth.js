@@ -5,7 +5,10 @@ import { createMcpState, nonce, digest } from './state.js';
 import { createMcpAccess } from './access.js';
 import { parseOAuth, oauthScope } from './oauth-validation.js';
 
-const redirectUri = z.string().max(2048).refine(value => !/[\s\x00-\x1f\x7f]/.test(value)).url().refine(value => {
+export const GRANT_IDLE_SECONDS = 30 * 86400;
+export const GRANT_MAX_SECONDS = 180 * 86400;
+
+const redirectUri =z.string().max(2048).refine(value => !/[\s\x00-\x1f\x7f]/.test(value)).url().refine(value => {
   if (!URL.canParse(value)) return false;
   const u = new URL(value);
   return !/[\s\x00-\x1f\x7f]/.test(value) && !u.hostname.includes('*') && !u.username && !u.password && !u.hash && (u.protocol === 'https:' || u.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname));
@@ -46,6 +49,14 @@ export function createMcpOAuth({ prisma, config }) {
     if (cache) Object.defineProperty(auth, 'access', { value: requestAccess, enumerable: false });
     return auth;
   }
+  // Sliding lifetime: every refresh moves the connection's expiry to 30 days
+  // from now, capped at 180 days after consent. The refresh token never
+  // outlives its grant.
+  async function renew(db, grant) {
+    const expiresAt = new Date(Math.min(Date.now() + GRANT_IDLE_SECONDS * 1000, grant.createdAt.getTime() + GRANT_MAX_SECONDS * 1000));
+    await db.mcpState.update({ where: { id: grant.id }, data: { expiresAt } });
+    return expiresAt;
+  }
   async function issue(db, grantId, clientId, requestedScopes) {
     const store = createMcpState(db);
     const accessToken = nonce(), refreshToken = nonce();
@@ -53,7 +64,7 @@ export function createMcpOAuth({ prisma, config }) {
     const scopes = requestedScopes ?? grant.payload.scopes;
     await store.put('access', accessToken, { grantId, clientId, resource: config.resource, scopes }, 900);
     const allowRefresh = (grant.payload.grantTypes ?? ['refresh_token']).includes('refresh_token');
-    if (allowRefresh) await store.put('refresh', refreshToken, { grantId, clientId, resource: config.resource, scopes, accessKey: digest(accessToken), used: false }, 2592000);
+    if (allowRefresh) await store.put('refresh', refreshToken, { grantId, clientId, resource: config.resource, scopes, accessKey: digest(accessToken), used: false }, Math.max(1, Math.floor((grant.expiresAt.getTime() - Date.now()) / 1000)));
     return { access_token: accessToken, token_type: 'Bearer', expires_in: 900, ...(allowRefresh ? { refresh_token: refreshToken } : {}), scope: scopes.join(' ') };
   }
   async function register(body) {
@@ -94,7 +105,7 @@ export function createMcpOAuth({ prisma, config }) {
       if (!input.approve) redirect.searchParams.set('error', 'access_denied');
       else {
         const grantId = nonce(), code = nonce();
-        await store.put('grant', grantId, { grantId, authUserId, resource: config.resource, clientId: request.payload.client_id, clientName: request.payload.clientName, companyIds: [...new Set(input.companyIds)], scopes: request.payload.scopes, grantTypes: request.payload.grantTypes, revoked: false }, 2592000);
+        await store.put('grant', grantId, { grantId, authUserId, resource: config.resource, clientId: request.payload.client_id, clientName: request.payload.clientName, companyIds: [...new Set(input.companyIds)], scopes: request.payload.scopes, grantTypes: request.payload.grantTypes, revoked: false }, GRANT_IDLE_SECONDS);
         await store.put('code', code, { ...request.payload, grantId, used: false }, 120);
         redirect.searchParams.set('code', code);
       }
@@ -136,6 +147,7 @@ export function createMcpOAuth({ prisma, config }) {
       await createMcpAccess(db).identity(grant.payload.authUserId);
       await store.save(row, { ...row.payload, used: true });
       await db.mcpState.deleteMany({ where: { kind: 'access', key: row.payload.accessKey } });
+      await renew(db, grant);
       return issue(db, row.payload.grantId, args.client_id, scopes);
     });
     insist(!result.replay, 'invalid_grant', 'Refresh token reutilizado; conexión revocada.');
