@@ -26,7 +26,27 @@ Para que los alumnos lo vean, **publica** el curso. Un curso necesita al menos u
 - **Texto**: contenido escrito con formato.
 - **Archivo**: un documento para descargar, como un PDF o una presentación.
 
+- **Examen**: preguntas que el alumno responde y se califican (ver Exámenes).
+- **Tarea**: una actividad que el alumno entrega como texto o archivos y alguien revisa (ver Tareas).
+
 Cada lección puede ser **obligatoria** u opcional. El avance del curso solo cuenta las lecciones obligatorias.
+
+### Exámenes
+
+En una lección de tipo **Examen** configuras la calificación mínima para aprobar (70 % de forma predeterminada), el número de intentos (o ilimitados), un límite de tiempo opcional, cuántas preguntas tomar al azar en cada intento, si se mezclan las preguntas y las opciones, y cuándo ve el alumno las respuestas correctas: nunca, al enviar o solo al aprobar. Con **Editar preguntas** agregas preguntas de opción única, opción múltiple, verdadero o falso y respuesta abierta, cada una con sus puntos y una explicación opcional.
+
+- Las respuestas se guardan solas mientras el alumno contesta. Si el examen tiene tiempo, al terminarse se envía con lo que tenga guardado.
+- Opción única y verdadero o falso dan los puntos completos si la respuesta es correcta. Opción múltiple solo da puntos si se marcan exactamente las opciones correctas.
+- Las respuestas abiertas las califica una persona desde **Revisión**; mientras tanto la lección queda **En revisión**.
+- Al aprobar, la lección se completa y ya no se pierde. Si se acaban los intentos sin aprobar, la lección queda **No aprobada**; desde la pestaña **Alumnos** del curso se puede **Otorgar intento extra**.
+
+### Tareas
+
+En una lección de tipo **Tarea** escribes las instrucciones y eliges si se entrega como texto, archivos o ambos, el máximo de archivos (hasta 10, de 50 MB cada uno), los días para entregar desde la inscripción y, si quieres, una calificación mínima. El alumno envía su entrega y la lección queda **En revisión**. Las entregas fuera de plazo se aceptan y se marcan como tardías. Si la entrega se **devuelve**, el alumno puede enviar una nueva; si se **aprueba**, la lección se completa. Cuando la tarea tiene calificación mínima, aprobar exige una calificación igual o mayor.
+
+### Revisión
+
+**Revisión** muestra, de la más antigua a la más reciente, las entregas de tareas y los exámenes con respuestas abiertas que esperan calificación; puedes filtrar por curso. Al calificar, el alumno recibe una notificación, y quien creó el curso recibe otra cada vez que llega algo por revisar.
 
 ### Avance y finalización
 
@@ -41,3 +61,4 @@ En la pestaña **Alumnos**, **Asignar** permite elegir varios usuarios de la emp
 - **Acceder a Aprendizaje**: ver Mis cursos, el catálogo y tomar los cursos.
 - **Administrar cursos**: crear, editar, publicar y archivar cursos, y ver la vista previa de cualquier curso.
 - **Asignar cursos y ver avance**: asignar cursos, cambiar fechas límite, dar de baja y ver el avance de cada alumno.
+- **Calificar actividades y tareas**: abrir Revisión, calificar exámenes y tareas, y otorgar intentos extra.

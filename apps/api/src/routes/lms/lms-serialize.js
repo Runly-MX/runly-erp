@@ -1,5 +1,6 @@
 // Shared loaders and serializers for runly.lms (authoring and learner views).
 import { isOverdue } from './lms-core.js'
+import { normalizeLessonSettings } from './lms-eval-core.js'
 
 export const COURSE_COUNTS = {
   _count: { select: { sections: true, enrollments: { where: { status: { not: 'dropped' } } } } },
@@ -70,6 +71,7 @@ export function createLmsSerializers({ prisma, signFile = null }) {
       durationSeconds: row.durationSeconds,
       position: row.position,
       required: row.required,
+      settings: normalizeLessonSettings(row.kind, row.settings),
       enabled: row.enabled,
     }
   }

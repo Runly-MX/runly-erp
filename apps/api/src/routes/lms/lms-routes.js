@@ -3,6 +3,7 @@ import { LmsError } from './lms-core.js'
 import { createLmsService } from './lms-service.js'
 import { createLmsLearnService } from './lms-learn-service.js'
 import { createLmsMedia } from './lms-media.js'
+import { registerLmsEvalRoutes } from './lms-eval-routes.js'
 
 const companyId = (c) => c.get('companyId')
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
@@ -20,7 +21,7 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, service = null, learnService = null, media = null }) {
+export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null }) {
   const app = new Hono()
   const svc = service ?? createLmsService({ prisma, signFile })
   const learn = learnService ?? createLmsLearnService({ prisma, signFile, authoring: svc })
@@ -60,6 +61,9 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
   app.get('/lms/courses/:id/enrollments', enrollments, run('Error al cargar los alumnos.', async (c) => c.json({ data: await svc.listEnrollments(companyId(c), c.req.param('id')) })))
   app.post('/lms/courses/:id/enrollments', enrollments, run('Error al asignar el curso.', async (c) => c.json({ data: await svc.assign(companyId(c), actorId(c), c.req.param('id'), await body(c)) })))
   app.patch('/lms/enrollments/:id', enrollments, run('Error al guardar la inscripción.', async (c) => c.json({ data: await svc.updateEnrollment(companyId(c), c.req.param('id'), await body(c)) })))
+
+  // ---- evaluation (quizzes, assignments, grading) -------------------------
+  registerLmsEvalRoutes(app, { prisma, requirePermission, signFile, supabaseAdmin, bucket, notificationService, run, learn, media: files, services: evalServices })
 
   return app
 }

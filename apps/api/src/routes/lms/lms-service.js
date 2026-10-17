@@ -141,7 +141,7 @@ export function createLmsService({ prisma, signFile = null }) {
 
   async function updateLesson(companyId, lessonId, body) {
     const lesson = await findLesson(companyId, lessonId)
-    const data = normalizeLessonInput(body, { partial: true })
+    const data = normalizeLessonInput(body, { partial: true, currentKind: lesson.kind })
     if (data.fileId) await assertFile(companyId, data.fileId)
     const kind = data.kind ?? lesson.kind
     const embedUrl = data.embedUrl !== undefined ? data.embedUrl : lesson.embedUrl
@@ -212,8 +212,17 @@ export function createLmsService({ prisma, signFile = null }) {
   async function listEnrollments(companyId, courseId) {
     const course = await findCourse(companyId, courseId)
     const rows = await prisma.lmsEnrollment.findMany({ where: { courseId: course.id, companyId }, include: { learner: true }, orderBy: { createdAt: 'asc' } })
+    // Quiz lessons with no attempts left, for "Otorgar intento extra".
+    const failed = rows.length
+      ? await prisma.lmsLessonProgress.findMany({
+        where: { enrollmentId: { in: rows.map((row) => row.id) }, status: 'failed', lesson: { enabled: true } },
+        select: { enrollmentId: true, lesson: { select: { id: true, title: true } } },
+      })
+      : []
+    const failedBy = new Map()
+    for (const row of failed) failedBy.set(row.enrollmentId, [...(failedBy.get(row.enrollmentId) ?? []), { id: row.lesson.id, title: row.lesson.title }])
     const now = new Date()
-    return rows.map((row) => ser.serializeEnrollment(row, now))
+    return rows.map((row) => ({ ...ser.serializeEnrollment(row, now), failedLessons: failedBy.get(row.id) ?? [] }))
   }
 
   async function assign(companyId, actorId, courseId, body) {

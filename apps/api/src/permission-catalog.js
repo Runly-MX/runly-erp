@@ -1455,6 +1455,9 @@ export const PERMISSION_CATALOG = {
   "lms.enrollment.manage": {
     displayNameEs: "Asignar cursos y ver avance", descriptionEs: "Permite asignar cursos a usuarios con fecha límite, dar de baja y ver el avance de cada alumno.", groupKey: "lms", order: 30,
   },
+  "lms.grade": {
+    displayNameEs: "Calificar actividades y tareas", descriptionEs: "Permite revisar y calificar exámenes con respuestas abiertas y entregas de tareas, y otorgar intentos extra.", groupKey: "lms", order: 40,
+  },
 
   "projects.access": {
     displayNameEs: "Acceder a Proyectos",

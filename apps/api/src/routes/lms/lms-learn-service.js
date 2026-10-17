@@ -1,8 +1,10 @@
 // runly.lms learner side: catalog, my courses, self-enrollment, course outline,
 // lesson open and progress. The learner is always the current user profile.
-import { LmsError, lessonStates, orderLessons, progressPct, shouldAutoComplete } from './lms-core.js'
+import { EVALUATED_KINDS, LmsError, lessonStates, orderLessons, shouldAutoComplete } from './lms-core.js'
+import { normalizeLessonSettings } from './lms-eval-core.js'
 import { COURSE_COUNTS, createLmsSerializers } from './lms-serialize.js'
 import { createLmsService } from './lms-service.js'
+import { setLessonOutcome } from './lms-progress.js'
 
 const OPEN_STATUSES = ['active', 'completed']
 const MANUAL_COMPLETE_KINDS = new Set(['text', 'file', 'embed'])
@@ -140,6 +142,7 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
         body: lesson.body,
         embedUrl: lesson.embedUrl,
         durationSeconds: lesson.durationSeconds,
+        settings: normalizeLessonSettings(lesson.kind, lesson.settings),
         mediaUrl: withMedia ? await ser.sign(lesson.fileId, 'full') : null,
         fileName: lesson.fileId ? names.get(lesson.fileId) ?? null : null,
       },
@@ -168,30 +171,21 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     }
     const previous = ctx.progressById.get(lesson.id)
     const maxPositionSeconds = Math.max(previous?.maxPositionSeconds ?? 0, position ?? 0)
-    const alreadyDone = previous?.status === 'completed'
-    // Uploaded videos complete only by watching; evaluated kinds (phase 2) never by request.
+    // Uploaded videos complete only by watching; evaluated kinds never by request.
     const manual = body.completed === true && MANUAL_COMPLETE_KINDS.has(lesson.kind)
-    const complete = alreadyDone || manual || shouldAutoComplete({ kind: lesson.kind, positionSeconds: maxPositionSeconds, durationSeconds })
-    const fields = {
-      positionSeconds: position ?? previous?.positionSeconds ?? 0,
-      maxPositionSeconds,
-      status: complete ? 'completed' : 'in_progress',
-      completedAt: complete ? previous?.completedAt ?? now : null,
-    }
-    await prisma.lmsLessonProgress.upsert({
-      where: { enrollmentId_lessonId: { enrollmentId: enrollment.id, lessonId: lesson.id } },
-      create: { companyId, enrollmentId: enrollment.id, lessonId: lesson.id, ...fields },
-      update: fields,
+    const complete = manual || shouldAutoComplete({ kind: lesson.kind, positionSeconds: maxPositionSeconds, durationSeconds })
+    // Quiz/assignment status belongs to their evaluators; a progress ping keeps it.
+    const idle = EVALUATED_KINDS.has(lesson.kind) ? previous?.status ?? 'in_progress' : 'in_progress'
+    const result = await setLessonOutcome(prisma, {
+      enrollment,
+      lessonId: lesson.id,
+      status: complete ? 'completed' : idle,
+      fields: { positionSeconds: position ?? previous?.positionSeconds ?? 0, maxPositionSeconds },
+      touch: { lastLessonId: lesson.id, ...(enrollment.startedAt ? {} : { startedAt: now }) },
+      now,
     })
-
-    const completedIds = new Set([...ctx.progressById.values()].filter((row) => row.status === 'completed').map((row) => row.lessonId))
-    if (complete) completedIds.add(lesson.id)
-    const pct = progressPct(ctx.lessons, completedIds)
-    const data = { progressPct: pct, lastLessonId: lesson.id, ...(enrollment.startedAt ? {} : { startedAt: now }) }
-    if (pct >= 100 && enrollment.status === 'active') Object.assign(data, { status: 'completed', completedAt: enrollment.completedAt ?? now })
-    const updated = await prisma.lmsEnrollment.update({ where: { id: enrollment.id }, data, include: { learner: true } })
-    return { lessonStatus: fields.status, enrollment: ser.serializeEnrollment(updated) }
+    return { lessonStatus: result.lessonStatus, enrollment: ser.serializeEnrollment(result.enrollment) }
   }
 
-  return { catalog, myCourses, enroll, outline, openLesson, saveProgress }
+  return { catalog, myCourses, enroll, outline, openLesson, saveProgress, lessonContext }
 }

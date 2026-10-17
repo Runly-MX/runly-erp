@@ -154,6 +154,9 @@ const EVENT_TYPE_LABELS = {
   "notes.note.shared": "Nota compartida",
   // Website / storefront
   "website.sale.confirmed": "Venta confirmada",
+  // Aprendizaje
+  "lms.submission.graded": "Actividad calificada",
+  "lms.submission.received": "Nueva entrega por revisar",
   // System
   "system.alert": "Alerta del sistema",
   "general": "General",

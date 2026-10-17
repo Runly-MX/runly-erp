@@ -35,5 +35,31 @@ export function createLmsDomain({ request, withAuthHeaders, toQueryString }) {
     listEnrollments: (courseId, token) => send('GET', `/lms/courses/${id(courseId)}/enrollments`, undefined, token),
     assign: (courseId, data, token) => send('POST', `/lms/courses/${id(courseId)}/enrollments`, data, token),
     updateEnrollment: (enrollmentId, data, token) => send('PATCH', `/lms/enrollments/${id(enrollmentId)}`, data, token),
+
+    // Quiz authoring
+    listQuestions: (lessonId, token) => send('GET', `/lms/lessons/${id(lessonId)}/questions`, undefined, token),
+    createQuestion: (lessonId, data, token) => send('POST', `/lms/lessons/${id(lessonId)}/questions`, data, token),
+    updateQuestion: (questionId, data, token) => send('PATCH', `/lms/questions/${id(questionId)}`, data, token),
+    deleteQuestion: (questionId, token) => send('DELETE', `/lms/questions/${id(questionId)}`, undefined, token),
+    reorderQuestions: (lessonId, questionIds, token) => send('POST', `/lms/lessons/${id(lessonId)}/questions/reorder`, { questionIds }, token),
+
+    // Learner evaluation
+    getQuiz: (lessonId, token) => send('GET', `/lms/learn/lessons/${id(lessonId)}/quiz`, undefined, token),
+    startAttempt: (lessonId, token) => send('POST', `/lms/learn/lessons/${id(lessonId)}/attempts`, {}, token),
+    getAttempt: (attemptId, token) => send('GET', `/lms/learn/attempts/${id(attemptId)}`, undefined, token),
+    saveAnswers: (attemptId, answers, token) => send('PUT', `/lms/learn/attempts/${id(attemptId)}/answers`, { answers }, token),
+    submitAttempt: (attemptId, answers, token) => send('POST', `/lms/learn/attempts/${id(attemptId)}/submit`, answers === undefined ? {} : { answers }, token),
+    listSubmissions: (lessonId, token) => send('GET', `/lms/learn/lessons/${id(lessonId)}/submissions`, undefined, token),
+    submitAssignment: (lessonId, data, token) => send('POST', `/lms/learn/lessons/${id(lessonId)}/submissions`, data, token),
+    presignUpload: (data, token) => send('POST', '/lms/learn/uploads/presign', data, token),
+    confirmUpload: (fileId, token) => send('POST', `/lms/learn/uploads/${id(fileId)}/confirm`, {}, token),
+
+    // Grading
+    getReviewQueue: (query, token) => send('GET', `/lms/review${toQueryString(query ?? {})}`, undefined, token),
+    getReviewAttempt: (attemptId, token) => send('GET', `/lms/review/attempts/${id(attemptId)}`, undefined, token),
+    gradeAttempt: (attemptId, data, token) => send('POST', `/lms/review/attempts/${id(attemptId)}/grade`, data, token),
+    getReviewSubmission: (submissionId, token) => send('GET', `/lms/review/submissions/${id(submissionId)}`, undefined, token),
+    gradeSubmission: (submissionId, data, token) => send('POST', `/lms/review/submissions/${id(submissionId)}/grade`, data, token),
+    grantExtraAttempt: (enrollmentId, lessonId, token) => send('POST', `/lms/enrollments/${id(enrollmentId)}/lessons/${id(lessonId)}/extra-attempt`, {}, token),
   }
 }

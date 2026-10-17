@@ -1,16 +1,14 @@
 // Pure rules for runly.lms: progress, sequential locks, auto-completion,
 // overdue state, embed URL normalization and payload normalizers. No I/O.
+import { LmsError } from './lms-error.js'
+import { normalizeLessonSettings } from './lms-eval-core.js'
 
-export class LmsError extends Error {
-  constructor(message, status = 400, code = null) {
-    super(message)
-    this.name = 'LmsError'
-    this.status = status
-    this.code = code
-  }
-}
+export { LmsError }
 
-export const LESSON_KINDS = ['video', 'embed', 'text', 'file']
+export const LESSON_KINDS = ['video', 'embed', 'text', 'file', 'quiz', 'assignment']
+export const EVALUATED_KINDS = new Set(['quiz', 'assignment'])
+// Progress statuses a learner can see; only `completed` unlocks later lessons.
+const PROGRESS_STATES = new Set(['completed', 'in_progress', 'pending_review', 'failed'])
 export const LEVELS = ['basic', 'intermediate', 'advanced']
 export const COURSE_STATUSES = ['draft', 'published', 'archived']
 export const ENROLLMENT_STATUSES = ['active', 'completed', 'dropped']
@@ -32,7 +30,7 @@ export function lessonStates(lessons, progressById, { sequential, locked = true 
   let blocked = false
   for (const lesson of lessons) {
     const status = progressById.get(lesson.id)?.status
-    let state = status === 'completed' ? 'completed' : status === 'in_progress' ? 'in_progress' : 'available'
+    let state = PROGRESS_STATES.has(status) ? status : 'available'
     if (sequential && locked && blocked && state !== 'completed') state = 'locked'
     states.set(lesson.id, state)
     if (counts(lesson) && status !== 'completed') blocked = true
@@ -135,13 +133,22 @@ export function normalizeCourseInput(body = {}, { partial = false } = {}) {
   return data
 }
 
-export function normalizeLessonInput(body = {}, { partial = false } = {}) {
+// currentKind: the stored kind on partial updates, so `settings` normalize by kind.
+export function normalizeLessonInput(body = {}, { partial = false, currentKind = null } = {}) {
   const data = {}
   if (!partial || has(body, 'title')) data.title = requiredTitle(body.title)
   if (!partial || has(body, 'kind')) {
     const kind = body.kind ?? 'text'
     if (!LESSON_KINDS.includes(kind)) throw new LmsError('Tipo de lección inválido.', 400)
     data.kind = kind
+  }
+  const kind = data.kind ?? currentKind
+  if (!partial || has(body, 'settings') || (data.kind && data.kind !== currentKind)) {
+    // A new kind without settings starts from that kind's defaults.
+    data.settings = normalizeLessonSettings(kind, has(body, 'settings') ? body.settings : {})
+    if (kind === 'assignment' && !data.settings.allowText && !data.settings.allowFiles) {
+      throw new LmsError('La tarea debe admitir texto, archivos o ambos.', 400)
+    }
   }
   if (has(body, 'body')) data.body = optionalText(body.body, 200_000, 'El contenido')
   if (has(body, 'fileId')) data.fileId = optionalUuid(body.fileId)

@@ -5383,7 +5383,7 @@ model LmsLesson {
   courseId        String   @map("course_id") @db.Uuid
   sectionId       String   @map("section_id") @db.Uuid
   title           String
-  kind            String   @default("text") // video | embed | text | file
+  kind            String   @default("text") // video | embed | text | file | quiz | assignment
   body            String? // markdown
   fileId          String?  @map("file_id") @db.Uuid
   embedUrl        String?  @map("embed_url")
@@ -5391,12 +5391,16 @@ model LmsLesson {
   position        Int      @default(0)
   required        Boolean  @default(true)
   preview         Boolean  @default(false) // phase 6
+  settings        Json     @default("{}") // quiz / assignment settings, normalized by kind
   enabled         Boolean  @default(true)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  section  LmsSection          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  progress LmsLessonProgress[]
+  section     LmsSection          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  progress    LmsLessonProgress[]
+  questions   LmsQuizQuestion[]
+  attempts    LmsQuizAttempt[]
+  submissions LmsSubmission[]
 
   @@index([courseId])
   @@index([sectionId, position])
@@ -5439,9 +5443,11 @@ model LmsEnrollment {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  course   LmsCourse           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  learner  LmsLearner          @relation(fields: [learnerId], references: [id], onDelete: Cascade)
-  progress LmsLessonProgress[]
+  course      LmsCourse           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  learner     LmsLearner          @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  progress    LmsLessonProgress[]
+  attempts    LmsQuizAttempt[]
+  submissions LmsSubmission[]
 
   @@unique([courseId, learnerId])
   @@index([learnerId, status])
@@ -5453,9 +5459,10 @@ model LmsLessonProgress {
   companyId          String    @map("company_id") @db.Uuid
   enrollmentId       String    @map("enrollment_id") @db.Uuid
   lessonId           String    @map("lesson_id") @db.Uuid
-  status             String    @default("in_progress") // in_progress | completed
+  status             String    @default("in_progress") // in_progress | completed | pending_review | failed
   positionSeconds    Int       @default(0) @map("position_seconds")
   maxPositionSeconds Int       @default(0) @map("max_position_seconds")
+  extraAttempts      Int       @default(0) @map("extra_attempts")
   completedAt        DateTime? @map("completed_at") @db.Timestamptz(6)
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -5464,4 +5471,85 @@ model LmsLessonProgress {
 
   @@unique([enrollmentId, lessonId])
   @@map("lms_lesson_progress")
+}
+
+model LmsQuizQuestion {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  lessonId    String   @map("lesson_id") @db.Uuid
+  kind        String   @default("single") // single | multiple | true_false | open
+  prompt      String // markdown
+  options     Json     @default("[]") // [{ id, text, correct }]
+  explanation String?
+  points      Int      @default(1)
+  position    Int      @default(0)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lesson LmsLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, position])
+  @@map("lms_quiz_question")
+}
+
+model LmsQuizAttempt {
+  id           String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  enrollmentId String    @map("enrollment_id") @db.Uuid
+  lessonId     String    @map("lesson_id") @db.Uuid
+  number       Int
+  status       String    @default("in_progress") // in_progress | submitted | graded
+  questionIds  String[]  @map("question_ids") @db.Uuid // drawn questions, display order
+  optionOrder  Json      @default("{}") @map("option_order") // { questionId: [optionId] }
+  answers      Json      @default("{}") // { questionId: { optionIds?, text? } }
+  startedAt    DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  deadlineAt   DateTime? @map("deadline_at") @db.Timestamptz(6)
+  submittedAt  DateTime? @map("submitted_at") @db.Timestamptz(6)
+  autoPoints   Float?    @map("auto_points")
+  manualPoints Json      @default("{}") @map("manual_points") // { questionId: points }
+  scorePoints  Float?    @map("score_points")
+  maxPoints    Float?    @map("max_points")
+  scorePct     Float?    @map("score_pct")
+  passed       Boolean?
+  gradedById   String?   @map("graded_by_id") @db.Uuid
+  gradedAt     DateTime? @map("graded_at") @db.Timestamptz(6)
+  feedback     String?
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  enrollment LmsEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson     LmsLesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  // The unique index also serves (enrollment_id, lesson_id) lookups.
+  @@unique([enrollmentId, lessonId, number])
+  @@index([companyId, status])
+  @@map("lms_quiz_attempt")
+}
+
+model LmsSubmission {
+  id           String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  enrollmentId String    @map("enrollment_id") @db.Uuid
+  lessonId     String    @map("lesson_id") @db.Uuid
+  number       Int
+  status       String    @default("submitted") // submitted | returned | approved
+  text         String?
+  fileIds      String[]  @map("file_ids") @db.Uuid
+  submittedAt  DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  late         Boolean   @default(false)
+  grade        Float? // 0-100
+  feedback     String?
+  gradedById   String?   @map("graded_by_id") @db.Uuid
+  gradedAt     DateTime? @map("graded_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  enrollment LmsEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson     LmsLesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  // The unique index also serves (enrollment_id, lesson_id) lookups.
+  @@unique([enrollmentId, lessonId, number])
+  @@index([companyId, status])
+  @@map("lms_submission")
 }

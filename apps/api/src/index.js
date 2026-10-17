@@ -2437,7 +2437,7 @@ mountWithAuth(app, createCalendarRouter({ prisma, requirePermission, broadcaster
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService), broadcaster }));
 mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, entityResolver: resolveCanvasEntityLink, dataSources: createCanvasDataSources({ prisma, relationTargets }), removeFiles: createCanvasFileRemover({ prisma, supabaseAdmin }) }));
 mountWithAuth(app, createAttendanceRouter({ prisma, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail), buildInviteMail: buildAttendancePhoneInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env), requirePermission, requireAnyPermission, broadcaster, events: attendanceEvents, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
-mountWithAuth(app, createLmsRouter({ prisma, requirePermission, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
+mountWithAuth(app, createLmsRouter({ prisma, requirePermission, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));

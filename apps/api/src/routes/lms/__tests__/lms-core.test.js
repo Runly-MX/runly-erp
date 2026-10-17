@@ -86,10 +86,33 @@ test('normalizeCourseInput validates title and level', () => {
 })
 
 test('normalizeLessonInput validates kind and normalizes embed', () => {
-  assert.throws(() => normalizeLessonInput({ title: 'A', kind: 'quiz' }, { partial: false }), LmsError)
+  assert.throws(() => normalizeLessonInput({ title: 'A', kind: 'survey' }, { partial: false }), LmsError)
   const data = normalizeLessonInput({ title: 'A', kind: 'embed', embedUrl: 'https://youtu.be/abcdefghijk', required: false }, { partial: false })
   assert.equal(data.embedUrl, 'https://www.youtube-nocookie.com/embed/abcdefghijk')
   assert.equal(data.required, false)
+  assert.deepEqual(data.settings, {})
+})
+
+test('normalizeLessonInput normalizes quiz and assignment settings by kind', () => {
+  const quiz = normalizeLessonInput({ title: 'Examen', kind: 'quiz', settings: { passingScore: 80, maxAttempts: 2 } }, { partial: false })
+  assert.equal(quiz.settings.passingScore, 80)
+  assert.equal(quiz.settings.maxAttempts, 2)
+  assert.equal(quiz.settings.showAnswers, 'after_submit')
+  const patch = normalizeLessonInput({ settings: { maxFiles: 3 } }, { partial: true, currentKind: 'assignment' })
+  assert.equal(patch.settings.maxFiles, 3)
+  assert.equal(normalizeLessonInput({ title: 'x' }, { partial: true, currentKind: 'quiz' }).settings, undefined)
+  // Switching kind without settings starts from the new kind's defaults.
+  assert.equal(normalizeLessonInput({ kind: 'quiz' }, { partial: true, currentKind: 'assignment' }).settings.passingScore, 70)
+  assert.throws(() => normalizeLessonInput({ title: 'T', kind: 'assignment', settings: { allowText: false, allowFiles: false } }), LmsError)
+})
+
+test('lessonStates passes pending_review and failed through; only completed unlocks', () => {
+  const lessons = [L('a'), L('b'), L('c')]
+  const states = lessonStates(lessons, new Map([['a', { status: 'pending_review' }], ['b', { status: 'failed' }]]), { sequential: false })
+  assert.deepEqual([...states.values()], ['pending_review', 'failed', 'available'])
+  const locked = lessonStates(lessons, new Map([['a', { status: 'pending_review' }]]), { sequential: true })
+  assert.equal(locked.get('a'), 'pending_review')
+  assert.equal(locked.get('b'), 'locked')
 })
 
 test('orderLessons flattens by section then lesson position, enabled only', () => {
