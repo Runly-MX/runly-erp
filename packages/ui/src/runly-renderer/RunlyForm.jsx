@@ -1,5 +1,6 @@
 import { useRuntimeFetch } from '../lib/module-runtime/RuntimeAdapters.jsx';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { QueryClientContext } from "@tanstack/react-query";
 import * as LucideIcons from "lucide-react";
 import { renderFormFieldControl } from "./runly-form-field-control.jsx";
 import { FormColumns } from "./runly-form-layout.jsx";
@@ -304,6 +305,8 @@ export function RunlyForm({
 
   const recordId = resolvedRecordId;
   const isEditMode = mode === "edit";
+  // Optional: forms also render outside a QueryClientProvider (previews, public pages).
+  const queryClient = useContext(QueryClientContext);
 
   // Edited and actually different from the last reset/save (reverting every
   // change hides the save bar again). Derived cost totals are ignored.
@@ -514,6 +517,10 @@ export function RunlyForm({
 
       baselineRef.current = formValuesRef.current;
       setTouched(false);
+      // The save bypasses react-query, so cached lists/details (staleTime of minutes)
+      // would keep showing the old record. Mark the whole cache stale: visible queries
+      // refetch now, the rest on their next mount (e.g. the detail screen we navigate to).
+      void queryClient?.invalidateQueries();
       onSuccess?.(nextResult);
     } catch (err) {
       const message =
