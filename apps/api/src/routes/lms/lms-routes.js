@@ -6,6 +6,7 @@ import { createLmsMedia } from './lms-media.js'
 import { registerLmsEvalRoutes } from './lms-eval-routes.js'
 import { registerLmsSocialRoutes } from './lms-social-routes.js'
 import { registerLmsCertRoutes } from './lms-cert-routes.js'
+import { registerLmsExperienceRoutes } from './lms-experience-routes.js'
 
 const companyId = (c) => c.get('companyId')
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
@@ -23,7 +24,7 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null }) {
+export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null, experienceServices = null }) {
   const app = new Hono()
   const svc = service ?? createLmsService({ prisma, signFile })
   const files = media ?? createLmsMedia({ prisma, supabaseAdmin, bucket })
@@ -56,6 +57,7 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
   app.post('/lms/sections/:id/lessons', courses, run('Error al crear la lección.', async (c) => c.json({ data: await svc.createLesson(companyId(c), c.req.param('id'), await body(c)) }, 201)))
   app.patch('/lms/lessons/:id', courses, run('Error al guardar la lección.', async (c) => c.json({ data: await svc.updateLesson(companyId(c), c.req.param('id'), await body(c)) })))
   app.delete('/lms/lessons/:id', courses, run('Error al eliminar la lección.', async (c) => c.json({ data: await svc.deleteLesson(companyId(c), c.req.param('id')) })))
+  app.get('/lms/lessons/:id/media', courses, run('Error al cargar el video.', async (c) => c.json({ data: await learn.lessonMedia(companyId(c), c.req.param('id')) })))
   app.post('/lms/media/presign', courses, run('Error al preparar la subida.', async (c) => c.json({ data: await files.presign(companyId(c), actorId(c), await body(c)) })))
   app.post('/lms/media/hls/presign', courses, run('Error al preparar la subida del video.', async (c) => c.json({ data: await files.presignHls(companyId(c), actorId(c), await body(c)) })))
   app.post('/lms/media/:fileId/confirm', courses, run('Error al confirmar la subida.', async (c) => c.json({ data: await files.confirm(companyId(c), c.req.param('fileId')) })))
@@ -71,8 +73,11 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
   // ---- social (discussion, reviews, announcements) ------------------------
   registerLmsSocialRoutes(app, { prisma, requirePermission, signFile, notificationService, run, service: socialService })
 
+  // ---- course page and lesson resources -----------------------------------
+  registerLmsExperienceRoutes(app, { prisma, requirePermission, signFile, run, ...(experienceServices ?? {}) })
+
   // ---- certificates -------------------------------------------------------
-  registerLmsCertRoutes(app, { prisma, requirePermission, signFile, run, service: certService })
+  registerLmsCertRoutes(app, { prisma, requirePermission, signFile, supabaseAdmin, bucket, run, service: certService })
 
   return app
 }

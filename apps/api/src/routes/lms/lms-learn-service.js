@@ -6,6 +6,8 @@ import { COURSE_COUNTS, ENROLLMENT_CERT, ENROLLMENT_INCLUDE, createLmsSerializer
 import { createLmsService } from './lms-service.js'
 import { recordLessonOutcome } from './lms-progress.js'
 import { updateEnrollmentWithCertificate } from './lms-cert-issue.js'
+import { createLmsResourcesService } from './lms-resources-service.js'
+import { LESSON_THUMB_VARIANT } from './lms-overview-service.js'
 
 const OPEN_STATUSES = ['active', 'completed']
 const MANUAL_COMPLETE_KINDS = new Set(['text', 'file', 'embed'])
@@ -16,6 +18,7 @@ const SECTIONS_ORDERED = {
 
 export function createLmsLearnService({ prisma, signFile = null, authoring = null, hlsManifest = null }) {
   const ser = createLmsSerializers({ prisma, signFile })
+  const resources = createLmsResourcesService({ prisma, signFile })
   const learners = authoring ?? createLmsService({ prisma, signFile })
 
   const findLearner = (companyId, userProfileId) => prisma.lmsLearner.findUnique({ where: { companyId_userProfileId: { companyId, userProfileId } } })
@@ -100,19 +103,20 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
       course: await ser.serializeCourse(ctx.course),
       announcementCount,
       enrollment: ctx.enrollment ? ser.serializeEnrollment(ctx.enrollment) : null,
-      sections: ctx.sections.map((section) => ({
+      sections: await Promise.all(ctx.sections.map(async (section) => ({
         id: section.id,
         title: section.title,
-        lessons: section.lessons.map((lesson) => ({
+        lessons: await Promise.all(section.lessons.map(async (lesson) => ({
           id: lesson.id,
           title: lesson.title,
           kind: lesson.kind,
           durationSeconds: lesson.durationSeconds,
           required: lesson.required,
+          coverUrl: await ser.sign(lesson.coverFileId, LESSON_THUMB_VARIANT),
           status: ctx.states.get(lesson.id) ?? 'available',
           positionSeconds: ctx.progressById.get(lesson.id)?.positionSeconds ?? 0,
-        })),
-      })),
+        }))),
+      }))),
     }
   }
 
@@ -122,6 +126,32 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     const ctx = await loadContext(companyId, userProfileId, lesson.courseId, { canManage })
     if (ctx.states.get(lesson.id) === 'locked') throw new LmsError('Completa las lecciones anteriores para abrir esta.', 409, 'LOCKED')
     return { ...ctx, lesson }
+  }
+
+  // Playable media of a lesson: { mediaUrl, media, poster }. Large videos are
+  // HLS packages: the manifest comes back with each segment signed.
+  async function resolveMedia(lesson) {
+    const withMedia = lesson.kind === 'video' || lesson.kind === 'file'
+    const mediaUrl = withMedia ? await ser.sign(lesson.fileId, 'full') : null
+    let media = mediaUrl ? { kind: 'file', url: mediaUrl } : null
+    if (lesson.kind === 'video' && hlsManifest) {
+      try {
+        const manifest = await hlsManifest(lesson.fileId)
+        if (manifest) media = { kind: 'hls', manifest }
+      } catch (error) {
+        console.warn('[runly.lms] HLS manifest failed', lesson.fileId, error?.message)
+        media = { kind: 'hls', manifest: null, error: 'No se pudo preparar la reproducción del video.' }
+      }
+    }
+    return { mediaUrl, media, poster: lesson.coverFileId ? await ser.sign(lesson.coverFileId, 'preview') : null }
+  }
+
+  // Editor preview (lms.course.manage): same media/poster shape as openLesson,
+  // with no enrollment, lock or progress side effects.
+  async function lessonMedia(companyId, lessonId) {
+    const lesson = await prisma.lmsLesson.findFirst({ where: { id: lessonId, companyId, enabled: true } })
+    if (!lesson) throw new LmsError('La lección no existe.', 404)
+    return { lessonId: lesson.id, fileId: lesson.fileId, coverFileId: lesson.coverFileId ?? null, ...(await resolveMedia(lesson)) }
   }
 
   async function openLesson(companyId, userProfileId, lessonId, { canManage = false } = {}) {
@@ -141,19 +171,8 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     }
     const index = lessons.findIndex((item) => item.id === lesson.id)
     const names = await ser.fileNames([lesson.fileId])
-    const withMedia = lesson.kind === 'video' || lesson.kind === 'file'
-    const mediaUrl = withMedia ? await ser.sign(lesson.fileId, 'full') : null
-    // Large videos are HLS packages: the manifest comes back with each segment signed.
-    let media = mediaUrl ? { kind: 'file', url: mediaUrl } : null
-    if (lesson.kind === 'video' && hlsManifest) {
-      try {
-        const manifest = await hlsManifest(lesson.fileId)
-        if (manifest) media = { kind: 'hls', manifest }
-      } catch (error) {
-        console.warn('[runly.lms] HLS manifest failed', lesson.fileId, error?.message)
-        media = { kind: 'hls', manifest: null, error: 'No se pudo preparar la reproducción del video.' }
-      }
-    }
+    const { mediaUrl, media, poster } = await resolveMedia(lesson)
+    const lessonResources = await resources.lessonResources(lesson.id)
     return {
       lesson: {
         id: lesson.id,
@@ -165,7 +184,9 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
         settings: normalizeLessonSettings(lesson.kind, lesson.settings),
         mediaUrl,
         media,
+        poster,
         fileName: lesson.fileId ? names.get(lesson.fileId) ?? null : null,
+        resources: lessonResources,
       },
       progress: { status: progress?.status ?? 'available', positionSeconds: progress?.positionSeconds ?? 0 },
       prevLessonId: index > 0 ? lessons[index - 1].id : null,
@@ -212,5 +233,5 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     return { lessonStatus: result.lessonStatus, enrollment: { ...ser.serializeEnrollment(result.enrollment), certificate: enrollmentCertificate(certs) } }
   }
 
-  return { catalog, myCourses, enroll, outline, openLesson, saveProgress, lessonContext }
+  return { catalog, myCourses, enroll, outline, openLesson, lessonMedia, saveProgress, lessonContext }
 }

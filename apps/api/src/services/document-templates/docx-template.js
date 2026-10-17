@@ -40,7 +40,8 @@ function build(zip, { images = {}, imageSize = DEFAULT_IMAGE_SIZE } = {}) {
     centered: false,
     fileType: 'docx',
     getImage: (tagValue) => images[tagValue] ?? Buffer.alloc(0),
-    getSize: () => imageSize,
+    // imageSize: [w, h], or (imageKey, tagName) => [w, h] for per-image sizes.
+    getSize: (img, tagValue, tagName) => (typeof imageSize === 'function' ? imageSize(tagValue, tagName) ?? DEFAULT_IMAGE_SIZE : imageSize),
   });
   try {
     return new Docxtemplater(zip, {

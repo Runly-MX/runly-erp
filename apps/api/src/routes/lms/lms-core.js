@@ -153,6 +153,7 @@ export function normalizeLessonInput(body = {}, { partial = false, currentKind =
   }
   if (has(body, 'body')) data.body = optionalText(body.body, 200_000, 'El contenido')
   if (has(body, 'fileId')) data.fileId = optionalUuid(body.fileId)
+  if (has(body, 'coverFileId')) data.coverFileId = optionalUuid(body.coverFileId)
   if (has(body, 'embedUrl')) {
     const raw = String(body.embedUrl ?? '').trim()
     data.embedUrl = raw ? normalizeEmbedUrl(raw) : null

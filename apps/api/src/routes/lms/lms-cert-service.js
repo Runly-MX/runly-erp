@@ -1,10 +1,13 @@
 // runly.lms certificates: templates, manual issue/revoke, lists, PDFs (manager,
 // learner and public). Automatic issue lives in lms-cert-issue.js.
 import { resolveAppBaseUrl } from '../../services/email-templates.js'
+import { convertToPdf } from '../../services/document-templates/pdf-convert.js'
 import { LmsError } from './lms-error.js'
-import { normalizeTemplateInput } from './lms-cert-core.js'
+import { DEFAULT_CERT_BODY, normalizeTemplateInput } from './lms-cert-core.js'
 import { issueCertificate } from './lms-cert-issue.js'
-import { renderCertificatePdf } from './lms-cert-pdf.js'
+import { isPdfImage, renderCertificatePdf } from './lms-cert-pdf.js'
+import { averageGrade, buildCertDocxData, certTemplateWarnings, isOfficeAvailable, qrPng, renderCertificateDocx } from './lms-cert-docx.js'
+import { createLmsCertFiles, createLmsCertTemplateFiles } from './lms-cert-templates.js'
 
 const iso = (value) => (value ? new Date(value).toISOString() : null)
 const TX = { maxWait: 10_000, timeout: 30_000 }
@@ -27,8 +30,13 @@ async function fetchImage(fetchImpl, url) {
   }
 }
 
-export function createLmsCertService({ prisma, signFile = null, appBaseUrl = () => resolveAppBaseUrl(process.env), fetchImpl = (...args) => globalThis.fetch(...args) }) {
+// convertPdf and files are overridable (tests); env feeds the Office check.
+export function createLmsCertService({
+  prisma, signFile = null, supabaseAdmin = null, bucket = 'runly-files', appBaseUrl = () => resolveAppBaseUrl(process.env),
+  fetchImpl = (...args) => globalThis.fetch(...args), convertPdf = convertToPdf, files = null, env = process.env,
+}) {
   const sign = async (fileId, variant) => (signFile && fileId ? signFile(fileId, variant).catch(() => null) : null)
+  const store = files ?? createLmsCertFiles({ prisma, supabaseAdmin, bucket, signFile, fetchImpl })
 
   // Absolute when the app URL is known; otherwise relative (and the PDF skips the QR).
   function verifyUrlFor(token) {
@@ -47,8 +55,15 @@ export function createLmsCertService({ prisma, signFile = null, appBaseUrl = () 
   const activeCourses = (templateId) => prisma.lmsCourse.count({ where: { certificateTemplateId: templateId, enabled: true, status: { not: 'archived' } } })
 
   async function serializeTemplate(row, courseCount = null) {
+    const source = row.source === 'docx' ? 'docx' : 'design'
+    const placeholders = source === 'docx' && Array.isArray(row.placeholders) ? row.placeholders : []
     return {
       id: row.id,
+      source,
+      fileAssetId: row.fileAssetId ?? null,
+      placeholders,
+      tagCount: source === 'docx' ? placeholders.length : null,
+      warnings: source === 'docx' ? certTemplateWarnings(placeholders) : [],
       name: row.name,
       title: row.title,
       body: row.body,
@@ -115,13 +130,59 @@ export function createLmsCertService({ prisma, signFile = null, appBaseUrl = () 
     return { name: company?.name ?? null, logoFileId: company?.brandingConfig?.logoFileId ?? null, primaryColor: company?.brandingConfig?.primaryColor ?? null }
   }
 
+  // Instructor: the template signer, else the course creator.
+  async function instructorName(template, certificate) {
+    if (template?.signerName) return template.signerName
+    if (certificate.sample) return 'Nombre del instructor'
+    const course = certificate.courseId ? await prisma.lmsCourse.findUnique({ where: { id: certificate.courseId }, select: { createdById: true } }) : null
+    const profile = course?.createdById ? await prisma.userProfile.findUnique({ where: { id: course.createdById }, select: { displayName: true } }) : null
+    return profile?.displayName ?? ''
+  }
+
+  async function gradeFor(certificate) {
+    if (certificate.sample) return '95'
+    if (!certificate.enrollmentId) return ''
+    const [quizzes, submissions] = await Promise.all([
+      prisma.lmsQuizAttempt.findMany({ where: { enrollmentId: certificate.enrollmentId, status: 'graded', scorePct: { not: null } }, select: { lessonId: true, scorePct: true } }),
+      prisma.lmsSubmission.findMany({ where: { enrollmentId: certificate.enrollmentId, grade: { not: null } }, select: { lessonId: true, grade: true } }),
+    ])
+    return averageGrade(quizzes.map((r) => ({ lessonId: r.lessonId, score: r.scorePct })), submissions.map((r) => ({ lessonId: r.lessonId, score: r.grade })))
+  }
+
+  // Word template filled and converted by Office. null = use the built-in design
+  // (no file, revoked certificate, Office not configured or conversion failed).
+  async function renderDocxPdf(companyId, certificate, template, verifyUrl, { brand, logoBuffer, signatureBuffer }) {
+    if (template?.source !== 'docx' || !template.fileAssetId || certificate.revokedAt) return null
+    try {
+      const asset = await store.findAsset(companyId, template.fileAssetId)
+      if (!asset) return null
+      const tags = Array.isArray(template.placeholders) ? template.placeholders : []
+      const [buffer, qr, instructor, calificacion] = await Promise.all([
+        store.read(asset),
+        verifyUrl && tags.includes('%qr') ? qrPng(verifyUrl) : null,
+        tags.includes('instructor') ? instructorName(template, certificate) : '',
+        tags.includes('calificacion') ? gradeFor(certificate).catch(() => '') : '',
+      ])
+      const images = { qr, firma: isPdfImage(signatureBuffer) ? signatureBuffer : null, logo: isPdfImage(logoBuffer) ? logoBuffer : null }
+      const data = buildCertDocxData({ certificate, companyName: brand.name, instructor, calificacion, images })
+      return await convertPdf(renderCertificateDocx(buffer, data, images), `certificado-${certificate.folio}.docx`, { env })
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') console.error('[runly.lms] docx certificate render failed', error?.message)
+      return null
+    }
+  }
+
   async function renderPdf(companyId, certificate, template, verifyUrl) {
     const brand = await companyBrand(companyId)
     const [logoBuffer, signatureBuffer] = await Promise.all([
       template?.showLogo !== false && brand.logoFileId ? sign(brand.logoFileId, 'full').then((url) => fetchImage(fetchImpl, url)) : null,
       template?.signatureFileId ? sign(template.signatureFileId, 'full').then((url) => fetchImage(fetchImpl, url)) : null,
     ])
-    return renderCertificatePdf({ certificate, template, brand, companyName: brand.name, verifyUrl, logoBuffer, signatureBuffer })
+    const fromWord = await renderDocxPdf(companyId, certificate, template, verifyUrl, { brand, logoBuffer, signatureBuffer })
+    if (fromWord) return fromWord
+    // A Word template has no body of its own: the fallback uses the default text.
+    const design = template?.source === 'docx' ? { ...template, body: template.body ?? DEFAULT_CERT_BODY } : template
+    return renderCertificatePdf({ certificate, template: design, brand, companyName: brand.name, verifyUrl, logoBuffer, signatureBuffer })
   }
 
   async function certificatePdf(row) {
@@ -132,7 +193,7 @@ export function createLmsCertService({ prisma, signFile = null, appBaseUrl = () 
 
   async function previewPdf(companyId, id) {
     const template = await findTemplate(companyId, id)
-    const sample = { folio: `${new Date().getFullYear()}-000000`, learnerName: 'Nombre del alumno', courseTitle: 'Nombre del curso', hours: 2, issuedAt: new Date(), revokedAt: null }
+    const sample = { sample: true, folio: `${new Date().getFullYear()}-000000`, learnerName: 'Nombre del alumno', courseTitle: 'Nombre del curso', hours: 2, issuedAt: new Date(), revokedAt: null }
     const buffer = await renderPdf(companyId, sample, template, qrUrlFor('ejemplo-ejemplo-ejemplo-0'))
     return { buffer, filename: 'vista-previa-certificado.pdf' }
   }
@@ -244,7 +305,11 @@ export function createLmsCertService({ prisma, signFile = null, appBaseUrl = () 
     return certificatePdf(await byToken(token))
   }
 
+  const docx = createLmsCertTemplateFiles({ prisma, files: store, serialize: serializeTemplate })
+
   return {
+    officeAvailable: () => isOfficeAvailable(env),
+    uploadDocxTemplate: docx.upload, replaceDocxTemplateFile: docx.replaceFile, suggestDocxTags: docx.suggest, docxTemplateFileUrl: docx.fileUrl,
     listTemplates, createTemplate, updateTemplate, disableTemplate, previewPdf,
     issueManual, revoke, listCourseCertificates, managerPdf, myCertificates, myCertificatePdf,
     publicCertificate, publicCertificatePdf, verifyUrlFor,

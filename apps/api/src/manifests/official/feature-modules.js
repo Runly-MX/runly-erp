@@ -979,7 +979,7 @@ export const lmsMap = createModuleManifest({
     ownedEntities: ['LmsCourse', 'LmsSection', 'LmsLesson', 'LmsLearner', 'LmsEnrollment', 'LmsLessonProgress', 'LmsQuizQuestion', 'LmsQuizAttempt', 'LmsSubmission', 'LmsComment', 'LmsReview', 'LmsAnnouncement', 'LmsCertificateTemplate', 'LmsCertificate'],
     sharedEntities: ['Company', 'UserProfile', 'FileAsset', 'Contact'],
   },
-  fullscreenPaths: ['/learn/:courseId', '/courses/:courseId/lessons/:lessonId'],
+  fullscreenPaths: ['/learn/:courseId', '/courses/:courseId/lessons/:lessonId', '/course/:courseId'],
   navigation: [
     { label: 'Mis cursos', path: '/', icon: 'GraduationCap', layout: 'main', permissionKey: 'lms.access' },
     { label: 'Cursos', path: '/courses', icon: 'BookOpen', layout: 'main', permissionKey: 'lms.course.manage' },

@@ -62,14 +62,17 @@ export function createLmsSerializers({ prisma, signFile = null }) {
   // rows must include COURSE_COUNTS.
   async function serializeCourses(rows) {
     const counts = await lessonCounts(rows.map((row) => row.id))
-    return Promise.all(rows.map(async (row) => courseShape(row, counts.get(row.id) ?? 0, await sign(row.coverFileId, 'card'))))
+    return Promise.all(rows.map(async (row) => courseShape(row, counts.get(row.id) ?? 0, await sign(row.coverFileId, 'preview'))))
   }
 
   async function serializeCourse(row) {
     return (await serializeCourses([row]))[0]
   }
 
-  function lessonShape(row, names) {
+  // Lesson thumbnail (card variant); a signing failure only hides the image.
+  const lessonCoverUrl = (row) => (row.coverFileId ? sign(row.coverFileId, 'tilefit').catch(() => null) : null)
+
+  function lessonShape(row, names, coverUrl = null) {
     return {
       id: row.id,
       courseId: row.courseId,
@@ -79,6 +82,8 @@ export function createLmsSerializers({ prisma, signFile = null }) {
       body: row.body,
       fileId: row.fileId,
       fileName: row.fileId ? names.get(row.fileId) ?? null : null,
+      coverFileId: row.coverFileId ?? null,
+      coverUrl,
       embedUrl: row.embedUrl,
       durationSeconds: row.durationSeconds,
       position: row.position,
@@ -89,19 +94,19 @@ export function createLmsSerializers({ prisma, signFile = null }) {
   }
 
   async function serializeLesson(row) {
-    return lessonShape(row, await fileNames([row.fileId]))
+    return lessonShape(row, await fileNames([row.fileId]), await lessonCoverUrl(row))
   }
 
   // sections include lessons (enabled only, ordered).
   async function serializeSections(sections) {
     const names = await fileNames(sections.flatMap((section) => section.lessons.map((lesson) => lesson.fileId)))
-    return sections.map((section) => ({
+    return Promise.all(sections.map(async (section) => ({
       id: section.id,
       courseId: section.courseId,
       title: section.title,
       position: section.position,
-      lessons: section.lessons.map((lesson) => lessonShape(lesson, names)),
-    }))
+      lessons: await Promise.all(section.lessons.map(async (lesson) => lessonShape(lesson, names, await lessonCoverUrl(lesson)))),
+    })))
   }
 
   // row must include learner.
@@ -126,5 +131,5 @@ export function createLmsSerializers({ prisma, signFile = null }) {
     }
   }
 
-  return { sign, fileNames, serializeCourses, serializeCourse, serializeLesson, serializeSections, serializeEnrollment }
+  return { sign, lessonCoverUrl, fileNames, serializeCourses, serializeCourse, serializeLesson, serializeSections, serializeEnrollment }
 }

@@ -28,6 +28,7 @@ export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQuery
     createLesson: (sectionId, data, token) => send('POST', `/lms/sections/${id(sectionId)}/lessons`, data, token),
     updateLesson: (lessonId, data, token) => send('PATCH', `/lms/lessons/${id(lessonId)}`, data, token),
     deleteLesson: (lessonId, token) => send('DELETE', `/lms/lessons/${id(lessonId)}`, undefined, token),
+    getLessonMedia: (lessonId, token) => send('GET', `/lms/lessons/${id(lessonId)}/media`, undefined, token),
     reorder: (courseId, data, token) => send('POST', `/lms/courses/${id(courseId)}/reorder`, data, token),
     presignVideo: (data, token) => send('POST', '/lms/media/presign', data, token),
     confirmVideo: (fileId, token) => send('POST', `/lms/media/${id(fileId)}/confirm`, {}, token),
@@ -81,6 +82,14 @@ export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQuery
     updateAnnouncement: (announcementId, data, token) => send('PATCH', `/lms/announcements/${id(announcementId)}`, data, token),
     deleteAnnouncement: (announcementId, token) => send('DELETE', `/lms/announcements/${id(announcementId)}`, undefined, token),
 
+    // Course page and lesson resources
+    getCourseOverview: (courseId, token) => send('GET', `/lms/courses/${id(courseId)}/overview`, undefined, token),
+    listLessonResources: (lessonId, token) => send('GET', `/lms/lessons/${id(lessonId)}/resources`, undefined, token),
+    addLessonResource: (lessonId, data, token) => send('POST', `/lms/lessons/${id(lessonId)}/resources`, data, token),
+    updateLessonResource: (resourceId, data, token) => send('PATCH', `/lms/resources/${id(resourceId)}`, data, token),
+    deleteLessonResource: (resourceId, token) => send('DELETE', `/lms/resources/${id(resourceId)}`, undefined, token),
+    reorderLessonResources: (lessonId, resourceIds, token) => send('POST', `/lms/lessons/${id(lessonId)}/resources/reorder`, { resourceIds }, token),
+
     // Certificates. The *Url helpers return the API path (prefix the API base URL).
     listCertificateTemplates: (token) => send('GET', '/lms/certificate-templates', undefined, token),
     createCertificateTemplate: (data, token) => send('POST', '/lms/certificate-templates', data, token),
@@ -88,6 +97,18 @@ export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQuery
     disableCertificateTemplate: (templateId, token) => send('DELETE', `/lms/certificate-templates/${id(templateId)}`, undefined, token),
     certificateTemplatePreviewUrl: (templateId) => `/lms/certificate-templates/${id(templateId)}/preview.pdf`,
     downloadCertificateTemplatePreview: (templateId, token) => blob(`/lms/certificate-templates/${id(templateId)}/preview.pdf`, token),
+    // Word (.docx) templates. formData: file (+ name on upload).
+    uploadCertificateDocxTemplate: (formData, token) => request('/lms/certificate-templates/docx', {
+      method: 'POST', headers: withAuthHeaders(token), body: formData, onlineOnly: true,
+    }),
+    replaceCertificateTemplateFile: (templateId, formData, token) => request(`/lms/certificate-templates/${id(templateId)}/file`, {
+      method: 'PUT', headers: withAuthHeaders(token), body: formData, onlineOnly: true,
+    }),
+    // { applied, missing, unplaced, fileName, contentBase64 }; nothing is saved.
+    suggestCertificateTemplateTags: (templateId, token) => send('POST', `/lms/certificate-templates/${id(templateId)}/suggest`, {}, token),
+    // Signed URL of the current .docx ({ url, expiresIn, fileName }).
+    getCertificateTemplateFileUrl: (templateId, token) => send('GET', `/lms/certificate-templates/${id(templateId)}/file`, undefined, token),
+    downloadCertificateTemplateSample: (token) => blob('/lms/certificate-templates/sample.docx', token),
     issueCertificate: (enrollmentId, token) => send('POST', `/lms/enrollments/${id(enrollmentId)}/certificate`, {}, token),
     revokeCertificate: (certificateId, reason, token) => send('POST', `/lms/certificates/${id(certificateId)}/revoke`, { reason }, token),
     listCourseCertificates: (courseId, token) => send('GET', `/lms/courses/${id(courseId)}/certificates`, undefined, token),

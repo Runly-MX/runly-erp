@@ -288,6 +288,9 @@ export { AIFlowSteps } from "./components/AIFlowSteps.jsx";
 export { AdvancedFileViewer } from "./components/AdvancedFileViewer.jsx";
 export { useHlsPosterFrame } from "./lib/useHlsPosterFrame.js";
 export { useHlsPlayback } from "./lib/useHlsPlayback.js";
+export { VideoPlayer } from "./components/VideoPlayer.jsx";
+export { captureVideoFrame } from "./lib/captureVideoFrame.js";
+export { formatVideoTime, chooseFrameTime } from "./lib/videoTime.js";
 export { loadFfmpeg } from "./lib/loadFfmpeg.js";
 export { FileVisual } from "./components/FileVisual.jsx";
 export {

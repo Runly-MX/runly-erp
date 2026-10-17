@@ -141,6 +141,7 @@ export function createLmsService({ prisma, signFile = null }) {
     const section = await findSection(companyId, sectionId)
     const { sectionId: _ignored, ...data } = normalizeLessonInput(body, { partial: false })
     await assertFile(companyId, data.fileId)
+    await assertFile(companyId, data.coverFileId)
     const row = await prisma.lmsLesson.create({
       data: { ...data, companyId, courseId: section.courseId, sectionId: section.id, position: await nextLessonPosition(section.id) },
     })
@@ -152,6 +153,7 @@ export function createLmsService({ prisma, signFile = null }) {
     const lesson = await findLesson(companyId, lessonId)
     const data = normalizeLessonInput(body, { partial: true, currentKind: lesson.kind })
     if (data.fileId) await assertFile(companyId, data.fileId)
+    if (data.coverFileId) await assertFile(companyId, data.coverFileId)
     const kind = data.kind ?? lesson.kind
     const embedUrl = data.embedUrl !== undefined ? data.embedUrl : lesson.embedUrl
     if (kind === 'embed' && !embedUrl) throw new LmsError('Escribe el enlace del video.', 400)

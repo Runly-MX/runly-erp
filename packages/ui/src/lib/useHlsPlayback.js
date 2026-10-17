@@ -16,8 +16,8 @@ import { useEffect, useState } from "react";
 // after the caller resolves it post-mount (e.g. a viewer opening, a row
 // expanding) — the effect must re-run then.
 //
-// `onFatalError` is invoked for hls.js fatal errors (network/media errors
-// hls.js itself can't recover from) — the native-Safari path relies on the
+// `onFatalError` is invoked for hls.js fatal errors that survive the recovery
+// attempts below — the native-Safari path relies on the
 // <video> element's own `onError` prop instead (wired by the caller), since
 // hls.js's event bus doesn't apply there.
 export function useHlsPlayback(videoRef, src, onFatalError) {
@@ -35,9 +35,23 @@ export function useHlsPlayback(videoRef, src, onFatalError) {
 
       if (Hls.isSupported()) {
         hls = new Hls();
+        // Fatal network/media errors get two recovery attempts each (restart
+        // loading / hls.js media recovery) before giving up.
+        const retries = { network: 0, media: 0 };
         hls.on(Hls.Events.ERROR, (_event, data) => {
           console.warn("[useHlsPlayback] hls.js error:", data?.type, data?.details, data?.fatal ? "(fatal)" : "(recoverable)", data);
-          if (data?.fatal) onFatalError?.();
+          if (!data?.fatal) return;
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR && retries.network < 2) {
+            retries.network += 1;
+            hls.startLoad();
+            return;
+          }
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR && retries.media < 2) {
+            retries.media += 1;
+            hls.recoverMediaError();
+            return;
+          }
+          onFatalError?.();
         });
         hls.loadSource(src);
         hls.attachMedia(video);

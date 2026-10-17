@@ -39,7 +39,17 @@ const ITEM_COLUMNS = new Map(Object.entries({
 const RECEIVER_SIGNATURE = /^(recibi|recibe|recibido|resguardante|firma de quien recibe|firma del usuario|firma del empleado|firma del colaborador)\b/;
 const DELIVERER_SIGNATURE = /^(entrega|entregue|entregado|firma de quien entrega)\b/;
 
-const normalize = (text) => String(text ?? '')
+// Custody vocabulary (the default of suggestDocxTags).
+const CUSTODY_CONFIG = {
+  labels: LABELS,
+  itemColumns: ITEM_COLUMNS,
+  signatures: [
+    { pattern: RECEIVER_SIGNATURE, tag: 'receiverSignature' },
+    { pattern: DELIVERER_SIGNATURE, tag: 'delivererSignature' },
+  ],
+};
+
+export const normalizeLabel = (text) => String(text ?? '')
   .normalize('NFD').replace(/[̀-ͯ]/g, '')
   .toLowerCase().replace(/&amp;/g, '&').replace(/[.:_/\\()-]+/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -101,7 +111,7 @@ function parseRow(xml, range) {
   const cells = elements(row, 'tc').map((c) => {
     const cellXml = row.slice(c.start, c.end);
     const span = Number(cellXml.match(/<w:gridSpan w:val="(\d+)"/)?.[1] ?? 1);
-    const cell = { ...c, xml: cellXml, text: normalize(textOf(cellXml)), gridStart: grid, span };
+    const cell = { ...c, xml: cellXml, text: normalizeLabel(textOf(cellXml)), gridStart: grid, span };
     grid += span;
     return cell;
   });
@@ -111,7 +121,7 @@ function parseRow(xml, range) {
 const isEmptyRow = (row) => row.cells.every((c) => !c.text);
 
 // Plans the edits of one table: { cellEdits: Map(rowIdx -> Map(cellIdx -> fn)), dropRows: Set }.
-function planTable(rows, applied) {
+function planTable(rows, applied, cfg) {
   const edits = new Map();
   const dropRows = new Set();
   const edit = (r, c, fn) => {
@@ -123,8 +133,8 @@ function planTable(rows, applied) {
 
   rows.forEach((row, r) => {
     // Equipment table: a header row with at least three known columns.
-    const columns = row.cells.map((c) => ITEM_COLUMNS.get(c.text) ?? null);
-    if (columns.filter(Boolean).length >= 3 && !applied.some((a) => a.tag === '#items')) {
+    const columns = row.cells.map((c) => cfg.itemColumns?.get(c.text) ?? null);
+    if (cfg.itemColumns && columns.filter(Boolean).length >= 3 && !applied.some((a) => a.tag === '#items')) {
       const target = rows[r + 1];
       if (!target || !isEmptyRow(target)) return;
       const mapped = row.cells
@@ -146,7 +156,7 @@ function planTable(rows, applied) {
 
     row.cells.forEach((cell, i) => {
       if (!cell.text) return;
-      const tag = LABELS.get(cell.text);
+      const tag = cfg.labels.get(cell.text);
       if (tag) {
         const next = row.cells[i + 1];
         if (next && !next.text) {
@@ -164,25 +174,25 @@ function planTable(rows, applied) {
         }
         return;
       }
-      const role = RECEIVER_SIGNATURE.test(cell.text) ? 'receiver' : DELIVERER_SIGNATURE.test(cell.text) ? 'deliverer' : null;
+      const role = (cfg.signatures ?? []).find((s) => s.pattern.test(cell.text));
       if (!role || cell.text.split(' ').length > 5) return;
       // Only the signature image is added: the form's layout stays as designed
       // (names under the line can be added by hand with {{receiverName}}/{{delivererName}}).
-      const signature = role === 'receiver' ? '{{%receiverSignature}}' : '{{%delivererSignature}}';
+      const signature = `{{%${role.tag}}}`;
       const above = rows[r - 1];
       const at = cellAtGrid(above, cell.gridStart);
       if (above && at >= 0 && !above.cells[at].text) edit(r - 1, at, (x) => writeInCell(x, signature));
       else edit(r, i, (x) => addParagraphBeforeLabel(x, signature));
-      applied.push({ tag: role === 'receiver' ? 'receiverSignature' : 'delivererSignature', label: textOf(cell.xml).trim() });
+      applied.push({ tag: role.tag, label: textOf(cell.xml).trim() });
     });
   });
   return { edits, dropRows };
 }
 
-function rewriteTable(xml, tbl, applied) {
+function rewriteTable(xml, tbl, applied, cfg) {
   const rowRanges = elements(xml, 'tr', tbl.start, tbl.end);
   const rows = rowRanges.map((range) => parseRow(xml, range));
-  const { edits, dropRows } = planTable(rows, applied);
+  const { edits, dropRows } = planTable(rows, applied, cfg);
   let out = '';
   let cursor = tbl.start;
   rows.forEach((row, r) => {
@@ -204,11 +214,11 @@ function rewriteTable(xml, tbl, applied) {
 }
 
 // "Nombre: ________" paragraphs outside tables: replace the underscores run.
-function tagUnderscoreLines(xml, applied) {
+function tagUnderscoreLines(xml, applied, cfg) {
   return xml.replace(/<w:p(?=[\s>])[\s\S]*?<\/w:p>/g, (p) => {
     const text = textOf(p);
     const m = text.match(/^\s*([^_:]{2,40}?)\s*:?\s*_{3,}\s*$/);
-    const tag = m && LABELS.get(normalize(m[1]));
+    const tag = m && cfg.labels.get(normalizeLabel(m[1]));
     if (!tag) return p;
     let done = false;
     const next = p.replace(/(<w:t(?:\s[^>]*)?>)([^<]*_{3,}[^<]*)(<\/w:t>)/, (all, open, body, close) => {
@@ -223,6 +233,16 @@ function tagUnderscoreLines(xml, applied) {
 const IMPORTANT = ['date', 'receiverName', '#items', 'receiverSignature', 'delivererSignature'];
 
 export function suggestDocxTags(buffer) {
+  return suggestDocxTagsWithLabels(buffer, { ...CUSTODY_CONFIG, important: IMPORTANT });
+}
+
+// Same engine with another vocabulary: `labels` maps a normalized label
+// (see normalizeLabel) to a scalar tag; optional `itemColumns` (Map) enables
+// the repeated-row table, `signatures` ([{ pattern, tag }]) adds image tags
+// next to signature labels, and `important` lists the tags reported as
+// missing when not placed.
+export function suggestDocxTagsWithLabels(buffer, { labels, itemColumns = null, signatures = [], important = [] } = {}) {
+  const cfg = { labels: labels instanceof Map ? labels : new Map(Object.entries(labels ?? {})), itemColumns, signatures };
   let zip;
   try { zip = new PizZip(buffer); } catch { throw new TemplateError('El archivo no es un documento de Word válido.'); }
   const file = zip.file('word/document.xml');
@@ -231,15 +251,15 @@ export function suggestDocxTags(buffer) {
   if (/\{\{[^}]+\}\}/.test(textOf(original))) throw new TemplateError('Esta plantilla ya tiene etiquetas; edítala en Word si necesitas cambiarlas.');
   const applied = [];
   // Rewrites are planned on the original XML in document order, then spliced from the end.
-  const rewrites = elements(original, 'tbl', original.indexOf('<w:body')).map((tbl) => ({ tbl, xml: rewriteTable(original, tbl, applied) }));
+  const rewrites = elements(original, 'tbl', original.indexOf('<w:body')).map((tbl) => ({ tbl, xml: rewriteTable(original, tbl, applied, cfg) }));
   let xml = original;
   for (const { tbl, xml: next } of rewrites.reverse()) xml = xml.slice(0, tbl.start) + next + xml.slice(tbl.end);
-  xml = tagUnderscoreLines(xml, applied);
+  xml = tagUnderscoreLines(xml, applied, cfg);
   zip.file('word/document.xml', xml);
   const placed = new Set(applied.map((a) => a.tag));
   return {
     buffer: zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' }),
     applied,
-    missing: IMPORTANT.filter((tag) => !placed.has(tag)),
+    missing: important.filter((tag) => !placed.has(tag)),
   };
 }
