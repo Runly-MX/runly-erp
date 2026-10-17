@@ -73,13 +73,29 @@ export function createDomainRuntime({ prisma, config, registry }) {
     insist(!definition.readPermission || actx.can(definition.readPermission), 'permission_denied', 'No puedes revisar el recurso.', 403);
     return { adapter, definition, actx };
   }
+  // The assistant's input is fixed, but resolved data (related names, current
+  // values) can change before the person reviews it, e.g. another proposal of
+  // the same batch updated the supervisor. Until a decision exists, re-resolve
+  // the same input and show/store the current version, so the person approves
+  // exactly what is displayed. After approval or rejection a change stays stale.
   async function proposalInfo(authUserId, id) {
-    const row = await createMcpState(prisma).get('proposal', id);
+    let row = await createMcpState(prisma).get('proposal', id);
     insist(row?.payload.authUserId === authUserId, 'not_found', 'Propuesta no disponible.', 404);
+    const { adapter, definition, actx } = await proposalContext(row.payload);
+    let refreshed = false;
+    if (!row.payload.result) {
+      const fresh = await prepareDefinition(adapter, definition, row.payload.input, actx), hash = fingerprint(fresh);
+      if (hash !== row.payload.fingerprint) {
+        row = await prisma.$transaction(async db => {
+          const store = createMcpState(db), locked = await store.lock('proposal', id), current = locked.payload;
+          insist(!current.approved && !current.rejected && !current.result, 'proposal_stale', 'La propuesta cambió después de tu decisión. Prepárala de nuevo.', 409);
+          return { ...locked, ...(await store.save(locked, { ...current, prepared: fresh, fingerprint: hash })) };
+        });
+        refreshed = true;
+      }
+    }
     const p = row.payload;
-    const { adapter, definition, actx } = await proposalContext(p);
-    if (!p.result) insist(fingerprint(await prepareDefinition(adapter, definition, p.input, actx)) === p.fingerprint, 'proposal_stale', 'La propuesta cambió. Prepárala de nuevo.', 409);
-    return { proposalId: id, companyId: p.companyId, moduleKey: p.moduleKey, action: p.operation, preview: p.prepared.preview,
+    return { proposalId: id, companyId: p.companyId, moduleKey: p.moduleKey, action: p.operation, preview: p.prepared.preview, refreshed,
       proposed: { operation: p.operation, input: p.input, resolved: p.prepared.input, before: p.prepared.revision, effects: adapter.effects ?? [] }, sensitive: p.sensitive, approved: p.approved, rejected: p.rejected, completed: Boolean(p.result), expiresAt: row.expiresAt };
   }
   async function approve(authUserId, id, approved, acknowledgeSensitive = false) {

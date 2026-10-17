@@ -71,6 +71,7 @@ export function McpConnectionScreen() {
       <PanelHeader icon={ListChecks} title={detail.data.preview.title} subtitle={`Empresa: ${account.data?.companies.find(c => c.id === detail.data.companyId)?.name ?? '—'}`} />
       <div className="space-y-5 p-4 sm:p-5">
         <Notice>Revisa todos los datos antes de aprobar. La aprobación permite al asistente ejecutar esta propuesta una sola vez durante su vigencia.</Notice>
+        {detail.data.refreshed && <Notice tone="warning">Algunos datos relacionados cambiaron desde que el asistente preparó la propuesta, por ejemplo otro registro aprobado antes. Se muestran los valores actuales; revísalos antes de aprobar.</Notice>}
         {Array.isArray(detail.data.proposed?.effects) && detail.data.proposed.effects.length > 0 && <div className="space-y-2"><SectionLabel>Efectos previstos</SectionLabel><ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">{detail.data.proposed.effects.map(effect => <li key={effect}>{effect}</li>)}</ul></div>}
         <div className="space-y-2"><SectionLabel>Datos a aplicar</SectionLabel><FieldChanges fields={detail.data.preview.fields} /></div>
         <details className="rounded-md border border-[hsl(var(--border))]"><summary className="cursor-pointer select-none p-3 text-sm font-medium">Datos completos de la propuesta</summary><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-[hsl(var(--border))] bg-[hsl(var(--muted))] p-3 text-xs">{JSON.stringify(detail.data.proposed, null, 2)}</pre></details>

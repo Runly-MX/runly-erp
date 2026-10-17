@@ -35,7 +35,12 @@ a ser públicos por pertenecer a la empresa.
 Las propuestas duran diez minutos y fijan módulo, empresa, usuario, conexión,
 operación, datos, relaciones resueltas y efectos. El motor revalida el recurso,
 la propuesta y los permisos al revisar, aprobar y ejecutar. Un rechazo es
-terminal. Cambiar recursos o relaciones obliga a preparar y aprobar de nuevo.
+terminal. Si un recurso o relación cambia antes de que la persona decida (por
+ejemplo, otra propuesta del mismo lote cambió al supervisor o al registro
+destino de un adjunto), la revisión vuelve a resolver la misma entrada del
+asistente, guarda y muestra los valores actuales con un aviso, y eso es lo que
+se aprueba. Un cambio posterior a la aprobación o al rechazo sigue invalidando
+la propuesta: hay que prepararla y aprobarla de nuevo.
 Se bloquean autorización y propuesta; el commit usa transacción serializable.
 Solo se reintentan conflictos de serialización cuya transacción fue revertida.
 No se reintentan fallos arbitrarios. Altas financieras, presupuestos y cambios

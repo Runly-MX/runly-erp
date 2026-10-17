@@ -100,6 +100,22 @@ export async function fileImportTests(t, { prisma, config, auth, company, other,
     await assert.rejects(() => commit(pending), { code: 'proposal_stale' });
     assert.notEqual(pending.proposalId, proposal.proposalId);
   });
+  await t.test('Archivos: un cambio del destino antes de decidir actualiza la revisión; después la invalida', async () => {
+    const target = await prisma.invItem.create({ data: { companyId: company.id, name: 'Destino antes de editar' } });
+    const proposal = await prepare({ itemId: target.id });
+    await prisma.invItem.update({ where: { id: target.id }, data: { name: 'Destino editado en el mismo lote' } });
+    const info = await request(`/mcp/proposals/${proposal.proposalId}`, null, webToken());
+    assert.equal(info.status, 200, JSON.stringify(await info.clone().json()));
+    assert.equal((await info.json()).refreshed, true);
+    await approve(proposal);
+    assert.equal((await commit(proposal)).result.files.length, 3);
+    const late = await prepare({ itemId: target.id, files: files.slice(0, 1) });
+    await approve(late);
+    await prisma.invItem.update({ where: { id: target.id }, data: { name: 'Cambio posterior a la aprobación' } });
+    assert.equal((await request(`/mcp/proposals/${late.proposalId}`, null, webToken())).status, 409);
+    await prisma.invItemFile.deleteMany({ where: { itemId: target.id } });
+    await prisma.invItem.delete({ where: { id: target.id } });
+  });
   await t.test('Archivos: el commit pendiente espera la aprobación web y termina solo', async () => {
     const waitingItem = await prisma.invItem.create({ data: { companyId: company.id, name: 'Activo con aprobación en espera' } });
     const waiting = createMcpCapabilities({ prisma, config, supabaseAdmin, approvalWaitMs: 10000, downloadFile: async () => ({ buffer: png }) });

@@ -75,8 +75,8 @@ export function createFileImport({ prisma, config, supabaseAdmin, download }) {
     const result = await context({ ...p, scopes }, p.companyId, normalizeAttachmentTarget(p.destination, p.itemId), db);
     const snapshot = result.target?.snapshot ?? null;
     // Preserve proposals prepared by the first Inventory-only implementation.
-    const comparable = p.destination || !snapshot ? snapshot : { id: snapshot.id, name: snapshot.name, updatedAt: snapshot.updatedAt };
-    insist(!checkRevision || p.result || fingerprint(comparable) === fingerprint(p.target), 'proposal_stale', 'El recurso o sus relaciones cambiaron. Prepara otra propuesta.', 409);
+    result.comparable = p.destination || !snapshot ? snapshot : { id: snapshot.id, name: snapshot.name, updatedAt: snapshot.updatedAt };
+    insist(!checkRevision || p.result || fingerprint(result.comparable) === fingerprint(p.target), 'proposal_stale', 'El recurso o sus relaciones cambiaron. Prepara otra propuesta.', 409);
     return result;
   }
   const details = (id, row) => {
@@ -102,7 +102,22 @@ export function createFileImport({ prisma, config, supabaseAdmin, download }) {
     const info = details(id, row);
     return { proposalId: id, moduleKey: 'runly.files', operation: 'files.import', status: 'approval_required', preview: info.preview, proposed: info.proposed, expiresIn: 600, approvalUrl: `${config.web}/app/mcp?proposal=${id}` };
   }
-  async function proposalInfo(user, id) { const row = await get(id, user); await validate(row.payload); return details(id, row); }
+  // Same rule as domain proposals: the destination can change before review
+  // (e.g. an approved edit of the same record in the batch). Until a decision
+  // exists, show and store its current snapshot; files are still pinned by hash.
+  async function proposalInfo(user, id) {
+    let row = await get(id, user), refreshed = false;
+    const { comparable } = await validate(row.payload, prisma, undefined, false);
+    if (!row.payload.result && fingerprint(comparable) !== fingerprint(row.payload.target)) {
+      row = await prisma.$transaction(async tx => {
+        const store = createMcpState(tx), locked = await store.lock('proposal', id), current = locked.payload;
+        insist(!current.approved && !current.rejected && !current.result, 'proposal_stale', 'El recurso cambió después de tu decisión. Prepara otra propuesta.', 409);
+        return { ...locked, ...(await store.save(locked, { ...current, target: comparable })) };
+      });
+      refreshed = true;
+    }
+    return { ...details(id, row), refreshed };
+  }
   async function approve(user, id, approved) {
     await prisma.$transaction(async tx => {
       const store = createMcpState(tx), row = await store.lock('proposal', id), p = row.payload;

@@ -90,6 +90,29 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
     { domain: 'calendar', query: 'calendar_calendars', create: 'calendar.event.create', update: 'calendar.event.update', make: suffix => ({ title: `Reunión ${suffix}`, start: '2026-10-19T10:00', end: '2026-10-19T11:00', calendar: 'Agenda MCP' }), change: id => ({ eventId: id, title: 'Reunión actualizada' }), mutate: id => prisma.calendarEvent.update({ where: { id }, data: { title: 'Cambio concurrente' } }) },
     { domain: 'contacts', query: 'contacts_search', create: 'contacts.contact.create', update: 'contacts.contact.update', make: suffix => ({ name: `Proveedor ${suffix}`, type: 'supplier' }), change: id => ({ contactId: id, phone: '5550000000' }), mutate: id => prisma.contact.update({ where: { id }, data: { phone: '5550000001' } }) },
   ];
+  await t.test('hr: lote con supervisor; la revisión muestra el nombre actual en lugar de proposal_stale', async () => {
+    const supervisor = await prisma.hrEmployee.create({ data: { companyId: company.id, firstName: 'Jose Luis', lastName: 'Lopez' } });
+    const rename = await prepare('hr', 'hr.employee.update', { employeeId: supervisor.id, data: { firstName: 'José Luis', lastName: 'López' } });
+    const report = await prepare('hr', 'hr.employee.create', { data: { firstName: 'Julio', lastName: 'Bahena', supervisorEmployeeId: supervisor.id } });
+    await approve(rename);
+    await commit('hr', rename);
+    const info = await request(`/mcp/proposals/${report.proposalId}`, null, webToken());
+    assert.equal(info.status, 200, JSON.stringify(await info.clone().json()));
+    const detail = await info.json();
+    assert.equal(detail.refreshed, true);
+    assert.ok(JSON.stringify(detail.preview).includes('José Luis López'));
+    await approve(report);
+    const created = await commit('hr', report);
+    assert.equal((await prisma.hrEmployee.findUnique({ where: { id: created.result.id } })).supervisorEmployeeId, supervisor.id);
+    const late = await prepare('hr', 'hr.employee.create', { data: { firstName: 'Edgar', lastName: 'Cisneros', supervisorEmployeeId: supervisor.id } });
+    await approve(late);
+    await prisma.hrEmployee.update({ where: { id: supervisor.id }, data: { lastName: 'López Martínez' } });
+    assert.equal((await request(`/mcp/proposals/${late.proposalId}`, null, webToken())).status, 409);
+    await assert.rejects(() => commit('hr', late), { code: 'proposal_stale' });
+    // Later pagination assertions expect a single employee fixture.
+    await prisma.hrEmployee.delete({ where: { id: created.result.id } });
+    await prisma.hrEmployee.delete({ where: { id: supervisor.id } });
+  });
   const ids = {};
   await createPurchasesService({ prisma }).updateSettings(company.id, user.id, { preset: 'CUSTOM', capabilities: { requests: true, approvals: true, purchaseOrders: true, invoices: true, receipts: true, quotes: true } });
   for (const item of cases) await t.test(`${item.domain}: lectura, scopes/permisos, empresa/módulo, aprobación/rechazo, altas/ediciones, concurrencia e idempotencia`, async () => {
