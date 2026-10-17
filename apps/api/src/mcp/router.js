@@ -11,13 +11,14 @@ import { handleMcpRequest } from './server.js';
 import { createMcpActivity, ACTIVITY_RETENTION_MS } from './activity.js';
 import { oauthParameters } from './oauth-validation.js';
 import { parseTrustedProxies, resolveClientIp } from './client-ip.js';
+import { approvalWaitMs } from './approval-wait.js';
 
 export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLogo = async () => null, env = process.env, log = message => console.info(message) }) {
   const router = new Hono(), config = mcpConfig(env);
   if (!config) return router;
   const oauth = createMcpOAuth({ prisma, config });
   const activity = createMcpActivity(prisma);
-  const capabilities = createMcpCapabilities({ prisma, config, oauth, supabaseAdmin });
+  const capabilities = createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, approvalWaitMs: approvalWaitMs(env) });
   function errorResponse(err, c) {
     const correlationId = c.get('correlationId');
     const status = err instanceof z.ZodError || err instanceof SyntaxError || err.code === 'invalid_grant' && c.req.path === '/mcp/oauth/token' ? 400 : err.status ?? 500;

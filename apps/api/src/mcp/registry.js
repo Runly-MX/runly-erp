@@ -49,7 +49,7 @@ export function createCapabilityRegistry({ prisma }) {
     const domain = adapter.moduleKey.slice(6);
     return (adapter.actions.length ? ['query', 'prepare', 'commit'] : ['query']).map(mode => ({
       name: `runly_${domain}_${mode}`, moduleKey: adapter.moduleKey, mode, domain,
-      description: `${adapter.label}: ${mode === 'query' ? 'consultar recursos accesibles; selecciona una operación de request' : mode === 'prepare' ? 'preparar cambios; revisar y aprobar approvalUrl en Runly antes del commit' : 'ejecutar una propuesta aprobada; reintentos devuelven el resultado guardado'}.`,
+      description: `${adapter.label}: ${mode === 'query' ? 'consultar recursos accesibles; selecciona una operación de request' : mode === 'prepare' ? 'preparar cambios; revisar y aprobar approvalUrl en Runly antes del commit' : 'ejecutar una propuesta aprobada; llámalo justo después de mostrar approvalUrl: espera la aprobación unos segundos; reintentos devuelven el resultado guardado'}.`,
       scope: `${domain}:${mode === 'query' ? 'read' : 'write'}`,
       inputSchema: z.object({ ...companyInput, ...(mode === 'commit' ? { proposalId: z.string().regex(/^[A-Za-z0-9_-]{43}$/) } : { request: operationRequest(mode === 'query' ? adapter.queries : adapter.actions) }) }).strict(),
       outputSchema: mode === 'prepare' ? proposalSchema : resultSchema,

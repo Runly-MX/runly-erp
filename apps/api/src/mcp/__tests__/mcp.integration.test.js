@@ -84,7 +84,8 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
   await once(http, 'listening');
   t.after(() => new Promise(resolve => http.close(resolve)));
   const base = `http://127.0.0.1:${http.address().port}`;
-  const env = { RUNLY_MCP_ENABLED: 'true', RUNLY_MCP_PUBLIC_URL: `${base}/mcp`, RUNLY_MCP_WEB_URL: base };
+  // Commits called before approval must fail fast here; waiting is unit-tested.
+  const env = { RUNLY_MCP_ENABLED: 'true', RUNLY_MCP_PUBLIC_URL: `${base}/mcp`, RUNLY_MCP_WEB_URL: base, RUNLY_MCP_APPROVAL_WAIT_SECONDS: '0' };
   // Counts every database operation issued by the MCP router (guards the
   // per-request identity/permission cache and single-statement quotas).
   const queries = { count: 0 };

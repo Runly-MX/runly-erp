@@ -8,8 +8,9 @@ import { insist } from './config.js';
 import { parameterSchema } from './contracts.js';
 import { createFileImport } from './file-import.js';
 import { createMcpActivity } from './activity.js';
+import { waitForApproval } from './approval-wait.js';
 
-export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, downloadFile }) {
+export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, downloadFile, approvalWaitMs = 0 }) {
   const inventory = createInventoryMcpCapabilities({ prisma, config, oauth });
   const registry = createCapabilityRegistry({ prisma });
   const runtime = createDomainRuntime({ prisma, config, registry });
@@ -46,6 +47,10 @@ export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, do
   async function run(name, args, auth) {
     const tool = registry.tools.find(tool => tool.name === name);
     insist(tool, 'not_found', 'Herramienta no disponible.', 404);
+    if (name.endsWith('_commit')) {
+      const state = createMcpState(prisma);
+      await waitForApproval(id => state.get('proposal', id), args?.proposalId, auth, { waitMs: approvalWaitMs });
+    }
     if (tool.fileImport) return imports[tool.fileImport](args, auth);
     if (tool?.domain) return runtime.run(tool.domain, tool.mode, args, auth);
     if (name === 'runly_modules_list' || name === 'runly_module_schema') return discovery(name, args, auth);

@@ -161,7 +161,14 @@ Las ediciones admiten `name`, `status` (`available` o `maintenance`), `location`
 2. La persona abre `approvalUrl`, inicia sesión y revisa los datos en Runly.
    La API de aprobación exige una sesión web; el token MCP no puede aprobar.
 3. Después de aprobar, el cliente llama a `commit` con el mismo `companyId` y
-   `proposalId`. Un booleano enviado al MCP no concede autorización.
+   `proposalId`. Un booleano enviado al MCP no concede autorización. Las
+   instrucciones piden al cliente llamar al commit justo después de mostrar el
+   enlace: si la propuesta sigue pendiente, el commit espera hasta 45 segundos
+   (`RUNLY_MCP_APPROVAL_WAIT_SECONDS`, 0 a 60; 0 desactiva) a que la persona
+   apruebe o rechace en la web, y termina sin otro mensaje en el chat. Al
+   vencer responde `approval_required` y puede reintentarse. La espera nunca
+   aprueba nada; el commit revalida todo como siempre. Que el cliente llame al
+   commit sin pedírselo depende del modelo.
 4. El servidor bloquea autorización y propuesta, revisa permisos y condiciones
    otra vez y ejecuta las operaciones existentes dentro de una transacción.
 5. El resultado y consumo de la propuesta se guardan en la misma transacción.

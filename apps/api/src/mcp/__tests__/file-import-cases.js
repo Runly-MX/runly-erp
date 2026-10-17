@@ -100,6 +100,25 @@ export async function fileImportTests(t, { prisma, config, auth, company, other,
     await assert.rejects(() => commit(pending), { code: 'proposal_stale' });
     assert.notEqual(pending.proposalId, proposal.proposalId);
   });
+  await t.test('Archivos: el commit pendiente espera la aprobación web y termina solo', async () => {
+    const waitingItem = await prisma.invItem.create({ data: { companyId: company.id, name: 'Activo con aprobación en espera' } });
+    const waiting = createMcpCapabilities({ prisma, config, supabaseAdmin, approvalWaitMs: 10000, downloadFile: async () => ({ buffer: png }) });
+    const proposal = await waiting.run('runly_files_import_prepare', { companyId: company.id, files, itemId: waitingItem.id }, auth);
+    const started = Date.now();
+    const pending = waiting.run('runly_files_import_commit', { companyId: company.id, proposalId: proposal.proposalId, files }, auth);
+    await new Promise(resolve => setTimeout(resolve, 400));
+    await approve(proposal);
+    const result = await pending;
+    assert.ok(Date.now() - started >= 400);
+    assert.equal(result.result.files.length, 3);
+    const rejected = await waiting.run('runly_files_import_prepare', { companyId: company.id, files: files.slice(0, 1), itemId: waitingItem.id }, auth);
+    const denied = waiting.run('runly_files_import_commit', { companyId: company.id, proposalId: rejected.proposalId, files: files.slice(0, 1) }, auth);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    await approve(rejected, false);
+    await assert.rejects(denied, { code: 'approval_required' });
+    await prisma.invItemFile.deleteMany({ where: { itemId: waitingItem.id } });
+    await prisma.invItem.delete({ where: { id: waitingItem.id } });
+  });
   // Keep the legacy Inventory count assertions independent of this fixture.
   await prisma.invItem.delete({ where: { id: item.id } });
 }

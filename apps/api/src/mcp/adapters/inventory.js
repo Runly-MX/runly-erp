@@ -51,7 +51,7 @@ export function inventoryDescriptors() {
     ['runly_inventory_summary', 'Resumen de inventario', { ...companyInput, filters: inventoryFiltersSchema.default({}) }, 'inventory:read'],
     ['runly_inventory_create_prepare', 'Preparar alta; abrir approvalUrl para aprobar en Runly', { ...companyInput, plan: inventoryActionPlanSchema }, 'inventory:write'],
     ['runly_inventory_update_prepare', 'Preparar edición; abrir approvalUrl para aprobar en Runly', { ...companyInput, changes: updateInput }, 'inventory:write'],
-    ...['create', 'update'].map(action => [`runly_inventory_${action}_commit`, 'Ejecutar propuesta aprobada por la persona en Runly; reintentos devuelven el mismo resultado', { ...companyInput, proposalId: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }, 'inventory:write']),
+    ...['create', 'update'].map(action => [`runly_inventory_${action}_commit`, 'Ejecutar propuesta aprobada por la persona en Runly; llámalo justo después de mostrar approvalUrl: espera la aprobación unos segundos; reintentos devuelven el mismo resultado', { ...companyInput, proposalId: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }, 'inventory:write']),
   ];
 }
 
