@@ -98,7 +98,9 @@ export function sectionsToDocument({ id, slug, title, sections }) {
     else for (const [key, value] of Object.entries(props)) {
       const field = definition.fields[key]
       if (!field) problems.push(`${path}.props.${key}: no existe en ${definition.type} (usa: ${Object.keys(definition.fields).join(', ')})`)
-      else if (value !== null && value !== undefined) checkProp(field, value, `${path}.props.${key}`, problems)
+      // A block's own default is always valid (e.g. size: '' = inherit), so a
+      // page read back with website_page_detail can be resent unchanged.
+      else if (value !== null && value !== undefined && JSON.stringify(value) !== JSON.stringify(definition.defaultProps[key])) checkProp(field, value, `${path}.props.${key}`, problems)
     }
     const block = { id: blockId, type: definition.type, props: { ...definition.defaultProps, ...(typeof props === 'object' && !Array.isArray(props) ? Object.fromEntries(Object.entries(props).filter(([, value]) => value !== null && value !== undefined)) : {}) } }
     blocks[blockId] = block
@@ -132,7 +134,9 @@ export function documentToSections(document) {
     const block = blocks[id]
     if (!block || seen.has(id)) return null
     seen.add(id)
-    const section = { type: block.type, props: block.props ?? {} }
+    // Props equal to the block default are omitted: shorter for the assistant.
+    const defaults = byType.get(block.type)?.defaultProps ?? {}
+    const section = { type: block.type, props: Object.fromEntries(Object.entries(block.props ?? {}).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(defaults[key]))) }
     const slots = Object.entries(block.children ?? {}).filter(([, list]) => Array.isArray(list) && list.length)
     if (slots.length) section.children = Object.fromEntries(slots.map(([slot, list]) => [slot, list.map(visit).filter(Boolean)]))
     return section

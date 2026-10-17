@@ -21,9 +21,9 @@ Spec: `docs/superpowers/specs/2026-10-17-website-catalog-mcp-byo-ai-design.md`
 7. [x] Scopes, desktop domain labels, contract tests, regenerated
    `docs/integrations/RUNLY_MCP_CATALOG.md`, updated MCP docs.
    Verified: 2026-10-17 (`node --test apps/api/src/mcp/__tests__/*.test.js` 29/29, eslint clean on changed paths, dev API reloaded with /health ok).
-8. [ ] E2E against the dev DB in the test company: `.e2e/website-mcp-e2e.mjs`
+8. [x] E2E against the dev DB in the test company: `.e2e/website-mcp-e2e.mjs`
    (queries, deterministic prepare, execute, builder parse, HTTP checks, cleanup).
-   Blocked 2026-10-17: the machine ran out of virtual memory (dev Vite process at ~7 GB).
+   Verified: 2026-10-17 (19/19 checks on a real API boot, port 4099; found and fixed a read-then-resend bug: block defaults outside their select options, e.g. size "", were rejected).
 
 ## Next phases (not in this plan)
 

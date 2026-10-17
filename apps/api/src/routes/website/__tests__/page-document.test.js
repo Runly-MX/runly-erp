@@ -27,6 +27,10 @@ test('sections -> documento determinista, con defaults y slots; ida y vuelta', (
   assert.ok('subtitle' in doc.blocks.b1.props, 'completa defaultProps')
   const back = documentToSections(JSON.stringify(doc))
   assert.equal(back[1].children.children[0].props.text, 'Hola')
+  assert.ok(!('subtitle' in back[0].props), 'omite props iguales al default')
+  // Every block with all its defaults (some outside their options, e.g. size: '') resends unchanged.
+  const all = BLOCK_CATALOG.blocks.map(block => ({ type: block.type, props: block.defaultProps }))
+  assert.doesNotThrow(() => sectionsToDocument({ id: 'x', slug: 'x', title: 'X', sections: all }))
 })
 
 test('rechaza tipos, props, opciones, enlaces e HTML inseguros con rutas precisas', () => {
