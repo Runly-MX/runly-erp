@@ -803,7 +803,7 @@ const readiness = createReadinessService({
   isRuntimeReady: () => isModuleRuntimeReady(moduleRuntimeInitialized, routeLoader.getModuleRouteStatus()),
 });
 
-app.route('/', createMcpRouter({ prisma, authMiddleware }));
+app.route('/', createMcpRouter({ prisma, authMiddleware, supabaseAdmin }));
 
 app.use(
   "*",

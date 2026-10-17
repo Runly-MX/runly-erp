@@ -11,7 +11,7 @@ export function buildMcpServer({ auth, capabilities, oauth, token, correlationId
     const { name, description, scope, inputSchema, outputSchema: toolOutput, annotations } = descriptor;
     server.registerTool(name, { title: description, description, inputSchema, outputSchema: toolOutput,
       annotations,
-      _meta: { securitySchemes: [{ type: 'oauth2', scopes: [scope] }], ...(name === 'runly_whoami' ? { 'openai/profile': true } : {}) },
+      _meta: { ...descriptor.meta, securitySchemes: [{ type: 'oauth2', scopes: [scope] }], ...(name === 'runly_whoami' ? { 'openai/profile': true } : {}) },
     }, async args => {
       try {
         const current = await oauth.authenticate(token, scope);

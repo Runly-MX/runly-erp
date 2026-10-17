@@ -5,6 +5,18 @@ en [RUNLY_MCP.md](RUNLY_MCP.md).
 
 ## Ampliación de módulos oficiales
 
+Actualización posterior: la [carga de originales](RUNLY_MCP_FILES.md) añade dos
+herramientas (50 en total) y eleva `pnpm test:mcp` a 125 pruebas aprobadas sin
+fallos ni omisiones, con Inspector 2.11.0. Se verificaron tres archivos reales
+en las relaciones PostgreSQL y el servicio de carga con Storage simulado:
+bytes idénticos, idempotencia concurrente, rollback/compensación, permisos y
+URLs temporales ausentes de los datos persistidos. La selección de descarga
+y seguridad de Catálogo junto con las unitarias nuevas pasó 11 pruebas.
+`pnpm lint`, `pnpm build`, privacidad y Gitleaks también se ejecutaron para
+esta corrección. No se probó la entrega de archivos desde una cuenta comercial
+de ChatGPT ni se desplegó la API. Los resultados siguientes corresponden a la
+ampliación anterior.
+
 La [entrega transversal](RUNLY_MCP_OFFICIAL_MODULES.md) y su
 [catálogo generado](RUNLY_MCP_CATALOG.md) amplían la base descrita abajo.
 

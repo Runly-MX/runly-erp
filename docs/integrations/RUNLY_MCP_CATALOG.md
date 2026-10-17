@@ -18,6 +18,8 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `runly_inventory_update_prepare` | `inventory:write` | web-session-explicit |
 | `runly_inventory_create_commit` | `inventory:write` | web-session-explicit |
 | `runly_inventory_update_commit` | `inventory:write` | web-session-explicit |
+| `runly_files_import_prepare` | `files:write` | web-session-explicit |
+| `runly_files_import_commit` | `files:write` | web-session-explicit |
 | `runly_hr_query` | `hr:read` | none |
 | `runly_hr_prepare` | `hr:write` | web-session-explicit |
 | `runly_hr_commit` | `hr:write` | web-session-explicit |

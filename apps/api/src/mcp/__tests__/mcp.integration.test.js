@@ -235,7 +235,12 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
       assert.deepEqual(actual, { ...inspectorMetadata, redirect_uris: [callback], scope: config.scopes.join(' ') });
       const output = await runInspector('tools/list', ['--stored-auth-only']);
       const tools = JSON.parse(output).tools;
-      assert.equal(tools.length, 48);
+      assert.equal(tools.length, 50);
+      for (const mode of ['prepare', 'commit']) {
+        const tool = tools.find(tool => tool.name === `runly_files_import_${mode}`);
+        assert.deepEqual(tool._meta['openai/fileParams'], ['files']);
+        assert.equal(tool.inputSchema.properties.files.type, 'array');
+      }
     } finally { await rm(storage, { recursive: true, force: true }); }
   });
   await t.test('MCP Inspector CLI: listado e invocación por Streamable HTTP', { skip: process.env.RUNLY_MCP_TEST_INSPECTOR !== 'true' }, async () => {

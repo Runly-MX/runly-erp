@@ -14,6 +14,7 @@ import { createNotesService } from '../../routes/notes/notes-service.js';
 import { createCanvasService } from '../../routes/canvas/canvas-service.js';
 import { createPurchasesService } from '../../services/purchases-service.js';
 import * as Y from 'yjs';
+import { fileImportTests } from './file-import-cases.js';
 
 async function notesSchema(url) {
   const client = new pg.Client({ connectionString: url });
@@ -61,6 +62,7 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
   const consent = await oauth.consent(authUserId, { requestId: new URL(location).searchParams.get('request'), companyIds: [company.id], approve: true });
   const tokens = await oauth.token({ grant_type: 'authorization_code', client_id: client.client_id, code: new URL(consent.redirect).searchParams.get('code'), redirect_uri: client.redirect_uris[0], code_verifier: verifier, resource: config.resource });
   const auth = await oauth.authenticate(tokens.access_token);
+  await fileImportTests(t, { prisma, config, auth, company, other, user, role, request, webToken });
   const run = async (domain, mode, input, override = {}) => {
     const name = `runly_${domain}_${mode}`;
     const tool = registry.tools.find(tool => tool.name === name);

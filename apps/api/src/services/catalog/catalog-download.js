@@ -41,8 +41,9 @@ export async function collectBounded(stream, maxBytes) {
   } catch (error) { stream.destroy?.(); throw error }
 }
 
-export async function readCatalogBytes(value, { maxBytes = 25 * 1024 * 1024, headers = {}, localRoot = null, resolveHost = lookup, requestImpl = null } = {}) {
+export async function readCatalogBytes(value, { maxBytes = 25 * 1024 * 1024, headers = {}, localRoot = null, resolveHost = lookup, requestImpl = null, httpsOnly = false } = {}) {
   let url = new URL(value)
+  if (httpsOnly && url.protocol !== 'https:') throw new CatalogDownloadError('CATALOG_URL_REJECTED')
   if (url.protocol === 'file:') {
     if (!localRoot || url.hostname || url.search || url.hash) throw new CatalogDownloadError('CATALOG_LOCAL_NOT_CONFIGURED')
     const file = await realpath(resolve(fileURLToPath(url))), root = await realpath(resolve(localRoot))

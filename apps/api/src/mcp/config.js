@@ -1,4 +1,4 @@
-export const SCOPES = ['runly:read', 'inventory:read', 'inventory:write', ...['hr', 'fleet', 'notes', 'pfm', 'ledger', 'projects', 'calendar', 'contacts', 'purchases', 'canvas'].flatMap(domain => [`${domain}:read`, `${domain}:write`]), ...['attendance', 'files', 'documents', 'identity', 'activity', 'chat'].map(domain => `${domain}:read`)];
+export const SCOPES = ['runly:read', 'inventory:read', 'inventory:write', 'files:write', ...['hr', 'fleet', 'notes', 'pfm', 'ledger', 'projects', 'calendar', 'contacts', 'purchases', 'canvas'].flatMap(domain => [`${domain}:read`, `${domain}:write`]), ...['attendance', 'files', 'documents', 'identity', 'activity', 'chat'].map(domain => `${domain}:read`)];
 
 export function mcpConfig(env = process.env, warn = console.warn) {
   if (env.RUNLY_MCP_ENABLED !== 'true') return null;

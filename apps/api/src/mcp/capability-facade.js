@@ -6,11 +6,13 @@ import { createMcpAccess } from './access.js';
 import { createMcpState } from './state.js';
 import { insist } from './config.js';
 import { parameterSchema } from './contracts.js';
+import { createFileImport } from './file-import.js';
 
-export function createMcpCapabilities({ prisma, config, oauth }) {
+export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, downloadFile }) {
   const inventory = createInventoryMcpCapabilities({ prisma, config, oauth });
   const registry = createCapabilityRegistry({ prisma });
   const runtime = createDomainRuntime({ prisma, config, registry });
+  const imports = createFileImport({ prisma, config, supabaseAdmin, download: downloadFile });
   async function discovery(name, args, auth) {
     insist(auth.companyIds.includes(args.companyId), 'company_not_granted', 'Empresa no autorizada.', 403);
     const access = createMcpAccess(prisma), actx = await access.company(auth.authUserId, args.companyId);
@@ -24,7 +26,7 @@ export function createMcpCapabilities({ prisma, config, oauth }) {
       const tools = registry.tools.filter(tool => tool.moduleKey === canonicalKey && auth.scopes.includes(tool.scope));
       if (registry.moduleKeys.includes(canonicalKey)) {
         const available = await registry.create(canonicalKey).availableOperations?.(actx);
-        const operations = tools.flatMap(tool => tool.operations.filter(operation => actx.can(operation.permission) && (!operation.readPermission || actx.can(operation.readPermission)) && (!available || available.has(operation.name ?? operation.key))).map(operation => ({
+        const operations = tools.flatMap(tool => tool.fileImport ? actx.can('files.assets.create') && actx.can('files.assets.read') ? [{ name: tool.name, operation: 'files.import', description: tool.description, scope: tool.scope, permission: 'files.assets.create', readPermission: 'files.assets.read', approvalPolicy: tool.approvalPolicy, mode: tool.mode, inputSchema: z.toJSONSchema(tool.inputSchema, { io: 'input' }) }] : [] : tool.operations.filter(operation => actx.can(operation.permission) && (!operation.readPermission || actx.can(operation.readPermission)) && (!available || available.has(operation.name ?? operation.key))).map(operation => ({
           name: tool.name, operation: operation.name ?? operation.key, description: operation.definition?.description ?? operation.description ?? operation.label,
           scope: tool.scope, permission: operation.permission, readPermission: operation.readPermission, approvalPolicy: tool.approvalPolicy, mode: tool.mode,
           inputSchema: z.toJSONSchema(tool.mode === 'commit' ? tool.inputSchema : operation.inputSchema ?? parameterSchema(operation.definition?.parameters ?? operation.parameters), { io: 'input' }),
@@ -43,13 +45,14 @@ export function createMcpCapabilities({ prisma, config, oauth }) {
   async function run(name, args, auth) {
     const tool = registry.tools.find(tool => tool.name === name);
     insist(tool, 'not_found', 'Herramienta no disponible.', 404);
+    if (tool.fileImport) return imports[tool.fileImport](args, auth);
     if (tool?.domain) return runtime.run(tool.domain, tool.mode, args, auth);
     if (name === 'runly_modules_list' || name === 'runly_module_schema') return discovery(name, args, auth);
     return inventory.run(name, args, auth);
   }
   async function handler(method, authUserId, id, ...args) {
     const row = await createMcpState(prisma).get('proposal', id);
-    return (row?.payload.version === 2 ? runtime : inventory)[method](authUserId, id, ...args);
+    return (row?.payload.version === 3 ? imports : row?.payload.version === 2 ? runtime : inventory)[method](authUserId, id, ...args);
   }
   return { run, tools: registry.tools, proposalInfo: (user, id) => handler('proposalInfo', user, id), approve: (user, id, approved, acknowledgeSensitive) => handler('approve', user, id, approved, acknowledgeSensitive) };
 }

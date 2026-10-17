@@ -14,6 +14,7 @@ import { createPurchasesAdapter } from './adapters/purchases.js';
 import { createCanvasAdapter } from './adapters/canvas.js';
 import { createAttendanceAdapter } from './adapters/attendance.js';
 import { createFilesAdapter, createDocumentsAdapter, createIdentityAdapter, createActivityAdapter, createChatAdapter } from './adapters/readonly.js';
+import { fileImportTools } from './file-import.js';
 
 const factories = new Map(Object.entries({ hr: createHrAdapter, fleet: createFleetAdapter, notes: createNotesAdapter, pfm: createPfmAdapter, ledger: createLedgerAdapter, projects: createProjectsAdapter, calendar: createCalendarAdapter,
   contacts: createContactsAdapter, purchases: createPurchasesAdapter, canvas: createCanvasAdapter, attendance: createAttendanceAdapter, files: createFilesAdapter, documents: createDocumentsAdapter, identity: createIdentityAdapter, activity: createActivityAdapter, chat: createChatAdapter,
@@ -41,7 +42,7 @@ export function createCapabilityRegistry({ prisma }) {
     operations: [], approvalPolicy: name.endsWith('_prepare') || name.endsWith('_commit') ? 'web-session-explicit' : 'none',
     annotations: { readOnlyHint: !name.endsWith('_commit') && !name.endsWith('_prepare'), destructiveHint: name.includes('_update_commit'), idempotentHint: !name.endsWith('_prepare'), openWorldHint: false },
   }));
-  const tools = [...legacy, ...adapters.flatMap(adapter => {
+  const tools = [...legacy, ...fileImportTools, ...adapters.flatMap(adapter => {
     const domain = adapter.moduleKey.slice(6);
     return (adapter.actions.length ? ['query', 'prepare', 'commit'] : ['query']).map(mode => ({
       name: `runly_${domain}_${mode}`, moduleKey: adapter.moduleKey, mode, domain,

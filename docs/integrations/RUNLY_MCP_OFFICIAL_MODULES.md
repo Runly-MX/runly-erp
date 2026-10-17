@@ -7,7 +7,7 @@ en `server.js` consume el registro; no conoce la lógica de cada módulo.
 Inventario conserva contratos, nombres, propuestas y resultados anteriores.
 
 El [catálogo generado](RUNLY_MCP_CATALOG.md) detalla herramientas, operaciones y
-permisos. Hay 48 herramientas en total: las 12 anteriores y 36 nuevas. Los
+permisos. Hay 50 herramientas en total: las 12 anteriores y 38 nuevas. Los
 dominios con escritura publican tres herramientas semánticas por módulo:
 `runly_<dominio>_query`, `runly_<dominio>_prepare`, `runly_<dominio>_commit`.
 Las dos primeras reciben `companyId` y `request: { operation, input }`; el commit
@@ -87,6 +87,8 @@ no aplican DDL a la base configurada en `.env`.
 Cada fila con escritura añade `runly_<dominio>_query`, `_prepare` y `_commit`.
 Las filas de solo lectura añaden únicamente `_query`. Inventario mantiene sus
 ocho herramientas especializadas y las cuatro de identidad/descubrimiento.
+Archivos utiliza `runly_files_query` y las dos herramientas específicas
+`runly_files_import_prepare`/`runly_files_import_commit` con file params nativos.
 El catálogo es la referencia exacta de permisos por operación; el scope no
 sustituye el permiso ERP ni la ACL individual.
 
@@ -103,7 +105,7 @@ sustituye el permiso ERP ni la ACL individual.
 | `purchases` | Consultas de solicitudes, proveedores, órdenes, facturas y pendientes; crear borrador de solicitud y decidir una aprobación existente si el workflow lo permite | `purchases:read`, `purchases:write` |
 | `canvas` | Consultar boards/hotspots autorizados; crear board y editar hotspot conservando escena/geometría | `canvas:read`, `canvas:write` |
 | `attendance` | Consultas de asistencia, jornadas y horas extra; no registra entradas/salidas | `attendance:read` |
-| `files`, `documents` | Buscar y consultar metadatos con ACL existente; sin storage keys, contenido ni URLs firmadas | `files:read`, `documents:read` |
+| `files`, `documents` | Consultar metadatos con ACL existente; Archivos permite importar originales del chat, privados o vinculados a Inventario, con aprobación | `files:read`, `files:write`, `documents:read` |
 | `identity` | Buscar perfiles activos de la empresa para referencias explícitas; no crea usuarios ni modifica roles | `identity:read` |
 | `activity` | Actividad propia y paginada en la empresa consentida | `activity:read` |
 | `chat` | Metadatos de conversaciones propias de la empresa; sin mensajes, adjuntos ni envíos | `chat:read` |
@@ -173,10 +175,10 @@ revocación, conflictos, commits concurrentes e idempotencia. Además comprueba
 presupuestos, pólizas, tareas con asignado/estado, borrador de compra, hotspot,
 participantes de calendario, relaciones de RR. HH., categorías contables ajenas
 y preservación de bytes Yjs. El registro valida esquemas y limita la superficie
-a 48 herramientas; no es la única evidencia de funcionamiento.
+a 50 herramientas; no es la única evidencia de funcionamiento.
 
 Inspector CLI 2.11.0 realiza OAuth real con DCR/PKCE, consentimiento web de fixture
-y token exchange, inicializa MCP, lista las 48 herramientas con los nuevos
+y token exchange, inicializa MCP, lista las 50 herramientas con los nuevos
 scopes y ejecuta `runly_whoami`. El SDK oficial consulta los dominios por HTTP.
 La conexión antigua conserva sus 12 herramientas y refresh no amplía scopes.
 La sesión web de las pruebas usa JWT firmado a través del middleware real.
@@ -189,7 +191,9 @@ Los resultados finales se registran en la [verificación](RUNLY_MCP_VERIFICATION
 
 Esta ampliación no cambia el esquema de producción ni las variables MCP. Usa
 la tabla `mcp_state` existente; conserva el procesamiento de propuestas antiguas
-de Inventario y guarda las nuevas con versión 2. No modifica archivos `.env`.
+de Inventario y guarda las nuevas de dominio con versión 2. La
+[importación de originales del chat](RUNLY_MCP_FILES.md) usa propuestas versión 3
+y el nuevo scope `files:write`. No modifica archivos `.env`.
 
 Publicar después de revisar, desde el checkout actualizado (comando **no ejecutado**
 durante esta entrega):

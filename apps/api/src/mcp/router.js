@@ -10,11 +10,11 @@ import { digest, nonce } from './state.js';
 import { handleMcpRequest } from './server.js';
 import { oauthParameters } from './oauth-validation.js';
 
-export function createMcpRouter({ prisma, authMiddleware, env = process.env, log = message => console.info(message) }) {
+export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, env = process.env, log = message => console.info(message) }) {
   const router = new Hono(), config = mcpConfig(env);
   if (!config) return router;
   const oauth = createMcpOAuth({ prisma, config });
-  const capabilities = createMcpCapabilities({ prisma, config, oauth });
+  const capabilities = createMcpCapabilities({ prisma, config, oauth, supabaseAdmin });
   function errorResponse(err, c) {
     const correlationId = c.get('correlationId');
     const status = err instanceof z.ZodError || err instanceof SyntaxError || err.code === 'invalid_grant' && c.req.path === '/mcp/oauth/token' ? 400 : err.status ?? 500;
