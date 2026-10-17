@@ -956,6 +956,48 @@ export const attendanceMap = createModuleManifest({
   blueprints: [...loadHelpBlueprints('runly.attendance', path.join(HELP_DIR, 'runly.attendance'))],
 });
 
+export const lmsMap = createModuleManifest({
+  key: 'runly.lms',
+  name: 'Aprendizaje',
+  description: 'Cursos internos con videos, documentos y textos, asignación con fecha límite, avance por lección y reproductor.',
+  version: '0.1.0',
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  icon: 'GraduationCap',
+  color: '#7c3aed',
+  pwa: { shortName: 'Aprendizaje', startPath: '/' },
+  category: 'productividad',
+  summary: 'Cursos, lecciones, inscripciones y avance del personal',
+  dependencies: [{ key: 'runly.identity' }, { key: 'runly.company' }, { key: 'runly.files' }],
+  lifecycle: {
+    installable: true,
+    uninstallable: false,
+    resettable: false,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: 'purge-owned-tables',
+    ownedEntities: ['LmsCourse', 'LmsSection', 'LmsLesson', 'LmsLearner', 'LmsEnrollment', 'LmsLessonProgress'],
+    sharedEntities: ['Company', 'UserProfile', 'FileAsset', 'Contact'],
+  },
+  fullscreenPaths: ['/learn/:courseId'],
+  navigation: [
+    { label: 'Mis cursos', path: '/', icon: 'GraduationCap', layout: 'main', permissionKey: 'lms.access' },
+    { label: 'Cursos', path: '/courses', icon: 'BookOpen', layout: 'main', permissionKey: 'lms.course.manage' },
+  ],
+  acl: {
+    module: 'lms.access',
+    actions: { read: 'lms.access', create: 'lms.course.manage', update: 'lms.course.manage', delete: 'lms.course.manage' },
+    models: {},
+  },
+  permissions: [
+    { key: 'lms.access', name: 'Acceder a Aprendizaje' },
+    { key: 'lms.course.manage', name: 'Administrar cursos' },
+    { key: 'lms.enrollment.manage', name: 'Asignar cursos y ver avance' },
+  ],
+  exposes: { openCourse: 'route' },
+  blueprints: [...loadHelpBlueprints('runly.lms', path.join(HELP_DIR, 'runly.lms'))],
+});
+
 export const chatMap = createModuleManifest({
   key: 'runly.chat',
   name: 'Chat',

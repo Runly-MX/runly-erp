@@ -9,7 +9,7 @@ export const OFFICIAL_MODULE_KEY_PAIRS = Object.freeze([
 // Modules born after the Runly rename intentionally have no invented
 // `atlas.*` identity. Keep them explicit so catalog completeness can be
 // checked without creating aliases that never existed in stored data.
-export const CURRENT_ONLY_OFFICIAL_MODULE_KEYS = Object.freeze(['runly.canvas', 'runly.attendance']);
+export const CURRENT_ONLY_OFFICIAL_MODULE_KEYS = Object.freeze(['runly.canvas', 'runly.attendance', 'runly.lms']);
 
 const counterparts = new Map(OFFICIAL_MODULE_KEY_PAIRS.flatMap(({ legacy, current }) => [[legacy, current], [current, legacy]]));
 

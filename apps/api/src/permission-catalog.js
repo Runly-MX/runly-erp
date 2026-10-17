@@ -24,6 +24,7 @@ const GROUPS = {
   notes: "Notas",
   calendar: "Calendario",
   catalog: "Catalogo",
+  lms: "Aprendizaje",
 };
 
 const MODULE_LABELS = {
@@ -51,6 +52,7 @@ const MODULE_LABELS = {
   notes: "Notas",
   calendar: "Calendario",
   catalog: "Catalogo",
+  lms: "Aprendizaje",
 };
 
 const FEATURE_LABELS = {
@@ -1442,6 +1444,16 @@ export const PERMISSION_CATALOG = {
   },
   "attendance.config.manage": {
     displayNameEs: "Configurar Asistencia", descriptionEs: "Permite administrar sitios, grupos, categorías, turnos, cuotas y kioskos.", groupKey: "attendance", order: 50,
+  },
+
+  "lms.access": {
+    displayNameEs: "Acceder a Aprendizaje", descriptionEs: "Permite ver el catálogo, inscribirse, tomar los cursos asignados y registrar avance.", groupKey: "lms", order: 10,
+  },
+  "lms.course.manage": {
+    displayNameEs: "Administrar cursos", descriptionEs: "Permite crear, editar, publicar y archivar cursos, secciones y lecciones.", groupKey: "lms", order: 20,
+  },
+  "lms.enrollment.manage": {
+    displayNameEs: "Asignar cursos y ver avance", descriptionEs: "Permite asignar cursos a usuarios con fecha límite, dar de baja y ver el avance de cada alumno.", groupKey: "lms", order: 30,
   },
 
   "projects.access": {

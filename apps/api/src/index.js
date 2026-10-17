@@ -89,6 +89,7 @@ import { createProjectsRouter } from "./routes/projects/index.js";
 import { createCanvasRouter, createCanvasPublicRouter } from "./routes/canvas/index.js";
 import { createAttendanceRouter, createAttendancePublicRouter } from "./routes/attendance/index.js";
 import { createAttendanceEvents } from "./routes/attendance/attendance-events.js";
+import { createLmsRouter } from "./routes/lms/index.js";
 import { createCanvasDataSources } from "./routes/canvas/canvas-data-sources.js";
 import { createCanvasFileRemover } from "./routes/canvas/canvas-files.js";
 import { createSettingsRouter } from "./routes/settings-routes.js";
@@ -2381,7 +2382,7 @@ app.route("/modules", modulesRouter);
 // intercepts every unmatched path before the wildcard route at the bottom can fire.
 // Moving this up as a use() middleware means it runs first for browser GETs to
 // non-API paths and calls next() for everything else (API AJAX calls, etc.).
-const API_PREFIX_RE = /^\/(modules|blueprints|files|wopi|contacts|company|identity|finance|hr|website|ledger|pfm|calendar|projects|attendance|catalog|pos|storefront|activity|notifications|inventory|chat|calls|public|auth|health|p|app|user|users|memberships|profile|settings|sync)\b/i
+const API_PREFIX_RE = /^\/(modules|blueprints|files|wopi|contacts|company|identity|finance|hr|website|ledger|pfm|calendar|projects|attendance|lms|catalog|pos|storefront|activity|notifications|inventory|chat|calls|public|auth|health|p|app|user|users|memberships|profile|settings|sync)\b/i
 // Static dist files that aren't HTML pages but live in the dist root (robots.txt, sitemap, webmanifest).
 const DIST_STATIC_RE = /\.(txt|xml|webmanifest|ico|rss|atom)$/i
 app.use('*', async (c, next) => {
@@ -2436,6 +2437,7 @@ mountWithAuth(app, createCalendarRouter({ prisma, requirePermission, broadcaster
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService), broadcaster }));
 mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, entityResolver: resolveCanvasEntityLink, dataSources: createCanvasDataSources({ prisma, relationTargets }), removeFiles: createCanvasFileRemover({ prisma, supabaseAdmin }) }));
 mountWithAuth(app, createAttendanceRouter({ prisma, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail), buildInviteMail: buildAttendancePhoneInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env), requirePermission, requireAnyPermission, broadcaster, events: attendanceEvents, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
+mountWithAuth(app, createLmsRouter({ prisma, requirePermission, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));

@@ -5330,3 +5330,138 @@ model InvPublicToken {
   @@index([companyId, itemId])
   @@map("inv_public_token")
 }
+
+// ---------------------------------------------------------------------------
+// runly.lms — courses, learners, enrollments and progress (spec 2026-10-16-lms-design)
+// ---------------------------------------------------------------------------
+
+model LmsCourse {
+  id               String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId        String   @map("company_id") @db.Uuid
+  title            String
+  summary          String?
+  description      String? // markdown
+  coverFileId      String?  @map("cover_file_id") @db.Uuid
+  category         String?
+  level            String   @default("basic") // basic | intermediate | advanced
+  status           String   @default("draft") // draft | published | archived
+  visibility       String   @default("internal") // internal | public (phase 6)
+  sequential       Boolean  @default(false)
+  selfEnroll       Boolean  @default(false) @map("self_enroll")
+  estimatedMinutes Int?     @map("estimated_minutes")
+  createdById      String?  @map("created_by_id") @db.Uuid
+  enabled          Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sections    LmsSection[]
+  enrollments LmsEnrollment[]
+
+  @@index([companyId, status])
+  @@map("lms_course")
+}
+
+model LmsSection {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  title     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  course  LmsCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons LmsLesson[]
+
+  @@index([courseId, position])
+  @@map("lms_section")
+}
+
+model LmsLesson {
+  id              String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  courseId        String   @map("course_id") @db.Uuid
+  sectionId       String   @map("section_id") @db.Uuid
+  title           String
+  kind            String   @default("text") // video | embed | text | file
+  body            String? // markdown
+  fileId          String?  @map("file_id") @db.Uuid
+  embedUrl        String?  @map("embed_url")
+  durationSeconds Int?     @map("duration_seconds")
+  position        Int      @default(0)
+  required        Boolean  @default(true)
+  preview         Boolean  @default(false) // phase 6
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  section  LmsSection          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  progress LmsLessonProgress[]
+
+  @@index([courseId])
+  @@index([sectionId, position])
+  @@map("lms_lesson")
+}
+
+// Exactly one subject: an internal user (phase 1) or a contact (phase 6).
+// The CHECK constraint lives in the migration.
+model LmsLearner {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  userProfileId String?  @map("user_profile_id") @db.Uuid
+  contactId     String?  @map("contact_id") @db.Uuid
+  displayName   String   @map("display_name")
+  email         String?
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  enrollments LmsEnrollment[]
+
+  @@unique([companyId, userProfileId])
+  @@unique([companyId, contactId])
+  @@map("lms_learner")
+}
+
+model LmsEnrollment {
+  id           String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  courseId     String    @map("course_id") @db.Uuid
+  learnerId    String    @map("learner_id") @db.Uuid
+  status       String    @default("active") // active | completed | dropped
+  source       String    @default("self") // self | assigned
+  assignedById String?   @map("assigned_by_id") @db.Uuid
+  dueAt        DateTime? @map("due_at") @db.Timestamptz(6)
+  startedAt    DateTime? @map("started_at") @db.Timestamptz(6)
+  completedAt  DateTime? @map("completed_at") @db.Timestamptz(6)
+  progressPct  Int       @default(0) @map("progress_pct")
+  lastLessonId String?   @map("last_lesson_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  course   LmsCourse           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  learner  LmsLearner          @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  progress LmsLessonProgress[]
+
+  @@unique([courseId, learnerId])
+  @@index([learnerId, status])
+  @@map("lms_enrollment")
+}
+
+model LmsLessonProgress {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId          String    @map("company_id") @db.Uuid
+  enrollmentId       String    @map("enrollment_id") @db.Uuid
+  lessonId           String    @map("lesson_id") @db.Uuid
+  status             String    @default("in_progress") // in_progress | completed
+  positionSeconds    Int       @default(0) @map("position_seconds")
+  maxPositionSeconds Int       @default(0) @map("max_position_seconds")
+  completedAt        DateTime? @map("completed_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  enrollment LmsEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson     LmsLesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, lessonId])
+  @@map("lms_lesson_progress")
+}
