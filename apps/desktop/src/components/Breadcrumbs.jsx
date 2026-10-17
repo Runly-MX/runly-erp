@@ -46,8 +46,8 @@ function buildCrumbs(pathname, moduleMap) {
   let subLabel;
   if (navItem) {
     subLabel = subPath === navItem.path ? navItem.label : `${navItem.label} · Detalle`;
-  } else if (UUID_RE.test(rawSub)) {
-    // UUID sub-path = detail page; use the root nav item label as context
+  } else if (UUID_RE.test(rawSub.split("/").pop())) {
+    // Sub-path ending in a UUID (e.g. /:id, /learn/:id) = detail page; use the root nav item label as context
     const rootNav = navItems.find((n) => n.path === "/");
     subLabel = rootNav ? `${rootNav.label} · Detalle` : "Detalle";
   } else if (subPath === TRASH_SUBPATH) {

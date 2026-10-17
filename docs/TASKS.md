@@ -1880,3 +1880,13 @@ Spec `docs/superpowers/specs/2026-10-11-attendance-design.md`, plan `docs/superp
 - [x] Foundation, API, admin UI, public offline kiosk, phone key, MirAI read tools, Home widget. Verified: 2026-10-12 (API end-to-end script, Playwright against a production build incl. offline punch + cold start)
 - [ ] Not verified on real hardware: camera QR scan, Web NFC, Android host NFC feed, wake lock, fullscreen
 - [ ] Pending: Android HCE (phone as NFC card), BiometricPrompt, lock-task; selfie evidence upload; BLE; geofence enforcement; xlsx export; optional face match
+
+## runly.lms (learning management)
+
+Spec `docs/superpowers/specs/2026-10-16-lms-design.md`; plans `docs/superpowers/plans/2026-10-16-lms-phase{1,2-evaluation,3-social,4-certificates}.md`.
+
+- [x] Phase 1 core: courses, sections, lessons (video/embed/text/file), internal learners, assignment with due date, self-enrollment, progress with resume and sequential unlock, learner home, player and authoring screens. Verified: 2026-10-17 (API E2E 47/47 against a local API on the dev DB; Playwright smoke of home, course list, editor, player, review with no console errors; unit tests, lint, web build)
+- [x] Phase 2 evaluation: quizzes (single/multiple/true-false/open, random draw, attempts, time limit, manual grading), assignments (return/approve, passing grade), grading queue, notifications. Verified: 2026-10-17 (API E2E 48/48; 55/55 unit tests; lint; web build)
+- [ ] Phase 3 social, phase 4 certificates (planned), phase 5 reporting/MirAI/MCP, phase 6 website + external learners + Stripe
+- [ ] Not verified in a browser: real video upload to Storage and playback resume, quiz attempt UI, assignment file upload UI, grading sheets
+- [ ] Known limit: uploaded videos are capped at 50 MB by the self-hosted Storage FILE_SIZE_LIMIT; longer videos go as embed lessons. Presigned uploads that are never confirmed leave a pending FileAsset row (no cleanup job yet)
