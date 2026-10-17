@@ -156,5 +156,23 @@ The catalog and course serializers expose `ratingAvg` and `ratingCount`.
 ### 13.4 UI
 - New navigation item `Certificados` (`/certificates`, `lms.course.manage`) with a template list and a template editor sheet that shows a live PDF preview in an iframe.
 - Course settings gain a Certificado `SelectField` (Sin certificado / templates). The Alumnos tab shows a certificate column with folio, download, revoke (ConfirmDialog with reason) and "Emitir" when it is missing.
-- "Mis cursos" gains a Certificados section with downloads. The player shows a "Descargar certificado" button on completion.
+- "Mis cursos" gains a Certificados section with downloads (see §14 for the later authoring and video review). The player shows a "Descargar certificado" button on completion.
 - Public page `/app/p/lms/cert/:token` (no login, no shell): company logo, a "Certificado válido" or "Certificado revocado" status, folio, name, course, date, hours, and a PDF download.
+
+## 14. Authoring UX and large videos (product-owner review, 2026-10-17)
+
+### 14.1 Feedback
+1. Long-form text must use the authorized Markdown editor, `MarkdownField` from `@runly/ui` (MDXEditor), not plain textareas.
+2. Videos over the 50 MB Storage limit must be uploadable, reusing the call-recording approach: HLS segments in Storage, played with hls.js.
+3. Reordering must be drag and drop (`@dnd-kit`, already a dependency). Heavy editors must be pages or large surfaces, not small sheets.
+
+### 14.2 Decisions
+- **Markdown:** `MarkdownField` is used for course description, lesson text, lesson notes, assignment instructions, quiz instructions, question prompt and explanation, and announcements. It is the full width of the page in course settings and the lesson editor. Short inputs (summary, comments, grading feedback, revoke reason) stay as textareas. The certificate body keeps its textarea, because its placeholder chips insert at the cursor.
+- **Lesson editor page:** `/courses/:courseId/lessons/:lessonId` (`new` for creation, with `?section=`). The left column holds the course curriculum (drag and drop, current lesson highlighted with a flat fill) and the right column the editor. There is a sticky header with back, title, status and Guardar. Quiz questions are edited inline on this page, as a list with drag and drop plus a question editor panel. `LessonSheet` and `QuizQuestionsSheet` are removed.
+- **Curriculum drag and drop:** sections reorder; lessons reorder within a section and move between sections. Both persist through the existing `POST /lms/courses/:id/reorder`. Keyboard sorting comes from the dnd-kit sensors. The arrow buttons go away.
+- **Large videos (HLS package):**
+  - Files of 50 MB or less keep the direct upload. Larger files, up to 2 GB (the practical ffmpeg.wasm memory limit), are remuxed in the browser with ffmpeg.wasm: `-c copy -f hls -hls_time 6 -hls_playlist_type vod`. This is the same lossless container remux that `downloadHlsAsMp4` already does in reverse.
+  - Segments and `index.m3u8` are uploaded with signed URLs, three in parallel, with overall progress shown.
+  - One `FileAsset` represents the package: the manifest, `mimeType application/vnd.apple.mpegurl`, and `metadata.hls = { dir, segments, durationSeconds, sourceName, sourceBytes }`.
+  - Opening the lesson returns `media: { kind: 'hls', manifest }`. Each segment line is rewritten to its own signed URL, the same technique as `signManifestSegments` in call recordings. The player plays it through the shared `useHlsPlayback`, which `@runly/ui` exports.
+  - Remux needs H.264 or HEVC video. Other codecs get a clear Spanish error asking for an MP4 export.
