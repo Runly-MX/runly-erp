@@ -10,7 +10,7 @@ import { digest, nonce } from './state.js';
 import { handleMcpRequest } from './server.js';
 import { oauthParameters } from './oauth-validation.js';
 
-export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, env = process.env, log = message => console.info(message) }) {
+export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLogo = async () => null, env = process.env, log = message => console.info(message) }) {
   const router = new Hono(), config = mcpConfig(env);
   if (!config) return router;
   const oauth = createMcpOAuth({ prisma, config });
@@ -82,7 +82,11 @@ export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, env = p
   router.get('/mcp/account', authMiddleware, async c => {
     const actor = await createMcpAccess(prisma).identity(c.get('authUserId'));
     const grants = await prisma.mcpState.findMany({ where: { kind: 'grant', expiresAt: { gt: new Date() }, payload: { path: ['authUserId'], equals: c.get('authUserId') } }, take: 100 });
-    return c.json({ companies: [...new Map(actor.memberships.map(m => [m.companyId, m.company])).values()], grants: grants.filter(g => !g.payload.revoked).map(g => ({ id: g.payload.grantId, clientName: g.payload.clientName, companyIds: g.payload.companyIds, scopes: g.payload.scopes })) });
+    const companies = [...new Map(actor.memberships.map(m => [m.companyId, m.company])).values()];
+    const branding = await prisma.brandingConfig.findMany({ where: { companyId: { in: companies.map(company => company.id) } }, select: { companyId: true, primaryColor: true, logoFileId: true } });
+    const brandingByCompany = new Map(branding.map(row => [row.companyId, row]));
+    const branded = await Promise.all(companies.map(async company => { const row = brandingByCompany.get(company.id); return { ...company, primaryColor: row?.primaryColor ?? null, logoUrl: await signLogo(row?.logoFileId).catch(() => null) }; }));
+    return c.json({ companies: branded, grants: grants.filter(g => !g.payload.revoked).map(g => ({ id: g.payload.grantId, clientName: g.payload.clientName, companyIds: g.payload.companyIds, scopes: g.payload.scopes })) });
   });
   router.post('/mcp/oauth/consent', authMiddleware, async c => c.json(await oauth.consent(c.get('authUserId'), await c.req.json())));
   router.post('/mcp/account/revoke', authMiddleware, async c => {

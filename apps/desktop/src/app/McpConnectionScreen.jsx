@@ -1,14 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { Button, Card, Checkbox, ConfirmDialog, EmptyState, ErrorState, LoadingState, PageHeader } from '@runly/ui';
+import { KeyRound, ListChecks, PlugZap, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Button, ConfirmDialog, EmptyState, ErrorState, LoadingState } from '@runly/ui';
 import { useAuth } from '../auth/AuthProvider';
-
-const SCOPE_LABELS = { 'runly:read': 'Ver tu identidad, empresas y módulos autorizados', 'inventory:read': 'Consultar equipos y catálogos de inventario', 'inventory:write': 'Preparar y ejecutar altas y ediciones con tu aprobación en Runly' };
-for (const [domain, label] of Object.entries({ hr: 'Recursos Humanos', fleet: 'Flota', notes: 'Notas', pfm: 'Finanzas personales', ledger: 'Libro de cuentas', projects: 'Proyectos', calendar: 'Calendario', contacts: 'Contactos', purchases: 'Compras', canvas: 'Canvas', attendance: 'Asistencia', files: 'Archivos', documents: 'Documentos', identity: 'Identidad', activity: 'Actividad propia', chat: 'Conversaciones propias' })) {
-  SCOPE_LABELS[`${domain}:read`] = `Consultar ${label} con tus permisos actuales`;
-  SCOPE_LABELS[`${domain}:write`] = `Preparar cambios en ${label}; requieren tu aprobación en Runly`;
-}
+import { ActionBar, CompanyOption, Destination, FieldChanges, McpPage, Notice, Panel, PanelHeader, ScopeList, SectionLabel, SensitiveCheck, scopeLabel } from './McpConnectionParts.jsx';
 
 export function McpConnectionScreen() {
   const { session } = useAuth();
@@ -40,43 +36,56 @@ export function McpConnectionScreen() {
   const revoke = useMutation({ mutationFn: grantId => api('/mcp/account/revoke', { grantId }), onSuccess: () => { setRevoking(null); account.refetch(); } });
   const error = account.error || detail.error || action.error || revoke.error;
   if (account.isPending || (detail.isPending && (requestId || proposalId))) return <LoadingState variant="page" />;
-  return <main className="mx-auto max-w-2xl space-y-6 p-6">
-    <PageHeader title="Conexiones de asistentes" description="Controla el acceso a tus datos de Runly." />
+  const request = requestId && detail.data, proposal = proposalId && detail.data;
+  const toggleCompany = id => checked => setCompanyIds(ids => checked ? [...ids, id] : ids.filter(x => x !== id));
+  return <McpPage>
+    <div className="space-y-1">
+      <h1 className="text-2xl font-semibold tracking-tight">{request ? 'Autorizar conexión' : proposal ? 'Revisar propuesta' : 'Conexiones de asistentes'}</h1>
+      <p className="text-sm text-[hsl(var(--muted-foreground))]">{request ? 'Una aplicación quiere conectarse a tu cuenta de Runly.' : proposal ? 'Un asistente propone un cambio. Nada se ejecuta sin tu aprobación.' : 'Controla el acceso a tus datos de Runly.'}</p>
+    </div>
     {error && <ErrorState title="No se pudo completar la solicitud" description={error.message} />}
-    {requestId && detail.data && <Card className="space-y-4 p-6">
-      <h2 className="text-lg font-semibold">Autorizar conexión: {detail.data.clientName}</h2>
-      <p>El nombre lo proporciona la aplicación y no está verificado. Autoriza solo aplicaciones que reconozcas.</p>
-      <p className="break-all text-sm">Destino: {detail.data.redirectUri}</p>
-      <ul className="list-disc pl-6">{detail.data.scopes.map(scope => <li key={scope}>{SCOPE_LABELS[scope] ?? scope}</li>)}</ul>
-      <p>Selecciona las empresas que podrá consultar. Se aplican tus permisos actuales en cada operación.</p>
-      {account.data?.companies.map(company => <label className="flex items-center gap-3" key={company.id}>
-        <Checkbox checked={companyIds.includes(company.id)} onCheckedChange={checked => setCompanyIds(ids => checked ? [...ids, company.id] : ids.filter(id => id !== company.id))} />
-        {company.name}
-      </label>)}
-      <div className="flex gap-3"><Button disabled={!companyIds.length || action.isPending} onClick={() => action.mutate(true)}>Autorizar</Button>
-        <Button variant="outline" disabled={action.isPending} onClick={() => action.mutate(false)}>Rechazar</Button></div>
-    </Card>}
-    {proposalId && detail.data && <Card className="space-y-4 p-6">
-      <h2 className="text-lg font-semibold">{detail.data.preview.title}</h2>
-      <p>Empresa: {account.data?.companies.find(c => c.id === detail.data.companyId)?.name}</p>
-      <p>Revisa todos los datos antes de aprobar. La aprobación permite al asistente ejecutar esta propuesta una sola vez durante su vigencia.</p>
-      {Array.isArray(detail.data.proposed?.effects) && detail.data.proposed.effects.length > 0 && <div className="space-y-2"><h3 className="font-medium">Efectos previstos</h3><ul className="list-disc pl-6">{detail.data.proposed.effects.map(effect => <li key={effect}>{effect}</li>)}</ul></div>}
-      <dl className="space-y-3">{detail.data.preview.fields.map((field, index) => <div key={index}><dt className="font-medium">{field.label}</dt><dd>{field.before !== undefined && <span>Antes: {String(field.before)} · </span>}Nuevo: {String(field.value)}</dd></div>)}</dl>
-      <details><summary>Datos completos de la propuesta</summary><pre className="overflow-auto whitespace-pre-wrap rounded bg-muted p-3 text-sm">{JSON.stringify(detail.data.proposed, null, 2)}</pre></details>
-      {detail.data.sensitive && !done && <label className="flex items-start gap-3"><Checkbox checked={sensitiveAcknowledged} onCheckedChange={checked => setAcknowledgedProposal(checked === true ? proposalId : null)} />Confirmo los importes, relaciones, vínculos de identidad, destinatarios y avisos indicados en esta propuesta.</label>}
-      {done ? <p role="status">Decisión guardada. Vuelve al asistente para continuar.</p> : <div className="flex gap-3">
-        <Button disabled={action.isPending || detail.data.completed || detail.data.rejected || detail.data.sensitive && !sensitiveAcknowledged} onClick={() => action.mutate(true)}>Aprobar propuesta</Button>
+    {request && <Panel>
+      <PanelHeader icon={PlugZap} title={detail.data.clientName} subtitle="Aplicación solicitante" />
+      <div className="space-y-5 p-4 sm:p-5">
+        <Notice icon={ShieldAlert} tone="warning">El nombre lo proporciona la aplicación y no está verificado. Autoriza solo aplicaciones que reconozcas.</Notice>
+        <Destination uri={detail.data.redirectUri} />
+        <div className="space-y-2"><SectionLabel>Permisos solicitados</SectionLabel><ScopeList scopes={detail.data.scopes} /></div>
+        <div className="space-y-2">
+          <SectionLabel>Empresas</SectionLabel>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">Selecciona las empresas que podrá consultar. Se aplican tus permisos actuales en cada operación.</p>
+          <div className="grid gap-2">{account.data?.companies.map(company => <CompanyOption key={company.id} company={company} checked={companyIds.includes(company.id)} onChange={toggleCompany(company.id)} />)}</div>
+        </div>
+      </div>
+      <ActionBar>
+        <Button variant="outline" disabled={action.isPending} onClick={() => action.mutate(false)}>Rechazar</Button>
+        <Button disabled={!companyIds.length || action.isPending} onClick={() => action.mutate(true)}>Autorizar</Button>
+      </ActionBar>
+    </Panel>}
+    {proposal && <Panel>
+      <PanelHeader icon={ListChecks} title={detail.data.preview.title} subtitle={`Empresa: ${account.data?.companies.find(c => c.id === detail.data.companyId)?.name ?? '—'}`} />
+      <div className="space-y-5 p-4 sm:p-5">
+        <Notice>Revisa todos los datos antes de aprobar. La aprobación permite al asistente ejecutar esta propuesta una sola vez durante su vigencia.</Notice>
+        {Array.isArray(detail.data.proposed?.effects) && detail.data.proposed.effects.length > 0 && <div className="space-y-2"><SectionLabel>Efectos previstos</SectionLabel><ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">{detail.data.proposed.effects.map(effect => <li key={effect}>{effect}</li>)}</ul></div>}
+        <div className="space-y-2"><SectionLabel>Datos a aplicar</SectionLabel><FieldChanges fields={detail.data.preview.fields} /></div>
+        <details className="rounded-md border border-[hsl(var(--border))]"><summary className="cursor-pointer select-none p-3 text-sm font-medium">Datos completos de la propuesta</summary><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-[hsl(var(--border))] bg-[hsl(var(--muted))] p-3 text-xs">{JSON.stringify(detail.data.proposed, null, 2)}</pre></details>
+        {detail.data.sensitive && !done && <SensitiveCheck checked={sensitiveAcknowledged} onChange={checked => setAcknowledgedProposal(checked === true ? proposalId : null)} />}
+        {done && <p role="status" className="flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm"><ShieldCheck size={18} aria-hidden="true" />Decisión guardada. Vuelve al asistente para continuar.</p>}
+      </div>
+      {!done && <ActionBar>
         <Button variant="outline" disabled={action.isPending || detail.data.completed} onClick={() => action.mutate(false)}>Rechazar</Button>
-      </div>}
-    </Card>}
-    {!requestId && !proposalId && <Card className="space-y-4 p-6">
-      <h2 className="text-lg font-semibold">Aplicaciones autorizadas</h2>
-      {!account.data?.grants.length && <EmptyState title="Sin conexiones activas" description="Aquí aparecerán las aplicaciones que autorices." />}
-      {account.data?.grants.map(grant => <div className="flex items-center justify-between gap-4" key={grant.id}>
-        <div><p>{grant.clientName}</p><p className="text-sm">{grant.scopes.map(s => SCOPE_LABELS[s] ?? s).join(' · ')}</p></div>
-        <Button variant="outline" onClick={() => setRevoking(grant)}>Revocar</Button>
-      </div>)}
-    </Card>}
+        <Button disabled={action.isPending || detail.data.completed || detail.data.rejected || detail.data.sensitive && !sensitiveAcknowledged} onClick={() => action.mutate(true)}>Aprobar propuesta</Button>
+      </ActionBar>}
+    </Panel>}
+    {!requestId && !proposalId && <Panel>
+      <PanelHeader icon={KeyRound} title="Aplicaciones autorizadas" subtitle="Asistentes con acceso a tu cuenta" />
+      <div className="p-4 sm:p-5">
+        {!account.data?.grants.length && <EmptyState title="Sin conexiones activas" description="Aquí aparecerán las aplicaciones que autorices." />}
+        <ul className="space-y-3">{account.data?.grants.map(grant => <li className="flex flex-col gap-3 rounded-md border border-[hsl(var(--border))] p-3 sm:flex-row sm:items-center sm:justify-between" key={grant.id}>
+          <div className="min-w-0 space-y-1"><p className="break-words font-medium">{grant.clientName}</p><p className="text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{grant.scopes.map(scopeLabel).join(' · ')}</p></div>
+          <Button variant="outline" className="min-h-11 shrink-0" onClick={() => setRevoking(grant)}>Revocar</Button>
+        </li>)}</ul>
+      </div>
+    </Panel>}
     <ConfirmDialog open={Boolean(revoking)} onOpenChange={open => { if (!open) setRevoking(null); }} title="Revocar conexión" description="La aplicación perderá el acceso y deberá solicitar tu autorización de nuevo." confirmLabel="Revocar" loading={revoke.isPending} onConfirm={() => revoke.mutate(revoking.id)} />
-  </main>;
+  </McpPage>;
 }
