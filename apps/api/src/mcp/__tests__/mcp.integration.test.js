@@ -393,5 +393,11 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
     await prisma.mcpState.upsert({ where: { key }, create: { key, kind: 'rate', payload: {}, counter: 120, expiresAt: new Date(Date.now() + 60000) }, update: { counter: 120 } });
     const limited = await request('/mcp', null, tokens.access_token);
     assert.equal(limited.status, 429); assert.equal(limited.headers.get('retry-after'), '60');
+    // The test server calls router.fetch without a socket, so the peer is "direct";
+    // an untrusted X-Forwarded-For must not move the request to another bucket.
+    const registerKey = digest(`mcp-rate:${Math.floor(Date.now() / 60000)}:register:direct`);
+    await prisma.mcpState.upsert({ where: { key: registerKey }, create: { key: registerKey, kind: 'rate', payload: {}, counter: 10, expiresAt: new Date(Date.now() + 60000) }, update: { counter: 10 } });
+    const spoofed = await fetch(`${config.issuer}/mcp/oauth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '198.51.100.7' }, body: JSON.stringify({ client_name: 'Spam', redirect_uris: ['http://127.0.0.1:9/cb'] }) });
+    assert.equal(spoofed.status, 429);
   });
 });

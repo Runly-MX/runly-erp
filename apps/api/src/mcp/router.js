@@ -10,6 +10,7 @@ import { digest, nonce } from './state.js';
 import { handleMcpRequest } from './server.js';
 import { createMcpActivity } from './activity.js';
 import { oauthParameters } from './oauth-validation.js';
+import { parseTrustedProxies, resolveClientIp } from './client-ip.js';
 
 export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLogo = async () => null, env = process.env, log = message => console.info(message) }) {
   const router = new Hono(), config = mcpConfig(env);
@@ -26,6 +27,13 @@ export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLog
     return c.json({ error: err.code ?? (status < 500 ? 'invalid_request' : 'server_error'), error_description: status < 500 && !(err instanceof z.ZodError) ? err.message : status === 400 ? 'Parámetros inválidos.' : 'No se pudo completar la solicitud.', correlationId }, status);
   }
   router.onError(errorResponse);
+  const trustedProxies = parseTrustedProxies(env.RUNLY_MCP_TRUSTED_PROXIES);
+  async function quota(c, subject, limit) {
+    const key = digest(`mcp-rate:${Math.floor(Date.now() / 60000)}:${subject}`);
+    const rate = await prisma.mcpState.upsert({ where: { key }, create: { key, kind: 'rate', payload: {}, counter: 1, expiresAt: new Date(Date.now() + 120000) }, update: { counter: { increment: 1 } } });
+    if (rate.counter > limit) { c.header('Retry-After', '60'); insist(false, 'rate_limited', 'Demasiadas solicitudes. Intenta en un minuto.', 429); }
+    return rate;
+  }
   const origins = new Set([config.issuer, config.web, ...(env.RUNLY_MCP_ALLOWED_ORIGINS || '').split(',').filter(Boolean)]);
   const paths = ['/mcp', '/mcp/*', '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server'];
   const guard = async (c, next) => {
@@ -41,18 +49,13 @@ export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLog
       const origin = c.req.header('Origin');
       insist(!origin || origins.has(origin), 'invalid_origin', 'Origen MCP no autorizado.', 403);
       insist(!c.req.query('access_token'), 'invalid_request', 'No envíes tokens en la URL.');
-      // Distributed quotas; do not trust user-controlled forwarding headers.
+      // Distributed quotas. Forwarding headers count only from trusted proxies.
       const bearer = c.req.header('Authorization') ?? '';
-      const peer = c.env?.incoming?.socket?.remoteAddress ?? 'direct';
-      async function quota(subject, limit) {
-        const key = digest(`mcp-rate:${Math.floor(Date.now() / 60000)}:${subject}`);
-        const rate = await prisma.mcpState.upsert({ where: { key }, create: { key, kind: 'rate', payload: {}, counter: 1, expiresAt: new Date(Date.now() + 120000) }, update: { counter: { increment: 1 } } });
-        if (rate.counter > limit) { c.header('Retry-After', '60'); insist(false, 'rate_limited', 'Demasiadas solicitudes. Intenta en un minuto.', 429); }
-        return rate;
-      }
+      const peer = resolveClientIp(c.env?.incoming?.socket?.remoteAddress, c.req.header('X-Forwarded-For'), trustedProxies);
+      c.set('mcpClient', peer);
       // A changing forged bearer must not bypass the unauthenticated peer cap.
-      const rate = await quota(`peer:${peer}`, 600);
-      await quota(bearer ? `token:${digest(bearer)}` : `anonymous:${peer}`, bearer ? 120 : 60);
+      const rate = await quota(c, `peer:${peer}`, 600);
+      await quota(c, bearer ? `token:${digest(bearer)}` : `anonymous:${peer}`, bearer ? 120 : 60);
       if (rate.counter === 1) await prisma.mcpState.deleteMany({ where: { expiresAt: { lt: new Date() } } });
       await next();
     } catch (err) {
@@ -69,6 +72,8 @@ export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLog
   router.get('/.well-known/oauth-authorization-server', c => c.json(oauth.metadata));
   router.post('/mcp/oauth/register', async c => {
     insist(c.req.header('Content-Type')?.split(';')[0].trim().toLowerCase() === 'application/json', 'invalid_request', 'Usa application/json.');
+    // Each registration persists a client row for a year; cap it per client.
+    await quota(c, `register:${c.get('mcpClient')}`, 10);
     return c.json(await oauth.register(await c.req.json()), 201);
   });
   router.get('/mcp/oauth/authorize', async c => c.redirect(await oauth.authorize(oauthParameters(new URL(c.req.url).searchParams))));

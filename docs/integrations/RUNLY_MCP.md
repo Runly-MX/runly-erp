@@ -289,6 +289,7 @@ RUNLY_MCP_ENABLED=true
 RUNLY_MCP_PUBLIC_URL=https://erp.example.com/mcp
 RUNLY_MCP_WEB_URL=https://erp.example.com
 RUNLY_MCP_ALLOWED_ORIGINS=
+RUNLY_MCP_TRUSTED_PROXIES=private
 ```
 
 Al actualizar, recrear únicamente la API y el frontend si se necesita incorporar
@@ -308,6 +309,7 @@ location ~ ^/(mcp(?:/|$)|\.well-known/(oauth-protected-resource(?:/mcp)?|oauth-a
     proxy_http_version 1.1;
     proxy_set_header Host $http_host;
     proxy_set_header Authorization $http_authorization;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_buffering off;
     proxy_read_timeout 90s;
     client_max_body_size 64k;
@@ -316,10 +318,20 @@ location ~ ^/(mcp(?:/|$)|\.well-known/(oauth-protected-resource(?:/mcp)?|oauth-a
 
 Publicar también el frontend configurado. Validar Nginx con `nginx -t` antes de
 recargarlo. Las cuotas distribuidas son 120 solicitudes/minuto por token,
-60 anónimas/minuto por peer y 600/minuto por peer total; detrás de un proxy,
-el peer corresponde al proxy. El límite de cuerpo es 64 KiB. En instalaciones
-con muchos usuarios agregar controles de borde adecuados; los headers
-`X-Forwarded-For` arbitrarios no cambian la cuota de la API.
+60 anónimas/minuto por cliente, 600/minuto por cliente total y 10 registros
+DCR/minuto por cliente. El límite de cuerpo es 64 KiB.
+
+El cliente es la IP del socket, salvo que ese peer esté en
+`RUNLY_MCP_TRUSTED_PROXIES` (IPs exactas, CIDR, `loopback` o `private`,
+separados por coma). Solo entonces se lee `X-Forwarded-For` de derecha a
+izquierda, saltando los saltos de confianza; las direcciones que el cliente
+antepone nunca eligen su cuota. Sin la variable, detrás de un proxy todos los
+clientes comparten la cuota del proxy. Los instaladores Docker usan `private`,
+porque la API solo recibe tráfico del contenedor web; las instalaciones
+existentes reciben la declaración vacía y deben configurarla. Un proxy HTTPS
+externo debe enviar `X-Forwarded-For` con `$proxy_add_x_forwarded_for` (como
+el ejemplo de arriba); si no lo envía, un cliente podría falsear la cabecera.
+Sin proxy delante, dejar la variable vacía.
 
 No se desplegó esta implementación a servidores remotos ni se publicaron
 imágenes Docker como parte del desarrollo.
@@ -341,7 +353,7 @@ no se comparten entre instancias: cada URL tiene sus clientes y autorizaciones.
 | `proposal_stale` | Volver a preparar después de cambios o conflictos |
 | `invalid_grant` | Código/refresh/propuesta vencido, usado o revocado; reautorizar cuando proceda |
 | `invalid_origin` / `invalid_host` | URLs canónicas, Host conservado y lista exacta de orígenes |
-| `429` | Respetar `Retry-After`; revisar cuotas de API y proxy |
+| `429` | Respetar `Retry-After`; detrás de un proxy, revisar `RUNLY_MCP_TRUSTED_PROXIES` y que el proxy envíe `X-Forwarded-For` |
 | `406` / `415` | Headers MCP Accept y Content-Type; utilizar el SDK oficial |
 | `500` al habilitar | Migración core aplicada y cliente Prisma regenerado; revisar correlation ID |
 
