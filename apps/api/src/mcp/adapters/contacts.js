@@ -6,6 +6,7 @@ export function createContactsAdapter({ prisma }) {
   return { moduleKey: capability.moduleKey, label: capability.label, queries: capability.tools.filter(tool => !tool.name.includes('_public_')),
     actions: capability.actions.filter(action => ['contacts.contact.create', 'contacts.contact.update'].includes(action.key)),
     revision: async (_definition, prepared, a) => prepared.targetId ? service.getById({ companyId: a.companyId, id: prepared.targetId }) : null,
+    sensitive: false,
     effects: ['Crear o editar el contacto y sus datos; registrar actividad interna. Sin mensajes ni invitaciones.'],
   };
 }

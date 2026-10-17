@@ -26,6 +26,8 @@ export function createLedgerAdapter({ prisma }) {
       // authorized row, not an unrestricted table or a caller-supplied SQL query.
       return prisma.$queryRaw`SELECT * FROM ledger_transaction WHERE id = ${prepared.targetId}::uuid AND company_id = ${a.companyId}::uuid AND account_id = ${prepared.input.accountId}::uuid`;
     },
+    // Money: balances are recalculated from these movements.
+    sensitive: true,
     effects: ['Registrar/editar movimientos internos y recalcular saldos del libro. Sin pagos, transferencias externas ni eliminación.'],
   };
 }

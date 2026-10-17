@@ -26,7 +26,10 @@ export function createCapabilityRegistry({ prisma }) {
     const factory = factories.get(moduleKey);
     insist(factory, 'not_found', 'Módulo no disponible.', 404);
     const adapter = factory({ prisma: db });
-    adapter.actions = adapter.actions.map(action => ({ ...action, readPermission: moduleKey === 'runly.canvas' ? 'canvas.view' : action.key.startsWith('pfm.budget.') ? 'pfm.wallets.read' : action.permission.replace(/\.(create|update)$/, '.read') }));
+    // Every write-capable domain must decide explicitly whether its proposals
+    // need the extra sensitive confirmation; a missing declaration is a bug.
+    insist(!adapter.actions.length || typeof adapter.sensitive === 'boolean' || typeof adapter.sensitive === 'function', 'invalid_adapter', `${moduleKey} debe declarar sensitive.`, 500);
+    adapter.actions =adapter.actions.map(action => ({ ...action, readPermission: moduleKey === 'runly.canvas' ? 'canvas.view' : action.key.startsWith('pfm.budget.') ? 'pfm.wallets.read' : action.permission.replace(/\.(create|update)$/, '.read') }));
     return adapter;
   }
   const adapters = [...factories.keys()].map(key => create(key));

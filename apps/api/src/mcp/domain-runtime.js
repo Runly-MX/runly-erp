@@ -10,6 +10,10 @@ function canonical(value) {
 }
 export const fingerprint = value => digest(JSON.stringify(canonical(wire(value))));
 
+// Sensitive proposals need an extra explicit confirmation in the web approval.
+// Each write-capable adapter declares it (boolean or per-operation function).
+export const isSensitive = (adapter, definition, input) => typeof adapter.sensitive === 'function' ? Boolean(adapter.sensitive(definition, input)) : adapter.sensitive === true;
+
 export function createDomainRuntime({ prisma, config, registry }) {
   async function context(auth, companyId, moduleKey, permission, scope, db = prisma) {
     const grant = await liveGrant(auth, db, prisma);
@@ -52,7 +56,7 @@ export function createDomainRuntime({ prisma, config, registry }) {
     const id = Buffer.from(fingerprint({ grantId: auth.grantId, companyId: args.companyId, moduleKey, key, input: prepared.input, hash }), 'hex').toString('base64url');
     const payload = { version: 2, authUserId: auth.authUserId, grantId: auth.grantId, companyId: args.companyId, moduleKey, operation: key, scope,
       input: args.request.input, prepared, fingerprint: hash,
-      sensitive: ['runly.pfm', 'runly.ledger', 'runly.purchases', 'runly.calendar', 'runly.projects'].includes(moduleKey) || moduleKey === 'runly.hr' && Object.hasOwn(args.request.input.data ?? {}, 'userProfileId'), approved: false, rejected: false };
+      sensitive: isSensitive(adapter, definition, args.request.input), approved: false, rejected: false };
     const store = createMcpState(prisma), existing = await store.get('proposal', id);
     if (!existing) {
       await prisma.mcpState.deleteMany({ where: { kind: 'proposal', key: digest(id), expiresAt: { lte: new Date() } } });

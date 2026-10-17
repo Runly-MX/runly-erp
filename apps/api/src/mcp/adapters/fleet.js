@@ -16,6 +16,7 @@ export function createFleetAdapter({ prisma }) {
       { name: 'fleet_reports_page', permission: 'fleet.reports.read', definition: { description: 'Reportes operativos y de mantenimiento de Flota con paginación.' }, inputSchema: z.object({ ...pageInput, search: z.string().max(200).optional() }).strict(), run: (input, a) => createReportsService({ prisma }).listReportsAnyType({ companyId: a.companyId, ...input, pageSize: input.limit }) }],
     actions: createFleetMiraiActions({ fleetService, driverService, insuranceService }).filter(a => ['fleet.vehicle.create', 'fleet.vehicle.update', 'fleet.insurance.create', 'fleet.insurance.update'].includes(a.key)),
     revision: async (definition, prepared, a) => !prepared.targetId ? null : definition.key.includes('insurance') ? insuranceService.getPolicy({ companyId: a.companyId, id: prepared.targetId }) : fleetService.getVehicle({ companyId: a.companyId, id: prepared.targetId }),
+    sensitive: false,
     effects: ['Cambios internos de vehículo, conductor asignado o póliza; auditoría del ERP. Sin contratación externa.'],
   };
 }

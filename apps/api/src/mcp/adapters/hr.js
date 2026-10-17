@@ -44,6 +44,8 @@ export function createHrAdapter({ prisma }) {
     queries: [...createHrMiraiQueries({ prisma, hrService: service }), { name: 'hr_users_eligible', permission: 'hr.employee.read', definition: { description: 'Buscar cuentas elegibles de la empresa; excluye vínculos ya ocupados. Para editar una cuenta existente indica employeeId. Nunca vincular por coincidencia de nombre ambigua.' }, inputSchema: z.object({ search: z.string().max(200).optional(), employeeId: z.uuid().optional() }).strict(), run: async (input, a) => ({ items: await service.listUserOptions({ ...ctx(a), ...input, limit: 100, eligibleOnly: true }) }) }, lookup('hr_departments', 'Departamentos de la empresa.', 'listDepartments'), lookup('hr_positions', 'Puestos de la empresa.', 'listJobTitles'),
       { name: 'hr_employees_page', permission: 'hr.employee.read', definition: { description: 'Empleados de la empresa con paginación y búsqueda.' }, inputSchema: z.object({ ...pageInput, search: z.string().max(200).optional() }).strict(), run: (input, a) => service.listEmployees({ ...ctx(a), ...input, pageSize: input.limit }) }],
     revision: async (_definition, prepared, a) => prepared.targetId ? service.getEmployee({ ...ctx(a), id: prepared.targetId }) : null,
+    // Linking an employee to a user account changes identity relationships.
+    sensitive: (_definition, input) => Object.hasOwn(input?.data ?? {}, 'userProfileId'),
     effects: ['Alta/edición de empleado; cambios explícitos de departamento, supervisor y cuenta; auditoría del ERP.'],
   };
 }

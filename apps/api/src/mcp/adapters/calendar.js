@@ -61,6 +61,8 @@ export function createCalendarAdapter({ prisma }) {
       insist(!(a.mcpExternalCalendarIds ?? []).includes(calendarId), 'external_resource', 'Los calendarios externos no se pueden modificar mediante MCP.', 403);
       return event;
     },
+    // Invitations and reschedules can notify participants by email/web push.
+    sensitive: true,
     effects: ['Guardar/reprogramar eventos internos y participantes. Las invitaciones y reprogramaciones pueden generar avisos en el ERP, correo y web push según las preferencias. Sin cambios a Google u otros calendarios externos.'],
   };
 }

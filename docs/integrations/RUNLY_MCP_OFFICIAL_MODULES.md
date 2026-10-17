@@ -40,6 +40,8 @@ Se bloquean autorización y propuesta; el commit usa transacción serializable.
 Solo se reintentan conflictos de serialización cuya transacción fue revertida.
 No se reintentan fallos arbitrarios. Altas financieras, presupuestos y cambios
 explícitos de cuenta vinculada requieren una confirmación adicional en la web.
+Cada adaptador con escrituras declara `sensitive` (booleano o función por
+operación); el registro rechaza adaptadores que no lo declaren.
 También se exige en Proyectos y Calendario: sus efectos existentes pueden
 encolar notificaciones en el ERP, correo y web push según las preferencias.
 La web muestra los efectos y los destinatarios resueltos antes de aprobar;

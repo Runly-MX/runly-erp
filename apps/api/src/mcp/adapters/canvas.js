@@ -13,6 +13,7 @@ export function createCanvasAdapter({ prisma }) {
       await service.assertBoardAccess(a.companyId, a.actorProfileId, hotspot.boardId, 'EDITOR');
     },
     revision: async (_definition, prepared, a) => prepared.targetId ? prisma.canvasHotspot.findFirst({ where: { id: prepared.targetId, board: boardAccessWhere(a) } }) : null,
+    sensitive: false,
     effects: ['Crear Board o cambiar metadatos de un hotspot autorizado. No reemplazar la escena colaborativa.'],
   };
 }

@@ -19,6 +19,7 @@ export function createNotesAdapter({ prisma }) {
       insist(access.companyId === a.companyId || access.companyId === null, 'not_found', 'Nota no disponible.', 404);
     },
     revision: async (_definition, prepared, a) => prepared.targetId ? notesSvc.getNote(prepared.targetId, a.actorProfileId) : null,
+    sensitive: false,
     effects: ['Crear contenido inicial o editar título/carpeta. No reemplazar HTML existente ni estados Yjs.'],
   };
 }

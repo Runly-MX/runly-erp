@@ -21,6 +21,8 @@ export function createPurchasesAdapter({ prisma }) {
     availableOperations,
     async guard(definition, _input, a) { insist((await availableOperations(a)).has(definition.key ?? definition.name), 'capability_disabled', 'Configura y habilita esta operación en el flujo de Compras.', 409); },
     revision: async (_definition, prepared, a) => ({ workflow: await workflow(a.companyId), resource: prepared.targetId ? await prisma.purchaseApproval.findFirst({ where: { id: prepared.targetId, companyId: a.companyId } }) : null }),
+    // Spend requests and approval decisions.
+    sensitive: true,
     effects: ['Crear solicitud en borrador o decidir una aprobación pendiente con el permiso ERP específico. Sin pagos ni recepción automática de inventario.'],
   };
 }

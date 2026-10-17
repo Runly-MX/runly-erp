@@ -52,6 +52,8 @@ export function createProjectsAdapter({ prisma }) {
       }
     },
     revision: async (definition, prepared, a) => !prepared.targetId ? null : definition.key.includes('.project.') ? project(a, prepared.targetId) : task(a, prepared.targetId),
+    // Assignments and changes can notify project members by email/web push.
+    sensitive: true,
     effects: ['Guardar proyecto/tarea y sincronizar fechas con el calendario interno. Asignaciones y cambios pueden generar avisos a sus miembros en el ERP, correo y web push según sus preferencias.'],
   };
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { z } from 'zod';
 import { createCapabilityRegistry } from '../registry.js';
 import { createChatAdapter } from '../adapters/readonly.js';
-import { fingerprint } from '../domain-runtime.js';
+import { fingerprint, isSensitive } from '../domain-runtime.js';
 import { SCOPES } from '../config.js';
 import { PERMISSION_CATALOG } from '../../permission-catalog.js';
 
@@ -35,6 +35,23 @@ test('registro: contratos estrictos, scopes declarados y superficie controlada',
   }
   const tool = registry.tools.find(tool => tool.name === 'runly_hr_prepare');
   assert.equal(tool.inputSchema.safeParse({ companyId: '01900000-0000-7000-8000-000000000001', request: { operation: 'sql', input: {} } }).success, false);
+});
+
+test('sensibilidad declarada por adaptador: misma matriz que la confirmación web', () => {
+  const registry = createCapabilityRegistry({ prisma: {} });
+  const sensitive = new Set(['runly.pfm', 'runly.ledger', 'runly.purchases', 'runly.calendar', 'runly.projects']);
+  for (const moduleKey of registry.moduleKeys) {
+    const adapter = registry.create(moduleKey);
+    if (adapter.actions.length) assert.ok(['boolean', 'function'].includes(typeof adapter.sensitive), `${moduleKey} declara sensitive`);
+    for (const definition of adapter.actions) {
+      const expected = sensitive.has(moduleKey);
+      if (moduleKey === 'runly.hr') {
+        assert.equal(isSensitive(adapter, definition, { data: { firstName: 'Ana' } }), false);
+        assert.equal(isSensitive(adapter, definition, { data: { userProfileId: null } }), true, 'Desvincular cuenta también es sensible');
+      } else assert.equal(isSensitive(adapter, definition, { data: {} }), expected, `${moduleKey} ${definition.key}`);
+    }
+  }
+  assert.equal(isSensitive({}, {}, {}), false);
 });
 
 test('fingerprint: jsonb no cambia propuestas por el orden de claves', () => {

@@ -35,6 +35,8 @@ export function createPfmAdapter({ prisma }) {
       { name: 'pfm_native_movements_page', permission: 'pfm.movements.read', definition: { description: 'Movimientos nativos de una cartera autorizada; paginación por página. Para movimientos reflejados de Ledger usar la búsqueda unificada.' }, inputSchema: z.object({ ...pageInput, walletId: z.uuid(), month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional() }).strict(), async run(input, a) { const result = await movements.listMovements({ ...ctx(a), walletId: input.walletId, query: { month: input.month, offset: (input.page - 1) * input.limit, limit: input.limit } }); return { items: result.data, ...input, hasMore: result.data.length === input.limit }; } }],
     actions: [...createPfmMiraiActions({ wallets, movements, categories }).filter(a => ['pfm.movement.create', 'pfm.movement.update'].includes(a.key)), ...budgetActions],
     revision: async (definition, prepared, a) => !prepared.targetId ? null : definition.key.includes('budget') ? (await budgets.listBudgets(ctx(a))).data.find(b => b.id === prepared.targetId) : movements.getOwnedMovement({ companyId: a.companyId, movementId: prepared.targetId }),
+    // Money: wallet balances and budgets.
+    sensitive: true,
     effects: ['Movimientos internos y saldos de carteras autorizadas o presupuestos propios. Sin transferencias bancarias ni proveedores externos.'],
   };
 }
