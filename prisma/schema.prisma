@@ -5447,6 +5447,7 @@ model LmsLearner {
   userProfileId String?  @map("user_profile_id") @db.Uuid
   contactId     String?  @map("contact_id") @db.Uuid
   guestTokenHash String? @unique @map("guest_token_hash") // external guest from a course share link (sha256 of the browser token)
+  guestProfile   Json    @default("{}") @map("guest_profile") // answers to the course intake form (employee number, company...)
   displayName   String   @map("display_name")
   email         String?
   enabled       Boolean  @default(true)
@@ -5460,6 +5461,28 @@ model LmsLearner {
   @@unique([companyId, userProfileId])
   @@unique([companyId, contactId])
   @@map("lms_learner")
+}
+
+// Email invitation of an external guest to a shared course (long courses): the
+// guest resumes from any device with the emailed link or email + access code.
+model LmsGuestInvite {
+  id         String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId  String    @map("company_id") @db.Uuid
+  courseId   String    @map("course_id") @db.Uuid
+  email      String
+  name       String?
+  codeHash   String    @map("code_hash") // sha256 of the 8-char access code
+  linkToken  String    @unique @map("link_token") // personal link token (url-safe, random)
+  learnerId  String?   @map("learner_id") @db.Uuid // set on first access
+  invitedById String?  @map("invited_by_id") @db.Uuid
+  sentAt     DateTime? @map("sent_at") @db.Timestamptz(6)
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([courseId, email])
+  @@index([companyId, courseId])
+  @@map("lms_guest_invite")
 }
 
 model LmsEnrollment {
