@@ -185,7 +185,9 @@ flujos; no ejecutan un reset para incorporar variables.
 
 La utilidad existente `infra/installer/lib/env-compat.mjs` agrega únicamente
 declaraciones faltantes y deja sus valores vacíos. Nunca copia credenciales o
-hosts de ejemplo a una instalación existente. Conserva valores explícitamente
+hosts de ejemplo a una instalación existente. La única excepción es la lista
+`SAFE_TEMPLATE_DEFAULTS` de valores no secretos válidos para toda instalación
+(hoy `RUNLY_MCP_TRUSTED_PROXIES=private`), que se copian solo si la variable falta. Conserva valores explícitamente
 vacíos, comillas, comentarios y ajustes MCP personalizados durante la
 regeneración local y de `.env` para Compose. No modifica bases, volúmenes ni
 contenedores para sincronizar variables. Docker recibe MCP desde el `env_file`
@@ -339,8 +341,12 @@ separados por coma). Solo entonces se lee `X-Forwarded-For` de derecha a
 izquierda, saltando los saltos de confianza; las direcciones que el cliente
 antepone nunca eligen su cuota. Sin la variable, detrás de un proxy todos los
 clientes comparten la cuota del proxy. Los instaladores Docker usan `private`,
-porque la API solo recibe tráfico del contenedor web; las instalaciones
-existentes reciben la declaración vacía y deben configurarla. Un proxy HTTPS
+porque la API recibe el tráfico del contenedor web o del proxy del host a
+través de la red de Docker. `update-local.sh`/`update-external.sh` agregan
+`RUNLY_MCP_TRUSTED_PROXIES=private` si la variable no existe; un valor ya
+declarado, incluso vacío, se conserva. El puerto 4010 publicado puede
+restringirse con `RUNLY_PUBLIC_BIND_ADDR=127.0.0.1` cuando solo el proxy del
+host debe alcanzarlo. Un proxy HTTPS
 externo debe enviar `X-Forwarded-For` con `$proxy_add_x_forwarded_for` (como
 el ejemplo de arriba); si no lo envía, un cliente podría falsear la cabecera.
 Sin proxy delante, dejar la variable vacía.

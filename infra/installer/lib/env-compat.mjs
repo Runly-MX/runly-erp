@@ -62,9 +62,17 @@ export function envAssignments(text) {
   return [...text.matchAll(expression)].map(match => ({ key: match[1], raw: match[0], start: match.index, end: match.index + match[0].length }));
 }
 
+// Template values copied when a key is missing. Only non-secret, host-agnostic
+// defaults that are correct for every installer deployment belong here.
+export const SAFE_TEMPLATE_DEFAULTS = new Set([
+  // The API sits behind the web container/host proxy on the Docker network.
+  'RUNLY_MCP_TRUSTED_PROXIES',
+]);
+
 // Add only missing declarations, preserving every existing byte, including
 // explicit empty values, quoting, comments and line endings. New template keys
-// default to blank: example credentials/hosts must not become deployment values.
+// default to blank: example credentials/hosts must not become deployment values,
+// except the SAFE_TEMPLATE_DEFAULTS allowlist, which keeps the template value.
 export function appendMissingEnvText(stored, template) {
   const present = new Set(envAssignments(stored).map(entry => entry.key));
   const addedKeys = [], lines = [];
@@ -72,7 +80,7 @@ export function appendMissingEnvText(stored, template) {
     if (present.has(entry.key)) continue;
     present.add(entry.key);
     addedKeys.push(entry.key);
-    lines.push(`${entry.key}=`);
+    lines.push(SAFE_TEMPLATE_DEFAULTS.has(entry.key) ? entry.raw.trim() : `${entry.key}=`);
   }
   if (!lines.length) return { text: stored, addedKeys };
   const eol = stored.includes('\r\n') ? '\r\n' : '\n';

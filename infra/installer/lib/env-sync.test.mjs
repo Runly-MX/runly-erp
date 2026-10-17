@@ -26,6 +26,16 @@ test('future template settings are appended blank, never example secrets or doma
   assert.equal(appendMissingEnvText(result.text, template).text, result.text);
 });
 
+test('allowlisted safe defaults keep the template value only when the key is missing', () => {
+  const withDefault = `${template}RUNLY_MCP_TRUSTED_PROXIES=private\n`;
+  const added = appendMissingEnvText('CUSTOM=value\n', withDefault);
+  assert.match(added.text, /^RUNLY_MCP_TRUSTED_PROXIES=private$/m);
+  assert.match(added.text, /^RUNLY_MCP_PUBLIC_URL=$/m);
+  const explicit = appendMissingEnvText('RUNLY_MCP_TRUSTED_PROXIES=\n', withDefault);
+  assert.match(explicit.text, /^RUNLY_MCP_TRUSTED_PROXIES=$/m);
+  assert.doesNotMatch(explicit.text, /private/);
+});
+
 test('a UTF-8 BOM does not hide an existing first declaration', () => {
   const stored = '\uFEFFRUNLY_MCP_ENABLED=true\r\n';
   const result = appendMissingEnvText(stored, template);
