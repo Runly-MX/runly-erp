@@ -239,7 +239,7 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
               metadata: { intakeKey: parsed.key, matchedBy: plan.matchedBy, confirmedIdentifiers: unit.confirmedIdentifiers ?? {}, evidence } } });
             continue;
           }
-          const assetTag = unit.assetTag || `INV-${new Date().getFullYear()}-${parsed.key.slice(0, 12)}-${String(index + 1).padStart(3, '0')}`;
+          const assetTag = unit.assetTag || null;
           const created = await service.createItem({ ...parsed.common, name: unit.name ?? parsed.common.name, serialNumber: unit.serialNumber || null,
             partNumber: unit.partNumber ?? parsed.common.partNumber, assetTag }, companyId, authUserId);
           const item = { id: created.id, name: created.name, assetTag: created.assetTag, serialNumber: created.serialNumber ?? null, action: 'created' };

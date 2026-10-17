@@ -355,12 +355,8 @@ export function createInventoryService({ prisma, activityBridge }) {
     if (!CREATABLE_ADMIN_STATUSES.has(adminStatus)) throw new InventoryServiceError('Un activo nuevo solo puede registrarse como Alta o Pendiente de alta.', 400);
     const creatorProfileId = await resolveProfileId(creatorId);
     await assertNoActiveDuplicates(prisma, companyId, { assetTag: data.assetTag, serialNumber: data.serialNumber });
-    let assetTag = data.assetTag;
-    if (!assetTag) {
-      const year = new Date().getFullYear();
-      const count = await prisma.invItem.count({ where: { companyId } });
-      assetTag = `INV-${year}-${String(count + 1).padStart(4, '0')}`;
-    }
+    // The asset number is optional and only what the user typed; it is never generated.
+    const assetTag = cleanIdentifier(data.assetTag);
     const folio = await resolveCreateFolio(data, companyId);
 
     const {
@@ -388,7 +384,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       customValues,
     } = data;
 
-    let itemData = {
+    const itemData = {
       companyId,
       assetTag,
       folio,
@@ -420,41 +416,26 @@ export function createInventoryService({ prisma, activityBridge }) {
     if (notes !== undefined) itemData.notes = notes;
 
     if (customValues && Array.isArray(customValues) && customValues.length > 0) {
-      let created;
-      let tagAttempt = 0;
-      while (!created) {
-        try {
-          created = await prisma.$transaction(async (tx) => {
-            const item = await tx.invItem.create({ data: itemData });
-            const allowed = await companyFieldIds(tx, companyId, customValues);
-            for (const cv of customValues) {
-              if (!allowed.has(cv.fieldId)) continue;
-              await tx.invCustomFieldValue.create({
-                data: { itemId: item.id, fieldId: cv.fieldId, value: cv.value ?? null },
-              });
-            }
-            if (afterWrite) await afterWrite(tx, item);
-            return tx.invItem.findFirst({
-              where: { id: item.id },
-              include: {
-                category: { select: { id: true, name: true, icon: true, color: true } },
-                brand: { select: { id: true, name: true } },
-                location: { select: { id: true, name: true } },
-                customValues: { include: { field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryId: true, onDemand: true } } } },
-              },
-            });
+      const created = await prisma.$transaction(async (tx) => {
+        const item = await tx.invItem.create({ data: itemData });
+        const allowed = await companyFieldIds(tx, companyId, customValues);
+        for (const cv of customValues) {
+          if (!allowed.has(cv.fieldId)) continue;
+          await tx.invCustomFieldValue.create({
+            data: { itemId: item.id, fieldId: cv.fieldId, value: cv.value ?? null },
           });
-        } catch (err) {
-          if (!data.assetTag && err.code === 'P2002' && err.meta?.target?.includes('asset_tag') && tagAttempt < 5) {
-            tagAttempt++;
-            const year = new Date().getFullYear();
-            const count = await prisma.invItem.count({ where: { companyId } });
-            itemData = { ...itemData, assetTag: `INV-${year}-${String(count + tagAttempt).padStart(4, '0')}` };
-          } else {
-            throw err;
-          }
         }
-      }
+        if (afterWrite) await afterWrite(tx, item);
+        return tx.invItem.findFirst({
+          where: { id: item.id },
+          include: {
+            category: { select: { id: true, name: true, icon: true, color: true } },
+            brand: { select: { id: true, name: true } },
+            location: { select: { id: true, name: true } },
+            customValues: { include: { field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryId: true, onDemand: true } } } },
+          },
+        });
+      });
       await bridge.logAndPublish({
         auditEntry: {
           actorId: creatorProfileId ?? null,
@@ -470,29 +451,14 @@ export function createInventoryService({ prisma, activityBridge }) {
       return created;
     }
 
-    let created;
-    let tagAttempt = 0;
-    while (!created) {
-      try {
-        created = await writeWith(afterWrite, (db) => db.invItem.create({
-          data: itemData,
-          include: {
-            category: { select: { id: true, name: true, icon: true, color: true } },
-            brand: { select: { id: true, name: true } },
-            location: { select: { id: true, name: true } },
-          },
-        }));
-      } catch (err) {
-        if (!data.assetTag && err.code === 'P2002' && err.meta?.target?.includes('asset_tag') && tagAttempt < 5) {
-          tagAttempt++;
-          const year = new Date().getFullYear();
-          const count = await prisma.invItem.count({ where: { companyId } });
-          itemData = { ...itemData, assetTag: `INV-${year}-${String(count + tagAttempt).padStart(4, '0')}` };
-        } else {
-          throw err;
-        }
-      }
-    }
+    const created = await writeWith(afterWrite, (db) => db.invItem.create({
+      data: itemData,
+      include: {
+        category: { select: { id: true, name: true, icon: true, color: true } },
+        brand: { select: { id: true, name: true } },
+        location: { select: { id: true, name: true } },
+      },
+    }));
     await bridge.logAndPublish({
       auditEntry: {
         actorId: creatorProfileId ?? null,
@@ -584,7 +550,7 @@ export function createInventoryService({ prisma, activityBridge }) {
         assetTag: assetTag || existing.assetTag,
       });
     }
-    if (assetTag !== undefined) updateData.assetTag = assetTag;
+    if (assetTag !== undefined) updateData.assetTag = cleanIdentifier(assetTag);
     if (nextFolio) {
       updateData.folio = nextFolio;
       await folios.observe(prisma, companyId, nextFolio);

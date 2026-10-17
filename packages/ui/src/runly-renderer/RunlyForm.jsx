@@ -442,7 +442,12 @@ export function RunlyForm({
         payload[name] = casted === "" ? null : casted;
         continue;
       }
-      if (casted === null || casted === "") continue;
+      if (casted === null || casted === "") {
+        // Editing: a field the user emptied must reach the API as null, or it can never be cleared.
+        const initial = initialDataRef.current?.[name];
+        if (isEditMode && initial !== null && initial !== undefined && initial !== "") payload[name] = null;
+        continue;
+      }
       payload[name] = casted;
     }
     if (sections.some((section) => section.type === "parts")) {

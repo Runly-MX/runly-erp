@@ -176,7 +176,8 @@ test('creates 20 independent units atomically and retries recover the same IDs',
   const body = input(); body.units = Array.from({ length: 20 }, (_, i) => ({ serialNumber: `SN-${i}`, confirmedIdentifiers: { serialNumber: `SN-${i}` } }));
   const first = await service.create({ ...context, input: body });
   assert.equal(first.items.length, 20);
-  assert.equal(new Set(first.items.map(i => i.assetTag)).size, 20);
+  assert.equal(new Set(first.items.map(i => i.id)).size, 20);
+  assert.ok(first.items.every(i => i.assetTag === null), 'no asset number is generated');
   assert.equal(state().audits.length, 21);
   const second = await service.create({ ...context, input: body });
   assert.equal(second.replayed, true); assert.deepEqual(second.items, first.items);

@@ -101,7 +101,7 @@ function buildPrismaMock(overrides = {}) {
 // ---------------------------------------------------------------------------
 
 describe('createItem', () => {
-  it('auto-generates assetTag when none provided', async () => {
+  it('never generates an assetTag when none provided', async () => {
     let capturedData = null
     const prisma = buildPrismaMock({
       invItem: {
@@ -111,12 +111,10 @@ describe('createItem', () => {
       },
     })
     const svc = createInventoryService({ prisma })
-    await svc.createItem({ name: 'Laptop Test' }, COMPANY_ID, USER_ID)
+    await svc.createItem({ name: 'Laptop Test', assetTag: '  ' }, COMPANY_ID, USER_ID)
 
-    const year = new Date().getFullYear()
     assert.ok(capturedData, 'create was called')
-    assert.match(capturedData.assetTag, new RegExp(`^INV-${year}-\\d{4}$`))
-    assert.equal(capturedData.assetTag, `INV-${year}-0008`)
+    assert.equal(capturedData.assetTag, null)
   })
 
   it('uses provided assetTag when given', async () => {
@@ -133,58 +131,6 @@ describe('createItem', () => {
     assert.equal(capturedData.assetTag, 'SRV-001')
   })
 
-  it('retries on P2002 asset_tag collision then succeeds', async () => {
-    let attempts = 0
-    // count increments on each call so the retry generates a different tag
-    let countVal = 3
-    const prisma = buildPrismaMock({
-      invItem: {
-        count: async () => countVal++,
-        create: async (args) => {
-          attempts++
-          if (attempts === 1) {
-            const err = new Error('Unique constraint failed')
-            err.code = 'P2002'
-            err.meta = { target: ['asset_tag'] }
-            throw err
-          }
-          return { id: ITEM_ID, ...args.data }
-        },
-      },
-    })
-    const svc = createInventoryService({ prisma })
-    const result = await svc.createItem({ name: 'Switch' }, COMPANY_ID, USER_ID)
-
-    assert.equal(attempts, 2, 'create was retried once')
-    assert.ok(result, 'returned an item')
-  })
-
-  it('throws 409 (re-throws P2002) after max retries exceeded', async () => {
-    let attempts = 0
-    const prisma = buildPrismaMock({
-      invItem: {
-        count: async () => 10,
-        create: async () => {
-          attempts++
-          const err = new Error('Unique constraint')
-          err.code = 'P2002'
-          err.meta = { target: ['asset_tag'] }
-          throw err
-        },
-      },
-    })
-    const svc = createInventoryService({ prisma })
-
-    await assert.rejects(
-      () => svc.createItem({ name: 'Router' }, COMPANY_ID, USER_ID),
-      (err) => {
-        assert.equal(err.code, 'P2002')
-        return true
-      },
-    )
-    // 1 initial + 5 retries = 6 total attempts
-    assert.equal(attempts, 6)
-  })
 })
 
 // ---------------------------------------------------------------------------

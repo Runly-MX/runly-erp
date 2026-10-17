@@ -123,9 +123,8 @@ export function createInventoryChatActions({ prisma, authorize = createInventory
           values.push({ fieldId: field.id, value: value.value });
         }
         if (definitions.some(field => field.required && !values.some(value => value.fieldId === field.id && value.value.trim()))) throw new InventoryServiceError('Faltan campos personalizados obligatorios. Pide completar la propuesta.', 400);
-        const tagKey = createHash('sha256').update(`${scope.id}:${proposal.id}`).digest('hex').slice(0, 16);
-        const assetTag = data.assetTag || `INV-${new Date().getFullYear()}-${tagKey}-${results.length + 1}`;
-        if (data.assetTag) await assertNotDuplicated(db, scope.companyId, { assetTag });
+        const assetTag = data.assetTag || null;
+        if (assetTag) await assertNotDuplicated(db, scope.companyId, { assetTag });
         row = await service.createItem({ ...data, assetTag, categoryId, brandId, locationId, customValues: values }, scope.companyId, scope.authUserId);
       }
       const result = { kind, id: row.id, name: row.name ?? row.label, reused, ...(kind === 'item' ? { assetTag: row.assetTag } : {}) };
