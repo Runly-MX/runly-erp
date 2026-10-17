@@ -5378,6 +5378,7 @@ model LmsSection {
   courseId  String   @map("course_id") @db.Uuid
   title     String
   position  Int      @default(0)
+  free      Boolean  @default(false) // "Gratis": its lessons open without enrolling (no Q&A, reviews or assignments)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
