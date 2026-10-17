@@ -3,6 +3,19 @@
 Verificación del 16 de octubre de 2026. Implementación y configuración descritas
 en [RUNLY_MCP.md](RUNLY_MCP.md).
 
+## Rendimiento por solicitud y tablas de cuota/actividad
+
+Verificación del 16 de octubre de 2026. La migración aditiva
+`20261030000000_mcp_rate_activity` crea `mcp_rate` (UNLOGGED) y `mcp_activity`
+con RLS y sin privilegios de `anon`/`authenticated`, mueve la actividad vigente
+desde `mcp_state` y elimina allí las filas de actividad y cuota. La suite aplica
+la migración real sobre filas heredadas y comprueba el traslado, la persistencia
+y RLS. `pnpm test:mcp`: 161 aprobadas, 0 fallos, 2 omitidas (Inspector sin
+`RUNLY_MCP_TEST_INSPECTOR`). Un contador de operaciones Prisma midió
+`runly_inventory_search` en 21 consultas con el código anterior y 13 con la
+caché por solicitud y la cuota en una sentencia; la prueba falla por encima de
+15. No se desplegó ni se aplicó la migración a la base del workspace.
+
 ## Ampliación de módulos oficiales
 
 La ampliación posterior de [adjuntos por módulo](RUNLY_MCP_FILES.md) pasó **163

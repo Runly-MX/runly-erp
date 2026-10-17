@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { readCatalogBytes } from '../services/catalog/catalog-download.js';
 import { createFilesService } from '../services/files-service.js';
 import { attachmentTargetSchema, normalizeAttachmentTarget, createAttachmentTargets } from './attachment-targets.js';
-import { createMcpAccess } from './access.js';
+import { accessFor, liveGrant } from './access.js';
 import { createMcpState, digest, transactionClient } from './state.js';
 import { fingerprint } from './domain-runtime.js';
 import { companyInput, proposalSchema, resultSchema } from './contracts.js';
@@ -55,11 +55,11 @@ export async function readImportFiles(files, download = readCatalogBytes) {
 
 export function createFileImport({ prisma, config, supabaseAdmin, download }) {
   async function context(auth, companyId, destination, db = prisma) {
-    const grant = await createMcpState(db).get('grant', auth.grantId);
+    const grant = await liveGrant(auth, db, prisma);
     insist(grant && !grant.payload.revoked && grant.payload.authUserId === auth.authUserId && grant.payload.resource === config.resource, 'invalid_token', 'Conexión revocada.', 401);
     insist(grant.payload.companyIds.includes(companyId), 'company_not_granted', 'Empresa no autorizada.', 403);
     insist(grant.payload.scopes.includes('files:write') && (auth.scopes ?? grant.payload.scopes).includes('files:write'), 'insufficient_scope', 'Reconecta y autoriza files:write.', 403);
-    const access = createMcpAccess(db), a = await access.company(auth.authUserId, companyId, 'files.assets.create');
+    const access = accessFor(auth, db, prisma), a = await access.company(auth.authUserId, companyId, 'files.assets.create');
     insist(a.can('files.assets.read'), 'permission_denied', 'Se requiere permiso de lectura de archivos.', 403);
     await access.module(a, 'runly.files');
     a.mcpScopes = grant.payload.scopes.filter(scope => (auth.scopes ?? grant.payload.scopes).includes(scope));

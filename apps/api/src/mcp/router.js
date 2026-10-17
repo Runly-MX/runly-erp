@@ -8,7 +8,7 @@ import { createMcpCapabilities } from './capabilities.js';
 import { createMcpAccess } from './access.js';
 import { digest, nonce } from './state.js';
 import { handleMcpRequest } from './server.js';
-import { createMcpActivity } from './activity.js';
+import { createMcpActivity, ACTIVITY_RETENTION_MS } from './activity.js';
 import { oauthParameters } from './oauth-validation.js';
 import { parseTrustedProxies, resolveClientIp } from './client-ip.js';
 
@@ -28,11 +28,22 @@ export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLog
   }
   router.onError(errorResponse);
   const trustedProxies = parseTrustedProxies(env.RUNLY_MCP_TRUSTED_PROXIES);
-  async function quota(c, subject, limit) {
-    const key = digest(`mcp-rate:${Math.floor(Date.now() / 60000)}:${subject}`);
-    const rate = await prisma.mcpState.upsert({ where: { key }, create: { key, kind: 'rate', payload: {}, counter: 1, expiresAt: new Date(Date.now() + 120000) }, update: { counter: { increment: 1 } } });
-    if (rate.counter > limit) { c.header('Retry-After', '60'); insist(false, 'rate_limited', 'Demasiadas solicitudes. Intenta en un minuto.', 429); }
-    return rate;
+  // Counts every bucket in one round trip; buckets are [subject, limit] pairs
+  // with distinct subjects. Returns the counters in the same order.
+  async function quota(c, ...buckets) {
+    const minute = Math.floor(Date.now() / 60000), keys = buckets.map(([subject]) => digest(`mcp-rate:${minute}:${subject}`));
+    const rows = await prisma.$queryRaw`INSERT INTO mcp_rate (key, counter, expires_at)
+      SELECT k, 1, (now() AT TIME ZONE 'UTC') + interval '2 minutes' FROM unnest(${keys}::text[]) AS k
+      ON CONFLICT (key) DO UPDATE SET counter = mcp_rate.counter + 1 RETURNING key, counter`;
+    const counters = keys.map(key => rows.find(row => row.key === key).counter);
+    if (counters.some((counter, i) => counter > buckets[i][1])) { c.header('Retry-After', '60'); insist(false, 'rate_limited', 'Demasiadas solicitudes. Intenta en un minuto.', 429); }
+    return counters;
+  }
+  async function cleanup() {
+    const now = new Date();
+    await prisma.mcpRate.deleteMany({ where: { expiresAt: { lt: now } } });
+    await prisma.mcpState.deleteMany({ where: { expiresAt: { lt: now } } });
+    await prisma.mcpActivity.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - ACTIVITY_RETENTION_MS) } } });
   }
   const origins = new Set([config.issuer, config.web, ...(env.RUNLY_MCP_ALLOWED_ORIGINS || '').split(',').filter(Boolean)]);
   const paths = ['/mcp', '/mcp/*', '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server'];
@@ -54,9 +65,8 @@ export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLog
       const peer = resolveClientIp(c.env?.incoming?.socket?.remoteAddress, c.req.header('X-Forwarded-For'), trustedProxies);
       c.set('mcpClient', peer);
       // A changing forged bearer must not bypass the unauthenticated peer cap.
-      const rate = await quota(c, `peer:${peer}`, 600);
-      await quota(c, bearer ? `token:${digest(bearer)}` : `anonymous:${peer}`, bearer ? 120 : 60);
-      if (rate.counter === 1) await prisma.mcpState.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+      const [peerCount] = await quota(c, [`peer:${peer}`, 600], [bearer ? `token:${digest(bearer)}` : `anonymous:${peer}`, bearer ? 120 : 60]);
+      if (peerCount === 1) await cleanup();
       await next();
     } catch (err) {
       return errorResponse(err, c);
@@ -73,7 +83,7 @@ export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLog
   router.post('/mcp/oauth/register', async c => {
     insist(c.req.header('Content-Type')?.split(';')[0].trim().toLowerCase() === 'application/json', 'invalid_request', 'Usa application/json.');
     // Each registration persists a client row for a year; cap it per client.
-    await quota(c, `register:${c.get('mcpClient')}`, 10);
+    await quota(c, [`register:${c.get('mcpClient')}`, 10]);
     return c.json(await oauth.register(await c.req.json()), 201);
   });
   router.get('/mcp/oauth/authorize', async c => c.redirect(await oauth.authorize(oauthParameters(new URL(c.req.url).searchParams))));
@@ -112,8 +122,8 @@ export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLog
   router.all('/mcp', async c => {
     const header = c.req.header('Authorization') ?? '';
     const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(header)?.[1];
-    const auth = await oauth.authenticate(token);
-    return handleMcpRequest(c.req.raw, { auth, capabilities, oauth, token, correlationId: c.get('correlationId'), activity });
+    const auth = await oauth.authenticate(token, null, new Map());
+    return handleMcpRequest(c.req.raw, { auth, capabilities, correlationId: c.get('correlationId'), activity });
   });
   return router;
 }

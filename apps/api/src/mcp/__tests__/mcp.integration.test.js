@@ -24,6 +24,9 @@ import { mcpConfig } from '../config.js';
 import { inspectorMetadata } from './inspector-metadata.js';
 import { officialDomainTests } from './official-domains.js';
 
+// runly_inventory_search measured 21 queries before the per-request access
+// cache and single-statement quotas, 13 after. Raise only with a reason.
+const QUERY_BUDGET = 15;
 const url = process.env.RUNLY_MCP_TEST_DATABASE_URL;
 const safe = url && new URL(url);
 if (safe && (!['127.0.0.1', 'localhost'].includes(safe.hostname) || safe.pathname !== '/runly_mcp_test')) throw new Error('Las pruebas MCP requieren una base local runly_mcp_test.');
@@ -40,7 +43,16 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
   assert.equal(rls.enabled, true);
   const [publicAccess] = await prisma.$queryRaw`SELECT has_table_privilege('anon','mcp_state','SELECT') AS allowed`;
   assert.equal(publicAccess.allowed, false);
-  const company = await prisma.company.create({ data: { name: 'Empresa de prueba A', slug: `mcp-a-${nonce()}` } });
+  // Legacy activity/rate rows move out of mcp_state with the follow-up migration.
+  await prisma.$executeRawUnsafe(`INSERT INTO mcp_state (key, kind, payload, expires_at) VALUES ('legacy-activity', 'activity', jsonb_build_object('authUserId', uuidv7()::text, 'type', 'tool', 'tool', 'runly_whoami', 'status', 'ok'), now() + interval '1 day'), ('legacy-rate', 'rate', '{}', now() + interval '1 day')`);
+  await prisma.$executeRawUnsafe('DROP TABLE IF EXISTS mcp_rate, mcp_activity');
+  const followUp = await readFile(new URL('../../../../../prisma/migrations/20261030000000_mcp_rate_activity/migration.sql', import.meta.url), 'utf8');
+  for (const sql of followUp.split(';').filter(s => s.trim())) await prisma.$executeRawUnsafe(sql);
+  const [moved] = await prisma.$queryRaw`SELECT (SELECT count(*)::int FROM mcp_activity WHERE tool = 'runly_whoami') AS activity, (SELECT count(*)::int FROM mcp_state WHERE kind IN ('activity', 'rate')) AS leftover`;
+  assert.deepEqual(moved, { activity: 1, leftover: 0 });
+  const tables = await prisma.$queryRaw`SELECT relname::text AS name, relpersistence::text AS persistence, relrowsecurity AS rls FROM pg_class WHERE relname IN ('mcp_rate', 'mcp_activity') ORDER BY relname`;
+  assert.deepEqual(tables, [{ name: 'mcp_activity', persistence: 'p', rls: true }, { name: 'mcp_rate', persistence: 'u', rls: true }]);
+  const company =await prisma.company.create({ data: { name: 'Empresa de prueba A', slug: `mcp-a-${nonce()}` } });
   const other = await prisma.company.create({ data: { name: 'Empresa de prueba B', slug: `mcp-b-${nonce()}` } });
   const [{ id: authUserId }] = await prisma.$queryRaw`SELECT uuidv7()::text AS id`;
   const user = await prisma.userProfile.create({ data: { authUserId, displayName: 'Persona de prueba', email: `mcp-${nonce()}@example.test` } });
@@ -73,7 +85,11 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
   t.after(() => new Promise(resolve => http.close(resolve)));
   const base = `http://127.0.0.1:${http.address().port}`;
   const env = { RUNLY_MCP_ENABLED: 'true', RUNLY_MCP_PUBLIC_URL: `${base}/mcp`, RUNLY_MCP_WEB_URL: base };
-  router = new Hono().route('/', createMcpRouter({ prisma, authMiddleware, env, log: message => diagnostics.push(JSON.parse(message)) }));
+  // Counts every database operation issued by the MCP router (guards the
+  // per-request identity/permission cache and single-statement quotas).
+  const queries = { count: 0 };
+  const counted = prisma.$extends({ query: { async $allOperations({ args, query }) { queries.count++; return query(args); } } });
+  router = new Hono().route('/', createMcpRouter({ prisma: counted, authMiddleware, env, log: message => diagnostics.push(JSON.parse(message)) }));
   const httpInventory = new Hono();
   httpInventory.use('/inventory/*', authMiddleware);
   const requirePermission = permission => async (c, next) => {
@@ -288,6 +304,10 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
     assert.equal((await call('runly_inventory_get', { companyId: company.id, itemId })).item.serialNumber, 'ABC123');
     assert.equal((await call('runly_inventory_catalogs', { companyId: company.id, search: 'Dell' })).brands[0].id, brand.id);
     assert.equal((await call('runly_inventory_summary', { companyId: company.id })).total, 1);
+    queries.count = 0;
+    await call('runly_inventory_search', { companyId: company.id, filters: { serialNumber: 'ABC123' }, limit: 1 });
+    t.diagnostic(`consultas por runly_inventory_search: ${queries.count}`);
+    assert.ok(queries.count <= QUERY_BUDGET, `runly_inventory_search usó ${queries.count} consultas`);
     assert.equal((await call('runly_inventory_search', { companyId: other.id }, true)).code, 'company_not_granted');
     await call('runly_inventory_get', { companyId: company.id, itemId: hidden.id }, true);
     assert.equal((await call('runly_modules_list', { companyId: company.id })).modules.length, 1);
@@ -390,13 +410,13 @@ test('MCP integrado: OAuth, SDK oficial y datos reales de Inventario', { skip: !
     const oversized = await fetch(config.resource, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: 'x'.repeat(70000) }) });
     assert.equal(oversized.status, 413);
     const key = digest(`mcp-rate:${Math.floor(Date.now() / 60000)}:token:${digest(`Bearer ${tokens.access_token}`)}`);
-    await prisma.mcpState.upsert({ where: { key }, create: { key, kind: 'rate', payload: {}, counter: 120, expiresAt: new Date(Date.now() + 60000) }, update: { counter: 120 } });
+    await prisma.mcpRate.upsert({ where: { key }, create: { key, counter: 120, expiresAt: new Date(Date.now() + 60000) }, update: { counter: 120 } });
     const limited = await request('/mcp', null, tokens.access_token);
     assert.equal(limited.status, 429); assert.equal(limited.headers.get('retry-after'), '60');
     // The test server calls router.fetch without a socket, so the peer is "direct";
     // an untrusted X-Forwarded-For must not move the request to another bucket.
     const registerKey = digest(`mcp-rate:${Math.floor(Date.now() / 60000)}:register:direct`);
-    await prisma.mcpState.upsert({ where: { key: registerKey }, create: { key: registerKey, kind: 'rate', payload: {}, counter: 10, expiresAt: new Date(Date.now() + 60000) }, update: { counter: 10 } });
+    await prisma.mcpRate.upsert({ where: { key: registerKey }, create: { key: registerKey, counter: 10, expiresAt: new Date(Date.now() + 60000) }, update: { counter: 10 } });
     const spoofed = await fetch(`${config.issuer}/mcp/oauth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '198.51.100.7' }, body: JSON.stringify({ client_name: 'Spam', redirect_uris: ['http://127.0.0.1:9/cb'] }) });
     assert.equal(spoofed.status, 429);
   });

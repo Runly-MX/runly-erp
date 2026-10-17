@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createInventoryMcpCapabilities, rme3McpContract } from './adapters/inventory.js';
 import { createCapabilityRegistry } from './registry.js';
 import { createDomainRuntime } from './domain-runtime.js';
-import { createMcpAccess } from './access.js';
+import { accessFor } from './access.js';
 import { createMcpState } from './state.js';
 import { insist } from './config.js';
 import { parameterSchema } from './contracts.js';
@@ -16,7 +16,7 @@ export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, do
   const imports = createFileImport({ prisma, config, supabaseAdmin, download: downloadFile });
   async function discovery(name, args, auth) {
     insist(auth.companyIds.includes(args.companyId), 'company_not_granted', 'Empresa no autorizada.', 403);
-    const access = createMcpAccess(prisma), actx = await access.company(auth.authUserId, args.companyId);
+    const access = accessFor(auth, prisma, prisma), actx =await access.company(auth.authUserId, args.companyId);
     const rows = await access.modules(actx), modules = [];
     for (const row of rows) {
       if (['runly.inventory', 'atlas.inventory'].includes(row.key)) {

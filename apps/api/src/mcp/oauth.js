@@ -30,15 +30,21 @@ export function createMcpOAuth({ prisma, config }) {
     code_challenge_methods_supported: ['S256'], scopes_supported: SCOPES,
     authorization_response_iss_parameter_supported: true,
   };
-  async function authenticate(token, scope = null) {
+  // Pass a per-request cache to reuse identity/permission lookups for the rest
+  // of that HTTP request; the cached access rides on a non-enumerable property
+  // so it never leaks into proposals, logs or wire payloads.
+  async function authenticate(token, scope = null, cache = null) {
     const row = token && await state.get('access', token);
     insist(row?.payload.resource === config.resource, 'invalid_token', 'Token MCP inválido o vencido.', 401);
     const grant = await state.get('grant', row.payload.grantId);
     insist(grant && !grant.payload.revoked && grant.payload.resource === config.resource, 'invalid_token', 'La conexión fue revocada o pertenece a otro recurso.', 401);
-    await access.identity(grant.payload.authUserId);
+    const requestAccess = cache ? createMcpAccess(prisma, cache) : access;
+    await requestAccess.identity(grant.payload.authUserId);
     const scopes = (row.payload.scopes ?? grant.payload.scopes).filter(s => grant.payload.scopes.includes(s));
     insist(!scope || scopes.includes(scope), 'insufficient_scope', 'El scope solicitado no está autorizado.', 403);
-    return { ...grant.payload, scopes, grantId: row.payload.grantId };
+    const auth = { ...grant.payload, scopes, grantId: row.payload.grantId };
+    if (cache) Object.defineProperty(auth, 'access', { value: requestAccess, enumerable: false });
+    return auth;
   }
   async function issue(db, grantId, clientId, requestedScopes) {
     const store = createMcpState(db);

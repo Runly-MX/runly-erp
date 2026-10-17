@@ -4,7 +4,7 @@ import { createInventoryMiraiQueries } from '../../services/capabilities/invento
 import { createInventoryMiraiActions } from '../../services/capabilities/inventory-actions.js';
 import { inventoryActionPlanSchema } from '../../services/inventory-chat-actions.js';
 import { inventoryFiltersSchema } from '../../services/inventory-query.js';
-import { createMcpAccess } from '../access.js';
+import { accessFor, liveGrant } from '../access.js';
 import { createMcpState, nonce, wire, transactionClient, digest } from '../state.js';
 import { insist } from '../config.js';
 
@@ -65,15 +65,15 @@ function compactItem(item, detail = false) {
 }
 
 export function createInventoryMcpCapabilities({ prisma, config, oauth }) {
-  const access = createMcpAccess(prisma), store = createMcpState(prisma);
+  const store = createMcpState(prisma);
   async function context(auth, companyId, permission, db = prisma) {
     // Revalidate the persisted OAuth grant as well as live ERP authorization on
     // every call (including batch calls and commits in the same HTTP request).
-    const grant = await createMcpState(db).get('grant', auth.grantId);
+    const grant = await liveGrant(auth, db, prisma);
     insist(grant && !grant.payload.revoked && grant.payload.resource === config.resource && grant.payload.authUserId === auth.authUserId, 'invalid_token', 'Conexión revocada.', 401);
     insist(grant.payload.companyIds.includes(companyId), 'company_not_granted', 'Empresa no autorizada para esta conexión.', 403);
-    const actx = await createMcpAccess(db).company(auth.authUserId, companyId, permission);
-    await createMcpAccess(db).module(actx, 'runly.inventory');
+    const scoped = accessFor(auth, db, prisma), actx = await scoped.company(auth.authUserId, companyId, permission);
+    await scoped.module(actx, 'runly.inventory');
     insist(actx.can('inventory.item.read'), 'permission_denied', 'No tienes permiso de lectura de Inventario.', 403);
     return actx;
   }
@@ -146,6 +146,7 @@ export function createInventoryMcpCapabilities({ prisma, config, oauth }) {
     }, { timeout: 30000 });
   }
   async function run(name, args, auth) {
+    const access = accessFor(auth, prisma, prisma);
     if (name === 'runly_whoami') {
       const { profile } = await access.identity(auth.authUserId);
       return { id: profile.id, name: profile.displayName, clientId: auth.clientId, scopes: auth.scopes, resource: config.resource };

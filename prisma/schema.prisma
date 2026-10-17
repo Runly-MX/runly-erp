@@ -18,6 +18,37 @@ model McpState {
   @@map("mcp_state")
 }
 
+// Per-minute MCP quota counters. UNLOGGED in the migration: losing counters on
+// a crash only resets the current minute.
+model McpRate {
+  key       String   @id
+  counter   Int      @default(0)
+  expiresAt DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("mcp_rate")
+}
+
+// Who/what/when/outcome of MCP tool calls and approvals; never inputs/results.
+model McpActivity {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  authUserId String   @map("auth_user_id") @db.Uuid
+  grantId    String?  @map("grant_id")
+  type       String
+  clientName String?  @map("client_name")
+  tool       String?
+  moduleKey  String?  @map("module_key")
+  mode       String?
+  operation  String?
+  companyId  String?  @map("company_id")
+  status     String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([authUserId, createdAt(sort: Desc)])
+  @@index([createdAt])
+  @@map("mcp_activity")
+}
+
 datasource db {
   provider = "postgresql"
 }

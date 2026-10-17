@@ -1,4 +1,4 @@
-import { createMcpAccess } from './access.js';
+import { accessFor, liveGrant } from './access.js';
 import { createMcpState, wire, digest, transactionClient } from './state.js';
 import { insist } from './config.js';
 import { parameterSchema } from './contracts.js';
@@ -12,12 +12,12 @@ export const fingerprint = value => digest(JSON.stringify(canonical(wire(value))
 
 export function createDomainRuntime({ prisma, config, registry }) {
   async function context(auth, companyId, moduleKey, permission, scope, db = prisma) {
-    const grant = await createMcpState(db).get('grant', auth.grantId);
+    const grant = await liveGrant(auth, db, prisma);
     insist(grant && !grant.payload.revoked && grant.payload.resource === config.resource && grant.payload.authUserId === auth.authUserId, 'invalid_token', 'Conexión revocada.', 401);
     insist(grant.payload.companyIds.includes(companyId), 'company_not_granted', 'Empresa no autorizada.', 403);
     insist((auth.scopes ?? grant.payload.scopes).includes(scope) && grant.payload.scopes.includes(scope), 'insufficient_scope', 'Se requiere consentimiento para este dominio.', 403);
-    const actx = await createMcpAccess(db).company(auth.authUserId, companyId, permission);
-    await createMcpAccess(db).module(actx, moduleKey);
+    const access = accessFor(auth, db, prisma), actx = await access.company(auth.authUserId, companyId, permission);
+    await access.module(actx, moduleKey);
     return { ...actx, actorProfile: actx.profile, mcpScopes: grant.payload.scopes.filter(scope => (auth.scopes ?? grant.payload.scopes).includes(scope)) };
   }
   function operation(adapter, key, write) {

@@ -27,7 +27,15 @@ un modelo de IA ni una conexión con Developer Hub.
   instalación y habilitación del módulo mediante los servicios existentes.
 - `capabilities.js`: adaptador determinista de Inventario y descubrimiento RME3.
 - `server.js`: contratos de entrada/salida y anotaciones MCP.
-- `state.js` y la tabla core `mcp_state`: persistencia transaccional y bloqueos.
+- `state.js` y la tabla core `mcp_state`: clientes, autorizaciones, tokens y
+  propuestas, con persistencia transaccional y bloqueos.
+- `mcp_rate` (UNLOGGED) guarda los contadores de cuota por minuto; todas las
+  cuotas de una solicitud se cuentan en una sola sentencia. `mcp_activity`
+  guarda la actividad (quién, qué, cuándo y resultado; nunca entradas ni
+  resultados) con índice por usuario y fecha, y retención de 30 días.
+- `access.js`: con la caché por solicitud, identidad, permisos de empresa y
+  módulos se calculan una vez por petición HTTP. Las transacciones de
+  aprobación y commit vuelven a leerlos sin caché dentro del bloqueo.
 - `services/capabilities/inventory-{actions,queries}.js`: capacidades compartidas
   con MirAI. Las rutas anteriores conservan adaptadores compatibles.
 - `McpConnectionScreen.jsx`, en `/app/mcp`: consentimiento, revisión completa de
