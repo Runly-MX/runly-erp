@@ -15,17 +15,19 @@ import { createCanvasAdapter } from './adapters/canvas.js';
 import { createAttendanceAdapter } from './adapters/attendance.js';
 import { createFilesAdapter, createDocumentsAdapter, createIdentityAdapter, createActivityAdapter, createChatAdapter } from './adapters/readonly.js';
 import { fileImportTools } from './file-import.js';
+import { createWebsiteAdapter } from './adapters/website.js';
+import { createCatalogAdapter } from './adapters/catalog.js';
 
 const factories = new Map(Object.entries({ hr: createHrAdapter, fleet: createFleetAdapter, notes: createNotesAdapter, pfm: createPfmAdapter, ledger: createLedgerAdapter, projects: createProjectsAdapter, calendar: createCalendarAdapter,
-  contacts: createContactsAdapter, purchases: createPurchasesAdapter, canvas: createCanvasAdapter, attendance: createAttendanceAdapter, files: createFilesAdapter, documents: createDocumentsAdapter, identity: createIdentityAdapter, activity: createActivityAdapter, chat: createChatAdapter,
+  contacts: createContactsAdapter, purchases: createPurchasesAdapter, canvas: createCanvasAdapter, attendance: createAttendanceAdapter, files: createFilesAdapter, documents: createDocumentsAdapter, identity: createIdentityAdapter, activity: createActivityAdapter, chat: createChatAdapter, website: createWebsiteAdapter, catalog: createCatalogAdapter,
 }).map(([domain, factory]) => [`runly.${domain}`, factory]));
 export const MCP_DOMAINS = [...factories.keys()].map(key => key.slice(6));
 
-export function createCapabilityRegistry({ prisma }) {
+export function createCapabilityRegistry({ prisma, supabaseAdmin = null }) {
   function create(moduleKey, db = prisma) {
     const factory = factories.get(moduleKey);
     insist(factory, 'not_found', 'Módulo no disponible.', 404);
-    const adapter = factory({ prisma: db });
+    const adapter = factory({ prisma: db, supabaseAdmin });
     // Every write-capable domain must decide explicitly whether its proposals
     // need the extra sensitive confirmation; a missing declaration is a bug.
     insist(!adapter.actions.length || typeof adapter.sensitive === 'boolean' || typeof adapter.sensitive === 'function', 'invalid_adapter', `${moduleKey} debe declarar sensitive.`, 500);

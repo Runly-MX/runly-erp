@@ -3,7 +3,7 @@ import { Checkbox } from '@runly/ui';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useThemeStore } from '../stores/theme';
 
-export const DOMAINS = { hr: 'Recursos Humanos', fleet: 'Flota', notes: 'Notas', pfm: 'Finanzas personales', ledger: 'Libro de cuentas', projects: 'Proyectos', calendar: 'Calendario', contacts: 'Contactos', purchases: 'Compras', canvas: 'Canvas', attendance: 'Asistencia', files: 'Archivos', documents: 'Documentos', identity: 'Identidad', activity: 'Actividad propia', chat: 'Conversaciones propias', inventory: 'Inventario' };
+export const DOMAINS = { hr: 'Recursos Humanos', fleet: 'Flota', notes: 'Notas', pfm: 'Finanzas personales', ledger: 'Libro de cuentas', projects: 'Proyectos', calendar: 'Calendario', contacts: 'Contactos', purchases: 'Compras', canvas: 'Canvas', attendance: 'Asistencia', files: 'Archivos', documents: 'Documentos', identity: 'Identidad', activity: 'Actividad propia', chat: 'Conversaciones propias', inventory: 'Inventario', website: 'Sitio web', catalog: 'Catálogo' };
 
 const SCOPE_LABELS = { 'runly:read': 'Ver tu identidad, empresas y módulos autorizados', 'inventory:read': 'Consultar equipos y catálogos de inventario', 'inventory:write': 'Preparar y ejecutar altas y ediciones con tu aprobación en Runly' };
 for (const [domain, label] of Object.entries(DOMAINS)) {

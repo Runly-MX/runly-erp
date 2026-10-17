@@ -12,7 +12,7 @@ import { waitForApproval } from './approval-wait.js';
 
 export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, downloadFile, approvalWaitMs = 0 }) {
   const inventory = createInventoryMcpCapabilities({ prisma, config, oauth });
-  const registry = createCapabilityRegistry({ prisma });
+  const registry = createCapabilityRegistry({ prisma, supabaseAdmin });
   const runtime = createDomainRuntime({ prisma, config, registry });
   const imports = createFileImport({ prisma, config, supabaseAdmin, download: downloadFile });
   async function discovery(name, args, auth) {

@@ -9,7 +9,7 @@ import { PERMISSION_CATALOG } from '../../permission-catalog.js';
 
 test('registro: contratos estrictos, scopes declarados y superficie controlada', () => {
   const registry = createCapabilityRegistry({ prisma: {} });
-  assert.equal(registry.tools.length, 50);
+  assert.equal(registry.tools.length, 56);
   assert.ok(SCOPES.join(' ').length <= 500);
   assert.equal(new Set(registry.tools.map(tool => tool.name)).size, registry.tools.length);
   for (const tool of registry.tools) {
@@ -48,6 +48,12 @@ test('sensibilidad declarada por adaptador: misma matriz que la confirmación we
       if (moduleKey === 'runly.hr') {
         assert.equal(isSensitive(adapter, definition, { data: { firstName: 'Ana' } }), false);
         assert.equal(isSensitive(adapter, definition, { data: { userProfileId: null } }), true, 'Desvincular cuenta también es sensible');
+      } else if (moduleKey === 'runly.website') {
+        assert.equal(isSensitive(adapter, definition, {}), definition.key === 'website.pages.publish', 'Publicar expone páginas');
+        if (definition.key === 'website.site.setup') assert.equal(isSensitive(adapter, definition, { useBuilder: true }), true, 'Cambiar el origen público es sensible');
+      } else if (moduleKey === 'runly.catalog') {
+        assert.equal(isSensitive(adapter, definition, { data: {} }), false);
+        assert.equal(isSensitive(adapter, definition, { data: { published: true } }), true, 'Publicar producto es sensible');
       } else assert.equal(isSensitive(adapter, definition, { data: {} }), expected, `${moduleKey} ${definition.key}`);
     }
   }

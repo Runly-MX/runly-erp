@@ -111,8 +111,10 @@ sustituye el permiso ERP ni la ACL individual.
 | `contacts` | Buscar/consultar y crear/editar contactos | `contacts:read`, `contacts:write` |
 | `purchases` | Consultas de solicitudes, proveedores, órdenes, facturas y pendientes; crear borrador de solicitud y decidir una aprobación existente si el workflow lo permite | `purchases:read`, `purchases:write` |
 | `canvas` | Consultar boards/hotspots autorizados; crear board y editar hotspot conservando escena/geometría | `canvas:read`, `canvas:write` |
+| `website` | Resumen del sitio, catálogo de bloques con guía de diseño, borradores en formato `sections` e imágenes públicas; configurar sitio/tema, guardar hasta 12 borradores por propuesta y publicar páginas (sensible). Las páginas quedan editables en el builder | `website:read`, `website:write` |
+| `catalog` | Productos, detalle con variantes y categorías; crear/editar productos y crear categorías. Solo imágenes PUBLIC de la empresa; publicar un producto es sensible | `catalog:read`, `catalog:write` |
 | `attendance` | Consultas de asistencia, jornadas y horas extra; no registra entradas/salidas | `attendance:read` |
-| `files`, `documents` | Consultar metadatos con ACL existente; importar originales a 27 destinos de los 17 módulos MCP. Adjuntos nativos o referencias privadas claramente diferenciados, con aprobación | `files:read`, `files:write`, `documents:read` más scope del destino |
+| `files`, `documents` | Consultar metadatos con ACL existente; importar originales a 29 destinos de los 19 módulos MCP; `website.site` y `catalog.product` guardan imágenes públicas con URL permanente. Adjuntos nativos o referencias privadas claramente diferenciados, con aprobación | `files:read`, `files:write`, `documents:read` más scope del destino |
 | `identity` | Buscar perfiles activos de la empresa para referencias explícitas; no crea usuarios ni modifica roles | `identity:read` |
 | `activity` | Actividad propia y paginada en la empresa consentida | `activity:read` |
 | `chat` | Metadatos de conversaciones propias de la empresa; sin mensajes, adjuntos ni envíos | `chat:read` |

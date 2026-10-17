@@ -11,6 +11,7 @@ import { hasCapability } from '../services/purchases-service.js';
 import { createProjectsService } from '../routes/projects/projects-service.js';
 import { createTasksService } from '../routes/projects/tasks-service.js';
 import { createCanvasService } from '../routes/canvas/canvas-service.js';
+import { createCatalogProductService } from '../routes/catalog/catalog-product-service.js';
 import { createNotesService } from '../routes/notes/notes-service.js';
 import { createWalletsService } from '../routes/pfm/wallets-service.js';
 import { createMovementsService } from '../routes/pfm/movements-service.js';
@@ -27,7 +28,9 @@ import { insist } from './config.js';
 
 // Explicit destinations, not caller-selected tables/columns. Native entries
 // match existing ERP attachment panels; references remain private Files assets.
-const native = (type, domain, entityType, readPermission, writePermission, path) => ({ type, moduleKey: `runly.${domain}`, entityType, readPermission, writePermission, mode: 'native', path });
+// visibility PUBLIC stores images in the public bucket (permanent URLs) for the
+// website and the storefront; every other destination stays private.
+const native = (type, domain, entityType, readPermission, writePermission, path, visibility = 'PRIVATE') => ({ type, moduleKey: `runly.${domain}`, entityType, readPermission, writePermission, mode: 'native', path, visibility });
 const reference = (type, domain, readPermission, path) => ({ type, moduleKey: `runly.${domain}`, readPermission, mode: 'private-reference', path });
 export const ATTACHMENT_TARGETS = [
   native('inventory.item', 'inventory', 'InvItem', 'inventory.item.read', 'inventory.item.update', '/inventory'),
@@ -40,6 +43,8 @@ export const ATTACHMENT_TARGETS = [
   native('projects.task', 'projects', 'Task', 'projects.task.read', 'projects.task.update', ''),
   native('canvas.board', 'canvas', 'CanvasBoard', 'canvas.view', 'canvas.comment', '/boards'),
   native('canvas.hotspot', 'canvas', 'CanvasHotspot', 'canvas.view', 'canvas.comment', '/boards'),
+  native('website.site', 'website', 'AtlasFile', 'website.site.read', 'website.pages.update', '', 'PUBLIC'),
+  native('catalog.product', 'catalog', 'AtlasFile', 'catalog.products.read', 'catalog.products.update', '', 'PUBLIC'),
   reference('projects.project', 'projects', 'projects.project.read', ''),
   reference('notes.note', 'notes', 'notes.notes.read', ''),
   reference('pfm.wallet', 'pfm', 'pfm.wallets.read', ''),
@@ -103,6 +108,16 @@ export function createAttachmentTargets({ prisma }) {
         await canvas.assertBoardAccess(a.companyId, a.actorProfileId, hotspot.boardId, write ? 'COMMENTER' : 'VIEWER');
         return hotspot;
       }
+      case 'website.site': {
+        const site = await prisma.websiteSite.findFirst({ where: { id, companyId: a.companyId, enabled: true }, select: { id: true, name: true, enabled: true, updatedAt: true } });
+        insist(site, 'not_found', 'Sitio no disponible.', 404);
+        return site;
+      }
+      case 'catalog.product': {
+        const product = await createCatalogProductService({ prisma }).getProductById({ companyId: a.companyId, id });
+        insist(product, 'not_found', 'Producto no disponible.', 404);
+        return product;
+      }
       case 'notes.note': {
         const row = await createNotesService({ prisma }).getNote(id, a.actorProfileId);
         insist(row && (!row.company_id || row.company_id === a.companyId), 'not_found', 'Nota no disponible.', 404);
@@ -164,6 +179,7 @@ export function createAttachmentTargets({ prisma }) {
     if (spec.type === 'canvas.hotspot') link = `/app/m/runly.canvas/boards/${snapshot.boardId}?hotspotId=${spec.id}`;
     if (spec.type === 'projects.task') link = `/app/m/runly.projects?open=task:${spec.id}&project=${snapshot.projectId}`;
     if (spec.type === 'projects.project') link = `/app/m/runly.projects?project=${spec.id}`;
+    if (spec.type === 'catalog.product') link = `/app/m/runly.catalog/${spec.id}`;
     if (spec.type === 'notes.note') link = `/app/m/runly.notes?noteId=${spec.id}`;
     if (spec.type === 'calendar.event') link = `/app/m/runly.calendar?eventId=${spec.id}`;
     if (spec.type === 'ledger.account' || spec.type === 'ledger.transaction') link = `/app/m/runly.ledger/accounts/${spec.type === 'ledger.account' ? spec.id : row.accountId}`;
@@ -172,7 +188,7 @@ export function createAttachmentTargets({ prisma }) {
   }
   function fields(target) {
     if (!target) return { moduleKey: 'runly.files', entityType: 'AtlasFile', visibility: 'PRIVATE' };
-    return target.mode === 'native' ? { moduleKey: target.moduleKey, entityType: target.entityType, entityId: target.spec.id, visibility: 'PRIVATE' } : { moduleKey: 'runly.files', entityType: 'AtlasFile', visibility: 'PRIVATE' };
+    return target.mode === 'native' ? { moduleKey: target.moduleKey, entityType: target.entityType, entityId: target.spec.id, visibility: target.visibility ?? 'PRIVATE' } : { moduleKey: 'runly.files', entityType: 'AtlasFile', visibility: 'PRIVATE' };
   }
   async function link(target, asset, a) {
     if (!target || target.mode !== 'native') return;
@@ -181,6 +197,12 @@ export function createAttachmentTargets({ prisma }) {
     if (target.spec.type === 'fleet.vehicle') await createFleetService({ prisma }).addVehicleDocument({ companyId: a.companyId, actorId: a.actorProfileId, vehicleId: id, payload });
     if (target.spec.type === 'fleet.driver') await createDriverService({ prisma }).addDriverDocument({ companyId: a.companyId, actorId: a.actorProfileId, driverId: id, payload });
     if (target.spec.type === 'fleet.report') await createReportsService({ prisma }).addReportDocument({ companyId: a.companyId, actorId: a.actorProfileId, reportId: id, payload });
+    if (target.spec.type === 'catalog.product') {
+      // First image becomes the cover; the rest join the product gallery.
+      const products = createCatalogProductService({ prisma }), product = await products.getProductById({ companyId: a.companyId, id });
+      const images = Array.isArray(product.images) ? product.images : [];
+      await products.updateProduct({ companyId: a.companyId, id, data: product.cover_asset_id ? { images: [...images, asset.id] } : { cover_asset_id: asset.id } });
+    }
     if (target.spec.type.startsWith('canvas.')) {
       const boardId = target.spec.type === 'canvas.board' ? id : target.snapshot.boardId;
       await canvas.addAttachment(a.companyId, a.actorProfileId, boardId, { targetType: target.spec.type === 'canvas.board' ? 'BOARD' : 'HOTSPOT', targetId: id, fileAssetId: asset.id, label: asset.originalName });

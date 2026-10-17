@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { readCatalogBytes } from '../services/catalog/catalog-download.js';
 import { createFilesService } from '../services/files-service.js';
-import { attachmentTargetSchema, normalizeAttachmentTarget, createAttachmentTargets } from './attachment-targets.js';
+import { attachmentTargetSchema, normalizeAttachmentTarget, createAttachmentTargets, ATTACHMENT_TARGETS } from './attachment-targets.js';
 import { accessFor, liveGrant } from './access.js';
 import { createMcpState, digest, transactionClient } from './state.js';
 import { fingerprint } from './domain-runtime.js';
@@ -83,7 +83,8 @@ export function createFileImport({ prisma, config, supabaseAdmin, download }) {
     const p = row.payload;
     const destination = normalizeAttachmentTarget(p.destination, p.itemId);
     const effect = !destination ? 'Guardar archivos privados sin vincularlos a otro registro.' : p.target.mode === 'private-reference' ? 'Referencia privada en Archivos. No modifica contenido del módulo ni envía mensajes; no aparece como adjunto nativo.' : 'Vincular al registro existente; visible según sus permisos y el panel del módulo.';
-    const effects = ['Guardar los originales sin conversión en almacenamiento privado.', effect, ...(destination?.type === 'fleet.driver' ? ['El servicio de Flota puede usar la primera imagen como foto del conductor si no tiene una; conserva su foto existente.'] : [])];
+    const isPublic = ATTACHMENT_TARGETS.find(target => target.type === destination?.type)?.visibility === 'PUBLIC';
+    const effects = [isPublic ? 'Guardar las imágenes originales como públicas (URL permanente, visible para cualquiera con el enlace) para el sitio web o la tienda.' : 'Guardar los originales sin conversión en almacenamiento privado.', effect, ...(destination?.type === 'catalog.product' ? ['La primera imagen será la portada del producto si no tiene una; las demás se agregan a su galería.'] : []), ...(destination?.type === 'fleet.driver' ? ['El servicio de Flota puede usar la primera imagen como foto del conductor si no tiene una; conserva su foto existente.'] : [])];
     return { proposalId: id, companyId: p.companyId, moduleKey: 'runly.files', action: 'files.import', preview: { title: destination ? p.target.mode === 'private-reference' ? 'Guardar referencia privada al registro' : 'Adjuntar originales al registro' : 'Guardar originales privados', fields: [{ label: 'Destino', value: p.target ? `${destination.type}: ${p.target.name} (${destination.id})` : 'Mis archivos privados' }, ...p.files.map(file => ({ label: file.name, value: `${file.mimeType} · ${file.sizeBytes} bytes · SHA-256 ${file.sha256}` }))] }, proposed: { files: p.files, destination, target: p.target, effects }, approved: p.approved, rejected: p.rejected, completed: Boolean(p.result), sensitive: false, expiresAt: row.expiresAt };
   };
   async function prepare(args, auth) {
@@ -91,6 +92,7 @@ export function createFileImport({ prisma, config, supabaseAdmin, download }) {
     const destination = normalizeAttachmentTarget(args.target, args.itemId);
     const { target } = await context(auth, args.companyId, destination);
     const loaded = await readImportFiles(args.files, download), files = loaded.map(file => file.manifest);
+    insist(target?.visibility !== 'PUBLIC' || files.every(file => file.mimeType.startsWith('image/')), 'file_type_rejected', 'Este destino es público y solo admite imágenes JPEG, PNG, GIF o WebP.', 422);
     const p = { version: 3, authUserId: auth.authUserId, grantId: auth.grantId, companyId: args.companyId, itemId: destination?.type === 'inventory.item' ? destination.id : null, destination, target: target?.snapshot ?? null, files, approved: false, rejected: false };
     const id = Buffer.from(fingerprint(p), 'hex').toString('base64url'), store = createMcpState(prisma);
     let row = await store.get('proposal', id);
@@ -159,7 +161,7 @@ export function createFileImport({ prisma, config, supabaseAdmin, download }) {
         for (const { buffer, manifest } of loaded) {
           const asset = await service.upload({ authUserId: auth.authUserId, activeContext: { companyId: a.companyId, profileId: a.actorProfileId, isAdmin: a.isAdmin, permissionSet: a.permissionSet }, file: new File([buffer], manifest.name, { type: manifest.mimeType }), fields: { ...targets.fields(target), metadata: { sha256: manifest.sha256, mcpProposalHash: digest(args.proposalId), ...(target ? { mcpTarget: target.spec } : {}) } } });
           await targets.link(target, asset, a);
-          saved.push({ id: asset.id, name: asset.originalName, mimeType: asset.mimeType, sizeBytes: Number(asset.sizeBytes), sha256: manifest.sha256 });
+          saved.push({ id: asset.id, name: asset.originalName, mimeType: asset.mimeType, sizeBytes: Number(asset.sizeBytes), sha256: manifest.sha256, ...(asset.visibility === 'PUBLIC' ? { url: supabaseAdmin.storage.from(asset.bucket).getPublicUrl(asset.objectKey)?.data?.publicUrl ?? null } : {}) });
         }
         // Domain attachment effects may update their own resource version
         // (e.g. the driver's first image). Recheck authorization after those

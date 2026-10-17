@@ -56,6 +56,12 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `runly_identity_query` | `identity:read` | none |
 | `runly_activity_query` | `activity:read` | none |
 | `runly_chat_query` | `chat:read` | none |
+| `runly_website_query` | `website:read` | none |
+| `runly_website_prepare` | `website:write` | web-session-explicit |
+| `runly_website_commit` | `website:write` | web-session-explicit |
+| `runly_catalog_query` | `catalog:read` | none |
+| `runly_catalog_prepare` | `catalog:write` | web-session-explicit |
+| `runly_catalog_commit` | `catalog:write` | web-session-explicit |
 
 ## runly.hr
 
@@ -233,6 +239,29 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | --- | --- | --- |
 | `chat_my_conversations` | Lectura | `chat.conversations.read` |
 
+## runly.website
+
+| Operación | Modo | Permiso ERP |
+| --- | --- | --- |
+| `website_overview` | Lectura | `website.site.read` |
+| `website_block_catalog` | Lectura | `website.pages.read` |
+| `website_page_detail` | Lectura | `website.pages.read` |
+| `website_media` | Lectura | `website.pages.read` |
+| `website.site.setup` | Escritura aprobada | `website.site.update` + `website.site.read` |
+| `website.pages.draft` | Escritura aprobada | `website.pages.update` + `website.pages.read` |
+| `website.pages.publish` | Escritura aprobada | `website.pages.publish` |
+
+## runly.catalog
+
+| Operación | Modo | Permiso ERP |
+| --- | --- | --- |
+| `catalog_products_page` | Lectura | `catalog.products.read` |
+| `catalog_product_detail` | Lectura | `catalog.products.read` |
+| `catalog_categories` | Lectura | `catalog.categories.read` |
+| `catalog.product.create` | Escritura aprobada | `catalog.products.create` + `catalog.products.read` |
+| `catalog.product.update` | Escritura aprobada | `catalog.products.update` + `catalog.products.read` |
+| `catalog.category.create` | Escritura aprobada | `catalog.categories.create` + `catalog.categories.read` |
+
 ## Destinos de archivos originales
 
 `runly_files_import_prepare` admite `target: { type, id }`; `itemId` conserva compatibilidad con Inventario. Consultar `runly_files_query` / `files_attachment_targets` para la disponibilidad de la instancia y `files_record_attachments` para listar archivos de un registro.
@@ -255,6 +284,8 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `projects.task` | `runly.projects` | native | `projects:write` | `projects.task.read` + `projects.task.update` |
 | `canvas.board` | `runly.canvas` | native | `canvas:write` | `canvas.view` + `canvas.comment` |
 | `canvas.hotspot` | `runly.canvas` | native | `canvas:write` | `canvas.view` + `canvas.comment` |
+| `website.site` | `runly.website` | native | `website:write` | `website.site.read` + `website.pages.update` |
+| `catalog.product` | `runly.catalog` | native | `catalog:write` | `catalog.products.read` + `catalog.products.update` |
 | `projects.project` | `runly.projects` | private-reference | `projects:read` | `projects.project.read` |
 | `notes.note` | `runly.notes` | private-reference | `notes:read` | `notes.notes.read` |
 | `pfm.wallet` | `runly.pfm` | private-reference | `pfm:read` | `pfm.wallets.read` |
