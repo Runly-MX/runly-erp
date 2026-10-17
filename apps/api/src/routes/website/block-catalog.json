@@ -1,0 +1,2578 @@
+{
+  "generatedBy": "scripts/generate-website-block-catalog.mjs",
+  "schemaVersion": 1,
+  "blocks": [
+    {
+      "type": "NavbarBlock",
+      "label": "Navbar",
+      "category": "navigation",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "variant": "light",
+        "brand": "Mi sitio",
+        "logoSrc": "",
+        "logoHeight": "32",
+        "links": "Inicio | /\nProductos | /productos\nNosotros | /nosotros\nContacto | /contacto",
+        "ctaLabel": "Empezar",
+        "ctaHref": "#",
+        "ctaVariant": "solid",
+        "height": "64",
+        "maxWidth": "1280px",
+        "paddingX": "24px",
+        "sticky": false,
+        "showBrandName": true
+      },
+      "fields": {
+        "variant": {
+          "type": "select",
+          "label": "Estilo",
+          "options": [
+            "light",
+            "dark",
+            "primary",
+            "transparent"
+          ]
+        },
+        "brand": {
+          "type": "text",
+          "label": "Nombre de marca"
+        },
+        "logoSrc": {
+          "type": "image",
+          "label": "Logo (opcional)"
+        },
+        "logoHeight": {
+          "type": "select",
+          "label": "Alto del logo",
+          "options": [
+            "24",
+            "32",
+            "40",
+            "48",
+            "64"
+          ]
+        },
+        "showBrandName": {
+          "type": "toggle",
+          "label": "Mostrar nombre de marca"
+        },
+        "links": {
+          "type": "textarea",
+          "label": "Enlace | /ruta (uno por línea)\nSub-ítem: comience con 2 espacios o tabulación"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón CTA"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace CTA"
+        },
+        "ctaVariant": {
+          "type": "select",
+          "label": "Estilo del CTA",
+          "options": [
+            "solid",
+            "outline",
+            "ghost"
+          ]
+        },
+        "height": {
+          "type": "select",
+          "label": "Altura del navbar",
+          "options": [
+            "48",
+            "56",
+            "64",
+            "80"
+          ]
+        },
+        "maxWidth": {
+          "type": "select",
+          "label": "Ancho máximo contenido",
+          "options": [
+            "960px",
+            "1024px",
+            "1280px",
+            "1440px",
+            "100%"
+          ]
+        },
+        "paddingX": {
+          "type": "select",
+          "label": "Padding horizontal",
+          "options": [
+            "12px",
+            "16px",
+            "24px",
+            "40px"
+          ]
+        },
+        "sticky": {
+          "type": "toggle",
+          "label": "Pegajoso (sticky)"
+        }
+      }
+    },
+    {
+      "type": "FooterBlock",
+      "label": "Footer",
+      "category": "navigation",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "variant": "dark",
+        "brand": "Mi sitio",
+        "tagline": "Construido con pasión.",
+        "columns": "Producto | Producto\nCaracterísticas | /features\nPrecios | /pricing\nDocumentación | /docs\n---\nEmpresa | Empresa\nNosotros | /about\nBlog | /blog\nContacto | /contact\n---\nLegal | Legal\nPrivacidad | /privacy\nTérminos | /terms",
+        "copyright": "© 2026 Mi sitio. Todos los derechos reservados.",
+        "showBrand": true
+      },
+      "fields": {
+        "variant": {
+          "type": "select",
+          "label": "Variante",
+          "options": [
+            "light",
+            "dark",
+            "primary"
+          ]
+        },
+        "brand": {
+          "type": "text",
+          "label": "Nombre de marca"
+        },
+        "tagline": {
+          "type": "text",
+          "label": "Tagline"
+        },
+        "columns": {
+          "type": "textarea",
+          "label": "Columnas (título en primera línea, --- para separar)"
+        },
+        "copyright": {
+          "type": "text",
+          "label": "Copyright"
+        },
+        "showBrand": {
+          "type": "toggle",
+          "label": "Mostrar marca"
+        }
+      }
+    },
+    {
+      "type": "HeroBlock",
+      "label": "Hero",
+      "category": "hero",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "variant": "centered",
+        "eyebrow": "",
+        "title": "Título principal",
+        "subtitle": "",
+        "ctaLabel": "",
+        "ctaHref": "#",
+        "ctaVariant": "solid",
+        "ctaSecondLabel": "",
+        "ctaSecondHref": "#",
+        "imageSrc": "",
+        "background": {
+          "kind": "color",
+          "token": "bg"
+        },
+        "align": "center",
+        "paddingY": "16",
+        "minHeight": "",
+        "titleSize": "3xl",
+        "contentMaxWidth": "65ch",
+        "shadow": "none"
+      },
+      "fields": {
+        "variant": {
+          "type": "select",
+          "label": "Variante",
+          "options": [
+            "centered",
+            "split",
+            "image-bg"
+          ]
+        },
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "titleSize": {
+          "type": "select",
+          "label": "Tamaño del título",
+          "options": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl",
+            "2xl",
+            "3xl"
+          ]
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Subtítulo"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón primario"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace botón primario"
+        },
+        "ctaVariant": {
+          "type": "select",
+          "label": "Estilo botón",
+          "options": [
+            "solid",
+            "outline",
+            "ghost"
+          ]
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario (opcional)"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace botón secundario"
+        },
+        "imageSrc": {
+          "type": "image",
+          "label": "Imagen"
+        },
+        "background": {
+          "type": "background",
+          "label": "Fondo"
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "paddingY": {
+          "type": "select",
+          "label": "Padding vertical",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        },
+        "minHeight": {
+          "type": "select",
+          "label": "Altura mínima",
+          "options": [
+            "",
+            "200px",
+            "360px",
+            "480px",
+            "600px",
+            "100vh"
+          ]
+        },
+        "contentMaxWidth": {
+          "type": "select",
+          "label": "Ancho máx. contenido",
+          "options": [
+            "",
+            "40ch",
+            "65ch",
+            "480px",
+            "640px",
+            "768px",
+            "1024px",
+            "1280px"
+          ]
+        },
+        "shadow": {
+          "type": "select",
+          "label": "Sombra",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        }
+      }
+    },
+    {
+      "type": "SectionBlock",
+      "label": "Sección",
+      "category": "layout",
+      "group": "base",
+      "slots": [
+        "children"
+      ],
+      "defaultProps": {
+        "paddingY": "12",
+        "paddingX": "6",
+        "background": {
+          "kind": "color",
+          "token": "bg"
+        },
+        "fullBleed": true,
+        "maxWidth": "",
+        "radius": "none",
+        "shadow": "none",
+        "border": "",
+        "borderColor": "rgba(0,0,0,0.08)"
+      },
+      "fields": {
+        "paddingY": {
+          "type": "select",
+          "label": "Padding vertical",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        },
+        "paddingX": {
+          "type": "select",
+          "label": "Padding horizontal",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        },
+        "background": {
+          "type": "background",
+          "label": "Fondo"
+        },
+        "fullBleed": {
+          "type": "toggle",
+          "label": "Ancho completo"
+        },
+        "maxWidth": {
+          "type": "select",
+          "label": "Ancho máx. contenido",
+          "options": [
+            "",
+            "40ch",
+            "65ch",
+            "480px",
+            "640px",
+            "768px",
+            "1024px",
+            "1280px"
+          ]
+        },
+        "radius": {
+          "type": "select",
+          "label": "Bordes redondeados",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "pill"
+          ]
+        },
+        "shadow": {
+          "type": "select",
+          "label": "Sombra",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "border": {
+          "type": "select",
+          "label": "Borde",
+          "options": [
+            "",
+            "top",
+            "bottom",
+            "both",
+            "all"
+          ]
+        },
+        "borderColor": {
+          "type": "text",
+          "label": "Color del borde (CSS)"
+        }
+      }
+    },
+    {
+      "type": "ContainerBlock",
+      "label": "Contenedor",
+      "category": "layout",
+      "group": "base",
+      "slots": [
+        "children"
+      ],
+      "defaultProps": {
+        "maxWidth": "lg",
+        "paddingX": "6",
+        "background": null
+      },
+      "fields": {
+        "maxWidth": {
+          "type": "select",
+          "label": "Ancho máximo",
+          "options": [
+            "sm",
+            "md",
+            "lg",
+            "xl",
+            "full"
+          ]
+        },
+        "paddingX": {
+          "type": "select",
+          "label": "Padding horizontal",
+          "options": [
+            "0",
+            "2",
+            "4",
+            "6",
+            "8"
+          ]
+        },
+        "background": {
+          "type": "background",
+          "label": "Fondo"
+        }
+      }
+    },
+    {
+      "type": "ColumnsBlock",
+      "label": "Columnas",
+      "category": "layout",
+      "group": "base",
+      "slots": [
+        "col0",
+        "col1",
+        "col2",
+        "col3"
+      ],
+      "defaultProps": {
+        "count": "2",
+        "gap": "4",
+        "valign": "start",
+        "layout": "equal",
+        "stackOnMobile": true,
+        "paddingY": "0"
+      },
+      "fields": {
+        "count": {
+          "type": "select",
+          "label": "Número de columnas",
+          "options": [
+            "2",
+            "3",
+            "4"
+          ]
+        },
+        "layout": {
+          "type": "select",
+          "label": "Distribución",
+          "options": [
+            "equal",
+            "2-1",
+            "1-2",
+            "3-1",
+            "1-3"
+          ]
+        },
+        "gap": {
+          "type": "select",
+          "label": "Separación",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        },
+        "valign": {
+          "type": "select",
+          "label": "Alineación vertical",
+          "options": [
+            "start",
+            "center",
+            "end",
+            "stretch"
+          ]
+        },
+        "paddingY": {
+          "type": "select",
+          "label": "Padding vertical",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        },
+        "stackOnMobile": {
+          "type": "toggle",
+          "label": "Apilar en mobile"
+        }
+      }
+    },
+    {
+      "type": "GridBlock",
+      "label": "Cuadrícula",
+      "category": "layout",
+      "group": "base",
+      "slots": [
+        "children"
+      ],
+      "defaultProps": {
+        "minItemWidth": 240,
+        "gap": "4"
+      },
+      "fields": {
+        "minItemWidth": {
+          "type": "number",
+          "label": "Ancho mínimo (px)",
+          "min": 120,
+          "max": 600,
+          "step": 10
+        },
+        "gap": {
+          "type": "select",
+          "label": "Separación",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        }
+      }
+    },
+    {
+      "type": "HeadingBlock",
+      "label": "Encabezado",
+      "category": "content",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "text": "Encabezado",
+        "level": "h2",
+        "color": "fg",
+        "size": "",
+        "align": "left",
+        "weight": "700",
+        "lineHeight": "1.2",
+        "letterSpacing": "0",
+        "maxWidth": "",
+        "paddingY": "0",
+        "textTransform": "none"
+      },
+      "fields": {
+        "text": {
+          "type": "text",
+          "label": "Texto"
+        },
+        "level": {
+          "type": "select",
+          "label": "Nivel",
+          "options": [
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6"
+          ]
+        },
+        "color": {
+          "type": "select",
+          "label": "Color",
+          "options": [
+            "primary",
+            "primaryFg",
+            "bg",
+            "fg",
+            "muted",
+            "accent",
+            "danger"
+          ]
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño (opcional)",
+          "options": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl",
+            "2xl",
+            "3xl"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "weight": {
+          "type": "select",
+          "label": "Peso",
+          "options": [
+            "300",
+            "400",
+            "500",
+            "600",
+            "700",
+            "800"
+          ]
+        },
+        "lineHeight": {
+          "type": "select",
+          "label": "Altura de línea",
+          "options": [
+            "1",
+            "1.2",
+            "1.5",
+            "1.75",
+            "2"
+          ]
+        },
+        "letterSpacing": {
+          "type": "select",
+          "label": "Espaciado letra",
+          "options": [
+            "-0.05em",
+            "-0.02em",
+            "0",
+            "0.03em",
+            "0.08em",
+            "0.15em"
+          ]
+        },
+        "textTransform": {
+          "type": "select",
+          "label": "Mayúsculas",
+          "options": [
+            "none",
+            "uppercase",
+            "capitalize",
+            "lowercase"
+          ]
+        },
+        "maxWidth": {
+          "type": "select",
+          "label": "Ancho máximo",
+          "options": [
+            "",
+            "40ch",
+            "65ch",
+            "480px",
+            "640px",
+            "768px",
+            "1024px",
+            "1280px"
+          ]
+        },
+        "paddingY": {
+          "type": "select",
+          "label": "Padding vertical",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        }
+      }
+    },
+    {
+      "type": "TextBlock",
+      "label": "Texto",
+      "category": "content",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "text": "Escribe tu contenido aquí…",
+        "size": "md",
+        "color": "fg",
+        "align": "left",
+        "weight": "400",
+        "lineHeight": "1.5",
+        "letterSpacing": "0",
+        "maxWidth": "",
+        "paddingY": "0",
+        "paddingX": "0",
+        "italic": false
+      },
+      "fields": {
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño",
+          "options": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl",
+            "2xl",
+            "3xl"
+          ]
+        },
+        "color": {
+          "type": "select",
+          "label": "Color",
+          "options": [
+            "primary",
+            "primaryFg",
+            "bg",
+            "fg",
+            "muted",
+            "accent",
+            "danger"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "weight": {
+          "type": "select",
+          "label": "Peso",
+          "options": [
+            "300",
+            "400",
+            "500",
+            "600",
+            "700",
+            "800"
+          ]
+        },
+        "lineHeight": {
+          "type": "select",
+          "label": "Altura de línea",
+          "options": [
+            "1",
+            "1.2",
+            "1.5",
+            "1.75",
+            "2"
+          ]
+        },
+        "letterSpacing": {
+          "type": "select",
+          "label": "Espaciado letra",
+          "options": [
+            "0",
+            "0.03em",
+            "0.08em"
+          ]
+        },
+        "maxWidth": {
+          "type": "select",
+          "label": "Ancho máximo",
+          "options": [
+            "",
+            "40ch",
+            "65ch",
+            "480px",
+            "640px",
+            "768px",
+            "1024px",
+            "1280px"
+          ]
+        },
+        "paddingY": {
+          "type": "select",
+          "label": "Padding vertical",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        },
+        "paddingX": {
+          "type": "select",
+          "label": "Padding horizontal",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        },
+        "italic": {
+          "type": "toggle",
+          "label": "Cursiva"
+        }
+      }
+    },
+    {
+      "type": "RichTextBlock",
+      "label": "Texto enriquecido",
+      "category": "content",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "html": "<p>Texto enriquecido con <strong>énfasis</strong>.</p>",
+        "size": "md",
+        "color": "fg"
+      },
+      "fields": {
+        "html": {
+          "type": "rich-text",
+          "label": "Contenido HTML"
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño",
+          "options": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl",
+            "2xl",
+            "3xl"
+          ]
+        },
+        "color": {
+          "type": "select",
+          "label": "Color",
+          "options": [
+            "primary",
+            "primaryFg",
+            "bg",
+            "fg",
+            "muted",
+            "accent",
+            "danger"
+          ]
+        }
+      }
+    },
+    {
+      "type": "CardBlock",
+      "label": "Tarjeta",
+      "category": "content",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "variant": "default",
+        "imageSrc": "",
+        "imageAlt": "",
+        "imageRatio": "16 / 9",
+        "title": "Título de la tarjeta",
+        "titleSize": "lg",
+        "titleWeight": "700",
+        "description": "Descripción de la tarjeta. Añade aquí el texto que quieras mostrar.",
+        "descSize": "sm",
+        "ctaLabel": "",
+        "ctaHref": "#",
+        "ctaStyle": "link",
+        "align": "left",
+        "padding": "6",
+        "radius": "lg",
+        "shadow": "md",
+        "background": "bg",
+        "borderColor": ""
+      },
+      "fields": {
+        "variant": {
+          "type": "select",
+          "label": "Variante",
+          "options": [
+            "default",
+            "horizontal",
+            "ghost"
+          ]
+        },
+        "imageSrc": {
+          "type": "image",
+          "label": "Imagen"
+        },
+        "imageAlt": {
+          "type": "text",
+          "label": "Texto alternativo"
+        },
+        "imageRatio": {
+          "type": "select",
+          "label": "Proporción imagen",
+          "options": [
+            "auto",
+            "16 / 9",
+            "4 / 3",
+            "3 / 2",
+            "1 / 1",
+            "2 / 3",
+            "9 / 16",
+            "21 / 9",
+            "3 / 4"
+          ]
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "titleSize": {
+          "type": "select",
+          "label": "Tamaño título",
+          "options": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl",
+            "2xl",
+            "3xl"
+          ]
+        },
+        "titleWeight": {
+          "type": "select",
+          "label": "Peso título",
+          "options": [
+            "300",
+            "400",
+            "500",
+            "600",
+            "700",
+            "800"
+          ]
+        },
+        "description": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "descSize": {
+          "type": "select",
+          "label": "Tamaño descripción",
+          "options": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl",
+            "2xl",
+            "3xl"
+          ]
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Texto del botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        },
+        "ctaStyle": {
+          "type": "select",
+          "label": "Estilo del botón",
+          "options": [
+            "link",
+            "solid",
+            "outline"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "padding": {
+          "type": "select",
+          "label": "Padding",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        },
+        "radius": {
+          "type": "select",
+          "label": "Bordes",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "pill"
+          ]
+        },
+        "shadow": {
+          "type": "select",
+          "label": "Sombra",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "bg",
+            "primary",
+            "muted",
+            "accent"
+          ]
+        },
+        "borderColor": {
+          "type": "text",
+          "label": "Color borde (CSS, opcional)"
+        }
+      }
+    },
+    {
+      "type": "TestimonialBlock",
+      "label": "Testimonio",
+      "category": "content",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "variant": "card",
+        "quote": "Este producto cambió completamente la forma en que trabajamos. No puedo imaginar volver a lo anterior.",
+        "author": "María García",
+        "role": "CEO, Empresa S.L.",
+        "avatarSrc": "",
+        "stars": "5",
+        "accentColor": "primary",
+        "radius": "lg",
+        "shadow": "md"
+      },
+      "fields": {
+        "variant": {
+          "type": "select",
+          "label": "Variante",
+          "options": [
+            "card",
+            "minimal",
+            "large"
+          ]
+        },
+        "quote": {
+          "type": "textarea",
+          "label": "Cita"
+        },
+        "author": {
+          "type": "text",
+          "label": "Autor"
+        },
+        "role": {
+          "type": "text",
+          "label": "Cargo / Empresa"
+        },
+        "avatarSrc": {
+          "type": "image",
+          "label": "Avatar"
+        },
+        "stars": {
+          "type": "select",
+          "label": "Estrellas",
+          "options": [
+            "0",
+            "3",
+            "4",
+            "5"
+          ]
+        },
+        "accentColor": {
+          "type": "select",
+          "label": "Color acento",
+          "options": [
+            "primary",
+            "accent",
+            "fg"
+          ]
+        },
+        "radius": {
+          "type": "select",
+          "label": "Bordes",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "pill"
+          ]
+        },
+        "shadow": {
+          "type": "select",
+          "label": "Sombra",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        }
+      }
+    },
+    {
+      "type": "PricingBlock",
+      "label": "Precio",
+      "category": "content",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "plan": "Pro",
+        "price": "29",
+        "currency": "€",
+        "period": "/ mes",
+        "description": "Todo lo que necesitas para crecer.",
+        "features": "Acceso completo\nSoporte prioritario\nActualizaciones incluidas\nSin límites de usuarios",
+        "ctaLabel": "Comenzar gratis",
+        "ctaHref": "#",
+        "highlighted": false,
+        "badge": "",
+        "radius": "lg",
+        "shadow": "md"
+      },
+      "fields": {
+        "plan": {
+          "type": "text",
+          "label": "Nombre del plan"
+        },
+        "price": {
+          "type": "text",
+          "label": "Precio (solo número)"
+        },
+        "currency": {
+          "type": "text",
+          "label": "Moneda"
+        },
+        "period": {
+          "type": "text",
+          "label": "Período (ej. / mes)"
+        },
+        "description": {
+          "type": "text",
+          "label": "Descripción"
+        },
+        "features": {
+          "type": "textarea",
+          "label": "Características (una por línea)"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Texto del botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        },
+        "highlighted": {
+          "type": "toggle",
+          "label": "Destacado"
+        },
+        "badge": {
+          "type": "text",
+          "label": "Badge (ej. Más popular)"
+        },
+        "radius": {
+          "type": "select",
+          "label": "Bordes",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "pill"
+          ]
+        },
+        "shadow": {
+          "type": "select",
+          "label": "Sombra",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        }
+      }
+    },
+    {
+      "type": "ImageBlock",
+      "label": "Imagen",
+      "category": "media",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "src": "",
+        "alt": "",
+        "aspectRatio": "16 / 9",
+        "objectFit": "cover",
+        "width": "100%",
+        "align": "left",
+        "radius": "none",
+        "shadow": "none",
+        "caption": "",
+        "link": "",
+        "loading": "lazy",
+        "draggable": false
+      },
+      "fields": {
+        "src": {
+          "type": "image",
+          "label": "Imagen"
+        },
+        "alt": {
+          "type": "text",
+          "label": "Texto alternativo (SEO / accesibilidad)"
+        },
+        "caption": {
+          "type": "text",
+          "label": "Pie de foto (opcional)"
+        },
+        "link": {
+          "type": "link",
+          "label": "Enlace al hacer clic (opcional)"
+        },
+        "aspectRatio": {
+          "type": "select",
+          "label": "Proporción",
+          "options": [
+            "auto",
+            "16 / 9",
+            "4 / 3",
+            "3 / 2",
+            "1 / 1",
+            "2 / 3",
+            "9 / 16",
+            "21 / 9",
+            "3 / 4"
+          ]
+        },
+        "objectFit": {
+          "type": "select",
+          "label": "Ajuste de imagen",
+          "options": [
+            "cover",
+            "contain",
+            "fill",
+            "none"
+          ]
+        },
+        "width": {
+          "type": "select",
+          "label": "Ancho",
+          "options": [
+            "100%",
+            "75%",
+            "50%",
+            "33%",
+            "25%",
+            "480px",
+            "320px",
+            "auto"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "radius": {
+          "type": "select",
+          "label": "Bordes redondeados",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "pill"
+          ]
+        },
+        "shadow": {
+          "type": "select",
+          "label": "Sombra",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "loading": {
+          "type": "select",
+          "label": "Carga",
+          "options": [
+            "lazy",
+            "eager"
+          ]
+        },
+        "draggable": {
+          "type": "toggle",
+          "label": "Arrastrable por el usuario"
+        }
+      }
+    },
+    {
+      "type": "VideoBlock",
+      "label": "Video",
+      "category": "media",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "src": "",
+        "poster": "",
+        "caption": "",
+        "aspectRatio": "16 / 9",
+        "width": "100%",
+        "align": "left",
+        "radius": "none",
+        "shadow": "none",
+        "autoplay": false,
+        "controls": true,
+        "loop": false,
+        "muted": false
+      },
+      "fields": {
+        "src": {
+          "type": "link",
+          "label": "URL del video (YouTube, Vimeo o .mp4)"
+        },
+        "poster": {
+          "type": "image",
+          "label": "Imagen de portada (MP4, opcional)"
+        },
+        "caption": {
+          "type": "text",
+          "label": "Pie de video (opcional)"
+        },
+        "aspectRatio": {
+          "type": "select",
+          "label": "Proporción",
+          "options": [
+            "auto",
+            "16 / 9",
+            "4 / 3",
+            "3 / 2",
+            "1 / 1",
+            "2 / 3",
+            "9 / 16",
+            "21 / 9",
+            "3 / 4"
+          ]
+        },
+        "width": {
+          "type": "select",
+          "label": "Ancho",
+          "options": [
+            "100%",
+            "75%",
+            "50%",
+            "33%",
+            "25%",
+            "480px",
+            "320px",
+            "auto"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "radius": {
+          "type": "select",
+          "label": "Bordes",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "pill"
+          ]
+        },
+        "shadow": {
+          "type": "select",
+          "label": "Sombra",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "autoplay": {
+          "type": "toggle",
+          "label": "Autoplay (silenciará el video)"
+        },
+        "controls": {
+          "type": "toggle",
+          "label": "Mostrar controles"
+        },
+        "loop": {
+          "type": "toggle",
+          "label": "Repetir en bucle"
+        },
+        "muted": {
+          "type": "toggle",
+          "label": "Silenciado"
+        }
+      }
+    },
+    {
+      "type": "ButtonBlock",
+      "label": "Botón",
+      "category": "content",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "label": "Acción",
+        "href": "#",
+        "variant": "solid",
+        "size": "md",
+        "color": "primary",
+        "radius": "md",
+        "align": "left",
+        "newTab": false
+      },
+      "fields": {
+        "label": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "href": {
+          "type": "link",
+          "label": "Enlace"
+        },
+        "variant": {
+          "type": "select",
+          "label": "Variante",
+          "options": [
+            "solid",
+            "outline",
+            "ghost"
+          ]
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "color": {
+          "type": "select",
+          "label": "Color",
+          "options": [
+            "primary",
+            "accent",
+            "fg",
+            "danger"
+          ]
+        },
+        "radius": {
+          "type": "select",
+          "label": "Bordes",
+          "options": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "pill"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "left",
+            "center",
+            "right",
+            "full"
+          ]
+        },
+        "newTab": {
+          "type": "toggle",
+          "label": "Abrir en nueva pestaña"
+        }
+      }
+    },
+    {
+      "type": "SpacerBlock",
+      "label": "Espaciador",
+      "category": "layout",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "size": "6"
+      },
+      "fields": {
+        "size": {
+          "type": "select",
+          "label": "Altura",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        }
+      }
+    },
+    {
+      "type": "DividerBlock",
+      "label": "Separador",
+      "category": "layout",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "color": "muted",
+        "thickness": 1,
+        "marginY": "4"
+      },
+      "fields": {
+        "color": {
+          "type": "select",
+          "label": "Color",
+          "options": [
+            "primary",
+            "primaryFg",
+            "bg",
+            "fg",
+            "muted",
+            "accent",
+            "danger"
+          ]
+        },
+        "thickness": {
+          "type": "number",
+          "label": "Grosor (px)",
+          "min": 1,
+          "max": 8,
+          "step": 1
+        },
+        "marginY": {
+          "type": "select",
+          "label": "Margen vertical",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "6",
+            "8",
+            "12",
+            "16"
+          ]
+        }
+      }
+    },
+    {
+      "type": "ContactFormBlock",
+      "label": "Formulario de contacto",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "formId": "",
+        "successMessage": "Mensaje enviado correctamente",
+        "buttonLabel": "Enviar"
+      },
+      "fields": {
+        "formId": {
+          "type": "text",
+          "label": "ID del formulario"
+        },
+        "successMessage": {
+          "type": "text",
+          "label": "Mensaje de exito"
+        },
+        "buttonLabel": {
+          "type": "text",
+          "label": "Texto del boton"
+        }
+      }
+    },
+    {
+      "type": "BlogIndexBlock",
+      "label": "Lista de posts del blog",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "limit": 6,
+        "columns": "3",
+        "showExcerpt": true,
+        "siteId": ""
+      },
+      "fields": {
+        "limit": {
+          "type": "number",
+          "label": "Maximo de posts"
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columnas",
+          "options": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "showExcerpt": {
+          "type": "toggle",
+          "label": "Mostrar extracto"
+        },
+        "siteId": {
+          "type": "text",
+          "label": "ID del sitio"
+        }
+      }
+    },
+    {
+      "type": "ServicesGridBlock",
+      "label": "Grilla de servicios",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Lo que ofrecemos",
+        "title": "Nuestros Servicios",
+        "subtitle": "Descubre todo lo que tenemos para ti y tu negocio.",
+        "columns": "3",
+        "services": "Asesoría Personalizada\nTe acompañamos en cada paso del proceso con expertos dedicados a tu éxito.\n---\nSoluciones a Medida\nDiseñamos estrategias únicas adaptadas a las necesidades específicas de tu negocio.\n---\nSoporte Continuo\nEstamos disponibles para ti en todo momento, garantizando resultados óptimos.",
+        "cardStyle": "card",
+        "align": "left"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título de sección"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Subtítulo"
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columnas",
+          "options": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ]
+        },
+        "services": {
+          "type": "textarea",
+          "label": "Servicios (título, descripción, separados por ---)"
+        },
+        "cardStyle": {
+          "type": "select",
+          "label": "Estilo de tarjeta",
+          "options": [
+            "card",
+            "bordered",
+            "minimal"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación del contenido",
+          "options": [
+            "left",
+            "center"
+          ]
+        }
+      }
+    },
+    {
+      "type": "TestimonialsBlock",
+      "label": "Testimonios",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Lo que dicen de nosotros",
+        "title": "Clientes que confían en nosotros",
+        "columns": "3",
+        "background": "muted",
+        "testimonials": "María González|Fundadora de Bloom Studio|5\nTrabajaron con nosotros de principio a fin, siempre atentos a los detalles y comprometidos con el resultado. Superaron todas nuestras expectativas.\n---\nCarlos Mendoza|Director de Operaciones|5\nUn equipo excepcional. La calidad de su trabajo y la atención al cliente son incomparables. Los recomendaría sin dudarlo.\n---\nSofía Ramírez|Emprendedora|4\nExperiencia increíble. El proceso fue sencillo, transparente y los resultados hablan por sí solos. Definitivamente volvería a trabajar con ellos."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columnas",
+          "options": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo de sección",
+          "options": [
+            "white",
+            "muted",
+            "dark"
+          ]
+        },
+        "testimonials": {
+          "type": "textarea",
+          "label": "Testimonios (Nombre|Cargo|Estrellas, luego el texto, separados por ---)"
+        }
+      }
+    },
+    {
+      "type": "StatsBlock",
+      "label": "Estadísticas",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "",
+        "title": "",
+        "stats": "1,200+\nClientes atendidos\nEn toda la región\n---\n15 años\nDe experiencia\nEn el mercado\n---\n99%\nSatisfacción\nTasa de retención\n---\n50+\nPremios\nReconocimientos obtenidos",
+        "background": "primary",
+        "align": "center"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título (opcional)"
+        },
+        "stats": {
+          "type": "textarea",
+          "label": "Estadísticas (valor, etiqueta, descripción opcional, separados por ---)"
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "primary",
+            "dark",
+            "white",
+            "muted"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "center",
+            "left"
+          ]
+        }
+      }
+    },
+    {
+      "type": "GalleryBlock",
+      "label": "Galería de imágenes",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "",
+        "title": "Nuestra galería",
+        "subtitle": "",
+        "columns": "3",
+        "gap": "normal",
+        "image1": "",
+        "image2": "",
+        "image3": "",
+        "image4": "",
+        "image5": "",
+        "image6": "",
+        "caption1": "",
+        "caption2": "",
+        "caption3": "",
+        "caption4": "",
+        "caption5": "",
+        "caption6": "",
+        "aspectRatio": "4/3"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Subtítulo"
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columnas",
+          "options": [
+            "2",
+            "3",
+            "4"
+          ]
+        },
+        "gap": {
+          "type": "select",
+          "label": "Espaciado",
+          "options": [
+            "none",
+            "tight",
+            "normal",
+            "relaxed"
+          ]
+        },
+        "aspectRatio": {
+          "type": "select",
+          "label": "Proporción de imagen",
+          "options": [
+            "1/1",
+            "4/3",
+            "16/9",
+            "3/4"
+          ]
+        },
+        "image1": {
+          "type": "image",
+          "label": "Imagen 1"
+        },
+        "caption1": {
+          "type": "text",
+          "label": "Pie de foto 1"
+        },
+        "image2": {
+          "type": "image",
+          "label": "Imagen 2"
+        },
+        "caption2": {
+          "type": "text",
+          "label": "Pie de foto 2"
+        },
+        "image3": {
+          "type": "image",
+          "label": "Imagen 3"
+        },
+        "caption3": {
+          "type": "text",
+          "label": "Pie de foto 3"
+        },
+        "image4": {
+          "type": "image",
+          "label": "Imagen 4"
+        },
+        "caption4": {
+          "type": "text",
+          "label": "Pie de foto 4"
+        },
+        "image5": {
+          "type": "image",
+          "label": "Imagen 5"
+        },
+        "caption5": {
+          "type": "text",
+          "label": "Pie de foto 5"
+        },
+        "image6": {
+          "type": "image",
+          "label": "Imagen 6"
+        },
+        "caption6": {
+          "type": "text",
+          "label": "Pie de foto 6"
+        }
+      }
+    },
+    {
+      "type": "CtaBannerBlock",
+      "label": "Banner de llamada a acción",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "",
+        "title": "¿Listo para comenzar?",
+        "subtitle": "Únete a miles de clientes que ya confían en nosotros. Sin compromisos.",
+        "ctaLabel": "Empezar ahora",
+        "ctaHref": "#",
+        "ctaSecondLabel": "Saber más",
+        "ctaSecondHref": "#",
+        "variant": "gradient-primary",
+        "size": "normal",
+        "align": "center"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Subtítulo"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace botón principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario (opcional)"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace botón secundario"
+        },
+        "variant": {
+          "type": "select",
+          "label": "Estilo de fondo",
+          "options": [
+            "gradient-primary",
+            "solid-primary",
+            "dark",
+            "gradient-dark",
+            "muted"
+          ]
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño de la sección",
+          "options": [
+            "compact",
+            "normal",
+            "large"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "center",
+            "left"
+          ]
+        }
+      }
+    },
+    {
+      "type": "FeaturesSectionBlock",
+      "label": "Sección de características",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Por qué elegirnos",
+        "title": "Todo lo que necesitas, en un solo lugar",
+        "subtitle": "Hemos diseñado cada detalle para ofrecerte la mejor experiencia posible.",
+        "layout": "grid-3",
+        "iconStyle": "check",
+        "features": "Resultados garantizados\nNos comprometemos con métricas claras y te acompañamos hasta lograr los objetivos acordados.\n---\nEquipo especializado\nContarás con profesionales certificados en cada área de tu proyecto.\n---\nTecnología de punta\nUsamos las herramientas más modernas para optimizar cada proceso.\n---\nSoporte prioritario\nAccede a nuestro equipo de soporte 24/7 a través de múltiples canales.\n---\nPrecio transparente\nSin tarifas ocultas ni sorpresas. Sabes exactamente lo que pagas.\n---\nEntrega puntual\nCumplimos los plazos acordados. Tu tiempo es tan valioso como el nuestro.",
+        "background": "white"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Subtítulo"
+        },
+        "layout": {
+          "type": "select",
+          "label": "Diseño",
+          "options": [
+            "grid-2",
+            "grid-3",
+            "list"
+          ]
+        },
+        "iconStyle": {
+          "type": "select",
+          "label": "Estilo de icono",
+          "options": [
+            "check",
+            "arrow",
+            "number",
+            "dot"
+          ]
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "white",
+            "muted"
+          ]
+        },
+        "features": {
+          "type": "textarea",
+          "label": "Características (título, descripción, separados por ---)"
+        }
+      }
+    },
+    {
+      "type": "TeamGridBlock",
+      "label": "Equipo de trabajo",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Conoce al equipo",
+        "title": "Las personas detrás del proyecto",
+        "subtitle": "Un equipo apasionado comprometido con tu éxito.",
+        "columns": "3",
+        "layout": "card",
+        "team": "Ana García|Directora General\nEspecialista en estrategia empresarial con más de 15 años liderando equipos hacia el éxito.\n---\nCarlos Mendoza|Director de Tecnología\nExperto en desarrollo de software y arquitectura de sistemas modernos y escalables.\n---\nSofía Ramírez|Directora de Marketing\nApasionada del marketing digital, con amplia experiencia en marcas líderes de la industria.",
+        "photo1": "",
+        "photo2": "",
+        "photo3": "",
+        "photo4": "",
+        "photo5": "",
+        "photo6": ""
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Subtítulo"
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columnas",
+          "options": [
+            "2",
+            "3",
+            "4"
+          ]
+        },
+        "layout": {
+          "type": "select",
+          "label": "Estilo de tarjeta",
+          "options": [
+            "card",
+            "minimal",
+            "centered"
+          ]
+        },
+        "team": {
+          "type": "textarea",
+          "label": "Equipo (Nombre|Cargo, luego bio, separados por ---)"
+        },
+        "photo1": {
+          "type": "image",
+          "label": "Foto miembro 1"
+        },
+        "photo2": {
+          "type": "image",
+          "label": "Foto miembro 2"
+        },
+        "photo3": {
+          "type": "image",
+          "label": "Foto miembro 3"
+        },
+        "photo4": {
+          "type": "image",
+          "label": "Foto miembro 4"
+        },
+        "photo5": {
+          "type": "image",
+          "label": "Foto miembro 5"
+        },
+        "photo6": {
+          "type": "image",
+          "label": "Foto miembro 6"
+        }
+      }
+    },
+    {
+      "type": "SplitFeatureBlock",
+      "label": "Sección dividida imagen + texto",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "variant": "image-right",
+        "eyebrow": "Nuestra historia",
+        "title": "Diseño con propósito",
+        "body": "Cada pieza que ofrecemos pasa por un proceso de selección riguroso. Buscamos objetos que tengan historia, que estén hechos para durar y que mejoren la vida diaria.",
+        "ctaLabel": "Conocer más",
+        "ctaHref": "#",
+        "imageSrc": "",
+        "imageAlt": "",
+        "background": "white",
+        "imageHeight": "full"
+      },
+      "fields": {
+        "variant": {
+          "type": "select",
+          "label": "Posición de imagen",
+          "options": [
+            "image-left",
+            "image-right"
+          ]
+        },
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "body": {
+          "type": "textarea",
+          "label": "Cuerpo de texto"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Texto del enlace (dejar vacío para ocultar)"
+        },
+        "ctaHref": {
+          "type": "text",
+          "label": "URL del enlace"
+        },
+        "imageSrc": {
+          "type": "image",
+          "label": "Imagen"
+        },
+        "imageAlt": {
+          "type": "text",
+          "label": "Texto alternativo"
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "white",
+            "cream",
+            "dark"
+          ]
+        },
+        "imageHeight": {
+          "type": "select",
+          "label": "Estilo de imagen",
+          "options": [
+            "full",
+            "contained"
+          ]
+        }
+      }
+    },
+    {
+      "type": "MarqueeBlock",
+      "label": "Cinta animada (marquee)",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "items": "Sala · Comedor · Recámara · Jardín · Baño · Estudio",
+        "speed": "normal",
+        "background": "dark",
+        "size": "md"
+      },
+      "fields": {
+        "items": {
+          "type": "text",
+          "label": "Texto (separado por · o cualquier separador)"
+        },
+        "speed": {
+          "type": "select",
+          "label": "Velocidad",
+          "options": [
+            "slow",
+            "normal",
+            "fast"
+          ]
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "dark",
+            "cream",
+            "primary"
+          ]
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño de texto",
+          "options": [
+            "sm",
+            "md",
+            "lg"
+          ]
+        }
+      }
+    },
+    {
+      "type": "BentoGridBlock",
+      "label": "Cuadrícula editorial (Bento)",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "items": "Sala de estar\nSofás, mesas y textiles que definen el corazón del hogar.\nlarge\n---\nComedor\nMesas y sillas para los momentos que importan.\nnormal\n---\nJardín\nPiezas que llevan el diseño al exterior.\ntall\n---\nRecámara\nTextiles y objetos para el descanso.\nnormal",
+        "background": "cream"
+      },
+      "fields": {
+        "items": {
+          "type": "textarea",
+          "label": "Celdas (título, descripción, tamaño — separados por ---)\nTamaños: normal | wide | tall | large"
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "cream",
+            "white",
+            "dark"
+          ]
+        }
+      }
+    },
+    {
+      "type": "QuoteBlock",
+      "label": "Cita editorial",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "quote": "Un hogar no se construye con paredes. Se construye con los objetos que elegimos, las texturas que tocamos y la luz que dejamos entrar.",
+        "attribution": "— Tu marca",
+        "background": "cream",
+        "size": "large",
+        "ornament": "true"
+      },
+      "fields": {
+        "quote": {
+          "type": "textarea",
+          "label": "Cita"
+        },
+        "attribution": {
+          "type": "text",
+          "label": "Atribución (autor, fuente)"
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "cream",
+            "white",
+            "dark"
+          ]
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño",
+          "options": [
+            "normal",
+            "large"
+          ]
+        },
+        "ornament": {
+          "type": "select",
+          "label": "Mostrar comillas decorativas",
+          "options": [
+            "true",
+            "false"
+          ]
+        }
+      }
+    },
+    {
+      "type": "ProductsGridBlock",
+      "label": "Grid de productos",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "categorySlug": "",
+        "limit": 8,
+        "columns": "4",
+        "showPrice": true
+      },
+      "fields": {
+        "categorySlug": {
+          "type": "text",
+          "label": "Slug de categoria (opcional)"
+        },
+        "limit": {
+          "type": "number",
+          "label": "Maximo de productos"
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columnas",
+          "options": [
+            "2",
+            "3",
+            "4"
+          ]
+        },
+        "showPrice": {
+          "type": "toggle",
+          "label": "Mostrar precio"
+        }
+      }
+    },
+    {
+      "type": "ProductCardBlock",
+      "label": "Tarjeta de producto",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "productId": "",
+        "showPrice": true,
+        "showDescription": true
+      },
+      "fields": {
+        "productId": {
+          "type": "text",
+          "label": "ID o slug del producto"
+        },
+        "showPrice": {
+          "type": "toggle",
+          "label": "Mostrar precio"
+        },
+        "showDescription": {
+          "type": "toggle",
+          "label": "Mostrar descripcion"
+        }
+      }
+    },
+    {
+      "type": "CartBlock",
+      "label": "Carrito de compras",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "siteId": ""
+      },
+      "fields": {
+        "siteId": {
+          "type": "text",
+          "label": "ID del sitio"
+        }
+      }
+    },
+    {
+      "type": "BookingFormBlock",
+      "label": "Formulario de reservacion",
+      "category": "atlas-bookings",
+      "group": "bookings",
+      "slots": [],
+      "defaultProps": {
+        "calendarId": "",
+        "serviceDuration": 60,
+        "successMessage": "Reservacion solicitada. Te contactaremos para confirmar.",
+        "buttonLabel": "Solicitar reservacion"
+      },
+      "fields": {
+        "calendarId": {
+          "type": "text",
+          "label": "ID del calendario (runly.calendar)"
+        },
+        "serviceDuration": {
+          "type": "number",
+          "label": "Duracion del servicio (minutos)"
+        },
+        "successMessage": {
+          "type": "text",
+          "label": "Mensaje de exito"
+        },
+        "buttonLabel": {
+          "type": "text",
+          "label": "Texto del boton"
+        }
+      }
+    },
+    {
+      "type": "MenuGridBlock",
+      "label": "Menu de restaurante",
+      "category": "atlas-restaurant",
+      "group": "restaurant",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Lo que servimos",
+        "title": "Nuestro Menú",
+        "subtitle": "Ingredientes frescos y sabores auténticos en cada platillo.",
+        "currency": "$",
+        "showPrices": true,
+        "columns": "2",
+        "menu": "Entradas\nEnsalada César | Lechuga romana, crotones y aderezo especial | 8.50\nSopa del Día | Consulta con tu mesero | 6.00\nCeviche de Camarón | Camarón, limón, cilantro y chile serrano | 12.00\n---\nPlatos Fuertes\nFilete a la Parrilla | Corte premium 300g con guarnición a elegir | 28.00\nPasta Alfredo | Fettuccine con salsa cremosa y champiñones | 16.00\nPollo al Limón | Pechuga a las brasas con papas y ensalada | 18.00\n---\nPostres\nTarta de Chocolate | Pastel artesanal con helado de vainilla | 7.00\nFlan de Cajeta | Receta tradicional de la casa | 5.50"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Subtítulo"
+        },
+        "currency": {
+          "type": "text",
+          "label": "Símbolo de moneda"
+        },
+        "showPrices": {
+          "type": "toggle",
+          "label": "Mostrar precios"
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columnas de categorías",
+          "options": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "menu": {
+          "type": "textarea",
+          "label": "Menú (Categoría, luego Plato|Descripción|Precio, separados por ---)"
+        }
+      }
+    }
+  ]
+}
