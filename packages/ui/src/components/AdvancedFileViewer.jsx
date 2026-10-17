@@ -9,26 +9,35 @@ import {
   Copy,
   Download,
   ExternalLink,
+  FastForward,
   FlipHorizontal2,
   FlipVertical2,
   Link2,
   Loader2,
+  Maximize,
   Minus,
   MoreHorizontal,
+  Play,
   Plus,
   RefreshCw,
+  Rewind,
   RotateCcw,
   RotateCw,
   Share2,
+  VolumeX,
   X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "./ContextMenu.jsx";
+import { shortcutLabel, useViewerShortcuts, withShortcut } from "../hooks/useViewerShortcuts.js";
 import { getOfficeFormat } from "@runly/core/browser";
 import { getFileKind, getKindLabel, formatBytes } from "../lib/file-kind";
 import { useHlsPlayback } from "../lib/useHlsPlayback";
@@ -145,6 +154,8 @@ export function AdvancedFileViewer({
   const [actionsOpen, setActionsOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
   const hlsVideoRef = useRef(null);
+  const mediaRef = useRef(null);
+  const contentRef = useRef(null);
   const thumbRefs = useRef(new Map());
   const mediaThumbFetching = useRef(new Set());
   const pointersRef = useRef(new Map());
@@ -637,21 +648,58 @@ export function AdvancedFileViewer({
     }
   }
 
+  // Video/audio controls for the shortcuts and the context menu; the native
+  // <video controls> stays the primary UI.
+  const getMedia = () => (isHlsSource ? hlsVideoRef.current : mediaRef.current);
+  function togglePlay() {
+    const m = getMedia();
+    if (!m) return;
+    if (m.paused) m.play().catch(() => {});
+    else m.pause();
+  }
+  function seekBy(seconds) {
+    const m = getMedia();
+    if (!m) return;
+    const end = Number.isFinite(m.duration) ? m.duration : Infinity;
+    m.currentTime = Math.max(0, Math.min(end, m.currentTime + seconds));
+  }
+  function toggleMute() {
+    const m = getMedia();
+    if (m) m.muted = !m.muted;
+  }
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+      return;
+    }
+    getMedia()?.requestFullscreen?.().catch(() => {});
+  }
+
   const multi = (files?.length ?? 0) > 1;
+  const isMedia = kind === "video" || kind === "audio";
+  const mediaReady = Boolean(signedUrl) && !loading;
   const actions = [
-    kind === "image" && { key: "copy", group: "file", label: "Copiar imagen", icon: Copy, onSelect: copyCurrentImage, disabled: !signedUrl },
-    { key: "download", group: "file", label: isHlsSource ? "Descargar MP4" : "Descargar", icon: Download, onSelect: downloadCurrent, disabled: !signedUrl || hlsDownloading },
+    kind === "image" && { key: "copy", shortcut: "copy", group: "file", label: "Copiar imagen", icon: Copy, onSelect: copyCurrentImage, disabled: !signedUrl },
+    { key: "download", shortcut: "download", group: "file", label: isHlsSource ? "Descargar MP4" : "Descargar", icon: Download, onSelect: downloadCurrent, disabled: !signedUrl || hlsDownloading },
     canShare && !isHlsSource && { key: "share", group: "file", label: "Compartir", icon: Share2, onSelect: shareCurrentFile, disabled: !signedUrl },
-    !isHlsSource && { key: "link", group: "file", label: "Copiar enlace", icon: Link2, onSelect: copyCurrentLink, disabled: !signedUrl },
-    !isHlsSource && { key: "open", group: "file", label: "Abrir en pestaña nueva", icon: ExternalLink, onSelect: () => signedUrl && window.open(signedUrl, "_blank"), disabled: !signedUrl },
-    kind === "image" && { key: "rotl", group: "image", label: "Rotar a la izquierda", icon: RotateCcw, onSelect: () => setRotation((v) => v - 90) },
-    kind === "image" && { key: "rotr", group: "image", label: "Rotar a la derecha", icon: RotateCw, onSelect: () => setRotation((v) => v + 90) },
-    kind === "image" && { key: "fliph", group: "image", label: "Voltear horizontal", icon: FlipHorizontal2, onSelect: () => setFlipX((v) => !v) },
-    kind === "image" && { key: "flipv", group: "image", label: "Voltear vertical", icon: FlipVertical2, onSelect: () => setFlipY((v) => !v) },
-    kind === "image" && { key: "reset", group: "image", label: "Restablecer vista", icon: RefreshCw, onSelect: resetTransforms },
-    multi && { key: "prev", group: "nav", label: "Archivo anterior", icon: ChevronLeft, onSelect: () => canPrev && onIndexChange(activeIndex - 1), disabled: !canPrev },
-    multi && { key: "next", group: "nav", label: "Archivo siguiente", icon: ChevronRight, onSelect: () => canNext && onIndexChange(activeIndex + 1), disabled: !canNext },
+    !isHlsSource && { key: "link", shortcut: "link", group: "file", label: "Copiar enlace", icon: Link2, onSelect: copyCurrentLink, disabled: !signedUrl },
+    !isHlsSource && { key: "open", shortcut: "open", group: "file", label: "Abrir en pestaña nueva", icon: ExternalLink, onSelect: () => signedUrl && window.open(signedUrl, "_blank"), disabled: !signedUrl },
+    kind === "image" && { key: "zoomin", shortcut: "zoomin", group: "image", label: "Acercar", icon: ZoomIn, onSelect: () => nudgeZoom(1), disabled: zoom >= MAX_ZOOM },
+    kind === "image" && { key: "zoomout", shortcut: "zoomout", group: "image", label: "Alejar", icon: ZoomOut, onSelect: () => nudgeZoom(-1), disabled: zoom <= MIN_ZOOM },
+    kind === "image" && { key: "rotl", shortcut: "rotl", group: "image", label: "Rotar a la izquierda", icon: RotateCcw, onSelect: () => setRotation((v) => v - 90) },
+    kind === "image" && { key: "rotr", shortcut: "rotr", group: "image", label: "Rotar a la derecha", icon: RotateCw, onSelect: () => setRotation((v) => v + 90) },
+    kind === "image" && { key: "fliph", shortcut: "fliph", group: "image", label: "Voltear horizontal", icon: FlipHorizontal2, onSelect: () => setFlipX((v) => !v) },
+    kind === "image" && { key: "flipv", shortcut: "flipv", group: "image", label: "Voltear vertical", icon: FlipVertical2, onSelect: () => setFlipY((v) => !v) },
+    kind === "image" && { key: "reset", shortcut: "reset", group: "image", label: "Restablecer vista", icon: RefreshCw, onSelect: resetTransforms },
+    isMedia && { key: "play", shortcut: "play", group: "media", label: "Reproducir / pausar", icon: Play, onSelect: togglePlay, disabled: !mediaReady },
+    isMedia && { key: "back", shortcut: "back", group: "media", label: "Retroceder 10 s", icon: Rewind, onSelect: () => seekBy(-10), disabled: !mediaReady },
+    isMedia && { key: "fwd", shortcut: "fwd", group: "media", label: "Adelantar 10 s", icon: FastForward, onSelect: () => seekBy(10), disabled: !mediaReady },
+    isMedia && { key: "mute", shortcut: "mute", group: "media", label: "Silenciar / activar sonido", icon: VolumeX, onSelect: toggleMute, disabled: !mediaReady },
+    kind === "video" && { key: "fullscreen", shortcut: "fullscreen", group: "media", label: "Pantalla completa", icon: Maximize, onSelect: toggleFullscreen, disabled: !mediaReady },
+    multi && { key: "prev", shortcut: "prev", group: "nav", label: "Archivo anterior", icon: ChevronLeft, onSelect: () => canPrev && onIndexChange(activeIndex - 1), disabled: !canPrev },
+    multi && { key: "next", shortcut: "next", group: "nav", label: "Archivo siguiente", icon: ChevronRight, onSelect: () => canNext && onIndexChange(activeIndex + 1), disabled: !canNext },
   ].filter(Boolean);
+  useViewerShortcuts({ enabled: open, containerRef: contentRef, actions });
 
   const gestureActive = dragging || pinching;
 
@@ -683,14 +731,22 @@ export function AdvancedFileViewer({
 
         {/* Viewer panel — fills almost the full viewport */}
         <DialogPrimitive.Content
+          ref={contentRef}
+          tabIndex={-1}
           aria-describedby={undefined}
           style={{ zIndex }}
+          // Focus the panel itself, not its first button, so Space/Enter
+          // never "click" a toolbar button the user didn't pick.
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            contentRef.current?.focus({ preventScroll: true });
+          }}
           onPointerDownOutside={(e) => {
             // Prevent accidental close during pinch/pan gestures
             if (gestureRef.current.mode !== null) e.preventDefault();
           }}
           className={[
-            "fixed inset-0 flex flex-col overflow-hidden",
+            "fixed inset-0 flex flex-col overflow-hidden outline-none",
             "glass-viewer",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
@@ -726,7 +782,7 @@ export function AdvancedFileViewer({
                   onClick={() => canPrev && onIndexChange(activeIndex - 1)}
                   disabled={!canPrev}
                   aria-label="Archivo anterior"
-                  title="Anterior"
+                  title={withShortcut("Anterior", "prev")}
                   className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150`}
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -738,7 +794,7 @@ export function AdvancedFileViewer({
                   onClick={() => canNext && onIndexChange(activeIndex + 1)}
                   disabled={!canNext}
                   aria-label="Archivo siguiente"
-                  title="Siguiente"
+                  title={withShortcut("Siguiente", "next")}
                   className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150`}
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -761,7 +817,7 @@ export function AdvancedFileViewer({
                   onClick={() => signedUrl && window.open(signedUrl, "_blank")}
                   disabled={!signedUrl}
                   aria-label="Abrir en pestaña nueva"
-                  title="Abrir externo"
+                  title={withShortcut("Abrir externo", "open")}
                   className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150`}
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -772,7 +828,7 @@ export function AdvancedFileViewer({
                   onClick={copyCurrentImage}
                   disabled={!signedUrl}
                   aria-label="Copiar imagen"
-                  title="Copiar imagen"
+                  title={withShortcut("Copiar imagen", "copy")}
                   className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150`}
                 >
                   <Copy className="h-3.5 w-3.5" />
@@ -782,7 +838,7 @@ export function AdvancedFileViewer({
                 onClick={downloadCurrent}
                 disabled={!signedUrl || hlsDownloading}
                 aria-label={isHlsSource ? "Descargar como MP4" : "Descargar archivo"}
-                title={isHlsSource ? "Descargar como MP4 (se genera en tu navegador)" : "Descargar"}
+                title={withShortcut(isHlsSource ? "Descargar como MP4, se genera en tu navegador" : "Descargar", "download")}
                 className={`${barBtn} rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150`}
               >
                 {hlsDownloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
@@ -918,6 +974,7 @@ export function AdvancedFileViewer({
               <div className="h-full w-full flex items-center justify-center bg-black">
                 <video
                   key={signedUrl}
+                  ref={mediaRef}
                   src={signedUrl}
                   controls
                   playsInline
@@ -939,6 +996,7 @@ export function AdvancedFileViewer({
                 </p>
                 <audio
                   key={signedUrl}
+                  ref={mediaRef}
                   src={signedUrl}
                   controls
                   className="w-full max-w-sm"
@@ -1151,8 +1209,11 @@ export function AdvancedFileViewer({
             <ContextMenuContent
               style={{ zIndex: zIndex + 10 }}
               data-above-viewer=""
-              className="w-56"
-              onCloseAutoFocus={(e) => e.preventDefault()}
+              className="w-64"
+              onCloseAutoFocus={(e) => {
+                e.preventDefault();
+                contentRef.current?.focus({ preventScroll: true });
+              }}
             >
               {actions.map((action, i) => (
                 <div key={action.key} className="contents">
@@ -1160,6 +1221,9 @@ export function AdvancedFileViewer({
                   <ContextMenuItem onSelect={action.onSelect} disabled={action.disabled}>
                     <action.icon />
                     {action.label}
+                    {action.shortcut && (
+                      <ContextMenuShortcut className="tracking-normal">{shortcutLabel(action.shortcut)}</ContextMenuShortcut>
+                    )}
                   </ContextMenuItem>
                 </div>
               ))}
@@ -1182,7 +1246,7 @@ export function AdvancedFileViewer({
               <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5 shrink-0">
                 <ToolbarBtn
                   onClick={() => nudgeZoom(-1)}
-                  title="Reducir zoom"
+                  title={withShortcut("Reducir zoom", "zoomout")}
                   disabled={zoom <= MIN_ZOOM}
                 >
                   <Minus className="h-3.5 w-3.5" />
@@ -1199,7 +1263,7 @@ export function AdvancedFileViewer({
                 </button>
                 <ToolbarBtn
                   onClick={() => nudgeZoom(1)}
-                  title="Aumentar zoom"
+                  title={withShortcut("Aumentar zoom", "zoomin")}
                   disabled={zoom >= MAX_ZOOM}
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -1212,13 +1276,13 @@ export function AdvancedFileViewer({
               <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5 shrink-0">
                 <ToolbarBtn
                   onClick={() => setRotation((v) => v - 90)}
-                  title="Rotar izquierda"
+                  title={withShortcut("Rotar izquierda", "rotl")}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                 </ToolbarBtn>
                 <ToolbarBtn
                   onClick={() => setRotation((v) => v + 90)}
-                  title="Rotar derecha"
+                  title={withShortcut("Rotar derecha", "rotr")}
                 >
                   <RotateCw className="h-3.5 w-3.5" />
                 </ToolbarBtn>
@@ -1230,14 +1294,14 @@ export function AdvancedFileViewer({
               <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5 shrink-0">
                 <ToolbarBtn
                   onClick={() => setFlipX((v) => !v)}
-                  title="Voltear horizontal"
+                  title={withShortcut("Voltear horizontal", "fliph")}
                   active={flipX}
                 >
                   <FlipHorizontal2 className="h-3.5 w-3.5" />
                 </ToolbarBtn>
                 <ToolbarBtn
                   onClick={() => setFlipY((v) => !v)}
-                  title="Voltear vertical"
+                  title={withShortcut("Voltear vertical", "flipv")}
                   active={flipY}
                 >
                   <FlipVertical2 className="h-3.5 w-3.5" />
@@ -1248,7 +1312,7 @@ export function AdvancedFileViewer({
 
               {/* Reset */}
               <div className="shrink-0">
-                <ToolbarBtn onClick={resetTransforms} title="Restablecer todo">
+                <ToolbarBtn onClick={resetTransforms} title={withShortcut("Restablecer todo", "reset")}>
                   <RefreshCw className="h-3.5 w-3.5" />
                 </ToolbarBtn>
               </div>
