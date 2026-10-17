@@ -319,3 +319,35 @@ export function createWebsiteSmtpService({ prisma, companyId = null }) {
 
   return { sendEmail, isConfigured, getStatus, getConfig, getWebsiteOnlyConfig }
 }
+
+// Mail sent on behalf of a company to people outside it (course invitations,
+// ...): the company's own mail first (Sitio web SMTP, then the company's
+// Ajustes -> SMTP, both via createWebsiteSmtpService), then the platform SMTP
+// (env SMTP_* or the instance-level rows) so it works wherever the instance
+// configured mail. resolve() returns null when nothing is configured.
+export function createCompanyMailer({ prisma, env = process.env, websiteFactory = null, platformFactory = null }) {
+  const website = websiteFactory ?? ((companyId) => createWebsiteSmtpService({ prisma, companyId }))
+  const platform = platformFactory ?? (() => createSmtpService({ prisma, env }))
+
+  async function resolve(companyId) {
+    if (companyId) {
+      const company = website(companyId)
+      if (await company.isConfigured()) return { source: 'company', sendEmail: (mail) => company.sendEmail(mail) }
+    }
+    const shared = platform()
+    if (await shared.isConfigured(null)) return { source: 'platform', sendEmail: (mail) => shared.sendEmail({ ...mail, companyId: null }) }
+    return null
+  }
+
+  async function sendEmail({ companyId = null, ...mail }) {
+    const mailer = await resolve(companyId)
+    if (!mailer) throw new Error('SMTP no configurado (empresa, sitio web ni plataforma)')
+    return mailer.sendEmail(mail)
+  }
+
+  async function isConfigured(companyId = null) {
+    return Boolean(await resolve(companyId).catch(() => null))
+  }
+
+  return { sendEmail, isConfigured, resolve }
+}

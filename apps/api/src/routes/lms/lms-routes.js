@@ -26,13 +26,13 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null, experienceServices = null, shareService = null, inviteService = null, sendMail = null, buildMail = null, getBrand = null, appBaseUrl = undefined }) {
+export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null, experienceServices = null, shareService = null, inviteService = null, sendMail = null, isMailConfigured = null, buildMail = null, getBrand = null, appBaseUrl = undefined }) {
   const app = new Hono()
   const svc = service ?? createLmsService({ prisma, signFile })
   const files = media ?? createLmsMedia({ prisma, supabaseAdmin, bucket })
   const learn = learnService ?? createLmsLearnService({ prisma, signFile, authoring: svc, hlsManifest: files.manifestFor })
   const share = shareService ?? createLmsShareService({ prisma, ...(appBaseUrl ? { appBaseUrl } : {}) })
-  const invites = inviteService ?? createLmsInviteService({ prisma, sendMail, buildMail, getBrand, ...(appBaseUrl ? { appBaseUrl } : {}) })
+  const invites = inviteService ?? createLmsInviteService({ prisma, sendMail, isMailConfigured, buildMail, getBrand, ...(appBaseUrl ? { appBaseUrl } : {}) })
   const access = requirePermission('lms.access')
   const courses = requirePermission('lms.course.manage')
   const enrollments = requirePermission('lms.enrollment.manage')

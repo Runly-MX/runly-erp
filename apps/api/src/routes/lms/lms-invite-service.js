@@ -22,9 +22,15 @@ const MAIL_ERRORS = {
 // created and the response carries the link and code to share by hand.
 export function createLmsInviteService({
   prisma, sendMail = null, buildMail = null, getBrand = null, appBaseUrl = () => resolveAppBaseUrl(process.env),
-  newCode = newAccessCode, newLink = newInviteLinkToken,
+  newCode = newAccessCode, newLink = newInviteLinkToken, isMailConfigured = null,
 }) {
-  const mailConfigured = () => Boolean(sendMail && buildMail)
+  // isMailConfigured(companyId) checks real SMTP settings (company, website or
+  // platform); without it, having a sender is taken as configured.
+  const mailConfigured = async (companyId) => {
+    if (!sendMail || !buildMail) return false
+    if (!isMailConfigured) return true
+    return Boolean(await isMailConfigured(companyId).catch(() => false))
+  }
 
   async function findCourse(companyId, courseId) {
     const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true }, select: { id: true, companyId: true, title: true, shareToken: true } })
@@ -66,7 +72,7 @@ export function createLmsInviteService({
     const base = appBaseUrl()
     const link = inviteUrl(base, course.shareToken, invite.linkToken)
     const manual = (reason) => ({ sent: false, link, code: formatAccessCode(code), mailError: { code: reason, message: MAIL_ERRORS[reason] } })
-    if (!mailConfigured()) return { row: invite, ...manual('MAIL_OFF') }
+    if (!(await mailConfigured(course.companyId))) return { row: invite, ...manual('MAIL_OFF') }
     if (!base) return { row: invite, ...manual('NO_BASE_URL') }
     try {
       const mail = buildMail({ courseTitle: course.title, inviteUrl: link, accessCode: formatAccessCode(code), name: invite.name, brand })
@@ -84,7 +90,7 @@ export function createLmsInviteService({
   async function listInvites(companyId, courseId) {
     const course = await findCourse(companyId, courseId)
     const rows = await prisma.lmsGuestInvite.findMany({ where: { courseId: course.id, companyId }, orderBy: { createdAt: 'desc' } })
-    return { invites: await serialize(rows), mailConfigured: mailConfigured() }
+    return { invites: await serialize(rows), mailConfigured: await mailConfigured(companyId) }
   }
 
   // Already invited (not revoked) emails are skipped; a revoked one is invited
@@ -111,7 +117,7 @@ export function createLmsInviteService({
       const result = await deliver(course, row, code, brand)
       created.push({ invite: await serializeOne(result.row), link: result.link, code: result.code, sent: result.sent, mailError: result.mailError })
     }
-    return { created, skipped, mailConfigured: mailConfigured() }
+    return { created, skipped, mailConfigured: await mailConfigured(companyId) }
   }
 
   // A new code (the old one stops working); the personal link stays the same.
