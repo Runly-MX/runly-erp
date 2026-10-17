@@ -5400,6 +5400,7 @@ model LmsLesson {
   required        Boolean  @default(true)
   preview         Boolean  @default(false) // phase 6
   settings        Json     @default("{}") // quiz / assignment settings, normalized by kind
+  coverFileId     String?  @map("cover_file_id") @db.Uuid // thumbnail: uploaded or a captured video frame
   enabled         Boolean  @default(true)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -5410,10 +5411,27 @@ model LmsLesson {
   attempts    LmsQuizAttempt[]
   submissions LmsSubmission[]
   comments    LmsComment[]
+  resources   LmsLessonResource[]
 
   @@index([courseId])
   @@index([sectionId, position])
   @@map("lms_lesson")
+}
+
+// Downloadable resources attached to any lesson (Recursos tab in the player).
+model LmsLessonResource {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  lessonId  String   @map("lesson_id") @db.Uuid
+  fileId    String   @map("file_id") @db.Uuid
+  title     String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lesson LmsLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, position])
+  @@map("lms_lesson_resource")
 }
 
 // Exactly one subject: an internal user (phase 1) or a contact (phase 6).
@@ -5645,6 +5663,9 @@ model LmsCertificateTemplate {
   signatureFileId String?  @map("signature_file_id") @db.Uuid
   accentColor     String?  @map("accent_color") // hex; null = company brand color
   showLogo        Boolean  @default(true) @map("show_logo")
+  source          String   @default("design") // design (built-in pdfkit layout) | docx (uploaded Word file)
+  fileAssetId     String?  @map("file_asset_id") @db.Uuid // uploaded .docx when source = docx
+  placeholders    Json     @default("[]") // tags detected in the uploaded file
   enabled         Boolean  @default(true)
   createdById     String?  @map("created_by_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)

@@ -176,3 +176,44 @@ The catalog and course serializers expose `ratingAvg` and `ratingCount`.
   - One `FileAsset` represents the package: the manifest, `mimeType application/vnd.apple.mpegurl`, and `metadata.hls = { dir, segments, durationSeconds, sourceName, sourceBytes }`.
   - Opening the lesson returns `media: { kind: 'hls', manifest }`. Each segment line is rewritten to its own signed URL, the same technique as `signManifestSegments` in call recordings. The player plays it through the shared `useHlsPlayback`, which `@runly/ui` exports.
   - Remux needs H.264 or HEVC video. Other codecs get a clear Spanish error asking for an MP4 export.
+
+## 15. Media, learner experience and certificate templates (product-owner review 2, 2026-10-17)
+
+### 15.1 Feedback
+1. A good video player everywhere, including in the builder: an uploaded video must be watchable there, not shown as a file badge.
+2. Videos have thumbnails: an uploaded image, or a frame captured automatically from the video.
+3. Adopt the racoon-lms structures and views (see `2026-10-17-lms-racoon-lms-review.md`).
+4. Certificates work like inventory custody documents: upload your own Word file, recognize fields, fill it, and convert it to PDF.
+
+### 15.2 Decisions
+- **Shared `VideoPlayer` in `@runly/ui`**, adapted from racoon-lms `src/shared/ui/VideoPlayer.jsx`.
+  - Sources: an MP4/WebM URL, an HLS URL, or HLS manifest text (through `useHlsPlayback`, with hls.js fatal-error recovery).
+  - Controls: play/pause, ±10 s, a seek bar with a buffered range, time, speed 0.5-2x, a volume slider, theater toggle (optional, through a callback), fullscreen including iOS `webkitEnterFullscreen`, and controls that auto-hide after 3 s while playing.
+  - Keyboard: space/k, arrow keys, f, m.
+  - Props: `poster`, `startAt`, `onTimeUpdate`, `onPause`, `onEnded`.
+  - Controls are `rounded-md`, with Spanish aria labels. LMS learner playback and the builder preview use it.
+- **Thumbnails:** `lms_lesson.cover_file_id`.
+  - On video upload, the browser captures a frame of the local file at min(10% of the duration, 5 s) with `@runly/ui` `captureVideoFrame(file, seconds)`, which returns a JPEG Blob. It uploads the frame through `/files/upload` (`moduleKey runly.lms`, `entityType LmsLesson`) and sets it as the cover unless the author already chose one.
+  - The editor allows replacing the cover with an uploaded image, or "Usar este fotograma" from the current player position.
+  - Serializers expose `coverUrl` (signed, card variant) on lessons in the authoring detail, the learner outline and the opened lesson (`poster`).
+- **Lesson editor media panel**, as in the racoon-lms `LessonEditorModal`: the video and the cover side by side, 16:9 each. The states are empty dropzone, uploading with progress, and playable preview with Cambiar/Quitar actions.
+- **Learner player layout** (racoon-lms `LearnPage`):
+  - A content sidebar on the right (`lg:grid-cols-[1fr_360px]`) with 16:9 thumbnails, colored placeholders by kind when there is no cover, a lock overlay, a completed check, and duration.
+  - Theater mode: full width, sidebar below; it is remembered per viewer in localStorage (in try/catch).
+  - Tabs under the content: Descripción (lesson notes), Recursos, Preguntas, Anuncios.
+- **Lesson resources:** `lms_lesson_resource` (lesson_id, file_id, title, position) for downloadable files on any lesson.
+  - Managers add, remove and reorder them in the lesson editor.
+  - Learners get them, signed, in the opened lesson.
+- **Course page** `/course/:courseId` (racoon-lms `CourseDetailView`), opened from catalog and "Mis cursos" cards:
+  - A blurred cover hero with title, summary, level, rating, lesson count, duration and enrolled count.
+  - A sticky CTA card (Inscribirme / Continuar / Ver certificado) and a fixed CTA bar on mobile.
+  - A Markdown description, an accordion curriculum with thumbnails and durations, and an instructor card (course creator).
+- **Builder polish:** section cards get a number badge and lesson count, plus a dashed drop area when empty. Lesson rows show thumbnail, kind, duration and required.
+- **Certificates from an uploaded .docx**, reusing `apps/api/src/services/document-templates/*`, the same engine as inventory custody:
+  - `lms_certificate_template.source` is `design` (the current pdfkit layout) or `docx`.
+  - Fields: `file_asset_id` (the uploaded file) and `placeholders` (the detected tags).
+  - Tags: `{{alumno}} {{curso}} {{fecha}} {{horas}} {{folio}} {{empresa}} {{instructor}} {{calificacion}}`, plus images `{{%qr}} {{%firma}} {{%logo}}`.
+  - Upload validates the file by compiling it and scanning its tags. "Sugerir etiquetas" detects bracketed or underscored placeholders and labels such as Nombre, Otorga a, Curso, Fecha, Folio, Horas and Instructor, and writes the tags into a copy to review.
+  - "Descargar ejemplo" gives a ready sample .docx.
+  - Rendering fills the .docx and converts it with `convertToPdf` (Collabora). If Office is not configured or conversion fails, the PDF uses the built-in design and the template list warns that Office is not available.
+  - Issued certificates keep their snapshots; the QR still points to public verification.
