@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Button, CheckboxField, FieldWrapper, FileUploader, NumberField, SelectField, TextField, TextareaField } from '@runly/ui'
+import { Button, CheckboxField, FieldWrapper, FileUploader, MarkdownField, NumberField, SelectField, TextField, TextareaField } from '@runly/ui'
 import { useUpdateCourse, useUploadLmsFile } from '../hooks/useLmsData.js'
 import { useCertificateTemplates } from '../hooks/useLmsCerts.js'
 import { NO_TEMPLATE } from '../lib/lmsCert.js'
@@ -80,7 +80,6 @@ export function CourseSettingsForm({ course, readOnly = false }) {
       <div className="space-y-4">
         {text('title', 'Título', { required: true, maxLength: 200 })}
         <Controller name="summary" control={control} render={({ field }) => <TextareaField label="Resumen" rows={2} {...field} error={errors.summary?.message} disabled={readOnly} hint="Se muestra en la tarjeta del curso." />} />
-        <Controller name="description" control={control} render={({ field }) => <TextareaField label="Descripción" rows={8} {...field} error={errors.description?.message} disabled={readOnly} hint="Admite formato Markdown." />} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {text('category', 'Categoría', { placeholder: 'Ej. Seguridad' })}
           <Controller name="level" control={control} render={({ field }) => <SelectField label="Nivel" options={LEVEL_OPTIONS} value={field.value} onValueChange={field.onChange} disabled={readOnly} />} />
@@ -110,13 +109,21 @@ export function CourseSettingsForm({ course, readOnly = false }) {
             hint="Se emite automáticamente al completar el curso. Las plantillas se administran en Certificados."
           />
         )} />
-        {!readOnly ? (
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" disabled={!dirty || update.isPending} onClick={() => { reset(toValues(course)); setCover(null) }}>Descartar</Button>
-            <Button type="submit" disabled={!dirty || update.isPending}>{update.isPending ? 'Guardando…' : 'Guardar cambios'}</Button>
-          </div>
-        ) : null}
       </div>
+      <Controller name="description" control={control} render={({ field }) => (
+        <MarkdownField
+          label="Descripción" value={field.value} onChange={field.onChange} onBlur={field.onBlur} error={errors.description?.message}
+          disabled={readOnly} maxLength={20000} placeholder="Qué aprenderá el alumno, a quién va dirigido y cómo está organizado el curso…"
+          hint="Se muestra en la página del curso. Usa la barra para dar formato: títulos, listas, tablas y enlaces."
+          className="lg:col-span-2 [&_.mdxeditor-root-contenteditable]:min-h-[22rem]!"
+        />
+      )} />
+      {!readOnly ? (
+        <div className="flex justify-end gap-2 border-t border-[hsl(var(--border))] pt-4 lg:col-span-2">
+          <Button type="button" variant="outline" disabled={!dirty || update.isPending} onClick={() => { reset(toValues(course)); setCover(null) }}>Descartar</Button>
+          <Button type="submit" disabled={!dirty || update.isPending}>{update.isPending ? 'Guardando…' : 'Guardar cambios'}</Button>
+        </div>
+      ) : null}
     </form>
   )
 }

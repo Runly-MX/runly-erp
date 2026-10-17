@@ -1,4 +1,4 @@
-import { Button, CheckboxField, FieldWrapper, NumberField, SelectField, TextField, TextareaField } from '@runly/ui'
+import { Button, CheckboxField, FieldWrapper, MarkdownField, NumberField, SelectField, TextField } from '@runly/ui'
 import { Plus, Trash2 } from 'lucide-react'
 import { changeQuestionKind, setOptionCorrect } from '../lib/lmsEval.js'
 import { QUESTION_KIND_LABELS, toOptions } from '../lib/lmsLabels.js'
@@ -54,9 +54,9 @@ export function QuestionForm({ form, onChange, errors = {} }) {
         <SelectField label="Tipo de pregunta" options={KIND_OPTIONS} value={form.kind} onValueChange={(kind) => onChange(changeQuestionKind(form, kind))} />
         <NumberField label="Puntos" required value={form.points} onChange={set('points')} error={errors.points} allowNegative={false} allowDecimal={false} />
       </div>
-      <TextareaField
-        label="Pregunta" required value={form.prompt} onChange={set('prompt')} rows={4} error={errors.prompt}
-        hint="Admite Markdown: negritas (**texto**), listas e imágenes con enlace."
+      <MarkdownField
+        label="Pregunta" required value={form.prompt} onChange={set('prompt')} error={errors.prompt} maxLength={10000}
+        placeholder="Escribe la pregunta…" hint="Usa la barra para dar formato: negritas, listas, tablas y enlaces."
       />
       {form.kind === 'single' || form.kind === 'multiple' ? <OptionsEditor form={form} onChange={onChange} error={errors.options} /> : null}
       {form.kind === 'true_false' ? (
@@ -67,8 +67,9 @@ export function QuestionForm({ form, onChange, errors = {} }) {
           El alumno escribe su respuesta y un instructor la califica desde Revisión, de 0 a {form.points || 1} puntos.
         </p>
       ) : null}
-      <TextareaField
-        label="Explicación" value={form.explanation} onChange={set('explanation')} rows={3}
+      <MarkdownField
+        label="Explicación" value={form.explanation} onChange={set('explanation')} maxLength={10000}
+        placeholder="Por qué esta es la respuesta correcta…"
         hint="Opcional. Se muestra con los resultados, según cuándo el examen muestra las respuestas."
       />
     </div>

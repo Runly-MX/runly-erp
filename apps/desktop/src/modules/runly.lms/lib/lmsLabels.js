@@ -3,6 +3,10 @@
 
 export const LMS_BASE = '/app/m/runly.lms'
 export const lmsPath = (subPath = '') => `${LMS_BASE}${subPath}`
+// Lesson editor page; `lessonId` 'new' creates a lesson in `sectionId`.
+export const lessonEditorPath = (courseId, lessonId = 'new', sectionId = null) => lmsPath(
+  `/courses/${courseId}/lessons/${lessonId}${lessonId === 'new' && sectionId ? `?section=${encodeURIComponent(sectionId)}` : ''}`,
+)
 
 export const LEVEL_LABELS = { basic: 'Básico', intermediate: 'Intermedio', advanced: 'Avanzado' }
 export const STATUS_LABELS = { draft: 'Borrador', published: 'Publicado', archived: 'Archivado' }

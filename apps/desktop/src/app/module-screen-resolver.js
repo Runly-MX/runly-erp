@@ -220,6 +220,7 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
   if (moduleKey === "runly.lms") {
     if (subPath === "/" || subPath === "/courses" || subPath === "/review" || subPath === "/certificates") return screenMap[`runly.lms:${subPath}`] ?? null;
     if (/^\/courses\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/courses/:courseId"] ?? null;
+    if (/^\/courses\/[^/]+\/lessons\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/courses/:courseId/lessons/:lessonId"] ?? null;
     if (/^\/learn\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/learn/:courseId"] ?? null;
     return null;
   }

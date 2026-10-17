@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, TextField, TextareaField,
+  Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, MarkdownField, TextField,
 } from '@runly/ui'
 import { Loader2, Megaphone } from 'lucide-react'
 
@@ -35,10 +35,10 @@ export function AnnouncementDialog({ open, onOpenChange, announcement, onSubmit,
               label="Título" required value={form.title} onChange={set('title')} maxLength={200} autoComplete="off"
               error={error === 'title' ? 'El título es obligatorio.' : undefined} placeholder="Ej. Nueva lección sobre seguridad"
             />
-            <TextareaField
-              label="Mensaje" required value={form.body} onChange={set('body')} rows={8} maxLength={10000}
-              error={error === 'body' ? 'El mensaje es obligatorio.' : undefined}
-              hint="Admite formato Markdown: **negritas**, listas y enlaces."
+            <MarkdownField
+              label="Mensaje" required value={form.body} onChange={set('body')} maxLength={10000}
+              error={error === 'body' ? 'El mensaje es obligatorio.' : undefined} placeholder="Escribe el anuncio para los alumnos…"
+              hint="Usa la barra para dar formato: negritas, listas y enlaces." className="[&_.mdxeditor-root-contenteditable]:min-h-[14rem]!"
             />
           </div>
           <DialogFooter className="mt-0 shrink-0 border-t border-[hsl(var(--border))] px-5 py-3">

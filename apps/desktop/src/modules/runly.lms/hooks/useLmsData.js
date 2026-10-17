@@ -2,7 +2,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
-import { patchOutline } from '../lib/lmsLabels.js'
+import { withSectionIds } from '../lib/curriculumDnd.js'
+import { patchOutline, toReorderPayload } from '../lib/lmsLabels.js'
 
 export const useToken = () => useAuth().session?.access_token
 export const unwrap = (response) => response?.data ?? response
@@ -88,7 +89,26 @@ export const useSaveLesson = () => useAction(
   'Lección guardada.',
 )
 export const useDeleteLesson = () => useAction((t, id) => runly.lms.deleteLesson(id, t), 'Lección eliminada.')
-export const useReorder = () => useAction((t, { courseId, ...data }) => runly.lms.reorder(courseId, data, t))
+// Drag and drop: the course cache takes the new order right away and rolls
+// back when the API refuses it. vars: { courseId, sections } (full sections).
+export function useReorder() {
+  const token = useToken(), client = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ courseId, sections }) => unwrap(await runly.lms.reorder(courseId, toReorderPayload(sections), token)),
+    onMutate: async ({ courseId, sections }) => {
+      const key = [KEY, 'course', courseId]
+      await client.cancelQueries({ queryKey: key })
+      const previous = client.getQueryData(key)
+      client.setQueryData(key, (old) => (old ? { ...old, sections: withSectionIds(sections) } : old))
+      return { key, previous }
+    },
+    onError: (error, _vars, context) => {
+      if (context?.previous) client.setQueryData(context.key, context.previous)
+      toast.error(error.message || 'No se pudo guardar el nuevo orden.')
+    },
+    onSettled: () => client.invalidateQueries({ queryKey: [KEY] }),
+  })
+}
 export const useAssign = () => useAction((t, { courseId, ...data }) => runly.lms.assign(courseId, data, t))
 export const useUpdateEnrollment = () => useAction((t, { id, ...data }) => runly.lms.updateEnrollment(id, data, t), 'Inscripción actualizada.')
 

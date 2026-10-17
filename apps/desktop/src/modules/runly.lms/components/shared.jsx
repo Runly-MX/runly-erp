@@ -4,8 +4,13 @@ import { ENROLLMENT_STATUS_LABELS, ENROLLMENT_VARIANTS, STATUS_LABELS, STATUS_VA
 
 // Second path segment of the module route ("/courses/:id", "/learn/:id").
 export function useRouteId() {
+  return useRouteSegment(1)
+}
+
+// Path segment of the module route by position ("/courses/:id/lessons/:lessonId" -> 1 and 3).
+export function useRouteSegment(index) {
   const { '*': wildcard } = useParams()
-  return String(wildcard ?? '').split('/').filter(Boolean)[1] ?? null
+  return String(wildcard ?? '').split('/').filter(Boolean)[index] ?? null
 }
 
 export function PageShell({ children, className }) {

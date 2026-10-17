@@ -30,7 +30,27 @@ export const useSaveQuestion = () => useScopedAction(
   ['questions'], 'Pregunta guardada.',
 )
 export const useDeleteQuestion = () => useScopedAction((t, id) => runly.lms.deleteQuestion(id, t), ['questions'], 'Pregunta eliminada.')
-export const useReorderQuestions = () => useScopedAction((t, { lessonId, questionIds }) => runly.lms.reorderQuestions(lessonId, questionIds, t), ['questions'])
+// Drag and drop: the cached list takes the new order at once and rolls back on error.
+export function useReorderQuestions() {
+  const token = useToken(), client = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ lessonId, questionIds }) => unwrap(await runly.lms.reorderQuestions(lessonId, questionIds, token)),
+    onMutate: async ({ lessonId, questionIds }) => {
+      const key = [KEY, 'questions', lessonId]
+      await client.cancelQueries({ queryKey: key })
+      const previous = client.getQueryData(key)
+      client.setQueryData(key, (old) => (Array.isArray(old)
+        ? questionIds.map((id) => old.find((question) => question.id === id)).filter(Boolean)
+        : old))
+      return { key, previous }
+    },
+    onError: (error, _vars, context) => {
+      if (context?.previous) client.setQueryData(context.key, context.previous)
+      toast.error(error.message || 'No se pudo guardar el nuevo orden.')
+    },
+    onSettled: (_data, _error, { lessonId }) => client.invalidateQueries({ queryKey: [KEY, 'questions', lessonId] }),
+  })
+}
 
 // ---- Learner ----------------------------------------------------------------------
 // A quiz submit or an assignment submission changes the lesson status: the

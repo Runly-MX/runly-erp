@@ -293,6 +293,7 @@ const SCREEN_MAP = {
   "runly.lms:/": lazy(() => import("../modules/runly.lms/screens/LmsHome.jsx")),
   "runly.lms:/courses": lazy(() => import("../modules/runly.lms/screens/LmsCourses.jsx")),
   "runly.lms:/courses/:courseId": lazy(() => import("../modules/runly.lms/screens/LmsCourseEditor.jsx")),
+  "runly.lms:/courses/:courseId/lessons/:lessonId": lazy(() => import("../modules/runly.lms/screens/LmsLessonEditor.jsx")),
   "runly.lms:/learn/:courseId": lazy(() => import("../modules/runly.lms/screens/LmsPlayer.jsx")),
   "runly.lms:/review": lazy(() => import("../modules/runly.lms/screens/LmsReview.jsx")),
   "runly.lms:/certificates": lazy(() => import("../modules/runly.lms/screens/LmsCertificates.jsx")),
