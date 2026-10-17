@@ -8,12 +8,14 @@ import { createMcpCapabilities } from './capabilities.js';
 import { createMcpAccess } from './access.js';
 import { digest, nonce } from './state.js';
 import { handleMcpRequest } from './server.js';
+import { createMcpActivity } from './activity.js';
 import { oauthParameters } from './oauth-validation.js';
 
 export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLogo = async () => null, env = process.env, log = message => console.info(message) }) {
   const router = new Hono(), config = mcpConfig(env);
   if (!config) return router;
   const oauth = createMcpOAuth({ prisma, config });
+  const activity = createMcpActivity(prisma);
   const capabilities = createMcpCapabilities({ prisma, config, oauth, supabaseAdmin });
   function errorResponse(err, c) {
     const correlationId = c.get('correlationId');
@@ -86,8 +88,12 @@ export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLog
     const branding = await prisma.brandingConfig.findMany({ where: { companyId: { in: companies.map(company => company.id) } }, select: { companyId: true, primaryColor: true, logoFileId: true } });
     const brandingByCompany = new Map(branding.map(row => [row.companyId, row]));
     const branded = await Promise.all(companies.map(async company => { const row = brandingByCompany.get(company.id); return { ...company, primaryColor: row?.primaryColor ?? null, logoUrl: await signLogo(row?.logoFileId).catch(() => null) }; }));
-    return c.json({ companies: branded, grants: grants.filter(g => !g.payload.revoked).map(g => ({ id: g.payload.grantId, clientName: g.payload.clientName, companyIds: g.payload.companyIds, scopes: g.payload.scopes })) });
+    const recent = await activity.list(c.get('authUserId'));
+    const lastByGrant = new Map();
+    for (const row of recent) if (row.grantId && !lastByGrant.has(row.grantId)) lastByGrant.set(row.grantId, row.at);
+    return c.json({ companies: branded, grants: grants.filter(g => !g.payload.revoked).map(g => ({ id: g.payload.grantId, clientName: g.payload.clientName, companyIds: g.payload.companyIds, scopes: g.payload.scopes, lastActivityAt: lastByGrant.get(g.payload.grantId) ?? null })) });
   });
+  router.get('/mcp/account/activity', authMiddleware, async c => c.json({ activity: await activity.list(c.get('authUserId')) }));
   router.post('/mcp/oauth/consent', authMiddleware, async c => c.json(await oauth.consent(c.get('authUserId'), await c.req.json())));
   router.post('/mcp/account/revoke', authMiddleware, async c => {
     const { grantId } = z.object({ grantId: z.string().max(100) }).strict().parse(await c.req.json());
@@ -102,7 +108,7 @@ export function createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLog
     const header = c.req.header('Authorization') ?? '';
     const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(header)?.[1];
     const auth = await oauth.authenticate(token);
-    return handleMcpRequest(c.req.raw, { auth, capabilities, oauth, token, correlationId: c.get('correlationId') });
+    return handleMcpRequest(c.req.raw, { auth, capabilities, oauth, token, correlationId: c.get('correlationId'), activity });
   });
   return router;
 }

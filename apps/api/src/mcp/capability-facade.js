@@ -7,6 +7,7 @@ import { createMcpState } from './state.js';
 import { insist } from './config.js';
 import { parameterSchema } from './contracts.js';
 import { createFileImport } from './file-import.js';
+import { createMcpActivity } from './activity.js';
 
 export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, downloadFile }) {
   const inventory = createInventoryMcpCapabilities({ prisma, config, oauth });
@@ -54,5 +55,14 @@ export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, do
     const row = await createMcpState(prisma).get('proposal', id);
     return (row?.payload.version === 3 ? imports : row?.payload.version === 2 ? runtime : inventory)[method](authUserId, id, ...args);
   }
-  return { run, tools: registry.tools, proposalInfo: (user, id) => handler('proposalInfo', user, id), approve: (user, id, approved, acknowledgeSensitive) => handler('approve', user, id, approved, acknowledgeSensitive) };
+  async function approve(user, id, approved, acknowledgeSensitive) {
+    const store = createMcpState(prisma), proposal = (await store.get('proposal', id))?.payload;
+    const result = await handler('approve', user, id, approved, acknowledgeSensitive);
+    if (proposal?.authUserId === user) {
+      const grant = proposal.grantId ? (await store.get('grant', proposal.grantId, { expired: true }))?.payload : null;
+      await createMcpActivity(prisma).record({ type: 'approval', authUserId: user, grantId: proposal.grantId, clientName: grant?.clientName, moduleKey: proposal.moduleKey ?? null, operation: proposal.operation, companyId: proposal.companyId, status: approved ? 'approved' : 'rejected' });
+    }
+    return result;
+  }
+  return { run, tools: registry.tools, proposalInfo: (user, id) => handler('proposalInfo', user, id), approve };
 }

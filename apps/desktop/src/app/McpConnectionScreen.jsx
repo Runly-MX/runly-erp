@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { KeyRound, ListChecks, PlugZap, ShieldAlert, ShieldCheck } from 'lucide-react';
-import { Button, ConfirmDialog, EmptyState, ErrorState, LoadingState } from '@runly/ui';
+import { ListChecks, PlugZap, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Accordion, ConfirmDialog, EmptyState, ErrorState, LoadingState, Tabs, TabsContent, TabsList, TabsTrigger, Button } from '@runly/ui';
 import { useAuth } from '../auth/AuthProvider';
-import { ActionBar, CompanyOption, Destination, FieldChanges, McpPage, Notice, Panel, PanelHeader, ScopeList, SectionLabel, SensitiveCheck, scopeLabel } from './McpConnectionParts.jsx';
+import { ActionBar, CompanyOption, Destination, FieldChanges, McpPage, Notice, Panel, PanelHeader, ScopeList, SectionLabel, SensitiveCheck } from './McpConnectionParts.jsx';
+import { ActivityList, ConnectionItem } from './McpActivityParts.jsx';
 
 export function McpConnectionScreen() {
   const { session } = useAuth();
@@ -33,12 +34,17 @@ export function McpConnectionScreen() {
     if (result.redirect) window.location.assign(result.redirect);
     else { setCompletedProposal(proposalId); detail.refetch(); }
   } });
-  const revoke = useMutation({ mutationFn: grantId => api('/mcp/account/revoke', { grantId }), onSuccess: () => { setRevoking(null); account.refetch(); } });
+  const focused = Boolean(requestId || proposalId);
+  const activity = useQuery({ queryKey: ['mcp-activity', session.user.id], enabled: !focused, retry: false, queryFn: () => api('/mcp/account/activity') });
+  const revoke = useMutation({ mutationFn: grantId => api('/mcp/account/revoke', { grantId }), onSuccess: () => { setRevoking(null); account.refetch(); activity.refetch(); } });
   const error = account.error || detail.error || action.error || revoke.error;
   if (account.isPending || (detail.isPending && (requestId || proposalId))) return <LoadingState variant="page" />;
   const request = requestId && detail.data, proposal = proposalId && detail.data;
   const toggleCompany = id => checked => setCompanyIds(ids => checked ? [...ids, id] : ids.filter(x => x !== id));
+  const items = activity.data?.activity ?? [], companies = account.data?.companies ?? [];
+  const approvals = items.filter(entry => entry.type === 'approval' || entry.mode === 'prepare');
   return <McpPage>
+    <div className={`space-y-5 ${focused ? 'mx-auto max-w-2xl' : ''}`}>
     <div className="space-y-1">
       <h1 className="text-2xl font-semibold tracking-tight">{request ? 'Autorizar conexión' : proposal ? 'Revisar propuesta' : 'Conexiones de asistentes'}</h1>
       <p className="text-sm text-[hsl(var(--muted-foreground))]">{request ? 'Una aplicación quiere conectarse a tu cuenta de Runly.' : proposal ? 'Un asistente propone un cambio. Nada se ejecuta sin tu aprobación.' : 'Controla el acceso a tus datos de Runly.'}</p>
@@ -76,16 +82,20 @@ export function McpConnectionScreen() {
         <Button disabled={action.isPending || detail.data.completed || detail.data.rejected || detail.data.sensitive && !sensitiveAcknowledged} onClick={() => action.mutate(true)}>Aprobar propuesta</Button>
       </ActionBar>}
     </Panel>}
-    {!requestId && !proposalId && <Panel>
-      <PanelHeader icon={KeyRound} title="Aplicaciones autorizadas" subtitle="Asistentes con acceso a tu cuenta" />
-      <div className="p-4 sm:p-5">
-        {!account.data?.grants.length && <EmptyState title="Sin conexiones activas" description="Aquí aparecerán las aplicaciones que autorices." />}
-        <ul className="space-y-3">{account.data?.grants.map(grant => <li className="flex flex-col gap-3 rounded-md border border-[hsl(var(--border))] p-3 sm:flex-row sm:items-center sm:justify-between" key={grant.id}>
-          <div className="min-w-0 space-y-1"><p className="break-words font-medium">{grant.clientName}</p><p className="text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{grant.scopes.map(scopeLabel).join(' · ')}</p></div>
-          <Button variant="outline" className="min-h-11 shrink-0" onClick={() => setRevoking(grant)}>Revocar</Button>
-        </li>)}</ul>
-      </div>
-    </Panel>}
+    {!focused && <Tabs defaultValue="connections" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="connections">Conexiones{account.data?.grants.length ? ` (${account.data.grants.length})` : ''}</TabsTrigger>
+        <TabsTrigger value="activity">Actividad</TabsTrigger>
+        <TabsTrigger value="approvals">Aprobaciones</TabsTrigger>
+      </TabsList>
+      <TabsContent value="connections">
+        {!account.data?.grants.length ? <Panel className="p-4"><EmptyState title="Sin conexiones activas" description="Aquí aparecerán las aplicaciones que autorices." /></Panel>
+          : <Accordion type="multiple" className="space-y-3">{account.data.grants.map(grant => <ConnectionItem key={grant.id} grant={grant} companies={companies} onRevoke={setRevoking} />)}</Accordion>}
+      </TabsContent>
+      <TabsContent value="activity"><Panel className="p-4">{activity.isPending ? <LoadingState /> : <ActivityList items={items} companies={companies} empty={{ title: 'Sin actividad registrada', description: 'Las consultas y cambios de tus asistentes de los últimos 30 días aparecerán aquí. No se guardan los datos consultados.' }} />}</Panel></TabsContent>
+      <TabsContent value="approvals"><Panel className="p-4">{activity.isPending ? <LoadingState /> : <ActivityList items={approvals} companies={companies} empty={{ title: 'Sin aprobaciones', description: 'Las propuestas preparadas por tus asistentes y tus decisiones aparecerán aquí.' }} />}</Panel></TabsContent>
+    </Tabs>}
+    </div>
     <ConfirmDialog open={Boolean(revoking)} onOpenChange={open => { if (!open) setRevoking(null); }} title="Revocar conexión" description="La aplicación perderá el acceso y deberá solicitar tu autorización de nuevo." confirmLabel="Revocar" loading={revoke.isPending} onConfirm={() => revoke.mutate(revoking.id)} />
   </McpPage>;
 }

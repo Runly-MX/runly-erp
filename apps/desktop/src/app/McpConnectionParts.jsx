@@ -3,7 +3,7 @@ import { Checkbox } from '@runly/ui';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useThemeStore } from '../stores/theme';
 
-const DOMAINS = { hr: 'Recursos Humanos', fleet: 'Flota', notes: 'Notas', pfm: 'Finanzas personales', ledger: 'Libro de cuentas', projects: 'Proyectos', calendar: 'Calendario', contacts: 'Contactos', purchases: 'Compras', canvas: 'Canvas', attendance: 'Asistencia', files: 'Archivos', documents: 'Documentos', identity: 'Identidad', activity: 'Actividad propia', chat: 'Conversaciones propias', inventory: 'Inventario' };
+export const DOMAINS = { hr: 'Recursos Humanos', fleet: 'Flota', notes: 'Notas', pfm: 'Finanzas personales', ledger: 'Libro de cuentas', projects: 'Proyectos', calendar: 'Calendario', contacts: 'Contactos', purchases: 'Compras', canvas: 'Canvas', attendance: 'Asistencia', files: 'Archivos', documents: 'Documentos', identity: 'Identidad', activity: 'Actividad propia', chat: 'Conversaciones propias', inventory: 'Inventario' };
 
 const SCOPE_LABELS = { 'runly:read': 'Ver tu identidad, empresas y módulos autorizados', 'inventory:read': 'Consultar equipos y catálogos de inventario', 'inventory:write': 'Preparar y ejecutar altas y ediciones con tu aprobación en Runly' };
 for (const [domain, label] of Object.entries(DOMAINS)) {
@@ -19,12 +19,12 @@ export function McpPage({ children }) {
   const logo = isDark ? '/runly/runly-logo-dark.png' : '/runly/runly-logo-light.png';
   return <div className="fixed inset-0 overflow-y-auto overscroll-contain bg-[hsl(var(--muted)/0.4)] text-[hsl(var(--foreground))]">
     <header className="sticky top-0 z-10 border-b border-[hsl(var(--border))] bg-[hsl(var(--background)/0.9)] backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
         <img src={logo} alt="Runly" className="h-7 w-auto" />
         <ThemeToggle />
       </div>
     </header>
-    <main className="mx-auto w-full max-w-2xl space-y-5 px-4 py-6 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-10">{children}</main>
+    <main className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-10">{children}</main>
   </div>;
 }
 
@@ -47,17 +47,31 @@ export function SectionLabel({ children }) {
   return <h3 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{children}</h3>;
 }
 
+export function groupScopes(scopes) {
+  const map = new Map();
+  for (const scope of scopes) {
+    const [domain, mode] = scope.split(':');
+    const entry = map.get(domain) ?? { domain, label: DOMAINS[domain] ?? (domain === 'runly' ? 'Identidad y empresas' : domain), read: false, write: false };
+    if (mode === 'write') entry.write = true; else entry.read = true;
+    map.set(domain, entry);
+  }
+  return [...map.values()];
+}
+
+export function ScopeBadges({ read, write }) {
+  return <span className="flex shrink-0 gap-1.5">
+    {read && <span className="inline-flex items-center gap-1 rounded-md bg-[hsl(var(--muted))] px-2 py-0.5 text-xs"><Eye size={12} aria-hidden="true" />Lectura</span>}
+    {write && <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400"><PencilLine size={12} aria-hidden="true" />Cambios</span>}
+  </span>;
+}
+
+/** Compact permission matrix: one row per module instead of one sentence per scope. */
 export function ScopeList({ scopes }) {
-  const write = scopes.filter(s => s.endsWith(':write'));
-  const read = scopes.filter(s => !s.endsWith(':write'));
-  const group = (items, Icon, title, hint) => items.length > 0 && <div className="space-y-2">
-    <div className="flex items-center gap-2"><Icon size={14} className="text-[hsl(var(--muted-foreground))]" aria-hidden="true" /><SectionLabel>{title}</SectionLabel></div>
-    <p className="text-xs text-[hsl(var(--muted-foreground))]">{hint}</p>
-    <ul className="space-y-1.5">{items.map(scope => <li key={scope} className="flex items-start gap-2 text-sm leading-relaxed"><Check size={16} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" /><span>{scopeLabel(scope)}</span></li>)}</ul>
-  </div>;
-  return <div className="space-y-4">
-    {group(read, Eye, 'Lectura', 'Solo consulta, nunca modifica datos.')}
-    {group(write, PencilLine, 'Cambios con tu aprobación', 'Cada cambio se te mostrará para aprobarlo antes de ejecutarse.')}
+  const groups = groupScopes(scopes);
+  const writes = groups.some(g => g.write);
+  return <div className="space-y-2">
+    <ul className="grid gap-1.5 sm:grid-cols-2">{groups.map(g => <li key={g.domain} className="flex items-center justify-between gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-2 text-sm"><span className="min-w-0 truncate font-medium">{g.label}</span><ScopeBadges read={g.read} write={g.write} /></li>)}</ul>
+    <p className="text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">Lectura solo consulta. {writes ? 'Los cambios se te muestran para aprobarlos antes de ejecutarse. ' : ''}Siempre se aplican tus permisos actuales.</p>
   </div>;
 }
 

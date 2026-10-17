@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { isNativeMobile } from "@runly/core/native-runtime";
-import { ChevronDown, User, Settings, LogOut, Monitor, Download, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug, Server, ShieldCheck } from "lucide-react";
+import { ChevronDown, User, Settings, LogOut, Monitor, Download, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug, Server, ShieldCheck, PlugZap } from "lucide-react";
 import { toast } from "sonner";
 import { native } from "../native/index.js";
 import { useThemeStore } from "../stores/theme";
@@ -179,6 +179,13 @@ export function UserMenu({
         >
           <User size={14} />
           Mi perfil
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => navigate("/app/mcp")}
+          className="gap-2 cursor-pointer"
+        >
+          <PlugZap size={14} />
+          Conexiones de asistentes
         </DropdownMenuItem>
         {(userProfile?.isAdmin ||
           userProfile?.permissions?.includes("platform.settings.manage")) && (
