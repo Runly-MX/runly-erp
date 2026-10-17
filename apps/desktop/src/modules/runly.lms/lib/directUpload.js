@@ -5,15 +5,21 @@ const unwrap = (response) => response?.data ?? response
 
 // presign -> direct PUT to Storage -> confirm. `presign(data, token)` and
 // `confirm(fileId, token)` are the SDK pair of the endpoint family (lesson
-// media or learner submissions). `onStage` receives 'uploading' | 'confirming'.
-export async function directUpload(file, token, { presign, confirm, onStage, failMessage = 'No se pudo subir el archivo.' }) {
+// media or learner submissions). `onStage` receives 'uploading' | 'confirming'; `signal` aborts the PUT.
+export async function directUpload(file, token, { presign, confirm, onStage, signal, failMessage = 'No se pudo subir el archivo.' }) {
   const mimeType = file.type || 'application/octet-stream'
   const { fileId, uploadUrl } = unwrap(await presign({ fileName: file.name, mimeType, sizeBytes: file.size }, token))
 
   onStage?.('uploading')
   // Same request chat uses for its signed uploads (ArrayBuffer body: exact
   // Content-Length and no multi-part Blob issues on iOS Safari).
-  const response = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': mimeType }, body: await file.arrayBuffer() })
+  let response
+  try {
+    response = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': mimeType }, body: await file.arrayBuffer(), signal })
+  } catch (error) {
+    if (signal?.aborted) throw Object.assign(new Error('Subida cancelada.'), { name: 'AbortError' })
+    throw error
+  }
   if (!response.ok) throw new Error(failMessage)
 
   onStage?.('confirming')

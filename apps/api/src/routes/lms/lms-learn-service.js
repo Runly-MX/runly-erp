@@ -14,7 +14,7 @@ const SECTIONS_ORDERED = {
   include: { lessons: { where: { enabled: true }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] } },
 }
 
-export function createLmsLearnService({ prisma, signFile = null, authoring = null }) {
+export function createLmsLearnService({ prisma, signFile = null, authoring = null, hlsManifest = null }) {
   const ser = createLmsSerializers({ prisma, signFile })
   const learners = authoring ?? createLmsService({ prisma, signFile })
 
@@ -142,6 +142,18 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     const index = lessons.findIndex((item) => item.id === lesson.id)
     const names = await ser.fileNames([lesson.fileId])
     const withMedia = lesson.kind === 'video' || lesson.kind === 'file'
+    const mediaUrl = withMedia ? await ser.sign(lesson.fileId, 'full') : null
+    // Large videos are HLS packages: the manifest comes back with each segment signed.
+    let media = mediaUrl ? { kind: 'file', url: mediaUrl } : null
+    if (lesson.kind === 'video' && hlsManifest) {
+      try {
+        const manifest = await hlsManifest(lesson.fileId)
+        if (manifest) media = { kind: 'hls', manifest }
+      } catch (error) {
+        console.warn('[runly.lms] HLS manifest failed', lesson.fileId, error?.message)
+        media = { kind: 'hls', manifest: null, error: 'No se pudo preparar la reproducción del video.' }
+      }
+    }
     return {
       lesson: {
         id: lesson.id,
@@ -151,7 +163,8 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
         embedUrl: lesson.embedUrl,
         durationSeconds: lesson.durationSeconds,
         settings: normalizeLessonSettings(lesson.kind, lesson.settings),
-        mediaUrl: withMedia ? await ser.sign(lesson.fileId, 'full') : null,
+        mediaUrl,
+        media,
         fileName: lesson.fileId ? names.get(lesson.fileId) ?? null : null,
       },
       progress: { status: progress?.status ?? 'available', positionSeconds: progress?.positionSeconds ?? 0 },

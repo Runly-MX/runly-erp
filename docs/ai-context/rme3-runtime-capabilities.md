@@ -715,6 +715,8 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `useLongPress` | `useLongPress({ onLongPress, delay=450, moveTolerance=10, disabled })` → pointer handlers; fires after a stationary press, cancels on move/scroll, ignores interactive targets, vibrates |
 | `useSwipeToReply` | `useSwipeToReply({ onReply, threshold=64, direction, disabled })` → `{ handlers, translateX }`; fires only on a horizontal drag past the threshold, yields to vertical scroll |
 | `useHlsPosterFrame` | `useHlsPosterFrame(key, manifestText, { enabled, width=480 })` → `{ frame, loading }`; grabs one JPEG data-URL frame from an HLS manifest (segments already signed) for card thumbnails. Pass `enabled` = "is visible"; cached per `key` for the session, at most 2 extractions at once |
+| `useHlsPlayback` | `useHlsPlayback(videoRef, src, onFatalError)` → `ready`; attaches an HLS source (a `.m3u8` URL or a `blob:` URL of manifest text with signed segments) to a `<video>` ref. hls.js is lazy-loaded and tried first; native HLS (Safari/iOS) is the fallback. Used by `AdvancedFileViewer` (call recordings) and runly.lms video lessons |
+| `loadFfmpeg` | `await loadFfmpeg()` → `{ ffmpeg, fetchFile }`; ffmpeg.wasm with the core self-hosted under `/ffmpeg/` (lazy, ~30 MB on first use). The caller calls `ffmpeg.terminate()`. Used by runly.lms to remux large videos into HLS in the browser |
 | `cn` | Tailwind class merge utility (from `lib/utils`) |
 
 ---

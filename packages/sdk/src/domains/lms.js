@@ -31,6 +31,7 @@ export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQuery
     reorder: (courseId, data, token) => send('POST', `/lms/courses/${id(courseId)}/reorder`, data, token),
     presignVideo: (data, token) => send('POST', '/lms/media/presign', data, token),
     confirmVideo: (fileId, token) => send('POST', `/lms/media/${id(fileId)}/confirm`, {}, token),
+    presignVideoPackage: (data, token) => send('POST', '/lms/media/hls/presign', data, token),
 
     // Enrollments
     listEnrollments: (courseId, token) => send('GET', `/lms/courses/${id(courseId)}/enrollments`, undefined, token),

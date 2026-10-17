@@ -4,6 +4,7 @@
 import crypto from 'node:crypto'
 import { LmsError, VIDEO_MAX_BYTES } from './lms-core.js'
 import { SUBMISSION_MAX_BYTES, SUBMISSION_MIME } from './lms-eval-core.js'
+import { createLmsHls } from './lms-hls.js'
 
 export const VIDEO_TOO_BIG = 'El video supera 50 MB. Para videos más largos usa una lección de tipo enlace (YouTube o Vimeo).'
 
@@ -43,6 +44,8 @@ export function validateUpload({ fileName, mimeType, sizeBytes } = {}, purpose =
 export const validateVideoUpload = (body) => validateUpload(body, VIDEO_UPLOAD)
 
 export function createLmsMedia({ prisma, supabaseAdmin, bucket }) {
+  const hls = createLmsHls({ prisma, supabaseAdmin, bucket })
+
   async function presign(companyId, actorId, body, purpose = VIDEO_UPLOAD) {
     const { name, type, size } = validateUpload(body, purpose)
     const ext = (name.includes('.') ? name.split('.').pop() : purpose.defaultExt).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || purpose.defaultExt
@@ -76,6 +79,11 @@ export function createLmsMedia({ prisma, supabaseAdmin, bucket }) {
     const asset = await prisma.fileAsset.findFirst({ where: { id: fileId, moduleKey: 'runly.lms', enabled: true } })
     if (!asset || asset.metadata?.companyId !== companyId) throw new LmsError('El archivo no existe.', 404)
     if (owner && (asset.entityType !== owner.entityType || asset.uploadedById !== owner.uploadedById)) throw new LmsError('El archivo no existe.', 404)
+    // HLS packages are lesson media only; learners never confirm one.
+    if (asset.metadata?.hls) {
+      if (owner) throw new LmsError('El archivo no existe.', 404)
+      return hls.confirmPackage(asset)
+    }
     const { data, error } = await supabaseAdmin.storage.from(asset.bucket).createSignedUrl(asset.objectKey, 60)
     if (error || !data?.signedUrl) throw new LmsError('El archivo no terminó de subirse.', 409, 'NOT_UPLOADED')
     if (asset.metadata?.pending) {
@@ -85,5 +93,5 @@ export function createLmsMedia({ prisma, supabaseAdmin, bucket }) {
     return { fileId: asset.id, fileName: asset.originalName }
   }
 
-  return { presign, confirm }
+  return { presign, confirm, presignHls: hls.presign, manifestFor: hls.manifestFor }
 }

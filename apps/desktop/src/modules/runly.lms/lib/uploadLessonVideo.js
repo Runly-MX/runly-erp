@@ -1,8 +1,9 @@
+import { loadFfmpeg } from '@runly/ui'
 import { runly } from '../../../lib/runly.js'
 import { directUpload } from './directUpload.js'
+import { DIRECT_MAX_BYTES, chooseUploadPath, packageVideoAsHls, uploadHlsPackage } from './hlsPackage.js'
 
-export const VIDEO_MAX_BYTES = 50 * 1024 * 1024
-export const VIDEO_TOO_BIG = 'El video supera 50 MB. Para videos más largos usa una lección de tipo enlace (YouTube o Vimeo).'
+export const VIDEO_MAX_BYTES = DIRECT_MAX_BYTES
 
 // Duration of a local video file, read from a detached <video> element.
 // Resolves null when the browser cannot read the metadata.
@@ -26,19 +27,37 @@ export function readVideoDuration(file) {
   })
 }
 
-// Lesson video through the shared direct upload. `onStage` receives
-// 'uploading' | 'confirming' so the sheet can show where it is.
-export async function uploadLessonVideo(file, token, { onStage } = {}) {
+// Lesson video upload. Up to 50 MB goes straight to Storage; up to 2 GB is
+// remuxed into an HLS package first. `onStage` receives 'preparing' |
+// 'uploading' | 'confirming'; `onProgress` 0..1 within the stage (package only).
+export async function uploadLessonVideo(file, token, { onStage, onProgress, signal } = {}) {
   if (!file) throw new Error('Selecciona un video.')
   if (!String(file.type).startsWith('video/')) throw new Error('El archivo debe ser un video.')
-  if (file.size > VIDEO_MAX_BYTES) throw new Error(VIDEO_TOO_BIG)
+  const path = chooseUploadPath(file.size)
 
   const durationSeconds = await readVideoDuration(file)
-  const result = await directUpload(file, token, {
-    presign: (data, t) => runly.lms.presignVideo(data, t),
-    confirm: (fileId, t) => runly.lms.confirmVideo(fileId, t),
+  if (path === 'direct') {
+    const result = await directUpload(file, token, {
+      presign: (data, t) => runly.lms.presignVideo(data, t),
+      confirm: (fileId, t) => runly.lms.confirmVideo(fileId, t),
+      onStage,
+      signal,
+      failMessage: 'No se pudo subir el video.',
+    })
+    return { ...result, durationSeconds }
+  }
+
+  onStage?.('preparing')
+  onProgress?.(0)
+  const pkg = await packageVideoAsHls(file, { loadFfmpeg, onProgress, signal })
+  const result = await uploadHlsPackage(pkg, {
+    fileName: file.name,
+    sourceBytes: file.size,
+    presign: (data) => runly.lms.presignVideoPackage(data, token),
+    confirm: (fileId) => runly.lms.confirmVideo(fileId, token),
     onStage,
-    failMessage: 'No se pudo subir el video.',
+    onProgress,
+    signal,
   })
-  return { ...result, durationSeconds }
+  return { ...result, durationSeconds: result.durationSeconds ?? durationSeconds }
 }

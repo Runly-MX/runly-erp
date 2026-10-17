@@ -287,6 +287,8 @@ export { AIUploadDropzone } from "./components/AIUploadDropzone.jsx";
 export { AIFlowSteps } from "./components/AIFlowSteps.jsx";
 export { AdvancedFileViewer } from "./components/AdvancedFileViewer.jsx";
 export { useHlsPosterFrame } from "./lib/useHlsPosterFrame.js";
+export { useHlsPlayback } from "./lib/useHlsPlayback.js";
+export { loadFfmpeg } from "./lib/loadFfmpeg.js";
 export { FileVisual } from "./components/FileVisual.jsx";
 export {
   getFileKind,

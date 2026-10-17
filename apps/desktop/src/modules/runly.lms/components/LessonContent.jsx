@@ -55,7 +55,7 @@ function Body({ lesson, courseId, preview, startAt, onProgress }) {
   if (lesson.kind === 'assignment') return <AssignmentLesson key={lesson.id} lessonId={lesson.id} courseId={courseId} />
   if (lesson.kind === 'video') {
     if (!lesson.mediaUrl) return <EmptyState icon={FileText} title="Video no disponible" description="El video de esta lección no se encontró." />
-    return <VideoLesson src={lesson.mediaUrl} startAt={startAt} onProgress={onProgress} />
+    return <VideoLesson src={lesson.mediaUrl} media={lesson.media} startAt={startAt} onProgress={onProgress} />
   }
   if (lesson.kind === 'embed') return lesson.embedUrl ? <EmbedLesson lesson={lesson} /> : null
   if (lesson.kind === 'file') return <FileLesson lesson={lesson} />

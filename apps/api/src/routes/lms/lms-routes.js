@@ -26,8 +26,8 @@ function fail(c, error, fallback) {
 export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null }) {
   const app = new Hono()
   const svc = service ?? createLmsService({ prisma, signFile })
-  const learn = learnService ?? createLmsLearnService({ prisma, signFile, authoring: svc })
   const files = media ?? createLmsMedia({ prisma, supabaseAdmin, bucket })
+  const learn = learnService ?? createLmsLearnService({ prisma, signFile, authoring: svc, hlsManifest: files.manifestFor })
   const access = requirePermission('lms.access')
   const courses = requirePermission('lms.course.manage')
   const enrollments = requirePermission('lms.enrollment.manage')
@@ -57,6 +57,7 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
   app.patch('/lms/lessons/:id', courses, run('Error al guardar la lección.', async (c) => c.json({ data: await svc.updateLesson(companyId(c), c.req.param('id'), await body(c)) })))
   app.delete('/lms/lessons/:id', courses, run('Error al eliminar la lección.', async (c) => c.json({ data: await svc.deleteLesson(companyId(c), c.req.param('id')) })))
   app.post('/lms/media/presign', courses, run('Error al preparar la subida.', async (c) => c.json({ data: await files.presign(companyId(c), actorId(c), await body(c)) })))
+  app.post('/lms/media/hls/presign', courses, run('Error al preparar la subida del video.', async (c) => c.json({ data: await files.presignHls(companyId(c), actorId(c), await body(c)) })))
   app.post('/lms/media/:fileId/confirm', courses, run('Error al confirmar la subida.', async (c) => c.json({ data: await files.confirm(companyId(c), c.req.param('fileId')) })))
 
   // ---- enrollments --------------------------------------------------------
