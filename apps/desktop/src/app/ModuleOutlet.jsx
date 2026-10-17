@@ -289,6 +289,11 @@ const SCREEN_MAP = {
   "runly.canvas:/:boardId": lazy(
     () => import("../modules/runly.canvas/screens/BoardEditor.jsx"),
   ),
+  // runly.lms
+  "runly.lms:/": lazy(() => import("../modules/runly.lms/screens/LmsHome.jsx")),
+  "runly.lms:/courses": lazy(() => import("../modules/runly.lms/screens/LmsCourses.jsx")),
+  "runly.lms:/courses/:courseId": lazy(() => import("../modules/runly.lms/screens/LmsCourseEditor.jsx")),
+  "runly.lms:/learn/:courseId": lazy(() => import("../modules/runly.lms/screens/LmsPlayer.jsx")),
   // runly.chat
   "runly.chat:/": lazy(
     () => import("../modules/runly.chat/screens/ChatScreen.jsx").then((m) => ({ default: m.ChatScreen })),

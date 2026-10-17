@@ -1,4 +1,5 @@
 import { getCurrentModuleKey } from '@runly/core';
+import { matchesFullscreenPath } from '../lib/runtime-modules-core.js';
 
 export function hasBuiltInModule(screenMap, key) {
   const moduleKey = getCurrentModuleKey(key);
@@ -9,6 +10,9 @@ export function isPathAllowedByNavigation(module, subPath) {
   const navigation = module?.navigation ?? [];
   if (!navigation.length) return subPath === '/';
   if (subPath === '/') return true;
+  // Declared full-screen routes (e.g. runly.lms '/learn/:courseId') are part of
+  // the module even when no navigation entry covers them.
+  if (matchesFullscreenPath(module, subPath)) return true;
 
   const modulePrefix = `/app/m/${module.key}`;
 
@@ -211,6 +215,12 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
   if (moduleKey === "runly.canvas") {
     if (subPath === "/") return screenMap["runly.canvas:/"] ?? null;
     if (/^\/[^/]+\/?$/.test(subPath)) return screenMap["runly.canvas:/:boardId"] ?? null;
+    return null;
+  }
+  if (moduleKey === "runly.lms") {
+    if (subPath === "/" || subPath === "/courses") return screenMap[`runly.lms:${subPath}`] ?? null;
+    if (/^\/courses\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/courses/:courseId"] ?? null;
+    if (/^\/learn\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/learn/:courseId"] ?? null;
     return null;
   }
   if (moduleKey === "runly.core") {
