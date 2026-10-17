@@ -105,7 +105,7 @@ sustituye el permiso ERP ni la ACL individual.
 | `purchases` | Consultas de solicitudes, proveedores, órdenes, facturas y pendientes; crear borrador de solicitud y decidir una aprobación existente si el workflow lo permite | `purchases:read`, `purchases:write` |
 | `canvas` | Consultar boards/hotspots autorizados; crear board y editar hotspot conservando escena/geometría | `canvas:read`, `canvas:write` |
 | `attendance` | Consultas de asistencia, jornadas y horas extra; no registra entradas/salidas | `attendance:read` |
-| `files`, `documents` | Consultar metadatos con ACL existente; Archivos permite importar originales del chat, privados o vinculados a Inventario, con aprobación | `files:read`, `files:write`, `documents:read` |
+| `files`, `documents` | Consultar metadatos con ACL existente; importar originales a 27 destinos de los 17 módulos MCP. Adjuntos nativos o referencias privadas claramente diferenciados, con aprobación | `files:read`, `files:write`, `documents:read` más scope del destino |
 | `identity` | Buscar perfiles activos de la empresa para referencias explícitas; no crea usuarios ni modifica roles | `identity:read` |
 | `activity` | Actividad propia y paginada en la empresa consentida | `activity:read` |
 | `chat` | Metadatos de conversaciones propias de la empresa; sin mensajes, adjuntos ni envíos | `chat:read` |

@@ -697,7 +697,7 @@ export function createDriverService({ prisma }) {
           prisma.$queryRaw`
           UPDATE fleet_driver
           SET photo_asset_id = CASE
-            WHEN photo_asset_id IS NULL OR TRIM(photo_asset_id) = ''
+            WHEN photo_asset_id IS NULL OR TRIM(photo_asset_id::text) = ''
               THEN ${fileAssetId}
             ELSE photo_asset_id
           END,

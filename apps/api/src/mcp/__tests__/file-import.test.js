@@ -25,6 +25,13 @@ test('originales: rechazar credenciales, HTTP, tipos falsos, nombres de ruta y e
   await assert.rejects(() => readImportFiles([file], async () => ({ buffer: Buffer.alloc(10 * 1024 * 1024 + 1) })), { code: 'file_too_large' });
   await assert.rejects(() => readImportFiles([file], async () => { throw new Error('signed-url-must-not-leak'); }), error => error.code === 'file_unavailable' && !error.message.includes('signed-url-must-not-leak'));
 });
+test('originales XML/CFDI: conservar bytes sin parsear entidades ni permitir contenido activo', async () => {
+  const xml = Buffer.from('<?xml version="1.0" encoding="UTF-8"?><cfdi:Comprobante xmlns:cfdi="https://schema.example.test/cfdi" Total="850"/>');
+  const [loaded] = await readImportFiles([{ ...file, file_name: 'factura.xml', mime_type: 'text/xml' }], async () => ({ buffer: xml }));
+  assert.deepEqual(loaded.buffer, xml);
+  assert.equal(loaded.manifest.mimeType, 'application/xml');
+  for (const text of ['<!DOCTYPE test [<!ENTITY x SYSTEM "file:///example">]><test>&x;</test>', '<?xml version="1.0"?><svg/>', '<html><script>test</script></html>', '<?xml version="1.0"?><?xml-stylesheet href="https://example.test/style.xsl"?><test/>']) await assert.rejects(() => readImportFiles([file], async () => ({ buffer: Buffer.from(text) })), { code: 'file_type_rejected' });
+});
 test('descarga compartida: DNS público fijado, sin credenciales; bloquea redirección privada/downgrade y streams grandes', async () => {
   const dns = async () => [{ address: '192.0.2.1', family: 4 }];
   const request = fixtures => (_url, options, done) => {

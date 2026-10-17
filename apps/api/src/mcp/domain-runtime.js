@@ -18,7 +18,7 @@ export function createDomainRuntime({ prisma, config, registry }) {
     insist((auth.scopes ?? grant.payload.scopes).includes(scope) && grant.payload.scopes.includes(scope), 'insufficient_scope', 'Se requiere consentimiento para este dominio.', 403);
     const actx = await createMcpAccess(db).company(auth.authUserId, companyId, permission);
     await createMcpAccess(db).module(actx, moduleKey);
-    return { ...actx, actorProfile: actx.profile };
+    return { ...actx, actorProfile: actx.profile, mcpScopes: grant.payload.scopes.filter(scope => (auth.scopes ?? grant.payload.scopes).includes(scope)) };
   }
   function operation(adapter, key, write) {
     const definition = (write ? adapter.actions : adapter.queries).find(item => (item.key ?? item.name) === key);

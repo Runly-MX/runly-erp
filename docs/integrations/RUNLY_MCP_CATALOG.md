@@ -203,6 +203,8 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 
 | Operación | Modo | Permiso ERP |
 | --- | --- | --- |
+| `files_attachment_targets` | Lectura | `files.assets.read` |
+| `files_record_attachments` | Lectura | `files.assets.read` |
 | `files_search` | Lectura | `files.assets.read` |
 | `files_metadata` | Lectura | `files.assets.read` |
 
@@ -230,5 +232,41 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | Operación | Modo | Permiso ERP |
 | --- | --- | --- |
 | `chat_my_conversations` | Lectura | `chat.conversations.read` |
+
+## Destinos de archivos originales
+
+`runly_files_import_prepare` admite `target: { type, id }`; `itemId` conserva compatibilidad con Inventario. Consultar `runly_files_query` / `files_attachment_targets` para la disponibilidad de la instancia y `files_record_attachments` para listar archivos de un registro.
+
+`native` crea la asociación del panel existente. `private-reference` guarda un archivo privado en Archivos con una referencia verificable; no modifica el registro ni aparece en su panel nativo. Toda carga requiere `files:write`, `files.assets.create` y `files.assets.read`, además de lo indicado abajo.
+
+| Tipo de destino | Módulo | Modo | Scope del destino para cargar | Permisos del destino |
+| --- | --- | --- | --- | --- |
+| `inventory.item` | `runly.inventory` | native | `inventory:write` | `inventory.item.read` + `inventory.item.update` |
+| `hr.employee` | `runly.hr` | native | `hr:write` | `hr.employee.read` + `hr.employee.update` |
+| `fleet.vehicle` | `runly.fleet` | native | `fleet:write` | `fleet.vehicles.read` + `fleet.vehicles.update` |
+| `fleet.driver` | `runly.fleet` | native | `fleet:write` | `fleet.drivers.read` + `fleet.drivers.update` |
+| `fleet.report` | `runly.fleet` | native | `fleet:write` | `fleet.reports.read` + `fleet.reports.update` |
+| `contacts.contact` | `runly.contacts` | native | `contacts:write` | `contacts.contacts.read` + `contacts.contacts.update` |
+| `purchases.request` | `runly.purchases` | native | `purchases:write` | `purchases.request.read` + `purchases.request.update` |
+| `purchases.quote` | `runly.purchases` | native | `purchases:write` | `purchases.quote.read` + `purchases.quote.manage` |
+| `purchases.order` | `runly.purchases` | native | `purchases:write` | `purchases.order.read` + `purchases.order.update` |
+| `purchases.invoice` | `runly.purchases` | native | `purchases:write` | `purchases.invoice.read` + `purchases.invoice.update` |
+| `purchases.receipt` | `runly.purchases` | native | `purchases:write` | `purchases.receipt.read` + `purchases.receipt.create` |
+| `projects.task` | `runly.projects` | native | `projects:write` | `projects.task.read` + `projects.task.update` |
+| `canvas.board` | `runly.canvas` | native | `canvas:write` | `canvas.view` + `canvas.comment` |
+| `canvas.hotspot` | `runly.canvas` | native | `canvas:write` | `canvas.view` + `canvas.comment` |
+| `projects.project` | `runly.projects` | private-reference | `projects:read` | `projects.project.read` |
+| `notes.note` | `runly.notes` | private-reference | `notes:read` | `notes.notes.read` |
+| `pfm.wallet` | `runly.pfm` | private-reference | `pfm:read` | `pfm.wallets.read` |
+| `pfm.movement` | `runly.pfm` | private-reference | `pfm:read` | `pfm.movements.read` |
+| `ledger.account` | `runly.ledger` | private-reference | `ledger:read` | `ledger.accounts.read` |
+| `ledger.transaction` | `runly.ledger` | private-reference | `ledger:read` | `ledger.transactions.read` |
+| `calendar.event` | `runly.calendar` | private-reference | `calendar:read` | `calendar.events.read` |
+| `attendance.person` | `runly.attendance` | private-reference | `attendance:read` | `attendance.view` |
+| `identity.profile` | `runly.identity` | private-reference | `identity:read` | `identity.users.read` |
+| `activity.entry` | `runly.activity` | private-reference | `activity:read` | `activity.read` |
+| `chat.conversation` | `runly.chat` | private-reference | `chat:read` | `chat.conversations.read` |
+| `documents.file` | `runly.documents` | private-reference | `documents:read` | `files.assets.read` |
+| `files.file` | `runly.files` | private-reference | `files:read` | `files.assets.read` |
 
 Inventario conserva sus ocho operaciones y sus cuatro herramientas base de identidad/descubrimiento. RME3 con metadata `mcp.version=1` continúa siendo solo descubrimiento; no se anuncia CRUD ejecutable.

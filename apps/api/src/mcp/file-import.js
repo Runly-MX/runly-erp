@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { readCatalogBytes } from '../services/catalog/catalog-download.js';
 import { createFilesService } from '../services/files-service.js';
-import { createInventoryService } from '../services/inventory-service.js';
+import { attachmentTargetSchema, normalizeAttachmentTarget, createAttachmentTargets } from './attachment-targets.js';
 import { createMcpAccess } from './access.js';
-import { createMcpState, digest, transactionClient, wire } from './state.js';
+import { createMcpState, digest, transactionClient } from './state.js';
 import { fingerprint } from './domain-runtime.js';
 import { companyInput, proposalSchema, resultSchema } from './contracts.js';
 import { insist } from './config.js';
@@ -11,10 +11,17 @@ import { insist } from './config.js';
 const MAX_BYTES = 10 * 1024 * 1024;
 const fileRef = z.strictObject({ download_url: z.url().max(8192), file_id: z.string().min(1).max(200), mime_type: z.string().max(100).optional(), file_name: z.string().min(1).max(255).optional() });
 const refs = z.array(fileRef).min(1).max(5).refine(files => new Set(files.map(file => file.file_id)).size === files.length);
+function isSafeXml(buffer) {
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(buffer).trimStart();
+    // Stored only; no fiscal recognition, entity resolution or external reads.
+    return /^<\?xml\b|^<(?:[A-Za-z_][\w.-]*:)?[A-Za-z_][\w.-]*(?:\s|>|\/)/.test(text) && !/<!DOCTYPE|<!ENTITY|<\?xml-stylesheet\b|<(?:[\w.-]+:)?(?:svg|html|script|stylesheet|transform)\b/i.test(text);
+  } catch { return false; }
+}
 export const fileImportTools = ['prepare', 'commit'].map(mode => ({
   name: `runly_files_import_${mode}`, moduleKey: 'runly.files', domain: 'files', mode, scope: 'files:write', fileImport: mode,
-  description: mode === 'prepare' ? 'Preparar la carga de fotografías/archivos originales adjuntos al chat. Usa files con referencias reales del cliente (nunca inventes URLs). Indica itemId para adjuntar a un activo de Inventario existente; omítelo para guardar en Archivos privados. Abrir approvalUrl antes del commit.' : 'Guardar los originales de una propuesta aprobada en Runly. Reenvía los mismos archivos mediante files; se verifica su SHA-256. No crea otro activo de Inventario. Reintentos devuelven los mismos IDs.',
-  inputSchema: z.strictObject({ ...companyInput, files: refs, ...(mode === 'prepare' ? { itemId: z.uuid().optional() } : { proposalId: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }) }),
+  description: mode === 'prepare' ? 'Preparar imágenes, PDF o XML originales del chat para un registro existente. Consulta runly_files_query con operation files_attachment_targets y usa target:{type,id}; itemId sigue siendo alias de Inventario. Sin destino guarda archivos privados. Los destinos native aparecen en su módulo; private-reference conserva una referencia privada en Archivos, sin enviar mensajes ni modificar documentos. Usa referencias reales en files; abre approvalUrl antes del commit.' : 'Guardar los originales de una propuesta aprobada en Runly y vincularlos al destino revisado. Reenvía los mismos archivos mediante files; se verifica su SHA-256. No crea otro registro destino. Reintentos devuelven los mismos IDs.',
+  inputSchema: z.strictObject({ ...companyInput, files: refs, ...(mode === 'prepare' ? { itemId: z.uuid().optional(), target: attachmentTargetSchema.optional() } : { proposalId: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }) }).refine(input => !(input.itemId && input.target), { message: 'Usa target o itemId, no ambos.' }),
   outputSchema: mode === 'prepare' ? proposalSchema : resultSchema,
   operations: [], permission: 'files.assets.create', approvalPolicy: 'web-session-explicit',
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
@@ -35,9 +42,10 @@ export async function readImportFiles(files, download = readCatalogBytes) {
     total += buffer.length;
     insist(buffer.length > 0 && buffer.length <= MAX_BYTES && total <= 30 * 1024 * 1024, 'file_too_large', 'Máximo 10 MB por archivo y 30 MB por propuesta.', 422);
     const hex = buffer.subarray(0, 12).toString('hex');
-    const type = hex.startsWith('89504e470d0a1a0a') ? ['image/png', '.png'] : hex.startsWith('ffd8ff') ? ['image/jpeg', '.jpg'] : /^(GIF87a|GIF89a)/.test(buffer.subarray(0, 6).toString()) ? ['image/gif', '.gif'] : buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP' ? ['image/webp', '.webp'] : buffer.subarray(0, 5).toString() === '%PDF-' ? ['application/pdf', '.pdf'] : null;
-    insist(type, 'file_type_rejected', 'Esta carga admite originales JPEG, PNG, GIF, WebP y PDF. No se convierte ni reconstruye contenido.', 422);
-    insist(!ref.mime_type || ref.mime_type === 'application/octet-stream' || ref.mime_type.toLowerCase() === type[0], 'file_type_rejected', 'El tipo declarado no coincide con el original.', 422);
+    const type = hex.startsWith('89504e470d0a1a0a') ? ['image/png', '.png'] : hex.startsWith('ffd8ff') ? ['image/jpeg', '.jpg'] : /^(GIF87a|GIF89a)/.test(buffer.subarray(0, 6).toString()) ? ['image/gif', '.gif'] : buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP' ? ['image/webp', '.webp'] : buffer.subarray(0, 5).toString() === '%PDF-' ? ['application/pdf', '.pdf'] : isSafeXml(buffer) ? ['application/xml', '.xml'] : null;
+    insist(type, 'file_type_rejected', 'Esta carga admite originales JPEG, PNG, GIF, WebP, PDF y XML UTF-8 sin DTD ni contenido activo. No se convierte ni reconstruye contenido.', 422);
+    const declared = ref.mime_type?.toLowerCase() === 'text/xml' ? 'application/xml' : ref.mime_type?.toLowerCase();
+    insist(!declared || declared === 'application/octet-stream' || declared === type[0], 'file_type_rejected', 'El tipo declarado no coincide con el original.', 422);
     const name = ref.file_name ?? `${ref.file_id}${type[1]}`;
     insist(!/[\x00-\x1f\x7f/\\]/.test(name) && name !== '.' && name !== '..', 'invalid_filename', 'Nombre de archivo inválido.', 400);
     loaded.push({ buffer, manifest: { fileId: ref.file_id, name, mimeType: type[0], sizeBytes: buffer.length, sha256: digest(buffer) } });
@@ -46,23 +54,16 @@ export async function readImportFiles(files, download = readCatalogBytes) {
 }
 
 export function createFileImport({ prisma, config, supabaseAdmin, download }) {
-  async function context(auth, companyId, itemId, db = prisma) {
+  async function context(auth, companyId, destination, db = prisma) {
     const grant = await createMcpState(db).get('grant', auth.grantId);
     insist(grant && !grant.payload.revoked && grant.payload.authUserId === auth.authUserId && grant.payload.resource === config.resource, 'invalid_token', 'Conexión revocada.', 401);
     insist(grant.payload.companyIds.includes(companyId), 'company_not_granted', 'Empresa no autorizada.', 403);
-    const scopes = ['files:write', ...(itemId ? ['inventory:write'] : [])];
-    insist(scopes.every(scope => grant.payload.scopes.includes(scope) && (auth.scopes ?? grant.payload.scopes).includes(scope)), 'insufficient_scope', 'Reconecta y autoriza files:write y, para adjuntar a un activo, inventory:write.', 403);
+    insist(grant.payload.scopes.includes('files:write') && (auth.scopes ?? grant.payload.scopes).includes('files:write'), 'insufficient_scope', 'Reconecta y autoriza files:write.', 403);
     const access = createMcpAccess(db), a = await access.company(auth.authUserId, companyId, 'files.assets.create');
     insist(a.can('files.assets.read'), 'permission_denied', 'Se requiere permiso de lectura de archivos.', 403);
     await access.module(a, 'runly.files');
-    let target = null;
-    if (itemId) {
-      await access.module(a, 'runly.inventory');
-      insist(a.can('inventory.item.read') && a.can('inventory.item.update'), 'permission_denied', 'Se requiere permiso para leer y editar el activo.', 403);
-      const item = await db.invItem.findFirst({ where: { id: itemId, companyId, enabled: true }, select: { id: true, name: true, updatedAt: true } });
-      insist(item, 'not_found', 'Activo no disponible en esta empresa.', 404);
-      target = wire(item);
-    }
+    a.mcpScopes = grant.payload.scopes.filter(scope => (auth.scopes ?? grant.payload.scopes).includes(scope));
+    const target = await createAttachmentTargets({ prisma: db }).resolve(destination, a);
     return { a, target };
   }
   async function get(id, authUserId, db = prisma) {
@@ -70,19 +71,27 @@ export function createFileImport({ prisma, config, supabaseAdmin, download }) {
     insist(row?.payload.version === 3 && row.payload.authUserId === authUserId, 'not_found', 'Propuesta no disponible o vencida.', 404);
     return row;
   }
-  async function validate(p, db = prisma, scopes) {
-    const result = await context({ ...p, scopes }, p.companyId, p.itemId, db);
-    insist(p.result || fingerprint(result.target) === fingerprint(p.target), 'proposal_stale', 'El activo cambió. Prepara otra propuesta.', 409);
+  async function validate(p, db = prisma, scopes, checkRevision = true) {
+    const result = await context({ ...p, scopes }, p.companyId, normalizeAttachmentTarget(p.destination, p.itemId), db);
+    const snapshot = result.target?.snapshot ?? null;
+    // Preserve proposals prepared by the first Inventory-only implementation.
+    const comparable = p.destination || !snapshot ? snapshot : { id: snapshot.id, name: snapshot.name, updatedAt: snapshot.updatedAt };
+    insist(!checkRevision || p.result || fingerprint(comparable) === fingerprint(p.target), 'proposal_stale', 'El recurso o sus relaciones cambiaron. Prepara otra propuesta.', 409);
     return result;
   }
   const details = (id, row) => {
     const p = row.payload;
-    return { proposalId: id, companyId: p.companyId, moduleKey: 'runly.files', action: 'files.import', preview: { title: p.itemId ? 'Adjuntar originales al activo' : 'Guardar originales privados', fields: [{ label: 'Destino', value: p.target ? `${p.target.name} (${p.itemId})` : 'Mis archivos privados' }, ...p.files.map(file => ({ label: file.name, value: `${file.mimeType} · ${file.sizeBytes} bytes · SHA-256 ${file.sha256}` }))] }, proposed: { files: p.files, target: p.target, effects: ['Guardar los originales sin conversión en almacenamiento privado.', p.itemId ? 'Vincular al activo existente; visible según los permisos de Inventario.' : 'Solo el propietario y los permisos existentes de Archivos permiten acceder.'] }, approved: p.approved, rejected: p.rejected, completed: Boolean(p.result), sensitive: false, expiresAt: row.expiresAt };
+    const destination = normalizeAttachmentTarget(p.destination, p.itemId);
+    const effect = !destination ? 'Guardar archivos privados sin vincularlos a otro registro.' : p.target.mode === 'private-reference' ? 'Referencia privada en Archivos. No modifica contenido del módulo ni envía mensajes; no aparece como adjunto nativo.' : 'Vincular al registro existente; visible según sus permisos y el panel del módulo.';
+    const effects = ['Guardar los originales sin conversión en almacenamiento privado.', effect, ...(destination?.type === 'fleet.driver' ? ['El servicio de Flota puede usar la primera imagen como foto del conductor si no tiene una; conserva su foto existente.'] : [])];
+    return { proposalId: id, companyId: p.companyId, moduleKey: 'runly.files', action: 'files.import', preview: { title: destination ? p.target.mode === 'private-reference' ? 'Guardar referencia privada al registro' : 'Adjuntar originales al registro' : 'Guardar originales privados', fields: [{ label: 'Destino', value: p.target ? `${destination.type}: ${p.target.name} (${destination.id})` : 'Mis archivos privados' }, ...p.files.map(file => ({ label: file.name, value: `${file.mimeType} · ${file.sizeBytes} bytes · SHA-256 ${file.sha256}` }))] }, proposed: { files: p.files, destination, target: p.target, effects }, approved: p.approved, rejected: p.rejected, completed: Boolean(p.result), sensitive: false, expiresAt: row.expiresAt };
   };
   async function prepare(args, auth) {
-    const { target } = await context(auth, args.companyId, args.itemId);
+    insist(!(args.target && args.itemId), 'invalid_request', 'Usa target o itemId, no ambos.', 400);
+    const destination = normalizeAttachmentTarget(args.target, args.itemId);
+    const { target } = await context(auth, args.companyId, destination);
     const loaded = await readImportFiles(args.files, download), files = loaded.map(file => file.manifest);
-    const p = { version: 3, authUserId: auth.authUserId, grantId: auth.grantId, companyId: args.companyId, itemId: args.itemId ?? null, target, files, approved: false, rejected: false };
+    const p = { version: 3, authUserId: auth.authUserId, grantId: auth.grantId, companyId: args.companyId, itemId: destination?.type === 'inventory.item' ? destination.id : null, destination, target: target?.snapshot ?? null, files, approved: false, rejected: false };
     const id = Buffer.from(fingerprint(p), 'hex').toString('base64url'), store = createMcpState(prisma);
     let row = await store.get('proposal', id);
     if (!row) {
@@ -127,19 +136,22 @@ export function createFileImport({ prisma, config, supabaseAdmin, download }) {
           await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`inventory-files:${current.itemId}`}, 0))::text AS locked`;
           await db.$queryRaw`SELECT id FROM inv_item WHERE id = ${current.itemId}::uuid AND company_id = ${current.companyId}::uuid FOR UPDATE`;
         }
-        const { a } = await validate(current, db, auth.scopes);
+        const { a, target } = await validate(current, db, auth.scopes);
         if (current.result) return current.result;
         insist(current.approved && !current.rejected, 'approval_required', 'Propuesta no aprobada.', 403);
-        const service = createFilesService({ prisma: db, supabaseAdmin: { storage } }), inventory = createInventoryService({ prisma: db });
+        const service = createFilesService({ prisma: db, supabaseAdmin: { storage } }), targets = createAttachmentTargets({ prisma: db });
         const saved = [];
         for (const { buffer, manifest } of loaded) {
-          const asset = await service.upload({ authUserId: auth.authUserId, activeContext: { companyId: a.companyId, profileId: a.actorProfileId, isAdmin: a.isAdmin, permissionSet: a.permissionSet }, file: new File([buffer], manifest.name, { type: manifest.mimeType }), fields: { moduleKey: p.itemId ? 'runly.inventory' : 'runly.files', entityType: p.itemId ? 'InvItem' : 'AtlasFile', entityId: p.itemId, visibility: 'PRIVATE', metadata: { sha256: manifest.sha256, mcpProposalHash: digest(args.proposalId) } } });
-          if (p.itemId) await inventory.addItemFile(p.itemId, asset.id, p.companyId, manifest.name);
+          const asset = await service.upload({ authUserId: auth.authUserId, activeContext: { companyId: a.companyId, profileId: a.actorProfileId, isAdmin: a.isAdmin, permissionSet: a.permissionSet }, file: new File([buffer], manifest.name, { type: manifest.mimeType }), fields: { ...targets.fields(target), metadata: { sha256: manifest.sha256, mcpProposalHash: digest(args.proposalId), ...(target ? { mcpTarget: target.spec } : {}) } } });
+          await targets.link(target, asset, a);
           saved.push({ id: asset.id, name: asset.originalName, mimeType: asset.mimeType, sizeBytes: Number(asset.sizeBytes), sha256: manifest.sha256 });
         }
-        await validate(current, db, auth.scopes);
-        const result = { operation: 'files.import', result: { files: saved, itemId: p.itemId, link: p.itemId ? `/app/m/runly.inventory/inventory/${p.itemId}` : '/app/m/runly.files' } };
-        await db.auditLog.create({ data: { companyId: p.companyId, actorId: a.actorProfileId, moduleKey: p.itemId ? 'runly.inventory' : 'runly.files', action: 'mcp.files.import', after: result, metadata: { proposalHash: digest(args.proposalId) } } });
+        // Domain attachment effects may update their own resource version
+        // (e.g. the driver's first image). Recheck authorization after those
+        // effects; the approved revision was checked before executing them.
+        await validate(current, db, auth.scopes, false);
+        const result = { operation: 'files.import', result: { files: saved, itemId: p.itemId, target: target?.spec ?? null, mode: target?.mode ?? 'private', recordLink: target?.link ?? null, link: target?.mode === 'native' ? target.link : `/app/m/runly.files?fileId=${saved[0].id}` } };
+        await db.auditLog.create({ data: { companyId: p.companyId, actorId: a.actorProfileId, moduleKey: target?.moduleKey ?? 'runly.files', action: 'mcp.files.import', after: result, metadata: { proposalHash: digest(args.proposalId) } } });
         await store.save(row, { ...current, result });
         return result;
       }, { timeout: 60000 });

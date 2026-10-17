@@ -15,6 +15,7 @@ import { createCanvasService } from '../../routes/canvas/canvas-service.js';
 import { createPurchasesService } from '../../services/purchases-service.js';
 import * as Y from 'yjs';
 import { fileImportTests } from './file-import-cases.js';
+import { moduleAttachmentTests } from './module-attachment-cases.js';
 
 async function notesSchema(url) {
   const client = new pg.Client({ connectionString: url });
@@ -22,8 +23,8 @@ async function notesSchema(url) {
   try {
     // db push does not reproduce client-side uuid defaults as database defaults.
     // Production's original fleet/ledger migrations define server-generated IDs.
-    for (const table of ['fleet_vehicle', 'fleet_driver', 'fleet_insurance_policy', 'ledger_transaction']) await client.query(`ALTER TABLE ${table} ALTER COLUMN id SET DEFAULT uuidv7()`);
-    for (const table of ['fleet_vehicle', 'fleet_driver', 'fleet_insurance_policy']) await client.query(`ALTER TABLE ${table} ALTER COLUMN updated_at SET DEFAULT now()`);
+    for (const table of ['fleet_vehicle', 'fleet_driver', 'fleet_insurance_policy', 'ledger_transaction', 'fleet_vehicle_document', 'fleet_driver_document', 'fleet_report_document']) await client.query(`ALTER TABLE ${table} ALTER COLUMN id SET DEFAULT uuidv7()`);
+    for (const table of ['fleet_vehicle', 'fleet_driver', 'fleet_insurance_policy', 'fleet_vehicle_document', 'fleet_driver_document', 'fleet_report_document']) await client.query(`ALTER TABLE ${table} ALTER COLUMN updated_at SET DEFAULT now()`);
     for (const folder of ['20260627120000_atlas_notes_tables', '20260627130000_atlas_notes_fixes', '20260910182109_notes_canvas', '20260918120000_notes_paper_style', '20260919090000_notes_paper_effects', '20260919232806_notes_public_collaborators']) {
       await client.query(await readFile(new URL(`../../../../../prisma/migrations/${folder}/migration.sql`, import.meta.url), 'utf8'));
     }
@@ -262,7 +263,7 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
       pfm_spending_summary: { from: '2026-10-01', to: '2026-10-31', groupBy: 'category' }, ledger_summary: { from: '2026-10-01', to: '2026-10-31', groupBy: 'category' }, ledger_transactions_page: { accountId: account.id },
       projects_detail: { projectId: ids.projects }, projects_task_detail: { taskId: ids.task }, contacts_detail: { contactId: ids.contacts }, canvas_board_summary: { boardId: ids.board },
       calendar_list_events: { from: '2026-10-01', to: '2026-10-31' }, calendar_summary: { from: '2026-10-01', to: '2026-10-31' }, calendar_free_slots: { from: '2026-10-19', to: '2026-10-20' }, calendar_events_page: { start: '2026-10-01T00:00:00Z', end: '2026-10-31T23:59:59Z' },
-      files_metadata: { fileId: file.id }, documents_metadata: { fileId: file.id }, attendance_person_status: { search: 'Fixture inexistente' }, attendance_overtime: { from: '2026-10-01', to: '2026-10-07' },
+      files_metadata: { fileId: file.id }, documents_metadata: { fileId: file.id }, files_record_attachments: { target: { type: 'hr.employee', id: ids.hr } }, attendance_person_status: { search: 'Fixture inexistente' }, attendance_overtime: { from: '2026-10-01', to: '2026-10-07' },
     };
     for (const moduleKey of registry.moduleKeys.filter(key => key !== 'runly.chat')) for (const query of registry.create(moduleKey).queries) await t.test(query.name, async () => {
       const result = await run(moduleKey.slice(6), 'query', { request: { operation: query.name, input: inputs[query.name] ?? {} } });
@@ -324,6 +325,7 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
     assert.equal(JSON.stringify(result).includes('Contenido que no debe salir'), false);
     assert.equal(JSON.stringify(result).includes(external.id), false);
   });
+  await moduleAttachmentTests(t, { prisma, config, auth, company, other, user, role, request, webToken, ids, wallet, account });
   await t.test('sin membresía activa no se conservan accesos de dominio', async () => {
     await prisma.membership.update({ where: { id: membership.id }, data: { enabled: false } });
     await assert.rejects(() => run('hr', 'query', { request: { operation: 'hr_employees_search', input: {} } }), { code: 'membership_revoked' });

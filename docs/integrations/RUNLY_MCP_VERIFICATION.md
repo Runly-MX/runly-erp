@@ -5,6 +5,19 @@ en [RUNLY_MCP.md](RUNLY_MCP.md).
 
 ## Ampliación de módulos oficiales
 
+La ampliación posterior de [adjuntos por módulo](RUNLY_MCP_FILES.md) pasó **163
+pruebas MCP**, sin fallos ni omisiones, incluido Inspector 2.11.0. Cubre los 27
+destinos de los 17 módulos, asociaciones nativas de Inventario/Flota/RH/Compras/
+Contactos/tareas/Canvas y referencias privadas para los demás recursos, sin
+publicar mensajes ni modificar documentos colaborativos. Se probaron roles
+individuales, aislamiento, scopes, revocación durante la carga, rollback de
+metadatos/objetos, idempotencia concurrente, XML de factura sin cambiar importes
+y compatibilidad con propuestas antiguas. Las 43 pruebas seleccionadas de Flota
+también pasaron; el servicio compartido ahora admite correctamente UUID en la
+condición que asigna la primera imagen del conductor. No cambia el esquema.
+La prueba de Storage sigue simulando su frontera SDK; no se afirma una carga
+manual desde una cuenta comercial de ChatGPT ni una prueba en el VPS.
+
 Actualización posterior: la [carga de originales](RUNLY_MCP_FILES.md) añade dos
 herramientas (50 en total) y eleva `pnpm test:mcp` a 125 pruebas aprobadas sin
 fallos ni omisiones, con Inspector 2.11.0. Se verificaron tres archivos reales

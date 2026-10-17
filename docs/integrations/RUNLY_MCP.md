@@ -5,7 +5,7 @@ La ampliación transversal de módulos oficiales se describe en
 [catálogo de capacidades](RUNLY_MCP_CATALOG.md). Las doce herramientas
 documentadas aquí conservan sus contratos como núcleo compatible.
 
-Carga de fotografías/PDF originales del chat y vinculación a un activo existente:
+Carga de imágenes/PDF/XML originales del chat y asociación a registros existentes de módulos oficiales:
 [RUNLY_MCP_FILES.md](RUNLY_MCP_FILES.md). Requiere nuevo consentimiento `files:write`.
 
 Compatibilidad OAuth con Inspector 2.11.0, auditoría DCR y procedimiento de

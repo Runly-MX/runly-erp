@@ -5,13 +5,18 @@ import { createActivityService } from '../../services/activity-service.js';
 import { createChatService } from '../../routes/chat/chat-service.js';
 import { pageInput } from '../contracts.js';
 import { insist } from '../config.js';
+import { attachmentTargetSchema, createAttachmentTargets } from '../attachment-targets.js';
 
 const fileSummary = file => ({ id: file.id, name: file.originalName, mimeType: file.mimeType, sizeBytes: Number(file.sizeBytes), moduleKey: file.moduleKey, entityType: file.entityType, createdAt: file.createdAt, updatedAt: file.updatedAt, link: `/app/m/runly.files?fileId=${file.id}` });
 function filesAdapter({ prisma }, documents) {
-  const service = createFilesService({ prisma });
+  const service = createFilesService({ prisma }), targets = createAttachmentTargets({ prisma });
   const domain = documents ? 'documents' : 'files';
   const context = a => ({ authUserId: a.actorAuthUserId, activeContext: { companyId: a.companyId, profileId: a.actorProfileId, isAdmin: a.isAdmin, permissionSet: a.permissionSet } });
   return { moduleKey: `runly.${domain}`, label: documents ? 'Documentos' : 'Archivos', actions: [], queries: [
+    ...(!documents ? [
+      { name: 'files_attachment_targets', permission: 'files.assets.read', definition: { description: 'Destinos soportados para adjuntos en los módulos instalados y autorizados: native aparece en su panel; private-reference queda como referencia privada en Archivos, sin modificar el registro. Cada carga exige files:write y los scopes/permisos del destino.' }, inputSchema: z.strictObject({}), run: async (_input, a) => ({ targets: await targets.catalog(a) }) },
+      { name: 'files_record_attachments', permission: 'files.assets.read', definition: { description: 'Listar metadatos de adjuntos nativos o referencias privadas de un registro autorizado. Revalida permisos individuales y consentimiento del módulo. No descarga contenido ni genera URLs firmadas.' }, inputSchema: z.strictObject({ ...pageInput, target: attachmentTargetSchema }), run: (input, a) => targets.list(input.target, a, input) },
+    ] : []),
     { name: `${domain}_search`, permission: 'files.assets.read', definition: { description: 'Buscar metadatos de archivos autorizados; sin URLs firmadas ni claves de almacenamiento.' }, inputSchema: z.object({ ...pageInput, search: z.string().max(200).optional() }).strict(),
       async run(input, a) {
         const result = await service.list({ ...context(a), query: { page: input.page, pageSize: input.limit, q: input.search, ...(documents ? { workspace: 'documents' } : {}) }, includeSignedUrls: false });
