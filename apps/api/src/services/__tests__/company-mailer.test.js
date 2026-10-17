@@ -1,6 +1,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createCompanyMailer } from '../smtp-service.js'
+import { createCompanyMailer, describeMailError } from '../smtp-service.js'
+
+test('describeMailError explains common SMTP failures without secrets', () => {
+  const auth = describeMailError(Object.assign(new Error('Invalid login: 535 5.7.8 bad credentials'), { code: 'EAUTH', responseCode: 535, mailSource: 'platform' }))
+  assert.match(auth.text, /plataforma/)
+  assert.match(auth.text, /usuario o la contraseña/)
+  assert.match(auth.text, /EAUTH 535/)
+  assert.match(describeMailError({ code: 'ETIMEDOUT', mailSource: 'company' }).text, /no se pudo conectar/)
+  assert.match(describeMailError({ code: 'EENVELOPE', responseCode: 553 }).text, /remitente o el destinatario/)
+  assert.doesNotMatch(auth.text, /bad credentials/)
+})
+
+test('a failed send carries which SMTP was used', async () => {
+  const failing = { isConfigured: async () => true, sendEmail: async () => { throw Object.assign(new Error('boom'), { code: 'EAUTH' }) } }
+  const mailer = createCompanyMailer({ prisma: null, websiteFactory: () => ({ isConfigured: async () => false }), platformFactory: () => failing })
+  await assert.rejects(() => mailer.sendEmail({ companyId: 'c1', to: 'a@example.com' }), (error) => error.mailSource === 'platform')
+})
 
 function fakeMailer(configured, sent) {
   return { isConfigured: async () => configured, sendEmail: async (mail) => { sent.push(mail) } }

@@ -3,6 +3,7 @@
 // stored, so the plain code exists only in the email and in the create/resend
 // response (shown once in the dialog for manual delivery when mail is off).
 import { resolveAppBaseUrl } from '../../services/email-templates.js'
+import { describeMailError } from '../../services/smtp-service.js'
 import { LmsError } from './lms-error.js'
 import { isUuid } from './lms-eval-shared.js'
 import {
@@ -78,8 +79,12 @@ export function createLmsInviteService({
       const mail = buildMail({ courseTitle: course.title, inviteUrl: link, accessCode: formatAccessCode(code), name: invite.name, brand })
       await sendMail({ to: invite.email, subject: mail.subject, html: mail.html, text: mail.text, fromName: brand?.name ?? undefined, companyId: course.companyId })
     } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('[runly.lms] invite mail failed', error?.message)
-      return { row: invite, ...manual(/no configurado/i.test(error?.message ?? '') ? 'MAIL_OFF' : 'MAIL_FAILED') }
+      if (/no configurado/i.test(error?.message ?? '')) return { row: invite, ...manual('MAIL_OFF') }
+      const why = describeMailError(error)
+      // Always logged (also in production) without secrets: code, SMTP response and source.
+      console.error('[runly.lms] invite mail failed', { code: why.code, responseCode: why.responseCode, source: why.source, command: error?.command ?? null })
+      const result = manual('MAIL_FAILED')
+      return { row: invite, ...result, mailError: { ...result.mailError, message: `${result.mailError.message} ${why.text}`, detail: why } }
     }
     const row = await prisma.lmsGuestInvite.update({ where: { id: invite.id }, data: { sentAt: new Date() } })
     return { row, sent: true, link, code: formatAccessCode(code), mailError: null }

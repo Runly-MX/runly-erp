@@ -320,6 +320,22 @@ export function createWebsiteSmtpService({ prisma, companyId = null }) {
   return { sendEmail, isConfigured, getStatus, getConfig, getWebsiteOnlyConfig }
 }
 
+// Spanish, secret-free explanation of a nodemailer failure for admins.
+const MAIL_SOURCE_LABELS = { company: 'el correo de la empresa o del sitio web', platform: 'el correo de la plataforma' }
+export function describeMailError(error) {
+  const code = String(error?.code ?? '')
+  const response = Number(error?.responseCode) || null
+  const source = MAIL_SOURCE_LABELS[error?.mailSource] ?? 'el correo configurado'
+  let reason
+  if (code === 'EAUTH' || response === 535 || response === 534) reason = 'el servidor rechazó el usuario o la contraseña'
+  else if (['ECONNECTION', 'ETIMEDOUT', 'ESOCKET', 'ENOTFOUND', 'ECONNREFUSED', 'EDNS'].includes(code)) reason = 'no se pudo conectar al servidor (revisa host, puerto y TLS)'
+  else if (code === 'ETLS' || /certificate|ssl|tls/i.test(String(error?.message ?? ''))) reason = 'falló la conexión segura TLS (revisa el puerto y la opción TLS)'
+  else if (code === 'EENVELOPE' || [550, 551, 552, 553, 554].includes(response)) reason = 'el servidor rechazó el remitente o el destinatario (revisa el correo remitente permitido)'
+  else reason = 'el servidor de correo devolvió un error'
+  const detail = [code, response].filter(Boolean).join(' ')
+  return { source: error?.mailSource ?? null, code: code || null, responseCode: response, text: `Se usó ${source} y ${reason}${detail ? ` (${detail})` : ''}.` }
+}
+
 // Mail sent on behalf of a company to people outside it (course invitations,
 // ...): the company's own mail first (Sitio web SMTP, then the company's
 // Ajustes -> SMTP, both via createWebsiteSmtpService), then the platform SMTP
@@ -342,7 +358,13 @@ export function createCompanyMailer({ prisma, env = process.env, websiteFactory 
   async function sendEmail({ companyId = null, ...mail }) {
     const mailer = await resolve(companyId)
     if (!mailer) throw new Error('SMTP no configurado (empresa, sitio web ni plataforma)')
-    return mailer.sendEmail(mail)
+    try {
+      return await mailer.sendEmail(mail)
+    } catch (error) {
+      // Which SMTP was used travels with the error so callers can explain it.
+      if (error && typeof error === 'object') error.mailSource = mailer.source
+      throw error
+    }
   }
 
   async function isConfigured(companyId = null) {
