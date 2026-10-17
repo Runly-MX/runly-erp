@@ -6,7 +6,12 @@ export const lmsPath = (subPath = '') => `${LMS_BASE}${subPath}`
 
 export const LEVEL_LABELS = { basic: 'Básico', intermediate: 'Intermedio', advanced: 'Avanzado' }
 export const STATUS_LABELS = { draft: 'Borrador', published: 'Publicado', archived: 'Archivado' }
-export const KIND_LABELS = { video: 'Video', embed: 'Enlace de video', text: 'Texto', file: 'Archivo' }
+export const KIND_LABELS = { video: 'Video', embed: 'Enlace de video', text: 'Texto', file: 'Archivo', quiz: 'Examen', assignment: 'Tarea' }
+export const QUESTION_KIND_LABELS = { single: 'Opción única', multiple: 'Opción múltiple', true_false: 'Verdadero o falso', open: 'Respuesta abierta' }
+export const SHOW_ANSWERS_LABELS = { after_submit: 'Al enviar el examen', after_pass: 'Solo al aprobar', never: 'Nunca' }
+export const SUBMISSION_STATUS_LABELS = { submitted: 'Enviada', returned: 'Devuelta', approved: 'Aprobada' }
+export const SUBMISSION_VARIANTS = { submitted: 'secondary', returned: 'warning', approved: 'success' }
+export const REVIEW_TYPE_LABELS = { attempt: 'Examen', submission: 'Tarea' }
 export const ENROLLMENT_STATUS_LABELS = { active: 'En curso', completed: 'Completado', dropped: 'Baja' }
 export const SOURCE_LABELS = { self: 'Inscripción libre', assigned: 'Asignado' }
 

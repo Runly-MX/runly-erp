@@ -294,6 +294,7 @@ const SCREEN_MAP = {
   "runly.lms:/courses": lazy(() => import("../modules/runly.lms/screens/LmsCourses.jsx")),
   "runly.lms:/courses/:courseId": lazy(() => import("../modules/runly.lms/screens/LmsCourseEditor.jsx")),
   "runly.lms:/learn/:courseId": lazy(() => import("../modules/runly.lms/screens/LmsPlayer.jsx")),
+  "runly.lms:/review": lazy(() => import("../modules/runly.lms/screens/LmsReview.jsx")),
   // runly.chat
   "runly.chat:/": lazy(
     () => import("../modules/runly.chat/screens/ChatScreen.jsx").then((m) => ({ default: m.ChatScreen })),

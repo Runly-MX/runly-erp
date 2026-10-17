@@ -1,11 +1,13 @@
 import { cn } from '@runly/ui'
-import { CheckCircle2, Circle, Lock, PlayCircle } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, Lock, PlayCircle, XCircle } from 'lucide-react'
 import { KIND_LABELS, formatDuration } from '../lib/lmsLabels.js'
 
 const STATE_ICONS = {
   completed: { icon: CheckCircle2, className: 'text-emerald-600 dark:text-emerald-400', label: 'Completada' },
   in_progress: { icon: PlayCircle, className: 'text-violet-600 dark:text-violet-400', label: 'En curso' },
   available: { icon: Circle, className: 'text-[hsl(var(--muted-foreground))]', label: 'Disponible' },
+  pending_review: { icon: Clock, className: 'text-amber-600 dark:text-amber-400', label: 'En revisión' },
+  failed: { icon: XCircle, className: 'text-[hsl(var(--destructive))]', label: 'No aprobada' },
   locked: { icon: Lock, className: 'text-[hsl(var(--muted-foreground))]', label: 'Bloqueada' },
 }
 

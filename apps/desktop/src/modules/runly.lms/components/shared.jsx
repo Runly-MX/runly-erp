@@ -21,10 +21,11 @@ export function EnrollmentStatusBadge({ status }) {
 }
 
 // Right-hand form sheet: header and footer stay fixed, only the body scrolls.
-export function FormSheet({ open, onOpenChange, title, description, children, footer }) {
+// `wide` is for editors with lists (quiz questions, grading).
+export function FormSheet({ open, onOpenChange, title, description, children, footer, wide = false }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+      <SheetContent side="right" className={cn('flex w-full flex-col gap-0 p-0', wide ? 'sm:max-w-3xl' : 'sm:max-w-lg')}>
         <SheetHeader className="shrink-0 border-b border-[hsl(var(--border))] px-5 py-4 pr-12 max-md:pb-3 max-md:pr-5">
           <SheetTitle>{title}</SheetTitle>
           {description ? <SheetDescription>{description}</SheetDescription> : null}

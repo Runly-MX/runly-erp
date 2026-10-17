@@ -119,7 +119,7 @@ export default function LmsPlayer() {
             <EmptyState icon={Lock} title="No hay lecciones disponibles" description="Todas las lecciones están bloqueadas por ahora." />
           ) : (
             <LessonPane
-              lesson={lesson} outlineLessons={lessons} status={current?.status} preview={preview}
+              lesson={lesson} outlineLessons={lessons} courseId={courseId} status={current?.status} preview={preview}
               onProgress={report} onComplete={complete} completing={save.isPending} onNavigate={select}
             />
           )}

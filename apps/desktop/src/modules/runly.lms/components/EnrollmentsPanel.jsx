@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import {
-  Badge, Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, ProgressBar,
+  Badge, Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent,
+  DropdownMenuSubTrigger, DropdownMenuTrigger, ProgressBar,
 } from '@runly/ui'
-import { CalendarClock, MoreHorizontal, RotateCcw, UserMinus, UserPlus, Users } from 'lucide-react'
-import { useEnrollments, useUpdateEnrollment } from '../hooks/useLmsData.js'
+import { CalendarClock, ListChecks, MoreHorizontal, RotateCcw, UserMinus, UserPlus, Users } from 'lucide-react'
+import { useEnrollments, useLmsPermissions, useUpdateEnrollment } from '../hooks/useLmsData.js'
+import { useGrantExtraAttempt } from '../hooks/useLmsEval.js'
 import { SOURCE_LABELS, formatShortDate, isOverdue } from '../lib/lmsLabels.js'
 import { AssignLearnersDialog } from './AssignLearnersDialog.jsx'
 import { DueDateDialog } from './DueDateDialog.jsx'
@@ -14,7 +16,8 @@ const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 // Alumnos tab: who is enrolled, their progress and due dates.
 export function EnrollmentsPanel({ courseId, readOnly = false }) {
   const enrollments = useEnrollments(courseId)
-  const update = useUpdateEnrollment()
+  const update = useUpdateEnrollment(), grant = useGrantExtraAttempt()
+  const { canGrade } = useLmsPermissions()
   const [assignOpen, setAssignOpen] = useState(false)
   const [dueFor, setDueFor] = useState(null)
   const [dropFor, setDropFor] = useState(null)
@@ -52,6 +55,11 @@ export function EnrollmentsPanel({ courseId, readOnly = false }) {
         <div className="flex flex-wrap items-center gap-1">
           <EnrollmentStatusBadge status={row.original.status} />
           {isOverdue(row.original) ? <Badge variant="destructive">Vencido</Badge> : null}
+          {row.original.failedLessons?.length ? (
+            <Badge variant="destructive" title={row.original.failedLessons.map((lesson) => lesson.title).join(', ')}>
+              {row.original.failedLessons.length === 1 ? 'Examen no aprobado' : `${row.original.failedLessons.length} exámenes no aprobados`}
+            </Badge>
+          ) : null}
         </div>
       ),
     },
@@ -67,6 +75,18 @@ export function EnrollmentsPanel({ courseId, readOnly = false }) {
           <DropdownMenuContent align="end">
             {row.original.status === 'active' ? <DropdownMenuItem onSelect={() => setDueFor(row.original)}><CalendarClock />Cambiar fecha límite</DropdownMenuItem> : null}
             {row.original.status === 'active' ? <DropdownMenuItem onSelect={() => setDropFor(row.original)} className="text-[hsl(var(--destructive))]"><UserMinus />Dar de baja</DropdownMenuItem> : null}
+            {canGrade && row.original.status !== 'dropped' && row.original.failedLessons?.length ? (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger><ListChecks />Otorgar intento extra</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {row.original.failedLessons.map((lesson) => (
+                    <DropdownMenuItem key={lesson.id} disabled={grant.isPending} onSelect={() => grant.mutate({ enrollmentId: row.original.id, lessonId: lesson.id })}>
+                      {lesson.title}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            ) : null}
             {row.original.status === 'dropped' ? <DropdownMenuItem onSelect={() => patch(row.original.id, { status: 'active' })}><RotateCcw />Reactivar</DropdownMenuItem> : null}
             {row.original.status === 'completed' ? <DropdownMenuItem disabled>Curso completado</DropdownMenuItem> : null}
           </DropdownMenuContent>
@@ -74,7 +94,7 @@ export function EnrollmentsPanel({ courseId, readOnly = false }) {
       )),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [readOnly])
+  ], [readOnly, canGrade, grant.isPending])
 
   return (
     <div className="space-y-3">

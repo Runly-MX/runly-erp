@@ -5,8 +5,8 @@ import { runly } from '../../../lib/runly.js'
 import { patchOutline } from '../lib/lmsLabels.js'
 
 export const useToken = () => useAuth().session?.access_token
-const unwrap = (response) => response?.data ?? response
-const KEY = 'lms'
+export const unwrap = (response) => response?.data ?? response
+export const KEY = 'lms'
 
 export function useLmsPermissions() {
   const profile = useAuth().userProfile
@@ -15,10 +15,11 @@ export function useLmsPermissions() {
   return {
     canManageCourses: can('lms.course.manage'),
     canManageEnrollments: can('lms.enrollment.manage'),
+    canGrade: can('lms.grade'),
   }
 }
 
-function useRead(key, fn, options = {}) {
+export function useRead(key, fn, options = {}) {
   const token = useToken()
   const enabled = Boolean(token) && (options.enabled ?? true)
   return useQuery({ queryKey: [KEY, ...key], queryFn: async () => unwrap(await fn(token)), refetchOnWindowFocus: true, ...options, enabled })
@@ -63,7 +64,7 @@ export const useUserCandidates = (search, options = {}) => useRead(
 )
 
 // Generic mutation: runs fn(token, vars) and refreshes every lms query.
-function useAction(fn, successMessage) {
+export function useAction(fn, successMessage) {
   const token = useToken(), client = useQueryClient()
   return useMutation({
     mutationFn: async (vars) => unwrap(await fn(token, vars)),

@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Badge, Button, ConfirmDialog, EmptyState } from '@runly/ui'
-import { ArrowDown, ArrowUp, FileText, Layers, Link2, Pencil, Plus, Trash2, Video } from 'lucide-react'
+import { ArrowDown, ArrowUp, ClipboardList, FileText, Layers, Link2, ListChecks, Pencil, Plus, Trash2, Video } from 'lucide-react'
 import { useCreateSection, useDeleteLesson, useDeleteSection, useReorder, useUpdateSection } from '../hooks/useLmsData.js'
 import { KIND_LABELS, formatDuration, moveLesson, moveSection, toReorderPayload } from '../lib/lmsLabels.js'
 import { LessonSheet } from './LessonSheet.jsx'
+import { QuizQuestionsSheet } from './QuizQuestionsSheet.jsx'
 import { SectionDialog } from './SectionDialog.jsx'
 
-const KIND_ICONS = { video: Video, embed: Link2, text: FileText, file: FileText }
+const KIND_ICONS = { video: Video, embed: Link2, text: FileText, file: FileText, quiz: ListChecks, assignment: ClipboardList }
 
 function IconButton({ label, onClick, disabled, children, destructive = false }) {
   return (
@@ -16,7 +17,7 @@ function IconButton({ label, onClick, disabled, children, destructive = false })
   )
 }
 
-function LessonRow({ lesson, first, last, onMove, onEdit, onDelete, busy }) {
+function LessonRow({ lesson, first, last, onMove, onEdit, onDelete, onQuestions, busy }) {
   const Icon = KIND_ICONS[lesson.kind] ?? FileText
   const meta = [KIND_LABELS[lesson.kind], formatDuration(lesson.durationSeconds)].filter(Boolean).join(' · ')
   return (
@@ -30,6 +31,7 @@ function LessonRow({ lesson, first, last, onMove, onEdit, onDelete, busy }) {
       <div className="flex shrink-0 items-center">
         <IconButton label="Subir" onClick={() => onMove(-1)} disabled={first || busy}><ArrowUp /></IconButton>
         <IconButton label="Bajar" onClick={() => onMove(1)} disabled={last || busy}><ArrowDown /></IconButton>
+        {lesson.kind === 'quiz' ? <IconButton label="Editar preguntas" onClick={onQuestions} disabled={busy}><ListChecks /></IconButton> : null}
         <IconButton label="Editar lección" onClick={onEdit}><Pencil /></IconButton>
         <IconButton label="Eliminar lección" onClick={onDelete} destructive><Trash2 /></IconButton>
       </div>
@@ -44,6 +46,7 @@ export function CurriculumEditor({ courseId, sections, readOnly = false }) {
   const [sectionDialog, setSectionDialog] = useState({ open: false, section: null })
   const [lessonSheet, setLessonSheet] = useState({ open: false, lesson: null, sectionId: null })
   const [confirm, setConfirm] = useState(null) // { kind: 'section' | 'lesson', item }
+  const [questionsFor, setQuestionsFor] = useState(null)
   const list = sections ?? []
   const flat = list.flatMap((section) => section.lessons ?? [])
 
@@ -71,7 +74,7 @@ export function CurriculumEditor({ courseId, sections, readOnly = false }) {
   if (!list.length) {
     return (
       <>
-        <EmptyState icon={Layers} title="El curso aún no tiene contenido" description="Agrega una sección y dentro de ella las lecciones: videos, enlaces, textos o archivos." action={addSection} />
+        <EmptyState icon={Layers} title="El curso aún no tiene contenido" description="Agrega una sección y dentro de ella las lecciones: videos, enlaces, textos, archivos, exámenes o tareas." action={addSection} />
         <SectionDialog open={sectionDialog.open} onOpenChange={(open) => setSectionDialog((s) => ({ ...s, open }))} section={null} onSubmit={saveSection} pending={createSection.isPending} />
       </>
     )
@@ -104,6 +107,7 @@ export function CurriculumEditor({ courseId, sections, readOnly = false }) {
                     onMove={(delta) => applyOrder(moveLesson(list, lesson.id, delta))}
                     onEdit={() => setLessonSheet({ open: true, lesson, sectionId: section.id })}
                     onDelete={() => setConfirm({ kind: 'lesson', item: lesson })}
+                    onQuestions={() => setQuestionsFor(lesson)}
                   />
                 )
               })}
@@ -122,7 +126,9 @@ export function CurriculumEditor({ courseId, sections, readOnly = false }) {
       <LessonSheet
         open={lessonSheet.open} onOpenChange={(open) => setLessonSheet((s) => ({ ...s, open }))}
         lesson={lessonSheet.lesson} sectionId={lessonSheet.sectionId} sections={list}
+        onEditQuestions={readOnly ? undefined : setQuestionsFor}
       />
+      <QuizQuestionsSheet open={Boolean(questionsFor)} onOpenChange={(open) => { if (!open) setQuestionsFor(null) }} lesson={questionsFor} />
       <ConfirmDialog
         open={Boolean(confirm)} onOpenChange={(open) => { if (!open) setConfirm(null) }}
         icon={Trash2}

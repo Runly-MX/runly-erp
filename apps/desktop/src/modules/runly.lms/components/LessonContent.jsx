@@ -1,7 +1,11 @@
-import { Badge, Button, EmptyState, MarkdownViewer, buttonVariants, cn } from '@runly/ui'
-import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2 } from 'lucide-react'
+import { Alert, AlertDescription, Badge, Button, EmptyState, MarkdownViewer, buttonVariants, cn } from '@runly/ui'
+import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Download, FileText, Loader2, XCircle } from 'lucide-react'
 import { KIND_LABELS, formatDuration } from '../lib/lmsLabels.js'
 import { VideoLesson } from './VideoLesson.jsx'
+import { AssignmentLesson } from './assignment/AssignmentLesson.jsx'
+import { QuizLesson } from './quiz/QuizLesson.jsx'
+
+const EVALUATED = new Set(['quiz', 'assignment'])
 
 function EmbedLesson({ lesson }) {
   return (
@@ -37,7 +41,18 @@ function FileLesson({ lesson }) {
   )
 }
 
-function Body({ lesson, startAt, onProgress }) {
+function Body({ lesson, courseId, preview, startAt, onProgress }) {
+  if (EVALUATED.has(lesson.kind) && preview) {
+    return (
+      <Alert>
+        <AlertDescription>
+          {lesson.kind === 'quiz' ? 'Vista previa: el examen' : 'Vista previa: la tarea'} solo se puede presentar con una inscripción al curso. Asígnate el curso para probarlo como alumno.
+        </AlertDescription>
+      </Alert>
+    )
+  }
+  if (lesson.kind === 'quiz') return <QuizLesson key={lesson.id} lessonId={lesson.id} courseId={courseId} />
+  if (lesson.kind === 'assignment') return <AssignmentLesson key={lesson.id} lessonId={lesson.id} courseId={courseId} />
   if (lesson.kind === 'video') {
     if (!lesson.mediaUrl) return <EmptyState icon={FileText} title="Video no disponible" description="El video de esta lección no se encontró." />
     return <VideoLesson src={lesson.mediaUrl} startAt={startAt} onProgress={onProgress} />
@@ -49,10 +64,12 @@ function Body({ lesson, startAt, onProgress }) {
 
 // Content pane of the player. `status` comes from the (live) outline;
 // `payload` is the GET /lms/learn/lessons/:id response.
-export function LessonContent({ payload, status, preview, onProgress, onComplete, completing, onNavigate, canGoNext }) {
+export function LessonContent({ payload, courseId, status, preview, onProgress, onComplete, completing, onNavigate, canGoNext }) {
   const { lesson, progress, prevLessonId, nextLessonId } = payload
   const completed = status === 'completed'
-  const manualComplete = lesson.kind !== 'video'
+  const evaluated = EVALUATED.has(lesson.kind)
+  const manualComplete = lesson.kind !== 'video' && !evaluated
+  const body = lesson.body?.trim() ? <MarkdownViewer value={lesson.body} className="text-[15px]" /> : null
   const meta = [KIND_LABELS[lesson.kind], formatDuration(lesson.durationSeconds)].filter(Boolean).join(' · ')
   return (
     <article className="mx-auto flex w-full max-w-4xl flex-col gap-5">
@@ -60,12 +77,15 @@ export function LessonContent({ payload, status, preview, onProgress, onComplete
         <div className="flex flex-wrap items-center gap-2">
           {meta ? <p className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{meta}</p> : null}
           {completed ? <Badge variant="success"><CheckCircle2 className="h-3 w-3" aria-hidden="true" />Completada</Badge> : null}
+          {status === 'pending_review' ? <Badge variant="warning"><Clock className="h-3 w-3" aria-hidden="true" />En revisión</Badge> : null}
+          {status === 'failed' ? <Badge variant="destructive"><XCircle className="h-3 w-3" aria-hidden="true" />No aprobada</Badge> : null}
         </div>
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{lesson.title}</h2>
       </header>
 
-      <Body lesson={lesson} startAt={progress?.positionSeconds} onProgress={preview ? undefined : onProgress} />
-      {lesson.body?.trim() ? <MarkdownViewer value={lesson.body} className="text-[15px]" /> : null}
+      {evaluated ? body : null}
+      <Body lesson={lesson} courseId={courseId} preview={preview} startAt={progress?.positionSeconds} onProgress={preview ? undefined : onProgress} />
+      {evaluated ? null : body}
       {lesson.kind === 'video' && !completed && !preview ? (
         <p className="text-sm text-[hsl(var(--muted-foreground))]">La lección se marca como completada al ver al menos el 90% del video.</p>
       ) : null}

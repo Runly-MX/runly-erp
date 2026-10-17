@@ -1,27 +1,39 @@
 import { useEffect, useState } from 'react'
 import { Button, CheckboxField, FieldWrapper, FileUploader, NumberField, SelectField, TextField, TextareaField } from '@runly/ui'
 import { useSaveLesson, useToken, useUploadLmsFile } from '../hooks/useLmsData.js'
+import { formToSettings, settingsToForm, validateSettings } from '../lib/lmsEval.js'
 import { KIND_LABELS, formatDuration, toOptions } from '../lib/lmsLabels.js'
 import { uploadLessonVideo } from '../lib/uploadLessonVideo.js'
+import { AssignmentSettingsFields } from './lesson-fields/AssignmentSettingsFields.jsx'
+import { QuizSettingsFields } from './lesson-fields/QuizSettingsFields.jsx'
 import { FormSheet } from './shared.jsx'
 
 const KIND_OPTIONS = toOptions(KIND_LABELS)
-const EMPTY = { title: '', kind: 'video', sectionId: null, body: '', embedUrl: '', durationMinutes: '', required: true, upload: null }
+const EMPTY = { title: '', kind: 'video', sectionId: null, body: '', embedUrl: '', durationMinutes: '', required: true, upload: null, settings: {} }
 const STAGE_LABELS = { uploading: 'Subiendo video…', confirming: 'Verificando video…' }
+const BODY_COPY = {
+  text: { label: 'Contenido', rows: 12, hint: 'Admite formato Markdown: títulos (#), listas (-), negritas (**texto**) y enlaces.' },
+  assignment: { label: 'Instrucciones', rows: 8, hint: 'Qué debe entregar el alumno y cómo se evalúa. Admite Markdown.' },
+  quiz: { label: 'Instrucciones', rows: 4, hint: 'Opcional. Se muestran antes de comenzar el examen. Admite Markdown.' },
+}
+const NOTES_COPY = { label: 'Notas de la lección', rows: 4, hint: 'Opcional. Se muestra debajo del contenido. Admite Markdown.' }
 
 function fromLesson(lesson, sectionId) {
-  if (!lesson) return { ...EMPTY, sectionId }
+  if (!lesson) return { ...EMPTY, sectionId, settings: settingsToForm(EMPTY.kind) }
   return {
     title: lesson.title ?? '', kind: lesson.kind ?? 'text', sectionId: lesson.sectionId ?? sectionId, body: lesson.body ?? '',
     embedUrl: lesson.embedUrl ?? '',
     durationMinutes: lesson.durationSeconds ? String(Math.round(lesson.durationSeconds / 60)) : '',
     required: lesson.required !== false,
     upload: lesson.fileId ? { fileId: lesson.fileId, fileName: lesson.fileName, durationSeconds: lesson.durationSeconds } : null,
+    settings: settingsToForm(lesson.kind, lesson.settings),
   }
 }
 
 // Create / edit a lesson. Header and footer stay fixed, only the form scrolls.
-export function LessonSheet({ open, onOpenChange, lesson, sectionId, sections }) {
+// `onEditQuestions(lesson)` opens the quiz questions editor; it also runs right
+// after a quiz lesson is created so the author can add its questions.
+export function LessonSheet({ open, onOpenChange, lesson, sectionId, sections, onEditQuestions }) {
   const token = useToken()
   const save = useSaveLesson(), uploadFile = useUploadLmsFile()
   const [form, setForm] = useState(EMPTY)
@@ -33,8 +45,11 @@ export function LessonSheet({ open, onOpenChange, lesson, sectionId, sections })
 
   const set = (key) => (value) => setForm((current) => ({ ...current, [key]: value }))
   const setText = (key) => (event) => set(key)(event.target.value)
-  // Switching kind drops the media of the previous kind.
-  const setKind = (kind) => setForm((current) => ({ ...current, kind, upload: kind === current.kind ? current.upload : null }))
+  const setSetting = (key, value) => setForm((current) => ({ ...current, settings: { ...current.settings, [key]: value } }))
+  // Switching kind drops the media and the settings of the previous kind.
+  const setKind = (kind) => setForm((current) => (kind === current.kind ? current : {
+    ...current, kind, upload: null, settings: settingsToForm(kind, lesson?.kind === kind ? lesson.settings : null),
+  }))
 
   async function uploadVideo(file) {
     try {
@@ -55,6 +70,9 @@ export function LessonSheet({ open, onOpenChange, lesson, sectionId, sections })
     if ((form.kind === 'video' || form.kind === 'file') && !form.upload?.fileId) next.upload = form.kind === 'video' ? 'Sube el video de la lección.' : 'Sube el archivo de la lección.'
     if (form.kind === 'embed' && !/^https:\/\//i.test(form.embedUrl.trim())) next.embedUrl = 'Escribe un enlace que empiece con https://'
     if (form.kind === 'text' && !form.body.trim()) next.body = 'Escribe el contenido de la lección.'
+    if (form.kind === 'assignment' && !form.body.trim()) next.body = 'Escribe las instrucciones de la tarea.'
+    const settingsErrors = validateSettings(form.kind, form.settings)
+    if (Object.keys(settingsErrors).length) next.settings = settingsErrors
     setErrors(next)
     return !Object.keys(next).length
   }
@@ -64,29 +82,34 @@ export function LessonSheet({ open, onOpenChange, lesson, sectionId, sections })
     const minutes = Number(form.durationMinutes)
     const durationSeconds = form.kind === 'video' && form.upload?.durationSeconds
       ? form.upload.durationSeconds
-      : (minutes > 0 ? Math.round(minutes * 60) : null)
+      : (minutes > 0 && form.kind !== 'quiz' ? Math.round(minutes * 60) : null)
     const media = form.kind === 'video' || form.kind === 'file'
+    const settings = formToSettings(form.kind, form.settings)
     try {
-      await save.mutateAsync({
+      const saved = await save.mutateAsync({
         id: lesson?.id, sectionId: form.sectionId, title: form.title.trim(), kind: form.kind,
         body: form.body.trim() || null,
         fileId: media ? form.upload.fileId : null,
         embedUrl: form.kind === 'embed' ? form.embedUrl.trim() : null,
         durationSeconds, required: form.required,
+        ...(settings ? { settings } : {}),
       })
       onOpenChange(false)
+      if (!lesson && form.kind === 'quiz' && saved?.id) onEditQuestions?.(saved)
     } catch { /* toast shown by the mutation */ }
   }
 
   const uploading = Boolean(stage) || uploadFile.isPending
   const sectionOptions = (sections ?? []).map((section) => ({ value: section.id, label: section.title }))
   const fileValue = form.upload ? { name: form.upload.fileName || 'Archivo subido' } : null
+  const bodyCopy = BODY_COPY[form.kind] ?? NOTES_COPY
+  const editQuestions = lesson?.id && lesson.kind === 'quiz' && onEditQuestions ? () => onEditQuestions(lesson) : null
   return (
     <FormSheet
       open={open}
       onOpenChange={onOpenChange}
       title={lesson ? 'Editar lección' : 'Nueva lección'}
-      description="Video, enlace de YouTube o Vimeo, texto o un documento para descargar."
+      description="Video, enlace de YouTube o Vimeo, texto, documento, examen o tarea."
       footer={(
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
@@ -122,20 +145,21 @@ export function LessonSheet({ open, onOpenChange, lesson, sectionId, sections })
         />
       ) : null}
 
-      {form.kind === 'video' && form.upload?.durationSeconds ? (
+      {form.kind === 'quiz' ? null : form.kind === 'video' && form.upload?.durationSeconds ? (
         <p className="text-sm text-[hsl(var(--muted-foreground))]">Duración del video: {formatDuration(form.upload.durationSeconds)}</p>
       ) : (
         <NumberField
-          label="Duración (minutos)" value={form.durationMinutes} onChange={setText('durationMinutes')} allowNegative={false} allowDecimal={false}
-          hint="Opcional. Se muestra al alumno en el contenido del curso."
+          label={form.kind === 'assignment' ? 'Tiempo estimado (minutos)' : 'Duración (minutos)'} value={form.durationMinutes} onChange={setText('durationMinutes')}
+          allowNegative={false} allowDecimal={false} hint="Opcional. Se muestra al alumno en el contenido del curso."
         />
       )}
 
       <TextareaField
-        label={form.kind === 'text' ? 'Contenido' : 'Notas de la lección'} required={form.kind === 'text'}
-        value={form.body} onChange={setText('body')} rows={form.kind === 'text' ? 12 : 4} error={errors.body}
-        hint={form.kind === 'text' ? 'Admite formato Markdown: títulos (#), listas (-), negritas (**texto**) y enlaces.' : 'Opcional. Se muestra debajo del contenido. Admite Markdown.'}
+        label={bodyCopy.label} required={form.kind === 'text' || form.kind === 'assignment'}
+        value={form.body} onChange={setText('body')} rows={bodyCopy.rows} error={errors.body} hint={bodyCopy.hint}
       />
+      {form.kind === 'quiz' ? <QuizSettingsFields value={form.settings} onChange={setSetting} errors={errors.settings} onEditQuestions={editQuestions} /> : null}
+      {form.kind === 'assignment' ? <AssignmentSettingsFields value={form.settings} onChange={setSetting} errors={errors.settings} /> : null}
       <CheckboxField
         label="Obligatoria" hint="Las lecciones opcionales no cuentan para el avance ni bloquean las siguientes."
         checked={form.required} onChange={(event) => set('required')(event.target.checked)}
