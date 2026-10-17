@@ -5348,6 +5348,9 @@ model LmsCourse {
   visibility       String   @default("internal") // internal | public (phase 6)
   sequential       Boolean  @default(false)
   selfEnroll       Boolean  @default(false) @map("self_enroll")
+  shareEnabled     Boolean  @default(false) @map("share_enabled") // public link for external guests
+  shareToken       String?  @unique @map("share_token")
+  shareSettings    Json     @default("{}") @map("share_settings") // { scope: 'all' | 'preview', allowQuizzes }
   estimatedMinutes Int?     @map("estimated_minutes")
   createdById      String?  @map("created_by_id") @db.Uuid
   // Cached aggregate of non-hidden reviews, recomputed on every review write.
@@ -5441,6 +5444,7 @@ model LmsLearner {
   companyId     String   @map("company_id") @db.Uuid
   userProfileId String?  @map("user_profile_id") @db.Uuid
   contactId     String?  @map("contact_id") @db.Uuid
+  guestTokenHash String? @unique @map("guest_token_hash") // external guest from a course share link (sha256 of the browser token)
   displayName   String   @map("display_name")
   email         String?
   enabled       Boolean  @default(true)
