@@ -89,7 +89,7 @@ import { createProjectsRouter } from "./routes/projects/index.js";
 import { createCanvasRouter, createCanvasPublicRouter } from "./routes/canvas/index.js";
 import { createAttendanceRouter, createAttendancePublicRouter } from "./routes/attendance/index.js";
 import { createAttendanceEvents } from "./routes/attendance/attendance-events.js";
-import { createLmsRouter } from "./routes/lms/index.js";
+import { createLmsRouter, createLmsPublicRouter } from "./routes/lms/index.js";
 import { createCanvasDataSources } from "./routes/canvas/canvas-data-sources.js";
 import { createCanvasFileRemover } from "./routes/canvas/canvas-files.js";
 import { createSettingsRouter } from "./routes/settings-routes.js";
@@ -2146,6 +2146,9 @@ app.route("/", createCanvasPublicRouter({
 const attendanceEvents = createAttendanceEvents({ prisma, broadcaster, notificationService });
 app.route("/", createAttendancePublicRouter({ prisma, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, events: attendanceEvents }));
 
+// Learning certificates verification: /public/lms/* (token in the path, no user auth).
+app.route("/", createLmsPublicRouter({ prisma, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
+
 // File view/download public links: /public/files/:token (path-scoped, no auth).
 app.route("/", createFilesPublicRouter({
   prisma,
@@ -2191,6 +2194,8 @@ app.get("/public", (c) => {
       { method: "GET",  path: "/public/modules",                        auth: "none",       description: "Installed and enabled modules (key, name, version, navigation)" },
       { method: "GET",  path: "/public/blueprints",                     auth: "none",       description: "Public custom views declared by modules (schema, component path)" },
       { method: "ALL",  path: "/public/m/:moduleKey/:token/*",          auth: "link token", description: "Module public links: _context plus the module api/public.js routes" },
+      { method: "GET",  path: "/public/lms/certificates/:token",        auth: "link token", description: "Learning certificate verification (valid or revoked)" },
+      { method: "GET",  path: "/public/lms/certificates/:token/pdf",    auth: "link token", description: "Learning certificate PDF (revoked ones are stamped)" },
       // Storefront auth
       { method: "POST", path: "/public/storefront/auth/register",       auth: "none",       description: "Register a storefront user account" },
       { method: "POST", path: "/public/storefront/auth/login",          auth: "none",       description: "Login and obtain access + refresh tokens" },

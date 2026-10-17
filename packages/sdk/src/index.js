@@ -2126,7 +2126,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
     },
     canvas: createCanvasDomain({ request, withAuthHeaders, toQueryString }),
     attendance: createAttendanceDomain({ request, withAuthHeaders, toQueryString }),
-    lms: createLmsDomain({ request, withAuthHeaders, toQueryString }),
+    lms: createLmsDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
     connections: createConnectionsDomain({ request, withAuthHeaders, toQueryString }),
     trash: createTrashDomain({ request, withAuthHeaders, toQueryString }),
     moduleCatalog: createModuleCatalogDomain({ request, withAuthHeaders }),

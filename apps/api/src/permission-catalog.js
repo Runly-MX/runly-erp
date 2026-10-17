@@ -1450,10 +1450,10 @@ export const PERMISSION_CATALOG = {
     displayNameEs: "Acceder a Aprendizaje", descriptionEs: "Permite ver el catálogo, inscribirse, tomar los cursos asignados y registrar avance.", groupKey: "lms", order: 10,
   },
   "lms.course.manage": {
-    displayNameEs: "Administrar cursos", descriptionEs: "Permite crear, editar, publicar y archivar cursos, secciones y lecciones.", groupKey: "lms", order: 20,
+    displayNameEs: "Administrar cursos", descriptionEs: "Permite crear, editar, publicar y archivar cursos, secciones y lecciones, y administrar las plantillas de certificado.", groupKey: "lms", order: 20,
   },
   "lms.enrollment.manage": {
-    displayNameEs: "Asignar cursos y ver avance", descriptionEs: "Permite asignar cursos a usuarios con fecha límite, dar de baja y ver el avance de cada alumno.", groupKey: "lms", order: 30,
+    displayNameEs: "Asignar cursos y ver avance", descriptionEs: "Permite asignar cursos a usuarios con fecha límite, dar de baja, ver el avance de cada alumno y emitir o revocar certificados.", groupKey: "lms", order: 30,
   },
   "lms.grade": {
     displayNameEs: "Calificar actividades y tareas", descriptionEs: "Permite revisar y calificar exámenes con respuestas abiertas y entregas de tareas, y otorgar intentos extra.", groupKey: "lms", order: 40,

@@ -2,9 +2,10 @@
 // lesson open and progress. The learner is always the current user profile.
 import { EVALUATED_KINDS, LmsError, lessonStates, orderLessons, shouldAutoComplete } from './lms-core.js'
 import { normalizeLessonSettings } from './lms-eval-core.js'
-import { COURSE_COUNTS, createLmsSerializers } from './lms-serialize.js'
+import { COURSE_COUNTS, ENROLLMENT_CERT, ENROLLMENT_INCLUDE, createLmsSerializers, enrollmentCertificate } from './lms-serialize.js'
 import { createLmsService } from './lms-service.js'
-import { setLessonOutcome } from './lms-progress.js'
+import { recordLessonOutcome } from './lms-progress.js'
+import { updateEnrollmentWithCertificate } from './lms-cert-issue.js'
 
 const OPEN_STATUSES = ['active', 'completed']
 const MANUAL_COMPLETE_KINDS = new Set(['text', 'file', 'embed'])
@@ -22,7 +23,7 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
   async function openEnrollment(companyId, userProfileId, courseId) {
     const learner = await findLearner(companyId, userProfileId)
     if (!learner) return null
-    const row = await prisma.lmsEnrollment.findFirst({ where: { companyId, courseId, learnerId: learner.id, status: { in: OPEN_STATUSES } }, include: { learner: true } })
+    const row = await prisma.lmsEnrollment.findFirst({ where: { companyId, courseId, learnerId: learner.id, status: { in: OPEN_STATUSES } }, include: ENROLLMENT_INCLUDE })
     return row
   }
 
@@ -35,7 +36,7 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     const courses = await ser.serializeCourses(rows)
     const learner = await findLearner(companyId, userProfileId)
     const enrollments = learner
-      ? await prisma.lmsEnrollment.findMany({ where: { companyId, learnerId: learner.id, courseId: { in: rows.map((r) => r.id) } }, include: { learner: true } })
+      ? await prisma.lmsEnrollment.findMany({ where: { companyId, learnerId: learner.id, courseId: { in: rows.map((r) => r.id) } }, include: ENROLLMENT_INCLUDE })
       : []
     const byCourse = new Map(enrollments.map((e) => [e.courseId, ser.serializeEnrollment(e)]))
     return courses.map((course) => ({ ...course, enrollment: byCourse.get(course.id) ?? null }))
@@ -46,12 +47,16 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     if (!learner) return { active: [], completed: [] }
     const rows = await prisma.lmsEnrollment.findMany({
       where: { companyId, learnerId: learner.id, status: { in: OPEN_STATUSES }, course: { enabled: true, status: { in: ['published', 'archived'] } } },
-      include: { learner: true, course: { include: COURSE_COUNTS } },
+      include: { ...ENROLLMENT_INCLUDE, course: { include: COURSE_COUNTS } },
       orderBy: { updatedAt: 'desc' },
     })
     const courses = await ser.serializeCourses(rows.map((row) => row.course))
     const now = new Date()
-    const items = rows.map((row, index) => ({ course: courses[index], enrollment: ser.serializeEnrollment(row, now) }))
+    const items = rows.map((row, index) => {
+      const enrollment = ser.serializeEnrollment(row, now)
+      const certificateId = enrollment.certificate && !enrollment.certificate.revokedAt ? enrollment.certificate.id : null
+      return { course: courses[index], enrollment, certificateId }
+    })
     // Active: due soonest first, then most recently touched.
     const active = items.filter((item) => item.enrollment.status === 'active')
       .sort((a, b) => (a.enrollment.dueAt ? Date.parse(a.enrollment.dueAt) : Infinity) - (b.enrollment.dueAt ? Date.parse(b.enrollment.dueAt) : Infinity))
@@ -63,10 +68,10 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     if (!course) throw new LmsError('El curso no existe.', 404)
     if (course.status !== 'published' || !course.selfEnroll) throw new LmsError('Este curso no admite inscripción libre.', 409, 'NOT_SELF_ENROLL')
     const learner = await learners.ensureLearnerForProfile(companyId, userProfileId)
-    const existing = await prisma.lmsEnrollment.findUnique({ where: { courseId_learnerId: { courseId: course.id, learnerId: learner.id } }, include: { learner: true } })
+    const existing = await prisma.lmsEnrollment.findUnique({ where: { courseId_learnerId: { courseId: course.id, learnerId: learner.id } }, include: ENROLLMENT_INCLUDE })
     if (existing && existing.status !== 'dropped') return ser.serializeEnrollment(existing)
     const row = existing
-      ? await prisma.lmsEnrollment.update({ where: { id: existing.id }, data: { status: existing.completedAt ? 'completed' : 'active', source: 'self' }, include: { learner: true } })
+      ? await updateEnrollmentWithCertificate(prisma, { id: existing.id, data: { status: existing.completedAt ? 'completed' : 'active', source: 'self' }, include: ENROLLMENT_INCLUDE })
       : await prisma.lmsEnrollment.create({ data: { companyId, courseId: course.id, learnerId: learner.id, source: 'self' }, include: { learner: true } })
     return ser.serializeEnrollment(row)
   }
@@ -178,7 +183,7 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     const complete = manual || shouldAutoComplete({ kind: lesson.kind, positionSeconds: maxPositionSeconds, durationSeconds })
     // Quiz/assignment status belongs to their evaluators; a progress ping keeps it.
     const idle = EVALUATED_KINDS.has(lesson.kind) ? previous?.status ?? 'in_progress' : 'in_progress'
-    const result = await setLessonOutcome(prisma, {
+    const result = await recordLessonOutcome(prisma, {
       enrollment,
       lessonId: lesson.id,
       status: complete ? 'completed' : idle,
@@ -186,7 +191,11 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
       touch: { lastLessonId: lesson.id, ...(enrollment.startedAt ? {} : { startedAt: now }) },
       now,
     })
-    return { lessonStatus: result.lessonStatus, enrollment: ser.serializeEnrollment(result.enrollment) }
+    // The player shows "Descargar certificado" once the enrollment is completed.
+    const certs = result.enrollment.status === 'completed'
+      ? await prisma.lmsEnrollment.findUnique({ where: { id: enrollment.id }, select: ENROLLMENT_CERT })
+      : null
+    return { lessonStatus: result.lessonStatus, enrollment: { ...ser.serializeEnrollment(result.enrollment), certificate: enrollmentCertificate(certs) } }
   }
 
   return { catalog, myCourses, enroll, outline, openLesson, saveProgress, lessonContext }

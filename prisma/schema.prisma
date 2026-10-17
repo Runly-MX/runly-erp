@@ -5353,14 +5353,17 @@ model LmsCourse {
   // Cached aggregate of non-hidden reviews, recomputed on every review write.
   ratingAvg        Decimal? @map("rating_avg") @db.Decimal(3, 2)
   ratingCount      Int      @default(0) @map("rating_count")
+  // null = the course issues no certificate (phase 4).
+  certificateTemplateId String? @map("certificate_template_id") @db.Uuid
   enabled          Boolean  @default(true)
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  sections      LmsSection[]
-  enrollments   LmsEnrollment[]
-  reviews       LmsReview[]
-  announcements LmsAnnouncement[]
+  sections            LmsSection[]
+  enrollments         LmsEnrollment[]
+  reviews             LmsReview[]
+  announcements       LmsAnnouncement[]
+  certificateTemplate LmsCertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: SetNull)
 
   @@index([companyId, status])
   @@map("lms_course")
@@ -5453,9 +5456,10 @@ model LmsEnrollment {
 
   course      LmsCourse           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   learner     LmsLearner          @relation(fields: [learnerId], references: [id], onDelete: Cascade)
-  progress    LmsLessonProgress[]
-  attempts    LmsQuizAttempt[]
-  submissions LmsSubmission[]
+  progress     LmsLessonProgress[]
+  attempts     LmsQuizAttempt[]
+  submissions  LmsSubmission[]
+  certificates LmsCertificate[]
 
   @@unique([courseId, learnerId])
   @@index([learnerId, status])
@@ -5627,4 +5631,58 @@ model LmsAnnouncement {
 
   @@index([courseId, createdAt])
   @@map("lms_announcement")
+}
+
+// Body placeholders: {{alumno}} {{curso}} {{fecha}} {{horas}} {{folio}} {{empresa}}.
+model LmsCertificateTemplate {
+  id              String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  name            String
+  title           String   @default("Certificado de finalización")
+  body            String?
+  signerName      String?  @map("signer_name")
+  signerTitle     String?  @map("signer_title")
+  signatureFileId String?  @map("signature_file_id") @db.Uuid
+  accentColor     String?  @map("accent_color") // hex; null = company brand color
+  showLogo        Boolean  @default(true) @map("show_logo")
+  enabled         Boolean  @default(true)
+  createdById     String?  @map("created_by_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  courses      LmsCourse[]
+  certificates LmsCertificate[]
+
+  @@index([companyId, enabled])
+  @@map("lms_certificate_template")
+}
+
+// learnerName, courseTitle and hours are frozen at issue. The partial unique
+// index on (enrollment_id) WHERE revoked_at IS NULL lives in the migration.
+model LmsCertificate {
+  id           String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  enrollmentId String    @map("enrollment_id") @db.Uuid
+  learnerId    String    @map("learner_id") @db.Uuid
+  courseId     String    @map("course_id") @db.Uuid
+  templateId   String?   @map("template_id") @db.Uuid
+  folio        String // <YYYY>-<6-digit sequence>
+  token        String    @unique
+  learnerName  String    @map("learner_name")
+  courseTitle  String    @map("course_title")
+  hours        Float
+  issuedAt     DateTime  @default(now()) @map("issued_at") @db.Timestamptz(6)
+  issuedById   String?   @map("issued_by_id") @db.Uuid // null = automatic
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokeReason String?   @map("revoke_reason")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  enrollment LmsEnrollment           @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  template   LmsCertificateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, folio])
+  @@index([courseId])
+  @@index([learnerId])
+  @@index([enrollmentId])
+  @@map("lms_certificate")
 }

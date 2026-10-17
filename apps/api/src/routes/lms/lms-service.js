@@ -1,7 +1,8 @@
 // runly.lms authoring: courses, sections, lessons, ordering, learners and
 // enrollments. Every query is scoped by companyId.
 import { COURSE_STATUSES, LmsError, normalizeCourseInput, normalizeLessonInput } from './lms-core.js'
-import { COURSE_COUNTS, createLmsSerializers } from './lms-serialize.js'
+import { COURSE_COUNTS, ENROLLMENT_INCLUDE, createLmsSerializers } from './lms-serialize.js'
+import { updateEnrollmentWithCertificate } from './lms-cert-issue.js'
 
 const LESSONS_ORDERED = { where: { enabled: true }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }
 const SECTIONS_ORDERED = { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], include: { lessons: LESSONS_ORDERED } }
@@ -42,6 +43,12 @@ export function createLmsService({ prisma, signFile = null }) {
     if (file.metadata?.pending === true) throw new LmsError('El archivo no terminó de subirse.', 409)
   }
 
+  async function assertTemplate(companyId, templateId) {
+    if (!templateId) return
+    const template = await prisma.lmsCertificateTemplate.findFirst({ where: { id: templateId, companyId, enabled: true }, select: { id: true } })
+    if (!template) throw new LmsError('La plantilla de certificado no existe.', 404)
+  }
+
   async function loadSections(courseId) {
     return ser.serializeSections(await prisma.lmsSection.findMany({ where: { courseId }, ...SECTIONS_ORDERED }))
   }
@@ -57,6 +64,7 @@ export function createLmsService({ prisma, signFile = null }) {
   async function createCourse(companyId, actorId, body) {
     const data = normalizeCourseInput(body, { partial: false })
     await assertFile(companyId, data.coverFileId)
+    await assertTemplate(companyId, data.certificateTemplateId)
     const row = await prisma.lmsCourse.create({ data: { ...data, status: 'draft', companyId, createdById: actorId }, include: COURSE_COUNTS })
     return ser.serializeCourse(row)
   }
@@ -70,6 +78,7 @@ export function createLmsService({ prisma, signFile = null }) {
     const current = await findCourse(companyId, courseId)
     const data = normalizeCourseInput(body, { partial: true })
     if (data.coverFileId) await assertFile(companyId, data.coverFileId)
+    await assertTemplate(companyId, data.certificateTemplateId)
     if (data.status === 'published' && current.status !== 'published') {
       const lessons = await prisma.lmsLesson.count({ where: { courseId, companyId, enabled: true } })
       if (!lessons) throw new LmsError('Agrega al menos una lección antes de publicar.', 409, 'EMPTY_COURSE')
@@ -211,7 +220,7 @@ export function createLmsService({ prisma, signFile = null }) {
 
   async function listEnrollments(companyId, courseId) {
     const course = await findCourse(companyId, courseId)
-    const rows = await prisma.lmsEnrollment.findMany({ where: { courseId: course.id, companyId }, include: { learner: true }, orderBy: { createdAt: 'asc' } })
+    const rows = await prisma.lmsEnrollment.findMany({ where: { courseId: course.id, companyId }, include: ENROLLMENT_INCLUDE, orderBy: { createdAt: 'asc' } })
     // Quiz lessons with no attempts left, for "Otorgar intento extra".
     const failed = rows.length
       ? await prisma.lmsLessonProgress.findMany({
@@ -240,8 +249,8 @@ export function createLmsService({ prisma, signFile = null }) {
         await prisma.lmsEnrollment.create({ data: { companyId, courseId: course.id, learnerId: learner.id, source: 'assigned', assignedById: actorId, dueAt } })
         result.created += 1
       } else if (existing.status === 'dropped') {
-        await prisma.lmsEnrollment.update({
-          where: { id: existing.id },
+        await updateEnrollmentWithCertificate(prisma, {
+          id: existing.id,
           data: { status: existing.completedAt ? 'completed' : 'active', source: 'assigned', assignedById: actorId, dueAt },
         })
         result.reactivated += 1
@@ -261,7 +270,7 @@ export function createLmsService({ prisma, signFile = null }) {
       else if (body.status === 'active') data.status = current.completedAt ? 'completed' : 'active'
       else throw new LmsError('Estado inválido.', 400)
     }
-    const row = await prisma.lmsEnrollment.update({ where: { id: current.id }, data, include: { learner: true } })
+    const row = await updateEnrollmentWithCertificate(prisma, { id: current.id, data, include: ENROLLMENT_INCLUDE })
     return ser.serializeEnrollment(row)
   }
 

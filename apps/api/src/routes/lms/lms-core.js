@@ -130,6 +130,7 @@ export function normalizeCourseInput(body = {}, { partial = false } = {}) {
   if (has(body, 'estimatedMinutes')) data.estimatedMinutes = optionalInt(body.estimatedMinutes, 'La duración estimada')
   if (has(body, 'sequential')) data.sequential = body.sequential === true
   if (has(body, 'selfEnroll')) data.selfEnroll = body.selfEnroll === true
+  if (has(body, 'certificateTemplateId')) data.certificateTemplateId = optionalUuid(body.certificateTemplateId)
   return data
 }
 

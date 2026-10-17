@@ -8,6 +8,15 @@ export const COURSE_COUNTS = {
 
 const iso = (value) => (value ? new Date(value).toISOString() : null)
 
+// Latest certificate of an enrollment (a re-issue is newer than the revoked one).
+export const ENROLLMENT_CERT = { certificates: { orderBy: { issuedAt: 'desc' }, take: 1, select: { id: true, folio: true, revokedAt: true } } }
+export const ENROLLMENT_INCLUDE = { learner: true, ...ENROLLMENT_CERT }
+
+export function enrollmentCertificate(row) {
+  const cert = Array.isArray(row?.certificates) ? row.certificates[0] : null
+  return cert ? { id: cert.id, folio: cert.folio, revokedAt: iso(cert.revokedAt) } : null
+}
+
 export function createLmsSerializers({ prisma, signFile = null }) {
   const sign = async (fileId, variant) => (signFile && fileId ? signFile(fileId, variant) : null)
 
@@ -44,6 +53,7 @@ export function createLmsSerializers({ prisma, signFile = null }) {
       enrollmentCount: row._count?.enrollments ?? 0,
       ratingAvg: row.ratingAvg === null || row.ratingAvg === undefined ? null : Number(row.ratingAvg),
       ratingCount: row.ratingCount ?? 0,
+      certificateTemplateId: row.certificateTemplateId ?? null,
       createdAt: iso(row.createdAt),
       updatedAt: iso(row.updatedAt),
     }
@@ -111,6 +121,7 @@ export function createLmsSerializers({ prisma, signFile = null }) {
       completedAt: iso(row.completedAt),
       progressPct: row.progressPct,
       lastLessonId: row.lastLessonId,
+      certificate: enrollmentCertificate(row),
       createdAt: iso(row.createdAt),
     }
   }

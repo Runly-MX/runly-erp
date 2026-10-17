@@ -1,13 +1,22 @@
 // One place where a lesson outcome lands: lesson progress, course progress and
 // enrollment completion. Used by the progress endpoint and every evaluator.
 import { progressPct } from './lms-core.js'
+import { issueCertificate } from './lms-cert-issue.js'
 
 // Interactive transactions on a remote database need more than the 5 s default.
 export const TX_OPTS = { maxWait: 10_000, timeout: 30_000 }
 
-// db: prisma or a transaction client. enrollment: the stored row.
+// Root-client entry point: opens the transaction so completion and the
+// certificate commit together. Never call it with a transaction client.
+export function recordLessonOutcome(prisma, args) {
+  return prisma.$transaction((tx) => setLessonOutcome(tx, args), TX_OPTS)
+}
+
+// db: a transaction client (Prisma 7 transaction clients also expose $transaction,
+// so the caller decides; see recordLessonOutcome). enrollment: the stored row.
 // fields: extra progress columns (video position); touch: extra enrollment columns.
-export async function setLessonOutcome(db, { enrollment, lessonId, status, fields = {}, touch = {}, now = new Date() }) {
+export async function setLessonOutcome(db, args) {
+  const { enrollment, lessonId, status, fields = {}, touch = {}, now = new Date(), issue = issueCertificate } = args
   const key = { enrollmentId_lessonId: { enrollmentId: enrollment.id, lessonId } }
   const previous = await db.lmsLessonProgress.findUnique({ where: key })
   // A completed lesson is never downgraded.
@@ -25,7 +34,10 @@ export async function setLessonOutcome(db, { enrollment, lessonId, status, field
   ])
   const pct = progressPct(lessons, new Set(done.map((row) => row.lessonId)))
   const update = { progressPct: pct, ...touch }
-  if (pct >= 100 && enrollment.status === 'active') Object.assign(update, { status: 'completed', completedAt: enrollment.completedAt ?? now })
+  const completes = pct >= 100 && enrollment.status === 'active'
+  if (completes) Object.assign(update, { status: 'completed', completedAt: enrollment.completedAt ?? now })
   const updated = await db.lmsEnrollment.update({ where: { id: enrollment.id }, data: update, include: { learner: true } })
-  return { lessonStatus, enrollment: updated }
+  // Automatic certificate the moment the enrollment turns completed (no-op without a template).
+  const issued = completes ? await issue(db, { enrollment: { ...enrollment, ...updated }, now }) : null
+  return { lessonStatus, enrollment: updated, certificate: issued?.certificate ?? null }
 }

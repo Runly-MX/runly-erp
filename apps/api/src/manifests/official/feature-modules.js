@@ -959,8 +959,8 @@ export const attendanceMap = createModuleManifest({
 export const lmsMap = createModuleManifest({
   key: 'runly.lms',
   name: 'Aprendizaje',
-  description: 'Cursos internos con videos, documentos, textos, exámenes y tareas, asignación con fecha límite, avance por lección, reproductor, preguntas, reseñas y anuncios.',
-  version: '0.3.0',
+  description: 'Cursos internos con videos, documentos, textos, exámenes y tareas, asignación con fecha límite, avance por lección, reproductor, preguntas, reseñas, anuncios y certificados verificables.',
+  version: '0.4.0',
   kind: MODULE_KINDS.CORE,
   core: true,
   uninstallable: false,
@@ -976,7 +976,7 @@ export const lmsMap = createModuleManifest({
     resettable: false,
     supportsDataPurge: true,
     defaultUninstallPolicy: 'purge-owned-tables',
-    ownedEntities: ['LmsCourse', 'LmsSection', 'LmsLesson', 'LmsLearner', 'LmsEnrollment', 'LmsLessonProgress', 'LmsQuizQuestion', 'LmsQuizAttempt', 'LmsSubmission', 'LmsComment', 'LmsReview', 'LmsAnnouncement'],
+    ownedEntities: ['LmsCourse', 'LmsSection', 'LmsLesson', 'LmsLearner', 'LmsEnrollment', 'LmsLessonProgress', 'LmsQuizQuestion', 'LmsQuizAttempt', 'LmsSubmission', 'LmsComment', 'LmsReview', 'LmsAnnouncement', 'LmsCertificateTemplate', 'LmsCertificate'],
     sharedEntities: ['Company', 'UserProfile', 'FileAsset', 'Contact'],
   },
   fullscreenPaths: ['/learn/:courseId'],
@@ -984,6 +984,7 @@ export const lmsMap = createModuleManifest({
     { label: 'Mis cursos', path: '/', icon: 'GraduationCap', layout: 'main', permissionKey: 'lms.access' },
     { label: 'Cursos', path: '/courses', icon: 'BookOpen', layout: 'main', permissionKey: 'lms.course.manage' },
     { label: 'Revisión', path: '/review', icon: 'ClipboardCheck', layout: 'main', permissionKey: 'lms.grade' },
+    { label: 'Certificados', path: '/certificates', icon: 'Award', layout: 'main', permissionKey: 'lms.course.manage' },
   ],
   acl: {
     module: 'lms.access',

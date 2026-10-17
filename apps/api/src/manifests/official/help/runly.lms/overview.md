@@ -1,6 +1,6 @@
 ---
 title: Aprendizaje
-summary: Cursos internos con videos, documentos y textos, asignación al personal con fecha límite, avance por lección y un reproductor a pantalla completa.
+summary: Cursos internos con videos, documentos y textos, asignación al personal con fecha límite, avance por lección, un reproductor a pantalla completa y certificados verificables.
 ---
 Aprendizaje sirve para capacitar a tu equipo: inducción de personal nuevo, cursos obligatorios, procedimientos y cualquier contenido que quieras que la gente tome y termine.
 
@@ -8,6 +8,7 @@ Aprendizaje sirve para capacitar a tu equipo: inducción de personal nuevo, curs
 
 - **Mis cursos**: los cursos que te asignaron o en los que te inscribiste, con tu avance y la fecha límite; los cursos que ya terminaste, y el catálogo de cursos con inscripción libre.
 - **Cursos**: la lista de cursos de la empresa para quienes los preparan, con su estado (borrador, publicado o archivado), número de lecciones y alumnos.
+- **Certificados**: las plantillas de certificado que se entregan al terminar un curso.
 
 ### Crear un curso
 
@@ -64,6 +65,18 @@ En la pestaña **Anuncios** del editor, quien administra cursos publica avisos p
 
 Un video se marca como completado al llegar al 90 % de su duración. Las lecciones de texto, archivo o enlace sin duración se completan con **Marcar como completada**. Cuando el alumno termina todas las lecciones obligatorias, el curso queda **completado** con su fecha. Si después agregas lecciones, los cursos ya completados no se reabren.
 
+### Certificados
+
+En **Certificados** creas plantillas con un título, un texto, quién firma (nombre, cargo y una imagen de la firma en PNG o JPEG), un color y si se muestra el logotipo de la empresa. El texto admite estos campos, que se reemplazan al generar el certificado: `{{alumno}}`, `{{curso}}`, `{{fecha}}`, `{{horas}}`, `{{folio}}` y `{{empresa}}`. La vista previa muestra el PDF con datos de ejemplo.
+
+- En la pestaña **Configuración** del curso eliges la plantilla en **Certificado**. Sin plantilla, el curso no entrega certificado.
+- Cuando un alumno completa el curso, el certificado se emite solo, con un folio por año (por ejemplo 2026-000123). El nombre del alumno, el título del curso y las horas quedan fijos al emitirse; editarlos después no cambia los certificados ya emitidos.
+- Las horas salen de la duración estimada del curso o, si no tiene, de la suma de la duración de sus lecciones, redondeadas a media hora.
+- En la pestaña **Alumnos** ves el folio de cada certificado, lo descargas, lo **revocas** con un motivo o lo **emites** cuando falta (por ejemplo, si la plantilla se eligió después de que el alumno terminara). Volver a emitir crea un folio nuevo.
+- Cada alumno descarga sus certificados desde **Mis cursos** y al terminar el curso en el reproductor.
+- El PDF incluye un código QR que abre una página pública de verificación, sin iniciar sesión, con el folio, el nombre, el curso, la fecha y si el certificado es válido o fue revocado. Un certificado revocado sigue apareciendo, marcado como **Revocado**.
+- Una plantilla que algún curso usa no se puede desactivar; primero quítala de esos cursos.
+
 ### Asignar cursos
 
 En la pestaña **Alumnos**, **Asignar** permite elegir varios usuarios de la empresa y, si quieres, una fecha límite. Un curso asignado aparece en **Mis cursos** de cada persona. Si la fecha límite pasa sin terminarlo, el curso se marca como **Vencido**. Puedes cambiar la fecha, dar de baja a un alumno o reactivarlo; al reactivarlo conserva su avance.
@@ -71,6 +84,6 @@ En la pestaña **Alumnos**, **Asignar** permite elegir varios usuarios de la emp
 ### Permisos
 
 - **Acceder a Aprendizaje**: ver Mis cursos, el catálogo y tomar los cursos.
-- **Administrar cursos**: crear, editar, publicar y archivar cursos, y ver la vista previa de cualquier curso.
-- **Asignar cursos y ver avance**: asignar cursos, cambiar fechas límite, dar de baja y ver el avance de cada alumno.
+- **Administrar cursos**: crear, editar, publicar y archivar cursos, ver la vista previa de cualquier curso y administrar las plantillas de certificado.
+- **Asignar cursos y ver avance**: asignar cursos, cambiar fechas límite, dar de baja, ver el avance de cada alumno y emitir o revocar certificados.
 - **Calificar actividades y tareas**: abrir Revisión, calificar exámenes y tareas, y otorgar intentos extra.

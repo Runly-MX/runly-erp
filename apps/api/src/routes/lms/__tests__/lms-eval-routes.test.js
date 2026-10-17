@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createLmsRouter } from '../lms-routes.js'
 import { LmsError } from '../lms-core.js'
 import { createLmsMedia } from '../lms-media.js'
-import { setLessonOutcome } from '../lms-progress.js'
+import { recordLessonOutcome, setLessonOutcome } from '../lms-progress.js'
 
 function requirePermission(key) {
   return async (c, next) => {
@@ -93,14 +93,34 @@ test('setLessonOutcome never downgrades completed and completes the enrollment a
   const lessons = [{ id: 'l1', required: true, enabled: true }, { id: 'l2', required: true, enabled: true }]
   const done = new Date('2026-10-01T00:00:00Z')
   let db = fakeDb({ progress: { status: 'completed', completedAt: done }, lessons, completed: ['l1'] })
-  let result = await setLessonOutcome(db, { enrollment, lessonId: 'l1', status: 'failed' })
+  const issued = []
+  const issue = async (tx, { enrollment: row }) => { issued.push(row); return { certificate: { id: 'cert-1' }, created: true } }
+  let result = await setLessonOutcome(db, { enrollment, lessonId: 'l1', status: 'failed', issue })
+  assert.equal(result.certificate, null)
   assert.equal(result.lessonStatus, 'completed')
   assert.equal(db.writes[0][1].completedAt, done)
   assert.equal(db.writes[1][1].progressPct, 50)
   assert.equal(db.writes[1][1].status, undefined)
 
   db = fakeDb({ lessons, completed: ['l1', 'l2'] })
-  result = await setLessonOutcome(db, { enrollment, lessonId: 'l2', status: 'completed' })
+  result = await setLessonOutcome(db, { enrollment, lessonId: 'l2', status: 'completed', issue })
   assert.equal(result.enrollment.status, 'completed')
   assert.equal(result.enrollment.progressPct, 100)
+  // The certificate is issued in the same db (transaction) with the merged row.
+  assert.equal(result.certificate.id, 'cert-1')
+  assert.equal(issued.length, 1)
+  assert.equal(issued[0].courseId, 'k1')
+  assert.equal(issued[0].status, 'completed')
+})
+
+test('recordLessonOutcome opens exactly one transaction even though tx clients expose $transaction', async () => {
+  const enrollment = { id: 'e1', companyId: 'c1', courseId: 'k1', status: 'active', completedAt: null }
+  // Prisma 7 transaction clients also have $transaction; it must not be re-entered.
+  const inner = { ...fakeDb({ lessons: [{ id: 'l1', required: true, enabled: true }], completed: ['l1'] }), $transaction: async () => { throw new Error('nested transaction') } }
+  let opened = 0
+  const root = { $transaction: async (fn) => { opened += 1; return fn(inner) } }
+  const result = await recordLessonOutcome(root, { enrollment, lessonId: 'l1', status: 'completed', issue: async () => null })
+  assert.equal(opened, 1)
+  assert.equal(result.enrollment.status, 'completed')
+  assert.equal(result.certificate, null)
 })

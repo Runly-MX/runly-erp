@@ -1,11 +1,12 @@
 const id = (value) => encodeURIComponent(value)
 
-export function createLmsDomain({ request, withAuthHeaders, toQueryString }) {
+export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQueryString }) {
   const send = (method, path, data, token) => request(path, {
     method,
     headers: withAuthHeaders(token),
     ...(data === undefined ? {} : { body: JSON.stringify(data) }),
   })
+  const blob = (path, token) => requestBlob(path, { headers: withAuthHeaders(token) })
   return {
     // Learner
     getCatalog: (token) => send('GET', '/lms/catalog', undefined, token),
@@ -78,5 +79,21 @@ export function createLmsDomain({ request, withAuthHeaders, toQueryString }) {
     createAnnouncement: (courseId, data, token) => send('POST', `/lms/courses/${id(courseId)}/announcements`, data, token),
     updateAnnouncement: (announcementId, data, token) => send('PATCH', `/lms/announcements/${id(announcementId)}`, data, token),
     deleteAnnouncement: (announcementId, token) => send('DELETE', `/lms/announcements/${id(announcementId)}`, undefined, token),
+
+    // Certificates. The *Url helpers return the API path (prefix the API base URL).
+    listCertificateTemplates: (token) => send('GET', '/lms/certificate-templates', undefined, token),
+    createCertificateTemplate: (data, token) => send('POST', '/lms/certificate-templates', data, token),
+    updateCertificateTemplate: (templateId, data, token) => send('PATCH', `/lms/certificate-templates/${id(templateId)}`, data, token),
+    disableCertificateTemplate: (templateId, token) => send('DELETE', `/lms/certificate-templates/${id(templateId)}`, undefined, token),
+    certificateTemplatePreviewUrl: (templateId) => `/lms/certificate-templates/${id(templateId)}/preview.pdf`,
+    downloadCertificateTemplatePreview: (templateId, token) => blob(`/lms/certificate-templates/${id(templateId)}/preview.pdf`, token),
+    issueCertificate: (enrollmentId, token) => send('POST', `/lms/enrollments/${id(enrollmentId)}/certificate`, {}, token),
+    revokeCertificate: (certificateId, reason, token) => send('POST', `/lms/certificates/${id(certificateId)}/revoke`, { reason }, token),
+    listCourseCertificates: (courseId, token) => send('GET', `/lms/courses/${id(courseId)}/certificates`, undefined, token),
+    downloadCertificate: (certificateId, token) => blob(`/lms/certificates/${id(certificateId)}/pdf`, token),
+    listMyCertificates: (token) => send('GET', '/lms/my/certificates', undefined, token),
+    downloadMyCertificate: (certificateId, token) => blob(`/lms/my/certificates/${id(certificateId)}/pdf`, token),
+    getPublicCertificate: (certToken) => request(`/public/lms/certificates/${id(certToken)}`, { method: 'GET' }),
+    publicCertificatePdfUrl: (certToken) => `/public/lms/certificates/${id(certToken)}/pdf`,
   }
 }

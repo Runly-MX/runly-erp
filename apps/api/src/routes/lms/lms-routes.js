@@ -5,6 +5,7 @@ import { createLmsLearnService } from './lms-learn-service.js'
 import { createLmsMedia } from './lms-media.js'
 import { registerLmsEvalRoutes } from './lms-eval-routes.js'
 import { registerLmsSocialRoutes } from './lms-social-routes.js'
+import { registerLmsCertRoutes } from './lms-cert-routes.js'
 
 const companyId = (c) => c.get('companyId')
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
@@ -22,7 +23,7 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null }) {
+export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null }) {
   const app = new Hono()
   const svc = service ?? createLmsService({ prisma, signFile })
   const learn = learnService ?? createLmsLearnService({ prisma, signFile, authoring: svc })
@@ -68,6 +69,9 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
 
   // ---- social (discussion, reviews, announcements) ------------------------
   registerLmsSocialRoutes(app, { prisma, requirePermission, signFile, notificationService, run, service: socialService })
+
+  // ---- certificates -------------------------------------------------------
+  registerLmsCertRoutes(app, { prisma, requirePermission, signFile, run, service: certService })
 
   return app
 }
