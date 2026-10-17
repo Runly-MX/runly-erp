@@ -5350,12 +5350,17 @@ model LmsCourse {
   selfEnroll       Boolean  @default(false) @map("self_enroll")
   estimatedMinutes Int?     @map("estimated_minutes")
   createdById      String?  @map("created_by_id") @db.Uuid
+  // Cached aggregate of non-hidden reviews, recomputed on every review write.
+  ratingAvg        Decimal? @map("rating_avg") @db.Decimal(3, 2)
+  ratingCount      Int      @default(0) @map("rating_count")
   enabled          Boolean  @default(true)
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  sections    LmsSection[]
-  enrollments LmsEnrollment[]
+  sections      LmsSection[]
+  enrollments   LmsEnrollment[]
+  reviews       LmsReview[]
+  announcements LmsAnnouncement[]
 
   @@index([companyId, status])
   @@map("lms_course")
@@ -5401,6 +5406,7 @@ model LmsLesson {
   questions   LmsQuizQuestion[]
   attempts    LmsQuizAttempt[]
   submissions LmsSubmission[]
+  comments    LmsComment[]
 
   @@index([courseId])
   @@index([sectionId, position])
@@ -5421,6 +5427,8 @@ model LmsLearner {
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   enrollments LmsEnrollment[]
+  comments    LmsComment[]
+  reviews     LmsReview[]
 
   @@unique([companyId, userProfileId])
   @@unique([companyId, contactId])
@@ -5552,4 +5560,71 @@ model LmsSubmission {
   @@unique([enrollmentId, lessonId, number])
   @@index([companyId, status])
   @@map("lms_submission")
+}
+
+// Lesson discussion. parentId null = root question; replies are one level deep.
+// Author is a learner or a staff profile; the CHECK and the partial index on
+// (lesson_id, created_at) WHERE parent_id IS NULL live in the migration.
+model LmsComment {
+  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId       String    @map("company_id") @db.Uuid
+  courseId        String    @map("course_id") @db.Uuid
+  lessonId        String    @map("lesson_id") @db.Uuid
+  parentId        String?   @map("parent_id") @db.Uuid
+  authorLearnerId String?   @map("author_learner_id") @db.Uuid
+  authorProfileId String?   @map("author_profile_id") @db.Uuid
+  body            String // markdown, 1..5000
+  isInstructor    Boolean   @default(false) @map("is_instructor")
+  resolved        Boolean   @default(false)
+  pinned          Boolean   @default(false)
+  editedAt        DateTime? @map("edited_at") @db.Timestamptz(6)
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lesson        LmsLesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  parent        LmsComment?  @relation("LmsCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       LmsComment[] @relation("LmsCommentReplies")
+  authorLearner LmsLearner?  @relation(fields: [authorLearnerId], references: [id], onDelete: Cascade)
+
+  @@index([parentId, createdAt])
+  @@map("lms_comment")
+}
+
+// One review per learner per course; the rating CHECK (1..5) lives in the migration.
+model LmsReview {
+  id          String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId   String    @map("company_id") @db.Uuid
+  courseId    String    @map("course_id") @db.Uuid
+  learnerId   String    @map("learner_id") @db.Uuid
+  rating      Int
+  body        String? // 0..2000
+  hidden      Boolean   @default(false)
+  replyBody   String?   @map("reply_body")
+  repliedById String?   @map("replied_by_id") @db.Uuid
+  repliedAt   DateTime? @map("replied_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  course  LmsCourse  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  learner LmsLearner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, learnerId])
+  @@map("lms_review")
+}
+
+model LmsAnnouncement {
+  id          String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId   String    @map("company_id") @db.Uuid
+  courseId    String    @map("course_id") @db.Uuid
+  title       String
+  body        String // markdown
+  createdById String?   @map("created_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  editedAt    DateTime? @map("edited_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  course LmsCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, createdAt])
+  @@map("lms_announcement")
 }

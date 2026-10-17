@@ -42,6 +42,8 @@ export function createLmsSerializers({ prisma, signFile = null }) {
       sectionCount: row._count?.sections ?? 0,
       lessonCount,
       enrollmentCount: row._count?.enrollments ?? 0,
+      ratingAvg: row.ratingAvg === null || row.ratingAvg === undefined ? null : Number(row.ratingAvg),
+      ratingCount: row.ratingCount ?? 0,
       createdAt: iso(row.createdAt),
       updatedAt: iso(row.updatedAt),
     }

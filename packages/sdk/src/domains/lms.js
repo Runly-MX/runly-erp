@@ -61,5 +61,22 @@ export function createLmsDomain({ request, withAuthHeaders, toQueryString }) {
     getReviewSubmission: (submissionId, token) => send('GET', `/lms/review/submissions/${id(submissionId)}`, undefined, token),
     gradeSubmission: (submissionId, data, token) => send('POST', `/lms/review/submissions/${id(submissionId)}/grade`, data, token),
     grantExtraAttempt: (enrollmentId, lessonId, token) => send('POST', `/lms/enrollments/${id(enrollmentId)}/lessons/${id(lessonId)}/extra-attempt`, {}, token),
+
+    // Discussion
+    listComments: (lessonId, token) => send('GET', `/lms/lessons/${id(lessonId)}/comments`, undefined, token),
+    createComment: (lessonId, data, token) => send('POST', `/lms/lessons/${id(lessonId)}/comments`, data, token),
+    updateComment: (commentId, data, token) => send('PATCH', `/lms/comments/${id(commentId)}`, data, token),
+    deleteComment: (commentId, token) => send('DELETE', `/lms/comments/${id(commentId)}`, undefined, token),
+
+    // Reviews
+    getReviews: (courseId, token) => send('GET', `/lms/courses/${id(courseId)}/reviews`, undefined, token),
+    saveMyReview: (courseId, data, token) => send('PUT', `/lms/courses/${id(courseId)}/reviews/mine`, data, token),
+    moderateReview: (reviewId, data, token) => send('PATCH', `/lms/reviews/${id(reviewId)}`, data, token),
+
+    // Announcements
+    listAnnouncements: (courseId, token) => send('GET', `/lms/courses/${id(courseId)}/announcements`, undefined, token),
+    createAnnouncement: (courseId, data, token) => send('POST', `/lms/courses/${id(courseId)}/announcements`, data, token),
+    updateAnnouncement: (announcementId, data, token) => send('PATCH', `/lms/announcements/${id(announcementId)}`, data, token),
+    deleteAnnouncement: (announcementId, token) => send('DELETE', `/lms/announcements/${id(announcementId)}`, undefined, token),
   }
 }

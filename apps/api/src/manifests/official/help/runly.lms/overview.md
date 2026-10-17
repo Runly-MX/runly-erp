@@ -48,6 +48,18 @@ En una lección de tipo **Tarea** escribes las instrucciones y eliges si se entr
 
 **Revisión** muestra, de la más antigua a la más reciente, las entregas de tareas y los exámenes con respuestas abiertas que esperan calificación; puedes filtrar por curso. Al calificar, el alumno recibe una notificación, y quien creó el curso recibe otra cada vez que llega algo por revisar.
 
+### Preguntas
+
+Debajo de cada lección, la pestaña **Preguntas** permite que los alumnos inscritos pregunten sobre esa lección y que otros respondan. Las respuestas de quienes administran cursos o califican llevan la marca **Instructor**. Cada quien puede editar o eliminar sus comentarios; si una pregunta eliminada ya tenía respuestas, se muestra como "Comentario eliminado" y conserva sus respuestas. Los instructores pueden **fijar** una pregunta para que aparezca primero y **marcarla como resuelta**; quien hizo la pregunta también puede marcarla como resuelta. Quien administra cursos puede eliminar cualquier comentario. Al llegar una pregunta nueva, quien creó el curso recibe una notificación, y al responder se avisa a quien preguntó y a quienes ya habían respondido. Un alumno dado de baja solo puede consultar sus propias preguntas.
+
+### Reseñas
+
+Un alumno puede calificar el curso con 1 a 5 estrellas y un comentario opcional cuando lleva al menos 30 % de avance o ya lo terminó. Hay una reseña por alumno y curso, y se puede editar. La calificación promedio y el número de reseñas aparecen en el catálogo y en el curso. Desde la pestaña **Reseñas** del editor, quien administra cursos puede **ocultar** una reseña (deja de contar en el promedio y solo la ven los administradores) y **responderla**; el alumno recibe una notificación con la respuesta.
+
+### Anuncios
+
+En la pestaña **Anuncios** del editor, quien administra cursos publica avisos para los alumnos, como cambios de fechas o material nuevo. Los anuncios se muestran del más reciente al más antiguo en la pestaña **Anuncios** del reproductor, y cada alumno activo recibe una notificación cuando se publica uno en un curso publicado.
+
 ### Avance y finalización
 
 Un video se marca como completado al llegar al 90 % de su duración. Las lecciones de texto, archivo o enlace sin duración se completan con **Marcar como completada**. Cuando el alumno termina todas las lecciones obligatorias, el curso queda **completado** con su fecha. Si después agregas lecciones, los cursos ya completados no se reabren.

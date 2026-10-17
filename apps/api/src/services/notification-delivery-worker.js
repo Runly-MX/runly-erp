@@ -157,6 +157,10 @@ const EVENT_TYPE_LABELS = {
   // Aprendizaje
   "lms.submission.graded": "Actividad calificada",
   "lms.submission.received": "Nueva entrega por revisar",
+  "lms.comment.replied": "Respuesta en una pregunta",
+  "lms.comment.question": "Nueva pregunta en un curso",
+  "lms.announcement.published": "Nuevo anuncio del curso",
+  "lms.review.replied": "Respuesta a tu reseña",
   // System
   "system.alert": "Alerta del sistema",
   "general": "General",

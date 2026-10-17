@@ -89,8 +89,10 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
 
   async function outline(companyId, userProfileId, courseId, { canManage = false } = {}) {
     const ctx = await loadContext(companyId, userProfileId, courseId, { canManage })
+    const announcementCount = await prisma.lmsAnnouncement.count({ where: { courseId: ctx.course.id, deletedAt: null } })
     return {
       course: await ser.serializeCourse(ctx.course),
+      announcementCount,
       enrollment: ctx.enrollment ? ser.serializeEnrollment(ctx.enrollment) : null,
       sections: ctx.sections.map((section) => ({
         id: section.id,

@@ -4,6 +4,7 @@ import { createLmsService } from './lms-service.js'
 import { createLmsLearnService } from './lms-learn-service.js'
 import { createLmsMedia } from './lms-media.js'
 import { registerLmsEvalRoutes } from './lms-eval-routes.js'
+import { registerLmsSocialRoutes } from './lms-social-routes.js'
 
 const companyId = (c) => c.get('companyId')
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
@@ -21,7 +22,7 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null }) {
+export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null }) {
   const app = new Hono()
   const svc = service ?? createLmsService({ prisma, signFile })
   const learn = learnService ?? createLmsLearnService({ prisma, signFile, authoring: svc })
@@ -64,6 +65,9 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
 
   // ---- evaluation (quizzes, assignments, grading) -------------------------
   registerLmsEvalRoutes(app, { prisma, requirePermission, signFile, supabaseAdmin, bucket, notificationService, run, learn, media: files, services: evalServices })
+
+  // ---- social (discussion, reviews, announcements) ------------------------
+  registerLmsSocialRoutes(app, { prisma, requirePermission, signFile, notificationService, run, service: socialService })
 
   return app
 }
