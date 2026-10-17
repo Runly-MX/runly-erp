@@ -1,5 +1,6 @@
 import { ChevronRight, Loader2, MoreHorizontal } from "lucide-react";
 import { cn } from "../lib/utils.js";
+import { useScrollCollapse } from "../hooks/useScrollCollapse.js";
 import { Button } from "./Button.jsx";
 import {
   DropdownMenu,
@@ -19,6 +20,8 @@ import {
 //   placement "bar" (default): button always visible.
 //             "collapse": ghost button from `sm` up, inside "Más acciones" below it.
 //             "menu": always inside "Más acciones" (destructive ones go last).
+// collapseOnScroll  opt-in (with sticky): once the content scrolls, the
+//   breadcrumb and subtitle fold away and the header becomes one thin row.
 export function RecordHeader({
   crumbs = [],
   title,
@@ -27,8 +30,15 @@ export function RecordHeader({
   actions = [],
   sticky = true,
   bleed = false,
+  collapseOnScroll = false,
   className,
 }) {
+  const scroll = useScrollCollapse({ enabled: collapseOnScroll && sticky, reserve: true });
+  const collapsed = scroll.collapsed;
+  const fold = cn(
+    "overflow-hidden transition-[max-height,opacity] duration-200 ease-out motion-reduce:transition-none",
+    collapsed ? "max-h-0 opacity-0" : "max-h-24 opacity-100",
+  );
   const visible = actions.filter((action) => action && !action.hidden);
   const bar = visible.filter((a) => (a.placement ?? "bar") === "bar");
   const collapse = visible.filter((a) => a.placement === "collapse");
@@ -50,15 +60,22 @@ export function RecordHeader({
   );
 
   return (
+    <>
+    {collapseOnScroll && sticky ? <div ref={scroll.sentinelRef} aria-hidden="true" className="pointer-events-none" /> : null}
     <header
+      ref={scroll.targetRef}
+      data-collapsed={collapsed ? "" : undefined}
       className={cn(
         "border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/90 py-3 backdrop-blur",
+        collapseOnScroll && "transition-[padding,box-shadow] duration-200 ease-out motion-reduce:transition-none",
         sticky && "sticky top-0 z-20",
         bleed && "-mx-4 px-4 md:-mx-6 md:px-6",
         className,
+        collapsed && "py-1.5 shadow-sm",
       )}
     >
       {crumbs.length > 0 ? (
+        <div className={collapseOnScroll ? fold : undefined} inert={collapsed}>
         <nav aria-label="Ruta" className="mb-1 flex min-w-0 flex-wrap items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]">
           {crumbs.map((crumb, index) => {
             const last = index === crumbs.length - 1;
@@ -88,14 +105,27 @@ export function RecordHeader({
             );
           })}
         </nav>
+        </div>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
-            <h1 className="truncate text-xl font-semibold tracking-tight text-[hsl(var(--foreground))]">{title}</h1>
+            <h1
+              className={cn(
+                "truncate font-semibold tracking-tight text-[hsl(var(--foreground))]",
+                collapseOnScroll && "transition-[font-size,line-height] duration-200 ease-out motion-reduce:transition-none",
+                collapsed ? "text-base" : "text-xl",
+              )}
+            >
+              {title}
+            </h1>
             {badge}
           </div>
-          {subtitle ? <p className="truncate text-sm text-[hsl(var(--muted-foreground))]">{subtitle}</p> : null}
+          {subtitle ? (
+            <div className={collapseOnScroll ? fold : undefined} inert={collapsed}>
+              <p className="truncate text-sm text-[hsl(var(--muted-foreground))]">{subtitle}</p>
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {collapse.map((action) => (
@@ -151,5 +181,6 @@ export function RecordHeader({
         </div>
       </div>
     </header>
+    </>
   );
 }

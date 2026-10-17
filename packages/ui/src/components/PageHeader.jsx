@@ -1,6 +1,13 @@
 import { ArrowLeft } from "lucide-react";
 import { cn } from "../lib/utils.js";
+import { PageHeaderCollapsing } from "./PageHeaderCollapsing.jsx";
 
+// collapseOnScroll  opt-in: shrinks into one thin row (back, title, actions)
+//                   while the content scrolls; full header again at the top.
+// sticky            with collapseOnScroll: sticks to the top of its scroll
+//                   container and reserves the lost height (no layout jump).
+// collapsed         with collapseOnScroll: controlled state for a header that
+//                   sits above a separate scroll pane (see useScrollCollapse).
 export function PageHeader({
   eyebrow,
   title,
@@ -11,7 +18,19 @@ export function PageHeader({
   backLabel = "Volver",
   loading,
   className,
+  collapseOnScroll = false,
+  sticky = false,
+  collapsed,
 }) {
+  if (collapseOnScroll) {
+    return (
+      <PageHeaderCollapsing
+        eyebrow={eyebrow} title={title} description={description} actions={actions} compact={compact}
+        onBack={onBack} backLabel={backLabel} loading={loading} sticky={sticky} collapsed={collapsed} className={className}
+      />
+    );
+  }
+
   const backButton = onBack && (
     <button
       type="button"

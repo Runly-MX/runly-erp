@@ -322,6 +322,7 @@ export { ChatAttachMenu } from "./components/ChatAttachMenu.jsx";
 export { ListLayout } from "./components/ListLayout.jsx";
 export { useAttachmentsController, resolveAttachmentFileType } from "./hooks/useAttachmentsController.js";
 export { useIsMobile } from "./hooks/useIsMobile.js";
+export { useScrollCollapse } from "./hooks/useScrollCollapse.js";
 export { useViewMode } from "./hooks/useViewMode.js";
 export { useColumnResize, COLUMN_MIN_WIDTH, COLUMN_MAX_WIDTH } from "./hooks/useColumnResize.js";
 export { ColumnResizeHandle } from "./components/ColumnResizeHandle.jsx";
