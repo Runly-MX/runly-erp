@@ -99,3 +99,62 @@ Grading (`lms.grade`): `GET /lms/review` (queue: submissions in `submitted` plus
 - Learner: `QuizLesson` covers the start card (attempts, passing score, time limit, best score), the attempt view (all questions on one page, autosave debounced 800 ms, countdown, submit with ConfirmDialog) and the result (score, passed/failed, answers per `showAnswers`, retry while attempts remain). `AssignmentLesson` shows the instructions, the submission form (TextareaField plus file upload with progress) and the submission history with status, grade and feedback.
 - Grading: new navigation item `Revisión` (`/review`, `lms.grade`) with a queue table filtered by course, `GradeSubmissionSheet` and `GradeAttemptSheet` (open answers with a points input, auto-scored answers shown read-only). The course editor's Alumnos tab gains "Otorgar intento extra" for `failed` quiz lessons.
 - Outline icons for `pending_review` (clock) and `failed` (x).
+
+## 12. Phase 3 — Social (discussion, ratings, announcements)
+
+### 12.1 Decision
+The module does not reuse `EntityComment`. Its author is a mandatory `UserProfile` FK and it has no reply structure, so it cannot hold external (contact-backed) learners from phase 6. LMS comments get their own table instead. An author is either a learner or an instructor profile, which mirrors the learner abstraction in §3.
+
+### 12.2 Data model (forward migration)
+- `lms_comment`: company_id, course_id, lesson_id (FK cascade), parent_id (FK cascade, null = root question), author_learner_id?, author_profile_id? (CHECK exactly one), body (markdown, 1..5000), is_instructor bool (set by the server when the author has `lms.course.manage` or `lms.grade`), resolved bool (roots only), pinned bool (roots only), edited_at, deleted_at, created_at. Replies are one level deep: a reply to a reply is stored under the same root.
+- `lms_review`: company_id, course_id, learner_id, rating 1..5, body (0..2000), hidden bool, reply_body, replied_by_id, replied_at, timestamps; unique (course_id, learner_id).
+- `lms_course` gains `rating_avg NUMERIC(3,2)` and `rating_count INT DEFAULT 0`. Both are recomputed in the same transaction as any review write or visibility change, so the catalog and the future public site do not aggregate per request.
+- `lms_announcement`: company_id, course_id, title, body (markdown), created_by_id, created_at, edited_at, deleted_at.
+
+### 12.3 Rules
+- Only learners with an active or completed enrollment, and managers/graders, can read or write lesson discussion. A learner who dropped keeps read-only access to their own comments.
+- An author can edit their own comment. Deleting is soft: a deleted comment that has replies shows "Comentario eliminado" and keeps its replies, and one without replies disappears. Managers (`lms.course.manage`) can delete any comment, pin roots, and mark roots resolved. The root author can also mark their own question resolved.
+- Reviews require an enrollment with `progressPct >= 30` or status completed, and there is one per learner per course (editable). Hidden reviews count for nothing and only managers see them. A manager can reply once (editable).
+- Announcements are written by managers and listed newest first in the player and on the course card.
+
+### 12.4 Notifications (in_app + web_push, never failing the request)
+- `lms.comment.replied`: to the root author and earlier repliers (excluding the actor).
+- `lms.comment.question`: to the course creator, on a new root question.
+- `lms.announcement.published`: to every active learner of the course.
+- `lms.review.replied`: to the review author.
+
+### 12.5 API
+Discussion (`lms.access` plus enrollment check, or manager): `GET /lms/lessons/:id/comments` (roots with replies, newest root first, pinned first), `POST /lms/lessons/:id/comments` (`{ body, parentId? }`), `PATCH /lms/comments/:id` (`{ body }` by the author; `{ pinned, resolved }` by a manager or, for `resolved`, the root author), `DELETE /lms/comments/:id`.
+Reviews: `GET /lms/courses/:id/reviews` (`lms.access`; visible reviews plus the caller's own), `PUT /lms/courses/:id/reviews/mine` (`{ rating, body }`), `PATCH /lms/reviews/:id` (manager: `{ hidden, replyBody }`).
+Announcements: `GET /lms/courses/:id/announcements` (enrolled or manager), `POST /lms/courses/:id/announcements`, `PATCH|DELETE /lms/announcements/:id` (manager).
+The catalog and course serializers expose `ratingAvg` and `ratingCount`.
+
+### 12.6 UI
+- Player: a tabbed panel under the lesson content, with Contenido, Preguntas (count) and Anuncios (count). The Preguntas tab holds a composer, threads with replies, an instructor badge, pinned and resolved markers, edit and delete (ConfirmDialog), and "Marcar como resuelta".
+- The course card and the course header show stars and the count. The player shows a "Califica este curso" prompt after 30% progress and on completion. A reviews dialog lists the reviews and shows the learner's own review form.
+- Course editor: new tabs Anuncios (CRUD) and Reseñas (list with hide/show and reply).
+
+## 13. Phase 4 — Certificates
+
+### 13.1 Data model (forward migration)
+- `lms_certificate_template`: company_id, name, title (default "Certificado de finalización"), body (text with placeholders `{{alumno}}`, `{{curso}}`, `{{fecha}}`, `{{horas}}`, `{{folio}}`, `{{empresa}}`), signer_name, signer_title, signature_file_id (PNG/JPEG), accent_color (hex, default company brand primary), show_logo bool, enabled, timestamps.
+- `lms_course` gains `certificate_template_id` (null = the course issues no certificate).
+- `lms_certificate`: company_id, enrollment_id, learner_id, course_id, template_id, folio (unique per company, `<YYYY>-<6-digit sequence>`), token (unique, 24 url-safe random chars), learner_name, course_title, hours (snapshots), issued_at, issued_by_id (null = automatic), revoked_at, revoke_reason. A partial unique index on (enrollment_id) WHERE revoked_at IS NULL allows one valid certificate per enrollment.
+
+### 13.2 Rules
+- Issue: when an enrollment becomes `completed` and the course has a template, a certificate is issued inside `setLessonOutcome`'s transaction, through `issueCertificate(tx, enrollment)`. It is idempotent by enrollment. Managers can issue by hand for completed enrollments that lack a valid certificate (for example, when a template was added later or after a revoke) and can revoke with a reason. A revoked certificate stays verifiable and shows as revoked. Re-issuing creates a new folio and token.
+- Folio: inside the transaction, `SELECT pg_advisory_xact_lock(hashtext('lms_cert:' || company_id))`, then the max sequence for the year plus 1.
+- Snapshots: learner name, course title and hours (`estimated_minutes / 60` rounded to 0.5, or the sum of lesson durations when estimated_minutes is null) are frozen at issue. Later edits never change an issued certificate.
+- PDF is generated on request with pdfkit on letter landscape: logo when the company brand has a PNG/JPEG logo, title, body with placeholders replaced, signer block with the optional signature image, folio, and a QR (the `qrcode` package, already a dependency) pointing to `<appBaseUrl>/app/p/lms/cert/<token>`. Nothing is stored, and the PDF is deterministic for a given certificate.
+
+### 13.3 API
+- Manager (`lms.course.manage`): `GET|POST /lms/certificate-templates`, `PATCH|DELETE /lms/certificate-templates/:id` (delete = disable; 409 when a course still uses the template), `GET /lms/certificate-templates/:id/preview.pdf` (sample data).
+- Enrollment admin (`lms.enrollment.manage`): `POST /lms/enrollments/:id/certificate` (manual issue), `POST /lms/certificates/:id/revoke` (`{ reason }`), `GET /lms/courses/:id/certificates`.
+- Learner (`lms.access`): `GET /lms/my/certificates`, `GET /lms/my/certificates/:id/pdf`.
+- Public (no auth, rate limited): `GET /public/lms/certificates/:token` (`{ folio, learnerName, courseTitle, hours, issuedAt, companyName, logoUrl, revoked, revokedAt }`), `GET /public/lms/certificates/:token/pdf`.
+
+### 13.4 UI
+- New navigation item `Certificados` (`/certificates`, `lms.course.manage`) with a template list and a template editor sheet that shows a live PDF preview in an iframe.
+- Course settings gain a Certificado `SelectField` (Sin certificado / templates). The Alumnos tab shows a certificate column with folio, download, revoke (ConfirmDialog with reason) and "Emitir" when it is missing.
+- "Mis cursos" gains a Certificados section with downloads. The player shows a "Descargar certificado" button on completion.
+- Public page `/app/p/lms/cert/:token` (no login, no shell): company logo, a "Certificado válido" or "Certificado revocado" status, folio, name, course, date, hours, and a PDF download.
