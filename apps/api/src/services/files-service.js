@@ -526,6 +526,10 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       if (mime) {
         where.mimeType = { startsWith: mime };
       }
+      // PUBLIC files live in the public bucket with permanent URLs (website
+      // and storefront images); the other levels are always signed.
+      const visibilityFilter = String(query.visibility ?? "").trim().toUpperCase();
+      if (["PUBLIC", "INTERNAL", "PRIVATE"].includes(visibilityFilter)) where.visibility = visibilityFilter;
       // Filter by the originating entity stored in metadata (e.g. HrEmployee ID)
       if (sourceEntityId) {
         where.metadata = {

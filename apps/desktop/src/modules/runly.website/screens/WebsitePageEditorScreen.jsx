@@ -41,7 +41,9 @@ function createAssetSource(token) {
   return {
     async list() {
       try {
-        const data = await apiFetch("/files?pageSize=100", token);
+        // Only PUBLIC images: their URLs are permanent. Signed URLs of private
+        // files expire and must never end up in a published page.
+        const data = await apiFetch("/files?pageSize=100&visibility=PUBLIC&mime=image/", token);
         const files = (data.data ?? []).filter((f) =>
           f.mimeType?.startsWith("image/"),
         );

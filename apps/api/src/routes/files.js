@@ -191,6 +191,7 @@ app.get(
           entityId: c.req.query("entityId"),
           sourceEntityId: c.req.query("sourceEntityId"),
           mime: c.req.query("mime"),
+          visibility: c.req.query("visibility"),
           enabled: c.req.query("enabled"),
           page: c.req.query("page"),
           pageSize: c.req.query("pageSize"),
