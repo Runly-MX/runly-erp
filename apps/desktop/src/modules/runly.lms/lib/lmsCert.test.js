@@ -49,3 +49,17 @@ test('toBlob accepts Blob, withMeta, Response and rejects failed responses', asy
   await assert.rejects(toBlob(failed), (error) => error.status === 409 && error.details.code === 'NOT_COMPLETED')
   await assert.rejects(toBlob({}), /archivo/)
 })
+
+test('docx template helpers', async () => {
+  const { docxTagLabel, docxTagText, docxSuggestionFile, isDocxFile, isDocxTemplate, CERT_DOCX_REFERENCE } = await import('./lmsCert.js')
+  assert.equal(docxTagText('%qr'), '{{%qr}}')
+  assert.equal(docxTagLabel('calificacion'), 'Calificación')
+  assert.equal(docxTagLabel('otro'), 'otro')
+  assert.equal(isDocxFile({ name: 'Cert.DOCX' }), true)
+  assert.equal(isDocxFile({ name: 'cert.pdf' }), false)
+  assert.equal(isDocxTemplate({ source: 'docx' }), true)
+  assert.equal(CERT_DOCX_REFERENCE.length, 11)
+  const file = docxSuggestionFile({ fileName: 'a.docx', contentBase64: Buffer.from('PK').toString('base64') })
+  assert.equal(file.name, 'a.docx')
+  assert.equal(await file.text(), 'PK')
+})

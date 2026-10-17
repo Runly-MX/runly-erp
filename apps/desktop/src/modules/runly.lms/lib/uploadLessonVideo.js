@@ -1,4 +1,4 @@
-import { loadFfmpeg } from '@runly/ui'
+import { captureVideoFrame, loadFfmpeg } from '@runly/ui'
 import { runly } from '../../../lib/runly.js'
 import { directUpload } from './directUpload.js'
 import { DIRECT_MAX_BYTES, chooseUploadPath, packageVideoAsHls, uploadHlsPackage } from './hlsPackage.js'
@@ -25,6 +25,35 @@ export function readVideoDuration(file) {
     setTimeout(() => finish(null), 10_000)
     video.src = url
   })
+}
+
+// Uploads a lesson thumbnail (image File/Blob) through /files/upload.
+// Resolves { coverFileId, coverUrl } where coverUrl is a local object URL for
+// immediate display (the server signs its own URL on the next read).
+export async function uploadLessonCover(image, token, { lessonId = null, fileName = 'miniatura.jpg' } = {}) {
+  const file = image instanceof File ? image : new File([image], fileName, { type: image.type || 'image/jpeg' })
+  const form = new FormData()
+  form.append('file', file)
+  form.append('moduleKey', 'runly.lms')
+  form.append('entityType', 'LmsLesson')
+  if (lessonId) form.append('entityId', lessonId)
+  const response = await runly.files.upload(form, token)
+  const asset = response?.data ?? response
+  if (!asset?.id) throw new Error('No se pudo subir la miniatura.')
+  return { coverFileId: asset.id, coverUrl: URL.createObjectURL(file) }
+}
+
+// Automatic thumbnail of a freshly picked video: one frame at
+// min(10% of the duration, 5 s), uploaded as a JPEG. Resolves null on failure
+// (a thumbnail is never worth failing the video upload).
+export async function captureLessonCover(videoFile, token, { lessonId = null } = {}) {
+  try {
+    const blob = await captureVideoFrame(videoFile)
+    return await uploadLessonCover(blob, token, { lessonId, fileName: 'miniatura.jpg' })
+  } catch (error) {
+    console.warn('[runly.lms] automatic thumbnail failed', error?.message)
+    return null
+  }
 }
 
 // Lesson video upload. Up to 50 MB goes straight to Storage; up to 2 GB is

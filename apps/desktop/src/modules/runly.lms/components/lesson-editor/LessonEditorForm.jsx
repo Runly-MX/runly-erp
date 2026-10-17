@@ -6,7 +6,7 @@ import { changeLessonKind } from '../../lib/lessonForm.js'
 import { KIND_LABELS, formatDuration, toOptions } from '../../lib/lmsLabels.js'
 import { AssignmentSettingsFields } from '../lesson-fields/AssignmentSettingsFields.jsx'
 import { QuizSettingsFields } from '../lesson-fields/QuizSettingsFields.jsx'
-import { VideoUploadField } from '../video/VideoUploadField.jsx'
+import { LessonMediaPanel } from '../video/LessonMediaPanel.jsx'
 import { QuizQuestionsEditor } from './QuizQuestionsEditor.jsx'
 
 const KIND_OPTIONS = toOptions(KIND_LABELS)
@@ -52,13 +52,7 @@ export function LessonEditorForm({ form, setForm, errors, lesson, sections, isNe
       </div>
 
       {form.kind === 'video' ? (
-        <VideoUploadField
-          value={form.upload} error={errors.upload} disabled={readOnly} onBusyChange={onBusyChange}
-          onChange={(upload) => setForm((current) => ({
-            ...current, upload,
-            ...(upload?.durationSeconds ? { durationMinutes: String(Math.max(1, Math.round(upload.durationSeconds / 60))) } : {}),
-          }))}
-        />
+        <LessonMediaPanel form={form} setForm={setForm} error={errors.upload} lesson={lesson} readOnly={readOnly} onBusyChange={onBusyChange} />
       ) : null}
       {form.kind === 'file' ? (
         <FieldWrapper label="Archivo" required error={errors.upload}>

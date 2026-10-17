@@ -222,6 +222,7 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     if (/^\/courses\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/courses/:courseId"] ?? null;
     if (/^\/courses\/[^/]+\/lessons\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/courses/:courseId/lessons/:lessonId"] ?? null;
     if (/^\/learn\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/learn/:courseId"] ?? null;
+    if (/^\/course\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/course/:courseId"] ?? null;
     return null;
   }
   if (moduleKey === "runly.core") {

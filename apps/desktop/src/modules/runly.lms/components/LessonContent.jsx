@@ -1,5 +1,5 @@
 import { Alert, AlertDescription, Badge, Button, EmptyState, MarkdownViewer, buttonVariants, cn } from '@runly/ui'
-import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Download, FileText, Loader2, XCircle } from 'lucide-react'
+import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Download, FileText, FileVideo, Loader2, XCircle } from 'lucide-react'
 import { KIND_LABELS, formatDuration } from '../lib/lmsLabels.js'
 import { VideoLesson } from './VideoLesson.jsx'
 import { AssignmentLesson } from './assignment/AssignmentLesson.jsx'
@@ -7,9 +7,12 @@ import { QuizLesson } from './quiz/QuizLesson.jsx'
 
 const EVALUATED = new Set(['quiz', 'assignment'])
 
+// Lessons with a 16:9 stage above the title (the rest render in Descripción).
+export const hasStage = (lesson) => lesson?.kind === 'video' || (lesson?.kind === 'embed' && Boolean(lesson.embedUrl))
+
 function EmbedLesson({ lesson }) {
   return (
-    <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
+    <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
       <iframe
         src={lesson.embedUrl}
         title={lesson.title}
@@ -24,8 +27,8 @@ function EmbedLesson({ lesson }) {
 
 function FileLesson({ lesson }) {
   return (
-    <div className="flex flex-col items-start gap-3 rounded-xl border border-[hsl(var(--border))] p-4 sm:flex-row sm:items-center">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-600/10 text-violet-700 dark:text-violet-300">
+    <div className="flex flex-col items-start gap-3 rounded-md border border-[hsl(var(--border))] p-4 sm:flex-row sm:items-center">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-violet-600/10 text-violet-700 dark:text-violet-300">
         <FileText className="h-5 w-5" aria-hidden="true" />
       </span>
       <div className="min-w-0 flex-1">
@@ -41,39 +44,36 @@ function FileLesson({ lesson }) {
   )
 }
 
-function Body({ lesson, courseId, preview, startAt, onProgress }) {
-  if (EVALUATED.has(lesson.kind) && preview) {
+// Video or embed stage. `theater` widens the layout (the player owns the toggle).
+export function LessonStage({ payload, preview, onProgress, theater, onTheaterChange }) {
+  const { lesson, progress } = payload
+  if (lesson.kind === 'embed') return <EmbedLesson lesson={lesson} />
+  if (!lesson.mediaUrl && !lesson.media) {
     return (
-      <Alert>
-        <AlertDescription>
-          {lesson.kind === 'quiz' ? 'Vista previa: el examen' : 'Vista previa: la tarea'} solo se puede presentar con una inscripción al curso. Asígnate el curso para probarlo como alumno.
-        </AlertDescription>
-      </Alert>
+      <div className="flex aspect-video w-full items-center justify-center rounded-md bg-[hsl(var(--muted))]">
+        <EmptyState icon={FileVideo} title="Video no disponible" description="El video de esta lección no se encontró." />
+      </div>
     )
   }
-  if (lesson.kind === 'quiz') return <QuizLesson key={lesson.id} lessonId={lesson.id} courseId={courseId} />
-  if (lesson.kind === 'assignment') return <AssignmentLesson key={lesson.id} lessonId={lesson.id} courseId={courseId} />
-  if (lesson.kind === 'video') {
-    if (!lesson.mediaUrl) return <EmptyState icon={FileText} title="Video no disponible" description="El video de esta lección no se encontró." />
-    return <VideoLesson src={lesson.mediaUrl} media={lesson.media} startAt={startAt} onProgress={onProgress} />
-  }
-  if (lesson.kind === 'embed') return lesson.embedUrl ? <EmbedLesson lesson={lesson} /> : null
-  if (lesson.kind === 'file') return <FileLesson lesson={lesson} />
-  return null
+  return (
+    <VideoLesson
+      key={lesson.id}
+      lesson={lesson} progress={progress} preview={preview}
+      onProgress={preview ? undefined : onProgress}
+      theater={theater} onTheaterChange={onTheaterChange}
+    />
+  )
 }
 
-// Content pane of the player. `status` comes from the (live) outline;
-// `payload` is the GET /lms/learn/lessons/:id response.
-export function LessonContent({ payload, courseId, status, preview, onProgress, onComplete, completing, onNavigate, canGoNext }) {
-  const { lesson, progress, prevLessonId, nextLessonId } = payload
+// Title, state badges and navigation (Anterior / Marcar como completada / Siguiente).
+export function LessonHeader({ payload, status, preview, onComplete, completing, onNavigate, canGoNext }) {
+  const { lesson, prevLessonId, nextLessonId } = payload
   const completed = status === 'completed'
-  const evaluated = EVALUATED.has(lesson.kind)
-  const manualComplete = lesson.kind !== 'video' && !evaluated
-  const body = lesson.body?.trim() ? <MarkdownViewer value={lesson.body} className="text-[15px]" /> : null
+  const manualComplete = lesson.kind !== 'video' && !EVALUATED.has(lesson.kind)
   const meta = [KIND_LABELS[lesson.kind], formatDuration(lesson.durationSeconds)].filter(Boolean).join(' · ')
   return (
-    <article className="mx-auto flex w-full max-w-4xl flex-col gap-5">
-      <header className="space-y-1">
+    <header className="flex flex-col gap-4 border-b border-[hsl(var(--border))] pb-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           {meta ? <p className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{meta}</p> : null}
           {completed ? <Badge variant="success"><CheckCircle2 className="h-3 w-3" aria-hidden="true" />Completada</Badge> : null}
@@ -81,31 +81,51 @@ export function LessonContent({ payload, courseId, status, preview, onProgress, 
           {status === 'failed' ? <Badge variant="destructive"><XCircle className="h-3 w-3" aria-hidden="true" />No aprobada</Badge> : null}
         </div>
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{lesson.title}</h2>
-      </header>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" disabled={!prevLessonId} onClick={() => onNavigate(prevLessonId)} aria-label="Lección anterior">
+          <ChevronLeft /><span className="max-sm:sr-only">Anterior</span>
+        </Button>
+        {manualComplete && !completed && !preview ? (
+          <Button variant="outline" size="sm" onClick={onComplete} disabled={completing}>
+            {completing ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : <CheckCircle2 />}
+            Marcar como completada
+          </Button>
+        ) : null}
+        <Button size="sm" className={cn(!nextLessonId && 'hidden')} disabled={!canGoNext} onClick={() => onNavigate(nextLessonId)}>
+          Siguiente<ChevronRight />
+        </Button>
+      </div>
+    </header>
+  )
+}
 
-      {evaluated ? body : null}
-      <Body lesson={lesson} courseId={courseId} preview={preview} startAt={progress?.positionSeconds} onProgress={preview ? undefined : onProgress} />
-      {evaluated ? null : body}
-      {lesson.kind === 'video' && !completed && !preview ? (
+// Descripción tab: the lesson notes plus, for lessons without a stage, the
+// lesson itself (text, document, quiz or assignment).
+export function LessonBody({ payload, courseId, status, preview }) {
+  const { lesson } = payload
+  const body = lesson.body?.trim() ? <MarkdownViewer value={lesson.body} className="text-[15px]" /> : null
+  let main = null
+  if (EVALUATED.has(lesson.kind) && preview) {
+    main = (
+      <Alert>
+        <AlertDescription>
+          {lesson.kind === 'quiz' ? 'Vista previa: el examen' : 'Vista previa: la tarea'} solo se puede presentar con una inscripción al curso. Asígnate el curso para probarlo como alumno.
+        </AlertDescription>
+      </Alert>
+    )
+  } else if (lesson.kind === 'quiz') main = <QuizLesson key={lesson.id} lessonId={lesson.id} courseId={courseId} />
+  else if (lesson.kind === 'assignment') main = <AssignmentLesson key={lesson.id} lessonId={lesson.id} courseId={courseId} />
+  else if (lesson.kind === 'file') main = <FileLesson lesson={lesson} />
+
+  const empty = !body && !main
+  return (
+    <div className="flex flex-col gap-5">
+      {EVALUATED.has(lesson.kind) ? <>{body}{main}</> : <>{main}{body}</>}
+      {empty ? <p className="text-sm text-[hsl(var(--muted-foreground))]">Esta lección no tiene descripción.</p> : null}
+      {lesson.kind === 'video' && status !== 'completed' && !preview ? (
         <p className="text-sm text-[hsl(var(--muted-foreground))]">La lección se marca como completada al ver al menos el 90% del video.</p>
       ) : null}
-
-      <footer className="flex flex-col-reverse gap-2 border-t border-[hsl(var(--border))] pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <Button variant="outline" disabled={!prevLessonId} onClick={() => onNavigate(prevLessonId)}>
-          <ChevronLeft />Anterior
-        </Button>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
-          {manualComplete && !completed && !preview ? (
-            <Button variant="outline" onClick={onComplete} disabled={completing}>
-              {completing ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : <CheckCircle2 />}
-              Marcar como completada
-            </Button>
-          ) : null}
-          <Button className={cn(!nextLessonId && 'hidden')} disabled={!canGoNext} onClick={() => onNavigate(nextLessonId)}>
-            Siguiente<ChevronRight />
-          </Button>
-        </div>
-      </footer>
-    </article>
+    </div>
   )
 }

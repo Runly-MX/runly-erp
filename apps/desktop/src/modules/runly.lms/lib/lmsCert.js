@@ -94,3 +94,37 @@ export async function toBlob(result) {
   }
   throw new Error('La respuesta no contiene un archivo.')
 }
+
+// ---- Word (.docx) templates ---------------------------------------------------------
+export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+// Tag contract of Word certificate templates (API lms-cert-docx.js).
+export const CERT_DOCX_REFERENCE = [
+  ['{{alumno}}', 'Nombre de la persona que recibe el certificado'],
+  ['{{curso}}', 'Título del curso'],
+  ['{{fecha}}', 'Fecha de emisión (16 de octubre de 2026)'],
+  ['{{horas}}', 'Duración del curso en horas'],
+  ['{{folio}}', 'Folio del certificado (2026-000001)'],
+  ['{{empresa}}', 'Nombre de la empresa'],
+  ['{{instructor}}', 'Quien firma la plantilla o, si no hay, quien creó el curso'],
+  ['{{calificacion}}', 'Promedio de evaluaciones y tareas calificadas (0 a 100)'],
+  ['{{%qr}}', 'Código QR de verificación pública (110 × 110 px)'],
+  ['{{%firma}}', 'Imagen de la firma de la plantilla (hasta 200 × 80 px)'],
+  ['{{%logo}}', 'Logotipo de la empresa (hasta 200 × 80 px)'],
+]
+
+const DOCX_TAG_LABELS = {
+  alumno: 'Alumno', curso: 'Curso', fecha: 'Fecha', horas: 'Horas', folio: 'Folio', empresa: 'Empresa',
+  instructor: 'Instructor', calificacion: 'Calificación', '%qr': 'Código QR', '%firma': 'Firma', '%logo': 'Logotipo',
+}
+
+export const docxTagText = (tag) => `{{${tag}}}`
+export const docxTagLabel = (tag) => DOCX_TAG_LABELS[tag] ?? tag
+export const isDocxFile = (file) => /\.docx$/i.test(String(file?.name ?? ''))
+export const isDocxTemplate = (template) => template?.source === 'docx'
+
+// Builds the File of a suggestion result ({ fileName, contentBase64 }).
+export function docxSuggestionFile(result) {
+  const bytes = Uint8Array.from(atob(String(result?.contentBase64 ?? '')), (ch) => ch.charCodeAt(0))
+  return new File([bytes], result?.fileName || 'plantilla (con etiquetas).docx', { type: DOCX_MIME })
+}

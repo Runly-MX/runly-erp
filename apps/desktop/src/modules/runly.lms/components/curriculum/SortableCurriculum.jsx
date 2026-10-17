@@ -40,19 +40,25 @@ function SortableLesson({ lesson, disabled, renderLesson }) {
 function EmptyDropZone({ sectionId, disabled, children }) {
   const { setNodeRef, isOver } = useDroppable({ id: containerDndId(sectionId), disabled })
   return (
-    <div ref={setNodeRef} className={cn('rounded-md border border-dashed border-[hsl(var(--border))] transition-colors', isOver && 'bg-[hsl(var(--muted))]')}>
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'rounded-md border-2 border-dashed border-[hsl(var(--border))] transition-colors motion-reduce:transition-none',
+        isOver && 'border-violet-500/60 bg-violet-500/5',
+      )}
+    >
       {children}
     </div>
   )
 }
 
-function SortableSection({ section, index, disabled, renderSection, renderLesson, renderEmpty }) {
+function SortableSection({ section, index, disabled, renderSection, renderLesson, renderEmpty, listClassName }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: sectionDndId(section.id), disabled })
   const handleProps = disabled ? null : { ...attributes, ...listeners, ref: setActivatorNodeRef }
   const lessons = section.lessons ?? []
   const lessonList = lessons.length ? (
     <SortableContext items={lessons.map((lesson) => lessonDndId(lesson.id))} strategy={verticalListSortingStrategy}>
-      <ul className="space-y-0.5">
+      <ul className={listClassName}>
         {lessons.map((lesson) => <SortableLesson key={lesson.id} lesson={lesson} disabled={disabled} renderLesson={renderLesson} />)}
       </ul>
     </SortableContext>
@@ -74,7 +80,8 @@ function SortableSection({ section, index, disabled, renderSection, renderLesson
 //   renderLesson({ lesson, handleProps, isDragging, overlay })
 //   renderEmpty(section) — content of the drop zone of a section without lessons.
 // `handleProps` is null when sorting is disabled; spread it on the grip button.
-export function SortableCurriculum({ sections, onReorder, disabled = false, renderSection, renderLesson, renderEmpty, className }) {
+// `listClassName` styles the lesson list of each section.
+export function SortableCurriculum({ sections, onReorder, disabled = false, renderSection, renderLesson, renderEmpty, className, listClassName = 'space-y-0.5' }) {
   const [items, setItems] = useState(sections ?? [])
   const [activeId, setActiveId] = useState(null)
   const dragging = useRef(false)
@@ -145,7 +152,7 @@ export function SortableCurriculum({ sections, onReorder, disabled = false, rend
           {items.map((section, index) => (
             <SortableSection
               key={section.id} section={section} index={index} disabled={disabled}
-              renderSection={renderSection} renderLesson={renderLesson} renderEmpty={renderEmpty}
+              renderSection={renderSection} renderLesson={renderLesson} renderEmpty={renderEmpty} listClassName={listClassName}
             />
           ))}
         </div>

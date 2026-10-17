@@ -28,7 +28,7 @@ const toValues = (template) => ({
   accentColor: template?.accentColor ?? '', showLogo: template?.showLogo ?? true,
 })
 
-function PreviewPane({ template }) {
+export function PreviewPane({ template }) {
   const preview = useTemplatePreview(template?.id, template?.updatedAt)
   if (!template?.id) {
     return <EmptyState icon={FileText} title="Sin vista previa" description="Guarda la plantilla para ver cómo queda el certificado con datos de ejemplo." />

@@ -4,6 +4,7 @@ import { Badge, Button, ConfirmDialog, EmptyState, ErrorState, PageHeader, Skele
 import { FileQuestion, Layers, ListTree, Loader2, Undo2 } from 'lucide-react'
 import { CourseCurriculumNav } from '../components/curriculum/CourseCurriculumNav.jsx'
 import { LessonEditorForm } from '../components/lesson-editor/LessonEditorForm.jsx'
+import { LessonResourcesEditor } from '../components/lesson-editor/LessonResourcesEditor.jsx'
 import { FormSheet, useRouteSegment } from '../components/shared.jsx'
 import { useCourse, useSaveLesson } from '../hooks/useLmsData.js'
 import { isLessonFormDirty, lessonFormToPayload, lessonToForm, validateLessonForm } from '../lib/lessonForm.js'
@@ -158,6 +159,9 @@ export default function LmsLessonEditor() {
               form={form} setForm={setForm} errors={errors} lesson={lesson} sections={sections} isNew={isNew} readOnly={readOnly}
               onBusyChange={setBusy} onQuestionsDirtyChange={setQuestionsDirty}
             />
+            <div className="mt-6">
+              <LessonResourcesEditor lessonId={lessonId} readOnly={readOnly} />
+            </div>
           </div>
         </main>
       </div>

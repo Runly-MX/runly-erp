@@ -1,36 +1,35 @@
-import { useEffect, useRef } from 'react'
 import { ChipTabPanel, ChipTabs } from '@runly/ui'
-import { BookOpenText, Megaphone, MessagesSquare } from 'lucide-react'
+import { BookText, FolderOpen, Megaphone, MessagesSquare } from 'lucide-react'
 import { useAnnouncements, useComments } from '../../hooks/useLmsSocial.js'
+import { LessonResourcesList } from '../LessonResourcesList.jsx'
 import { AnnouncementsList } from './AnnouncementsList.jsx'
 import { DiscussionPanel } from './DiscussionPanel.jsx'
 
-// Player tabs: Contenido (the lesson, kept mounted so a video keeps its
-// position), Preguntas (lesson discussion) and Anuncios (course announcements).
+// Tabs under the lesson: Descripción (notes, or the lesson itself for text,
+// documents, quizzes and assignments — kept mounted so a quiz keeps its state),
+// Recursos (downloadable files), Preguntas (discussion) and Anuncios.
 // `tab` lives in the URL (?tab=) so notification links land on the right one.
-export function LessonTabs({ courseId, lessonId, tab, onTabChange, announcementCount, readOnly = false, children }) {
-  const contentRef = useRef(null)
+export function LessonTabs({ courseId, lessonId, tab, onTabChange, resources, announcementCount, readOnly = false, children }) {
   const comments = useComments(lessonId)
   const announcements = useAnnouncements(courseId)
   const questionCount = comments.data?.length ?? 0
   const announcementTotal = announcements.data?.length ?? announcementCount ?? 0
-
-  // Leaving the lesson pauses its video instead of letting it play hidden.
-  useEffect(() => {
-    if (tab === 'contenido') return
-    contentRef.current?.querySelectorAll('video, audio').forEach((media) => { try { media.pause() } catch { /* ignore */ } })
-  }, [tab])
+  const resourceCount = resources?.length ?? 0
 
   const tabs = [
-    { value: 'contenido', label: 'Contenido', icon: BookOpenText },
+    { value: 'descripcion', label: 'Descripción', icon: BookText },
+    { value: 'recursos', label: 'Recursos', icon: FolderOpen, badge: resourceCount || null },
     { value: 'preguntas', label: 'Preguntas', icon: MessagesSquare, badge: questionCount || null },
     { value: 'anuncios', label: 'Anuncios', icon: Megaphone, badge: announcementTotal || null },
   ]
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+    <div className="flex w-full flex-col gap-5">
       <ChipTabs tabs={tabs} value={tab} onChange={onTabChange} tone="violet" ariaLabel="Secciones de la lección" showDescription={false} />
-      <div ref={contentRef} hidden={tab !== 'contenido'}>{children}</div>
+      <div hidden={tab !== 'descripcion'}>{children}</div>
+      <ChipTabPanel value="recursos" active={tab === 'recursos'}>
+        <LessonResourcesList resources={resources} />
+      </ChipTabPanel>
       <ChipTabPanel value="preguntas" active={tab === 'preguntas'}>
         <DiscussionPanel lessonId={lessonId} query={comments} readOnly={readOnly} />
       </ChipTabPanel>

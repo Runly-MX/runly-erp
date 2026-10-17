@@ -10,7 +10,7 @@ import { formatRating, ratingRows, relativeTime, reviewCountLabel } from '../../
 const REVIEW_MAX = 2000
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 
-function Summary({ data }) {
+export function ReviewsSummary({ data }) {
   const rows = ratingRows(data.distribution, data.ratingCount)
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-[hsl(var(--border))] p-4 sm:flex-row sm:items-center">
@@ -101,7 +101,7 @@ export function ReviewsDialog({ open, onOpenChange, courseId, courseTitle, initi
               <ErrorState title="No se pudieron cargar las reseñas" description={query.error?.message} onRetry={() => query.refetch()} />
             ) : data ? (
               <>
-                <Summary data={data} />
+                <ReviewsSummary data={data} />
                 {showForm ? (
                   <fieldset className="space-y-3 rounded-xl border border-[hsl(var(--border))] p-4">
                     <legend className="px-1 text-sm font-semibold">{mine ? 'Tu reseña' : 'Califica este curso'}</legend>

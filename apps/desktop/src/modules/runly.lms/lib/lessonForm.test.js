@@ -33,3 +33,12 @@ test('changeLessonKind drops media and loads defaults', () => {
   assert.equal(quiz.upload, null)
   assert.equal(quiz.settings.passingScore, '70')
 })
+
+test('video thumbnail: loaded from the lesson, saved as coverFileId, dropped when leaving video', () => {
+  const form = lessonToForm({ ...lesson, kind: 'video', fileId: 'f1', coverFileId: 'c1', coverUrl: 'https://x/c1' })
+  assert.deepEqual(form.cover, { fileId: 'c1', url: 'https://x/c1' })
+  assert.equal(lessonFormToPayload(form, { id: 'l1' }).coverFileId, 'c1')
+  assert.equal(isLessonFormDirty({ ...form, cover: null }, form, { id: 'l1' }), true)
+  assert.equal(changeLessonKind(form, 'text').cover, null)
+  assert.equal(lessonFormToPayload(lessonToForm(lesson), { id: 'l1' }).coverFileId, null)
+})

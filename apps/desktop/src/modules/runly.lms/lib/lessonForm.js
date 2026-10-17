@@ -3,7 +3,7 @@
 import { formToSettings, settingsToForm, validateSettings } from './lmsEval.js'
 
 export const EMPTY_LESSON_FORM = {
-  title: '', kind: 'video', sectionId: null, body: '', embedUrl: '', durationMinutes: '', required: true, upload: null, settings: {},
+  title: '', kind: 'video', sectionId: null, body: '', embedUrl: '', durationMinutes: '', required: true, upload: null, cover: null, settings: {},
 }
 
 export function lessonToForm(lesson, sectionId = null) {
@@ -17,14 +17,15 @@ export function lessonToForm(lesson, sectionId = null) {
     durationMinutes: lesson.durationSeconds ? String(Math.round(lesson.durationSeconds / 60)) : '',
     required: lesson.required !== false,
     upload: lesson.fileId ? { fileId: lesson.fileId, fileName: lesson.fileName, durationSeconds: lesson.durationSeconds } : null,
+    cover: lesson.coverFileId ? { fileId: lesson.coverFileId, url: lesson.coverUrl ?? null } : null,
     settings: settingsToForm(lesson.kind, lesson.settings),
   }
 }
 
-// Switching kind drops the media and the settings of the previous kind.
+// Switching kind drops the media, the video thumbnail and the settings of the previous kind.
 export function changeLessonKind(form, kind, lesson = null) {
   if (kind === form.kind) return form
-  return { ...form, kind, upload: null, settings: settingsToForm(kind, lesson?.kind === kind ? lesson.settings : null) }
+  return { ...form, kind, upload: null, cover: form.kind === 'video' ? null : form.cover ?? null, settings: settingsToForm(kind, lesson?.kind === kind ? lesson.settings : null) }
 }
 
 // field -> Spanish message ({} when valid).
@@ -60,6 +61,7 @@ export function lessonFormToPayload(form, { id = null } = {}) {
     kind: form.kind,
     body: String(form.body ?? '').trim() || null,
     fileId: media ? form.upload?.fileId ?? null : null,
+    coverFileId: form.cover?.fileId ?? null,
     embedUrl: form.kind === 'embed' ? String(form.embedUrl ?? '').trim() : null,
     durationSeconds,
     required: form.required,

@@ -7,6 +7,7 @@ import { PageShell } from '../components/shared.jsx'
 import { useCatalog, useEnroll, useLmsPermissions, useMyCourses } from '../hooks/useLmsData.js'
 import { useMyCertificates } from '../hooks/useLmsCerts.js'
 import { lmsPath } from '../lib/lmsLabels.js'
+import { coursePagePath } from '../lib/lmsExperience.js'
 
 const GRID = 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
 
@@ -23,7 +24,7 @@ function Section({ title, description, children }) {
 }
 
 function LoadingGrid() {
-  return <div className={GRID} aria-busy="true" aria-label="Cargando cursos">{[1, 2, 3].map((key) => <Skeleton key={key} className="h-72 rounded-2xl" />)}</div>
+  return <div className={GRID} aria-busy="true" aria-label="Cargando cursos">{[1, 2, 3].map((key) => <Skeleton key={key} className="h-80 rounded-2xl" />)}</div>
 }
 
 export default function LmsHome() {
@@ -31,6 +32,7 @@ export default function LmsHome() {
   const my = useMyCourses(), catalog = useCatalog(), enroll = useEnroll(), certificates = useMyCertificates({ retry: false })
   const { canManageCourses } = useLmsPermissions()
   const open = (courseId) => navigate(lmsPath(`/learn/${courseId}`))
+  const openPage = (courseId) => navigate(coursePagePath(courseId))
 
   const active = my.data?.active ?? []
   const completed = my.data?.completed ?? []
@@ -70,7 +72,7 @@ export default function LmsHome() {
         <Section title="En curso">
           {active.map(({ course, enrollment }) => (
             <li key={course.id} className="flex">
-              <CourseCard course={course} enrollment={enrollment} actionLabel={enrollment.progressPct ? 'Continuar' : 'Empezar'} onAction={() => open(course.id)} />
+              <CourseCard course={course} enrollment={enrollment} actionLabel={enrollment.progressPct ? 'Continuar' : 'Empezar'} onAction={() => open(course.id)} onOpen={() => openPage(course.id)} />
             </li>
           ))}
         </Section>
@@ -82,7 +84,7 @@ export default function LmsHome() {
               <CourseCard
                 course={course} enrollment={course.enrollment}
                 actionLabel={course.enrollment?.status === 'dropped' ? 'Volver a inscribirme' : 'Inscribirme'}
-                onAction={() => join(course.id)} pending={enroll.isPending}
+                onAction={() => join(course.id)} onOpen={() => openPage(course.id)} pending={enroll.isPending}
               />
             </li>
           ))}
@@ -92,7 +94,7 @@ export default function LmsHome() {
         <Section title="Completados">
           {completed.map(({ course, enrollment }) => (
             <li key={course.id} className="flex">
-              <CourseCard course={course} enrollment={enrollment} actionLabel="Repasar" onAction={() => open(course.id)} />
+              <CourseCard course={course} enrollment={enrollment} actionLabel="Repasar" onAction={() => open(course.id)} onOpen={() => openPage(course.id)} />
             </li>
           ))}
         </Section>

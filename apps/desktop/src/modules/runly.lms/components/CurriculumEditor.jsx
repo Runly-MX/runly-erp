@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, ConfirmDialog, EmptyState, cn } from '@runly/ui'
-import { Layers, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Layers, MoveDown, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useCreateSection, useDeleteLesson, useDeleteSection, useReorder, useUpdateSection } from '../hooks/useLmsData.js'
-import { lessonEditorPath } from '../lib/lmsLabels.js'
+import { KIND_LABELS, formatDuration, lessonEditorPath } from '../lib/lmsLabels.js'
+import { kindTone, lessonCountLabel, sectionSeconds } from '../lib/lmsExperience.js'
 import { DragHandle } from './curriculum/DragHandle.jsx'
-import { lessonIcon, lessonMeta } from './curriculum/lessonKind.js'
 import { SortableCurriculum } from './curriculum/SortableCurriculum.jsx'
 import { SectionDialog } from './SectionDialog.jsx'
+import { LessonThumb } from './LessonThumb.jsx'
 
 function IconButton({ label, onClick, disabled, children, destructive = false }) {
   return (
@@ -18,16 +19,28 @@ function IconButton({ label, onClick, disabled, children, destructive = false })
 }
 
 function LessonRow({ lesson, handleProps, overlay, onOpen, onDelete, readOnly }) {
-  const Icon = lessonIcon(lesson.kind)
+  const duration = formatDuration(lesson.durationSeconds)
   return (
-    <div className={cn('flex items-center gap-2 rounded-md px-1 py-1.5 hover:bg-[hsl(var(--muted)/0.6)]', overlay && 'bg-[hsl(var(--card))] shadow-lg')}>
+    <div
+      className={cn(
+        'group flex items-center gap-2 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] py-1.5 pl-1 pr-1.5 transition-colors hover:border-violet-500/50 motion-reduce:transition-none',
+        overlay && 'shadow-lg',
+      )}
+    >
       <DragHandle handleProps={handleProps} overlay={overlay} label={`Mover la lección «${lesson.title}»`} />
-      <Icon className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
-      <button type="button" onClick={onOpen} className="min-w-0 flex-1 cursor-pointer rounded-md text-left focus-visible:outline-none focus-visible:bg-[hsl(var(--muted))]">
-        <span className="block truncate text-sm font-medium">{lesson.title}</span>
-        <span className="block text-xs text-[hsl(var(--muted-foreground))]">{lessonMeta(lesson)}</span>
+      <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-left focus-visible:outline-none focus-visible:bg-[hsl(var(--muted))]">
+        <LessonThumb lesson={lesson} showDuration={false} className={cn('w-20', !handleProps && !overlay && 'ml-1')} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{lesson.title}</span>
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[hsl(var(--muted-foreground))]">
+            <span className={cn('inline-flex items-center rounded-md bg-linear-to-br px-1.5 py-px font-medium', kindTone(lesson.kind))}>{KIND_LABELS[lesson.kind] ?? lesson.kind}</span>
+            {duration ? <span className="tabular-nums">{duration}</span> : null}
+          </span>
+        </span>
       </button>
-      {lesson.required === false ? <Badge variant="outline">Opcional</Badge> : null}
+      {lesson.required === false
+        ? <Badge variant="outline" className="hidden sm:inline-flex">Opcional</Badge>
+        : <Badge variant="secondary" className="hidden sm:inline-flex">Obligatoria</Badge>}
       {!overlay ? (
         <div className="flex shrink-0 items-center">
           <IconButton label="Editar lección" onClick={onOpen}><Pencil /></IconButton>
@@ -92,35 +105,59 @@ export function CurriculumEditor({ courseId, sections, readOnly = false }) {
         {addSection}
       </div>
       <SortableCurriculum
-        sections={list} disabled={readOnly} className="space-y-4"
+        sections={list} disabled={readOnly} className="space-y-4" listClassName="space-y-2"
         onReorder={(next) => reorder.mutate({ courseId, sections: next })}
-        renderSection={({ section, index, handleProps, overlay, lessons }) => (
-          <section className={cn('rounded-2xl surface-card p-3 sm:p-4', overlay && 'shadow-lg')}>
-            <header className={cn('flex flex-wrap items-center gap-1', lessons && 'mb-2')}>
-              <DragHandle handleProps={handleProps} overlay={overlay} label={`Mover la sección «${section.title}»`} />
-              <h3 className="min-w-0 flex-1 truncate text-base font-semibold">{index + 1}. {section.title}</h3>
-              {!overlay && !readOnly ? (
-                <div className="flex items-center">
-                  <IconButton label="Renombrar sección" onClick={() => setSectionDialog({ open: true, section })}><Pencil /></IconButton>
-                  <IconButton label="Eliminar sección" onClick={() => setConfirm({ kind: 'section', item: section })} destructive><Trash2 /></IconButton>
+        renderSection={({ section, index, handleProps, overlay, lessons }) => {
+          const count = section.lessons?.length ?? 0
+          const duration = formatDuration(sectionSeconds(section))
+          return (
+            <section className={cn('overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]', overlay && 'shadow-lg')}>
+              <header className="flex items-center gap-2 bg-[hsl(var(--muted)/0.5)] px-2 py-2 sm:px-3">
+                <DragHandle handleProps={handleProps} overlay={overlay} label={`Mover la sección «${section.title}»`} />
+                <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-violet-600/10 text-xs font-semibold tabular-nums text-violet-700 dark:text-violet-300', !handleProps && !overlay && 'ml-1')}>
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-sm font-semibold sm:text-base">{section.title}</h3>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">{lessonCountLabel(count)}{duration ? ` · ${duration}` : ''}</p>
+                </div>
+                {!overlay && !readOnly ? (
+                  <div className="flex items-center">
+                    <IconButton label="Renombrar sección" onClick={() => setSectionDialog({ open: true, section })}><Pencil /></IconButton>
+                    <IconButton label="Eliminar sección" onClick={() => setConfirm({ kind: 'section', item: section })} destructive><Trash2 /></IconButton>
+                  </div>
+                ) : null}
+              </header>
+              {lessons ? (
+                <div className="space-y-2 p-2 sm:p-3">
+                  {lessons}
+                  {!readOnly ? (
+                    <Button
+                      variant="outline" size="sm"
+                      className="w-full rounded-md border-dashed text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                      onClick={() => navigate(lessonEditorPath(courseId, 'new', section.id))}
+                    >
+                      <Plus />Agregar lección
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
-            </header>
-            {lessons}
-            {lessons && !readOnly ? (
-              <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate(lessonEditorPath(courseId, 'new', section.id))}>
-                <Plus />Agregar lección
-              </Button>
-            ) : null}
-          </section>
-        )}
+            </section>
+          )
+        }}
         renderLesson={({ lesson, handleProps, overlay }) => (
           <LessonRow
             lesson={lesson} handleProps={handleProps} overlay={overlay} readOnly={readOnly}
             onOpen={() => openLesson(lesson)} onDelete={() => setConfirm({ kind: 'lesson', item: lesson })}
           />
         )}
-        renderEmpty={() => <p className="px-3 py-3 text-sm text-[hsl(var(--muted-foreground))]">Sin lecciones todavía.{readOnly ? '' : ' Agrega una o arrastra una lección aquí.'}</p>}
+        renderEmpty={() => (
+          <div className="flex flex-col items-center gap-1 px-3 py-6 text-center text-sm text-[hsl(var(--muted-foreground))]">
+            <MoveDown className="h-5 w-5" aria-hidden="true" />
+            <p className="font-medium">Sin lecciones todavía</p>
+            {readOnly ? null : <p className="text-xs">Arrastra una lección aquí o agrega una nueva.</p>}
+          </div>
+        )}
       />
 
       {sectionDialogNode}

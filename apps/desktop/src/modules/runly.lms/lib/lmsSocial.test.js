@@ -31,7 +31,9 @@ test('ratingRows', () => {
 
 test('normalizePlayerTab', () => {
   assert.equal(normalizePlayerTab('preguntas'), 'preguntas')
-  assert.equal(normalizePlayerTab('x'), 'contenido')
+  assert.equal(normalizePlayerTab('x'), 'descripcion')
+  assert.equal(normalizePlayerTab('contenido'), 'descripcion')
+  assert.equal(normalizePlayerTab('recursos'), 'recursos')
 })
 
 test('rate prompt dismissal survives broken storage', () => {

@@ -179,8 +179,9 @@ export function ratingRows(distribution, count) {
   })
 }
 
-export const PLAYER_TABS = ['contenido', 'preguntas', 'anuncios']
-export const normalizePlayerTab = (tab) => (PLAYER_TABS.includes(tab) ? tab : 'contenido')
+// Player tabs under the lesson. Older links used ?tab=contenido (now Descripción).
+export const PLAYER_TABS = ['descripcion', 'recursos', 'preguntas', 'anuncios']
+export const normalizePlayerTab = (tab) => (PLAYER_TABS.includes(tab) ? tab : 'descripcion')
 
 // "Califica este curso" dismissal, per course. Storage can be missing or throw
 // (private mode, blocked site data): every access is guarded.
