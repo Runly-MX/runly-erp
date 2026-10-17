@@ -195,10 +195,8 @@ export function RadioGroupField({
             <label
               key={optValue}
               className={cn(
-                "flex items-start gap-3 p-3.5 rounded-lg border cursor-pointer transition-all duration-150 select-none",
-                isChecked
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-primary/40 hover:bg-muted/30",
+                "flex items-start gap-3 p-3.5 rounded-md border border-border cursor-pointer transition-colors duration-150 select-none",
+                isChecked ? "bg-muted" : "hover:bg-muted/40",
               )}
             >
               <div
