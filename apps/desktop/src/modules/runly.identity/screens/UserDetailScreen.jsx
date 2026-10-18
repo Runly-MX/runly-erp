@@ -4,7 +4,7 @@ import {
   RunlyDetail,
   ErrorState,
   ConfirmDialog,
-  DetailActionBar,
+  RecordHeader,
 } from "@runly/ui";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -90,8 +90,39 @@ export default function UserDetailScreen() {
     );
   }
 
+  const listPath = "/app/m/runly.identity/identity/users";
+  const userLabel = user?.displayName || user?.email || "Usuario";
+
   return (
-    <div className="p-4 md:p-6 space-y-6 min-h-dvh">
+    <div className="px-4 pb-6 md:px-6 space-y-6 min-h-dvh">
+      <RecordHeader
+        bleed
+        crumbs={[
+          { label: "Usuarios", onClick: () => navigate(listPath) },
+          { label: userQuery.isLoading ? "Cargando..." : userLabel },
+        ]}
+        title={userQuery.isLoading ? "Usuario" : userLabel}
+        actions={[
+          { key: "back", label: "Volver a usuarios", icon: <ArrowLeft className="h-4 w-4" />, placement: "collapse", onClick: () => navigate(listPath) },
+          {
+            key: "delete",
+            label: "Eliminar usuario",
+            icon: <Trash2 className="h-4 w-4" />,
+            placement: "menu",
+            destructive: true,
+            hidden: !canDelete || isSelf || !user,
+            onClick: () => setDeleteOpen(true),
+          },
+          {
+            key: "edit",
+            label: "Editar",
+            icon: <Pencil className="h-4 w-4" />,
+            variant: "default",
+            hidden: !canUpdate,
+            onClick: () => navigate(`${listPath}/${userId}/edit`),
+          },
+        ]}
+      />
       <RunlyDetail
         blueprint={IDENTITY_USER_DETAIL}
         data={user}
@@ -100,34 +131,7 @@ export default function UserDetailScreen() {
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
         componentRegistry={componentRegistry}
-        heroActions={
-          <DetailActionBar
-            primary={
-              canUpdate
-                ? {
-                    label: "Editar",
-                    icon: <Pencil className="h-4 w-4" />,
-                    onClick: () => navigate(`/app/m/runly.identity/identity/users/${userId}/edit`),
-                  }
-                : null
-            }
-            secondary={[
-              {
-                label: "Volver a usuarios",
-                icon: <ArrowLeft className="h-4 w-4" />,
-                onClick: () => navigate("/app/m/runly.identity/identity/users"),
-              },
-              canDelete && !isSelf
-                ? {
-                    label: "Eliminar usuario",
-                    icon: <Trash2 className="h-4 w-4" />,
-                    onClick: () => setDeleteOpen(true),
-                    destructive: true,
-                  }
-                : null,
-            ].filter(Boolean)}
-          />
-        }
+        heroActions={false}
       />
 
       <ConfirmDialog

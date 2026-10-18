@@ -13,7 +13,7 @@ import {
   resolveLucideIcon,
   ConfirmDialog,
 } from "@runly/ui";
-import { Plus, ArrowLeft, SlidersHorizontal, Wallet } from "lucide-react";
+import { Plus, SlidersHorizontal, Wallet } from "lucide-react";
 import {
   useWallet,
   useWalletMovements,
@@ -112,29 +112,26 @@ export default function WalletDetailScreen() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <PageHeader
+        onBack={() => navigate("/app/m/runly.pfm/wallets")}
+        backLabel="Carteras"
         title={
-          <span className="flex items-center gap-2">
+          <span className="flex min-w-0 items-center gap-2">
             <span
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-sm"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm"
               style={{ backgroundColor: wallet.color || "#0ea5e9" }}
             >
               <WalletIcon className="h-4 w-4" />
             </span>
-            {wallet.name}
+            <span className="min-w-0 truncate">{wallet.name}</span>
           </span>
         }
         description={`${formatMoney(wallet.currentBalance, wallet.currency)}${wallet.reference ? ` · ${wallet.reference}` : ""}`}
         actions={
-          <div className="flex flex-wrap gap-2">
-            {wallet.canWrite !== false && (
-              <Button variant="outline" onClick={() => setAdjustOpen(true)}>
-                <SlidersHorizontal className="mr-1.5 h-4 w-4" /> Ajustar saldo
-              </Button>
-            )}
-            <Button variant="ghost" onClick={() => navigate("/app/m/runly.pfm/wallets")}>
-              <ArrowLeft className="mr-1.5 h-4 w-4" /> Carteras
+          wallet.canWrite !== false ? (
+            <Button variant="outline" onClick={() => setAdjustOpen(true)}>
+              <SlidersHorizontal className="mr-1.5 h-4 w-4" /> Ajustar saldo
             </Button>
-          </div>
+          ) : null
         }
       />
 

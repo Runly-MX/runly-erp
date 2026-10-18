@@ -76,11 +76,13 @@ export default function HrEmployeeForm({ employeeId }) {
   return (
     <div className="p-4 md:p-6 pb-24">
       <PageHeader
+        onBack={() => navigate(isEdit ? `/app/m/runly.hr/hr/employees/${employeeId}` : '/app/m/runly.hr/hr/employees')}
+        backLabel={isEdit ? 'Colaborador' : 'Colaboradores'}
         eyebrow={isEdit ? 'Editar colaborador' : 'Recursos Humanos'}
         title={isEdit ? (fullName || 'Editar colaborador') : 'Nuevo colaborador'}
         description={isEdit ? undefined : 'Completa la información del colaborador'}
       />
-      <div className="mt-6">
+      <div className="mt-2">
         <ConnectedRunlyForm
           targetType="hr_employee"
           targetId={employeeId}

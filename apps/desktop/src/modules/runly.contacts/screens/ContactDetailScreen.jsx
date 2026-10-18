@@ -21,7 +21,12 @@ import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
 import { runly } from "../../../lib/runly";
 import { useMiraiRecordContext } from "../../runly.chat/lib/miraiPageContext";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
-import { ContactHeroCard } from "../components/detail/ContactHeroCard";
+import {
+  ContactAvatarTitle,
+  ContactHeaderActions,
+  ContactHeaderMeta,
+  ContactKpiStrip,
+} from "../components/detail/ContactHeroCard";
 import { ContactPeopleTab, ContactSummaryTab } from "../components/detail/ContactSummaryTab";
 import { ContactActivityTab } from "../components/detail/ContactActivityTab";
 import { CONTACT_ATTACHMENTS_CONFIG } from "../lib/attachments";
@@ -112,7 +117,8 @@ export default function ContactDetailScreen() {
     setSearchParams(params, { replace: true });
   }
 
-  const header = <PageHeader eyebrow="Runly Contacts" title="Contacto" />;
+  const backToList = () => navigate(LIST_PATH);
+  const header = <PageHeader eyebrow="Runly Contacts" title="Contacto" onBack={backToList} backLabel="Contactos" />;
 
   if (!canRead) {
     return (
@@ -155,16 +161,24 @@ export default function ContactDetailScreen() {
   );
 
   return (
-    <div className="min-h-dvh space-y-5 p-4 md:p-6">
-      <ContactHeroCard
-        contact={contact}
-        activity={activityQuery.data?.data}
-        canUpdate={canUpdate}
-        canDelete={canDelete}
-        onEdit={() => navigate(`${LIST_PATH}/${contactId}/edit`)}
-        onBack={() => navigate(LIST_PATH)}
-        onDelete={() => setConfirmDelete(true)}
+    <div className="min-h-dvh space-y-5 px-4 pb-6 md:px-6">
+      <PageHeader
+        onBack={backToList}
+        backLabel="Contactos"
+        eyebrow="Contacto"
+        title={<ContactAvatarTitle contact={contact} />}
+        description={<ContactHeaderMeta contact={contact} />}
+        actions={(
+          <ContactHeaderActions
+            canUpdate={canUpdate}
+            canDelete={canDelete}
+            onEdit={() => navigate(`${LIST_PATH}/${contactId}/edit`)}
+            onDelete={() => setConfirmDelete(true)}
+          />
+        )}
+        className="pb-0"
       />
+      <ContactKpiStrip activity={activityQuery.data?.data} />
 
       <Tabs value={tab} onValueChange={setTab}>
         <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">

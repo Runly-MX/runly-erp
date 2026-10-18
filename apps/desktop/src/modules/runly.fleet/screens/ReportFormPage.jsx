@@ -167,7 +167,7 @@ export default function ReportFormPage() {
   }, [navigate, reportType])
 
   return (
-    <div className="p-4 md:p-6 min-h-dvh">
+    <div className="px-4 pb-6 md:px-6 min-h-dvh">
       <RunlyCrudView
         tableBlueprint={REPORT_TABLE_STUB}
         formBlueprint={formBlueprint}

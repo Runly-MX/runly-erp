@@ -8,7 +8,6 @@ import {
   cn,
 } from "@runly/ui";
 import {
-  ArrowLeft,
   Clock,
   FileText,
   IdCard,
@@ -66,19 +65,27 @@ function KpiTile({ icon: Icon, label, value, hint }) {
   );
 }
 
-export function ContactHeroCard({
-  contact,
-  activity,
-  canUpdate,
-  canDelete,
-  onEdit,
-  onBack,
-  onDelete,
-}) {
+// The contact's identity (avatar + name) is the title of the screen's
+// collapsing PageHeader; the meta below folds away on scroll and the KPI
+// strip stays in the page body.
+export function ContactAvatarTitle({ contact }) {
+  const colors = TYPE_AVATAR_COLORS[contact.type] ?? TYPE_AVATAR_COLORS.person;
+  return (
+    <span className="flex min-w-0 items-center gap-3">
+      <Avatar className="h-10 w-10 shrink-0 rounded-xl">
+        {contact.avatarUrl && <AvatarImage src={contact.avatarUrl} alt={contact.name} className="object-cover" />}
+        <AvatarFallback className={cn("rounded-xl text-sm font-semibold", colors.bg, colors.text)}>
+          {initials(contact.name)}
+        </AvatarFallback>
+      </Avatar>
+      <span className="min-w-0 truncate">{contact.name}</span>
+    </span>
+  );
+}
+
+export function ContactHeaderMeta({ contact }) {
   const phone = primaryChannel(contact.channels, "phone");
   const email = primaryChannel(contact.channels, "email");
-  const colors = TYPE_AVATAR_COLORS[contact.type] ?? TYPE_AVATAR_COLORS.person;
-  const summary = activity?.summary ?? [];
 
   async function copyRfc() {
     try {
@@ -90,74 +97,58 @@ export function ContactHeroCard({
   }
 
   return (
-    <Card className="p-5 md:p-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-        <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left lg:flex-1">
-          <div className="shrink-0">
-            <Avatar className="h-24 w-24 rounded-2xl">
-              {contact.avatarUrl && <AvatarImage src={contact.avatarUrl} alt={contact.name} className="object-cover" />}
-              <AvatarFallback className={cn("rounded-2xl text-2xl font-semibold", colors.bg, colors.text)}>
-                {initials(contact.name)}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-          <div className="min-w-0 space-y-2">
-            <h1 className="break-words text-2xl font-bold tracking-tight text-[hsl(var(--foreground))] md:text-3xl">
-              {contact.name}
-            </h1>
-            {contact.legalName && contact.legalName !== contact.name && (
-              <p className="text-sm text-[hsl(var(--muted-foreground))]">{contact.legalName}</p>
-            )}
-            <div className="flex flex-wrap justify-center gap-1.5 sm:justify-start">
-              <Badge variant={TYPE_VARIANT[contact.type] ?? "outline"}>{TYPE_LABEL[contact.type] ?? contact.type}</Badge>
-              <Badge variant={contact.enabled ? "success" : "secondary"}>{contact.enabled ? "Activo" : "Inactivo"}</Badge>
-              {(contact.tags ?? []).map((tag) => (
-                <Badge key={tag} variant="outline">{tag}</Badge>
-              ))}
-            </div>
-            {(phone || email || contact.taxId) && (
-              <div className="grid grid-cols-4 gap-2 pt-1 sm:flex sm:flex-wrap">
-                {phone && <QuickAction icon={Phone} label="Llamar" href={telHref(phone.value, phone.countryCode)} />}
-                {phone && <QuickAction icon={MessageCircle} label="WhatsApp" href={whatsappHref(phone.value, phone.countryCode)} />}
-                {email && <QuickAction icon={Mail} label="Correo" href={mailtoHref(email.value)} />}
-                {contact.taxId && <QuickAction icon={IdCard} label="RFC" onClick={copyRfc} />}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex justify-center lg:justify-end">
-          <DetailActionBar
-            primary={
-              canUpdate
-                ? { label: "Editar", icon: <Pencil className="h-4 w-4" />, onClick: onEdit }
-                : null
-            }
-            secondary={[
-              { label: "Volver a contactos", icon: <ArrowLeft className="h-4 w-4" />, onClick: onBack },
-              canDelete && {
-                label: "Desactivar",
-                icon: <PowerOff className="h-4 w-4" />,
-                onClick: onDelete,
-                destructive: true,
-              },
-            ].filter(Boolean)}
-          />
-        </div>
+    <div className="space-y-2 pt-1">
+      {contact.legalName && contact.legalName !== contact.name && <p>{contact.legalName}</p>}
+      <div className="flex flex-wrap gap-1.5">
+        <Badge variant={TYPE_VARIANT[contact.type] ?? "outline"}>{TYPE_LABEL[contact.type] ?? contact.type}</Badge>
+        <Badge variant={contact.enabled ? "success" : "secondary"}>{contact.enabled ? "Activo" : "Inactivo"}</Badge>
+        {(contact.tags ?? []).map((tag) => (
+          <Badge key={tag} variant="outline">{tag}</Badge>
+        ))}
       </div>
-
-      {(summary.length > 0 || activity?.lastActivityAt) && (
-        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-[hsl(var(--border))] pt-5 lg:grid-cols-4">
-          {summary.map((item) => (
-            <KpiTile key={item.key} icon={KPI_ICONS[item.key] ?? FileText} label={item.label} value={item.count} />
-          ))}
-          <KpiTile
-            icon={Clock}
-            label="Última actividad"
-            value={relativeTime(activity?.lastActivityAt) ?? "Sin actividad"}
-          />
+      {(phone || email || contact.taxId) && (
+        <div className="grid grid-cols-4 gap-2 pt-1 sm:flex sm:flex-wrap">
+          {phone && <QuickAction icon={Phone} label="Llamar" href={telHref(phone.value, phone.countryCode)} />}
+          {phone && <QuickAction icon={MessageCircle} label="WhatsApp" href={whatsappHref(phone.value, phone.countryCode)} />}
+          {email && <QuickAction icon={Mail} label="Correo" href={mailtoHref(email.value)} />}
+          {contact.taxId && <QuickAction icon={IdCard} label="RFC" onClick={copyRfc} />}
         </div>
       )}
+    </div>
+  );
+}
+
+export function ContactHeaderActions({ canUpdate, canDelete, onEdit, onDelete }) {
+  return (
+    <DetailActionBar
+      primary={canUpdate ? { label: "Editar", icon: <Pencil className="h-4 w-4" />, onClick: onEdit } : null}
+      secondary={[
+        canDelete && {
+          label: "Desactivar",
+          icon: <PowerOff className="h-4 w-4" />,
+          onClick: onDelete,
+          destructive: true,
+        },
+      ].filter(Boolean)}
+    />
+  );
+}
+
+export function ContactKpiStrip({ activity }) {
+  const summary = activity?.summary ?? [];
+  if (summary.length === 0 && !activity?.lastActivityAt) return null;
+  return (
+    <Card className="p-4 md:p-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {summary.map((item) => (
+          <KpiTile key={item.key} icon={KPI_ICONS[item.key] ?? FileText} label={item.label} value={item.count} />
+        ))}
+        <KpiTile
+          icon={Clock}
+          label="Última actividad"
+          value={relativeTime(activity?.lastActivityAt) ?? "Sin actividad"}
+        />
+      </div>
     </Card>
   );
 }

@@ -149,6 +149,8 @@ export default function UserEditScreen() {
   return (
     <div className="p-4 md:p-6 pb-24">
       <PageHeader
+        onBack={() => navigate("/app/m/runly.identity/identity/users")}
+        backLabel="Usuarios"
         eyebrow="Editar usuario"
         title={user?.displayName || "Editar usuario"}
         actions={
@@ -158,7 +160,7 @@ export default function UserEditScreen() {
           </Button>
         }
       />
-      <Card variant="shell-flat" className="mt-6 p-4 md:p-5 space-y-3">
+      <Card variant="shell-flat" className="mt-2 p-4 md:p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Camera className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
           <h3 className="text-sm font-semibold text-[hsl(var(--foreground))]">Foto de perfil</h3>

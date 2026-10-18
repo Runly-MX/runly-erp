@@ -6,7 +6,7 @@ import {
   Button,
   ConfirmDialog,
   RunlyDetail,
-  DetailActionBar,
+  RecordHeader,
   ErrorState,
   LoadingState,
   Sheet,
@@ -127,8 +127,40 @@ export default function RoleEditorScreen() {
     );
   }
 
+  const listPath = "/app/m/runly.identity/identity/roles";
+  const editable = canManageRoles && !role.system;
+
   return (
-    <div className="p-4 md:p-6 space-y-6 min-h-dvh">
+    <div className="px-4 pb-6 md:px-6 space-y-6 min-h-dvh">
+      <RecordHeader
+        bleed
+        crumbs={[
+          { label: "Roles", onClick: () => navigate(listPath) },
+          { label: role.name },
+        ]}
+        title={role.name}
+        actions={[
+          { key: "back", label: "Volver a roles", icon: <ArrowLeft className="h-4 w-4" />, placement: "collapse", onClick: () => navigate(listPath) },
+          {
+            key: "toggle",
+            label: role.enabled ? "Desactivar" : "Activar",
+            icon: role.enabled ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />,
+            hidden: !editable,
+            loading: toggleRoleMutation.isPending,
+            onClick: () => toggleRoleMutation.mutate({ id: role.id, enabled: !role.enabled }),
+          },
+          {
+            key: "delete",
+            label: "Eliminar rol",
+            icon: <Trash2 className="h-4 w-4" />,
+            placement: "menu",
+            destructive: true,
+            hidden: !(canDeleteRoles && !role.system),
+            onClick: () => setDeleteOpen(true),
+          },
+          { key: "edit", label: "Editar", icon: <Pencil className="h-4 w-4" />, variant: "default", hidden: !editable, onClick: openEditSheet },
+        ]}
+      />
       <RunlyDetail
         blueprint={IDENTITY_ROLE_DETAIL}
         data={role}
@@ -136,32 +168,7 @@ export default function RoleEditorScreen() {
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
         componentRegistry={componentRegistry}
-        heroActions={
-          <DetailActionBar
-            primary={
-              canManageRoles && !role.system ? { label: "Editar", icon: <Pencil className="h-4 w-4" />, onClick: openEditSheet } : null
-            }
-            secondary={[
-              { label: "Volver a roles", icon: <ArrowLeft className="h-4 w-4" />, onClick: () => navigate("/app/m/runly.identity/identity/roles") },
-              canManageRoles && !role.system
-                ? {
-                    label: role.enabled ? "Desactivar" : "Activar",
-                    icon: role.enabled ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />,
-                    onClick: () => toggleRoleMutation.mutate({ id: role.id, enabled: !role.enabled }),
-                    loading: toggleRoleMutation.isPending,
-                  }
-                : null,
-              canDeleteRoles && !role.system
-                ? {
-                    label: "Eliminar rol",
-                    icon: <Trash2 className="h-4 w-4" />,
-                    onClick: () => setDeleteOpen(true),
-                    destructive: true,
-                  }
-                : null,
-            ].filter(Boolean)}
-          />
-        }
+        heroActions={false}
       />
 
       <Sheet

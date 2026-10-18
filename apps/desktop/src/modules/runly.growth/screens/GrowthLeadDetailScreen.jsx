@@ -18,7 +18,6 @@ import {
   DetailSkeleton,
 } from "@runly/ui";
 import {
-  ArrowLeft,
   Ban,
   CheckCircle2,
   FileText,
@@ -296,20 +295,15 @@ export default function GrowthLeadDetailScreen() {
   const statusOptions = getAllowedLeadStatuses(lead.status);
 
   return (
-    <div className="min-h-dvh space-y-6 p-4 md:p-6">
+    <div className="min-h-dvh space-y-6 px-4 pb-6 md:px-6">
       <PageHeader
+        onBack={() => navigate("/app/m/runly.growth/leads")}
+        backLabel="Leads"
         eyebrow="Runly Growth"
         title={lead.name || lead.email || "Lead sin nombre"}
         description={`Recibido ${formatDate(lead.createdAt)}`}
         actions={
           <>
-            <Button
-              variant="outline"
-              onClick={() => navigate("/app/m/runly.growth/leads")}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver
-            </Button>
             {canConvert &&
             mutable &&
             (canUseExistingContact || canCreateContact) ? (

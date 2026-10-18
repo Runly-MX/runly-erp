@@ -155,7 +155,7 @@ export default function HrScreen() {
 
   if (isNewRoute) {
     return (
-      <div className="p-4 md:p-6 min-h-dvh">
+      <div className="min-h-dvh">
         <HrEmployeeForm employeeId={null} />
       </div>
     );
@@ -163,7 +163,7 @@ export default function HrScreen() {
 
   if (editEmployeeId) {
     return (
-      <div className="p-4 md:p-6 min-h-dvh">
+      <div className="min-h-dvh">
         <HrEmployeeForm employeeId={editEmployeeId} />
       </div>
     );
@@ -171,7 +171,7 @@ export default function HrScreen() {
 
   if (detailEmployeeId) {
     return (
-      <div className="p-4 md:p-6 min-h-dvh">
+      <div className="min-h-dvh">
         <HrEmployeeDetail employeeId={detailEmployeeId} />
       </div>
     );

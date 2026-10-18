@@ -13,7 +13,7 @@ import {
   SelectField,
   TextField,
 } from "@runly/ui";
-import { ArrowLeft, AtSign, KeyRound, Mail, Shield, UserRound } from "lucide-react";
+import { AtSign, KeyRound, Mail, Shield, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
@@ -100,16 +100,12 @@ export default function UserCreateScreen() {
     form.password === form.confirmPassword;
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="px-4 pb-6 md:px-6 space-y-6">
       <PageHeader
+        onBack={() => navigate("/app/m/runly.identity/identity/users")}
+        backLabel="Usuarios"
         eyebrow="Runly Identity"
         title="Nuevo usuario"
-        actions={
-          <Button variant="outline" onClick={() => navigate("/app/m/runly.identity/identity/users")}>
-            <ArrowLeft className="h-4 w-4" />
-            Volver a usuarios
-          </Button>
-        }
       />
 
       {!canManageUsers && (

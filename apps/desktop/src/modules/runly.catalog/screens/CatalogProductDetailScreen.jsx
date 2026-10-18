@@ -6,10 +6,10 @@ import { AnimatePresence, motion } from 'motion/react'
 import {
   Badge, Button, Card, ComboboxField, ConfirmDialog, CurrencyField, EmptyState,
   MarkdownField, NumberField, Popover, PopoverContent, PopoverTrigger, SelectField,
-  ChipTabs, Skeleton, SortableList, Switch, TextareaField, TextField, cn,
+  ChipTabs, PageHeader, Skeleton, SortableList, Switch, TextareaField, TextField, cn,
 } from '@runly/ui'
 import {
-  ArrowLeft, Boxes, ChevronDown, EyeOff, FileEdit, FileSpreadsheet, FileText,
+  Boxes, ChevronDown, EyeOff, FileEdit, FileSpreadsheet, FileText,
   Globe, GripVertical, History, Images, Layers, Package, Search, Tag, Trash2,
   TrendingDown, TrendingUp,
 } from 'lucide-react'
@@ -191,81 +191,72 @@ export default function CatalogProductDetailScreen() {
 
   return (
     <div className="flex flex-col min-h-dvh">
-      {/* ── Top bar ── */}
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 md:px-6 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 backdrop-blur-sm">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={() => navigate('/app/m/runly.catalog')}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">{product.name}</h1>
-              {canUpdate ? (
-                <Popover open={typeMenuOpen} onOpenChange={setTypeMenuOpen}>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="shrink-0 inline-flex items-center gap-1 rounded-full border border-[hsl(var(--border))] px-2 py-0.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
-                    >
-                      {isVariable ? 'Variable' : 'Simple'}
-                      <ChevronDown className="h-3 w-3" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-64 p-1.5">
-                    <button
-                      type="button"
-                      onClick={() => requestTypeChange('SIMPLE')}
-                      className={cn(
-                        'flex w-full flex-col items-start gap-0.5 rounded-lg p-2 text-left transition-colors',
-                        !isVariable ? 'bg-[hsl(var(--muted))]' : 'hover:bg-[hsl(var(--muted))]',
-                      )}
-                    >
-                      <span className="text-xs font-semibold text-[hsl(var(--foreground))]">Producto Simple</span>
-                      <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Inventario único, sin variantes.</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => requestTypeChange('VARIABLE')}
-                      className={cn(
-                        'flex w-full flex-col items-start gap-0.5 rounded-lg p-2 text-left transition-colors',
-                        isVariable ? 'bg-[hsl(var(--muted))]' : 'hover:bg-[hsl(var(--muted))]',
-                      )}
-                    >
-                      <span className="text-xs font-semibold text-[hsl(var(--foreground))]">Producto Variable</span>
-                      <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Múltiples SKUs por talla, color u otro atributo.</span>
-                    </button>
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                <span className="shrink-0 inline-flex items-center rounded-full border border-[hsl(var(--border))] px-2 py-0.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))]">
-                  {isVariable ? 'Variable' : 'Simple'}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={cn(
-                'h-1.5 w-1.5 rounded-full shrink-0',
-                product.published ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse',
-              )} />
-              <span className="text-xs text-[hsl(var(--muted-foreground))]">
-                {product.published ? 'Publicado' : 'Borrador — no visible al público'}
+      <PageHeader
+        onBack={() => navigate('/app/m/runly.catalog')}
+        backLabel="Catálogo"
+        eyebrow="Producto"
+        title={product.name}
+        description={(
+          <span className="flex flex-wrap items-center gap-1.5">
+            {canUpdate ? (
+              <Popover open={typeMenuOpen} onOpenChange={setTypeMenuOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="shrink-0 inline-flex items-center gap-1 rounded-full border border-[hsl(var(--border))] px-2 py-0.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
+                  >
+                    {isVariable ? 'Variable' : 'Simple'}
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-64 p-1.5">
+                  <button
+                    type="button"
+                    onClick={() => requestTypeChange('SIMPLE')}
+                    className={cn(
+                      'flex w-full flex-col items-start gap-0.5 rounded-lg p-2 text-left transition-colors',
+                      !isVariable ? 'bg-[hsl(var(--muted))]' : 'hover:bg-[hsl(var(--muted))]',
+                    )}
+                  >
+                    <span className="text-xs font-semibold text-[hsl(var(--foreground))]">Producto Simple</span>
+                    <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Inventario único, sin variantes.</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => requestTypeChange('VARIABLE')}
+                    className={cn(
+                      'flex w-full flex-col items-start gap-0.5 rounded-lg p-2 text-left transition-colors',
+                      isVariable ? 'bg-[hsl(var(--muted))]' : 'hover:bg-[hsl(var(--muted))]',
+                    )}
+                  >
+                    <span className="text-xs font-semibold text-[hsl(var(--foreground))]">Producto Variable</span>
+                    <span className="text-[11px] text-[hsl(var(--muted-foreground))]">Múltiples SKUs por talla, color u otro atributo.</span>
+                  </button>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <span className="shrink-0 inline-flex items-center rounded-full border border-[hsl(var(--border))] px-2 py-0.5 text-[11px] font-medium text-[hsl(var(--muted-foreground))]">
+                {isVariable ? 'Variable' : 'Simple'}
               </span>
-              {product.track_stock && (
-                <>
-                  <span className="text-[hsl(var(--border))]">·</span>
-                  <Badge variant={STOCK_STATUS_META[stockStatus].tone} className="h-4.5 px-1.5 text-[10px]">
-                    {STOCK_STATUS_META[stockStatus].label}
-                  </Badge>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-        {canUpdate && (
+            )}
+            <span className={cn(
+              'h-1.5 w-1.5 rounded-full shrink-0',
+              product.published ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse',
+            )} />
+            <span className="text-xs text-[hsl(var(--muted-foreground))]">
+              {product.published ? 'Publicado' : 'Borrador — no visible al público'}
+            </span>
+            {product.track_stock && (
+              <>
+                <span className="text-[hsl(var(--border))]">·</span>
+                <Badge variant={STOCK_STATUS_META[stockStatus].tone} className="h-4.5 px-1.5 text-[10px]">
+                  {STOCK_STATUS_META[stockStatus].label}
+                </Badge>
+              </>
+            )}
+          </span>
+        )}
+        actions={canUpdate ? (
           <Button
             size="sm"
             variant={product.published ? 'outline' : 'default'}
@@ -276,8 +267,9 @@ export default function CatalogProductDetailScreen() {
               ? <><EyeOff className="h-4 w-4 mr-1.5" />Despublicar</>
               : <><Globe className="h-4 w-4 mr-1.5" />Publicar</>}
           </Button>
-        )}
-      </div>
+        ) : null}
+        className="px-4 pt-5 pb-0 md:px-6"
+      />
 
       {/* ── Pill tabs ── */}
       <div className="px-4 md:px-6 pt-4">

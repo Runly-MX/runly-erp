@@ -12,9 +12,10 @@ import {
   SectionCard,
   SectionIndex,
   Skeleton,
+  useScrollCollapse,
 } from "@runly/ui";
 import { contactFormSchema } from "@runly/validators";
-import { AlertTriangle, ArrowLeft, AtSign, Eye, Paperclip, Plug, Building2, Landmark, MapPin, StickyNote, Users } from "lucide-react";
+import { AlertTriangle, AtSign, Eye, Paperclip, Plug, Building2, Landmark, MapPin, StickyNote, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
@@ -193,6 +194,7 @@ export default function ContactFormScreen() {
 
   const onInvalid = () => toast.error("Revisa los campos marcados.");
   const cancel = () => navigate(isEdit ? detailPath(contactId) : LIST_PATH);
+  const headerScroll = useScrollCollapse();
 
   if (!allowed) {
     return (
@@ -235,20 +237,26 @@ export default function ContactFormScreen() {
       className="flex h-full min-h-0 flex-col"
       noValidate
     >
-      <div className="shrink-0 px-4 pt-4 md:px-6 md:pt-6">
-        <PageHeader
-          eyebrow={isEdit ? "Editar contacto" : "Runly Contacts"}
-          title={isEdit ? contact?.name ?? "Editar contacto" : "Nuevo contacto"}
-          actions={
+      <PageHeader
+        collapseOnScroll
+        collapsed={headerScroll.collapsed}
+        onBack={() => navigate(LIST_PATH)}
+        backLabel="Contactos"
+        eyebrow={isEdit ? "Editar contacto" : "Runly Contacts"}
+        title={isEdit ? contact?.name ?? "Editar contacto" : "Nuevo contacto"}
+        actions={
+          isEdit ? (
             <Button type="button" variant="outline" onClick={cancel}>
-              {isEdit ? <Eye className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
-              {isEdit ? "Ver detalle" : "Volver a contactos"}
+              <Eye className="h-4 w-4" />
+              Ver detalle
             </Button>
-          }
-        />
-      </div>
+          ) : null
+        }
+        className="shrink-0 px-4 pt-4 pb-4 md:px-6 md:pt-6"
+      />
 
       <div ref={setScrollRoot} className="min-h-0 flex-1 overflow-y-auto">
+        <div ref={headerScroll.sentinelRef} aria-hidden="true" />
         <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 md:flex-row md:p-6">
           <aside className="md:w-56 md:shrink-0">
             <div className="md:sticky md:top-0 space-y-4">

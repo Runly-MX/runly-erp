@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RunlyDetail, ErrorState, ConfirmDialog, DetailActionBar, DetailSkeleton } from '@runly/ui'
+import { RunlyDetail, ErrorState, ConfirmDialog, RecordHeader, DetailSkeleton } from '@runly/ui'
 import { ArrowLeft, ShieldBan } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -79,8 +79,33 @@ export default function HrEmployeeDetail({ employeeId }) {
 
   const fullName = `${employee.firstName} ${employee.lastName}`.trim()
 
+  const listPath = '/app/m/runly.hr/hr/employees'
+  const isDisabled = employee.enabled === false
+
   return (
-    <div className="p-4 md:p-6 space-y-6 min-h-dvh">
+    <div className="px-4 pb-6 md:px-6 space-y-6 min-h-dvh">
+      <RecordHeader
+        bleed
+        crumbs={[
+          { label: 'Colaboradores', onClick: () => navigate(listPath) },
+          { label: fullName || 'Colaborador' },
+        ]}
+        title={fullName || 'Colaborador'}
+        actions={[
+          { key: 'back', label: 'Volver', icon: <ArrowLeft className="h-4 w-4" />, placement: 'collapse', onClick: () => navigate(listPath) },
+          {
+            key: 'toggle',
+            label: isDisabled ? 'Habilitar' : 'Deshabilitar',
+            icon: <ShieldBan className="h-4 w-4" />,
+            placement: isDisabled ? 'bar' : 'menu',
+            destructive: !isDisabled,
+            hidden: !canDelete,
+            loading: toggleEnabledMutation.isPending,
+            onClick: () => setEnabledConfirm(true),
+          },
+          { key: 'edit', label: 'Editar', variant: 'default', hidden: !canUpdate, onClick: () => navigate(`${listPath}/${employeeId}/edit`) },
+        ]}
+      />
       <RunlyDetail
         blueprint={HR_EMPLOYEE_DETAIL}
         data={employee}
@@ -89,31 +114,7 @@ export default function HrEmployeeDetail({ employeeId }) {
         apiBaseUrl={API_BASE}
         componentRegistry={componentRegistry}
         onAttachmentsChange={() => queryClient.invalidateQueries({ queryKey: ['hr-employee', employeeId] })}
-        heroActions={
-          <DetailActionBar
-            primary={
-              canUpdate
-                ? { label: 'Editar', onClick: () => navigate(`/app/m/runly.hr/hr/employees/${employeeId}/edit`) }
-                : null
-            }
-            secondary={[
-              {
-                label: 'Volver',
-                icon: <ArrowLeft className="h-4 w-4" />,
-                onClick: () => navigate('/app/m/runly.hr/hr/employees'),
-              },
-              canDelete
-                ? {
-                    label: employee.enabled === false ? 'Habilitar' : 'Deshabilitar',
-                    icon: <ShieldBan className="h-4 w-4" />,
-                    onClick: () => setEnabledConfirm(true),
-                    destructive: employee.enabled !== false,
-                    loading: toggleEnabledMutation.isPending,
-                  }
-                : null,
-            ]}
-          />
-        }
+        heroActions={false}
       />
       <ConnectionSections targetType="hr_employee" targetId={employeeId} />
 
