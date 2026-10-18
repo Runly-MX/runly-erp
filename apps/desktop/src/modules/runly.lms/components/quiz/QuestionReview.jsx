@@ -17,7 +17,7 @@ export function QuestionReview({ question, answer, index, children }) {
   const awarded = question.awardedPoints
   const status = resultStatus(question)
   return (
-    <article className="space-y-3 rounded-md border border-[hsl(var(--border))] p-4">
+    <article className="space-y-3 rounded-md bg-[hsl(var(--muted)/0.45)] p-4">
       <header className="flex flex-wrap items-center gap-2">
         <p className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">Pregunta {index + 1}</p>
         <QuestionKindTag kind={question.kind} />

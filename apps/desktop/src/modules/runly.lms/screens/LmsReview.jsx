@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Badge, Button, ComboboxField, DataTable, PageHeader } from '@runly/ui'
-import { ClipboardCheck, Paperclip } from 'lucide-react'
+import { Badge, Button, ComboboxField, DataTable, PageHeader, SegmentedControl } from '@runly/ui'
+import { ClipboardCheck, History, Paperclip } from 'lucide-react'
 import { GradeAttemptSheet } from '../components/review/GradeAttemptSheet.jsx'
 import { GradeSubmissionSheet } from '../components/review/GradeSubmissionSheet.jsx'
 import { PageShell } from '../components/shared.jsx'
@@ -11,11 +11,35 @@ import { filesCountText, parseReviewParam, reviewParam } from '../lib/lmsReview.
 
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 
-// Grading queue: assignment submissions and quiz attempts with open answers
-// waiting for a grader, oldest first. The course filter is applied locally so
-// its options always list every course with pending work.
+const VIEWS = [{ value: 'pending', label: 'Pendientes' }, { value: 'history', label: 'Calificadas' }]
+
+// Result of graded work: approved/returned (assignments) or the exam score.
+function ResultCell({ item }) {
+  const grade = item.grade === null || item.grade === undefined ? null : Math.round(item.grade * 10) / 10
+  if (item.type === 'submission') {
+    return (
+      <span className="inline-flex items-center gap-2">
+        <Badge variant={item.status === 'approved' ? 'success' : 'warning'}>{item.status === 'approved' ? 'Aprobada' : 'Devuelta'}</Badge>
+        {grade !== null ? <span className="text-sm tabular-nums">{grade}</span> : null}
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-2">
+      <Badge variant={item.passed ? 'success' : 'destructive'}>{item.passed ? 'Aprobado' : 'No aprobado'}</Badge>
+      {grade !== null ? <span className="text-sm tabular-nums">{grade}%</span> : null}
+    </span>
+  )
+}
+
+// Grading queue (Pendientes): assignment submissions and quiz attempts with
+// open answers waiting for a grader, oldest first. Calificadas: the history of
+// work already graded by a person, newest first, opened read-only. The course
+// filter is applied locally so its options list every course in the view.
 export default function LmsReview() {
-  const queue = useReviewQueue()
+  const [view, setView] = useState('pending')
+  const queue = useReviewQueue(view)
+  const history = view === 'history'
   const [courseId, setCourseId] = useState(null)
   // The open sheet lives in ?revisar=type:id so it survives opening a file in
   // Office and coming back.
@@ -53,12 +77,17 @@ export default function LmsReview() {
         </span>
       ) : <span className={MUTED}>—</span>),
     },
+    ...(history ? [
+      { id: 'result', header: 'Resultado', accessorFn: (r) => r.grade ?? -1, cell: ({ row }) => <ResultCell item={row.original} /> },
+      { id: 'graded', header: 'Calificada', accessorFn: (r) => r.gradedAt ?? '', cell: ({ row }) => <span className={MUTED}>{formatShortDate(row.original.gradedAt) || '—'}</span> },
+      { id: 'grader', header: 'Revisó', accessorFn: (r) => r.graderName ?? '', cell: ({ getValue }) => <span className="block max-w-40 truncate text-sm">{getValue() || '—'}</span> },
+    ] : []),
     { id: 'late', header: 'Tarde', accessorFn: (r) => (r.late ? 1 : 0), cell: ({ row }) => (row.original.late ? <Badge variant="warning">Tardía</Badge> : <span className={MUTED}>—</span>) },
     {
       id: 'actions', header: '', enableSorting: false,
-      cell: ({ row }) => <Button variant="outline" size="sm" onClick={() => setOpen({ type: row.original.type, id: row.original.id })}>Calificar</Button>,
+      cell: ({ row }) => <Button variant="outline" size="sm" onClick={() => setOpen({ type: row.original.type, id: row.original.id })}>{history ? 'Ver' : 'Calificar'}</Button>,
     },
-  ], [setOpen])
+  ], [setOpen, history])
 
   const close = (value) => { if (!value) setOpen(null) }
   return (
@@ -68,6 +97,7 @@ export default function LmsReview() {
         title="Revisión"
         description="Califica las tareas entregadas y las respuestas abiertas de los exámenes."
         className="mb-2 pb-0"
+        actions={<SegmentedControl ariaLabel="Vista" options={VIEWS} value={view} onChange={(next) => { setView(next); setCourseId(null) }} className="w-auto" />}
       />
       <DataTable
         columns={columns}
@@ -82,13 +112,15 @@ export default function LmsReview() {
           <div className="w-full sm:w-64">
             <ComboboxField
               aria-label="Curso" placeholder="Todos los cursos" options={courseOptions} value={courseId}
-              onChange={(value) => setCourseId(value || null)} clearable emptyText="Sin cursos con pendientes"
+              onChange={(value) => setCourseId(value || null)} clearable emptyText={history ? 'Sin cursos con calificaciones' : 'Sin cursos con pendientes'}
             />
           </div>
         )}
-        emptyIcon={ClipboardCheck}
-        emptyTitle={courseId ? 'Nada pendiente en este curso' : 'Nada por revisar'}
-        emptyDescription="Cuando un alumno entregue una tarea o un examen con respuestas abiertas, aparecerá aquí."
+        emptyIcon={history ? History : ClipboardCheck}
+        emptyTitle={history ? (courseId ? 'Sin calificaciones en este curso' : 'Todavía no hay calificaciones') : (courseId ? 'Nada pendiente en este curso' : 'Nada por revisar')}
+        emptyDescription={history
+          ? 'Las tareas y los exámenes que califiques aparecerán aquí, del más reciente al más antiguo.'
+          : 'Cuando un alumno entregue una tarea o un examen con respuestas abiertas, aparecerá aquí.'}
       />
       <GradeSubmissionSheet submissionId={open?.type === 'submission' ? open.id : null} onOpenChange={close} />
       <GradeAttemptSheet attemptId={open?.type === 'attempt' ? open.id : null} onOpenChange={close} />

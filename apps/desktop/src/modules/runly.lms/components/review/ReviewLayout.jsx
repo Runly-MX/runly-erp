@@ -12,8 +12,8 @@ export const REVIEW_BODY = 'flex min-h-0 flex-1 flex-col'
 export function ReviewColumns({ main, aside }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] lg:overflow-hidden">
-      <div className="space-y-5 px-5 py-4 lg:min-h-0 lg:overflow-y-auto">{main}</div>
-      <aside aria-label="Calificación" className="space-y-5 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.35)] px-5 py-4 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-t-0">
+      <div className="space-y-6 px-5 py-5 lg:min-h-0 lg:overflow-y-auto">{main}</div>
+      <aside aria-label="Calificación" className="space-y-5 bg-[hsl(var(--muted)/0.3)] px-5 py-5 lg:min-h-0 lg:overflow-y-auto">
         {aside}
       </aside>
     </div>
@@ -24,7 +24,7 @@ export function ReviewSection({ title, meta, children, className }) {
   return (
     <section className={cn('space-y-2', className)}>
       <div className="flex items-baseline gap-2">
-        <h3 className="text-sm font-semibold">{title}</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{title}</h3>
         {meta ? <span className={MUTED}>{meta}</span> : null}
       </div>
       {children}
@@ -36,7 +36,7 @@ export function ReviewSection({ title, meta, children, className }) {
 export function InstructionsAccordion({ body }) {
   if (!body?.trim()) return null
   return (
-    <Accordion type="single" collapsible className="rounded-md border border-[hsl(var(--border))] px-3">
+    <Accordion type="single" collapsible className="rounded-md bg-[hsl(var(--muted)/0.45)] px-4">
       <AccordionItem value="instructions" className="border-b-0">
         <AccordionTrigger className="text-sm">Instrucciones de la tarea</AccordionTrigger>
         <AccordionContent><MarkdownViewer value={body} /></AccordionContent>
@@ -55,7 +55,7 @@ export function PassIndicator({ state, passingScore, className }) {
       role="status"
       className={cn(
         'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium',
-        pass ? 'bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]' : 'bg-[hsl(var(--destructive)/0.1)] text-[hsl(var(--destructive))]',
+        pass ? 'bg-primary/10 text-primary' : 'bg-[hsl(var(--destructive)/0.1)] text-[hsl(var(--destructive))]',
         className,
       )}
     >
@@ -71,7 +71,7 @@ export function SubmissionHistory({ items }) {
   if (!items?.length) return null
   return (
     <ReviewSection title="Entregas anteriores" meta={`${items.length}`}>
-      <ol className="relative space-y-3 border-l border-[hsl(var(--border))] pl-4">
+      <ol className="relative space-y-3 border-l border-[hsl(var(--border)/0.6)] pl-4">
         {items.map((item) => {
           const graded = item.grade !== null && item.grade !== undefined
           return (

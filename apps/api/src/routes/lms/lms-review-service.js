@@ -7,6 +7,8 @@ import { createLmsSerializers } from './lms-serialize.js'
 import { learnerKind } from './lms-share-core.js'
 import { setLessonOutcome, TX_OPTS } from './lms-progress.js'
 
+const HISTORY_LIMIT = 500
+
 const CONTEXT = { enrollment: { include: { learner: true, course: true } }, lesson: true }
 const iso = (value) => (value ? new Date(value).toISOString() : null)
 
@@ -35,20 +37,33 @@ export function createLmsReviewService({ prisma, notifier, signFile = null, gues
     } catch { /* best effort */ }
   }
 
+  // Pending queue (default) or `view=history`: work already graded by a
+  // person, newest first (capped), with the result and who graded it.
   async function queue(companyId, query = {}) {
     const courseId = query.courseId ? String(query.courseId) : null
     if (courseId && !isUuid(courseId)) throw new LmsError('Curso inválido.', 400)
-    const where = {
+    const history = query.view === 'history'
+    const base = {
       companyId,
-      status: 'submitted',
       lesson: { enabled: true, ...(courseId ? { courseId } : {}) },
       enrollment: { status: { not: 'dropped' }, course: { enabled: true } },
     }
     const include = { lesson: { select: { id: true, title: true } }, enrollment: { include: { learner: true, course: { select: { id: true, title: true } } } } }
+    const take = history ? HISTORY_LIMIT : undefined
     const [submissions, attempts] = await Promise.all([
-      prisma.lmsSubmission.findMany({ where, include, orderBy: { submittedAt: 'asc' } }),
-      prisma.lmsQuizAttempt.findMany({ where, include, orderBy: { submittedAt: 'asc' } }),
+      prisma.lmsSubmission.findMany({
+        where: { ...base, ...(history ? { status: { in: ['approved', 'returned'] } } : { status: 'submitted' }) },
+        include, orderBy: history ? { gradedAt: 'desc' } : { submittedAt: 'asc' }, take,
+      }),
+      prisma.lmsQuizAttempt.findMany({
+        where: { ...base, ...(history ? { status: 'graded', gradedById: { not: null } } : { status: 'submitted' }) },
+        include, orderBy: history ? { gradedAt: 'desc' } : { submittedAt: 'asc' }, take,
+      }),
     ])
+    const graderIds = history ? [...new Set([...submissions, ...attempts].map((row) => row.gradedById).filter(Boolean))] : []
+    const graders = graderIds.length
+      ? new Map((await prisma.userProfile.findMany({ where: { id: { in: graderIds } }, select: { id: true, displayName: true } })).map((u) => [u.id, u.displayName]))
+      : new Map()
     const item = (type, row) => ({
       type,
       id: row.id,
@@ -59,9 +74,18 @@ export function createLmsReviewService({ prisma, notifier, signFile = null, gues
       learner: { id: row.enrollment.learner.id, displayName: row.enrollment.learner.displayName, kind: learnerKind(row.enrollment.learner) },
       submittedAt: iso(row.submittedAt),
       ...(type === 'submission' ? { late: row.late, fileCount: row.fileIds?.length ?? 0 } : {}),
+      ...(history ? {
+        status: row.status,
+        grade: type === 'submission' ? row.grade : row.scorePct,
+        passed: type === 'submission' ? row.status === 'approved' : row.passed,
+        gradedAt: iso(row.gradedAt),
+        graderName: graders.get(row.gradedById) ?? null,
+      } : {}),
     })
-    return [...submissions.map((row) => item('submission', row)), ...attempts.map((row) => item('attempt', row))]
-      .sort((a, b) => Date.parse(a.submittedAt ?? 0) - Date.parse(b.submittedAt ?? 0))
+    const items = [...submissions.map((row) => item('submission', row)), ...attempts.map((row) => item('attempt', row))]
+    return history
+      ? items.sort((a, b) => Date.parse(b.gradedAt ?? 0) - Date.parse(a.gradedAt ?? 0)).slice(0, HISTORY_LIMIT)
+      : items.sort((a, b) => Date.parse(a.submittedAt ?? 0) - Date.parse(b.submittedAt ?? 0))
   }
 
   // ---- quiz attempts ------------------------------------------------------

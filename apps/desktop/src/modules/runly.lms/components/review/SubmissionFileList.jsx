@@ -21,7 +21,7 @@ export function SubmissionFileList({ files }) {
 
   return (
     <>
-      <ul className="divide-y divide-[hsl(var(--border))] rounded-md border border-[hsl(var(--border))]">
+      <ul className="divide-y divide-[hsl(var(--border)/0.5)] overflow-hidden rounded-md bg-[hsl(var(--muted)/0.45)]">
         {list.map((file) => {
           const kind = previewKind(file)
           const meta = { originalName: file.name ?? '', mimeType: file.mimeType ?? '' }
@@ -51,7 +51,7 @@ export function SubmissionFileList({ files }) {
               {kind === 'image' && file.url ? (
                 <button
                   type="button" onClick={() => openViewer(file)} aria-label={`Ampliar ${file.name || 'imagen'}`}
-                  className="block w-full overflow-hidden rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+                  className="block w-full overflow-hidden rounded-md bg-[hsl(var(--muted)/0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
                 >
                   <img src={file.url} alt={file.name || 'Imagen entregada'} loading="lazy" className="mx-auto max-h-72 w-auto object-contain" />
                 </button>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button, EmptyState, ErrorState, MarkdownViewer, NumberField, Skeleton, TextareaField } from '@runly/ui'
+import { Badge, Button, ErrorState, MarkdownViewer, NumberField, Skeleton, TextareaField } from '@runly/ui'
 import { CheckCircle2, FileText, Loader2, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useGradeSubmission, useReviewSubmission } from '../../hooks/useLmsEval.js'
@@ -36,12 +36,12 @@ function SubmissionWork({ data }) {
       <InstructionsAccordion body={data.lesson?.body} />
       <ReviewSection title="Respuesta">
         {data.text?.trim() ? (
-          <div className="rounded-md border border-[hsl(var(--border))] p-4"><MarkdownViewer value={data.text} /></div>
+          <div className="rounded-md bg-[hsl(var(--muted)/0.45)] px-4 py-3"><MarkdownViewer value={data.text} /></div>
         ) : <p className={MUTED}>El alumno no escribió texto en esta entrega.</p>}
       </ReviewSection>
       <ReviewSection title="Archivos" meta={files.length ? filesCountText(files.length) : null}>
         {files.length ? <SubmissionFileList files={files} /> : (
-          <EmptyState variant="compact" icon={FileText} title="Esta entrega no incluye archivos." className="rounded-md" />
+          <p className={`flex items-center gap-2 ${MUTED}`}><FileText className="h-4 w-4" aria-hidden="true" />Esta entrega no incluye archivos.</p>
         )}
       </ReviewSection>
       <SubmissionHistory items={history} />
@@ -111,10 +111,17 @@ export function GradeSubmissionSheet({ submissionId, onOpenChange }) {
       {error ? <p role="alert" className="text-sm text-[hsl(var(--destructive))]">{error}</p> : null}
     </>
   ) : data ? (
-    <div className="space-y-3">
-      <p className="text-sm font-medium">Esta entrega ya fue revisada.</p>
-      {gradedValue ? <p className="text-2xl font-semibold tabular-nums">{data.grade}<span className="text-sm font-normal text-[hsl(var(--muted-foreground))]"> / 100</span></p> : null}
-      {data.feedback?.trim() ? <p className="whitespace-pre-wrap rounded-md bg-[hsl(var(--muted)/0.6)] p-3 text-sm">{data.feedback}</p> : <p className={MUTED}>Sin comentarios.</p>}
+    <div className="space-y-5">
+      <ReviewSection title="Resultado">
+        <div className="space-y-2 rounded-md bg-[hsl(var(--background))] p-4">
+          <SubmissionStatusBadge status={data.status} />
+          {gradedValue ? <p className="text-3xl font-semibold tabular-nums">{data.grade}<span className="text-sm font-normal text-[hsl(var(--muted-foreground))]"> / 100</span></p> : <p className={MUTED}>Sin calificación numérica.</p>}
+          {data.gradedAt ? <p className={MUTED}>Revisada el {formatShortDate(data.gradedAt)}</p> : null}
+        </div>
+      </ReviewSection>
+      <ReviewSection title="Comentarios">
+        {data.feedback?.trim() ? <p className="whitespace-pre-wrap rounded-md bg-[hsl(var(--background))] p-4 text-sm">{data.feedback}</p> : <p className={MUTED}>Sin comentarios.</p>}
+      </ReviewSection>
     </div>
   ) : null
 

@@ -164,7 +164,8 @@ export function useSubmitAssignment(courseId, lessonId) {
 }
 
 // ---- Grading ----------------------------------------------------------------------
-export const useReviewQueue = () => useRead(['review'], (t) => runly.lms.getReviewQueue({}, t))
+// view: 'pending' (default queue) | 'history' (graded work, newest first).
+export const useReviewQueue = (view = 'pending') => useRead(['review', view], (t) => runly.lms.getReviewQueue(view === 'history' ? { view: 'history' } : {}, t))
 export const useReviewAttempt = (id) => useRead(['review-attempt', id], (t) => runly.lms.getReviewAttempt(id, t), { enabled: Boolean(id), retry: false, refetchOnWindowFocus: false })
 export const useReviewSubmission = (id) => useRead(['review-submission', id], (t) => runly.lms.getReviewSubmission(id, t), { enabled: Boolean(id), retry: false, refetchOnWindowFocus: false })
 

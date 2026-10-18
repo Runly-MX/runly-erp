@@ -25,7 +25,7 @@ function Stat({ label, value }) {
 // Live score while grading: percentage, points and the pass indicator.
 function ScoreSummary({ summary, passingScore, pending }) {
   return (
-    <section aria-label="Resumen de la calificación" className="space-y-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-4">
+    <section aria-label="Resumen de la calificación" className="space-y-3 rounded-md bg-[hsl(var(--background))] p-4">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-3xl font-semibold tabular-nums">{formatPct(summary.pct)}</p>
         <p className={MUTED}>{summary.total} de {summary.max} puntos</p>
