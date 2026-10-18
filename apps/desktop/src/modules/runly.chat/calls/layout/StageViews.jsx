@@ -111,7 +111,7 @@ export function PresentationView({
           <PresentingCard participant={presenter} onStopSharing={onStopSharing} />
         ) : active ? (
           <div className="relative h-full w-full overflow-hidden rounded-3xl bg-black ring-1 ring-white/[0.07]">
-            <ZoomableStage>
+            <ZoomableStage key={active.participant?.identity}>
               <TrackRenderer participant={presenter} source={Track.Source.ScreenShare} fit="contain" />
             </ZoomableStage>
             <span className="pointer-events-none absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium backdrop-blur" style={screenEntries.length > 1 ? { top: "3rem" } : undefined}>

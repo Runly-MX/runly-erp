@@ -71,7 +71,9 @@ export function ZoomableStage({ children, className = "", showControls = true })
         origin: view,
       };
     }
-    if (zoomed || pointers.current.size === 2) event.currentTarget.setPointerCapture?.(event.pointerId);
+    // Always capture so a pointerup outside the box (or window) is still seen;
+    // a missed release left a stale pointer and the next press became a pinch.
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   }
 
   function onPointerMove(event) {
@@ -93,6 +95,7 @@ export function ZoomableStage({ children, className = "", showControls = true })
   }
 
   function onPointerUp(event) {
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
     pointers.current.delete(event.pointerId);
     if (pointers.current.size === 0) gesture.current = null;
     else if (pointers.current.size === 1) {
@@ -127,6 +130,7 @@ export function ZoomableStage({ children, className = "", showControls = true })
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onLostPointerCapture={onPointerUp}
     >
       <div
         className="h-full w-full will-change-transform"
@@ -138,7 +142,14 @@ export function ZoomableStage({ children, className = "", showControls = true })
         {children}
       </div>
       {showControls && (
-        <div className="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded-full bg-black/55 p-1 text-white/85 backdrop-blur">
+        // Presses on the controls must not reach the stage: its pointer capture
+        // would retarget the click away from the buttons and its double-tap
+        // logic would toggle zoom.
+        <div
+          onPointerDown={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          className="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded-full bg-black/55 p-1 text-white/85 backdrop-blur"
+        >
           <button type="button" aria-label="Alejar" disabled={!zoomed} onClick={() => zoomAround(view.scale / 1.5, 0, 0)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/10 disabled:opacity-30">
             <ZoomOut className="h-4 w-4" />
           </button>
