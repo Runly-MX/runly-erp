@@ -81,9 +81,9 @@ export default function CertificateVerifyScreen() {
   const pdfUrl = token ? toAbsoluteUrl(runly.lms.publicCertificatePdfUrl(token), getApiUrl()) : ''
   return (
     <div className="h-dvh overflow-y-auto overscroll-contain">
-      <Brand data={data} loading={query.isLoading} />
+      <Brand data={data} loading={query.isPending} />
       <main className="mx-auto flex max-w-xl flex-col gap-5 px-4 pb-10 pt-6">
-        {query.isLoading ? (
+        {query.isPending || !data ? (
           <>
             <Skeleton className="h-16 w-full rounded-md" />
             <Skeleton className="h-8 w-3/4" />
