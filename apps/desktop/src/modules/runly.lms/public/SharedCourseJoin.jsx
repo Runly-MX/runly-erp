@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@runly/ui'
-import { BookOpen, Building2, Clock, Loader2, LogIn } from 'lucide-react'
+import { BookOpen, Clock, Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 import { HeroBadges, ShareLinkButton } from '../components/course-page/CourseHero.jsx'
 import { CoverHeroLayout, HeroSummary } from '../components/course-page/CoverHeroLayout.jsx'
@@ -11,20 +11,10 @@ import { formatMinutes } from '../lib/lmsLabels.js'
 import { validateIntakeForm } from '../lib/lmsIntake.js'
 import { GuestIntakeFields } from './GuestIntakeFields.jsx'
 import { SharedCourseInviteForm } from './SharedCourseInviteForm.jsx'
+import { CompanyMark } from './SharedPlayerHeader.jsx'
 import { JOIN_FORM_CLASS, PUBLIC_PAGE_CLASS, keepFieldVisible } from './keyboardSafeFocus.js'
 
 const MUTED = 'text-[hsl(var(--muted-foreground))]'
-
-function Company({ company }) {
-  return (
-    <p className="flex items-center gap-2 text-sm text-white/85">
-      {company?.logoUrl
-        ? <img src={company.logoUrl} alt="" className="h-7 w-7 rounded-md bg-white object-contain p-0.5" />
-        : <Building2 className="h-4 w-4" aria-hidden="true" />}
-      <span className="font-medium">{company?.name || 'Curso compartido'}</span>
-    </p>
-  )
-}
 
 function Stats({ course }) {
   const minutes = formatMinutes(course.estimatedMinutes)
@@ -36,10 +26,32 @@ function Stats({ course }) {
   )
 }
 
+// Sticky top bar of the join page: company and course title, plus an "Entrar"
+// jump to the entry form (on phones the form sits right below the hero).
+function JoinTopBar({ data }) {
+  const toForm = () => {
+    const form = document.getElementById('lms-join-form')
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+    form?.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' })
+    setTimeout(() => form?.querySelector('input')?.focus({ preventScroll: true }), reduce ? 0 : 400)
+  }
+  return (
+    <header className="sticky top-0 z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] pt-[env(safe-area-inset-top)]">
+      <div className="mx-auto flex w-full max-w-5xl items-center gap-3 py-2 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-2.5">
+        <CompanyMark company={data.company} />
+        <div className="min-w-0 flex-1">
+          <p className={`truncate text-[11px] font-medium uppercase tracking-wide ${MUTED}`}>{data.company?.name || 'Curso compartido'}</p>
+          <p className="truncate text-sm font-semibold leading-tight sm:text-base">{data.course.title}</p>
+        </div>
+        <Button size="sm" className="shrink-0" onClick={toForm}><LogIn />Entrar</Button>
+      </div>
+    </header>
+  )
+}
+
 function Text({ data }) {
   return (
     <>
-      <Company company={data.company} />
       <HeroBadges level={data.course.level} />
       <h1 className="text-3xl font-bold leading-tight tracking-tight drop-shadow-sm sm:text-4xl">{data.course.title}</h1>
       <HeroSummary text={data.course.summary} />
@@ -104,6 +116,7 @@ export function SharedCourseJoin({ shareToken, data, linkToken = null, onJoined 
   if (!data?.course) return null
   return (
     <div className={PUBLIC_PAGE_CLASS}>
+      <JoinTopBar data={data} />
       <Hero data={data} />
       <main className="mx-auto grid w-full max-w-5xl gap-8 px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="min-w-0 space-y-3">
@@ -125,7 +138,7 @@ export function SharedCourseJoin({ shareToken, data, linkToken = null, onJoined 
         </section>
         {/* Phones: the entry form right after the hero, before the outline. */}
         <aside className="max-lg:order-first">
-          <div className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 lg:sticky lg:top-6">
+          <div id="lms-join-form" className="scroll-mt-20 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 lg:sticky lg:top-20">
             {invite
               ? <SharedCourseInviteForm shareToken={shareToken} linkToken={linkToken} fields={fields} disabled={!lessons.length} onJoined={onJoined} />
               : <OpenJoinForm shareToken={shareToken} fields={fields} disabled={!lessons.length} onJoined={onJoined} />}

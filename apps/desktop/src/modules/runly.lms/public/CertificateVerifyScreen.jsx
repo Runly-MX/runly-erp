@@ -11,7 +11,7 @@ const MUTED = 'text-[hsl(var(--muted-foreground))]'
 
 function Brand({ data, loading }) {
   return (
-    <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+    <header className="sticky top-0 z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] pt-[env(safe-area-inset-top)]">
       <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-3">
         {data?.logoUrl ? (
           <img src={data.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-contain" />

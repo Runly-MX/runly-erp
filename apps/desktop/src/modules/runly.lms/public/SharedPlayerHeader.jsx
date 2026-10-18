@@ -5,7 +5,7 @@ import { Building2, ListTree, LogOut, MoreVertical } from 'lucide-react'
 
 const MUTED = 'text-[hsl(var(--muted-foreground))]'
 
-function CompanyMark({ company }) {
+export function CompanyMark({ company }) {
   return company?.logoUrl
     ? <img src={company.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-md border border-[hsl(var(--border))] bg-white object-contain p-0.5" />
     : (
