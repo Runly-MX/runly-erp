@@ -1,28 +1,26 @@
-import { useState } from 'react'
 import { AdvancedFileViewer, Button, FileVisual, formatBytes, getKindLabel, getFileKind } from '@runly/ui'
 import { Download, Eye, FilePenLine } from 'lucide-react'
-import { useLmsOffice } from '../../hooks/useLmsOffice.js'
+import { useLmsFileViewer } from '../../hooks/useLmsFileViewer.js'
+import { submissionFileInput } from '../../lib/lmsFiles.js'
 import { canOpenInOffice, previewKind } from '../../lib/lmsReview.js'
 
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
-const viewerFile = (file) => ({ id: file.id, originalName: file.name || 'Archivo', mimeType: file.mimeType ?? '', sizeBytes: file.sizeBytes ?? 0, thumbnailUrl: previewKind(file) === 'image' ? file.url : null })
 
-// Files of a submission, one row each: type icon, name, size, preview (images
-// inline, PDFs/video/audio in the shared file viewer), download and, when the
-// instance has Office, «Abrir en Office» (read-only for submissions). URLs are
-// signed by the API, so guest submissions work the same way.
+// Files of a submission, one row each: type icon, name, size, «Abrir» in the
+// shared file viewer (images also inline), download and, when the instance
+// has Office, «Abrir en Office» (read-only for submissions). URLs are signed
+// by the API, so guest submissions work the same way.
 export function SubmissionFileList({ files }) {
-  const office = useLmsOffice()
-  const [viewIndex, setViewIndex] = useState(-1)
+  const viewer = useLmsFileViewer()
   const list = (files ?? []).filter((file) => file?.id)
   if (!list.length) return null
-  const previewable = list.filter((file) => file.url && previewKind(file))
-  const openViewer = (file) => setViewIndex(previewable.findIndex((item) => item.id === file.id))
+  const inputs = list.map(submissionFileInput)
+  const openViewer = (index) => viewer.open(inputs, index)
 
   return (
     <>
       <ul className="divide-y divide-[hsl(var(--border)/0.5)] overflow-hidden rounded-md bg-[hsl(var(--muted)/0.45)]">
-        {list.map((file) => {
+        {list.map((file, index) => {
           const kind = previewKind(file)
           const meta = { originalName: file.name ?? '', mimeType: file.mimeType ?? '' }
           const details = [getKindLabel(getFileKind(meta)), file.sizeBytes ? formatBytes(file.sizeBytes) : null].filter(Boolean).join(' · ')
@@ -35,22 +33,22 @@ export function SubmissionFileList({ files }) {
                   <p className={MUTED}>{file.url ? details : 'Archivo no disponible'}</p>
                 </div>
                 <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-                  {kind && file.url ? (
-                    <Button type="button" variant="outline" size="sm" onClick={() => openViewer(file)}><Eye />Vista previa</Button>
+                  {file.url ? (
+                    <Button type="button" variant="outline" size="sm" onClick={() => openViewer(index)}><Eye />{kind ? 'Vista previa' : 'Abrir'}</Button>
                   ) : null}
                   {file.url ? (
                     <Button asChild variant="outline" size="sm">
                       <a href={file.url} target="_blank" rel="noreferrer" download={file.name || true}><Download />Descargar</a>
                     </Button>
                   ) : null}
-                  {office.enabled && canOpenInOffice(file) ? (
-                    <Button type="button" variant="outline" size="sm" onClick={() => office.open(file.id)}><FilePenLine />Abrir en Office</Button>
+                  {viewer.officeEnabled && canOpenInOffice(file) ? (
+                    <Button type="button" variant="outline" size="sm" onClick={() => viewer.openInOffice(file.id)}><FilePenLine />Abrir en Office</Button>
                   ) : null}
                 </div>
               </div>
               {kind === 'image' && file.url ? (
                 <button
-                  type="button" onClick={() => openViewer(file)} aria-label={`Ampliar ${file.name || 'imagen'}`}
+                  type="button" onClick={() => openViewer(index)} aria-label={`Ampliar ${file.name || 'imagen'}`}
                   className="block w-full overflow-hidden rounded-md bg-[hsl(var(--muted)/0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
                 >
                   <img src={file.url} alt={file.name || 'Imagen entregada'} loading="lazy" className="mx-auto max-h-72 w-auto object-contain" />
@@ -60,17 +58,7 @@ export function SubmissionFileList({ files }) {
           )
         })}
       </ul>
-      <AdvancedFileViewer
-        open={viewIndex >= 0}
-        onOpenChange={(next) => { if (!next) setViewIndex(-1) }}
-        files={previewable.map(viewerFile)}
-        activeIndex={Math.max(0, viewIndex)}
-        onIndexChange={setViewIndex}
-        onResolveSignedUrl={async (file) => previewable.find((item) => item.id === file.id)?.url ?? null}
-        onOpenInOffice={office.enabled ? (file) => office.open(file.id) : null}
-        canOpenInOffice={() => office.enabled}
-        zIndex={10000}
-      />
+      <AdvancedFileViewer {...viewer.props} />
     </>
   )
 }
