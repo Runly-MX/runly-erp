@@ -87,11 +87,14 @@ export default function PurchaseDocumentDetail() {
 
   return (
     <div className="min-h-dvh space-y-5 p-4 md:p-6">
-      <PageHeader compact eyebrow="Compras" title={meta.plural} onBack={() => navigate(`${ROOT}/${kind}`)} backLabel={`Volver a ${meta.plural.toLowerCase()}`} />
+      <PageHeader
+        compact eyebrow={`Compras · ${meta.plural}`} title={`${meta.short} ${doc.number ?? 'sin folio'}`}
+        onBack={() => navigate(`${ROOT}/${kind}`)} backLabel={`Volver a ${meta.plural.toLowerCase()}`}
+        actions={actions.length ? <DocumentActionBar tone="header" kind={kind} doc={doc} actions={actions} onDialog={setDialog} /> : null}
+      />
 
       <DocumentHero kind={kind} doc={doc} facts={factsFor(kind, doc).filter((f) => f.value)}
-        onOpenRef={(ref) => { const path = docPath(ref.type, ref.id); if (path) navigate(path) }}
-        actions={<DocumentActionBar kind={kind} doc={doc} actions={actions} onDialog={setDialog} />} />
+        onOpenRef={(ref) => { const path = docPath(ref.type, ref.id); if (path) navigate(path) }} />
 
       <PolicyAlerts policyCheck={doc.policyCheck} />
 

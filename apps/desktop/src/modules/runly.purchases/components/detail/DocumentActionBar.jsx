@@ -11,9 +11,10 @@ const DONE = {
   cancel: 'Cancelado', reopen: 'Reabierto', convert: 'Orden creada desde la solicitud',
 }
 
-// Renders the actions from lib/document-actions.js on the dark hero: the
-// first primary as a solid white button, one more visible, the rest in a menu.
-export function DocumentActionBar({ kind, doc, actions, onDialog }) {
+// Renders the actions from lib/document-actions.js: the first primary as a
+// solid button, one more visible, the rest in a menu. tone "hero" styles them
+// for the dark document hero; "header" uses the standard buttons (page header).
+export function DocumentActionBar({ kind, doc, actions, onDialog, tone = 'hero' }) {
   const navigate = useNavigate()
   const transition = useTransition(kind, doc.id)
   const [pending, setPending] = useState(null)
@@ -45,13 +46,19 @@ export function DocumentActionBar({ kind, doc, actions, onDialog }) {
   return (
     <>
       {visible.map((action, index) => (
-        <Button key={action.key} disabled={transition.isPending} onClick={() => trigger(action)}
-          className={index === 0 ? 'bg-white text-teal-900 hover:bg-white/90' : 'border border-white/30 bg-white/10 text-white hover:bg-white/20'}>
-          {action.label}
-        </Button>
+        tone === 'header' ? (
+          <Button key={action.key} size="sm" variant={index === 0 ? 'default' : 'outline'} disabled={transition.isPending} onClick={() => trigger(action)}>
+            {action.label}
+          </Button>
+        ) : (
+          <Button key={action.key} disabled={transition.isPending} onClick={() => trigger(action)}
+            className={index === 0 ? 'bg-white text-teal-900 hover:bg-white/90' : 'border border-white/30 bg-white/10 text-white hover:bg-white/20'}>
+            {action.label}
+          </Button>
+        )
       ))}
       {rest.length ? (
-        <span className="text-white [&_button]:h-10 [&_button]:w-10 [&_button]:border [&_button]:border-white/30 [&_button]:bg-white/10 [&_button:hover]:bg-white/20 [&_button:hover]:text-white">
+        <span className={tone === 'header' ? undefined : 'text-white [&_button]:h-10 [&_button]:w-10 [&_button]:border [&_button]:border-white/30 [&_button]:bg-white/10 [&_button:hover]:bg-white/20 [&_button:hover]:text-white'}>
           <ActionMenu label="Más acciones" items={rest.map((a) => ({ label: a.label, onClick: () => trigger(a), variant: a.tone === 'danger' ? 'destructive' : undefined }))} />
         </span>
       ) : null}
