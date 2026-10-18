@@ -43,7 +43,7 @@ export function FolderExplorerBar({ folders, folder, canCreate, canManage, onOpe
               className="flex items-center gap-1 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] pr-1 transition-colors hover:bg-[hsl(var(--muted))]/50"
             >
               <button type="button" onClick={() => onOpen(item.id)} className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left" title={item.name}>
-                <Folder className="h-5 w-5 shrink-0 text-[hsl(var(--primary))]" />
+                <Folder className="h-5 w-5 shrink-0 text-primary" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{item.name}</span>
                   <span className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]">

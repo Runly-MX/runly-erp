@@ -57,7 +57,7 @@ export function CustodyEditableCell({ row, field, label, mono = false, clamp = f
       <span className={`min-w-0 flex-1 ${mono ? 'font-mono text-xs' : ''} ${clamp ? 'line-clamp-2' : ''} ${value ? '' : 'text-[hsl(var(--muted-foreground))]'}`}>
         {value || '—'}
       </span>
-      {edited ? <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[hsl(var(--primary))]" aria-label="Editado a mano" /> : null}
+      {edited ? <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-label="Editado a mano" /> : null}
       <Pencil className="mt-0.5 h-3 w-3 shrink-0 text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
     </button>
   )

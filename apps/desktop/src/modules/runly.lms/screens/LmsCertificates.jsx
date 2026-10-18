@@ -90,7 +90,7 @@ export default function LmsCertificates() {
       id: 'name', header: 'Plantilla', accessorFn: (t) => `${t.name} ${t.title ?? ''}`,
       cell: ({ row }) => (
         <div className="flex min-w-0 items-center gap-3">
-          <span className="h-8 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: isFileTemplate(row.original) ? 'hsl(var(--muted-foreground))' : row.original.accentColor || 'hsl(var(--primary))' }} aria-hidden="true" />
+          <span className="h-8 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: isFileTemplate(row.original) ? 'hsl(var(--muted-foreground))' : row.original.accentColor || 'var(--brand-primary-computed, var(--brand-primary))' }} aria-hidden="true" />
           <div className="min-w-0">
             <p className="truncate font-medium leading-tight">{row.original.name}</p>
             <p className={`${MUTED} truncate`}>{SUBTITLE[row.original.source] ?? row.original.title}</p>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button, ConfirmDialog, EmptyState, ErrorState, Skeleton, SortableList, cn } from '@runly/ui'
-import { Eye, EyeOff, ListChecks, Plus, Trash2, Undo2, X } from 'lucide-react'
+import { Badge, Button, ConfirmDialog, EmptyState, ErrorState, SegmentedControl, Skeleton, SortableList, cn } from '@runly/ui'
+import { ChevronDown, ListChecks, Plus, Trash2, Undo2, X } from 'lucide-react'
 import { useDeleteQuestion, useQuestions, useReorderQuestions, useSaveQuestion } from '../../hooks/useLmsEval.js'
 import { emptyQuestionForm, formToQuestion, promptPreview, questionToForm, validateQuestionForm } from '../../lib/lmsQuestionForm.js'
 import { QuestionForm } from '../QuestionForm.jsx'
@@ -8,10 +8,8 @@ import { QuestionCard } from '../quiz-builder/QuestionCard.jsx'
 import { QuestionPreview } from '../quiz-builder/QuestionPreview.jsx'
 import { QuestionTypePicker } from '../quiz-builder/QuestionTypePicker.jsx'
 
-const PREVIEW_KEY = 'runly.lms.questionPreview'
 const pointsLabel = (points) => `${points} ${Number(points) === 1 ? 'punto' : 'puntos'}`
-const readPreview = () => { try { return localStorage.getItem(PREVIEW_KEY) !== '0' } catch { return true } }
-const writePreview = (value) => { try { localStorage.setItem(PREVIEW_KEY, value ? '1' : '0') } catch { /* storage unavailable */ } }
+const VIEW_OPTIONS = [{ value: 'edit', label: 'Editar' }, { value: 'preview', label: 'Vista del alumno' }]
 
 // Copy of a question for "Duplicar": same content, new option ids.
 function duplicateBody(question) {
@@ -20,9 +18,12 @@ function duplicateBody(question) {
 }
 
 // Questions of a saved quiz lesson, edited inline on the lesson editor page:
-// a drag-and-drop list of cards and a sticky panel with the type picker, the
-// question form and the "Vista del alumno" preview. `onDirtyChange(bool)` tells
-// the page when the open question has unsaved edits.
+// a drag-and-drop list of cards and a sticky panel with the type picker and the
+// question form, with an "Editar / Vista del alumno" toggle. Layout follows the
+// section's own width (container queries), not the viewport: the page also has
+// the curriculum sidebar. Wide: compact list column + editor. Narrow: the list
+// stacks above the editor and collapses while a question is open.
+// `onDirtyChange(bool)` tells the page when the open question has unsaved edits.
 export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange }) {
   const questions = useQuestions(lessonId)
   const save = useSaveQuestion(), remove = useDeleteQuestion(), reorder = useReorderQuestions()
@@ -30,7 +31,8 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
   const [errors, setErrors] = useState({})
   const [toDelete, setToDelete] = useState(null)
   const [pending, setPending] = useState(null) // action waiting for "Descartar cambios"
-  const [preview, setPreview] = useState(readPreview)
+  const [view, setView] = useState('edit') // 'edit' | 'preview'
+  const [listOpen, setListOpen] = useState(true) // only matters when stacked
   const list = questions.data ?? []
   const totalPoints = list.reduce((sum, question) => sum + (Number(question.points) || 0), 0)
   const dirty = Boolean(editing?.form) && JSON.stringify(editing.form) !== JSON.stringify(editing.initial)
@@ -40,11 +42,11 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
   useEffect(() => () => onDirtyChange?.(false), []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const guard = (action) => (dirty ? setPending(() => action) : action())
-  const open = (id, form) => { setErrors({}); setEditing({ id, form, initial: form }) }
-  const startNew = () => guard(() => { setErrors({}); setEditing({ picking: true }) })
-  const pick = (kind) => { const form = emptyQuestionForm(kind); setEditing({ id: null, form, initial: form }) }
+  const open = (id, form) => { setErrors({}); setView('edit'); setListOpen(false); setEditing({ id, form, initial: form }) }
+  const startNew = () => guard(() => { setErrors({}); setListOpen(false); setEditing({ picking: true }) })
+  const pick = (kind) => { const form = emptyQuestionForm(kind); setView('edit'); setEditing({ id: null, form, initial: form }) }
   const select = (question) => { if (editing?.id !== question.id) guard(() => open(question.id, questionToForm(question))) }
-  const togglePreview = () => setPreview((value) => { writePreview(!value); return !value })
+  const close = () => guard(() => { setEditing(null); setListOpen(true) })
 
   async function submit() {
     const next = validateQuestionForm(editing.form)
@@ -53,6 +55,7 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
     try {
       await save.mutateAsync({ id: editing.id, lessonId, ...formToQuestion(editing.form) })
       setEditing(null)
+      setListOpen(true)
     } catch { /* toast shown by the mutation */ }
   }
 
@@ -69,7 +72,7 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
   async function confirmDelete() {
     try {
       await remove.mutateAsync(toDelete.id)
-      if (editing?.id === toDelete.id) setEditing(null)
+      if (editing?.id === toDelete.id) { setEditing(null); setListOpen(true) }
       setToDelete(null)
     } catch { /* toast shown by the mutation */ }
   }
@@ -103,7 +106,7 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
   if (editing?.picking) {
     panel = (
       <>
-        <PanelHeader title="Nueva pregunta" onClose={() => setEditing(null)} />
+        <PanelHeader title="Nueva pregunta" onClose={() => { setEditing(null); setListOpen(true) }} />
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4"><QuestionTypePicker value={null} onChange={pick} /></div>
       </>
     )
@@ -111,25 +114,21 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
     panel = (
       <>
         <PanelHeader
-          title={editing.id ? `Pregunta ${index + 1}` : 'Nueva pregunta'} onClose={() => guard(() => setEditing(null))}
-          action={(
-            <Button type="button" variant="ghost" size="sm" aria-pressed={preview} onClick={togglePreview}>
-              {preview ? <EyeOff /> : <Eye />}{preview ? 'Ocultar vista del alumno' : 'Vista del alumno'}
-            </Button>
-          )}
+          title={editing.id ? `Pregunta ${index + 1}` : 'Nueva pregunta'} onClose={close}
         />
-        <div className={cn('min-h-0 flex-1 overflow-y-auto px-4 py-4', preview && '2xl:grid 2xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] 2xl:gap-5')}>
-          <QuestionForm key={editing.id ?? 'new'} form={editing.form} onChange={(form) => setEditing((current) => ({ ...current, form }))} errors={errors} disabled={readOnly} />
-          {preview ? (
-            <div className="mt-5 border-t border-[hsl(var(--border))] pt-4 2xl:mt-0 2xl:border-l 2xl:border-t-0 2xl:pl-5 2xl:pt-0">
-              <p className="mb-2 text-sm font-semibold">Vista del alumno</p>
-              <QuestionPreview form={editing.form} index={index} />
-            </div>
-          ) : null}
+        <div className="shrink-0 border-b border-[hsl(var(--border))] px-4 py-2">
+          <SegmentedControl options={VIEW_OPTIONS} value={view} onChange={setView} ariaLabel="Modo del editor" className="w-full @md:w-80" />
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          {/* The form stays mounted while previewing so its local state survives. */}
+          <div hidden={view !== 'edit'}>
+            <QuestionForm key={editing.id ?? 'new'} form={editing.form} onChange={(form) => setEditing((current) => ({ ...current, form }))} errors={errors} disabled={readOnly} />
+          </div>
+          {view === 'preview' ? <QuestionPreview form={editing.form} index={index} /> : null}
         </div>
         {!readOnly ? (
-          <div className="flex shrink-0 justify-end gap-2 border-t border-[hsl(var(--border))] px-4 py-3">
-            <Button type="button" variant="outline" onClick={() => guard(() => setEditing(null))}>Cancelar</Button>
+          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[hsl(var(--border))] px-4 py-3">
+            <Button type="button" variant="outline" onClick={close}>Cancelar</Button>
             <Button type="button" onClick={submit} disabled={save.isPending}>{save.isPending ? 'Guardando…' : editing.id ? 'Guardar pregunta' : 'Agregar pregunta'}</Button>
           </div>
         ) : null}
@@ -146,7 +145,7 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
   }
 
   return (
-    <section className="space-y-3 border-t border-[hsl(var(--border))] pt-5" aria-labelledby="lms-quiz-questions">
+    <section className="@container space-y-3 border-t border-[hsl(var(--border))] pt-5" aria-labelledby="lms-quiz-questions">
       <div className="flex flex-wrap items-center gap-2">
         <div className="min-w-0 flex-1">
           <h3 id="lms-quiz-questions" className="text-sm font-semibold">Preguntas</h3>
@@ -157,9 +156,20 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
         {!readOnly ? <Button type="button" variant="outline" size="sm" onClick={startNew}><Plus />Nueva pregunta</Button> : null}
       </div>
       {list.some((question) => question.kind === 'open') ? <Badge variant="secondary">Las respuestas abiertas se califican a mano desde Revisión.</Badge> : null}
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
-        <div className="min-w-0">{listNode}</div>
-        <div className="flex min-w-0 flex-col rounded-md border border-[hsl(var(--border))] lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]">
+      <div className="grid grid-cols-1 items-start gap-4 @4xl:grid-cols-[17.5rem_minmax(0,1fr)] @6xl:grid-cols-[20rem_minmax(0,1fr)]">
+        <div className="min-w-0">
+          {editing ? (
+            <button
+              type="button" onClick={() => setListOpen((value) => !value)} aria-expanded={listOpen}
+              className="flex min-h-10 w-full items-center gap-2 rounded-md border border-[hsl(var(--border))] px-3 text-sm font-medium hover:bg-[hsl(var(--muted)/0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] @4xl:hidden"
+            >
+              <span className="min-w-0 flex-1 text-left">{listOpen ? 'Ocultar preguntas' : `Ver preguntas (${list.length})`}</span>
+              <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', listOpen && 'rotate-180')} aria-hidden="true" />
+            </button>
+          ) : null}
+          <div className={cn(editing && 'mt-2 @4xl:mt-0', editing && !listOpen && 'hidden @4xl:block')}>{listNode}</div>
+        </div>
+        <div className="@container flex min-w-0 flex-col rounded-md border border-[hsl(var(--border))] @4xl:sticky @4xl:top-4 @4xl:max-h-[calc(100dvh-2rem)]">
           {panel}
         </div>
       </div>
@@ -179,11 +189,10 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
   )
 }
 
-function PanelHeader({ title, action, onClose }) {
+function PanelHeader({ title, onClose }) {
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[hsl(var(--border))] px-4 py-2.5">
-      <p className="min-w-0 flex-1 text-sm font-semibold">{title}</p>
-      {action}
+    <div className="flex shrink-0 items-center gap-2 border-b border-[hsl(var(--border))] px-4 py-2.5">
+      <p className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</p>
       <Button type="button" variant="ghost" size="icon-sm" aria-label="Cerrar" title="Cerrar" onClick={onClose}><X /></Button>
     </div>
   )

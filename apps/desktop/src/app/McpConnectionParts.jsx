@@ -33,7 +33,7 @@ export function Panel({ children, className = '' }) {
 }
 
 export function PanelHeader({ icon: Icon, title, subtitle, tone = 'primary' }) {
-  const toneClass = tone === 'warning' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]';
+  const toneClass = tone === 'warning' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-primary/12 text-primary';
   return <div className="flex items-start gap-3 border-b border-[hsl(var(--border))] p-4 sm:p-5">
     <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${toneClass}`}><Icon size={20} aria-hidden="true" /></span>
     <div className="min-w-0">
@@ -80,7 +80,7 @@ function initials(name) {
 }
 
 export function CompanyOption({ company, checked, onChange }) {
-  return <label className={`flex min-h-[56px] cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors ${checked ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)]' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]'}`}>
+  return <label className={`flex min-h-[56px] cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors ${checked ? 'border-primary bg-primary/8' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]'}`}>
     <Checkbox checked={checked} onCheckedChange={onChange} aria-label={company.name} />
     {company.logoUrl ? <img src={company.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-md bg-white object-contain" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white" style={{ backgroundColor: company.primaryColor ?? 'hsl(var(--muted-foreground))' }} aria-hidden="true">{initials(company.name)}</span>}
     <span className="min-w-0 flex-1 truncate text-sm font-medium">{company.name}</span>

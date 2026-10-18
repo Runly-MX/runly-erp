@@ -81,7 +81,7 @@ export function LessonCoverField({ value, onChange, disabled = false, lessonId =
           type="button" disabled={disabled} onClick={pick}
           className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors hover:bg-[hsl(var(--muted)/0.7)] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]"
         >
-          <span className="flex size-12 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"><ImageIcon className="size-6" aria-hidden /></span>
+          <span className="flex size-12 items-center justify-center rounded-full bg-primary/12 text-primary"><ImageIcon className="size-6" aria-hidden /></span>
           <span className="text-sm font-medium">{value ? 'Miniatura guardada' : 'Subir miniatura'}</span>
           <span className="text-xs text-[hsl(var(--muted-foreground))]">
             {value ? 'No se pudo cargar la vista previa.' : 'Si no eliges una, se toma un fotograma del video.'}

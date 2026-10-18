@@ -16,20 +16,21 @@ export function QuestionForm({ form, onChange, errors = {}, disabled = false }) 
   const set = (key) => (event) => onChange({ ...form, [key]: event.target.value })
   const prompt = PROMPT_COPY[form.kind] ?? DEFAULT_PROMPT
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-0 flex-1 space-y-1">
+    <div className="@container space-y-4">
+      {/* Type and points share a row only when the form is wide enough. */}
+      <div className="grid grid-cols-1 items-start gap-3 @md:grid-cols-[minmax(0,1fr)_9rem]">
+        <div className="min-w-0 space-y-1.5">
           <p className="text-sm font-medium">Tipo de pregunta</p>
-          <div className="flex items-center gap-2">
+          <div className="flex min-h-9 flex-wrap items-center gap-x-2 gap-y-1">
             <QuestionKindTag kind={form.kind} className="text-sm text-[hsl(var(--foreground))]" />
             {!disabled ? (
-              <Button type="button" variant="ghost" size="sm" onClick={() => setPicking((value) => !value)} aria-expanded={picking}>
+              <Button type="button" variant="outline" size="sm" onClick={() => setPicking((value) => !value)} aria-expanded={picking}>
                 {picking ? <X /> : <Repeat2 />}{picking ? 'Cerrar' : 'Cambiar tipo'}
               </Button>
             ) : null}
           </div>
         </div>
-        <div className="w-36">
+        <div className="w-full max-w-[9rem]">
           <NumberField
             label="Puntos" required value={form.points} onChange={set('points')} error={errors.points}
             allowNegative={false} allowDecimal={false} min={POINTS.min} max={POINTS.max} disabled={disabled}

@@ -14,7 +14,7 @@ export function PlayerButton({ label, active = false, className, children, ...pr
         "inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2 text-white transition-colors",
         "hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
         "[&_svg]:size-5 [&_svg]:shrink-0",
-        active && "text-[hsl(var(--primary))]",
+        active && "text-primary",
         className,
       )}
       {...props}
@@ -85,7 +85,7 @@ export function ScrubBar({ value, buffered = 0, onChange, onScrubStart, onScrubE
     >
       <div className={cn("relative w-full overflow-hidden rounded-full bg-white/25 transition-[height]", thick || dragging ? "h-1.5" : "h-1 group-hover/scrub:h-1.5 [@media(hover:none)]:h-1.5")}>
         <div className="absolute inset-y-0 left-0 bg-white/40" style={{ width: `${clamp01(buffered) * 100}%` }} />
-        <div className="absolute inset-y-0 left-0 bg-[hsl(var(--primary))]" style={{ width: pct }} />
+        <div className="absolute inset-y-0 left-0 bg-primary" style={{ width: pct }} />
       </div>
       <div
         className={cn(

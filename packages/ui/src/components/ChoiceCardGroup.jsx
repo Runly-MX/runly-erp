@@ -43,7 +43,7 @@ export function ChoiceCardGroup({
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
               "disabled:cursor-not-allowed disabled:opacity-50",
               active
-                ? "border-transparent bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"
+                ? "border-primary bg-primary/12 text-[hsl(var(--foreground))] [&_svg]:text-primary"
                 : "border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted)/0.6)]",
             )}
           >

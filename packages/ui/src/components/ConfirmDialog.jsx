@@ -13,7 +13,7 @@ import { cn } from "../lib/utils.js";
 const TONES = {
   destructive: { tile: "bg-[hsl(var(--destructive))]/12 text-[hsl(var(--destructive))]", button: "destructive" },
   warning: { tile: "bg-amber-500/12 text-amber-600 dark:text-amber-400", button: "default" },
-  primary: { tile: "bg-[hsl(var(--primary))]/12 text-[hsl(var(--primary))]", button: "default" },
+  primary: { tile: "bg-primary/12 text-primary", button: "default" },
 };
 
 // `icon` (a lucide component), `tone` and `size` are optional; without them the

@@ -9,7 +9,7 @@ export function MediaCard({ label, required = false, error, hint, dashed = false
         className={cn(
           'relative aspect-video w-full overflow-hidden rounded-md border bg-[hsl(var(--muted)/0.5)]',
           dashed ? 'border-2 border-dashed border-[hsl(var(--border))]' : 'border-[hsl(var(--border))]',
-          highlighted && 'border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.06)]',
+          highlighted && 'border-primary bg-primary/6',
           error && 'border-[hsl(var(--destructive))]',
           className,
         )}

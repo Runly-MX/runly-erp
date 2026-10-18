@@ -177,7 +177,7 @@ const DialogContent = forwardRef(function DialogContent(
 // lucide component) for the house look; children are then the title and
 // description. Without `icon` it is the plain stacked header.
 const ICON_TONES = {
-  primary: "bg-[hsl(var(--primary))]/12 text-[hsl(var(--primary))]",
+  primary: "bg-primary/12 text-primary",
   warning: "bg-amber-500/12 text-amber-600 dark:text-amber-400",
   destructive: "bg-[hsl(var(--destructive))]/12 text-[hsl(var(--destructive))]",
 };

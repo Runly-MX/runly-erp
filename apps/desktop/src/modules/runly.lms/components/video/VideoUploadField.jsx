@@ -113,7 +113,7 @@ export function VideoUploadField({
   } else if (value) {
     body = (
       <div className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center">
-        <CheckCircle2 className="size-8 text-[hsl(var(--primary))]" aria-hidden />
+        <CheckCircle2 className="size-8 text-primary" aria-hidden />
         <p className="text-sm font-medium">Video listo</p>
         <p className="max-w-full truncate text-xs text-[hsl(var(--muted-foreground))]">{value.fileName || 'Video subido'}</p>
         {media?.error || saved.isError ? <p className="text-xs text-[hsl(var(--muted-foreground))]">La vista previa no está disponible.</p> : null}
@@ -125,7 +125,7 @@ export function VideoUploadField({
         type="button" disabled={disabled} onClick={pick}
         className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center transition-colors hover:bg-[hsl(var(--muted)/0.7)] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]"
       >
-        <span className="flex size-12 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"><Upload className="size-6" aria-hidden /></span>
+        <span className="flex size-12 items-center justify-center rounded-full bg-primary/12 text-primary"><Upload className="size-6" aria-hidden /></span>
         <span className="text-sm font-medium">Subir video</span>
         <span className="text-xs text-[hsl(var(--muted-foreground))]">Arrastra el archivo aquí o haz clic para elegirlo</span>
       </button>

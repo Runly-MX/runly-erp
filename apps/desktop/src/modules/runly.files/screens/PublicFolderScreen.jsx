@@ -95,7 +95,7 @@ export default function PublicFolderScreen() {
                   onClick={() => setFolderId(item.id)}
                   className="flex items-center gap-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 text-left transition-colors hover:bg-[hsl(var(--muted))]/50"
                 >
-                  <Folder className="h-5 w-5 shrink-0 text-[hsl(var(--primary))]" />
+                  <Folder className="h-5 w-5 shrink-0 text-primary" />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</span>
                 </button>
               ))}

@@ -3,7 +3,7 @@ import { Flag } from 'lucide-react'
 import { navState } from '../../lib/lmsAnswers.js'
 
 const STATE_CLASS = {
-  answered: 'border-transparent bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]',
+  answered: 'border-transparent bg-primary/12 text-primary',
   unanswered: 'border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted)/0.6)]',
   flagged: 'border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-300',
 }
@@ -37,7 +37,7 @@ export function QuizNavigator({ questions, answers, flags, current, onGo }) {
         })}
       </ol>
       <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[hsl(var(--muted-foreground))]">
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[hsl(var(--primary)/0.35)]" aria-hidden="true" />Respondida</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-primary/35" aria-hidden="true" />Respondida</span>
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm border border-[hsl(var(--border))]" aria-hidden="true" />Sin responder</span>
         <span className="flex items-center gap-1.5"><Flag className="h-3 w-3 fill-amber-500 text-amber-500" aria-hidden="true" />Revisar después</span>
       </p>

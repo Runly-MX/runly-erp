@@ -18,7 +18,7 @@ function MultipleAnswer({ question, chosen, answer, onAnswer, disabled }) {
         {(question.options ?? []).map((option) => {
           const checked = chosen.includes(option.id)
           return (
-            <li key={option.id} className={cn('rounded-md border px-3.5 py-3', checked ? 'border-transparent bg-[hsl(var(--primary)/0.08)]' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted)/0.4)]')}>
+            <li key={option.id} className={cn('rounded-md border px-3.5 py-3', checked ? 'border-transparent bg-primary/8' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted)/0.4)]')}>
               <CheckboxField
                 id={`lms-q-${question.id}-${option.id}`} label={option.text} checked={checked} disabled={disabled}
                 onChange={() => onAnswer(selectOption(question, answer, option.id))}
