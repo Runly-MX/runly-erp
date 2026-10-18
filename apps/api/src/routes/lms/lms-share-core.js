@@ -25,27 +25,44 @@ export function parseGuestAuthorization(header) {
   return match && GUEST_TOKEN_RE.test(match[1]) ? match[1] : null
 }
 
+// Evaluation switches whose default follows the access mode: invited guests see
+// the whole course (quizzes and assignments on), open links leave them off.
+// A stored boolean always wins over the default.
+const EVAL_KEYS = ['allowQuizzes', 'allowAssignments']
+const plainObject = (raw) => (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {})
+
 export function normalizeShareSettings(raw) {
-  const value = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
+  const value = plainObject(raw)
+  const accessMode = ACCESS_MODES.includes(value.accessMode) ? value.accessMode : 'open'
+  const evalFlag = (key) => (typeof value[key] === 'boolean' ? value[key] : accessMode === 'invite')
   return {
     scope: value.scope === 'preview' ? 'preview' : 'all',
-    allowQuizzes: value.allowQuizzes === true,
+    allowQuizzes: evalFlag('allowQuizzes'),
+    allowAssignments: evalFlag('allowAssignments'),
     issueCertificates: value.issueCertificates === true,
-    accessMode: ACCESS_MODES.includes(value.accessMode) ? value.accessMode : 'open',
+    accessMode,
     intakeFields: readIntakeFields(value.intakeFields),
   }
 }
 
-// PUT /lms/courses/:id/share body. Missing keys keep the current settings.
+// PUT /lms/courses/:id/share body. Missing keys keep the current settings. The
+// evaluation switches are stored only once set explicitly, so an unset one keeps
+// following the access mode default.
 export function normalizeShareInput(body = {}, current = {}) {
-  const base = normalizeShareSettings(current)
+  const raw = plainObject(current)
+  const base = normalizeShareSettings(raw)
   if (body.scope !== undefined && !SHARE_SCOPES.includes(body.scope)) throw new LmsError('Alcance inválido.', 400)
   if (body.accessMode !== undefined && !ACCESS_MODES.includes(body.accessMode)) throw new LmsError('Modo de acceso inválido.', 400)
+  const evalFlags = {}
+  for (const key of EVAL_KEYS) {
+    if (body[key] !== undefined) evalFlags[key] = body[key] === true
+    else if (typeof raw[key] === 'boolean') evalFlags[key] = raw[key]
+  }
   return {
     enabled: body.enabled === undefined ? null : body.enabled === true,
     settings: {
       scope: body.scope ?? base.scope,
-      allowQuizzes: body.allowQuizzes === undefined ? base.allowQuizzes : body.allowQuizzes === true,
+      ...evalFlags,
       issueCertificates: body.issueCertificates === undefined ? base.issueCertificates : body.issueCertificates === true,
       accessMode: body.accessMode ?? base.accessMode,
       intakeFields: body.intakeFields === undefined ? base.intakeFields : normalizeIntakeFields(body.intakeFields),
@@ -87,11 +104,11 @@ export function isOpenPreview(lesson) {
   return isPreviewMarked(lesson)
 }
 
-// Lessons a guest may open: never assignments, quizzes only when allowed and,
+// Lessons a guest may open: quizzes and assignments only when allowed and,
 // with scope `preview`, only preview lessons and lessons in free sections.
 export function isSharedLesson(lesson, settings) {
   if (!lesson || lesson.enabled === false) return false
-  if (lesson.kind === 'assignment') return false
+  if (lesson.kind === 'assignment' && !settings.allowAssignments) return false
   if (lesson.kind === 'quiz' && !settings.allowQuizzes) return false
   return settings.scope === 'all' || isPreviewMarked(lesson)
 }

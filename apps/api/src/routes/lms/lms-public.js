@@ -6,6 +6,7 @@ import { createLmsCertService } from './lms-cert-service.js'
 import { createLmsGuestService } from './lms-guest-service.js'
 import { registerLmsSharePublicRoutes } from './lms-share-public.js'
 import { createLmsHls } from './lms-hls.js'
+import { createLmsMedia } from './lms-media.js'
 
 const clientKey = (c) => c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'local'
 
@@ -28,7 +29,8 @@ export function createLmsPublicRouter({
   const app = new Hono()
   const certs = service ?? createLmsCertService({ prisma, signFile })
   const hlsManifest = supabaseAdmin ? createLmsHls({ prisma, supabaseAdmin, bucket }).manifestFor : null
-  const guest = guestService ?? createLmsGuestService({ prisma, signFile, hlsManifest, notificationService })
+  const media = supabaseAdmin ? createLmsMedia({ prisma, supabaseAdmin, bucket }) : null
+  const guest = guestService ?? createLmsGuestService({ prisma, signFile, hlsManifest, notificationService, media })
 
   app.use('/public/lms/certificates/*', async (c, next) => {
     const result = limiter.consume(clientKey(c))

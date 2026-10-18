@@ -23,6 +23,12 @@ function createGuestApi(request) {
     getAttempt: (shareToken, attemptId, guestToken) => call('GET', `${base(shareToken)}/attempts/${id(attemptId)}`, guestToken),
     saveAnswers: (shareToken, attemptId, answers, guestToken) => call('PUT', `${base(shareToken)}/attempts/${id(attemptId)}/answers`, guestToken, { answers }),
     submitAttempt: (shareToken, attemptId, answers, guestToken) => call('POST', `${base(shareToken)}/attempts/${id(attemptId)}/submit`, guestToken, answers === undefined ? {} : { answers }),
+    // Assignments (when the link allows them). data: { text, fileIds }.
+    listSubmissions: (shareToken, lessonId, guestToken) => call('GET', `${base(shareToken)}/lessons/${id(lessonId)}/submissions`, guestToken),
+    submitAssignment: (shareToken, lessonId, data, guestToken) => call('POST', `${base(shareToken)}/lessons/${id(lessonId)}/submissions`, guestToken, data ?? {}),
+    // Submission files: presign ({ fileName, mimeType, sizeBytes }) -> PUT uploadUrl -> confirm.
+    presignUpload: (shareToken, data, guestToken) => call('POST', `${base(shareToken)}/uploads/presign`, guestToken, data ?? {}),
+    confirmUpload: (shareToken, fileId, guestToken) => call('POST', `${base(shareToken)}/uploads/${id(fileId)}/confirm`, guestToken, {}),
   }
 }
 

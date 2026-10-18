@@ -126,12 +126,35 @@ export function useSubmitAttempt(courseId, lessonId) {
   })
 }
 
-export const useSubmissions = (lessonId) => useRead(['submissions', lessonId], (t) => runly.lms.listSubmissions(lessonId, t), { enabled: Boolean(lessonId), retry: false })
+// Assignment transport, same idea as the quiz one: the public share page
+// provides { listSubmissions, submit, presignUpload, confirmUpload } for guests.
+export const LmsAssignmentSourceContext = createContext(null)
+
+export function useAssignmentApi() {
+  const source = useContext(LmsAssignmentSourceContext)
+  const token = useToken()
+  if (source) return { ...source, ready: true }
+  return {
+    ready: Boolean(token),
+    listSubmissions: (lessonId) => runly.lms.listSubmissions(lessonId, token),
+    submit: (lessonId, data) => runly.lms.submitAssignment(lessonId, data, token),
+    presignUpload: (data) => runly.lms.presignUpload(data, token),
+    confirmUpload: (fileId) => runly.lms.confirmUpload(fileId, token),
+  }
+}
+
+export function useSubmissions(lessonId) {
+  const api = useAssignmentApi()
+  return useQuery({
+    queryKey: [KEY, 'submissions', lessonId], queryFn: async () => unwrap(await api.listSubmissions(lessonId)),
+    enabled: api.ready && Boolean(lessonId), retry: false,
+  })
+}
 
 export function useSubmitAssignment(courseId, lessonId) {
-  const token = useToken(), client = useQueryClient()
+  const api = useAssignmentApi(), client = useQueryClient()
   return useMutation({
-    mutationFn: async (data) => unwrap(await runly.lms.submitAssignment(lessonId, data, token)),
+    mutationFn: async (data) => unwrap(await api.submit(lessonId, data)),
     onSuccess: () => {
       refreshLearner(client, courseId, lessonId, { lessonStatus: 'pending_review' })
       toast.success('Entrega enviada. Te avisaremos cuando la revisen.')

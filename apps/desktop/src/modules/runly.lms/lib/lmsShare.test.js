@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { absoluteShareUrl, promoLessonOptions, readGuestToken, validateJoinForm, writeGuestToken } from './lmsShare.js'
+import { absoluteShareUrl, guestCapabilities, promoLessonOptions, readGuestToken, validateJoinForm, writeGuestToken } from './lmsShare.js'
 
 function memoryStorage() {
   const map = new Map()
@@ -34,4 +34,14 @@ test('share url and promo options', () => {
     { title: 'Dos', free: false, lessons: [{ id: '3', kind: 'embed', title: 'YT', preview: true }, { id: '4', kind: 'video', title: 'Privado' }] },
   ])
   assert.deepEqual(options.map((o) => o.value), ['none', '1', '3'])
+})
+
+test('guest capabilities follow the quiz, assignment and certificate switches', () => {
+  const invite = guestCapabilities({ accessMode: 'invite', allowQuizzes: true, allowAssignments: true, issueCertificates: false })
+  assert.ok(invite.can.includes('Presentar los exámenes'))
+  assert.ok(invite.can.some((item) => item.startsWith('Entregar tareas')))
+  assert.ok(invite.cannot.includes('Certificado, salvo que lo permitas'))
+  const open = guestCapabilities({ accessMode: 'open', allowQuizzes: false, allowAssignments: false })
+  assert.ok(open.cannot.includes('Tareas, salvo que las permitas'))
+  assert.ok(open.cannot.includes('Exámenes, salvo que los permitas'))
 })

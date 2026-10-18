@@ -1,5 +1,6 @@
 // runly.lms assignments, learner side: submission history, submit, and the
-// learner upload flow for submission files.
+// learner upload flow for submission files. Share-link guests reuse it with
+// their guest context in place of the profile id (see GUEST_OWNER).
 import { LmsError } from './lms-core.js'
 import { assignmentDueAt, normalizeAssignmentSettings, validateSubmission } from './lms-eval-core.js'
 import { serializeSubmissions } from './lms-eval-shared.js'
@@ -9,7 +10,23 @@ import { setLessonOutcome, TX_OPTS } from './lms-progress.js'
 
 const notAssignment = () => new LmsError('La lección no es una tarea.', 409, 'NOT_ASSIGNMENT')
 
-export function createLmsAssignmentService({ prisma, learn, media, notifier, signFile = null }) {
+// Who owns uploads and who acts, from the learner argument. Internal learners
+// pass their profile id; guests have no profile, so their files carry
+// metadata.guestLearnerId and notifications go out without an actor.
+export const PROFILE_OWNER = {
+  actorId: (profileId) => profileId,
+  uploadedById: (profileId) => profileId,
+  metadata: () => null,
+  ownsFile: () => true,
+}
+export const GUEST_OWNER = {
+  actorId: () => null,
+  uploadedById: () => null,
+  metadata: (guest) => ({ guestLearnerId: guest.learner.id }),
+  ownsFile: (row, guest) => row.metadata?.guestLearnerId === guest.learner.id,
+}
+
+export function createLmsAssignmentService({ prisma, learn, media, notifier, signFile = null, owner = PROFILE_OWNER }) {
   const ser = createLmsSerializers({ prisma, signFile })
 
   async function assignmentContext(companyId, profileId, lessonId, { canManage = false, write = false } = {}) {
@@ -37,10 +54,10 @@ export function createLmsAssignmentService({ prisma, learn, media, notifier, sig
   async function assertOwnFiles(companyId, profileId, fileIds) {
     if (!fileIds.length) return
     const rows = await prisma.fileAsset.findMany({
-      where: { id: { in: fileIds }, enabled: true, moduleKey: 'runly.lms', entityType: 'LmsSubmission', uploadedById: profileId },
+      where: { id: { in: fileIds }, enabled: true, moduleKey: 'runly.lms', entityType: 'LmsSubmission', uploadedById: owner.uploadedById(profileId) },
       select: { id: true, metadata: true },
     })
-    const ok = rows.filter((row) => row.metadata?.companyId === companyId && row.metadata?.pending !== true)
+    const ok = rows.filter((row) => row.metadata?.companyId === companyId && row.metadata?.pending !== true && owner.ownsFile(row, profileId))
     if (ok.length !== fileIds.length) throw new LmsError('Un archivo no existe o no terminó de subirse.', 400, 'INVALID_FILE')
   }
 
@@ -77,7 +94,7 @@ export function createLmsAssignmentService({ prisma, learn, media, notifier, sig
     }
     await notifier.received({
       companyId,
-      actorId: profileId,
+      actorId: owner.actorId(profileId),
       course,
       lesson,
       learnerName: enrollment.learner?.displayName ?? 'Un alumno',
@@ -87,8 +104,12 @@ export function createLmsAssignmentService({ prisma, learn, media, notifier, sig
     return { ...(await serializeSubmissions([row], ser))[0], lessonStatus }
   }
 
-  const presignUpload = (companyId, profileId, body) => media.presign(companyId, profileId, body, SUBMISSION_UPLOAD)
-  const confirmUpload = (companyId, profileId, fileId) => media.confirm(companyId, fileId, { entityType: SUBMISSION_UPLOAD.entityType, uploadedById: profileId })
+  const presignUpload = (companyId, profileId, body) => media.presign(companyId, owner.uploadedById(profileId), body, SUBMISSION_UPLOAD, owner.metadata(profileId))
+  const confirmUpload = (companyId, profileId, fileId) => media.confirm(companyId, fileId, {
+    entityType: SUBMISSION_UPLOAD.entityType,
+    uploadedById: owner.uploadedById(profileId),
+    ...(owner.metadata(profileId) ?? {}),
+  })
 
   return { listSubmissions, submit, presignUpload, confirmUpload }
 }

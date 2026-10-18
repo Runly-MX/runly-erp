@@ -46,4 +46,10 @@ export function registerLmsSharePublicRoutes(app, { guest, limiter, joinLimiter,
   app.get(`${base}/attempts/:attemptId`, run('No se pudo cargar el intento.', (c) => guest.getAttempt(token(c), auth(c), c.req.param('attemptId'))))
   app.put(`${base}/attempts/:attemptId/answers`, run('No se pudieron guardar las respuestas.', async (c) => guest.saveAnswers(token(c), auth(c), c.req.param('attemptId'), await body(c))))
   app.post(`${base}/attempts/:attemptId/submit`, run('No se pudo enviar el examen.', async (c) => guest.submitAttempt(token(c), auth(c), c.req.param('attemptId'), await body(c))))
+
+  // Assignments (when the link allows them): history, submit and file uploads.
+  app.get(`${base}/lessons/:lessonId/submissions`, run('No se pudieron cargar tus entregas.', (c) => guest.listSubmissions(token(c), auth(c), c.req.param('lessonId'))))
+  app.post(`${base}/lessons/:lessonId/submissions`, run('No se pudo enviar la tarea.', async (c) => guest.submitAssignment(token(c), auth(c), c.req.param('lessonId'), await body(c)), 201))
+  app.post(`${base}/uploads/presign`, run('No se pudo preparar la subida.', async (c) => guest.presignUpload(token(c), auth(c), await body(c))))
+  app.post(`${base}/uploads/:fileId/confirm`, run('No se pudo confirmar la subida.', (c) => guest.confirmUpload(token(c), auth(c), c.req.param('fileId'))))
 }

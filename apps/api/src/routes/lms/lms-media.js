@@ -46,7 +46,9 @@ export const validateVideoUpload = (body) => validateUpload(body, VIDEO_UPLOAD)
 export function createLmsMedia({ prisma, supabaseAdmin, bucket }) {
   const hls = createLmsHls({ prisma, supabaseAdmin, bucket })
 
-  async function presign(companyId, actorId, body, purpose = VIDEO_UPLOAD) {
+  // extraMetadata: kept on the asset (guests have no profile, so their uploads
+  // carry `guestLearnerId` as the owner).
+  async function presign(companyId, actorId, body, purpose = VIDEO_UPLOAD, extraMetadata = null) {
     const { name, type, size } = validateUpload(body, purpose)
     const ext = (name.includes('.') ? name.split('.').pop() : purpose.defaultExt).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || purpose.defaultExt
     const objectKey = `modules/runly-lms/${purpose.folder}/${companyId}/${Date.now()}-${crypto.randomBytes(6).toString('hex')}.${ext}`
@@ -68,17 +70,19 @@ export function createLmsMedia({ prisma, supabaseAdmin, bucket }) {
         entityId: companyId,
         accessScope: 'COMPANY',
         uploadedById: actorId,
-        metadata: { companyId, pending: true },
+        metadata: { ...(extraMetadata ?? {}), companyId, pending: true },
       },
     })
     return { fileId: asset.id, uploadUrl: data.signedUrl, token: data.token }
   }
 
-  // owner: { entityType, uploadedById } limits confirmation to the uploader (learners).
+  // owner: { entityType, uploadedById, guestLearnerId? } limits confirmation to
+  // the uploader (learners; guests by metadata.guestLearnerId).
   async function confirm(companyId, fileId, owner = null) {
     const asset = await prisma.fileAsset.findFirst({ where: { id: fileId, moduleKey: 'runly.lms', enabled: true } })
     if (!asset || asset.metadata?.companyId !== companyId) throw new LmsError('El archivo no existe.', 404)
     if (owner && (asset.entityType !== owner.entityType || asset.uploadedById !== owner.uploadedById)) throw new LmsError('El archivo no existe.', 404)
+    if (owner?.guestLearnerId && asset.metadata?.guestLearnerId !== owner.guestLearnerId) throw new LmsError('El archivo no existe.', 404)
     // HLS packages are lesson media only; learners never confirm one.
     if (asset.metadata?.hls) {
       if (owner) throw new LmsError('El archivo no existe.', 404)

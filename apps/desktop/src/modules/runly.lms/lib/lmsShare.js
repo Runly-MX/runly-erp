@@ -2,7 +2,7 @@
 // course page promo video. Browser storage is always wrapped in try/catch.
 
 export const SCOPE_OPTIONS = [
-  { value: 'all', label: 'Todo el curso', description: 'Todas las lecciones, excepto tareas.' },
+  { value: 'all', label: 'Todo el curso', description: 'Todas las lecciones. Exámenes y tareas según las opciones de abajo.' },
   { value: 'preview', label: 'Solo lecciones marcadas como vista previa', description: 'Lecciones marcadas como vista previa y las de secciones gratis.' },
 ]
 
@@ -75,3 +75,20 @@ export function promoAsLesson(promo) {
 // Guest outline key in the lms query cache: lets the shared quiz components
 // patch the guest outline like an internal one.
 export const guestCourseKey = (shareToken) => `guest:${shareToken}`
+
+// "What guests can do" lists of the share dialog, from the link settings.
+export function guestCapabilities(settings = {}) {
+  const invite = settings.accessMode === 'invite'
+  const can = [
+    'Ver los videos, textos, enlaces y documentos compartidos',
+    invite ? 'Continuar desde cualquier dispositivo con su correo y código' : 'Guardar su avance en este navegador',
+  ]
+  const cannot = ['Preguntas, reseñas, anuncios ni recursos descargables']
+  if (settings.allowQuizzes) can.push('Presentar los exámenes')
+  else cannot.push('Exámenes, salvo que los permitas')
+  if (settings.allowAssignments) can.push(invite ? 'Entregar tareas y recibir un correo cuando se califiquen' : 'Entregar tareas')
+  else cannot.push('Tareas, salvo que las permitas')
+  if (settings.issueCertificates) can.push('Descargar su certificado al completar')
+  else cannot.push('Certificado, salvo que lo permitas')
+  return { can, cannot }
+}

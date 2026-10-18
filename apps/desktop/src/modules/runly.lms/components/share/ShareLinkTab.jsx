@@ -3,15 +3,10 @@ import { Alert, AlertDescription, Button, CheckboxField, Input, RadioGroupField,
 import { Check, Copy, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { ACCESS_MODE_OPTIONS } from '../../lib/lmsIntake.js'
-import { SCOPE_OPTIONS, absoluteShareUrl } from '../../lib/lmsShare.js'
+import { SCOPE_OPTIONS, absoluteShareUrl, guestCapabilities } from '../../lib/lmsShare.js'
 
-const CANNOT = ['Preguntas, reseñas, anuncios ni recursos descargables', 'Tareas', 'Exámenes ni certificado, salvo que los permitas abajo']
-
-function Rules({ invite }) {
-  const can = [
-    'Ver los videos, textos, enlaces y documentos compartidos',
-    invite ? 'Continuar desde cualquier dispositivo con su correo y código' : 'Guardar su avance en este navegador',
-  ]
+function Rules({ settings }) {
+  const { can, cannot } = guestCapabilities(settings)
   return (
     <div className="grid gap-3 rounded-md bg-[hsl(var(--muted)/0.6)] p-3 text-sm sm:grid-cols-2">
       <div>
@@ -20,14 +15,14 @@ function Rules({ invite }) {
       </div>
       <div>
         <p className="mb-1 font-medium">No tienen</p>
-        <ul className="list-disc space-y-0.5 pl-4 text-[hsl(var(--muted-foreground))]">{CANNOT.map((item) => <li key={item}>{item}</li>)}</ul>
+        <ul className="list-disc space-y-0.5 pl-4 text-[hsl(var(--muted-foreground))]">{cannot.map((item) => <li key={item}>{item}</li>)}</ul>
       </div>
     </div>
   )
 }
 
 // "Enlace" tab of the share dialog: on/off, access mode, scope, quizzes,
-// certificates and the link itself. Every change saves at once.
+// assignments, certificates and the link itself. Every change saves at once.
 export function ShareLinkTab({ data, busy, onSave }) {
   const [copied, setCopied] = useState(false)
   const settings = data.settings
@@ -63,10 +58,19 @@ export function ShareLinkTab({ data, busy, onSave }) {
         onChange={(scope) => { if (!busy) onSave({ scope }) }}
         hint="Marca lecciones como vista previa en el editor de cada lección, o marca secciones completas como gratis."
       />
-      <CheckboxField
-        label="Permitir exámenes" hint="Los invitados presentan los exámenes compartidos. Las respuestas abiertas llegan a Revisión con su nombre."
-        checked={settings.allowQuizzes} disabled={busy} onChange={(event) => onSave({ allowQuizzes: event.target.checked })}
-      />
+      <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <CheckboxField
+            label="Permitir exámenes" hint="Los invitados presentan los exámenes compartidos. Las respuestas abiertas llegan a Revisión con su nombre."
+            checked={settings.allowQuizzes === true} disabled={busy} onChange={(event) => onSave({ allowQuizzes: event.target.checked })}
+          />
+          <CheckboxField
+            label="Permitir tareas" hint="Los invitados entregan las tareas con texto o archivos. Llegan a Revisión con su nombre."
+            checked={settings.allowAssignments === true} disabled={busy} onChange={(event) => onSave({ allowAssignments: event.target.checked })}
+          />
+        </div>
+        {invite ? <p className="text-xs text-[hsl(var(--muted-foreground))]">En cursos por invitación, los invitados ven el curso completo.</p> : null}
+      </div>
       <CheckboxField
         label="Emitir certificado al completar (requiere plantilla)"
         hint={data.hasCertificateTemplate
@@ -89,7 +93,7 @@ export function ShareLinkTab({ data, busy, onSave }) {
           {invite ? <p className="text-xs text-[hsl(var(--muted-foreground))]">Sin invitación nadie entra: aquí se pide el correo y el código de acceso.</p> : null}
         </div>
       ) : null}
-      <Rules invite={invite} />
+      <Rules settings={settings} />
     </div>
   )
 }

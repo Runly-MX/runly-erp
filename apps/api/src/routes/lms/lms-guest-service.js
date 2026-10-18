@@ -10,6 +10,7 @@ import { createLmsNotifier } from './lms-notify.js'
 import { LESSON_THUMB_VARIANT } from './lms-overview-service.js'
 import { TX_OPTS } from './lms-progress.js'
 import { createLmsQuizService } from './lms-quiz-service.js'
+import { GUEST_OWNER, createLmsAssignmentService } from './lms-assignment-service.js'
 import { createLmsSerializers } from './lms-serialize.js'
 import { loadPromo } from './lms-promo.js'
 import { createLmsGuestAccess } from './lms-guest-access.js'
@@ -33,18 +34,24 @@ const lessonGone = () => new LmsError('La lección no existe.', 404)
 const inviteOnly = () => new LmsError('Este curso es solo por invitación. Entra con el enlace y el código que recibiste por correo.', 403, 'INVITE_ONLY')
 const TOUCH_MS = 10 * 60_000
 
-// learn / quiz: optional overrides (tests). attemptGuard: failed access-code
-// counter (lms-invite-core createAttemptGuard).
-export function createLmsGuestService({ prisma, signFile = null, hlsManifest = null, notificationService = null, learn = null, quiz = null, attemptGuard = undefined }) {
+// learn / quiz / assignment: optional overrides (tests). media: createLmsMedia
+// (guest submission uploads). attemptGuard: failed access-code counter
+// (lms-invite-core createAttemptGuard).
+export function createLmsGuestService({
+  prisma, signFile = null, hlsManifest = null, notificationService = null, media = null, learn = null, quiz = null, assignment = null, attemptGuard = undefined,
+}) {
   const ser = createLmsSerializers({ prisma, signFile })
   const sign = (fileId, variant) => ser.sign(fileId, variant).catch(() => null)
   const learnSvc = learn ?? createLmsLearnService({ prisma, signFile, hlsManifest })
+  const notifier = createLmsNotifier({ notificationService })
+  // The quiz and assignment services ask for a lesson context with the guest in place of the profile id.
+  const guestLearn = { lessonContext: (_companyId, guest, lessonId) => lessonContext(guest, lessonId) }
+  const assignmentSvc = assignment ?? createLmsAssignmentService({ prisma, learn: guestLearn, media, notifier, signFile, owner: GUEST_OWNER })
   const quizSvc = quiz ?? createLmsQuizService({
     prisma,
     signFile,
-    notifier: createLmsNotifier({ notificationService }),
-    // The quiz service asks for a lesson context with the guest in place of the profile id.
-    learn: { lessonContext: (_companyId, guest, lessonId) => lessonContext(guest, lessonId) },
+    notifier,
+    learn: guestLearn,
     ownsAttempt: (row, guest) => Boolean(guest?.enrollment) && row.enrollmentId === guest.enrollment.id && guest.sharedIds.has(row.lessonId),
   })
 
@@ -283,5 +290,45 @@ export function createLmsGuestService({ prisma, signFile = null, hlsManifest = n
     return withGuestEnrollment(await quizSvc.submitAttempt(guest.course.companyId, guest, attemptId(id), body))
   }
 
-  return { summary, join, access: access.access, me, openLesson, saveProgress, getQuiz, startAttempt, getAttempt, saveAnswers, submitAttempt, lessonContext, createGuestLearner }
+  // ---- assignments (only when the link allows them) ---------------------------
+  // Same rules as internal learners (due date, late flag, pending review, lesson
+  // outcome); uploads are owned by the guest learner (FileAsset metadata).
+  async function assignmentGuest(token, authorization) {
+    const guest = await loadGuest(token, authorization)
+    if (!guest.settings.allowAssignments) throw new LmsError('Las tareas no están disponibles en este enlace.', 404, 'ASSIGNMENTS_DISABLED')
+    return guest
+  }
+
+  const uploadsReady = () => {
+    if (!media && !assignment) throw new LmsError('La subida de archivos no está disponible.', 503)
+  }
+
+  async function listSubmissions(token, authorization, lessonId) {
+    const guest = await assignmentGuest(token, authorization)
+    return assignmentSvc.listSubmissions(guest.course.companyId, guest, lessonId)
+  }
+
+  async function submitAssignment(token, authorization, lessonId, body) {
+    const guest = await assignmentGuest(token, authorization)
+    return assignmentSvc.submit(guest.course.companyId, guest, lessonId, body)
+  }
+
+  async function presignUpload(token, authorization, body) {
+    const guest = await assignmentGuest(token, authorization)
+    uploadsReady()
+    const { fileId, uploadUrl } = await assignmentSvc.presignUpload(guest.course.companyId, guest, body)
+    return { fileId, uploadUrl }
+  }
+
+  async function confirmUpload(token, authorization, fileId) {
+    const guest = await assignmentGuest(token, authorization)
+    uploadsReady()
+    if (!isUuid(fileId)) throw new LmsError('El archivo no existe.', 404)
+    return assignmentSvc.confirmUpload(guest.course.companyId, guest, fileId)
+  }
+
+  return {
+    summary, join, access: access.access, me, openLesson, saveProgress, getQuiz, startAttempt, getAttempt, saveAnswers, submitAttempt,
+    listSubmissions, submitAssignment, presignUpload, confirmUpload, lessonContext, createGuestLearner,
+  }
 }

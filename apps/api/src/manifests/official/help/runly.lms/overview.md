@@ -94,8 +94,10 @@ En **Certificados** creas plantillas con un título, un texto, quién firma (nom
 - Si el envío de correo no está configurado, la invitación se crea igual y Runly te muestra el enlace y el código para que los envíes tú. El código solo se muestra en ese momento.
 - Tras varios códigos incorrectos seguidos, la invitación se bloquea unos minutos.
 
-- **Qué se comparte:** todo el curso, o solo las lecciones en vista previa y las de secciones gratis. Las tareas nunca se comparten.
+- **Qué se comparte:** todo el curso, o solo las lecciones en vista previa y las de secciones gratis. Los exámenes y las tareas dependen de las dos opciones siguientes.
 - **Permitir exámenes:** los invitados presentan los exámenes compartidos; las respuestas abiertas llegan a **Revisión** con su nombre.
+- **Permitir tareas:** los invitados entregan las tareas con texto o archivos, con la misma fecha de entrega y las mismas reglas que tus alumnos. Las entregas llegan a **Revisión** con su nombre y «(invitado)». Si el invitado llegó por correo y el envío de correo está configurado, recibe un aviso cuando calificas su tarea o examen.
+- En cursos **solo por invitación**, exámenes y tareas vienen activados: los invitados ven el curso completo. Puedes desactivarlos. Con el enlace abierto vienen desactivados.
 - **Emitir certificado al completar:** requiere que el curso tenga plantilla. El certificado lleva el nombre que escribió el invitado y se descarga al terminar. Las plantillas de Word, PowerPoint o PDF pueden imprimir sus datos del formulario con `{{empresa_alumno}}`, `{{numero_empleado}}`, `{{puesto}}` y `{{campo_<clave>}}` para los campos personalizados (la clave se ve en la pestaña Formulario).
 - Los invitados no tienen preguntas, reseñas, anuncios ni recursos descargables. Con el enlace abierto su avance se guarda en su navegador; **No soy…** empieza de nuevo con otro nombre.
 - En **Alumnos** aparecen con la etiqueta **Invitado**; el botón de ficha muestra lo que respondieron en el formulario y **Exportar invitados** descarga un CSV con sus datos, avance y folio de certificado. Puedes darlos de baja.

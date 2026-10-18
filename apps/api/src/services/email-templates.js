@@ -408,6 +408,38 @@ export function buildLmsCourseInviteEmail({ courseTitle, inviteUrl, accessCode, 
   return { subject: `Invitación al curso ${courseTitle}${brand?.name ? ` · ${brand.name}` : ""}`, html, text };
 }
 
+// Learning: an invited guest's assignment (or quiz with open answers) was
+// graded. `detail` is the outcome sentence ("tu entrega fue aprobada con 90.").
+export function buildLmsGradedEmail({ courseTitle, lessonTitle, detail, courseUrl, name = null, kind = "submission", brand = null, env = process.env }) {
+  const heading = kind === "attempt" ? "Tu examen fue calificado" : "Tu tarea fue calificada";
+  const hello = name ? `Hola ${escapeHtml(name)},` : "Hola,";
+  const bodyHtml = `
+        <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155">
+          ${hello} el instructor revisó <strong>${escapeHtml(lessonTitle)}</strong> del curso <strong>${escapeHtml(courseTitle)}</strong>: ${escapeHtml(detail)}
+        </p>
+        <p style="margin:0 0 18px 0;font-size:13px;line-height:1.6;color:#64748b">
+          Entra al curso con tu correo y tu código de acceso para ver los comentarios.<br />
+          <span style="word-break:break-all;color:#334155">${escapeHtml(courseUrl)}</span>
+        </p>`;
+  const html = renderRunlyEmailLayout({
+    kicker: "Cursos",
+    heading,
+    bodyHtml,
+    cta: { label: "Abrir el curso", url: courseUrl },
+    footnote: "Recibes este correo porque te invitaron a este curso.",
+    brand,
+    env,
+  });
+  const text = [
+    heading,
+    "",
+    `${name ? `Hola ${name}, ` : ""}el instructor revisó ${lessonTitle} del curso ${courseTitle}: ${detail}`,
+    "",
+    `Abre el curso: ${courseUrl}`,
+  ].join("\n");
+  return { subject: `${heading}: ${courseTitle}${brand?.name ? ` · ${brand.name}` : ""}`, html, text };
+}
+
 // Sent only when the admin opts in (notifyByEmail) after directly creating
 // and activating a user — the account already works, so this is informational,
 // not an invitation the recipient must accept.

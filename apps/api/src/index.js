@@ -2199,7 +2199,7 @@ app.get("/public", (c) => {
       { method: "GET",  path: "/public/lms/share/:token",               auth: "link token", description: "Shared course summary and outline for external guests" },
       { method: "POST", path: "/public/lms/share/:token/join",          auth: "link token", description: "Guest joins a shared course (returns the guest token once)" },
       { method: "POST", path: "/public/lms/share/:token/access",        auth: "link token + access code", description: "Invited guest enters with the emailed access code (invite-only courses)" },
-      { method: "GET",  path: "/public/lms/share/:token/me",            auth: "Guest token", description: "Guest player: enrollment and progress outline (also lessons/:id, progress and quiz attempts)" },
+      { method: "GET",  path: "/public/lms/share/:token/me",            auth: "Guest token", description: "Guest player: enrollment and progress outline (also lessons/:id, progress, quiz attempts, assignment submissions and uploads)" },
       // Storefront auth
       { method: "POST", path: "/public/storefront/auth/register",       auth: "none",       description: "Register a storefront user account" },
       { method: "POST", path: "/public/storefront/auth/login",          auth: "none",       description: "Login and obtain access + refresh tokens" },

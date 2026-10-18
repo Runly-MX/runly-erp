@@ -97,3 +97,13 @@ export function useGuestQuizSource(shareToken, guestToken) {
     submitAttempt: (attemptId, answers) => guestApi().submitAttempt(shareToken, attemptId, answers, guestToken),
   } : null), [shareToken, guestToken])
 }
+
+// Assignment transport for LmsAssignmentSourceContext (see useLmsEval.js).
+export function useGuestAssignmentSource(shareToken, guestToken) {
+  return useMemo(() => (shareToken && guestToken ? {
+    listSubmissions: (lessonId) => guestApi().listSubmissions(shareToken, lessonId, guestToken),
+    submit: (lessonId, data) => guestApi().submitAssignment(shareToken, lessonId, data, guestToken),
+    presignUpload: (data) => guestApi().presignUpload(shareToken, data, guestToken),
+    confirmUpload: (fileId) => guestApi().confirmUpload(shareToken, fileId, guestToken),
+  } : null), [shareToken, guestToken])
+}

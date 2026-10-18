@@ -3,6 +3,7 @@ import { createLmsQuizService } from './lms-quiz-service.js'
 import { createLmsAssignmentService } from './lms-assignment-service.js'
 import { createLmsReviewService } from './lms-review-service.js'
 import { createLmsNotifier } from './lms-notify.js'
+import { createLmsGuestGradeMailer } from './lms-guest-mail.js'
 
 const companyId = (c) => c.get('companyId')
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
@@ -12,12 +13,15 @@ const canManage = (c) => {
   return Boolean(ctx?.isAdmin || ctx?.permissionSet?.has?.('lms.course.manage'))
 }
 
-// services: optional { quiz, assignment, review } overrides (tests).
-export function registerLmsEvalRoutes(app, { prisma, requirePermission, signFile = null, notificationService = null, run, learn, media, services = null }) {
+// services: optional { quiz, assignment, review } overrides (tests). mail: the
+// optional { sendMail, isMailConfigured, getBrand, appBaseUrl } for the invited
+// guest "graded" email.
+export function registerLmsEvalRoutes(app, { prisma, requirePermission, signFile = null, notificationService = null, run, learn, media, services = null, mail = null }) {
   const notifier = createLmsNotifier({ notificationService })
+  const guestMailer = mail?.sendMail ? createLmsGuestGradeMailer({ prisma, ...mail }) : null
   const quiz = services?.quiz ?? createLmsQuizService({ prisma, learn, notifier, signFile })
   const assignment = services?.assignment ?? createLmsAssignmentService({ prisma, learn, media, notifier, signFile })
-  const review = services?.review ?? createLmsReviewService({ prisma, notifier, signFile })
+  const review = services?.review ?? createLmsReviewService({ prisma, notifier, signFile, guestMailer })
   const access = requirePermission('lms.access')
   const courses = requirePermission('lms.course.manage')
   const grade = requirePermission('lms.grade')

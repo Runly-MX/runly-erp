@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Alert, AlertDescription, Badge, Button, ErrorState, FieldWrapper, FileCard, FileUploader, Skeleton, TextareaField } from '@runly/ui'
 import { CalendarClock, Loader2, Send } from 'lucide-react'
-import { useToken } from '../../hooks/useLmsData.js'
-import { useSubmissions, useSubmitAssignment } from '../../hooks/useLmsEval.js'
+import { useAssignmentApi, useSubmissions, useSubmitAssignment } from '../../hooks/useLmsEval.js'
 import { uploadSubmissionFile } from '../../lib/directUpload.js'
 import { ASSIGNMENT_DEFAULTS, SUBMISSION_ACCEPT, SUBMISSION_MAX_MB } from '../../lib/lmsEval.js'
 import { dueLabel } from '../../lib/lmsLabels.js'
@@ -11,7 +10,7 @@ import { SubmissionCard } from './SubmissionCard.jsx'
 const STAGE_LABELS = { uploading: 'Subiendo archivo…', confirming: 'Verificando archivo…' }
 
 function SubmissionForm({ settings, courseId, lessonId, resubmit }) {
-  const token = useToken()
+  const api = useAssignmentApi()
   const submit = useSubmitAssignment(courseId, lessonId)
   const [text, setText] = useState('')
   const [files, setFiles] = useState([])
@@ -24,7 +23,10 @@ function SubmissionForm({ settings, courseId, lessonId, resubmit }) {
     if (selected.length > slots) throw new Error(slots > 0 ? `Puedes adjuntar ${slots} ${slots === 1 ? 'archivo más' : 'archivos más'}.` : 'Ya adjuntaste el máximo de archivos.')
     const uploaded = []
     try {
-      for (const file of selected) uploaded.push(await uploadSubmissionFile(file, token, { onStage: setStage }))
+      // Internal learners and share-link guests upload through their own presign/confirm pair.
+      for (const file of selected) {
+        uploaded.push(await uploadSubmissionFile(file, null, { onStage: setStage, presign: (data) => api.presignUpload(data), confirm: (fileId) => api.confirmUpload(fileId) }))
+      }
     } finally { setStage(null) }
     return uploaded
   }

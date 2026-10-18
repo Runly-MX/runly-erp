@@ -81,7 +81,8 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
   app.patch('/lms/enrollments/:id', enrollments, run('Error al guardar la inscripción.', async (c) => c.json({ data: await svc.updateEnrollment(companyId(c), c.req.param('id'), await body(c)) })))
 
   // ---- evaluation (quizzes, assignments, grading) -------------------------
-  registerLmsEvalRoutes(app, { prisma, requirePermission, signFile, supabaseAdmin, bucket, notificationService, run, learn, media: files, services: evalServices })
+  const mail = sendMail ? { sendMail, isMailConfigured, getBrand, ...(appBaseUrl ? { appBaseUrl } : {}) } : null
+  registerLmsEvalRoutes(app, { prisma, requirePermission, signFile, supabaseAdmin, bucket, notificationService, run, learn, media: files, services: evalServices, mail })
 
   // ---- social (discussion, reviews, announcements) ------------------------
   registerLmsSocialRoutes(app, { prisma, requirePermission, signFile, notificationService, run, service: socialService })

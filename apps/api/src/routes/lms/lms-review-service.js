@@ -23,8 +23,17 @@ const contextShape = (row) => ({
   lesson: { id: row.lesson.id, title: row.lesson.title, kind: row.lesson.kind, body: row.lesson.body, settings: normalizeLessonSettings(row.lesson.kind, row.lesson.settings) },
 })
 
-export function createLmsReviewService({ prisma, notifier, signFile = null }) {
+// guestMailer: createLmsGuestGradeMailer (invited guests have no user to notify).
+// It runs in the background and can never fail a grade.
+export function createLmsReviewService({ prisma, notifier, signFile = null, guestMailer = null }) {
   const ser = createLmsSerializers({ prisma, signFile })
+
+  function mailGuest(row, type, detail) {
+    if (!guestMailer || row.enrollment.learner?.userProfileId) return
+    try {
+      Promise.resolve(guestMailer.graded({ enrollment: row.enrollment, course: row.enrollment.course, lesson: row.lesson, type, detail })).catch(() => null)
+    } catch { /* best effort */ }
+  }
 
   async function queue(companyId, query = {}) {
     const courseId = query.courseId ? String(query.courseId) : null
@@ -110,6 +119,7 @@ export function createLmsReviewService({ prisma, notifier, signFile = null }) {
       const status = await quizOutcome(tx, { enrollmentId: row.enrollmentId, lessonId: row.lessonId, settings, needsReview: false, passed })
       await setLessonOutcome(tx, { enrollment: row.enrollment, lessonId: row.lessonId, status, now })
     }, TX_OPTS)
+    const detail = `${passed ? 'aprobaste' : 'no aprobaste'} con ${score.scorePct}%.`
     await notifier.graded({
       companyId,
       actorId: graderId,
@@ -118,8 +128,9 @@ export function createLmsReviewService({ prisma, notifier, signFile = null }) {
       lesson: row.lesson,
       type: 'attempt',
       sourceId: row.id,
-      detail: `${passed ? 'aprobaste' : 'no aprobaste'} con ${score.scorePct}%.`,
+      detail,
     })
+    mailGuest(row, 'attempt', detail)
     return reviewAttemptPayload(await findAttempt(companyId, row.id))
   }
 
@@ -155,6 +166,9 @@ export function createLmsReviewService({ prisma, notifier, signFile = null }) {
       await setLessonOutcome(tx, { enrollment: row.enrollment, lessonId: row.lessonId, status: decision === 'approve' ? 'completed' : 'in_progress', now })
       return tx.lmsSubmission.findUnique({ where: { id: row.id } })
     }, TX_OPTS)
+    const detail = decision === 'approve'
+      ? `tu entrega fue aprobada${grade !== null ? ` con ${grade}` : ''}.`
+      : 'tu entrega fue devuelta para que la corrijas.'
     await notifier.graded({
       companyId,
       actorId: graderId,
@@ -163,10 +177,9 @@ export function createLmsReviewService({ prisma, notifier, signFile = null }) {
       lesson: row.lesson,
       type: 'submission',
       sourceId: row.id,
-      detail: decision === 'approve'
-        ? `tu entrega fue aprobada${grade !== null ? ` con ${grade}` : ''}.`
-        : 'tu entrega fue devuelta para que la corrijas.',
+      detail,
     })
+    mailGuest(row, 'submission', detail)
     return (await serializeSubmissions([updated], ser))[0]
   }
 
