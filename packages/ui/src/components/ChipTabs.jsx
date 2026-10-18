@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import { CircleHelp } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CircleHelp } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from './Popover.jsx'
 import { cn } from '../lib/utils.js'
 
@@ -34,7 +34,15 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
   const palette = TONES[tone] ?? TONES.brand
   const listRef = useRef(null)
   const tabRefs = useRef(new Map())
+  const scrollerRef = useRef(null)
   const [indicator, setIndicator] = useState(null) // { x, w }
+  const [edges, setEdges] = useState({ left: false, right: false }) // more tabs hidden on that side
+  // Phones: up to 4 tabs fill the width as equal columns (icon over label);
+  // more tabs keep the scrollable strip with edge fades and arrows.
+  const compactGrid = tabs.length > 0 && tabs.length <= 4
+  // 5+ tabs with icons: on phones inactive tabs show only their icon (label stays
+  // for screen readers) and the active one shows icon + label, so they still fit.
+  const iconCollapse = !compactGrid && tabs.length > 0 && tabs.every((t) => t.icon)
   const activeTab = tabs.find((t) => t.value === value) ?? tabs[0]
   const activeValue = activeTab?.value
 
@@ -60,11 +68,39 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
     return () => { observer?.disconnect(); window.removeEventListener('resize', measure) }
   }, [measure, tabs.length])
 
-  // Keep the active chip visible in the horizontally scrollable strip.
+  // Which sides of the strip have hidden tabs (drives the fades and arrows).
+  const updateEdges = useCallback(() => {
+    const el = scrollerRef.current
+    if (!el) return
+    const left = el.scrollLeft > 2
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2
+    setEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }))
+  }, [])
+
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!el) return undefined
+    updateEdges()
+    el.addEventListener('scroll', updateEdges, { passive: true })
+    window.addEventListener('resize', updateEdges)
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateEdges) : null
+    observer?.observe(el)
+    return () => { el.removeEventListener('scroll', updateEdges); window.removeEventListener('resize', updateEdges); observer?.disconnect() }
+  }, [updateEdges, tabs.length])
+
+  // Keep the active chip visible (centered) in the horizontally scrollable strip.
   useEffect(() => {
     const node = tabRefs.current.get(activeValue)
-    if (node && typeof node.scrollIntoView === 'function') node.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    const el = scrollerRef.current
+    if (!node || !el || el.scrollWidth <= el.clientWidth) return
+    const target = node.offsetLeft - (el.clientWidth - node.offsetWidth) / 2
+    el.scrollTo?.({ left: Math.max(0, target), behavior: 'smooth' })
   }, [activeValue])
+
+  const scrollBy = (direction) => {
+    const el = scrollerRef.current
+    el?.scrollBy?.({ left: direction * Math.max(120, el.clientWidth * 0.6), behavior: 'smooth' })
+  }
 
   function onKeyDown(event) {
     const index = tabs.findIndex((t) => t.value === activeValue)
@@ -90,13 +126,33 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
     <PanelContext.Provider value={{ baseId }}>
       <div className={cn('min-w-0', className)}>
         <div className="flex items-center gap-1">
-        <div className="-mx-1 min-w-0 overflow-x-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className={cn('relative min-w-0', compactGrid ? 'max-sm:flex-1' : 'flex-1 sm:flex-initial')}>
+        {edges.left ? (
+          <>
+            <span aria-hidden="true" className="pointer-events-none absolute inset-y-1 left-0 z-20 w-10 bg-linear-to-r from-[hsl(var(--background))] to-transparent" />
+            <button type="button" tabIndex={-1} aria-label="Ver pestañas anteriores" onClick={() => scrollBy(-1)} className="absolute left-0 top-1/2 z-30 flex h-8 w-6 -translate-y-1/2 items-center justify-center rounded-md text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </>
+        ) : null}
+        {edges.right ? (
+          <>
+            <span aria-hidden="true" className="pointer-events-none absolute inset-y-1 right-0 z-20 w-10 bg-linear-to-l from-[hsl(var(--background))] to-transparent" />
+            <button type="button" tabIndex={-1} aria-label="Ver más pestañas" onClick={() => scrollBy(1)} className="absolute right-0 top-1/2 z-30 flex h-8 w-6 -translate-y-1/2 items-center justify-center rounded-md text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </>
+        ) : null}
+        <div ref={scrollerRef} className="-mx-1 min-w-0 overflow-x-auto scroll-smooth px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div
             ref={listRef}
             role="tablist"
             aria-label={ariaLabel}
             onKeyDown={onKeyDown}
-            className="relative inline-flex min-w-max gap-1 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/60 p-1"
+            className={cn(
+              'relative inline-flex min-w-max gap-1 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/60 p-1',
+              compactGrid && 'max-sm:flex max-sm:w-full max-sm:min-w-0',
+            )}
           >
             {indicator ? (
               <span
@@ -121,6 +177,9 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
                   onClick={() => onChange?.(tab.value)}
                   className={cn(
                     'relative z-10 inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-1 motion-reduce:transition-none sm:min-h-9',
+                    // Phone grid: equal columns, icon over a small label that may truncate.
+                    compactGrid && 'max-sm:min-w-0 max-sm:flex-1 max-sm:flex-col max-sm:justify-center max-sm:gap-0.5 max-sm:px-1.5 max-sm:py-1.5 max-sm:text-[11px] max-sm:leading-tight',
+                    iconCollapse && (selected ? 'max-sm:px-3' : 'max-sm:min-w-11 max-sm:justify-center max-sm:px-2.5'),
                     palette.focus,
                     selected
                       ? cn('text-white', !indicator && cn(palette.solid, 'shadow-md', palette.shadow))
@@ -128,7 +187,7 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
                   )}
                 >
                   {Icon ? <Icon className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
-                  {tab.label}
+                  <span className={cn(compactGrid && 'max-sm:block max-sm:max-w-full max-sm:truncate', iconCollapse && !selected && 'max-sm:sr-only')}>{tab.label}</span>
                   {tab.badge != null && tab.badge !== '' ? (
                     <span className={cn('rounded-full px-1.5 text-[11px] font-semibold tabular-nums', selected ? 'bg-white/25 text-white' : 'bg-[hsl(var(--background))] text-[hsl(var(--muted-foreground))]')}>
                       {tab.badge}
@@ -138,6 +197,7 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
               )
             })}
           </div>
+        </div>
         </div>
         {mode === 'popover' && hasDescription ? (
           <Popover>
