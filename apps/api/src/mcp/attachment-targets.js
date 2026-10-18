@@ -58,6 +58,7 @@ export const ATTACHMENT_TARGETS = [
   reference('chat.conversation', 'chat', 'chat.conversations.read', ''),
   reference('documents.file', 'documents', 'files.assets.read', ''),
   reference('files.file', 'files', 'files.assets.read', ''),
+  reference('lms.course', 'lms', 'lms.course.manage', '/courses'),
 ];
 export const attachmentTargetSchema = z.strictObject({ type: z.enum(ATTACHMENT_TARGETS.map(target => target.type)), id: z.uuid() });
 export const normalizeAttachmentTarget = (target, itemId) => target ?? (itemId ? { type: 'inventory.item', id: itemId } : null);
@@ -117,6 +118,11 @@ export function createAttachmentTargets({ prisma }) {
         const product = await createCatalogProductService({ prisma }).getProductById({ companyId: a.companyId, id });
         insist(product, 'not_found', 'Producto no disponible.', 404);
         return product;
+      }
+      case 'lms.course': {
+        const course = await prisma.lmsCourse.findFirst({ where: { id, companyId: a.companyId, enabled: true }, select: { id: true, title: true, updatedAt: true } });
+        insist(course, 'not_found', 'Curso no disponible.', 404);
+        return course;
       }
       case 'notes.note': {
         const row = await createNotesService({ prisma }).getNote(id, a.actorProfileId);

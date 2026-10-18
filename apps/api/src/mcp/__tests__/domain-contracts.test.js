@@ -9,7 +9,7 @@ import { PERMISSION_CATALOG } from '../../permission-catalog.js';
 
 test('registro: contratos estrictos, scopes declarados y superficie controlada', () => {
   const registry = createCapabilityRegistry({ prisma: {} });
-  assert.equal(registry.tools.length, 56);
+  assert.equal(registry.tools.length, 59);
   assert.ok(SCOPES.join(' ').length <= 500);
   assert.equal(new Set(registry.tools.map(tool => tool.name)).size, registry.tools.length);
   for (const tool of registry.tools) {
@@ -54,6 +54,12 @@ test('sensibilidad declarada por adaptador: misma matriz que la confirmación we
       } else if (moduleKey === 'runly.catalog') {
         assert.equal(isSensitive(adapter, definition, { data: {} }), false);
         assert.equal(isSensitive(adapter, definition, { data: { published: true } }), true, 'Publicar producto es sensible');
+      } else if (moduleKey === 'runly.lms') {
+        assert.equal(isSensitive(adapter, definition, { data: {} }), definition.key === 'lms.section.delete', `${definition.key}`);
+        if (definition.key === 'lms.course.status') {
+          for (const status of ['published', 'archived']) assert.equal(isSensitive(adapter, definition, { status }), true, `${status} es sensible`);
+          assert.equal(isSensitive(adapter, definition, { status: 'draft' }), false);
+        }
       } else assert.equal(isSensitive(adapter, definition, { data: {} }), expected, `${moduleKey} ${definition.key}`);
     }
   }

@@ -287,12 +287,16 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
     assert.deepEqual((await prisma.canvasObject.findUnique({ where: { id: object.id } })).transform, object.transform);
   });
   await t.test('Lecturas completas, paginación y metadatos sin firmar URLs de almacenamiento', async t => {
+    const course = await prisma.lmsCourse.create({ data: { companyId: company.id, title: 'Curso MCP', createdById: user.id } });
+    const section = await prisma.lmsSection.create({ data: { companyId: company.id, courseId: course.id, title: 'Introducción', position: 1 } });
+    const quizLesson = await prisma.lmsLesson.create({ data: { companyId: company.id, courseId: course.id, sectionId: section.id, title: 'Examen', kind: 'quiz', position: 1, settings: {} } });
     const file = await prisma.fileAsset.create({ data: { bucket: 'test-files', objectKey: 'test-fixture', originalName: 'Acuerdos.txt', mimeType: 'text/plain', sizeBytes: 100, moduleKey: 'runly.files', entityType: 'AtlasFile', entityId: company.id, uploadedById: user.id, accessScope: 'RESTRICTED' } });
     const inputs = { hr_employee_detail: { employeeId: ids.hr }, fleet_vehicle_detail: { vehicleId: ids.fleet }, fleet_vehicle_documents: { vehicleId: ids.fleet }, notes_get: { noteId: ids.notes }, pfm_native_movements_page: { walletId: wallet.id },
       pfm_spending_summary: { from: '2026-10-01', to: '2026-10-31', groupBy: 'category' }, ledger_summary: { from: '2026-10-01', to: '2026-10-31', groupBy: 'category' }, ledger_transactions_page: { accountId: account.id },
       projects_detail: { projectId: ids.projects }, projects_task_detail: { taskId: ids.task }, contacts_detail: { contactId: ids.contacts }, canvas_board_summary: { boardId: ids.board },
       calendar_list_events: { from: '2026-10-01', to: '2026-10-31' }, calendar_summary: { from: '2026-10-01', to: '2026-10-31' }, calendar_free_slots: { from: '2026-10-19', to: '2026-10-20' }, calendar_events_page: { start: '2026-10-01T00:00:00Z', end: '2026-10-31T23:59:59Z' },
       files_metadata: { fileId: file.id }, documents_metadata: { fileId: file.id }, files_record_attachments: { target: { type: 'hr.employee', id: ids.hr } }, attendance_person_status: { search: 'Fixture inexistente' }, attendance_overtime: { from: '2026-10-01', to: '2026-10-07' },
+      lms_course_detail: { courseId: course.id }, lms_lesson_detail: { lessonId: quizLesson.id }, lms_quiz_questions: { lessonId: quizLesson.id }, lms_enrollments: { courseId: course.id },
     };
     for (const moduleKey of registry.moduleKeys.filter(key => key !== 'runly.chat')) for (const query of registry.create(moduleKey).queries) await t.test(query.name, async () => {
       const result = await run(moduleKey.slice(6), 'query', { request: { operation: query.name, input: inputs[query.name] ?? {} } });

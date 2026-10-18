@@ -26,13 +26,14 @@ export async function moduleAttachmentTests(t, { prisma, config, auth, company, 
   const person = await prisma.attPerson.create({ data: { companyId: company.id, code: 'MCP-ATTACH', firstName: 'Persona de referencia' } });
   const activity = await prisma.activity.create({ data: { companyId: company.id, actorId: user.id, type: 'test.reference', summary: 'Actividad propia de prueba' } });
   const [conversation] = await prisma.$queryRaw`SELECT id FROM chat_conversations WHERE company_id = ${company.id}::uuid AND title = 'Conversación propia'`;
+  const lmsCourse = await prisma.lmsCourse.findFirst({ where: { companyId: company.id } }) ?? await prisma.lmsCourse.create({ data: { companyId: company.id, title: 'Curso de adjuntos', createdById: user.id } });
   const file = await prisma.fileAsset.findFirst({ where: { entityId: company.id, entityType: 'AtlasFile', uploadedById: user.id, enabled: true } });
   const targetIds = {
     'inventory.item': item.id, 'hr.employee': ids.hr, 'fleet.vehicle': ids.fleet, 'fleet.driver': driver.id, 'fleet.report': report.id, 'contacts.contact': ids.contacts,
     'purchases.request': purchaseRequest.id, 'purchases.quote': quote.id, 'purchases.order': order.id, 'purchases.invoice': invoice.id, 'purchases.receipt': receipt.id,
     'projects.task': ids.task, 'canvas.board': ids.board, 'canvas.hotspot': hotspot.id,
     'projects.project': ids.projects, 'notes.note': ids.notes, 'pfm.wallet': wallet.id, 'pfm.movement': ids.pfm, 'ledger.account': account.id, 'ledger.transaction': ids.ledger,
-    'calendar.event': ids.calendar, 'attendance.person': person.id, 'identity.profile': user.id, 'activity.entry': activity.id, 'chat.conversation': conversation.id, 'documents.file': file.id, 'files.file': file.id,
+    'calendar.event': ids.calendar, 'attendance.person': person.id, 'identity.profile': user.id, 'activity.entry': activity.id, 'chat.conversation': conversation.id, 'documents.file': file.id, 'files.file': file.id, 'lms.course': lmsCourse.id,
   };
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
   const storageObjects = new Map();

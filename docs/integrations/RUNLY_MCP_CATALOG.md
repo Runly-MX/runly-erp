@@ -62,6 +62,9 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `runly_catalog_query` | `catalog:read` | none |
 | `runly_catalog_prepare` | `catalog:write` | web-session-explicit |
 | `runly_catalog_commit` | `catalog:write` | web-session-explicit |
+| `runly_lms_query` | `lms:read` | none |
+| `runly_lms_prepare` | `lms:write` | web-session-explicit |
+| `runly_lms_commit` | `lms:write` | web-session-explicit |
 
 ## runly.hr
 
@@ -262,6 +265,32 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `catalog.product.update` | Escritura aprobada | `catalog.products.update` + `catalog.products.read` |
 | `catalog.category.create` | Escritura aprobada | `catalog.categories.create` + `catalog.categories.read` |
 
+## runly.lms
+
+| Operación | Modo | Permiso ERP |
+| --- | --- | --- |
+| `lms_courses` | Lectura | `lms.course.manage` |
+| `lms_course_detail` | Lectura | `lms.course.manage` |
+| `lms_lesson_detail` | Lectura | `lms.course.manage` |
+| `lms_quiz_questions` | Lectura | `lms.course.manage` |
+| `lms_enrollments` | Lectura | `lms.enrollment.manage` |
+| `lms_certificate_templates` | Lectura | `lms.course.manage` |
+| `lms.course.create` | Escritura aprobada | `lms.course.manage` |
+| `lms.course.update` | Escritura aprobada | `lms.course.manage` |
+| `lms.course.status` | Escritura aprobada | `lms.course.manage` |
+| `lms.section.create` | Escritura aprobada | `lms.course.manage` |
+| `lms.section.update` | Escritura aprobada | `lms.course.manage` |
+| `lms.section.delete` | Escritura aprobada | `lms.course.manage` |
+| `lms.course.reorder` | Escritura aprobada | `lms.course.manage` |
+| `lms.section.build` | Escritura aprobada | `lms.course.manage` |
+| `lms.lesson.create` | Escritura aprobada | `lms.course.manage` |
+| `lms.lesson.update` | Escritura aprobada | `lms.course.manage` |
+| `lms.lesson.disable` | Escritura aprobada | `lms.course.manage` |
+| `lms.question.create` | Escritura aprobada | `lms.course.manage` |
+| `lms.question.update` | Escritura aprobada | `lms.course.manage` |
+| `lms.question.delete` | Escritura aprobada | `lms.course.manage` |
+| `lms.question.reorder` | Escritura aprobada | `lms.course.manage` |
+
 ## Destinos de archivos originales
 
 `runly_files_import_prepare` admite `target: { type, id }`; `itemId` conserva compatibilidad con Inventario. Consultar `runly_files_query` / `files_attachment_targets` para la disponibilidad de la instancia y `files_record_attachments` para listar archivos de un registro.
@@ -299,5 +328,6 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `chat.conversation` | `runly.chat` | private-reference | `chat:read` | `chat.conversations.read` |
 | `documents.file` | `runly.documents` | private-reference | `documents:read` | `files.assets.read` |
 | `files.file` | `runly.files` | private-reference | `files:read` | `files.assets.read` |
+| `lms.course` | `runly.lms` | private-reference | `lms:read` | `lms.course.manage` |
 
 Inventario conserva sus ocho operaciones y sus cuatro herramientas base de identidad/descubrimiento. RME3 con metadata `mcp.version=1` continúa siendo solo descubrimiento; no se anuncia CRUD ejecutable.

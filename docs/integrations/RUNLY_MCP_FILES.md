@@ -37,6 +37,7 @@ interfaz ni modifican el registro:
 - Asistencia: `attendance.person`; no cambia fotos ni registra entradas/salidas.
 - Identidad: `identity.profile`; no cambia avatar, cuenta ni permisos.
 - Actividad propia: `activity.entry`.
+- Aprendizaje: `lms.course` (`lms.course.manage`); no crea lecciones de video ni de archivo, que se suben en la app.
 - Chat: `chat.conversation`, solo conversaciones propias de la empresa. **No
   publica mensajes ni agrega adjuntos al historial de mensajes enviados**.
 - Documentos/Archivos: `documents.file`, `files.file`, archivos existentes
