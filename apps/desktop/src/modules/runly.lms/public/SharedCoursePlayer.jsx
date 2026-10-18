@@ -13,7 +13,6 @@ import { readTheater, writeTheater } from '../lib/lmsExperience.js'
 import { flattenLessons, pickStartLesson } from '../lib/lmsLabels.js'
 import { guestCourseKey } from '../lib/lmsShare.js'
 import { SharedPlayerHeader } from './SharedPlayerHeader.jsx'
-import { PUBLIC_VIEWPORT_CLASS } from './keyboardSafeFocus.js'
 
 function LessonError({ lesson }) {
   return lesson.error?.status === 409
@@ -71,7 +70,7 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
     if (!id) return
     setLessonId(id)
     setContentOpen(false)
-    sidebarRef.current?.closest('[data-player-scroll]')?.scrollTo?.({ top: 0 })
+    window.scrollTo({ top: 0 })
   }
   const report = (progress) => { if (lessonId) save.mutate({ lessonId, ...progress }) }
   async function complete() {
@@ -96,12 +95,12 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
   return (
     <LmsQuizSourceContext.Provider value={quizSource}>
       <LmsAssignmentSourceContext.Provider value={assignmentSource}>
-        <div className={`${PUBLIC_VIEWPORT_CLASS} flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))]`}>
+        <div className="flex min-h-dvh flex-col bg-[hsl(var(--background))]">
           <SharedPlayerHeader
             company={data.company} title={data.course.title} pct={pct} guestName={data.guest?.name ?? null}
             onShowContent={showContent} onSignOut={onSignOut}
           />
-          <div data-player-scroll="" className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+          <div data-player-scroll="" className="flex-1 overflow-x-clip">
             {!lessons.length ? (
               <div className="flex min-h-[60dvh] items-center justify-center p-6"><EmptyState icon={Lock} title="Sin lecciones disponibles" description="Este enlace todavía no comparte lecciones." /></div>
             ) : (
@@ -133,7 +132,7 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
                 <aside
                   ref={sidebarRef}
                   className={cn(
-                    'hidden min-w-0 scroll-mt-3 lg:block lg:sticky lg:top-6 lg:col-start-2 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:pr-1',
+                    'hidden min-w-0 scroll-mt-3 lg:block lg:sticky lg:top-24 lg:col-start-2 lg:max-h-[calc(100dvh-7.5rem)] lg:self-start lg:overflow-y-auto lg:pr-1',
                     theaterOn ? 'lg:row-start-2' : stageArea ? 'lg:row-start-1 lg:row-span-2' : 'lg:row-start-1',
                   )}
                 >

@@ -8,12 +8,11 @@ import { useGuestOutline, useSharedCourse } from '../hooks/useLmsShare.js'
 import { guestCourseKey, readGuestToken, writeGuestToken } from '../lib/lmsShare.js'
 import { SharedCourseJoin } from './SharedCourseJoin.jsx'
 import { SharedCoursePlayer } from './SharedCoursePlayer.jsx'
-import { PUBLIC_VIEWPORT_CLASS, useVisualViewportVars } from './keyboardSafeFocus.js'
 
 const code = (error) => error?.details?.code ?? null
 
 function Centered({ children }) {
-  return <div className={`${PUBLIC_VIEWPORT_CLASS} flex items-center justify-center overflow-y-auto overscroll-contain p-6`}>{children}</div>
+  return <div className="flex min-h-dvh items-center justify-center p-6">{children}</div>
 }
 
 // Public course share link (/app/p/lms/curso/:token), signed out and without the
@@ -22,7 +21,6 @@ function Centered({ children }) {
 // the share token; "No soy <nombre>" forgets it and starts over. Invite-only
 // links ask for the emailed access code instead (`?i=` is the personal link).
 export default function SharedCourseScreen() {
-  useVisualViewportVars()
   const { token } = useParams()
   const [search] = useSearchParams()
   const linkToken = /^[A-Za-z0-9_-]{32}$/.test(search.get('i') ?? '') ? search.get('i') : null
@@ -90,7 +88,7 @@ export default function SharedCourseScreen() {
   // fetching, and isLoading would be false while there is still no data.
   if (summary.isPending || !summary.data || (guestToken && me.isPending)) {
     return (
-      <div className={`${PUBLIC_VIEWPORT_CLASS} overflow-hidden`}>
+      <div className="min-h-dvh">
         <Skeleton className="h-72 w-full rounded-none" />
         <div className="mx-auto max-w-3xl space-y-3 p-6"><Skeleton className="h-8 w-2/3" /><Skeleton className="h-32 w-full rounded-md" /></div>
       </div>

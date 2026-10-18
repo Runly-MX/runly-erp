@@ -33,7 +33,7 @@ export function SharedPlayerHeader({ company, title, pct, guestName, onShowConte
   // Let the menu close (and restore focus) before scrolling to the outline.
   const showContent = () => requestAnimationFrame(() => onShowContent())
   return (
-    <header className="shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] pt-[env(safe-area-inset-top)]">
+    <header className="sticky top-0 z-30 shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] pt-[env(safe-area-inset-top)]">
       <div className="mx-auto flex w-full max-w-[1600px] items-center gap-3 py-2 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] sm:px-6 sm:py-2.5 lg:px-8">
         <CompanyMark company={company} />
         <div className="min-w-0 flex-1">

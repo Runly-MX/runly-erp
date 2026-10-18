@@ -1486,6 +1486,23 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* Public no-login pages (/app/p/...) that opt in with html.runly-document-scroll
+   scroll the document itself instead of an inner container: iOS/iPadOS Safari
+   handles its collapsing toolbar, the keyboard and rubber-band natively, with
+   no second scroll that hides headers or leaves blank space. */
+html.runly-document-scroll,
+html.runly-document-scroll body {
+  overflow: visible;
+  height: auto;
+  min-height: 100%;
+  overscroll-behavior-y: auto;
+}
+
+html.runly-document-scroll #root {
+  height: auto;
+  min-height: 100dvh;
+}
+
 *,
 *::before,
 *::after {

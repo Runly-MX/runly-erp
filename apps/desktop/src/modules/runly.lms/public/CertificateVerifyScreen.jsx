@@ -5,7 +5,7 @@ import { Building2, Download, SearchX, ShieldAlert, ShieldCheck } from 'lucide-r
 import { runly } from '../../../lib/runly.js'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { formatHours, formatLongDate, toAbsoluteUrl } from '../lib/lmsCert.js'
-import { PUBLIC_VIEWPORT_CLASS, useVisualViewportVars } from './keyboardSafeFocus.js'
+import { PUBLIC_PAGE_CLASS } from './keyboardSafeFocus.js'
 
 const MUTED = 'text-[hsl(var(--muted-foreground))]'
 
@@ -45,7 +45,6 @@ function Footer() {
 // Anonymous verification page opened from a certificate's QR code, rendered
 // inside PublicShell at /app/p/lms/cert/:token. Works signed out.
 export default function CertificateVerifyScreen() {
-  useVisualViewportVars()
   const { token } = useParams()
   const query = useQuery({
     queryKey: ['public-lms-certificate', token],
@@ -64,7 +63,7 @@ export default function CertificateVerifyScreen() {
     const notFound = query.error?.status === 404
     const limited = query.error?.status === 429
     return (
-      <div className={`${PUBLIC_VIEWPORT_CLASS} overflow-y-auto overscroll-contain bg-[hsl(var(--background))]`}>
+      <div className={PUBLIC_PAGE_CLASS}>
         <Brand loading={false} />
         <main className="mx-auto max-w-xl px-4 py-10">
           <EmptyState
@@ -82,7 +81,7 @@ export default function CertificateVerifyScreen() {
   const revoked = Boolean(data?.revoked)
   const pdfUrl = token ? toAbsoluteUrl(runly.lms.publicCertificatePdfUrl(token), getApiUrl()) : ''
   return (
-    <div className={`${PUBLIC_VIEWPORT_CLASS} overflow-y-auto overscroll-contain bg-[hsl(var(--background))]`}>
+    <div className={PUBLIC_PAGE_CLASS}>
       <Brand data={data} loading={query.isPending} />
       <main className="mx-auto flex max-w-xl flex-col gap-5 px-4 pb-10 pt-6">
         {query.isPending || !data ? (
