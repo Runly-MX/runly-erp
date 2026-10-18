@@ -1,16 +1,18 @@
 // Pure rules for runly.lms evaluation (quizzes and assignments). No I/O.
 import { randomInt } from 'node:crypto'
 import { LmsError } from './lms-error.js'
+import { QUESTION_KINDS, normalizeOptionsFor, readOptions } from './lms-question-input.js'
+import { displayOrder, learnerQuestion, revealedQuestion, sanitizeAnswer, scoreQuestion } from './lms-question-attempt.js'
 
-export const QUESTION_KINDS = ['single', 'multiple', 'true_false', 'open']
+export { QUESTION_KINDS, learnerQuestion, revealedQuestion }
 export const SHOW_ANSWERS = ['never', 'after_submit', 'after_pass']
+export const QUIZ_LAYOUTS = ['all', 'one']
 export const SUBMIT_GRACE_MS = 30_000
 export const SUBMISSION_MAX_BYTES = 50 * 1024 * 1024
 export const SUBMISSION_MIME = [/^image\//, /^audio\//, /^video\//, /^application\/pdf$/, /^text\/plain$/, /^application\/msword$/, /^application\/vnd\.openxmlformats/, /^application\/vnd\.ms-/, /^application\/zip$/, /^application\/x-zip/]
 
 const DAY_MS = 24 * 3600 * 1000
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const TRUE_FALSE = [{ id: 'true', text: 'Verdadero' }, { id: 'false', text: 'Falso' }]
 const has = (body, key) => Object.prototype.hasOwnProperty.call(body ?? {}, key)
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const blank = (value) => value === null || value === undefined || value === ''
@@ -33,6 +35,7 @@ export function normalizeQuizSettings(raw) {
     shuffleQuestions: src.shuffleQuestions === true,
     shuffleOptions: src.shuffleOptions !== false,
     showAnswers: SHOW_ANSWERS.includes(src.showAnswers) ? src.showAnswers : 'after_submit',
+    layout: QUIZ_LAYOUTS.includes(src.layout) ? src.layout : 'all',
   }
 }
 
@@ -55,42 +58,6 @@ export function normalizeLessonSettings(kind, raw) {
 
 // ---- questions ------------------------------------------------------------
 export const randomOptionId = () => `o${randomInt(36 ** 6).toString(36).padStart(6, '0')}`
-
-function normalizeOptions(kind, raw, existing, makeId) {
-  if (kind === 'open') return []
-  if (!Array.isArray(raw)) throw new LmsError('Agrega las opciones de respuesta.', 400)
-  if (kind === 'true_false') {
-    const marked = new Set()
-    raw.forEach((option, index) => {
-      if (option?.correct !== true) return
-      const id = option.id === 'true' || option.id === 'false' ? option.id : ['true', 'false'][index]
-      if (id) marked.add(id)
-    })
-    if (marked.size !== 1) throw new LmsError('Indica si la respuesta correcta es Verdadero o Falso.', 400)
-    return TRUE_FALSE.map((option) => ({ ...option, correct: marked.has(option.id) }))
-  }
-  if (raw.length < 2) throw new LmsError('Agrega al menos dos opciones.', 400)
-  if (raw.length > 20) throw new LmsError('Una pregunta admite como máximo 20 opciones.', 400)
-  const previous = (existing ?? []).map((option) => option?.id).filter((id) => id && id !== 'true' && id !== 'false')
-  const known = new Set(previous)
-  const claimed = new Set(raw.map((option) => option?.id).filter((id) => known.has(id)))
-  const used = new Set()
-  const options = raw.map((option, index) => {
-    const text = String(option?.text ?? '').trim()
-    if (!text) throw new LmsError('Escribe el texto de cada opción.', 400)
-    if (text.length > 1000) throw new LmsError('Una opción es demasiado larga.', 400)
-    let id = null
-    if (known.has(option?.id) && !used.has(option.id)) id = option.id
-    else if (previous[index] && !claimed.has(previous[index]) && !used.has(previous[index])) id = previous[index]
-    while (!id || used.has(id)) id = makeId()
-    used.add(id)
-    return { id, text, correct: option?.correct === true }
-  })
-  const correct = options.filter((option) => option.correct).length
-  if (kind === 'single' && correct !== 1) throw new LmsError('Marca exactamente una opción correcta.', 400)
-  if (kind === 'multiple' && correct < 1) throw new LmsError('Marca al menos una opción correcta.', 400)
-  return options
-}
 
 export function normalizeQuestionInput(body = {}, { partial = false, existing = null, makeId = randomOptionId } = {}) {
   const src = isObject(body) ? body : {}
@@ -118,9 +85,17 @@ export function normalizeQuestionInput(body = {}, { partial = false, existing = 
   }
   const kind = data.kind ?? existing?.kind
   const kindChanged = partial && data.kind !== undefined && data.kind !== existing?.kind
-  if (!partial || has(src, 'options') || kindChanged) {
-    const raw = has(src, 'options') ? src.options : existing?.options ?? []
-    data.options = normalizeOptions(kind, raw, existing?.options, makeId)
+  // fill_blank keeps its answers in the prompt, so a new prompt re-validates them.
+  const promptMatters = kind === 'fill_blank' && data.prompt !== undefined
+  if (!partial || has(src, 'options') || has(src, 'config') || kindChanged || promptMatters) {
+    const stored = readOptions(existing?.options)
+    data.options = normalizeOptionsFor(kind, {
+      options: has(src, 'options') ? src.options : stored.items,
+      config: has(src, 'config') ? src.config : stored.config,
+      prompt: data.prompt ?? existing?.prompt,
+      existing: existing?.options,
+      makeId,
+    })
   }
   return data
 }
@@ -135,7 +110,7 @@ function shuffle(list, random) {
   return out
 }
 
-// questions: enabled, in authored order.
+// questions: enabled, in authored order. drawCount above the question count means all.
 export function drawQuestions(questions, settings, random = Math.random) {
   const s = normalizeQuizSettings(settings)
   let picked = [...questions]
@@ -145,16 +120,14 @@ export function drawQuestions(questions, settings, random = Math.random) {
   }
   if (s.shuffleQuestions) picked = shuffle(picked, random)
   const optionOrder = {}
-  for (const q of picked) {
-    const ids = (q.options ?? []).map((option) => option.id)
-    if (q.kind === 'open') optionOrder[q.id] = []
-    else optionOrder[q.id] = q.kind === 'true_false' || !s.shuffleOptions ? ids : shuffle(ids, random)
-  }
+  for (const q of picked) optionOrder[q.id] = displayOrder(q, s.shuffleOptions, random)
   return { questionIds: picked.map((q) => q.id), optionOrder }
 }
 
-// answers: { questionId: { optionIds?: [], text?: string } }; manualPoints: { questionId: n }.
-export function scoreAttempt(questions, answers = {}, manualPoints = {}) {
+// answers: see lms-question-attempt.js; manualPoints: { questionId: n } for open
+// questions; optionOrder: the attempt's display order (ordering questions the
+// learner never touched are scored as shown).
+export function scoreAttempt(questions, answers = {}, manualPoints = {}, optionOrder = {}) {
   const perQuestion = {}
   let autoPoints = 0
   let manualTotal = 0
@@ -176,16 +149,11 @@ export function scoreAttempt(questions, answers = {}, manualPoints = {}) {
       perQuestion[q.id] = { awarded, correct: awarded >= points }
       continue
     }
-    const picked = answers?.[q.id]?.optionIds
-    const selected = [...new Set(Array.isArray(picked) ? picked : [])]
-    const correctIds = (q.options ?? []).filter((option) => option.correct).map((option) => option.id)
-    const correct = q.kind === 'multiple'
-      ? selected.length === correctIds.length && selected.every((id) => correctIds.includes(id))
-      : selected.length === 1 && correctIds.includes(selected[0])
-    const awarded = correct ? points : 0
-    autoPoints += awarded
-    perQuestion[q.id] = { awarded, correct }
+    const result = scoreQuestion(q, answers?.[q.id], optionOrder?.[q.id])
+    autoPoints += result.awarded
+    perQuestion[q.id] = result
   }
+  autoPoints = round2(autoPoints)
   const scorePoints = needsReview ? null : round2(autoPoints + manualTotal)
   const scorePct = needsReview ? null : maxPoints > 0 ? round2((scorePoints / maxPoints) * 100) : 0
   return { perQuestion, autoPoints, maxPoints, needsReview, scorePoints, scorePct }
@@ -209,52 +177,20 @@ export function attemptOutcome({ needsReview, passed, attemptsUsed, allowed }) {
   return attemptsUsed >= allowed ? 'failed' : 'in_progress'
 }
 
-// Keeps answers for drawn questions only, and option ids the question shows.
-export function sanitizeAnswers(raw, questionIds, optionOrder = {}) {
+// Keeps answers for drawn questions only, cleaned per kind. `questionsById`
+// (Map) gives the kinds; without it every question is treated as choice/open
+// by its option order (the shape attempts had before the extra kinds).
+export function sanitizeAnswers(raw, questionIds, optionOrder = {}, questionsById = null) {
   if (!isObject(raw)) throw new LmsError('Respuestas inválidas.', 400)
   const allowed = new Set(questionIds)
   const out = {}
   for (const [questionId, value] of Object.entries(raw)) {
     if (!allowed.has(questionId)) continue
     const order = optionOrder?.[questionId] ?? []
-    if (!order.length) {
-      const text = String(value?.text ?? '')
-      if (text.length > 20_000) throw new LmsError('Una respuesta es demasiado larga.', 400)
-      out[questionId] = { text }
-      continue
-    }
-    const ids = Array.isArray(value?.optionIds) ? value.optionIds.map(String) : []
-    out[questionId] = { optionIds: [...new Set(ids)].filter((id) => order.includes(id)) }
+    const question = questionsById?.get?.(questionId) ?? { kind: order.length ? 'single' : 'open', options: [] }
+    out[questionId] = sanitizeAnswer(question, value, order)
   }
   return out
-}
-
-function orderedOptions(question, order) {
-  const all = question.options ?? []
-  if (!Array.isArray(order)) return all
-  const byId = new Map(all.map((option) => [option.id, option]))
-  return [...order.map((id) => byId.get(id)).filter(Boolean), ...all.filter((option) => !order.includes(option.id))]
-}
-
-export function learnerQuestion(question, optionOrder) {
-  return {
-    id: question.id,
-    kind: question.kind,
-    prompt: question.prompt,
-    points: question.points,
-    options: orderedOptions(question, optionOrder).map(({ id, text }) => ({ id, text })),
-  }
-}
-
-// result: scoreAttempt().perQuestion[question.id].
-export function revealedQuestion(question, optionOrder, result) {
-  return {
-    ...learnerQuestion(question, optionOrder),
-    options: orderedOptions(question, optionOrder).map(({ id, text, correct }) => ({ id, text, correct: correct === true })),
-    explanation: question.explanation ?? null,
-    awardedPoints: result?.awarded ?? null,
-    correct: result?.correct ?? null,
-  }
 }
 
 export function revealAllowed(showAnswers, passed) {

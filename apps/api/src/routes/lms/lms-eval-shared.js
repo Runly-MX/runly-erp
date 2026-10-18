@@ -2,19 +2,24 @@
 import {
   attemptOutcome, attemptsAllowed, learnerQuestion, normalizeQuizSettings, revealAllowed, revealedQuestion, scoreAttempt,
 } from './lms-eval-core.js'
+import { readOptions } from './lms-question-input.js'
 import { learnerKind } from './lms-share-core.js'
 
 const iso = (value) => (value ? new Date(value).toISOString() : null)
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export const isUuid = (value) => typeof value === 'string' && UUID.test(value)
 
+// Authoring shape: `options` is always the item list and `config` the kind's
+// settings, whichever way the row stores them.
 export function serializeQuestion(row) {
+  const { items, config } = readOptions(row.options)
   return {
     id: row.id,
     lessonId: row.lessonId,
     kind: row.kind,
     prompt: row.prompt,
-    options: Array.isArray(row.options) ? row.options : [],
+    options: items,
+    config,
     explanation: row.explanation,
     points: row.points,
     position: row.position,
@@ -36,7 +41,7 @@ export function serializeAttempt(row, questionsById, rawSettings, { revealAll = 
   const done = row.status !== 'in_progress'
   const reveal = revealAll || (done && revealAllowed(settings.showAnswers, row.passed))
   const order = row.optionOrder ?? {}
-  const score = reveal ? scoreAttempt(questions, row.answers ?? {}, row.manualPoints ?? {}) : null
+  const score = reveal ? scoreAttempt(questions, row.answers ?? {}, row.manualPoints ?? {}, order) : null
   const payload = {
     id: row.id,
     lessonId: row.lessonId,

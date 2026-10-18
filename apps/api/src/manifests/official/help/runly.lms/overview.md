@@ -34,11 +34,29 @@ Cada lección puede ser **obligatoria** u opcional. El avance del curso solo cue
 
 ### Exámenes
 
-En una lección de tipo **Examen** configuras la calificación mínima para aprobar (70 % de forma predeterminada), el número de intentos (o ilimitados), un límite de tiempo opcional, cuántas preguntas tomar al azar en cada intento, si se mezclan las preguntas y las opciones, y cuándo ve el alumno las respuestas correctas: nunca, al enviar o solo al aprobar. Con **Editar preguntas** agregas preguntas de opción única, opción múltiple, verdadero o falso y respuesta abierta, cada una con sus puntos y una explicación opcional.
+En una lección de tipo **Examen** configuras la calificación para aprobar (70 % de forma predeterminada), los intentos permitidos (o sin límite), un tiempo límite opcional, las **preguntas aleatorias por intento**, cómo se muestran las preguntas, si se mezclan las preguntas y las opciones, y cuándo ve el alumno las respuestas correctas: nunca, al enviar el examen o solo si aprueba.
+
+- **Preguntas aleatorias por intento:** déjalo vacío para que el alumno responda todas las preguntas. Si escribes un número (por ejemplo 10 de 30), cada intento muestra esa cantidad de preguntas elegidas al azar, distintas en cada intento. Si el número es mayor que las preguntas del examen, se muestran todas.
+- **Cómo se muestran las preguntas:** **Todas en una página** o **Una pregunta a la vez**, con botones Anterior y Siguiente y un mapa que marca las preguntas respondidas, sin responder y las marcadas con **Revisar después**.
+
+**Tipos de pregunta.**
+
+Debajo de la configuración está la lista de preguntas. **Nueva pregunta** abre el selector de tipo; arrastra las tarjetas para cambiar el orden y usa sus botones para duplicar o eliminar. Mientras editas, **Vista del alumno** muestra la pregunta tal como la verá el alumno.
+
+- **Opción única:** marca la respuesta correcta.
+- **Opción múltiple:** marca todas las correctas. Solo suma si el alumno marca exactamente esas; con **Puntos parciales**, cada acierto suma, cada opción incorrecta marcada resta y nunca baja de 0.
+- **Verdadero o falso.**
+- **Respuesta corta:** escribe una o varias respuestas aceptadas. No importan mayúsculas, acentos ni espacios al inicio o al final, salvo que actives **Coincidencia exacta**.
+- **Respuesta numérica:** el número correcto y, si quieres, un margen de error (±).
+- **Completar espacios:** escribe la respuesta de cada espacio entre dobles corchetes dentro de la pregunta, por ejemplo `La capital de Francia es [[París]]`. Para aceptar varias, sepáralas con `|`: `[[Sena|río Sena]]`. Cada espacio correcto suma su parte, o activa **Todo o nada**.
+- **Ordenar:** escribe los elementos en el orden correcto; el alumno los ve mezclados y los acomoda arrastrando o con las flechas. Solo suma con el orden completo, o activa **Puntos parciales** para sumar por cada elemento en su lugar.
+- **Relacionar columnas:** escribe cada elemento con su pareja; el alumno elige la pareja de cada uno. Solo suma con todas correctas, o activa **Puntos parciales**.
+- **Respuesta abierta:** la califica una persona desde **Revisión**; mientras tanto la lección queda **En revisión**.
+
+Las opciones se reordenan arrastrándolas y **Enter** agrega una nueva debajo.
 
 - Las respuestas se guardan solas mientras el alumno contesta. Si el examen tiene tiempo, al terminarse se envía con lo que tenga guardado.
-- Opción única y verdadero o falso dan los puntos completos si la respuesta es correcta. Opción múltiple solo da puntos si se marcan exactamente las opciones correctas.
-- Las respuestas abiertas las califica una persona desde **Revisión**; mientras tanto la lección queda **En revisión**.
+- En el resultado el alumno ve cada pregunta con su respuesta y, según la opción de mostrar respuestas, si fue correcta, la respuesta correcta y la explicación.
 - Al aprobar, la lección se completa y ya no se pierde. Si se acaban los intentos sin aprobar, la lección queda **No aprobada**; desde la pestaña **Alumnos** del curso se puede **Otorgar intento extra**.
 
 ### Tareas

@@ -51,13 +51,14 @@ export function QuizResult({ attempt, passingScore, canRetry, retrying, onRetry,
           ) : null}
         </div>
       </section>
-      {revealed ? (
-        questions.map((question, index) => (
-          <QuestionReview key={question.id} question={question} index={index} answer={attempt.answers?.[question.id]} />
-        ))
-      ) : (
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Las respuestas correctas de este examen no se muestran.</p>
-      )}
+      {!revealed ? (
+        <p className="rounded-md bg-[hsl(var(--muted)/0.6)] p-3 text-sm text-[hsl(var(--muted-foreground))]">
+          Este examen no muestra las respuestas correctas. Abajo puedes ver lo que respondiste.
+        </p>
+      ) : null}
+      {questions.map((question, index) => (
+        <QuestionReview key={question.id} question={question} index={index} answer={attempt.answers?.[question.id]} />
+      ))}
     </div>
   )
 }

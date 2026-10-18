@@ -110,7 +110,7 @@ export function createLmsQuizService({ prisma, learn, notifier, signFile = null,
     const result = await prisma.$transaction(async (tx) => {
       const byId = await loadAttemptQuestions(tx, [row])
       const questions = row.questionIds.map((id) => byId.get(id)).filter(Boolean)
-      const score = scoreAttempt(questions, row.answers ?? {}, {})
+      const score = scoreAttempt(questions, row.answers ?? {}, {}, row.optionOrder ?? {})
       const passed = score.needsReview ? null : score.scorePct >= settings.passingScore
       const { count } = await tx.lmsQuizAttempt.updateMany({
         where: { id: row.id, status: 'in_progress' },
@@ -245,7 +245,8 @@ export function createLmsQuizService({ prisma, learn, notifier, signFile = null,
       await close(row)
       throw new LmsError('Se terminó el tiempo del examen. Tu intento se envió con las respuestas guardadas.', 409, 'EXPIRED')
     }
-    const answers = { ...(row.answers ?? {}), ...sanitizeAnswers(body?.answers, row.questionIds, row.optionOrder) }
+    const byId = await loadAttemptQuestions(prisma, [row])
+    const answers = { ...(row.answers ?? {}), ...sanitizeAnswers(body?.answers, row.questionIds, row.optionOrder, byId) }
     const savedAt = new Date()
     const { count } = await prisma.lmsQuizAttempt.updateMany({ where: { id: row.id, status: 'in_progress' }, data: { answers } })
     if (!count) throw new LmsError('Este intento ya fue enviado.', 409, 'NOT_IN_PROGRESS')
@@ -261,7 +262,7 @@ export function createLmsQuizService({ prisma, learn, notifier, signFile = null,
     const expired = isExpired(row)
     let answers = row.answers ?? {}
     if (!expired && body?.answers !== undefined && body?.answers !== null) {
-      answers = { ...answers, ...sanitizeAnswers(body.answers, row.questionIds, row.optionOrder) }
+      answers = { ...answers, ...sanitizeAnswers(body.answers, row.questionIds, row.optionOrder, await loadAttemptQuestions(prisma, [row])) }
     }
     await close({ ...row, answers })
     return { ...(await resultPayload(row.id)), ...(expired ? { expired: true } : {}) }

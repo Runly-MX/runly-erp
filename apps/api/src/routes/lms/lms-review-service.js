@@ -94,7 +94,7 @@ export function createLmsReviewService({ prisma, notifier, signFile = null, gues
       if (!Number.isFinite(n)) throw new LmsError('Califica todas las respuestas abiertas.', 400)
       manualPoints[q.id] = n
     }
-    const score = scoreAttempt(questions, row.answers ?? {}, manualPoints)
+    const score = scoreAttempt(questions, row.answers ?? {}, manualPoints, row.optionOrder ?? {})
     const settings = normalizeQuizSettings(row.lesson.settings)
     const passed = score.scorePct >= settings.passingScore
     const feedback = feedbackText(body?.feedback)

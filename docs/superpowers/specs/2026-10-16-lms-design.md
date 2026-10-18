@@ -64,18 +64,18 @@ Quizzes and assignments are two more lesson kinds (`quiz`, `assignment`), not a 
 
 ### 11.2 Lesson settings
 `lms_lesson.settings JSONB NOT NULL DEFAULT '{}'`, normalized by kind:
-- quiz: `passingScore` 0-100 (default 70), `maxAttempts` (null = unlimited), `timeLimitMinutes` (null = none), `drawCount` (null = all questions), `shuffleQuestions`, `shuffleOptions` (default true), `showAnswers` `never | after_submit | after_pass` (default `after_submit`).
+- quiz: `passingScore` 0-100 (default 70), `maxAttempts` (null = unlimited), `timeLimitMinutes` (null = none), `drawCount` (null = all questions; a value above the question count uses every question), `shuffleQuestions`, `shuffleOptions` (default true), `showAnswers` `never | after_submit | after_pass` (default `after_submit`), `layout` `all | one` (default `all`: every question on one page; `one`: one question at a time with Anterior / Siguiente and a navigator).
 - assignment: `allowText` (default true), `allowFiles` (default true), `maxFiles` 1-10 (default 5), `dueDaysAfterEnroll` (null = no deadline), `passingScore` (null = approve/return only, otherwise a 0-100 grade is required and approval needs grade >= passingScore).
 
 ### 11.3 Data model (forward migration)
-- `lms_quiz_question`: company_id, lesson_id (FK cascade), kind `single | multiple | true_false | open`, prompt (markdown), options JSONB `[{ id, text, correct }]` (`id` is a short stable string generated server-side; true_false gets fixed ids `true`/`false`), explanation, points (int >= 1, default 1), position, enabled, timestamps.
+- `lms_quiz_question`: company_id, lesson_id (FK cascade), kind `single | multiple | true_false | open | short | numeric | ordering | matching | fill_blank` (see §11.8), prompt (markdown), options JSONB `[{ id, text, correct }]` (`id` is a short stable string generated server-side; true_false gets fixed ids `true`/`false`) or `{ items, config }` when the kind needs settings, explanation, points (int >= 1, default 1), position, enabled, timestamps.
 - `lms_quiz_attempt`: company_id, enrollment_id (FK cascade), lesson_id (FK cascade), number, status `in_progress | submitted | graded`, question_ids UUID[] (the drawn questions in display order), option_order JSONB `{ questionId: [optionId] }`, answers JSONB `{ questionId: { optionIds?: [], text?: string } }`, started_at, deadline_at, submitted_at, auto_points, manual_points JSONB `{ questionId: points }`, score_points, max_points, score_pct, passed, graded_by_id, graded_at, feedback; unique (enrollment_id, lesson_id, number).
 - `lms_submission`: company_id, enrollment_id (FK cascade), lesson_id (FK cascade), number, status `submitted | returned | approved`, text, file_ids UUID[], submitted_at, late bool, grade (0-100, null), feedback, graded_by_id, graded_at; unique (enrollment_id, lesson_id, number). The latest row is the current one; earlier rows are history.
 - `lms_lesson_progress` gains `extra_attempts INT NOT NULL DEFAULT 0` and two new status values: `pending_review` and `failed`. Only `completed` unlocks later lessons.
 
 ### 11.4 Rules
 - Learners never receive `correct` flags or explanations before submitting. After submitting they get them according to `showAnswers`.
-- Scoring: `single` and `true_false` give full points when the one selected option is correct. `multiple` is all-or-nothing: full points only when the selected set equals the correct set. `open` is graded by hand from 0 to `points`.
+- Scoring: `single` and `true_false` give full points when the one selected option is correct. `multiple` is all-or-nothing by default: full points only when the selected set equals the correct set. `open` is graded by hand from 0 to `points`. The other kinds and the optional partial credit are in §11.8. Awarded points are rounded to 2 decimals; a question counts as `correct` only with full points.
 - An attempt with open questions is `submitted` and the lesson goes to `pending_review` until a grader scores every open answer. Then it becomes `graded`. An attempt without open questions is graded on submit.
 - `passed = score_pct >= passingScore`. A passed attempt completes the lesson, and a lesson that has been passed is never un-completed.
 - Attempts: starting an attempt while one is `in_progress` returns that attempt. A new attempt is allowed while `count < maxAttempts + extra_attempts`. When attempts run out without a pass, the lesson is `failed`. A grader can grant extra attempts, which moves `failed` back to `in_progress`.
@@ -99,6 +99,41 @@ Grading (`lms.grade`): `GET /lms/review` (queue: submissions in `submitted` plus
 - Learner: `QuizLesson` covers the start card (attempts, passing score, time limit, best score), the attempt view (all questions on one page, autosave debounced 800 ms, countdown, submit with ConfirmDialog) and the result (score, passed/failed, answers per `showAnswers`, retry while attempts remain). `AssignmentLesson` shows the instructions, the submission form (TextareaField plus file upload with progress) and the submission history with status, grade and feedback.
 - Grading: new navigation item `Revisión` (`/review`, `lms.grade`) with a queue table filtered by course, `GradeSubmissionSheet` and `GradeAttemptSheet` (open answers with a points input, auto-scored answers shown read-only). The course editor's Alumnos tab gains "Otorgar intento extra" for `failed` quiz lessons.
 - Outline icons for `pending_review` (clock) and `failed` (x).
+
+### 11.8 Question kinds (product-owner review, 2026-10-17)
+Feedback: the questions area needed a clearer presentation, more question types, drag-and-drop reordering, and a hint for "Preguntas por intento" that people understand.
+
+Storage stays in `lms_quiz_question.options` (no schema change). Rows without settings keep the legacy array; kinds with settings store `{ items, config }`. The API reads both, and the authoring payload is always `{ kind, prompt, options: [...items], config: {...}, points, explanation }`.
+
+| kind | items | config | answer JSON |
+|---|---|---|---|
+| `single`, `true_false` | `[{ id, text, correct }]` | — | `{ optionIds: [id] }` |
+| `multiple` | `[{ id, text, correct }]` | `partialCredit` | `{ optionIds: [id] }` |
+| `short` | accepted answers `[{ id, text }]` (1-20) | `exactMatch` | `{ text }` |
+| `numeric` | — | `answer`, `tolerance` (>= 0) | `{ value }` (string as typed; `3,5` is read as 3.5) |
+| `ordering` | `[{ id, text }]` in the correct order (2-20) | `partialCredit` | `{ order: [id] }` |
+| `matching` | `[{ id, text, match, matchId }]` (2-20; `matchId` is a separate random id for the right column, right texts must differ) | `partialCredit` | `{ pairs: { leftId: matchId } }` |
+| `fill_blank` | — (answers live in the prompt as `[[a|b]]`, max 30 blanks) | `allOrNothing`, `exactMatch` | `{ blanks: [text] }` |
+| `open` | — | — | `{ text }` |
+
+Scoring:
+- Text matching (`short`, `fill_blank`) ignores case, accents, surrounding spaces and repeated inner spaces; `exactMatch` compares the trimmed text exactly.
+- `numeric`: correct when `|value - answer| <= tolerance`.
+- `multiple` with `partialCredit`: `points * (right - wrong) / correctCount`, floored at 0.
+- `ordering` / `matching`: all-or-nothing by default; with `partialCredit`, `points * itemsInPlace / items`. An ordering question the learner never moved is scored in the order it was shown.
+- `fill_blank`: proportional per blank by default; `allOrNothing` gives points only when every blank is right.
+
+Attempt and serialization:
+- `option_order` holds, per question, the ids shown: choice kinds as before; `ordering` is always shuffled and never shown solved; `matching` stores the left ids (shuffled with `shuffleOptions`) followed by the right ids (always shuffled).
+- Learners never receive keys: `ordering` gets `options` in the shown order; `matching` gets `options` (left) and `choices` (right, ids unrelated to the left ids); `fill_blank` gets `prompt` with blanks as `____` plus `parts` (the text around the blanks); `short` and `numeric` get no accepted values. `partialCredit: true` is the only scoring hint sent.
+- Revealed (per `showAnswers`, and always for graders): `accepted` (short), `answer` + `tolerance` (numeric), `correctOrder` (ordering), `correctPairs` (matching), `blankAnswers` and `exactMatch` (fill_blank), plus option `correct` flags, `explanation`, `awardedPoints` and `correct`.
+- Saving answers loads the attempt's questions and cleans each answer by kind (unknown ids dropped, text limits).
+
+UI:
+- Builder: a list of cards (grip with `@dnd-kit` pointer and keyboard sorting, number, type icon and label, prompt preview, points, Duplicar and Eliminar with ConfirmDialog) next to a sticky panel that stacks on phones. "Nueva pregunta" opens a grid of type cards. Single choice marks the answer with a radio-style "Correcta"; multiple uses checkboxes; option rows reorder by drag and drop and Enter adds a row. "Vista del alumno" renders the learner component read-only.
+- Settings copy: "Preguntas aleatorias por intento" with the plain-language hint and the current question count; a value above the count shows a warning (the server uses every question).
+- Learner: progress bar, autosave and countdown in both layouts; in `one`, a navigator shows answered, unanswered and "Revisar después" (kept in the browser session). Ordering uses drag and drop plus up/down buttons; matching uses one select per row; fill_blank shows inputs inline.
+- Result and grading show every kind with the learner's answer, a Correcta / Parcial / Incorrecta badge and, when revealed, the correct answer and explanation. Open answers keep manual points.
 
 ## 12. Phase 3 — Social (discussion, ratings, announcements)
 

@@ -11,8 +11,23 @@ export const lessonEditorPath = (courseId, lessonId = 'new', sectionId = null) =
 export const LEVEL_LABELS = { basic: 'Básico', intermediate: 'Intermedio', advanced: 'Avanzado' }
 export const STATUS_LABELS = { draft: 'Borrador', published: 'Publicado', archived: 'Archivado' }
 export const KIND_LABELS = { video: 'Video', embed: 'Enlace de video', text: 'Texto', file: 'Archivo', quiz: 'Examen', assignment: 'Tarea' }
-export const QUESTION_KIND_LABELS = { single: 'Opción única', multiple: 'Opción múltiple', true_false: 'Verdadero o falso', open: 'Respuesta abierta' }
-export const SHOW_ANSWERS_LABELS = { after_submit: 'Al enviar el examen', after_pass: 'Solo al aprobar', never: 'Nunca' }
+export const QUESTION_KIND_LABELS = {
+  single: 'Opción única', multiple: 'Opción múltiple', true_false: 'Verdadero o falso', short: 'Respuesta corta', numeric: 'Respuesta numérica',
+  fill_blank: 'Completar espacios', ordering: 'Ordenar', matching: 'Relacionar columnas', open: 'Respuesta abierta',
+}
+export const QUESTION_KIND_DESCRIPTIONS = {
+  single: 'El alumno elige una sola respuesta correcta.',
+  multiple: 'El alumno marca todas las respuestas correctas.',
+  true_false: 'Una afirmación que es verdadera o falsa.',
+  short: 'Escribe una palabra o frase; se compara con las respuestas que aceptes.',
+  numeric: 'Escribe un número; puedes aceptar un margen de error.',
+  fill_blank: 'Un texto con espacios en blanco que el alumno completa.',
+  ordering: 'Acomoda los elementos en el orden correcto.',
+  matching: 'Une cada elemento con su pareja.',
+  open: 'Respuesta libre que un instructor califica a mano.',
+}
+export const SHOW_ANSWERS_LABELS = { after_submit: 'Al enviar el examen', after_pass: 'Solo si aprueba', never: 'Nunca' }
+export const QUIZ_LAYOUT_LABELS = { all: 'Todas en una página', one: 'Una pregunta a la vez' }
 export const SUBMISSION_STATUS_LABELS = { submitted: 'Enviada', returned: 'Devuelta', approved: 'Aprobada' }
 export const SUBMISSION_VARIANTS = { submitted: 'secondary', returned: 'warning', approved: 'success' }
 export const REVIEW_TYPE_LABELS = { attempt: 'Examen', submission: 'Tarea' }

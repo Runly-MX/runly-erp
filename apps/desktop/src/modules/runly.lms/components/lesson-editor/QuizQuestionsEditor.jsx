@@ -1,52 +1,39 @@
 import { useEffect, useState } from 'react'
 import { Badge, Button, ConfirmDialog, EmptyState, ErrorState, Skeleton, SortableList, cn } from '@runly/ui'
-import { ListChecks, Plus, Trash2, Undo2 } from 'lucide-react'
+import { Eye, EyeOff, ListChecks, Plus, Trash2, Undo2, X } from 'lucide-react'
 import { useDeleteQuestion, useQuestions, useReorderQuestions, useSaveQuestion } from '../../hooks/useLmsEval.js'
-import { emptyQuestionForm, formToQuestion, questionToForm, validateQuestionForm } from '../../lib/lmsEval.js'
-import { QUESTION_KIND_LABELS } from '../../lib/lmsLabels.js'
-import { DragHandle } from '../curriculum/DragHandle.jsx'
+import { emptyQuestionForm, formToQuestion, promptPreview, questionToForm, validateQuestionForm } from '../../lib/lmsQuestionForm.js'
 import { QuestionForm } from '../QuestionForm.jsx'
+import { QuestionCard } from '../quiz-builder/QuestionCard.jsx'
+import { QuestionPreview } from '../quiz-builder/QuestionPreview.jsx'
+import { QuestionTypePicker } from '../quiz-builder/QuestionTypePicker.jsx'
 
-// First line of a markdown prompt, without the most common markup.
-const promptPreview = (prompt) => String(prompt ?? '').split('\n').find((line) => line.trim())?.replace(/[#*_`>\\]/g, '').trim() || 'Sin texto'
+const PREVIEW_KEY = 'runly.lms.questionPreview'
 const pointsLabel = (points) => `${points} ${Number(points) === 1 ? 'punto' : 'puntos'}`
+const readPreview = () => { try { return localStorage.getItem(PREVIEW_KEY) !== '0' } catch { return true } }
+const writePreview = (value) => { try { localStorage.setItem(PREVIEW_KEY, value ? '1' : '0') } catch { /* storage unavailable */ } }
 
-function QuestionRow({ question, index, selected, handleProps, isDragging, readOnly, onSelect, onDelete }) {
-  return (
-    <div className={cn('flex items-center gap-1 rounded-md', selected ? 'bg-[hsl(var(--muted))]' : 'hover:bg-[hsl(var(--muted)/0.6)]', isDragging && 'opacity-60')}>
-      <DragHandle handleProps={readOnly ? null : handleProps} label={`Mover la pregunta ${index + 1}`} />
-      <button
-        type="button" onClick={onSelect} aria-current={selected ? 'true' : undefined}
-        className={cn('flex min-w-0 flex-1 items-start gap-2 rounded-md py-2 pr-2 text-left focus-visible:outline-none focus-visible:bg-[hsl(var(--muted))]', readOnly && 'pl-2')}
-      >
-        <span className="w-6 shrink-0 text-right text-sm tabular-nums text-[hsl(var(--muted-foreground))]">{index + 1}.</span>
-        <span className="min-w-0 flex-1">
-          <span className={cn('block truncate text-sm', selected && 'font-medium')}>{promptPreview(question.prompt)}</span>
-          <span className="block text-xs text-[hsl(var(--muted-foreground))]">{QUESTION_KIND_LABELS[question.kind] ?? question.kind} · {pointsLabel(question.points)}</span>
-        </span>
-      </button>
-      {!readOnly ? (
-        <Button type="button" variant="ghost" size="icon-sm" aria-label={`Eliminar la pregunta ${index + 1}`} title="Eliminar pregunta" onClick={onDelete} className="text-[hsl(var(--destructive))]">
-          <Trash2 />
-        </Button>
-      ) : null}
-    </div>
-  )
+// Copy of a question for "Duplicar": same content, new option ids.
+function duplicateBody(question) {
+  const body = formToQuestion(questionToForm(question))
+  return { ...body, options: body.options.map(({ id: _id, ...rest }) => rest) }
 }
 
 // Questions of a saved quiz lesson, edited inline on the lesson editor page:
-// a drag-and-drop list on the left and the question panel on the right.
-// `onDirtyChange(bool)` tells the page when the open question has unsaved edits.
+// a drag-and-drop list of cards and a sticky panel with the type picker, the
+// question form and the "Vista del alumno" preview. `onDirtyChange(bool)` tells
+// the page when the open question has unsaved edits.
 export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange }) {
   const questions = useQuestions(lessonId)
   const save = useSaveQuestion(), remove = useDeleteQuestion(), reorder = useReorderQuestions()
-  const [editing, setEditing] = useState(null) // { id|null, form, initial }
+  const [editing, setEditing] = useState(null) // { id|null, form, initial } | { picking: true }
   const [errors, setErrors] = useState({})
   const [toDelete, setToDelete] = useState(null)
   const [pending, setPending] = useState(null) // action waiting for "Descartar cambios"
+  const [preview, setPreview] = useState(readPreview)
   const list = questions.data ?? []
   const totalPoints = list.reduce((sum, question) => sum + (Number(question.points) || 0), 0)
-  const dirty = Boolean(editing) && JSON.stringify(editing.form) !== JSON.stringify(editing.initial)
+  const dirty = Boolean(editing?.form) && JSON.stringify(editing.form) !== JSON.stringify(editing.initial)
 
   useEffect(() => { setEditing(null); setErrors({}) }, [lessonId])
   useEffect(() => { onDirtyChange?.(dirty) }, [dirty]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -54,8 +41,10 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
 
   const guard = (action) => (dirty ? setPending(() => action) : action())
   const open = (id, form) => { setErrors({}); setEditing({ id, form, initial: form }) }
-  const startNew = () => guard(() => open(null, emptyQuestionForm()))
+  const startNew = () => guard(() => { setErrors({}); setEditing({ picking: true }) })
+  const pick = (kind) => { const form = emptyQuestionForm(kind); setEditing({ id: null, form, initial: form }) }
   const select = (question) => { if (editing?.id !== question.id) guard(() => open(question.id, questionToForm(question))) }
+  const togglePreview = () => setPreview((value) => { writePreview(!value); return !value })
 
   async function submit() {
     const next = validateQuestionForm(editing.form)
@@ -64,6 +53,16 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
     try {
       await save.mutateAsync({ id: editing.id, lessonId, ...formToQuestion(editing.form) })
       setEditing(null)
+    } catch { /* toast shown by the mutation */ }
+  }
+
+  // The copy lands right after the original.
+  async function duplicate(question) {
+    try {
+      const copy = await save.mutateAsync({ lessonId, ...duplicateBody(question) })
+      const ids = list.map((item) => item.id)
+      ids.splice(ids.indexOf(question.id) + 1, 0, copy.id)
+      if (copy?.id) reorder.mutate({ lessonId, questionIds: ids })
     } catch { /* toast shown by the mutation */ }
   }
 
@@ -76,26 +75,73 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
   }
 
   let listNode
-  if (questions.isLoading) listNode = <div className="space-y-2">{[1, 2, 3].map((key) => <Skeleton key={key} className="h-12 rounded-md" />)}</div>
+  if (questions.isLoading) listNode = <div className="space-y-2">{[1, 2, 3].map((key) => <Skeleton key={key} className="h-16 rounded-md" />)}</div>
   else if (questions.isError) listNode = <ErrorState title="No se pudieron cargar las preguntas" description={questions.error?.message} onRetry={() => questions.refetch()} />
   else if (!list.length) listNode = <p className="rounded-md border border-dashed border-[hsl(var(--border))] px-3 py-4 text-sm text-[hsl(var(--muted-foreground))]">El examen aún no tiene preguntas.</p>
   else {
     listNode = (
-      <div role="list" aria-label="Preguntas del examen" className="space-y-0.5">
+      <div role="list" aria-label="Preguntas del examen" className="space-y-1.5">
         <SortableList
-          items={list}
-          onReorder={(next) => { if (!readOnly) reorder.mutate({ lessonId, questionIds: next.map((question) => question.id) }) }}
-          renderItem={(question, { dragHandleProps, isDragging }) => (
+          items={list} disabled={readOnly} labelOf={(question) => promptPreview(question.prompt)}
+          onReorder={(next) => reorder.mutate({ lessonId, questionIds: next.map((question) => question.id) })}
+          renderItem={(question, { dragHandleProps, isDragging, index }) => (
             <div role="listitem">
-              <QuestionRow
-                question={question} index={list.indexOf(question)} selected={editing?.id === question.id} readOnly={readOnly}
+              <QuestionCard
+                question={question} index={index} selected={editing?.id === question.id} readOnly={readOnly} busy={save.isPending}
                 handleProps={dragHandleProps} isDragging={isDragging}
-                onSelect={() => select(question)} onDelete={() => setToDelete(question)}
+                onSelect={() => select(question)} onDuplicate={() => duplicate(question)} onDelete={() => setToDelete(question)}
               />
             </div>
           )}
         />
       </div>
+    )
+  }
+
+  const index = editing?.id ? list.findIndex((q) => q.id === editing.id) : list.length
+  let panel
+  if (editing?.picking) {
+    panel = (
+      <>
+        <PanelHeader title="Nueva pregunta" onClose={() => setEditing(null)} />
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4"><QuestionTypePicker value={null} onChange={pick} /></div>
+      </>
+    )
+  } else if (editing) {
+    panel = (
+      <>
+        <PanelHeader
+          title={editing.id ? `Pregunta ${index + 1}` : 'Nueva pregunta'} onClose={() => guard(() => setEditing(null))}
+          action={(
+            <Button type="button" variant="ghost" size="sm" aria-pressed={preview} onClick={togglePreview}>
+              {preview ? <EyeOff /> : <Eye />}{preview ? 'Ocultar vista del alumno' : 'Vista del alumno'}
+            </Button>
+          )}
+        />
+        <div className={cn('min-h-0 flex-1 overflow-y-auto px-4 py-4', preview && '2xl:grid 2xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] 2xl:gap-5')}>
+          <QuestionForm key={editing.id ?? 'new'} form={editing.form} onChange={(form) => setEditing((current) => ({ ...current, form }))} errors={errors} disabled={readOnly} />
+          {preview ? (
+            <div className="mt-5 border-t border-[hsl(var(--border))] pt-4 2xl:mt-0 2xl:border-l 2xl:border-t-0 2xl:pl-5 2xl:pt-0">
+              <p className="mb-2 text-sm font-semibold">Vista del alumno</p>
+              <QuestionPreview form={editing.form} index={index} />
+            </div>
+          ) : null}
+        </div>
+        {!readOnly ? (
+          <div className="flex shrink-0 justify-end gap-2 border-t border-[hsl(var(--border))] px-4 py-3">
+            <Button type="button" variant="outline" onClick={() => guard(() => setEditing(null))}>Cancelar</Button>
+            <Button type="button" onClick={submit} disabled={save.isPending}>{save.isPending ? 'Guardando…' : editing.id ? 'Guardar pregunta' : 'Agregar pregunta'}</Button>
+          </div>
+        ) : null}
+      </>
+    )
+  } else {
+    panel = (
+      <EmptyState
+        icon={ListChecks} title={list.length ? 'Elige una pregunta para editarla' : 'Agrega la primera pregunta'}
+        description="Opción única o múltiple, verdadero o falso, respuesta corta o numérica, completar espacios, ordenar, relacionar columnas o respuesta abierta."
+        action={!readOnly ? <Button type="button" onClick={startNew}><Plus />Nueva pregunta</Button> : null}
+      />
     )
   }
 
@@ -111,31 +157,10 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
         {!readOnly ? <Button type="button" variant="outline" size="sm" onClick={startNew}><Plus />Nueva pregunta</Button> : null}
       </div>
       {list.some((question) => question.kind === 'open') ? <Badge variant="secondary">Las respuestas abiertas se califican a mano desde Revisión.</Badge> : null}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
         <div className="min-w-0">{listNode}</div>
-        <div className="min-w-0 rounded-xl border border-[hsl(var(--border))]">
-          {editing ? (
-            <>
-              <div className="border-b border-[hsl(var(--border))] px-4 py-3">
-                <p className="text-sm font-semibold">{editing.id ? `Pregunta ${list.findIndex((q) => q.id === editing.id) + 1}` : 'Nueva pregunta'}</p>
-              </div>
-              <div className="px-4 py-4">
-                <QuestionForm key={editing.id ?? 'new'} form={editing.form} onChange={(form) => setEditing((current) => ({ ...current, form }))} errors={errors} />
-              </div>
-              {!readOnly ? (
-                <div className="flex justify-end gap-2 border-t border-[hsl(var(--border))] px-4 py-3">
-                  <Button type="button" variant="outline" onClick={() => guard(() => setEditing(null))}>Cancelar</Button>
-                  <Button type="button" onClick={submit} disabled={save.isPending}>{save.isPending ? 'Guardando…' : editing.id ? 'Guardar pregunta' : 'Agregar pregunta'}</Button>
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <EmptyState
-              icon={ListChecks} title={list.length ? 'Elige una pregunta' : 'Agrega la primera pregunta'}
-              description="Opción única, opción múltiple, verdadero o falso, o respuesta abierta."
-              action={!readOnly ? <Button type="button" onClick={startNew}><Plus />Nueva pregunta</Button> : null}
-            />
-          )}
+        <div className="flex min-w-0 flex-col rounded-md border border-[hsl(var(--border))] lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]">
+          {panel}
         </div>
       </div>
       <ConfirmDialog
@@ -151,5 +176,15 @@ export function QuizQuestionsEditor({ lessonId, readOnly = false, onDirtyChange 
         confirmLabel="Descartar" onConfirm={() => { const action = pending; setPending(null); action?.() }}
       />
     </section>
+  )
+}
+
+function PanelHeader({ title, action, onClose }) {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[hsl(var(--border))] px-4 py-2.5">
+      <p className="min-w-0 flex-1 text-sm font-semibold">{title}</p>
+      {action}
+      <Button type="button" variant="ghost" size="icon-sm" aria-label="Cerrar" title="Cerrar" onClick={onClose}><X /></Button>
+    </div>
   )
 }

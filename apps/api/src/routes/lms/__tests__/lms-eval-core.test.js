@@ -14,8 +14,10 @@ const rejects = (fn, status, code) => assert.throws(fn, (err) => err instanceof 
 test('quiz and assignment settings: defaults and clamps', () => {
   assert.deepEqual(normalizeQuizSettings(undefined), {
     passingScore: 70, maxAttempts: null, timeLimitMinutes: null, drawCount: null,
-    shuffleQuestions: false, shuffleOptions: true, showAnswers: 'after_submit',
+    shuffleQuestions: false, shuffleOptions: true, showAnswers: 'after_submit', layout: 'all',
   })
+  assert.equal(normalizeQuizSettings({ layout: 'one' }).layout, 'one')
+  assert.equal(normalizeQuizSettings({ layout: 'carousel' }).layout, 'all')
   const quiz = normalizeQuizSettings({ passingScore: 150, maxAttempts: 0, timeLimitMinutes: '15', drawCount: '', showAnswers: 'nope', shuffleOptions: false })
   assert.equal(quiz.passingScore, 100)
   assert.equal(quiz.maxAttempts, 1)

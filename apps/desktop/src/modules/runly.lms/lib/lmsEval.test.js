@@ -19,7 +19,7 @@ test('quiz settings round trip with defaults and empty = null', () => {
   assert.equal(form.maxAttempts, '')
   assert.equal(form.shuffleOptions, true)
   const settings = formToSettings('quiz', { ...form, maxAttempts: '3', timeLimitMinutes: '', passingScore: '150' })
-  assert.deepEqual(settings, { passingScore: 100, maxAttempts: 3, timeLimitMinutes: null, drawCount: null, shuffleQuestions: false, shuffleOptions: true, showAnswers: 'after_submit' })
+  assert.deepEqual(settings, { passingScore: 100, maxAttempts: 3, timeLimitMinutes: null, drawCount: null, shuffleQuestions: false, shuffleOptions: true, showAnswers: 'after_submit', layout: 'all' })
   assert.equal(formToSettings('text', {}), null)
 })
 
@@ -44,7 +44,7 @@ test('question form rules per kind', () => {
   assert.deepEqual(formToQuestion({ ...emptyQuestionForm('true_false'), prompt: 'x', trueFalse: 'false' }).options, [
     { text: 'Verdadero', correct: false }, { text: 'Falso', correct: true },
   ])
-  assert.deepEqual(formToQuestion({ ...emptyQuestionForm('open'), prompt: 'x', points: '3' }), { kind: 'open', prompt: 'x', options: [], points: 3, explanation: null })
+  assert.deepEqual(formToQuestion({ ...emptyQuestionForm('open'), prompt: 'x', points: '3' }), { kind: 'open', prompt: 'x', options: [], config: {}, points: 3, explanation: null })
   const tf = questionToForm({ kind: 'true_false', prompt: 'p', points: 2, options: [{ id: 'true', text: 'Verdadero', correct: false }, { id: 'false', text: 'Falso', correct: true }] })
   assert.equal(tf.trueFalse, 'false')
 })

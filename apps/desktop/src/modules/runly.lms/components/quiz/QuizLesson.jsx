@@ -96,7 +96,7 @@ export function QuizLesson({ lessonId, courseId }) {
     if (view.mode === 'attempt' && data.status === 'in_progress') {
       return (
         <QuizAttempt
-          key={data.id} attempt={data} courseId={courseId} lessonId={lessonId} onExpired={expired}
+          key={data.id} attempt={data} courseId={courseId} lessonId={lessonId} layout={summary.settings?.layout} onExpired={expired}
           onFinished={(result) => setView({ mode: 'result', id: result?.id ?? data.id })}
         />
       )

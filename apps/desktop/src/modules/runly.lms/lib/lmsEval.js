@@ -3,7 +3,7 @@
 
 export const QUIZ_DEFAULTS = {
   passingScore: 70, maxAttempts: null, timeLimitMinutes: null, drawCount: null,
-  shuffleQuestions: false, shuffleOptions: true, showAnswers: 'after_submit',
+  shuffleQuestions: false, shuffleOptions: true, showAnswers: 'after_submit', layout: 'all',
 }
 export const ASSIGNMENT_DEFAULTS = { allowText: true, allowFiles: true, maxFiles: 5, dueDaysAfterEnroll: null, passingScore: null }
 
@@ -44,6 +44,7 @@ export function settingsToForm(kind, settings) {
       passingScore: asText(s.passingScore), maxAttempts: asText(s.maxAttempts), timeLimitMinutes: asText(s.timeLimitMinutes),
       drawCount: asText(s.drawCount), shuffleQuestions: Boolean(s.shuffleQuestions), shuffleOptions: s.shuffleOptions !== false,
       showAnswers: s.showAnswers || QUIZ_DEFAULTS.showAnswers,
+      layout: s.layout === 'one' ? 'one' : 'all',
     }
   }
   if (kind === 'assignment') {
@@ -67,6 +68,7 @@ export function formToSettings(kind, form) {
       shuffleQuestions: Boolean(form.shuffleQuestions),
       shuffleOptions: Boolean(form.shuffleOptions),
       showAnswers: form.showAnswers || QUIZ_DEFAULTS.showAnswers,
+      layout: form.layout === 'one' ? 'one' : 'all',
     }
   }
   if (kind === 'assignment') {
@@ -78,6 +80,15 @@ export function formToSettings(kind, form) {
       passingScore: toIntOrNull(form.passingScore, B.passingScore),
     }
   }
+  return null
+}
+
+// UI warning (not an error: the server uses every question when the number is higher).
+export function drawCountWarning(drawCount, questionCount) {
+  const n = toIntOrNull(drawCount, B.drawCount)
+  if (n === null || questionCount === null || questionCount === undefined) return null
+  if (questionCount === 0) return 'El examen todavía no tiene preguntas.'
+  if (n > questionCount) return `Solo hay ${questionCount} ${questionCount === 1 ? 'pregunta' : 'preguntas'}: cada intento mostrará todas.`
   return null
 }
 
@@ -101,85 +112,27 @@ export function validateSettings(kind, form) {
   return errors
 }
 
-// ---- Question authoring ---------------------------------------------------------
-const blankOption = () => ({ text: '', correct: false })
-
-export function emptyQuestionForm(kind = 'single') {
-  return { kind, prompt: '', points: '1', explanation: '', options: [blankOption(), blankOption()], trueFalse: 'true' }
-}
-
-export function questionToForm(question) {
-  if (!question) return emptyQuestionForm()
-  const options = (question.options ?? []).map((option) => ({ text: option.text ?? '', correct: Boolean(option.correct) }))
-  const trueOption = (question.options ?? []).find((option) => option.id === 'true')
-  return {
-    kind: question.kind,
-    prompt: question.prompt ?? '',
-    points: asText(question.points ?? 1),
-    explanation: question.explanation ?? '',
-    options: question.kind === 'single' || question.kind === 'multiple' ? options : [blankOption(), blankOption()],
-    trueFalse: trueOption && !trueOption.correct ? 'false' : 'true',
-  }
-}
-
-// Kind switch: choice kinds keep their rows (single keeps one correct answer).
-export function changeQuestionKind(form, kind) {
-  if (kind === 'single') {
-    let seen = false
-    const options = form.options.map((option) => {
-      const correct = option.correct && !seen
-      if (option.correct) seen = true
-      return { ...option, correct }
-    })
-    return { ...form, kind, options }
-  }
-  return { ...form, kind }
-}
-
-// "Correcta" toggle: exclusive for single, independent for multiple.
-export function setOptionCorrect(form, index, checked) {
-  return {
-    ...form,
-    options: form.options.map((option, i) => {
-      if (i === index) return { ...option, correct: checked }
-      return form.kind === 'single' && checked ? { ...option, correct: false } : option
-    }),
-  }
-}
-
-export function validateQuestionForm(form) {
-  const errors = {}
-  if (blank(form.prompt)) errors.prompt = 'Escribe la pregunta.'
-  if (outOfRange(form.points, 1, 100) || blank(form.points)) errors.points = 'Escribe un número entero de 1 a 100.'
-  if (form.kind === 'single' || form.kind === 'multiple') {
-    const correct = form.options.filter((option) => option.correct).length
-    if (form.options.length < 2) errors.options = 'Agrega al menos dos opciones.'
-    else if (form.options.some((option) => blank(option.text))) errors.options = 'Completa o elimina las opciones vacías.'
-    else if (form.kind === 'single' && correct !== 1) errors.options = 'Marca exactamente una opción correcta.'
-    else if (form.kind === 'multiple' && correct < 1) errors.options = 'Marca al menos una opción correcta.'
-  }
-  return errors
-}
-
-// Question form -> POST/PATCH body ({ kind, prompt, options: [{ text, correct }], points, explanation }).
-export function formToQuestion(form) {
-  let options = []
-  if (form.kind === 'single' || form.kind === 'multiple') options = form.options.map((option) => ({ text: option.text.trim(), correct: Boolean(option.correct) }))
-  if (form.kind === 'true_false') options = [{ text: 'Verdadero', correct: form.trueFalse === 'true' }, { text: 'Falso', correct: form.trueFalse === 'false' }]
-  return {
-    kind: form.kind,
-    prompt: form.prompt.trim(),
-    options,
-    points: toIntOrNull(form.points, B.points) ?? 1,
-    explanation: form.explanation.trim() || null,
-  }
-}
+// ---- Question authoring (lib/lmsQuestionForm.js) ---------------------------------
+export {
+  changeQuestionKind, emptyQuestionForm, formToQuestion, questionToForm, setOptionCorrect, validateQuestionForm,
+} from './lmsQuestionForm.js'
 
 // ---- Attempts -------------------------------------------------------------------
 export function isAnswered(question, answer) {
   if (!answer) return false
-  if (question.kind === 'open') return !blank(answer.text)
-  return Array.isArray(answer.optionIds) && answer.optionIds.length > 0
+  switch (question.kind) {
+    case 'open':
+    case 'short': return !blank(answer.text)
+    case 'numeric': return !blank(answer.value)
+    case 'ordering': return Array.isArray(answer.order) && answer.order.length > 0
+    case 'matching': return Object.keys(answer.pairs ?? {}).length >= (question.options?.length ?? 1)
+    case 'fill_blank': {
+      const count = question.parts ? Math.max(0, question.parts.length - 1) : 1
+      const blanks = Array.isArray(answer.blanks) ? answer.blanks : []
+      return count > 0 && Array.from({ length: count }, (_, i) => blanks[i]).every((text) => !blank(text))
+    }
+    default: return Array.isArray(answer.optionIds) && answer.optionIds.length > 0
+  }
 }
 
 export const countUnanswered = (questions, answers) => (questions ?? []).filter((question) => !isAnswered(question, answers?.[question.id])).length

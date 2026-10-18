@@ -76,7 +76,7 @@ export function LessonEditorForm({ form, setForm, errors, lesson, sections, isNe
 
       {form.kind === 'quiz' ? (
         <>
-          <QuizSettingsFields value={form.settings} onChange={setSetting} errors={errors.settings} disabled={readOnly} />
+          <QuizSettingsFields value={form.settings} onChange={setSetting} errors={errors.settings} disabled={readOnly} lessonId={lesson?.id ?? null} />
           {lesson?.id && lesson.kind === 'quiz' ? (
             <QuizQuestionsEditor lessonId={lesson.id} readOnly={readOnly} onDirtyChange={onQuestionsDirtyChange} />
           ) : (
