@@ -20,8 +20,9 @@ import {
 //   placement "bar" (default): button always visible.
 //             "collapse": ghost button from `sm` up, inside "Más acciones" below it.
 //             "menu": always inside "Más acciones" (destructive ones go last).
-// collapseOnScroll  opt-in (with sticky): once the content scrolls, the
+// collapseOnScroll  default on (with sticky): once the content scrolls, the
 //   breadcrumb and subtitle fold away and the header becomes one thin row.
+//   Pass false to keep the full header.
 export function RecordHeader({
   crumbs = [],
   title,
@@ -30,7 +31,7 @@ export function RecordHeader({
   actions = [],
   sticky = true,
   bleed = false,
-  collapseOnScroll = false,
+  collapseOnScroll = true,
   className,
 }) {
   const scroll = useScrollCollapse({ enabled: collapseOnScroll && sticky, reserve: true });
