@@ -22,11 +22,11 @@ export function PromoHeroLayout({ promo, backgroundUrl = null, top = null, text,
     <section className="relative isolate overflow-hidden bg-zinc-950 text-white">
       <div className="absolute inset-0 -z-10" aria-hidden="true">
         {backgroundUrl || promo.poster ? (
-          <img src={backgroundUrl || promo.poster} alt="" className="h-full w-full scale-110 object-cover opacity-50 blur-2xl" />
+          <img src={backgroundUrl || promo.poster} alt="" className="h-full w-full scale-110 object-cover opacity-60 blur-xl" />
         ) : (
           <div className="h-full w-full bg-linear-to-br from-violet-700 via-purple-700 to-fuchsia-600" />
         )}
-        <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/65 to-black/45" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/50 to-black/30" />
       </div>
       <div className={cn('mx-auto w-full px-4 pb-10 pt-4 sm:px-6 lg:px-8 lg:pb-14', containerClassName)}>
         {top}
