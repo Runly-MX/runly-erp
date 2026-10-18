@@ -79,6 +79,8 @@ export default function LmsCoursePage() {
   }
 
   const pending = enroll.isPending || download.isPending
+  // The hero shows the promo or the cover as a media card: the CTA card skips its own cover.
+  const heroMedia = Boolean(data.promo || data.course.heroUrl)
   return (
     <div className="h-full overflow-y-auto bg-[hsl(var(--background))] pb-28 lg:pb-12">
       <CourseHero data={data} onBack={back} backLabel="Volver" onRatingClick={() => setReviewsOpen(true)} />
@@ -99,8 +101,8 @@ export default function LmsCoursePage() {
           <Block title="Reseñas"><CourseReviews courseId={courseId} onOpenAll={() => setReviewsOpen(true)} /></Block>
         </div>
         <aside className="hidden lg:block">
-          <div className={data.promo ? 'sticky top-6' : 'sticky top-6 lg:-mt-40'}>
-            <CourseCtaCard data={data} cta={cta} onAction={onAction} pending={pending} />
+          <div className={heroMedia ? 'sticky top-6' : 'sticky top-6 lg:-mt-40'}>
+            <CourseCtaCard data={data} cta={cta} onAction={onAction} pending={pending} cover={!heroMedia} />
             {canManageCourses && cta.action !== 'preview' ? (
               <Button variant="ghost" size="sm" className="mt-3 w-full" onClick={() => navigate(lmsPath(`/courses/${courseId}`))}>Editar curso</Button>
             ) : null}

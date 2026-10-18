@@ -33,7 +33,8 @@ function Actions({ cta, onAction, pending, className }) {
 }
 
 // Sticky call-to-action card of the course page (desktop).
-export function CourseCtaCard({ data, cta, onAction, pending }) {
+// cover=false when the hero already shows the cover or promo as a media card.
+export function CourseCtaCard({ data, cta, onAction, pending, cover = true }) {
   const { course, counts, enrollment } = data
   const duration = counts.totalSeconds ? formatDuration(counts.totalSeconds) : formatMinutes(course.estimatedMinutes)
   const facts = [
@@ -44,15 +45,17 @@ export function CourseCtaCard({ data, cta, onAction, pending }) {
   ].filter(Boolean)
   return (
     <div className="overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-xl">
-      <div className="relative aspect-video w-full bg-[hsl(var(--muted))]">
-        {course.heroUrl ? (
-          <img src={course.heroUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-violet-600 via-purple-600 to-fuchsia-500">
-            <GraduationCap className="h-12 w-12 text-white/50" aria-hidden="true" />
-          </div>
-        )}
-      </div>
+      {cover ? (
+        <div className="relative aspect-video w-full bg-[hsl(var(--muted))]">
+          {course.heroUrl ? (
+            <img src={course.heroUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-violet-600 via-purple-600 to-fuchsia-500">
+              <GraduationCap className="h-12 w-12 text-white/50" aria-hidden="true" />
+            </div>
+          )}
+        </div>
+      ) : null}
       <div className="space-y-4 p-5">
         <Progress enrollment={enrollment} />
         <Actions cta={cta} onAction={onAction} pending={pending} />

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { LEVEL_LABELS, formatDuration, formatMinutes, formatRating, reviewCountLabel } from '../../lib/lmsLabels.js'
 import { learnerCountLabel, lessonCountLabel } from '../../lib/lmsExperience.js'
 import { CourseStatusBadge } from '../shared.jsx'
+import { CoverHeroLayout, HeroSummary } from './CoverHeroLayout.jsx'
 import { PromoHeroLayout } from './PromoHeroLayout.jsx'
 
 // Copies a link (this page by default) to the clipboard.
@@ -18,7 +19,7 @@ export function ShareLinkButton({ url = null, className }) {
     } catch { toast.error('No se pudo copiar el enlace.') }
   }
   return (
-    <Button variant="outline" size="sm" onClick={copy} className={className ?? 'border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white'}>
+    <Button variant="outline" size="sm" onClick={copy} className={className ?? 'border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white max-sm:h-11 max-sm:px-4 max-sm:text-sm'}>
       {copied ? <Check /> : <Share2 />}{copied ? 'Enlace copiado' : 'Compartir'}
     </Button>
   )
@@ -43,7 +44,7 @@ function HeroText({ data }) {
         {data.enrollment?.status === 'completed' ? <Badge variant="success">Completado</Badge> : null}
       </HeroBadges>
       <h1 className="text-3xl font-bold leading-tight tracking-tight drop-shadow-sm sm:text-4xl">{course.title}</h1>
-      {course.summary ? <p className="text-base text-white/85 sm:text-lg">{course.summary}</p> : null}
+      <HeroSummary text={course.summary} />
       {instructor ? (
         <p className="flex items-center gap-2 text-sm text-white/85">
           <PersonAvatar name={instructor.displayName} src={instructor.avatarUrl} size="sm" />
@@ -77,46 +78,29 @@ function HeroStats({ data, onRatingClick, column = false }) {
 }
 
 // Landing hero (racoon-lms CourseDetailView). With a promo video: PromoHeroLayout
-// (text + 16:9 player, or theater). Without one: the cover blurred behind a
-// dark veil, with title, summary, level, rating, lessons, duration and learners.
+// (text + 16:9 player, or theater). Without one: CoverHeroLayout (text + the
+// cover as a clear 16:9 card); without a cover either, text only, leaving room
+// for the CTA card that overlaps the hero on desktop.
 export function CourseHero({ data, onBack, backLabel, onRatingClick }) {
   const { course } = data
   const back = (
-    <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 mb-6 text-white/85 hover:bg-white/15 hover:text-white">
+    <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 mb-6 text-white/85 hover:bg-white/15 hover:text-white max-sm:h-11">
       <ArrowLeft />{backLabel}
     </Button>
   )
+  const aside = (
+    <div className="flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center lg:flex-col lg:items-start">
+      <HeroStats data={data} onRatingClick={onRatingClick} />
+      <ShareLinkButton />
+    </div>
+  )
   if (data.promo) {
-    return (
-      <PromoHeroLayout
-        promo={data.promo} backgroundUrl={course.heroUrl} top={back}
-        text={<HeroText data={data} />}
-        aside={(
-          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center lg:flex-col lg:items-start">
-            <HeroStats data={data} onRatingClick={onRatingClick} />
-            <ShareLinkButton />
-          </div>
-        )}
-      />
-    )
+    return <PromoHeroLayout promo={data.promo} backgroundUrl={course.heroUrl} top={back} text={<HeroText data={data} />} aside={aside} />
   }
   return (
-    <section className="relative isolate overflow-hidden bg-zinc-950 text-white">
-      <div className="absolute inset-0 -z-10" aria-hidden="true">
-        {course.heroUrl ? (
-          <img src={course.heroUrl} alt="" className="h-full w-full scale-110 object-cover opacity-60 blur-xl" />
-        ) : (
-          <div className="h-full w-full bg-linear-to-br from-violet-700 via-purple-700 to-fuchsia-600" />
-        )}
-        <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/60 to-black/40" />
-      </div>
-      <div className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8 lg:pb-14">
-        {back}
-        <div className="max-w-3xl space-y-4 lg:pr-[380px] lg:max-w-none xl:pr-[400px]">
-          <HeroText data={data} />
-          <HeroStats data={data} onRatingClick={onRatingClick} />
-        </div>
-      </div>
-    </section>
+    <CoverHeroLayout
+      coverUrl={course.heroUrl} coverAlt={`Portada del curso ${course.title}`} top={back}
+      text={<HeroText data={data} />} aside={aside} textClassName="lg:max-w-none lg:pr-[380px] xl:pr-[400px]"
+    />
   )
 }

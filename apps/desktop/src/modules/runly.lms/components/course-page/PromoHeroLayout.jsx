@@ -6,12 +6,12 @@ import { LessonStage } from '../LessonContent.jsx'
 const EASE = 'duration-300 ease-out motion-reduce:transition-none'
 
 // Course page hero with a promo video (racoon-lms). Default: text on the left,
-// a 16:9 player card on the right. Theater (the player's own toggle, video
+// a 16:9 player card on the right (phones: the player first). Theater (the player's own toggle, video
 // only): the player spans the hero, centered; `text` moves below it and
 // `aside` (stats, share) sits on its right. The mode is remembered per viewer.
 // One grid with a fixed DOM order keeps the player mounted across modes.
 // Watching the promo never records progress (preview player).
-export function PromoHeroLayout({ promo, backgroundUrl = null, top = null, text, aside }) {
+export function PromoHeroLayout({ promo, backgroundUrl = null, top = null, text, aside, containerClassName = 'max-w-7xl' }) {
   const [theaterPref, setTheaterPref] = useState(() => readHeroTheater())
   const isVideo = promo.kind === 'video'
   const theater = theaterPref && isVideo
@@ -28,7 +28,7 @@ export function PromoHeroLayout({ promo, backgroundUrl = null, top = null, text,
         )}
         <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/65 to-black/45" />
       </div>
-      <div className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8 lg:pb-14">
+      <div className={cn('mx-auto w-full px-4 pb-10 pt-4 sm:px-6 lg:px-8 lg:pb-14', containerClassName)}>
         {top}
         <div
           className={cn(
@@ -36,7 +36,7 @@ export function PromoHeroLayout({ promo, backgroundUrl = null, top = null, text,
             theater ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)] lg:gap-x-10' : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,46%)] lg:gap-x-10 lg:gap-y-5',
           )}
         >
-          <div className={cn('min-w-0', theater ? 'order-first lg:col-span-2 lg:row-start-1' : 'order-2 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-center')}>
+          <div className={cn('min-w-0', theater ? 'order-first lg:col-span-2 lg:row-start-1' : 'order-first lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-center')}>
             <div className={cn('mx-auto w-full transition-[max-width]', EASE, theater ? 'max-w-[min(100%,calc((100dvh-14rem)*16/9))]' : 'max-w-full')}>
               <div className="overflow-hidden rounded-md border border-white/10 bg-black shadow-2xl">
                 <LessonStage

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Alert, AlertDescription, Button, ErrorState, Skeleton, StatStrip } from '@runly/ui'
-import { Eye, Loader2, Play, RotateCcw } from 'lucide-react'
+import { Alert, AlertDescription, Button, ErrorState, Skeleton } from '@runly/ui'
+import { Award, Eye, Loader2, Play, RotateCcw, Target, Timer } from 'lucide-react'
 import { toast } from 'sonner'
 import { KEY } from '../../hooks/useLmsData.js'
 import { errorCode, useAttempt, useQuiz, useRefreshLearner, useStartAttempt } from '../../hooks/useLmsEval.js'
@@ -18,17 +18,33 @@ function Loading() {
   return <div className="space-y-3"><Skeleton className="h-24 rounded-md" /><Skeleton className="h-40 rounded-md" /></div>
 }
 
+// Quiz facts as a compact list (label left, value right, divider rows): one
+// column on phones, two from sm. Never a horizontal strip that clips on phones.
+function QuizFacts({ items }) {
+  return (
+    <dl className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8 [&>div:last-child]:border-b-0 sm:[&>div:nth-last-child(2)]:border-b-0">
+      {items.map(({ key, label, value, icon: Icon }) => (
+        <div key={key} className="flex min-h-11 items-center gap-3 border-b border-[hsl(var(--border)/0.7)] py-2">
+          <Icon className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
+          <dt className="min-w-0 flex-1 text-sm text-[hsl(var(--muted-foreground))]">{label}</dt>
+          <dd className="shrink-0 text-sm font-semibold tabular-nums">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
 function StartCard({ summary, state, starting, onStart, onViewLast }) {
   const settings = summary.settings ?? {}
   const last = summary.lastAttempt
   return (
     <section className="space-y-4 rounded-md border border-[hsl(var(--border))] p-4">
-      <StatStrip
+      <QuizFacts
         items={[
-          { key: 'passing', label: 'Mínima para aprobar', value: `${settings.passingScore ?? 70}%`, icon: 'Target' },
-          { key: 'attempts', label: 'Intentos', value: attemptsText(summary.attemptsUsed, summary.attemptsAllowed), icon: 'RotateCcw' },
-          { key: 'time', label: 'Tiempo límite', value: settings.timeLimitMinutes ? `${settings.timeLimitMinutes} min` : 'Sin límite', icon: 'Timer' },
-          { key: 'best', label: 'Mejor calificación', value: formatPct(summary.bestScorePct), icon: 'Award' },
+          { key: 'passing', label: 'Mínima para aprobar', value: `${settings.passingScore ?? 70}%`, icon: Target },
+          { key: 'attempts', label: 'Intentos', value: attemptsText(summary.attemptsUsed, summary.attemptsAllowed), icon: RotateCcw },
+          { key: 'time', label: 'Tiempo límite', value: settings.timeLimitMinutes ? `${settings.timeLimitMinutes} min` : 'Sin límite', icon: Timer },
+          { key: 'best', label: 'Mejor calificación', value: formatPct(summary.bestScorePct), icon: Award },
         ]}
       />
       {last ? (
@@ -46,7 +62,7 @@ function StartCard({ summary, state, starting, onStart, onViewLast }) {
       ) : null}
       {state.canStart ? (
         <div className="flex justify-end">
-          <Button onClick={onStart} disabled={starting}>
+          <Button onClick={onStart} disabled={starting} className="h-11 w-full sm:h-9 sm:w-auto">
             {starting ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : state.resume ? <Play /> : last ? <RotateCcw /> : <Play />}
             {state.resume ? 'Continuar intento' : last ? 'Intentar de nuevo' : 'Comenzar examen'}
           </Button>

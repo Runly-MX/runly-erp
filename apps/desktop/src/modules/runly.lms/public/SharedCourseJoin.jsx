@@ -3,6 +3,7 @@ import { Button } from '@runly/ui'
 import { BookOpen, Building2, Clock, Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 import { HeroBadges, ShareLinkButton } from '../components/course-page/CourseHero.jsx'
+import { CoverHeroLayout, HeroSummary } from '../components/course-page/CoverHeroLayout.jsx'
 import { PromoHeroLayout } from '../components/course-page/PromoHeroLayout.jsx'
 import { useJoinSharedCourse } from '../hooks/useLmsShare.js'
 import { lessonCountLabel } from '../lib/lmsExperience.js'
@@ -10,6 +11,7 @@ import { formatMinutes } from '../lib/lmsLabels.js'
 import { validateIntakeForm } from '../lib/lmsIntake.js'
 import { GuestIntakeFields } from './GuestIntakeFields.jsx'
 import { SharedCourseInviteForm } from './SharedCourseInviteForm.jsx'
+import { JOIN_FORM_CLASS, keepFieldVisible } from './keyboardSafeFocus.js'
 
 const MUTED = 'text-[hsl(var(--muted-foreground))]'
 
@@ -40,26 +42,23 @@ function Text({ data }) {
       <Company company={data.company} />
       <HeroBadges level={data.course.level} />
       <h1 className="text-3xl font-bold leading-tight tracking-tight drop-shadow-sm sm:text-4xl">{data.course.title}</h1>
-      {data.course.summary ? <p className="text-base text-white/85 sm:text-lg">{data.course.summary}</p> : null}
+      <HeroSummary text={data.course.summary} />
     </>
   )
 }
 
-function CoverHero({ data }) {
-  return (
-    <section className="relative isolate overflow-hidden bg-zinc-950 text-white">
-      <div className="absolute inset-0 -z-10" aria-hidden="true">
-        {data.course.coverUrl
-          ? <img src={data.course.coverUrl} alt="" className="h-full w-full scale-110 object-cover opacity-60 blur-xl" />
-          : <div className="h-full w-full bg-linear-to-br from-violet-700 via-purple-700 to-fuchsia-600" />}
-        <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/60 to-black/40" />
-      </div>
-      <div className="mx-auto w-full max-w-5xl space-y-4 px-4 py-10 sm:px-6 lg:py-14">
-        <Text data={data} />
-        <div className="flex flex-wrap items-center gap-4"><Stats course={data.course} /><ShareLinkButton /></div>
-      </div>
-    </section>
-  )
+// Stats and share: a row on phones and tablets, a column next to the media card on desktop.
+function HeroAside({ course }) {
+  return <div className="flex flex-wrap items-center gap-x-5 gap-y-3 lg:flex-col lg:items-start"><Stats course={course} /><ShareLinkButton /></div>
+}
+
+// Hero: text on the left and a 16:9 media card on the right (phones: the card
+// first). The card is the promo video when the link shares it, else the cover.
+function Hero({ data }) {
+  const props = { text: <Text data={data} />, aside: <HeroAside course={data.course} />, containerClassName: 'max-w-5xl pt-6 lg:pt-12' }
+  return data.promo
+    ? <PromoHeroLayout promo={data.promo} backgroundUrl={data.course.coverUrl} {...props} />
+    : <CoverHeroLayout coverUrl={data.course.coverUrl} coverAlt={`Portada del curso ${data.course.title}`} {...props} />
 }
 
 // Open link: name plus the course intake fields.
@@ -82,13 +81,13 @@ function OpenJoinForm({ shareToken, fields, disabled, onJoined }) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4" noValidate>
+    <form onSubmit={submit} onFocus={keepFieldVisible} className={JOIN_FORM_CLASS} noValidate>
       <div>
         <h2 className="text-base font-semibold">Entrar al curso</h2>
         <p className={`text-sm ${MUTED}`}>No necesitas cuenta. Tu avance se guarda en este navegador.</p>
       </div>
       <GuestIntakeFields fields={fields} values={values} errors={errors} onChange={setValues} disabled={join.isPending} />
-      <Button type="submit" className="w-full" disabled={join.isPending || disabled}>
+      <Button type="submit" className="w-full max-sm:h-11" disabled={join.isPending || disabled}>
         {join.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : <LogIn />}Entrar
       </Button>
     </form>
@@ -105,14 +104,8 @@ export function SharedCourseJoin({ shareToken, data, linkToken = null, onJoined 
   if (!data?.course) return null
   return (
     <div className="h-dvh overflow-y-auto overscroll-contain bg-[hsl(var(--background))]">
-      {data.promo ? (
-        <PromoHeroLayout
-          promo={data.promo} backgroundUrl={data.course.coverUrl}
-          text={<Text data={data} />}
-          aside={<div className="flex flex-col gap-4 sm:flex-row sm:items-center lg:flex-col lg:items-start"><Stats course={data.course} /><ShareLinkButton /></div>}
-        />
-      ) : <CoverHero data={data} />}
-      <main className="mx-auto grid w-full max-w-5xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <Hero data={data} />
+      <main className="mx-auto grid w-full max-w-5xl gap-8 px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="min-w-0 space-y-3">
           <h2 className="text-lg font-semibold tracking-tight">Contenido compartido</h2>
           {data.sections.map((section) => (
@@ -130,7 +123,8 @@ export function SharedCourseJoin({ shareToken, data, linkToken = null, onJoined 
           ))}
           {!lessons.length ? <p className={`text-sm ${MUTED}`}>Este enlace todavía no comparte lecciones.</p> : null}
         </section>
-        <aside>
+        {/* Phones: the entry form right after the hero, before the outline. */}
+        <aside className="max-lg:order-first">
           <div className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 lg:sticky lg:top-6">
             {invite
               ? <SharedCourseInviteForm shareToken={shareToken} linkToken={linkToken} fields={fields} disabled={!lessons.length} onJoined={onJoined} />

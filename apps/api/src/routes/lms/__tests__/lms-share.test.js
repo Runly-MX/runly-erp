@@ -86,7 +86,8 @@ function fakeDb({ settings = { scope: 'all', allowQuizzes: false } } = {}) {
       create: async ({ data }) => { const row = { id: `enr-${enrollments.length + 1}`, status: 'active', progressPct: 0, ...data }; enrollments.push(row); return row },
       update: async () => ({}),
     },
-    lmsLessonProgress: { findMany: async () => [], upsert: async ({ create }) => create },
+    progressRows: [],
+    lmsLessonProgress: { findMany: async () => db.progressRows, upsert: async ({ create }) => create },
     company: { findUnique: async () => ({ name: 'Acme', brandingConfig: null }) },
     fileAsset: { findMany: async () => [] },
     $transaction: async (fn) => fn(db),
@@ -153,6 +154,20 @@ test('access rules: guest token required, rotated link 404, out-of-scope lesson 
   assert.equal(rotated.status, 404)
   db.course.shareEnabled = false
   assert.equal((await call('/me', { guest })).status, 404)
+})
+
+test('guest /me computes progressPct over the lessons shared now, not the stored value', async () => {
+  const { db, call } = build({ settings: { scope: 'all', allowQuizzes: false } })
+  const { data } = await (await call('/join', { method: 'POST', body: { name: 'Invitado' } })).json()
+  // Stored 100% from when only the video was shared; quizzes were turned on later.
+  Object.assign(db.enrollments[0], { progressPct: 100, status: 'completed' })
+  db.progressRows = [{ lessonId: LESSON_IDS.video, status: 'completed' }]
+  db.course.shareSettings = { scope: 'all', allowQuizzes: true }
+  db.lmsCertificate = { findFirst: async () => null }
+  const me = await (await call('/me', { guest: data.guestToken })).json()
+  assert.equal(me.data.sections[0].lessons.length, 3)
+  assert.equal(me.data.enrollment.progressPct, 33)
+  assert.equal(me.data.enrollment.status, 'completed')
 })
 
 test('a dropped guest is refused', async () => {

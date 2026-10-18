@@ -24,6 +24,16 @@ export function progressPct(lessons, completedIds) {
   return Math.floor((done / required.length) * 100)
 }
 
+// Course progress computed at read time over the lessons that count now
+// (enabled, required, and for guests the currently shared ones), so the stored
+// enrollment.progressPct going stale after lessons change never shows.
+// progressById: Map lessonId -> { status }.
+export function liveProgressPct(lessons, progressById) {
+  const done = new Set()
+  for (const [lessonId, row] of progressById ?? []) if (row?.status === 'completed') done.add(lessonId)
+  return progressPct(lessons, done)
+}
+
 // progressById: Map lessonId -> { status }. Returns Map lessonId -> state.
 export function lessonStates(lessons, progressById, { sequential, locked = true } = {}) {
   const states = new Map()

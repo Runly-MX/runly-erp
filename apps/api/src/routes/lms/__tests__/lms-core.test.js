@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  LmsError, progressPct, lessonStates, shouldAutoComplete, isOverdue,
+  LmsError, progressPct, liveProgressPct, lessonStates, shouldAutoComplete, isOverdue,
   normalizeEmbedUrl, normalizeCourseInput, normalizeLessonInput, orderLessons,
 } from '../lms-core.js'
 
@@ -15,6 +15,15 @@ test('progressPct counts only required enabled lessons', () => {
   assert.equal(progressPct(lessons, new Set(['a', 'b'])), 100)
   assert.equal(progressPct([L('x'), L('y'), L('z')], new Set(['x'])), 33)
   assert.equal(progressPct([], new Set()), 0)
+})
+
+test('liveProgressPct: completed rows over the lessons that count now', () => {
+  const rows = new Map([['a', { status: 'completed' }], ['b', { status: 'in_progress' }], ['gone', { status: 'completed' }]])
+  // A lesson added later (b) brings 100 down to 50; a removed one (gone) no longer counts.
+  assert.equal(liveProgressPct([L('a'), L('b')], rows), 50)
+  assert.equal(liveProgressPct([L('a')], rows), 100)
+  assert.equal(liveProgressPct([L('a'), L('b')], new Map()), 0)
+  assert.equal(liveProgressPct([], rows), 0)
 })
 
 test('lessonStates: sequential locks until earlier required lessons complete', () => {

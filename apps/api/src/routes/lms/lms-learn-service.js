@@ -1,6 +1,6 @@
 // runly.lms learner side: catalog, my courses, self-enrollment, course outline,
 // lesson open and progress. The learner is always the current user profile.
-import { EVALUATED_KINDS, LmsError, lessonStates, orderLessons, shouldAutoComplete } from './lms-core.js'
+import { EVALUATED_KINDS, LmsError, lessonStates, liveProgressPct, orderLessons, shouldAutoComplete } from './lms-core.js'
 import { normalizeLessonSettings } from './lms-eval-core.js'
 import { COURSE_COUNTS, ENROLLMENT_CERT, ENROLLMENT_INCLUDE, createLmsSerializers, enrollmentCertificate } from './lms-serialize.js'
 import { createLmsService } from './lms-service.js'
@@ -110,7 +110,8 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     return {
       course: await ser.serializeCourse(ctx.course),
       announcementCount,
-      enrollment: ctx.enrollment ? ser.serializeEnrollment(ctx.enrollment) : null,
+      // progressPct over the lessons enabled now; status (completed) stays as stored.
+      enrollment: ctx.enrollment ? { ...ser.serializeEnrollment(ctx.enrollment), progressPct: liveProgressPct(ctx.lessons, ctx.progressById) } : null,
       access: ctx.access,
       sections: await Promise.all(ctx.sections.map(async (section) => ({
         id: section.id,

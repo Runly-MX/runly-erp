@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useGuestAccess } from '../hooks/useLmsShare.js'
 import { EMAIL_KEY, validateIntakeForm } from '../lib/lmsIntake.js'
 import { GuestIntakeFields } from './GuestIntakeFields.jsx'
+import { JOIN_FORM_CLASS, keepFieldVisible } from './keyboardSafeFocus.js'
 
 const MUTED = 'text-sm text-[hsl(var(--muted-foreground))]'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -65,21 +66,21 @@ export function SharedCourseInviteForm({ shareToken, linkToken = null, fields = 
 
   if (step === 'profile') {
     return (
-      <form onSubmit={submitProfile} className="space-y-4" noValidate>
+      <form onSubmit={submitProfile} onFocus={keepFieldVisible} className={JOIN_FORM_CLASS} noValidate>
         <div>
           <h2 className="text-base font-semibold">Completa tus datos</h2>
           <p className={MUTED}>Solo la primera vez. Entras como {invited?.email}.</p>
         </div>
         <GuestIntakeFields fields={fields} values={profile} errors={errors} onChange={setProfile} skip={[EMAIL_KEY]} disabled={busy} />
-        <Button type="submit" className="w-full" disabled={busy}>{icon}Entrar al curso</Button>
-        <Button type="button" variant="ghost" className="w-full" onClick={() => setStep('code')} disabled={busy}>Volver</Button>
+        <Button type="submit" className="w-full max-sm:h-11" disabled={busy}>{icon}Entrar al curso</Button>
+        <Button type="button" variant="ghost" className="w-full max-sm:h-11" onClick={() => setStep('code')} disabled={busy}>Volver</Button>
       </form>
     )
   }
 
   const set = (key) => (event) => setCredentials((current) => ({ ...current, [key]: event.target.value }))
   return (
-    <form onSubmit={submitCode} className="space-y-4" noValidate>
+    <form onSubmit={submitCode} onFocus={keepFieldVisible} className={JOIN_FORM_CLASS} noValidate>
       <div>
         <h2 className="flex items-center gap-2 text-base font-semibold"><KeyRound className="h-4 w-4" aria-hidden="true" />Entrar con tu invitación</h2>
         <p className={MUTED}>
@@ -89,9 +90,9 @@ export function SharedCourseInviteForm({ shareToken, linkToken = null, fields = 
       {!linkToken ? <TextField label="Correo" type="email" required value={credentials.email} onChange={set('email')} error={errors.email} maxLength={200} autoComplete="email" disabled={busy} /> : null}
       <TextField
         label="Código de acceso" required value={credentials.code} onChange={set('code')} error={errors.code} maxLength={12}
-        autoComplete="one-time-code" placeholder="ABCD-EFGH" className="font-mono uppercase tracking-widest" disabled={busy}
+        autoComplete="one-time-code" autoCapitalize="characters" autoCorrect="off" spellCheck={false} placeholder="ABCD-EFGH" className="font-mono uppercase tracking-widest" disabled={busy}
       />
-      <Button type="submit" className="w-full" disabled={busy}>{icon}Entrar</Button>
+      <Button type="submit" className="w-full max-sm:h-11" disabled={busy}>{icon}Entrar</Button>
       <p className="text-xs text-[hsl(var(--muted-foreground))]">Puedes continuar en cualquier dispositivo con tu correo y código. Al entrar en otro dispositivo se cierra la sesión anterior.</p>
     </form>
   )

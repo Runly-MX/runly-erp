@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, EmptyState, ErrorState, ProgressBar, Skeleton, cn } from '@runly/ui'
-import { Award, Building2, Download, ListTree, Lock, LogOut } from 'lucide-react'
+import { Button, EmptyState, ErrorState, Skeleton, cn } from '@runly/ui'
+import { Award, Download, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { runly } from '../../../lib/runly.js'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -12,6 +12,7 @@ import { toAbsoluteUrl } from '../lib/lmsCert.js'
 import { readTheater, writeTheater } from '../lib/lmsExperience.js'
 import { flattenLessons, pickStartLesson } from '../lib/lmsLabels.js'
 import { guestCourseKey } from '../lib/lmsShare.js'
+import { SharedPlayerHeader } from './SharedPlayerHeader.jsx'
 
 function LessonError({ lesson }) {
   return lesson.error?.status === 409
@@ -29,7 +30,7 @@ function CompletedCard({ certificate }) {
         <p className="text-sm text-[hsl(var(--muted-foreground))]">{certificate ? `Tu certificado ${certificate.folio} está listo.` : 'Puedes volver a ver las lecciones cuando quieras.'}</p>
       </div>
       {pdfUrl ? (
-        <Button asChild><a href={pdfUrl} target="_blank" rel="noopener noreferrer"><Download />Descargar certificado</a></Button>
+        <Button asChild className="max-sm:h-11 max-sm:w-full"><a href={pdfUrl} target="_blank" rel="noopener noreferrer"><Download />Descargar certificado</a></Button>
       ) : null}
     </div>
   )
@@ -83,34 +84,21 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
   const stageArea = stage || lesson.isLoading
   const theaterOn = theater && stage && payload.lesson.kind === 'video'
   const next = payload ? lessons.find((item) => item.id === payload.nextLessonId) : null
-  const name = data.guest?.name ?? 'Invitado'
+  const showContent = () => sidebarRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
 
   return (
     <LmsQuizSourceContext.Provider value={quizSource}>
       <LmsAssignmentSourceContext.Provider value={assignmentSource}>
         <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))]">
-          <header className="shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-            <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
-              {data.company?.logoUrl
-                ? <img src={data.company.logoUrl} alt="" className="h-8 w-8 shrink-0 rounded-md object-contain" />
-                : <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[hsl(var(--muted))]"><Building2 className="h-4 w-4" aria-hidden="true" /></span>}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{data.company?.name || 'Curso compartido'}</p>
-                <h1 className="truncate text-sm font-semibold sm:text-base">{data.course.title}</h1>
-              </div>
-              <div className="hidden w-36 items-center gap-2 sm:flex">
-                <ProgressBar value={pct} aria-label={`Avance: ${pct}%`} />
-                <span className="text-xs font-medium tabular-nums">{pct}%</span>
-              </div>
-              <Button variant="outline" size="sm" className="lg:hidden" onClick={() => sidebarRef.current?.scrollIntoView({ block: 'start' })}><ListTree />Contenido</Button>
-              <Button variant="ghost" size="sm" onClick={onSignOut} title="Olvidar este nombre en este navegador y empezar de nuevo"><LogOut />No soy {name}</Button>
-            </div>
-          </header>
-          <div data-player-scroll="" className="min-h-0 flex-1 overflow-y-auto">
+          <SharedPlayerHeader
+            company={data.company} title={data.course.title} pct={pct} guestName={data.guest?.name ?? null}
+            onShowContent={showContent} onSignOut={onSignOut}
+          />
+          <div data-player-scroll="" className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
             {!lessons.length ? (
               <div className="flex min-h-[60dvh] items-center justify-center p-6"><EmptyState icon={Lock} title="Sin lecciones disponibles" description="Este enlace todavía no comparte lecciones." /></div>
             ) : (
-              <div className="mx-auto grid w-full max-w-[1600px] gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8 lg:py-6">
+              <div className="mx-auto grid w-full max-w-[1600px] gap-6 px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8 lg:py-6">
                 {stageArea ? (
                   <div className={cn('min-w-0', theaterOn ? 'lg:col-span-2' : 'lg:col-start-1 lg:row-start-1')}>
                     <div className={cn('mx-auto w-full transition-[max-width] duration-300 ease-out motion-reduce:transition-none', theaterOn ? 'max-w-[min(100%,calc((100dvh-11rem)*16/9))]' : 'max-w-full')}>
@@ -138,7 +126,7 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
                 <aside
                   ref={sidebarRef}
                   className={cn(
-                    'min-w-0 scroll-mt-4 lg:sticky lg:top-6 lg:col-start-2 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:pr-1',
+                    'min-w-0 scroll-mt-3 border-t border-[hsl(var(--border))] pt-5 lg:border-t-0 lg:pt-0 lg:sticky lg:top-6 lg:col-start-2 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:pr-1',
                     theaterOn ? 'lg:row-start-2' : stageArea ? 'lg:row-start-1 lg:row-span-2' : 'lg:row-start-1',
                   )}
                 >

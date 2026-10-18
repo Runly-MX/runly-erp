@@ -82,17 +82,18 @@ export function LessonHeader({ payload, status, preview, onComplete, completing,
         </div>
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{lesson.title}</h2>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" disabled={!prevLessonId} onClick={() => onNavigate(prevLessonId)} aria-label="Lección anterior">
+      {/* Phones: one row, 44px targets; prev is icon-only, complete takes the free width. */}
+      <div className="flex w-full shrink-0 items-center gap-2 lg:w-auto">
+        <Button variant="outline" size="sm" className="max-sm:h-11 max-sm:w-11 max-sm:px-0" disabled={!prevLessonId} onClick={() => onNavigate(prevLessonId)} aria-label="Lección anterior">
           <ChevronLeft /><span className="max-sm:sr-only">Anterior</span>
         </Button>
         {manualComplete && !completed && !preview ? (
-          <Button variant="outline" size="sm" onClick={onComplete} disabled={completing}>
+          <Button variant="outline" size="sm" className="min-w-0 max-lg:flex-1 max-sm:h-11 max-sm:text-sm" onClick={onComplete} disabled={completing}>
             {completing ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : <CheckCircle2 />}
-            Marcar como completada
+            <span className="truncate sm:hidden">Completar</span><span className="truncate max-sm:hidden">Marcar como completada</span>
           </Button>
         ) : null}
-        <Button size="sm" className={cn(!nextLessonId && 'hidden')} disabled={!canGoNext} onClick={() => onNavigate(nextLessonId)}>
+        <Button size="sm" className={cn('max-lg:ml-auto max-sm:h-11 max-sm:px-4 max-sm:text-sm', !nextLessonId && 'hidden')} disabled={!canGoNext} onClick={() => onNavigate(nextLessonId)}>
           Siguiente<ChevronRight />
         </Button>
       </div>

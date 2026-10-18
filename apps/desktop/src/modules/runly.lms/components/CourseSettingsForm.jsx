@@ -3,6 +3,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { CheckboxField, FieldWrapper, FileUploader, FormSaveBar, MarkdownField, NumberField, SelectField, TextField, TextareaField } from '@runly/ui'
+import { Info } from 'lucide-react'
 import { useUpdateCourse, useUploadLmsFile } from '../hooks/useLmsData.js'
 import { useCertificateTemplates } from '../hooks/useLmsCerts.js'
 import { NO_TEMPLATE } from '../lib/lmsCert.js'
@@ -48,6 +49,7 @@ export function CourseSettingsForm({ course, sections = [], readOnly = false }) 
       ? [{ value: course.certificateTemplateId, label: 'Plantilla actual' }] : []),
   ], [templates.data, course.certificateTemplateId])
   const promoOptions = useMemo(() => promoLessonOptions(sections), [sections])
+  const promoEligible = promoOptions.length > 1
   const [cover, setCover] = useState(null) // { fileId, name, url } once a new cover is uploaded or removed
   const { control, handleSubmit, reset, formState: { errors, isDirty } } = useForm({ resolver: zodResolver(schema), defaultValues: toValues(course) })
   // Re-seed only when another course or a newer version arrives: a refetch that
@@ -110,11 +112,19 @@ export function CourseSettingsForm({ course, sections = [], readOnly = false }) 
           />
         </FieldWrapper>
         <Controller name="promoLessonId" control={control} render={({ field }) => (
-          <SelectField
-            label="Video de presentación" options={promoOptions} value={promoOptions.some((o) => o.value === field.value) ? field.value : NO_PROMO}
-            onValueChange={field.onChange} disabled={readOnly}
-            hint="Se muestra en la página del curso. Solo aparecen lecciones de video o enlace en una sección gratis o marcadas como vista previa."
-          />
+          <div className="space-y-2">
+            <SelectField
+              label="Video de presentación" options={promoOptions} value={promoOptions.some((o) => o.value === field.value) ? field.value : NO_PROMO}
+              onValueChange={field.onChange} disabled={readOnly || !promoEligible}
+              hint="Se muestra en la página del curso y en el enlace compartido. Solo se puede elegir una lección de video o enlace que sea gratis: marcada como «Vista previa gratis» o dentro de una sección «Gratis»."
+            />
+            {!promoEligible ? (
+              <p className="flex gap-2 rounded-md bg-[hsl(var(--muted)/0.6)] p-3 text-xs text-[hsl(var(--muted-foreground))]">
+                <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Ninguna lección puede ser el video de presentación todavía. En la pestaña Contenido, abre una lección de video o enlace y activa «Vista previa gratis», o marca su sección como gratis (botón de regalo); luego elígela aquí.</span>
+              </p>
+            ) : null}
+          </div>
         )} />
         <Controller name="certificateTemplateId" control={control} render={({ field }) => (
           <SelectField

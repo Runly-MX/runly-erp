@@ -2,7 +2,7 @@
 // the link again (enabled, current token, published course), so a disabled or
 // rotated link stops working at once. Guests authenticate with
 // `Authorization: Guest <token>`; only sha256(token) is stored.
-import { LmsError, lessonStates, orderLessons } from './lms-core.js'
+import { LmsError, lessonStates, liveProgressPct, orderLessons } from './lms-core.js'
 import { normalizeLessonSettings } from './lms-eval-core.js'
 import { isUuid } from './lms-eval-shared.js'
 import { createLmsLearnService } from './lms-learn-service.js'
@@ -203,7 +203,8 @@ export function createLmsGuestService({
       course: await courseSummary(guest.course, guest.lessons),
       company: await brand(guest.course.companyId),
       settings: guest.settings,
-      enrollment: { ...guestEnrollment(guest.enrollment), lastLessonId },
+      // progressPct over the lessons shared now (the stored value goes stale when the scope changes).
+      enrollment: { ...guestEnrollment(guest.enrollment), progressPct: liveProgressPct(guest.lessons, guest.progressById), lastLessonId },
       certificate: certificate ? { token: certificate.token, folio: certificate.folio } : null,
       sections: await outlineSections(guest.sections, guest),
     }
