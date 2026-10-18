@@ -28,6 +28,11 @@ export function createAuthMiddleware({
   }
 
   return async function authMiddleware(c, next) {
+    // Routers mounted at "/" each register this middleware, so one request can
+    // pass through it many times. Once it was verified and authorized (same
+    // request context, same token), skip the repeat: authorizeIdentity costs
+    // several DB round trips per pass.
+    if (c.get("authorizedIdentity")) return next();
     const authHeader = c.req.header("Authorization");
     const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     if (!token)
@@ -61,6 +66,7 @@ export function createAuthMiddleware({
     c.set("authUserId", userId);
     const denied = await authorizeIdentity(c, userId);
     if (denied) return denied;
+    c.set("authorizedIdentity", true);
     await next();
   };
 }

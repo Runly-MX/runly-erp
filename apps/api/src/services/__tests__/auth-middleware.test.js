@@ -168,3 +168,20 @@ test("local expiry buffer and cache key prefix remain compatible without storing
   assert.match(f.writes[0].key, /^auth:token:[a-f0-9]{64}$/);
   assert.equal(f.writes[0].key.includes(token), false);
 });
+
+test('one request through several routers authorizes the identity once', async () => {
+  let checks = 0
+  const auth = createAuthMiddleware({
+    cacheGet: () => 'existing-identity', cacheSet: () => {}, supabaseAdmin: {},
+    authorizeIdentity: async () => { checks++; return null },
+  })
+  const app = new Hono()
+  for (let i = 0; i < 5; i++) { const r = new Hono(); r.use('*', auth); app.route('/', r) }
+  const last = new Hono(); last.use('*', auth); last.get('/x', c => c.json({ user: c.get('authUserId') })); app.route('/', last)
+  const res = await app.request('/x', { headers: { Authorization: 'Bearer fixture-token' } })
+  assert.equal(res.status, 200)
+  assert.deepEqual(await res.json(), { user: 'existing-identity' })
+  assert.equal(checks, 1)
+  await app.request('/x', { headers: { Authorization: 'Bearer fixture-token' } })
+  assert.equal(checks, 2)
+})
