@@ -50,3 +50,24 @@ test('global module mutations are fenced during deletion while other-company bus
   assert.equal((await f.app.request('/modules')).status,200)
   assert.equal((await f.app.request('/contacts',{method:'POST'})).status,200)
 })
+
+test('with loadContext the policy reuses the request user context', async () => {
+  let loads = 0, profileReads = 0
+  const context = { memberships: [{ companyId: 'c1' }] }
+  const policy = createCompanyAccessPolicy({
+    prisma: { userProfile: { findUnique: async () => { profileReads++; return null } } },
+    loadContext: async () => { loads++; return context },
+  })
+  const app = new Hono()
+  app.use('*', async (c, next) => (await policy(c, 'auth-1')) ?? next())
+  app.get('/x', (c) => c.json({ same: c.get('userContext') === context }))
+  const ok = await app.request('/x', { headers: { 'X-Runly-Company-Id': 'c1' } })
+  assert.equal(ok.status, 200)
+  assert.deepEqual(await ok.json(), { same: true })
+  assert.equal((await app.request('/x', { headers: { 'X-Runly-Company-Id': 'c2' } })).status, 403)
+  assert.equal(loads, 2)
+  assert.equal(profileReads, 0)
+  const none = createCompanyAccessPolicy({ prisma: {}, loadContext: async () => null })
+  const app2 = new Hono(); app2.use('*', async (c, next) => (await none(c, 'a')) ?? next()); app2.get('/x', (c) => c.text('ok'))
+  assert.equal((await app2.request('/x')).status, 403)
+})

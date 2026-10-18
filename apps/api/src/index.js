@@ -296,7 +296,7 @@ const authMiddleware = createAuthMiddleware({
   cacheGet,
   cacheSet,
   userContextTtlSeconds: TTL.USER_CONTEXT,
-  authorizeIdentity: createCompanyAccessPolicy({ prisma }),
+  authorizeIdentity: createCompanyAccessPolicy({ prisma, loadContext: (authUserId) => getUserContextByAuthId(authUserId) }),
 });
 
 const ADMIN_ROLE_KEYS = new Set(["runly.admin", "system.admin"]);
@@ -331,20 +331,34 @@ async function _loadUserContext(authUserId, cacheKey) {
     where: { userId: profile.id, enabled: true },
     include: {
       company: { select: { id: true, name: true, slug: true, enabled: true } },
-      role: {
-        include: {
-          permissions: {
-            where: { permission: { active: true } },
-            include: {
-              permission: {
-                select: { key: true },
-              },
-            },
-          },
-        },
-      },
+      role: true,
     },
   });
+
+  // Role permissions, per-user grants and (for admins) every active key load
+  // in ONE parallel round trip with plain joins: this runs on every request,
+  // and Prisma's nested includes would cost one sequential query per level.
+  // role.permissions keeps the include's shape: [{ permission: { key } }].
+  const roleIds = [...new Set(memberships.map((m) => m.roleId).filter(Boolean))];
+  const companyIds = [...new Set(memberships.map((m) => m.companyId).filter(Boolean))];
+  const mayBeAdmin = memberships.some((m) => ADMIN_ROLE_KEYS.has(m.role?.key));
+  const [rolePermissionRows, grantRows, adminRows] = await Promise.all([
+    roleIds.length
+      ? prisma.$queryRaw`SELECT rp.role_id AS "roleId", p.key FROM role_permission rp JOIN permission p ON p.id = rp.permission_id WHERE p.active = true AND rp.role_id = ANY(${roleIds}::uuid[])`
+      : [],
+    companyIds.length
+      ? prisma.$queryRaw`SELECT g.company_id AS "companyId", p.key FROM user_permission_grant g JOIN permission p ON p.id = g.permission_id WHERE p.active = true AND g.user_id = ${profile.id}::uuid AND g.company_id = ANY(${companyIds}::uuid[])`
+      : [],
+    mayBeAdmin ? prisma.permission.findMany({ where: { active: true }, select: { key: true }, take: 1000 }) : [],
+  ]);
+  const keysByRole = new Map();
+  for (const row of rolePermissionRows) {
+    if (!keysByRole.has(row.roleId)) keysByRole.set(row.roleId, []);
+    keysByRole.get(row.roleId).push({ permission: { key: row.key } });
+  }
+  for (const membership of memberships) {
+    if (membership.role) membership.role.permissions = keysByRole.get(membership.role.id) ?? [];
+  }
 
   const activeMemberships = memberships.filter((membership) =>
     Boolean(membership?.role?.enabled !== false && membership?.company?.enabled
@@ -377,33 +391,18 @@ async function _loadUserContext(authUserId, cacheKey) {
   // See docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md
   const grantKeySet = new Set();
   const grantsByCompany = new Map();
-  const grantCompanyIds = [...new Set(activeMemberships.map((m) => m.companyId).filter(Boolean))];
-  if (grantCompanyIds.length) {
-    const grants = await prisma.userPermissionGrant.findMany({
-      where: {
-        userId: profile.id,
-        companyId: { in: grantCompanyIds },
-        permission: { active: true },
-      },
-      include: { permission: { select: { key: true } } },
-    });
-    for (const g of grants) {
-      const key = g.permission?.key;
-      if (!key) continue;
-      permissionSet.add(key);
-      grantKeySet.add(key);
-      if (!grantsByCompany.has(g.companyId)) grantsByCompany.set(g.companyId, new Set());
-      grantsByCompany.get(g.companyId).add(key);
-    }
+  const grantCompanyIds = new Set(activeMemberships.map((m) => m.companyId).filter(Boolean));
+  for (const g of grantRows) {
+    const key = g.key;
+    if (!key || !grantCompanyIds.has(g.companyId)) continue;
+    permissionSet.add(key);
+    grantKeySet.add(key);
+    if (!grantsByCompany.has(g.companyId)) grantsByCompany.set(g.companyId, new Set());
+    grantsByCompany.get(g.companyId).add(key);
   }
 
   if (isAdmin) {
-    const allPermissions = await prisma.permission.findMany({
-      where: { active: true },
-      select: { key: true },
-      take: 1000,
-    });
-    for (const permission of allPermissions) {
+    for (const permission of adminRows) {
       permissionSet.add(permission.key);
     }
   }
