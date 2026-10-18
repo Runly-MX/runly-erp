@@ -89,7 +89,7 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
   return (
     <LmsQuizSourceContext.Provider value={quizSource}>
       <LmsAssignmentSourceContext.Provider value={assignmentSource}>
-        <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))]">
+        <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))]">
           <SharedPlayerHeader
             company={data.company} title={data.course.title} pct={pct} guestName={data.guest?.name ?? null}
             onShowContent={showContent} onSignOut={onSignOut}

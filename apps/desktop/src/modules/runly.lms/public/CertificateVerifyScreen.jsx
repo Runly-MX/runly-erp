@@ -62,7 +62,7 @@ export default function CertificateVerifyScreen() {
     const notFound = query.error?.status === 404
     const limited = query.error?.status === 429
     return (
-      <div className="h-dvh overflow-y-auto overscroll-contain">
+      <div className="fixed inset-0 overflow-y-auto overscroll-contain bg-[hsl(var(--background))]">
         <Brand loading={false} />
         <main className="mx-auto max-w-xl px-4 py-10">
           <EmptyState
@@ -80,7 +80,7 @@ export default function CertificateVerifyScreen() {
   const revoked = Boolean(data?.revoked)
   const pdfUrl = token ? toAbsoluteUrl(runly.lms.publicCertificatePdfUrl(token), getApiUrl()) : ''
   return (
-    <div className="h-dvh overflow-y-auto overscroll-contain">
+    <div className="fixed inset-0 overflow-y-auto overscroll-contain bg-[hsl(var(--background))]">
       <Brand data={data} loading={query.isPending} />
       <main className="mx-auto flex max-w-xl flex-col gap-5 px-4 pb-10 pt-6">
         {query.isPending || !data ? (

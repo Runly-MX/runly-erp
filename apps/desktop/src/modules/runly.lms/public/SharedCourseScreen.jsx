@@ -12,7 +12,7 @@ import { SharedCoursePlayer } from './SharedCoursePlayer.jsx'
 const code = (error) => error?.details?.code ?? null
 
 function Centered({ children }) {
-  return <div className="flex h-dvh items-center justify-center overflow-y-auto p-6">{children}</div>
+  return <div className="fixed inset-0 flex items-center justify-center overflow-y-auto overscroll-contain p-6">{children}</div>
 }
 
 // Public course share link (/app/p/lms/curso/:token), signed out and without the
@@ -88,7 +88,7 @@ export default function SharedCourseScreen() {
   // fetching, and isLoading would be false while there is still no data.
   if (summary.isPending || !summary.data || (guestToken && me.isPending)) {
     return (
-      <div className="h-dvh overflow-hidden">
+      <div className="fixed inset-0 overflow-hidden">
         <Skeleton className="h-72 w-full rounded-none" />
         <div className="mx-auto max-w-3xl space-y-3 p-6"><Skeleton className="h-8 w-2/3" /><Skeleton className="h-32 w-full rounded-md" /></div>
       </div>
