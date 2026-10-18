@@ -43,7 +43,8 @@ test('outline passes canManage from lms.course.manage', async () => {
   const { app, calls } = build()
   await req(app, '/lms/learn/course-1', ['lms.access'])
   await req(app, '/lms/learn/course-1', ['lms.access', 'lms.course.manage'])
-  assert.deepEqual(calls.map((c) => c[2]), [{ canManage: false }, { canManage: true }])
+  await req(app, '/lms/learn/course-1?preview=1', ['lms.access', 'lms.course.manage'])
+  assert.deepEqual(calls.map((c) => c[2]), [{ canManage: false, preview: false }, { canManage: true, preview: false }, { canManage: true, preview: true }])
 })
 
 test('authoring route 403s without lms.course.manage', async () => {
