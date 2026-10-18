@@ -1,6 +1,6 @@
 // runly.lms MCP domain: assistants build and manage course content through
-// proposals approved in Runly. Grading, certificates, share links and guest
-// invites stay in the app.
+// proposals approved in Runly, and upload certificate templates from a file.
+// Grading, issuing certificates, share links and guest invites stay in the app.
 import { createLmsService } from '../../routes/lms/lms-service.js';
 import { createLmsQuizService } from '../../routes/lms/lms-quiz-service.js';
 import { normalizeLessonSettings } from '../../routes/lms/lms-eval-core.js';
@@ -10,18 +10,19 @@ import { createLmsQueries } from './lms-queries.js';
 import { createLmsCourseActions } from './lms-course-actions.js';
 import { createLmsLessonActions } from './lms-lesson-actions.js';
 import { createLmsQuizActions } from './lms-quiz-actions.js';
+import { createLmsCertActions } from './lms-cert-actions.js';
 
 const COURSE_FIELDS = ['title', 'summary', 'description', 'category', 'level', 'estimatedMinutes', 'sequential', 'selfEnroll', 'certificateTemplateId', 'status', 'shareEnabled'];
 const pick = (row, keys) => Object.fromEntries(keys.map(key => [key, row[key] ?? null]));
 
-export function createLmsAdapter({ prisma }) {
+export function createLmsAdapter({ prisma, supabaseAdmin = null }) {
   const db = lmsDb(prisma);
   // No signFile: MCP results never carry signed storage URLs. Authoring calls
   // of the quiz service need neither the learner service nor the notifier.
   const svc = createLmsService({ prisma: db }), quiz = createLmsQuizService({ prisma: db, learn: null, notifier: null });
   const find = createLmsLookups(db), deps = { prisma: db, svc, quiz, find };
   const queries = createLmsQueries(deps).map(query => ({ ...query, run: (input, a) => lmsCall(() => query.run(input, a)) }));
-  const actions = [...createLmsCourseActions(deps), ...createLmsLessonActions(deps), ...createLmsQuizActions(deps)]
+  const actions = [...createLmsCourseActions(deps), ...createLmsLessonActions(deps), ...createLmsQuizActions(deps), ...createLmsCertActions({ prisma: db, supabaseAdmin })]
     .map(action => ({ ...action, prepare: (input, a) => lmsCall(() => action.prepare(input, a)), execute: (input, a) => lmsCall(() => action.execute(input, a)) }));
 
   // What the person reviewed: editable fields of the target, never timestamps,
@@ -50,6 +51,6 @@ export function createLmsAdapter({ prisma }) {
     // Publishing exposes the course to learners (and its share link); archiving
     // hides it from them; deleting a section cannot be undone.
     sensitive: (definition, input) => definition.key === 'lms.section.delete' || (definition.key === 'lms.course.status' && ['published', 'archived'].includes(input?.status)),
-    effects: ['Crear y editar cursos, secciones, lecciones y preguntas de Aprendizaje. Publicar hace visible el curso en el catálogo interno y en su enlace compartido si está activo; archivarlo lo oculta a los alumnos; eliminar una sección vacía es definitivo. No califica, no emite certificados ni comparte enlaces.'],
+    effects: ['Crear y editar cursos, secciones, lecciones y preguntas de Aprendizaje. Publicar hace visible el curso en el catálogo interno y en su enlace compartido si está activo; archivarlo lo oculta a los alumnos; eliminar una sección vacía es definitivo. Crear una plantilla de certificado guarda una copia del archivo (con las etiquetas sugeridas si no tenía) en Aprendizaje. No califica, no emite certificados ni comparte enlaces.'],
   };
 }

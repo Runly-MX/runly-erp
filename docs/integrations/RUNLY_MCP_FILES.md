@@ -99,12 +99,15 @@ esa cuenta después de publicar la API. No se declara esa prueba como realizada.
 
 ## Límites y seguridad
 
-- JPEG, PNG, GIF, WebP, PDF y XML UTF-8, sin conversión. Máximo cinco archivos por propuesta,
+- JPEG, PNG, GIF, WebP, PDF, XML UTF-8, Word (.docx) y PowerPoint (.pptx), sin
+  conversión. Máximo cinco archivos por propuesta,
   10 MB por archivo y 30 MB en conjunto. El tipo se obtiene de la firma binaria;
   si el cliente declara otro tipo, se rechaza. XML no admite DTD, entidades ni
   contenido activo; no ejecuta reconocimiento fiscal ni cambios financieros.
-  Office, SVG, HEIC y ZIP no están
-  habilitados por esta operación.
+  Word/PowerPoint se aceptan solo como paquete OOXML real con su parte principal
+  y sin macros ni ActiveX (para plantillas de certificado de Aprendizaje:
+  importar sin destino y luego `lms.certificate_template.create`). Otros
+  formatos Office, SVG, HEIC y ZIP no están habilitados por esta operación.
 - Descargas HTTPS con límite de bytes real y timeout, DNS validado y fijado a la
   conexión, rechazo de direcciones privadas/loopback y redirecciones inseguras.
   Se reutiliza el downloader existente de Catálogo, sin enviar credenciales ERP

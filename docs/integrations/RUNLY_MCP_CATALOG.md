@@ -290,6 +290,7 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `lms.question.update` | Escritura aprobada | `lms.course.manage` |
 | `lms.question.delete` | Escritura aprobada | `lms.course.manage` |
 | `lms.question.reorder` | Escritura aprobada | `lms.course.manage` |
+| `lms.certificate_template.create` | Escritura aprobada | `lms.course.manage` |
 
 ## Destinos de archivos originales
 

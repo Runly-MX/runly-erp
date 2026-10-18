@@ -31,7 +31,7 @@ function FieldContent({ field, scale }) {
   if (isImageField(field.key)) {
     const Icon = field.key === 'qr' ? QrCode : ImageIcon
     return (
-      <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 text-[hsl(var(--primary))]">
+      <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 text-primary">
         <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="truncate text-[10px] font-medium">{fieldLabel(field.key)}</span>
       </span>
@@ -115,8 +115,8 @@ export function PdfLayoutCanvas({ file, page, fields, selectedKey, onSelect, onC
                 className={cn(
                   'absolute touch-none rounded-sm border outline-none',
                   selected
-                    ? 'z-10 cursor-move border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.16)]'
-                    : 'cursor-pointer border-dashed border-[hsl(var(--primary)/0.6)] bg-[hsl(var(--primary)/0.05)] hover:bg-[hsl(var(--primary)/0.1)] focus-visible:bg-[hsl(var(--primary)/0.12)]',
+                    ? 'z-10 cursor-move border-primary bg-primary/16'
+                    : 'cursor-pointer border-dashed border-primary/60 bg-primary/5 hover:bg-primary/10 focus-visible:bg-primary/12',
                 )}
                 style={{ left: field.x * scale, top: field.y * scale, width: field.w * scale, height: field.h * scale, ...(field.background ? { backgroundColor: field.background } : {}) }}
                 onPointerDown={(event) => start(event, field)}
@@ -127,14 +127,14 @@ export function PdfLayoutCanvas({ file, page, fields, selectedKey, onSelect, onC
                 onKeyDown={(event) => keyDown(event, field)}
               >
                 <FieldContent field={field} scale={scale} />
-                <span className="pointer-events-none absolute -top-4 left-0 whitespace-nowrap rounded-sm bg-[hsl(var(--primary))] px-1 text-[10px] leading-4 text-[hsl(var(--primary-foreground))]">
+                <span className="pointer-events-none absolute -top-4 left-0 whitespace-nowrap rounded-sm bg-primary px-1 text-[10px] leading-4 text-primary-foreground">
                   {fieldLabel(field.key)}
                 </span>
                 {selected ? HANDLES.map(([handle, position]) => (
                   <span
                     key={handle}
                     aria-hidden="true"
-                    className={cn('absolute h-2.5 w-2.5 rounded-sm border border-[hsl(var(--primary))] bg-white', position)}
+                    className={cn('absolute h-2.5 w-2.5 rounded-sm border border-primary bg-white', position)}
                     onPointerDown={(event) => start(event, field, handle)}
                   />
                 )) : null}

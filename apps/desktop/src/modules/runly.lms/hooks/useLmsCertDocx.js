@@ -23,10 +23,13 @@ function useTemplateFileMutation(fn) {
 }
 
 // .docx, .pptx or .pdf (the API reads the format from the file name).
-export const useUploadCertificateTemplate = () => useTemplateFileMutation((t, { file, name }) => {
+// autoTag false skips the automatic tags / field detection; the saved
+// template comes back with autoTag / autoLayout (what was recognized).
+export const useUploadCertificateTemplate = () => useTemplateFileMutation((t, { file, name, autoTag = true }) => {
   const form = new FormData()
   form.append('file', file)
   if (name) form.append('name', name)
+  if (!autoTag) form.append('autoTag', 'false')
   return runly.lms.uploadCertificateTemplateFile(form, t)
 })
 

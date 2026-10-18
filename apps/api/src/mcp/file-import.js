@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import PizZip from 'pizzip';
 import { readCatalogBytes } from '../services/catalog/catalog-download.js';
 import { createFilesService } from '../services/files-service.js';
 import { attachmentTargetSchema, normalizeAttachmentTarget, createAttachmentTargets, ATTACHMENT_TARGETS } from './attachment-targets.js';
@@ -18,9 +19,24 @@ function isSafeXml(buffer) {
     return /^<\?xml\b|^<(?:[A-Za-z_][\w.-]*:)?[A-Za-z_][\w.-]*(?:\s|>|\/)/.test(text) && !/<!DOCTYPE|<!ENTITY|<\?xml-stylesheet\b|<(?:[\w.-]+:)?(?:svg|html|script|stylesheet|transform)\b/i.test(text);
   } catch { return false; }
 }
+// Word/PowerPoint originals (.docx/.pptx, e.g. certificate templates written
+// by the assistant): a real OOXML package with its main part, never a
+// macro-enabled or ActiveX one. Stored as is; nothing is converted.
+const OFFICE_TYPES = [
+  [/wordprocessingml\.document\.main\+xml/, 'word/document.xml', ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.docx']],
+  [/presentationml\.presentation\.main\+xml/, 'ppt/presentation.xml', ['application/vnd.openxmlformats-officedocument.presentationml.presentation', '.pptx']],
+];
+export function officeType(buffer) {
+  if (buffer.subarray(0, 4).toString('hex') !== '504b0304') return null;
+  let zip;
+  try { zip = new PizZip(buffer); } catch { return null; }
+  const types = zip.file('[Content_Types].xml')?.asText() ?? '';
+  if (/macroEnabled|vbaProject|activeX/i.test(types) || Object.keys(zip.files).some(name => /vbaProject|activeX/i.test(name))) return null;
+  return OFFICE_TYPES.find(([main, part]) => main.test(types) && zip.file(part))?.[2] ?? null;
+}
 export const fileImportTools = ['prepare', 'commit'].map(mode => ({
   name: `runly_files_import_${mode}`, moduleKey: 'runly.files', domain: 'files', mode, scope: 'files:write', fileImport: mode,
-  description: mode === 'prepare' ? 'Preparar imágenes, PDF o XML originales del chat para un registro existente. Consulta runly_files_query con operation files_attachment_targets y usa target:{type,id}; itemId sigue siendo alias de Inventario. Sin destino guarda archivos privados. Los destinos native aparecen en su módulo; private-reference conserva una referencia privada en Archivos, sin enviar mensajes ni modificar documentos. Usa referencias reales en files; abre approvalUrl antes del commit.' : 'Guardar los originales de una propuesta aprobada en Runly y vincularlos al destino revisado. Llámalo justo después de mostrar approvalUrl: espera la aprobación unos segundos. Reenvía los mismos archivos mediante files; se verifica su SHA-256. No crea otro registro destino. Reintentos devuelven los mismos IDs.',
+  description: mode === 'prepare' ? 'Preparar imágenes, PDF, XML, Word (.docx) o PowerPoint (.pptx) originales del chat para un registro existente. Consulta runly_files_query con operation files_attachment_targets y usa target:{type,id}; itemId sigue siendo alias de Inventario. Sin destino guarda archivos privados. Los destinos native aparecen en su módulo; private-reference conserva una referencia privada en Archivos, sin enviar mensajes ni modificar documentos. Plantillas de certificado (.docx/.pptx/.pdf): impórtalas sin destino y luego usa runly_lms_prepare lms.certificate_template.create con el id del archivo guardado. Usa referencias reales en files; abre approvalUrl antes del commit.' : 'Guardar los originales de una propuesta aprobada en Runly y vincularlos al destino revisado. Llámalo justo después de mostrar approvalUrl: espera la aprobación unos segundos. Reenvía los mismos archivos mediante files; se verifica su SHA-256. No crea otro registro destino. Reintentos devuelven los mismos IDs.',
   inputSchema: z.strictObject({ ...companyInput, files: refs, ...(mode === 'prepare' ? { itemId: z.uuid().optional(), target: attachmentTargetSchema.optional() } : { proposalId: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }) }).refine(input => !(input.itemId && input.target), { message: 'Usa target o itemId, no ambos.' }),
   outputSchema: mode === 'prepare' ? proposalSchema : resultSchema,
   operations: [], permission: 'files.assets.create', approvalPolicy: 'web-session-explicit',
@@ -42,8 +58,8 @@ export async function readImportFiles(files, download = readCatalogBytes) {
     total += buffer.length;
     insist(buffer.length > 0 && buffer.length <= MAX_BYTES && total <= 30 * 1024 * 1024, 'file_too_large', 'Máximo 10 MB por archivo y 30 MB por propuesta.', 422);
     const hex = buffer.subarray(0, 12).toString('hex');
-    const type = hex.startsWith('89504e470d0a1a0a') ? ['image/png', '.png'] : hex.startsWith('ffd8ff') ? ['image/jpeg', '.jpg'] : /^(GIF87a|GIF89a)/.test(buffer.subarray(0, 6).toString()) ? ['image/gif', '.gif'] : buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP' ? ['image/webp', '.webp'] : buffer.subarray(0, 5).toString() === '%PDF-' ? ['application/pdf', '.pdf'] : isSafeXml(buffer) ? ['application/xml', '.xml'] : null;
-    insist(type, 'file_type_rejected', 'Esta carga admite originales JPEG, PNG, GIF, WebP, PDF y XML UTF-8 sin DTD ni contenido activo. No se convierte ni reconstruye contenido.', 422);
+    const type = hex.startsWith('89504e470d0a1a0a') ? ['image/png', '.png'] : hex.startsWith('ffd8ff') ? ['image/jpeg', '.jpg'] : /^(GIF87a|GIF89a)/.test(buffer.subarray(0, 6).toString()) ? ['image/gif', '.gif'] : buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP' ? ['image/webp', '.webp'] : buffer.subarray(0, 5).toString() === '%PDF-' ? ['application/pdf', '.pdf'] : isSafeXml(buffer) ? ['application/xml', '.xml'] : officeType(buffer);
+    insist(type, 'file_type_rejected', 'Esta carga admite originales JPEG, PNG, GIF, WebP, PDF, XML UTF-8 sin DTD ni contenido activo, y Word (.docx) o PowerPoint (.pptx) sin macros. No se convierte ni reconstruye contenido.', 422);
     const declared = ref.mime_type?.toLowerCase() === 'text/xml' ? 'application/xml' : ref.mime_type?.toLowerCase();
     insist(!declared || declared === 'application/octet-stream' || declared === type[0], 'file_type_rejected', 'El tipo declarado no coincide con el original.', 422);
     const name = ref.file_name ?? `${ref.file_id}${type[1]}`;

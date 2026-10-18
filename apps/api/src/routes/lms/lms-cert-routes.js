@@ -3,6 +3,7 @@ import { createLmsCertService } from './lms-cert-service.js'
 import { CERT_DOCX_PLACEHOLDERS, DOCX_MIME, buildSampleCertificateDocx } from './lms-cert-docx.js'
 import { PPTX_MIME, buildSampleCertificatePptx } from './lms-cert-pptx.js'
 import { CERT_FIELD_KEYS } from './lms-cert-pdf-layout.js'
+import { wantsAutoTag } from './lms-cert-templates.js'
 
 const companyId = (c) => c.get('companyId')
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
@@ -33,12 +34,15 @@ export function registerLmsCertRoutes(app, { prisma, requirePermission, signFile
   app.post('/lms/certificate-templates', courses, run('Error al crear la plantilla.', async (c) => c.json({ data: await certs.createTemplate(companyId(c), actorId(c), await body(c)) }, 201)))
   app.patch('/lms/certificate-templates/:id', courses, run('Error al guardar la plantilla.', async (c) => c.json({ data: await certs.updateTemplate(companyId(c), id(c), await body(c)) })))
   app.delete('/lms/certificate-templates/:id', courses, run('Error al desactivar la plantilla.', async (c) => c.json({ data: await certs.disableTemplate(companyId(c), id(c)) })))
-  // Uploaded templates (multipart: file, name): .docx, .pptx or .pdf by extension
-  // (/docx accepts Word only). Warnings come inside the template.
+  // Uploaded templates (multipart: file, name, autoTag): .docx, .pptx or .pdf by
+  // extension (/docx accepts Word only). Warnings come inside the template.
+  // Unless autoTag=false, a Word/PowerPoint file without tags is saved with
+  // suggested tags and a PDF with its detected fields; data.autoTag /
+  // data.autoLayout describe what was recognized (null when not applied).
   const uploadRoute = (format) => run('Error al subir la plantilla.', async (c) => {
     const form = await c.req.formData()
-    const result = await certs.uploadTemplateFile(companyId(c), actorId(c), { file: form.get('file'), name: form.get('name'), format })
-    return c.json({ data: result.template }, 201)
+    const result = await certs.uploadTemplateFile(companyId(c), actorId(c), { file: form.get('file'), name: form.get('name'), format, autoTag: wantsAutoTag(form.get('autoTag')) })
+    return c.json({ data: { ...result.template, autoTag: result.autoTag ?? null, autoLayout: result.autoLayout ?? null } }, 201)
   })
   app.post('/lms/certificate-templates/upload', courses, uploadRoute(null))
   app.post('/lms/certificate-templates/docx', courses, uploadRoute('docx'))

@@ -2,19 +2,22 @@ import { useEffect, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Skeleton } from '@runly/ui'
 import { AlertTriangle, CheckCircle2, Download, Upload, WandSparkles } from 'lucide-react'
 import { toast } from 'sonner'
-import { saveSuggestion, useReplaceCertificateTemplateFile, useSuggestCertificateTags } from '../../hooks/useLmsCertDocx.js'
+import { saveSuggestion, useDownloadCertificateDocx, useReplaceCertificateTemplateFile, useSuggestCertificateTags } from '../../hooks/useLmsCertDocx.js'
 import { docxSuggestionFile, docxTagLabel, docxTagText, formatInfo } from '../../lib/lmsCert.js'
 
 const MISSING_HINT = { '%qr': 'agrega {{%qr}} donde quieras el código de verificación' }
 
 // Places suggested tags in the company's own certificate and lets the author
-// download the copy for review or apply it over the same template.
-export function CertSuggestDialog({ template, onOpenChange }) {
-  const suggest = useSuggestCertificateTags(), replace = useReplaceCertificateTemplateFile()
+// download the copy for review or apply it over the same template. With
+// `review` (the autoTag result of an upload) the tags are already saved: it
+// only lists them and downloads the template file.
+export function CertSuggestDialog({ template, review = null, onOpenChange }) {
+  const suggest = useSuggestCertificateTags(), replace = useReplaceCertificateTemplateFile(), download = useDownloadCertificateDocx()
   const [result, setResult] = useState(null)
 
   useEffect(() => {
     if (!template?.id) { setResult(null); return }
+    if (review) { setResult(review); return }
     suggest.mutateAsync(template.id).then(setResult).catch((error) => {
       toast.error(error?.message || 'No se pudieron sugerir etiquetas.')
       onOpenChange(false)
@@ -40,9 +43,11 @@ export function CertSuggestDialog({ template, onOpenChange }) {
     <Dialog open={Boolean(template)} onOpenChange={onOpenChange}>
       <DialogContent size="md">
         <DialogHeader icon={WandSparkles}>
-          <DialogTitle>Etiquetas sugeridas</DialogTitle>
+          <DialogTitle>{review ? 'Etiquetas colocadas' : 'Etiquetas sugeridas'}</DialogTitle>
           <DialogDescription>
-            Se colocaron etiquetas en una copia de «{template?.name}». Descárgala para revisarla en {app} o aplícala directamente; tu archivo solo se reemplaza si eliges aplicar.
+            {review
+              ? `Estas etiquetas se colocaron automáticamente al subir «${template?.name}» y la plantilla ya las usa. Descárgala para revisarla o seguir editándola en ${app}.`
+              : `Se colocaron etiquetas en una copia de «${template?.name}». Descárgala para revisarla en ${app} o aplícala directamente; tu archivo solo se reemplaza si eliges aplicar.`}
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[55vh] space-y-3 overflow-y-auto">
@@ -86,12 +91,23 @@ export function CertSuggestDialog({ template, onOpenChange }) {
           )}
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => saveSuggestion(result)} disabled={!result || !applied.length}>
-            <Download />Descargar para revisar
-          </Button>
-          <Button type="button" onClick={apply} disabled={!result || !applied.length || replace.isPending}>
-            <Upload />{replace.isPending ? 'Aplicando…' : 'Aplicar a la plantilla'}
-          </Button>
+          {review ? (
+            <>
+              <Button type="button" variant="outline" onClick={() => download.mutate({ id: template.id, name: template.name, format: template.source })} disabled={download.isPending}>
+                <Download />Descargar con etiquetas
+              </Button>
+              <Button type="button" onClick={() => onOpenChange(false)}>Listo</Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={() => saveSuggestion(result)} disabled={!result || !applied.length}>
+                <Download />Descargar para revisar
+              </Button>
+              <Button type="button" onClick={apply} disabled={!result || !applied.length || replace.isPending}>
+                <Upload />{replace.isPending ? 'Aplicando…' : 'Aplicar a la plantilla'}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

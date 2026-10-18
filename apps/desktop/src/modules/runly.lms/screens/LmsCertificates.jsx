@@ -68,6 +68,7 @@ export default function LmsCertificates() {
   const [layoutId, setLayoutId] = useState(null)
   const [uploadFor, setUploadFor] = useState(null) // null closed, { format } new upload, template to replace
   const [suggesting, setSuggesting] = useState(null)
+  const [review, setReview] = useState(null) // autoTag result of a fresh upload, shown in CertSuggestDialog
   const [disableFor, setDisableFor] = useState(null)
   const rows = useMemo(() => info.data?.templates ?? [], [info.data])
   const officeAvailable = info.data?.officeAvailable ?? true
@@ -195,11 +196,14 @@ export default function LmsCertificates() {
         template={uploadFor?.id ? uploadFor : null} format={uploadFor?.format ?? 'docx'}
         onUploaded={(saved) => {
           if (uploadFor?.id || !saved?.id) return
-          // A new PDF opens the field editor; a new Word/PowerPoint file without tags goes to "Sugerir etiquetas".
-          if (isPdfTemplate(saved)) { setUploadFor(null); setLayoutId(saved.id) } else if (saved.tagCount === 0) { setUploadFor(null); setSuggesting(saved) }
+          // Auto-detected uploads stay in the sheet with their result. A PDF
+          // without detection opens the field editor.
+          if (isPdfTemplate(saved) && !saved.autoLayout) { setUploadFor(null); setLayoutId(saved.id) }
         }}
+        onReview={(saved) => { setReview(saved.autoTag); setSuggesting(saved) }}
+        onEditLayout={(saved) => setLayoutId(saved.id)}
       />
-      <CertSuggestDialog template={suggesting} onOpenChange={(open) => { if (!open) setSuggesting(null) }} />
+      <CertSuggestDialog template={suggesting} review={review} onOpenChange={(open) => { if (!open) { setSuggesting(null); setReview(null) } }} />
       <ConfirmDialog
         open={Boolean(disableFor)} onOpenChange={(open) => { if (!open) setDisableFor(null) }}
         icon={Ban}

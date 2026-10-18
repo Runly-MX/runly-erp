@@ -4,6 +4,8 @@
 import { z } from 'zod';
 import { normalizeShareSettings } from '../../routes/lms/lms-share-core.js';
 import { isFileSource } from '../../routes/lms/lms-cert-templates.js';
+import { readLayout } from '../../routes/lms/lms-cert-pdf-layout.js';
+import { CERTIFICATES_LINK, CERT_TAG_GUIDE } from './lms-cert-actions.js';
 import { createLmsSerializers } from '../../routes/lms/lms-serialize.js';
 import { normalizeLessonSettings } from '../../routes/lms/lms-eval-core.js';
 import { pageInput } from '../contracts.js';
@@ -14,6 +16,7 @@ export const LMS_GUIDE = [
   'Tipos de lección por MCP: text, embed (YouTube/Vimeo), quiz y assignment. El video subido y los archivos se agregan en la app.',
   'Escribe contenido real en español y en markdown; nada de lorem ipsum. Cada propuesta debe ser revisable: hasta 20 lecciones y 50 preguntas por lección.',
   'Las preguntas se describen en lms.question.create; usa lms_quiz_questions para ver la forma exacta antes de editar.',
+  'Certificados: lms_certificate_templates lista las plantillas con sus etiquetas; una plantilla nueva se sube como archivo .docx/.pptx/.pdf (runly_files_import_* sin destino y luego lms.certificate_template.create) y se asigna con lms.course.update certificateTemplateId.',
   'Calificar, emitir certificados, enlaces compartidos e invitaciones se hacen en la app.',
 ];
 
@@ -80,10 +83,17 @@ export function createLmsQueries({ prisma, svc, quiz, find }) {
           failedLessons: row.failedLessons })), total: rows.length, page: input.page, limit: input.limit };
       } },
     { name: 'lms_certificate_templates', permission: MANAGE, inputSchema: z.strictObject({ includeDisabled: z.boolean().optional() }),
-      definition: { description: 'Plantillas de certificado (id, nombre, origen) para certificateTemplateId de un curso.' },
+      definition: { description: 'Plantillas de certificado para certificateTemplateId de un curso: origen (design, docx, pptx, pdf), etiquetas {{…}} de Word/PowerPoint, campos colocados de un PDF, cursos que la usan y la guía de etiquetas para crear una nueva con lms.certificate_template.create.' },
       async run(input, a) {
-        const rows = await prisma.lmsCertificateTemplate.findMany({ where: { companyId: a.companyId, ...(input.includeDisabled ? {} : { enabled: true }) }, select: { id: true, name: true, source: true, enabled: true }, orderBy: { name: 'asc' } });
-        return { items: rows.map(row => ({ id: row.id, name: row.name, source: isFileSource(row.source) ? row.source : 'design', enabled: row.enabled })) };
+        const rows = await prisma.lmsCertificateTemplate.findMany({ where: { companyId: a.companyId, ...(input.includeDisabled ? {} : { enabled: true }) }, select: { id: true, name: true, source: true, enabled: true, placeholders: true, layout: true }, orderBy: { name: 'asc' } });
+        const used = rows.length ? await prisma.lmsCourse.groupBy({ by: ['certificateTemplateId'], where: { companyId: a.companyId, enabled: true, certificateTemplateId: { in: rows.map(row => row.id) } }, _count: { _all: true } }) : [];
+        const courses = new Map(used.map(row => [row.certificateTemplateId, row._count._all]));
+        return { items: rows.map(row => {
+          const source = isFileSource(row.source) ? row.source : 'design';
+          const tags = ['docx', 'pptx'].includes(source) && Array.isArray(row.placeholders) ? row.placeholders : null;
+          const fields = source === 'pdf' ? readLayout(row.layout).fields.map(field => field.key) : null;
+          return { id: row.id, name: row.name, source, enabled: row.enabled, ...(tags ? { tags } : {}), ...(fields ? { fields } : {}), courseCount: courses.get(row.id) ?? 0 };
+        }), tagGuide: CERT_TAG_GUIDE, link: CERTIFICATES_LINK };
       } },
   ];
 }

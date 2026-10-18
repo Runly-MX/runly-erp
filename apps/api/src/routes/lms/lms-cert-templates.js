@@ -8,7 +8,7 @@ import { extractPdfTextItems } from '../../services/document-templates/pdf-text-
 import { TemplateError } from '../../services/document-templates/template-tags.js'
 import { LmsError } from './lms-error.js'
 import { DOCX_MIME, inspectCertDocx } from './lms-cert-docx.js'
-import { suggestCertificateTags } from './lms-cert-docx-suggest.js'
+import { IMPORTANT, suggestCertificateTags } from './lms-cert-docx-suggest.js'
 import { PPTX_MIME, inspectCertPptx } from './lms-cert-pptx.js'
 import { suggestCertificatePptxTags } from './lms-cert-pptx-suggest.js'
 import { PDF_MIME, inspectCertPdf } from './lms-cert-pdf-template.js'
@@ -100,14 +100,54 @@ export async function readTemplateUpload(file, expected = null) {
   const accepted = expected ? CERT_FILE_FORMATS[expected].noun : 'archivo de Word, PowerPoint o PDF'
   if (!file || typeof file.arrayBuffer !== 'function' || !file.size) throw new LmsError(`Adjunta un ${accepted}.`, 400)
   if (file.size > MAX_BYTES) throw new LmsError('La plantilla supera 10 MB.', 400)
-  const fileName = String(file.name || `plantilla.${expected ?? 'docx'}`)
+  return inspectTemplateBuffer(Buffer.from(await file.arrayBuffer()), String(file.name || `plantilla.${expected ?? 'docx'}`), expected)
+}
+
+// Same checks for bytes already in memory (MCP: a file imported to Runly).
+export async function inspectTemplateBuffer(buffer, fileName, expected = null) {
+  const accepted = expected ? CERT_FILE_FORMATS[expected].noun : 'archivo de Word, PowerPoint o PDF'
+  if (!buffer?.length) throw new LmsError(`Adjunta un ${accepted}.`, 400)
+  if (buffer.length > MAX_BYTES) throw new LmsError('La plantilla supera 10 MB.', 400)
   const format = formatOfFileName(fileName)
   if (!format || (expected && format !== expected)) throw new LmsError(`La plantilla debe ser un ${accepted}.`, 400)
-  const buffer = Buffer.from(await file.arrayBuffer())
   try {
     const inspected = await CERT_FILE_FORMATS[format].inspect(buffer, fileName)
     return { buffer, fileName, format, tags: inspected.tags ?? [], warnings: inspected.warnings ?? [], page: inspected.page ?? null }
   } catch (err) { throw asLmsError(err) }
+}
+
+// Auto-tagging on upload: a Word/PowerPoint file without {{tags}} gets the
+// suggested tags placed, so it works right away. Files that already have tags
+// stay untouched (autoTag null). The tagged copy is kept only when a real
+// field was recognized (PowerPoint always proposes a QR box, which alone is
+// not enough). Returns { upload, autoTag: { saved, applied, missing, unplaced } }.
+export async function autoTagTemplate(up) {
+  if (!['docx', 'pptx'].includes(up.format) || up.tags.length) return { upload: up, autoTag: null }
+  let result = null
+  try { result = CERT_FILE_FORMATS[up.format].suggest(up.buffer) } catch { result = null }
+  if (!result?.applied.some((a) => a.tag !== '%qr')) {
+    return { upload: up, autoTag: { saved: false, applied: [], missing: [...IMPORTANT], unplaced: result?.unplaced ?? [] } }
+  }
+  const base = up.fileName.replace(/\.(docx|pptx)$/i, '').replace(/ \(con etiquetas\)$/, '')
+  const tagged = await inspectTemplateBuffer(result.buffer, `${base} (con etiquetas).${up.format}`, up.format)
+  return { upload: tagged, autoTag: { saved: true, applied: result.applied, missing: result.missing, unplaced: result.unplaced } }
+}
+
+// "false"/false/"0" opt out; anything else (absent included) opts in.
+export const wantsAutoTag = (value) => !(value === false || ['false', '0', 'no'].includes(String(value ?? '').trim().toLowerCase()))
+
+// Detected fields of a PDF in the template's page frame (best effort when soft):
+// { page, fields, matched, defaulted, missing }.
+export async function detectCertLayout(buffer, page, { soft = false, extractText = extractPdfTextItems } = {}) {
+  try {
+    const { page: textPage, items } = await extractText(buffer)
+    const sx = textPage?.width ? page.width / textPage.width : 1, sy = textPage?.height ? page.height / textPage.height : 1
+    const scaled = items.map((i) => ({ ...i, x: i.x * sx, y: i.y * sy, w: i.w * sx, h: i.h * sy }))
+    return suggestLayoutFromItems(scaled, page)
+  } catch (err) {
+    if (soft) return null
+    throw asLmsError(err)
+  }
 }
 
 const cleanName = (name, fileName, format) => String(name ?? '').trim().slice(0, 120)
@@ -131,37 +171,37 @@ export function createLmsCertTemplateFiles({ prisma, files, serialize, extractTe
     return asset
   }
 
-  // Detected fields of a PDF in the template's page frame (best effort when soft).
-  async function detectLayout(buffer, page, { soft = false } = {}) {
-    try {
-      const { page: textPage, items } = await extractText(buffer)
-      const sx = textPage?.width ? page.width / textPage.width : 1, sy = textPage?.height ? page.height / textPage.height : 1
-      const scaled = items.map((i) => ({ ...i, x: i.x * sx, y: i.y * sy, w: i.w * sx, h: i.h * sy }))
-      return suggestLayoutFromItems(scaled, page)
-    } catch (err) {
-      if (soft) return null
-      throw asLmsError(err)
-    }
-  }
+  const detectLayout = (buffer, page, options = {}) => detectCertLayout(buffer, page, { ...options, extractText })
 
-  async function initialLayout(upload, previous = null) {
+  // Layout of a new PDF: the previous fields when the page size is the same,
+  // otherwise the detected ones (none when detect is false). detection holds
+  // what was recognized for the upload summary (null without detection).
+  async function initialLayout(upload, previous = null, { detect = true } = {}) {
     const prev = readLayout(previous)
     const same = prev.page && Math.abs(prev.page.width - upload.page.width) < 1 && Math.abs(prev.page.height - upload.page.height) < 1
-    if (same && prev.fields.length) return { page: upload.page, fields: prev.fields }
-    const detected = await detectLayout(upload.buffer, upload.page, { soft: true })
-    return { page: upload.page, fields: detected?.fields ?? [] }
+    if (same && prev.fields.length) return { layout: { page: upload.page, fields: prev.fields }, detection: null }
+    const detected = detect ? await detectLayout(upload.buffer, upload.page, { soft: true }) : null
+    return { layout: { page: upload.page, fields: detected?.fields ?? [] }, detection: detected }
   }
 
-  async function upload(companyId, actorId, { file, name, format = null }) {
-    const up = await readTemplateUpload(file, format)
+  const layoutSummary = (detected) => (detected ? {
+    saved: detected.fields.length > 0, fieldCount: detected.fields.length, matched: detected.matched, defaulted: detected.defaulted, missing: detected.missing,
+  } : null)
+
+  // autoTag (default true): Word/PowerPoint without tags get suggested tags
+  // (autoTagTemplate); a PDF gets its detected fields. The result carries
+  // { template, warnings, autoTag, autoLayout } (null when not applied).
+  async function upload(companyId, actorId, { file, name, format = null, autoTag = true, buffer = null, fileName = null }) {
+    const read = buffer ? await inspectTemplateBuffer(buffer, fileName, format) : await readTemplateUpload(file, format)
+    const { upload: up, autoTag: tagged } = autoTag ? await autoTagTemplate(read) : { upload: read, autoTag: null }
     const asset = await files.store({ companyId, actorId, buffer: up.buffer, fileName: up.fileName, format: up.format })
-    const layout = up.format === 'pdf' ? await initialLayout(up) : {}
+    const pdf = up.format === 'pdf' ? await initialLayout(up, null, { detect: autoTag }) : null
     const row = await prisma.lmsCertificateTemplate.create({
-      data: { companyId, createdById: actorId, name: cleanName(name, up.fileName, up.format), source: up.format, fileAssetId: asset.id, placeholders: up.tags, layout, body: null },
+      data: { companyId, createdById: actorId, name: cleanName(name, read.fileName, up.format), source: up.format, fileAssetId: asset.id, placeholders: up.tags, layout: pdf?.layout ?? {}, body: null },
     })
     await prisma.fileAsset.update({ where: { id: asset.id }, data: { metadata: { ...(asset.metadata ?? {}), sourceEntityId: row.id } } })
     const template = await serialize(row, 0)
-    return { template, warnings: [...up.warnings, ...template.warnings.filter((w) => !up.warnings.includes(w))] }
+    return { template, warnings: [...up.warnings, ...template.warnings.filter((w) => !up.warnings.includes(w))], autoTag: tagged, autoLayout: layoutSummary(pdf?.detection) }
   }
 
   // Same format only. Keeps id, name, settings and the courses that use it;
@@ -171,7 +211,7 @@ export function createLmsCertTemplateFiles({ prisma, files, serialize, extractTe
     const up = await readTemplateUpload(file, current.source)
     const asset = await files.store({ companyId, actorId, buffer: up.buffer, fileName: up.fileName, sourceEntityId: current.id, format: up.format })
     const data = { fileAssetId: asset.id, placeholders: up.tags }
-    if (up.format === 'pdf') data.layout = await initialLayout(up, current.layout)
+    if (up.format === 'pdf') data.layout = (await initialLayout(up, current.layout)).layout
     const row = await prisma.lmsCertificateTemplate.update({ where: { id: current.id }, data })
     const template = await serialize(row)
     return { template, warnings: [...up.warnings, ...template.warnings.filter((w) => !up.warnings.includes(w))] }

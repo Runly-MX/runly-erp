@@ -15,7 +15,7 @@ export function CertificateCell({ enrollment, canManage, onDownload, onIssue, is
       {certificate ? (
         <button
           type="button" onClick={() => onDownload(certificate)} title="Descargar PDF"
-          className={`rounded-md font-mono text-xs underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] ${certificate.revokedAt ? 'text-[hsl(var(--muted-foreground))] line-through' : 'text-[hsl(var(--primary))]'}`}
+          className={`rounded-md font-mono text-xs underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] ${certificate.revokedAt ? 'text-[hsl(var(--muted-foreground))] line-through' : 'text-primary'}`}
         >
           {certificate.folio}
         </button>

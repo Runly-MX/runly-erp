@@ -167,3 +167,20 @@ test('lms.section.build, lms.lesson.update y lms.course.status: lote revisable y
   assert.equal(course.status, 'published');
   await assert.rejects(() => call('prepare', 'lms.section.delete', { sectionId: uid(20) }), { code: 'conflict' });
 });
+
+test('lms_certificate_templates: etiquetas, campos, cursos que la usan y guía; la acción de subir plantilla es descubrible', async () => {
+  const { call, prisma, course } = fixture();
+  prisma.lmsCertificateTemplate.rows.push(
+    { id: uid(40), companyId: COMPANY, name: 'Word', source: 'docx', enabled: true, placeholders: ['alumno', '%qr'], layout: {} },
+    { id: uid(41), companyId: COMPANY, name: 'PDF', source: 'pdf', enabled: true, placeholders: [], layout: { page: { width: 842, height: 595 }, fields: [{ key: 'alumno', x: 10, y: 10, w: 200, h: 30 }] } },
+    { id: uid(42), companyId: OTHER, name: 'Ajena', source: 'docx', enabled: true, placeholders: [], layout: {} });
+  course.certificateTemplateId = uid(40);
+  const { result } = await call('query', 'lms_certificate_templates', {});
+  assert.deepEqual(result.items.map(item => item.name), ['Word', 'PDF']);
+  assert.deepEqual(result.items[0].tags, ['alumno', '%qr']);
+  assert.equal(result.items[0].courseCount, 1);
+  assert.deepEqual(result.items[1].fields, ['alumno']);
+  assert.match(result.tagGuide, /\{\{folio\}\}/);
+  const registry = (await import('../registry.js')).createCapabilityRegistry({ prisma });
+  assert.ok(registry.create('runly.lms', prisma).actions.some(action => action.key === 'lms.certificate_template.create'));
+});
