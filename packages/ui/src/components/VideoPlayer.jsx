@@ -26,6 +26,20 @@ function useManifestUrl(manifest) {
 
 const fullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
 
+// Touch-first device (no hover): controls are toggled by tapping instead of hovering.
+const COARSE_QUERY = "(hover: none) and (pointer: coarse)";
+function useCoarsePointer() {
+  const [coarse, setCoarse] = useState(() => typeof window !== "undefined" && Boolean(window.matchMedia?.(COARSE_QUERY).matches));
+  useEffect(() => {
+    const query = window.matchMedia?.(COARSE_QUERY);
+    if (!query) return undefined;
+    const sync = () => setCoarse(query.matches);
+    query.addEventListener?.("change", sync);
+    return () => query.removeEventListener?.("change", sync);
+  }, []);
+  return coarse;
+}
+
 // Video player with custom controls. Sources: `src` (MP4/WebM URL or an
 // .m3u8 URL) or `hlsManifest` (manifest text, wins over `src`). HLS goes
 // through useHlsPlayback (hls.js with recovery, native HLS on Safari/iOS).
@@ -40,6 +54,8 @@ export const VideoPlayer = forwardRef(function VideoPlayer({
   const hideTimer = useRef(null);
   const startAtRef = useRef(startAt);
   const scrubResume = useRef(false);
+  const lastPointer = useRef("mouse");
+  const coarse = useCoarsePointer();
   const callbacks = useRef({});
   callbacks.current = { onTimeUpdate, onPause, onEnded, onError };
 
@@ -243,6 +259,14 @@ export const VideoPlayer = forwardRef(function VideoPlayer({
 
   const fraction = duration > 0 ? current / duration : 0;
   const showChrome = controlsVisible || !playing;
+  const touch = coarse || lastPointer.current === "touch";
+
+  // Mouse: click plays/pauses. Touch: a tap shows the controls, a second tap hides them.
+  function onVideoTap() {
+    if (lastPointer.current === "mouse") { togglePlay(); return; }
+    if (controlsVisible && playing) { clearTimeout(hideTimer.current); setControlsVisible(false); }
+    else revealControls();
+  }
   const VolumeIcon = muted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
 
   return (
@@ -253,9 +277,15 @@ export const VideoPlayer = forwardRef(function VideoPlayer({
       aria-label={title ? `Reproductor: ${title}` : "Reproductor de video"}
       className={cn(frame, "group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]", !showChrome && "cursor-none")}
       onKeyDown={onKeyDown}
-      onPointerMove={revealControls}
-      onPointerDown={revealControls}
-      onPointerLeave={() => { if (playing) setControlsVisible(false); }}
+      onPointerMove={(event) => { if (event.pointerType === "mouse") revealControls(); }}
+      onPointerDown={(event) => {
+        lastPointer.current = event.pointerType;
+        // Touch: a tap on the video toggles the controls (handled on click);
+        // a tap on a control keeps them visible and restarts the hide timer.
+        if (event.pointerType === "mouse" || event.target.closest?.("[data-player-controls]")) revealControls();
+      }}
+      // Touch screens fire pointerleave when the finger lifts: only the mouse hides on leave.
+      onPointerLeave={(event) => { if (event.pointerType === "mouse" && playing) setControlsVisible(false); }}
     >
       <video
         key={playKey ?? "empty"}
@@ -265,8 +295,8 @@ export const VideoPlayer = forwardRef(function VideoPlayer({
         playsInline
         preload="metadata"
         className="absolute inset-0 size-full object-contain"
-        onClick={togglePlay}
-        onDoubleClick={toggleFullscreen}
+        onClick={onVideoTap}
+        onDoubleClick={() => { if (lastPointer.current === "mouse") toggleFullscreen(); }}
         {...video}
       >
         Tu navegador no puede reproducir este video.
@@ -278,7 +308,23 @@ export const VideoPlayer = forwardRef(function VideoPlayer({
         </div>
       ) : null}
 
-      {!playing ? (
+      {touch && started && showChrome ? (
+        // Touch: big centered controls (the bottom bar keeps the rest). The layer
+        // lets taps on empty space reach the video so they toggle the controls.
+        <div data-player-controls className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-8 bg-black/25">
+          <button type="button" aria-label="Retroceder 10 segundos" className="pointer-events-auto flex size-12 items-center justify-center rounded-full bg-black/45 text-white" onClick={() => seekTo(current - SEEK_STEP)}>
+            <RotateCcw className="size-6" aria-hidden />
+          </button>
+          <button type="button" aria-label={playing ? "Pausar" : "Reanudar"} className="pointer-events-auto flex size-16 items-center justify-center rounded-full bg-white/90 text-black shadow-lg" onClick={togglePlay}>
+            {playing ? <Pause className="size-7" fill="currentColor" aria-hidden /> : <Play className="ml-1 size-7" fill="currentColor" aria-hidden />}
+          </button>
+          <button type="button" aria-label="Adelantar 10 segundos" className="pointer-events-auto flex size-12 items-center justify-center rounded-full bg-black/45 text-white" onClick={() => seekTo(current + SEEK_STEP)}>
+            <RotateCw className="size-6" aria-hidden />
+          </button>
+        </div>
+      ) : null}
+
+      {!playing && !(touch && started) ? (
         <button
           type="button"
           aria-label={started ? "Reanudar" : "Reproducir"}
@@ -292,6 +338,7 @@ export const VideoPlayer = forwardRef(function VideoPlayer({
       ) : null}
 
       <div
+        data-player-controls
         className={cn(
           "absolute inset-x-0 bottom-0 z-20 bg-linear-to-t from-black/85 via-black/40 to-transparent px-3 pb-2 pt-10 transition-opacity duration-300",
           showChrome ? "opacity-100" : "pointer-events-none opacity-0",
@@ -323,7 +370,8 @@ export const VideoPlayer = forwardRef(function VideoPlayer({
             <PlayerButton label="Adelantar 10 segundos" className="hidden sm:inline-flex" onClick={() => seekTo(current + SEEK_STEP)}><RotateCw /></PlayerButton>
             <div className="group/volume flex items-center">
               <PlayerButton label={muted || volume === 0 ? "Activar sonido" : "Silenciar"} onClick={toggleMute}><VolumeIcon /></PlayerButton>
-              <div className="w-0 overflow-hidden transition-[width] duration-200 group-focus-within/volume:w-20 group-hover/volume:w-20">
+              {/* Touch devices use the hardware volume keys: only the mute button shows there. */}
+              <div className="w-0 overflow-hidden transition-[width] duration-200 group-focus-within/volume:w-20 group-hover/volume:w-20 [@media(hover:none)]:hidden">
                 <ScrubBar
                   label="Volumen" thick className="mx-2 w-16"
                   value={muted ? 0 : volume} step={0.1}

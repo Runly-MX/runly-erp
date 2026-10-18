@@ -83,14 +83,15 @@ export function ScrubBar({ value, buffered = 0, onChange, onScrubStart, onScrubE
       onPointerCancel={onPointerUp}
       onKeyDown={onKeyDown}
     >
-      <div className={cn("relative w-full overflow-hidden rounded-full bg-white/25 transition-[height]", thick || dragging ? "h-1.5" : "h-1 group-hover/scrub:h-1.5")}>
+      <div className={cn("relative w-full overflow-hidden rounded-full bg-white/25 transition-[height]", thick || dragging ? "h-1.5" : "h-1 group-hover/scrub:h-1.5 [@media(hover:none)]:h-1.5")}>
         <div className="absolute inset-y-0 left-0 bg-white/40" style={{ width: `${clamp01(buffered) * 100}%` }} />
         <div className="absolute inset-y-0 left-0 bg-[hsl(var(--primary))]" style={{ width: pct }} />
       </div>
       <div
         className={cn(
-          "pointer-events-none absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow transition-opacity",
-          dragging ? "opacity-100" : "opacity-0 group-hover/scrub:opacity-100 group-focus-visible/scrub:opacity-100",
+          "pointer-events-none absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow transition-opacity [@media(hover:none)]:size-4",
+          // Touch screens have no hover: the thumb is always visible there.
+          dragging ? "opacity-100" : "opacity-0 group-hover/scrub:opacity-100 group-focus-visible/scrub:opacity-100 [@media(hover:none)]:opacity-100",
         )}
         style={{ left: pct }}
       />
