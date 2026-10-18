@@ -58,7 +58,7 @@ export function createLmsReviewService({ prisma, notifier, signFile = null, gues
       lessonTitle: row.lesson.title,
       learner: { id: row.enrollment.learner.id, displayName: row.enrollment.learner.displayName, kind: learnerKind(row.enrollment.learner) },
       submittedAt: iso(row.submittedAt),
-      ...(type === 'submission' ? { late: row.late } : {}),
+      ...(type === 'submission' ? { late: row.late, fileCount: row.fileIds?.length ?? 0 } : {}),
     })
     return [...submissions.map((row) => item('submission', row)), ...attempts.map((row) => item('attempt', row))]
       .sort((a, b) => Date.parse(a.submittedAt ?? 0) - Date.parse(b.submittedAt ?? 0))

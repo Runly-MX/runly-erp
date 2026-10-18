@@ -1,6 +1,7 @@
 import { getOfficeFormat } from '@runly/core';
 import { OfficeError } from './errors.js';
 import { createFileAccess, FileAccessError } from '../files/access.js';
+import { authorizeLmsOfficeFile, isLmsOfficeFile } from './lms-access.js';
 
 export const OFFICE_FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -30,8 +31,13 @@ export function createOfficeAccess({ prisma }) {
     const admin = ['runly.admin', 'system.admin'].includes(role.key);
     const can = key => admin || permissions.has(key);
     const requireAccess = key => { if (!can(key)) throw new OfficeError('No tienes permiso para abrir o editar este documento.', 403, 'forbidden'); };
-    requireAccess('files.assets.read');
-    if (mode === 'edit') requireAccess('files.assets.update');
+    // runly.lms files are gated by LMS permissions (see lms-access.js), not by
+    // runly.files ones: graders and learners need not have files access.
+    const lms = isLmsOfficeFile(file);
+    if (!lms) {
+      requireAccess('files.assets.read');
+      if (mode === 'edit') requireAccess('files.assets.update');
+    }
     const operation = mode === 'edit' ? 'update' : 'read';
     // Authoritative relations take precedence, even if upload metadata says AtlasFile.
     if (file.calendarFiles.length) throw new OfficeError('Este origen aún no admite edición Office.', 403, 'unsupported_scope');
@@ -39,7 +45,9 @@ export function createOfficeAccess({ prisma }) {
       if (relation.item.companyId !== companyId || !relation.item.enabled) throw new OfficeError('No tienes acceso al origen.', 403, 'forbidden');
       requireAccess(`inventory.item.${operation}`);
     }
-    if (task) {
+    if (lms) {
+      await authorizeLmsOfficeFile({ db, file, companyId, profile, can, mode });
+    } else if (task) {
       requireAccess(`projects.task.${operation}`);
       const project = task.project;
       const member = project.members.find(m => m.userId === profile.id);

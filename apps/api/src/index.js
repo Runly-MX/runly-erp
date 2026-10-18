@@ -90,6 +90,7 @@ import { createCanvasRouter, createCanvasPublicRouter } from "./routes/canvas/in
 import { createAttendanceRouter, createAttendancePublicRouter } from "./routes/attendance/index.js";
 import { createAttendanceEvents } from "./routes/attendance/attendance-events.js";
 import { createLmsRouter, createLmsPublicRouter } from "./routes/lms/index.js";
+import { createCertTemplateOfficeRescan } from "./routes/lms/lms-cert-templates.js";
 import { createCanvasDataSources } from "./routes/canvas/canvas-data-sources.js";
 import { createCanvasFileRemover } from "./routes/canvas/canvas-files.js";
 import { createSettingsRouter } from "./routes/settings-routes.js";
@@ -231,7 +232,7 @@ const STORAGE_BUCKET_NAME = "runly-files";
 const STOREFRONT_BUCKET_NAME = "runly-storefront";
 const WEBSITE_BUCKET_NAME = "runly-website";
 const filesService = createFilesService({ prisma, supabaseAdmin });
-const officeService = createOfficeService({ prisma, supabaseAdmin, broadcaster });
+const officeService = createOfficeService({ prisma, supabaseAdmin, broadcaster, onFileAssetSaved: createCertTemplateOfficeRescan({ prisma }) });
 const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
 const companyModuleService = createCompanyModuleService({ prisma });
 const notificationDeliveryWorker = createNotificationDeliveryWorker({ prisma, supabaseAdmin });
@@ -1814,7 +1815,9 @@ app.put(
   },
 );
 
-app.route("/", createOfficeRouter({ officeService, authMiddleware, requirePermission }));
+// Office access is decided per file (office/access.js): runly.files permissions
+// for files, LMS permissions for course submissions and certificate templates.
+app.route("/", createOfficeRouter({ officeService, authMiddleware, requirePermission, requireOfficeAccess: requireAnyPermission(["files.assets.read", "lms.access", "lms.grade", "lms.course.manage"]) }));
 app.route("/", createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }));
 app.route("/", createIdentitySessionsRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission }));
 

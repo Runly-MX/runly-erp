@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Badge, Button, ComboboxField, DataTable, PageHeader } from '@runly/ui'
-import { ClipboardCheck } from 'lucide-react'
+import { ClipboardCheck, Paperclip } from 'lucide-react'
 import { GradeAttemptSheet } from '../components/review/GradeAttemptSheet.jsx'
 import { GradeSubmissionSheet } from '../components/review/GradeSubmissionSheet.jsx'
 import { PageShell } from '../components/shared.jsx'
 import { useReviewQueue } from '../hooks/useLmsEval.js'
 import { REVIEW_TYPE_LABELS, formatShortDate } from '../lib/lmsLabels.js'
+import { filesCountText, parseReviewParam, reviewParam } from '../lib/lmsReview.js'
 
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 
@@ -15,7 +17,19 @@ const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 export default function LmsReview() {
   const queue = useReviewQueue()
   const [courseId, setCourseId] = useState(null)
-  const [open, setOpen] = useState(null) // { type, id }
+  // The open sheet lives in ?revisar=type:id so it survives opening a file in
+  // Office and coming back.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const open = parseReviewParam(searchParams.get('revisar'))
+  const setOpen = useCallback((next) => {
+    setSearchParams((current) => {
+      const params = new URLSearchParams(current)
+      const value = reviewParam(next)
+      if (value) params.set('revisar', value)
+      else params.delete('revisar')
+      return params
+    }, { replace: true })
+  }, [setSearchParams])
 
   const items = useMemo(() => queue.data ?? [], [queue.data])
   const courseOptions = useMemo(() => {
@@ -31,12 +45,20 @@ export default function LmsReview() {
     { id: 'lesson', header: 'Lección', accessorFn: (r) => r.lessonTitle ?? '', cell: ({ getValue }) => <span className="block max-w-56 truncate font-medium">{getValue() || '—'}</span> },
     { id: 'learner', header: 'Alumno', accessorFn: (r) => (r.learner?.displayName ? `${r.learner.displayName}${r.learner.kind === 'guest' ? ' (invitado)' : ''}` : ''), cell: ({ getValue }) => <span className="block max-w-48 truncate">{getValue() || '—'}</span> },
     { id: 'submitted', header: 'Enviado', accessorFn: (r) => r.submittedAt ?? '', cell: ({ row }) => <span className={MUTED}>{formatShortDate(row.original.submittedAt) || '—'}</span> },
+    {
+      id: 'files', header: 'Archivos', accessorFn: (r) => r.fileCount ?? 0,
+      cell: ({ row }) => (row.original.fileCount ? (
+        <span className="inline-flex items-center gap-1 text-sm tabular-nums" title={filesCountText(row.original.fileCount)} aria-label={filesCountText(row.original.fileCount)}>
+          <Paperclip className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />{row.original.fileCount}
+        </span>
+      ) : <span className={MUTED}>—</span>),
+    },
     { id: 'late', header: 'Tarde', accessorFn: (r) => (r.late ? 1 : 0), cell: ({ row }) => (row.original.late ? <Badge variant="warning">Tardía</Badge> : <span className={MUTED}>—</span>) },
     {
       id: 'actions', header: '', enableSorting: false,
       cell: ({ row }) => <Button variant="outline" size="sm" onClick={() => setOpen({ type: row.original.type, id: row.original.id })}>Calificar</Button>,
     },
-  ], [])
+  ], [setOpen])
 
   const close = (value) => { if (!value) setOpen(null) }
   return (

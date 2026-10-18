@@ -79,6 +79,21 @@ export function createLmsCertFiles({ prisma, supabaseAdmin = null, bucket = 'run
   return { store, findAsset, read, signedUrl }
 }
 
+// Office (Collabora) saved a template file in place: re-scan its tags, as
+// replaceFile does, so placeholders and warnings match the edited file. Only
+// the template's current Word/PowerPoint file counts. A file the scanner can't
+// read leaves no tags, so the list flags it as «Sin etiquetas».
+export function createCertTemplateOfficeRescan({ prisma }) {
+  return async function rescan({ file, companyId, bytes }) {
+    if (file?.moduleKey !== MODULE_KEY || file.entityType !== ENTITY_TYPE || !bytes?.length) return null
+    const row = await prisma.lmsCertificateTemplate.findFirst({ where: { companyId, fileAssetId: file.id } })
+    if (!row || !['docx', 'pptx'].includes(row.source)) return null
+    let tags = []
+    try { tags = (await CERT_FILE_FORMATS[row.source].inspect(Buffer.from(bytes), `plantilla.${row.source}`)).tags ?? [] } catch { tags = [] }
+    return prisma.lmsCertificateTemplate.update({ where: { id: row.id }, data: { placeholders: tags } })
+  }
+}
+
 // Validates an uploaded File (multipart). expected: a format the file must have.
 // Returns { buffer, fileName, format, tags, warnings, page? }.
 export async function readTemplateUpload(file, expected = null) {

@@ -35,6 +35,14 @@ export function createLmsSerializers({ prisma, signFile = null }) {
     return new Map(rows.map((row) => [row.id, row.originalName]))
   }
 
+  // Name, type and size per file id (submission files list them for graders).
+  async function fileDetails(fileIds) {
+    const ids = [...new Set(fileIds.filter(Boolean))]
+    if (!ids.length) return new Map()
+    const rows = await prisma.fileAsset.findMany({ where: { id: { in: ids } }, select: { id: true, originalName: true, mimeType: true, sizeBytes: true } })
+    return new Map(rows.map((row) => [row.id, row]))
+  }
+
   function courseShape(row, lessonCount, coverUrl) {
     return {
       id: row.id,
@@ -140,5 +148,5 @@ export function createLmsSerializers({ prisma, signFile = null }) {
     }
   }
 
-  return { sign, lessonCoverUrl, fileNames, serializeCourses, serializeCourse, serializeLesson, serializeSections, serializeEnrollment }
+  return { sign, lessonCoverUrl, fileNames, fileDetails, serializeCourses, serializeCourse, serializeLesson, serializeSections, serializeEnrollment }
 }

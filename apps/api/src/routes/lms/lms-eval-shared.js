@@ -64,14 +64,17 @@ export function serializeAttempt(row, questionsById, rawSettings, { revealAll = 
 
 // ser: createLmsSerializers (fileNames + sign).
 export async function serializeSubmissions(rows, ser) {
-  const names = await ser.fileNames(rows.flatMap((row) => row.fileIds ?? []))
+  const details = ser.fileDetails ? await ser.fileDetails(rows.flatMap((row) => row.fileIds ?? [])) : new Map()
   return Promise.all(rows.map(async (row) => ({
     id: row.id,
     lessonId: row.lessonId,
     number: row.number,
     status: row.status,
     text: row.text,
-    files: await Promise.all((row.fileIds ?? []).map(async (id) => ({ id, name: names.get(id) ?? null, url: await ser.sign(id, 'full') }))),
+    files: await Promise.all((row.fileIds ?? []).map(async (id) => {
+      const file = details.get(id)
+      return { id, name: file?.originalName ?? null, mimeType: file?.mimeType ?? null, sizeBytes: file?.sizeBytes ?? null, url: await ser.sign(id, 'full') }
+    })),
     submittedAt: iso(row.submittedAt),
     late: row.late,
     grade: row.grade,

@@ -6,7 +6,9 @@ import { createOfficeAccess } from './access.js';
 import { validateOfficeDocument } from './validate-document.js';
 import { OfficeError, lockConflict } from './errors.js';
 
-export function createOfficeService({ prisma, supabaseAdmin, env = process.env, fetchImpl, now = Date.now, broadcaster = null }) {
+// onFileAssetSaved({ file, companyId, bytes }): optional best-effort hook run
+// after a FileAsset save commits (e.g. runly.lms re-scans certificate tags).
+export function createOfficeService({ prisma, supabaseAdmin, env = process.env, fetchImpl, now = Date.now, broadcaster = null, onFileAssetSaved = null }) {
   let config;
   let configurationError;
   try { config = readOfficeConfig(env); } catch (error) { config = { enabled: true }; configurationError = error; }
@@ -43,7 +45,11 @@ export function createOfficeService({ prisma, supabaseAdmin, env = process.env, 
         actorId: context.profile.id, moduleKey: 'runly.files', entityType: 'FileAsset', entityId: context.file.id, action,
         metadata: { companyId: context.companyId, ...metadata },
       } }),
-      afterCommit: () => {},
+      afterCommit: async (context, _saved, bytes) => {
+        if (!onFileAssetSaved) return;
+        try { await onFileAssetSaved({ file: context.file, companyId: context.companyId, bytes }); }
+        catch { /* never fail a committed save */ }
+      },
     },
     chat_attachment: {
       authorize: (args, db) => access.authorizeChatAttachment({ authUserId: args.authUserId, attachmentId: args.fileId ?? args.attachmentId, mode: args.mode }, db),
@@ -211,7 +217,7 @@ export function createOfficeService({ prisma, supabaseAdmin, env = process.env, 
         await backend.audit(db, current, 'office.document.saved', { revision: committed.contentRevision, sizeBytes: request.bytes.length });
         return committed;
       });
-      backend.afterCommit(context, saved);
+      await backend.afterCommit(context, saved, request.bytes);
       return { version: String(saved.contentRevision), lastModifiedTime: new Date(saved.updatedAt).toISOString() };
     } catch (error) {
       // Never delete a candidate after an ambiguous commit error: it may already

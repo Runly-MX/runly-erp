@@ -2,7 +2,9 @@ import { Hono } from 'hono';
 import { OfficeError } from '../services/office/errors.js';
 import { readBoundedBody } from '../services/office/discovery.js';
 
-export function createOfficeRouter({ officeService, authMiddleware, requirePermission }) {
+// requireOfficeAccess: route gate before the per-file check in office/access.js
+// (defaults to runly.files read; index.js widens it to LMS permissions).
+export function createOfficeRouter({ officeService, authMiddleware, requirePermission, requireOfficeAccess = requirePermission('files.assets.read') }) {
   const router = new Hono();
   const noStore = async (c, next) => {
     c.header('Cache-Control', 'no-store');
@@ -17,14 +19,14 @@ export function createOfficeRouter({ officeService, authMiddleware, requirePermi
     // Do not log errors containing request URLs, access tokens or Storage URLs.
     return c.json({ error: known ? error.message : 'Error al procesar el documento.', code: known ? error.code : 'office_error' }, known ? error.status : 500);
   });
-  router.get('/files/office/status', authMiddleware, requirePermission('files.assets.read'), async c => c.json({ data: await officeService.status() }));
-  router.get('/files/:id/office/download', authMiddleware, requirePermission('files.assets.read'), async c => {
+  router.get('/files/office/status', authMiddleware, requireOfficeAccess, async c => c.json({ data: await officeService.status() }));
+  router.get('/files/:id/office/download', authMiddleware, requireOfficeAccess, async c => {
     const file = await officeService.download({ authUserId: c.get('authUserId'), fileId: c.req.param('id') });
     c.header('Content-Type', file.mimeType);
     c.header('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`);
     return c.body(file.bytes);
   });
-  router.post('/files/:id/office/session', authMiddleware, requirePermission('files.assets.read'), async c => {
+  router.post('/files/:id/office/session', authMiddleware, requireOfficeAccess, async c => {
     let body;
     try { body = JSON.parse((await readBoundedBody(c.req.raw.body, 2048)).toString('utf8')); } catch (error) {
       if (error instanceof OfficeError) throw error;

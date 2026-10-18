@@ -3,7 +3,7 @@ import {
   Badge, Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, PageHeader,
 } from '@runly/ui'
 import {
-  AlertTriangle, Award, Ban, ChevronDown, Download, FileText, FileType, LayoutTemplate, MoreHorizontal, Palette, Pencil, Plus, Presentation,
+  AlertTriangle, Award, Ban, ChevronDown, Download, FilePenLine, FileText, FileType, LayoutTemplate, MoreHorizontal, Palette, Pencil, Plus, Presentation,
   RefreshCw, RotateCcw, WandSparkles,
 } from 'lucide-react'
 import { CertificateTemplateSheet } from '../components/certificates/CertificateTemplateSheet.jsx'
@@ -14,6 +14,7 @@ import { TemplateFileSheet } from '../components/certificates/TemplateFileSheet.
 import { TemplateUploadSheet } from '../components/certificates/TemplateUploadSheet.jsx'
 import { PageShell } from '../components/shared.jsx'
 import { useDisableCertificateTemplate, useEnableCertificateTemplate } from '../hooks/useLmsCerts.js'
+import { useLmsOffice } from '../hooks/useLmsOffice.js'
 import { useCertificateTemplatesInfo, useDownloadCertificateDocx } from '../hooks/useLmsCertDocx.js'
 import { formatInfo, isFileTemplate, isPdfTemplate, isTaggedTemplate } from '../lib/lmsCert.js'
 import { formatShortDate } from '../lib/lmsLabels.js'
@@ -61,6 +62,7 @@ function CreateMenu({ onDesign, onUpload, label = 'Nueva plantilla' }) {
 export default function LmsCertificates() {
   const info = useCertificateTemplatesInfo()
   const disable = useDisableCertificateTemplate(), enable = useEnableCertificateTemplate(), download = useDownloadCertificateDocx()
+  const office = useLmsOffice()
   const [editing, setEditing] = useState(null) // null closed, {} new design, template to edit
   const [editingFileId, setEditingFileId] = useState(null)
   const [layoutId, setLayoutId] = useState(null)
@@ -121,6 +123,9 @@ export default function LmsCertificates() {
                   <DropdownMenuItem disabled={download.isPending} onSelect={() => download.mutate({ id: t.id, name: t.name, format: t.source })}>
                     <Download />{isPdfTemplate(t) ? 'Descargar PDF' : 'Descargar para editar'}
                   </DropdownMenuItem>
+                  {office.enabled && isTaggedTemplate(t) && t.fileAssetId ? (
+                    <DropdownMenuItem onSelect={() => office.open(t.fileAssetId)}><FilePenLine />Abrir en Office</DropdownMenuItem>
+                  ) : null}
                   <DropdownMenuItem onSelect={() => setUploadFor(t)}><RefreshCw />Reemplazar archivo</DropdownMenuItem>
                 </>
               ) : null}
@@ -136,7 +141,7 @@ export default function LmsCertificates() {
       },
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [enable.isPending, download.isPending])
+  ], [enable.isPending, download.isPending, office.enabled, office.open])
 
   return (
     <PageShell>
@@ -164,7 +169,9 @@ export default function LmsCertificates() {
       />
       <div className="flex flex-col gap-2 rounded-md border border-[hsl(var(--border))] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
         <span className={MUTED}>
-          Para cambiar una plantilla de Word o PowerPoint: descárgala, edítala respetando las etiquetas y usa «Reemplazar archivo». Las plantillas PDF se ajustan en «Editar campos». ¿Empiezas desde cero? Descarga un ejemplo con todas las etiquetas.
+          {office.enabled
+            ? 'Para cambiar una plantilla de Word o PowerPoint: usa «Abrir en Office» y guarda, o descárgala, edítala respetando las etiquetas y usa «Reemplazar archivo».'
+            : 'Para cambiar una plantilla de Word o PowerPoint: descárgala, edítala respetando las etiquetas y usa «Reemplazar archivo».'} Las plantillas PDF se ajustan en «Editar campos». ¿Empiezas desde cero? Descarga un ejemplo con todas las etiquetas.
         </span>
         <div className="flex shrink-0 gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => download.mutate({ format: 'docx' })} disabled={download.isPending}><FileText />Ejemplo Word</Button>

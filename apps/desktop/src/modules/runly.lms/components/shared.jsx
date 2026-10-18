@@ -28,7 +28,8 @@ export function EnrollmentStatusBadge({ status }) {
 // Right-hand form sheet: header and footer stay fixed, only the body scrolls.
 // `wide` is for editors with lists (quiz questions, grading); `wide="xl"` for
 // editors with a side preview (certificate templates).
-export function FormSheet({ open, onOpenChange, title, description, children, footer, wide = false }) {
+// bodyClassName replaces the scrolling body classes (two-column sheets scroll per column).
+export function FormSheet({ open, onOpenChange, title, description, children, footer, wide = false, bodyClassName = null }) {
   const width = wide === 'xl' ? 'sm:max-w-6xl' : wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -37,7 +38,7 @@ export function FormSheet({ open, onOpenChange, title, description, children, fo
           <SheetTitle>{title}</SheetTitle>
           {description ? <SheetDescription>{description}</SheetDescription> : null}
         </SheetHeader>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">{children}</div>
+        <div className={bodyClassName ?? "min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4"}>{children}</div>
         {footer ? (
           <div data-dialog-footer="" className="flex shrink-0 items-center justify-end gap-2 border-t border-[hsl(var(--border))] px-5 py-3 max-md:py-2">
             {footer}

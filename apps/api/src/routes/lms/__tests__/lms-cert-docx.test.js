@@ -7,6 +7,7 @@ import {
   averageGrade, buildCertDocxData, buildSampleCertificateDocx, certTemplateWarnings, imageSizer, inspectCertDocx, isOfficeAvailable,
   renderCertificateDocx, unknownCertTags,
 } from '../lms-cert-docx.js'
+import { createCertTemplateOfficeRescan } from '../lms-cert-templates.js'
 import { labelBefore, placeholderTag, replaceTextRange, suggestCertificateTags } from '../lms-cert-docx-suggest.js'
 
 const docText = (buffer) => new PizZip(buffer).file('word/document.xml').asText().replace(/<[^>]+>/g, '')
@@ -95,4 +96,19 @@ test('render fills scalars and drops absent images; sizes keep aspect ratio', ()
   assert.equal(averageGrade([{ lessonId: 'a', score: 80 }, { lessonId: 'a', score: 90 }], [{ lessonId: 'b', score: 100 }]), '95')
   assert.equal(averageGrade(), '')
   assert.equal(isOfficeAvailable({}), false)
+})
+
+test('an Office save re-scans the current template tags; other files are ignored', async () => {
+  const template = { id: 't1', source: 'docx', fileAssetId: 'f1', placeholders: ['viejo'] }
+  const prisma = { lmsCertificateTemplate: {
+    findFirst: async ({ where }) => (where.fileAssetId === template.fileAssetId && where.companyId === 'c1' ? { ...template } : null),
+    update: async ({ data }) => Object.assign(template, data),
+  } }
+  const rescan = createCertTemplateOfficeRescan({ prisma })
+  const file = { id: 'f1', moduleKey: 'runly.lms', entityType: 'LmsCertificateTemplate' }
+  await rescan({ file, companyId: 'c1', bytes: buildSampleCertificateDocx() })
+  assert.ok(template.placeholders.includes('%qr') && !template.placeholders.includes('viejo'))
+  assert.equal(await rescan({ file: { ...file, entityType: 'LmsSubmission' }, companyId: 'c1', bytes: Buffer.from('x') }), null)
+  await rescan({ file, companyId: 'c1', bytes: buildMinimalDocx(paragraph('{{#curso}} sin cerrar')) })
+  assert.deepEqual(template.placeholders, [])
 })

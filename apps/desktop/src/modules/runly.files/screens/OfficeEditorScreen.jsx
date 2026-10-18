@@ -20,7 +20,12 @@ export default function OfficeEditorScreen() {
     downloadName.current = data.fileName;
     return data;
   }, []);
-  const saved = useCallback(() => { queryClient.invalidateQueries({ queryKey: ['files-list'] }); }, [queryClient]);
+  // Callers may pass extra query keys to refresh (e.g. runly.lms: ['lms']).
+  const extraKeys = state?.officeInvalidate;
+  const saved = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['files-list'] });
+    if (Array.isArray(extraKeys)) for (const key of extraKeys) if (typeof key === 'string') queryClient.invalidateQueries({ queryKey: [key] });
+  }, [queryClient, extraKeys]);
   const close = useCallback(() => {
     saved();
     const returnTo = state?.officeReturnTo;

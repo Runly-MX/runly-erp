@@ -3,10 +3,11 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Badge, Button, CheckboxField, FieldWrapper, FileUploader, TextField } from '@runly/ui'
-import { Download, FileText, LayoutTemplate, Loader2, RefreshCw, WandSparkles } from 'lucide-react'
+import { Download, FilePenLine, FileText, LayoutTemplate, Loader2, RefreshCw, WandSparkles } from 'lucide-react'
 import { useUploadLmsFile } from '../../hooks/useLmsData.js'
 import { useSaveCertificateTemplate } from '../../hooks/useLmsCerts.js'
 import { useDownloadCertificateDocx } from '../../hooks/useLmsCertDocx.js'
+import { useLmsOffice } from '../../hooks/useLmsOffice.js'
 import { docxTagText, formatInfo, isPdfTemplate } from '../../lib/lmsCert.js'
 import { fieldLabel } from '../../lib/certLayout.js'
 import { FormSheet } from '../shared.jsx'
@@ -26,6 +27,7 @@ const toValues = (t) => ({ name: t?.name ?? '', signerName: t?.signerName ?? '',
 // fields use, and a PDF preview with sample data.
 export function TemplateFileSheet({ open, onOpenChange, template, officeAvailable, onReplace, onSuggest, onEditLayout }) {
   const save = useSaveCertificateTemplate(), upload = useUploadLmsFile(), download = useDownloadCertificateDocx()
+  const office = useLmsOffice()
   const [signature, setSignature] = useState(null) // { fileId, name, url } once replaced or removed
   const { control, handleSubmit, reset, formState: { errors, isDirty } } = useForm({ resolver: zodResolver(schema), defaultValues: toValues(template) })
 
@@ -117,6 +119,12 @@ export function TemplateFileSheet({ open, onOpenChange, template, officeAvailabl
                 <Button type="button" variant="outline" size="sm" onClick={() => download.mutate({ id: template.id, name: template.name, format: template.source })} disabled={download.isPending}>
                   <Download />Descargar para editar
                 </Button>
+                {office.enabled && template.fileAssetId ? (
+                  <Button type="button" variant="outline" size="sm" onClick={() => office.open(template.fileAssetId)}
+                    title={`Editar en ${info.app} en línea; al guardar se vuelven a leer las etiquetas.`}>
+                    <FilePenLine />Abrir en Office
+                  </Button>
+                ) : null}
                 <Button type="button" variant="outline" size="sm" onClick={() => onReplace(template)}><RefreshCw />Reemplazar archivo</Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => onSuggest(template)} disabled={tags.length > 0}
                   title={tags.length ? `La plantilla ya tiene etiquetas; edítala en ${info.app}.` : 'Colocar etiquetas en tu propio formato'}>
