@@ -1900,3 +1900,13 @@ Spec `docs/superpowers/specs/2026-10-16-lms-design.md`; plans `docs/superpowers/
 - [x] @runly/ui: NumberField min/max clamping, PageHeader/RecordHeader collapseOnScroll, FormSaveBar dock. Verified: 2026-10-17 (unit tests, lint, build; collapse/dock animations not yet seen in a browser)
 - [ ] Not verified in a browser: quiz attempt UI, assignment file upload UI, grading sheets, discussion/review UI, certificate template sheet live preview
 - [ ] Known limit: uploaded videos are capped at 50 MB by the self-hosted Storage FILE_SIZE_LIMIT; longer videos go as embed lessons. Presigned uploads that are never confirmed leave a pending FileAsset row (no cleanup job yet)
+
+## Platform owner (instance-level administration) (2026-10-18)
+
+Spec `docs/superpowers/specs/2026-10-18-platform-owner-design.md`; plan `docs/superpowers/plans/2026-10-18-platform-owner.md`.
+
+- [x] Owner key `platform_owner_profile_id` in InstanceConfig, set by `/setup/initialize` and backfilled by migration `20261110000000_platform_owner`; loaded with the per-request user context and exposed as `tenantContext.isPlatformOwner` and `/user/me.isPlatformOwner`. Verified: 2026-10-18 (migration applied to the dev DB and marked applied; key resolves to the expected admin; GET /platform/owner against a local API)
+- [x] Gates: `PUT /instance/config` and `/settings/notifications/webpush*` owner-only on multi-company instances (single-company admins keep access); `system.admin` assignable only by the owner or a legacy system admin; owner account / last membership cannot be disabled or deleted (409). Verified: 2026-10-18 (unit tests in `lib/__tests__/platform-owner.test.js`, `identity-memberships.test.js`, `instance-settings-scope.test.js`; local API: non-owner company admin gets 403 on PUT instance config and GET Web Push)
+- [x] `GET /platform/owner`, `POST /platform/owner/transfer` (AuditLog `platform.owner.transferred`), SDK `runly.platform.*`, recovery script `scripts/set-platform-owner.mjs`. Verified: 2026-10-18 (unit tests with mocked Prisma; local API: non-owner transfer 403, invalid body 400)
+- [x] Settings UI: owner card with transfer dialog + confirmation, read-only General/Web Push with notice for non-owners on multi-company instances, SMTP tab renamed "Correo de esta empresa". Verified: 2026-10-18 (Playwright screenshots against a local API/web: non-owner read-only state, owner state with the transfer dialog open, owner temporarily switched in the dev DB and restored)
+- [ ] Not exercised end to end: a real transfer through the UI (confirm step) and the recovery script against a database; the transfer picker lists only users of the active company

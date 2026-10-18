@@ -14,9 +14,12 @@ export function checkMembershipRoleScope({ roleCompanyId, membershipCompanyId })
   };
 }
 
-export function checkProtectedRoleAssignment({ roleKey, protectedKeys, actorCanManageRoles, isSystemAdmin = false, isAdmin = false }) {
+// system.admin is a platform role: only the platform owner (or a legacy
+// system admin) may assign it — never a company admin (spec
+// 2026-10-18-platform-owner-design.md §5).
+export function checkProtectedRoleAssignment({ roleKey, protectedKeys, actorCanManageRoles, isSystemAdmin = false, isPlatformOwner = false }) {
   const normalizedKey = String(roleKey ?? "").trim().toLowerCase();
-  if (normalizedKey === 'system.admin' && !isSystemAdmin && !isAdmin) {
+  if (normalizedKey === 'system.admin' && !isSystemAdmin && !isPlatformOwner) {
     return { ok: false, status: 403, error: 'Se requiere administración de la plataforma.' };
   }
   const isProtected = protectedKeys instanceof Set && protectedKeys.has(normalizedKey);

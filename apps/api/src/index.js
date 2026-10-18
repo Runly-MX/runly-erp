@@ -153,6 +153,8 @@ import { loadInstallerLiveKitDevEnv } from "./lib/livekit-dev-env.js";
 import { getCachedSignedUrls } from "./lib/signed-url-cache.js";
 import { wrapStorageForPublicUrls } from "./lib/supabase-public-url.js";
 import { buildAvatarUrlMapByFileIds } from "./lib/avatar-url-map.js";
+import { PLATFORM_OWNER_KEY, createRequireInstanceAdmin } from "./lib/platform-owner.js";
+import { createPlatformOwnerRouter } from "./routes/platform-owner-routes.js";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 loadEnv({
@@ -342,7 +344,7 @@ async function _loadUserContext(authUserId, cacheKey) {
   const roleIds = [...new Set(memberships.map((m) => m.roleId).filter(Boolean))];
   const companyIds = [...new Set(memberships.map((m) => m.companyId).filter(Boolean))];
   const mayBeAdmin = memberships.some((m) => ADMIN_ROLE_KEYS.has(m.role?.key));
-  const [rolePermissionRows, grantRows, adminRows] = await Promise.all([
+  const [rolePermissionRows, grantRows, adminRows, ownerRow] = await Promise.all([
     roleIds.length
       ? prisma.$queryRaw`SELECT rp.role_id AS "roleId", p.key FROM role_permission rp JOIN permission p ON p.id = rp.permission_id WHERE p.active = true AND rp.role_id = ANY(${roleIds}::uuid[])`
       : [],
@@ -350,7 +352,9 @@ async function _loadUserContext(authUserId, cacheKey) {
       ? prisma.$queryRaw`SELECT g.company_id AS "companyId", p.key FROM user_permission_grant g JOIN permission p ON p.id = g.permission_id WHERE p.active = true AND g.user_id = ${profile.id}::uuid AND g.company_id = ANY(${companyIds}::uuid[])`
       : [],
     mayBeAdmin ? prisma.permission.findMany({ where: { active: true }, select: { key: true }, take: 1000 }) : [],
+    prisma.instanceConfig.findUnique({ where: { key: PLATFORM_OWNER_KEY }, select: { value: true } }),
   ]);
+  const platformOwnerProfileId = ownerRow?.value || null;
   const keysByRole = new Map();
   for (const row of rolePermissionRows) {
     if (!keysByRole.has(row.roleId)) keysByRole.set(row.roleId, []);
@@ -417,6 +421,8 @@ async function _loadUserContext(authUserId, cacheKey) {
     permissionSet,
     roleKeys: [...roleKeySet].sort(),
     grantKeys: [...grantKeySet].sort(),
+    platformOwnerProfileId,
+    isPlatformOwner: platformOwnerProfileId === profile.id,
   };
   cacheSet(cacheKey, context, TTL.USER_CONTEXT);
   return context;
@@ -496,6 +502,7 @@ export async function resolveTenantContext(c, context, { strict = true } = {}) {
       permissionSet,
       isCompanyAdmin,
       isSystemAdmin,
+      isPlatformOwner: Boolean(context.isPlatformOwner),
       // Deprecated alias kept for the Plan 1/2 migration window — every
       // function that still reads context.isAdmin for an authorization
       // decision (userCanAccessModule, filterModuleNavigation) accepts this
@@ -1184,6 +1191,12 @@ app.post("/setup/initialize", async (c) => {
           update: {},
           create: { key: "primary_company_id", value: company.id },
         });
+        // The installing admin owns the platform (spec 2026-10-18-platform-owner).
+        await tx.instanceConfig.upsert({
+          where: { key: PLATFORM_OWNER_KEY },
+          update: {},
+          create: { key: PLATFORM_OWNER_KEY, value: userProfile.id },
+        });
         await tx.instanceConfig.upsert({
           where: { key: "completed_at" },
           update: { value: now },
@@ -1257,6 +1270,7 @@ app.get("/user/me", authMiddleware, async (c) => {
       // or manage another company's modules — a company-scoped runly.admin
       // must not see those affordances.
       isSystemAdmin: tenant.isSystemAdmin,
+      isPlatformOwner: tenant.isPlatformOwner,
       permissions: [...tenant.permissionSet].sort(),
       colony: context.profile.colony,
       companyId: tenant.companyId,
@@ -1769,6 +1783,7 @@ app.put(
   "/instance/config",
   authMiddleware,
   requirePermission("core.instance.update"),
+  createRequireInstanceAdmin({ prisma }),
   async (c) => {
     try {
       const body = await c.req.json();
@@ -2436,6 +2451,7 @@ mountWithAuth(app, createIdentityRouter({
   storageBucketName: STORAGE_BUCKET_NAME,
 }));
 mountWithAuth(app, createSettingsRouter({ prisma, requirePermission, supabaseAdmin }));
+mountWithAuth(app, createPlatformOwnerRouter({ prisma, requirePermission, cacheDelByPrefix }));
 mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission, requireAnyPermission }));
 mountWithAuth(app, createPfmRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, filesService, notificationService }));

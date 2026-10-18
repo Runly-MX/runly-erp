@@ -16,6 +16,21 @@ Permissions: `core.access`, `core.read`, `core.manage`, `core.modules.read|creat
 
 Navigation: Modulos (`/modules`), Configuracion (`/settings`)
 
+### Platform owner
+
+Spec: `docs/superpowers/specs/2026-10-18-platform-owner-design.md`.
+
+- One owner per instance, stored in `InstanceConfig` key `platform_owner_profile_id` (a `UserProfile.id`). `/setup/initialize` makes the installing admin the owner; migration `20261110000000_platform_owner` backfills existing instances (global `system.admin` first, else the oldest enabled `runly.admin` membership).
+- Instance-wide settings (`PUT /instance/config`, every `/settings/notifications/webpush*`) accept only the owner when more than one company is enabled; on a single-company instance that company's admins keep access. Gate: `createRequireInstanceAdmin` in `apps/api/src/lib/platform-owner.js`.
+- Only the owner (or a legacy global `system.admin`) can assign the `system.admin` role.
+- `GET /platform/owner` and `POST /platform/owner/transfer { profileId }` (owner only; target must be an enabled, non-bot user with an enabled membership; writes AuditLog `platform.owner.transferred`). SDK: `runly.platform.getOwner` / `transferOwner`.
+- The owner's account, or their last enabled membership, cannot be disabled or deleted (409 "Transfiere la propiedad de la plataforma antes de dar de baja esta cuenta.").
+- Recovery on the server (uses `DATABASE_URL`, prints only the display name):
+
+```bash
+node --env-file=.env scripts/set-platform-owner.mjs --email admin@example.com
+```
+
 ## runly.identity
 
 Owns identity and access control: users, roles, permissions, profiles, memberships.

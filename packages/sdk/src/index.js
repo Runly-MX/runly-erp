@@ -241,6 +241,16 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           body: JSON.stringify(data),
         }),
     },
+    platform: {
+      getOwner: (token) => request("/platform/owner", { headers: withAuthHeaders(token) }),
+      transferOwner: (profileId, token) =>
+        request("/platform/owner/transfer", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ profileId }),
+          onlineOnly: true,
+        }),
+    },
     company: {
       pendingDeletions: (token) => request('/companies/deletions', { headers: withAuthHeaders(token) }),
       requestDeletion: (companyId, data, token) => request(`/companies/${companyId}/deletion`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data) }),

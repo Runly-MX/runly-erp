@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -11,41 +10,25 @@ import {
   TextareaField,
   TextField,
 } from "@runly/ui";
-import { BellRing, Building2, Clock3, Coins, Mail, Settings } from "lucide-react";
+import { Building2, Clock3, Coins } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
 import { RUNLY_DESKTOP_DOWNLOAD_URL, RUNLY_MOBILE_DOWNLOAD_URL } from "../../../lib/appConfig.js";
 import { CURRENCY_OPTIONS, TIME_ZONE_OPTIONS } from "../../../lib/localeCatalogs";
-
-function SettingsTabs() {
-  const base = "px-4 py-2 text-sm font-medium rounded-lg transition-colors";
-  const active = `${base} bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))]`;
-  const inactive = `${base} text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))]/50`;
-  return (
-    <div className="flex gap-1 border-b border-[hsl(var(--border))] pb-3">
-      <NavLink to="/app/m/runly.core/settings" end className={({ isActive }) => isActive ? active : inactive}>
-        <Settings className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-        General
-      </NavLink>
-      <NavLink to="/app/m/runly.core/settings/smtp" className={({ isActive }) => isActive ? active : inactive}>
-        <Mail className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-        SMTP
-      </NavLink>
-      <NavLink to="/app/m/runly.core/settings/webpush" className={({ isActive }) => isActive ? active : inactive}>
-        <BellRing className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-        Web Push
-      </NavLink>
-    </div>
-  );
-}
+import { CoreSettingsTabs } from "../components/CoreSettingsTabs";
+import { InstanceScopeAlert, PlatformOwnerCard } from "../components/PlatformOwnerCard";
+import { usePlatformOwner } from "../lib/usePlatformOwner";
 
 export default function InstanceSettings() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
-  const canManage = Boolean(
+  const hasPermission = Boolean(
     userProfile?.isAdmin || userProfile?.permissions?.includes("core.manage"),
   );
+  const platformOwner = usePlatformOwner();
+  // Multi-company instance: only the platform owner edits instance-wide settings.
+  const canManage = hasPermission && !platformOwner.isLoading && !platformOwner.readOnly;
   const queryClient = useQueryClient();
 
   const configQuery = useQuery({
@@ -92,11 +75,20 @@ export default function InstanceSettings() {
           title="Configuracion"
           description="Ajusta la configuracion general y las integraciones de tu instancia."
         />
-        <SettingsTabs />
+        <CoreSettingsTabs />
 
-        {!canManage && (
+        {!hasPermission && (
           <ErrorState message="Necesitas permiso core.manage para modificar la configuracion de la instancia." />
         )}
+
+        <PlatformOwnerCard
+          owner={platformOwner.owner}
+          isOwner={platformOwner.isOwner}
+          multiCompany={platformOwner.multiCompany}
+          isLoading={platformOwner.isLoading}
+        />
+
+        {hasPermission && platformOwner.readOnly && <InstanceScopeAlert owner={platformOwner.owner} />}
 
         <Card className="p-0">
           <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 rounded-t-2xl">

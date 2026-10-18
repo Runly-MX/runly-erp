@@ -58,17 +58,28 @@ test("checkProtectedRoleAssignment allows a platform role for a system administr
   assert.equal(result.ok, true);
 });
 
-test("checkProtectedRoleAssignment allows a platform role for a company admin", () => {
+test("checkProtectedRoleAssignment rejects a platform role for a company admin (no self-promotion)", () => {
   const result = checkProtectedRoleAssignment({
     roleKey: "system.admin",
     protectedKeys: new Set(["runly.admin", "system.admin"]),
     actorCanManageRoles: true,
     isAdmin: true,
   });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 403);
+});
+
+test("checkProtectedRoleAssignment allows a platform role for the platform owner", () => {
+  const result = checkProtectedRoleAssignment({
+    roleKey: "system.admin",
+    protectedKeys: new Set(["runly.admin", "system.admin"]),
+    actorCanManageRoles: true,
+    isPlatformOwner: true,
+  });
   assert.equal(result.ok, true);
 });
 
-test("checkProtectedRoleAssignment rejects a platform role for neither a system nor company admin", () => {
+test("checkProtectedRoleAssignment rejects a platform role for neither a system admin nor the owner", () => {
   const result = checkProtectedRoleAssignment({
     roleKey: "system.admin",
     protectedKeys: new Set(["runly.admin", "system.admin"]),

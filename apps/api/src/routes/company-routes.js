@@ -18,6 +18,7 @@ function companyMemberActorContext(c) {
   const context = c.get("userContext");
   return {
     isSystemAdmin: tenant.isSystemAdmin,
+    isPlatformOwner: Boolean(tenant.isPlatformOwner),
     canManageRoles: Boolean(tenant.isAdmin || tenant.permissionSet?.has("identity.roles.update")),
     actingUserId: context?.profile?.id ?? null,
   };

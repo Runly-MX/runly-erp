@@ -30,6 +30,7 @@ import {
   assertUserInCompany,
   hasProtectedIdentityAdminRole,
 } from "./identity-shared.js";
+import { guardOwnerRemoval } from "../../lib/platform-owner.js";
 
 export function createIdentityUserDetailRouter({ prisma, supabaseAdmin, requirePermission, cacheDel, cacheDelByPrefix, storageBucketName }) {
   const app = new Hono();
@@ -76,7 +77,7 @@ export function createIdentityUserDetailRouter({ prisma, supabaseAdmin, requireP
             roleKey: targetRole.key,
             protectedKeys: PROTECTED_IDENTITY_ROLE_KEYS,
             isSystemAdmin: tenant.isSystemAdmin,
-            isAdmin: tenant.isAdmin,
+            isPlatformOwner: tenant.isPlatformOwner,
             actorCanManageRoles: Boolean(
               tenant.isAdmin || tenant.permissionSet?.has("identity.roles.update"),
             ),
@@ -96,6 +97,8 @@ export function createIdentityUserDetailRouter({ prisma, supabaseAdmin, requireP
             disabling: true,
           });
           if (!lockoutCheck.ok) return c.json({ error: lockoutCheck.error }, lockoutCheck.status);
+          const ownerBlock = await guardOwnerRemoval(prisma, { userIds: [id], membershipId });
+          if (ownerBlock) return c.json({ error: ownerBlock.error }, ownerBlock.status);
         }
 
         const before = { roleId: membership.roleId, enabled: membership.enabled };
@@ -177,7 +180,7 @@ export function createIdentityUserDetailRouter({ prisma, supabaseAdmin, requireP
             roleKey: targetRole.key,
             protectedKeys: PROTECTED_IDENTITY_ROLE_KEYS,
             isSystemAdmin: tenant.isSystemAdmin,
-            isAdmin: tenant.isAdmin,
+            isPlatformOwner: tenant.isPlatformOwner,
             actorCanManageRoles: Boolean(
               tenant.isAdmin || tenant.permissionSet?.has("identity.roles.update"),
             ),
@@ -322,6 +325,8 @@ export function createIdentityUserDetailRouter({ prisma, supabaseAdmin, requireP
         if (!(await assertUserInCompany(id, tenant.companyId, { prisma }))) {
           return c.json({ error: "Usuario no encontrado." }, 404);
         }
+        const ownerBlock = await guardOwnerRemoval(prisma, { userIds: [id], account: true });
+        if (ownerBlock) return c.json({ error: ownerBlock.error }, ownerBlock.status);
 
         const targetUser = await prisma.userProfile.findUnique({
           where: { id },
@@ -500,6 +505,10 @@ export function createIdentityUserDetailRouter({ prisma, supabaseAdmin, requireP
           if (keys.length > 0 && keys.every((key) => key === "enabled")) {
             if (typeof body.enabled !== "boolean") return c.json({ error: "Datos invalidos." }, 400);
             if (!body.enabled && isSelf) return c.json({ error: "No puedes revocar tu propio acceso." }, 400);
+            if (!body.enabled) {
+              const ownerBlock = await guardOwnerRemoval(prisma, { userIds: [id], companyId: tenant.companyId });
+              if (ownerBlock) return c.json({ error: ownerBlock.error }, ownerBlock.status);
+            }
             await prisma.membership.updateMany({ where: { companyId: tenant.companyId, userId: id }, data: { enabled: body.enabled } });
             cacheDelByPrefix("user_ctx:");
             return c.json({ data: { id, enabled: body.enabled } });
@@ -530,6 +539,8 @@ export function createIdentityUserDetailRouter({ prisma, supabaseAdmin, requireP
         // lockout the protected-role guard on DELETE already exists to prevent
         // — this PATCH route had no equivalent check.
         if (body.enabled === false) {
+          const ownerBlock = await guardOwnerRemoval(prisma, { userIds: [id], account: true });
+          if (ownerBlock) return c.json({ error: ownerBlock.error }, ownerBlock.status);
           const targetForDisable = await prisma.userProfile.findUnique({
             where: { id },
             include: {
@@ -696,7 +707,14 @@ export function createIdentityUserDetailRouter({ prisma, supabaseAdmin, requireP
             targetRole &&
             PROTECTED_IDENTITY_ROLE_KEYS.has(String(targetRole.key ?? "").trim().toLowerCase());
           if (targetIsProtectedRole) {
-            const context = c.get("userContext");
+            const platformCheck = checkProtectedRoleAssignment({
+              roleKey: targetRole.key,
+              protectedKeys: PROTECTED_IDENTITY_ROLE_KEYS,
+              isSystemAdmin: tenant.isSystemAdmin,
+              isPlatformOwner: tenant.isPlatformOwner,
+              actorCanManageRoles: true,
+            });
+            if (!platformCheck.ok) return c.json({ error: platformCheck.error }, platformCheck.status);
             const canManageRoles =
               tenant.isAdmin || tenant.permissionSet?.has("identity.roles.update");
             if (!canManageRoles) {

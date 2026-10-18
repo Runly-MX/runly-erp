@@ -4,6 +4,7 @@ import { createSmtpConfigStore, encryptPassword, createSmtpService } from '../se
 import { createWebPushService } from '../services/web-push-service.js'
 import { buildSmtpTestEmail } from '../services/email-templates.js'
 import { createCompanyBrandService } from '../services/company-brand-service.js'
+import { createRequireInstanceAdmin } from '../lib/platform-owner.js'
 
 const smtpSchema = z.object({
   host:       z.string().min(1),
@@ -21,16 +22,9 @@ export function createSettingsRouter({ prisma, requirePermission, supabaseAdmin 
   const brandService = createCompanyBrandService({ prisma, supabaseAdmin })
 
   // VAPID keys belong to the installation/browser origin and are shared by
-  // every company hosted on it. Company admins (isAdmin) are allowed to
-  // manage them, same as system admins — on a single-company instance
-  // that's the only admin role that ever gets assigned.
-  const requireInstanceAdmin = async (c, next) => {
-    const tenant = c.get('tenantContext')
-    if (!tenant?.isSystemAdmin && !tenant?.isAdmin) {
-      return c.json({ error: 'Solo la administración de plataforma puede configurar Web Push.' }, 403)
-    }
-    await next()
-  }
+  // every company hosted on it: only the platform owner may manage them, or
+  // the company admin of a single-company instance (lib/platform-owner.js).
+  const requireInstanceAdmin = createRequireInstanceAdmin({ prisma })
 
   app.get('/settings/smtp', requirePermission('platform.settings.manage'), async (c) => {
     try {

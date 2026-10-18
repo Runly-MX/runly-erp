@@ -11,6 +11,7 @@ import {
   checkSelfLockout,
   findExistingMembership,
 } from "../lib/identity-memberships.js";
+import { guardOwnerRemoval } from "../lib/platform-owner.js";
 
 // Same protected-role set /identity/users/:id/memberships* guards against —
 // kept local rather than imported since it's a one-line literal, not worth a
@@ -191,6 +192,7 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
       roleKey: targetRole.key,
       protectedKeys: PROTECTED_MEMBER_ROLE_KEYS,
       isSystemAdmin: actorContext.isSystemAdmin,
+      isPlatformOwner: actorContext.isPlatformOwner,
       actorCanManageRoles: actorContext.canManageRoles,
     });
     if (!protectedCheck.ok) throw new CompanyServiceError(protectedCheck.error, protectedCheck.status);
@@ -486,6 +488,8 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
           disabling: true,
         });
         if (!lockoutCheck.ok) throw new CompanyServiceError(lockoutCheck.error, lockoutCheck.status);
+        const ownerBlock = await guardOwnerRemoval(prisma, { userIds: [membership.userId], membershipId });
+        if (ownerBlock) throw new CompanyServiceError(ownerBlock.error, ownerBlock.status);
       }
 
       const updated = await prisma.membership.update({

@@ -32,6 +32,7 @@ import {
   serializeIdentityUser,
   toIdentitySortOrder,
 } from "./identity-shared.js";
+import { guardOwnerRemoval } from "../../lib/platform-owner.js";
 
 export function createIdentityUsersRouter({ prisma, supabaseAdmin, requirePermission, cacheDelByPrefix }) {
   const app = new Hono();
@@ -213,7 +214,7 @@ export function createIdentityUsersRouter({ prisma, supabaseAdmin, requirePermis
           roleKey: targetRole.key,
           protectedKeys: PROTECTED_IDENTITY_ROLE_KEYS,
           isSystemAdmin: tenant.isSystemAdmin,
-          isAdmin: tenant.isAdmin,
+          isPlatformOwner: tenant.isPlatformOwner,
           actorCanManageRoles: Boolean(tenant.isAdmin || tenant.permissionSet?.has('identity.roles.update')),
         });
         if (!protectedCheck.ok) return c.json({ error: protectedCheck.error }, protectedCheck.status);
@@ -300,6 +301,10 @@ export function createIdentityUsersRouter({ prisma, supabaseAdmin, requirePermis
           return c.json({ error: "Uno o mas usuarios no pertenecen a tu empresa." }, 403);
         }
         if (!enabled && validIds.includes(c.get("userContext").profile.id)) return c.json({ error: "No puedes revocar tu propio acceso." }, 400);
+        if (!enabled) {
+          const ownerBlock = await guardOwnerRemoval(prisma, { userIds: validIds, companyId: tenant.companyId });
+          if (ownerBlock) return c.json({ error: ownerBlock.error }, ownerBlock.status);
+        }
         const result = await prisma.membership.updateMany({
           where: { companyId: tenant.companyId, userId: { in: validIds } },
           data: { enabled },
@@ -347,6 +352,9 @@ export function createIdentityUsersRouter({ prisma, supabaseAdmin, requirePermis
         if (validIds.length !== ids.length) {
           return c.json({ error: "Uno o mas usuarios no pertenecen a tu empresa." }, 403);
         }
+
+        const ownerBlock = await guardOwnerRemoval(prisma, { userIds: validIds, account: true });
+        if (ownerBlock) return c.json({ error: ownerBlock.error }, ownerBlock.status);
 
         const users = await prisma.userProfile.findMany({
           where: { id: { in: validIds } },

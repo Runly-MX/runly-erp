@@ -1,34 +1,14 @@
 import { useEffect, useState, useRef } from "react";
-import { NavLink } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Card, PageHeader, Skeleton, PasswordField, ErrorState, TextField } from "@runly/ui";
-import { BellRing, Mail, Settings } from "lucide-react";
+import { BellRing } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { runly } from "../../../lib/runly.js";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider.jsx";
-
-function SettingsTabs() {
-  const base = "px-4 py-2 text-sm font-medium rounded-lg transition-colors";
-  const active = `${base} bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))]`;
-  const inactive = `${base} text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))]/50`;
-  return (
-    <div className="flex gap-1 border-b border-[hsl(var(--border))] pb-3">
-      <NavLink to="/app/m/runly.core/settings" end className={({ isActive }) => isActive ? active : inactive}>
-        <Settings className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-        General
-      </NavLink>
-      <NavLink to="/app/m/runly.core/settings/smtp" className={({ isActive }) => isActive ? active : inactive}>
-        <Mail className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-        SMTP
-      </NavLink>
-      <NavLink to="/app/m/runly.core/settings/webpush" className={({ isActive }) => isActive ? active : inactive}>
-        <BellRing className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-        Web Push
-      </NavLink>
-    </div>
-  );
-}
+import { CoreSettingsTabs } from "../components/CoreSettingsTabs.jsx";
+import { InstanceScopeAlert } from "../components/PlatformOwnerCard.jsx";
+import { usePlatformOwner } from "../lib/usePlatformOwner.js";
 
 const EMPTY = { subject: "mailto:admin@example.com", publicKey: "", privateKey: "" };
 
@@ -39,11 +19,15 @@ export default function WebPushSettingsScreen() {
   const token = session?.access_token;
   const [form, setForm] = useState(EMPTY);
   const [privateKeyChanged, setPrivateKeyChanged] = useState(false);
+  const platformOwner = usePlatformOwner();
+  // VAPID keys are instance-wide: on a multi-company instance only the owner
+  // may read or change them (the API answers 403 to anyone else).
+  const readOnly = platformOwner.readOnly;
 
   const configQuery = useQuery({
     queryKey: ["webpush-settings", activeCompanyId],
     queryFn: () => runly.settings.getWebPush(token),
-    enabled: Boolean(token && activeCompanyId),
+    enabled: Boolean(token && activeCompanyId && !platformOwner.isLoading && !readOnly),
   });
 
   useEffect(() => {
@@ -120,7 +104,7 @@ export default function WebPushSettingsScreen() {
           title="Configuracion"
           description="Configura las llaves VAPID para notificaciones push en PWA."
         />
-        <SettingsTabs />
+        <CoreSettingsTabs />
 
         <Card className="p-0 overflow-hidden">
           <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 flex items-center justify-between">
@@ -136,7 +120,9 @@ export default function WebPushSettingsScreen() {
             )}
           </div>
           <div className="p-4 space-y-4">
-            {configQuery.isError && !configQuery.data ? (
+            {readOnly ? (
+              <InstanceScopeAlert owner={platformOwner.owner} />
+            ) : configQuery.isError && !configQuery.data ? (
               <ErrorState description={configQuery.error?.message || "No se pudo cargar la configuración."} onRetry={() => configQuery.refetch()} />
             ) : configQuery.isPending ? (
               <>
