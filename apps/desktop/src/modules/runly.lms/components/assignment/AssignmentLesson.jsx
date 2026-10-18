@@ -1,13 +1,31 @@
-import { useState } from 'react'
-import { Alert, AlertDescription, Badge, Button, ErrorState, FieldWrapper, FileCard, FileUploader, Skeleton, TextareaField } from '@runly/ui'
-import { CalendarClock, Loader2, Send } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { AdvancedFileViewer, Alert, AlertDescription, Badge, Button, ErrorState, FieldWrapper, FileUploader, FileVisual, Skeleton, TextareaField, formatBytes } from '@runly/ui'
+import { CalendarClock, Eye, Loader2, Send, X } from 'lucide-react'
+import { useLmsFileViewer } from '../../hooks/useLmsFileViewer.js'
 import { useAssignmentApi, useSubmissions, useSubmitAssignment } from '../../hooks/useLmsEval.js'
 import { uploadSubmissionFile } from '../../lib/directUpload.js'
 import { ASSIGNMENT_DEFAULTS, SUBMISSION_ACCEPT, SUBMISSION_MAX_MB } from '../../lib/lmsEval.js'
 import { dueLabel } from '../../lib/lmsLabels.js'
+import { pendingFileInput } from '../../lib/lmsFiles.js'
 import { SubmissionCard } from './SubmissionCard.jsx'
 
 const STAGE_LABELS = { uploading: 'Subiendo archivo…', confirming: 'Verificando archivo…' }
+
+// A file attached to the draft: opens in the viewer from its local copy.
+function PendingFileRow({ file, onOpen, onRemove }) {
+  const name = file.fileName || 'Archivo'
+  return (
+    <div className="flex items-center gap-3 rounded-md bg-[hsl(var(--muted)/0.5)] p-2.5">
+      <FileVisual file={{ originalName: name, mimeType: file.mimeType ?? '' }} className="h-9 w-9 shrink-0 rounded-md" />
+      <button type="button" onClick={onOpen} className="min-w-0 flex-1 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]" title={`Abrir ${name}`}>
+        <p className="truncate text-sm font-medium">{name}</p>
+        {file.sizeBytes ? <p className="text-xs text-[hsl(var(--muted-foreground))]">{formatBytes(file.sizeBytes)}</p> : null}
+      </button>
+      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Abrir ${name}`} title="Abrir" onClick={onOpen}><Eye /></Button>
+      {onRemove ? <Button type="button" variant="ghost" size="icon-sm" aria-label={`Quitar ${name}`} title="Quitar" onClick={onRemove}><X /></Button> : null}
+    </div>
+  )
+}
 
 function SubmissionForm({ settings, courseId, lessonId, resubmit }) {
   const api = useAssignmentApi()
@@ -16,6 +34,11 @@ function SubmissionForm({ settings, courseId, lessonId, resubmit }) {
   const [files, setFiles] = useState([])
   const [stage, setStage] = useState(null)
   const [error, setError] = useState('')
+  const viewer = useLmsFileViewer()
+  // Local copies (blob: URLs) of the attached files, released on remove/unmount.
+  const localUrls = useRef(new Set())
+  useEffect(() => () => { localUrls.current.forEach((url) => URL.revokeObjectURL(url)) }, [])
+  const release = (file) => { if (file?.localUrl) { URL.revokeObjectURL(file.localUrl); localUrls.current.delete(file.localUrl) } }
   const maxFiles = settings.maxFiles ?? ASSIGNMENT_DEFAULTS.maxFiles
   const slots = maxFiles - files.length
 
@@ -25,7 +48,10 @@ function SubmissionForm({ settings, courseId, lessonId, resubmit }) {
     try {
       // Internal learners and share-link guests upload through their own presign/confirm pair.
       for (const file of selected) {
-        uploaded.push(await uploadSubmissionFile(file, null, { onStage: setStage, presign: (data) => api.presignUpload(data), confirm: (fileId) => api.confirmUpload(fileId) }))
+        const result = await uploadSubmissionFile(file, null, { onStage: setStage, presign: (data) => api.presignUpload(data), confirm: (fileId) => api.confirmUpload(fileId) })
+        const localUrl = URL.createObjectURL(file)
+        localUrls.current.add(localUrl)
+        uploaded.push({ ...result, localUrl })
       }
     } finally { setStage(null) }
     return uploaded
@@ -41,6 +67,7 @@ function SubmissionForm({ settings, courseId, lessonId, resubmit }) {
     try {
       await submit.mutateAsync({ text: body || null, fileIds: files.map((file) => file.fileId) })
       setText('')
+      files.forEach(release)
       setFiles([])
     } catch { /* toast shown by the mutation */ }
   }
@@ -55,10 +82,10 @@ function SubmissionForm({ settings, courseId, lessonId, resubmit }) {
       {settings.allowFiles ? (
         <FieldWrapper label={`Archivos (${files.length} de ${maxFiles})`} hint={stage ? STAGE_LABELS[stage] : undefined}>
           <div className="space-y-2">
-            {files.map((file) => (
-              <FileCard
-                key={file.fileId} name={file.fileName} mimeType={file.mimeType} sizeBytes={file.sizeBytes}
-                onRemove={uploading || submit.isPending ? null : () => setFiles((current) => current.filter((item) => item.fileId !== file.fileId))}
+            {files.map((file, index) => (
+              <PendingFileRow
+                key={file.fileId} file={file} onOpen={() => viewer.open(files.map(pendingFileInput), index)}
+                onRemove={uploading || submit.isPending ? null : () => { release(file); setFiles((current) => current.filter((item) => item.fileId !== file.fileId)) }}
               />
             ))}
             {slots > 0 ? (
@@ -72,6 +99,7 @@ function SubmissionForm({ settings, courseId, lessonId, resubmit }) {
         </FieldWrapper>
       ) : null}
       {error ? <p role="alert" className="text-sm text-[hsl(var(--destructive))]">{error}</p> : null}
+      <AdvancedFileViewer {...viewer.props} />
       <div className="flex justify-end">
         <Button onClick={send} disabled={submit.isPending || uploading}>
           {submit.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : <Send />}Enviar entrega

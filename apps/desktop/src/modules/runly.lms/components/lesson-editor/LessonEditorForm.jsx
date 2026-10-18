@@ -1,7 +1,10 @@
 import {
-  CheckboxField, FieldWrapper, FileUploader, MarkdownField, NumberField, SelectField, TextField,
+  AdvancedFileViewer, Button, CheckboxField, FieldWrapper, FileUploader, MarkdownField, NumberField, SelectField, TextField,
 } from '@runly/ui'
-import { useUploadLmsFile } from '../../hooks/useLmsData.js'
+import { Eye } from 'lucide-react'
+import { runly } from '../../../../lib/runly.js'
+import { useToken, useUploadLmsFile } from '../../hooks/useLmsData.js'
+import { useLmsFileViewer } from '../../hooks/useLmsFileViewer.js'
 import { changeLessonKind } from '../../lib/lessonForm.js'
 import { KIND_LABELS, formatDuration, toOptions } from '../../lib/lmsLabels.js'
 import { AssignmentSettingsFields } from '../lesson-fields/AssignmentSettingsFields.jsx'
@@ -24,6 +27,8 @@ const NOTES_COPY = { label: 'Notas de la lección', required: false, size: MEDIU
 // page owns saving, the unsaved-changes guard and the quiz questions dirty flag.
 export function LessonEditorForm({ form, setForm, errors, lesson, sections, isNew, readOnly, onBusyChange, onQuestionsDirtyChange }) {
   const uploadFile = useUploadLmsFile()
+  const token = useToken()
+  const viewer = useLmsFileViewer()
   const set = (key) => (value) => setForm((current) => ({ ...current, [key]: value }))
   const setText = (key) => (event) => set(key)(event.target.value)
   const setSetting = (key, value) => setForm((current) => ({ ...current, settings: { ...current.settings, [key]: value } }))
@@ -36,6 +41,15 @@ export function LessonEditorForm({ form, setForm, errors, lesson, sections, isNe
   const sectionOptions = (sections ?? []).map((section) => ({ value: section.id, label: section.title }))
   const bodyCopy = BODY_COPY[form.kind] ?? NOTES_COPY
   const fileValue = form.upload ? { name: form.upload.fileName || 'Archivo subido' } : null
+  // The lesson document opens in the file viewer through a fresh signed URL.
+  const openDocument = () => {
+    const fileId = form.upload?.fileId
+    if (!fileId) return
+    viewer.open([{
+      key: fileId, name: form.upload.fileName || 'Documento',
+      resolveUrl: async () => (await runly.files.getSignedUrl(fileId, token, { variant: 'full' }))?.data?.signedUrl ?? null,
+    }])
+  }
 
   return (
     <div className="space-y-5">
@@ -60,6 +74,10 @@ export function LessonEditorForm({ form, setForm, errors, lesson, sections, isNe
             value={fileValue} maxSizeMB={10} disabled={readOnly || uploadFile.isPending} onUpload={uploadDocument} onChange={set('upload')}
             hint="PDF, presentación u hoja de cálculo, máximo 10 MB."
           />
+          {form.upload?.fileId ? (
+            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={openDocument}><Eye />Ver archivo</Button>
+          ) : null}
+          <AdvancedFileViewer {...viewer.props} />
         </FieldWrapper>
       ) : null}
       {form.kind === 'embed' ? (

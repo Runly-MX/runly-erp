@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { runly } from '../../../lib/runly.js'
-import { certErrorMessage, docxSuggestionFile, toBlob } from '../lib/lmsCert.js'
+import { certErrorMessage, docxSuggestionFile, isFileTemplate, toBlob } from '../lib/lmsCert.js'
 import { saveBlob } from './useLmsCerts.js'
 import { KEY, unwrap, useRead, useToken } from './useLmsData.js'
 
@@ -68,4 +68,16 @@ export function useDownloadCertificateDocx() {
     },
     onError: (error) => toast.error(certErrorMessage(error, 'No se pudo descargar la plantilla.')),
   })
+}
+
+// Viewer input (lib/lmsFiles) for an uploaded template's file: the signed URL
+// is fetched on open; Word/PowerPoint files also open in Office.
+export function templateFileInput(template, token) {
+  if (!template?.id || !isFileTemplate(template)) return null
+  return {
+    key: `template-${template.id}-${template.fileAssetId ?? ''}`,
+    name: `${template.name || 'plantilla'}.${template.source}`,
+    officeFileId: template.source === 'pdf' ? null : template.fileAssetId ?? null,
+    resolveUrl: async () => unwrap(await runly.lms.getCertificateTemplateFileUrl(template.id, token))?.url ?? null,
+  }
 }

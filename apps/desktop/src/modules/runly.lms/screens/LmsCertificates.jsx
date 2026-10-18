@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import {
-  Badge, Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, PageHeader,
+  AdvancedFileViewer, Badge, Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, PageHeader,
 } from '@runly/ui'
 import {
-  AlertTriangle, Award, Ban, ChevronDown, Download, FilePenLine, FileText, FileType, LayoutTemplate, MoreHorizontal, Palette, Pencil, Plus, Presentation,
+  AlertTriangle, Award, Ban, ChevronDown, Download, Eye, FilePenLine, FileText, FileType, LayoutTemplate, MoreHorizontal, Palette, Pencil, Plus, Presentation,
   RefreshCw, RotateCcw, WandSparkles,
 } from 'lucide-react'
 import { CertificateTemplateSheet } from '../components/certificates/CertificateTemplateSheet.jsx'
@@ -14,8 +14,10 @@ import { TemplateFileSheet } from '../components/certificates/TemplateFileSheet.
 import { TemplateUploadSheet } from '../components/certificates/TemplateUploadSheet.jsx'
 import { PageShell } from '../components/shared.jsx'
 import { useDisableCertificateTemplate, useEnableCertificateTemplate } from '../hooks/useLmsCerts.js'
+import { useToken } from '../hooks/useLmsData.js'
+import { useLmsFileViewer } from '../hooks/useLmsFileViewer.js'
 import { useLmsOffice } from '../hooks/useLmsOffice.js'
-import { useCertificateTemplatesInfo, useDownloadCertificateDocx } from '../hooks/useLmsCertDocx.js'
+import { templateFileInput, useCertificateTemplatesInfo, useDownloadCertificateDocx } from '../hooks/useLmsCertDocx.js'
 import { formatInfo, isFileTemplate, isPdfTemplate, isTaggedTemplate } from '../lib/lmsCert.js'
 import { formatShortDate } from '../lib/lmsLabels.js'
 
@@ -63,6 +65,8 @@ export default function LmsCertificates() {
   const info = useCertificateTemplatesInfo()
   const disable = useDisableCertificateTemplate(), enable = useEnableCertificateTemplate(), download = useDownloadCertificateDocx()
   const office = useLmsOffice()
+  const token = useToken()
+  const viewer = useLmsFileViewer()
   const [editing, setEditing] = useState(null) // null closed, {} new design, template to edit
   const [editingFileId, setEditingFileId] = useState(null)
   const [layoutId, setLayoutId] = useState(null)
@@ -121,6 +125,7 @@ export default function LmsCertificates() {
               {isTaggedTemplate(t) && t.tagCount === 0 ? <DropdownMenuItem onSelect={() => setSuggesting(t)}><WandSparkles />Sugerir etiquetas</DropdownMenuItem> : null}
               {isFileTemplate(t) ? (
                 <>
+                  <DropdownMenuItem onSelect={() => viewer.open([templateFileInput(t, token)])}><Eye />Ver archivo</DropdownMenuItem>
                   <DropdownMenuItem disabled={download.isPending} onSelect={() => download.mutate({ id: t.id, name: t.name, format: t.source })}>
                     <Download />{isPdfTemplate(t) ? 'Descargar PDF' : 'Descargar para editar'}
                   </DropdownMenuItem>
@@ -142,7 +147,7 @@ export default function LmsCertificates() {
       },
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [enable.isPending, download.isPending, office.enabled, office.open])
+  ], [enable.isPending, download.isPending, office.enabled, office.open, token, viewer.open])
 
   return (
     <PageShell>
@@ -203,6 +208,7 @@ export default function LmsCertificates() {
         onReview={(saved) => { setReview(saved.autoTag); setSuggesting(saved) }}
         onEditLayout={(saved) => setLayoutId(saved.id)}
       />
+      <AdvancedFileViewer {...viewer.props} />
       <CertSuggestDialog template={suggesting} review={review} onOpenChange={(open) => { if (!open) { setSuggesting(null); setReview(null) } }} />
       <ConfirmDialog
         open={Boolean(disableFor)} onOpenChange={(open) => { if (!open) setDisableFor(null) }}

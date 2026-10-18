@@ -3,10 +3,11 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  Button, CheckboxField, DEFAULT_SWATCHES, EmptyState, ErrorState, FieldWrapper, FileUploader, Skeleton, SwatchField, TextField, TextareaField,
+  AdvancedFileViewer, Button, CheckboxField, DEFAULT_SWATCHES, EmptyState, ErrorState, FieldWrapper, FileUploader, Skeleton, SwatchField, TextField, TextareaField,
 } from '@runly/ui'
-import { FileText, Loader2 } from 'lucide-react'
+import { FileText, Loader2, Maximize2 } from 'lucide-react'
 import { useUploadLmsFile } from '../../hooks/useLmsData.js'
+import { useLmsFileViewer } from '../../hooks/useLmsFileViewer.js'
 import { useSaveCertificateTemplate, useTemplatePreview } from '../../hooks/useLmsCerts.js'
 import { CERT_PLACEHOLDERS, DEFAULT_CERT_BODY, DEFAULT_CERT_TITLE, insertPlaceholder } from '../../lib/lmsCert.js'
 import { FormSheet } from '../shared.jsx'
@@ -30,16 +31,22 @@ const toValues = (template) => ({
 
 export function PreviewPane({ template }) {
   const preview = useTemplatePreview(template?.id, template?.updatedAt)
+  const viewer = useLmsFileViewer()
   if (!template?.id) {
     return <EmptyState icon={FileText} title="Sin vista previa" description="Guarda la plantilla para ver cómo queda el certificado con datos de ejemplo." />
   }
   if (preview.error) return <ErrorState title="No se pudo generar la vista previa" description={preview.error.message} showReport={false} />
   if (!preview.url) return <Skeleton className="aspect-[11/8.5] w-full rounded-md" />
+  const enlarge = () => viewer.open([{ key: `preview-${template.id}-${preview.url}`, name: `Vista previa - ${template.name || 'certificado'}.pdf`, mimeType: 'application/pdf', url: preview.url }])
   return (
-    <iframe
-      title="Vista previa del certificado" src={preview.url}
-      className="aspect-[11/8.5] w-full rounded-md border border-[hsl(var(--border))] bg-white"
-    />
+    <div className="space-y-2">
+      <iframe
+        title="Vista previa del certificado" src={preview.url}
+        className="aspect-[11/8.5] w-full rounded-md border border-[hsl(var(--border))] bg-white"
+      />
+      <Button type="button" variant="outline" size="sm" onClick={enlarge}><Maximize2 />Ampliar vista previa</Button>
+      <AdvancedFileViewer {...viewer.props} />
+    </div>
   )
 }
 

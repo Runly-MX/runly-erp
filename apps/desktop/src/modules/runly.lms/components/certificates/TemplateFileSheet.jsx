@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Badge, Button, CheckboxField, FieldWrapper, FileUploader, TextField } from '@runly/ui'
-import { Download, FilePenLine, FileText, LayoutTemplate, Loader2, RefreshCw, WandSparkles } from 'lucide-react'
-import { useUploadLmsFile } from '../../hooks/useLmsData.js'
+import { AdvancedFileViewer, Badge, Button, CheckboxField, FieldWrapper, FileUploader, TextField } from '@runly/ui'
+import { Download, Eye, FilePenLine, FileText, LayoutTemplate, Loader2, RefreshCw, WandSparkles } from 'lucide-react'
+import { useToken, useUploadLmsFile } from '../../hooks/useLmsData.js'
+import { useLmsFileViewer } from '../../hooks/useLmsFileViewer.js'
 import { useSaveCertificateTemplate } from '../../hooks/useLmsCerts.js'
-import { useDownloadCertificateDocx } from '../../hooks/useLmsCertDocx.js'
+import { templateFileInput, useDownloadCertificateDocx } from '../../hooks/useLmsCertDocx.js'
 import { useLmsOffice } from '../../hooks/useLmsOffice.js'
 import { docxTagText, formatInfo, isPdfTemplate } from '../../lib/lmsCert.js'
 import { fieldLabel } from '../../lib/certLayout.js'
@@ -28,6 +29,8 @@ const toValues = (t) => ({ name: t?.name ?? '', signerName: t?.signerName ?? '',
 export function TemplateFileSheet({ open, onOpenChange, template, officeAvailable, onReplace, onSuggest, onEditLayout }) {
   const save = useSaveCertificateTemplate(), upload = useUploadLmsFile(), download = useDownloadCertificateDocx()
   const office = useLmsOffice()
+  const token = useToken()
+  const viewer = useLmsFileViewer()
   const [signature, setSignature] = useState(null) // { fileId, name, url } once replaced or removed
   const { control, handleSubmit, reset, formState: { errors, isDirty } } = useForm({ resolver: zodResolver(schema), defaultValues: toValues(template) })
 
@@ -63,6 +66,10 @@ export function TemplateFileSheet({ open, onOpenChange, template, officeAvailabl
   const dirty = isDirty || Boolean(signature)
   const signatureValue = signature ? (signature.fileId ? { name: signature.name } : null) : (template.signatureFileId ? { name: 'Firma actual' } : null)
   const signatureUrl = signature ? signature.url : template.signatureUrl
+  const fileInput = templateFileInput(template, token)
+  const viewButton = fileInput ? (
+    <Button type="button" variant="outline" size="sm" onClick={() => viewer.open([fileInput])}><Eye />Ver archivo</Button>
+  ) : null
 
   return (
     <FormSheet
@@ -97,6 +104,7 @@ export function TemplateFileSheet({ open, onOpenChange, template, officeAvailabl
               ) : <p className={MUTED}>Aún no hay campos. Ábrelos en el editor y usa «Detectar campos» o agrégalos a mano.</p>}
               <div className="flex flex-wrap gap-2">
                 <Button type="button" size="sm" onClick={() => onEditLayout(template)}><LayoutTemplate />Editar campos</Button>
+                {viewButton}
                 <Button type="button" variant="outline" size="sm" onClick={() => download.mutate({ id: template.id, name: template.name, format: 'pdf' })} disabled={download.isPending}>
                   <Download />Descargar PDF
                 </Button>
@@ -116,6 +124,7 @@ export function TemplateFileSheet({ open, onOpenChange, template, officeAvailabl
                 </div>
               ) : <p className={MUTED}>El archivo aún no tiene etiquetas. Usa «Sugerir etiquetas» para colocarlas en tu formato.</p>}
               <div className="flex flex-wrap gap-2">
+                {viewButton}
                 <Button type="button" variant="outline" size="sm" onClick={() => download.mutate({ id: template.id, name: template.name, format: template.source })} disabled={download.isPending}>
                   <Download />Descargar para editar
                 </Button>
@@ -163,6 +172,7 @@ export function TemplateFileSheet({ open, onOpenChange, template, officeAvailabl
           {dirty ? <p className={MUTED}>Guarda los cambios para actualizar la vista previa.</p> : null}
         </div>
       </div>
+      <AdvancedFileViewer {...viewer.props} />
     </FormSheet>
   )
 }

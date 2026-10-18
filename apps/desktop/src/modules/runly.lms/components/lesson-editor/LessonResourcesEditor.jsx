@@ -3,14 +3,16 @@ import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, us
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  AdvancedFileViewer, Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
   ErrorState, FileUploader, FileVisual, Skeleton, TextField, buttonVariants, cn, formatBytes,
 } from '@runly/ui'
-import { Download, FolderOpen, Loader2, Pencil, Trash2 } from 'lucide-react'
+import { Download, Eye, FolderOpen, Loader2, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUploadLmsFile } from '../../hooks/useLmsData.js'
+import { useLmsFileViewer } from '../../hooks/useLmsFileViewer.js'
 import { useAddResource, useDeleteResource, useLessonResources, useReorderResources, useUpdateResource } from '../../hooks/useLmsExperience.js'
 import { moveItem, resourceName } from '../../lib/lmsExperience.js'
+import { resourceInput } from '../../lib/lmsFiles.js'
 import { DragHandle } from '../curriculum/DragHandle.jsx'
 
 function RenameDialog({ resource, onOpenChange, onSubmit, pending }) {
@@ -35,7 +37,7 @@ function RenameDialog({ resource, onOpenChange, onSubmit, pending }) {
   )
 }
 
-function ResourceRow({ resource, readOnly, onRename, onDelete }) {
+function ResourceRow({ resource, readOnly, onOpen, onRename, onDelete }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: resource.id, disabled: readOnly })
   const handleProps = readOnly ? null : { ...attributes, ...listeners, ref: setActivatorNodeRef }
   const name = resourceName(resource)
@@ -47,10 +49,16 @@ function ResourceRow({ resource, readOnly, onRename, onDelete }) {
     >
       <DragHandle handleProps={handleProps} label={`Mover el recurso «${name}»`} />
       <FileVisual file={{ originalName: resource.fileName ?? name, mimeType: resource.mimeType }} className={cn('h-9 w-9 shrink-0 rounded-md', readOnly && 'ml-1')} />
-      <div className="min-w-0 flex-1">
+      <button
+        type="button" onClick={resource.url ? () => onOpen(resource) : undefined} disabled={!resource.url} title={resource.url ? `Abrir ${name}` : undefined}
+        className="min-w-0 flex-1 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:cursor-default"
+      >
         <p className="truncate text-sm font-medium">{name}</p>
         {meta ? <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{meta}</p> : null}
-      </div>
+      </button>
+      {resource.url ? (
+        <Button type="button" variant="ghost" size="icon-sm" aria-label={`Abrir ${name}`} title="Abrir" onClick={() => onOpen(resource)}><Eye /></Button>
+      ) : null}
       {resource.url ? (
         <a href={resource.url} target="_blank" rel="noreferrer" download={resource.fileName || true} aria-label={`Descargar ${name}`} title="Descargar" className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}>
           <Download />
@@ -74,8 +82,10 @@ export function LessonResourcesEditor({ lessonId, readOnly = false }) {
   const add = useAddResource(lessonId), update = useUpdateResource(lessonId), remove = useDeleteResource(lessonId), reorder = useReorderResources(lessonId)
   const [renaming, setRenaming] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const viewer = useLmsFileViewer()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))
   const items = query.data ?? []
+  const openResource = (resource) => viewer.open(items.map(resourceInput), items.indexOf(resource))
 
   async function uploadMany(files) {
     let added = 0
@@ -111,7 +121,7 @@ export function LessonResourcesEditor({ lessonId, readOnly = false }) {
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-violet-600/10 text-violet-700 dark:text-violet-300"><FolderOpen className="h-5 w-5" aria-hidden="true" /></span>
         <div className="min-w-0">
           <h3 className="font-semibold">Recursos descargables</h3>
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">Guías, plantillas o presentaciones que los alumnos descargan desde la pestaña Recursos.</p>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">Guías, plantillas o presentaciones que los alumnos abren o descargan desde la pestaña Recursos.</p>
         </div>
       </header>
       {!lessonId ? (
@@ -126,7 +136,7 @@ export function LessonResourcesEditor({ lessonId, readOnly = false }) {
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
                 <ul className="space-y-2" aria-label="Recursos de la lección">
-                  {items.map((resource) => <ResourceRow key={resource.id} resource={resource} readOnly={readOnly} onRename={setRenaming} onDelete={setDeleting} />)}
+                  {items.map((resource) => <ResourceRow key={resource.id} resource={resource} readOnly={readOnly} onOpen={openResource} onRename={setRenaming} onDelete={setDeleting} />)}
                 </ul>
               </SortableContext>
             </DndContext>
@@ -141,6 +151,7 @@ export function LessonResourcesEditor({ lessonId, readOnly = false }) {
           ) : null}
         </>
       )}
+      <AdvancedFileViewer {...viewer.props} />
       <RenameDialog resource={renaming} onOpenChange={(open) => { if (!open) setRenaming(null) }} onSubmit={rename} pending={update.isPending} />
       <ConfirmDialog
         open={Boolean(deleting)} onOpenChange={(open) => { if (!open) setDeleting(null) }}

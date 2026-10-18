@@ -45,6 +45,13 @@ export const isOpenable = (input) => Boolean(input?.key && (input.url || typeof 
 // Submission file { id, name, mimeType, sizeBytes, url }: Office opens it read-only.
 export const submissionFileInput = (file) => ({ key: file?.id, name: file?.name, mimeType: file?.mimeType, sizeBytes: file?.sizeBytes, url: file?.url, officeFileId: file?.id ?? null })
 
+// File attached to a draft submission { fileId, fileName, mimeType, sizeBytes,
+// localUrl }: previewed from the browser's local copy (blob: URL), no Office yet.
+export const pendingFileInput = (file) => ({ key: file?.fileId, name: file?.fileName, mimeType: file?.mimeType, sizeBytes: file?.sizeBytes, url: file?.localUrl })
+
+// Lesson document { id, fileName, mediaUrl } (kind 'file').
+export const lessonFileInput = (lesson) => ({ key: lesson?.fileId ?? lesson?.id, name: lesson?.fileName || 'Documento', url: lesson?.mediaUrl })
+
 // Lesson resource { id, title, fileName, mimeType, sizeBytes, url }. Resources
 // are generic company files, so Office (LMS-scoped) does not open them.
 export const resourceInput = (resource) => ({ key: resource?.id, name: resource?.fileName || resource?.title, mimeType: resource?.mimeType, sizeBytes: resource?.sizeBytes, url: resource?.url })

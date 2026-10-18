@@ -1,5 +1,7 @@
-import { Alert, AlertDescription, Badge, Button, EmptyState, MarkdownViewer, buttonVariants, cn } from '@runly/ui'
-import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Download, FileText, FileVideo, Loader2, XCircle } from 'lucide-react'
+import { AdvancedFileViewer, Alert, AlertDescription, Badge, Button, EmptyState, MarkdownViewer, buttonVariants, cn } from '@runly/ui'
+import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Download, Eye, FileText, FileVideo, Loader2, XCircle } from 'lucide-react'
+import { useLmsFileViewer } from '../hooks/useLmsFileViewer.js'
+import { lessonFileInput } from '../lib/lmsFiles.js'
 import { KIND_LABELS, formatDuration } from '../lib/lmsLabels.js'
 import { VideoLesson } from './VideoLesson.jsx'
 import { AssignmentLesson } from './assignment/AssignmentLesson.jsx'
@@ -26,6 +28,7 @@ function EmbedLesson({ lesson }) {
 }
 
 function FileLesson({ lesson }) {
+  const viewer = useLmsFileViewer()
   return (
     <div className="flex flex-col items-start gap-3 rounded-md border border-[hsl(var(--border))] p-4 sm:flex-row sm:items-center">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-violet-600/10 text-violet-700 dark:text-violet-300">
@@ -33,13 +36,17 @@ function FileLesson({ lesson }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{lesson.fileName || 'Documento'}</p>
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">Descárgalo, revísalo y marca la lección como completada.</p>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">Ábrelo o descárgalo, revísalo y marca la lección como completada.</p>
       </div>
       {lesson.mediaUrl ? (
-        <a href={lesson.mediaUrl} target="_blank" rel="noreferrer" download={lesson.fileName || true} className={buttonVariants({ variant: 'outline' })}>
-          <Download />Descargar
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => viewer.open([lessonFileInput(lesson)])}><Eye />Abrir</Button>
+          <a href={lesson.mediaUrl} target="_blank" rel="noreferrer" download={lesson.fileName || true} className={buttonVariants({ variant: 'outline' })}>
+            <Download />Descargar
+          </a>
+        </div>
       ) : null}
+      <AdvancedFileViewer {...viewer.props} />
     </div>
   )
 }

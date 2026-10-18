@@ -1,32 +1,41 @@
-import { Badge, cn } from '@runly/ui'
+import { AdvancedFileViewer, Badge, cn } from '@runly/ui'
 import { Paperclip } from 'lucide-react'
+import { useLmsFileViewer } from '../../hooks/useLmsFileViewer.js'
+import { submissionFileInput } from '../../lib/lmsFiles.js'
 import { SUBMISSION_STATUS_LABELS, SUBMISSION_VARIANTS, formatShortDate } from '../../lib/lmsLabels.js'
 
 export function SubmissionStatusBadge({ status }) {
   return <Badge variant={SUBMISSION_VARIANTS[status] ?? 'secondary'}>{SUBMISSION_STATUS_LABELS[status] ?? status}</Badge>
 }
 
+// Chips of a submission's files; each opens the shared file viewer (preview,
+// download and, for the learner's own or graded files, «Abrir en Office»).
 export function SubmissionFiles({ files }) {
+  const viewer = useLmsFileViewer()
   if (!files?.length) return null
+  const inputs = files.map(submissionFileInput)
   return (
-    <ul className="flex flex-wrap gap-2">
-      {files.map((file) => (
-        <li key={file.id}>
-          {file.url ? (
-            <a
-              href={file.url} target="_blank" rel="noreferrer" download={file.name || true}
-              className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-[hsl(var(--border))] px-2.5 py-1.5 text-sm hover:bg-[hsl(var(--muted)/0.6)]"
-            >
-              <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{file.name || 'Archivo'}</span>
-            </a>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--border))] px-2.5 py-1.5 text-sm text-[hsl(var(--muted-foreground))]">
-              <Paperclip className="h-3.5 w-3.5" aria-hidden="true" />{file.name || 'Archivo no disponible'}
-            </span>
-          )}
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="flex flex-wrap gap-2">
+        {files.map((file, index) => (
+          <li key={file.id ?? index} className="max-w-full">
+            {file.url ? (
+              <button
+                type="button" onClick={() => viewer.open(inputs, index)} title={`Abrir ${file.name || 'archivo'}`}
+                className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-[hsl(var(--muted)/0.6)] px-2.5 py-1.5 text-sm transition-colors hover:bg-[hsl(var(--muted))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] motion-reduce:transition-none"
+              >
+                <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{file.name || 'Archivo'}</span>
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-[hsl(var(--muted)/0.4)] px-2.5 py-1.5 text-sm text-[hsl(var(--muted-foreground))]">
+                <Paperclip className="h-3.5 w-3.5" aria-hidden="true" />{file.name || 'Archivo no disponible'}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <AdvancedFileViewer {...viewer.props} />
+    </>
   )
 }
 
