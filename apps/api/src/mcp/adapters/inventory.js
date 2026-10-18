@@ -35,7 +35,7 @@ export function toolOutputFor(name) {
     runly_inventory_summary: z.object({ total: z.number().int(), missingSerial: z.number().int(), withSerial: z.number().int(), groupsLimit: z.number().int(), groups: z.array(jsonObject) }),
     runly_inventory_create_prepare: proposalOutput,
     runly_inventory_update_prepare: proposalOutput,
-    runly_inventory_create_commit: z.object({ summary: z.string(), link: z.string(), results: z.array(z.object({ kind: z.string(), id: z.uuid(), name: z.string(), reused: z.boolean(), assetTag: z.string().optional() })) }),
+    runly_inventory_create_commit: z.object({ summary: z.string(), link: z.string(), results: z.array(z.object({ kind: z.string(), id: z.uuid(), name: z.string(), reused: z.boolean(), assetTag: z.string().nullable().optional() })) }),
     runly_inventory_update_commit: z.object({ id: z.uuid(), summary: z.string(), link: z.string() }),
   };
   return z.object({ data: schemas[name] });

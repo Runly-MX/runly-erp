@@ -27,6 +27,8 @@ export function buildMcpServer({ auth, capabilities, correlationId, activity }) 
         const known = err.status && err.status < 500;
         const error = { code: err.code ?? (known ? 'invalid_request' : 'internal_error'), message: known ? err.message : 'No se pudo completar la operación.', correlationId };
         console.info(JSON.stringify({ event: 'mcp.tool', tool: name, correlationId, status: error.code }));
+        // The client only sees the correlationId; keep the cause server-side.
+        if (!known) console.error(JSON.stringify({ event: 'mcp.tool.error', tool: name, correlationId, error: err?.stack ?? String(err) }));
         await log(error.code);
         return { isError: true, content: [{ type: 'text', text: JSON.stringify(error) }],
           ...(err.status === 401 ? { _meta: { 'mcp/www_authenticate': ['Bearer error="invalid_token"'] } } : {}) };
