@@ -253,7 +253,6 @@ export default function GroupScreen() {
     <div className="flex flex-col">
       <div className="px-4 sm:px-6 pt-4 sm:pt-5">
         <PageHeader
-          collapseOnScroll={false}
           eyebrow="Runly Ledger"
           onBack={() => navigate('/app/m/runly.ledger/groups')}
           backLabel="Grupos"

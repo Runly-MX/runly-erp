@@ -132,7 +132,6 @@ export default function AiImportScreen() {
     <div className="flex flex-col h-full">
       <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-[hsl(var(--border))] shrink-0 space-y-4">
         <PageHeader
-          collapseOnScroll={false}
           className="pb-0"
           eyebrow="Runly Ledger · Importación inteligente"
           onBack={() =>
