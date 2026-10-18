@@ -29,10 +29,11 @@ export function useRead(key, fn, options = {}) {
 // ---- Learner ------------------------------------------------------------------
 export const useCatalog = () => useRead(['catalog'], (t) => runly.lms.getCatalog(t), { staleTime: 30_000 })
 export const useMyCourses = () => useRead(['my'], (t) => runly.lms.getMyCourses(t), { staleTime: 15_000 })
-export const useOutline = (courseId) => useRead(['outline', courseId], (t) => runly.lms.getOutline(courseId, t), { enabled: Boolean(courseId), retry: false, refetchOnWindowFocus: false })
+// preview: the course author's "Vista previa" (own enrollment ignored, nothing recorded).
+export const useOutline = (courseId, { preview = false } = {}) => useRead(preview ? ['outline', courseId, 'preview'] : ['outline', courseId], (t) => runly.lms.getOutline(courseId, t, { preview }), { enabled: Boolean(courseId), retry: false, refetchOnWindowFocus: false })
 // A refetch would hand the player a new mediaUrl and restart the video, so the
 // lesson payload is read once per open and never refreshed in the background.
-export const useLesson = (lessonId) => useRead(['lesson', lessonId], (t) => runly.lms.openLesson(lessonId, t), {
+export const useLesson = (lessonId, { preview = false } = {}) => useRead(preview ? ['lesson', lessonId, 'preview'] : ['lesson', lessonId], (t) => runly.lms.openLesson(lessonId, t, { preview }), {
   enabled: Boolean(lessonId), retry: false, staleTime: Infinity, gcTime: 0, refetchOnWindowFocus: false,
 })
 

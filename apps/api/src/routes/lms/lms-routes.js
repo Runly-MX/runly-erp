@@ -44,9 +44,9 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
   app.get('/lms/catalog', access, run('Error al cargar el catálogo.', async (c) => c.json({ data: await learn.catalog(companyId(c), actorId(c)) })))
   app.get('/lms/my/courses', access, run('Error al cargar tus cursos.', async (c) => c.json({ data: await learn.myCourses(companyId(c), actorId(c)) })))
   app.post('/lms/courses/:id/enroll', access, run('Error al inscribirte.', async (c) => c.json({ data: await learn.enroll(companyId(c), actorId(c), c.req.param('id')) }, 201)))
-  app.get('/lms/learn/lessons/:lessonId', access, run('Error al abrir la lección.', async (c) => c.json({ data: await learn.openLesson(companyId(c), actorId(c), c.req.param('lessonId'), { canManage: canManage(c) }) })))
+  app.get('/lms/learn/lessons/:lessonId', access, run('Error al abrir la lección.', async (c) => c.json({ data: await learn.openLesson(companyId(c), actorId(c), c.req.param('lessonId'), { canManage: canManage(c), preview: c.req.query('preview') === '1' }) })))
   app.post('/lms/learn/lessons/:lessonId/progress', access, run('Error al guardar el avance.', async (c) => c.json({ data: await learn.saveProgress(companyId(c), actorId(c), c.req.param('lessonId'), await body(c)) })))
-  app.get('/lms/learn/:courseId', access, run('Error al cargar el curso.', async (c) => c.json({ data: await learn.outline(companyId(c), actorId(c), c.req.param('courseId'), { canManage: canManage(c) }) })))
+  app.get('/lms/learn/:courseId', access, run('Error al cargar el curso.', async (c) => c.json({ data: await learn.outline(companyId(c), actorId(c), c.req.param('courseId'), { canManage: canManage(c), preview: c.req.query('preview') === '1' }) })))
 
   // ---- authoring ----------------------------------------------------------
   app.get('/lms/courses', courses, run('Error al cargar los cursos.', async (c) => c.json({ data: await svc.listCourses(companyId(c), c.req.query()) })))

@@ -34,11 +34,14 @@ function LessonError({ lesson }) {
 export default function LmsPlayer() {
   const navigate = useNavigate()
   const courseId = useRouteId()
-  const outline = useOutline(courseId)
   const { canManageCourses } = useLmsPermissions()
   // The open lesson and tab live in the URL (?lesson=&tab=) so notification
   // links ("Respuesta en una pregunta", "Nuevo anuncio") land on the right place.
   const [searchParams, setSearchParams] = useSearchParams()
+  // ?preview=1 (editor "Vista previa"): the author sees the course as a learner
+  // would, without using their own enrollment — every lesson opens, no progress.
+  const authorPreview = searchParams.get('preview') === '1' && canManageCourses
+  const outline = useOutline(courseId, { preview: authorPreview })
   const lessonId = searchParams.get('lesson')
   const tab = normalizePlayerTab(searchParams.get('tab'))
   const [reviewsOpen, setReviewsOpen] = useState(false)
@@ -46,7 +49,7 @@ export default function LmsPlayer() {
   const [theater, setTheater] = useState(() => readTheater())
   const sidebarRef = useRef(null)
   const headerScroll = useScrollCollapse()
-  const lesson = useLesson(lessonId)
+  const lesson = useLesson(lessonId, { preview: authorPreview })
   const save = useSaveProgress(courseId)
   const enroll = useEnroll()
 

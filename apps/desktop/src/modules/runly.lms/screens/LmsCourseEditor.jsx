@@ -59,7 +59,7 @@ export default function LmsCourseEditor() {
 
   const actions = (
     <>
-      <Button variant="outline" onClick={() => navigate(lmsPath(`/learn/${course.id}`))}><Eye />Vista previa</Button>
+      <Button variant="outline" onClick={() => navigate(lmsPath(`/learn/${course.id}?preview=1`))}><Eye />Vista previa</Button>
       <Button variant="outline" onClick={() => setShareOpen(true)}><Link2 />Compartir</Button>
       {course.status === 'draft' ? <Button onClick={() => setStatus(publish, 'published')} disabled={publish.isPending}><Globe />Publicar</Button> : null}
       {course.status === 'published' ? <Button variant="outline" onClick={() => setStatus(unpublish, 'draft')} disabled={unpublish.isPending}><EyeOff />Despublicar</Button> : null}

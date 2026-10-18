@@ -85,10 +85,12 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
   // and the per-lesson state. Throws when the caller may not view the course.
   // access: 'enrolled', 'manage' (preview without enrollment) or 'free' (not
   // enrolled: only free-section and preview lessons of a published course open).
-  async function loadContext(companyId, userProfileId, courseId, { canManage }) {
+  // preview (course managers only): the author's "Vista previa" ignores their own
+  // enrollment, so every lesson opens and nothing is recorded as progress.
+  async function loadContext(companyId, userProfileId, courseId, { canManage, preview = false }) {
     const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true }, include: COURSE_COUNTS })
     if (!course) throw new LmsError('El curso no existe.', 404)
-    const enrollment = await openEnrollment(companyId, userProfileId, course.id)
+    const enrollment = preview && canManage ? null : await openEnrollment(companyId, userProfileId, course.id)
     const notEnrolled = () => new LmsError('No estás inscrito en este curso.', 403, 'NOT_ENROLLED')
     const access = enrollment ? 'enrolled' : canManage ? 'manage' : 'free'
     if (access === 'free' && course.status !== 'published') throw notEnrolled()
@@ -104,8 +106,8 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     return { course, enrollment, access, sections, lessons, progressById, states }
   }
 
-  async function outline(companyId, userProfileId, courseId, { canManage = false } = {}) {
-    const ctx = await loadContext(companyId, userProfileId, courseId, { canManage })
+  async function outline(companyId, userProfileId, courseId, { canManage = false, preview = false } = {}) {
+    const ctx = await loadContext(companyId, userProfileId, courseId, { canManage, preview })
     const announcementCount = await prisma.lmsAnnouncement.count({ where: { courseId: ctx.course.id, deletedAt: null } })
     return {
       course: await ser.serializeCourse(ctx.course),
@@ -132,10 +134,10 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     }
   }
 
-  async function lessonContext(companyId, userProfileId, lessonId, { canManage }) {
+  async function lessonContext(companyId, userProfileId, lessonId, { canManage, preview = false }) {
     const lesson = await prisma.lmsLesson.findFirst({ where: { id: lessonId, companyId, enabled: true } })
     if (!lesson) throw new LmsError('La lección no existe.', 404)
-    const ctx = await loadContext(companyId, userProfileId, lesson.courseId, { canManage })
+    const ctx = await loadContext(companyId, userProfileId, lesson.courseId, { canManage, preview })
     if (ctx.access === 'free' && ctx.states.get(lesson.id) === 'locked') {
       throw new LmsError('Inscríbete al curso para abrir esta lección.', 403, 'NOT_ENROLLED')
     }
@@ -169,8 +171,8 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     return { lessonId: lesson.id, fileId: lesson.fileId, coverFileId: lesson.coverFileId ?? null, ...(await resolveMedia(lesson)) }
   }
 
-  async function openLesson(companyId, userProfileId, lessonId, { canManage = false } = {}) {
-    const ctx = await lessonContext(companyId, userProfileId, lessonId, { canManage })
+  async function openLesson(companyId, userProfileId, lessonId, { canManage = false, preview = false } = {}) {
+    const ctx = await lessonContext(companyId, userProfileId, lessonId, { canManage, preview })
     const { lesson, enrollment, lessons } = ctx
     let progress = ctx.progressById.get(lesson.id) ?? null
     if (enrollment && ctx.course.status === 'published') {

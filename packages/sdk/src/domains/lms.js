@@ -44,8 +44,9 @@ export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQuery
     getCatalog: (token) => send('GET', '/lms/catalog', undefined, token),
     getMyCourses: (token) => send('GET', '/lms/my/courses', undefined, token),
     enroll: (courseId, token) => send('POST', `/lms/courses/${id(courseId)}/enroll`, {}, token),
-    getOutline: (courseId, token) => send('GET', `/lms/learn/${id(courseId)}`, undefined, token),
-    openLesson: (lessonId, token) => send('GET', `/lms/learn/lessons/${id(lessonId)}`, undefined, token),
+    // options.preview: the course author's preview (ignores their own enrollment).
+    getOutline: (courseId, token, options = {}) => send('GET', `/lms/learn/${id(courseId)}${options.preview ? '?preview=1' : ''}`, undefined, token),
+    openLesson: (lessonId, token, options = {}) => send('GET', `/lms/learn/lessons/${id(lessonId)}${options.preview ? '?preview=1' : ''}`, undefined, token),
     saveProgress: (lessonId, data, token) => send('POST', `/lms/learn/lessons/${id(lessonId)}/progress`, data ?? {}, token),
 
     // Authoring
