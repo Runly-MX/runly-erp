@@ -53,6 +53,7 @@ export function SharedPlayerHeader({ company, title, pct, guestName, onShowConte
           </Button>
         </div>
 
+        <Button variant="outline" size="icon" className="shrink-0 sm:hidden" aria-label="Contenido del curso" onClick={onShowContent}><ListTree /></Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="shrink-0 sm:hidden" aria-label="Menú del curso"><MoreVertical /></Button>

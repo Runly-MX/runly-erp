@@ -11,7 +11,7 @@ import { formatMinutes } from '../lib/lmsLabels.js'
 import { validateIntakeForm } from '../lib/lmsIntake.js'
 import { GuestIntakeFields } from './GuestIntakeFields.jsx'
 import { SharedCourseInviteForm } from './SharedCourseInviteForm.jsx'
-import { JOIN_FORM_CLASS, keepFieldVisible } from './keyboardSafeFocus.js'
+import { JOIN_FORM_CLASS, PUBLIC_VIEWPORT_CLASS, keepFieldVisible } from './keyboardSafeFocus.js'
 
 const MUTED = 'text-[hsl(var(--muted-foreground))]'
 
@@ -103,7 +103,7 @@ export function SharedCourseJoin({ shareToken, data, linkToken = null, onJoined 
   const invite = data?.settings?.accessMode === 'invite'
   if (!data?.course) return null
   return (
-    <div className="fixed inset-0 overflow-y-auto overscroll-contain bg-[hsl(var(--background))]">
+    <div className={`${PUBLIC_VIEWPORT_CLASS} overflow-y-auto overscroll-contain bg-[hsl(var(--background))]`}>
       <Hero data={data} />
       <main className="mx-auto grid w-full max-w-5xl gap-8 px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="min-w-0 space-y-3">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, EmptyState, ErrorState, Skeleton, cn } from '@runly/ui'
+import { Button, EmptyState, ErrorState, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton, cn } from '@runly/ui'
 import { Award, Download, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { runly } from '../../../lib/runly.js'
@@ -13,6 +13,7 @@ import { readTheater, writeTheater } from '../lib/lmsExperience.js'
 import { flattenLessons, pickStartLesson } from '../lib/lmsLabels.js'
 import { guestCourseKey } from '../lib/lmsShare.js'
 import { SharedPlayerHeader } from './SharedPlayerHeader.jsx'
+import { PUBLIC_VIEWPORT_CLASS } from './keyboardSafeFocus.js'
 
 function LessonError({ lesson }) {
   return lesson.error?.status === 409
@@ -43,6 +44,8 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
   const courseKey = guestCourseKey(shareToken)
   const [lessonId, setLessonId] = useState(null)
   const [theater, setTheater] = useState(() => readTheater())
+  // Below lg the course content opens as a side drawer instead of a list at the bottom.
+  const [contentOpen, setContentOpen] = useState(false)
   const sidebarRef = useRef(null)
   const lesson = useGuestLesson(shareToken, guestToken, lessonId)
   const save = useGuestProgress(shareToken, guestToken)
@@ -67,6 +70,7 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
   const select = (id) => {
     if (!id) return
     setLessonId(id)
+    setContentOpen(false)
     sidebarRef.current?.closest('[data-player-scroll]')?.scrollTo?.({ top: 0 })
   }
   const report = (progress) => { if (lessonId) save.mutate({ lessonId, ...progress }) }
@@ -84,12 +88,15 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
   const stageArea = stage || lesson.isLoading
   const theaterOn = theater && stage && payload.lesson.kind === 'video'
   const next = payload ? lessons.find((item) => item.id === payload.nextLessonId) : null
-  const showContent = () => sidebarRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  const showContent = () => {
+    if (window.matchMedia?.('(min-width: 1024px)')?.matches) sidebarRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    else setContentOpen(true)
+  }
 
   return (
     <LmsQuizSourceContext.Provider value={quizSource}>
       <LmsAssignmentSourceContext.Provider value={assignmentSource}>
-        <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))]">
+        <div className={`${PUBLIC_VIEWPORT_CLASS} flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))]`}>
           <SharedPlayerHeader
             company={data.company} title={data.course.title} pct={pct} guestName={data.guest?.name ?? null}
             onShowContent={showContent} onSignOut={onSignOut}
@@ -126,7 +133,7 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
                 <aside
                   ref={sidebarRef}
                   className={cn(
-                    'min-w-0 scroll-mt-3 border-t border-[hsl(var(--border))] pt-5 lg:border-t-0 lg:pt-0 lg:sticky lg:top-6 lg:col-start-2 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:pr-1',
+                    'hidden min-w-0 scroll-mt-3 lg:block lg:sticky lg:top-6 lg:col-start-2 lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:pr-1',
                     theaterOn ? 'lg:row-start-2' : stageArea ? 'lg:row-start-1 lg:row-span-2' : 'lg:row-start-1',
                   )}
                 >
@@ -135,6 +142,18 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
               </div>
             )}
           </div>
+          <Sheet open={contentOpen} onOpenChange={setContentOpen}>
+            <SheetContent side="left" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
+              {/* The outline below has its own visible title; this one is for screen readers. */}
+              <SheetHeader className="sr-only">
+                <SheetTitle>Contenido del curso</SheetTitle>
+                <SheetDescription>Elige una lección para abrirla.</SheetDescription>
+              </SheetHeader>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-12">
+                <CourseOutline sections={data.sections} currentLessonId={lessonId} onSelect={select} progressPct={pct} />
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </LmsAssignmentSourceContext.Provider>
     </LmsQuizSourceContext.Provider>
