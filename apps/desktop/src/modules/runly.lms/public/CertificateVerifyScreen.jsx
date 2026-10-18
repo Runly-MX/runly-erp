@@ -5,13 +5,15 @@ import { Building2, Download, SearchX, ShieldAlert, ShieldCheck } from 'lucide-r
 import { runly } from '../../../lib/runly.js'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { formatHours, formatLongDate, toAbsoluteUrl } from '../lib/lmsCert.js'
+import { ThemeToggle } from '../../../components/ThemeToggle.jsx'
 import { PUBLIC_PAGE_CLASS } from './keyboardSafeFocus.js'
+import { PublicFixedBar } from './PublicFixedBar.jsx'
 
 const MUTED = 'text-[hsl(var(--muted-foreground))]'
 
 function Brand({ data, loading }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] pt-[env(safe-area-inset-top)]">
+    <PublicFixedBar>
       <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-3">
         {data?.logoUrl ? (
           <img src={data.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-contain" />
@@ -24,8 +26,9 @@ function Brand({ data, loading }) {
           {loading ? <Skeleton className="h-4 w-40" /> : <p className="truncate text-sm font-semibold">{data?.companyName || 'Verificación de certificado'}</p>}
         </div>
         <span className={`flex shrink-0 items-center gap-1 text-xs ${MUTED}`}><ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />Verificación</span>
+        <ThemeToggle />
       </div>
-    </header>
+    </PublicFixedBar>
   )
 }
 

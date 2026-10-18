@@ -1,7 +1,10 @@
 import {
   Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, ProgressBar,
 } from '@runly/ui'
-import { Building2, ListTree, LogOut, MoreVertical } from 'lucide-react'
+import { Building2, ListTree, LogOut, Moon, MoreVertical, Sun } from 'lucide-react'
+import { ThemeToggle } from '../../../components/ThemeToggle.jsx'
+import { useThemeStore } from '../../../stores/theme.js'
+import { PublicFixedBar } from './PublicFixedBar.jsx'
 
 const MUTED = 'text-[hsl(var(--muted-foreground))]'
 
@@ -32,8 +35,9 @@ export function SharedPlayerHeader({ company, title, pct, guestName, onShowConte
   const signOutLabel = guestName ? `No soy ${guestName}` : 'Cambiar de persona'
   // Let the menu close (and restore focus) before scrolling to the outline.
   const showContent = () => requestAnimationFrame(() => onShowContent())
+  const { isDark, toggle: toggleTheme } = useThemeStore()
   return (
-    <header className="sticky top-0 z-30 shrink-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] pt-[env(safe-area-inset-top)]">
+    <PublicFixedBar>
       <div className="mx-auto flex w-full max-w-[1600px] items-center gap-3 py-2 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] sm:px-6 sm:py-2.5 lg:px-8">
         <CompanyMark company={company} />
         <div className="min-w-0 flex-1">
@@ -47,6 +51,7 @@ export function SharedPlayerHeader({ company, title, pct, guestName, onShowConte
             <Progress pct={pct} className="flex items-center gap-2" />
           </div>
           <Button variant="outline" size="sm" className="lg:hidden" onClick={onShowContent}><ListTree />Contenido</Button>
+          <ThemeToggle />
           <span className="h-6 w-px bg-[hsl(var(--border))]" aria-hidden="true" />
           <Button variant="ghost" size="sm" onClick={onSignOut} className="max-w-56" title="Olvidar este nombre en este navegador y empezar de nuevo">
             <LogOut /><span className="truncate">{signOutLabel}</span>
@@ -65,6 +70,7 @@ export function SharedPlayerHeader({ company, title, pct, guestName, onShowConte
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="min-h-11" onSelect={showContent}><ListTree />Contenido del curso</DropdownMenuItem>
+            <DropdownMenuItem className="min-h-11" onSelect={toggleTheme}>{isDark ? <Sun /> : <Moon />}{isDark ? 'Modo claro' : 'Modo oscuro'}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="min-h-11" onSelect={onSignOut}>
               <LogOut /><span className="truncate">{signOutLabel}</span>
@@ -72,6 +78,6 @@ export function SharedPlayerHeader({ company, title, pct, guestName, onShowConte
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </header>
+    </PublicFixedBar>
   )
 }
