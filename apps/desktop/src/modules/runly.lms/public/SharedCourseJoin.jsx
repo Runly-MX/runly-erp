@@ -102,6 +102,7 @@ export function SharedCourseJoin({ shareToken, data, linkToken = null, onJoined 
   const lessons = (data?.sections ?? []).flatMap((section) => section.lessons ?? [])
   const fields = data?.settings?.intakeFields ?? []
   const invite = data?.settings?.accessMode === 'invite'
+  if (!data?.course) return null
   return (
     <div className="h-dvh overflow-y-auto overscroll-contain bg-[hsl(var(--background))]">
       {data.promo ? (

@@ -72,7 +72,21 @@ export default function SharedCourseScreen() {
     )
   }
 
-  if (summary.isLoading || (guestToken && me.isLoading)) {
+  if (!summary.data && summary.fetchStatus === 'paused') {
+    return (
+      <Centered>
+        <EmptyState
+          icon={Link2Off} title="Sin conexión"
+          description="No pudimos conectarnos para abrir el curso. Revisa tu conexión a internet."
+          action={<Button variant="outline" onClick={() => summary.refetch()}>Reintentar</Button>}
+        />
+      </Centered>
+    )
+  }
+
+  // isPending, not isLoading: a paused query (flaky network) is pending without
+  // fetching, and isLoading would be false while there is still no data.
+  if (summary.isPending || !summary.data || (guestToken && me.isPending)) {
     return (
       <div className="h-dvh overflow-hidden">
         <Skeleton className="h-72 w-full rounded-none" />
