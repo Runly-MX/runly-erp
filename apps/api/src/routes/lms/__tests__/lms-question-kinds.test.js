@@ -182,3 +182,7 @@ test('backward compatibility: legacy rows, answers and authoring shape', () => {
   const result = scoreAttempt([legacy, open], { L: { optionIds: ['ob', 'oa'] }, O: { text: 'hola' } }, { O: 1.5 })
   assert.equal(result.scorePoints, 3.5)
 })
+
+test('fill_blank accepts blanks escaped by the Markdown editor', () => {
+  assert.deepEqual(parseBlanks('Es \[\[Edgar|joselito]] y \[\[julio\]\]'), [['Edgar', 'joselito'], ['julio']])
+})

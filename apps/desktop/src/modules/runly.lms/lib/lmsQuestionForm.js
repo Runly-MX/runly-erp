@@ -5,7 +5,10 @@ export const QUESTION_KINDS = ['single', 'multiple', 'true_false', 'short', 'num
 export const CHOICE_KINDS = ['single', 'multiple']
 export const MAX_ITEMS = 20
 export const POINTS = { min: 1, max: 100 }
-const BLANK_RE = /\[\[([^\]]*)\]\]/g
+// [[answer|alternative]] blanks. The Markdown editor escapes brackets (and
+// sometimes pipes) when it saves, so `\[\[Madrid\]\]` counts as a blank too.
+const BLANK_RE = /\\?\[\\?\[((?:\\.|[^\]\\])*)\\?\]\\?\]/g
+const unescapeMd = (text) => text.replace(/\\(.)/g, '$1')
 
 const blank = (value) => String(value ?? '').trim() === ''
 const asText = (value) => (value === null || value === undefined ? '' : String(value))
@@ -102,9 +105,9 @@ export function parseNumber(value) {
 }
 
 export function parseBlanks(prompt) {
-  return [...String(prompt ?? '').matchAll(BLANK_RE)].map((m) => m[1].split('|').map((a) => a.trim()).filter(Boolean))
+  return [...String(prompt ?? '').matchAll(BLANK_RE)].map((m) => unescapeMd(m[1]).split('|').map((a) => a.trim()).filter(Boolean))
 }
-export const blankParts = (prompt) => String(prompt ?? '').split(BLANK_RE).filter((_, index) => index % 2 === 0)
+export const blankParts = (prompt) => String(prompt ?? '').split(BLANK_RE).filter((_, index) => index % 2 === 0).map(unescapeMd)
 
 const normalize = (value) => String(value ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim().replace(/\s+/g, ' ')
 

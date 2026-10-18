@@ -90,3 +90,9 @@ test('quiz layout setting and draw count warning', () => {
   assert.match(drawCountWarning('40', 30), /Solo hay 30 preguntas/)
   assert.equal(drawCountWarning('5', null), null)
 })
+
+test('blanks escaped by the Markdown editor still count', () => {
+  const prompt = 'Es \[\[Edgar|joselito]], luego \[\[raul\|belloso\]\] y [[julio]]'
+  assert.deepEqual(parseBlanks(prompt), [['Edgar', 'joselito'], ['raul', 'belloso'], ['julio']])
+  assert.deepEqual(blankParts(prompt), ['Es ', ', luego ', ' y ', ''])
+})

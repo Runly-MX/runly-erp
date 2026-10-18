@@ -12,7 +12,10 @@ export const TEXT_KINDS = ['open', 'short']
 export const MAX_ITEMS = 20
 export const MAX_BLANKS = 30
 const TRUE_FALSE = [{ id: 'true', text: 'Verdadero' }, { id: 'false', text: 'Falso' }]
-const BLANK_RE = /\[\[([^\]]*)\]\]/g
+// [[answer|alternative]] blanks. The Markdown editor escapes brackets (and
+// sometimes pipes) when it saves, so `\[\[Madrid\]\]` counts as a blank too.
+const BLANK_RE = /\\?\[\\?\[((?:\\.|[^\]\\])*)\\?\]\\?\]/g
+const unescapeMd = (text) => text.replace(/\\(.)/g, '$1')
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const fail = (message) => { throw new LmsError(message, 400) }
@@ -55,14 +58,14 @@ export function parseNumber(value) {
 export function parseBlanks(prompt) {
   const out = []
   for (const match of String(prompt ?? '').matchAll(BLANK_RE)) {
-    out.push(match[1].split('|').map((answer) => answer.trim()).filter(Boolean))
+    out.push(unescapeMd(match[1]).split('|').map((answer) => answer.trim()).filter(Boolean))
   }
   return out
 }
 
 // Learner view of a fill_blank prompt: the text around each blank.
 export function blankParts(prompt) {
-  return String(prompt ?? '').split(BLANK_RE).filter((_, index) => index % 2 === 0)
+  return String(prompt ?? '').split(BLANK_RE).filter((_, index) => index % 2 === 0).map(unescapeMd)
 }
 
 // Ids for authored items: explicit known ids win, then the id at the same
