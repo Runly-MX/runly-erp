@@ -176,6 +176,7 @@ export default function ImportWizard() {
       {/* ── Account context header (matches AccountScreen layout) ──────── */}
       <div className="px-6 pt-5 pb-4 border-b border-[hsl(var(--border))] shrink-0 space-y-4">
         <PageHeader
+          collapseOnScroll={false}
           className="pb-0"
           eyebrow="Runly Ledger · Importación de movimientos"
           onBack={() => navigate(`/app/m/runly.ledger/accounts/${accountId}`)}

@@ -305,6 +305,7 @@ export default function AccountScreen() {
     <div className="flex flex-col">
       <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-[hsl(var(--border))] shrink-0">
         <PageHeader
+          collapseOnScroll={false}
           className="pb-0"
           onBack={() => navigate("/app/m/runly.ledger/accounts")}
           backLabel="Cuentas bancarias"
