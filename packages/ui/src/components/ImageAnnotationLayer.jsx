@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { arrowHead, isMeaningful, normalizeRect } from "../lib/imageAnnotations.js";
 
 function Shape({ a }) {
@@ -29,7 +30,7 @@ function Shape({ a }) {
 // picture's pixel size (the SVG viewBox), so everything is in picture pixels.
 // `viewScale` is the stage zoom: stroke/text sizes are picture-relative, so they
 // do not change with the view zoom. `multiRef` cancels drawing on multi-touch.
-export function ImageAnnotationLayer({ size, annotations, tool = null, color, width, viewScale = 1, multiRef = null, onAdd }) {
+export function ImageAnnotationLayer({ size, annotations, tool = null, color, width, viewScale = 1, multiRef = null, textPortal = null, onAdd }) {
   const svgRef = useRef(null);
   const [draft, setDraft] = useState(null);
   const [textAt, setTextAt] = useState(null);
@@ -46,7 +47,7 @@ export function ImageAnnotationLayer({ size, annotations, tool = null, color, wi
     const k = scale();
     if (tool === "text") {
       const box = svgRef.current.getBoundingClientRect();
-      setTextAt({ x: p[0], y: p[1], left: event.clientX - box.left, top: event.clientY - box.top, k });
+      setTextAt({ x: p[0], y: p[1], left: event.clientX - box.left, top: event.clientY - box.top, cx: event.clientX, cy: event.clientY, k });
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -84,6 +85,9 @@ export function ImageAnnotationLayer({ size, annotations, tool = null, color, wi
     if (isMeaningful(annotation)) onAdd(annotation);
   }
 
+  // The input lives outside the scaled picture layer when a portal target is given.
+  const wrapInput = (node) => (textPortal ? createPortal(node, textPortal) : node);
+
   return (
     <>
       <svg
@@ -100,21 +104,21 @@ export function ImageAnnotationLayer({ size, annotations, tool = null, color, wi
         {annotations.map((a, i) => <Shape key={i} a={a} />)}
         {draft ? <Shape a={draft} /> : null}
       </svg>
-      {textAt ? (
+      {textAt ? wrapInput(
         <input
           autoFocus
           type="text"
           aria-label="Texto de la anotación"
           placeholder="Escribe y presiona Enter"
           className="absolute z-10 min-w-48 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2 py-1 text-sm text-[hsl(var(--foreground))] shadow-lg outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]"
-          style={{ left: textAt.left, top: textAt.top }}
+          style={textPortal ? { position: "fixed", left: textAt.cx, top: textAt.cy } : { left: textAt.left, top: textAt.top }}
           onKeyDown={(e) => {
             e.stopPropagation();
             if (e.key === "Enter") commitText(e.currentTarget.value);
             if (e.key === "Escape") setTextAt(null);
           }}
           onBlur={(e) => commitText(e.currentTarget.value)}
-        />
+        />,
       ) : null}
     </>
   );

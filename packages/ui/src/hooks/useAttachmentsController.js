@@ -382,6 +382,16 @@ export function useAttachmentsController({
     loadAssociated();
   }, [loadAssociated]);
 
+  // Files edited elsewhere (image editor copy/replace) announce themselves so
+  // open galleries pick up the new thumbnails and rows.
+  useEffect(() => {
+    const onChanged = () => {
+      if (!Array.isArray(prefetchedDataRef.current)) loadAssociated();
+    };
+    window.addEventListener("runly:files-changed", onChanged);
+    return () => window.removeEventListener("runly:files-changed", onChanged);
+  }, [loadAssociated]);
+
   const removePending = useCallback(
     (pendingId) => {
       if (viewerItem?.kind === "pending" && viewerItem?.id === pendingId) {

@@ -26,6 +26,7 @@ export function ImageEditingProvider({ children }) {
       toast.success(success);
       // Lists and cards across modules hold the old thumbnail; refetch what is on screen.
       queryClient.invalidateQueries();
+      window.dispatchEvent(new Event("runly:files-changed"));
     };
     return {
       saveCopy: run(runly.files.copyImage, "Copia guardada", "No se pudo guardar la copia"),

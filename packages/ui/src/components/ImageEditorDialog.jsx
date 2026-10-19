@@ -1,60 +1,57 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Crop, FlipVertical2, FlipHorizontal2, Hand, Loader2, Minus, PencilRuler, PenLine, Plus, RotateCcw, RotateCw, Rotate3d, Maximize, SlidersHorizontal, Square, Type, Undo2 } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Check, ChevronDown, Eye, Loader2, Maximize, Minus, PencilRuler, Plus, Redo2, Undo2, X } from "lucide-react";
 import { Button } from "./Button.jsx";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./Dialog.jsx";
 import { ConfirmDialog } from "./ConfirmDialog.jsx";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./DropdownMenu.jsx";
 import { ImageAnnotationLayer } from "./ImageAnnotationLayer.jsx";
 import { ImageCropOverlay } from "./ImageCropOverlay.jsx";
+import { ImageLayerOverlay } from "./ImageLayerOverlay.jsx";
+import {
+  AdjustPanel, AnnotatePanel, CropPanel, EDITOR_TOOLS, FiltersPanel, LayersPanel, RATIOS, TurnPanel,
+} from "./ImageEditorPanels.jsx";
 import { ANNOTATION_COLORS, drawAnnotations } from "../lib/imageAnnotations.js";
+import { fitRect } from "../lib/cropRect.js";
+import { NO_FILTER } from "../lib/imageFilters.js";
+import { NO_ADJUST, canvasToFile, cropRect, loadImageFromFile, loadImageFromUrl, makeThumbnail, renderTransformed } from "../lib/imageEdit.js";
+import { drawLayers, newLayer, scaleLayer } from "../lib/imageLayers.js";
+import { useImageEditorHistory } from "../hooks/useImageEditorHistory.js";
 import { useStageGestures } from "../hooks/useStageGestures.js";
-import { fitRect, toSourceRect } from "../lib/cropRect.js";
-import { NO_ADJUST, canvasToFile, cropRect, loadImageFromUrl, renderTransformed } from "../lib/imageEdit.js";
 
-const MAX_STAGE_HEIGHT = 520;
 const MAX_VIEW_ZOOM = 8;
+const MAX_LAYER_BYTES = 10 * 1024 * 1024;
+const FULL_CROP = Object.freeze({ x: 0, y: 0, w: 1, h: 1 });
+const NO_TRANSFORM = Object.freeze({ quarterTurns: 0, angle: 0, flipX: false, flipY: false });
+const INITIAL_DOC = Object.freeze({
+  transform: NO_TRANSFORM,
+  adjust: NO_ADJUST,
+  filter: NO_FILTER,
+  annotations: [],
+  layers: [],
+  ratioId: "free",
+  cropN: FULL_CROP,
+});
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
-const NO_TRANSFORM = { quarterTurns: 0, angle: 0, flipX: false, flipY: false };
-const RATIOS = [
-  { id: "free", label: "Libre", ratio: null },
-  { id: "orig", label: "Original", ratio: "original" },
-  { id: "1:1", label: "1:1", ratio: 1 },
-  { id: "4:3", label: "4:3", ratio: 4 / 3 },
-  { id: "3:4", label: "3:4", ratio: 3 / 4 },
-  { id: "16:9", label: "16:9", ratio: 16 / 9 },
-  { id: "9:16", label: "9:16", ratio: 9 / 16 },
-];
-const TABS = [
-  { id: "crop", label: "Recortar", icon: Crop },
-  { id: "turn", label: "Girar", icon: Rotate3d },
-  { id: "adjust", label: "Ajustes", icon: SlidersHorizontal },
-  { id: "annotate", label: "Anotar", icon: PenLine },
-];
-const TOOLS = [
-  { id: "pan", label: "Mover vista", icon: Hand },
-  { id: "pen", label: "Lápiz", icon: PenLine },
-  { id: "arrow", label: "Flecha", icon: ArrowUpRight },
-  { id: "rect", label: "Recuadro", icon: Square },
-  { id: "text", label: "Texto", icon: Type },
-];
-const STROKES = [2, 4, 6, 10];
-const SLIDERS = [
-  { key: "brightness", label: "Brillo", min: 40, max: 160 },
-  { key: "contrast", label: "Contraste", min: 40, max: 160 },
-  { key: "saturation", label: "Saturación", min: 0, max: 200 },
-];
 
-function IconButton({ label, onClick, active = false, disabled, children }) {
+// Fraction-space crop rect of the largest `ratio` rect in a picture.
+function fitFraction(size, ratio) {
+  const r = fitRect(size, ratio);
+  return { x: r.x / size.w, y: r.y / size.h, w: r.w / size.w, h: r.h / size.h };
+}
+
+function IconBtn({ label, onClick, disabled, children, ...rest }) {
   return (
-    <Button type="button" variant={active ? "secondary" : "ghost"} size="icon" aria-label={label} title={label} aria-pressed={active} disabled={disabled} onClick={onClick}>
+    <Button type="button" variant="ghost" size="icon" aria-label={label} title={label} disabled={disabled} onClick={onClick} {...rest}>
       {children}
     </Button>
   );
 }
 
-// Image editor (phase 1): crop with proportions, rotate / mirror / straighten
-// and brightness / contrast / saturation. Works on the whole picture and
-// resolves to a new File via `onSave(file)` — the host decides where it goes
-// (copy, replacement...). `src` must be a CORS-readable URL (signed URLs are).
+// Image editor: crop with proportions, rotate / mirror / straighten, preset
+// filters, adjustments, annotations and added images (layers), with undo/redo,
+// before/after comparison and wheel / pinch / twist gestures. Non-destructive
+// until a save callback runs: `onSave(file)` (copy) and/or `onReplace(file)`
+// (replace original, asks for confirmation). `src` must be a CORS-readable URL.
 export function ImageEditorDialog({
   open,
   onOpenChange,
@@ -66,36 +63,41 @@ export function ImageEditorDialog({
   saveLabel = "Guardar copia",
   title = "Editar imagen",
 }) {
-  const stageWrapRef = useRef(null);
+  const areaRef = useRef(null);
+  const pictureRef = useRef(null);
   const panRef = useRef(null);
+  const layerUrlsRef = useRef([]);
+  const [contentEl, setContentEl] = useState(null);
   const [clipEl, setClipEl] = useState(null);
-  const [view, setView] = useState({ s: 1, x: 0, y: 0 });
   const [source, setSource] = useState(null);
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
   const [tab, setTab] = useState("crop");
-  const [transform, setTransform] = useState(NO_TRANSFORM);
-  const [adjust, setAdjust] = useState(NO_ADJUST);
-  const [ratioId, setRatioId] = useState("free");
-  const [wrapWidth, setWrapWidth] = useState(0);
-  const [rect, setRect] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [annotations, setAnnotations] = useState([]);
   const [tool, setTool] = useState("pen");
   const [color, setColor] = useState(ANNOTATION_COLORS[0]);
   const [stroke, setStroke] = useState(4);
+  const [selectedId, setSelectedId] = useState(null);
+  const [comparing, setComparing] = useState(false);
+  const [view, setView] = useState({ s: 1, x: 0, y: 0 });
+  const [areaSize, setAreaSize] = useState({ w: 0, h: 0 });
+  const [saving, setSaving] = useState(false);
   const [confirmReplace, setConfirmReplace] = useState(false);
-  const deferredAdjust = useDeferredValue(adjust);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  const hist = useImageEditorHistory(INITIAL_DOC);
+  const { doc } = hist;
+  const deferredAdjust = useDeferredValue(doc.adjust);
+  const deferredFilter = useDeferredValue(doc.filter);
 
   useEffect(() => {
     setSource(null);
     setError(null);
-    setTransform(NO_TRANSFORM);
-    setAdjust(NO_ADJUST);
-    setRatioId("free");
-    setRect(null);
-    setAnnotations([]);
+    setNotice(null);
     setTab("crop");
+    setSelectedId(null);
+    setComparing(false);
     setView({ s: 1, x: 0, y: 0 });
+    hist.reset(INITIAL_DOC);
     if (!open || !src) return undefined;
     let cancelled = false;
     loadImageFromUrl(src)
@@ -104,14 +106,29 @@ export function ImageEditorDialog({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, src]);
 
-  const work = useMemo(() => (source ? renderTransformed(source, { ...transform, adjust: deferredAdjust }) : null), [source, transform, deferredAdjust]);
+  // Added-image URLs are kept while the editor is open (undo can bring a layer back).
+  useEffect(() => {
+    if (open) return undefined;
+    return () => {
+      layerUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      layerUrlsRef.current = [];
+    };
+  }, [open]);
+
+  const work = useMemo(
+    () => (source ? renderTransformed(source, { ...doc.transform, adjust: deferredAdjust, filter: deferredFilter }) : null),
+    [source, doc.transform, deferredAdjust, deferredFilter],
+  );
+  const original = useMemo(() => (source ? renderTransformed(source) : null), [source]);
+  const thumb = useMemo(() => (source ? makeThumbnail(source) : null), [source]);
 
   useEffect(() => {
-    const node = stageWrapRef.current;
+    const node = areaRef.current;
     if (!open || !node) return undefined;
-    const measure = () => setWrapWidth(node.clientWidth);
+    const measure = () => setAreaSize({ w: Math.max(0, node.clientWidth - 24), h: Math.max(0, node.clientHeight - 24) });
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(node);
@@ -119,31 +136,113 @@ export function ImageEditorDialog({
   }, [open, work]);
 
   const display = useMemo(() => {
-    if (!work || !wrapWidth) return null;
-    const scale = Math.min(wrapWidth / work.width, MAX_STAGE_HEIGHT / work.height, 1);
-    return { w: Math.round(work.width * scale), h: Math.round(work.height * scale) };
-  }, [work, wrapWidth]);
+    if (!work || !areaSize.w || !areaSize.h) return null;
+    const scale = Math.min(areaSize.w / work.width, areaSize.h / work.height, 2);
+    return { w: Math.round(work.width * scale), h: Math.round(work.height * scale), k: scale };
+  }, [work, areaSize]);
 
   const ratio = useMemo(() => {
-    const preset = RATIOS.find((r) => r.id === ratioId);
+    const preset = RATIOS.find((r) => r.id === doc.ratioId);
     if (!preset) return null;
     if (preset.ratio === "original") return work ? work.width / work.height : null;
     return preset.ratio;
-  }, [ratioId, work]);
+  }, [doc.ratioId, work]);
 
-  // Geometry changes (new picture size, rotation, preset) reset the crop to the
-  // largest rect of the chosen proportion; brightness etc. do not (same size).
+  const canvasRef = useCallback(
+    (node) => {
+      if (!node || !work) return;
+      node.width = work.width;
+      node.height = work.height;
+      node.getContext("2d").drawImage(work, 0, 0);
+    },
+    [work],
+  );
+  const originalRef = useCallback(
+    (node) => {
+      if (!node || !original) return;
+      node.width = original.width;
+      node.height = original.height;
+      node.getContext("2d").drawImage(original, 0, 0);
+    },
+    [original],
+  );
+
   const geometryKey = work ? `${work.width}x${work.height}` : "";
   useEffect(() => {
     setView({ s: 1, x: 0, y: 0 });
   }, [geometryKey]);
-  useEffect(() => {
-    if (display) setRect(fitRect(display, ratio));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [geometryKey, display?.w, display?.h, ratioId]);
 
-  // View zoom/pan (wheel, pinch, two-finger drag, "Mover vista", double click).
-  // The picture, annotations and crop all live inside one transformed layer.
+  const selectedLayer = doc.layers.find((l) => l.id === selectedId) ?? null;
+  const isFullCrop = doc.cropN.w > 0.995 && doc.cropN.h > 0.995;
+  const edited =
+    JSON.stringify(doc.transform) !== JSON.stringify(NO_TRANSFORM) ||
+    JSON.stringify(doc.adjust) !== JSON.stringify(NO_ADJUST) ||
+    doc.filter.id !== "none" ||
+    doc.annotations.length > 0 ||
+    doc.layers.length > 0 ||
+    !isFullCrop;
+
+  // ---- document edits -------------------------------------------------
+  // A rotation / flip / straighten changes the picture's coordinate space, so
+  // it restarts crop, annotations and added images (undo brings them back).
+  const patchGeometry = (patch, mergeKey = null) =>
+    hist.update(
+      (d) => ({ transform: { ...d.transform, ...patch }, annotations: [], layers: [], cropN: FULL_CROP, ratioId: "free" }),
+      mergeKey,
+    );
+  const setRatio = (id) => {
+    if (!work) return;
+    const preset = RATIOS.find((r) => r.id === id);
+    const r = preset?.ratio === "original" ? work.width / work.height : preset?.ratio ?? null;
+    hist.update({ ratioId: id, cropN: fitFraction({ w: work.width, h: work.height }, r) });
+  };
+  const patchLayer = (id, patch, mergeKey = null) =>
+    hist.update((d) => ({ layers: d.layers.map((l) => (l.id === id ? { ...l, ...(typeof patch === "function" ? patch(l) : patch) } : l)) }), mergeKey);
+
+  async function addLayers(files) {
+    if (!work) return;
+    setNotice(null);
+    const added = [];
+    for (const file of files) {
+      if (!file.type.startsWith("image/") || file.size > MAX_LAYER_BYTES) {
+        setNotice("Solo se pueden agregar imágenes de hasta 10 MB.");
+        continue;
+      }
+      try {
+        const img = await loadImageFromFile(file);
+        const url = URL.createObjectURL(file);
+        layerUrlsRef.current.push(url);
+        added.push(newLayer(img, url, { w: work.width, h: work.height }));
+      } catch {
+        setNotice("No se pudo leer una de las imágenes.");
+      }
+    }
+    if (!added.length) return;
+    hist.update((d) => ({ layers: [...d.layers, ...added] }));
+    setSelectedId(added[added.length - 1].id);
+  }
+  const duplicateLayer = (id) => {
+    const l = doc.layers.find((x) => x.id === id);
+    if (!l) return;
+    const copy = { ...l, id: `${l.id}-c${Date.now()}`, x: l.x + 30, y: l.y + 30 };
+    hist.update((d) => ({ layers: [...d.layers, copy] }));
+    setSelectedId(copy.id);
+  };
+  const moveLayerOrder = (id, dir) =>
+    hist.update((d) => {
+      const i = d.layers.findIndex((l) => l.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= d.layers.length) return {};
+      const next = d.layers.slice();
+      [next[i], next[j]] = [next[j], next[i]];
+      return { layers: next };
+    });
+  const deleteLayer = (id) => {
+    hist.update((d) => ({ layers: d.layers.filter((l) => l.id !== id) }));
+    setSelectedId(null);
+  };
+
+  // ---- view zoom / pan / gestures --------------------------------------
   const clampView = useCallback(
     (v) => {
       const s = clamp(v.s, 1, MAX_VIEW_ZOOM);
@@ -169,11 +268,32 @@ export function ImageEditorDialog({
     zoomAt(factor, box.left + box.width / 2, box.top + box.height / 2);
   }
   const panBy = (dx, dy) => setView((v) => clampView({ ...v, x: v.x + dx, y: v.y + dy }));
-  const { multiRef } = useStageGestures(clipEl, { enabled: Boolean(display), onZoom: zoomAt, onPan: panBy });
+  const layersActive = tab === "layers" && Boolean(selectedLayer);
+  const { multiRef } = useStageGestures(clipEl, {
+    enabled: Boolean(display) && !comparing,
+    // Pinch on a selected image scales it; the wheel and every other case zoom the view.
+    onZoom: (factor, cx, cy, kind) => {
+      if (layersActive && kind === "pinch") patchLayer(selectedLayer.id, (l) => scaleLayer(l, factor), `pinch-${selectedLayer.id}`);
+      else zoomAt(factor, cx, cy);
+    },
+    onPan: panBy,
+    onRotate: (deg) => {
+      if (layersActive) patchLayer(selectedLayer.id, (l) => ({ rot: Math.round((l.rot + deg) * 10) / 10 }), `twist-${selectedLayer.id}`);
+      else if (tab === "turn") {
+        hist.update((d) => {
+          let angle = d.transform.angle + deg;
+          let turns = d.transform.quarterTurns;
+          if (angle > 45) { angle -= 90; turns += 1; }
+          if (angle < -45) { angle += 90; turns -= 1; }
+          return { transform: { ...d.transform, angle, quarterTurns: turns }, annotations: [], layers: [], cropN: FULL_CROP, ratioId: "free" };
+        }, "angle");
+      }
+    },
+  });
 
-  // One-pointer panning: only where no other tool owns the pointer.
   const canPanWithPointer = view.s > 1 && (tab !== "annotate" || tool === "pan");
   function handlePanDown(event) {
+    if (tab === "layers") setSelectedId(null);
     if (!canPanWithPointer || multiRef.current) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     panRef.current = { x: event.clientX, y: event.clientY };
@@ -198,244 +318,309 @@ export function ImageEditorDialog({
     else zoomAt(2.5, event.clientX, event.clientY);
   }
 
-  const canvasRef = useCallback(
-    (node) => {
-      if (!node || !work) return;
-      node.width = work.width;
-      node.height = work.height;
-      node.getContext("2d").drawImage(work, 0, 0);
-    },
-    [work],
-  );
-
-  // Annotations live in the picture's pixel space; a rotation/flip/straighten
-  // changes that space, so it starts them over.
-  const patchTransform = (patch) => {
-    setTransform((t) => ({ ...t, ...patch }));
-    setAnnotations([]);
-  };
-  const isFullCrop = !rect || !display || (Math.round(rect.w) >= display.w && Math.round(rect.h) >= display.h);
-  const edited = JSON.stringify(transform) !== JSON.stringify(NO_TRANSFORM) || JSON.stringify(adjust) !== JSON.stringify(NO_ADJUST) || annotations.length > 0 || !isFullCrop;
-
-  function resetAll() {
-    setTransform(NO_TRANSFORM);
-    setAdjust(NO_ADJUST);
-    setRatioId("free");
-    setAnnotations([]);
-    if (display) setRect(fitRect(display, null));
+  // ---- keyboard ---------------------------------------------------------
+  function handleKeyDown(event) {
+    // The viewer underneath has its own shortcuts; keep the editor keys to the editor.
+    event.stopPropagation();
+    const typing = event.target instanceof HTMLInputElement && event.target.type === "text";
+    if (typing) return;
+    const mod = event.ctrlKey || event.metaKey;
+    if (mod && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      if (event.shiftKey) hist.redo();
+      else hist.undo();
+    } else if (mod && event.key.toLowerCase() === "y") {
+      event.preventDefault();
+      hist.redo();
+    } else if (event.key === "\\") {
+      setComparing(true);
+    } else if ((event.key === "Delete" || event.key === "Backspace") && selectedLayer && tab === "layers") {
+      event.preventDefault();
+      deleteLayer(selectedLayer.id);
+    }
+  }
+  function handleKeyUp(event) {
+    if (event.key === "\\") setComparing(false);
   }
 
+  // ---- saving / closing -------------------------------------------------
   async function buildFile() {
-    // Flatten the annotations onto a copy so the stage canvas stays untouched.
-    let flat = work;
-    if (annotations.length > 0) {
-      flat = document.createElement("canvas");
-      flat.width = work.width;
-      flat.height = work.height;
-      const ctx = flat.getContext("2d");
-      ctx.drawImage(work, 0, 0);
-      drawAnnotations(ctx, annotations);
-    }
-    const out = isFullCrop ? flat : cropRect(flat, toSourceRect(rect, display, flat));
-    const keepPng = mimeType === "image/png" || mimeType === "image/gif" || transform.angle !== 0;
+    const flat = document.createElement("canvas");
+    flat.width = work.width;
+    flat.height = work.height;
+    const ctx = flat.getContext("2d");
+    ctx.drawImage(work, 0, 0);
+    drawLayers(ctx, doc.layers);
+    drawAnnotations(ctx, doc.annotations);
+    const c = doc.cropN;
+    const out = isFullCrop ? flat : cropRect(flat, { x: c.x * flat.width, y: c.y * flat.height, w: c.w * flat.width, h: c.h * flat.height });
+    const keepPng = mimeType === "image/png" || mimeType === "image/gif" || doc.transform.angle !== 0;
     const type = keepPng ? "image/png" : mimeType === "image/webp" ? "image/webp" : "image/jpeg";
     const ext = type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";
     const base = fileName.replace(/\.[^.]+$/, "");
     return canvasToFile(out, { name: `${base}-editada.${ext}`, type });
   }
-
   async function handleSave(handler) {
-    if (!work || !display || !rect) return;
+    if (!work || !handler) return;
     setSaving(true);
     try {
-      await handler?.(await buildFile());
+      await handler(await buildFile());
     } finally {
       setSaving(false);
     }
   }
+  function requestClose(next) {
+    if (next) return onOpenChange?.(true);
+    if (saving) return undefined;
+    if (edited) return setConfirmDiscard(true);
+    return onOpenChange?.(false);
+  }
+
+  const busy = saving || !work;
+  const scale = (display?.k ?? 1) * view.s;
+  const cropPx = display ? { x: doc.cropN.x * display.w, y: doc.cropN.y * display.h, w: doc.cropN.w * display.w, h: doc.cropN.h * display.h } : null;
+  const picture = work ? { w: work.width, h: work.height } : { w: 1, h: 1 };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange?.(next)}>
-      <DialogContent size="2xl" className="md:max-w-6xl">
-        <DialogHeader icon={PencilRuler}>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Los cambios se aplican al guardar y el original no se modifica.</DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <div className="min-w-0 space-y-2">
-            <div className="flex items-center justify-end gap-1">
-              <span className="mr-1 hidden text-xs text-[hsl(var(--muted-foreground))] sm:inline">Rueda o pellizca para acercar</span>
-              <IconButton label="Alejar vista" disabled={!display || view.s <= 1} onClick={() => zoomCenter(1 / 1.4)}><Minus className="h-4 w-4" /></IconButton>
-              <span className="w-12 text-center text-xs tabular-nums">{Math.round(view.s * 100)}%</span>
-              <IconButton label="Acercar vista" disabled={!display || view.s >= MAX_VIEW_ZOOM} onClick={() => zoomCenter(1.4)}><Plus className="h-4 w-4" /></IconButton>
-              <IconButton label="Ajustar a la ventana" disabled={!display || view.s === 1} onClick={() => setView({ s: 1, x: 0, y: 0 })}><Maximize className="h-4 w-4" /></IconButton>
-            </div>
-          <div ref={stageWrapRef} className="flex min-h-64 items-center justify-center rounded-lg bg-[hsl(var(--muted))]/60 p-2">
-            {work ? (
-              <div
-                ref={setClipEl}
-                className={`relative select-none overflow-hidden ${canPanWithPointer ? "cursor-grab active:cursor-grabbing" : ""}`}
-                style={display ? { width: display.w, height: display.h, touchAction: "none" } : undefined}
-                onPointerDown={handlePanDown}
-                onPointerMove={handlePanMove}
-                onPointerUp={handlePanUp}
-                onPointerCancel={handlePanUp}
-                onDoubleClick={handleDoubleClick}
-              >
-                <div className="absolute inset-0" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`, transformOrigin: "0 0" }}>
-                  <canvas ref={canvasRef} aria-label="Imagen en edición" className="absolute inset-0 h-full w-full" />
-                  <ImageAnnotationLayer
-                    size={{ w: work.width, h: work.height }}
-                    annotations={annotations}
-                    tool={tab === "annotate" && tool !== "pan" ? tool : null}
-                    color={color}
-                    width={stroke}
-                    viewScale={view.s}
-                    multiRef={multiRef}
-                    onAdd={(a) => setAnnotations((list) => [...list, a])}
-                  />
-                  {display && rect && tab !== "annotate" ? (
-                    <ImageCropOverlay rect={rect} bounds={display} ratio={ratio} scale={view.s} multiRef={multiRef} disabled={saving} onChange={setRect} />
+    <DialogPrimitive.Root open={open} onOpenChange={requestClose}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+        <DialogPrimitive.Content
+          ref={setContentEl}
+          aria-describedby={undefined}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
+          className="glass-viewer fixed inset-0 z-50 flex flex-col outline-none"
+        >
+          {/* Top bar */}
+          <div className="safe-top flex h-14 shrink-0 items-center gap-1 border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 px-2 sm:px-3">
+            <IconBtn label="Cerrar editor" onClick={() => requestClose(false)}><X className="h-5 w-5" /></IconBtn>
+            <PencilRuler className="ml-1 hidden h-4 w-4 text-[hsl(var(--primary))] sm:block" aria-hidden="true" />
+            <DialogPrimitive.Title className="mr-auto hidden truncate text-sm font-medium sm:block">{title}</DialogPrimitive.Title>
+            <span className="mr-auto sm:hidden" />
+            <IconBtn label="Deshacer (Ctrl+Z)" disabled={!hist.canUndo || saving} onClick={hist.undo}><Undo2 className="h-5 w-5" /></IconBtn>
+            <IconBtn label="Rehacer (Ctrl+Shift+Z)" disabled={!hist.canRedo || saving} onClick={hist.redo}><Redo2 className="h-5 w-5" /></IconBtn>
+            <Button
+              type="button"
+              variant={comparing ? "secondary" : "ghost"}
+              aria-label="Mantén pulsado para ver el original"
+              title="Mantén pulsado para ver el original (tecla \)"
+              disabled={busy}
+              onPointerDown={(e) => {
+                e.currentTarget.setPointerCapture(e.pointerId);
+                setComparing(true);
+              }}
+              onPointerUp={() => setComparing(false)}
+              onPointerCancel={() => setComparing(false)}
+              onContextMenu={(e) => e.preventDefault()}
+              className="touch-none select-none px-2 sm:px-3"
+            >
+              <Eye className="h-5 w-5 sm:mr-1.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Original</span>
+            </Button>
+            {onSave || onReplace ? (
+              <>
+                <div className="ml-1 hidden items-center gap-2 sm:flex">
+                  {onReplace ? (
+                    <Button type="button" variant="outline" disabled={busy || !edited} onClick={() => setConfirmReplace(true)}>Reemplazar original</Button>
+                  ) : null}
+                  {onSave ? (
+                    <Button type="button" disabled={busy || !edited} onClick={() => handleSave(onSave)}>
+                      {saving ? "Guardando..." : saveLabel}
+                    </Button>
                   ) : null}
                 </div>
-              </div>
-            ) : error ? (
-              <p className="px-4 text-sm text-[hsl(var(--destructive))]">{error}</p>
-            ) : (
-              <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--muted-foreground))]" />
-            )}
-          </div>
+                <div className="ml-1 sm:hidden">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" disabled={busy || !edited}>
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}Guardar<ChevronDown className="ml-1 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {onSave ? <DropdownMenuItem onSelect={() => handleSave(onSave)}>{saveLabel}</DropdownMenuItem> : null}
+                      {onReplace ? <DropdownMenuItem onSelect={() => setConfirmReplace(true)}>Reemplazar original</DropdownMenuItem> : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </>
+            ) : null}
           </div>
 
-          <div className="space-y-4">
-            <div role="tablist" aria-label="Herramientas" className="grid grid-cols-4 gap-1 rounded-lg bg-[hsl(var(--muted))]/60 p-1">
-              {TABS.map(({ id, label, icon: Icon }) => (
+          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+            {/* Tool rail: bottom bar on touch layouts, left rail on desktop */}
+            <div role="tablist" aria-label="Herramientas" className="safe-bottom order-3 flex shrink-0 overflow-x-auto border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 lg:order-1 lg:w-20 lg:flex-col lg:overflow-y-auto lg:overflow-x-visible lg:border-r lg:border-t-0">
+              {EDITOR_TOOLS.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   type="button"
                   role="tab"
                   aria-selected={tab === id}
                   onClick={() => setTab(id)}
-                  className={`flex h-9 items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors ${tab === id ? "bg-[hsl(var(--card))] text-[hsl(var(--foreground))] shadow-sm" : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"}`}
+                  className={`flex min-h-14 min-w-18 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-xs font-medium transition-colors lg:min-h-18 lg:flex-none ${tab === id ? "bg-[hsl(var(--primary))]/12 text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]"}`}
                 >
-                  <Icon className="h-3.5 w-3.5" />{label}
+                  <Icon className="h-5 w-5" />
+                  {label}
                 </button>
               ))}
             </div>
 
-            {tab === "crop" ? (
-              <div className="space-y-2">
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">Proporción</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {RATIOS.map((r) => (
-                    <Button key={r.id} type="button" size="sm" variant={ratioId === r.id ? "default" : "outline"} disabled={saving || !work} onClick={() => setRatioId(r.id)}>
-                      {r.label}
-                    </Button>
-                  ))}
+            {/* Stage */}
+            <div ref={areaRef} className="relative order-1 flex min-h-0 min-w-0 flex-1 items-center justify-center p-3 lg:order-2">
+              {work ? (
+                <div
+                  ref={setClipEl}
+                  className={`relative select-none overflow-hidden ${canPanWithPointer ? "cursor-grab active:cursor-grabbing" : ""}`}
+                  style={display ? { width: display.w, height: display.h, touchAction: "none" } : undefined}
+                  onPointerDown={handlePanDown}
+                  onPointerMove={handlePanMove}
+                  onPointerUp={handlePanUp}
+                  onPointerCancel={handlePanUp}
+                  onDoubleClick={handleDoubleClick}
+                >
+                  <div className="absolute inset-0" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`, transformOrigin: "0 0" }}>
+                    <canvas ref={canvasRef} aria-label="Imagen en edición" className="absolute inset-0 h-full w-full" />
+                    {display ? (
+                      <div ref={pictureRef} className="absolute left-0 top-0" style={{ width: picture.w, height: picture.h, transform: `scale(${display.k})`, transformOrigin: "0 0" }}>
+                        <ImageLayerOverlay
+                          layers={doc.layers}
+                          selectedId={selectedId}
+                          interactive={tab === "layers"}
+                          scale={scale}
+                          picture={picture}
+                          wrapRef={pictureRef}
+                          multiRef={multiRef}
+                          onSelect={setSelectedId}
+                          onChange={(id, next) => patchLayer(id, { x: next.x, y: next.y, w: next.w, h: next.h, rot: next.rot }, `drag-${id}`)}
+                        />
+                        <ImageAnnotationLayer
+                          size={{ w: picture.w, h: picture.h }}
+                          annotations={doc.annotations}
+                          tool={tab === "annotate" && tool !== "pan" ? tool : null}
+                          color={color}
+                          width={stroke}
+                          viewScale={view.s}
+                          multiRef={multiRef}
+                          textPortal={contentEl}
+                          onAdd={(a) => hist.update((d) => ({ annotations: [...d.annotations, a] }))}
+                        />
+                      </div>
+                    ) : null}
+                    {display && cropPx && tab === "crop" ? (
+                      <ImageCropOverlay
+                        rect={cropPx}
+                        bounds={display}
+                        ratio={ratio}
+                        scale={view.s}
+                        multiRef={multiRef}
+                        disabled={saving}
+                        onChange={(r) => hist.update({ cropN: { x: r.x / display.w, y: r.y / display.h, w: r.w / display.w, h: r.h / display.h } }, "crop")}
+                      />
+                    ) : null}
+                    {cropPx && tab !== "crop" && !isFullCrop ? (
+                      <div className="pointer-events-none absolute border border-white/70" style={{ left: cropPx.x, top: cropPx.y, width: cropPx.w, height: cropPx.h, boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)" }} />
+                    ) : null}
+                  </div>
+                  {comparing && original ? (
+                    <div className="absolute inset-0 bg-[hsl(var(--background))]">
+                      <canvas ref={originalRef} aria-label="Imagen original" className="h-full w-full object-contain" />
+                      <span className="absolute left-2 top-2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white">Original</span>
+                    </div>
+                  ) : null}
                 </div>
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">Arrastra el recuadro para moverlo y las asas para cambiar su tamaño.</p>
-              </div>
-            ) : null}
+              ) : error ? (
+                <p className="px-4 text-sm text-[hsl(var(--destructive))]">{error}</p>
+              ) : (
+                <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--muted-foreground))]" />
+              )}
 
-            {tab === "turn" ? (
-              <div className="space-y-3">
-                <div className="flex gap-1">
-                  <IconButton label="Girar a la izquierda" disabled={saving || !work} onClick={() => patchTransform({ quarterTurns: transform.quarterTurns - 1 })}><RotateCcw className="h-4 w-4" /></IconButton>
-                  <IconButton label="Girar a la derecha" disabled={saving || !work} onClick={() => patchTransform({ quarterTurns: transform.quarterTurns + 1 })}><RotateCw className="h-4 w-4" /></IconButton>
-                  <IconButton label="Voltear horizontalmente" active={transform.flipX} disabled={saving || !work} onClick={() => patchTransform({ flipX: !transform.flipX })}><FlipVertical2 className="h-4 w-4" /></IconButton>
-                  <IconButton label="Voltear verticalmente" active={transform.flipY} disabled={saving || !work} onClick={() => patchTransform({ flipY: !transform.flipY })}><FlipHorizontal2 className="h-4 w-4" /></IconButton>
+              {work ? (
+                <div className="absolute bottom-4 right-4 flex items-center gap-0.5 rounded-xl bg-black/55 p-0.5 text-white backdrop-blur">
+                  <IconBtn label="Alejar vista" disabled={!display || view.s <= 1} onClick={() => zoomCenter(1 / 1.4)} className="text-white hover:bg-white/15 hover:text-white"><Minus className="h-4 w-4" /></IconBtn>
+                  <span className="w-11 text-center text-xs tabular-nums">{Math.round(view.s * 100)}%</span>
+                  <IconBtn label="Acercar vista" disabled={!display || view.s >= MAX_VIEW_ZOOM} onClick={() => zoomCenter(1.4)} className="text-white hover:bg-white/15 hover:text-white"><Plus className="h-4 w-4" /></IconBtn>
+                  <IconBtn label="Ajustar a la ventana" disabled={!display || view.s === 1} onClick={() => setView({ s: 1, x: 0, y: 0 })} className="text-white hover:bg-white/15 hover:text-white"><Maximize className="h-4 w-4" /></IconBtn>
                 </div>
-                <label className="block space-y-1">
-                  <span className="flex justify-between text-xs text-[hsl(var(--muted-foreground))]">Enderezar <span className="tabular-nums text-[hsl(var(--foreground))]">{transform.angle}°</span></span>
-                  <input type="range" min={-45} max={45} step={1} value={transform.angle} disabled={saving || !work} onChange={(e) => patchTransform({ angle: Number(e.target.value) })} className="h-2 w-full cursor-pointer accent-[hsl(var(--primary))]" />
-                </label>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
 
-            {tab === "adjust" ? (
-              <div className="space-y-3">
-                {SLIDERS.map(({ key, label, min, max }) => (
-                  <label key={key} className="block space-y-1">
-                    <span className="flex justify-between text-xs text-[hsl(var(--muted-foreground))]">{label} <span className="tabular-nums text-[hsl(var(--foreground))]">{adjust[key] - 100 > 0 ? "+" : ""}{adjust[key] - 100}</span></span>
-                    <input type="range" min={min} max={max} step={1} value={adjust[key]} disabled={saving || !work} onChange={(e) => setAdjust((a) => ({ ...a, [key]: Number(e.target.value) }))} className="h-2 w-full cursor-pointer accent-[hsl(var(--primary))]" />
-                  </label>
-                ))}
-              </div>
-            ) : null}
-
-            {tab === "annotate" ? (
-              <div className="space-y-3">
-                <div className="flex gap-1">
-                  {TOOLS.map(({ id, label, icon: Icon }) => (
-                    <IconButton key={id} label={label} active={tool === id} disabled={saving || !work} onClick={() => setTool(id)}><Icon className="h-4 w-4" /></IconButton>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Color">
-                  {ANNOTATION_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      role="radio"
-                      aria-checked={color === c}
-                      aria-label={`Color ${c}`}
-                      onClick={() => setColor(c)}
-                      className={`h-7 w-7 rounded-full border-2 transition-transform ${color === c ? "scale-110 border-[hsl(var(--primary))]" : "border-[hsl(var(--border))]"}`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-                <div className="flex gap-1.5" role="radiogroup" aria-label="Grosor">
-                  {STROKES.map((w) => (
-                    <Button key={w} type="button" size="sm" variant={stroke === w ? "default" : "outline"} onClick={() => setStroke(w)}>{w}px</Button>
-                  ))}
-                </div>
-                <div className="flex gap-1.5">
-                  <Button type="button" size="sm" variant="outline" disabled={annotations.length === 0} onClick={() => setAnnotations((l) => l.slice(0, -1))}>
-                    <Undo2 className="mr-1.5 h-3.5 w-3.5" />Deshacer
-                  </Button>
-                  <Button type="button" size="sm" variant="ghost" disabled={annotations.length === 0} onClick={() => setAnnotations([])}>Limpiar</Button>
-                </div>
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">Dibuja sobre la imagen. Al girar o enderezar se borran las anotaciones.</p>
-              </div>
-            ) : null}
-
-            <Button type="button" variant="ghost" size="sm" disabled={saving || !edited} onClick={resetAll}>
-              Restablecer todo
-            </Button>
+            {/* Contextual panel: under the stage on touch layouts, right column on desktop */}
+            <div role="tabpanel" className="order-2 max-h-[38dvh] shrink-0 space-y-5 overflow-y-auto overscroll-contain border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/40 p-4 lg:order-3 lg:max-h-none lg:w-80 lg:border-l lg:border-t-0">
+              {tab === "crop" ? <CropPanel ratioId={doc.ratioId} disabled={busy} onRatio={setRatio} /> : null}
+              {tab === "turn" ? <TurnPanel transform={doc.transform} disabled={busy} onPatch={(patch, merge) => patchGeometry(patch, merge)} /> : null}
+              {tab === "filters" ? (
+                <FiltersPanel
+                  thumb={thumb}
+                  filter={doc.filter}
+                  disabled={busy}
+                  onSelect={(id) => hist.update({ filter: { id, amount: 100 } })}
+                  onAmount={(amount) => hist.update({ filter: { ...doc.filter, amount } }, "filter-amount")}
+                />
+              ) : null}
+              {tab === "adjust" ? <AdjustPanel adjust={doc.adjust} disabled={busy} onChange={(adjust, merge) => hist.update({ adjust }, merge ?? null)} /> : null}
+              {tab === "annotate" ? (
+                <AnnotatePanel
+                  tool={tool}
+                  color={color}
+                  stroke={stroke}
+                  count={doc.annotations.length}
+                  disabled={busy}
+                  onTool={setTool}
+                  onColor={setColor}
+                  onStroke={setStroke}
+                  onUndo={() => hist.update((d) => ({ annotations: d.annotations.slice(0, -1) }))}
+                  onClear={() => hist.update({ annotations: [] })}
+                />
+              ) : null}
+              {tab === "layers" ? (
+                <LayersPanel
+                  layers={doc.layers}
+                  selectedId={selectedId}
+                  disabled={busy}
+                  onAdd={addLayers}
+                  onSelect={setSelectedId}
+                  onPatch={patchLayer}
+                  onDuplicate={duplicateLayer}
+                  onMove={moveLayerOrder}
+                  onDelete={deleteLayer}
+                />
+              ) : null}
+              {notice ? <p role="status" className="text-xs text-[hsl(var(--destructive))]">{notice}</p> : null}
+              <Button type="button" variant="ghost" disabled={busy || !edited} onClick={() => { hist.update(INITIAL_DOC); setSelectedId(null); }} className="h-11 w-full">
+                Restablecer todo
+              </Button>
+            </div>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange?.(false)}>
-            Cancelar
-          </Button>
-          {onReplace ? (
-            <Button type="button" variant="outline" disabled={saving || !work || !edited} onClick={() => setConfirmReplace(true)}>
-              Reemplazar original
-            </Button>
-          ) : null}
-          {onSave ? (
-            <Button type="button" disabled={saving || !work || !edited} onClick={() => handleSave(onSave)}>
-              {saving ? "Guardando..." : saveLabel}
-            </Button>
-          ) : null}
-        </DialogFooter>
-        <ConfirmDialog
-          open={confirmReplace}
-          onOpenChange={setConfirmReplace}
-          title="Reemplazar la imagen original"
-          icon={PencilRuler}
-          description="La imagen se sustituirá por la versión editada. La versión anterior se conserva en el historial del archivo."
-          tone="warning"
-          confirmLabel="Reemplazar"
-          loading={saving}
-          onConfirm={async () => {
-            await handleSave(onReplace);
-            setConfirmReplace(false);
-          }}
-        />
-      </DialogContent>
-    </Dialog>
+          <ConfirmDialog
+            open={confirmReplace}
+            onOpenChange={setConfirmReplace}
+            title="Reemplazar la imagen original"
+            icon={PencilRuler}
+            tone="warning"
+            description="La imagen se sustituirá por la versión editada. La versión anterior se conserva en el historial del archivo."
+            confirmLabel="Reemplazar"
+            loading={saving}
+            onConfirm={async () => {
+              await handleSave(onReplace);
+              setConfirmReplace(false);
+            }}
+          />
+          <ConfirmDialog
+            open={confirmDiscard}
+            onOpenChange={setConfirmDiscard}
+            title="Descartar los cambios"
+            icon={PencilRuler}
+            tone="warning"
+            description="Tienes cambios sin guardar. Si sales ahora se perderán."
+            confirmLabel="Descartar"
+            onConfirm={() => {
+              setConfirmDiscard(false);
+              onOpenChange?.(false);
+            }}
+          />
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

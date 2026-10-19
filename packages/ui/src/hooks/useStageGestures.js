@@ -7,12 +7,13 @@ import { useEffect, useRef } from "react";
 // they only need to bail out while `multiRef.current` is true (two or more
 // fingers down, until all are lifted).
 //
-//   onZoom(factor, clientX, clientY)  factor > 1 = zoom in
+//   onZoom(factor, clientX, clientY, source)  factor > 1 = zoom in; source "wheel" | "pinch"
 //   onPan(dxClient, dyClient)         two-pointer drag
-export function useStageGestures(el, { enabled = true, onZoom, onPan } = {}) {
+//   onRotate(deltaDegrees, cx, cy)    two-pointer twist (optional)
+export function useStageGestures(el, { enabled = true, onZoom, onPan, onRotate } = {}) {
   const multiRef = useRef(false);
   const handlers = useRef({});
-  handlers.current = { onZoom, onPan };
+  handlers.current = { onZoom, onPan, onRotate };
 
   useEffect(() => {
     if (!el || !enabled) return undefined;
@@ -21,7 +22,7 @@ export function useStageGestures(el, { enabled = true, onZoom, onPan } = {}) {
 
     const metrics = () => {
       const [a, b] = [...points.values()];
-      return { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+      return { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, ang: (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI };
     };
     const down = (e) => {
       points.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -35,8 +36,12 @@ export function useStageGestures(el, { enabled = true, onZoom, onPan } = {}) {
       points.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (points.size !== 2 || !last) return;
       const m = metrics();
-      if (last.d > 0 && m.d > 0) handlers.current.onZoom?.(m.d / last.d, m.cx, m.cy);
+      if (last.d > 0 && m.d > 0) handlers.current.onZoom?.(m.d / last.d, m.cx, m.cy, "pinch");
       handlers.current.onPan?.(m.cx - last.cx, m.cy - last.cy);
+      let turn = m.ang - last.ang;
+      if (turn > 180) turn -= 360;
+      if (turn < -180) turn += 360;
+      if (turn !== 0) handlers.current.onRotate?.(turn, m.cx, m.cy);
       last = m;
     };
     const up = (e) => {
@@ -48,7 +53,7 @@ export function useStageGestures(el, { enabled = true, onZoom, onPan } = {}) {
       e.preventDefault();
       const unit = e.deltaMode === 1 ? 16 : 1;
       const speed = e.ctrlKey ? 0.01 : 0.0015; // ctrl+wheel = trackpad pinch
-      handlers.current.onZoom?.(Math.exp(-e.deltaY * unit * speed), e.clientX, e.clientY);
+      handlers.current.onZoom?.(Math.exp(-e.deltaY * unit * speed), e.clientX, e.clientY, "wheel");
     };
 
     el.addEventListener("pointerdown", down, true);
