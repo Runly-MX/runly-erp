@@ -681,7 +681,7 @@ Visor a pantalla completa de imágenes, PDF, video, audio y otros archivos. Las 
 
 ### ImageEditorDialog
 
-Editor de imágenes a pantalla completa: recortar con proporciones, girar, voltear y enderezar, filtros, ajustes (brillo, contraste, saturación, calidez, viñeta y desenfoque), anotaciones (lápiz, flecha, recuadro y texto) e imágenes añadidas encima. Tiene deshacer y rehacer, comparación con el original (mantener pulsado el botón **Original** o la tecla `\`), y gestos de rueda, pellizco y giro con dos dedos. No cambia nada hasta que guardas.
+Editor de imágenes a pantalla completa: recortar con proporciones, girar, voltear y enderezar, filtros, ajustes (brillo, contraste, saturación, calidez, viñeta y desenfoque), dibujo con pinceles (lápiz, marcador y suave), líneas, flechas, recuadros, óvalos, texto con negrita y fondo, cuentagotas y selección para mover, recolorear o eliminar lo ya dibujado, retoque con pincel (desenfocar, pixelar, aclarar, oscurecer, saturar y desaturar) e imágenes añadidas encima. Tiene deshacer y rehacer, comparación con el original (mantener pulsado el botón **Original** o la tecla `\`), y gestos de rueda, pellizco y giro con dos dedos. No cambia nada hasta que guardas.
 
 | Prop | Tipo | Qué hace |
 |---|---|---|
@@ -692,7 +692,7 @@ Editor de imágenes a pantalla completa: recortar con proporciones, girar, volte
 | `onReplace` | `(file) => Promise` | Si lo pasas, aparece **Reemplazar original** con confirmación |
 | `saveLabel` | string | Texto del botón de copia (`Guardar copia`) |
 
-Si `onSave` o `onReplace` lanzan un error, el editor se queda abierto para reintentar. Girar, voltear o enderezar mueve las anotaciones y las imágenes añadidas junto con la foto y reinicia el recorte.
+Si `onSave` o `onReplace` lanzan un error, el editor se queda abierto para reintentar. Girar, voltear o enderezar mueve el dibujo, los retoques y las imágenes añadidas junto con la foto y reinicia el recorte.
 
 ### AvatarCropDialog
 

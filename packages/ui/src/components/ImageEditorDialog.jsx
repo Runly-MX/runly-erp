@@ -8,9 +8,10 @@ import { ImageAnnotationLayer } from "./ImageAnnotationLayer.jsx";
 import { ImageCropOverlay } from "./ImageCropOverlay.jsx";
 import { ImageLayerOverlay } from "./ImageLayerOverlay.jsx";
 import {
-  AdjustPanel, AnnotatePanel, CropPanel, EDITOR_TOOLS, FiltersPanel, LayersPanel, RATIOS, TurnPanel,
+  AdjustPanel, AnnotatePanel, CropPanel, EDITOR_TOOLS, FiltersPanel, LayersPanel, RATIOS, RetouchPanel, TurnPanel,
 } from "./ImageEditorPanels.jsx";
-import { ANNOTATION_COLORS, drawAnnotations } from "../lib/imageAnnotations.js";
+import { ANNOTATION_COLORS, drawAnnotations, newAnnotationId } from "../lib/imageAnnotations.js";
+import { applyFx, applyFxStroke, fxStrokeBounds } from "../lib/imageFx.js";
 import { fitRect } from "../lib/cropRect.js";
 import { NO_FILTER } from "../lib/imageFilters.js";
 import { NO_ADJUST, canvasToFile, cropRect, loadImageFromFile, loadImageFromUrl, makeThumbnail, renderTransformed, workSourceSize } from "../lib/imageEdit.js";
@@ -33,6 +34,17 @@ const INITIAL_DOC = Object.freeze({
   cropN: FULL_CROP,
 });
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
+// Keeps the same array while every retouch element is unchanged, so the photo
+// is not re-processed when only vector annotations change.
+function useStableList(list) {
+  const ref = useRef(list);
+  const same = ref.current.length === list.length && list.every((a, i) => a === ref.current[i]);
+  if (!same) ref.current = list;
+  return ref.current;
+}
+
+const toHex = (r, g, b) => `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 
 // Fraction-space crop rect of the largest `ratio` rect in a picture.
 function fitFraction(size, ratio) {
@@ -77,6 +89,12 @@ export function ImageEditorDialog({
   const [tool, setTool] = useState("pen");
   const [color, setColor] = useState(ANNOTATION_COLORS[0]);
   const [stroke, setStroke] = useState(4);
+  const [brush, setBrush] = useState("pen");
+  const [textOpts, setTextOpts] = useState({ bold: true, bg: false });
+  const [fxOpts, setFxOpts] = useState({ mode: "blur", size: 40, strength: 60 });
+  const [selectedAnnoId, setSelectedAnnoId] = useState(null);
+  const canvasNodeRef = useRef(null);
+  const liveRef = useRef({ stroke: null, raf: 0 });
   const [selectedId, setSelectedId] = useState(null);
   const [comparing, setComparing] = useState(false);
   const [view, setView] = useState({ s: 1, x: 0, y: 0 });
@@ -123,6 +141,9 @@ export function ImageEditorDialog({
     () => (source ? renderTransformed(source, { ...doc.transform, adjust: deferredAdjust, filter: deferredFilter }) : null),
     [source, doc.transform, deferredAdjust, deferredFilter],
   );
+  // The photo with its retouch strokes painted in (what the stage canvas shows).
+  const fxList = useStableList(doc.annotations.filter((a) => a.type === "fx"));
+  const preview = useMemo(() => (work ? applyFx(work, fxList) : null), [work, fxList]);
   const original = useMemo(() => (source ? renderTransformed(source) : null), [source]);
   const thumb = useMemo(() => (source ? makeThumbnail(source) : null), [source]);
 
@@ -151,13 +172,39 @@ export function ImageEditorDialog({
 
   const canvasRef = useCallback(
     (node) => {
-      if (!node || !work) return;
-      node.width = work.width;
-      node.height = work.height;
-      node.getContext("2d").drawImage(work, 0, 0);
+      canvasNodeRef.current = node;
+      if (!node || !preview) return;
+      node.width = preview.width;
+      node.height = preview.height;
+      node.getContext("2d").drawImage(preview, 0, 0);
     },
-    [work],
+    [preview],
   );
+
+  // Live preview of a retouch stroke being drawn: restore the photo under the
+  // stroke and repaint it with the stroke applied (at most once per frame).
+  function liveFx(stroke) {
+    const live = liveRef.current;
+    live.stroke = stroke;
+    if (live.raf) return;
+    live.raf = requestAnimationFrame(() => {
+      live.raf = 0;
+      const node = canvasNodeRef.current;
+      if (!node || !preview) return;
+      const ctx = node.getContext("2d");
+      const s = live.stroke;
+      if (!s) {
+        ctx.clearRect(0, 0, node.width, node.height);
+        ctx.drawImage(preview, 0, 0);
+        return;
+      }
+      const bb = fxStrokeBounds(s, node.width, node.height);
+      if (!bb) return;
+      ctx.clearRect(bb.x, bb.y, bb.w, bb.h);
+      ctx.drawImage(preview, bb.x, bb.y, bb.w, bb.h, bb.x, bb.y, bb.w, bb.h);
+      applyFxStroke(node, s);
+    });
+  }
   const originalRef = useCallback(
     (node) => {
       if (!node || !original) return;
@@ -207,6 +254,29 @@ export function ImageEditorDialog({
     const r = preset?.ratio === "original" ? work.width / work.height : preset?.ratio ?? null;
     hist.update({ ratioId: id, cropN: fitFraction({ w: work.width, h: work.height }, r) });
   };
+  const selectedAnno = doc.annotations.find((a) => a.id === selectedAnnoId) ?? null;
+  const vectorCount = doc.annotations.filter((a) => a.type !== "fx").length;
+  const fxCount = doc.annotations.length - vectorCount;
+  const patchAnno = (id, patch, mergeKey = null) =>
+    hist.update((d) => ({ annotations: d.annotations.map((a) => (a.id === id ? { ...a, ...patch } : a)) }), mergeKey);
+  const removeAnnotations = (keep) => hist.update((d) => ({ annotations: d.annotations.filter(keep) }));
+  const removeLast = (match) =>
+    hist.update((d) => {
+      const i = d.annotations.map(match).lastIndexOf(true);
+      return i < 0 ? {} : { annotations: d.annotations.filter((_, j) => j !== i) };
+    });
+  const pickColor = ([x, y]) => {
+    if (!preview) return;
+    const [r, g, b] = preview.getContext("2d", { willReadFrequently: true }).getImageData(clamp(Math.round(x), 0, preview.width - 1), clamp(Math.round(y), 0, preview.height - 1), 1, 1).data;
+    setColor(toHex(r, g, b));
+    setTool("pen");
+  };
+  // Panel values for the selected element are shown in screen px, like the sliders.
+  const widthUi = selectedAnno && display
+    ? selectedAnno.type === "text"
+      ? Math.round((selectedAnno.size * display.k - 12) / 2.5)
+      : Math.round((selectedAnno.width ?? stroke) * display.k)
+    : stroke;
   const patchLayer = (id, patch, mergeKey = null) =>
     hist.update((d) => ({ layers: d.layers.map((l) => (l.id === id ? { ...l, ...(typeof patch === "function" ? patch(l) : patch) } : l)) }), mergeKey);
 
@@ -302,7 +372,7 @@ export function ImageEditorDialog({
     },
   });
 
-  const canPanWithPointer = view.s > 1 && (tab !== "annotate" || tool === "pan");
+  const canPanWithPointer = view.s > 1 && (tab === "annotate" ? tool === "pan" : tab !== "retouch");
   function handlePanDown(event) {
     if (tab === "layers") setSelectedId(null);
     if (!canPanWithPointer || multiRef.current) return;
@@ -324,7 +394,7 @@ export function ImageEditorDialog({
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
   function handleDoubleClick(event) {
-    if (tab === "annotate" && tool !== "pan") return;
+    if ((tab === "annotate" && tool !== "pan") || tab === "retouch") return;
     if (view.s > 1) setView({ s: 1, x: 0, y: 0 });
     else zoomAt(2.5, event.clientX, event.clientY);
   }
@@ -348,6 +418,10 @@ export function ImageEditorDialog({
     } else if ((event.key === "Delete" || event.key === "Backspace") && selectedLayer && tab === "layers") {
       event.preventDefault();
       deleteLayer(selectedLayer.id);
+    } else if ((event.key === "Delete" || event.key === "Backspace") && selectedAnno && tab === "annotate") {
+      event.preventDefault();
+      removeAnnotations((a) => a.id !== selectedAnno.id);
+      setSelectedAnnoId(null);
     }
   }
   function handleKeyUp(event) {
@@ -360,7 +434,7 @@ export function ImageEditorDialog({
     flat.width = work.width;
     flat.height = work.height;
     const ctx = flat.getContext("2d");
-    ctx.drawImage(work, 0, 0);
+    ctx.drawImage(preview, 0, 0);
     drawLayers(ctx, doc.layers);
     drawAnnotations(ctx, doc.annotations);
     const c = doc.cropN;
@@ -516,13 +590,23 @@ export function ImageEditorDialog({
                         <ImageAnnotationLayer
                           size={{ w: picture.w, h: picture.h }}
                           annotations={doc.annotations}
-                          tool={tab === "annotate" && tool !== "pan" ? tool : null}
+                          tool={tab === "annotate" ? (tool === "pan" ? null : tool) : tab === "retouch" ? "fx" : null}
+                          brush={brush}
                           color={color}
                           width={stroke}
+                          text={textOpts}
+                          fx={fxOpts}
+                          selectedId={selectedAnnoId}
+                          showSelection={tab === "annotate"}
+                          unit={1 / scale}
                           viewScale={view.s}
                           multiRef={multiRef}
                           textPortal={contentEl}
+                          onSelect={setSelectedAnnoId}
                           onAdd={(a) => hist.update((d) => ({ annotations: [...d.annotations, a] }))}
+                          onChange={(id, next, merge) => hist.update((d) => ({ annotations: d.annotations.map((a) => (a.id === id ? next : a)) }), merge ?? null)}
+                          onLiveFx={liveFx}
+                          onPick={pickColor}
                         />
                       </div>
                     ) : null}
@@ -573,16 +657,61 @@ export function ImageEditorDialog({
               {tab === "annotate" ? (
                 <AnnotatePanel
                   tool={tool}
-                  color={color}
-                  stroke={stroke}
-                  count={doc.annotations.length}
+                  brush={selectedAnno?.type === "pen" ? selectedAnno.brush ?? "pen" : brush}
+                  color={selectedAnno && selectedAnno.type !== "fx" ? selectedAnno.color : color}
+                  width={widthUi}
+                  text={selectedAnno?.type === "text" ? { bold: Boolean(selectedAnno.bold), bg: Boolean(selectedAnno.bg) } : textOpts}
+                  selected={selectedAnno}
+                  count={vectorCount}
                   zoomed={view.s > 1}
                   disabled={busy}
-                  onTool={setTool}
-                  onColor={setColor}
-                  onStroke={setStroke}
-                  onUndo={() => hist.update((d) => ({ annotations: d.annotations.slice(0, -1) }))}
-                  onClear={() => hist.update({ annotations: [] })}
+                  onTool={(id) => {
+                    setTool(id);
+                    if (id !== "select") setSelectedAnnoId(null);
+                  }}
+                  onBrush={(id) => {
+                    setBrush(id);
+                    if (selectedAnno?.type === "pen") patchAnno(selectedAnno.id, { brush: id });
+                  }}
+                  onColor={(c) => {
+                    setColor(c);
+                    if (selectedAnno && selectedAnno.type !== "fx") patchAnno(selectedAnno.id, { color: c }, `color-${selectedAnno.id}`);
+                  }}
+                  onWidth={(v) => {
+                    if (selectedAnno && display) {
+                      if (selectedAnno.type === "text") patchAnno(selectedAnno.id, { size: (12 + v * 2.5) / display.k }, `size-${selectedAnno.id}`);
+                      else patchAnno(selectedAnno.id, { width: v / display.k }, `size-${selectedAnno.id}`);
+                    } else setStroke(v);
+                  }}
+                  onText={(patch) => {
+                    setTextOpts((o) => ({ ...o, ...patch }));
+                    if (selectedAnno?.type === "text") patchAnno(selectedAnno.id, patch);
+                  }}
+                  onDelete={() => {
+                    removeAnnotations((a) => a.id !== selectedAnno.id);
+                    setSelectedAnnoId(null);
+                  }}
+                  onDuplicate={() => {
+                    const copy = { ...selectedAnno, id: newAnnotationId() };
+                    const moved = copy.points ? { ...copy, points: copy.points.map(([x, y]) => [x + 30, y + 30]) } : copy.from ? { ...copy, from: [copy.from[0] + 30, copy.from[1] + 30], to: [copy.to[0] + 30, copy.to[1] + 30] } : { ...copy, x: copy.x + 30, y: copy.y + 30 };
+                    hist.update((d) => ({ annotations: [...d.annotations, moved] }));
+                    setSelectedAnnoId(moved.id);
+                  }}
+                  onUndo={() => removeLast((a) => a.type !== "fx")}
+                  onClear={() => {
+                    removeAnnotations((a) => a.type === "fx");
+                    setSelectedAnnoId(null);
+                  }}
+                />
+              ) : null}
+              {tab === "retouch" ? (
+                <RetouchPanel
+                  fx={fxOpts}
+                  count={fxCount}
+                  disabled={busy}
+                  onChange={(patch) => setFxOpts((o) => ({ ...o, ...patch }))}
+                  onUndo={() => removeLast((a) => a.type === "fx")}
+                  onClear={() => removeAnnotations((a) => a.type !== "fx")}
                 />
               ) : null}
               {tab === "layers" ? (

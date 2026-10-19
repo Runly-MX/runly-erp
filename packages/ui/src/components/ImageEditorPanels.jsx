@@ -1,11 +1,13 @@
 import { useRef } from "react";
 import {
-  ArrowUpRight, ChevronDown, ChevronUp, Copy, Crop, FlipHorizontal2, FlipVertical2, Hand, ImagePlus, PenLine,
-  RotateCcw, RotateCw, Rotate3d, SlidersHorizontal, Sparkles, Square, Trash2, Type, Undo2,
+  ArrowUpRight, Bold, ChevronDown, ChevronUp, Circle, Contrast, Copy, Crop, Droplets, FlipHorizontal2, FlipVertical2, Grid3x3, Hand,
+  Highlighter, ImagePlus, Minus, MousePointer2, Moon, Palette, PenLine, Pipette, RectangleHorizontal, RotateCcw, RotateCw,
+  Rotate3d, SlidersHorizontal, Sparkles, Sun, Trash2, Type, Undo2, Wand2,
 } from "lucide-react";
 import { Button } from "./Button.jsx";
 import { ImageFilterStrip } from "./ImageFilterStrip.jsx";
 import { ANNOTATION_COLORS } from "../lib/imageAnnotations.js";
+import { FX_MODES } from "../lib/imageFx.js";
 import { NO_ADJUST } from "../lib/imageEdit.js";
 
 export const EDITOR_TOOLS = [
@@ -13,7 +15,8 @@ export const EDITOR_TOOLS = [
   { id: "turn", label: "Girar", icon: Rotate3d },
   { id: "filters", label: "Filtros", icon: Sparkles },
   { id: "adjust", label: "Ajustes", icon: SlidersHorizontal },
-  { id: "annotate", label: "Anotar", icon: PenLine },
+  { id: "annotate", label: "Dibujo", icon: PenLine },
+  { id: "retouch", label: "Retoque", icon: Wand2 },
   { id: "layers", label: "Imagen", icon: ImagePlus },
 ];
 
@@ -28,13 +31,22 @@ export const RATIOS = [
 ];
 
 const TOOLS = [
+  { id: "select", label: "Seleccionar y mover", icon: MousePointer2 },
   { id: "pan", label: "Mover vista", icon: Hand },
-  { id: "pen", label: "Lápiz", icon: PenLine },
+  { id: "pen", label: "Pincel", icon: PenLine },
+  { id: "line", label: "Línea", icon: Minus },
   { id: "arrow", label: "Flecha", icon: ArrowUpRight },
-  { id: "rect", label: "Recuadro", icon: Square },
+  { id: "rect", label: "Recuadro", icon: RectangleHorizontal },
+  { id: "ellipse", label: "Óvalo", icon: Circle },
   { id: "text", label: "Texto", icon: Type },
+  { id: "dropper", label: "Cuentagotas", icon: Pipette },
 ];
-const STROKES = [2, 4, 6, 10];
+const BRUSH_TYPES = [
+  { id: "pen", label: "Lápiz", icon: PenLine },
+  { id: "marker", label: "Marcador", icon: Highlighter },
+  { id: "soft", label: "Suave", icon: Droplets },
+];
+const FX_ICONS = { blur: Droplets, pixelate: Grid3x3, lighten: Sun, darken: Moon, saturate: Palette, desaturate: Contrast };
 const ADJUSTS = [
   { key: "brightness", label: "Brillo", min: 40, max: 160, zero: 100 },
   { key: "contrast", label: "Contraste", min: 40, max: 160, zero: 100 },
@@ -142,7 +154,15 @@ export function AdjustPanel({ adjust, disabled, onChange }) {
   );
 }
 
-export function AnnotatePanel({ tool, color, stroke, count, zoomed = false, disabled, onTool, onColor, onStroke, onUndo, onClear }) {
+// `selected` is the element being edited (select tool); its colour, width and
+// text options show here and the controls change it instead of the defaults.
+export function AnnotatePanel({
+  tool, brush, color, width, text, selected, count, zoomed = false, disabled,
+  onTool, onBrush, onColor, onWidth, onText, onDelete, onDuplicate, onUndo, onClear,
+}) {
+  const isFx = selected?.type === "fx";
+  const textActive = tool === "text" || selected?.type === "text";
+  const brushActive = tool === "pen" || selected?.type === "pen";
   return (
     <>
       <Section title="Herramienta">
@@ -157,32 +177,63 @@ export function AnnotatePanel({ tool, color, stroke, count, zoomed = false, disa
           {zoomed ? "Arrastra la imagen para moverte por ella." : "Acerca la imagen con la rueda, el pellizco o los botones +/− y luego arrástrala para moverte. Sirve para dibujar con precisión."}
         </p>
       ) : null}
+      {tool === "select" && !selected ? (
+        <p role="status" className="rounded-lg bg-[hsl(var(--muted))] p-3 text-xs text-[hsl(var(--muted-foreground))]">Toca un trazo, forma o texto para seleccionarlo. Arrástralo para moverlo; toca dos veces un texto para editarlo.</p>
+      ) : null}
+      {tool === "dropper" ? (
+        <p role="status" className="rounded-lg bg-[hsl(var(--muted))] p-3 text-xs text-[hsl(var(--muted-foreground))]">Toca la imagen para tomar ese color.</p>
+      ) : null}
+      {brushActive ? (
+        <Section title="Tipo de pincel">
+          <div className="flex gap-2" role="radiogroup" aria-label="Tipo de pincel">
+            {BRUSH_TYPES.map(({ id, label, icon: Icon }) => (
+              <Button key={id} type="button" role="radio" aria-checked={brush === id} variant={brush === id ? "default" : "outline"} disabled={disabled} onClick={() => onBrush(id)} className="h-11 flex-1">
+                <Icon className="mr-1.5 h-4 w-4" />{label}
+              </Button>
+            ))}
+          </div>
+        </Section>
+      ) : null}
+      {isFx ? null : (
       <Section title="Color">
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Color">
+        <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Color">
           {ANNOTATION_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              role="radio"
-              aria-checked={color === c}
-              aria-label={`Color ${c}`}
-              onClick={() => onColor(c)}
-              className="flex h-11 w-11 items-center justify-center rounded-full"
-            >
-              <span className={`h-8 w-8 rounded-full border-2 transition-transform ${color === c ? "scale-110 border-[hsl(var(--primary))]" : "border-[hsl(var(--border))]"}`} style={{ backgroundColor: c }} />
+            <button key={c} type="button" role="radio" aria-checked={color.toLowerCase() === c} aria-label={`Color ${c}`} onClick={() => onColor(c)} className="flex h-11 w-11 items-center justify-center rounded-full">
+              <span className={`h-8 w-8 rounded-full border-2 transition-transform ${color.toLowerCase() === c ? "scale-110 border-[hsl(var(--primary))]" : "border-[hsl(var(--border))]"}`} style={{ backgroundColor: c }} />
             </button>
           ))}
+          <button type="button" aria-label="Color personalizado" className="relative flex h-11 w-11 items-center justify-center rounded-full">
+            <span className="h-8 w-8 rounded-full border-2 border-dashed border-[hsl(var(--border))] [background:conic-gradient(red,yellow,lime,aqua,blue,magenta,red)]" />
+            <input type="color" value={color} aria-label="Elegir color" onChange={(e) => onColor(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+          </button>
         </div>
       </Section>
-      <Section title="Grosor">
-        <div className="flex gap-2" role="radiogroup" aria-label="Grosor">
-          {STROKES.map((w) => (
-            <Button key={w} type="button" variant={stroke === w ? "default" : "outline"} onClick={() => onStroke(w)} className="h-11 min-w-14">
-              {w}px
+      )}
+      {isFx ? (
+        <p role="status" className="rounded-lg bg-[hsl(var(--muted))] p-3 text-xs text-[hsl(var(--muted-foreground))]">Retoque seleccionado: puedes moverlo, duplicarlo o eliminarlo.</p>
+      ) : (
+        <SliderRow label={textActive ? "Tamaño del texto" : "Grosor"} value={width} min={1} max={textActive ? 40 : 30} zero={4} format={(v) => `${v}px`} disabled={disabled} onChange={onWidth} />
+      )}
+      {textActive ? (
+        <Section title="Texto">
+          <div className="flex gap-2">
+            <Button type="button" variant={text.bold ? "default" : "outline"} aria-pressed={text.bold} disabled={disabled} onClick={() => onText({ bold: !text.bold })} className="h-11">
+              <Bold className="mr-1.5 h-4 w-4" />Negrita
             </Button>
-          ))}
-        </div>
-      </Section>
+            <Button type="button" variant={text.bg ? "default" : "outline"} aria-pressed={text.bg} disabled={disabled} onClick={() => onText({ bg: !text.bg })} className="h-11">
+              Fondo
+            </Button>
+          </div>
+        </Section>
+      ) : null}
+      {selected ? (
+        <Section title="Elemento seleccionado">
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" disabled={disabled} onClick={onDuplicate} className="h-11"><Copy className="mr-1.5 h-4 w-4" />Duplicar</Button>
+            <Button type="button" variant="outline" disabled={disabled} onClick={onDelete} className="h-11 text-[hsl(var(--destructive))]"><Trash2 className="mr-1.5 h-4 w-4" />Eliminar</Button>
+          </div>
+        </Section>
+      ) : null}
       <div className="flex gap-2">
         <Button type="button" variant="outline" disabled={count === 0} onClick={onUndo} className="h-11">
           <Undo2 className="mr-1.5 h-4 w-4" />Quitar última
@@ -190,6 +241,32 @@ export function AnnotatePanel({ tool, color, stroke, count, zoomed = false, disa
         <Button type="button" variant="ghost" disabled={count === 0} onClick={onClear} className="h-11">
           Limpiar
         </Button>
+      </div>
+    </>
+  );
+}
+
+export function RetouchPanel({ fx, count, disabled, onChange, onUndo, onClear }) {
+  return (
+    <>
+      <Section title="Retoque con pincel">
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Efecto">
+          {FX_MODES.map(({ id, label }) => {
+            const Icon = FX_ICONS[id];
+            return (
+              <Button key={id} type="button" role="radio" aria-checked={fx.mode === id} variant={fx.mode === id ? "default" : "outline"} disabled={disabled} onClick={() => onChange({ mode: id })} className="h-12 justify-start">
+                <Icon className="mr-2 h-4 w-4" />{label}
+              </Button>
+            );
+          })}
+        </div>
+      </Section>
+      <SliderRow label="Tamaño del pincel" value={fx.size} min={8} max={160} zero={40} format={(v) => `${v}px`} disabled={disabled} onChange={(size) => onChange({ size })} />
+      <SliderRow label="Intensidad" value={fx.strength} min={5} max={100} zero={60} format={(v) => `${v}%`} disabled={disabled} onChange={(strength) => onChange({ strength })} />
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">Pinta sobre la imagen. Pixelar y desenfocar sirven para tapar caras, placas o datos. Cada pasada se puede deshacer.</p>
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" disabled={count === 0} onClick={onUndo} className="h-11"><Undo2 className="mr-1.5 h-4 w-4" />Quitar último</Button>
+        <Button type="button" variant="ghost" disabled={count === 0} onClick={onClear} className="h-11">Limpiar retoques</Button>
       </div>
     </>
   );

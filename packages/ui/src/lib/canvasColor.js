@@ -107,7 +107,7 @@ export function applyOps(data, ops) {
 
 // Soft blur by shrinking and enlarging (smoothing both ways); `radius` is in
 // canvas pixels, like the CSS blur() radius.
-function softBlur(canvas, radius) {
+export function softBlur(canvas, radius) {
   const factor = 1 / (1 + radius * 0.9);
   const small = document.createElement("canvas");
   small.width = Math.max(1, Math.round(canvas.width * factor));

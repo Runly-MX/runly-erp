@@ -49,12 +49,20 @@ export function remapPoint(p, from, to, src) {
 
 export function remapAnnotation(a, from, to, src) {
   const point = (p) => remapPoint(p, from, to, src);
-  if (a.type === "pen") return { ...a, points: a.points.map(point) };
-  if (a.type === "arrow") return { ...a, from: point(a.from), to: point(a.to) };
+  if (a.type === "pen" || a.type === "fx") return { ...a, points: a.points.map(point) };
+  if (a.type === "arrow" || a.type === "line") return { ...a, from: point(a.from), to: point(a.to) };
+  // A turned rectangle or ellipse is no longer axis-aligned: keep it as a closed outline.
   if (a.type === "rect") {
-    // A turned rectangle is no longer axis-aligned: keep it as a closed outline.
     const corners = [[a.x, a.y], [a.x + a.w, a.y], [a.x + a.w, a.y + a.h], [a.x, a.y + a.h], [a.x, a.y]].map(point);
-    return { type: "pen", color: a.color, width: a.width, points: corners };
+    return { id: a.id, type: "pen", brush: "pen", color: a.color, width: a.width, points: corners };
+  }
+  if (a.type === "ellipse") {
+    const steps = 48;
+    const points = Array.from({ length: steps + 1 }, (_, i) => {
+      const t = (i / steps) * Math.PI * 2;
+      return point([a.x + a.w / 2 + (a.w / 2) * Math.cos(t), a.y + a.h / 2 + (a.h / 2) * Math.sin(t)]);
+    });
+    return { id: a.id, type: "pen", brush: "pen", color: a.color, width: a.width, points };
   }
   if (a.type === "text") {
     // The text stays upright; its anchor follows the picture (the text box's center).
