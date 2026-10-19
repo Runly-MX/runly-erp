@@ -71,6 +71,10 @@ export function renderRunlyEmailLayout({ kicker, heading, bodyHtml = "", cta = n
   const runlyLogoUrl = "cid:runly-email-logo@runly.mx";
   const logoUrl = brand?.logoUrl || runlyLogoUrl;
   const logoAlt = brand?.logoUrl ? (brand?.name ?? "Empresa") : "Runly ERP";
+  // Outlook desktop (Word engine) and clients that strip <style>/inline CSS
+  // ignore the CSS height and render the image at its intrinsic size, so the
+  // size must also be set as HTML attributes. The Runly asset is 340x136 (2x).
+  const logoSizeAttrs = brand?.logoUrl ? `height="34"` : `width="85" height="34"`;
   const accentColor = safeHexColor(brand?.primaryColor, CTA_COLOR);
   const foot = footnote ?? "Este correo fue generado automaticamente por Runly ERP.";
   const runlyCreditHtml = `<a href="${RUNLY_SITE_URL}" style="color:${accentColor};font-weight:600;text-decoration:none">Runly ERP</a>`;
@@ -80,7 +84,7 @@ export function renderRunlyEmailLayout({ kicker, heading, bodyHtml = "", cta = n
   <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;margin:0 auto;background:#ffffff;border:1px solid #e4e7ec;border-radius:14px;overflow:hidden">
     <tr>
       <td style="padding:20px 24px;border-bottom:1px solid #fde4d7;background:#fbfbfc">
-        ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(logoAlt)}" style="height:34px;max-width:220px;object-fit:contain;object-position:left center;display:block;margin-bottom:12px" />` : ""}
+        ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(logoAlt)}" ${logoSizeAttrs} style="height:34px;max-width:220px;object-fit:contain;object-position:left center;display:block;margin-bottom:12px;border:0" />` : ""}
         ${kicker ? `<div style="font-size:12px;color:#6b7280;letter-spacing:.06em;text-transform:uppercase">${escapeHtml(kicker)}</div>` : ""}
         <h1 style="margin:6px 0 0 0;font-size:24px;line-height:1.25;color:#0c172d">${escapeHtml(heading)}</h1>
       </td>

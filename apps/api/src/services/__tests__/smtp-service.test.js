@@ -149,7 +149,7 @@ describe("SMTP inline Runly assets", () => {
       assert.equal(message.attachments.length, 1);
       assert.equal(message.attachments[0].cid, "runly-email-logo@runly.mx");
       assert.equal(message.attachments[0].contentDisposition, "inline");
-      assert.match(message.attachments[0].path, /runly-logo-horizontal-light\.png$/);
+      assert.match(message.attachments[0].path, /runly-logo-email\.png$/);
     });
   }
 });

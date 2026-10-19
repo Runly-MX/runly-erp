@@ -6,7 +6,7 @@ const ALGORITHM = 'aes-256-gcm'
 const SALT = 'atlas-smtp-v1'
 const RUNLY_LOGO_CID = 'runly-email-logo@runly.mx'
 const RUNLY_LOGO_PATH = fileURLToPath(
-  new URL('../../../desktop/public/runly/runly-logo-horizontal-light.png', import.meta.url),
+  new URL('../../../desktop/public/runly/runly-logo-email.png', import.meta.url),
 )
 
 function withRunlyInlineAssets(html, attachments = []) {

@@ -9,7 +9,7 @@ import { createSmtpService } from '../smtp-service.js'
 import { buildCompanyDeletionEmail } from '../email-templates.js'
 
 const root = fileURLToPath(new URL('../../../../../', import.meta.url))
-const logo = 'apps/desktop/public/runly/runly-logo-horizontal-light.png'
+const logo = 'apps/desktop/public/runly/runly-logo-email.png'
 
 for (const image of ['api', 'worker']) {
   test(`${image} image packages the inline logo and renders deletion mail without SMTP`, async t => {
