@@ -551,6 +551,7 @@ export default function CompanyBranding() {
           {/* Logo full-screen viewer */}
           {(currentLogoUrl || logoPreviewUrl) && (
             <AdvancedFileViewer
+              imageEditing={false}
               open={viewerOpen}
               onOpenChange={setViewerOpen}
               files={[

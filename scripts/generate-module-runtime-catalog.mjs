@@ -69,7 +69,7 @@ const USAGE = `## Componentes de @runly/ui por uso
 | Formularios | \`TextField\`, \`TextareaField\`, \`NumberField\`, \`CurrencyField\`, \`SelectField\`, \`ComboboxField\`, \`CreatableComboboxField\`, \`TagsComboboxField\`, \`CheckboxField\`, \`SwitchField\`, \`DatePickerField\`, \`SwatchField\`, \`IconPickerField\`, \`MarkdownField\`, \`SegmentedControl\` |
 | Tablas y listas | \`DataTable\`, \`RunlyTable\`, \`SearchInput\`, \`FilterBar\`, \`FilterToolbar\`, \`ToggleFilter\`, \`DateRangeFilter\`, \`SortableList\` |
 | Ventanas y menús | \`Dialog\`, \`Sheet\`, \`ConfirmDialog\`, \`DropdownMenu\`, \`ActionMenu\`, \`Popover\`, \`Tooltip\` |
-| Archivos y cámara | \`FileUploader\`, \`FileAssetField\`, \`AttachmentsPanel\`, \`ImageViewer\`, \`CameraCaptureDialog\` |
+| Archivos y cámara | \`FileUploader\`, \`FileAssetField\`, \`AttachmentsPanel\`, \`ImageViewer\`, \`AdvancedFileViewer\`, \`ImageEditorDialog\`, \`AvatarCropDialog\`, \`CameraCaptureDialog\` |
 | Utilidades | \`Button\`, \`CopyableValue\`, \`MarkdownViewer\`, \`buildApiHeaders\`, \`cn\`, \`useIsMobile\` |
 
 \`window.confirm\`, \`window.alert\` y \`window.prompt\` están prohibidos: usa \`ConfirmDialog\` o \`Dialog\`.

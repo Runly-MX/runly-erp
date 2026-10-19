@@ -113,7 +113,7 @@ export function TurnPanel({ transform, disabled, onPatch }) {
       </Section>
       <Section title="Enderezar">
         <SliderRow label="Ángulo" value={transform.angle} min={-45} max={45} zero={0} format={(v) => `${v}°`} disabled={disabled} onChange={(v) => onPatch({ angle: v }, "angle")} />
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">También puedes girar con dos dedos sobre la imagen. Al cambiar la geometría se quitan anotaciones e imágenes añadidas; puedes deshacerlo.</p>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">También puedes girar con dos dedos sobre la imagen. Las anotaciones y las imágenes añadidas giran con la foto; el recorte se reinicia.</p>
       </Section>
     </>
   );

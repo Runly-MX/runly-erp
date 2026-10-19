@@ -13,7 +13,8 @@ import {
 import { ANNOTATION_COLORS, drawAnnotations } from "../lib/imageAnnotations.js";
 import { fitRect } from "../lib/cropRect.js";
 import { NO_FILTER } from "../lib/imageFilters.js";
-import { NO_ADJUST, canvasToFile, cropRect, loadImageFromFile, loadImageFromUrl, makeThumbnail, renderTransformed } from "../lib/imageEdit.js";
+import { NO_ADJUST, canvasToFile, cropRect, loadImageFromFile, loadImageFromUrl, makeThumbnail, renderTransformed, workSourceSize } from "../lib/imageEdit.js";
+import { remapAnnotation, remapLayer } from "../lib/imageGeometry.js";
 import { drawLayers, newLayer, scaleLayer } from "../lib/imageLayers.js";
 import { useImageEditorHistory } from "../hooks/useImageEditorHistory.js";
 import { useStageGestures } from "../hooks/useStageGestures.js";
@@ -183,13 +184,23 @@ export function ImageEditorDialog({
     !isFullCrop;
 
   // ---- document edits -------------------------------------------------
-  // A rotation / flip / straighten changes the picture's coordinate space, so
-  // it restarts crop, annotations and added images (undo brings them back).
-  const patchGeometry = (patch, mergeKey = null) =>
-    hist.update(
-      (d) => ({ transform: { ...d.transform, ...patch }, annotations: [], layers: [], cropN: FULL_CROP, ratioId: "free" }),
-      mergeKey,
-    );
+  // A rotation / flip / straighten changes the picture's coordinate space:
+  // annotations and added images are carried along with the picture, while the
+  // crop restarts (its proportions no longer fit).
+  const applyTransform = (d, next) => {
+    const src = workSourceSize(source);
+    return {
+      transform: next,
+      annotations: d.annotations.map((a) => remapAnnotation(a, d.transform, next, src)),
+      layers: d.layers.map((l) => remapLayer(l, d.transform, next, src)),
+      cropN: FULL_CROP,
+      ratioId: "free",
+    };
+  };
+  const patchGeometry = (patch, mergeKey = null) => {
+    if (!source) return;
+    hist.update((d) => applyTransform(d, { ...d.transform, ...patch }), mergeKey);
+  };
   const setRatio = (id) => {
     if (!work) return;
     const preset = RATIOS.find((r) => r.id === id);
@@ -285,7 +296,7 @@ export function ImageEditorDialog({
           let turns = d.transform.quarterTurns;
           if (angle > 45) { angle -= 90; turns += 1; }
           if (angle < -45) { angle += 90; turns -= 1; }
-          return { transform: { ...d.transform, angle, quarterTurns: turns }, annotations: [], layers: [], cropN: FULL_CROP, ratioId: "free" };
+          return applyTransform(d, { ...d.transform, angle, quarterTurns: turns });
         }, "angle");
       }
     },

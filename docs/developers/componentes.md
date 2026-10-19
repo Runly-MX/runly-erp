@@ -667,6 +667,45 @@ Panel de adjuntos de un registro, conectado a los archivos del módulo.
 | `config` | objeto | Configuración del campo de archivos de la entidad |
 | `context` | `detail` · `form` | Dónde se muestra |
 
+### AdvancedFileViewer
+
+Visor a pantalla completa de imágenes, PDF, video, audio y otros archivos. Las imágenes de archivos de Runly (los que subes con `FileUploader`, `FileAssetField` o `AttachmentsPanel`) muestran un botón **Editar** que abre el editor de imágenes; quien edita elige entre **Guardar copia** y **Reemplazar original**, y el servidor decide con los permisos de tu módulo quién puede hacerlo.
+
+| Prop | Tipo | Qué hace |
+|---|---|---|
+| `open` / `onOpenChange` | boolean · función | Abre y cierra el visor |
+| `files` | arreglo | Archivos con `id`, `originalName`, `mimeType` y `sizeBytes` |
+| `activeIndex` / `onIndexChange` | número · función | Archivo actual |
+| `onResolveSignedUrl` | `(file) => Promise<string>` | Devuelve la URL para ver el archivo |
+| `imageEditing` | boolean | `false` oculta el botón Editar (úsalo en evidencias o archivos que no deben alterarse) |
+
+### ImageEditorDialog
+
+Editor de imágenes a pantalla completa: recortar con proporciones, girar, voltear y enderezar, filtros, ajustes (brillo, contraste, saturación, calidez, viñeta y desenfoque), anotaciones (lápiz, flecha, recuadro y texto) e imágenes añadidas encima. Tiene deshacer y rehacer, comparación con el original (mantener pulsado el botón **Original** o la tecla `\`), y gestos de rueda, pellizco y giro con dos dedos. No cambia nada hasta que guardas.
+
+| Prop | Tipo | Qué hace |
+|---|---|---|
+| `open` / `onOpenChange` | boolean · función | Abre y cierra el editor |
+| `src` | string | URL de la imagen (debe poder leerse desde el navegador, como las URL firmadas) |
+| `fileName` / `mimeType` | string | Nombre y tipo de la imagen original |
+| `onSave` | `(file) => Promise` | Recibe la imagen editada como copia |
+| `onReplace` | `(file) => Promise` | Si lo pasas, aparece **Reemplazar original** con confirmación |
+| `saveLabel` | string | Texto del botón de copia (`Guardar copia`) |
+
+Si `onSave` o `onReplace` lanzan un error, el editor se queda abierto para reintentar. Girar, voltear o enderezar mueve las anotaciones y las imágenes añadidas junto con la foto y reinicia el recorte.
+
+### AvatarCropDialog
+
+Encuadre de una foto de perfil: muestra la imagen completa y un círculo que se mueve y cambia de tamaño (arrastre, rueda, pellizco o flechas del teclado), con girar, voltear y enderezar. Devuelve un archivo cuadrado.
+
+| Prop | Tipo | Qué hace |
+|---|---|---|
+| `open` / `onOpenChange` | boolean · función | Abre y cierra |
+| `file` | `File` | Imagen a encuadrar |
+| `onConfirm` | `(file) => Promise` | Recibe la foto ya recortada |
+| `outputSize` | número | Lado en píxeles (1024) |
+| `busy` | boolean | Deshabilita mientras se sube |
+
 ## Iconos
 
 ### IconGlyph

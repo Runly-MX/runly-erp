@@ -42,6 +42,9 @@ export function useLmsFileViewer() {
     onOpenInOffice: officeEnabled ? (file) => openInOffice(file.officeFileId) : null,
     canOpenInOffice: (file) => officeEnabled && Boolean(file?.officeFileId),
     zIndex: 10000,
+    // Student submissions are evidence, and certificate/template files are
+    // generated assets: never offer the image editor here.
+    imageEditing: false,
   }), [state, resolve, officeEnabled, openInOffice])
 
   return { open, props, officeEnabled, openInOffice }

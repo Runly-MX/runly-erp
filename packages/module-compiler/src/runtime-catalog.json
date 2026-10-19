@@ -32,7 +32,7 @@
     },
     {
       "name": "@tanstack/react-query",
-      "version": "5.104.1",
+      "version": "5.104.2",
       "category": "shared",
       "imports": "useQuery, useMutation, useQueryClient"
     },
@@ -56,7 +56,7 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.51.0",
+      "version": "1.56.0",
       "category": "shared",
       "imports": "Iconos por uso en docs/iconos.md: Plus, Pencil, Trash2, Search, Calendar ..."
     },

@@ -60,6 +60,12 @@ export function cropRect(source, { x, y, w, h }) {
 // when `angle` is not a multiple of 90) and is capped to MAX_WORK_SIDE.
 // `adjust` ({ brightness, contrast, saturation }, 100 = unchanged) is baked in
 // through ctx.filter (Chromium/WebView2, Firefox, Safari 18+).
+// Size of the picture at work scale (natural size capped like the work canvas).
+export function workSourceSize(img) {
+  const k = Math.min(1, MAX_WORK_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+  return { w: img.naturalWidth * k, h: img.naturalHeight * k };
+}
+
 export function renderTransformed(img, { quarterTurns = 0, angle = 0, flipX = false, flipY = false, adjust = null, filter = null } = {}) {
   const scale = Math.min(1, MAX_WORK_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
   const w = img.naturalWidth * scale;
