@@ -105,6 +105,26 @@ export function applyOps(data, ops) {
   }
 }
 
+// Lays a preset's colour cast over the canvas with its blend mode, keeping the
+// transparency of the picture (straightened corners stay transparent).
+export function applyTint(canvas, tint) {
+  if (!tint || tint.alpha <= 0) return;
+  const ctx = canvas.getContext("2d");
+  const copy = document.createElement("canvas");
+  copy.width = canvas.width;
+  copy.height = canvas.height;
+  copy.getContext("2d").drawImage(canvas, 0, 0);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.filter = "none";
+  ctx.globalCompositeOperation = tint.mode;
+  ctx.fillStyle = `rgba(${tint.rgb},${tint.alpha})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.drawImage(copy, 0, 0);
+  ctx.restore();
+}
+
 // Soft blur by shrinking and enlarging (smoothing both ways); `radius` is in
 // canvas pixels, like the CSS blur() radius.
 export function softBlur(canvas, radius) {

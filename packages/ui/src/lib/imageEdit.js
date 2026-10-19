@@ -1,8 +1,8 @@
 // Canvas helpers shared by image tools (avatar framing today; a future image
 // editor for the file viewer / files module). Pure functions, no React.
 
-import { applyColorFallback, supportsCanvasFilter } from "./canvasColor.js";
-import { presetFilter } from "./imageFilters.js";
+import { applyColorFallback, applyTint, supportsCanvasFilter } from "./canvasColor.js";
+import { presetFilter, presetTint } from "./imageFilters.js";
 
 const MAX_WORK_SIDE = 1800;
 
@@ -89,6 +89,7 @@ export function renderTransformed(img, { quarterTurns = 0, angle = 0, flipX = fa
   ctx.rotate(rad);
   ctx.drawImage(img, -w / 2, -h / 2, w, h);
   if (!native) applyColorFallback(canvas, filter, adjust);
+  applyTint(canvas, presetTint(filter));
   applyOverlays(ctx, canvas, adjust);
   return canvas;
 }

@@ -324,13 +324,24 @@ export function ImageEditorDialog({
   };
 
   // ---- view zoom / pan / gestures --------------------------------------
+  // The viewport is the whole stage area and the picture sits centered in it, so
+  // a zoomed picture can use all the room of the editor instead of being clipped
+  // to its own box. Smaller-than-viewport pictures stay centered.
   const clampView = useCallback(
     (v) => {
       const s = clamp(v.s, 1, MAX_VIEW_ZOOM);
       if (!display) return { s, x: 0, y: 0 };
-      return { s, x: clamp(v.x, display.w - display.w * s, 0), y: clamp(v.y, display.h - display.h * s, 0) };
+      const fit = (pos, size, offset, room) => {
+        const scaled = size * s;
+        return scaled <= room ? (room - scaled) / 2 - s * offset : clamp(pos, room - scaled - s * offset, -s * offset);
+      };
+      return {
+        s,
+        x: fit(v.x, display.w, (areaSize.w - display.w) / 2, areaSize.w),
+        y: fit(v.y, display.h, (areaSize.h - display.h) / 2, areaSize.h),
+      };
     },
-    [display],
+    [display, areaSize],
   );
   function zoomAt(factor, cx, cy) {
     if (!clipEl) return;
@@ -565,14 +576,15 @@ export function ImageEditorDialog({
                 <div
                   ref={setClipEl}
                   className={`relative select-none overflow-hidden ${canPanWithPointer ? "cursor-grab active:cursor-grabbing" : ""}`}
-                  style={display ? { width: display.w, height: display.h, touchAction: "none" } : undefined}
+                  style={display ? { width: areaSize.w, height: areaSize.h, touchAction: "none" } : undefined}
                   onPointerDown={handlePanDown}
                   onPointerMove={handlePanMove}
                   onPointerUp={handlePanUp}
                   onPointerCancel={handlePanUp}
                   onDoubleClick={handleDoubleClick}
                 >
-                  <div className="absolute inset-0" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`, transformOrigin: "0 0" }}>
+                  <div className="absolute left-0 top-0" style={{ width: areaSize.w, height: areaSize.h, transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`, transformOrigin: "0 0" }}>
+                    <div className="absolute" style={display ? { left: (areaSize.w - display.w) / 2, top: (areaSize.h - display.h) / 2, width: display.w, height: display.h } : undefined}>
                     <canvas ref={canvasRef} aria-label="Imagen en edición" className="absolute inset-0 h-full w-full" />
                     {display ? (
                       <div ref={pictureRef} className="absolute left-0 top-0" style={{ width: picture.w, height: picture.h, transform: `scale(${display.k})`, transformOrigin: "0 0" }}>
@@ -624,6 +636,7 @@ export function ImageEditorDialog({
                     {cropPx && tab !== "crop" && !isFullCrop ? (
                       <div className="pointer-events-none absolute border border-white/70" style={{ left: cropPx.x, top: cropPx.y, width: cropPx.w, height: cropPx.h, boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)" }} />
                     ) : null}
+                    </div>
                   </div>
                   {comparing && original ? (
                     <div className="absolute inset-0 bg-[hsl(var(--background))]">
