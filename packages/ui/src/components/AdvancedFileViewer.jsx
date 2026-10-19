@@ -83,8 +83,12 @@ export function AdvancedFileViewer({
   // (e.g. as a copy) and should throw to keep the editor open on failure.
   onSaveEditedImage = null,
   editedImageSaveLabel = "Guardar copia",
+  // Optional, same signature: adds "Reemplazar original" to the editor. After it
+  // succeeds the viewer re-resolves the file's URL so the new content shows.
+  onReplaceEditedImage = null,
 }) {
   const [editorOpen, setEditorOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [signedUrl, setSignedUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filmstripOpen, setFilmstripOpen] = useState(true);
@@ -161,7 +165,7 @@ export function AdvancedFileViewer({
     return () => {
       active = false;
     };
-  }, [open, file?.id, onResolveSignedUrl, cachedActiveUrl]);
+  }, [open, file?.id, onResolveSignedUrl, cachedActiveUrl, reloadKey]);
 
   useEffect(() => {
     if (!open || !filmstripOpen || !onResolveSignedUrl || !multi) return;
@@ -583,6 +587,20 @@ export function AdvancedFileViewer({
                   // The host reports the failure; keep the editor open for a retry.
                 }
               }}
+              onReplace={
+                onReplaceEditedImage
+                  ? async (edited) => {
+                      try {
+                        await onReplaceEditedImage(edited, file);
+                        setMediaThumbUrls({});
+                        setReloadKey((k) => k + 1);
+                        setEditorOpen(false);
+                      } catch {
+                        // The host reports the failure; keep the editor open for a retry.
+                      }
+                    }
+                  : null
+              }
             />
           )}
           <ViewerActionsSheet

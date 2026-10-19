@@ -121,6 +121,23 @@ export function createFilesWorkspaceRouter({
       }),
     ),
   );
+  app.post(
+    "/files/:id/replace-image",
+    ...auth,
+    requirePermission("files.assets.update"),
+    protect(async (c) => {
+      const body = await c.req.parseBody();
+      if (!(body.file instanceof File)) return c.json({ error: "Selecciona una imagen válida." }, 400);
+      return c.json({
+        data: await service.replaceImage({
+          authUserId: c.get("authUserId"),
+          activeContext: tenantActiveContext(c),
+          fileId: id.parse(c.req.param("id")),
+          file: body.file,
+        }),
+      });
+    }),
+  );
   app.patch(
     "/files/:id/access",
     ...auth,

@@ -967,6 +967,16 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
           body: formData,
         }),
+      replaceImage: (id, file, token) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        return request(`/files/${encodeURIComponent(id)}/replace-image`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: formData,
+          onlineOnly: true,
+        });
+      },
       list: (params = {}, token) => {
         const search = new URLSearchParams();
         for (const [key, value] of Object.entries(params)) {

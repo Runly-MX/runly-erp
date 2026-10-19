@@ -1,8 +1,11 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Crop, FlipHorizontal2, FlipVertical2, Loader2, PencilRuler, RotateCcw, RotateCw, SlidersHorizontal, Rotate3d } from "lucide-react";
+import { ArrowUpRight, Crop, FlipHorizontal2, FlipVertical2, Loader2, PencilRuler, PenLine, RotateCcw, RotateCw, Rotate3d, SlidersHorizontal, Square, Type, Undo2 } from "lucide-react";
 import { Button } from "./Button.jsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./Dialog.jsx";
+import { ConfirmDialog } from "./ConfirmDialog.jsx";
+import { ImageAnnotationLayer } from "./ImageAnnotationLayer.jsx";
 import { ImageCropOverlay } from "./ImageCropOverlay.jsx";
+import { ANNOTATION_COLORS, drawAnnotations } from "../lib/imageAnnotations.js";
 import { fitRect, toSourceRect } from "../lib/cropRect.js";
 import { NO_ADJUST, canvasToFile, cropRect, loadImageFromUrl, renderTransformed } from "../lib/imageEdit.js";
 
@@ -21,7 +24,15 @@ const TABS = [
   { id: "crop", label: "Recortar", icon: Crop },
   { id: "turn", label: "Girar", icon: Rotate3d },
   { id: "adjust", label: "Ajustes", icon: SlidersHorizontal },
+  { id: "annotate", label: "Anotar", icon: PenLine },
 ];
+const TOOLS = [
+  { id: "pen", label: "Lápiz", icon: PenLine },
+  { id: "arrow", label: "Flecha", icon: ArrowUpRight },
+  { id: "rect", label: "Recuadro", icon: Square },
+  { id: "text", label: "Texto", icon: Type },
+];
+const STROKES = [2, 4, 6, 10];
 const SLIDERS = [
   { key: "brightness", label: "Brillo", min: 40, max: 160 },
   { key: "contrast", label: "Contraste", min: 40, max: 160 },
@@ -47,6 +58,7 @@ export function ImageEditorDialog({
   fileName = "imagen",
   mimeType = "image/jpeg",
   onSave,
+  onReplace = null,
   saveLabel = "Guardar copia",
   title = "Editar imagen",
 }) {
@@ -60,6 +72,11 @@ export function ImageEditorDialog({
   const [wrapWidth, setWrapWidth] = useState(0);
   const [rect, setRect] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [annotations, setAnnotations] = useState([]);
+  const [tool, setTool] = useState("pen");
+  const [color, setColor] = useState(ANNOTATION_COLORS[0]);
+  const [stroke, setStroke] = useState(4);
+  const [confirmReplace, setConfirmReplace] = useState(false);
   const deferredAdjust = useDeferredValue(adjust);
 
   useEffect(() => {
@@ -69,6 +86,8 @@ export function ImageEditorDialog({
     setAdjust(NO_ADJUST);
     setRatioId("free");
     setRect(null);
+    setAnnotations([]);
+    setTab("crop");
     if (!open || !src) return undefined;
     let cancelled = false;
     loadImageFromUrl(src)
@@ -122,27 +141,47 @@ export function ImageEditorDialog({
     [work],
   );
 
-  const patchTransform = (patch) => setTransform((t) => ({ ...t, ...patch }));
+  // Annotations live in the picture's pixel space; a rotation/flip/straighten
+  // changes that space, so it starts them over.
+  const patchTransform = (patch) => {
+    setTransform((t) => ({ ...t, ...patch }));
+    setAnnotations([]);
+  };
   const isFullCrop = !rect || !display || (Math.round(rect.w) >= display.w && Math.round(rect.h) >= display.h);
-  const edited = JSON.stringify(transform) !== JSON.stringify(NO_TRANSFORM) || JSON.stringify(adjust) !== JSON.stringify(NO_ADJUST) || !isFullCrop;
+  const edited = JSON.stringify(transform) !== JSON.stringify(NO_TRANSFORM) || JSON.stringify(adjust) !== JSON.stringify(NO_ADJUST) || annotations.length > 0 || !isFullCrop;
 
   function resetAll() {
     setTransform(NO_TRANSFORM);
     setAdjust(NO_ADJUST);
     setRatioId("free");
+    setAnnotations([]);
     if (display) setRect(fitRect(display, null));
   }
 
-  async function handleSave() {
+  async function buildFile() {
+    // Flatten the annotations onto a copy so the stage canvas stays untouched.
+    let flat = work;
+    if (annotations.length > 0) {
+      flat = document.createElement("canvas");
+      flat.width = work.width;
+      flat.height = work.height;
+      const ctx = flat.getContext("2d");
+      ctx.drawImage(work, 0, 0);
+      drawAnnotations(ctx, annotations);
+    }
+    const out = isFullCrop ? flat : cropRect(flat, toSourceRect(rect, display, flat));
+    const keepPng = mimeType === "image/png" || mimeType === "image/gif" || transform.angle !== 0;
+    const type = keepPng ? "image/png" : mimeType === "image/webp" ? "image/webp" : "image/jpeg";
+    const ext = type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";
+    const base = fileName.replace(/\.[^.]+$/, "");
+    return canvasToFile(out, { name: `${base}-editada.${ext}`, type });
+  }
+
+  async function handleSave(handler) {
     if (!work || !display || !rect) return;
     setSaving(true);
     try {
-      const out = isFullCrop ? work : cropRect(work, toSourceRect(rect, display, work));
-      const keepPng = mimeType === "image/png" || mimeType === "image/gif" || transform.angle !== 0;
-      const type = keepPng ? "image/png" : mimeType === "image/webp" ? "image/webp" : "image/jpeg";
-      const ext = type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";
-      const base = fileName.replace(/\.[^.]+$/, "");
-      await onSave?.(await canvasToFile(out, { name: `${base}-editada.${ext}`, type }));
+      await handler?.(await buildFile());
     } finally {
       setSaving(false);
     }
@@ -161,7 +200,15 @@ export function ImageEditorDialog({
             {work ? (
               <div className="relative select-none overflow-hidden" style={display ? { width: display.w, height: display.h } : undefined}>
                 <canvas ref={canvasRef} aria-label="Imagen en edición" className="absolute inset-0 h-full w-full" />
-                {display && rect ? (
+                <ImageAnnotationLayer
+                  size={{ w: work.width, h: work.height }}
+                  annotations={annotations}
+                  tool={tab === "annotate" ? tool : null}
+                  color={color}
+                  width={stroke}
+                  onAdd={(a) => setAnnotations((list) => [...list, a])}
+                />
+                {display && rect && tab !== "annotate" ? (
                   <ImageCropOverlay rect={rect} bounds={display} ratio={ratio} disabled={saving} onChange={setRect} />
                 ) : null}
               </div>
@@ -173,7 +220,7 @@ export function ImageEditorDialog({
           </div>
 
           <div className="space-y-4">
-            <div role="tablist" aria-label="Herramientas" className="grid grid-cols-3 gap-1 rounded-lg bg-[hsl(var(--muted))]/60 p-1">
+            <div role="tablist" aria-label="Herramientas" className="grid grid-cols-4 gap-1 rounded-lg bg-[hsl(var(--muted))]/60 p-1">
               {TABS.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
@@ -228,6 +275,42 @@ export function ImageEditorDialog({
               </div>
             ) : null}
 
+            {tab === "annotate" ? (
+              <div className="space-y-3">
+                <div className="flex gap-1">
+                  {TOOLS.map(({ id, label, icon: Icon }) => (
+                    <IconButton key={id} label={label} active={tool === id} disabled={saving || !work} onClick={() => setTool(id)}><Icon className="h-4 w-4" /></IconButton>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Color">
+                  {ANNOTATION_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      role="radio"
+                      aria-checked={color === c}
+                      aria-label={`Color ${c}`}
+                      onClick={() => setColor(c)}
+                      className={`h-7 w-7 rounded-full border-2 transition-transform ${color === c ? "scale-110 border-[hsl(var(--primary))]" : "border-[hsl(var(--border))]"}`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-1.5" role="radiogroup" aria-label="Grosor">
+                  {STROKES.map((w) => (
+                    <Button key={w} type="button" size="sm" variant={stroke === w ? "default" : "outline"} onClick={() => setStroke(w)}>{w}px</Button>
+                  ))}
+                </div>
+                <div className="flex gap-1.5">
+                  <Button type="button" size="sm" variant="outline" disabled={annotations.length === 0} onClick={() => setAnnotations((l) => l.slice(0, -1))}>
+                    <Undo2 className="mr-1.5 h-3.5 w-3.5" />Deshacer
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" disabled={annotations.length === 0} onClick={() => setAnnotations([])}>Limpiar</Button>
+                </div>
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">Dibuja sobre la imagen. Al girar o enderezar se borran las anotaciones.</p>
+              </div>
+            ) : null}
+
             <Button type="button" variant="ghost" size="sm" disabled={saving || !edited} onClick={resetAll}>
               Restablecer todo
             </Button>
@@ -238,10 +321,29 @@ export function ImageEditorDialog({
           <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange?.(false)}>
             Cancelar
           </Button>
-          <Button type="button" disabled={saving || !work || !edited} onClick={handleSave}>
+          {onReplace ? (
+            <Button type="button" variant="outline" disabled={saving || !work || !edited} onClick={() => setConfirmReplace(true)}>
+              Reemplazar original
+            </Button>
+          ) : null}
+          <Button type="button" disabled={saving || !work || !edited} onClick={() => handleSave(onSave)}>
             {saving ? "Guardando..." : saveLabel}
           </Button>
         </DialogFooter>
+        <ConfirmDialog
+          open={confirmReplace}
+          onOpenChange={setConfirmReplace}
+          title="Reemplazar la imagen original"
+          icon={PencilRuler}
+          description="La imagen se sustituirá por la versión editada. La versión anterior se conserva en el historial del archivo."
+          tone="warning"
+          confirmLabel="Reemplazar"
+          loading={saving}
+          onConfirm={async () => {
+            await handleSave(onReplace);
+            setConfirmReplace(false);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

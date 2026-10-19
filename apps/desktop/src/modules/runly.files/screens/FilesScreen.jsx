@@ -388,6 +388,23 @@ export default function FilesScreen() {
     [token],
   );
 
+  // Image editor "Reemplazar original": the server keeps the previous content
+  // as a version; drop the cached signed URL so the viewer loads the new one.
+  const handleReplaceEditedImage = useCallback(
+    async (edited, source) => {
+      try {
+        await runly.files.replaceImage(source.id, edited, token);
+        signedUrlCacheRef.current.delete(source.id);
+        await queryClient.invalidateQueries({ queryKey: ["files-list"] });
+        toast.success("Imagen reemplazada");
+      } catch (err) {
+        toast.error(err?.message ?? "No se pudo reemplazar la imagen");
+        throw err;
+      }
+    },
+    [token, queryClient],
+  );
+
   useEffect(() => {
     if (!explorer.filteredFiles.length || !token) return;
 
@@ -814,6 +831,7 @@ export default function FilesScreen() {
         onOpenInOffice={(f) => office?.enabled && office.open(f.id)}
         canOpenInOffice={(f) => f?.enabled !== false}
         onSaveEditedImage={canUploadFiles ? (edited) => handleUploadFiles([edited]) : null}
+        onReplaceEditedImage={hasPermission("files.assets.update") ? handleReplaceEditedImage : null}
       />
 
       <FileDetailPanel
