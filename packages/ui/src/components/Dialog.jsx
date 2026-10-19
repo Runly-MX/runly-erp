@@ -15,9 +15,10 @@ import {
   BottomSheetDragContext,
   useBottomSheetHeaderDrag,
 } from "./bottom-sheet-shared.jsx";
+import { BackDismissRoot } from "./back-dismiss-root.jsx";
 import { OverlaySurfaceContext } from "./overlay-surface-context.js";
 
-const Dialog = DialogPrimitive.Root;
+const Dialog = BackDismissRoot;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;

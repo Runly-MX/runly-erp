@@ -16,9 +16,10 @@ import {
   BottomSheetDragContext,
   useBottomSheetHeaderDrag,
 } from "./bottom-sheet-shared.jsx";
+import { BackDismissRoot } from "./back-dismiss-root.jsx";
 import { OverlaySurfaceContext } from "./overlay-surface-context.js";
 
-const Sheet = SheetPrimitive.Root;
+const Sheet = BackDismissRoot;
 const SheetTrigger = SheetPrimitive.Trigger;
 const SheetClose = SheetPrimitive.Close;
 const SheetPortal = SheetPrimitive.Portal;
