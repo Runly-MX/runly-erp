@@ -222,8 +222,8 @@ export function CornerMenu() {
           )}
           style={{
             zIndex: Z_CORNER,
-            paddingRight: "env(safe-area-inset-right, 0px)",
-            paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            paddingRight: "var(--sar)",
+            paddingBottom: "var(--sab)",
           }}
         >
           <span

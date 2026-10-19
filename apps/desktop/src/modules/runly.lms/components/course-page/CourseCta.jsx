@@ -74,7 +74,7 @@ export function CourseCtaCard({ data, cta, onAction, pending, cover = true }) {
 export function CourseCtaBar({ data, cta, onAction, pending }) {
   const pct = data.enrollment && data.enrollment.status !== 'dropped' ? data.enrollment.progressPct ?? 0 : null
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 shadow-[0_-4px_16px_rgb(0_0_0/0.08)] backdrop-blur lg:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]/95 px-4 pb-[calc(0.75rem+var(--sab))] pt-3 shadow-[0_-4px_16px_rgb(0_0_0/0.08)] backdrop-blur lg:hidden">
       <div className="mx-auto flex max-w-3xl items-center gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{data.course.title}</p>

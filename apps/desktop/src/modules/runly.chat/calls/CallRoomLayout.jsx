@@ -470,7 +470,7 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
         >
           <div
             className="relative min-h-0 flex-1"
-            style={landscape ? { paddingLeft: "env(safe-area-inset-left, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" } : undefined}
+            style={landscape ? { paddingLeft: "var(--sal)", paddingRight: "var(--sar)" } : undefined}
           >
             <CallStage view={view} stage={stage} />
             {invitePanel && view !== "presentation" && view !== "inperson" && (

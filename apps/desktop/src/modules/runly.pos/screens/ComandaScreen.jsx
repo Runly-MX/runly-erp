@@ -220,7 +220,7 @@ export default function ComandaScreen() {
         <ProductGrid onSelect={handleProductTap} />
       </div>
 
-      <div className="flex shrink-0 items-center gap-3 border-t border-border bg-card/95 px-4 py-3 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <div className="flex shrink-0 items-center gap-3 border-t border-border bg-card/95 px-4 py-3 pb-[var(--sab)] backdrop-blur">
         <div className="min-w-0 flex-1">
           <p className="text-xs text-muted-foreground">Total</p>
           <p className="text-lg font-bold tabular-nums">${parseFloat(order?.totalAmount ?? 0).toFixed(2)}</p>

@@ -80,8 +80,8 @@ export function bottomSheetDragStyle({
 }) {
   const keyboardOpen = keyboard?.inset > 0 && keyboard.visibleHeight;
   const fullHeight = keyboardOpen
-    ? `${Math.round(keyboard.visibleHeight)}px`
-    : "calc(100dvh - env(safe-area-inset-top, 0px))";
+    ? `calc(${Math.round(keyboard.visibleHeight)}px - var(--sat))`
+    : "calc(100dvh - var(--sat))";
   const resizing =
     dragging && baseHeight != null && (dragY < 0 || (expanded && dragY > 0));
 
@@ -100,8 +100,8 @@ export function bottomSheetDragStyle({
       borderTopRightRadius: 0,
     };
   } else if (keyboardOpen) {
-    const cap = Math.round(keyboard.visibleHeight - 12);
-    sizing = { maxHeight: `${cap}px`, minHeight: `min(50dvh, ${cap}px)` };
+    const cap = `calc(${Math.round(keyboard.visibleHeight - 12)}px - var(--sat))`;
+    sizing = { maxHeight: cap, minHeight: `min(50dvh, ${cap})` };
   }
 
   return {
@@ -110,8 +110,8 @@ export function bottomSheetDragStyle({
     paddingBottom: keyboardOpen
       ? "0.5rem"
       : mobile
-      ? "max(0.5rem, env(safe-area-inset-bottom, 0px))"
-      : "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
+      ? "max(0.5rem, var(--sab))"
+      : "calc(1.5rem + var(--sab))",
     ...(keyboardOpen ? { bottom: `${keyboard.inset}px` } : null),
     ...sizing,
     transform: !expanded && dragY > 0 ? `translateY(${dragY}px)` : undefined,

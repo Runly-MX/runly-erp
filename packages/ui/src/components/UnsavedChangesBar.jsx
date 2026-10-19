@@ -4,7 +4,7 @@ import { cn } from "../lib/utils.js";
 // Sticky "you have unsaved changes" bar shared by editor screens (role
 // permissions, per-user grants, ...). Stacks vertically below `sm` so the
 // label and both buttons never overlap on a phone, and clears the mobile
-// bottom nav / home indicator via env(safe-area-inset-bottom).
+// bottom nav / home indicator via var(--sab).
 //
 // On mobile the primary action ("Guardar") sits on top (flex-col-reverse);
 // on `sm+` it reads left-to-right as Descartar -> Guardar.
@@ -21,7 +21,7 @@ export function UnsavedChangesBar({
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-30 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]",
+        "sticky bottom-0 z-30 pt-2 pb-[max(1rem,var(--sab))]",
         className,
       )}
     >

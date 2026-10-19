@@ -38,7 +38,7 @@ export function IncomingCallDialog({ call, isStarting, onAccept, onDecline }) {
         role="alertdialog"
         aria-label={`${subtitle} de ${callerName}`}
         className="runly-call fixed inset-0 z-10010 flex flex-col items-center justify-between px-6 text-center"
-        style={{ paddingTop: "calc(4rem + env(safe-area-inset-top, 0px))", paddingBottom: "calc(3rem + env(safe-area-inset-bottom, 0px))" }}
+        style={{ paddingTop: "calc(4rem + var(--sat))", paddingBottom: "calc(3rem + var(--sab))" }}
       >
         <div className="flex flex-col items-center gap-5">
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-white/55">{subtitle}</p>

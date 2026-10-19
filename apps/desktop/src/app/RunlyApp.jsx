@@ -355,7 +355,7 @@ export function RunlyApp() {
               "transition-transform duration-200 ease-out",
               sidebarOverlayOpen ? "translate-x-0" : "-translate-x-full pointer-events-none",
             ].join(" ")}
-            style={{ top: "calc(var(--topbar-height, 3.5rem) + env(safe-area-inset-top, 0px))" }}
+            style={{ top: "calc(var(--topbar-height, 3.5rem) + var(--sat))" }}
           >
             <ModuleSidebar
               module={sidebarModule}

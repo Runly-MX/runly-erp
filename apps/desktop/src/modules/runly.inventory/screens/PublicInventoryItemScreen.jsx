@@ -117,7 +117,7 @@ export default function PublicInventoryItemScreen() {
         )}
       </main>
       {item ? (
-        <div className="fixed inset-x-0 bottom-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+        <div className="fixed inset-x-0 bottom-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 pb-[max(1rem,var(--sab))] pt-3">
           <div className="mx-auto max-w-xl space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <Button type="button" onClick={() => navigate(`${ITEM_PATH}/${item.itemId}`)}>

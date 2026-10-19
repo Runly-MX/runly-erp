@@ -38,7 +38,7 @@ export function SharedPlayerHeader({ company, title, pct, guestName, onShowConte
   const { isDark, toggle: toggleTheme } = useThemeStore()
   return (
     <PublicFixedBar>
-      <div className="mx-auto flex w-full max-w-[1600px] items-center gap-3 py-2 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] sm:px-6 sm:py-2.5 lg:px-8">
+      <div className="mx-auto flex w-full max-w-[1600px] items-center gap-3 py-2 pl-[max(1rem,var(--sal))] pr-[max(0.5rem,var(--sar))] sm:px-6 sm:py-2.5 lg:px-8">
         <CompanyMark company={company} />
         <div className="min-w-0 flex-1">
           <p className={`truncate text-[11px] font-medium uppercase tracking-wide ${MUTED}`}>{company?.name || 'Curso compartido'}</p>

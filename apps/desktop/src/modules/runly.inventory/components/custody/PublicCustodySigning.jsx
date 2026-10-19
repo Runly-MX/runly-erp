@@ -65,7 +65,7 @@ export function MobileSigning({ signature, onChange, onSign, pending, disabled, 
     <>
       {open ? <div className="fixed inset-0 z-30 bg-black/40" aria-hidden="true" onClick={() => setOpen(false)} /> : null}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)]"
-        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+        style={{ paddingBottom: 'max(0.75rem, var(--sab))' }}>
         {/* The pad stays mounted while collapsed so the drawn strokes survive. */}
         <div role="dialog" aria-label="Firmar resguardo" aria-hidden={!open}
           className={`mx-auto max-h-[100dvh] max-w-xl space-y-3 overflow-y-auto px-4 pt-3 ${open ? '' : 'hidden'}`}>

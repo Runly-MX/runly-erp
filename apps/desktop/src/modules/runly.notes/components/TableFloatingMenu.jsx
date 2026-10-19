@@ -57,7 +57,7 @@ export function TableFloatingMenu() {
         className="fixed z-20 flex items-center justify-center w-12 h-12 rounded-full bg-amber-500 text-white shadow-lg active:scale-95 transition-transform"
         style={{
           left: '1rem',
-          bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+          bottom: 'calc(1rem + var(--sab))',
           touchAction: 'none',
           WebkitTouchCallout: 'none',
           userSelect: 'none',

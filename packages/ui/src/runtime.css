@@ -93,8 +93,16 @@ html {
   --topbar-height: 3.5rem;
   /* Exposed as custom properties so JS (MessageActionSheet positioning) can
      read the device safe-area insets without a probe element. */
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Device insets. Android WebView does not reliably report the status /
+     navigation bars through env(safe-area-inset-*) in edge-to-edge mode, so the
+     native shell also publishes them as --native-inset-* (HostControls.kt) and
+     the larger of the two wins. Use these (never raw env()) in any overlay. */
+  --sat: max(env(safe-area-inset-top, 0px), var(--native-inset-top, 0px));
+  --sab: max(env(safe-area-inset-bottom, 0px), var(--native-inset-bottom, 0px));
+  --sal: max(env(safe-area-inset-left, 0px), var(--native-inset-left, 0px));
+  --sar: max(env(safe-area-inset-right, 0px), var(--native-inset-right, 0px));
+  --safe-top: var(--sat);
+  --safe-bottom: var(--sab);
 }
 
 /* ── Mobile glass: still translucent + blurred (modern iOS/Android honour
@@ -185,51 +193,51 @@ html {
 @layer utilities {
   /* ── Safe-area / topbar helpers ──────────────────────────── */
   .safe-top {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--sat);
   }
   .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: var(--sab);
   }
   .safe-left {
-    padding-left: env(safe-area-inset-left, 0px);
+    padding-left: var(--sal);
   }
   .safe-right {
-    padding-right: env(safe-area-inset-right, 0px);
+    padding-right: var(--sar);
   }
   /* h-topbar: topbar height = h-14 + iOS notch */
   .h-topbar {
-    height: calc(var(--topbar-height) + env(safe-area-inset-top, 0px));
+    height: calc(var(--topbar-height) + var(--sat));
   }
   /* pt-topbar: body top padding to clear topbar */
   .pt-topbar {
-    padding-top: calc(var(--topbar-height) + env(safe-area-inset-top, 0px));
+    padding-top: calc(var(--topbar-height) + var(--sat));
   }
   /* top-topbar: position sidebar/overlays right below the topbar (incl. notch) */
   .top-topbar {
-    top: calc(var(--topbar-height) + env(safe-area-inset-top, 0px));
+    top: calc(var(--topbar-height) + var(--sat));
   }
   /* h-below-topbar: fill remaining height after topbar + notch */
   .h-below-topbar {
-    height: calc(100dvh - var(--topbar-height) - env(safe-area-inset-top, 0px));
+    height: calc(100dvh - var(--topbar-height) - var(--sat));
   }
   /* h-chat-viewport: like h-below-topbar but also subtracts bottom safe area.
      Use for full-screen chat layouts where main has safe-bottom padding. */
   .h-chat-viewport {
-    height: calc(100dvh - var(--topbar-height) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--topbar-height) - var(--sat) - var(--sab));
   }
   /* inset-safe: modal/dialog inset that respects iOS safe-area in PWA mode */
   .inset-safe {
-    top: calc(0.75rem + env(safe-area-inset-top, 0px));
-    right: calc(0.75rem + env(safe-area-inset-right, 0px));
-    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
-    left: calc(0.75rem + env(safe-area-inset-left, 0px));
+    top: calc(0.75rem + var(--sat));
+    right: calc(0.75rem + var(--sar));
+    bottom: calc(0.75rem + var(--sab));
+    left: calc(0.75rem + var(--sal));
   }
   @media (min-width: 640px) {
     .inset-safe {
-      top: calc(1.25rem + env(safe-area-inset-top, 0px));
-      right: calc(1.25rem + env(safe-area-inset-right, 0px));
-      bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
-      left: calc(1.25rem + env(safe-area-inset-left, 0px));
+      top: calc(1.25rem + var(--sat));
+      right: calc(1.25rem + var(--sar));
+      bottom: calc(1.25rem + var(--sab));
+      left: calc(1.25rem + var(--sal));
     }
   }
   /* touch-target: minimum 44x44px tap area */
@@ -510,7 +518,7 @@ body,
   }
   /* In an iOS Safari TAB (not an installed PWA) -webkit-fill-available already
      stops above the home indicator, so a `.safe-bottom` element (the chat
-     composer) would tack on env(safe-area-inset-bottom) of dead space below the
+     composer) would tack on var(--sab) of dead space below the
      input. In a standalone PWA the fill height IS the full screen, so keep the
      inset there. */
   @media (pointer: coarse) and (display-mode: browser) {

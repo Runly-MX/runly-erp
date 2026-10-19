@@ -209,7 +209,7 @@ export function CallPeoplePanel({
       </div>
 
       {(onInvite || onCopyLink) && (
-        <div className="flex shrink-0 gap-2 border-t border-white/10 p-3" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}>
+        <div className="flex shrink-0 gap-2 border-t border-white/10 p-3" style={{ paddingBottom: "calc(0.75rem + var(--sab))" }}>
           {onInvite && (
             <button type="button" onClick={onInvite} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-(--call-accent) text-sm font-semibold text-(--brand-primary-foreground) hover:bg-(--call-accent-hover)">
               <UserPlus className="h-4 w-4" /> Invitar personas

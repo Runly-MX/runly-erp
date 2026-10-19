@@ -569,7 +569,7 @@ export const Combobox = forwardRef(function Combobox(
 
         {asSheet ? (
           <Sheet open={open} onOpenChange={(next) => { if (!next) close(); }}>
-            <SheetContent ref={dropdownRef} side="bottom" className="gap-0 p-0 pb-[env(safe-area-inset-bottom)]" style={{ zIndex }}>
+            <SheetContent ref={dropdownRef} side="bottom" className="gap-0 p-0 pb-[var(--sab)]" style={{ zIndex }}>
               <SheetHeader className="px-4 pb-2 pt-1">
                 <SheetTitle className="text-base">{label || placeholder || "Selecciona una opción"}</SheetTitle>
               </SheetHeader>

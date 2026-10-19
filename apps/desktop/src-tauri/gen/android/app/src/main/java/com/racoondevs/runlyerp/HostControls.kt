@@ -5,6 +5,8 @@ import android.content.Intent
 import android.net.Uri
 import android.webkit.WebView
 import android.widget.FrameLayout
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
 // Normal navigation lives in Runly's login and user menu, without an overlay.
@@ -35,6 +37,21 @@ object HostControls {
           if (previousLocal != local) {
             barsController.isAppearanceLightStatusBars = if (local) false else defaultLightStatusBar
             previousLocal = local
+          }
+          // Edge-to-edge: publish the system bar / cutout insets as CSS px so
+          // overlays can clear the status and navigation bars (see runtime.css).
+          ViewCompat.getRootWindowInsets(root)?.getInsets(
+            WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+          )?.let { bars ->
+            val d = activity.resources.displayMetrics.density
+            webView.evaluateJavascript(
+              "(()=>{const s=document.documentElement.style;" +
+                "s.setProperty('--native-inset-top','${bars.top / d}px');" +
+                "s.setProperty('--native-inset-bottom','${bars.bottom / d}px');" +
+                "s.setProperty('--native-inset-left','${bars.left / d}px');" +
+                "s.setProperty('--native-inset-right','${bars.right / d}px');})()",
+              null
+            )
           }
           val section = pendingSection
           if (section != null && !opening && (local || (url.scheme == "https" && url.path?.startsWith("/app/") == true))) {

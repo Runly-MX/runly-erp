@@ -124,7 +124,7 @@ function DockedSaveBar({ dirty, submitting, forceVisible, submitLabel, cancelLab
       <div
         inert={!floatingShown}
         className={cn(
-          "glass-strong fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 flex items-center justify-between gap-3 rounded-2xl border border-[hsl(var(--border))] py-2 pl-4 pr-2 shadow-2xl",
+          "glass-strong fixed inset-x-4 bottom-[max(1rem,var(--sab))] z-40 flex items-center justify-between gap-3 rounded-2xl border border-[hsl(var(--border))] py-2 pl-4 pr-2 shadow-2xl",
           "sm:inset-x-auto sm:right-8 lg:bottom-16",
           "transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none",
           floatingShown ? "visible translate-y-0 scale-100 opacity-100" : "invisible pointer-events-none translate-y-6 scale-95 opacity-0",

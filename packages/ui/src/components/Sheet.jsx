@@ -151,12 +151,12 @@ const SheetContent = forwardRef(function SheetContent(
               })
             : effectiveSide === "right" || effectiveSide === "left"
             ? {
-                paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))",
-                paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
+                paddingTop: "calc(1.5rem + var(--sat))",
+                paddingBottom: "calc(1.5rem + var(--sab))",
                 ...style,
               }
             : effectiveSide === "top"
-            ? { paddingTop: "calc(1.5rem + env(safe-area-inset-top, 0px))", ...style }
+            ? { paddingTop: "calc(1.5rem + var(--sat))", ...style }
             : style
         }
       >

@@ -100,8 +100,8 @@ export function DraggablePip({
   const baseStyle = pos
     ? { left: `${pos.x}px`, top: `${pos.y}px`, right: "auto", bottom: "auto" }
     : {
-        right: `calc(0.75rem + env(safe-area-inset-right, 0px) + ${anchorOffset}px)`,
-        bottom: `calc(0.75rem + env(safe-area-inset-bottom, 0px) + ${anchorOffset}px)`,
+        right: `calc(0.75rem + var(--sar) + ${anchorOffset}px)`,
+        bottom: `calc(0.75rem + var(--sab) + ${anchorOffset}px)`,
       };
 
   if (collapsed) {

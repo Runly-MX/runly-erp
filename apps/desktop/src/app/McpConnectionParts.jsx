@@ -24,7 +24,7 @@ export function McpPage({ children }) {
         <ThemeToggle />
       </div>
     </header>
-    <main className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-10">{children}</main>
+    <main className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6 pb-[max(2rem,var(--sab))] sm:px-6 sm:py-10">{children}</main>
   </div>;
 }
 

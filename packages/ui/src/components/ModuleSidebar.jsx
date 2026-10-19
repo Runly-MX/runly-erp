@@ -124,9 +124,9 @@ export function ModuleSidebar({
         contained
           ? undefined
           : {
-              top: "calc(var(--topbar-height, 3.5rem) + env(safe-area-inset-top, 0px))",
+              top: "calc(var(--topbar-height, 3.5rem) + var(--sat))",
               height:
-                "calc(100dvh - var(--topbar-height, 3.5rem) - env(safe-area-inset-top, 0px))",
+                "calc(100dvh - var(--topbar-height, 3.5rem) - var(--sat))",
             }
       }
     >

@@ -409,7 +409,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
         {callsEnabled && (
           <div
             className="flex shrink-0 justify-end border-t border-[hsl(var(--border))] px-6 py-3"
-            style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+            style={{ paddingBottom: "calc(0.75rem + var(--sab))" }}
           >
             <Button className="w-full sm:w-auto sm:min-w-48" onClick={runAction} disabled={actionDisabled}>
               <action.Icon className="mr-2 h-4 w-4" /> {busy ? action.busy : action.label}

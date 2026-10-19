@@ -19,7 +19,7 @@ const VIEW_TITLES = { scan: 'Escanear kiosko', qr: 'Mi QR', hours: 'Mis horas', 
 // Sticky top app bar shared by every sub-view: back on the left, title in the middle, optional action on the right.
 function AppBar({ title, onBack, action }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/85 pt-[env(safe-area-inset-top)] backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/85 pt-[var(--sat)] backdrop-blur">
       <div className="mx-auto grid h-14 w-full max-w-md grid-cols-[1fr_auto_1fr] items-center gap-2 px-2">
         <button type="button" onClick={onBack} className="flex min-h-11 items-center gap-1 justify-self-start rounded-xl px-2 text-base text-slate-200 hover:bg-white/10">
           <ArrowLeft className="size-5" /> Volver
@@ -89,7 +89,7 @@ export default function PhoneKeyScreen() {
       {subView ? (
         <>
           <AppBar title={VIEW_TITLES[subView]} onBack={back} action={refreshAction} />
-          <main className="mx-auto w-full max-w-md px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5">
+          <main className="mx-auto w-full max-w-md px-4 pb-[calc(6rem+var(--sab))] pt-5">
             {subView === 'scan' ? (
               <ScanFlow identity={identity} onClose={back} onRevoked={handleRevoked} />
             ) : subView === 'qr' ? (
@@ -104,7 +104,7 @@ export default function PhoneKeyScreen() {
           </main>
         </>
       ) : (
-        <div className="px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] pt-[calc(2rem+env(safe-area-inset-top))]">
+        <div className="px-4 pb-[calc(4rem+var(--sab))] pt-[calc(2rem+var(--sat))]">
           <div className="mx-auto flex min-h-[calc(100dvh-8rem)] max-w-md flex-col items-center justify-center">
             {identity === undefined ? (
               <Loader2 className="size-10 animate-spin text-teal-400" aria-label="Cargando" />

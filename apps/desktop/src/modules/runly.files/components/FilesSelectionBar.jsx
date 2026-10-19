@@ -9,7 +9,7 @@ export function FilesSelectionBar({ count, loading, onClear, onDownload, onZip, 
       role="toolbar"
       aria-label="Acciones de selección"
       className="fixed inset-x-3 z-40 mx-auto flex max-w-xl items-center gap-1.5 rounded-2xl border border-[hsl(var(--border))] glass-strong p-2 shadow-xl"
-      style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+      style={{ bottom: "calc(0.75rem + var(--sab))" }}
     >
       <Button variant="ghost" size="icon" aria-label="Limpiar selección" onClick={onClear} disabled={loading}>
         <X className="h-4 w-4" />

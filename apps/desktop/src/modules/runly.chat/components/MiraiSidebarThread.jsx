@@ -343,7 +343,7 @@ export function MiraiSidebarThread({ conversationId, onSent }) {
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-[hsl(var(--border))] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3 sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 border-t border-[hsl(var(--border))] p-2 pb-[max(0.5rem,var(--sab))] sm:p-3 sm:pb-[max(0.75rem,var(--sab))]">
         {pendingFiles.length > 0 && (
           <div className="mb-2 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
             {pendingFiles.map((entry) => (

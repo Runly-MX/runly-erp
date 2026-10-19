@@ -24,7 +24,7 @@ import { InventoryAdminTransitionDialog } from '../components/InventoryAdminTran
 
 const ITEM_PATH = '/app/m/runly.inventory/inventory'
 const statusLabel = (value) => ADMIN_STATUS_BY_VALUE[value]?.label ?? value ?? ''
-const SAFE_BOTTOM = 'env(safe-area-inset-bottom)'
+const SAFE_BOTTOM = 'var(--sab)'
 const PEEK = 64
 const CARD_AUTO_HIDE_MS = 6000
 const isEditable = (el) => Boolean(el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)))

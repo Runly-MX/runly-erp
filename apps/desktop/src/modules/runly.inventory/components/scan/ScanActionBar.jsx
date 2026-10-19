@@ -74,7 +74,7 @@ export function ScanActionBar({ actions, counts }) {
       ) : null}
 
       <nav aria-label="Acciones de la lista"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgb(0_0_0/0.06)] lg:hidden">
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] pb-[var(--sab)] shadow-[0_-4px_16px_rgb(0_0_0/0.06)] lg:hidden">
         <div className="flex items-center gap-2 px-4" style={{ height: MOBILE_BAR_HEIGHT }}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

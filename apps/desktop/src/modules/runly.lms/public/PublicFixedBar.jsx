@@ -18,7 +18,7 @@ export function PublicFixedBar({ className = '', children }) {
   return (
     <>
       <div aria-hidden="true" className="shrink-0" style={{ height }} />
-      <header ref={ref} className={`fixed inset-x-0 top-0 z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] pt-[env(safe-area-inset-top)] ${className}`}>
+      <header ref={ref} className={`fixed inset-x-0 top-0 z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] pt-[var(--sat)] ${className}`}>
         {children}
       </header>
     </>

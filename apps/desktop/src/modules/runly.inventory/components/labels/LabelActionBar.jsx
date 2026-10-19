@@ -68,7 +68,7 @@ export function LabelActionBar({
       </div>
 
       <nav aria-label="Pasos de impresión"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgb(0_0_0/0.06)] lg:hidden">
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] pb-[var(--sab)] shadow-[0_-4px_16px_rgb(0_0_0/0.06)] lg:hidden">
         <div className="grid grid-cols-3 border-b border-[hsl(var(--border)/0.6)]">
           {MOBILE_STEPS.map((s, i) => {
             const active = s.value === step

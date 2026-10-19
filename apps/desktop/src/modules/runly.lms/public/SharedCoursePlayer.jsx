@@ -104,7 +104,7 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
             {!lessons.length ? (
               <div className="flex min-h-[60dvh] items-center justify-center p-6"><EmptyState icon={Lock} title="Sin lecciones disponibles" description="Este enlace todavía no comparte lecciones." /></div>
             ) : (
-              <div className="mx-auto grid w-full max-w-[1600px] gap-6 px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8 lg:py-6">
+              <div className="mx-auto grid w-full max-w-[1600px] gap-6 px-4 pt-4 pb-[max(1.5rem,var(--sab))] sm:px-6 sm:pt-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8 lg:py-6">
                 {stageArea ? (
                   <div className={cn('min-w-0', theaterOn ? 'lg:col-span-2' : 'lg:col-start-1 lg:row-start-1')}>
                     <div className={cn('mx-auto w-full transition-[max-width] duration-300 ease-out motion-reduce:transition-none', theaterOn ? 'max-w-[min(100%,calc((100dvh-11rem)*16/9))]' : 'max-w-full')}>
@@ -148,7 +148,7 @@ export function SharedCoursePlayer({ shareToken, guestToken, data, onSignOut }) 
                 <SheetTitle>Contenido del curso</SheetTitle>
                 <SheetDescription>Elige una lección para abrirla.</SheetDescription>
               </SheetHeader>
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-12">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,var(--sab))] pt-12">
                 <CourseOutline sections={data.sections} currentLessonId={lessonId} onSelect={select} progressPct={pct} />
               </div>
             </SheetContent>

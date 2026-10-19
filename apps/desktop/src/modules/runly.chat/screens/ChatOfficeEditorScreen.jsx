@@ -35,7 +35,7 @@ export default function ChatOfficeEditorScreen() {
     );
   }, [navigate, saved, state]);
   return (
-    <div className="fixed inset-0 z-50 h-[100dvh] w-full pb-[env(safe-area-inset-bottom)]">
+    <div className="fixed inset-0 z-50 h-[100dvh] w-full pb-[var(--sab)]">
       <OfficeDocumentEditor
         key={`${attId}:${session?.user?.id}`}
         fileId={attId}

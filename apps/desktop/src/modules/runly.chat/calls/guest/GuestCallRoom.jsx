@@ -317,7 +317,7 @@ export function GuestCallRoom({
         <nav
           aria-label="Controles de la llamada"
           className="flex shrink-0 items-start justify-around gap-1 px-2 pt-2"
-          style={{ paddingBottom: "calc(0.6rem + env(safe-area-inset-bottom, 0px))" }}
+          style={{ paddingBottom: "calc(0.6rem + var(--sab))" }}
         >
           <MobileCallButton icon={mic ? Mic : MicOff} label={mic ? "Silenciar" : "Activar"} tone={mic ? "default" : "off"} onClick={toggleMic} />
           <MobileCallButton icon={cam ? Camera : CameraOff} label="Cámara" tone={cam ? "default" : "off"} onClick={toggleCam} />

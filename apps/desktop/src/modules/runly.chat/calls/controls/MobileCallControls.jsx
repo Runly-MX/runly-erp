@@ -52,7 +52,7 @@ export function MobileCallBar({ ctl, hidden = false }) {
         aria-label="Controles de la llamada"
         data-hidden={hidden}
         className="call-chrome call-chrome-bottom flex items-start justify-around gap-1 px-2 pt-2"
-        style={{ paddingBottom: "calc(0.6rem + env(safe-area-inset-bottom, 0px))" }}
+        style={{ paddingBottom: "calc(0.6rem + var(--sab))" }}
       >
         <MobileCallButton
           icon={ctl.micEnabled ? Mic : MicOff}

@@ -372,7 +372,7 @@ export default function BoardEditor() {
               the drawing tools. Desktop/tablet keep it centered on the right
               edge; on phones it moves to the bottom-right, above the
               toolbar, shrunk and without +/- (pinch-zoom covers that). */}
-          <div className={cn('pointer-events-none absolute z-20', phone ? 'inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] flex justify-end pr-2' : 'right-2 top-1/2 -translate-y-1/2 sm:right-3')}>
+          <div className={cn('pointer-events-none absolute z-20', phone ? 'inset-x-0 bottom-[calc(4.75rem+var(--sab))] flex justify-end pr-2' : 'right-2 top-1/2 -translate-y-1/2 sm:right-3')}>
             <ZoomControls orientation="vertical" compact={phone} zoom={viewport.zoom} onZoomIn={() => zoomBy(1.2)} onZoomOut={() => zoomBy(1 / 1.2)} onReset={resetZoom} onFit={fit}>
               <ScaleControl
                 scale={pageScale.scale} canEdit={!readOnly} onCalibrate={pageScale.startCalibrate} onClear={pageScale.clear}
@@ -380,7 +380,7 @@ export default function BoardEditor() {
               />
             </ZoomControls>
           </div>
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-2 pb-[max(0.75rem,var(--sab))]">
             <CanvasToolbar
               tool={tool} onToolChange={actions.chooseTool} canDelete={editableSelection.length > 0} onDelete={deleteSelection}
               onInsertMedia={actions.openFilePicker} onInsertData={() => setDialog({ kind: 'data', mode: 'insert' })} inserting={actions.inserting}

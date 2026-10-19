@@ -116,8 +116,8 @@ export function MiniCallBubble({
   const style = pos
     ? { left: `${pos.x}px`, top: `${pos.y}px` }
     : {
-        right: `calc(${MARGIN}px + env(safe-area-inset-right, 0px))`,
-        bottom: `calc(${MARGIN}px + env(safe-area-inset-bottom, 0px))`,
+        right: `calc(${MARGIN}px + var(--sar))`,
+        bottom: `calc(${MARGIN}px + var(--sab))`,
       };
 
   return (

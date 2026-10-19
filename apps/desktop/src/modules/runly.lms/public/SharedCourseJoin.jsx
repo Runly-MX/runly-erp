@@ -106,7 +106,7 @@ export function SharedCourseJoin({ shareToken, data, linkToken = null, onJoined 
   return (
     <div className={PUBLIC_PAGE_CLASS}>
       <Hero data={data} />
-      <main className="mx-auto grid w-full max-w-5xl gap-8 px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <main className="mx-auto grid w-full max-w-5xl gap-8 px-4 pt-6 pb-[max(2rem,var(--sab))] sm:px-6 sm:pt-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="min-w-0 space-y-3">
           <h2 className="text-lg font-semibold tracking-tight">Contenido compartido</h2>
           {data.sections.map((section) => (

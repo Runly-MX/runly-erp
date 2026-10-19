@@ -43,5 +43,5 @@ export default function OfficeEditorScreen() {
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch { toast.error('No se pudo descargar. También puedes hacerlo desde el módulo de origen.'); }
   }, [fileId]);
-  return <div className="fixed inset-0 z-50 h-[100dvh] w-full pb-[env(safe-area-inset-bottom)]"><OfficeDocumentEditor key={`${fileId}:${session?.user?.id}`} fileId={fileId} createSession={createSession} onClose={close} onSaved={saved} onDownload={download} /></div>;
+  return <div className="fixed inset-0 z-50 h-[100dvh] w-full pb-[var(--sab)]"><OfficeDocumentEditor key={`${fileId}:${session?.user?.id}`} fileId={fileId} createSession={createSession} onClose={close} onSaved={saved} onDownload={download} /></div>;
 }

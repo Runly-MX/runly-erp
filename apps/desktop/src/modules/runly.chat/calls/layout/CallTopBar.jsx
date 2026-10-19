@@ -90,7 +90,7 @@ export function CallTopBar({ title, subtitle, status, elapsed, recordingActive, 
     <header
       data-hidden={hidden}
       className="call-chrome call-chrome-top flex shrink-0 items-center gap-3 px-4 pb-3"
-      style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
+      style={{ paddingTop: "calc(0.75rem + var(--sat))" }}
     >
       <StatusPill status={status} elapsed={elapsed} recordingActive={recordingActive} recordingPaused={recordingPaused} recordingElapsed={recordingElapsed} idleLabel={idleLabel} />
       <div className="min-w-0">
@@ -162,7 +162,7 @@ export function MobileCallTopBar({ title, status, elapsed, recordingActive, reco
     <header
       data-hidden={hidden}
       className="call-chrome call-chrome-top flex shrink-0 items-center gap-2 px-3 pb-2"
-      style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top, 0px))" }}
+      style={{ paddingTop: "calc(0.5rem + var(--sat))" }}
       {...(dragHandlers ?? {})}
     >
       {onMinimize ? (
