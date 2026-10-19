@@ -16,6 +16,7 @@ import MonthView from "../components/MonthView";
 import WeekView from "../components/WeekView";
 import DayView from "../components/DayView";
 import AgendaView from "../components/AgendaView";
+import DayAgendaSheet from "../components/DayAgendaSheet";
 import EventDetailModal from "../components/EventDetailModal";
 import EventFormModal from "../components/EventFormModal";
 import CalendarFormModal from "../components/CalendarFormModal";
@@ -124,6 +125,7 @@ export default function CalendarScreen() {
     recordId: detailEvent?._isLoading ? undefined : detailEvent?.id,
     label: detailEvent?.title,
   });
+  const [agendaDate, setAgendaDate] = useState(null);
   const [formState, setFormState] = useState(null);
   const [calendarForm, setCalendarForm] = useState(null);
   const [shareCalendar, setShareCalendar] = useState(null);
@@ -220,7 +222,10 @@ export default function CalendarScreen() {
           {activeView === "month" && (
             <MonthView
               onEventClick={setDetailEvent}
-              onDayClick={(dateStr) => setSelectedDate(dateStr)}
+              onDayClick={(dateStr) => {
+                setSelectedDate(dateStr);
+                if (isNarrow) setAgendaDate(dateStr);
+              }}
               onNewEvent={(dateStr) => {
                 setSelectedDate(dateStr);
                 setFormState({ _isNew: true, defaultDate: dateStr });
@@ -253,6 +258,18 @@ export default function CalendarScreen() {
           </>
         )}
       </div>
+
+      {isNarrow && (
+        <DayAgendaSheet
+          dateStr={agendaDate}
+          onClose={() => setAgendaDate(null)}
+          onEventClick={(ev) => { setAgendaDate(null); setDetailEvent(ev); }}
+          onNewEvent={(dateStr) => {
+            setAgendaDate(null);
+            setFormState({ _isNew: true, defaultDate: dateStr });
+          }}
+        />
+      )}
 
       {/* Modals */}
       {detailEvent && (

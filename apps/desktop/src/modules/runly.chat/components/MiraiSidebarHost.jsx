@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   AssistantWordmark, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input,
-  ModuleAssistantPanel, Sheet, SheetContent, SheetTitle, useCoarsePointer,
+  ModuleAssistantPanel, Sheet, SheetContent, SheetTitle, useCoarsePointer, useIsMobile,
 } from "@runly/ui";
 import { ExternalLink, MoreVertical, Pencil, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -136,8 +136,28 @@ export function MiraiSidebarHost() {
   }, [open]);
 
   const coarse = useCoarsePointer();
+  const isMobile = useIsMobile();
   const { prefs } = useChatPreferences();
   const tab = useDraggableTab(() => setOpen(true));
+
+  // Touch devices (mobile web + APK): the system back gesture/button closes the
+  // panel instead of leaving it stuck open. One history entry per opening.
+  useEffect(() => {
+    if (!coarse || !open) return undefined;
+    window.history.pushState({ miraiPanel: true }, "");
+    let closedByBack = false;
+    const onPopState = () => {
+      if (window.history.state?.miraiPanel) return; // still on our own entry (e.g. dev StrictMode re-run)
+      closedByBack = true;
+      setOpen(false);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      if (!closedByBack && window.history.state?.miraiPanel) window.history.back();
+    };
+  }, [coarse, open]);
+
   if (!visible) return null;
 
   const left = tab.pos.side === "left";
@@ -145,7 +165,16 @@ export function MiraiSidebarHost() {
     ? { left: tab.drag.x, top: tab.drag.y, right: "auto", transform: "translate(-50%, -50%)" }
     : { top: `${tab.pos.y * 100}%` };
 
-  const panel = openedOnce && <MiraiPanel open={open} coarse={coarse} onClose={coarse ? undefined : () => setOpen(false)} />;
+  // The Sheet draws no X on phones (it is dismissed by dragging its handle,
+  // which sits under the status bar in the full-height panel), so the panel
+  // always brings its own close button.
+  const panel = openedOnce && (
+    <MiraiPanel
+      open={open}
+      onClose={!coarse || isMobile ? () => setOpen(false) : undefined}
+      headerClassName={coarse && !isMobile ? "pr-12" : undefined}
+    />
+  );
 
   return (
     <>
@@ -200,7 +229,7 @@ export function MiraiSidebarHost() {
   );
 }
 
-function MiraiPanel({ open, coarse, onClose }) {
+function MiraiPanel({ open, onClose, headerClassName }) {
   const navigate = useNavigate();
   const threadsApi = useMiraiThreads();
   const { list, activeId, setActiveId, create, rename, remove, refresh, threads } = threadsApi;
@@ -244,7 +273,7 @@ function MiraiPanel({ open, coarse, onClose }) {
         listLabel="Conversaciones de MirAI"
         onBack={() => setView("list")}
         onClose={onClose}
-        headerClassName={coarse ? "pr-12" : undefined}
+        headerClassName={headerClassName}
         conversations={list.map((t) => ({ id: t.id, title: t.title, meta: threadMeta(t) }))}
         conversationsLoading={threads.isLoading}
         conversationsError={threads.error?.message}
