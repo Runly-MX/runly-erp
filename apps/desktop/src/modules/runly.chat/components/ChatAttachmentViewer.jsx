@@ -75,7 +75,7 @@ export function ChatAttachmentViewer({
   }));
 
   return (
-    <AdvancedFileViewer
+    <AdvancedFileViewer imageEditing={false}
       open={open}
       onOpenChange={onOpenChange}
       files={files}

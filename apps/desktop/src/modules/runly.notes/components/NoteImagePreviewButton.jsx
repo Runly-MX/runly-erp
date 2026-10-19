@@ -27,7 +27,7 @@ export function NoteImagePreviewButton({ src, alt }) {
         <Expand size={16} />
       </Button>
       {open && (
-        <AdvancedFileViewer
+        <AdvancedFileViewer imageEditing={false}
           open
           onOpenChange={setOpen}
           files={[{ id: src, url: src, originalName: alt || 'Imagen de la nota', mimeType: 'image/png' }]}

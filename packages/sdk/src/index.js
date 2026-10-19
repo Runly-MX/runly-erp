@@ -44,6 +44,18 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
   }
 
   // withMeta: resolve to { blob, headers } (response headers) instead of the Blob.
+  // Image editor saves ("replace" the original or save a "copy").
+  function postImageEdit(action, id, file, token) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request(`/files/${encodeURIComponent(id)}/image-${action}`, {
+      method: "POST",
+      headers: withAuthHeaders(token),
+      body: formData,
+      onlineOnly: true,
+    });
+  }
+
   async function requestBlob(path, options = {}) {
     const { headers, withMeta = false, ...rest } = options;
     const response = await fetchImpl(`${baseUrl}${path}`, {
@@ -967,16 +979,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
           body: formData,
         }),
-      replaceImage: (id, file, token) => {
-        const formData = new FormData();
-        formData.append("file", file);
-        return request(`/files/${encodeURIComponent(id)}/replace-image`, {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: formData,
-          onlineOnly: true,
-        });
-      },
+      replaceImage: (id, file, token) => postImageEdit("replace", id, file, token),
+      copyImage: (id, file, token) => postImageEdit("copy", id, file, token),
       list: (params = {}, token) => {
         const search = new URLSearchParams();
         for (const [key, value] of Object.entries(params)) {

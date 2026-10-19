@@ -94,7 +94,7 @@ function AttachmentsTab({ tab, search, nameOf, onOpenConversation }) {
         </div>
       )}
       {viewable && (
-        <AdvancedFileViewer
+        <AdvancedFileViewer imageEditing={false}
           open={viewerIndex >= 0}
           onOpenChange={(next) => { if (!next) setViewerId(null); }}
           files={viewerFiles}

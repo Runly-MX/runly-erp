@@ -17,6 +17,7 @@ import { AuthProvider } from "../auth/AuthProvider";
 import { ActiveCompanyProvider, ActiveCompanyGate } from "../company/ActiveCompanyProvider";
 import { RealtimeProvider } from "../providers/RealtimeProvider";
 import { OfficeProvider } from "../providers/OfficeProvider";
+import { ImageEditingProvider } from "../providers/ImageEditingProvider";
 import { CallsProvider } from "../modules/runly.chat/calls/CallsProvider";
 import { RunlyApp } from "./RunlyApp";
 import { HomeScreen } from "./HomeScreen";
@@ -158,6 +159,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
             <BrowserRouter>
               <AuthProvider>
                 <OfficeProvider>
+                <ImageEditingProvider>
                 <BugReportHost />
                 {/* Inner boundary: a render crash anywhere in the routed tree
                     (e.g. a screen crash below) must not unmount BugReportHost
@@ -239,6 +241,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                   <Route path="*" element={<PublicWebsiteEntry />} />
                 </Routes>
                 </ErrorBoundary>
+                </ImageEditingProvider>
                 </OfficeProvider>
               </AuthProvider>
               <Toaster />

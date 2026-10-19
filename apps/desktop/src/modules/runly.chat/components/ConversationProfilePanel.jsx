@@ -225,7 +225,7 @@ export function ConversationProfilePanel({
   );
 
   const avatarViewer = heroAvatarUrl && !isMirai ? (
-    <AdvancedFileViewer
+    <AdvancedFileViewer imageEditing={false}
       open={avatarViewerOpen}
       onOpenChange={setAvatarViewerOpen}
       files={[{ id: heroAvatarFileId ?? "avatar", mimeType: "image/jpeg", originalName: displayName ?? "Foto de perfil", sizeBytes: 0 }]}

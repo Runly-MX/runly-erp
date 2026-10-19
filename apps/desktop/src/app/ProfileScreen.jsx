@@ -165,7 +165,7 @@ export function ProfileScreen() {
       <ProfilePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} token={token} />
 
       {profile?.avatarFileId && (
-        <AdvancedFileViewer
+        <AdvancedFileViewer imageEditing={false}
           open={imageViewerOpen}
           onOpenChange={setImageViewerOpen}
           files={[

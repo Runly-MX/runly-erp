@@ -23,7 +23,7 @@ export function PersonPhotoAvatar({ person, name, size = 'md' }) {
         {avatar}
       </button>
       {open ? (
-        <AdvancedFileViewer
+        <AdvancedFileViewer imageEditing={false}
           open={open}
           onOpenChange={setOpen}
           files={[{ id: person.id ?? person.personId ?? name, mimeType: 'image/jpeg', originalName: name, sizeBytes: 0 }]}

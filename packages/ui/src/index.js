@@ -319,6 +319,7 @@ export { buildApiHeaders } from "./lib/apiHeaders.js";
 export { CameraCaptureDialog } from "./components/CameraCaptureDialog.jsx";
 export { AvatarCropDialog } from "./components/AvatarCropDialog.jsx";
 export { ImageEditorDialog } from "./components/ImageEditorDialog.jsx";
+export { ViewerImageEditingContext } from "./lib/viewer-image-editing.js";
 export { FileAssetField, FileAssetValue, fetchFileAssetUrl } from "./components/FileAssetField.jsx";
 export { ChatAttachMenu } from "./components/ChatAttachMenu.jsx";
 export { ListLayout } from "./components/ListLayout.jsx";

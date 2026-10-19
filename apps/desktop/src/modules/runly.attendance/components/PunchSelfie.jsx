@@ -22,7 +22,7 @@ export function PunchSelfie({ url, fullUrl, caption, id }) {
         <Camera className="absolute bottom-0.5 right-0.5 h-3 w-3 rounded bg-black/50 p-0.5 text-white" aria-hidden="true" />
       </button>
       {open ? (
-        <AdvancedFileViewer
+        <AdvancedFileViewer imageEditing={false}
           open={open}
           onOpenChange={setOpen}
           files={[{ id: id ?? caption ?? 'selfie', mimeType: 'image/jpeg', originalName: caption ?? 'Foto de la checada', sizeBytes: 0 }]}

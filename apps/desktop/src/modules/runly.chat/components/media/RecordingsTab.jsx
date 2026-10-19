@@ -120,7 +120,7 @@ export function RecordingsTab({ search, nameOf, onOpenConversation }) {
           </Button>
         </div>
       )}
-      <AdvancedFileViewer
+      <AdvancedFileViewer imageEditing={false}
         open={viewerIndex >= 0}
         onOpenChange={closeViewer}
         files={viewerFiles}

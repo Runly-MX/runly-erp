@@ -39,7 +39,7 @@ export function EntityFileViewer({ open, onOpenChange, files, activeIndex = 0, o
   );
 
   return (
-    <AdvancedFileViewer
+    <AdvancedFileViewer imageEditing={false}
       open={open}
       onOpenChange={onOpenChange}
       files={files ?? []}

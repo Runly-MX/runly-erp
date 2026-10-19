@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { createFilesWorkspace } from "../services/files/workspace.js";
+import { createImageEdit } from "../services/files/image-edit.js";
 import { FileAccessError } from "../services/files/access.js";
 import { FilesServiceError } from "../services/files-service.js";
 import { tenantActiveContext } from "../lib/active-context.js";
@@ -14,6 +15,7 @@ export function createFilesWorkspaceRouter({
 }) {
   const app = new Hono();
   const service = createFilesWorkspace({ prisma, supabaseAdmin, filesService });
+  const imageEdit = createImageEdit({ prisma, supabaseAdmin });
   const id = z.uuid();
   const createSchema = z.strictObject({
     name: z.string().min(1).max(180),
@@ -121,23 +123,24 @@ export function createFilesWorkspaceRouter({
       }),
     ),
   );
-  app.post(
-    "/files/:id/replace-image",
-    ...auth,
-    requirePermission("files.assets.update"),
-    protect(async (c) => {
-      const body = await c.req.parseBody();
-      if (!(body.file instanceof File)) return c.json({ error: "Selecciona una imagen válida." }, 400);
-      return c.json({
-        data: await service.replaceImage({
-          authUserId: c.get("authUserId"),
-          activeContext: tenantActiveContext(c),
-          fileId: id.parse(c.req.param("id")),
-          file: body.file,
-        }),
-      });
-    }),
-  );
+  for (const action of ["replace", "copy"]) {
+    app.post(
+      `/files/:id/image-${action}`,
+      ...auth,
+      requirePermission("files.assets.update"),
+      protect(async (c) => {
+        const body = await c.req.parseBody();
+        if (!(body.file instanceof File)) return c.json({ error: "Selecciona una imagen válida." }, 400);
+        return c.json({
+          data: await imageEdit[action]({
+            authUserId: c.get("authUserId"),
+            fileId: id.parse(c.req.param("id")),
+            file: body.file,
+          }),
+        });
+      }),
+    );
+  }
   app.patch(
     "/files/:id/access",
     ...auth,

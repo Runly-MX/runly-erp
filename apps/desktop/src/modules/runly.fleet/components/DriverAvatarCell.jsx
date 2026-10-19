@@ -86,7 +86,7 @@ export default function DriverAvatarCell({ value, row, token, apiBaseUrl }) {
       >
         {cellContent}
       </button>
-      <AdvancedFileViewer
+      <AdvancedFileViewer imageEditing={false}
         open={openViewer}
         onOpenChange={setOpenViewer}
         files={[

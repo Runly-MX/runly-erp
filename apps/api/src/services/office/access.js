@@ -7,7 +7,7 @@ export const OFFICE_FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-
 
 export function createOfficeAccess({ prisma }) {
   const fileAccess = createFileAccess({ prisma });
-  async function authorize({ authUserId, fileId, mode = 'view', claims }, db = prisma) {
+  async function authorize({ authUserId, fileId, mode = 'view', claims, imageEdit = false }, db = prisma) {
     if (!OFFICE_FILE_ID.test(fileId)) throw new OfficeError('Identificador de archivo inválido.', 400, 'invalid_file_id');
     const profile = await db.userProfile.findUnique({ where: { authUserId } });
     if (!profile?.enabled) throw new OfficeError('No tienes acceso al documento.', 403, 'forbidden');
@@ -67,6 +67,13 @@ export function createOfficeAccess({ prisma }) {
     }
     try { await fileAccess.assertAccess(file, { profileId: profile.id, admin }, mode === 'edit' ? 'write' : 'read', db); }
     catch (error) { if (error instanceof FileAccessError) throw new OfficeError(error.message, error.status, 'forbidden'); throw error; }
+    // Image editing reuses every access rule above (per-module permissions,
+    // shares, scopes) but swaps the Office format check for an image check.
+    if (imageEdit) {
+      if (!file.mimeType?.startsWith('image/')) throw new OfficeError('Solo se pueden editar imágenes.', 415, 'unsupported_format');
+      if (file.visibility === 'PUBLIC') throw new OfficeError('Las imágenes públicas no se pueden modificar porque su enlace cambiaría.', 403, 'public_file');
+      return { source: 'file_asset', file, profile, companyId, format: null };
+    }
     const format = getOfficeFormat(file);
     if (!format || file.bucket !== 'runly-files' || file.visibility === 'PUBLIC') throw new OfficeError('Formato o almacenamiento no compatible con Office.', 415, 'unsupported_format');
     if (file.sizeBytes > 10 * 1024 * 1024) throw new OfficeError('El archivo supera 10 MB.', 413, 'file_too_large');

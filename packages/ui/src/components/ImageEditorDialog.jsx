@@ -61,7 +61,7 @@ export function ImageEditorDialog({
   src,
   fileName = "imagen",
   mimeType = "image/jpeg",
-  onSave,
+  onSave = null,
   onReplace = null,
   saveLabel = "Guardar copia",
   title = "Editar imagen",
@@ -415,9 +415,11 @@ export function ImageEditorDialog({
               Reemplazar original
             </Button>
           ) : null}
-          <Button type="button" disabled={saving || !work || !edited} onClick={() => handleSave(onSave)}>
-            {saving ? "Guardando..." : saveLabel}
-          </Button>
+          {onSave ? (
+            <Button type="button" disabled={saving || !work || !edited} onClick={() => handleSave(onSave)}>
+              {saving ? "Guardando..." : saveLabel}
+            </Button>
+          ) : null}
         </DialogFooter>
         <ConfirmDialog
           open={confirmReplace}

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   ChevronLeft,
@@ -55,6 +55,7 @@ import { ViewerFilmstrip } from "./ViewerFilmstrip.jsx";
 import { ViewerImageToolbar } from "./ViewerImageToolbar.jsx";
 import { ViewerGenericPreview } from "./ViewerGenericPreview.jsx";
 import { ImageEditorDialog } from "./ImageEditorDialog.jsx";
+import { ViewerImageEditingContext } from "../lib/viewer-image-editing.js";
 import { useCoarsePointer } from "../hooks/usePointerCapabilities.js";
 import { useViewerTouchGestures } from "../hooks/useViewerTouchGestures.js";
 import { MAX_ZOOM, MIN_ZOOM, useViewerImageTransform } from "../hooks/useViewerImageTransform.js";
@@ -78,17 +79,26 @@ export function AdvancedFileViewer({
   zIndex = 50,
   onOpenInOffice = null,
   canOpenInOffice = null,
-  // Optional: (editedFile, sourceFile) => Promise. When given, images get an
-  // "Editar" button that opens ImageEditorDialog; the host stores the result
-  // (e.g. as a copy) and should throw to keep the editor open on failure.
+  // Image editing. By default the viewer uses the app-wide
+  // ViewerImageEditingContext ({ saveCopy, replace }, each (editedFile,
+  // sourceFile) => Promise that throws on failure) and shows an "Editar" button
+  // on images. A host can override either handler with these props, or turn the
+  // feature off for files that are not editable images (chat, avatars...).
+  imageEditing = true,
   onSaveEditedImage = null,
-  editedImageSaveLabel = "Guardar copia",
-  // Optional, same signature: adds "Reemplazar original" to the editor. After it
-  // succeeds the viewer re-resolves the file's URL so the new content shows.
   onReplaceEditedImage = null,
+  editedImageSaveLabel = "Guardar copia",
 }) {
+  const editing = useContext(ViewerImageEditingContext);
+  const saveCopyHandler = onSaveEditedImage ?? editing?.saveCopy ?? null;
+  const replaceHandler = onReplaceEditedImage ?? editing?.replace ?? null;
   const [editorOpen, setEditorOpen] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
+  // Edited content shown straight from the editor's output (blob URLs), so the
+  // new image appears even if the host caches the old signed URL.
+  const [localUrls, setLocalUrls] = useState({});
+  const localUrlsRef = useRef(localUrls);
+  localUrlsRef.current = localUrls;
+  useEffect(() => () => Object.values(localUrlsRef.current).forEach((u) => URL.revokeObjectURL(u)), []);
   const [signedUrl, setSignedUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filmstripOpen, setFilmstripOpen] = useState(true);
@@ -134,7 +144,7 @@ export function AdvancedFileViewer({
   // filmstrip thumbnail resolves in the background — that used to
   // cancel-and-restart the active file's own fetch on every unrelated
   // resolution, which with many files could keep it from ever finishing.
-  const cachedActiveUrl = file?.id ? (mediaThumbUrls[file.id] ?? null) : null;
+  const cachedActiveUrl = file?.id ? (localUrls[file.id] ?? mediaThumbUrls[file.id] ?? null) : null;
 
   useEffect(() => {
     let active = true;
@@ -165,7 +175,7 @@ export function AdvancedFileViewer({
     return () => {
       active = false;
     };
-  }, [open, file?.id, onResolveSignedUrl, cachedActiveUrl, reloadKey]);
+  }, [open, file?.id, onResolveSignedUrl, cachedActiveUrl]);
 
   useEffect(() => {
     if (!open || !filmstripOpen || !onResolveSignedUrl || !multi) return;
@@ -257,7 +267,8 @@ export function AdvancedFileViewer({
   const getMedia = () => (isHlsSource ? hlsVideoRef.current : mediaRef.current);
   const goTo = (index) => index >= 0 && index < files.length && onIndexChange(index);
 
-  const canEditImage = Boolean(onSaveEditedImage) && kind === "image";
+  const canEditImage =
+    imageEditing && Boolean(saveCopyHandler || replaceHandler) && kind === "image" && /^[0-9a-f-]{36}$/i.test(String(file?.id ?? ""));
   const isMedia = kind === "video" || kind === "audio";
   const mediaReady = Boolean(signedUrl) && !loading;
   const actions = [
@@ -579,21 +590,28 @@ export function AdvancedFileViewer({
               fileName={file?.originalName ?? "imagen"}
               mimeType={file?.mimeType || "image/jpeg"}
               saveLabel={editedImageSaveLabel}
-              onSave={async (edited) => {
-                try {
-                  await onSaveEditedImage(edited, file);
-                  setEditorOpen(false);
-                } catch {
-                  // The host reports the failure; keep the editor open for a retry.
-                }
-              }}
-              onReplace={
-                onReplaceEditedImage
+              onSave={
+                saveCopyHandler
                   ? async (edited) => {
                       try {
-                        await onReplaceEditedImage(edited, file);
-                        setMediaThumbUrls({});
-                        setReloadKey((k) => k + 1);
+                        await saveCopyHandler(edited, file);
+                        setEditorOpen(false);
+                      } catch {
+                        // The host reports the failure; keep the editor open for a retry.
+                      }
+                    }
+                  : null
+              }
+              onReplace={
+                replaceHandler
+                  ? async (edited) => {
+                      try {
+                        await replaceHandler(edited, file);
+                        const url = URL.createObjectURL(edited);
+                        setLocalUrls((prev) => {
+                          if (prev[file.id]) URL.revokeObjectURL(prev[file.id]);
+                          return { ...prev, [file.id]: url };
+                        });
                         setEditorOpen(false);
                       } catch {
                         // The host reports the failure; keep the editor open for a retry.

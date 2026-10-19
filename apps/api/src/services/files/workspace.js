@@ -4,9 +4,6 @@ import { OFFICE_FORMATS } from "@runly/core";
 import { signedUrlsWithVariant } from "../../lib/image-variants.js";
 import { createFileAccess, FileAccessError } from "./access.js";
 
-const IMAGE_EXTENSIONS = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-
 export function createFilesWorkspace({
   prisma,
   supabaseAdmin,
@@ -431,69 +428,5 @@ export function createFilesWorkspace({
       throw new FileAccessError("La invitación ya no está disponible.", 404);
     return { ok: true };
   }
-  // Replaces an image's content (image editor "Reemplazar original"): the
-  // previous object stays reachable as a FileAssetVersion, the live pointer
-  // moves to a new object. Same ownership rules as sharing/management.
-  async function replaceImage({ authUserId, activeContext, fileId, file }) {
-    const context = await contextFor(authUserId, activeContext);
-    requireCapability(context, "files.assets.update");
-    const ext = IMAGE_EXTENSIONS[file?.type];
-    if (!ext) throw new FileAccessError("Solo se permiten imágenes JPG, PNG o WebP.", 400);
-    if (!file.size || file.size > MAX_IMAGE_BYTES)
-      throw new FileAccessError("La imagen no puede superar 10 MB.", 413);
-    const current = await manageable(context, fileId);
-    if (!current.mimeType?.startsWith("image/"))
-      throw new FileAccessError("Solo se puede reemplazar el contenido de imágenes.", 415);
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const checksum = createHash("sha256").update(bytes).digest("hex");
-    const objectKey = `images/${context.companyId}/${fileId}/${randomBytes(24).toString("hex")}.${ext}`;
-    const { error } = await supabaseAdmin.storage
-      .from(current.bucket)
-      .upload(objectKey, bytes, { contentType: file.type, upsert: false });
-    if (error) throw new FileAccessError("No se pudo guardar en almacenamiento.", 503);
-    try {
-      return await prisma.$transaction(async (db) => {
-        await db.$queryRaw`SELECT id FROM file_asset WHERE id = ${fileId}::uuid FOR UPDATE`;
-        const live = await manageable(context, fileId, db);
-        if (live.contentRevision !== current.contentRevision)
-          throw new FileAccessError("La imagen cambió mientras la editabas. Ábrela de nuevo.", 409);
-        await db.fileAssetVersion.create({
-          data: {
-            fileId,
-            revision: live.contentRevision,
-            bucket: live.bucket,
-            objectKey: live.objectKey,
-            originalName: live.originalName,
-            mimeType: live.mimeType,
-            sizeBytes: live.sizeBytes,
-            checksum: live.checksum,
-          },
-        });
-        const updated = await db.fileAsset.update({
-          where: { id: fileId },
-          data: {
-            objectKey,
-            checksum,
-            sizeBytes: bytes.length,
-            mimeType: file.type,
-            originalName: live.originalName.replace(/\.[^./\\]+$/, "") + `.${ext}`,
-            contentRevision: { increment: 1 },
-          },
-          select: { id: true, originalName: true, mimeType: true, sizeBytes: true, contentRevision: true },
-        });
-        await audit(db, context, fileId, "files.image.replaced", {
-          revision: updated.contentRevision,
-          sizeBytes: bytes.length,
-        });
-        return updated;
-      });
-    } catch (err) {
-      // A definite rejection cannot have committed the candidate; an ambiguous
-      // error might have, so only clean up after our own FileAccessError.
-      if (err instanceof FileAccessError)
-        await supabaseAdmin.storage.from(current.bucket).remove([objectKey]).catch(() => {});
-      throw err;
-    }
-  }
-  return { create, sharing, members, changeSharing, invitations, respond, replaceImage };
+  return { create, sharing, members, changeSharing, invitations, respond };
 }

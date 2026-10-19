@@ -91,7 +91,7 @@ export function UserAvatarPreview({ userId, avatarUrl, displayName, token, isUpl
         ) : null}
       </button>
       {hasAvatar && (
-        <AdvancedFileViewer
+        <AdvancedFileViewer imageEditing={false}
           open={viewerOpen}
           onOpenChange={setViewerOpen}
           files={[
