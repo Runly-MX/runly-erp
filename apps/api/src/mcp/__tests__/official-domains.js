@@ -280,12 +280,14 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
     const items = await Promise.all(['321004-60791', '52061803535'].map(serialNumber => prisma.invItem.create({ data: { companyId: company.id, name: `Equipo ${serialNumber}`, serialNumber } })));
     const batch = { documents: [
       { kind: 'invoice', number: 'V265210187', supplier: { name: 'CAME Automatismos de México' }, orderNumber: 'OC 0006174', total: 1160, inventory: [{ serialNumber: '52061803535' }] },
-      { kind: 'order', number: 'OC 0006174', supplier: { name: 'CAME Automatismos de México', taxId: 'CAM010101AB1' }, lines: [{ description: 'Barrera GL B1', quantity: 1, unitAmount: 1000, taxRate: 0.16 }], inventory: [{ serialNumber: '321004-60791' }] },
+      { kind: 'order', number: 'OC 0006174', supplier: { name: 'CAME Automatismos de México', taxId: 'CAM010101AB1' }, lines: [{ description: 'Barrera GL B1', quantity: 1, unitAmount: 1000, taxRate: 0.16 }], inventory: [{ serialNumber: '321004-60791' }, { serialNumber: 'NO-EXISTE-1' }] },
     ] };
-    await assert.rejects(() => prepare('purchases', 'purchases.documents.import', { documents: [{ kind: 'order', number: 'OC X', inventory: [{ serialNumber: 'no-existe' }] }] }), { code: 'invalid_proposal' });
     const proposal = await prepare('purchases', 'purchases.documents.import', batch);
+    assert.ok(proposal.preview.fields.some(field => field.value.includes('NO-EXISTE-1')), 'La aprobación muestra los equipos que no se vincularán');
     await approve(proposal);
     const { result } = await commit('purchases', proposal);
+    assert.deepEqual(result.missingItems, [{ reason: 'not_found', serialNumber: 'NO-EXISTE-1', documents: ['Orden OC 0006174'] }]);
+    assert.match(result.summary, /NO-EXISTE-1.*darlos de alta/);
     assert.deepEqual(result.documents.map(doc => [doc.kind, doc.number, doc.created]), [['order', 'OC 0006174', true], ['invoice', 'V265210187', true]]);
     const [order, invoice] = result.documents;
     const supplier = await prisma.contact.findFirst({ where: { companyId: company.id, taxId: 'CAM010101AB1' } });

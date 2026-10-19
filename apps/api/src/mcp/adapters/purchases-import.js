@@ -40,6 +40,7 @@ export const purchasesImportInput = z.object({ documents: z.array(document).min(
 const LINK = { order: { relationType: 'PURCHASED_IN', sourceType: 'purchase_order', model: 'purchaseOrder', capability: 'purchaseOrders', label: 'Orden' },
   invoice: { relationType: 'INVOICED_ITEM', sourceType: 'purchase_invoice', model: 'purchaseInvoice', capability: 'invoices', label: 'Factura' } };
 const ci = value => ({ equals: value, mode: 'insensitive' });
+const missingLabel = entry => `${entry.serialNumber ?? entry.assetTag ?? entry.itemId}${entry.reason === 'ambiguous' ? ' (varios coinciden)' : ''} [${entry.documents.join(', ')}]`;
 
 export function createPurchasesImportAction({ prisma, documents, relations, workflow }) {
   async function resolveSupplier(companyId, ref, pending) {
@@ -64,13 +65,12 @@ export function createPurchasesImportAction({ prisma, documents, relations, work
     return { supplierId: null, newSupplier: entry.key, label: `${entry.name} (nuevo)` };
   }
 
+  // Tolerant: an unknown or ambiguous reference is reported, not fatal.
   async function resolveItem(companyId, ref) {
     const where = ref.itemId ? { id: ref.itemId } : ref.serialNumber ? { serialNumber: ci(ref.serialNumber) } : { assetTag: ci(ref.assetTag) };
     const rows = await prisma.invItem.findMany({ where: { companyId, enabled: true, ...where }, select: { id: true, name: true, serialNumber: true, assetTag: true }, take: 2 });
-    const label = ref.itemId ?? ref.serialNumber ?? ref.assetTag;
-    insist(rows.length, 'invalid_proposal', `No encontré el equipo ${label} en Inventario.`);
-    insist(rows.length === 1, 'invalid_proposal', `Varios equipos coinciden con ${label}; usa itemId.`);
-    return rows[0];
+    if (rows.length === 1) return { item: rows[0] };
+    return { missing: { reason: rows.length ? 'ambiguous' : 'not_found', ...(ref.itemId ? { itemId: ref.itemId } : ref.serialNumber ? { serialNumber: ref.serialNumber } : { assetTag: ref.assetTag }) } };
   }
 
   // Item -> documents of that kind it is already linked to.
@@ -85,7 +85,7 @@ export function createPurchasesImportAction({ prisma, documents, relations, work
   async function prepare(input, actx) {
     const { companyId } = actx;
     const current = await workflow.ensureWorkflow(companyId);
-    const pendingSuppliers = new Map(), plan = [], claimed = { order: new Map(), invoice: new Map() };
+    const pendingSuppliers = new Map(), plan = [], claimed = { order: new Map(), invoice: new Map() }, missing = new Map();
     for (const [index, doc] of input.documents.entries()) {
       const meta = LINK[doc.kind], row = `Fila ${index + 1} (${meta.label} ${doc.number})`;
       insist(hasCapability(current.capabilities, meta.capability), 'capability_disabled', `${row}: habilita ${doc.kind === 'order' ? 'órdenes de compra' : 'facturas'} en el flujo de Compras.`, 409);
@@ -105,7 +105,14 @@ export function createPurchasesImportAction({ prisma, documents, relations, work
       insist(!plan.some(entry => entry.dupKey === dupKey), 'invalid_proposal', `${row}: está repetido en el lote; combina sus conceptos y equipos en una sola fila.`);
       const items = [];
       for (const ref of doc.inventory ?? []) {
-        const item = await resolveItem(companyId, ref);
+        const { item, missing: absent } = await resolveItem(companyId, ref);
+        if (absent) {
+          const key = JSON.stringify(Object.entries(absent).map(([k, v]) => [k, String(v).toLowerCase()]));
+          const entry = missing.get(key) ?? { ...absent, documents: [] };
+          entry.documents.push(`${meta.label} ${doc.number}`);
+          missing.set(key, entry);
+          continue;
+        }
         const owner = claimed[doc.kind].get(item.id);
         insist(!owner || owner === dupKey, 'invalid_proposal', `${row}: el equipo ${item.serialNumber ?? item.name} ya está en otra ${doc.kind === 'order' ? 'orden' : 'factura'} del lote.`);
         claimed[doc.kind].set(item.id, dupKey);
@@ -150,9 +157,10 @@ export function createPurchasesImportAction({ prisma, documents, relations, work
           entry.order && !entry.order.alreadyLinked ? `factura la orden ${entry.order.number} (hereda sus equipos)` : null,
           entry.itemLabels.length ? `equipos: ${entry.itemLabels.join(', ')}` : null].filter(Boolean).join(' · '),
       })),
+      ...(missing.size ? [{ label: 'No se vincularán (no están en Inventario)', value: [...missing.values()].map(missingLabel).join(', ') }] : []),
     ];
     return {
-      input: { suppliers: [...pendingSuppliers.values()], plan: plan.map(({ itemLabels: _labels, dupKey: _dup, ...entry }) => entry) },
+      input: { suppliers: [...pendingSuppliers.values()], plan: plan.map(({ itemLabels: _labels, dupKey: _dup, ...entry }) => entry), missingItems: [...missing.values()] },
       preview: { title: `Registrar ${plan.length} documento(s) de compra`, fields },
     };
   }
@@ -188,8 +196,11 @@ export function createPurchasesImportAction({ prisma, documents, relations, work
       if (doc.kind === 'order') createdOrders.set(entry.index, id);
       results.push({ kind: doc.kind, id, number, created: !entry.existing, linkedItems: entry.items.length, orderId, link: `/app/m/runly.purchases/${kind}/${id}` });
     }
-    const made = results.filter(row => row.created).length;
-    return { summary: `${made} documento(s) creados, ${results.length - made} reutilizados, ${input.suppliers.length} proveedor(es) nuevos.`, documents: results };
+    const made = results.filter(row => row.created).length, missingItems = input.missingItems ?? [];
+    const pending = missingItems.length
+      ? ` ${missingItems.length} equipo(s) no se vincularon porque no existen (o hay varios iguales) en Inventario: ${missingItems.map(missingLabel).join(', ')}. Pregunta a la persona si quiere darlos de alta (runly_inventory_create_prepare); después vuelve a enviar este mismo lote y solo se agregarán las relaciones faltantes.`
+      : '';
+    return { summary: `${made} documento(s) creados, ${results.length - made} reutilizados, ${input.suppliers.length} proveedor(es) nuevos.${pending}`, documents: results, missingItems };
   }
 
   return {
@@ -198,7 +209,7 @@ export function createPurchasesImportAction({ prisma, documents, relations, work
     operation: 'create',
     label: 'Registrar órdenes y facturas de compra',
     permission: 'purchases.relation.read',
-    description: 'Registra en lote (hasta 50 por propuesta) órdenes de compra y facturas de proveedor, por ejemplo filas de un Excel o datos leídos de PDFs, remisiones o actas. Si el folio ya existe (las facturas también por proveedor) se reutiliza sin modificarlo y solo se agregan las relaciones faltantes; si no, se crea en borrador. Proveedores por id, RFC o nombre (se dan de alta si no existen). Factura -> orden con orderNumber; equipos por itemId, serialNumber o assetTag. La factura hereda los equipos de su orden. Nunca inventes importes: omítelos si no vienen en la fuente. Después adjunta el PDF con runly_files_import_prepare usando el id devuelto (purchases.order / purchases.invoice).',
+    description: 'Registra en lote (hasta 50 por propuesta) órdenes de compra y facturas de proveedor, por ejemplo filas de un Excel o datos leídos de PDFs, remisiones o actas. Si el folio ya existe (las facturas también por proveedor) se reutiliza sin modificarlo y solo se agregan las relaciones faltantes; si no, se crea en borrador. Proveedores por id, RFC o nombre (se dan de alta si no existen). Factura -> orden con orderNumber; equipos por itemId, serialNumber o assetTag (copia los seriales exactos del documento). Los equipos que no existen en Inventario no bloquean el lote: se omiten y se devuelven en missingItems; al terminar, resume cuáles fueron y pregunta a la persona si quiere darlos de alta. La factura hereda los equipos de su orden. Nunca inventes importes: omítelos si no vienen en la fuente. Después adjunta el PDF con runly_files_import_prepare usando el id devuelto (purchases.order / purchases.invoice).',
     inputSchema: purchasesImportInput,
     prepare,
     execute,
