@@ -179,7 +179,7 @@ function EditorLoading({ scrollable }) {
 // torn down cleanly on switch.
 function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, token, session, userProfile, engine }) {
   const viewing = readOnly || viewOnly
-  const interaction = useMemo(() => ({ viewing }), [viewing])
+  const interaction = useMemo(() => ({ viewing, noteId: note?.id ?? null, token }), [viewing, note?.id, token])
   const [toolbarHost, setToolbarHost] = useState(null)
   const queryClient = useQueryClient()
   const containerRef = useRef(null)

@@ -2,9 +2,11 @@ import { NodeViewWrapper } from '@tiptap/react'
 import { useContext, useEffect, useRef, useState } from 'react'
 import {
   Pencil, Trash2, Crop as CropIcon, Check,
-  PenLine, ArrowUpRight, Square, Type, MoreHorizontal,
+  PenLine, ArrowUpRight, Square, Type, MoreHorizontal, PencilRuler,
 } from 'lucide-react'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Popover, PopoverTrigger, PopoverContent, ConfirmDialog } from '@runly/ui'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Popover, PopoverTrigger, PopoverContent, ConfirmDialog, ImageEditorDialog } from '@runly/ui'
+import { toast } from 'sonner'
+import { getImageNaturalSize, uploadNoteImage } from '../lib/noteImageUpload.js'
 import { withImageVariant } from '../../../lib/imageVariants.js'
 import { useBlockDragReorder } from '../hooks/useBlockDragReorder.js'
 import { useImageAnnotationDrawing } from '../hooks/useImageAnnotationDrawing.jsx'
@@ -41,7 +43,7 @@ function parseCrop(raw) {
 }
 
 export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos, deleteNode }) {
-  const { viewing } = useContext(NoteInteractionContext)
+  const { viewing, noteId, token } = useContext(NoteInteractionContext)
   const svgRef = useRef(null)
   const boxRef = useRef(null) // the sized img+svg container — resize math + click-outside
   const frameRef = useRef(null) // the image frame only (no control chrome) — measured/cloned for drag reorder
@@ -53,6 +55,8 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
   const [color, setColor] = useState('#ef4444')
   const [lineWidth, setLineWidth] = useState(3)
   const [cropOpen, setCropOpen] = useState(false)
+  const [fullEditorOpen, setFullEditorOpen] = useState(false)
+  const [confirmFullEditor, setConfirmFullEditor] = useState(false)
   const [natural, setNatural] = useState(null) // { w, h }
   const [selected, setSelected] = useState(false) // click-to-select for resize (Word/PPT style)
   const [liveWidthPct, setLiveWidthPct] = useState(null) // resize drag preview
@@ -270,6 +274,51 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
       }
     : { position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0 }
 
+  const hasNoteEdits = Boolean(crop) || rotation !== 0 || annotations.length > 0
+  function openFullEditor() {
+    if (hasNoteEdits) setConfirmFullEditor(true)
+    else setFullEditorOpen(true)
+  }
+
+  // Uploads the edited file to the notes bucket; the node then points at it.
+  async function uploadEdited(file) {
+    try {
+      const [url, natural] = await Promise.all([uploadNoteImage(file, { noteId, token }), getImageNaturalSize(file)])
+      const aspectRatio = natural.naturalWidth && natural.naturalHeight ? natural.naturalWidth / natural.naturalHeight : null
+      return { url, aspectRatio }
+    } catch (err) {
+      toast.error(err?.message ?? 'No se pudo guardar la imagen.')
+      throw err
+    }
+  }
+
+  // Both handlers keep the editor open on failure (uploadEdited already reported it).
+  async function replaceWithEdited(file) {
+    try {
+      const { url, aspectRatio } = await uploadEdited(file)
+      // The edit is baked into the new image, so the note-level crop, rotation and
+      // annotations of the previous one no longer apply.
+      updateAttributes({ src: url, aspectRatio, crop: null, rotation: 0, annotations: '[]', erasedAnnotations: '[]' })
+      toast.success('Imagen reemplazada')
+      setFullEditorOpen(false)
+    } catch { /* reported above */ }
+  }
+
+  async function saveEditedCopy(file) {
+    try {
+      const { url, aspectRatio } = await uploadEdited(file)
+      const pos = getPos?.()
+      if (typeof pos === 'number') {
+        editor.chain().focus().insertContentAt(pos + node.nodeSize, {
+          type: 'image',
+          attrs: { src: url, alt: file.name, width: node.attrs.width, aspectRatio },
+        }).run()
+      }
+      toast.success('Copia insertada debajo')
+      setFullEditorOpen(false)
+    } catch { /* reported above */ }
+  }
+
   return (
     <NodeViewWrapper className="group/img note-block relative my-2 block w-full">
       {editable && !inTableCell && !isEditing && (
@@ -357,6 +406,17 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
                 </div>
               </PopoverContent>
             </Popover>
+
+            {noteId && token && node.attrs.src ? (
+              <button
+                title="Editor completo (filtros, retoque, texto...)"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={openFullEditor}
+                className="flex items-center justify-center w-9 h-9 rounded shrink-0 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]"
+              >
+                <PencilRuler className="w-3.5 h-3.5" />
+              </button>
+            ) : null}
 
             <button
               title="Recortar"
@@ -602,6 +662,31 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
           }}
         />
       )}
+
+      {fullEditorOpen && (
+        <ImageEditorDialog
+          open={fullEditorOpen}
+          onOpenChange={setFullEditorOpen}
+          src={node.attrs.src}
+          fileName={node.attrs.alt || 'imagen'}
+          mimeType={/\.png(\?|$)/i.test(node.attrs.src) ? 'image/png' : /\.webp(\?|$)/i.test(node.attrs.src) ? 'image/webp' : 'image/jpeg'}
+          title="Editar imagen de la nota"
+          saveLabel="Insertar como copia"
+          onSave={saveEditedCopy}
+          onReplace={replaceWithEdited}
+        />
+      )}
+
+      <ConfirmDialog
+        open={confirmFullEditor}
+        onOpenChange={setConfirmFullEditor}
+        title="Abrir el editor completo"
+        icon={PencilRuler}
+        tone="warning"
+        description="Esta imagen tiene recorte, giro o anotaciones de la nota. El editor completo parte de la imagen original, sin esos cambios. Si reemplazas la imagen, se pierden; si insertas una copia, la imagen actual queda como está."
+        confirmLabel="Abrir"
+        onConfirm={() => { setConfirmFullEditor(false); setFullEditorOpen(true) }}
+      />
 
       {editModalOpen && (
         <ImageEditModal

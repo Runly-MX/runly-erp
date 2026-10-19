@@ -10,7 +10,7 @@ const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 // URL — no network round-trip, resolves as soon as the browser decodes the
 // image header. Never rejects: unreadable dimensions just fall back to the
 // flat default scale in computeInitialImageWidthPct.
-function getImageNaturalSize(file) {
+export function getImageNaturalSize(file) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file)
     const img = new Image()
@@ -35,6 +35,18 @@ function getContentColumnWidthPx(editor) {
   const paddingX = parseFloat(style.paddingLeft || '0') + parseFloat(style.paddingRight || '0')
   const width = rect.width - paddingX
   return width > 0 ? width : null
+}
+
+// Uploads one image file to the notes bucket and returns its public URL. The
+// shared building block of the insert flow below and of the full image editor
+// (replace / copy of an image already in the note).
+export async function uploadNoteImage(file, { noteId, token }) {
+  const presign = await runly.notes.presignImage({ fileName: file.name, mimeType: file.type, noteId }, token)
+  const { error } = await supabase.storage
+    .from('runly-notes')
+    .uploadToSignedUrl(presign.objectKey, presign.uploadToken, file)
+  if (error) throw error
+  return presign.publicUrl
 }
 
 // Shared upload+insert flow for in-body note images — used by both the
