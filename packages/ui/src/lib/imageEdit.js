@@ -1,6 +1,7 @@
 // Canvas helpers shared by image tools (avatar framing today; a future image
 // editor for the file viewer / files module). Pure functions, no React.
 
+import { applyColorFallback, supportsCanvasFilter } from "./canvasColor.js";
 import { presetFilter } from "./imageFilters.js";
 
 const MAX_WORK_SIDE = 1800;
@@ -78,12 +79,16 @@ export function renderTransformed(img, { quarterTurns = 0, angle = 0, flipX = fa
   canvas.height = Math.max(1, Math.round(w * sin + h * cos));
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingQuality = "high";
-  const css = [presetFilter(filter), adjustFilter(adjust)].filter(Boolean).join(" ");
+  // Browsers that ignore ctx.filter (Safari before 18, i.e. most iPhones) get a
+  // per-pixel fallback after drawing, so filters and adjustments still show.
+  const native = supportsCanvasFilter();
+  const css = native ? [presetFilter(filter), adjustFilter(adjust)].filter(Boolean).join(" ") : "";
   if (css) ctx.filter = css;
   ctx.translate(canvas.width / 2, canvas.height / 2);
   ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
   ctx.rotate(rad);
   ctx.drawImage(img, -w / 2, -h / 2, w, h);
+  if (!native) applyColorFallback(canvas, filter, adjust);
   applyOverlays(ctx, canvas, adjust);
   return canvas;
 }

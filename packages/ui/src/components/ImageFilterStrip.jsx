@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { FILTER_PRESETS, presetFilter } from "../lib/imageFilters.js";
+import { applyColorFallback, supportsCanvasFilter } from "../lib/canvasColor.js";
 
 function Thumb({ thumb, preset, selected, onSelect }) {
   const ref = useRef(null);
@@ -8,8 +9,11 @@ function Thumb({ thumb, preset, selected, onSelect }) {
     if (!canvas || !thumb) return;
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.filter = presetFilter({ id: preset.id, amount: 100 }) || "none";
+    const filter = { id: preset.id, amount: 100 };
+    const native = supportsCanvasFilter();
+    ctx.filter = native ? presetFilter(filter) || "none" : "none";
     ctx.drawImage(thumb, 0, 0);
+    if (!native) applyColorFallback(canvas, filter, null);
   }, [thumb, preset]);
   return (
     <button

@@ -24,9 +24,9 @@ export function presetById(id) {
   return FILTER_PRESETS.find((p) => p.id === id) ?? FILTER_PRESETS[0];
 }
 
-// CSS `filter` string for a preset at the given amount ("" when neutral).
-export function presetFilter(filter) {
-  if (!filter || filter.id === "none") return "";
+// Numeric filter values of a preset at the given amount (null for the original).
+export function presetValues(filter) {
+  if (!filter || filter.id === "none") return null;
   const preset = presetById(filter.id);
   const t = Math.max(0, Math.min(100, filter.amount ?? 100)) / 100;
   const v = {};
@@ -34,5 +34,12 @@ export function presetFilter(filter) {
     const target = preset.params[key] ?? NEUTRAL[key];
     v[key] = NEUTRAL[key] + (target - NEUTRAL[key]) * t;
   }
+  return v;
+}
+
+// CSS `filter` string for a preset at the given amount ("" when neutral).
+export function presetFilter(filter) {
+  const v = presetValues(filter);
+  if (!v) return "";
   return `brightness(${v.brightness}) contrast(${v.contrast}) saturate(${v.saturate}) sepia(${v.sepia}) grayscale(${v.grayscale}) hue-rotate(${v.hue}deg)`;
 }

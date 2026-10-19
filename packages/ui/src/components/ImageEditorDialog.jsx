@@ -129,7 +129,7 @@ export function ImageEditorDialog({
   useEffect(() => {
     const node = areaRef.current;
     if (!open || !node) return undefined;
-    const measure = () => setAreaSize({ w: Math.max(0, node.clientWidth - 24), h: Math.max(0, node.clientHeight - 24) });
+    const measure = () => setAreaSize({ w: Math.max(0, node.clientWidth - 24), h: Math.max(0, node.clientHeight - 12) });
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(node);
@@ -476,8 +476,17 @@ export function ImageEditorDialog({
               ))}
             </div>
 
-            {/* Stage */}
-            <div ref={areaRef} className="relative order-1 flex min-h-0 min-w-0 flex-1 items-center justify-center p-3 lg:order-2">
+            {/* Stage: a slim zoom bar above the picture (never over it, so it cannot
+                cover the crop handles) and the picture area below */}
+            <div className="order-1 flex min-h-0 min-w-0 flex-1 flex-col lg:order-2">
+              <div className="flex h-10 shrink-0 items-center justify-end gap-0.5 px-3">
+                <span className="mr-auto hidden text-xs text-[hsl(var(--muted-foreground))] sm:inline">Rueda o pellizco para acercar</span>
+                <IconBtn label="Alejar vista" disabled={!work || !display || view.s <= 1} onClick={() => zoomCenter(1 / 1.4)} className="h-9 w-9"><Minus className="h-4 w-4" /></IconBtn>
+                <span className="w-11 text-center text-xs tabular-nums">{Math.round(view.s * 100)}%</span>
+                <IconBtn label="Acercar vista" disabled={!work || !display || view.s >= MAX_VIEW_ZOOM} onClick={() => zoomCenter(1.4)} className="h-9 w-9"><Plus className="h-4 w-4" /></IconBtn>
+                <IconBtn label="Ajustar a la ventana" disabled={!work || !display || view.s === 1} onClick={() => setView({ s: 1, x: 0, y: 0 })} className="h-9 w-9"><Maximize className="h-4 w-4" /></IconBtn>
+              </div>
+            <div ref={areaRef} className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center p-3 pt-0">
               {work ? (
                 <div
                   ref={setClipEl}
@@ -544,15 +553,7 @@ export function ImageEditorDialog({
               ) : (
                 <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--muted-foreground))]" />
               )}
-
-              {work ? (
-                <div className="absolute bottom-4 right-4 flex items-center gap-0.5 rounded-xl bg-black/55 p-0.5 text-white backdrop-blur">
-                  <IconBtn label="Alejar vista" disabled={!display || view.s <= 1} onClick={() => zoomCenter(1 / 1.4)} className="text-white hover:bg-white/15 hover:text-white"><Minus className="h-4 w-4" /></IconBtn>
-                  <span className="w-11 text-center text-xs tabular-nums">{Math.round(view.s * 100)}%</span>
-                  <IconBtn label="Acercar vista" disabled={!display || view.s >= MAX_VIEW_ZOOM} onClick={() => zoomCenter(1.4)} className="text-white hover:bg-white/15 hover:text-white"><Plus className="h-4 w-4" /></IconBtn>
-                  <IconBtn label="Ajustar a la ventana" disabled={!display || view.s === 1} onClick={() => setView({ s: 1, x: 0, y: 0 })} className="text-white hover:bg-white/15 hover:text-white"><Maximize className="h-4 w-4" /></IconBtn>
-                </div>
-              ) : null}
+            </div>
             </div>
 
             {/* Contextual panel: under the stage on touch layouts, right column on desktop */}
