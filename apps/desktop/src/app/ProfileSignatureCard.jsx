@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Card, ConfirmDialog, Label, SignaturePad, Skeleton, Switch } from "@runly/ui";
-import { Trash2 } from "lucide-react";
+import { PenLine, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSavedSignature } from "../hooks/useSavedSignature.js";
 
@@ -8,18 +8,25 @@ const DELEGATION_LABEL = "Permitir que quien genere resguardos a mi nombre use m
 
 // "Mi firma": a saved signature other modules can apply on the user's behalf
 // (inventory custody records first). Stored as a private PNG on the server.
+// Read-only until the user clicks "Editar"; the delegation switch works in both modes.
 export function ProfileSignatureCard() {
   const { signature, isLoading, save, setDelegation, remove } = useSavedSignature();
+  const [editing, setEditing] = useState(false);
   const [dataUrl, setDataUrl] = useState(null);
   const [draftDelegation, setDraftDelegation] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const allowDelegation = signature ? signature.allowDelegation : draftDelegation;
   const busy = save.isPending || setDelegation.isPending || remove.isPending;
 
+  function stopEditing() {
+    setEditing(false);
+    setDataUrl(null);
+  }
+
   async function handleSave() {
     try {
       await save.mutateAsync({ dataUrl, allowDelegation });
-      setDataUrl(null);
+      stopEditing();
       toast.success("Firma guardada");
     } catch (err) {
       toast.error(err?.message ?? "No se pudo guardar la firma");
@@ -43,7 +50,7 @@ export function ProfileSignatureCard() {
     try {
       await remove.mutateAsync();
       setDeleting(false);
-      setDataUrl(null);
+      stopEditing();
       toast.success("Firma eliminada");
     } catch (err) {
       toast.error(err?.message ?? "No se pudo eliminar la firma");
@@ -52,16 +59,23 @@ export function ProfileSignatureCard() {
 
   return (
     <Card className="p-0 overflow-hidden">
-      <div className="px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40">
-        <p className="text-sm font-semibold">Mi firma</p>
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">
-          Guárdala una vez y aplícala en los documentos que firmas, como los resguardos de equipo.
-        </p>
+      <div className="flex items-center justify-between gap-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold">Mi firma</p>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            Guárdala una vez y aplícala en los documentos que firmas, como los resguardos de equipo.
+          </p>
+        </div>
+        {editing || isLoading ? null : (
+          <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
+            <PenLine className="mr-1.5 h-3.5 w-3.5" />{signature ? "Editar" : "Agregar firma"}
+          </Button>
+        )}
       </div>
-      <div className="p-4 space-y-4">
+      <div className="p-4 md:p-5 space-y-4">
         {isLoading ? (
           <Skeleton className="h-44 w-full" />
-        ) : (
+        ) : editing ? (
           <SignaturePad
             key={signature?.updatedAt ?? signature?.url ?? "empty"}
             initialImage={signature?.url ?? null}
@@ -69,6 +83,15 @@ export function ProfileSignatureCard() {
             disabled={busy}
             height={170}
           />
+        ) : signature?.url ? (
+          <div className="flex h-44 items-center justify-center rounded-lg border border-[hsl(var(--border))] bg-white p-3">
+            <img src={signature.url} alt="Mi firma guardada" className="max-h-full max-w-full object-contain" />
+          </div>
+        ) : (
+          <div className="flex h-44 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[hsl(var(--border))] text-center">
+            <PenLine className="h-5 w-5 text-[hsl(var(--muted-foreground))]" />
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">Aún no has guardado tu firma.</p>
+          </div>
         )}
         <div className="flex items-start gap-3">
           <Switch
@@ -84,16 +107,21 @@ export function ProfileSignatureCard() {
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-[hsl(var(--border))]">
-          {signature ? (
-            <Button type="button" variant="ghost" className="text-[hsl(var(--destructive))]" onClick={() => setDeleting(true)} disabled={busy}>
-              <Trash2 className="mr-1.5 h-3.5 w-3.5" />Eliminar firma
+        {editing ? (
+          <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-[hsl(var(--border))]">
+            {signature ? (
+              <Button type="button" variant="ghost" className="mr-auto text-[hsl(var(--destructive))]" onClick={() => setDeleting(true)} disabled={busy}>
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />Eliminar firma
+              </Button>
+            ) : null}
+            <Button type="button" variant="outline" onClick={stopEditing} disabled={busy}>
+              Cancelar
             </Button>
-          ) : null}
-          <Button type="button" onClick={handleSave} disabled={!dataUrl || busy}>
-            {save.isPending ? "Guardando..." : signature ? "Guardar nueva firma" : "Guardar firma"}
-          </Button>
-        </div>
+            <Button type="button" onClick={handleSave} disabled={!dataUrl || busy}>
+              {save.isPending ? "Guardando..." : signature ? "Guardar nueva firma" : "Guardar firma"}
+            </Button>
+          </div>
+        ) : null}
       </div>
       <ConfirmDialog
         open={deleting}

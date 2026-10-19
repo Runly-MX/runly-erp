@@ -13,6 +13,7 @@ import {
   Loader2,
   Maximize,
   MoreHorizontal,
+  Pencil,
   Play,
   RefreshCw,
   Rewind,
@@ -53,6 +54,7 @@ import { ViewerActionsSheet } from "./ViewerActionsSheet.jsx";
 import { ViewerFilmstrip } from "./ViewerFilmstrip.jsx";
 import { ViewerImageToolbar } from "./ViewerImageToolbar.jsx";
 import { ViewerGenericPreview } from "./ViewerGenericPreview.jsx";
+import { ImageEditorDialog } from "./ImageEditorDialog.jsx";
 import { useCoarsePointer } from "../hooks/usePointerCapabilities.js";
 import { useViewerTouchGestures } from "../hooks/useViewerTouchGestures.js";
 import { MAX_ZOOM, MIN_ZOOM, useViewerImageTransform } from "../hooks/useViewerImageTransform.js";
@@ -76,7 +78,13 @@ export function AdvancedFileViewer({
   zIndex = 50,
   onOpenInOffice = null,
   canOpenInOffice = null,
+  // Optional: (editedFile, sourceFile) => Promise. When given, images get an
+  // "Editar" button that opens ImageEditorDialog; the host stores the result
+  // (e.g. as a copy) and should throw to keep the editor open on failure.
+  onSaveEditedImage = null,
+  editedImageSaveLabel = "Guardar copia",
 }) {
+  const [editorOpen, setEditorOpen] = useState(false);
   const [signedUrl, setSignedUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filmstripOpen, setFilmstripOpen] = useState(true);
@@ -245,6 +253,7 @@ export function AdvancedFileViewer({
   const getMedia = () => (isHlsSource ? hlsVideoRef.current : mediaRef.current);
   const goTo = (index) => index >= 0 && index < files.length && onIndexChange(index);
 
+  const canEditImage = Boolean(onSaveEditedImage) && kind === "image";
   const isMedia = kind === "video" || kind === "audio";
   const mediaReady = Boolean(signedUrl) && !loading;
   const actions = [
@@ -253,6 +262,7 @@ export function AdvancedFileViewer({
     canShareFiles && !isHlsSource && { key: "share", group: "file", label: "Compartir", icon: Share2, onSelect: shareFile, disabled: !signedUrl },
     !isHlsSource && { key: "link", shortcut: "link", group: "file", label: "Copiar enlace", icon: Link2, onSelect: copyLink, disabled: !signedUrl },
     !isHlsSource && { key: "open", shortcut: "open", group: "file", label: "Abrir en pestaña nueva", icon: ExternalLink, onSelect: openExternal, disabled: !signedUrl },
+    kind === "image" && canEditImage && { key: "edit", group: "image", label: "Editar imagen", icon: Pencil, onSelect: () => setEditorOpen(true), disabled: !signedUrl },
     kind === "image" && { key: "zoomin", shortcut: "zoomin", group: "image", label: "Acercar", icon: ZoomIn, onSelect: () => t.nudgeZoom(1), disabled: t.zoom >= MAX_ZOOM },
     kind === "image" && { key: "zoomout", shortcut: "zoomout", group: "image", label: "Alejar", icon: ZoomOut, onSelect: () => t.nudgeZoom(-1), disabled: t.zoom <= MIN_ZOOM },
     kind === "image" && { key: "rotl", shortcut: "rotl", group: "image", label: "Rotar a la izquierda", icon: RotateCcw, onSelect: () => t.setRotation((v) => v - 90) },
@@ -346,6 +356,11 @@ export function AdvancedFileViewer({
               {!isHlsSource && !coarse && (
                 <button onClick={openExternal} disabled={!signedUrl} aria-label="Abrir en pestaña nueva" title={withShortcut("Abrir externo", "open")} className={barBtn}>
                   <ExternalLink className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {canEditImage && !coarse && (
+                <button onClick={() => setEditorOpen(true)} disabled={!signedUrl} aria-label="Editar imagen" title="Editar imagen" className={barBtn}>
+                  <Pencil className="h-3.5 w-3.5" />
                 </button>
               )}
               {kind === "image" && !coarse && (
@@ -551,6 +566,24 @@ export function AdvancedFileViewer({
             <div className={`flex items-center justify-center gap-1.5 px-3 h-12 safe-bottom shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 overflow-x-auto transition-opacity duration-200 ${chromeCls}`}>
               {kind === "image" && <ViewerImageToolbar t={t} />}
             </div>
+          )}
+          {canEditImage && (
+            <ImageEditorDialog
+              open={editorOpen}
+              onOpenChange={setEditorOpen}
+              src={signedUrl}
+              fileName={file?.originalName ?? "imagen"}
+              mimeType={file?.mimeType || "image/jpeg"}
+              saveLabel={editedImageSaveLabel}
+              onSave={async (edited) => {
+                try {
+                  await onSaveEditedImage(edited, file);
+                  setEditorOpen(false);
+                } catch {
+                  // The host reports the failure; keep the editor open for a retry.
+                }
+              }}
+            />
           )}
           <ViewerActionsSheet
             open={actionsOpen}

@@ -1,0 +1,248 @@
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { Crop, FlipHorizontal2, FlipVertical2, Loader2, PencilRuler, RotateCcw, RotateCw, SlidersHorizontal, Rotate3d } from "lucide-react";
+import { Button } from "./Button.jsx";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./Dialog.jsx";
+import { ImageCropOverlay } from "./ImageCropOverlay.jsx";
+import { fitRect, toSourceRect } from "../lib/cropRect.js";
+import { NO_ADJUST, canvasToFile, cropRect, loadImageFromUrl, renderTransformed } from "../lib/imageEdit.js";
+
+const MAX_STAGE_HEIGHT = 520;
+const NO_TRANSFORM = { quarterTurns: 0, angle: 0, flipX: false, flipY: false };
+const RATIOS = [
+  { id: "free", label: "Libre", ratio: null },
+  { id: "orig", label: "Original", ratio: "original" },
+  { id: "1:1", label: "1:1", ratio: 1 },
+  { id: "4:3", label: "4:3", ratio: 4 / 3 },
+  { id: "3:4", label: "3:4", ratio: 3 / 4 },
+  { id: "16:9", label: "16:9", ratio: 16 / 9 },
+  { id: "9:16", label: "9:16", ratio: 9 / 16 },
+];
+const TABS = [
+  { id: "crop", label: "Recortar", icon: Crop },
+  { id: "turn", label: "Girar", icon: Rotate3d },
+  { id: "adjust", label: "Ajustes", icon: SlidersHorizontal },
+];
+const SLIDERS = [
+  { key: "brightness", label: "Brillo", min: 40, max: 160 },
+  { key: "contrast", label: "Contraste", min: 40, max: 160 },
+  { key: "saturation", label: "Saturación", min: 0, max: 200 },
+];
+
+function IconButton({ label, onClick, active = false, disabled, children }) {
+  return (
+    <Button type="button" variant={active ? "secondary" : "ghost"} size="icon" aria-label={label} title={label} aria-pressed={active} disabled={disabled} onClick={onClick}>
+      {children}
+    </Button>
+  );
+}
+
+// Image editor (phase 1): crop with proportions, rotate / mirror / straighten
+// and brightness / contrast / saturation. Works on the whole picture and
+// resolves to a new File via `onSave(file)` — the host decides where it goes
+// (copy, replacement...). `src` must be a CORS-readable URL (signed URLs are).
+export function ImageEditorDialog({
+  open,
+  onOpenChange,
+  src,
+  fileName = "imagen",
+  mimeType = "image/jpeg",
+  onSave,
+  saveLabel = "Guardar copia",
+  title = "Editar imagen",
+}) {
+  const stageWrapRef = useRef(null);
+  const [source, setSource] = useState(null);
+  const [error, setError] = useState(null);
+  const [tab, setTab] = useState("crop");
+  const [transform, setTransform] = useState(NO_TRANSFORM);
+  const [adjust, setAdjust] = useState(NO_ADJUST);
+  const [ratioId, setRatioId] = useState("free");
+  const [wrapWidth, setWrapWidth] = useState(0);
+  const [rect, setRect] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const deferredAdjust = useDeferredValue(adjust);
+
+  useEffect(() => {
+    setSource(null);
+    setError(null);
+    setTransform(NO_TRANSFORM);
+    setAdjust(NO_ADJUST);
+    setRatioId("free");
+    setRect(null);
+    if (!open || !src) return undefined;
+    let cancelled = false;
+    loadImageFromUrl(src)
+      .then((img) => !cancelled && setSource(img))
+      .catch(() => !cancelled && setError("No se pudo cargar la imagen para editarla."));
+    return () => {
+      cancelled = true;
+    };
+  }, [open, src]);
+
+  const work = useMemo(() => (source ? renderTransformed(source, { ...transform, adjust: deferredAdjust }) : null), [source, transform, deferredAdjust]);
+
+  useEffect(() => {
+    const node = stageWrapRef.current;
+    if (!open || !node) return undefined;
+    const measure = () => setWrapWidth(node.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [open, work]);
+
+  const display = useMemo(() => {
+    if (!work || !wrapWidth) return null;
+    const scale = Math.min(wrapWidth / work.width, MAX_STAGE_HEIGHT / work.height, 1);
+    return { w: Math.round(work.width * scale), h: Math.round(work.height * scale) };
+  }, [work, wrapWidth]);
+
+  const ratio = useMemo(() => {
+    const preset = RATIOS.find((r) => r.id === ratioId);
+    if (!preset) return null;
+    if (preset.ratio === "original") return work ? work.width / work.height : null;
+    return preset.ratio;
+  }, [ratioId, work]);
+
+  // Geometry changes (new picture size, rotation, preset) reset the crop to the
+  // largest rect of the chosen proportion; brightness etc. do not (same size).
+  const geometryKey = work ? `${work.width}x${work.height}` : "";
+  useEffect(() => {
+    if (display) setRect(fitRect(display, ratio));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geometryKey, display?.w, display?.h, ratioId]);
+
+  const canvasRef = useCallback(
+    (node) => {
+      if (!node || !work) return;
+      node.width = work.width;
+      node.height = work.height;
+      node.getContext("2d").drawImage(work, 0, 0);
+    },
+    [work],
+  );
+
+  const patchTransform = (patch) => setTransform((t) => ({ ...t, ...patch }));
+  const isFullCrop = !rect || !display || (Math.round(rect.w) >= display.w && Math.round(rect.h) >= display.h);
+  const edited = JSON.stringify(transform) !== JSON.stringify(NO_TRANSFORM) || JSON.stringify(adjust) !== JSON.stringify(NO_ADJUST) || !isFullCrop;
+
+  function resetAll() {
+    setTransform(NO_TRANSFORM);
+    setAdjust(NO_ADJUST);
+    setRatioId("free");
+    if (display) setRect(fitRect(display, null));
+  }
+
+  async function handleSave() {
+    if (!work || !display || !rect) return;
+    setSaving(true);
+    try {
+      const out = isFullCrop ? work : cropRect(work, toSourceRect(rect, display, work));
+      const keepPng = mimeType === "image/png" || mimeType === "image/gif" || transform.angle !== 0;
+      const type = keepPng ? "image/png" : mimeType === "image/webp" ? "image/webp" : "image/jpeg";
+      const ext = type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";
+      const base = fileName.replace(/\.[^.]+$/, "");
+      await onSave?.(await canvasToFile(out, { name: `${base}-editada.${ext}`, type }));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange?.(next)}>
+      <DialogContent size="2xl" className="md:max-w-6xl">
+        <DialogHeader icon={PencilRuler}>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>Los cambios se aplican al guardar y el original no se modifica.</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div ref={stageWrapRef} className="flex min-h-64 items-center justify-center rounded-lg bg-[hsl(var(--muted))]/60 p-2">
+            {work ? (
+              <div className="relative select-none overflow-hidden" style={display ? { width: display.w, height: display.h } : undefined}>
+                <canvas ref={canvasRef} aria-label="Imagen en edición" className="absolute inset-0 h-full w-full" />
+                {display && rect ? (
+                  <ImageCropOverlay rect={rect} bounds={display} ratio={ratio} disabled={saving} onChange={setRect} />
+                ) : null}
+              </div>
+            ) : error ? (
+              <p className="px-4 text-sm text-[hsl(var(--destructive))]">{error}</p>
+            ) : (
+              <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--muted-foreground))]" />
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div role="tablist" aria-label="Herramientas" className="grid grid-cols-3 gap-1 rounded-lg bg-[hsl(var(--muted))]/60 p-1">
+              {TABS.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === id}
+                  onClick={() => setTab(id)}
+                  className={`flex h-9 items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors ${tab === id ? "bg-[hsl(var(--card))] text-[hsl(var(--foreground))] shadow-sm" : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"}`}
+                >
+                  <Icon className="h-3.5 w-3.5" />{label}
+                </button>
+              ))}
+            </div>
+
+            {tab === "crop" ? (
+              <div className="space-y-2">
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">Proporción</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {RATIOS.map((r) => (
+                    <Button key={r.id} type="button" size="sm" variant={ratioId === r.id ? "default" : "outline"} disabled={saving || !work} onClick={() => setRatioId(r.id)}>
+                      {r.label}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">Arrastra el recuadro para moverlo y las asas para cambiar su tamaño.</p>
+              </div>
+            ) : null}
+
+            {tab === "turn" ? (
+              <div className="space-y-3">
+                <div className="flex gap-1">
+                  <IconButton label="Girar a la izquierda" disabled={saving || !work} onClick={() => patchTransform({ quarterTurns: transform.quarterTurns - 1 })}><RotateCcw className="h-4 w-4" /></IconButton>
+                  <IconButton label="Girar a la derecha" disabled={saving || !work} onClick={() => patchTransform({ quarterTurns: transform.quarterTurns + 1 })}><RotateCw className="h-4 w-4" /></IconButton>
+                  <IconButton label="Voltear horizontalmente" active={transform.flipX} disabled={saving || !work} onClick={() => patchTransform({ flipX: !transform.flipX })}><FlipHorizontal2 className="h-4 w-4" /></IconButton>
+                  <IconButton label="Voltear verticalmente" active={transform.flipY} disabled={saving || !work} onClick={() => patchTransform({ flipY: !transform.flipY })}><FlipVertical2 className="h-4 w-4" /></IconButton>
+                </div>
+                <label className="block space-y-1">
+                  <span className="flex justify-between text-xs text-[hsl(var(--muted-foreground))]">Enderezar <span className="tabular-nums text-[hsl(var(--foreground))]">{transform.angle}°</span></span>
+                  <input type="range" min={-45} max={45} step={1} value={transform.angle} disabled={saving || !work} onChange={(e) => patchTransform({ angle: Number(e.target.value) })} className="h-2 w-full cursor-pointer accent-[hsl(var(--primary))]" />
+                </label>
+              </div>
+            ) : null}
+
+            {tab === "adjust" ? (
+              <div className="space-y-3">
+                {SLIDERS.map(({ key, label, min, max }) => (
+                  <label key={key} className="block space-y-1">
+                    <span className="flex justify-between text-xs text-[hsl(var(--muted-foreground))]">{label} <span className="tabular-nums text-[hsl(var(--foreground))]">{adjust[key] - 100 > 0 ? "+" : ""}{adjust[key] - 100}</span></span>
+                    <input type="range" min={min} max={max} step={1} value={adjust[key]} disabled={saving || !work} onChange={(e) => setAdjust((a) => ({ ...a, [key]: Number(e.target.value) }))} className="h-2 w-full cursor-pointer accent-[hsl(var(--primary))]" />
+                  </label>
+                ))}
+              </div>
+            ) : null}
+
+            <Button type="button" variant="ghost" size="sm" disabled={saving || !edited} onClick={resetAll}>
+              Restablecer todo
+            </Button>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange?.(false)}>
+            Cancelar
+          </Button>
+          <Button type="button" disabled={saving || !work || !edited} onClick={handleSave}>
+            {saving ? "Guardando..." : saveLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

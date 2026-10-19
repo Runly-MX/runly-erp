@@ -813,6 +813,7 @@ export default function FilesScreen() {
         onResolveSignedUrl={resolveSignedUrl}
         onOpenInOffice={(f) => office?.enabled && office.open(f.id)}
         canOpenInOffice={(f) => f?.enabled !== false}
+        onSaveEditedImage={canUploadFiles ? (edited) => handleUploadFiles([edited]) : null}
       />
 
       <FileDetailPanel
