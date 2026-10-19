@@ -27,7 +27,9 @@ function Shape({ a }) {
 // SVG layer over the editor stage. Always renders the annotations; when
 // `tool` is set it also captures pointer input to draw new ones. `size` is the
 // picture's pixel size (the SVG viewBox), so everything is in picture pixels.
-export function ImageAnnotationLayer({ size, annotations, tool = null, color, width, onAdd }) {
+// `viewScale` is the stage zoom: stroke/text sizes are picture-relative, so they
+// do not change with the view zoom. `multiRef` cancels drawing on multi-touch.
+export function ImageAnnotationLayer({ size, annotations, tool = null, color, width, viewScale = 1, multiRef = null, onAdd }) {
   const svgRef = useRef(null);
   const [draft, setDraft] = useState(null);
   const [textAt, setTextAt] = useState(null);
@@ -36,10 +38,10 @@ export function ImageAnnotationLayer({ size, annotations, tool = null, color, wi
     const box = svgRef.current.getBoundingClientRect();
     return [((event.clientX - box.left) * size.w) / box.width, ((event.clientY - box.top) * size.h) / box.height];
   }
-  const scale = () => size.w / svgRef.current.getBoundingClientRect().width;
+  const scale = () => size.w / (svgRef.current.getBoundingClientRect().width / viewScale);
 
   function handleDown(event) {
-    if (!tool || textAt) return;
+    if (!tool || textAt || multiRef?.current) return;
     const p = toPicture(event);
     const k = scale();
     if (tool === "text") {
@@ -56,6 +58,10 @@ export function ImageAnnotationLayer({ size, annotations, tool = null, color, wi
 
   function handleMove(event) {
     if (!draft) return;
+    if (multiRef?.current) {
+      setDraft(null);
+      return;
+    }
     const p = toPicture(event);
     if (draft.type === "pen") setDraft({ ...draft, points: [...draft.points, p] });
     else if (draft.type === "arrow") setDraft({ ...draft, to: p });

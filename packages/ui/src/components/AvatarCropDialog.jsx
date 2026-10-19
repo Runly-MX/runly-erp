@@ -3,6 +3,7 @@ import { Crop, FlipVertical2, FlipHorizontal2, Minus, Plus, RotateCcw, RotateCw 
 import { Button } from "./Button.jsx";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "./Dialog.jsx";
 import { canvasToFile, cropSquare, loadImageFromFile, renderTransformed } from "../lib/imageEdit.js";
+import { useStageGestures } from "../hooks/useStageGestures.js";
 
 const MAX_STAGE_HEIGHT = 420;
 const MIN_FRAME = 56;
@@ -29,6 +30,7 @@ export function AvatarCropDialog({
 }) {
   const stageWrapRef = useRef(null);
   const dragRef = useRef(null);
+  const [stageEl, setStageEl] = useState(null);
   const [source, setSource] = useState(null);
   const [transform, setTransform] = useState(NO_TRANSFORM);
   const [wrapWidth, setWrapWidth] = useState(0);
@@ -108,14 +110,35 @@ export function AvatarCropDialog({
     setTransform((t) => ({ ...t, ...patch }));
   }
 
+  // Wheel, trackpad pinch and two-finger pinch/pan resize and move the frame.
+  const { multiRef } = useStageGestures(stageEl, {
+    enabled: Boolean(display),
+    onZoom: (factor) => resizeTo(frame.size / factor),
+    onPan: (dx, dy) => moveTo(frame.x + dx, frame.y + dy),
+  });
+
+  // One pointer anywhere on the picture: grabbing inside the frame drags it,
+  // touching outside re-centers the frame there and keeps dragging.
   function handlePointerDown(event) {
+    if (multiRef.current || !display) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    const px = event.clientX - box.left;
+    const py = event.clientY - box.top;
+    const inside = px >= frame.x && px <= frame.x + frame.size && py >= frame.y && py <= frame.y + frame.size;
+    const x = inside ? frame.x : clamp(px - frame.size / 2, 0, display.w - frame.size);
+    const y = inside ? frame.y : clamp(py - frame.size / 2, 0, display.h - frame.size);
+    if (!inside) setFrame({ x, y, size: frame.size });
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { px: event.clientX, py: event.clientY, x: frame.x, y: frame.y };
+    dragRef.current = { px: event.clientX, py: event.clientY, x, y };
   }
 
   function handlePointerMove(event) {
     const drag = dragRef.current;
     if (!drag) return;
+    if (multiRef.current) {
+      dragRef.current = null;
+      return;
+    }
     moveTo(drag.x + event.clientX - drag.px, drag.y + event.clientY - drag.py);
   }
 
@@ -170,14 +193,19 @@ export function AvatarCropDialog({
       <DialogContent size="xl">
         <DialogHeader icon={Crop}>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Arrastra el círculo para elegir la parte que se mostrará. Puedes girar, voltear y enderezar la imagen.</DialogDescription>
+          <DialogDescription>Toca o arrastra para elegir la parte que se mostrará. Puedes girar, voltear y enderezar la imagen.</DialogDescription>
         </DialogHeader>
 
         <div ref={stageWrapRef} className="flex w-full justify-center">
           {work ? (
             <div
-              className="relative select-none overflow-hidden rounded-lg bg-[hsl(var(--muted))]"
-              style={display ? { width: display.w, height: display.h } : { width: "100%", height: 240 }}
+              ref={setStageEl}
+              className="relative cursor-grab select-none overflow-hidden rounded-lg bg-[hsl(var(--muted))] active:cursor-grabbing"
+              style={display ? { width: display.w, height: display.h, touchAction: "none" } : { width: "100%", height: 240 }}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
             >
               <canvas ref={canvasRef} aria-label="Foto seleccionada" className="absolute inset-0 h-full w-full" />
               {display ? (
@@ -188,19 +216,14 @@ export function AvatarCropDialog({
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={zoomPct}
-                  onPointerDown={handlePointerDown}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                  onPointerCancel={handlePointerUp}
                   onKeyDown={handleKeyDown}
-                  className="absolute cursor-grab rounded-full border-2 border-white outline-none active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+                  className="pointer-events-none absolute rounded-full border-2 border-white outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
                   style={{
                     left: frame.x,
                     top: frame.y,
                     width: frame.size,
                     height: frame.size,
                     boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
-                    touchAction: "none",
                   }}
                 />
               ) : null}
@@ -249,24 +272,15 @@ export function AvatarCropDialog({
             <span className="w-10 shrink-0 text-right text-xs tabular-nums">{transform.angle}°</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="w-14 shrink-0 text-xs text-[hsl(var(--muted-foreground))]">Zoom</span>
-            <Button type="button" variant="ghost" size="icon" aria-label="Alejar encuadre" disabled={working || !display} onClick={() => resizeTo(frame.size + 24)}>
+            <Button type="button" variant="outline" size="icon" aria-label="Alejar encuadre" disabled={working || !display} onClick={() => resizeTo(frame.size * 1.15)}>
               <Minus className="h-4 w-4" />
             </Button>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={zoomPct}
-              disabled={working || !display}
-              aria-label="Zoom del encuadre"
-              onChange={(e) => resizeTo(maxFrame - (Number(e.target.value) / 100) * (maxFrame - minFrame))}
-              className="h-2 flex-1 cursor-pointer accent-[hsl(var(--primary))]"
-            />
-            <Button type="button" variant="ghost" size="icon" aria-label="Acercar encuadre" disabled={working || !display} onClick={() => resizeTo(frame.size - 24)}>
+            <Button type="button" variant="outline" size="icon" aria-label="Acercar encuadre" disabled={working || !display} onClick={() => resizeTo(frame.size / 1.15)}>
               <Plus className="h-4 w-4" />
             </Button>
+            <span className="ml-1 text-xs text-[hsl(var(--muted-foreground))]">Rueda del mouse o pellizca con dos dedos</span>
           </div>
         </div>
 

@@ -1,15 +1,18 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Crop, FlipVertical2, FlipHorizontal2, Loader2, PencilRuler, PenLine, RotateCcw, RotateCw, Rotate3d, SlidersHorizontal, Square, Type, Undo2 } from "lucide-react";
+import { ArrowUpRight, Crop, FlipVertical2, FlipHorizontal2, Hand, Loader2, Minus, PencilRuler, PenLine, Plus, RotateCcw, RotateCw, Rotate3d, Maximize, SlidersHorizontal, Square, Type, Undo2 } from "lucide-react";
 import { Button } from "./Button.jsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./Dialog.jsx";
 import { ConfirmDialog } from "./ConfirmDialog.jsx";
 import { ImageAnnotationLayer } from "./ImageAnnotationLayer.jsx";
 import { ImageCropOverlay } from "./ImageCropOverlay.jsx";
 import { ANNOTATION_COLORS, drawAnnotations } from "../lib/imageAnnotations.js";
+import { useStageGestures } from "../hooks/useStageGestures.js";
 import { fitRect, toSourceRect } from "../lib/cropRect.js";
 import { NO_ADJUST, canvasToFile, cropRect, loadImageFromUrl, renderTransformed } from "../lib/imageEdit.js";
 
 const MAX_STAGE_HEIGHT = 520;
+const MAX_VIEW_ZOOM = 8;
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 const NO_TRANSFORM = { quarterTurns: 0, angle: 0, flipX: false, flipY: false };
 const RATIOS = [
   { id: "free", label: "Libre", ratio: null },
@@ -27,6 +30,7 @@ const TABS = [
   { id: "annotate", label: "Anotar", icon: PenLine },
 ];
 const TOOLS = [
+  { id: "pan", label: "Mover vista", icon: Hand },
   { id: "pen", label: "Lápiz", icon: PenLine },
   { id: "arrow", label: "Flecha", icon: ArrowUpRight },
   { id: "rect", label: "Recuadro", icon: Square },
@@ -63,6 +67,9 @@ export function ImageEditorDialog({
   title = "Editar imagen",
 }) {
   const stageWrapRef = useRef(null);
+  const panRef = useRef(null);
+  const [clipEl, setClipEl] = useState(null);
+  const [view, setView] = useState({ s: 1, x: 0, y: 0 });
   const [source, setSource] = useState(null);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState("crop");
@@ -88,6 +95,7 @@ export function ImageEditorDialog({
     setRect(null);
     setAnnotations([]);
     setTab("crop");
+    setView({ s: 1, x: 0, y: 0 });
     if (!open || !src) return undefined;
     let cancelled = false;
     loadImageFromUrl(src)
@@ -127,9 +135,68 @@ export function ImageEditorDialog({
   // largest rect of the chosen proportion; brightness etc. do not (same size).
   const geometryKey = work ? `${work.width}x${work.height}` : "";
   useEffect(() => {
+    setView({ s: 1, x: 0, y: 0 });
+  }, [geometryKey]);
+  useEffect(() => {
     if (display) setRect(fitRect(display, ratio));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geometryKey, display?.w, display?.h, ratioId]);
+
+  // View zoom/pan (wheel, pinch, two-finger drag, "Mover vista", double click).
+  // The picture, annotations and crop all live inside one transformed layer.
+  const clampView = useCallback(
+    (v) => {
+      const s = clamp(v.s, 1, MAX_VIEW_ZOOM);
+      if (!display) return { s, x: 0, y: 0 };
+      return { s, x: clamp(v.x, display.w - display.w * s, 0), y: clamp(v.y, display.h - display.h * s, 0) };
+    },
+    [display],
+  );
+  function zoomAt(factor, cx, cy) {
+    if (!clipEl) return;
+    const box = clipEl.getBoundingClientRect();
+    setView((v) => {
+      const s = clamp(v.s * factor, 1, MAX_VIEW_ZOOM);
+      const k = s / v.s;
+      const px = cx - box.left;
+      const py = cy - box.top;
+      return clampView({ s, x: px - (px - v.x) * k, y: py - (py - v.y) * k });
+    });
+  }
+  function zoomCenter(factor) {
+    if (!clipEl) return;
+    const box = clipEl.getBoundingClientRect();
+    zoomAt(factor, box.left + box.width / 2, box.top + box.height / 2);
+  }
+  const panBy = (dx, dy) => setView((v) => clampView({ ...v, x: v.x + dx, y: v.y + dy }));
+  const { multiRef } = useStageGestures(clipEl, { enabled: Boolean(display), onZoom: zoomAt, onPan: panBy });
+
+  // One-pointer panning: only where no other tool owns the pointer.
+  const canPanWithPointer = view.s > 1 && (tab !== "annotate" || tool === "pan");
+  function handlePanDown(event) {
+    if (!canPanWithPointer || multiRef.current) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    panRef.current = { x: event.clientX, y: event.clientY };
+  }
+  function handlePanMove(event) {
+    const last = panRef.current;
+    if (!last) return;
+    if (multiRef.current) {
+      panRef.current = null;
+      return;
+    }
+    panBy(event.clientX - last.x, event.clientY - last.y);
+    panRef.current = { x: event.clientX, y: event.clientY };
+  }
+  function handlePanUp(event) {
+    panRef.current = null;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+  function handleDoubleClick(event) {
+    if (tab === "annotate" && tool !== "pan") return;
+    if (view.s > 1) setView({ s: 1, x: 0, y: 0 });
+    else zoomAt(2.5, event.clientX, event.clientY);
+  }
 
   const canvasRef = useCallback(
     (node) => {
@@ -196,27 +263,49 @@ export function ImageEditorDialog({
         </DialogHeader>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="min-w-0 space-y-2">
+            <div className="flex items-center justify-end gap-1">
+              <span className="mr-1 hidden text-xs text-[hsl(var(--muted-foreground))] sm:inline">Rueda o pellizca para acercar</span>
+              <IconButton label="Alejar vista" disabled={!display || view.s <= 1} onClick={() => zoomCenter(1 / 1.4)}><Minus className="h-4 w-4" /></IconButton>
+              <span className="w-12 text-center text-xs tabular-nums">{Math.round(view.s * 100)}%</span>
+              <IconButton label="Acercar vista" disabled={!display || view.s >= MAX_VIEW_ZOOM} onClick={() => zoomCenter(1.4)}><Plus className="h-4 w-4" /></IconButton>
+              <IconButton label="Ajustar a la ventana" disabled={!display || view.s === 1} onClick={() => setView({ s: 1, x: 0, y: 0 })}><Maximize className="h-4 w-4" /></IconButton>
+            </div>
           <div ref={stageWrapRef} className="flex min-h-64 items-center justify-center rounded-lg bg-[hsl(var(--muted))]/60 p-2">
             {work ? (
-              <div className="relative select-none overflow-hidden" style={display ? { width: display.w, height: display.h } : undefined}>
-                <canvas ref={canvasRef} aria-label="Imagen en edición" className="absolute inset-0 h-full w-full" />
-                <ImageAnnotationLayer
-                  size={{ w: work.width, h: work.height }}
-                  annotations={annotations}
-                  tool={tab === "annotate" ? tool : null}
-                  color={color}
-                  width={stroke}
-                  onAdd={(a) => setAnnotations((list) => [...list, a])}
-                />
-                {display && rect && tab !== "annotate" ? (
-                  <ImageCropOverlay rect={rect} bounds={display} ratio={ratio} disabled={saving} onChange={setRect} />
-                ) : null}
+              <div
+                ref={setClipEl}
+                className={`relative select-none overflow-hidden ${canPanWithPointer ? "cursor-grab active:cursor-grabbing" : ""}`}
+                style={display ? { width: display.w, height: display.h, touchAction: "none" } : undefined}
+                onPointerDown={handlePanDown}
+                onPointerMove={handlePanMove}
+                onPointerUp={handlePanUp}
+                onPointerCancel={handlePanUp}
+                onDoubleClick={handleDoubleClick}
+              >
+                <div className="absolute inset-0" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`, transformOrigin: "0 0" }}>
+                  <canvas ref={canvasRef} aria-label="Imagen en edición" className="absolute inset-0 h-full w-full" />
+                  <ImageAnnotationLayer
+                    size={{ w: work.width, h: work.height }}
+                    annotations={annotations}
+                    tool={tab === "annotate" && tool !== "pan" ? tool : null}
+                    color={color}
+                    width={stroke}
+                    viewScale={view.s}
+                    multiRef={multiRef}
+                    onAdd={(a) => setAnnotations((list) => [...list, a])}
+                  />
+                  {display && rect && tab !== "annotate" ? (
+                    <ImageCropOverlay rect={rect} bounds={display} ratio={ratio} scale={view.s} multiRef={multiRef} disabled={saving} onChange={setRect} />
+                  ) : null}
+                </div>
               </div>
             ) : error ? (
               <p className="px-4 text-sm text-[hsl(var(--destructive))]">{error}</p>
             ) : (
               <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--muted-foreground))]" />
             )}
+          </div>
           </div>
 
           <div className="space-y-4">

@@ -14,11 +14,13 @@ const HANDLES = [
 
 // Draggable crop rectangle drawn over the stage picture (display-pixel space).
 // With `ratio` set, edge handles are hidden and corners keep the proportion.
-export function ImageCropOverlay({ rect, bounds, ratio = null, disabled = false, onChange }) {
+// `scale` is the stage view zoom (pointer deltas are divided by it); `multiRef`
+// (from useStageGestures) pauses dragging while two fingers are down.
+export function ImageCropOverlay({ rect, bounds, ratio = null, scale = 1, multiRef = null, disabled = false, onChange }) {
   const dragRef = useRef(null);
 
   function begin(event, handle) {
-    if (disabled) return;
+    if (disabled || multiRef?.current) return;
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = { handle, px: event.clientX, py: event.clientY, start: rect };
@@ -27,8 +29,12 @@ export function ImageCropOverlay({ rect, bounds, ratio = null, disabled = false,
   function drag(event) {
     const d = dragRef.current;
     if (!d) return;
-    const dx = event.clientX - d.px;
-    const dy = event.clientY - d.py;
+    if (multiRef?.current) {
+      dragRef.current = null;
+      return;
+    }
+    const dx = (event.clientX - d.px) / scale;
+    const dy = (event.clientY - d.py) / scale;
     onChange(d.handle ? resizeRect(d.start, d.handle.hx, d.handle.hy, dx, dy, bounds, ratio) : moveRect(d.start, dx, dy, bounds));
   }
 
@@ -56,9 +62,11 @@ export function ImageCropOverlay({ rect, bounds, ratio = null, disabled = false,
           key={h.id}
           onPointerDown={(e) => begin(e, h)}
           {...gesture}
-          className={`absolute h-3.5 w-3.5 rounded-sm border border-black/40 bg-white shadow ${h.pos}`}
-          style={{ touchAction: "none" }}
-        />
+          className={`absolute flex h-9 w-9 items-center justify-center ${h.pos}`}
+          style={{ touchAction: "none", scale: 1 / scale }}
+        >
+          <span className="h-3.5 w-3.5 rounded-sm border border-black/40 bg-white shadow" />
+        </span>
       ))}
     </div>
   );
