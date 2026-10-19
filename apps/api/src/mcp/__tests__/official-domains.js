@@ -271,6 +271,44 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
     assert.equal(schema.operations.some(operation => operation.operation === 'purchases.request.create'), false);
     await createPurchasesService({ prisma }).updateSettings(company.id, user.id, { preset: 'CUSTOM', capabilities: { requests: true, approvals: true, purchaseOrders: true, invoices: true, receipts: true, quotes: true } });
   });
+  await t.test('Compras: lote crea orden, factura y proveedor, vincula equipos y reutiliza existentes', async () => {
+    for (const key of ['purchases.order.create', 'purchases.invoice.create', 'purchases.relation.manage', 'contacts.contacts.create']) {
+      const permission = await prisma.permission.upsert({ where: { key }, create: { key, name: key }, update: {} });
+      await prisma.rolePermission.upsert({ where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } }, create: { roleId: role.id, permissionId: permission.id }, update: {} });
+    }
+    await createPurchasesService({ prisma }).updateSettings(company.id, user.id, { preset: 'CUSTOM', capabilities: { requests: true, approvals: true, purchaseOrders: true, invoices: true, receipts: true, quotes: true, inventoryRelations: true } });
+    const items = await Promise.all(['321004-60791', '52061803535'].map(serialNumber => prisma.invItem.create({ data: { companyId: company.id, name: `Equipo ${serialNumber}`, serialNumber } })));
+    const batch = { documents: [
+      { kind: 'invoice', number: 'V265210187', supplier: { name: 'CAME Automatismos de México' }, orderNumber: 'OC 0006174', total: 1160, inventory: [{ serialNumber: '52061803535' }] },
+      { kind: 'order', number: 'OC 0006174', supplier: { name: 'CAME Automatismos de México', taxId: 'CAM010101AB1' }, lines: [{ description: 'Barrera GL B1', quantity: 1, unitAmount: 1000, taxRate: 0.16 }], inventory: [{ serialNumber: '321004-60791' }] },
+    ] };
+    await assert.rejects(() => prepare('purchases', 'purchases.documents.import', { documents: [{ kind: 'order', number: 'OC X', inventory: [{ serialNumber: 'no-existe' }] }] }), { code: 'invalid_proposal' });
+    const proposal = await prepare('purchases', 'purchases.documents.import', batch);
+    await approve(proposal);
+    const { result } = await commit('purchases', proposal);
+    assert.deepEqual(result.documents.map(doc => [doc.kind, doc.number, doc.created]), [['order', 'OC 0006174', true], ['invoice', 'V265210187', true]]);
+    const [order, invoice] = result.documents;
+    const supplier = await prisma.contact.findFirst({ where: { companyId: company.id, taxId: 'CAM010101AB1' } });
+    assert.equal((await prisma.purchaseOrder.findUnique({ where: { id: order.id } })).supplierId, supplier.id);
+    assert.equal((await prisma.purchaseInvoice.findUnique({ where: { id: invoice.id } })).supplierId, supplier.id, 'Un solo proveedor nuevo por lote');
+    const links = await prisma.entityRelation.findMany({ where: { companyId: company.id, targetType: { in: ['inventory_item', 'purchase_order'] }, sourceId: { in: [order.id, invoice.id] } } });
+    const has = (sourceId, relationType, targetId) => links.some(row => row.sourceId === sourceId && row.relationType === relationType && row.targetId === targetId);
+    assert.ok(has(invoice.id, 'BILLED_FROM', order.id));
+    assert.ok(has(order.id, 'PURCHASED_IN', items[0].id));
+    assert.ok(has(invoice.id, 'INVOICED_ITEM', items[0].id), 'La factura hereda los equipos de la orden');
+    assert.ok(has(invoice.id, 'INVOICED_ITEM', items[1].id));
+    const third = await prisma.invItem.create({ data: { companyId: company.id, name: 'Equipo 52061303080', serialNumber: '52061303080' } });
+    const again = await prepare('purchases', 'purchases.documents.import', { documents: [{ kind: 'order', number: 'oc 0006174', supplier: { taxId: 'CAM010101AB1' }, inventory: [{ serialNumber: '321004-60791' }, { serialNumber: '52061303080' }] }] });
+    await approve(again);
+    const reused = (await commit('purchases', again)).result.documents[0];
+    assert.equal(reused.id, order.id);
+    assert.equal(reused.created, false);
+    assert.equal(reused.linkedItems, 1, 'Solo agrega la relación faltante');
+    assert.equal(await prisma.entityRelation.count({ where: { companyId: company.id, sourceId: order.id, targetId: third.id, relationType: 'PURCHASED_IN' } }), 1);
+    await assert.rejects(() => prepare('purchases', 'purchases.documents.import', { documents: [{ kind: 'order', number: 'OC 9999', inventory: [{ serialNumber: '52061303080' }] }] }), { code: 'invalid_proposal' });
+    // Later inventory suites count the company's enabled items.
+    await prisma.invItem.updateMany({ where: { id: { in: [...items, third].map(item => item.id) } }, data: { enabled: false } });
+  });
   await t.test('Canvas: Board y hotspot reales, actualización aprobada sin reemplazar escena', async () => {
     const proposal = await prepare('canvas', 'canvas.board.create', { name: 'Plano de cámaras' });
     await approve(proposal);
