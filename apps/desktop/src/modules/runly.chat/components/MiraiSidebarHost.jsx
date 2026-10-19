@@ -200,6 +200,8 @@ export function MiraiSidebarHost() {
   );
 }
 
+const MIRAI_RESUME_WINDOW_MS = 30 * 60 * 1000;
+
 function MiraiPanel({ open, coarse, onClose }) {
   const navigate = useNavigate();
   const threadsApi = useMiraiThreads();
@@ -213,6 +215,26 @@ function MiraiPanel({ open, coarse, onClose }) {
   }, [ensure.data?.conversationId]);
 
   const [view, setView] = useState("chat");
+
+  // Each time the panel opens, a conversation left idle for a while is stale
+  // context: reuse an empty thread or start a fresh one instead of resuming it.
+  // Quick close/reopen (within MIRAI_RESUME_WINDOW_MS) keeps the current thread.
+  const decided = useRef(false);
+  useEffect(() => {
+    if (!open) { decided.current = false; return; }
+    if (decided.current || !threads.isSuccess || create.isPending) return;
+    decided.current = true;
+    const current = list.find((t) => t.id === activeId);
+    if (!current || !current.preview) return;
+    const idleMs = Date.now() - new Date(current.lastMessageAt ?? 0).getTime();
+    if (idleMs < MIRAI_RESUME_WINDOW_MS) return;
+    const empty = list.find((t) => !t.preview);
+    if (empty) setActiveId(empty.id);
+    else create.mutate();
+    setView("chat");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, threads.isSuccess]);
+
   // Tell RealtimeProvider which MirAI conversation is on screen.
   const visibleId = open && view === "chat" ? conversationId : null;
   useEffect(() => {
