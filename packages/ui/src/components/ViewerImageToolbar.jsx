@@ -1,6 +1,6 @@
 import {
-  FlipHorizontal2,
   FlipVertical2,
+  FlipHorizontal2,
   Minus,
   Plus,
   RefreshCw,
@@ -70,10 +70,10 @@ export function ViewerImageToolbar({ t }) {
       <Divider />
       <Group>
         <ToolbarBtn onClick={() => t.setFlipX((v) => !v)} title={withShortcut("Voltear horizontal", "fliph")} active={t.flipX}>
-          <FlipHorizontal2 className="h-3.5 w-3.5" />
+          <FlipVertical2 className="h-3.5 w-3.5" />
         </ToolbarBtn>
         <ToolbarBtn onClick={() => t.setFlipY((v) => !v)} title={withShortcut("Voltear vertical", "flipv")} active={t.flipY}>
-          <FlipVertical2 className="h-3.5 w-3.5" />
+          <FlipHorizontal2 className="h-3.5 w-3.5" />
         </ToolbarBtn>
       </Group>
       <Divider />

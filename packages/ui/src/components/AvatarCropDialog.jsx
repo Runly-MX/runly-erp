@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Crop, FlipHorizontal2, FlipVertical2, Minus, Plus, RotateCcw, RotateCw } from "lucide-react";
+import { Crop, FlipVertical2, FlipHorizontal2, Minus, Plus, RotateCcw, RotateCw } from "lucide-react";
 import { Button } from "./Button.jsx";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "./Dialog.jsx";
 import { canvasToFile, cropSquare, loadImageFromFile, renderTransformed } from "../lib/imageEdit.js";
@@ -221,10 +221,10 @@ export function AvatarCropDialog({
               <RotateCw className="h-4 w-4" />
             </Button>
             <Button type="button" variant="ghost" size="icon" aria-label="Voltear horizontalmente" title="Voltear horizontalmente" aria-pressed={transform.flipX} disabled={working || !work} onClick={() => patchTransform({ flipX: !transform.flipX })}>
-              <FlipHorizontal2 className="h-4 w-4" />
+              <FlipVertical2 className="h-4 w-4" />
             </Button>
             <Button type="button" variant="ghost" size="icon" aria-label="Voltear verticalmente" title="Voltear verticalmente" aria-pressed={transform.flipY} disabled={working || !work} onClick={() => patchTransform({ flipY: !transform.flipY })}>
-              <FlipVertical2 className="h-4 w-4" />
+              <FlipHorizontal2 className="h-4 w-4" />
             </Button>
             <div className="ml-auto">
               <Button type="button" variant="ghost" size="sm" disabled={working || !work || (!edited && zoomPct === 0)} onClick={resetAll}>

@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Crop, FlipHorizontal2, FlipVertical2, Loader2, PencilRuler, PenLine, RotateCcw, RotateCw, Rotate3d, SlidersHorizontal, Square, Type, Undo2 } from "lucide-react";
+import { ArrowUpRight, Crop, FlipVertical2, FlipHorizontal2, Loader2, PencilRuler, PenLine, RotateCcw, RotateCw, Rotate3d, SlidersHorizontal, Square, Type, Undo2 } from "lucide-react";
 import { Button } from "./Button.jsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./Dialog.jsx";
 import { ConfirmDialog } from "./ConfirmDialog.jsx";
@@ -254,8 +254,8 @@ export function ImageEditorDialog({
                 <div className="flex gap-1">
                   <IconButton label="Girar a la izquierda" disabled={saving || !work} onClick={() => patchTransform({ quarterTurns: transform.quarterTurns - 1 })}><RotateCcw className="h-4 w-4" /></IconButton>
                   <IconButton label="Girar a la derecha" disabled={saving || !work} onClick={() => patchTransform({ quarterTurns: transform.quarterTurns + 1 })}><RotateCw className="h-4 w-4" /></IconButton>
-                  <IconButton label="Voltear horizontalmente" active={transform.flipX} disabled={saving || !work} onClick={() => patchTransform({ flipX: !transform.flipX })}><FlipHorizontal2 className="h-4 w-4" /></IconButton>
-                  <IconButton label="Voltear verticalmente" active={transform.flipY} disabled={saving || !work} onClick={() => patchTransform({ flipY: !transform.flipY })}><FlipVertical2 className="h-4 w-4" /></IconButton>
+                  <IconButton label="Voltear horizontalmente" active={transform.flipX} disabled={saving || !work} onClick={() => patchTransform({ flipX: !transform.flipX })}><FlipVertical2 className="h-4 w-4" /></IconButton>
+                  <IconButton label="Voltear verticalmente" active={transform.flipY} disabled={saving || !work} onClick={() => patchTransform({ flipY: !transform.flipY })}><FlipHorizontal2 className="h-4 w-4" /></IconButton>
                 </div>
                 <label className="block space-y-1">
                   <span className="flex justify-between text-xs text-[hsl(var(--muted-foreground))]">Enderezar <span className="tabular-nums text-[hsl(var(--foreground))]">{transform.angle}°</span></span>

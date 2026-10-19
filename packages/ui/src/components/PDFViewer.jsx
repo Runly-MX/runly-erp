@@ -4,8 +4,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
-  FlipHorizontal2,
   FlipVertical2,
+  FlipHorizontal2,
   Loader2,
   Minus,
   Plus,
@@ -283,14 +283,14 @@ function CustomPdfViewer({ url }) {
             title="Voltear horizontal"
             active={flipX}
           >
-            <FlipHorizontal2 className="h-3.5 w-3.5" />
+            <FlipVertical2 className="h-3.5 w-3.5" />
           </ToolbarBtn>
           <ToolbarBtn
             onClick={() => setFlipY((v) => !v)}
             title="Voltear vertical"
             active={flipY}
           >
-            <FlipVertical2 className="h-3.5 w-3.5" />
+            <FlipHorizontal2 className="h-3.5 w-3.5" />
           </ToolbarBtn>
         </div>
 
