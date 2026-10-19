@@ -564,6 +564,7 @@ export function ImageEditorDialog({
                   color={color}
                   stroke={stroke}
                   count={doc.annotations.length}
+                  zoomed={view.s > 1}
                   disabled={busy}
                   onTool={setTool}
                   onColor={setColor}

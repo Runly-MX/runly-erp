@@ -142,7 +142,7 @@ export function AdjustPanel({ adjust, disabled, onChange }) {
   );
 }
 
-export function AnnotatePanel({ tool, color, stroke, count, disabled, onTool, onColor, onStroke, onUndo, onClear }) {
+export function AnnotatePanel({ tool, color, stroke, count, zoomed = false, disabled, onTool, onColor, onStroke, onUndo, onClear }) {
   return (
     <>
       <Section title="Herramienta">
@@ -152,6 +152,11 @@ export function AnnotatePanel({ tool, color, stroke, count, disabled, onTool, on
           ))}
         </div>
       </Section>
+      {tool === "pan" ? (
+        <p role="status" className="rounded-lg bg-[hsl(var(--muted))] p-3 text-xs text-[hsl(var(--muted-foreground))]">
+          {zoomed ? "Arrastra la imagen para moverte por ella." : "Acerca la imagen con la rueda, el pellizco o los botones +/− y luego arrástrala para moverte. Sirve para dibujar con precisión."}
+        </p>
+      ) : null}
       <Section title="Color">
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Color">
           {ANNOTATION_COLORS.map((c) => (

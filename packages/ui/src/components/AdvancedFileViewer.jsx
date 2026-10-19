@@ -14,6 +14,7 @@ import {
   Maximize,
   MoreHorizontal,
   Pencil,
+  UserRound,
   Play,
   RefreshCw,
   Rewind,
@@ -92,6 +93,8 @@ export function AdvancedFileViewer({
   const editing = useContext(ViewerImageEditingContext);
   const saveCopyHandler = onSaveEditedImage ?? editing?.saveCopy ?? null;
   const replaceHandler = onReplaceEditedImage ?? editing?.replace ?? null;
+  // (sourceFile, signedUrl) => void: opens the profile-photo framing for this image.
+  const avatarHandler = editing?.setAsAvatar ?? null;
   const [editorOpen, setEditorOpen] = useState(false);
   // Edited content shown straight from the editor's output (blob URLs), so the
   // new image appears even if the host caches the old signed URL.
@@ -277,6 +280,7 @@ export function AdvancedFileViewer({
     canShareFiles && !isHlsSource && { key: "share", group: "file", label: "Compartir", icon: Share2, onSelect: shareFile, disabled: !signedUrl },
     !isHlsSource && { key: "link", shortcut: "link", group: "file", label: "Copiar enlace", icon: Link2, onSelect: copyLink, disabled: !signedUrl },
     !isHlsSource && { key: "open", shortcut: "open", group: "file", label: "Abrir en pestaña nueva", icon: ExternalLink, onSelect: openExternal, disabled: !signedUrl },
+    kind === "image" && avatarHandler && { key: "avatar", group: "image", label: "Usar como foto de perfil", icon: UserRound, onSelect: () => avatarHandler(file, signedUrl), disabled: !signedUrl },
     kind === "image" && canEditImage && { key: "edit", group: "image", label: "Editar imagen", icon: Pencil, onSelect: () => setEditorOpen(true), disabled: !signedUrl },
     kind === "image" && { key: "zoomin", shortcut: "zoomin", group: "image", label: "Acercar", icon: ZoomIn, onSelect: () => t.nudgeZoom(1), disabled: t.zoom >= MAX_ZOOM },
     kind === "image" && { key: "zoomout", shortcut: "zoomout", group: "image", label: "Alejar", icon: ZoomOut, onSelect: () => t.nudgeZoom(-1), disabled: t.zoom <= MIN_ZOOM },
@@ -371,6 +375,11 @@ export function AdvancedFileViewer({
               {!isHlsSource && !coarse && (
                 <button onClick={openExternal} disabled={!signedUrl} aria-label="Abrir en pestaña nueva" title={withShortcut("Abrir externo", "open")} className={barBtn}>
                   <ExternalLink className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {kind === "image" && avatarHandler && !coarse && (
+                <button onClick={() => avatarHandler(file, signedUrl)} disabled={!signedUrl} aria-label="Usar como foto de perfil" title="Usar como foto de perfil" className={barBtn}>
+                  <UserRound className="h-3.5 w-3.5" />
                 </button>
               )}
               {canEditImage && !coarse && (
