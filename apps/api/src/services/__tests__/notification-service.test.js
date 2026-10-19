@@ -582,6 +582,9 @@ describe('chat message grouping (chat.message.new: dedupeKey)', () => {
     const service = createNotificationService({ prisma });
 
     const first = await service.publish({ companyId: COMPANY_ID, input: messageInput('Hola', 'm1') });
+    // chat.message.new pushes by default: in_app + web_push + fcm.
+    const deliveriesAfterFirst = prisma._deliveries.length;
+    assert.equal(deliveriesAfterFirst, 3);
     const second = await service.publish({ companyId: COMPANY_ID, input: messageInput('¿Cómo estás?', 'm2') });
 
     assert.equal(first.created, 1);
@@ -591,8 +594,8 @@ describe('chat message grouping (chat.message.new: dedupeKey)', () => {
     assert.equal(prisma._notifications[0].body, '¿Cómo estás?');
     assert.equal(prisma._notifications[0].metadata.count, 2);
     // No second round of deliveries — the unread notification is reused, not
-    // re-created (and, when push is enabled, not re-pushed) per message.
-    assert.equal(prisma._deliveries.length, 1);
+    // re-created (and not re-pushed) per message.
+    assert.equal(prisma._deliveries.length, deliveriesAfterFirst);
   });
 
   it('re-arms once the prior message notification is read', async () => {

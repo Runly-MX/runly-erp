@@ -408,8 +408,15 @@ export function createChatMessageSendService({
                 actorId: profileId,
                 input: {
                   eventType: "chat.thread.reply",
-                  title: "Nueva respuesta en un hilo",
+                  title: isNamedRoom ? `${senderName} · ${conversationTitle}` : senderName,
                   body: preview,
+                  metadata: {
+                    kind: "chat_thread_reply",
+                    conversationId,
+                    conversationTitle: conversationTitle ?? null,
+                    conversationType: conversationType ?? null,
+                    senderName,
+                  },
                   link: `/app/m/runly.chat/chat/inbox/${conversationId}`,
                   recipients: { userIds: threadRecipientIds },
                   channels: ["in_app", "web_push"],
@@ -427,8 +434,15 @@ export function createChatMessageSendService({
               actorId: profileId,
               input: {
                 eventType: "chat.message.new",
-                title: "Nuevo mensaje de chat",
+                title: isNamedRoom ? `${senderName} · ${conversationTitle}` : senderName,
                 body: preview,
+                metadata: {
+                  kind: "chat_message",
+                  conversationId,
+                  conversationTitle: conversationTitle ?? null,
+                  conversationType: conversationType ?? null,
+                  senderName,
+                },
                 link: `/app/m/runly.chat/chat/inbox/${conversationId}`,
                 recipients: { userIds: recipientIds },
                 channels: ["in_app", "web_push"],

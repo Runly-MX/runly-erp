@@ -7,8 +7,11 @@ import {
 } from "@runly/validators";
 
 import { getDefaultNotificationPreference } from '@runly/core';
+import { attachUserAvatarUrls } from '../lib/attach-user-avatars.js';
 
 const DEDUPE_WINDOW_MS = 5000;
+
+const DIAGNOSTIC_EVENTS = ["chat.message.new", "chat.mention.new", "chat.call.incoming"];
 
 // Chat-message emails (`chat.mail:<conv>:<user>` dedupe keys) are throttled to at
 // most one per conversation per recipient within this window, and additionally
@@ -40,6 +43,14 @@ function toNotificationView(row) {
   };
 }
 
+// Chat-origin events (messages, mentions, thread replies) live in their own
+// "Mensajes" tab; everything else is "General".
+const MESSAGE_EVENT_PREFIXES = ["chat."];
+
+function messageCategoryClause() {
+  return { OR: MESSAGE_EVENT_PREFIXES.map((prefix) => ({ eventType: { startsWith: prefix } })) };
+}
+
 function buildCompanyScopeClause(companyId) {
   return {
     OR: [{ companyId }, { companyId: null }],
@@ -60,7 +71,15 @@ function buildListWhere({ userId, companyId, query }) {
     where.priority = query.priority;
   }
   if (query.eventType) {
-    where.eventType = query.eventType;
+    // A trailing dot filters by module prefix (e.g. "calendar.").
+    where.eventType = query.eventType.endsWith(".")
+      ? { startsWith: query.eventType }
+      : query.eventType;
+  }
+  if (query.category === "messages") {
+    where.AND.push(messageCategoryClause());
+  } else if (query.category === "general") {
+    where.AND.push({ NOT: messageCategoryClause() });
   }
   if (query.from || query.to) {
     where.createdAt = {};
@@ -81,7 +100,7 @@ function buildListWhere({ userId, companyId, query }) {
   return where;
 }
 
-export function createNotificationService({ prisma, broadcaster = null }) {
+export function createNotificationService({ prisma, broadcaster = null, supabaseAdmin = null }) {
   // activeCompanyId: the caller's validated active company, resolved by the
   // API's tenant middleware and threaded down from routes/notifications.js.
   // See docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
@@ -128,18 +147,129 @@ export function createNotificationService({ prisma, broadcaster = null }) {
       options.skip = 1;
     }
 
-    const [rows, unreadCount] = await Promise.all([
+    const unreadWhere = (category) =>
+      buildListWhere({ userId: profileId, companyId, query: { unreadOnly: true, category } });
+    const [rows, unreadCount, unreadMessages, unreadGeneral] = await Promise.all([
       prisma.notification.findMany(options),
-      prisma.notification.count({ where: buildListWhere({ userId: profileId, companyId, query: { unreadOnly: true } }) }),
+      prisma.notification.count({ where: unreadWhere(undefined) }),
+      prisma.notification.count({ where: unreadWhere("messages") }),
+      prisma.notification.count({ where: unreadWhere("general") }),
     ]);
     const hasNext = rows.length > parsed.limit;
     const items = hasNext ? rows.slice(0, parsed.limit) : rows;
     const nextCursor = hasNext ? items.at(-1)?.id ?? null : null;
 
+    const data = await attachActors(items.map(toNotificationView));
+
     return {
-      data: items.map(toNotificationView),
+      data,
       unreadCount,
+      unreadByCategory: { messages: unreadMessages, general: unreadGeneral },
       pageInfo: { nextCursor },
+    };
+  }
+
+  // Resolves `metadata.actorId` (stamped at publish time) into a displayable
+  // person so the UI can show who caused the notification. Never fails a list.
+  async function attachActors(views) {
+    try {
+      const actorIds = [...new Set(views.map((n) => n.metadata?.actorId).filter(Boolean))];
+      if (!actorIds.length) return views;
+      const profiles = await prisma.userProfile.findMany({
+        where: { id: { in: actorIds } },
+        select: { id: true, displayName: true, avatarFileId: true, isBot: true },
+      });
+      await attachUserAvatarUrls(profiles, { prisma, supabaseAdmin });
+      const byId = new Map(profiles.map((p) => [p.id, p]));
+      return views.map((n) => {
+        const actor = byId.get(n.metadata?.actorId);
+        return actor
+          ? { ...n, actor: { id: actor.id, displayName: actor.displayName, avatarUrl: actor.avatarUrl ?? null, isBot: actor.isBot } }
+          : n;
+      });
+    } catch (err) {
+      console.error("[notifications.actors]", err?.message ?? err);
+      return views;
+    }
+  }
+
+  // Support report for "I'm not receiving push": what this user has registered,
+  // what the server would do for the key events, and the latest delivery
+  // outcomes. Never returns endpoints/tokens beyond a short, non-usable tail.
+  async function getPushDiagnostics({ authUserId, companyId: activeCompanyId, server = {} }) {
+    const { profileId } = await resolveCompanyContext(authUserId, activeCompanyId);
+    const [subs, tokens, prefs, deliveries] = await Promise.all([
+      prisma.pushSubscription.findMany({
+        where: { userId: profileId },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { id: true, enabled: true, deviceLabel: true, userAgent: true, endpoint: true, lastSeenAt: true, createdAt: true },
+      }),
+      prisma.fcmDeviceToken.findMany({
+        where: { userId: profileId },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { id: true, enabled: true, deviceLabel: true, token: true, lastSeenAt: true, createdAt: true },
+      }),
+      prisma.notificationPreference.findMany({
+        where: { userId: profileId, eventType: { in: DIAGNOSTIC_EVENTS } },
+        select: { eventType: true, inAppEnabled: true, pushEnabled: true, muteUntil: true },
+      }),
+      prisma.notificationDelivery.findMany({
+        where: { channel: { in: ["web_push", "fcm"] }, notification: { userId: profileId } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          channel: true, status: true, attempts: true, lastError: true, createdAt: true, sentAt: true,
+          notification: { select: { eventType: true } },
+        },
+      }),
+    ]);
+
+    const prefByType = new Map(prefs.map((row) => [row.eventType, row]));
+    const hostOf = (endpoint) => {
+      try { return new URL(endpoint).host; } catch { return "desconocido"; }
+    };
+
+    return {
+      generatedAt: new Date().toISOString(),
+      server,
+      webPushSubscriptions: subs.map((row) => ({
+        id: row.id,
+        enabled: row.enabled,
+        device: row.deviceLabel,
+        userAgent: row.userAgent,
+        pushService: hostOf(row.endpoint),
+        lastSeenAt: row.lastSeenAt,
+        createdAt: row.createdAt,
+      })),
+      fcmTokens: tokens.map((row) => ({
+        id: row.id,
+        enabled: row.enabled,
+        device: row.deviceLabel,
+        tokenTail: row.token.slice(-6),
+        lastSeenAt: row.lastSeenAt,
+        createdAt: row.createdAt,
+      })),
+      effectivePreferences: DIAGNOSTIC_EVENTS.map((eventType) => {
+        const saved = prefByType.get(eventType);
+        const effective = { ...getDefaultNotificationPreference(eventType), ...saved };
+        return {
+          eventType,
+          push: effective.pushEnabled !== false,
+          savedByUser: Boolean(saved),
+          mutedUntil: saved?.muteUntil && new Date(saved.muteUntil) > new Date() ? saved.muteUntil : null,
+        };
+      }),
+      recentDeliveries: deliveries.map((row) => ({
+        eventType: row.notification?.eventType,
+        channel: row.channel,
+        status: row.status,
+        attempts: row.attempts,
+        error: row.lastError,
+        createdAt: row.createdAt,
+        sentAt: row.sentAt,
+      })),
     };
   }
 
@@ -285,7 +415,7 @@ export function createNotificationService({ prisma, broadcaster = null }) {
               data: {
                 title: parsed.title,
                 body: parsed.body ?? existing.body,
-                metadata: { ...(existing.metadata ?? {}), ...(parsed.metadata ?? {}), count: priorCount + 1 },
+                metadata: { ...(existing.metadata ?? {}), ...(parsed.metadata ?? {}), ...(actorId ? { actorId: String(actorId) } : {}), count: priorCount + 1 },
               },
             });
             inAppRecipientIds.push(userId);
@@ -337,7 +467,9 @@ export function createNotificationService({ prisma, broadcaster = null }) {
             title: parsed.title,
             body: parsed.body ?? null,
             link: parsed.link ?? null,
-            metadata: parsed.metadata ?? null,
+            metadata: actorId || parsed.metadata
+              ? { ...(parsed.metadata ?? {}), ...(actorId ? { actorId: String(actorId) } : {}) }
+              : null,
             dedupeKey,
             expiresAt: parsed.expiresAt ?? null,
           },
@@ -541,5 +673,6 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     unsubscribeWebPush,
     subscribeFcm,
     unsubscribeFcm,
+    getPushDiagnostics,
   };
 }

@@ -6,75 +6,80 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
-  Badge,
   Button,
   EmptyState,
   ErrorState,
   PageHeader,
   SelectField,
   Skeleton,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   TextField,
 } from "@runly/ui";
-import {
-  Bell,
-  CalendarClock,
-  ExternalLink,
-  Info,
-  RefreshCw,
-  ShoppingCart,
-  ShieldAlert,
-} from "lucide-react";
+import { Bell, MessageCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../auth/AuthProvider";
 import { runly } from "../../lib/runly";
+import { NotificationItem } from "../../components/notifications/NotificationItem";
 
 const PAGE_SIZE = 25;
 
-const PRIORITY_LABELS = {
-  low: "Baja",
-  medium: "Media",
-  high: "Alta",
-  critical: "Crítica",
-};
+// Trailing dot = module prefix filter (handled by the notifications API).
+const MODULE_OPTIONS = [
+  { value: "all", label: "Todos los módulos" },
+  { value: "calendar.", label: "Calendario" },
+  { value: "projects.", label: "Proyectos" },
+  { value: "inventory.", label: "Inventario" },
+  { value: "ledger.", label: "Finanzas" },
+  { value: "lms.", label: "Cursos" },
+  { value: "notes.", label: "Notas" },
+  { value: "growth.", label: "Crecimiento" },
+  { value: "website.", label: "Sitio web y tienda" },
+  { value: "system.", label: "Sistema" },
+];
 
-function formatAbsoluteDate(value) {
-  if (!value) return "";
+function dayLabel(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("es-MX", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  const startOf = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOf(new Date()) - startOf(date)) / 86_400_000);
+  if (diffDays === 0) return "Hoy";
+  if (diffDays === 1) return "Ayer";
+  return new Intl.DateTimeFormat("es-MX", { weekday: "long", day: "numeric", month: "long" }).format(date);
 }
 
-function iconForEventType(eventType) {
-  if (String(eventType).startsWith("calendar.")) return CalendarClock;
-  if (String(eventType).startsWith("website.sale")) return ShoppingCart;
-  if (String(eventType).startsWith("system.")) return ShieldAlert;
-  return Info;
+function groupByDay(items) {
+  const groups = [];
+  for (const item of items) {
+    const label = dayLabel(item.createdAt);
+    const last = groups.at(-1);
+    if (last && last.label === label) last.items.push(item);
+    else groups.push({ label, items: [item] });
+  }
+  return groups;
 }
 
-function priorityVariant(priority) {
-  if (priority === "critical") return "destructive";
-  if (priority === "high") return "default";
-  if (priority === "low") return "secondary";
-  return "outline";
+function CounterPill({ value }) {
+  if (!value) return null;
+  return (
+    <span className="ml-1.5 rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-4 text-white">
+      {value > 99 ? "99+" : value}
+    </span>
+  );
 }
 
 function NotificationsSkeleton() {
   return (
     <div className="space-y-3">
       {Array.from({ length: 6 }).map((_, index) => (
-        <div
-          key={index}
-          className="rounded-2xl border border-[hsl(var(--border))] p-4 space-y-2"
-        >
-          <div className="flex items-center justify-between gap-3">
+        <div key={index} className="flex items-start gap-3 rounded-2xl border border-[hsl(var(--border))] p-4">
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-3.5 w-full" />
+            <Skeleton className="h-3.5 w-3/4" />
           </div>
-          <Skeleton className="h-3.5 w-full" />
-          <Skeleton className="h-3.5 w-3/4" />
         </div>
       ))}
     </div>
@@ -92,22 +97,24 @@ export default function NotificationsInboxScreen() {
       (userProfile?.permissions ?? []).includes("notifications.read"),
   );
 
+  const [tab, setTab] = useState("general");
   const [filters, setFilters] = useState({
     q: "",
     unreadOnly: "false",
     priority: "all",
-    eventType: "",
+    module: "all",
   });
 
   const query = useInfiniteQuery({
-    queryKey: ["notifications-inbox", token, filters],
+    queryKey: ["notifications-inbox", token, tab, filters],
     queryFn: ({ pageParam }) =>
       runly.notifications.list(token, {
         limit: PAGE_SIZE,
         cursor: pageParam ?? undefined,
+        category: tab,
         unreadOnly: filters.unreadOnly === "true",
         priority: filters.priority !== "all" ? filters.priority : undefined,
-        eventType: filters.eventType.trim() || undefined,
+        eventType: tab === "general" && filters.module !== "all" ? filters.module : undefined,
         q: filters.q.trim() || undefined,
       }),
     getNextPageParam: (lastPage) => lastPage?.pageInfo?.nextCursor ?? undefined,
@@ -120,14 +127,19 @@ export default function NotificationsInboxScreen() {
     return pages.flatMap((page) => page?.data ?? []);
   }, [query.data]);
 
-  const unreadCount = notifications.filter((item) => !item.read).length;
+  const groups = useMemo(() => groupByDay(notifications), [notifications]);
+  const counters = query.data?.pages?.[0]?.unreadByCategory ?? {};
+  const unreadCount = (counters.messages ?? 0) + (counters.general ?? 0);
+
+  const invalidateAll = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["notifications-inbox", token] }),
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    ]);
 
   const markReadMutation = useMutation({
     mutationFn: (id) => runly.notifications.markRead(token, id),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["notifications-inbox", token],
-      }),
+    onSuccess: invalidateAll,
     onError: () => toast.error("No se pudo marcar la notificación"),
   });
 
@@ -135,9 +147,7 @@ export default function NotificationsInboxScreen() {
     mutationFn: () => runly.notifications.markAllRead(token),
     onSuccess: async (response) => {
       const updated = response?.data?.updated ?? response?.updated ?? 0;
-      await queryClient.invalidateQueries({
-        queryKey: ["notifications-inbox", token],
-      });
+      await invalidateAll();
       toast.success(
         updated > 0
           ? `${updated} notificaciones marcadas como leídas`
@@ -179,7 +189,7 @@ export default function NotificationsInboxScreen() {
       <PageHeader
         eyebrow="Runly Notifications"
         title="Notificaciones"
-        description="Revisa eventos importantes de calendario, website y sistema."
+        description="Avisos de tus módulos y mensajes, con quién los generó y de dónde vienen."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -208,13 +218,28 @@ export default function NotificationsInboxScreen() {
         }
       />
 
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="general">
+            <Bell className="h-4 w-4" />
+            General
+            <CounterPill value={counters.general} />
+          </TabsTrigger>
+          <TabsTrigger value="messages">
+            <MessageCircle className="h-4 w-4" />
+            Mensajes
+            <CounterPill value={counters.messages} />
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <div className="rounded-2xl border border-[hsl(var(--border))] p-4 space-y-3 bg-[hsl(var(--card))]">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           <TextField
             label="Buscar"
             value={filters.q}
             onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
-            placeholder="Título, cuerpo o tipo..."
+            placeholder="Título o contenido..."
           />
 
           <SelectField
@@ -240,12 +265,14 @@ export default function NotificationsInboxScreen() {
             ]}
           />
 
-          <TextField
-            label="Tipo de evento"
-            value={filters.eventType}
-            onChange={(e) => setFilters((prev) => ({ ...prev, eventType: e.target.value }))}
-            placeholder="Ej: calendar.event.reminder"
-          />
+          {tab === "general" && (
+            <SelectField
+              label="Módulo"
+              value={filters.module}
+              onValueChange={(value) => setFilters((prev) => ({ ...prev, module: value }))}
+              options={MODULE_OPTIONS}
+            />
+          )}
         </div>
       </div>
 
@@ -258,57 +285,24 @@ export default function NotificationsInboxScreen() {
         />
       ) : notifications.length === 0 ? (
         <EmptyState
-          icon={Bell}
-          title="Sin notificaciones"
+          icon={tab === "messages" ? MessageCircle : Bell}
+          title={tab === "messages" ? "Sin mensajes" : "Sin notificaciones"}
           description="No hay resultados para los filtros actuales."
         />
       ) : (
-        <div className="space-y-3">
-          {notifications.map((notification) => {
-            const EventIcon = iconForEventType(notification.eventType);
-            return (
-              <button
-                key={notification.id}
-                type="button"
-                onClick={() => handleOpen(notification)}
-                className="w-full rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-left hover:border-[hsl(var(--ring))] transition-colors cursor-pointer"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 h-8 w-8 rounded-xl bg-[hsl(var(--muted))] flex items-center justify-center shrink-0">
-                    <EventIcon className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
-                  </div>
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold text-[hsl(var(--foreground))]">
-                        {notification.title}
-                      </p>
-                      <Badge variant={priorityVariant(notification.priority)}>
-                        {PRIORITY_LABELS[notification.priority] ?? "Media"}
-                      </Badge>
-                      {!notification.read && <Badge variant="secondary">Nueva</Badge>}
-                    </div>
-
-                    {notification.body && (
-                      <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                        {notification.body}
-                      </p>
-                    )}
-
-                    <div className="flex items-center gap-3 flex-wrap text-xs text-[hsl(var(--muted-foreground))]">
-                      <span>{notification.eventType}</span>
-                      <span>{formatAbsoluteDate(notification.createdAt)}</span>
-                      {notification.link && (
-                        <span className="inline-flex items-center gap-1">
-                          Abrir
-                          <ExternalLink className="h-3 w-3" />
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+        <div className="space-y-5">
+          {groups.map((group) => (
+            <section key={group.label} aria-label={group.label} className="space-y-2">
+              <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                {group.label}
+              </h2>
+              <div className="overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] divide-y divide-[hsl(var(--border))]">
+                {group.items.map((notification) => (
+                  <NotificationItem key={notification.id} notification={notification} onOpen={handleOpen} />
+                ))}
+              </div>
+            </section>
+          ))}
 
           {query.hasNextPage && (
             <div className="flex justify-center pt-2">

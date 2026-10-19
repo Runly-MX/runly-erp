@@ -738,6 +738,7 @@ export const notificationListQuerySchema = z.object({
   cursor: z.string().uuid().optional(),
   priority: z.enum(NOTIFICATION_PRIORITIES).optional(),
   eventType: z.string().trim().max(100).optional(),
+  category: z.enum(["messages", "general"]).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   q: z.string().trim().max(200).optional(),

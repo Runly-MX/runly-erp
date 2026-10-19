@@ -1867,6 +1867,10 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/notifications${toQueryString(query)}`, {
           headers: withAuthHeaders(token),
         }),
+      pushDiagnostics: (token) =>
+        request("/notifications/push-diagnostics", {
+          headers: withAuthHeaders(token),
+        }),
       getWebPushPublicKey: (token) =>
         request("/notifications/subscriptions/webpush/public-key", {
           headers: withAuthHeaders(token),

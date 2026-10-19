@@ -5,9 +5,9 @@ import {
 } from "../services/notification-service.js";
 import { createWebPushService } from "../services/web-push-service.js";
 
-export function createNotificationsRouter({ prisma, requirePermission }) {
+export function createNotificationsRouter({ prisma, requirePermission, supabaseAdmin = null }) {
   const app = new Hono();
-  const service = createNotificationService({ prisma });
+  const service = createNotificationService({ prisma, supabaseAdmin });
   const webPushService = createWebPushService({ prisma });
 
   function handleError(c, err, scope) {
@@ -140,6 +140,29 @@ export function createNotificationsRouter({ prisma, requirePermission }) {
         return c.json(result);
       } catch (err) {
         return handleError(c, err, "PUT /notifications/preferences");
+      }
+    },
+  );
+
+  app.get(
+    "/notifications/push-diagnostics",
+    requirePermission("notifications.read"),
+    async (c) => {
+      try {
+        const vapid = await webPushService.getVapidConfig().catch(() => ({ configured: false }));
+        const server = {
+          vapidConfigured: Boolean(vapid?.configured),
+          fcmEnabledFlag: String(process.env.RUNLY_FCM_ENABLED ?? "true").toLowerCase() !== "false",
+          fcmCredentialsConfigured: Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS),
+        };
+        const result = await service.getPushDiagnostics({
+          authUserId: c.get("authUserId"),
+          companyId: c.get("companyId"),
+          server,
+        });
+        return c.json({ data: result });
+      } catch (err) {
+        return handleError(c, err, "GET /notifications/push-diagnostics");
       }
     },
   );
