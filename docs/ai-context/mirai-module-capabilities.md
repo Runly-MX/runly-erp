@@ -153,7 +153,7 @@ everything goes through the global MirAI sidebar and the user's MirAI conversati
 |---|---|---|
 | runly.calendar | `routes/calendar/mirai-capabilities.js` | list, summary, free slots; create/update/delete events |
 | runly.pfm | `routes/pfm/mirai-capabilities.js` | cross-wallet search and summaries per currency; movement create/update/delete |
-| runly.inventory | `routes/inventory/mirai-capabilities.js` | summary, search, catalogs, manufacturer lookup; plan create, item update/delete; selection context. Reassigning an item is not an action (own flow) |
+| runly.inventory | `routes/inventory/mirai-capabilities.js` | summary, search, catalogs, manufacturer lookup; plan create, item update/delete; selection context. Reassigning an item is not an action (own flow). Respects inventory area scope: a limited user (areas enabled, no `inventory.scope.all`) only sees and edits items of their areas; out-of-scope items read as not found |
 | runly.projects | `routes/projects/mirai-capabilities.js` | tasks and project progress; task create/update/delete |
 | runly.notes | `routes/notes/mirai-capabilities.js` | search/get; create, rename/move, delete. No "append" (Y.Doc content has no safe merge primitive) |
 | runly.contacts | `routes/contacts/mirai-capabilities.js` | search, detail, summary, public company info; create/update/archive |

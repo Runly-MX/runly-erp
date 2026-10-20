@@ -1910,3 +1910,13 @@ Spec `docs/superpowers/specs/2026-10-18-platform-owner-design.md`; plan `docs/su
 - [x] `GET /platform/owner`, `POST /platform/owner/transfer` (AuditLog `platform.owner.transferred`), SDK `runly.platform.*`, recovery script `scripts/set-platform-owner.mjs`. Verified: 2026-10-18 (unit tests with mocked Prisma; local API: non-owner transfer 403, invalid body 400)
 - [x] Settings UI: owner card with transfer dialog + confirmation, read-only General/Web Push with notice for non-owners on multi-company instances, SMTP tab renamed "Correo de esta empresa". Verified: 2026-10-18 (Playwright screenshots against a local API/web: non-owner read-only state, owner state with the transfer dialog open, owner temporarily switched in the dev DB and restored)
 - [ ] Not exercised end to end: a real transfer through the UI (confirm step) and the recovery script against a database; the transfer picker lists only users of the active company
+
+## Inventory areas and scoped visibility (phase 1)
+
+Spec `docs/superpowers/specs/2026-10-20-inventory-areas-scoping-design.md`; plan `docs/superpowers/plans/2026-10-20-inventory-areas-phase1.md`.
+
+- [x] Backend (tasks 1-9): schema, scope module, permissions, area service and routes, scoped item/dashboard/scan/label/custody/import readers, MirAI/MCP/search/canvas readers, isolation test. Verified: 2026-10-20 (node --test over apps/api, packages and apps/desktop: 4529 tests, 4514 pass, 8 skipped, 7 fail, all unrelated: module-runtime-routes x2, public-website-capture-config, call-transcript-analysis-service, contactsProposalModule, media-gallery (.jsx import under node), runly-env)
+- [x] `areaId` list filter (uuid or `__none__` for General) in `inventory-query.js` and `GET /inventory/items`. Verified: 2026-10-20 (inventory-access-query.test.js 5/5)
+- [x] Areas SDK domain, hooks and tree helpers. Verified: 2026-10-20 (sdk-inventory-areas 3/3, area-tree 4/4)
+- [x] Areas UI compiles and lints: `/inventory/areas` screen, members sheet, area filter, bulk "Mover a area", item form field, detail badge. Verified: 2026-10-20 (`pnpm lint` clean, `pnpm build:web` in apps/desktop)
+- [ ] Areas UI exercised in a browser (settings warning, tree CRUD, members, filter, bulk move, limited-user empty state) and the live HTTP smoke test (plan task 12 step 3) are not done.
