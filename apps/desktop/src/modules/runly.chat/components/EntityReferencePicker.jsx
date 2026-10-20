@@ -111,7 +111,6 @@ function FilePickerGrid({ options, isLoading, search, maxSelect, onConfirm }) {
   const [selected, setSelected] = useState([]);
   const [previewOpt, setPreviewOpt] = useState(null);
   const rovingKeyDown = useRovingFocus();
-  const brandOf = useEntityBranding();
 
   const filtered = useMemo(() => {
     if (!search.trim()) return options;
@@ -357,6 +356,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
   const [activeType, setActiveType] = useState("all");
   const [search, setSearch] = useState("");
   const rovingKeyDown = useRovingFocus();
+  const brandOf = useEntityBranding();
 
   const isAll = activeType === "all";
   const isFileType = activeType === "file";
