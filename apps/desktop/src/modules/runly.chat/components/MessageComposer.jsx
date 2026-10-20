@@ -239,6 +239,16 @@ export const MessageComposer = forwardRef(function MessageComposer(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
+  // Desktop: opening (or switching to) a conversation puts the caret in the
+  // composer so you can start typing. Touch devices keep it unfocused — focusing
+  // would pop the keyboard over the messages.
+  useEffect(() => {
+    if (conversationId == null) return undefined;
+    if (window.matchMedia?.("(pointer: coarse)").matches) return undefined;
+    const frame = requestAnimationFrame(() => mentionTaRef.current?.focus?.());
+    return () => cancelAnimationFrame(frame);
+  }, [conversationId]);
+
   function addFilesToQueue(files) {
     const entries = Array.from(files).map((file) => {
       // Every pending file gets a blob URL now, not just image/video: it lets
