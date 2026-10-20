@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { NONE, applicableCustomFields, buildGuestPayload, guestItemDefaults, guestItemSchema } from '../guest-form.js'
+import { applicableCustomFields, buildGuestPayload, guestItemDefaults, guestItemSchema } from '../guest-form.js'
 
 const FIELDS = [
   { id: 'f1', fieldKey: 'k1', categoryId: null },
@@ -9,34 +9,33 @@ const FIELDS = [
 ]
 
 describe('guest item form', () => {
-  it('requires a name and a folder', () => {
-    assert.equal(guestItemSchema.safeParse({ ...guestItemDefaults(null, ''), name: '' }).success, false)
-    assert.equal(guestItemSchema.safeParse(guestItemDefaults(null, 'a1')).success, false)
-    assert.equal(guestItemSchema.safeParse({ ...guestItemDefaults(null, 'a1'), name: 'Taladro' }).success, true)
+  it('requires a folder but not a name (the API generates it)', () => {
+    assert.equal(guestItemSchema.safeParse(guestItemDefaults(null, '')).success, false)
+    assert.equal(guestItemSchema.safeParse(guestItemDefaults(null, 'a1')).success, true)
+    assert.equal(guestItemSchema.safeParse({ ...guestItemDefaults(null, 'a1'), warrantyExpiry: '31/12' }).success, false)
   })
 
-  it('keeps only custom fields of the chosen category', () => {
+  it('keeps only custom fields of the chosen type', () => {
     assert.deepEqual(applicableCustomFields(FIELDS, 'cat-a').map((f) => f.id), ['f1', 'f2'])
-    assert.deepEqual(applicableCustomFields(FIELDS, NONE).map((f) => f.id), ['f1'])
+    assert.deepEqual(applicableCustomFields(FIELDS, null).map((f) => f.id), ['f1'])
   })
 
-  it('sends areaId only on create and maps blanks to null', () => {
-    const values = { ...guestItemDefaults(null, 'a1'), name: ' Taladro ', categoryId: 'cat-a', customValues: { k1: ' x ', k2: '', k3: 'drop' } }
+  it('sends areaId only on create, maps blanks to null and carries model and warranty', () => {
+    const values = { ...guestItemDefaults(null, 'a1'), name: ' Taladro ', modelId: 'm1', model: 'XPS', categoryId: 'cat-a', warrantyExpiry: '2027-01-02', customValues: { k1: ' x ', k2: '', k3: 'drop' } }
     const create = buildGuestPayload(values, { create: true, customFields: FIELDS })
     assert.equal(create.areaId, 'a1')
     assert.equal(create.name, 'Taladro')
+    assert.equal(create.modelId, 'm1')
+    assert.equal(create.warrantyExpiry, '2027-01-02')
     assert.equal(create.brandId, null)
     assert.deepEqual(create.customValues, [{ fieldId: 'f1', value: 'x' }, { fieldId: 'f2', value: null }])
     assert.equal('status' in buildGuestPayload(values, { create: false, customFields: FIELDS, statusEditable: false }), false)
     assert.equal('areaId' in buildGuestPayload(values, { create: false, customFields: FIELDS }), false)
+    assert.equal('description' in create, false)
   })
 
   it('prefills from an item and ignores non-writable statuses', () => {
-    const d = guestItemDefaults({ areaId: 'a2', name: 'N', status: 'assigned', categoryId: 'c', customValues: [{ fieldId: 'f1', value: 'v' }] }, '', FIELDS)
-    assert.equal(d.areaId, 'a2')
-    assert.equal(d.status, 'available')
-    assert.equal(d.categoryId, 'c')
-    assert.equal(d.brandId, NONE)
-    assert.equal(d.customValues.k1, 'v')
+    const d = guestItemDefaults({ areaId: 'a2', name: 'N', status: 'assigned', categoryId: 'c', modelId: 'm', warrantyExpiry: '2027-01-02T00:00:00.000Z', customValues: [{ fieldId: 'f1', value: 'v' }] }, '', FIELDS)
+    assert.deepEqual([d.areaId, d.status, d.categoryId, d.brandId, d.modelId, d.warrantyExpiry, d.customValues.k1], ['a2', 'available', 'c', null, 'm', '2027-01-02', 'v'])
   })
 })

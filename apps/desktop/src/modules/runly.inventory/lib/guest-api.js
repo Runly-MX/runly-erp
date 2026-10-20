@@ -45,7 +45,8 @@ export const guestApi = {
   getItem: (s, itemId) => call('GET', `/inventory/guest/items/${id(itemId)}`, { sessionToken: s }).then(unwrap),
   createItem: (s, body) => call('POST', '/inventory/guest/items', { sessionToken: s, body }).then(unwrap),
   updateItem: (s, itemId, body) => call('PATCH', `/inventory/guest/items/${id(itemId)}`, { sessionToken: s, body }).then(unwrap),
-  history: (s, itemId) => call('GET', `/inventory/guest/items/${id(itemId)}/history`, { sessionToken: s }).then(unwrap),
+  // Suppliers only PROPOSE a baja; the team approves or rejects it. Never deletes.
+  proposeDeregistration: (s, itemId, reason) => call('POST', `/inventory/guest/items/${id(itemId)}/propose-deregistration`, { sessionToken: s, body: { reason } }).then(unwrap),
   listFiles: (s, itemId) => call('GET', `/inventory/guest/items/${id(itemId)}/files`, { sessionToken: s }).then(unwrap),
   uploadFile: (s, itemId, file, label) => {
     const form = new FormData()

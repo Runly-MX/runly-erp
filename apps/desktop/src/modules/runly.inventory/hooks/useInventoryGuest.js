@@ -115,7 +115,6 @@ export const useGuestMe = () => useGuestQuery(['me'], (s) => guestApi.me(s), { s
 export const useGuestCatalogs = () => useGuestQuery(['catalogs'], (s) => guestApi.catalogs(s), { staleTime: 5 * 60_000 })
 export const useGuestItems = (query) => useGuestQuery(['items', query], (s) => guestApi.listItems(s, query), { placeholderData: keepPreviousData })
 export const useGuestItem = (itemId) => useGuestQuery(['item', itemId], (s) => guestApi.getItem(s, itemId), { enabled: Boolean(itemId) })
-export const useGuestItemHistory = (itemId) => useGuestQuery(['history', itemId], (s) => guestApi.history(s, itemId), { enabled: Boolean(itemId) })
 export const useGuestItemFiles = (itemId) => useGuestQuery(['files', itemId], (s) => guestApi.listFiles(s, itemId), { enabled: Boolean(itemId) })
 
 export function useGuestMutation(fn, invalidate = [['items']]) {
@@ -128,6 +127,7 @@ export function useGuestMutation(fn, invalidate = [['items']]) {
 }
 
 export const useCreateGuestItem = () => useGuestMutation((s, body) => guestApi.createItem(s, body))
-export const useUpdateGuestItem = () => useGuestMutation((s, { id, ...body }) => guestApi.updateItem(s, id, body), [['items'], ['item'], ['history']])
-export const useUploadGuestFile = () => useGuestMutation((s, { itemId, file, label }) => guestApi.uploadFile(s, itemId, file, label), [['files'], ['history'], ['items']])
-export const useDeleteGuestFile = () => useGuestMutation((s, { itemId, docId }) => guestApi.deleteFile(s, itemId, docId), [['files'], ['history'], ['items']])
+export const useUpdateGuestItem = () => useGuestMutation((s, { id, ...body }) => guestApi.updateItem(s, id, body), [['items'], ['item']])
+export const useUploadGuestFile = () => useGuestMutation((s, { itemId, file, label }) => guestApi.uploadFile(s, itemId, file, label), [['files'], ['items']])
+export const useDeleteGuestFile = () => useGuestMutation((s, { itemId, docId }) => guestApi.deleteFile(s, itemId, docId), [['files'], ['items']])
+export const useProposeGuestDeregistration = () => useGuestMutation((s, { itemId, reason }) => guestApi.proposeDeregistration(s, itemId, reason), [['items'], ['item']])

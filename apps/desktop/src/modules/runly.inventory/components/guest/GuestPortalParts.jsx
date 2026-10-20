@@ -1,24 +1,43 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button, EmptyState, ErrorState, TextField } from '@runly/ui'
 import { Building2, KeyRound, LinkIcon, LogOut, ShieldCheck } from 'lucide-react'
+import { companyInitials } from '../../lib/guest-capabilities.js'
+import { portalThemeVars } from '../../lib/guest-theme.js'
 import { guestErrorMessage } from '../../lib/guest-session.js'
 
 export const muted = 'text-[hsl(var(--muted-foreground))]'
 
-// Sticky brand bar: company, guest name and "Salir". Used on every portal state.
-export function GuestBrandBar({ companyName, guestName, onLogout, loading = false }) {
+// Company logo, or a two-letter tile when there is none (or the signed URL failed to load).
+function CompanyMark({ company }) {
+  const [failed, setFailed] = useState(false)
+  const showLogo = company?.logoUrl && !failed
   return (
-    <header className="sticky top-0 z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 md:px-8">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[hsl(var(--muted))]">
-          <Building2 className={`h-4 w-4 ${muted}`} />
-        </span>
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted))]">
+      {showLogo
+        ? <img src={company.logoUrl} alt="" className="h-full w-full object-contain" onError={() => setFailed(true)} />
+        : company?.name ? <span className="text-sm font-semibold text-[hsl(var(--foreground))]" aria-hidden="true">{companyInitials(company.name)}</span> : <Building2 className={`h-4 w-4 ${muted}`} />}
+    </span>
+  )
+}
+
+// Applies the company accent (CSS variables only) when it keeps accessible contrast; otherwise ignored.
+export function GuestPortalRoot({ primaryColor, children }) {
+  const vars = useMemo(() => portalThemeVars(primaryColor), [primaryColor])
+  return <div className="min-h-dvh bg-[hsl(var(--background))]" style={vars ?? undefined}>{children}</div>
+}
+
+// Sticky brand bar: company logo + name, guest name and "Salir". Used on every portal state.
+export function GuestBrandBar({ company, guestName, onLogout, loading = false }) {
+  return (
+    <header className="sticky top-0 z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]/95 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--card))]/80">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 md:px-8">
+        <CompanyMark company={company} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{loading ? 'Cargando...' : (companyName || 'Inventario')}</p>
-          {guestName ? <p className={`truncate text-xs ${muted}`}>{guestName}</p> : <p className={`text-xs ${muted}`}>Portal de proveedores</p>}
+          <p className="truncate text-sm font-semibold">{loading ? 'Cargando...' : (company?.name || 'Inventario')}</p>
+          <p className={`truncate text-xs ${muted}`}>{guestName ? `${guestName} · Portal de proveedores` : 'Portal de proveedores'}</p>
         </div>
         {onLogout ? (
-          <Button type="button" variant="ghost" size="sm" onClick={onLogout}>
+          <Button type="button" variant="ghost" size="sm" className="[@media(pointer:coarse)]:min-h-11" onClick={onLogout}>
             <LogOut className="mr-1.5 h-4 w-4" />Salir
           </Button>
         ) : (

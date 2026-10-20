@@ -1962,3 +1962,9 @@ Plan `docs/superpowers/plans/2026-10-20-inventory-supplier-portal-parity-backend
 
 - [x] Removed `GET /inventory/guest/items/:id/history`; guests created/imported items start `registration_pending`; `adminStatus` exposed read-only; `POST /inventory/guest/items/:id/propose-deregistration`; `ADMIN_STATUS_LOCKED` for proposed/deregistered items; isolation tests (no confirm/approve/reject/revert reachable, history path 404). Verified: 2026-10-20 (`node --test` services + inventory + guest globs: 1098 tests, 1096 pass, 0 fail; `pnpm lint` clean).
 - [ ] Not exercised against a live API boot or the team-side confirmation UI for guest-created pending items.
+
+## Inventory supplier portal: parity frontend
+
+- [x] Data-adapter seam (`lib/inventory-data-context.js`), guest capability/theme/admin-action/hash-route/form helpers, SDK `updateAreaGuest`. Verified: 2026-10-20 (`node --test` inventory lib tests + sdk-inventory-areas: 102 pass, 0 fail; `pnpm lint` clean; `pnpm build:web` in apps/desktop built).
+- [x] Manager UI (capability switches, badges, Editar permisos), portal shell/list/detail/form pages, Excel import through the guest client, propose-baja dialog. Same verification as above (compiles and lints only).
+- [ ] NOT verified in a browser or against a live API: responsive layout at 390px/1440px in both themes, form focus/blur behavior, staged file uploads, model/catalog creation, Excel import flow, theming with a real primaryColor, propose-baja round trip, touch targets on a device.
