@@ -94,3 +94,19 @@ export function guestErrorMessage(err) {
     default: return err?.message ?? 'Ocurrió un error. Intenta de nuevo.'
   }
 }
+
+// Capability labels shown as badges for an invited guest (viewers never carry capabilities).
+export function guestCapabilityLabels(guest) {
+  if (!guest || guest.role !== 'editor') return []
+  return [
+    ...(guest.canCreateModels ? ['Crea modelos'] : []),
+    ...(guest.canImport ? ['Importa Excel'] : []),
+  ]
+}
+
+// PATCH body for the permissions dialog: capabilities only travel for editors.
+export function buildGuestPermissionsPatch({ role, canCreateModels, canImport }) {
+  return role === 'editor'
+    ? { role, canCreateModels: Boolean(canCreateModels), canImport: Boolean(canImport) }
+    : { role }
+}

@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Badge, Button, ConfirmDialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, EmptyState, ErrorState, PersonAvatar, Skeleton } from '@runly/ui'
-import { Ban, FolderMinus, MoreHorizontal, Send, Truck } from 'lucide-react'
+import { Ban, FolderMinus, MoreHorizontal, Send, ShieldCheck, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { useInventoryAreaGuests, useRemoveInventoryAreaGuest, useResendInventoryGuest, useRevokeInventoryGuest } from '../../hooks/useInventoryAreas.js'
-import { GUEST_ROLE_LABEL, guestStatusLabel, guestStatusVariant } from '../../lib/guest-session.js'
+import { GUEST_ROLE_LABEL, guestCapabilityLabels, guestStatusLabel, guestStatusVariant } from '../../lib/guest-session.js'
 import { GuestInviteDialog } from './GuestInviteDialog.jsx'
 import { GuestLinkDialog } from './GuestLinkDialog.jsx'
+import { GuestPermissionsDialog } from './GuestPermissionsDialog.jsx'
 
 const fmt = (iso) => {
   const d = new Date(iso)
@@ -28,6 +29,7 @@ export function AreaGuestsPanel({ area, inviteOpen, onInviteOpenChange }) {
   const [result, setResult] = useState(null)
   const [revokeTarget, setRevokeTarget] = useState(null)
   const [removeTarget, setRemoveTarget] = useState(null)
+  const [permsTarget, setPermsTarget] = useState(null)
   const rows = guests.data ?? []
 
   async function handleResend(guest) {
@@ -56,7 +58,10 @@ export function AreaGuestsPanel({ area, inviteOpen, onInviteOpenChange }) {
           <div className="min-w-0 flex-1">
             <p className="break-all text-sm font-medium">{guest.name || guest.email}</p>
             {guest.name ? <p className="break-all text-xs text-[hsl(var(--muted-foreground))]">{guest.email}</p> : null}
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">{GUEST_ROLE_LABEL[guest.role] ?? guest.role}</p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-1">
+              <span className="text-xs text-[hsl(var(--muted-foreground))]">{GUEST_ROLE_LABEL[guest.role] ?? guest.role}</span>
+              {guestCapabilityLabels(guest).map((label) => <Badge key={label} variant="outline" className="gap-1 px-1.5 py-0 text-[11px]"><ShieldCheck className="h-3 w-3" />{label}</Badge>)}
+            </div>
             <p className="text-xs text-[hsl(var(--muted-foreground))]">{lastSeenText(guest)}</p>
           </div>
           <Badge variant={guestStatusVariant(guest.status)} className="shrink-0">{guestStatusLabel(guest.status)}</Badge>
@@ -70,6 +75,9 @@ export function AreaGuestsPanel({ area, inviteOpen, onInviteOpenChange }) {
                   <Send className="mr-2 h-4 w-4" />Reenviar invitación
                 </DropdownMenuItem>
               ) : null}
+              {guest.status !== 'revoked' ? (
+                <DropdownMenuItem onSelect={() => setPermsTarget(guest)}><ShieldCheck className="mr-2 h-4 w-4" />Editar permisos</DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem onSelect={() => setRemoveTarget(guest)}><FolderMinus className="mr-2 h-4 w-4" />Quitar de la carpeta</DropdownMenuItem>
               {guest.status !== 'revoked' ? (
                 <>
@@ -82,6 +90,7 @@ export function AreaGuestsPanel({ area, inviteOpen, onInviteOpenChange }) {
         </div>
       ))}
       <GuestInviteDialog open={inviteOpen} onOpenChange={onInviteOpenChange} area={area} onInvited={setResult} />
+      <GuestPermissionsDialog guest={permsTarget} area={area} onClose={() => setPermsTarget(null)} />
       <GuestLinkDialog result={result} onClose={() => setResult(null)} />
       <ConfirmDialog
         open={Boolean(revokeTarget)} onOpenChange={(v) => { if (!v) setRevokeTarget(null) }}

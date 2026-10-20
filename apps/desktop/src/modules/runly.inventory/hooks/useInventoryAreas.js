@@ -121,6 +121,15 @@ export function useInviteInventoryAreaGuest(areaId) {
   })
 }
 
+export function useUpdateInventoryAreaGuest(areaId) {
+  const token = useToken()
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: ({ guestId, ...data }) => runly.inventory.updateAreaGuest(areaId, guestId, data, token).then((res) => res?.data ?? res),
+    onSuccess: invalidate,
+  })
+}
+
 export function useResendInventoryGuest() {
   const token = useToken()
   const invalidate = useInvalidate()

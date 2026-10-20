@@ -44,6 +44,8 @@ describe('SDK - inventory areas', () => {
     const inv = await call((c) => c.inventory.inviteAreaGuest('a1', { email: 'p@x.com', role: 'viewer' }, 't'))
     assert.equal(inv.method, 'POST')
     assert.deepEqual(inv.body, { email: 'p@x.com', role: 'viewer' })
+    const upd = await call((c) => c.inventory.updateAreaGuest('a1', 'g1', { canImport: true }, 't'))
+    assert.deepEqual([upd.url, upd.method, upd.body], ['http://api/inventory/areas/a1/guests/g1', 'PATCH', { canImport: true }])
     const del = await call((c) => c.inventory.removeAreaGuest('a1', 'g1', 't'))
     assert.equal(del.url, 'http://api/inventory/areas/a1/guests/g1')
     assert.equal(del.method, 'DELETE')

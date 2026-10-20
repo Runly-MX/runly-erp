@@ -6,6 +6,7 @@ import { useAuth } from '../../../../auth/AuthProvider'
 import { runly } from '../../../../lib/runly'
 import { useInviteInventoryAreaGuest } from '../../hooks/useInventoryAreas.js'
 import { GUEST_ROLE_OPTIONS } from '../../lib/guest-session.js'
+import { GuestCapabilityFields } from './GuestCapabilityFields.jsx'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -20,11 +21,12 @@ export function GuestInviteDialog({ open, onOpenChange, area, onInvited }) {
   const [role, setRole] = useState('viewer')
   const [contact, setContact] = useState(null)
   const [requireCode, setRequireCode] = useState(false)
+  const [caps, setCaps] = useState({ canCreateModels: false, canImport: false })
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!open) return
-    setEmail(''); setName(''); setRole('viewer'); setContact(null); setRequireCode(false); setError('')
+    setEmail(''); setName(''); setRole('viewer'); setContact(null); setRequireCode(false); setCaps({ canCreateModels: false, canImport: false }); setError('')
   }, [open])
 
   const searchContacts = useCallback(async (query) => {
@@ -44,6 +46,7 @@ export function GuestInviteDialog({ open, onOpenChange, area, onInvited }) {
     try {
       const result = await invite.mutateAsync({
         email: email.trim(), role, requireCode,
+        ...(role === 'editor' ? caps : {}),
         ...(name.trim() ? { name: name.trim() } : {}),
         ...(contact?.id ? { contactId: contact.id } : {}),
       })
@@ -70,6 +73,7 @@ export function GuestInviteDialog({ open, onOpenChange, area, onInvited }) {
             onChange={(e) => { setEmail(e.target.value); setError('') }} />
           <TextField label="Nombre" value={name} maxLength={150} onChange={(e) => setName(e.target.value)} />
           <SelectField label="Permisos" value={role} options={GUEST_ROLE_OPTIONS} onValueChange={setRole} />
+          {role === 'editor' ? <GuestCapabilityFields {...caps} onChange={(patch) => setCaps((c) => ({ ...c, ...patch }))} /> : null}
           <SwitchField label="Requerir código de acceso" checked={requireCode} onChange={setRequireCode}
             description="Se genera un código que debes compartir por separado; el proveedor lo ingresa al abrir el enlace." />
         </div>

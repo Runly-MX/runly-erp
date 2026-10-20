@@ -49,3 +49,18 @@ describe('guest portal session helpers', () => {
     assert.equal(guestErrorMessage({ message: 'boom' }), 'boom')
   })
 })
+
+describe('guest capabilities helpers', () => {
+  it('lists capability labels for editors only', async () => {
+    const { guestCapabilityLabels } = await import('../guest-session.js')
+    assert.deepEqual(guestCapabilityLabels({ role: 'editor', canCreateModels: true, canImport: true }), ['Crea modelos', 'Importa Excel'])
+    assert.deepEqual(guestCapabilityLabels({ role: 'viewer', canCreateModels: true, canImport: true }), [])
+    assert.deepEqual(guestCapabilityLabels(null), [])
+  })
+
+  it('builds the permissions patch without capabilities for viewers', async () => {
+    const { buildGuestPermissionsPatch } = await import('../guest-session.js')
+    assert.deepEqual(buildGuestPermissionsPatch({ role: 'viewer', canImport: true }), { role: 'viewer' })
+    assert.deepEqual(buildGuestPermissionsPatch({ role: 'editor', canImport: true }), { role: 'editor', canCreateModels: false, canImport: true })
+  })
+})

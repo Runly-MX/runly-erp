@@ -25,6 +25,7 @@ export function createInventoryAreasDomain({ request, withAuthHeaders }) {
     listAreaGuests: (areaId, token) => send('GET', `/inventory/areas/${id(areaId)}/guests`, undefined, token),
     // { email, name?, role: viewer|editor, contactId?, requireCode? }
     inviteAreaGuest: (areaId, data, token) => send('POST', `/inventory/areas/${id(areaId)}/guests`, data, token),
+    updateAreaGuest: (areaId, guestId, data, token) => send('PATCH', `/inventory/areas/${id(areaId)}/guests/${id(guestId)}`, data, token),
     removeAreaGuest: (areaId, guestId, token) => send('DELETE', `/inventory/areas/${id(areaId)}/guests/${id(guestId)}`, undefined, token),
     resendGuestInvite: (guestId, data, token) => send('POST', `/inventory/guests/${id(guestId)}/resend`, data ?? {}, token),
     revokeGuest: (guestId, token) => send('POST', `/inventory/guests/${id(guestId)}/revoke`, {}, token),
