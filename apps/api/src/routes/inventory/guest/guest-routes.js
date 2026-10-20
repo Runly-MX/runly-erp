@@ -65,7 +65,7 @@ export function createInventoryGuestRouter({
   app.post('/items', run('No se pudo crear el item.', async (auth, c) => items.createItem(auth, await body(c)), 201));
   app.patch('/items/:id', run('No se pudo actualizar el item.', async (auth, c) => items.updateItem(auth, c.req.param('id'), await body(c))));
 
-  app.get('/items/:id/history', run('No se pudo cargar el historial.', (auth, c) => items.history(auth, c.req.param('id'))));
+  app.post('/items/:id/propose-deregistration', run('No se pudo proponer la baja.', async (auth, c) => items.proposeDeregistration(auth, c.req.param('id'), await body(c))));
   app.get('/items/:id/files', run('No se pudieron cargar los archivos.', (auth, c) => items.listFiles(auth, c.req.param('id'))));
   app.post('/items/:id/files', run('No se pudo subir el archivo.', async (auth, c) => {
     const form = await c.req.parseBody().catch(() => ({}));

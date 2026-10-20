@@ -51,6 +51,8 @@ export const ITEM_IMPORT_FIELDS = [
 ];
 const BASE_KEYS = new Set(ITEM_IMPORT_FIELDS.map((f) => f.key));
 // Columns a supplier (guest) import never sees or maps: commercial data and administrative status.
+// Admin statuses in which a supplier can no longer edit an item (baja proposed or done).
+export const GUEST_LOCKED_ADMIN_STATUSES = new Set(['deregistration_proposed', 'deregistered']);
 export const GUEST_BLOCKED_IMPORT_FIELDS = new Set(['adminStatus', 'purchaseDate', 'purchasePrice', 'vendorName', 'invoiceNumber']);
 
 export const IMPORT_STATUSES = [
@@ -252,7 +254,8 @@ export function createInventoryItemImportService({
         unknownStatus.push(d.status);
       }
     }
-    let adminStatus = 'registered';
+    // A supplier import is a registration proposal: the team confirms it (confirm_registration).
+    let adminStatus = guest ? 'registration_pending' : 'registered';
     if (d.adminStatus) {
       const normalized = normalizeHeader(d.adminStatus);
       if (ADMIN_BY_KEY.has(normalized)) adminStatus = ADMIN_BY_KEY.get(normalized);
@@ -434,6 +437,7 @@ export function createInventoryItemImportService({
       else if (row.status === 'exists') record(row, 'skipped', row.notes?.join(' ') || 'Ya existe.');
       if (row.status === 'update') {
         if (!updateExisting) { notApplied += 1; record(row, 'skipped', 'Ya existe; no se actualizó.'); continue; }
+        if (guest && GUEST_LOCKED_ADMIN_STATUSES.has(row.item.adminStatus)) { notApplied += 1; record(row, 'skipped', 'El activo está en revisión de baja; no se actualizó.'); continue; }
         if (scope && !canWriteArea(scope, row.item.areaId)) { notApplied += 1; record(row, 'skipped', 'No tienes permiso para actualizar este activo.'); continue; }
         try {
           const d = row.data;

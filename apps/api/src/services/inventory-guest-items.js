@@ -15,8 +15,12 @@ import { createInventoryModelService } from './inventory-model-service.js';
 import { createInventoryGuestCatalog, customFieldRow } from './inventory-guest-catalog.js';
 import { findActiveDuplicates } from './inventory-identifiers.js';
 import { loadGuestBranding } from './inventory-guest-branding.js';
+import { createInventoryAdminService, ADMIN_TRANSITIONS, DEREGISTRATION_REASONS } from './inventory-admin-service.js';
+import { GUEST_LOCKED_ADMIN_STATUSES } from './inventory-item-import-service.js';
 import { MAX_FILE_SIZE_BYTES, buildModuleObjectKey, isAllowedMimeType } from './files-service.js';
 
+// The single permission key the guest `can` function grants (see proposeDeregistration).
+const GUEST_ALLOWED_PERMISSION = ADMIN_TRANSITIONS.propose_deregistration.permission;
 const uuid = z.string().uuid();
 const text = (max) => z.string().trim().max(max).nullable();
 const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}/).max(30).nullable();
@@ -69,6 +73,8 @@ export function serializeGuestItem(item, { coverUrl = null } = {}) {
     model: item.model ?? null,
     partNumber: item.partNumber ?? null,
     status: item.status,
+    // Read-only for suppliers: drives the alta/baja badge of the portal.
+    adminStatus: item.adminStatus ?? null,
     notes: item.notes ?? null,
     warrantyExpiry: item.warrantyExpiry ?? null,
     warrantyNotes: item.warrantyNotes ?? null,
@@ -108,7 +114,7 @@ export function createGuestAuditBridge({ bridge, guest }) {
 }
 
 export function createInventoryGuestItems({
-  prisma, inventoryScope, supabaseAdmin = null, signFile = null, bridge = null,
+  prisma, inventoryScope, supabaseAdmin = null, signFile = null, bridge = null, notifier = null,
   makeInventoryService = (activityBridge) => createInventoryService({ prisma, activityBridge }),
 }) {
   const baseBridge = bridge ?? createActivityBridge({ prisma, activityService: createActivityService({ prisma }) });
@@ -124,13 +130,16 @@ export function createInventoryGuestItems({
 
   // Item the guest may see (404 otherwise, never revealing other areas) and whether it may write it.
   async function loadItem(ctx, id) {
-    const item = await prisma.invItem.findFirst({ where: { id, companyId: ctx.companyId, enabled: true }, select: { id: true, areaId: true, createdById: true, assignedToId: true } });
+    const item = await prisma.invItem.findFirst({ where: { id, companyId: ctx.companyId, enabled: true }, select: { id: true, areaId: true, createdById: true, assignedToId: true, adminStatus: true } });
     if (!item || !canViewItem(ctx.scope, item)) throw notFound();
     return { item, canWrite: canWriteArea(ctx.scope, item.areaId) };
   }
   async function loadWritable(ctx, id) {
     const found = await loadItem(ctx, id);
     if (!found.canWrite) throw readOnly();
+    if (GUEST_LOCKED_ADMIN_STATUSES.has(found.item.adminStatus)) {
+      throw new InventoryServiceError('Este activo está en revisión de baja; el equipo debe resolverla antes de poder editarlo.', 409, 'ADMIN_STATUS_LOCKED');
+    }
     return found.item;
   }
 
@@ -178,7 +187,8 @@ export function createInventoryGuestItems({
     if (!canWriteArea(ctx.scope, data.areaId)) {
       throw new InventoryServiceError('Elige un área donde puedas registrar items.', 403, 'AREA_NOT_WRITABLE');
     }
-    const withModel = await createInventoryModelService({ prisma }).applyModelDefaults(data, ctx.companyId);
+    // A supplier registration is a proposal: the team confirms it with confirm_registration.
+    const withModel = { ...(await createInventoryModelService({ prisma }).applyModelDefaults(data, ctx.companyId)), adminStatus: 'registration_pending' };
     const created = await ctx.inventory.createItem(withModel, ctx.companyId, null, { scope: ctx.scope });
     return serializeGuestItem(created);
   }
@@ -280,27 +290,26 @@ export function createInventoryGuestItems({
   const audit = (auth, itemId, action, verb, detail) => auditEntity(auth, { entityType: 'InvItem', entityId: itemId, action, verb, detail, link: `/app/m/runly.inventory/inventory/${itemId}` });
   const catalog = createInventoryGuestCatalog({ prisma, contextOf, audit: auditEntity });
 
-  // ---- history (read-only) --------------------------------------------------------------------
-  const ACTION_LABELS = {
-    'inventory.item.created': 'Alta del activo', 'inventory.item.updated': 'Actualización', 'inventory.item.file.add': 'Archivo adjuntado',
-    'inventory.item.file.remove': 'Archivo eliminado', 'inventory.item.assigned': 'Asignación', 'inventory.item.returned': 'Devolución',
-  };
-  async function history(auth, itemId) {
+  // Proposal of baja: the only administrative transition a supplier has. The permission check passes ONLY for
+  // propose_deregistration; approving, rejecting, reverting or confirming are never reachable from here.
+  async function proposeDeregistration(auth, itemId, body) {
     const ctx = await contextOf(auth);
-    await loadItem(ctx, itemId);
-    const [audits, adminEvents] = await Promise.all([
-      prisma.auditLog.findMany({ where: { companyId: auth.companyId, entityType: 'InvItem', entityId: itemId, moduleKey: 'runly.inventory' }, orderBy: { createdAt: 'desc' }, take: 100 }),
-      prisma.invItemAdminEvent.findMany({ where: { itemId, companyId: auth.companyId }, orderBy: { createdAt: 'desc' }, take: 100 }),
-    ]);
-    // before/after snapshots (prices, vendor...) and the names of company users stay private.
-    const events = [
-      ...audits.map((row) => ({
-        id: row.id, kind: 'activity', action: row.action, label: ACTION_LABELS[row.action] ?? 'Cambio', at: row.createdAt,
-        actor: row.metadata?.actor?.kind === 'guest' ? { kind: 'guest', name: row.metadata.actor.name ?? row.metadata.actor.email ?? null, self: row.metadata.actor.id === auth.guest.id } : { kind: 'team', name: null, self: false },
-      })),
-      ...adminEvents.map((row) => ({ id: row.id, kind: 'admin', action: row.action, label: 'Movimiento administrativo', at: row.createdAt, actor: { kind: 'team', name: null, self: false } })),
-    ].sort((a, b) => new Date(b.at) - new Date(a.at));
-    return events;
+    const found = await loadItem(ctx, itemId);
+    if (!found.canWrite) throw readOnly();
+    const parsed = z.object({ reason: z.enum(DEREGISTRATION_REASONS), comment: z.string().trim().max(500).nullish() }).strict().safeParse(body && typeof body === 'object' ? body : {});
+    if (!parsed.success) throw new InventoryServiceError('Indica el motivo de la baja.', 400, 'INVALID_BODY');
+    const label = `${auth.guest.name || auth.guest.email} (proveedor)`;
+    const admin = createInventoryAdminService({ prisma, activityBridge: createGuestAuditBridge({ bridge: baseBridge, guest: auth.guest }), notifier });
+    try {
+      const { item } = await admin.transition({
+        itemId, action: 'propose_deregistration', payload: { reason: parsed.data.reason, comment: parsed.data.comment ? `${label}: ${parsed.data.comment}` : label },
+        companyId: ctx.companyId, actorId: null, can: (permission) => permission === GUEST_ALLOWED_PERMISSION,
+      });
+      return serializeGuestItem(item);
+    } catch (err) {
+      if (err?.status === 409) throw new InventoryServiceError('Solo puedes proponer la baja de activos dados de alta.', 409, 'INVALID_TRANSITION');
+      throw err;
+    }
   }
 
   // ---- catalogs for pickers (names only) ------------------------------------------------------
@@ -319,5 +328,5 @@ export function createInventoryGuestItems({
     };
   }
 
-  return { me, listItems, getItem, createItem, updateItem, listFiles, uploadFile, deleteFile, history, catalogs, checkIdentifiers, ...catalog, contextOf, bridge: baseBridge };
+  return { me, listItems, getItem, createItem, updateItem, listFiles, uploadFile, deleteFile, proposeDeregistration, catalogs, checkIdentifiers, ...catalog, contextOf, bridge: baseBridge };
 }

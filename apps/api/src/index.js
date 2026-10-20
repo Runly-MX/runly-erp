@@ -2149,7 +2149,7 @@ const inventoryGuestService = createInventoryGuestService({
   appBaseUrl: () => resolveAppBaseUrl(process.env),
 });
 app.route("/public/inventory/guest", createInventoryGuestPublicRouter({ guestService: inventoryGuestService }));
-const inventoryGuestItems = createInventoryGuestItems({ prisma, inventoryScope: createInventoryScope({ prisma }), supabaseAdmin, signFile: inventoryGuestSigner });
+const inventoryGuestItems = createInventoryGuestItems({ prisma, inventoryScope: createInventoryScope({ prisma }), supabaseAdmin, signFile: inventoryGuestSigner, notifier: inventoryNotifSvc });
 app.route("/inventory/guest", createInventoryGuestRouter({
   guestService: inventoryGuestService,
   items: inventoryGuestItems,

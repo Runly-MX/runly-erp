@@ -46,7 +46,8 @@ function build() {
   const guestService = createInventoryGuestService({ prisma: db, appBaseUrl: () => 'https://app.example.com', attemptGuard: createAttemptGuard() });
   const uploads = [];
   const supabaseAdmin = { storage: { from: () => ({ upload: async (key) => { uploads.push(key); return { error: null }; } }) } };
-  const items = createInventoryGuestItems({ prisma: db, inventoryScope: createInventoryScope({ prisma: db }), supabaseAdmin, bridge, signFile: async (id) => `https://files.example.com/${id}` });
+  const notifier = { notifyDeregistrationProposed: async () => {} };
+  const items = createInventoryGuestItems({ prisma: db, inventoryScope: createInventoryScope({ prisma: db }), supabaseAdmin, bridge, notifier, signFile: async (id) => `https://files.example.com/${id}` });
   const app = new Hono();
   app.route('/public/inventory/guest', createInventoryGuestPublicRouter({ guestService }));
   app.route('/inventory/guest', createInventoryGuestRouter({ guestService, items }));
@@ -62,7 +63,7 @@ function build() {
     assert.equal(start.status, 200);
     return { id: res.guest.id, token: (await start.json()).data.sessionToken };
   }
-  return { db, req, guest, guestService, audits, uploads, app };
+  return { db, req, guest, guestService, audits, uploads, app, notifier };
 }
 
 const ids = async (res) => (await res.json()).data.map((row) => row.id).sort();
@@ -135,7 +136,6 @@ describe('guest reads are limited to its areas', () => {
     for (const id of [IB, IG, IX]) {
       assert.equal((await t.req(viewer.token, 'GET', `/inventory/guest/items/${id}`)).status, 404, id);
       assert.equal((await t.req(viewer.token, 'GET', `/inventory/guest/items/${id}/files`)).status, 404, `${id} files`);
-      assert.equal((await t.req(viewer.token, 'GET', `/inventory/guest/items/${id}/history`)).status, 404, `${id} history`);
     }
     for (const id of [IA, IA1]) assert.equal((await t.req(viewer.token, 'GET', `/inventory/guest/items/${id}`)).status, 200);
   });
@@ -147,14 +147,16 @@ describe('guest reads are limited to its areas', () => {
     assert.ok(me.data.areas.every((a) => a.id !== AREA_X));
   });
 
-  it('never exposes prices, vendor, invoice, license, admin status, custody or creator', async () => {
+  it('never exposes prices, vendor, invoice, license, custody or creator (adminStatus is read-only)', async () => {
     const detail = (await (await t.req(viewer.token, 'GET', `/inventory/guest/items/${IA}`)).json()).data;
     const list = (await (await t.req(viewer.token, 'GET', '/inventory/guest/items')).json()).data[0];
     for (const row of [detail, list]) {
-      for (const key of ['purchasePrice', 'vendorName', 'invoiceNumber', 'licenseKey', 'licenseExpiry', 'adminStatus', 'assignedToId', 'assignedTo', 'createdById', 'purchaseDate', 'acquisitionOrigin']) {
+      for (const key of ['purchasePrice', 'vendorName', 'invoiceNumber', 'licenseKey', 'licenseExpiry', 'assignedToId', 'assignedTo', 'createdById', 'purchaseDate', 'acquisitionOrigin']) {
         assert.ok(!(key in row), `${key} leaked`);
       }
     }
+    assert.equal(detail.adminStatus, 'registered');
+    assert.equal(list.adminStatus, 'registered');
     assert.equal(detail.canWrite, false);
   });
 
@@ -165,12 +167,11 @@ describe('guest reads are limited to its areas', () => {
     assert.equal(me.company.name, 'Acme');
   });
 
-  it('history hides before/after snapshots and company user names', async () => {
+  it('the item history route no longer exists for guests (404, no activity or admin events leak)', async () => {
     t.db.auditLog.rows.push({ id: 'au1', companyId: CO, entityType: 'InvItem', entityId: IA, moduleKey: 'runly.inventory', action: 'inventory.item.updated', before: { purchasePrice: 1 }, after: { purchasePrice: 2 }, metadata: null, createdAt: new Date() });
-    const rows = (await (await t.req(viewer.token, 'GET', `/inventory/guest/items/${IA}/history`)).json()).data;
-    assert.equal(rows.length, 1);
-    assert.ok(!('before' in rows[0]) && !('after' in rows[0]));
-    assert.equal(rows[0].actor.name, null);
+    for (const id of [IA, IB]) assert.equal((await t.req(viewer.token, 'GET', `/inventory/guest/items/${id}/history`)).status, 404, id);
+    const detail = await (await t.req(viewer.token, 'GET', `/inventory/guest/items/${IA}`)).text();
+    assert.ok(!/auditLog|events|activity/i.test(detail));
   });
 });
 
@@ -298,5 +299,77 @@ describe('guest sessions and user sessions are not interchangeable', () => {
         assert.equal(res.status, 401, `${authorization.slice(0, 6)} ${path}`);
       }
     }
+  });
+});
+
+describe('guest alta/baja proposals', () => {
+  let t, viewer, editor;
+  beforeEach(async () => { t = build(); viewer = await t.guest('v@b.co', AREA_A, 'viewer'); editor = await t.guest('e@b.co', AREA_A, 'editor'); });
+  const row = (id) => t.db.invItem.rows.find((i) => i.id === id);
+  const propose = (token, id, body = { reason: 'damage' }) => t.req(token, 'POST', `/inventory/guest/items/${id}/propose-deregistration`, body);
+
+  it('items created by a guest start as registration_pending and expose adminStatus', async () => {
+    const res = await t.req(editor.token, 'POST', '/inventory/guest/items', { name: 'Nuevo', areaId: AREA_A });
+    assert.equal(res.status, 201);
+    const created = (await res.json()).data;
+    assert.equal(created.adminStatus, 'registration_pending');
+    assert.equal(row(created.id).adminStatus, 'registration_pending');
+    assert.equal((await t.req(editor.token, 'PATCH', `/inventory/guest/items/${created.id}`, { name: 'Nuevo 2' })).status, 200);
+  });
+
+  it('an editor proposes a baja of a registered item; the transition is audited as the guest and notified', async () => {
+    const notified = [];
+    t.notifier.notifyDeregistrationProposed = async (args) => { notified.push(args); };
+    const res = await propose(editor.token, IA, { reason: 'loss', comment: 'No aparece' });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).data.adminStatus, 'deregistration_proposed');
+    assert.equal(row(IA).deregistrationReason, 'loss');
+    assert.equal(notified.length, 1);
+    assert.equal(notified[0].actorId, null);
+    assert.equal(t.db.invItemAdminEvent.rows.at(-1).actorId, null);
+    assert.match(t.db.invItemAdminEvent.rows.at(-1).comment, /e@b\.co \(proveedor\)/);
+    const audit = t.audits.find((a) => a.auditEntry.action === 'inventory.item.propose_deregistration');
+    assert.equal(audit.auditEntry.metadata.actor.id, editor.id);
+  });
+
+  it('rejects: viewer (403 READ_ONLY), other area (404), not registered (409 INVALID_TRANSITION), bad reason (400)', async () => {
+    const v = await propose(viewer.token, IA);
+    assert.equal(v.status, 403);
+    assert.equal((await v.json()).code, 'READ_ONLY');
+    assert.equal((await propose(editor.token, IB)).status, 404);
+    assert.equal((await propose(editor.token, IA, { reason: 'nope' })).status, 400);
+    assert.equal((await propose(editor.token, IA, {})).status, 400);
+    row(IA).adminStatus = 'registration_pending';
+    const p = await propose(editor.token, IA);
+    assert.equal(p.status, 409);
+    assert.equal((await p.json()).code, 'INVALID_TRANSITION');
+    assert.equal(row(IA).adminStatus, 'registration_pending');
+  });
+
+  it('a proposed or deregistered item is read-only for the guest (ADMIN_STATUS_LOCKED) but still visible when proposed', async () => {
+    assert.equal((await propose(editor.token, IA)).status, 200);
+    const patch = await t.req(editor.token, 'PATCH', `/inventory/guest/items/${IA}`, { name: 'x' });
+    assert.equal(patch.status, 409);
+    assert.equal((await patch.json()).code, 'ADMIN_STATUS_LOCKED');
+    assert.ok((await ids(await t.req(editor.token, 'GET', '/inventory/guest/items'))).includes(IA));
+    assert.equal((await propose(editor.token, IA)).status, 409);
+    row(IA1).adminStatus = 'deregistered';
+    assert.equal((await t.req(editor.token, 'PATCH', `/inventory/guest/items/${IA1}`, { name: 'x' })).status, 409);
+    assert.ok(!(await ids(await t.req(editor.token, 'GET', '/inventory/guest/items'))).includes(IA1));
+  });
+
+  it('a guest can never confirm, approve, reject or revert, nor reach the normal admin-transition route', async () => {
+    row(IA).adminStatus = 'registration_pending';
+    row(IA1).adminStatus = 'deregistration_proposed';
+    for (const action of ['confirm_registration', 'approve_deregistration', 'reject_deregistration', 'revert_deregistration']) {
+      for (const path of [`/inventory/guest/items/${IA}/admin-transition`, `/inventory/guest/items/${IA1}/admin-transition`, `/inventory/guest/items/${IA}/${action}`, `/inventory/items/${IA}/admin-transition`]) {
+        const res = await t.req(editor.token, 'POST', path, { action, reason: 'damage', comment: 'x', effectiveDate: '2026-01-01' });
+        assert.ok([401, 404].includes(res.status), `${path} ${action} -> ${res.status}`);
+      }
+      assert.equal((await t.req(editor.token, 'PATCH', `/inventory/guest/items/${IA}`, { adminStatus: action })).status, 400);
+    }
+    assert.equal(row(IA).adminStatus, 'registration_pending');
+    assert.equal(row(IA1).adminStatus, 'deregistration_proposed');
+    assert.equal(t.db.invItemAdminEvent.rows.length, 0);
   });
 });

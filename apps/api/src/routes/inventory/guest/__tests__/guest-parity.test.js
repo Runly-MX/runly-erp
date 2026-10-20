@@ -236,6 +236,7 @@ describe('guest Excel import', () => {
     assert.deepEqual(rows.map((r) => [r.serialNumber, r.areaId, r.companyId]), [['SN-10', AREA_A, CO]]);
     assert.equal(t.db.invBrand.rows.filter((b) => b.companyId === CO).length, 1);
     assert.ok(rows.every((r) => r.purchasePrice == null && r.vendorName == null));
+    assert.ok(rows.every((r) => r.adminStatus === 'registration_pending'), 'imported rows are alta proposals');
     assert.ok(t.audits.some((a) => a.auditEntry.entityType === 'InvImport' && a.auditEntry.metadata.actor.id === importer.id));
   });
 

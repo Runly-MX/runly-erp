@@ -1957,3 +1957,8 @@ Plan `docs/superpowers/plans/2026-10-20-inventory-supplier-portal-parity-backend
 - [x] Invitation flags, `PATCH /inventory/areas/:id/guests/:guestId`, scope capabilities (viewer never has them, descendants inherit). Verified: 2026-10-20 (inventory-guest-service 10/10)
 - [x] Guest models/types/catalog entries/custom fields/check-identifiers, item form parity (modelId defaults, custom values), Excel import in guest mode, branding in `/me` and the session exchange, isolation (no flags -> 403, viewer, foreign company refs, forbidden columns, forced area). Verified: 2026-10-20 (guest-parity 15/15, guest-isolation 20/20; node --test over apps/api services, routes/inventory, routes/inventory/guest: 1093 tests, 1090 pass, 1 fail (runly-env root overrides, known unrelated); `pnpm lint` clean)
 - [ ] Not exercised against a live API boot, real Storage (logo signing, import photos) or a real XLSX with embedded pictures through the guest route; item comments for guests deliberately not built (no guest author model).
+
+## Inventory supplier portal: alta/baja as proposals (backend)
+
+- [x] Removed `GET /inventory/guest/items/:id/history`; guests created/imported items start `registration_pending`; `adminStatus` exposed read-only; `POST /inventory/guest/items/:id/propose-deregistration`; `ADMIN_STATUS_LOCKED` for proposed/deregistered items; isolation tests (no confirm/approve/reject/revert reachable, history path 404). Verified: 2026-10-20 (`node --test` services + inventory + guest globs: 1098 tests, 1096 pass, 0 fail; `pnpm lint` clean).
+- [ ] Not exercised against a live API boot or the team-side confirmation UI for guest-created pending items.
