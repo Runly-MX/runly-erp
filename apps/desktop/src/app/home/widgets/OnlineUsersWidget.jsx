@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageCircle, Phone } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button, PersonAvatar } from "@runly/ui";
 import { useAuth } from "../../../auth/AuthProvider";
+import { runly } from "../../../lib/runly";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { useCalls } from "../../../modules/runly.chat/calls/CallsProvider";
 import { useCreateConversation } from "../../../modules/runly.chat/hooks/useCreateConversation";
@@ -13,14 +15,26 @@ const MAX_SHOWN = 8;
 
 export function OnlineUsersWidget({ module }) {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, session } = useAuth();
+  const token = session?.access_token;
   const { onlineUsers } = useGlobalPresence();
   const { startCall, isStarting } = useCalls();
   const { mutateAsync: createConversation } = useCreateConversation();
   const [busyId, setBusyId] = useState(null);
 
+  // The presence payload carries a signed avatar URL captured when each person
+  // connected; it can be missing or expired, so fresh URLs from the directory win.
+  const { data: candidates } = useQuery({
+    queryKey: ["online-widget-avatars", token],
+    queryFn: () => runly.identity.listCandidates(token, { action: "chat", pageSize: 100 }),
+    enabled: Boolean(token),
+    staleTime: 10 * 60_000,
+  });
+  const avatarById = new Map((candidates?.data ?? []).map((p) => [p.id, p.avatarUrl]));
+
   const users = Object.values(onlineUsers ?? {})
     .filter((u) => u?.userId && u.userId !== userProfile?.id)
+    .map((u) => ({ ...u, avatarUrl: avatarById.get(u.userId) ?? u.avatarUrl ?? null }))
     .sort((a, b) => String(a.displayName).localeCompare(String(b.displayName), "es"));
   const shown = users.slice(0, MAX_SHOWN);
 
