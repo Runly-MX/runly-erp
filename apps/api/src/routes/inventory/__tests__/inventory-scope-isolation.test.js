@@ -16,14 +16,18 @@ const IB = '01900000-0000-7000-8000-00000000b001'; // area B
 const IG = '01900000-0000-7000-8000-00000000c001'; // General (no area)
 const ALL_IDS = [IA, IB, IG];
 
-const mkItem = (id, areaId, tag) => ({
-  id, companyId: CO, enabled: true, areaId, name: `Item ${tag}`, assetTag: tag, serialNumber: `S-${tag}`, folio: `F-${tag}`,
-  status: 'assigned', adminStatus: 'registered', assignedToId: 'emp1', createdAt: new Date('2026-01-01'), purchasePrice: null,
+const mkItem = (id, areaId, tag, extra = {}) => ({
+  id, companyId: CO, enabled: true, areaId, createdById: 'u-other', name: `Item ${tag}`, assetTag: tag, serialNumber: `S-${tag}`, folio: `F-${tag}`,
+  status: 'assigned', adminStatus: 'registered', assignedToId: 'emp1', createdAt: new Date('2026-01-01'), purchasePrice: null, ...extra,
 });
 const USERS = {
   viewer: { id: 'u-viewer', perms: [], roles: [[AREA_A, 'viewer']] },
   editor: { id: 'u-editor', perms: [], roles: [[AREA_A, 'editor']] },
   nobody: { id: 'u-nobody', perms: [], roles: [] },
+  // Own items: creator made IB (area B); assignee/allMine are employee emp9, to whom IG is assigned.
+  creator: { id: 'u-creator', perms: [], roles: [[AREA_A, 'viewer']] },
+  assignee: { id: 'u-assignee', perms: [], roles: [], employees: ['emp9'] },
+  allMine: { id: 'u-allmine', perms: ['inventory.scope.all'], roles: [], employees: ['emp9'] },
   scopeAll: { id: 'u-all', perms: ['inventory.scope.all'], roles: [] },
   admin: { id: 'u-admin', perms: [], roles: [], isAdmin: true },
 };
@@ -47,8 +51,11 @@ function matches(db, row, where) {
   });
 }
 
-function build({ featureOn = true } = {}) {
-  const db = { items: [mkItem(IA, AREA_A, 'A'), mkItem(IB, AREA_B, 'B'), mkItem(IG, null, 'G')] };
+// Nested Prisma.sql fragments carry their bound values; flatten them to compare.
+const flatten = (values) => values.flatMap((v) => (v && typeof v === 'object' && Array.isArray(v.values) && v.strings ? flatten(v.values) : [v]));
+
+function build({ featureOn = true, includeOwn = true } = {}) {
+  const db = { items: [mkItem(IA, AREA_A, 'A'), mkItem(IB, AREA_B, 'B', { createdById: 'u-creator' }), mkItem(IG, null, 'G', { assignedToId: 'emp9' })] };
   const calls = [];
   const rawCalls = [];
   const list = (rows, where) => rows.filter((row) => matches(db, row, where));
@@ -56,7 +63,8 @@ function build({ featureOn = true } = {}) {
   const assignments = [{ id: 'as1', itemId: IA }, { id: 'as2', itemId: IB }, { id: 'as3', itemId: IG }];
   const custodyRows = { c1: [IB], c2: [IA] };
   const prisma = {
-    instanceConfig: { findUnique: async () => (featureOn ? { value: 'true' } : null) },
+    instanceConfig: { findUnique: async ({ where }) => (where.key.includes('includeOwn') ? (includeOwn ? null : { value: 'false' }) : (featureOn ? { value: 'true' } : null)) },
+    hrEmployee: { findMany: async ({ where }) => (Object.values(USERS).find((u) => u.id === where.userProfileId)?.employees ?? []).map((id) => ({ id })) },
     invArea: { findMany: async () => [{ id: AREA_A, parentId: null }, { id: AREA_B, parentId: null }] },
     invAreaMember: { findMany: async ({ where }) => (Object.values(USERS).find((u) => u.id === where.userId)?.roles ?? []).map(([areaId, role]) => ({ areaId, role })) },
     invItem: {
@@ -77,12 +85,12 @@ function build({ featureOn = true } = {}) {
       findMany: async ({ where }) => list(assignments, where),
       count: async ({ where }) => list(assignments, where).length,
     },
-    invCustodyItem: { findMany: async ({ where }) => (custodyRows[where.custodyId] ?? []).map((id) => ({ item: { areaId: db.items.find((i) => i.id === id).areaId } })) },
+    invCustodyItem: { findMany: async ({ where }) => (custodyRows[where.custodyId] ?? []).map((id) => ({ item: db.items.find((i) => i.id === id) })) },
     invLabelPrint: { findMany: async () => [], count: async () => 0, groupBy: async () => [] },
     entityRelation: { findMany: async () => [] },
     invCondition: { findMany: async () => [] },
     membership: { findMany: async () => [] },
-    $queryRaw: async (_strings, ...values) => { rawCalls.push(values); return []; },
+    $queryRaw: async (_strings, ...values) => { rawCalls.push(flatten(values)); return []; },
   };
   const real = createInventoryService({ prisma });
   const record = (name) => async (...args) => { calls.push(name); return { id: IA, args }; };
@@ -214,11 +222,69 @@ describe('limited user (viewer of area A) cannot reach items outside the scope',
   it('dashboard trends are restricted to the allowed areas in SQL', async () => {
     await t.request('viewer', 'GET', '/inventory/dashboard/trend');
     assert.ok(t.rawCalls.length >= 5);
-    for (const values of t.rawCalls.filter((v) => v.some((x) => typeof x === 'boolean'))) {
-      assert.ok(values.includes(false), 'unrestricted flag is false');
-      assert.ok(values.some((x) => Array.isArray(x) && x.length === 1 && x[0] === AREA_A));
+    const scoped = t.rawCalls.filter((v) => v.some((x) => Array.isArray(x) && x.length === 1 && x[0] === AREA_A));
+    assert.equal(scoped.length, 5);
+    for (const values of scoped) assert.ok(values.includes('u-viewer'), 'own items clause is bound to the viewer');
+  });
+});
+
+describe('own items (created by / assigned to the viewer) are readable, never writable', () => {
+  it('a creator also sees what they created; others stay hidden', async () => {
+    const t = build();
+    assert.deepEqual(await ids(await t.request('creator', 'GET', '/inventory/items')), [IA, IB].sort());
+    assert.equal((await t.request('creator', 'GET', `/inventory/items/${IB}`)).status, 200);
+    assert.equal((await t.request('creator', 'GET', `/inventory/items/${IB}/files`)).status, 200);
+    assert.equal((await t.request('creator', 'GET', `/inventory/items/${IG}`)).status, 404);
+    assert.deepEqual(await ids(await t.request('creator', 'GET', '/inventory/media')), ['f1', 'f2']);
+    assert.deepEqual(await ids(await t.request('creator', 'GET', '/inventory/assignments')), ['as1', 'as2']);
+    assert.equal((await (await t.request('creator', 'GET', '/inventory/summary')).json()).data.total, 2);
+    const scan = (await (await t.request('creator', 'POST', '/inventory/scan/resolve', { codes: ['S-B', 'S-G'] })).json()).data;
+    assert.deepEqual(scan.map((row) => row.item?.id ?? null), [IB, null]);
+    const ident = (await (await t.request('creator', 'GET', '/inventory/items/check-identifiers?serialNumber=S-B')).json()).data;
+    assert.equal(ident.serialNumber.id, IB);
+    assert.notEqual((await t.request('creator', 'GET', '/inventory/custodies/c1')).status, 404, 'custody holding an own item');
+  });
+
+  it('writes on own items stay blocked (area role decides)', async () => {
+    const t = build();
+    for (const [method, suffix, body] of [['PUT', '', { name: 'x' }], ['DELETE', '', null], ['POST', '/assign', { employeeId: 'e' }], ['POST', '/comments', { body: 'hi' }]]) {
+      assert.equal((await t.request('creator', method, `/inventory/items/${IB}${suffix}`, body)).status, 404, `${method}${suffix}`);
     }
-    assert.equal(t.rawCalls.filter((v) => v.some((x) => typeof x === 'boolean')).length, 5);
+    assert.deepEqual(t.calls, []);
+  });
+
+  it('an assignee with no areas sees the items assigned to their employee record', async () => {
+    const t = build();
+    assert.deepEqual(await ids(await t.request('assignee', 'GET', '/inventory/items')), [IG]);
+    assert.equal((await t.request('assignee', 'GET', `/inventory/items/${IG}`)).status, 200);
+    assert.equal((await t.request('assignee', 'GET', `/inventory/items/${IA}`)).status, 404);
+    assert.equal((await t.request('assignee', 'PUT', `/inventory/items/${IG}`, { name: 'x' })).status, 404);
+  });
+
+  it('includeOwn=false restores area-only visibility', async () => {
+    const t = build({ includeOwn: false });
+    assert.deepEqual(await ids(await t.request('creator', 'GET', '/inventory/items')), [IA]);
+    assert.equal((await t.request('creator', 'GET', `/inventory/items/${IB}`)).status, 404);
+    assert.deepEqual(await ids(await t.request('assignee', 'GET', '/inventory/items')), []);
+    assert.equal((await t.request('assignee', 'GET', `/inventory/items/${IG}`)).status, 404);
+  });
+
+  it('dashboard SQL carries the own clauses', async () => {
+    const t = build();
+    await t.request('assignee', 'GET', '/inventory/dashboard/trend');
+    const scoped = t.rawCalls.filter((v) => v.some((x) => Array.isArray(x) && x.includes('emp9')));
+    assert.equal(scoped.length, 5);
+    for (const values of scoped) assert.ok(values.includes('u-assignee'));
+  });
+});
+
+describe('"Mios" quick filter (created by me or assigned to me)', () => {
+  it('works for scope.all users and limited users, and never shows other people items', async () => {
+    const t = build();
+    assert.deepEqual(await ids(await t.request('allMine', 'GET', '/inventory/items?mine=true')), [IG]);
+    assert.deepEqual(await ids(await t.request('allMine', 'GET', '/inventory/items')), [...ALL_IDS].sort());
+    assert.deepEqual(await ids(await t.request('creator', 'GET', '/inventory/items?mine=true')), [IB]);
+    assert.deepEqual(await ids(await t.request('viewer', 'GET', '/inventory/items?mine=true')), []);
   });
 });
 

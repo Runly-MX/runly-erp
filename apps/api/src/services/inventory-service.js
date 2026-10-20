@@ -2,7 +2,7 @@
 import { createActivityService } from './activity-service.js';
 import { createActivityBridge } from './activity-bridge.js';
 import { buildInventoryWhere } from './inventory-query.js';
-import { canViewArea, scopeWhere } from './inventory-scope.js';
+import { canViewItem, scopeWhere } from './inventory-scope.js';
 import { createInventorySearch } from './inventory-search-service.js';
 import { InventoryServiceError, assertCompany, createRefGuard } from './inventory-guards.js';
 import { createInventoryCatalogService } from './inventory-catalog-service.js';
@@ -169,6 +169,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     purchaseTo,
     labeled,
     areaId,
+    mine = null,
     sortBy,
     sortDir,
     page = 1,
@@ -180,7 +181,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     const skip = (normalizePage(page) - 1) * take;
 
     const filters = {
-      categoryId, brandId, locationId, conditionId, status, assignedToId, unassigned, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, areaId,
+      categoryId, brandId, locationId, conditionId, status, assignedToId, unassigned, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, areaId, mine: mine ? true : undefined,
       adminStatus: adminStatus === 'all' ? undefined : (adminStatus || DEFAULT_LISTED_ADMIN_STATUSES),
     };
     let where;
@@ -194,10 +195,10 @@ export function createInventoryService({ prisma, activityBridge }) {
         console.warn('[inventory] search failed, using basic search:', error?.code ?? error?.name ?? 'error');
       }
     }
-    if (searchIds) where = buildInventoryWhere(companyId, { ...filters, searchIds }, scope);
+    if (searchIds) where = buildInventoryWhere(companyId, { ...filters, searchIds }, scope, mine);
     else if (term && connectionMatchIds.length) {
-      where = { AND: [buildInventoryWhere(companyId, filters, scope), { OR: [buildInventoryWhere(companyId, { ...filters, search }, scope), { id: { in: connectionMatchIds } }] }] };
-    } else where = buildInventoryWhere(companyId, { ...filters, search }, scope);
+      where = { AND: [buildInventoryWhere(companyId, filters, scope, mine), { OR: [buildInventoryWhere(companyId, { ...filters, search }, scope, mine), { id: { in: connectionMatchIds } }] }] };
+    } else where = buildInventoryWhere(companyId, { ...filters, search }, scope, mine);
 
     const [data, total] = await Promise.all([
       prisma.invItem.findMany({
@@ -316,7 +317,7 @@ export function createInventoryService({ prisma, activityBridge }) {
         // and only for mimeType/isCover/sortOrder, not the full row.
       },
     });
-    if (!item || (scope && !canViewArea(scope, item.areaId))) throw new InventoryServiceError('Item not found', 404);
+    if (!item || (scope && !canViewItem(scope, item))) throw new InventoryServiceError('Item not found', 404);
     const coverImageFileId = await resolveCoverImageFileId(id);
     return {
       ...item,

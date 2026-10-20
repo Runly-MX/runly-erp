@@ -60,3 +60,15 @@ test('inventory query filters by area id and by General with __none__', () => {
   assert.equal(inventoryFiltersSchema.safeParse({ areaId: '__none__' }).success, true);
   assert.equal(inventoryFiltersSchema.safeParse({ areaId: 'nope' }).success, false);
 });
+
+test('mine filter: identity comes from the caller; without it nothing matches; scope still applies', () => {
+  const mine = { userId: 'u1', employeeIds: ['e1'] };
+  const where = buildInventoryWhere('co', { mine: true }, { all: false, roles: new Map([['a', 'viewer']]), own: mine }, mine);
+  assert.deepEqual(where.AND, [
+    { OR: [{ createdById: 'u1' }, { assignedToId: { in: ['e1'] } }] },
+    { OR: [{ areaId: { in: ['a'] } }, { createdById: 'u1' }, { assignedToId: { in: ['e1'] } }] },
+  ]);
+  assert.deepEqual(buildInventoryWhere('co', { mine: true }).AND, [{ id: { in: [] } }]);
+  assert.equal(buildInventoryWhere('co', {}, null, mine).AND, undefined);
+  assert.equal(inventoryFiltersSchema.safeParse({ mine: true }).success, true);
+});

@@ -174,7 +174,7 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
     for (const serial of seenSerials) alternatives.push({ serialNumber: { equals: serial, mode: 'insensitive' } });
     for (const tag of seenTags) alternatives.push({ assetTag: { equals: tag, mode: 'insensitive' } });
     // Only ACTIVE items conflict; logically deleted ones never do.
-    const matches = alternatives.length ? await db.invItem.findMany({ where: { companyId, enabled: true, ...(scopeWhere(scope) ?? {}), OR: alternatives }, include: EXISTING_ITEM_INCLUDE }) : [];
+    const matches = alternatives.length ? await db.invItem.findMany({ where: { companyId, enabled: true, ...(scopeWhere(scope) ? { AND: [scopeWhere(scope)] } : {}), OR: alternatives }, include: EXISTING_ITEM_INCLUDE }) : [];
     const updates = [];
     data.units.forEach((unit, index) => {
       const found = new Map();

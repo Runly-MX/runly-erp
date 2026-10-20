@@ -8,7 +8,7 @@
 // miraiPageContext) instead of the old per-thread context object.
 import { z } from 'zod';
 import { createInventoryAccess } from '../inventory-access.js';
-import { scopeWhere } from '../inventory-scope.js';
+import { scopeWhere, createInventoryScope } from '../inventory-scope.js';
 import { inventoryFiltersSchema, buildInventoryWhere } from '../inventory-query.js';
 import { createInventoryChatActions } from '../inventory-chat-actions.js';
 
@@ -30,7 +30,7 @@ const queryArgsSchema = z.object({ filters: inventoryFiltersSchema.default({}), 
 
 // -> a where clause for the selection (selected ids or filtered filters),
 // scoped to the company, or null when there is no usable selection.
-function selectionWhere(companyId, selection) {
+function selectionWhere(companyId, selection, mine) {
   if (!selection) return null;
   if (selection.mode === 'selected') {
     if (!selection.ids?.length) return null;
@@ -38,28 +38,34 @@ function selectionWhere(companyId, selection) {
   }
   if (selection.mode === 'filtered') {
     const parsed = inventoryFiltersSchema.safeParse(selection.filters ?? {});
-    return buildInventoryWhere(companyId, parsed.success ? parsed.data : {});
+    return buildInventoryWhere(companyId, parsed.success ? parsed.data : {}, null, mine);
   }
   return null;
 }
 
 // Default scope is "selection" when the page published one, otherwise "company".
-function whereFor(actx, args) {
+function whereFor(actx, args, mine) {
   const parsed = queryArgsSchema.safeParse(args);
   if (!parsed.success) return null;
   const selection = actx.turn?.pageContext?.selection;
   const scope = parsed.data.scope ?? (selection ? 'selection' : 'company');
   if (scope === 'selection') {
-    const base = selectionWhere(actx.companyId, selection);
+    const base = selectionWhere(actx.companyId, selection, mine);
     if (!base) return null;
-    return { AND: [base, buildInventoryWhere(actx.companyId, parsed.data.filters)] };
+    return { AND: [base, buildInventoryWhere(actx.companyId, parsed.data.filters, null, mine)] };
   }
-  return { AND: [buildInventoryWhere(actx.companyId), buildInventoryWhere(actx.companyId, parsed.data.filters)] };
+  return { AND: [buildInventoryWhere(actx.companyId), buildInventoryWhere(actx.companyId, parsed.data.filters, null, mine)] };
 }
 
 export function createInventoryMiraiQueries({ prisma, publicLookup }) {
   const access = createInventoryAccess({ prisma });
   const authorize = access.assertCurrent;
+  const ownScope = createInventoryScope({ prisma });
+  // Viewer identity for the 'mine' filter (created by / assigned to the actor).
+  // Only resolved when a filter asks for it (saves a query per call).
+  const mineOf = (actx, args) => (args?.filters?.mine === true || actx.turn?.pageContext?.selection?.filters?.mine === true
+    ? ownScope.resolveMine({ companyId: actx.companyId, userId: actx.actorProfileId })
+    : null);
   // Area scoping: limited actors only see/count items of their areas (the scope is re-resolved per call).
   const scoped = async (actx, where) => {
     const restriction = scopeWhere(await access.scopeFor({ companyId: actx.companyId, actorId: actx.actorProfileId }));
@@ -75,7 +81,7 @@ export function createInventoryMiraiQueries({ prisma, publicLookup }) {
       parameters: queryToolParameters,
     },
     async run(args, actx) {
-      const base = whereFor(actx, args);
+      const base = whereFor(actx, args, await mineOf(actx, args));
       if (!base) { await authorize({ companyId: actx.companyId, actorId: actx.actorProfileId }); return { error: 'No hay una seleccion o filtros activos en la pantalla; indica scope "company" para consultar toda la empresa.' }; }
       const where = await scoped(actx, base);
       const [total, missingSerial, groups] = await Promise.all([
@@ -106,7 +112,7 @@ export function createInventoryMiraiQueries({ prisma, publicLookup }) {
       parameters: queryToolParameters,
     },
     async run(args, actx) {
-      const base = whereFor(actx, args);
+      const base = whereFor(actx, args, await mineOf(actx, args));
       if (!base) { await authorize({ companyId: actx.companyId, actorId: actx.actorProfileId }); return { error: 'No hay una seleccion o filtros activos en la pantalla; indica scope "company" para consultar toda la empresa.' }; }
       const where = await scoped(actx, base);
       const [total, items] = await Promise.all([

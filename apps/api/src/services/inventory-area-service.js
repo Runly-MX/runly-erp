@@ -1,6 +1,6 @@
 // inventory-area-service.js - areas (nested folders), area members and moving items between areas.
 import { InventoryServiceError, assertCompany } from './inventory-guards.js';
-import { areasEnabledKey, canWriteArea } from './inventory-scope.js';
+import { areasEnabledKey, includeOwnKey, canWriteArea } from './inventory-scope.js';
 
 const ROLES = new Set(['viewer', 'editor', 'manager']);
 const DUPLICATE_MESSAGE = 'Ya existe un area con ese nombre en esta carpeta.';
@@ -149,8 +149,12 @@ export function createInventoryAreaService({ prisma }) {
 
   async function getSettings(companyId) {
     assertCompany(companyId);
-    const row = await prisma.instanceConfig.findUnique({ where: { key: areasEnabledKey(companyId) } });
-    return { enabled: row?.value === 'true' };
+    const [row, own] = await Promise.all([
+      prisma.instanceConfig.findUnique({ where: { key: areasEnabledKey(companyId) } }),
+      prisma.instanceConfig.findUnique({ where: { key: includeOwnKey(companyId) } }),
+    ]);
+    // includeOwn defaults to true when the key is missing.
+    return { enabled: row?.value === 'true', includeOwn: own?.value !== 'false' };
   }
 
   async function setEnabled(companyId, enabled) {
@@ -161,5 +165,13 @@ export function createInventoryAreaService({ prisma }) {
     return { enabled: Boolean(enabled) };
   }
 
-  return { listTree, createArea, updateArea, disableArea, listMembers, setMember, removeMember, moveItems, getSettings, setEnabled };
+  async function setIncludeOwn(companyId, includeOwn) {
+    assertCompany(companyId);
+    const value = includeOwn ? 'true' : 'false';
+    const key = includeOwnKey(companyId);
+    await prisma.instanceConfig.upsert({ where: { key }, create: { key, value }, update: { value } });
+    return { includeOwn: Boolean(includeOwn) };
+  }
+
+  return { listTree, createArea, updateArea, disableArea, listMembers, setMember, removeMember, moveItems, getSettings, setEnabled, setIncludeOwn };
 }

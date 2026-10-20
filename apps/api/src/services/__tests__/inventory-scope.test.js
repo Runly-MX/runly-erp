@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { expandAreaRoles, scopeWhere, canViewArea, canWriteArea, createInventoryScope } from '../inventory-scope.js';
+import { expandAreaRoles, scopeWhere, scopeSql, mineWhere, canViewArea, canViewItem, canWriteArea, createInventoryScope } from '../inventory-scope.js';
 
 const A = '01900000-0000-7000-8000-00000000000a';
 const B = '01900000-0000-7000-8000-00000000000b'; // child of A
@@ -37,6 +37,7 @@ test('resolve: feature off or scope.all -> all; otherwise memberships', async ()
     instanceConfig: { findUnique: async ({ where }) => (where.key.endsWith(':co1') ? { value: 'true' } : null) },
     invArea: { findMany: async () => areas.map((a) => ({ ...a, companyId: 'co1' })) },
     invAreaMember: { findMany: async () => [{ areaId: A, role: 'viewer' }] },
+    hrEmployee: { findMany: async () => [{ id: 'emp1' }] },
   };
   const scope = createInventoryScope({ prisma });
   const ctx = (extra) => ({ isAdmin: false, permissionSet: new Set(extra) });
@@ -45,4 +46,36 @@ test('resolve: feature off or scope.all -> all; otherwise memberships', async ()
   assert.equal((await scope.resolve({ companyId: 'co1', userId: 'u', userContext: { isAdmin: true, permissionSet: new Set() } })).all, true);
   const limited = await scope.resolve({ companyId: 'co1', userId: 'u', userContext: ctx([]) });
   assert.equal(limited.all, false); assert.deepEqual([...limited.roles.keys()].sort(), [A, B, C].sort());
+});
+
+test('own items: scopeWhere ORs created/assigned clauses; canViewItem honors them; writes stay area-based', () => {
+  const s = { all: false, roles: new Map([[A, 'viewer']]), own: { userId: 'u', employeeIds: ['emp1'] } };
+  assert.deepEqual(scopeWhere(s), { OR: [{ areaId: { in: [A] } }, { createdById: 'u' }, { assignedToId: { in: ['emp1'] } }] });
+  assert.deepEqual(scopeWhere({ ...s, own: { userId: 'u', employeeIds: [] } }), { OR: [{ areaId: { in: [A] } }, { createdById: 'u' }] });
+  assert.equal(canViewItem(s, { areaId: D, createdById: 'u' }), true);
+  assert.equal(canViewItem(s, { areaId: null, assignedToId: 'emp1' }), true);
+  assert.equal(canViewItem(s, { areaId: D, createdById: 'x', assignedToId: 'emp2' }), false);
+  assert.equal(canViewItem(s, { areaId: A }), true);
+  assert.equal(canViewItem({ ...s, own: null }, { areaId: D, createdById: 'u' }), false);
+  assert.equal(canWriteArea(s, D), false);
+  assert.match(scopeSql(s, 't.').text, /t.area_id = ANY.*t.created_by_id.*t.assigned_to_id/s);
+  assert.equal(scopeSql({ all: true }).text, 'TRUE');
+});
+
+test('mineWhere: identity clauses, or nothing without identity', () => {
+  assert.deepEqual(mineWhere({ userId: 'u', employeeIds: ['e'] }), { OR: [{ createdById: 'u' }, { assignedToId: { in: ['e'] } }] });
+  assert.deepEqual(mineWhere(null), { id: { in: [] } });
+});
+
+test('resolve: own identity follows the includeOwn setting (default true)', async () => {
+  const build = (includeOwn) => createInventoryScope({ prisma: {
+    instanceConfig: { findUnique: async ({ where }) => (where.key.startsWith('inventory.areas.enabled') ? { value: 'true' } : (includeOwn === undefined ? null : { value: includeOwn })) },
+    invArea: { findMany: async () => areas }, invAreaMember: { findMany: async () => [] },
+    hrEmployee: { findMany: async () => [{ id: 'emp1' }] },
+  } });
+  const input = { companyId: 'co1', userId: 'u', userContext: { isAdmin: false, permissionSet: new Set() } };
+  assert.deepEqual((await build(undefined).resolve(input)).own, { userId: 'u', employeeIds: ['emp1'] });
+  assert.deepEqual((await build('true').resolve(input)).own, { userId: 'u', employeeIds: ['emp1'] });
+  assert.equal((await build('false').resolve(input)).own, null);
+  assert.deepEqual(scopeWhere(await build('false').resolve(input)), { areaId: { in: [] } });
 });

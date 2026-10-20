@@ -12,6 +12,17 @@ export function AreasSettingsCard() {
   const [confirmEnable, setConfirmEnable] = useState(false)
   const [affectedRoles, setAffectedRoles] = useState([])
   const enabled = Boolean(settings.data?.enabled)
+  // Defaults to true when the company never set it.
+  const includeOwn = settings.data?.includeOwn !== false
+
+  async function applyIncludeOwn(next) {
+    try {
+      await save.mutateAsync({ includeOwn: next })
+      toast.success(next ? 'Los usuarios verán también sus propios items' : 'Los usuarios solo verán los items de sus áreas')
+    } catch {
+      // The mutation already reported the error.
+    }
+  }
 
   async function apply(next) {
     try {
@@ -42,6 +53,24 @@ export function AreasSettingsCard() {
           onCheckedChange={(next) => (next ? setConfirmEnable(true) : apply(false))}
         />
       </div>
+      {enabled ? (
+        <div className="mt-4 flex items-start justify-between gap-4 border-t border-[hsl(var(--border))] pt-4">
+          <div className="min-w-0 space-y-1">
+            <p className="text-sm font-semibold">Incluir mis propios items</p>
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              {includeOwn
+                ? 'Además de sus áreas, cada usuario ve (solo lectura) los items que registró o que tiene asignados.'
+                : 'Cada usuario ve únicamente los items de sus áreas.'}
+            </p>
+          </div>
+          <Switch
+            aria-label="Incluir mis propios items"
+            checked={includeOwn}
+            disabled={settings.isLoading || save.isPending}
+            onCheckedChange={applyIncludeOwn}
+          />
+        </div>
+      ) : null}
       {enabled && affectedRoles.length > 0 ? (
         <div className="mt-4 flex items-start gap-3 rounded-md bg-amber-500/10 p-3 text-sm">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />

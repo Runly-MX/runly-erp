@@ -80,7 +80,7 @@ export function createInventoryScanService({ prisma, publicService }) {
       ...unique.flatMap((code) => IDENTIFIERS.map(([field]) => ({ [field]: { equals: code, mode: 'insensitive' } }))),
     ];
     const items = or.length
-      ? await prisma.invItem.findMany({ where: { companyId, enabled: true, ...(scopeWhere(scope) ?? {}), OR: or }, select: ITEM_SELECT, orderBy: { createdAt: 'asc' } })
+      ? await prisma.invItem.findMany({ where: { companyId, enabled: true, ...(scopeWhere(scope) ? { AND: [scopeWhere(scope)] } : {}), OR: or }, select: ITEM_SELECT, orderBy: { createdAt: 'asc' } })
       : [];
     const covers = await coverIds(items.map((item) => item.id));
     const byId = new Map(items.map((item) => [item.id, item]));

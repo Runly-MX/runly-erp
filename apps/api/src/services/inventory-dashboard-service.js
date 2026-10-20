@@ -5,7 +5,7 @@
 import { getConfiguredTimeZone } from '@runly/core';
 import { assertCompany } from './inventory-guards.js';
 import { createInventoryAdminService } from './inventory-admin-service.js';
-import { scopeWhere } from './inventory-scope.js';
+import { scopeWhere, scopeSql } from './inventory-scope.js';
 
 const TOP = 8;
 
@@ -49,9 +49,9 @@ export function createInventoryDashboardService({ prisma }) {
   // total of vigentes (altas minus bajas) starting from the count before the
   // first bucket.
   async function trends(companyId, { granularity = 'month', periods = 12 } = {}, timeZone = getConfiguredTimeZone(), scope = null) {
-    // Raw SQL cannot take the Prisma fragment: unrestricted flag + allowed area ids.
-    const unrestricted = !scopeWhere(scope);
-    const areaIds = scopeWhere(scope)?.areaId.in ?? [];
+    // Raw SQL cannot take the Prisma fragment: equivalent SQL predicates (areas + own items).
+    const inScope = scopeSql(scope);
+    const inScopeItem = scopeSql(scope, 'i.');
     const unit = granularity === 'week' ? 'week' : 'month';
     const count = Math.min(Math.max(Number(periods) || 12, 4), unit === 'week' ? 104 : 36);
     const keys = bucketKeys(unit, count, new Date(), timeZone);
@@ -61,33 +61,33 @@ export function createInventoryDashboardService({ prisma }) {
         SELECT to_char(date_trunc(${unit}, COALESCE(registered_at, (created_at AT TIME ZONE 'UTC' AT TIME ZONE ${timeZone})::date)::timestamp), 'YYYY-MM-DD') AS bucket, count(*)::int AS n
         FROM inv_item
         WHERE company_id = ${companyId}::uuid AND enabled = true
-          AND (${unrestricted}::boolean OR area_id = ANY(${areaIds}::uuid[]))
+          AND ${inScope}
           AND COALESCE(registered_at, (created_at AT TIME ZONE 'UTC' AT TIME ZONE ${timeZone})::date) >= ${from}::date
         GROUP BY 1`,
       prisma.$queryRaw`
         SELECT to_char(date_trunc(${unit}, deregistered_at::timestamp), 'YYYY-MM-DD') AS bucket, count(*)::int AS n
         FROM inv_item
         WHERE company_id = ${companyId}::uuid AND enabled = true AND deregistered_at >= ${from}::date
-          AND (${unrestricted}::boolean OR area_id = ANY(${areaIds}::uuid[]))
+          AND ${inScope}
         GROUP BY 1`,
       prisma.$queryRaw`
         SELECT to_char(date_trunc(${unit}, (a.assigned_at AT TIME ZONE 'UTC' AT TIME ZONE ${timeZone})), 'YYYY-MM-DD') AS bucket, count(*)::int AS n
         FROM inv_assignment a JOIN inv_item i ON i.id = a.item_id
         WHERE i.company_id = ${companyId}::uuid AND (a.assigned_at AT TIME ZONE 'UTC' AT TIME ZONE ${timeZone})::date >= ${from}::date
-          AND (${unrestricted}::boolean OR i.area_id = ANY(${areaIds}::uuid[]))
+          AND ${inScopeItem}
         GROUP BY 1`,
       prisma.$queryRaw`
         SELECT to_char(date_trunc(${unit}, (a.returned_at AT TIME ZONE 'UTC' AT TIME ZONE ${timeZone})), 'YYYY-MM-DD') AS bucket, count(*)::int AS n
         FROM inv_assignment a JOIN inv_item i ON i.id = a.item_id
         WHERE i.company_id = ${companyId}::uuid AND a.returned_at IS NOT NULL
-          AND (${unrestricted}::boolean OR i.area_id = ANY(${areaIds}::uuid[]))
+          AND ${inScopeItem}
           AND (a.returned_at AT TIME ZONE 'UTC' AT TIME ZONE ${timeZone})::date >= ${from}::date
         GROUP BY 1`,
       prisma.$queryRaw`
         SELECT count(*)::int AS n
         FROM inv_item
         WHERE company_id = ${companyId}::uuid AND enabled = true
-          AND (${unrestricted}::boolean OR area_id = ANY(${areaIds}::uuid[]))
+          AND ${inScope}
           AND COALESCE(registered_at, (created_at AT TIME ZONE 'UTC' AT TIME ZONE ${timeZone})::date) < ${from}::date
           AND (deregistered_at IS NULL OR deregistered_at >= ${from}::date)`,
     ]);

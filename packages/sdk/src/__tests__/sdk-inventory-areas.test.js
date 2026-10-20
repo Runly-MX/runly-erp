@@ -35,5 +35,7 @@ describe('SDK - inventory areas', () => {
     assert.deepEqual(move.body, { itemIds: ['i1'], areaId: null })
     const set = await call((c) => c.inventory.setAreasSettings(true, 't'))
     assert.deepEqual([set.url, set.method, set.body], ['http://api/inventory/areas-settings', 'PUT', { enabled: true }])
+    const own = await call((c) => c.inventory.setAreasSettings({ includeOwn: false }, 't'))
+    assert.deepEqual(own.body, { includeOwn: false })
   })
 })

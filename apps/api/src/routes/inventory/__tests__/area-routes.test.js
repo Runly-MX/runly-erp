@@ -11,7 +11,7 @@ const Y = '01900000-0000-7000-8000-0000000000bb';
 const U = '01900000-0000-7000-8000-00000000d001';
 
 function build() {
-  const state = { areas: [{ id: X, companyId: CO, parentId: null, enabled: true, name: 'X' }, { id: Y, companyId: CO, parentId: null, enabled: true, name: 'Y' }], config: null, members: [] };
+  const state = { areas: [{ id: X, companyId: CO, parentId: null, enabled: true, name: 'X' }, { id: Y, companyId: CO, parentId: null, enabled: true, name: 'Y' }], config: {}, members: [] };
   const prisma = {
     invArea: {
       findFirst: async ({ where }) => state.areas.find((a) => a.id === where.id && a.enabled) ?? null,
@@ -21,8 +21,8 @@ function build() {
     membership: { findFirst: async () => ({ id: 'm1' }) },
     invAreaMember: { upsert: async ({ create }) => { state.members.push(create); return create; } },
     instanceConfig: {
-      findUnique: async () => state.config,
-      upsert: async ({ create, update }) => { state.config = state.config ? { ...state.config, ...update } : create; return state.config; },
+      findUnique: async ({ where }) => (state.config[where.key] ? { value: state.config[where.key] } : null),
+      upsert: async ({ where, create }) => { state.config[where.key] = create.value; return create; },
     },
     role: { findMany: async () => [{ id: 'r1', name: 'Almacen' }] },
   };
@@ -76,9 +76,12 @@ describe('inventory area routes', () => {
     const on = await (await t.request('areaAdmin', 'PUT', '/inventory/areas-settings', { enabled: true })).json();
     assert.equal(on.data.enabled, true);
     assert.deepEqual(on.data.affectedRoles, [{ id: 'r1', name: 'Almacen' }]);
-    assert.deepEqual((await (await t.request('manager', 'GET', '/inventory/areas-settings')).json()).data, { enabled: true });
+    assert.deepEqual((await (await t.request('manager', 'GET', '/inventory/areas-settings')).json()).data, { enabled: true, includeOwn: true });
     const off = await (await t.request('areaAdmin', 'PUT', '/inventory/areas-settings', { enabled: false })).json();
-    assert.deepEqual(off.data, { enabled: false });
+    assert.deepEqual(off.data, { enabled: false, includeOwn: true });
+    const own = await (await t.request('areaAdmin', 'PUT', '/inventory/areas-settings', { includeOwn: false })).json();
+    assert.deepEqual(own.data, { enabled: false, includeOwn: false });
+    assert.equal((await t.request('areaAdmin', 'PUT', '/inventory/areas-settings', {})).status, 400);
     assert.equal((await t.request('manager', 'PUT', '/inventory/areas-settings', { enabled: true })).status, 403);
   });
 });

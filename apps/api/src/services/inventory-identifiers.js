@@ -2,21 +2,21 @@
 // items (enabled = true) of a company; logically deleted items never conflict.
 // The match ignores case and surrounding spaces. Empty values never conflict.
 import { InventoryServiceError } from './inventory-guards.js';
-import { canViewArea } from './inventory-scope.js';
+import { canViewItem } from './inventory-scope.js';
 
 export const cleanIdentifier = (value) => {
   const text = String(value ?? '').trim();
   return text || null;
 };
 
-const SELECT = { id: true, name: true, assetTag: true, serialNumber: true, areaId: true };
+const SELECT = { id: true, name: true, assetTag: true, serialNumber: true, areaId: true, createdById: true, assignedToId: true };
 
 // Duplicates stay company-wide, but an item outside the caller's areas is reported
 // without its data: `{ restricted: true }`.
 const present = (item, scope) => {
   if (!item) return null;
-  const { areaId, ...rest } = item;
-  return scope && !canViewArea(scope, areaId) ? { restricted: true } : rest;
+  const { areaId, createdById, assignedToId, ...rest } = item;
+  return scope && !canViewItem(scope, item) ? { restricted: true } : rest;
 };
 
 // -> { assetTag: item|null, serialNumber: item|null } with the active item that already uses each value.

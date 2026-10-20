@@ -2,7 +2,7 @@ import { createUserAccessService } from './user-access-service.js';
 import { parseMentionIds } from '../lib/mention-utils.js';
 import { createActivityService } from './activity-service.js';
 import { createInventoryAccess } from './inventory-access.js';
-import { canViewArea, canWriteArea } from './inventory-scope.js';
+import { canViewItem, canWriteArea } from './inventory-scope.js';
 
 export class CommentsServiceError extends Error {
   constructor(message, status = 500) {
@@ -48,10 +48,10 @@ export function createCommentsService({ prisma, activityService = null, inventor
       if (await prisma.growthLead.findFirst({ where: { id: entityId, companyId }, select: { id: true } })) return null;
     } else if (entityType === 'InvItem') {
       // Area scoping: an item outside the actor's areas is 'not found' (write needs editor on the area).
-      const item = await prisma.invItem.findFirst({ where: { id: entityId, companyId }, select: { id: true, areaId: true } });
+      const item = await prisma.invItem.findFirst({ where: { id: entityId, companyId }, select: { id: true, areaId: true, createdById: true, assignedToId: true } });
       if (item) {
         const scope = await inventoryAccess.scopeFor({ companyId, actorId: userId });
-        if (write ? canWriteArea(scope, item.areaId) : canViewArea(scope, item.areaId)) return null;
+        if (write ? canWriteArea(scope, item.areaId) : canViewItem(scope, item)) return null;
       }
     } else if (entityType === 'Task') {
       const task = await prisma.task.findFirst({ where: { id: entityId, project: { companyId } }, select: { projectId: true, project: { select: { ownerId: true } } } });

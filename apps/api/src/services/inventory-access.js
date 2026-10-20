@@ -24,10 +24,5 @@ export function createInventoryAccess({ prisma, inventoryScope = createInventory
     const userContext = await assertCurrent({ companyId, actorId }, permissions);
     return inventoryScope.resolve({ companyId, userId: actorId, userContext });
   }
-  // null = unrestricted; otherwise the area ids the actor can see (for raw SQL readers).
-  async function areaIdsFor(identity, permissions) {
-    const scope = await scopeFor(identity, permissions);
-    return scope.all ? null : [...scope.roles.keys()];
-  }
-  return { assertCurrent, scopeFor, areaIdsFor };
+  return { assertCurrent, scopeFor };
 }

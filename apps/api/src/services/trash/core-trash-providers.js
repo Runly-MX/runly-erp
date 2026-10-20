@@ -12,7 +12,7 @@ const PAGE_SIZE = 25
 // scope: where-fragment that ties a row to the company (default: its own companyId column).
 export function prismaProvider({ id, table, moduleKey, moduleName, label, pluralLabel, restorePermission, purgePermission = null, delegate, toLabel, searchWhere, select, beforeRestore = null, restrict = null, scope = (companyId) => ({ companyId }) }) {
   // restrict(ctx) -> extra where for the acting user (e.g. inventory areas), or null. System runs (no actor) are never restricted.
-  const where = (companyId, extra = {}, restriction = null) => ({ ...scope(companyId), enabled: false, ...extra, ...(restriction ?? {}) })
+  const where = (companyId, extra = {}, restriction = null) => ({ ...scope(companyId), enabled: false, ...extra, ...(restriction ? { AND: [restriction] } : {}) })
   const restriction = async (ctx) => (restrict && ctx.actorId ? restrict(ctx) : null)
   const find = async (prisma, companyId, recordId, restricted = null) => {
     const row = await prisma[delegate].findFirst({ where: where(companyId, { id: recordId }, restricted), select })

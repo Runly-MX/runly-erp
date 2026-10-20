@@ -122,6 +122,7 @@ function actionsFor({ inventoryService, limitedTo = null } = {}) {
     instanceConfig: { findUnique: async () => (limitedTo ? { value: 'true' } : null) },
     invArea: { findMany: async () => [{ id: 'area-a', parentId: null }] },
     invAreaMember: { findMany: async () => (limitedTo ? [{ areaId: 'area-a', role: limitedTo }] : []) },
+    hrEmployee: { findMany: async () => [] },
     $transaction: async (fn) => fn(prisma),
     invBrand: { findMany: async () => [] },
     invCategory: { findMany: async () => [] },
@@ -183,10 +184,11 @@ test('area scoping: inventory_search adds the area filter for a limited actor', 
     instanceConfig: { findUnique: async () => ({ value: 'true' }) },
     invArea: { findMany: async () => [{ id: 'area-a', parentId: null }] },
     invAreaMember: { findMany: async () => [{ areaId: 'area-a', role: 'viewer' }] },
+    hrEmployee: { findMany: async () => [] },
     invItem: { count: async ({ where }) => { seen.push(where); return 1; }, findMany: async ({ where }) => { seen.push(where); return [ROW]; } },
   });
   await queriesFor(prisma).inventory_search.run({ scope: 'company' }, actx);
-  assert.deepEqual(seen[0].AND[1], { areaId: { in: ['area-a'] } });
+  assert.deepEqual(seen[0].AND[1], { OR: [{ areaId: { in: ['area-a'] } }, { createdById: actx.actorProfileId }] });
 });
 
 test('inventory.item.update: preview includes before/after for a changed field and no permission', async () => {

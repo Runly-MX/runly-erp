@@ -3,6 +3,7 @@
 import { Prisma } from "@prisma/client";
 import { createInventorySearch } from "../inventory-search-service.js";
 import { createInventoryAccess } from "../inventory-access.js";
+import { scopeSql } from "../inventory-scope.js";
 import { tokenizeSearch, normalizeSearchText } from "../../lib/search-tokens.js";
 import { defineProvider, joinParts, fullName, safeTitle, enc } from "./helpers.js";
 
@@ -20,11 +21,11 @@ export const inventoryProvider = defineProvider({
     const tokens = tokenizeSearch(q);
     if (!tokens.length) return { items: [], total: 0 };
     // Area scoping: null = unrestricted. Fails closed (the provider is dropped) without a resolvable actor.
-    const areaIds = await inventoryAccess.areaIdsFor({ companyId, actorId });
+    const scope = await inventoryAccess.scopeFor({ companyId, actorId });
     const found = await createInventorySearch({ prisma }).searchItemIds(companyId, q, { limit: MAX_IDS });
     if (!found.length) return { items: [], total: 0 };
-    const ids = areaIds
-      ? (await prisma.$queryRaw(Prisma.sql`SELECT id FROM inv_item WHERE company_id = ${companyId}::uuid AND id = ANY(${found}::uuid[]) AND area_id = ANY(${areaIds}::uuid[])`)).map((row) => row.id)
+    const ids = !scope.all
+      ? (await prisma.$queryRaw(Prisma.sql`SELECT id FROM inv_item WHERE company_id = ${companyId}::uuid AND id = ANY(${found}::uuid[]) AND ${scopeSql(scope)}`)).map((row) => row.id)
       : found;
     if (!ids.length) return { items: [], total: 0 };
     const exact = normalizeSearchText(q);

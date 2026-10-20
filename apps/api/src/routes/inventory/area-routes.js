@@ -10,7 +10,8 @@ const areaBody = z.object({ name: z.string().trim().min(1).max(150), parentId: u
 const areaPatch = z.object({ name: z.string().trim().min(1).max(150).optional(), parentId: uuid.nullable().optional() });
 const memberBody = z.object({ role: z.enum(['viewer', 'editor', 'manager']).default('viewer') });
 const moveBody = z.object({ itemIds: z.array(uuid).min(1).max(500), areaId: uuid.nullable().optional() });
-const settingsBody = z.object({ enabled: z.boolean() });
+const settingsBody = z.object({ enabled: z.boolean().optional(), includeOwn: z.boolean().optional() })
+  .refine((b) => b.enabled !== undefined || b.includeOwn !== undefined, 'Nada que guardar.');
 
 export function createInventoryAreaRouter({ prisma, requirePermission, inventoryScope, inventoryAreaService, InventoryServiceError }) {
   const router = new Hono();
@@ -110,9 +111,11 @@ export function createInventoryAreaRouter({ prisma, requirePermission, inventory
   router.put('/inventory/areas-settings', manage, async (c) => {
     try {
       const companyId = c.get('companyId');
-      const { enabled } = settingsBody.parse(await json(c));
-      const data = await inventoryAreaService.setEnabled(companyId, enabled);
-      if (!enabled) return c.json({ data });
+      const { enabled, includeOwn } = settingsBody.parse(await json(c));
+      if (includeOwn !== undefined) await inventoryAreaService.setIncludeOwn(companyId, includeOwn);
+      if (enabled !== undefined) await inventoryAreaService.setEnabled(companyId, enabled);
+      const data = await inventoryAreaService.getSettings(companyId);
+      if (enabled !== true) return c.json({ data });
       const roles = await prisma.role.findMany({
         where: {
           enabled: true,

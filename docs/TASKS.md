@@ -1920,3 +1920,12 @@ Spec `docs/superpowers/specs/2026-10-20-inventory-areas-scoping-design.md`; plan
 - [x] Areas SDK domain, hooks and tree helpers. Verified: 2026-10-20 (sdk-inventory-areas 3/3, area-tree 4/4)
 - [x] Areas UI compiles and lints: `/inventory/areas` screen, members sheet, area filter, bulk "Mover a area", item form field, detail badge. Verified: 2026-10-20 (`pnpm lint` clean, `pnpm build:web` in apps/desktop)
 - [ ] Areas UI exercised in a browser (settings warning, tree CRUD, members, filter, bulk move, limited-user empty state) and the live HTTP smoke test (plan task 12 step 3) are not done.
+
+## Inventory areas: Mis inventarios (phase 2)
+
+Plan `docs/superpowers/plans/2026-10-20-inventory-areas-phase2.md`.
+
+- [x] Own-items rule (created by / assigned to me, read-only) in scope, item guard, getItem, comments, identifiers, custody guard, dashboard SQL, search provider and suggestions, files visibility, trash, MirAI/MCP/canvas/chat readers; `includeOwn` company setting (default true) via `/inventory/areas-settings`. Verified: 2026-10-20 (node --test over apps/api services, routes/inventory, canvas, chat, mcp, search, trash, files, capabilities and packages/sdk: 1624 tests, 1621 pass, 0 fail; inventory-scope-isolation covers own items, includeOwn=false and no write access)
+- [x] "Mios" filter (`mine=true`) for every user, identity resolved server side. Verified: 2026-10-20 (inventory-scope-isolation, inventory-access-query)
+- [x] Settings card switch and "Mios" filter chip compile and lint. Verified: 2026-10-20 (`pnpm lint` clean, `pnpm build:web`)
+- [ ] Not exercised in a browser or against the live API; items in an active custody are not counted as own (only `assigned_to_id`).

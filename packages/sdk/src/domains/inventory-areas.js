@@ -25,6 +25,7 @@ export function createInventoryAreasDomain({ request, withAuthHeaders }) {
     moveItems: (itemIds, areaId, token) => send('POST', '/inventory/items/move', { itemIds, areaId: areaId ?? null }, token),
     getAreasSettings: (token) => send('GET', '/inventory/areas-settings', undefined, token),
     // -> { data: { enabled, affectedRoles? } }
-    setAreasSettings: (enabled, token) => send('PUT', '/inventory/areas-settings', { enabled }, token),
+    // patch: { enabled?, includeOwn? } (a bare boolean means { enabled }).
+    setAreasSettings: (patch, token) => send('PUT', '/inventory/areas-settings', typeof patch === 'boolean' ? { enabled: patch } : patch, token),
   }
 }

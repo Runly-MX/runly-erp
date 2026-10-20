@@ -61,7 +61,7 @@ describe("provider SQL", () => {
         ? [{ id: "i1" }, { id: "i2" }]
         : [{ id: "i1", name: "Laptop", serial_number: "SN1", asset_tag: null, first_name: "Ana", last_name: "Lopez" }],
     );
-    const { items, total } = await bySource("inventory").search({ prisma, companyId: "co1", q: "sn1", limit: 5, inventoryAccess: { areaIdsFor: async () => null } });
+    const { items, total } = await bySource("inventory").search({ prisma, companyId: "co1", q: "sn1", limit: 5, inventoryAccess: { scopeFor: async () => ({ all: true }) } });
     assert.equal(total, 2);
     assert.equal(items[0].title, "Laptop");
     assert.equal(items[0].subtitle, "Serie SN1 · Asignado a Ana Lopez");
@@ -71,10 +71,11 @@ describe("provider SQL", () => {
   it("inventory: a limited actor only matches items of their areas (and none without areas)", async () => {
     const prisma = fakePrisma((sql) => (sql.sql.includes("WITH ") ? [{ id: "i1" }] : sql.sql.includes("area_id = ANY") ? [{ id: "i1" }] : []));
     const input = { prisma, companyId: "co1", q: "sn1", limit: 5 };
-    await bySource("inventory").search({ ...input, inventoryAccess: { areaIdsFor: async () => ["area-a"] } });
+    await bySource("inventory").search({ ...input, inventoryAccess: { scopeFor: async () => ({ all: false, roles: new Map([["area-a", "viewer"]]), own: { userId: "u1", employeeIds: ["emp1"] } }) } });
     const restricted = prisma.calls.find((c) => c.sql.includes("area_id = ANY"));
     assert.ok(restricted && restricted.values.some((v) => Array.isArray(v) && v.includes("area-a")));
-    await assert.rejects(bySource("inventory").search({ ...input, inventoryAccess: { areaIdsFor: async () => { throw new Error("sin acceso"); } } }));
+    assert.ok(restricted.sql.includes("created_by_id") && restricted.values.includes("u1") && restricted.values.some((v) => Array.isArray(v) && v.includes("emp1")));
+    await assert.rejects(bySource("inventory").search({ ...input, inventoryAccess: { scopeFor: async () => { throw new Error("sin acceso"); } } }));
   });
 
   it("run() returns plain items for MirAI callers", async () => {

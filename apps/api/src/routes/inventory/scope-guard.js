@@ -7,7 +7,7 @@
 // of `router.use(...)`, also protects the item routes of the sub-routers (admin, labels, ...).
 //
 // `rejectOutOfScope(c, ids, { write })` covers routes that carry item ids in the body/query.
-import { canViewArea, canWriteArea } from '../../services/inventory-scope.js';
+import { canViewItem, canWriteArea } from '../../services/inventory-scope.js';
 
 const ITEM_PATH = /^\/inventory\/items\/([^/]+)(?:\/|$)/;
 // Literal segments that share the `/inventory/items/<x>` shape but are not item ids.
@@ -27,9 +27,9 @@ export function createScopeGuards({ prisma, inventoryScope }) {
     if (!id) return next();
     const scope = await inventoryScope.fromContext(c);
     if (scope.all) return next();
-    const item = await prisma.invItem.findFirst({ where: { id, companyId: c.get('companyId'), enabled: true }, select: { areaId: true } });
+    const item = await prisma.invItem.findFirst({ where: { id, companyId: c.get('companyId'), enabled: true }, select: { areaId: true, createdById: true, assignedToId: true } });
     if (!item) return next(); // the handler answers its own 404
-    const allowed = WRITE_METHODS.has(c.req.method) ? canWriteArea(scope, item.areaId) : canViewArea(scope, item.areaId);
+    const allowed = WRITE_METHODS.has(c.req.method) ? canWriteArea(scope, item.areaId) : canViewItem(scope, item);
     return allowed ? next() : c.json(NOT_FOUND, 404);
   };
 
@@ -44,8 +44,8 @@ export function createScopeGuards({ prisma, inventoryScope }) {
     const unique = [...new Set((Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string'))];
     const scope = await inventoryScope.fromContext(c);
     if (scope.all || unique.length === 0) return unique;
-    const rows = await prisma.invItem.findMany({ where: { id: { in: unique }, companyId: c.get('companyId') }, select: { id: true, areaId: true } });
-    const allowed = rows.filter((row) => (write ? canWriteArea(scope, row.areaId) : canViewArea(scope, row.areaId)));
+    const rows = await prisma.invItem.findMany({ where: { id: { in: unique }, companyId: c.get('companyId') }, select: { id: true, areaId: true, createdById: true, assignedToId: true } });
+    const allowed = rows.filter((row) => (write ? canWriteArea(scope, row.areaId) : canViewItem(scope, row)));
     return allowed.map((row) => row.id);
   }
 

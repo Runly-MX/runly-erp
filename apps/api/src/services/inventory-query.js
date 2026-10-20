@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { getConfiguredTimeZone } from '@runly/core';
-import { scopeWhere } from './inventory-scope.js';
+import { scopeWhere, mineWhere } from './inventory-scope.js';
 
 export function inventoryDayStart(value, dayOffset = 0, timeZone = getConfiguredTimeZone()) {
   const [year, month, day] = value.split('-').map(Number);
@@ -30,6 +30,8 @@ export const inventoryFiltersSchema = z.object({
   unassigned: z.boolean().optional(),
   purchaseFrom: z.iso.date().optional(), purchaseTo: z.iso.date().optional(),
   labeled: z.enum(['true', 'false']).optional(),
+  // 'Mios': created by me or assigned to me. The identity is never read from filters (see buildInventoryWhere).
+  mine: z.boolean().optional(),
   // Area filter: an area id, or '__none__' for General (no area).
   areaId: z.union([z.uuid(), z.literal(AREA_NONE)]).optional(),
 }).strict();
@@ -39,7 +41,8 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const ADMIN_STATUS_SET = new Set(['registration_pending', 'registered', 'deregistration_proposed', 'deregistered']);
 
 // `scope` (see inventory-scope.js) restricts the result to the caller's areas; null = unrestricted.
-export function buildInventoryWhere(companyId, filters = {}, scope = null) {
+// `mine` ({ userId, employeeIds }) is the viewer identity, resolved by the caller; filters.mine without it matches nothing.
+export function buildInventoryWhere(companyId, filters = {}, scope = null, mine = null) {
   if (!companyId) throw new Error('Empresa requerida.');
   const where = { companyId, enabled: true };
   const q = String(filters.search ?? '').trim();
@@ -73,6 +76,7 @@ export function buildInventoryWhere(companyId, filters = {}, scope = null) {
     ...(purchaseFrom ? { gte: purchaseFrom } : {}),
     ...(purchaseTo ? { lte: purchaseTo } : {}),
   };
+  if (filters.mine === true || filters.mine === 'true') where.AND = [...(where.AND ?? []), mineWhere(mine)];
   const areaFilter = scopeWhere(scope);
   if (areaFilter) where.AND = [...(where.AND ?? []), areaFilter];
   return where;

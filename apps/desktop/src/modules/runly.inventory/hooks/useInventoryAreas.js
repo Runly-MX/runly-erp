@@ -38,7 +38,7 @@ export function useSetInventoryAreasSettings() {
   const token = useToken()
   const invalidate = useInvalidate()
   return useMutation({
-    mutationFn: (enabled) => runly.inventory.setAreasSettings(enabled, token).then((res) => res?.data ?? res),
+    mutationFn: (patch) => runly.inventory.setAreasSettings(patch, token).then((res) => res?.data ?? res),
     onSuccess: invalidate,
     onError: (err) => toast.error(err?.message ?? 'No se pudo guardar el ajuste'),
   })

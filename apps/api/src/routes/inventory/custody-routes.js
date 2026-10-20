@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { createInventoryCustodyService } from '../../services/inventory-custody-service.js';
 import { CUSTODY_PLACEHOLDERS } from '../../services/inventory-document-template-service.js';
 import { buildDefaultCustodyTemplate } from '../../services/document-templates/custody-template-data.js';
-import { canViewArea, canWriteArea } from '../../services/inventory-scope.js';
+import { canViewItem, canWriteArea } from '../../services/inventory-scope.js';
 import { createScopeGuards } from './scope-guard.js';
 
 const CUSTODY_PATH = /^\/inventory\/custodies\/([^/]+)/;
@@ -22,11 +22,11 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
     if (!id || id === 'deliverers') return true;
     const scope = await inventoryScope.fromContext(c);
     if (scope.all) return true;
-    const rows = await prisma.invCustodyItem.findMany({ where: { custodyId: id, custody: { companyId: c.get('companyId') } }, select: { item: { select: { areaId: true } } } });
-    const areas = rows.map((row) => row.item?.areaId ?? null);
-    if (areas.length && !areas.some((areaId) => canViewArea(scope, areaId))) return false;
+    const rows = await prisma.invCustodyItem.findMany({ where: { custodyId: id, custody: { companyId: c.get('companyId') } }, select: { item: { select: { areaId: true, createdById: true, assignedToId: true } } } });
+    const held = rows.map((row) => row.item ?? { areaId: null });
+    if (held.length && !held.some((item) => canViewItem(scope, item))) return false;
     const mutating = c.req.method !== 'GET' && !c.req.path.endsWith('/preview');
-    return !mutating || areas.every((areaId) => canWriteArea(scope, areaId));
+    return !mutating || held.every((item) => canWriteArea(scope, item.areaId));
   }
   const scoped = (permission) => (guards
     ? (c, next) => permission(c, async () => ((await custodyAllowed(c)) ? next() : c.json(NOT_FOUND, 404)))
