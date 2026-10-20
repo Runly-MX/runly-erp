@@ -3,10 +3,12 @@ import { Hono } from 'hono'
 import { userSearchQuerySchema } from './ledger/validators.js'
 import { getCompanyId, getActorId } from './ledger/service-helpers.js'
 
-export function createUsersRouter({ prisma, requirePermission }) {
+export function createUsersRouter({ prisma, requirePermission, requireAnyPermission = null }) {
   const app = new Hono()
 
-  app.get('/users/search', requirePermission('ledger.accounts.read'), async (c) => {
+  // Also used by the inventory area members picker (inventory.area.manage).
+  const canSearch = requireAnyPermission ? requireAnyPermission(['ledger.accounts.read', 'inventory.area.manage']) : requirePermission('ledger.accounts.read')
+  app.get('/users/search', canSearch, async (c) => {
     const parsed = userSearchQuerySchema.safeParse(c.req.query())
     if (!parsed.success) {
       return c.json({ error: 'Parametro "q" invalido (min 2 chars cuando se envia).' }, 400)

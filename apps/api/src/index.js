@@ -2455,7 +2455,7 @@ mountWithAuth(app, createPlatformOwnerRouter({ prisma, requirePermission, cacheD
 mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission, requireAnyPermission }));
 mountWithAuth(app, createPfmRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, filesService, notificationService }));
-mountWithAuth(app, createUsersRouter({ prisma, requirePermission }));
+mountWithAuth(app, createUsersRouter({ prisma, requirePermission, requireAnyPermission }));
 mountWithAuth(app, createSearchRouter({ prisma, getUserContext: getOrLoadUserContext, resolveTenantContext }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission, enrichFilesWithSignedUrls: filesService.enrichFilesWithSignedUrls.bind(filesService) }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin }));
