@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PageNumbersNav } from "./PageNumbers.jsx";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SearchInput } from "./SearchInput.jsx";
 import { ViewModeSwitch, getStoredViewMode } from "./ViewModeSwitch.jsx";
@@ -173,9 +174,7 @@ export function ListLayout({
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="text-sm text-[hsl(var(--muted-foreground))] tabular-nums min-w-16 text-center">
-              {currentPage} / {totalPages}
-            </span>
+            <PageNumbersNav pageIndex={currentPage - 1} pageCount={totalPages} onPageChange={(index) => onPageChange(index + 1)} />
             <button
               type="button"
               disabled={currentPage >= totalPages}

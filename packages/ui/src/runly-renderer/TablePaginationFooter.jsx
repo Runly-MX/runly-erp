@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/Select.jsx";
+import { PageNumbersNav } from "../components/PageNumbers.jsx";
 import { PAGE_SIZE_OPTIONS, PAGE_SIZE_ALL, isAllPageSize, pageSizeLabel } from "../lib/page-size.js";
 
 export function TablePaginationFooter({
@@ -38,7 +39,7 @@ export function TablePaginationFooter({
           <Button
             variant="outline"
             size="sm"
-            className="h-7 w-7 p-0"
+            className="h-9 w-9 p-0 sm:h-7 sm:w-7"
             onClick={() => onPageChange(Math.max(1, page - 1))}
             disabled={page <= 1}
             aria-label="Página anterior"
@@ -46,15 +47,12 @@ export function TablePaginationFooter({
             <ChevronLeft className="h-3.5 w-3.5" />
           </Button>
 
-          <span className="tabular-nums">
-            <span className="sm:hidden">{page} / {totalPages}</span>
-            <span className="hidden sm:inline">Página {page} de {totalPages}</span>
-          </span>
+          <PageNumbersNav pageIndex={page - 1} pageCount={totalPages} onPageChange={(index) => onPageChange(index + 1)} />
 
           <Button
             variant="outline"
             size="sm"
-            className="h-7 w-7 p-0"
+            className="h-9 w-9 p-0 sm:h-7 sm:w-7"
             onClick={() => onPageChange(Math.min(totalPages, page + 1))}
             disabled={page >= totalPages}
             aria-label="Página siguiente"
