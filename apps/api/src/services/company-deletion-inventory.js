@@ -51,7 +51,8 @@ export async function inventoryCompany(db, companyId) {
   const byName = new Map(tables.map(t => [t.name, t]))
   for (const table of tables) {
     if (table.name === 'company') continue
-    if (table.columns.includes('company_id')) await addRows(db, companyId, table, 'r.company_id = $1::uuid')
+    // Compare as text: mcp_activity.company_id is text, every other table uses uuid.
+    if (table.columns.includes('company_id')) await addRows(db, companyId, table, 'r.company_id::text = $1::text')
   }
   const files = byName.get('file_asset')
   if (files) await addRows(db, companyId, files, 'r.entity_id = $1::uuid')
@@ -67,7 +68,7 @@ export async function inventoryCompany(db, companyId) {
       const parent = `EXISTS (SELECT 1 FROM public.${quoteIdentifier(fk.parent)} p JOIN runly_lifecycle.deletion_row d
         ON d.company_id = $1::uuid AND d.table_name = '${fk.parent}' AND to_jsonb(p) @> d.row_key WHERE ${join})`
       if (table.columns.includes('company_id')) {
-        const [conflict] = await db.$queryRawUnsafe(`SELECT EXISTS(SELECT 1 FROM public.${quoteIdentifier(table.name)} r WHERE r.company_id IS DISTINCT FROM $1::uuid AND ${parent}) AS found`, companyId)
+        const [conflict] = await db.$queryRawUnsafe(`SELECT EXISTS(SELECT 1 FROM public.${quoteIdentifier(table.name)} r WHERE r.company_id::text IS DISTINCT FROM $1::text AND ${parent}) AS found`, companyId)
         if (conflict.found) throw new Error('CROSS_COMPANY_REFERENCE')
       }
       // Skip unkeyed tables if they have no owned rows.
@@ -132,7 +133,7 @@ export async function purgeCompanyRows(db, companyId) {
     (key IN ('company_id','primary_company_id') AND value = $1::text)
     OR key LIKE '%.' || $1::text OR key LIKE '%.' || $1::text || '.%'`, companyId)
   for (const table of tables.filter(t => t.columns.includes('company_id'))) {
-    const [remaining] = await db.$queryRawUnsafe(`SELECT EXISTS(SELECT 1 FROM public.${quoteIdentifier(table.name)} WHERE company_id = $1::uuid) AS found`, companyId)
+    const [remaining] = await db.$queryRawUnsafe(`SELECT EXISTS(SELECT 1 FROM public.${quoteIdentifier(table.name)} WHERE company_id::text = $1::text) AS found`, companyId)
     if (remaining.found) throw new Error('COMPANY_DATA_REMAINS')
   }
   for (const table of tables) {
