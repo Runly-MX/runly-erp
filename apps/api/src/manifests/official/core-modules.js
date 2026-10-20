@@ -1427,6 +1427,8 @@ export const inventoryMap = createModuleManifest({
     { key: 'inventory.label.read',         name: 'Ver etiquetas de inventario' },
     { key: 'inventory.label.print',        name: 'Imprimir etiquetas de inventario' },
     { key: 'inventory.label.manage',       name: 'Gestionar etiquetas de inventario' },
+    { key: 'inventory.scope.all',          name: 'Ver todos los inventarios' },
+    { key: 'inventory.area.manage',        name: 'Gestionar areas de inventario' },
   ],
   acl: {
     module: 'inventory.access',
@@ -1451,6 +1453,8 @@ export const inventoryMap = createModuleManifest({
       'inventory.label.read':         'inventory.label.read',
       'inventory.label.print':        'inventory.label.print',
       'inventory.label.manage':       'inventory.label.manage',
+      'inventory.scope.all':          'inventory.scope.all',
+      'inventory.area.manage':        'inventory.area.manage',
     },
   },
   blueprints: [

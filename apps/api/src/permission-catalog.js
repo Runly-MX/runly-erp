@@ -1711,6 +1711,18 @@ export const PERMISSION_CATALOG = {
     groupKey: "inventory",
     order: 37,
   },
+  "inventory.scope.all": {
+    displayNameEs: "Ver todos los inventarios",
+    descriptionEs: "Permite ver los items de todas las areas, sin importar a que carpetas pertenezca. Sin este permiso solo se ven las areas donde se es miembro.",
+    groupKey: "inventory",
+    order: 38,
+  },
+  "inventory.area.manage": {
+    displayNameEs: "Gestionar areas de inventario",
+    descriptionEs: "Permite crear, renombrar, mover y desactivar areas, y administrar sus miembros.",
+    groupKey: "inventory",
+    order: 39,
+  },
   // -----------------------------------------------------------------------
   // runly.purchases
   // -----------------------------------------------------------------------
