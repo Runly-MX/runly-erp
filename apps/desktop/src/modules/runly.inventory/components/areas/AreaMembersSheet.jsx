@@ -50,7 +50,7 @@ export function AreaMembersSheet({ area, open, onOpenChange }) {
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetContent side="right" className="flex w-full flex-col sm:max-w-2xl">
           <SheetHeader className="shrink-0">
             <SheetTitle>Miembros de {area?.name}</SheetTitle>
             <SheetDescription>Ven los items de esta área y de sus subcarpetas, según su rol.</SheetDescription>
@@ -69,16 +69,20 @@ export function AreaMembersSheet({ area, open, onOpenChange }) {
             ) : rows.length === 0 ? (
               <EmptyState icon={Users} title="Esta área no tiene miembros" description="Agrega usuarios para que puedan ver sus items." />
             ) : rows.map((member) => (
-              <div key={member.userId} className="flex items-center gap-3 rounded-md border border-[hsl(var(--border))] p-3">
-                <PersonAvatar name={member.user?.displayName} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{member.user?.displayName ?? 'Usuario'}</p>
-                  <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{member.user?.email}</p>
+              <div key={member.userId} className="flex flex-col gap-3 rounded-md border border-[hsl(var(--border))] p-3 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <PersonAvatar name={member.user?.displayName} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="wrap-break-word text-sm font-medium">{member.user?.displayName ?? 'Usuario'}</p>
+                    <p className="break-all text-xs text-[hsl(var(--muted-foreground))]">{member.user?.email}</p>
+                  </div>
                 </div>
-                <div className="w-44 shrink-0">
-                  <SelectField aria-label="Rol" value={member.role} options={AREA_ROLE_OPTIONS} onValueChange={(role) => changeRole(member.userId, role)} />
+                <div className="flex items-center gap-2 sm:shrink-0">
+                  <div className="min-w-0 flex-1 sm:w-64 sm:flex-none">
+                    <SelectField aria-label="Rol" value={member.role} options={AREA_ROLE_OPTIONS} onValueChange={(role) => changeRole(member.userId, role)} />
+                  </div>
+                  <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setRemoveTarget(member)}>Quitar</Button>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setRemoveTarget(member)}>Quitar</Button>
               </div>
             ))}
           </div>

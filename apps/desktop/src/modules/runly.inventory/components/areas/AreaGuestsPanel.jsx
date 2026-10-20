@@ -51,14 +51,15 @@ export function AreaGuestsPanel({ area, inviteOpen, onInviteOpenChange }) {
       ) : rows.length === 0 ? (
         <EmptyState icon={Truck} title="Sin proveedores invitados" description="Invita a un proveedor por correo para que consulte o actualice los items de esta carpeta." />
       ) : rows.map((guest) => (
-        <div key={guest.id} className="flex items-center gap-3 rounded-md border border-[hsl(var(--border))] p-3">
+        <div key={guest.id} className="flex items-start gap-3 rounded-md border border-[hsl(var(--border))] p-3">
           <PersonAvatar name={guest.name || guest.email} size="sm" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{guest.name || guest.email}</p>
-            {guest.name ? <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{guest.email}</p> : null}
-            <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{GUEST_ROLE_LABEL[guest.role] ?? guest.role} · {lastSeenText(guest)}</p>
+            <p className="break-all text-sm font-medium">{guest.name || guest.email}</p>
+            {guest.name ? <p className="break-all text-xs text-[hsl(var(--muted-foreground))]">{guest.email}</p> : null}
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">{GUEST_ROLE_LABEL[guest.role] ?? guest.role}</p>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">{lastSeenText(guest)}</p>
           </div>
-          <Badge variant={guestStatusVariant(guest.status)}>{guestStatusLabel(guest.status)}</Badge>
+          <Badge variant={guestStatusVariant(guest.status)} className="shrink-0">{guestStatusLabel(guest.status)}</Badge>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label={`Acciones de ${guest.name || guest.email}`}><MoreHorizontal className="h-4 w-4" /></Button>
