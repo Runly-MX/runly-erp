@@ -1,5 +1,7 @@
 // inventory-area-service.js - areas (nested folders), area members and moving items between areas.
 import { InventoryServiceError, assertCompany } from './inventory-guards.js';
+import { createActivityService } from './activity-service.js';
+import { createActivityBridge } from './activity-bridge.js';
 import { areasEnabledKey, includeOwnKey, canWriteArea } from './inventory-scope.js';
 
 const ROLES = new Set(['viewer', 'editor', 'manager']);
@@ -19,7 +21,9 @@ function rethrowDuplicate(err) {
   throw err;
 }
 
-export function createInventoryAreaService({ prisma }) {
+export function createInventoryAreaService({ prisma, activityBridge }) {
+  const bridge = activityBridge ?? createActivityBridge({ prisma, activityService: createActivityService({ prisma }) });
+
   async function getArea(companyId, id) {
     const area = await prisma.invArea.findFirst({ where: { id, companyId, enabled: true } });
     if (!area) throw new InventoryServiceError('Area no encontrada.', 404);
@@ -102,11 +106,16 @@ export function createInventoryAreaService({ prisma }) {
   async function listMembers(companyId, areaId) {
     assertCompany(companyId);
     await getArea(companyId, areaId);
-    return prisma.invAreaMember.findMany({
-      where: { areaId, user: { isBot: false } },
+    // Users (never bots) and enabled supplier guests; `kind` tells them apart.
+    const rows = await prisma.invAreaMember.findMany({
+      where: { areaId, OR: [{ user: { isBot: false } }, { guest: { enabled: true } }] },
       orderBy: { createdAt: 'asc' },
-      include: { user: { select: { id: true, displayName: true, email: true } } },
+      include: {
+        user: { select: { id: true, displayName: true, email: true } },
+        guest: { select: { id: true, name: true, email: true, contactId: true, lastSeenAt: true } },
+      },
     });
+    return rows.map((row) => (row.guestId ? { ...row, kind: 'guest' } : { ...row, kind: 'user' }));
   }
 
   async function setMember({ companyId, areaId, userId, role = 'viewer', actorId = null }) {
@@ -130,12 +139,12 @@ export function createInventoryAreaService({ prisma }) {
   }
 
   // areaId null = General. Needs write access on every source area and on the destination.
-  async function moveItems({ companyId, itemIds, areaId = null, scope = null }) {
+  async function moveItems({ companyId, itemIds, areaId = null, scope = null, actorAuthId = null }) {
     assertCompany(companyId);
     const ids = [...new Set(itemIds ?? [])];
     if (ids.length === 0) throw new InventoryServiceError('Selecciona al menos un item.', 400);
     if (areaId) await getArea(companyId, areaId);
-    const items = await prisma.invItem.findMany({ where: { id: { in: ids }, companyId, enabled: true }, select: { id: true, areaId: true } });
+    const items = await prisma.invItem.findMany({ where: { id: { in: ids }, companyId, enabled: true }, select: { id: true, name: true, areaId: true, area: { select: { name: true } } } });
     if (items.length !== ids.length) throw new InventoryServiceError('Item no encontrado.', 404);
     if (scope && !scope.all) {
       if (!canWriteArea(scope, areaId)) throw new InventoryServiceError('No tienes permiso para mover items a esa area.', 403);
@@ -144,6 +153,26 @@ export function createInventoryAreaService({ prisma }) {
       }
     }
     await prisma.invItem.updateMany({ where: { id: { in: ids }, companyId }, data: { areaId: areaId || null } });
+    const targetName = areaId ? (await getArea(companyId, areaId)).name : 'General';
+    const actorProfileId = actorAuthId
+      ? (await prisma.userProfile.findFirst({ where: { authUserId: actorAuthId }, select: { id: true } }))?.id ?? null
+      : null;
+    for (const item of items) {
+      if ((item.areaId ?? null) === (areaId || null)) continue;
+      await bridge.logAndPublish({
+        auditEntry: {
+          actorId: actorProfileId,
+          moduleKey: 'runly.inventory',
+          entityType: 'InvItem',
+          entityId: item.id,
+          action: 'inventory.item.updated',
+          before: { areaName: item.areaId ? (item.area?.name ?? null) : 'General' },
+          after: { areaName: targetName },
+        },
+        hint: { verb: 'updated', label: item.name ?? item.id },
+        companyId,
+      }).catch(() => {});
+    }
     return { moved: ids.length };
   }
 

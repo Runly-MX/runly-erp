@@ -60,6 +60,11 @@ import { createCommentsService, CommentsServiceError } from "./services/comments
 import { createInventoryRouter } from "./routes/inventory/index.js";
 import { createInventoryCustodyPublicRouter } from "./routes/inventory/custody-public-routes.js";
 import { createInventoryItemPublicRouter } from "./routes/inventory/item-public-routes.js";
+import { createInventoryGuestRouter } from "./routes/inventory/guest/guest-routes.js";
+import { createInventoryGuestPublicRouter } from "./routes/inventory/guest/guest-public-routes.js";
+import { createInventoryGuestService } from "./services/inventory-guest-service.js";
+import { createInventoryGuestItems } from "./services/inventory-guest-items.js";
+import { createInventoryScope } from "./services/inventory-scope.js";
 import { createPurchasesRouter } from "./routes/purchases/index.js";
 import { isPurchasesNavVisible } from "./services/purchases-service.js";
 import { createModulesRouter } from "./routes/modules.js";
@@ -129,7 +134,7 @@ import { createNotificationDeliveryWorker } from "./services/notification-delive
 import { createNotificationService } from "./services/notification-service.js";
 import { createRealtimeBroadcaster } from "./services/realtime-broadcaster.js";
 import { createCompanyMailer, createSmtpService } from "./services/smtp-service.js";
-import { buildAttendancePhoneInviteEmail, buildLmsCourseInviteEmail, resolveAppBaseUrl } from "./services/email-templates.js";
+import { buildAttendancePhoneInviteEmail, buildInventoryGuestInviteEmail, buildLmsCourseInviteEmail, resolveAppBaseUrl } from "./services/email-templates.js";
 import { sendPasswordResetEmail } from "./lib/send-password-reset-email.js";
 import { uploadIdentityAvatar } from "./lib/upload-identity-avatar.js";
 import { getSignedUrlByFileId } from "./lib/signed-url-by-file-id.js";
@@ -2130,6 +2135,21 @@ const publicCatalogRouter = createPublicCatalogRouter({ prisma, supabaseAdmin })
 app.route("/public/catalog", publicCatalogRouter);
 app.route("/public/inventory/custody", createInventoryCustodyPublicRouter({ prisma, supabaseAdmin }));
 app.route("/public/inventory/items", createInventoryItemPublicRouter({ prisma, supabaseAdmin }));
+// Supplier portal (inventory guests): own `Authorization: Guest` auth, mounted before every mountWithAuth()
+// so no user-auth middleware ever sees these paths, and user tokens are rejected by the guest router.
+const inventoryGuestService = createInventoryGuestService({
+  prisma,
+  sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail),
+  isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId),
+  buildMail: buildInventoryGuestInviteEmail,
+  getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId),
+  appBaseUrl: () => resolveAppBaseUrl(process.env),
+});
+app.route("/public/inventory/guest", createInventoryGuestPublicRouter({ guestService: inventoryGuestService }));
+app.route("/inventory/guest", createInventoryGuestRouter({
+  guestService: inventoryGuestService,
+  items: createInventoryGuestItems({ prisma, inventoryScope: createInventoryScope({ prisma }), supabaseAdmin, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }),
+}));
 
 const publicFormsRouter = createPublicFormsRouter({ prisma });
 app.route("/public/website", publicFormsRouter);
@@ -2217,6 +2237,8 @@ app.get("/public", (c) => {
       { method: "POST", path: "/public/lms/share/:token/join",          auth: "link token", description: "Guest joins a shared course (returns the guest token once)" },
       { method: "POST", path: "/public/lms/share/:token/access",        auth: "link token + access code", description: "Invited guest enters with the emailed access code (invite-only courses)" },
       { method: "GET",  path: "/public/lms/share/:token/me",            auth: "Guest token", description: "Guest player: enrollment and progress outline (also lessons/:id, progress, quiz attempts, assignment submissions and uploads)" },
+      { method: "POST", path: "/public/inventory/guest/session",       auth: "link token (+ code)", description: "Inventory supplier portal: trades the emailed link for a guest session token" },
+      { method: "GET",  path: "/inventory/guest/*",                    auth: "Guest token", description: "Inventory supplier portal API (me, items, files, history, catalogs), scoped to the guest areas" },
       // Storefront auth
       { method: "POST", path: "/public/storefront/auth/register",       auth: "none",       description: "Register a storefront user account" },
       { method: "POST", path: "/public/storefront/auth/login",          auth: "none",       description: "Login and obtain access + refresh tokens" },
@@ -2481,6 +2503,7 @@ mountWithAuth(
     inventoryService,
     InventoryServiceError,
     inventoryNotifSvc,
+    guestService: inventoryGuestService,
     commentsService,
     CommentsServiceError,
     filesService,

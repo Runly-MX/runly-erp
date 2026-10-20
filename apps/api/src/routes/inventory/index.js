@@ -27,6 +27,8 @@ import { createInventoryScope } from '../../services/inventory-scope.js';
 import { createScopeGuards } from './scope-guard.js';
 import { createInventoryAreaRouter } from './area-routes.js';
 import { createInventoryAreaService } from '../../services/inventory-area-service.js';
+import { createInventoryGuestInviteRouter } from './guest-invite-routes.js';
+import { createInventoryGuestService } from '../../services/inventory-guest-service.js';
 
 export function createInventoryRouter({
   prisma,
@@ -42,6 +44,8 @@ export function createInventoryRouter({
   // Area scoping (see services/inventory-scope.js). Injectable for tests; the default is the real one.
   inventoryScope = createInventoryScope({ prisma }),
   inventoryAreaService = createInventoryAreaService({ prisma }),
+  // Supplier guests (invitations). The app injects the instance with mail wired; tests/defaults have none.
+  guestService = createInventoryGuestService({ prisma }),
 }) {
   const router = new Hono();
   const guards = createScopeGuards({ prisma, inventoryScope });
@@ -51,6 +55,7 @@ export function createInventoryRouter({
   const scopeOf = (c) => inventoryScope.fromContext(c);
   const itemConnections = createCoreTargetConnections({ prisma, targetType: "inventory_item" });
   router.route('/', createInventoryAreaRouter({ prisma, requirePermission, inventoryScope, inventoryAreaService, InventoryServiceError }));
+  router.route('/', createInventoryGuestInviteRouter({ requirePermission, inventoryScope, guestService, InventoryServiceError }));
   router.route('/', createInventoryIntakeRouter({ prisma, requirePermission, inventoryScope }));
   router.route('/', createInventoryModelsRouter({ prisma, requirePermission, inventoryService, InventoryServiceError }));
   router.route('/', createInventoryAdminRouter({ prisma, requirePermission, InventoryServiceError, inventoryNotifSvc, supabaseAdmin, inventoryScope }));
@@ -476,6 +481,16 @@ export function createInventoryRouter({
     ["conditions", "catalog", "listConditions", "createCondition", "updateCondition", "deleteCondition", "reorderConditions", "la condicion", "las condiciones"],
     ["custom-fields", "customfield", "listCustomFields", "createCustomField", "updateCustomField", "deleteCustomField", "reorderCustomFields", "el campo personalizado", "los campos personalizados"],
   ];
+
+  router.get("/inventory/custom-fields/:id/values", requirePermission("inventory.catalog.read"), async (c) => {
+    try {
+      const data = await inventoryService.listCustomFieldValues(c.get("companyId"), c.req.param("id"), c.req.query("search"));
+      return c.json({ data });
+    } catch (err) {
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
+      return c.json({ error: "No se pudieron cargar las sugerencias." }, 500);
+    }
+  });
 
   for (const [seg, permGroup, listFn, createFn, updateFn, deleteFn, reorderFn, singular, plural] of catalog) {
     router.get(`/inventory/${seg}`, requirePermission("inventory.catalog.read"), async (c) => {

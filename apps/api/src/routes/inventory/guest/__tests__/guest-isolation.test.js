@@ -10,6 +10,7 @@ import { canManageArea, createInventoryScope } from '../../../../services/invent
 import { createAttemptGuard } from '../../../lms/lms-invite-core.js';
 import { createInventoryGuestRouter } from '../guest-routes.js';
 import { createInventoryGuestPublicRouter } from '../guest-public-routes.js';
+import { createAuthMiddleware } from '../../../../services/auth-middleware.js';
 import { createFakeDb } from '../../../../services/__tests__/inventory-guest-fake.js';
 
 const CO = '01900000-0000-7000-8000-00000000c001';
@@ -277,5 +278,25 @@ describe('guest writes', () => {
     const data = (await res.json()).data;
     assert.deepEqual(data.locations, [{ id: 'l1', name: 'Bodega' }]);
     assert.ok(!JSON.stringify(data).includes('Secreta'));
+  });
+});
+
+describe('guest sessions and user sessions are not interchangeable', () => {
+  it('the real user auth middleware rejects a guest session under both schemes', async () => {
+    const t = build();
+    const g = await t.guest('a@b.co', AREA_A, 'editor');
+    const userApp = new Hono();
+    userApp.use('*', createAuthMiddleware({
+      cacheGet: () => undefined, cacheSet: () => {}, getJwtSecret: () => 'fixture-only-secret', warn: () => {},
+      supabaseAdmin: { auth: { getUser: async () => ({ data: { user: null }, error: { status: 401, message: 'rejected' } }) } },
+    }));
+    userApp.get('/inventory/items', (c) => c.json({ leaked: true }));
+    userApp.get('/inventory/items/:id', (c) => c.json({ leaked: true }));
+    for (const authorization of [`Guest ${g.token}`, `Bearer ${g.token}`]) {
+      for (const path of ['/inventory/items', `/inventory/items/${IA}`]) {
+        const res = await userApp.request(path, { headers: { authorization } });
+        assert.equal(res.status, 401, `${authorization.slice(0, 6)} ${path}`);
+      }
+    }
   });
 });
