@@ -50,6 +50,8 @@ export const INVENTORY_ITEM_FORM = {
           { field: 'model', label: 'Nombre del modelo', type: 'text' },
           { field: 'categoryId', label: 'Tipo', type: 'relation' },
           { field: 'brandId', label: 'Marca', type: 'relation' },
+          // Picker lives in the classification component (InventoryAreaField); optional.
+          { field: 'areaId', label: 'Área', type: 'relation' },
         ],
       },
       {

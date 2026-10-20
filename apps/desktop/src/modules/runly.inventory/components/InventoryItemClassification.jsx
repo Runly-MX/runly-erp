@@ -5,6 +5,7 @@ import { useInventoryModels, modelLabel } from '../hooks/useInventoryModels.js'
 import { InventoryBrandPicker, InventoryTypePicker } from './InventoryCatalogPickers.jsx'
 import { InventoryModelDialog } from './InventoryModelDialog.jsx'
 import { InventoryPurchaseLinkField } from './InventoryPurchaseLinkField.jsx'
+import { InventoryAreaField } from './areas/InventoryAreaField.jsx'
 
 const LEGACY = '__legacy__'
 const NONE = '__none__'
@@ -58,6 +59,9 @@ export function InventoryItemClassification({ value, onChange, errors = {}, disa
       <div className="relative">
         {renderPin?.(['brandId'], 'Marca')}
         <InventoryBrandPicker value={value.brandId} onChange={(brandId) => onChange({ brandId })} error={errors.brandId} />
+      </div>
+      <div className="col-span-full">
+        <InventoryAreaField value={value.areaId} onChange={(areaId) => onChange({ areaId })} error={errors.areaId} isEdit={Boolean(value.id)} />
       </div>
       <InventoryModelDialog
         open={Boolean(dialog)}

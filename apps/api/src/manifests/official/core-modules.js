@@ -1398,6 +1398,13 @@ export const inventoryMap = createModuleManifest({
       permissionKey: 'inventory.catalog.read',
     },
     {
+      label: 'Áreas',
+      path: '/inventory/areas',
+      icon: 'FolderTree',
+      layout: 'main',
+      permissionKey: 'inventory.area.manage',
+    },
+    {
       label: 'Conexiones',
       path: '/inventory/connections',
       icon: 'Plug',

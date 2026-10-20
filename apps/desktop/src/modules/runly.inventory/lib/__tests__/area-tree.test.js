@@ -24,3 +24,12 @@ test('write roles', () => {
   assert.equal(canWriteAreaRole('viewer'), false)
   assert.equal(canWriteAreaRole('editor'), true)
 })
+
+test('filter and write options', async () => {
+  const { areaFilterOptions, areaWriteOptions } = await import('../area-tree.js')
+  assert.deepEqual(areaFilterOptions([]), [])
+  assert.deepEqual(areaFilterOptions(areas).map((o) => o.value), ['__none__', 'x', 'a', 'b', 'c'])
+  const withRoles = [{ id: 'a', parentId: null, name: 'A', role: 'viewer' }, { id: 'b', parentId: 'a', name: 'B', role: 'editor' }]
+  assert.deepEqual(areaWriteOptions(withRoles, { requireArea: true }).map((o) => o.value), ['b'])
+  assert.deepEqual(areaWriteOptions(withRoles).map((o) => o.value), ['__none__', 'b'])
+})

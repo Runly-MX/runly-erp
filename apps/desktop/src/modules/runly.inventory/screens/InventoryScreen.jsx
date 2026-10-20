@@ -2,8 +2,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Activity, Boxes, CalendarPlus, MapPin, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, Wrench } from 'lucide-react'
-import { RunlyTable, Button, ConfirmDialog, PageHeader } from '@runly/ui'
+import { Activity, Boxes, CalendarPlus, FolderInput, FolderTree, MapPin, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, Wrench } from 'lucide-react'
+import { RunlyTable, Button, ConfirmDialog, EmptyState, PageHeader } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -18,6 +18,8 @@ import { InventoryAdminTransitionDialog } from '../components/InventoryAdminTran
 import { useInventoryCan, useInventoryConditions, useInventorySummary } from '../hooks/useInventoryAdmin.js'
 import { ADMIN_ACTIONS, ADMIN_FILTER_OPTIONS, ADMIN_STATUSES } from '../lib/admin-status.js'
 import { buildLabelsPath } from '../lib/label-queue.js'
+import { useAreaChoices } from '../hooks/useAreaChoices.js'
+import { AreaMoveDialog } from '../components/areas/AreaMoveDialog.jsx'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
 
 const ADMIN_COLORS = Object.fromEntries(ADMIN_STATUSES.map(s => [s.value, s.color]))
@@ -25,7 +27,7 @@ const STATUS_OPTIONS = ITEM_STATUSES.map(s => ({ value: s.value, label: s.label 
 // Deep links from Catálogos (e.g. ?categoryId=...) open the list pre-filtered.
 // Exact-match text filters opened from the detail view magnifier (?serialNumber=...).
 const TEXT_FILTER_LABELS = { model: 'Modelo', folio: 'Folio', assetTag: 'N.º de activo', serialNumber: 'No. Serie', partNumber: 'N.º de parte' }
-const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo', 'labeled', ...Object.keys(TEXT_FILTER_LABELS)]
+const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo', 'labeled', 'areaId', ...Object.keys(TEXT_FILTER_LABELS)]
 const LABELED_OPTIONS = [{ value: 'false', label: 'Sin etiquetar' }, { value: 'true', label: 'Etiquetados' }]
 const ADMIN_OPTIONS = ADMIN_STATUSES.map(s => ({ value: s.value, label: s.label }))
 
@@ -47,6 +49,8 @@ export default function InventoryScreen() {
   const [importOpen, setImportOpen] = useState(false)
   const [refreshSignal, setRefreshSignal] = useState(0)
   const [bulk, setBulk] = useState(null)
+  const [moveIds, setMoveIds] = useState(null)
+  const areaChoices = useAreaChoices()
   const can = useInventoryCan()
   // Label stats come only with inventory.label.read; printing needs inventory.label.print.
   const canReadLabels = can('inventory.label.read')
@@ -97,12 +101,17 @@ export default function InventoryScreen() {
       icon: QrCode,
       onClick: (selected) => navigate(buildLabelsPath({ itemIds: selected.map(r => r.id) }), { state: { labelItems: selected } }),
     } : null)] : []),
+    ...(can('inventory.item.update') && areaChoices.writeOptions.length > 0 ? [(rows) => (rows.length ? {
+      label: 'Mover a área',
+      icon: FolderInput,
+      onClick: (selected) => setMoveIds(selected.map(r => r.id)),
+    } : null)] : []),
     ...Object.entries(ADMIN_ACTIONS)
       .filter(([, action]) => can(action.permission))
       .map(([key, action]) => (rows) => (rows.length && rows.every(r => r.adminStatus === action.from)
         ? { label: action.label, variant: action.destructive ? 'destructive' : undefined, onClick: (selected) => setBulk({ action: key, ids: selected.map(r => r.id) }) }
         : null)),
-  ], [can, canPrintLabels, navigate])
+  ], [can, canPrintLabels, navigate, areaChoices.writeOptions])
 
   // Only needed to label a ?modelId= deep link; the list has no model filter otherwise.
   const { data: modelsData } = useInventoryModels()
@@ -155,6 +164,8 @@ export default function InventoryScreen() {
         { key: 'categoryId', label: 'Tipo', type: 'select', icon: Boxes, options: categoryOptions },
         { key: 'brandId',    label: 'Marca',     type: 'select', icon: Tag, options: brandOptions },
         { key: 'locationId', label: 'Ubicación', type: 'select', icon: MapPin, options: locationOptions },
+        // -> areaId=<uuid>|__none__ (General); only when the user has areas to filter by.
+        ...(areaChoices.filterOptions.length ? [{ key: 'areaId', label: 'Área', type: 'select', icon: FolderTree, options: areaChoices.filterOptions }] : []),
         // -> labeled=false|true on /inventory/items (print log based).
         { key: 'labeled',    label: 'Etiqueta', type: 'select', icon: QrCode, options: LABELED_OPTIONS },
         ...Object.entries(TEXT_FILTER_LABELS)
@@ -167,7 +178,7 @@ export default function InventoryScreen() {
       ],
       emptyState: { message: 'No hay activos registrados.' },
     },
-  }), [categoryOptions, brandOptions, locationOptions, conditionOptions, modelOptions, initialFilters, canReadLabels])
+  }), [categoryOptions, brandOptions, locationOptions, conditionOptions, modelOptions, initialFilters, canReadLabels, areaChoices.filterOptions])
 
   const deleteMutation = useMutation({
     mutationFn: id => runly.inventory.deleteItem(id, token),
@@ -208,6 +219,13 @@ export default function InventoryScreen() {
         }
       />
 
+      {areaChoices.noAccess ? (
+        <EmptyState
+          icon={FolderTree}
+          title="No tienes áreas de inventario asignadas"
+          description="Pide acceso a un administrador."
+        />
+      ) : (<>
       <InventoryAdminKpis
         summary={summary.data}
         isLoading={summary.isLoading}
@@ -238,6 +256,7 @@ export default function InventoryScreen() {
         deleteLabel="Desactivar"
         refreshSignal={refreshSignal}
       />
+      </>)}
 
 
       <InventoryAdminTransitionDialog
@@ -245,6 +264,14 @@ export default function InventoryScreen() {
         ids={bulk?.ids}
         open={Boolean(bulk)}
         onOpenChange={(open) => { if (!open) setBulk(null) }}
+        onDone={() => setRefreshSignal(s => s + 1)}
+      />
+
+      <AreaMoveDialog
+        open={Boolean(moveIds)}
+        onOpenChange={(open) => { if (!open) setMoveIds(null) }}
+        itemIds={moveIds ?? []}
+        options={areaChoices.writeOptions}
         onDone={() => setRefreshSignal(s => s + 1)}
       />
 

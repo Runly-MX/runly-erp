@@ -49,3 +49,23 @@ export function areaPathLabel(areas, areaId) {
   }
   return parts.join(' / ')
 }
+
+// Options for the area list filter: General first, then every visible area as "Padre / Hijo".
+export function areaFilterOptions(areas = []) {
+  if (!areas.length) return []
+  return [
+    { value: AREA_NONE, label: 'General (sin área)' },
+    ...flattenAreaTree(buildAreaTree(areas)).map((a) => ({ value: a.id, label: areaPathLabel(areas, a.id) })),
+  ]
+}
+
+// Areas where the user may put items. `requireArea` (scoping on and no inventory.scope.all)
+// removes the General choice because a limited user cannot create unscoped items.
+export function areaWriteOptions(areas = [], { requireArea = false } = {}) {
+  const writable = areas.filter((a) => canWriteAreaRole(a.role))
+  const writableSet = new Set(writable.map((a) => a.id))
+  const options = flattenAreaTree(buildAreaTree(areas))
+    .filter((a) => writableSet.has(a.id))
+    .map((a) => ({ value: a.id, label: areaPathLabel(areas, a.id) }))
+  return requireArea ? options : [{ value: AREA_NONE, label: 'General (sin área)' }, ...options]
+}
