@@ -412,6 +412,45 @@ export function buildLmsCourseInviteEmail({ courseTitle, inviteUrl, accessCode, 
   return { subject: `Invitación al curso ${courseTitle}${brand?.name ? ` · ${brand.name}` : ""}`, html, text };
 }
 
+// Inventory: invitation of an external supplier to the areas shared with them (magic link; the access
+// code is optional and only present when the manager asked for one).
+export function buildInventoryGuestInviteEmail({ inviteUrl, accessCode = null, name = null, areaNames = [], expiresAt = null, brand = null, env = process.env }) {
+  const orgName = brand?.name ? brand.name : "Una empresa";
+  const hello = name ? `Hola ${escapeHtml(name)},` : "Hola,";
+  const areas = areaNames.length ? ` Tendrás acceso a: <strong>${areaNames.map(escapeHtml).join(", ")}</strong>.` : "";
+  const until = expiresAt ? new Date(expiresAt).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }) : null;
+  const codeHtml = accessCode
+    ? `<div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280">Tu código de acceso</div>
+        <div style="display:inline-block;margin:4px 0 14px 0;padding:10px 14px;border:1px solid #e4e7ec;border-radius:10px;background:#f8fafc;font-family:Consolas,Menlo,monospace;font-size:20px;font-weight:700;letter-spacing:.14em;color:#0c172d">${escapeHtml(accessCode)}</div>`
+    : "";
+  const bodyHtml = `
+        <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155">
+          ${hello} <strong>${escapeHtml(orgName)}</strong> te invitó a consultar y registrar su inventario. No necesitas crear una cuenta.${areas}
+        </p>
+        ${codeHtml}
+        <p style="margin:0 0 18px 0;font-size:13px;line-height:1.6;color:#64748b">
+          Si el botón no funciona, copia este enlace en tu navegador:<br />
+          <span style="word-break:break-all;color:#334155">${escapeHtml(inviteUrl)}</span>
+        </p>`;
+  const html = renderRunlyEmailLayout({
+    kicker: "Inventario",
+    heading: `${orgName} te invitó a su inventario`,
+    bodyHtml,
+    cta: { label: "Abrir el inventario", url: inviteUrl },
+    footnote: `El enlace es personal: no lo compartas.${until ? ` Vence el ${until}.` : ""} Si no esperabas este correo, puedes ignorarlo.`,
+    brand,
+    env,
+  });
+  const text = [
+    `${orgName} te invitó a su inventario`,
+    "",
+    `${name ? `Hola ${name}. ` : ""}Abre tu enlace personal: ${inviteUrl}`,
+    ...(accessCode ? [`Tu código de acceso: ${accessCode}`] : []),
+    ...(areaNames.length ? [`Áreas: ${areaNames.join(", ")}`] : []),
+  ].join("\n");
+  return { subject: `Invitación al inventario${brand?.name ? ` · ${brand.name}` : ""}`, html, text };
+}
+
 // Learning: an invited guest's assignment (or quiz with open answers) was
 // graded. `detail` is the outcome sentence ("tu entrega fue aprobada con 90.").
 export function buildLmsGradedEmail({ courseTitle, lessonTitle, detail, courseUrl, name = null, kind = "submission", brand = null, env = process.env }) {

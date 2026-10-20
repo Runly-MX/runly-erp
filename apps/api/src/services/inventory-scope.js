@@ -91,6 +91,16 @@ export function createInventoryScope({ prisma }) {
     const row = await prisma.instanceConfig.findUnique({ where: { key: includeOwnKey(companyId) } });
     return row?.value !== 'false';
   }
+  // Guest (external supplier) scope: only the areas it is a member of (plus descendants), whether or
+  // not the company turned area scoping on, never `own` items, and never above editor.
+  async function resolveGuest({ companyId, guestId }) {
+    const [areas, members] = await Promise.all([
+      prisma.invArea.findMany({ where: { companyId, enabled: true }, select: { id: true, parentId: true } }),
+      prisma.invAreaMember.findMany({ where: { guestId, area: { companyId, enabled: true } }, select: { areaId: true, role: true } }),
+    ]);
+    const capped = members.map((m) => ({ areaId: m.areaId, role: m.role === 'editor' ? 'editor' : 'viewer' }));
+    return { all: false, companyId, roles: expandAreaRoles(areas, capped), own: null, guest: { id: guestId } };
+  }
   // Viewer identity for own items / "Mios": profile id plus the employee records linked to it.
   async function resolveMine({ companyId, userId }) {
     const employees = userId ? await prisma.hrEmployee.findMany({ where: { companyId, userProfileId: userId }, select: { id: true } }) : [];
@@ -126,5 +136,5 @@ export function createInventoryScope({ prisma }) {
     c.set('invScope', scope);
     return scope;
   }
-  return { resolve, fromContext, mineFromContext, resolveMine, isEnabled, includeOwn };
+  return { resolve, resolveGuest, fromContext, mineFromContext, resolveMine, isEnabled, includeOwn };
 }
