@@ -777,6 +777,7 @@ export default function FilesScreen() {
               canNext={page < (pagination?.totalPages ?? 1) && !filesQuery.isFetching}
               onPrevious={() => changeQuery({ page: page - 1 }, false)}
               onNext={() => changeQuery({ page: page + 1 }, false)}
+              onPageChange={(index) => changeQuery({ page: index + 1 }, false)}
               onPageSizeChange={(size) => changeQuery({ pageSize: size })}
             />
           </>

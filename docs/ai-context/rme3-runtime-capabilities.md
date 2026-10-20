@@ -673,7 +673,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `FileAssetField` / `FileAssetValue` | Uploading file field whose value is a FileAsset id (`filesPath`, `signedUrlPath`, `accept`, `camera`, `maxSizeMB`, `apiBaseUrl`, `token`, `companyId`), and its read-only display. Camera uses `ImageSourceSheet` on touch and `CameraCaptureDialog` on desktop. |
 | `SwatchField` | Pick an accent colour from a small preset palette (`swatches` prop, defaults to `DEFAULT_SWATCHES`). Use instead of a raw `<input type="color">` when only a themeable accent is needed. |
 | `DatePickerField` | Standalone date picker |
-| `PageFooter` | Pagination footer under a table: default 10 rows, picker 10-50 in steps of 10 plus "Todos" (`PAGE_SIZE_ALL`, `lib/page-size.js`); `RunlyTable` loads every page when "Todos" is on |
+| `PageFooter` | Pagination footer under a table: default 10 rows, picker 10-50 in steps of 10 plus "Todos" (`PAGE_SIZE_ALL`, `lib/page-size.js`); `RunlyTable` loads every page when "Todos" is on. Pass `onPageChange(pageIndex)` for the numbered pager (arrows, first/last page, pages around the current one, direct jump; compact window below `sm`, helper `lib/page-window.js`); without it the footer shows "Pagina X de N". `DataTable` always passes it |
 | `BrandFooter` | Branded footer with logo |
 | `ModuleNavIcon` | Renders a module/navigation `icon` name as a component. Resolves against the full lucide set plus legacy aliases and the custom `FleetVehicle` glyph; falls back to `Box`. Backed by `resolveModuleIcon(name, { fallback })` / `getModuleIconComponent(name)` (returns `null` when unresolved, for initials fallback). Single source of truth for the command palette, module sidebar, and module cards. |
 

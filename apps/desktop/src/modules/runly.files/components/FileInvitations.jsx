@@ -113,6 +113,7 @@ export function FileInvitations({ token, userId, onOpen }) {
         canNext={page < (pagination?.totalPages ?? 1)}
         onPrevious={() => setPage((p) => p - 1)}
         onNext={() => setPage((p) => p + 1)}
+        onPageChange={(index) => setPage(index + 1)}
       />
     </div>
   );

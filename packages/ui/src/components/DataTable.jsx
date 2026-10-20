@@ -308,6 +308,7 @@ export function DataTable({
         canNext={table.getCanNextPage()}
         onPrevious={() => table.previousPage()}
         onNext={() => table.nextPage()}
+        onPageChange={(index) => table.setPageIndex(index)}
         allSelected={showAll}
         onPageSizeChange={(size) => {
           const all = isAllPageSize(size)
