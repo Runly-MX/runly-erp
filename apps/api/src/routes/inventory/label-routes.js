@@ -2,10 +2,15 @@
 // Mounted by routes/inventory/index.js. Thin: logic lives in
 // services/inventory-label-service.js.
 import { Hono } from 'hono';
+import { createScopeGuards } from './scope-guard.js';
 
-export function createInventoryLabelRouter({ requirePermission, InventoryServiceError, labelService, publicService = null, publicBaseUrl = '' }) {
+export function createInventoryLabelRouter({ requirePermission, InventoryServiceError, labelService, publicService = null, publicBaseUrl = '', prisma = null, inventoryScope = null }) {
   const router = new Hono();
   const labels = labelService;
+  const guards = prisma && inventoryScope ? createScopeGuards({ prisma, inventoryScope }) : null;
+  // Items named in the body ({ items: [{ itemId }] }) must be in the caller's areas (404 otherwise).
+  const itemRows = async (c) => { try { const items = (await c.req.json())?.items; return Array.isArray(items) ? items : []; } catch { return []; } };
+  const deniedItems = async (c) => (guards ? guards.rejectOutOfScope(c, (await itemRows(c)).map((row) => row?.itemId), { write: false }) : null);
   const read = requirePermission('inventory.label.read');
   const print = requirePermission('inventory.label.print');
   const manage = requirePermission('inventory.label.manage');
@@ -38,6 +43,8 @@ export function createInventoryLabelRouter({ requirePermission, InventoryService
 
   // Render: zpl -> text, pdf -> application/pdf, png -> image/png (first label preview).
   router.post('/inventory/labels/render', print, run('No se pudieron generar las etiquetas.', async (c) => {
+    const denied = await deniedItems(c);
+    if (denied) return denied;
     const out = await labels.render(company(c), await c.req.json(), { baseUrl: new URL(c.req.url).origin });
     const headers = {
       'Content-Type': out.contentType,
@@ -51,11 +58,11 @@ export function createInventoryLabelRouter({ requirePermission, InventoryService
 
   // Print log: one row per item (user, quantity, template, printer).
   router.post('/inventory/labels/prints', print, run('No se pudo registrar la impresión.', async (c) => (
-    c.json({ data: await labels.registerPrints(company(c), userId(c), await c.req.json()) }, 201)
+    (await deniedItems(c)) ?? c.json({ data: await labels.registerPrints(company(c), userId(c), await c.req.json()) }, 201)
   )));
   // Company print log for Etiquetas > Historial (paginated, newest first).
   router.get('/inventory/label-prints', read, run('No se pudo cargar el historial de impresiones.', async (c) => (
-    c.json(await labels.listPrints(company(c), { page: c.req.query('page'), limit: c.req.query('limit') }))
+    c.json(await labels.listPrints(company(c), { page: c.req.query('page'), limit: c.req.query('limit') }, inventoryScope ? await inventoryScope.fromContext(c) : null))
   )));
   router.get('/inventory/items/:id/labels', read, run('No se pudo cargar el historial de etiquetas.', async (c) => c.json({ data: await labels.history(company(c), c.req.param('id')) })));
 

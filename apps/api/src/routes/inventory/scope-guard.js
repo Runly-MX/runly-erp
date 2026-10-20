@@ -56,5 +56,12 @@ export function createScopeGuards({ prisma, inventoryScope }) {
     return allowed.length === unique.length ? null : c.json(NOT_FOUND, 404);
   }
 
-  return { itemGuard, withScopeGuard, idsInScope, rejectOutOfScope };
+  // Creating items: a limited user must choose an area where they can write (General needs scope.all).
+  async function rejectUnwritableArea(c, areaId) {
+    const scope = await inventoryScope.fromContext(c);
+    if (scope.all || canWriteArea(scope, areaId || null)) return null;
+    return c.json({ error: 'Elige un area donde puedas registrar items.' }, 403);
+  }
+
+  return { itemGuard, withScopeGuard, idsInScope, rejectOutOfScope, rejectUnwritableArea };
 }

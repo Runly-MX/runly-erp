@@ -4,13 +4,35 @@ import { Hono } from 'hono';
 import { createInventoryCustodyService } from '../../services/inventory-custody-service.js';
 import { CUSTODY_PLACEHOLDERS } from '../../services/inventory-document-template-service.js';
 import { buildDefaultCustodyTemplate } from '../../services/document-templates/custody-template-data.js';
+import { canViewArea, canWriteArea } from '../../services/inventory-scope.js';
+import { createScopeGuards } from './scope-guard.js';
 
-export function createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin = null, custodyService = null }) {
+const CUSTODY_PATH = /^\/inventory\/custodies\/([^/]+)/;
+const NOT_FOUND = { error: 'Resguardo no encontrado.' };
+
+export function createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin = null, custodyService = null, inventoryScope = null }) {
   const router = new Hono();
   let service = custodyService;
   const svc = () => (service ??= createInventoryCustodyService({ prisma, supabaseAdmin }));
-  const read = requirePermission('inventory.custody.read');
-  const manage = requirePermission('inventory.custody.manage');
+  const guards = inventoryScope ? createScopeGuards({ prisma, inventoryScope }) : null;
+  // A custody is visible when it holds an item of the caller's areas (or none); changing it
+  // (anything but GET and the preview) needs write access to every item it holds. Else 404.
+  async function custodyAllowed(c) {
+    const id = CUSTODY_PATH.exec(c.req.path)?.[1];
+    if (!id || id === 'deliverers') return true;
+    const scope = await inventoryScope.fromContext(c);
+    if (scope.all) return true;
+    const rows = await prisma.invCustodyItem.findMany({ where: { custodyId: id, custody: { companyId: c.get('companyId') } }, select: { item: { select: { areaId: true } } } });
+    const areas = rows.map((row) => row.item?.areaId ?? null);
+    if (areas.length && !areas.some((areaId) => canViewArea(scope, areaId))) return false;
+    const mutating = c.req.method !== 'GET' && !c.req.path.endsWith('/preview');
+    return !mutating || areas.every((areaId) => canWriteArea(scope, areaId));
+  }
+  const scoped = (permission) => (guards
+    ? (c, next) => permission(c, async () => ((await custodyAllowed(c)) ? next() : c.json(NOT_FOUND, 404)))
+    : permission);
+  const read = scoped(requirePermission('inventory.custody.read'));
+  const manage = scoped(requirePermission('inventory.custody.manage'));
   const manageTemplates = requirePermission('inventory.template.manage');
   const fail = (c, err, fallback) => (err instanceof InventoryServiceError || (err?.status && err?.name === 'InventoryServiceError')
     ? c.json({ error: err.message }, err.status)
@@ -91,13 +113,16 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
   router.get('/inventory/custodies', read, async (c) => {
     try {
       const { status, employeeId, itemId, q, page, pageSize } = c.req.query();
-      return c.json(await svc().list({ companyId: c.get('companyId'), status, employeeId, itemId, q, page, pageSize }));
+      return c.json(await svc().list({ companyId: c.get('companyId'), status, employeeId, itemId, q, page, pageSize, scope: guards ? await inventoryScope.fromContext(c) : null }));
     } catch (err) { return fail(c, err, 'No se pudieron cargar los resguardos.'); }
   });
 
   router.post('/inventory/custodies', manage, async (c) => {
     try {
-      return c.json({ custody: await svc().create(await body(c), c.get('companyId'), c.get('userId'), onBehalf(c)) }, 201);
+      const input = await body(c);
+      const denied = await guards?.rejectOutOfScope(c, input.itemIds, { write: true });
+      if (denied) return denied;
+      return c.json({ custody: await svc().create(input, c.get('companyId'), c.get('userId'), onBehalf(c)) }, 201);
     } catch (err) { return fail(c, err, 'No se pudo crear el resguardo.'); }
   });
 
@@ -116,13 +141,24 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
 
   router.patch('/inventory/custodies/:id', manage, async (c) => {
     try {
-      return c.json({ custody: await svc().update(c.req.param('id'), await body(c), c.get('companyId'), c.get('userId'), onBehalf(c)) });
+      const input = await body(c);
+      const denied = input.itemIds === undefined ? null : await guards?.rejectOutOfScope(c, input.itemIds, { write: true });
+      if (denied) return denied;
+      return c.json({ custody: await svc().update(c.req.param('id'), input, c.get('companyId'), c.get('userId'), onBehalf(c)) });
     } catch (err) { return fail(c, err, 'No se pudo actualizar el resguardo.'); }
   });
 
   // Hand-edited snapshot fields of one row (spec §10.2); :itemId is the row id or the item id.
   router.patch('/inventory/custodies/:id/items/:itemId', manage, async (c) => {
     try {
+      if (guards) {
+        // :itemId is the custody row id or the item id.
+        const row = await prisma.invCustodyItem.findFirst({
+          where: { custodyId: c.req.param('id'), OR: [{ id: c.req.param('itemId') }, { itemId: c.req.param('itemId') }] }, select: { itemId: true },
+        });
+        const denied = row ? await guards.rejectOutOfScope(c, [row.itemId], { write: true }) : null;
+        if (denied) return denied;
+      }
       return c.json({ custody: await svc().updateItem(c.req.param('id'), c.req.param('itemId'), await body(c), c.get('companyId'), c.get('userId')) });
     } catch (err) { return fail(c, err, 'No se pudo actualizar el artículo del resguardo.'); }
   });

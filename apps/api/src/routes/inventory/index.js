@@ -23,10 +23,12 @@ import { listInventoryMedia } from '../../services/inventory-media.js';
 import { createInventorySearch } from '../../services/inventory-search-service.js';
 import { preparePurchaseLinks, withoutPurchaseLinkFields, composeAfterWrite, loadPurchaseLinks, loadPurchaseNumbersForItems, purchaseLinkFields } from '../../services/inventory-purchase-links.js';
 import { publishActivityFromContext, getActivityContext } from '../../services/activity-publisher.js';
+import { createInventoryScope } from '../../services/inventory-scope.js';
+import { createScopeGuards } from './scope-guard.js';
 
 export function createInventoryRouter({
   prisma,
-  requirePermission,
+  requirePermission: baseRequirePermission,
   inventoryService,
   InventoryServiceError,
   inventoryNotifSvc,
@@ -35,18 +37,25 @@ export function createInventoryRouter({
   enrichFilesWithSignedUrls,
   filesService,
   supabaseAdmin = null,
+  // Area scoping (see services/inventory-scope.js). Injectable for tests; the default is the real one.
+  inventoryScope = createInventoryScope({ prisma }),
 }) {
   const router = new Hono();
+  const guards = createScopeGuards({ prisma, inventoryScope });
+  // Every route below (and the sub-routers) goes through this: permission first, then the
+  // per-item area guard for /inventory/items/:id[/...] (404 when the item is out of scope).
+  const requirePermission = guards.withScopeGuard(baseRequirePermission);
+  const scopeOf = (c) => inventoryScope.fromContext(c);
   const itemConnections = createCoreTargetConnections({ prisma, targetType: "inventory_item" });
-  router.route('/', createInventoryIntakeRouter({ prisma, requirePermission }));
+  router.route('/', createInventoryIntakeRouter({ prisma, requirePermission, inventoryScope }));
   router.route('/', createInventoryModelsRouter({ prisma, requirePermission, inventoryService, InventoryServiceError }));
-  router.route('/', createInventoryAdminRouter({ prisma, requirePermission, InventoryServiceError, inventoryNotifSvc, supabaseAdmin }));
-  router.route('/', createInventoryImportRouter({ prisma, requirePermission, InventoryServiceError, inventoryService, filesService }));
-  router.route('/', createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin }));
+  router.route('/', createInventoryAdminRouter({ prisma, requirePermission, InventoryServiceError, inventoryNotifSvc, supabaseAdmin, inventoryScope }));
+  router.route('/', createInventoryImportRouter({ prisma, requirePermission, InventoryServiceError, inventoryService, filesService, inventoryScope }));
+  router.route('/', createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin, inventoryScope }));
   const publicService = createInventoryPublicService({ prisma, supabaseAdmin });
   const labelService = createInventoryLabelService({ prisma, publicBaseUrl: appBaseUrlFromEnv(), publicService });
-  router.route('/', createInventoryLabelRouter({ requirePermission, InventoryServiceError, labelService, publicService, publicBaseUrl: appBaseUrlFromEnv() }));
-  router.route('/', createInventoryScanRouter({ prisma, requirePermission, InventoryServiceError, publicService }));
+  router.route('/', createInventoryLabelRouter({ requirePermission, InventoryServiceError, labelService, publicService, publicBaseUrl: appBaseUrlFromEnv(), prisma, inventoryScope }));
+  router.route('/', createInventoryScanRouter({ prisma, requirePermission, InventoryServiceError, publicService, inventoryScope }));
   const modelDefaults = createInventoryModelService({ prisma });
 
   const isInvErr = (err) => err instanceof InventoryServiceError;
@@ -93,7 +102,7 @@ export function createInventoryRouter({
   router.get("/inventory/items/check-identifiers", requirePermission("inventory.item.read"), async (c) => {
     try {
       const { assetTag, serialNumber, excludeId } = c.req.query();
-      const data = await findActiveDuplicates(prisma, c.get("companyId"), { assetTag, serialNumber, excludeId: excludeId || null });
+      const data = await findActiveDuplicates(prisma, c.get("companyId"), { assetTag, serialNumber, excludeId: excludeId || null, scope: await scopeOf(c) });
       return c.json({ data });
     } catch (err) {
       return c.json({ error: "No se pudo comprobar el número." }, 500);
@@ -104,7 +113,7 @@ export function createInventoryRouter({
       const companyId = c.get("companyId");
       const { search, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, page, limit, pageSize, sortBy, sortDir } = c.req.query();
       const connectionMatchIds = await itemConnections.searchIds(c, search);
-      const result = await inventoryService.listItems({ companyId, search, connectionMatchIds, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, sortBy, sortDir, page: Number(page) || 1, limit: Number(pageSize ?? limit) || 50 });
+      const result = await inventoryService.listItems({ companyId, search, connectionMatchIds, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, sortBy, sortDir, page: Number(page) || 1, limit: Number(pageSize ?? limit) || 50, scope: await scopeOf(c) });
       if (hasPerm(c, "inventory.label.read")) {
         const stats = await labelService.statsForItems(companyId, result.data.map((item) => item.id));
         result.data = result.data.map((item) => ({ ...item, labelPrintedAt: stats.get(item.id)?.labelPrintedAt ?? null, labelPrintCount: stats.get(item.id)?.labelPrintCount ?? 0 }));
@@ -125,9 +134,12 @@ export function createInventoryRouter({
     try {
       const companyId = c.get("companyId");
       const authUserId = c.get("authUserId");
+      // A limited user must create inside an area where they can write.
+      const denied = await guards.rejectUnwritableArea(c, (await c.req.json().catch(() => null))?.areaId);
+      if (denied) return denied;
       const { body, afterWrite } = await prepareItemWrite(c);
       const data = await modelDefaults.applyModelDefaults(body, companyId);
-      const item = await inventoryService.createItem(data, companyId, authUserId, { afterWrite });
+      const item = await inventoryService.createItem(data, companyId, authUserId, { afterWrite, scope: await scopeOf(c) });
       return c.json({ data: item }, 201);
     } catch (err) {
       const connectionError = itemConnections.errorResponse(c, err);
@@ -141,7 +153,7 @@ export function createInventoryRouter({
     try {
       const companyId = c.get("companyId");
       const { empId } = c.req.param();
-      const items = await inventoryService.getItemsByEmployee(empId, companyId);
+      const items = await inventoryService.getItemsByEmployee(empId, companyId, await scopeOf(c));
       return c.json({ data: items });
     } catch (err) {
       if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
@@ -153,7 +165,7 @@ export function createInventoryRouter({
     try {
       const companyId = c.get("companyId");
       const { id } = c.req.param();
-      const item = await inventoryService.getItem(id, companyId);
+      const item = await inventoryService.getItem(id, companyId, await scopeOf(c));
       await attachUserAvatarUrls([item.assignedTo], { prisma, supabaseAdmin });
       // Purchase order / invoice shown as fields; only for users who can read Compras.
       const canReadPurchases = hasPerm(c, "purchases.relation.read");
@@ -169,9 +181,13 @@ export function createInventoryRouter({
     try {
       const companyId = c.get("companyId");
       const { id } = c.req.param();
+      // The path guard already required write access to the current area; moving needs the target too.
+      const peek = await c.req.json().catch(() => null);
+      const denied = peek && "areaId" in peek ? await guards.rejectUnwritableArea(c, peek.areaId) : null;
+      if (denied) return denied;
       const { body, afterWrite } = await prepareItemWrite(c, id);
       const data = await modelDefaults.applyModelDefaults(body, companyId);
-      const item = await inventoryService.updateItem(id, data, companyId, { afterWrite, actorAuthId: c.get("authUserId") });
+      const item = await inventoryService.updateItem(id, data, companyId, { afterWrite, actorAuthId: c.get("authUserId"), scope: await scopeOf(c) });
       return c.json({ data: item });
     } catch (err) {
       const connectionError = itemConnections.errorResponse(c, err);
@@ -188,9 +204,13 @@ export function createInventoryRouter({
     try {
       const companyId = c.get("companyId");
       const { id } = c.req.param();
+      // The path guard already required write access to the current area; moving needs the target too.
+      const peek = await c.req.json().catch(() => null);
+      const denied = peek && "areaId" in peek ? await guards.rejectUnwritableArea(c, peek.areaId) : null;
+      if (denied) return denied;
       const { body, afterWrite } = await prepareItemWrite(c, id);
       const data = await modelDefaults.applyModelDefaults(body, companyId);
-      const item = await inventoryService.updateItem(id, data, companyId, { afterWrite, actorAuthId: c.get("authUserId") });
+      const item = await inventoryService.updateItem(id, data, companyId, { afterWrite, actorAuthId: c.get("authUserId"), scope: await scopeOf(c) });
       return c.json({ data: item });
     } catch (err) {
       const connectionError = itemConnections.errorResponse(c, err);
@@ -271,7 +291,7 @@ export function createInventoryRouter({
           console.warn("[inventory] media search failed, using basic search:", searchErr?.code ?? searchErr?.name ?? "error");
         }
       }
-      return c.json(await listInventoryMedia(prisma, companyId, { kind, search, itemId, itemIds, sort, page, pageSize }));
+      return c.json(await listInventoryMedia(prisma, companyId, { kind, search, itemId, itemIds, sort, page, pageSize }, await scopeOf(c)));
     } catch (err) {
       return c.json({ error: "No se pudo cargar la galería." }, 500);
     }
@@ -436,7 +456,7 @@ export function createInventoryRouter({
     try {
       const companyId = c.get("companyId");
       const { employeeId, itemId, active, page, limit } = c.req.query();
-      const result = await inventoryService.listAllAssignments({ companyId, employeeId, itemId, active: active === "true", page: Number(page) || 1, limit: Number(limit) || 50 });
+      const result = await inventoryService.listAllAssignments({ companyId, employeeId, itemId, active: active === "true", page: Number(page) || 1, limit: Number(limit) || 50, scope: await scopeOf(c) });
       return c.json(result);
     } catch (err) {
       if (isInvErr(err)) return c.json(invErrorBody(err), err.status);

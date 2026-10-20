@@ -41,6 +41,7 @@ function buildRouter() {
   );
   const router = createInventoryRouter({
     prisma: { membership: { findMany: async () => [] } },
+    inventoryScope: { fromContext: async () => ({ all: true }) },
     requirePermission: makeRequirePermission(calls),
     inventoryService,
     InventoryServiceError,

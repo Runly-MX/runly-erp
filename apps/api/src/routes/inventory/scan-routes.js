@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { createInventoryScanService } from '../../services/inventory-scan-service.js';
 
-export function createInventoryScanRouter({ prisma, requirePermission, InventoryServiceError, publicService }) {
+export function createInventoryScanRouter({ prisma, requirePermission, InventoryServiceError, publicService, inventoryScope = null }) {
   const router = new Hono();
   const scan = createInventoryScanService({ prisma, publicService });
   const read = requirePermission('inventory.item.read');
@@ -16,10 +16,12 @@ export function createInventoryScanRouter({ prisma, requirePermission, Inventory
   router.post('/inventory/scan/resolve', read, bodyLimit({ maxSize: 64 * 1024 }), async (c) => {
     try {
       const { codes } = await body(c);
-      return c.json({ data: await scan.resolveCodes(c.get('companyId'), codes) });
+      return c.json({ data: await scan.resolveCodes(c.get('companyId'), codes, inventoryScope ? await inventoryScope.fromContext(c) : null) });
     } catch (err) { return fail(c, err, 'No se pudieron buscar los códigos.'); }
   });
 
+  // Export carries no item ids: it only formats the table the client already holds (resolved
+  // through /scan/resolve, which is scoped), so there is nothing to scope here.
   router.post('/inventory/scan/export', read, bodyLimit({ maxSize: 2 * 1024 * 1024 }), async (c) => {
     try {
       const buffer = await scan.exportXlsx(await body(c));

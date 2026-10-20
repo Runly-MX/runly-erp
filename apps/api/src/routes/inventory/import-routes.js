@@ -7,18 +7,21 @@ import {
 } from '../../services/inventory-item-import-service.js';
 import { tenantActiveContext } from '../../lib/active-context.js';
 import { createInventoryAccess } from '../../services/inventory-access.js';
+import { createScopeGuards } from './scope-guard.js';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 // Item files may carry embedded photos.
 const MAX_ITEM_BYTES = 25 * 1024 * 1024;
 
-export function createInventoryImportRouter({ prisma, requirePermission, InventoryServiceError, inventoryService, filesService, authorize = createInventoryAccess({ prisma }).assertCurrent }) {
+export function createInventoryImportRouter({ prisma, requirePermission, InventoryServiceError, inventoryService, filesService, authorize = createInventoryAccess({ prisma }).assertCurrent, inventoryScope = null }) {
   const router = new Hono();
   const imports = createInventoryCatalogImportService({ prisma });
   const itemImports = createInventoryItemImportService({ prisma, inventoryService });
   const fail = (c, err, fallback) => err instanceof InventoryServiceError
     ? c.json({ error: err.message, ...(err.code ? { code: err.code } : {}), ...(err.details ? { details: err.details } : {}) }, err.status)
     : c.json({ error: fallback }, 500);
+  const guards = inventoryScope ? createScopeGuards({ prisma, inventoryScope }) : null;
+  const scopeOf = (c) => (inventoryScope ? inventoryScope.fromContext(c) : null);
   const guard = requirePermission('inventory.catalog.manage');
   const itemGuard = requirePermission('inventory.item.create');
 
@@ -53,7 +56,7 @@ export function createInventoryImportRouter({ prisma, requirePermission, Invento
   router.post('/inventory/item-import/preview', itemGuard, async (c) => {
     try {
       const { rows, rowNumbers, mapping, createMissing, statusMap } = await c.req.json();
-      return c.json({ data: await itemImports.preview(rows, mapping, c.get('companyId'), { createMissing: createMissing === true, statusMap, rowNumbers }) });
+      return c.json({ data: await itemImports.preview(rows, mapping, c.get('companyId'), { createMissing: createMissing === true, statusMap, rowNumbers, scope: await scopeOf(c) }) });
     } catch (err) { return fail(c, err, 'No se pudo analizar el archivo.'); }
   });
 
@@ -63,6 +66,8 @@ export function createInventoryImportRouter({ prisma, requirePermission, Invento
       const parsed = await readItemFile(c, form, { withImages: true });
       let options;
       try { options = JSON.parse(String(form.get('options') ?? '{}')); } catch { return c.json({ error: 'Opciones de importación no válidas.' }, 400); }
+      const denied = await guards?.rejectUnwritableArea(c, options.areaId);
+      if (denied) return denied;
       const companyId = c.get('companyId');
       const authUserId = c.get('authUserId');
       const updateExisting = options.updateExisting === true;
@@ -80,6 +85,7 @@ export function createInventoryImportRouter({ prisma, requirePermission, Invento
       } : null;
       const result = await itemImports.commit(parsed, options.mapping, companyId, authUserId, {
         createMissing: options.createMissing === true, statusMap: options.statusMap, attachImage, updateExisting,
+        scope: await scopeOf(c), areaId: options.areaId ?? null,
       });
       return c.json({ data: result });
     } catch (err) { return fail(c, err, 'No se pudo importar.'); }

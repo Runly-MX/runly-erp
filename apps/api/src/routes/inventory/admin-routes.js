@@ -6,14 +6,17 @@ import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js';
 import { Hono } from 'hono';
 import { createInventoryAdminService } from '../../services/inventory-admin-service.js';
 import { createInventoryDashboardService } from '../../services/inventory-dashboard-service.js';
+import { createScopeGuards } from './scope-guard.js';
 
-export function createInventoryAdminRouter({ prisma, requirePermission, InventoryServiceError, inventoryNotifSvc, supabaseAdmin = null }) {
+export function createInventoryAdminRouter({ prisma, requirePermission, InventoryServiceError, inventoryNotifSvc, supabaseAdmin = null, inventoryScope = null }) {
   const router = new Hono();
   const admin = createInventoryAdminService({ prisma, notifier: inventoryNotifSvc });
   const dashboards = createInventoryDashboardService({ prisma });
   const fail = (c, err, fallback) => err instanceof InventoryServiceError
     ? c.json({ error: err.message }, err.status)
     : c.json({ error: fallback }, 500);
+  const guards = inventoryScope ? createScopeGuards({ prisma, inventoryScope }) : null;
+  const scopeOf = (c) => (inventoryScope ? inventoryScope.fromContext(c) : null);
   const read = requirePermission('inventory.item.read');
   const canFor = (c) => {
     const tenant = c.get('tenantContext');
@@ -22,7 +25,7 @@ export function createInventoryAdminRouter({ prisma, requirePermission, Inventor
 
   router.get('/inventory/dashboard', read, async (c) => {
     try {
-      const data = await dashboards.dashboard(c.get('companyId'), { months: c.req.query('months') });
+      const data = await dashboards.dashboard(c.get('companyId'), { months: c.req.query('months') }, await scopeOf(c));
       // Holder photos (an employee shows its linked user's avatar).
       const holders = data?.top?.holders ?? [];
       if (holders.length) {
@@ -39,13 +42,13 @@ export function createInventoryAdminRouter({ prisma, requirePermission, Inventor
 
   router.get('/inventory/dashboard/trend', read, async (c) => {
     try {
-      const data = await dashboards.trends(c.get('companyId'), { granularity: c.req.query('granularity'), periods: c.req.query('periods') });
+      const data = await dashboards.trends(c.get('companyId'), { granularity: c.req.query('granularity'), periods: c.req.query('periods') }, undefined, await scopeOf(c));
       return c.json({ data });
     } catch (err) { return fail(c, err, 'No se pudo cargar la tendencia.'); }
   });
 
   router.get('/inventory/summary', read, async (c) => {
-    try { return c.json({ data: await admin.summary(c.get('companyId')) }); }
+    try { return c.json({ data: await admin.summary(c.get('companyId'), await scopeOf(c)) }); }
     catch (err) { return fail(c, err, 'No se pudo cargar el resumen.'); }
   });
 
@@ -53,6 +56,8 @@ export function createInventoryAdminRouter({ prisma, requirePermission, Inventor
   router.post('/inventory/items/admin-transition/bulk', read, async (c) => {
     try {
       const { ids, action, ...payload } = await c.req.json();
+      const denied = await guards?.rejectOutOfScope(c, ids, { write: true });
+      if (denied) return denied;
       const data = await admin.bulkTransition({ ids, action, payload, companyId: c.get('companyId'), actorId: c.get('userId'), can: canFor(c) });
       return c.json({ data });
     } catch (err) { return fail(c, err, 'No se pudo aplicar la acción.'); }
