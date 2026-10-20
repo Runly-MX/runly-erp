@@ -25,6 +25,8 @@ import { preparePurchaseLinks, withoutPurchaseLinkFields, composeAfterWrite, loa
 import { publishActivityFromContext, getActivityContext } from '../../services/activity-publisher.js';
 import { createInventoryScope } from '../../services/inventory-scope.js';
 import { createScopeGuards } from './scope-guard.js';
+import { createInventoryAreaRouter } from './area-routes.js';
+import { createInventoryAreaService } from '../../services/inventory-area-service.js';
 
 export function createInventoryRouter({
   prisma,
@@ -39,6 +41,7 @@ export function createInventoryRouter({
   supabaseAdmin = null,
   // Area scoping (see services/inventory-scope.js). Injectable for tests; the default is the real one.
   inventoryScope = createInventoryScope({ prisma }),
+  inventoryAreaService = createInventoryAreaService({ prisma }),
 }) {
   const router = new Hono();
   const guards = createScopeGuards({ prisma, inventoryScope });
@@ -47,6 +50,7 @@ export function createInventoryRouter({
   const requirePermission = guards.withScopeGuard(baseRequirePermission);
   const scopeOf = (c) => inventoryScope.fromContext(c);
   const itemConnections = createCoreTargetConnections({ prisma, targetType: "inventory_item" });
+  router.route('/', createInventoryAreaRouter({ prisma, requirePermission, inventoryScope, inventoryAreaService, InventoryServiceError }));
   router.route('/', createInventoryIntakeRouter({ prisma, requirePermission, inventoryScope }));
   router.route('/', createInventoryModelsRouter({ prisma, requirePermission, inventoryService, InventoryServiceError }));
   router.route('/', createInventoryAdminRouter({ prisma, requirePermission, InventoryServiceError, inventoryNotifSvc, supabaseAdmin, inventoryScope }));
