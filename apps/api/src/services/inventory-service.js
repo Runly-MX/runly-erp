@@ -278,6 +278,8 @@ export function createInventoryService({ prisma, activityBridge }) {
       categoryName: item.category?.name ?? null,
       brandName: item.brand?.name ?? null,
       locationName: item.location?.name ?? null,
+      conditionName: item.condition?.name ?? null,
+      areaName: item.areaId ? (item.area?.name ?? null) : 'General',
       model: item.model ?? null,
       serialNumber: item.serialNumber ?? null,
       partNumber: item.partNumber ?? null,
@@ -290,7 +292,29 @@ export function createInventoryService({ prisma, activityBridge }) {
       warrantyExpiry: item.warrantyExpiry ?? null,
       warrantyNotes: item.warrantyNotes ?? null,
       notes: item.notes ?? null,
+      ...customValueSnapshot(item),
     }
+  }
+
+  // One "custom:<label>" key per filled custom field so the audit diff lists
+  // added, edited and removed values (the UI shows the part after "custom:").
+  function customValueSnapshot(item) {
+    const out = {}
+    for (const cv of item?.customValues ?? []) {
+      const label = cv.field?.label
+      if (!label || cv.value == null || String(cv.value).trim() === '') continue
+      out[`custom:${label}`] = String(cv.value)
+    }
+    return out
+  }
+
+  const AUDIT_INCLUDE = {
+    category: { select: { id: true, name: true } },
+    brand: { select: { id: true, name: true } },
+    location: { select: { id: true, name: true } },
+    condition: { select: { id: true, name: true } },
+    area: { select: { id: true, name: true } },
+    customValues: { include: { field: { select: { id: true, label: true } } } },
   }
 
   // scope (optional): an item outside the caller's areas answers 404, same as a missing one.
@@ -488,11 +512,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     const actorProfileId = await resolveProfileId(actorAuthId);
     const existing = await prisma.invItem.findFirst({
       where: { id, companyId, enabled: true },
-      include: {
-        category: { select: { id: true, name: true } },
-        brand: { select: { id: true, name: true } },
-        location: { select: { id: true, name: true } },
-      },
+      include: AUDIT_INCLUDE,
     });
     if (!existing) throw new InventoryServiceError('Item not found', 404);
     if (existing.adminStatus === 'deregistered') {
@@ -616,6 +636,8 @@ export function createInventoryService({ prisma, activityBridge }) {
             category: { select: { id: true, name: true, icon: true, color: true } },
             brand: { select: { id: true, name: true } },
             location: { select: { id: true, name: true } },
+            condition: { select: { id: true, name: true } },
+            area: { select: { id: true, name: true } },
             customValues: { include: { field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryId: true, onDemand: true } } } },
           },
         });
@@ -644,6 +666,9 @@ export function createInventoryService({ prisma, activityBridge }) {
         category: { select: { id: true, name: true, icon: true, color: true } },
         brand: { select: { id: true, name: true } },
         location: { select: { id: true, name: true } },
+        condition: { select: { id: true, name: true } },
+        area: { select: { id: true, name: true } },
+        customValues: { include: { field: { select: { id: true, label: true } } } },
       },
     }));
     await bridge.logAndPublish({

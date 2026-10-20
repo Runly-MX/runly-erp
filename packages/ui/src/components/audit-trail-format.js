@@ -18,7 +18,9 @@ export function humanizeField(field) {
 
 export function fieldMetaFor(changeLabels, field) {
   const meta = changeLabels?.[field] ?? changeLabels?.[`${field}__label`] ?? null;
-  return { label: meta?.label ?? humanizeField(field), type: meta?.type ?? null, options: meta?.options ?? null };
+  // "custom:<label>" keys carry a user-defined field name verbatim.
+  const custom = typeof field === "string" && field.startsWith("custom:") ? field.slice(7) : null;
+  return { label: meta?.label ?? custom ?? humanizeField(field), type: meta?.type ?? null, options: meta?.options ?? null };
 }
 
 function formatDate(value, withTime) {

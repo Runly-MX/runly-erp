@@ -20,6 +20,8 @@ export const INVENTORY_ACTIVITY_FIELD_LABELS = {
   categoryName: { label: 'Tipo', type: 'text' },
   brandName: { label: 'Marca', type: 'text' },
   locationName: { label: 'Ubicación', type: 'text' },
+  conditionName: { label: 'Condición', type: 'text' },
+  areaName: { label: 'Área', type: 'text' },
   model: { label: 'Modelo', type: 'text' },
   serialNumber: { label: 'Número de serie', type: 'text' },
   partNumber: { label: 'Número de parte', type: 'text' },

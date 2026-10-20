@@ -102,7 +102,7 @@ export function createInventoryAreaRouter({ prisma, requirePermission, inventory
   router.post('/inventory/items/move', requirePermission('inventory.item.update'), async (c) => {
     try {
       const body = moveBody.parse(await json(c));
-      const data = await inventoryAreaService.moveItems({ companyId: c.get('companyId'), itemIds: body.itemIds, areaId: body.areaId ?? null, scope: await inventoryScope.fromContext(c) });
+      const data = await inventoryAreaService.moveItems({ companyId: c.get('companyId'), itemIds: body.itemIds, areaId: body.areaId ?? null, scope: await inventoryScope.fromContext(c), actorAuthId: c.get('authUserId') ?? null });
       return c.json({ data });
     } catch (err) { return fail(c, err, 'No se pudieron mover los items.'); }
   });
