@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Activity, Boxes, CalendarPlus, FolderInput, FolderOpen, FolderTree, MapPin, PanelLeft, PanelLeftClose, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, Wrench } from 'lucide-react'
+import { Activity, Boxes, CalendarPlus, FolderInput, FolderOpen, FolderTree, MapPin, PanelLeft, PanelLeftClose, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, UserCheck, Wrench } from 'lucide-react'
 import { RunlyTable, Button, ConfirmDialog, EmptyState, PageHeader, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -30,7 +30,8 @@ const STATUS_OPTIONS = ITEM_STATUSES.map(s => ({ value: s.value, label: s.label 
 // Deep links from Catálogos (e.g. ?categoryId=...) open the list pre-filtered.
 // Exact-match text filters opened from the detail view magnifier (?serialNumber=...).
 const TEXT_FILTER_LABELS = { model: 'Modelo', folio: 'Folio', assetTag: 'N.º de activo', serialNumber: 'No. Serie', partNumber: 'N.º de parte' }
-const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo', 'labeled', 'areaId', ...Object.keys(TEXT_FILTER_LABELS)]
+const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo', 'labeled', 'areaId', 'mine', ...Object.keys(TEXT_FILTER_LABELS)]
+const MINE_OPTIONS = [{ value: 'true', label: 'Solo mis items' }]
 const LABELED_OPTIONS = [{ value: 'false', label: 'Sin etiquetar' }, { value: 'true', label: 'Etiquetados' }]
 const ADMIN_OPTIONS = ADMIN_STATUSES.map(s => ({ value: s.value, label: s.label }))
 
@@ -191,6 +192,8 @@ export default function InventoryScreen() {
         { key: 'locationId', label: 'Ubicación', type: 'select', icon: MapPin, options: locationOptions },
         // -> areaId=<uuid>|__none__ (General); only when the user has areas to filter by.
         ...(areaChoices.filterOptions.length ? [{ key: 'areaId', label: 'Área', type: 'select', icon: FolderTree, options: areaChoices.filterOptions }] : []),
+        // -> mine=true: items I created or that are assigned to me (the API resolves who I am).
+        { key: 'mine',       label: 'Míos', type: 'select', icon: UserCheck, options: MINE_OPTIONS },
         // -> labeled=false|true on /inventory/items (print log based).
         { key: 'labeled',    label: 'Etiqueta', type: 'select', icon: QrCode, options: LABELED_OPTIONS },
         ...Object.entries(TEXT_FILTER_LABELS)
