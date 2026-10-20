@@ -2,8 +2,9 @@
 import { Hono } from 'hono'
 import { userSearchQuerySchema } from './ledger/validators.js'
 import { getCompanyId, getActorId } from './ledger/service-helpers.js'
+import { attachUserAvatarUrls } from '../lib/attach-user-avatars.js'
 
-export function createUsersRouter({ prisma, requirePermission, requireAnyPermission = null }) {
+export function createUsersRouter({ prisma, requirePermission, requireAnyPermission = null, supabaseAdmin = null }) {
   const app = new Hono()
 
   // Also used by the inventory area members picker (inventory.area.manage).
@@ -24,7 +25,7 @@ export function createUsersRouter({ prisma, requirePermission, requireAnyPermiss
 
     try {
       const rows = await prisma.$queryRaw`
-        SELECT DISTINCT p.id, p.display_name, p.email
+        SELECT DISTINCT p.id, p.display_name, p.email, p.avatar_file_id AS "avatarFileId"
         FROM user_profile p
         INNER JOIN membership m ON m.user_id = p.id AND m.enabled = true
         WHERE m.company_id = ${companyId}::uuid
@@ -38,7 +39,9 @@ export function createUsersRouter({ prisma, requirePermission, requireAnyPermiss
         ORDER BY p.display_name
         LIMIT ${effectiveLimit}
       `
-      return c.json({ data: rows })
+      // Signed thumbnail so pickers can show the profile photo (initials when none).
+      await attachUserAvatarUrls(rows, { prisma, supabaseAdmin, variant: 'thumb' })
+      return c.json({ data: rows.map(({ avatarFileId, ...row }) => row) })
     } catch (err) {
       if (process.env.NODE_ENV !== 'production') console.error('[users/search]', err)
       return c.json({ error: 'No se pudo realizar la busqueda.' }, 500)

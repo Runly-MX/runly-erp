@@ -71,7 +71,7 @@ export function AreaMembersSheet({ area, open, onOpenChange }) {
             ) : rows.map((member) => (
               <div key={member.userId} className="flex flex-col gap-3 rounded-md border border-[hsl(var(--border))] p-3 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <PersonAvatar name={member.user?.displayName} size="sm" />
+                  <PersonAvatar name={member.user?.displayName} src={member.user?.avatarUrl} size="sm" />
                   <div className="min-w-0 flex-1">
                     <p className="wrap-break-word text-sm font-medium">{member.user?.displayName ?? 'Usuario'}</p>
                     <p className="break-all text-xs text-[hsl(var(--muted-foreground))]">{member.user?.email}</p>

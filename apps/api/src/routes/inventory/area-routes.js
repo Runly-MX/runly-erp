@@ -1,6 +1,7 @@
 // runly.inventory area routes (spec 2026-10-20-inventory-areas-scoping). Thin: logic lives in
 // services/inventory-area-service.js. Mounted by routes/inventory/index.js with the scope-guarded
 // requirePermission.
+import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { canManageArea, SCOPE_ALL_PERMISSION } from '../../services/inventory-scope.js';
@@ -13,7 +14,7 @@ const moveBody = z.object({ itemIds: z.array(uuid).min(1).max(500), areaId: uuid
 const settingsBody = z.object({ enabled: z.boolean().optional(), includeOwn: z.boolean().optional() })
   .refine((b) => b.enabled !== undefined || b.includeOwn !== undefined, 'Nada que guardar.');
 
-export function createInventoryAreaRouter({ prisma, requirePermission, inventoryScope, inventoryAreaService, InventoryServiceError }) {
+export function createInventoryAreaRouter({ prisma, requirePermission, inventoryScope, inventoryAreaService, InventoryServiceError, supabaseAdmin = null }) {
   const router = new Hono();
   const read = requirePermission('inventory.item.read');
   const manage = requirePermission('inventory.area.manage');
@@ -69,7 +70,13 @@ export function createInventoryAreaRouter({ prisma, requirePermission, inventory
     try {
       const areaId = c.req.param('id');
       if (!(await canAdminMembers(c, areaId))) return deny(c);
-      return c.json({ data: await inventoryAreaService.listMembers(c.get('companyId'), areaId) });
+      const members = await inventoryAreaService.listMembers(c.get('companyId'), areaId);
+      // Profile photos for the members list (initials when a user has none).
+      const people = members.map((m) => m.user).filter(Boolean);
+      people.forEach((u) => { u.userProfileId = u.id; });
+      await attachUserAvatarUrls(people, { prisma, supabaseAdmin });
+      people.forEach((u) => { delete u.userProfileId; });
+      return c.json({ data: members });
     } catch (err) { return fail(c, err, 'No se pudieron cargar los miembros.'); }
   });
 

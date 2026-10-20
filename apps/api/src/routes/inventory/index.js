@@ -54,7 +54,7 @@ export function createInventoryRouter({
   const requirePermission = guards.withScopeGuard(baseRequirePermission);
   const scopeOf = (c) => inventoryScope.fromContext(c);
   const itemConnections = createCoreTargetConnections({ prisma, targetType: "inventory_item" });
-  router.route('/', createInventoryAreaRouter({ prisma, requirePermission, inventoryScope, inventoryAreaService, InventoryServiceError }));
+  router.route('/', createInventoryAreaRouter({ prisma, requirePermission, inventoryScope, inventoryAreaService, InventoryServiceError, supabaseAdmin }));
   router.route('/', createInventoryGuestInviteRouter({ requirePermission, inventoryScope, guestService, InventoryServiceError }));
   router.route('/', createInventoryIntakeRouter({ prisma, requirePermission, inventoryScope }));
   router.route('/', createInventoryModelsRouter({ prisma, requirePermission, inventoryService, InventoryServiceError }));
