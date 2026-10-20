@@ -66,10 +66,38 @@ export function applicableCustomFields(customFields = [], categoryId) {
   return customFields.filter((f) => !f.categoryId || f.categoryId === cat)
 }
 
+// Entries ({ field, value }) the form starts with, in the shape DynamicFieldsSection expects: the
+// values the item already holds plus the required fields that apply to its type. Every other custom
+// field is added on demand by the supplier, like in the main item form.
+export function guestCustomEntries(item, customFields = []) {
+  const byId = new Map(customFields.map((f) => [f.id, f]))
+  const entries = []
+  const seen = new Set()
+  for (const cv of item?.customValues ?? []) {
+    const field = byId.get(cv.fieldId)
+    if (!field || seen.has(field.id)) continue
+    seen.add(field.id)
+    entries.push({ field, value: cv.value ?? '' })
+  }
+  for (const field of applicableCustomFields(customFields, item?.categoryId)) {
+    if (field.required && !seen.has(field.id)) { seen.add(field.id); entries.push({ field: { ...field, onDemand: true }, value: '' }) }
+  }
+  return entries
+}
+
 // Creating sends areaId; editing never does (suppliers cannot move items).
 // `statusEditable` false (assigned / retired items) leaves the admin-managed status untouched.
-export function buildGuestPayload(values, { create, customFields = [], statusEditable = true }) {
-  const applicable = applicableCustomFields(customFields, values.categoryId)
+// `extraDefs` are the custom fields in use on the form (reported by DynamicFieldsSection); only those
+// are sent, as { fieldId, value }. A field the supplier removed from an existing item is cleared (null).
+export function buildGuestPayload(values, { create, extraDefs = [], statusEditable = true, originalFieldIds = [] }) {
+  const cv = values.customValues ?? {}
+  const used = new Set(extraDefs.map((f) => f.id))
+  const customValues = extraDefs.map((f) => {
+    const raw = cv[f.fieldKey]
+    return { fieldId: f.id, value: raw === null || raw === undefined ? null : blank(String(raw)) }
+  })
+  const removed = Array.isArray(cv.__removed) ? cv.__removed : []
+  for (const id of removed) if (originalFieldIds.includes(id) && !used.has(id)) customValues.push({ fieldId: id, value: null })
   const payload = {
     modelId: blank(values.modelId),
     model: blank(values.model),
@@ -85,12 +113,7 @@ export function buildGuestPayload(values, { create, customFields = [], statusEdi
     warrantyExpiry: blank(values.warrantyExpiry),
     warrantyNotes: blank(values.warrantyNotes),
     notes: blank(values.notes),
-    customValues: applicable
-      .filter((f) => f.fieldKey in (values.customValues ?? {}))
-      .map((f) => {
-        const raw = values.customValues[f.fieldKey]
-        return { fieldId: f.id, value: raw === null || raw === undefined ? null : blank(String(raw)) }
-      }),
+    customValues,
   }
   if (statusEditable) payload.status = values.status
   return create ? { areaId: values.areaId, ...payload } : payload

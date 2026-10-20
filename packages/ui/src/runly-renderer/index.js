@@ -15,3 +15,4 @@ export { BulkActionBar } from "./BulkActionBar.jsx";
 export { shouldUsePageMode, normalizeToFilterBarFilters, normalizeToFilterMenuSpecs, normalizeSpanishLabel } from "./renderer-adapters.js";
 export { CostsSummaryPanel } from "./CostsSummaryPanel.jsx";
 export { fetchSignedUrl, fetchUserAvatarSignedUrl } from "./runly-detail-hero.jsx";
+export { DynamicFieldsSection } from "./DynamicFieldsSection.jsx";

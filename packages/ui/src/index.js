@@ -376,6 +376,7 @@ export {
   CostsSummaryPanel,
   fetchSignedUrl,
   fetchUserAvatarSignedUrl,
+  DynamicFieldsSection,
 } from "./runly-renderer/index.js";
 
 export { UserSearchModal } from "./components/UserSearchModal.jsx";

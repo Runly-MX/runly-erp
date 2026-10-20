@@ -1,14 +1,41 @@
 import { Controller } from 'react-hook-form'
-import { ComboboxField, DateField, SectionCard, SelectField, TextareaField, TextField } from '@runly/ui'
-import { Activity, Barcode, FolderTree, Hash, MapPin, Package, ScanLine, SlidersHorizontal, StickyNote } from 'lucide-react'
+import { ComboboxField, DateField, DynamicFieldsSection, SectionCard, SelectField, TextareaField, TextField } from '@runly/ui'
+import { Activity, Barcode, FolderTree, Hash, MapPin, Package, ScanLine, StickyNote } from 'lucide-react'
+import { useMemo } from 'react'
 import { InventoryDataProvider } from '../../hooks/inventoryData.js'
 import { guestInventoryData } from '../../hooks/useInventoryGuestCatalog.js'
 import { identifierConflictMessage } from '../../lib/guest-capabilities.js'
-import { applicableCustomFields } from '../../lib/guest-form.js'
+import { getApiUrl } from '../../../../lib/runtimeConfig.js'
+import { useGuestCall } from '../../hooks/useInventoryGuest.js'
 import { GUEST_WRITABLE_STATUS_OPTIONS } from '../../lib/guest-session.js'
-import { InventoryCustomFieldsForm } from '../InventoryCustomFieldsForm.jsx'
 import { InventoryItemClassification } from '../InventoryItemClassification.jsx'
 import { GuestCatalogField } from './GuestCatalogField.jsx'
+
+const CUSTOM_PREFIX = 'customValues'
+const GUEST_CUSTOM_FIELDS = { apiPath: '/inventory/guest/custom-fields', valuePrefix: CUSTOM_PREFIX, categoryField: 'categoryId' }
+
+// Custom fields on demand, like the main item form: only the ones the item holds (or requires) show,
+// the supplier adds the rest from the chooser and can remove them. Suppliers cannot create field
+// definitions (no createPath). Flat `customValues.<key>` values are bridged to the nested form value.
+function GuestCustomFields({ form, entries, resetKey, onDefinitionsChange }) {
+  const { sessionToken } = useGuestCall()
+  const { watch, setValue } = form
+  const custom = watch(CUSTOM_PREFIX) ?? {}
+  const headers = useMemo(() => ({ Authorization: `Guest ${sessionToken}` }), [sessionToken])
+  const formValues = useMemo(() => {
+    const flat = {}
+    for (const [k, v] of Object.entries(custom)) flat[`${CUSTOM_PREFIX}.${k}`] = v
+    return flat
+  }, [custom])
+  const onFieldChange = (name, value) => {
+    const key = name.slice(CUSTOM_PREFIX.length + 1)
+    setValue(CUSTOM_PREFIX, { ...(form.getValues(CUSTOM_PREFIX) ?? {}), [key]: value }, { shouldDirty: true })
+  }
+  return (
+    <DynamicFieldsSection key={resetKey} config={GUEST_CUSTOM_FIELDS} formValues={formValues} onFieldChange={onFieldChange}
+      initialEntries={entries} apiBaseUrl={getApiUrl()} headers={headers} onDefinitionsChange={onDefinitionsChange} />
+  )
+}
 
 const CLASSIFICATION_KEYS = ['modelId', 'model', 'categoryId', 'brandId']
 
@@ -19,10 +46,9 @@ function ConflictNote({ field, hit }) {
 
 // Sections follow the main item form (blueprint INVENTORY_ITEM_FORM): classification, identification,
 // location and status, warranty, custom fields and notes. Everything commercial / administrative is absent.
-export function GuestItemFormSections({ form, item, areaOptions, areaLabel, catalogs, canCreate, statusEditable, conflicts }) {
+export function GuestItemFormSections({ form, item, areaOptions, areaLabel, catalogs, canCreate, statusEditable, conflicts, customEntries, customResetKey, onCustomDefinitions }) {
   const { control, register, watch, setValue, formState: { errors } } = form
   const values = watch()
-  const visibleFields = applicableCustomFields(catalogs?.customFields ?? [], values.categoryId)
   const err = (k) => errors[k]?.message
 
   function applyClassification(patch) {
@@ -94,12 +120,9 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
         </div>
       </SectionCard>
 
-      {visibleFields.length ? (
-        <SectionCard title="Campos personalizados" description="Datos adicionales definidos por la empresa.">
-          <div className="flex items-center gap-1.5 pb-3 text-xs text-[hsl(var(--muted-foreground))]"><SlidersHorizontal className="h-3.5 w-3.5" />Aplican según el tipo elegido.</div>
-          <InventoryCustomFieldsForm customFields={visibleFields} control={control} />
-        </SectionCard>
-      ) : null}
+      <SectionCard title="Campos personalizados" description="Agrega solo los datos adicionales que necesites.">
+        <GuestCustomFields form={form} entries={customEntries} resetKey={customResetKey} onDefinitionsChange={onCustomDefinitions} />
+      </SectionCard>
 
       <SectionCard title="Notas">
         <TextareaField label="Notas adicionales" icon={StickyNote} rows={3} maxLength={2000} error={err('notes')} {...register('notes')} />

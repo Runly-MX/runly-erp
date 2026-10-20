@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Button, ConfirmDialog, PageHeader, SectionCard } from '@runly/ui'
-import { Lock } from 'lucide-react'
+import { Alert, Button, ConfirmDialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, PageHeader, SectionCard } from '@runly/ui'
+import { CopyPlus, Lock, MoreHorizontal, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCreateGuestItem, useGuestCatalogs, useGuestMe, useUpdateGuestItem, useUploadGuestFile } from '../../hooks/useInventoryGuest.js'
 import { useGuestIdentifierConflicts } from '../../hooks/useInventoryGuestCatalog.js'
 import { areaPathLabel } from '../../lib/area-tree.js'
 import { capabilitiesFor, writableAreas } from '../../lib/guest-capabilities.js'
-import { buildGuestPayload, guestItemDefaults, guestItemSchema } from '../../lib/guest-form.js'
+import { buildGuestPayload, guestCustomEntries, guestItemDefaults, guestItemSchema } from '../../lib/guest-form.js'
 import { GUEST_WRITABLE_STATUS_OPTIONS, guestErrorMessage } from '../../lib/guest-session.js'
 import { GuestFormFiles } from './GuestFormFiles.jsx'
 import { GuestItemFormSections } from './GuestItemFormSections.jsx'
@@ -16,8 +16,8 @@ import { GuestItemFormSections } from './GuestItemFormSections.jsx'
 const coarse = '[@media(pointer:coarse)]:min-h-11'
 
 // Full-page create / edit form for suppliers. Same fields and behavior as the main item form:
-// sticky action bar (safe-area aware), confirm before discarding changes, validation on blur and
-// focus on the first invalid field. New items go in as a "propuesta de alta" the team confirms.
+// action bar (inline on desktop; on mobile a compact fixed bar that only shows once there are changes),
+// confirm before discarding changes, validation on blur and focus on the first invalid field. New items go in as a "propuesta de alta" the team confirms.
 export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, onSaved }) {
   const me = useGuestMe().data
   const catalogs = useGuestCatalogs().data
@@ -36,12 +36,17 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
   const { handleSubmit, reset, setError, setFocus, watch, formState: { isDirty, isSubmitting } } = form
   const [staged, setStaged] = useState([])
   const [leaveOpen, setLeaveOpen] = useState(false)
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const [extraDefs, setExtraDefs] = useState([])
+  const [customKey, setCustomKey] = useState(0)
   const again = useRef(false)
 
   const areaId = watch('areaId')
   const canCreate = capabilitiesFor(me, areaId || null).canCreateModels
   const conflicts = useGuestIdentifierConflicts({ serialNumber: watch('serialNumber'), assetTag: watch('assetTag'), excludeId: item?.id ?? null, original: item })
   const dirty = isDirty || staged.length > 0
+  const customEntries = useMemo(() => guestCustomEntries(item, customFields), [item, customFields])
+  const originalFieldIds = useMemo(() => (item?.customValues ?? []).map((cv) => cv.fieldId), [item])
 
   // Defaults depend on data that may arrive after the first render (catalog custom fields, areas).
   useEffect(() => { if (!isDirty) reset(guestItemDefaults(item, presetArea, customFields)) }, [item?.id, presetArea, customFields.length]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -55,7 +60,7 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
   const requestBack = () => (dirty ? setLeaveOpen(true) : onBack())
 
   async function onSubmit(values) {
-    const payload = buildGuestPayload(values, { create: isCreate, customFields, statusEditable })
+    const payload = buildGuestPayload(values, { create: isCreate, extraDefs, statusEditable, originalFieldIds })
     try {
       const saved = isCreate ? await create.mutateAsync(payload) : await update.mutateAsync({ id: item.id, ...payload })
       let failed = 0
@@ -65,6 +70,7 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
       setStaged([])
       if (isCreate && again.current) {
         reset(guestItemDefaults(null, values.areaId, customFields))
+        setCustomKey((k) => k + 1)
         window.scrollTo?.({ top: 0 })
         return
       }
@@ -83,6 +89,13 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
     try { setFocus(first) } catch { document.querySelector(`[name="${first}"]`)?.focus() }
   }
 
+  function discard() {
+    setDiscardOpen(false)
+    reset(guestItemDefaults(item, presetArea, customFields))
+    setStaged([])
+    setCustomKey((k) => k + 1)
+  }
+
   const submit = (keepAdding) => () => { again.current = keepAdding; return handleSubmit(onSubmit, onInvalid)() }
 
   if (isCreate && me && writable.length === 0) {
@@ -95,7 +108,7 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
   }
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); submit(false)() }} noValidate className="pb-28 md:pb-6">
+    <form onSubmit={(e) => { e.preventDefault(); submit(false)() }} noValidate className={dirty ? 'pb-24 transition-[padding] duration-200 motion-reduce:transition-none md:pb-6' : 'pb-6'}>
       <PageHeader
         title={isCreate ? 'Agregar item' : 'Editar item'}
         description={isCreate ? 'Registra un item en una de tus carpetas. Llegará como propuesta de alta.' : (item.folio || item.name)}
@@ -103,7 +116,8 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
       />
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <GuestItemFormSections form={form} item={item} areaOptions={areaOptions} areaLabel={areaPathLabel(areas, areaId) || 'Sin carpeta'}
-          catalogs={catalogs} canCreate={canCreate} statusEditable={statusEditable} conflicts={conflicts} />
+          catalogs={catalogs} canCreate={canCreate} statusEditable={statusEditable} conflicts={conflicts}
+          customEntries={customEntries} customResetKey={customKey} onCustomDefinitions={setExtraDefs} />
         <aside className="lg:sticky lg:top-20 lg:self-start">
           <SectionCard title="Fotos y archivos">
             <GuestFormFiles itemId={item?.id ?? null} staged={staged} onStagedChange={setStaged} />
@@ -111,16 +125,31 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
         </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))]/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:static md:z-auto md:mt-4 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
-        <div className="mx-auto flex max-w-7xl flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-          <Button type="button" variant="ghost" className={coarse} onClick={requestBack}>Cancelar</Button>
-          {isCreate ? <Button type="button" variant="outline" className={coarse} disabled={isSubmitting} onClick={submit(true)}>Guardar y agregar otro</Button> : null}
-          <Button type="submit" className={coarse} disabled={isSubmitting}>
+      {/* Mobile: one compact row, fixed, only while there are changes. md+: the inline row, always. */}
+      <div
+        aria-hidden={!dirty ? 'true' : undefined}
+        className={`fixed inset-x-0 bottom-0 z-30 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))]/95 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur transition-[transform,opacity,visibility] duration-200 ease-out motion-reduce:transition-none md:visible md:static md:z-auto md:mt-4 md:translate-y-0 md:border-0 md:bg-transparent md:p-0 md:opacity-100 md:backdrop-blur-none ${dirty ? 'visible translate-y-0 opacity-100' : 'invisible translate-y-full opacity-0'}`}
+      >
+        <div className="mx-auto flex max-w-7xl items-center gap-2 md:justify-end">
+          <Button type="button" variant="ghost" className={`hidden md:inline-flex ${coarse}`} onClick={requestBack}>Cancelar</Button>
+          {isCreate ? <Button type="button" variant="outline" className={`hidden md:inline-flex ${coarse}`} disabled={isSubmitting} onClick={submit(true)}>Guardar y agregar otro</Button> : null}
+          <Button type="submit" className={`min-w-0 flex-1 md:flex-none ${coarse}`} disabled={isSubmitting}>
             {isSubmitting ? 'Guardando...' : isCreate ? 'Enviar propuesta de alta' : 'Guardar cambios'}
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="icon" className="shrink-0 md:hidden" aria-label="Más acciones" disabled={isSubmitting}><MoreHorizontal /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top">
+              {isCreate ? <DropdownMenuItem className="min-h-11" onSelect={submit(true)}><CopyPlus className="h-4 w-4" />Guardar y agregar otro</DropdownMenuItem> : null}
+              <DropdownMenuItem className="min-h-11" onSelect={() => setDiscardOpen(true)}><Undo2 className="h-4 w-4" />Descartar cambios</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
+      <ConfirmDialog open={discardOpen} onOpenChange={setDiscardOpen} title="Descartar cambios"
+        description="Se restablecerá el formulario y se perderán los cambios sin guardar." confirmLabel="Descartar" onConfirm={discard} />
       <ConfirmDialog open={leaveOpen} onOpenChange={setLeaveOpen} title="Descartar cambios"
         description="Tienes cambios sin guardar. Si sales ahora se perderán." confirmLabel="Descartar" onConfirm={() => { setLeaveOpen(false); onBack() }} />
     </form>

@@ -125,10 +125,10 @@ function DynamicFieldControl({ definition, value, onChange, suggestions }) {
   }
 }
 
-async function fetchDefinitions({ apiBaseUrl, apiPath, categoryId, token, companyId }) {
+async function fetchDefinitions({ apiBaseUrl, apiPath, categoryId, headers }) {
   const url = new URL(joinUrl(apiBaseUrl, apiPath));
   if (categoryId) url.searchParams.set("categoryId", String(categoryId));
-  const res = await fetch(url.toString(), { headers: buildApiHeaders(token, companyId) });
+  const res = await fetch(url.toString(), { headers });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   return Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
@@ -151,7 +151,10 @@ export function DynamicFieldsSection({
   apiBaseUrl,
   token,
   companyId,
+  headers = null,
 }) {
+  // `headers` overrides the Bearer/company headers (the supplier portal authenticates with `Guest <token>`).
+  const requestHeaders = headers ?? buildApiHeaders(token, companyId);
   const [library, setLibrary] = useState(null);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [addedExtras, setAddedExtras] = useState([]);
@@ -186,7 +189,7 @@ export function DynamicFieldsSection({
     ? async (fieldId, search) => {
         const url = new URL(joinUrl(apiBaseUrl, `${config.apiPath}/${fieldId}/values`));
         if (search) url.searchParams.set("search", search);
-        const res = await fetch(url.toString(), { headers: buildApiHeaders(token, companyId) });
+        const res = await fetch(url.toString(), { headers: requestHeaders });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         return Array.isArray(json.data) ? json.data : [];
@@ -196,7 +199,7 @@ export function DynamicFieldsSection({
   function loadLibrary(open) {
     if (!open || library || libraryLoading || !config?.apiPath) return;
     setLibraryLoading(true);
-    fetchDefinitions({ apiBaseUrl, apiPath: config.apiPath, categoryId: "all", token, companyId })
+    fetchDefinitions({ apiBaseUrl, apiPath: config.apiPath, categoryId: "all", headers: requestHeaders })
       .then(setLibrary)
       .catch(() => setLibrary([]))
       .finally(() => setLibraryLoading(false));

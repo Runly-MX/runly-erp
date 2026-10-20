@@ -36,7 +36,7 @@ export function GuestProposeDeregistrationDialog({ item, open, onOpenChange }) {
           <SelectField label="Motivo" required value={reason} placeholder="Elegir motivo" options={DEREGISTRATION_REASONS}
             onValueChange={(v) => { setReason(v); setError('') }} error={error} />
         </div>
-        <DialogFooter className="shrink-0">
+        <DialogFooter className="mt-4 shrink-0 flex-row justify-end [&>*]:flex-1 sm:[&>*]:flex-none">
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button type="button" disabled={propose.isPending} onClick={send}>{propose.isPending ? 'Enviando...' : 'Enviar propuesta'}</Button>
         </DialogFooter>
