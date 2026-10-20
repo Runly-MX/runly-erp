@@ -31,7 +31,7 @@ export function ConnectionSectionsPresentation({ sections = [] }) {
   if (!sections.length) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {sections.map((section) => (
         <Card key={section.connectionId}>
           <CardHeader className="pb-3"><SectionTitle section={section} /></CardHeader>

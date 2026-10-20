@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react'
 import { itemLabel } from '../lib/item-label.js'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ErrorState, ConfirmDialog, RecordHeader, DetailSkeleton } from '@runly/ui'
+import { ErrorState, ConfirmDialog, RecordHeader, DetailSkeleton, Tooltip, TooltipTrigger, TooltipContent } from '@runly/ui'
 import { InventoryItemPresentation } from '@runly/ui/integrations'
-import { ArrowLeft, Plus, PowerOff, Sparkles } from 'lucide-react'
+import { ArrowLeft, FolderInput, Plus, PowerOff, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { useInventoryItem, useDeleteInventoryItem } from '../hooks/useInventoryItems.js'
 import { useInventoryCan } from '../hooks/useInventoryAdmin.js'
-import { ItemAreaCard } from '../components/areas/ItemAreaCard.jsx'
+import { AreaMoveDialog } from '../components/areas/AreaMoveDialog.jsx'
+import { useAreaChoices } from '../hooks/useAreaChoices.js'
+import { AREA_NONE, areaPathLabel } from '../lib/area-tree.js'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
 import { CanvasReferences } from '../../runly.canvas/components/CanvasReferences.jsx'
 import { ConnectionSections } from '../../../shell/connections/ConnectionSections.jsx'
@@ -24,6 +26,8 @@ export default function InventoryItemDetail() {
   const id = useMemo(() => (wildcard ?? '').split('/')[1] ?? null, [wildcard])
   const navigate = useNavigate()
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [moveOpen, setMoveOpen] = useState(false)
+  const { areas, writeOptions } = useAreaChoices()
 
   const { session } = useAuth()
   const token = session?.access_token
@@ -34,7 +38,13 @@ export default function InventoryItemDetail() {
   const item = data?.data ?? data
   // The "Etiqueta / QR" section is shown only with inventory.label.read.
   const canReadLabels = useInventoryCan()('inventory.label.read')
-  const detailData = useMemo(() => (item ? { ...item, canReadLabels } : item), [item, canReadLabels])
+  // The "Área" field of Identificación only exists once the company uses areas.
+  const detailData = useMemo(() => {
+    if (!item) return item
+    const hasAreas = areas.length > 0
+    const areaPath = item.areaId ? (areaPathLabel(areas, item.areaId) || 'Área sin acceso') : 'General'
+    return { ...item, canReadLabels, hasAreas, areaPath, areaFilterValue: item.areaId || AREA_NONE }
+  }, [item, canReadLabels, areas])
   useMiraiRecordContext({ recordType: 'item', recordId: id, label: item?.name })
 
   if (isLoading) {
@@ -55,6 +65,24 @@ export default function InventoryItemDetail() {
 
   // A deregistered item is read-only (the API refuses edits too).
   const readOnly = item.adminStatus === 'deregistered'
+  const canMoveArea = !readOnly && writeOptions.length > 0
+  const fieldActions = canMoveArea ? {
+    areaPath: (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label="Mover de área"
+            onClick={() => setMoveOpen(true)}
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] pointer-coarse:h-11 pointer-coarse:w-11"
+          >
+            <FolderInput className="h-3.5 w-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Mover de área</TooltipContent>
+      </Tooltip>
+    ),
+  } : undefined
 
   const handleDelete = async () => {
     await deleteItem.mutateAsync(id)
@@ -88,10 +116,12 @@ export default function InventoryItemDetail() {
         onBack={() => navigate('/app/m/runly.inventory/inventory')}
         onFilterByValue={({ param, value }) => navigate(`/app/m/runly.inventory/inventory?${new URLSearchParams({ [param]: value })}`)}
         onEdit={readOnly ? undefined : () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`)}
-        mainExtra={<><ItemAreaCard itemId={id} areaId={item.areaId ?? null} canEdit={!readOnly} /><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /></>}
+        fieldActions={fieldActions}
+        mainExtra={<><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /></>}
         asideExtra={<CanvasReferences moduleKey="runly.inventory" entityType="inventory_item" entityId={id} />}
         heroActions={false}
       />
+      <AreaMoveDialog open={moveOpen} onOpenChange={setMoveOpen} itemIds={[id]} options={writeOptions} />
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

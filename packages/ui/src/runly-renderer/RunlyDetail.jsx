@@ -65,6 +65,9 @@ const STATUS_COLORS = {
 
 const matchesFieldRule = matchesVisibilityRule;
 const MOBILE_ORDER = "min-w-0 order-(--mobile-order) lg:order-none";
+// Screen-owned extras (mainExtra / asideExtra): stack their cards with the same
+// gap-6 the section columns use, and collapse when nothing renders inside.
+const EXTRA_STACK = "flex min-w-0 flex-col gap-6 empty:hidden";
 
 function normalizeField(fieldLike) {
   if (!fieldLike || typeof fieldLike !== "object") return null;
@@ -517,6 +520,10 @@ export function RunlyDetail({
   // `filterBy: { param, valueField? }` get a magnifier that calls it so the
   // host can open its list filtered by that exact value.
   onFilterByValue = null,
+  // { [fieldName]: ReactNode | (data) => ReactNode } extra controls (icon buttons)
+  // rendered right after a field value in "fields" sections, next to the
+  // optional filterBy magnifier. The host owns state/dialogs.
+  fieldActions = null,
 }) {
   const schema = blueprint?.schema ?? {};
   const fieldMap = useMemo(() => normalizeFieldMap(fields), [fields]);
@@ -707,7 +714,7 @@ export function RunlyDetail({
                   <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                     <FieldLabel field={field} />
                   </dt>
-                  <dd className={cn("text-sm font-semibold text-[hsl(var(--foreground))]", canFilter && "flex items-center gap-1")}>
+                  <dd className={cn("text-sm font-semibold text-[hsl(var(--foreground))]", (canFilter || fieldActions?.[field.name]) && "flex items-center gap-1")}>
                     {isMarkdown ? (
                       strValue ? (
                         <MarkdownViewer value={strValue} />
@@ -754,6 +761,9 @@ export function RunlyDetail({
                         }
                       />
                     ) : null}
+                    {fieldActions?.[field.name]
+                      ? (typeof fieldActions[field.name] === "function" ? fieldActions[field.name](data) : fieldActions[field.name])
+                      : null}
                   </dd>
                 </div>
               );
@@ -831,13 +841,13 @@ export function RunlyDetail({
             {mainSections.map((section) => (
               <div key={section.id} className={MOBILE_ORDER} style={{ "--mobile-order": mobileOrder.get(section.id) }}>{renderSection(section)}</div>
             ))}
-            {mainExtra ? <div className={MOBILE_ORDER} style={{ "--mobile-order": 5000 }}>{mainExtra}</div> : null}
+            {mainExtra ? <div className={cn(MOBILE_ORDER, EXTRA_STACK)} style={{ "--mobile-order": 5000 }}>{mainExtra}</div> : null}
           </div>
           <div className="contents lg:block lg:min-w-0 lg:space-y-6">
             {asideSections.map((section) => (
               <div key={section.id} className={MOBILE_ORDER} style={{ "--mobile-order": asideMobileOrder(section) }}>{renderSection(section)}</div>
             ))}
-            {asideExtra ? <div className={MOBILE_ORDER} style={{ "--mobile-order": 20000 }}>{asideExtra}</div> : null}
+            {asideExtra ? <div className={cn(MOBILE_ORDER, EXTRA_STACK)} style={{ "--mobile-order": 20000 }}>{asideExtra}</div> : null}
           </div>
           {fullSections.length > 0 && (
             <div className="min-w-0 space-y-6 lg:col-span-2 order-last">
@@ -848,8 +858,8 @@ export function RunlyDetail({
       ) : (
         <div className="space-y-6">
           {visibleSections.map(renderSection)}
-          {mainExtra}
-          {asideExtra}
+          {mainExtra ? <div className={EXTRA_STACK}>{mainExtra}</div> : null}
+          {asideExtra ? <div className={EXTRA_STACK}>{asideExtra}</div> : null}
         </div>
       )}
     </div>

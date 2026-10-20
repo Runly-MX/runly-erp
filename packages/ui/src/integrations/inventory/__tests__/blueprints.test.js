@@ -18,6 +18,14 @@ test('detail: purchase order and invoice live in Identificación; one acquisitio
   assert.deepEqual(legacy.visibleWhen, { field: 'hasLegacyPurchaseData', truthy: true })
 })
 
+test('detail: the area lives in Identificación, only when the company has areas, filtering by area id', () => {
+  const identification = INVENTORY_ITEM_DETAIL.schema.sections.find((s) => s.id === 'identification')
+  const area = identification.fields.find((f) => f.field === 'areaPath')
+  assert.equal(identification.fields[0], area)
+  assert.deepEqual(area.visibleWhen, { field: 'hasAreas', truthy: true })
+  assert.deepEqual(area.filterBy, { param: 'areaId', valueField: 'areaFilterValue' })
+})
+
 test('detail: files are first in the aside column and follow Identificación on mobile', () => {
   const aside = INVENTORY_ITEM_DETAIL.schema.sections.filter((s) => s.column === 'aside')
   assert.equal(aside[0].id, 'attachments')

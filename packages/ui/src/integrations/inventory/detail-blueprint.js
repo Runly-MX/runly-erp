@@ -43,6 +43,9 @@ export const INVENTORY_ITEM_DETAIL = {
         column: 'main',
         columns: 2,
         fields: [
+          // Folder path ("Padre / Hijo" or "General"). The host supplies areaPath, areaFilterValue
+          // (area id or "__none__") and hasAreas, and adds the "Mover de área" button via fieldActions.
+          { field: 'areaPath', label: 'Área', icon: 'Folder', filterBy: { param: 'areaId', valueField: 'areaFilterValue' }, visibleWhen: { field: 'hasAreas', truthy: true } },
           { field: 'folio', label: 'Folio', icon: 'Hash', filterBy: { param: 'folio' } },
           { field: 'serialNumber', label: 'Número de serie', icon: 'Barcode', filterBy: { param: 'serialNumber' } },
           { field: 'assetTag', label: 'Número de activo', icon: 'Hash', filterBy: { param: 'assetTag' } },
