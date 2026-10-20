@@ -1939,3 +1939,12 @@ Plan `docs/superpowers/plans/2026-10-20-inventory-supplier-portal-backend.md`. B
 - [x] Guest API isolation: other area, General, other company, non-guest routes, viewer writes, forbidden fields, revoked guest, user vs guest tokens (real `createAuthMiddleware`), audit tagged with the guest. Verified: 2026-10-20 (guest-isolation 20/20, inventory-guest-schema 5/5; node --test over apps/api services, routes/inventory, routes/lms: 1221 tests, 1217 pass, 2 fail not related: runly-env root overrides on Windows paths, lms-cert-pdf-layout passes alone; `pnpm lint` clean)
 - [ ] Not exercised against a live API boot, real SMTP, or real Storage uploads; route ordering of `/inventory/guest` before the `mountWithAuth` routers is only checked by reading `index.js`. Company deletion sweep of the new tables is argued from the catalog-driven design and a schema test, not run against a populated database.
 
+
+## Inventory areas: supplier portal frontend (phase 3)
+
+Plan `docs/superpowers/plans/2026-10-20-inventory-supplier-portal-backend.md` (backend); this batch is the UI.
+
+- [x] Pure client logic: session storage/expiry/refresh timing, portal URL, status and error labels, supplier item form schema and payload mapping. Verified: 2026-10-20 (`node --test apps/desktop/src/modules/runly.inventory/lib/__tests__/guest-*.test.js` 8/8)
+- [x] SDK areas domain gained the guest invitation calls. Verified: 2026-10-20 (`node --test packages/sdk/src/__tests__/sdk-inventory-areas.test.js` 4/4)
+- [x] Portal at `/app/p/inventory/:token`, manager tab "Proveedores" in the members sheet compile and lint. Verified: 2026-10-20 (`pnpm lint` clean, `pnpm build:web` ok)
+- [ ] NOT verified in a browser or against a live API: link exchange with and without code, session refresh/expiry handling, folder nav, list/filters/pagination, create/edit/upload/delete, viewer read-only state, mobile layout and Sheets, the invite/resend/revoke flow and the DataTable inside the portal. Never run on touch devices.

@@ -38,4 +38,18 @@ describe('SDK - inventory areas', () => {
     const own = await call((c) => c.inventory.setAreasSettings({ includeOwn: false }, 't'))
     assert.deepEqual(own.body, { includeOwn: false })
   })
+
+  it('manages supplier guests', async () => {
+    assert.equal((await call((c) => c.inventory.listAreaGuests('a1', 't'))).url, 'http://api/inventory/areas/a1/guests')
+    const inv = await call((c) => c.inventory.inviteAreaGuest('a1', { email: 'p@x.com', role: 'viewer' }, 't'))
+    assert.equal(inv.method, 'POST')
+    assert.deepEqual(inv.body, { email: 'p@x.com', role: 'viewer' })
+    const del = await call((c) => c.inventory.removeAreaGuest('a1', 'g1', 't'))
+    assert.equal(del.url, 'http://api/inventory/areas/a1/guests/g1')
+    assert.equal(del.method, 'DELETE')
+    const re = await call((c) => c.inventory.resendGuestInvite('g1', { requireCode: true }, 't'))
+    assert.equal(re.url, 'http://api/inventory/guests/g1/resend')
+    assert.deepEqual(re.body, { requireCode: true })
+    assert.equal((await call((c) => c.inventory.revokeGuest('g1', 't'))).url, 'http://api/inventory/guests/g1/revoke')
+  })
 })

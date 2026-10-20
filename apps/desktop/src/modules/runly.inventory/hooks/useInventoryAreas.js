@@ -100,3 +100,50 @@ export function useMoveInventoryItems() {
     onSuccess: invalidate,
   })
 }
+
+// Supplier (guest) invitations of one area.
+export function useInventoryAreaGuests(areaId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['inventory', 'areas', 'guests', areaId],
+    queryFn: () => runly.inventory.listAreaGuests(areaId, token).then((res) => res?.data ?? res ?? []),
+    enabled: Boolean(token) && Boolean(areaId),
+  })
+}
+
+// Mutations resolve to the API payload ({ guest, link, code, sent, mailError } for invite/resend).
+export function useInviteInventoryAreaGuest(areaId) {
+  const token = useToken()
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: (data) => runly.inventory.inviteAreaGuest(areaId, data, token).then((res) => res?.data ?? res),
+    onSuccess: invalidate,
+  })
+}
+
+export function useResendInventoryGuest() {
+  const token = useToken()
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: ({ guestId, requireCode }) => runly.inventory.resendGuestInvite(guestId, requireCode === undefined ? {} : { requireCode }, token).then((res) => res?.data ?? res),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRevokeInventoryGuest() {
+  const token = useToken()
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: (guestId) => runly.inventory.revokeGuest(guestId, token),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRemoveInventoryAreaGuest(areaId) {
+  const token = useToken()
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: (guestId) => runly.inventory.removeAreaGuest(areaId, guestId, token),
+    onSuccess: invalidate,
+  })
+}

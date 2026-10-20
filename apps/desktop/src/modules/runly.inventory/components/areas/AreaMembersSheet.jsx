@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Button, ConfirmDialog, EmptyState, ErrorState, PersonAvatar, SelectField, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton, UserSearchModal } from '@runly/ui'
-import { UserPlus, Users } from 'lucide-react'
+import { Button, ChipTabs, ConfirmDialog, EmptyState, ErrorState, PersonAvatar, SelectField, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton, UserSearchModal } from '@runly/ui'
+import { Truck, UserPlus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../../lib/runtimeConfig.js'
+import { AreaGuestsPanel } from './AreaGuestsPanel.jsx'
 import { useInventoryAreaMembers, useRemoveInventoryAreaMember, useSetInventoryAreaMember } from '../../hooks/useInventoryAreas.js'
 
 export const AREA_ROLE_OPTIONS = [
@@ -22,7 +23,10 @@ export function AreaMembersSheet({ area, open, onOpenChange }) {
   const removeMember = useRemoveInventoryAreaMember(area?.id)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [removeTarget, setRemoveTarget] = useState(null)
-  const rows = members.data ?? []
+  const [tab, setTab] = useState('members')
+  const [inviteOpen, setInviteOpen] = useState(false)
+  // Suppliers (guests) are managed in their own tab.
+  const rows = (members.data ?? []).filter((m) => m.kind !== 'guest')
 
   async function changeRole(userId, role) {
     try { await setMember.mutateAsync({ userId, role }) } catch (err) { toast.error(err?.message ?? 'No se pudo cambiar el rol') }
@@ -51,8 +55,14 @@ export function AreaMembersSheet({ area, open, onOpenChange }) {
             <SheetTitle>Miembros de {area?.name}</SheetTitle>
             <SheetDescription>Ven los items de esta área y de sus subcarpetas, según su rol.</SheetDescription>
           </SheetHeader>
+          <ChipTabs
+            ariaLabel="Tipo de miembro" value={tab} onChange={setTab} showDescription={false}
+            tabs={[{ value: 'members', label: 'Equipo', icon: Users }, { value: 'guests', label: 'Proveedores', icon: Truck }]}
+          />
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4">
-            {members.isLoading ? (
+            {tab === 'guests' ? (
+              <AreaGuestsPanel area={area} inviteOpen={inviteOpen} onInviteOpenChange={setInviteOpen} />
+            ) : members.isLoading ? (
               <Skeleton className="h-16 w-full" />
             ) : members.isError ? (
               <ErrorState title="No se pudieron cargar los miembros" description={members.error?.message} onRetry={() => members.refetch()} />
@@ -73,7 +83,11 @@ export function AreaMembersSheet({ area, open, onOpenChange }) {
             ))}
           </div>
           <div className="shrink-0 border-t border-[hsl(var(--border))] pt-4">
-            <Button className="w-full" onClick={() => setPickerOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Agregar miembro</Button>
+            {tab === 'guests' ? (
+              <Button className="w-full" onClick={() => setInviteOpen(true)}><Truck className="mr-2 h-4 w-4" />Invitar proveedor</Button>
+            ) : (
+              <Button className="w-full" onClick={() => setPickerOpen(true)}><UserPlus className="mr-2 h-4 w-4" />Agregar miembro</Button>
+            )}
           </div>
         </SheetContent>
       </Sheet>

@@ -21,6 +21,13 @@ export function createInventoryAreasDomain({ request, withAuthHeaders }) {
     // role: viewer | editor | manager
     setAreaMember: (areaId, userId, role, token) => send('PUT', `/inventory/areas/${id(areaId)}/members/${id(userId)}`, { role }, token),
     removeAreaMember: (areaId, userId, token) => send('DELETE', `/inventory/areas/${id(areaId)}/members/${id(userId)}`, undefined, token),
+    // Supplier (guest) invitations. -> { guest, link, code?, sent, mailError }
+    listAreaGuests: (areaId, token) => send('GET', `/inventory/areas/${id(areaId)}/guests`, undefined, token),
+    // { email, name?, role: viewer|editor, contactId?, requireCode? }
+    inviteAreaGuest: (areaId, data, token) => send('POST', `/inventory/areas/${id(areaId)}/guests`, data, token),
+    removeAreaGuest: (areaId, guestId, token) => send('DELETE', `/inventory/areas/${id(areaId)}/guests/${id(guestId)}`, undefined, token),
+    resendGuestInvite: (guestId, data, token) => send('POST', `/inventory/guests/${id(guestId)}/resend`, data ?? {}, token),
+    revokeGuest: (guestId, token) => send('POST', `/inventory/guests/${id(guestId)}/revoke`, {}, token),
     // areaId null = General -> { data: { moved } }
     moveItems: (itemIds, areaId, token) => send('POST', '/inventory/items/move', { itemIds, areaId: areaId ?? null }, token),
     getAreasSettings: (token) => send('GET', '/inventory/areas-settings', undefined, token),
