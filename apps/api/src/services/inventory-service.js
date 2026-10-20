@@ -168,6 +168,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     purchaseFrom,
     purchaseTo,
     labeled,
+    areaId,
     sortBy,
     sortDir,
     page = 1,
@@ -179,7 +180,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     const skip = (normalizePage(page) - 1) * take;
 
     const filters = {
-      categoryId, brandId, locationId, conditionId, status, assignedToId, unassigned, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled,
+      categoryId, brandId, locationId, conditionId, status, assignedToId, unassigned, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, areaId,
       adminStatus: adminStatus === 'all' ? undefined : (adminStatus || DEFAULT_LISTED_ADMIN_STATUSES),
     };
     let where;

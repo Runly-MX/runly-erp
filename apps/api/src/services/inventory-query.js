@@ -16,6 +16,8 @@ export function inventoryDayStart(value, dayOffset = 0, timeZone = getConfigured
   return new Date(instant);
 }
 
+export const AREA_NONE = '__none__';
+
 export const inventoryFiltersSchema = z.object({
   search: z.string().max(200).optional(),
   categoryId: z.uuid().optional(), brandId: z.uuid().optional(), locationId: z.uuid().optional(), assignedToId: z.uuid().optional(),
@@ -28,6 +30,8 @@ export const inventoryFiltersSchema = z.object({
   unassigned: z.boolean().optional(),
   purchaseFrom: z.iso.date().optional(), purchaseTo: z.iso.date().optional(),
   labeled: z.enum(['true', 'false']).optional(),
+  // Area filter: an area id, or '__none__' for General (no area).
+  areaId: z.union([z.uuid(), z.literal(AREA_NONE)]).optional(),
 }).strict();
 
 const EXACT_TEXT_FILTERS = ['model', 'folio', 'assetTag', 'serialNumber', 'partNumber'];
@@ -44,6 +48,7 @@ export function buildInventoryWhere(companyId, filters = {}, scope = null) {
   else if (q) where.OR =['name', 'assetTag', 'serialNumber'].map(field => ({ [field]: { contains: q, mode: 'insensitive' } }));
   for (const field of ['categoryId', 'brandId', 'locationId', 'conditionId', 'assignedToId', 'status', 'modelId']) if (filters[field]) where[field] = filters[field];
   if (filters.unassigned) where.assignedToId = null;
+  if (filters.areaId) where.areaId = filters.areaId === AREA_NONE ? null : filters.areaId;
   // Exact (case-insensitive) match on free-text columns, e.g. from the detail view magnifier.
   for (const field of EXACT_TEXT_FILTERS) { const v = String(filters[field] ?? '').trim(); if (v) where[field] = { equals: v, mode: 'insensitive' }; }
   // adminStatus: one value, a CSV/array of values, or 'all' (no filter).

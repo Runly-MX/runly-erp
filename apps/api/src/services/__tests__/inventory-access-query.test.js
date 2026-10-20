@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createInventoryAccess } from '../inventory-access.js';
-import { buildInventoryWhere, inventoryDayStart } from '../inventory-query.js';
+import { buildInventoryWhere, inventoryDayStart, inventoryFiltersSchema } from '../inventory-query.js';
 
 const COMPANY = '01900000-0000-7000-8000-000000000001';
 const ACTOR = '01900000-0000-7000-8000-000000000002';
@@ -50,4 +50,13 @@ test('inventory query composes the area scope into AND and ignores unrestricted 
   assert.deepEqual(buildInventoryWhere(COMPANY, {}, null), buildInventoryWhere(COMPANY, {}));
   // A user with no areas matches nothing.
   assert.deepEqual(buildInventoryWhere(COMPANY, {}, { all: false, roles: new Map() }).AND, [{ areaId: { in: [] } }]);
+});
+
+test('inventory query filters by area id and by General with __none__', () => {
+  const A1 = '01900000-0000-7000-8000-00000000000a';
+  assert.equal(buildInventoryWhere(COMPANY, { areaId: A1 }).areaId, A1);
+  assert.equal(buildInventoryWhere(COMPANY, { areaId: '__none__' }).areaId, null);
+  assert.equal('areaId' in buildInventoryWhere(COMPANY, {}), false);
+  assert.equal(inventoryFiltersSchema.safeParse({ areaId: '__none__' }).success, true);
+  assert.equal(inventoryFiltersSchema.safeParse({ areaId: 'nope' }).success, false);
 });
