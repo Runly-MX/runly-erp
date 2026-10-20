@@ -56,6 +56,7 @@ const AttendanceKioskScreen = lazy(() => import("../modules/runly.attendance/kio
 const AttendancePhoneKeyScreen = lazy(() => import("../modules/runly.attendance/phone/PhoneKeyScreen.jsx"));
 // Public custody (resguardo) signing page: token link, no login, no shell.
 const PublicCustodySignScreen = lazy(() => import("../modules/runly.inventory/screens/PublicCustodySignScreen.jsx"));
+const PublicInventoryPortalScreen = lazy(() => import("../modules/runly.inventory/screens/PublicInventoryPortalScreen.jsx"));
 const PublicInventoryItemScreen = lazy(() => import("../modules/runly.inventory/screens/PublicInventoryItemScreen.jsx"));
 const LmsCertificateVerifyScreen = lazy(() => import("../modules/runly.lms/public/CertificateVerifyScreen.jsx"));
 const LmsSharedCourseScreen = lazy(() => import("../modules/runly.lms/public/SharedCourseScreen.jsx"));
@@ -199,6 +200,8 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="attendance/phone" element={<Suspense fallback={null}><AttendancePhoneKeyScreen /></Suspense>} />
                     <Route path="custody/:token" element={<Suspense fallback={null}><PublicCustodySignScreen /></Suspense>} />
                     <Route path="inv/:token" element={<Suspense fallback={null}><PublicInventoryItemScreen /></Suspense>} />
+                    {/* runly.inventory: supplier (guest) portal from the invitation email */}
+                    <Route path="inventory/:token" element={<Suspense fallback={null}><PublicInventoryPortalScreen /></Suspense>} />
                     {/* runly.lms: certificate verification from the PDF QR code */}
                     <Route path="lms/cert/:token" element={<Suspense fallback={null}><LmsCertificateVerifyScreen /></Suspense>} />
                     {/* runly.lms: public course share link for external guests */}
