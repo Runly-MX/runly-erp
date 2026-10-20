@@ -126,15 +126,14 @@ export function NotificationBell({
         <div className="flex items-center justify-between px-3 py-2.5 shrink-0">
           <span className="text-sm font-semibold text-[hsl(var(--foreground))]">Notificaciones</span>
           <div className="flex items-center gap-1">
-            {unreadCount > 0 && (
-              <button
-                onClick={() => markAllRead.mutate()}
-                disabled={markAllRead.isPending}
-                className="rounded-md px-2 py-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Marcar todo leído
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => markAllRead.mutate()}
+              disabled={markAllRead.isPending || unreadCount === 0}
+              className="rounded-md px-2 py-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent"
+            >
+              Marcar todo leído
+            </button>
             <button
               type="button"
               onClick={toggleSound}
