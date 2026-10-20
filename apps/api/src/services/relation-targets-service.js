@@ -12,6 +12,7 @@ import { createContactsService } from "./contacts-service.js";
 import { createFilesService } from "./files-service.js";
 import { createHrService } from "./hr-service.js";
 import { createInventoryService } from "./inventory-service.js";
+import { createInventoryAccess } from "./inventory-access.js";
 import { createLedgerService } from "../routes/ledger/ledger-service.js";
 import { createProjectsService } from "../routes/projects/projects-service.js";
 import { createTasksService } from "../routes/projects/tasks-service.js";
@@ -43,6 +44,7 @@ export function createRelationTargetsService({ prisma, supabaseAdmin = null, ser
     fleetService: services.fleetService ?? createFleetService({ prisma }),
     inventoryService: services.inventoryService ?? createInventoryService({ prisma }),
   };
+  const inventoryAccess = services.inventoryAccess ?? createInventoryAccess({ prisma });
   const references = services.references ?? createChatEntityReferencesService({ prisma, ...svc });
 
   async function profileIdOf(authUserId) {
@@ -108,8 +110,10 @@ export function createRelationTargetsService({ prisma, supabaseAdmin = null, ser
         return { id: row.id, title: row.plate || model || "Vehículo", subtitle: model || null };
       });
     },
-    async inventory_item({ companyId, q, limit }) {
-      const result = await svc.inventoryService.listItems({ companyId, search: q || undefined, limit });
+    async inventory_item({ companyId, profileId, q, limit }) {
+      // Area scoping: relation pickers only offer items in the actor's areas.
+      const scope = await inventoryAccess.scopeFor({ companyId, actorId: profileId });
+      const result = await svc.inventoryService.listItems({ companyId, search: q || undefined, limit, scope });
       return (result.data ?? []).map((row) => ({ id: row.id, title: row.name, subtitle: [row.assetTag, row.categoryName].filter(Boolean).join(" · ") || null }));
     },
     async project({ companyId, profileId, q, limit }) {

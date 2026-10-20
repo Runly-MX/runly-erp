@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createInventoryService } from '../services/inventory-service.js';
+import { createInventoryScope, canWriteArea } from '../services/inventory-scope.js';
 import { createHrService } from '../services/hr-service.js';
 import { createContactsService } from '../services/contacts-service.js';
 import { createFleetService } from '../routes/fleet/fleet-service.js';
@@ -88,7 +89,13 @@ export function createAttachmentTargets({ prisma }) {
   async function resource(spec, a, write) {
     const { id, type } = spec, ctx = { companyId: a.companyId, actorId: a.actorProfileId };
     switch (type) {
-      case 'inventory.item': return inventory.getItem(id, a.companyId);
+      case 'inventory.item': {
+        // Area scoping: out-of-scope items are 404; attaching needs editor on the item's area.
+        const scope = await createInventoryScope({ prisma }).resolve({ companyId: a.companyId, userId: a.actorProfileId, userContext: a });
+        const item = await inventory.getItem(id, a.companyId, scope);
+        if (write && !canWriteArea(scope, item.areaId ?? null)) insist(false, 'permission_denied', 'No tienes permiso de edicion en el area de ese equipo.', 403);
+        return item;
+      }
       case 'hr.employee': return createHrService({ prisma }).getEmployee({ authUserId: a.actorAuthUserId, companyId: a.companyId, id });
       case 'contacts.contact': return createContactsService({ prisma }).getById({ companyId: a.companyId, id });
       case 'fleet.vehicle': return createFleetService({ prisma }).getVehicle({ companyId: a.companyId, id });

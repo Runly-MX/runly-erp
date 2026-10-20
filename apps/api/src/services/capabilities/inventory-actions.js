@@ -8,6 +8,8 @@
 // the HTTP routes use (routes/inventory/index.js), with the same permissions.
 import { z } from 'zod';
 import { createInventoryChatActions, INVENTORY_ACTION_TOOLS } from '../inventory-chat-actions.js';
+import { createInventoryAccess } from '../inventory-access.js';
+import { canWriteArea } from '../inventory-scope.js';
 
 const LINK = (id) => `/app/m/runly.inventory?itemId=${id}`;
 const KIND_LABEL = { brand: 'Marca', category: 'Tipo', location: 'Ubicacion', model: 'Modelo', customField: 'Campo personalizado', item: 'Equipo' };
@@ -36,6 +38,9 @@ const prepareCreateDef = INVENTORY_ACTION_TOOLS.find((t) => t.function.name === 
 
 export function createInventoryMiraiActions({ prisma, inventoryService }) {
   const chatActions = createInventoryChatActions({ prisma });
+  const access = createInventoryAccess({ prisma });
+  const scopeOf = (actx) => access.scopeFor({ companyId: actx.companyId, actorId: actx.actorProfileId });
+  const READ_ONLY_AREA = 'No tienes permiso de edicion en el area de ese equipo.';
 
   async function resolveLocation(actx, name) {
     if (!name) return { location: null };
@@ -49,11 +54,21 @@ export function createInventoryMiraiActions({ prisma, inventoryService }) {
 
   async function loadItem(actx, itemId) {
     try {
-      const item = await inventoryService.getItem(itemId, actx.companyId);
+      const scope = await scopeOf(actx);
+      const item = await inventoryService.getItem(itemId, actx.companyId, scope);
+      if (!canWriteArea(scope, item.areaId ?? null)) return { error: READ_ONLY_AREA };
       return { item };
     } catch {
       return { error: 'No encontre ese equipo. Usa inventory_search para obtener su itemId.' };
     }
+  }
+
+  // Re-checked at confirm time: the actor may have lost the area since the proposal was prepared.
+  async function assertWritable(actx, itemId) {
+    const scope = await scopeOf(actx);
+    if (scope.all) return;
+    const row = await prisma.invItem.findFirst({ where: { id: itemId, companyId: actx.companyId, enabled: true }, select: { areaId: true } });
+    if (!row || !canWriteArea(scope, row.areaId)) throw new Error(READ_ONLY_AREA);
   }
 
   const planCreate = {
@@ -149,6 +164,7 @@ export function createInventoryMiraiActions({ prisma, inventoryService }) {
       return { input: { itemId: item.id, data }, targetId: item.id, preview: { title: 'Editar equipo', fields } };
     },
     async execute(input, actx) {
+      await assertWritable(actx, input.itemId);
       const item = await inventoryService.updateItem(input.itemId, input.data, actx.companyId, { actorAuthId: actx.actorAuthUserId ?? null });
       return { id: item.id, summary: `Equipo actualizado: ${item.name}`, link: LINK(item.id) };
     },
@@ -182,6 +198,7 @@ export function createInventoryMiraiActions({ prisma, inventoryService }) {
       };
     },
     async execute(input, actx) {
+      await assertWritable(actx, input.itemId);
       await inventoryService.deleteItem(input.itemId, actx.companyId);
       return { id: input.itemId, summary: 'Equipo eliminado.' };
     },

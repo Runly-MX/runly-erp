@@ -9,6 +9,7 @@ import { insist } from '../config.js';
 import { hasCapability } from '../../services/purchases-service.js';
 import { inheritFromOrders } from '../../services/purchase-relations-service.js';
 import { writeAudit } from '../../services/purchases-shared.js';
+import { createInventoryScope, scopeWhere } from '../../services/inventory-scope.js';
 
 const text = max => z.string().trim().min(1).max(max);
 const optText = max => z.string().trim().max(max).nullable().optional();
@@ -66,9 +67,9 @@ export function createPurchasesImportAction({ prisma, documents, relations, work
   }
 
   // Tolerant: an unknown or ambiguous reference is reported, not fatal.
-  async function resolveItem(companyId, ref) {
+  async function resolveItem(companyId, ref, restriction = null) {
     const where = ref.itemId ? { id: ref.itemId } : ref.serialNumber ? { serialNumber: ci(ref.serialNumber) } : { assetTag: ci(ref.assetTag) };
-    const rows = await prisma.invItem.findMany({ where: { companyId, enabled: true, ...where }, select: { id: true, name: true, serialNumber: true, assetTag: true }, take: 2 });
+    const rows = await prisma.invItem.findMany({ where: { companyId, enabled: true, ...where, ...(restriction ?? {}) }, select: { id: true, name: true, serialNumber: true, assetTag: true }, take: 2 });
     if (rows.length === 1) return { item: rows[0] };
     return { missing: { reason: rows.length ? 'ambiguous' : 'not_found', ...(ref.itemId ? { itemId: ref.itemId } : ref.serialNumber ? { serialNumber: ref.serialNumber } : { assetTag: ref.assetTag }) } };
   }
@@ -85,6 +86,8 @@ export function createPurchasesImportAction({ prisma, documents, relations, work
   async function prepare(input, actx) {
     const { companyId } = actx;
     const current = await workflow.ensureWorkflow(companyId);
+    // Items outside the connected user's inventory areas resolve as not found (area scoping).
+    const itemScope = scopeWhere(await createInventoryScope({ prisma }).resolve({ companyId, userId: actx.actorProfileId, userContext: actx }));
     const pendingSuppliers = new Map(), plan = [], claimed = { order: new Map(), invoice: new Map() }, missing = new Map();
     for (const [index, doc] of input.documents.entries()) {
       const meta = LINK[doc.kind], row = `Fila ${index + 1} (${meta.label} ${doc.number})`;
@@ -105,7 +108,7 @@ export function createPurchasesImportAction({ prisma, documents, relations, work
       insist(!plan.some(entry => entry.dupKey === dupKey), 'invalid_proposal', `${row}: está repetido en el lote; combina sus conceptos y equipos en una sola fila.`);
       const items = [];
       for (const ref of doc.inventory ?? []) {
-        const { item, missing: absent } = await resolveItem(companyId, ref);
+        const { item, missing: absent } = await resolveItem(companyId, ref, itemScope);
         if (absent) {
           const key = JSON.stringify(Object.entries(absent).map(([k, v]) => [k, String(v).toLowerCase()]));
           const entry = missing.get(key) ?? { ...absent, documents: [] };

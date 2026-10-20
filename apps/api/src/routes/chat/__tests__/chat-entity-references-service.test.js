@@ -393,7 +393,7 @@ describe("chat-entity-references-service — vehicle/inventory_item", () => {
       fleetService: {}, projectsService: {}, tasksService: {}, calendarEventService: {},
       contactsService: {}, filesService: {}, hrService: {}, ledgerService: {}, prisma: {},
     };
-    const service = createChatEntityReferencesService({ ...deps, prisma: withActor(deps.prisma) });
+    const service = createChatEntityReferencesService({ ...deps, prisma: withActor(deps.prisma), inventoryAccess: { scopeFor: async () => ({ all: true }) } });
     const result = await service.resolveEntityRefs({
       authUserId: "auth-1", companyId: "company-1",
       entityRefs: [{ entityType: "inventory_item", recordId: "item-1" }],
@@ -405,13 +405,26 @@ describe("chat-entity-references-service — vehicle/inventory_item", () => {
     }]);
   });
 
+  it("passes the caller's inventory area scope to getItem", async () => {
+    const scope = { all: false, roles: new Map([["area-a", "viewer"]]) };
+    let received = null;
+    const deps = {
+      inventoryService: { getItem: async (id, companyId, s) => { received = s; throw new Error("Item not found"); } },
+      fleetService: {}, projectsService: {}, tasksService: {}, calendarEventService: {},
+      contactsService: {}, filesService: {}, hrService: {}, ledgerService: {}, prisma: {},
+    };
+    const service = createChatEntityReferencesService({ ...deps, prisma: withActor(deps.prisma), inventoryAccess: { scopeFor: async () => scope } });
+    await service.resolveEntityRefs({ authUserId: "auth-1", companyId: "company-1", entityRefs: [{ entityType: "inventory_item", recordId: "item-1" }] });
+    assert.equal(received, scope);
+  });
+
   it("drops an inventory_item reference the caller cannot access (404 from getItem)", async () => {
     const deps = {
       inventoryService: { getItem: async () => { throw new Error("Item not found"); } },
       fleetService: {}, projectsService: {}, tasksService: {}, calendarEventService: {},
       contactsService: {}, filesService: {}, hrService: {}, ledgerService: {}, prisma: {},
     };
-    const service = createChatEntityReferencesService({ ...deps, prisma: withActor(deps.prisma) });
+    const service = createChatEntityReferencesService({ ...deps, prisma: withActor(deps.prisma), inventoryAccess: { scopeFor: async () => ({ all: true }) } });
     const result = await service.resolveEntityRefs({
       authUserId: "auth-1", companyId: "company-1",
       entityRefs: [{ entityType: "inventory_item", recordId: "item-1" }],

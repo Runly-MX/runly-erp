@@ -43,3 +43,19 @@ test("resolve returns only visible records; catalog marks installed modules", as
   assert.equal(catalog.find((entry) => entry.type === "contact").installed, false);
   assert.equal(catalog.length, 9);
 });
+
+test("inventory_item search passes the actor's inventory area scope to listItems", async () => {
+  const scope = { all: false, roles: new Map([["area-a", "viewer"]]) };
+  let received = null;
+  const prisma = { userProfile: { findUnique: async () => ({ id: "p1" }) } };
+  const services = {
+    access: { assertCompanyMember: async () => {} },
+    inventoryAccess: { scopeFor: async (identity) => { assert.equal(identity.actorId, "p1"); return scope; } },
+    inventoryService: { listItems: async (args) => { received = args.scope; return { data: [{ id: "i1", name: "Laptop", assetTag: "A-1" }] }; } },
+    references: {},
+  };
+  const service = createRelationTargetsService({ prisma, services });
+  const found = await service.search({ authUserId: "a1", companyId: "co1", type: "inventory_item", q: "lap" });
+  assert.equal(received, scope);
+  assert.deepEqual(found, [{ id: "i1", title: "Laptop", subtitle: "A-1" }]);
+});

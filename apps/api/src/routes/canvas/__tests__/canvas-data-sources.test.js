@@ -5,6 +5,8 @@ import { DATA_SOURCES, createCanvasDataSources, isDataSource } from '../canvas-d
 const COMPANY = 'company-1'
 const allowAll = { assertCompanyMember: async () => true }
 const denyAll = { assertCompanyMember: async () => { throw new Error('no') } }
+const unrestricted = { scopeFor: async () => ({ all: true }) }
+const limitedTo = (...areaIds) => ({ scopeFor: async () => ({ all: false, roles: new Map(areaIds.map((id) => [id, 'viewer'])) }) })
 const profile = { userProfile: { findUnique: async () => ({ id: 'profile-1' }) } }
 
 function prismaWith(extra) {
@@ -29,7 +31,7 @@ describe('Canvas data sources', () => {
       invLocation: { findMany: async ({ where }) => { assert.equal(where.companyId, COMPANY); return [{ id: 'loc-1', name: 'Rack A-3', description: null }] } },
       invItem: { groupBy: async () => [{ locationId: 'loc-1', status: 'available', _count: { _all: 2 } }, { locationId: 'loc-1', status: 'maintenance', _count: { _all: 1 } }] },
     })
-    const sources = createCanvasDataSources({ prisma, access: allowAll, relationTargets: {} })
+    const sources = createCanvasDataSources({ prisma, access: allowAll, relationTargets: {}, inventoryAccess: unrestricted })
     const result = await sources.resolve({ authUserId: 'auth-1', companyId: COMPANY, refs: [{ source: 'inventory_location', id: 'loc-1' }, { source: 'inventory_location', id: 'loc-x' }] })
     assert.equal(result['inventory_location:loc-1'].summary, '3 equipos · 1 en mantenimiento')
     assert.equal(result['inventory_location:loc-1'].tone, 'warning')
@@ -40,13 +42,22 @@ describe('Canvas data sources', () => {
     const prisma = prismaWith({
       invItem: { findMany: async () => [{ id: 'it-1', name: 'Laptop 14', assetTag: 'A-001', status: 'assigned', adminStatus: 'registered', assignedTo: { firstName: 'Ana', lastName: 'Ruiz' }, location: { name: 'Oficina' }, condition: { name: 'Buena' } }] },
     })
-    const sources = createCanvasDataSources({ prisma, access: allowAll, relationTargets: {} })
+    const sources = createCanvasDataSources({ prisma, access: allowAll, relationTargets: {}, inventoryAccess: unrestricted })
     const result = await sources.resolve({ authUserId: 'auth-1', companyId: COMPANY, refs: [{ source: 'inventory_item', id: 'it-1' }] })
     const item = result['inventory_item:it-1']
     assert.equal(item.tone, 'info')
     assert.equal(item.subtitle, 'A-001')
     assert.deepEqual(item.metrics.find((m) => m.label === 'Asignado a'), { label: 'Asignado a', value: 'Ana Ruiz' })
     assert.equal(item.url, '/app/m/runly.inventory/inventory/it-1')
+  })
+
+  it('limits inventory_item to the areas of a restricted actor', async () => {
+    const seen = []
+    const prisma = prismaWith({ invItem: { findMany: async ({ where }) => { seen.push(where); return [] } } })
+    const sources = createCanvasDataSources({ prisma, access: allowAll, relationTargets: {}, inventoryAccess: limitedTo('area-a') })
+    const result = await sources.resolve({ authUserId: 'auth-1', companyId: COMPANY, refs: [{ source: 'inventory_item', id: 'it-1' }] })
+    assert.deepEqual(seen[0].areaId, { in: ['area-a'] })
+    assert.equal(result['inventory_item:it-1'].missing, true)
   })
 
   it('marks refs restricted when the user lacks the source permission', async () => {
@@ -75,7 +86,7 @@ describe('Canvas data sources', () => {
     const prisma = prismaWith({
       posTable: { findMany: async ({ where }) => { assert.equal(where.companyId, COMPANY); return [{ id: 't1', name: 'Mesa 4', status: 'OCCUPIED', capacity: 4, zone: { name: 'Terraza' }, floor: { name: 'Planta baja' } }] } },
     })
-    const sources = createCanvasDataSources({ prisma, access: allowAll, relationTargets: {} })
+    const sources = createCanvasDataSources({ prisma, access: allowAll, relationTargets: {}, inventoryAccess: unrestricted })
     const result = await sources.resolve({ authUserId: 'auth-1', companyId: COMPANY, refs: [{ source: 'pos_table', id: 't1' }] })
     assert.equal(result['pos_table:t1'].tone, 'warning')
     assert.equal(result['pos_table:t1'].summary, 'Ocupada · 4 personas')

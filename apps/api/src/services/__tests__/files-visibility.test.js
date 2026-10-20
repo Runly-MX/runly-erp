@@ -94,6 +94,26 @@ describe("files visibility", () => {
     assert.ok(!open.entityType.in.includes("HrEmployee"));
   });
 
+  it("inventory item files follow the inventory area scope", async () => {
+    const limited = {
+      ...fakePrisma(),
+      instanceConfig: { findUnique: async () => ({ value: "true" }) },
+      invArea: { findMany: async () => [{ id: "area-a", parentId: null }] },
+      invAreaMember: { findMany: async () => [{ areaId: "area-a", role: "viewer" }] },
+      invItemFile: { findFirst: async ({ where }) => (where.item.areaId.in.includes("area-a") && where.fileAssetId === "f-in" ? { id: "x" } : null) },
+    };
+    const ctx = context({ permissions: new Set(["inventory.item.read"]) });
+    const visibility = createFileVisibility({ prisma: limited });
+    const { OR } = await visibility.listWhere(ctx);
+    assert.ok(OR.some((w) => w.entityType === "InvItem" && w.invItemFiles.some.item.areaId.in[0] === "area-a"));
+    assert.ok(!OR.some((w) => w.entityType?.in?.includes("InvItem")));
+    const invFile = (id) => file({ id, entityType: "InvItem", entityId: COMPANY });
+    assert.equal(await visibility.canRead(invFile("f-in"), ctx), true);
+    assert.equal(await visibility.canRead(invFile("f-out"), ctx), false);
+    const open = createFileVisibility({ prisma: { ...limited, instanceConfig: { findUnique: async () => null } } });
+    assert.ok((await open.listWhere(ctx)).OR.some((w) => w.entityType?.in?.includes("InvItem")));
+  });
+
   it("describes origin and visibility for the UI", () => {
     assert.equal(describeFile(file({ moduleKey: "runly.files", entityType: "AtlasFile", accessScope: "RESTRICTED" })).access, "private");
     assert.equal(describeFile(file({ moduleKey: "runly.canvas", entityType: "CanvasBoard", metadata: { sourceEntityId: BOARD } })).origin.sourceEntityId, BOARD);

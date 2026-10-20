@@ -8,6 +8,7 @@
 // miraiPageContext) instead of the old per-thread context object.
 import { z } from 'zod';
 import { createInventoryAccess } from '../inventory-access.js';
+import { scopeWhere } from '../inventory-scope.js';
 import { inventoryFiltersSchema, buildInventoryWhere } from '../inventory-query.js';
 import { createInventoryChatActions } from '../inventory-chat-actions.js';
 
@@ -57,7 +58,13 @@ function whereFor(actx, args) {
 }
 
 export function createInventoryMiraiQueries({ prisma, publicLookup }) {
-  const authorize = createInventoryAccess({ prisma }).assertCurrent;
+  const access = createInventoryAccess({ prisma });
+  const authorize = access.assertCurrent;
+  // Area scoping: limited actors only see/count items of their areas (the scope is re-resolved per call).
+  const scoped = async (actx, where) => {
+    const restriction = scopeWhere(await access.scopeFor({ companyId: actx.companyId, actorId: actx.actorProfileId }));
+    return restriction ? { AND: [where, restriction] } : where;
+  };
   const chatActions = createInventoryChatActions({ prisma, authorize });
 
   const inventory_summary = {
@@ -68,9 +75,9 @@ export function createInventoryMiraiQueries({ prisma, publicLookup }) {
       parameters: queryToolParameters,
     },
     async run(args, actx) {
-      await authorize({ companyId: actx.companyId, actorId: actx.actorProfileId });
-      const where = whereFor(actx, args);
-      if (!where) return { error: 'No hay una seleccion o filtros activos en la pantalla; indica scope "company" para consultar toda la empresa.' };
+      const base = whereFor(actx, args);
+      if (!base) { await authorize({ companyId: actx.companyId, actorId: actx.actorProfileId }); return { error: 'No hay una seleccion o filtros activos en la pantalla; indica scope "company" para consultar toda la empresa.' }; }
+      const where = await scoped(actx, base);
       const [total, missingSerial, groups] = await Promise.all([
         prisma.invItem.count({ where }),
         prisma.invItem.count({ where: { AND: [where, { OR: [{ serialNumber: null }, { serialNumber: '' }] }] } }),
@@ -99,9 +106,9 @@ export function createInventoryMiraiQueries({ prisma, publicLookup }) {
       parameters: queryToolParameters,
     },
     async run(args, actx) {
-      await authorize({ companyId: actx.companyId, actorId: actx.actorProfileId });
-      const where = whereFor(actx, args);
-      if (!where) return { error: 'No hay una seleccion o filtros activos en la pantalla; indica scope "company" para consultar toda la empresa.' };
+      const base = whereFor(actx, args);
+      if (!base) { await authorize({ companyId: actx.companyId, actorId: actx.actorProfileId }); return { error: 'No hay una seleccion o filtros activos en la pantalla; indica scope "company" para consultar toda la empresa.' }; }
+      const where = await scoped(actx, base);
       const [total, items] = await Promise.all([
         prisma.invItem.count({ where }),
         prisma.invItem.findMany({
@@ -151,7 +158,7 @@ export function createInventoryMiraiQueries({ prisma, publicLookup }) {
       const parsed = z.object({ itemId: z.string().uuid() }).strict().safeParse(args);
       if (!parsed.success) return { error: 'Identificador invalido.' };
       const item = await prisma.invItem.findFirst({
-        where: { ...buildInventoryWhere(actx.companyId), id: parsed.data.itemId },
+        where: await scoped(actx, { ...buildInventoryWhere(actx.companyId), id: parsed.data.itemId }),
         select: { id: true, model: true, brand: { select: { name: true } }, category: { select: { name: true } } },
       });
       if (!item) return { error: 'Equipo no disponible en esta empresa.' };

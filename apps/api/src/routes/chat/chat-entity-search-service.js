@@ -1,4 +1,6 @@
 import { createUserAccessService } from "../../services/user-access-service.js";
+import { createInventoryAccess } from "../../services/inventory-access.js";
+import { scopeWhere } from "../../services/inventory-scope.js";
 import { createChatExtraEntityTypes, EXTRA_REFERENCE_PERMISSIONS } from "./chat-entity-extra-types.js";
 
 // Server-side search for the chat connectors ("+" picker and the
@@ -22,11 +24,11 @@ const words = (q) => String(q ?? "").trim().split(/\s+/).filter(Boolean).slice(0
 const anyOf = (fields, word) => ({ OR: fields.map((field) => ({ [field]: { contains: word, mode: "insensitive" } })) });
 const allWords = (q, fields) => (words(q).length ? { AND: words(q).map((word) => anyOf(fields, word)) } : {});
 
-export function createChatEntitySearchService({ prisma, fleetService }) {
+export function createChatEntitySearchService({ prisma, fleetService, inventoryAccess = createInventoryAccess({ prisma }) }) {
   const access = createUserAccessService({ prisma });
   const extra = createChatExtraEntityTypes({ prisma });
 
-  async function searchOne(entityType, companyId, q, limit) {
+  async function searchOne(entityType, companyId, q, limit, profileId) {
     if (entityType === "contact") {
       const rows = await prisma.contact.findMany({
         where: { companyId, enabled: true, ...allWords(q, ["name", "legalName", "email", "phone", "taxId", "industry"]) },
@@ -51,15 +53,17 @@ export function createChatEntitySearchService({ prisma, fleetService }) {
     }
     if (entityType === "inventory_item") {
       const fields = ["name", "assetTag", "folio", "serialNumber", "model", "partNumber", "vendorName", "invoiceNumber", "description", "notes"];
+      // Area scoping: items outside the actor's areas never show up in the picker.
+      const restriction = scopeWhere(await inventoryAccess.scopeFor({ companyId, actorId: profileId }));
       const where = words(q).length
-        ? { companyId, enabled: true, AND: words(q).map((word) => ({ OR: [
+        ? { companyId, enabled: true, ...(restriction ?? {}), AND: words(q).map((word) => ({ OR: [
           ...fields.map((field) => ({ [field]: { contains: word, mode: "insensitive" } })),
           { brand: { name: { contains: word, mode: "insensitive" } } },
           { category: { name: { contains: word, mode: "insensitive" } } },
           { location: { name: { contains: word, mode: "insensitive" } } },
           { customValues: { some: { value: { contains: word, mode: "insensitive" } } } },
         ] })) }
-        : { companyId, enabled: true };
+        : { companyId, enabled: true, ...(restriction ?? {}) };
       const rows = await prisma.invItem.findMany({
         where, orderBy: { updatedAt: "desc" }, take: limit,
         select: { id: true, name: true, assetTag: true, serialNumber: true, status: true, category: { select: { name: true } }, brand: { select: { name: true } } },
@@ -89,7 +93,7 @@ export function createChatEntitySearchService({ prisma, fleetService }) {
     const profile = await prisma.userProfile.findUnique({ where: { authUserId }, select: { id: true } });
     if (!profile) return [];
     await access.assertCompanyMember(companyId, profile.id, permission);
-    return searchOne(entityType, companyId, String(q).slice(0, 120), Math.min(Math.max(Number(limit) || 15, 1), 30));
+    return searchOne(entityType, companyId, String(q).slice(0, 120), Math.min(Math.max(Number(limit) || 15, 1), 30), profile.id);
   }
 
   return { search, SEARCHABLE_TYPES };

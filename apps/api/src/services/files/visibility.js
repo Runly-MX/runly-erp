@@ -8,6 +8,8 @@
 // read. Module-internal attachment routes keep using files/access.js: they
 // already authorize the record before listing its files.
 
+import { createInventoryScope, scopeWhere } from "../inventory-scope.js";
+
 export const FILES_ORIGIN_MODULES = ["runly.files", "atlas.files"];
 
 export function isFilesOrigin(file) {
@@ -48,7 +50,8 @@ export const FILE_ACCESS_RULES = {
   FleetDriver: permission("fleet.drivers.read"),
   FleetMaintenance: permission("fleet.vehicles.read"),
   FleetReport: permission("fleet.reports.read"),
-  InvItem: permission("inventory.item.read"),
+  // Readable with the permission AND, when inventory areas are on, only for items in the caller's areas.
+  InvItem: { kind: "inventory", key: "inventory.item.read" },
   InvCustody: permission("inventory.custody.read"),
   InvDocumentTemplate: permission("inventory.custody.read"),
   GrowthLead: permission("growth.leads.read"),
@@ -152,6 +155,15 @@ export function describeFile(file) {
 }
 
 export function createFileVisibility({ prisma }) {
+  const inventoryScope = createInventoryScope({ prisma });
+  // -> where-fragment on inv_item for the caller, or null when unrestricted.
+  async function inventoryRestriction(context) {
+    const scope = await inventoryScope.resolve({
+      companyId: context.companyId, userId: context.profileId,
+      userContext: { isAdmin: Boolean(context.admin), permissionSet: context.permissions },
+    });
+    return scopeWhere(scope);
+  }
   // Prisma `where` fragment with every file the caller may read.
   async function listWhere(context) {
     if (context.admin) return {};
@@ -166,7 +178,11 @@ export function createFileVisibility({ prisma }) {
     for (const [entityType, rule] of Object.entries(FILE_ACCESS_RULES)) {
       if (rule.kind === "company") openTypes.push(entityType);
       else if (rule.kind === "permission" && hasPermission(context, rule.key)) openTypes.push(entityType);
-      else if (rule.kind === "records") {
+      else if (rule.kind === "inventory" && hasPermission(context, rule.key)) {
+        const restriction = await inventoryRestriction(context);
+        if (!restriction) openTypes.push(entityType);
+        else OR.push({ entityType, accessScope: "COMPANY", invItemFiles: { some: { item: restriction } } });
+      } else if (rule.kind === "records") {
         if (rule.permission && !hasPermission(context, rule.permission)) continue;
         const sourceIds = (await rule.ids(prisma, context)).map((row) => row.id);
         if (!sourceIds.length) continue;
@@ -199,6 +215,12 @@ export function createFileVisibility({ prisma }) {
     if (!rule) return false;
     if (rule.kind === "company") return true;
     if (rule.kind === "permission") return hasPermission(context, rule.key);
+    if (rule.kind === "inventory") {
+      if (!hasPermission(context, rule.key)) return false;
+      const restriction = await inventoryRestriction(context);
+      if (!restriction) return true;
+      return Boolean(await prisma.invItemFile.findFirst({ where: { fileAssetId: file.id, item: restriction }, select: { id: true } }));
+    }
     if (rule.kind === "records") {
       if (rule.permission && !hasPermission(context, rule.permission)) return false;
       const sourceId = file.metadata?.sourceEntityId;

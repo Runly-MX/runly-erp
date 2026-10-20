@@ -1,6 +1,8 @@
 import { createUserAccessService } from './user-access-service.js';
 import { parseMentionIds } from '../lib/mention-utils.js';
 import { createActivityService } from './activity-service.js';
+import { createInventoryAccess } from './inventory-access.js';
+import { canViewArea, canWriteArea } from './inventory-scope.js';
 
 export class CommentsServiceError extends Error {
   constructor(message, status = 500) {
@@ -14,7 +16,7 @@ export class CommentsServiceError extends Error {
 // record's audit trail (spec 2026-10-03-audit-trail-design §2.5).
 const ACTIVITY_PREFIX = { InvItem: 'inventory.item', GrowthLead: 'growth.lead', Task: 'projects.task' };
 
-export function createCommentsService({ prisma, activityService = null }) {
+export function createCommentsService({ prisma, activityService = null, inventoryAccess = createInventoryAccess({ prisma }) }) {
   const access = createUserAccessService({ prisma });
   const activity = activityService ?? createActivityService({ prisma });
   async function commentActivity({ entityType, entityId, companyId, actorId, author, kind, body = null }) {
@@ -40,12 +42,17 @@ export function createCommentsService({ prisma, activityService = null }) {
   function entityPermission(entityType) {
     return { Task: 'projects.project.read', GrowthLead: 'growth.leads.read', InvItem: 'inventory.item.read' }[entityType];
   }
-  async function assertEntity(entityType, entityId, companyId, userId) {
+  async function assertEntity(entityType, entityId, companyId, userId, { write = false } = {}) {
     await access.assertCompanyMember(companyId, userId, entityPermission(entityType));
     if (entityType === 'GrowthLead') {
       if (await prisma.growthLead.findFirst({ where: { id: entityId, companyId }, select: { id: true } })) return null;
     } else if (entityType === 'InvItem') {
-      if (await prisma.invItem.findFirst({ where: { id: entityId, companyId }, select: { id: true } })) return null;
+      // Area scoping: an item outside the actor's areas is 'not found' (write needs editor on the area).
+      const item = await prisma.invItem.findFirst({ where: { id: entityId, companyId }, select: { id: true, areaId: true } });
+      if (item) {
+        const scope = await inventoryAccess.scopeFor({ companyId, actorId: userId });
+        if (write ? canWriteArea(scope, item.areaId) : canViewArea(scope, item.areaId)) return null;
+      }
     } else if (entityType === 'Task') {
       const task = await prisma.task.findFirst({ where: { id: entityId, project: { companyId } }, select: { projectId: true, project: { select: { ownerId: true } } } });
       if (task && (task.project.ownerId === userId || await prisma.projectMember.findFirst({ where: { projectId: task.projectId, userId }, select: { id: true } }))) return task.projectId;
@@ -87,7 +94,7 @@ export function createCommentsService({ prisma, activityService = null }) {
     if (!authorId) throw new CommentsServiceError('Autor no encontrado.', 404);
     if (!body?.trim()) throw new CommentsServiceError('El comentario no puede estar vacío.', 400);
 
-    const projectId = await assertEntity(entityType, entityId, companyId, authorId);
+    const projectId = await assertEntity(entityType, entityId, companyId, authorId, { write: true });
     const mentionIds = parseMentionIds(body);
     await access.assertCandidates({ companyId, userIds: mentionIds, projectId, permission: entityPermission(entityType) });
 

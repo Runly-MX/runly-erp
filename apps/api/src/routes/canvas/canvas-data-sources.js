@@ -6,6 +6,8 @@
 // relation-targets-service with title/subtitle/url only.
 import { EXTERNAL_RELATION_TARGETS } from '@runly/module-compiler'
 import { createUserAccessService } from '../../services/user-access-service.js'
+import { createInventoryAccess } from '../../services/inventory-access.js'
+import { scopeWhere } from '../../services/inventory-scope.js'
 
 const INVENTORY = { module: 'runly.inventory', permission: 'inventory.item.read' }
 export const DATA_SOURCES = Object.freeze({
@@ -31,7 +33,7 @@ const POS_STATUS = {
 }
 const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`
 
-export function createCanvasDataSources({ prisma, relationTargets, access = createUserAccessService({ prisma }) }) {
+export function createCanvasDataSources({ prisma, relationTargets, access = createUserAccessService({ prisma }), inventoryAccess = createInventoryAccess({ prisma }) }) {
   async function profileIdOf(authUserId) {
     const profile = await prisma.userProfile.findUnique({ where: { authUserId }, select: { id: true } })
     return profile?.id ?? null
@@ -51,9 +53,10 @@ export function createCanvasDataSources({ prisma, relationTargets, access = crea
   }
 
   const providers = {
-    async inventory_location(companyId, ids) {
+    // `restriction` (3rd arg) is the actor's inventory area filter, null when unrestricted.
+    async inventory_location(companyId, ids, restriction) {
       const locations = await prisma.invLocation.findMany({ where: { companyId, id: { in: ids }, enabled: true }, select: { id: true, name: true, description: true } })
-      const counts = await prisma.invItem.groupBy({ by: ['locationId', 'status'], where: { companyId, enabled: true, adminStatus: 'registered', locationId: { in: locations.map((row) => row.id) } }, _count: { _all: true } })
+      const counts = await prisma.invItem.groupBy({ by: ['locationId', 'status'], where: { companyId, enabled: true, adminStatus: 'registered', ...(restriction ?? {}), locationId: { in: locations.map((row) => row.id) } }, _count: { _all: true } })
       return new Map(locations.map((location) => {
         const byStatus = Object.fromEntries(counts.filter((row) => row.locationId === location.id).map((row) => [row.status, row._count._all]))
         const total = Object.values(byStatus).reduce((sum, value) => sum + value, 0), maintenance = byStatus.maintenance ?? 0
@@ -71,9 +74,9 @@ export function createCanvasDataSources({ prisma, relationTargets, access = crea
         }]
       }))
     },
-    async inventory_item(companyId, ids) {
+    async inventory_item(companyId, ids, restriction) {
       const items = await prisma.invItem.findMany({
-        where: { companyId, id: { in: ids }, enabled: true },
+        where: { companyId, id: { in: ids }, enabled: true, ...(restriction ?? {}) },
         select: { id: true, name: true, assetTag: true, status: true, adminStatus: true, assignedTo: { select: { firstName: true, lastName: true } }, location: { select: { name: true } }, condition: { select: { name: true } } },
       })
       return new Map(items.map((item) => {
@@ -127,7 +130,7 @@ export function createCanvasDataSources({ prisma, relationTargets, access = crea
       let found
       try {
         found = providers[source]
-          ? await providers[source](companyId, ids)
+          ? await providers[source](companyId, ids, source.startsWith('inventory_') ? scopeWhere(await inventoryAccess.scopeFor({ companyId, actorId: profileId })) : null)
           : new Map([...(await relationTargets.resolve({ authUserId, companyId, type: source, ids }))].map(([id, row]) => [id, { ...row, tone: 'neutral' }]))
       } catch { found = new Map() }
       for (const id of ids) out[`${source}:${id}`] = found.get(id) ?? { title: 'Registro no disponible', tone: 'danger', missing: true }

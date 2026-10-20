@@ -2,6 +2,7 @@
 // purchases, custody, files, custom fields) via inventory-search-service.
 import { Prisma } from "@prisma/client";
 import { createInventorySearch } from "../inventory-search-service.js";
+import { createInventoryAccess } from "../inventory-access.js";
 import { tokenizeSearch, normalizeSearchText } from "../../lib/search-tokens.js";
 import { defineProvider, joinParts, fullName, safeTitle, enc } from "./helpers.js";
 
@@ -15,10 +16,16 @@ export const inventoryProvider = defineProvider({
   icon: "Boxes",
   target: (id) => `/app/m/runly.inventory/inventory/${id}`,
   seeAllTarget: (q) => `/app/m/runly.inventory/inventory?search=${enc(q)}`,
-  async search({ prisma, companyId, q, limit }) {
+  async search({ prisma, companyId, actorId, q, limit, inventoryAccess = createInventoryAccess({ prisma }) }) {
     const tokens = tokenizeSearch(q);
     if (!tokens.length) return { items: [], total: 0 };
-    const ids = await createInventorySearch({ prisma }).searchItemIds(companyId, q, { limit: MAX_IDS });
+    // Area scoping: null = unrestricted. Fails closed (the provider is dropped) without a resolvable actor.
+    const areaIds = await inventoryAccess.areaIdsFor({ companyId, actorId });
+    const found = await createInventorySearch({ prisma }).searchItemIds(companyId, q, { limit: MAX_IDS });
+    if (!found.length) return { items: [], total: 0 };
+    const ids = areaIds
+      ? (await prisma.$queryRaw(Prisma.sql`SELECT id FROM inv_item WHERE company_id = ${companyId}::uuid AND id = ANY(${found}::uuid[]) AND area_id = ANY(${areaIds}::uuid[])`)).map((row) => row.id)
+      : found;
     if (!ids.length) return { items: [], total: 0 };
     const exact = normalizeSearchText(q);
     const rows = await prisma.$queryRaw(Prisma.sql`

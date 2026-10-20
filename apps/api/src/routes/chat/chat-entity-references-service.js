@@ -1,4 +1,5 @@
 import { createUserAccessService } from '../../services/user-access-service.js';
+import { createInventoryAccess } from '../../services/inventory-access.js';
 import { createChatExtraEntityTypes, EXTRA_REFERENCE_PERMISSIONS } from './chat-entity-extra-types.js';
 
 const MAX_ENTITY_REFS = 5;
@@ -11,7 +12,7 @@ const REFERENCE_PERMISSIONS = {
   ...EXTRA_REFERENCE_PERMISSIONS,
 };
 
-export function createChatEntityReferencesService({ prisma, contactsService, filesService, hrService, ledgerService, projectsService, tasksService, calendarEventService, fleetService, inventoryService }) {
+export function createChatEntityReferencesService({ prisma, contactsService, filesService, hrService, ledgerService, projectsService, tasksService, calendarEventService, fleetService, inventoryService, inventoryAccess = createInventoryAccess({ prisma }) }) {
   const access = createUserAccessService({ prisma });
   const extraTypes = createChatExtraEntityTypes({ prisma });
   // Not a static registry object keyed by entityType — each type's
@@ -142,7 +143,8 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
         };
       }
       if (entityType === "inventory_item") {
-        const row = await inventoryService.getItem(recordId, ctx.companyId);
+        const scope = await inventoryAccess.scopeFor({ companyId: ctx.companyId, actorId: ctx.profileId });
+        const row = await inventoryService.getItem(recordId, ctx.companyId, scope);
         if (!row) return null;
         return {
           entityType, recordId, title: row.name,

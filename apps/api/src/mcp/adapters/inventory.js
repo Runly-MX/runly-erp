@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createInventoryService } from '../../services/inventory-service.js';
+import { createInventoryScope } from '../../services/inventory-scope.js';
 import { createInventoryMiraiQueries } from '../../services/capabilities/inventory-queries.js';
 import { createInventoryMiraiActions } from '../../services/capabilities/inventory-actions.js';
 import { inventoryActionPlanSchema } from '../../services/inventory-chat-actions.js';
@@ -177,9 +178,11 @@ export function createInventoryMcpCapabilities({ prisma, config, oauth }) {
     if (name.endsWith('_commit')) return commit(auth, args.companyId, name.includes('_create_') ? 'create' : 'update', args.proposalId);
     const actx = await context(auth, args.companyId, 'inventory.item.read');
     const inventory = createInventoryService({ prisma });
-    if (name === 'runly_inventory_get') return { item: compactItem(await inventory.getItem(args.itemId, args.companyId), true) };
+    // Area scope of the connected user (actx carries isAdmin + permissionSet); out-of-scope items are 404.
+    const scope = await createInventoryScope({ prisma }).resolve({ companyId: args.companyId, userId: actx.actorProfileId, userContext: actx });
+    if (name === 'runly_inventory_get') return { item: compactItem(await inventory.getItem(args.itemId, args.companyId, scope), true) };
     if (name === 'runly_inventory_search') {
-      const result = await inventory.listItems({ ...args.filters, companyId: args.companyId, page: args.page, limit: args.limit });
+      const result = await inventory.listItems({ ...args.filters, companyId: args.companyId, page: args.page, limit: args.limit, scope });
       return { items: result.data.map(i => compactItem(i)), total: result.total, page: args.page, limit: args.limit };
     }
     const tool = createInventoryMiraiQueries({ prisma }).find(t => `runly_${t.name}` === name);

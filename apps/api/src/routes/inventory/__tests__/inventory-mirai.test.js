@@ -17,6 +17,7 @@ function accessOkPrisma(overrides = {}) {
   return {
     membership: { findMany: async () => [{ companyId: COMPANY, enabled: true, user: { enabled: true }, role: { enabled: true, permissions: [{ permission: { key: 'inventory.item.read' } }] }, company: { enabled: true } }] },
     userPermissionGrant: { findMany: async () => [] },
+    instanceConfig: { findUnique: async () => null },
     invItem: {
       count: async ({ where }) => (where.id ? where.id.in.length : 125),
       findMany: async () => [ROW],
@@ -116,8 +117,11 @@ test('inventory_public_model: sends only type/brand/model, audits and bounds 2 l
 
 // ── actions: inventory.plan.create ──────────────────────────────────────────
 
-function actionsFor({ inventoryService } = {}) {
+function actionsFor({ inventoryService, limitedTo = null } = {}) {
   const prisma = {
+    instanceConfig: { findUnique: async () => (limitedTo ? { value: 'true' } : null) },
+    invArea: { findMany: async () => [{ id: 'area-a', parentId: null }] },
+    invAreaMember: { findMany: async () => (limitedTo ? [{ areaId: 'area-a', role: limitedTo }] : []) },
     $transaction: async (fn) => fn(prisma),
     invBrand: { findMany: async () => [] },
     invCategory: { findMany: async () => [] },
@@ -153,6 +157,37 @@ test('inventory.plan.create: execute runs the existing executor inside a transac
 });
 
 // ── actions: inventory.item.update / delete ─────────────────────────────────
+
+// Area scoping: a limited actor (viewer of area A) cannot edit, and a non-member never even finds the item.
+test('area scoping: a viewer of the item area cannot propose an update; the scope reaches getItem', async () => {
+  let received = null;
+  const inventoryService = { getItem: async (_id, _co, scope) => { received = scope; return { ...ROW, areaId: 'area-a' }; } };
+  const { actions } = actionsFor({ inventoryService, limitedTo: 'viewer' });
+  const out = await actions['inventory.item.update'].prepare({ itemId: ITEM, name: 'Otro' }, actx);
+  assert.match(out.error, /permiso de edicion/);
+  assert.equal(received.all, false);
+});
+
+test('area scoping: an editor of the item area can propose an update; a limited actor cannot create items', async () => {
+  const inventoryService = { getItem: async () => ({ ...ROW, areaId: 'area-a' }) };
+  const { actions } = actionsFor({ inventoryService, limitedTo: 'editor' });
+  const out = await actions['inventory.item.update'].prepare({ itemId: ITEM, name: 'Otro' }, actx);
+  assert.equal(out.targetId, ITEM);
+  const create = await actions['inventory.plan.create'].prepare({ actions: [{ kind: 'item', data: { name: 'Nuevo' } }] }, actx);
+  assert.match(create.error, /limitado por area/);
+});
+
+test('area scoping: inventory_search adds the area filter for a limited actor', async () => {
+  const seen = [];
+  const prisma = accessOkPrisma({
+    instanceConfig: { findUnique: async () => ({ value: 'true' }) },
+    invArea: { findMany: async () => [{ id: 'area-a', parentId: null }] },
+    invAreaMember: { findMany: async () => [{ areaId: 'area-a', role: 'viewer' }] },
+    invItem: { count: async ({ where }) => { seen.push(where); return 1; }, findMany: async ({ where }) => { seen.push(where); return [ROW]; } },
+  });
+  await queriesFor(prisma).inventory_search.run({ scope: 'company' }, actx);
+  assert.deepEqual(seen[0].AND[1], { areaId: { in: ['area-a'] } });
+});
 
 test('inventory.item.update: preview includes before/after for a changed field and no permission', async () => {
   const inventoryService = { getItem: async () => ROW };
