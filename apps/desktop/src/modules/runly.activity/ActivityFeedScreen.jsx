@@ -1,5 +1,8 @@
 import { toLocalIso } from '../../lib/localDate.js';
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { ACTIVITY_MODULES } from "@runly/validators";
 import { RunlyTable, PageHeader } from "@runly/ui";
 import { FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
@@ -8,68 +11,50 @@ import { useActiveCompany } from "../../company/ActiveCompanyProvider";
 import { runly } from "../../lib/runly";
 import { getApiUrl } from "../../lib/runtimeConfig.js";
 import ActivityDetailSheet from "./ActivityDetailSheet";
+import { activityComponentRegistry } from "./ActivityModuleBadge";
 
 const API_BASE_URL = getApiUrl();
 
 const SEVERITY_OPTIONS = [
-  { value: "info", label: "Info" },
-  { value: "success", label: "Éxito" },
-  { value: "warning", label: "Advertencia" },
-  { value: "critical", label: "Crítico" },
+  { value: "info", label: "Info", color: "#64748b" },
+  { value: "success", label: "Éxito", color: "#22c55e" },
+  { value: "warning", label: "Advertencia", color: "#f59e0b" },
+  { value: "critical", label: "Crítico", color: "#ef4444" },
 ];
 
-const ACTIVITY_BLUEPRINT = {
-  key: "activity.list",
-  schema: {
-    apiPath: "/activity",
-    primaryField: "summary",
-    searchable: true,
-    searchPlaceholder: "Buscar en actividad…",
-    defaultViewMode: "table",
-    columns: [
-      { field: "createdAt", label: "Fecha", type: "date", sortable: true },
-      {
-        field: "severity",
-        label: "Severidad",
-        type: "select",
-        sortable: true,
-        options: SEVERITY_OPTIONS,
-      },
-      { field: "type", label: "Tipo", sortable: true },
-      { field: "actor.displayName", label: "Actor", sortable: false },
-      {
-        field: "summary",
-        label: "Resumen",
-        sortable: false,
-        link: true,
-        isLink: true,
-      },
-      { field: "entityType", label: "Entidad", sortable: true },
-      {
-        field: "entityId",
-        label: "ID Entidad",
-        sortable: false,
-        defaultVisible: false,
-      },
-      {
-        field: "source",
-        label: "Origen",
-        sortable: true,
-        defaultVisible: false,
-      },
-    ],
-    filters: [
-      {
-        key: "severity",
-        label: "Severidad",
-        type: "select",
-        options: SEVERITY_OPTIONS,
-      },
-      { key: "type", label: "Tipo", type: "text" },
-    ],
-    emptyState: { message: "Aún no hay actividad para tu empresa." },
-  },
-};
+// "Sistema" covers core.* and platform.*; the API expands the core filter.
+const MODULE_OPTIONS = ACTIVITY_MODULES.filter((m) => m.key !== "platform").map((m) => ({ value: m.key, label: m.label }));
+
+function buildBlueprint(actorOptions) {
+  return {
+    key: "activity.list",
+    schema: {
+      apiPath: "/activity",
+      primaryField: "summary",
+      searchable: true,
+      searchPlaceholder: "Buscar en actividad…",
+      defaultViewMode: "table",
+      columns: [
+        { field: "createdAt", label: "Fecha", type: "date", sortable: true },
+        { field: "module", label: "Módulo", sortable: false, component: "ActivityModuleCell" },
+        { field: "severity", label: "Severidad", type: "select", sortable: true, options: SEVERITY_OPTIONS },
+        { field: "actor.displayName", label: "Usuario", sortable: false },
+        { field: "summary", label: "Qué pasó", sortable: false, link: true, isLink: true },
+        { field: "entityType", label: "Entidad", sortable: true, defaultVisible: false },
+        { field: "type", label: "Tipo de evento", sortable: true, defaultVisible: false },
+        { field: "entityId", label: "ID Entidad", sortable: false, defaultVisible: false },
+        { field: "source", label: "Origen", sortable: true, defaultVisible: false },
+      ],
+      filters: [
+        { key: "actorId", label: "Usuario", type: "select", options: actorOptions },
+        { key: "module", label: "Módulo", type: "select", options: MODULE_OPTIONS },
+        { key: "severity", label: "Severidad", type: "select", options: SEVERITY_OPTIONS },
+        { key: "date", label: "Fecha", type: "daterange", fromKey: "from", toKey: "to" },
+      ],
+      emptyState: { message: "Aún no hay actividad para tu empresa." },
+    },
+  };
+}
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -88,7 +73,18 @@ export default function ActivityFeedScreen() {
   const { session } = useAuth();
   const token = session?.access_token;
   const { activeCompanyId } = useActiveCompany();
+  const navigate = useNavigate();
   const [selected, setSelected] = useState(null);
+  const actorsQuery = useQuery({
+    queryKey: ["activity", "actors", activeCompanyId],
+    queryFn: () => runly.activity.actors(token),
+    enabled: Boolean(token && activeCompanyId),
+    staleTime: 60_000,
+  });
+  const blueprint = useMemo(
+    () => buildBlueprint((actorsQuery.data?.data ?? []).map((a) => ({ value: a.id, label: a.name }))),
+    [actorsQuery.data],
+  );
 
   const bulkActions = useMemo(
     () => [
@@ -119,19 +115,22 @@ export default function ActivityFeedScreen() {
       <PageHeader
         eyebrow="Runly Activity"
         title="Actividad"
-        description="Bitácora legible de eventos recientes de tu empresa."
+        description="Historial legible de lo que hace tu equipo en cada módulo. Doble clic en una fila para ver el detalle."
       />
       <RunlyTable
-        blueprint={ACTIVITY_BLUEPRINT}
+        blueprint={blueprint}
+        componentRegistry={activityComponentRegistry}
         token={token}
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE_URL}
         onView={setSelected}
+        onRowOpen={setSelected}
         bulkActions={bulkActions}
       />
       <ActivityDetailSheet
         activity={selected}
         onClose={() => setSelected(null)}
+        onNavigate={(link) => { if (String(link).startsWith("/")) { setSelected(null); navigate(link); } }}
       />
     </div>
   );

@@ -59,7 +59,8 @@ test('models report missing types and brands and only create them when asked', a
   assert.deepEqual(withMissing.rows.map((r) => r.status), ['new', 'error']);
 
   const result = await service.commit('models', records, COMPANY, { createMissing: true });
-  assert.deepEqual(result, { created: 1, skipped: 0, failed: 1 });
+  assert.deepEqual({ created: result.created, skipped: result.skipped, failed: result.failed }, { created: 1, skipped: 0, failed: 1 });
+  assert.deepEqual(result.items.map((i) => i.status), ["created", "error"]);
   assert.deepEqual(prisma.created.map((c) => c.table), ['invBrand', 'invModel']);
   assert.equal(prisma.created[1].data.year, 2023);
   assert.equal(prisma.created[1].data.nameKey, 'xps 15');
@@ -69,7 +70,7 @@ test('types resolve parents declared earlier in the same file', async () => {
   const prisma = prismaWith();
   const service = createInventoryCatalogImportService({ prisma });
   const result = await service.commit('types', [{ nombre: 'Cómputo' }, { nombre: 'Laptop gamer', tipo_padre: 'cómputo', icono: 'Laptop', color: '#112233' }], COMPANY);
-  assert.deepEqual(result, { created: 2, skipped: 0, failed: 0 });
+  assert.deepEqual({ created: result.created, skipped: result.skipped, failed: result.failed }, { created: 2, skipped: 0, failed: 0 });
   assert.equal(prisma.created[1].data.parentId, 'invCategory-1');
 });
 

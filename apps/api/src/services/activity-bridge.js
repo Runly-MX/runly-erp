@@ -323,7 +323,10 @@ export function createActivityBridge({ activityService, prisma }) {
       // Ningún translator registrado y sin hint: no publicamos para evitar spam.
       return null;
     }
-    const changes = compactChanges(computeFieldChanges(auditEntry.before, auditEntry.after));
+    // A creation has no "before": diff against an empty record so the detail
+    // lists the values the record was created with.
+    const beforeSnapshot = auditEntry.before ?? (auditEntry.after && typeof auditEntry.after === "object" ? {} : null);
+    const changes = compactChanges(computeFieldChanges(beforeSnapshot, auditEntry.after));
     const payload = {
       ...(hint?.payload ?? base?.payload ?? null),
       ...(changes.length > 0 ? { changes } : {}),

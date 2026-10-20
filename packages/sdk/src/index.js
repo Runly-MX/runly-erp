@@ -1941,6 +1941,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/activity${toQueryString(query)}`, {
           headers: withAuthHeaders(token),
         }),
+      actors: (token) =>
+        request("/activity/actors", { headers: withAuthHeaders(token) }),
       recent: (token, limit = 20) =>
         request(`/activity/recent${toQueryString({ limit })}`, {
           headers: withAuthHeaders(token),

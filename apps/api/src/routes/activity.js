@@ -44,6 +44,15 @@ export function createActivityRouter({ prisma, requirePermission, supabaseAdmin 
     }
   });
 
+  app.get("/activity/actors", requirePermission("activity.read"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      return c.json(await service.actors({ authUserId, companyId: c.get("companyId") }));
+    } catch (err) {
+      return handleError(c, err, "GET /activity/actors");
+    }
+  });
+
   app.get("/activity/recent", requirePermission("activity.read"), async (c) => {
     try {
       const authUserId = c.get("authUserId");

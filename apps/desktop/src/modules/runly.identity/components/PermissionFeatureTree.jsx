@@ -17,7 +17,7 @@ const MODULE_LABELS = {
   fleet: "Flota",
   ledger: "Libro de cuentas",
   website: "Sitio web",
-  audit: "Bitacora",
+  audit: "Auditoría",
   activity: "Actividad",
   notifications: "Notificaciones",
   projects: "Proyectos",

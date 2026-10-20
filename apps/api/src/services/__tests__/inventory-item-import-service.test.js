@@ -186,3 +186,20 @@ test('folio import column maps the Folio header to folio, not to the asset numbe
   assert.ok(field('folio').aliases.includes('folio'));
   assert.ok(!field('assetTag').aliases.includes('folio'));
 });
+
+test('commit returns a per-row outcome list and publishes one import summary', async () => {
+  const published = [];
+  const service = createInventoryItemImportService({
+    prisma: { ...fakePrisma(), userProfile: { findUnique: async () => ({ id: 'p1' }) } },
+    inventoryService: { createItem: async (data) => { if (data.name === 'Boom') throw new Error('Serie duplicada'); return { id: 'x', name: data.name }; } },
+    bridge: { logAndPublish: async (args) => { published.push(args.hint); } },
+  });
+  const file = { rows: [{ n: 'Laptop' }, { n: 'Boom' }, { n: 'x'.repeat(300) }], rowNumbers: [2, 3, 4] };
+  const result = await service.commit(file, { name: 'n' }, COMPANY, 'user', {});
+  assert.deepEqual(result.items.map((i) => [i.line, i.status]), [[2, 'created'], [3, 'error'], [4, 'error']]);
+  assert.equal(result.items[1].message, 'Serie duplicada');
+  assert.equal(result.failed, 2);
+  assert.equal(published.length, 1);
+  assert.equal(published[0].severity, 'warning');
+  assert.equal(published[0].payload.problems.length, 2);
+});

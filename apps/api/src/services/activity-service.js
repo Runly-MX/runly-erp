@@ -1,4 +1,4 @@
-import { activityPublishSchema, ACTIVITY_CONSTANTS, activityCategory, activityCategoryWhere } from "@runly/validators";
+import { activityPublishSchema, ACTIVITY_CONSTANTS, activityCategory, activityCategoryWhere, activityModule } from "@runly/validators";
 
 export class ActivityServiceError extends Error {
   constructor(message, status = 500, code = "activity_error") {
@@ -22,6 +22,11 @@ function buildWhere({ companyId, filters }) {
   if (filters?.entityType) where.entityType = filters.entityType;
   if (filters?.entityId) where.entityId = filters.entityId;
   if (filters?.type) where.type = filters.type;
+  if (filters?.module) {
+    const prefixes = filters.module === "core" ? ["core", "platform"] : [filters.module];
+    const or = prefixes.map((p) => ({ type: { startsWith: `${p}.`, mode: "insensitive" } }));
+    where.AND = [{ OR: or }];
+  }
   if (filters?.actorId) where.actorId = filters.actorId;
   if (filters?.severity) where.severity = filters.severity;
   if (Array.isArray(filters?.ids) && filters.ids.length > 0) {
@@ -30,7 +35,12 @@ function buildWhere({ companyId, filters }) {
   if (filters?.from || filters?.to) {
     where.createdAt = {};
     if (filters.from) where.createdAt.gte = filters.from;
-    if (filters.to) where.createdAt.lte = filters.to;
+    if (filters.to) {
+      // A bare date arrives as midnight: the "to" day is included whole.
+      const to = new Date(filters.to);
+      if (to.getUTCHours() === 0 && to.getUTCMinutes() === 0 && to.getUTCSeconds() === 0) to.setTime(to.getTime() + 86399999);
+      where.createdAt.lte = to;
+    }
   }
   const term = filters?.q ?? filters?.search;
   if (term) {
@@ -190,7 +200,32 @@ export function createActivityService({ prisma }) {
         },
       }),
     ]);
-    return { data: items, pagination: { page, pageSize, total } };
+    const data = items.map((item) => {
+      const category = activityCategory(item.type);
+      const mod = activityModule(item.type);
+      return { ...item, category, module: mod.key, moduleLabel: mod.label, summary: readableSummary(item.summary, item.type, category) };
+    });
+    return { data, pagination: { page, pageSize, total } };
+  }
+
+  // People who have activity in the company, for the actor filter.
+  async function actors({ authUserId, companyId: activeCompanyId }) {
+    const { companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
+    const groups = await prisma.activity.groupBy({
+      by: ["actorId"],
+      where: { companyId, actorId: { not: null } },
+      _count: { _all: true },
+    });
+    const ids = groups.map((g) => g.actorId);
+    if (!ids.length) return { data: [] };
+    const profiles = await prisma.userProfile.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, displayName: true, firstName: true, lastName: true },
+    });
+    const data = profiles
+      .map((p) => ({ id: p.id, name: p.displayName || [p.firstName, p.lastName].filter(Boolean).join(" ").trim() || "Usuario" }))
+      .sort((a, b) => a.name.localeCompare(b.name, "es"));
+    return { data };
   }
 
   async function recent({ authUserId, companyId: activeCompanyId, limit = 20 }) {
@@ -264,6 +299,7 @@ export function createActivityService({ prisma }) {
     publish,
     publishFromContext,
     list,
+    actors,
     recent,
     listForEntity,
     resolveCompanyContext,

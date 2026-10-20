@@ -679,6 +679,7 @@ export const activityListQuerySchema = z.object({
   entityType: z.string().trim().min(1).max(100).optional(),
   entityId: z.string().uuid().optional(),
   type: z.string().trim().min(1).max(100).optional(),
+  module: z.string().trim().regex(/^[a-z_]+$/).max(40).optional(),
   actorId: z.string().uuid().optional(),
   severity: z.enum(ACTIVITY_SEVERITIES).optional(),
   from: z.coerce.date().optional(),
@@ -1382,6 +1383,7 @@ export * from './notes.js';
 export * from './support.js';
 export * from './contacts.js';
 export * from './activity-categories.js';
+export * from './activity-modules.js';
 export * from './module-public-links.js';
 
 // Module help system (docs/superpowers/specs/2026-09-26-module-help-system-design.md)

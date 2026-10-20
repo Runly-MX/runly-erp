@@ -182,6 +182,12 @@ export function createInventoryCatalogImportService({ prisma }) {
         created,
         skipped: rows.filter((r) => r.status === 'exists').length,
         failed: rows.filter((r) => r.status === 'error').length,
+        items: rows.map((r) => ({
+          line: r.line,
+          name: r.data?.nombre ?? '',
+          status: r.status === 'new' ? 'created' : r.status === 'exists' ? 'skipped' : 'error',
+          message: r.status === 'new' ? '' : (r.message ?? ''),
+        })),
       };
     });
   }

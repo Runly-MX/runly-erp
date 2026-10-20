@@ -241,6 +241,7 @@ export { CopyableValue } from "./components/CopyableValue.jsx";
 export { TagsComboboxField } from "./components/TagsComboboxField.jsx";
 export { SectionIndex } from "./components/SectionIndex.jsx";
 export { ImportStepIndicator } from "./components/ImportStepIndicator.jsx";
+export { ImportResultDialog } from "./components/ImportResultDialog.jsx";
 export { DetailActionBar } from "./components/DetailActionBar.jsx";
 export { SearchInput } from "./components/SearchInput.jsx";
 export { FilterBar } from "./components/FilterBar.jsx";

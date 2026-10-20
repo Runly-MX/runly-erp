@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-  ErrorState, ImportStepIndicator, cn,
+  ErrorState, ImportResultDialog, ImportStepIndicator, cn,
 } from '@runly/ui'
 import { Download, FileSpreadsheet, ListChecks, Loader2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
@@ -39,6 +39,7 @@ export function InventoryItemImportDialog({ open, onOpenChange, onImported }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
+  const [result, setResult] = useState(null)
 
   const call = (path, body) => intakeRequest({ apiBaseUrl: getApiUrl(), token, companyId: activeCompanyId, path: `/inventory/item-import${path}`, body })
 
@@ -98,15 +99,9 @@ export function InventoryItemImportDialog({ open, onOpenChange, onImported }) {
       form.append('file', file)
       form.append('options', JSON.stringify({ mapping, createMissing, statusMap, updateExisting }))
       const result = await call('/commit', form)
-      const parts = [`${result.created} activos creados`]
-      if (result.photos) parts.push(`${result.photos} fotos adjuntas`)
-      if (result.updated) parts.push(`${result.updated} actualizados`)
-      if (result.skipped) parts.push(`${result.skipped} omitidos`)
-      if (result.failed) parts.push(`${result.failed} con error`)
-      toast.success(`${parts.join(', ')}.`)
-      if (result.photoFailures?.length) toast.warning(`${result.photoFailures.length} fotos no se pudieron adjuntar. ${result.photoFailures[0].message}`)
       await qc.invalidateQueries({ queryKey: ['inventory'] })
       onImported?.(result)
+      setResult(result)
       close(false)
     } catch (err) { setError(err.message) }
     finally { setBusy(false) }
@@ -115,6 +110,7 @@ export function InventoryItemImportDialog({ open, onOpenChange, onImported }) {
   const creatable = (preview?.counts.new ?? 0) + (updateExisting ? (preview?.counts.update ?? 0) : 0)
 
   return (
+    <>
     <Dialog open={open} onOpenChange={close}>
       <DialogContent scrollable size="2xl">
         <DialogHeader>
@@ -194,5 +190,14 @@ export function InventoryItemImportDialog({ open, onOpenChange, onImported }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <ImportResultDialog
+      open={Boolean(result)}
+      onOpenChange={(next) => { if (!next) setResult(null) }}
+      title="Resultado de la importación de activos"
+      items={result?.items ?? []}
+      extraSummary={result?.photos ? [`${result.photos} fotos adjuntas`] : []}
+      filename="importacion-activos.csv"
+    />
+    </>
   )
 }

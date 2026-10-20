@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   Badge, Button, CheckboxField, DataTable, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-  ErrorState, ImportStepIndicator,
+  ErrorState, ImportResultDialog, ImportStepIndicator,
 } from '@runly/ui'
 import { Download, FileSpreadsheet, Upload } from 'lucide-react'
 import { toast } from 'sonner'
@@ -41,6 +41,7 @@ export function CatalogImportDialog({ catalog, title, open, onOpenChange }) {
   const [createMissing, setCreateMissing] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [result, setResult] = useState(null)
 
   const base = `/inventory/import/${catalog}`
   const call = (path, body) => intakeRequest({ apiBaseUrl: getApiUrl(), token, companyId: activeCompanyId, path: `${base}${path}`, body })
@@ -91,9 +92,9 @@ export function CatalogImportDialog({ catalog, title, open, onOpenChange }) {
   async function commit() {
     setBusy(true); setError('')
     try {
-      const result = await call('/commit', { rows: preview.rows.map((row) => row.data), createMissing })
-      toast.success(`${result.created} creados, ${result.skipped} omitidos${result.failed ? `, ${result.failed} con error` : ''}.`)
+      const outcome = await call('/commit', { rows: preview.rows.map((row) => row.data), createMissing })
       await qc.invalidateQueries({ queryKey: ['inventory'] })
+      setResult(outcome)
       close(false)
     } catch (err) { setError(err.message) }
     finally { setBusy(false) }
@@ -103,6 +104,7 @@ export function CatalogImportDialog({ catalog, title, open, onOpenChange }) {
   const creatable = preview?.counts.new ?? 0
 
   return (
+    <>
     <Dialog open={open} onOpenChange={close}>
       <DialogContent scrollable size="lg">
         <DialogHeader>
@@ -158,5 +160,13 @@ export function CatalogImportDialog({ catalog, title, open, onOpenChange }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <ImportResultDialog
+      open={Boolean(result)}
+      onOpenChange={(next) => { if (!next) setResult(null) }}
+      title={`Resultado de la importación de ${title}`}
+      items={result?.items ?? []}
+      filename={`importacion-${catalog}.csv`}
+    />
+    </>
   )
 }

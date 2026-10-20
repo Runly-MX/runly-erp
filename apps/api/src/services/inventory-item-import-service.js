@@ -13,6 +13,8 @@
 //   column of image links, downloaded server-side.
 // Items are created through inventoryService.createItem so asset tags, audit
 // and activity behave exactly like a manual create.
+import { createActivityService } from './activity-service.js';
+import { createActivityBridge } from './activity-bridge.js';
 import { InventoryServiceError, assertCompany } from './inventory-guards.js';
 import {
   MAX_IMAGES_PER_ROW, MAX_ITEM_IMPORT_ROWS, clean, key, normalizeHeader, parseImportDate, parseImportPrice,
@@ -150,7 +152,10 @@ function incomingFor(d, refs) {
   };
 }
 
-export function createInventoryItemImportService({ prisma, inventoryService, fetchImage = fetchRemoteImage }) {
+export function createInventoryItemImportService({
+  prisma, inventoryService, fetchImage = fetchRemoteImage,
+  bridge = createActivityBridge({ activityService: createActivityService({ prisma }), prisma }),
+}) {
   async function loadCustomFields(companyId) {
     const rows = await prisma.invCustomField.findMany({
       where: { companyId, enabled: true },
@@ -407,9 +412,15 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
     let photos = 0;
     const failures = [];
     const photoFailures = [];
+    // Per-row outcome the client shows in the result review dialog.
+    const items = [];
+    const rowName = (d) => d.name || d.assetTag || d.serialNumber || d.model || '';
+    const record = (row, status, message = '') => items.push({ line: row.line, name: rowName(row.data), status, message });
     for (const row of analyzed) {
+      if (row.status === 'error') record(row, 'error', row.errors.join(' '));
+      else if (row.status === 'exists') record(row, 'skipped', row.notes?.join(' ') || 'Ya existe.');
       if (row.status === 'update') {
-        if (!updateExisting) { notApplied += 1; continue; }
+        if (!updateExisting) { notApplied += 1; record(row, 'skipped', 'Ya existe; no se actualizó.'); continue; }
         try {
           const d = row.data;
           const find = (map, table, name) => (createMissing ? ensure(map, table, name) : Promise.resolve(name ? map.get(key(name)) : undefined));
@@ -423,11 +434,13 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
             : ctx.models.find((m) => m.brandId === modelBrandId && m.nameKey === key(d.model)));
           const { patch } = diffItemFields(row.item, incomingFor(d, { categoryId, brandId, locationId, conditionId }));
           if (model?.id && patch.model) patch.modelId = model.id;
-          if (!Object.keys(patch).length) { notApplied += 1; continue; }
+          if (!Object.keys(patch).length) { notApplied += 1; record(row, 'skipped', 'Sin cambios respecto al activo existente.'); continue; }
           await inventoryService.updateItem(row.existing.id, patch, companyId, { actorAuthId: authUserId });
           updated += 1;
+          record(row, 'updated', 'Campos actualizados.');
         } catch (err) {
           failures.push({ line: row.line, message: err?.message ?? 'No se pudo actualizar.' });
+          record(row, 'error', err?.message ?? 'No se pudo actualizar.');
         }
         continue;
       }
@@ -466,8 +479,10 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
         }, companyId, authUserId);
         if (d.baja) await applyBaja(item.id, d.baja, companyId);
         created += 1;
+        record({ line: row.line, data: { ...d, name: item.name || rowName(d) } }, 'created');
       } catch (err) {
         failures.push({ line: row.line, message: err?.message ?? 'No se pudo crear.' });
+        record(row, 'error', err?.message ?? 'No se pudo crear.');
         continue;
       }
       if (!attachImage) continue;
@@ -479,19 +494,58 @@ export function createInventoryItemImportService({ prisma, inventoryService, fet
           await attachImage(item.id, image);
           photos += 1;
         } catch (err) {
-          photoFailures.push({ line: row.line, message: `${typeof source === 'string' ? source : 'Foto incrustada'}: ${err?.message ?? 'no se pudo adjuntar'}` });
+          const message = `${typeof source === 'string' ? source : 'Foto incrustada'}: ${err?.message ?? 'no se pudo adjuntar'}`;
+          photoFailures.push({ line: row.line, message });
+          record(row, 'warning', `Activo creado, pero la foto falló. ${message}`);
         }
       }
     }
+    const skipped = analyzed.filter((r) => r.status === 'exists').length + notApplied;
+    const failed = analyzed.filter((r) => r.status === 'error').length + failures.length;
+    items.sort((a, b) => a.line - b.line);
+    await publishImportSummary(authUserId, companyId, { created, updated, skipped, failed, items });
     return {
       created,
       updated,
       photos,
-      skipped: analyzed.filter((r) => r.status === 'exists').length + notApplied,
-      failed: analyzed.filter((r) => r.status === 'error').length + failures.length,
+      skipped,
+      failed,
       failures,
       photoFailures: photoFailures.slice(0, 50),
+      items,
     };
+  }
+
+  // One readable feed entry for the whole import, on top of the per-item
+  // "creó" entries. Best effort: an activity failure never fails the import.
+  async function publishImportSummary(authUserId, companyId, { created, updated, skipped, failed, items }) {
+    try {
+      const actor = authUserId ? await prisma.userProfile.findUnique({ where: { authUserId }, select: { id: true } }) : null;
+      const parts = [`${created} creados`];
+      if (updated) parts.push(`${updated} actualizados`);
+      if (skipped) parts.push(`${skipped} omitidos`);
+      if (failed) parts.push(`${failed} con error`);
+      const problems = items.filter((i) => i.status === 'error' || i.status === 'warning').slice(0, 20);
+      await bridge.logAndPublish({
+        auditEntry: {
+          actorId: actor?.id ?? null,
+          moduleKey: 'runly.inventory',
+          entityType: 'InvImport',
+          entityId: null,
+          action: 'inventory.item.imported',
+          after: null,
+        },
+        hint: {
+          type: 'inventory.item.imported',
+          summary: `Importó activos desde archivo: ${parts.join(', ')}`,
+          severity: failed ? 'warning' : 'success',
+          payload: { created, updated, skipped, failed, ...(problems.length ? { problems } : {}) },
+        },
+        companyId,
+      });
+    } catch {
+      // ignore
+    }
   }
 
   async function template() {
