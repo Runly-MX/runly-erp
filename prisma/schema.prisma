@@ -526,6 +526,7 @@ model Company {
   calendars      CalendarCalendar[]
 
   invCategories   InvCategory[]    @relation("CompanyInvCategories")
+  invAreas        InvArea[]        @relation("CompanyInvAreas")
   invBrands       InvBrand[]       @relation("CompanyInvBrands")
   invModels       InvModel[]       @relation("CompanyInvModels")
   invFolioCounters InvFolioCounter[] @relation("CompanyInvFolioCounters")
@@ -612,6 +613,7 @@ model UserProfile {
   projectTaskAssignees ProjectTaskAssignee[] @relation("TaskAssigneeUser")
   invAssignedBy   InvAssignment[]      @relation("UserInvAssignments")
   createdInvItems InvItem[]            @relation("UserCreatedInvItems")
+  invAreaMemberships InvAreaMember[]   @relation("UserInvAreaMemberships")
   invAdminEvents  InvItemAdminEvent[]   @relation("UserInvAdminEvents")
   invCustodiesCreated   InvCustody[] @relation("UserInvCustodiesCreated")
   invCustodiesDelivered InvCustody[] @relation("UserInvCustodiesDelivered")
@@ -3686,6 +3688,42 @@ model InvModel {
   @@map("inv_model")
 }
 
+model InvArea {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String   @db.Uuid @map("company_id")
+  parentId    String?  @db.Uuid @map("parent_id")
+  name        String   @db.VarChar(150)
+  enabled     Boolean  @default(true)
+  createdById String?  @db.Uuid @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company  Company         @relation("CompanyInvAreas", fields: [companyId], references: [id], onDelete: Cascade)
+  parent   InvArea?        @relation("InvAreaTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children InvArea[]       @relation("InvAreaTree")
+  members  InvAreaMember[]
+  items    InvItem[]
+
+  @@index([companyId, parentId])
+  @@map("inv_area")
+}
+
+model InvAreaMember {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  areaId      String   @db.Uuid @map("area_id")
+  userId      String   @db.Uuid @map("user_id")
+  role        String   @default("viewer") @db.VarChar(20)
+  invitedById String?  @db.Uuid @map("invited_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  area InvArea     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  user UserProfile @relation("UserInvAreaMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([areaId, userId])
+  @@index([userId])
+  @@map("inv_area_member")
+}
+
 model InvItem {
   id            String    @id @default(uuid(7)) @db.Uuid
   companyId     String    @db.Uuid @map("company_id")
@@ -3722,11 +3760,13 @@ model InvItem {
   deregisteredAt       DateTime? @db.Date @map("deregistered_at")
   deregistrationReason String?   @db.VarChar(40) @map("deregistration_reason")
   conditionId          String?   @db.Uuid @map("condition_id")
+  areaId        String?   @db.Uuid @map("area_id")
   enabled       Boolean   @default(true)
   createdById   String?   @db.Uuid @map("created_by_id")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
+  area         InvArea?       @relation(fields: [areaId], references: [id], onDelete: SetNull)
   company      Company        @relation("CompanyInvItems", fields: [companyId], references: [id])
   condition    InvCondition?  @relation(fields: [conditionId], references: [id], onDelete: SetNull)
   adminEvents  InvItemAdminEvent[]
@@ -3751,6 +3791,7 @@ model InvItem {
   @@index([categoryId])
   @@index([assignedToId])
   @@index([modelId])
+  @@index([companyId, areaId])
   @@map("inv_item")
 }
 
