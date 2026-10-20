@@ -57,11 +57,6 @@ export function NotificationItem({ notification, onOpen, compact = false, classN
           >
             {p.heading}
           </span>
-          {p.count > 1 && (
-            <span className="shrink-0 rounded-full bg-(--brand-primary) px-1.5 text-[10px] font-semibold leading-4 text-(--brand-primary-foreground)">
-              {p.count > 99 ? "99+" : p.count}
-            </span>
-          )}
           <span className="ml-auto shrink-0 text-[11px] text-[hsl(var(--muted-foreground))]">
             {formatTimeAgo(notification.createdAt)}
           </span>
@@ -70,6 +65,9 @@ export function NotificationItem({ notification, onOpen, compact = false, classN
         <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[hsl(var(--muted-foreground))]">
           <span className={`shrink-0 rounded px-1.5 py-px font-medium ${tone}`}>{p.module.label}</span>
           {p.context && <span className="truncate">{p.context}</span>}
+          {p.count > 1 && (
+            <span className="shrink-0 font-medium text-(--brand-primary)">{p.count} mensajes nuevos</span>
+          )}
           {p.isHigh && !p.context && (
             <span className="shrink-0 font-medium text-amber-500">
               {notification.priority === "critical" ? "Crítica" : "Importante"}

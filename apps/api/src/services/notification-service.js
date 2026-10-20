@@ -169,11 +169,41 @@ export function createNotificationService({ prisma, broadcaster = null, supabase
     };
   }
 
-  // Resolves `metadata.actorId` (stamped at publish time) into a displayable
-  // person so the UI can show who caused the notification. Never fails a list.
+  // Chat notifications created before the actor was stamped carry no sender:
+  // recover it from the conversation's latest message from someone else.
+  async function resolveLegacyChatSenders(views) {
+    const legacy = views.filter(
+      (n) => n.sourceType === "chat_conversation" && n.sourceId && !n.metadata?.actorId,
+    );
+    const result = new Map(); // conversationId -> { senderId, title, type }
+    if (!legacy.length) return result;
+    const conversationIds = [...new Set(legacy.map((n) => n.sourceId))];
+    const rows = await prisma.$queryRaw`
+      SELECT DISTINCT ON (m.conversation_id)
+        m.conversation_id::text AS conversation_id,
+        m.sender_user_id::text AS sender_id,
+        c.title AS title,
+        c.type AS type
+      FROM chat_messages m
+      JOIN chat_conversations c ON c.id = m.conversation_id
+      WHERE m.conversation_id = ANY(${conversationIds}::uuid[])
+        AND m.sender_user_id IS NOT NULL
+        AND m.sender_user_id <> ${legacy[0].userId}::uuid
+      ORDER BY m.conversation_id, m.created_at DESC
+    `;
+    for (const row of rows) {
+      result.set(row.conversation_id, { senderId: row.sender_id, title: row.title, type: row.type });
+    }
+    return result;
+  }
+
+  // Resolves the person behind each notification (`metadata.actorId`, stamped
+  // at publish time) into something displayable. Never fails a list.
   async function attachActors(views) {
     try {
-      const actorIds = [...new Set(views.map((n) => n.metadata?.actorId).filter(Boolean))];
+      const legacy = await resolveLegacyChatSenders(views);
+      const actorIdOf = (n) => n.metadata?.actorId ?? legacy.get(n.sourceId)?.senderId ?? null;
+      const actorIds = [...new Set(views.map(actorIdOf).filter(Boolean))];
       if (!actorIds.length) return views;
       const profiles = await prisma.userProfile.findMany({
         where: { id: { in: actorIds } },
@@ -182,10 +212,17 @@ export function createNotificationService({ prisma, broadcaster = null, supabase
       await attachUserAvatarUrls(profiles, { prisma, supabaseAdmin });
       const byId = new Map(profiles.map((p) => [p.id, p]));
       return views.map((n) => {
-        const actor = byId.get(n.metadata?.actorId);
-        return actor
-          ? { ...n, actor: { id: actor.id, displayName: actor.displayName, avatarUrl: actor.avatarUrl ?? null, isBot: actor.isBot } }
-          : n;
+        const actor = byId.get(actorIdOf(n));
+        if (!actor) return n;
+        const conv = legacy.get(n.sourceId);
+        const metadata = conv && !n.metadata?.conversationType
+          ? { ...(n.metadata ?? {}), conversationTitle: conv.title ?? null, conversationType: conv.type ?? null }
+          : n.metadata;
+        return {
+          ...n,
+          metadata,
+          actor: { id: actor.id, displayName: actor.displayName, avatarUrl: actor.avatarUrl ?? null, isBot: actor.isBot },
+        };
       });
     } catch (err) {
       console.error("[notifications.actors]", err?.message ?? err);
