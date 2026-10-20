@@ -254,7 +254,7 @@ export default function InventoryScreen() {
               </Tooltip>
             </TooltipProvider>
           ) : null}
-          <Button variant="ghost" onClick={() => openMiraiSidebar()}><Sparkles className="mr-2 h-4 w-4" />Consultar con IA</Button>
+          <Button variant="outline" onClick={() => openMiraiSidebar()}><Sparkles className="mr-2 h-4 w-4" />Consultar con IA</Button>
           <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="mr-2 h-4 w-4" />Importar</Button>
           <Button variant="outline" onClick={() => navigate('/app/m/runly.inventory/inventory/intake')}><Sparkles className="mr-2 h-4 w-4" />Registro con IA</Button>
           <Button onClick={() => navigate('/app/m/runly.inventory/inventory/new')}>
@@ -286,8 +286,8 @@ export default function InventoryScreen() {
 
       <div className="flex items-start gap-4">
       {showTree && dock.isDesktop && dock.dockOpen ? (
-        <aside aria-label="Carpetas" className="sticky top-4 max-h-[calc(100dvh-2rem)] w-64 shrink-0 overflow-y-auto rounded-md border border-[hsl(var(--border))] p-2">
-          <AreaTreePanel areas={areaChoices.areas} value={areaValue} onSelect={selectArea} />
+        <aside aria-label="Carpetas" className="sticky top-4 max-h-[calc(100dvh-2rem)] w-64 shrink-0 overflow-y-auto rounded-md border border-[hsl(var(--border))] p-2.5">
+          <AreaTreePanel areas={areaChoices.areas} value={areaValue} onSelect={selectArea} loading={areaChoices.isLoading} onCollapse={dock.toggle} />
         </aside>
       ) : null}
       <div className="min-w-0 flex-1 space-y-2">

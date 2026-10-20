@@ -6,20 +6,29 @@ export const TREE_ALL = ''
 
 // Flat list of the rows currently visible: Todas, General, then the folders
 // whose ancestors are all expanded. `value` is the areaId filter the row sets.
+// Folder rows also carry what the tree guide lines need:
+//  - isLast: no later sibling, so the elbow stops at the row.
+//  - guides: one boolean per indent column (length === depth). The last column
+//    is the row's own elbow (true = the vertical line continues below it); the
+//    others tell whether an ancestor's vertical line passes through this row.
 export function visibleTreeRows(tree, expanded) {
+  const shortcut = { depth: 0, parentValue: null, hasChildren: false, isExpanded: false, isLast: true, guides: [] }
   const rows = [
-    { value: TREE_ALL, kind: 'all', depth: 0, parentValue: null, hasChildren: false, isExpanded: false },
-    { value: AREA_NONE, kind: 'none', depth: 0, parentValue: null, hasChildren: false, isExpanded: false },
+    { ...shortcut, value: TREE_ALL, kind: 'all' },
+    { ...shortcut, value: AREA_NONE, kind: 'none' },
   ]
-  const walk = (nodes, parentValue) => {
-    for (const node of nodes) {
+  // `ancestorsOpen[k]` = the ancestor at depth k + 1 still has later siblings.
+  const walk = (nodes, parentValue, ancestorsOpen) => {
+    nodes.forEach((node, index) => {
       const hasChildren = node.children.length > 0
       const isExpanded = hasChildren && expanded.has(node.id)
-      rows.push({ value: node.id, kind: 'area', depth: node.depth, parentValue, hasChildren, isExpanded, node })
-      if (isExpanded) walk(node.children, node.id)
-    }
+      const isLast = index === nodes.length - 1
+      const guides = node.depth > 0 ? [...ancestorsOpen.slice(0, node.depth - 1), !isLast] : []
+      rows.push({ value: node.id, kind: 'area', depth: node.depth, parentValue, hasChildren, isExpanded, isLast, guides, node })
+      if (isExpanded) walk(node.children, node.id, node.depth > 0 ? guides : [])
+    })
   }
-  walk(tree, null)
+  walk(tree, null, [])
   return rows
 }
 

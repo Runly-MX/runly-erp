@@ -32,3 +32,21 @@ test('keyboard model: arrows move, left/right collapse and expand', () => {
   assert.deepEqual(treeKeyAction(open, 'd', 'End'), { focus: 'd' })
   assert.deepEqual(treeKeyAction(open, 'd', 'Enter'), { select: true })
 })
+
+test('guides: ancestors that continue draw a line, the last child stops its elbow', () => {
+  const t = buildAreaTree([
+    { id: 'r', parentId: null, name: 'R' },
+    { id: 'x', parentId: 'r', name: 'X' },
+    { id: 'y', parentId: 'r', name: 'Y' },
+    { id: 'z', parentId: 'x', name: 'Z' },
+    { id: 'w', parentId: 'x', name: 'W' },
+  ])
+  const by = Object.fromEntries(visibleTreeRows(t, new Set(['r', 'x'])).map((r) => [r.value, r]))
+  assert.deepEqual(by.r.guides, [])
+  assert.deepEqual(by.x.guides, [true])
+  assert.equal(by.y.isLast, true)
+  assert.deepEqual(by.y.guides, [false])
+  assert.deepEqual(by.z.guides, [true, false])
+  assert.deepEqual(by.w.guides, [true, true])
+  assert.deepEqual(by[''].guides, [])
+})
