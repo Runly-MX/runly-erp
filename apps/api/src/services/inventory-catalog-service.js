@@ -243,6 +243,26 @@ export function createInventoryCatalogService({ prisma }) {
   // categoryId: a type id (its fields + global ones), 'all' (every field —
   // the library the item form searches) or empty (global fields only).
   // On-demand fields are never part of a type's automatic set.
+  // Distinct values other items already hold for a field, most used first
+  // (the form suggests them so "Sub ubicacion" etc. stay consistent).
+  async function listCustomFieldValues(companyId, fieldId, search = '') {
+    assertCompany(companyId);
+    const term = String(search ?? '').trim();
+    const rows = await prisma.invCustomFieldValue.groupBy({
+      by: ['value'],
+      where: {
+        fieldId,
+        field: { companyId },
+        item: { enabled: true },
+        value: { not: null, ...(term ? { contains: term, mode: 'insensitive' } : {}) },
+      },
+      _count: { _all: true },
+      orderBy: { _count: { value: 'desc' } },
+      take: 30,
+    });
+    return rows.map((row) => row.value).filter((value) => value && String(value).trim() !== '');
+  }
+
   async function listCustomFields(companyId, categoryId) {
     assertCompany(companyId);
     const where = { companyId, enabled: true };
@@ -316,7 +336,7 @@ export function createInventoryCatalogService({ prisma }) {
     listBrands, createBrand, updateBrand, deleteBrand,
     listLocations, createLocation, updateLocation, deleteLocation,
     listConditions, createCondition, updateCondition, deleteCondition,
-    listCustomFields, createCustomField, updateCustomField, deleteCustomField,
+    listCustomFields, listCustomFieldValues, createCustomField, updateCustomField, deleteCustomField,
     reorderCategories: (companyId, items) => reorderCatalog('invCategory', companyId, items),
     reorderBrands: (companyId, items) => reorderCatalog('invBrand', companyId, items),
     reorderLocations: (companyId, items) => reorderCatalog('invLocation', companyId, items),

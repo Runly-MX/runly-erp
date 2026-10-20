@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
 import {
   TextField,
   NumberField,
@@ -7,10 +7,10 @@ import {
   SelectField,
   CheckboxField,
   ComboboxField,
+  CreatableComboboxField,
 } from "../components/FormFields.jsx";
 import { MarkdownField } from "../components/MarkdownField.jsx";
 import { buildApiHeaders } from "../lib/apiHeaders.js";
-import { Button } from "../components/Button.jsx";
 import { CustomFieldCreator } from "./CustomFieldCreator.jsx";
 import { REMOVED_SUFFIX, extraDefinitionsFrom } from "./custom-fields-values.js";
 
@@ -23,9 +23,59 @@ function joinUrl(baseUrl, apiPath) {
   return `${base}${path}`;
 }
 
-function DynamicFieldControl({ definition, value, onChange }) {
+// Short text / number fields behave like a search: they suggest the values other
+// records already hold for the field and let the user type a new one.
+function SuggestingField({ definition, value, onChange, suggestions }) {
+  const { label, required, fieldType } = definition;
+  const [query, setQuery] = useState("");
+  const [options, setOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const timer = useRef(null);
+  const current = value == null ? "" : String(value);
+
+  function load(term) {
+    setLoading(true);
+    suggestions(definition.id, term)
+      .then((values) => setOptions(values))
+      .catch(() => setOptions([]))
+      .finally(() => setLoading(false));
+  }
+  function handleSearch(term) {
+    setQuery(term);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => load(term), 250);
+  }
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const list = options.map((v) => ({ value: v, label: v }));
+  if (current && !list.some((o) => o.value === current)) list.unshift({ value: current, label: current });
+
+  return (
+    <CreatableComboboxField
+      label={label}
+      required={Boolean(required)}
+      options={list}
+      value={current}
+      loading={loading}
+      clearable
+      placeholder={fieldType === "number" ? "Número..." : "Buscar o escribir..."}
+      searchPlaceholder="Buscar o escribir un valor nuevo..."
+      filter={false}
+      onOpenChange={(open) => { if (open) load(query); }}
+      onSearchChange={handleSearch}
+      onValueChange={(v) => onChange(v ?? "")}
+      onCreate={(text) => onChange(fieldType === "number" ? String(text).replace(",", ".") : text)}
+      createLabel={undefined}
+    />
+  );
+}
+
+function DynamicFieldControl({ definition, value, onChange, suggestions }) {
   const { label, fieldType, options = [], required } = definition;
   const commonProps = { label, required: Boolean(required) };
+  const suggest = suggestions && (fieldType === "text" || fieldType === "number" || !fieldType);
+
+  if (suggest) return <SuggestingField definition={definition} value={value} onChange={onChange} suggestions={suggestions} />;
 
   switch (fieldType) {
     case "number":
@@ -132,6 +182,17 @@ export function DynamicFieldsSection({
     .sort((a, b) => Number(sameType(b)) - Number(sameType(a)))
     .map((def) => ({ value: def.id, label: def.label, description: def.onDemand ? "A demanda" : sameType(def) ? "De este tipo" : def.categoryId ? "De otro tipo" : "Todos los tipos" }));
 
+  const suggestions = config?.apiPath
+    ? async (fieldId, search) => {
+        const url = new URL(joinUrl(apiBaseUrl, `${config.apiPath}/${fieldId}/values`));
+        if (search) url.searchParams.set("search", search);
+        const res = await fetch(url.toString(), { headers: buildApiHeaders(token, companyId) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        return Array.isArray(json.data) ? json.data : [];
+      }
+    : null;
+
   function loadLibrary(open) {
     if (!open || library || libraryLoading || !config?.apiPath) return;
     setLibraryLoading(true);
@@ -163,7 +224,7 @@ export function DynamicFieldsSection({
     const key = `${prefix}.${def.fieldKey}`;
     return (
       <div key={def.id} className={def.fieldType === "textarea" ? "relative col-span-full" : "relative"}>
-        <DynamicFieldControl definition={def} value={formValues[key]} onChange={(val) => onFieldChange(key, val)} />
+        <DynamicFieldControl definition={def} value={formValues[key]} onChange={(val) => onFieldChange(key, val)} suggestions={suggestions} />
         {removable ? (
           <button
             type="button"
@@ -203,12 +264,6 @@ export function DynamicFieldsSection({
               onCreate={config?.createPath ? (text) => setCreator({ open: true, label: String(text ?? "") }) : undefined}
             />
           </div>
-          {config?.createPath && !creator.open ? (
-            <Button type="button" variant="outline" size="sm" className="mb-0.5" onClick={() => setCreator({ open: true, label: "" })}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Nuevo campo
-            </Button>
-          ) : null}
         </div>
       ) : null}
 
