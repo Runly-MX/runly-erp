@@ -22,6 +22,7 @@ import {
 import { fetchRemoteImage, splitImageUrls } from './inventory-import-remote-image.js';
 import { buildAutoItemName } from './inventory-service.js';
 import { EXISTING_ITEM_INCLUDE, diffItemFields } from './inventory-update-diff.js';
+import { canWriteArea, scopeWhere } from './inventory-scope.js';
 
 export { MAX_ITEM_IMPORT_ROWS, parseImportDate, parseImportPrice, parseItemFile, normalizeHeader } from './inventory-import-file.js';
 
@@ -323,10 +324,10 @@ export function createInventoryItemImportService({
 
   // Rows matching an ACTIVE item: attach the existing item and the field diff.
   // The row becomes 'update' only when something would actually change.
-  async function attachExisting(analyzed, companyId, ctx, createMissing) {
+  async function attachExisting(analyzed, companyId, ctx, createMissing, scope = null) {
     const ids = [...new Set(analyzed.filter((r) => r.matchId).map((r) => r.matchId))];
     if (!ids.length) return;
-    const items = await prisma.invItem.findMany({ where: { companyId, enabled: true, id: { in: ids } }, include: EXISTING_ITEM_INCLUDE });
+    const items = await prisma.invItem.findMany({ where: { companyId, enabled: true, id: { in: ids }, ...(scopeWhere(scope) ?? {}) }, include: EXISTING_ITEM_INCLUDE });
     const byId = new Map(items.map((i) => [i.id, i]));
     const lookup = (map, name) => (name ? (map.get(key(name)) ?? (createMissing ? NEW_REF : undefined)) : undefined);
     for (const row of analyzed) {
@@ -341,12 +342,13 @@ export function createInventoryItemImportService({
     }
   }
 
-  async function preview(rows, mapping, companyId, { createMissing = false, statusMap = {}, rowNumbers } = {}) {
+  // scope (optional): existing items outside the caller's areas are neither shown nor updated.
+  async function preview(rows, mapping, companyId, { createMissing = false, statusMap = {}, rowNumbers, scope = null } = {}) {
     assertCompany(companyId);
     const ctx = await loadContext(companyId);
     assertInput(rows, mapping, ctx);
     const analyzed = run(rows, mapping, ctx, { createMissing, statusMap }, (i) => rowNumbers?.[i] ?? i + 2);
-    await attachExisting(analyzed, companyId, ctx, createMissing);
+    await attachExisting(analyzed, companyId, ctx, createMissing, scope);
     const counts = { new: 0, update: 0, exists: 0, error: 0 };
     for (const row of analyzed) counts[row.status] += 1;
     const unique = (values) => [...new Map(values.filter(Boolean).map((v) => [key(v), v])).values()];
@@ -384,12 +386,12 @@ export function createInventoryItemImportService({
     });
   }
 
-  async function commit(file, mapping, companyId, authUserId, { createMissing = false, statusMap = {}, attachImage, updateExisting = false } = {}) {
+  async function commit(file, mapping, companyId, authUserId, { createMissing = false, statusMap = {}, attachImage, updateExisting = false, scope = null, areaId = null } = {}) {
     assertCompany(companyId);
     const ctx = await loadContext(companyId);
     assertInput(file.rows, mapping, ctx);
     const analyzed = run(file.rows, mapping, ctx, { createMissing, statusMap }, (i) => file.rowNumbers?.[i] ?? i + 2);
-    await attachExisting(analyzed, companyId, ctx, createMissing);
+    await attachExisting(analyzed, companyId, ctx, createMissing, scope);
     const ensure = async (map, table, name) => {
       if (!name) return undefined;
       const existing = map.get(key(name));
@@ -421,6 +423,7 @@ export function createInventoryItemImportService({
       else if (row.status === 'exists') record(row, 'skipped', row.notes?.join(' ') || 'Ya existe.');
       if (row.status === 'update') {
         if (!updateExisting) { notApplied += 1; record(row, 'skipped', 'Ya existe; no se actualizó.'); continue; }
+        if (scope && !canWriteArea(scope, row.item.areaId)) { notApplied += 1; record(row, 'skipped', 'No tienes permiso para actualizar este activo.'); continue; }
         try {
           const d = row.data;
           const find = (map, table, name) => (createMissing ? ensure(map, table, name) : Promise.resolve(name ? map.get(key(name)) : undefined));
@@ -476,7 +479,8 @@ export function createInventoryItemImportService({
           description: d.description || undefined,
           notes: d.notes || undefined,
           customValues: d.customValues.length ? d.customValues : undefined,
-        }, companyId, authUserId);
+          areaId: areaId || undefined,
+        }, companyId, authUserId, { scope });
         if (d.baja) await applyBaja(item.id, d.baja, companyId);
         created += 1;
         record({ line: row.line, data: { ...d, name: item.name || rowName(d) } }, 'created');

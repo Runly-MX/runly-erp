@@ -5,6 +5,7 @@ import { createInventoryService, InventoryServiceError } from './inventory-servi
 import { intakeSchema, observationSchema } from '../routes/inventory/intake-validators.js';
 import { createInventoryModelService } from './inventory-model-service.js';
 import { EXISTING_ITEM_INCLUDE, diffItemFields } from './inventory-update-diff.js';
+import { canWriteArea, scopeWhere } from './inventory-scope.js';
 
 const lower = (value) => String(value ?? '').trim().toLocaleLowerCase('es');
 const brief = (item) => ({ id: item.id, name: item.name, assetTag: item.assetTag ?? null, serialNumber: item.serialNumber ?? null });
@@ -126,7 +127,9 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
     if (!parsed.success) throw new InventoryServiceError(parsed.error.issues[0]?.message || 'Revisa los datos del lote.', 400);
     return parsed.data;
   }
-  async function validate({ input, companyId, actorId, db = prisma }) {
+  // scope (optional): matches outside the caller's areas are invisible (a duplicate of one still
+  // fails on create, without its data) and only writable matches can be updated.
+  async function validate({ input, companyId, actorId, db = prisma, scope = null }) {
     assertContext({ companyId, actorId });
     const data = parse(input);
     data.common = await createInventoryModelService({ prisma: db }).applyModelDefaults(data.common, companyId);
@@ -171,7 +174,7 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
     for (const serial of seenSerials) alternatives.push({ serialNumber: { equals: serial, mode: 'insensitive' } });
     for (const tag of seenTags) alternatives.push({ assetTag: { equals: tag, mode: 'insensitive' } });
     // Only ACTIVE items conflict; logically deleted ones never do.
-    const matches = alternatives.length ? await db.invItem.findMany({ where: { companyId, enabled: true, OR: alternatives }, include: EXISTING_ITEM_INCLUDE }) : [];
+    const matches = alternatives.length ? await db.invItem.findMany({ where: { companyId, enabled: true, ...(scopeWhere(scope) ?? {}), OR: alternatives }, include: EXISTING_ITEM_INCLUDE }) : [];
     const updates = [];
     data.units.forEach((unit, index) => {
       const found = new Map();
@@ -192,6 +195,8 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
       updates.push({ index, matchedBy: by, item: brief(item), changes, patch });
       if (unit.mode === 'create') {
         issues.push({ index, field: by, message: by === 'serialNumber' ? 'Ya existe un equipo activo con esta serie. Actualízalo u omite la unidad.' : 'Ya existe un equipo activo con este número de activo. Actualízalo u omite la unidad.', item: brief(item) });
+      } else if (unit.mode === 'update' && scope && !canWriteArea(scope, item.areaId)) {
+        issues.push({ index, message: 'No tienes permiso para actualizar ese equipo.' });
       } else if (unit.mode === 'update' && unit.existingItemId !== item.id) {
         issues.push({ index, message: 'El equipo a actualizar no coincide con el actual. Vuelve a revisar el lote.' });
       }
@@ -199,7 +204,7 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
     return { data, proofs, issues, updates };
   }
 
-  async function create({ input, companyId, actorId, authUserId }) {
+  async function create({ input, companyId, actorId, authUserId, scope = null }) {
     assertContext({ companyId, actorId });
     const parsed = parse(input);
     const fingerprint = hash(JSON.stringify(parsed));
@@ -213,7 +218,7 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
           if (previous.metadata.fingerprint !== fingerprint) throw new InventoryServiceError('Este lote ya se guardó con otros datos. Abre una captura nueva.', 409);
           return { items: previous.after.items, replayed: true };
         }
-        const checked = await validate({ input: parsed, companyId, actorId, db: tx });
+        const checked = await validate({ input: parsed, companyId, actorId, db: tx, scope });
         if (checked.issues.length) {
           const err = new InventoryServiceError('Revisa las series, confirmaciones y duplicados del lote.', 409);
           err.issues = checked.issues;
@@ -231,7 +236,7 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
           if (plan && unit.mode === 'skip') { items.push({ ...plan.item, action: 'skipped' }); continue; }
           if (plan) {
             // Only differing, non-empty fields; identifiers are never touched.
-            const saved = Object.keys(plan.patch).length ? await service.updateItem(plan.item.id, plan.patch, companyId, { actorAuthId: authUserId }) : null;
+            const saved = Object.keys(plan.patch).length ? await service.updateItem(plan.item.id, plan.patch, companyId, { actorAuthId: authUserId, scope }) : null;
             const item = { id: plan.item.id, name: saved?.name ?? plan.item.name, assetTag: saved?.assetTag ?? plan.item.assetTag, serialNumber: saved?.serialNumber ?? plan.item.serialNumber, action: 'updated' };
             items.push(item);
             await tx.auditLog.create({ data: { companyId, actorId, moduleKey: 'runly.inventory', entityType: 'InvItem', entityId: item.id,
@@ -241,7 +246,7 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
           }
           const assetTag = unit.assetTag || null;
           const created = await service.createItem({ ...parsed.common, name: unit.name ?? parsed.common.name, serialNumber: unit.serialNumber || null,
-            partNumber: unit.partNumber ?? parsed.common.partNumber, assetTag }, companyId, authUserId);
+            partNumber: unit.partNumber ?? parsed.common.partNumber, assetTag }, companyId, authUserId, { scope });
           const item = { id: created.id, name: created.name, assetTag: created.assetTag, serialNumber: created.serialNumber ?? null, action: 'created' };
           items.push(item);
           await tx.auditLog.create({ data: { companyId, actorId, moduleKey: 'runly.inventory', entityType: 'InvItem', entityId: item.id,

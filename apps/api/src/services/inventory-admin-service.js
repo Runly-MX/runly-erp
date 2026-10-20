@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { createActivityService } from './activity-service.js';
 import { createActivityBridge } from './activity-bridge.js';
 import { InventoryServiceError, assertCompany } from './inventory-guards.js';
+import { scopeWhere } from './inventory-scope.js';
 
 export const ADMIN_STATUSES = ['registration_pending', 'registered', 'deregistration_proposed', 'deregistered'];
 export const ADMIN_STATUS_LABELS = {
@@ -156,9 +157,10 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
     }));
   }
 
-  async function summary(companyId) {
+  // scope (optional): counts only the caller's areas.
+  async function summary(companyId, scope = null) {
     assertCompany(companyId);
-    const where = { companyId, enabled: true };
+    const where = { companyId, enabled: true, ...(scopeWhere(scope) ?? {}) };
     const [byAdmin, byCondition, byStatus, conditions, proposals] = await Promise.all([
       prisma.invItem.groupBy({ by: ['adminStatus'], where, _count: { _all: true } }),
       prisma.invItem.groupBy({ by: ['conditionId'], where: { ...where, adminStatus: { not: 'deregistered' } }, _count: { _all: true } }),

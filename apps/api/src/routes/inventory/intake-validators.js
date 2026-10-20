@@ -9,6 +9,8 @@ export const inventoryCommonSchema = z.object({
   description: text(2000),
   modelId: ref,
   categoryId: ref, brandId: ref, locationId: ref,
+  // Optional inventory area (null = General); limited users must pick one they can write.
+  areaId: ref,
   model: text(255), partNumber: text(255),
   status: z.enum(['available', 'maintenance']).default('available'),
   adminStatus: z.enum(['registered', 'registration_pending']).default('registered'),

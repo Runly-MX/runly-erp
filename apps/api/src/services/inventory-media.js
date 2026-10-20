@@ -1,3 +1,5 @@
+import { scopeWhere } from './inventory-scope.js'
+
 // Company-wide list of the files attached to inventory items (photos and
 // documents), newest first, for the Multimedia gallery.
 const MAX_PAGE_SIZE = 200
@@ -5,10 +7,11 @@ const IMAGE = { startsWith: 'image/' }
 
 // itemIds: items matched by the full inventory search (same engine as the list);
 // when given, any file of those items matches, on top of its own label/name.
-export function mediaWhere(companyId, { kind, search, itemId, itemIds } = {}) {
+// scope (optional): only files of items in the caller's areas.
+export function mediaWhere(companyId, { kind, search, itemId, itemIds } = {}, scope = null) {
   const term = String(search ?? '').trim()
   return {
-    item: { companyId, enabled: true },
+    item: { companyId, enabled: true, ...(scopeWhere(scope) ?? {}) },
     ...(itemId ? { itemId } : {}),
     fileAsset: {
       enabled: true,
@@ -27,10 +30,10 @@ export function mediaWhere(companyId, { kind, search, itemId, itemIds } = {}) {
   }
 }
 
-export async function listInventoryMedia(prisma, companyId, query = {}) {
+export async function listInventoryMedia(prisma, companyId, query = {}, scope = null) {
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(query.pageSize) || 120))
   const page = Math.max(1, Number(query.page) || 1)
-  const where = mediaWhere(companyId, query)
+  const where = mediaWhere(companyId, query, scope)
   const [rows, total] = await Promise.all([
     prisma.invItemFile.findMany({
       where,

@@ -3,6 +3,7 @@
 // Every query is scoped by companyId; the layout/rendering itself is the pure
 // package in ./inventory-labels/.
 import { InventoryServiceError, assertCompany } from './inventory-guards.js';
+import { scopeWhere } from './inventory-scope.js';
 import {
   DEFAULT_TEMPLATES, FORMATS, TRANSPORTS, clampQuantity, normalizePrinterTransport, createPlaceholderQrUrl, normalizeLayout, renderLabels, withNewTemplateDefaults,
 } from './inventory-labels/index.js';
@@ -256,11 +257,11 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
   // Company-wide print log, newest first (Etiquetas > Historial). Rows written by
   // one registerPrints call share printedAt + userId, which the client uses to
   // group them into print runs.
-  async function listPrints(companyId, { page = 1, limit = 50 } = {}) {
+  async function listPrints(companyId, { page = 1, limit = 50 } = {}, scope = null) {
     assertCompany(companyId);
     const take = Math.min(100, Math.max(1, Math.floor(Number(limit)) || 50));
     const current = Math.max(1, Math.floor(Number(page)) || 1);
-    const where = { companyId };
+    const where = { companyId, ...(scopeWhere(scope) ? { item: scopeWhere(scope) } : {}) };
     const [rows, total] = await Promise.all([
       prisma.invLabelPrint.findMany({
         where,

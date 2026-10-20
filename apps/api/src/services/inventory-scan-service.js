@@ -4,6 +4,7 @@
 // barcode (exact, trimmed, case-insensitive, enabled items of the company).
 import ExcelJS from 'exceljs';
 import { InventoryServiceError, assertCompany } from './inventory-guards.js';
+import { scopeWhere } from './inventory-scope.js';
 
 export const MAX_SCAN_CODES = 50;
 export const MAX_CODE_LENGTH = 512;
@@ -56,7 +57,8 @@ export function createInventoryScanService({ prisma, publicService }) {
   });
 
   // -> [{ code, item | null, matchedBy: 'link'|'folio'|'assetTag'|'serial'|null }] in input order.
-  async function resolveCodes(companyId, rawCodes) {
+  // scope (optional): a code of an item outside the caller's areas resolves as not found.
+  async function resolveCodes(companyId, rawCodes, scope = null) {
     assertCompany(companyId);
     if (!Array.isArray(rawCodes)) throw new InventoryServiceError('Envía la lista de códigos.', 400);
     if (rawCodes.length > MAX_SCAN_CODES) throw new InventoryServiceError(`Máximo ${MAX_SCAN_CODES} códigos por consulta.`, 400);
@@ -78,7 +80,7 @@ export function createInventoryScanService({ prisma, publicService }) {
       ...unique.flatMap((code) => IDENTIFIERS.map(([field]) => ({ [field]: { equals: code, mode: 'insensitive' } }))),
     ];
     const items = or.length
-      ? await prisma.invItem.findMany({ where: { companyId, enabled: true, OR: or }, select: ITEM_SELECT, orderBy: { createdAt: 'asc' } })
+      ? await prisma.invItem.findMany({ where: { companyId, enabled: true, ...(scopeWhere(scope) ?? {}), OR: or }, select: ITEM_SELECT, orderBy: { createdAt: 'asc' } })
       : [];
     const covers = await coverIds(items.map((item) => item.id));
     const byId = new Map(items.map((item) => [item.id, item]));

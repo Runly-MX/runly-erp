@@ -2,6 +2,7 @@
 // and returns of items to an employee.
 // Spec: docs/superpowers/specs/2026-10-13-inventory-custody-design.md
 import { InventoryServiceError, assertCompany } from './inventory-guards.js';
+import { scopeWhere } from './inventory-scope.js';
 import { assignItemTx, returnItemTx } from './inventory-assignment-tx.js';
 import { createCustodyFileStore } from './inventory-custody-files.js';
 import { createCustodyDocumentRenderer } from './inventory-custody-document.js';
@@ -37,6 +38,12 @@ const CUSTODY_INCLUDE = {
   createdBy: { select: { id: true, displayName: true } },
   template: { select: { id: true, name: true, format: true } },
 };
+
+// Custodies the caller may see: those holding at least one item of their areas, plus empty ones.
+export function custodyScopeWhere(scope) {
+  const items = scopeWhere(scope);
+  return items ? { OR: [{ items: { none: {} } }, { items: { some: { item: items } } }] } : null;
+}
 
 export function serializeCustody(row) {
   if (!row) return row;
@@ -121,11 +128,13 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     throw new InventoryServiceError('No se pudo asignar un folio. Intenta de nuevo.', 409);
   }
 
-  async function list({ companyId, status, employeeId, itemId, q, page = 1, pageSize = 25 }) {
+  async function list({ companyId, status, employeeId, itemId, q, page = 1, pageSize = 25, scope = null }) {
     assertCompany(companyId);
     const take = Math.min(Math.max(Number.parseInt(pageSize, 10) || 25, 1), 100);
     const currentPage = Math.max(Number.parseInt(page, 10) || 1, 1);
     const where = { companyId };
+    const visible = custodyScopeWhere(scope);
+    if (visible) where.AND = [visible];
     const statuses = String(status ?? '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
     if (statuses.length) where.status = { in: statuses };
     if (employeeId) where.employeeId = String(employeeId);
