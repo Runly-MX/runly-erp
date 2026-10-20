@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { useChatUpload } from "../hooks/useChatUpload";
 import { useMentionCandidates } from "../hooks/useMentionCandidates";
 import { useChatSlashSources } from "../hooks/useChatSlashSources";
+import { ComposerChipPreview } from "./ComposerChipPreview";
 import { MIRAI_MENTION_ID } from "../lib/mirai";
 import { useAuth } from "../../../auth/AuthProvider";
 import { EntityReferencePicker } from "./EntityReferencePicker";
@@ -157,6 +158,16 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const currentUserId = userProfile?.id;
   const mentionCandidates = useMentionCandidates(conversationId, currentUserId);
   const slashSources = useChatSlashSources();
+  // Hover (desktop) / tap (touch) preview of a mention or record link chip.
+  const [chipTarget, setChipTarget] = useState(null);
+  const chipTimer = useRef(null);
+  const coarsePointer = useCoarsePointer();
+  const handleChipHover = (hit) => {
+    if (coarsePointer) return;
+    clearTimeout(chipTimer.current);
+    chipTimer.current = setTimeout(() => setChipTarget(hit), hit ? 300 : 250);
+  };
+  const handleChipPress = (hit) => { if (coarsePointer) setChipTarget(hit); };
   // @-mentions of people only make sense where there's a group to address — in
   // a 1:1 there's nobody else to pick from. But @MirAI is still useful in a
   // DM (ask the assistant a question you both see), so keep just that one.
@@ -880,6 +891,13 @@ export const MessageComposer = forwardRef(function MessageComposer(
               instead of wrapping, blowing out the composer and the page's
               horizontal bounds. */}
           <div className="w-full min-w-0 max-w-full overflow-hidden">
+            <ComposerChipPreview
+              target={chipTarget}
+              members={mentionMembers}
+              onClose={() => setChipTarget(null)}
+              onEnter={() => clearTimeout(chipTimer.current)}
+              onLeave={() => handleChipHover(null)}
+            />
             <MentionTextarea
               ref={mentionTaRef}
               value={body}
@@ -890,6 +908,8 @@ export const MessageComposer = forwardRef(function MessageComposer(
               members={mentionMembers}
               slashSources={slashSources}
               chips
+              onChipHover={handleChipHover}
+              onChipPress={handleChipPress}
               placeholder={placeholder}
               // Rests at 1 line now (was a fixed 3, always tall even empty)
               // and grows with content up to maxRows, per the redesign ask.

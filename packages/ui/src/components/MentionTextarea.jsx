@@ -6,6 +6,7 @@ import { useIsolatedScroll } from '../hooks/useIsolatedScroll.js'
 import { layerZIndexFor } from '../hooks/useComboboxPopover.js'
 import { ENTITY_TOKEN_SOURCE, PlainEntityChip } from '../lib/entityTokens.jsx'
 import { parseSlashContext, slashSourceRows } from '../lib/slashEntitySearch.js'
+import { applyEdit, chipName, insideChip, parseSerialized, replaceRange, serializeRanges } from '../lib/mentionRanges.js'
 
 // Stored format:  @[uuid:DisplayName]
 // Display format: @[DisplayName]   (no UUID visible in textarea)
@@ -13,7 +14,6 @@ import { parseSlashContext, slashSourceRows } from '../lib/slashEntitySearch.js'
 // split a body into mention/text segments without duplicating this pattern.
 export const MENTION_TOKEN_RE = /@\[([a-f0-9-]{36}):([^\]]+)\]/g
 const STORED_TOKEN_RE = MENTION_TOKEN_RE
-const DISPLAY_TOKEN_RE = /@\[([^\]]+)\]/g
 
 const COMBINED_TOKEN_SOURCE = `${MENTION_TOKEN_RE.source}|${ENTITY_TOKEN_SOURCE}`
 
@@ -72,35 +72,6 @@ export function parseMentionIds(text) {
     ids.push(match[1])
   }
   return [...new Set(ids)]
-}
-
-// `entityMap` remembers display name -> "entityType:uuid" for #[...] links.
-function toDisplay(serialized, mentionMap, entityMap) {
-  if (!serialized) return ''
-  STORED_TOKEN_RE.lastIndex = 0
-  return serialized
-    .replace(STORED_TOKEN_RE, (_, uuid, name) => {
-      mentionMap.set(name, uuid)
-      return `@[${name}]`
-    })
-    .replace(new RegExp(ENTITY_TOKEN_SOURCE, 'g'), (_, type, uuid, name) => {
-      entityMap.set(name, `${type}:${uuid}`)
-      return `#[${name}]`
-    })
-}
-
-function toSerialized(display, mentionMap, entityMap) {
-  if (!display) return ''
-  DISPLAY_TOKEN_RE.lastIndex = 0
-  return display
-    .replace(DISPLAY_TOKEN_RE, (match, name) => {
-      const uuid = mentionMap.get(name)
-      return uuid ? `@[${uuid}:${name}]` : match
-    })
-    .replace(/#\[([^\]]+)\]/g, (match, name) => {
-      const ref = entityMap.get(name)
-      return ref ? `#[${ref}:${name}]` : match
-    })
 }
 
 // Non-person entries (assistant, roles, @everyone/@here) get a distinct icon
@@ -171,6 +142,30 @@ function MemberAvatar({ member }) {
   )
 }
 
+// Text drawn behind the (transparent) textarea, with each chip styled. Same
+// font and wrapping as the field, so the chips land exactly under the text.
+function backdropNodes(text, ranges) {
+  const out = []
+  let pos = 0
+  ;[...ranges].sort((a, b) => a.start - b.start).forEach((r, i) => {
+    if (r.start > pos) out.push(text.slice(pos, r.start))
+    const color = r.color || 'var(--brand-primary)'
+    out.push(
+      <mark
+        key={`${r.start}-${i}`}
+        data-chip={i}
+        className="rounded-sm text-inherit"
+        style={{ color, backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)`, boxShadow: `0 0 0 2px color-mix(in srgb, ${color} 14%, transparent)`, WebkitBoxDecorationBreak: 'clone', boxDecorationBreak: 'clone' }}
+      >
+        {text.slice(r.start, r.end)}
+      </mark>
+    )
+    pos = r.end
+  })
+  if (pos < text.length) out.push(text.slice(pos))
+  return out
+}
+
 // Bold the part of the name that matches what the user typed after "@".
 function HighlightMatch({ text, query }) {
   const idx = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1
@@ -220,17 +215,27 @@ const MentionTextarea = forwardRef(function MentionTextarea({
   slashSources = null,
   // Highlight @mentions and #links as chips behind the text.
   chips = false,
+  // Chips mode only: pointer over / tap on a chip -> { kind, id, entityType, name, rect } (null on leave).
+  onChipHover = null,
+  onChipPress = null,
 }, ref) {
-  const mentionMap = useRef(new Map())
-  const entityMap = useRef(new Map())
-  const [displayValue, setDisplayValue] = useState(() => toDisplay(value, mentionMap.current, entityMap.current))
+  // The field holds plain text; mention/link identity lives in `ranges`.
+  const [model, setModel] = useState(() => parseSerialized(value))
+  const displayValue = model.text
+  const ranges = model.ranges
   const lastSerializedRef = useRef(value)
+
+  const commit = useCallback((next) => {
+    const serialized = serializeRanges(next.text, next.ranges)
+    lastSerializedRef.current = serialized
+    setModel({ text: next.text, ranges: next.ranges })
+    onChange(serialized)
+  }, [onChange])
 
   useEffect(() => {
     if (value !== lastSerializedRef.current) {
       lastSerializedRef.current = value
-      const newDisplay = toDisplay(value, mentionMap.current, entityMap.current)
-      setDisplayValue(newDisplay)
+      setModel(parseSerialized(value))
     }
   }, [value])
 
@@ -273,10 +278,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
       const selected = displayValue.slice(start, end)
       const after = displayValue.slice(end)
       const newDisplay = `${before}${markStart}${selected}${markEnd}${after}`
-      setDisplayValue(newDisplay)
-      const serialized = toSerialized(newDisplay, mentionMap.current, entityMap.current)
-      lastSerializedRef.current = serialized
-      onChange(serialized)
+      commit(applyEdit(displayValue, newDisplay, ranges))
       requestAnimationFrame(() => {
         ta.focus()
         const newStart = start + markStart.length
@@ -306,10 +308,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
       const prefixedLines = lines.map((line, i) => `${prefixOf(i)}${line}`)
       const newBlock = prefixedLines.join('\n')
       const newDisplay = `${before}${newBlock}${after}`
-      setDisplayValue(newDisplay)
-      const serialized = toSerialized(newDisplay, mentionMap.current, entityMap.current)
-      lastSerializedRef.current = serialized
-      onChange(serialized)
+      commit(applyEdit(displayValue, newDisplay, ranges))
       requestAnimationFrame(() => {
         ta.focus()
         const firstPrefixLen = prefixOf(0).length
@@ -334,6 +333,8 @@ const MentionTextarea = forwardRef(function MentionTextarea({
     const next = Math.min(Math.max(el.scrollHeight, minHeight), maxHeight)
     el.style.height = `${next}px`
     el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden'
+    // Chips mode: keep the text layer as narrow as the field when it shows a scrollbar.
+    if (backdropRef.current) backdropRef.current.style.right = `${el.offsetWidth - el.clientWidth}px`
   }, [displayValue, rows, maxRows])
 
   const filtered = slash
@@ -398,37 +399,36 @@ const MentionTextarea = forwardRef(function MentionTextarea({
 
   const handleChange = useCallback(
     (e) => {
-      const newDisplay = e.target.value
-      setDisplayValue(newDisplay)
-      const serialized = toSerialized(newDisplay, mentionMap.current, entityMap.current)
-      lastSerializedRef.current = serialized
-      onChange(serialized)
+      const res = applyEdit(displayValue, e.target.value, ranges)
+      commit(res)
+      const ta = e.target
+      if (res.caret !== null) requestAnimationFrame(() => ta.setSelectionRange(res.caret, res.caret))
 
-      const caret = e.target.selectionStart
-      const before = newDisplay.slice(0, caret)
+      const caret = res.caret ?? ta.selectionStart
+      const before = res.text.slice(0, caret)
       const slashCtx = slashSources?.length ? parseSlashContext(before, slashSources) : null
-      if (slashCtx) {
+      if (slashCtx && !insideChip(res.ranges, slashCtx.start)) {
         setSlash(slashCtx)
         setQuery(slashCtx.query)
         setOpen(true)
         setActiveIdx(0)
-        setMenuPos(computeMenuPos(e.target))
+        setMenuPos(computeMenuPos(ta))
         return
       }
       setSlash(null)
-      const atMatch = before.match(/@([^\s@\[]*)$/)
-      if (atMatch && !before.match(/@\[[^\]]*$/)) {
-        const atIdx = before.lastIndexOf('@')
+      const atMatch = before.match(/@([^\s@]*)$/)
+      const atIdx = atMatch ? before.length - atMatch[0].length : -1
+      if (atMatch && !insideChip(res.ranges, atIdx) && (atIdx === 0 || /\s/.test(before[atIdx - 1]))) {
         setTriggerPos(atIdx)
         setQuery(atMatch[1])
         setOpen(true)
         setActiveIdx(0)
-        setMenuPos(computeMenuPos(e.target))
+        setMenuPos(computeMenuPos(ta))
       } else {
         setOpen(false)
       }
     },
-    [onChange, slashSources]
+    [displayValue, ranges, commit, slashSources]
   )
 
   const insertMention = useCallback(
@@ -439,55 +439,77 @@ const MentionTextarea = forwardRef(function MentionTextarea({
       if (slash && member.kind === 'source') {
         // Module picked: keep the dropdown open on its search results.
         const src = member.source
-        const head = displayValue.slice(0, slash.start)
-        const tail = displayValue.slice(caret)
         const typed = `/${src.aliases[0]}:`
-        const newDisplay = `${head}${typed}${tail}`
-        setDisplayValue(newDisplay)
-        const serializedNext = toSerialized(newDisplay, mentionMap.current, entityMap.current)
-        lastSerializedRef.current = serializedNext
-        onChange(serializedNext)
+        commit(replaceRange(displayValue, ranges, slash.start, caret, typed))
         setSlash({ phase: 'search', source: src, query: '', start: slash.start })
         setQuery('')
         setActiveIdx(0)
         requestAnimationFrame(() => {
-          const pos = head.length + typed.length
+          const pos = slash.start + typed.length
           ta.setSelectionRange(pos, pos)
           ta.focus()
         })
         return
       }
-      const triggerStart = slash ? slash.start : triggerPos
-      const before = displayValue.slice(0, triggerStart)
-      const after = displayValue.slice(caret)
-      let tokenName = member.displayName
-      let sigil = '@'
-      if (member.kind === 'entity') {
-        sigil = '#'
-        const ref = `${member.entity.entityType}:${member.entity.recordId}`
-        // Two different records can share a name; keep the display token unique.
-        if (entityMap.current.has(tokenName) && entityMap.current.get(tokenName) !== ref) tokenName = `${tokenName} (${member.entity.recordId.slice(0, 4)})`
-        entityMap.current.set(tokenName, ref)
-      } else {
-        mentionMap.current.set(member.displayName, member.id)
-      }
+      const start = slash ? slash.start : triggerPos
+      const name = chipName(member.displayName)
+      const isEntity = member.kind === 'entity'
+      const shown = isEntity ? name : `@${name}`
+      const chip = isEntity
+        ? { kind: 'entity', entityType: member.entity.entityType, id: member.entity.recordId, color: member.color }
+        : { kind: 'user', id: member.id, color: member.color }
+      // The chip covers the name only; the trailing space is ordinary text.
+      const next = replaceRange(displayValue, ranges, start, caret, `${shown} `, chip)
+      commit({
+        text: next.text,
+        ranges: next.ranges.map((r) => (r.start === start && r.kind === chip.kind ? { ...r, end: start + shown.length } : r)),
+      })
       setSlash(null)
-      const token = `${sigil}[${tokenName}]`
-      const newDisplay = `${before}${token} ${after}`
-      setDisplayValue(newDisplay)
-      const serialized = toSerialized(newDisplay, mentionMap.current, entityMap.current)
-      lastSerializedRef.current = serialized
-      onChange(serialized)
       setOpen(false)
       setQuery('')
       requestAnimationFrame(() => {
-        const newCaret = before.length + token.length + 1
+        const newCaret = start + shown.length + 1
         ta.setSelectionRange(newCaret, newCaret)
         ta.focus()
       })
     },
-    [displayValue, triggerPos, onChange, slash]
+    [displayValue, ranges, triggerPos, commit, slash]
   )
+
+  // The backdrop sits under the textarea (which owns the pointer), so chips
+  // are hit-tested by their rendered rectangles.
+  const lastChipRef = useRef(null)
+  function chipAt(x, y) {
+    const marks = backdropRef.current?.querySelectorAll('[data-chip]')
+    if (!marks) return null
+    const sorted = [...ranges].sort((a, b) => a.start - b.start)
+    for (const el of marks) {
+      for (const rect of el.getClientRects()) {
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+          const r = sorted[Number(el.dataset.chip)]
+          if (!r) return null
+          return { kind: r.kind, id: r.id, entityType: r.entityType, name: displayValue.slice(r.start, r.end).replace(/^@/, ''), start: r.start, rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height } }
+        }
+      }
+    }
+    return null
+  }
+  function handleChipMove(e) {
+    const hit = chipAt(e.clientX, e.clientY)
+    const key = hit ? hit.start : null
+    if (key === lastChipRef.current) return
+    lastChipRef.current = key
+    onChipHover(hit)
+  }
+  function handleChipLeave() {
+    if (lastChipRef.current === null) return
+    lastChipRef.current = null
+    onChipHover(null)
+  }
+  function handleChipClick(e) {
+    const hit = chipAt(e.clientX, e.clientY)
+    if (hit) onChipPress(hit)
+  }
 
   function handleKeyDown(e) {
     if (open) {
@@ -576,12 +598,9 @@ const MentionTextarea = forwardRef(function MentionTextarea({
         <div
           ref={backdropRef}
           aria-hidden="true"
-          className={`pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-3 py-2 text-sm text-transparent [overflow-wrap:anywhere] ${className}`}
+          className={`pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-3 py-2 text-sm [overflow-wrap:anywhere] ${className}`}
         >
-          {displayValue.split(/((?:@|#)\[[^\]]+\])/g).map((part, i) =>
-            /^(?:@|#)\[[^\]]+\]$/.test(part) && (mentionMap.current.has(part.slice(2, -1)) || entityMap.current.has(part.slice(2, -1)))
-              ? <mark key={i} className="rounded bg-(--brand-primary)/15 text-transparent">{part}</mark>
-              : part)}
+          {backdropNodes(displayValue, ranges)}
           {'\n'}
         </div>
       )}
@@ -595,13 +614,16 @@ const MentionTextarea = forwardRef(function MentionTextarea({
         onPaste={onPaste}
         onBlur={onBlur}
         onSelect={handleSelectionEvent}
+        onMouseMove={chips && onChipHover ? handleChipMove : undefined}
+        onMouseLeave={chips && onChipHover ? handleChipLeave : undefined}
+        onClick={chips && onChipPress ? handleChipClick : undefined}
         onScroll={chips ? (e) => { if (backdropRef.current) backdropRef.current.scrollTop = e.target.scrollTop } : undefined}
         onMouseUp={handleSelectionEvent}
         onKeyUp={handleSelectionEvent}
         placeholder={placeholder}
         rows={rows}
         disabled={disabled}
-        className={`w-full min-w-0 max-w-full overflow-x-hidden rounded-md border border-input ${chips ? 'relative bg-transparent' : 'bg-background'} px-3 py-2 text-sm resize-none [overflow-wrap:anywhere] focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 ${className}`}
+        className={`w-full min-w-0 max-w-full overflow-x-hidden rounded-md border border-input ${chips ? 'relative bg-transparent text-transparent caret-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))]' : 'bg-background'} px-3 py-2 text-sm resize-none [overflow-wrap:anywhere] focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 ${className}`}
       />
       {open && (filtered.length > 0 || (slash && slash.phase === 'search')) && createPortal(
         <div
