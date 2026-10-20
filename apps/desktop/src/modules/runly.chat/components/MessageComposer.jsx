@@ -18,6 +18,7 @@ import { ComposerFormatToolbar } from "./ComposerFormatting";
 import { toast } from "sonner";
 import { useChatUpload } from "../hooks/useChatUpload";
 import { useMentionCandidates } from "../hooks/useMentionCandidates";
+import { useChatSlashSources } from "../hooks/useChatSlashSources";
 import { MIRAI_MENTION_ID } from "../lib/mirai";
 import { useAuth } from "../../../auth/AuthProvider";
 import { EntityReferencePicker } from "./EntityReferencePicker";
@@ -155,6 +156,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const { userProfile } = useAuth();
   const currentUserId = userProfile?.id;
   const mentionCandidates = useMentionCandidates(conversationId, currentUserId);
+  const slashSources = useChatSlashSources();
   // @-mentions of people only make sense where there's a group to address — in
   // a 1:1 there's nobody else to pick from. But @MirAI is still useful in a
   // DM (ask the assistant a question you both see), so keep just that one.
@@ -886,6 +888,8 @@ export const MessageComposer = forwardRef(function MessageComposer(
               onPaste={handlePaste}
               onSelectionChange={handleSelectionChange}
               members={mentionMembers}
+              slashSources={slashSources}
+              chips
               placeholder={placeholder}
               // Rests at 1 line now (was a fixed 3, always tall even empty)
               // and grows with content up to maxRows, per the redesign ask.

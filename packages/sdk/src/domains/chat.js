@@ -199,6 +199,12 @@ export function createChatDomain(request, withAuthHeaders, toQueryString, reques
         headers: withAuthHeaders(token),
       }),
 
+    searchEntities: (entityType, q, token, limit = 15) =>
+      request(`/chat/entities/search${toQueryString({ entityType, q, limit })}`, { headers: withAuthHeaders(token) }),
+
+    previewEntity: (entityType, recordId, token) =>
+      request(`/chat/entities/preview${toQueryString({ entityType, recordId })}`, { headers: withAuthHeaders(token) }),
+
     toggleReaction: (messageId, emoji, token, { attachmentId } = {}) =>
       request(`/chat/messages/${encodeURIComponent(messageId)}/reactions`, {
         method: "POST",

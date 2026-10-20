@@ -133,6 +133,17 @@ export function useChatMessages(conversationId) {
     });
   }, [conversationId, on, queryClient]);
 
+  // Someone (re)acted to a message: refetch so the chips update live.
+  useEffect(() => {
+    if (!conversationId) return;
+    return on("chat.message.reaction", ({ conversationId: cid }) => {
+      if (cid === conversationId) {
+        queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+        queryClient.invalidateQueries({ queryKey: ["chat-thread"] });
+      }
+    });
+  }, [conversationId, on, queryClient]);
+
   useEffect(() => {
     if (!conversationId) return;
     function handleVisibility() {

@@ -101,3 +101,19 @@ describe("chat-reactions-service — toggleReaction", () => {
     assert.deepEqual(result, { added: false, emoji: "😂", attachmentId: "att-1" });
   });
 });
+
+describe("chat-reactions-service — realtime", () => {
+  it("broadcasts chat.message.reaction to the conversation members after a toggle", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: "profile-1" }], // resolveUserProfileId
+      [{ id: "msg-1", conversation_id: "conv-1" }], // message + membership
+      [], // no existing reaction
+      [{ id: "r1" }], // insert
+      [{ user_id: "u1" }, { user_id: "u2" }], // members for the broadcast
+    ]);
+    const sent = [];
+    const svc = createChatReactionsService({ prisma, broadcaster: { broadcastToUsers: async (ids, event, payload) => sent.push([ids, event, payload]) } });
+    await svc.toggleReaction({ messageId: "msg-1", authUserId: "auth-1", emoji: "👍" });
+    assert.deepEqual(sent, [[["u1", "u2"], "chat.message.reaction", { conversationId: "conv-1", messageId: "msg-1" }]]);
+  });
+});

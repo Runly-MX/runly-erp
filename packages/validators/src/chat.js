@@ -15,7 +15,7 @@ export const chatSendMessageSchema = z.object({
   threadRootId: z.string().uuid().optional(),
   replyToMessageId: z.string().uuid().optional(),
   entityRefs: z.array(z.object({
-    entityType: z.enum(["contact", "file", "ledger_account", "hr_employee", "project", "task", "calendar_event", "vehicle", "inventory_item"]),
+    entityType: z.enum(["contact", "file", "ledger_account", "hr_employee", "project", "task", "calendar_event", "vehicle", "inventory_item", "purchase_case", "purchase_order", "purchase_invoice", "pos_order"]),
     recordId: z.string().uuid(),
   })).max(5).optional(),
 });

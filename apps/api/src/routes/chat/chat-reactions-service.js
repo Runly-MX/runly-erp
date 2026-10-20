@@ -8,7 +8,20 @@ export class ChatReactionsError extends Error {
   }
 }
 
-export function createChatReactionsService({ prisma }) {
+export function createChatReactionsService({ prisma, broadcaster = null }) {
+  // Tells every member's open clients to refetch the message's reactions.
+  async function broadcastReaction(conversationId, messageId) {
+    if (!broadcaster || !conversationId) return;
+    try {
+      const members = await prisma.$queryRaw`
+        SELECT user_id FROM chat_conversation_members WHERE conversation_id = ${conversationId}::uuid AND left_at IS NULL
+      `;
+      await broadcaster.broadcastToUsers(members.map((m) => m.user_id.toString()), "chat.message.reaction", { conversationId, messageId });
+    } catch {
+      // Best effort: clients still refetch on focus and every 30 s.
+    }
+  }
+
   // attachmentId omitted/null = message-level reaction (unchanged behavior).
   // attachmentId set = scoped to that one attachment inside the message —
   // toggled independently from the message-level reaction set and from
@@ -17,7 +30,7 @@ export function createChatReactionsService({ prisma }) {
     const profileId = await resolveUserProfileId(prisma, authUserId);
 
     const rows = await prisma.$queryRaw`
-      SELECT m.id FROM chat_messages m
+      SELECT m.id, m.conversation_id FROM chat_messages m
       INNER JOIN chat_conversation_members ccm
         ON ccm.conversation_id = m.conversation_id AND ccm.user_id = ${profileId} AND ccm.left_at IS NULL
       WHERE m.id = ${messageId} AND m.deleted_at IS NULL
@@ -43,8 +56,10 @@ export function createChatReactionsService({ prisma }) {
       LIMIT 1
     `;
 
+    const conversationId = rows[0].conversation_id?.toString?.() ?? null;
     if (existing.length) {
       await prisma.$executeRaw`DELETE FROM chat_message_reactions WHERE id = ${existing[0].id}`;
+      await broadcastReaction(conversationId, messageId);
       return { added: false, emoji, attachmentId };
     }
 
@@ -61,6 +76,7 @@ export function createChatReactionsService({ prisma }) {
       VALUES (${messageId}, ${attachmentId}, ${profileId}, ${emoji})
       RETURNING id
     `;
+    await broadcastReaction(conversationId, messageId);
     return { added: true, emoji, attachmentId };
   }
 

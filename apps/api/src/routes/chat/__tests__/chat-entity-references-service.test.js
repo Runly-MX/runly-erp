@@ -17,6 +17,8 @@ function withActor(prisma = {}) {
   };
 }
 
+const core = (rows) => rows.map(({ details, email, phone, avatarFileId, ...rest }) => rest);
+
 describe('explicit reference scope and permissions', () => {
   it('does not access any module without a company or its read permission', async () => {
     let accessed = false;
@@ -55,7 +57,7 @@ describe("chat-entity-references-service — resolveEntityRefs", () => {
       authUserId: "auth-1", companyId: "company-1",
       entityRefs: [{ entityType: "contact", recordId: "contact-1" }],
     });
-    assert.deepEqual(result, [{
+    assert.deepEqual(core(result), [{
       entityType: "contact", recordId: "contact-1", title: "Ada Lovelace",
       subtitle: null, url: "/app/m/runly.contacts/contacts/contact-1",
     }]);
@@ -97,7 +99,7 @@ describe("chat-entity-references-service — resolveEntityRefs", () => {
       authUserId: "auth-1", companyId: "company-1",
       entityRefs: [{ entityType: "file", recordId: "file-1" }],
     });
-    assert.deepEqual(result[0], {
+    assert.deepEqual(core(result)[0], {
       entityType: "file", recordId: "file-1", title: "contrato.pdf", subtitle: null,
       url: "/app/m/runly.files/files/file-1", mimeType: "application/pdf", sizeBytes: 12345,
     });
@@ -113,7 +115,7 @@ describe("chat-entity-references-service — resolveEntityRefs", () => {
       authUserId: "auth-1", companyId: "company-1",
       entityRefs: [{ entityType: "file", recordId: "file-1" }],
     });
-    assert.deepEqual(result[0], {
+    assert.deepEqual(core(result)[0], {
       entityType: "file", recordId: "file-1", title: "data.csv", subtitle: null,
       url: "/app/m/runly.files/files/file-1", mimeType: null, sizeBytes: null,
     });
@@ -281,7 +283,7 @@ describe("chat-entity-references-service — project/task/calendar_event", () =>
       entityRefs: [{ entityType: "project", recordId: "proj-1" }],
     });
     assert.deepEqual(capturedArgs, { id: "proj-1", userId: "profile-1" });
-    assert.deepEqual(result, [{
+    assert.deepEqual(core(result), [{
       entityType: "project", recordId: "proj-1", title: "Relanzamiento web",
       subtitle: null, url: "/app/m/runly.projects/proj-1", color: "#6366f1", icon: "Rocket",
     }]);
@@ -314,7 +316,7 @@ describe("chat-entity-references-service — project/task/calendar_event", () =>
       authUserId: "auth-1", companyId: "company-1",
       entityRefs: [{ entityType: "task", recordId: "task-1" }],
     });
-    assert.deepEqual(result, [{
+    assert.deepEqual(core(result), [{
       entityType: "task", recordId: "task-1", title: "Diseñar landing",
       subtitle: "En progreso", url: "/app/m/runly.projects/tasks/task-1",
     }]);
@@ -360,7 +362,7 @@ describe("chat-entity-references-service — vehicle/inventory_item", () => {
       authUserId: "auth-1", companyId: "company-1",
       entityRefs: [{ entityType: "vehicle", recordId: "vehicle-1" }],
     });
-    assert.deepEqual(result, [{
+    assert.deepEqual(core(result), [{
       entityType: "vehicle", recordId: "vehicle-1", title: "ABC-123",
       subtitle: "Toyota Hilux 2022", url: "/app/m/runly.fleet/vehicles/vehicle-1",
       status: "active", coverImageFileId: "file-9",
@@ -396,7 +398,7 @@ describe("chat-entity-references-service — vehicle/inventory_item", () => {
       authUserId: "auth-1", companyId: "company-1",
       entityRefs: [{ entityType: "inventory_item", recordId: "item-1" }],
     });
-    assert.deepEqual(result, [{
+    assert.deepEqual(core(result), [{
       entityType: "inventory_item", recordId: "item-1", title: "Taladro Bosch",
       subtitle: "AST-2026-004 · Herramientas", url: "/app/m/runly.inventory/inventory/item-1",
       status: "available", coverImageFileId: "file-7",

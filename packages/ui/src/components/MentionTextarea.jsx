@@ -4,6 +4,8 @@ import { Bot, Megaphone, Shield } from 'lucide-react'
 import { MiraiAvatar } from './MiraiAvatar.jsx'
 import { useIsolatedScroll } from '../hooks/useIsolatedScroll.js'
 import { layerZIndexFor } from '../hooks/useComboboxPopover.js'
+import { ENTITY_TOKEN_SOURCE, PlainEntityChip } from '../lib/entityTokens.jsx'
+import { parseSlashContext, slashSourceRows } from '../lib/slashEntitySearch.js'
 
 // Stored format:  @[uuid:DisplayName]
 // Display format: @[DisplayName]   (no UUID visible in textarea)
@@ -13,22 +15,28 @@ export const MENTION_TOKEN_RE = /@\[([a-f0-9-]{36}):([^\]]+)\]/g
 const STORED_TOKEN_RE = MENTION_TOKEN_RE
 const DISPLAY_TOKEN_RE = /@\[([^\]]+)\]/g
 
+const COMBINED_TOKEN_SOURCE = `${MENTION_TOKEN_RE.source}|${ENTITY_TOKEN_SOURCE}`
+
 export function renderMentionText(text) {
   if (!text) return null
   const parts = []
   let last = 0
   let match
-  STORED_TOKEN_RE.lastIndex = 0
-  while ((match = STORED_TOKEN_RE.exec(text)) !== null) {
+  const re = new RegExp(COMBINED_TOKEN_SOURCE, 'g')
+  while ((match = re.exec(text)) !== null) {
     if (match.index > last) parts.push(text.slice(last, match.index))
-    parts.push(
-      <span
-        key={match.index}
-        className="inline-flex items-center bg-accent/30 text-accent-foreground rounded px-1 text-sm font-medium"
-      >
-        @{match[2]}
-      </span>
-    )
+    if (match[3]) {
+      parts.push(<PlainEntityChip key={match.index} name={match[5]} />)
+    } else {
+      parts.push(
+        <span
+          key={match.index}
+          className="inline-flex items-center bg-accent/30 text-accent-foreground rounded px-1 text-sm font-medium"
+        >
+          @{match[2]}
+        </span>
+      )
+    }
     last = match.index + match[0].length
   }
   if (last < text.length) parts.push(text.slice(last))
@@ -44,10 +52,11 @@ export function splitMentionSegments(text) {
   const parts = []
   let last = 0
   let match
-  MENTION_TOKEN_RE.lastIndex = 0
-  while ((match = MENTION_TOKEN_RE.exec(text)) !== null) {
+  const re = new RegExp(COMBINED_TOKEN_SOURCE, 'g')
+  while ((match = re.exec(text)) !== null) {
     if (match.index > last) parts.push({ type: 'text', value: text.slice(last, match.index) })
-    parts.push({ type: 'mention', uuid: match[1], name: match[2] })
+    if (match[3]) parts.push({ type: 'entity', entityType: match[3], recordId: match[4], name: match[5] })
+    else parts.push({ type: 'mention', uuid: match[1], name: match[2] })
     last = match.index + match[0].length
   }
   if (last < text.length) parts.push({ type: 'text', value: text.slice(last) })
@@ -65,22 +74,33 @@ export function parseMentionIds(text) {
   return [...new Set(ids)]
 }
 
-function toDisplay(serialized, mentionMap) {
+// `entityMap` remembers display name -> "entityType:uuid" for #[...] links.
+function toDisplay(serialized, mentionMap, entityMap) {
   if (!serialized) return ''
   STORED_TOKEN_RE.lastIndex = 0
-  return serialized.replace(STORED_TOKEN_RE, (_, uuid, name) => {
-    mentionMap.set(name, uuid)
-    return `@[${name}]`
-  })
+  return serialized
+    .replace(STORED_TOKEN_RE, (_, uuid, name) => {
+      mentionMap.set(name, uuid)
+      return `@[${name}]`
+    })
+    .replace(new RegExp(ENTITY_TOKEN_SOURCE, 'g'), (_, type, uuid, name) => {
+      entityMap.set(name, `${type}:${uuid}`)
+      return `#[${name}]`
+    })
 }
 
-function toSerialized(display, mentionMap) {
+function toSerialized(display, mentionMap, entityMap) {
   if (!display) return ''
   DISPLAY_TOKEN_RE.lastIndex = 0
-  return display.replace(DISPLAY_TOKEN_RE, (match, name) => {
-    const uuid = mentionMap.get(name)
-    return uuid ? `@[${uuid}:${name}]` : match
-  })
+  return display
+    .replace(DISPLAY_TOKEN_RE, (match, name) => {
+      const uuid = mentionMap.get(name)
+      return uuid ? `@[${uuid}:${name}]` : match
+    })
+    .replace(/#\[([^\]]+)\]/g, (match, name) => {
+      const ref = entityMap.get(name)
+      return ref ? `#[${ref}:${name}]` : match
+    })
 }
 
 // Non-person entries (assistant, roles, @everyone/@here) get a distinct icon
@@ -99,15 +119,29 @@ const MENTION_VISIBLE_LIMIT = 8
 
 // Section order in the dropdown; rows keep their incoming order within it.
 const KIND_GROUPS = [
+  { kind: 'source', label: 'Buscar en un módulo' },
+  { kind: 'entity', label: 'Resultados' },
   { kind: 'assistant', label: 'Asistente' },
   { kind: 'person', label: 'Personas' },
   { kind: 'role', label: 'Roles' },
   { kind: 'sentinel', label: 'Avisar a todos' },
 ]
-const kindOf = (m) => (KIND_ICON[m.kind] ? m.kind : 'person')
+const kindOf = (m) => (KIND_ICON[m.kind] || m.kind === 'source' || m.kind === 'entity' ? m.kind : 'person')
 
 function MemberAvatar({ member }) {
   const [imgErr, setImgErr] = useState(false)
+  if (member.Icon) {
+    const Icon = member.Icon
+    const color = member.color || 'hsl(var(--muted-foreground))'
+    return (
+      <span
+        className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 select-none"
+        style={{ color, backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)` }}
+      >
+        <Icon className="w-3.5 h-3.5" />
+      </span>
+    )
+  }
   if (member.kind === 'assistant') return <MiraiAvatar size={28} />
   const Icon = KIND_ICON[member.kind]
   if (Icon) {
@@ -182,20 +216,29 @@ const MentionTextarea = forwardRef(function MentionTextarea({
   // purely additive, no behavior change for existing callers (CommentThread,
   // RoomChatView, etc.) that omit it.
   onSelectionChange,
+  // /module:search shortcuts: [{ key, label, aliases, Icon, color, search(q) -> rows }]
+  slashSources = null,
+  // Highlight @mentions and #links as chips behind the text.
+  chips = false,
 }, ref) {
   const mentionMap = useRef(new Map())
-  const [displayValue, setDisplayValue] = useState(() => toDisplay(value, mentionMap.current))
+  const entityMap = useRef(new Map())
+  const [displayValue, setDisplayValue] = useState(() => toDisplay(value, mentionMap.current, entityMap.current))
   const lastSerializedRef = useRef(value)
 
   useEffect(() => {
     if (value !== lastSerializedRef.current) {
       lastSerializedRef.current = value
-      const newDisplay = toDisplay(value, mentionMap.current)
+      const newDisplay = toDisplay(value, mentionMap.current, entityMap.current)
       setDisplayValue(newDisplay)
     }
   }, [value])
 
   const [query, setQuery] = useState('')
+  const [slash, setSlash] = useState(null)
+  const [slashRows, setSlashRows] = useState([])
+  const [slashBusy, setSlashBusy] = useState(false)
+  const backdropRef = useRef(null)
   const [open, setOpen] = useState(false)
   const [triggerPos, setTriggerPos] = useState(0)
   // The menu is anchored to the textarea (not the caret): it sits just above
@@ -231,7 +274,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
       const after = displayValue.slice(end)
       const newDisplay = `${before}${markStart}${selected}${markEnd}${after}`
       setDisplayValue(newDisplay)
-      const serialized = toSerialized(newDisplay, mentionMap.current)
+      const serialized = toSerialized(newDisplay, mentionMap.current, entityMap.current)
       lastSerializedRef.current = serialized
       onChange(serialized)
       requestAnimationFrame(() => {
@@ -264,7 +307,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
       const newBlock = prefixedLines.join('\n')
       const newDisplay = `${before}${newBlock}${after}`
       setDisplayValue(newDisplay)
-      const serialized = toSerialized(newDisplay, mentionMap.current)
+      const serialized = toSerialized(newDisplay, mentionMap.current, entityMap.current)
       lastSerializedRef.current = serialized
       onChange(serialized)
       requestAnimationFrame(() => {
@@ -293,7 +336,9 @@ const MentionTextarea = forwardRef(function MentionTextarea({
     el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden'
   }, [displayValue, rows, maxRows])
 
-  const filtered = query
+  const filtered = slash
+    ? (slash.phase === 'source' ? slashSourceRows(slashSources, slash.query) : slashRows)
+    : query
     ? members.filter((m) => {
         const q = query.toLowerCase()
         return (
@@ -308,6 +353,24 @@ const MentionTextarea = forwardRef(function MentionTextarea({
   const visible = KIND_GROUPS
     .flatMap(({ kind }) => filtered.filter((m) => kindOf(m) === kind))
     .slice(0, MENTION_VISIBLE_LIMIT)
+
+  // Debounced module search while the user types after "/module:".
+  useEffect(() => {
+    if (!open || !slash || slash.phase !== 'search') { setSlashRows([]); setSlashBusy(false); return undefined }
+    let cancelled = false
+    setSlashBusy(true)
+    const timer = setTimeout(async () => {
+      try {
+        const rows = await slash.source.search(slash.query)
+        if (!cancelled) setSlashRows((rows ?? []).map((r) => ({ ...r, kind: 'entity', Icon: r.Icon ?? slash.source.Icon, color: r.color ?? slash.source.color })))
+      } catch {
+        if (!cancelled) setSlashRows([])
+      } finally {
+        if (!cancelled) setSlashBusy(false)
+      }
+    }, 220)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [open, slash?.phase, slash?.source, slash?.query]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Anchor the menu to the textarea. Default: floating just above it, its
   // bottom pinned so it grows upward with more results. Flip below only when
@@ -337,12 +400,22 @@ const MentionTextarea = forwardRef(function MentionTextarea({
     (e) => {
       const newDisplay = e.target.value
       setDisplayValue(newDisplay)
-      const serialized = toSerialized(newDisplay, mentionMap.current)
+      const serialized = toSerialized(newDisplay, mentionMap.current, entityMap.current)
       lastSerializedRef.current = serialized
       onChange(serialized)
 
       const caret = e.target.selectionStart
       const before = newDisplay.slice(0, caret)
+      const slashCtx = slashSources?.length ? parseSlashContext(before, slashSources) : null
+      if (slashCtx) {
+        setSlash(slashCtx)
+        setQuery(slashCtx.query)
+        setOpen(true)
+        setActiveIdx(0)
+        setMenuPos(computeMenuPos(e.target))
+        return
+      }
+      setSlash(null)
       const atMatch = before.match(/@([^\s@\[]*)$/)
       if (atMatch && !before.match(/@\[[^\]]*$/)) {
         const atIdx = before.lastIndexOf('@')
@@ -355,7 +428,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
         setOpen(false)
       }
     },
-    [onChange]
+    [onChange, slashSources]
   )
 
   const insertMention = useCallback(
@@ -363,13 +436,46 @@ const MentionTextarea = forwardRef(function MentionTextarea({
       const ta = textareaRef.current
       if (!ta) return
       const caret = ta.selectionStart
-      const before = displayValue.slice(0, triggerPos)
+      if (slash && member.kind === 'source') {
+        // Module picked: keep the dropdown open on its search results.
+        const src = member.source
+        const head = displayValue.slice(0, slash.start)
+        const tail = displayValue.slice(caret)
+        const typed = `/${src.aliases[0]}:`
+        const newDisplay = `${head}${typed}${tail}`
+        setDisplayValue(newDisplay)
+        const serializedNext = toSerialized(newDisplay, mentionMap.current, entityMap.current)
+        lastSerializedRef.current = serializedNext
+        onChange(serializedNext)
+        setSlash({ phase: 'search', source: src, query: '', start: slash.start })
+        setQuery('')
+        setActiveIdx(0)
+        requestAnimationFrame(() => {
+          const pos = head.length + typed.length
+          ta.setSelectionRange(pos, pos)
+          ta.focus()
+        })
+        return
+      }
+      const triggerStart = slash ? slash.start : triggerPos
+      const before = displayValue.slice(0, triggerStart)
       const after = displayValue.slice(caret)
-      mentionMap.current.set(member.displayName, member.id)
-      const token = `@[${member.displayName}]`
+      let tokenName = member.displayName
+      let sigil = '@'
+      if (member.kind === 'entity') {
+        sigil = '#'
+        const ref = `${member.entity.entityType}:${member.entity.recordId}`
+        // Two different records can share a name; keep the display token unique.
+        if (entityMap.current.has(tokenName) && entityMap.current.get(tokenName) !== ref) tokenName = `${tokenName} (${member.entity.recordId.slice(0, 4)})`
+        entityMap.current.set(tokenName, ref)
+      } else {
+        mentionMap.current.set(member.displayName, member.id)
+      }
+      setSlash(null)
+      const token = `${sigil}[${tokenName}]`
       const newDisplay = `${before}${token} ${after}`
       setDisplayValue(newDisplay)
-      const serialized = toSerialized(newDisplay, mentionMap.current)
+      const serialized = toSerialized(newDisplay, mentionMap.current, entityMap.current)
       lastSerializedRef.current = serialized
       onChange(serialized)
       setOpen(false)
@@ -380,7 +486,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
         ta.focus()
       })
     },
-    [displayValue, triggerPos, onChange]
+    [displayValue, triggerPos, onChange, slash]
   )
 
   function handleKeyDown(e) {
@@ -465,7 +571,20 @@ const MentionTextarea = forwardRef(function MentionTextarea({
   const idRef = useRef(`mention-ta-${Math.random().toString(36).slice(2)}`)
 
   return (
-    <div ref={containerRef} className="relative w-full min-w-0 max-w-full overflow-x-hidden">
+    <div ref={containerRef} className={`relative w-full min-w-0 max-w-full overflow-x-hidden`}>
+      {chips && (
+        <div
+          ref={backdropRef}
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words rounded-md border border-transparent px-3 py-2 text-sm text-transparent [overflow-wrap:anywhere] ${className}`}
+        >
+          {displayValue.split(/((?:@|#)\[[^\]]+\])/g).map((part, i) =>
+            /^(?:@|#)\[[^\]]+\]$/.test(part) && (mentionMap.current.has(part.slice(2, -1)) || entityMap.current.has(part.slice(2, -1)))
+              ? <mark key={i} className="rounded bg-(--brand-primary)/15 text-transparent">{part}</mark>
+              : part)}
+          {'\n'}
+        </div>
+      )}
       <textarea
         ref={textareaRef}
         id={idRef.current}
@@ -476,14 +595,15 @@ const MentionTextarea = forwardRef(function MentionTextarea({
         onPaste={onPaste}
         onBlur={onBlur}
         onSelect={handleSelectionEvent}
+        onScroll={chips ? (e) => { if (backdropRef.current) backdropRef.current.scrollTop = e.target.scrollTop } : undefined}
         onMouseUp={handleSelectionEvent}
         onKeyUp={handleSelectionEvent}
         placeholder={placeholder}
         rows={rows}
         disabled={disabled}
-        className={`w-full min-w-0 max-w-full overflow-x-hidden rounded-md border border-input bg-background px-3 py-2 text-sm resize-none [overflow-wrap:anywhere] focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 ${className}`}
+        className={`w-full min-w-0 max-w-full overflow-x-hidden rounded-md border border-input ${chips ? 'relative bg-transparent' : 'bg-background'} px-3 py-2 text-sm resize-none [overflow-wrap:anywhere] focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 ${className}`}
       />
-      {open && filtered.length > 0 && createPortal(
+      {open && (filtered.length > 0 || (slash && slash.phase === 'search')) && createPortal(
         <div
           ref={menuRef}
           data-mention-dropdown
@@ -510,7 +630,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
               <div key={m.id} role="presentation">
                 {groupStart && (
                   <p className={`px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground ${i === 0 ? 'pt-1' : 'pt-2.5'}`}>
-                    {group?.label}
+                    {kindOf(m) === 'entity' && slash?.source ? `Resultados en ${slash.source.label}` : group?.label}
                   </p>
                 )}
                 <button
@@ -540,6 +660,9 @@ const MentionTextarea = forwardRef(function MentionTextarea({
               </div>
             )
           })}
+          {slash?.phase === 'search' && visible.length === 0 && (
+            <p className="px-3 py-2 text-sm text-muted-foreground">{slashBusy ? 'Buscando…' : `Sin resultados en ${slash.source.label}`}</p>
+          )}
           {filtered.length > MENTION_VISIBLE_LIMIT && (
             <span className="px-3 py-1 text-xs text-muted-foreground border-t border-(--glass-border) mt-1 pt-1.5">
               +{filtered.length - MENTION_VISIBLE_LIMIT} más — sigue escribiendo para filtrar

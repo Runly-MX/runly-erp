@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Loader2, Maximize2, Search as SearchIcon } from "lucide-react";
 import { Popover, PopoverAnchor, PopoverContent, ComboboxField, SearchInput } from "@runly/ui";
@@ -10,7 +10,7 @@ import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
 import { useRovingFocus } from "../hooks/useRovingFocus";
 import { EntityFileViewer } from "./EntityFileViewer";
 import { ConnectorRow } from "./ConnectorRow";
-import { ENTITY_TYPE_LIST, FLAT_ENTITY_TYPES, fetchEntityOptions, matchesConnectorSearch } from "../lib/entityReferenceTypes";
+import { ENTITY_TYPE_LIST, FLAT_ENTITY_TYPES, SERVER_SEARCH_TYPES, fetchEntityOptions, matchesConnectorSearch } from "../lib/entityReferenceTypes";
 
 // How many matches each type contributes to the "Todos" merged view before
 // it's truncated behind a "Ver los N" link that switches to that type's own
@@ -363,14 +363,21 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
 
   const isAllSearchActive = isAll && search.trim().length >= ALL_MODE_MIN_QUERY_LENGTH;
 
+  // Server-searched types refetch as the user types (debounced).
+  const [serverQuery, setServerQuery] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setServerQuery(search.trim()), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // One query per flat type, kept alive independently: enabled when it's the
   // active chip, or when "Todos" is active with a long-enough query. Reusing
   // the same query for both modes means switching from a "Todos" match into
   // that type's own full list (via "Ver los N") is instant, already cached.
   const optionsQueries = useQueries({
     queries: FLAT_ENTITY_TYPES.map((t) => ({
-      queryKey: ["chat-entity-ref-options", t.value, token],
-      queryFn: () => fetchEntityOptions(t.value, token),
+      queryKey: ["chat-entity-ref-options", t.value, token, SERVER_SEARCH_TYPES.has(t.value) ? serverQuery : ""],
+      queryFn: () => fetchEntityOptions(t.value, token, serverQuery),
       enabled: Boolean(token) && (activeType === t.value || isAllSearchActive),
       staleTime: 30_000,
     })),
@@ -386,7 +393,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
   const groupedResults = useMemo(() => {
     if (!isAllSearchActive) return [];
     return FLAT_ENTITY_TYPES.map((t) => {
-      const matches = (resultsByType[t.value]?.data ?? []).filter((o) => matchesConnectorSearch(o, search));
+      const matches = (resultsByType[t.value]?.data ?? []).filter((o) => SERVER_SEARCH_TYPES.has(t.value) || matchesConnectorSearch(o, search));
       return { type: t, matches: matches.slice(0, ALL_MODE_MATCHES_PER_TYPE), total: matches.length };
     }).filter((g) => g.matches.length > 0);
   }, [isAllSearchActive, search, resultsByType]);
@@ -427,7 +434,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onClear={() => setSearch("")}
-            placeholder="Buscar contacto, archivo, vehículo, inventario..."
+            placeholder="Buscar por nombre, serie, folio, RFC, placa..."
             aria-label="Buscar conector"
             autoFocus
           />
@@ -497,7 +504,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
           <MultiSelectList
             entityType="inventory_item"
             query={resultsByType.inventory_item}
-            search={search}
+            search=""
             maxSelect={maxSelect}
             onConfirm={(opts) => handleConfirmMulti("inventory_item", opts)}
           />
@@ -506,7 +513,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
           <SingleSelectList
             entityType={activeType}
             query={resultsByType[activeType]}
-            search={search}
+            search={SERVER_SEARCH_TYPES.has(activeType) ? "" : search}
             onPick={(id, label) => handlePick(activeType, id, label)}
           />
         )}

@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { splitMentionSegments } from "../components/MentionTextarea.jsx";
+import { renderEntityToken } from "./entityTokens.jsx";
 
 const INLINE_TOKEN_RE = /(\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~|`[^`\n]+`)/g;
 const LIST_ITEM_RE = /^\s*[-•]\s+(.*)$/;
@@ -91,6 +92,10 @@ function renderInlineText(text, highlightRe, codeClassName, keyPrefix) {
   const segments = splitMentionSegments(text);
   const nodes = [];
   segments.forEach((seg, si) => {
+    if (seg.type === "entity") {
+      nodes.push(renderEntityToken(seg, `${keyPrefix}-en${si}`));
+      return;
+    }
     if (seg.type === "mention") {
       nodes.push(
         <span

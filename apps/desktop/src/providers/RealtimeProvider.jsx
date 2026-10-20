@@ -225,6 +225,9 @@ export function RealtimeProvider({ children }) {
           }, 1500))
         }
       })
+      .on('broadcast', { event: 'chat.message.reaction' }, ({ payload }) => {
+        dispatch('chat.message.reaction', payload)
+      })
       .on('broadcast', { event: 'chat.conversation.new' }, ({ payload }) => {
         queryClient.invalidateQueries({ queryKey: ['chat-conversations'] })
         dispatch('chat.conversation.new', payload)

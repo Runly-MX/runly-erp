@@ -386,6 +386,9 @@ export {
   parseMentionIds,
 } from "./components/MentionTextarea.jsx";
 export { renderRichText, splitUrls, findFirstUrl } from "./lib/chatRichText.jsx";
+export {
+  ENTITY_TOKEN_SOURCE, PlainEntityChip, parseEntityTokens, renderEntityToken, setEntityTokenRenderer, stripEntityTokens,
+} from "./lib/entityTokens.jsx";
 export { CommentThread } from "./components/CommentThread.jsx";
 
 export { OfflineIndicator } from "./components/OfflineIndicator.jsx";

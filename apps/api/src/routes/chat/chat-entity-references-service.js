@@ -1,4 +1,5 @@
 import { createUserAccessService } from '../../services/user-access-service.js';
+import { createChatExtraEntityTypes, EXTRA_REFERENCE_PERMISSIONS } from './chat-entity-extra-types.js';
 
 const MAX_ENTITY_REFS = 5;
 const REFERENCE_PERMISSIONS = {
@@ -7,10 +8,12 @@ const REFERENCE_PERMISSIONS = {
   task: 'projects.task.read', calendar_event: 'calendar.events.read',
   ledger_account: 'ledger.accounts.read',
   vehicle: 'fleet.vehicles.read', inventory_item: 'inventory.item.read',
+  ...EXTRA_REFERENCE_PERMISSIONS,
 };
 
 export function createChatEntityReferencesService({ prisma, contactsService, filesService, hrService, ledgerService, projectsService, tasksService, calendarEventService, fleetService, inventoryService }) {
   const access = createUserAccessService({ prisma });
+  const extraTypes = createChatExtraEntityTypes({ prisma });
   // Not a static registry object keyed by entityType — each type's
   // underlying call shape genuinely differs (three take authUserId+id
   // directly, ledger needs companyId/actorId derived separately), so a
@@ -31,6 +34,12 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
           entityType, recordId, title: row.name,
           subtitle: row.phone ?? row.email ?? null,
           url: `/app/m/runly.contacts/contacts/${recordId}`,
+          email: row.email ?? null, phone: row.phone ?? null, avatarFileId: row.avatarFileId ?? null,
+          details: [
+            { label: "Teléfono", value: row.phone }, { label: "Correo", value: row.email },
+            { label: "Razón social", value: row.legalName }, { label: "RFC", value: row.taxId },
+            { label: "Giro", value: row.industry }, { label: "Sitio web", value: row.website },
+          ].filter((d) => d.value),
         };
       }
       if (entityType === "file") {
@@ -54,6 +63,10 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
           // and their linked user account's avatar — prefer the employee
           // record's own photo, fall back to the account avatar.
           photoFileId: row.profileImageFileId ?? row.userProfile?.avatarFileId ?? null,
+          details: [
+            { label: "Puesto", value: row.jobTitleRef?.name ?? row.jobTitle }, { label: "Departamento", value: row.departmentRef?.name ?? row.department },
+            { label: "Correo", value: row.workEmail }, { label: "Teléfono", value: row.phone }, { label: "Código", value: row.employeeCode },
+          ].filter((d) => d.value),
         };
       }
       if (entityType === "project") {
@@ -122,6 +135,10 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
           url: `/app/m/runly.fleet/vehicles/${recordId}`,
           status: row.status ?? null,
           coverImageFileId: row.cover_image_file_asset_id ?? null,
+          details: [
+            { label: "Placa", value: row.plate }, { label: "Vehículo", value: modelInfo },
+            { label: "Estado", value: row.status }, { label: "Conductor", value: row.driver_name },
+          ].filter((d) => d.value),
         };
       }
       if (entityType === "inventory_item") {
@@ -133,8 +150,14 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
           url: `/app/m/runly.inventory/inventory/${recordId}`,
           status: row.status ?? null,
           coverImageFileId: row.coverImageFileId ?? null,
+          details: [
+            { label: "Número de activo", value: row.assetTag }, { label: "Número de serie", value: row.serialNumber },
+            { label: "Tipo", value: row.categoryName }, { label: "Marca", value: row.brandName },
+            { label: "Modelo", value: row.model }, { label: "Ubicación", value: row.locationName },
+          ].filter((d) => d.value),
         };
       }
+      if (EXTRA_REFERENCE_PERMISSIONS[entityType]) return await extraTypes.resolve(entityType, ctx.companyId, recordId);
       return null; // unknown entityType — drop silently
     } catch {
       return null; // any resolution failure (404/403/etc from the target service) — drop silently, never surface

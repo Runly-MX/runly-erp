@@ -11,6 +11,8 @@ export function parseMentionIds(body) {
 // Name" — for previews, search snippets, LLM input, anything that shows the
 // body as text rather than rendering mention chips.
 const MENTION_TOKEN_RE = /@\[[0-9a-fA-F-]{36}:([^\]]+)\]/g
+// Record links (#[entityType:uuid:Name], see packages/ui entityTokens) read as just the name.
+const ENTITY_TOKEN_RE = /#\[[a-z_]+:[0-9a-fA-F-]{36}:([^\]]+)\]/g
 export function stripMentionTokens(body) {
-  return String(body ?? '').replace(MENTION_TOKEN_RE, '@$1')
+  return String(body ?? '').replace(MENTION_TOKEN_RE, '@$1').replace(ENTITY_TOKEN_RE, '$1')
 }

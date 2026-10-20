@@ -13,6 +13,7 @@ import { roleHasPermission, findOwnMember, isMentioned, CHAT_PERMISSIONS } from 
 import { MessageReactions } from "./MessageReactions";
 import { MessageReactionPicker } from "./MessageReactionPicker";
 import { EntityReferenceCard } from "./EntityReferenceCard";
+import "./EntityTokenChip";
 import { FileReferenceGroup } from "./FileReferenceGroup";
 import { MiraiProposalCard } from "./MiraiProposalCard";
 import { AttachmentsBlock } from "./MessageAttachments";
@@ -110,12 +111,12 @@ function SwipeReplyHint({ translateX, isOwn }) {
 function MessageActions({
   isOwn, hasBody, onCopy, onDelete, onHideForMe, onForward, onEnterSelection,
   canPin, isPinned, onPin, onReact, canReply, onOpenThread, onReply, onAskMirai, onShowReceipt,
-  onSpeak, isSpeaking, isLoadingSpeak,
+  onSpeak, isSpeaking, isLoadingSpeak, onEdit,
 }) {
   const actions = buildMessageActions({
     hasBody, isOwn, canPin, isPinned, canReply,
     onReply, onCopy, onForward, onEnterSelection, onPin, onReact, onOpenThread,
-    onDelete, onHideForMe, onAskMirai, onShowReceipt, onSpeak, isSpeaking, isLoadingSpeak,
+    onDelete, onHideForMe, onAskMirai, onShowReceipt, onSpeak, isSpeaking, isLoadingSpeak, onEdit,
   });
   const primary = actions.filter((a) => a.group === "primary");
   const danger = actions.filter((a) => a.group === "danger");

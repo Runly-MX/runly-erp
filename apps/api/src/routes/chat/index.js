@@ -47,6 +47,7 @@ import { createChatMemberAvatarService } from "./chat-member-avatar-service.js";
 import { createChatMentionsService } from "./chat-mentions-service.js";
 import { createChatReactionsService, ChatReactionsError } from "./chat-reactions-service.js";
 import { createChatEntityReferencesService } from "./chat-entity-references-service.js";
+import { createChatEntitySearchService } from "./chat-entity-search-service.js";
 import { createContactsService } from "../../services/contacts-service.js";
 import { createFilesService } from "../../services/files-service.js";
 import { createHrService } from "../../services/hr-service.js";
@@ -94,12 +95,13 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     fleetService,
     inventoryService,
   });
+  const entitySearchService = createChatEntitySearchService({ prisma, fleetService });
   const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster, permissionsService, mentionsService, entityReferencesService, channelLinksService });
   const chatExternalInboxService = createChatExternalInboxService({ prisma, broadcaster });
   const guestService = createGuestChatService({ prisma, supabaseAdmin, notificationService, broadcaster });
   const templateService = createChatTemplateService({ prisma });
   const channelDirectoryService = createChannelDirectoryService({ prisma });
-  const reactionsService = createChatReactionsService({ prisma });
+  const reactionsService = createChatReactionsService({ prisma, broadcaster });
   const moderationService = createChatModerationService({ prisma });
   const chatSearchService = createChatSearchService({ prisma });
   const memberAvatarService = createChatMemberAvatarService({ prisma, supabaseAdmin });
@@ -510,6 +512,33 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       return c.json({ data: result });
     } catch (err) {
       return handleError(c, err, "Error listando el hilo.");
+    }
+  });
+
+  // GET /chat/entities/search?entityType=&q=&limit= — server-side connector search.
+  internal.get("/entities/search", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const data = await entitySearchService.search({
+        authUserId: c.get("authUserId"), companyId: c.get("companyId"),
+        entityType: c.req.query("entityType") ?? "", q: c.req.query("q") ?? "", limit: c.req.query("limit") ?? 15,
+      });
+      return c.json({ data });
+    } catch (err) {
+      return handleError(c, err, "Error buscando registros.");
+    }
+  });
+
+  // GET /chat/entities/preview?entityType=&recordId= — live card + details for hover/tap previews.
+  internal.get("/entities/preview", requirePermission("chat.conversations.create"), async (c) => {
+    try {
+      const [data] = await entityReferencesService.resolveEntityRefs({
+        authUserId: c.get("authUserId"), companyId: c.get("companyId"),
+        entityRefs: [{ entityType: c.req.query("entityType") ?? "", recordId: c.req.query("recordId") ?? "" }],
+      });
+      if (!data) return c.json({ error: "Registro no disponible." }, 404);
+      return c.json({ data });
+    } catch (err) {
+      return handleError(c, err, "Error cargando la vista previa.");
     }
   });
 

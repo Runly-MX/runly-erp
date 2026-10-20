@@ -1,4 +1,4 @@
-import { User, Paperclip, Landmark, IdCard, SquareKanban, CheckSquare, CalendarDays, Car, Package } from "lucide-react";
+import { User, Paperclip, Landmark, IdCard, SquareKanban, CheckSquare, CalendarDays, Car, Package, ClipboardList, Receipt, FolderKanban, ShoppingCart } from "lucide-react";
 import { runly } from "../../../lib/runly";
 
 // Every connector type the chat composer's "+" picker can attach to a
@@ -18,6 +18,35 @@ export const ENTITY_TYPE_LIST = [
   { value: "calendar_event", label: "Evento", Icon: CalendarDays, flat: true },
   { value: "vehicle", label: "Vehículo", Icon: Car, flat: true },
   { value: "inventory_item", label: "Artículo de inventario", Icon: Package, flat: true },
+  { value: "purchase_order", label: "Orden de compra", Icon: ClipboardList, flat: true },
+  { value: "purchase_invoice", label: "Factura de compra", Icon: Receipt, flat: true },
+  { value: "purchase_case", label: "Expediente de compra", Icon: FolderKanban, flat: true },
+  { value: "pos_order", label: "Pedido POS", Icon: ShoppingCart, flat: true },
+];
+
+// Types searched on the server across all their attributes (serial number,
+// folio, RFC, plate, order number...). The rest keep the cached first page
+// plus client-side filtering below.
+export const SERVER_SEARCH_TYPES = new Set([
+  "contact", "hr_employee", "inventory_item", "vehicle",
+  "purchase_order", "purchase_invoice", "purchase_case", "pos_order",
+]);
+
+// Module shortcuts for the composer's /module:search. `aliases[0]` is what
+// gets written; any alias (accent-insensitive) is accepted when typed.
+export const SLASH_SOURCES = [
+  { key: "inventory_item", label: "Inventario", aliases: ["inventario", "inventarios", "activos", "inv"], color: "#0ea5e9" },
+  { key: "contact", label: "Contactos", aliases: ["contactos", "contacto", "clientes", "proveedores"], color: "#14b8a6" },
+  { key: "hr_employee", label: "Colaboradores", aliases: ["colaboradores", "empleados", "rh", "personal"], color: "#8b5cf6" },
+  { key: "vehicle", label: "Vehículos", aliases: ["vehiculos", "flotilla", "unidades", "autos"], color: "#f59e0b" },
+  { key: "purchase_order", label: "Órdenes de compra", aliases: ["ordenes", "oc", "compras"], color: "#f97316" },
+  { key: "purchase_invoice", label: "Facturas de compra", aliases: ["facturas", "factura"], color: "#ef4444" },
+  { key: "purchase_case", label: "Expedientes de compra", aliases: ["expedientes", "expediente"], color: "#64748b" },
+  { key: "pos_order", label: "Pedidos POS", aliases: ["pedidos", "pos", "ventas"], color: "#ec4899" },
+  { key: "project", label: "Proyectos", aliases: ["proyectos", "proyecto"], color: "#6366f1" },
+  { key: "calendar_event", label: "Eventos", aliases: ["eventos", "calendario", "evento"], color: "#22c55e" },
+  { key: "ledger_account", label: "Cuentas", aliases: ["cuentas", "bancos"], color: "#10b981" },
+  { key: "file", label: "Archivos", aliases: ["archivos", "archivo", "documentos"], color: "#94a3b8" },
 ];
 
 export const ENTITY_TYPE_BY_VALUE = Object.fromEntries(ENTITY_TYPE_LIST.map((t) => [t.value, t]));
@@ -32,7 +61,18 @@ export const FLAT_ENTITY_TYPES = ENTITY_TYPE_LIST.filter((t) => t.flat);
 // the search box filters the cached page client-side (see
 // matchesConnectorSearch below) — same reasoning as the previous
 // per-type ComboboxField pickers this replaces.
-export async function fetchEntityOptions(entityType, token) {
+export async function fetchEntityOptions(entityType, token, q = "") {
+  if (SERVER_SEARCH_TYPES.has(entityType)) {
+    const res = await runly.chat.searchEntities(entityType, q, token, 25);
+    return (res?.data ?? []).map((r) => ({
+      label: r.label,
+      value: r.recordId,
+      subtitle: r.subtitle ?? null,
+      status: r.status ?? null,
+      statusBadgeType: r.statusBadgeType ?? null,
+      coverImageFileId: r.coverImageFileId ?? null,
+    }));
+  }
   if (entityType === "contact") {
     // Dedicated lightweight picker endpoint (server clamps limit to 30).
     const res = await runly.contacts.picker(token, { limit: 100 });
@@ -134,3 +174,5 @@ export function matchesConnectorSearch(opt, query) {
   const q = query.trim().toLowerCase();
   return [opt.label, opt.subtitle].filter(Boolean).some((v) => v.toLowerCase().includes(q));
 }
+
+export const entityTypeColor = (entityType) => SLASH_SOURCES.find((s) => s.key === entityType)?.color ?? "#64748b";
