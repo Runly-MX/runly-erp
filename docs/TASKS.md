@@ -1929,3 +1929,13 @@ Plan `docs/superpowers/plans/2026-10-20-inventory-areas-phase2.md`.
 - [x] "Mios" filter (`mine=true`) for every user, identity resolved server side. Verified: 2026-10-20 (inventory-scope-isolation, inventory-access-query)
 - [x] Settings card switch and "Mios" filter chip compile and lint. Verified: 2026-10-20 (`pnpm lint` clean, `pnpm build:web`)
 - [ ] Not exercised in a browser or against the live API; items in an active custody are not counted as own (only `assigned_to_id`).
+
+## Inventory areas: supplier portal backend (phase 3)
+
+Plan `docs/superpowers/plans/2026-10-20-inventory-supplier-portal-backend.md`. Backend only; the UI batch is separate.
+
+- [x] Migration `20261112000000_inventory_guests` (inv_guest, inv_guest_invite, inv_guest_session, `inv_area_member.guest_id` with CHECKs) applied to the dev DB and Prisma client generated. Verified: 2026-10-20 (`pnpm db:migrate` applied, `pnpm db:generate` ok, `prisma validate` ok)
+- [x] Invitation and session services (hashed tokens, optional code with attempt lock, expiry 14 d / 12 h, refresh, resend rotation, revoke) and invitation routes with permission or area-manager authorization. Verified: 2026-10-20 (inventory-guest-service 8/8, guest-invite-routes 5/5)
+- [x] Guest API isolation: other area, General, other company, non-guest routes, viewer writes, forbidden fields, revoked guest, user vs guest tokens (real `createAuthMiddleware`), audit tagged with the guest. Verified: 2026-10-20 (guest-isolation 20/20, inventory-guest-schema 5/5; node --test over apps/api services, routes/inventory, routes/lms: 1221 tests, 1217 pass, 2 fail not related: runly-env root overrides on Windows paths, lms-cert-pdf-layout passes alone; `pnpm lint` clean)
+- [ ] Not exercised against a live API boot, real SMTP, or real Storage uploads; route ordering of `/inventory/guest` before the `mountWithAuth` routers is only checked by reading `index.js`. Company deletion sweep of the new tables is argued from the catalog-driven design and a schema test, not run against a populated database.
+
