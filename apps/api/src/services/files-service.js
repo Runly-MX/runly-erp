@@ -941,3 +941,5 @@ export function createFilesService({ prisma, supabaseAdmin }) {
 }
 
 export { FilesServiceError };
+// Upload rules reused by direct uploaders that have no user session (inventory supplier portal).
+export { MAX_FILE_SIZE_BYTES, STORAGE_BUCKET_NAME, buildModuleObjectKey, isAllowedMimeType };

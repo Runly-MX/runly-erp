@@ -7,6 +7,11 @@ const RELATIONS = {
   guest: ['invGuest', 'guestId'],
   invite: ['invGuestInvite', 'inviteId'],
   area: ['invArea', 'areaId'],
+  category: ['invCategory', 'categoryId'],
+  brand: ['invBrand', 'brandId'],
+  location: ['invLocation', 'locationId'],
+  condition: ['invCondition', 'conditionId'],
+  fileAsset: ['fileAsset', 'fileAssetId'],
 };
 
 export function createFakeDb(seed = {}) {
@@ -28,6 +33,7 @@ export function createFakeDb(seed = {}) {
       if ('in' in cond) return cond.in.includes(row[key]);
       if ('not' in cond) return row[key] !== cond.not && !(cond.not === null && row[key] == null);
       if ('contains' in cond) return String(row[key] ?? '').toLowerCase().includes(String(cond.contains).toLowerCase());
+      if ('equals' in cond) return String(row[key] ?? '').toLowerCase() === String(cond.equals).toLowerCase();
       if ('gt' in cond) return row[key] > cond.gt;
       return true;
     }
@@ -47,7 +53,7 @@ export function createFakeDb(seed = {}) {
     Object.assign(t, {
       findFirst: async ({ where, include, orderBy } = {}) => withInclude(sorted(rows.filter((r) => matches(r, flat(where))), orderBy)[0] ?? null, include),
       findUnique: async ({ where, include }) => withInclude(rows.find((r) => matches(r, flat(where))) ?? null, include),
-      findMany: async ({ where, include, orderBy, take } = {}) => sorted(rows.filter((r) => matches(r, flat(where))), orderBy).slice(0, take ?? 1e9).map((r) => withInclude(r, include)),
+      findMany: async ({ where, include, orderBy, take, skip } = {}) => sorted(rows.filter((r) => matches(r, flat(where))), orderBy).slice(skip ?? 0, (skip ?? 0) + (take ?? 1e9)).map((r) => withInclude(r, include)),
       count: async ({ where } = {}) => rows.filter((r) => matches(r, flat(where))).length,
       create: async ({ data, include }) => {
         const row = { id: uid(), enabled: true, createdAt: new Date(), revokedAt: null, usedAt: null, sentAt: null, lastSeenAt: null, ...data };
@@ -60,6 +66,7 @@ export function createFakeDb(seed = {}) {
         Object.assign(row, data);
         return withInclude(row, include);
       },
+      delete: async ({ where }) => { const i = rows.findIndex((r) => matches(r, flat(where))); if (i < 0) throw new Error('not found'); return rows.splice(i, 1)[0]; },
       updateMany: async ({ where, data }) => { const hit = rows.filter((r) => matches(r, flat(where))); hit.forEach((r) => Object.assign(r, data)); return { count: hit.length }; },
       deleteMany: async ({ where }) => { let count = 0; for (let i = rows.length - 1; i >= 0; i -= 1) if (matches(rows[i], flat(where))) { rows.splice(i, 1); count += 1; } return { count }; },
       upsert: async ({ where, create, update }) => {
@@ -76,6 +83,8 @@ export function createFakeDb(seed = {}) {
     const [[key, dir]] = Object.entries(Array.isArray(orderBy) ? orderBy[0] : orderBy);
     return [...list].sort((a, b) => (a[key] > b[key] ? 1 : a[key] < b[key] ? -1 : 0) * (dir === 'desc' ? -1 : 1));
   }
+  let folioCounter = 0;
+  db.$queryRaw = async () => [{ last_value: ++folioCounter }];
   db.$transaction = async (fn) => (typeof fn === 'function' ? fn(db) : Promise.all(fn));
   return db;
 }
