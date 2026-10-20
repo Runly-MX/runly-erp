@@ -94,6 +94,9 @@ export function RunlyTable({
   onContextChange = null,
   // Filter values to start with, e.g. from a deep link (?categoryId=...).
   initialFilters = null,
+  // Filter values a parent screen drives after mount (e.g. a folder tree); merged
+  // into the table filters whenever their content changes.
+  externalFilters = null,
   // Search text to start with, e.g. from a deep link (?search=...).
   initialSearch = "",
 }) {
@@ -256,6 +259,18 @@ export function RunlyTable({
     return () => clearTimeout(timer);
   }, [searchInput, search]);
   const [filterValues, setFilterValues] = useState(() => initialFilters ?? {});
+  const externalFiltersKey = externalFilters ? JSON.stringify(externalFilters) : "";
+  useEffect(() => {
+    if (!externalFiltersKey) return;
+    const incoming = JSON.parse(externalFiltersKey);
+    setFilterValues((current) => {
+      const changed = Object.entries(incoming).some(
+        ([k, v]) => (current[k] ?? "") !== (v ?? ""),
+      );
+      return changed ? { ...current, ...incoming } : current;
+    });
+    setPage(1);
+  }, [externalFiltersKey]);
   const [sortBy, setSortBy] = useState("");
   const [sortDir, setSortDir] = useState("asc");
   const [rows, setRows] = useState([]);

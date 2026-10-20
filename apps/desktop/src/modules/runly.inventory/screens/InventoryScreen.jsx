@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Activity, Boxes, CalendarPlus, FolderInput, FolderTree, MapPin, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, Wrench } from 'lucide-react'
-import { RunlyTable, Button, ConfirmDialog, EmptyState, PageHeader } from '@runly/ui'
+import { Activity, Boxes, CalendarPlus, FolderInput, FolderOpen, FolderTree, MapPin, PanelLeft, PanelLeftClose, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, Wrench } from 'lucide-react'
+import { RunlyTable, Button, ConfirmDialog, EmptyState, PageHeader, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -20,6 +20,9 @@ import { ADMIN_ACTIONS, ADMIN_FILTER_OPTIONS, ADMIN_STATUSES } from '../lib/admi
 import { buildLabelsPath } from '../lib/label-queue.js'
 import { useAreaChoices } from '../hooks/useAreaChoices.js'
 import { AreaMoveDialog } from '../components/areas/AreaMoveDialog.jsx'
+import { AreaTreePanel } from '../components/areas/AreaTreePanel.jsx'
+import { useAreaTreeDock } from '../hooks/useAreaTreeDock.js'
+import { areaPathLabel } from '../lib/area-tree.js'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
 
 const ADMIN_COLORS = Object.fromEntries(ADMIN_STATUSES.map(s => [s.value, s.color]))
@@ -39,7 +42,8 @@ export default function InventoryScreen() {
     [searchParams],
   )
   const initialSearch = searchParams.get('search') ?? ''
-  const filterKey = JSON.stringify({ ...initialFilters, search: initialSearch })
+  // areaId is excluded: the folder tree drives it through `externalFilters`, without remounting the table.
+  const filterKey = JSON.stringify({ ...initialFilters, areaId: undefined, search: initialSearch })
   const { session } = useAuth()
   const token = session?.access_token
   const { activeCompanyId } = useActiveCompany()
@@ -51,6 +55,22 @@ export default function InventoryScreen() {
   const [bulk, setBulk] = useState(null)
   const [moveIds, setMoveIds] = useState(null)
   const areaChoices = useAreaChoices()
+  const dock = useAreaTreeDock()
+  const showTree = !areaChoices.noAccess && areaChoices.areas.length > 0
+  const areaValue = searchParams.get('areaId') ?? ''
+  // Folder tree and the table's "Área" filter share one value, kept in the URL.
+  const areaValueRef = useRef(areaValue)
+  const lastTableArea = useRef(initialFilters.areaId ?? '')
+  const selectArea = useCallback((value) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (value) next.set('areaId', value)
+      else next.delete('areaId')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
+  const selectAreaRef = useRef(selectArea)
+  useEffect(() => { areaValueRef.current = areaValue; selectAreaRef.current = selectArea })
   const can = useInventoryCan()
   // Label stats come only with inventory.label.read; printing needs inventory.label.print.
   const canReadLabels = can('inventory.label.read')
@@ -61,6 +81,11 @@ export default function InventoryScreen() {
   // neither a selection nor active filters, so no selection is published.
   const [miraiSelection, setMiraiSelection] = useState(null)
   const updateMiraiSelection = useCallback(({ selectedIds, search, filters }) => {
+    const tableArea = filters?.areaId ?? ''
+    if (tableArea !== lastTableArea.current) {
+      lastTableArea.current = tableArea
+      if (tableArea !== areaValueRef.current) selectAreaRef.current(tableArea)
+    }
     const activeFilters = Object.fromEntries(Object.entries({ ...filters, search }).filter(([, value]) => value !== '' && value != null && value !== 'all'))
     const next = selectedIds.length
       ? { mode: 'selected', ids: selectedIds, filters: {} }
@@ -208,6 +233,24 @@ export default function InventoryScreen() {
         description="Gestiona y rastrea todos los activos de la empresa"
         actions={
           <>
+          {showTree ? (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={dock.active ? 'secondary' : 'outline'}
+                    size="icon"
+                    aria-label={dock.active ? 'Ocultar carpetas' : 'Mostrar carpetas'}
+                    aria-pressed={dock.active}
+                    onClick={dock.toggle}
+                  >
+                    {dock.active ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{dock.active ? 'Ocultar carpetas' : 'Mostrar carpetas'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : null}
           <Button variant="ghost" onClick={() => openMiraiSidebar()}><Sparkles className="mr-2 h-4 w-4" />Consultar con IA</Button>
           <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="mr-2 h-4 w-4" />Importar</Button>
           <Button variant="outline" onClick={() => navigate('/app/m/runly.inventory/inventory/intake')}><Sparkles className="mr-2 h-4 w-4" />Registro con IA</Button>
@@ -238,7 +281,21 @@ export default function InventoryScreen() {
         }}
       />
 
+      <div className="flex items-start gap-4">
+      {showTree && dock.isDesktop && dock.dockOpen ? (
+        <aside aria-label="Carpetas" className="sticky top-4 max-h-[calc(100dvh-2rem)] w-64 shrink-0 overflow-y-auto rounded-md border border-[hsl(var(--border))] p-2">
+          <AreaTreePanel areas={areaChoices.areas} value={areaValue} onSelect={selectArea} />
+        </aside>
+      ) : null}
+      <div className="min-w-0 flex-1 space-y-2">
+      {showTree && areaValue ? (
+        <p className="flex items-center gap-1.5 text-sm text-[hsl(var(--muted-foreground))]">
+          <FolderOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="truncate">{areaValue === '__none__' ? 'General (sin área)' : areaPathLabel(areaChoices.areas, areaValue)}</span>
+        </p>
+      ) : null}
       <RunlyTable
+        externalFilters={{ areaId: areaValue }}
         key={`${activeCompanyId}:${filterKey}`}
         bulkActions={bulkActions}
         initialFilters={initialFilters}
@@ -256,7 +313,28 @@ export default function InventoryScreen() {
         deleteLabel="Desactivar"
         refreshSignal={refreshSignal}
       />
+      </div>
+      </div>
       </>)}
+
+      {showTree && !dock.isDesktop ? (
+        <Sheet open={dock.sheetOpen} onOpenChange={dock.setSheetOpen}>
+          <SheetContent side="left" className="flex w-full flex-col sm:max-w-sm">
+            <SheetHeader className="shrink-0">
+              <SheetTitle className="flex items-center gap-2"><FolderTree className="h-5 w-5" />Carpetas</SheetTitle>
+              <SheetDescription>Elige un área para filtrar el inventario.</SheetDescription>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <AreaTreePanel
+                areas={areaChoices.areas}
+                value={areaValue}
+                touch
+                onSelect={(value) => { selectArea(value); dock.setSheetOpen(false) }}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
 
 
       <InventoryAdminTransitionDialog
