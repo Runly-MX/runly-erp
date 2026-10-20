@@ -1,17 +1,16 @@
 import { useMemo, useState } from 'react'
 import { itemLabel } from '../lib/item-label.js'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Badge, ErrorState, ConfirmDialog, RecordHeader, DetailSkeleton } from '@runly/ui'
+import { ErrorState, ConfirmDialog, RecordHeader, DetailSkeleton } from '@runly/ui'
 import { InventoryItemPresentation } from '@runly/ui/integrations'
-import { ArrowLeft, FolderTree, Plus, PowerOff, Sparkles } from 'lucide-react'
+import { ArrowLeft, Plus, PowerOff, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { useInventoryItem, useDeleteInventoryItem } from '../hooks/useInventoryItems.js'
 import { useInventoryCan } from '../hooks/useInventoryAdmin.js'
-import { useInventoryAreas } from '../hooks/useInventoryAreas.js'
-import { areaPathLabel } from '../lib/area-tree.js'
+import { ItemAreaCard } from '../components/areas/ItemAreaCard.jsx'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
 import { CanvasReferences } from '../../runly.canvas/components/CanvasReferences.jsx'
 import { ConnectionSections } from '../../../shell/connections/ConnectionSections.jsx'
@@ -35,9 +34,6 @@ export default function InventoryItemDetail() {
   const item = data?.data ?? data
   // The "Etiqueta / QR" section is shown only with inventory.label.read.
   const canReadLabels = useInventoryCan()('inventory.label.read')
-  const areas = useInventoryAreas().data ?? []
-  // Shown once the company uses areas; items without one belong to General.
-  const areaLabel = areas.length ? (item?.areaId ? areaPathLabel(areas, item.areaId) || null : 'General') : null
   const detailData = useMemo(() => (item ? { ...item, canReadLabels } : item), [item, canReadLabels])
   useMiraiRecordContext({ recordType: 'item', recordId: id, label: item?.name })
 
@@ -83,11 +79,6 @@ export default function InventoryItemDetail() {
           { key: 'edit', label: 'Editar', variant: 'default', hidden: readOnly, onClick: () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`) },
         ]}
       />
-      {areaLabel ? (
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="gap-1.5"><FolderTree className="h-3.5 w-3.5" />Área: {areaLabel}</Badge>
-        </div>
-      ) : null}
       <InventoryItemPresentation
         data={detailData}
         token={token}
@@ -97,7 +88,7 @@ export default function InventoryItemDetail() {
         onBack={() => navigate('/app/m/runly.inventory/inventory')}
         onFilterByValue={({ param, value }) => navigate(`/app/m/runly.inventory/inventory?${new URLSearchParams({ [param]: value })}`)}
         onEdit={readOnly ? undefined : () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`)}
-        mainExtra={<><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /></>}
+        mainExtra={<><ItemAreaCard itemId={id} areaId={item.areaId ?? null} canEdit={!readOnly} /><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /></>}
         asideExtra={<CanvasReferences moduleKey="runly.inventory" entityType="inventory_item" entityId={id} />}
         heroActions={false}
       />
