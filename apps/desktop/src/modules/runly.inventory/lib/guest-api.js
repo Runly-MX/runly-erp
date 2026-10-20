@@ -12,7 +12,7 @@ export class GuestApiError extends Error {
   }
 }
 
-async function call(method, path, { sessionToken, body, form, query } = {}) {
+async function call(method, path, { sessionToken, body, form, query, blob } = {}) {
   const qs = query ? new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined && v !== null && v !== '')).toString() : ''
   const headers = {}
   if (sessionToken) headers.Authorization = `Guest ${sessionToken}`
@@ -25,6 +25,7 @@ async function call(method, path, { sessionToken, body, form, query } = {}) {
   } catch {
     throw new GuestApiError('No se pudo conectar. Revisa tu conexión e intenta de nuevo.', { code: 'NETWORK' })
   }
+  if (blob && res.ok) return res.blob()
   const payload = await res.json().catch(() => null)
   if (!res.ok) throw new GuestApiError(payload?.error ?? 'Ocurrió un error. Intenta de nuevo.', { status: res.status, code: payload?.code ?? null })
   return payload
@@ -53,4 +54,12 @@ export const guestApi = {
     return call('POST', `/inventory/guest/items/${id(itemId)}/files`, { sessionToken: s, form }).then(unwrap)
   },
   deleteFile: (s, itemId, docId) => call('DELETE', `/inventory/guest/items/${id(itemId)}/files/${id(docId)}`, { sessionToken: s }).then(unwrap),
+  // Catalog for the model selector and "+ Crear" options (creating needs the canCreateModels capability).
+  models: (s, query) => call('GET', '/inventory/guest/models', { sessionToken: s, query }).then(unwrap),
+  createModel: (s, body) => call('POST', '/inventory/guest/models', { sessionToken: s, body }).then(unwrap),
+  createEntry: (s, kind, body) => call('POST', `/inventory/guest/${kind}`, { sessionToken: s, body }).then(unwrap),
+  checkIdentifiers: (s, query) => call('GET', '/inventory/guest/items/check-identifiers', { sessionToken: s, query }).then(unwrap),
+  // Excel import (needs the canImport capability). Same shapes as the main /inventory/item-import/*.
+  importTemplate: (s) => call('GET', '/inventory/guest/item-import/template', { sessionToken: s, blob: true }),
+  importCall: (s, path, body) => call('POST', `/inventory/guest/item-import${path}`, body instanceof FormData ? { sessionToken: s, form: body } : { sessionToken: s, body }).then(unwrap),
 }

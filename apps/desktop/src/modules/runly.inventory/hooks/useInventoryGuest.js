@@ -82,7 +82,7 @@ export function useGuestSession() {
 }
 
 // Runs a guest API call; a SESSION_INVALID answer ends the session (full-page message).
-function useGuestCall() {
+export function useGuestCall() {
   const { session, expire } = useGuestSession()
   const sessionToken = session?.sessionToken
   return useMemo(() => ({
@@ -98,7 +98,7 @@ function useGuestCall() {
 
 const keyFor = (...parts) => ['inventory-guest', ...parts]
 
-function useGuestQuery(key, fn, options = {}) {
+export function useGuestQuery(key, fn, options = {}) {
   const { sessionToken, run } = useGuestCall()
   const { enabled = true, ...rest } = options
   return useQuery({
@@ -118,7 +118,7 @@ export const useGuestItem = (itemId) => useGuestQuery(['item', itemId], (s) => g
 export const useGuestItemHistory = (itemId) => useGuestQuery(['history', itemId], (s) => guestApi.history(s, itemId), { enabled: Boolean(itemId) })
 export const useGuestItemFiles = (itemId) => useGuestQuery(['files', itemId], (s) => guestApi.listFiles(s, itemId), { enabled: Boolean(itemId) })
 
-function useGuestMutation(fn, invalidate = [['items']]) {
+export function useGuestMutation(fn, invalidate = [['items']]) {
   const qc = useQueryClient()
   const { sessionToken, run } = useGuestCall()
   return useMutation({

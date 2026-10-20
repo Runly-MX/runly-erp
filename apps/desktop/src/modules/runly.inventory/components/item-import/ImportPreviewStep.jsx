@@ -61,7 +61,7 @@ const buildColumns = (updateExisting) => [
 // Step 3: what will happen, in order — the headline count, catalog entries to
 // create, status spellings to resolve, then the per-row table filtered by
 // result.
-export function ImportPreviewStep({ preview, imageCounts, createMissing, onCreateMissingChange, statusMap, statuses, onStatusMapChange, updateExisting = true, onUpdateExistingChange, busy }) {
+export function ImportPreviewStep({ preview, imageCounts, createMissing, onCreateMissingChange, statusMap, statuses, onStatusMapChange, updateExisting = true, onUpdateExistingChange, busy, canCreateCatalog = true }) {
   const [filter, setFilter] = useState('all')
   const rows = useMemo(() => preview.rows.map((row, i) => ({ ...row, photoCount: (imageCounts[i] ?? 0) + (row.data.photoUrls?.length ?? 0) })), [preview.rows, imageCounts])
   const columns = useMemo(() => buildColumns(updateExisting), [updateExisting])
@@ -129,9 +129,9 @@ export function ImportPreviewStep({ preview, imageCounts, createMissing, onCreat
             ))}
             {toCreate.length > 12 ? <span className="px-1 py-1 text-xs text-[hsl(var(--muted-foreground))]">y {toCreate.length - 12} más</span> : null}
           </div>
-          <CheckboxField label="Crearlos al importar y relacionarlos con los activos" checked={createMissing} disabled={busy}
+          <CheckboxField label="Crearlos al importar y relacionarlos con los activos" checked={createMissing && canCreateCatalog} disabled={busy || !canCreateCatalog}
             onChange={(e) => onCreateMissingChange(e.target.checked)} />
-          {!createMissing ? <p className="text-xs text-[hsl(var(--muted-foreground))]">Sin esta opción, las filas que los usan no se importan.</p> : null}
+          {!createMissing || !canCreateCatalog ? <p className="text-xs text-[hsl(var(--muted-foreground))]">{canCreateCatalog ? 'Sin esta opción, las filas que los usan no se importan.' : 'No tienes permiso para crear catálogos: las filas que los usan no se importan.'}</p> : null}
         </section>
       ) : null}
 

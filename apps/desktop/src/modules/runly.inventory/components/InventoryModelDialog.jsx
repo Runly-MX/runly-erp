@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, TextField, TextareaField } from '@runly/ui'
 import { toast } from 'sonner'
-import { useSaveInventoryModel } from '../hooks/useInventoryModels.js'
+import { useInventoryData } from '../hooks/inventoryData.js'
 import { InventoryBrandPicker, InventoryTypePicker } from './InventoryCatalogPickers.jsx'
 
 const EMPTY = { name: '', code: '', typeId: '', brandId: '', year: '', description: '' }
 
 // Creates or edits a catalog model. No <form>: it can open inside RunlyForm,
 // and a portaled submit would bubble to that form through the React tree.
-export function InventoryModelDialog({ open, onOpenChange, model = null, initialValues, onSaved }) {
-  const save = useSaveInventoryModel()
+export function InventoryModelDialog({ open, onOpenChange, model = null, initialValues, onSaved, areaId }) {
+  const save = useInventoryData().useSaveModel()
   const [values, setValues] = useState(EMPTY)
   const [errors, setErrors] = useState({})
 
@@ -40,7 +40,7 @@ export function InventoryModelDialog({ open, onOpenChange, model = null, initial
         description: values.description.trim() || null,
       })
       toast.success(model ? 'Modelo actualizado' : 'Modelo creado')
-      onSaved?.(row)
+      onSaved?.(row?.data ?? row)
       onOpenChange(false)
     } catch (err) { toast.error(err.message) }
   }
@@ -54,8 +54,8 @@ export function InventoryModelDialog({ open, onOpenChange, model = null, initial
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-0.5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <InventoryTypePicker required value={values.typeId} onChange={(v) => set('typeId', v)} error={errors.typeId} />
-            <InventoryBrandPicker required value={values.brandId} onChange={(v) => set('brandId', v)} error={errors.brandId} />
+            <InventoryTypePicker areaId={areaId} required value={values.typeId} onChange={(v) => set('typeId', v)} error={errors.typeId} />
+            <InventoryBrandPicker areaId={areaId} required value={values.brandId} onChange={(v) => set('brandId', v)} error={errors.brandId} />
           </div>
           <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
             <TextField label="Nombre del modelo" required value={values.name} maxLength={255} hint="XPS 15"

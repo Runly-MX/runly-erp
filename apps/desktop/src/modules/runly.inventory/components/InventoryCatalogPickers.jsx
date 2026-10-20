@@ -1,19 +1,10 @@
-import { CreatableComboboxField } from '@runly/ui'
+import { ComboboxField, CreatableComboboxField } from '@runly/ui'
 import { Layers, Tag } from 'lucide-react'
 import { toast } from 'sonner'
-import {
-  useInventoryBrands, useCreateInventoryBrand, useInventoryCategories, useCreateInventoryCategory,
-} from '../hooks/useInventoryCatalogs.js'
+import { useInventoryData } from '../hooks/inventoryData.js'
+import { createdRow } from '../lib/inventory-data-context.js'
 
-const rowsOf = (data) => (data?.data ?? data ?? []).filter((row) => row.enabled !== false)
-
-export function useBrandRows() {
-  return rowsOf(useInventoryBrands().data)
-}
-
-export function useTypeRows() {
-  return rowsOf(useInventoryCategories().data)
-}
+export { useBrandRows, useTypeRows } from '../hooks/useInventoryCatalogRows.js'
 
 // Subtypes read "Laptop › Gamer" so the hierarchy is visible in a flat list.
 export function typeOptions(types) {
@@ -24,39 +15,36 @@ export function typeOptions(types) {
   }))
 }
 
-export function InventoryTypePicker({ value, onChange, error, required, label = 'Tipo', icon = Layers }) {
-  const types = useTypeRows()
-  const createType = useCreateInventoryCategory()
+// Shared by the type and brand pickers: a creatable combobox when the data source allows creating,
+// a plain searchable one otherwise (supplier without the "crear modelos" capability).
+function CatalogPicker({ canCreate, create, noun, article, options, ...props }) {
   async function handleCreate(name) {
     try {
-      const res = await createType.mutateAsync({ name })
-      const row = res?.data ?? res
-      if (row?.id) onChange(row.id)
-      toast.success(`Tipo «${name}» creado`)
-    } catch (err) { toast.error(err?.message || 'No se pudo crear el tipo.') }
+      const row = createdRow(await create.mutateAsync({ name }))
+      if (row?.id) props.onChange(row.id)
+      toast.success(`${noun} «${name}» ${article}`)
+    } catch (err) { toast.error(err?.message || `No se pudo crear ${noun === 'Tipo' ? 'el tipo' : 'la marca'}.`) }
   }
+  if (!canCreate) return <ComboboxField {...props} options={options} placeholder="Buscar..." searchPlaceholder={props.searchPlaceholder} />
+  return <CreatableComboboxField {...props} options={options} onCreate={handleCreate} isCreating={create.isPending} placeholder="Buscar o crear..." />
+}
+
+export function InventoryTypePicker({ value, onChange, error, required, areaId, label = 'Tipo', icon = Layers }) {
+  const { useTypeRows, useCreateType, useCanCreate } = useInventoryData()
+  const types = useTypeRows()
   return (
-    <CreatableComboboxField label={label} icon={icon} required={required} error={error} value={value ?? ''} options={typeOptions(types)}
-      onChange={onChange} onCreate={handleCreate} isCreating={createType.isPending}
-      placeholder="Buscar o crear..." searchPlaceholder="Buscar tipo..." />
+    <CatalogPicker canCreate={useCanCreate(areaId)} create={useCreateType()} noun="Tipo" article="creado"
+      label={label} icon={icon} required={required} error={error} value={value ?? ''} onChange={onChange}
+      options={typeOptions(types)} searchPlaceholder="Buscar tipo..." />
   )
 }
 
-export function InventoryBrandPicker({ value, onChange, error, required, label = 'Marca', icon = Tag }) {
+export function InventoryBrandPicker({ value, onChange, error, required, areaId, label = 'Marca', icon = Tag }) {
+  const { useBrandRows, useCreateBrand, useCanCreate } = useInventoryData()
   const brands = useBrandRows()
-  const createBrand = useCreateInventoryBrand()
-  async function handleCreate(name) {
-    try {
-      const res = await createBrand.mutateAsync({ name })
-      const row = res?.data ?? res
-      if (row?.id) onChange(row.id)
-      toast.success(`Marca «${name}» creada`)
-    } catch (err) { toast.error(err?.message || 'No se pudo crear la marca.') }
-  }
   return (
-    <CreatableComboboxField label={label} icon={icon} required={required} error={error} value={value ?? ''}
-      options={brands.map((brand) => ({ value: brand.id, label: brand.name }))}
-      onChange={onChange} onCreate={handleCreate} isCreating={createBrand.isPending}
-      placeholder="Buscar o crear..." searchPlaceholder="Buscar marca..." />
+    <CatalogPicker canCreate={useCanCreate(areaId)} create={useCreateBrand()} noun="Marca" article="creada"
+      label={label} icon={icon} required={required} error={error} value={value ?? ''} onChange={onChange}
+      options={brands.map((brand) => ({ value: brand.id, label: brand.name }))} searchPlaceholder="Buscar marca..." />
   )
 }
