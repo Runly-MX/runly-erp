@@ -121,7 +121,7 @@ export function createCompanyDeletionService({ prisma, supabaseAdmin, resources 
           await inventoryCompany(db, companyId)
           await resources.prepare?.({ db, companyId })
           return true
-        }, { timeout: 120_000 })
+        }, { timeout: 900_000, maxWait: 30_000 })
         if (!prepared) continue
         // Commit each verified Storage batch. A restart or a large tenant must
         // not repeat every preceding batch because one final transaction timed out.
@@ -133,7 +133,7 @@ export function createCompanyDeletionService({ prisma, supabaseAdmin, resources 
             const [job] = await db.$queryRawUnsafe('SELECT state FROM runly_lifecycle.company_deletion WHERE company_id = $1::uuid', companyId)
             if (job?.state !== 'PURGING') return null
             return removeObjects(db, companyId)
-          }, { timeout:120_000 })
+          }, { timeout: 900_000, maxWait: 30_000 })
           if (more === null) break
           if (!more) { storageReady=true; break }
         }
@@ -154,7 +154,7 @@ export function createCompanyDeletionService({ prisma, supabaseAdmin, resources 
           await db.$executeRawUnsafe('DELETE FROM runly_lifecycle.deletion_module WHERE company_id = $1::uuid', companyId)
           await db.$executeRawUnsafe(`UPDATE runly_lifecycle.company_deletion SET state = 'COMPLETED', completed_at = now(), updated_at = now(), error_code = NULL WHERE company_id = $1::uuid`, companyId)
           return true
-        }, { timeout: 120_000 })
+        }, { timeout: 900_000, maxWait: 30_000 })
         if (completed) results.push({ companyId, ok: true })
       } catch (error) {
         // Never persist driver errors: they can contain SQL, paths or values.

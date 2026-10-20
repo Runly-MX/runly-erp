@@ -8,7 +8,8 @@ export function quoteIdentifier(value) {
 export async function catalog(db) {
   const tables = await db.$queryRawUnsafe(`SELECT c.relname AS name,
     array_agg(a.attname::text ORDER BY a.attnum) AS columns,
-    array_agg(a.attname::text ORDER BY a.attnum) FILTER (WHERE a.attnum = ANY(i.indkey)) AS pk
+    array_agg(a.attname::text ORDER BY a.attnum) FILTER (WHERE a.attnum = ANY(i.indkey)) AS pk,
+    array_agg(format_type(a.atttypid, a.atttypmod) ORDER BY a.attnum) FILTER (WHERE a.attnum = ANY(i.indkey)) AS "pkTypes"
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
     JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
     LEFT JOIN pg_index i ON i.indrelid = c.oid AND i.indisprimary
@@ -39,6 +40,15 @@ function keyExpression(table, alias = 'r') {
   return `jsonb_build_object(${table.pk.map(key => `'${key}', ${alias}.${quoteIdentifier(key)}`).join(', ')})`
 }
 
+// Matches a table row against its stored deletion_row key. Single-column
+// uuid/text/integer keys compare as plain text, which lets PostgreSQL hash-join
+// instead of converting every row of a large table to jsonb.
+const SIMPLE_KEY_TYPES = new Set(['uuid', 'text', 'integer', 'bigint', 'smallint'])
+function rowMatch(table, alias, keyAlias = 'd') {
+  if (table?.pk?.length === 1 && SIMPLE_KEY_TYPES.has(table.pkTypes?.[0])) return `${keyAlias}.row_key->>'${table.pk[0]}' = ${alias}.${quoteIdentifier(table.pk[0])}::text`
+  return `to_jsonb(${alias}) @> ${keyAlias}.row_key`
+}
+
 async function addRows(db, companyId, table, predicate, parameters = []) {
   const count = await db.$executeRawUnsafe(`INSERT INTO runly_lifecycle.deletion_row(company_id, table_name, row_key)
     SELECT $1::uuid, '${table.name}', ${keyExpression(table)} FROM public.${quoteIdentifier(table.name)} r
@@ -66,7 +76,7 @@ export async function inventoryCompany(db, companyId) {
       const table = byName.get(fk.child)
       const join = fk.childColumns.map((col, i) => `r.${quoteIdentifier(col)} = p.${quoteIdentifier(fk.parentColumns[i])}`).join(' AND ')
       const parent = `EXISTS (SELECT 1 FROM public.${quoteIdentifier(fk.parent)} p JOIN runly_lifecycle.deletion_row d
-        ON d.company_id = $1::uuid AND d.table_name = '${fk.parent}' AND to_jsonb(p) @> d.row_key WHERE ${join})`
+        ON d.company_id = $1::uuid AND d.table_name = '${fk.parent}' AND ${rowMatch(byName.get(fk.parent), 'p')} WHERE ${join})`
       if (table.columns.includes('company_id')) {
         const [conflict] = await db.$queryRawUnsafe(`SELECT EXISTS(SELECT 1 FROM public.${quoteIdentifier(table.name)} r WHERE r.company_id::text IS DISTINCT FROM $1::text AND ${parent}) AS found`, companyId)
         if (conflict.found) throw new Error('CROSS_COMPANY_REFERENCE')
@@ -85,14 +95,14 @@ export async function inventoryCompany(db, companyId) {
     const name = table.name
     await db.$executeRawUnsafe(`INSERT INTO runly_lifecycle.deletion_object(company_id, bucket, object_key)
       SELECT $1::uuid, r.bucket, r.object_key FROM public.${quoteIdentifier(name)} r JOIN runly_lifecycle.deletion_row d
-      ON d.company_id = $1::uuid AND d.table_name = '${name}' AND to_jsonb(r) @> d.row_key
+      ON d.company_id = $1::uuid AND d.table_name = '${name}' AND ${rowMatch(table, 'r')}
       WHERE r.object_key IS NOT NULL ON CONFLICT DO NOTHING`, companyId)
   }
   for (const table of tables.filter(t => t.columns.includes('bucket') && t.columns.includes('object_key'))) {
     const name = table.name
     const [shared] = await db.$queryRawUnsafe(`SELECT EXISTS(SELECT 1 FROM public.${quoteIdentifier(name)} r
       JOIN runly_lifecycle.deletion_object o ON o.company_id=$1::uuid AND o.bucket=r.bucket AND o.object_key=r.object_key
-      WHERE NOT EXISTS(SELECT 1 FROM runly_lifecycle.deletion_row d WHERE d.company_id=$1::uuid AND d.table_name=$2 AND to_jsonb(r) @> d.row_key)) AS found`, companyId, name)
+      WHERE NOT EXISTS(SELECT 1 FROM runly_lifecycle.deletion_row d WHERE d.company_id=$1::uuid AND d.table_name=$2 AND ${rowMatch(table, 'r')})) AS found`, companyId, name)
     if (shared.found) throw new Error('CROSS_COMPANY_REFERENCE')
   }
   return { tables, foreignKeys }
@@ -100,11 +110,12 @@ export async function inventoryCompany(db, companyId) {
 
 export async function purgeCompanyRows(db, companyId) {
   const { tables, foreignKeys } = await catalog(db)
+  const byName = new Map(tables.map(t => [t.name, t]))
   const pending = new Set((await db.$queryRawUnsafe('SELECT DISTINCT table_name FROM runly_lifecycle.deletion_row WHERE company_id = $1::uuid', companyId)).map(r => r.table_name))
   await db.$executeRawUnsafe('SET CONSTRAINTS ALL DEFERRED')
   for (const fk of foreignKeys) if (fk.nullable && pending.has(fk.child) && pending.has(fk.parent)) {
     await db.$executeRawUnsafe(`UPDATE public.${quoteIdentifier(fk.child)} r SET ${fk.childColumns.map(c => `${quoteIdentifier(c)} = NULL`).join(', ')}
-      FROM runly_lifecycle.deletion_row d WHERE d.company_id = $1::uuid AND d.table_name = $2 AND to_jsonb(r) @> d.row_key`, companyId, fk.child)
+      FROM runly_lifecycle.deletion_row d WHERE d.company_id = $1::uuid AND d.table_name = $2 AND ${rowMatch(byName.get(fk.child), 'r')}`, companyId, fk.child)
   }
   // Children first; deferred/self FKs are left to PostgreSQL. Cycles across
   // tables fail closed instead of disabling constraints or deleting foreigners.
@@ -113,7 +124,7 @@ export async function purgeCompanyRows(db, companyId) {
     if (!leaves.length) throw new Error('CYCLIC_COMPANY_REFERENCES')
     for (const name of leaves) {
       await db.$executeRawUnsafe(`DELETE FROM public.${quoteIdentifier(name)} r USING runly_lifecycle.deletion_row d
-        WHERE d.company_id = $1::uuid AND d.table_name = $2 AND to_jsonb(r) @> d.row_key`, companyId, name)
+        WHERE d.company_id = $1::uuid AND d.table_name = $2 AND ${rowMatch(byName.get(name), 'r')}`, companyId, name)
       pending.delete(name)
     }
   }
@@ -138,7 +149,7 @@ export async function purgeCompanyRows(db, companyId) {
   }
   for (const table of tables) {
     const [remaining] = await db.$queryRawUnsafe(`SELECT EXISTS(SELECT 1 FROM public.${quoteIdentifier(table.name)} r JOIN runly_lifecycle.deletion_row d
-      ON d.company_id=$1::uuid AND d.table_name=$2 AND to_jsonb(r) @> d.row_key) AS found`, companyId, table.name)
+      ON d.company_id=$1::uuid AND d.table_name=$2 AND ${rowMatch(table, 'r')}) AS found`, companyId, table.name)
     if (remaining.found) throw new Error('COMPANY_DATA_REMAINS')
   }
   await db.$executeRawUnsafe('DELETE FROM public.company WHERE id = $1::uuid', companyId)
