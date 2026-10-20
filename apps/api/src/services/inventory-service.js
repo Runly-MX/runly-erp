@@ -2,6 +2,7 @@
 import { createActivityService } from './activity-service.js';
 import { createActivityBridge } from './activity-bridge.js';
 import { buildInventoryWhere } from './inventory-query.js';
+import { canViewArea, scopeWhere } from './inventory-scope.js';
 import { createInventorySearch } from './inventory-search-service.js';
 import { InventoryServiceError, assertCompany, createRefGuard } from './inventory-guards.js';
 import { createInventoryCatalogService } from './inventory-catalog-service.js';
@@ -171,6 +172,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     sortDir,
     page = 1,
     limit = 50,
+    scope = null,
   }) {
     assertCompany(companyId);
     const take = normalizeLimit(limit);
@@ -191,10 +193,10 @@ export function createInventoryService({ prisma, activityBridge }) {
         console.warn('[inventory] search failed, using basic search:', error?.code ?? error?.name ?? 'error');
       }
     }
-    if (searchIds) where = buildInventoryWhere(companyId, { ...filters, searchIds });
+    if (searchIds) where = buildInventoryWhere(companyId, { ...filters, searchIds }, scope);
     else if (term && connectionMatchIds.length) {
-      where = { AND: [buildInventoryWhere(companyId, filters), { OR: [buildInventoryWhere(companyId, { ...filters, search }), { id: { in: connectionMatchIds } }] }] };
-    } else where = buildInventoryWhere(companyId, { ...filters, search });
+      where = { AND: [buildInventoryWhere(companyId, filters, scope), { OR: [buildInventoryWhere(companyId, { ...filters, search }, scope), { id: { in: connectionMatchIds } }] }] };
+    } else where = buildInventoryWhere(companyId, { ...filters, search }, scope);
 
     const [data, total] = await Promise.all([
       prisma.invItem.findMany({
@@ -289,7 +291,8 @@ export function createInventoryService({ prisma, activityBridge }) {
     }
   }
 
-  async function getItem(id, companyId) {
+  // scope (optional): an item outside the caller's areas answers 404, same as a missing one.
+  async function getItem(id, companyId, scope = null) {
     assertCompany(companyId);
     const item = await prisma.invItem.findFirst({
       where: { id, companyId, enabled: true },
@@ -312,7 +315,7 @@ export function createInventoryService({ prisma, activityBridge }) {
         // and only for mimeType/isCover/sortOrder, not the full row.
       },
     });
-    if (!item) throw new InventoryServiceError('Item not found', 404);
+    if (!item || (scope && !canViewArea(scope, item.areaId))) throw new InventoryServiceError('Item not found', 404);
     const coverImageFileId = await resolveCoverImageFileId(id);
     return {
       ...item,
@@ -342,19 +345,20 @@ export function createInventoryService({ prisma, activityBridge }) {
     }, { timeout: 30_000 });
   }
 
-  async function createItem(data, companyId, creatorId, { afterWrite = null } = {}) {
+  async function createItem(data, companyId, creatorId, { afterWrite = null, scope = null } = {}) {
     assertCompany(companyId);
     await assertRefInCompany('invCategory', data.categoryId, companyId, 'El tipo');
     await assertRefInCompany('invBrand', data.brandId, companyId, 'La marca');
     await assertRefInCompany('invLocation', data.locationId, companyId, 'La ubicacion');
     await assertRefInCompany('invCondition', data.conditionId, companyId, 'La condicion');
+    await assertRefInCompany('invArea', data.areaId, companyId, 'El area');
     if (data.status !== undefined && data.status !== null && !EDITABLE_STATUSES.has(data.status)) {
       throw new InventoryServiceError('Estado no válido: usa Disponible o Mantenimiento. Las bajas se registran desde la ficha del activo.', 400);
     }
     const adminStatus = data.adminStatus ?? 'registered';
     if (!CREATABLE_ADMIN_STATUSES.has(adminStatus)) throw new InventoryServiceError('Un activo nuevo solo puede registrarse como Alta o Pendiente de alta.', 400);
     const creatorProfileId = await resolveProfileId(creatorId);
-    await assertNoActiveDuplicates(prisma, companyId, { assetTag: data.assetTag, serialNumber: data.serialNumber });
+    await assertNoActiveDuplicates(prisma, companyId, { assetTag: data.assetTag, serialNumber: data.serialNumber, scope });
     // The asset number is optional and only what the user typed; it is never generated.
     const assetTag = cleanIdentifier(data.assetTag);
     const folio = await resolveCreateFolio(data, companyId);
@@ -393,6 +397,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       adminStatus,
       registeredAt: adminStatus === 'registered' ? todayDate() : null,
       createdById: creatorProfileId ?? undefined,
+      areaId: data.areaId || null,
     };
     if (description !== undefined) itemData.description = description;
     if (categoryId !== undefined) itemData.categoryId = categoryId;
@@ -476,7 +481,7 @@ export function createInventoryService({ prisma, activityBridge }) {
   }
 
   // actorAuthId: the editor's auth user id (audit trail actor).
-  async function updateItem(id, data, companyId, { afterWrite = null, actorAuthId = null } = {}) {
+  async function updateItem(id, data, companyId, { afterWrite = null, actorAuthId = null, scope = null } = {}) {
     assertCompany(companyId);
     const actorProfileId = await resolveProfileId(actorAuthId);
     const existing = await prisma.invItem.findFirst({
@@ -495,6 +500,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     await assertRefInCompany('invBrand', data.brandId, companyId, 'La marca');
     await assertRefInCompany('invLocation', data.locationId, companyId, 'La ubicacion');
     await assertRefInCompany('invCondition', data.conditionId, companyId, 'La condicion');
+    await assertRefInCompany('invArea', data.areaId, companyId, 'El area');
 
     const {
       name,
@@ -526,7 +532,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     const serialChanged = serialNumber !== undefined && cleanIdentifier(serialNumber) !== cleanIdentifier(existing.serialNumber);
     const tagChanged = assetTag !== undefined && cleanIdentifier(assetTag) !== cleanIdentifier(existing.assetTag);
     if (serialChanged || tagChanged) {
-      await assertNoActiveDuplicates(prisma, companyId, { assetTag: tagChanged ? assetTag : null, serialNumber: serialChanged ? serialNumber : null, excludeId: id });
+      await assertNoActiveDuplicates(prisma, companyId, { assetTag: tagChanged ? assetTag : null, serialNumber: serialChanged ? serialNumber : null, excludeId: id, scope });
     }
 
     // Forms resend the current folio; only a real change is validated. An item
@@ -570,6 +576,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       updateData.status = status;
     }
     if (data.conditionId !== undefined) updateData.conditionId = data.conditionId || null;
+    if (data.areaId !== undefined) updateData.areaId = data.areaId || null;
     if (purchaseDate !== undefined) updateData.purchaseDate = purchaseDate ? new Date(purchaseDate) : null;
     if (purchasePrice !== undefined) updateData.purchasePrice = purchasePrice;
     if (vendorName !== undefined) updateData.vendorName = vendorName;
@@ -774,13 +781,14 @@ export function createInventoryService({ prisma, activityBridge }) {
     active,
     page = 1,
     limit = 50,
+    scope = null,
   }) {
     assertCompany(companyId);
     const take = normalizeLimit(limit);
     const skip = (normalizePage(page) - 1) * take;
 
     const where = {
-      item: { companyId, enabled: true },
+      item: { companyId, enabled: true, ...(scopeWhere(scope) ?? {}) },
     };
     if (employeeId) where.employeeId = employeeId;
     if (itemId) where.itemId = itemId;
@@ -813,10 +821,10 @@ export function createInventoryService({ prisma, activityBridge }) {
     return { data, total, page: normalizePage(page), limit: take };
   }
 
-  async function getItemsByEmployee(employeeId, companyId) {
+  async function getItemsByEmployee(employeeId, companyId, scope = null) {
     assertCompany(companyId);
     return prisma.invItem.findMany({
-      where: { assignedToId: employeeId, companyId, enabled: true, status: 'assigned' },
+      where: { assignedToId: employeeId, companyId, enabled: true, status: 'assigned', ...(scopeWhere(scope) ?? {}) },
       include: {
         category: { select: { id: true, name: true, icon: true, color: true } },
       },

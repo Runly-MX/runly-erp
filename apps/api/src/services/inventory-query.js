@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { getConfiguredTimeZone } from '@runly/core';
+import { scopeWhere } from './inventory-scope.js';
 
 export function inventoryDayStart(value, dayOffset = 0, timeZone = getConfiguredTimeZone()) {
   const [year, month, day] = value.split('-').map(Number);
@@ -33,7 +34,8 @@ const EXACT_TEXT_FILTERS = ['model', 'folio', 'assetTag', 'serialNumber', 'partN
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const ADMIN_STATUS_SET = new Set(['registration_pending', 'registered', 'deregistration_proposed', 'deregistered']);
 
-export function buildInventoryWhere(companyId, filters = {}) {
+// `scope` (see inventory-scope.js) restricts the result to the caller's areas; null = unrestricted.
+export function buildInventoryWhere(companyId, filters = {}, scope = null) {
   if (!companyId) throw new Error('Empresa requerida.');
   const where = { companyId, enabled: true };
   const q = String(filters.search ?? '').trim();
@@ -66,5 +68,7 @@ export function buildInventoryWhere(companyId, filters = {}) {
     ...(purchaseFrom ? { gte: purchaseFrom } : {}),
     ...(purchaseTo ? { lte: purchaseTo } : {}),
   };
+  const areaFilter = scopeWhere(scope);
+  if (areaFilter) where.AND = [...(where.AND ?? []), areaFilter];
   return where;
 }

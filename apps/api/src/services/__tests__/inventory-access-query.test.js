@@ -40,3 +40,14 @@ test('inventory day boundaries use the configured time zone, including daylight-
   const end = inventoryDayStart('2026-03-08', 1, 'America/New_York');
   assert.equal(end - start, 23 * 60 * 60 * 1000);
 });
+
+test('inventory query composes the area scope into AND and ignores unrestricted scopes', () => {
+  const limited = { all: false, roles: new Map([['a1', 'viewer']]) };
+  const where = buildInventoryWhere(COMPANY, { missingSerial: true }, limited);
+  assert.equal(where.AND.length, 2);
+  assert.deepEqual(where.AND[1], { areaId: { in: ['a1'] } });
+  assert.deepEqual(buildInventoryWhere(COMPANY, {}, { all: true }), buildInventoryWhere(COMPANY, {}));
+  assert.deepEqual(buildInventoryWhere(COMPANY, {}, null), buildInventoryWhere(COMPANY, {}));
+  // A user with no areas matches nothing.
+  assert.deepEqual(buildInventoryWhere(COMPANY, {}, { all: false, roles: new Map() }).AND, [{ areaId: { in: [] } }]);
+});

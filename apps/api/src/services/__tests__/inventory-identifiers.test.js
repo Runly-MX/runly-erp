@@ -37,3 +37,15 @@ test('assertNoActiveDuplicates throws 409 with the existing item, excluding itse
   await assertNoActiveDuplicates(db(rows), 'c', { serialNumber: 'SN-2' });
   await assertNoActiveDuplicates(db(rows), 'c', { serialNumber: '', assetTag: null });
 });
+
+test('duplicates outside the caller scope are reported without their data', async () => {
+  const { findActiveDuplicates, assertNoActiveDuplicates } = await import('../inventory-identifiers.js');
+  const db = { invItem: { findFirst: async () => ({ id: 'i1', name: 'Secreto', assetTag: 'T1', serialNumber: 'S1', areaId: 'area-b' }) } };
+  const limited = { all: false, roles: new Map([['area-a', 'viewer']]) };
+  const found = await findActiveDuplicates(db, 'co', { serialNumber: 'S1', scope: limited });
+  assert.deepEqual(found.serialNumber, { restricted: true });
+  const visible = await findActiveDuplicates(db, 'co', { serialNumber: 'S1', scope: { all: false, roles: new Map([['area-b', 'viewer']]) } });
+  assert.equal(visible.serialNumber.name, 'Secreto');
+  assert.equal('areaId' in visible.serialNumber, false);
+  await assert.rejects(assertNoActiveDuplicates(db, 'co', { serialNumber: 'S1', scope: limited }), (e) => e.status === 409 && e.details.item.restricted === true && !JSON.stringify(e.details).includes('Secreto'));
+});

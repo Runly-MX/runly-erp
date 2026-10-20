@@ -629,3 +629,59 @@ describe('item folio', () => {
     await assert.rejects(() => svc.updateItem(ITEM_ID, { folio: '  ' }, COMPANY_ID), (err) => err.status === 400)
   })
 })
+
+describe('area scope', () => {
+  const limited = { all: false, roles: new Map([['area-a', 'viewer']]) }
+
+  it('listItems adds the scope fragment to findMany and count', async () => {
+    const wheres = []
+    const prisma = buildPrismaMock({
+      invItem: {
+        findMany: async (q) => { wheres.push(q.where); return [] },
+        count: async (q) => { wheres.push(q.where); return 0 },
+      },
+    })
+    const svc = createInventoryService({ prisma })
+    await svc.listItems({ companyId: COMPANY_ID, scope: limited })
+    assert.equal(wheres.length, 2)
+    for (const where of wheres) assert.deepEqual(where.AND, [{ areaId: { in: ['area-a'] } }])
+    wheres.length = 0
+    await svc.listItems({ companyId: COMPANY_ID })
+    for (const where of wheres) assert.equal(where.AND, undefined)
+  })
+
+  it('getItem answers 404 for an item outside the scope and passes inside it', async () => {
+    const item = (areaId) => ({ id: ITEM_ID, companyId: COMPANY_ID, enabled: true, areaId })
+    const svc = (areaId) => createInventoryService({ prisma: buildPrismaMock({ invItem: { findFirst: async () => item(areaId) } }) })
+    await assert.rejects(svc('area-b').getItem(ITEM_ID, COMPANY_ID, limited), (e) => e.status === 404)
+    await assert.rejects(svc(null).getItem(ITEM_ID, COMPANY_ID, limited), (e) => e.status === 404)
+    assert.equal((await svc('area-a').getItem(ITEM_ID, COMPANY_ID, limited)).id, ITEM_ID)
+    assert.equal((await svc('area-b').getItem(ITEM_ID, COMPANY_ID, { all: true })).id, ITEM_ID)
+    assert.equal((await svc('area-b').getItem(ITEM_ID, COMPANY_ID)).id, ITEM_ID)
+  })
+
+  it('assignment readers filter through the item relation', async () => {
+    const seen = []
+    const prisma = buildPrismaMock({
+      invItem: { findMany: async (q) => { seen.push(q.where); return [] } },
+      _root: { invAssignment: { findMany: async (q) => { seen.push(q.where); return [] }, count: async () => 0 } },
+    })
+    const svc = createInventoryService({ prisma })
+    await svc.listAllAssignments({ companyId: COMPANY_ID, scope: limited })
+    await svc.getItemsByEmployee(EMPLOYEE_ID, COMPANY_ID, limited)
+    assert.deepEqual(seen[0].item.areaId, { in: ['area-a'] })
+    assert.deepEqual(seen[1].areaId, { in: ['area-a'] })
+  })
+
+  it('createItem validates and stores the area', async () => {
+    let created
+    const prisma = buildPrismaMock({
+      invItem: { create: async (args) => { created = args.data; return { id: ITEM_ID, ...args.data } } },
+      _root: { invArea: { findFirst: async ({ where }) => (where.id === 'area-a' ? { id: 'area-a' } : null) } },
+    })
+    const svc = createInventoryService({ prisma })
+    await svc.createItem({ name: 'Mesa', areaId: 'area-a' }, COMPANY_ID, USER_ID)
+    assert.equal(created.areaId, 'area-a')
+    await assert.rejects(svc.createItem({ name: 'Mesa', areaId: 'foreign' }, COMPANY_ID, USER_ID), (e) => e.status === 400)
+  })
+})
