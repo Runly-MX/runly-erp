@@ -5,6 +5,8 @@
 import { Hono } from 'hono';
 import { createTokenBucketLimiter } from '../../../lib/token-bucket-limiter.js';
 import { failGuest, rateLimit } from './guest-shared.js';
+import { GUEST_ENTRY_KINDS } from '../../../services/inventory-guest-catalog.js';
+import { mountGuestImportRoutes } from './guest-import-routes.js';
 
 const UNAUTHORIZED = { error: 'Tu sesión expiró. Abre de nuevo el enlace de tu invitación.', code: 'SESSION_INVALID' };
 
@@ -12,6 +14,7 @@ export function createInventoryGuestRouter({
   guestService,
   items,
   limiter = createTokenBucketLimiter({ capacity: 120, refillPerSecond: 2 }),
+  imports = null,
 }) {
   const app = new Hono();
 
@@ -38,6 +41,18 @@ export function createInventoryGuestRouter({
   app.post('/session/logout', run('No se pudo cerrar tu sesión.', (auth) => guestService.logout(auth)));
 
   app.get('/catalogs', run('No se pudieron cargar los catálogos.', (auth) => items.catalogs(auth)));
+
+  // Catalogs the item form needs: models (search + create), types, custom fields and catalog entries.
+  app.get('/models', run('No se pudieron cargar los modelos.', (auth, c) => items.listModels(auth, c.req.query())));
+  app.post('/models', run('No se pudo crear el modelo.', async (auth, c) => items.createModel(auth, await body(c)), 201));
+  app.get('/types', run('No se pudieron cargar los tipos.', (auth) => items.listTypes(auth)));
+  for (const kind of GUEST_ENTRY_KINDS) {
+    app.post(`/${kind}`, run('No se pudo crear en el catálogo.', async (auth, c) => items.createEntry(auth, kind, await body(c)), 201));
+  }
+  app.get('/custom-fields', run('No se pudieron cargar los campos personalizados.', (auth, c) => items.listCustomFields(auth, c.req.query('categoryId'))));
+  app.get('/custom-fields/:id/values', run('No se pudieron cargar las sugerencias.', (auth, c) => items.customFieldValues(auth, c.req.param('id'), c.req.query('search'))));
+  app.get('/items/check-identifiers', run('No se pudo comprobar el número.', (auth, c) => items.checkIdentifiers(auth, c.req.query())));
+  if (imports) mountGuestImportRoutes(app, { imports, run });
 
   app.get('/items', async (c) => {
     try {

@@ -64,6 +64,7 @@ import { createInventoryGuestRouter } from "./routes/inventory/guest/guest-route
 import { createInventoryGuestPublicRouter } from "./routes/inventory/guest/guest-public-routes.js";
 import { createInventoryGuestService } from "./services/inventory-guest-service.js";
 import { createInventoryGuestItems } from "./services/inventory-guest-items.js";
+import { createInventoryGuestImport } from "./services/inventory-guest-import.js";
 import { createInventoryScope } from "./services/inventory-scope.js";
 import { createPurchasesRouter } from "./routes/purchases/index.js";
 import { isPurchasesNavVisible } from "./services/purchases-service.js";
@@ -2137,8 +2138,10 @@ app.route("/public/inventory/custody", createInventoryCustodyPublicRouter({ pris
 app.route("/public/inventory/items", createInventoryItemPublicRouter({ prisma, supabaseAdmin }));
 // Supplier portal (inventory guests): own `Authorization: Guest` auth, mounted before every mountWithAuth()
 // so no user-auth middleware ever sees these paths, and user tokens are rejected by the guest router.
+const inventoryGuestSigner = createCachedFileSigner({ prisma, supabaseAdmin });
 const inventoryGuestService = createInventoryGuestService({
   prisma,
+  signFile: inventoryGuestSigner,
   sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail),
   isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId),
   buildMail: buildInventoryGuestInviteEmail,
@@ -2146,9 +2149,11 @@ const inventoryGuestService = createInventoryGuestService({
   appBaseUrl: () => resolveAppBaseUrl(process.env),
 });
 app.route("/public/inventory/guest", createInventoryGuestPublicRouter({ guestService: inventoryGuestService }));
+const inventoryGuestItems = createInventoryGuestItems({ prisma, inventoryScope: createInventoryScope({ prisma }), supabaseAdmin, signFile: inventoryGuestSigner });
 app.route("/inventory/guest", createInventoryGuestRouter({
   guestService: inventoryGuestService,
-  items: createInventoryGuestItems({ prisma, inventoryScope: createInventoryScope({ prisma }), supabaseAdmin, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }),
+  items: inventoryGuestItems,
+  imports: createInventoryGuestImport({ prisma, items: inventoryGuestItems }),
 }));
 
 const publicFormsRouter = createPublicFormsRouter({ prisma });

@@ -6,6 +6,7 @@
 import { InventoryServiceError, assertCompany } from './inventory-guards.js';
 import { resolveAppBaseUrl } from './email-templates.js';
 import { describeMailError } from './smtp-service.js';
+import { loadGuestBranding } from './inventory-guest-branding.js';
 import { createAttemptGuard, formatAccessCode, hashAccessCode, newAccessCode, verifyAccessCode } from '../routes/lms/lms-invite-core.js';
 import {
   GUEST_ROLES, GUEST_TOKEN_RE, INVITE_TTL_DAYS, SESSION_TTL_HOURS, addDays, addHours, codeRequired, guestLinkPath, hashGuestToken,
@@ -32,7 +33,7 @@ const iso = (value) => (value ? new Date(value).toISOString() : null);
 // sendMail / buildMail / getBrand / isMailConfigured are optional: without them invites are still created
 // and the response carries the link (and code) to share by hand.
 export function createInventoryGuestService({
-  prisma, sendMail = null, buildMail = null, getBrand = null, isMailConfigured = null,
+  prisma, sendMail = null, buildMail = null, getBrand = null, isMailConfigured = null, signFile = null,
   appBaseUrl = () => resolveAppBaseUrl(process.env), attemptGuard = createAttemptGuard(), now = () => new Date(),
 }) {
   const mailConfigured = async (companyId) => {
@@ -73,12 +74,12 @@ export function createInventoryGuestService({
     });
     await prisma.invGuestInvite.update({ where: { id: invite.id }, data: { usedAt: invite.usedAt ?? at } });
     await prisma.invGuest.update({ where: { id: invite.guestId }, data: { lastSeenAt: at } });
-    const company = await prisma.company.findUnique({ where: { id: invite.companyId }, select: { name: true } }).catch(() => null);
+    const company = await loadGuestBranding({ prisma, companyId: invite.companyId, signFile });
     return {
       sessionToken,
       expiresAt: iso(expiresAt),
       guest: { id: invite.guest.id, name: invite.guest.name, email: invite.guest.email },
-      company: { name: company?.name ?? null },
+      company,
     };
   }
 

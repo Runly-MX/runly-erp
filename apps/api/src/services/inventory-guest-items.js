@@ -10,11 +10,16 @@ import { createInventoryService } from './inventory-service.js';
 import { createActivityBridge } from './activity-bridge.js';
 import { createActivityService } from './activity-service.js';
 import { InventoryServiceError } from './inventory-guards.js';
-import { canViewItem, canWriteArea } from './inventory-scope.js';
+import { canViewItem, canWriteArea, guestCan } from './inventory-scope.js';
+import { createInventoryModelService } from './inventory-model-service.js';
+import { createInventoryGuestCatalog, customFieldRow } from './inventory-guest-catalog.js';
+import { findActiveDuplicates } from './inventory-identifiers.js';
+import { loadGuestBranding } from './inventory-guest-branding.js';
 import { MAX_FILE_SIZE_BYTES, buildModuleObjectKey, isAllowedMimeType } from './files-service.js';
 
 const uuid = z.string().uuid();
 const text = (max) => z.string().trim().max(max).nullable();
+const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}/).max(30).nullable();
 
 const FIELDS = {
   name: z.string().trim().max(255),
@@ -23,11 +28,15 @@ const FIELDS = {
   brandId: uuid.nullable(),
   locationId: uuid.nullable(),
   conditionId: uuid.nullable(),
+  modelId: uuid.nullable(),
   model: text(255),
+  folio: text(50),
   partNumber: text(255),
   serialNumber: text(255),
   assetTag: text(100),
   status: z.enum(['available', 'maintenance']),
+  warrantyExpiry: dateOnly,
+  warrantyNotes: text(2000),
   notes: text(2000),
   customValues: z.array(z.object({ fieldId: uuid, value: z.string().max(2000).nullable() }).strict()).max(50),
 };
@@ -56,10 +65,13 @@ export function serializeGuestItem(item, { coverUrl = null } = {}) {
     description: item.description ?? null,
     assetTag: item.assetTag ?? null,
     serialNumber: item.serialNumber ?? null,
+    modelId: item.modelId ?? null,
     model: item.model ?? null,
     partNumber: item.partNumber ?? null,
     status: item.status,
     notes: item.notes ?? null,
+    warrantyExpiry: item.warrantyExpiry ?? null,
+    warrantyNotes: item.warrantyNotes ?? null,
     areaId: item.areaId ?? null,
     categoryId: item.categoryId ?? null,
     categoryName: item.category?.name ?? item.categoryName ?? null,
@@ -125,13 +137,18 @@ export function createInventoryGuestItems({
   async function me(auth) {
     const { scope } = await contextOf(auth);
     const [company, areas] = await Promise.all([
-      prisma.company.findUnique({ where: { id: auth.companyId }, select: { name: true } }),
+      loadGuestBranding({ prisma, companyId: auth.companyId, signFile }),
       prisma.invArea.findMany({ where: { companyId: auth.companyId, enabled: true, id: { in: [...scope.roles.keys()] } }, select: { id: true, name: true, parentId: true }, orderBy: { name: 'asc' } }),
     ]);
     return {
       guest: { id: auth.guest.id, name: auth.guest.name ?? null, email: auth.guest.email },
-      company: { name: company?.name ?? null },
-      areas: areas.map((a) => ({ id: a.id, name: a.name, parentId: a.parentId, role: scope.roles.get(a.id), canWrite: canWriteArea(scope, a.id) })),
+      company,
+      // Effective capabilities: `canCreateModels` also covers creating brands/types/locations/conditions.
+      capabilities: { canCreateModels: guestCan(scope, 'createModels'), canImport: guestCan(scope, 'import') },
+      areas: areas.map((a) => ({
+        id: a.id, name: a.name, parentId: a.parentId, role: scope.roles.get(a.id), canWrite: canWriteArea(scope, a.id),
+        canCreateModels: guestCan(scope, 'createModels', a.id), canImport: guestCan(scope, 'import', a.id),
+      })),
     };
   }
 
@@ -161,7 +178,8 @@ export function createInventoryGuestItems({
     if (!canWriteArea(ctx.scope, data.areaId)) {
       throw new InventoryServiceError('Elige un área donde puedas registrar items.', 403, 'AREA_NOT_WRITABLE');
     }
-    const created = await ctx.inventory.createItem(data, ctx.companyId, null, { scope: ctx.scope });
+    const withModel = await createInventoryModelService({ prisma }).applyModelDefaults(data, ctx.companyId);
+    const created = await ctx.inventory.createItem(withModel, ctx.companyId, null, { scope: ctx.scope });
     return serializeGuestItem(created);
   }
 
@@ -169,8 +187,17 @@ export function createInventoryGuestItems({
     const ctx = await contextOf(auth);
     await loadWritable(ctx, id);
     const data = parseBody(patchSchema, body);
-    const updated = await ctx.inventory.updateItem(id, data, ctx.companyId, { scope: ctx.scope });
+    const withModel = await createInventoryModelService({ prisma }).applyModelDefaults(data, ctx.companyId);
+    const updated = await ctx.inventory.updateItem(id, withModel, ctx.companyId, { scope: ctx.scope });
     return serializeGuestItem(updated);
+  }
+
+  // Live duplicate check for the form: an item outside the guest's areas comes back as { restricted: true }.
+  async function checkIdentifiers(auth, query = {}) {
+    const ctx = await contextOf(auth);
+    const str = (k) => (typeof query[k] === 'string' && query[k] ? query[k].slice(0, 255) : null);
+    const excludeId = uuid.safeParse(query.excludeId).success ? query.excludeId : null;
+    return findActiveDuplicates(prisma, ctx.companyId, { assetTag: str('assetTag'), serialNumber: str('serialNumber'), excludeId, scope: ctx.scope });
   }
 
   // ---- files ----------------------------------------------------------------------------------
@@ -242,15 +269,16 @@ export function createInventoryGuestItems({
   }
 
   // Audit row for file events (the item service only audits item fields).
-  async function audit(auth, itemId, action, verb, detail) {
-    const guest = auth.guest;
-    const who = `${guest.name || guest.email} (proveedor)`;
-    await createGuestAuditBridge({ bridge: baseBridge, guest }).logAndPublish({
-      auditEntry: { companyId: auth.companyId, actorId: null, moduleKey: 'runly.inventory', entityType: 'InvItem', entityId: itemId, action, after: { file: detail ?? null } },
-      hint: { type: action, severity: 'info', summary: `${who} ${verb}${detail ? `: ${detail}` : ''}`, link: `/app/m/runly.inventory/inventory/${itemId}` },
+  async function auditEntity(auth, { entityType, entityId, action, verb, detail = null, link = null }) {
+    const who = `${auth.guest.name || auth.guest.email} (proveedor)`;
+    await createGuestAuditBridge({ bridge: baseBridge, guest: auth.guest }).logAndPublish({
+      auditEntry: { companyId: auth.companyId, actorId: null, moduleKey: 'runly.inventory', entityType, entityId, action, after: { detail } },
+      hint: { type: action, severity: 'info', summary: `${who} ${verb}${detail ? `: ${detail}` : ''}`, ...(link ? { link } : {}) },
       companyId: auth.companyId,
     }).catch(() => null);
   }
+  const audit = (auth, itemId, action, verb, detail) => auditEntity(auth, { entityType: 'InvItem', entityId: itemId, action, verb, detail, link: `/app/m/runly.inventory/inventory/${itemId}` });
+  const catalog = createInventoryGuestCatalog({ prisma, contextOf, audit: auditEntity });
 
   // ---- history (read-only) --------------------------------------------------------------------
   const ACTION_LABELS = {
@@ -287,9 +315,9 @@ export function createInventoryGuestItems({
       brands: brands.map((r) => ({ id: r.id, name: r.name })),
       locations: locations.map((r) => ({ id: r.id, name: r.name })),
       conditions: conditions.map((r) => ({ id: r.id, name: r.name, color: r.color ?? null })),
-      customFields: customFields.map((r) => ({ id: r.id, label: r.label, fieldKey: r.fieldKey, fieldType: r.fieldType, options: r.options ?? null, categoryId: r.categoryId ?? null, onDemand: Boolean(r.onDemand) })),
+      customFields: customFields.map(customFieldRow),
     };
   }
 
-  return { me, listItems, getItem, createItem, updateItem, listFiles, uploadFile, deleteFile, history, catalogs };
+  return { me, listItems, getItem, createItem, updateItem, listFiles, uploadFile, deleteFile, history, catalogs, checkIdentifiers, ...catalog, contextOf, bridge: baseBridge };
 }

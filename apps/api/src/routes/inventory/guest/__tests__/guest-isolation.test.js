@@ -151,7 +151,7 @@ describe('guest reads are limited to its areas', () => {
     const detail = (await (await t.req(viewer.token, 'GET', `/inventory/guest/items/${IA}`)).json()).data;
     const list = (await (await t.req(viewer.token, 'GET', '/inventory/guest/items')).json()).data[0];
     for (const row of [detail, list]) {
-      for (const key of ['purchasePrice', 'vendorName', 'invoiceNumber', 'licenseKey', 'licenseExpiry', 'adminStatus', 'assignedToId', 'assignedTo', 'createdById', 'purchaseDate', 'warrantyNotes']) {
+      for (const key of ['purchasePrice', 'vendorName', 'invoiceNumber', 'licenseKey', 'licenseExpiry', 'adminStatus', 'assignedToId', 'assignedTo', 'createdById', 'purchaseDate', 'acquisitionOrigin']) {
         assert.ok(!(key in row), `${key} leaked`);
       }
     }
@@ -211,7 +211,7 @@ describe('guest writes', () => {
   });
 
   it('rejects every field outside the allowlist on create and update', async () => {
-    const forbidden = { purchasePrice: 1, vendorName: 'v', invoiceNumber: 'i', licenseKey: 'k', licenseExpiry: '2027-01-01', licenseSeats: 3, adminStatus: 'deregistered', assignedToId: 'e1', createdById: 'u', companyId: CO2, enabled: false, folio: 'F-HACK', acquisitionOrigin: 'DONATION', warrantyExpiry: '2027-01-01', purchaseDate: '2026-01-01' };
+    const forbidden = { purchasePrice: 1, vendorName: 'v', invoiceNumber: 'i', licenseKey: 'k', licenseExpiry: '2027-01-01', licenseSeats: 3, adminStatus: 'deregistered', assignedToId: 'e1', createdById: 'u', companyId: CO2, enabled: false, acquisitionOrigin: 'DONATION', purchaseDate: '2026-01-01', createdAt: '2020-01-01', modelId2: 'x' };
     for (const [key, value] of Object.entries(forbidden)) {
       const create = await t.req(editor.token, 'POST', '/inventory/guest/items', { name: 'X', areaId: AREA_A, [key]: value });
       assert.equal(create.status, 400, `create ${key}`);

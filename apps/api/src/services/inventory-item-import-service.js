@@ -50,6 +50,8 @@ export const ITEM_IMPORT_FIELDS = [
   { key: 'imageUrl', label: 'Fotos (enlaces)', group: 'Notas y fotos', aliases: ['foto', 'fotos', 'imagen', 'imagenes', 'image', 'images', 'url_foto', 'url_imagen', 'link_foto'] },
 ];
 const BASE_KEYS = new Set(ITEM_IMPORT_FIELDS.map((f) => f.key));
+// Columns a supplier (guest) import never sees or maps: commercial data and administrative status.
+export const GUEST_BLOCKED_IMPORT_FIELDS = new Set(['adminStatus', 'purchaseDate', 'purchasePrice', 'vendorName', 'invoiceNumber']);
 
 export const IMPORT_STATUSES = [
   { value: 'available', label: 'Disponible' },
@@ -155,8 +157,13 @@ function incomingFor(d, refs) {
 
 export function createInventoryItemImportService({
   prisma, inventoryService, fetchImage = fetchRemoteImage,
+  // guest: restricted import for external suppliers (no commercial/admin columns, no bajas); actorName
+  // prefixes the feed summary ("Proveedor X importó activos...").
+  guest = false, actorName = null,
   bridge = createActivityBridge({ activityService: createActivityService({ prisma }), prisma }),
 }) {
+  const importFields = guest ? ITEM_IMPORT_FIELDS.filter((f) => !GUEST_BLOCKED_IMPORT_FIELDS.has(f.key)) : ITEM_IMPORT_FIELDS;
+
   async function loadCustomFields(companyId) {
     const rows = await prisma.invCustomField.findMany({
       where: { companyId, enabled: true },
@@ -172,7 +179,7 @@ export function createInventoryItemImportService({
     const custom = await loadCustomFields(companyId);
     return {
       fields: [
-        ...ITEM_IMPORT_FIELDS.map(({ key: k, label, group }) => ({ key: k, label, group })),
+        ...importFields.map(({ key: k, label, group }) => ({ key: k, label, group })),
         ...custom.map((f) => ({ key: `custom:${f.id}`, label: f.label, group: 'Campos personalizados', hint: f.typeName ? `Solo tipo ${f.typeName}` : null })),
       ],
       customFields: custom,
@@ -204,6 +211,9 @@ export function createInventoryItemImportService({
     if (rows.length > MAX_ITEM_IMPORT_ROWS) throw new InventoryServiceError('El archivo supera el límite de 2,000 filas.', 400);
     if (!mapping || typeof mapping !== 'object') throw new InventoryServiceError('Falta el mapeo de columnas.', 400);
     for (const field of Object.keys(mapping)) {
+      if (guest && GUEST_BLOCKED_IMPORT_FIELDS.has(field) && mapping[field]) {
+        throw new InventoryServiceError(`No puedes importar la columna ${field}.`, 400, 'FIELD_NOT_ALLOWED', { fields: [field] });
+      }
       const custom = field.startsWith('custom:') ? field.slice(7) : null;
       if (custom ? !ctx.customFields.has(custom) : !BASE_KEYS.has(field)) throw new InventoryServiceError(`Campo desconocido: ${field}.`, 400);
     }
@@ -251,6 +261,7 @@ export function createInventoryItemImportService({
       else if (matchBaja(normalized)) baja = matchBaja(normalized);
       else errors.push(`Estado «${d.adminStatus}» no válido: usa Alta, Pendiente de alta, Propuesta de baja o Baja.`);
     }
+    if (baja && guest) errors.push('No puedes importar activos dados de baja.');
     if (baja) notes.push(baja.adminStatus === 'deregistered' ? 'Se importará como dado de baja.' : 'Se importará con propuesta de baja.');
     const purchaseDate = d.purchaseDate ? parseImportDate(d.purchaseDate) : null;
     if (d.purchaseDate && !purchaseDate) errors.push(`Fecha de compra «${d.purchaseDate}» no válida (usa AAAA-MM-DD o DD/MM/AAAA).`);
@@ -541,7 +552,7 @@ export function createInventoryItemImportService({
         },
         hint: {
           type: 'inventory.item.imported',
-          summary: `Importó activos desde archivo: ${parts.join(', ')}`,
+          summary: `${actorName ? `${actorName} importó` : 'Importó'} activos desde archivo: ${parts.join(', ')}`,
           severity: failed ? 'warning' : 'success',
           payload: { created, updated, skipped, failed, ...(problems.length ? { problems } : {}) },
         },
@@ -556,8 +567,8 @@ export function createInventoryItemImportService({
     const ExcelJS = (await import('exceljs')).default;
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Activos');
-    sheet.addRow(ITEM_IMPORT_FIELDS.map((f) => f.label)).font = { bold: true };
-    ITEM_IMPORT_FIELDS.forEach((_, i) => { sheet.getColumn(i + 1).width = 22; });
+    sheet.addRow(importFields.map((f) => f.label)).font = { bold: true };
+    importFields.forEach((_, i) => { sheet.getColumn(i + 1).width = 22; });
     return { buffer: Buffer.from(await workbook.xlsx.writeBuffer()), contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename: 'plantilla-activos.xlsx' };
   }
 

@@ -8,6 +8,7 @@ const RELATIONS = {
   invite: ['invGuestInvite', 'inviteId'],
   area: ['invArea', 'areaId'],
   category: ['invCategory', 'categoryId'],
+  type: ['invCategory', 'typeId'],
   brand: ['invBrand', 'brandId'],
   location: ['invLocation', 'locationId'],
   condition: ['invCondition', 'conditionId'],
@@ -16,7 +17,7 @@ const RELATIONS = {
 
 export function createFakeDb(seed = {}) {
   const db = {};
-  const names = ['invGuest', 'invGuestInvite', 'invGuestSession', 'invAreaMember', 'invArea', 'invItem', 'invItemFile', 'contact', 'company', 'fileAsset', 'auditLog', 'invCategory', 'invBrand', 'invLocation', 'invCondition', 'invCustomField', 'invItemAdminEvent'];
+  const names = ['invGuest', 'invGuestInvite', 'invGuestSession', 'invAreaMember', 'invArea', 'invItem', 'invItemFile', 'contact', 'company', 'fileAsset', 'auditLog', 'invCategory', 'invBrand', 'invLocation', 'invCondition', 'invCustomField', 'invCustomFieldValue', 'invModel', 'invItemAdminEvent'];
   const rowsOf = (name) => (db[name] ??= { rows: [] }).rows;
   for (const name of names) db[name] = { rows: [...(seed[name] ?? [])] };
 
@@ -60,6 +61,7 @@ export function createFakeDb(seed = {}) {
         rows.push(row);
         return withInclude(row, include);
       },
+      createMany: async ({ data }) => { for (const d of data) rows.push({ id: uid(), enabled: true, createdAt: new Date(), ...d }); return { count: data.length }; },
       update: async ({ where, data, include }) => {
         const row = rows.find((r) => matches(r, flat(where)));
         if (!row) throw Object.assign(new Error('not found'), { code: 'P2025' });
