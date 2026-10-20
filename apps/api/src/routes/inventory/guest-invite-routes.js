@@ -13,7 +13,14 @@ const inviteBody = z.object({
   role: z.enum(['viewer', 'editor']).default('viewer'),
   contactId: uuid.nullish(),
   requireCode: z.boolean().optional(),
+  canCreateModels: z.boolean().optional(),
+  canImport: z.boolean().optional(),
 });
+const memberBody = z.object({
+  role: z.enum(['viewer', 'editor']).optional(),
+  canCreateModels: z.boolean().optional(),
+  canImport: z.boolean().optional(),
+}).strict();
 const resendBody = z.object({ requireCode: z.boolean().optional() });
 
 export function createInventoryGuestInviteRouter({ requirePermission, inventoryScope, guestService, InventoryServiceError }) {
@@ -53,6 +60,15 @@ export function createInventoryGuestInviteRouter({ requirePermission, inventoryS
       const data = await guestService.inviteToArea({ companyId: c.get('companyId'), actorId: c.get('userId') ?? null, areaId, ...body });
       return c.json({ data }, 201);
     } catch (err) { return fail(c, err, 'No se pudo invitar al proveedor.'); }
+  });
+
+  router.patch('/inventory/areas/:id/guests/:guestId', read, async (c) => {
+    try {
+      const { id: areaId, guestId } = c.req.param();
+      if (!(await canAdminAreas(c, [areaId]))) return deny(c);
+      const body = memberBody.parse(await json(c));
+      return c.json({ data: await guestService.updateMember({ companyId: c.get('companyId'), areaId, guestId: uuid.parse(guestId), ...body }) });
+    } catch (err) { return fail(c, err, 'No se pudo actualizar al proveedor.'); }
   });
 
   router.delete('/inventory/areas/:id/guests/:guestId', read, async (c) => {

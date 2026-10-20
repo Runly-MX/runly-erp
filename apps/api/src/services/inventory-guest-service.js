@@ -19,6 +19,14 @@ const MAIL_ERRORS = {
   NO_BASE_URL: 'No se conoce la dirección pública de la aplicación. Copia el enlace y envíalo tú.',
   MAIL_FAILED: 'No se pudo enviar el correo. Copia el enlace y envíalo tú.',
 };
+// Viewers never hold capabilities: demoting clears them, undefined leaves a flag untouched.
+function capabilityFlags(role, { canCreateModels, canImport }) {
+  if (role !== 'editor') return { canCreateModels: false, canImport: false };
+  return {
+    ...(canCreateModels !== undefined ? { canCreateModels: Boolean(canCreateModels) } : {}),
+    ...(canImport !== undefined ? { canImport: Boolean(canImport) } : {}),
+  };
+}
 const iso = (value) => (value ? new Date(value).toISOString() : null);
 
 // sendMail / buildMail / getBrand / isMailConfigured are optional: without them invites are still created
@@ -156,7 +164,7 @@ export function createInventoryGuestService({
   }
 
   // Creates (or reuses) the guest, adds the area membership and sends a fresh link.
-  async function inviteToArea({ companyId, actorId = null, areaId, email, name = null, role = 'viewer', contactId = null, requireCode = false }) {
+  async function inviteToArea({ companyId, actorId = null, areaId, email, name = null, role = 'viewer', contactId = null, requireCode = false, canCreateModels, canImport }) {
     assertCompany(companyId);
     if (!GUEST_ROLES.includes(role)) throw new InventoryServiceError('Los proveedores solo pueden ser lectores o editores.', 400);
     const area = await getArea(companyId, areaId);
@@ -176,10 +184,12 @@ export function createInventoryGuestService({
     } else if ((cleanName && cleanName !== guest.name) || (contactId && contactId !== guest.contactId)) {
       guest = await prisma.invGuest.update({ where: { id: guest.id }, data: { name: cleanName ?? guest.name, contactId: contactId ?? guest.contactId } });
     }
+    // Capabilities only exist on an editor membership; undefined keeps the stored value on re-invite.
+    const flags = capabilityFlags(role, { canCreateModels, canImport });
     const member = await prisma.invAreaMember.upsert({
       where: { areaId_guestId: { areaId: area.id, guestId: guest.id } },
-      create: { areaId: area.id, guestId: guest.id, role, invitedById: actorId },
-      update: { role },
+      create: { areaId: area.id, guestId: guest.id, role, invitedById: actorId, canCreateModels: flags.canCreateModels ?? false, canImport: flags.canImport ?? false },
+      update: { role, ...flags },
     });
     const delivery = await issueInvite(guest, { actorId, requireCode });
     return { guest: serializeGuest(guest, delivery.invite, member), link: delivery.link, code: delivery.code, sent: delivery.sent, mailError: delivery.mailError };
@@ -199,6 +209,8 @@ export function createInventoryGuestService({
       memberId: member?.id ?? null,
       areaId: member?.areaId ?? null,
       role: member?.role ?? null,
+      canCreateModels: member ? Boolean(member.canCreateModels) && member.role === 'editor' : false,
+      canImport: member ? Boolean(member.canImport) && member.role === 'editor' : false,
       email: guest.email,
       name: guest.name,
       contactId: guest.contactId ?? null,
@@ -223,6 +235,21 @@ export function createInventoryGuestService({
     const latest = new Map();
     for (const invite of invites) if (!latest.has(invite.guestId)) latest.set(invite.guestId, invite);
     return members.map((m) => serializeGuest(m.guest, latest.get(m.guestId) ?? null, m));
+  }
+
+  // Changes the role and/or capabilities of a guest inside one area (no new link is sent).
+  async function updateMember({ companyId, areaId, guestId, role, canCreateModels, canImport }) {
+    assertCompany(companyId);
+    if (role !== undefined && !GUEST_ROLES.includes(role)) throw new InventoryServiceError('Los proveedores solo pueden ser lectores o editores.', 400);
+    await getArea(companyId, areaId);
+    const guest = await getGuest(companyId, guestId);
+    const member = await prisma.invAreaMember.findFirst({ where: { areaId, guestId: guest.id } });
+    if (!member) throw new InventoryServiceError('Ese proveedor no es miembro de esta area.', 404);
+    const nextRole = role ?? member.role;
+    const data = { ...(role !== undefined ? { role } : {}), ...capabilityFlags(nextRole, { canCreateModels, canImport }) };
+    const saved = await prisma.invAreaMember.update({ where: { id: member.id }, data });
+    const invite = await prisma.invGuestInvite.findFirst({ where: { guestId: guest.id }, orderBy: { createdAt: 'desc' } });
+    return serializeGuest(guest, invite, saved);
   }
 
   // New link (the previous ones stop working, and with them their sessions).
@@ -261,5 +288,5 @@ export function createInventoryGuestService({
     return rows.map((r) => r.areaId);
   }
 
-  return { startSession, authenticate, refresh, logout, inviteToArea, listForArea, resend, removeFromArea, revoke, areaIdsOf };
+  return { startSession, authenticate, refresh, logout, inviteToArea, updateMember, listForArea, resend, removeFromArea, revoke, areaIdsOf };
 }

@@ -82,6 +82,32 @@ export const canWriteArea = (scope, areaId) =>
 export const canManageArea = (scope, areaId) =>
   Boolean(scope?.all || (areaId && RANK[scope?.roles?.get(areaId)] >= RANK.manager));
 
+// Guest capabilities (membership flags) inherited by descendant areas, like roles. A flag only counts on
+// an editor membership (a viewer never gets capabilities). -> Map(areaId -> { createModels, import }).
+export function expandGuestCaps(areas, memberships) {
+  const parent = new Map(areas.map((a) => [a.id, a.parentId]));
+  const direct = new Map(memberships.filter((m) => m.role === 'editor').map((m) => [m.areaId, m]));
+  const caps = new Map();
+  for (const area of areas) {
+    const out = { createModels: false, import: false };
+    const seen = new Set();
+    for (let id = area.id; id && !seen.has(id); id = parent.get(id)) {
+      seen.add(id);
+      const m = direct.get(id);
+      if (m?.canCreateModels) out.createModels = true;
+      if (m?.canImport) out.import = true;
+    }
+    if (out.createModels || out.import) caps.set(area.id, out);
+  }
+  return caps;
+}
+// capability: 'createModels' | 'import'. With an areaId it must be writable there; without one, any writable area.
+export function guestCan(scope, capability, areaId = null) {
+  if (!scope?.caps) return false;
+  if (areaId) return canWriteArea(scope, areaId) && Boolean(scope.caps.get(areaId)?.[capability]);
+  return [...scope.caps.entries()].some(([id, caps]) => caps[capability] && canWriteArea(scope, id));
+}
+
 export function createInventoryScope({ prisma }) {
   async function isEnabled(companyId) {
     const row = await prisma.instanceConfig.findUnique({ where: { key: areasEnabledKey(companyId) } });
@@ -96,10 +122,10 @@ export function createInventoryScope({ prisma }) {
   async function resolveGuest({ companyId, guestId }) {
     const [areas, members] = await Promise.all([
       prisma.invArea.findMany({ where: { companyId, enabled: true }, select: { id: true, parentId: true } }),
-      prisma.invAreaMember.findMany({ where: { guestId, area: { companyId, enabled: true } }, select: { areaId: true, role: true } }),
+      prisma.invAreaMember.findMany({ where: { guestId, area: { companyId, enabled: true } }, select: { areaId: true, role: true, canCreateModels: true, canImport: true } }),
     ]);
-    const capped = members.map((m) => ({ areaId: m.areaId, role: m.role === 'editor' ? 'editor' : 'viewer' }));
-    return { all: false, companyId, roles: expandAreaRoles(areas, capped), own: null, guest: { id: guestId } };
+    const capped = members.map((m) => ({ areaId: m.areaId, role: m.role === 'editor' ? 'editor' : 'viewer', canCreateModels: Boolean(m.canCreateModels), canImport: Boolean(m.canImport) }));
+    return { all: false, companyId, roles: expandAreaRoles(areas, capped), caps: expandGuestCaps(areas, capped), own: null, guest: { id: guestId } };
   }
   // Viewer identity for own items / "Mios": profile id plus the employee records linked to it.
   async function resolveMine({ companyId, userId }) {

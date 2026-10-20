@@ -125,3 +125,31 @@ describe('inventory guest sessions', () => {
     assert.ok(await ok.svc.startSession({ token: tokenOf(fresh.link), code: fresh.code.toLowerCase() }));
   });
 });
+
+describe('guest capability flags', () => {
+  it('invites with flags, lists them, updates them, and never keeps them on a viewer', async () => {
+    const t = build({ mail: false });
+    const res = await t.svc.inviteToArea({ companyId: CO, areaId: AREA, email: 'a@b.co', role: 'editor', canCreateModels: true, canImport: true });
+    assert.equal(res.guest.canCreateModels, true);
+    assert.equal(res.guest.canImport, true);
+    const listed = await t.svc.listForArea(CO, AREA);
+    assert.deepEqual([listed[0].canCreateModels, listed[0].canImport], [true, true]);
+    const off = await t.svc.updateMember({ companyId: CO, areaId: AREA, guestId: res.guest.id, canImport: false });
+    assert.deepEqual([off.role, off.canCreateModels, off.canImport], ['editor', true, false]);
+    // Demoting to viewer clears both flags; a viewer invite ignores them.
+    const viewer = await t.svc.updateMember({ companyId: CO, areaId: AREA, guestId: res.guest.id, role: 'viewer' });
+    assert.deepEqual([viewer.role, viewer.canCreateModels, viewer.canImport], ['viewer', false, false]);
+    const v2 = await t.svc.inviteToArea({ companyId: CO, areaId: AREA, email: 'v@b.co', role: 'viewer', canImport: true });
+    assert.equal(v2.guest.canImport, false);
+    assert.equal(t.db.invAreaMember.rows.find((m) => m.guestId === v2.guest.id).canImport, false);
+  });
+
+  it('flags default to false, updateMember validates role, area and membership', async () => {
+    const t = build({ mail: false });
+    const res = await t.svc.inviteToArea({ companyId: CO, areaId: AREA, email: 'a@b.co', role: 'editor' });
+    assert.deepEqual([res.guest.canCreateModels, res.guest.canImport], [false, false]);
+    await assert.rejects(t.svc.updateMember({ companyId: CO, areaId: AREA, guestId: res.guest.id, role: 'manager' }), { status: 400 });
+    await assert.rejects(t.svc.updateMember({ companyId: 'other', areaId: AREA, guestId: res.guest.id }), { status: 404 });
+    await assert.rejects(t.svc.updateMember({ companyId: CO, areaId: AREA, guestId: '01900000-0000-7000-8000-0000000000ff' }), { status: 404 });
+  });
+});
