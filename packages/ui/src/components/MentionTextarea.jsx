@@ -166,6 +166,20 @@ function backdropNodes(text, ranges) {
   return out
 }
 
+const BRAND_VARS = ['--brand-primary', '--brand-primary-hover', '--brand-primary-foreground', '--brand-primary-on-dark', '--ring']
+
+// Resolved values of the brand tokens at `el`, to re-apply on a portaled menu.
+function inheritedBrandVars(el) {
+  if (!el) return null
+  const cs = getComputedStyle(el)
+  const out = {}
+  for (const name of BRAND_VARS) {
+    const value = cs.getPropertyValue(name).trim()
+    if (value) out[name] = value
+  }
+  return out
+}
+
 // Bold the part of the name that matches what the user typed after "@".
 function HighlightMatch({ text, query }) {
   const idx = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1
@@ -642,6 +656,8 @@ const MentionTextarea = forwardRef(function MentionTextarea({
               : { top: menuPos.anchor }),
             zIndex: layerZIndexFor(containerRef.current),
             maxHeight: menuPos.maxHeight,
+            // Portaled outside any themed ancestor: carry the accent over.
+            ...inheritedBrandVars(containerRef.current),
           }}
         >
           {visible.map((m, i) => {

@@ -23,7 +23,7 @@ import { buildAllAttachments } from "../lib/chatUtils";
 import { MIRAI_NAME, MIRAI_TYPING_SENTINEL } from "../lib/mirai";
 import { buildMiraiPageContext, moduleKeyFromPath, useCurrentMiraiRecord } from "../lib/miraiPageContext";
 import { miraiPromptsFor } from "../lib/miraiPrompts";
-import { useChatPreferences } from "../hooks/useChatPreferences";
+import { useChatPreferences, wallpaperLayerProps } from "../hooks/useChatPreferences";
 
 // Same formats/limits as the backend attachment reader (spec
 // 2026-09-30-mirai-inventory-capability-design.md §2): up to 5 files, 10 MB
@@ -283,7 +283,7 @@ export function MiraiSidebarThread({ conversationId, onSent }) {
       {/* Same wallpaper as the Chat module (chat-theme.css). The layer lives
           OUTSIDE the scroller so only the messages move over it. */}
       <div className="chat-scale-target chat-wallpaper relative isolate flex min-h-0 flex-1 flex-col">
-        {prefs.wallpaper && <div className="chat-wallpaper-layer" data-accent={prefs.accentColorKey} aria-hidden="true" />}
+        {prefs.wallpaper && <div {...wallpaperLayerProps(prefs)} />}
         <div className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain p-2.5 sm:p-3">
         {(isLoading || !conversationId) && (
           <div className="space-y-3">

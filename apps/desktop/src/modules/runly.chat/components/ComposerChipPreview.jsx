@@ -1,5 +1,6 @@
 import { Popover, PopoverAnchor, PopoverContent } from "@runly/ui";
 import { EntityPreviewContent } from "./EntityPreviewContent";
+import { ChatThemeScope } from "./ChatThemeScope";
 
 // Preview of a chip while it is still in the composer (hover on desktop,
 // tap on touch), anchored to the chip's rectangle inside the text field.
@@ -26,6 +27,7 @@ export function ComposerChipPreview({ target, members = [], onClose, onEnter, on
         onMouseEnter={onEnter}
         onMouseLeave={onLeave}
       >
+        <ChatThemeScope>
         {target.kind === "entity" ? (
           <EntityPreviewContent entityType={target.entityType} recordId={target.id} onNavigate={onClose} />
         ) : (
@@ -34,6 +36,7 @@ export function ComposerChipPreview({ target, members = [], onClose, onEnter, on
             {person?.description ? <p className="text-xs text-[hsl(var(--muted-foreground))]">{person.description}</p> : null}
           </div>
         )}
+        </ChatThemeScope>
       </PopoverContent>
     </Popover>
   );

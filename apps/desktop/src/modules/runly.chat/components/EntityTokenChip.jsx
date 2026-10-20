@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { setEntityTokenRenderer } from "@runly/ui";
-import { ENTITY_TYPE_BY_VALUE, entityTypeColor } from "../lib/entityReferenceTypes";
+import { useEntityBranding } from "../hooks/useEntityBranding";
 import { EntityPreviewPopover } from "./EntityPreviewPopover";
 import { useEntityUrl } from "../hooks/useEntityUrl";
 
@@ -8,8 +8,7 @@ import { useEntityUrl } from "../hooks/useEntityUrl";
 // previews on hover/tap, opens the record on click.
 export function EntityTokenChip({ entityType, recordId, name }) {
   const navigate = useNavigate();
-  const Icon = ENTITY_TYPE_BY_VALUE[entityType]?.Icon;
-  const color = entityTypeColor(entityType);
+  const { Icon, color } = useEntityBranding()(entityType);
   const getUrl = useEntityUrl(entityType, recordId);
   return (
     <EntityPreviewPopover entityType={entityType} recordId={recordId}>

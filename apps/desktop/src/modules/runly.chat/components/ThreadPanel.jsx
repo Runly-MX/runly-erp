@@ -9,7 +9,7 @@ import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ForwardMessageModal } from "./ForwardMessageModal";
 import { buildAllAttachments } from "../lib/chatUtils";
 import { useChatConversations } from "../hooks/useChatConversations";
-import { useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPreferences";
+import { useChatPreferences, chatPreferencesStyle, wallpaperLayerProps } from "../hooks/useChatPreferences";
 import { useAuth } from "../../../auth/AuthProvider";
 import "../chat-theme.css";
 
@@ -26,11 +26,7 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
   // only when the pref is on. `SheetContent` is `position: fixed`, so it
   // already establishes the stacking context the negative z-index needs.
   const wallpaperLayer = prefs.wallpaper ? (
-    <div
-      className="chat-wallpaper-layer"
-      data-accent={prefs.accentColorKey}
-      aria-hidden="true"
-    />
+    <div {...wallpaperLayerProps(prefs)} />
   ) : null;
   // Sheet.jsx forces side="right" to a bottom sheet below the mobile
   // breakpoint. That variant is auto-height-up-to-85dvh with the SHEET ITSELF

@@ -105,7 +105,9 @@
  * to read at this size / opacity).
  */
 .chat-glass-theme .chat-wallpaper {
-  background-color: hsl(var(--background));
+  /* --chat-bg is set from the "Fondo" preference (a tone blended into the
+     theme background); without it the plain theme background shows. */
+  background-color: var(--chat-bg, hsl(var(--background)));
 }
 
 .chat-glass-theme .chat-wallpaper-layer {
@@ -151,6 +153,28 @@
 .dark .chat-glass-theme .chat-wallpaper-layer[data-accent="orange"] { --chat-wallpaper-ink: rgba(234, 88, 12, 0.09); }
 .chat-glass-theme .chat-wallpaper-layer[data-accent="teal"] { --chat-wallpaper-ink: rgba(8, 145, 178, 0.09); }
 .dark .chat-glass-theme .chat-wallpaper-layer[data-accent="teal"] { --chat-wallpaper-ink: rgba(8, 145, 178, 0.09); }
+
+/* Alternative wallpaper patterns (preference "Patron"): same ink variable and
+   layer as the doodles, but drawn with gradients instead of the SVG mask. */
+.chat-glass-theme .chat-wallpaper-layer[data-pattern="dots"],
+.chat-glass-theme .chat-wallpaper-layer[data-pattern="grid"],
+.chat-glass-theme .chat-wallpaper-layer[data-pattern="lines"] {
+  background-color: transparent;
+  mask-image: none;
+}
+.chat-glass-theme .chat-wallpaper-layer[data-pattern="dots"] {
+  background-image: radial-gradient(var(--chat-wallpaper-ink) 1.4px, transparent 1.6px);
+  background-size: 20px 20px;
+}
+.chat-glass-theme .chat-wallpaper-layer[data-pattern="grid"] {
+  background-image:
+    linear-gradient(var(--chat-wallpaper-ink) 1px, transparent 1px),
+    linear-gradient(90deg, var(--chat-wallpaper-ink) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.chat-glass-theme .chat-wallpaper-layer[data-pattern="lines"] {
+  background-image: repeating-linear-gradient(135deg, var(--chat-wallpaper-ink) 0 1px, transparent 1px 14px);
+}
 
 /* Jump-to-message highlight — applied by ChatMessageList.scrollToMessage when
    you tap a reply quote or "Ver en el chat". Holds a soft brand-tinted band

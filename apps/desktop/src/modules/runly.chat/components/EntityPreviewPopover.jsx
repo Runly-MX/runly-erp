@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Popover, PopoverAnchor, PopoverContent, useCoarsePointer } from "@runly/ui";
 import { EntityPreviewContent } from "./EntityPreviewContent";
+import { ChatThemeScope } from "./ChatThemeScope";
 
 // Wraps any connector chip/card: hover opens the preview on desktop, a tap
 // opens it on touch (the preview's "Abrir" button then navigates). On desktop
@@ -34,7 +35,11 @@ export function EntityPreviewPopover({ entityType, recordId, snapshot, children 
         onMouseEnter={coarse ? undefined : () => schedule(true, 0)}
         onMouseLeave={coarse ? undefined : () => schedule(false, 150)}
       >
-        {open ? <EntityPreviewContent entityType={entityType} recordId={recordId} snapshot={snapshot} onNavigate={() => setOpen(false)} /> : null}
+        {open ? (
+          <ChatThemeScope>
+            <EntityPreviewContent entityType={entityType} recordId={recordId} snapshot={snapshot} onNavigate={() => setOpen(false)} />
+          </ChatThemeScope>
+        ) : null}
       </PopoverContent>
     </Popover>
   );

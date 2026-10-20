@@ -1,5 +1,6 @@
 import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
 import { ENTITY_TYPE_BY_VALUE } from "../lib/entityReferenceTypes";
+import { useEntityBranding } from "../hooks/useEntityBranding";
 import VehicleStatusBadge from "../../runly.fleet/components/VehicleStatusBadge";
 import { InventoryStatusBadge } from "../../runly.inventory/components/InventoryStatusBadge";
 
@@ -16,7 +17,7 @@ const STATUS_BADGE_BY_TYPE = {
 // module gets a plainer or richer picker than another.
 export function ConnectorRow({ entityType, opt, isSelected = false, disabled = false, onClick, showTypeLabel = false }) {
   const meta = ENTITY_TYPE_BY_VALUE[entityType];
-  const Icon = meta?.Icon;
+  const { Icon } = useEntityBranding()(entityType);
   const hasPhoto = Boolean(opt.coverImageFileId);
   const { data: photoUrl } = useFileRefSignedUrl(opt.coverImageFileId, "card", hasPhoto);
   const StatusBadge = opt.statusBadgeType ? STATUS_BADGE_BY_TYPE[opt.statusBadgeType] : null;

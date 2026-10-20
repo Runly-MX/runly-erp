@@ -17,6 +17,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
+import { deriveBrandVars } from "../../../lib/brandTheme.js";
 
 const STORAGE_KEY = "atlas_chat_prefs_v1";
 const PREF_KEY = "chat_prefs";
@@ -31,8 +32,42 @@ export const DEFAULT_PREFS = {
   // "brand" = no local override, inherit the company's own --brand-primary
   // (see styles.css) — the historical, still-default behavior.
   accentColorKey: "brand",
+  // Hex used when accentColorKey === "custom".
+  accentCustom: "#7c5cff",
   wallpaper: true,
+  // Pattern drawn behind the messages (only when `wallpaper` is on).
+  wallpaperStyle: "doodles",
+  // Tone mixed into the chat background; "default" leaves the theme as is.
+  background: "default",
+  // Corner radius of the message bubbles.
+  bubbleShape: "round",
 };
+
+export const WALLPAPER_STYLES = [
+  { key: "doodles", label: "Dibujos" },
+  { key: "dots", label: "Puntos" },
+  { key: "grid", label: "Cuadricula" },
+  { key: "lines", label: "Lineas" },
+];
+
+// `tone` is blended at a low strength into the theme background, so every
+// option stays readable in both light and dark mode. "accent" follows the
+// chosen accent color.
+export const BACKGROUND_TONES = [
+  { key: "default", label: "Predeterminado", tone: null },
+  { key: "accent", label: "Color de acento", tone: "accent" },
+  { key: "warm", label: "Calido", tone: "#f59e0b" },
+  { key: "cool", label: "Frio", tone: "#3b82f6" },
+  { key: "mint", label: "Menta", tone: "#10b981" },
+  { key: "rose", label: "Rosado", tone: "#f43f5e" },
+  { key: "slate", label: "Pizarra", tone: "#64748b" },
+];
+
+export const BUBBLE_SHAPES = [
+  { key: "round", label: "Redondeadas", radius: "1.125rem", tail: "0.375rem" },
+  { key: "soft", label: "Muy redondeadas", radius: "1.5rem", tail: "0.5rem" },
+  { key: "square", label: "Rectas", radius: "0.5rem", tail: "0.125rem" },
+];
 
 export const FONT_SCALE_OPTIONS = [
   { key: "sm", label: "Pequena", value: 0.9 },
@@ -56,7 +91,22 @@ export const ACCENT_PRESETS = [
   { key: "pink", label: "Rosa", primary: "#db2777", foreground: "#ffffff" },
   { key: "orange", label: "Naranja", primary: "#ea580c", foreground: "#ffffff" },
   { key: "teal", label: "Turquesa", primary: "#0891b2", foreground: "#ffffff" },
+  { key: "red", label: "Rojo", primary: "#dc2626", foreground: "#ffffff" },
+  { key: "amber", label: "Ambar", primary: "#d97706", foreground: "#ffffff" },
+  { key: "lime", label: "Lima", primary: "#65a30d", foreground: "#ffffff" },
+  { key: "emerald", label: "Esmeralda", primary: "#059669", foreground: "#ffffff" },
+  { key: "indigo", label: "Indigo", primary: "#4f46e5", foreground: "#ffffff" },
+  { key: "fuchsia", label: "Fucsia", primary: "#c026d3", foreground: "#ffffff" },
+  { key: "slate", label: "Grafito", primary: "#475569", foreground: "#ffffff" },
 ];
+
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+
+// The accent hex in effect, or null for "Marca de la empresa".
+export function resolveAccentHex(prefs) {
+  if (prefs.accentColorKey === "custom") return HEX_RE.test(prefs.accentCustom ?? "") ? prefs.accentCustom : null;
+  return resolveAccentPreset(prefs.accentColorKey).primary;
+}
 
 export function resolveAccentPreset(key) {
   return ACCENT_PRESETS.find((p) => p.key === key) ?? ACCENT_PRESETS[0];
@@ -67,12 +117,31 @@ export function resolveAccentPreset(key) {
 // something other than "brand" (letting the company's real token cascade
 // through untouched otherwise).
 export function chatPreferencesStyle(prefs) {
-  const preset = resolveAccentPreset(prefs.accentColorKey);
+  const accent = resolveAccentHex(prefs);
+  const shape = BUBBLE_SHAPES.find((s) => s.key === prefs.bubbleShape) ?? BUBBLE_SHAPES[0];
+  const bg = BACKGROUND_TONES.find((b) => b.key === prefs.background);
+  const tone = bg?.tone === "accent" ? (accent ?? "var(--brand-primary)") : bg?.tone;
   return {
     "--chat-zoom": prefs.fontScale,
-    ...(preset.primary
-      ? { "--brand-primary": preset.primary, "--brand-primary-foreground": preset.foreground }
-      : {}),
+    "--chat-radius-bubble": shape.radius,
+    "--chat-radius-bubble-tail": shape.tail,
+    ...(tone ? { "--chat-bg": `color-mix(in srgb, ${tone} 9%, hsl(var(--background)))` } : {}),
+    // Every derived brand token (hover, ring, dark variant...), not only the
+    // base color, so nothing keeps the company hue under a personal accent.
+    ...(accent ? deriveBrandVars(accent) : {}),
+  };
+}
+
+// Props for the wallpaper layer (all places that paint it share these).
+export function wallpaperLayerProps(prefs) {
+  const accent = resolveAccentHex(prefs);
+  const rgb = accent ? [1, 3, 5].map((i) => parseInt(accent.slice(i, i + 2), 16)) : null;
+  return {
+    className: "chat-wallpaper-layer",
+    "data-accent": prefs.accentColorKey,
+    "data-pattern": prefs.wallpaperStyle ?? "doodles",
+    "aria-hidden": "true",
+    style: rgb ? { "--chat-wallpaper-ink": `rgba(${rgb.join(", ")}, 0.09)` } : undefined,
   };
 }
 

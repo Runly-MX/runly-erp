@@ -8,7 +8,7 @@ import { PinnedMessagesBar } from "./PinnedMessagesBar";
 import { TypingIndicator } from "./TypingIndicator";
 import { groupMessagesByDate, formatDateSeparator } from "../lib/chatUtils";
 import { findOwnMember, isMentioned } from "../lib/chatPermissions";
-import { useChatPreferences } from "../hooks/useChatPreferences";
+import { useChatPreferences, wallpaperLayerProps } from "../hooks/useChatPreferences";
 import { MIRAI_NAME } from "../lib/mirai";
 
 function senderKey(msg) {
@@ -100,11 +100,7 @@ export function ChatMessageList({
   // scrolling column (z-index:-1 inside an `isolate`d, `chat-wallpaper`
   // container). See chat-theme.css. Rendered only when the pref is on.
   const wallpaperLayer = prefs.wallpaper ? (
-    <div
-      className="chat-wallpaper-layer"
-      data-accent={prefs.accentColorKey}
-      aria-hidden="true"
-    />
+    <div {...wallpaperLayerProps(prefs)} />
   ) : null;
   const bottomRef = useRef(null);
   const listRef = useRef(null);

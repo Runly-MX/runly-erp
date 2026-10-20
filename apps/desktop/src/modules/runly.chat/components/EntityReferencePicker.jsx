@@ -9,6 +9,8 @@ import { FileTypeIcon } from "./ChatFilesGallery";
 import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
 import { useRovingFocus } from "../hooks/useRovingFocus";
 import { EntityFileViewer } from "./EntityFileViewer";
+import { useEntityBranding } from "../hooks/useEntityBranding";
+import { ChatThemeScope } from "./ChatThemeScope";
 import { ConnectorRow } from "./ConnectorRow";
 import { ENTITY_TYPE_LIST, FLAT_ENTITY_TYPES, SERVER_SEARCH_TYPES, fetchEntityOptions, matchesConnectorSearch } from "../lib/entityReferenceTypes";
 
@@ -109,6 +111,7 @@ function FilePickerGrid({ options, isLoading, search, maxSelect, onConfirm }) {
   const [selected, setSelected] = useState([]);
   const [previewOpt, setPreviewOpt] = useState(null);
   const rovingKeyDown = useRovingFocus();
+  const brandOf = useEntityBranding();
 
   const filtered = useMemo(() => {
     if (!search.trim()) return options;
@@ -428,7 +431,8 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
       }}
     >
       <PopoverAnchor asChild>{children}</PopoverAnchor>
-      <PopoverContent side="top" align="start" className="w-96 p-3 space-y-2.5">
+      <PopoverContent side="top" align="start" className="w-96 p-3">
+        <ChatThemeScope className="space-y-2.5">
         {!isTaskType && (
           <SearchInput
             value={search}
@@ -443,7 +447,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" role="group" aria-label="Filtrar por tipo de conector">
           <TypeChip label="Todos" Icon={SearchIcon} active={isAll} onClick={() => setActiveType("all")} />
           {ENTITY_TYPE_LIST.map((t) => (
-            <TypeChip key={t.value} label={t.label} Icon={t.Icon} active={activeType === t.value} onClick={() => setActiveType(t.value)} />
+            <TypeChip key={t.value} label={t.label} Icon={brandOf(t.value).Icon} active={activeType === t.value} onClick={() => setActiveType(t.value)} />
           ))}
         </div>
 
@@ -517,6 +521,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick, maxSelect, c
             onPick={(id, label) => handlePick(activeType, id, label)}
           />
         )}
+        </ChatThemeScope>
       </PopoverContent>
     </Popover>
   );

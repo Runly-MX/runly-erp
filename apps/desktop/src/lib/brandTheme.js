@@ -90,6 +90,23 @@ function pickForeground({ r, g, b }) {
   return L <= 0.179 || whitePassesAA ? "#ffffff" : "#111827";
 }
 
+// The same derived tokens applyBrandTheme writes on :root, as a plain object -
+// for scopes (the chat's per-user accent) that restyle a subtree only.
+export function deriveBrandVars(primaryColor) {
+  const rgb = hexToRgb(primaryColor);
+  if (!rgb) return null;
+  const hsl = rgbToHsl(rgb);
+  const darkHsl = { ...hsl, l: Math.max(hsl.l, 55) };
+  return {
+    "--brand-primary": `#${((rgb.r << 16) | (rgb.g << 8) | rgb.b).toString(16).padStart(6, "0")}`,
+    "--brand-primary-on-dark": hslToCss(darkHsl),
+    "--brand-primary-hover": hslToCss(adjustLightness(hsl, -8)),
+    "--brand-primary-foreground": pickForeground(rgb),
+    "--ring": `${hsl.h} ${hsl.s}% ${hsl.l}%`,
+    "--glass-tint": `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.10)`,
+  };
+}
+
 export function applyBrandTheme(primaryColor) {
   const root = document.documentElement;
   const rgb = hexToRgb(primaryColor || "#0A7BFF") || hexToRgb("#0A7BFF");
