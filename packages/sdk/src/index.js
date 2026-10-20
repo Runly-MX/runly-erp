@@ -12,6 +12,7 @@ import { createConnectionsDomain } from "./domains/connections.js";
 import { createTrashDomain } from "./domains/trash.js";
 import { createInventoryCustodyDomain } from "./domains/inventory-custody.js";
 import { createInventoryLabelsDomain } from "./domains/inventory-labels.js";
+import { createInventoryAreasDomain } from "./domains/inventory-areas.js";
 import { createModuleCatalogDomain } from "./domains/module-catalog.js";
 export { createCompanyFetch } from "./company-fetch.js";
 export { createRunlyDeviceClient, bluetoothErrorCode } from './native-device.js';
@@ -2499,6 +2500,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
     inventory: {
       ...createInventoryCustodyDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
       ...createInventoryLabelsDomain({ request, requestBlob, withAuthHeaders }),
+      ...createInventoryAreasDomain({ request, withAuthHeaders }),
       listMedia: (params, token) =>
         request(`/inventory/media${toQueryString(params)}`, {
           headers: withAuthHeaders(token),
