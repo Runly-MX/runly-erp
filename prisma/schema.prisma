@@ -527,6 +527,9 @@ model Company {
 
   invCategories   InvCategory[]    @relation("CompanyInvCategories")
   invAreas        InvArea[]        @relation("CompanyInvAreas")
+  invGuests       InvGuest[]       @relation("CompanyInvGuests")
+  invGuestInvites InvGuestInvite[] @relation("CompanyInvGuestInvites")
+  invGuestSessions InvGuestSession[] @relation("CompanyInvGuestSessions")
   invBrands       InvBrand[]       @relation("CompanyInvBrands")
   invModels       InvModel[]       @relation("CompanyInvModels")
   invFolioCounters InvFolioCounter[] @relation("CompanyInvFolioCounters")
@@ -920,6 +923,8 @@ model Contact {
   channels  ContactChannel[]
   addresses ContactAddress[]
   persons   ContactPerson[]
+
+  invGuests InvGuest[]
 
   @@index([type])
   @@index([name])
@@ -3711,17 +3716,89 @@ model InvArea {
 model InvAreaMember {
   id          String   @id @default(uuid(7)) @db.Uuid
   areaId      String   @db.Uuid @map("area_id")
-  userId      String   @db.Uuid @map("user_id")
+  // Exactly one of userId / guestId is set (CHECK in the migration). Guests are external suppliers.
+  userId      String?  @db.Uuid @map("user_id")
+  guestId     String?  @db.Uuid @map("guest_id")
   role        String   @default("viewer") @db.VarChar(20)
   invitedById String?  @db.Uuid @map("invited_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  area InvArea     @relation(fields: [areaId], references: [id], onDelete: Cascade)
-  user UserProfile @relation("UserInvAreaMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  area  InvArea      @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  user  UserProfile? @relation("UserInvAreaMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  guest InvGuest?    @relation(fields: [guestId], references: [id], onDelete: Cascade)
 
   @@unique([areaId, userId])
+  @@unique([areaId, guestId])
   @@index([userId])
+  @@index([guestId])
   @@map("inv_area_member")
+}
+
+// External supplier invited by magic link (spec 2026-10-20-inventory-areas-scoping, phase 3). Not a
+// company user: never listed as one, never a seat. Unique (company_id, lower(email)) among enabled
+// guests is a partial index in the migration.
+model InvGuest {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  companyId   String    @db.Uuid @map("company_id")
+  email       String    @db.VarChar(255)
+  name        String?   @db.VarChar(150)
+  contactId   String?   @db.Uuid @map("contact_id")
+  enabled     Boolean   @default(true)
+  lastSeenAt  DateTime? @map("last_seen_at") @db.Timestamptz(6)
+  createdById String?   @db.Uuid @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company  Company           @relation("CompanyInvGuests", fields: [companyId], references: [id], onDelete: Cascade)
+  contact  Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  invites  InvGuestInvite[]
+  sessions InvGuestSession[]
+  members  InvAreaMember[]
+
+  @@index([companyId, email])
+  @@map("inv_guest")
+}
+
+// Magic link (+ optional access code). Only sha256 of the link token and a salted hash of the code are stored.
+model InvGuestInvite {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  companyId   String    @db.Uuid @map("company_id")
+  guestId     String    @db.Uuid @map("guest_id")
+  tokenHash   String    @unique @map("token_hash")
+  codeHash    String?   @map("code_hash")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
+  sentAt      DateTime? @map("sent_at") @db.Timestamptz(6)
+  usedAt      DateTime? @map("used_at") @db.Timestamptz(6)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdById String?   @db.Uuid @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company  Company           @relation("CompanyInvGuestInvites", fields: [companyId], references: [id], onDelete: Cascade)
+  guest    InvGuest          @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  sessions InvGuestSession[]
+
+  @@index([guestId])
+  @@map("inv_guest_invite")
+}
+
+// Opaque guest session (Authorization: Guest <token>); only sha256 stored. Bound to its invite.
+model InvGuestSession {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  companyId  String    @db.Uuid @map("company_id")
+  guestId    String    @db.Uuid @map("guest_id")
+  inviteId   String    @db.Uuid @map("invite_id")
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  lastSeenAt DateTime? @map("last_seen_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company        @relation("CompanyInvGuestSessions", fields: [companyId], references: [id], onDelete: Cascade)
+  guest   InvGuest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  invite  InvGuestInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+
+  @@index([guestId])
+  @@map("inv_guest_session")
 }
 
 model InvItem {
