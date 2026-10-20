@@ -155,7 +155,7 @@ function backdropNodes(text, ranges) {
         key={`${r.start}-${i}`}
         data-chip={i}
         className="rounded-sm text-inherit"
-        style={{ color, backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)`, boxShadow: `0 0 0 2px color-mix(in srgb, ${color} 14%, transparent)`, WebkitBoxDecorationBreak: 'clone', boxDecorationBreak: 'clone' }}
+        style={{ backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`, boxShadow: `inset 0 -2px 0 ${color}`, WebkitBoxDecorationBreak: 'clone', boxDecorationBreak: 'clone' }}
       >
         {text.slice(r.start, r.end)}
       </mark>

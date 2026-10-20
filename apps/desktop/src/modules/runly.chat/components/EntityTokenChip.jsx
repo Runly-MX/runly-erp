@@ -21,7 +21,9 @@ export function EntityTokenChip({ entityType, recordId, name }) {
           if (url) navigate(url);
         }}
         className="inline-flex max-w-full items-center gap-1 rounded px-1 align-baseline text-sm font-medium underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
-        style={{ color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)` }}
+        // Text keeps the bubble's own color (always readable on either bubble);
+        // the module color only tints the background and underlines the chip.
+        style={{ backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`, boxShadow: `inset 0 -2px 0 ${color}` }}
       >
         {Icon ? <Icon className="h-3 w-3 shrink-0" aria-hidden="true" /> : null}
         <span className="truncate">{name}</span>
