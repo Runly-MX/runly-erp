@@ -1948,3 +1948,12 @@ Plan `docs/superpowers/plans/2026-10-20-inventory-supplier-portal-backend.md` (b
 - [x] SDK areas domain gained the guest invitation calls. Verified: 2026-10-20 (`node --test packages/sdk/src/__tests__/sdk-inventory-areas.test.js` 4/4)
 - [x] Portal at `/app/p/inventory/:token`, manager tab "Proveedores" in the members sheet compile and lint. Verified: 2026-10-20 (`pnpm lint` clean, `pnpm build:web` ok)
 - [ ] NOT verified in a browser or against a live API: link exchange with and without code, session refresh/expiry handling, folder nav, list/filters/pagination, create/edit/upload/delete, viewer read-only state, mobile layout and Sheets, the invite/resend/revoke flow and the DataTable inside the portal. Never run on touch devices.
+
+## Inventory areas: supplier portal parity (backend)
+
+Plan `docs/superpowers/plans/2026-10-20-inventory-supplier-portal-parity-backend.md`. Backend only; the UI batch is separate.
+
+- [x] Migration `20261113000000_inventory_guest_capabilities` (`inv_area_member.can_create_models`, `can_import`, default false) applied to the dev DB and client generated. Verified: 2026-10-20 (`pnpm db:migrate` applied, `pnpm db:generate` ok)
+- [x] Invitation flags, `PATCH /inventory/areas/:id/guests/:guestId`, scope capabilities (viewer never has them, descendants inherit). Verified: 2026-10-20 (inventory-guest-service 10/10)
+- [x] Guest models/types/catalog entries/custom fields/check-identifiers, item form parity (modelId defaults, custom values), Excel import in guest mode, branding in `/me` and the session exchange, isolation (no flags -> 403, viewer, foreign company refs, forbidden columns, forced area). Verified: 2026-10-20 (guest-parity 15/15, guest-isolation 20/20; node --test over apps/api services, routes/inventory, routes/inventory/guest: 1093 tests, 1090 pass, 1 fail (runly-env root overrides, known unrelated); `pnpm lint` clean)
+- [ ] Not exercised against a live API boot, real Storage (logo signing, import photos) or a real XLSX with embedded pictures through the guest route; item comments for guests deliberately not built (no guest author model).
