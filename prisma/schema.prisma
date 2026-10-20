@@ -3720,6 +3720,9 @@ model InvAreaMember {
   userId      String?  @db.Uuid @map("user_id")
   guestId     String?  @db.Uuid @map("guest_id")
   role        String   @default("viewer") @db.VarChar(20)
+  // Guest rows only: create models/catalog entries and import from Excel (never effective for viewers).
+  canCreateModels Boolean @default(false) @map("can_create_models")
+  canImport       Boolean @default(false) @map("can_import")
   invitedById String?  @db.Uuid @map("invited_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
