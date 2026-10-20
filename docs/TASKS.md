@@ -1915,7 +1915,7 @@ Spec `docs/superpowers/specs/2026-10-18-platform-owner-design.md`; plan `docs/su
 
 Spec `docs/superpowers/specs/2026-10-20-inventory-areas-scoping-design.md`; plan `docs/superpowers/plans/2026-10-20-inventory-areas-phase1.md`.
 
-- [x] Backend (tasks 1-9): schema, scope module, permissions, area service and routes, scoped item/dashboard/scan/label/custody/import readers, MirAI/MCP/search/canvas readers, isolation test. Verified: 2026-10-20 (node --test over apps/api, packages and apps/desktop: 4529 tests, 4514 pass, 8 skipped, 7 fail, all unrelated: module-runtime-routes x2, public-website-capture-config, call-transcript-analysis-service, contactsProposalModule, media-gallery (.jsx import under node), runly-env)
+- [x] Backend (tasks 1-9): schema, scope module, permissions, area service and routes, scoped item/dashboard/scan/label/custody/import readers, MirAI/MCP/search/canvas readers, isolation test. Verified: 2026-10-20 (node --test over apps/api, packages and apps/desktop: 4529 tests, 4514 pass, 8 skipped, 7 fail in 6 unrelated files: module-runtime-routes x2, public-website-capture-config, call-transcript-analysis-service, contacts-proposal-module, media-gallery (.jsx import under node))
 - [x] `areaId` list filter (uuid or `__none__` for General) in `inventory-query.js` and `GET /inventory/items`. Verified: 2026-10-20 (inventory-access-query.test.js 5/5)
 - [x] Areas SDK domain, hooks and tree helpers. Verified: 2026-10-20 (sdk-inventory-areas 3/3, area-tree 4/4)
 - [x] Areas UI compiles and lints: `/inventory/areas` screen, members sheet, area filter, bulk "Mover a area", item form field, detail badge. Verified: 2026-10-20 (`pnpm lint` clean, `pnpm build:web` in apps/desktop)
