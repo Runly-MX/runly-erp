@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight, Folder, FolderOpen, FolderTree, Inbox, Layers, PanelLeftClose } from 'lucide-react'
-import { Button, cn } from '@runly/ui'
-import { buildAreaTree } from '../../lib/area-tree.js'
+import { Button, TooltipProvider, cn } from '@runly/ui'
+import { AreaRowTooltip } from './AreaRowTooltip.jsx'
+import { areaPathLabel, buildAreaTree } from '../../lib/area-tree.js'
 import { ancestorAreaIds, treeKeyAction, visibleTreeRows } from '../../lib/area-tree-nav.js'
 
 function rowLabel(row) {
@@ -80,8 +81,11 @@ export function AreaTreePanel({ areas, value, onSelect, touch = false, loading =
     return (
       <div key={row.kind === 'area' ? row.value : row.kind} role="none">
         {showDivider ? <div role="separator" className="mx-1 my-1.5 h-px bg-[hsl(var(--border))]" /> : null}
-        <div
-          ref={(el) => { if (el) refs.current.set(row.value, el); else refs.current.delete(row.value) }}
+        <AreaRowTooltip
+          title={row.kind === 'area' ? areaPathLabel(areas, row.value) : label}
+          count={row.kind === 'area' ? (row.node.itemCount ?? 0) : null}
+          disabled={touch}
+          setRef={(el) => { if (el) refs.current.set(row.value, el); else refs.current.delete(row.value) }}
           role="treeitem"
           aria-level={row.depth + 1}
           aria-selected={selected}
@@ -117,12 +121,12 @@ export function AreaTreePanel({ areas, value, onSelect, touch = false, loading =
               </span>
             ) : <span className={cn('shrink-0', row.kind === 'area' ? (touch ? 'w-3' : 'w-2') : 'w-2')} />}
             <Icon className={cn('h-4 w-4 shrink-0', selected ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]')} aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate" title={label}>{label}</span>
+            <span data-tree-label className="min-w-0 flex-1 truncate">{label}</span>
             {row.kind === 'area' ? (
               <span className="ml-1 shrink-0 rounded-md bg-[hsl(var(--muted))]/70 px-1.5 text-xs tabular-nums text-[hsl(var(--muted-foreground))]">{row.node.itemCount ?? 0}</span>
             ) : null}
           </div>
-        </div>
+        </AreaRowTooltip>
       </div>
     )
   }
@@ -144,12 +148,14 @@ export function AreaTreePanel({ areas, value, onSelect, touch = false, loading =
           {[0, 1, 2, 3].map((i) => <div key={i} className="h-7 animate-pulse rounded-md bg-[hsl(var(--muted))]" style={{ width: `${90 - i * 12}%` }} />)}
         </div>
       ) : (
+        <TooltipProvider delayDuration={300} skipDelayDuration={150}>
         <div role="tree" aria-label="Áreas de inventario">
           {rows.map(renderRow)}
           {areas.length === 0 ? (
             <p className="px-3 py-3 text-xs text-[hsl(var(--muted-foreground))]">Aún no hay carpetas. Créalas desde la configuración de áreas.</p>
           ) : null}
         </div>
+        </TooltipProvider>
       )}
     </div>
   )

@@ -20,6 +20,7 @@ import { ADMIN_ACTIONS, ADMIN_FILTER_OPTIONS, ADMIN_STATUSES } from '../lib/admi
 import { buildLabelsPath } from '../lib/label-queue.js'
 import { useAreaChoices } from '../hooks/useAreaChoices.js'
 import { AreaMoveDialog } from '../components/areas/AreaMoveDialog.jsx'
+import { AreaTreeDock } from '../components/areas/AreaTreeDock.jsx'
 import { AreaTreePanel } from '../components/areas/AreaTreePanel.jsx'
 import { useAreaTreeDock } from '../hooks/useAreaTreeDock.js'
 import { areaPathLabel } from '../lib/area-tree.js'
@@ -284,11 +285,9 @@ export default function InventoryScreen() {
         }}
       />
 
-      <div className="flex items-start gap-4">
-      {showTree && dock.isDesktop && dock.dockOpen ? (
-        <aside aria-label="Carpetas" className="sticky top-4 max-h-[calc(100dvh-2rem)] w-64 shrink-0 overflow-y-auto rounded-md border border-[hsl(var(--border))] p-2.5">
-          <AreaTreePanel areas={areaChoices.areas} value={areaValue} onSelect={selectArea} loading={areaChoices.isLoading} onCollapse={dock.toggle} />
-        </aside>
+      <div ref={dock.containerRef} className="flex items-start">
+      {showTree && dock.isDesktop ? (
+        <AreaTreeDock dock={dock} areas={areaChoices.areas} value={areaValue} onSelect={selectArea} loading={areaChoices.isLoading} />
       ) : null}
       <div className="min-w-0 flex-1 space-y-2">
       {showTree && areaValue ? (
