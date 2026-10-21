@@ -3,7 +3,7 @@ import { Button } from '@runly/ui'
 import { FileText, ImagePlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { muted } from './GuestPortalParts.jsx'
-import { GuestItemFiles } from './GuestItemFiles.jsx'
+import { GUEST_FILE_ACCEPT, GuestItemFiles } from './GuestItemFiles.jsx'
 
 const MAX_BYTES = 10 * 1024 * 1024
 export const MAX_STAGED = 20
@@ -26,12 +26,12 @@ export function GuestFormFiles({ itemId, canWrite = true, staged, onStagedChange
 
   return (
     <div className="space-y-3">
-      <input ref={input} type="file" multiple accept="image/*,application/pdf" className="sr-only" onChange={onPick} />
+      <input ref={input} type="file" multiple accept={GUEST_FILE_ACCEPT} className="sr-only" onChange={onPick} />
       <button type="button" onClick={() => input.current?.click()}
         className="flex w-full flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-[hsl(var(--border))] px-4 py-6 text-center transition-colors hover:border-(--brand-primary)/60 hover:bg-[hsl(var(--muted))]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] motion-reduce:transition-none">
         <ImagePlus className={`h-6 w-6 ${muted}`} />
         <span className="text-sm font-medium">Agregar fotos o archivos</span>
-        <span className={`text-xs ${muted}`}>Imágenes o PDF, hasta 10 MB cada uno. Se suben al guardar.</span>
+        <span className={`text-xs ${muted}`}>Imágenes, PDF u Office, hasta 10 MB cada uno. Se suben al guardar.</span>
       </button>
       {staged.length ? (
         <ul className="grid grid-cols-3 gap-2">

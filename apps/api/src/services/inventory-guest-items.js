@@ -79,6 +79,7 @@ export function serializeGuestItem(item, { coverUrl = null } = {}) {
     warrantyExpiry: item.warrantyExpiry ?? null,
     warrantyNotes: item.warrantyNotes ?? null,
     areaId: item.areaId ?? null,
+    areaName: item.areaName ?? null,
     categoryId: item.categoryId ?? null,
     categoryName: item.category?.name ?? item.categoryName ?? null,
     category: item.category ? { id: item.category.id, name: item.category.name, icon: item.category.icon ?? null, color: item.category.color ?? null } : null,
@@ -167,7 +168,7 @@ export function createInventoryGuestItems({
     const result = await ctx.inventory.listItems({
       companyId: ctx.companyId, scope: ctx.scope,
       search: q('search'), categoryId: q('categoryId'), brandId: q('brandId'), locationId: q('locationId'), conditionId: q('conditionId'),
-      status: q('status'), areaId: q('areaId'), sortBy: q('sortBy'), sortDir: q('sortDir'),
+      status: q('status'), adminStatus: q('adminStatus'), areaId: q('areaId'), sortBy: q('sortBy'), sortDir: q('sortDir'),
       page: Number(query.page) || 1, limit: Math.min(Number(query.pageSize ?? query.limit) || 25, 100),
     });
     const data = await Promise.all(result.data.map(async (item) => serializeGuestItem(item, { coverUrl: await sign(item.coverImageFileId, 'card') })));

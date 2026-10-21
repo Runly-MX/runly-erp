@@ -418,3 +418,5 @@ export {
 } from "./lib/module-runtime/entity-helpers.js";
 // Record title without ever falling back to an id (record-label.js).
 export { resolveRecordLabel } from "./runly-renderer/record-label.js";
+
+export { RuntimeAdaptersProvider } from "./lib/module-runtime/RuntimeAdapters.jsx";

@@ -34,7 +34,7 @@ export function GuestInventory() {
         {view === 'new' ? <GuestItemFormPage onBack={() => go('list')} onSaved={(savedId) => go('detail', savedId)} />
           : view === 'edit' ? <EditRoute id={id} go={go} />
             : view === 'detail' ? <GuestItemDetailPage itemId={id} areaName={areaName} onBack={() => go('list')} onEdit={(itemId) => go('edit', itemId)} />
-              : <GuestListView me={me} onOpen={(itemId) => go('detail', itemId)} onCreate={() => go('new')} />}
+              : <GuestListView me={me} onOpen={(itemId) => go('detail', itemId)} onEdit={(itemId) => go('edit', itemId)} onCreate={() => go('new')} />}
       </div>
     </GuestPortalRoot>
   )

@@ -1,48 +1,27 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Alert, Button, ErrorState, PageHeader, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton } from '@runly/ui'
 import { FileSpreadsheet, FolderTree, Lock, Plus } from 'lucide-react'
 import { useIsDesktop } from '../../../../hooks/useIsDesktop.js'
-import { useGuestCatalogs, useGuestItems } from '../../hooks/useInventoryGuest.js'
 import { areaPathLabel } from '../../lib/area-tree.js'
 import { capabilitiesFor, importAreaOptions, writableAreas } from '../../lib/guest-capabilities.js'
 import { GuestAreaNav } from './GuestAreaNav.jsx'
 import { GuestImportDialog } from './GuestImportDialog.jsx'
-import { EMPTY_FILTERS, GuestItemFilters, filtersToQuery } from './GuestItemFilters.jsx'
-import { GuestItemList } from './GuestItemList.jsx'
+import { GuestItemsTable } from './GuestItemsTable.jsx'
 
-const PAGE_SIZE = 25
 const coarse = '[@media(pointer:coarse)]:min-h-11'
 
-function useDebounced(value, ms = 300) {
-  const [v, setV] = useState(value)
-  useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t) }, [value, ms])
-  return v
-}
-
-// Item list with folder navigation (only the folders the supplier was invited to), search, filters
-// and numbered pagination. The single primary action is "Agregar item"; Excel import is secondary.
-export function GuestListView({ me, onOpen, onCreate }) {
+// Item list with folder navigation (only the folders the supplier was invited to) and the same table as the
+// main inventory (search, filters, columns, views and numbered pagination). The single primary action is "Agregar item"; Excel import is secondary.
+export function GuestListView({ me, onOpen, onCreate, onEdit = null }) {
   const isDesktop = useIsDesktop()
-  const catalogs = useGuestCatalogs()
   const [areaId, setAreaId] = useState(null)
   const [navOpen, setNavOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const [filters, setFilters] = useState(EMPTY_FILTERS)
-  const [page, setPage] = useState(1)
   const [importOpen, setImportOpen] = useState(false)
-  const debounced = useDebounced(search.trim())
 
   const areas = useMemo(() => me.data?.areas ?? [], [me.data])
   const canCreate = writableAreas(me.data).length > 0
   const readOnly = areas.length > 0 && !canCreate
   const canImport = capabilitiesFor(me.data, areaId).canImport && importAreaOptions(me.data).length > 0
-
-  const query = useMemo(() => ({
-    ...(debounced ? { search: debounced } : {}), ...filtersToQuery(filters),
-    ...(areaId ? { areaId } : {}), page, pageSize: PAGE_SIZE,
-  }), [debounced, filters, areaId, page])
-  const items = useGuestItems(query)
-  useEffect(() => { setPage(1) }, [debounced, filters, areaId])
 
   const nav = <GuestAreaNav areas={areas} value={areaId} onChange={(id) => { setAreaId(id); setNavOpen(false) }} />
   const title = areaId ? areaPathLabel(areas, areaId) : 'Inventario'
@@ -70,10 +49,7 @@ export function GuestListView({ me, onOpen, onCreate }) {
         {me.isError ? (
           <ErrorState title="No se pudo cargar tu acceso" description={me.error?.message} onRetry={() => me.refetch()} showReport={false} />
         ) : (
-          <>
-            <GuestItemFilters search={search} onSearch={setSearch} filters={filters} onFilters={setFilters} catalogs={catalogs.data} />
-            <GuestItemList query={items} isDesktop={isDesktop} onOpen={onOpen} onPage={setPage} canCreate={canCreate} onCreate={onCreate} />
-          </>
+          <GuestItemsTable areaId={areaId} onOpen={onOpen} onEdit={canCreate ? onEdit : null} />
         )}
       </main>
 
