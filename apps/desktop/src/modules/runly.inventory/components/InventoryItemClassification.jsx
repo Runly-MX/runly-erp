@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import { ComboboxField, CreatableComboboxField } from '@runly/ui'
-import { Boxes } from 'lucide-react'
+import { ComboboxField, CreatableComboboxField, TextField } from '@runly/ui'
+import { Boxes, Layers, Tag } from 'lucide-react'
 import { modelLabel } from '../hooks/useInventoryModels.js'
 import { useInventoryData } from '../hooks/inventoryData.js'
-import { InventoryBrandPicker, InventoryTypePicker } from './InventoryCatalogPickers.jsx'
+import { InventoryBrandPicker, InventoryTypePicker, typeOptions } from './InventoryCatalogPickers.jsx'
 import { InventoryModelDialog } from './InventoryModelDialog.jsx'
 import { InventoryPurchaseLinkField } from './InventoryPurchaseLinkField.jsx'
 import { InventoryAreaField } from './areas/InventoryAreaField.jsx'
@@ -17,14 +17,20 @@ function ModelCombobox({ canCreate, onCreate, ...props }) {
   return canCreate ? <CreatableComboboxField {...common} onCreate={onCreate} /> : <ComboboxField {...common} />
 }
 
-// RunlyForm "component" section: model, type (categoryId) and brand. Picking a
-// catalog model fills Tipo and Marca; "+ Crear «X»" opens the model dialog,
-// which can itself create types and brands.
+// RunlyForm "component" section: model, type (categoryId) and brand. The model carries its type and brand:
+// once a catalog model is chosen, Tipo and Marca show what the model brings (read-only) and change only by
+// changing the model; "+ Crear «X»" opens the model dialog, which creates the model with its type and brand
+// (and can create those too). Without a catalog model (empty or free-text legacy model) both stay pickable.
 // Data comes from the injected inventory adapter (lib/inventory-data-context.js); the default is the
 // company user's own. `hideArea` is for hosts that pick the folder elsewhere (supplier portal).
 export function InventoryItemClassification({ value, onChange, errors = {}, disabled, renderPin, hideArea = false }) {
-  const { useModelRows, useCanCreate } = useInventoryData()
+  const { useModelRows, useCanCreate, useTypeRows, useBrandRows } = useInventoryData()
   const models = useModelRows()
+  const types = useTypeRows()
+  const brands = useBrandRows()
+  const fromModel = Boolean(value.modelId)
+  const typeName = typeOptions(types).find((o) => o.value === value.categoryId)?.label ?? ''
+  const brandName = brands.find((b) => b.id === value.brandId)?.name ?? ''
   const canCreate = useCanCreate(value.areaId)
   const [dialog, setDialog] = useState(null)
 
@@ -57,18 +63,22 @@ export function InventoryItemClassification({ value, onChange, errors = {}, disa
           value={selected}
           options={options}
           error={errors.modelId || errors.model}
-          hint="Busca por nombre, marca, tipo o año. Al elegir un modelo se completan tipo y marca."
+          hint="Busca por nombre, marca, tipo o año. El modelo trae su tipo y su marca; si no existe, créalo aquí."
           onChange={handleSelect}
           onCreate={(name) => setDialog({ name, typeId: value.categoryId ?? '', brandId: value.brandId ?? '' })}
         />
       </div>
       <div className="relative">
         {renderPin?.(['categoryId'], 'Tipo')}
-        <InventoryTypePicker areaId={value.areaId} value={value.categoryId} onChange={(categoryId) => onChange({ categoryId })} error={errors.categoryId} />
+        {fromModel
+          ? <TextField label="Tipo" icon={Layers} readOnly value={typeName} placeholder="Sin tipo" hint="Viene del modelo" />
+          : <InventoryTypePicker areaId={value.areaId} value={value.categoryId} onChange={(categoryId) => onChange({ categoryId })} error={errors.categoryId} />}
       </div>
       <div className="relative">
         {renderPin?.(['brandId'], 'Marca')}
-        <InventoryBrandPicker areaId={value.areaId} value={value.brandId} onChange={(brandId) => onChange({ brandId })} error={errors.brandId} />
+        {fromModel
+          ? <TextField label="Marca" icon={Tag} readOnly value={brandName} placeholder="Sin marca" hint="Viene del modelo" />
+          : <InventoryBrandPicker areaId={value.areaId} value={value.brandId} onChange={(brandId) => onChange({ brandId })} error={errors.brandId} />}
       </div>
       {hideArea ? null : (
         <div className="col-span-full">

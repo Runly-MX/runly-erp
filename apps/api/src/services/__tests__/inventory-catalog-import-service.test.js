@@ -85,3 +85,17 @@ test('template lists the catalog columns', async () => {
   assert.equal(csv.buffer.toString('utf8').split('\n')[0], 'nombre,tipo,marca,anio,descripcion');
   assert.equal(csv.contentType, 'text/csv; charset=utf-8');
 });
+
+test('exportModels writes an Excel file that the model import can read back', async () => {
+  const prisma = prismaWith({
+    models: [
+      { id: 'm2', name: 'XPS 15', year: 2023, description: 'Laptop', type: { name: 'Laptop' }, brand: { name: 'Dell' }, _count: { items: 3 } },
+      { id: 'm1', name: 'Identy', year: null, description: null, type: { name: 'Lector' }, brand: { name: 'DESKO' }, _count: { items: 0 } },
+    ],
+  });
+  const { buffer, filename, count } = await createInventoryCatalogImportService({ prisma }).exportModels(COMPANY);
+  assert.equal(filename, 'modelos.xlsx');
+  assert.equal(count, 2);
+  const rows = await parseCatalogFile(buffer, filename);
+  assert.deepEqual(rows.map((r) => [r.nombre, r.tipo, r.marca, r.anio, r.descripcion, r.activos]), [['XPS 15', 'Laptop', 'Dell', '2023', 'Laptop', '3'], ['Identy', 'Lector', 'DESKO', '', '', '0']]);
+});

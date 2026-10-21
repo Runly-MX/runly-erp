@@ -93,6 +93,14 @@ export function createInventoryImportRouter({ prisma, requirePermission, Invento
 
   // ── Catalogs (fixed columns) ─────────────────────────────────────────────
 
+  // Readers of the catalog can export it (the file holds names only).
+  router.get('/inventory/export/models', requirePermission('inventory.catalog.read'), async (c) => {
+    try {
+      const file = await imports.exportModels(c.get('companyId'));
+      return c.body(file.buffer, 200, { 'Content-Type': file.contentType, 'Content-Disposition': `attachment; filename="${file.filename}"` });
+    } catch (err) { return fail(c, err, 'No se pudo exportar el catálogo de modelos.'); }
+  });
+
   router.get('/inventory/import/:catalog/template', guard, async (c) => {
     try {
       const file = await imports.template(c.req.param('catalog'), c.req.query('format') === 'xlsx' ? 'xlsx' : 'csv');

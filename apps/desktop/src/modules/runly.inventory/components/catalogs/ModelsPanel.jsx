@@ -1,4 +1,8 @@
 import { useMemo, useState } from 'react'
+import { useAuth } from '../../../../auth/AuthProvider'
+import { useActiveCompany } from '../../../../company/ActiveCompanyProvider'
+import { getApiUrl } from '../../../../lib/runtimeConfig.js'
+import { saveBlob } from '../../lib/save-blob.js'
 import { DataTable, resolveLucideIcon } from '@runly/ui'
 import { Boxes, Package } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,6 +19,20 @@ export function ModelsPanel({ onImport }) {
   const rows = allRows.filter((r) => (!typeFilter || r.typeId === typeFilter) && (!brandFilter || r.brandId === brandFilter))
   const remove = useDeleteInventoryModel()
   const [dialog, setDialog] = useState(null) // { model } | {} | null
+  const { session } = useAuth()
+  const { activeCompanyId } = useActiveCompany()
+  const [exporting, setExporting] = useState(false)
+
+  // The whole catalog (not just the filtered rows), straight from the API as an .xlsx.
+  async function exportExcel() {
+    setExporting(true)
+    try {
+      const res = await fetch(`${getApiUrl()}/inventory/export/models`, { headers: { Authorization: `Bearer ${session?.access_token}`, 'X-Runly-Company-Id': activeCompanyId } })
+      if (!res.ok) throw new Error('No se pudo exportar el catálogo de modelos.')
+      saveBlob(await res.blob(), 'modelos.xlsx')
+    } catch (err) { toast.error(err.message) }
+    finally { setExporting(false) }
+  }
 
   const filters = useMemo(() => {
     const unique = (pairs) => [...new Map(pairs.filter(([id]) => id)).entries()].map(([value, label]) => ({ value, label }))
@@ -48,7 +66,7 @@ export function ModelsPanel({ onImport }) {
   ]
 
   return (
-    <CatalogPanel catalogKey="models" createLabel="Nuevo modelo" onCreate={() => setDialog({})} onImport={onImport}>
+    <CatalogPanel catalogKey="models" createLabel="Nuevo modelo" onCreate={() => setDialog({})} onImport={onImport} onExport={exportExcel} exporting={exporting}>
       {typeFilter ? <ActiveFilterChip label={`Tipo: ${allRows.find((r) => r.typeId === typeFilter)?.typeName ?? 'sin modelos'}`} onClear={clearTypeFilter} /> : null}
       {brandFilter ? <ActiveFilterChip label={`Marca: ${allRows.find((r) => r.brandId === brandFilter)?.brandName ?? 'sin modelos'}`} onClear={clearBrandFilter} /> : null}
       <DataTable columns={columns} data={rows} filters={filters} isLoading={isLoading} isError={isError} onRetry={refetch}

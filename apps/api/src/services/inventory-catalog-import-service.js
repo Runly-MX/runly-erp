@@ -205,5 +205,25 @@ export function createInventoryCatalogImportService({ prisma }) {
     return { buffer: Buffer.from(`${columns.join(',')}\n`, 'utf8'), contentType: 'text/csv; charset=utf-8', filename: `plantilla-${catalog}.csv` };
   }
 
-  return { preview, commit, template, TABLE };
+  // The model catalog as an Excel file. The first columns are the import columns (Nombre, Tipo, Marca, Año,
+  // Descripción), so the file can be edited and imported again; "Activos" is informative and ignored on import.
+  async function exportModels(companyId) {
+    assertCompany(companyId);
+    const rows = await prisma.invModel.findMany({
+      where: { companyId, enabled: true },
+      include: { type: { select: { name: true } }, brand: { select: { name: true } }, _count: { select: { items: { where: { enabled: true } } } } },
+    });
+    rows.sort((a, b) => (a.type?.name ?? '').localeCompare(b.type?.name ?? '', 'es') || (a.brand?.name ?? '').localeCompare(b.brand?.name ?? '', 'es') || a.name.localeCompare(b.name, 'es'));
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Modelos');
+    const header = ['Nombre', 'Tipo', 'Marca', 'Año', 'Descripción', 'Activos'];
+    sheet.addRow(header).font = { bold: true };
+    for (const row of rows) sheet.addRow([row.name, row.type?.name ?? '', row.brand?.name ?? '', row.year ?? '', row.description ?? '', row._count?.items ?? 0]);
+    [36, 24, 24, 8, 48, 10].forEach((width, i) => { sheet.getColumn(i + 1).width = width; });
+    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: header.length } };
+    return { buffer: Buffer.from(await workbook.xlsx.writeBuffer()), contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename: 'modelos.xlsx', count: rows.length };
+  }
+
+  return { preview, commit, template, exportModels, TABLE };
 }

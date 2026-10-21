@@ -1,8 +1,8 @@
 import { Button } from '@runly/ui'
-import { Plus, Upload } from 'lucide-react'
+import { Download, Loader2, Plus, Upload } from 'lucide-react'
 import { catalogByKey } from './catalog-config.js'
 
-export function CatalogPanel({ catalogKey, createLabel, onCreate, onImport, children }) {
+export function CatalogPanel({ catalogKey, createLabel, onCreate, onImport, onExport = null, exporting = false, children }) {
   const { label, description, icon: Icon } = catalogByKey(catalogKey)
   return (
     <section className="glass-shell-flat min-w-0 space-y-4 rounded-2xl p-4 md:p-5">
@@ -16,7 +16,12 @@ export function CatalogPanel({ catalogKey, createLabel, onCreate, onImport, chil
             <p className="text-sm text-[hsl(var(--muted-foreground))]">{description}</p>
           </div>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {onExport ? (
+            <Button type="button" variant="outline" size="sm" disabled={exporting} onClick={onExport}>
+              {exporting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1.5 h-3.5 w-3.5" />}Exportar a Excel
+            </Button>
+          ) : null}
           {onImport ? (
             <Button type="button" variant="outline" size="sm" onClick={onImport}>
               <Upload className="mr-1.5 h-3.5 w-3.5" />Importar
