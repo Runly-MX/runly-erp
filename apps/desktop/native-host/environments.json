@@ -1,5 +1,5 @@
 {
-  "nativeHostVersion": "1.2.2",
+  "nativeHostVersion": "1.2.3",
   "production": "https://app.example.com",
   "staging": "https://staging.example.com"
 }

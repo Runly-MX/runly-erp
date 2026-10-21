@@ -61,7 +61,7 @@ test('public: unknown token is 404 and the limiter answers 429 after capacity', 
   assert.equal(limited.status, 429)
   assert.ok(limited.headers.get('retry-after'))
   // Another client keeps its own bucket.
-  assert.equal((await app.request('http://localhost/public/lms/certificates/ok', { headers: { 'x-forwarded-for': '10.0.0.2' } })).status, 200)
+  assert.equal((await app.request('http://localhost/public/lms/certificates/ok', { headers: { 'x-forwarded-for': '192.0.2.2' } })).status, 200)
 })
 
 function fakePrisma({ certificates = [], enrollment = null, template = null }) {
