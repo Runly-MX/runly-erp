@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { loadTableViewState, saveTableViewState } from '../runly-renderer/table-view-state.js'
 import {
   flexRender,
   getCoreRowModel,
@@ -84,6 +85,8 @@ export function DataTable({
   viewStorageKey,
   // Where column widths are remembered (this browser only). Defaults to the view key or the column ids.
   resizeKey,
+  // Where sort / search / filters / page are remembered for the session. Defaults to the route + column ids.
+  stateKey,
   defaultViewMode,
   renderCard,
   cardGridClassName,
@@ -91,10 +94,15 @@ export function DataTable({
 }) {
   const EMPTY_ROWS = useMemo(() => [], [])
   const resize = useColumnResize(resizeKey ?? viewStorageKey ?? `cols:${columns.map((c) => c.id ?? c.accessorKey ?? '').join('|')}`)
-  const [sorting, setSorting] = useState([])
-  const [globalFilter, setGlobalFilter] = useState('')
-  const [filterValues, setFilterValues] = useState({})
+  // Sort / search / local filters / page survive leaving the screen (e.g. opening a record and coming back).
+  const viewScope = `dt:${stateKey ?? viewStorageKey ?? `${typeof window === 'undefined' ? '' : window.location.pathname}:${columns.map((c) => c.id ?? c.accessorKey ?? '').join('|')}`}`
+  const [restored] = useState(() => loadTableViewState(viewScope))
+  const [sorting, setSorting] = useState(() => (Array.isArray(restored?.sorting) ? restored.sorting : []))
+  const [globalFilter, setGlobalFilter] = useState(() => restored?.globalFilter ?? '')
+  const [filterValues, setFilterValues] = useState(() => restored?.filterValues ?? {})
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: initialPageSize })
+  // The page is re-applied once rows exist (and after react-table's auto reset), never while the data is still loading.
+  const pendingPageRef = useRef(!manualPagination && Number(restored?.pageIndex) > 0 ? Number(restored.pageIndex) : null)
   const [showAll, setShowAll] = useState(false)
 
   // Optional Tabla / Tarjetas toggle. Controlled via viewMode + onViewModeChange, otherwise
@@ -160,6 +168,21 @@ export function DataTable({
     manualPagination,
     getPaginationRowModel: manualPagination ? undefined : getPaginationRowModel(),
   })
+
+  const rowCount = table.getFilteredRowModel().rows.length
+  useEffect(() => {
+    if (pendingPageRef.current == null || rowCount === 0) return undefined
+    const timer = setTimeout(() => {
+      const target = pendingPageRef.current
+      pendingPageRef.current = null
+      if (target != null) table.setPageIndex(Math.min(target, Math.max(0, table.getPageCount() - 1)))
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [rowCount, table])
+  useEffect(() => {
+    if (pendingPageRef.current != null) return
+    saveTableViewState(viewScope, { sorting, globalFilter, filterValues, pageIndex: manualPagination ? 0 : pagination.pageIndex })
+  }, [viewScope, sorting, globalFilter, filterValues, pagination.pageIndex, manualPagination])
 
   const filteredCount = table.getFilteredRowModel().rows.length
   useEffect(() => {
