@@ -55,7 +55,7 @@ export function RunlyCardView({
   const image = avatarMode ? null : imageColumn;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
       {rows.map((row, rowIndex) => {
         const id = getRowId ? getRowId(row, rowIndex) : (row?.id != null ? String(row.id) : `card-${rowIndex}`);
         const isSelected = selectedIds.has(id);
@@ -91,7 +91,7 @@ export function RunlyCardView({
           <div
             key={id}
             {...rowOpenProps(onRowOpen, row)}
-            className={`surface-card group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] flex flex-col overflow-hidden rounded-2xl border transition-all duration-150 hover:bg-[hsl(var(--muted))]/20${
+            className={`surface-card group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] flex flex-col overflow-hidden rounded-xl border transition-all sm:rounded-2xl duration-150 hover:bg-[hsl(var(--muted))]/20${
               isSelected
                 ? " border-indigo-500/60 bg-indigo-500/5"
                 : " border-[hsl(var(--border))] hover:border-[hsl(var(--border))]/60"
@@ -122,7 +122,7 @@ export function RunlyCardView({
               <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: effectiveColor }} />
             ) : null}
 
-            <div className="flex flex-1 flex-col gap-3 p-4">
+            <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-4">
               <div className="flex items-start gap-2">
                 {!image && selectBox && <div className="mt-0.5">{selectBox}</div>}
                 {avatarMode && (
@@ -155,7 +155,7 @@ export function RunlyCardView({
               )}
 
               {details.length > 0 && (
-                <dl className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-[hsl(var(--border))]/50 pt-3">
+                <dl className="grid grid-cols-1 gap-x-3 gap-y-1.5 border-t sm:grid-cols-2 sm:gap-y-2 border-[hsl(var(--border))]/50 pt-3">
                   {details.map((col) => {
                     const text = formatCellText(col, row);
                     if (text === "—") return null;

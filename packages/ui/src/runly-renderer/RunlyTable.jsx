@@ -34,6 +34,7 @@ import {
 import { resolveColorHex } from "./runly-form-utils.js";
 import { accentFor } from "./records-view-format.js";
 import { rowOpenProps } from "./row-open.js";
+import { loadTableViewState, saveTableViewState } from "./table-view-state.js";
 
 // Select value as a tinted pill: stable color per option (or option.color).
 function SelectBadge({ label, color }) {
@@ -246,10 +247,15 @@ export function RunlyTable({
     [setPageSize, schedulePreferenceSave],
   );
 
-  const [page, setPage] = useState(1);
+  // The list's last page / search / filters / sort are restored on mount; a deep
+  // link (initialFilters / initialSearch) wins over them.
+  const viewScope = tableKey && !adapters?.sessionId ? `${companyId ?? ""}::${tableKey}` : null;
+  const [restored] = useState(() => loadTableViewState(viewScope));
+  const hasDeepLink = Boolean(initialSearch) || Object.values(initialFilters ?? {}).some(Boolean);
+  const [page, setPage] = useState(() => (!hasDeepLink && Number(restored?.page) > 1 ? Number(restored.page) : 1));
   // `searchInput` follows the keystrokes; `search` (what the API receives) trails by 300ms.
-  const [searchInput, setSearchInput] = useState(initialSearch ?? "");
-  const [search, setSearch] = useState(initialSearch ?? "");
+  const [searchInput, setSearchInput] = useState(initialSearch || restored?.search || "");
+  const [search, setSearch] = useState(initialSearch || restored?.search || "");
   useEffect(() => {
     if (searchInput === search) return undefined;
     const timer = setTimeout(() => {
@@ -258,21 +264,30 @@ export function RunlyTable({
     }, 300);
     return () => clearTimeout(timer);
   }, [searchInput, search]);
-  const [filterValues, setFilterValues] = useState(() => initialFilters ?? {});
+  const [filterValues, setFilterValues] = useState(() => ({ ...(restored?.filters ?? {}), ...(initialFilters ?? {}) }));
+  const filterValuesRef = useRef(filterValues);
+  filterValuesRef.current = filterValues;
   const externalFiltersKey = externalFilters ? JSON.stringify(externalFilters) : "";
+  const externalFiltersSeenRef = useRef(false);
   useEffect(() => {
     if (!externalFiltersKey) return;
+    // First run: a restored view keeps its own values; the parent re-syncs from onContextChange.
+    const firstRun = !externalFiltersSeenRef.current;
+    externalFiltersSeenRef.current = true;
+    if (firstRun && restored) return;
     const incoming = JSON.parse(externalFiltersKey);
-    setFilterValues((current) => {
-      const changed = Object.entries(incoming).some(
-        ([k, v]) => (current[k] ?? "") !== (v ?? ""),
-      );
-      return changed ? { ...current, ...incoming } : current;
-    });
+    const changed = Object.entries(incoming).some(
+      ([k, v]) => (filterValuesRef.current[k] ?? "") !== (v ?? ""),
+    );
+    if (!changed) return;
+    setFilterValues((current) => ({ ...current, ...incoming }));
     setPage(1);
-  }, [externalFiltersKey]);
-  const [sortBy, setSortBy] = useState("");
-  const [sortDir, setSortDir] = useState("asc");
+  }, [externalFiltersKey, restored]);
+  const [sortBy, setSortBy] = useState(restored?.sortBy ?? "");
+  const [sortDir, setSortDir] = useState(restored?.sortDir === "desc" ? "desc" : "asc");
+  useEffect(() => {
+    saveTableViewState(viewScope, { page, search, filters: filterValues, sortBy, sortDir });
+  }, [viewScope, page, search, filterValues, sortBy, sortDir]);
   const [rows, setRows] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -409,6 +424,8 @@ export function RunlyTable({
   const rowActions = Array.isArray(schema.rowActions) ? schema.rowActions : [];
 
   const openRow = onView ?? onRowOpen;
+  // Double click / Enter opens the record by default; onRowOpen only overrides it.
+  const rowOpenHandler = onRowOpen ?? onView;
   const rowMenuItems = (row) => {
     if (rowActions.length === 0) {
       return [
@@ -644,8 +661,8 @@ export function RunlyTable({
                 <TableRow
                   key={id}
                   data-selected={isSelected || undefined}
-                  className={onRowOpen ? `${zebraClass ?? ""} cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]` : zebraClass}
-                  {...rowOpenProps(onRowOpen, row)}
+                  className={rowOpenHandler ? `${zebraClass ?? ""} cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]` : zebraClass}
+                  {...rowOpenProps(rowOpenHandler, row)}
                 >
                   <TableCell>
                     <Checkbox
@@ -805,7 +822,7 @@ export function RunlyTable({
         getRowId={getRowId}
         rowMenuItems={rowMenuItems}
         onView={onView}
-        onRowOpen={onRowOpen}
+        onRowOpen={rowOpenHandler}
         accentColor={accentColor}
         token={token}
         apiBaseUrl={apiBaseUrl}
@@ -819,7 +836,7 @@ export function RunlyTable({
   const renderCardGridView = () => {
     if (loading) {
       return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={`sk-card-${i}`}
@@ -864,7 +881,7 @@ export function RunlyTable({
         accentColor={accentColor}
         resolveItemColor={resolveItemColor}
         onView={onView}
-        onRowOpen={onRowOpen}
+        onRowOpen={rowOpenHandler}
         token={token}
         apiBaseUrl={apiBaseUrl}
         companyId={companyId}
