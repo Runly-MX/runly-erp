@@ -54,10 +54,26 @@ export const SwipeBackStack = forwardRef(function SwipeBackStack(
     }
   }, []);
 
+  const openRef = useRef(open);
+  openRef.current = open;
+
   const finishLeave = useCallback(() => {
     setPhase("closed");
     onBackRef.current?.();
   }, []);
+
+  // Whenever the stack ends up closed (including when the route/history
+  // closed it mid-animation or mid-drag, e.g. the browser's own back
+  // gesture), clear what paint() left on the base layer. Otherwise the base
+  // stays parallax-shifted and the screen shows half content, half blank.
+  useLayoutEffect(() => {
+    if (phase !== "closed") return;
+    drag.current = null;
+    if (baseRef.current) {
+      baseRef.current.style.transition = "none";
+      baseRef.current.style.transform = "";
+    }
+  }, [phase]);
 
   const animateTo = useCallback((x, done) => {
     paint(x, true);
@@ -88,7 +104,10 @@ export const SwipeBackStack = forwardRef(function SwipeBackStack(
     if (open && (phase === "closed" || phase === "leaving")) {
       setPhase("entering");
       paint(width(), false);
-      requestAnimationFrame(() => requestAnimationFrame(() => animateTo(0, () => setPhase("idle"))));
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (!openRef.current) return;
+        animateTo(0, () => setPhase(openRef.current ? "idle" : "closed"));
+      }));
     } else if (!open && phase !== "closed" && phase !== "leaving") {
       setPhase("closed");
     }
@@ -157,7 +176,7 @@ export const SwipeBackStack = forwardRef(function SwipeBackStack(
       setPhase("leaving");
       animateTo(width(), finishLeave);
     } else {
-      animateTo(0, () => setPhase("idle"));
+      animateTo(0, () => setPhase(openRef.current ? "idle" : "closed"));
     }
   }
 
