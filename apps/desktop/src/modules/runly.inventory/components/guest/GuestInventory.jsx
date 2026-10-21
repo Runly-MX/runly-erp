@@ -6,6 +6,7 @@ import { GuestItemFormPage } from './GuestItemFormPage.jsx'
 import { GuestListView } from './GuestListView.jsx'
 import { GuestBrandBar, GuestPortalRoot } from './GuestPortalParts.jsx'
 import { Skeleton } from '@runly/ui'
+import { toast } from 'sonner'
 
 function EditRoute({ id, go }) {
   const item = useGuestItem(id)
@@ -19,7 +20,9 @@ function EditRoute({ id, go }) {
 
 // Supplier portal shell: company identity bar + hash-routed pages (list, detail, new, edit).
 export function GuestInventory() {
-  const { session, logout } = useGuestSession()
+  const { session, logout, renew } = useGuestSession()
+  // Opens a fresh session from the same link; with an access code the code prompt comes back instead.
+  const renewSession = async () => { if (await renew()) toast.success('Sesión renovada') }
   const me = useGuestMe()
   const { view, id, go } = useGuestPortalView()
   const company = me.data?.company ?? session?.company
@@ -29,7 +32,7 @@ export function GuestInventory() {
 
   return (
     <GuestPortalRoot primaryColor={company?.primaryColor}>
-      <GuestBrandBar company={company} guestName={guestName} onLogout={logout} />
+      <GuestBrandBar company={company} guestName={guestName} onLogout={logout} onRenew={renewSession} />
       <div className="mx-auto max-w-screen-2xl px-4 py-5 md:px-8">
         {view === 'new' ? <GuestItemFormPage onBack={() => go('list')} onSaved={(savedId) => go('detail', savedId)} />
           : view === 'edit' ? <EditRoute id={id} go={go} />

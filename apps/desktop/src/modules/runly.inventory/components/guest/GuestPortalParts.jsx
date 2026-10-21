@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Button, EmptyState, ErrorState, TextField } from '@runly/ui'
-import { Building2, KeyRound, LinkIcon, LogOut, ShieldCheck } from 'lucide-react'
+import { Building2, KeyRound, LinkIcon, LogOut, RefreshCw, ShieldCheck } from 'lucide-react'
 import { companyInitials } from '../../lib/guest-capabilities.js'
 import { portalThemeVars } from '../../lib/guest-theme.js'
 import { guestErrorMessage } from '../../lib/guest-session.js'
@@ -27,7 +27,7 @@ export function GuestPortalRoot({ primaryColor, children }) {
 }
 
 // Sticky brand bar: company logo + name, guest name and "Salir". Used on every portal state.
-export function GuestBrandBar({ company, guestName, onLogout, loading = false }) {
+export function GuestBrandBar({ company, guestName, onLogout, onRenew = null, loading = false }) {
   return (
     <header className="sticky top-0 z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]/95 backdrop-blur supports-[backdrop-filter]:bg-[hsl(var(--card))]/80">
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 md:px-8">
@@ -36,6 +36,11 @@ export function GuestBrandBar({ company, guestName, onLogout, loading = false })
           <p className="truncate text-sm font-semibold">{loading ? 'Cargando...' : (company?.name || 'Inventario')}</p>
           <p className={`truncate text-xs ${muted}`}>{guestName ? `${guestName} · Portal de proveedores` : 'Portal de proveedores'}</p>
         </div>
+        {onRenew ? (
+          <Button type="button" variant="ghost" size="sm" className="[@media(pointer:coarse)]:min-h-11" onClick={onRenew} aria-label="Renovar sesión">
+            <RefreshCw className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">Renovar sesión</span>
+          </Button>
+        ) : null}
         {onLogout ? (
           <Button type="button" variant="ghost" size="sm" className="[@media(pointer:coarse)]:min-h-11" onClick={onLogout}>
             <LogOut className="mr-1.5 h-4 w-4" />Salir
@@ -49,21 +54,28 @@ export function GuestBrandBar({ company, guestName, onLogout, loading = false })
 }
 
 // Full-page message for dead links, ended sessions and loaded-out guests.
-export function GuestErrorPage({ error }) {
+export function GuestErrorPage({ error, onReenter = null }) {
   const loggedOut = error?.code === 'LOGGED_OUT'
   const title = loggedOut ? 'Cerraste tu sesión'
     : error?.code === 'SESSION_INVALID' ? 'Tu sesión terminó'
       : error?.code === 'INVALID_LINK' ? 'Enlace no válido'
         : error?.code === 'INVITE_LOCKED' ? 'Acceso bloqueado temporalmente'
           : 'No se pudo abrir el portal'
-  const description = loggedOut ? 'Para volver a entrar, abre de nuevo el enlace de tu correo.' : guestErrorMessage(error)
+  const description = loggedOut ? 'Puedes volver a entrar con el mismo enlace de tu correo.' : guestErrorMessage(error)
+  const canReenter = Boolean(onReenter) && (loggedOut || error?.code === 'SESSION_INVALID')
+  const reenter = canReenter ? <Button type="button" onClick={onReenter}><KeyRound className="mr-1.5 h-4 w-4" />Volver a entrar</Button> : undefined
   return (
     <div className="min-h-dvh">
       <GuestBrandBar />
       <div className="mx-auto max-w-md px-4 py-16">
         {loggedOut
-          ? <EmptyState icon={LinkIcon} title={title} description={description} />
-          : <ErrorState title={title} description={description} showReport={false} />}
+          ? <EmptyState icon={LinkIcon} title={title} description={description} action={reenter} />
+          : (
+            <div className="space-y-4">
+              <ErrorState title={title} description={description} showReport={false} />
+              {reenter ? <div className="flex justify-center">{reenter}</div> : null}
+            </div>
+          )}
       </div>
     </div>
   )

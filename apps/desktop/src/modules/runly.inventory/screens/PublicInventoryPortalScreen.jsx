@@ -6,7 +6,7 @@ import { GuestInventory } from '../components/guest/GuestInventory.jsx'
 
 function PortalGate() {
   const { status, error, busy, submitCode } = useGuestSession()
-  if (status === 'error') return <GuestErrorPage error={error} />
+  if (status === 'error') return <GuestErrorPage error={error} onReenter={() => submitCode()} />
   if (status === 'needs-code') return <GuestCodeForm busy={busy} error={error} onSubmit={submitCode} />
   if (status === 'ready') return <GuestInventory />
   return (
