@@ -20,7 +20,7 @@ function setup(item = {}) {
     invAssignment: { updateMany: async () => { state.closedAssignments += 1; return { count: 1 }; } },
     invItemAdminEvent: { create: async ({ data }) => { state.events.push(data); return data; } },
   };
-  const prisma = { ...tx, $transaction: async (fn) => fn(tx), fileAsset: { findFirst: async () => ({ id: 'f' }) } };
+  const prisma = { ...tx, $transaction: async (fn) => fn(tx), fileAsset: { findFirst: async () => ({ id: 'f' }) }, $queryRaw: async () => [{ id: 'batch-1' }] };
   const service = createInventoryAdminService({
     prisma,
     activityBridge: { logAndPublish: async () => {} },
@@ -80,6 +80,16 @@ test('bulk returns a per-id result', async () => {
   assert.equal(result.applied, 1);
   assert.equal(result.failed, 1);
   assert.equal(result.results[1].ok, false);
+});
+
+test('a bulk action stamps every event with the same lote; a single one has none', async () => {
+  const { state, service } = setup({ adminStatus: 'registration_pending' });
+  const bulk = await service.bulkTransition({ ids: [ITEM, 'missing-id'], action: 'confirm_registration', payload: { effectiveDate: '2026-09-29' }, companyId: COMPANY, actorId: 'u', can: all });
+  assert.equal(bulk.batchId, 'batch-1');
+  assert.deepEqual([state.events[0].batchId, state.events[0].batchSize], ['batch-1', 2]);
+  const single = setup({ adminStatus: 'registration_pending' });
+  await single.service.bulkTransition({ ids: [ITEM], action: 'confirm_registration', payload: { effectiveDate: '2026-09-29' }, companyId: COMPANY, actorId: 'u', can: all });
+  assert.equal(single.state.events[0].batchId, null);
 });
 
 test('legacy statuses map to baja reasons', () => {

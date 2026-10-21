@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { itemLabel } from '../lib/item-label.js'
-import { Button, Skeleton } from '@runly/ui'
-import { FileText } from 'lucide-react'
+import { AdvancedFileViewer, Button, Skeleton } from '@runly/ui'
+import { FileText, Layers } from 'lucide-react'
+import { useAuth } from '../../../auth/AuthProvider'
+import { runly } from '../../../lib/runly'
 import { ADMIN_ACTIONS, ADMIN_STATUS_BY_VALUE, actionsFor, reasonLabel } from '../lib/admin-status.js'
 import { useInventoryAdminEvents, useInventoryCan } from '../hooks/useInventoryAdmin.js'
 import { InventoryAdminStatusBadge } from './InventoryAdminStatusBadge.jsx'
@@ -29,6 +31,17 @@ export default function InventoryDetailAdminSection({ data: item }) {
   const can = useInventoryCan()
   const { data: events, isLoading } = useInventoryAdminEvents(item?.id)
   const [action, setAction] = useState(null)
+  const [viewerIndex, setViewerIndex] = useState(null)
+  const { session } = useAuth()
+  const token = session?.access_token
+  // Evidence of every event, in history order, so the viewer pages through all of them.
+  const evidence = useMemo(() => (events ?? []).filter((e) => e.fileId).map((e) => ({
+    id: e.fileId, originalName: e.file?.originalName ?? 'Evidencia', mimeType: e.file?.mimeType ?? null, sizeBytes: e.file?.sizeBytes ?? 0, eventId: e.id,
+  })), [events])
+  const resolveEvidenceUrl = useCallback(async (file) => {
+    const res = await runly.files.getSignedUrl(file.id, token)
+    return res?.data?.signedUrl ?? res?.data?.url ?? null
+  }, [token])
   if (!item) return null
   const available = actionsFor(item.adminStatus).filter((a) => can(a.permission))
   const status = ADMIN_STATUS_BY_VALUE[item.adminStatus]
@@ -77,12 +90,23 @@ export default function InventoryDetailAdminSection({ data: item }) {
                   {[e.effectiveDate ? `Efectiva ${formatDay(e.effectiveDate)}` : null, e.actorName, formatStamp(e.createdAt)].filter(Boolean).join(' · ')}
                 </p>
                 {e.comment ? <p className="mt-0.5 whitespace-pre-line text-[hsl(var(--foreground))]">{e.comment}</p> : null}
-                {e.fileId ? <p className="mt-0.5 inline-flex items-center gap-1 text-[hsl(var(--muted-foreground))]"><FileText className="h-3 w-3" />Evidencia adjunta</p> : null}
+                {e.batchId ? <p className="mt-0.5 inline-flex items-center gap-1 text-[hsl(var(--muted-foreground))]"><Layers className="h-3 w-3" />Aplicado por lote{e.batchSize ? ` de ${e.batchSize} activos` : ''}</p> : null}
+                {e.fileId ? (
+                  <button type="button" className="mt-0.5 flex items-center gap-1 text-[hsl(var(--primary))] underline-offset-2 hover:underline pointer-coarse:min-h-11"
+                    onClick={() => setViewerIndex(Math.max(0, evidence.findIndex((f) => f.eventId === e.id)))}>
+                    <FileText className="h-3 w-3" />Ver evidencia{e.file?.originalName ? ` · ${e.file.originalName}` : ''}
+                  </button>
+                ) : null}
               </li>
             ))}
           </ol>
         )}
       </div>
+
+      {viewerIndex !== null && evidence.length ? (
+        <AdvancedFileViewer open onOpenChange={(open) => { if (!open) setViewerIndex(null) }} files={evidence} activeIndex={Math.min(viewerIndex, evidence.length - 1)}
+          onIndexChange={setViewerIndex} onResolveSignedUrl={resolveEvidenceUrl} imageEditing={false} />
+      ) : null}
 
       <InventoryAdminTransitionDialog action={action} itemId={item.id} itemLabel={itemLabel(item)}
         open={Boolean(action)} onOpenChange={(open) => { if (!open) setAction(null) }} />

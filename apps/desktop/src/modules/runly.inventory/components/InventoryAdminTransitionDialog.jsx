@@ -69,7 +69,7 @@ export function InventoryAdminTransitionDialog({ action, itemId = null, ids = nu
     return res?.data ?? res
   }
 
-  const target = ids ? `${ids.length} activos seleccionados` : itemLabel
+  const target = ids ? `${ids.length} activos seleccionados (queda registrado como lote en el historial de cada uno)` : itemLabel
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

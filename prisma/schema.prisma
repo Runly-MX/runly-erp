@@ -3651,6 +3651,9 @@ model InvItemAdminEvent {
   comment       String?   @db.VarChar(2000)
   effectiveDate DateTime? @map("effective_date") @db.Date
   fileId        String?   @map("file_id") @db.Uuid
+  // Set when the event came from a bulk (por lote) action: all its events share batchId.
+  batchId       String?   @map("batch_id") @db.Uuid
+  batchSize     Int?      @map("batch_size")
   // Null only for rows written by the data migration.
   actorId       String?   @map("actor_id") @db.Uuid
   createdAt     DateTime  @default(now()) @map("created_at")
@@ -3661,6 +3664,7 @@ model InvItemAdminEvent {
 
   @@index([itemId, createdAt])
   @@index([companyId, toStatus])
+  @@index([batchId])
   @@map("inv_item_admin_event")
 }
 

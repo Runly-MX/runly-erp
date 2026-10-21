@@ -61,7 +61,7 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
   }
 
   // `can(permissionKey)` answers for the acting user (admins: always true).
-  async function transition({ itemId, action, payload = {}, companyId, actorId, can }) {
+  async function transition({ itemId, action, payload = {}, companyId, actorId, can, batch = null }) {
     assertCompany(companyId);
     if (!ADMIN_TRANSITIONS[action]) throw new InventoryServiceError('Acción no válida.', 400);
     const { rule, data } = validate(action, payload);
@@ -99,6 +99,7 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
           companyId, itemId, action, fromStatus: rule.from, toStatus: rule.to,
           reason: action === 'approve_deregistration' ? update.deregistrationReason : (data.reason ?? null),
           comment: data.comment || null, effectiveDate, fileId: data.fileId ?? null, actorId: actorId ?? null,
+          batchId: batch?.id ?? null, batchSize: batch?.size ?? null,
         },
       });
       return { item: updated, event };
@@ -123,22 +124,30 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
     return result;
   }
 
+  async function newBatchId() {
+    try { return (await prisma.$queryRaw`SELECT uuidv7()::text AS id`)?.[0]?.id ?? null; } catch { return null; }
+  }
+
   async function bulkTransition({ ids, action, payload, companyId, actorId, can }) {
     if (!Array.isArray(ids) || ids.length === 0) throw new InventoryServiceError('Selecciona al menos un activo.', 400);
     if (ids.length > 200) throw new InventoryServiceError('Máximo 200 activos por operación.', 400);
     // Validate once up front so a bad payload fails the whole request.
     const { rule } = validate(action, payload);
     if (!can(rule.permission)) throw new InventoryServiceError('No tienes permiso para esta acción.', 403);
+    const unique = [...new Set(ids)];
+    // One shared id per request: the history of every item shows it was part of the same lote.
+    const batchId = unique.length > 1 ? await newBatchId() : null;
+    const batch = batchId ? { id: batchId, size: unique.length } : null;
     const results = [];
-    for (const id of [...new Set(ids)]) {
+    for (const id of unique) {
       try {
-        await transition({ itemId: id, action, payload, companyId, actorId, can });
+        await transition({ itemId: id, action, payload, companyId, actorId, can, batch });
         results.push({ id, ok: true });
       } catch (err) {
         results.push({ id, ok: false, error: err?.message ?? 'No se pudo aplicar.' });
       }
     }
-    return { results, applied: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length };
+    return { batchId, results, applied: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length };
   }
 
   async function listEvents(itemId, companyId) {
@@ -150,8 +159,14 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
       orderBy: { createdAt: 'desc' },
       include: { actor: { select: { id: true, displayName: true, firstName: true, lastName: true } } },
     });
+    const fileIds = [...new Set(rows.map((r) => r.fileId).filter(Boolean))];
+    const files = fileIds.length
+      ? await prisma.fileAsset.findMany({ where: { id: { in: fileIds }, entityId: companyId }, select: { id: true, originalName: true, mimeType: true, sizeBytes: true } })
+      : [];
+    const fileById = new Map(files.map((f) => [f.id, f]));
     return rows.map(({ actor, ...row }) => ({
       ...row,
+      file: row.fileId ? (fileById.get(row.fileId) ?? null) : null,
       // No actor = a row written by the data migration (see InvItemAdminEvent.actorId).
       actorName: actor ? (actor.displayName || [actor.firstName, actor.lastName].filter(Boolean).join(' ')) : 'Migración',
     }));
