@@ -720,6 +720,11 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             false
         })
         .on_page_load(move |window, payload| {
+            // Android may still return an empty URL just after build(). Save
+            // the recovery location from the actual bundled-page navigation.
+            if local_shell(payload.url()) {
+                *state.fallback.lock().unwrap() = Some(payload.url().clone());
+            }
             #[cfg(target_os = "android")]
             if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
                 super::mobile_media::stop_on_navigation(window.app_handle().clone());
@@ -735,7 +740,13 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             }
         });
     let window = builder.build()?;
-    *app.state::<Arc<HostState>>().fallback.lock().unwrap() = Some(window.url()?);
+    // A not-yet-ready WebView is normal during startup; it must not abort setup.
+    // on_page_load fills this in once the local shell has a URL.
+    if let Ok(url) = window.url() {
+        if local_shell(&url) {
+            *app.state::<Arc<HostState>>().fallback.lock().unwrap() = Some(url);
+        }
+    }
     #[cfg(desktop)]
     {
         use tauri::menu::{Menu, MenuItem, Submenu};

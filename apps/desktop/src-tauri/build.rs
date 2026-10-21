@@ -5,6 +5,12 @@ fn main() {
     println!("cargo:rerun-if-env-changed=ATLAS_NATIVE_ORIGIN");
     println!("cargo:rerun-if-changed=../native-host/environments.json");
     let target = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target == "android" {
+        // NDK r27 defaults to 4 KB. Both flags are needed so LOAD segments
+        // and RELRO boundaries also work on Android devices with 16 KB pages.
+        println!("cargo:rustc-link-arg=-Wl,-z,max-page-size=16384");
+        println!("cargo:rustc-link-arg=-Wl,-z,common-page-size=16384");
+    }
     if target == "android" || target == "ios" {
         let environment = std::env::var("RUNLY_NATIVE_ENV")
             .or_else(|_| std::env::var("ATLAS_NATIVE_ENV"))

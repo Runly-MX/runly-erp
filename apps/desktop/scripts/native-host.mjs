@@ -4,6 +4,7 @@ import { resolve, dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { buildNativeBrandAssets } from '../../../scripts/build-native-brand-assets.mjs'
 import { prepareAndroidFirebase } from './native-firebase.mjs'
+import { checkAndroidApk } from './check-android-apk.mjs'
 
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const environments = JSON.parse(readFileSync(resolve(desktop, 'native-host/environments.json'), 'utf8'))
@@ -123,6 +124,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       env: nativeBuildEnvironment(environment, origin),
     })
     if (result.error) throw result.error
+    if (result.status === 0 && platform === 'android' && tauriAction === 'build' && extra.includes('--apk') && ['aarch64', 'x86_64'].includes(target)) {
+      const abi = target === 'aarch64' ? 'arm64' : 'x86_64'
+      const variant = action === 'dev' || extra.includes('--debug') ? 'debug' : 'release'
+      const output = resolve(desktop, 'src-tauri/gen/android/app/build/outputs/apk', abi, variant)
+      const metadata = JSON.parse(readFileSync(resolve(output, 'output-metadata.json'), 'utf8'))
+      for (const artifact of metadata.elements) await checkAndroidApk(resolve(output, artifact.outputFile))
+    }
     if (action === 'init' && result.status === 0) buildNativeBrandAssets()
     process.exitCode = result.status ?? 1
   }
