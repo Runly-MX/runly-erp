@@ -83,9 +83,9 @@ function firstRow(rows) {
 }
 
 export function createCatalogService({ prisma }) {
-  async function logAudit({ actorId, entityType, entityId, action, before = null, after = null, metadata = null }) {
+  async function logAudit({ companyId, actorId, entityType, entityId, action, before = null, after = null, metadata = null }) {
     await prisma.auditLog.create({
-      data: { actorId: actorId ?? null, moduleKey: MODULE_KEY, entityType, entityId: entityId ?? null, action, before, after, metadata },
+      data: { companyId: companyId ?? null, actorId: actorId ?? null, moduleKey: MODULE_KEY, entityType, entityId: entityId ?? null, action, before, after, metadata },
     })
   }
 
@@ -134,7 +134,7 @@ export function createCatalogService({ prisma }) {
         `
         return firstRow(rows)
       })
-      await logAudit({ actorId, entityType: 'VehicleType', entityId: row?.id ?? null, action: 'fleet.catalog.vehicle_type.create', before: null, after: row })
+      await logAudit({ companyId: safeCompanyId, actorId, entityType: 'VehicleType', entityId: row?.id ?? null, action: 'fleet.catalog.vehicle_type.create', before: null, after: row })
       return row
     } catch (error) {
       if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un tipo de vehiculo con ese nombre.', 409)
@@ -163,7 +163,7 @@ export function createCatalogService({ prisma }) {
         return firstRow(rows)
       })
       if (!updated) throw new FleetServiceError('Tipo de vehiculo no encontrado.', 404)
-      await logAudit({ actorId, entityType: 'VehicleType', entityId: updated.id, action: 'fleet.catalog.vehicle_type.update', before, after: updated })
+      await logAudit({ companyId: safeCompanyId, actorId, entityType: 'VehicleType', entityId: updated.id, action: 'fleet.catalog.vehicle_type.update', before, after: updated })
       return updated
     } catch (error) {
       if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un tipo de vehiculo con ese nombre.', 409)
@@ -183,7 +183,7 @@ export function createCatalogService({ prisma }) {
       return firstRow(rows)
     })
     if (!updated) throw new FleetServiceError('Tipo de vehiculo no encontrado.', 404)
-    await logAudit({ actorId, entityType: 'VehicleType', entityId: updated.id, action: 'fleet.catalog.vehicle_type.disable', before, after: updated, metadata: { enabled: Boolean(enabled) } })
+    await logAudit({ companyId: safeCompanyId, actorId, entityType: 'VehicleType', entityId: updated.id, action: 'fleet.catalog.vehicle_type.disable', before, after: updated, metadata: { enabled: Boolean(enabled) } })
     return updated
   }
 
@@ -228,7 +228,7 @@ export function createCatalogService({ prisma }) {
         `
         return firstRow(rows)
       })
-      await logAudit({ actorId, entityType: 'VehicleBrand', entityId: row?.id ?? null, action: 'fleet.catalog.vehicle_brand.create', before: null, after: row })
+      await logAudit({ companyId: safeCompanyId, actorId, entityType: 'VehicleBrand', entityId: row?.id ?? null, action: 'fleet.catalog.vehicle_brand.create', before: null, after: row })
       return row
     } catch (error) {
       if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe una marca con ese nombre.', 409)
@@ -250,7 +250,7 @@ export function createCatalogService({ prisma }) {
         return firstRow(rows)
       })
       if (!updated) throw new FleetServiceError('Marca no encontrada.', 404)
-      await logAudit({ actorId, entityType: 'VehicleBrand', entityId: updated.id, action: 'fleet.catalog.vehicle_brand.update', before, after: updated })
+      await logAudit({ companyId: safeCompanyId, actorId, entityType: 'VehicleBrand', entityId: updated.id, action: 'fleet.catalog.vehicle_brand.update', before, after: updated })
       return updated
     } catch (error) {
       if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe una marca con ese nombre.', 409)
@@ -270,7 +270,7 @@ export function createCatalogService({ prisma }) {
       return firstRow(rows)
     })
     if (!updated) throw new FleetServiceError('Marca no encontrada.', 404)
-    await logAudit({ actorId, entityType: 'VehicleBrand', entityId: updated.id, action: 'fleet.catalog.vehicle_brand.disable', before, after: updated, metadata: { enabled: Boolean(enabled) } })
+    await logAudit({ companyId: safeCompanyId, actorId, entityType: 'VehicleBrand', entityId: updated.id, action: 'fleet.catalog.vehicle_brand.disable', before, after: updated, metadata: { enabled: Boolean(enabled) } })
     return updated
   }
 
@@ -370,7 +370,7 @@ export function createCatalogService({ prisma }) {
         return firstRow(rows)
       })
       const enriched = await getVehicleModel(safeCompanyId, row.id)
-      await logAudit({ actorId, entityType: 'VehicleModel', entityId: row?.id ?? null, action: 'fleet.catalog.vehicle_model.create', before: null, after: enriched })
+      await logAudit({ companyId: safeCompanyId, actorId, entityType: 'VehicleModel', entityId: row?.id ?? null, action: 'fleet.catalog.vehicle_model.create', before: null, after: enriched })
       return enriched
     } catch (error) {
       if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un modelo con esa combinacion de marca, tipo, nombre y año.', 409)
@@ -407,7 +407,7 @@ export function createCatalogService({ prisma }) {
       })
       if (!updated) throw new FleetServiceError('Modelo de vehiculo no encontrado.', 404)
       const enriched = await getVehicleModel(safeCompanyId, safeId)
-      await logAudit({ actorId, entityType: 'VehicleModel', entityId: safeId, action: 'fleet.catalog.vehicle_model.update', before, after: enriched })
+      await logAudit({ companyId: safeCompanyId, actorId, entityType: 'VehicleModel', entityId: safeId, action: 'fleet.catalog.vehicle_model.update', before, after: enriched })
       return enriched
     } catch (error) {
       if (isUniqueViolation(error)) throw new FleetServiceError('Ya existe un modelo con esa combinacion de marca, tipo, nombre y año.', 409)
@@ -427,7 +427,7 @@ export function createCatalogService({ prisma }) {
       return firstRow(rows)
     })
     if (!updated) throw new FleetServiceError('Modelo de vehiculo no encontrado.', 404)
-    await logAudit({ actorId, entityType: 'VehicleModel', entityId: updated.id, action: 'fleet.catalog.vehicle_model.disable', before, after: updated, metadata: { enabled: Boolean(enabled) } })
+    await logAudit({ companyId: safeCompanyId, actorId, entityType: 'VehicleModel', entityId: updated.id, action: 'fleet.catalog.vehicle_model.disable', before, after: updated, metadata: { enabled: Boolean(enabled) } })
     return updated
   }
 

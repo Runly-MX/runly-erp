@@ -311,6 +311,7 @@ function mapRowForUi(row) {
 
 export function createReportsService({ prisma }) {
   async function logAudit({
+    companyId,
     actorId,
     entityType,
     entityId,
@@ -321,6 +322,7 @@ export function createReportsService({ prisma }) {
   }) {
     await prisma.auditLog.create({
       data: {
+        companyId: companyId ?? null,
         actorId: actorId ?? null,
         moduleKey: MODULE_KEY,
         entityType,
@@ -590,6 +592,7 @@ export function createReportsService({ prisma }) {
     if (!row) throw new FleetServiceError("No se pudo crear el reporte.", 500);
 
     await logAudit({
+      companyId: safeCompanyId,
       actorId,
       entityType: "Report",
       entityId: row.id,
@@ -714,6 +717,7 @@ export function createReportsService({ prisma }) {
       reportType: reportType ?? before.report_type,
     });
     await logAudit({
+      companyId: safeCompanyId,
       actorId,
       entityType: "Report",
       entityId: safeId,
@@ -749,6 +753,7 @@ export function createReportsService({ prisma }) {
     });
     if (!updated) throw new FleetServiceError("Reporte no encontrado.", 404);
     await logAudit({
+      companyId: safeCompanyId,
       actorId,
       entityType: "Report",
       entityId: safeId,
@@ -789,6 +794,7 @@ export function createReportsService({ prisma }) {
       reportType,
     });
     await logAudit({
+      companyId: safeCompanyId,
       actorId,
       entityType: "Report",
       entityId: safeId,
@@ -826,6 +832,7 @@ export function createReportsService({ prisma }) {
       reportType,
     });
     await logAudit({
+      companyId: safeCompanyId,
       actorId,
       entityType: "Report",
       entityId: safeId,
@@ -895,6 +902,7 @@ export function createReportsService({ prisma }) {
       return firstRow(rows);
     });
     await logAudit({
+      companyId: safeCompanyId,
       actorId,
       entityType: "Report",
       entityId: safeReportId,
@@ -920,6 +928,7 @@ export function createReportsService({ prisma }) {
     });
     if (!updated) throw new FleetServiceError("Documento no encontrado.", 404);
     await logAudit({
+      companyId: safeCompanyId,
       actorId,
       entityType: "Report",
       entityId: safeReportId,

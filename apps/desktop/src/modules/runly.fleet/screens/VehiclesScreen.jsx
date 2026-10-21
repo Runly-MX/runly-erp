@@ -9,7 +9,7 @@ import { componentRegistry } from "../../../lib/moduleComponentRegistry";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import { runly } from "../../../lib/runly";
 import { useMiraiRecordContext } from "../../runly.chat/lib/miraiPageContext";
-import { FLEET_VEHICLE_MODEL_FORM_BLUEPRINT } from "./CatalogsScreen.jsx";
+import { FLEET_VEHICLE_MODEL_FORM_BLUEPRINT, FLEET_CATALOG_INLINE_BLUEPRINTS } from "./CatalogsScreen.jsx";
 
 const API_BASE = getApiUrl();
 const BASE_PATH = "/app/m/runly.fleet/vehicles";
@@ -642,7 +642,7 @@ export default function VehiclesScreen() {
         recordId={recordId}
         onNavigate={handleNavigate}
         componentRegistry={componentRegistry}
-        blueprints={[FLEET_VEHICLE_MODEL_FORM_BLUEPRINT]}
+        blueprints={[FLEET_VEHICLE_MODEL_FORM_BLUEPRINT, ...FLEET_CATALOG_INLINE_BLUEPRINTS]}
         suppressToolbarCreate
       />
     </div>

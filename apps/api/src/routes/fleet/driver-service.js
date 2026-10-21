@@ -272,6 +272,7 @@ export function createDriverService({ prisma }) {
   }
 
   async function logAudit({
+    companyId,
     actorId,
     entityType,
     entityId,
@@ -282,6 +283,7 @@ export function createDriverService({ prisma }) {
   }) {
     await prisma.auditLog.create({
       data: {
+        companyId: companyId ?? null,
         actorId: actorId ?? null,
         moduleKey: MODULE_KEY,
         entityType,
@@ -443,6 +445,7 @@ export function createDriverService({ prisma }) {
         return firstRow(rows);
       });
       await logAudit({
+        companyId: safeCompanyId,
         actorId,
         entityType: "Driver",
         entityId: row?.id ?? null,
@@ -541,6 +544,7 @@ export function createDriverService({ prisma }) {
       });
       if (!updated) throw new FleetServiceError("Chofer no encontrado.", 404);
       await logAudit({
+        companyId: safeCompanyId,
         actorId,
         entityType: "Driver",
         entityId: updated.id,
@@ -575,6 +579,7 @@ export function createDriverService({ prisma }) {
     });
     if (!updated) throw new FleetServiceError("Chofer no encontrado.", 404);
     await logAudit({
+      companyId: safeCompanyId,
       actorId,
       entityType: "Driver",
       entityId: updated.id,
@@ -709,6 +714,7 @@ export function createDriverService({ prisma }) {
     }
 
     await logAudit({
+      companyId: safeCompanyId,
       actorId,
       entityType: "Driver",
       entityId: safeDriverId,
@@ -737,6 +743,7 @@ export function createDriverService({ prisma }) {
     });
     if (!updated) throw new FleetServiceError("Documento no encontrado.", 404);
     await logAudit({
+      companyId: safeCompanyId,
       actorId,
       entityType: "Driver",
       entityId: safeDriverId,

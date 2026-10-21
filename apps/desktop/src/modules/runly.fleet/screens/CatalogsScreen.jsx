@@ -83,7 +83,9 @@ const CATALOG_BLUEPRINTS = {
         apiPath: '/fleet/catalogs/vehicle-models',
         title: 'Modelos',
         columns: [
+          { field: 'brand_name', label: 'Marca' },
           { field: 'name', label: 'Nombre' },
+          { field: 'type_name', label: 'Tipo' },
           { field: 'year', label: 'Año',   type: 'number' },
         ],
         actions: [{ label: 'Agregar modelo' }],
@@ -99,6 +101,16 @@ const CATALOG_BLUEPRINTS = {
         sections: [{
           title: 'Modelo',
           fields: [
+            {
+              name: 'brand_id', label: 'Marca', type: 'relation', required: true,
+              relation: { apiPath: '/fleet/catalogs/vehicle-brands', labelField: 'name', preload: true, clearable: false, disabledField: 'enabled',
+                create: { enabled: true, label: 'Crear marca', mode: 'modal', title: 'Crear marca', apiPath: '/fleet/catalogs/vehicle-brands', viewKey: 'fleet.catalogs.vehicle-brands.form', selectCreated: true, refreshOptions: true, permissionKey: 'fleet.catalogs.create' } },
+            },
+            {
+              name: 'type_id', label: 'Tipo de vehiculo', type: 'relation', required: true,
+              relation: { apiPath: '/fleet/catalogs/vehicle-types', labelField: 'name', preload: true, clearable: false, disabledField: 'enabled',
+                create: { enabled: true, label: 'Crear tipo de vehiculo', mode: 'modal', title: 'Crear tipo de vehiculo', apiPath: '/fleet/catalogs/vehicle-types', viewKey: 'fleet.catalogs.vehicle-types.form', selectCreated: true, refreshOptions: true, permissionKey: 'fleet.catalogs.create' } },
+            },
             { name: 'name', label: 'Nombre', type: 'text',   required: true },
             { name: 'year', label: 'Año',    type: 'number', required: true },
           ],
@@ -113,6 +125,12 @@ const CATALOG_BLUEPRINTS = {
 // vehicle_model_id) instead of duplicating it or relying on a server-side
 // /blueprints registration that doesn't exist for Fleet's catalog screens.
 export const FLEET_VEHICLE_MODEL_FORM_BLUEPRINT = CATALOG_BLUEPRINTS['vehicle-models'].form
+
+// Forms the model form opens inline to create a missing brand or type.
+export const FLEET_CATALOG_INLINE_BLUEPRINTS = [
+  CATALOG_BLUEPRINTS['vehicle-brands'].form,
+  CATALOG_BLUEPRINTS['vehicle-types'].form,
+]
 
 export default function CatalogsScreen() {
   const { '*': wildcard } = useParams()
@@ -154,6 +172,7 @@ export default function CatalogsScreen() {
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
         initialMode="list"
+        blueprints={FLEET_CATALOG_INLINE_BLUEPRINTS}
       />
     </div>
   )

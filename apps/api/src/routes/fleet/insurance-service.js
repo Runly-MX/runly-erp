@@ -96,6 +96,7 @@ function normalizeInsurancePolicyPayload(data = {}) {
 
 export function createInsuranceService({ prisma }) {
   async function logAudit({
+    companyId,
     actorId,
     entityType,
     entityId,
@@ -105,6 +106,7 @@ export function createInsuranceService({ prisma }) {
   }) {
     await prisma.auditLog.create({
       data: {
+        companyId: companyId ?? null,
         actorId: actorId ?? null,
         moduleKey: MODULE_KEY,
         entityType,
@@ -239,6 +241,7 @@ export function createInsuranceService({ prisma }) {
       });
 
       await logAudit({
+        companyId: safeCompanyId,
         actorId,
         entityType: "InsurancePolicy",
         entityId: row?.id ?? null,
@@ -388,6 +391,7 @@ export function createInsuranceService({ prisma }) {
       const after = await getPolicy({ companyId: safeCompanyId, id: safeId });
 
       await logAudit({
+        companyId: safeCompanyId,
         actorId,
         entityType: "InsurancePolicy",
         entityId: updated.id,
@@ -431,6 +435,7 @@ export function createInsuranceService({ prisma }) {
       throw new FleetServiceError("Poliza de seguro no encontrada.", 404);
 
     await logAudit({
+      companyId: safeCompanyId,
       actorId,
       entityType: "InsurancePolicy",
       entityId: updated.id,

@@ -274,6 +274,7 @@ export function createIdentityUsersRouter({ prisma, supabaseAdmin, requirePermis
       return c.json({ data: { userId: profile.id, membershipId: membership.id, email, enabled: true } }, 201);
     } catch (err) {
       if (err?.name === 'ZodError') return c.json({ error: err.errors[0]?.message ?? 'Datos inválidos.' }, 400);
+      console.error('[identity] create user', err?.code ?? '', err?.message ?? err);
       return c.json({ error: 'No se pudo crear el usuario con los datos proporcionados.' }, err.status ?? 400);
     }
   });

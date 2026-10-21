@@ -49,17 +49,34 @@ const DRIVER_FORM = {
     entity: 'driver',
     component: 'RunlyForm',
     apiPath: '/fleet/drivers',
+    formMode: 'page',
     sections: [
       {
-        label: 'Datos del chofer',
+        label: 'Datos personales',
+        icon: 'UserRound',
+        collapsible: true,
         fields: [
           { field: 'first_name', label: 'Nombre', type: 'text', required: true },
           { field: 'last_name', label: 'Apellido', type: 'text', required: true },
-          { field: 'phone', label: 'Telefono', type: 'phone', required: true },
+          { field: 'phone', label: 'Telefono', type: 'phone', required: true, hint: 'Numero de contacto del chofer' },
           { field: 'email', label: 'Correo', type: 'email' },
+        ],
+      },
+      {
+        label: 'Licencia de conducir',
+        icon: 'IdCard',
+        collapsible: true,
+        fields: [
           { field: 'license_number', label: 'No. de licencia', type: 'text', required: true },
-          { field: 'license_type', label: 'Tipo de licencia', type: 'text', required: true },
-          { field: 'license_expiry_date', label: 'Vencimiento lic.', type: 'date', required: true },
+          { field: 'license_type', label: 'Tipo de licencia', type: 'text', required: true, hint: 'Ej. A, B, C, E' },
+          { field: 'license_expiry_date', label: 'Vencimiento de licencia', type: 'date', required: true },
+        ],
+      },
+      {
+        label: 'Estado y notas',
+        icon: 'FileText',
+        collapsible: true,
+        fields: [
           {
             field: 'status', label: 'Estado', type: 'select',
             options: [
@@ -68,7 +85,7 @@ const DRIVER_FORM = {
               { value: 'suspended', label: 'Suspendido' },
             ],
           },
-          { field: 'notes', label: 'Notas', type: 'markdown' },
+          { field: 'notes', label: 'Notas', type: 'markdown', fullWidth: true },
         ],
       },
       {
