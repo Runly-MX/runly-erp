@@ -1,6 +1,6 @@
 import { Controller } from 'react-hook-form'
 import { ComboboxField, DateField, DynamicFieldsSection, SectionCard, SelectField, TextareaField, TextField } from '@runly/ui'
-import { Activity, Barcode, FolderTree, Hash, MapPin, Package, ScanLine, StickyNote } from 'lucide-react'
+import { Activity, Barcode, Boxes, FolderTree, Hash, IdCard, ListPlus, MapPin, Package, ScanLine, ShieldCheck, StickyNote } from 'lucide-react'
 import { useMemo } from 'react'
 import { InventoryDataProvider } from '../../hooks/inventoryData.js'
 import { guestInventoryData } from '../../hooks/useInventoryGuestCatalog.js'
@@ -59,7 +59,7 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
 
   return (
     <div className="space-y-4">
-      <SectionCard title="Modelo, tipo y marca" description="Elige un modelo del catálogo y se completan el tipo y la marca.">
+      <SectionCard title="Modelo, tipo y marca" icon={Boxes} description="Elige un modelo del catálogo y se completan el tipo y la marca.">
         <div className="space-y-4">
           {!item && areaOptions.length > 1 ? (
             <Controller name="areaId" control={control} render={({ field }) => (
@@ -76,7 +76,7 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
         </div>
       </SectionCard>
 
-      <SectionCard title="Identificación">
+      <SectionCard title="Identificación" icon={IdCard}>
         <div className="grid gap-4 md:grid-cols-2">
           <TextField label="Folio" icon={Hash} hint="Se genera solo si lo dejas vacío" maxLength={50} error={err('folio')} {...register('folio')} />
           <div>
@@ -95,7 +95,7 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
         </div>
       </SectionCard>
 
-      <SectionCard title="Ubicación y estado">
+      <SectionCard title="Ubicación y estado" icon={MapPin}>
         <div className="grid gap-4 md:grid-cols-2">
           <Controller name="locationId" control={control} render={({ field }) => (
             <GuestCatalogField kind="locations" noun="Ubicación" label="Ubicación" icon={MapPin} rows={catalogs?.locations} value={field.value} onChange={field.onChange} canCreate={canCreate} />
@@ -111,7 +111,7 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
         </div>
       </SectionCard>
 
-      <SectionCard title="Garantía">
+      <SectionCard title="Garantía" icon={ShieldCheck}>
         <div className="grid gap-4 md:grid-cols-2">
           <Controller name="warrantyExpiry" control={control} render={({ field }) => (
             <DateField label="Vencimiento de garantía" value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} name={field.name} error={err('warrantyExpiry')} />
@@ -120,11 +120,11 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
         </div>
       </SectionCard>
 
-      <SectionCard title="Campos personalizados" description="Agrega solo los datos adicionales que necesites.">
+      <SectionCard title="Campos personalizados" icon={ListPlus} description="Agrega solo los datos adicionales que necesites.">
         <GuestCustomFields form={form} entries={customEntries} resetKey={customResetKey} onDefinitionsChange={onCustomDefinitions} />
       </SectionCard>
 
-      <SectionCard title="Notas">
+      <SectionCard title="Notas" icon={StickyNote}>
         <TextareaField label="Notas adicionales" icon={StickyNote} rows={3} maxLength={2000} error={err('notes')} {...register('notes')} />
       </SectionCard>
     </div>

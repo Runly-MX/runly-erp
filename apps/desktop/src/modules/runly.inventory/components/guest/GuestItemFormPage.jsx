@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Button, ConfirmDialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, PageHeader, SectionCard } from '@runly/ui'
-import { CopyPlus, Lock, MoreHorizontal, Undo2 } from 'lucide-react'
+import { Alert, Button, ConfirmDialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, PageHeader, RecordHeader, SectionCard } from '@runly/ui'
+import { ArrowLeft, CopyPlus, Lock, MoreHorizontal, Paperclip, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCreateGuestItem, useGuestCatalogs, useGuestMe, useUpdateGuestItem, useUploadGuestFile } from '../../hooks/useInventoryGuest.js'
 import { useGuestIdentifierConflicts } from '../../hooks/useInventoryGuestCatalog.js'
@@ -109,17 +109,19 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); submit(false)() }} noValidate className={dirty ? 'pb-24 transition-[padding] duration-200 motion-reduce:transition-none md:pb-6' : 'pb-6'}>
-      <PageHeader
+      <RecordHeader
+        sticky={false}
+        crumbs={[{ label: 'Inventario', onClick: requestBack }, { label: isCreate ? 'Nuevo item' : (item.name || 'Item') }]}
         title={isCreate ? 'Agregar item' : 'Editar item'}
-        description={isCreate ? 'Registra un item en una de tus carpetas. Llegará como propuesta de alta.' : (item.folio || item.name)}
-        onBack={requestBack}
+        subtitle={isCreate ? 'Registra un item en una de tus carpetas. Llegará como propuesta de alta.' : (item.folio || item.name)}
+        actions={[{ key: 'back', label: 'Volver', icon: <ArrowLeft className="h-4 w-4" />, placement: 'collapse', onClick: requestBack }]}
       />
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <GuestItemFormSections form={form} item={item} areaOptions={areaOptions} areaLabel={areaPathLabel(areas, areaId) || 'Sin carpeta'}
           catalogs={catalogs} canCreate={canCreate} statusEditable={statusEditable} conflicts={conflicts}
           customEntries={customEntries} customResetKey={customKey} onCustomDefinitions={setExtraDefs} />
         <aside className="lg:sticky lg:top-20 lg:self-start">
-          <SectionCard title="Fotos y archivos">
+          <SectionCard title="Fotos y archivos" icon={Paperclip}>
             <GuestFormFiles itemId={item?.id ?? null} staged={staged} onStagedChange={setStaged} />
           </SectionCard>
         </aside>

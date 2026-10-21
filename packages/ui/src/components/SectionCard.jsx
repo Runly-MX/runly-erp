@@ -5,6 +5,8 @@ import { cn } from "../lib/utils.js";
 // container pattern. `variant` passes through to Card ('default' = solid).
 export function SectionCard({
   title,
+  // Optional lucide icon shown before the title, like the section headers of RunlyDetail.
+  icon: Icon = null,
   description,
   action,
   children,
@@ -19,8 +21,9 @@ export function SectionCard({
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
             {title && (
-              <h3 className="truncate text-sm font-semibold text-[hsl(var(--foreground))]">
-                {title}
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-[hsl(var(--foreground))]">
+                {Icon ? <Icon className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" aria-hidden="true" /> : null}
+                <span className="truncate">{title}</span>
               </h3>
             )}
             {description && (
