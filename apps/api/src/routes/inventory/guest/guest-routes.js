@@ -15,6 +15,7 @@ export function createInventoryGuestRouter({
   items,
   limiter = createTokenBucketLimiter({ capacity: 120, refillPerSecond: 2 }),
   imports = null,
+  proposals = null,
 }) {
   const app = new Hono();
 
@@ -64,6 +65,16 @@ export function createInventoryGuestRouter({
   app.get('/items/:id', run('No se pudo cargar el item.', (auth, c) => items.getItem(auth, c.req.param('id'))));
   app.post('/items', run('No se pudo crear el item.', async (auth, c) => items.createItem(auth, await body(c)), 201));
   app.patch('/items/:id', run('No se pudo actualizar el item.', async (auth, c) => items.updateItem(auth, c.req.param('id'), await body(c))));
+
+  // A restricted duplicate (same serial / asset number as an item the supplier cannot open) becomes a proposal
+  // for the folder managers to review instead of a dead end.
+  if (proposals) {
+    app.post('/change-proposals', run('No se pudo enviar la propuesta.', async (auth, c) => proposals.submit({
+      companyId: auth.companyId,
+      proposer: { guestId: auth.guest.id, label: `${auth.guest.name || auth.guest.email} (proveedor)` },
+      body: await body(c),
+    }), 201));
+  }
 
   app.post('/items/:id/propose-deregistration', run('No se pudo proponer la baja.', async (auth, c) => items.proposeDeregistration(auth, c.req.param('id'), await body(c))));
   app.get('/items/:id/files', run('No se pudieron cargar los archivos.', (auth, c) => items.listFiles(auth, c.req.param('id'))));

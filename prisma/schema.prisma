@@ -3668,6 +3668,32 @@ model InvItemAdminEvent {
   @@map("inv_item_admin_event")
 }
 
+// Values proposed for an item the proposer cannot open (a restricted duplicate). Reviewed per field.
+// No foreign keys on purpose: proposals outlive soft-deleted items and revoked guests.
+model InvChangeProposal {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  companyId       String    @map("company_id") @db.Uuid
+  itemId          String    @map("item_id") @db.Uuid
+  kind            String    @default("change") @db.VarChar(20)
+  matchedField    String    @map("matched_field") @db.VarChar(20)
+  matchedValue    String    @map("matched_value") @db.VarChar(255)
+  changes         Json      @default("{}")
+  decisions       Json      @default("{}")
+  status          String    @default("pending") @db.VarChar(20)
+  message         String?   @db.VarChar(1000)
+  proposerUserId  String?   @map("proposer_user_id") @db.Uuid
+  proposerGuestId String?   @map("proposer_guest_id") @db.Uuid
+  proposerLabel   String    @map("proposer_label") @db.VarChar(200)
+  reviewedById    String?   @map("reviewed_by_id") @db.Uuid
+  reviewedAt      DateTime? @map("reviewed_at")
+  reviewNote      String?   @map("review_note") @db.VarChar(1000)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([companyId, status, createdAt])
+  @@index([itemId])
+  @@map("inv_change_proposal")
+}
+
 model InvModel {
   id          String   @id @default(uuid(7)) @db.Uuid
   companyId   String   @db.Uuid @map("company_id")

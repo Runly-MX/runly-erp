@@ -61,6 +61,7 @@ import { createInventoryRouter } from "./routes/inventory/index.js";
 import { createInventoryCustodyPublicRouter } from "./routes/inventory/custody-public-routes.js";
 import { createInventoryItemPublicRouter } from "./routes/inventory/item-public-routes.js";
 import { createInventoryGuestRouter } from "./routes/inventory/guest/guest-routes.js";
+import { createInventoryProposalService } from "./services/inventory-proposal-service.js";
 import { createInventoryGuestPublicRouter } from "./routes/inventory/guest/guest-public-routes.js";
 import { createInventoryGuestService } from "./services/inventory-guest-service.js";
 import { createInventoryGuestItems } from "./services/inventory-guest-items.js";
@@ -2154,6 +2155,7 @@ app.route("/inventory/guest", createInventoryGuestRouter({
   guestService: inventoryGuestService,
   items: inventoryGuestItems,
   imports: createInventoryGuestImport({ prisma, items: inventoryGuestItems }),
+  proposals: createInventoryProposalService({ prisma }),
 }));
 
 const publicFormsRouter = createPublicFormsRouter({ prisma });

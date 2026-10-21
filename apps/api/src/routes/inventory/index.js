@@ -29,6 +29,8 @@ import { createInventoryAreaRouter } from './area-routes.js';
 import { createInventoryAreaService } from '../../services/inventory-area-service.js';
 import { createInventoryGuestInviteRouter } from './guest-invite-routes.js';
 import { createInventoryGuestService } from '../../services/inventory-guest-service.js';
+import { createInventoryProposalRouter } from './proposal-routes.js';
+import { createInventoryProposalService } from '../../services/inventory-proposal-service.js';
 
 export function createInventoryRouter({
   prisma,
@@ -56,6 +58,7 @@ export function createInventoryRouter({
   const itemConnections = createCoreTargetConnections({ prisma, targetType: "inventory_item" });
   router.route('/', createInventoryAreaRouter({ prisma, requirePermission, inventoryScope, inventoryAreaService, InventoryServiceError, supabaseAdmin }));
   router.route('/', createInventoryGuestInviteRouter({ requirePermission, inventoryScope, guestService, InventoryServiceError }));
+  router.route('/', createInventoryProposalRouter({ requirePermission, inventoryScope, proposalService: createInventoryProposalService({ prisma, inventoryService }), InventoryServiceError }));
   router.route('/', createInventoryIntakeRouter({ prisma, requirePermission, inventoryScope }));
   router.route('/', createInventoryModelsRouter({ prisma, requirePermission, inventoryService, InventoryServiceError }));
   router.route('/', createInventoryAdminRouter({ prisma, requirePermission, InventoryServiceError, inventoryNotifSvc, supabaseAdmin, inventoryScope }));
