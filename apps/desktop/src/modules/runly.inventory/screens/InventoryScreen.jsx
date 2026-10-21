@@ -166,6 +166,7 @@ export default function InventoryScreen() {
         { field: 'name',           label: 'Nombre',      sortable: true,  link: true },
         { field: 'categoryName',   label: 'Tipo',        sortable: true  },
         { field: 'brandName',      label: 'Marca',       sortable: true  },
+        { field: 'areaName',       label: 'Área',        sortable: true  },
         {
           field: 'status', label: 'Disponibilidad', sortable: true, type: 'select',
           options: STATUS_OPTIONS,

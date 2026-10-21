@@ -61,6 +61,7 @@ const ITEM_SORTS = {
   categoryName: (dir) => ({ category: { name: dir } }),
   brandName: (dir) => ({ brand: { name: dir } }),
   locationName: (dir) => ({ location: { name: dir } }),
+  areaName: (dir) => ({ area: { name: dir } }),
   assignedToName: (dir) => [{ assignedTo: { firstName: dir } }, { assignedTo: { lastName: dir } }],
 };
 
@@ -207,6 +208,7 @@ export function createInventoryService({ prisma, activityBridge }) {
           category: { select: { id: true, name: true, icon: true, color: true } },
           brand: { select: { id: true, name: true } },
           location: { select: { id: true, name: true } },
+          area: { select: { id: true, name: true } },
           condition: { select: { id: true, name: true, color: true } },
           assignedTo: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
         },
@@ -223,6 +225,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       categoryName: item.category?.name ?? null,
       brandName: item.brand?.name ?? null,
       locationName: item.location?.name ?? null,
+      areaName: item.areaId ? (item.area?.name ?? null) : 'General',
       conditionName: item.condition?.name ?? null,
       assignedToName: item.assignedTo
         ? [item.assignedTo.firstName, item.assignedTo.lastName].filter(Boolean).join(' ')
