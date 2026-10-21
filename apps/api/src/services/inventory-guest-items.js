@@ -139,7 +139,7 @@ export function createInventoryGuestItems({
     const found = await loadItem(ctx, id);
     if (!found.canWrite) throw readOnly();
     if (GUEST_LOCKED_ADMIN_STATUSES.has(found.item.adminStatus)) {
-      throw new InventoryServiceError('Este activo está en revisión de baja; el equipo debe resolverla antes de poder editarlo.', 409, 'ADMIN_STATUS_LOCKED');
+      throw new InventoryServiceError('Este activo está dado de baja y es de solo lectura.', 409, 'ADMIN_STATUS_LOCKED');
     }
     return found.item;
   }

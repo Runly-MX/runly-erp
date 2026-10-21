@@ -346,15 +346,16 @@ describe('guest alta/baja proposals', () => {
     assert.equal(row(IA).adminStatus, 'registration_pending');
   });
 
-  it('a proposed or deregistered item is read-only for the guest (ADMIN_STATUS_LOCKED) but still visible when proposed', async () => {
+  it('a proposed baja stays editable and visible; a deregistered item is read-only (ADMIN_STATUS_LOCKED)', async () => {
     assert.equal((await propose(editor.token, IA)).status, 200);
-    const patch = await t.req(editor.token, 'PATCH', `/inventory/guest/items/${IA}`, { name: 'x' });
-    assert.equal(patch.status, 409);
-    assert.equal((await patch.json()).code, 'ADMIN_STATUS_LOCKED');
+    assert.equal((await t.req(editor.token, 'PATCH', `/inventory/guest/items/${IA}`, { name: 'x' })).status, 200);
+    assert.equal(row(IA).adminStatus, 'deregistration_proposed');
     assert.ok((await ids(await t.req(editor.token, 'GET', '/inventory/guest/items'))).includes(IA));
     assert.equal((await propose(editor.token, IA)).status, 409);
     row(IA1).adminStatus = 'deregistered';
-    assert.equal((await t.req(editor.token, 'PATCH', `/inventory/guest/items/${IA1}`, { name: 'x' })).status, 409);
+    const locked = await t.req(editor.token, 'PATCH', `/inventory/guest/items/${IA1}`, { name: 'x' });
+    assert.equal(locked.status, 409);
+    assert.equal((await locked.json()).code, 'ADMIN_STATUS_LOCKED');
     assert.ok(!(await ids(await t.req(editor.token, 'GET', '/inventory/guest/items'))).includes(IA1));
   });
 

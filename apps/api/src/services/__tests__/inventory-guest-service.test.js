@@ -91,10 +91,21 @@ describe('inventory guest sessions', () => {
     await assert.rejects(t.svc.startSession({ token: 'x'.repeat(43) }), { code: 'INVALID_LINK' });
     await assert.rejects(t.svc.startSession({ token: 'short' }), { code: 'INVALID_LINK' });
     const session = await t.svc.startSession({ token: tokenOf(link) });
-    clock = new Date('2026-01-01T13:00:00Z'); // past the 12h session
+    clock = new Date('2026-01-02T01:00:00Z'); // past the 24h session
     assert.equal(await t.svc.authenticate(`Guest ${session.sessionToken}`), null);
     clock = new Date('2026-01-20T00:00:00Z'); // past the 14d invite
     await assert.rejects(t.svc.startSession({ token: tokenOf(link) }), { code: 'INVALID_LINK' });
+  });
+
+  it('using the portal slides the session, so days of work never cut it off', async () => {
+    let clock = new Date('2026-01-01T00:00:00Z');
+    const t = build({ now: () => clock });
+    const { link } = await t.svc.inviteToArea({ companyId: CO, areaId: AREA, email: 'a@b.co' });
+    const session = await t.svc.startSession({ token: tokenOf(link) });
+    for (let hour = 12; hour <= 96; hour += 12) {
+      clock = new Date(Date.parse('2026-01-01T00:00:00Z') + hour * 3_600_000);
+      assert.ok(await t.svc.authenticate(`Guest ${session.sessionToken}`), `still valid after ${hour}h of use`);
+    }
   });
 
   it('refresh extends the session while the invite is valid, resend rotates links', async () => {
@@ -105,7 +116,7 @@ describe('inventory guest sessions', () => {
     clock = new Date('2026-01-01T10:00:00Z');
     const auth = await t.svc.authenticate(`Guest ${session.sessionToken}`);
     const { expiresAt } = await t.svc.refresh(auth);
-    assert.equal(expiresAt, '2026-01-01T22:00:00.000Z');
+    assert.equal(expiresAt, '2026-01-02T10:00:00.000Z');
     const second = await t.svc.resend({ companyId: CO, guestId: first.guest.id });
     assert.notEqual(second.link, first.link);
     assert.equal(await t.svc.authenticate(`Guest ${session.sessionToken}`), null, 'old invite sessions die');

@@ -16,9 +16,9 @@ const asOptions = (rows = []) => rows.map((r) => ({ value: r.id, label: r.name }
 // numbered pagination), pointed at the supplier API. The transport swaps the Bearer header for the guest
 // session and answers the user-only table-preferences calls locally. Only supplier-safe columns.
 export function GuestItemsTable({ areaId, onOpen, onEdit = null }) {
-  const { sessionToken, expire } = useGuestCall()
+  const { sessionToken, expire, renew } = useGuestCall()
   const catalogs = useGuestCatalogs().data
-  const adapters = useMemo(() => ({ transport: createGuestTableTransport({ sessionToken, onExpire: expire }) }), [sessionToken, expire])
+  const adapters = useMemo(() => ({ transport: createGuestTableTransport({ sessionToken, onExpire: expire, onUnauthorized: async () => (await renew())?.sessionToken ?? null }) }), [sessionToken, expire, renew])
   const externalFilters = useMemo(() => ({ areaId: areaId ?? '' }), [areaId])
 
   const blueprint = useMemo(() => ({

@@ -12,12 +12,15 @@ describe('guest item actions by role and admin status', () => {
     assert.deepEqual([a.canEdit, a.canProposeDeregistration], [true, false])
     assert.ok(a.banner)
   })
-  it('proposed and deregistered items are locked read-only', () => {
-    for (const adminStatus of ['deregistration_proposed', 'deregistered']) {
-      const a = guestItemActions({ canWrite: true, adminStatus })
-      assert.deepEqual([a.canEdit, a.canProposeDeregistration, a.locked], [false, false, true])
-      assert.ok(a.banner)
-    }
+  it('a proposed baja stays editable but cannot be proposed again', () => {
+    const a = guestItemActions({ canWrite: true, adminStatus: 'deregistration_proposed' })
+    assert.deepEqual([a.canEdit, a.canProposeDeregistration, a.locked], [true, false, false])
+    assert.ok(a.banner)
+  })
+  it('a deregistered item is locked read-only', () => {
+    const a = guestItemActions({ canWrite: true, adminStatus: 'deregistered' })
+    assert.deepEqual([a.canEdit, a.canProposeDeregistration, a.locked], [false, false, true])
+    assert.ok(a.banner)
   })
   it('viewers get no actions', () => {
     const a = guestItemActions({ canWrite: false, adminStatus: 'registered' })

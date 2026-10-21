@@ -65,13 +65,57 @@ export function GuestSessionProvider({ token, children }) {
     return () => clearTimeout(timer)
   }, [state.status, session, store, token, fail])
 
+  // The session died under the user (sleeping laptop, throttled timer, server restart): open a new one from
+  // the same invitation link. Without an access code this is invisible; with one the code prompt returns.
+  // Single flight, so parallel failing requests share one renewal.
+  const renewing = useRef(null)
+  const renew = useCallback(() => {
+    if (!renewing.current) {
+      renewing.current = (async () => {
+        try {
+          const next = await guestApi.startSession(token)
+          store.write(token, next)
+          sessionRef.current = next
+          setState({ status: 'ready', session: next, error: null })
+          return next
+        } catch (error) {
+          if (error.code === 'CODE_REQUIRED') setState({ status: 'needs-code', session: null, error: null })
+          return null
+        } finally { renewing.current = null }
+      })()
+    }
+    return renewing.current
+  }, [store, token])
+
+  // Coming back to the tab or the network: refresh early, or renew if the session already lapsed.
+  useEffect(() => {
+    if (state.status !== 'ready') return undefined
+    const check = async () => {
+      const current = sessionRef.current
+      if (!current || document.visibilityState === 'hidden') return
+      if (isSessionExpired(current)) { await renew(); return }
+      if (msUntilRefresh(current) <= 30_000) {
+        try {
+          const { expiresAt } = await guestApi.refresh(current.sessionToken)
+          const next = { ...current, expiresAt }
+          store.write(token, next)
+          sessionRef.current = next
+          setState((s) => ({ ...s, session: next }))
+        } catch { await renew() }
+      }
+    }
+    document.addEventListener('visibilitychange', check)
+    window.addEventListener('online', check)
+    return () => { document.removeEventListener('visibilitychange', check); window.removeEventListener('online', check) }
+  }, [state.status, renew, store, token])
+
   const logout = useCallback(async () => {
     const current = sessionRef.current
     try { if (current) await guestApi.logout(current.sessionToken) } catch { /* session already gone */ }
     fail({ code: 'LOGGED_OUT' })
   }, [fail])
 
-  const value = useMemo(() => ({ ...state, busy, submitCode: open, logout, expire: fail }), [state, busy, open, logout, fail])
+  const value = useMemo(() => ({ ...state, busy, submitCode: open, logout, expire: fail, renew }), [state, busy, open, logout, fail, renew])
   return createElement(GuestContext.Provider, { value }, children)
 }
 
@@ -83,17 +127,23 @@ export function useGuestSession() {
 
 // Runs a guest API call; a SESSION_INVALID answer ends the session (full-page message).
 export function useGuestCall() {
-  const { session, expire } = useGuestSession()
+  const { session, expire, renew } = useGuestSession()
   const sessionToken = session?.sessionToken
   return useMemo(() => ({
     sessionToken,
+    expire,
+    renew,
     run: async (fn) => {
       try { return await fn(sessionToken) } catch (error) {
-        if (error.code === 'SESSION_INVALID') expire(error)
+        if (error.code !== 'SESSION_INVALID') throw error
+        // One silent renewal and one retry before the user is told anything.
+        const next = await renew()
+        if (next) return fn(next.sessionToken)
+        expire(error)
         throw error
       }
     },
-  }), [sessionToken, expire])
+  }), [sessionToken, expire, renew])
 }
 
 const keyFor = (...parts) => ['inventory-guest', ...parts]

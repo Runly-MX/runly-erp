@@ -97,7 +97,10 @@ export function createInventoryGuestService({
     if (!session.guest?.enabled || !inviteUsable(session.invite, at)) return null;
     if (session.guest.companyId !== session.companyId) return null;
     if (!session.lastSeenAt || at.getTime() - new Date(session.lastSeenAt).getTime() > TOUCH_MS) {
-      await prisma.invGuestSession.update({ where: { id: session.id }, data: { lastSeenAt: at } }).catch(() => null);
+      // Using the portal keeps the session alive: a supplier inventorying for days is never cut off mid-work.
+      const slid = new Date(Math.min(addHours(at, SESSION_TTL_HOURS).getTime(), new Date(session.invite.expiresAt).getTime()));
+      const expiresAt = slid > new Date(session.expiresAt) ? slid : session.expiresAt;
+      await prisma.invGuestSession.update({ where: { id: session.id }, data: { lastSeenAt: at, expiresAt } }).catch(() => null);
       await prisma.invGuest.update({ where: { id: session.guestId }, data: { lastSeenAt: at } }).catch(() => null);
     }
     return { guest: session.guest, session, invite: session.invite, companyId: session.companyId };

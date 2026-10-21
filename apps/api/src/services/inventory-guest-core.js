@@ -5,7 +5,8 @@ import crypto from 'node:crypto';
 import { InventoryServiceError } from './inventory-guards.js';
 
 export const INVITE_TTL_DAYS = 14;
-export const SESSION_TTL_HOURS = 12;
+// Sliding: every refresh and every 10 minutes of use pushes the expiry this far ahead (capped by the invite).
+export const SESSION_TTL_HOURS = 24;
 export const GUEST_ROLES = ['viewer', 'editor'];
 // 32 random bytes -> 43 url-safe characters (link token and session token).
 export const GUEST_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
