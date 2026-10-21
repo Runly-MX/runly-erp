@@ -7,6 +7,7 @@ import { Download, FileSpreadsheet, ListChecks, Loader2, Upload } from 'lucide-r
 import { toast } from 'sonner'
 import { ImportMappingStep } from './ImportMappingStep.jsx'
 import { ImportPreviewStep } from './ImportPreviewStep.jsx'
+import { RestrictedImportPanel } from '../proposals/RestrictedImportPanel.jsx'
 
 const STEPS = [
   { key: 'file', label: 'Archivo', icon: Upload },
@@ -18,7 +19,7 @@ const STEPS = [
 // file column to an item field, reviews the result, then imports. Photos come
 // from pictures placed over the rows (XLSX) or a column of image links.
 // Data source and options are injected (`client`), so the same dialog runs for company users and for
-// suppliers: client = { call(path, body), downloadTemplate(), afterImport() }. `areaOptions` (optional)
+// suppliers: client = { call(path, body), downloadTemplate(), afterImport(), submitProposal?(body) }. `areaOptions` (optional)
 // adds a required destination-folder selector whose value travels as options.areaId on commit.
 export function ImportDialogView({ open, onOpenChange, onImported, client, areaOptions = null, canCreateCatalog = true }) {
   const fileRef = useRef(null)
@@ -189,7 +190,8 @@ export function ImportDialogView({ open, onOpenChange, onImported, client, areaO
       onOpenChange={(next) => { if (!next) setResult(null) }}
       title="Resultado de la importación de activos"
       items={result?.items ?? []}
-      extraSummary={result?.photos ? [`${result.photos} fotos adjuntas`] : []}
+      extraSummary={result?.photos ? [`${result.photos} ${result.photos === 1 ? 'foto adjunta' : 'fotos adjuntas'}`] : []}
+      extraSections={client.submitProposal ? <RestrictedImportPanel items={result?.items ?? []} submit={client.submitProposal} /> : null}
       filename="importacion-activos.csv"
     />
     </>

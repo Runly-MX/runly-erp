@@ -108,10 +108,34 @@ test('preview suggests an update for rows matching an active item, with the fiel
   ];
   const result = await service.preview(rows, mapping, COMPANY);
   assert.deepEqual(result.rows.map((r) => r.status), ['update', 'exists']);
-  assert.deepEqual(result.counts, { new: 0, update: 1, exists: 1, error: 0 });
+  assert.deepEqual(result.counts, { new: 0, update: 1, exists: 1, error: 0, restricted: 0 });
   assert.equal(result.rows[0].existing.id, 'i1');
   assert.deepEqual(result.rows[0].changes.map((c) => [c.field, c.current, c.incoming]), [['model', 'XPS', 'XPS 15'], ['partNumber', null, 'PN-9'], ['brandId', null, 'Dell']]);
   assert.equal(result.rows[0].patch, undefined);
+});
+
+test('a row whose number belongs to an item outside the caller\'s areas is restricted, not shown, and carries a proposal', async () => {
+  const hidden = { id: 'i1', name: 'Secreto', assetTag: 'INV-1', serialNumber: 'SN-1' };
+  const prisma = fakePrisma({ items: [hidden], brands: [{ id: 'b1', name: 'Dell' }] });
+  const findMany = prisma.invItem.findMany;
+  // The area filter hides the item from the lookup of existing items (not from the identifier context).
+  prisma.invItem.findMany = async (args) => (args?.where?.id?.in ? [] : findMany(args));
+  const service = createInventoryItemImportService({ prisma, inventoryService: { createItem: async (data) => ({ id: 'new1', name: data.name }) } });
+  const mapping = { name: 'n', serialNumber: 's', brand: 'b', model: 'm' };
+  const rows = [{ n: 'Lector HID', s: 'sn-1', b: 'Dell', m: 'R10' }, { n: 'Otro', s: 'FREE' }];
+  const scope = { all: false, roles: new Map([['area-a', 'editor']]) };
+  const preview = await service.preview(rows, mapping, COMPANY, { scope });
+  assert.deepEqual([preview.rows[0].status, preview.rows[0].restricted, preview.rows[0].existing], ['exists', true, undefined]);
+  assert.equal(preview.counts.restricted, 1);
+  const result = await service.commit({ rows, rowNumbers: [2, 3] }, mapping, COMPANY, 'u1', { scope, areaId: 'area-a' });
+  const item = result.items.find((i) => i.status === 'restricted');
+  assert.equal(item.line, 2);
+  assert.equal(item.proposal.matchedField, 'serialNumber');
+  assert.equal(item.proposal.matchedValue, 'sn-1');
+  assert.deepEqual(item.proposal.changes.name, { value: 'Lector HID' });
+  assert.deepEqual(item.proposal.changes.brandId, { value: 'b1', label: 'Dell' });
+  assert.equal(result.restricted, 1);
+  assert.equal(result.created, 1);
 });
 
 test('commit applies updates only when asked, never blanks values and reports counts', async () => {

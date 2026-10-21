@@ -33,6 +33,7 @@ export function useGuestImportClient() {
     call: (path, body) => run((s) => guestApi.importCall(s, path, body)),
     downloadTemplate: async () => saveBlob(await run((s) => guestApi.importTemplate(s)), 'plantilla-activos.xlsx'),
     afterImport: () => qc.invalidateQueries({ queryKey: ['inventory-guest'] }),
+    submitProposal: (body) => run((s) => guestApi.submitProposal(s, body)),
   }), [run, qc])
 }
 

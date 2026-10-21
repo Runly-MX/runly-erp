@@ -347,6 +347,9 @@ export function createInventoryItemImportService({
     const lookup = (map, name) => (name ? (map.get(key(name)) ?? (createMissing ? NEW_REF : undefined)) : undefined);
     for (const row of analyzed) {
       const item = row.matchId ? byId.get(row.matchId) : null;
+      // The number is taken by an item in a folder outside the caller's areas: nothing about it is shown,
+      // but the row can become a change proposal or an access request (see inventory-proposal-service).
+      if (!item && row.matchId && scope) row.restricted = true;
       if (!item) continue;
       const d = row.data;
       const refs = { categoryId: lookup(ctx.types, d.type), brandId: lookup(ctx.brands, d.brand), locationId: lookup(ctx.locations, d.location), conditionId: lookup(ctx.conditions, d.condition) };
@@ -357,6 +360,26 @@ export function createInventoryItemImportService({
     }
   }
 
+  // What a restricted row would send to review: the identifier that collides and the descriptive values it carries
+  // (catalog values only when they already exist, with the name the file used for the reviewer).
+  function proposalFor(row, ctx) {
+    const d = row.data;
+    const changes = {};
+    const plain = (field, value) => { if (value) changes[field] = { value: String(value) }; };
+    const catalog = (field, map, name) => { const id = name ? map.get(key(name)) : null; if (id) changes[field] = { value: id, label: name }; };
+    if (!d.autoName) plain('name', d.name);
+    plain('model', d.model);
+    plain('partNumber', d.partNumber);
+    plain('warrantyExpiry', d.warrantyExpiry);
+    plain('notes', d.notes);
+    catalog('categoryId', ctx.types, d.type);
+    catalog('brandId', ctx.brands, d.brand);
+    catalog('locationId', ctx.locations, d.location);
+    catalog('conditionId', ctx.conditions, d.condition);
+    const matchedField = row.matchedBy;
+    return { matchedField, matchedValue: matchedField === 'assetTag' ? d.assetTag : d.serialNumber, changes };
+  }
+
   // scope (optional): existing items outside the caller's areas are neither shown nor updated.
   async function preview(rows, mapping, companyId, { createMissing = false, statusMap = {}, rowNumbers, scope = null } = {}) {
     assertCompany(companyId);
@@ -364,12 +387,15 @@ export function createInventoryItemImportService({
     assertInput(rows, mapping, ctx);
     const analyzed = run(rows, mapping, ctx, { createMissing, statusMap }, (i) => rowNumbers?.[i] ?? i + 2);
     await attachExisting(analyzed, companyId, ctx, createMissing, scope);
-    const counts = { new: 0, update: 0, exists: 0, error: 0 };
-    for (const row of analyzed) counts[row.status] += 1;
+    const counts = { new: 0, update: 0, exists: 0, error: 0, restricted: 0 };
+    for (const row of analyzed) {
+      counts[row.status] += 1;
+      if (row.restricted) counts.restricted += 1;
+    }
     const unique = (values) => [...new Map(values.filter(Boolean).map((v) => [key(v), v])).values()];
     const pick = (field) => unique(analyzed.map((r) => r.missing?.[field]));
     return {
-      rows: analyzed.map(({ item, matchId, ...row }) => row),
+      rows: analyzed.map(({ item, matchId, matchedBy, ...row }) => row),
       counts,
       missing: { types: pick('type'), brands: pick('brand'), locations: pick('location'), conditions: pick('condition'), models: pick('model') },
       unknownStatuses: unique(analyzed.flatMap((r) => r.unknownStatus)),
@@ -435,7 +461,9 @@ export function createInventoryItemImportService({
     const record = (row, status, message = '') => items.push({ line: row.line, name: rowName(row.data), status, message });
     for (const row of analyzed) {
       if (row.status === 'error') record(row, 'error', row.errors.join(' '));
-      else if (row.status === 'exists') record(row, 'skipped', row.notes?.join(' ') || 'Ya existe.');
+      else if (row.status === 'exists' && row.restricted) {
+        items.push({ line: row.line, name: rowName(row.data), status: 'restricted', message: 'Ya existe en una carpeta a la que no tienes acceso.', proposal: proposalFor(row, ctx) });
+      } else if (row.status === 'exists') record(row, 'skipped', row.notes?.join(' ') || 'Ya existe.');
       if (row.status === 'update') {
         if (!updateExisting) { notApplied += 1; record(row, 'skipped', 'Ya existe; no se actualizó.'); continue; }
         if (guest && GUEST_LOCKED_ADMIN_STATUSES.has(row.item.adminStatus)) { notApplied += 1; record(row, 'skipped', 'El activo está dado de baja; no se actualizó.'); continue; }
@@ -529,6 +557,7 @@ export function createInventoryItemImportService({
       updated,
       photos,
       skipped,
+      restricted: items.filter((i) => i.status === 'restricted').length,
       failed,
       failures,
       photoFailures: photoFailures.slice(0, 50),

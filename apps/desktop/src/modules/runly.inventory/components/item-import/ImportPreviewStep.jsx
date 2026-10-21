@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ExternalLink, ImageIcon, MinusCircle, RefreshCw, Sparkles } from 'lucide-react'
-import { Badge, CheckboxField, DataTable, SegmentedControl, SelectField, cn } from '@runly/ui'
+import { AlertTriangle, CheckCircle2, ExternalLink, ImageIcon, Lock, MinusCircle, RefreshCw, Sparkles } from 'lucide-react'
+import { Badge, Button, CheckboxField, DataTable, SegmentedControl, SelectField, cn, useIsMobile } from '@runly/ui'
 import { InventoryChangesDiff } from '../InventoryMatchPanel.jsx'
 import { itemUrl } from '../InventoryIdentifierConflict.jsx'
 
@@ -9,7 +9,10 @@ const RESULT = {
   update: { label: 'Actualizar', variant: 'warning', icon: RefreshCw },
   exists: { label: 'Sin cambios', variant: 'outline', icon: MinusCircle },
   error: { label: 'Con error', variant: 'destructive', icon: AlertTriangle },
+  restricted: { label: 'Sin acceso', variant: 'warning', icon: Lock },
 }
+// A row that matches an item in a folder the user cannot open is still 'exists' for the API; the view calls it restricted.
+const viewStatus = (row) => (row.restricted ? 'restricted' : row.status)
 
 function ItemCell({ data }) {
   const meta = [data.type, data.brand, data.model].filter(Boolean).join(' · ')
@@ -25,6 +28,7 @@ function ItemCell({ data }) {
 }
 
 function DetailCell({ row, updateExisting }) {
+  if (row.restricted) return <p className="text-xs text-[hsl(var(--muted-foreground))]">Ya existe en una carpeta sin acceso. Al terminar podrás enviar tus datos a revisión o solicitar acceso.</p>
   if (row.status === 'update' || (row.status === 'exists' && row.existing)) {
     return (
       <div className="space-y-1.5">
@@ -46,10 +50,45 @@ function DetailCell({ row, updateExisting }) {
   )
 }
 
+const MOBILE_PAGE = 15
+
+// Phones get cards instead of a six-column table that scrolls sideways.
+function PreviewRowList({ rows, updateExisting }) {
+  const [shown, setShown] = useState(MOBILE_PAGE)
+  if (!rows.length) return <p className="py-8 text-center text-sm text-[hsl(var(--muted-foreground))]">Sin filas en este filtro</p>
+  return (
+    <div className="space-y-2">
+      <ul className="space-y-2">
+        {rows.slice(0, shown).map((row) => {
+          const status = RESULT[viewStatus(row)]
+          const ids = [row.data.serialNumber, row.data.assetTag].filter(Boolean).join(' · ')
+          return (
+            <li key={row.line} className="space-y-2 rounded-xl border border-[hsl(var(--border))] p-3">
+              <div className="flex items-start justify-between gap-2">
+                <ItemCell data={row.data} />
+                <Badge variant={status.variant} className="shrink-0">{status.label}</Badge>
+              </div>
+              <p className="flex flex-wrap items-center gap-x-3 text-xs text-[hsl(var(--muted-foreground))]">
+                <span>Fila {row.line}</span>
+                {ids ? <span className="break-all">{ids}</span> : null}
+                {row.photoCount ? <span className="inline-flex items-center gap-1"><ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />{row.photoCount}</span> : null}
+              </p>
+              <DetailCell row={row} updateExisting={updateExisting} />
+            </li>
+          )
+        })}
+      </ul>
+      {rows.length > shown ? (
+        <Button type="button" variant="outline" className="w-full pointer-coarse:min-h-11" onClick={() => setShown((n) => n + MOBILE_PAGE)}>Mostrar más ({rows.length - shown})</Button>
+      ) : null}
+    </div>
+  )
+}
+
 const buildColumns = (updateExisting) => [
   { accessorKey: 'line', header: 'Fila', size: 60 },
-  { id: 'result', header: 'Resultado', accessorFn: (r) => RESULT[r.status].label,
-    cell: ({ row }) => <Badge variant={RESULT[row.original.status].variant}>{RESULT[row.original.status].label}</Badge> },
+  { id: 'result', header: 'Resultado', accessorFn: (r) => RESULT[viewStatus(r)].label,
+    cell: ({ row }) => <Badge variant={RESULT[viewStatus(row.original)].variant}>{RESULT[viewStatus(row.original)].label}</Badge> },
   { id: 'item', header: 'Activo', accessorFn: (r) => r.data?.name ?? '', cell: ({ row }) => <ItemCell data={row.original.data} /> },
   { id: 'ids', header: 'Serie / N.º de activo', accessorFn: (r) => r.data?.serialNumber || r.data?.assetTag || '',
     cell: ({ row }) => <span className="text-xs">{[row.original.data.serialNumber, row.original.data.assetTag].filter(Boolean).join(' · ') || '—'}</span> },
@@ -63,10 +102,13 @@ const buildColumns = (updateExisting) => [
 // result.
 export function ImportPreviewStep({ preview, imageCounts, createMissing, onCreateMissingChange, statusMap, statuses, onStatusMapChange, updateExisting = true, onUpdateExistingChange, busy, canCreateCatalog = true }) {
   const [filter, setFilter] = useState('all')
+  const isMobile = useIsMobile(768)
   const rows = useMemo(() => preview.rows.map((row, i) => ({ ...row, photoCount: (imageCounts[i] ?? 0) + (row.data.photoUrls?.length ?? 0) })), [preview.rows, imageCounts])
   const columns = useMemo(() => buildColumns(updateExisting), [updateExisting])
-  const visible = filter === 'all' ? rows : rows.filter((r) => r.status === filter)
+  const visible = filter === 'all' ? rows : rows.filter((r) => viewStatus(r) === filter)
   const { counts } = preview
+  const restricted = counts.restricted ?? 0
+  const existsPlain = counts.exists - restricted
   const toCreate = [
     ...preview.missing.types.map((n) => ['Tipo', n]),
     ...preview.missing.brands.map((n) => ['Marca', n]),
@@ -86,7 +128,8 @@ export function ImportPreviewStep({ preview, imageCounts, createMissing, onCreat
         <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">
           {[
             counts.update ? `${counts.update} ${counts.update === 1 ? 'equipo existente se actualizará' : 'equipos existentes se actualizarán'}` : null,
-            counts.exists ? `${counts.exists} ${counts.exists === 1 ? 'fila ya existe sin cambios' : 'filas ya existen sin cambios'}` : null,
+            existsPlain ? `${existsPlain} ${existsPlain === 1 ? 'fila ya existe sin cambios' : 'filas ya existen sin cambios'}` : null,
+            restricted ? `${restricted} ${restricted === 1 ? 'fila ya existe en una carpeta sin acceso' : 'filas ya existen en carpetas sin acceso'}` : null,
             counts.error ? `${counts.error} ${counts.error === 1 ? 'fila tiene errores y no se importará' : 'filas tienen errores y no se importarán'}` : null,
             photos ? `${photos} ${photos === 1 ? 'foto se adjuntará' : 'fotos se adjuntarán'}` : null,
           ].filter(Boolean).join(' · ') || 'Todas las filas están listas.'}
@@ -99,6 +142,16 @@ export function ImportPreviewStep({ preview, imageCounts, createMissing, onCreat
           <p className="text-xs text-[hsl(var(--muted-foreground))]">No se crean duplicados. Se actualizan solo los campos con datos nuevos del archivo; nunca se borran valores existentes ni se cambian la serie o el número de activo.</p>
           <CheckboxField label={`Actualizar los ${counts.update} ${counts.update === 1 ? 'equipo existente' : 'equipos existentes'}`} checked={updateExisting} disabled={busy}
             onChange={(e) => onUpdateExistingChange?.(e.target.checked)} />
+        </section>
+      ) : null}
+
+      {restricted > 0 ? (
+        <section className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400"><Lock className="h-4 w-4" aria-hidden="true" /></span>
+          <div className="min-w-0 space-y-1">
+            <p className="text-sm font-medium text-[hsl(var(--foreground))]">{restricted} {restricted === 1 ? 'fila ya existe' : 'filas ya existen'} en carpetas a las que no tienes acceso</p>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">No se duplican ni se muestran. Al terminar la importación podrás enviar lo que traían a revisión de quien administra esas carpetas, o solicitar acceso.</p>
+          </div>
         </section>
       ) : null}
 
@@ -136,17 +189,24 @@ export function ImportPreviewStep({ preview, imageCounts, createMissing, onCreat
       ) : null}
 
       <div className="space-y-2">
-        <SegmentedControl ariaLabel="Filtrar filas" value={filter} onChange={setFilter} className="w-auto"
-          options={[
-            { value: 'all', label: `Todas (${rows.length})` },
-            { value: 'new', label: `Se crean (${counts.new})` },
-            { value: 'update', label: `Se actualizan (${counts.update})` },
-            { value: 'exists', label: `Sin cambios (${counts.exists})` },
-            { value: 'error', label: `Con error (${counts.error})` },
-          ]} />
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <SegmentedControl ariaLabel="Filtrar filas" value={filter} onChange={setFilter} className="w-max"
+            options={[
+              { value: 'all', label: `Todas (${rows.length})` },
+              { value: 'new', label: `Se crean (${counts.new})` },
+              { value: 'update', label: `Se actualizan (${counts.update})` },
+              { value: 'exists', label: `Sin cambios (${existsPlain})` },
+              ...(restricted ? [{ value: 'restricted', label: `Sin acceso (${restricted})` }] : []),
+              { value: 'error', label: `Con error (${counts.error})` },
+            ]} />
+        </div>
         <div className={cn(busy && 'pointer-events-none opacity-60')}>
-          <DataTable columns={columns} data={visible} pageSize={10} getRowId={(row) => String(row.line)} searchPlaceholder="Buscar por nombre, serie o detalle..."
-            emptyTitle="Sin filas en este filtro" />
+          {isMobile
+            ? <PreviewRowList key={filter} rows={visible} updateExisting={updateExisting} />
+            : (
+              <DataTable columns={columns} data={visible} pageSize={10} getRowId={(row) => String(row.line)} searchPlaceholder="Buscar por nombre, serie o detalle..."
+                emptyTitle="Sin filas en este filtro" />
+            )}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { runly } from '../../../lib/runly'
 import { intakeRequest } from '../lib/intake.js'
 import { saveBlob } from '../lib/save-blob.js'
 import { ImportDialogView } from './item-import/ImportDialogView.jsx'
@@ -25,6 +26,7 @@ export function InventoryItemImportDialog({ open, onOpenChange, onImported }) {
       saveBlob(await res.blob(), 'plantilla-activos.xlsx')
     },
     afterImport: () => qc.invalidateQueries({ queryKey: ['inventory'] }),
+    submitProposal: (body) => runly.inventory.submitChangeProposal(body, token),
   }), [token, activeCompanyId, qc])
 
   return <ImportDialogView open={open} onOpenChange={onOpenChange} onImported={onImported} client={client} />
