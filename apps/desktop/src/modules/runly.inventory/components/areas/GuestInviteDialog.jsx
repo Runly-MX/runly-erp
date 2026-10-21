@@ -67,8 +67,8 @@ export function GuestInviteDialog({ open, onOpenChange, area, onInvited }) {
           </DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-0.5">
-          <ContactPicker label="Contacto (opcional)" value={contact} onChange={pickContact} searchContacts={searchContacts}
-            placeholder="Buscar un proveedor registrado..." hint="Al elegirlo se completan el correo y el nombre." />
+          <ContactPicker label="Contacto (opcional)" value={contact} onChange={pickContact} searchContacts={searchContacts} minQueryLength={0} emptyText="Ningún contacto coincide. Revisa la ortografía."
+            placeholder="Buscar en todos tus contactos..." hint="Puede ser cualquier contacto, no solo proveedores. Al elegirlo se completan el correo y el nombre." />
           <TextField label="Correo" type="email" required value={email} error={error}
             onChange={(e) => { setEmail(e.target.value); setError('') }} />
           <TextField label="Nombre" value={name} maxLength={150} onChange={(e) => setName(e.target.value)} />
