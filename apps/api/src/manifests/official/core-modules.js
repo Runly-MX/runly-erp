@@ -1356,32 +1356,22 @@ export const inventoryMap = createModuleManifest({
       permissionKey: 'inventory.item.read',
     },
     {
-      label: 'Asignaciones',
-      path: '/inventory/assignments',
+      label: 'Custodia',
       icon: 'UserCheck',
       layout: 'main',
-      permissionKey: 'inventory.assignment.read',
+      children: [
+        { label: 'Asignaciones', path: '/inventory/assignments', permissionKey: 'inventory.assignment.read' },
+        { label: 'Resguardos', path: '/inventory/custodies', permissionKey: 'inventory.custody.read' },
+      ],
     },
     {
-      label: 'Resguardos',
-      path: '/inventory/custodies',
-      icon: 'FileText',
-      layout: 'main',
-      permissionKey: 'inventory.custody.read',
-    },
-    {
-      label: 'Etiquetas',
-      path: '/inventory/labels',
+      label: 'Etiquetas y QR',
       icon: 'QrCode',
       layout: 'main',
-      permissionKey: 'inventory.label.read',
-    },
-    {
-      label: 'Escanear',
-      path: '/inventory/scan',
-      icon: 'ScanLine',
-      layout: 'main',
-      permissionKey: 'inventory.item.read',
+      children: [
+        { label: 'Etiquetas', path: '/inventory/labels', permissionKey: 'inventory.label.read' },
+        { label: 'Escanear', path: '/inventory/scan', permissionKey: 'inventory.item.read' },
+      ],
     },
     {
       label: 'Catalogos',
