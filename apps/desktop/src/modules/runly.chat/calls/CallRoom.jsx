@@ -79,7 +79,7 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
     return recordingOrientation({ people, hasScreenShare });
   }, [room]);
   const recording = useCallRecording({ callId: session.call.id, conversationId, getOrientation: getRecordingOrientation });
-  const audioRoute = useAudioRoute({ enabled: !minimized });
+  const audioRoute = useAudioRoute({ enabled: !minimized, video: session.call.kind === "VIDEO" || cameraEnabled });
   useEffect(() => {
     if (recording.active) onRecordingActive?.(session.call.id);
   }, [recording.active]); // eslint-disable-line react-hooks/exhaustive-deps

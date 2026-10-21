@@ -73,6 +73,8 @@ fn main() {
             "host_call_keepalive_stop",
             "host_audio_routes",
             "host_audio_route_set",
+            "host_audio_route_reset",
+            "host_proximity_set",
             "host_fcm_token",
         ]),
     ))

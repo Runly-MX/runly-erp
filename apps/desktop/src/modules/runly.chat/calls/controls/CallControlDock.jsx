@@ -6,7 +6,7 @@ import {
 import {
   Camera, CameraOff, Captions, CaptionsOff, Circle, Hand, Keyboard, LayoutGrid, LogOut, Maximize, MessageSquare,
   Mic, MicOff, MonitorUp, MoreHorizontal, PhoneOff, ScreenShareOff, Settings2, SmilePlus, StopCircle, Users,
-  Volume2, PhoneMissed,
+  Volume2, Phone, PhoneMissed,
 } from "lucide-react";
 import { DockButton, DockSplitButton } from "../ui/DockButton";
 import { ReactionPopover } from "./ReactionPopover";
@@ -72,6 +72,18 @@ export function CallControlDock({ ctl, room, mediaDevices, compact = false, clas
           />
         )}
       />
+
+      {ctl.speaker?.available && (
+        <DockButton
+          icon={ctl.speaker.speakerOn ? Volume2 : Phone}
+          label={ctl.speaker.speakerOn ? "Altavoz" : "Auricular"}
+          title={ctl.speaker.speakerOn ? "Cambiar a auricular" : "Cambiar a altavoz"}
+          tone={ctl.speaker.speakerOn ? "accent" : "default"}
+          pressed={ctl.speaker.speakerOn}
+          onClick={ctl.speaker.toggle}
+          compact={compact}
+        />
+      )}
 
       <Divider />
 

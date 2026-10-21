@@ -49,6 +49,10 @@ pub fn run() {
             #[cfg(target_os = "android")]
             mobile_media::host_audio_route_set,
             #[cfg(target_os = "android")]
+            mobile_media::host_audio_route_reset,
+            #[cfg(target_os = "android")]
+            mobile_media::host_proximity_set,
+            #[cfg(target_os = "android")]
             mobile_media::host_fcm_token,
             #[cfg(target_os = "android")]
             mobile_media::host_device

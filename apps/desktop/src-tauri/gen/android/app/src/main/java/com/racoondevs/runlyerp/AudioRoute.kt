@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
+import android.os.PowerManager
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 
@@ -62,19 +63,63 @@ object AudioRoute {
     }
   }
 
-  fun set(context: Context, id: String): Boolean {
-    val am = manager(context)
-    am.mode = AudioManager.MODE_IN_COMMUNICATION
-    if (Build.VERSION.SDK_INT >= 31) {
-      val device = am.availableCommunicationDevices.firstOrNull { idFor(it.type) == id } ?: return false
-      return am.setCommunicationDevice(device)
-    }
-    @Suppress("DEPRECATION")
+  // Some OEMs ignore setCommunicationDevice (or don't list the built-in
+  // speaker), so the speaker falls back to the legacy speakerphone switch.
+  @Suppress("DEPRECATION")
+  private fun legacySet(am: AudioManager, id: String) {
     when (id) {
       "speaker" -> { am.stopBluetoothSco(); am.isBluetoothScoOn = false; am.isSpeakerphoneOn = true }
       "bluetooth" -> { am.isSpeakerphoneOn = false; am.startBluetoothSco(); am.isBluetoothScoOn = true }
       else -> { am.stopBluetoothSco(); am.isBluetoothScoOn = false; am.isSpeakerphoneOn = false }
     }
+  }
+
+  fun set(context: Context, id: String): Boolean {
+    val am = manager(context)
+    am.mode = AudioManager.MODE_IN_COMMUNICATION
+    if (Build.VERSION.SDK_INT >= 31) {
+      val device = am.availableCommunicationDevices.firstOrNull { idFor(it.type) == id }
+      if (device != null && am.setCommunicationDevice(device) && am.communicationDevice?.let { idFor(it.type) } == id) return true
+      if (id == "speaker") {
+        am.clearCommunicationDevice()
+        @Suppress("DEPRECATION")
+        am.isSpeakerphoneOn = true
+        return true
+      }
+      return false
+    }
+    legacySet(am, id)
+    return true
+  }
+
+  // Hands the audio routing back to the system once the call is over.
+  fun reset(context: Context) {
+    val am = manager(context)
+    if (Build.VERSION.SDK_INT >= 31) am.clearCommunicationDevice()
+    @Suppress("DEPRECATION")
+    run { am.stopBluetoothSco(); am.isBluetoothScoOn = false; am.isSpeakerphoneOn = false }
+    am.mode = AudioManager.MODE_NORMAL
+  }
+}
+
+// Turns the screen off (without locking the phone) while it is held against
+// the ear, like a regular phone call. Released as soon as it is disabled.
+object ProximityScreen {
+  private var lock: PowerManager.WakeLock? = null
+
+  fun set(context: Context, enabled: Boolean): Boolean {
+    val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    if (!enabled) {
+      lock?.let { if (it.isHeld) it.release() }
+      lock = null
+      return true
+    }
+    if (!pm.isWakeLockLevelSupported(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)) return false
+    val current = lock ?: pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "runly:call-proximity").also {
+      it.setReferenceCounted(false)
+      lock = it
+    }
+    if (!current.isHeld) current.acquire(4 * 60 * 60 * 1000L)
     return true
   }
 }

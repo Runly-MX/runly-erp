@@ -170,6 +170,22 @@ pub async fn host_audio_route_set(
 }
 
 #[tauri::command]
+pub async fn host_audio_route_reset(window: WebviewWindow, app: AppHandle) -> Result<Value, String> {
+    super::mobile_host::check_remote(&window)?;
+    run(app, "resetAudioRoute", json!({})).await
+}
+
+#[tauri::command]
+pub async fn host_proximity_set(
+    window: WebviewWindow,
+    app: AppHandle,
+    enabled: bool,
+) -> Result<Value, String> {
+    super::mobile_host::check_remote(&window)?;
+    run(app, "setProximity", json!({ "enabled": enabled })).await
+}
+
+#[tauri::command]
 pub async fn host_fcm_token(window: WebviewWindow, app: AppHandle) -> Result<Value, String> {
     super::mobile_host::check_remote(&window)?;
     run(app, "currentToken", json!({})).await

@@ -75,7 +75,7 @@ export function makeConfig(origin) {
               'notification:allow-create-channel', 'notification:allow-remove-active', 'allow-host-notification-show',
               'allow-host-screen-start', 'allow-host-screen-stop', 'allow-host-screen-status',
               'allow-host-call-keepalive-start', 'allow-host-call-keepalive-stop',
-              'allow-host-audio-routes', 'allow-host-audio-route-set',
+              'allow-host-audio-routes', 'allow-host-audio-route-set', 'allow-host-audio-route-reset', 'allow-host-proximity-set',
               'haptics:allow-impact-feedback', 'allow-host-open-external', 'allow-host-fcm-token', 'allow-host-manage', 'allow-host-device'] },
         ],
       },

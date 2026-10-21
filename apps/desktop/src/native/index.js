@@ -122,6 +122,19 @@ export const native = {
       await native.requireCapability('audio-route')
       return invoke('host_audio_route_set', { id })
     },
+    async reset() {
+      if (!native.supports('audio-route')) return
+      await invoke('host_audio_route_reset')
+    },
+  },
+  // Android: screen off while the phone is against the ear (not a lock).
+  proximity: {
+    async set(enabled) {
+      await getHostInfo()
+      if (!native.supports('audio-route')) return false
+      const result = await invoke('host_proximity_set', { enabled: Boolean(enabled) })
+      return Boolean(result?.active)
+    },
   },
   haptics: {
     async impact(style = 'light') {

@@ -23,6 +23,7 @@ import { CallSidePanel, CallPanelSheet } from "./panel/CallSidePanel";
 import { CallPeoplePanel } from "./people/CallPeoplePanel";
 import { useCallRoster } from "./hooks/useCallRoster";
 import { useMediaDevices } from "./hooks/useMediaDevices";
+import { useSpeakerControl } from "./hooks/useSpeakerControl";
 import { useCallShortcuts } from "./hooks/useCallShortcuts";
 import { useChromeVisibility } from "./hooks/useChromeVisibility";
 import { useFocusedSpeaker } from "./hooks/useFocusedSpeaker";
@@ -272,6 +273,7 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
   }, []);
 
   const isDirect = conversation?.type === "direct";
+  const speaker = useSpeakerControl({ audioRoute: media.audioRoute, mediaDevices });
   const ctl = {
     ...media,
     myHandRaised: live.myHandRaised,
@@ -297,6 +299,7 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
     leave: () => actions.leave(),
     requestEndForAll: () => setConfirmEndAll(true),
     audioRoute: media.audioRoute ?? null,
+    speaker,
   };
 
   useCallShortcuts({
@@ -433,6 +436,7 @@ export function CallRoomLayout({ room, call, media, people, live, actions, invit
           onMinimize={actions.minimize}
           canSwitchCamera={media.canSwitchCamera && media.cameraEnabled}
           onSwitchCamera={media.switchCamera}
+          speaker={speaker.available ? speaker : null}
           canInvite={people.canShare}
           onInvite={() => setShareOpen(true)}
           onOpenPeople={() => openPanel("people")}

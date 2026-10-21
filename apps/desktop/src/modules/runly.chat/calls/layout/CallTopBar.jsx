@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { cn } from "@runly/ui";
-import { Check, ChevronDown, Copy, LayoutGrid, Maximize2, Minimize2, Sparkles, SwitchCamera, UserPlus, Users, Wifi, WifiOff } from "lucide-react";
+import { Check, ChevronDown, Copy, LayoutGrid, Maximize2, Minimize2, Phone, Sparkles, SwitchCamera, UserPlus, Users, Volume2, Wifi, WifiOff } from "lucide-react";
 import { ConnectionQuality } from "livekit-client";
 import { formatClock } from "../ui/callTheme";
 
@@ -153,7 +153,7 @@ export function CallTopBar({ title, subtitle, status, elapsed, recordingActive, 
 }
 
 // Phone top bar: minimize, title + clock + ID, quick camera flip and invite.
-export function MobileCallTopBar({ title, status, elapsed, recordingActive, recordingPaused = false, recordingElapsed, idleLabel = null, meetingId, onMinimize, canSwitchCamera, onSwitchCamera, canInvite, onInvite, onOpenPeople, lobbyCount = 0, hidden = false, dragHandlers = null }) {
+export function MobileCallTopBar({ title, status, elapsed, recordingActive, recordingPaused = false, recordingElapsed, idleLabel = null, meetingId, onMinimize, canSwitchCamera, onSwitchCamera, speaker = null, canInvite, onInvite, onOpenPeople, lobbyCount = 0, hidden = false, dragHandlers = null }) {
   const clock = recordingActive
     ? `${recordingPaused ? "En pausa · " : ""}${formatClock(recordingElapsed)}`
     : idleLabel ?? formatClock(elapsed);
@@ -182,6 +182,20 @@ export function MobileCallTopBar({ title, status, elapsed, recordingActive, reco
           {meetingId && <><span aria-hidden>·</span><span className="truncate font-mono">{meetingId}</span></>}
         </p>
       </div>
+      {speaker && (
+        <button
+          type="button"
+          onClick={speaker.toggle}
+          aria-pressed={speaker.speakerOn}
+          aria-label={speaker.speakerOn ? "Desactivar altavoz" : "Activar altavoz"}
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1 active:brightness-110",
+            speaker.speakerOn ? "bg-white text-slate-900 ring-transparent" : "bg-white/[0.08] ring-white/10 active:bg-white/15",
+          )}
+        >
+          {speaker.speakerOn ? <Volume2 className="h-[18px] w-[18px]" /> : <Phone className="h-[18px] w-[18px]" />}
+        </button>
+      )}
       {canSwitchCamera ? (
         <button type="button" onClick={onSwitchCamera} aria-label="Girar cámara" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.08] ring-1 ring-white/10 active:bg-white/15">
           <SwitchCamera className="h-[18px] w-[18px]" />

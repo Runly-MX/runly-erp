@@ -311,6 +311,28 @@ class ScreenSharePlugin(private val activity: Activity) : Plugin(activity) {
     }
   }
 
+  @Command
+  fun resetAudioRoute(invoke: Invoke) {
+    try {
+      ProximityScreen.set(activity, false)
+      AudioRoute.reset(activity)
+      invoke.resolve()
+    } catch (error: Exception) {
+      invoke.reject("No se pudo restablecer la salida de audio.")
+    }
+  }
+
+  // Dims the screen near the ear; unsupported devices just keep it on.
+  @Command
+  fun setProximity(invoke: Invoke) {
+    val enabled = invoke.getArgs().optBoolean("enabled", false)
+    try {
+      invoke.resolve(JSObject().apply { put("active", ProximityScreen.set(activity, enabled) && enabled) })
+    } catch (error: Exception) {
+      invoke.resolve(JSObject().apply { put("active", false) })
+    }
+  }
+
   companion object {
     private var instance: ScreenSharePlugin? = null
     fun stopCurrent() {

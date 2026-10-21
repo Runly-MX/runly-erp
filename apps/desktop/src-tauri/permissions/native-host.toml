@@ -69,6 +69,16 @@ description = "Switch the Android in-call audio output."
 commands.allow = ["host_audio_route_set"]
 
 [[permission]]
+identifier = "allow-host-audio-route-reset"
+description = "Hand the Android audio routing back to the system when a call ends."
+commands.allow = ["host_audio_route_reset"]
+
+[[permission]]
+identifier = "allow-host-proximity-set"
+description = "Turn the Android screen off while the phone is held against the ear during a call."
+commands.allow = ["host_proximity_set"]
+
+[[permission]]
 identifier = "allow-host-confirm-origin"
 description = "Persist and navigate to a server origin that already passed preflight."
 commands.allow = ["host_confirm_origin"]
