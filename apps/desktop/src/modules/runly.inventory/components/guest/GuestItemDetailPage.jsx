@@ -65,8 +65,8 @@ export function GuestItemDetailPage({ itemId, areaName, onBack, onEdit }) {
       {actions.banner ? <Alert variant={actions.banner.tone}><Info className="h-4 w-4" /><p className="text-sm">{actions.banner.text}</p></Alert> : null}
       {!data.canWrite ? <Alert><Info className="h-4 w-4" /><p className="text-sm">Tu acceso a{areaName ? ` «${areaName}»` : ' esta carpeta'} es de solo lectura, por eso no ves el botón Editar. Pide al equipo que te cambie el permiso a Editor.</p></Alert> : null}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="space-y-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 space-y-4">
           <SectionCard padded={false} className="overflow-hidden">
             <div className="flex items-center gap-4 p-4">
               <button type="button" disabled={!data.coverUrl} onClick={() => setCoverOpen(true)} aria-label="Ver imagen"
@@ -120,7 +120,7 @@ export function GuestItemDetailPage({ itemId, areaName, onBack, onEdit }) {
           ) : null}
           {data.notes ? <SectionCard title="Notas" icon={StickyNote}><p className="whitespace-pre-line text-sm">{data.notes}</p></SectionCard> : null}
         </div>
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        <aside className="min-w-0 lg:sticky lg:top-20 lg:self-start">
           <SectionCard><GuestItemFiles itemId={data.id} canWrite={actions.canEdit} /></SectionCard>
         </aside>
       </div>

@@ -116,11 +116,11 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
         subtitle={isCreate ? 'Registra un item en una de tus carpetas. Llegará como propuesta de alta.' : (item.folio || item.name)}
         actions={[{ key: 'back', label: 'Volver', icon: <ArrowLeft className="h-4 w-4" />, placement: 'collapse', onClick: requestBack }]}
       />
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <GuestItemFormSections form={form} item={item} areaOptions={areaOptions} areaLabel={areaPathLabel(areas, areaId) || 'Sin carpeta'}
           catalogs={catalogs} canCreate={canCreate} statusEditable={statusEditable} conflicts={conflicts}
           customEntries={customEntries} customResetKey={customKey} onCustomDefinitions={setExtraDefs} />
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        <aside className="min-w-0 lg:sticky lg:top-20 lg:self-start">
           <SectionCard title="Fotos y archivos" icon={Paperclip}>
             <GuestFormFiles itemId={item?.id ?? null} staged={staged} onStagedChange={setStaged} />
           </SectionCard>

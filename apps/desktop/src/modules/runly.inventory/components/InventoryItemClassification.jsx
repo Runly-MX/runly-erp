@@ -47,7 +47,7 @@ export function InventoryItemClassification({ value, onChange, errors = {}, disa
   }
 
   return (
-    <fieldset disabled={disabled} className="grid gap-4 lg:grid-cols-2">
+    <fieldset disabled={disabled} className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
       <div className="relative col-span-full">
         {renderPin?.(['modelId', 'model'], 'Modelo')}
         <ModelCombobox

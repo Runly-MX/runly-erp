@@ -58,7 +58,7 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
   }
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <SectionCard title="Modelo, tipo y marca" icon={Boxes} description="Elige un modelo del catálogo y se completan el tipo y la marca.">
         <div className="space-y-4">
           {!item && areaOptions.length > 1 ? (
@@ -77,7 +77,7 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
       </SectionCard>
 
       <SectionCard title="Identificación" icon={IdCard}>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <TextField label="Folio" icon={Hash} hint="Se genera solo si lo dejas vacío" maxLength={50} error={err('folio')} {...register('folio')} />
           <div>
             <TextField label="Número de serie" icon={Barcode} maxLength={255} error={err('serialNumber')} {...register('serialNumber')} />
@@ -96,7 +96,7 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
       </SectionCard>
 
       <SectionCard title="Ubicación y estado" icon={MapPin}>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Controller name="locationId" control={control} render={({ field }) => (
             <GuestCatalogField kind="locations" noun="Ubicación" label="Ubicación" icon={MapPin} rows={catalogs?.locations} value={field.value} onChange={field.onChange} canCreate={canCreate} />
           )} />
@@ -112,7 +112,7 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
       </SectionCard>
 
       <SectionCard title="Garantía" icon={ShieldCheck}>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Controller name="warrantyExpiry" control={control} render={({ field }) => (
             <DateField label="Vencimiento de garantía" value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} name={field.name} error={err('warrantyExpiry')} />
           )} />
