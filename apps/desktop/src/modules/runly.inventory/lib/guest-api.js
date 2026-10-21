@@ -59,6 +59,8 @@ export const guestApi = {
   models: (s, query) => call('GET', '/inventory/guest/models', { sessionToken: s, query }).then(unwrap),
   createModel: (s, body) => call('POST', '/inventory/guest/models', { sessionToken: s, body }).then(unwrap),
   createEntry: (s, kind, body) => call('POST', `/inventory/guest/${kind}`, { sessionToken: s, body }).then(unwrap),
+  // Values or an access request for an item the supplier cannot open (restricted duplicate).
+  submitProposal: (s, body) => call('POST', '/inventory/guest/change-proposals', { sessionToken: s, body }).then(unwrap),
   checkIdentifiers: (s, query) => call('GET', '/inventory/guest/items/check-identifiers', { sessionToken: s, query }).then(unwrap),
   // Excel import (needs the canImport capability). Same shapes as the main /inventory/item-import/*.
   importTemplate: (s) => call('GET', '/inventory/guest/item-import/template', { sessionToken: s, blob: true }),

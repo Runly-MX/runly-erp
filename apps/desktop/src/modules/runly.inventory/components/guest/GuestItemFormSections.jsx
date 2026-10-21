@@ -10,6 +10,7 @@ import { useGuestCall } from '../../hooks/useInventoryGuest.js'
 import { GUEST_WRITABLE_STATUS_OPTIONS } from '../../lib/guest-session.js'
 import { InventoryItemClassification } from '../InventoryItemClassification.jsx'
 import { GuestCatalogField } from './GuestCatalogField.jsx'
+import { RestrictedDuplicateNote } from '../proposals/RestrictedDuplicateNote.jsx'
 
 const CUSTOM_PREFIX = 'customValues'
 const GUEST_CUSTOM_FIELDS = { apiPath: '/inventory/guest/custom-fields', valuePrefix: CUSTOM_PREFIX, categoryField: 'categoryId' }
@@ -39,14 +40,15 @@ function GuestCustomFields({ form, entries, resetKey, onDefinitionsChange }) {
 
 const CLASSIFICATION_KEYS = ['modelId', 'model', 'categoryId', 'brandId']
 
-function ConflictNote({ field, hit }) {
+function ConflictNote({ field, hit, onPropose }) {
+  if (hit?.restricted) return <RestrictedDuplicateNote field={field} onPropose={onPropose} />
   const message = identifierConflictMessage(field, hit)
   return message ? <p role="alert" className="mt-1.5 text-xs text-amber-800 dark:text-amber-200">{message} Revisa que no sea un duplicado.</p> : null
 }
 
 // Sections follow the main item form (blueprint INVENTORY_ITEM_FORM): classification, identification,
 // location and status, warranty, custom fields and notes. Everything commercial / administrative is absent.
-export function GuestItemFormSections({ form, item, areaOptions, areaLabel, catalogs, canCreate, statusEditable, conflicts, customEntries, customResetKey, onCustomDefinitions }) {
+export function GuestItemFormSections({ form, item, areaOptions, areaLabel, catalogs, canCreate, statusEditable, conflicts, onPropose, customEntries, customResetKey, onCustomDefinitions }) {
   const { control, register, watch, setValue, formState: { errors } } = form
   const values = watch()
   const err = (k) => errors[k]?.message
@@ -81,11 +83,11 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
           <TextField label="Folio" icon={Hash} hint="Se genera solo si lo dejas vacío" maxLength={50} error={err('folio')} {...register('folio')} />
           <div>
             <TextField label="Número de serie" icon={Barcode} maxLength={255} error={err('serialNumber')} {...register('serialNumber')} />
-            <ConflictNote field="serialNumber" hit={conflicts.serialNumber} />
+            <ConflictNote field="serialNumber" hit={conflicts.serialNumber} onPropose={onPropose && ((kind) => onPropose(kind, { field: 'serialNumber', value: values.serialNumber }))} />
           </div>
           <div>
             <TextField label="Número de activo" icon={Hash} hint="Opcional" maxLength={100} error={err('assetTag')} {...register('assetTag')} />
-            <ConflictNote field="assetTag" hit={conflicts.assetTag} />
+            <ConflictNote field="assetTag" hit={conflicts.assetTag} onPropose={onPropose && ((kind) => onPropose(kind, { field: 'assetTag', value: values.assetTag }))} />
           </div>
           <TextField label="Número de parte" icon={ScanLine} maxLength={255} error={err('partNumber')} {...register('partNumber')} />
           <div className="md:col-span-2">

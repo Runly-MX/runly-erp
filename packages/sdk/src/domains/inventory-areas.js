@@ -27,6 +27,10 @@ export function createInventoryAreasDomain({ request, withAuthHeaders }) {
     inviteAreaGuest: (areaId, data, token) => send('POST', `/inventory/areas/${id(areaId)}/guests`, data, token),
     updateAreaGuest: (areaId, guestId, data, token) => send('PATCH', `/inventory/areas/${id(areaId)}/guests/${id(guestId)}`, data, token),
     removeAreaGuest: (areaId, guestId, token) => send('DELETE', `/inventory/areas/${id(areaId)}/guests/${id(guestId)}`, undefined, token),
+    // Restricted duplicates: values or an access request for an item the caller cannot open, reviewed per field.
+    submitChangeProposal: (data, token) => send('POST', '/inventory/change-proposals', data, token),
+    listChangeProposals: (query, token) => send('GET', `/inventory/change-proposals${query?.status ? `?status=${encodeURIComponent(query.status)}` : ''}`, undefined, token),
+    reviewChangeProposal: (proposalId, data, token) => send('POST', `/inventory/change-proposals/${id(proposalId)}/review`, data, token),
     rotateGuestCode: (guestId, data, token) => send('POST', `/inventory/guests/${id(guestId)}/rotate-code`, data ?? {}, token),
     resendGuestInvite: (guestId, data, token) => send('POST', `/inventory/guests/${id(guestId)}/resend`, data ?? {}, token),
     revokeGuest: (guestId, token) => send('POST', `/inventory/guests/${id(guestId)}/revoke`, {}, token),

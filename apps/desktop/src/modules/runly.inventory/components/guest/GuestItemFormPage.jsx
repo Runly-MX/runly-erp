@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Alert, Button, ConfirmDialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, PageHeader, RecordHeader, SectionCard } from '@runly/ui'
 import { ArrowLeft, CopyPlus, Lock, MoreHorizontal, Paperclip, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useCreateGuestItem, useGuestCatalogs, useGuestMe, useUpdateGuestItem, useUploadGuestFile } from '../../hooks/useInventoryGuest.js'
+import { useCreateGuestItem, useGuestCatalogs, useGuestMe, useSubmitGuestProposal, useUpdateGuestItem, useUploadGuestFile } from '../../hooks/useInventoryGuest.js'
 import { useGuestIdentifierConflicts } from '../../hooks/useInventoryGuestCatalog.js'
 import { areaPathLabel } from '../../lib/area-tree.js'
 import { capabilitiesFor, writableAreas } from '../../lib/guest-capabilities.js'
@@ -12,6 +12,8 @@ import { buildGuestPayload, guestCustomEntries, guestItemDefaults, guestItemSche
 import { GUEST_WRITABLE_STATUS_OPTIONS, guestErrorMessage } from '../../lib/guest-session.js'
 import { GuestFormFiles } from './GuestFormFiles.jsx'
 import { GuestItemFormSections } from './GuestItemFormSections.jsx'
+import { ProposalDialog } from '../proposals/ProposalDialog.jsx'
+import { buildProposalFields } from '../../lib/proposal-fields.js'
 
 const coarse = '[@media(pointer:coarse)]:min-h-11'
 
@@ -24,6 +26,9 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
   const create = useCreateGuestItem()
   const update = useUpdateGuestItem()
   const upload = useUploadGuestFile()
+  const propose = useSubmitGuestProposal()
+  // { kind, matched } while the "send to review / request access" dialog is open.
+  const [proposal, setProposal] = useState(null)
   const isCreate = !item
   const customFields = useMemo(() => catalogs?.customFields ?? [], [catalogs])
   const areas = useMemo(() => me?.areas ?? [], [me])
@@ -119,6 +124,7 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
       <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <GuestItemFormSections form={form} item={item} areaOptions={areaOptions} areaLabel={areaPathLabel(areas, areaId) || 'Sin carpeta'}
           catalogs={catalogs} canCreate={canCreate} statusEditable={statusEditable} conflicts={conflicts}
+          onPropose={(kind, matched) => setProposal({ kind, matched })}
           customEntries={customEntries} customResetKey={customKey} onCustomDefinitions={setExtraDefs} />
         <aside className="min-w-0 lg:sticky lg:top-20 lg:self-start">
           <SectionCard title="Fotos y archivos" icon={Paperclip}>
@@ -150,6 +156,8 @@ export function GuestItemFormPage({ item = null, defaultAreaId = null, onBack, o
         </div>
       </div>
 
+      <ProposalDialog open={Boolean(proposal)} onOpenChange={(v) => { if (!v) setProposal(null) }} kind={proposal?.kind} matched={proposal?.matched}
+        fields={proposal ? buildProposalFields(watch(), catalogs) : []} onSubmit={(body) => propose.mutateAsync(body)} />
       <ConfirmDialog open={discardOpen} onOpenChange={setDiscardOpen} title="Descartar cambios"
         description="Se restablecerá el formulario y se perderán los cambios sin guardar." confirmLabel="Descartar" onConfirm={discard} />
       <ConfirmDialog open={leaveOpen} onOpenChange={setLeaveOpen} title="Descartar cambios"

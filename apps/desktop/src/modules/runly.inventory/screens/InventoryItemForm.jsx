@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { itemLabel } from '../lib/item-label.js'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -16,13 +16,20 @@ import { MAX_BULK_SERIALS, bulkUnitName, canPinField, captureStorageKey, loadCap
 import { intakeRequest } from '../lib/intake.js'
 import { useIdentifierConflicts, IDENTIFIER_CONFLICT_MESSAGES } from '../hooks/useIdentifierConflicts.js'
 import { InventoryIdentifierConflict } from '../components/InventoryIdentifierConflict.jsx'
+import { ProposalDialog } from '../components/proposals/ProposalDialog.jsx'
+import { useSubmitChangeProposal } from '../hooks/useChangeProposals.js'
+import { useInventoryBrands, useInventoryCategories, useInventoryLocations } from '../hooks/useInventoryCatalogs.js'
+import { useInventoryConditions } from '../hooks/useInventoryAdmin.js'
+import { buildProposalFields } from '../lib/proposal-fields.js'
 import { ConnectedRunlyForm } from '../../../shell/connections/ConnectedRunlyForm.jsx'
 
 const API_BASE = getApiUrl()
 const LIST_PATH = '/app/m/runly.inventory/inventory'
 
-// Reports the typed serial / asset number up to the screen (renders nothing).
-function IdentifierWatcher({ values, onChange }) {
+// Reports the typed serial / asset number up to the screen (renders nothing) and keeps the latest form values
+// in `valuesRef` for the "send to review" dialog.
+function IdentifierWatcher({ values, onChange, valuesRef }) {
+  valuesRef.current = values
   const serialNumber = values?.serialNumber ?? ''
   const assetTag = values?.assetTag ?? ''
   useEffect(() => { onChange({ serialNumber, assetTag }) }, [serialNumber, assetTag]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -94,6 +101,14 @@ export default function InventoryItemForm() {
 
   const [typedIds, setTypedIds] = useState({ serialNumber: '', assetTag: '' })
   const [serverConflict, setServerConflict] = useState(null)
+  // Restricted duplicate (exists in a folder the user cannot open): { kind, matched } while the dialog is open.
+  const [proposal, setProposal] = useState(null)
+  const formValuesRef = useRef({})
+  const submitProposal = useSubmitChangeProposal()
+  const categories = useInventoryCategories().data?.data
+  const brands = useInventoryBrands().data?.data
+  const locations = useInventoryLocations().data?.data
+  const conditions = useInventoryConditions().data?.data
   const liveConflicts = useIdentifierConflicts({
     apiBaseUrl: API_BASE, token, companyId: activeCompanyId,
     serialNumber: typedIds.serialNumber, assetTag: typedIds.assetTag,
@@ -105,10 +120,12 @@ export default function InventoryItemForm() {
     assetTag: liveConflicts.assetTag ?? (serverConflict?.field === 'assetTag' && serverConflict.value === typedIds.assetTag ? serverConflict.item : null),
   }
   const conflictField = conflicts.serialNumber ? 'serialNumber' : conflicts.assetTag ? 'assetTag' : null
+  const proposeFor = (field) => (kind) => setProposal({ kind, matched: { field, value: typedIds[field] } })
   const fieldNotes = {
-    serialNumber: <InventoryIdentifierConflict field="serialNumber" item={conflicts.serialNumber} />,
-    assetTag: <InventoryIdentifierConflict field="assetTag" item={conflicts.assetTag} />,
+    serialNumber: <InventoryIdentifierConflict field="serialNumber" item={conflicts.serialNumber} onPropose={proposeFor('serialNumber')} />,
+    assetTag: <InventoryIdentifierConflict field="assetTag" item={conflicts.assetTag} onPropose={proposeFor('assetTag')} />,
   }
+  const restricted = Boolean(conflictField && conflicts[conflictField]?.restricted)
   function handleSubmitError(err) {
     const field = err?.code === 'SERIAL_EXISTS' ? 'serialNumber' : err?.code === 'ASSET_TAG_EXISTS' ? 'assetTag' : null
     if (field && err.details?.item) setServerConflict({ field, item: err.details.item, value: typedIds[field] })
@@ -158,7 +175,7 @@ export default function InventoryItemForm() {
           }}
           renderTools={(tools) => (
             <>
-              <IdentifierWatcher values={tools.values} onChange={setTypedIds} />
+              <IdentifierWatcher values={tools.values} onChange={setTypedIds} valuesRef={formValuesRef} />
               {isEdit ? null : (
                 <InventoryCaptureTools {...tools} settings={settings} setSettings={setSettings} storageKey={storageKey}
                   serialsText={serialsText} setSerialsText={setSerialsText} />
@@ -166,7 +183,7 @@ export default function InventoryItemForm() {
             </>
           )}
           fieldNotes={fieldNotes}
-          submitBlockedReason={conflictField ? `${IDENTIFIER_CONFLICT_MESSAGES[conflictField]}. Actualiza ese equipo en lugar de crear uno nuevo.` : ''}
+          submitBlockedReason={conflictField ? (restricted ? `${IDENTIFIER_CONFLICT_MESSAGES[conflictField]} en una carpeta sin acceso. Envía tus datos a revisión o solicita acceso.` : `${IDENTIFIER_CONFLICT_MESSAGES[conflictField]}. Actualiza ese equipo en lugar de crear uno nuevo.`) : ''}
           onSubmitError={handleSubmitError}
           mode={isEdit ? 'edit' : 'create'}
           token={token}
@@ -187,6 +204,15 @@ export default function InventoryItemForm() {
           onCancel={() => navigate(isEdit ? `/app/m/runly.inventory/inventory/${id}` : '/app/m/runly.inventory/inventory')}
         />
       </div>
+
+      <ProposalDialog
+        open={Boolean(proposal)}
+        onOpenChange={(v) => { if (!v) setProposal(null) }}
+        kind={proposal?.kind}
+        matched={proposal?.matched}
+        fields={proposal ? buildProposalFields(formValuesRef.current, { categories, brands, locations, conditions }) : []}
+        onSubmit={(body) => submitProposal.mutateAsync(body)}
+      />
 
       {isEdit && editItem ? (
         <ConfirmDialog

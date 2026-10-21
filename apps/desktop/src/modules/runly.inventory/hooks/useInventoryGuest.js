@@ -176,6 +176,7 @@ export function useGuestMutation(fn, invalidate = [['items']]) {
   })
 }
 
+export const useSubmitGuestProposal = () => useGuestMutation((s, body) => guestApi.submitProposal(s, body), [])
 export const useCreateGuestItem = () => useGuestMutation((s, body) => guestApi.createItem(s, body))
 export const useUpdateGuestItem = () => useGuestMutation((s, { id, ...body }) => guestApi.updateItem(s, id, body), [['items'], ['item']])
 export const useUploadGuestFile = () => useGuestMutation((s, { itemId, file, label }) => guestApi.uploadFile(s, itemId, file, label), [['files'], ['items']])

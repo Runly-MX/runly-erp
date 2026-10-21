@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Activity, Boxes, CalendarPlus, FolderInput, FolderOpen, FolderTree, MapPin, PanelLeft, PanelLeftClose, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, UserCheck, Wrench } from 'lucide-react'
-import { RunlyTable, Button, ConfirmDialog, EmptyState, PageHeader, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@runly/ui'
+import { Activity, Boxes, CalendarPlus, FolderInput, GitPullRequestArrow, FolderOpen, FolderTree, MapPin, PanelLeft, PanelLeftClose, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, UserCheck, Wrench } from 'lucide-react'
+import { RunlyTable, Badge, Button, ConfirmDialog, EmptyState, PageHeader, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -25,6 +25,8 @@ import { AreaTreePanel } from '../components/areas/AreaTreePanel.jsx'
 import { useAreaTreeDock } from '../hooks/useAreaTreeDock.js'
 import { areaPathLabel } from '../lib/area-tree.js'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
+import { InventoryProposalsSheet } from '../components/proposals/InventoryProposalsSheet.jsx'
+import { useChangeProposals } from '../hooks/useChangeProposals.js'
 
 const ADMIN_COLORS = Object.fromEntries(ADMIN_STATUSES.map(s => [s.value, s.color]))
 const STATUS_OPTIONS = ITEM_STATUSES.map(s => ({ value: s.value, label: s.label }))
@@ -53,6 +55,10 @@ export default function InventoryScreen() {
 
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [proposalsOpen, setProposalsOpen] = useState(false)
+  // Only users who can update items review proposals (the API also limits them to the areas they can write).
+  const canReviewProposals = useInventoryCan()('inventory.item.update')
+  const pendingProposals = useChangeProposals({ enabled: canReviewProposals }).data?.length ?? 0
   const [refreshSignal, setRefreshSignal] = useState(0)
   const [bulk, setBulk] = useState(null)
   const [moveIds, setMoveIds] = useState(null)
@@ -256,6 +262,12 @@ export default function InventoryScreen() {
               </Tooltip>
             </TooltipProvider>
           ) : null}
+          {canReviewProposals ? (
+            <Button variant="outline" onClick={() => setProposalsOpen(true)}>
+              <GitPullRequestArrow className="mr-2 h-4 w-4" />Propuestas
+              {pendingProposals > 0 ? <Badge className="ml-2 px-1.5 py-0">{pendingProposals}</Badge> : null}
+            </Button>
+          ) : null}
           <Button variant="outline" onClick={() => openMiraiSidebar()}><Sparkles className="mr-2 h-4 w-4" />Consultar con IA</Button>
           <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="mr-2 h-4 w-4" />Importar</Button>
           <Button variant="outline" onClick={() => navigate('/app/m/runly.inventory/inventory/intake')}><Sparkles className="mr-2 h-4 w-4" />Registro con IA</Button>
@@ -355,6 +367,8 @@ export default function InventoryScreen() {
         options={areaChoices.writeOptions}
         onDone={() => setRefreshSignal(s => s + 1)}
       />
+
+      <InventoryProposalsSheet open={proposalsOpen} onOpenChange={setProposalsOpen} />
 
       <InventoryItemImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={() => setRefreshSignal(s => s + 1)} />
 
