@@ -35,6 +35,7 @@ import { resolveColorHex } from "./runly-form-utils.js";
 import { accentFor } from "./records-view-format.js";
 import { rowOpenProps } from "./row-open.js";
 import { loadTableViewState, saveTableViewState } from "./table-view-state.js";
+import { toggleWithRange } from "./selection-range.js";
 
 // Select value as a tinted pill: stable color per option (or option.color).
 function SelectBadge({ label, color }) {
@@ -405,6 +406,7 @@ export function RunlyTable({
 
   useEffect(() => {
     setSelectedIds(new Set());
+    anchorRef.current = null;
   }, [rows]);
 
   const filtersActiveCount = Object.values(filterValues).filter(Boolean).length;
@@ -520,13 +522,22 @@ export function RunlyTable({
     setSortDir(nextDir);
   };
 
+  // Shift state of the click that is toggling a checkbox: a capture listener sees it before the checkbox
+  // handler runs, so the table, list and card views all get range selection without extra props.
+  const shiftHeldRef = useRef(false);
+  const anchorRef = useRef(null);
+  useEffect(() => {
+    const remember = (event) => { shiftHeldRef.current = event.shiftKey; };
+    document.addEventListener("click", remember, true);
+    return () => document.removeEventListener("click", remember, true);
+  }, []);
+
   const handleToggleRow = (id) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    const ids = rows.map((row, i) => getRowId(row, i));
+    const shift = shiftHeldRef.current;
+    shiftHeldRef.current = false;
+    setSelectedIds((prev) => toggleWithRange({ selected: prev, ids, id, anchorId: anchorRef.current, shift }));
+    anchorRef.current = id;
   };
 
   const handleToggleAll = () => {
