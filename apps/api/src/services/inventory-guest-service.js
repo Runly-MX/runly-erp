@@ -215,6 +215,8 @@ export function createInventoryGuestService({
       role: member?.role ?? null,
       canCreateModels: member ? Boolean(member.canCreateModels) && member.role === 'editor' : false,
       canImport: member ? Boolean(member.canImport) && member.role === 'editor' : false,
+      // Whether opening the link asks for an access code. The code itself is stored hashed and never readable.
+      requiresCode: Boolean(invite?.codeHash),
       email: guest.email,
       name: guest.name,
       contactId: guest.contactId ?? null,
@@ -256,13 +258,34 @@ export function createInventoryGuestService({
     return serializeGuest(guest, invite, saved);
   }
 
-  // New link (the previous ones stop working, and with them their sessions).
-  async function resend({ companyId, actorId = null, guestId, requireCode = false }) {
+  // New link (the previous ones stop working, and with them their sessions). Without an explicit choice the
+  // new link keeps the access-code requirement the previous one had.
+  async function resend({ companyId, actorId = null, guestId, requireCode }) {
     assertCompany(companyId);
     const guest = await getGuest(companyId, guestId);
+    if (requireCode === undefined) {
+      const byNewest = { orderBy: { createdAt: 'desc' } };
+      const previous = (await prisma.invGuestInvite.findFirst({ where: { guestId: guest.id, revokedAt: null }, ...byNewest }))
+        ?? (await prisma.invGuestInvite.findFirst({ where: { guestId: guest.id }, ...byNewest }));
+      requireCode = Boolean(previous?.codeHash);
+    }
     await prisma.invGuestInvite.updateMany({ where: { guestId: guest.id, revokedAt: null }, data: { revokedAt: now() } });
     const delivery = await issueInvite(guest, { actorId, requireCode });
     return { guest: serializeGuest(guest, delivery.invite), link: delivery.link, code: delivery.code, sent: delivery.sent, mailError: delivery.mailError };
+  }
+
+  // Changes only the access code of the current link: a new one (shown once) or none. The link stays the same;
+  // the guest's open sessions end, so the supplier has to enter the new code (or just reopen the link).
+  async function rotateCode({ companyId, guestId, requireCode = true }) {
+    assertCompany(companyId);
+    const guest = await getGuest(companyId, guestId);
+    const at = now();
+    const invite = await prisma.invGuestInvite.findFirst({ where: { guestId: guest.id, revokedAt: null }, orderBy: { createdAt: 'desc' } });
+    if (!inviteUsable(invite, at)) throw new InventoryServiceError('La invitación venció o fue revocada. Reenvíala para generar un enlace nuevo.', 409, 'INVITE_NOT_USABLE');
+    const code = requireCode ? newAccessCode() : null;
+    const updated = await prisma.invGuestInvite.update({ where: { id: invite.id }, data: { codeHash: code ? hashAccessCode(code, invite.tokenHash) : null } });
+    await prisma.invGuestSession.updateMany({ where: { guestId: guest.id, revokedAt: null }, data: { revokedAt: at } });
+    return { guest: serializeGuest(guest, updated), code: code ? formatAccessCode(code) : null };
   }
 
   async function removeFromArea({ companyId, areaId, guestId }) {
@@ -292,5 +315,5 @@ export function createInventoryGuestService({
     return rows.map((r) => r.areaId);
   }
 
-  return { startSession, authenticate, refresh, logout, inviteToArea, updateMember, listForArea, resend, removeFromArea, revoke, areaIdsOf };
+  return { startSession, authenticate, refresh, logout, inviteToArea, updateMember, listForArea, resend, rotateCode, removeFromArea, revoke, areaIdsOf };
 }

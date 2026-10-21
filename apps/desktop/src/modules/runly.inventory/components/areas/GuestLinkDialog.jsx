@@ -1,5 +1,5 @@
 import { Alert, AlertDescription, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label, copyText } from '@runly/ui'
-import { Copy, Link2 } from 'lucide-react'
+import { Copy, KeyRound, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 function CopyRow({ label, value, mono }) {
@@ -20,16 +20,24 @@ function CopyRow({ label, value, mono }) {
 
 // Shows the link (and the one-time code) after inviting or resending, plus the
 // mail error when the email could not be delivered so the manager can share it by hand.
+// Changing only the code returns no link: the supplier keeps using the one they already have.
 export function GuestLinkDialog({ result, onClose }) {
+  const codeOnly = Boolean(result) && !result.link
   return (
     <Dialog open={Boolean(result)} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent scrollable size="md">
-        <DialogHeader icon={Link2}>
-          <DialogTitle>Enlace de acceso</DialogTitle>
+        <DialogHeader icon={codeOnly ? KeyRound : Link2}>
+          <DialogTitle>{codeOnly ? 'Código de acceso' : 'Enlace de acceso'}</DialogTitle>
           <DialogDescription>{result?.guest?.email}</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-0.5">
-          {result?.mailError ? (
+          {codeOnly ? (
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              {result?.code
+                ? 'El enlace del proveedor sigue siendo el mismo. Sus sesiones abiertas terminaron: al volver a entrar tendrá que escribir este código.'
+                : 'El enlace ya no pide código. Sus sesiones abiertas terminaron y puede volver a entrar directamente.'}
+            </p>
+          ) : result?.mailError ? (
             <Alert variant="destructive">
               <AlertDescription>No se pudo enviar el correo{result.mailError.message ? `: ${result.mailError.message}` : ''}. Comparte el enlace manualmente.</AlertDescription>
             </Alert>

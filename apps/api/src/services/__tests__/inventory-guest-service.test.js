@@ -135,6 +135,30 @@ describe('inventory guest sessions', () => {
     const fresh = await ok.svc.inviteToArea({ companyId: CO, areaId: AREA, email: 'a@b.co', requireCode: true });
     assert.ok(await ok.svc.startSession({ token: tokenOf(fresh.link), code: fresh.code.toLowerCase() }));
   });
+
+  it('rotating the code keeps the link, ends sessions and makes the old code useless', async () => {
+    const t = build({ mail: false });
+    const { link, code, guest } = await t.svc.inviteToArea({ companyId: CO, areaId: AREA, email: 'a@b.co', requireCode: true });
+    const token = tokenOf(link);
+    const session = await t.svc.startSession({ token, code });
+    const rotated = await t.svc.rotateCode({ companyId: CO, guestId: guest.id });
+    assert.ok(rotated.code && rotated.code !== code);
+    assert.equal(rotated.guest.requiresCode, true);
+    assert.equal(await t.svc.authenticate(`Guest ${session.sessionToken}`), null, 'open sessions end');
+    await assert.rejects(t.svc.startSession({ token, code }), { code: 'INVALID_CODE' });
+    assert.ok(await t.svc.startSession({ token, code: rotated.code }), 'same link, new code');
+    const removed = await t.svc.rotateCode({ companyId: CO, guestId: guest.id, requireCode: false });
+    assert.deepEqual([removed.code, removed.guest.requiresCode], [null, false]);
+    assert.ok(await t.svc.startSession({ token }), 'no code needed any more');
+  });
+
+  it('resend keeps the access-code requirement unless told otherwise', async () => {
+    const t = build({ mail: false });
+    const { guest } = await t.svc.inviteToArea({ companyId: CO, areaId: AREA, email: 'a@b.co', requireCode: true });
+    assert.ok((await t.svc.resend({ companyId: CO, guestId: guest.id })).code, 'code kept');
+    assert.equal((await t.svc.resend({ companyId: CO, guestId: guest.id, requireCode: false })).code, null);
+    assert.equal((await t.svc.resend({ companyId: CO, guestId: guest.id })).code, null, 'stays without code');
+  });
 });
 
 describe('guest capability flags', () => {

@@ -89,6 +89,16 @@ export function createInventoryGuestInviteRouter({ requirePermission, inventoryS
     } catch (err) { return fail(c, err, 'No se pudo reenviar la invitacion.'); }
   });
 
+  router.post('/inventory/guests/:id/rotate-code', read, async (c) => {
+    try {
+      const guestId = uuid.parse(c.req.param('id'));
+      const companyId = c.get('companyId');
+      if (!(await canAdminAreas(c, await guestService.areaIdsOf(companyId, guestId)))) return deny(c);
+      const body = resendBody.parse(await json(c));
+      return c.json({ data: await guestService.rotateCode({ companyId, guestId, requireCode: body.requireCode ?? true }) });
+    } catch (err) { return fail(c, err, 'No se pudo cambiar el código de acceso.'); }
+  });
+
   router.post('/inventory/guests/:id/revoke', read, async (c) => {
     try {
       const guestId = uuid.parse(c.req.param('id'));

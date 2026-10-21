@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Badge, Button, ConfirmDialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, EmptyState, ErrorState, PersonAvatar, Skeleton } from '@runly/ui'
-import { Ban, FolderMinus, MoreHorizontal, Send, ShieldCheck, Truck } from 'lucide-react'
+import { Ban, FolderMinus, KeyRound, MoreHorizontal, Send, ShieldCheck, Truck } from 'lucide-react'
 import { toast } from 'sonner'
-import { useInventoryAreaGuests, useRemoveInventoryAreaGuest, useResendInventoryGuest, useRevokeInventoryGuest } from '../../hooks/useInventoryAreas.js'
+import { useInventoryAreaGuests, useRemoveInventoryAreaGuest, useResendInventoryGuest, useRevokeInventoryGuest, useRotateInventoryGuestCode } from '../../hooks/useInventoryAreas.js'
 import { GUEST_ROLE_LABEL, guestCapabilityLabels, guestStatusLabel, guestStatusVariant } from '../../lib/guest-session.js'
 import { GuestInviteDialog } from './GuestInviteDialog.jsx'
 import { GuestLinkDialog } from './GuestLinkDialog.jsx'
@@ -25,6 +25,7 @@ export function AreaGuestsPanel({ area, inviteOpen, onInviteOpenChange }) {
   const guests = useInventoryAreaGuests(area?.id)
   const resend = useResendInventoryGuest()
   const revoke = useRevokeInventoryGuest()
+  const rotate = useRotateInventoryGuestCode()
   const remove = useRemoveInventoryAreaGuest(area?.id)
   const [result, setResult] = useState(null)
   const [revokeTarget, setRevokeTarget] = useState(null)
@@ -34,6 +35,9 @@ export function AreaGuestsPanel({ area, inviteOpen, onInviteOpenChange }) {
 
   async function handleResend(guest) {
     try { setResult(await resend.mutateAsync({ guestId: guest.id })) } catch (err) { toast.error(err?.message ?? 'No se pudo reenviar la invitación') }
+  }
+  async function handleRotate(guest, requireCode) {
+    try { setResult(await rotate.mutateAsync({ guestId: guest.id, requireCode })) } catch (err) { toast.error(err?.message ?? 'No se pudo cambiar el código') }
   }
   async function handleRevoke() {
     try { await revoke.mutateAsync(revokeTarget.id); toast.success('Acceso revocado') } catch (err) { toast.error(err?.message ?? 'No se pudo revocar el acceso') }
@@ -60,6 +64,7 @@ export function AreaGuestsPanel({ area, inviteOpen, onInviteOpenChange }) {
             {guest.name ? <p className="break-all text-xs text-[hsl(var(--muted-foreground))]">{guest.email}</p> : null}
             <div className="mt-0.5 flex flex-wrap items-center gap-1">
               <span className="text-xs text-[hsl(var(--muted-foreground))]">{GUEST_ROLE_LABEL[guest.role] ?? guest.role}</span>
+              {guest.requiresCode ? <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[11px]"><KeyRound className="h-3 w-3" />Con código</Badge> : null}
               {guestCapabilityLabels(guest).map((label) => <Badge key={label} variant="outline" className="gap-1 px-1.5 py-0 text-[11px]"><ShieldCheck className="h-3 w-3" />{label}</Badge>)}
             </div>
             <p className="text-xs text-[hsl(var(--muted-foreground))]">{lastSeenText(guest)}</p>
@@ -74,6 +79,14 @@ export function AreaGuestsPanel({ area, inviteOpen, onInviteOpenChange }) {
                 <DropdownMenuItem disabled={resend.isPending} onSelect={() => handleResend(guest)}>
                   <Send className="mr-2 h-4 w-4" />Reenviar invitación
                 </DropdownMenuItem>
+              ) : null}
+              {guest.status !== 'revoked' ? (
+                <DropdownMenuItem disabled={rotate.isPending} onSelect={() => handleRotate(guest, true)}>
+                  <KeyRound className="mr-2 h-4 w-4" />{guest.requiresCode ? 'Cambiar código de acceso' : 'Pedir código de acceso'}
+                </DropdownMenuItem>
+              ) : null}
+              {guest.requiresCode && guest.status !== 'revoked' ? (
+                <DropdownMenuItem disabled={rotate.isPending} onSelect={() => handleRotate(guest, false)}><KeyRound className="mr-2 h-4 w-4" />Quitar código de acceso</DropdownMenuItem>
               ) : null}
               {guest.status !== 'revoked' ? (
                 <DropdownMenuItem onSelect={() => setPermsTarget(guest)}><ShieldCheck className="mr-2 h-4 w-4" />Editar permisos</DropdownMenuItem>

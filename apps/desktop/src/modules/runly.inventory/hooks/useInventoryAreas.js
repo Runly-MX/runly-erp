@@ -139,6 +139,15 @@ export function useResendInventoryGuest() {
   })
 }
 
+export function useRotateInventoryGuestCode() {
+  const token = useToken()
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: ({ guestId, requireCode = true }) => runly.inventory.rotateGuestCode(guestId, { requireCode }, token).then((res) => res?.data ?? res),
+    onSuccess: invalidate,
+  })
+}
+
 export function useRevokeInventoryGuest() {
   const token = useToken()
   const invalidate = useInvalidate()
