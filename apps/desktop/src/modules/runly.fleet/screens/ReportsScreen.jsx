@@ -123,9 +123,9 @@ const REPORT_TABLES = {
 }
 
 const CREATE_LABELS = {
-  maintenance: 'Nuevo reporte de mantenimiento',
-  service: 'Nuevo reporte de servicio',
-  repair: 'Nuevo reporte de reparacion',
+  maintenance: 'Nuevo reporte',
+  service: 'Nuevo reporte',
+  repair: 'Nuevo reporte',
   other: 'Nuevo reporte',
 }
 
@@ -183,8 +183,8 @@ export default function ReportsScreen() {
         title="Reportes de Flota"
         description="Reportes de mantenimiento, servicio y reparacion de la flota."
         actions={
-          <Button onClick={handleCreate} size="sm">
-            <Plus className="mr-1 h-4 w-4" />
+          <Button onClick={handleCreate}>
+            <Plus className="mr-2 h-4 w-4" />
             {CREATE_LABELS[reportType]}
           </Button>
         }

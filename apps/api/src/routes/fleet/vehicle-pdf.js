@@ -6,6 +6,7 @@ import {
   toSafeText,
   compact,
   normalizeHexColor,
+  lightenHex,
   formatDateEs,
 } from "../../services/pdf-branding-service.js";
 
@@ -15,6 +16,33 @@ const VEHICLE_STATUS_LABELS = {
   inactive: "Inactivo",
   retired: "Retirado",
 };
+
+const STATUS_COLORS = {
+  active: "#059669",
+  maintenance: "#D97706",
+  inactive: "#64748B",
+  retired: "#DC2626",
+};
+
+const COVERAGE_LABELS = {
+  basic: "Basica",
+  comprehensive: "Integral",
+  third_party: "Terceros",
+  other: "Otra",
+};
+
+const money = (value) => {
+  const amount = Number(value);
+  return Number.isFinite(amount)
+    ? new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(amount)
+    : "-";
+};
+
+const C_DARK = "#0F172A";
+const C_MID = "#334155";
+const C_MUTED = "#64748B";
+const C_BORDER = "#E2E8F0";
+const C_SOFT = "#F8FAFC";
 
 async function toPdfBuffer({ vehicle, branding }) {
   const PDFDocument = await resolvePdfDocumentCtor();
@@ -26,23 +54,14 @@ async function toPdfBuffer({ vehicle, branding }) {
   }
 
   const brandColor = normalizeHexColor(branding.primaryColor ?? "#0F766E", "#0F766E");
+  const brandTint = lightenHex(brandColor, 0.9);
   const companyName = toSafeText(branding.companyName, "Runly ERP");
   const logoBuffer = Buffer.isBuffer(branding.logoBuffer) ? branding.logoBuffer : null;
+  const statusKey = String(vehicle.status ?? "").toLowerCase();
+  const statusText = VEHICLE_STATUS_LABELS[statusKey] ?? toSafeText(vehicle.status, "-");
+  const statusColor = STATUS_COLORS[statusKey] ?? C_MUTED;
 
-  const statusText = VEHICLE_STATUS_LABELS[String(vehicle.status ?? "").toLowerCase()] ?? toSafeText(vehicle.status, "-");
-
-  const C_LABEL_BG = "#F1F5F9";
-  const C_BORDER = "#E2E8F0";
-  const C_DARK = "#0F172A";
-  const C_MID = "#334155";
-  const C_MUTED = "#64748B";
-
-  const doc = new PDFDocument({
-    margin: 0,
-    size: "LETTER",
-    layout: "portrait",
-    bufferPages: true,
-  });
+  const doc = new PDFDocument({ margin: 0, size: "LETTER", layout: "portrait", bufferPages: true });
   const chunks = [];
   const done = new Promise((resolve, reject) => {
     doc.on("data", (chunk) => chunks.push(chunk));
@@ -56,25 +75,21 @@ async function toPdfBuffer({ vehicle, branding }) {
   const right = pageWidth - MARGIN;
   const contentWidth = right - left;
 
-  doc.lineWidth(0.5);
+  // ─── HEADER BAND (brand colour) ───────────────────────────────────────────────
+  const HEADER_H = 172;
+  doc.rect(0, 0, pageWidth, HEADER_H).fill(brandColor);
+  // Soft decorative circles keep the band from looking flat.
+  doc.save();
+  doc.fillOpacity(0.1).circle(pageWidth - 40, 20, 110).fill("#FFFFFF");
+  doc.fillOpacity(0.07).circle(pageWidth - 170, HEADER_H + 10, 80).fill("#FFFFFF");
+  doc.restore();
 
-  // ─── HEADER ───────────────────────────────────────────────────────────────────
-  const HEADER_H = 86;
-  doc.rect(0, 0, pageWidth, HEADER_H).fill("#FFFFFF");
-  doc.rect(0, 0, 6, HEADER_H).fill(brandColor);
-
-  const LOGO_SIZE = 54;
-  const LOGO_X = left + 4;
-  const LOGO_Y = Math.floor((HEADER_H - LOGO_SIZE) / 2);
-  doc.lineWidth(0.75).rect(LOGO_X, LOGO_Y, LOGO_SIZE, LOGO_SIZE).stroke(C_BORDER);
+  const LOGO = 38;
+  doc.roundedRect(left, 26, LOGO, LOGO, 8).fill("#FFFFFF");
   let logoDrawn = false;
   if (logoBuffer) {
     try {
-      doc.image(logoBuffer, LOGO_X + 4, LOGO_Y + 4, {
-        fit: [LOGO_SIZE - 8, LOGO_SIZE - 8],
-        align: "center",
-        valign: "center",
-      });
+      doc.image(logoBuffer, left + 4, 30, { fit: [LOGO - 8, LOGO - 8], align: "center", valign: "center" });
       logoDrawn = true;
     } catch {
       logoDrawn = false;
@@ -82,181 +97,207 @@ async function toPdfBuffer({ vehicle, branding }) {
   }
   if (!logoDrawn) {
     doc
-      .font("Helvetica-Bold")
-      .fontSize(18)
-      .fillColor(brandColor)
-      .text(companyName.slice(0, 2).toUpperCase(), LOGO_X, LOGO_Y + 18, {
-        width: LOGO_SIZE,
-        align: "center",
-        lineBreak: false,
+      .font("Helvetica-Bold").fontSize(14).fillColor(brandColor)
+      .text(companyName.slice(0, 2).toUpperCase(), left, 38, { width: LOGO, align: "center", lineBreak: false });
+  }
+  doc
+    .font("Helvetica-Bold").fontSize(11).fillColor("#FFFFFF")
+    .text(companyName, left + LOGO + 12, 31, { width: contentWidth * 0.55, lineBreak: false, ellipsis: true });
+  doc
+    .font("Helvetica").fontSize(8).fillColor("#FFFFFF").opacity(0.8)
+    .text(compact([branding.rfc && branding.rfc !== "-" ? `RFC ${branding.rfc}` : null, branding.phone && branding.phone !== "-" ? branding.phone : null]).join("   ·   ") || "Ficha de vehiculo", left + LOGO + 12, 47, { width: contentWidth * 0.55, lineBreak: false, ellipsis: true })
+    .opacity(1);
+
+  doc
+    .font("Helvetica-Bold").fontSize(8).fillColor("#FFFFFF").opacity(0.75)
+    .text("FICHA DE VEHICULO", right - 200, 32, { width: 200, align: "right", lineBreak: false, characterSpacing: 1 })
+    .opacity(1);
+  doc
+    .font("Helvetica").fontSize(8).fillColor("#FFFFFF").opacity(0.75)
+    .text(`Generada el ${formatDateEs(new Date())}`, right - 200, 46, { width: 200, align: "right", lineBreak: false })
+    .opacity(1);
+
+  // Plate + model
+  const modelLine = compact([vehicle.vehicle_brand_name, vehicle.vehicle_model_name, vehicle.vehicle_model_year]).join(" ");
+  doc
+    .font("Helvetica-Bold").fontSize(34).fillColor("#FFFFFF")
+    .text(toSafeText(vehicle.plate), left, 82, { width: contentWidth * 0.62, lineBreak: false, ellipsis: true });
+  doc
+    .font("Helvetica").fontSize(12).fillColor("#FFFFFF").opacity(0.9)
+    .text(modelLine || toSafeText(vehicle.vehicle_type_name, "Sin modelo registrado"), left, 124, { width: contentWidth * 0.62, lineBreak: false, ellipsis: true })
+    .opacity(1);
+
+  // Status pill
+  const PILL_W = 118;
+  doc.roundedRect(right - PILL_W, 92, PILL_W, 24, 12).fill("#FFFFFF");
+  doc.circle(right - PILL_W + 14, 104, 4).fill(statusColor);
+  doc
+    .font("Helvetica-Bold").fontSize(9).fillColor(C_DARK)
+    .text(statusText, right - PILL_W + 24, 99, { width: PILL_W - 30, lineBreak: false, ellipsis: true });
+
+  // ─── KPI TILES (overlap the band) ─────────────────────────────────────────────
+  const economic = vehicle.full_economic_number ?? vehicle.economic_individual_number;
+  const kpis = [
+    { label: "NO. ECONOMICO", value: toSafeText(economic) },
+    { label: "TIPO", value: toSafeText(vehicle.vehicle_type_name) },
+    { label: "ANO", value: toSafeText(vehicle.vehicle_model_year) },
+    { label: "FINANCIADO", value: vehicle.is_financed ? "Si" : "No" },
+  ];
+  const KPI_GAP = 10;
+  const KPI_H = 54;
+  const kpiW = Math.floor((contentWidth - KPI_GAP * (kpis.length - 1)) / kpis.length);
+  const kpiY = HEADER_H - KPI_H / 2;
+  kpis.forEach((kpi, i) => {
+    const x = left + i * (kpiW + KPI_GAP);
+    doc.roundedRect(x, kpiY, kpiW, KPI_H, 8).fillAndStroke("#FFFFFF", C_BORDER);
+    doc
+      .font("Helvetica-Bold").fontSize(6.5).fillColor(C_MUTED)
+      .text(kpi.label, x + 12, kpiY + 12, { width: kpiW - 24, lineBreak: false, characterSpacing: 0.6 });
+    doc
+      .font("Helvetica-Bold").fontSize(13).fillColor(C_DARK)
+      .text(kpi.value, x + 12, kpiY + 26, { width: kpiW - 24, lineBreak: false, ellipsis: true });
+  });
+
+  let y = kpiY + KPI_H + 24;
+
+  // ─── CARD HELPERS ─────────────────────────────────────────────────────────────
+  function cardTitle(title, atY) {
+    doc.roundedRect(left, atY + 1, 3, 12, 1.5).fill(brandColor);
+    doc
+      .font("Helvetica-Bold").fontSize(9).fillColor(C_DARK)
+      .text(title.toUpperCase(), left + 11, atY + 3, { lineBreak: false, characterSpacing: 0.8 });
+    return atY + 24;
+  }
+
+  // Label above value, N columns, no heavy grid lines.
+  function fieldGrid(fields, atY, columns = 3) {
+    const gap = 14;
+    const w = Math.floor((contentWidth - gap * (columns - 1)) / columns);
+    let rowY = atY;
+    for (let i = 0; i < fields.length; i += columns) {
+      fields.slice(i, i + columns).forEach((field, j) => {
+        const x = left + j * (w + gap);
+        doc
+          .font("Helvetica-Bold").fontSize(6.5).fillColor(C_MUTED)
+          .text(field.label.toUpperCase(), x, rowY, { width: w, lineBreak: false, characterSpacing: 0.5 });
+        let textX = x;
+        if (field.swatch) {
+          doc.circle(x + 5, rowY + 17, 5).fillAndStroke(field.swatch, C_BORDER);
+          textX = x + 15;
+        }
+        doc
+          .font("Helvetica").fontSize(10).fillColor(field.color ?? C_DARK)
+          .text(toSafeText(field.value), textX, rowY + 11, { width: w - (textX - x), lineBreak: false, ellipsis: true });
       });
+      rowY += 38;
+    }
+    return rowY;
   }
 
-  const rBlockW = Math.max(Math.floor(contentWidth * 0.38), 210);
-  const rBlockX = right - rBlockW;
-  const compX = LOGO_X + LOGO_SIZE + 14;
-  const compW = rBlockX - compX - 12;
-
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(13.5)
-    .fillColor(brandColor)
-    .text(companyName, compX, 11, { width: compW, lineBreak: false, ellipsis: true });
-
-  const companyMeta = compact([
-    branding.rfc && branding.rfc !== "-" ? `RFC: ${branding.rfc}` : null,
-    ...(Array.isArray(branding.addressLines) ? branding.addressLines : []),
-  ]);
-  if (companyMeta.length > 0) {
-    doc
-      .font("Helvetica")
-      .fontSize(7.5)
-      .fillColor(C_MUTED)
-      .text(companyMeta.join("\n"), compX, 29, { width: compW, lineBreak: true });
+  function softPanel(atY, height) {
+    doc.roundedRect(left, atY, contentWidth, height, 10).fillAndStroke(C_SOFT, C_BORDER);
   }
 
-  // Right block: title + folio
-  const plate = toSafeText(vehicle.plate);
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(11)
-    .fillColor(C_DARK)
-    .text("TARJETA DE VEHICULO", rBlockX, 10, { width: rBlockW, align: "right", lineBreak: false });
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(16)
-    .fillColor(brandColor)
-    .text(plate, rBlockX, 26, { width: rBlockW, align: "right", lineBreak: false });
-  doc
-    .font("Helvetica")
-    .fontSize(8)
-    .fillColor(C_MUTED)
-    .text(`Generado: ${formatDateEs(new Date())}`, rBlockX, 50, { width: rBlockW, align: "right", lineBreak: false });
+  // ─── IDENTIFICACION ───────────────────────────────────────────────────────────
+  y = cardTitle("Identificacion", y);
+  y = fieldGrid(
+    [
+      { label: "Matricula", value: vehicle.plate },
+      { label: "Marca", value: vehicle.vehicle_brand_name },
+      { label: "Modelo", value: vehicle.vehicle_model_name },
+      { label: "Tipo", value: vehicle.vehicle_type_name },
+      { label: "Color", value: vehicle.color, swatch: /^#[0-9a-f]{3,8}$/i.test(String(vehicle.color ?? "")) ? vehicle.color : null },
+      { label: "Estado", value: statusText, color: statusColor },
+    ],
+    y,
+  );
+  y += 8;
 
-  // Status badge in header
-  const statusBgColor = vehicle.status === "active" ? "#DCFCE7" : vehicle.status === "maintenance" ? "#FEF9C3" : "#F1F5F9";
-  const statusTxtColor = vehicle.status === "active" ? "#166534" : vehicle.status === "maintenance" ? "#92400E" : "#475569";
-  const statusBadgeW = 90;
-  const statusBadgeH = 18;
-  const statusBadgeX = rBlockX;
-  const statusBadgeY = 62;
-  doc.roundedRect(statusBadgeX, statusBadgeY, statusBadgeW, statusBadgeH, 4).fill(statusBgColor);
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(8)
-    .fillColor(statusTxtColor)
-    .text(statusText.toUpperCase(), statusBadgeX, statusBadgeY + 5, { width: statusBadgeW, align: "center", lineBreak: false });
-
-  // Divider
-  doc.lineWidth(1).moveTo(0, HEADER_H).lineTo(pageWidth, HEADER_H).stroke(brandColor);
-
-  let y = HEADER_H + 28;
-
-  // ─── SECTION TITLE ────────────────────────────────────────────────────────────
-  function drawSectionTitle(title, yPos) {
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(9)
-      .fillColor(brandColor)
-      .text(title.toUpperCase(), left, yPos, { lineBreak: false });
-    doc
-      .lineWidth(0.5)
-      .moveTo(left, yPos + 13)
-      .lineTo(right, yPos + 13)
-      .stroke(C_BORDER);
-    return yPos + 20;
-  }
-
-  // ─── TWO-COLUMN INFO ROW ──────────────────────────────────────────────────────
-  const colW = Math.floor((contentWidth - 16) / 2);
-
-  function drawInfoRow(label, value, xPos, yPos, width) {
-    const ROW_H = 24;
-    doc.rect(xPos, yPos, width, ROW_H).fill(C_LABEL_BG);
-    doc
-      .lineWidth(0.4)
-      .rect(xPos, yPos, width, ROW_H)
-      .stroke(C_BORDER);
-    doc
-      .font("Helvetica")
-      .fontSize(7.5)
-      .fillColor(C_MUTED)
-      .text(label, xPos + 6, yPos + 5, { width: Math.floor(width * 0.38), lineBreak: false });
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(8.5)
-      .fillColor(C_DARK)
-      .text(toSafeText(value), xPos + Math.floor(width * 0.4), yPos + 5, {
-        width: Math.floor(width * 0.56),
-        lineBreak: false,
-        ellipsis: true,
-      });
-    return yPos + ROW_H + 2;
-  }
-
-  function drawTwoColRow(leftLabel, leftVal, rightLabel, rightVal, yPos) {
-    drawInfoRow(leftLabel, leftVal, left, yPos, colW);
-    drawInfoRow(rightLabel, rightVal, left + colW + 16, yPos, colW);
-    return yPos + 26;
-  }
-
-  // ─── IDENTIFICACION DEL VEHICULO ──────────────────────────────────────────────
-  y = drawSectionTitle("Identificacion del vehiculo", y);
-
-  y = drawTwoColRow("Matricula", vehicle.plate, "No. Economico", vehicle.full_economic_number ?? vehicle.economic_individual_number, y);
-  y = drawTwoColRow("Marca", vehicle.vehicle_brand_name, "Modelo", vehicle.vehicle_model_name, y);
-  y = drawTwoColRow("Tipo", vehicle.vehicle_type_name, "Año", vehicle.vehicle_model_year, y);
-  y = drawTwoColRow("Color", vehicle.color, "Estado", statusText, y);
-
-  y += 14;
-
-  // ─── CONDUCTOR ASIGNADO ───────────────────────────────────────────────────────
-  y = drawSectionTitle("Conductor asignado", y);
-
+  // ─── CONDUCTOR ────────────────────────────────────────────────────────────────
+  y = cardTitle("Conductor asignado", y);
+  const PANEL_H = 56;
+  softPanel(y, PANEL_H);
   if (vehicle.driver_name) {
-    y = drawTwoColRow("Nombre", vehicle.driver_name, "Telefono", vehicle.driver_phone, y);
-    y = drawInfoRow("Licencia", vehicle.driver_license_number, left, y, contentWidth);
-    y += 2;
+    const initials = vehicle.driver_name.split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+    doc.circle(left + 30, y + PANEL_H / 2, 18).fill(brandTint);
+    doc
+      .font("Helvetica-Bold").fontSize(12).fillColor(brandColor)
+      .text(initials, left + 12, y + PANEL_H / 2 - 7, { width: 36, align: "center", lineBreak: false });
+    doc
+      .font("Helvetica-Bold").fontSize(11).fillColor(C_DARK)
+      .text(vehicle.driver_name, left + 60, y + 13, { width: contentWidth - 80, lineBreak: false, ellipsis: true });
+    doc
+      .font("Helvetica").fontSize(8.5).fillColor(C_MUTED)
+      .text(
+        compact([
+          vehicle.driver_phone ? `Tel. ${vehicle.driver_phone}` : null,
+          vehicle.driver_license_number ? `Licencia ${vehicle.driver_license_number}` : null,
+        ]).join("   ·   ") || "Sin datos de contacto",
+        left + 60, y + 31, { width: contentWidth - 80, lineBreak: false, ellipsis: true },
+      );
   } else {
     doc
-      .font("Helvetica")
-      .fontSize(8.5)
-      .fillColor(C_MUTED)
-      .text("Sin conductor asignado", left, y + 4, { lineBreak: false });
-    y += 26;
+      .font("Helvetica").fontSize(9.5).fillColor(C_MUTED)
+      .text("Esta unidad no tiene un chofer asignado.", left + 16, y + 21, { width: contentWidth - 32, lineBreak: false });
+  }
+  y += PANEL_H + 20;
+
+  // ─── POLIZA ───────────────────────────────────────────────────────────────────
+  const policy = vehicle.active_insurance_policy ?? null;
+  y = cardTitle("Poliza de seguro", y);
+  if (policy) {
+    y = fieldGrid(
+      [
+        { label: "Aseguradora", value: policy.insurer_name },
+        { label: "No. de poliza", value: policy.policy_number },
+        { label: "Cobertura", value: policy.coverage_type_label ?? COVERAGE_LABELS[policy.coverage_type] ?? policy.coverage_type },
+        { label: "Vigencia hasta", value: policy.expiry_date ? formatDateEs(policy.expiry_date) : "-" },
+      ],
+      y,
+      4,
+    );
+  } else {
+    doc.font("Helvetica").fontSize(9.5).fillColor(C_MUTED).text("Sin poliza de seguro activa.", left, y, { lineBreak: false });
+    y += 24;
+  }
+  y += 8;
+
+  // ─── FINANCIAMIENTO ───────────────────────────────────────────────────────────
+  if (vehicle.is_financed) {
+    y = cardTitle("Financiamiento", y);
+    y = fieldGrid(
+      [
+        { label: "Financiera", value: vehicle.financing_institution },
+        { label: "No. de contrato", value: vehicle.financing_contract_number },
+        { label: "Mensualidad", value: vehicle.financing_monthly_payment != null ? money(vehicle.financing_monthly_payment) : "-" },
+        { label: "Inicio", value: vehicle.financing_start_date ? formatDateEs(vehicle.financing_start_date) : "-" },
+        { label: "Termino", value: vehicle.financing_end_date ? formatDateEs(vehicle.financing_end_date) : "-" },
+      ],
+      y,
+    );
+    y += 8;
   }
 
-  y += 14;
-
-  // ─── NOTAS ────────────────────────────────────────────────────────────────────
+  // ─── OBSERVACIONES ────────────────────────────────────────────────────────────
   if (vehicle.notes) {
-    y = drawSectionTitle("Observaciones", y);
+    y = cardTitle("Observaciones", y);
     const notesText = toSafeText(vehicle.notes);
-    const NOTES_PAD = 8;
-    const approxLines = Math.ceil(notesText.length / 80) + 1;
-    const notesH = Math.max(40, approxLines * 12 + NOTES_PAD * 2);
-    doc.rect(left, y, contentWidth, notesH).fill(C_LABEL_BG);
-    doc.lineWidth(0.4).rect(left, y, contentWidth, notesH).stroke(C_BORDER);
+    const PAD = 12;
+    doc.font("Helvetica").fontSize(9);
+    const textH = doc.heightOfString(notesText, { width: contentWidth - PAD * 2 });
+    const maxH = doc.page.height - 70 - y;
+    const panelH = Math.min(textH + PAD * 2, maxH);
+    softPanel(y, panelH);
     doc
-      .font("Helvetica")
-      .fontSize(8.5)
-      .fillColor(C_MID)
-      .text(notesText, left + NOTES_PAD, y + NOTES_PAD, {
-        width: contentWidth - NOTES_PAD * 2,
-        lineBreak: true,
-      });
-    y += notesH + 14;
+      .font("Helvetica").fontSize(9).fillColor(C_MID)
+      .text(notesText, left + PAD, y + PAD, { width: contentWidth - PAD * 2, height: panelH - PAD * 2, ellipsis: true });
   }
 
   // ─── FOOTER (all pages) ───────────────────────────────────────────────────────
   const range = doc.bufferedPageRange();
   for (let i = 0; i < range.count; i += 1) {
     doc.switchToPage(range.start + i);
-    drawPdfFooter(doc, {
-      branding,
-      pageNumber: i + 1,
-      totalPages: range.count,
-    });
+    drawPdfFooter(doc, { branding, pageNumber: i + 1, totalPages: range.count });
   }
 
   doc.end();

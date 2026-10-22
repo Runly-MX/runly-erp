@@ -40,7 +40,16 @@ export function formatDateEs(value) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("es-MX");
+  // Calendar dates (DB date columns, "YYYY-MM-DD") are UTC midnight: format
+  // them by their UTC parts, or a negative-offset timezone shows the day before.
+  const isMidnightUtc =
+    date.getUTCHours() === 0 && date.getUTCMinutes() === 0 && date.getUTCSeconds() === 0 && date.getUTCMilliseconds() === 0;
+  if (isMidnightUtc) {
+    const dd = String(date.getUTCDate()).padStart(2, "0");
+    const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+    return `${dd}/${mm}/${date.getUTCFullYear()}`;
+  }
+  return date.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 // ─── PDFKit loader ─────────────────────────────────────────────────────────────
