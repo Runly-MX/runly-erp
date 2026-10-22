@@ -7,6 +7,7 @@ import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
 import { runly } from '../../../lib/runly'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { useFleetLive } from '../hooks/useFleetLive.js'
 
 const API_BASE = getApiUrl()
 
@@ -144,6 +145,7 @@ export default function ReportDetailScreen() {
   const { session } = useAuth()
   const token = session?.access_token ?? null
   const { activeCompanyId } = useActiveCompany()
+  const liveSignal = useFleetLive()
 
   const recordId = useMemo(() => {
     // wildcard: 'reports/:id'
@@ -180,6 +182,7 @@ export default function ReportDetailScreen() {
         token={token}
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
+        refreshSignal={liveSignal}
         initialMode="detail"
         recordId={recordId}
         onNavigate={handleNavigate}

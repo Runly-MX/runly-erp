@@ -10,6 +10,7 @@ import { createDriversRouter } from "./drivers-routes.js";
 import { createCatalogsRouter } from "./catalogs-routes.js";
 import { createReportsRouter } from "./reports-routes.js";
 import { createInsuranceRouter } from "./insurance-routes.js";
+import { createFleetDashboardRouter } from "./dashboard-routes.js";
 import { buildVehiclesExcelBuffer } from "./fleet-export-service.js";
 import { resolveCompanyName } from "../../services/pdf-branding-service.js";
 
@@ -80,8 +81,23 @@ export default function createFleetRouter({
   moduleContext,
   cache = null,
   enrichFilesWithSignedUrls = null,
+  broadcaster = null,
 }) {
   const app = new Hono();
+
+  // Tells open fleet screens (company events channel) to refetch after any
+  // successful write, so lists and details never need a manual reload.
+  app.use("/fleet/*", async (c, next) => {
+    await next();
+    if (c.req.method === "GET" || c.res.status >= 400) return;
+    const companyId = getCompanyIdFromContext(c);
+    if (!companyId) return;
+    Promise.resolve(
+      broadcaster?.broadcastToCompany?.(companyId, "fleet.changed", {
+        path: c.req.path,
+      }),
+    ).catch(() => {});
+  });
   const service = createFleetService({ prisma });
   const moduleKey = moduleContext?.moduleKey ?? "runly.fleet";
 
@@ -402,6 +418,7 @@ export default function createFleetRouter({
     "",
     createInsuranceRouter({ prisma, requirePermission, moduleContext }),
   );
+  app.route("", createFleetDashboardRouter({ prisma, requirePermission }));
 
   return app;
 }

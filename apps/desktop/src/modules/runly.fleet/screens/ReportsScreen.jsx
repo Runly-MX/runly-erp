@@ -6,6 +6,7 @@ import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { useFleetLive } from '../hooks/useFleetLive.js'
 
 const API_BASE = getApiUrl()
 
@@ -134,6 +135,7 @@ export default function ReportsScreen() {
   const { session } = useAuth()
   const token = session?.access_token ?? null
   const { activeCompanyId } = useActiveCompany()
+  const liveSignal = useFleetLive()
 
   const reportType = useMemo(() => {
     const segs = String(wildcard ?? '').replace(/^\/+/, '').split('/')
@@ -184,6 +186,7 @@ export default function ReportsScreen() {
         token={token}
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
+        refreshSignal={liveSignal}
         componentRegistry={componentRegistry}
         onView={handleView}
         onEdit={handleEdit}

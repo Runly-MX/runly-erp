@@ -4,6 +4,7 @@ import { RunlyCrudView, PageHeader, ChipTabs } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { useFleetLive } from '../hooks/useFleetLive.js'
 
 const API_BASE = getApiUrl()
 
@@ -104,12 +105,12 @@ const CATALOG_BLUEPRINTS = {
             {
               name: 'brand_id', label: 'Marca', type: 'relation', required: true,
               relation: { apiPath: '/fleet/catalogs/vehicle-brands', labelField: 'name', preload: true, clearable: false, disabledField: 'enabled',
-                create: { enabled: true, label: 'Crear marca', mode: 'modal', title: 'Crear marca', apiPath: '/fleet/catalogs/vehicle-brands', viewKey: 'fleet.catalogs.vehicle-brands.form', selectCreated: true, refreshOptions: true, permissionKey: 'fleet.catalogs.create' } },
+                create: { enabled: true, label: 'Crear marca', mode: 'quick', nameField: 'name', apiPath: '/fleet/catalogs/vehicle-brands', selectCreated: true, refreshOptions: true, permissionKey: 'fleet.catalogs.create' } },
             },
             {
               name: 'type_id', label: 'Tipo de vehiculo', type: 'relation', required: true,
               relation: { apiPath: '/fleet/catalogs/vehicle-types', labelField: 'name', preload: true, clearable: false, disabledField: 'enabled',
-                create: { enabled: true, label: 'Crear tipo de vehiculo', mode: 'modal', title: 'Crear tipo de vehiculo', apiPath: '/fleet/catalogs/vehicle-types', viewKey: 'fleet.catalogs.vehicle-types.form', selectCreated: true, refreshOptions: true, permissionKey: 'fleet.catalogs.create' } },
+                create: { enabled: true, label: 'Crear tipo de vehiculo', mode: 'quick', nameField: 'name', apiPath: '/fleet/catalogs/vehicle-types', selectCreated: true, refreshOptions: true, permissionKey: 'fleet.catalogs.create' } },
             },
             { name: 'name', label: 'Nombre', type: 'text',   required: true },
             { name: 'year', label: 'Año',    type: 'number', required: true },
@@ -138,6 +139,7 @@ export default function CatalogsScreen() {
   const { session } = useAuth()
   const token = session?.access_token ?? null
   const { activeCompanyId } = useActiveCompany()
+  const liveSignal = useFleetLive()
 
   const catalogKey = useMemo(() => {
     const segs = String(wildcard ?? '').replace(/^\/+/, '').split('/')
@@ -172,6 +174,7 @@ export default function CatalogsScreen() {
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
         initialMode="list"
+        refreshSignal={liveSignal}
         blueprints={FLEET_CATALOG_INLINE_BLUEPRINTS}
       />
     </div>

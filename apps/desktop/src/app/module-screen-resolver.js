@@ -77,6 +77,7 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     return screenMap["runly.contacts:/contacts/:id"] ?? null;
   }
   if (moduleKey === "runly.fleet") {
+    if (subPath === "/" || subPath === "/summary") return screenMap["runly.fleet:/summary"] ?? null;
     if (subPath === "/vehicles" || subPath === "/vehicles/new") return screenMap["runly.fleet:/vehicles"] ?? null;
     if (subPath.startsWith("/vehicles/")) return screenMap["runly.fleet:/vehicles/:id"] ?? null;
     if (subPath === "/drivers" || subPath === "/drivers/new") return screenMap["runly.fleet:/drivers"] ?? null;

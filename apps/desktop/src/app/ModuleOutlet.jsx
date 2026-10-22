@@ -170,6 +170,9 @@ const SCREEN_MAP = {
     () => import("../modules/runly.pfm/screens/BudgetsScreen.jsx"),
   ),
   // runly.fleet custom screens
+  "runly.fleet:/summary": lazy(
+    () => import("../modules/runly.fleet/screens/FleetSummaryScreen.jsx"),
+  ),
   "runly.fleet:/vehicles": lazy(
     () => import("../modules/runly.fleet/screens/VehiclesScreen.jsx"),
   ),

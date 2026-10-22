@@ -170,9 +170,9 @@ export const RunlyCrudView = forwardRef(function RunlyCrudView({
   }, [activeRecordId, mode]);
 
   const fetchRecord = useCallback(
-    async (nextRecordId) => {
+    async (nextRecordId, { silent = false } = {}) => {
       if (!tableApiPath || !nextRecordId) return;
-      setLoadingRecord(true);
+      if (!silent) setLoadingRecord(true);
       setRecordError("");
       try {
         const endpoint = `${joinUrl(apiBaseUrl, tableApiPath)}/${encodeURIComponent(String(nextRecordId))}`;
@@ -194,16 +194,26 @@ export const RunlyCrudView = forwardRef(function RunlyCrudView({
         const payload = await response.json();
         setRecordData(payload?.data ?? null);
       } catch (err) {
-        setRecordData(null);
-        setRecordError(
-          err instanceof Error ? err.message : "No se pudo cargar el registro.",
-        );
+        // A failed background refresh keeps what is on screen.
+        if (!silent) {
+          setRecordData(null);
+          setRecordError(
+            err instanceof Error ? err.message : "No se pudo cargar el registro.",
+          );
+        }
       } finally {
-        setLoadingRecord(false);
+        if (!silent) setLoadingRecord(false);
       }
     },
     [runtimeFetch, apiBaseUrl, tableApiPath, token, companyId],
   );
+
+  // External refresh (e.g. a realtime push): re-read an open detail quietly.
+  useEffect(() => {
+    if (!externalRefreshSignal) return;
+    if (mode === "detail" && activeRecordId) fetchRecord(activeRecordId, { silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalRefreshSignal]);
 
   useEffect(() => {
     if ((mode === "detail" || mode === "edit") && activeRecordId) {

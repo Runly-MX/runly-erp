@@ -6,6 +6,7 @@ import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { useFleetLive } from '../hooks/useFleetLive.js'
 
 const API_BASE = getApiUrl()
 const BASE_PATH = '/app/m/runly.fleet/insurance'
@@ -184,6 +185,7 @@ export default function InsuranceScreen() {
   const { session, userProfile } = useAuth()
   const token = session?.access_token ?? null
   const { activeCompanyId } = useActiveCompany()
+  const liveSignal = useFleetLive()
   const canCreate = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('fleet.insurance.create'))
 
   const { initialMode, recordId } = useMemo(() => parseModeAndId(wildcard), [wildcard])
@@ -221,6 +223,7 @@ export default function InsuranceScreen() {
         token={token}
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
+        refreshSignal={liveSignal}
         initialMode={initialMode}
         recordId={recordId}
         onNavigate={handleNavigate}

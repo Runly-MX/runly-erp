@@ -10,6 +10,8 @@ import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import { runly } from "../../../lib/runly";
 import { useMiraiRecordContext } from "../../runly.chat/lib/miraiPageContext";
 import { FLEET_VEHICLE_MODEL_FORM_BLUEPRINT, FLEET_CATALOG_INLINE_BLUEPRINTS } from "./CatalogsScreen.jsx";
+import { DRIVER_QUICK_FORM_BLUEPRINT } from "./DriversScreen.jsx";
+import { useFleetLive } from "../hooks/useFleetLive.js";
 
 const API_BASE = getApiUrl();
 const BASE_PATH = "/app/m/runly.fleet/vehicles";
@@ -134,6 +136,7 @@ const VEHICLE_FORM = {
                 enabled: true,
                 label: "Crear modelo de vehiculo",
                 mode: "modal",
+                prefillFromSearch: true,
                 title: "Crear modelo de vehiculo",
                 apiPath: "/fleet/catalogs/vehicle-models",
                 viewKey: FLEET_VEHICLE_MODEL_FORM_BLUEPRINT.key,
@@ -181,6 +184,18 @@ const VEHICLE_FORM = {
               preload: false,
               clearable: true,
               disabledField: "enabled",
+              create: {
+                enabled: true,
+                label: "Crear chofer",
+                mode: "modal",
+                prefillFromSearch: true,
+                title: "Nuevo chofer",
+                apiPath: "/fleet/drivers",
+                viewKey: DRIVER_QUICK_FORM_BLUEPRINT.key,
+                selectCreated: true,
+                refreshOptions: true,
+                permissionKey: "fleet.drivers.create",
+              },
             },
           },
         ],
@@ -314,7 +329,6 @@ const VEHICLE_DETAIL = {
       imageField: "cover_image_file_asset_id",
       imageDocsPath: "/fleet/vehicles/:id/documents",
       fallbackIcon: "Truck",
-      accentColorField: "color",
       metaChips: [
         { field: "vehicle_type_name", label: "Tipo", icon: "Layers" },
         { field: "full_economic_number", label: "No. Economico", icon: "Hash" },
@@ -579,6 +593,7 @@ export default function VehiclesScreen() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token ?? null;
   const { activeCompanyId } = useActiveCompany();
+  const liveSignal = useFleetLive();
   const canCreate = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes("fleet.vehicles.create"));
 
   const { initialMode, recordId } = useMemo(
@@ -641,8 +656,9 @@ export default function VehiclesScreen() {
         initialMode={initialMode}
         recordId={recordId}
         onNavigate={handleNavigate}
+        refreshSignal={liveSignal}
         componentRegistry={componentRegistry}
-        blueprints={[FLEET_VEHICLE_MODEL_FORM_BLUEPRINT, ...FLEET_CATALOG_INLINE_BLUEPRINTS]}
+        blueprints={[FLEET_VEHICLE_MODEL_FORM_BLUEPRINT, DRIVER_QUICK_FORM_BLUEPRINT, ...FLEET_CATALOG_INLINE_BLUEPRINTS]}
         suppressToolbarCreate
       />
     </div>

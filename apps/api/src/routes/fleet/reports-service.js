@@ -1,6 +1,7 @@
 import { FleetServiceError } from "./fleet-service.js";
 import { buildReportPdfBuffer } from "./report-pdf.js";
 import { createReportSchemaEnsurer } from "./reports-schema.js";
+import { createFleetCalendarBridge } from "./fleet-calendar-bridge.js";
 import {
   normalizePagination,
   normalizeSearch,
@@ -310,6 +311,7 @@ function mapRowForUi(row) {
 }
 
 export function createReportsService({ prisma }) {
+  const calendarBridge = createFleetCalendarBridge({ prisma });
   async function logAudit({
     companyId,
     actorId,
@@ -600,11 +602,17 @@ export function createReportsService({ prisma }) {
       before: null,
       after: { ...row, parts: data.parts },
     });
-    return getReport({
+    const createdReport = await getReport({
       companyId: safeCompanyId,
       id: row.id,
       reportType: data.report_type,
     });
+    await calendarBridge.syncReportEvent({
+      companyId: safeCompanyId,
+      actorId,
+      report: createdReport,
+    });
+    return createdReport;
   }
 
   async function updateReport({
@@ -725,6 +733,11 @@ export function createReportsService({ prisma }) {
       before,
       after: result,
     });
+    await calendarBridge.syncReportEvent({
+      companyId: safeCompanyId,
+      actorId,
+      report: result,
+    });
     return result;
   }
 
@@ -761,6 +774,11 @@ export function createReportsService({ prisma }) {
       before,
       after: updated,
       metadata: { enabled: Boolean(enabled) },
+    });
+    await calendarBridge.syncReportEvent({
+      companyId: safeCompanyId,
+      actorId,
+      report: { ...before, ...updated },
     });
     return updated;
   }

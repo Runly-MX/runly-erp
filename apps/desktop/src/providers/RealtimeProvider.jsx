@@ -356,6 +356,10 @@ export function RealtimeProvider({ children }) {
       .on('broadcast', { event: 'calendar.event.updated' }, () => {
         queryClient.invalidateQueries({ queryKey: ['calendar'] })
       })
+      .on('broadcast', { event: 'fleet.changed' }, ({ payload }) => {
+        queryClient.invalidateQueries({ queryKey: ['fleet'] })
+        dispatch('fleet.changed', payload)
+      })
       .on('broadcast', { event: 'attendance.changed' }, ({ payload }) => {
         queryClient.invalidateQueries({ queryKey: ['attendance'] })
         dispatch('attendance.changed', payload)

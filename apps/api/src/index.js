@@ -2486,7 +2486,7 @@ mountWithAuth(app, createLedgerRouter({ prisma, requirePermission, requireAnyPer
 mountWithAuth(app, createPfmRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, filesService, notificationService }));
 mountWithAuth(app, createUsersRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin }));
 mountWithAuth(app, createSearchRouter({ prisma, getUserContext: getOrLoadUserContext, resolveTenantContext }));
-mountWithAuth(app, createFleetRouter({ prisma, requirePermission, enrichFilesWithSignedUrls: filesService.enrichFilesWithSignedUrls.bind(filesService) }));
+mountWithAuth(app, createFleetRouter({ prisma, requirePermission, broadcaster, enrichFilesWithSignedUrls: filesService.enrichFilesWithSignedUrls.bind(filesService) }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin }));
 mountWithAuth(app, createPosRouter({ prisma, requirePermission, broadcaster }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission, broadcaster, supabaseAdmin }));

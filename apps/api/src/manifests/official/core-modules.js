@@ -643,7 +643,7 @@ export const runlyFleetManifest = createModuleManifest({
   summary: "Vehiculos, conductores, reportes y control operativo.",
   icon: "Gauge",
   color: "#14B8A6",
-  pwa: { shortName: "Flota", startPath: "/vehicles" },
+  pwa: { shortName: "Flota", startPath: "/summary" },
   accentColor: "#0F766E",
   initials: "FL",
   dependencies: [{ key: "runly.core" }],
@@ -845,6 +845,13 @@ export const runlyFleetManifest = createModuleManifest({
     ...loadHelpBlueprints("runly.fleet", path.join(HELP_DIR, "runly.fleet")),
   ],
   navigation: [
+    {
+      label: "Resumen",
+      path: "/app/m/runly.fleet/summary",
+      icon: "LayoutDashboard",
+      layout: "main",
+      permissionKey: "fleet.vehicles.read",
+    },
     {
       label: "Vehiculos",
       path: "/app/m/runly.fleet/vehicles",

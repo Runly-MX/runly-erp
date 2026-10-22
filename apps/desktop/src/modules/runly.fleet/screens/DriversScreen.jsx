@@ -6,6 +6,7 @@ import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { useFleetLive } from '../hooks/useFleetLive.js'
 
 const API_BASE = getApiUrl()
 const BASE_PATH = '/app/m/runly.fleet/drivers'
@@ -42,7 +43,7 @@ const DRIVER_TABLE = {
   },
 }
 
-const DRIVER_FORM = {
+export const DRIVER_FORM = {
   key: 'fleet.driver.form',
   kind: 'FORM',
   schema: {
@@ -197,12 +198,26 @@ function parseModeAndId(wildcard) {
   return { initialMode: 'list', recordId: null }
 }
 
+// Compact variant opened from the vehicle form when the driver does not exist
+// yet: same fields, rendered in a modal, without the documents panel (those
+// are added later from the driver's own page).
+export const DRIVER_QUICK_FORM_BLUEPRINT = {
+  ...DRIVER_FORM,
+  key: 'fleet.driver.form.quick',
+  schema: {
+    ...DRIVER_FORM.schema,
+    formMode: 'modal',
+    sections: DRIVER_FORM.schema.sections.filter((section) => section.type !== 'attachments'),
+  },
+}
+
 export default function DriversScreen() {
   const { '*': wildcard } = useParams()
   const navigate = useNavigate()
   const { session, userProfile } = useAuth()
   const token = session?.access_token ?? null
   const { activeCompanyId } = useActiveCompany()
+  const liveSignal = useFleetLive()
   const canCreate = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('fleet.drivers.create'))
 
   const { initialMode, recordId } = useMemo(() => parseModeAndId(wildcard), [wildcard])
@@ -243,6 +258,7 @@ export default function DriversScreen() {
         initialMode={initialMode}
         recordId={recordId}
         onNavigate={handleNavigate}
+        refreshSignal={liveSignal}
         componentRegistry={componentRegistry}
         suppressToolbarCreate
       />
