@@ -16,6 +16,13 @@ import { useFleetLive } from "../hooks/useFleetLive.js";
 const API_BASE = getApiUrl();
 const BASE_PATH = "/app/m/runly.fleet/vehicles";
 
+const VEHICLE_STATUS_OPTIONS = [
+  { value: "active", label: "Activo" },
+  { value: "maintenance", label: "En mantenimiento" },
+  { value: "inactive", label: "Inactivo" },
+  { value: "retired", label: "Retirado" },
+];
+
 const VEHICLE_TABLE = {
   key: "fleet.vehicle.table",
   kind: "TABLE",
@@ -24,6 +31,8 @@ const VEHICLE_TABLE = {
     component: "RunlyTable",
     apiPath: "/fleet/vehicles",
     primaryField: "plate",
+    defaultViewMode: "grid",
+    statusField: "status",
     searchable: true,
     searchPlaceholder: "Buscar vehiculo...",
     columns: [
@@ -31,7 +40,8 @@ const VEHICLE_TABLE = {
         field: "cover_image_file_asset_id",
         label: "Imagen",
         sortable: false,
-        component: "runly.fleet:VehicleImageCell",
+        type: "image-asset",
+        imagesApiPath: "/fleet/vehicles/:id/documents",
       },
       { field: "plate", label: "Matricula", sortable: true, link: true },
       { field: "vehicle_brand_name", label: "Marca", sortable: false },
@@ -47,6 +57,8 @@ const VEHICLE_TABLE = {
         field: "status",
         label: "Estado",
         sortable: true,
+        type: "select",
+        options: VEHICLE_STATUS_OPTIONS,
         component: "runly.fleet:VehicleStatusBadge",
       },
       {
@@ -102,6 +114,7 @@ const VEHICLE_FORM = {
     apiPath: "/fleet/vehicles",
     sections: [
       {
+        id: "identification",
         label: "Identificacion del vehiculo",
         icon: "Truck",
         collapsible: true,
@@ -158,7 +171,7 @@ const VEHICLE_FORM = {
             type: "select",
             required: true,
             hint: "Estado actual del vehiculo dentro de la flota",
-            options: ["active", "maintenance", "inactive", "retired"],
+            options: VEHICLE_STATUS_OPTIONS,
           },
           {
             field: "economic_individual_number",
@@ -169,6 +182,7 @@ const VEHICLE_FORM = {
         ],
       },
       {
+        id: "driver",
         label: "Asignacion de conductor",
         icon: "UserCheck",
         collapsible: true,
@@ -189,6 +203,7 @@ const VEHICLE_FORM = {
                 label: "Crear chofer",
                 mode: "modal",
                 prefillFromSearch: true,
+                prefillSplit: ["first_name", "last_name"],
                 title: "Nuevo chofer",
                 apiPath: "/fleet/drivers",
                 viewKey: DRIVER_QUICK_FORM_BLUEPRINT.key,
@@ -201,6 +216,7 @@ const VEHICLE_FORM = {
         ],
       },
       {
+        id: "financing",
         label: "Financiamiento",
         icon: "Landmark",
         collapsible: true,
@@ -252,6 +268,7 @@ const VEHICLE_FORM = {
         ],
       },
       {
+        id: "notes",
         label: "Notas",
         icon: "FileText",
         collapsible: true,
@@ -269,6 +286,7 @@ const VEHICLE_FORM = {
         type: "attachments",
         label: "Documentos del vehiculo",
         placement: "aside",
+        mobileAfter: "identification",
         collapsible: true,
         attachments: {
           createMode: "stage-until-parent-create",
@@ -326,6 +344,12 @@ const VEHICLE_DETAIL = {
         "vehicle_model_year",
       ],
       statusField: "status",
+      statusOptions: [
+        { value: "active", label: "Activo", color: "#059669" },
+        { value: "maintenance", label: "En mantenimiento", color: "#d97706" },
+        { value: "inactive", label: "Inactivo", color: "#64748b" },
+        { value: "retired", label: "Retirado", color: "#dc2626" },
+      ],
       imageField: "cover_image_file_asset_id",
       imageDocsPath: "/fleet/vehicles/:id/documents",
       fallbackIcon: "Truck",

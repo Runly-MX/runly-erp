@@ -32,7 +32,7 @@ export function buildInsights(d) {
   if (overdue.length) {
     out.push({
       id: "service-overdue", severity: "critical", icon: "Wrench",
-      title: plural(overdue.length, "vehiculo con mantenimiento vencido", "vehiculos con mantenimiento vencido"),
+      title: plural(overdue.length, "vehículo con mantenimiento vencido", "vehículos con mantenimiento vencido"),
       detail: overdue.slice(0, 3).map((m) => `${m.plate} (${Math.abs(m.daysLeft)} d de retraso)`).join(", "),
       href: vehicleHref(overdue[0].vehicleId),
     });
@@ -40,7 +40,7 @@ export function buildInsights(d) {
   if (soon.length) {
     out.push({
       id: "service-soon", severity: "warning", icon: "CalendarClock",
-      title: `${plural(soon.length, "mantenimiento proximo", "mantenimientos proximos")} (${SERVICE_SOON_DAYS} dias)`,
+      title: `${plural(soon.length, "mantenimiento próximo", "mantenimientos próximos")} (${SERVICE_SOON_DAYS} días)`,
       detail: soon.slice(0, 3).map((m) => `${m.plate} en ${m.daysLeft} d`).join(", "),
       href: vehicleHref(soon[0].vehicleId),
     });
@@ -48,8 +48,8 @@ export function buildInsights(d) {
   for (const v of d.recurrentFailures) {
     out.push({
       id: `failures-${v.vehicleId}`, severity: "warning", icon: "TriangleAlert",
-      title: `${v.plate}: ${v.failures} reparaciones en 90 dias`,
-      detail: "Fallas recurrentes. Conviene un diagnostico completo o evaluar si compensa seguir reparandolo.",
+      title: `${v.plate}: ${v.failures} reparaciones en 90 días`,
+      detail: "Fallas recurrentes. Conviene un diagnóstico completo o evaluar si compensa seguir reparándolo.",
       href: vehicleHref(v.vehicleId),
     });
   }
@@ -57,15 +57,15 @@ export function buildInsights(d) {
     && d.costTrend.recent > d.costTrend.baseline * MONEY_ANOMALY_FACTOR) {
     out.push({
       id: "cost-spike", severity: "warning", icon: "TrendingUp",
-      title: "El gasto en mantenimiento subio",
-      detail: `Ultimos 30 dias: ${money(d.costTrend.recent)} contra un promedio mensual de ${money(d.costTrend.baseline)}.`,
+      title: "El gasto en mantenimiento subió",
+      detail: `Últimos 30 días: ${money(d.costTrend.recent)} contra un promedio mensual de ${money(d.costTrend.baseline)}.`,
       href: "/app/m/runly.fleet/reports/maintenance",
     });
   }
   if (d.insurance.expired) {
     out.push({
       id: "insurance-expired", severity: "critical", icon: "ShieldAlert",
-      title: plural(d.insurance.expired, "poliza vencida", "polizas vencidas"),
+      title: plural(d.insurance.expired, "póliza vencida", "pólizas vencidas"),
       detail: "Esas unidades circulan sin cobertura vigente.",
       href: "/app/m/runly.fleet/insurance",
     });
@@ -73,7 +73,7 @@ export function buildInsights(d) {
   if (d.insurance.expiringSoon) {
     out.push({
       id: "insurance-soon", severity: "warning", icon: "ShieldCheck",
-      title: `${plural(d.insurance.expiringSoon, "poliza vence", "polizas vencen")} en ${SOON_DAYS} dias`,
+      title: `${plural(d.insurance.expiringSoon, "póliza vence", "pólizas vencen")} en ${SOON_DAYS} días`,
       detail: d.insurance.upcoming.filter((p) => p.daysLeft >= 0).slice(0, 3).map((p) => `${p.plate} (${p.daysLeft} d)`).join(", "),
       href: "/app/m/runly.fleet/insurance",
     });
@@ -81,8 +81,8 @@ export function buildInsights(d) {
   if (d.insurance.uncovered) {
     out.push({
       id: "insurance-none", severity: "warning", icon: "ShieldOff",
-      title: plural(d.insurance.uncovered, "vehiculo sin poliza", "vehiculos sin poliza"),
-      detail: "Registra una poliza para incluirlos en el seguimiento de vencimientos.",
+      title: plural(d.insurance.uncovered, "vehículo sin póliza", "vehículos sin póliza"),
+      detail: "Registra una póliza para incluirlos en el seguimiento de vencimientos.",
       href: "/app/m/runly.fleet/vehicles",
     });
   }
@@ -97,7 +97,7 @@ export function buildInsights(d) {
   if (d.licenses.expiringSoon) {
     out.push({
       id: "license-soon", severity: "warning", icon: "IdCard",
-      title: `${plural(d.licenses.expiringSoon, "licencia vence", "licencias vencen")} en ${SOON_DAYS} dias`,
+      title: `${plural(d.licenses.expiringSoon, "licencia vence", "licencias vencen")} en ${SOON_DAYS} días`,
       detail: d.licenses.upcoming.filter((l) => l.daysLeft >= 0).slice(0, 3).map((l) => `${l.name} (${l.daysLeft} d)`).join(", "),
       href: "/app/m/runly.fleet/drivers",
     });
@@ -105,8 +105,8 @@ export function buildInsights(d) {
   if (d.assignment.vehiclesWithoutDriver) {
     out.push({
       id: "no-driver", severity: "info", icon: "UserX",
-      title: plural(d.assignment.vehiclesWithoutDriver, "vehiculo activo sin chofer", "vehiculos activos sin chofer"),
-      detail: "Asigna un chofer desde la ficha del vehiculo.",
+      title: plural(d.assignment.vehiclesWithoutDriver, "vehículo activo sin chofer", "vehículos activos sin chofer"),
+      detail: "Asigna un chofer desde la ficha del vehículo.",
       href: "/app/m/runly.fleet/vehicles",
     });
   }
@@ -122,7 +122,7 @@ export function buildInsights(d) {
     out.push({
       id: "all-good", severity: "info", icon: "CircleCheck",
       title: "Todo en orden",
-      detail: "No hay vencimientos ni fallas recurrentes que requieran atencion.",
+      detail: "No hay vencimientos ni fallas recurrentes que requieran atención.",
       href: null,
     });
   }

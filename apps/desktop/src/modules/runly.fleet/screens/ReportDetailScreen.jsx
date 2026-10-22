@@ -17,127 +17,231 @@ const REPORT_TABLE_STUB = {
   schema: { entity: 'report', apiPath: '/fleet/reports', columns: [], emptyState: { message: '' } },
 }
 
-const DETAIL_BY_TYPE = {
-  maintenance: {
-    key: 'fleet.reports.maintenance.detail',
-    kind: 'DETAIL',
-    schema: {
-      entity: 'report',
-      component: 'RunlyDetail',
-      apiPath: '/fleet/reports/maintenance',
-      sections: [
-        { label: 'Informacion general', columns: 2, fields: [
-          { field: 'folio', label: 'Folio', icon: 'Hash' },
-          { field: 'title', label: 'Titulo', icon: 'ClipboardList' },
-          { field: 'status', label: 'Estado', icon: 'Activity' },
-          { field: 'report_type_label', label: 'Tipo', icon: 'Layers' },
-          { field: 'report_date', label: 'Fecha', type: 'date', icon: 'CalendarDays' },
-          { field: 'odometer_km', label: 'Kilometraje', icon: 'Hash', type: 'number' },
-          { field: 'maintenance_subtype', label: 'Subtipo', icon: 'Wrench', type: 'select', options: [
-            { label: 'Preventivo', value: 'preventive' }, { label: 'Correctivo', value: 'corrective' },
-            { label: 'Inspeccion', value: 'inspection' }, { label: 'Alineacion', value: 'alignment' },
-            { label: 'Cambio de aceite', value: 'oil_change' }, { label: 'Llantas', value: 'tire_service' },
-            { label: 'Otro', value: 'other' },
-          ]},
-        ]},
-        { id: 'related_vehicle', type: 'relation-card', label: 'Vehiculo', relationCard: { idField: 'vehicle_id', titleField: 'vehicle_plate', subtitleFields: ['vehicle_brand_name', 'vehicle_model_name'], fallbackTitle: 'Vehiculo no disponible', hrefTemplate: '/app/m/runly.fleet/vehicles/:id', icon: 'Truck' } },
-        { label: 'Taller y costos', columns: 2, fields: [
-          { field: 'is_inhouse_workshop', label: 'Taller propio', type: 'boolean', icon: 'Building2' },
-          { field: 'workshop_name', label: 'Taller', icon: 'Library' },
-          { field: 'invoice_number', label: 'Factura/Ticket', icon: 'FileText' },
-          { field: 'workshop_phone', label: 'Telefono', icon: 'Phone' },
-          { field: 'workshop_address', label: 'Direccion', icon: 'Link2' },
-          { field: 'labor_cost', label: 'Mano de obra', type: 'currency', icon: 'Tag' },
-          { field: 'parts_cost', label: 'Refacciones', type: 'currency', icon: 'Tag' },
-          { field: 'total_cost', label: 'Total', type: 'currency', icon: 'Tag' },
-        ]},
-        { id: 'parts', type: 'relation-list', label: 'Refacciones / Partes', relationList: { apiPath: '/fleet/reports/:id/parts', idField: 'id', titleField: 'name', subtitleFields: ['quantity', 'unit_cost', 'subtotal'], subtitleLabels: ['Cant.', 'P.U.', 'Subtotal'], subtitleTypes: ['integer', 'currency', 'currency'], icon: 'Wrench', emptyMessage: 'No hay refacciones registradas.' } },
-        { label: 'Proximo servicio', columns: 2, fields: [{ field: 'next_service_date', label: 'Fecha sugerida', type: 'date', icon: 'CalendarDays' }, { field: 'next_service_odometer', label: 'Kilometraje sugerido', icon: 'Hash', type: 'number' }] },
-        { label: 'Observaciones', fields: [{ field: 'notes', label: 'Notas', type: 'markdown', icon: 'FileText' }] },
-        { id: 'documents', type: 'documents', label: 'Archivos adjuntos', documents: { listPath: '/fleet/reports/:id/documents', addPath: '/fleet/reports/:id/documents', removePath: '/fleet/reports/:id/documents/:docId', upload: { endpoint: '/files/upload', moduleKey: 'runly.fleet', entityType: 'FleetReport' }, fields: { associationId: 'id', fileAssetId: 'file_asset_id', documentType: 'document_type', label: 'label', createdAt: 'created_at', enabled: 'enabled', fileAsset: 'file_asset', fileName: 'originalName', mimeType: 'mimeType', sizeBytes: 'sizeBytes' }, signedUrl: { endpointTemplate: '/files/:fileId/signed-url' }, permissions: { read: 'fleet.reports.read', create: 'fleet.reports.update', remove: 'fleet.reports.update', fileUpload: 'files.assets.create', fileRead: 'files.assets.read' } } },
-      ],
-      headerActions: [
-        { key: 'download_pdf', label: 'Descargar PDF', method: 'GET', pathTemplate: '/fleet/reports/:id/pdf', download: true, downloadFileName: 'reporte-flota.pdf', refreshAfter: false, variant: 'outline', visibleWhen: { field: 'status', equals: 'finalized' } },
-        { key: 'regenerate_pdf', label: 'Regenerar PDF', method: 'GET', pathTemplate: '/fleet/reports/:id/pdf', refreshAfter: false, variant: 'outline', visibleWhen: { field: 'status', equals: 'finalized' } },
-        { key: 'finalize', label: 'Finalizar', method: 'POST', pathTemplate: '/fleet/reports/:id/finalize', visibleWhen: { field: 'status', equals: 'draft' }, variant: 'default' },
-        { key: 'reopen', label: 'Reabrir', method: 'POST', pathTemplate: '/fleet/reports/:id/reopen', visibleWhen: { field: 'status', equals: 'finalized' }, variant: 'outline' },
-      ],
-      actions: [{ label: 'Editar', permission: 'fleet.reports.update' }],
+// Page mode comes from the form blueprint; this stub keeps the detail a full
+// page instead of a side sheet (editing lives in ReportFormPage).
+const REPORT_FORM_STUB = {
+  key: 'fleet.reports.form.stub',
+  kind: 'FORM',
+  schema: { entity: 'report', apiPath: '/fleet/reports', formMode: 'page', sections: [] },
+}
+
+const STATUS_OPTIONS = [
+  { value: 'draft', label: 'Borrador', color: '#d97706' },
+  { value: 'finalized', label: 'Finalizado', color: '#059669' },
+]
+
+const TYPE_ICONS = { maintenance: 'Wrench', service: 'ClipboardCheck', repair: 'Hammer', other: 'ClipboardList' }
+
+const MAINTENANCE_SUBTYPES = [
+  { label: 'Preventivo', value: 'preventive' }, { label: 'Correctivo', value: 'corrective' },
+  { label: 'Inspeccion', value: 'inspection' }, { label: 'Alineacion', value: 'alignment' },
+  { label: 'Cambio de aceite', value: 'oil_change' }, { label: 'Llantas', value: 'tire_service' },
+  { label: 'Otro', value: 'other' },
+]
+const SERVICE_SUBTYPES = [
+  { label: 'General', value: 'general' }, { label: 'Diagnostico', value: 'diagnostic' },
+  { label: 'Limpieza', value: 'cleaning' }, { label: 'Electrico', value: 'electrical' }, { label: 'Otro', value: 'other' },
+]
+const REPAIR_PRIORITIES = [
+  { label: 'Baja', value: 'low' }, { label: 'Normal', value: 'normal' },
+  { label: 'Alta', value: 'high' }, { label: 'Urgente', value: 'urgent' },
+]
+const REPAIR_DAMAGE = [
+  { label: 'Mecanico', value: 'mechanical' }, { label: 'Electrico', value: 'electrical' },
+  { label: 'Carroceria', value: 'body' }, { label: 'Interior', value: 'interior' }, { label: 'Otro', value: 'other' },
+]
+
+const costFields = [
+  { field: 'labor_cost', label: 'Mano de obra', type: 'currency', icon: 'Wrench' },
+  { field: 'parts_cost', label: 'Refacciones', type: 'currency', icon: 'Package' },
+  { field: 'total_cost', label: 'Total', type: 'currency', icon: 'Banknote' },
+]
+
+const workshopFields = [
+  { field: 'is_inhouse_workshop', label: 'Taller propio', type: 'boolean', icon: 'Building2' },
+  { field: 'workshop_name', label: 'Taller', icon: 'Library' },
+  { field: 'invoice_number', label: 'Factura / ticket', icon: 'FileText' },
+  { field: 'workshop_phone', label: 'Telefono', icon: 'Phone' },
+  { field: 'workshop_address', label: 'Direccion', icon: 'MapPin' },
+]
+
+const documentsSection = {
+  id: 'documents',
+  type: 'documents',
+  label: 'Archivos adjuntos',
+  column: 'aside',
+  documents: {
+    listPath: '/fleet/reports/:id/documents',
+    addPath: '/fleet/reports/:id/documents',
+    removePath: '/fleet/reports/:id/documents/:docId',
+    upload: { endpoint: '/files/upload', moduleKey: 'runly.fleet', entityType: 'FleetReport' },
+    fields: {
+      associationId: 'id', fileAssetId: 'file_asset_id', documentType: 'document_type', label: 'label',
+      createdAt: 'created_at', enabled: 'enabled', fileAsset: 'file_asset',
+      fileName: 'originalName', mimeType: 'mimeType', sizeBytes: 'sizeBytes',
     },
-  },
-  service: {
-    key: 'fleet.reports.service.detail',
-    kind: 'DETAIL',
-    schema: {
-      entity: 'report',
-      component: 'RunlyDetail',
-      apiPath: '/fleet/reports/service',
-      sections: [
-        { label: 'Informacion general', columns: 2, fields: [{ field: 'folio', label: 'Folio', icon: 'Hash' }, { field: 'title', label: 'Titulo', icon: 'ClipboardList' }, { field: 'status', label: 'Estado', icon: 'Activity' }, { field: 'report_type_label', label: 'Tipo', icon: 'Layers' }, { field: 'report_date', label: 'Fecha', type: 'date', icon: 'CalendarDays' }, { field: 'odometer_km', label: 'Kilometraje', icon: 'Hash', type: 'number' }, { field: 'service_subtype', label: 'Subtipo', icon: 'Wrench', type: 'select', options: [{ label: 'General', value: 'general' }, { label: 'Diagnostico', value: 'diagnostic' }, { label: 'Limpieza', value: 'cleaning' }, { label: 'Electrico', value: 'electrical' }, { label: 'Otro', value: 'other' }] }] },
-        { id: 'related_vehicle', type: 'relation-card', label: 'Vehiculo', relationCard: { idField: 'vehicle_id', titleField: 'vehicle_plate', subtitleFields: ['vehicle_brand_name', 'vehicle_model_name'], fallbackTitle: 'Vehiculo no disponible', hrefTemplate: '/app/m/runly.fleet/vehicles/:id', icon: 'Truck' } },
-        { label: 'Taller y costos', columns: 2, fields: [{ field: 'is_inhouse_workshop', label: 'Taller propio', type: 'boolean', icon: 'Building2' }, { field: 'workshop_name', label: 'Taller', icon: 'Library' }, { field: 'invoice_number', label: 'Factura/Ticket', icon: 'FileText' }, { field: 'workshop_phone', label: 'Telefono', icon: 'Phone' }, { field: 'workshop_address', label: 'Direccion', icon: 'Link2' }, { field: 'labor_cost', label: 'Mano de obra', type: 'currency', icon: 'Tag' }, { field: 'parts_cost', label: 'Refacciones', type: 'currency', icon: 'Tag' }, { field: 'total_cost', label: 'Total', type: 'currency', icon: 'Tag' }] },
-        { id: 'parts', type: 'relation-list', label: 'Refacciones / Partes', relationList: { apiPath: '/fleet/reports/:id/parts', idField: 'id', titleField: 'name', subtitleFields: ['quantity', 'unit_cost', 'subtotal'], subtitleLabels: ['Cant.', 'P.U.', 'Subtotal'], subtitleTypes: ['integer', 'currency', 'currency'], icon: 'Wrench', emptyMessage: 'No hay refacciones registradas.' } },
-        { label: 'Observaciones', fields: [{ field: 'notes', label: 'Notas', type: 'markdown', icon: 'FileText' }] },
-        { id: 'documents', type: 'documents', label: 'Archivos adjuntos', documents: { listPath: '/fleet/reports/:id/documents', addPath: '/fleet/reports/:id/documents', removePath: '/fleet/reports/:id/documents/:docId', upload: { endpoint: '/files/upload', moduleKey: 'runly.fleet', entityType: 'FleetReport' }, fields: { associationId: 'id', fileAssetId: 'file_asset_id', documentType: 'document_type', label: 'label', createdAt: 'created_at', enabled: 'enabled', fileAsset: 'file_asset', fileName: 'originalName', mimeType: 'mimeType', sizeBytes: 'sizeBytes' }, signedUrl: { endpointTemplate: '/files/:fileId/signed-url' }, permissions: { read: 'fleet.reports.read', create: 'fleet.reports.update', remove: 'fleet.reports.update', fileUpload: 'files.assets.create', fileRead: 'files.assets.read' } } },
-      ],
-      headerActions: [
-        { key: 'download_pdf', label: 'Descargar PDF', method: 'GET', pathTemplate: '/fleet/reports/:id/pdf', download: true, downloadFileName: 'reporte-flota.pdf', refreshAfter: false, variant: 'outline', visibleWhen: { field: 'status', equals: 'finalized' } },
-        { key: 'regenerate_pdf', label: 'Regenerar PDF', method: 'GET', pathTemplate: '/fleet/reports/:id/pdf', refreshAfter: false, variant: 'outline', visibleWhen: { field: 'status', equals: 'finalized' } },
-        { key: 'finalize', label: 'Finalizar', method: 'POST', pathTemplate: '/fleet/reports/:id/finalize', visibleWhen: { field: 'status', equals: 'draft' }, variant: 'default' },
-        { key: 'reopen', label: 'Reabrir', method: 'POST', pathTemplate: '/fleet/reports/:id/reopen', visibleWhen: { field: 'status', equals: 'finalized' }, variant: 'outline' },
-      ],
-      actions: [{ label: 'Editar', permission: 'fleet.reports.update' }],
-    },
-  },
-  repair: {
-    key: 'fleet.reports.repair.detail',
-    kind: 'DETAIL',
-    schema: {
-      entity: 'report',
-      component: 'RunlyDetail',
-      apiPath: '/fleet/reports/repair',
-      sections: [
-        { label: 'Informacion general', columns: 2, fields: [{ field: 'folio', label: 'Folio', icon: 'Hash' }, { field: 'title', label: 'Titulo', icon: 'ClipboardList' }, { field: 'status', label: 'Estado', icon: 'Activity' }, { field: 'report_date', label: 'Fecha', type: 'date', icon: 'CalendarDays' }, { field: 'odometer_km', label: 'Kilometraje', icon: 'Hash', type: 'number' }, { field: 'is_inhouse_workshop', label: 'Taller propio', type: 'boolean', icon: 'Building2' }, { field: 'repair_priority', label: 'Prioridad', icon: 'Tag', type: 'select', options: [{ label: 'Baja', value: 'low' }, { label: 'Normal', value: 'normal' }, { label: 'Alta', value: 'high' }, { label: 'Urgente', value: 'urgent' }] }, { field: 'repair_damage_type', label: 'Tipo de dano', icon: 'Wrench', type: 'select', options: [{ label: 'Mecanico', value: 'mechanical' }, { label: 'Electrico', value: 'electrical' }, { label: 'Carroceria', value: 'body' }, { label: 'Interior', value: 'interior' }, { label: 'Otro', value: 'other' }] }, { field: 'repair_start_date', label: 'Inicio', type: 'date', icon: 'CalendarDays' }, { field: 'repair_completion_date', label: 'Fin', type: 'date', icon: 'CalendarDays' }] },
-        { id: 'related_vehicle', type: 'relation-card', label: 'Vehiculo', relationCard: { idField: 'vehicle_id', titleField: 'vehicle_plate', subtitleFields: ['vehicle_brand_name', 'vehicle_model_name'], fallbackTitle: 'Vehiculo no disponible', hrefTemplate: '/app/m/runly.fleet/vehicles/:id', icon: 'Truck' } },
-        { label: 'Costos y garantia', columns: 2, fields: [{ field: 'repair_estimated_cost', label: 'Estimado', type: 'currency', icon: 'Tag' }, { field: 'labor_cost', label: 'Mano de obra', type: 'currency', icon: 'Tag' }, { field: 'parts_cost', label: 'Refacciones', type: 'currency', icon: 'Tag' }, { field: 'total_cost', label: 'Total', type: 'currency', icon: 'Tag' }, { field: 'warranty_days', label: 'Dias garantia', icon: 'Hash', type: 'number' }, { field: 'warranty_notes', label: 'Notas garantia', icon: 'FileText' }] },
-        { id: 'parts', type: 'relation-list', label: 'Refacciones / Partes', relationList: { apiPath: '/fleet/reports/:id/parts', idField: 'id', titleField: 'name', subtitleFields: ['quantity', 'unit_cost', 'subtotal'], subtitleLabels: ['Cant.', 'P.U.', 'Subtotal'], subtitleTypes: ['integer', 'currency', 'currency'], icon: 'Wrench', emptyMessage: 'No hay refacciones registradas.' } },
-        { label: 'Observaciones', fields: [{ field: 'notes', label: 'Notas', type: 'markdown', icon: 'FileText' }] },
-        { id: 'documents', type: 'documents', label: 'Archivos adjuntos', documents: { listPath: '/fleet/reports/:id/documents', addPath: '/fleet/reports/:id/documents', removePath: '/fleet/reports/:id/documents/:docId', upload: { endpoint: '/files/upload', moduleKey: 'runly.fleet', entityType: 'FleetReport' }, fields: { associationId: 'id', fileAssetId: 'file_asset_id', documentType: 'document_type', label: 'label', createdAt: 'created_at', enabled: 'enabled', fileAsset: 'file_asset', fileName: 'originalName', mimeType: 'mimeType', sizeBytes: 'sizeBytes' }, signedUrl: { endpointTemplate: '/files/:fileId/signed-url' }, permissions: { read: 'fleet.reports.read', create: 'fleet.reports.update', remove: 'fleet.reports.update', fileUpload: 'files.assets.create', fileRead: 'files.assets.read' } } },
-      ],
-      headerActions: [
-        { key: 'download_pdf', label: 'Descargar PDF', method: 'GET', pathTemplate: '/fleet/reports/:id/pdf', download: true, downloadFileName: 'reporte-flota.pdf', refreshAfter: false, variant: 'outline', visibleWhen: { field: 'status', equals: 'finalized' } },
-        { key: 'regenerate_pdf', label: 'Regenerar PDF', method: 'GET', pathTemplate: '/fleet/reports/:id/pdf', refreshAfter: false, variant: 'outline', visibleWhen: { field: 'status', equals: 'finalized' } },
-        { key: 'finalize', label: 'Finalizar', method: 'POST', pathTemplate: '/fleet/reports/:id/finalize', visibleWhen: { field: 'status', equals: 'draft' }, variant: 'default' },
-        { key: 'reopen', label: 'Reabrir', method: 'POST', pathTemplate: '/fleet/reports/:id/reopen', visibleWhen: { field: 'status', equals: 'finalized' }, variant: 'outline' },
-      ],
-      actions: [{ label: 'Editar', permission: 'fleet.reports.update' }],
-    },
-  },
-  other: {
-    key: 'fleet.reports.other.detail',
-    kind: 'DETAIL',
-    schema: {
-      entity: 'report',
-      component: 'RunlyDetail',
-      apiPath: '/fleet/reports/other',
-      sections: [
-        { label: 'Informacion general', columns: 2, fields: [{ field: 'folio', label: 'Folio', icon: 'Hash' }, { field: 'title', label: 'Titulo', icon: 'ClipboardList' }, { field: 'status', label: 'Estado', icon: 'Activity' }, { field: 'other_category_label', label: 'Categoria', icon: 'Layers' }, { field: 'report_date', label: 'Fecha', type: 'date', icon: 'CalendarDays' }, { field: 'odometer_km', label: 'Kilometraje', icon: 'Hash', type: 'number' }] },
-        { id: 'related_vehicle', type: 'relation-card', label: 'Vehiculo', relationCard: { idField: 'vehicle_id', titleField: 'vehicle_plate', subtitleFields: ['vehicle_brand_name', 'vehicle_model_name'], fallbackTitle: 'Vehiculo no disponible', hrefTemplate: '/app/m/runly.fleet/vehicles/:id', icon: 'Truck' } },
-        { label: 'Taller y costos', columns: 2, fields: [{ field: 'is_inhouse_workshop', label: 'Taller propio', type: 'boolean', icon: 'Building2' }, { field: 'workshop_name', label: 'Taller', icon: 'Library' }, { field: 'invoice_number', label: 'Factura/Ticket', icon: 'FileText' }, { field: 'workshop_phone', label: 'Telefono', icon: 'Phone' }, { field: 'workshop_address', label: 'Direccion', icon: 'Link2' }, { field: 'labor_cost', label: 'Mano de obra', type: 'currency', icon: 'Tag' }, { field: 'parts_cost', label: 'Refacciones', type: 'currency', icon: 'Tag' }, { field: 'total_cost', label: 'Total', type: 'currency', icon: 'Tag' }] },
-        { id: 'parts', type: 'relation-list', label: 'Refacciones / Partes', relationList: { apiPath: '/fleet/reports/:id/parts', idField: 'id', titleField: 'name', subtitleFields: ['quantity', 'unit_cost', 'subtotal'], subtitleLabels: ['Cant.', 'P.U.', 'Subtotal'], subtitleTypes: ['integer', 'currency', 'currency'], icon: 'Wrench', emptyMessage: 'No hay refacciones registradas.' } },
-        { label: 'Observaciones', fields: [{ field: 'notes', label: 'Notas', type: 'markdown', icon: 'FileText' }] },
-        { id: 'documents', type: 'documents', label: 'Archivos adjuntos', documents: { listPath: '/fleet/reports/:id/documents', addPath: '/fleet/reports/:id/documents', removePath: '/fleet/reports/:id/documents/:docId', upload: { endpoint: '/files/upload', moduleKey: 'runly.fleet', entityType: 'FleetReport' }, fields: { associationId: 'id', fileAssetId: 'file_asset_id', documentType: 'document_type', label: 'label', createdAt: 'created_at', enabled: 'enabled', fileAsset: 'file_asset', fileName: 'originalName', mimeType: 'mimeType', sizeBytes: 'sizeBytes' }, signedUrl: { endpointTemplate: '/files/:fileId/signed-url' }, permissions: { read: 'fleet.reports.read', create: 'fleet.reports.update', remove: 'fleet.reports.update', fileUpload: 'files.assets.create', fileRead: 'files.assets.read' } } },
-      ],
-      headerActions: [
-        { key: 'download_pdf', label: 'Descargar PDF', method: 'GET', pathTemplate: '/fleet/reports/:id/pdf', download: true, downloadFileName: 'reporte-flota.pdf', refreshAfter: false, variant: 'outline', visibleWhen: { field: 'status', equals: 'finalized' } },
-        { key: 'regenerate_pdf', label: 'Regenerar PDF', method: 'GET', pathTemplate: '/fleet/reports/:id/pdf', refreshAfter: false, variant: 'outline', visibleWhen: { field: 'status', equals: 'finalized' } },
-        { key: 'finalize', label: 'Finalizar', method: 'POST', pathTemplate: '/fleet/reports/:id/finalize', visibleWhen: { field: 'status', equals: 'draft' }, variant: 'default' },
-        { key: 'reopen', label: 'Reabrir', method: 'POST', pathTemplate: '/fleet/reports/:id/reopen', visibleWhen: { field: 'status', equals: 'finalized' }, variant: 'outline' },
-      ],
-      actions: [{ label: 'Editar', permission: 'fleet.reports.update' }],
+    signedUrl: { endpointTemplate: '/files/:fileId/signed-url' },
+    permissions: {
+      read: 'fleet.reports.read', create: 'fleet.reports.update', remove: 'fleet.reports.update',
+      fileUpload: 'files.assets.create', fileRead: 'files.assets.read',
     },
   },
 }
+
+const vehicleSection = {
+  id: 'related_vehicle',
+  type: 'relation-card',
+  label: 'Vehiculo',
+  column: 'aside',
+  relationCard: {
+    idField: 'vehicle_id',
+    titleField: 'vehicle_plate',
+    subtitleFields: ['vehicle_brand_name', 'vehicle_model_name'],
+    fallbackTitle: 'Vehiculo no disponible',
+    hrefTemplate: '/app/m/runly.fleet/vehicles/:id',
+    icon: 'Truck',
+  },
+}
+
+const partsSection = {
+  id: 'parts',
+  type: 'relation-list',
+  label: 'Refacciones y partes',
+  column: 'main',
+  relationList: {
+    apiPath: '/fleet/reports/:id/parts',
+    idField: 'id',
+    titleField: 'name',
+    subtitleFields: ['quantity', 'unit_cost', 'subtotal'],
+    subtitleLabels: ['Cant.', 'P.U.', 'Subtotal'],
+    subtitleTypes: ['integer', 'currency', 'currency'],
+    icon: 'Package',
+    emptyMessage: 'No hay refacciones registradas.',
+  },
+}
+
+const notesSection = {
+  label: 'Observaciones',
+  column: 'main',
+  fields: [{ field: 'notes', label: 'Notas', type: 'markdown', icon: 'FileText' }],
+}
+
+const headerActions = [
+  { key: 'download_pdf', label: 'Descargar PDF', method: 'GET', pathTemplate: '/fleet/reports/:id/pdf', download: true, downloadFileName: 'reporte-flota.pdf', refreshAfter: false, variant: 'outline', visibleWhen: { field: 'status', equals: 'finalized' } },
+  { key: 'finalize', label: 'Finalizar', method: 'POST', pathTemplate: '/fleet/reports/:id/finalize', visibleWhen: { field: 'status', equals: 'draft' }, variant: 'default' },
+  { key: 'reopen', label: 'Reabrir', method: 'POST', pathTemplate: '/fleet/reports/:id/reopen', visibleWhen: { field: 'status', equals: 'finalized' }, variant: 'outline' },
+]
+
+// Per-type pieces; everything else (hero, KPIs, vehicle card, parts, files,
+// actions) is shared so the four reports look and behave the same.
+const TYPE_CONFIG = {
+  maintenance: {
+    kpiExtra: { label: 'Proximo servicio', field: 'next_service_date', type: 'date', icon: 'CalendarClock' },
+    chips: [],
+    general: [
+      { field: 'maintenance_subtype', label: 'Subtipo', icon: 'Wrench', type: 'select', options: MAINTENANCE_SUBTYPES },
+    ],
+    extraSections: [
+      {
+        label: 'Proximo servicio',
+        column: 'main',
+        columns: 2,
+        fields: [
+          { field: 'next_service_date', label: 'Fecha sugerida', type: 'date', icon: 'CalendarDays' },
+          { field: 'next_service_odometer', label: 'Kilometraje sugerido', type: 'number', icon: 'Gauge' },
+        ],
+      },
+    ],
+    costs: { label: 'Taller y costos', fields: [...workshopFields, ...costFields] },
+  },
+  service: {
+    kpiExtra: { label: 'Kilometraje', field: 'odometer_km', type: 'number', icon: 'Gauge' },
+    chips: [],
+    general: [{ field: 'service_subtype', label: 'Subtipo', icon: 'Wrench', type: 'select', options: SERVICE_SUBTYPES }],
+    extraSections: [],
+    costs: { label: 'Taller y costos', fields: [...workshopFields, ...costFields] },
+  },
+  repair: {
+    kpiExtra: { label: 'Estimado', field: 'repair_estimated_cost', type: 'currency', icon: 'Calculator' },
+    chips: [],
+    general: [
+      { field: 'repair_priority', label: 'Prioridad', icon: 'Flag', type: 'select', options: REPAIR_PRIORITIES },
+      { field: 'repair_damage_type', label: 'Tipo de dano', icon: 'Wrench', type: 'select', options: REPAIR_DAMAGE },
+      { field: 'repair_start_date', label: 'Inicio', type: 'date', icon: 'CalendarDays' },
+      { field: 'repair_completion_date', label: 'Fin', type: 'date', icon: 'CalendarCheck' },
+    ],
+    extraSections: [
+      {
+        label: 'Garantia',
+        column: 'main',
+        columns: 2,
+        fields: [
+          { field: 'warranty_days', label: 'Dias de garantia', type: 'number', icon: 'ShieldCheck' },
+          { field: 'warranty_notes', label: 'Notas de garantia', icon: 'FileText' },
+        ],
+      },
+    ],
+    costs: { label: 'Taller y costos', fields: [...workshopFields, { field: 'repair_estimated_cost', label: 'Estimado', type: 'currency', icon: 'Calculator' }, ...costFields] },
+  },
+  other: {
+    kpiExtra: { label: 'Kilometraje', field: 'odometer_km', type: 'number', icon: 'Gauge' },
+    chips: [{ field: 'other_category_label', label: 'Categoria', icon: 'Layers' }],
+    general: [{ field: 'other_category_label', label: 'Categoria', icon: 'Layers' }],
+    extraSections: [],
+    costs: { label: 'Taller y costos', fields: [...workshopFields, ...costFields] },
+  },
+}
+
+function buildDetail(reportType) {
+  const cfg = TYPE_CONFIG[reportType]
+  return {
+    key: `fleet.reports.${reportType}.detail`,
+    kind: 'DETAIL',
+    schema: {
+      entity: 'report',
+      component: 'RunlyDetail',
+      apiPath: `/fleet/reports/${reportType}`,
+      layout: 'two-column',
+      hero: {
+        titleField: 'title',
+        subtitleFields: ['folio', 'vehicle_plate', 'report_type_label'],
+        statusField: 'status',
+        statusOptions: STATUS_OPTIONS,
+        fallbackIcon: TYPE_ICONS[reportType],
+        metaChips: cfg.chips,
+      },
+      kpis: [
+        { label: 'Total', field: 'total_cost', type: 'currency', icon: 'Banknote' },
+        { label: 'Mano de obra', field: 'labor_cost', type: 'currency', icon: 'Wrench' },
+        { label: 'Refacciones', field: 'parts_cost', type: 'currency', icon: 'Package' },
+        cfg.kpiExtra,
+      ],
+      sections: [
+        {
+          label: 'Informacion general',
+          column: 'main',
+          columns: 2,
+          fields: [
+            { field: 'folio', label: 'Folio', icon: 'Hash' },
+            { field: 'report_date', label: 'Fecha', type: 'date', icon: 'CalendarDays' },
+            { field: 'odometer_km', label: 'Kilometraje', type: 'number', icon: 'Gauge' },
+            ...cfg.general,
+          ],
+        },
+        { label: cfg.costs.label, column: 'main', columns: 2, fields: cfg.costs.fields },
+        partsSection,
+        ...cfg.extraSections,
+        notesSection,
+        vehicleSection,
+        documentsSection,
+      ],
+      headerActions,
+      actions: [{ label: 'Editar', permission: 'fleet.reports.update' }],
+    },
+  }
+}
+
+const DETAIL_BY_TYPE = Object.fromEntries(Object.keys(TYPE_CONFIG).map((type) => [type, buildDetail(type)]))
 
 export default function ReportDetailScreen() {
   const { '*': wildcard } = useParams()
@@ -154,7 +258,7 @@ export default function ReportDetailScreen() {
   }, [wildcard])
 
   const { data: reportData } = useQuery({
-    queryKey: ['fleet-report-type', recordId, token],
+    queryKey: ['fleet', 'report-type', recordId, token],
     queryFn: () => runly.fleet.getReport(recordId, token).catch(() => null),
     enabled: Boolean(recordId && token),
   })
@@ -178,6 +282,7 @@ export default function ReportDetailScreen() {
     <div className="px-4 pb-6 md:px-6 min-h-dvh">
       <RunlyCrudView
         tableBlueprint={REPORT_TABLE_STUB}
+        formBlueprint={REPORT_FORM_STUB}
         detailBlueprint={detailBlueprint}
         token={token}
         companyId={activeCompanyId}

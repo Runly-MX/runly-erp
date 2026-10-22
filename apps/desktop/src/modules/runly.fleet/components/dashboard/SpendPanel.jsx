@@ -17,7 +17,7 @@ export function SpendPanel({ reports, topCostVehicles, onOpenVehicle }) {
   return (
     <Panel title="Gasto y reportes" subtitle={`${money.format(reports.totalCost)} en el periodo`} icon={Banknote} tone="#0ea5e9">
       {!hasData ? (
-        <EmptyState icon={Banknote} title="Sin reportes todavia" description="Cuando registres mantenimientos, servicios o reparaciones veras aqui el gasto mensual." />
+        <EmptyState icon={Banknote} title="Sin reportes todavía" description="Cuando registres mantenimientos, servicios o reparaciones verás aquí el gasto mensual." />
       ) : (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="h-64 min-w-0" role="img" aria-label="Gasto mensual y numero de reportes">
@@ -53,7 +53,7 @@ export function SpendPanel({ reports, topCostVehicles, onOpenVehicle }) {
             </div>
             {topCostVehicles.length ? (
               <div>
-                <h4 className="mb-1 text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">Unidades que mas gastan</h4>
+                <h4 className="mb-1 text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">Unidades que más gastan</h4>
                 <ul>
                   {topCostVehicles.map((v) => (
                     <li key={v.vehicleId}>

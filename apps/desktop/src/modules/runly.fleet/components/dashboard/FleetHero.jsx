@@ -28,7 +28,7 @@ export function FleetHero({ data, isLoading, onSelect }) {
               <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 1, height: 1 }}>
                 <PieChart>
                   <Pie
-                    data={pie.length ? pie : [{ label: "Sin vehiculos", count: 1, color: "rgba(255,255,255,0.18)" }]}
+                    data={pie.length ? pie : [{ label: "Sin vehículos", count: 1, color: "rgba(255,255,255,0.18)" }]}
                     dataKey="count" nameKey="label" innerRadius="72%" outerRadius="100%"
                     paddingAngle={pie.length > 1 ? 3 : 0} cornerRadius={6} stroke="none"
                   >
@@ -39,7 +39,7 @@ export function FleetHero({ data, isLoading, onSelect }) {
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-5xl font-bold tabular-nums tracking-tight">{total}</span>
-                <span className="text-sm text-white/75">vehiculos</span>
+                <span className="text-sm text-white/75">vehículos</span>
               </div>
             </>
           )}
@@ -51,7 +51,7 @@ export function FleetHero({ data, isLoading, onSelect }) {
             <p className="mt-1 max-w-xl text-sm text-white/80">
               {isLoading
                 ? "Cargando..."
-                : `${availability}% de la flota esta disponible, con ${data?.totals.driversActive ?? 0} choferes activos y ${data?.totals.financed ?? 0} unidades financiadas.`}
+                : `${availability}% de la flota está disponible, con ${data?.totals.driversActive ?? 0} choferes activos y ${data?.totals.financed ?? 0} unidades financiadas.`}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

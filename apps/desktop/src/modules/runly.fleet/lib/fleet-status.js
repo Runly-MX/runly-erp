@@ -10,7 +10,7 @@ export const VEHICLE_STATUSES = [
 export const REPORT_TYPE_LABELS = {
   maintenance: "Mantenimiento",
   service: "Servicio",
-  repair: "Reparacion",
+  repair: "Reparación",
   other: "Otro",
 };
 

@@ -219,6 +219,14 @@ export function buildInlineCreatePrefill({ nestedBlueprint, searchText, descript
   const trimmed = String(searchText ?? "").trim();
   if (!descriptor?.create?.prefillFromSearch || !trimmed) return {};
 
+  // `prefillSplit: [firstField, restField]` spreads "Juan Perez Lopez" over two
+  // fields (first word / the rest) instead of dumping it all into one.
+  const split = descriptor.create.prefillSplit;
+  if (Array.isArray(split) && split.length === 2) {
+    const [first, ...rest] = trimmed.split(/\s+/);
+    return { [split[0]]: first, ...(rest.length ? { [split[1]]: rest.join(" ") } : {}) };
+  }
+
   const defs = collectFieldDefinitionsFromSchema(nestedBlueprint?.schema);
   if (defs.length === 0) return {};
 

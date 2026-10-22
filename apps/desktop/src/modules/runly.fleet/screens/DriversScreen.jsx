@@ -199,15 +199,15 @@ function parseModeAndId(wildcard) {
 }
 
 // Compact variant opened from the vehicle form when the driver does not exist
-// yet: same fields, rendered in a modal, without the documents panel (those
-// are added later from the driver's own page).
+// yet: personal data and licence only, in a modal. Status defaults to active;
+// notes and documents are added later from the driver's own page.
 export const DRIVER_QUICK_FORM_BLUEPRINT = {
   ...DRIVER_FORM,
   key: 'fleet.driver.form.quick',
   schema: {
     ...DRIVER_FORM.schema,
     formMode: 'modal',
-    sections: DRIVER_FORM.schema.sections.filter((section) => section.type !== 'attachments'),
+    sections: DRIVER_FORM.schema.sections.filter((section) => section.label === 'Datos personales' || section.label === 'Licencia de conducir'),
   },
 }
 

@@ -10,7 +10,7 @@ const ICONS = { Wrench, CalendarClock, TriangleAlert, TrendingUp, ShieldAlert, S
 
 const SEVERITY = {
   critical: { label: "Urgente", dot: "bg-red-500", chip: "bg-red-500/12 text-red-600 dark:text-red-400", icon: "text-red-500" },
-  warning: { label: "Atencion", dot: "bg-amber-500", chip: "bg-amber-500/15 text-amber-700 dark:text-amber-400", icon: "text-amber-500" },
+  warning: { label: "Atención", dot: "bg-amber-500", chip: "bg-amber-500/15 text-amber-700 dark:text-amber-400", icon: "text-amber-500" },
   info: { label: "Aviso", dot: "bg-sky-500", chip: "bg-sky-500/12 text-sky-700 dark:text-sky-400", icon: "text-sky-500" },
 };
 

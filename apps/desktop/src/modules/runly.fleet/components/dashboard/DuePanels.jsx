@@ -37,21 +37,21 @@ function DueList({ rows, empty, getKey, getTitle, getSubtitle, onOpen }) {
 export function DuePanels({ data, go }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-      <Panel title="Proximos mantenimientos" subtitle="Segun el ultimo reporte de cada unidad" icon={CalendarClock} tone="#0d9488">
+      <Panel title="Próximos mantenimientos" subtitle="Según el último reporte de cada unidad" icon={CalendarClock} tone="#0d9488">
         <DueList
-          rows={data.maintenanceDue} empty="Ningun mantenimiento programado en los proximos 45 dias."
+          rows={data.maintenanceDue} empty="Ningún mantenimiento programado en los próximos 45 días."
           getKey={(r) => r.reportId} getTitle={(r) => r.plate} getSubtitle={(r) => formatDay(r.nextServiceDate)}
           onOpen={(r) => go(`/vehicles/${r.vehicleId}`)}
         />
       </Panel>
       <Panel
         title="Seguros por vencer" icon={ShieldCheck} tone="#2563eb"
-        subtitle={data.insurance.uncovered ? `${data.insurance.uncovered} sin poliza` : "Todas las unidades con poliza"}
+        subtitle={data.insurance.uncovered ? `${data.insurance.uncovered} sin póliza` : "Todas las unidades con póliza"}
       >
         <DueList
-          rows={data.insurance.upcoming} empty="No hay polizas por vencer en 30 dias."
+          rows={data.insurance.upcoming} empty="No hay pólizas por vencer en 30 días."
           getKey={(r) => `${r.vehicleId}-${r.expiryDate}`} getTitle={(r) => r.plate}
-          getSubtitle={(r) => `${r.insurer ?? "Poliza"} · ${formatDay(r.expiryDate)}`}
+          getSubtitle={(r) => `${r.insurer ?? "Póliza"} · ${formatDay(r.expiryDate)}`}
           onOpen={(r) => go(`/vehicles/${r.vehicleId}`)}
         />
       </Panel>
@@ -61,7 +61,7 @@ export function DuePanels({ data, go }) {
         className="lg:col-span-2 xl:col-span-1"
       >
         <DueList
-          rows={data.licenses.upcoming} empty="No hay licencias por vencer en 30 dias."
+          rows={data.licenses.upcoming} empty="No hay licencias por vencer en 30 días."
           getKey={(r) => r.driverId} getTitle={(r) => r.name} getSubtitle={(r) => formatDay(r.expiryDate)}
           onOpen={(r) => go(`/drivers/${r.driverId}`)}
         />

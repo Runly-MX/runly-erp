@@ -351,6 +351,77 @@ async function toPdfBuffer({ report, parts, branding }) {
   const HALF_GAP = 10;
   const halfWidth = Math.floor((contentWidth - HALF_GAP) / 2);
 
+  // ── Resumen: titulo, estado y cifras clave ──
+  const PILL_W = 74;
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(15)
+    .fillColor(C_DARK)
+    .text(toSafeText(report.title), left, y, {
+      width: contentWidth - PILL_W - 12,
+      lineBreak: false,
+      ellipsis: true,
+    });
+  doc.roundedRect(right - PILL_W, y - 1, PILL_W, 18, 9).fill(statusColor);
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(8)
+    .fillColor("#FFFFFF")
+    .text(statusText.toUpperCase(), right - PILL_W, y + 4.5, {
+      width: PILL_W,
+      align: "center",
+      lineBreak: false,
+    });
+  y += 22;
+  doc
+    .font("Helvetica")
+    .fontSize(8.5)
+    .fillColor(C_MUTED)
+    .text(
+      compact([
+        toSafeText(report.folio, ""),
+        toSafeText(report.vehicle_plate, ""),
+        toSafeText(report.report_type_label ?? REPORT_TYPE_LABELS[reportTypeKey] ?? "", ""),
+        formatDateEs(report.report_date),
+      ]).join("   ·   "),
+      left,
+      y,
+      { width: contentWidth, lineBreak: false, ellipsis: true },
+    );
+  y += 18;
+
+  const nextService = report.next_service_date
+    ? formatDateEs(report.next_service_date)
+    : null;
+  const kpis = [
+    { label: "TOTAL", value: formatCurrency(report.total_cost), strong: true },
+    { label: "MANO DE OBRA", value: formatCurrency(report.labor_cost) },
+    { label: "REFACCIONES", value: formatCurrency(report.parts_cost) },
+    nextService
+      ? { label: "PROXIMO SERVICIO", value: nextService }
+      : { label: "KILOMETRAJE", value: `${formatInteger(report.odometer_km)} km` },
+  ];
+  const KPI_GAP = 8;
+  const KPI_H = 46;
+  const kpiW = Math.floor((contentWidth - KPI_GAP * (kpis.length - 1)) / kpis.length);
+  kpis.forEach((kpi, i) => {
+    const kx = left + i * (kpiW + KPI_GAP);
+    doc
+      .roundedRect(kx, y, kpiW, KPI_H, 6)
+      .fillAndStroke(kpi.strong ? brandColor : brandColorLight, kpi.strong ? brandColor : C_BORDER);
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(6.5)
+      .fillColor(kpi.strong ? "#FFFFFF" : C_MUTED)
+      .text(kpi.label, kx + 10, y + 9, { width: kpiW - 20, lineBreak: false, characterSpacing: 0.4 });
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(13)
+      .fillColor(kpi.strong ? "#FFFFFF" : C_DARK)
+      .text(kpi.value, kx + 10, y + 22, { width: kpiW - 20, lineBreak: false, ellipsis: true });
+  });
+  y += KPI_H + SECTION_GAP;
+
   // ── Datos del reporte ──
   y = drawSectionTitle("DATOS DEL REPORTE", y);
 
