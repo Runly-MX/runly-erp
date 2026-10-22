@@ -3654,6 +3654,8 @@ model InvItemAdminEvent {
   // Set when the event came from a bulk (por lote) action: all its events share batchId.
   batchId       String?   @map("batch_id") @db.Uuid
   batchSize     Int?      @map("batch_size")
+  // Acta de baja (InvDeregistrationAct) that documents this approval; no FK on purpose, acts outlive item cleanups.
+  actId         String?   @map("act_id") @db.Uuid
   // Null only for rows written by the data migration.
   actorId       String?   @map("actor_id") @db.Uuid
   createdAt     DateTime  @default(now()) @map("created_at")
@@ -3665,7 +3667,35 @@ model InvItemAdminEvent {
   @@index([itemId, createdAt])
   @@index([companyId, toStatus])
   @@index([batchId])
+  @@index([actId])
   @@map("inv_item_admin_event")
+}
+
+// Acta de baja: the signed record of one authorization (a single item or a whole lote).
+// `items` is a snapshot of every asset at authorization time, so the document never changes.
+model InvDeregistrationAct {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  folio           String   @db.VarChar(40)
+  sequence        Int
+  batchId         String?  @map("batch_id") @db.Uuid
+  effectiveDate   DateTime @map("effective_date") @db.Date
+  // Null when the lote mixes reasons.
+  reason          String?  @db.VarChar(40)
+  comments        String?  @db.VarChar(2000)
+  approverId      String?  @map("approver_id") @db.Uuid
+  approverName    String   @map("approver_name") @db.VarChar(200)
+  approverTitle   String?  @map("approver_title") @db.VarChar(200)
+  signatureFileId String?  @map("signature_file_id") @db.Uuid
+  documentFileId  String?  @map("document_file_id") @db.Uuid
+  itemCount       Int      @map("item_count")
+  items           Json     @default("[]")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@unique([companyId, folio])
+  @@index([companyId, effectiveDate])
+  @@index([batchId])
+  @@map("inv_deregistration_act")
 }
 
 // Values proposed for an item the proposer cannot open (a restricted duplicate). Reviewed per field.

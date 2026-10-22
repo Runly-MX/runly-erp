@@ -9,7 +9,7 @@ describe('inventory search', () => {
   it('builds a parameterised query with all sources per token', () => {
     const q = buildInventorySearchQuery(CO, ['dell', 'juan'])
     assert.ok(q.values.includes('%dell%') && q.values.includes('%juan%') && q.values.includes(CO))
-    for (const table of ['inv_assignment', 'entity_comment', 'entity_relation', 'inv_custody', 'inv_item_file', 'inv_custom_field_value', 'inv_item_admin_event']) {
+    for (const table of ['inv_assignment', 'entity_comment', 'entity_relation', 'inv_custody', 'inv_item_file', 'inv_custom_field_value', 'inv_item_admin_event', 'inv_deregistration_act', 'inv_change_proposal']) {
       assert.ok(q.sql.includes(table), table)
     }
     assert.ok(!q.sql.includes('license_key'))

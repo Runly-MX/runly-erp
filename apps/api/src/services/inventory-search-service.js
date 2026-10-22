@@ -9,6 +9,9 @@ import { tokenizeSearch, likeAny, buildTokenIntersectQuery } from '../lib/search
 const EMPLOYEE_COLS = (a) => [`${a}.first_name`, `${a}.last_name`, `(${a}.first_name || ' ' || ${a}.last_name)`, `${a}.employee_code`, `${a}.work_email`, `${a}.personal_email`];
 const REL_ITEM_TYPE = 'inventory_item';
 
+// Baja reasons are stored as keys; people search by their Spanish label.
+const reasonLabelSql = (col) => `(CASE ${col} WHEN 'obsolescence' THEN 'obsolescencia' WHEN 'damage' THEN 'daño' WHEN 'loss' THEN 'pérdida extravío' WHEN 'theft' THEN 'robo' WHEN 'sale' THEN 'venta' WHEN 'donation' THEN 'donación' WHEN 'destruction' THEN 'destrucción' WHEN 'other' THEN 'otro' ELSE '' END)`;
+
 // SELECT-id fragments for one LIKE pattern. companyId scopes every source.
 export function inventorySearchSources(companyId, pattern) {
   const co = (alias) => Prisma.sql`${Prisma.raw(alias)}.company_id = ${companyId}::uuid`;
@@ -40,7 +43,14 @@ export function inventorySearchSources(companyId, pattern) {
       WHERE ${co('c')} AND c.entity_type = 'InvItem' AND ${like(['c.body'])}`,
     // Admin events (registration / deregistration notes).
     Prisma.sql`SELECT ev.item_id AS id FROM inv_item_admin_event ev
-      WHERE ${co('ev')} AND ${like(['ev.comment', 'ev.reason'])}`,
+      WHERE ${co('ev')} AND ${like(['ev.comment', 'ev.reason', reasonLabelSql('ev.reason'), "(CASE ev.action WHEN 'propose_deregistration' THEN 'propuesta de baja' WHEN 'approve_deregistration' THEN 'baja autorizada' WHEN 'reject_deregistration' THEN 'propuesta rechazada' WHEN 'revert_deregistration' THEN 'baja revertida' ELSE '' END)"])}`,
+    // Actas de baja (folio, approver, notes, snapshot of every asset in the act).
+    Prisma.sql`SELECT ev.item_id AS id FROM inv_deregistration_act ac
+      JOIN inv_item_admin_event ev ON ev.act_id = ac.id
+      WHERE ${co('ac')} AND ${like(['ac.folio', 'ac.approver_name', 'ac.approver_title', 'ac.comments', reasonLabelSql('ac.reason')])}`,
+    // Change proposals for restricted duplicates (message, review note, proposer).
+    Prisma.sql`SELECT p.item_id AS id FROM inv_change_proposal p
+      WHERE ${co('p')} AND ${like(['p.message', 'p.review_note', 'p.proposer_label', 'p.matched_value'])}`,
     // Attached files.
     Prisma.sql`SELECT f.item_id AS id FROM inv_item_file f JOIN file_asset fa ON fa.id = f.file_asset_id
       JOIN inv_item i ON i.id = f.item_id AND ${co('i')}

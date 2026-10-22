@@ -2437,6 +2437,10 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/fleet/vehicles/${encodeURIComponent(id)}`, {
           headers: withAuthHeaders(token),
         }),
+      getDashboard: (params, token) =>
+        request(`/fleet/dashboard${toQueryString(params)}`, {
+          headers: withAuthHeaders(token),
+        }),
       getVehicleDocuments: (vehicleId, token) =>
         request(`/fleet/vehicles/${encodeURIComponent(vehicleId)}/documents`, {
           headers: withAuthHeaders(token),
@@ -2696,6 +2700,24 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
       listAdminEvents: (id, token) =>
         request(`/inventory/items/${encodeURIComponent(id)}/admin-events`, {
+          headers: withAuthHeaders(token),
+        }),
+      // Bitácora de bajas and their actas
+      listDeregistrations: (params, token) =>
+        request(`/inventory/deregistrations${toQueryString(params)}`, {
+          headers: withAuthHeaders(token),
+        }),
+      getDeregistrationSummary: (token) =>
+        request("/inventory/deregistrations/summary", {
+          headers: withAuthHeaders(token),
+        }),
+      getDeregistrationActDocument: (id, token) =>
+        request(`/inventory/deregistration-acts/${encodeURIComponent(id)}/document`, {
+          headers: withAuthHeaders(token),
+        }),
+      regenerateDeregistrationAct: (id, token) =>
+        request(`/inventory/deregistration-acts/${encodeURIComponent(id)}/regenerate`, {
+          method: "POST",
           headers: withAuthHeaders(token),
         }),
       getDashboardTrend: (params, token) =>

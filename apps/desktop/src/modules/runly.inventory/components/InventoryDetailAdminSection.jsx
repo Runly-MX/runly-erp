@@ -2,10 +2,11 @@ import { useCallback, useMemo, useState } from 'react'
 import { itemLabel } from '../lib/item-label.js'
 import { AdvancedFileViewer, Button, Skeleton } from '@runly/ui'
 import { FileText, Layers } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { runly } from '../../../lib/runly'
 import { ADMIN_ACTIONS, ADMIN_STATUS_BY_VALUE, actionsFor, reasonLabel } from '../lib/admin-status.js'
-import { useInventoryAdminEvents, useInventoryCan } from '../hooks/useInventoryAdmin.js'
+import { useInventoryAdminEvents, useInventoryCan, useOpenDeregistrationAct } from '../hooks/useInventoryAdmin.js'
 import { InventoryAdminStatusBadge } from './InventoryAdminStatusBadge.jsx'
 import { InventoryAdminTransitionDialog } from './InventoryAdminTransitionDialog.jsx'
 
@@ -32,6 +33,7 @@ export default function InventoryDetailAdminSection({ data: item }) {
   const { data: events, isLoading } = useInventoryAdminEvents(item?.id)
   const [action, setAction] = useState(null)
   const [viewerIndex, setViewerIndex] = useState(null)
+  const openAct = useOpenDeregistrationAct()
   const { session } = useAuth()
   const token = session?.access_token
   // Evidence of every event, in history order, so the viewer pages through all of them.
@@ -91,6 +93,12 @@ export default function InventoryDetailAdminSection({ data: item }) {
                 </p>
                 {e.comment ? <p className="mt-0.5 whitespace-pre-line text-[hsl(var(--foreground))]">{e.comment}</p> : null}
                 {e.batchId ? <p className="mt-0.5 inline-flex items-center gap-1 text-[hsl(var(--muted-foreground))]"><Layers className="h-3 w-3" />Aplicado por lote{e.batchSize ? ` de ${e.batchSize} activos` : ''}</p> : null}
+                {e.act?.hasDocument ? (
+                  <button type="button" className="mt-0.5 flex items-center gap-1 font-medium text-[hsl(var(--primary))] underline-offset-2 hover:underline pointer-coarse:min-h-11"
+                    disabled={openAct.isPending} onClick={() => openAct.mutate(e.act.id, { onError: (err) => toast.error(err?.message ?? 'No se pudo abrir el acta.') })}>
+                    <FileText className="h-3 w-3" />Acta de baja {e.act.folio}
+                  </button>
+                ) : null}
                 {e.fileId ? (
                   <button type="button" className="mt-0.5 flex items-center gap-1 text-[hsl(var(--primary))] underline-offset-2 hover:underline pointer-coarse:min-h-11"
                     onClick={() => setViewerIndex(Math.max(0, evidence.findIndex((f) => f.eventId === e.id)))}>

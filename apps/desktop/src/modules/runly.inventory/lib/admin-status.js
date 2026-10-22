@@ -37,8 +37,8 @@ export const ADMIN_ACTIONS = {
   approve_deregistration: {
     from: 'deregistration_proposed', permission: 'inventory.item.deregister',
     label: 'Autorizar baja', title: 'Autorizar baja', confirmLabel: 'Autorizar baja', destructive: true,
-    description: 'El activo queda dado de baja y de solo lectura. Si estaba asignado, se registra su devolución.',
-    fields: { effectiveDate: true },
+    description: 'El activo queda dado de baja y de solo lectura. Si estaba asignado, se registra su devolución. Se genera el acta de baja con tu firma y todo el historial del activo.',
+    fields: { effectiveDate: true, signature: true },
   },
   reject_deregistration: {
     from: 'deregistration_proposed', permission: 'inventory.item.deregister',

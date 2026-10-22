@@ -65,6 +65,7 @@ import {
   Banknote,
   Coins,
   TrendingUp,
+  PackageMinus,
 } from "lucide-react";
 
 export const ICON_CATALOG = [
@@ -103,6 +104,7 @@ export const ICON_CATALOG = [
   { name: "Box", component: Box },
   { name: "Boxes", component: Boxes },
   { name: "Package", component: Package },
+  { name: "PackageMinus", component: PackageMinus },
   { name: "Tag", component: Tag },
   { name: "Barcode", component: Barcode },
   { name: "Warehouse", component: Warehouse },

@@ -17,6 +17,47 @@ export function useInventorySummary() {
   })
 }
 
+export function useInventoryDeregistrations(params) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['inventory', 'deregistrations', params],
+    queryFn: () => runly.inventory.listDeregistrations(params, token),
+    enabled: Boolean(token),
+    placeholderData: (previous) => previous,
+  })
+}
+
+export function useDeregistrationSummary() {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['inventory', 'deregistrations', 'summary'],
+    queryFn: () => runly.inventory.getDeregistrationSummary(token).then((res) => res?.data ?? res),
+    enabled: Boolean(token),
+    staleTime: 30 * 1000,
+  })
+}
+
+// Opens the signed acta PDF in a new tab (a fresh signed URL each time).
+export function useOpenDeregistrationAct() {
+  const token = useToken()
+  return useMutation({
+    mutationFn: async (actId) => {
+      const res = await runly.inventory.getDeregistrationActDocument(actId, token)
+      if (!res?.url) throw new Error('El acta no tiene documento.')
+      window.open(res.url, '_blank', 'noopener')
+    },
+  })
+}
+
+export function useRegenerateDeregistrationAct() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (actId) => runly.inventory.regenerateDeregistrationAct(actId, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'deregistrations'] }),
+  })
+}
+
 export function useInventoryAdminEvents(itemId) {
   const token = useToken()
   return useQuery({

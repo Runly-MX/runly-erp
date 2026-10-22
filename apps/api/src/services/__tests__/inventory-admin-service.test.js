@@ -5,7 +5,7 @@ import { createInventoryAdminService, legacyStatusReason } from '../inventory-ad
 const COMPANY = '01900000-0000-7000-8000-000000000001';
 const ITEM = '01900000-0000-7000-8000-0000000000aa';
 
-function setup(item = {}) {
+function setup(item = {}, acts = null) {
   const state = {
     item: { id: ITEM, companyId: COMPANY, name: 'Laptop', assetTag: 'INV-1', enabled: true, adminStatus: 'registered', status: 'assigned', deregistrationReason: null, ...item },
     events: [],
@@ -25,6 +25,7 @@ function setup(item = {}) {
     prisma,
     activityBridge: { logAndPublish: async () => {} },
     notifier: { notifyDeregistrationProposed: async (args) => state.notified.push(args) },
+    acts,
   });
   return { state, service };
 }
@@ -110,4 +111,46 @@ test('dashboard week buckets start on Monday', async () => {
   // 2026-09-30 is a Wednesday.
   assert.deepEqual(bucketKeys('week', 3, new Date('2026-09-30T18:00:00Z'), 'America/Mexico_City'), ['2026-09-14', '2026-09-21', '2026-09-28']);
   assert.deepEqual(bucketKeys('month', 2, new Date('2026-09-30T18:00:00Z'), 'America/Mexico_City'), ['2026-08-01', '2026-09-01']);
+});
+
+function fakeActs() {
+  const created = [];
+  return {
+    created,
+    prepareSignature: async (signature) => (signature ? Buffer.from('png') : null),
+    snapshotItem: async (_tx, it) => ({ itemId: it.id, name: it.name }),
+    createForApproval: async (args) => { created.push(args); return { id: 'act-1', folio: 'BAJA-2026-0001' }; },
+  };
+}
+const approve = (service, payload, extra = {}) => service.transition({
+  itemId: ITEM, action: 'approve_deregistration', payload, companyId: COMPANY, actorId: 'u2', can: all, ...extra,
+});
+
+test('approving with actas requires a signature or an explicit paper signature', async () => {
+  const acts = fakeActs();
+  const { state, service } = setup({ adminStatus: 'deregistration_proposed' }, acts);
+  await assert.rejects(approve(service, { effectiveDate: '2026-10-21' }), /Firma el acta/);
+  assert.equal(state.item.adminStatus, 'deregistration_proposed');
+  const result = await approve(service, { effectiveDate: '2026-10-21', signature: { pngBase64: 'x' }, approverTitle: 'Gerente de administración', comment: 'Autorizada' });
+  assert.equal(result.act.folio, 'BAJA-2026-0001');
+  assert.equal(acts.created.length, 1);
+  assert.equal(acts.created[0].approverTitle, 'Gerente de administración');
+  assert.deepEqual(acts.created[0].entries[0].snapshot, { itemId: ITEM, name: 'Laptop' });
+});
+
+test('a failing acta never undoes the approval', async () => {
+  const acts = { ...fakeActs(), createForApproval: async () => { throw new Error('boom'); } };
+  const { state, service } = setup({ adminStatus: 'deregistration_proposed' }, acts);
+  const result = await approve(service, { effectiveDate: '2026-10-21', signOnPaper: true });
+  assert.equal(state.item.adminStatus, 'deregistered');
+  assert.equal(result.act, null);
+});
+
+test('a bulk approval produces one acta for the whole lote', async () => {
+  const acts = fakeActs();
+  const { service } = setup({ adminStatus: 'deregistration_proposed' }, acts);
+  const out = await service.bulkTransition({ ids: [ITEM, ITEM.replace(/aa$/, 'bb')], action: 'approve_deregistration', payload: { effectiveDate: '2026-10-21', signOnPaper: true }, companyId: COMPANY, actorId: 'u2', can: all });
+  assert.equal(out.applied, 1);
+  assert.equal(acts.created.length, 1);
+  assert.equal(acts.created[0].batchId, 'batch-1');
 });

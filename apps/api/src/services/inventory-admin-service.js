@@ -47,7 +47,8 @@ export function legacyStatusReason(status) {
   return { retired: 'obsolescence', lost: 'loss', stolen: 'theft', disposed: 'destruction' }[status] ?? null;
 }
 
-export function createInventoryAdminService({ prisma, activityBridge, notifier = null }) {
+// `acts` (inventory-deregistration-act-service) documents every authorized baja with a signed acta.
+export function createInventoryAdminService({ prisma, activityBridge, notifier = null, acts = null }) {
   const bridge = activityBridge ?? createActivityBridge({ prisma, activityService: createActivityService({ prisma }) });
 
   function validate(action, payload) {
@@ -61,11 +62,20 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
   }
 
   // `can(permissionKey)` answers for the acting user (admins: always true).
-  async function transition({ itemId, action, payload = {}, companyId, actorId, can, batch = null }) {
+  // Approving needs the approver's signature (drawn or saved) or an explicit "sign the printed acta".
+  async function approvalSignature(action, payload, actorId) {
+    if (action !== 'approve_deregistration' || !acts) return null;
+    if (!payload.signature && payload.signOnPaper !== true) throw new InventoryServiceError('Firma el acta de baja o indica que la firmarás impresa.', 400);
+    return acts.prepareSignature(payload.signature, actorId);
+  }
+
+  // `approvals` (bulk only) collects the approved entries so one acta covers the whole lote.
+  async function transition({ itemId, action, payload = {}, companyId, actorId, can, batch = null, signaturePng, approvals = null }) {
     assertCompany(companyId);
     if (!ADMIN_TRANSITIONS[action]) throw new InventoryServiceError('Acción no válida.', 400);
     const { rule, data } = validate(action, payload);
     if (!can(rule.permission)) throw new InventoryServiceError('No tienes permiso para esta acción.', 403);
+    if (signaturePng === undefined) signaturePng = await approvalSignature(action, payload, actorId);
     if (data.fileId) {
       const file = await prisma.fileAsset.findFirst({ where: { id: data.fileId, entityId: companyId }, select: { id: true } });
       if (!file) throw new InventoryServiceError('La evidencia no pertenece a la empresa actual.', 400);
@@ -93,6 +103,7 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
           assignedAt: null,
         });
       }
+      const snapshot = action === 'approve_deregistration' && acts ? await acts.snapshotItem(tx, item) : null;
       const updated = await tx.invItem.update({ where: { id: itemId }, data: update });
       const event = await tx.invItemAdminEvent.create({
         data: {
@@ -102,7 +113,7 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
           batchId: batch?.id ?? null, batchSize: batch?.size ?? null,
         },
       });
-      return { item: updated, event };
+      return { item: updated, event, snapshot };
     });
 
     await bridge.logAndPublish({
@@ -121,7 +132,26 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
     if (action === 'propose_deregistration') {
       try { await notifier?.notifyDeregistrationProposed({ companyId, actorId, item: result.item, reason: data.reason }); } catch { /* best effort */ }
     }
+    if (result.snapshot) {
+      const entry = { item: result.item, event: result.event, snapshot: result.snapshot };
+      if (approvals) approvals.push(entry);
+      else result.act = await createAct({ companyId, actorId, entries: [entry], payload, data, signaturePng });
+    }
+    delete result.snapshot;
     return result;
+  }
+
+  // The approval is already committed: a failure here never undoes it (the acta can be regenerated).
+  async function createAct({ companyId, actorId, entries, payload, data, signaturePng, batchId = null }) {
+    try {
+      return await acts.createForApproval({
+        companyId, actorId, entries, effectiveDate: data.effectiveDate, comment: data.comment, batchId,
+        signaturePng, approverTitle: payload.approverTitle,
+      });
+    } catch (err) {
+      console.error('[inventory-admin] acta de baja failed', err?.message);
+      return null;
+    }
   }
 
   async function newBatchId() {
@@ -132,22 +162,25 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
     if (!Array.isArray(ids) || ids.length === 0) throw new InventoryServiceError('Selecciona al menos un activo.', 400);
     if (ids.length > 200) throw new InventoryServiceError('Máximo 200 activos por operación.', 400);
     // Validate once up front so a bad payload fails the whole request.
-    const { rule } = validate(action, payload);
+    const { rule, data } = validate(action, payload);
     if (!can(rule.permission)) throw new InventoryServiceError('No tienes permiso para esta acción.', 403);
+    const signaturePng = await approvalSignature(action, payload, actorId);
     const unique = [...new Set(ids)];
     // One shared id per request: the history of every item shows it was part of the same lote.
     const batchId = unique.length > 1 ? await newBatchId() : null;
     const batch = batchId ? { id: batchId, size: unique.length } : null;
     const results = [];
+    const approvals = action === 'approve_deregistration' && acts && batch ? [] : null;
     for (const id of unique) {
       try {
-        await transition({ itemId: id, action, payload, companyId, actorId, can, batch });
+        await transition({ itemId: id, action, payload, companyId, actorId, can, batch, signaturePng, approvals });
         results.push({ id, ok: true });
       } catch (err) {
         results.push({ id, ok: false, error: err?.message ?? 'No se pudo aplicar.' });
       }
     }
-    return { batchId, results, applied: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length };
+    const act = approvals?.length ? await createAct({ companyId, actorId, entries: approvals, payload, data, signaturePng, batchId }) : null;
+    return { batchId, results, act, applied: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length };
   }
 
   async function listEvents(itemId, companyId) {
@@ -164,8 +197,12 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
       ? await prisma.fileAsset.findMany({ where: { id: { in: fileIds }, entityId: companyId }, select: { id: true, originalName: true, mimeType: true, sizeBytes: true } })
       : [];
     const fileById = new Map(files.map((f) => [f.id, f]));
+    const actIds = [...new Set(rows.map((r) => r.actId).filter(Boolean))];
+    const actRows = actIds.length ? await prisma.invDeregistrationAct.findMany({ where: { id: { in: actIds }, companyId }, select: { id: true, folio: true, documentFileId: true } }) : [];
+    const actById = new Map(actRows.map((a) => [a.id, a]));
     return rows.map(({ actor, ...row }) => ({
       ...row,
+      act: row.actId && actById.get(row.actId) ? { id: row.actId, folio: actById.get(row.actId).folio, hasDocument: Boolean(actById.get(row.actId).documentFileId) } : null,
       file: row.fileId ? (fileById.get(row.fileId) ?? null) : null,
       // No actor = a row written by the data migration (see InvItemAdminEvent.actorId).
       actorName: actor ? (actor.displayName || [actor.firstName, actor.lastName].filter(Boolean).join(' ')) : 'Migración',

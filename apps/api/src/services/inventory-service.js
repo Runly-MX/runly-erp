@@ -181,12 +181,14 @@ export function createInventoryService({ prisma, activityBridge }) {
     const take = normalizeLimit(limit);
     const skip = (normalizePage(page) - 1) * take;
 
+    const term = String(search ?? '').trim();
+    // A text search looks through bajas too (their notes and actas are searchable); only the plain list hides them.
+    const defaultAdminStatuses = term ? undefined : DEFAULT_LISTED_ADMIN_STATUSES;
     const filters = {
       categoryId, brandId, locationId, conditionId, status, assignedToId, unassigned, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, areaId, mine: mine ? true : undefined,
-      adminStatus: adminStatus === 'all' ? undefined : (adminStatus || DEFAULT_LISTED_ADMIN_STATUSES),
+      adminStatus: adminStatus === 'all' ? undefined : (adminStatus || defaultAdminStatuses),
     };
     let where;
-    const term = String(search ?? '').trim();
     let searchIds = null;
     if (term) {
       try {

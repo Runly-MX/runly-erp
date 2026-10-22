@@ -8,11 +8,14 @@ import { useAuth } from '../../../auth/AuthProvider'
 import { runly } from '../../../lib/runly'
 import { ADMIN_ACTIONS, DEREGISTRATION_REASONS } from '../lib/admin-status.js'
 import { useInventoryAdminTransition } from '../hooks/useInventoryAdmin.js'
+import { DeregistrationSignatureField, signaturePayload } from './DeregistrationSignatureField.jsx'
 
 function todayIso() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+const emptyValues = () => ({ reason: '', effectiveDate: todayIso(), comment: '', file: null, signature: { mode: 'draw', dataUrl: null, approverTitle: '' } })
 
 // Asks for what an administrative action needs (reason, effective date,
 // comment, evidence) and applies it to one item (`itemId`) or many (`ids`).
@@ -22,11 +25,11 @@ export function InventoryAdminTransitionDialog({ action, itemId = null, ids = nu
   const token = session?.access_token
   const config = ADMIN_ACTIONS[action]
   const transition = useInventoryAdminTransition()
-  const [values, setValues] = useState({ reason: '', effectiveDate: todayIso(), comment: '', file: null })
+  const [values, setValues] = useState(emptyValues)
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-    if (open) { setValues({ reason: '', effectiveDate: todayIso(), comment: '', file: null }); setErrors({}) }
+    if (open) { setValues(emptyValues()); setErrors({}) }
   }, [open, action])
 
   if (!config) return null
@@ -38,9 +41,13 @@ export function InventoryAdminTransitionDialog({ action, itemId = null, ids = nu
     if (fields.reason && !values.reason) next.reason = 'Elige el motivo'
     if (fields.effectiveDate && !values.effectiveDate) next.effectiveDate = 'Indica la fecha'
     if (fields.comment === 'required' && !values.comment.trim()) next.comment = 'Escribe el motivo del cambio'
+    const signature = fields.signature ? signaturePayload(values.signature) : null
+    if (fields.signature && !signature) next.signature = 'Dibuja tu firma, usa la guardada o elige firmar el acta impresa'
     setErrors(next)
     if (Object.keys(next).length) return
     const body = {
+      ...(signature ?? {}),
+      ...(fields.signature && values.signature.approverTitle.trim() ? { approverTitle: values.signature.approverTitle.trim() } : {}),
       action,
       ...(fields.reason ? { reason: values.reason } : {}),
       ...(fields.effectiveDate ? { effectiveDate: values.effectiveDate } : {}),
@@ -53,8 +60,9 @@ export function InventoryAdminTransitionDialog({ action, itemId = null, ids = nu
         if (result.failed) toast.warning(`${result.applied} aplicados, ${result.failed} no: ${result.results.find((r) => !r.ok)?.error ?? ''}`)
         else toast.success(`${config.label}: ${result.applied} activos`)
       } else {
-        toast.success(`${config.label}: listo`)
+        toast.success(result?.act?.folio ? `${config.label}: acta ${result.act.folio} generada` : `${config.label}: listo`)
       }
+      if (fields.signature && !result?.act && !(ids && result?.failed === ids.length)) toast.warning('La baja se autorizó, pero el acta no se pudo generar. Genérala desde la pantalla de Bajas.')
       onDone?.(result)
       onOpenChange(false)
     } catch (err) { toast.error(err?.message ?? 'No se pudo aplicar la acción.') }
@@ -88,6 +96,9 @@ export function InventoryAdminTransitionDialog({ action, itemId = null, ids = nu
           ) : null}
           <TextareaField label={fields.comment === 'required' ? 'Comentario' : 'Comentario (opcional)'} required={fields.comment === 'required'}
             value={values.comment} maxLength={2000} onChange={(e) => set('comment', e.target.value)} error={errors.comment} />
+          {fields.signature ? (
+            <DeregistrationSignatureField value={values.signature} error={errors.signature} onChange={(v) => set('signature', v)} />
+          ) : null}
           <div className="space-y-1.5">
             <p className="text-sm font-medium">Evidencia (opcional)</p>
             <FileUploader value={values.file} onChange={(file) => set('file', file)} onUpload={uploadEvidence}

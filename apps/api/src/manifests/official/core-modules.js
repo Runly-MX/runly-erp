@@ -1356,6 +1356,13 @@ export const inventoryMap = createModuleManifest({
       permissionKey: 'inventory.item.read',
     },
     {
+      label: 'Bajas',
+      path: '/inventory/deregistrations',
+      icon: 'PackageMinus',
+      layout: 'main',
+      permissionKey: 'inventory.item.read',
+    },
+    {
       label: 'Custodia',
       icon: 'UserCheck',
       layout: 'main',
