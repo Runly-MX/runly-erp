@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, ChevronDown, X, Download } from "lucide-reac
 import { useState, useMemo } from "react";
 import { cn } from "../lib/utils.js";
 import { Badge } from "./Badge.jsx";
+import { Popover, PopoverTrigger, PopoverContent } from "./Popover.jsx";
 import {
   FleetVehicleIcon,
   resolveModuleIcon,
@@ -276,22 +277,20 @@ export function ModuleSidebar({
               currentPath.startsWith(child.fullPath + "/"),
           );
 
-          return (
-            <div key={item.uid}>
-              {/* Group header button */}
+          const headerButton = (
               <button
-                onClick={() => toggleGroup(item.uid)}
+                onClick={collapsed ? undefined : () => toggleGroup(item.uid)}
                 title={collapsed ? item.label : undefined}
                 className={cn(
                   "w-full flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-sm",
                   "transition-colors duration-150 cursor-pointer outline-none overflow-hidden",
                   "hover:bg-[hsl(var(--muted))]",
-                  isGroupActive && !isOpen
+                  isGroupActive && (!isOpen || collapsed)
                     ? "text-[hsl(var(--foreground))] font-medium"
                     : "text-[hsl(var(--muted-foreground))]",
                 )}
                 style={
-                  isGroupActive && !isOpen
+                  isGroupActive && (!isOpen || collapsed)
                     ? {
                         borderLeft: `2px solid ${module.color}`,
                         backgroundColor: `${module.color}14`,
@@ -304,7 +303,7 @@ export function ModuleSidebar({
                   size={15}
                   className="shrink-0"
                   style={{
-                    color: isGroupActive && !isOpen ? module.color : undefined,
+                    color: isGroupActive && (!isOpen || collapsed) ? module.color : undefined,
                   }}
                 />
                 <span
@@ -325,6 +324,52 @@ export function ModuleSidebar({
                   )}
                 />
               </button>
+          );
+
+          return (
+            <div key={item.uid}>
+              {/* Group header button */}
+              {collapsed ? (
+                <Popover>
+                  <PopoverTrigger asChild>{headerButton}</PopoverTrigger>
+                  <PopoverContent side="right" align="start" sideOffset={10} className="w-56 p-1.5">
+                    <div className="px-2 pb-1 pt-0.5 text-xs font-semibold text-[hsl(var(--muted-foreground))]">{item.label}</div>
+                    <div className="space-y-0.5">
+                      {item.children.map((child) => {
+                        const isChildActive =
+                          child.fullPath === activeFullPath ||
+                          currentPath.startsWith(child.fullPath + "/");
+                        return (
+                          <a
+                            key={child.fullPath}
+                            href={child.fullPath}
+                            onClick={(e) => {
+                              if (e.ctrlKey || e.metaKey || e.button === 1) return;
+                              e.preventDefault();
+                              onNavigate(child.fullPath);
+                            }}
+                            className={cn(
+                              "flex h-8 w-full items-center gap-2 rounded-lg px-2 text-sm cursor-pointer outline-none",
+                              "transition-colors duration-150 hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]",
+                              isChildActive ? "font-medium text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]",
+                            )}
+                            style={isChildActive ? { backgroundColor: `${module.color}12` } : {}}
+                          >
+                            <span className="truncate">{child.label}</span>
+                            {navBadges[child.fullPath] > 0 && (
+                              <Badge variant="destructive" className="ml-auto h-4 min-w-4 shrink-0 justify-center rounded-full px-1 text-[10px] leading-none">
+                                {navBadges[child.fullPath]}
+                              </Badge>
+                            )}
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                headerButton
+              )}
 
               {/* Child items — tree-line style */}
               {isOpen && !collapsed && (

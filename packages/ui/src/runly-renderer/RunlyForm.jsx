@@ -909,6 +909,7 @@ export function RunlyForm({
                   initialData={inlineCreateState.prefillData}
                   mode="create"
                   token={token}
+                  companyId={companyId}
                   apiBaseUrl={apiBaseUrl}
                   onSuccess={handleInlineCreateSuccess}
                   onCancel={closeInlineCreate}

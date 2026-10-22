@@ -444,11 +444,11 @@ const SCREEN_MAP = {
   "runly.inventory:/inventory/areas": lazy(
     () => import("../modules/runly.inventory/screens/InventoryAreasScreen.jsx"),
   ),
-  "runly.inventory:/inventory/summary": lazy(
-    () => import("../modules/runly.inventory/screens/InventorySummaryScreen.jsx"),
-  ),
   "runly.inventory:/inventory/deregistrations": lazy(
     () => import("../modules/runly.inventory/screens/InventoryDeregistrationsScreen.jsx"),
+  ),
+  "runly.inventory:/inventory/summary": lazy(
+    () => import("../modules/runly.inventory/screens/InventorySummaryScreen.jsx"),
   ),
   // runly.purchases: one screen per role; module-screen-resolver maps each
   // section path (orders, invoices, requests, receipts, cases, payments) to it.
