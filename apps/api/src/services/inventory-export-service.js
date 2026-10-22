@@ -1,6 +1,7 @@
 // Inventory export: resolves the items (selected ids, or everything matching
 // the list filters/search), loads their relations in batches and writes a CSV
 // or Excel file with the columns the user chose.
+import { PassThrough, Readable } from 'node:stream';
 import { Prisma } from '@prisma/client';
 import { assertCompany, InventoryServiceError } from './inventory-guards.js';
 import { buildInventoryWhere, inventoryFiltersSchema } from './inventory-query.js';
@@ -11,7 +12,7 @@ import {
 } from './inventory-export-columns.js';
 
 const CHUNK = 500;
-export const MAX_EXPORT_ROWS = 20000;
+export const MAX_EXPORT_ROWS = 200000;
 // Image links must outlive the download: signed for a week.
 const IMAGE_LINK_SECONDS = 7 * 24 * 3600;
 const FILTER_KEYS = Object.keys(inventoryFiltersSchema.shape);
@@ -166,30 +167,34 @@ export function createInventoryExportService({ prisma, supabaseAdmin = null }) {
     const generator = rows({ companyId, where, columns: chosen, areaPath });
     const headers = chosen.map((c) => c.label);
 
+    // Both formats are written while the database is read in chunks, so memory stays flat
+    // however many rows are exported. A failure mid-way destroys the stream (truncated download).
     if (format === 'csv') {
-      const lines = [headers.map(csvCell).join(',')];
-      for await (const row of generator) {
-        lines.push(row.map((cell, i) => csvCell(chosen[i].array ? JSON.stringify(cell ?? []) : cell)).join(','));
-      }
-      return { buffer: Buffer.from(BOM + lines.join('\r\n'), 'utf8'), contentType: 'text/csv; charset=utf-8', filename: `inventario-${stampName}.csv`, total };
+      const lines = async function* csvLines() {
+        yield `${BOM}${headers.map(csvCell).join(',')}\r\n`;
+        for await (const row of generator) {
+          yield `${row.map((cell, i) => csvCell(chosen[i].array ? JSON.stringify(cell ?? []) : cell)).join(',')}\r\n`;
+        }
+      };
+      return { stream: Readable.from(lines(), { objectMode: false }), contentType: 'text/csv; charset=utf-8', filename: `inventario-${stampName}.csv`, total };
     }
 
     const { default: ExcelJS } = await import('exceljs');
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Inventario');
-    sheet.addRow(headers).font = { bold: true };
-    for await (const row of generator) {
-      sheet.addRow(row.map((cell, i) => {
-        if (chosen[i].array) return JSON.stringify(cell ?? []);
-        // Cells starting with = would be formulas; ExcelJS writes strings as text, so no escaping needed.
-        return cell === undefined || cell === null ? '' : cell;
-      }));
-    }
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    const out = new PassThrough();
+    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: out, useStyles: true, useSharedStrings: false });
+    const sheet = workbook.addWorksheet('Inventario', { views: [{ state: 'frozen', ySplit: 1 }] });
+    sheet.columns = chosen.map((col) => ({ header: col.label, width: col.array ? 60 : Math.min(40, Math.max(14, col.label.length + 4)) }));
     sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
-    chosen.forEach((col, i) => { sheet.getColumn(i + 1).width = col.array ? 60 : Math.min(40, Math.max(14, col.label.length + 4)); });
-    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
-    return { buffer, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename: `inventario-${stampName}.xlsx`, total };
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).commit();
+    (async () => {
+      for await (const row of generator) {
+        sheet.addRow(row.map((cell, i) => (chosen[i].array ? JSON.stringify(cell ?? []) : (cell ?? '')))).commit();
+      }
+      await sheet.commit();
+      await workbook.commit();
+    })().catch((err) => out.destroy(err));
+    return { stream: out, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename: `inventario-${stampName}.xlsx`, total };
   }
 
   return { columnCatalog, exportItems, CUSTOM_FIELD_PREFIX };

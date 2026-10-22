@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createInventoryExportService } from '../inventory-export-service.js';
 
+const collect = async (stream) => { const parts = []; for await (const part of stream) parts.push(Buffer.from(part)); return Buffer.concat(parts); };
 const COMPANY = '01900000-0000-7000-8000-000000000001';
 
 function fakePrisma(items) {
@@ -30,7 +31,7 @@ test('lists catalog columns including custom fields', async () => {
 test('csv escapes quotes and neutralizes formulas, keeps the area path', async () => {
   const svc = createInventoryExportService({ prisma: fakePrisma([item()]) });
   const file = await svc.exportItems(COMPANY, { format: 'csv', columns: ['name', 'area', 'purchasePrice', 'cf:f1', 'images'], ids: ['i1'] });
-  const [header, row] = file.buffer.toString('utf8').replace('﻿', '').split('\r\n');
+  const [header, row] = (await collect(file.stream)).toString('utf8').replace('﻿', '').split('\r\n');
   assert.equal(header, 'Nombre,Área (carpeta),Costo de adquisición,Color,Imágenes (enlaces)');
   assert.equal(row, '"Laptop, ""Pro""",TI / Soporte,1500.5,\'=cmd,[]');
 });
@@ -45,6 +46,6 @@ test('rejects empty column choice and empty results', async () => {
 test('xlsx output is a zip workbook', async () => {
   const svc = createInventoryExportService({ prisma: fakePrisma([item()]) });
   const file = await svc.exportItems(COMPANY, { format: 'xlsx', columns: ['name', 'images'], ids: ['i1'] });
-  assert.equal(file.buffer.subarray(0, 2).toString(), 'PK');
+  assert.equal((await collect(file.stream)).subarray(0, 2).toString(), 'PK');
   assert.match(file.filename, /^inventario-\d{4}-\d{2}-\d{2}\.xlsx$/);
 });

@@ -1,5 +1,6 @@
 // runly.inventory item export: the column catalog and the CSV / Excel file.
 // Readers of the inventory can export what their areas let them see.
+import { Readable } from 'node:stream';
 import { Hono } from 'hono';
 import { createInventoryExportService } from '../../services/inventory-export-service.js';
 
@@ -22,7 +23,7 @@ export function createInventoryExportRouter({ prisma, requirePermission, Invento
       const scope = inventoryScope ? await inventoryScope.fromContext(c) : null;
       const mine = body?.filters?.mine === true || body?.filters?.mine === 'true' ? await inventoryScope?.mineFromContext(c) : null;
       const file = await exporter.exportItems(c.get('companyId'), body, scope, mine);
-      return c.body(file.buffer, 200, {
+      return c.body(Readable.toWeb(file.stream), 200, {
         'Content-Type': file.contentType,
         'Content-Disposition': `attachment; filename="${file.filename}"`,
         'X-Export-Count': String(file.total),

@@ -138,7 +138,7 @@ export function InventoryExportDialog({ open, onOpenChange, context }) {
                   {scope === 'selected' ? <Check className="h-4 w-4 shrink-0 text-(--brand-primary)" /> : null}
                 </button>
               ) : null}
-              <p className="text-xs text-[hsl(var(--muted-foreground))]">Máximo {catalog?.maxRows?.toLocaleString('es-MX') ?? '20,000'} activos por archivo.</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">Máximo {catalog?.maxRows?.toLocaleString('es-MX') ?? '200,000'} activos por archivo.</p>
             </section>
 
             {hasImages ? (
