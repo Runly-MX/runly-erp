@@ -58,6 +58,8 @@ export function BulkActionBar({
   onClear,
   bulkActions = [],
   onExportExcel,
+  // When given, one "Exportar" button replaces the built-in CSV / Excel ones (the screen owns the export flow).
+  onExport,
 }) {
   if (selectedCount === 0) return null;
 
@@ -80,17 +82,29 @@ export function BulkActionBar({
 
         <div className="mr-1 h-4 w-px bg-border" />
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5 px-2 text-xs"
-          onClick={() => exportCsv(selectedRows, visibleColumns)}
-        >
-          <Download className="h-3.5 w-3.5" />
-          Exportar CSV
-        </Button>
+        {onExport ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 px-2 text-xs"
+            onClick={() => onExport(selectedRows, visibleColumns)}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Exportar
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 px-2 text-xs"
+            onClick={() => exportCsv(selectedRows, visibleColumns)}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Exportar CSV
+          </Button>
+        )}
 
-        {onExportExcel && (
+        {!onExport && onExportExcel && (
           <Button
             variant="ghost"
             size="sm"

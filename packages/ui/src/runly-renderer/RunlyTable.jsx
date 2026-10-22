@@ -97,6 +97,7 @@ export function RunlyTable({
   refreshSignal = 0,
   bulkActions = [],
   onExportExcel = null,
+  onExport = null,
   onContextChange = null,
   // Filter values to start with, e.g. from a deep link (?categoryId=...).
   initialFilters = null,
@@ -981,6 +982,7 @@ export function RunlyTable({
         onClear={() => setSelectedIds(new Set())}
         bulkActions={bulkActions}
         onExportExcel={onExportExcel}
+        onExport={onExport}
       />
     </>
   );

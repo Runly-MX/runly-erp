@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Activity, Boxes, CalendarPlus, FolderInput, GitPullRequestArrow, FolderOpen, FolderTree, MapPin, PanelLeft, PanelLeftClose, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, UserCheck, Wrench } from 'lucide-react'
+import { Activity, Boxes, CalendarPlus, Download, FolderInput, GitPullRequestArrow, FolderOpen, FolderTree, MapPin, PanelLeft, PanelLeftClose, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, UserCheck, Wrench } from 'lucide-react'
 import { RunlyTable, Badge, Button, ConfirmDialog, EmptyState, PageHeader, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -13,6 +13,7 @@ import { useInventoryModels } from '../hooks/useInventoryModels.js'
 import { ITEM_STATUSES } from '../lib/inventory-constants.js'
 import { useMiraiRecordContext, openMiraiSidebar } from '../../runly.chat/lib/miraiPageContext.js'
 import { InventoryItemImportDialog } from '../components/InventoryItemImportDialog.jsx'
+import { InventoryExportDialog } from '../components/InventoryExportDialog.jsx'
 import { InventoryAdminKpis } from '../components/InventoryAdminKpis.jsx'
 import { InventoryAdminTransitionDialog } from '../components/InventoryAdminTransitionDialog.jsx'
 import { useInventoryCan, useInventoryConditions, useInventorySummary } from '../hooks/useInventoryAdmin.js'
@@ -56,6 +57,9 @@ export default function InventoryScreen() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [importOpen, setImportOpen] = useState(false)
   const [proposalsOpen, setProposalsOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  // What the table currently shows (selection, search, filters, total), for the export dialog.
+  const [tableContext, setTableContext] = useState({ selectedIds: [], search: '', filters: {}, total: 0 })
   // Only users who can update items review proposals (the API also limits them to the areas they can write).
   const canReviewProposals = useInventoryCan()('inventory.item.update')
   const pendingProposals = useChangeProposals({ enabled: canReviewProposals }).data?.length ?? 0
@@ -88,7 +92,8 @@ export default function InventoryScreen() {
   // { mode: "filtered" | "selected", ids, filters }) — null when the list has
   // neither a selection nor active filters, so no selection is published.
   const [miraiSelection, setMiraiSelection] = useState(null)
-  const updateMiraiSelection = useCallback(({ selectedIds, search, filters }) => {
+  const updateMiraiSelection = useCallback(({ selectedIds, search, filters, total }) => {
+    setTableContext(current => (JSON.stringify(current) === JSON.stringify({ selectedIds, search, filters, total }) ? current : { selectedIds, search, filters, total }))
     const tableArea = filters?.areaId ?? ''
     if (tableArea !== lastTableArea.current) {
       lastTableArea.current = tableArea
@@ -269,6 +274,7 @@ export default function InventoryScreen() {
             </Button>
           ) : null}
           <Button variant="outline" onClick={() => openMiraiSidebar()}><Sparkles className="mr-2 h-4 w-4" />Consultar con IA</Button>
+          <Button variant="outline" onClick={() => setExportOpen(true)}><Download className="mr-2 h-4 w-4" />Exportar</Button>
           <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="mr-2 h-4 w-4" />Importar</Button>
           <Button variant="outline" onClick={() => navigate('/app/m/runly.inventory/inventory/intake')}><Sparkles className="mr-2 h-4 w-4" />Registro con IA</Button>
           <Button onClick={() => navigate('/app/m/runly.inventory/inventory/new')}>
@@ -313,6 +319,7 @@ export default function InventoryScreen() {
         externalFilters={{ areaId: areaValue }}
         key={`${activeCompanyId}:${filterKey}`}
         bulkActions={bulkActions}
+        onExport={() => setExportOpen(true)}
         initialFilters={initialFilters}
         initialSearch={initialSearch}
         onContextChange={updateMiraiSelection}
@@ -369,6 +376,8 @@ export default function InventoryScreen() {
       />
 
       <InventoryProposalsSheet open={proposalsOpen} onOpenChange={setProposalsOpen} />
+
+      <InventoryExportDialog open={exportOpen} onOpenChange={setExportOpen} context={tableContext} />
 
       <InventoryItemImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={() => setRefreshSignal(s => s + 1)} />
 

@@ -2702,6 +2702,10 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/inventory/items/${encodeURIComponent(id)}/admin-events`, {
           headers: withAuthHeaders(token),
         }),
+      getExportColumns: (token) =>
+        request("/inventory/export/columns", {
+          headers: withAuthHeaders(token),
+        }),
       // Bitácora de bajas and their actas
       listDeregistrations: (params, token) =>
         request(`/inventory/deregistrations${toQueryString(params)}`, {
