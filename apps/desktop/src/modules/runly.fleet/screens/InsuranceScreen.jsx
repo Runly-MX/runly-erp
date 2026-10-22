@@ -35,7 +35,12 @@ const INSURANCE_TABLE = {
       { label: 'Editar', permission: 'fleet.insurance.update' },
       { label: 'Desactivar', permission: 'fleet.insurance.delete' },
     ],
-    emptyState: { message: 'No hay polizas de seguro registradas.' },
+    emptyState: {
+      icon: 'ShieldCheck',
+      title: 'Aún no hay pólizas',
+      message: 'Registra las pólizas de tus vehículos para recibir avisos antes de que venzan.',
+      actionLabel: 'Crear póliza',
+    },
   },
 }
 
@@ -229,6 +234,7 @@ export default function InsuranceScreen() {
         onNavigate={handleNavigate}
         componentRegistry={componentRegistry}
         suppressToolbarCreate
+        showEmptyCreate={canCreate}
       />
     </div>
   )

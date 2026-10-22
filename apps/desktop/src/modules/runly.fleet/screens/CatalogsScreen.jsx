@@ -29,7 +29,7 @@ const CATALOG_BLUEPRINTS = {
           { field: 'description',           label: 'Descripcion' },
         ],
         actions: [{ label: 'Agregar tipo' }],
-        emptyState: { message: 'No hay tipos de vehiculo registrados.' },
+        emptyState: { icon: 'Layers', title: 'Aún no hay tipos de vehículo', message: 'Los tipos agrupan tus unidades (camioneta, sedán, camión) y definen su número económico.', actionLabel: 'Agregar tipo' },
       },
     },
     form: {
@@ -59,7 +59,7 @@ const CATALOG_BLUEPRINTS = {
         title: 'Marcas',
         columns: [{ field: 'name', label: 'Nombre' }],
         actions: [{ label: 'Agregar marca' }],
-        emptyState: { message: 'No hay marcas registradas.' },
+        emptyState: { icon: 'Tag', title: 'Aún no hay marcas', message: 'Agrega las marcas de tus vehículos. También puedes crearlas al vuelo desde un modelo.', actionLabel: 'Agregar marca' },
       },
     },
     form: {
@@ -90,7 +90,7 @@ const CATALOG_BLUEPRINTS = {
           { field: 'year', label: 'Año',   type: 'number' },
         ],
         actions: [{ label: 'Agregar modelo' }],
-        emptyState: { message: 'No hay modelos registrados.' },
+        emptyState: { icon: 'Car', title: 'Aún no hay modelos', message: 'Un modelo combina marca, tipo y año. Se usa al dar de alta un vehículo.', actionLabel: 'Agregar modelo' },
       },
     },
     form: {

@@ -39,7 +39,12 @@ const DRIVER_TABLE = {
       { label: 'Editar', permission: 'fleet.drivers.update' },
       { label: 'Desactivar', permission: 'fleet.drivers.delete' },
     ],
-    emptyState: { message: 'No hay choferes registrados.' },
+    emptyState: {
+      icon: 'UserRound',
+      title: 'Aún no hay choferes',
+      message: 'Registra a quienes manejan tus unidades para controlar su licencia y asignarles un vehículo.',
+      actionLabel: 'Crear chofer',
+    },
   },
 }
 
@@ -261,6 +266,7 @@ export default function DriversScreen() {
         refreshSignal={liveSignal}
         componentRegistry={componentRegistry}
         suppressToolbarCreate
+        showEmptyCreate={canCreate}
       />
     </div>
   )

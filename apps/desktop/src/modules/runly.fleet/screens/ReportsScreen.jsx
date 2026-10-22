@@ -132,7 +132,8 @@ const CREATE_LABELS = {
 export default function ReportsScreen() {
   const { '*': wildcard } = useParams()
   const navigate = useNavigate()
-  const { session } = useAuth()
+  const { session, userProfile } = useAuth()
+  const canCreate = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('fleet.reports.create'))
   const token = session?.access_token ?? null
   const { activeCompanyId } = useActiveCompany()
   const liveSignal = useFleetLive()
@@ -143,7 +144,21 @@ export default function ReportsScreen() {
     return found ?? 'maintenance'
   }, [wildcard])
 
-  const currentBlueprint = REPORT_TABLES[reportType]
+  const currentBlueprint = useMemo(() => {
+    const base = REPORT_TABLES[reportType]
+    return {
+      ...base,
+      schema: {
+        ...base.schema,
+        emptyState: {
+          icon: 'ClipboardList',
+          title: 'Aún no hay reportes de este tipo',
+          message: 'Registra el primero para llevar el historial de la unidad. Si indicas la fecha del próximo servicio, se agrega al calendario.',
+          actionLabel: CREATE_LABELS[reportType],
+        },
+      },
+    }
+  }, [reportType])
 
   const handleTabChange = useCallback((tab) => {
     navigate(`/app/m/runly.fleet/reports/${tab}`, { replace: true })
@@ -190,6 +205,7 @@ export default function ReportsScreen() {
         componentRegistry={componentRegistry}
         onView={handleView}
         onEdit={handleEdit}
+        onEmptyCreate={canCreate ? handleCreate : undefined}
       />
     </div>
   )

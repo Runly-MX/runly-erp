@@ -101,7 +101,12 @@ const VEHICLE_TABLE = {
       { label: "Editar", permission: "fleet.vehicles.update" },
       { label: "Desactivar", permission: "fleet.vehicles.delete" },
     ],
-    emptyState: { message: "No hay vehiculos registrados." },
+    emptyState: {
+      icon: "Truck",
+      title: "Aún no hay vehículos",
+      message: "Registra tu primera unidad para dar seguimiento a su chofer, seguro y mantenimiento.",
+      actionLabel: "Crear vehículo",
+    },
   },
 };
 
@@ -684,6 +689,7 @@ export default function VehiclesScreen() {
         componentRegistry={componentRegistry}
         blueprints={[FLEET_VEHICLE_MODEL_FORM_BLUEPRINT, DRIVER_QUICK_FORM_BLUEPRINT, ...FLEET_CATALOG_INLINE_BLUEPRINTS]}
         suppressToolbarCreate
+        showEmptyCreate={canCreate}
       />
     </div>
   );

@@ -86,6 +86,8 @@ export const RunlyCrudView = forwardRef(function RunlyCrudView({
   apiBaseUrl,
   componentRegistry = null,
   suppressToolbarCreate = false,
+  // Show the create action inside the empty state even when the toolbar one is hidden.
+  showEmptyCreate = false,
   initialMode = "list",
   recordId = null,
   module = null,
@@ -679,6 +681,7 @@ export const RunlyCrudView = forwardRef(function RunlyCrudView({
                 ? openCreate
                 : undefined
             }
+            onEmptyCreate={showEmptyCreate && currentFormBlueprint ? openCreate : undefined}
             onView={currentDetailBlueprint ? openDetail : undefined}
             onEdit={currentFormBlueprint ? openEdit : undefined}
             onDelete={requestDelete}

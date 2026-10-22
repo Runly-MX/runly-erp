@@ -1,6 +1,7 @@
 import { useRuntimeFetch, useRuntimeAdapters } from '../lib/module-runtime/RuntimeAdapters.jsx';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Eye, Pencil, Power, PowerOff, Trash2 } from "lucide-react";
+import { Eye, Pencil, Power, PowerOff, SearchX, Trash2 } from "lucide-react";
+import { lucideByName } from "./field-icons.js";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Checkbox } from "../components/Checkbox.jsx";
 import { Skeleton } from "../components/Skeleton.jsx";
@@ -80,6 +81,9 @@ export function RunlyTable({
   componentRegistry = null,
   accentColor = null,
   onCreate,
+  // Create action shown only inside the empty state (for screens that keep
+  // their own header button and hide the toolbar one).
+  onEmptyCreate,
   onView,
   // Optional: double click / Enter on a row or card opens the record, and the
   // row menu gets "Ver detalle". Off by default.
@@ -559,14 +563,25 @@ export function RunlyTable({
       );
     }
     if (rows.length === 0) {
+      if (search.trim()) {
+        return (
+          <EmptyState
+            icon={SearchX}
+            title="Sin resultados"
+            description={`No encontramos registros para «${search.trim()}». Prueba con otra búsqueda.`}
+            action={{ label: "Limpiar búsqueda", onClick: () => { setSearchInput(""); setSearch(""); } }}
+          />
+        );
+      }
+      const empty = schema?.emptyState ?? {};
+      const createHandler = onEmptyCreate ?? onCreate;
       return (
         <EmptyState
-          title="Sin registros"
-          description={normalizeSpanishLabel(
-            schema?.emptyState?.message ?? "No hay registros para mostrar.",
-          )}
+          icon={lucideByName(empty.icon) ?? undefined}
+          title={empty.title ?? "Sin registros"}
+          description={normalizeSpanishLabel(empty.message ?? "No hay registros para mostrar.")}
           action={
-            onCreate ? { label: "Agregar", onClick: onCreate } : undefined
+            createHandler ? { label: empty.actionLabel ?? "Agregar", onClick: createHandler } : undefined
           }
         />
       );
