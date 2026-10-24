@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { cn } from "@runly/ui";
+import { cn, ConfirmDialog, SelectField } from "@runly/ui";
 import { AlertCircle, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRequestTranscript } from "../hooks/useConversationTranscripts";
 import { TranscriptViewerDialog } from "./TranscriptViewerDialog";
+import { LANGUAGE_OPTIONS, readTranscriptLanguage, writeTranscriptLanguage } from "../lib/transcriptDisplay";
 
 // Per-recording action shown in ChatRecordingsGallery.jsx — one CallRecording
 // maps to at most one active/most-recent CallTranscript (server-enforced,
@@ -50,11 +51,15 @@ export function CardActionButton({ icon: Icon, label, onClick, disabled = false,
 export function RecordingTranscriptAction({ recording, transcript, conversationId }) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const requestTranscript = useRequestTranscript(conversationId);
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const [language, setLanguage] = useState(readTranscriptLanguage);
   const callTitle = formatCallTitle(recording);
 
   async function handleRequest() {
     try {
-      await requestTranscript.mutateAsync({ callId: recording.callId, recordingId: recording.id });
+      writeTranscriptLanguage(language);
+      await requestTranscript.mutateAsync({ callId: recording.callId, recordingId: recording.id, language });
+      setLanguageOpen(false);
     } catch (err) {
       toast.error(err?.message ?? "No se pudo solicitar la transcripción.");
     }
@@ -76,7 +81,7 @@ export function RecordingTranscriptAction({ recording, transcript, conversationI
         icon={requestTranscript.isPending ? Loader2 : FileText}
         spin={requestTranscript.isPending}
         label="Transcribir"
-        onClick={handleRequest}
+        onClick={() => setLanguageOpen(true)}
         disabled={requestTranscript.isPending}
       />
     );
@@ -85,6 +90,17 @@ export function RecordingTranscriptAction({ recording, transcript, conversationI
   return (
     <>
       {button}
+      <ConfirmDialog
+        open={languageOpen}
+        onOpenChange={setLanguageOpen}
+        title="Transcribir grabación"
+        description="Elige el idioma en que se habló. Si la reunión mezcla idiomas, «Detectar automáticamente» suele equivocarse con clips cortos."
+        confirmLabel="Transcribir"
+        loading={requestTranscript.isPending}
+        onConfirm={handleRequest}
+      >
+        <SelectField label="Idioma de la conversación" value={language} onValueChange={setLanguage} options={LANGUAGE_OPTIONS} />
+      </ConfirmDialog>
       {transcript && (transcript.status === "READY" || transcript.status === "FAILED") && (
         <TranscriptViewerDialog
           transcriptId={transcript.id}

@@ -183,7 +183,7 @@ def download_recording_audio(conn, recording_id, workdir: Path) -> Path:
         subprocess.run(
             [
                 "ffmpeg", "-y", "-i", str(combined_ts),
-                "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                "-vn", *AUDIO_FILTER_ARGS, "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
                 str(audio_wav),
             ],
             check=True, capture_output=True, timeout=600,
@@ -233,7 +233,7 @@ def download_track_audio(conn, transcript_id, workdir: Path):
             subprocess.run(
                 [
                     "ffmpeg", "-y", "-i", str(raw_path),
-                    "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                    "-vn", *AUDIO_FILTER_ARGS, "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
                     str(wav_path),
                 ],
                 check=True, capture_output=True, timeout=600,
@@ -272,6 +272,16 @@ def get_model():
     return _model_cache[key]
 
 
+# Speech clean-up before recognition: cut rumble below 80 Hz and even out quiet
+# and loud speakers. TRANSCRIBER_AUDIO_FILTER="" disables it, or replaces it
+# with any ffmpeg -af chain.
+AUDIO_FILTER = os.environ.get("TRANSCRIBER_AUDIO_FILTER", "highpass=f=80,dynaudnorm=f=150:g=15")
+AUDIO_FILTER_ARGS = ["-af", AUDIO_FILTER] if AUDIO_FILTER.strip() else []
+# Vocabulary hint (names, acronyms, product terms) that biases recognition,
+# e.g. "FIDS, SITA, AMS, CGA, kioscos, OCR". Keep it short (under ~200 words).
+WHISPER_INITIAL_PROMPT = os.environ.get("WHISPER_INITIAL_PROMPT", "").strip() or None
+
+
 def transcribe(audio_path: Path, language=None):
     """language: codigo ISO pedido por la transcripcion; None -> WHISPER_LANGUAGE
     del entorno o autodeteccion (que solo escucha los primeros segundos y suele
@@ -279,6 +289,7 @@ def transcribe(audio_path: Path, language=None):
     model = get_model()
     segments_iter, info = model.transcribe(
         str(audio_path), language=language or WHISPER_LANGUAGE, vad_filter=True, condition_on_previous_text=True,
+        initial_prompt=WHISPER_INITIAL_PROMPT,
     )
     segments = [
         {"start_ms": round(seg.start * 1000), "end_ms": round(seg.end * 1000), "text": seg.text.strip()}

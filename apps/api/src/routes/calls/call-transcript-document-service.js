@@ -6,7 +6,7 @@ import { createAiRouter } from "../../services/ai/ai-router.js";
 import { isLocalEnabled } from "../../services/ai/ai-providers.js";
 import {
   resolveTokenBudget, chunkMaxChars, digestMaxChars, chunkSegments, createTokenPacer,
-  createPipelineRunner, mapChunk, collectSections, buildDigest, reduceDocument, sourceKeyOf,
+  createPipelineRunner, mapChunk, outputLanguageName, collectSections, buildDigest, reduceDocument, sourceKeyOf,
 } from "./transcript-map-reduce.js";
 
 const LOG_PREFIX = "[runly.calls/transcript-documents]";
@@ -71,11 +71,12 @@ export function createCallTranscriptDocumentService({ prisma, env = process.env,
     if (cached) return cached;
 
     const chunks = chunkSegments(transcript.segments, { maxChars: chunkMaxChars(budget) });
+    const lang = outputLanguageName(transcript.language ?? transcript.requestedLanguage);
     if (docId) await prisma.callTranscriptDocument.update({ where: { id: docId }, data: { progressTotal: chunks.length + 1, progressDone: 0 } });
     const notesList = [];
     let model = null;
     for (const chunk of chunks) {
-      const mapped = await mapChunk(runner, chunk);
+      const mapped = await mapChunk(runner, chunk, lang);
       notesList.push(mapped.notes);
       model = mapped.model;
       if (docId) await prisma.callTranscriptDocument.update({ where: { id: docId }, data: { progressDone: notesList.length, notes: { sourceKey: key, partial: true, chunks: notesList } } });
@@ -87,7 +88,7 @@ export function createCallTranscriptDocumentService({ prisma, env = process.env,
     try {
       const { chunks, model: mapModel, sourceKey } = await ensureNotes({ transcript, docId });
       const digest = await buildDigest(runner, chunks, { maxChars: digestMaxChars(budget) });
-      const reduced = await reduceDocument(runner, kind, digest);
+      const reduced = await reduceDocument(runner, kind, digest, outputLanguageName(transcript.language ?? transcript.requestedLanguage));
       const content = {
         kind,
         callStartedAt: transcript.call?.startedAt ?? null,

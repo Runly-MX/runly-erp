@@ -24,11 +24,17 @@ export function writeDevicePref(kind, deviceId) {
 export const OUTPUT_SELECTION_SUPPORTED =
   typeof HTMLMediaElement !== "undefined" && "setSinkId" in HTMLMediaElement.prototype;
 
+// In a room full of people around one device the browser's noise suppression
+// and echo cancellation treat the distant voices as noise and clip them;
+// keep only the gain control. Used for in-person recordings.
+const IN_PERSON_AUDIO = { noiseSuppression: false, echoCancellation: false, autoGainControl: true };
+
 // Room options that start the call on the user's remembered devices.
-export function roomDeviceDefaults() {
+export function roomDeviceDefaults({ inPerson = false } = {}) {
   const prefs = readDevicePrefs();
+  const audioCapture = { ...(inPerson ? IN_PERSON_AUDIO : {}), ...(prefs.audioinput ? { deviceId: prefs.audioinput } : {}) };
   return {
-    ...(prefs.audioinput ? { audioCaptureDefaults: { deviceId: prefs.audioinput } } : {}),
+    ...(Object.keys(audioCapture).length ? { audioCaptureDefaults: audioCapture } : {}),
     ...(prefs.videoinput ? { videoCaptureDefaults: { deviceId: prefs.videoinput } } : {}),
     ...(prefs.audiooutput && OUTPUT_SELECTION_SUPPORTED ? { audioOutput: { deviceId: prefs.audiooutput } } : {}),
   };

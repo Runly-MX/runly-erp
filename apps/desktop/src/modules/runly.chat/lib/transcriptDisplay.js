@@ -41,3 +41,25 @@ export function activeSegmentIndex(segments, ms) {
   }
   return found;
 }
+
+export const LANGUAGE_NAMES = { es: "Español", en: "Inglés", pt: "Portugués", fr: "Francés", de: "Alemán", it: "Italiano" };
+export const LANGUAGE_OPTIONS = [
+  { value: "es", label: "Español" },
+  { value: "en", label: "Inglés" },
+  { value: "pt", label: "Portugués" },
+  { value: "fr", label: "Francés" },
+  { value: "de", label: "Alemán" },
+  { value: "it", label: "Italiano" },
+  { value: "auto", label: "Detectar automáticamente" },
+];
+
+const LANGUAGE_KEY = "runly.chat.transcriptLanguage";
+export function readTranscriptLanguage() {
+  try {
+    const stored = localStorage.getItem(LANGUAGE_KEY);
+    return LANGUAGE_OPTIONS.some((o) => o.value === stored) ? stored : "es";
+  } catch { return "es"; }
+}
+export function writeTranscriptLanguage(value) {
+  try { localStorage.setItem(LANGUAGE_KEY, value); } catch { /* not remembered */ }
+}

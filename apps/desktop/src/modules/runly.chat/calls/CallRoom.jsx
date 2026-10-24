@@ -32,7 +32,7 @@ export function CallRoom({ session, onLeave, onUnanswered, onReconnect, isInitia
   // Held for the whole call (full or minimized) so the device doesn't auto-lock.
   useScreenWakeLock(true);
   // Starts on the user's remembered microphone/camera/speaker.
-  const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true, ...roomDeviceDefaults() }), [session.callId]);
+  const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true, ...roomDeviceDefaults({ inPerson: session.meetingMode === "inperson" }) }), [session.callId]);
   const [renderVersion, setRenderVersion] = useState(0);
   const [connectionState, setConnectionState] = useState("connecting");
   // The RTC engine (not just signaling) — publishing tracks/data before this is

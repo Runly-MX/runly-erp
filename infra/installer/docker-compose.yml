@@ -219,6 +219,8 @@ services:
       WHISPER_MODEL: ${WHISPER_MODEL:-small}
       WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
       WHISPER_CPU_THREADS: ${WHISPER_CPU_THREADS:-2}
+      WHISPER_INITIAL_PROMPT: ${WHISPER_INITIAL_PROMPT:-}
+      TRANSCRIBER_AUDIO_FILTER: ${TRANSCRIBER_AUDIO_FILTER-highpass=f=80,dynaudnorm=f=150:g=15}
     volumes:
       - whisper-model-cache:/root/.cache/huggingface
     deploy:

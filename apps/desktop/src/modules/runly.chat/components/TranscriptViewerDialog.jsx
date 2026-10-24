@@ -9,7 +9,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { toast } from "sonner";
 import { useTranscript, useRetryTranscript, useRegenerateTranscript } from "../hooks/useConversationTranscripts";
 import { copyTranscriptToClipboard, downloadTranscriptPdf } from "../lib/transcriptExport";
-import { formatTimestamp, speakerColor } from "../lib/transcriptDisplay";
+import { formatTimestamp, speakerColor, LANGUAGE_NAMES, LANGUAGE_OPTIONS } from "../lib/transcriptDisplay";
 import { saveHtmlAsNote, transcriptToHtml } from "../lib/transcriptNote";
 import { TranscriptAnalysisDialog } from "./TranscriptAnalysisDialog";
 import { TranscriptDocumentsDialog } from "./TranscriptDocumentsDialog";
@@ -123,15 +123,6 @@ function TranscriptBody({ segments }) {
     </>
   );
 }
-
-const LANGUAGE_NAMES = { es: "Español", en: "Inglés", pt: "Portugués", fr: "Francés", de: "Alemán", it: "Italiano" };
-const LANGUAGE_OPTIONS = [
-  { value: "es", label: "Español" },
-  { value: "en", label: "Inglés" },
-  { value: "pt", label: "Portugués" },
-  { value: "fr", label: "Francés" },
-  { value: "auto", label: "Detectar automáticamente" },
-];
 
 // Which language the speech was transcribed as: the requested one, or the
 // auto-detected one (flagged, since detection on short clips is unreliable).

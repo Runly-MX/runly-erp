@@ -150,15 +150,21 @@ export function createPipelineRunner({ aiRouter, pacer, task = "transcript_analy
 const str = (v) => (typeof v === "string" ? v.trim() : "");
 const strList = (v) => (Array.isArray(v) ? v.map(str).filter(Boolean) : []);
 
-const MAP_SYSTEM = [
+const LANGUAGE_NAMES = { es: "español", en: "inglés", pt: "portugués", fr: "francés", de: "alemán", it: "italiano" };
+// Documents are written in the language the meeting was spoken in.
+export function outputLanguageName(code) {
+  return LANGUAGE_NAMES[String(code ?? "").toLowerCase()] ?? LANGUAGE_NAMES.es;
+}
+
+const mapSystem = (lang) => [
   "Eres un asistente que toma notas de una reunion de trabajo a partir de un FRAGMENTO de su transcripcion (cada linea empieza con su minuto [mm:ss]).",
   "Las primeras lineas pueden repetir contexto del fragmento anterior: usalas para entender, pero no dupliques lo ya cubierto.",
   "Devuelve SOLO un objeto JSON con esta forma exacta:",
   '{"sections":[{"title":string,"from":"mm:ss","gist":string,"body":string,"bullets":string[]}],"decisions":[{"text":string,"at":"mm:ss"}],"actions":[{"text":string,"owner":string,"due":string,"at":"mm:ss"}],"risks":[{"situation":string,"impact":string,"response":string}],"pending":string[]}',
-  "sections: 1 a 3 temas tratados. title corto; gist una sola oracion; body 2-4 oraciones neutrales en espanol; bullets 0-4 datos concretos (cifras, equipos, plazos).",
+  "sections: 1 a 3 temas tratados. title corto; gist una sola oracion; body 2-4 oraciones neutrales; escribe TODO el contenido de salida (title, gist, body, bullets, textos) en ${lang}; bullets 0-4 datos concretos (cifras, equipos, plazos).",
   "decisions: solo acuerdos ya tomados. actions: tareas o compromisos; owner y due vacios si no se dijeron. pending: temas abiertos o por validar.",
   "Corrige terminos tecnicos evidentes del reconocimiento de voz solo si el contexto lo permite; ante la duda, no inventes. Listas vacias si no hay contenido.",
-].join(" ");
+].join(" ").replace("${lang}", lang);
 
 function sanitizeNotes(obj, chunk) {
   const clampMs = (clock) => {
@@ -182,9 +188,9 @@ function sanitizeNotes(obj, chunk) {
   };
 }
 
-export async function mapChunk(runner, chunk) {
+export async function mapChunk(runner, chunk, lang = "español") {
   const user = `Fragmento ${chunk.index + 1} (${formatMs(chunk.startMs)} a ${formatMs(chunk.endMs)}):\n${chunk.text}`;
-  const { obj, model } = await runner.callJson({ system: MAP_SYSTEM, user, maxTokens: MAP_MAX_TOKENS });
+  const { obj, model } = await runner.callJson({ system: mapSystem(lang), user, maxTokens: MAP_MAX_TOKENS });
   return { notes: sanitizeNotes(obj, chunk), model };
 }
 
@@ -255,22 +261,22 @@ export async function buildDigest(runner, notesList, { maxChars, maxRounds = 4 }
   return text.length > maxChars ? text.slice(0, maxChars) : text;
 }
 
-const REDUCE_BASE = "Eres un asistente que redacta documentos formales de reuniones en espanol, neutrales y sin inventar datos. Recibes las notas ordenadas de TODA la reunion (con su minuto). Las propuestas no son decisiones ya autorizadas: usa 'se propuso' o 'se prevé' cuando no hubo acuerdo claro. Devuelve SOLO JSON.";
+const reduceBase = (lang) => `Eres un asistente que redacta documentos formales de reuniones en ${lang}, neutrales y sin inventar datos. Recibes las notas ordenadas de TODA la reunion (con su minuto). Las propuestas no son decisiones ya autorizadas: usa 'se propuso' o 'se prevé' cuando no hubo acuerdo claro. Devuelve SOLO JSON.`;
 
-const REDUCE_MINUTA = [
-  REDUCE_BASE,
+const reduceMinuta = (lang) => [
+  reduceBase(lang),
   'Forma exacta: {"objective":string,"executiveSummary":string,"commitments":[{"text":string,"owner":string,"due":string}],"risks":[{"situation":string,"impact":string,"response":string}],"openDecisions":string[],"conclusions":string}',
   "objective: 1-2 oraciones. executiveSummary: 2 parrafos cortos separados por \\n\\n. commitments: consolida y deduplica los compromisos (owner = area o persona probable, o 'Por definir'; due = plazo o condicion, o 'Por definir'). risks: hasta 8. openDecisions: temas sin cerrar. conclusions: 2-3 oraciones con el seguimiento sugerido.",
 ].join(" ");
 
-const REDUCE_RESUMEN = [
-  REDUCE_BASE,
+const reduceResumen = (lang) => [
+  reduceBase(lang),
   'Forma exacta: {"overview":string,"findings":[{"title":string,"detail":string}],"priorities":string[]}',
   "overview: 2 oraciones sobre el proposito y enfoque. findings: entre 4 y 8 hallazgos o propuestas principales, title corto, detail 1-2 oraciones. priorities: 3-5 prioridades de seguimiento, accionables.",
 ].join(" ");
 
-export async function reduceDocument(runner, kind, digest) {
-  const system = kind === "RESUMEN" ? REDUCE_RESUMEN : REDUCE_MINUTA;
+export async function reduceDocument(runner, kind, digest, lang = "español") {
+  const system = kind === "RESUMEN" ? reduceResumen(lang) : reduceMinuta(lang);
   const { obj, model } = await runner.callJson({ system, user: digest, maxTokens: REDUCE_MAX_TOKENS });
   if (kind === "RESUMEN") {
     return {
