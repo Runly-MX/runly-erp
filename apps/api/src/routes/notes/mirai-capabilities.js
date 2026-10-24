@@ -9,15 +9,15 @@ import { createTagsService } from "./tags-service.js";
 import { createNotesMiraiQueries } from "./notes-mirai-queries.js";
 import { createNotesMiraiActions } from "./mirai-actions.js";
 
-export function createNotesMiraiCapabilities({ prisma }) {
-  const notesSvc = createNotesService({ prisma });
+export function createNotesMiraiCapabilities({ prisma, broadcaster = null }) {
+  const notesSvc = createNotesService({ prisma, broadcaster });
   const foldersSvc = createFoldersService({ prisma });
   const tagsSvc = createTagsService({ prisma });
 
   return {
     moduleKey: "runly.notes",
     label: "Notas",
-    summary: "Notas del usuario: busqueda por texto/etiqueta/carpeta, contenido; crear, renombrar/mover y eliminar. Las subpaginas son notas normales anidadas (parent_note_id); la busqueda las devuelve indicando su pagina padre.",
+    summary: "Notas del usuario: busqueda por texto/etiqueta/carpeta, contenido; crear, agregar texto al final de una nota existente (notes.note.append: anexa, nunca reemplaza), renombrar/mover y eliminar. Las subpaginas son notas normales anidadas (parent_note_id); la busqueda las devuelve indicando su pagina padre.",
     tools: createNotesMiraiQueries({ prisma, notesSvc }),
     actions: createNotesMiraiActions({ prisma, notesSvc, foldersSvc, tagsSvc }),
     publicLookup: [],

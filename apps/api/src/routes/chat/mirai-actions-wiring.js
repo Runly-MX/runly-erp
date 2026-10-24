@@ -83,7 +83,7 @@ export function createMiraiActionsStack({ prisma, broadcaster = null, notificati
         broadcaster,
       }),
     }),
-    createNotesMiraiCapabilities({ prisma }),
+    createNotesMiraiCapabilities({ prisma, broadcaster }),
     createHrMiraiCapabilities({ prisma }),
     createFleetMiraiCapabilities({ prisma }),
     createLedgerMiraiCapabilities({ prisma, attachments }),

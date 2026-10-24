@@ -100,9 +100,28 @@ test("delete: moves to trash via trashNote", async () => {
   assert.match(res.summary, /papelera/);
 });
 
-test("capability has no append action (omitted — see mirai-actions.js comment)", () => {
+test("capability exposes the append action next to create/rename/delete", () => {
   const cap = createNotesMiraiCapabilities({ prisma: {} });
-  assert.deepEqual(cap.actions.map((a) => a.key).sort(), ["notes.note.create", "notes.note.delete", "notes.note.rename_move"]);
+  assert.deepEqual(cap.actions.map((a) => a.key).sort(), ["notes.note.append", "notes.note.create", "notes.note.delete", "notes.note.rename_move"]);
+});
+
+test("append: prepare previews 300 chars without writing; execute calls appendToNote", async () => {
+  const NOTE = "01900000-0000-7000-8000-0000000000aa";
+  const calls = [];
+  const notesSvc = fakeNotesSvc({
+    getNote: async () => ({ id: NOTE, title: "Acta" }),
+    appendToNote: async (args) => { calls.push(args); return { id: NOTE, title: "Acta" }; },
+  });
+  const actions = Object.fromEntries(createNotesMiraiActions({ prisma: {}, notesSvc, foldersSvc: {}, tagsSvc: {} }).map((a) => [a.key, a]));
+  const a = actions["notes.note.append"];
+  assert.equal(a.permission, "notes.notes.update");
+  assert.match((await a.prepare({ noteId: "no-uuid", content: "x" }, actx)).error, /noteId/);
+  const out = await a.prepare({ noteId: NOTE, content: "z".repeat(500) }, actx);
+  assert.equal(out.preview.fields.find((f) => f.label === "Texto a agregar").value.length, 300);
+  assert.equal(calls.length, 0);
+  const res = await a.execute(out.input, actx);
+  assert.equal(calls[0].companyId, "co1");
+  assert.equal(res.link, `/app/m/runly.notes?note=${NOTE}`);
 });
 
 test("describeContext: returns null when getNote throws (no access)", async () => {

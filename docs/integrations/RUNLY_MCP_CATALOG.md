@@ -107,6 +107,7 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `notes_page` | Lectura | `notes.notes.read` |
 | `notes.note.create` | Escritura aprobada | `notes.notes.create` + `notes.notes.read` |
 | `notes.note.rename_move` | Escritura aprobada | `notes.notes.update` + `notes.notes.read` |
+| `notes.note.append` | Escritura aprobada | `notes.notes.update` + `notes.notes.read` |
 
 ## runly.pfm
 

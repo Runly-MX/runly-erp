@@ -7,19 +7,11 @@
 // needed: those routes have no inline side effects beyond the services
 // themselves — notesSvc.updateNote already owns the collaborator broadcast).
 //
-// OMITTED: "append to a note" (spec §3, runly.notes). A note's real content
-// lives in two places: the `content`/`content_text` columns (plain HTML +
-// text mirror, see notes-service.js) and, once the note has been opened in
-// the collaborative editor, a separate Y.js binary snapshot in
-// note_ydoc_state (ydoc-service.js). The editor prefers the Y.Doc snapshot
-// whenever one exists (NoteEditor.jsx: `hadServerState`) — ydoc-service.js
-// only exposes raw getState/saveState on an opaque binary blob, with no
-// "merge this plain text into the existing Y.Doc" primitive. Appending via
-// notesSvc.updateNote would silently diverge from a note that already has
-// live collaborative state: the editor would keep showing the old content
-// until the Y.Doc is discarded. There is no safe path through the existing
-// services, so the action is omitted per spec's own escape hatch ("if
-// appending ... is not safely supported by the service, omit it").
+// APPEND ("add text to a note"): notesSvc.appendToNote parses lightweight
+// markdown into blocks and writes them to BOTH the content/content_text
+// columns and, when the note already has a Y.js snapshot (note_ydoc_state),
+// the collaborative document, so open editors and the columns never diverge.
+// It only ever appends at the end; existing content is never replaced.
 // create/rename/move/delete never touch `content`, so they carry no such risk.
 import { z } from "zod";
 
@@ -35,6 +27,10 @@ const renameMoveArgs = z.object({
   noteId: z.string().min(1),
   title: z.string().trim().max(200).optional(),
   folder: z.string().trim().nullable().optional(), // "" or null clears the folder
+});
+const appendArgs = z.object({
+  noteId: z.string().uuid(),
+  content: z.string().trim().min(1).max(20000),
 });
 const deleteArgs = z.object({ noteId: z.string().min(1) });
 
@@ -179,6 +175,45 @@ export function createNotesMiraiActions({ prisma, notesSvc, foldersSvc, tagsSvc 
     },
   };
 
+  const append = {
+    key: "notes.note.append",
+    moduleKey: "runly.notes",
+    operation: "update",
+    label: "Agregar texto a una nota",
+    permission: "notes.notes.update",
+    description: "Agrega texto AL FINAL de una nota existente sin reemplazar ni borrar lo que ya tiene. Admite markdown ligero: # ## ### encabezados, - viñetas, - [ ] / - [x] tareas y parrafos. No soporta tablas, imagenes ni enlaces. Requiere el noteId de notes_search. Para cambiar titulo o carpeta usa notes.note.rename_move.",
+    parameters: {
+      type: "object",
+      properties: { noteId: { type: "string" }, content: { type: "string", description: "Texto a agregar al final (maximo 20000 caracteres)." } },
+      required: ["noteId", "content"],
+    },
+    async prepare(args, actx) {
+      const parsed = appendArgs.safeParse(args);
+      if (!parsed.success) return { error: "Indica el noteId (de notes_search) y el texto a agregar (maximo 20000 caracteres)." };
+      let note;
+      try {
+        note = await notesSvc.getNote(parsed.data.noteId, actx.actorProfileId);
+      } catch {
+        return { error: "No encontre esa nota o no tienes acceso. Usa notes_search para obtener su noteId." };
+      }
+      return {
+        input: { noteId: note.id, content: parsed.data.content },
+        targetId: note.id,
+        preview: {
+          title: "Agregar texto a la nota",
+          fields: [
+            { label: "Nota", value: note.title || "(sin titulo)" },
+            { label: "Texto a agregar", value: parsed.data.content.slice(0, 300) },
+          ],
+        },
+      };
+    },
+    async execute(input, actx) {
+      const note = await notesSvc.appendToNote({ noteId: input.noteId, userId: actx.actorProfileId, companyId: actx.companyId, text: input.content });
+      return { id: note.id, summary: `Texto agregado a la nota: ${note.title || "(sin titulo)"}`, link: LINK(note.id) };
+    },
+  };
+
   const remove = {
     key: "notes.note.delete",
     moduleKey: "runly.notes",
@@ -208,5 +243,5 @@ export function createNotesMiraiActions({ prisma, notesSvc, foldersSvc, tagsSvc 
     },
   };
 
-  return [create, renameMove, remove];
+  return [create, renameMove, append, remove];
 }

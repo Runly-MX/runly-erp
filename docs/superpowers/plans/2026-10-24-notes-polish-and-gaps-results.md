@@ -86,3 +86,22 @@ Verification: notes lib tests 172/172, notes API tests 60/60, `pnpm lint` clean,
 - [ ] Image inside a table cell uses the same edit button.
 - [ ] Old image with annotations/crop still renders correctly.
 - [ ] Edit, undo (Ctrl+Z in the note) and reload: the replaced image persists.
+
+## MCP append (notes.note.append)
+
+MCP clients (ChatGPT/Claude) and MirAI can add text to an existing note through the approved action `notes.note.append` (`notes.notes.update` + `notes.notes.read`, input `{ noteId, content }`, max 20000 chars). Implementation: `routes/notes/append-blocks.js` (pure parsing, HTML/text rendering and Y.js node builders) and `notesSvc.appendToNote` in `notes-service.js`.
+
+- With a Y.js snapshot (`note_ydoc_state`): the blocks are appended to the `default` XmlFragment using the editor schema names (paragraph, heading{level}, bulletList > listItem, taskList > taskItem{checked}), the incremental update is saved through `ydocService.saveState` (CRDT merge with optimistic retry), the HTML/text are appended to `content`/`content_text` and `word_count` through `updateNote`, and the update is broadcast on `note:ydoc:<id>` event `ydoc.update` (best effort: a failure is logged and never fails the append).
+- Without a snapshot: only `content`/`content_text`/`word_count` change; the editor seeds from the HTML on first open.
+
+Limits: appends at the end only (never replaces or deletes); markdown-lite only (headings `#`..`###`, bullets, `- [ ]`/`- [x]` tasks, paragraphs); no tables, images or links; canvas and trashed notes are rejected; open editors receive it live only if the broadcast succeeds (otherwise they converge on the next save or reload). In the MCP path the broadcaster is built from `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` when both are set.
+
+Verification: notes API tests, MCP tests and `pnpm lint` (see the final run of this change); not yet exercised against a real editor.
+
+### Manual QA (pending)
+
+- [ ] Create a note via MCP, append via MCP, reload the note: both texts present.
+- [ ] Append to a note that is open in the editor in another tab: the text appears live (and after reload if the broadcast failed).
+- [ ] Append to a note never opened in the editor: text present on first open, no duplication.
+- [ ] A note shared with view-only permission is rejected.
+- [ ] A user without `notes.notes.update` is rejected.
