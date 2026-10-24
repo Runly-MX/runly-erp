@@ -118,7 +118,7 @@ function TableMenuItem({ label, onClick, destructive }) {
   )
 }
 
-// bar=true: rendered in the fixed strip above the on-screen keyboard (touch).
+// bar=true: touch strip above system navigation, rising with the on-screen IME.
 export function NoteToolbar({ noteId, token, bar = false }) {
   const { editor } = useCurrentEditor()
   const isDark = useIsDark()

@@ -21,7 +21,7 @@ import { flushNoteSave } from '../lib/flushNoteSave.js'
 import { buildExtensions } from '../lib/editor-extensions.js'
 import { usePresence } from '../hooks/usePresence.js'
 import { shouldFocusDocumentEnd } from '../lib/clickBelowContent.js'
-import { useKeyboardInset, isCaretHiddenByKeyboard, computeCaretScrollDelta, useCoarsePointer } from '@runly/ui'
+import { useKeyboardViewport, isCaretHiddenByKeyboard, computeCaretScrollDelta, useCoarsePointer } from '@runly/ui'
 import { setSaveStatus } from '../lib/saveStatus.js'
 import { computeLineUnitPx, computePaperPhase } from '../lib/paperAlignment.js'
 import { NoteToolbar } from './NoteToolbar.jsx'
@@ -42,10 +42,9 @@ import { DrawingBlock } from '../lib/extensions/DrawingBlock.jsx'
 import { AnnotatableImage } from '../lib/extensions/AnnotatableImage.jsx'
 import { notesDebug } from '../lib/notesDebug.js'
 import { NOTE_HTML_PARSE_OPTIONS, noteTextInputAttributes } from '../lib/noteTextInput.js'
+import { NOTE_TOUCH_BAR_HEIGHT as TOUCH_BAR_HEIGHT, noteToolbarPlacement } from '../lib/noteToolbarPlacement.js'
 
 const AUTOSAVE_DELAY = 1500
-// Height of the touch formatting bar shown above the keyboard (h-12).
-const TOUCH_BAR_HEIGHT = 48
 // Browsers reject keepalive bodies past 64 KB (shared by all in-flight
 // keepalive requests); leave room for the Y.js update sent alongside.
 const KEEPALIVE_CONTENT_LIMIT = 24_000
@@ -227,11 +226,11 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
   const isDark = useIsDark()
   const accent = noteAccentColor(note?.background_color, isDark)
 
-  const rawKeyboardInset = useKeyboardInset()
-  const keyboardInset = viewing ? 0 : rawKeyboardInset
+  const keyboard = useKeyboardViewport({ enabled: !viewing })
   const coarse = useCoarsePointer()
-  // Touch + keyboard open: the toolbar rides above the keyboard instead of the sticky top host.
-  const barVisible = coarse && keyboardInset > 0 && !viewing
+  // Touch: always above Android's taskbar/navigation bar, rising with the IME.
+  // Mouse: keep the existing top toolbar.
+  const { keyboardInset, barVisible, barBottom } = noteToolbarPlacement({ coarse, viewing, keyboard })
 
   // Aligns the ruled/grid paper-style pattern (painted on .note-sheet, whose
   // top sits behind the sticky toolbar + icon/title row) with where the
@@ -290,14 +289,17 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
 
   const handleSelectionUpdate = useCallback(
     ({ editor }) => {
-      if (viewing || keyboardInset <= 0 || !scrollRef.current) return
+      if (viewing || (!keyboard.open && !barVisible) || !scrollRef.current) return
       const coords = editor.view.coordsAtPos(editor.state.selection.head)
-      const viewportHeight = (window.visualViewport?.height ?? window.innerHeight) - (barVisible ? TOUCH_BAR_HEIGHT : 0)
-      if (!isCaretHiddenByKeyboard(coords.bottom, viewportHeight)) return
-      const delta = computeCaretScrollDelta(coords.bottom, viewportHeight)
+      const viewport = window.visualViewport
+      const viewportBottom = viewport ? viewport.height + viewport.offsetTop : window.innerHeight
+      const toolbarTop = barVisible && barHost ? barHost.getBoundingClientRect().top : viewportBottom
+      const visibleBottom = Math.min(viewportBottom, toolbarTop)
+      if (!isCaretHiddenByKeyboard(coords.bottom, visibleBottom)) return
+      const delta = computeCaretScrollDelta(coords.bottom, visibleBottom)
       scrollRef.current.scrollBy({ top: delta, behavior: 'smooth' })
     },
-    [viewing, keyboardInset, barVisible],
+    [viewing, keyboard.open, barVisible, barHost],
   )
 
   // ── autosave ───────────────────────────────────────────────────────────
@@ -723,7 +725,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       <div
         ref={setBarHost}
         className={barVisible ? 'fixed inset-x-0 z-40 bg-background' : 'hidden'}
-        style={barVisible ? { bottom: keyboardInset } : undefined}
+        style={barVisible ? { bottom: barBottom, left: 'var(--sal, 0px)', right: 'var(--sar, 0px)' } : undefined}
       />
       <NoteInteractionContext.Provider value={interaction}>
         {viewing && (
@@ -754,7 +756,9 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
             ref={scrollRef}
             data-note-scroll
             className="min-w-0 flex-1 overflow-auto overscroll-contain pb-20"
-            style={keyboardInset > 0 ? { paddingBottom: keyboardInset + (barVisible ? TOUCH_BAR_HEIGHT : 0) } : undefined}
+            style={barVisible
+              ? { paddingBottom: `calc(${TOUCH_BAR_HEIGHT}px + ${barBottom})` }
+              : keyboardInset > 0 ? { paddingBottom: keyboardInset } : undefined}
             onClick={viewing ? undefined : handleContainerClick}
           >
             <NoteSheet note={note} isDark={isDark} zoom={zoom} paged={paged} fillEditor>

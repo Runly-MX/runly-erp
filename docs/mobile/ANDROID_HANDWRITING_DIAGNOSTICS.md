@@ -71,6 +71,30 @@ de tablet. En la tablet Android reportó 112 píxeles físicos a densidad 2,
 incluido `tappableElement`. La prueba `HostControlsInstrumentedTest`
 pasó con este modo, verificando los insets y los íconos en ambos temas.
 
+### Barra de formato de Notas
+
+En modo táctil debe permanecer abajo cuando el teclado está cerrado,
+encima de la navegación/taskbar de Android, y subir con el teclado. La
+condición anterior solo mostraba esa barra si había un inset de teclado
+positivo y no garantizaba el espacio de `--sab`.
+
+La posición ahora usa `max(inset del viewport, var(--sab))`, mantiene la
+barra visible sin teclado y reserva su altura más ese espacio al final
+del contenido. También evita que el cursor quede debajo de la barra.
+Los dispositivos con ratón conservan la barra superior.
+
+En una superficie de prueba dentro del APK, usando los hooks y el cálculo
+de posición de producción, con tres botones y viewport de tablet 1280 × 800,
+Android reportó una taskbar de 112 píxeles físicos a densidad 2. La barra
+de formato ocupó los píxeles CSS 696–744 y la navegación 744–800: sin
+solapamiento. Con tamaño de teléfono, la separación fue 48 px CSS. Esto
+valida la posición con teclado cerrado en el emulador; no sustituye la
+prueba del editor desplegado en una Samsung física.
+
+`scripts/tests/notes-toolbar-safe-area-browser.test.mjs` comprueba teclado
+cerrado, abierto, ocultado y modo de escritura corto, además de una taskbar
+mayor de 96 px. Es una corrección web; no requiere cambiar el APK 1.2.5.
+
 ## Primera conexión a una instancia
 
 La confirmación esperaba a `FirebaseMessaging.deleteToken()` antes de
