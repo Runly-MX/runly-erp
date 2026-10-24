@@ -29,6 +29,7 @@ import { OutlinePanel } from './OutlinePanel.jsx'
 import { PageCounterChip } from './PageCounterChip.jsx'
 import { useNotePagedView } from '../hooks/useNotePagedView.js'
 import { useNoteOutlineOpen } from '../hooks/useNoteOutlineOpen.js'
+import { SpellcheckApplier } from './SpellcheckApplier.jsx'
 import { TableFloatingMenu } from './TableFloatingMenu.jsx'
 import { TableDragHandles } from './TableDragHandles.jsx'
 import { NoteCoverBanner } from './NoteCoverBanner.jsx'
@@ -678,6 +679,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
         </>
       }
     >
+      {!viewing && <SpellcheckApplier noteId={note.id} />}
       {!viewing && <TableFloatingMenu />}
       {!viewing && <TableDragHandles />}
       {paged.enabled && <PageCounterChip host={containerRef.current} />}

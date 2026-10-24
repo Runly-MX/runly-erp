@@ -10,6 +10,7 @@ import { NOTE_PAPER_STYLES, paperStylePreviewBackground } from '../lib/paperStyl
 import { NoteIcon } from '../noteIcons.jsx'
 import { NoteIconPickerContent } from './NoteIconPicker.jsx'
 import { useNotePagedView } from '../hooks/useNotePagedView.js'
+import { useNoteSpellcheck } from '../hooks/useNoteSpellcheck.js'
 import { printNote } from '../lib/notePageExport.js'
 import {
   ConfirmDialog, TextField, CreatableComboboxField, CheckboxField, SwitchField, SelectField,
@@ -38,6 +39,7 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
   const setNoteTags = useSetNoteTags()
   const [trashOpen, setTrashOpen] = useState(false)
   const [paged, setPaged] = useNotePagedView(note?.id)
+  const [spellcheck, setSpellcheck] = useNoteSpellcheck(note?.id)
 
   const folders = foldersData?.folders ?? []
   const allTags = tagsData?.tags ?? []
