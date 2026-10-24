@@ -24,6 +24,6 @@ export function createNotesAdapter({ prisma }) {
     },
     revision: async (_definition, prepared, a) => prepared.targetId ? notesSvc.getNote(prepared.targetId, a.actorProfileId) : null,
     sensitive: false,
-    effects: ['Crear notas, editar título/carpeta o agregar bloques de texto e imágenes (hasta 5, por URL https pública o base64; png/jpeg/webp/gif, máx. 10 MB, se copian al almacenamiento de notas) al final de una nota. Nunca reemplaza ni borra el contenido existente.'],
+    effects: ['Crear notas, editar título/carpeta o agregar bloques de texto e imágenes (hasta 5, solo por URL https pública, nunca base64; png/jpeg/webp/gif, máx. 10 MB, se copian al almacenamiento de notas) al final de una nota. Nunca reemplaza ni borra el contenido existente.'],
   };
 }

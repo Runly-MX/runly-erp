@@ -14,7 +14,7 @@
 // It only ever appends at the end; existing content is never replaced.
 // create/rename/move/delete never touch `content`, so they carry no such risk.
 import { z } from "zod";
-import { MAX_IMAGES_PER_APPEND, IMAGE_MIME_TYPES, ImageAppendError, hostOfUrl, parseSafeImageUrl } from "./append-images.js";
+import { MAX_IMAGES_PER_APPEND, ImageAppendError, hostOfUrl, parseSafeImageUrl } from "./append-images.js";
 import { parseAppendText } from "./append-blocks.js";
 
 const LINK = (id) => `/app/m/runly.notes?note=${id}`;
@@ -30,13 +30,16 @@ const renameMoveArgs = z.object({
   title: z.string().trim().max(200).optional(),
   folder: z.string().trim().nullable().optional(), // "" or null clears the folder
 });
-const MAX_BASE64_CHARS = 14 * 1024 * 1024; // ~10 MB of bytes
-const imageArg = z.object({
-  url: z.string().trim().url().max(2000).optional(),
-  data: z.string().max(MAX_BASE64_CHARS).optional(),
-  mimeType: z.enum(IMAGE_MIME_TYPES).optional(),
+// Images are URL-only: the action input is persisted as JSON while a proposal
+// waits for approval (and MirAI keeps it afterwards), so inline bytes must
+// never be accepted. Unknown keys (e.g. `data`) are rejected.
+const IMAGE_URL_ONLY_MESSAGE = "Las imagenes se indican solo por URL https (no se admiten datos base64).";
+// Content is capped at 20000 chars (multi-byte worst case ~4x), image URLs at 5 x 2000.
+export const MAX_APPEND_INPUT_BYTES = 64 * 1024;
+const imageArg = z.strictObject({
+  url: z.string().trim().url().max(2000),
   alt: z.string().trim().max(200).optional(),
-}).refine((i) => Boolean(i.url) !== Boolean(i.data), { message: "Cada imagen lleva url o data, no ambas." });
+});
 const appendArgs = z.object({
   noteId: z.string().uuid(),
   content: z.string().trim().max(20000).default(""),
@@ -191,7 +194,7 @@ export function createNotesMiraiActions({ prisma, notesSvc, foldersSvc, tagsSvc 
     operation: "update",
     label: "Agregar texto a una nota",
     permission: "notes.notes.update",
-    description: "Agrega texto AL FINAL de una nota existente sin reemplazar ni borrar lo que ya tiene. Admite markdown ligero: # ## ### encabezados, - viñetas, - [ ] / - [x] tareas y parrafos. Imagenes: una linea ![texto alternativo](https://...) en el contenido, o el campo images (maximo 5; cada una {url https publica} o {data base64, mimeType}; png/jpeg/webp/gif, maximo 10 MB; PREFIERE url). Las imagenes se copian a la nota. No soporta tablas ni enlaces. Requiere el noteId de notes_search. Para cambiar titulo o carpeta usa notes.note.rename_move.",
+    description: "Agrega texto AL FINAL de una nota existente sin reemplazar ni borrar lo que ya tiene. Admite markdown ligero: # ## ### encabezados, - viñetas, - [ ] / - [x] tareas y parrafos. Imagenes: una linea ![texto alternativo](https://...) en el contenido, o el campo images (maximo 5; cada una {url https publica, alt opcional}; solo URL, no se aceptan datos base64; png/jpeg/webp/gif, maximo 10 MB). Las imagenes se copian a la nota. No soporta tablas ni enlaces. Requiere el noteId de notes_search. Para cambiar titulo o carpeta usa notes.note.rename_move.",
     parameters: {
       type: "object",
       properties: {
@@ -200,28 +203,34 @@ export function createNotesMiraiActions({ prisma, notesSvc, foldersSvc, tagsSvc 
         images: {
           type: "array",
           maxItems: MAX_IMAGES_PER_APPEND,
-          description: "Imagenes a agregar despues del texto. Cada una con url (https publica, preferida) o data (base64) + mimeType.",
+          description: "Imagenes a agregar despues del texto. Cada una con url (https publica). No se aceptan datos base64.",
           items: {
             type: "object",
             properties: {
               url: { type: "string", description: "Enlace https publico a la imagen." },
-              data: { type: "string", description: "Imagen en base64 (sin prefijo data:)." },
-              mimeType: { type: "string", enum: IMAGE_MIME_TYPES },
               alt: { type: "string", description: "Texto alternativo (maximo 200)." },
             },
+            required: ["url"],
+            additionalProperties: false,
           },
         },
       },
       required: ["noteId"],
     },
     async prepare(args, actx) {
+      if (Buffer.byteLength(JSON.stringify(args ?? {}), "utf8") > MAX_APPEND_INPUT_BYTES) {
+        return { error: "La solicitud es demasiado grande (maximo 64 KB). Reduce el texto; las imagenes se indican solo por URL https." };
+      }
       const parsed = appendArgs.safeParse(args);
-      if (!parsed.success) return { error: "Indica el noteId (de notes_search) y el texto (maximo 20000 caracteres) y/o hasta 5 imagenes (cada una con url https o data base64)." };
+      if (!parsed.success) {
+        const imageKeyIssue = parsed.error.issues.some((i) => i.path[0] === "images" && (i.code === "unrecognized_keys" || i.code === "invalid_type"));
+        return { error: imageKeyIssue ? IMAGE_URL_ONLY_MESSAGE : "Indica el noteId (de notes_search) y el texto (maximo 20000 caracteres) y/o hasta 5 imagenes (cada una con url https)." };
+      }
       const images = parsed.data.images ?? [];
       const markdownUrls = parseAppendText(parsed.data.content).filter((b) => b.type === "image").map((b) => b.url);
       if (markdownUrls.length + images.length > MAX_IMAGES_PER_APPEND) return { error: `Maximo ${MAX_IMAGES_PER_APPEND} imagenes por llamada.` };
       try {
-        for (const url of [...markdownUrls, ...images.map((i) => i.url).filter(Boolean)]) parseSafeImageUrl(url);
+        for (const url of [...markdownUrls, ...images.map((i) => i.url)]) parseSafeImageUrl(url);
       } catch (err) {
         if (err instanceof ImageAppendError) return { error: err.message };
         throw err;
@@ -241,7 +250,7 @@ export function createNotesMiraiActions({ prisma, notesSvc, foldersSvc, tagsSvc 
             { label: "Nota", value: note.title || "(sin titulo)" },
             parsed.data.content ? { label: "Texto a agregar", value: parsed.data.content.replace(/!\[([^\]]*)\]\(\s*(\S+?)\s*\)/g, (_m, alt, url) => `![${alt}](${hostOfUrl(url)})`).slice(0, 300) } : null,
             images.length + markdownUrls.length
-              ? { label: "Imagenes", value: `${images.length + markdownUrls.length}: ${[...markdownUrls, ...images.map((i) => (i.url ? i.url : null))].map((u) => (u ? hostOfUrl(u) : "archivo adjunto")).join(", ")}` }
+              ? { label: "Imagenes", value: `${images.length + markdownUrls.length}: ${[...markdownUrls, ...images.map((i) => i.url)].map((u) => hostOfUrl(u)).join(", ")}` }
               : null,
           ].filter(Boolean),
         },

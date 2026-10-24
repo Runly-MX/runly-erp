@@ -109,7 +109,7 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `notes.note.rename_move` | Escritura aprobada | `notes.notes.update` + `notes.notes.read` |
 | `notes.note.append` | Escritura aprobada | `notes.notes.update` + `notes.notes.read` |
 
-`notes.note.append` tambien acepta `images` (maximo 5; cada una `{url https publica}` o `{data base64, mimeType}`, con `alt` opcional) y lineas markdown `![alt](https://...)` en `content`. Solo png, jpeg, webp y gif de hasta 10 MB; las URL se descargan con proteccion SSRF (solo https, puerto 443, sin credenciales, solo direcciones publicas, redirecciones revalidadas) y se copian al bucket publico de notas. Se prefiere la URL; si una imagen falla, la nota no cambia. La confirmacion muestra solo la cantidad y el host de cada imagen.
+`notes.note.append` tambien acepta `images` (maximo 5; cada una `{url https publica, alt opcional}`; solo URL, nunca base64: las propuestas se guardan como JSON, asi que una clave `data` se rechaza con "Las imagenes se indican solo por URL https", y la solicitud completa no puede pasar de 64 KB) y lineas markdown `![alt](https://...)` en `content`. Solo png, jpeg, webp y gif de hasta 10 MB; las URL se descargan con proteccion SSRF (solo https, puerto 443, sin credenciales, solo direcciones publicas, redirecciones revalidadas) y se copian al bucket publico de notas. Si una imagen falla, la nota no cambia. La confirmacion muestra solo la cantidad y el host de cada imagen.
 
 
 ## runly.pfm

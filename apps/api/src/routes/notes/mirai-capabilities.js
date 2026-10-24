@@ -18,7 +18,7 @@ export function createNotesMiraiCapabilities({ prisma, broadcaster = null, supab
   return {
     moduleKey: "runly.notes",
     label: "Notas",
-    summary: "Notas del usuario: busqueda por texto/etiqueta/carpeta, contenido; crear, agregar texto al final de una nota existente (notes.note.append: anexa, nunca reemplaza; tambien puede adjuntar hasta 5 imagenes por enlace https publico (preferido) o base64), renombrar/mover y eliminar. Las subpaginas son notas normales anidadas (parent_note_id); la busqueda las devuelve indicando su pagina padre.",
+    summary: "Notas del usuario: busqueda por texto/etiqueta/carpeta, contenido; crear, agregar texto al final de una nota existente (notes.note.append: anexa, nunca reemplaza; tambien puede adjuntar hasta 5 imagenes solo por enlace https publico, nunca base64), renombrar/mover y eliminar. Las subpaginas son notas normales anidadas (parent_note_id); la busqueda las devuelve indicando su pagina padre.",
     tools: createNotesMiraiQueries({ prisma, notesSvc }),
     actions: createNotesMiraiActions({ prisma, notesSvc, foldersSvc, tagsSvc }),
     publicLookup: [],

@@ -108,9 +108,11 @@ Verification: notes API tests, MCP tests and `pnpm lint` (see the final run of t
 
 ## MCP append images
 
-`notes.note.append` (MCP and MirAI) now also adds images. Input: optional `images` (max 5, each `{ url | data+mimeType, alt }`) and/or markdown lines `![alt](https://...)` inside `content` (parsed as `image` blocks, in place; array images go after the content). Images are appended as the editor's `image` node: Y.js `image` element with `src`, `alt`, `annotations`/`erasedAnnotations` `'[]'`, `width` (editor default 60, reduced for tall images) and `aspectRatio` read from the PNG/JPEG/GIF/WebP header; the HTML mirror carries `<img src alt data-width data-aspect-ratio>`; plain text keeps only the alt.
+`notes.note.append` (MCP and MirAI) now also adds images. Input: optional `images` (max 5, each `{ url, alt }`; URL-only, strict: a `data` key is rejected with "Las imagenes se indican solo por URL https") and/or markdown lines `![alt](https://...)` inside `content` (parsed as `image` blocks, in place; array images go after the content). Images are appended as the editor's `image` node: Y.js `image` element with `src`, `alt`, `annotations`/`erasedAnnotations` `'[]'`, `width` (editor default 60, reduced for tall images) and `aspectRatio` read from the PNG/JPEG/GIF/WebP header; the HTML mirror carries `<img src alt data-width data-aspect-ratio>`; plain text keeps only the alt.
 
-Pipeline (`apps/api/src/routes/notes/append-images.js`, wired in `appendToNote`): after the access checks and BEFORE any write, every image is validated, downloaded/decoded, type-checked and uploaded to the public `runly-notes` bucket with the editor's key layout (`companies/<companyId>/notes/<noteId>/<ts>-<rand>.<ext>`); any failure removes the uploaded objects and leaves the note unchanged. Without a storage client the images part fails with a clear Spanish error.
+Why URL-only: a proposal waits for approval with its input persisted as JSONB (`mcp_state.payload` for MCP, `mirai_action_proposals.input` for MirAI, kept after execution), so base64 images (up to ~14 MB) would have been stored in the database. Base64 input was removed; unknown image keys are rejected, and the whole action input must stay under 64 KB.
+
+Pipeline (`apps/api/src/routes/notes/append-images.js`, wired in `appendToNote`): after the access checks and BEFORE any write, every image is validated, downloaded, type-checked and uploaded to the public `runly-notes` bucket with the editor's key layout (`companies/<companyId>/notes/<noteId>/<ts>-<rand>.<ext>`); any failure removes the uploaded objects and leaves the note unchanged. Without a storage client the images part fails with a clear Spanish error.
 
 Limits: 5 images per call, 10 MB each, png/jpeg/webp/gif only (type from magic bytes, never Content-Type; no SVG), https only on port 443 with no credentials, DNS must resolve only to public addresses (loopback, private, link-local incl. cloud metadata, CGNAT, unique-local, multicast, IPv4-mapped/NAT64/6to4 IPv6 forms are rejected), redirects followed manually (max 3) and re-validated on every hop, 10 s timeout, streamed size cap. Stored in the public bucket like the editor's images. The confirmation shows the image count and each URL host only. Only the host is ever logged or shown.
 
@@ -119,7 +121,7 @@ Known gap: DNS is resolved for validation and again by `fetch`, so a DNS rebindi
 ### Manual QA (pending)
 
 - [ ] Append an image by https URL via MCP: image appears in the note.
-- [ ] Append an image by base64 via MCP.
+- [ ] Sending a `data` (base64) key in an image is rejected with the URL-only message.
 - [ ] A private/loopback URL (for example `https://127.0.0.1/a.png`, a host resolving to 10.x) is rejected and the note is unchanged.
 - [ ] An oversized image (over 10 MB) is rejected and the note is unchanged.
 - [ ] Note open in the editor in another tab shows the image live.

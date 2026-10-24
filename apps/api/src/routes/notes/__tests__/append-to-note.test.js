@@ -124,7 +124,7 @@ function imageDeps({ failUpload = false } = {}) {
 test("appendToNote with images: src lands in the HTML column and the Y.js document", async () => {
   const deps = imageDeps();
   const { svc, store } = setup({ ydocState: stateWithParagraph(), extra: deps.extra });
-  await svc.appendToNote({ noteId: NOTE, userId: USER, companyId: CO, text: "Texto\n![uno](https://img.example/a.png)", images: [{ data: PNG.toString("base64"), alt: "dos" }] });
+  await svc.appendToNote({ noteId: NOTE, userId: USER, companyId: CO, text: "Texto\n![uno](https://img.example/a.png)", images: [{ url: "https://img.example/b.png", alt: "dos" }] });
   assert.equal(deps.uploads.length, 2);
   const joined = JSON.stringify(store.updates);
   const html = joined.replace(/\\+"/g, '"');

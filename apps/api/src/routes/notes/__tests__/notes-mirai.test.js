@@ -141,16 +141,22 @@ test("append with images: preview lists count and hosts only, limits and unsafe 
   const out = await a.prepare({
     noteId: NOTE,
     content: "![x](https://cdn.example.com/a.png?token=secret)",
-    images: [{ url: "https://img.example.org/b.jpg?sig=zzz" }, { data: "QUJD", mimeType: "image/png" }],
+    images: [{ url: "https://img.example.org/b.jpg?sig=zzz" }, { url: "https://third.example.net/c.webp" }],
   }, actx);
   const field = out.preview.fields.find((f) => f.label === "Imagenes").value;
-  assert.equal(field, "3: cdn.example.com, img.example.org, archivo adjunto");
-  assert.ok(!JSON.stringify(out.preview).includes("secret") && !JSON.stringify(out.preview).includes("QUJD"));
+  assert.equal(field, "3: cdn.example.com, img.example.org, third.example.net");
+  assert.ok(!JSON.stringify(out.preview).includes("secret") && !JSON.stringify(out.preview).includes("sig=zzz"));
   await a.execute(out.input, actx);
   assert.equal(calls[0].images.length, 2);
+  assert.equal(calls[0].images[0].url, "https://img.example.org/b.jpg?sig=zzz");
   assert.match((await a.prepare({ noteId: NOTE, content: "x", images: [{ url: "http://a.example/x.png" }] }, actx)).error, /https/);
   assert.match((await a.prepare({ noteId: NOTE, content: "x", images: [{ url: "https://127.0.0.1/x.png" }] }, actx)).error, /no permitida/);
   assert.ok((await a.prepare({ noteId: NOTE, content: "x", images: Array.from({ length: 6 }, () => ({ url: "https://a.example/x.png" })) }, actx)).error);
-  assert.ok((await a.prepare({ noteId: NOTE, content: "x", images: [{ url: "https://a.example/x.png", data: "QUJD" }] }, actx)).error);
+  for (const bad of [{ data: "QUJD", mimeType: "image/png" }, { url: "https://a.example/x.png", data: "QUJD" }]) {
+    assert.match((await a.prepare({ noteId: NOTE, content: "x", images: [bad] }, actx)).error, /solo por URL https/);
+  }
+  const oversized = { noteId: NOTE, content: "x".repeat(20000), images: ["p", "q", "r"].map((c) => ({ url: `https://a.example/${c.repeat(1900)}.png` })), extra: "y".repeat(70000) };
+  assert.match((await a.prepare(oversized, actx)).error, /demasiado grande/);
+  assert.equal(calls.length, 1);
   assert.ok((await a.prepare({ noteId: NOTE }, actx)).error);
 });

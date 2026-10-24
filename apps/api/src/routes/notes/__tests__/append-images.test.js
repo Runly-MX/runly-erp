@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   isBlockedAddress, parseSafeImageUrl, assertSafeImageUrl, detectImageType, readImageSize,
-  decodeBase64Image, fetchImageBytes, createNoteImageAppender, initialImageWidthPct, hostOfUrl, MAX_IMAGE_BYTES,
+  fetchImageBytes, createNoteImageAppender, initialImageWidthPct, hostOfUrl, MAX_IMAGE_BYTES,
 } from "../append-images.js";
 
 const png = (w = 640, h = 320, pad = 0) => {
@@ -78,12 +78,10 @@ test("initialImageWidthPct mirrors the editor default and tall-image cap", () =>
   assert.ok(initialImageWidthPct({ width: 500, height: 2000 }) < 60);
 });
 
-test("decodeBase64Image decodes valid images and rejects bad data, wrong type and oversize", () => {
-  const ok = decodeBase64Image(`data:image/png;base64,${png().toString("base64")}`);
-  assert.equal(ok.ext, "png");
-  assert.throws(() => decodeBase64Image("%%%"), /base64/);
-  assert.throws(() => decodeBase64Image(Buffer.from("hola mundo, no soy imagen").toString("base64")), /Formato/);
-  assert.throws(() => decodeBase64Image(png(1, 1, MAX_IMAGE_BYTES).toString("base64")), /10 MB/);
+test("fetchImageBytes rejects wrong type and oversize bodies", async () => {
+  const lookupImpl = publicLookup;
+  await assert.rejects(fetchImageBytes("https://img.example/a", { lookupImpl, fetchImpl: async () => resp(Buffer.from("hola mundo, no soy imagen"), { status: 200 }) }), /Formato/);
+  await assert.rejects(fetchImageBytes("https://img.example/a", { lookupImpl, fetchImpl: async () => resp(png(1, 1, MAX_IMAGE_BYTES), { status: 200 }) }), /10 MB/);
 });
 
 test("fetchImageBytes follows safe redirects, ignores content-type and detects the real type", async () => {
@@ -140,7 +138,7 @@ test("appender uploads under the editor's key layout and fills image blocks", as
   const { store, supabaseAdmin } = storageStub();
   const blocks = [{ type: "paragraph", text: "x" }, { type: "image", url: "https://img.example/a.png", alt: "uno" }];
   const appender = createNoteImageAppender({ supabaseAdmin, lookupImpl: publicLookup, fetchImpl: async () => resp(png(800, 400), { status: 200 }) });
-  const n = await appender.attach({ blocks, images: [{ data: png(100, 100).toString("base64"), alt: "dos" }], companyId: "co1", userId: "u1", noteId: "n1" });
+  const n = await appender.attach({ blocks, images: [{ url: "https://img.example/b.png", alt: "dos" }], companyId: "co1", userId: "u1", noteId: "n1" });
   assert.equal(n, 2);
   assert.equal(blocks.length, 3);
   assert.match(store.uploads[0].key, /^companies\/co1\/notes\/n1\/\d+-[a-z0-9]+\.png$/);

@@ -1,7 +1,8 @@
 // apps/api/src/routes/notes/append-images.js
 //
 // Images for "append to a note" (MCP / MirAI). An image arrives as an https
-// URL or as base64; either way it is validated, fetched/decoded, type-checked
+// URL only (proposals are persisted as JSON, so inline bytes are not accepted);
+// it is validated, fetched, type-checked
 // by magic bytes, uploaded to the same public `runly-notes` bucket the editor
 // uses and turned into an `image` block carrying the public URL.
 //
@@ -194,13 +195,6 @@ function verifyBytes(buffer) {
   return { buffer, ...type, size: readImageSize(buffer, type.mime) }
 }
 
-export function decodeBase64Image(data) {
-  const cleaned = String(data ?? '').replace(/^data:[^,]*,/, '').replace(/\s+/g, '')
-  if (!cleaned || !/^[A-Za-z0-9+/]*={0,2}$/.test(cleaned)) throw new ImageAppendError('Los datos de la imagen no son base64 válido.')
-  if (Math.floor((cleaned.length * 3) / 4) > MAX_IMAGE_BYTES + 3) throw new ImageAppendError('La imagen supera 10 MB.')
-  return verifyBytes(Buffer.from(cleaned, 'base64'))
-}
-
 export async function fetchImageBytes(rawUrl, { fetchImpl = fetch, lookupImpl = dnsLookup } = {}) {
   let url = await assertSafeImageUrl(rawUrl, { lookupImpl })
   let response
@@ -265,10 +259,8 @@ export function createNoteImageAppender({ supabaseAdmin = null, fetchImpl = fetc
     const uploaded = []
     try {
       for (const r of requests) {
-        let loaded
-        if (r.source.url) loaded = await fetchImageBytes(r.source.url, { fetchImpl, lookupImpl })
-        else if (r.source.data) loaded = decodeBase64Image(r.source.data)
-        else throw new ImageAppendError('Cada imagen necesita url o data.', 400)
+        if (!r.source.url) throw new ImageAppendError('Las imagenes se indican solo por URL https.', 400)
+        const loaded = await fetchImageBytes(r.source.url, { fetchImpl, lookupImpl })
         const prefix = companyId ? `companies/${companyId}/notes/${noteId}` : `notes/${userId}/${noteId}`
         const key = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2)}.${EXT_BY_MIME[loaded.mime]}`
         const { error } = await supabaseAdmin.storage.from(NOTES_BUCKET).upload(key, loaded.buffer, { contentType: loaded.mime, upsert: false })
