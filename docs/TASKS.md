@@ -8,7 +8,9 @@ Spec: `docs/superpowers/specs/2026-10-24-work-layer-task-links-design.md`. Roadm
 - [x] Personal "Mis tareas" project (`Project.kind`, `POST /projects/personal`), task creation defaults to the project's default status, typed field values. Verified: 2026-10-24 (unit tests).
 - [x] `LinkedTasksPanel` (@runly/ui), `RecordTasks` mounted in HR employee, inventory item and fleet vehicle details, "Vinculado a" section in the task detail. Verified: 2026-10-24 (`pnpm build:web`, `pnpm lint`).
 - [x] MCP `projects_task_detail` returns linked records. Verified: 2026-10-24 (mcp tests).
-- [ ] Apply migrations `20261119000000_task_links` and `20261119000100_project_kind`, then smoke the endpoints and the three record screens in the browser.
+- [x] Migrations `20261119000000_task_links` and `20261119000100_project_kind` applied by the owner (2026-10-24). Browser smoke of endpoints and the three record screens still pending.
+- [x] Home widget "Mis tareas" + `GET /projects/my-tasks`. Verified: 2026-10-24 (unit test, `pnpm build:web`, lint).
+- [x] Domain events `projects.task.completed`, `hr.employee.created`, `purchases.order.approved`, `purchases.order.issued` published and documented. Verified: 2026-10-24 (369 tests across projects, compiler, engine, purchases, hr; developer docs regenerated). Pending: `node scripts/sync-help-content.mjs` in runly-web and `node scripts/sync-mcp-docs.mjs ../runly-web` in runly-developer-hub.
 - [ ] Add purchases (and other modules) to the relation-targets catalog so they can be linked.
 - [ ] Builder `workLinks` flag for entities of Builder modules; MirAI tool to list tasks by record; link/unlink as MirAI/MCP actions.
 - [ ] Next roadmap phases: My Work home and widget contributions, domain event coverage, Automation Studio v2, Projects depth, Slack parity gaps.
