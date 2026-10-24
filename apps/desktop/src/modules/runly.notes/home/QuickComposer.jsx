@@ -85,6 +85,7 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
           }
           if (res?.note) onCreated?.(res.note)
         },
+        onError: (err) => toast.error(err?.message ?? 'No se pudo crear la nota.'),
       },
     )
     reset()
@@ -219,6 +220,7 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Titulo"
+          aria-label="Titulo de la nota"
           disabled={busy}
           spellCheck={false}
           autoCorrect="off"
@@ -232,6 +234,7 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Escribe una nota..."
+            aria-label="Contenido de la nota"
             disabled={busy}
             rows={3}
             spellCheck={false}
@@ -258,6 +261,7 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
                     if (e.key === 'Backspace' && item.text === '') { e.preventDefault(); removeItem(item.id) }
                   }}
                   placeholder="Elemento"
+                  aria-label="Elemento de la checklist"
                   disabled={busy}
                   spellCheck={false}
                   autoCorrect="off"
@@ -348,7 +352,7 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
                   onClick={() => { setColor(c.value); setColorOpen(false) }}
                   style={c.swatch ? { backgroundColor: c.swatch } : undefined}
                   className={[
-                    'h-8 w-8 rounded-md border',
+                    'h-8 w-8 rounded-md border [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:w-10',
                     c.swatch ? '' : 'bg-card',
                     color === c.value ? 'border-2 border-foreground/70' : 'border-border',
                   ].join(' ')}

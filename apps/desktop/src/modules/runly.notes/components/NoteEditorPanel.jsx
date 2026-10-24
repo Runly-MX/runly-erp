@@ -71,7 +71,7 @@ export function NoteEditorPanel({
     >
       <div className="flex items-center gap-2 px-3 h-11 border-b border-border shrink-0 bg-background/95 backdrop-blur-sm">
         <button
-          className={`${backOnDesktop ? '' : 'lg:hidden '}p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors`}
+          className={`${backOnDesktop ? '' : 'lg:hidden '}p-1 [@media(pointer:coarse)]:p-3 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors`}
           onClick={onBack}
           aria-label="Volver a la lista"
         >
@@ -120,21 +120,27 @@ export function NoteEditorPanel({
             )}
             <button
               onClick={onOpenShare}
-              className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
+              type="button"
+              aria-label="Compartir nota"
+              className="flex items-center gap-1.5 px-2 py-1.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:justify-center text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
             >
               <Share2 size={13} />
               <span className="hidden sm:inline">Compartir</span>
             </button>
             <button
               onClick={viewMode.cycle}
-              className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
+              type="button"
+              aria-label={VIEW_MODE_LABELS[viewMode.mode]}
+              className="flex items-center gap-1.5 px-2 py-1.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:justify-center text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
               title={VIEW_MODE_LABELS[viewMode.mode]}
             >
               {viewMode.mode === 'normal' ? <Maximize2 size={13} /> : viewMode.mode === 'clean' ? <Fullscreen size={13} /> : <Minimize2 size={13} />}
             </button>
             <button
               onClick={onOpenSettings}
-              className={`flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              type="button"
+              aria-label="Ajustes de la nota"
+              className={`flex items-center gap-1.5 px-2 py-1.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:justify-center text-xs font-medium rounded-lg transition-colors ${
                 settingsOpen
                   ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'

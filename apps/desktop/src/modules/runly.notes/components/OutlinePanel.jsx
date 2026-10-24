@@ -71,7 +71,7 @@ export function OutlinePanel({ open, onClose, railHost = null }) {
             type="button"
             onClick={onClose}
             aria-label="Cerrar contenido"
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="rounded-md p-1 [@media(pointer:coarse)]:p-3 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>

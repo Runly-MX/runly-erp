@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { runly } from '../../../lib/runly'
 
@@ -53,6 +54,7 @@ export function usePublishNote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (noteId) => runly.notes.publish(noteId, token),
+    onError: (err) => toast.error(err?.message ?? 'No se pudo publicar la nota.'),
     onSuccess: (_, noteId) => qc.invalidateQueries({ queryKey: ['notes', noteId] }),
   })
 }
@@ -62,6 +64,7 @@ export function useUnpublishNote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (noteId) => runly.notes.unpublish(noteId, token),
+    onError: (err) => toast.error(err?.message ?? 'No se pudo despublicar la nota.'),
     onSuccess: (_, noteId) => qc.invalidateQueries({ queryKey: ['notes', noteId] }),
   })
 }

@@ -6,7 +6,7 @@ import { NOTE_BACKGROUND_COLORS } from '../lib/noteColors.js'
 // action does per note (ownership, confirmation for trash).
 export function NotesSelectionBar({ count, archiveView = false, onClear, onPin, onArchive, onTrash, onColor }) {
   return (
-    <div className="sticky top-0 z-10 mb-3 flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 shadow-sm">
+    <div role="toolbar" aria-label="Acciones de seleccion" className="sticky top-0 z-10 mb-3 flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 shadow-sm">
       <Button type="button" size="sm" variant="ghost" aria-label="Cancelar seleccion" onClick={onClear}>
         <X size={14} /> Cancelar
       </Button>

@@ -16,7 +16,7 @@ function Crumb({ icon, title, onClick, current = false, className = '' }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 transition-colors hover:bg-muted hover:text-foreground ${className}`}
+      className={`flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 [@media(pointer:coarse)]:min-h-11 transition-colors hover:bg-muted hover:text-foreground ${className}`}
     >
       {content}
     </button>

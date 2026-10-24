@@ -9,7 +9,7 @@ function Chip({ active, onClick, children }) {
       onClick={onClick}
       aria-pressed={active}
       className={[
-        'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors',
+        'inline-flex h-9 [@media(pointer:coarse)]:h-11 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors',
         active ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground',
       ].join(' ')}
     >
@@ -24,7 +24,7 @@ export function NotesFilters({ value = {}, onChange }) {
   const activeColor = NOTE_BACKGROUND_COLORS.find((c) => c.value && c.value === color)
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+    <div className="flex items-center gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar notas">
       <Chip active={isAll} onClick={() => onChange({})}>Todas</Chip>
       <Chip active={type === 'document'} onClick={() => onChange({ ...value, type: type === 'document' ? undefined : 'document' })}>
         Documentos
@@ -39,7 +39,7 @@ export function NotesFilters({ value = {}, onChange }) {
           <button
             type="button"
             className={[
-              'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors',
+              'inline-flex h-9 [@media(pointer:coarse)]:h-11 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors',
               color ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground',
             ].join(' ')}
           >
@@ -60,7 +60,7 @@ export function NotesFilters({ value = {}, onChange }) {
                 onClick={() => onChange({ ...value, color: color === c.value ? undefined : c.value })}
                 style={{ backgroundColor: c.swatch }}
                 className={[
-                  'h-8 w-8 rounded-md border',
+                  'h-8 w-8 rounded-md border [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:w-10',
                   color === c.value ? 'border-2 border-foreground/70' : 'border-border',
                 ].join(' ')}
               />

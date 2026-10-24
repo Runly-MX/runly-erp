@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Archive, FileText, LayoutPanelLeft, Shapes, Trash2, Users } from 'lucide-react'
-import { Button, EmptyState, PageHeader, SearchInput } from '@runly/ui'
+import { Button, EmptyState, ErrorState, PageHeader, SearchInput } from '@runly/ui'
 import { useToggleNoteFlag } from '../hooks/useNote.js'
 import { applyClientFilters, splitPinned } from '../lib/notesView.js'
 import { NoteGridCard } from './NoteGridCard.jsx'
@@ -37,7 +37,7 @@ function GridSkeleton() {
 }
 
 export function NotesHome({
-  notes, isLoading, view, folderActive = false, search, onSearchChange,
+  notes, isLoading, isError = false, onRetry, view, folderActive = false, search, onSearchChange,
   onOpen, onCreateCanvas, onTrash, onBulkTrash, onToggleLayout,
   canLoadMore = false, loadingMore = false, onLoadMore, isDark = false,
 }) {
@@ -158,6 +158,12 @@ export function NotesHome({
 
         {isLoading ? (
           <GridSkeleton />
+        ) : isError && notes.length === 0 ? (
+          <ErrorState
+            title="No se pudieron cargar las notas"
+            description="Revisa tu conexion e intenta de nuevo."
+            onRetry={onRetry}
+          />
         ) : notes.length === 0 ? (
           <EmptyState
             icon={search ? undefined : empty.icon}

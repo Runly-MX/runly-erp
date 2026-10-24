@@ -149,6 +149,8 @@ export default function NotesScreen() {
     [useGrid, gridQuery.data, listQuery.data],
   )
   const isLoading = useGrid ? gridQuery.isLoading : listQuery.isLoading
+  const isListError = useGrid ? gridQuery.isError : listQuery.isError
+  const refetchList = () => (useGrid ? gridQuery.refetch() : listQuery.refetch())
   const canLoadMore = useGrid && Boolean(gridQuery.hasNextPage)
 
   const isDark = useIsDark()
@@ -189,6 +191,7 @@ export default function NotesScreen() {
             setMobileView('editor')
           }
         },
+        onError: (err) => toast.error(err?.message ?? 'No se pudo crear la nota.'),
       },
     )
   }
@@ -311,6 +314,8 @@ export default function NotesScreen() {
           <NotesHome
             notes={notes}
             isLoading={isLoading}
+            isError={isListError}
+            onRetry={refetchList}
             view={activeView}
             folderActive={Boolean(folderId)}
             search={search}

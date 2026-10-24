@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link2, ShieldOff, SearchX } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
-  EmptyState, SearchInput, SelectField, Skeleton,
+  EmptyState, ErrorState, SearchInput, SelectField, Skeleton,
 } from '@runly/ui'
 import { REFERENCE_TYPES, referenceTypeOf } from '../lib/entityReferenceTypes.js'
 import { useReferenceSearch } from '../hooks/useRelationTargets.js'
@@ -49,7 +49,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick }) {
   } else if (search.isError && search.error?.status === 403) {
     results = <EmptyState icon={ShieldOff} title="Sin permiso para ver este tipo de registro" description="Pide acceso al administrador o elige otro tipo." />
   } else if (search.isError) {
-    results = <EmptyState icon={SearchX} title="No se pudo buscar" description="Intenta de nuevo en unos segundos." />
+    results = <ErrorState title="No se pudo buscar" description="Intenta de nuevo en unos segundos." onRetry={() => search.refetch()} showReport={false} className="m-3 py-8" />
   } else if (!rows.length) {
     results = <EmptyState icon={SearchX} title="Sin resultados" description={debounced ? `No hay registros para "${debounced}".` : 'No hay registros de este tipo.'} />
   } else {

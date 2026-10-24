@@ -7,8 +7,8 @@ import { useNote } from './useNote.js'
 
 // Direct children of a note (the API only returns the ones the user can open).
 export function useSubpages(noteId) {
-  const { data, isLoading } = useNotes({ parentId: noteId, pageSize: 100 }, { enabled: Boolean(noteId) })
-  return { children: data?.notes ?? [], isLoading }
+  const { data, isLoading, isError, refetch } = useNotes({ parentId: noteId, pageSize: 100 }, { enabled: Boolean(noteId) })
+  return { children: data?.notes ?? [], isLoading, isError, refetch }
 }
 
 // Root-first ancestors of a sub-page (from the note detail; only the ones the

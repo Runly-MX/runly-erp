@@ -61,7 +61,12 @@ export function NoteGridCard({
       role="button"
       tabIndex={0}
       onClick={handleClick}
-      onKeyDown={(e) => { if (e.key === 'Enter') handleClick() }}
+      aria-pressed={selectMode ? selected : undefined}
+      onKeyDown={(e) => {
+        // Ignore keys bubbling from the actions menu inside the card.
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick() }
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={clearPress}
@@ -70,7 +75,7 @@ export function NoteGridCard({
       onContextMenu={(e) => { if (longPressed.current) e.preventDefault() }}
       style={bg ? { backgroundColor: bg } : undefined}
       className={[
-        'group relative cursor-pointer overflow-hidden rounded-md border transition-colors select-none',
+        'group relative cursor-pointer overflow-hidden rounded-md border transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         bg ? '' : 'bg-card',
         selected ? 'border-2 border-foreground/60' : 'border-border hover:border-foreground/30',
       ].join(' ')}
@@ -148,7 +153,7 @@ export function NoteGridCard({
       </div>
 
       {note.is_pinned && (
-        <Pin size={13} className="absolute right-3 top-3 fill-current text-muted-foreground group-hover:opacity-0 [@media(pointer:coarse)]:group-hover:opacity-100" />
+        <Pin aria-hidden="true" size={13} className="absolute right-3 top-3 fill-current text-muted-foreground group-hover:opacity-0 [@media(pointer:coarse)]:group-hover:opacity-100" />
       )}
 
       {showMenu && (
@@ -190,7 +195,7 @@ export function NoteGridCard({
                         onClick={() => onColor(note, c.value)}
                         style={c.swatch ? { backgroundColor: c.swatch } : undefined}
                         className={[
-                          'h-6 w-6 rounded-md border',
+                          'h-6 w-6 rounded-md border [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9',
                           c.swatch ? '' : 'bg-card',
                           (note.background_color ?? null) === c.value ? 'border-2 border-foreground/70' : 'border-border',
                         ].join(' ')}

@@ -1,7 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { runly } from '../../../lib/runly'
 import { patchNoteInCache } from '../lib/noteCache.js'
+
+// Mutation failures surface as a toast (the lists refetch on their own).
+const failToast = (fallback) => (err) => toast.error(err?.message ?? fallback)
 
 function useToken() {
   const { session } = useAuth()
@@ -22,6 +26,7 @@ export function useUpdateNote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ noteId, data }) => runly.notes.update(noteId, data, token),
+    onError: failToast('No se pudieron guardar los cambios.'),
     onSuccess: (_, { noteId }) => {
       qc.invalidateQueries({ queryKey: ['notes', noteId] })
       qc.invalidateQueries({ queryKey: ['notes'] })
@@ -37,7 +42,10 @@ export function useToggleNoteFlag() {
   return useMutation({
     mutationFn: ({ noteId, patch }) => runly.notes.update(noteId, patch, token),
     onMutate: ({ noteId, patch }) => { patchNoteInCache(qc, noteId, patch) },
-    onError: () => qc.invalidateQueries({ queryKey: ['notes'] }),
+    onError: (err) => {
+      qc.invalidateQueries({ queryKey: ['notes'] })
+      failToast('No se pudo actualizar la nota.')(err)
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
   })
 }
@@ -47,6 +55,7 @@ export function useTrashNote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (noteId) => runly.notes.trash(noteId, token),
+    onError: failToast('No se pudo mover la nota a la papelera.'),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
   })
 }
@@ -57,6 +66,7 @@ export function useLeaveNote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (noteId) => runly.notes.leave(noteId, token),
+    onError: failToast('No se pudo salir de la nota.'),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
   })
 }
@@ -72,6 +82,7 @@ export function useRestoreNote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (noteId) => runly.notes.restore(noteId, token),
+    onError: failToast('No se pudo restaurar la nota.'),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
   })
 }
@@ -81,6 +92,7 @@ export function usePermanentDeleteNote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (noteId) => runly.notes.permanentDelete(noteId, token),
+    onError: failToast('No se pudo eliminar la nota.'),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
   })
 }
