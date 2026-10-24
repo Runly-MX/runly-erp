@@ -110,3 +110,27 @@ export function useCommitTranscriptProposals(conversationId) {
     },
   });
 }
+
+// Minuta / resumen ejecutivo de transcripciones largas: la generacion corre en
+// segundo plano en el API, asi que se consulta mientras alguna siga PROCESSING.
+export function useTranscriptDocuments(transcriptId, enabled = true) {
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: ["chat-transcript-documents", transcriptId],
+    enabled: Boolean(enabled && transcriptId && session?.access_token),
+    refetchInterval: (query) => {
+      const rows = unwrap(query.state.data) ?? [];
+      return rows.some((r) => r.status === "PROCESSING") ? 3000 : false;
+    },
+    queryFn: () => runly.calls.listTranscriptDocuments(transcriptId, session.access_token),
+  });
+}
+
+export function useCreateTranscriptDocument(transcriptId) {
+  const { session } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (kind) => runly.calls.createTranscriptDocument(transcriptId, kind, session.access_token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-transcript-documents", transcriptId] }),
+  });
+}

@@ -14,6 +14,7 @@ import { createCallMessagesService, CallMessageError } from "./call-messages-ser
 import { createCallRecordingService, CallRecordingError } from "./call-recording-service.js";
 import { createCallTranscriptService, CallTranscriptError } from "./call-transcript-service.js";
 import { createCallTranscriptAnalysisService, CallTranscriptAnalysisError } from "./call-transcript-analysis-service.js";
+import { createCallTranscriptDocumentService, CallTranscriptDocumentError } from "./call-transcript-document-service.js";
 import { createTasksService } from "../projects/tasks-service.js";
 import { createCalendarEventService } from "../calendar/calendar-event-service.js";
 import { callTranscriptCommitProposalsSchema } from "@runly/validators";
@@ -34,6 +35,7 @@ function handleError(c, error, fallback) {
     || error instanceof CallRecordingError
     || error instanceof CallTranscriptError
     || error instanceof CallTranscriptAnalysisError
+    || error instanceof CallTranscriptDocumentError
   ) {
     return c.json(
       {
@@ -94,8 +96,10 @@ export function createCallsRouter({
       await calls.postSystemMessage(t.conversationId, msg);
     },
   });
+  const documentService = createCallTranscriptDocumentService({ prisma });
   const analysisService = createCallTranscriptAnalysisService({
     prisma,
+    documentService,
     tasksService: createTasksService({ prisma }),
     calendarService: createCalendarEventService({ prisma }),
     logAudit,
@@ -455,6 +459,26 @@ export function createCallsRouter({
         const data = await analysisService.analyzeTranscript({ transcriptId, profileId });
         return c.json({ data });
       } catch (error) { return handleError(c, error, "Error analizando la transcripción."); }
+    },
+  );
+  internal.get("/transcripts/:transcriptId/documents", async (c) => {
+    try {
+      const transcriptId = transcriptIdSchema.parse(c.req.param("transcriptId"));
+      await transcriptService.getTranscript({ transcriptId, profileId: await profileId(c) });
+      return c.json({ data: await documentService.listDocuments({ transcriptId }) });
+    } catch (error) { return handleError(c, error, "Error obteniendo los documentos."); }
+  });
+  internal.post(
+    "/transcripts/:transcriptId/documents",
+    requirePermission("chat.calls.transcript.analyze"),
+    async (c) => {
+      try {
+        const transcriptId = transcriptIdSchema.parse(c.req.param("transcriptId"));
+        const profileId = c.get("userId");
+        await transcriptService.getTranscript({ transcriptId, profileId });
+        const { kind } = z.object({ kind: z.enum(["MINUTA", "RESUMEN"]) }).parse(await c.req.json());
+        return c.json({ data: await documentService.startDocument({ transcriptId, kind, profileId }) }, 202);
+      } catch (error) { return handleError(c, error, "Error generando el documento."); }
     },
   );
   internal.post(

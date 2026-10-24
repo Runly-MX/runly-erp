@@ -25,6 +25,7 @@ const DEFAULT_MIRAI_MODEL = "openai/gpt-oss-120b";
 const DEFAULT_WEB_MODEL = "groq/compound-mini";
 const MAX_TOOL_ITERATIONS = 8;
 const HISTORY_LIMIT = 20;
+const HISTORY_MESSAGE_MAX_CHARS = 4000;
 const RATE_MAX = 20;
 const RATE_WINDOW_MS = 60_000;
 const GROQ_TIMEOUT_MS = 25_000;
@@ -199,7 +200,13 @@ export function __panelSystemPromptForTest() {
 
 // The provider's per-minute limit (Groq free tier) is the common failure once a
 // turn needs several tool rounds; say so instead of a generic error.
+// A request over the provider's token-per-request/minute limit (413) is
+// usually a huge pasted text, typically a call transcript.
+const TOO_LARGE_RE = /request too large|request_too_large|tokens per minute|(413)/i;
 function turnErrorText(err) {
+  if (TOO_LARGE_RE.test(String(err?.message ?? ""))) {
+    return "Ese texto es demasiado largo para procesarlo de una sola vez. Si es la transcripcion de una llamada, abrela en Grabaciones > Transcripcion > \"Minuta y resumen\" y la analizo por partes; si es otro texto, enviamelo en partes mas cortas.";
+  }
   return err?.status === 429
     ? "Llegue al limite de uso del proveedor de IA por este minuto. Espera un momento y vuelve a preguntar."
     : "No pude responder ahora mismo, intentalo de nuevo en un momento.";
@@ -393,10 +400,13 @@ export function createMiraiService({
       LIMIT ${HISTORY_LIMIT}
     `;
     rows.reverse();
+    // One huge pasted message must not be replayed in full on every later turn.
+    const clip = (text) => (text.length > HISTORY_MESSAGE_MAX_CHARS ? `${text.slice(0, HISTORY_MESSAGE_MAX_CHARS)}
+[mensaje largo recortado]` : text);
     return rows.map((m) => {
-      if (m.sender_type === "assistant") return { role: "assistant", content: m.body || "" };
-      if (m.sender_type === "system") return { role: "user", content: `[sistema] ${m.body || ""}` };
-      return { role: "user", content: m.body || "" };
+      if (m.sender_type === "assistant") return { role: "assistant", content: clip(m.body || "") };
+      if (m.sender_type === "system") return { role: "user", content: `[sistema] ${clip(m.body || "")}` };
+      return { role: "user", content: clip(m.body || "") };
     });
   }
 

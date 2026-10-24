@@ -7,6 +7,7 @@
 import { signAiProof, verifyAiProof, AiProofTokenError } from "../../lib/ai-proof-token.js";
 import { createAiRouter } from "../../services/ai/ai-router.js";
 import { isLocalEnabled } from "../../services/ai/ai-providers.js";
+import { resolveTokenBudget, digestMaxChars } from "./transcript-map-reduce.js";
 import {
   resolveAvailableProposalModules,
   buildModulePromptAdditions,
@@ -77,6 +78,7 @@ export function createCallTranscriptAnalysisService({
   env = process.env,
   fetchImpl = null,
   logAudit = null,
+  documentService = null,
 }) {
   const aiRouter = createAiRouter({ env, fetchImpl });
 
@@ -149,9 +151,21 @@ export function createCallTranscriptAnalysisService({
     const segments = transcript.segments ?? [];
     if (!segments.length) throw new CallTranscriptAnalysisError("La transcripción no tiene contenido para analizar.", 422);
 
-    const transcriptText = segments
+    let transcriptText = segments
       .map((s) => (s.speakerLabel ? `${s.speakerLabel}: ${s.text}` : s.text))
       .join("\n");
+    // A long meeting does not fit one Groq request (TPM limit): analyze the
+    // condensed notes of the whole meeting instead of a truncated transcript.
+    if (documentService && transcriptText.length > digestMaxChars(resolveTokenBudget(env))) {
+      const digest = await documentService.getAnalysisDigest({ transcript: { ...transcript, segments }, profileId });
+      if (!digest) {
+        throw new CallTranscriptAnalysisError(
+          "La transcripción es larga: se está preparando en segundo plano (puedes ver el avance en Minuta / Resumen). Vuelve a analizar en unos minutos.",
+          409,
+        );
+      }
+      transcriptText = `Notas condensadas de toda la reunion (con minutos de origen):\n${digest}`;
+    }
     // call.startedAt is the ground truth; createdAt/now() are only fallbacks
     // for a transcript whose Call row somehow has no startedAt recorded.
     const referenceDateIso = (transcript.call?.startedAt ?? transcript.createdAt ?? new Date()).toISOString();

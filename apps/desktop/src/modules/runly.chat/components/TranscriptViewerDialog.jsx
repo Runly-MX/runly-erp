@@ -3,11 +3,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
   Button, Skeleton, ErrorState, ConfirmDialog, AssistantWordmark, SelectField,
 } from "@runly/ui";
-import { Copy, Download, RefreshCw, Sparkles } from "lucide-react";
+import { ClipboardList, Copy, Download, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useTranscript, useRetryTranscript, useRegenerateTranscript } from "../hooks/useConversationTranscripts";
 import { copyTranscriptToClipboard, downloadTranscriptPdf } from "../lib/transcriptExport";
 import { TranscriptAnalysisDialog } from "./TranscriptAnalysisDialog";
+import { TranscriptDocumentsDialog } from "./TranscriptDocumentsDialog";
 
 function formatTimestamp(ms) {
   const totalSeconds = Math.floor((ms ?? 0) / 1000);
@@ -166,6 +167,7 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
   const [confirmRegenerate, setConfirmRegenerate] = useState(false);
   const [regenLanguage, setRegenLanguage] = useState("es");
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
   const transcript = data?.data ?? data;
 
   async function handleCopy() {
@@ -262,6 +264,10 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
                 <Download className="h-3.5 w-3.5" />
                 Descargar PDF
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setDocumentsOpen(true)}>
+                <ClipboardList className="h-3.5 w-3.5" />
+                Minuta y resumen
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -330,6 +336,7 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
       </ConfirmDialog>
 
       <TranscriptAnalysisDialog transcriptId={transcriptId} open={analysisOpen} onOpenChange={setAnalysisOpen} />
+      <TranscriptDocumentsDialog transcriptId={transcriptId} open={documentsOpen} onOpenChange={setDocumentsOpen} callTitle={callTitle} />
     </Dialog>
   );
 }
