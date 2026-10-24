@@ -244,6 +244,13 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | Operación | Modo | Permiso ERP |
 | --- | --- | --- |
 | `chat_my_conversations` | Lectura | `chat.conversations.read` |
+| `chat_recordings` | Lectura | `chat.conversations.read` |
+| `chat_transcripts` | Lectura | `chat.conversations.read` |
+| `chat_transcript_read` | Lectura | `chat.conversations.read` |
+| `chat_transcript_search` | Lectura | `chat.conversations.read` |
+| `chat_transcript_documents` | Lectura | `chat.conversations.read` |
+
+Grabaciones: solo metadatos y enlace, nunca el video ni URLs firmadas. Transcripciones: solo las de llamadas en las que participaste o que solicitaste, dentro de la empresa autorizada (misma regla que la app). `chat_transcript_read` entrega el texto por tramos (`fromMs`/`nextFromMs`); `chat_transcript_documents` devuelve la minuta/resumen ya generados. No se leen mensajes del chat.
 
 ## runly.website
 

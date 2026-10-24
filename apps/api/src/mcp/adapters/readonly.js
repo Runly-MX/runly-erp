@@ -4,6 +4,7 @@ import { createUserAccessService } from '../../services/user-access-service.js';
 import { createActivityService } from '../../services/activity-service.js';
 import { createChatService } from '../../routes/chat/chat-service.js';
 import { pageInput } from '../contracts.js';
+import { createChatTranscriptQueries } from './chat-transcripts.js';
 import { insist } from '../config.js';
 import { attachmentTargetSchema, createAttachmentTargets } from '../attachment-targets.js';
 
@@ -58,5 +59,5 @@ export function createChatAdapter({ prisma }) {
       const scoped = result.data.filter(c => c.company_id === a.companyId);
       return { conversations: scoped.map(c => ({ id: c.id, title: c.title, type: c.type, lastMessageAt: c.last_message_at, link: `/app/m/runly.chat?conversation=${c.id}` })), nextCursor: scoped.length === result.data.length ? result.nextCursor ?? null : null };
     },
-  }] };
+  }, ...createChatTranscriptQueries({ prisma })] };
 }

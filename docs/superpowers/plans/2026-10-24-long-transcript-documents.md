@@ -8,6 +8,7 @@ Spec: `docs/superpowers/specs/2026-10-24-long-transcript-documents-design.md`
 - [x] Analysis uses cached digest for long transcripts
 - [x] SDK, hooks, `TranscriptDocumentsDialog`, PDF generator
 - [x] MirAI: history clipping + friendly 413
+- [x] MCP: chat_recordings, chat_transcripts, chat_transcript_read, chat_transcript_search, chat_transcript_documents (read-only, same access rule as the app). Verified with unit tests; not with a real ChatGPT/Claude connection.
 - [ ] Verified with a real Groq run on a ~1 h transcript (needs `pnpm db:migrate` + `pnpm db:generate`, then API restart)
 - [ ] Visual check of the generated PDFs
 - [x] Playback: `TranscriptSyncPanel` beside the recording viewer (search, follow, click-to-seek). Verified: lint, vite build, unit tests of the time mapping. Not verified in a browser; PER_TRACK offset = transcript.createdAt - recording.startedAt (0 for MIXED or if > 10 min apart).
