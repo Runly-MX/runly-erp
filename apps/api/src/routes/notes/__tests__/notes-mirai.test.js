@@ -129,3 +129,28 @@ test("describeContext: returns null when getNote throws (no access)", async () =
   const line = await cap.describeContext({ recordType: "note", recordId: "n1" }, actx);
   assert.equal(line, null);
 });
+
+test("append with images: preview lists count and hosts only, limits and unsafe urls are rejected in prepare", async () => {
+  const NOTE = "01900000-0000-7000-8000-0000000000aa";
+  const calls = [];
+  const notesSvc = fakeNotesSvc({
+    getNote: async () => ({ id: NOTE, title: "Acta" }),
+    appendToNote: async (args) => { calls.push(args); return { id: NOTE, title: "Acta" }; },
+  });
+  const a = createNotesMiraiActions({ prisma: {}, notesSvc, foldersSvc: {}, tagsSvc: {} }).find((x) => x.key === "notes.note.append");
+  const out = await a.prepare({
+    noteId: NOTE,
+    content: "![x](https://cdn.example.com/a.png?token=secret)",
+    images: [{ url: "https://img.example.org/b.jpg?sig=zzz" }, { data: "QUJD", mimeType: "image/png" }],
+  }, actx);
+  const field = out.preview.fields.find((f) => f.label === "Imagenes").value;
+  assert.equal(field, "3: cdn.example.com, img.example.org, archivo adjunto");
+  assert.ok(!JSON.stringify(out.preview).includes("secret") && !JSON.stringify(out.preview).includes("QUJD"));
+  await a.execute(out.input, actx);
+  assert.equal(calls[0].images.length, 2);
+  assert.match((await a.prepare({ noteId: NOTE, content: "x", images: [{ url: "http://a.example/x.png" }] }, actx)).error, /https/);
+  assert.match((await a.prepare({ noteId: NOTE, content: "x", images: [{ url: "https://127.0.0.1/x.png" }] }, actx)).error, /no permitida/);
+  assert.ok((await a.prepare({ noteId: NOTE, content: "x", images: Array.from({ length: 6 }, () => ({ url: "https://a.example/x.png" })) }, actx)).error);
+  assert.ok((await a.prepare({ noteId: NOTE, content: "x", images: [{ url: "https://a.example/x.png", data: "QUJD" }] }, actx)).error);
+  assert.ok((await a.prepare({ noteId: NOTE }, actx)).error);
+});

@@ -14,6 +14,8 @@
 // It only ever appends at the end; existing content is never replaced.
 // create/rename/move/delete never touch `content`, so they carry no such risk.
 import { z } from "zod";
+import { MAX_IMAGES_PER_APPEND, IMAGE_MIME_TYPES, ImageAppendError, hostOfUrl, parseSafeImageUrl } from "./append-images.js";
+import { parseAppendText } from "./append-blocks.js";
 
 const LINK = (id) => `/app/m/runly.notes?note=${id}`;
 
@@ -28,10 +30,18 @@ const renameMoveArgs = z.object({
   title: z.string().trim().max(200).optional(),
   folder: z.string().trim().nullable().optional(), // "" or null clears the folder
 });
+const MAX_BASE64_CHARS = 14 * 1024 * 1024; // ~10 MB of bytes
+const imageArg = z.object({
+  url: z.string().trim().url().max(2000).optional(),
+  data: z.string().max(MAX_BASE64_CHARS).optional(),
+  mimeType: z.enum(IMAGE_MIME_TYPES).optional(),
+  alt: z.string().trim().max(200).optional(),
+}).refine((i) => Boolean(i.url) !== Boolean(i.data), { message: "Cada imagen lleva url o data, no ambas." });
 const appendArgs = z.object({
   noteId: z.string().uuid(),
-  content: z.string().trim().min(1).max(20000),
-});
+  content: z.string().trim().max(20000).default(""),
+  images: z.array(imageArg).max(MAX_IMAGES_PER_APPEND).optional(),
+}).refine((a) => a.content.length > 0 || (a.images?.length ?? 0) > 0, { message: "Indica texto o imagenes." });
 const deleteArgs = z.object({ noteId: z.string().min(1) });
 
 // Plain text -> the same minimal HTML the editor would save (one <p> per line).
@@ -181,15 +191,41 @@ export function createNotesMiraiActions({ prisma, notesSvc, foldersSvc, tagsSvc 
     operation: "update",
     label: "Agregar texto a una nota",
     permission: "notes.notes.update",
-    description: "Agrega texto AL FINAL de una nota existente sin reemplazar ni borrar lo que ya tiene. Admite markdown ligero: # ## ### encabezados, - viñetas, - [ ] / - [x] tareas y parrafos. No soporta tablas, imagenes ni enlaces. Requiere el noteId de notes_search. Para cambiar titulo o carpeta usa notes.note.rename_move.",
+    description: "Agrega texto AL FINAL de una nota existente sin reemplazar ni borrar lo que ya tiene. Admite markdown ligero: # ## ### encabezados, - viñetas, - [ ] / - [x] tareas y parrafos. Imagenes: una linea ![texto alternativo](https://...) en el contenido, o el campo images (maximo 5; cada una {url https publica} o {data base64, mimeType}; png/jpeg/webp/gif, maximo 10 MB; PREFIERE url). Las imagenes se copian a la nota. No soporta tablas ni enlaces. Requiere el noteId de notes_search. Para cambiar titulo o carpeta usa notes.note.rename_move.",
     parameters: {
       type: "object",
-      properties: { noteId: { type: "string" }, content: { type: "string", description: "Texto a agregar al final (maximo 20000 caracteres)." } },
-      required: ["noteId", "content"],
+      properties: {
+        noteId: { type: "string" },
+        content: { type: "string", description: "Texto a agregar al final (maximo 20000 caracteres). Puede ser vacio si envias images." },
+        images: {
+          type: "array",
+          maxItems: MAX_IMAGES_PER_APPEND,
+          description: "Imagenes a agregar despues del texto. Cada una con url (https publica, preferida) o data (base64) + mimeType.",
+          items: {
+            type: "object",
+            properties: {
+              url: { type: "string", description: "Enlace https publico a la imagen." },
+              data: { type: "string", description: "Imagen en base64 (sin prefijo data:)." },
+              mimeType: { type: "string", enum: IMAGE_MIME_TYPES },
+              alt: { type: "string", description: "Texto alternativo (maximo 200)." },
+            },
+          },
+        },
+      },
+      required: ["noteId"],
     },
     async prepare(args, actx) {
       const parsed = appendArgs.safeParse(args);
-      if (!parsed.success) return { error: "Indica el noteId (de notes_search) y el texto a agregar (maximo 20000 caracteres)." };
+      if (!parsed.success) return { error: "Indica el noteId (de notes_search) y el texto (maximo 20000 caracteres) y/o hasta 5 imagenes (cada una con url https o data base64)." };
+      const images = parsed.data.images ?? [];
+      const markdownUrls = parseAppendText(parsed.data.content).filter((b) => b.type === "image").map((b) => b.url);
+      if (markdownUrls.length + images.length > MAX_IMAGES_PER_APPEND) return { error: `Maximo ${MAX_IMAGES_PER_APPEND} imagenes por llamada.` };
+      try {
+        for (const url of [...markdownUrls, ...images.map((i) => i.url).filter(Boolean)]) parseSafeImageUrl(url);
+      } catch (err) {
+        if (err instanceof ImageAppendError) return { error: err.message };
+        throw err;
+      }
       let note;
       try {
         note = await notesSvc.getNote(parsed.data.noteId, actx.actorProfileId);
@@ -197,19 +233,22 @@ export function createNotesMiraiActions({ prisma, notesSvc, foldersSvc, tagsSvc 
         return { error: "No encontre esa nota o no tienes acceso. Usa notes_search para obtener su noteId." };
       }
       return {
-        input: { noteId: note.id, content: parsed.data.content },
+        input: { noteId: note.id, content: parsed.data.content, images },
         targetId: note.id,
         preview: {
-          title: "Agregar texto a la nota",
+          title: images.length || markdownUrls.length ? "Agregar texto e imagenes a la nota" : "Agregar texto a la nota",
           fields: [
             { label: "Nota", value: note.title || "(sin titulo)" },
-            { label: "Texto a agregar", value: parsed.data.content.slice(0, 300) },
-          ],
+            parsed.data.content ? { label: "Texto a agregar", value: parsed.data.content.replace(/!\[([^\]]*)\]\(\s*(\S+?)\s*\)/g, (_m, alt, url) => `![${alt}](${hostOfUrl(url)})`).slice(0, 300) } : null,
+            images.length + markdownUrls.length
+              ? { label: "Imagenes", value: `${images.length + markdownUrls.length}: ${[...markdownUrls, ...images.map((i) => (i.url ? i.url : null))].map((u) => (u ? hostOfUrl(u) : "archivo adjunto")).join(", ")}` }
+              : null,
+          ].filter(Boolean),
         },
       };
     },
     async execute(input, actx) {
-      const note = await notesSvc.appendToNote({ noteId: input.noteId, userId: actx.actorProfileId, companyId: actx.companyId, text: input.content });
+      const note = await notesSvc.appendToNote({ noteId: input.noteId, userId: actx.actorProfileId, companyId: actx.companyId, text: input.content, images: input.images ?? [] });
       return { id: note.id, summary: `Texto agregado a la nota: ${note.title || "(sin titulo)"}`, link: LINK(note.id) };
     },
   };

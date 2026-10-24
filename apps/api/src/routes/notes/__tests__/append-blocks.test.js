@@ -67,3 +67,33 @@ test("appendBlocksToYDoc: expected structure, appended after existing nodes, con
   assert.equal(base.getXmlFragment("default").toString(), other.getXmlFragment("default").toString());
   assert.match(out.toString(), /<heading level="1">H<\/heading>/);
 });
+
+test("parseAppendText: markdown image lines become image blocks", () => {
+  const blocks = parseAppendText("hola\n![Foto 1](https://example.com/a.png?x=1)\n![](https://example.com/b.jpg)");
+  assert.deepEqual(blocks.slice(1), [
+    { type: "image", url: "https://example.com/a.png?x=1", alt: "Foto 1" },
+    { type: "image", url: "https://example.com/b.jpg", alt: "" },
+  ]);
+});
+
+test("image block: html mirrors the editor node and the Y.Doc append converges", () => {
+  const blocks = [
+    { type: "image", src: "https://f.example/a.png", alt: 'dice "hi"', width: 60, aspectRatio: 2 },
+    { type: "image", url: "https://x.example/unresolved.png", alt: "sin src" },
+  ];
+  assert.equal(blocksToHtml(blocks), '<img src="https://f.example/a.png" alt="dice &quot;hi&quot;" data-width="60" data-aspect-ratio="2">');
+  assert.equal(blocksToPlainText(blocks), 'dice "hi"\nsin src');
+  const a = new Y.Doc();
+  appendBlocksToYDoc(a, blocks);
+  const frag = a.getXmlFragment("default");
+  assert.equal(frag.length, 1);
+  const node = frag.get(0);
+  assert.equal(node.nodeName, "image");
+  assert.equal(node.getAttribute("src"), "https://f.example/a.png");
+  assert.equal(node.getAttribute("width"), 60);
+  assert.equal(node.getAttribute("aspectRatio"), 2);
+  assert.equal(node.getAttribute("annotations"), "[]");
+  const b = new Y.Doc();
+  Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+  assert.equal(b.getXmlFragment("default").get(0).getAttribute("src"), "https://f.example/a.png");
+});

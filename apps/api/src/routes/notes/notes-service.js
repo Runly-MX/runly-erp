@@ -2,6 +2,7 @@ import { createFoldersService } from './folders-service.js';
 import { createNoteReferencesService } from './references-service.js';
 import * as Y from 'yjs';
 import { createYDocService } from './ydoc-service.js';
+import { createNoteImageAppender, ImageAppendError } from './append-images.js';
 import { parseAppendText, blocksToHtml, blocksToPlainText, appendBlocksToYDoc } from './append-blocks.js';
 import { exceedsDepth, isUuid, MAX_DEPTH_MESSAGE, shouldCascadeArchive } from './subpages.js';
 
@@ -48,7 +49,8 @@ export function hasNoteChanges(current, data) {
   });
 }
 
-export function createNotesService({ prisma, broadcaster = null }) {
+export function createNotesService({ prisma, broadcaster = null, supabaseAdmin = null, fetchImpl, lookupImpl }) {
+  const imageAppender = createNoteImageAppender({ supabaseAdmin, fetchImpl, lookupImpl });
   const folders = createFoldersService({ prisma });
   const references = createNoteReferencesService({ prisma });
   // ------------------------------------------------------------------
@@ -640,12 +642,12 @@ export function createNotesService({ prisma, broadcaster = null }) {
   // snapshot we append the Y.js nodes (merged through ydoc-service's CRDT
   // merge-with-retry) and mirror the same text into the columns; without one
   // the columns are the only source (the editor seeds from HTML on first open).
-  async function appendToNote({ noteId, userId, companyId, text }) {
+  async function appendToNote({ noteId, userId, companyId, text, images = [] }) {
     const value = String(text ?? "");
-    if (!value.trim()) throw new NotesServiceError("No hay texto que agregar.", 400);
+    if (!value.trim() && !images.length) throw new NotesServiceError("No hay texto que agregar.", 400);
     if (value.length > MAX_APPEND_CHARS) throw new NotesServiceError(`El texto excede ${MAX_APPEND_CHARS} caracteres.`, 400);
     const blocks = parseAppendText(value);
-    if (!blocks.length) throw new NotesServiceError("No hay texto que agregar.", 400);
+    if (!blocks.length && !images.length) throw new NotesServiceError("No hay texto que agregar.", 400);
 
     const access = await assertAccess(noteId, userId, "edit");
     if (companyId && access.companyId && access.companyId !== companyId) {
@@ -658,6 +660,15 @@ export function createNotesService({ prisma, broadcaster = null }) {
     if (!note) throw new NotesServiceError("Nota no encontrada.", 404);
     if (note.is_trashed) throw new NotesServiceError("La nota esta en la papelera.", 422);
     if (note.note_type === "canvas") throw new NotesServiceError("No se puede agregar texto a un lienzo.", 422);
+
+    // Every image is validated, fetched and uploaded BEFORE anything is
+    // written, so a failure leaves the note exactly as it was.
+    try {
+      await imageAppender.attach({ blocks, images, companyId: access.companyId ?? companyId ?? null, userId, noteId });
+    } catch (err) {
+      if (err instanceof ImageAppendError) throw new NotesServiceError(err.message, err.status);
+      throw err;
+    }
 
     let yUpdate = null;
     const [stateRow] = await prisma.$queryRaw`SELECT state FROM note_ydoc_state WHERE note_id = ${noteId}::uuid`;

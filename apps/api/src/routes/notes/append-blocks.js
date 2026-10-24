@@ -14,13 +14,19 @@ import * as Y from 'yjs'
 const HEADING = /^(#{1,3})\s+(.*)$/
 const TASK = /^[-*]\s+\[([ xX])\]\s+(.*)$/
 const BULLET = /^[-*]\s+(.*)$/
+const IMAGE = /^!\[([^\]]*)\]\(\s*(\S+?)\s*\)$/
 
 export function parseAppendText(text) {
   const blocks = []
   for (const raw of String(text ?? '').split(/\r?\n/)) {
     const line = raw.trim()
     if (!line) continue
-    let m = line.match(HEADING)
+    let m = line.match(IMAGE)
+    if (m) {
+      blocks.push({ type: 'image', url: m[2], alt: m[1].trim().slice(0, 200) })
+      continue
+    }
+    m = line.match(HEADING)
     if (m && m[2].trim()) {
       blocks.push({ type: 'heading', level: m[1].length, text: m[2].trim() })
       continue
@@ -48,6 +54,14 @@ export function parseAppendText(text) {
 
 const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
+// Same attributes the editor's image node serializes (AnnotatableImage.jsx).
+function imageHtml(b) {
+  const alt = b.alt ? ` alt="${escapeHtml(b.alt)}"` : ''
+  const width = b.width != null ? ` data-width="${escapeHtml(b.width)}"` : ''
+  const ratio = b.aspectRatio ? ` data-aspect-ratio="${escapeHtml(b.aspectRatio)}"` : ''
+  return `<img src="${escapeHtml(b.src)}"${alt}${width}${ratio}>`
+}
+
 export function blocksToHtml(blocks) {
   return blocks.map((b) => {
     switch (b.type) {
@@ -55,6 +69,7 @@ export function blocksToHtml(blocks) {
       case 'bulletList': return `<ul>${b.items.map((i) => `<li><p>${escapeHtml(i.text)}</p></li>`).join('')}</ul>`
       case 'taskList':
         return `<ul data-type="taskList">${b.items.map((i) => `<li data-checked="${i.checked ? 'true' : 'false'}" data-type="taskItem"><label><input type="checkbox"${i.checked ? ' checked="checked"' : ''}><span></span></label><div><p>${escapeHtml(i.text)}</p></div></li>`).join('')}</ul>`
+      case 'image': return b.src ? imageHtml(b) : ''
       default: return `<p>${escapeHtml(b.text)}</p>`
     }
   }).join('')
@@ -63,6 +78,10 @@ export function blocksToHtml(blocks) {
 export function blocksToPlainText(blocks) {
   const lines = []
   for (const b of blocks) {
+    if (b.type === 'image') {
+      if (b.alt) lines.push(b.alt)
+      continue
+    }
     if (b.items) for (const i of b.items) lines.push(i.text)
     else lines.push(b.text)
   }
@@ -78,6 +97,17 @@ function paragraphNode(text) {
 }
 
 function blockToNode(b) {
+  if (b.type === 'image') {
+    // Attribute names/defaults follow the editor node; y-prosemirror skips null attrs.
+    const img = new Y.XmlElement('image')
+    img.setAttribute('src', b.src)
+    if (b.alt) img.setAttribute('alt', b.alt)
+    img.setAttribute('annotations', '[]')
+    img.setAttribute('erasedAnnotations', '[]')
+    if (b.width != null) img.setAttribute('width', b.width)
+    if (b.aspectRatio) img.setAttribute('aspectRatio', b.aspectRatio)
+    return img
+  }
   if (b.type === 'heading') {
     const h = new Y.XmlElement('heading')
     h.setAttribute('level', b.level)
@@ -112,6 +142,6 @@ function blockToNode(b) {
 export function appendBlocksToYDoc(ydoc, blocks) {
   const fragment = ydoc.getXmlFragment('default')
   ydoc.transact(() => {
-    fragment.insert(fragment.length, blocks.map(blockToNode))
+    fragment.insert(fragment.length, blocks.filter((b) => b.type !== 'image' || b.src).map(blockToNode))
   })
 }
