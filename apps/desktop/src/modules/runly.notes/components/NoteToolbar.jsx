@@ -1,14 +1,15 @@
 import { useCurrentEditor } from '@tiptap/react'
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import {
   Undo2, Redo2, Link2, PenLine, Table2, ChevronDown, ExternalLink, Unlink,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Code, Code2, List, ListOrdered, ListChecks,
-  Quote, Type, Highlighter, Image as ImageIcon, Loader2, HelpCircle, SeparatorHorizontal,
+  Quote, Type, Highlighter, Image as ImageIcon, Loader2, HelpCircle, SeparatorHorizontal, ListTree,
 } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent, ImageSourceSheet, useCoarsePointer } from '@runly/ui'
 import { useIsDark } from '../hooks/useIsDark.js'
 import { uploadAndInsertNoteImage } from '../lib/noteImageUpload.js'
+import { NoteInteractionContext } from './NoteInteractionContext.js'
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog.jsx'
 import { getTableMenuActions, tableMenuSections } from '../lib/tableMenuActions.js'
 
@@ -125,6 +126,7 @@ export function NoteToolbar({ noteId, token }) {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const isCoarsePointer = useCoarsePointer()
+  const { outlineOpen, toggleOutline } = useContext(NoteInteractionContext)
   const [imageSheetOpen, setImageSheetOpen] = useState(false)
   if (!editor) return null
 
@@ -464,6 +466,10 @@ export function NoteToolbar({ noteId, token }) {
           </Popover>
         </>
       )}
+
+      <ToolbarButton onClick={toggleOutline} active={outlineOpen} title="Contenido">
+        <ListTree className="w-3.5 h-3.5" />
+      </ToolbarButton>
 
       <ToolbarButton
         onClick={() => setShortcutsOpen(true)}

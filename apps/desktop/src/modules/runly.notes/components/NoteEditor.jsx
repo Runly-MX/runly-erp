@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useCallback, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import * as Y from 'yjs'
 import { isChangeOrigin } from '@tiptap/extension-collaboration'
-import { NotebookPen } from 'lucide-react'
+import { NotebookPen, ListTree } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useIsDark } from '../hooks/useIsDark.js'
@@ -23,6 +23,8 @@ import { shouldFocusDocumentEnd } from '../lib/clickBelowContent.js'
 import { useKeyboardInset, isCaretHiddenByKeyboard, computeCaretScrollDelta } from '@runly/ui'
 import { computeLineUnitPx, computePaperPhase } from '../lib/paperAlignment.js'
 import { NoteToolbar } from './NoteToolbar.jsx'
+import { OutlinePanel } from './OutlinePanel.jsx'
+import { useNoteOutlineOpen } from '../hooks/useNoteOutlineOpen.js'
 import { TableFloatingMenu } from './TableFloatingMenu.jsx'
 import { TableDragHandles } from './TableDragHandles.jsx'
 import { NoteCoverBanner } from './NoteCoverBanner.jsx'
@@ -180,8 +182,14 @@ function EditorLoading({ scrollable }) {
 // torn down cleanly on switch.
 function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, token, session, userProfile, engine }) {
   const viewing = readOnly || viewOnly
-  const interaction = useMemo(() => ({ viewing, noteId: note?.id ?? null, token }), [viewing, note?.id, token])
+  const [outlineOpen, setOutlineOpen] = useNoteOutlineOpen()
+  const toggleOutline = useCallback(() => setOutlineOpen((v) => !v), [setOutlineOpen])
+  const interaction = useMemo(
+    () => ({ viewing, noteId: note?.id ?? null, token, outlineOpen, toggleOutline }),
+    [viewing, note?.id, token, outlineOpen, toggleOutline],
+  )
   const [toolbarHost, setToolbarHost] = useState(null)
+  const [railHost, setRailHost] = useState(null)
   const queryClient = useQueryClient()
   const containerRef = useRef(null)
   const scrollRef = useRef(null)
@@ -605,6 +613,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
     >
       {!viewing && <TableFloatingMenu />}
       {!viewing && <TableDragHandles />}
+      <OutlinePanel open={outlineOpen} onClose={() => setOutlineOpen(false)} railHost={scrollable ? railHost : null} />
     </EditorProvider>
   )
 
@@ -617,7 +626,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
   return (
     <div
       ref={containerRef}
-      className={scrollable ? "flex flex-col h-full min-h-0 overflow-hidden" : "flex flex-col"}
+      className={scrollable ? "relative flex flex-col h-full min-h-0 overflow-hidden" : "relative flex flex-col"}
       data-paper-style={note.paper_style ?? 'none'}
       data-paper-margin={note.paper_margin ? 'true' : 'false'}
       data-paper-texture={note.paper_texture ? 'true' : 'false'}
@@ -625,16 +634,35 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
     >
       <div ref={setToolbarHost} className="shrink-0" />
       <NoteInteractionContext.Provider value={interaction}>
+        {viewing && (
+          <button
+            type="button"
+            onClick={toggleOutline}
+            title="Contenido"
+            aria-label="Contenido"
+            aria-pressed={outlineOpen}
+            className={[
+              'absolute right-4 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-md border border-border shadow-sm transition-colors',
+              outlineOpen ? 'bg-muted text-foreground' : 'bg-background/90 text-muted-foreground hover:bg-muted hover:text-foreground',
+            ].join(' ')}
+          >
+            <ListTree className="h-4 w-4" />
+          </button>
+        )}
         {scrollable ? (
+          <div className="flex min-h-0 flex-1">
           <div
             ref={scrollRef}
-            className="flex-1 min-h-0 overflow-auto overscroll-contain pb-20"
+            data-note-scroll
+            className="min-w-0 flex-1 overflow-auto overscroll-contain pb-20"
             style={keyboardInset > 0 ? { paddingBottom: keyboardInset } : undefined}
             onClick={viewing ? undefined : handleContainerClick}
           >
             <NoteSheet note={note} isDark={isDark} zoom={zoom}>
               {editorProvider}
             </NoteSheet>
+          </div>
+          <div ref={setRailHost} className="flex shrink-0 empty:hidden" />
           </div>
         ) : (
           <NoteSheet note={note} isDark={isDark} zoom={zoom}>
