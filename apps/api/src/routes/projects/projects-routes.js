@@ -171,6 +171,12 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al listar proyectos.') }
   })
 
+  app.post('/projects/personal', requirePermission('projects.task.create'), async (c) => {
+    try {
+      return c.json(await projectsSvc.getOrCreatePersonalProject(getCompanyId(c), getUserId(c)))
+    } catch (err) { return handleError(c, err, 'Error al abrir Mis tareas.') }
+  })
+
   // Registered before /projects/:id so the literal segment is not read as an id.
   app.get('/projects/tasks-by-target', requirePermission('projects.task.read'), async (c) => {
     try {

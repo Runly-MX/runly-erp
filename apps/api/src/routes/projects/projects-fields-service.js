@@ -6,7 +6,36 @@ export class FieldServiceError extends Error {
   }
 }
 
-const VALID_KINDS = ['TEXT', 'NUMBER', 'DATE', 'SELECT']
+const VALID_KINDS = ['TEXT', 'NUMBER', 'DATE', 'SELECT', 'CHECKBOX', 'USER']
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// Returns the normalized string to store, or throws FieldServiceError. Values
+// stay strings in storage; the kind decides what is accepted.
+export function normalizeFieldValue(field, value) {
+  const raw = String(value).trim()
+  const bad = (msg) => { throw new FieldServiceError(`${field.name}: ${msg}`, 400) }
+  switch (field.kind) {
+    case 'NUMBER':
+      if (raw === '' || !Number.isFinite(Number(raw))) bad('debe ser un numero.')
+      return String(Number(raw))
+    case 'DATE':
+      if (!/^\d{4}-\d{2}-\d{2}/.test(raw) || Number.isNaN(Date.parse(raw))) bad('debe ser una fecha valida.')
+      return raw
+    case 'SELECT': {
+      const options = Array.isArray(field.options) ? field.options.map((o) => (typeof o === 'object' ? (o.value ?? o.label) : o)) : []
+      if (!options.map(String).includes(raw)) bad('opcion no permitida.')
+      return raw
+    }
+    case 'CHECKBOX':
+      if (raw !== 'true' && raw !== 'false') bad('debe ser verdadero o falso.')
+      return raw
+    case 'USER':
+      if (!UUID_RE.test(raw)) bad('usuario invalido.')
+      return raw
+    default:
+      return raw
+  }
+}
 
 export function createFieldsService({ prisma }) {
   // ── Project fields ──────────────────────────────────────────────────────────
@@ -76,10 +105,18 @@ export function createFieldsService({ prisma }) {
     const fieldIds = entries.map((e) => e.fieldId)
     const owned = await prisma.projectField.findMany({
       where: { id: { in: fieldIds }, projectId },
-      select: { id: true },
     })
-    const ownedSet = new Set(owned.map((f) => f.id))
-    const validEntries = entries.filter((e) => ownedSet.has(e.fieldId))
+    const fieldById = new Map(owned.map((f) => [f.id, f]))
+    const validEntries = entries
+      .filter((e) => fieldById.has(e.fieldId))
+      .map((e) => (e.value === null || e.value === ''
+        ? e
+        : { ...e, value: normalizeFieldValue(fieldById.get(e.fieldId), e.value) }))
+    const userEntries = validEntries.filter((e) => e.value !== null && e.value !== '' && fieldById.get(e.fieldId).kind === 'USER')
+    for (const e of userEntries) {
+      const member = await prisma.projectMember.findFirst({ where: { projectId, userId: e.value }, select: { id: true } })
+      if (!member) throw new FieldServiceError(`${fieldById.get(e.fieldId).name}: el usuario no es miembro del proyecto.`, 400)
+    }
 
     await Promise.all(
       validEntries.map(({ fieldId, value }) =>

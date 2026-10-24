@@ -127,6 +127,32 @@ export function createProjectsService({ prisma }) {
     })
   }
 
+  // Per-user inbox for tasks created from record screens. Idempotent; a partial
+  // unique index guards the race between two concurrent first calls.
+  async function getOrCreatePersonalProject(companyId, userId) {
+    const find = () => prisma.project.findFirst({ where: { companyId, ownerId: userId, kind: 'PERSONAL' } })
+    const existing = await find()
+    if (existing) return existing
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const project = await tx.project.create({
+          data: { companyId, ownerId: userId, name: 'Mis tareas', color: '#6366f1', kind: 'PERSONAL' },
+        })
+        await tx.taskStatus.createMany({
+          data: STATUS_TEMPLATES.general.map((s, i) => ({ projectId: project.id, position: i, ...s })),
+        })
+        await tx.projectMember.create({ data: { projectId: project.id, userId, role: 'OWNER' } })
+        return project
+      })
+    } catch (err) {
+      if (err?.code === 'P2002') {
+        const raced = await find()
+        if (raced) return raced
+      }
+      throw err
+    }
+  }
+
   async function updateProject(projectId, userId, data, { afterWrite = null } = {}) {
     const project = await prisma.project.findFirst({ where: { id: projectId } })
     if (!project) throw new ProjectServiceError('Proyecto no encontrado.', 404)
@@ -255,6 +281,7 @@ export function createProjectsService({ prisma }) {
     listProjects,
     getProject,
     createProject,
+    getOrCreatePersonalProject,
     updateProject,
     archiveProject,
     addMember,

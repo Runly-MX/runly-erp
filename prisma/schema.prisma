@@ -3438,6 +3438,8 @@ model Project {
   createdAt   DateTime               @default(now()) @map("created_at")
   updatedAt   DateTime               @updatedAt @map("updated_at")
   taskCounter Int                    @default(0) @map("task_counter")
+  // STANDARD, or PERSONAL for the per-user "Mis tareas" inbox.
+  kind        String                 @default("STANDARD")
 
   owner    UserProfile     @relation("ProjectOwner", fields: [ownerId], references: [id])
   members  ProjectMember[]
