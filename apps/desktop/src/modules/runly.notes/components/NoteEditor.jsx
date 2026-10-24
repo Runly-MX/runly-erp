@@ -76,7 +76,7 @@ function colorForUser(seed) {
 // dropped and switching notes would leave stale content on screen — the
 // editor instance would outlive the note it was built for. Keying the surface
 // by note.id and gating on the engine fixes both.
-export function NoteEditor({ note, readOnly = false, viewOnly = false, scrollable = true, zoom = 100, publicSlug = null }) {
+export function NoteEditor({ note, readOnly = false, viewOnly = false, scrollable = true, zoom = 100, publicSlug = null, onCreateSubpage }) {
   const { session, userProfile } = useAuth()
   const token = session?.access_token
 
@@ -139,6 +139,7 @@ export function NoteEditor({ note, readOnly = false, viewOnly = false, scrollabl
         zoom={zoom}
         token={token}
         isPublic={Boolean(publicSlug)}
+        onCreateSubpage={onCreateSubpage}
         session={session}
         userProfile={userProfile}
         engine={null}
@@ -162,6 +163,7 @@ export function NoteEditor({ note, readOnly = false, viewOnly = false, scrollabl
       zoom={zoom}
       token={token}
       isPublic={Boolean(publicSlug)}
+      onCreateSubpage={onCreateSubpage}
       session={session}
       userProfile={userProfile}
       engine={engine}
@@ -188,18 +190,26 @@ function EditorLoading({ scrollable }) {
 // Everything below is a single editor instance for one note. It is mounted with
 // key={note.id} by NoteEditor, so every hook/ref here is scoped to one note and
 // torn down cleanly on switch.
-function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, token, isPublic = false, session, userProfile, engine }) {
+function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, token, isPublic = false, onCreateSubpage, session, userProfile, engine }) {
   const viewing = readOnly || viewOnly
   // Entity-reference picker: opened from the toolbar and the slash menu. The
   // opener is read through a ref so the extensions memo never depends on it.
   const [pickerOpen, setPickerOpen] = useState(false)
   const openPickerRef = useRef(() => setPickerOpen(true))
   const openReferencePicker = useCallback(() => openPickerRef.current(), [])
+  // Sub-page creation is provided by the panel; read lazily (slash command) so
+  // the extensions memo never depends on it.
+  const createSubpageRef = useRef(onCreateSubpage)
+  useCommitRefValue(createSubpageRef, onCreateSubpage)
+  const createSubpage = useCallback(() => createSubpageRef.current?.(), [])
   const [outlineOpen, setOutlineOpen] = useNoteOutlineOpen()
   const toggleOutline = useCallback(() => setOutlineOpen((v) => !v), [setOutlineOpen])
   const interaction = useMemo(
-    () => ({ viewing, noteId: note?.id ?? null, token, isPublic, outlineOpen, toggleOutline, openReferencePicker }),
-    [viewing, note?.id, token, isPublic, outlineOpen, toggleOutline, openReferencePicker],
+    () => ({
+      viewing, noteId: note?.id ?? null, token, isPublic, outlineOpen, toggleOutline, openReferencePicker,
+      createSubpage: onCreateSubpage ? createSubpage : null,
+    }),
+    [viewing, note?.id, token, isPublic, outlineOpen, toggleOutline, openReferencePicker, createSubpage, onCreateSubpage],
   )
   const [toolbarHost, setToolbarHost] = useState(null)
   const [railHost, setRailHost] = useState(null)
@@ -520,6 +530,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
         token,
         getToken: () => tokenRef.current,
         openReferencePicker,
+        createSubpage,
       }),
       DrawingBlock,
       AnnotatableImage,
@@ -532,6 +543,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       note.id,
       session?.user?.id,
       openReferencePicker,
+      createSubpage,
     ],
   )
 

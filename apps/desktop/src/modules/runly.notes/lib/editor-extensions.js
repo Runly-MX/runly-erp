@@ -84,7 +84,7 @@ function buildCollabSelection(user) {
 
 export function buildExtensions({
   ydoc, provider, userColor, userName, userId, userAvatarUrl,
-  readOnly = false, noteId, token, getToken, openReferencePicker,
+  readOnly = false, noteId, token, getToken, openReferencePicker, createSubpage,
 }) {
   const collab = Boolean(ydoc && provider)
 
@@ -136,7 +136,7 @@ export function buildExtensions({
   ]
 
   if (!readOnly) {
-    base.push(SlashCommand.configure({ noteId, token, getToken, openReferencePicker }))
+    base.push(SlashCommand.configure({ noteId, token, getToken, openReferencePicker, createSubpage }))
   }
 
   if (collab) {

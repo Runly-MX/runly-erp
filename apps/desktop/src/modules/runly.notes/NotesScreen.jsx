@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { patchNoteInCache, toNoteRowPatch } from './lib/noteCache.js'
 import {
   Plus, RotateCcw, Trash2,
@@ -11,6 +12,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '@runly/ui'
 import { useNotes, useCreateNote } from './hooks/useNotes.js'
+import { useCreateSubpage, useFetchNote } from './hooks/useSubpages.js'
 import {
   useNote, useUpdateNote, useTrashNote, useLeaveNote, useRestoreNote, usePermanentDeleteNote, isNoteOwner,
 } from './hooks/useNote.js'
@@ -155,6 +157,8 @@ export default function NotesScreen() {
   const restoreNote     = useRestoreNote()
   const permanentDelete = usePermanentDeleteNote()
   const publishNote     = usePublishNote()
+  const { createSubpage, isCreating: creatingSubpage } = useCreateSubpage()
+  const fetchNote        = useFetchNote()
   const unpublishNote   = useUnpublishNote()
 
   function setNoteParam(noteId) {
@@ -246,6 +250,27 @@ export default function NotesScreen() {
     setSelectedNote(note)
     setNoteParam(note.id)
     setMobileView('editor')
+  }
+
+  // Breadcrumb / sub-page strip entries only know an id: fetch the full row so
+  // the editor never mounts with a partial note.
+  async function openNoteById(noteId) {
+    try {
+      const note = await fetchNote(noteId)
+      if (note) selectNote(note)
+    } catch (err) {
+      toast.error(err?.message ?? 'No se pudo abrir la nota.')
+    }
+  }
+
+  async function handleCreateSubpage() {
+    if (!selectedNote) return
+    try {
+      const note = await createSubpage(selectedNote.id)
+      if (note) selectNote(note)
+    } catch (err) {
+      toast.error(err?.message ?? 'No se pudo crear la subpagina.')
+    }
   }
 
   return (
@@ -399,6 +424,9 @@ export default function NotesScreen() {
             onBack={isHome ? clearSelection : () => setMobileView('list')}
             backOnDesktop={isHome}
             onCreateNote={() => handleCreateNote('document')}
+            onOpenNote={openNoteById}
+            onCreateSubpage={handleCreateSubpage}
+            creatingSubpage={creatingSubpage}
             onRestore={isHome ? () => { setNoteToAction(selectedNote); setRestoreOpen(true) } : undefined}
             onDeleteForever={isHome ? () => { setNoteToAction(selectedNote); setDeleteOpen(true) } : undefined}
             className={

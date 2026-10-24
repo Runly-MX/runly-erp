@@ -4,7 +4,7 @@ import {
   Undo2, Redo2, Link2, PenLine, Table2, ChevronDown, ExternalLink, Unlink,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Code, Code2, List, ListOrdered, ListChecks,
-  Quote, Type, Highlighter, Image as ImageIcon, Loader2, HelpCircle, SeparatorHorizontal, ListTree, AtSign,
+  Quote, Type, Highlighter, Image as ImageIcon, Loader2, HelpCircle, SeparatorHorizontal, ListTree, AtSign, FilePlus2,
 } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent, ImageSourceSheet, useCoarsePointer } from '@runly/ui'
 import { useIsDark } from '../hooks/useIsDark.js'
@@ -127,7 +127,7 @@ export function NoteToolbar({ noteId, token, bar = false }) {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const isCoarsePointer = useCoarsePointer()
-  const { outlineOpen, toggleOutline, openReferencePicker } = useContext(NoteInteractionContext)
+  const { outlineOpen, toggleOutline, openReferencePicker, createSubpage } = useContext(NoteInteractionContext)
   const [imageSheetOpen, setImageSheetOpen] = useState(false)
   if (!editor) return null
 
@@ -366,6 +366,11 @@ export function NoteToolbar({ noteId, token, bar = false }) {
       <ToolbarButton onClick={() => openReferencePicker?.()} title="Vincular registro">
         <AtSign className="w-3.5 h-3.5" />
       </ToolbarButton>
+      {createSubpage && (
+        <ToolbarButton onClick={() => createSubpage()} title="Nueva subpagina">
+          <FilePlus2 className="w-3.5 h-3.5" />
+        </ToolbarButton>
+      )}
       <Popover open={linkOpen} onOpenChange={open => {
         setLinkOpen(open)
         if (open) setLinkUrl(editor.getAttributes('link').href ?? '')

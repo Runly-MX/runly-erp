@@ -3,13 +3,19 @@ import {
   Plus, ArrowLeft, Settings2, Share2, RotateCcw, Trash2, PenLine,
   Maximize2, Minimize2, Fullscreen, Eye,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@runly/ui'
+import { useAuth } from '../../../auth/AuthProvider'
 import { NoteIcon } from '../noteIcons.jsx'
 import { DARK_BG_MAP } from '../lib/noteColors.js'
 import { NoteEditor } from './NoteEditor.jsx'
 import { NoteTitleEditor } from './NoteTitleEditor.jsx'
 import { ZoomControl } from './ZoomControl.jsx'
 import { SaveStatusBadge } from './SaveStatusBadge.jsx'
+import { NoteBreadcrumb } from './NoteBreadcrumb.jsx'
+import { SubpagesStrip } from './SubpagesStrip.jsx'
+import { useNoteAncestors } from '../hooks/useSubpages.js'
+import { canCreateSubpageAtDepth, canEditNote, MAX_DEPTH_HINT } from '../lib/subpages.js'
 
 // Lazy so the Excalidraw bundle only loads when a canvas note is opened.
 const CanvasEditor = lazy(() =>
@@ -26,9 +32,20 @@ export function NoteEditorPanel({
   settingsOpen, onOpenSettings, onOpenShare, onUpdate,
   onBack, backOnDesktop = false, onCreateNote,
   onRestore, onDeleteForever,
+  onOpenNote, onCreateSubpage, creatingSubpage = false,
   className = '',
 }) {
   const isCanvasNote = note?.note_type === 'canvas'
+  const { session } = useAuth()
+  const ancestors = useNoteAncestors(note)
+  const hasCrumbs = ancestors.length > 0
+  const canCreateSubpage = Boolean(note) && !isTrashView && !viewOnly && canEditNote(note, session?.user?.id)
+  const depthBlocked = !canCreateSubpageAtDepth(ancestors.length)
+  // One entry point for the strip, toolbar and slash command.
+  function handleCreateSubpage() {
+    if (depthBlocked) { toast.error(`No se pueden anidar mas de 3 niveles. (${MAX_DEPTH_HINT})`); return }
+    if (!creatingSubpage) onCreateSubpage?.()
+  }
 
   const canvasBg = (() => {
     if (isZenMode || !isCanvasNote) return undefined
@@ -63,6 +80,8 @@ export function NoteEditorPanel({
 
         {note && !isTrashView && note.note_type === 'canvas' ? (
           <NoteTitleEditor note={note} onUpdate={onUpdate} />
+        ) : hasCrumbs && !isCanvasNote ? (
+          <NoteBreadcrumb note={note} ancestors={ancestors} onOpenNote={onOpenNote} />
         ) : (
           <span className="flex-1 flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground truncate">
             {note?.icon && (
@@ -128,6 +147,23 @@ export function NoteEditorPanel({
         )}
       </div>
 
+      {hasCrumbs && isCanvasNote && (
+        <div className="flex shrink-0 border-b border-border bg-background/95 px-3 py-1">
+          <NoteBreadcrumb note={note} ancestors={ancestors} onOpenNote={onOpenNote} showCurrent={false} />
+        </div>
+      )}
+
+      {note && (
+        <SubpagesStrip
+          note={note}
+          canCreate={canCreateSubpage}
+          depthBlocked={depthBlocked}
+          creating={creatingSubpage}
+          onOpenNote={onOpenNote}
+          onCreate={handleCreateSubpage}
+        />
+      )}
+
       {!note ? (
         <EmptyEditor onCreateNote={!isTrashView ? onCreateNote : undefined} isTrash={isTrashView} />
       ) : (!isTrashView && note.note_type === 'canvas') ? (
@@ -137,7 +173,13 @@ export function NoteEditorPanel({
           <CanvasEditor key={note.id} note={note} />
         </Suspense>
       ) : (
-        <NoteEditor note={note} readOnly={isTrashView} viewOnly={viewOnly} zoom={zoom} />
+        <NoteEditor
+          note={note}
+          readOnly={isTrashView}
+          viewOnly={viewOnly}
+          zoom={zoom}
+          onCreateSubpage={canCreateSubpage ? handleCreateSubpage : undefined}
+        />
       )}
 
       {!isTrashView && !isCanvasNote && note && (

@@ -1,6 +1,6 @@
 import {
   Heading1, Heading2, Heading3, List, ListOrdered, ListChecks,
-  Quote, Code2, Table2, ImagePlus, PenLine, ListTree, SeparatorHorizontal, Link2,
+  Quote, Code2, Table2, ImagePlus, PenLine, ListTree, SeparatorHorizontal, Link2, FilePlus2,
 } from 'lucide-react'
 import { pickAndUploadNoteImage } from './noteImageUpload.js'
 
@@ -12,8 +12,8 @@ import { pickAndUploadNoteImage } from './noteImageUpload.js'
 // there (see docs/superpowers/specs/2026-09-16-notes-tables-images-mobile-design.md).
 // `getToken` is read when an item runs so the extension list does not have to
 // be rebuilt (and the editor disturbed) whenever the session token refreshes.
-// `openReferencePicker` is a stable, ref-backed function (same reason as getToken).
-export function buildSlashItems({ noteId, token, getToken, openReferencePicker }) {
+// `openReferencePicker` / `createSubpage` are stable, ref-backed functions (same reason as getToken).
+export function buildSlashItems({ noteId, token, getToken, openReferencePicker, createSubpage }) {
   return [
     { title: 'Titulo 1', icon: Heading1, keywords: ['heading', 'h1', 'titulo'],
       run: (editor, range) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 1 }).run() },
@@ -43,6 +43,8 @@ export function buildSlashItems({ noteId, token, getToken, openReferencePicker }
       run: (editor, range) => editor.chain().focus().deleteRange(range).setPageBreak().run() },
     { title: 'Vincular registro', icon: Link2, keywords: ['link', 'vincular', 'registro', 'referencia', 'contacto'],
       run: (editor, range) => { editor.chain().focus().deleteRange(range).run(); openReferencePicker?.() } },
+    { title: 'Subpagina', icon: FilePlus2, keywords: ['subpagina', 'subpage', 'pagina', 'hija', 'nueva'],
+      run: (editor, range) => { editor.chain().focus().deleteRange(range).run(); createSubpage?.() } },
   ]
 }
 

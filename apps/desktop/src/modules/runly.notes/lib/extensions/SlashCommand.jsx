@@ -8,12 +8,12 @@ export const SlashCommand = Extension.create({
   name: 'slashCommand',
 
   addOptions() {
-    return { noteId: null, token: null, getToken: null, openReferencePicker: null }
+    return { noteId: null, token: null, getToken: null, openReferencePicker: null, createSubpage: null }
   },
 
   addProseMirrorPlugins() {
-    const { noteId, token, getToken, openReferencePicker } = this.options
-    const items = buildSlashItems({ noteId, token, getToken, openReferencePicker })
+    const { noteId, token, getToken, openReferencePicker, createSubpage } = this.options
+    const items = buildSlashItems({ noteId, token, getToken, openReferencePicker, createSubpage })
 
     return [
       Suggestion({

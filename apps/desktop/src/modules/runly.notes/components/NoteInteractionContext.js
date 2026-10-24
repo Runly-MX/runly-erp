@@ -4,5 +4,5 @@ import { createContext } from 'react'
 // `noteId` and `token` let a note image upload its edited copy (full image editor).
 export const NoteInteractionContext = createContext({
   viewing: false, noteId: null, token: null, isPublic: false, outlineOpen: false, toggleOutline: () => {},
-  openReferencePicker: () => {},
+  openReferencePicker: () => {}, createSubpage: null,
 })

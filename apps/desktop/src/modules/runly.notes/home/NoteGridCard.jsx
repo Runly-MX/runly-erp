@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { MoreVertical, Pin, PinOff, Archive, ArchiveRestore, Trash2, LogOut, Shapes, Users, Check } from 'lucide-react'
+import { MoreVertical, Pin, PinOff, Archive, ArchiveRestore, Trash2, LogOut, Shapes, Users, Check, Layers } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator,
@@ -135,9 +135,14 @@ export function NoteGridCard({
           </div>
         )}
 
-        {isShared && (
-          <div className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Users size={11} /> Compartida
+        {(isShared || note.child_count > 0) && (
+          <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
+            {isShared && <span className="flex items-center gap-1"><Users size={11} /> Compartida</span>}
+            {note.child_count > 0 && (
+              <span className="flex items-center gap-1" title="Subpaginas">
+                <Layers size={11} aria-hidden="true" /> {note.child_count}
+              </span>
+            )}
           </div>
         )}
       </div>

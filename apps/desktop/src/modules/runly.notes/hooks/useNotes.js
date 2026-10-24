@@ -7,12 +7,12 @@ function useToken() {
   return session?.access_token
 }
 
-export function useNotes(params = {}) {
+export function useNotes(params = {}, { enabled = true } = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['notes', params],
     queryFn: () => runly.notes.list(params, token),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && enabled,
   })
 }
 
