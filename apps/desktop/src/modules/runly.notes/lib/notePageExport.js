@@ -35,6 +35,8 @@ async function renderNoteSheetToCanvas(el, backgroundColor) {
       sheet.style.minHeight = '0'
       sheet.style.zoom = '1'
       sheet.style.margin = '0'
+      // The break marker is an editing affordance, never part of the export.
+      sheet.querySelectorAll('.note-page-break').forEach((node) => { node.style.visibility = 'hidden' })
       normalizeExportColors(_document, sheet)
       let ancestor = sheet.parentElement
       while (ancestor && ancestor !== _document.body) {
@@ -58,19 +60,59 @@ export async function exportNoteSheetAsJpg(el, { title, backgroundColor } = {}) 
   triggerDownload(blob, `${safeName(title)}.jpg`)
 }
 
+// Canvas y-offsets of each explicit page break. The export is one tall raster
+// (the PDF page used to be the whole canvas), so with breaks present we cut the
+// raster at those offsets and emit one PDF page per segment.
+function pageBreakOffsets(el, canvas) {
+  const sheetRect = el.getBoundingClientRect()
+  if (!sheetRect.height) return []
+  const ratio = canvas.height / sheetRect.height
+  const offsets = []
+  el.querySelectorAll('.note-page-break').forEach((node) => {
+    const y = Math.round((node.getBoundingClientRect().top - sheetRect.top) * ratio)
+    if (y > 0 && y < canvas.height) offsets.push(y)
+  })
+  return [...new Set(offsets)].sort((a, b) => a - b)
+}
+
 export async function exportNoteSheetAsPdf(el, { title, backgroundColor } = {}) {
   if (!el) throw new Error('Contenido de la nota no disponible')
   const canvas = await renderNoteSheetToCanvas(el, backgroundColor)
-  const dataURL = canvas.toDataURL('image/jpeg', 0.92)
   const { jsPDF } = await import('jspdf')
   const w = canvas.width || 1
   const h = canvas.height || 1
+  const cuts = [0, ...pageBreakOffsets(el, canvas), h]
+  const firstH = cuts[1] - cuts[0]
   const pdf = new jsPDF({
-    orientation: w >= h ? 'landscape' : 'portrait',
+    orientation: w >= firstH ? 'landscape' : 'portrait',
     unit: 'px',
-    format: [w, h],
+    format: [w, firstH],
     compress: true,
   })
-  pdf.addImage(dataURL, 'JPEG', 0, 0, w, h)
+  for (let i = 0; i < cuts.length - 1; i += 1) {
+    const segH = cuts[i + 1] - cuts[i]
+    const slice = document.createElement('canvas')
+    slice.width = w
+    slice.height = segH
+    const ctx = slice.getContext('2d')
+    ctx.fillStyle = backgroundColor || '#ffffff'
+    ctx.fillRect(0, 0, w, segH)
+    ctx.drawImage(canvas, 0, cuts[i], w, segH, 0, 0, w, segH)
+    if (i > 0) pdf.addPage([w, segH], w >= segH ? 'landscape' : 'portrait')
+    pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, w, segH)
+  }
   pdf.save(`${safeName(title)}.pdf`)
+}
+
+// Browser print dialog (also "Guardar como PDF"). The print stylesheet in
+// runtime.css hides everything but the sheet while body[data-note-print] is set.
+export function printNote() {
+  const body = document.body
+  body.dataset.notePrint = 'true'
+  const cleanup = () => {
+    delete body.dataset.notePrint
+    window.removeEventListener('afterprint', cleanup)
+  }
+  window.addEventListener('afterprint', cleanup)
+  window.print()
 }

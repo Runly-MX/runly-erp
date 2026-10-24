@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Copy, Check, NotebookPen, X, FileDown } from 'lucide-react'
+import { Copy, Check, NotebookPen, X, FileDown, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { runly } from '../../../lib/runly'
@@ -9,8 +9,10 @@ import { NOTE_BACKGROUND_COLORS } from '../lib/noteColors.js'
 import { NOTE_PAPER_STYLES, paperStylePreviewBackground } from '../lib/paperStyles.js'
 import { NoteIcon } from '../noteIcons.jsx'
 import { NoteIconPickerContent } from './NoteIconPicker.jsx'
+import { useNotePagedView } from '../hooks/useNotePagedView.js'
+import { printNote } from '../lib/notePageExport.js'
 import {
-  ConfirmDialog, TextField, CreatableComboboxField, CheckboxField,
+  ConfirmDialog, TextField, CreatableComboboxField, CheckboxField, SwitchField, SelectField,
   Popover, PopoverTrigger, PopoverContent,
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@runly/ui'
@@ -35,6 +37,7 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
   const createTag = useCreateNoteTag()
   const setNoteTags = useSetNoteTags()
   const [trashOpen, setTrashOpen] = useState(false)
+  const [paged, setPaged] = useNotePagedView(note?.id)
 
   const folders = foldersData?.folders ?? []
   const allTags = tagsData?.tags ?? []
@@ -334,6 +337,39 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
               </Section>
             )}
           </div>
+
+          {/* ── Vista por paginas e impresion (por visor, sin API) ── */}
+          {!isCanvas && (
+            <div className="space-y-4 pt-1 border-t border-border">
+              <Section label="Vista por paginas">
+                <SwitchField
+                  id="note-paged-view"
+                  label="Mostrar como paginas"
+                  description="Solo se separan las paginas donde hay un salto de pagina."
+                  checked={paged.enabled}
+                  onChange={enabled => setPaged({ enabled })}
+                />
+                {paged.enabled && (
+                  <SelectField
+                    label="Tamano de pagina"
+                    options={[{ value: 'a4', label: 'A4' }, { value: 'letter', label: 'Carta' }]}
+                    value={paged.size}
+                    onChange={size => setPaged({ size })}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenChange(false)
+                    setTimeout(printNote, 250)
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-border rounded-lg hover:bg-muted text-foreground transition-colors"
+                >
+                  <Printer size={13} /> Imprimir / guardar como PDF
+                </button>
+              </Section>
+            </div>
+          )}
 
           {/* ── Enlace publico ───────────────────────────────── */}
           <div className="pt-1 border-t border-border">

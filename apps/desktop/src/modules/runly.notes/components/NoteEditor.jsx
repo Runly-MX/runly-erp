@@ -24,6 +24,8 @@ import { useKeyboardInset, isCaretHiddenByKeyboard, computeCaretScrollDelta } fr
 import { computeLineUnitPx, computePaperPhase } from '../lib/paperAlignment.js'
 import { NoteToolbar } from './NoteToolbar.jsx'
 import { OutlinePanel } from './OutlinePanel.jsx'
+import { PageCounterChip } from './PageCounterChip.jsx'
+import { useNotePagedView } from '../hooks/useNotePagedView.js'
 import { useNoteOutlineOpen } from '../hooks/useNoteOutlineOpen.js'
 import { TableFloatingMenu } from './TableFloatingMenu.jsx'
 import { TableDragHandles } from './TableDragHandles.jsx'
@@ -190,6 +192,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
   )
   const [toolbarHost, setToolbarHost] = useState(null)
   const [railHost, setRailHost] = useState(null)
+  const [paged] = useNotePagedView(note?.id)
   const queryClient = useQueryClient()
   const containerRef = useRef(null)
   const scrollRef = useRef(null)
@@ -613,6 +616,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
     >
       {!viewing && <TableFloatingMenu />}
       {!viewing && <TableDragHandles />}
+      {paged.enabled && <PageCounterChip host={containerRef.current} />}
       <OutlinePanel open={outlineOpen} onClose={() => setOutlineOpen(false)} railHost={scrollable ? railHost : null} />
     </EditorProvider>
   )
@@ -658,14 +662,14 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
             style={keyboardInset > 0 ? { paddingBottom: keyboardInset } : undefined}
             onClick={viewing ? undefined : handleContainerClick}
           >
-            <NoteSheet note={note} isDark={isDark} zoom={zoom}>
+            <NoteSheet note={note} isDark={isDark} zoom={zoom} paged={paged}>
               {editorProvider}
             </NoteSheet>
           </div>
           <div ref={setRailHost} className="flex shrink-0 empty:hidden" />
           </div>
         ) : (
-          <NoteSheet note={note} isDark={isDark} zoom={zoom}>
+          <NoteSheet note={note} isDark={isDark} zoom={zoom} paged={paged}>
             {editorProvider}
           </NoteSheet>
         )}

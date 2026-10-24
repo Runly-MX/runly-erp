@@ -781,12 +781,34 @@ body,
   border-top-color: #f59e0b;
 }
 
+/* Paged view: fixed-width page with a gray gutter at each explicit break. */
+.note-sheet[data-paged="true"] {
+  margin-block: 1rem;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 8px 24px rgb(0 0 0 / 0.08);
+}
+.note-sheet[data-paged="true"] .tiptap .note-page-break {
+  height: 28px;
+  margin: 0.75rem calc(-1 * var(--note-sheet-padding, 2rem));
+  background-color: hsl(var(--muted));
+  box-shadow: inset 0 6px 6px -6px rgb(0 0 0 / 0.25), inset 0 -6px 6px -6px rgb(0 0 0 / 0.25);
+}
+.note-sheet[data-paged="true"] .tiptap .note-page-break::before,
+.note-sheet[data-paged="true"] .tiptap .note-page-break__label {
+  display: none;
+}
+
 @media print {
-  .tiptap .note-page-break {
+  .tiptap .note-page-break,
+  .note-sheet[data-paged="true"] .tiptap .note-page-break {
     break-after: page;
     height: 0;
     margin: 0;
     border: 0;
+  }
+  .tiptap .note-page-break,
+  .note-sheet[data-paged="true"] .tiptap .note-page-break {
+    background: none;
+    box-shadow: none;
   }
   .tiptap .note-page-break::before,
   .tiptap .note-page-break__label {
@@ -794,6 +816,41 @@ body,
   }
   .tiptap [data-type="table-of-contents"] button {
     text-decoration: none;
+  }
+  .tiptap img,
+  .tiptap tr {
+    break-inside: avoid;
+  }
+  .tiptap .runly-yjs-caret {
+    display: none;
+  }
+
+  /* printNote(): keep only the sheet and the elements that contain it. */
+  body[data-note-print="true"] *:not(:has(.note-sheet)):not(.note-sheet):not(.note-sheet *) {
+    display: none !important;
+  }
+  html:has(body[data-note-print="true"]),
+  body[data-note-print="true"] {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  body[data-note-print="true"] *:has(.note-sheet) {
+    display: block !important;
+    position: static !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+  }
+  body[data-note-print="true"] .note-sheet {
+    zoom: 1 !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
   }
 }
 
