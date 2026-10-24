@@ -34,7 +34,7 @@ export function ImageEditModal({ open, onOpenChange, src, alt, annotations, eras
   const [cropOpen, setCropOpen] = useState(false)
 
   const {
-    draft, textInput, onDrawPointerDown, onDrawPointerMove, onDrawPointerUp,
+    draft, textInput, penSeen, onDrawPointerDown, onDrawPointerMove, onDrawPointerUp,
     commitTextInput, cancelTextInput, removeAnnotation, clearAnnotations, renderAnnotation, renderDraft,
   } = useImageAnnotationDrawing({
     svgRef, crop, annotations, erased, tool, color, lineWidth, isEditing: true, updateAttributes,
@@ -140,7 +140,7 @@ export function ImageEditModal({ open, onOpenChange, src, alt, annotations, eras
             preserveAspectRatio="none"
             className="absolute inset-0 w-full h-full"
             style={{
-              touchAction: 'none',
+              touchAction: penSeen ? 'pan-x pan-y pinch-zoom' : 'none',
               cursor: tool === 'text' ? 'text' : 'crosshair',
             }}
             onPointerDown={onDrawPointerDown}

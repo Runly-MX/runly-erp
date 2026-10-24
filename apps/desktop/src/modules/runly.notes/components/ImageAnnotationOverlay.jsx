@@ -100,7 +100,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
   } = drag
 
   const {
-    draft, textInput, onDrawPointerDown, onDrawPointerMove, onDrawPointerUp,
+    draft, textInput, penSeen, onDrawPointerDown, onDrawPointerMove, onDrawPointerUp,
     commitTextInput, cancelTextInput, cancelDraft, removeAnnotation, clearAnnotations, renderAnnotation, renderDraft,
   } = useImageAnnotationDrawing({
     svgRef, crop, annotations, erased: erasedAnnotations, tool, color, lineWidth, isEditing, updateAttributes,
@@ -521,7 +521,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
             preserveAspectRatio="none"
             className="absolute inset-0 w-full h-full"
             style={{
-              touchAction: 'none',
+              touchAction: penSeen ? 'pan-x pan-y pinch-zoom' : 'none',
               pointerEvents: isEditing ? 'auto' : 'none',
               cursor: isEditing ? (tool === 'text' ? 'text' : 'crosshair') : 'default',
             }}

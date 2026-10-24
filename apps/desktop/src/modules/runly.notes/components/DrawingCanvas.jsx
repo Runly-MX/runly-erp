@@ -9,6 +9,7 @@ import { isInsideTableCell } from '../lib/tableContext.js'
 import {
   parseStrokes, parseErased, newStrokeId, mergeDrawing, createKnownDrawing, addToDrawing, eraseFromDrawing,
 } from '../lib/drawingStrokes.js'
+import { shouldDraw } from '../lib/pointerInput.js'
 
 const COLORS = ['#1a1a1a', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ffffff']
 const BACKGROUNDS = ['#ffffff', '#f3f4f6', '#fef9c3', '#dbeafe', '#dcfce7', '#1a1a1a']
@@ -115,7 +116,7 @@ export function DrawingCanvas({ node, updateAttributes, editor, deleteNode, getP
   function onPointerDown(e) {
     if (e.pointerType === 'pen' && !penMode) setPenMode(true)
     // Palm rejection: with a stylus in use, touches never draw.
-    if (e.pointerType === 'touch' && penMode) return
+    if (!shouldDraw(e, { penSeen: penMode })) return
     if (activePointer.current !== null) return
     if (e.pointerType === 'mouse' && e.button !== 0) return
     e.preventDefault()

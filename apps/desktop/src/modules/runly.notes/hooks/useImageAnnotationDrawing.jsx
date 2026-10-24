@@ -3,6 +3,7 @@ import { elementFracToImageSpace } from '../lib/imageCrop.js'
 import {
   createKnownDrawing, mergeDrawing, addToDrawing, eraseFromDrawing, newStrokeId,
 } from '../lib/drawingStrokes.js'
+import { shouldDraw } from '../lib/pointerInput.js'
 
 const W = 1000
 const H = 1000
@@ -26,6 +27,8 @@ export function useImageAnnotationDrawing({
   const currentRef = useRef(annotations)
   // Palm rejection: once a stylus is used, touches no longer draw.
   const penSeenRef = useRef(false)
+  // Mirrors penSeenRef for rendering: once a pen is seen, touch may pan/scroll.
+  const [penSeen, setPenSeen] = useState(false)
 
   const annotationsKey = JSON.stringify(annotations)
   const erasedKey = JSON.stringify(erased)
@@ -63,8 +66,11 @@ export function useImageAnnotationDrawing({
 
   function onDrawPointerDown(e) {
     if (!isEditing || textInput) return
-    if (e.pointerType === 'pen') penSeenRef.current = true
-    if (e.pointerType === 'touch' && penSeenRef.current) return
+    if (e.pointerType === 'pen' && !penSeenRef.current) {
+      penSeenRef.current = true
+      setPenSeen(true)
+    }
+    if (!shouldDraw(e, { penSeen: penSeenRef.current })) return
     // A second pointer (resting palm, another finger) must not replace the
     // stroke in progress.
     if (drawRef.current) return
@@ -279,7 +285,7 @@ export function useImageAnnotationDrawing({
   }
 
   return {
-    draft, textInput, onDrawPointerDown, onDrawPointerMove, onDrawPointerUp,
+    draft, textInput, penSeen, onDrawPointerDown, onDrawPointerMove, onDrawPointerUp,
     commitTextInput, cancelTextInput, cancelDraft, removeAnnotation, clearAnnotations, renderAnnotation, renderDraft,
   }
 }
