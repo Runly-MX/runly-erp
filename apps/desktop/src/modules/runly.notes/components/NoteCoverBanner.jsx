@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { ImagePlus, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ImageSourceSheet, useCoarsePointer } from '@runly/ui'
-import { runly } from '../../../lib/runly'
-import { supabase } from '../../../lib/supabase'
+import { uploadNoteImage } from '../lib/noteImageUpload.js'
 import { withImageVariant } from '../../../lib/imageVariants.js'
 import { NoteImagePreviewButton } from './NoteImagePreviewButton.jsx'
 
@@ -37,20 +36,22 @@ export function NoteCoverBanner({ coverUrl, editable, noteId, token, onChange, o
     }
     setUploading(true)
     try {
-      const presign = await runly.notes.presignImage(
-        { fileName: file.name, mimeType: file.type, noteId },
-        token,
-      )
-      const { error } = await supabase.storage
-        .from('runly-notes')
-        .uploadToSignedUrl(presign.objectKey, presign.uploadToken, file)
-      if (error) throw error
       // Only persist after the upload is confirmed — never optimistically.
-      onChange(presign.publicUrl)
+      onChange(await uploadNoteImage(file, { noteId, token }))
     } catch (err) {
       toast.error(err?.message ?? 'No se pudo subir la portada.')
     } finally {
       setUploading(false)
+    }
+  }
+
+  // Edited cover from the full image editor: same upload path as a new cover.
+  async function replaceCover(edited) {
+    try {
+      onChange(await uploadNoteImage(edited, { noteId, token }))
+    } catch (err) {
+      toast.error(err?.message ?? 'No se pudo subir la portada.')
+      throw err
     }
   }
 
@@ -112,7 +113,7 @@ export function NoteCoverBanner({ coverUrl, editable, noteId, token, onChange, o
         onError={() => setFailedUrl(coverUrl)}
       />
       <div className="absolute top-2 right-2">
-        <NoteImagePreviewButton src={coverUrl} alt="Portada de la nota" />
+        <NoteImagePreviewButton src={coverUrl} alt="Portada de la nota" editable={Boolean(editable && token)} onReplaceImage={replaceCover} />
       </div>
       {editable && (
         <div className="absolute bottom-2 right-2 flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover/cover:opacity-100 transition-opacity">

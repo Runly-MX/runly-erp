@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import { Expand } from 'lucide-react'
-import { AdvancedFileViewer, Button } from '@runly/ui'
+import { AdvancedFileViewer, Button, ImageEditorDialog } from '@runly/ui'
 
 const resolveImageUrl = (file) => file.url
 
-export function NoteImagePreviewButton({ src, alt }) {
+// "Ver imagen" button + full-screen viewer. When `editable` and the host passes
+// `onReplaceImage(editedFile)` (uploads the file and swaps the image), the
+// viewer's own "Editar imagen" button opens the full ImageEditorDialog.
+export function NoteImagePreviewButton({ src, alt, editable = false, onReplaceImage = null }) {
   const [open, setOpen] = useState(false)
+  const [editorOpen, setEditorOpen] = useState(false)
   if (!src) return null
+  const canEdit = editable && typeof onReplaceImage === 'function'
+  const fileName = alt || 'Imagen de la nota'
 
   return (
     <span contentEditable={false} onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
@@ -30,11 +36,32 @@ export function NoteImagePreviewButton({ src, alt }) {
         <AdvancedFileViewer imageEditing={false}
           open
           onOpenChange={setOpen}
-          files={[{ id: src, url: src, originalName: alt || 'Imagen de la nota', mimeType: 'image/png' }]}
+          files={[{ id: src, url: src, originalName: fileName, mimeType: 'image/png' }]}
           activeIndex={0}
           onIndexChange={() => {}}
           onResolveSignedUrl={resolveImageUrl}
+          // The editor is a regular dialog (z-50), so the viewer closes when it
+          // opens instead of stacking underneath it.
+          onEditImage={canEdit ? () => { setOpen(false); setEditorOpen(true) } : null}
           zIndex={100}
+        />
+      )}
+      {canEdit && editorOpen && (
+        <ImageEditorDialog
+          open
+          onOpenChange={setEditorOpen}
+          src={src}
+          fileName={fileName}
+          mimeType="image/png"
+          title="Editar imagen"
+          onReplace={async (edited) => {
+            try {
+              await onReplaceImage(edited)
+              setEditorOpen(false)
+            } catch {
+              // The host reports the failure; keep the editor open for a retry.
+            }
+          }}
         />
       )}
     </span>
