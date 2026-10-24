@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { patchNoteInCache, toNoteRowPatch } from './lib/noteCache.js'
+import { flattenPages } from './lib/notesPages.js'
 import {
   Plus, RotateCcw, Trash2,
   FileText, Shapes, ChevronLeft, ChevronRight, LayoutGrid,
@@ -11,7 +12,7 @@ import {
   ConfirmDialog, useViewMode,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '@runly/ui'
-import { useNotes, useCreateNote } from './hooks/useNotes.js'
+import { useNotes, useInfiniteNotes, useCreateNote } from './hooks/useNotes.js'
 import { useCreateSubpage, useFetchNote } from './hooks/useSubpages.js'
 import {
   useNote, useUpdateNote, useTrashNote, useLeaveNote, useRestoreNote, usePermanentDeleteNote, isNoteOwner,
@@ -56,9 +57,6 @@ function persistListCollapsed(val) {
   }
 }
 
-const GRID_PAGE_SIZE = 60
-const GRID_PAGE_SIZE_MAX = 100
-
 export default function NotesScreen() {
   const { pathname } = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -81,7 +79,6 @@ export default function NotesScreen() {
   const [noteToAction, setNoteToAction] = useState(null)
   const [removeTarget, setRemoveTarget] = useState(null)
   const [bulkTrash, setBulkTrash] = useState(null) // { notes, done }
-  const [gridPageSize, setGridPageSize] = useState(GRID_PAGE_SIZE)
   const { session } = useAuth()
   const userId = session?.user?.id ?? null
   const removeTargetIsOwned = isNoteOwner(removeTarget, userId)
@@ -140,13 +137,18 @@ export default function NotesScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveNoteData])
 
-  // A new view or folder starts again from the first grid page.
-  useEffect(() => { setGridPageSize(GRID_PAGE_SIZE) }, [activeView, folderId])
-
-  const gridPageLimit = isHome && activeView !== 'recent' ? gridPageSize : undefined
-  const { data, isLoading } = useNotes(buildQueryParams(activeView, folderId, debouncedSearch, gridPageLimit))
-  const notes = data?.notes ?? []
-  const canLoadMore = Boolean(gridPageLimit) && notes.length >= gridPageLimit && gridPageLimit < GRID_PAGE_SIZE_MAX
+  // Home grid pages through useInfiniteNotes; the split list and the "recent"
+  // view keep the single-page query.
+  const useGrid = isHome && activeView !== 'recent'
+  const queryParams = buildQueryParams(activeView, folderId, debouncedSearch)
+  const gridQuery = useInfiniteNotes(queryParams, { enabled: useGrid })
+  const listQuery = useNotes(queryParams, { enabled: !useGrid })
+  const notes = useMemo(
+    () => (useGrid ? flattenPages(gridQuery.data?.pages) : (listQuery.data?.notes ?? [])),
+    [useGrid, gridQuery.data, listQuery.data],
+  )
+  const isLoading = useGrid ? gridQuery.isLoading : listQuery.isLoading
+  const canLoadMore = useGrid && Boolean(gridQuery.hasNextPage)
 
   const isDark = useIsDark()
 
@@ -296,7 +298,8 @@ export default function NotesScreen() {
             onBulkTrash={(list, done) => setBulkTrash({ notes: list, done })}
             onToggleLayout={() => changeLayout('split')}
             canLoadMore={canLoadMore}
-            onLoadMore={() => setGridPageSize(GRID_PAGE_SIZE_MAX)}
+            loadingMore={gridQuery.isFetchingNextPage}
+            onLoadMore={() => gridQuery.fetchNextPage()}
             isDark={isDark}
           />
         </div>
@@ -518,7 +521,7 @@ const VIEW_LABELS = {
   trash:  'Papelera',
 }
 
-function buildQueryParams(view, folderId, q, pageSize) {
+function buildQueryParams(view, folderId, q) {
   const base =
     view === 'trash'   ? { trashed: true } :
     view === 'archive' ? { archived: true } :
@@ -526,6 +529,5 @@ function buildQueryParams(view, folderId, q, pageSize) {
     view === 'shared'  ? { shared: true } :
     folderId           ? { folderId } :
     {}
-  const sized = pageSize && view !== 'recent' ? { ...base, pageSize } : base
-  return q ? { ...sized, q } : sized
+  return q ? { ...base, q } : base
 }

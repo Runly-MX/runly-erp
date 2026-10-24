@@ -30,6 +30,18 @@ export function patchNoteInCache(queryClient, noteId, patch) {
   queryClient.setQueriesData({ queryKey: ['notes'] }, (data) => {
     if (!data || typeof data !== 'object') return data
     if (data.note?.id === noteId) return { ...data, note: { ...data.note, ...row } }
+    if (Array.isArray(data.pages)) {
+      // useInfiniteQuery entry: { pages: [{ notes }], pageParams }
+      const touched = data.pages.some((p) => p?.notes?.some((note) => note.id === noteId))
+      if (!touched) return data
+      return {
+        ...data,
+        pages: data.pages.map((p) => ({
+          ...p,
+          notes: p?.notes?.map((note) => (note.id === noteId ? { ...note, ...row } : note)),
+        })),
+      }
+    }
     if (Array.isArray(data.notes) && data.notes.some((note) => note.id === noteId)) {
       return { ...data, notes: data.notes.map((note) => (note.id === noteId ? { ...note, ...row } : note)) }
     }

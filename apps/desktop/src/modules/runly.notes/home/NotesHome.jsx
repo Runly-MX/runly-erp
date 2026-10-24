@@ -39,7 +39,7 @@ function GridSkeleton() {
 export function NotesHome({
   notes, isLoading, view, folderActive = false, search, onSearchChange,
   onOpen, onCreateCanvas, onTrash, onBulkTrash, onToggleLayout,
-  canLoadMore = false, onLoadMore, isDark = false,
+  canLoadMore = false, loadingMore = false, onLoadMore, isDark = false,
 }) {
   const toggleFlag = useToggleNoteFlag()
   const [filters, setFilters] = useState({})
@@ -186,7 +186,9 @@ export function NotesHome({
             )}
             {canLoadMore && (
               <div className="flex justify-center pt-2">
-                <Button type="button" variant="outline" onClick={onLoadMore}>Cargar mas</Button>
+                <Button type="button" variant="outline" onClick={onLoadMore} disabled={loadingMore}>
+                  {loadingMore ? 'Cargando...' : 'Cargar mas'}
+                </Button>
               </div>
             )}
           </div>

@@ -17,6 +17,19 @@ describe('patchNoteInCache', () => {
     assert.deepEqual(qc.getQueryData(['notes', 'tags']), { tags: [{ id: 't1' }] })
   })
 
+  it('patches infinite list pages', () => {
+    const qc = new QueryClient()
+    qc.setQueryData(['notes', 'infinite', {}], {
+      pages: [{ notes: [{ id: 'a', title: 'x' }] }, { notes: [{ id: 'n1', title: 'a' }] }],
+      pageParams: [1, 2],
+    })
+    patchNoteInCache(qc, 'n1', { title: 'nuevo' })
+    const data = qc.getQueryData(['notes', 'infinite', {}])
+    assert.equal(data.pages[1].notes[0].title, 'nuevo')
+    assert.equal(data.pages[0].notes[0].title, 'x')
+    assert.deepEqual(data.pageParams, [1, 2])
+  })
+
   it('maps camelCase API fields to note row fields', () => {
     assert.deepEqual(toNoteRowPatch({ backgroundColor: '#fff', title: 'x' }), { background_color: '#fff', title: 'x' })
   })
