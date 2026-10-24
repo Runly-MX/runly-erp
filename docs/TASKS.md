@@ -1,5 +1,18 @@
 ﻿# Runly ERP - Tasks and Roadmap
 
+## Work platform - work layer (task links) [IMPLEMENTED; MIGRATIONS UNAPPLIED, QA PENDING]
+
+Spec: `docs/superpowers/specs/2026-10-24-work-layer-task-links-design.md`. Roadmap and audit matrix: phase 1 of the Work Platform plan (2026-10-24).
+
+- [x] `task_link` table, links service and routes (`/projects/:id/tasks/:tid/links`, `/projects/tasks-by-target`). Verified: 2026-10-24 (node --test projects suite, 73 pass).
+- [x] Personal "Mis tareas" project (`Project.kind`, `POST /projects/personal`), task creation defaults to the project's default status, typed field values. Verified: 2026-10-24 (unit tests).
+- [x] `LinkedTasksPanel` (@runly/ui), `RecordTasks` mounted in HR employee, inventory item and fleet vehicle details, "Vinculado a" section in the task detail. Verified: 2026-10-24 (`pnpm build:web`, `pnpm lint`).
+- [x] MCP `projects_task_detail` returns linked records. Verified: 2026-10-24 (mcp tests).
+- [ ] Apply migrations `20261119000000_task_links` and `20261119000100_project_kind`, then smoke the endpoints and the three record screens in the browser.
+- [ ] Add purchases (and other modules) to the relation-targets catalog so they can be linked.
+- [ ] Builder `workLinks` flag for entities of Builder modules; MirAI tool to list tasks by record; link/unlink as MirAI/MCP actions.
+- [ ] Next roadmap phases: My Work home and widget contributions, domain event coverage, Automation Studio v2, Projects depth, Slack parity gaps.
+
 ## Runly stabilization - recovery, isolation and delivery [IN PROGRESS]
 
 Audit: `docs/architecture/2026-10-12-foda-runly-erp.md`.
