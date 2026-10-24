@@ -4,7 +4,7 @@ import {
   Undo2, Redo2, Link2, PenLine, Table2, ChevronDown, ExternalLink, Unlink,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Code, Code2, List, ListOrdered, ListChecks,
-  Quote, Type, Highlighter, Image as ImageIcon, Loader2, HelpCircle, SeparatorHorizontal, ListTree,
+  Quote, Type, Highlighter, Image as ImageIcon, Loader2, HelpCircle, SeparatorHorizontal, ListTree, AtSign,
 } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent, ImageSourceSheet, useCoarsePointer } from '@runly/ui'
 import { useIsDark } from '../hooks/useIsDark.js'
@@ -127,7 +127,7 @@ export function NoteToolbar({ noteId, token, bar = false }) {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const isCoarsePointer = useCoarsePointer()
-  const { outlineOpen, toggleOutline } = useContext(NoteInteractionContext)
+  const { outlineOpen, toggleOutline, openReferencePicker } = useContext(NoteInteractionContext)
   const [imageSheetOpen, setImageSheetOpen] = useState(false)
   if (!editor) return null
 
@@ -362,6 +362,9 @@ export function NoteToolbar({ noteId, token, bar = false }) {
         title="Salto de pagina (Ctrl+Enter)"
       >
         <SeparatorHorizontal className="w-3.5 h-3.5" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => openReferencePicker?.()} title="Vincular registro">
+        <AtSign className="w-3.5 h-3.5" />
       </ToolbarButton>
       <Popover open={linkOpen} onOpenChange={open => {
         setLinkOpen(open)

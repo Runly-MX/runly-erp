@@ -24,6 +24,7 @@ import { useKeyboardInset, isCaretHiddenByKeyboard, computeCaretScrollDelta, use
 import { setSaveStatus } from '../lib/saveStatus.js'
 import { computeLineUnitPx, computePaperPhase } from '../lib/paperAlignment.js'
 import { NoteToolbar } from './NoteToolbar.jsx'
+import { EntityReferencePicker } from './EntityReferencePicker.jsx'
 import { OutlinePanel } from './OutlinePanel.jsx'
 import { PageCounterChip } from './PageCounterChip.jsx'
 import { useNotePagedView } from '../hooks/useNotePagedView.js'
@@ -137,6 +138,7 @@ export function NoteEditor({ note, readOnly = false, viewOnly = false, scrollabl
         scrollable={scrollable}
         zoom={zoom}
         token={token}
+        isPublic={Boolean(publicSlug)}
         session={session}
         userProfile={userProfile}
         engine={null}
@@ -159,6 +161,7 @@ export function NoteEditor({ note, readOnly = false, viewOnly = false, scrollabl
       scrollable={scrollable}
       zoom={zoom}
       token={token}
+      isPublic={Boolean(publicSlug)}
       session={session}
       userProfile={userProfile}
       engine={engine}
@@ -185,13 +188,18 @@ function EditorLoading({ scrollable }) {
 // Everything below is a single editor instance for one note. It is mounted with
 // key={note.id} by NoteEditor, so every hook/ref here is scoped to one note and
 // torn down cleanly on switch.
-function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, token, session, userProfile, engine }) {
+function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, token, isPublic = false, session, userProfile, engine }) {
   const viewing = readOnly || viewOnly
+  // Entity-reference picker: opened from the toolbar and the slash menu. The
+  // opener is read through a ref so the extensions memo never depends on it.
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const openPickerRef = useRef(() => setPickerOpen(true))
+  const openReferencePicker = useCallback(() => openPickerRef.current(), [])
   const [outlineOpen, setOutlineOpen] = useNoteOutlineOpen()
   const toggleOutline = useCallback(() => setOutlineOpen((v) => !v), [setOutlineOpen])
   const interaction = useMemo(
-    () => ({ viewing, noteId: note?.id ?? null, token, outlineOpen, toggleOutline }),
-    [viewing, note?.id, token, outlineOpen, toggleOutline],
+    () => ({ viewing, noteId: note?.id ?? null, token, isPublic, outlineOpen, toggleOutline, openReferencePicker }),
+    [viewing, note?.id, token, isPublic, outlineOpen, toggleOutline, openReferencePicker],
   )
   const [toolbarHost, setToolbarHost] = useState(null)
   const [railHost, setRailHost] = useState(null)
@@ -511,6 +519,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
         noteId: note.id,
         token,
         getToken: () => tokenRef.current,
+        openReferencePicker,
       }),
       DrawingBlock,
       AnnotatableImage,
@@ -522,6 +531,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       readOnly,
       note.id,
       session?.user?.id,
+      openReferencePicker,
     ],
   )
 
@@ -699,6 +709,13 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
           >
             <ListTree className="h-4 w-4" />
           </button>
+        )}
+        {!viewing && (
+          <EntityReferencePicker
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            onPick={(ref) => editorInstanceRef.current?.chain().focus().insertEntityReference(ref).run()}
+          />
         )}
         {scrollable ? (
           <div className="flex min-h-0 flex-1">

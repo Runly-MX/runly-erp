@@ -19,6 +19,7 @@ import { TrailingNode } from './extensions/TrailingNode.js'
 import { CompositionGuard } from './extensions/CompositionGuard.js'
 import { PageBreak } from './extensions/PageBreak.js'
 import { TableOfContents } from './extensions/TableOfContents.jsx'
+import { EntityReference } from './extensions/EntityReference.jsx'
 import { bodyPlaceholderText } from './placeholderText.js'
 
 // TipTap only installs column resizing when initially editable. Notes open
@@ -83,7 +84,7 @@ function buildCollabSelection(user) {
 
 export function buildExtensions({
   ydoc, provider, userColor, userName, userId, userAvatarUrl,
-  readOnly = false, noteId, token, getToken,
+  readOnly = false, noteId, token, getToken, openReferencePicker,
 }) {
   const collab = Boolean(ydoc && provider)
 
@@ -131,10 +132,11 @@ export function buildExtensions({
     TrailingNode,
     PageBreak,
     TableOfContents,
+    EntityReference,
   ]
 
   if (!readOnly) {
-    base.push(SlashCommand.configure({ noteId, token, getToken }))
+    base.push(SlashCommand.configure({ noteId, token, getToken, openReferencePicker }))
   }
 
   if (collab) {
