@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { patchNoteInCache, toNoteRowPatch } from './lib/noteCache.js'
 import { flattenPages } from './lib/notesPages.js'
+import { hasOpenOverlayLayer, shouldCloseOverlayOnEscape } from './lib/overlayEscape.js'
 import {
   Plus, RotateCcw, Trash2,
   FileText, Shapes, ChevronLeft, ChevronRight, LayoutGrid,
@@ -213,6 +214,28 @@ export default function NotesScreen() {
     setNoteParam(null)
     setMobileView('list')
   }
+
+  // Home layout: Escape closes the open note overlay unless a dialog, popover
+  // or menu is open, the key was already handled, or zen mode owns it. Canvas
+  // notes are skipped (the drawing tools use Escape to cancel).
+  const closeOverlayRef = useRef(clearSelection)
+  closeOverlayRef.current = clearSelection
+  const overlayOpen = isHome && Boolean(selectedNote) && selectedNote.note_type !== 'canvas'
+  useEffect(() => {
+    if (!overlayOpen) return undefined
+    function onKeyDown(e) {
+      const close = shouldCloseOverlayOnEscape({
+        key: e.key,
+        defaultPrevented: e.defaultPrevented,
+        hasOpenDialog: hasOpenOverlayLayer(),
+        zenMode: isZenMode,
+        isComposing: e.isComposing,
+      })
+      if (close) closeOverlayRef.current()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [overlayOpen, isZenMode])
 
   function changeLayout(next) {
     // Leaving the split view for the grid closes any open note first.
