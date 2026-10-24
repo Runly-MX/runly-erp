@@ -1,18 +1,15 @@
-import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { patchNoteInCache, toNoteRowPatch } from './lib/noteCache.js'
 import {
-  Plus, ArrowLeft,
-  Settings2, Share2, RotateCcw, Trash2, PenLine,
-  FileText, Shapes, ChevronLeft, ChevronRight,
-  Maximize2, Minimize2, Fullscreen, Eye,
+  Plus, RotateCcw, Trash2,
+  FileText, Shapes, ChevronLeft, ChevronRight, LayoutGrid,
 } from 'lucide-react'
 import {
-  ConfirmDialog, Button, useViewMode,
+  ConfirmDialog, useViewMode,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '@runly/ui'
-import { NoteIcon } from './noteIcons.jsx'
 import { useNotes, useCreateNote } from './hooks/useNotes.js'
 import {
   useNote, useUpdateNote, useTrashNote, useLeaveNote, useRestoreNote, usePermanentDeleteNote, isNoteOwner,
@@ -20,26 +17,21 @@ import {
 import { useAuth } from '../../auth/AuthProvider'
 import { usePublishNote, useUnpublishNote } from './hooks/useNoteShares.js'
 import { useIsDark } from './hooks/useIsDark.js'
-import { DARK_BG_MAP } from './lib/noteColors.js'
 import { NotesList } from './components/NotesList.jsx'
-import { NoteEditor } from './components/NoteEditor.jsx'
+import { NoteEditorPanel } from './components/NoteEditorPanel.jsx'
+import { NotesHome } from './home/NotesHome.jsx'
+import { useNotesLayout } from './hooks/useNotesLayout.js'
 import { NoteSettingsPanel } from './components/NoteSettingsPanel.jsx'
 import { NoteShareModal } from './components/NoteShareModal.jsx'
-import { NoteTitleEditor } from './components/NoteTitleEditor.jsx'
-import { ZoomControl } from './components/ZoomControl.jsx'
 import { useNoteZoom } from './hooks/useNoteZoom.js'
 import { useMiraiRecordContext } from '../runly.chat/lib/miraiPageContext'
 import { nextSelectedNote } from './lib/stableNoteIdentity.js'
-
-// Lazy so the Excalidraw bundle only loads when a canvas note is opened.
-const CanvasEditor = lazy(() =>
-  import('./components/CanvasEditor.jsx').then((m) => ({ default: m.CanvasEditor })),
-)
 
 function viewFromPath(pathname) {
   if (pathname.endsWith('/notes/recent')) return 'recent'
   if (pathname.endsWith('/notes/shared')) return 'shared'
   if (pathname.endsWith('/notes/trash'))  return 'trash'
+  if (pathname.endsWith('/notes/archive')) return 'archive'
   return 'all'
 }
 
@@ -62,7 +54,8 @@ function persistListCollapsed(val) {
   }
 }
 
-const VIEW_MODE_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
+const GRID_PAGE_SIZE = 60
+const GRID_PAGE_SIZE_MAX = 100
 
 export default function NotesScreen() {
   const { pathname } = useLocation()
@@ -71,6 +64,8 @@ export default function NotesScreen() {
   const folderId   = searchParams.get('folder')
   const urlNoteId  = searchParams.get('note')
   const isTrashView = activeView === 'trash'
+  const [layout, setLayout] = useNotesLayout()
+  const isHome = layout === 'home'
 
   const [selectedNote, setSelectedNote] = useState(null)
   const queryClient = useQueryClient()
@@ -83,6 +78,8 @@ export default function NotesScreen() {
   const [deleteOpen, setDeleteOpen]     = useState(false)
   const [noteToAction, setNoteToAction] = useState(null)
   const [removeTarget, setRemoveTarget] = useState(null)
+  const [bulkTrash, setBulkTrash] = useState(null) // { notes, done }
+  const [gridPageSize, setGridPageSize] = useState(GRID_PAGE_SIZE)
   const { session } = useAuth()
   const userId = session?.user?.id ?? null
   const removeTargetIsOwned = isNoteOwner(removeTarget, userId)
@@ -141,8 +138,13 @@ export default function NotesScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveNoteData])
 
-  const { data, isLoading } = useNotes(buildQueryParams(activeView, folderId, debouncedSearch))
+  // A new view or folder starts again from the first grid page.
+  useEffect(() => { setGridPageSize(GRID_PAGE_SIZE) }, [activeView, folderId])
+
+  const gridPageLimit = isHome && activeView !== 'recent' ? gridPageSize : undefined
+  const { data, isLoading } = useNotes(buildQueryParams(activeView, folderId, debouncedSearch, gridPageLimit))
   const notes = data?.notes ?? []
+  const canLoadMore = Boolean(gridPageLimit) && notes.length >= gridPageLimit && gridPageLimit < GRID_PAGE_SIZE_MAX
 
   const isDark = useIsDark()
 
@@ -200,6 +202,28 @@ export default function NotesScreen() {
     )
   }, [selectedNote, updateNote, queryClient])
 
+  function clearSelection() {
+    setSelectedNote(null)
+    setNoteParam(null)
+    setMobileView('list')
+  }
+
+  function changeLayout(next) {
+    // Leaving the split view for the grid closes any open note first.
+    if (next === 'home') clearSelection()
+    setLayout(next)
+  }
+
+  // Confirmed bulk removal: owned notes go to the trash, shared ones are left.
+  async function handleBulkTrash() {
+    const target = bulkTrash
+    setBulkTrash(null)
+    if (!target) return
+    await Promise.all(target.notes.map((n) =>
+      (isNoteOwner(n, userId) ? trashNote : leaveNote).mutateAsync(n.id).catch(() => null)))
+    target.done?.()
+  }
+
   function clearIfSelected(target) {
     if (selectedNote?.id === target.id) {
       setSelectedNote(null)
@@ -224,12 +248,34 @@ export default function NotesScreen() {
     setMobileView('editor')
   }
 
-  const isCanvasNote = selectedNote?.note_type === 'canvas'
-
   return (
     <div className="flex h-full min-h-0 overflow-hidden">
 
-      {/* Panel 1: Note list */}
+      {/* Panel 1: card grid (home) or note list (split) */}
+      {isHome ? (
+        <div
+          {...((isZenMode || selectedNote) ? { inert: '' } : {})}
+          aria-hidden={(isZenMode || Boolean(selectedNote)) || undefined}
+          className="flex min-w-0 flex-1"
+        >
+          <NotesHome
+            notes={notes}
+            isLoading={isLoading}
+            view={activeView}
+            folderActive={Boolean(folderId)}
+            search={search}
+            onSearchChange={setSearch}
+            onOpen={selectNote}
+            onCreateCanvas={() => handleCreateNote('canvas')}
+            onTrash={setRemoveTarget}
+            onBulkTrash={(list, done) => setBulkTrash({ notes: list, done })}
+            onToggleLayout={() => changeLayout('split')}
+            canLoadMore={canLoadMore}
+            onLoadMore={() => setGridPageSize(GRID_PAGE_SIZE_MAX)}
+            isDark={isDark}
+          />
+        </div>
+      ) : (
       <div
         {...(isZenMode ? { inert: '' } : {})}
         aria-hidden={isZenMode || undefined}
@@ -278,6 +324,16 @@ export default function NotesScreen() {
           >
             {effectiveListCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
           </button>
+          {!effectiveListCollapsed && (
+            <button
+              onClick={() => changeLayout('home')}
+              className="hidden lg:flex p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              title="Vista de tarjetas"
+              aria-label="Vista de tarjetas"
+            >
+              <LayoutGrid size={15} />
+            </button>
+          )}
         </div>
 
         {!effectiveListCollapsed && (
@@ -314,105 +370,45 @@ export default function NotesScreen() {
           </>
         )}
       </div>
+      )}
 
-      {/* Panel 2: Editor / Settings */}
-      <div
-        className={[
-          'flex-1 min-w-0 flex flex-col overflow-hidden',
-          // fixed inset-x-0 top-0 h-dvh (not bare inset-0) — see RunlyApp.jsx's
-          // app-shell-root comment: plain inset-0 sizes against the
-          // non-shrinking mobile layout viewport and breaks the h-full/
-          // flex-1 min-h-0 chain NoteEditor's scroll/keyboard-avoidance logic
-          // depends on.
-          isZenMode ? 'fixed inset-x-0 top-0 h-dvh z-50 bg-background' : (isCanvasNote ? '' : 'bg-muted/30'),
-          (mobileView === 'editor' || isZenMode) ? 'flex' : 'hidden lg:flex',
-          !isZenMode ? 'relative' : '',
-        ].join(' ')}
-        style={(!isZenMode && isCanvasNote) ? (() => {
-          const raw = selectedNote?.background_color
-          if (!raw) return {}
-          const color = isDark ? (DARK_BG_MAP[raw] ?? raw) : raw
-          return { backgroundColor: color }
-        })() : undefined}
-      >
-        <div className="flex items-center gap-2 px-3 h-11 border-b border-border shrink-0 bg-background/95 backdrop-blur-sm">
-          <button
-            className="lg:hidden p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => setMobileView('list')}
-          >
-            <ArrowLeft size={15} />
-          </button>
-
-          {selectedNote && !isTrashView && selectedNote.note_type === 'canvas' ? (
-            <NoteTitleEditor note={selectedNote} onUpdate={handleUpdateNote} />
-          ) : (
-            <span className="flex-1 flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground truncate">
-              {selectedNote?.icon && (
-                <NoteIcon name={selectedNote.icon} size={13} className="text-amber-500 shrink-0" />
-              )}
-              {selectedNote ? (selectedNote.title || 'Sin titulo') : ''}
-            </span>
-          )}
-
-          {selectedNote && (
-            <div className="flex items-center gap-0.5">
-              {!isTrashView && !isCanvasNote && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  aria-label={viewOnly ? 'Editar nota' : 'Ver nota'}
-                  onClick={() => setViewingNoteId(viewOnly ? null : selectedNote.id)}
-                >
-                  {viewOnly ? <PenLine size={14} /> : <Eye size={14} />}
-                  {viewOnly ? 'Editar' : 'Ver'}
-                </Button>
-              )}
-              <button
-                onClick={() => setShareOpen(true)}
-                className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
-              >
-                <Share2 size={13} />
-                <span className="hidden sm:inline">Compartir</span>
-              </button>
-              <button
-                onClick={viewMode.cycle}
-                className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
-                title={VIEW_MODE_LABELS[viewMode.mode]}
-              >
-                {viewMode.mode === 'normal' ? <Maximize2 size={13} /> : viewMode.mode === 'clean' ? <Fullscreen size={13} /> : <Minimize2 size={13} />}
-              </button>
-              <button
-                onClick={() => setSettingsOpen(true)}
-                className={`flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                  settingsOpen
-                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <Settings2 size={13} />
-                <span className="hidden sm:inline">Ajustes</span>
-              </button>
-            </div>
-          )}
+      {/* Panel 2: Editor / Settings. Split layout: a pane. Home layout: an overlay over the grid. */}
+      {(isHome ? Boolean(selectedNote) : true) && (
+        <div
+          onClick={isHome && !isZenMode ? (e) => { if (e.target === e.currentTarget) clearSelection() } : undefined}
+          className={
+            !isHome ? 'contents'
+              : isZenMode ? 'contents'
+              : 'fixed inset-0 z-40 flex bg-background lg:bg-black/40 lg:p-6'
+          }
+        >
+          <NoteEditorPanel
+            note={selectedNote}
+            isTrashView={isTrashView}
+            isZenMode={isZenMode}
+            isDark={isDark}
+            viewMode={viewMode}
+            viewOnly={viewOnly}
+            onToggleViewOnly={() => setViewingNoteId(viewOnly ? null : selectedNote.id)}
+            zoom={zoom}
+            onZoomChange={setZoom}
+            settingsOpen={settingsOpen}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenShare={() => setShareOpen(true)}
+            onUpdate={handleUpdateNote}
+            onBack={isHome ? clearSelection : () => setMobileView('list')}
+            backOnDesktop={isHome}
+            onCreateNote={() => handleCreateNote('document')}
+            onRestore={isHome ? () => { setNoteToAction(selectedNote); setRestoreOpen(true) } : undefined}
+            onDeleteForever={isHome ? () => { setNoteToAction(selectedNote); setDeleteOpen(true) } : undefined}
+            className={
+              isHome
+                ? (isZenMode ? 'flex' : 'flex bg-background lg:rounded-md lg:max-w-4xl lg:mx-auto lg:shadow-xl')
+                : ((mobileView === 'editor' || isZenMode) ? 'flex' : 'hidden lg:flex')
+            }
+          />
         </div>
-
-        {!selectedNote ? (
-          <EmptyEditor onCreateNote={!isTrashView ? () => handleCreateNote('document') : undefined} isTrash={isTrashView} />
-        ) : (!isTrashView && selectedNote.note_type === 'canvas') ? (
-          <Suspense fallback={
-            <div className="h-full grid place-items-center text-sm text-muted-foreground">Cargando lienzo...</div>
-          }>
-            <CanvasEditor key={selectedNote.id} note={selectedNote} />
-          </Suspense>
-        ) : (
-          <NoteEditor note={selectedNote} readOnly={isTrashView} viewOnly={viewOnly} zoom={zoom} />
-        )}
-
-        {!isTrashView && !isCanvasNote && selectedNote && (
-          <ZoomControl zoom={zoom} onZoomChange={setZoom} onReset={() => setZoom(100)} />
-        )}
-      </div>
+      )}
 
       {selectedNote && (
         <NoteShareModal note={selectedNote} open={shareOpen} onOpenChange={setShareOpen} />
@@ -447,6 +443,15 @@ export default function NotesScreen() {
       />
 
       <ConfirmDialog
+        open={Boolean(bulkTrash)}
+        onOpenChange={(open) => { if (!open) setBulkTrash(null) }}
+        title="Quitar notas"
+        description={`Se enviaran a la papelera las notas propias (${bulkTrash?.notes.filter((n) => isNoteOwner(n, userId)).length ?? 0}) y saldras de las compartidas. Total: ${bulkTrash?.notes.length ?? 0} notas.`}
+        confirmLabel="Continuar"
+        onConfirm={handleBulkTrash}
+      />
+
+      <ConfirmDialog
         open={restoreOpen}
         onOpenChange={setRestoreOpen}
         title="Restaurar nota"
@@ -477,48 +482,22 @@ export default function NotesScreen() {
   )
 }
 
-function EmptyEditor({ onCreateNote, isTrash }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-8 select-none">
-      <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center">
-        <PenLine size={22} className="text-amber-400" />
-      </div>
-      <div>
-        <p className="text-sm font-medium text-foreground mb-1">
-          {isTrash ? 'Papelera' : 'Selecciona una nota'}
-        </p>
-        <p className="text-xs text-muted-foreground leading-relaxed max-w-48">
-          {isTrash
-            ? 'Selecciona una nota para restaurarla o eliminarla definitivamente'
-            : 'Elige una nota de la lista o crea una nueva'}
-        </p>
-      </div>
-      {onCreateNote && (
-        <button
-          onClick={onCreateNote}
-          className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors shadow-sm"
-        >
-          <Plus size={13} />
-          Nueva nota
-        </button>
-      )}
-    </div>
-  )
-}
-
 const VIEW_LABELS = {
   all:    'Todas las notas',
   recent: 'Recientes',
   shared: 'Compartidas',
+  archive: 'Archivo',
   trash:  'Papelera',
 }
 
-function buildQueryParams(view, folderId, q) {
+function buildQueryParams(view, folderId, q, pageSize) {
   const base =
-    view === 'trash'  ? { trashed: true } :
-    view === 'recent' ? { pageSize: 20 } :
-    view === 'shared' ? { shared: true } :
-    folderId          ? { folderId } :
+    view === 'trash'   ? { trashed: true } :
+    view === 'archive' ? { archived: true } :
+    view === 'recent'  ? { pageSize: 20 } :
+    view === 'shared'  ? { shared: true } :
+    folderId           ? { folderId } :
     {}
-  return q ? { ...base, q } : base
+  const sized = pageSize && view !== 'recent' ? { ...base, pageSize } : base
+  return q ? { ...sized, q } : sized
 }
