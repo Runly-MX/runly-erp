@@ -3,6 +3,7 @@
 Verificación del 24 de octubre de 2026 en un emulador Android API 36,
 WebView 133.0.6943.137 y Gboard 15.1.08.726012951-preload-x86_64.
 Estos resultados no sustituyen una prueba con S Pen y el teclado Samsung.
+El dispositivo reportado por el usuario es una Galaxy Tab S9 con teclado Samsung.
 
 ## Superficie de escritura de Notas
 
@@ -35,6 +36,32 @@ o la fuente del textarea:
 Los eventos observados no tenían `preventDefault`. Android anunciaba
 soporte para INSERT, REMOVE_SPACE y JOIN_OR_SPLIT. No se confirmó una
 solución para este gesto ni su comportamiento con el servicio de Samsung.
+
+## Palabras escritas separadas y restauración de HTML
+
+Esta prueba es distinta del gesto de insertar un espacio. Se inyectaron
+trazos nativos continuos de las letras de `hola` y `mundo`, con separación
+entre palabras. Gboard entregó `hola ` y después `mundo`; el editor real,
+con Collaboration activo, conservó `hola mundo` en el título y en el cuerpo.
+Con una pausa de varios segundos entregó `hola` y después ` mundo`, también
+conservados. Las composiciones IME separadas mantuvieron el espacio.
+
+Sí se reprodujo otra pérdida: restaurar `<p>hola </p>` con las opciones
+predeterminadas de TipTap eliminaba el espacio final. Continuar escribiendo
+`mundo` producía `holamundo`. Se comprobó tanto con el editor real y
+Collaboration como en una prueba aislada con la dependencia instalada.
+
+La carga inicial y la inicialización de Y.js desde HTML ahora usan
+`preserveWhitespace: 'full'`. Además, en el APK Android el editor solicita
+entrada de texto con autocorrección, autocompletado y revisión habilitados,
+para permitir los ajustes de escritura natural del teclado del usuario.
+El mapeo de esas opciones al teclado nativo está documentado en el código
+de [Chromium ImeUtils](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/public/android/java/src/org/chromium/content/browser/input/ImeUtils.java).
+
+`scripts/tests/notes-word-spacing-browser.test.mjs` reproduce la concatenación
+anterior, verifica ambos caminos de restauración corregidos y confirma que
+las composiciones `hola ` y `mundo` producen `hola mundo`. No se confirmó
+que la restauración de HTML sea la única causa del reporte con Samsung.
 
 ## Navegación de tres botones
 

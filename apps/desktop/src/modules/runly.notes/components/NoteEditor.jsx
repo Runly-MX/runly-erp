@@ -41,6 +41,7 @@ import { patchNoteInCache } from '../lib/noteCache.js'
 import { DrawingBlock } from '../lib/extensions/DrawingBlock.jsx'
 import { AnnotatableImage } from '../lib/extensions/AnnotatableImage.jsx'
 import { notesDebug } from '../lib/notesDebug.js'
+import { NOTE_HTML_PARSE_OPTIONS, noteTextInputAttributes } from '../lib/noteTextInput.js'
 
 const AUTOSAVE_DELAY = 1500
 // Height of the touch formatting bar shown above the keyboard (h-12).
@@ -598,7 +599,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
     if (!note.content) return
     console.debug('[notes/yjs] seeding empty Y.Doc from note.content HTML')
     notesDebug('seed')
-    editor.commands.setContent(note.content)
+    editor.commands.setContent(note.content, { parseOptions: NOTE_HTML_PARSE_OPTIONS })
     // Persist the migrated Y.js state immediately (skip the 1.5s autosave
     // debounce) so a guest opening the note right after sees the state and
     // never runs its own seed.
@@ -622,6 +623,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
     <EditorProvider
       extensions={extensions}
       content={engine ? '' : (note.content || '')}
+      parseOptions={NOTE_HTML_PARSE_OPTIONS}
       editable={!viewing}
       editorContainerProps={{ className: 'note-editor-surface' }}
       onCreate={(props) => {
@@ -633,9 +635,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       editorProps={{
         attributes: {
           class: 'focus:outline-none note-sheet-inset pb-6 min-h-full',
-          spellcheck: 'false',
-          autocorrect: 'off',
-          autocapitalize: 'sentences',
+          ...noteTextInputAttributes(globalThis.window?.__RUNLY_NATIVE_HOST__?.platform),
         },
       }}
       slotBefore={
