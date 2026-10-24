@@ -118,7 +118,8 @@ function TableMenuItem({ label, onClick, destructive }) {
   )
 }
 
-export function NoteToolbar({ noteId, token }) {
+// bar=true: rendered in the fixed strip above the on-screen keyboard (touch).
+export function NoteToolbar({ noteId, token, bar = false }) {
   const { editor } = useCurrentEditor()
   const isDark = useIsDark()
   const [linkUrl, setLinkUrl] = useState('')
@@ -145,7 +146,9 @@ export function NoteToolbar({ noteId, token }) {
   }
 
   return (
-    <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-border bg-background/90 backdrop-blur-sm flex-nowrap overflow-x-auto [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:overflow-visible sticky top-0 z-10 shadow-sm">
+    <div className={bar
+      ? 'flex items-center gap-0.5 px-2 h-12 border-t border-border bg-background flex-nowrap overflow-x-auto [-webkit-overflow-scrolling:touch] [&_button]:h-11 [&_button]:min-w-11 [&_label]:h-11 [&_label]:min-w-11'
+      : 'flex items-center gap-0.5 px-3 py-1.5 border-b border-border bg-background/90 backdrop-blur-sm flex-nowrap overflow-x-auto [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:overflow-visible sticky top-0 z-10 shadow-sm'}>
 
       {/* History */}
       <ToolbarButton

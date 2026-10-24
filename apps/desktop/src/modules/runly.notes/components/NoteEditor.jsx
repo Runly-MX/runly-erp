@@ -20,7 +20,8 @@ import { flushNoteSave } from '../lib/flushNoteSave.js'
 import { buildExtensions } from '../lib/editor-extensions.js'
 import { usePresence } from '../hooks/usePresence.js'
 import { shouldFocusDocumentEnd } from '../lib/clickBelowContent.js'
-import { useKeyboardInset, isCaretHiddenByKeyboard, computeCaretScrollDelta } from '@runly/ui'
+import { useKeyboardInset, isCaretHiddenByKeyboard, computeCaretScrollDelta, useCoarsePointer } from '@runly/ui'
+import { setSaveStatus } from '../lib/saveStatus.js'
 import { computeLineUnitPx, computePaperPhase } from '../lib/paperAlignment.js'
 import { NoteToolbar } from './NoteToolbar.jsx'
 import { OutlinePanel } from './OutlinePanel.jsx'
@@ -39,6 +40,8 @@ import { AnnotatableImage } from '../lib/extensions/AnnotatableImage.jsx'
 import { notesDebug } from '../lib/notesDebug.js'
 
 const AUTOSAVE_DELAY = 1500
+// Height of the touch formatting bar shown above the keyboard (h-12).
+const TOUCH_BAR_HEIGHT = 48
 // Browsers reject keepalive bodies past 64 KB (shared by all in-flight
 // keepalive requests); leave room for the Y.js update sent alongside.
 const KEEPALIVE_CONTENT_LIMIT = 24_000
@@ -192,6 +195,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
   )
   const [toolbarHost, setToolbarHost] = useState(null)
   const [railHost, setRailHost] = useState(null)
+  const [barHost, setBarHost] = useState(null)
   const [paged] = useNotePagedView(note?.id)
   const queryClient = useQueryClient()
   const containerRef = useRef(null)
@@ -203,6 +207,9 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
 
   const rawKeyboardInset = useKeyboardInset()
   const keyboardInset = viewing ? 0 : rawKeyboardInset
+  const coarse = useCoarsePointer()
+  // Touch + keyboard open: the toolbar rides above the keyboard instead of the sticky top host.
+  const barVisible = coarse && keyboardInset > 0 && !viewing
 
   // Aligns the ruled/grid paper-style pattern (painted on .note-sheet, whose
   // top sits behind the sticky toolbar + icon/title row) with where the
@@ -249,12 +256,12 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
     ({ editor }) => {
       if (viewing || keyboardInset <= 0 || !scrollRef.current) return
       const coords = editor.view.coordsAtPos(editor.state.selection.head)
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+      const viewportHeight = (window.visualViewport?.height ?? window.innerHeight) - (barVisible ? TOUCH_BAR_HEIGHT : 0)
       if (!isCaretHiddenByKeyboard(coords.bottom, viewportHeight)) return
       const delta = computeCaretScrollDelta(coords.bottom, viewportHeight)
       scrollRef.current.scrollBy({ top: delta, behavior: 'smooth' })
     },
-    [viewing, keyboardInset],
+    [viewing, keyboardInset, barVisible],
   )
 
   // ── autosave ───────────────────────────────────────────────────────────
@@ -274,10 +281,43 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
   const lastTitleRef = useRef(note?.title ?? '')
   useEffect(() => { lastTitleRef.current = note?.title ?? '' }, [note?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const flushSave = useCallback(() => flushNoteSave({
-    readOnly, noteId: note?.id, token, ydoc, provider, notes: runly.notes, queryClient,
-    state: { pendingRef, ydocDirtyRef, savingRef, rerunRef, flushRef, capturedYDocRef },
-  }), [note?.id, token, readOnly, ydoc, provider, queryClient])
+  // Bumped by every local edit; lets a finished flush tell "my save failed"
+  // apart from "newer edits arrived while it was in flight".
+  const editSeqRef = useRef(0)
+
+  // Wraps the save engine only to publish its state to the header badge.
+  const flushSave = useCallback(async () => {
+    const noteId = note?.id
+    const publish = !readOnly && Boolean(noteId) && Boolean(token)
+    const seq = editSeqRef.current
+    if (publish && (pendingRef.current || ydocDirtyRef.current)) setSaveStatus(noteId, 'saving')
+    await flushNoteSave({
+      readOnly, noteId, token, ydoc, provider, notes: runly.notes, queryClient,
+      state: { pendingRef, ydocDirtyRef, savingRef, rerunRef, flushRef, capturedYDocRef },
+    })
+    if (!publish || savingRef.current) return
+    const dirty = Boolean(pendingRef.current || ydocDirtyRef.current)
+    if (!dirty) setSaveStatus(noteId, 'saved')
+    else if (editSeqRef.current === seq) setSaveStatus(noteId, navigator.onLine === false ? 'offline' : 'error')
+  }, [note?.id, token, readOnly, ydoc, provider, queryClient])
+
+  useEffect(() => {
+    if (readOnly || !note?.id || !token) return undefined
+    const noteId = note.id
+    const isDirty = () => Boolean(pendingRef.current || ydocDirtyRef.current)
+    function onOffline() {
+      if (isDirty()) setSaveStatus(noteId, 'offline')
+    }
+    function onOnline() {
+      if (isDirty()) flushRef.current?.()
+    }
+    window.addEventListener('offline', onOffline)
+    window.addEventListener('online', onOnline)
+    return () => {
+      window.removeEventListener('offline', onOffline)
+      window.removeEventListener('online', onOnline)
+    }
+  }, [readOnly, note?.id, token])
 
   // A reload or closed tab kills in-flight fetches and never runs the unmount
   // flush. keepalive requests survive the unload; the Y.js part is an
@@ -323,6 +363,8 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       // as an update and jump it to the top of "Recientes".
       if (isChangeOrigin(transaction)) return
       ydocDirtyRef.current = Boolean(ydoc)
+      editSeqRef.current += 1
+      setSaveStatus(note.id, navigator.onLine === false ? 'offline' : 'saving')
       // First paragraph text becomes the note title (Apple Notes pattern).
       // Always send it — an empty string clears a stale "Nueva nota".
       const firstChild = editor.state.doc.firstChild
@@ -559,9 +601,9 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       slotBefore={
         <>
           {note.cover_url ? cover : !viewing && toolbarHost ? createPortal(cover, toolbarHost) : null}
-          {!viewing && toolbarHost && createPortal(
-            <NoteToolbar noteId={note.id} token={token} />,
-            toolbarHost,
+          {!viewing && (barVisible ? barHost : toolbarHost) && createPortal(
+            <NoteToolbar noteId={note.id} token={token} bar={barVisible} />,
+            barVisible ? barHost : toolbarHost,
           )}
           {(
             // Zero-height anchor + an overlay row placed exactly on the
@@ -637,6 +679,11 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       data-paper-shadow={note.paper_shadow ? 'true' : 'false'}
     >
       <div ref={setToolbarHost} className="shrink-0" />
+      <div
+        ref={setBarHost}
+        className={barVisible ? 'fixed inset-x-0 z-40 bg-background' : 'hidden'}
+        style={barVisible ? { bottom: keyboardInset } : undefined}
+      />
       <NoteInteractionContext.Provider value={interaction}>
         {viewing && (
           <button
@@ -659,7 +706,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
             ref={scrollRef}
             data-note-scroll
             className="min-w-0 flex-1 overflow-auto overscroll-contain pb-20"
-            style={keyboardInset > 0 ? { paddingBottom: keyboardInset } : undefined}
+            style={keyboardInset > 0 ? { paddingBottom: keyboardInset + (barVisible ? TOUCH_BAR_HEIGHT : 0) } : undefined}
             onClick={viewing ? undefined : handleContainerClick}
           >
             <NoteSheet note={note} isDark={isDark} zoom={zoom} paged={paged}>

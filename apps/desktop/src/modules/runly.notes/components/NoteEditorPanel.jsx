@@ -9,6 +9,7 @@ import { DARK_BG_MAP } from '../lib/noteColors.js'
 import { NoteEditor } from './NoteEditor.jsx'
 import { NoteTitleEditor } from './NoteTitleEditor.jsx'
 import { ZoomControl } from './ZoomControl.jsx'
+import { SaveStatusBadge } from './SaveStatusBadge.jsx'
 
 // Lazy so the Excalidraw bundle only loads when a canvas note is opened.
 const CanvasEditor = lazy(() =>
@@ -85,6 +86,7 @@ export function NoteEditorPanel({
                 <span className="hidden sm:inline">Eliminar</span>
               </Button>
             )}
+            {!isTrashView && !isCanvasNote && !viewOnly && <SaveStatusBadge noteId={note.id} />}
             {!isTrashView && !isCanvasNote && (
               <Button
                 type="button"
