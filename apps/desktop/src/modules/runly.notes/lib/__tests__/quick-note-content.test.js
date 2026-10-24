@@ -28,3 +28,21 @@ test('body without title uses the first body line as the title', () => {
   assert.equal(title, 'Recordar')
   assert.equal(content, '<p>Recordar</p><p>llamar</p>')
 })
+
+test('images are appended after the body and escaped', () => {
+  const { content } = buildQuickNoteContent({
+    mode: 'text', title: 'T', body: 'x',
+    images: ['https://e.test/a.jpg?x=1&y="2"', { url: 'https://e.test/b.jpg', aspectRatio: 1.5 }],
+  })
+  assert.match(content, /^<p>T<\/p><p>x<\/p><img src="https:\/\/e\.test\/a\.jpg\?x=1&amp;y=&quot;2&quot;" alt="">/)
+  assert.match(content, /<img src="https:\/\/e\.test\/b\.jpg" alt="" data-aspect-ratio="1.5">$/)
+})
+
+test('images alone are a valid note titled "Nota con foto"', () => {
+  const text = buildQuickNoteContent({ mode: 'text', images: ['https://e.test/a.jpg'] })
+  assert.equal(text.title, 'Nota con foto')
+  assert.equal(text.content, '<p>Nota con foto</p><img src="https://e.test/a.jpg" alt="">')
+  const list = buildQuickNoteContent({ mode: 'checklist', items: [{ text: '', checked: false }], images: ['https://e.test/a.jpg'] })
+  assert.equal(list.title, 'Nota con foto')
+  assert.doesNotMatch(list.content, /taskList/)
+})

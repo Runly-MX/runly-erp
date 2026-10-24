@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
-import { ListChecks, PenLine, Palette, Pin, Plus } from 'lucide-react'
-import { Button, Checkbox, Input, Popover, PopoverContent, PopoverTrigger, Textarea } from '@runly/ui'
+import { ImagePlus, ListChecks, Loader2, PenLine, Palette, Pin, Plus, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button, Checkbox, ImageSourceSheet, Input, Popover, PopoverContent, PopoverTrigger, Textarea } from '@runly/ui'
+import { useAuth } from '../../../auth/AuthProvider'
 import { useCreateNote } from '../hooks/useNotes.js'
 import { useUpdateNote } from '../hooks/useNote.js'
+import { getImageNaturalSize, uploadNoteImage } from '../lib/noteImageUpload.js'
 import { buildQuickNoteContent } from '../lib/quickNoteContent.js'
 import { NOTE_BACKGROUND_COLORS, DARK_BG_MAP } from '../lib/noteColors.js'
+
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
 const emptyItem = () => ({ id: Math.random().toString(36).slice(2), text: '', checked: false })
 
 // Keep-style quick composer. Saves on close (button, Escape, click outside or
 // Ctrl+Enter); an empty composer just collapses. It never opens the new note.
 export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isDark = false }) {
+  const { session } = useAuth()
+  const token = session?.access_token
   const createNote = useCreateNote()
   const updateNote = useUpdateNote()
   const [open, setOpen] = useState(false)
@@ -21,12 +28,16 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
   const [color, setColor] = useState(null)
   const [pinned, setPinned] = useState(false)
   const [colorOpen, setColorOpen] = useState(false)
+  const [images, setImages] = useState([])
+  const [uploading, setUploading] = useState(0)
+  const [sheetOpen, setSheetOpen] = useState(false)
   const rootRef = useRef(null)
   const bodyRef = useRef(null)
   const itemRefs = useRef({})
   const focusItemId = useRef(null)
 
   const busy = disabled || createNote.isPending
+  const overlayOpen = colorOpen || sheetOpen
 
   function reset() {
     setOpen(false)
@@ -36,10 +47,33 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
     setItems([emptyItem()])
     setColor(null)
     setPinned(false)
+    setImages([])
+  }
+
+  // Photos upload against the shared 'draft' key (the presign route accepts it),
+  // so no note has to exist yet; the note is created once, on save.
+  async function attachPhoto(file) {
+    if (!file || !token) return
+    if (!file.type.startsWith('image/')) { toast.error('Selecciona un archivo de imagen valido.'); return }
+    if (file.size > MAX_IMAGE_BYTES) { toast.error('La imagen no puede superar 20 MB.'); return }
+    setUploading((n) => n + 1)
+    try {
+      const [url, size] = await Promise.all([
+        uploadNoteImage(file, { noteId: 'draft', token }),
+        getImageNaturalSize(file),
+      ])
+      const aspectRatio = size.naturalWidth && size.naturalHeight ? size.naturalWidth / size.naturalHeight : null
+      setImages((prev) => [...prev, { id: Math.random().toString(36).slice(2), url, aspectRatio, alt: file.name }])
+    } catch (err) {
+      toast.error(err?.message ?? 'No se pudo subir la imagen.')
+    } finally {
+      setUploading((n) => n - 1)
+    }
   }
 
   function save() {
-    const built = buildQuickNoteContent({ mode, title, body, items })
+    if (uploading > 0) return
+    const built = buildQuickNoteContent({ mode, title, body, items, images })
     if (!built) { reset(); return }
     const wantsPin = pinned
     createNote.mutate(
@@ -63,13 +97,13 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
   useEffect(() => {
     if (!open) return undefined
     function onPointerDown(e) {
-      if (colorOpen) return
+      if (overlayOpen) return
       if (rootRef.current?.contains(e.target)) return
       if (e.target.closest?.('[data-radix-popper-content-wrapper]')) return
       saveRef.current()
     }
     function onKeyDown(e) {
-      if (e.key === 'Escape' && !colorOpen) saveRef.current()
+      if (e.key === 'Escape' && !overlayOpen) saveRef.current()
     }
     document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('keydown', onKeyDown)
@@ -77,7 +111,7 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [open, colorOpen])
+  }, [open, overlayOpen])
 
   // Autosize the body textarea.
   useEffect(() => {
@@ -237,6 +271,29 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
             </Button>
           </div>
         )}
+
+        {(images.length > 0 || uploading > 0) && (
+          <div className="flex flex-wrap gap-2 px-1" aria-label="Fotos adjuntas">
+            {images.map((img) => (
+              <div key={img.id} className="relative h-16 w-16 overflow-hidden rounded-md border border-border">
+                <img src={img.url} alt={img.alt} className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  aria-label="Quitar foto"
+                  onClick={() => setImages((prev) => prev.filter((i) => i.id !== img.id))}
+                  className="absolute right-0.5 top-0.5 flex h-6 w-6 items-center justify-center rounded-md bg-background/80 text-foreground hover:bg-background"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            {uploading > 0 && (
+              <div className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground" role="status" aria-label="Subiendo foto">
+                <Loader2 size={16} className="animate-spin" />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-1 border-t border-border/60 px-2 py-1.5">
@@ -260,6 +317,19 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
         >
           <ListChecks size={14} /> Checklist
         </Button>
+
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          aria-label="Agregar foto"
+          title="Agregar foto"
+          disabled={busy}
+          onClick={() => setSheetOpen(true)}
+        >
+          <ImagePlus size={14} />
+        </Button>
+        <ImageSourceSheet open={sheetOpen} onOpenChange={setSheetOpen} onPickFile={attachPhoto} />
 
         <Popover open={colorOpen} onOpenChange={setColorOpen}>
           <PopoverTrigger asChild>
@@ -301,7 +371,7 @@ export function QuickComposer({ onCreated, onCreateCanvas, disabled = false, isD
         </Button>
 
         <div className="ml-auto">
-          <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={save}>
+          <Button type="button" size="sm" variant="ghost" disabled={busy || uploading > 0} onClick={save}>
             Cerrar
           </Button>
         </div>
