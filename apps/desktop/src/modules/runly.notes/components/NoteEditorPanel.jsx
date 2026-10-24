@@ -70,7 +70,7 @@ export function NoteEditorPanel({
         !isZenMode ? 'relative' : '',
         className,
       ].join(' ')}
-      style={canvasBg}
+      style={isZenMode ? { ...canvasBg, '--shell-footer-height': '0px', paddingTop: 'var(--sat, 0px)', paddingBottom: 'var(--sab, 0px)' } : canvasBg}
     >
       <div className="flex items-center gap-2 px-3 h-11 border-b border-border shrink-0 bg-background/95 backdrop-blur-sm">
         <button
@@ -96,6 +96,15 @@ export function NoteEditorPanel({
 
         {note && (
           <div className="flex items-center gap-0.5">
+            <SubpagesStrip
+              key={note.id}
+              note={note}
+              canCreate={canCreateSubpage}
+              depthBlocked={depthBlocked}
+              creating={creatingSubpage}
+              onOpenNote={onOpenNote}
+              onCreate={handleCreateSubpage}
+            />
             {isTrashView && onRestore && (
               <Button type="button" size="sm" variant="ghost" onClick={onRestore}>
                 <RotateCcw size={13} />
@@ -114,11 +123,12 @@ export function NoteEditorPanel({
                 type="button"
                 size="sm"
                 variant="ghost"
+                className="touch-target"
                 aria-label={viewOnly ? 'Editar nota' : 'Ver nota'}
                 onClick={onToggleViewOnly}
               >
                 {viewOnly ? <PenLine size={14} /> : <Eye size={14} />}
-                {viewOnly ? 'Editar' : 'Ver'}
+                <span className="hidden sm:inline">{viewOnly ? 'Editar' : 'Ver'}</span>
               </Button>
             )}
             <button
@@ -180,17 +190,6 @@ export function NoteEditorPanel({
         <div className="flex shrink-0 border-b border-border bg-background/95 px-3 py-1">
           <NoteBreadcrumb note={note} ancestors={ancestors} onOpenNote={onOpenNote} showCurrent={false} />
         </div>
-      )}
-
-      {note && (
-        <SubpagesStrip
-          note={note}
-          canCreate={canCreateSubpage}
-          depthBlocked={depthBlocked}
-          creating={creatingSubpage}
-          onOpenNote={onOpenNote}
-          onCreate={handleCreateSubpage}
-        />
       )}
 
       {!note ? (

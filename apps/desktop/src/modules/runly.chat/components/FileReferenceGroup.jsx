@@ -116,16 +116,16 @@ function ImageGrid({ images, onOpenAt }) {
 
   if (count === 1) {
     return (
-      <div className="mt-1.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: "100%", height: 160 }}>
+      <div className="mt-1.5 rounded-xl overflow-hidden" style={{ width: 352, maxWidth: "100%", aspectRatio: "4 / 3" }}>
         <GridImageTile fileRef={shown[0]} onOpen={() => onOpenAt(0)} />
       </div>
     );
   }
   if (count === 2) {
     return (
-      <div className="mt-1.5 flex gap-0.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: "100%" }}>
+      <div className="mt-1.5 flex gap-0.5 rounded-xl overflow-hidden" style={{ width: 352, maxWidth: "100%" }}>
         {shown.map((fileRef, i) => (
-          <div key={fileRef.recordId} className="relative flex-1" style={{ height: 110 }}>
+          <div key={fileRef.recordId} className="relative min-w-0 flex-1" style={{ aspectRatio: count === 2 ? "4 / 5" : "1" }}>
             <GridImageTile fileRef={fileRef} onOpen={() => onOpenAt(i)} />
           </div>
         ))}
@@ -134,13 +134,13 @@ function ImageGrid({ images, onOpenAt }) {
   }
   if (count === 3) {
     return (
-      <div className="mt-1.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: "100%" }}>
-        <div className="relative" style={{ height: 132 }}>
+      <div className="mt-1.5 rounded-xl overflow-hidden" style={{ width: 352, maxWidth: "100%" }}>
+        <div className="relative" style={{ aspectRatio: "3 / 2" }}>
           <GridImageTile fileRef={shown[0]} onOpen={() => onOpenAt(0)} />
         </div>
         <div className="flex gap-0.5 mt-0.5">
           {shown.slice(1).map((fileRef, i) => (
-            <div key={fileRef.recordId} className="relative flex-1" style={{ height: 86 }}>
+            <div key={fileRef.recordId} className="relative min-w-0 flex-1" style={{ aspectRatio: "1" }}>
               <GridImageTile fileRef={fileRef} onOpen={() => onOpenAt(i + 1)} />
             </div>
           ))}
@@ -149,17 +149,17 @@ function ImageGrid({ images, onOpenAt }) {
     );
   }
   return (
-    <div className="mt-1.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: "100%" }}>
+    <div className="mt-1.5 rounded-xl overflow-hidden" style={{ width: 352, maxWidth: "100%" }}>
       <div className="flex gap-0.5">
         {shown.slice(0, 2).map((fileRef, i) => (
-          <div key={fileRef.recordId} className="relative flex-1" style={{ height: 110 }}>
+          <div key={fileRef.recordId} className="relative min-w-0 flex-1" style={{ aspectRatio: count === 2 ? "4 / 5" : "1" }}>
             <GridImageTile fileRef={fileRef} onOpen={() => onOpenAt(i)} />
           </div>
         ))}
       </div>
       <div className="flex gap-0.5 mt-0.5">
         {shown.slice(2, 4).map((fileRef, i) => (
-          <div key={fileRef.recordId} className="relative flex-1" style={{ height: 110 }}>
+          <div key={fileRef.recordId} className="relative min-w-0 flex-1" style={{ aspectRatio: count === 2 ? "4 / 5" : "1" }}>
             <GridImageTile fileRef={fileRef} onOpen={() => onOpenAt(i + 2)} overflowCount={i === 1 ? overflowCount : 0} />
           </div>
         ))}

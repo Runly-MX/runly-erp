@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
-import { Skeleton, renderMentionText } from "@runly/ui";
+import { Skeleton, renderMentionText, useSafeAreaInsets, useKeyboardViewport } from "@runly/ui";
 import { useChatFloatStore } from "../store/chatFloatStore";
 import { useCreateConversation } from "../hooks/useCreateConversation";
 import { runly } from "../../../lib/runly";
@@ -22,6 +22,7 @@ import { useConversationActionHandler } from "../hooks/useChatConversations";
 import { ChatPreferencesProvider, useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPreferences";
 import { BubbleDropZone } from "../../../components/BubbleDropZone";
 import { isInBubbleDropZone } from "../../../lib/bubbleDropZone";
+import { floatingChatBounds } from '../lib/floatingChatLayout.js';
 
 function viewportSize() {
   return { width: window.innerWidth, height: window.innerHeight };
@@ -453,7 +454,9 @@ function FloatingChatHubInner() {
     return () => { unsub1(); unsub2(); unsub3(); };
   }, [on, queryClient]);
 
-  const effectiveY = yPx ?? Math.round(window.innerHeight * 0.75);
+  const safeArea = useSafeAreaInsets();
+  const keyboard = useKeyboardViewport();
+  const { top: viewportTop, bottom: viewportBottom, y: effectiveY } = floatingChatBounds({ height: window.innerHeight, safeArea, keyboard, y: yPx });
   const isMobile = window.innerWidth < 640;
   const maxWins = isMobile ? 0 : 3;
 
@@ -511,8 +514,8 @@ function FloatingChatHubInner() {
         } else {
           const newEdge = e.clientX > window.innerWidth / 2 ? "right" : "left";
           const clampedY = Math.max(
-            60,
-            Math.min(e.clientY - BS / 2, window.innerHeight - BS - BM * 2),
+            viewportTop,
+            Math.min(e.clientY - BS / 2, viewportBottom - BS),
           );
           setPosition(newEdge, clampedY);
         }
@@ -524,7 +527,7 @@ function FloatingChatHubInner() {
       isDragRef.current = false;
       dragStartRef.current = null;
     },
-    [setPosition, toggle, hide],
+    [setPosition, toggle, hide, viewportTop, viewportBottom],
   );
 
   const handlePointerCancel = useCallback(() => {
@@ -543,7 +546,7 @@ function FloatingChatHubInner() {
 
   const bubbleStyle = dragPos
     ? { position: "fixed", left: dragPos.x - BS / 2, top: dragPos.y - BS / 2, zIndex: Z_BUBBLE }
-    : { position: "fixed", [edge]: BM, top: effectiveY, zIndex: Z_BUBBLE };
+    : { position: "fixed", [edge]: `calc(${BM}px + var(--sa${edge === 'right' ? 'r' : 'l'}, 0px))`, top: effectiveY, zIndex: Z_BUBBLE };
 
   // Panel grows toward whichever side of the bubble has more vertical room —
   // "above" (its bottom pinned to the bubble's bottom, growing upward, the
@@ -553,13 +556,13 @@ function FloatingChatHubInner() {
   // to whatever room actually exists on that side so it can never push past
   // the opposite edge either.
   const PANEL_GAP = 8;
-  const spaceAbove = effectiveY - PANEL_GAP;
-  const spaceBelow = window.innerHeight - (effectiveY + BS) - PANEL_GAP;
+  const spaceAbove = effectiveY + BS - viewportTop - PANEL_GAP;
+  const spaceBelow = viewportBottom - effectiveY - PANEL_GAP;
   const panelPlacement = spaceAbove >= spaceBelow ? "above" : "below";
   const panelAnchorPx = panelPlacement === "above"
     ? window.innerHeight - effectiveY - BS // bubble's bottom edge, panel grows up from there
     : effectiveY; // bubble's top edge, panel grows down from there
-  const panelMaxHeightPx = Math.max(160, (panelPlacement === "above" ? spaceAbove : spaceBelow) - BM);
+  const panelMaxHeightPx = Math.max(0, panelPlacement === "above" ? spaceAbove : spaceBelow);
 
   return createPortal(
     // chat-glass-theme + chatPreferencesStyle: this whole tree is portaled

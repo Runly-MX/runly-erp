@@ -30,6 +30,7 @@ import { useServiceWorkerNotifications } from './useServiceWorkerNotifications.j
 import { useHelpTip } from './useHelpTip.js'
 import { RecordConnectionsButton } from '../shell/connections/RecordConnectionsButton.jsx'
 import { useTrashProviders, withTrashNavigation } from '../shell/trash/useTrashProviders.js'
+import { getShellViewportStyle } from './shellViewport.js'
 
 const MiraiSidebarHost = lazy(() =>
   import("../modules/runly.chat/components/MiraiSidebarHost.jsx").then((m) => ({ default: m.MiraiSidebarHost })),
@@ -228,9 +229,8 @@ export function RunlyApp() {
   // it iOS only pans until the focused field shows, so whatever sits below it
   // (the chat composer's send button) stays hidden behind that bar.
   const keyboard = useKeyboardViewport()
-  const shellViewportStyle = keyboard.open && keyboard.visibleHeight
-    ? { top: keyboard.offsetTop, height: keyboard.visibleHeight }
-    : undefined
+  const shellViewportStyle = getShellViewportStyle(keyboard)
+  const showFooter = !(getLegacyModuleKey(activeModule?.key ?? moduleKeyFromPath) === 'runly.chat' && isFullscreen) && !keyboard.open
 
   return (
     <OfflineProvider apiBaseUrl={apiBaseUrl} onTransportReady={handleTransportReady}
@@ -249,6 +249,7 @@ export function RunlyApp() {
         <div
           className="app-shell-root fixed inset-x-0 top-0 h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]"
           style={shellViewportStyle}
+          data-shell-footer={showFooter ? 'true' : 'false'}
         >
       <TopbarWithNetworkStatus
         onLauncherOpen={openLauncher}
@@ -319,7 +320,7 @@ export function RunlyApp() {
                 <MiraiSidebarHost />
               </Suspense>
             </div>
-            {!(getLegacyModuleKey(activeModule?.key ?? moduleKeyFromPath) === "runly.chat" && isFullscreen) && (
+            {showFooter && (
               <BrandFooter
                 className="hidden lg:flex"
                 editionName={RUNLY_EDITION_NAME}
@@ -355,7 +356,7 @@ export function RunlyApp() {
               "transition-transform duration-200 ease-out",
               sidebarOverlayOpen ? "translate-x-0" : "-translate-x-full pointer-events-none",
             ].join(" ")}
-            style={{ top: "calc(var(--topbar-height, 3.5rem) + var(--sat))" }}
+            style={{ top: "calc(var(--topbar-height, 3.5rem) + var(--sat))", bottom: 'var(--shell-bottom-inset, var(--sab))' }}
           >
             <ModuleSidebar
               module={sidebarModule}

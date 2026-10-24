@@ -5,7 +5,7 @@ import {
   X, Minus, ChevronUp,
   ExternalLink, FolderOpen, MoreVertical, User, Users, Phone, Video, Pin,
 } from "lucide-react";
-import { Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@runly/ui";
+import { Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, useKeyboardViewport } from "@runly/ui";
 import { useChatMessages, useSendMessage, useMarkRead, useDeleteMessage, useEditMessage, useDeleteAttachment, usePinMessage, useToggleReaction } from "../hooks/useChatMessages";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { usePinnedMessages } from "../hooks/usePinnedMessages";
@@ -24,6 +24,7 @@ import { ChatPreferencesProvider, useChatPreferences, chatPreferencesStyle } fro
 import { useTtsStatus, useSpeakText } from "../hooks/useTextToSpeech";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useCalls } from "../calls/CallsProvider";
+import { miniChatViewportStyle } from '../lib/floatingChatLayout.js';
 
 const BS = 56;     // bubble size px
 const BM = 16;     // margin from edge px
@@ -64,6 +65,7 @@ export function MiniChatWindow(props) {
 }
 
 function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinimize }) {
+  const keyboard = useKeyboardViewport();
   const { id, conversation, minimized } = entry;
   const { userProfile } = useAuth();
   const { enabled: callsEnabled, isStarting: callPending, startCall } = useCalls();
@@ -195,9 +197,9 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
       <div
         style={{
           position: "fixed",
-          bottom: BM,
+          ...miniChatViewportStyle(keyboard),
           width: WW,
-          [edge]: offset,
+          [edge]: `calc(${offset}px + var(--sa${edge === 'right' ? 'r' : 'l'}, 0px))`,
           zIndex,
           height: minimized ? WH_MIN : WH,
           transition: "height 0.25s cubic-bezier(0.4, 0, 0.2, 1)",

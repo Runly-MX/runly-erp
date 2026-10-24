@@ -191,6 +191,19 @@ html {
 }
 
 @layer utilities {
+  .app-shell-root {
+    --shell-footer-height: 0px;
+  }
+  /* The shell reserves the system bar once for all in-flow content. Portaled
+     overlays still own their safe-area clearance. */
+  .app-shell-root .safe-bottom {
+    padding-bottom: 0;
+  }
+  @media (min-width: 1024px) {
+    .app-shell-root[data-shell-footer="true"] {
+      --shell-footer-height: 3rem;
+    }
+  }
   /* ── Safe-area / topbar helpers ──────────────────────────── */
   .safe-top {
     padding-top: var(--sat);

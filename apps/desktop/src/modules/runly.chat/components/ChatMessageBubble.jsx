@@ -7,7 +7,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   AssistantWordmark, MiraiAvatar, renderMentionText, renderRichText, useLongPress, useSwipeToReply, useCoarsePointer, useIsMobile,
 } from "@runly/ui";
-import { formatMessageTime } from "../lib/chatUtils";
+import { formatMessageTime, isImageMime } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { roleHasPermission, findOwnMember, isMentioned, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { MessageReactions } from "./MessageReactions";
@@ -230,7 +230,7 @@ function MediaCaptionBubble({ radiusClass, isOwn, body, searchQuery, replyTo, on
         // page is still ~1000px+ on desktop, so without this the image blew
         // straight out of the floating window instead of being clamped by
         // its own row's real available width.
-        "w-[min(18rem,72vw)] max-w-full overflow-hidden mt-1",
+        "w-[min(22rem,82vw)] max-w-full overflow-hidden mt-1",
         isOwn ? "bg-(--brand-primary)" : "bg-[hsl(var(--muted))]",
       ].join(" ")}
     >
@@ -582,6 +582,7 @@ export function ChatMessageBubble({
   const fileRefs = entityRefs
     .slice(firstEntityRefAttached ? 1 : 0)
     .filter((ref) => ref.entityType === "file" && Boolean(ref.mimeType));
+  const hasImageMedia = attachments.some(att => isImageMime(att.mimeType)) || fileRefs.some(ref => isImageMime(ref.mimeType));
 
   // Own membership entry in this conversation — needed to detect role-targeted mentions
   // and to gate the pin action by permission.
@@ -685,7 +686,7 @@ export function ChatMessageBubble({
               to shrink below its own content width, ignoring max-w-[72%]/65%
               entirely — worst in the 300px-wide MiniChatWindow, where a
               single image then overflows the whole floating window. */}
-          <div data-msg-bubble className="flex flex-col items-end min-w-0 max-w-[72%] sm:max-w-[65%]">
+          <div data-msg-bubble className={`flex flex-col items-end min-w-0 ${hasImageMedia ? 'max-w-[90%] sm:max-w-[85%]' : 'max-w-[72%] sm:max-w-[65%]'}`}>
             {forwardedMark}
             {/* Quote sits INSIDE the text bubble (below) when there's a body,
                 tinted to match it; only floats on its own when the reply has
@@ -918,7 +919,7 @@ export function ChatMessageBubble({
         {/* min-w-0: same fix as the "own message" bubble above — without it a
             fixed-px attachment (image grid, file card, audio player) can
             overflow past max-w-[72%]/65% instead of being capped by it. */}
-        <div data-msg-bubble className="flex flex-col items-start min-w-0 max-w-[72%] sm:max-w-[65%]">
+        <div data-msg-bubble className={`flex flex-col items-start min-w-0 ${hasImageMedia ? 'max-w-[90%] sm:max-w-[85%]' : 'max-w-[72%] sm:max-w-[65%]'}`}>
           {isFirst && (
             <span className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-1 ml-1 truncate max-w-full">
               {isAssistant ? <AssistantWordmark /> : senderName}

@@ -2,6 +2,8 @@ import { useRef, useState } from "react";
 import { Camera, Image as ImageIcon, FileText } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "./Popover.jsx";
 import { cn } from "../lib/utils.js";
+import { useCoarsePointer } from "../hooks/usePointerCapabilities.js";
+import { CameraCaptureDialog } from "./CameraCaptureDialog.jsx";
 
 const TILE = "flex flex-col items-center gap-1.5 text-xs font-medium text-foreground";
 const ICON = "flex h-12 w-12 items-center justify-center rounded-full text-white shadow-sm transition-transform active:scale-95";
@@ -9,10 +11,8 @@ const ICON = "flex h-12 w-12 items-center justify-center rounded-full text-white
 // A WhatsApp-style attachment picker: tapping the trigger (usually a paperclip
 // button) opens a small popover with a tile per source (camera / gallery /
 // document) instead of a plain drag-and-drop box, which reads better in a
-// narrow chat composer than a full dropzone. Inputs stay mounted for the
-// popover's whole open lifetime and only close it from onChange (after the
-// native file dialog has already resolved) — closing on tap would unmount the
-// input mid-dialog on some browsers and drop the selection.
+// narrow chat composer than a full dropzone. Inputs stay mounted outside the
+// popover so a native dialog's focus change cannot discard the selection.
 export function ChatAttachMenu({
   trigger,
   disabled = false,
@@ -24,70 +24,79 @@ export function ChatAttachMenu({
   onPickDocuments,
 }) {
   const [open, setOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const coarse = useCoarsePointer();
   const cameraRef = useRef(null);
   const galleryRef = useRef(null);
   const documentRef = useRef(null);
 
   return (
-    <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
-      <PopoverTrigger asChild disabled={disabled}>{trigger}</PopoverTrigger>
-      <PopoverContent align="start" side="top" className="w-auto p-3">
-        <div className="flex items-start gap-4">
-          {showCamera && (
-            <button type="button" className={TILE} onClick={() => cameraRef.current?.click()}>
-              <span className={cn(ICON, "bg-slate-500")}><Camera className="h-5 w-5" /></span>
-              Cámara
+    <>
+      <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
+        <PopoverTrigger asChild disabled={disabled}>{trigger}</PopoverTrigger>
+        <PopoverContent align="start" side="top" className="w-auto p-3">
+          <div className="flex items-start gap-4">
+            {showCamera && (
+              <button type="button" className={TILE} onClick={() => {
+                if (coarse) cameraRef.current?.click();
+                else { setOpen(false); setCameraOpen(true); }
+              }}>
+                <span className={cn(ICON, "bg-slate-500")}><Camera className="h-5 w-5" /></span>
+                Cámara
+              </button>
+            )}
+            <button type="button" className={TILE} onClick={() => galleryRef.current?.click()}>
+              <span className={cn(ICON, "bg-fuchsia-500")}><ImageIcon className="h-5 w-5" /></span>
+              Galería
             </button>
-          )}
-          <button type="button" className={TILE} onClick={() => galleryRef.current?.click()}>
-            <span className={cn(ICON, "bg-fuchsia-500")}><ImageIcon className="h-5 w-5" /></span>
-            Imagen
-          </button>
-          <button type="button" className={TILE} onClick={() => documentRef.current?.click()}>
-            <span className={cn(ICON, "bg-sky-500")}><FileText className="h-5 w-5" /></span>
-            Documento
-          </button>
-        </div>
-        <input
-          ref={cameraRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            setOpen(false);
-            if (file) onPickCamera?.(file);
-          }}
-        />
-        <input
-          ref={galleryRef}
-          type="file"
-          accept={imageAccept}
-          multiple
-          className="hidden"
-          onChange={(event) => {
-            const files = Array.from(event.target.files || []);
-            event.target.value = "";
-            setOpen(false);
-            if (files.length) onPickImages?.(files);
-          }}
-        />
-        <input
-          ref={documentRef}
-          type="file"
-          accept={documentAccept}
-          multiple
-          className="hidden"
-          onChange={(event) => {
-            const files = Array.from(event.target.files || []);
-            event.target.value = "";
-            setOpen(false);
-            if (files.length) onPickDocuments?.(files);
-          }}
-        />
-      </PopoverContent>
-    </Popover>
+            <button type="button" className={TILE} onClick={() => documentRef.current?.click()}>
+              <span className={cn(ICON, "bg-sky-500")}><FileText className="h-5 w-5" /></span>
+              Archivos
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
+      {/* Keep inputs mounted if the popover loses focus to a native picker. */}
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          setOpen(false);
+          if (file) onPickCamera?.(file);
+        }}
+      />
+      <input
+        ref={galleryRef}
+        type="file"
+        accept={imageAccept}
+        multiple
+        className="hidden"
+        onChange={(event) => {
+          const files = Array.from(event.target.files || []);
+          event.target.value = "";
+          setOpen(false);
+          if (files.length) onPickImages?.(files);
+        }}
+      />
+      <input
+        ref={documentRef}
+        type="file"
+        accept={documentAccept}
+        multiple
+        className="hidden"
+        onChange={(event) => {
+          const files = Array.from(event.target.files || []);
+          event.target.value = "";
+          setOpen(false);
+          if (files.length) onPickDocuments?.(files);
+        }}
+      />
+      <CameraCaptureDialog open={cameraOpen} onOpenChange={setCameraOpen} onCapture={onPickCamera} />
+    </>
   );
 }

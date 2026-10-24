@@ -9,7 +9,7 @@ import {
 import {
   Button, MentionTextarea, Popover, PopoverAnchor, PopoverContent,
   Dialog, DialogContent, DialogHeader, DialogTitle, useCoarsePointer,
-  ThemedEmojiPicker, findFirstUrl,
+  ThemedEmojiPicker, findFirstUrl, ChatAttachMenu,
 } from "@runly/ui";
 import {
   Send, Paperclip, Smile, X, Loader2, AlertCircle, Plus, Link2, Pencil, Check,
@@ -176,7 +176,6 @@ export const MessageComposer = forwardRef(function MessageComposer(
       ? mentionCandidates.filter((m) => m.id === MIRAI_MENTION_ID)
       : mentionCandidates;
 
-  const fileInputRef = useRef(null);
   const typingTimeout = useRef(null);
   const isTypingRef = useRef(false);
   const uploadingRef = useRef({});
@@ -691,11 +690,6 @@ export const MessageComposer = forwardRef(function MessageComposer(
     [handleSend, coarse, applyFormat],
   );
 
-  function handleFileInputChange(e) {
-    if (e.target.files?.length) addFilesToQueue(Array.from(e.target.files));
-    e.target.value = "";
-  }
-
   // Paste an image straight from the clipboard (screenshot, "copy image", a
   // copied file) into the composer — same queue as the picker and drag-drop.
   // Only swallow the paste when it actually carried files; a normal text paste
@@ -966,29 +960,28 @@ export const MessageComposer = forwardRef(function MessageComposer(
                 existing message: editing only ever changes its text (the API
                 PATCH is body-only), matching WhatsApp's edit composer. */}
             {!editingMessage && (
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/*,audio/*,video/*,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.*,application/zip"
-                  className="hidden"
-                  onChange={handleFileInputChange}
-                  disabled={disabled}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className={[
-                    "shrink-0 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors touch-manipulation",
-                    btnSize,
-                  ].join(" ")}
-                  title="Adjuntar archivo"
-                  disabled={disabled}
-                >
-                  <Paperclip className={iconSize} />
-                </button>
-              </>
+              <ChatAttachMenu
+                disabled={disabled}
+                imageAccept="image/*,video/*"
+                documentAccept="*/*"
+                onPickCamera={(file) => addFilesToQueue([file])}
+                onPickImages={addFilesToQueue}
+                onPickDocuments={addFilesToQueue}
+                trigger={
+                  <button
+                    type="button"
+                    className={[
+                      "shrink-0 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] transition-colors touch-manipulation",
+                      btnSize,
+                    ].join(" ")}
+                    title="Adjuntar archivo"
+                    aria-label="Adjuntar: cámara, galería o archivos"
+                    disabled={disabled}
+                  >
+                    <Paperclip className={iconSize} />
+                  </button>
+                }
+              />
             )}
 
             {/* Entity reference — hidden entirely in external_support

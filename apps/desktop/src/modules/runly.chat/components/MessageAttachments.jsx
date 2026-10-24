@@ -788,12 +788,12 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOw
   // top margin, no outer rounding (the bubble clips).
   const mt = merged ? "" : "mt-1.5";
   const rounded = merged ? "" : "rounded-xl";
-  const gridWidth = merged ? "100%" : 220;
+  const gridWidth = merged ? "100%" : 352;
 
   // 1 image: bounded, more-square preview box (ImageCard clamps its ratio)
   if (count === 1) {
     return (
-      <div className={mt} style={{ width: merged ? "100%" : 220, maxWidth: "100%" }}>
+      <div className={mt} style={{ width: gridWidth, maxWidth: "100%" }}>
         <ImageCard att={images[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} merged={merged} {...tileProps} />
       </div>
     );
@@ -804,7 +804,7 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOw
     return (
       <div className={[mt, "flex gap-0.5 overflow-hidden", rounded].join(" ")} style={{ width: gridWidth, maxWidth: '100%' }}>
         {shown.map((att, i) => (
-          <div key={att.id} className="relative flex-1" style={{ height: 110 }}>
+          <div key={att.id} className="relative min-w-0 flex-1" style={{ aspectRatio: '4 / 5' }}>
             <ImageCoverCell att={att} index={startIndex + i} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
           </div>
         ))}
@@ -816,12 +816,12 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOw
   if (count === 3) {
     return (
       <div className={[mt, "overflow-hidden", rounded].join(" ")} style={{ width: gridWidth, maxWidth: '100%' }}>
-        <div className="relative" style={{ height: 132 }}>
+        <div className="relative" style={{ aspectRatio: '3 / 2' }}>
           <ImageCoverCell att={shown[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
         </div>
         <div className="flex gap-0.5 mt-0.5">
           {shown.slice(1).map((att, i) => (
-            <div key={att.id} className="relative flex-1" style={{ height: 86 }}>
+            <div key={att.id} className="relative min-w-0 flex-1" style={{ aspectRatio: '1' }}>
               <ImageCoverCell att={att} index={startIndex + 1 + i} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
             </div>
           ))}
@@ -835,14 +835,14 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOw
     <div className={[mt, "overflow-hidden", rounded].join(" ")} style={{ width: gridWidth, maxWidth: '100%' }}>
       <div className="flex gap-0.5">
         {shown.slice(0, 2).map((att, i) => (
-          <div key={att.id} className="relative flex-1" style={{ height: 110 }}>
+          <div key={att.id} className="relative min-w-0 flex-1" style={{ aspectRatio: '1' }}>
             <ImageCoverCell att={att} index={startIndex + i} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
           </div>
         ))}
       </div>
       <div className="flex gap-0.5 mt-0.5">
         {shown.slice(2, 4).map((att, i) => (
-          <div key={att.id} className="relative flex-1" style={{ height: 110 }}>
+          <div key={att.id} className="relative min-w-0 flex-1" style={{ aspectRatio: '1' }}>
             <ImageCoverCell
               att={att}
               index={startIndex + 2 + i}

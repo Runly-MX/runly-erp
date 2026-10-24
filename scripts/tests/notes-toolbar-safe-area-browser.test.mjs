@@ -48,6 +48,12 @@ test('touch toolbar stays above Android navigation through keyboard transitions'
     const taskbar = await apply(800)
     assert.equal(taskbar.toolbar.bottom, 704, 'larger Samsung taskbar updates the CSS clearance')
     assert.equal(taskbar.padding, 144)
+    await page.evaluate(() => document.body.style.setProperty('--shell-footer-height', '48px'))
+    const footer = await apply(800)
+    assert.equal(footer.toolbar.bottom, 656, 'toolbar also clears the shell footer')
+    assert.equal(footer.padding, 192)
+    assert.equal((await apply(480)).toolbar.bottom, 480, 'keyboard remains the larger clearance')
+    await page.evaluate(() => document.body.style.removeProperty('--shell-footer-height'))
     await page.setViewportSize({ width: 412, height: 800 })
     assert.equal((await apply(800)).toolbar.bottom, 704, 'phone layout has the same safe-area contract')
   } finally {

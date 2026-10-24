@@ -116,7 +116,7 @@ export function ModuleSidebar({
               "transition-transform duration-300 ease-in-out",
               mobileOpen ? "translate-x-0" : "-translate-x-full",
               // Desktop (lg+): static flex child — inline top/height have no layout effect here
-              "lg:static lg:z-auto",
+              "lg:static lg:z-auto lg:h-full!",
               "lg:translate-x-0 lg:transition-[width] lg:duration-300 lg:ease-in-out",
               collapsed ? "lg:w-14" : "lg:w-60",
             ),
@@ -127,7 +127,7 @@ export function ModuleSidebar({
           : {
               top: "calc(var(--topbar-height, 3.5rem) + var(--sat))",
               height:
-                "calc(100dvh - var(--topbar-height, 3.5rem) - var(--sat))",
+                "calc(var(--shell-viewport-height, 100dvh) - var(--topbar-height, 3.5rem) - var(--sat) - var(--shell-bottom-inset, 0px))",
             }
       }
     >

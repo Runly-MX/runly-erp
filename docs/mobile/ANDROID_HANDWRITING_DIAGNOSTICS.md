@@ -78,7 +78,7 @@ encima de la navegación/taskbar de Android, y subir con el teclado. La
 condición anterior solo mostraba esa barra si había un inset de teclado
 positivo y no garantizaba el espacio de `--sab`.
 
-La posición ahora usa `max(inset del viewport, var(--sab))`, mantiene la
+La posición ahora usa `max(inset del viewport, var(--sab) + altura del pie)`, mantiene la
 barra visible sin teclado y reserva su altura más ese espacio al final
 del contenido. También evita que el cursor quede debajo de la barra.
 Los dispositivos con ratón conservan la barra superior.
@@ -86,7 +86,7 @@ Los dispositivos con ratón conservan la barra superior.
 En una superficie de prueba dentro del APK, usando los hooks y el cálculo
 de posición de producción, con tres botones y viewport de tablet 1280 × 800,
 Android reportó una taskbar de 112 píxeles físicos a densidad 2. La barra
-de formato ocupó los píxeles CSS 696–744 y la navegación 744–800: sin
+de formato inicialmente ocupó los píxeles CSS 696–744 y la navegación 744–800: sin
 solapamiento. Con tamaño de teléfono, la separación fue 48 px CSS. Esto
 valida la posición con teclado cerrado en el emulador; no sustituye la
 prueba del editor desplegado en una Samsung física.
@@ -94,6 +94,47 @@ prueba del editor desplegado en una Samsung física.
 `scripts/tests/notes-toolbar-safe-area-browser.test.mjs` comprueba teclado
 cerrado, abierto, ocultado y modo de escritura corto, además de una taskbar
 mayor de 96 px. Es una corrección web; no requiere cambiar el APK 1.2.5.
+
+### Pie de la aplicación y chat flotante
+
+El shell reservaba espacio arriba, pero no abajo: su pie seguía debajo de
+Android aunque la barra de Notas ya lo evitara. Ahora reserva `--sab` para
+todo el contenido en flujo y evita duplicarlo en el compositor del chat.
+Al abrir el teclado, usa la altura visible y oculta temporalmente el pie.
+La barra de formato también respeta los 48 px del pie cuando está visible.
+El menú lateral ajusta su altura al mismo espacio, también en modo móvil.
+
+Las ventanas de chat usaban `bottom: 16px` y la burbuja podía conservar una
+posición guardada fuera del área visible. Ahora ambas respetan navegación
+y teclado. Un ResizeObserver actualiza los límites cuando cambia el inset
+nativo, incluso sin un evento resize de ventana.
+
+Con el mismo viewport 1280 × 800 y tres botones se midió, en la superficie
+de prueba del APK: navegación 744–800, pie 696–744, formato 648–696 y borde
+inferior del chat y su burbuja en 728. La prueba de navegador usa los hooks,
+componentes y cálculos de producción; simula también teclado y taskbar de
+96 px. Los datos de notas se sustituyen por fixtures; no es un despliegue.
+
+### Adjuntos y cámara
+
+El compositor usa `ChatAttachMenu` de `@runly/ui`, con cámara, galería y
+archivos separados. Galería y archivos permiten selección múltiple. Los
+inputs permanecen montados aunque el selector nativo quite el foco al menú.
+El input anterior ya declaraba `multiple`; no se atribuye el fallo observado
+en Samsung a una ausencia de ese atributo.
+
+En el selector nativo del emulador se marcaron dos fotos, la primera no
+cerró el selector y la confirmación entregó dos File juntos. Los mosaicos
+de adjuntos y referencias ahora usan hasta 352 px de ancho y proporciones
+adaptadas a la cantidad, en lugar de miniaturas de 220 px y alturas fijas.
+
+La cámara sí reprodujo un fallo nativo: Wry resolvía IMAGE_CAPTURE como
+no disponible y abría el selector de archivos, aunque había una cámara
+instalada. Faltaban las consultas de captura en AndroidManifest.xml para
+la visibilidad de paquetes de Android 11+. Tras añadir IMAGE_CAPTURE y
+VIDEO_CAPTURE, se recompiló el APK local, se abrió la cámara nativa y se
+confirmó una foto que llegó al compositor. Este cambio del manifiesto
+requiere un APK nuevo; no modifica el APK publicado 1.2.5.
 
 ## Primera conexión a una instancia
 

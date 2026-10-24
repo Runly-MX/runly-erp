@@ -11,6 +11,6 @@ export function noteToolbarPlacement({ coarse, viewing, keyboard }) {
     barVisible,
     // Also clear short IME/handwriting strips that do not cross the full
     // keyboard-height threshold, as well as the Android system bars.
-    barBottom: `max(${viewportInset}px, var(--sab, 0px))`,
+    barBottom: `max(${viewportInset}px, calc(var(--sab, 0px) + var(--shell-footer-height, 0px)))`,
   }
 }
