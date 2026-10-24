@@ -3,11 +3,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
   Button, Skeleton, ErrorState, ConfirmDialog, AssistantWordmark, SelectField,
 } from "@runly/ui";
-import { ClipboardList, Copy, Download, RefreshCw, Sparkles } from "lucide-react";
+import { ClipboardList, Copy, Download, NotebookPen, RefreshCw, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../auth/AuthProvider";
 import { toast } from "sonner";
 import { useTranscript, useRetryTranscript, useRegenerateTranscript } from "../hooks/useConversationTranscripts";
 import { copyTranscriptToClipboard, downloadTranscriptPdf } from "../lib/transcriptExport";
 import { formatTimestamp, speakerColor } from "../lib/transcriptDisplay";
+import { saveHtmlAsNote, transcriptToHtml } from "../lib/transcriptNote";
 import { TranscriptAnalysisDialog } from "./TranscriptAnalysisDialog";
 import { TranscriptDocumentsDialog } from "./TranscriptDocumentsDialog";
 
@@ -154,6 +157,8 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(false);
   const transcript = data?.data ?? data;
+  const { session } = useAuth();
+  const navigate = useNavigate();
 
   async function handleCopy() {
     try {
@@ -161,6 +166,15 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
       toast.success("Transcripción copiada.");
     } catch (err) {
       toast.error(err?.message ?? "No se pudo copiar la transcripción.");
+    }
+  }
+
+  async function handleSaveNote() {
+    try {
+      const note = await saveHtmlAsNote({ token: session.access_token, title: callTitle || "Transcripción de llamada", html: transcriptToHtml(transcript) });
+      toast.success("Guardada como nota.", { action: { label: "Abrir", onClick: () => navigate(`/app/m/runly.notes?note=${note.id}`) } });
+    } catch (err) {
+      toast.error(err?.message ?? "No se pudo guardar la nota.");
     }
   }
 
@@ -248,6 +262,10 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
               <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
                 <Download className="h-3.5 w-3.5" />
                 Descargar PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleSaveNote} title="Guardar una copia como nota: las grabaciones y transcripciones caducan">
+                <NotebookPen className="h-3.5 w-3.5" />
+                Guardar como nota
               </Button>
               <Button variant="outline" size="sm" onClick={() => setDocumentsOpen(true)}>
                 <ClipboardList className="h-3.5 w-3.5" />

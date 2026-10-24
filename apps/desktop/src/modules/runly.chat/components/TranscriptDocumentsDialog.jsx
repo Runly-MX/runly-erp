@@ -2,10 +2,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
   Button, ProgressBar, ErrorState, Skeleton,
 } from "@runly/ui";
-import { ClipboardList, Download, FileText, Loader2, RefreshCw } from "lucide-react";
+import { ClipboardList, Download, FileText, Loader2, NotebookPen, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../auth/AuthProvider";
 import { useTranscriptDocuments, useCreateTranscriptDocument } from "../hooks/useConversationTranscripts";
 import { downloadTranscriptDocumentPdf } from "../lib/transcriptDocumentPdf";
+import { documentToHtml, saveHtmlAsNote } from "../lib/transcriptNote";
 
 const KINDS = [
   {
@@ -24,7 +27,7 @@ const KINDS = [
 
 function unwrap(r) { return r?.data ?? r; }
 
-function DocumentCard({ spec, document, busy, onGenerate, onDownload }) {
+function DocumentCard({ spec, document, busy, onGenerate, onDownload, onSaveNote }) {
   const Icon = spec.icon;
   const processing = document?.status === "PROCESSING";
   const ready = document?.status === "READY";
@@ -41,6 +44,12 @@ function DocumentCard({ spec, document, busy, onGenerate, onDownload }) {
           <p className="text-xs text-[hsl(var(--muted-foreground))]">{spec.description}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {ready && (
+            <Button size="sm" variant="outline" onClick={() => onSaveNote(document, spec.title)} title="Guardar una copia como nota: las grabaciones y transcripciones caducan">
+              <NotebookPen className="h-3.5 w-3.5" />
+              Guardar como nota
+            </Button>
+          )}
           {ready && (
             <Button size="sm" onClick={() => onDownload(document)}>
               <Download className="h-3.5 w-3.5" />
@@ -79,6 +88,8 @@ export function TranscriptDocumentsDialog({ transcriptId, open, onOpenChange, ca
   const { data, isLoading, isError, refetch } = useTranscriptDocuments(transcriptId, open);
   const create = useCreateTranscriptDocument(transcriptId);
   const documents = unwrap(data) ?? [];
+  const { session } = useAuth();
+  const navigate = useNavigate();
 
   async function handleGenerate(kind) {
     try {
@@ -93,6 +104,16 @@ export function TranscriptDocumentsDialog({ transcriptId, open, onOpenChange, ca
       await downloadTranscriptDocumentPdf(document, { callTitle });
     } catch (err) {
       toast.error(err?.message ?? "No se pudo generar el PDF.");
+    }
+  }
+
+  async function handleSaveNote(document, label) {
+    try {
+      const subject = (callTitle || "").replace(/^Transcripción\s+—\s+/, "") || "Reunión";
+      const note = await saveHtmlAsNote({ token: session.access_token, title: `${label} — ${subject}`, html: documentToHtml(document) });
+      toast.success("Guardado como nota.", { action: { label: "Abrir", onClick: () => navigate(`/app/m/runly.notes?note=${note.id}`) } });
+    } catch (err) {
+      toast.error(err?.message ?? "No se pudo guardar la nota.");
     }
   }
 
@@ -116,6 +137,7 @@ export function TranscriptDocumentsDialog({ transcriptId, open, onOpenChange, ca
               busy={create.isPending}
               onGenerate={handleGenerate}
               onDownload={handleDownload}
+              onSaveNote={handleSaveNote}
             />
           ))}
         </div>
