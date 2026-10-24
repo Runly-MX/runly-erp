@@ -21,13 +21,17 @@ export function EntityStatusChip({ reference }) {
 // Live preview of a connector record (hover on desktop, tap on touch). The
 // card snapshot stored with a message can be stale, so it is refetched; the
 // snapshot (if any) shows instantly meanwhile.
-export function EntityPreviewContent({ entityType, recordId, snapshot = null, onNavigate }) {
+// `loadPreview` lets another module (notes) use its own permission-aware endpoint
+// instead of the chat one; its results are cached under a separate key.
+export function EntityPreviewContent({ entityType, recordId, snapshot = null, onNavigate, loadPreview = null }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const navigate = useNavigate();
   const query = useQuery({
-    queryKey: ["chat-entity-preview", entityType, recordId],
-    queryFn: async () => (await runly.chat.previewEntity(entityType, recordId, token))?.data ?? null,
+    queryKey: [loadPreview ? "entity-preview-custom" : "chat-entity-preview", entityType, recordId],
+    queryFn: async () => (loadPreview
+      ? (await loadPreview(token))?.data ?? null
+      : (await runly.chat.previewEntity(entityType, recordId, token))?.data ?? null),
     enabled: Boolean(token && entityType && recordId),
     staleTime: 60_000,
     retry: false,

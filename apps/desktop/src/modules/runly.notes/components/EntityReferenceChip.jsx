@@ -5,6 +5,7 @@ import { Link2, Lock } from 'lucide-react'
 import { Skeleton } from '@runly/ui'
 import { NoteInteractionContext } from './NoteInteractionContext.js'
 import { useResolvedReference } from '../hooks/useRelationTargets.js'
+import { runly } from '../../../lib/runly'
 import { useEntityBranding } from '../../runly.chat/hooks/useEntityBranding'
 import { EntityPreviewPopover } from '../../runly.chat/components/EntityPreviewPopover'
 
@@ -58,7 +59,11 @@ export function EntityReferenceChip({ node, selected }) {
     )
   } else {
     body = (
-      <EntityPreviewPopover entityType={entityType} recordId={recordId}>
+      <EntityPreviewPopover
+        entityType={entityType}
+        recordId={recordId}
+        loadPreview={(token) => runly.relationTargets.preview(entityType, recordId, token)}
+      >
         <span
           role="link"
           tabIndex={0}

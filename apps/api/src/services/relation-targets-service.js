@@ -183,6 +183,16 @@ export function createRelationTargetsService({ prisma, supabaseAdmin = null, ser
     return new Map(resolved.map((ref) => [String(ref.recordId), { title: ref.title, subtitle: ref.subtitle ?? null, url: ref.url ?? null }]));
   }
 
+  // Full card (title, subtitle, details, status, url) of one record for hover
+  // previews. Same per-type permission and visibility as resolve; null when the
+  // viewer cannot see it or it does not exist.
+  async function preview({ authUserId, companyId, type, id }) {
+    targetOf(type);
+    if (!companyId || !id) return null;
+    const [card] = await references.resolveReferences({ authUserId, companyId, refs: [{ entityType: type, recordId: String(id) }], limit: 1 });
+    return card ?? null;
+  }
+
   // moduleContext.relations for RME3 modules (bound to the Hono context).
   function capability() {
     return {
@@ -190,5 +200,5 @@ export function createRelationTargetsService({ prisma, supabaseAdmin = null, ser
     };
   }
 
-  return { catalog, search, resolve, capability };
+  return { catalog, search, resolve, preview, capability };
 }

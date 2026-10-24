@@ -2801,6 +2801,10 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/relation-targets/${encodeURIComponent(type)}/search${toQueryString({ search, pageSize: 20 })}`, {
           headers: withAuthHeaders(token),
         }),
+      preview: (type, id, token) =>
+        request(`/relation-targets/${encodeURIComponent(type)}/${encodeURIComponent(id)}/preview`, {
+          headers: withAuthHeaders(token),
+        }),
       resolve: (type, ids, token) =>
         request(`/relation-targets/${encodeURIComponent(type)}/resolve`, {
           method: "POST",

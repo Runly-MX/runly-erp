@@ -59,3 +59,11 @@ test("inventory_item search passes the actor's inventory area scope to listItems
   assert.equal(received, scope);
   assert.deepEqual(found, [{ id: "i1", title: "Laptop", subtitle: "A-1" }]);
 });
+
+test("preview returns the full card for a visible record and null otherwise", async () => {
+  const { service } = setup();
+  const card = await service.preview({ authUserId: "a1", companyId: "co1", type: "vehicle", id: "v1" });
+  assert.equal(card.title, "ABC-123");
+  assert.equal(await service.preview({ authUserId: "a1", companyId: "co1", type: "vehicle", id: "nope" }), null);
+  await assert.rejects(service.preview({ authUserId: "a1", companyId: "co1", type: "nave", id: "v1" }), { status: 404 });
+});

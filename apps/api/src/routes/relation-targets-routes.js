@@ -57,5 +57,22 @@ export function createRelationTargetsRouter({ relationTargets, requirePermission
     }
   });
 
+  // Hover preview of one record (notes and other consumers that cannot rely on
+  // the chat permission). Per-type permission is enforced by resolveReferences.
+  app.get("/relation-targets/:type/:id/preview", requireAnyPermission(ANY_TARGET_PERMISSION), async (c) => {
+    try {
+      const data = await relationTargets.preview({
+        authUserId: c.get("authUserId"),
+        companyId: c.get("companyId"),
+        type: c.req.param("type"),
+        id: c.req.param("id"),
+      });
+      if (!data) return c.json({ error: "Registro no disponible." }, 404);
+      return c.json({ data });
+    } catch (error) {
+      return fail(c, error, "No se pudo cargar la vista previa.");
+    }
+  });
+
   return app;
 }

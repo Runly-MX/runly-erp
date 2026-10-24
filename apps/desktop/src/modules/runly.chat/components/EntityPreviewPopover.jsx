@@ -6,7 +6,7 @@ import { ChatThemeScope } from "./ChatThemeScope";
 // Wraps any connector chip/card: hover opens the preview on desktop, a tap
 // opens it on touch (the preview's "Abrir" button then navigates). On desktop
 // a plain click still runs the child's own action (navigate).
-export function EntityPreviewPopover({ entityType, recordId, snapshot, children }) {
+export function EntityPreviewPopover({ entityType, recordId, snapshot, loadPreview = null, children }) {
   const coarse = useCoarsePointer();
   const [open, setOpen] = useState(false);
   const timer = useRef(null);
@@ -37,7 +37,7 @@ export function EntityPreviewPopover({ entityType, recordId, snapshot, children 
       >
         {open ? (
           <ChatThemeScope>
-            <EntityPreviewContent entityType={entityType} recordId={recordId} snapshot={snapshot} onNavigate={() => setOpen(false)} />
+            <EntityPreviewContent entityType={entityType} recordId={recordId} snapshot={snapshot} loadPreview={loadPreview} onNavigate={() => setOpen(false)} />
           </ChatThemeScope>
         ) : null}
       </PopoverContent>
