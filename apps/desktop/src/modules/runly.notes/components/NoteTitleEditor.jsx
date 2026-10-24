@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { Shapes } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent } from '@runly/ui'
 import { NoteIcon } from '../noteIcons.jsx'
+import { noteAccentColor } from '../lib/noteColors.js'
+import { useIsDark } from '../hooks/useIsDark.js'
 import { NoteIconPickerContent } from './NoteIconPicker.jsx'
 
 // Inline icon + title editor for the Panel 2 header. Click the icon to pick one,
 // click the title to rename (Enter / blur commits, Esc cancels). Used for canvas
 // notes, which — unlike document notes — have no in-editor title/icon.
 export function NoteTitleEditor({ note, onUpdate }) {
+  const isDark = useIsDark()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(note?.title ?? '')
   const inputRef = useRef(null)
@@ -36,7 +39,7 @@ export function NoteTitleEditor({ note, onUpdate }) {
             className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center hover:bg-muted transition-colors"
           >
             {note?.icon ? (
-              <NoteIcon name={note.icon} size={14} className="text-amber-500" />
+              <NoteIcon name={note.icon} size={14} className="text-amber-500" color={noteAccentColor(note.background_color, isDark)} />
             ) : (
               <Shapes size={14} className="text-muted-foreground" />
             )}

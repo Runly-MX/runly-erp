@@ -9,6 +9,7 @@ import { NotebookPen, ListTree } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useIsDark } from '../hooks/useIsDark.js'
+import { noteAccentColor } from '../lib/noteColors.js'
 import { useCommitRefValue } from '../hooks/useCommitRefValue.js'
 import { useNoteSaveOnUnmount } from '../hooks/useNoteSaveOnUnmount.js'
 import { NoteSheet } from './NoteSheet.jsx'
@@ -223,6 +224,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
   const ydoc = engine?.ydoc ?? null
   const provider = engine?.provider ?? null
   const isDark = useIsDark()
+  const accent = noteAccentColor(note?.background_color, isDark)
 
   const rawKeyboardInset = useKeyboardInset()
   const keyboardInset = viewing ? 0 : rawKeyboardInset
@@ -663,7 +665,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
             >
               {viewing ? (
                 <div className="w-10 h-10 flex items-center justify-center">
-                  <NoteIcon name={note.icon || 'NotebookPen'} size={22} className="text-amber-500" />
+                  <NoteIcon name={note.icon || 'NotebookPen'} size={22} className="text-amber-500" color={accent} />
                 </div>
               ) : (
                 <Popover>
@@ -673,8 +675,8 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
                       title="Seleccionar icono"
                     >
                       {note.icon
-                        ? <NoteIcon name={note.icon || 'NotebookPen'} size={22} className="text-amber-500" />
-                        : <NotebookPen className="w-5 h-5 text-muted-foreground/50" />
+                        ? <NoteIcon name={note.icon || 'NotebookPen'} size={22} className="text-amber-500" color={accent} />
+                        : <NotebookPen className="w-5 h-5 text-muted-foreground/50" style={accent ? { color: accent, opacity: 0.6 } : undefined} />
                       }
                     </button>
                   </PopoverTrigger>

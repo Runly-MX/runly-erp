@@ -9,7 +9,7 @@ import {
 } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { NoteIcon } from '../noteIcons.jsx'
-import { DARK_BG_MAP } from '../lib/noteColors.js'
+import { DARK_BG_MAP, noteAccentColor } from '../lib/noteColors.js'
 import { NoteEditor } from './NoteEditor.jsx'
 import { NoteTitleEditor } from './NoteTitleEditor.jsx'
 import { ZoomControl } from './ZoomControl.jsx'
@@ -88,7 +88,7 @@ export function NoteEditorPanel({
         ) : (
           <span className="flex-1 flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground truncate">
             {note?.icon && (
-              <NoteIcon name={note.icon} size={13} className="text-amber-500 shrink-0" />
+              <NoteIcon name={note.icon} size={13} className="text-amber-500 shrink-0" color={noteAccentColor(note.background_color, isDark)} />
             )}
             {note ? (note.title || 'Sin titulo') : ''}
           </span>

@@ -1,11 +1,13 @@
 import { ChevronRight } from 'lucide-react'
 import { NoteIcon } from '../noteIcons.jsx'
+import { noteAccentColor } from '../lib/noteColors.js'
+import { useIsDark } from '../hooks/useIsDark.js'
 
-function Crumb({ icon, title, onClick, current = false, className = '' }) {
+function Crumb({ icon, title, onClick, current = false, className = '', color }) {
   const label = title || 'Sin titulo'
   const content = (
     <>
-      {icon ? <NoteIcon name={icon} size={13} className="shrink-0 text-amber-500" /> : null}
+      {icon ? <NoteIcon name={icon} size={13} className="shrink-0 text-amber-500" color={color} /> : null}
       <span className="truncate">{label}</span>
     </>
   )
@@ -28,6 +30,7 @@ function Crumb({ icon, title, onClick, current = false, className = '' }) {
 // root note unless the current title is requested. On narrow screens only the
 // closest ancestor is shown; the rest collapse into an ellipsis.
 export function NoteBreadcrumb({ note, ancestors, onOpenNote, showCurrent = true }) {
+  const isDark = useIsDark()
   if (!note || !ancestors?.length) return null
   const lastIndex = ancestors.length - 1
 
@@ -36,11 +39,11 @@ export function NoteBreadcrumb({ note, ancestors, onOpenNote, showCurrent = true
       {ancestors.length > 1 && <span className="px-1 sm:hidden" aria-hidden="true">...</span>}
       {ancestors.map((ancestor, index) => (
         <span key={ancestor.id} className={`flex min-w-0 items-center gap-0.5 ${index === lastIndex ? '' : 'hidden sm:flex'}`}>
-          <Crumb icon={ancestor.icon} title={ancestor.title} onClick={() => onOpenNote?.(ancestor.id)} />
+          <Crumb icon={ancestor.icon} title={ancestor.title} color={noteAccentColor(ancestor.background_color, isDark)} onClick={() => onOpenNote?.(ancestor.id)} />
           <ChevronRight size={12} className="shrink-0" aria-hidden="true" />
         </span>
       ))}
-      {showCurrent && <Crumb icon={note.icon} title={note.title} current />}
+      {showCurrent && <Crumb icon={note.icon} title={note.title} color={noteAccentColor(note.background_color, isDark)} current />}
     </nav>
   )
 }

@@ -1,6 +1,8 @@
 import { FilePlus2, Loader2 } from 'lucide-react'
 import { ErrorState, Skeleton, Tooltip, TooltipContent, TooltipTrigger } from '@runly/ui'
 import { NoteIcon } from '../noteIcons.jsx'
+import { noteAccentColor } from '../lib/noteColors.js'
+import { useIsDark } from '../hooks/useIsDark.js'
 import { useSubpages } from '../hooks/useSubpages.js'
 import { MAX_DEPTH_HINT } from '../lib/subpages.js'
 
@@ -10,6 +12,7 @@ const CHIP = 'flex h-8 [@media(pointer:coarse)]:h-11 shrink-0 items-center gap-1
 // "Subpagina" action. `canCreate` is false for the trash and read-only views
 // (the chips still show); `depthBlocked` disables the action at level 3.
 export function SubpagesStrip({ note, canCreate, depthBlocked, creating, onOpenNote, onCreate }) {
+  const isDark = useIsDark()
   const { children, isLoading, isError, refetch } = useSubpages(note?.id)
   if (!note || (!canCreate && !isLoading && !children.length)) return null
 
@@ -50,7 +53,7 @@ export function SubpagesStrip({ note, canCreate, depthBlocked, creating, onOpenN
             onClick={() => onOpenNote?.(child.id)}
             className={`${CHIP} max-w-48 text-foreground hover:bg-muted`}
           >
-            {child.icon ? <NoteIcon name={child.icon} size={13} className="shrink-0 text-amber-500" /> : null}
+            {child.icon ? <NoteIcon name={child.icon} size={13} className="shrink-0 text-amber-500" color={noteAccentColor(child.background_color, isDark)} /> : null}
             <span className="truncate">{child.title || 'Sin titulo'}</span>
           </button>
         ))

@@ -6,7 +6,7 @@ import {
 } from '@runly/ui'
 import { NoteIcon } from '../noteIcons.jsx'
 import { extractPreview } from '../lib/notePreview.js'
-import { NOTE_BACKGROUND_COLORS, DARK_BG_MAP } from '../lib/noteColors.js'
+import { NOTE_BACKGROUND_COLORS, DARK_BG_MAP, noteAccentColor } from '../lib/noteColors.js'
 
 const LONG_PRESS_MS = 500
 const MOVE_TOLERANCE_PX = 8
@@ -93,7 +93,7 @@ export function NoteGridCard({
       <div className="p-3 pr-11">
         <div className="flex items-start gap-1.5">
           {note.icon ? (
-            <NoteIcon name={note.icon} size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
+            <NoteIcon name={note.icon} size={14} className="mt-0.5 shrink-0 text-muted-foreground" color={noteAccentColor(raw, isDark)} />
           ) : note.note_type === 'canvas' ? (
             <Shapes size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
           ) : null}
