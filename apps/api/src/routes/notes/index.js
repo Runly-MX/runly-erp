@@ -5,6 +5,7 @@ import { createTagsService } from './tags-service.js'
 import { createSharesService } from './shares-service.js'
 import { createYDocService } from './ydoc-service.js'
 import { createCanvasService } from './canvas-service.js'
+import { ALLOWED_TYPES, createNoteReferencesService } from './references-service.js'
 import { withResourceInvitationAccess } from '../../services/resource-invitation-access.js'
 
 export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster, notificationService }) {
@@ -16,6 +17,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   const shares = createSharesService({ prisma, broadcaster, notificationService })
   const ydoc = createYDocService({ prisma })
   const canvas = createCanvasService({ prisma })
+  const references = createNoteReferencesService({ prisma })
 
   // ----------------------------------------------------------------
   // All /notes/* routes — dedicated internal router with auth
@@ -238,6 +240,23 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       const { userId } = getAuth(c)
       const users = await shares.listShareableUsers(userId, c.req.query('search') ?? null, c.get('companyId'))
       return c.json({ users })
+    } catch (e) {
+      return c.json({ error: e.message }, e.status ?? 500)
+    }
+  })
+
+  // GET /notes/by-record?entityType=&recordId= — backlinks: accessible notes that
+  // reference a record. Registered BEFORE /:id.
+  internal.get('/by-record', requirePermission('notes.notes.read'), async (c) => {
+    try {
+      const { userId, companyId } = getAuth(c)
+      const { entityType, recordId } = c.req.query()
+      if (!ALLOWED_TYPES.includes(entityType)) return c.json({ error: 'Tipo de registro no valido.' }, 400)
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(recordId ?? '')) {
+        return c.json({ error: 'Registro no valido.' }, 400)
+      }
+      const rows = await references.listNotesByRecord({ userId, companyId, entityType, recordId })
+      return c.json({ notes: rows })
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)
     }

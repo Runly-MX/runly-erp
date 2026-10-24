@@ -2794,7 +2794,25 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           body: JSON.stringify({ items }),
         }),
     },
+    // Entity pickers/labels shared with Builder relations (per-type permission,
+    // company scope and visibility are enforced by the API).
+    relationTargets: {
+      search: (type, search, token) =>
+        request(`/relation-targets/${encodeURIComponent(type)}/search${toQueryString({ search, pageSize: 20 })}`, {
+          headers: withAuthHeaders(token),
+        }),
+      resolve: (type, ids, token) =>
+        request(`/relation-targets/${encodeURIComponent(type)}/resolve`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ ids }),
+        }),
+    },
     notes: {
+      byRecord: ({ entityType, recordId }, token) =>
+        request(`/notes/by-record${toQueryString({ entityType, recordId })}`, {
+          headers: withAuthHeaders(token),
+        }),
       list: (params, token) =>
         request(`/notes${toQueryString(params)}`, {
           headers: withAuthHeaders(token),

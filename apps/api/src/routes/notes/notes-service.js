@@ -1,4 +1,5 @@
 import { createFoldersService } from './folders-service.js';
+import { createNoteReferencesService } from './references-service.js';
 
 export class NotesServiceError extends Error {
   constructor(message, status = 400) {
@@ -43,6 +44,7 @@ export function hasNoteChanges(current, data) {
 
 export function createNotesService({ prisma, broadcaster = null }) {
   const folders = createFoldersService({ prisma });
+  const references = createNoteReferencesService({ prisma });
   // ------------------------------------------------------------------
   // Internal helpers
   // ------------------------------------------------------------------
@@ -439,6 +441,15 @@ export function createNotesService({ prisma, broadcaster = null }) {
       throw new NotesServiceError("Nota no encontrada.", 404);
     }
     if (!changed) return rows[0];
+
+    // Keep the backlinks index in sync; a failure here must never fail the save.
+    if (typeof data.content === "string") {
+      try {
+        await references.syncReferences({ noteId, companyId: rows[0].company_id, html: data.content });
+      } catch (syncErr) {
+        console.warn('[notes] reference sync failed after updateNote:', syncErr?.message ?? syncErr);
+      }
+    }
 
     // Broadcast to every collaborator so metadata (cover, icon, background,
     // title, folder...) shows up live for them — the note body syncs through
