@@ -4,7 +4,7 @@ import {
   Undo2, Redo2, Link2, PenLine, Table2, ChevronDown, ExternalLink, Unlink,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Code, Code2, List, ListOrdered, ListChecks,
-  Quote, Type, Highlighter, Image as ImageIcon, Loader2, HelpCircle,
+  Quote, Type, Highlighter, Image as ImageIcon, Loader2, HelpCircle, SeparatorHorizontal,
 } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent, ImageSourceSheet, useCoarsePointer } from '@runly/ui'
 import { useIsDark } from '../hooks/useIsDark.js'
@@ -351,6 +351,12 @@ export function NoteToolbar({ noteId, token }) {
         title="Insertar canvas de dibujo"
       >
         <PenLine className="w-3.5 h-3.5" />
+      </ToolbarButton>
+      <ToolbarButton
+        onClick={() => editor.chain().focus().setPageBreak().run()}
+        title="Salto de pagina (Ctrl+Enter)"
+      >
+        <SeparatorHorizontal className="w-3.5 h-3.5" />
       </ToolbarButton>
       <Popover open={linkOpen} onOpenChange={open => {
         setLinkOpen(open)

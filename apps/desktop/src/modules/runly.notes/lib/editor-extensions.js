@@ -17,6 +17,8 @@ import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import { SlashCommand } from './extensions/SlashCommand.jsx'
 import { TrailingNode } from './extensions/TrailingNode.js'
 import { CompositionGuard } from './extensions/CompositionGuard.js'
+import { PageBreak } from './extensions/PageBreak.js'
+import { TableOfContents } from './extensions/TableOfContents.jsx'
 import { bodyPlaceholderText } from './placeholderText.js'
 
 // TipTap only installs column resizing when initially editable. Notes open
@@ -127,6 +129,8 @@ export function buildExtensions({
         }),
     }),
     TrailingNode,
+    PageBreak,
+    TableOfContents,
   ]
 
   if (!readOnly) {

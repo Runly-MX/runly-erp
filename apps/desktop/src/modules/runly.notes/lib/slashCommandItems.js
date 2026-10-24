@@ -1,6 +1,6 @@
 import {
   Heading1, Heading2, Heading3, List, ListOrdered, ListChecks,
-  Quote, Code2, Table2, ImagePlus, PenLine,
+  Quote, Code2, Table2, ImagePlus, PenLine, ListTree, SeparatorHorizontal,
 } from 'lucide-react'
 import { pickAndUploadNoteImage } from './noteImageUpload.js'
 
@@ -36,6 +36,10 @@ export function buildSlashItems({ noteId, token, getToken }) {
       run: (editor, range) => { editor.chain().focus().deleteRange(range).run(); pickAndUploadNoteImage({ editor, noteId, token: getToken ? getToken() : token }) } },
     { title: 'Canvas de dibujo', icon: PenLine, keywords: ['drawing', 'dibujo', 'canvas'], allowedInTable: true,
       run: (editor, range) => editor.chain().focus().deleteRange(range).insertDrawingBlock().run() },
+    { title: 'Tabla de contenido', icon: ListTree, keywords: ['toc', 'contenido', 'indice'],
+      run: (editor, range) => editor.chain().focus().deleteRange(range).insertTableOfContents().run() },
+    { title: 'Salto de pagina', icon: SeparatorHorizontal, keywords: ['page', 'pagina', 'salto', 'break'],
+      run: (editor, range) => editor.chain().focus().deleteRange(range).setPageBreak().run() },
   ]
 }
 
