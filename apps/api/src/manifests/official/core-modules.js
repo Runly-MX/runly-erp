@@ -1550,6 +1550,7 @@ export const notesMap = createModuleManifest({
     { label: 'Todas las notas', path: '/notes',        icon: 'NotebookPen', layout: 'main', permissionKey: 'notes.notes.read' },
     { label: 'Recientes',       path: '/notes/recent', icon: 'Clock',       layout: 'main', permissionKey: 'notes.notes.read' },
     { label: 'Compartidas',     path: '/notes/shared', icon: 'Users',       layout: 'main', permissionKey: 'notes.shares.read' },
+    { label: 'Archivo',         path: '/notes/archive', icon: 'Archive',     layout: 'main', permissionKey: 'notes.notes.read' },
     { label: 'Papelera',        path: '/notes/trash',  icon: 'Trash2',      layout: 'main', permissionKey: 'notes.notes.read' },
   ],
   acl: {

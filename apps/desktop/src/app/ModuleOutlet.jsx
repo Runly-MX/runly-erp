@@ -398,6 +398,7 @@ const SCREEN_MAP = {
   "runly.notes:/notes": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
   "runly.notes:/notes/recent": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
   "runly.notes:/notes/shared": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
+  "runly.notes:/notes/archive": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
   "runly.notes:/notes/trash": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
   // runly.inventory
   "runly.inventory:/": lazy(

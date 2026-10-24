@@ -236,6 +236,7 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     if (subPath === "/" || subPath === "/notes") return screenMap["runly.notes:/notes"] ?? null;
     if (subPath === "/notes/recent") return screenMap["runly.notes:/notes/recent"] ?? null;
     if (subPath === "/notes/shared") return screenMap["runly.notes:/notes/shared"] ?? null;
+    if (subPath === "/notes/archive") return screenMap["runly.notes:/notes/archive"] ?? null;
     if (subPath === "/notes/trash")  return screenMap["runly.notes:/notes/trash"]  ?? null;
     return null;
   }

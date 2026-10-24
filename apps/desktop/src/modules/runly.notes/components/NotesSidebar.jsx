@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { FileText, Clock, Users, Trash2, Folder, FolderPlus, Plus, X } from 'lucide-react'
+import { FileText, Clock, Users, Archive, Trash2, Folder, FolderPlus, Plus, X } from 'lucide-react'
 import { useNoteFolders, useCreateNoteFolder } from '../hooks/useNoteFolders.js'
 
 const NAV_ITEMS = [
   { id: 'all',    label: 'Todas las notas', Icon: FileText },
   { id: 'recent', label: 'Recientes',        Icon: Clock },
   { id: 'shared', label: 'Compartidas',      Icon: Users },
+  { id: 'archive', label: 'Archivo',         Icon: Archive },
   { id: 'trash',  label: 'Papelera',         Icon: Trash2 },
 ]
 
