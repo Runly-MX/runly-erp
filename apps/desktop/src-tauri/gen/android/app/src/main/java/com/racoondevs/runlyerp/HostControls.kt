@@ -47,6 +47,8 @@ object HostControls {
               val light = dark != "true"
               if (barsController.isAppearanceLightStatusBars != light) {
                 barsController.isAppearanceLightStatusBars = light
+              }
+              if (barsController.isAppearanceLightNavigationBars != light) {
                 barsController.isAppearanceLightNavigationBars = light
               }
             }

@@ -172,7 +172,10 @@ const SheetContent = forwardRef(function SheetContent(
         {/* Phone bottom sheets are dismissed by dragging the handle, so the X
             would only steal room from the header. */}
         {!(isBottom && isMobile) && (
-          <SheetPrimitive.Close className="absolute right-4 top-4 z-20 rounded-lg p-1 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40">
+          <SheetPrimitive.Close
+            className="absolute right-4 top-4 z-20 rounded-lg p-1 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40"
+            style={!isBottom ? { top: "calc(1rem + var(--sat))" } : undefined}
+          >
             <X className="h-4 w-4" />
             <span className="sr-only">Cerrar</span>
           </SheetPrimitive.Close>
