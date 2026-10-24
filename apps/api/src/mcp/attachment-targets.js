@@ -193,7 +193,7 @@ export function createAttachmentTargets({ prisma }) {
     if (spec.type === 'projects.task') link = `/app/m/runly.projects?open=task:${spec.id}&project=${snapshot.projectId}`;
     if (spec.type === 'projects.project') link = `/app/m/runly.projects?project=${spec.id}`;
     if (spec.type === 'catalog.product') link = `/app/m/runly.catalog/${spec.id}`;
-    if (spec.type === 'notes.note') link = `/app/m/runly.notes?noteId=${spec.id}`;
+    if (spec.type === 'notes.note') link = `/app/m/runly.notes?note=${spec.id}`;
     if (spec.type === 'calendar.event') link = `/app/m/runly.calendar?eventId=${spec.id}`;
     if (spec.type === 'ledger.account' || spec.type === 'ledger.transaction') link = `/app/m/runly.ledger/accounts/${spec.type === 'ledger.account' ? spec.id : row.accountId}`;
     if (spec.type === 'files.file' || spec.type === 'documents.file') link = `/app/m/runly.files?fileId=${spec.id}`;

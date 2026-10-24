@@ -23,7 +23,7 @@
 // create/rename/move/delete never touch `content`, so they carry no such risk.
 import { z } from "zod";
 
-const LINK = (id) => `/app/m/runly.notes?noteId=${id}`;
+const LINK = (id) => `/app/m/runly.notes?note=${id}`;
 
 const createArgs = z.object({
   title: z.string().trim().max(200).optional(),
