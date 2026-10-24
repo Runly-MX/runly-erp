@@ -6,6 +6,7 @@ import { createSharesService } from './shares-service.js'
 import { createYDocService } from './ydoc-service.js'
 import { createCanvasService } from './canvas-service.js'
 import { ALLOWED_TYPES, createNoteReferencesService } from './references-service.js'
+import { isUuid } from './subpages.js'
 import { withResourceInvitationAccess } from '../../services/resource-invitation-access.js'
 
 export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster, notificationService }) {
@@ -202,10 +203,12 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   internal.get('/', requirePermission('notes.notes.read'), async (c) => {
     try {
       const { userId } = getAuth(c)
-      const { folderId, tagId, q, archived, trashed, shared, page, pageSize } = c.req.query()
+      const { folderId, parentId, tagId, q, archived, trashed, shared, page, pageSize } = c.req.query()
+      if (parentId && !isUuid(parentId)) return c.json({ error: 'Nota padre no valida.' }, 400)
       const notesList = await notes.listNotes({ companyId: c.get('companyId'),
         userId,
         folderId: folderId || undefined,
+        parentId: parentId || undefined,
         tagId: tagId || undefined,
         q: q || undefined,
         archived: archived === 'true' ? true : archived === 'false' ? false : undefined,
@@ -225,8 +228,9 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     try {
       const { userId, companyId } = getAuth(c)
       const body = await c.req.json()
-      const { title, content, folderId, icon, backgroundColor, noteType } = body
-      const note = await notes.createNote({ userId, companyId, title, content, folderId, icon, backgroundColor, noteType })
+      const { title, content, folderId, parentId, icon, backgroundColor, noteType } = body
+      if (parentId != null && !isUuid(parentId)) return c.json({ error: 'Nota padre no valida.' }, 400)
+      const note = await notes.createNote({ userId, companyId, title, content, folderId, parentId: parentId ?? undefined, icon, backgroundColor, noteType })
       return c.json({ note }, 201)
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)

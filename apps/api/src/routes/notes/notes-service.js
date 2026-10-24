@@ -1,5 +1,6 @@
 import { createFoldersService } from './folders-service.js';
 import { createNoteReferencesService } from './references-service.js';
+import { exceedsDepth, isUuid, MAX_DEPTH_MESSAGE } from './subpages.js';
 
 export class NotesServiceError extends Error {
   constructor(message, status = 400) {
@@ -98,7 +99,72 @@ export function createNotesService({ prisma, broadcaster = null }) {
   // Create
   // ------------------------------------------------------------------
 
-  async function createNote({ userId, companyId, folderId, title, content, icon, backgroundColor, noteType }) {
+  // Child of an existing note: needs edit access to the parent, inherits its
+  // company and folder, copies its share grants and respects the depth limit.
+  async function createSubpage({ userId, parentId, title, content, icon, backgroundColor, noteType }) {
+    if (!isUuid(parentId)) throw new NotesServiceError("Nota padre no valida.", 400);
+    const access = await assertAccess(parentId, userId, "edit");
+    const [parent] = await prisma.$queryRaw`
+      SELECT id, folder_id, company_id, owner_user_id, is_trashed
+      FROM notes
+      WHERE id = ${parentId}::uuid AND deleted_at IS NULL
+      LIMIT 1
+    `;
+    if (!parent) throw new NotesServiceError("Nota no encontrada.", 404);
+    if (parent.is_trashed) {
+      throw new NotesServiceError("No se puede crear una subpagina en una nota de la papelera.", 422);
+    }
+    const [{ depth }] = await prisma.$queryRaw`
+      WITH RECURSIVE chain AS (
+        SELECT id, parent_note_id, 1 AS lvl FROM notes WHERE id = ${parentId}::uuid
+        UNION ALL
+        SELECT n.id, n.parent_note_id, c.lvl + 1
+        FROM notes n JOIN chain c ON n.id = c.parent_note_id
+        WHERE c.lvl < 10
+      )
+      SELECT COUNT(*)::int AS depth FROM chain
+    `;
+    if (exceedsDepth(depth)) throw new NotesServiceError(MAX_DEPTH_MESSAGE, 422);
+    const type = noteType === 'canvas' ? 'canvas' : 'document';
+
+    return prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw`
+        INSERT INTO notes (
+          owner_user_id, company_id, folder_id, parent_note_id,
+          title, content, icon, background_color, note_type
+        )
+        VALUES (
+          ${userId}::uuid,
+          ${parent.company_id ?? null}::uuid,
+          ${parent.folder_id ?? null}::uuid,
+          ${parentId}::uuid,
+          ${title ?? "Sin titulo"},
+          ${JSON.stringify(content ?? '')}::jsonb,
+          ${icon ?? ''},
+          ${backgroundColor ?? null},
+          ${type}::text
+        )
+        RETURNING *
+      `;
+      const child = rows[0];
+      // The child must be as visible as its parent: same collaborators, plus the
+      // parent's owner when somebody else (an editor) creates the page.
+      await tx.$executeRaw`
+        INSERT INTO note_shares (note_id, shared_with_user_id, shared_by_user_id, permission, external_access)
+        SELECT ${child.id}::uuid, s.shared_with_user_id, s.shared_by_user_id, s.permission, s.external_access
+        FROM note_shares s
+        WHERE s.note_id = ${parentId}::uuid AND s.shared_with_user_id <> ${userId}::uuid
+        UNION ALL
+        SELECT ${child.id}::uuid, ${access.ownerId}::uuid, ${userId}::uuid, 'edit', FALSE
+        WHERE ${access.ownerId}::uuid <> ${userId}::uuid
+        ON CONFLICT (note_id, shared_with_user_id) DO NOTHING
+      `;
+      return child;
+    });
+  }
+
+  async function createNote({ userId, companyId, folderId, parentId, title, content, icon, backgroundColor, noteType }) {
+    if (parentId) return createSubpage({ userId, parentId, title, content, icon, backgroundColor, noteType });
     await folders.assertFolder({ folderId, userId, companyId });
     const type = noteType === 'canvas' ? 'canvas' : 'document';
     const rows = await prisma.$queryRaw`
@@ -184,7 +250,32 @@ export function createNotesService({ prisma, broadcaster = null }) {
       throw new NotesServiceError("Nota no encontrada.", 404);
     }
 
-    return rows[0];
+    const note = rows[0];
+    const ancestors = note.parent_note_id ? await listAncestors(note, userId) : [];
+    return { ...note, ancestors };
+  }
+
+  // Root-first chain of the note's ancestors; stops at the first one the user
+  // cannot access (or that lives in another company).
+  async function listAncestors(note, userId) {
+    return prisma.$queryRaw`
+      WITH RECURSIVE chain AS (
+        SELECT p.id, p.title, p.icon, p.parent_note_id, 1 AS lvl
+        FROM notes p
+        WHERE p.id = ${note.parent_note_id}::uuid
+          AND p.deleted_at IS NULL
+          AND p.company_id IS NOT DISTINCT FROM ${note.company_id ?? null}::uuid
+          AND public.runly_note_user_access(p.id, ${userId}::uuid, false)
+        UNION ALL
+        SELECT p.id, p.title, p.icon, p.parent_note_id, c.lvl + 1
+        FROM notes p JOIN chain c ON p.id = c.parent_note_id
+        WHERE c.lvl < 10
+          AND p.deleted_at IS NULL
+          AND p.company_id IS NOT DISTINCT FROM ${note.company_id ?? null}::uuid
+          AND public.runly_note_user_access(p.id, ${userId}::uuid, false)
+      )
+      SELECT id, title, icon FROM chain ORDER BY lvl DESC
+    `;
   }
 
   // ------------------------------------------------------------------
@@ -195,6 +286,8 @@ export function createNotesService({ prisma, broadcaster = null }) {
     userId,
     companyId,
     folderId,
+    parentId,
+    includeSubpages = false,
     tagId,
     q,
     archived,
@@ -215,7 +308,14 @@ export function createNotesService({ prisma, broadcaster = null }) {
         SELECT
           n.*,
           (n.owner_user_id = ${userId}) AS is_owner,
-          ns_mine.permission              AS my_share_permission
+          ns_mine.permission              AS my_share_permission,
+          (
+            SELECT COUNT(*)::int FROM notes ch
+            WHERE ch.parent_note_id = n.id
+              AND ch.deleted_at IS NULL
+              AND ch.is_trashed = FALSE
+              AND public.runly_note_user_access(ch.id, ${userId}::uuid, false)
+          ) AS child_count
         FROM notes n
         LEFT JOIN note_shares ns_mine
           ON ns_mine.note_id = n.id
@@ -229,6 +329,26 @@ export function createNotesService({ prisma, broadcaster = null }) {
           AND (
             n.owner_user_id = ${userId}
             OR ns_mine.id IS NOT NULL
+          )
+          -- With parentId: that note's direct children. Without it: root notes
+          -- only, plus children whose accessible parent is in another state
+          -- (trashed/archived on their own) or that have no accessible parent.
+          AND (
+            CASE
+              WHEN ${parentId ?? null}::uuid IS NOT NULL THEN n.parent_note_id = ${parentId ?? null}::uuid
+              ELSE (
+                n.parent_note_id IS NULL
+                OR ${includeSubpages}::boolean
+                OR NOT EXISTS (
+                  SELECT 1 FROM notes par
+                  WHERE par.id = n.parent_note_id
+                    AND par.deleted_at IS NULL
+                    AND par.is_trashed = n.is_trashed
+                    AND (NOT n.is_archived OR par.is_archived)
+                    AND public.runly_note_user_access(par.id, ${userId}::uuid, false)
+                )
+              )
+            END
           )
       )
       SELECT
@@ -297,6 +417,8 @@ export function createNotesService({ prisma, broadcaster = null }) {
         a.note_type,
         a.company_id,
         a.folder_id,
+        a.parent_note_id,
+        a.child_count,
         a.title,
         a.content,
         a.content_text,
@@ -501,13 +623,21 @@ export function createNotesService({ prisma, broadcaster = null }) {
       throw new NotesServiceError("Solo el propietario puede mover esta nota a la papelera.", 403);
     }
 
+    // The note and its sub-pages go to the trash together (same trashed_at, so
+    // restore can tell them apart from pages trashed on their own earlier).
     await prisma.$executeRaw`
+      WITH RECURSIVE tree AS (
+        SELECT id FROM notes WHERE id = ${noteId}::uuid
+        UNION ALL
+        SELECT n.id FROM notes n JOIN tree t ON n.parent_note_id = t.id WHERE n.deleted_at IS NULL
+      )
       UPDATE notes
       SET is_trashed = TRUE,
           trashed_at = NOW(),
           updated_at = NOW()
-      WHERE id = ${noteId}
+      WHERE id IN (SELECT id FROM tree)
         AND deleted_at IS NULL
+        AND (is_trashed = FALSE OR id = ${noteId}::uuid)
     `;
 
     return { ok: true };
@@ -529,12 +659,21 @@ export function createNotesService({ prisma, broadcaster = null }) {
       throw new NotesServiceError("Solo el propietario puede restaurar esta nota.", 403);
     }
 
+    // Brings back the note plus only the sub-pages trashed with it.
     await prisma.$executeRaw`
+      WITH RECURSIVE tree AS (
+        SELECT id FROM notes WHERE id = ${noteId}::uuid
+        UNION ALL
+        SELECT n.id FROM notes n JOIN tree t ON n.parent_note_id = t.id
+        WHERE n.deleted_at IS NULL
+          AND n.is_trashed = TRUE
+          AND n.trashed_at = (SELECT trashed_at FROM notes WHERE id = ${noteId}::uuid)
+      )
       UPDATE notes
       SET is_trashed = FALSE,
           trashed_at = NULL,
           updated_at = NOW()
-      WHERE id = ${noteId}
+      WHERE id IN (SELECT id FROM tree)
         AND deleted_at IS NULL
     `;
 
