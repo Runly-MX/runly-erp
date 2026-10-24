@@ -2,6 +2,7 @@ import { authorizeRealtimeClient } from '../../../lib/authorizedRealtime.js'
 // apps/desktop/src/modules/runly.notes/lib/SupabaseYjsProvider.js
 import * as Y from 'yjs'
 import * as awarenessProtocol from 'y-protocols/awareness'
+import { createUpdateGate } from './updateGate.js'
 
 // btoa(String.fromCharCode(...bytes)) blows the call stack once a Y.js update or
 // full-document state grows past ~100 KB. Encode in fixed-size chunks instead.
@@ -71,6 +72,9 @@ export class SupabaseYjsProvider {
     // or attaches doc listeners that would then leak.
     this._destroyed = false
 
+    // Remote doc updates wait here while an IME composition is active.
+    this._remoteGate = createUpdateGate((bytes) => Y.applyUpdate(this.ydoc, bytes, 'broadcast'))
+
     this._init(runly, token)
   }
 
@@ -134,7 +138,7 @@ export class SupabaseYjsProvider {
     this._channel
       .on('broadcast', { event: 'ydoc.update' }, ({ payload }) => {
         try {
-          Y.applyUpdate(this.ydoc, base64ToBytes(payload.update), 'broadcast')
+          this._remoteGate.push(base64ToBytes(payload.update))
           console.debug('[notes/yjs] applied remote ydoc.update')
         } catch (err) {
           console.warn('[notes/yjs] bad ydoc.update payload:', err?.message ?? err)
@@ -221,8 +225,13 @@ export class SupabaseYjsProvider {
     this.awareness.setLocalStateField(field, value)
   }
 
+  setComposing(flag) {
+    this._remoteGate.setComposing(flag)
+  }
+
   destroy() {
     this._destroyed = true
+    this._remoteGate.destroy()
     this.connected = false
     // Broadcast local-state removal first (while _awarenessHandler is still
     // attached) so peers see this user's presence disappear immediately,
