@@ -6,6 +6,7 @@ import {
 } from '@runly/ui'
 import { REFERENCE_TYPES, referenceTypeOf } from '../lib/entityReferenceTypes.js'
 import { useReferenceSearch } from '../hooks/useRelationTargets.js'
+import { EntityTypeTile } from '../../runly.chat/components/EntityTypeTile'
 
 const TYPE_OPTIONS = REFERENCE_TYPES.map(({ value, label }) => ({ value, label }))
 
@@ -26,7 +27,6 @@ export function EntityReferencePicker({ open, onOpenChange, onPick }) {
   const debounced = useDebounced(query.trim(), 250)
   const search = useReferenceSearch(open ? entityType : null, debounced)
   const type = referenceTypeOf(entityType)
-  const TypeIcon = type?.Icon ?? Link2
   const rows = search.data ?? []
 
   function handleOpenChange(next) {
@@ -62,7 +62,7 @@ export function EntityReferencePicker({ open, onOpenChange, onPick }) {
               onClick={() => pick(row)}
               className="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
             >
-              <TypeIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <EntityTypeTile reference={{ entityType, title: row.title }} size={32} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm text-foreground">{row.title}</span>
                 {row.subtitle ? <span className="block truncate text-xs text-muted-foreground">{row.subtitle}</span> : null}
