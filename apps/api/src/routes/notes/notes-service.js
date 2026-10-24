@@ -1,6 +1,11 @@
 import { createFoldersService } from './folders-service.js';
 import { createNoteReferencesService } from './references-service.js';
+import * as Y from 'yjs';
+import { createYDocService } from './ydoc-service.js';
+import { parseAppendText, blocksToHtml, blocksToPlainText, appendBlocksToYDoc } from './append-blocks.js';
 import { exceedsDepth, isUuid, MAX_DEPTH_MESSAGE, shouldCascadeArchive } from './subpages.js';
+
+const MAX_APPEND_CHARS = 20000;
 
 export class NotesServiceError extends Error {
   constructor(message, status = 400) {
@@ -627,6 +632,71 @@ export function createNotesService({ prisma, broadcaster = null }) {
   }
 
   // ------------------------------------------------------------------
+  // Append (MCP / MirAI): adds blocks at the END of a note, never replaces.
+  // ------------------------------------------------------------------
+
+  // The body lives in the content/content_text columns AND, once the note was
+  // opened in the editor, in a Y.js snapshot the editor prefers. With a
+  // snapshot we append the Y.js nodes (merged through ydoc-service's CRDT
+  // merge-with-retry) and mirror the same text into the columns; without one
+  // the columns are the only source (the editor seeds from HTML on first open).
+  async function appendToNote({ noteId, userId, companyId, text }) {
+    const value = String(text ?? "");
+    if (!value.trim()) throw new NotesServiceError("No hay texto que agregar.", 400);
+    if (value.length > MAX_APPEND_CHARS) throw new NotesServiceError(`El texto excede ${MAX_APPEND_CHARS} caracteres.`, 400);
+    const blocks = parseAppendText(value);
+    if (!blocks.length) throw new NotesServiceError("No hay texto que agregar.", 400);
+
+    const access = await assertAccess(noteId, userId, "edit");
+    if (companyId && access.companyId && access.companyId !== companyId) {
+      throw new NotesServiceError("Nota no encontrada.", 404);
+    }
+    const [note] = await prisma.$queryRaw`
+      SELECT content, content_text, word_count, is_trashed, note_type FROM notes
+      WHERE id = ${noteId}::uuid AND deleted_at IS NULL LIMIT 1
+    `;
+    if (!note) throw new NotesServiceError("Nota no encontrada.", 404);
+    if (note.is_trashed) throw new NotesServiceError("La nota esta en la papelera.", 422);
+    if (note.note_type === "canvas") throw new NotesServiceError("No se puede agregar texto a un lienzo.", 422);
+
+    let yUpdate = null;
+    const [stateRow] = await prisma.$queryRaw`SELECT state FROM note_ydoc_state WHERE note_id = ${noteId}::uuid`;
+    if (stateRow) {
+      const doc = new Y.Doc();
+      try {
+        Y.applyUpdate(doc, new Uint8Array(stateRow.state));
+        const before = Y.encodeStateVector(doc);
+        appendBlocksToYDoc(doc, blocks);
+        yUpdate = Y.encodeStateAsUpdate(doc, before);
+      } finally {
+        doc.destroy();
+      }
+      await createYDocService({ prisma }).saveState(noteId, userId, Buffer.from(yUpdate).toString("base64"));
+    }
+
+    const html = blocksToHtml(blocks);
+    const plain = blocksToPlainText(blocks);
+    const currentHtml = typeof note.content === "string" ? note.content : "";
+    const currentText = note.content_text ?? "";
+    const added = plain.split(/\s+/).filter(Boolean).length;
+    const updated = await updateNote(noteId, userId, {
+      content: currentHtml + html,
+      contentText: currentText ? `${currentText}\n${plain}` : plain,
+      wordCount: (note.word_count ?? 0) + added,
+    });
+
+    // Best effort live delivery to editors that already have the note open.
+    if (yUpdate && broadcaster?.broadcastToChannel) {
+      try {
+        await broadcaster.broadcastToChannel(`note:ydoc:${noteId}`, "ydoc.update", { update: Buffer.from(yUpdate).toString("base64") });
+      } catch (err) {
+        console.warn("[notes] ydoc broadcast failed after appendToNote:", err?.message ?? err);
+      }
+    }
+    return { id: noteId, title: updated.title, appended: blocks.length, ydoc: Boolean(yUpdate) };
+  }
+
+  // ------------------------------------------------------------------
   // Trash / Restore / Permanent delete
   // ------------------------------------------------------------------
 
@@ -741,6 +811,7 @@ export function createNotesService({ prisma, broadcaster = null }) {
     getNote,
     listNotes,
     updateNote,
+    appendToNote,
     trashNote,
     restoreNote,
     permanentDelete,
