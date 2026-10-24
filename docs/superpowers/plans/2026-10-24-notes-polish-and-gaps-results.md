@@ -66,3 +66,23 @@ Audited against `docs/ai-context/ui-screen-audit-checklist.md` by reading the cl
 - [ ] Archiving a parent archives its sub-pages; un-archiving brings them back.
 - [ ] Escape closes the overlay with no dialog open; with a dialog, popover or menu open it only closes that layer; in zen mode it only leaves zen.
 - [ ] UI audit fixes at 390px (header buttons, filters, strip, picker) and with a touch pointer.
+
+## Image editing and cover fixes
+
+- Cover paper alignment: the paper phase (`--note-paper-phase`) is now re-measured when the cover image loads (`load` captured on the container), when `.note-sheet` or any of its direct children (the cover) resize, and on `visualViewport` resize. The cover sits inside `.note-sheet` as a sibling of `.tiptap`, so its size changes never resized the previously observed elements.
+- `AdvancedFileViewer` has a new optional `onEditImage(file)` prop: shows the same "Editar imagen" button for any image and calls the host (documented in `docs/ai-context/rme3-runtime-capabilities.md`). Other viewers (files, chat, inventory, pfm) do not pass it, so their behavior is unchanged.
+- `NoteImagePreviewButton` takes `editable` + `onReplaceImage(editedFile)`; the viewer's edit button closes the viewer and opens `ImageEditorDialog` (the dialog is a regular z-50 dialog and its inner confirm and menus would hide behind the viewer's z-100). The cover uploads through the existing `uploadNoteImage` helper and calls `onChange(publicUrl)`; only offered when the note is editable.
+- Inline images (and images in table cells) now have one edit button (PencilRuler, "Editar imagen") next to "Ver imagen"; it and double-click open `ImageEditorDialog` on the image `src`. Replacing uploads the file and sets `src`, `aspectRatio` (re-measured) and resets `crop`, `rotation`, `annotations`, `erasedAnnotations`.
+- Removed: inline annotation edit mode and toolbar, `ImageEditModal`, `ImageCropModal`, `useImageAnnotationDrawing`, `lib/imageLoadState.js` (+ test), and the unused crop geometry in `lib/imageCrop.js` (kept: `cropToViewBox`, `normalizeRotation`, `effectiveNaturalSize`). Old `crop`, `rotation` and `annotations` still render (read-only SVG in `ImageAnnotationShapes.jsx`).
+- Legacy images: when the user edits an old image the editor starts from the original `src`, so previous overlay crop, rotation and annotations are reset (not baked). The "Insertar como copia" option was dropped; only replace remains.
+
+Verification: notes lib tests 172/172, notes API tests 60/60, `pnpm lint` clean, `build:web` builds.
+
+### Manual QA (pending)
+
+- [ ] Cover with lined and grid paper: text sits on the rules at 390px and desktop, after adding/changing/removing the cover and after zoom changes.
+- [ ] Cover viewer shows "Editar imagen"; editing and replacing updates the cover and persists after reload; absent in view-only and public mode.
+- [ ] Selecting an inline image and pressing "Editar imagen" (and double-click) opens the full editor; replacing updates the image.
+- [ ] Image inside a table cell uses the same edit button.
+- [ ] Old image with annotations/crop still renders correctly.
+- [ ] Edit, undo (Ctrl+Z in the note) and reload: the replaced image persists.
