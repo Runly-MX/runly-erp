@@ -10,3 +10,4 @@ Spec: `docs/superpowers/specs/2026-10-24-long-transcript-documents-design.md`
 - [x] MirAI: history clipping + friendly 413
 - [ ] Verified with a real Groq run on a ~1 h transcript (needs `pnpm db:migrate` + `pnpm db:generate`, then API restart)
 - [ ] Visual check of the generated PDFs
+- [x] Playback: `TranscriptSyncPanel` beside the recording viewer (search, follow, click-to-seek). Verified: lint, vite build, unit tests of the time mapping. Not verified in a browser; PER_TRACK offset = transcript.createdAt - recording.startedAt (0 for MIXED or if > 10 min apart).

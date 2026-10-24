@@ -13,6 +13,7 @@ import {
   Loader2,
   Maximize,
   MoreHorizontal,
+  PanelRight,
   Pencil,
   UserRound,
   Play,
@@ -93,6 +94,10 @@ export function AdvancedFileViewer({
   // any image and lets the host open its own editor (images that are not
   // FileAsset rows, e.g. public storage URLs).
   onEditImage = null,
+  // (file, { getMedia }) => ReactNode | null. For videos: a panel shown beside
+  // (or below, on narrow screens) the player, e.g. a synced transcript. `getMedia()`
+  // returns the live <video>. The viewer adds the show/hide toggle.
+  renderSidePanel = null,
 }) {
   const editing = useContext(ViewerImageEditingContext);
   const saveCopyHandler = onSaveEditedImage ?? editing?.saveCopy ?? null;
@@ -113,6 +118,7 @@ export function AdvancedFileViewer({
   const [actionsOpen, setActionsOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
   const [hlsDownloading, setHlsDownloading] = useState(false);
+  const [sidePanelOpen, setSidePanelOpen] = useState(true);
 
   // Touch: the content area receives the gestures; `slideRef` is what moves
   // when swiping between files or down to close.
@@ -307,6 +313,7 @@ export function AdvancedFileViewer({
   useViewerShortcuts({ enabled: open, containerRef: contentRef, actions });
 
   const ready = !loading && Boolean(signedUrl);
+  const sidePanel = kind === "video" && renderSidePanel ? renderSidePanel(file, { getMedia }) : null;
   const hasInlinePreview = ["image", "pdf", "video", "audio", "xml"].includes(kind) || (kind === "archive" && isZipFile(file));
   const focusPanel = (e) => {
     e.preventDefault();
@@ -379,6 +386,17 @@ export function AdvancedFileViewer({
                   manifest TEXT — opening/sharing it would hand the user
                   "#EXTM3U..." mislabeled as a video. Download stays: it
                   remuxes HLS to a real .mp4 client-side. */}
+              {sidePanel && (
+                <button
+                  onClick={() => setSidePanelOpen((v) => !v)}
+                  aria-label={sidePanelOpen ? "Ocultar panel lateral" : "Mostrar panel lateral"}
+                  aria-pressed={sidePanelOpen}
+                  title={sidePanelOpen ? "Ocultar transcripción" : "Mostrar transcripción"}
+                  className={barBtn}
+                >
+                  <PanelRight className="h-3.5 w-3.5" />
+                </button>
+              )}
               {!isHlsSource && !coarse && (
                 <button onClick={openExternal} disabled={!signedUrl} aria-label="Abrir en pestaña nueva" title={withShortcut("Abrir externo", "open")} className={barBtn}>
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -481,7 +499,8 @@ export function AdvancedFileViewer({
 
                   {/* HLS: hls.js/native attaches via useHlsPlayback above, no src prop. */}
                   {ready && kind === "video" && (
-                    <div className="h-full w-full flex items-center justify-center bg-black">
+                    <div className={`h-full w-full flex ${sidePanel && sidePanelOpen ? "flex-col md:flex-row" : ""}`}>
+                    <div className="flex-1 min-h-0 min-w-0 flex items-center justify-center bg-black">
                       <video
                         key={signedUrl}
                         ref={isHlsSource ? hlsVideoRef : mediaRef}
@@ -492,6 +511,12 @@ export function AdvancedFileViewer({
                         className="max-h-full max-w-full"
                         style={{ outline: "none" }}
                       />
+                    </div>
+                    {sidePanel && sidePanelOpen && (
+                      <div className="h-[45%] md:h-full md:w-[380px] shrink-0 min-h-0 border-t md:border-t-0 md:border-l border-[hsl(var(--border))] bg-[hsl(var(--background))]">
+                        {sidePanel}
+                      </div>
+                    )}
                     </div>
                   )}
 

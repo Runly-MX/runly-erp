@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useConversationRecordings, useDeleteRecording, useRenameRecording } from "../hooks/useConversationRecordings";
 import { useConversationTranscripts } from "../hooks/useConversationTranscripts";
 import { CardActionButton, RecordingTranscriptAction } from "./RecordingTranscriptAction";
+import { TranscriptSyncPanel } from "./TranscriptSyncPanel";
 
 // Always shows the full date, unlike chatUtils' formatMessageTime (which
 // collapses "today" down to just a time) — recordings are reviewed well
@@ -425,6 +426,14 @@ export function ChatRecordingsGallery({ conversationId }) {
     return url;
   }, []);
 
+  // Transcript beside the video when this recording has a READY transcript.
+  const renderTranscriptPanel = useCallback((file, { getMedia }) => {
+    const transcript = transcriptsByRecordingId.get(file.id);
+    if (transcript?.status !== "READY") return null;
+    const recording = playableRef.current.find((r) => r.id === file.id);
+    return <TranscriptSyncPanel key={transcript.id} transcript={transcript} recording={recording} getMedia={getMedia} />;
+  }, [transcriptsByRecordingId]);
+
   const viewerIndex = viewerId ? viewerFiles.findIndex((f) => f.id === viewerId) : -1;
 
   function handlePlay(recording) {
@@ -495,6 +504,7 @@ export function ChatRecordingsGallery({ conversationId }) {
         activeIndex={Math.max(0, viewerIndex)}
         onIndexChange={(i) => setViewerId(viewerFiles[i]?.id ?? null)}
         onResolveSignedUrl={resolveRecordingUrl}
+        renderSidePanel={renderTranscriptPanel}
         zIndex={10000}
       />
     </div>

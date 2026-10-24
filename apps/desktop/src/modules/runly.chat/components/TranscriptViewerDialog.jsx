@@ -7,24 +7,9 @@ import { ClipboardList, Copy, Download, RefreshCw, Sparkles } from "lucide-react
 import { toast } from "sonner";
 import { useTranscript, useRetryTranscript, useRegenerateTranscript } from "../hooks/useConversationTranscripts";
 import { copyTranscriptToClipboard, downloadTranscriptPdf } from "../lib/transcriptExport";
+import { formatTimestamp, speakerColor } from "../lib/transcriptDisplay";
 import { TranscriptAnalysisDialog } from "./TranscriptAnalysisDialog";
 import { TranscriptDocumentsDialog } from "./TranscriptDocumentsDialog";
-
-function formatTimestamp(ms) {
-  const totalSeconds = Math.floor((ms ?? 0) / 1000);
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
-// Hues spread around the wheel so adjacent speakers stay distinguishable.
-const SPEAKER_HUES = [217, 142, 32, 280, 350, 187, 48, 12];
-
-// Mixing with the foreground keeps the tint readable in light and dark themes.
-function speakerColor(index) {
-  const hue = SPEAKER_HUES[index % SPEAKER_HUES.length];
-  return `color-mix(in srgb, hsl(${hue} 75% 55%) 80%, hsl(var(--foreground)))`;
-}
 
 function initials(label) {
   const parts = label.trim().split(/\s+/).filter(Boolean);
