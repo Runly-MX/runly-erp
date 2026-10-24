@@ -1,7 +1,7 @@
 # runly.notes — Quick-notes redesign, pen stability and entity references
 
 Date: 2026-10-24
-Status: Draft (awaiting approval)
+Status: Approved 2026-10-24 (pages optional, continuous by default)
 Spec file: docs/superpowers/specs/2026-10-24-notes-quick-notes-redesign-design.md
 
 Process note: per the standing instruction to decide autonomously on roadmap work, this spec was written directly from a code review instead of interactive Q&A. Open decisions are stated with a recommendation.
@@ -84,7 +84,7 @@ Two distinct needs, both covered:
 
 **Pages**
 - Page break node (`/salto-de-pagina`, also `Ctrl+Enter`): a visible divider in edit mode and a real break in print/PDF export.
-- Paged view toggle ("Vista por páginas"): renders the document as stacked A4/Carta sheets split at page breaks and, optionally, at automatic height, reusing the realistic-paper styling already in the editor. Edit mode stays continuous for pen/IME stability; paged view is a presentation mode plus export.
+- Pages are optional: the default is one continuous document (no page chrome). A per-note toggle "Vista por páginas" (off by default, stored per note and per viewer) switches the presentation: renders the document as stacked A4/Carta sheets split at page breaks and, optionally, at automatic height, reusing the realistic-paper styling already in the editor. Edit mode stays continuous for pen/IME stability; paged view is a presentation mode plus export.
 - PDF/print export honors page breaks, header/footer with title and page number (extends `notePageExport.js`, which today rasterizes one sheet).
 - Sub-pages (OneNote/Notion style): a note can have child notes (`parent_note_id` on `notes`, forward migration, ON DELETE cascade to trash). A `/subpagina` command creates a child and inserts a link block; the sidebar/grid shows child count and the editor shows a breadcrumb. Children inherit folder and shares by default. Nesting limited to 3 levels. Unlike page breaks, sub-pages are separate notes (own title, own collab doc).
 - Out of scope for now: sections/notebooks as a separate entity (folders already cover that role).
