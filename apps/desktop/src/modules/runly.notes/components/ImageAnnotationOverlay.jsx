@@ -1,36 +1,19 @@
 import { NodeViewWrapper } from '@tiptap/react'
 import { useContext, useEffect, useRef, useState } from 'react'
-import {
-  Pencil, Trash2, Crop as CropIcon, Check,
-  PenLine, ArrowUpRight, Square, Type, MoreHorizontal, PencilRuler,
-} from 'lucide-react'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Popover, PopoverTrigger, PopoverContent, ConfirmDialog, ImageEditorDialog } from '@runly/ui'
+import { Trash2, PencilRuler } from 'lucide-react'
+import { ConfirmDialog, ImageEditorDialog } from '@runly/ui'
 import { toast } from 'sonner'
 import { getImageNaturalSize, uploadNoteImage } from '../lib/noteImageUpload.js'
 import { withImageVariant } from '../../../lib/imageVariants.js'
 import { useBlockDragReorder } from '../hooks/useBlockDragReorder.js'
-import { useImageAnnotationDrawing } from '../hooks/useImageAnnotationDrawing.jsx'
 import { isInsideTableCell } from '../lib/tableContext.js'
-import { parseErased } from '../lib/drawingStrokes.js'
-import {
-  cropToViewBox, effectiveNaturalSize,
-  normalizeRotation, rotateAnnotations,
-} from '../lib/imageCrop.js'
+import { cropToViewBox, effectiveNaturalSize, normalizeRotation } from '../lib/imageCrop.js'
 import { clampImageWidthPct, computeCornerResize } from '../lib/imageSize.js'
 import { useRotatedFillSize } from '../hooks/useRotatedFillSize.js'
-import { ImageCropModal } from './ImageCropModal.jsx'
-import { ImageEditModal } from './ImageEditModal.jsx'
+import { renderAnnotation } from './ImageAnnotationShapes.jsx'
 import { NoteImagePreviewButton } from './NoteImagePreviewButton.jsx'
 import { NoteInteractionContext } from './NoteInteractionContext.js'
 import { NoteBlockDragHandle } from './NoteBlockDragHandle.jsx'
-
-const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#1a1a1a', '#ffffff']
-const TOOLS = [
-  { id: 'pen', label: 'Lapiz', icon: PenLine },
-  { id: 'arrow', label: 'Flecha', icon: ArrowUpRight },
-  { id: 'rect', label: 'Recuadro', icon: Square },
-  { id: 'text', label: 'Texto', icon: Type },
-]
 
 function parseCrop(raw) {
   if (!raw) return null
@@ -44,25 +27,17 @@ function parseCrop(raw) {
 
 export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos, deleteNode }) {
   const { viewing, noteId, token } = useContext(NoteInteractionContext)
-  const svgRef = useRef(null)
   const boxRef = useRef(null) // the sized img+svg container — resize math + click-outside
   const frameRef = useRef(null) // the image frame only (no control chrome) — measured/cloned for drag reorder
   const rotWrapRef = useRef(null) // sized/positioned per crop; useRotatedFillSize measures this
   const resizeRef = useRef(null) // { pointerId, startX, startY, startWidthPx, startHeightPx, containerWidthPx }
 
-  const [mode, setMode] = useState('view') // 'view' | 'edit'
-  const [tool, setTool] = useState('pen')
-  const [color, setColor] = useState('#ef4444')
-  const [lineWidth, setLineWidth] = useState(3)
-  const [cropOpen, setCropOpen] = useState(false)
-  const [fullEditorOpen, setFullEditorOpen] = useState(false)
-  const [confirmFullEditor, setConfirmFullEditor] = useState(false)
   const [natural, setNatural] = useState(null) // { w, h }
   const [selected, setSelected] = useState(false) // click-to-select for resize (Word/PPT style)
   const [liveWidthPct, setLiveWidthPct] = useState(null) // resize drag preview
   const [liveAspectRatio, setLiveAspectRatio] = useState(null) // resize drag preview
   const [fullLoaded, setFullLoaded] = useState(false) // full-resolution <img> onLoad fired
-  const [editModalOpen, setEditModalOpen] = useState(false) // table-cell images edit via modal instead of inline mode
+  const [editorOpen, setEditorOpen] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   // Instances without Supabase image transformation (imgproxy) answer
   // /render/image/public/ with 404 — fall back to the original object URL,
@@ -70,13 +45,11 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
   const [transformFailedSrc, setTransformFailedSrc] = useState(null)
 
   const annotations = JSON.parse(node.attrs.annotations || '[]')
-  const erasedAnnotations = parseErased(node.attrs.erasedAnnotations)
   const crop = parseCrop(node.attrs.crop)
   const rotation = normalizeRotation(node.attrs.rotation)
   // Context already combines permission and view mode. editor.isEditable
   // updates in an effect and can still hold the previous mode during render.
   const editable = !viewing
-  const isEditing = editable && mode === 'edit'
   const inTableCell = typeof getPos === 'function' && isInsideTableCell(editor.state, getPos())
   // null = full width, for images inserted before this attribute existed.
   const widthPct = node.attrs.width == null ? 100 : clampImageWidthPct(node.attrs.width)
@@ -87,7 +60,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
   const effNat = effectiveNaturalSize(natural, rotation)
   const fillSize = useRotatedFillSize(rotWrapRef, rotation, effNat?.w, effNat?.h)
   const drag = useBlockDragReorder({
-    editor, getPos, editable: editable && !inTableCell, isEditing,
+    editor, getPos, editable: editable && !inTableCell, isEditing: false,
     getBoxEl: () => boxRef.current,
     getFrameEl: () => frameRef.current,
   })
@@ -98,27 +71,6 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
     onPointerCancel: onDragPointerCancel,
     wasDragRef,
   } = drag
-
-  const {
-    draft, textInput, penSeen, onDrawPointerDown, onDrawPointerMove, onDrawPointerUp,
-    commitTextInput, cancelTextInput, cancelDraft, removeAnnotation, clearAnnotations, renderAnnotation, renderDraft,
-  } = useImageAnnotationDrawing({
-    svgRef, crop, annotations, erased: erasedAnnotations, tool, color, lineWidth, isEditing, updateAttributes,
-  })
-
-  // Toggling the whole note from edit to view mode (the note-level Ver/Editar
-  // button, not this image's own mode) never runs exitEditMode — the note can
-  // switch to view-only while an image is mid-annotation. Without this,
-  // `mode` stays stuck at 'edit' and switching the note back to edit mode
-  // immediately re-enters the annotation toolbar instead of showing the
-  // normal Editar/Eliminar controls.
-  useEffect(() => {
-    if (editable) return
-    cancelDraft()
-    cancelTextInput()
-    setMode('view')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editable])
 
   // Deselect when clicking outside the image (Word/PPT-style click-away).
   useEffect(() => {
@@ -158,7 +110,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
       wasDragRef.current = false
       return
     }
-    if (!editable || mode !== 'view') return
+    if (!editable) return
     setSelected(true)
   }
 
@@ -208,19 +160,12 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
     }
   }
 
-  function exitEditMode() {
-    cancelDraft()
-    cancelTextInput()
-    setMode('view')
-  }
-
   const transformFailed = transformFailedSrc === node.attrs.src
   const src = transformFailed ? node.attrs.src : withImageVariant(node.attrs.src, 'content')
   const lqipSrc = transformFailed ? null : withImageVariant(node.attrs.src, 'lqip')
   const onVariantError = () => {
     if (src !== node.attrs.src) setTransformFailedSrc(node.attrs.src)
   }
-  const ActiveToolIcon = TOOLS.find((t) => t.id === tool)?.icon ?? PenLine
   const displayWidthPct = liveWidthPct ?? widthPct
   // Outer box: controls the resizable width, carries the selection ring and
   // the pill/handle controls — never clipped, so they're never cut off.
@@ -274,59 +219,33 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
       }
     : { position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0 }
 
-  const hasNoteEdits = Boolean(crop) || rotation !== 0 || annotations.length > 0
-  function openFullEditor() {
-    if (hasNoteEdits) setConfirmFullEditor(true)
-    else setFullEditorOpen(true)
-  }
+  const canEditImage = editable && Boolean(noteId && token && node.attrs.src)
 
   // Uploads the edited file to the notes bucket; the node then points at it.
-  async function uploadEdited(file) {
+  // Rethrows so the editor stays open for a retry (the failure is reported here).
+  async function replaceWithEdited(file) {
     try {
       const [url, natural] = await Promise.all([uploadNoteImage(file, { noteId, token }), getImageNaturalSize(file)])
       const aspectRatio = natural.naturalWidth && natural.naturalHeight ? natural.naturalWidth / natural.naturalHeight : null
-      return { url, aspectRatio }
+      // The edit is baked into the new image, so the note-level crop, rotation and
+      // annotations of the previous one (older notes) no longer apply.
+      updateAttributes({ src: url, crop: null, rotation: 0, annotations: '[]', erasedAnnotations: '[]', aspectRatio })
+      toast.success('Imagen actualizada')
     } catch (err) {
       toast.error(err?.message ?? 'No se pudo guardar la imagen.')
       throw err
     }
   }
 
-  // Both handlers keep the editor open on failure (uploadEdited already reported it).
-  async function replaceWithEdited(file) {
-    try {
-      const { url, aspectRatio } = await uploadEdited(file)
-      // The edit is baked into the new image, so the note-level crop, rotation and
-      // annotations of the previous one no longer apply.
-      updateAttributes({ src: url, aspectRatio, crop: null, rotation: 0, annotations: '[]', erasedAnnotations: '[]' })
-      toast.success('Imagen reemplazada')
-      setFullEditorOpen(false)
-    } catch { /* reported above */ }
-  }
-
-  async function saveEditedCopy(file) {
-    try {
-      const { url, aspectRatio } = await uploadEdited(file)
-      const pos = getPos?.()
-      if (typeof pos === 'number') {
-        editor.chain().focus().insertContentAt(pos + node.nodeSize, {
-          type: 'image',
-          attrs: { src: url, alt: file.name, width: node.attrs.width, aspectRatio },
-        }).run()
-      }
-      toast.success('Copia insertada debajo')
-      setFullEditorOpen(false)
-    } catch { /* reported above */ }
-  }
-
   return (
     <NodeViewWrapper className="group/img note-block relative my-2 block w-full">
-      {editable && !inTableCell && !isEditing && (
+      {editable && !inTableCell && (
         <NoteBlockDragHandle label="Mover imagen" drag={drag} placement="gutter" />
       )}
       <div
         ref={boxRef}
         onClick={onImageClick}
+        onDoubleClick={canEditImage ? () => setEditorOpen(true) : undefined}
         onMouseDown={onBoxMouseDown}
         onPointerDown={onDragPointerDown}
         onPointerMove={onDragPointerMove}
@@ -340,146 +259,10 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
         onContextMenu={editable ? (e) => e.preventDefault() : undefined}
         className={[
           'relative',
-          selected && mode === 'view' ? 'ring-2 ring-amber-500 ring-offset-1 rounded-b' : '',
+          selected ? 'ring-2 ring-amber-500 ring-offset-1 rounded-b' : '',
         ].join(' ')}
         style={wrapperStyle}
       >
-        {isEditing && (
-          // Single row that never wraps — a wrapping multi-row toolbar used
-          // to push the image itself down on narrow screens. Every button
-          // also preventDefaults its pointerdown so tapping it can't shift
-          // ProseMirror's selection into the document and pop the mobile
-          // keyboard (see docs/superpowers/specs/2026-09-16-notes-mobile-image-editing-fixes-design.md).
-          <div className="flex items-center flex-nowrap gap-1 py-1.5 px-2 bg-[hsl(var(--muted))] border border-[hsl(var(--border))] rounded-t text-xs overflow-hidden">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  title="Herramienta"
-                  onPointerDown={(e) => e.preventDefault()}
-                  className="flex items-center justify-center w-9 h-9 rounded shrink-0 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]"
-                >
-                  <ActiveToolIcon className="w-4 h-4" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="p-1 w-36" side="bottom" align="start">
-                {TOOLS.map((t) => (
-                  <button
-                    key={t.id}
-                    onPointerDown={(e) => e.preventDefault()}
-                    onClick={() => setTool(t.id)}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs font-medium ${
-                      tool === t.id
-                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                        : 'text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]'
-                    }`}
-                  >
-                    <t.icon className="w-3.5 h-3.5" /> {t.label}
-                  </button>
-                ))}
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  title="Color"
-                  onPointerDown={(e) => e.preventDefault()}
-                  className="flex items-center justify-center w-9 h-9 rounded shrink-0 hover:bg-[hsl(var(--muted-foreground)/0.1)]"
-                >
-                  <span
-                    className="w-5 h-5 rounded-full border-2 border-[hsl(var(--border))]"
-                    style={{ backgroundColor: color === '#ffffff' ? '#f3f4f6' : color }}
-                  />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="p-2 w-auto" side="bottom" align="start">
-                <div className="grid grid-cols-4 gap-1.5">
-                  {COLORS.map((c) => (
-                    <button
-                      key={c}
-                      onPointerDown={(e) => e.preventDefault()}
-                      onClick={() => setColor(c)}
-                      className={`w-7 h-7 rounded-full border-2 ${color === c ? 'border-amber-500 scale-110' : 'border-transparent'}`}
-                      style={{ backgroundColor: c === '#ffffff' ? '#f3f4f6' : c }}
-                    />
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {noteId && token && node.attrs.src ? (
-              <button
-                title="Editor completo (filtros, retoque, texto...)"
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={openFullEditor}
-                className="flex items-center justify-center w-9 h-9 rounded shrink-0 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]"
-              >
-                <PencilRuler className="w-3.5 h-3.5" />
-              </button>
-            ) : null}
-
-            <button
-              title="Recortar"
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={() => setCropOpen(true)}
-              className="flex items-center justify-center w-9 h-9 rounded shrink-0 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]"
-            >
-              <CropIcon className="w-3.5 h-3.5" />
-            </button>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  title="Mas opciones"
-                  onPointerDown={(e) => e.preventDefault()}
-                  className="flex items-center justify-center w-9 h-9 rounded shrink-0 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="p-1 w-44" side="bottom" align="start">
-                <div className="px-2 py-1.5 text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
-                  Grosor
-                </div>
-                <div className="px-2 pb-1.5">
-                  <Select value={String(lineWidth)} onValueChange={(v) => setLineWidth(Number(v))}>
-                    <SelectTrigger className="h-9 w-full px-2 py-0 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[1, 2, 3, 4, 6, 8].map((w) => (
-                        <SelectItem key={w} value={String(w)}>
-                          {w}px
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {annotations.length > 0 && (
-                  <>
-                    <div className="my-1 border-t border-[hsl(var(--border))]" />
-                    <button
-                      onPointerDown={(e) => e.preventDefault()}
-                      onClick={clearAnnotations}
-                      className="w-full text-left text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 px-2.5 py-1.5 rounded"
-                    >
-                      Limpiar
-                    </button>
-                  </>
-                )}
-              </PopoverContent>
-            </Popover>
-
-            <button
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={exitEditMode}
-              className="ml-auto flex items-center gap-1 px-3 h-9 rounded font-semibold bg-amber-500 hover:bg-amber-600 text-white shrink-0"
-            >
-              <Check className="w-3.5 h-3.5" /> Listo
-            </button>
-          </div>
-        )}
-
         <div ref={frameRef} className="relative rounded-b overflow-hidden" style={frameStyle}>
           <div ref={rotWrapRef} style={rotWrapStyle}>
             {/* Tiny blurred placeholder — loads almost instantly (a few
@@ -516,41 +299,15 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
             />
           </div>
           <svg
-            ref={svgRef}
             viewBox={cropToViewBox(crop)}
             preserveAspectRatio="none"
-            className="absolute inset-0 w-full h-full"
-            style={{
-              touchAction: penSeen ? 'pan-x pan-y pinch-zoom' : 'none',
-              pointerEvents: isEditing ? 'auto' : 'none',
-              cursor: isEditing ? (tool === 'text' ? 'text' : 'crosshair') : 'default',
-            }}
-            onPointerDown={isEditing ? onDrawPointerDown : undefined}
-            onPointerMove={isEditing ? onDrawPointerMove : undefined}
-            onPointerUp={isEditing ? onDrawPointerUp : undefined}
-            onPointerCancel={isEditing ? onDrawPointerUp : undefined}
+            className="absolute inset-0 w-full h-full pointer-events-none"
           >
             {annotations.map(renderAnnotation)}
-            {renderDraft()}
           </svg>
-
-          {textInput && (
-            <input
-              autoFocus
-              type="text"
-              placeholder="Escribe una anotacion..."
-              className="absolute bg-[hsl(var(--background))] text-[hsl(var(--foreground))] border border-amber-400 dark:border-amber-600 rounded px-2 py-1 text-sm shadow-lg outline-none z-10"
-              style={{ left: textInput.screenX, top: textInput.screenY, minWidth: 180 }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitTextInput(e.target.value)
-                if (e.key === 'Escape') cancelTextInput()
-              }}
-              onBlur={(e) => commitTextInput(e.target.value)}
-            />
-          )}
         </div>
 
-        {!isEditing && (
+        {(
           <div
             // Top-right: keeps the primary "Editar imagen" affordance in view
             // above the fold on a tall image, clear of the corner resize
@@ -558,33 +315,23 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
             // both support reordering.
             className="absolute top-2 right-2 flex items-center gap-1.5"
           >
-            <NoteImagePreviewButton src={node.attrs.src} alt={node.attrs.alt} />
-            {editable && (inTableCell ? (
+            <NoteImagePreviewButton
+              src={node.attrs.src}
+              alt={node.attrs.alt}
+              editable={canEditImage}
+              onReplaceImage={replaceWithEdited}
+            />
+            {canEditImage && (
               <button
                 onPointerDown={(e) => { e.preventDefault(); e.stopPropagation() }}
-                onClick={() => setEditModalOpen(true)}
+                onClick={() => setEditorOpen(true)}
                 aria-label="Editar imagen"
                 title="Editar imagen"
                 className="flex items-center justify-center w-8 h-8 bg-[hsl(var(--background)/0.9)] backdrop-blur-sm border border-[hsl(var(--border))] rounded-lg shadow-sm hover:bg-[hsl(var(--muted))] transition-colors"
               >
-                <Pencil className="w-3.5 h-3.5" />
+                <PencilRuler className="w-3.5 h-3.5" />
               </button>
-            ) : (
-              <button
-                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation() }}
-                onClick={() => setMode('edit')}
-                aria-label="Editar imagen"
-                title="Editar imagen"
-                // Icon-only on narrow/touch screens — the text label only
-                // widens the tap target without adding clarity there; the
-                // pencil alone already matches every other icon-only control
-                // in this toolbar (Recortar, Herramienta, Color...).
-                className="flex items-center justify-center gap-1.5 text-xs font-medium bg-[hsl(var(--background)/0.9)] backdrop-blur-sm border border-[hsl(var(--border))] rounded-lg w-8 h-8 sm:w-auto sm:px-2.5 sm:py-1.5 shadow-sm hover:bg-[hsl(var(--muted))] transition-colors"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Editar imagen</span>
-              </button>
-            ))}
+            )}
             {editable && typeof deleteNode === 'function' && (
               <button
                 onPointerDown={(e) => { e.preventDefault(); e.stopPropagation() }}
@@ -599,7 +346,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
           </div>
         )}
 
-        {editable && mode === 'view' && selected && (
+        {editable && selected && (
           // Free 4-corner resize — all 4 anchor at the fixed top-left corner
           // (the node lives in document flow, not a free canvas), so every
           // handle shares the same onResizePointer* math; the cursor style
@@ -632,73 +379,20 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
         )}
       </div>
 
-      {cropOpen && (
-        <ImageCropModal
-          open={cropOpen}
-          onOpenChange={setCropOpen}
-          src={src}
-          crop={crop}
-          rotation={rotation}
-          onApply={({ crop: nextCrop, rotation: nextRotation }) => {
-            // Rotation is a NODE-level concept (affects the image everywhere
-            // it renders, not just this modal session), so stored
-            // annotations — defined in the image's own rotated fraction
-            // space — must be re-expressed in the NEW rotation to stay
-            // visually aligned with the image content.
-            const delta = normalizeRotation(nextRotation - rotation)
-            const rotatedAnnotations = delta === 0 ? annotations : rotateAnnotations(annotations, delta)
-            updateAttributes({
-              crop: nextCrop,
-              rotation: nextRotation,
-              annotations: JSON.stringify(rotatedAnnotations),
-              // A prior manual corner-resize freezes the frame's aspect ratio
-              // in this attribute, which otherwise keeps overriding the new
-              // crop's own shape — the image would visibly not change size
-              // after cropping (e.g. cropping to 1:1 while a wide aspectRatio
-              // is still stored). The new crop defines the frame's shape now.
-              aspectRatio: null,
-            })
-            setCropOpen(false)
-          }}
-        />
-      )}
-
-      {fullEditorOpen && (
+      {editorOpen && (
         <ImageEditorDialog
-          open={fullEditorOpen}
-          onOpenChange={setFullEditorOpen}
+          open
+          onOpenChange={setEditorOpen}
           src={node.attrs.src}
           fileName={node.attrs.alt || 'imagen'}
           mimeType={/\.png(\?|$)/i.test(node.attrs.src) ? 'image/png' : /\.webp(\?|$)/i.test(node.attrs.src) ? 'image/webp' : 'image/jpeg'}
-          title="Editar imagen de la nota"
-          saveLabel="Insertar como copia"
-          onSave={saveEditedCopy}
-          onReplace={replaceWithEdited}
-        />
-      )}
-
-      <ConfirmDialog
-        open={confirmFullEditor}
-        onOpenChange={setConfirmFullEditor}
-        title="Abrir el editor completo"
-        icon={PencilRuler}
-        tone="warning"
-        description="Esta imagen tiene recorte, giro o anotaciones de la nota. El editor completo parte de la imagen original, sin esos cambios. Si reemplazas la imagen, se pierden; si insertas una copia, la imagen actual queda como está."
-        confirmLabel="Abrir"
-        onConfirm={() => { setConfirmFullEditor(false); setFullEditorOpen(true) }}
-      />
-
-      {editModalOpen && (
-        <ImageEditModal
-          open={editModalOpen}
-          onOpenChange={setEditModalOpen}
-          src={src}
-          alt={node.attrs.alt}
-          annotations={annotations}
-          erased={erasedAnnotations}
-          crop={crop}
-          rotation={rotation}
-          updateAttributes={updateAttributes}
+          title="Editar imagen"
+          onReplace={async (file) => {
+            try {
+              await replaceWithEdited(file)
+              setEditorOpen(false)
+            } catch { /* reported above; keep the editor open */ }
+          }}
         />
       )}
 

@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react'
 // `naturalWidth`/`naturalHeight` (the loaded image's effective natural
 // size, when known) are extra dependencies, NOT used in the measurement
 // itself — the observed element's own height is CSS `aspect-ratio`-driven
-// from these values (see ImageCropModal.jsx/ImageAnnotationOverlay.jsx), so
+// from these values (see ImageAnnotationOverlay.jsx), so
 // it renders at 0 height until they're known. If that happens on a LATER
 // render than this hook's own mount (e.g. a cached image's natural size
 // arrives asynchronously after an initial 0-height measurement was already
