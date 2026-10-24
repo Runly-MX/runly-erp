@@ -36,12 +36,27 @@ object HostControls {
           val local = url.host == "tauri.localhost" || url.scheme == "tauri" || url.scheme == null
           if (previousLocal != local) {
             barsController.isAppearanceLightStatusBars = if (local) false else defaultLightStatusBar
+            barsController.isAppearanceLightNavigationBars = if (local) false else defaultLightStatusBar
             previousLocal = local
+          }
+          // Remote pages draw their own background under the transparent system
+          // bars: follow the app theme so icons never match the background
+          // (white icons on a white top bar were invisible).
+          if (!local) {
+            webView.evaluateJavascript("document.documentElement.classList.contains('dark')") { dark ->
+              val light = dark != "true"
+              if (barsController.isAppearanceLightStatusBars != light) {
+                barsController.isAppearanceLightStatusBars = light
+                barsController.isAppearanceLightNavigationBars = light
+              }
+            }
           }
           // Edge-to-edge: publish the system bar / cutout insets as CSS px so
           // overlays can clear the status and navigation bars (see runtime.css).
-          ViewCompat.getRootWindowInsets(root)?.getInsets(
-            WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+          // tappableElement covers task bars (Samsung tablets) that systemBars misses.
+          ViewCompat.getRootWindowInsets(root)?.getInsetsIgnoringVisibility(
+            WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or
+              WindowInsetsCompat.Type.tappableElement()
           )?.let { bars ->
             val d = activity.resources.displayMetrics.density
             webView.evaluateJavascript(

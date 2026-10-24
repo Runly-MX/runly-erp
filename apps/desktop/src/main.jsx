@@ -1,5 +1,8 @@
 import { bootstrapDesktopRuntime } from './lib/desktopRuntime.js'
 import { initializeNativeHost, native } from './native/index.js'
+import { installPenInput } from './lib/penInput.js'
+
+installPenInput()
 
 try {
   await initializeNativeHost()

@@ -18,6 +18,8 @@ class MainActivity : TauriActivity() {
     applyRendererPriority(webView)
     // Preserve the real Chromium/Android UA for LiveKit and browser feature detection.
     webView.settings.userAgentString = WebSettings.getDefaultUserAgent(this) + " AtlasNativeHost/1.0"
+    // S Pen handwriting into any focused text field (API 34+).
+    if (Build.VERSION.SDK_INT >= 34) webView.setAutoHandwritingEnabled(true)
     HostControls.attach(this, webView)
     webView.settings.setSupportMultipleWindows(false)
   }
