@@ -3512,6 +3512,7 @@ model Task {
   blockedBy    TaskDependency[]      @relation("TaskBlocked")
   blocking     TaskDependency[]      @relation("TaskBlocker")
   fieldValues  TaskFieldValue[]      @relation("TaskFieldValues")
+  links        TaskLink[]            @relation("TaskLinks")
 
   @@unique([projectId, taskNumber])
   @@index([projectId, statusId, position])
@@ -3547,6 +3548,26 @@ model TaskDependency {
   @@index([blockerId])
   @@index([blockedId])
   @@map("task_dependency")
+}
+
+// Link from a task to a record of another module. targetType is a key of the
+// relation-targets catalog (contact, vehicle, inventory_item...); the record
+// lives in another table, so targetId has no foreign key.
+model TaskLink {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  taskId      String   @map("task_id") @db.Uuid
+  targetType  String   @map("target_type")
+  targetId    String   @map("target_id") @db.Uuid
+  label       String?
+  createdById String   @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  task Task @relation("TaskLinks", fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, targetType, targetId])
+  @@index([companyId, targetType, targetId])
+  @@map("task_link")
 }
 
 model ProjectField {

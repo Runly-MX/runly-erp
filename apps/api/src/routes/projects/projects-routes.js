@@ -3,6 +3,7 @@ import { createProjectsService, ProjectServiceError } from './projects-service.j
 import { createTasksService, TaskServiceError } from './tasks-service.js'
 import { createDependenciesService, DependencyServiceError } from './projects-dependencies-service.js'
 import { createFieldsService, FieldServiceError } from './projects-fields-service.js'
+import { createLinksService, LinkServiceError } from './projects-links-service.js'
 import { createProjectsCalendarBridge } from './projects-calendar-bridge.js'
 import { createProjectsNotificationService } from './projects-notification-service.js'
 import { createProjectsTaskEffects } from './projects-task-effects.js'
@@ -37,7 +38,8 @@ function handleError(c, err, fallback) {
     err instanceof ProjectServiceError ||
     err instanceof TaskServiceError ||
     err instanceof DependencyServiceError ||
-    err instanceof FieldServiceError
+    err instanceof FieldServiceError ||
+    err instanceof LinkServiceError
   ) return c.json({ error: err.message }, err.status)
   if (Number.isInteger(err?.status) && err.status >= 400 && err.status < 600)
     return c.json({ error: err.message || fallback }, err.status)
@@ -45,13 +47,14 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets = null, broadcaster = null }) {
+export function createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets = null, broadcaster = null, relationTargets = null }) {
   const app = new Hono()
   const projectsSvc = createProjectsService({ prisma })
   const projectConnections = createCoreTargetConnections({ prisma, targetType: 'project' })
   const tasksSvc = createTasksService({ prisma })
   const depsSvc = createDependenciesService({ prisma })
   const fieldsSvc = createFieldsService({ prisma })
+  const linksSvc = createLinksService({ prisma, relationTargets })
   const bridge = createProjectsCalendarBridge({ prisma })
   const notifSvc = createProjectsNotificationService({ prisma, notificationService })
   const taskEffects = createProjectsTaskEffects({ prisma, notifSvc, bridge, broadcaster })
@@ -166,6 +169,19 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
       const projects = await projectsSvc.listProjects(getCompanyId(c), getUserId(c))
       return c.json(projects)
     } catch (err) { return handleError(c, err, 'Error al listar proyectos.') }
+  })
+
+  // Registered before /projects/:id so the literal segment is not read as an id.
+  app.get('/projects/tasks-by-target', requirePermission('projects.task.read'), async (c) => {
+    try {
+      return c.json(await linksSvc.listTasksByTarget({
+        companyId: getCompanyId(c),
+        userId: getUserId(c),
+        authUserId: c.get('authUserId'),
+        targetType: c.req.query('type'),
+        targetId: c.req.query('id'),
+      }))
+    } catch (err) { return handleError(c, err, 'Error al listar tareas vinculadas.') }
   })
 
   app.post('/projects', requirePermission('projects.project.create'), async (c) => {
@@ -593,6 +609,38 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
       broadcastTaskEvent(c.req.param('id'), c.req.param('tid'), 'dependency_removed')
       return c.json({ ok: true })
     } catch (err) { return handleError(c, err, 'Error al eliminar dependencia.') }
+  })
+
+  // --- Task Links (records of other modules) ---
+  app.get('/projects/:id/tasks/:tid/links', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
+    try {
+      return c.json(await linksSvc.listLinks(c.req.param('tid'), c.req.param('id')))
+    } catch (err) { return handleError(c, err, 'Error al listar vinculos.') }
+  })
+
+  app.post('/projects/:id/tasks/:tid/links', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
+    try {
+      const { targetType, targetId } = await c.req.json()
+      const link = await linksSvc.addLink({
+        taskId: c.req.param('tid'),
+        projectId: c.req.param('id'),
+        companyId: getCompanyId(c),
+        userId: getUserId(c),
+        authUserId: c.get('authUserId'),
+        targetType,
+        targetId,
+      })
+      broadcastTaskEvent(c.req.param('id'), c.req.param('tid'), 'link_added')
+      return c.json(link, 201)
+    } catch (err) { return handleError(c, err, 'Error al vincular registro.') }
+  })
+
+  app.delete('/projects/:id/tasks/:tid/links/:linkId', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
+    try {
+      await linksSvc.removeLink(c.req.param('linkId'), c.req.param('tid'))
+      broadcastTaskEvent(c.req.param('id'), c.req.param('tid'), 'link_removed')
+      return c.json({ ok: true })
+    } catch (err) { return handleError(c, err, 'Error al eliminar vinculo.') }
   })
 
   // --- Project Custom Fields ---
