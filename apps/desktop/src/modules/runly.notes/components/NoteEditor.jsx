@@ -32,6 +32,7 @@ import { NoteIcon } from '../noteIcons.jsx'
 import { patchNoteInCache } from '../lib/noteCache.js'
 import { DrawingBlock } from '../lib/extensions/DrawingBlock.jsx'
 import { AnnotatableImage } from '../lib/extensions/AnnotatableImage.jsx'
+import { notesDebug } from '../lib/notesDebug.js'
 
 const AUTOSAVE_DELAY = 1500
 // Browsers reject keepalive bodies past 64 KB (shared by all in-flight
@@ -303,6 +304,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
 
   const handleUpdate = useCallback(
     ({ editor, transaction }) => {
+      notesDebug('local update', transaction?.docChanged)
       if (!transaction?.docChanged || viewing || !note?.id || !token) return
       // Changes that arrived through Y.js (initial load, a collaborator's
       // edit, the server catch-up) are not this user's edits: their author
@@ -418,7 +420,9 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
   const presenceUsers = usePresence(provider, session?.user?.id)
 
   const extensions = useMemo(
-    () => [
+    () => {
+      notesDebug('extensions rebuilt')
+      return [
       ...buildExtensions({
         ydoc,
         provider,
@@ -439,7 +443,8 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       }),
       DrawingBlock,
       AnnotatableImage,
-    ],
+      ]
+    },
     [
       ydoc,
       provider,
@@ -486,6 +491,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
     }
     if (!note.content) return
     console.debug('[notes/yjs] seeding empty Y.Doc from note.content HTML')
+    notesDebug('seed')
     editor.commands.setContent(note.content)
     // Persist the migrated Y.js state immediately (skip the 1.5s autosave
     // debounce) so a guest opening the note right after sees the state and
@@ -520,6 +526,9 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       editorProps={{
         attributes: {
           class: 'focus:outline-none note-sheet-inset pb-6 min-h-full',
+          spellcheck: 'false',
+          autocorrect: 'off',
+          autocapitalize: 'sentences',
         },
       }}
       slotBefore={
