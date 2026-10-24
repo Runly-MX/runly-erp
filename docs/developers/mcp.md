@@ -74,7 +74,7 @@ MCP tiene límites propios por usuario, aplicación, espacio y herramienta (por 
 
 ## Revocar el acceso
 
-En **Configuración > Aplicaciones conectadas** pulsa **Revocar**. Se eliminan los permisos del Hub y la autorización OAuth: las llamadas MCP fallan de inmediato, los tokens de renovación dejan de funcionar y las aprobaciones pendientes de esa aplicación se anulan. Volver a conectar requiere autorizar de nuevo.
+En **Configuración > Aplicaciones conectadas** pulsa **Revocar**. Se eliminan los permisos del Hub y se anulan las aprobaciones pendientes de esa aplicación, bloqueando las llamadas MCP que dependan de esa concesión. El servicio también intenta revocar la autorización en el servidor OAuth; comprueba por separado que el token anterior recibe 401 y que la renovación falla. Un fallo de revocación en el proveedor no debe confundirse con una renovación comprobada. Volver a conectar requiere autorizar de nuevo.
 
 ## Estado actual
 
