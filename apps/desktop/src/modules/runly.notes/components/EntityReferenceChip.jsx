@@ -1,7 +1,7 @@
 import { NodeViewWrapper } from '@tiptap/react'
 import { useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Link2 } from 'lucide-react'
+import { Link2, Lock } from 'lucide-react'
 import { Skeleton } from '@runly/ui'
 import { NoteInteractionContext } from './NoteInteractionContext.js'
 import { useResolvedReference } from '../hooks/useRelationTargets.js'
@@ -48,10 +48,12 @@ export function EntityReferenceChip({ node, selected }) {
       </span>
     )
   } else if (!data) {
+    // No permission for the record or its module, or it was deleted: the API
+    // cannot tell them apart and neither does the chip. No name, no preview.
     body = (
-      <span className={`${CHIP} text-muted-foreground`} style={chipStyle(muted, selected)} title="Registro no disponible">
-        <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
-        <span>Registro no disponible</span>
+      <span className={`${CHIP} text-muted-foreground`} style={chipStyle(muted, selected)} title="Este registro no existe o no tienes acceso.">
+        <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+        <span>Sin acceso</span>
       </span>
     )
   } else {

@@ -32,7 +32,11 @@ export function EntityPreviewContent({ entityType, recordId, snapshot = null, on
     staleTime: 60_000,
     retry: false,
   });
-  const data = query.data ?? snapshot;
+  // A 403/404 from the live check means this viewer cannot see the record (or it
+  // is gone): never fall back to the stored snapshot then, it carries details
+  // (phone, tax id, ...) that the viewer is not allowed to read.
+  const denied = query.isError && [403, 404].includes(query.error?.status);
+  const data = denied ? null : (query.data ?? snapshot);
   const meta = ENTITY_TYPE_BY_VALUE[entityType];
 
   if (!data) {
