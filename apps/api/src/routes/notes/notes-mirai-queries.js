@@ -15,7 +15,7 @@ export function createNotesMiraiQueries({ prisma, notesSvc, restrictCompany = fa
     name: "notes_search",
     permission: "notes.notes.read",
     definition: {
-      description: "Busca notas del usuario por texto (titulo/contenido), etiqueta o carpeta. Devuelve el total exacto y hasta 30 notas con noteId y un extracto corto.",
+      description: "Busca notas del usuario por texto (titulo/contenido), etiqueta o carpeta. Devuelve el total exacto y hasta 30 notas con noteId y un extracto corto. Las subpaginas (notas anidadas dentro de otra) tambien aparecen; traen `subpaginaDe` con el noteId de su pagina padre.",
       parameters: {
         type: "object",
         properties: {
@@ -54,7 +54,7 @@ export function createNotesMiraiQueries({ prisma, notesSvc, restrictCompany = fa
       }
 
       const rows = await prisma.$queryRaw`
-        SELECT n.id, n.title, n.content_text, n.updated_at, nf.name AS folder_name
+        SELECT n.id, n.title, n.content_text, n.updated_at, n.parent_note_id, nf.name AS folder_name
         FROM notes n
         LEFT JOIN note_folders nf ON nf.id = n.folder_id
         LEFT JOIN note_shares ns_mine ON ns_mine.note_id = n.id AND ns_mine.shared_with_user_id = ${userId}::uuid
@@ -82,6 +82,7 @@ export function createNotesMiraiQueries({ prisma, notesSvc, restrictCompany = fa
           noteId: r.id,
           titulo: r.title,
           carpeta: r.folder_name,
+          subpaginaDe: r.parent_note_id ?? null,
           extracto: (r.content_text ?? "").slice(0, EXCERPT_MAX),
           actualizada: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
         })),
@@ -93,7 +94,7 @@ export function createNotesMiraiQueries({ prisma, notesSvc, restrictCompany = fa
     name: "notes_get",
     permission: "notes.notes.read",
     definition: {
-      description: "Devuelve el contenido (texto plano, hasta 6000 caracteres) de UNA nota por noteId. Solo funciona si el usuario es dueno o tiene la nota compartida.",
+      description: "Devuelve el contenido (texto plano, hasta 6000 caracteres) de UNA nota por noteId; si es una subpagina indica `subpaginaDe`. Solo funciona si el usuario es dueno o tiene la nota compartida.",
       parameters: { type: "object", properties: { noteId: { type: "string" } }, required: ["noteId"] },
     },
     async run(args, actx) {
@@ -104,6 +105,7 @@ export function createNotesMiraiQueries({ prisma, notesSvc, restrictCompany = fa
         return {
           noteId: note.id,
           titulo: note.title,
+          subpaginaDe: note.parent_note_id ?? null,
           contenido: (note.content_text ?? "").slice(0, CONTENT_MAX),
           truncado: (note.content_text ?? "").length > CONTENT_MAX,
           etiquetas: (note.tags ?? []).map((t) => t.name),

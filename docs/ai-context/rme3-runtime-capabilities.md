@@ -728,6 +728,10 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `loadFfmpeg` | `await loadFfmpeg()` → `{ ffmpeg, fetchFile }`; ffmpeg.wasm with the core self-hosted under `/ffmpeg/` (lazy, ~30 MB on first use). The caller calls `ffmpeg.terminate()`. Used by runly.lms to remux large videos into HLS in the browser |
 | `cn` | Tailwind class merge utility (from `lib/utils`) |
 
+### runly.notes editor blocks (system module, not a module-author API)
+
+The notes editor (`apps/desktop/src/modules/runly.notes`) registers custom TipTap nodes in `lib/editor-extensions.js` (`buildExtensions`, same list for editable and read-only editors): `pageBreak` (explicit page break, Ctrl+Enter), `tableOfContents` (live list of real headings) and `entityReference` (inline chip to an ERP record, picked from the toolbar or the `/` menu; stored in `note_references` for backlinks). Notes can also nest as sub-pages (`parent_note_id`, at most 3 levels); sharing and archiving a parent cascade to its sub-pages. Per-viewer, per-note preferences (paged view, spellcheck) live in localStorage and never reach the API.
+
 ---
 
 ## Frontend Libraries Available in the Published Web Image

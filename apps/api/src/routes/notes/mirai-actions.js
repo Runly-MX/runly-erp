@@ -185,7 +185,7 @@ export function createNotesMiraiActions({ prisma, notesSvc, foldersSvc, tagsSvc 
     operation: "delete",
     label: "Eliminar nota",
     permission: "notes.notes.delete",
-    description: "Mueve una nota a la papelera (borrado logico, recuperable). Requiere el noteId de notes_search. Solo el dueno de la nota puede eliminarla.",
+    description: "Mueve una nota a la papelera (borrado logico, recuperable); sus subpaginas van con ella. Requiere el noteId de notes_search. Solo el dueno de la nota puede eliminarla.",
     parameters: { type: "object", properties: { noteId: { type: "string" } }, required: ["noteId"] },
     async prepare(args, actx) {
       const parsed = deleteArgs.safeParse(args);

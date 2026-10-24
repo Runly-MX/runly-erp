@@ -17,7 +17,7 @@ export function createNotesMiraiCapabilities({ prisma }) {
   return {
     moduleKey: "runly.notes",
     label: "Notas",
-    summary: "Notas del usuario: busqueda por texto/etiqueta/carpeta, contenido; crear, renombrar/mover y eliminar.",
+    summary: "Notas del usuario: busqueda por texto/etiqueta/carpeta, contenido; crear, renombrar/mover y eliminar. Las subpaginas son notas normales anidadas (parent_note_id); la busqueda las devuelve indicando su pagina padre.",
     tools: createNotesMiraiQueries({ prisma, notesSvc }),
     actions: createNotesMiraiActions({ prisma, notesSvc, foldersSvc, tagsSvc }),
     publicLookup: [],
