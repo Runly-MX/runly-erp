@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useCoarsePointer, useOfficeActions } from "@runly/ui";
+import { getSafeAreaInsets, useCoarsePointer, useOfficeActions } from "@runly/ui";
 import { Plus } from "lucide-react";
 import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
 import { computeActionSheetLayout } from "../lib/messageActionLayout";
@@ -74,9 +74,7 @@ export function MessageActionSheet({
     const pill = pillRef.current;
     if (!panel || !pill) return;
 
-    const rootStyle = getComputedStyle(document.documentElement);
-    const safeTop = parseFloat(rootStyle.getPropertyValue("--safe-top")) || 0;
-    const safeBottom = parseFloat(rootStyle.getPropertyValue("--safe-bottom")) || 0;
+    const { top: safeTop, bottom: safeBottom } = getSafeAreaInsets();
 
     const pr = panel.getBoundingClientRect();
     const plr = pill.getBoundingClientRect();

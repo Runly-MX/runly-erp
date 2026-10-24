@@ -1,5 +1,6 @@
 // Lib
 export { cn } from "./lib/utils.js";
+export { getSafeAreaInsets } from "./lib/safeArea.js";
 
 // Core primitives
 export { AssistantWordmark } from "./components/AssistantWordmark.jsx";
