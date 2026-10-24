@@ -419,6 +419,23 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
 
   const presenceUsers = usePresence(provider, session?.user?.id)
 
+  // Token is read lazily so a refresh does not rebuild the extensions (which
+  // would recreate the editor mid-composition).
+  const tokenRef = useRef(token)
+  useCommitRefValue(tokenRef, token)
+
+  // Identity changes (avatar, display name) flow through awareness instead of
+  // the extensions memo.
+  useEffect(() => {
+    if (!provider || readOnly) return
+    provider.setAwarenessField('user', {
+      id: session?.user?.id ?? null,
+      name: userProfile?.displayName ?? session?.user?.user_metadata?.full_name ?? session?.user?.email ?? 'Usuario',
+      color: colorForUser(session?.user?.id ?? session?.user?.email),
+      avatarUrl: userProfile?.avatarUrl ?? session?.user?.user_metadata?.avatar_url ?? null,
+    })
+  }, [provider, readOnly, session?.user?.id, session?.user?.email, session?.user?.user_metadata, userProfile?.displayName, userProfile?.avatarUrl])
+
   const extensions = useMemo(
     () => {
       notesDebug('extensions rebuilt')
@@ -440,6 +457,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
         readOnly,
         noteId: note.id,
         token,
+        getToken: () => tokenRef.current,
       }),
       DrawingBlock,
       AnnotatableImage,
@@ -450,11 +468,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       provider,
       readOnly,
       note.id,
-      token,
       session?.user?.id,
-      session?.user?.email,
-      userProfile?.avatarUrl,
-      userProfile?.displayName,
     ],
   )
 

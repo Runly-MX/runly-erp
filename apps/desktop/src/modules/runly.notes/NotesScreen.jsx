@@ -29,6 +29,7 @@ import { NoteTitleEditor } from './components/NoteTitleEditor.jsx'
 import { ZoomControl } from './components/ZoomControl.jsx'
 import { useNoteZoom } from './hooks/useNoteZoom.js'
 import { useMiraiRecordContext } from '../runly.chat/lib/miraiPageContext'
+import { nextSelectedNote } from './lib/stableNoteIdentity.js'
 
 // Lazy so the Excalidraw bundle only loads when a canvas note is opened.
 const CanvasEditor = lazy(() =>
@@ -135,7 +136,7 @@ export default function NotesScreen() {
   const { data: liveNoteData } = useNote(selectedNote?.id)
   useEffect(() => {
     if (liveNoteData?.note && liveNoteData.note.id === selectedNote?.id) {
-      setSelectedNote(liveNoteData.note)
+      setSelectedNote((prev) => nextSelectedNote(prev, liveNoteData.note))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveNoteData])

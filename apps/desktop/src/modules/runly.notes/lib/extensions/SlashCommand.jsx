@@ -8,12 +8,12 @@ export const SlashCommand = Extension.create({
   name: 'slashCommand',
 
   addOptions() {
-    return { noteId: null, token: null }
+    return { noteId: null, token: null, getToken: null }
   },
 
   addProseMirrorPlugins() {
-    const { noteId, token } = this.options
-    const items = buildSlashItems({ noteId, token })
+    const { noteId, token, getToken } = this.options
+    const items = buildSlashItems({ noteId, token, getToken })
 
     return [
       Suggestion({

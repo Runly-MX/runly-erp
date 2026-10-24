@@ -10,7 +10,9 @@ import { pickAndUploadNoteImage } from './noteImageUpload.js'
 // two items that stay available while the cursor is inside a table cell —
 // everything else (headings, lists, nested tables, etc.) stays blocked
 // there (see docs/superpowers/specs/2026-09-16-notes-tables-images-mobile-design.md).
-export function buildSlashItems({ noteId, token }) {
+// `getToken` is read when an item runs so the extension list does not have to
+// be rebuilt (and the editor disturbed) whenever the session token refreshes.
+export function buildSlashItems({ noteId, token, getToken }) {
   return [
     { title: 'Titulo 1', icon: Heading1, keywords: ['heading', 'h1', 'titulo'],
       run: (editor, range) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 1 }).run() },
@@ -31,7 +33,7 @@ export function buildSlashItems({ noteId, token }) {
     { title: 'Tabla', icon: Table2, keywords: ['table', 'tabla'],
       run: (editor, range) => editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
     { title: 'Imagen', icon: ImagePlus, keywords: ['image', 'imagen', 'foto'], allowedInTable: true,
-      run: (editor, range) => { editor.chain().focus().deleteRange(range).run(); pickAndUploadNoteImage({ editor, noteId, token }) } },
+      run: (editor, range) => { editor.chain().focus().deleteRange(range).run(); pickAndUploadNoteImage({ editor, noteId, token: getToken ? getToken() : token }) } },
     { title: 'Canvas de dibujo', icon: PenLine, keywords: ['drawing', 'dibujo', 'canvas'], allowedInTable: true,
       run: (editor, range) => editor.chain().focus().deleteRange(range).insertDrawingBlock().run() },
   ]
