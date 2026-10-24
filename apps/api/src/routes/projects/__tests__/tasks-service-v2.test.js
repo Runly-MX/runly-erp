@@ -244,3 +244,30 @@ describe('listMyTasks', () => {
     assert.equal(calls[0].where.status.isDone, false)
   })
 })
+
+describe('projects.task.completed', () => {
+  it('publishes only when the task enters a done status', async () => {
+    const outbox = []
+    const task = { id: 't-1', projectId: 'p-1', statusId: 's-1', title: 'Hacer' }
+    const prisma = {
+      task: {
+        findFirst: async () => task,
+        update: async ({ data }) => ({ ...task, ...data }),
+      },
+      taskStatus: {
+        findFirst: async ({ where }) => (where?.id ? { id: where.id, projectId: 'p-1' } : null),
+        findMany: async () => [{ id: 's-1', isDone: false }, { id: 's-2', isDone: true }],
+      },
+      project: { findFirst: async () => ({ companyId: 'co-1' }) },
+      taskDependency: { findMany: async () => [] },
+      domainEventOutbox: { create: async ({ data }) => { outbox.push(data) } },
+    }
+    const svc = createTasksService({ prisma })
+    await svc.updateTask('t-1', { statusId: 's-2' })
+    assert.equal(outbox.length, 1)
+    assert.equal(outbox[0].event, 'projects.task.completed')
+    assert.equal(outbox[0].companyId, 'co-1')
+    await svc.updateTask('t-1', { title: 'Otro' })
+    assert.equal(outbox.length, 1)
+  })
+})

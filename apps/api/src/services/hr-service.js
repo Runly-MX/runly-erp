@@ -8,6 +8,7 @@ import {
 import { createActivityService } from "./activity-service.js";
 import { withAfterWrite } from "./connections/after-write.js";
 import { createActivityBridge } from "./activity-bridge.js";
+import { publishDomainEvent } from "./domain-events/events.js";
 
 class HrServiceError extends Error {
   constructor(message, status = 500) {
@@ -608,6 +609,7 @@ export function createHrService({ prisma, activityBridge }) {
         metadata: { source: "api" },
         companyId,
       });
+      await publishDomainEvent(prisma, { companyId, event: "hr.employee.created", payload: { id: created.id, firstName: created.firstName ?? null, lastName: created.lastName ?? null } });
       return created;
     },
 

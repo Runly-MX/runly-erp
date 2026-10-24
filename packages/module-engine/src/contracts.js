@@ -16,10 +16,15 @@ export const DOMAIN_EVENTS = Object.freeze({
   'files.file.created': 'Se subió un archivo a Archivos',
   'fleet.vehicle.created': 'Se creó un vehículo de la flota',
   'fleet.vehicle.updated': 'Se actualizó un vehículo de la flota',
+  'projects.task.completed': 'Se completó una tarea de proyecto',
+  'hr.employee.created': 'Se creó un colaborador',
+  'purchases.order.approved': 'Se aprobó una orden de compra',
+  'purchases.order.issued': 'Se emitió una orden de compra',
 })
 // Payload keys of each domain event (Builder automations, Developer Hub).
 const CALENDAR_EVENT_PAYLOAD = Object.freeze(['id', 'title', 'startAt', 'sourceModule', 'sourceEntityId'])
 const VEHICLE_PAYLOAD = Object.freeze(['id', 'plate', 'status'])
+const PURCHASE_ORDER_PAYLOAD = Object.freeze(['id', 'caseId', 'status'])
 export const DOMAIN_EVENT_PAYLOADS = Object.freeze({
   'inventory.item.created': Object.freeze(['id', 'name', 'assetTag']),
   'inventory.item.updated': Object.freeze(['id', 'name']),
@@ -31,6 +36,10 @@ export const DOMAIN_EVENT_PAYLOADS = Object.freeze({
   'files.file.created': Object.freeze(['id', 'name', 'mimeType']),
   'fleet.vehicle.created': VEHICLE_PAYLOAD,
   'fleet.vehicle.updated': VEHICLE_PAYLOAD,
+  'projects.task.completed': Object.freeze(['id', 'projectId', 'title']),
+  'hr.employee.created': Object.freeze(['id', 'firstName', 'lastName']),
+  'purchases.order.approved': PURCHASE_ORDER_PAYLOAD,
+  'purchases.order.issued': PURCHASE_ORDER_PAYLOAD,
 })
 
 export const RME3_ENGINE_CONTRACT = Object.freeze({

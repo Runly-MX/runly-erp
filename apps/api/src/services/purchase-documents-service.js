@@ -1,5 +1,6 @@
 // runly.purchases — purchase orders and supplier invoices: detail, create,
 // draft edit (lines replaced as a set) and status transitions.
+import { publishDomainEvent } from './domain-events/events.js'
 import { buildStageMap, policyBlockers, resolveTransition } from './purchase-policies.js'
 import { policyCheckFor } from './purchase-case-bundle.js'
 import { inheritFromOrders } from './purchase-relations-service.js'
@@ -261,6 +262,9 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       return result
     })
     await broadcast(broadcaster, companyId, `${EVENT[kind]}.${action}`, { id, caseId: doc.caseId, status: updated.status })
+    if (kind === 'orders' && updated.status !== doc.status && ['APPROVED', 'ISSUED'].includes(updated.status)) {
+      await publishDomainEvent(prisma, { companyId, event: `purchases.order.${updated.status.toLowerCase()}`, payload: { id, caseId: doc.caseId, status: updated.status } })
+    }
     return plain(updated)
   }
 

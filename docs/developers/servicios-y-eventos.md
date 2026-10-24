@@ -183,6 +183,10 @@ Desde un evento solo funcionan los servicios que no necesitan a una persona: not
 | `files.file.created` | `{ id, name, mimeType }` (solo archivos subidos a Archivos, no adjuntos de registros) |
 | `fleet.vehicle.created` | `{ id, plate, status }` |
 | `fleet.vehicle.updated` | `{ id, plate, status }` |
+| `projects.task.completed` | `{ id, projectId, title }` (al pasar a un estado de tipo hecho) |
+| `hr.employee.created` | `{ id, firstName, lastName }` |
+| `purchases.order.approved` | `{ id, caseId, status }` |
+| `purchases.order.issued` | `{ id, caseId, status }` |
 
 Con `sourceModule` sabes si un evento de calendario lo creó tu módulo (por ejemplo, para marcar tu orden como reagendada cuando alguien mueve la cita desde el calendario). Libro de cuentas y Finanzas personales no publican eventos: su información depende del acceso por cuenta o cartera de cada persona.
 

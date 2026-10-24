@@ -172,6 +172,20 @@ export function createTasksService({ prisma }) {
     return task
   }
 
+  // Fires projects.task.completed when a status change moves a task into a done status.
+  async function emitCompletion(before, after) {
+    if (!after || before.statusId === after.statusId) return
+    try {
+      const statuses = await prisma.taskStatus.findMany({ where: { id: { in: [before.statusId, after.statusId] } }, select: { id: true, isDone: true } })
+      const done = (id) => statuses.find((s) => s.id === id)?.isDone === true
+      if (!done(after.statusId) || done(before.statusId)) return
+      const project = await prisma.project.findFirst({ where: { id: after.projectId }, select: { companyId: true } })
+      await publishDomainEvent(prisma, { companyId: project?.companyId, event: 'projects.task.completed', payload: { id: after.id, projectId: after.projectId, title: after.title } })
+    } catch (err) {
+      console.error('[projects] no se pudo publicar projects.task.completed:', err?.message ?? err)
+    }
+  }
+
   async function updateTask(taskId, data) {
     const task = await prisma.task.findFirst({ where: { id: taskId } })
     if (!task) throw new TaskServiceError('Tarea no encontrada.', 404)
@@ -180,7 +194,7 @@ export function createTasksService({ prisma }) {
     const rruleNextAt = rrule !== undefined
       ? (rrule ? computeRruleNextAt(rrule) : null)
       : undefined
-    return prisma.task.update({
+    const updated = await prisma.task.update({
       where: { id: taskId },
       data: {
         ...(title?.trim() ? { title: title.trim() } : {}),
@@ -194,6 +208,8 @@ export function createTasksService({ prisma }) {
         ...(rruleNextAt !== undefined ? { rruleNextAt } : {}),
       },
     })
+    await emitCompletion(task, updated)
+    return updated
   }
 
   async function moveTask(taskId, { statusId, position }) {
@@ -204,7 +220,9 @@ export function createTasksService({ prisma }) {
       where: { projectId: task.projectId, statusId, position: { gte: position }, id: { not: taskId } },
       data: { position: { increment: 1 } },
     })
-    return prisma.task.update({ where: { id: taskId }, data: { statusId, position } })
+    const moved = await prisma.task.update({ where: { id: taskId }, data: { statusId, position } })
+    await emitCompletion(task, moved)
+    return moved
   }
 
   async function deleteTask(taskId) {
