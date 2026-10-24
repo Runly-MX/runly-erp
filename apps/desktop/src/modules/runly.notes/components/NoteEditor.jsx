@@ -623,6 +623,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       extensions={extensions}
       content={engine ? '' : (note.content || '')}
       editable={!viewing}
+      editorContainerProps={{ className: 'note-editor-surface' }}
       onCreate={(props) => {
         editorInstanceRef.current = props.editor
         seedIfNeeded(props)
@@ -756,7 +757,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
             style={keyboardInset > 0 ? { paddingBottom: keyboardInset + (barVisible ? TOUCH_BAR_HEIGHT : 0) } : undefined}
             onClick={viewing ? undefined : handleContainerClick}
           >
-            <NoteSheet note={note} isDark={isDark} zoom={zoom} paged={paged}>
+            <NoteSheet note={note} isDark={isDark} zoom={zoom} paged={paged} fillEditor>
               {editorProvider}
             </NoteSheet>
           </div>

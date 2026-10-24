@@ -895,6 +895,21 @@ body,
 .note-sheet-inset {
   padding-inline: var(--note-sheet-padding, 2rem);
 }
+/* A paper background with min-height:100% does not give its descendants a
+   definite height. Grow EditorContent and its contenteditable through flex
+   instead, so handwriting on a short note hits the editor across the paper. */
+.note-sheet[data-fill-editor="true"] {
+  display: flex;
+  flex-direction: column;
+}
+.note-sheet[data-fill-editor="true"] > .note-editor-surface {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+.note-sheet[data-fill-editor="true"] > .note-editor-surface > .tiptap {
+  flex: 1 0 auto;
+}
 @media (max-width: 639px) {
   .note-sheet {
     --note-body-font-size: 0.875rem;

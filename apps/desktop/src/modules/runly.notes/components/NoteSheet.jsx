@@ -6,7 +6,7 @@ export const NOTE_SHEET_MAX_WIDTH_CLASS = 'max-w-3xl mx-auto'
 
 const PAGE_WIDTH_PX = { a4: 794, letter: 816 }
 
-export function NoteSheet({ note, isDark = false, zoom = 100, paged = null, children }) {
+export function NoteSheet({ note, isDark = false, zoom = 100, paged = null, fillEditor = false, children }) {
   const raw = note?.background_color ?? null
   const backgroundColor = raw ? (isDark ? (DARK_BG_MAP[raw] ?? raw) : raw) : undefined
 
@@ -15,6 +15,7 @@ export function NoteSheet({ note, isDark = false, zoom = 100, paged = null, chil
       className={`${NOTE_SHEET_MAX_WIDTH_CLASS} min-h-full bg-card note-sheet`}
       data-paged={paged?.enabled ? 'true' : undefined}
       data-page-size={paged?.enabled ? paged.size : undefined}
+      data-fill-editor={fillEditor ? 'true' : undefined}
       style={{
         // Paged view: fixed page width (never wider than the viewport).
         ...(paged?.enabled ? { width: `${PAGE_WIDTH_PX[paged.size] ?? PAGE_WIDTH_PX.a4}px`, maxWidth: '100%' } : {}),
