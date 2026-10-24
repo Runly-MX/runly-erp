@@ -123,6 +123,14 @@ export function createTasksService({ prisma }) {
   }
 
   async function createTask(projectId, createdBy, { title, description, statusId, assigneeId, priority = 'NONE', startDate, dueDate, parentTaskId }) {
+    if (!statusId) {
+      const fallback = await prisma.taskStatus.findFirst({
+        where: { projectId },
+        orderBy: [{ isDefault: 'desc' }, { position: 'asc' }],
+        select: { id: true },
+      })
+      statusId = fallback?.id
+    }
     await validateTargets(projectId, { assigneeId, parentTaskId, statusId })
     if (!title?.trim()) throw new TaskServiceError('El titulo es requerido.', 400)
     const status = await prisma.taskStatus.findFirst({ where: { id: statusId, projectId } })

@@ -12,6 +12,7 @@ import { HR_EMPLOYEE_DETAIL } from '../blueprints/hr-employee-detail.blueprint.j
 import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
 import { useMiraiRecordContext } from '../../runly.chat/lib/miraiPageContext'
 import { ConnectionSections } from '../../../shell/connections/ConnectionSections.jsx'
+import { RecordTasks } from '../../../components/RecordTasks.jsx'
 
 const API_BASE = getApiUrl()
 
@@ -117,6 +118,7 @@ export default function HrEmployeeDetail({ employeeId }) {
         heroActions={false}
       />
       <ConnectionSections targetType="hr_employee" targetId={employeeId} />
+      <RecordTasks type="hr_employee" id={employeeId} />
 
       <ConfirmDialog
         open={enabledConfirm}

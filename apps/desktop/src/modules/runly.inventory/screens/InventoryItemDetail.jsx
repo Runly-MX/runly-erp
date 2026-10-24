@@ -18,6 +18,7 @@ import { CanvasReferences } from '../../runly.canvas/components/CanvasReferences
 import { ConnectionSections } from '../../../shell/connections/ConnectionSections.jsx'
 import { CustodyRelatedCard } from '../components/custody/CustodyRelatedList.jsx'
 import { useMiraiRecordContext, openMiraiSidebar } from '../../runly.chat/lib/miraiPageContext.js'
+import { RecordTasks } from '../../../components/RecordTasks.jsx'
 
 const API_BASE = getApiUrl()
 
@@ -117,7 +118,7 @@ export default function InventoryItemDetail() {
         onFilterByValue={({ param, value }) => navigate(`/app/m/runly.inventory/inventory?${new URLSearchParams({ [param]: value })}`)}
         onEdit={readOnly ? undefined : () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`)}
         fieldActions={fieldActions}
-        mainExtra={<><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /></>}
+        mainExtra={<><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /><RecordTasks type="inventory_item" id={id} /></>}
         asideExtra={<CanvasReferences moduleKey="runly.inventory" entityType="inventory_item" entityId={id} />}
         heroActions={false}
       />

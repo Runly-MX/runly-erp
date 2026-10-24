@@ -303,6 +303,7 @@ export {
   formatDate,
 } from "./lib/file-kind.js";
 export { AttachmentsPanel } from "./components/AttachmentsPanel.jsx";
+export { LinkedTasksPanel } from "./components/LinkedTasksPanel.jsx";
 export { DocumentsPanel } from "./components/DocumentsPanel.jsx";
 export { ImageViewer } from "./components/ImageViewer.jsx";
 export { ImageUploader } from "./components/ImageUploader.jsx";

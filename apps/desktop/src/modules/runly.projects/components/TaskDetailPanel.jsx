@@ -1,4 +1,5 @@
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider.jsx'
+import { TaskLinksSection } from "./TaskLinksSection.jsx";
 import { companyFetch } from '../../../lib/companyFetch.js'
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -581,6 +582,8 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                     onChange={(d) => saveField("dueDate", d ?? null)}
                   />
                 </div>
+
+                <TaskLinksSection projectId={projectId} taskId={taskId} />
 
                 {/* Dependencias */}
                 <div>

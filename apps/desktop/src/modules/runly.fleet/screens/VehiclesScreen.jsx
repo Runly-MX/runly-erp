@@ -12,6 +12,7 @@ import { useMiraiRecordContext } from "../../runly.chat/lib/miraiPageContext";
 import { FLEET_VEHICLE_MODEL_FORM_BLUEPRINT, FLEET_CATALOG_INLINE_BLUEPRINTS } from "./CatalogsScreen.jsx";
 import { DRIVER_QUICK_FORM_BLUEPRINT } from "./DriversScreen.jsx";
 import { useFleetLive } from "../hooks/useFleetLive.js";
+import { RecordTasks } from '../../../components/RecordTasks.jsx'
 
 const API_BASE = getApiUrl();
 const BASE_PATH = "/app/m/runly.fleet/vehicles";
@@ -691,6 +692,7 @@ export default function VehiclesScreen() {
         suppressToolbarCreate
         showEmptyCreate={canCreate}
       />
+      {initialMode === "detail" && recordId && <RecordTasks type="vehicle" id={recordId} />}
     </div>
   );
 }

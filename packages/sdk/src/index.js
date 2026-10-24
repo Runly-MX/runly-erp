@@ -2384,6 +2384,28 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           method: "DELETE",
           headers: withAuthHeaders(token),
         }),
+      // links to records of other modules
+      listTaskLinks: (projectId, taskId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/links`, {
+          headers: withAuthHeaders(token),
+        }),
+      addTaskLink: (projectId, taskId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/links`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      removeTaskLink: (projectId, taskId, linkId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/links/${encodeURIComponent(linkId)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
+      listTasksByTarget: (type, id, token) =>
+        request(`/projects/tasks-by-target${toQueryString({ type, id })}`, {
+          headers: withAuthHeaders(token),
+        }),
+      getPersonalProject: (token) =>
+        request("/projects/personal", { method: "POST", headers: withAuthHeaders(token) }),
       // custom fields
       listProjectFields: (projectId, token) =>
         request(`/projects/${encodeURIComponent(projectId)}/fields`, {

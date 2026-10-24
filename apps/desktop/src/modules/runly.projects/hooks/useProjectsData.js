@@ -589,6 +589,70 @@ export function useRemoveDependency(projectId, taskId) {
   })
 }
 
+// ── Task Links (records of other modules) ─────────────────────────────────────
+
+export function useTaskLinks(projectId, taskId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['projects', projectId, 'tasks', taskId, 'links'],
+    queryFn: () => runly.projects.listTaskLinks(projectId, taskId, token),
+    enabled: Boolean(token) && Boolean(projectId) && Boolean(taskId),
+    staleTime: 15 * 1000,
+  })
+}
+
+export function useAddTaskLink(projectId, taskId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => runly.projects.addTaskLink(projectId, taskId, data, token),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId, 'links'] })
+      qc.invalidateQueries({ queryKey: ['projects', 'tasks-by-target'] })
+    },
+    onError: (err) => toast.error(err?.message || 'No se pudo vincular el registro'),
+  })
+}
+
+export function useRemoveTaskLink(projectId, taskId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (linkId) => runly.projects.removeTaskLink(projectId, taskId, linkId, token),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId, 'links'] })
+      qc.invalidateQueries({ queryKey: ['projects', 'tasks-by-target'] })
+    },
+    onError: () => toast.error('No se pudo quitar el vinculo'),
+  })
+}
+
+export function useTasksByTarget(type, id) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['projects', 'tasks-by-target', type, id],
+    queryFn: () => runly.projects.listTasksByTarget(type, id, token),
+    enabled: Boolean(token) && Boolean(type) && Boolean(id),
+    staleTime: 15 * 1000,
+  })
+}
+
+// Creates a task in the caller's "Mis tareas" project already linked to a record.
+export function useCreateLinkedTask(type, id) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ title }) => {
+      const project = await runly.projects.getPersonalProject(token)
+      const task = await runly.projects.createTask(project.id, { title }, token)
+      await runly.projects.addTaskLink(project.id, task.id, { targetType: type, targetId: id }, token)
+      return { project, task }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', 'tasks-by-target', type, id] }),
+    onError: (err) => toast.error(err?.message || 'No se pudo crear la tarea'),
+  })
+}
+
 // ── Project Custom Fields ─────────────────────────────────────────────────────
 
 export function useProjectFields(projectId) {
