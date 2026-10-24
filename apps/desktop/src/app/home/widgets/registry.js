@@ -5,10 +5,12 @@ import { InventoryWidget } from "./InventoryWidget";
 import { OnlineUsersWidget } from "./OnlineUsersWidget";
 import { ActivityWidget } from "./ActivityWidget";
 import { AttendanceWidget } from "./AttendanceWidget";
+import { MyTasksWidget } from "./MyTasksWidget";
 
 // Home widget catalog. A widget is offered only when its module is available
 // to the user; order here is the board order.
 export const HOME_WIDGETS = [
+  { id: "my-tasks", title: "Mis tareas", description: "Tareas abiertas asignadas a ti", moduleKey: "runly.projects", Component: MyTasksWidget },
   { id: "agenda", title: "Agenda", description: "Tus próximos eventos", moduleKey: "runly.calendar", Component: AgendaWidget },
   { id: "pfm", title: "Finanzas personales", description: "Saldo, ingresos y gastos del mes", moduleKey: "runly.pfm", Component: PfmWidget },
   { id: "ledger", title: "Cuentas", description: "Saldos de tus cuentas", moduleKey: "runly.ledger", Component: LedgerWidget },

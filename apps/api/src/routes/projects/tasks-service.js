@@ -278,8 +278,34 @@ export function createTasksService({ prisma }) {
     return { deleted: result.count }
   }
 
+  // Open tasks assigned to the user across the projects they belong to (Home
+  // "Mis tareas" widget). Overdue is counted over the whole set, not the page.
+  async function listMyTasks(companyId, userId, { limit = 20 } = {}) {
+    const where = {
+      status: { isDone: false },
+      project: { companyId, status: { not: 'ARCHIVED' }, OR: [{ ownerId: userId }, { members: { some: { userId } } }] },
+      OR: [{ assigneeId: userId }, { assignees: { some: { userId } } }],
+    }
+    const now = new Date()
+    const [items, total, overdue] = await Promise.all([
+      prisma.task.findMany({
+        where,
+        orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }],
+        take: limit,
+        select: {
+          id: true, projectId: true, title: true, taskNumber: true, priority: true, dueDate: true,
+          status: { select: { name: true, color: true } },
+          project: { select: { name: true } },
+        },
+      }),
+      prisma.task.count({ where }),
+      prisma.task.count({ where: { ...where, dueDate: { lt: now } } }),
+    ])
+    return { items, total, overdue }
+  }
+
   return {
-    listTasks, getTask, createTask, updateTask, moveTask, deleteTask,
+    listMyTasks, listTasks, getTask, createTask, updateTask, moveTask, deleteTask,
     addAssignee, removeAssignee, listAssignees,
     bulkUpdateTasks, bulkDeleteTasks,
   }

@@ -2404,6 +2404,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/projects/tasks-by-target${toQueryString({ type, id })}`, {
           headers: withAuthHeaders(token),
         }),
+      listMyTasks: (token) =>
+        request("/projects/my-tasks", { headers: withAuthHeaders(token) }),
       getPersonalProject: (token) =>
         request("/projects/personal", { method: "POST", headers: withAuthHeaders(token) }),
       // custom fields

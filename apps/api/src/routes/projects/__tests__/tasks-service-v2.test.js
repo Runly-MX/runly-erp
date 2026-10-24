@@ -228,3 +228,19 @@ describe('V2.1 service functions', () => {
     })
   })
 })
+
+describe('listMyTasks', () => {
+  it('returns page, total and overdue counts scoped to the user', async () => {
+    const calls = []
+    const prisma = {
+      task: {
+        findMany: async (args) => { calls.push(args); return [{ id: 't-1' }] },
+        count: async ({ where }) => (where.dueDate ? 1 : 3),
+      },
+    }
+    const res = await createTasksService({ prisma }).listMyTasks('co-1', 'u-1')
+    assert.deepEqual(res, { items: [{ id: 't-1' }], total: 3, overdue: 1 })
+    assert.equal(calls[0].where.project.companyId, 'co-1')
+    assert.equal(calls[0].where.status.isDone, false)
+  })
+})
