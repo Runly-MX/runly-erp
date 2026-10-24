@@ -22,7 +22,8 @@ The module is a split-pane "document" app (list + TipTap/Y.js editor, Notion-lik
 3. Keep-style visual overview: card grid with color, pin, checklist and image previews, labels, folders.
 4. Notion-class editor retained for long notes (no regression to tables, images, canvas, sharing, collab, public links, MirAI, quick-notes floating widget).
 5. Entity references in notes, reusing the chat registry.
-6. Touch/tablet first: 44px targets, bottom sheets, palm rejection, keyboard-safe layout.
+6. Long-note structure: table of contents, page breaks/paged view and sub-pages.
+7. Touch/tablet first: 44px targets, bottom sheets, palm rejection, keyboard-safe layout.
 
 ## 3. Non-goals
 
@@ -30,7 +31,7 @@ The module is a split-pane "document" app (list + TipTap/Y.js editor, Notion-lik
 - Reminders/notifications (follow-up; needs calendar integration).
 - OCR / handwriting recognition of ink (Samsung's own keyboard does text conversion).
 - Rewriting the Y.js sync layer, canvas editor or sharing model.
-- Schema churn: `is_pinned`, `is_archived`, `background_color`, folders, tags already exist.
+- Schema churn beyond `note_references` and `parent_note_id`: `is_pinned`, `is_archived`, `background_color`, folders, tags already exist.
 
 ## 4. Findings from code review
 
@@ -72,6 +73,22 @@ The module is a split-pane "document" app (list + TipTap/Y.js editor, Notion-lik
 - Checklist as a first-class slash command and quick-composer mode with "move checked to bottom".
 - Autosave state indicator ("Guardado", "Guardando...", "Sin conexión") in the header.
 
+### 5.3b Phase 3b — Structure for long notes (contents and pages)
+
+Two distinct needs, both covered:
+
+**Table of contents**
+- Outline panel generated live from H1-H3 headings (no stored data): collapsible side panel on desktop/tablet, bottom sheet on phone, tap to scroll to the heading, current-section highlight while scrolling. Toggle in the header.
+- Insertable inline `tableOfContents` block (slash command `/contenido`), a TipTap atom node rendering the same outline as clickable links; updates as headings change. Public notes render it too (anchors only, no internal links).
+- Headings get stable anchors derived from position/text slug so links survive edits.
+
+**Pages**
+- Page break node (`/salto-de-pagina`, also `Ctrl+Enter`): a visible divider in edit mode and a real break in print/PDF export.
+- Paged view toggle ("Vista por páginas"): renders the document as stacked A4/Carta sheets split at page breaks and, optionally, at automatic height, reusing the realistic-paper styling already in the editor. Edit mode stays continuous for pen/IME stability; paged view is a presentation mode plus export.
+- PDF/print export honors page breaks, header/footer with title and page number (extends `notePageExport.js`, which today rasterizes one sheet).
+- Sub-pages (OneNote/Notion style): a note can have child notes (`parent_note_id` on `notes`, forward migration, ON DELETE cascade to trash). A `/subpagina` command creates a child and inserts a link block; the sidebar/grid shows child count and the editor shows a breadcrumb. Children inherit folder and shares by default. Nesting limited to 3 levels. Unlike page breaks, sub-pages are separate notes (own title, own collab doc).
+- Out of scope for now: sections/notebooks as a separate entity (folders already cover that role).
+
 ### 5.4 Phase 4 — Entity references in notes
 
 - New TipTap node `entityReference` (inline atom, rendered as a chip with icon + title) inserted via `@` mention picker or a "Vincular registro" button, using the chat registry types. Stored in the doc as `{ entityType, recordId, title, url }` snapshot (same tradeoff as chat: title can go stale, link is live).
@@ -97,9 +114,9 @@ Recommendation: B. Pen fix first because it is independent and the biggest daily
 
 ## 7. Files expected to change or be added
 
-- Frontend (`apps/desktop/src/modules/runly.notes/`): `NotesScreen.jsx` (split: it is 523 lines and will be decomposed), new `home/NotesHome.jsx`, `home/NoteGridCard.jsx`, `home/QuickComposer.jsx`, `home/NotesMasonry.jsx`, `lib/compositionGuard.js` + extension, `lib/extensions/EntityReference.jsx`, `components/NoteEditor.jsx` (stable extensions), `components/NotesSidebar.jsx`, hooks for archive/multi-select.
+- Frontend (`apps/desktop/src/modules/runly.notes/`): `NotesScreen.jsx` (split: it is 523 lines and will be decomposed), new `home/NotesHome.jsx`, `home/NoteGridCard.jsx`, `home/QuickComposer.jsx`, `home/NotesMasonry.jsx`, `lib/compositionGuard.js` + extension, `lib/extensions/EntityReference.jsx`, `lib/extensions/TableOfContents.jsx`, `lib/extensions/PageBreak.js`, `components/OutlinePanel.jsx`, `components/PagedView.jsx`, `components/NoteEditor.jsx` (stable extensions), `components/NotesSidebar.jsx`, hooks for archive/multi-select.
 - API (`apps/api/src/routes/notes/`): archive endpoint(s), `references-service.js`, shared `lib/entity-references`, `notes-service.js` list filters (archived, has-image, color).
-- DB: forward migration `note_references` (and optional `has_image`/`checklist_total/done` summary columns for card previews if parsing is too slow; decide during plan).
+- DB: forward migrations `note_references` and `notes.parent_note_id` (and optional `has_image`/`checklist_total/done` summary columns for card previews if parsing is too slow; decide during plan).
 - Docs/tests: per Phase checklists, node tests for composition guard, reference resolution/permissions, list filters.
 
 ## 8. Testing and verification
@@ -119,6 +136,6 @@ Recommendation: B. Pen fix first because it is independent and the biggest daily
 
 1. Phase 1 (pen stability) — own plan, own commit series, deployable alone.
 2. Phase 2 (home grid + quick composer + archive).
-3. Phase 3 (touch editor).
+3. Phase 3 (touch editor) and 3b (table of contents, page breaks and paged view, sub-pages).
 4. Phase 4 (entity references).
 5. Phase 5 (polish).
