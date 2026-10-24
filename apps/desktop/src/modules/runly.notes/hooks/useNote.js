@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
 import { runly } from '../../../lib/runly'
+import { patchNoteInCache } from '../lib/noteCache.js'
 
 function useToken() {
   const { session } = useAuth()
@@ -25,6 +26,19 @@ export function useUpdateNote() {
       qc.invalidateQueries({ queryKey: ['notes', noteId] })
       qc.invalidateQueries({ queryKey: ['notes'] })
     },
+  })
+}
+
+// Optimistic flag/color change from cards and the selection bar.
+// patch: { isPinned } | { isArchived } | { backgroundColor }.
+export function useToggleNoteFlag() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ noteId, patch }) => runly.notes.update(noteId, patch, token),
+    onMutate: ({ noteId, patch }) => { patchNoteInCache(qc, noteId, patch) },
+    onError: () => qc.invalidateQueries({ queryKey: ['notes'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
   })
 }
 
