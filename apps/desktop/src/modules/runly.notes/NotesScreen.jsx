@@ -1,10 +1,9 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { patchNoteInCache, toNoteRowPatch } from './lib/noteCache.js'
 import { flattenPages } from './lib/notesPages.js'
-import { hasOpenOverlayLayer, shouldCloseOverlayOnEscape } from './lib/overlayEscape.js'
 import {
   Plus, RotateCcw, Trash2,
   FileText, Shapes, ChevronLeft, ChevronRight, LayoutGrid,
@@ -218,28 +217,6 @@ export default function NotesScreen() {
     setMobileView('list')
   }
 
-  // Home layout: Escape closes the open note overlay unless a dialog, popover
-  // or menu is open, the key was already handled, or zen mode owns it. Canvas
-  // notes are skipped (the drawing tools use Escape to cancel).
-  const closeOverlayRef = useRef(clearSelection)
-  closeOverlayRef.current = clearSelection
-  const overlayOpen = isHome && Boolean(selectedNote) && selectedNote.note_type !== 'canvas'
-  useEffect(() => {
-    if (!overlayOpen) return undefined
-    function onKeyDown(e) {
-      const close = shouldCloseOverlayOnEscape({
-        key: e.key,
-        defaultPrevented: e.defaultPrevented,
-        hasOpenDialog: hasOpenOverlayLayer(),
-        zenMode: isZenMode,
-        isComposing: e.isComposing,
-      })
-      if (close) closeOverlayRef.current()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [overlayOpen, isZenMode])
-
   function changeLayout(next) {
     // Leaving the split view for the grid closes any open note first.
     if (next === 'home') clearSelection()
@@ -307,9 +284,9 @@ export default function NotesScreen() {
       {/* Panel 1: card grid (home) or note list (split) */}
       {isHome ? (
         <div
-          {...((isZenMode || selectedNote) ? { inert: '' } : {})}
-          aria-hidden={(isZenMode || Boolean(selectedNote)) || undefined}
-          className="flex min-w-0 flex-1"
+          {...(isZenMode ? { inert: '' } : {})}
+          aria-hidden={isZenMode || undefined}
+          className={`${selectedNote ? 'hidden' : 'flex'} min-w-0 flex-1`}
         >
           <NotesHome
             notes={notes}
@@ -428,16 +405,9 @@ export default function NotesScreen() {
       </div>
       )}
 
-      {/* Panel 2: Editor / Settings. Split layout: a pane. Home layout: an overlay over the grid. */}
+      {/* Panel 2: Editor / Settings. Split layout: a pane next to the list. Home layout: a full page that replaces the grid (the grid is shown again with the back button). */}
       {(isHome ? Boolean(selectedNote) : true) && (
-        <div
-          onClick={isHome && !isZenMode ? (e) => { if (e.target === e.currentTarget) clearSelection() } : undefined}
-          className={
-            !isHome ? 'contents'
-              : isZenMode ? 'contents'
-              : 'fixed inset-0 z-40 flex bg-background lg:bg-black/40 lg:p-6'
-          }
-        >
+        <div className="contents">
           <NoteEditorPanel
             note={selectedNote}
             isTrashView={isTrashView}
@@ -461,9 +431,7 @@ export default function NotesScreen() {
             onRestore={isHome ? () => { setNoteToAction(selectedNote); setRestoreOpen(true) } : undefined}
             onDeleteForever={isHome ? () => { setNoteToAction(selectedNote); setDeleteOpen(true) } : undefined}
             className={
-              isHome
-                ? (isZenMode ? 'flex' : 'flex bg-background lg:rounded-md lg:max-w-4xl lg:mx-auto lg:shadow-xl')
-                : ((mobileView === 'editor' || isZenMode) ? 'flex' : 'hidden lg:flex')
+              isHome || mobileView === 'editor' || isZenMode ? 'flex' : 'hidden lg:flex'
             }
           />
         </div>

@@ -681,7 +681,7 @@ body,
    the icon row in NoteEditor.jsx is absolutely positioned at that same top
    with that same height and centers its content, so icon and title text are
    vertically centered on each other by construction. */
-.tiptap > p:first-child {
+.tiptap > :is(p, h1, h2, h3):first-child {
   font-size: 1.625rem !important;
   font-weight: 700 !important;
   line-height: var(--note-title-lh, 2.5rem) !important;
@@ -716,14 +716,20 @@ body,
   text-indent: var(--note-title-indent, 3rem);
 }
 
+/* The title line can be turned into H1/H2/H3 to change its size. Only the
+   font size follows the level: the line box (--note-title-lh) and top offset
+   stay fixed, so the icon row keeps centering on it. */
+.tiptap > h1:first-child { font-size: 2rem !important; }
+.tiptap > h3:first-child { font-size: 1.375rem !important; }
+
 /* When a ruled/grid paper style is active, the title's own separator line
    uses the same warm paper-line color as the rest of the page, so the
    title visually reads as sitting on one of the notebook's rules instead
    of a mismatched neutral UI divider. Left as the neutral --border color
    on "En blanco" (no paper style), where there's no ruled pattern to match. */
-[data-paper-style="lined"] .tiptap > p:first-child,
-[data-paper-style="grid"] .tiptap > p:first-child,
-[data-paper-style="dots"] .tiptap > p:first-child {
+[data-paper-style="lined"] .tiptap > :is(p, h1, h2, h3):first-child,
+[data-paper-style="grid"] .tiptap > :is(p, h1, h2, h3):first-child,
+[data-paper-style="dots"] .tiptap > :is(p, h1, h2, h3):first-child {
   border-bottom-color: hsl(var(--note-paper-line));
 }
 
@@ -898,7 +904,9 @@ body,
     --note-rule-lift: 0.3125rem;
     --note-sheet-padding: 1rem;
   }
-  .tiptap > p:first-child { font-size: 1.375rem !important; }
+  .tiptap > :is(p, h2):first-child { font-size: 1.375rem !important; }
+  .tiptap > h1:first-child { font-size: 1.75rem !important; }
+  .tiptap > h3:first-child { font-size: 1.25rem !important; }
   .tiptap h1 { font-size: 1.3125rem !important; }
   .tiptap h2 { font-size: 1.125rem !important; }
   .tiptap h3 { font-size: 1rem !important; }
@@ -1194,7 +1202,7 @@ body,
   pointer-events: none;
 }
 /* Title-size placeholder for empty first paragraph */
-.tiptap > p:first-child.is-empty::before {
+.tiptap > :is(p, h1, h2, h3):first-child.is-empty::before {
   font-size: 1.625rem !important;
   font-weight: 700 !important;
   opacity: 0.45;

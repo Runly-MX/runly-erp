@@ -1,10 +1,12 @@
 import { lazy, Suspense } from 'react'
 import {
   Plus, ArrowLeft, Settings2, Share2, RotateCcw, Trash2, PenLine,
-  Maximize2, Minimize2, Fullscreen, Eye,
+  Maximize2, Minimize2, Fullscreen, Eye, PanelTop,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@runly/ui'
+import {
+  Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { NoteIcon } from '../noteIcons.jsx'
 import { DARK_BG_MAP } from '../lib/noteColors.js'
@@ -22,10 +24,11 @@ const CanvasEditor = lazy(() =>
   import('./CanvasEditor.jsx').then((m) => ({ default: m.CanvasEditor })),
 )
 
-const VIEW_MODE_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
+// Browser fullscreen is offered only where the API exists (not on iOS Safari).
+const canFullscreen = typeof document !== 'undefined' && Boolean(document.fullscreenEnabled)
 
 // Editor pane (header + editor/canvas + zoom). Used by the split layout and,
-// inside the overlay, by the quick-notes home layout.
+// as a full page, by the quick-notes home layout.
 export function NoteEditorPanel({
   note, isTrashView, isZenMode, isDark, viewMode,
   viewOnly, onToggleViewOnly, zoom, onZoomChange,
@@ -127,15 +130,35 @@ export function NoteEditorPanel({
               <Share2 size={13} />
               <span className="hidden sm:inline">Compartir</span>
             </button>
-            <button
-              onClick={viewMode.cycle}
-              type="button"
-              aria-label={VIEW_MODE_LABELS[viewMode.mode]}
-              className="flex items-center gap-1.5 px-2 py-1.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:justify-center text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
-              title={VIEW_MODE_LABELS[viewMode.mode]}
-            >
-              {viewMode.mode === 'normal' ? <Maximize2 size={13} /> : viewMode.mode === 'clean' ? <Fullscreen size={13} /> : <Minimize2 size={13} />}
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Modo de vista"
+                  title="Modo de vista"
+                  className="flex items-center gap-1.5 px-2 py-1.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:justify-center text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
+                >
+                  {viewMode.isImmersive ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {viewMode.mode !== 'normal' && (
+                  <DropdownMenuItem onSelect={() => viewMode.setMode('normal')}>
+                    <PanelTop size={13} className="mr-2" /> Vista normal
+                  </DropdownMenuItem>
+                )}
+                {viewMode.mode !== 'clean' && (
+                  <DropdownMenuItem onSelect={() => viewMode.setMode('clean')}>
+                    <Maximize2 size={13} className="mr-2" /> Vista despejada
+                  </DropdownMenuItem>
+                )}
+                {canFullscreen && viewMode.mode !== 'fullscreen' && (
+                  <DropdownMenuItem onSelect={() => viewMode.setMode('fullscreen')}>
+                    <Fullscreen size={13} className="mr-2" /> Pantalla completa
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button
               onClick={onOpenSettings}
               type="button"
