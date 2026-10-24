@@ -114,7 +114,10 @@ class ScreenSharePlugin(private val activity: Activity) : Plugin(activity) {
           // Invalidate registrations on the previous instance before activating another.
           // A fresh token is exposed only after Firebase finishes rotating it.
           RunlyMessagingService.prefs(activity).edit().remove("token").commit()
-          if (com.google.firebase.FirebaseApp.getApps(activity).isNotEmpty()) {
+          // On the first connection no previous instance owns the token.
+          // Deleting it here unnecessarily makes adding an instance depend on
+          // Firebase being reachable, even when the instance itself is healthy.
+          if (!old.isNullOrEmpty() && old != "null" && com.google.firebase.FirebaseApp.getApps(activity).isNotEmpty()) {
             suspendCancellableCoroutine<Unit> { continuation ->
               FirebaseMessaging.getInstance().deleteToken().addOnCompleteListener { task ->
                 if (continuation.isActive) {
