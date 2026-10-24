@@ -13,3 +13,11 @@ export function isUuid(value) {
 export function exceedsDepth(parentDepth) {
   return parentDepth >= MAX_DEPTH
 }
+
+// The archive flag cascades to sub-pages only when the request really flips it.
+// Un-archiving brings back every archived descendant (simplification: there is
+// no archived_at to tell pages archived together from earlier ones).
+export function shouldCascadeArchive(current, data) {
+  if (!current || typeof data?.isArchived !== 'boolean') return false;
+  return Boolean(current.is_archived) !== data.isArchived;
+}

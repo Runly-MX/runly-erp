@@ -15,3 +15,12 @@ test('isUuid accepts UUIDs only', () => {
   assert.equal(isUuid('abc'), false)
   assert.equal(isUuid(null), false)
 })
+
+test('archive cascade only when the flag flips', async () => {
+  const { shouldCascadeArchive } = await import('../subpages.js')
+  assert.equal(shouldCascadeArchive({ is_archived: false }, { isArchived: true }), true)
+  assert.equal(shouldCascadeArchive({ is_archived: true }, { isArchived: false }), true)
+  assert.equal(shouldCascadeArchive({ is_archived: true }, { isArchived: true }), false)
+  assert.equal(shouldCascadeArchive({ is_archived: false }, {}), false)
+  assert.equal(shouldCascadeArchive(null, { isArchived: true }), false)
+})

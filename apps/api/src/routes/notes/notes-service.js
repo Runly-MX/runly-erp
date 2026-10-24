@@ -1,6 +1,6 @@
 import { createFoldersService } from './folders-service.js';
 import { createNoteReferencesService } from './references-service.js';
-import { exceedsDepth, isUuid, MAX_DEPTH_MESSAGE } from './subpages.js';
+import { exceedsDepth, isUuid, MAX_DEPTH_MESSAGE, shouldCascadeArchive } from './subpages.js';
 
 export class NotesServiceError extends Error {
   constructor(message, status = 400) {
@@ -563,6 +563,29 @@ export function createNotesService({ prisma, broadcaster = null }) {
       throw new NotesServiceError("Nota no encontrada.", 404);
     }
     if (!changed) return rows[0];
+
+    // Archiving a page archives its sub-pages too (owner's descendants only,
+    // same company); un-archiving restores every archived descendant.
+    if (access.isOwner && shouldCascadeArchive(current, data)) {
+      await prisma.$executeRaw`
+        WITH RECURSIVE tree AS (
+          SELECT c.id FROM notes c
+          WHERE c.parent_note_id = ${noteId}::uuid
+            AND c.deleted_at IS NULL
+            AND c.owner_user_id = ${rows[0].owner_user_id}::uuid
+            AND c.company_id IS NOT DISTINCT FROM ${rows[0].company_id ?? null}::uuid
+          UNION ALL
+          SELECT c.id FROM notes c JOIN tree t ON c.parent_note_id = t.id
+          WHERE c.deleted_at IS NULL
+            AND c.owner_user_id = ${rows[0].owner_user_id}::uuid
+            AND c.company_id IS NOT DISTINCT FROM ${rows[0].company_id ?? null}::uuid
+        )
+        UPDATE notes
+        SET is_archived = ${data.isArchived}::boolean, updated_at = NOW()
+        WHERE id IN (SELECT id FROM tree)
+          AND is_archived IS DISTINCT FROM ${data.isArchived}::boolean
+      `;
+    }
 
     // Keep the backlinks index in sync; a failure here must never fail the save.
     if (typeof data.content === "string") {

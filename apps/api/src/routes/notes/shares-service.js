@@ -78,14 +78,31 @@ export function createSharesService({ prisma, broadcaster, notificationService }
       throw new SharesServiceError("El permiso debe ser 'read' o 'edit'")
     }
     await createUserAccessService({ prisma }).assertCandidates({ companyId: note.company_id, userIds: [targetUserId], permission: 'notes.notes.read' })
+    // One statement (atomic): the grant goes to the note and to every
+    // non-deleted sub-page owned by the same owner in the same company, so a
+    // shared parent never leaves its children hidden from the collaborator.
     const rows = await prisma.$queryRaw`
-      INSERT INTO note_shares (note_id, shared_with_user_id, shared_by_user_id, permission)
-      VALUES (${noteId}, ${targetUserId}, ${userId}, ${permission}::text)
-      ON CONFLICT (note_id, shared_with_user_id)
-      DO UPDATE SET
-        permission = EXCLUDED.permission,
-        shared_by_user_id = EXCLUDED.shared_by_user_id
-      RETURNING *
+      WITH RECURSIVE tree AS (
+        SELECT r.id FROM notes r
+        WHERE r.id = ${noteId}::uuid
+          AND r.owner_user_id = ${userId}::uuid
+          AND r.company_id IS NOT DISTINCT FROM ${note.company_id ?? null}::uuid
+        UNION ALL
+        SELECT c.id FROM notes c JOIN tree t ON c.parent_note_id = t.id
+        WHERE c.deleted_at IS NULL
+          AND c.owner_user_id = ${userId}::uuid
+          AND c.company_id IS NOT DISTINCT FROM ${note.company_id ?? null}::uuid
+      ),
+      upserted AS (
+        INSERT INTO note_shares (note_id, shared_with_user_id, shared_by_user_id, permission)
+        SELECT tree.id, ${targetUserId}::uuid, ${userId}::uuid, ${permission}::text FROM tree
+        ON CONFLICT (note_id, shared_with_user_id)
+        DO UPDATE SET
+          permission = EXCLUDED.permission,
+          shared_by_user_id = EXCLUDED.shared_by_user_id
+        RETURNING *
+      )
+      SELECT * FROM upserted WHERE note_id = ${noteId}::uuid
     `
     const share = rows[0]
     try {
@@ -136,8 +153,28 @@ export function createSharesService({ prisma, broadcaster, notificationService }
       WHERE ns.id = ${shareId} AND notes.owner_user_id = ${userId} AND public.runly_note_user_access(notes.id, ${userId}::uuid, true)
     `
     if (!check.length) throw new SharesServiceError('No tienes permiso para realizar esta acción', 403)
+    // Same grant for the sub-pages the owner holds under the shared note.
     const rows = await prisma.$queryRaw`
-      UPDATE note_shares SET permission = ${permission}::text WHERE id = ${shareId} RETURNING *
+      WITH RECURSIVE root AS (
+        SELECT ns.note_id, ns.shared_with_user_id, n.company_id
+        FROM note_shares ns JOIN notes n ON n.id = ns.note_id
+        WHERE ns.id = ${shareId}::uuid AND n.owner_user_id = ${userId}::uuid
+      ),
+      tree AS (
+        SELECT note_id AS id FROM root
+        UNION ALL
+        SELECT c.id FROM notes c JOIN tree t ON c.parent_note_id = t.id
+        WHERE c.deleted_at IS NULL
+          AND c.owner_user_id = ${userId}::uuid
+          AND c.company_id IS NOT DISTINCT FROM (SELECT company_id FROM root)
+      ),
+      upd AS (
+        UPDATE note_shares SET permission = ${permission}::text
+        WHERE shared_with_user_id = (SELECT shared_with_user_id FROM root)
+          AND note_id IN (SELECT id FROM tree)
+        RETURNING *
+      )
+      SELECT * FROM upd WHERE id = ${shareId}::uuid
     `
     return rows[0]
   }
@@ -149,10 +186,23 @@ export function createSharesService({ prisma, broadcaster, notificationService }
       WHERE ns.id = ${shareId} AND notes.owner_user_id = ${userId} AND public.runly_note_user_access(notes.id, ${userId}::uuid, true)
     `
     if (!check.length) throw new SharesServiceError('No tienes permiso para realizar esta acción', 403)
+    // Removes the user's access to the note and to its sub-pages (same owner).
     await prisma.$queryRaw`
+      WITH RECURSIVE root AS (
+        SELECT ns.note_id, ns.shared_with_user_id, n.company_id
+        FROM note_shares ns JOIN notes n ON n.id = ns.note_id
+        WHERE ns.id = ${shareId}::uuid AND n.owner_user_id = ${userId}::uuid
+      ),
+      tree AS (
+        SELECT note_id AS id FROM root
+        UNION ALL
+        SELECT c.id FROM notes c JOIN tree t ON c.parent_note_id = t.id
+        WHERE c.owner_user_id = ${userId}::uuid
+          AND c.company_id IS NOT DISTINCT FROM (SELECT company_id FROM root)
+      )
       DELETE FROM note_shares
-      WHERE id = ${shareId}
-        AND note_id IN (SELECT id FROM notes WHERE owner_user_id = ${userId})
+      WHERE shared_with_user_id = (SELECT shared_with_user_id FROM root)
+        AND note_id IN (SELECT id FROM tree)
     `
     return { ok: true }
   }

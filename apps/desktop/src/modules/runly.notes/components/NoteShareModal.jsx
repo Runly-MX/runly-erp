@@ -158,6 +158,11 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
+          {note?.child_count > 0 && (
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Las subpaginas heredan este acceso.
+            </p>
+          )}
 
           {/* ── Search ── */}
           <div className="flex h-11 items-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 transition-colors focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-400/30">
