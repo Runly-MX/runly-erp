@@ -264,10 +264,24 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
     ro.observe(container)
     const tiptap = container.querySelector('.tiptap')
     if (tiptap) ro.observe(tiptap)
+    // The cover (and any other block above the body) lives inside .note-sheet
+    // as a sibling of .tiptap, so its size changes never resize the container
+    // or .tiptap themselves: observe the sheet and its direct children too.
+    const sheet = container.querySelector('.note-sheet')
+    if (sheet) {
+      ro.observe(sheet)
+      for (const child of sheet.children) ro.observe(child)
+    }
+    // Images (the cover banner) finish loading after the effect ran; `load`
+    // does not bubble, so capture it on the container.
+    container.addEventListener('load', measure, true)
     window.addEventListener('resize', measure)
+    window.visualViewport?.addEventListener('resize', measure)
     return () => {
       ro.disconnect()
+      container.removeEventListener('load', measure, true)
       window.removeEventListener('resize', measure)
+      window.visualViewport?.removeEventListener('resize', measure)
     }
   }, [note.id, note.cover_url, note.paper_style, note.paper_margin, zoom, viewing])
 
