@@ -3,8 +3,8 @@ import { useMutation } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, Eye, Link2, Trash2, WandSparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../Button.jsx'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../Dialog.jsx'
 import { ComboboxField } from '../FormFields.jsx'
+import { DialogHint, TemplateDialogFrame } from './TemplateDialogFrame.jsx'
 import { TemplateFieldReference } from './TemplateFieldReference.jsx'
 import { errorText, schemaOptions, unknownTags } from './template-utils.js'
 
@@ -57,24 +57,41 @@ export function TemplateMappingDialog({ template, warnings = [], kind, api, onOp
     return schemaOptions(kind, dot === -1 ? null : tag.slice(0, dot))
   }
 
+  const footer = (
+    <>
+      <Button type="button" variant="ghost" className="mr-auto" disabled={!onPreview || save.isPending}
+        title={readOnly ? undefined : 'Prueba el borrador con datos de ejemplo; se guarda el mapeo actual antes de generar la vista previa.'}
+        onClick={() => testSample()}>
+        <Eye className="mr-1.5 h-3.5 w-3.5 shrink-0" />Probar con datos de ejemplo
+      </Button>
+      {!readOnly ? (
+        <>
+          <Button type="button" variant="outline" disabled={save.isPending} onClick={() => save.mutate({ publish: false })}>Guardar borrador</Button>
+          <Button type="button" disabled={save.isPending} onClick={() => save.mutate({ publish: true })}>
+            {save.isPending ? 'Guardando...' : 'Guardar y publicar'}
+          </Button>
+        </>
+      ) : (
+        <Button type="button" onClick={() => onOpenChange(false)}>Cerrar</Button>
+      )}
+    </>
+  )
+
   return (
-    <Dialog open={Boolean(template)} onOpenChange={onOpenChange}>
-      <DialogContent size="lg">
-        <DialogHeader icon={Link2}>
-          <DialogTitle>Campos de «{template?.name}»</DialogTitle>
-          <DialogDescription>
-            {readOnly
-              ? 'Esta versión ya está publicada. Para cambiar los campos, reemplaza el archivo y se creará una versión nueva.'
-              : 'Confirma qué dato va en cada campo y publica la plantilla para usarla al generar documentos.'}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="max-h-[55vh] space-y-4 overflow-y-auto">
+    <TemplateDialogFrame open={Boolean(template)} onOpenChange={onOpenChange} size="2xl" icon={Link2}
+      title={`Campos de «${template?.name}»`}
+      subtitle={readOnly ? 'Versión publicada: solo lectura.' : 'Confirma qué dato va en cada campo y publica.'} footer={footer}>
+      <DialogHint>
+        {readOnly
+          ? 'Para cambiar los campos, reemplaza el archivo: se crea una versión nueva.'
+          : 'Publica la plantilla para usarla al generar documentos.'}
+      </DialogHint>
           {warnings.length ? (
-            <div className="space-y-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
               <p className="flex items-center gap-1.5 font-medium text-amber-700 dark:text-amber-400">
-                <AlertTriangle className="h-3.5 w-3.5" />Advertencias de la plantilla
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{warnings.length === 1 ? '1 advertencia' : `${warnings.length} advertencias`}
               </p>
-              <ul className="list-disc space-y-0.5 pl-5 text-[hsl(var(--muted-foreground))]">
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[hsl(var(--muted-foreground))]">
                 {warnings.map((w) => <li key={w}>{w}</li>)}
               </ul>
             </div>
@@ -141,27 +158,6 @@ export function TemplateMappingDialog({ template, warnings = [], kind, api, onOp
             ) : null}
           </div>
           )}
-        </div>
-        <DialogFooter className="sm:flex-wrap sm:justify-between">
-          <Button type="button" variant="ghost" className="justify-start" disabled={!onPreview || save.isPending}
-            title={readOnly ? undefined : 'Prueba el borrador con datos de ejemplo; se guarda el mapeo actual antes de generar la vista previa.'}
-            onClick={() => testSample()}>
-            <Eye className="mr-1.5 h-3.5 w-3.5 shrink-0" />Probar con datos de ejemplo
-          </Button>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-            {!readOnly ? (
-              <>
-                <Button type="button" variant="outline" disabled={save.isPending} onClick={() => save.mutate({ publish: false })}>Guardar borrador</Button>
-                <Button type="button" disabled={save.isPending} onClick={() => save.mutate({ publish: true })}>
-                  {save.isPending ? 'Guardando...' : 'Guardar y publicar'}
-                </Button>
-              </>
-            ) : (
-              <Button type="button" onClick={() => onOpenChange(false)}>Cerrar</Button>
-            )}
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </TemplateDialogFrame>
   )
 }

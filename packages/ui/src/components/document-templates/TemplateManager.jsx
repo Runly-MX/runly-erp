@@ -15,7 +15,7 @@ import { TemplatePreviewDialog } from './TemplatePreviewDialog.jsx'
 import { TemplateReplaceDialog } from './TemplateReplaceDialog.jsx'
 import { TemplateSuggestDialog } from './TemplateSuggestDialog.jsx'
 import { TemplateUploadDialog } from './TemplateUploadDialog.jsx'
-import { FORMAT_LABELS, errorText, hasNoKnownTags, saveBlob, unknownTags } from './template-utils.js'
+import { FORMAT_LABELS, errorText, hasNoKnownTags, moduleKeyOf, moduleLabelOf, moduleOptions, saveBlob, unknownTags } from './template-utils.js'
 
 const EDITABLE_IN_OFFICE = ['docx', 'xlsx', 'pptx']
 const TOKEN_FIRST = ['listFileTemplates']
@@ -51,23 +51,33 @@ function bindApi(client, token) {
  * default, replace, download, sample preview and soft delete. Embed it in any
  * module screen; the hub (runly.documents) uses it for every registered kind.
  *
- * Props: client (SDK `documents` domain), token, kind ({ key, label, formats,
+ * Scoped mode takes `kind`; hub mode takes `kinds` (array): one table of every
+ * template with module / estado / visibilidad filters and module + type pickers
+ * when creating.
+ * Props: client (SDK `documents` domain), token, kind | kinds ({ key, label, formats,
  * schema, moduleName? }), scopeKey?, canManage (show write actions), canDelete?
  * (show "Eliminar"; defaults to canManage; the owner can always delete), onEditDocument?(template)
  * (open the file in the office editor).
  */
-export function TemplateManager({ client, token, kind, scopeKey = null, canManage = false, canDelete, onEditDocument }) {
+export function TemplateManager({ client, token, kind: fixedKind = null, kinds: kindList = [], scopeKey = null, canManage = false, canDelete, onEditDocument }) {
   const queryClient = useQueryClient()
   const api = useMemo(() => bindApi(client, token), [client, token])
-  const queryKey = ['documents', 'file-templates', kind?.key, scopeKey]
+  const hub = !fixedKind
+  const kindsByKey = useMemo(() => new Map((fixedKind ? [fixedKind] : kindList).map((k) => [k.key, k])), [fixedKind, kindList])
+  const kindOf = (template) => fixedKind ?? kindsByKey.get(template?.kind) ?? null
+  const queryKey = ['documents', 'file-templates', hub ? 'all' : fixedKind.key, scopeKey]
   const query = useQuery({
     queryKey,
-    queryFn: () => api.listFileTemplates({ kind: kind.key, ...(scopeKey ? { scopeKey } : {}) }),
-    enabled: Boolean(token && kind?.key),
+    queryFn: () => api.listFileTemplates({ ...(hub ? {} : { kind: fixedKind.key }), ...(scopeKey ? { scopeKey } : {}) }),
+    enabled: Boolean(token && (hub || fixedKind?.key)),
     staleTime: 15_000,
   })
-  const rows = query.data?.items ?? []
-  const refresh = () => queryClient.invalidateQueries({ queryKey })
+  // Hub: only templates of kinds the user can see (installed module + permission).
+  const rows = useMemo(() => (query.data?.items ?? [])
+    .filter((t) => kindsByKey.has(t.kind))
+    .map((t) => ({ ...t, moduleKey: moduleKeyOf(kindsByKey.get(t.kind)), statusKey: t.publishedVersionId ? 'published' : 'draft' })),
+  [query.data, kindsByKey])
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['documents', 'file-templates'] })
 
   const [uploadOpen, setUploadOpen] = useState(false)
   const [reviewing, setReviewing] = useState(null)
@@ -83,7 +93,7 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
     refresh()
     const template = response.template ?? response
     const warnings = response.warnings ?? []
-    if (template?.version && hasNoKnownTags(kind, template)) {
+    if (template?.version && hasNoKnownTags(kindOf(template), template)) {
       setSuggestWarnings(warnings)
       setSuggesting(template)
       return
@@ -93,8 +103,8 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
 
   const create = useMutation({
     mutationFn: (form) => (form.mode === 'blank'
-      ? api.createBlankTemplate({ kind: kind.key, scopeKey, format: form.format, name: form.name, isDefault: form.isDefault, visibility: form.visibility })
-      : api.uploadTemplate({ kind: kind.key, scopeKey, file: form.file, name: form.name || undefined, isDefault: form.isDefault, visibility: form.visibility })),
+      ? api.createBlankTemplate({ kind: form.kind.key, scopeKey, format: form.format, name: form.name, isDefault: form.isDefault, visibility: form.visibility })
+      : api.uploadTemplate({ kind: form.kind.key, scopeKey, file: form.file, name: form.name || undefined, isDefault: form.isDefault, visibility: form.visibility })),
     onSuccess: (response) => { setUploadOpen(false); toast.success('Plantilla guardada'); review(response) },
     onError: (error) => toast.error(errorText(error, 'No se pudo guardar la plantilla')),
   })
@@ -142,7 +152,7 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
   async function runPreview(template) {
     setPreview({ open: false, blob: null, loading: true, error: '', title: template.name })
     try {
-      const blob = await api.previewDocument({ kind: kind.key, templateId: template.id, versionId: template.version?.id, scopeKey, output: 'pdf' })
+      const blob = await api.previewDocument({ kind: template.kind, templateId: template.id, versionId: template.version?.id, scopeKey, output: 'pdf' })
       if (/pdf/i.test(blob.type)) {
         setPreview({ open: true, blob, loading: false, error: '', title: template.name })
       } else {
@@ -160,24 +170,24 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
       <span className="flex flex-wrap items-center gap-2 font-medium">
         {row.original.name}
         {row.original.isDefault ? <Badge variant="success">Predeterminada</Badge> : null}
-        {row.original.visibility === 'personal'
-          ? <Badge variant="secondary" title="Solo tú la ves y la usas"><Lock className="mr-1 h-3 w-3" />Personal</Badge>
-          : <Badge variant="outline" title="Disponible para toda la empresa"><Building2 className="mr-1 h-3 w-3" />Empresa</Badge>}
       </span>
     ) },
-    { id: 'origin', header: 'Origen', enableSorting: false, cell: () => (
-      <span className="text-xs text-[hsl(var(--muted-foreground))]">{kind?.moduleName ?? 'General'} · {kind?.label}</span>
+    { id: 'origin', header: 'Módulo / tipo', enableSorting: false, cell: ({ row }) => (
+      <span className="text-xs text-[hsl(var(--muted-foreground))]">{moduleLabelOf(moduleKeyOf(kindOf(row.original)), [...kindsByKey.values()])} · {kindOf(row.original)?.label}</span>
     ) },
     { id: 'format', header: 'Formato', cell: ({ row }) => <span className="text-xs">{FORMAT_LABELS[row.original.format] ?? row.original.format}</span> },
     { id: 'status', header: 'Estado', enableSorting: false, cell: ({ row }) => {
       const t = row.original
       return t.publishedVersionId ? <Badge variant="success">Publicada</Badge> : <Badge variant="secondary">Borrador</Badge>
     } },
+    { id: 'visibility', header: 'Visibilidad', enableSorting: false, cell: ({ row }) => (row.original.visibility === 'personal'
+      ? <Badge variant="secondary" title="Solo tú la ves y la usas"><Lock className="mr-1 h-3 w-3" />Personal</Badge>
+      : <Badge variant="outline" title="Disponible para toda la empresa"><Building2 className="mr-1 h-3 w-3" />Empresa</Badge>) },
     { id: 'fields', header: 'Campos', enableSorting: false, cell: ({ row }) => {
       const t = row.original
       if (!t.version) return <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span>
       const total = t.version.placeholders.length
-      const unmapped = unknownTags(kind, t.version.placeholders).filter((tag) => !t.version.mapping?.[tag]).length
+      const unmapped = unknownTags(kindOf(t), t.version.placeholders).filter((tag) => !t.version.mapping?.[tag]).length
       if (!total) return <Badge variant="warning" title="La plantilla no contiene campos; el documento saldrá sin datos.">Sin campos</Badge>
       return unmapped
         ? <span className="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400"><AlertTriangle className="h-3.5 w-3.5" />{total} ({unmapped} sin asignar)</span>
@@ -228,6 +238,12 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
     } },
   ]
 
+  const filters = hub ? [
+    { key: 'moduleKey', label: 'Módulo', type: 'select', options: moduleOptions([...kindsByKey.values()]) },
+    { key: 'statusKey', label: 'Estado', type: 'select', options: [{ value: 'published', label: 'Publicada' }, { value: 'draft', label: 'Borrador' }] },
+    { key: 'visibility', label: 'Visibilidad', type: 'select', options: [{ value: 'personal', label: 'Personal' }, { value: 'company', label: 'Empresa' }] },
+  ] : undefined
+
   return (
     <div className="space-y-4">
       <p className="flex items-start gap-2 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
@@ -235,23 +251,23 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
         <span>Sube tu propio documento (Word, Excel, PowerPoint o PDF) o crea uno en blanco; las plantillas solo se crean cuando tú lo haces.</span>
       </p>
       <DataTable columns={columns} data={rows} isLoading={query.isLoading} isError={query.isError} onRetry={query.refetch}
-        getRowId={(row) => row.id} searchPlaceholder="Buscar plantilla..." emptyTitle="Sin plantillas"
+        getRowId={(row) => row.id} filters={filters} filtersLayout="pills" stateKey={hub ? 'documents-templates-hub' : undefined} searchPlaceholder="Buscar plantilla..." emptyTitle="Sin plantillas"
         emptyDescription="Sube tu propio documento (Word, Excel, PowerPoint o PDF) o crea uno en blanco; las plantillas solo se crean cuando tú lo haces. Sin plantilla se usa el formato estándar, si existe."
         emptyIcon={FileText}
         emptyAction={canManage ? { label: 'Nueva plantilla', onClick: () => setUploadOpen(true) } : undefined}
         toolbarActions={canManage ? (
           <Button type="button" size="sm" onClick={() => setUploadOpen(true)}><Upload className="mr-1.5 h-3.5 w-3.5" />Nueva plantilla</Button>
         ) : null} />
-      <TemplateFieldReference kind={kind} />
+      {!hub ? <TemplateFieldReference kind={fixedKind} /> : null}
 
-      <TemplateUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} kind={kind} hasTemplates={rows.length > 0}
+      <TemplateUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} kind={fixedKind} kinds={kindList} hasTemplates={rows.length > 0}
         busy={create.isPending} onSubmit={(form) => create.mutate(form)} />
-      <TemplateReplaceDialog template={replacing} kind={kind} busy={replace.isPending} onOpenChange={(v) => { if (!v) setReplacing(null) }}
+      <TemplateReplaceDialog template={replacing} kind={kindOf(replacing)} busy={replace.isPending} onOpenChange={(v) => { if (!v) setReplacing(null) }}
         onSubmit={(file) => replace.mutate({ template: replacing, file })} />
-      <TemplateSuggestDialog template={suggesting} api={api} kind={kind} onOpenChange={(v) => { if (!v) setSuggesting(null) }}
+      <TemplateSuggestDialog template={suggesting} api={api} kind={kindOf(suggesting)} onOpenChange={(v) => { if (!v) setSuggesting(null) }}
         onApplied={(response) => { setSuggesting(null); review(response) }}
         onSkip={() => { const template = suggesting; setSuggesting(null); setReviewing({ template, warnings: suggestWarnings }) }} />
-      <TemplateMappingDialog template={reviewing?.template ?? null} warnings={reviewing?.warnings} kind={kind} api={api}
+      <TemplateMappingDialog template={reviewing?.template ?? null} warnings={reviewing?.warnings} kind={kindOf(reviewing?.template)} api={api}
         onOpenChange={(v) => { if (!v) setReviewing(null) }}
         onChanged={(saved) => { refresh(); setReviewing((r) => (r ? { ...r, template: saved?.version ? saved : r.template } : r)) }}
         onPreview={runPreview} onSuggest={() => { const template = reviewing?.template; setReviewing(null); setSuggesting(template) }} />

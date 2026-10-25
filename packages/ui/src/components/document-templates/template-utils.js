@@ -81,3 +81,21 @@ export function base64ToFile(base64, fileName, type) {
 
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 export const errorText = (error, fallback) => error?.message || fallback
+
+// Module that registers a kind: its moduleKey or the first segment of its key.
+const MODULE_LABELS = {
+  inventory: 'Inventario', lms: 'Capacitación', growth: 'Growth', hr: 'Recursos humanos', contacts: 'Contactos',
+  purchases: 'Compras', fleet: 'Flota', manual: 'General', general: 'General',
+}
+export const moduleKeyOf = (kind) => kind?.moduleKey ?? String(kind?.key ?? '').split('.')[0]
+export function moduleLabelOf(moduleKey, kinds = []) {
+  const named = kinds.find((k) => moduleKeyOf(k) === moduleKey && k.moduleName)?.moduleName
+  if (named) return named
+  const short = String(moduleKey).replace(/^[a-z]+\./i, '')
+  return MODULE_LABELS[short] ?? MODULE_LABELS[String(moduleKey).replace(/^runly\./, '')] ?? (String(moduleKey).charAt(0).toUpperCase() + String(moduleKey).slice(1))
+}
+// [{ value, label }] of the modules present in a kinds list, sorted by label.
+export function moduleOptions(kinds = []) {
+  const keys = [...new Set(kinds.map(moduleKeyOf))]
+  return keys.map((value) => ({ value, label: moduleLabelOf(value, kinds) })).sort((a, b) => a.label.localeCompare(b.label, 'es'))
+}

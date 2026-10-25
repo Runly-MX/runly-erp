@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, Download, Upload, WandSparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../Button.jsx'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../Dialog.jsx'
+import { DialogHint, TemplateDialogFrame } from './TemplateDialogFrame.jsx'
 import { TemplateFieldReference } from './TemplateFieldReference.jsx'
 import { FORMAT_MIME, base64ToFile, errorText, saveBlob } from './template-utils.js'
 
@@ -40,16 +40,22 @@ export function TemplateSuggestDialog({ template, api, kind, onOpenChange, onApp
   const missing = result?.missing ?? []
   const file = result?.contentBase64 ? base64ToFile(result.contentBase64, result.fileName, FORMAT_MIME[result.format]) : null
 
+  const footer = (
+    <>
+      {onSkip ? <Button type="button" variant="ghost" onClick={onSkip}>Revisar sin aplicar</Button> : null}
+      <Button type="button" variant="outline" onClick={() => file && saveBlob(file, file.name)} disabled={!file || !applied.length}>
+        <Download className="mr-1.5 h-3.5 w-3.5" />Descargar para revisar
+      </Button>
+      <Button type="button" onClick={() => apply.mutate(file)} disabled={!file || !applied.length || apply.isPending}>
+        <Upload className="mr-1.5 h-3.5 w-3.5" />{apply.isPending ? 'Aplicando...' : 'Aplicar a la plantilla'}
+      </Button>
+    </>
+  )
+
   return (
-    <Dialog open={Boolean(template)} onOpenChange={onOpenChange}>
-      <DialogContent size="md">
-        <DialogHeader icon={WandSparkles}>
-          <DialogTitle>Etiquetas sugeridas</DialogTitle>
-          <DialogDescription>
-            Tu formato «{template?.name}» no tiene etiquetas {'{{campo}}'}; estas son las que se proponen. Descárgalo para revisarlo o aplícalas; tu archivo solo cambia si eliges aplicar.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="max-h-[50vh] space-y-3 overflow-y-auto">
+    <TemplateDialogFrame open={Boolean(template)} onOpenChange={onOpenChange} size="xl" icon={WandSparkles}
+      title="Etiquetas sugeridas" subtitle={`Campos propuestos para «${template?.name ?? ''}».`} footer={footer}>
+      {applied.length ? <DialogHint>Tu archivo solo cambia si eliges aplicar; también puedes descargarlo para revisarlo antes.</DialogHint> : null}
           {!result ? (
             <p className="text-sm text-[hsl(var(--muted-foreground))]">Analizando la plantilla...</p>
           ) : result.supported === false ? (
@@ -100,17 +106,6 @@ export function TemplateSuggestDialog({ template, api, kind, onOpenChange, onApp
               ) : null}
             </>
           )}
-        </div>
-        <DialogFooter>
-          {onSkip ? <Button type="button" variant="ghost" onClick={onSkip}>Revisar campos sin aplicar</Button> : null}
-          <Button type="button" variant="outline" onClick={() => file && saveBlob(file, file.name)} disabled={!file || !applied.length}>
-            <Download className="mr-1.5 h-3.5 w-3.5" />Descargar para revisar
-          </Button>
-          <Button type="button" onClick={() => apply.mutate(file)} disabled={!file || !applied.length || apply.isPending}>
-            <Upload className="mr-1.5 h-3.5 w-3.5" />{apply.isPending ? 'Aplicando...' : 'Aplicar a la plantilla'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </TemplateDialogFrame>
   )
 }

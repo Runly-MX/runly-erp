@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '../Button.jsx'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../Dialog.jsx'
 import { DistDropZone } from '../DistDropZone.jsx'
+import { DialogHint, TemplateDialogFrame } from './TemplateDialogFrame.jsx'
 import { ALL_FORMATS, FORMAT_LABELS, MAX_TEMPLATE_MB, acceptFor, formatOfName } from './template-utils.js'
 
 // Replaces the file of a template with a new file in any format the kind allows;
@@ -24,23 +24,22 @@ export function TemplateReplaceDialog({ template, kind, busy, onOpenChange, onSu
     setFile(next)
   }
 
+  const footer = (
+    <>
+      <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+      <Button type="button" disabled={!file || busy} onClick={() => onSubmit(file)}>{busy ? 'Reemplazando...' : 'Reemplazar archivo'}</Button>
+    </>
+  )
+
   return (
-    <Dialog open={Boolean(template)} onOpenChange={onOpenChange}>
-      <DialogContent size="md">
-        <DialogHeader icon={RefreshCw}>
-          <DialogTitle>Reemplazar «{template?.name}»</DialogTitle>
-          <DialogDescription>
-            Sube el archivo nuevo ({formats.map((f) => FORMAT_LABELS[f]).join(', ')}); puede ser de otro formato. Se crea una versión nueva que debes revisar y publicar: los campos se detectan de nuevo y la asignación se conserva solo para las etiquetas que sigan existiendo. Los documentos ya generados no cambian.
-          </DialogDescription>
-        </DialogHeader>
-        <DistDropZone accept={acceptFor(formats)} maxSizeMB={MAX_TEMPLATE_MB} file={file} onFile={pick}
-          onClear={() => setFile(null)} isUploading={busy} emptyLabel={`Arrastra la plantilla ${list}`} />
-        {error ? <p className="text-xs text-[hsl(var(--destructive))]">{error}</p> : null}
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button type="button" disabled={!file || busy} onClick={() => onSubmit(file)}>{busy ? 'Reemplazando...' : 'Reemplazar archivo'}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <TemplateDialogFrame open={Boolean(template)} onOpenChange={onOpenChange} size="lg" icon={RefreshCw}
+      title={`Reemplazar «${template?.name ?? ''}»`} subtitle={`Archivo nuevo en ${formats.map((f) => FORMAT_LABELS[f]).join(', ')}.`} footer={footer}>
+      <DistDropZone accept={acceptFor(formats)} maxSizeMB={MAX_TEMPLATE_MB} file={file} onFile={pick}
+        onClear={() => setFile(null)} isUploading={busy} emptyLabel={`Arrastra la plantilla ${list}`} />
+      {error ? <p className="text-xs text-[hsl(var(--destructive))]">{error}</p> : null}
+      <DialogHint>
+        Se crea una versión nueva que debes revisar y publicar: los campos se detectan de nuevo y la asignación se conserva solo para las etiquetas que sigan existiendo. Puede ser de otro formato. Los documentos ya generados no cambian.
+      </DialogHint>
+    </TemplateDialogFrame>
   )
 }
