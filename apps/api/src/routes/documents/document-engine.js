@@ -10,7 +10,7 @@ import { fillPdf } from "../../services/document-templates/pdf-template.js";
 import { convertToPdf } from "../../services/document-templates/pdf-convert.js";
 import { TemplateError, resolvePath, toText } from "../../services/document-templates/template-tags.js";
 import { DocumentTemplateServiceError } from "./document-errors.js";
-import { FORMAT_MIME, kindImageKeys } from "./document-template-files.js";
+import { FORMAT_MIME, formatOfAsset, kindImageKeys } from "./document-template-files.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -82,7 +82,7 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
       const version = await loadVersion(template, allowDraft ? versionId : undefined, allowDraft);
       const asset = await files.findAsset(companyId, version.fileAssetId);
       if (!asset) throw fail("El archivo de la plantilla ya no existe.", 404, "file_not_found");
-      return { template, version, format: template.format, buffer: await files.read(asset), mapping: version.mapping ?? {}, layout: version.layout };
+      return { template, version, format: formatOfAsset(asset, template.format), buffer: await files.read(asset), mapping: version.mapping ?? {}, layout: version.layout };
     }
     const builtIn = typeof kind.defaultTemplate === "function" ? await kind.defaultTemplate() : null;
     if (!builtIn) throw fail("No hay una plantilla para este documento; sube una en Documentos.", 404, "no_template");

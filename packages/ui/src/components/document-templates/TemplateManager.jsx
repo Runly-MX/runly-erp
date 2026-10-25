@@ -213,7 +213,7 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
 
       <TemplateUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} kind={kind} hasTemplates={rows.length > 0}
         busy={create.isPending} onSubmit={(form) => create.mutate(form)} />
-      <TemplateReplaceDialog template={replacing} busy={replace.isPending} onOpenChange={(v) => { if (!v) setReplacing(null) }}
+      <TemplateReplaceDialog template={replacing} kind={kind} busy={replace.isPending} onOpenChange={(v) => { if (!v) setReplacing(null) }}
         onSubmit={(file) => replace.mutate({ template: replacing, file })} />
       <TemplateSuggestDialog template={suggesting} api={api} schema={kind?.schema} onOpenChange={(v) => { if (!v) setSuggesting(null) }}
         onApplied={(response) => { setSuggesting(null); review(response) }} />

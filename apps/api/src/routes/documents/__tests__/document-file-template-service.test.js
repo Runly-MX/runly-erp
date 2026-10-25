@@ -123,7 +123,38 @@ test("replacing the file of a published version creates a new draft that keeps t
   assert.equal(replaced.template.version.versionNumber, 2);
   assert.equal(replaced.template.version.status, "draft");
   assert.deepEqual(replaced.template.version.placeholders.sort(), ["date", "name"]);
-  await assert.rejects(service.replaceVersionFile({ companyId: COMPANY, templateId: up.template.id, versionId: up.template.version.id, file: fileOf(await xlsx("x"), "c.xlsx") }), /es \.docx/);
+  await assert.rejects(service.replaceVersionFile({ companyId: COMPANY, templateId: up.template.id, versionId: up.template.version.id, file: fileOf(Buffer.from("x"), "c.txt") }), /Formato no admitido/);
+});
+
+test("replace accepts another format: docx -> pdf rescans layout and keeps mapping only for surviving tags", async () => {
+  const { service, prisma } = setup();
+  const up = await service.upload({ companyId: COMPANY, kind: "test.record", file: fileOf(docx("{{name}} {{date}}"), "a.docx") });
+  await service.saveMapping({ companyId: COMPANY, templateId: up.template.id, versionId: up.template.version.id, mapping: { name: "person.name", date: "person.date" } });
+  const replaced = await service.replaceVersionFile({ companyId: COMPANY, templateId: up.template.id, versionId: up.template.version.id, file: fileOf(await pdfWithLabel(), "b.pdf") });
+  assert.equal(replaced.template.format, "pdf");
+  assert.deepEqual(replaced.template.version.placeholders, ["name"]);
+  assert.equal(replaced.template.version.layout.fields.length, 1);
+  assert.deepEqual(replaced.template.version.mapping, { name: "person.name" });
+  assert.equal(prisma.documentTemplate.rows[0].format, "pdf");
+});
+
+test("replace accepts another format: pdf -> docx drops the layout; a published template changes format on publishing", async () => {
+  const { service, prisma } = setup();
+  const draft = await service.upload({ companyId: COMPANY, kind: "test.record", file: fileOf(await pdfWithLabel(), "a.pdf") });
+  const toDocx = await service.replaceVersionFile({ companyId: COMPANY, templateId: draft.template.id, versionId: draft.template.version.id, file: fileOf(docx("{{name}}"), "b.docx") });
+  assert.equal(toDocx.template.format, "docx");
+  assert.equal(toDocx.template.version.layout, null);
+  assert.deepEqual(toDocx.template.version.placeholders, ["name"]);
+
+  const live = await service.upload({ companyId: COMPANY, kind: "test.record", file: fileOf(docx("{{name}}"), "c.docx"), publish: true });
+  const next = await service.replaceVersionFile({ companyId: COMPANY, templateId: live.template.id, versionId: live.template.version.id, file: fileOf(await pdfWithLabel(), "d.pdf") });
+  assert.equal(next.template.version.versionNumber, 2);
+  assert.equal(next.template.format, "pdf");
+  const row = () => prisma.documentTemplate.rows.find((t) => t.id === live.template.id);
+  assert.equal(row().format, "docx");
+  const published = await service.publishVersion({ companyId: COMPANY, templateId: live.template.id, versionId: next.template.version.id });
+  assert.equal(published.template.format, "pdf");
+  assert.equal(row().format, "pdf");
 });
 
 test("inventory.custody accepts all four formats and tags a Word form with labels and empty cells", async () => {

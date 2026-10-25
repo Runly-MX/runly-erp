@@ -25,6 +25,17 @@ export function formatOfFileName(fileName) {
   return FILE_FORMATS.includes(ext) ? ext : null;
 }
 
+// Format of a stored template file (from its name, then its MIME type).
+export function formatOfAsset(asset, fallback = null) {
+  const byName = formatOfFileName(asset?.originalName);
+  if (byName) return byName;
+  const byMime = Object.entries(FORMAT_MIME).find(([, mime]) => mime === asset?.mimeType)?.[0];
+  return byMime ?? fallback;
+}
+
+// A template tag without its section/image prefix (`#items` -> `items`).
+export const tagBase = (tag) => String(tag).replace(/^[#^%/]/, "");
+
 // Tags the kind knows: top-level entries plus `list.field` for list entries.
 function knownTagSet(kind) {
   const known = new Set();

@@ -3,18 +3,21 @@ import { RefreshCw } from 'lucide-react'
 import { Button } from '../Button.jsx'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../Dialog.jsx'
 import { DistDropZone } from '../DistDropZone.jsx'
-import { MAX_TEMPLATE_MB, formatOfName } from './template-utils.js'
+import { ALL_FORMATS, FORMAT_LABELS, MAX_TEMPLATE_MB, acceptFor, formatOfName } from './template-utils.js'
 
-// Replaces the file of a template with an edited version of the same format.
-export function TemplateReplaceDialog({ template, busy, onOpenChange, onSubmit }) {
+// Replaces the file of a template with a new file in any format the kind allows;
+// the template takes the new file's format.
+export function TemplateReplaceDialog({ template, kind, busy, onOpenChange, onSubmit }) {
   const [file, setFile] = useState(null)
   const [error, setError] = useState('')
   useEffect(() => { setFile(null); setError('') }, [template?.id])
-  const format = template?.format
+  const formats = kind?.formats?.length ? kind.formats : ALL_FORMATS
+  const list = formats.map((f) => `.${f}`).join(', ')
 
   function pick(next) {
-    if (formatOfName(next?.name) !== format) {
-      setError(`Sube un archivo .${format}`)
+    const picked = formatOfName(next?.name)
+    if (!picked || !formats.includes(picked)) {
+      setError(`Sube un archivo ${list}`)
       return
     }
     setError('')
@@ -27,11 +30,11 @@ export function TemplateReplaceDialog({ template, busy, onOpenChange, onSubmit }
         <DialogHeader icon={RefreshCw}>
           <DialogTitle>Reemplazar «{template?.name}»</DialogTitle>
           <DialogDescription>
-            Sube la versión editada. Se crea una versión nueva que debes revisar y publicar; los documentos ya generados no cambian.
+            Sube el archivo nuevo ({formats.map((f) => FORMAT_LABELS[f]).join(', ')}); puede ser de otro formato. Se crea una versión nueva que debes revisar y publicar: los campos se detectan de nuevo y la asignación se conserva solo para las etiquetas que sigan existiendo. Los documentos ya generados no cambian.
           </DialogDescription>
         </DialogHeader>
-        <DistDropZone accept={`.${format}`} maxSizeMB={MAX_TEMPLATE_MB} file={file} onFile={pick}
-          onClear={() => setFile(null)} isUploading={busy} emptyLabel={`Arrastra la plantilla editada .${format}`} />
+        <DistDropZone accept={acceptFor(formats)} maxSizeMB={MAX_TEMPLATE_MB} file={file} onFile={pick}
+          onClear={() => setFile(null)} isUploading={busy} emptyLabel={`Arrastra la plantilla ${list}`} />
         {error ? <p className="text-xs text-[hsl(var(--destructive))]">{error}</p> : null}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

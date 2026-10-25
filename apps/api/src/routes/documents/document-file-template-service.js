@@ -10,8 +10,10 @@ import {
   FORMAT_MIME,
   MAX_TEMPLATE_BYTES,
   buildBlankTemplate,
+  formatOfAsset,
   formatOfFileName,
   kindLabels,
+  tagBase,
   scanTemplate,
 } from "./document-template-files.js";
 
@@ -170,28 +172,39 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
     return createTemplateRecord({ companyId, profileId, kind, scopeKey, format, name: title, asset, scanned, isDefault, publish });
   }
 
-  // Replaces the file of a version (re-upload) or rescans the current one
-  // (after an edit in the office editor). A published version is never
-  // changed: the new file goes to a new draft that inherits mapping/layout.
+  // Replaces the file of a version (re-upload, any format the kind allows) or
+  // rescans the current one (after an edit in the office editor). A published
+  // version is never changed: the new file goes to a new draft that inherits
+  // the mapping for the tags that still exist. When the format changes, the
+  // template takes the new format (immediately for an unpublished template,
+  // on publishing otherwise, so the published version keeps working).
   async function replaceVersionFile({ companyId, profileId, templateId, versionId, file = null }) {
     const template = await findTemplate(companyId, templateId);
     const kind = kindOf(template.kind);
     const version = await findVersion(templateId, versionId);
     let buffer;
     let asset = null;
+    let format = template.format;
     if (file) {
       const uploaded = await readUpload(file, kind);
-      if (uploaded.format !== template.format) throw fail(`La plantilla es .${template.format}; sube un archivo .${template.format}.`);
+      format = uploaded.format;
       buffer = uploaded.buffer;
-      asset = await storeFile({ companyId, profileId, buffer, fileName: file.name, format: template.format });
+      asset = await storeFile({ companyId, profileId, buffer, fileName: file.name, format });
     } else {
       const current = await files.findAsset(companyId, version.fileAssetId);
       if (!current) throw fail("El archivo de la plantilla ya no existe.", 404, "file_not_found");
+      format = formatOfAsset(current, template.format);
       buffer = await files.read(current);
     }
-    const scanned = await scan(template.format, buffer, kind);
+    const scanned = await scan(format, buffer, kind);
+    const formatChanged = format !== template.format;
     const fileAssetId = asset?.id ?? version.fileAssetId;
-    const layout = scanned.layout ?? version.layout ?? null;
+    const layout = scanned.layout ?? (formatChanged ? null : version.layout ?? null);
+    // Keep the previous mapping only for tags the new file still has.
+    const present = new Set(scanned.tags.map(tagBase));
+    const mapping = Object.fromEntries(
+      Object.entries(version.mapping ?? {}).filter(([tag]) => !asset || present.has(tagBase(tag))),
+    );
     const saved = await prisma.$transaction(async (tx) => {
       let next;
       if (version.status === "published") {
@@ -204,18 +217,19 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
             blocks: [],
             fileAssetId,
             placeholders: scanned.tags,
-            mapping: version.mapping ?? {},
+            mapping,
             layout,
             createdById: profileId ?? null,
           },
         });
       } else {
-        next = await tx.documentTemplateVersion.update({ where: { id: version.id }, data: { fileAssetId, placeholders: scanned.tags, layout } });
+        next = await tx.documentTemplateVersion.update({ where: { id: version.id }, data: { fileAssetId, placeholders: scanned.tags, layout, mapping } });
+        if (formatChanged && !template.publishedVersionId) await tx.documentTemplate.update({ where: { id: templateId }, data: { format } });
       }
       if (asset) await tx.fileAsset.update({ where: { id: asset.id }, data: { metadata: { ...(asset.metadata ?? {}), sourceEntityId: templateId } } });
       return next;
     });
-    return { template: serializeFileTemplate(template, saved), warnings: scanned.warnings };
+    return { template: serializeFileTemplate({ ...template, format }, saved), warnings: scanned.warnings };
   }
 
   // Suggestions for a version, nothing is saved: docx returns the file with
@@ -288,12 +302,15 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
   }
 
   async function publishVersion({ companyId, templateId, versionId }) {
-    await findTemplate(companyId, templateId);
+    const template = await findTemplate(companyId, templateId);
     const version = await findVersion(templateId, versionId);
     if (version.status === "published") throw fail("La versión ya está publicada.", 409, "version_published");
+    // The template takes the format of the file it publishes (replace may change it).
+    const asset = await files.findAsset(companyId, version.fileAssetId);
+    const format = formatOfAsset(asset, template.format);
     const saved = await prisma.$transaction(async (tx) => {
       const published = await tx.documentTemplateVersion.update({ where: { id: versionId }, data: { status: "published", publishedAt: new Date() } });
-      const updated = await tx.documentTemplate.update({ where: { id: templateId }, data: { publishedVersionId: versionId } });
+      const updated = await tx.documentTemplate.update({ where: { id: templateId }, data: { publishedVersionId: versionId, format } });
       return { published, updated };
     });
     return { template: serializeFileTemplate(saved.updated, saved.published), warnings: [] };
