@@ -181,7 +181,7 @@ export function ChatConversationRow({ conversation, isActive, onClick, currentUs
       ].join(" ")}
     >
       {lead}
-      <span className={["min-w-0 flex-1 truncate", unread > 0 || mentions > 0 ? "font-semibold" : "font-normal text-[hsl(var(--foreground))]/80"].join(" ")}>{name}</span>
+      <span className={["min-w-0 flex-1 truncate", unread > 0 || mentions > 0 ? "font-semibold" : "font-normal text-[hsl(var(--foreground))]/80"].join(" ")}>{conversation.type === "channel" && !meeting && (photo || emoji) && <span className="mr-0.5 text-[hsl(var(--muted-foreground))]">#</span>}{name}</span>
       {mentions > 0 && (
         <span title={`${mentions} mención${mentions === 1 ? "" : "es"} sin leer`} className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
           <AtSign className="h-2.5 w-2.5" strokeWidth={3} />{mentions > 9 ? "9+" : mentions}

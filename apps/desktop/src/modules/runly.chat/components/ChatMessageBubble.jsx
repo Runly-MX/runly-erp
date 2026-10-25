@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import {
   CheckCheck, MoreHorizontal, Copy, Trash2, Forward, EyeOff, CheckSquare,
-  Pin, PinOff, Smile, MessageSquare, CornerUpLeft, Volume2, Square, Loader2, Plug,
+  Pin, PinOff, Smile, MessageSquare, CornerUpLeft, Volume2, Square, Loader2, Plug, Plus,
 } from "lucide-react";
 import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+  Popover, PopoverContent, PopoverTrigger, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   AssistantWordmark, MiraiAvatar, renderMentionText, renderRichText, resolveLucideIcon, useLongPress, useSwipeToReply, useCoarsePointer, useIsMobile,
 } from "@runly/ui";
 import { formatMessageTime, isImageMime } from "../lib/chatUtils";
@@ -25,7 +25,7 @@ import { getCallMeta, getRecordingMeta } from "./callLogMeta";
 import { RecordingReadyCard } from "./RecordingReadyCard";
 import { MessageActionSheet } from "./MessageActionSheet";
 import { hapticTick } from "../lib/haptics";
-import { buildMessageActions } from "../lib/messageActions";
+import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
 
 // Block native text selection app-wide the instant a touch lands on a message
 // row (chat-suppress-select in chat-theme.css). It has to be in place BEFORE
@@ -111,8 +111,9 @@ function SwipeReplyHint({ translateX, isOwn }) {
 function MessageActions({
   isOwn, hasBody, onCopy, onDelete, onHideForMe, onForward, onEnterSelection,
   canPin, isPinned, onPin, onReact, canReply, onOpenThread, onReply, onAskMirai, onShowReceipt,
-  onSpeak, isSpeaking, isLoadingSpeak, onEdit,
+  onSpeak, isSpeaking, isLoadingSpeak, onEdit, onQuickReact,
 }) {
+  const [quickOpen, setQuickOpen] = useState(false);
   const actions = buildMessageActions({
     hasBody, isOwn, canPin, isPinned, canReply,
     onReply, onCopy, onForward, onEnterSelection, onPin, onReact, onOpenThread,
@@ -135,15 +136,28 @@ function MessageActions({
           onSelect, so it doesn't hit the Radix close/open race the dropdown
           item does. */}
       {onReact && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onReact(); }}
-          title="Reaccionar"
-          aria-label="Reaccionar"
-          className={`${revealCls} h-6 w-6 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-opacity shrink-0 self-center touch-manipulation`}
-        >
-          <Smile className="h-3.5 w-3.5" />
-        </button>
+        <Popover open={quickOpen} onOpenChange={setQuickOpen}>
+          <PopoverTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            title="Reaccionar"
+            aria-label="Reaccionar"
+            className={`${revealCls} h-6 w-6 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-opacity shrink-0 self-center touch-manipulation`}
+          >
+            <Smile className="h-3.5 w-3.5" />
+          </button>
+          </PopoverTrigger>
+          {/* Same quick set as the long-press sheet; "+" opens the full picker. */}
+          <PopoverContent side="top" align={isOwn ? "end" : "start"} sideOffset={6} className="w-auto rounded-full p-1" style={{ zIndex: 10000 }} onOpenAutoFocus={(e) => e.preventDefault()}>
+            <div className="flex items-center gap-0.5" role="group" aria-label="Reacciones rápidas">
+              {QUICK_REACTIONS.map((emoji) => (
+                <button key={emoji} type="button" onClick={() => { setQuickOpen(false); onQuickReact?.(emoji); }} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-lg transition-transform hover:scale-110 hover:bg-[hsl(var(--muted))] [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:w-10">{emoji}</button>
+              ))}
+              <button type="button" aria-label="Más emojis" title="Más emojis" onClick={() => { setQuickOpen(false); requestAnimationFrame(() => onReact()); }} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:w-10"><Plus className="h-4 w-4" /></button>
+            </div>
+          </PopoverContent>
+        </Popover>
       )}
       {/* Quick-speak affordance — same idea as the quick-react button above:
           a dedicated icon instead of only being buried inside the "..."
@@ -637,6 +651,7 @@ export function ChatMessageBubble({
         ) : showActions && !actionSheet.open && (
           <MessageActions
             isOwn
+            onQuickReact={(emoji) => onToggleReaction?.(message.id, emoji)}
             hasBody={hasBody}
             onCopy={onCopy}
             onDelete={onDelete}
@@ -1071,6 +1086,7 @@ export function ChatMessageBubble({
       {!selectionMode && showActions && !actionSheet.open && (
         <MessageActions
           isOwn={false}
+          onQuickReact={(emoji) => onToggleReaction?.(message.id, emoji)}
           hasBody={hasBody}
           onCopy={onCopy}
           onDelete={onDelete}
