@@ -37,7 +37,7 @@ const bundle = await build({ entryPoints: [resolve(root, 'scripts/fixtures/studi
 await mkdir(output, { recursive: true })
 const assets = resolve(root, 'apps/desktop/dist/assets'), cssName = (await readdir(assets)).find(name => /^styles-.*\.css$/.test(name))
 const css = await readFile(resolve(assets, cssName))
-let originalImage
+let originalImage, failNextSave = false, conflictNextSave = false
 const server = createServer((request, response) => {
   if (request.url === '/fixture.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(bundle.outputFiles[0].contents); return }
   if (request.url === '/fixture.css') { response.setHeader('Content-Type', 'text/css'); response.end(css); return }
@@ -56,6 +56,14 @@ try {
     const request = route.request(), pathname = new URL(request.url()).pathname
     assert.equal(request.headers()['x-runly-company-id'], company)
     assert.equal(request.headers().authorization, 'Bearer studio-fixture-token')
+    if (request.method() === 'PUT' && failNextSave) {
+      failNextSave = false
+      await route.fulfill({ status: 503, json: { error: 'Fallo temporal de prueba' } }); return
+    }
+    if (request.method() === 'PUT' && conflictNextSave) {
+      conflictNextSave = false
+      await route.fulfill({ status: 409, json: { error: 'Hay una versión más reciente. Conserva tus cambios y vuelve a abrir el diseño.' } }); return
+    }
     try {
       const id = pathname.split('/')[3]
       const data = request.method() === 'POST' ? await service.create(company, owner, request.postDataJSON()) :
@@ -90,6 +98,9 @@ try {
   })
   await page.locator('input[type=file]').setInputFiles({ name: 'original.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })
   await page.getByRole('button', { name: '4. Imagen', exact: true }).waitFor()
+  await page.getByRole('button', { name: '4. Imagen', exact: true }).click()
+  await page.getByLabel('Ancho', { exact: true }).fill('160')
+  await page.getByLabel('Posición X', { exact: true }).fill('700')
   await page.getByLabel('Nombre del diseño').fill('Composición de prueba')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await page.getByRole('status').filter({ hasText: /^Guardado$/ }).waitFor()
@@ -100,10 +111,28 @@ try {
   assert.equal(persisted.document.objects[0].x, 120)
   assert.equal(persisted.document.objects[1].width, 280)
   assert.equal(persisted.document.objects[3].fileAssetId, assetId)
+  assert.equal(persisted.document.objects[3].width, 160)
+  assert.equal(persisted.document.objects[3].x, 700)
   await page.reload()
   await page.getByRole('button', { name: '1. Texto', exact: true }).click()
   await page.getByLabel('Texto del elemento', { exact: true }).waitFor()
   assert.equal(await page.getByLabel('Texto del elemento', { exact: true }).inputValue(), 'Primera composición real')
+  // A failed save must preserve local edits and leave the stored revision intact.
+  await page.getByLabel('Texto del elemento', { exact: true }).fill('Recuperado tras fallo temporal')
+  failNextSave = true
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await page.getByText('Fallo temporal de prueba', { exact: true }).waitFor()
+  assert.equal(await page.getByLabel('Texto del elemento', { exact: true }).inputValue(), 'Recuperado tras fallo temporal')
+  assert.equal((await service.get(company, owner, designId)).revision, persisted.revision)
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await page.getByRole('status').filter({ hasText: /^Guardado$/ }).waitFor()
+  assert.equal((await service.get(company, owner, designId)).document.objects[0].text, 'Recuperado tras fallo temporal')
+  await page.getByLabel('Texto del elemento', { exact: true }).fill('Cambios locales en conflicto')
+  conflictNextSave = true
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await page.getByText('Hay una versión más reciente. Conserva tus cambios y vuelve a abrir el diseño.', { exact: true }).waitFor()
+  assert.equal(await page.getByLabel('Texto del elemento', { exact: true }).inputValue(), 'Cambios locales en conflicto')
+  assert.equal((await service.get(company, owner, designId)).document.objects[0].text, 'Recuperado tras fallo temporal')
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Exportar PNG', exact: true }).click()
   const download = await downloadPromise
@@ -121,6 +150,6 @@ try {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
   assert.deepEqual(errors, [])
   await writeFile(resolve(output, 'ui-result.json'), JSON.stringify({ passed: true, objects: 4, pngBytes: bytes.length,
-    png: [1080, 1080], realPostgres: true, auth: 'fixture', storage: 'fixture-original-bytes', viewports: [1440, 375], errors }, null, 2))
+    png: [1080, 1080], realPostgres: true, auth: 'fixture', storage: 'fixture-original-bytes', saveFailureRecovery: true, revisionConflictPreservesEdits: true, viewports: [1440, 375], errors }, null, 2))
   console.log('Studio UI passed: create, edit text/shapes/image, save in PostgreSQL, reload editable, export PNG, dark/mobile layout.')
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); await pool.end() }

@@ -1,6 +1,7 @@
 # Runly Studio: preparación del despliegue de pruebas
 
 Fecha de inspección: 2026-10-25. **Publicación y despliegue pendientes de revisión.**
+Continuación: [investigación de checksums y validación local aislada](runly-studio-local-validation.md).
 Se trabajó en main, sin ramas ni worktrees. No se aplicó ninguna migración, seed,
 reset ni sincronización de módulos a la base compartida. No se reinició el VPS.
 Por aclaración posterior del usuario, el alcance final es exclusivamente local;

@@ -5,6 +5,10 @@ import { readFile } from 'node:fs/promises'
 import pg from 'pg'
 import prismaPackage from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { Hono } from 'hono'
+import { createAuthMiddleware } from '../../services/auth-middleware.js'
+import { signHs256Jwt } from '../../services/jwt-verification.js'
+import { createStudioRouter } from './index.js'
 import { createStudioService } from './studio-service.js'
 import { appendObject, blankDocument } from '../../../../shared/studio/document.js'
 
@@ -62,8 +66,36 @@ test('Studio service against disposable PostgreSQL: isolation, atomic revisions,
       await pool.query('UPDATE file_asset SET entity_id = $1, mime_type = $2', [company, 'image/svg+xml'])
       await assert.rejects(service.create(company, owner, { name: 'Imagen', document: image }), { code: 'STUDIO_ASSET_DENIED' })
       await pool.query('UPDATE file_asset SET mime_type = $1', ['image/png'])
+      await pool.query('UPDATE file_asset SET enabled = false')
+      await assert.rejects(service.create(company, owner, { name: 'Imagen', document: image }), { code: 'STUDIO_ASSET_DENIED' })
+      await pool.query('UPDATE file_asset SET enabled = true, uploaded_by_id = $1', [otherOwner])
+      await assert.rejects(service.create(company, owner, { name: 'Imagen', document: image }), { code: 'STUDIO_ASSET_DENIED' })
+      await pool.query('UPDATE file_asset SET uploaded_by_id = $1', [owner])
       const saved = await service.create(company, owner, { name: 'Imagen', document: image })
       assert.equal(saved.document.objects.at(-1).fileAssetId, otherOwner)
+    })
+    await t.test('HTTP routes with real JWT verification reject missing, invalid and expired identity and denied grants', async () => {
+      const secret = 'studio-disposable-jwt-secret'
+      const app = new Hono()
+      app.use('*', createAuthMiddleware({
+        getJwtSecret: () => secret, cacheGet: () => null, cacheSet: () => {}, warn: () => {},
+        supabaseAdmin: { auth: { getUser: async () => ({ data: { user: null }, error: { status: 401 } }) } },
+        authorizeIdentity: async (c, id) => {
+          c.set('companyId', company); c.set('userContext', { profile: { id } })
+        },
+      }))
+      // Grants are fixture data; token verification, router, service and Prisma are real.
+      app.route('/', createStudioRouter({ service, requirePermission: () => async (c, next) =>
+        c.get('authUserId') === owner ? next() : c.json({ error: 'Sin permiso' }, 403) }))
+      const request = token => app.request('/studio/designs', token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+      assert.equal((await request()).status, 401)
+      assert.equal((await request('invalid')).status, 401)
+      assert.equal((await request(signHs256Jwt({ sub: owner }, secret, -60))).status, 401)
+      assert.equal((await request(signHs256Jwt({ sub: owner }, 'wrong-secret', 60))).status, 401)
+      assert.equal((await request(signHs256Jwt({ sub: otherOwner }, secret, 60))).status, 403)
+      const response = await request(signHs256Jwt({ sub: owner }, secret, 60))
+      assert.equal(response.status, 200)
+      assert.ok((await response.json()).data.some(item => item.id === record.id))
     })
     await t.test('audit failure rolls back the mutation', async () => {
       await pool.query("ALTER TABLE audit_log ADD CONSTRAINT reject_updates CHECK(action <> 'studio.design.update') NOT VALID")
