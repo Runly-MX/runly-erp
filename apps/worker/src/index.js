@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url'
 import pkg from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
-import { createNotificationDeliveryWorker } from '../../api/src/services/notification-delivery-worker.js'
+import { createNotificationDeliveryWorker, resolveAppBaseUrl } from '../../api/src/services/notification-delivery-worker.js'
+import { createNotificationDigestService } from '../../api/src/services/notification-digest-service.js'
 import { createCalendarNotificationService } from '../../api/src/routes/calendar/calendar-notification-service.js'
 import { createSyncLogCleanupWorker } from '../../api/src/services/sync-cleanup-worker.js'
 import { createModuleBackupService } from '../../api/src/services/module-backup-service.js'
@@ -442,6 +443,19 @@ setTimeout(runAttendanceEvidenceTick, 90_000)
 setInterval(() => {
   runAttendanceEvidenceTick()
 }, ATTENDANCE_EVIDENCE_INTERVAL_MS)
+// Daily / weekly summary emails: sends the ones whose hour has come (idempotent per window).
+async function runDigestTick() {
+  try {
+    const appBaseUrl = await resolveAppBaseUrl({ prisma })
+    const { sent } = await createNotificationDigestService({ prisma, appBaseUrl }).runDue()
+    if (sent) console.log(`[worker] resumenes de avisos ${formatLogTimestamp()} sent=${sent}`)
+  } catch (err) {
+    console.error('[worker] digest tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+setTimeout(runDigestTick, 120_000)
+setInterval(runDigestTick, 15 * 60 * 1000)
 // Task timers left running for more than 12 hours are closed (and flagged for review).
 const taskTimeService = createTimeService({ prisma })
 async function runTaskTimerTick() {

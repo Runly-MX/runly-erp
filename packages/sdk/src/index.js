@@ -1936,6 +1936,14 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/notifications${toQueryString(query)}`, {
           headers: withAuthHeaders(token),
         }),
+      getDigest: (token) =>
+        request("/notifications/digest", { headers: withAuthHeaders(token) }),
+      setDigest: (token, data) =>
+        request("/notifications/digest", {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       testDelivery: (token, channel) =>
         request("/notifications/test", {
           method: "POST",

@@ -40,7 +40,7 @@ function normalizeBaseUrl(value) {
   }
 }
 
-async function resolveAppBaseUrl({ prisma }) {
+export async function resolveAppBaseUrl({ prisma }) {
   const envCandidates = [
     process.env.RUNLY_APP_URL,
     process.env.APP_URL,

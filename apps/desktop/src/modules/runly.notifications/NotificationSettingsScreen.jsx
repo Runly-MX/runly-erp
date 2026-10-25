@@ -18,6 +18,7 @@ import { getDefaultNotificationPreference } from '@runly/core';
 import { useAuth } from "../../auth/AuthProvider";
 import PushDiagnosticsCard from "./PushDiagnosticsCard";
 import DeliveryCheckCard from "./DeliveryCheckCard";
+import DigestCard from "./DigestCard";
 import { runly } from "../../lib/runly";
 import {
   getCurrentWebPushSubscription,
@@ -493,6 +494,7 @@ export default function NotificationSettingsScreen() {
           )}
         </CardContent>
       </Card>
+      <DigestCard token={token} />
       <DeliveryCheckCard token={token} />
       <PushDiagnosticsCard token={token} />
     </div>
