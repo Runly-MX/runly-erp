@@ -1,41 +1,61 @@
-import { test } from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
-import { availableWidgets, visibleWidgets, toggleHidden, orderWidgets, moveInOrder, nextSize } from "../homeWidgets.js";
+import { addWidget, availableWidgets, moveWidget, removeWidget, resolveShown, sizeFromDrag, sizeFromKey, sizeOf, withSize } from "../homeWidgets.js";
 
 const catalog = [
-  { id: "agenda", moduleKey: "runly.calendar" },
-  { id: "pfm", moduleKey: "runly.pfm" },
-  { id: "online", moduleKey: "runly.chat" },
+  { id: "a", moduleKey: "m.a" },
+  { id: "b", moduleKey: "m.b" },
+  { id: "c", moduleKey: "m.c" },
 ];
 
-test("only widgets of available modules are offered, in catalog order", () => {
-  assert.deepEqual(
-    availableWidgets(catalog, ["runly.chat", "runly.calendar"]).map((w) => w.id),
-    ["agenda", "online"],
-  );
+test("only widgets of modules the person can open are offered", () => {
+  assert.deepEqual(availableWidgets(catalog, ["m.a", "m.c"]).map((w) => w.id), ["a", "c"]);
+  assert.deepEqual(availableWidgets(catalog, []).map((w) => w.id), []);
 });
 
-test("hidden widgets are filtered out; unknown hidden ids are ignored", () => {
-  const keys = ["runly.calendar", "runly.pfm", "runly.chat"];
-  assert.deepEqual(visibleWidgets(catalog, keys, ["pfm", "gone"]).map((w) => w.id), ["agenda", "online"]);
-  assert.equal(visibleWidgets(catalog, keys).length, 3);
+test("home starts empty and shows only what was added, in board order", () => {
+  assert.deepEqual(resolveShown(undefined, ["a", "b", "c"]), []);
+  assert.deepEqual(resolveShown({}, ["a", "b", "c"]), []);
+  assert.deepEqual(resolveShown({ shown: ["c", "a"] }, ["a", "b", "c"]), ["c", "a"]);
 });
 
-test("toggleHidden adds and removes ids", () => {
-  assert.deepEqual(toggleHidden(["a"], "b"), ["a", "b"]);
-  assert.deepEqual(toggleHidden(["a", "b"], "a"), ["b"]);
+test("a board that defaults to everything shows all offered widgets until the person saves", () => {
+  assert.deepEqual(resolveShown({}, ["a", "b"], { defaultAll: true }), ["a", "b"]);
+  assert.deepEqual(resolveShown({ shown: ["b"] }, ["a", "b"], { defaultAll: true }), ["b"]);
 });
 
-test("orderWidgets honours the saved order and keeps new widgets after it", () => {
-  const catalog = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
-  assert.deepEqual(orderWidgets(catalog, ["c", "a"]).map((w) => w.id), ["c", "a", "b", "d"]);
-  assert.deepEqual(orderWidgets(catalog, []).map((w) => w.id), ["a", "b", "c", "d"]);
-  assert.deepEqual(orderWidgets(catalog, ["zzz", "d"]).map((w) => w.id), ["d", "a", "b", "c"]);
+test("a saved widget whose module is no longer available, or repeated, is dropped", () => {
+  assert.deepEqual(resolveShown({ shown: ["b", "gone", "a", "b"] }, ["a", "b"]), ["b", "a"]);
 });
 
-test("moveInOrder moves one place and stops at the edges; sizes cycle", () => {
-  assert.deepEqual(moveInOrder(["a", "b", "c"], "b", -1), ["b", "a", "c"]);
-  assert.deepEqual(moveInOrder(["a", "b", "c"], "a", -1), ["a", "b", "c"]);
-  assert.deepEqual(moveInOrder(["a", "b", "c"], "c", 1), ["a", "b", "c"]);
-  assert.deepEqual([nextSize(undefined), nextSize("sm"), nextSize("md"), nextSize("lg")], ["md", "md", "lg", "sm"]);
+test("a legacy hidden/order preference keeps what the person saw", () => {
+  assert.deepEqual(resolveShown({ hidden: ["b"] }, ["a", "b", "c"]), ["a", "c"]);
+  assert.deepEqual(resolveShown({ hidden: [], order: ["c", "a"] }, ["a", "b", "c"]), ["c", "a", "b"]);
+});
+
+test("add, remove and move keep the list consistent", () => {
+  assert.deepEqual(addWidget(["a"], "b"), ["a", "b"]);
+  assert.deepEqual(addWidget(["a"], "a"), ["a"]);
+  assert.deepEqual(removeWidget(["a", "b"], "a"), ["b"]);
+  assert.deepEqual(moveWidget(["a", "b", "c"], "c", "a"), ["c", "a", "b"]);
+  assert.deepEqual(moveWidget(["a", "b", "c"], "a", "a"), ["a", "b", "c"]);
+  assert.deepEqual(moveWidget(["a", "b"], "a", "zzz"), ["a", "b"]);
+});
+
+test("sizes default to one cell, read the legacy widths and are clamped", () => {
+  assert.deepEqual(sizeOf({}, "a"), { w: 1, h: 1 });
+  assert.deepEqual(sizeOf({ size: { a: "lg" } }, "a"), { w: 3, h: 1 });
+  assert.deepEqual(sizeOf(withSize({}, "a", { w: 9, h: 0 }), "a"), { w: 3, h: 1 });
+  assert.deepEqual(sizeOf(withSize({ shown: ["a"] }, "a", { w: 2, h: 2 }), "a"), { w: 2, h: 2 });
+});
+
+test("dragging the corner changes the span by whole cells; arrows change one cell", () => {
+  const cell = { width: 400, height: 240 };
+  assert.deepEqual(sizeFromDrag({ w: 1, h: 1 }, { x: 420, y: 10 }, cell), { w: 2, h: 1 });
+  assert.deepEqual(sizeFromDrag({ w: 2, h: 2 }, { x: -450, y: -260 }, cell), { w: 1, h: 1 });
+  assert.deepEqual(sizeFromDrag({ w: 1, h: 1 }, { x: 5000, y: 5000 }, cell), { w: 3, h: 2 });
+  assert.deepEqual(sizeFromKey({ w: 1, h: 1 }, "ArrowRight"), { w: 2, h: 1 });
+  assert.deepEqual(sizeFromKey({ w: 3, h: 2 }, "ArrowRight"), { w: 3, h: 2 });
+  assert.deepEqual(sizeFromKey({ w: 2, h: 2 }, "ArrowUp"), { w: 2, h: 1 });
+  assert.deepEqual(sizeFromKey({ w: 2, h: 2 }, "x"), { w: 2, h: 2 });
 });

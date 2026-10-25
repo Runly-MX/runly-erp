@@ -9,12 +9,12 @@ import { AppViewControls } from "../components/AppViewControls";
 import { AppContextMenu } from "../components/AppContextMenu";
 import { ModuleListRow } from "../components/ModuleCard";
 import { filterModulesByQuery, readRecentModuleKeys, removeRecentModule } from "../lib/recentModules";
-import { availableWidgets, orderWidgets } from "../lib/homeWidgets";
+import { addWidget, availableWidgets, moveWidget, removeWidget, resolveShown, sizeOf, withShown, withSize } from "../lib/homeWidgets";
 import { useHomeWidgetPrefs } from "../hooks/useHomeWidgetPrefs";
 import { useContributedWidgets } from "../hooks/useContributedWidgets";
 import { HomeHeader } from "./home/HomeHeader";
 import { HomeAppTile, HomeFeaturedTile } from "./home/HomeAppTiles";
-import { HomeWidgetBoard, HomeWidgetCustomizer } from "./home/HomeWidgetBoard";
+import { HomeWidgetBoard, HomeWidgetEditBar } from "./home/HomeWidgetBoard";
 import { HOME_WIDGETS } from "./home/widgets/registry";
 
 const RECENT_LIMIT = 6;
@@ -87,8 +87,13 @@ export function HomeScreen() {
     () => availableWidgets([...HOME_WIDGETS, ...contributedWidgets], modulesByKey.keys()),
     [modulesByKey, contributedWidgets],
   );
-  const orderedWidgets = useMemo(() => orderWidgets(offeredWidgets, widgetPrefs.order), [offeredWidgets, widgetPrefs.order]);
-  const shownWidgets = orderedWidgets.filter((w) => !widgetPrefs.hidden.includes(w.id));
+  const [editingWidgets, setEditingWidgets] = useState(false);
+  const shownIds = useMemo(() => resolveShown(widgetPrefs.pref, offeredWidgets.map((w) => w.id)), [widgetPrefs.pref, offeredWidgets]);
+  const widgetsById = useMemo(() => new Map(offeredWidgets.map((w) => [w.id, w])), [offeredWidgets]);
+  const shownWidgets = shownIds.map((id) => widgetsById.get(id));
+  const trayWidgets = offeredWidgets.filter((w) => !shownIds.includes(w.id));
+  // Every change saves the full shown list (this also migrates older preferences).
+  const saveShown = (ids) => widgetPrefs.save((current) => withShown(current, ids));
   const recentModules = useMemo(
     () => recentKeys.map((k) => modulesByKey.get(k)).filter(Boolean).slice(0, RECENT_LIMIT),
     [modulesByKey, recentKeys],
@@ -168,20 +173,31 @@ export function HomeScreen() {
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <Link to="/app/work"><Briefcase size={14} aria-hidden /> Mi trabajo</Link>
             </Button>
-            <HomeWidgetCustomizer
-              widgets={orderedWidgets}
-              hidden={widgetPrefs.hidden}
-              sizes={widgetPrefs.sizes}
-              onToggle={widgetPrefs.toggle}
-              onMove={(id, delta) => widgetPrefs.move(orderedWidgets.map((w) => w.id), id, delta)}
-              onCycleSize={widgetPrefs.cycleSize}
-            />
           </>
         }
       />
 
       {!query && !modulesLoading && !widgetPrefs.isLoading && (
-        <HomeWidgetBoard widgets={shownWidgets} modulesByKey={modulesByKey} sizes={widgetPrefs.sizes} />
+        <div className="space-y-3">
+          {offeredWidgets.length > 0 && (
+            <HomeWidgetEditBar
+              editing={editingWidgets}
+              onToggle={() => setEditingWidgets((value) => !value)}
+              tray={trayWidgets}
+              onAdd={(id) => saveShown(addWidget(shownIds, id))}
+            />
+          )}
+          <HomeWidgetBoard
+            widgets={shownWidgets}
+            modulesByKey={modulesByKey}
+            sizeOfId={(id) => sizeOf(widgetPrefs.pref, id)}
+            editing={editingWidgets}
+            onEdit={() => setEditingWidgets(true)}
+            onReorder={(from, to) => saveShown(moveWidget(shownIds, from, to))}
+            onRemove={(id) => saveShown(removeWidget(shownIds, id))}
+            onResize={(id, size) => widgetPrefs.save((current) => withShown(withSize(current, id, size), resolveShown(current, offeredWidgets.map((w) => w.id))))}
+          />
+        </div>
       )}
 
       {modulesLoading ? (

@@ -90,7 +90,7 @@ export function WidgetFrame({ module, title, subtitle, query, isEmpty, emptyText
   return (
     <section
       aria-label={title}
-      className="flex flex-col md:h-60 overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]"
+      className="flex h-full min-h-60 flex-col overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]"
     >
       <header className="flex items-center gap-2.5 px-4 pb-2 pt-3.5">
         <span className="scale-[0.85]">
