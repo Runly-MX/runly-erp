@@ -9,7 +9,7 @@ import { AppViewControls } from "../components/AppViewControls";
 import { AppContextMenu } from "../components/AppContextMenu";
 import { ModuleListRow } from "../components/ModuleCard";
 import { filterModulesByQuery, readRecentModuleKeys, removeRecentModule } from "../lib/recentModules";
-import { availableWidgets } from "../lib/homeWidgets";
+import { availableWidgets, orderWidgets } from "../lib/homeWidgets";
 import { useHomeWidgetPrefs } from "../hooks/useHomeWidgetPrefs";
 import { useContributedWidgets } from "../hooks/useContributedWidgets";
 import { HomeHeader } from "./home/HomeHeader";
@@ -87,7 +87,8 @@ export function HomeScreen() {
     () => availableWidgets([...HOME_WIDGETS, ...contributedWidgets], modulesByKey.keys()),
     [modulesByKey, contributedWidgets],
   );
-  const shownWidgets = offeredWidgets.filter((w) => !widgetPrefs.hidden.includes(w.id));
+  const orderedWidgets = useMemo(() => orderWidgets(offeredWidgets, widgetPrefs.order), [offeredWidgets, widgetPrefs.order]);
+  const shownWidgets = orderedWidgets.filter((w) => !widgetPrefs.hidden.includes(w.id));
   const recentModules = useMemo(
     () => recentKeys.map((k) => modulesByKey.get(k)).filter(Boolean).slice(0, RECENT_LIMIT),
     [modulesByKey, recentKeys],
@@ -168,16 +169,19 @@ export function HomeScreen() {
               <Link to="/app/work"><Briefcase size={14} aria-hidden /> Mi trabajo</Link>
             </Button>
             <HomeWidgetCustomizer
-              widgets={offeredWidgets}
+              widgets={orderedWidgets}
               hidden={widgetPrefs.hidden}
+              sizes={widgetPrefs.sizes}
               onToggle={widgetPrefs.toggle}
+              onMove={(id, delta) => widgetPrefs.move(orderedWidgets.map((w) => w.id), id, delta)}
+              onCycleSize={widgetPrefs.cycleSize}
             />
           </>
         }
       />
 
       {!query && !modulesLoading && !widgetPrefs.isLoading && (
-        <HomeWidgetBoard widgets={shownWidgets} modulesByKey={modulesByKey} />
+        <HomeWidgetBoard widgets={shownWidgets} modulesByKey={modulesByKey} sizes={widgetPrefs.sizes} />
       )}
 
       {modulesLoading ? (
