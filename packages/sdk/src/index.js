@@ -511,6 +511,16 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
         });
       },
+      // Pending waits of the module's automations (core.modules.manage).
+      automationJobs: (key, token) =>
+        request(`/modules/${encodeURIComponent(key)}/automation-jobs`, {
+          headers: withAuthHeaders(token),
+        }),
+      cancelAutomationJob: (key, id, token) =>
+        request(`/modules/${encodeURIComponent(key)}/automation-jobs/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
       archivedFields: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/archived-fields`, {
           headers: withAuthHeaders(token),

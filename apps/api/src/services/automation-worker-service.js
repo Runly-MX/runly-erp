@@ -119,7 +119,8 @@ export function createAutomationWorker({ prisma, resolveModulesDir, moduleServic
       const occurrence = row.nextRunAt;
       const next = schedule ? nextOccurrence(schedule, now(), zone) : new Date(now().getTime() + 86_400_000);
       const claimed = await prisma.automationSchedule.updateMany({
-        where: { companyId: row.companyId, moduleKey: row.moduleKey, automationKey: row.automationKey, nextRunAt: row.nextRunAt },
+        // "still due" instead of an exact timestamp match: the column has microseconds that JS dates lose.
+        where: { companyId: row.companyId, moduleKey: row.moduleKey, automationKey: row.automationKey, nextRunAt: { lte: now() } },
         data: { nextRunAt: next, lastRunAt: now() },
       });
       if (!claimed.count || !schedule || !(await moduleState(row.moduleKey, row.companyId))) { summary.skipped += 1; continue; }

@@ -66,7 +66,7 @@ function workerPrisma({ schedules = [], manifestSchedules = [] } = {}) {
       createMany: async ({ data }) => { state.schedules.push(...data) },
       deleteMany: async () => {},
       updateMany: async ({ where, data }) => {
-        const row = state.schedules.find((item) => item.automationKey === where.automationKey && item.nextRunAt.getTime() === where.nextRunAt?.getTime())
+        const row = state.schedules.find((item) => item.automationKey === where.automationKey && (!where.nextRunAt || item.nextRunAt <= where.nextRunAt.lte))
         if (where.nextRunAt && !row) return { count: 0 }
         if (row) Object.assign(row, data)
         state.updates.push(data)
