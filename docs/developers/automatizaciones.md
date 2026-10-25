@@ -103,6 +103,17 @@ Las esperas y los horarios los ejecuta el **worker** (el proceso en segundo plan
 
 Cada vez que corre una automatización (al guardar un registro o por un evento) queda una fila en el **Historial** de la pestaña, una vez publicado el módulo: resultado (*Correcta*, *Parcial* si algún paso falló y otro salió bien, *Falló*, *En espera*, *Cancelada*), momento, duración, el error y el resultado de cada paso (ok, falló u omitido). Se puede filtrar por automatización y resultado, y se conservan 90 días. Consultarlo requiere poder administrar módulos. Por API: `GET /modules/:key/automation-runs?automation=&status=&limit=`; las esperas pendientes con `GET /modules/:key/automation-jobs` y se cancelan con `DELETE /modules/:key/automation-jobs/:id`.
 
+## Automatizaciones de la empresa (sin módulo)
+
+No hace falta crear un módulo para automatizar: en **Runly Core > Automatizaciones** un administrador (`core.modules.manage`) crea automatizaciones que pertenecen a la empresa activa. Usan las mismas tarjetas, condiciones, pasos, esperas, aprobaciones, llamadas HTTP, *Probar* e *Historial* que las del Constructor, con estas diferencias:
+
+- El disparador es **un evento del sistema** (los de la tabla de arriba) o **un horario** sin registros. No existe «cuando se guarda un registro» porque no hay una entidad de por medio.
+- Los pasos solo ofrecen las acciones que no necesitan a una persona detrás, porque todo corre en segundo plano.
+- Cada automatización se guarda por separado con su botón **Guardar**; si tiene errores, se muestran debajo de la tarjeta. Guardar autoriza los servicios que usa para esa empresa (y quita los que ya no se usan). Hasta 50 por empresa.
+- El Historial y las esperas pendientes se consultan con la clave `system.automations`: `GET /modules/system.automations/automation-runs` y `.../automation-jobs`.
+
+Por API: `GET|POST /automations`, `PUT|DELETE /automations/:key` y `GET /automations/catalog`, con el mismo formato de `automations[]` de una definición (`key`, `label`, `enabled`, `trigger`, `steps`, `onError`).
+
 ## Autorización al publicar
 
 La pestaña muestra qué servicios usará el módulo. Al **publicar**:
