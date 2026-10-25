@@ -16,6 +16,17 @@ Automatizaciones junta en un solo lugar los flujos de tu empresa. Cada flujo emp
 3. Usa **Probar** para ver qué haría con datos de ejemplo, y **Guardar** cuando esté lista.
 4. En **Consola** ves cada ejecución: qué datos llegaron, qué envió cada bloque, qué devolvió y, si falló, el error completo.
 
+### Con MirAI
+
+Con la pestaña de MirAI abierta puedes pedirle, por ejemplo:
+
+- "Qué automatizaciones tengo con errores"
+- "Por qué falló la última ejecución de Pedidos de mi tienda"
+- "Crea una automatización que cada lunes a las 8 me avise de las vacantes abiertas"
+- "Pausa la automatización de pedidos"
+
+MirAI propone y tú confirmas. Las automatizaciones que crea MirAI **quedan en pausa**: revísalas en el lienzo y actívalas tú. Nunca ve ni comparte la dirección secreta de un webhook.
+
 ### Quién puede qué
 
 - Las automatizaciones son **de la empresa**, no personales: todas las personas con permiso para verlas ven las mismas, y quien puede administrarlas las crea, edita y borra.

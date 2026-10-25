@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
+import { useMiraiRecordContext } from "../../runly.chat/lib/miraiPageContext.js";
 import { AutomationConnectionsDialog } from "../../runly.core/components/builder/AutomationConnectionsDialog";
 import { AutomationConsole } from "../../runly.core/components/builder/AutomationConsole";
 import { AutomationTestDialog } from "../../runly.core/components/builder/AutomationTestDialog";
@@ -58,6 +59,8 @@ export default function SystemAutomationEditor() {
   const [overlayRun, setOverlayRun] = useState(null);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // "leave" | "delete"
+
+  useMiraiRecordContext({ recordType: "automation", recordId: isNew ? undefined : slug, label: item?.label });
 
   const draft = location.state?.draft ?? (isNew ? readDraft() : null);
   const query = useQuery({

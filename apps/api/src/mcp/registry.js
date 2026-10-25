@@ -18,6 +18,7 @@ import { fileImportTools } from './file-import.js';
 import { createWebsiteAdapter } from './adapters/website.js';
 import { createCatalogAdapter } from './adapters/catalog.js';
 import { createLmsAdapter } from './adapters/lms.js';
+import { createAutomationsAdapter } from './adapters/automations.js';
 
 const factories = new Map(Object.entries({ hr: createHrAdapter, fleet: createFleetAdapter, notes: createNotesAdapter, pfm: createPfmAdapter, ledger: createLedgerAdapter, projects: createProjectsAdapter, calendar: createCalendarAdapter,
   contacts: createContactsAdapter, purchases: createPurchasesAdapter, canvas: createCanvasAdapter, attendance: createAttendanceAdapter, files: createFilesAdapter, documents: createDocumentsAdapter, identity: createIdentityAdapter, activity: createActivityAdapter, chat: createChatAdapter, website: createWebsiteAdapter, catalog: createCatalogAdapter, lms: createLmsAdapter,
