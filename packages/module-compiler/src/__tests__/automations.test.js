@@ -273,3 +273,81 @@ test('generated runtime queues a wait, resumes after it and fires schedules', as
   assert.equal(fired.runs, 1)
   assert.equal(calls[0].args.idempotencyKey, 'revision:a:2026-10-26T14:00:00.000Z')
 })
+
+const APPROVER = '01a10900-0000-7000-8000-000000000001'
+const HTTP_STEP = { type: 'http', method: 'POST', url: 'https://hooks.example.com/runly', body: { folio: { from: 'field', field: 'folio' }, nota: { from: 'template', template: 'Orden {{folio}}' } } }
+const APPROVAL_STEP = { type: 'approval', approvers: [APPROVER], message: 'Aprobar la orden {{folio}}' }
+const GATED = {
+  key: 'compuerta', label: 'Compuerta', enabled: true,
+  trigger: { type: 'record', entity: 'orden', on: 'create' },
+  steps: [HTTP_STEP, APPROVAL_STEP, CONTACT_STEP],
+}
+
+test('http and approval steps validate placement, shape and sources', () => {
+  assert.deepEqual(codes({ ...structuredClone(BASE), automations: [GATED] }), [])
+  const bad = (step) => codes({ ...structuredClone(BASE), automations: [{ ...GATED, steps: [HTTP_STEP, step, CONTACT_STEP] }] })
+  assert.ok(codes({ ...structuredClone(BASE), automations: [{ ...GATED, steps: [{ ...HTTP_STEP, url: 'http://hooks.example.com/x' }, CONTACT_STEP] }] }).includes('AUTOMATION_HTTP_INVALID'))
+  assert.ok(codes({ ...structuredClone(BASE), automations: [{ ...GATED, steps: [{ ...HTTP_STEP, url: 'https://user:pw@hooks.example.com/x' }, CONTACT_STEP] }] }).includes('AUTOMATION_HTTP_INVALID'))
+  assert.ok(codes({ ...structuredClone(BASE), automations: [{ ...GATED, steps: [{ ...HTTP_STEP, method: 'DELETE' }, CONTACT_STEP] }] }).includes('AUTOMATION_HTTP_INVALID'))
+  assert.ok(codes({ ...structuredClone(BASE), automations: [{ ...GATED, steps: [{ ...HTTP_STEP, body: { folio: { from: 'field', field: 'nope' } } }, CONTACT_STEP] }] }).includes('AUTOMATION_FIELD_NOT_FOUND'))
+  assert.ok(bad({ ...APPROVAL_STEP, approvers: [] }).includes('AUTOMATION_APPROVAL_INVALID'))
+  assert.ok(bad({ ...APPROVAL_STEP, approvers: ['not-an-id'] }).includes('AUTOMATION_APPROVAL_INVALID'))
+  assert.ok(codes({ ...structuredClone(BASE), automations: [{ ...GATED, steps: [CONTACT_STEP, APPROVAL_STEP, CONTACT_STEP, APPROVAL_STEP, CONTACT_STEP] }] }).includes('AUTOMATION_APPROVAL_INVALID'))
+  assert.ok(codes({ ...structuredClone(BASE), automations: [{ ...GATED, steps: [APPROVAL_STEP, CONTACT_STEP] }] }).includes('AUTOMATION_APPROVAL_INVALID'))
+  // Services after an approval must run without a person.
+  const userStep = { service: 'runly.calendar:events.create', args: { title: { from: 'value', value: 'x' }, startAt: { from: 'field', field: 'fecha' } } }
+  assert.ok(codes({ ...structuredClone(BASE), automations: [{ ...GATED, steps: [CONTACT_STEP, APPROVAL_STEP, userStep] }] }).includes('AUTOMATION_SERVICE_NEEDS_USER'))
+  // The manifest only consumes real services; http/approval steps add none.
+  assert.match(fileOf(compileModule({ ...structuredClone(BASE), automations: [GATED] }), 'module.manifest.js'), /consumes: \{"runly.contacts":\["contacts.create"\]\}/)
+})
+
+test('generated runtime calls HTTP through the host only and parks the run at an approval', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'runly-automations-gated-'))
+  writeFileSync(path.join(dir, 'automations.mjs'), fileOf(compileModule({ ...structuredClone(BASE), automations: [GATED] }), 'api/automations.js'))
+  const runtime = await import(pathToFileURL(path.join(dir, 'automations.mjs')).href)
+  const calls = []
+  const services = { call: async (service, args) => { calls.push({ service, args }) } }
+  const requests = []
+  const approvals = []
+  const logs = []
+  const moduleContext = {
+    services: { forRequest: () => services },
+    automations: {
+      log: async (_c, entry) => { logs.push(entry); return { id: 'run-9' } },
+      http: async (_c, request) => { requests.push(request) },
+      approve: async (_c, request) => { approvals.push(request) },
+    },
+  }
+  const record = { id: 'rec-5', folio: 'OS-5' }
+  const results = await runtime.runRecordAutomations({ c: { get: () => 'user-1' }, moduleContext, entity: 'orden', on: 'create', record })
+  assert.deepEqual(results, [{ key: 'compuerta', ok: true }])
+  assert.deepEqual(requests[0].body, { folio: 'OS-5', nota: 'Orden OS-5' })
+  assert.equal(requests[0].url, 'https://hooks.example.com/runly')
+  assert.equal(requests[0].idempotencyKey, 'compuerta:rec-5:create')
+  assert.equal(approvals.length, 1)
+  assert.equal(approvals[0].message, 'Aprobar la orden OS-5')
+  assert.equal(approvals[0].fromStep, 2)
+  assert.equal(approvals[0].runId, 'run-9')
+  assert.equal(calls.length, 0) // the contact step waits for the decision
+  assert.equal(logs.at(-1).status, 'waiting')
+  // Without host support the steps fail instead of falling back to anything else.
+  const bare = await runtime.runRecordAutomations({ c: { get: () => 'user-1' }, moduleContext: { services: { forRequest: () => services } }, entity: 'orden', on: 'create', record })
+  assert.equal(bare[0].ok, false)
+  assert.match(bare[0].error, /HTTP no están disponibles/)
+})
+
+test('previewAutomation shows conditions and the exact arguments without calling anything', async () => {
+  const { previewAutomation } = await import('../automations-preview.js')
+  const automation = { ...STEPS, steps: [STEPS.steps[0], { type: 'delay', amount: 2, unit: 'hours' }, CONTACT_STEP, HTTP_STEP, APPROVAL_STEP] }
+  const pass = previewAutomation(automation, { data: { id: 'r1', folio: 'OS-8', fecha: '2026-11-01T10:00:00Z', estado: 'abierta' } })
+  assert.equal(pass.passes, true)
+  assert.equal(pass.steps[0].args.title, 'Aviso OS-8')
+  assert.equal(pass.steps[0].problems.length, 0)
+  assert.match(pass.steps[1].summary, /2 hora/)
+  assert.equal(pass.steps[3].body.nota, 'Orden OS-8')
+  assert.equal(pass.steps[4].message, 'Aprobar la orden OS-8')
+  const blocked = previewAutomation(automation, { data: { folio: 'X-1', estado: 'abierta' } })
+  assert.equal(blocked.passes, false)
+  assert.deepEqual(blocked.steps, [])
+  assert.equal(blocked.conditions[0].passes, false)
+})

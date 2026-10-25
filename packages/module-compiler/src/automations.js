@@ -16,6 +16,11 @@ export const DELAY_UNITS = Object.freeze({ minutes: 60_000, hours: 3_600_000, da
 export const MAX_DELAY_MS = 30 * 86_400_000
 export const MAX_DELAYS = 2
 export const SCHEDULE_EVERY = Object.freeze(['hour', 'day', 'week', 'month'])
+export const HTTP_METHODS = Object.freeze(['POST', 'PUT', 'PATCH'])
+export const MAX_APPROVERS = 5
+export const MAX_APPROVALS = 1
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const BODY_KEY = /^[a-zA-Z][a-zA-Z0-9_]{0,40}$/
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 // Filled in by the runtime, never required from the Builder user.
 export const AUTOMATIC_ARGS = Object.freeze(['sourceEntityId', 'idempotencyKey'])
@@ -37,6 +42,12 @@ export function stepsOf(automation) {
 }
 
 export const isDelayStep = (step) => step?.type === 'delay'
+export const isHttpStep = (step) => step?.type === 'http'
+export const isApprovalStep = (step) => step?.type === 'approval'
+// Steps that call a module service (everything else is built into the runtime).
+export const isServiceStep = (step) => !isDelayStep(step) && !isHttpStep(step) && !isApprovalStep(step)
+// Steps that end the current pass and continue later, in the background.
+export const isPauseStep = (step) => isDelayStep(step) || isApprovalStep(step)
 export const delayMs = (step) => (Number(step?.amount) || 0) * (DELAY_UNITS[step?.unit] ?? 0)
 
 export function conditionsOf(when) {
@@ -59,7 +70,7 @@ export function automationEvents() {
 export function automationConsumes(definition) {
   const consumes = {}
   for (const automation of definition.automations ?? []) {
-    for (const step of stepsOf(automation).filter((item) => !isDelayStep(item))) {
+    for (const step of stepsOf(automation).filter(isServiceStep)) {
       const [owner, name] = String(step?.service ?? '').split(':')
       if (!Object.hasOwn(SERVICE_CONTRACTS, step?.service ?? '')) throw new Error('AUTOMATION_SERVICE_UNKNOWN')
       consumes[owner] ??= []
@@ -70,7 +81,7 @@ export function automationConsumes(definition) {
 }
 
 export function automationServiceKeys(definition) {
-  return [...new Set((definition.automations ?? []).flatMap((automation) => stepsOf(automation).filter((step) => !isDelayStep(step)).map((step) => step?.service)).filter(Boolean))]
+  return [...new Set((definition.automations ?? []).flatMap((automation) => stepsOf(automation).filter(isServiceStep).map((step) => step?.service)).filter(Boolean))]
 }
 
 // Schedule triggers the worker has to fire (manifest `schedules`).
@@ -112,34 +123,74 @@ function validateCondition(when, { base, fieldNames, trigger, errors }) {
   })
 }
 
+// One argument source ({ from: value | field | template | recordId | actor }).
+function validateSource(source, { path, fieldNames, trigger, errors, literal }) {
+  if (!source || !AUTOMATION_ARG_SOURCES.includes(source.from)) { errors.push(diagnostic(path, 'AUTOMATION_ARG_INVALID', `Source must be one of ${AUTOMATION_ARG_SOURCES.join(', ')}.`)); return }
+  if (source.from === 'field' && !fieldNames.has(source.field)) errors.push(diagnostic(path, 'AUTOMATION_FIELD_NOT_FOUND', `Field "${source.field}" is not available for this trigger.`))
+  if (source.from === 'template') validateTemplate(source.template, { path, fieldNames, errors, max: 1000, code: 'AUTOMATION_ARG_INVALID' })
+  if (source.from === 'actor' && trigger.type !== 'record') errors.push(diagnostic(path, 'AUTOMATION_ARG_INVALID', 'The current user is only known when a record is saved.'))
+  if (source.from === 'value') {
+    const problem = literal(source.value)
+    if (problem) errors.push(diagnostic(path, 'AUTOMATION_ARG_INVALID', `Value: ${problem}.`))
+  }
+}
+
+function validateTemplate(template, { path, fieldNames, errors, max, code }) {
+  if (typeof template !== 'string' || !template.trim() || template.length > max || UNSAFE_TEXT.test(template)) {
+    errors.push(diagnostic(path, code, `Template must be a single line of text (max ${max}).`))
+    return
+  }
+  for (const [, ref] of template.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)) {
+    if (!fieldNames.has(ref) && ref !== 'id') errors.push(diagnostic(path, 'AUTOMATION_FIELD_NOT_FOUND', `Template field "${ref}" is not available for this trigger.`))
+  }
+}
+
 function validateArgs(step, { base, fieldNames, trigger, contract, errors }) {
   const args = step?.args === undefined ? {} : step.args
   if (!args || typeof args !== 'object' || Array.isArray(args)) { errors.push(diagnostic(`${base}.args`, 'AUTOMATION_ARGS_INVALID', 'Args must be an object.')); return }
   for (const [name, source] of Object.entries(args)) {
     const path = `${base}.args.${name}`
     if (!Object.hasOwn(contract.args, name) || name === 'idempotencyKey') { errors.push(diagnostic(path, 'AUTOMATION_ARG_UNKNOWN', `The service does not accept "${name}".`)); continue }
-    if (!source || !AUTOMATION_ARG_SOURCES.includes(source.from)) { errors.push(diagnostic(path, 'AUTOMATION_ARG_INVALID', `Source must be one of ${AUTOMATION_ARG_SOURCES.join(', ')}.`)); continue }
-    if (source.from === 'field' && !fieldNames.has(source.field)) errors.push(diagnostic(path, 'AUTOMATION_FIELD_NOT_FOUND', `Field "${source.field}" is not available for this trigger.`))
-    if (source.from === 'template') {
-      if (typeof source.template !== 'string' || !source.template.trim() || source.template.length > 1000 || UNSAFE_TEXT.test(source.template)) {
-        errors.push(diagnostic(path, 'AUTOMATION_ARG_INVALID', 'Template must be a single line of text (max 1000).'))
-      } else {
-        for (const [, ref] of source.template.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)) {
-          if (!fieldNames.has(ref) && ref !== 'id') errors.push(diagnostic(path, 'AUTOMATION_FIELD_NOT_FOUND', `Template field "${ref}" is not available for this trigger.`))
-        }
-      }
-    }
-    if (source.from === 'actor' && trigger.type !== 'record') errors.push(diagnostic(path, 'AUTOMATION_ARG_INVALID', 'The current user is only known when a record is saved.'))
-    if (source.from === 'value') {
-      const checked = validateServiceArgs(step.service, { [name]: source.value })
-      if (checked.errors[name]) errors.push(diagnostic(path, 'AUTOMATION_ARG_INVALID', `Value: ${checked.errors[name]}.`))
-    }
+    validateSource(source, { path, fieldNames, trigger, errors, literal: (value) => validateServiceArgs(step.service, { [name]: value }).errors[name] ?? null })
   }
   for (const [name, spec] of Object.entries(contract.args)) {
     if (spec.required && !AUTOMATIC_ARGS.includes(name) && !args[name]) {
       errors.push(diagnostic(`${base}.args.${name}`, 'AUTOMATION_ARG_REQUIRED', `"${name}" is required by the service.`))
     }
   }
+}
+
+// { type: 'http', method, url, body: { key: source } } (spec stage C, C2).
+function validateHttpStep(step, { base, fieldNames, trigger, errors }) {
+  if (!HTTP_METHODS.includes(step.method)) errors.push(diagnostic(`${base}.method`, 'AUTOMATION_HTTP_INVALID', `method must be one of ${HTTP_METHODS.join(', ')}.`))
+  let url = null
+  try { url = new URL(String(step.url ?? '')) } catch { /* reported below */ }
+  if (!url || url.protocol !== 'https:' || url.username || url.password || url.port || String(step.url).length > 300 || /[\s{}`]/.test(String(step.url))) {
+    errors.push(diagnostic(`${base}.url`, 'AUTOMATION_HTTP_INVALID', 'url must be a fixed https address without credentials or port (max 300).'))
+  }
+  const body = step.body === undefined ? {} : step.body
+  if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length > 20) {
+    errors.push(diagnostic(`${base}.body`, 'AUTOMATION_HTTP_INVALID', 'body must be an object with at most 20 entries.'))
+    return
+  }
+  const literal = (value) => {
+    const json = JSON.stringify(value)
+    const simple = (item) => ['string', 'number', 'boolean'].includes(typeof item)
+    return json && json.length <= 1000 && (simple(value) || (Array.isArray(value) && value.every(simple))) ? null : 'must be text, number, yes/no or a short list (max 1000)'
+  }
+  for (const [name, source] of Object.entries(body)) {
+    if (!BODY_KEY.test(name)) { errors.push(diagnostic(`${base}.body.${name}`, 'AUTOMATION_HTTP_INVALID', 'Body keys are letters, digits and underscore (max 41).')); continue }
+    validateSource(source, { path: `${base}.body.${name}`, fieldNames, trigger, errors, literal })
+  }
+}
+
+// { type: 'approval', approvers: [profile ids], message } (spec stage C, C3).
+function validateApprovalStep(step, { base, fieldNames, errors }) {
+  const approvers = step.approvers
+  if (!Array.isArray(approvers) || approvers.length < 1 || approvers.length > MAX_APPROVERS || new Set(approvers).size !== approvers.length || !approvers.every((id) => UUID.test(String(id)))) {
+    errors.push(diagnostic(`${base}.approvers`, 'AUTOMATION_APPROVAL_INVALID', `Choose 1 to ${MAX_APPROVERS} different people.`))
+  }
+  validateTemplate(step.message, { path: `${base}.message`, fieldNames, errors, max: 200, code: 'AUTOMATION_APPROVAL_INVALID' })
 }
 
 export function validateDefinitionAutomations(definition, errors) {
@@ -199,6 +250,7 @@ export function validateDefinitionAutomations(definition, errors) {
     if (!steps.length) { errors.push(diagnostic(`${base}.action`, 'AUTOMATION_SERVICE_UNKNOWN', 'The automation has no action.')); return }
     const delays = steps.filter(isDelayStep)
     if (delays.length > MAX_DELAYS) errors.push(diagnostic(`${base}.steps`, 'AUTOMATION_DELAY_INVALID', `At most ${MAX_DELAYS} waits per automation.`))
+    if (steps.filter(isApprovalStep).length > MAX_APPROVALS) errors.push(diagnostic(`${base}.steps`, 'AUTOMATION_APPROVAL_INVALID', `At most ${MAX_APPROVALS} approval per automation.`))
     let afterDelay = false
     steps.forEach((step, stepIndex) => {
       const stepBase = usesSteps ? `${base}.steps[${stepIndex}]` : `${base}.action`
@@ -207,10 +259,22 @@ export function validateDefinitionAutomations(definition, errors) {
         if (!Number.isInteger(step.amount) || step.amount < 1 || !Object.hasOwn(DELAY_UNITS, step.unit ?? '') || ms < 60_000 || ms > MAX_DELAY_MS) {
           errors.push(diagnostic(stepBase, 'AUTOMATION_DELAY_INVALID', 'A wait is 1 minute to 30 days (amount + minutes, hours or days).'))
         }
-        if (stepIndex === 0 || stepIndex === steps.length - 1 || isDelayStep(steps[stepIndex - 1])) {
+        if (stepIndex === 0 || stepIndex === steps.length - 1 || isPauseStep(steps[stepIndex - 1])) {
           errors.push(diagnostic(stepBase, 'AUTOMATION_DELAY_INVALID', 'A wait goes between two actions.'))
         }
         afterDelay = true
+        return
+      }
+      if (isApprovalStep(step)) {
+        validateApprovalStep(step, { base: stepBase, fieldNames, errors })
+        if (stepIndex === 0 || stepIndex === steps.length - 1 || isPauseStep(steps[stepIndex - 1])) {
+          errors.push(diagnostic(stepBase, 'AUTOMATION_APPROVAL_INVALID', 'An approval goes between two actions.'))
+        }
+        afterDelay = true
+        return
+      }
+      if (isHttpStep(step)) {
+        validateHttpStep(step, { base: stepBase, fieldNames, trigger: afterDelay ? { type: 'event' } : trigger, errors })
         return
       }
       const contract = Object.hasOwn(SERVICE_CONTRACTS, step?.service ?? '') ? SERVICE_CONTRACTS[step.service] : null
@@ -222,6 +286,13 @@ export function validateDefinitionAutomations(definition, errors) {
       validateArgs(step, { base: stepBase, fieldNames, trigger, contract, errors })
     })
   })
+}
+
+function normalizeStep(step) {
+  if (isDelayStep(step)) return { type: 'delay', amount: step.amount, unit: step.unit }
+  if (isHttpStep(step)) return { type: 'http', method: step.method, url: step.url, body: step.body ?? {} }
+  if (isApprovalStep(step)) return { type: 'approval', approvers: step.approvers, message: step.message.trim() }
+  return { service: step.service, args: step.args ?? {} }
 }
 
 function normalizeTrigger(trigger, condition) {
@@ -249,7 +320,26 @@ export function normalizeAutomations(list) {
       enabled: automation.enabled !== false,
       ...(automation.onError === 'continue' ? { onError: 'continue' } : {}),
       trigger: normalizeTrigger(automation.trigger, condition),
-      steps: stepsOf(automation).map((step) => (isDelayStep(step) ? { type: 'delay', amount: step.amount, unit: step.unit } : { service: step.service, args: step.args ?? {} })),
+      steps: stepsOf(automation).map(normalizeStep),
+    }
+  })
+}
+
+// Steps with what the runtime needs: contract info for service steps, parsed
+// durations for waits. v1 `action` definitions are normalized here.
+export function toRuntimeSteps(automation) {
+  return stepsOf(automation).map((step) => {
+    if (isDelayStep(step)) return { type: 'delay', amount: step.amount, unit: step.unit, ms: delayMs(step) }
+    if (isHttpStep(step)) return { type: 'http', method: step.method, url: step.url, body: step.body ?? {} }
+    if (isApprovalStep(step)) return { type: 'approval', approvers: step.approvers, message: step.message }
+    const args = SERVICE_CONTRACTS[step.service]?.args ?? {}
+    return {
+      service: step.service,
+      args: step.args ?? {},
+      runtime: {
+        arrayArgs: Object.entries(args).filter(([, spec]) => spec.type.endsWith('[]')).map(([name]) => name),
+        acceptsSource: Boolean(args.sourceEntityId),
+      },
     }
   })
 }
