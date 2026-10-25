@@ -2,7 +2,7 @@
 // Pure: no service is called and nothing is written. Spec
 // docs/superpowers/specs/2026-10-25-automation-studio-v2-stage-c-reach-design.md (C1).
 import { SERVICE_CONTRACTS, buildArgs, isEmpty, matches, render, sourceValue, validateServiceArgs } from '@runly/module-engine/contracts'
-import { conditionsOf, delayMs, stepOutputKeys, stepsOf, toRuntimeSteps } from './automations.js'
+import { branchLanes, conditionsOf, delayMs, stepOutputKeys, stepsOf, toRuntimeSteps } from './automations.js'
 
 // UUID-shaped stand-ins so id arguments pass the contract checks.
 const SAMPLE_ACTOR = '00000000-0000-7000-8000-00000000a001'
@@ -56,17 +56,27 @@ export function previewAutomation(automation, { data = {}, previous = null } = {
   const rawSteps = stepsOf(automation)
   const recordId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(data?.id ?? '')) ? data.id : SAMPLE_RECORD
   const context = { data, recordId, actorId: SAMPLE_ACTOR }
+  const skip = new Set()
   return {
     passes,
     conditions,
-    steps: passes ? runtimeSteps.map((step, index) => {
+    steps: passes ? runtimeSteps.flatMap((step, index) => {
+      if (skip.has(index)) return []
+      if (step.type === 'branch') {
+        const results = conditionResults(step.when, context.data, null)
+        const taken = results.every((item) => item.passes) ? 'yes' : 'no'
+        const { yes, no } = branchLanes(step, index)
+        const [from, to] = taken === 'yes' ? no : yes
+        for (let lane = from; lane < to; lane += 1) skip.add(lane)
+        return [{ index, kind: 'branch', summary: taken === 'yes' ? 'La condición se cumple: sigue por «Sí»' : 'La condición no se cumple: sigue por «No»', path: taken, conditions: results }]
+      }
       const preview = previewStep(step, rawSteps[index], index, { ...automation, steps: runtimeSteps }, context)
       // Results of this step become data for the next ones, as at run time.
       if (preview.kind === 'service') {
         const contract = SERVICE_CONTRACTS[step.service]
         for (const name of stepOutputKeys(index, contract)) context.data = { ...context.data, [name]: sampleOutput(name.replace(/^paso\d+_/, '')) }
       }
-      return preview
+      return [preview]
     }) : [],
   }
 }

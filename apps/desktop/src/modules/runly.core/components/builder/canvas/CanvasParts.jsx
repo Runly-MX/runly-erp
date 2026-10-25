@@ -12,7 +12,7 @@
 //   always visible on touch; they grow under `pointer: coarse`.
 import { Popover, PopoverContent, PopoverTrigger } from "@runly/ui";
 import { AlertCircle, Check, GripVertical, Minus, Plus, X } from "lucide-react";
-import { edgePath } from "../../../lib/canvasLayout";
+import { edgePath, pointOnEdge } from "../../../lib/canvasLayout";
 import { InsertMenu } from "./InsertMenu";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
@@ -55,8 +55,8 @@ export function CanvasNode({ node, selected, dragging, moving, offset, run, move
       className={cx("group/node absolute", dragging || moving ? "z-30 cursor-grabbing" : "z-10 cursor-grab", !dragging && !moving && "transition-transform motion-reduce:transition-none")}
       style={{ left: node.x, top: node.y, width: node.width, height: node.height, transform: offset ? `translate(${offset.x}px, ${offset.y}px)` : undefined, ...(move?.style ?? {}) }}
     >
-      <Port side={node.ports?.in} selected={selected} />
-      <Port side={node.ports?.out} selected={selected} />
+      {(node.sides?.in ?? [node.ports?.in]).map((side) => <Port key={`in-${side}`} side={side} selected={selected} />)}
+      {(node.sides?.out ?? [node.ports?.out]).map((side) => <Port key={`out-${side}`} side={side} selected={selected} />)}
       <button
         type="button"
         data-canvas-node={node.id}
@@ -130,6 +130,26 @@ export function CanvasEdges({ edges, reducedMotion }) {
       ))}
     </svg>
   );
+}
+
+// "Sí" / "No" on the first stretch of an arrow that leaves a condition.
+export function EdgeLabels({ edges }) {
+  return edges.filter((edge) => edge.label).map((edge) => {
+    const point = pointOnEdge(edge, 0.3);
+    const yes = edge.label === "Sí";
+    return (
+      <span
+        key={`label-${edge.id}`}
+        className={cx(
+          "pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-md border px-2 py-0.5 text-xs font-semibold leading-4",
+          yes ? "border-emerald-600/40 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--muted-foreground))]",
+        )}
+        style={{ left: point.x, top: point.y }}
+      >
+        {edge.label}
+      </span>
+    );
+  });
 }
 
 function PlusButton({ label, options, onPick, active }) {

@@ -9,7 +9,8 @@ export const MAX_AUTOMATIONS = 20
 export const AUTOMATION_ARG_SOURCES = Object.freeze(['value', 'field', 'template', 'recordId', 'actor'])
 export const RECORD_TRIGGER_ON = Object.freeze(['create', 'update', 'save'])
 export const CONDITION_OPS = Object.freeze(['equals', 'not_equals', 'contains', 'gt', 'lt', 'changed', 'filled'])
-export const MAX_STEPS = 5
+export const MAX_STEPS = 12
+export const MAX_BRANCHES = 3
 export const MAX_CONDITIONS = 5
 export const ON_ERROR = Object.freeze(['stop', 'continue'])
 export const DELAY_UNITS = Object.freeze({ minutes: 60_000, hours: 3_600_000, days: 86_400_000 })
@@ -81,10 +82,28 @@ export function stepsOf(automation) {
 export const isDelayStep = (step) => step?.type === 'delay'
 export const isHttpStep = (step) => step?.type === 'http'
 export const isApprovalStep = (step) => step?.type === 'approval'
+export const isBranchStep = (step) => step?.type === 'branch'
 // Steps that call a module service (everything else is built into the runtime).
-export const isServiceStep = (step) => !isDelayStep(step) && !isHttpStep(step) && !isApprovalStep(step)
+export const isServiceStep = (step) => !isDelayStep(step) && !isHttpStep(step) && !isApprovalStep(step) && !isBranchStep(step)
 // Steps that end the current pass and continue later, in the background.
 export const isPauseStep = (step) => isDelayStep(step) || isApprovalStep(step)
+// A branch splits the flow in two lanes kept flat in the steps list: the `yes` steps
+// right after it are the "Sí" lane, the next `no` steps the "No" lane, and the flow
+// joins again after both. Returns [from, to) index ranges.
+export function branchLanes(step, index) {
+  const yes = Number(step?.yes) || 0
+  const no = Number(step?.no) || 0
+  return { yes: [index + 1, index + 1 + yes], no: [index + 1 + yes, index + 1 + yes + no] }
+}
+// Index of the branch whose lane contains the step at `index`, or -1.
+export function laneOwner(steps, index) {
+  for (let at = index - 1; at >= 0; at -= 1) {
+    if (!isBranchStep(steps[at])) continue
+    const { yes, no } = branchLanes(steps[at], at)
+    if (index >= yes[0] && index < no[1]) return at
+  }
+  return -1
+}
 export const delayMs = (step) => (Number(step?.amount) || 0) * (DELAY_UNITS[step?.unit] ?? 0)
 
 export function conditionsOf(when) {
@@ -138,10 +157,9 @@ export function automationEventKeys(definition) {
   return [...new Set((definition.automations ?? []).filter((a) => a?.trigger?.type === 'event').map((a) => a.trigger.event))]
 }
 
-function validateCondition(when, { base, fieldNames, trigger, errors }) {
+function validateCondition(when, { base, fieldNames, trigger, errors, path = `${base}.trigger.when` }) {
   if (when === undefined || when === null) return
   const list = conditionsOf(when)
-  const path = `${base}.trigger.when`
   if (list.length > MAX_CONDITIONS) errors.push(diagnostic(path, 'AUTOMATION_CONDITION_INVALID', `At most ${MAX_CONDITIONS} conditions.`))
   list.forEach((condition, index) => {
     const at = Array.isArray(when) ? `${path}[${index}]` : path
@@ -299,7 +317,7 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
     }
     const usesSteps = automation.steps !== undefined
     if (usesSteps && (!Array.isArray(automation.steps) || !automation.steps.length || automation.steps.length > MAX_STEPS)) {
-      errors.push(diagnostic(`${base}.steps`, 'AUTOMATION_STEPS_INVALID', `steps must be a list of 1 to ${MAX_STEPS} actions.`))
+      errors.push(diagnostic(`${base}.steps`, 'AUTOMATION_STEPS_INVALID', `steps must be a list of 1 to ${MAX_STEPS} blocks.`))
       return
     }
     const steps = stepsOf(automation)
@@ -307,6 +325,7 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
     const delays = steps.filter(isDelayStep)
     if (delays.length > MAX_DELAYS) errors.push(diagnostic(`${base}.steps`, 'AUTOMATION_DELAY_INVALID', `At most ${MAX_DELAYS} waits per automation.`))
     if (steps.filter(isApprovalStep).length > MAX_APPROVALS) errors.push(diagnostic(`${base}.steps`, 'AUTOMATION_APPROVAL_INVALID', `At most ${MAX_APPROVALS} approval per automation.`))
+    if (steps.filter(isBranchStep).length > MAX_BRANCHES) errors.push(diagnostic(`${base}.steps`, 'AUTOMATION_BRANCH_INVALID', `At most ${MAX_BRANCHES} conditions that split the flow.`))
     validateUi(automation.ui, { base, errors, stepCount: steps.length })
     // Each service step also offers its results (paso1_id...) to the steps after it.
     const available = new Set(fieldNames)
@@ -332,6 +351,22 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
         afterDelay = true
         return
       }
+      if (isBranchStep(step)) {
+        const yes = step.yes
+        const no = step.no
+        if (!Number.isInteger(yes) || !Number.isInteger(no) || yes < 0 || no < 0 || yes + no < 1) {
+          errors.push(diagnostic(stepBase, 'AUTOMATION_BRANCH_INVALID', 'A condition needs at least one block in its "Sí" or "No" path.'))
+        } else if (stepIndex + yes + no >= steps.length - 1) {
+          errors.push(diagnostic(stepBase, 'AUTOMATION_BRANCH_INVALID', 'A condition needs a block after its paths, where both join again.'))
+        } else if (steps.slice(stepIndex + 1, stepIndex + 1 + yes + no).some(isBranchStep)) {
+          errors.push(diagnostic(stepBase, 'AUTOMATION_BRANCH_INVALID', 'A condition cannot be placed inside the path of another one.'))
+        }
+        if (step.when === undefined || (Array.isArray(step.when) && !step.when.length)) {
+          errors.push(diagnostic(`${stepBase}.when`, 'AUTOMATION_CONDITION_INVALID', 'A condition needs something to check.'))
+        }
+        validateCondition(step.when, { base: stepBase, fieldNames: available, trigger: { type: 'event' }, errors, path: `${stepBase}.when` })
+        return
+      }
       if (isHttpStep(step)) {
         validateHttpStep(step, { base: stepBase, fieldNames: available, trigger: afterDelay ? { type: 'event' } : trigger, errors })
         return
@@ -348,10 +383,16 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
   })
 }
 
+// One condition stays an object, several a list (same shape as the trigger's).
+function normalizeWhen(when) {
+  return Array.isArray(when) && when.length === 1 ? when[0] : when
+}
+
 function normalizeStep(step) {
   if (isDelayStep(step)) return { type: 'delay', amount: step.amount, unit: step.unit }
   if (isHttpStep(step)) return { type: 'http', method: step.method, url: step.url, body: step.body ?? {} }
   if (isApprovalStep(step)) return { type: 'approval', approvers: step.approvers, message: step.message.trim() }
+  if (isBranchStep(step)) return { type: 'branch', when: normalizeWhen(step.when), yes: step.yes, no: step.no }
   return { service: step.service, args: step.args ?? {} }
 }
 
@@ -400,6 +441,7 @@ export function toRuntimeSteps(automation) {
     if (isDelayStep(step)) return { type: 'delay', amount: step.amount, unit: step.unit, ms: delayMs(step) }
     if (isHttpStep(step)) return { type: 'http', method: step.method, url: step.url, body: step.body ?? {} }
     if (isApprovalStep(step)) return { type: 'approval', approvers: step.approvers, message: step.message }
+    if (isBranchStep(step)) return { type: 'branch', when: step.when, yes: step.yes, no: step.no }
     const args = SERVICE_CONTRACTS[step.service]?.args ?? {}
     return {
       service: step.service,

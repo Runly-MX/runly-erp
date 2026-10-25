@@ -34,6 +34,7 @@ function stepsSummary(steps) {
   return steps.map((step) => {
     if (step.type === "delay") return `${step.index + 1}: espera`;
     if (step.type === "approval") return `${step.index + 1}: aprobación`;
+    if (step.type === "branch") return `${step.index + 1}: condición ${step.path === "yes" ? "Sí" : "No"}`;
     if (step.type === "http") return `${step.index + 1}: ${step.ok ? "llamada ok" : "llamada falló"}`;
     return `${step.index + 1}: ${step.skipped ? "omitido" : step.ok ? "ok" : "falló"}`;
   }).join(" · ");

@@ -12,6 +12,7 @@ export const VIEW_LIMITS = Object.freeze({ min: 0.4, max: 1.6 });
 export const SNAP = 8;
 const ADD_SIZE = 56;
 const PAD = 56;
+const ROW_GAP = 56;
 
 const OUT = { right: { x: 1, y: 0 }, left: { x: -1, y: 0 }, bottom: { x: 0, y: 1 }, top: { x: 0, y: -1 } };
 const OPPOSITE = { right: "left", left: "right", bottom: "top", top: "bottom" };
@@ -36,27 +37,49 @@ export function connect(from, to) {
 
 export const snap = (value) => Math.round(value / SNAP) * SNAP;
 
-// nodes: [{ id, ... }]. `orientation` is the grid preset; `positions` the manual overrides.
-export function layoutNodes(nodes, orientation = "horizontal", positions = {}) {
+// nodes: [{ id, col?, row? }]. `orientation` is the grid preset; `positions` the manual
+// overrides. `col` is the position along the flow (default: the index) and `row` the
+// lane across it (default 0; conditions use -1 and 1). `links` ([{ from, to, ... }] by
+// node id, default: each node to the next) are the arrows; extra fields such as
+// `label` and `slot` travel with them.
+export function layoutNodes(nodes, orientation = "horizontal", positions = {}, links = null) {
   const horizontal = orientation === "horizontal";
   const step = (horizontal ? NODE.width : NODE.height) + NODE.gap;
+  const lane = horizontal ? NODE.height + ROW_GAP : NODE.width + ROW_GAP;
   const placed = nodes.map((node, index) => {
     const manual = positions[node.id];
+    const along = (node.col ?? index) * step;
+    const across = (node.row ?? 0) * lane;
     return {
       ...node,
-      x: manual ? manual.x : horizontal ? index * step : 0,
-      y: manual ? manual.y : horizontal ? 0 : index * step,
+      x: manual ? manual.x : horizontal ? along : across,
+      y: manual ? manual.y : horizontal ? across : along,
       width: NODE.width,
       height: NODE.height,
+      manual: Boolean(manual),
       ports: { in: null, out: null },
+      sides: { in: [], out: [] },
     };
   });
-  const edges = placed.slice(0, -1).map((from, index) => {
-    const to = placed[index + 1];
-    const link = connect(from, to);
+  const byId = new Map(placed.map((node) => [node.id, node]));
+  const wanted = links ?? placed.slice(0, -1).map((from, index) => ({ from: from.id, to: placed[index + 1].id, toIndex: index + 1 }));
+  const edges = wanted.flatMap((entry) => {
+    const from = byId.get(entry.from);
+    const to = byId.get(entry.to);
+    if (!from || !to) return [];
+    // On the grid arrows follow the flow direction (so paths curve in and out of a
+    // condition); once a block was moved by hand the nearest sides are used.
+    const link = from.manual || to.manual
+      ? connect(from, to)
+      : (() => {
+        const out = horizontal ? "right" : "bottom";
+        return { out, into: OPPOSITE[out], start: portPoint(from, out), end: portPoint(to, OPPOSITE[out]) };
+      })();
     from.ports.out = link.out;
     to.ports.in = link.into;
-    return { id: `${from.id}>${to.id}`, from: from.id, to: to.id, ...link, mid: { x: (link.start.x + link.end.x) / 2, y: (link.start.y + link.end.y) / 2 }, toIndex: index + 1 };
+    if (!from.sides.out.includes(link.out)) from.sides.out.push(link.out);
+    if (!to.sides.in.includes(link.into)) to.sides.in.push(link.into);
+    return [{ ...entry, id: `${entry.from}>${entry.to}`, ...link, mid: { x: (link.start.x + link.end.x) / 2, y: (link.start.y + link.end.y) / 2 } }];
   });
 
   // The closing "add" slot continues from the last block along the grid direction.
@@ -74,6 +97,7 @@ export function layoutNodes(nodes, orientation = "horizontal", positions = {}) {
       edge: { start, end, out: side, into: OPPOSITE[side] },
     };
     last.ports.out = side;
+    if (!last.sides.out.includes(side)) last.sides.out.push(side);
   }
   const items = [...placed, ...(add ? [add] : [])];
   const left = Math.min(...items.map((item) => item.x), 0);
@@ -91,6 +115,18 @@ export function edgePath({ start, end, out, into }) {
   const c1 = { x: start.x + leave.x * distance, y: start.y + leave.y * distance };
   const c2 = { x: end.x + arrive.x * distance, y: end.y + arrive.y * distance };
   return `M ${start.x} ${start.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${end.x} ${end.y}`;
+}
+
+// Point of the arrow at `t` (0 start, 1 end): same curve as edgePath.
+export function pointOnEdge({ start, end, out, into }, t) {
+  const distance = Math.max(28, Math.hypot(end.x - start.x, end.y - start.y) / 2);
+  const leave = OUT[out] ?? OUT.right;
+  const arrive = OUT[into] ?? OUT.left;
+  const c1 = { x: start.x + leave.x * distance, y: start.y + leave.y * distance };
+  const c2 = { x: end.x + arrive.x * distance, y: end.y + arrive.y * distance };
+  const u = 1 - t;
+  const mix = (a, b, c, d) => u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
+  return { x: mix(start.x, c1.x, c2.x, end.x), y: mix(start.y, c1.y, c2.y, end.y) };
 }
 
 export const clampScale = (k) => Math.min(VIEW_LIMITS.max, Math.max(VIEW_LIMITS.min, k));
@@ -133,7 +169,7 @@ export function nearestSlot(slots, point, reach = 160) {
   let best = null;
   for (const slot of slots) {
     const distance = Math.hypot(slot.point.x - point.x, slot.point.y - point.y);
-    if (distance <= reach && (!best || distance < best.distance)) best = { index: slot.index, distance };
+    if (distance <= reach && (!best || distance < best.distance)) best = { index: slot.index, distance, slot };
   }
   return best;
 }

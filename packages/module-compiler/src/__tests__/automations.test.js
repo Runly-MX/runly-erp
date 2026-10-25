@@ -159,7 +159,7 @@ test('steps and multiple conditions validate, normalize and keep v1 compatibilit
   assert.deepEqual(codes(ok), [])
   const both = { ...structuredClone(BASE), automations: [{ ...STEPS, action: BASE.automations[0].action }] }
   assert.ok(codes(both).includes('AUTOMATION_STEPS_INVALID'))
-  const tooMany = { ...structuredClone(BASE), automations: [{ ...STEPS, steps: Array(6).fill(STEPS.steps[0]) }] }
+  const tooMany = { ...structuredClone(BASE), automations: [{ ...STEPS, steps: Array(13).fill(STEPS.steps[0]) }] }
   assert.ok(codes(tooMany).includes('AUTOMATION_STEPS_INVALID'))
   const badStep = structuredClone(ok)
   badStep.automations[0].steps[1].args.title = { from: 'field', field: 'nope' }

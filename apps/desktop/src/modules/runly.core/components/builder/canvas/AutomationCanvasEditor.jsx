@@ -10,17 +10,17 @@
 // default follows the canvas width) and free positions saved with the automation.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, useIsMobile } from "@runly/ui";
-import { ArrowDownUp, ArrowRightLeft, CalendarClock, Clock, Filter, Globe, LayoutDashboard, Maximize, Minus, MousePointerClick, Plus, Radio, ShieldCheck, Webhook, Wand2, Zap } from "lucide-react";
+import { ArrowDownUp, ArrowRightLeft, CalendarClock, Clock, Filter, GitBranch, Globe, LayoutDashboard, Maximize, Minus, MousePointerClick, Plus, Radio, ShieldCheck, Webhook, Wand2, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { conditionsOf, isApprovalStep, isDelayStep, isHttpStep, isPauseStep, stepsOf } from "@runly/module-compiler/browser";
+import { conditionsOf, isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isPauseStep, stepsOf } from "@runly/module-compiler/browser";
 import {
-  describeCondition, describeStep, describeTrigger, insertStep, moveStep, positionsFromUi, removeStep, slotOptions, stepIssues, stepKindLabel, triggerKindLabel,
-  uiAfterInsert, uiAfterMove, uiAfterRemove, uiArranged, uiWithLayout, uiWithPosition,
+  describeCondition, describeStep, describeTrigger, flowPlan, insertStep, moveStep, positionsFromUi, removeStep, slotOptions, stepIssues, stepKindLabel, triggerKindLabel,
+  uiAfterInsert, uiAfterMove, uiAfterRemove, uiArranged, uiFit, uiWithLayout, uiWithPosition,
 } from "../../../lib/flowModel";
 import { NODE, dropIndex, layoutNodes, nearestSlot, snap, toCanvas } from "../../../lib/canvasLayout";
 import { ownerLabel } from "../AutomationSteps";
 import { InspectorBody, InspectorHeader } from "../flow/FlowInspector";
-import { AddGhost, CanvasEdges, CanvasNode, EdgePlus } from "./CanvasParts";
+import { AddGhost, CanvasEdges, CanvasNode, EdgeLabels, EdgePlus } from "./CanvasParts";
 import { CanvasPalette } from "./CanvasPalette";
 import { useCanvasView } from "./useCanvasView";
 
@@ -33,7 +33,9 @@ const WIDE_INSPECTOR = 680;
 const MOVE_THRESHOLD = 5;
 const TRIGGER_ICON = { record: MousePointerClick, event: Radio, schedule: CalendarClock, webhook: Webhook };
 const cx = (...parts) => parts.filter(Boolean).join(" ");
-const stepIcon = (step) => (isDelayStep(step) ? Clock : isApprovalStep(step) ? ShieldCheck : isHttpStep(step) ? Globe : Zap);
+const stepIcon = (step) => (isBranchStep(step) ? GitBranch : isDelayStep(step) ? Clock : isApprovalStep(step) ? ShieldCheck : isHttpStep(step) ? Globe : Zap);
+// An insertion slot is a position plus the path of a condition it belongs to.
+const slotKey = (slot) => (slot ? `${slot.index}:${slot.lane ? `${slot.lane.branch}${slot.lane.which}` : ""}` : "");
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(() => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
@@ -95,20 +97,28 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
 
   // ---- nodes and layout
   const gridOrientation = ui?.layout === "horizontal" || ui?.layout === "vertical" ? ui.layout : responsive;
+  const plan = useMemo(() => flowPlan(steps), [steps]);
   const nodes = useMemo(() => {
     const triggerText = describeTrigger(trigger, { entities, events });
-    const list = [{ id: "trigger", Icon: TRIGGER_ICON[trigger.type] ?? MousePointerClick, tone: "brand", kind: triggerKindLabel(trigger), title: triggerText.title, detail: triggerText.detail }];
+    const list = [{ id: "trigger", col: 0, row: 0, Icon: TRIGGER_ICON[trigger.type] ?? MousePointerClick, tone: "brand", kind: triggerKindLabel(trigger), title: triggerText.title, detail: triggerText.detail }];
     if (showConditions) {
-      list.push({ id: "conditions", Icon: Filter, tone: "neutral", kind: "Condición", title: conditions.length ? "Solo si..." : "Siempre", detail: conditions.length ? conditions.map((condition) => describeCondition(condition, fieldLabel)).join(" y ") : "Sin condiciones: corre cada vez" });
+      list.push({ id: "conditions", col: 1, row: 0, Icon: Filter, tone: "neutral", kind: "Condición", title: conditions.length ? "Solo si..." : "Siempre", detail: conditions.length ? conditions.map((condition) => describeCondition(condition, fieldLabel)).join(" y ") : "Sin condiciones: corre cada vez" });
     }
     steps.forEach((step, index) => {
-      const { title, detail } = describeStep(step, ownerLabel);
-      list.push({ id: `step-${index}`, Icon: stepIcon(step), tone: isPauseStep(step) ? "amber" : "neutral", kind: stepKindLabel(step), title, detail, issues: stepIssues(step), stepIndex: index });
+      const { title, detail } = describeStep(step, ownerLabel, fieldLabel);
+      const cell = plan.cells[index] ?? { col: index, row: 0 };
+      list.push({ id: `step-${index}`, col: stepOffset + cell.col, row: cell.row, Icon: stepIcon(step), tone: isPauseStep(step) ? "amber" : "neutral", kind: stepKindLabel(step), title, detail, issues: stepIssues(step), stepIndex: index });
     });
     return list;
-  }, [trigger, entities, events, steps, showConditions, conditions, fieldLabel]);
+  }, [trigger, entities, events, steps, showConditions, conditions, fieldLabel, plan, stepOffset]);
   const positions = useMemo(() => ({ ...positionsFromUi(ui), ...(liveMove ? { [liveMove.id]: { x: liveMove.x, y: liveMove.y } } : {}) }), [ui, liveMove]);
-  const layout = useMemo(() => layoutNodes(nodes, gridOrientation, positions), [nodes, gridOrientation, positions]);
+  const links = useMemo(() => {
+    const lastFixed = showConditions ? "conditions" : "trigger";
+    const list = showConditions ? [{ from: "trigger", to: "conditions", slot: null }] : [];
+    for (const link of plan.links) list.push({ ...link, from: link.from < 0 ? lastFixed : `step-${link.from}`, to: `step-${link.to}` });
+    return list;
+  }, [plan, showConditions]);
+  const layout = useMemo(() => layoutNodes(nodes, gridOrientation, positions, links), [nodes, gridOrientation, positions, links]);
   const edges = useMemo(() => layout.edges.map((edge) => {
     const fromStep = layout.nodes.find((node) => node.id === edge.from)?.stepIndex;
     return { ...edge, background: fromStep !== undefined && steps.slice(0, fromStep + 1).some(isPauseStep) };
@@ -125,12 +135,13 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
     return () => observer.disconnect();
   }, [viewportRef]);
 
-  // Insertion slots in canvas units: before step i (an arrow's middle) or at the end (the add slot).
+  // Insertion slots in canvas units: an arrow's middle, or the closing add slot.
+  const endSlot = plan.tails[plan.tails.length - 1]?.slot ?? { index: steps.length, lane: null };
   const slots = useMemo(() => {
-    const list = steps.map((_, index) => ({ index, point: layout.edges[stepOffset + index - 1]?.mid ?? { x: 0, y: 0 } }));
-    list.push({ index: steps.length, point: layout.add ? { x: layout.add.x + layout.add.width / 2, y: layout.add.y + layout.add.height / 2 } : { x: 0, y: 0 } });
+    const list = layout.edges.filter((edge) => edge.slot).map((edge) => ({ ...edge.slot, key: slotKey(edge.slot), point: edge.mid }));
+    list.push({ ...endSlot, key: slotKey(endSlot), point: layout.add ? { x: layout.add.x + layout.add.width / 2, y: layout.add.y + layout.add.height / 2 } : { x: 0, y: 0 } });
     return list;
-  }, [steps, layout, stepOffset]);
+  }, [layout, endSlot]);
 
   // ---- selection
   const selected = useMemo(() => {
@@ -150,19 +161,20 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
 
   // ---- operations on the flow (the saved positions follow the steps)
   const apply = (nextSteps, nextUi, nextSelection) => {
-    onPatch({ steps: nextSteps, ui: nextUi });
+    onPatch({ steps: nextSteps, ui: uiFit(nextUi, nextSteps.length) });
     if (nextSelection !== undefined) setSelectedId(nextSelection);
   };
-  const insert = (index, kind) => {
-    const result = insertStep(steps, index, kind);
+  const insert = (slot, kind) => {
+    const result = insertStep(steps, slot.index, kind, slot.lane);
     if (!result.ok) { toast.info(result.reason); return; }
-    let nextUi = uiAfterInsert(ui, index);
+    const added = result.steps.length - steps.length;
+    let nextUi = uiAfterInsert(ui, slot.index, added);
     // In a free layout the new block starts just below the one before it.
     if (nextUi?.layout === "free") {
-      const before = layout.nodes[stepOffset + index - 1] ?? layout.nodes[layout.nodes.length - 1];
-      nextUi = uiWithPosition(nextUi, `step-${index}`, { x: snap(before.x + 24), y: snap(before.y + NODE.height + 40) }, result.steps.length);
+      const before = layout.nodes[stepOffset + slot.index - 1] ?? layout.nodes[layout.nodes.length - 1];
+      nextUi = uiWithPosition(nextUi, `step-${slot.index}`, { x: snap(before.x + 24), y: snap(before.y + NODE.height + 40) }, result.steps.length);
     }
-    apply(result.steps, nextUi, `step-${index}`);
+    apply(result.steps, nextUi, `step-${slot.index}`);
   };
   const move = (from, to) => {
     const next = moveStep(steps, from, to);
@@ -174,7 +186,8 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
     toast("Bloque quitado", { action: { label: "Deshacer", onClick: () => onPatch(previous) } });
   };
   const selectedStep = current?.kind === "step" ? current.index : null;
-  const addFromPalette = (kind) => insert(selectedStep === null ? steps.length : selectedStep + 1, kind);
+  // From the palette a block goes right after the selected one, on its path.
+  const addFromPalette = (kind) => insert(selectedStep === null ? endSlot : (plan.links.find((link) => link.from === selectedStep)?.slot ?? endSlot), kind);
 
   // ---- presets
   const setPreset = (preset) => {
@@ -258,15 +271,15 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
   const slotAtClient = (point) => {
     const rect = viewportRef.current?.getBoundingClientRect();
     if (!rect || point.x < rect.left || point.x > rect.right || point.y < rect.top || point.y > rect.bottom) return null;
-    return nearestSlot(slots, toCanvas(view, { x: point.x - rect.left, y: point.y - rect.top }), 220 / view.k);
+    return nearestSlot(slots, toCanvas(view, { x: point.x - rect.left, y: point.y - rect.top }), 220 / view.k)?.slot ?? null;
   };
-  const onPaletteOver = (kind, point) => setDragKind(kind ? { kind, slot: slotAtClient(point)?.index ?? null } : null);
+  const onPaletteOver = (kind, point) => setDragKind(kind ? { kind, slot: slotAtClient(point) } : null);
   const onPaletteDrop = (kind, point) => {
     const hit = slotAtClient(point);
     const rect = viewportRef.current?.getBoundingClientRect();
     const inside = rect && point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom;
-    if (hit) insert(hit.index, kind);
-    else if (inside) insert(steps.length, kind);
+    if (hit) insert(hit, kind);
+    else if (inside) insert(endSlot, kind);
   };
 
   // ---- keyboard on blocks
@@ -322,8 +335,7 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
   };
 
   // ---- inspector content
-  const endSlot = steps.length;
-  const options = (index) => slotOptions(steps, index);
+  const options = (slot) => slotOptions(steps, slot.index, slot.lane);
   const endOptions = options(endSlot);
   const currentNode = current ? nodes.find((node) => node.id === current.id) : null;
   const inspector = current && currentNode ? (
@@ -331,7 +343,7 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
       <InspectorHeader
         icon={currentNode.Icon} tone={currentNode.tone} kindLabel={currentNode.kind}
         node={current} stepCount={steps.length} readOnly={readOnly}
-        title={current.kind === "trigger" ? currentNode.title : current.kind === "conditions" ? "Solo si..." : describeStep(steps[current.index], ownerLabel).title}
+        title={current.kind === "trigger" ? currentNode.title : current.kind === "conditions" ? "Solo si..." : describeStep(steps[current.index], ownerLabel, fieldLabel).title}
         subtitle={current.kind === "step" ? `Bloque ${current.index + 1} de ${steps.length}` : null}
         expanded={expanded} onToggleExpand={docked ? toggleExpanded : undefined}
         onMove={(delta) => move(current.index, current.index + delta)}
@@ -348,9 +360,12 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
     </>
   ) : null;
 
-  const markerSlot = reorder ? (reorder.target <= reorder.index ? reorder.target : reorder.target + 1) : dragKind?.slot ?? null;
+  const markerPoint = reorder
+    ? slots.find((slot) => slot.index === (reorder.target <= reorder.index ? reorder.target : reorder.target + 1))?.point
+    : dragKind?.slot ? slots.find((slot) => slot.key === slotKey(dragKind.slot))?.point : null;
   const markerValid = reorder ? reorder.valid : true;
-  const marker = markerSlot !== null && markerSlot !== undefined ? slots.find((slot) => slot.index === markerSlot)?.point : null;
+  const marker = markerPoint ?? null;
+  const activeKey = dragKind?.slot ? slotKey(dragKind.slot) : null;
   const horizontalFlow = gridOrientation === "horizontal";
 
   return (
@@ -373,11 +388,12 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
           style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}
         >
           <CanvasEdges edges={edges} reducedMotion={reducedMotion} />
-          {edges.map((edge) => (edge.toIndex >= stepOffset ? (
+          <EdgeLabels edges={edges} />
+          {edges.map((edge) => (edge.slot ? (
             <EdgePlus
               key={edge.id} edge={edge} readOnly={readOnly}
-              options={options(edge.toIndex - stepOffset)} onPick={(kind) => insert(edge.toIndex - stepOffset, kind)}
-              active={markerSlot === edge.toIndex - stepOffset && dragKind !== null}
+              options={options(edge.slot)} onPick={(kind) => insert(edge.slot, kind)}
+              active={activeKey !== null && activeKey === slotKey(edge.slot)}
             />
           ) : null))}
           {layout.nodes.map((node, index) => {
@@ -403,7 +419,7 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
           <AddGhost
             add={layout.add} readOnly={readOnly}
             options={endOptions} onPick={(kind) => insert(endSlot, kind)} full={endOptions.every((option) => option.disabled)}
-            active={markerSlot === endSlot && dragKind !== null}
+            active={activeKey !== null && activeKey === slotKey(endSlot)}
           />
           {marker && (
             <span

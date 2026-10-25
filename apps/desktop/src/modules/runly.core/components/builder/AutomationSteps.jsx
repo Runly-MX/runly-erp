@@ -4,11 +4,12 @@
 // Steps after a wait, and every step of a schedule, only offer services that
 // run without a person.
 import { Button, SelectField, SwitchField, TextField } from "@runly/ui";
-import { ArrowDown, ArrowUp, Clock, Globe, Plus, ShieldCheck, Trash2 } from "lucide-react";
-import { MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, automationServices, isApprovalStep, isDelayStep, isHttpStep, isPauseStep } from "@runly/module-compiler/browser";
+import { ArrowDown, ArrowUp, Clock, GitBranch, Globe, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { MAX_BRANCHES, MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, automationServices, branchLanes, isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isPauseStep, laneOwner } from "@runly/module-compiler/browser";
+import { AutomationConditions } from "./AutomationConditions";
 import { AutomationArgsEditor } from "./AutomationArgsEditor";
 import { ApprovalStepEditor, HttpStepEditor } from "./AutomationStepEditors";
-import { outputsOf, withStepOutputs } from "../../lib/flowModel";
+import { insertStep, moveStep, outputsOf, removeStep, withStepOutputs } from "../../lib/flowModel";
 import { InspectorSection } from "./InspectorSection";
 
 const OWNER_LABELS = {
@@ -56,6 +57,16 @@ export function StepEditor({ step, steps, index, triggerType, fieldOptions, read
   const available = withStepOutputs(fieldOptions, steps, index, ownerLabel);
   const section = (title, description, body) => (withServiceSelect ? <InspectorSection title={title} description={description}>{body}</InspectorSection> : body);
 
+  if (isBranchStep(step)) {
+    return section("Qué comprobar", "Si se cumplen todas las condiciones el flujo sigue por «Sí»; si no, por «No». Los dos caminos se juntan después.",
+      <div className="space-y-3">
+        <AutomationConditions trigger={{ type: "event", when: step.when }} heading="Si..." fieldOptions={available} readOnly={readOnly}
+          onChange={(when) => onChange({ ...step, when: when ?? [] })} />
+        <p className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
+          Camino «Sí»: {step.yes} {step.yes === 1 ? "bloque" : "bloques"} · camino «No»: {step.no} {step.no === 1 ? "bloque" : "bloques"}. Agrega bloques con el «+» de cada camino en el lienzo, o aquí con «Agregar paso».
+        </p>
+      </div>);
+  }
   if (isDelayStep(step)) return section("Cuánto espera", "Después de esperar, el flujo sigue en segundo plano.", <DelayEditor step={step} readOnly={readOnly} onChange={onChange} />);
   if (isApprovalStep(step)) return section("Quién aprueba", "El flujo se detiene hasta que una persona decida.", <ApprovalStepEditor step={step} readOnly={readOnly} onChange={onChange} />);
   if (isHttpStep(step)) {
@@ -91,9 +102,18 @@ export function AutomationSteps({ steps, triggerType, onError, fieldOptions, rea
   const delays = steps.filter(isDelayStep).length;
   const setStep = (index, step) => onSteps(steps.map((item, i) => (i === index ? step : item)));
   const move = (index, delta) => {
-    const next = [...steps];
-    [next[index], next[index + delta]] = [next[index + delta], next[index]];
-    onSteps(next);
+    const next = moveStep(steps, index, index + delta);
+    if (next) onSteps(next);
+  };
+  // Which path of a condition a block belongs to, for the label on its card.
+  const pathOf = (index) => {
+    const owner = laneOwner(steps, index);
+    if (owner < 0) return null;
+    return { number: steps.slice(0, owner + 1).filter(isBranchStep).length, yes: index < branchLanes(steps[owner], owner).yes[1] };
+  };
+  const addCondition = () => {
+    const result = insertStep(steps, steps.length, "branch");
+    if (result.ok) onSteps(result.steps);
   };
   const approvals = steps.filter(isApprovalStep).length;
   const lastIsAction = steps.length > 0 && !isPauseStep(steps[steps.length - 1]);
@@ -111,7 +131,9 @@ export function AutomationSteps({ steps, triggerType, onError, fieldOptions, rea
         const delay = isDelayStep(step);
         const approval = isApprovalStep(step);
         const http = isHttpStep(step);
-        const builtIn = delay || approval || http;
+        const branch = isBranchStep(step);
+        const path = pathOf(index);
+        const builtIn = delay || approval || http || branch;
         if (!builtIn) actionNumber += 1;
         const afterDelay = steps.slice(0, index).some(isPauseStep);
         const services = automationServices({ trigger: triggerType, afterDelay });
@@ -119,7 +141,9 @@ export function AutomationSteps({ steps, triggerType, onError, fieldOptions, rea
           <div key={index} className="space-y-3 rounded-lg border border-[hsl(var(--border))] p-3">
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1">
-                {delay ? <StepTitle icon={Clock}>Espera</StepTitle>
+                {path && <p className="pb-1 text-xs font-medium text-[hsl(var(--muted-foreground))]">Camino «{path.yes ? "Sí" : "No"}» de la condición {path.number}</p>}
+                {branch ? <StepTitle icon={GitBranch}>Condición Sí / No</StepTitle>
+                  : delay ? <StepTitle icon={Clock}>Espera</StepTitle>
                   : approval ? <StepTitle icon={ShieldCheck}>Pedir aprobación</StepTitle>
                   : http ? <StepTitle icon={Globe}>Llamar a una URL</StepTitle>
                   : (
@@ -131,9 +155,9 @@ export function AutomationSteps({ steps, triggerType, onError, fieldOptions, rea
               </div>
               {!readOnly && hasMany && (
                 <>
-                  <Button variant="ghost" size="sm" disabled={index === 0} onClick={() => move(index, -1)} aria-label="Subir paso"><ArrowUp className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="sm" disabled={index === steps.length - 1} onClick={() => move(index, 1)} aria-label="Bajar paso"><ArrowDown className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => onSteps(steps.filter((_, i) => i !== index))} aria-label="Quitar paso"><Trash2 className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" disabled={!moveStep(steps, index, index - 1)} onClick={() => move(index, -1)} aria-label="Subir paso"><ArrowUp className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" disabled={!moveStep(steps, index, index + 1)} onClick={() => move(index, 1)} aria-label="Bajar paso"><ArrowDown className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => onSteps(removeStep(steps, index))} aria-label="Quitar paso"><Trash2 className="h-4 w-4" /></Button>
                 </>
               )}
             </div>
@@ -158,6 +182,11 @@ export function AutomationSteps({ steps, triggerType, onError, fieldOptions, rea
           {canAddAction && (
             <Button variant="outline" size="sm" onClick={() => onSteps([...steps, newHttp()])}>
               <Globe className="mr-1 h-4 w-4" /> Llamar a una URL
+            </Button>
+          )}
+          {canAddAction && steps.length <= MAX_STEPS - 4 && steps.filter(isBranchStep).length < MAX_BRANCHES && (
+            <Button variant="outline" size="sm" onClick={addCondition}>
+              <GitBranch className="mr-1 h-4 w-4" /> Agregar condición Sí / No
             </Button>
           )}
           {canAddDelay && (

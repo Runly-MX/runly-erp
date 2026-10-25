@@ -27,7 +27,7 @@ function valueFor(op, previous) {
   return { value: typeof previous === "string" ? previous : "" };
 }
 
-export function AutomationConditions({ trigger, fieldOptions, readOnly, onChange }) {
+export function AutomationConditions({ trigger, fieldOptions, readOnly, onChange, heading = null }) {
   const list = conditionsOf(trigger.when);
   const ops = OP_OPTIONS.filter((op) => op.value !== "changed" || (trigger.type === "record" && trigger.on !== "create"));
   const update = (index, patch) => onChange(packConditions(list.map((condition, i) => (i === index ? patch : condition))));
@@ -35,10 +35,10 @@ export function AutomationConditions({ trigger, fieldOptions, readOnly, onChange
   const add = () => onChange(packConditions([...list, { field: fieldOptions[0]?.value ?? "", op: "filled" }]));
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium">Solo si{list.length ? "" : " (siempre)"}</p>
+    <div className="@container space-y-2">
+      <p className="text-sm font-medium">{heading ?? `Solo si${list.length ? "" : " (siempre)"}`}</p>
       {list.map((condition, index) => (
-        <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
+        <div key={index} className="grid gap-2 @md:grid-cols-[1fr_1fr_1fr_auto] @md:items-end">
           <SelectField label={index === 0 ? "Campo" : "Y además"} options={fieldOptions} value={condition.field ?? ""} disabled={readOnly}
             onValueChange={(field) => update(index, { ...condition, field })} />
           <SelectField label="Condición" options={ops} value={condition.op} disabled={readOnly}

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { backgroundFrom, describeStep, insertStep, isValidOrder, moveStep, removeStep, slotOptions, stepIssues } from "../flowModel.js";
+import { backgroundFrom, describeStep, flowPlan, insertStep, isValidOrder, moveStep, removeStep, slotOptions, stepIssues } from "../flowModel.js";
 
 const action = (service = "runly.contacts:contacts.create") => ({ service, args: {} });
 const delay = { type: "delay", amount: 2, unit: "hours" };
@@ -26,11 +26,12 @@ test("insert refuses with a reason when a rule would break", () => {
   assert.match(insertStep([action()], 0, "delay").reason, /necesitas un paso/);
   assert.match(insertStep([action(), delay, action()], 1, "approval").reason, /junto a otra/);
   assert.match(insertStep([action(), approval, action()], 3, "approval").reason, /Solo una aprobación/);
-  assert.match(insertStep([action(), delay, action(), delay, action()], 5, "http").reason, /Máximo 5 pasos/);
-  assert.match(insertStep([action(), delay, action(), delay, action()], 1, "delay").reason, /Máximo 5 pasos/);
-  const four = [action(), action(), action(), action()];
-  assert.match(insertStep(four, 4, "delay").reason, /Máximo 5 pasos/); // delay + trailing action would make 6
-  assert.equal(insertStep(four, 2, "delay").ok, true);
+  const full = Array.from({ length: 12 }, () => action());
+  assert.match(insertStep(full, 12, "http").reason, /Máximo 12 bloques/);
+  assert.match(insertStep([action(), delay, action(), delay, action()], 1, "delay").reason, /Máximo 2 esperas/);
+  const eleven = Array.from({ length: 11 }, () => action());
+  assert.match(insertStep(eleven, 11, "delay").reason, /Máximo 12 bloques/); // delay + trailing action would make 13
+  assert.equal(insertStep(eleven, 2, "delay").ok, true);
 });
 
 test("slotOptions explains every disabled kind", () => {
@@ -122,4 +123,58 @@ test("the layout positions follow the steps and presets forget them", async () =
   assert.deepEqual(uiArranged(ui), { layout: "horizontal" });
   assert.deepEqual(uiArranged({ layout: "vertical" }), { layout: "vertical" });
   assert.equal(uiAfterInsert(undefined, 0), undefined);
+});
+
+const branch = (yes = 1, no = 1) => ({ type: "branch", when: [{ field: "total", op: "gt", value: 10 }], yes, no });
+
+test("a condition brings its two paths and a block to join", () => {
+  const middle = insertStep([action(), action()], 1, "branch");
+  assert.deepEqual(middle.steps.map((s) => s.type ?? "action"), ["action", "branch", "action", "action", "action"]);
+  const end = insertStep([action()], 1, "branch");
+  assert.equal(end.steps.length, 5);
+  assert.match(insertStep([action(), branch(), action(), action(), action()], 2, "branch", { branch: 1, which: "yes" }).reason, /dentro del camino de otra/);
+  assert.match(insertStep([action(), branch(), action(), action(), action()], 3, "action").reason, /dentro del camino/);
+});
+
+test("blocks inserted on a path lengthen that path only", () => {
+  const steps = [branch(), action(), action(), action()];
+  const yes = insertStep(steps, 2, "action", { branch: 0, which: "yes" });
+  assert.deepEqual([yes.steps[0].yes, yes.steps[0].no], [2, 1]);
+  const no = insertStep(steps, 3, "action", { branch: 0, which: "no" });
+  assert.deepEqual([no.steps[0].yes, no.steps[0].no], [1, 2]);
+  assert.match(insertStep(steps, 3, "action", { branch: 0, which: "yes" }).reason, /no está en el camino/);
+});
+
+test("removing blocks keeps the paths consistent and drops a condition left without paths", () => {
+  const steps = [branch(), action(), action(), action()];
+  assert.deepEqual(removeStep(steps, 1).slice(0, 1).map((s) => [s.yes, s.no]), [[0, 1]]);
+  assert.deepEqual(removeStep(steps, 0).map((s) => s.type ?? "action"), ["action", "action", "action"]);
+  // The join block is the last one: without it the condition has nothing to join.
+  assert.deepEqual(removeStep(steps, 3).map((s) => s.type ?? "action"), ["action", "action"]);
+  assert.deepEqual(removeStep([branch(1, 0), action(), action()], 1).map((s) => s.type ?? "action"), ["action"]);
+});
+
+test("blocks only move inside their own path", () => {
+  const steps = [action(), branch(2, 1), action(), action(), action(), action()];
+  assert.ok(moveStep(steps, 2, 3));
+  assert.equal(moveStep(steps, 3, 4), null);
+  assert.equal(moveStep(steps, 0, 2), null);
+  assert.equal(moveStep(steps, 1, 2), null);
+});
+
+test("the plan puts the Sí path above the main line and the No path below", () => {
+  const { cells, links, tails } = flowPlan([action(), branch(2, 1), action(), action(), action(), action()]);
+  assert.deepEqual(cells.map((cell) => [cell.col, cell.row]), [[0, 0], [1, 0], [2, -1], [3, -1], [2, 1], [4, 0]]);
+  const labelled = links.filter((link) => link.label).map((link) => [link.from, link.to, link.label]);
+  assert.deepEqual(labelled, [[1, 2, "Sí"], [1, 4, "No"]]);
+  assert.equal(links.filter((link) => link.to === 5).length, 2);
+  assert.deepEqual(tails, [{ from: 5, slot: { index: 6, lane: null } }]);
+  const lonely = flowPlan([branch(1, 0), action(), action()]);
+  assert.ok(lonely.links.some((link) => link.from === 0 && link.to === 2 && link.label === "No"));
+});
+
+test("a condition shows what it checks and its paths", () => {
+  assert.deepEqual(describeStep(branch(2, 1), () => "", () => "Total"), { title: "Si Total es mayor que 10", detail: "Sí: 2 bloques · No: 1 bloque" });
+  assert.deepEqual(stepIssues({ type: "branch", when: [], yes: 1, no: 1 }), ["Elige qué comprobar"]);
+  assert.deepEqual(stepIssues(branch()), []);
 });

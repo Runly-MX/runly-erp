@@ -23,7 +23,7 @@ En el Constructor, pestaña **Automatizaciones** > *Nueva automatización*:
    - *Cuando pasa algo en otro módulo*: elige el evento (por ejemplo, «Se actualizó un vehículo de la flota»).
    - *En un horario*: cada hora, día, semana (con día) o mes (con día del 1 al 28) a la hora que elijas, en la zona horaria de la instancia. Opcionalmente, *Para cada registro de* una entidad de tu módulo: la automatización corre una vez por cada registro que cumpla las condiciones (hasta 200 por ejecución).
 2. **Solo si** (opcional): hasta 5 condiciones sobre un campo del registro o un dato del evento; deben cumplirse **todas**. Operadores: *Es igual a*, *Es distinto de*, *Contiene* (texto, sin distinguir mayúsculas), *Es mayor que*, *Es menor que*, *Tiene valor* y *Cambió* (solo al actualizar).
-3. **Qué hacer**: una o más acciones (hasta 5 pasos) en otros módulos (crear un evento de calendario, enviar una notificación, crear o actualizar un contacto, registrar un movimiento…). Los pasos corren **en orden**. Entre dos acciones puedes agregar una **espera** (de 1 minuto a 30 días, hasta 2 por automatización): los pasos que siguen corren después, en segundo plano. Con *Si un paso falla, seguir con los siguientes* activado, un fallo no detiene los pasos que siguen; sin él (por defecto), los pasos restantes se omiten.
+3. **Qué hacer**: una o más acciones (hasta 12 bloques) en otros módulos (crear un evento de calendario, enviar una notificación, crear o actualizar un contacto, registrar un movimiento…). Los pasos corren **en orden**. Entre dos acciones puedes agregar una **espera** (de 1 minuto a 30 días, hasta 2 por automatización): los pasos que siguen corren después, en segundo plano. Con *Si un paso falla, seguir con los siguientes* activado, un fallo no detiene los pasos que siguen; sin él (por defecto), los pasos restantes se omiten.
 4. **Datos que se envían**: para cada dato de cada acción, de dónde sale su valor.
 
 | Origen | Qué envía |
@@ -109,6 +109,17 @@ Cada bloque que crea o cambia algo devuelve datos (por ejemplo, *Crear contactos
 
 El botón **Consola** muestra las últimas ejecuciones de la automatización. Al elegir una ves los **datos que llegaron**, y por cada bloque su resultado (correcto, con error, omitido o en espera), cuánto tardó, **qué datos envió**, qué devolvió y, si falló, el **error completo** (copiable). El bloque de cada ejecución seleccionada se marca en el lienzo con una insignia: ✓ correcto, ✗ con error, – omitido. Se actualiza sola mientras está abierta.
 
+## Condiciones Sí / No (dividir el flujo)
+
+Una **condición** parte el flujo en dos caminos: si se cumplen todas sus comprobaciones el flujo sigue por **«Sí»**, si no por **«No»**. Después, los dos caminos **se juntan** en el siguiente bloque. En el lienzo, el camino «Sí» se dibuja arriba (o a la izquierda en vertical) y el «No» abajo; el «+» de cada camino agrega bloques solo a ese camino.
+
+- Comprueba el mismo tipo de condiciones que *Solo si* (igual, distinto, contiene, mayor, menor, tiene valor), sobre un dato del disparador o el resultado de un bloque anterior. «Cambió» no está disponible.
+- Hasta **3 condiciones** por automatización; no se pueden anidar (una condición dentro del camino de otra). Cada condición necesita al menos un bloque en alguno de sus caminos y un bloque después, donde se juntan.
+- Los bloques del camino que no se tomó se registran como *Omitidos* en la consola («el flujo siguió por el otro camino»), y los pasos de después pueden usar datos de bloques que sí corrieron. Si el flujo espera o pide una aprobación dentro de un camino, al continuar se respeta el mismo camino.
+- Al quitar un bloque de un camino, el camino se acorta; al quitar la condición, sus bloques quedan en el flujo principal. Un bloque solo se reordena dentro de su propio camino.
+
+En el archivo, una condición es un paso `{ "type": "branch", "when": <condición o lista>, "yes": N, "no": M }`: los siguientes `N` pasos de la lista son el camino «Sí», los siguientes `M` el camino «No», y el flujo sigue después de ellos. Así los números de bloque (`paso<N>_...`), el historial y las esperas no cambian.
+
 ## Enviar correos y generar reportes
 
 Dos bloques de acción pensados para las automatizaciones de la empresa (también se pueden autorizar a un módulo que reaccione a eventos):
@@ -181,4 +192,4 @@ Un disparador por horario se declara así: `trigger: { type: 'schedule', every: 
 
 La disposición del lienzo vive en `ui` de la automatización: `{ layout: 'horizontal' | 'vertical' | 'free', trigger?: {x,y}, conditions?: {x,y}, steps?: [{x,y} | null, ...] }` (posiciones en el mismo orden que `steps`; no afecta a la ejecución).
 
-Límites: hasta 20 automatizaciones por módulo, 5 pasos (las esperas cuentan) y 5 condiciones por disparador, 2 esperas y 1 aprobación por automatización, y 20 datos por llamada HTTP.
+Límites: hasta 20 automatizaciones por módulo, 12 bloques (las esperas y las condiciones cuentan), 3 condiciones Sí / No y 5 condiciones por disparador, 2 esperas y 1 aprobación por automatización, y 20 datos por llamada HTTP.

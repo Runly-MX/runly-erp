@@ -46,7 +46,8 @@ function StepResult({ step, entry }) {
           {entry.request && <div><p className="mb-1 text-xs font-semibold">Llamada</p><CodeSnippet value={json(entry.request)} label="Copiar la llamada" /></div>}
           {entry.output && Object.keys(entry.output).length > 0 && <div><p className="mb-1 text-xs font-semibold">Resultado</p><CodeSnippet value={json(entry.output)} label="Copiar el resultado" /></div>}
           {entry.runAt && <p className="text-xs text-[hsl(var(--muted-foreground))]">Continúa el {time(entry.runAt)}.</p>}
-          {!entry.error && !entry.args && !entry.request && !entry.output && !entry.runAt && <p className="text-xs text-[hsl(var(--muted-foreground))]">{state === "skipped" ? "No se ejecutó porque un paso anterior falló." : "Sin más detalle."}</p>}
+          {entry.path && <p className="text-xs text-[hsl(var(--muted-foreground))]">La condición {entry.path === "yes" ? "se cumplió: el flujo siguió por «Sí»" : "no se cumplió: el flujo siguió por «No»"}.</p>}
+          {!entry.error && !entry.args && !entry.request && !entry.output && !entry.runAt && !entry.path && <p className="text-xs text-[hsl(var(--muted-foreground))]">{state === "skipped" ? (entry.byCondition ? "No se ejecutó: el flujo siguió por el otro camino de la condición." : "No se ejecutó porque un paso anterior falló.") : "Sin más detalle."}</p>}
         </div>
       </details>
     </li>

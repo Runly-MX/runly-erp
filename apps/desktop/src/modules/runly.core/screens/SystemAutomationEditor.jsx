@@ -32,6 +32,12 @@ const toPayload = (item) => {
 };
 const snapshot = (item) => JSON.stringify(toPayload(item));
 
+// A new automation only exists on the server after the first save, so its draft is
+// kept for this tab: reloading the page must not lose it.
+const DRAFT_KEY = "runly.automations.draft";
+const readDraft = () => { try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY)); } catch { return null; } };
+const writeDraft = (value) => { try { if (value) sessionStorage.setItem(DRAFT_KEY, JSON.stringify(value)); else sessionStorage.removeItem(DRAFT_KEY); } catch { /* storage unavailable */ } };
+
 export default function SystemAutomationEditor() {
   const { "*": wildcard } = useParams();
   const slug = wildcard?.match(/^automations\/([^/]+)$/)?.[1] ?? null;
@@ -53,7 +59,7 @@ export default function SystemAutomationEditor() {
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // "leave" | "delete"
 
-  const draft = location.state?.draft ?? null;
+  const draft = location.state?.draft ?? (isNew ? readDraft() : null);
   const query = useQuery({
     queryKey: ["system-automations", token],
     queryFn: async () => (await runly.modules.systemAutomations(token))?.data ?? [],
@@ -67,6 +73,7 @@ export default function SystemAutomationEditor() {
   }, [isNew, draft, query.data, slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dirty = Boolean(item) && (isNew || snapshot(item) !== saved);
+  useEffect(() => { if (isNew && item) writeDraft(item); }, [isNew, item]);
   useEffect(() => {
     if (!dirty) return undefined;
     const warn = (event) => { event.preventDefault(); event.returnValue = ""; };
@@ -89,6 +96,7 @@ export default function SystemAutomationEditor() {
     onSuccess: (data) => {
       toast.success("Automatización guardada");
       queryClient.invalidateQueries({ queryKey: ["system-automations"] });
+      writeDraft(null);
       setItem(data);
       setSaved(snapshot(data));
       setDiagnostics(null);
@@ -157,7 +165,7 @@ export default function SystemAutomationEditor() {
       <ConfirmDialog
         open={confirm === "leave"} onOpenChange={(open) => !open && setConfirm(null)}
         title="Hay cambios sin guardar" description="Si sales ahora, se pierden los cambios de esta automatización."
-        confirmLabel="Salir sin guardar" onConfirm={() => navigate(LIST_PATH)}
+        confirmLabel="Salir sin guardar" onConfirm={() => { if (isNew) writeDraft(null); navigate(LIST_PATH); }}
       />
       <ConfirmDialog
         open={confirm === "delete"} onOpenChange={(open) => !open && setConfirm(null)}

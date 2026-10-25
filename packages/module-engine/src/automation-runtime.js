@@ -72,12 +72,29 @@ export async function runSteps({ automation, services, base, data, recordId = nu
   let waiting = false
   // Results of earlier service steps (paso<N>_<key>) join the data the next steps can use.
   let scope = data
+  // Blocks of the path a condition did not take. A condition splits the flow in two
+  // lanes kept flat in the list (the next `yes` blocks, then the next `no` ones).
+  const skip = new Set()
+  const choose = (step, at) => {
+    const taken = matches(step.when, scope) ? 'yes' : 'no'
+    const from = at + 1 + (taken === 'yes' ? step.yes : 0)
+    const to = taken === 'yes' ? at + 1 + step.yes + step.no : at + 1 + step.yes
+    for (let lane = from; lane < to; lane += 1) skip.add(lane)
+    return taken
+  }
+  // After a wait the conditions already crossed are decided again with the saved data.
+  for (let at = 0; at < from; at += 1) if (automation.steps[at].type === 'branch') choose(automation.steps[at], at)
   for (let index = from; index < automation.steps.length; index += 1) {
     const step = automation.steps[index]
     const startedAt = Date.now()
     let sent = null
+    if (skip.has(index)) { steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, skipped: true, byCondition: true }); continue }
     if (failed && automation.onError !== 'continue') { steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, skipped: true }); continue }
     try {
+      if (step.type === 'branch') {
+        steps.push({ index, type: 'branch', ok: true, ms: Date.now() - startedAt, path: choose(step, index) })
+        continue
+      }
       if (step.type === 'delay') {
         if (!enqueue) throw new Error('Las esperas no están disponibles en esta instancia.')
         const runAt = new Date(Date.now() + step.ms).toISOString()
