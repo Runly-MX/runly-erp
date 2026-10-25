@@ -81,7 +81,8 @@ export function AutomationConsole({ moduleKey, automation, open, onToggle, onSel
         <span className="min-w-0 flex-1 truncate text-xs text-[hsl(var(--muted-foreground))]">{latest ? `Última ejecución ${time(latest.createdAt)}` : "Aún no se ha ejecutado"}</span>
         {open ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronUp className="h-4 w-4" aria-hidden="true" />}
       </button>
-      {open && (
+      <div className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`} inert={!open}>
+       <div className="min-h-0 overflow-hidden">
         <div className="grid max-h-[22rem] min-h-[14rem] border-t border-[hsl(var(--border))] md:grid-cols-[18rem_minmax(0,1fr)]">
           <div className="min-h-0 overflow-y-auto border-b border-[hsl(var(--border))] md:border-b-0 md:border-r">
             <div className="flex items-center gap-2 p-2">
@@ -133,7 +134,8 @@ export function AutomationConsole({ moduleKey, automation, open, onToggle, onSel
             )}
           </div>
         </div>
-      )}
+       </div>
+      </div>
     </section>
   );
 }

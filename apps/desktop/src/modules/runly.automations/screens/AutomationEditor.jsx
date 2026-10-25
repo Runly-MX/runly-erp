@@ -5,8 +5,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, ConfirmDialog, ErrorState, Skeleton, Switch, TextField } from "@runly/ui";
-import { ArrowLeft, FlaskConical, Plug, Save, Terminal, Trash2 } from "lucide-react";
+import { ActionMenu, Button, ConfirmDialog, ErrorState, Skeleton, Switch, Tooltip, TooltipContent, TooltipTrigger, cn, useViewMode } from "@runly/ui";
+import { ArrowLeft, Check, FlaskConical, Fullscreen, Loader2, Maximize2, Minimize2, Plug, Save, Terminal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -39,6 +39,25 @@ const DRAFT_KEY = "runly.automations.draft";
 const readDraft = () => { try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY)); } catch { return null; } };
 const writeDraft = (value) => { try { if (value) sessionStorage.setItem(DRAFT_KEY, JSON.stringify(value)); else sessionStorage.removeItem(DRAFT_KEY); } catch { /* storage unavailable */ } };
 
+const VIEW_LABELS = { normal: "Vista despejada", clean: "Pantalla completa", fullscreen: "Vista normal (Esc)" };
+
+function BarButton({ label, active = false, className, children, ...props }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button" variant="ghost" size="icon" aria-label={label} aria-pressed={active || undefined}
+          className={cn("h-9 w-9 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11", active && "bg-(--brand-primary)/15 text-[hsl(var(--foreground))]", className)}
+          {...props}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export default function SystemAutomationEditor() {
   const { "*": wildcard } = useParams();
   const slug = wildcard?.split("/").filter(Boolean).pop() ?? null;
@@ -59,6 +78,13 @@ export default function SystemAutomationEditor() {
   const [overlayRun, setOverlayRun] = useState(null);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // "leave" | "delete"
+  const viewMode = useViewMode();
+  const stepBackView = viewMode.stepBack;
+  useEffect(() => {
+    const onKey = (event) => { if (event.key === "Escape" && !event.defaultPrevented) stepBackView(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [stepBackView]);
 
   useMiraiRecordContext({ recordType: "automation", recordId: isNew ? undefined : slug, label: item?.label });
 
@@ -132,36 +158,46 @@ export default function SystemAutomationEditor() {
   }
 
   const fieldOptions = fieldOptionsFor(item.trigger, NO_ENTITIES, events);
+  const immersive = viewMode.isImmersive;
   return (
-    <div className="flex h-[calc(100dvh-7.5rem)] min-h-[40rem] flex-col gap-3 p-3 md:p-5">
-      <header className="flex flex-wrap items-end gap-2">
-        <Button variant="ghost" onClick={back} className="[@media(pointer:coarse)]:h-11"><ArrowLeft className="h-4 w-4 sm:mr-1.5" /> <span className="max-sm:sr-only">Automatizaciones</span></Button>
-        <div className="min-w-[12rem] flex-1">
-          <TextField aria-label="Nombre de la automatización" value={item.label ?? ""} maxLength={120} onChange={(e) => patch({ label: e.target.value })} />
-        </div>
-        <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm [@media(pointer:coarse)]:min-h-11">
-          Activa <Switch checked={item.enabled !== false} onCheckedChange={(enabled) => patch({ enabled })} aria-label="Activa" />
-        </label>
-        <div className="flex flex-wrap items-center gap-2 pb-0.5">
-          <Button variant="outline" onClick={() => setConnectionsOpen(true)} className="[@media(pointer:coarse)]:h-11"><Plug className="h-4 w-4 sm:mr-1.5" /> <span className="max-sm:sr-only">Conexiones</span></Button>
-          <Button variant="outline" onClick={() => setTestOpen(true)} className="[@media(pointer:coarse)]:h-11"><FlaskConical className="h-4 w-4 sm:mr-1.5" /> <span className="max-sm:sr-only">Probar</span></Button>
-          {!isNew && <Button variant={consoleOpen ? "secondary" : "outline"} aria-pressed={consoleOpen} onClick={() => setConsoleOpen((open) => !open)} className="[@media(pointer:coarse)]:h-11"><Terminal className="h-4 w-4 sm:mr-1.5" /> <span className="max-sm:sr-only">Consola</span></Button>}
-          {!isNew && <Button variant="ghost" aria-label="Eliminar automatización" onClick={() => setConfirm("delete")} className="[@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"><Trash2 className="h-4 w-4" /></Button>}
-          <Button disabled={!dirty || save.isPending} onClick={() => save.mutate()} className="[@media(pointer:coarse)]:h-11"><Save className="mr-1.5 h-4 w-4" /> {save.isPending ? "Guardando..." : dirty ? "Guardar" : "Guardado"}</Button>
+    <div className={cn("flex min-h-0 flex-col bg-[hsl(var(--background))]", immersive ? "fixed inset-0 z-50 h-dvh" : "h-full min-h-[34rem]")}>
+      <header className="flex shrink-0 flex-wrap items-center gap-x-1.5 gap-y-1 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-1.5 sm:px-3">
+        <BarButton label="Volver a Automatizaciones" onClick={back}><ArrowLeft className="h-4 w-4" /></BarButton>
+        <input
+          aria-label="Nombre de la automatización" value={item.label ?? ""} maxLength={120} onChange={(e) => patch({ label: e.target.value })}
+          className="h-9 min-w-[8rem] max-w-md flex-1 rounded-md border border-transparent bg-transparent px-2 text-base font-semibold outline-none transition-colors hover:border-[hsl(var(--border))] focus:border-(--brand-primary) [@media(pointer:coarse)]:h-11"
+        />
+        <span role="status" aria-live="polite" className="hidden items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))] md:inline-flex">
+          {save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" /> : dirty ? <span className="h-2 w-2 rounded-full bg-amber-500" /> : <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />}
+          {save.isPending ? "Guardando…" : dirty ? "Sin guardar" : "Guardado"}
+        </span>
+        <div className="ml-auto flex items-center gap-1">
+          <label className="mr-1 flex cursor-pointer items-center gap-2 rounded-md px-2 text-sm [@media(pointer:coarse)]:min-h-11">
+            <Switch checked={item.enabled !== false} onCheckedChange={(enabled) => patch({ enabled })} aria-label="Activa" />
+            <span className="max-sm:sr-only">{item.enabled !== false ? "Activa" : "En pausa"}</span>
+          </label>
+          <BarButton label="Conexiones" onClick={() => setConnectionsOpen(true)}><Plug className="h-4 w-4" /></BarButton>
+          {!isNew && <BarButton label={consoleOpen ? "Ocultar la consola" : "Consola de ejecución"} active={consoleOpen} onClick={() => setConsoleOpen((open) => !open)}><Terminal className="h-4 w-4" /></BarButton>}
+          <Button variant="outline" onClick={() => setTestOpen(true)} className="h-9 gap-1.5 [@media(pointer:coarse)]:h-11"><FlaskConical className="h-4 w-4" /> <span className="max-sm:sr-only">Probar</span></Button>
+          <BarButton label={VIEW_LABELS[viewMode.mode]} onClick={viewMode.cycle} className="max-sm:hidden">
+            {viewMode.mode === "normal" ? <Maximize2 className="h-4 w-4" /> : viewMode.mode === "clean" ? <Fullscreen className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+          </BarButton>
+          {!isNew && <ActionMenu label="Más opciones" items={[{ label: "Eliminar automatización", icon: Trash2, variant: "destructive", onClick: () => setConfirm("delete") }]} />}
+          <Button disabled={!dirty || save.isPending} onClick={() => save.mutate()} className="h-9 gap-1.5 [@media(pointer:coarse)]:h-11"><Save className="h-4 w-4" /> <span className="max-sm:sr-only">{save.isPending ? "Guardando..." : "Guardar"}</span></Button>
         </div>
       </header>
 
       {diagnostics?.length > 0 && (
-        <ul role="alert" className="list-disc space-y-0.5 rounded-md border border-red-500/30 bg-red-500/5 py-2 pl-7 pr-3 text-sm text-red-700 dark:text-red-300">
+        <ul role="alert" className="mx-3 mt-2 list-disc space-y-0.5 rounded-md border border-red-500/30 bg-red-500/5 py-2 pl-7 pr-3 text-sm text-red-700 dark:text-red-300">
           {diagnostics.map((entry, index) => <li key={index}>{describeAutomationDiagnostic(entry)}</li>)}
         </ul>
       )}
 
       <AutomationCanvasEditor
         automation={item} entities={NO_ENTITIES} events={events} allowedTriggers={ALLOWED_TRIGGERS}
-        fieldOptions={fieldOptions} readOnly={false} onPatch={patch} className="min-h-0 flex-1" runOverlay={consoleOpen ? overlayRun : null}
+        fieldOptions={fieldOptions} readOnly={false} onPatch={patch} className="m-2 min-h-0 flex-1 sm:m-3" runOverlay={consoleOpen ? overlayRun : null}
       />
-      {!isNew && <AutomationConsole moduleKey={SYSTEM_MODULE_KEY} automation={item} open={consoleOpen} onToggle={() => setConsoleOpen((open) => !open)} onSelectRun={setOverlayRun} />}
+      {!isNew && <div className="mx-2 mb-2 shrink-0 sm:mx-3 sm:mb-3"><AutomationConsole moduleKey={SYSTEM_MODULE_KEY} automation={item} open={consoleOpen} onToggle={() => setConsoleOpen((open) => !open)} onSelectRun={setOverlayRun} /></div>}
 
       <AutomationTestDialog open={testOpen} onOpenChange={setTestOpen} automation={item} fieldOptions={fieldOptions} />
       <AutomationConnectionsDialog open={connectionsOpen} onOpenChange={setConnectionsOpen} />

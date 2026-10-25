@@ -90,6 +90,8 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
   const [liveMove, setLiveMove] = useState(null); // block drag: { id, x, y }
   const [dragKind, setDragKind] = useState(null); // palette drag: { kind, slot }
   const [inspectorWidth, setInspectorWidth] = useState(readWidth);
+  const [resizing, setResizing] = useState(false);
+  const lastInspector = useRef(null);
   const reorderRef = useRef(null);
   const moveRef = useRef(null);
   const suppressClick = useRef(false);
@@ -311,14 +313,15 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
     onPointerDown: (event) => {
       event.currentTarget.setPointerCapture?.(event.pointerId);
       event.currentTarget.dataset.resizing = "true";
+      setResizing(true);
     },
     onPointerMove: (event) => {
       if (event.currentTarget.dataset.resizing !== "true") return;
       const right = rootRef.current.getBoundingClientRect().right;
       setInspectorWidth(clampWidth(right - event.clientX));
     },
-    onPointerUp: (event) => { delete event.currentTarget.dataset.resizing; rememberWidth(inspectorWidth); },
-    onPointerCancel: (event) => { delete event.currentTarget.dataset.resizing; },
+    onPointerUp: (event) => { delete event.currentTarget.dataset.resizing; setResizing(false); rememberWidth(inspectorWidth); },
+    onPointerCancel: (event) => { delete event.currentTarget.dataset.resizing; setResizing(false); },
     onKeyDown: (event) => {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       event.preventDefault();
@@ -360,6 +363,7 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
     </>
   ) : null;
 
+  if (inspector) lastInspector.current = inspector;
   const markerPoint = reorder
     ? slots.find((slot) => slot.index === (reorder.target <= reorder.index ? reorder.target : reorder.target + 1))?.point
     : dragKind?.slot ? slots.find((slot) => slot.key === slotKey(dragKind.slot))?.point : null;
@@ -473,15 +477,18 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
         </p>
       </section>
 
-      {docked ? (current && (
-        <aside aria-label="Editar bloque" style={{ width: inspectorWidth }} className="relative shrink-0 overflow-y-auto border-l border-[hsl(var(--border))] p-5">
-          <div
-            {...resizeProps}
-            className="absolute -left-1.5 top-0 z-20 h-full w-3 cursor-col-resize touch-none select-none after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 after:bg-transparent hover:after:bg-(--brand-primary)/50 focus-visible:after:bg-(--brand-primary)"
-          />
-          {inspector}
-        </aside>
-      )) : (
+      {docked ? (
+        // The panel slides open/closed (width); while closing it keeps the last content so it does not blink out.
+        <div className={cx("shrink-0 overflow-hidden", !resizing && "transition-[width] duration-200 ease-out motion-reduce:transition-none")} style={{ width: current ? inspectorWidth : 0 }} inert={!current}>
+          <aside aria-label="Editar bloque" style={{ width: inspectorWidth }} className="relative h-full overflow-y-auto border-l border-[hsl(var(--border))] p-5">
+            <div
+              {...resizeProps}
+              className="absolute -left-1.5 top-0 z-20 h-full w-3 cursor-col-resize touch-none select-none after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 after:bg-transparent hover:after:bg-(--brand-primary)/50 focus-visible:after:bg-(--brand-primary)"
+            />
+            {inspector ?? lastInspector.current}
+          </aside>
+        </div>
+      ) : (
         <Sheet open={Boolean(selected)} onOpenChange={(open) => { if (!open) setSelectedId(null); }}>
           <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto p-5 sm:max-w-lg">
             <SheetHeader className="sr-only">

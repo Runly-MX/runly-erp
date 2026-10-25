@@ -1594,11 +1594,12 @@ export const automationsMap = createModuleManifest({
   core: true,
   uninstallable: false,
   icon: 'Zap',
-  color: '#8b5cf6',
+  color: '#eab308',
   description: 'Flujos de la empresa que se ponen en marcha solos: eventos, horarios y webhooks, con esperas, aprobaciones, condiciones Sí / No, correos, reportes y llamadas a otros sistemas.',
   summary: 'Flujos automáticos de la empresa',
   category: 'plataforma',
   pwa: { shortName: 'Automatiz.', startPath: '/' },
+  fullscreenPaths: ['/', '/:key'],
   dependencies: [{ key: 'runly.core' }, { key: 'runly.identity' }],
   navigation: [
     { label: 'Automatizaciones', path: '/', icon: 'Zap', layout: 'main', permissionKey: 'automations.read' },
