@@ -156,6 +156,64 @@ describe('createProjectsCalendarBridge', () => {
       assert.equal(created?.calendarId, 'cal-1')
     })
 
+    const day = (value) => new Date(`${value}T12:00:00.000Z`)
+    const spy = (extra = {}) => {
+      const calls = { created: [], updated: [], deleted: [] }
+      const base = makeCalendarPrisma()
+      const prisma = {
+        ...base,
+        calendarEvent: {
+          create: async ({ data }) => { calls.created.push(data); return { id: 'event-new', ...data } },
+          update: async (args) => { calls.updated.push(args); if (extra.updateFails) { const e = new Error('gone'); e.code = 'P2025'; throw e } return { id: args.where.id } },
+          delete: async ({ where }) => { calls.deleted.push(where.id) },
+        },
+      }
+      return { prisma, calls }
+    }
+    const iso = (d) => d.toISOString().slice(0, 10)
+
+    it('a single due date is a one-day event', async () => {
+      const { prisma, calls } = spy()
+      await createProjectsCalendarBridge({ prisma }).syncTaskEvent({ id: 't', title: 'T', startDate: null, dueDate: day('2026-11-05'), calendarEventId: null }, 'cal-1')
+      assert.deepEqual([iso(calls.created[0].startAt), iso(calls.created[0].endAt)], ['2026-11-05', '2026-11-05'])
+    })
+
+    it('only a start date is also a one-day event on that day', async () => {
+      const { prisma, calls } = spy()
+      await createProjectsCalendarBridge({ prisma }).syncTaskEvent({ id: 't', title: 'T', startDate: day('2026-11-03'), dueDate: null, calendarEventId: null }, 'cal-1')
+      assert.deepEqual([iso(calls.created[0].startAt), iso(calls.created[0].endAt)], ['2026-11-03', '2026-11-03'])
+    })
+
+    it('a range covers start to due, and a reversed one still covers the days between', async () => {
+      const { prisma, calls } = spy()
+      const bridge = createProjectsCalendarBridge({ prisma })
+      await bridge.syncTaskEvent({ id: 't', title: 'T', startDate: day('2026-11-03'), dueDate: day('2026-11-07'), calendarEventId: null }, 'cal-1')
+      await bridge.syncTaskEvent({ id: 't', title: 'T', startDate: day('2026-11-09'), dueDate: day('2026-11-07'), calendarEventId: null }, 'cal-1')
+      assert.deepEqual([iso(calls.created[0].startAt), iso(calls.created[0].endAt)], ['2026-11-03', '2026-11-07'])
+      assert.deepEqual([iso(calls.created[1].startAt), iso(calls.created[1].endAt)], ['2026-11-07', '2026-11-09'])
+    })
+
+    it('changing the dates updates the existing event instead of creating another', async () => {
+      const { prisma, calls } = spy()
+      const id = await createProjectsCalendarBridge({ prisma }).syncTaskEvent({ id: 't', title: 'Nuevo título', startDate: day('2026-11-03'), dueDate: day('2026-11-04'), calendarEventId: 'ev-1' }, 'cal-1')
+      assert.equal(id, 'ev-1')
+      assert.equal(calls.created.length, 0)
+      assert.deepEqual([calls.updated[0].where.id, iso(calls.updated[0].data.endAt), calls.updated[0].data.title], ['ev-1', '2026-11-04', 'Nuevo título'])
+    })
+
+    it('an event the person deleted from the calendar is created again', async () => {
+      const { prisma, calls } = spy({ updateFails: true })
+      const id = await createProjectsCalendarBridge({ prisma }).syncTaskEvent({ id: 't', title: 'T', startDate: null, dueDate: day('2026-11-05'), calendarEventId: 'gone' }, 'cal-1')
+      assert.equal(id, 'event-new')
+      assert.equal(calls.created.length, 1)
+    })
+
+    it('clearing both dates removes the event', async () => {
+      const { prisma, calls } = spy()
+      await createProjectsCalendarBridge({ prisma }).syncTaskEvent({ id: 't', title: 'T', startDate: null, dueDate: null, calendarEventId: 'ev-1' }, 'cal-1')
+      assert.deepEqual(calls.deleted, ['ev-1'])
+    })
+
     it('returns null when no dueDate', async () => {
       const bridge = createProjectsCalendarBridge({ prisma: makeCalendarPrisma() })
       const result = await bridge.syncTaskEvent(

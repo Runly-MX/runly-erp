@@ -42,14 +42,17 @@ export function createProjectsTaskEffects({ prisma, notifSvc, bridge, broadcaste
 
   async function syncDueDateCalendar(c, task) {
     const project = await prisma.project.findFirst({ where: { id: task.projectId } });
-    await bridge.syncTaskEvent(task, project?.calendarId);
+    // Projects created without a calendar (the personal "Mis tareas", or one whose calendar
+    // failed to create) get theirs the first time a dated task needs it.
+    const calendarId = project?.calendarId ?? (project ? await bridge.syncProjectCalendar(project) : null);
+    await bridge.syncTaskEvent(task, calendarId);
     broadcastCalendarSync(c);
   }
 
   async function afterCreate(c, task) {
     const { userId, companyId } = contextIds(c);
     await notifSvc.notifyTaskAssigned({ companyId, actorId: userId, taskId: task.id, assignedUserId: task.assigneeId });
-    if (task.dueDate) await syncDueDateCalendar(c, task);
+    if (task.dueDate || task.startDate) await syncDueDateCalendar(c, task);
     broadcastTaskEvent(task.projectId, task.id, "created");
   }
 
@@ -60,7 +63,8 @@ export function createProjectsTaskEffects({ prisma, notifSvc, bridge, broadcaste
     if (patch.assigneeId !== undefined && previous && patch.assigneeId !== previous.assigneeId) {
       await notifSvc.notifyTaskAssigned({ companyId, actorId: userId, taskId: previous.id, assignedUserId: patch.assigneeId });
     }
-    if (patch.dueDate !== undefined) await syncDueDateCalendar(c, task);
+    // Either end of the range changing (or being cleared) updates the calendar event.
+    if (patch.dueDate !== undefined || patch.startDate !== undefined) await syncDueDateCalendar(c, task);
     const oldStatusId = previous?.statusId ?? null;
     if (patch.statusId && oldStatusId && oldStatusId !== patch.statusId) {
       await notifSvc.notifyTaskStatusChanged({ companyId, actorId: userId, taskId: task.id, oldStatusId, newStatusId: patch.statusId });

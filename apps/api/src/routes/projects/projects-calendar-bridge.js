@@ -83,8 +83,12 @@ export function createProjectsCalendarBridge({ prisma }) {
     }
   }
 
+  // The task's dates as one all-day calendar event: a single day when only one date is
+  // set (or both are the same), a range from start to due otherwise (both ends included,
+  // the calendar treats an all-day end as inclusive). A task with no dates has no event.
   async function syncTaskEvent(task, calendarId) {
-    if (!isCalendarAvailable() || !calendarId || !task.dueDate) {
+    const dated = Boolean(task.startDate || task.dueDate);
+    if (!isCalendarAvailable() || !calendarId || !dated) {
       if (task.calendarEventId) {
         await deleteTaskEvent(task.calendarEventId);
         await prisma.task.update({
@@ -95,14 +99,18 @@ export function createProjectsCalendarBridge({ prisma }) {
       return null;
     }
     try {
-      // Use date-only (midnight UTC) to avoid timezone shift in all-day event display
+      // Date-only (midnight UTC): all-day events are stored as UTC-midnight instants and
+      // task dates are stored at noon UTC, so the day never shifts with the time zone.
       const toDateUTC = (d) => {
         // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: all-day events are stored as UTC-midnight instants
         const s = new Date(d).toISOString().split("T")[0];
         return new Date(s + "T00:00:00.000Z");
       };
-      const startAt = toDateUTC(task.startDate ?? task.dueDate);
-      const endAt = toDateUTC(task.dueDate);
+      const first = toDateUTC(task.startDate ?? task.dueDate);
+      const last = toDateUTC(task.dueDate ?? task.startDate);
+      // A reversed range (due before start) still shows as the days between the two.
+      const startAt = first <= last ? first : last;
+      const endAt = first <= last ? last : first;
       const eventData = {
         calendarId,
         title: task.title,
@@ -113,16 +121,16 @@ export function createProjectsCalendarBridge({ prisma }) {
         sourceEntityId: task.id,
       };
       if (task.calendarEventId) {
-        await prisma.calendarEvent.update({
-          where: { id: task.calendarEventId },
-          data: {
-            title: eventData.title,
-            startAt: eventData.startAt,
-            endAt: eventData.endAt,
-            allDay: true,
-          },
-        });
-        return task.calendarEventId;
+        try {
+          await prisma.calendarEvent.update({
+            where: { id: task.calendarEventId },
+            data: { calendarId, title: eventData.title, startAt, endAt, allDay: true },
+          });
+          return task.calendarEventId;
+        } catch (error) {
+          // The event was deleted from the calendar: fall through and create it again.
+          if (error?.code && error.code !== "P2025") throw error;
+        }
       }
       const event = await prisma.calendarEvent.create({ data: eventData });
       await prisma.task.update({
@@ -130,7 +138,8 @@ export function createProjectsCalendarBridge({ prisma }) {
         data: { calendarEventId: event.id },
       });
       return event.id;
-    } catch {
+    } catch (error) {
+      console.error("[projects] no se pudo sincronizar la tarea con el calendario:", task.id, error?.message ?? error);
       return null;
     }
   }
