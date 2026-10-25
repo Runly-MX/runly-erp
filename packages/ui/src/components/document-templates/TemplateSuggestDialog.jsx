@@ -4,11 +4,14 @@ import { AlertTriangle, CheckCircle2, Download, Upload, WandSparkles } from 'luc
 import { toast } from 'sonner'
 import { Button } from '../Button.jsx'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../Dialog.jsx'
-import { DOCX_MIME, base64ToFile, errorText, saveBlob } from './template-utils.js'
+import { TemplateFieldReference } from './TemplateFieldReference.jsx'
+import { FORMAT_MIME, base64ToFile, errorText, saveBlob } from './template-utils.js'
 
-// Places suggested tags in the user's own Word form. Nothing is saved until
-// "Aplicar": the original file stays as it was otherwise.
-export function TemplateSuggestDialog({ template, api, schema, onOpenChange, onApplied }) {
+// Places suggested tags in the user's own form (Word, Excel or PowerPoint; PDF
+// shows its detected fields). Nothing is saved until "Aplicar": the original
+// file stays as it was otherwise. `onSkip` continues to the field review.
+export function TemplateSuggestDialog({ template, api, kind, onOpenChange, onApplied, onSkip }) {
+  const schema = kind?.schema
   const isPdf = template?.format === 'pdf'
   const [result, setResult] = useState(null)
   const suggest = useMutation({ mutationFn: () => api.suggestTemplate(template.id, template.version.id) })
@@ -35,7 +38,7 @@ export function TemplateSuggestDialog({ template, api, schema, onOpenChange, onA
   const label = (tag) => schema?.find((entry) => entry.tag === tag)?.label ?? tag
   const applied = result?.applied ?? []
   const missing = result?.missing ?? []
-  const file = result?.contentBase64 ? base64ToFile(result.contentBase64, result.fileName, DOCX_MIME) : null
+  const file = result?.contentBase64 ? base64ToFile(result.contentBase64, result.fileName, FORMAT_MIME[result.format]) : null
 
   return (
     <Dialog open={Boolean(template)} onOpenChange={onOpenChange}>
@@ -43,7 +46,7 @@ export function TemplateSuggestDialog({ template, api, schema, onOpenChange, onA
         <DialogHeader icon={WandSparkles}>
           <DialogTitle>Etiquetas sugeridas</DialogTitle>
           <DialogDescription>
-            Se colocaron las etiquetas en tu formato «{template?.name}». Descárgalo para revisarlo o aplícalo; tu archivo solo cambia si eliges aplicar.
+            Tu formato «{template?.name}» no tiene etiquetas {'{{campo}}'}; estas son las que se proponen. Descárgalo para revisarlo o aplícalas; tu archivo solo cambia si eliges aplicar.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[50vh] space-y-3 overflow-y-auto">
@@ -79,11 +82,12 @@ export function TemplateSuggestDialog({ template, api, schema, onOpenChange, onA
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2 text-sm">
-                  <p>No se reconoció ningún campo en el formato.</p>
+                <div className="space-y-3 text-sm">
+                  <p>No se reconoció ningún campo en el formato. Etiqueta manualmente con {'{{campo}}'}.</p>
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                    Se buscan títulos como «Nombre del empleado» o «Fecha» seguidos de una celda vacía, o de una línea de guiones bajos (____). Revisa que los títulos estén escritos como texto y no como imagen, o escribe las etiquetas a mano con la tabla de referencia.
+                    Se buscan títulos como «Nombre del empleado» o «Fecha» seguidos de una celda o cuadro vacío, o de una línea de guiones bajos (____). Revisa que los títulos estén escritos como texto y no como imagen, o copia las etiquetas de la lista y escríbelas en tu documento.
                   </p>
+                  <TemplateFieldReference kind={kind} defaultOpen />
                 </div>
               )}
               {missing.length ? (
@@ -98,6 +102,7 @@ export function TemplateSuggestDialog({ template, api, schema, onOpenChange, onA
           )}
         </div>
         <DialogFooter>
+          {onSkip ? <Button type="button" variant="ghost" onClick={onSkip}>Revisar campos sin aplicar</Button> : null}
           <Button type="button" variant="outline" onClick={() => file && saveBlob(file, file.name)} disabled={!file || !applied.length}>
             <Download className="mr-1.5 h-3.5 w-3.5" />Descargar para revisar
           </Button>

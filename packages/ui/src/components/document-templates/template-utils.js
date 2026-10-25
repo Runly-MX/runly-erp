@@ -50,6 +50,13 @@ export function unknownTags(kind, placeholders) {
   })
 }
 
+// True when the file has no tag the kind understands (free-tag kinds never do).
+export function hasNoKnownTags(kind, template) {
+  if (!kind || kind.freeTags) return false
+  const tags = template?.version?.placeholders ?? []
+  return tags.length - unknownTags(kind, tags).length === 0
+}
+
 export function tagText(entry) {
   if (entry.type === 'list') return `{{#${entry.tag}}} ... {{/${entry.tag}}}`
   if (entry.type === 'image') return `{{%${entry.tag}}}`

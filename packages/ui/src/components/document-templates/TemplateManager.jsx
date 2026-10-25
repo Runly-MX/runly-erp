@@ -15,7 +15,7 @@ import { TemplatePreviewDialog } from './TemplatePreviewDialog.jsx'
 import { TemplateReplaceDialog } from './TemplateReplaceDialog.jsx'
 import { TemplateSuggestDialog } from './TemplateSuggestDialog.jsx'
 import { TemplateUploadDialog } from './TemplateUploadDialog.jsx'
-import { FORMAT_LABELS, errorText, saveBlob, unknownTags } from './template-utils.js'
+import { FORMAT_LABELS, errorText, hasNoKnownTags, saveBlob, unknownTags } from './template-utils.js'
 
 const EDITABLE_IN_OFFICE = ['docx', 'xlsx', 'pptx']
 const TOKEN_FIRST = ['listFileTemplates']
@@ -71,14 +71,23 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
   const [uploadOpen, setUploadOpen] = useState(false)
   const [reviewing, setReviewing] = useState(null)
   const [suggesting, setSuggesting] = useState(null)
+  const [suggestWarnings, setSuggestWarnings] = useState([])
   const [replacing, setReplacing] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [preview, setPreview] = useState({ open: false, blob: null, loading: false, error: '', title: '' })
 
-  // A response that carries a template opens its review step.
+  // A response that carries a template opens its review step; a file without
+  // any tag the kind understands opens the suggested-tags step first.
   const review = (response) => {
     refresh()
-    setReviewing({ template: response.template ?? response, warnings: response.warnings ?? [] })
+    const template = response.template ?? response
+    const warnings = response.warnings ?? []
+    if (template?.version && hasNoKnownTags(kind, template)) {
+      setSuggestWarnings(warnings)
+      setSuggesting(template)
+      return
+    }
+    setReviewing({ template, warnings })
   }
 
   const create = useMutation({
@@ -230,12 +239,13 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
         busy={create.isPending} onSubmit={(form) => create.mutate(form)} />
       <TemplateReplaceDialog template={replacing} kind={kind} busy={replace.isPending} onOpenChange={(v) => { if (!v) setReplacing(null) }}
         onSubmit={(file) => replace.mutate({ template: replacing, file })} />
-      <TemplateSuggestDialog template={suggesting} api={api} schema={kind?.schema} onOpenChange={(v) => { if (!v) setSuggesting(null) }}
-        onApplied={(response) => { setSuggesting(null); review(response) }} />
+      <TemplateSuggestDialog template={suggesting} api={api} kind={kind} onOpenChange={(v) => { if (!v) setSuggesting(null) }}
+        onApplied={(response) => { setSuggesting(null); review(response) }}
+        onSkip={() => { const template = suggesting; setSuggesting(null); setReviewing({ template, warnings: suggestWarnings }) }} />
       <TemplateMappingDialog template={reviewing?.template ?? null} warnings={reviewing?.warnings} kind={kind} api={api}
         onOpenChange={(v) => { if (!v) setReviewing(null) }}
         onChanged={(saved) => { refresh(); setReviewing((r) => (r ? { ...r, template: saved?.version ? saved : r.template } : r)) }}
-        onPreview={runPreview} />
+        onPreview={runPreview} onSuggest={() => { const template = reviewing?.template; setReviewing(null); setSuggesting(template) }} />
       <TemplatePreviewDialog open={preview.open} onOpenChange={(v) => setPreview((p) => ({ ...p, open: v }))}
         blob={preview.blob} loading={preview.loading} error={preview.error} title={preview.title} />
       <ConfirmDialog open={Boolean(deleting)} onOpenChange={(v) => { if (!v) setDeleting(null) }}

@@ -4,6 +4,8 @@
 import crypto from "node:crypto";
 
 import { suggestDocxTagsWithLabels } from "../../services/document-templates/docx-autotag.js";
+import { suggestPptxTagsWithLabels } from "../../services/document-templates/pptx-autotag.js";
+import { suggestXlsxTagsWithLabels } from "../../services/document-templates/xlsx-autotag.js";
 import { TemplateError } from "../../services/document-templates/template-tags.js";
 import { DocumentTemplateServiceError } from "./document-errors.js";
 import {
@@ -255,18 +257,12 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
     return { template: serializeFileTemplate({ ...template, format }, saved, profileId), warnings: scanned.warnings };
   }
 
-  // Suggestions for a version, nothing is saved: docx returns the file with
-  // tags placed, pdf the detected field boxes; xlsx/pptx need manual {{tags}}.
+  // Suggestions for a version, nothing is saved: docx/xlsx/pptx return the file
+  // with tags placed (label followed by an empty cell/box), pdf the detected field boxes.
   async function suggest({ companyId, templateId, versionId }) {
     const template = await findTemplate(companyId, templateId);
     const kind = kindOf(template.kind);
     const version = await findVersion(templateId, versionId);
-    if (template.format === "xlsx" || template.format === "pptx") {
-      return {
-        supported: false,
-        message: `Las etiquetas sugeridas aún no están disponibles para archivos .${template.format}; escribe las etiquetas {{campo}} directamente en el documento.`,
-      };
-    }
     const asset = await files.findAsset(companyId, version.fileAssetId);
     if (!asset) throw fail("El archivo de la plantilla ya no existe.", 404, "file_not_found");
     const buffer = await files.read(asset);
@@ -276,22 +272,26 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
     }
     try {
       // A kind may bring its own suggester (richer vocabulary than the label table).
-      const result = kind.suggestDocx
-        ? kind.suggestDocx(buffer)
-        : suggestDocxTagsWithLabels(buffer, {
-            labels: kindLabels(kind),
-            itemColumns: kind.itemColumns ?? null,
-            signatures: kind.signatures ?? [],
-            important: kind.important ?? [],
-          });
-      const baseName = String(asset.originalName ?? template.name).replace(/\.docx$/i, "");
+      const options = { labels: kindLabels(kind), important: kind.important ?? [] };
+      let result;
+      if (template.format === "xlsx") {
+        result = await suggestXlsxTagsWithLabels(buffer, options);
+      } else if (template.format === "pptx") {
+        result = suggestPptxTagsWithLabels(buffer, options);
+      } else {
+        result = kind.suggestDocx
+          ? kind.suggestDocx(buffer)
+          : suggestDocxTagsWithLabels(buffer, { ...options, itemColumns: kind.itemColumns ?? null, signatures: kind.signatures ?? [] });
+      }
+      const format = template.format;
+      const baseName = String(asset.originalName ?? template.name).replace(/\.(docx|xlsx|pptx)$/i, "");
       return {
         supported: true,
-        format: "docx",
+        format,
         applied: result.applied,
         missing: result.missing,
-        fileName: `${baseName} (con etiquetas).docx`,
-        contentBase64: result.buffer.toString("base64"),
+        fileName: `${baseName} (con etiquetas).${format}`,
+        contentBase64: Buffer.from(result.buffer).toString("base64"),
       };
     } catch (error) {
       if (error instanceof TemplateError) throw fail(error.message);

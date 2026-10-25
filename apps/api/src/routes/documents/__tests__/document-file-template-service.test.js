@@ -100,16 +100,14 @@ test("blank document lists the kind fields as tags; publish and one default per 
   assert.deepEqual(listed.filter((t) => t.isDefault).map((t) => t.id), [second.template.id]);
 });
 
-test("suggest tags a docx from the kind labels and explains xlsx/pptx; mapping is saved on drafts only", async () => {
+test("suggest tags a docx from the kind labels and refuses files that already have tags; mapping is saved on drafts only", async () => {
   const { service } = setup();
   const word = await service.upload({ companyId: COMPANY, kind: "test.record", file: fileOf(docx("Nombre: ________"), "a.docx") });
   const suggestion = await service.suggest({ companyId: COMPANY, templateId: word.template.id, versionId: word.template.version.id });
   assert.equal(suggestion.supported, true);
   assert.deepEqual(suggestion.applied.map((a) => a.tag), ["name"]);
   const sheet = await service.upload({ companyId: COMPANY, kind: "test.record", file: fileOf(await xlsx("{{name}}"), "a.xlsx") });
-  const none = await service.suggest({ companyId: COMPANY, templateId: sheet.template.id, versionId: sheet.template.version.id });
-  assert.equal(none.supported, false);
-  assert.match(none.message, /xlsx/);
+  await assert.rejects(service.suggest({ companyId: COMPANY, templateId: sheet.template.id, versionId: sheet.template.version.id }), /ya tiene etiquetas/);
   const saved = await service.saveMapping({ companyId: COMPANY, templateId: sheet.template.id, versionId: sheet.template.version.id, mapping: { name: "person.fullName" } });
   assert.deepEqual(saved.version.mapping, { name: "person.fullName" });
   await service.publishVersion({ companyId: COMPANY, templateId: sheet.template.id, versionId: sheet.template.version.id });
@@ -183,4 +181,43 @@ test("inventory.custody accepts all four formats and tags a Word form with label
   assert.ok(tags.includes("receiverJobTitle"));
   assert.ok(tags.includes("date"));
   assert.ok(suggestion.contentBase64.length > 100);
+});
+
+test("suggest places tags in an Excel form: label followed by an empty cell, or the empty cell below", async () => {
+  const { service } = setup();
+  const up = await service.upload({ companyId: COMPANY, kind: "test.record", file: fileOf(await xlsx("Nombre"), "form.xlsx") });
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Hoja");
+  sheet.addRow(["Nombre:", null, "Fecha"]);
+  sheet.addRow([null, null, null]);
+  sheet.addRow(["Observaciones", "ya escrito"]);
+  const form = await service.upload({ companyId: COMPANY, kind: "test.record", file: fileOf(Buffer.from(await workbook.xlsx.writeBuffer()), "form2.xlsx") });
+  const suggestion = await service.suggest({ companyId: COMPANY, templateId: form.template.id, versionId: form.template.version.id });
+  assert.equal(suggestion.supported, true);
+  assert.equal(suggestion.format, "xlsx");
+  assert.deepEqual(suggestion.applied.map((a) => a.tag).sort(), ["date", "name"]);
+  assert.match(suggestion.fileName, /\.xlsx$/);
+  const result = new ExcelJS.Workbook();
+  await result.xlsx.load(Buffer.from(suggestion.contentBase64, "base64"));
+  const out = result.getWorksheet("Hoja");
+  assert.equal(out.getCell("B1").value, "{{name}}");
+  assert.equal(out.getCell("D1").value, "{{date}}");
+  assert.ok(up.template.id);
+});
+
+test("suggest places tags in a PowerPoint form: underscores, trailing label and label + empty box", async () => {
+  const { service } = setup();
+  const box = (text, y) => textBox(text, { x: 0, y, cx: 3000000, cy: 400000 });
+  const slides = buildMinimalPptx(box("Nombre: ________", 0) + box("Fecha:", 500000) + box("Modelo", 1000000) + box("", 1500000));
+  const up = await service.upload({ companyId: COMPANY, kind: "test.record", file: fileOf(slides, "form.pptx") });
+  assert.equal(up.template.version.placeholders.length, 0);
+  const suggestion = await service.suggest({ companyId: COMPANY, templateId: up.template.id, versionId: up.template.version.id });
+  assert.equal(suggestion.supported, true);
+  assert.equal(suggestion.format, "pptx");
+  assert.deepEqual(suggestion.applied.map((a) => a.tag).sort(), ["date", "name"]);
+  const applied = await service.replaceVersionFile({
+    companyId: COMPANY, templateId: up.template.id, versionId: up.template.version.id,
+    file: fileOf(Buffer.from(suggestion.contentBase64, "base64"), "form (con etiquetas).pptx"),
+  });
+  assert.deepEqual(applied.template.version.placeholders.sort(), ["date", "name"]);
 });

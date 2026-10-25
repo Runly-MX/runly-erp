@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { AlertTriangle, CheckCircle2, Eye, Link2, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Eye, Link2, Trash2, WandSparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../Button.jsx'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../Dialog.jsx'
 import { ComboboxField } from '../FormFields.jsx'
+import { TemplateFieldReference } from './TemplateFieldReference.jsx'
 import { errorText, schemaOptions, unknownTags } from './template-utils.js'
 
 // Review step of a template version: map unknown tags to data fields, confirm
 // the detected PDF boxes, then save or publish. Published versions are
 // read-only here (replacing the file creates a new draft).
-export function TemplateMappingDialog({ template, warnings = [], kind, api, onOpenChange, onChanged, onPreview }) {
+export function TemplateMappingDialog({ template, warnings = [], kind, api, onOpenChange, onChanged, onPreview, onSuggest }) {
   const version = template?.version
   const readOnly = version?.status === 'published'
   const [mapping, setMapping] = useState({})
@@ -105,6 +106,20 @@ export function TemplateMappingDialog({ template, warnings = [], kind, api, onOp
             </div>
           ) : null}
 
+          {!keys.length && !kind?.freeTags ? (
+            <div className="space-y-3 rounded-md border border-[hsl(var(--border))] p-3">
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />Esta plantilla no tiene etiquetas ni campos
+              </p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Sin etiquetas el documento se genera sin datos. Deja que Runly proponga dónde colocarlas o escríbelas tú con {'{{campo}}'} usando la lista de abajo.
+              </p>
+              {!readOnly && onSuggest ? (
+                <Button type="button" onClick={onSuggest}><WandSparkles className="mr-1.5 h-3.5 w-3.5" />Sugerir etiquetas</Button>
+              ) : null}
+              <TemplateFieldReference kind={kind} defaultOpen />
+            </div>
+          ) : (
           <div className="space-y-2">
             <p className="flex items-center gap-1.5 text-sm font-medium">
               <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -125,6 +140,7 @@ export function TemplateMappingDialog({ template, warnings = [], kind, api, onOp
               </div>
             ) : null}
           </div>
+          )}
         </div>
         <DialogFooter className="sm:flex-wrap sm:justify-between">
           <Button type="button" variant="ghost" className="justify-start" disabled={!onPreview || save.isPending}
