@@ -1827,6 +1827,10 @@ model DocumentTemplate {
   name               String
   description        String?
   sourceType         String   @map("source_type")
+  kind               String   @default("growth.lead")
+  format             String   @default("blocks")
+  isDefault          Boolean  @default(false) @map("is_default")
+  scopeKey           String?  @map("scope_key")
   publishedVersionId String?  @db.Uuid @map("published_version_id")
   enabled            Boolean  @default(true)
   createdAt          DateTime @default(now()) @map("created_at")
@@ -1838,6 +1842,7 @@ model DocumentTemplate {
 
   @@unique([companyId, key])
   @@index([companyId, sourceType, enabled])
+  @@index([companyId, kind, scopeKey, enabled])
   @@index([publishedVersionId])
   @@map("document_template")
 }
@@ -1847,7 +1852,11 @@ model DocumentTemplateVersion {
   templateId    String   @db.Uuid @map("template_id")
   versionNumber Int      @map("version_number")
   status        String   @default("draft")
-  blocks        Json
+  blocks        Json     @default("[]")
+  fileAssetId   String?  @db.Uuid @map("file_asset_id")
+  placeholders  Json     @default("[]")
+  mapping       Json     @default("{}")
+  layout        Json?
   createdById   String?  @db.Uuid @map("created_by_id")
   publishedAt   DateTime? @map("published_at")
   createdAt     DateTime @default(now()) @map("created_at")
@@ -1859,16 +1868,19 @@ model DocumentTemplateVersion {
 
   @@unique([templateId, versionNumber])
   @@index([templateId, status])
+  @@index([fileAssetId])
   @@map("document_template_version")
 }
 
 model GeneratedDocument {
   id           String   @id @default(uuid(7)) @db.Uuid
   companyId    String   @db.Uuid @map("company_id")
-  templateId   String   @db.Uuid @map("template_id")
-  versionId    String   @db.Uuid @map("version_id")
+  templateId   String?  @db.Uuid @map("template_id")
+  versionId    String?  @db.Uuid @map("version_id")
   sourceType   String   @map("source_type")
-  sourceId     String   @db.Uuid @map("source_id")
+  sourceId     String?  @db.Uuid @map("source_id")
+  kind         String?
+  outputFormat String   @default("pdf") @map("output_format")
   fileAssetId  String?  @db.Uuid @map("file_asset_id")
   status       String   @default("pending")
   metadata     Json?
@@ -1878,9 +1890,9 @@ model GeneratedDocument {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  template  DocumentTemplate        @relation(fields: [templateId], references: [id], onDelete: Restrict)
-  version   DocumentTemplateVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
-  fileAsset FileAsset?              @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
+  template  DocumentTemplate?        @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  version   DocumentTemplateVersion? @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  fileAsset FileAsset?               @relation(fields: [fileAssetId], references: [id], onDelete: SetNull)
 
   @@index([companyId, generatedAt])
   @@index([companyId, sourceType, sourceId])
