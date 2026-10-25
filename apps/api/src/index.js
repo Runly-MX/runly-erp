@@ -77,6 +77,7 @@ import { createModulePublicLinksService } from "./services/module-public-links-s
 import { createBuilderRouter } from "./routes/builder-routes.js";
 import { createAutomationApprovalsRouter } from "./routes/automation-approvals-routes.js";
 import { createAutomationsRouter } from "./routes/automations-routes.js";
+import { createHomeWidgetsRouter } from "./routes/home-widgets-routes.js";
 import { createAutomationWebhookPublicRouter } from "./routes/automation-webhook-public.js";
 import {
   createPublicWebsiteRouter,
@@ -2472,6 +2473,7 @@ function mountWithAuth(baseApp, router) {
 
 mountWithAuth(app, createCompanyRouter({ prisma, supabaseAdmin, requirePermission, cacheDel }));
 mountWithAuth(app, createAutomationApprovalsRouter({ prisma, requirePermission }));
+mountWithAuth(app, createHomeWidgetsRouter({ prisma, requireActiveCompany }));
 mountWithAuth(app, createAutomationsRouter({ prisma, requirePermission, moduleServices }));
 mountWithAuth(app, createBuilderRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, bundlerSvc: bundlerService, routeLoader, cacheDel }));
 mountWithAuth(app, createModuleCatalogRouter({ prisma, requirePermission, bundlerSvc: bundlerService, routeLoader, cacheDel }));

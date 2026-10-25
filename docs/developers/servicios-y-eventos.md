@@ -166,6 +166,25 @@ Un módulo del Builder puede ofrecer una de sus entidades como **tipo de documen
 
 El tipo está disponible mientras el módulo esté instalado, activo y no desactivado para la empresa; al desactivarlo o desinstalarlo desaparece de Documentos y las plantillas ya subidas se conservan. Solo se leen los campos declarados, del registro de la empresa activa (y no desactivado).
 
+## Poner un resumen de tu módulo en Inicio
+
+Un módulo del Builder puede mostrar en **Inicio** un contador o una lista corta de una de sus entidades, sin escribir código:
+
+```json
+"homeWidgets": [
+  { "key": "abiertas", "label": "Órdenes abiertas", "entity": "orden", "kind": "count",
+    "when": { "field": "estado", "op": "not_equals", "value": "cerrada" } },
+  { "key": "recientes", "label": "Últimas órdenes", "entity": "orden", "kind": "list",
+    "titleField": "folio", "detailField": "cliente", "sort": { "field": "monto", "dir": "desc" }, "limit": 5 }
+]
+```
+
+- `kind`: `count` (un número grande con el total) o `list` (hasta 10 registros con título y una línea de detalle). Máximo 5 widgets por módulo.
+- `when` (opcional, hasta 5 condiciones que deben cumplirse todas): `equals`, `not_equals`, `contains`, `gt`, `lt` (solo campos numéricos) y `filled`. Los registros desactivados nunca cuentan.
+- `permission` (opcional): el permiso que hace falta para ver el widget; por omisión, el de lectura de la entidad. Quien no lo tiene no ve el widget en «Personalizar».
+- El total es exacto (se cuenta en la base de datos, no sobre una página). Al hacer clic se abre tu módulo. Cada persona puede ocultarlo desde **Personalizar**.
+- En `module.manifest.js` el contrato equivalente es `homeWidgets: [{ key, label, kind, model, permission, where?, titleField?, detailField?, sortField?, sortDir?, limit? }]`. Si un campo ya no existe, el widget responde con un error claro en vez de mostrar datos incorrectos.
+
 El contrato completo (argumentos, tipos, límites y campos de respuesta) se publica en `@runly/module-engine/contracts` como `SERVICE_CONTRACTS`; el Developer Hub simula los servicios con ese mismo contrato.
 
 ## Eventos

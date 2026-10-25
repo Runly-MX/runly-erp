@@ -10,6 +10,7 @@ import { ModuleListRow } from "../components/ModuleCard";
 import { filterModulesByQuery, readRecentModuleKeys, removeRecentModule } from "../lib/recentModules";
 import { availableWidgets } from "../lib/homeWidgets";
 import { useHomeWidgetPrefs } from "../hooks/useHomeWidgetPrefs";
+import { useContributedWidgets } from "../hooks/useContributedWidgets";
 import { HomeHeader } from "./home/HomeHeader";
 import { HomeAppTile, HomeFeaturedTile } from "./home/HomeAppTiles";
 import { HomeWidgetBoard, HomeWidgetCustomizer } from "./home/HomeWidgetBoard";
@@ -76,13 +77,14 @@ export function HomeScreen() {
   );
 
   const widgetPrefs = useHomeWidgetPrefs();
+  const contributedWidgets = useContributedWidgets();
   const modulesByKey = useMemo(
     () => new Map(availableModules.map((m) => [m.key, m])),
     [availableModules],
   );
   const offeredWidgets = useMemo(
-    () => availableWidgets(HOME_WIDGETS, modulesByKey.keys()),
-    [modulesByKey],
+    () => availableWidgets([...HOME_WIDGETS, ...contributedWidgets], modulesByKey.keys()),
+    [modulesByKey, contributedWidgets],
   );
   const shownWidgets = offeredWidgets.filter((w) => !widgetPrefs.hidden.includes(w.id));
   const recentModules = useMemo(

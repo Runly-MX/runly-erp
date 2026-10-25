@@ -6,6 +6,7 @@ import { isRecordsViewKind } from '../records-views.js'
 import { generatePublicResources, publicLinkViewFile } from '../public-links.js'
 import { manifestConnections } from '../connections.js'
 import { manifestDocumentKinds } from '../document-kinds.js'
+import { manifestHomeWidgets } from '../home-widgets.js'
 import { automationConsumes, automationEventKeys, automationSchedules } from '../automations.js'
 
 export function generateManifest(config) {
@@ -133,7 +134,8 @@ ${permissions}
 ${navigation}
   ],${config.connections?.length ? `
   connections: ${JSON.stringify(manifestConnections(config), null, 2).replace(/\n/g, '\n  ')},` : ''}${config.documentKinds?.length ? `
-  documentKinds: ${JSON.stringify(manifestDocumentKinds(config), null, 2).replace(/\n/g, '\n  ')},` : ''}${config.publicLinks?.length ? `
+  documentKinds: ${JSON.stringify(manifestDocumentKinds(config), null, 2).replace(/\n/g, '\n  ')},` : ''}${config.homeWidgets?.length ? `
+  homeWidgets: ${JSON.stringify(manifestHomeWidgets(config), null, 2).replace(/\n/g, '\n  ')},` : ''}${config.publicLinks?.length ? `
   publicResources: ${JSON.stringify(generatePublicResources(config), null, 2).replace(/\n/g, '\n  ')},` : ''}${config.automations?.length ? `
   // Derived from the Builder automations (api/automations.js).
   consumes: ${JSON.stringify(automationConsumes(config))},${automationEventKeys(config).length ? `

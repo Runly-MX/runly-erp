@@ -32,6 +32,11 @@ export const DOCUMENT_KIND_FORMATS = Object.freeze(['docx', 'xlsx', 'pptx', 'pdf
 const DOCUMENT_KIND_NAME_RE = /^[a-z][a-z0-9_]{1,40}$/
 const DOCUMENT_KIND_TAG_RE = /^[a-z][a-z0-9_]{0,60}$/
 export const DOCUMENT_KINDS_MAX = 10
+export const HOME_WIDGETS_MAX = 5
+export const HOME_WIDGET_KINDS = Object.freeze(['count', 'list'])
+export const HOME_WIDGET_OPS = Object.freeze(['equals', 'not_equals', 'contains', 'gt', 'lt', 'filled'])
+const HOME_WIDGET_KEY_RE = /^[a-z][a-z0-9_]{1,40}$/
+const COLUMN_RE = /^[a-z][a-z0-9_]{0,62}$/
 export const DOCUMENT_KIND_FIELDS_MAX = 60
 
 // manifest.documentKinds (a module offers a document type to Runly Documents):
@@ -71,8 +76,44 @@ function validateDocumentKinds(manifest, errors) {
   })
 }
 
+// manifest.homeWidgets (a module puts a count or a short list on Home):
+//   [{ key, label, kind: 'count'|'list', model, permission, where?: [{ field, op, value? }],
+//      titleField?, detailField?, sortField?, sortDir?, limit? }]
+// Field names are columns of `model`; the API builds the query from them, so they are
+// validated here as plain identifiers and again against the real table when it runs.
+function validateHomeWidgets(manifest, errors) {
+  const list = manifest?.homeWidgets
+  if (list === undefined) return
+  if (!Array.isArray(list)) { errors.push('homeWidgets must be an array'); return }
+  if (list.length > HOME_WIDGETS_MAX) errors.push(`homeWidgets: at most ${HOME_WIDGETS_MAX} widgets`)
+  const keys = new Set()
+  list.forEach((widget, index) => {
+    const base = `homeWidgets[${index}]`
+    if (!isPlainObject(widget)) { errors.push(`${base} must be an object`); return }
+    if (!HOME_WIDGET_KEY_RE.test(String(widget.key ?? ''))) errors.push(`${base}.key must be snake_case (2-41 chars)`)
+    else if (keys.has(widget.key)) errors.push(`${base}.key "${widget.key}" is duplicated`)
+    keys.add(widget.key)
+    if (typeof widget.label !== 'string' || !widget.label.trim() || widget.label.length > 60) errors.push(`${base}.label is required (max 60 chars)`)
+    if (!HOME_WIDGET_KINDS.includes(widget.kind)) errors.push(`${base}.kind must be one of ${HOME_WIDGET_KINDS.join(', ')}`)
+    if (!HOME_WIDGET_KEY_RE.test(String(widget.model ?? ''))) errors.push(`${base}.model must be the snake_case name of a model of this module`)
+    if (typeof widget.permission !== 'string' || !widget.permission.trim()) errors.push(`${base}.permission is required`)
+    for (const name of ['titleField', 'detailField', 'sortField']) if (widget[name] !== undefined && !COLUMN_RE.test(String(widget[name]))) errors.push(`${base}.${name} must be a column name`)
+    if (widget.kind === 'list' && !widget.titleField) errors.push(`${base}.titleField is required for a list`)
+    if (widget.sortDir !== undefined && !['asc', 'desc'].includes(widget.sortDir)) errors.push(`${base}.sortDir must be asc or desc`)
+    if (widget.limit !== undefined && !(Number.isInteger(widget.limit) && widget.limit >= 1 && widget.limit <= 10)) errors.push(`${base}.limit must be 1-10`)
+    if (widget.where !== undefined) {
+      if (!Array.isArray(widget.where) || widget.where.length > 5) { errors.push(`${base}.where must be a list of at most 5 conditions`); return }
+      widget.where.forEach((condition, at) => {
+        if (!isPlainObject(condition) || !COLUMN_RE.test(String(condition.field ?? '')) || !HOME_WIDGET_OPS.includes(condition.op)) errors.push(`${base}.where[${at}] needs a column field and an op (${HOME_WIDGET_OPS.join(', ')})`)
+        else if (condition.op !== 'filled' && !['string', 'number', 'boolean'].includes(typeof condition.value)) errors.push(`${base}.where[${at}].value must be text, number or boolean`)
+      })
+    }
+  })
+}
+
 export function validateIntegrations(manifest, errors) {
   validateSchedules(manifest, errors)
+  validateHomeWidgets(manifest, errors)
   validateDocumentKinds(manifest, errors)
   if (manifest?.consumes !== undefined) {
     if (!isPlainObject(manifest.consumes)) errors.push('consumes must be an object { moduleKey: [service, ...] }')

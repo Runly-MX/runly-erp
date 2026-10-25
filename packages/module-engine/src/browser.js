@@ -41,5 +41,5 @@ export { CONNECTION_KINDS, CONNECTION_DELETE_POLICIES, CONNECTION_SURFACES,
          validateConnections, normalizeConnection,
          validateConnectionsAgainstModels }        from './manifest-connections.js'
 
-export { validateIntegrations, DOCUMENT_KIND_FIELD_TYPES, DOCUMENT_KIND_FORMATS, DOCUMENT_KINDS_MAX } from './manifest-integrations.js'
+export { validateIntegrations, DOCUMENT_KIND_FIELD_TYPES, DOCUMENT_KIND_FORMATS, DOCUMENT_KINDS_MAX, HOME_WIDGETS_MAX, HOME_WIDGET_KINDS, HOME_WIDGET_OPS } from './manifest-integrations.js'
 export * from './contracts.js'

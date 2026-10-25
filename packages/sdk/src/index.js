@@ -531,6 +531,9 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request("/automations/webhook-origins", { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify({ origins }) }),
       regenerateAutomationWebhook: (key, token) => request(`/automations/${encodeURIComponent(key)}/webhook/regenerate`, { method: "POST", headers: withAuthHeaders(token) }),
       automationWebhookEvents: (key, token) => request(`/automations/${encodeURIComponent(key)}/webhook/events`, { headers: withAuthHeaders(token) }),
+      // Home widgets contributed by Builder modules (manifest homeWidgets).
+      homeWidgets: (token) => request("/home-widgets", { headers: withAuthHeaders(token) }),
+      homeWidgetData: (moduleKey, widgetKey, token) => request(`/home-widgets/${encodeURIComponent(moduleKey)}/${encodeURIComponent(widgetKey)}`, { headers: withAuthHeaders(token) }),
       systemAutomations: (token) => request("/automations", { headers: withAuthHeaders(token) }),
       createSystemAutomation: (input, token) =>
         request("/automations", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(input) }),
