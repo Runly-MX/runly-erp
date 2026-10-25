@@ -25,6 +25,7 @@ import { getCallMeta, getRecordingMeta } from "./callLogMeta";
 import { RecordingReadyCard } from "./RecordingReadyCard";
 import { MessageActionSheet } from "./MessageActionSheet";
 import { MessageReminderPicker } from "./MessageReminderPicker";
+import { MessageButtons } from "./MessageButtons";
 import { useSavedActions, useSavedMessages } from "../hooks/useSavedMessages";
 import { hapticTick } from "../lib/haptics";
 import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
@@ -1002,6 +1003,7 @@ export function ChatMessageBubble({
                     renderRichText(message.body, { highlightQuery: isAssistant ? "" : searchQuery })
                   )}
                   {!isDeleted && !isAssistant && message.metadata?.linkPreview !== false && <LinkPreviewCard body={message.body} isOwn={false} />}
+                  {!isDeleted && <MessageButtons message={message} />}
                 </div>
               )}
               {firstEntityRefAttached && (

@@ -45,3 +45,7 @@ Escribe `/` al inicio de un mensaje para ver los comandos y presiona Enter para 
 - `/tarea Llamar al cliente` crea una tarea en Mis tareas con un enlace a la conversacion.
 - `/llamar` inicia una llamada en la conversacion y `/ayuda` muestra esta lista.
 Los atajos `/inventario:texto` para insertar registros siguen funcionando en cualquier parte del mensaje.
+
+## Mensajes con botones
+
+Algunas integraciones y automatizaciones publican mensajes con botones: enlaces que abren un informe o una pantalla de Runly, o **Aprobar / Rechazar** una solicitud. Solo las personas que deben aprobar pueden usar esos botones; al decidir, la tarjeta muestra quien lo hizo y se cierra para todos.

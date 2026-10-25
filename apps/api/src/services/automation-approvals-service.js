@@ -14,7 +14,7 @@ export class AutomationApprovalError extends Error {
   }
 }
 
-export function createAutomationApprovalsService({ prisma, notifications = null, now = () => new Date() }) {
+export function createAutomationApprovalsService({ prisma, notifications = null, chat = null, now = () => new Date() }) {
   const runs = createAutomationRunsService({ prisma });
 
   // Parks the continuation and tells the approvers. Idempotent on `dedupe`.
@@ -58,6 +58,14 @@ export function createAutomationApprovalsService({ prisma, notifications = null,
       });
     } catch (error) {
       console.error("[automation-approvals] no se pudo notificar:", error?.message ?? error);
+    }
+    // Optional: the same request as a card with buttons in a chat channel (best effort).
+    if (request.channel && chat?.postApproval) {
+      try {
+        await chat.postApproval({ companyId, channel: String(request.channel), approvalId: approval.id, message: approval.message });
+      } catch (error) {
+        console.error("[automation-approvals] no se pudo publicar en el canal:", error?.message ?? error);
+      }
     }
     return approval;
   }

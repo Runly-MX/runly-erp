@@ -91,6 +91,10 @@ export function createChatDomain(request, withAuthHeaders, toQueryString, reques
         body: JSON.stringify({}),
       }),
 
+    // Buttons on interactive messages.
+    performMessageAction: (messageId, actionId, token) =>
+      request(`/chat/messages/${encodeURIComponent(messageId)}/actions/${encodeURIComponent(actionId)}`, { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify({}) }),
+
     // Slash commands that run on the server.
     runCommand: (data, token) =>
       request("/chat/commands/run", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data) }),

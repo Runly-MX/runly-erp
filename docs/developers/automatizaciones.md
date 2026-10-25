@@ -152,9 +152,13 @@ Para sistemas externos, los administradores de un canal crean una **integración
 curl -X POST "https://tu-instancia/public/chat-hooks/<token-secreto>"   -H "Content-Type: application/json"   -d '{"title":"Deploy listo","text":"Versión 1.2 en producción","fields":[{"label":"Rama","value":"main"}],"link":"https://ejemplo.com/r/12"}'
 ```
 
-- Cuerpo JSON de hasta 32 KB: `text` (hasta 4000 caracteres), `title`, `link` (`https`/`http` o una ruta de Runly) y hasta 10 `fields` con `label` y `value`. Debe haber al menos uno de texto, título o campos.
+- Cuerpo JSON de hasta 32 KB: `text` (hasta 4000 caracteres), `title`, `link` (`https`/`http` o una ruta de Runly), hasta 10 `fields` con `label` y `value` y hasta 3 `buttons` (`{ "label", "url" }`) que se muestran como botones de enlace. Debe haber al menos uno de texto, título o campos. Los enlaces inseguros se descartan y un webhook no puede crear botones de aprobar o rechazar.
 - Respuestas: `201` publicado; `400` si el JSON no es válido o el mensaje queda vacío; `404` si la dirección no existe, está desactivada o el canal está archivado; `413` si supera 32 KB; `429` si pasa de 30 mensajes por minuto.
 - La dirección es la llave: trátala como una contraseña y regenérala si se filtra.
+
+## Aprobar desde un canal de chat
+
+En el paso **Pedir aprobación** puedes escribir un **canal** (nombre exacto): la solicitud también se publica ahí como una tarjeta con los botones **Aprobar** y **Rechazar**. Solo quienes aprueban pueden usarlos; la primera decisión cierra la tarjeta para todos ("Aprobado por Ana"). La notificación y el widget de Inicio siguen funcionando, y si el canal no existe el paso continúa sin tarjeta. En la definición: `{ "type": "approval", "approvers": [...], "message": "...", "channel": "aprobaciones" }`.
 
 ## Recibir datos de otro sistema (webhook)
 

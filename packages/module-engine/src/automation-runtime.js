@@ -105,7 +105,7 @@ export async function runSteps({ automation, services, base, data, recordId = nu
       }
       if (step.type === 'approval') {
         if (!approve) throw new Error('Las aprobaciones no están disponibles en esta instancia.')
-        await approve({ automationKey: automation.key, fromStep: index + 1, runId, approvers: step.approvers, message: render(step.message, scope), payload: { data: scope, recordId, actorId, base }, dedupe: base ? base + ':a' + (index + 1) : null })
+        await approve({ automationKey: automation.key, fromStep: index + 1, runId, approvers: step.approvers, channel: step.channel, message: render(step.message, scope), payload: { data: scope, recordId, actorId, base }, dedupe: base ? base + ':a' + (index + 1) : null })
         steps.push({ index, type: 'approval', ok: true, waiting: true, approvers: step.approvers.length })
         waiting = true
         break

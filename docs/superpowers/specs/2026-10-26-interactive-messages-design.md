@@ -1,0 +1,19 @@
+# Interactive chat messages (buttons)
+
+Status: built with the spec. Scope chosen by default: approvals of automations plus link buttons from integrations; custom action buttons and purchases approvals are later.
+
+## Problem
+Approvals live in a Home widget and the bell. A request that already happens in a team channel cannot be answered where people are talking, and integrations can only post plain text.
+
+## Design
+- A message can carry `metadata.actions`: link buttons (`{ kind: "link", label, url }`, up to 3, `https`/`http` or a Runly path) or the pair **Aprobar / Rechazar** of an automation approval (`{ kind: "approval", approvalId, decision }`).
+- Buttons come only from the server. Webhooks and the `runly.chat:messages.post` service may add link buttons; only the service (and the approval step) can add decision buttons, because they need a real approval id. A webhook that sends `approvalId` gets none.
+- `POST /chat/messages/:id/actions/:actionId`: the person must be in the conversation; the stored action decides what happens (the client sends only ids). The approval service checks the person is one of the approvers and that it is still pending, so the card has the same rules as the Home widget. The first decision closes the card for everyone: `metadata.resolution` ("Aprobado por Ana"), and members refetch through `chat.message.reaction`.
+- The approval step of Builder and company automations has an optional **channel** ("Publicar también en un canal"): the request is also posted there as a card ("Aprobaciones" integration label). The bell notification and the Home widget keep working; if the channel does not exist the step still works and the failure is logged.
+- Interface: buttons under the message text (primary / danger / link), 44 px on touch; link buttons are anchors, so they work with the keyboard and open in a new tab.
+
+## Not built
+Purchases approvals as cards (they have their own table and permission; same card, new action kind), custom action buttons from integrations, buttons that run slash commands, live push of a card posted by the worker (it appears on the next refresh).
+
+## Testing
+Unit: button rules, action service (decide once, resolved/unknown/link/unreadable are refused, approval errors keep their status). E2E `.e2e/chat-buttons-e2e.mjs` (8 checks): non-approver 404, webhook link buttons and unsafe links dropped, webhook cannot forge decision buttons, press Aprobar in the interface, second decision 409.

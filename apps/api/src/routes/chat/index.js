@@ -35,6 +35,8 @@ import { createChatIntegrationsService } from "./chat-integrations-service.js";
 import { createChatSidebarService } from "./chat-sidebar-service.js";
 import { createChatSavedService } from "./chat-saved-service.js";
 import { createChatCommandsService } from "./chat-commands-service.js";
+import { createChatActionsService } from "./chat-actions-service.js";
+import { createAutomationApprovalsService } from "../../services/automation-approvals-service.js";
 import { createStatusService } from "../../services/status-service.js";
 import { createExternalInboxRoutes } from "./external-inbox-routes.js";
 import { createTemplateRoutes } from "./template-routes.js";
@@ -625,6 +627,15 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   // Channel creation/directory, linked channels, joining, and per-channel
   // roles (Phase A foundation) — see channel-routes.js.
   internal.route("", createChannelRoutes({ prisma, requirePermission, chatService, channelDirectoryService, channelLinksService, permissionsService }));
+
+  // Buttons on messages (approve / reject an approval).
+  const actionsService = createChatActionsService({ prisma, approvalsService: createAutomationApprovalsService({ prisma, notifications: notificationService }), broadcaster });
+  internal.post("/messages/:id/actions/:actionId", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const profileId = await resolveUserProfileId(prisma, c.get("authUserId"));
+      return c.json({ data: await actionsService.perform({ companyId: c.get("companyId"), profileId, messageId: c.req.param("id"), actionId: c.req.param("actionId") }) });
+    } catch (err) { return handleError(c, err, "No se pudo ejecutar la acción."); }
+  });
 
   // Slash commands that run on the server (/estado, /nomolestar, /tarea).
   const commandsService = createChatCommandsService({ prisma, statusService: createStatusService({ prisma }), projectsService, tasksService });

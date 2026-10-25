@@ -124,7 +124,7 @@ export const SERVICE_CONTRACTS = Object.freeze({
   },
   'runly.chat:messages.post': {
     label: 'Publicar mensajes en un canal de chat', permission: null, mutates: true, system: true,
-    args: { channel: req(s(120)), text: { type: 'text', max: 4000 }, title: s(200), link: s(500), sourceEntityId: SOURCE },
+    args: { channel: req(s(120)), text: { type: 'text', max: 4000 }, title: s(200), link: s(500), buttons: { type: 'text', max: 1500 }, approvalId: { type: 'uuid' }, sourceEntityId: SOURCE },
     returns: ['id', 'conversationId', 'channel'],
   },
   'runly.documents:documents.generate': {

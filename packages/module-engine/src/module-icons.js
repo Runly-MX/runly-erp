@@ -116,6 +116,7 @@ export const MODULE_ICON_NAMES = Object.freeze([
   'Key',
   'Lock',
   'Palette',
+  'PenTool',
   'Puzzle',
   'Shield',
   'ShieldCheck',

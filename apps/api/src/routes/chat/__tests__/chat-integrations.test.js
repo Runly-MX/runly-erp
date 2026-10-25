@@ -68,3 +68,57 @@ test('the messages.post service resolves the channel and labels the module', asy
   assert.equal(out.channel, 'General')
   await assert.rejects(() => handlers['runly.chat:messages.post']({ companyId: 'co', moduleKey: 'm' }, { channel: 'General' }), (e) => e instanceof ServiceError && e.status === 400)
 })
+
+import { buildActions, MAX_BUTTONS } from '../chat-integrations-service.js'
+import { createChatActionsService } from '../chat-actions-service.js'
+import { AutomationApprovalError } from '../../../services/automation-approvals-service.js'
+
+test('link buttons: at most 3, label and safe url required', () => {
+  const actions = buildActions({ buttons: [
+    { label: 'Ver', url: 'https://example.com' }, { label: '', url: 'https://x.test' }, { label: 'Mal', url: 'javascript:1' },
+    { label: 'Panel', url: '/app/home' }, { label: 'Otro', url: 'http://a.test' }, { label: 'Cuarto', url: 'https://d.test' },
+  ] })
+  assert.deepEqual(actions.map((a) => a.label), ['Ver', 'Panel', 'Otro'])
+  assert.ok(actions.length <= MAX_BUTTONS)
+  assert.deepEqual(buildActions({}), [])
+})
+
+test('an approval id gives the Aprobar / Rechazar pair and ignores other buttons', () => {
+  const id = '01a17493-5775-724e-8166-d18392675a09'
+  const actions = buildActions({ approvalId: id, buttons: [{ label: 'Ver', url: 'https://example.com' }] })
+  assert.deepEqual(actions.map((a) => [a.id, a.decision, a.approvalId]), [['approve', 'approve', id], ['reject', 'reject', id]])
+  assert.deepEqual(buildActions({ approvalId: 'no-uuid' }), [])
+})
+
+function actionsFixture(metadata, decide) {
+  const calls = { updates: 0 }
+  const prisma = {
+    $queryRaw: async (strings) => {
+      const sql = strings.join('?')
+      if (/FROM chat_messages m/.test(sql)) return metadata === null ? [] : [{ id: 'm1', conversation_id: 'c1', metadata }]
+      if (/FROM user_profile/.test(sql)) return [{ display_name: 'Ana' }]
+      return [{ user_id: 'u1' }]
+    },
+    $executeRaw: async () => { calls.updates += 1 },
+  }
+  return { service: createChatActionsService({ prisma, approvalsService: { decide } }), calls }
+}
+const card = { actions: [{ id: 'approve', kind: 'approval', approvalId: 'a1', decision: 'approve', label: 'Aprobar' }, { id: 'link0', kind: 'link', url: '/x', label: 'Abrir' }] }
+
+test('pressing a decision button decides once and records who did', async () => {
+  const decided = []
+  const { service, calls } = actionsFixture(card, async (x) => decided.push(x))
+  const out = await service.perform({ companyId: 'co', profileId: 'p', messageId: 'm1', actionId: 'approve' })
+  assert.equal(out.resolution.byName, 'Ana')
+  assert.deepEqual([decided[0].id, decided[0].decision, decided[0].profileId], ['a1', 'approve', 'p'])
+  assert.equal(calls.updates, 1)
+})
+
+test('resolved cards, link buttons, unknown buttons and unreadable messages are refused', async () => {
+  const run = (meta, id, decide = async () => {}) => actionsFixture(meta, decide).service.perform({ companyId: 'co', profileId: 'p', messageId: 'm1', actionId: id })
+  await assert.rejects(() => run({ ...card, resolution: { by: 1 } }, 'approve'), (e) => e.status === 409)
+  await assert.rejects(() => run(card, 'link0'), (e) => e.status === 400)
+  await assert.rejects(() => run(card, 'nope'), (e) => e.status === 404)
+  await assert.rejects(() => run(null, 'approve'), (e) => e.status === 404)
+  await assert.rejects(() => run(card, 'approve', async () => { throw new AutomationApprovalError('Aprobación no encontrada.', 404) }), (e) => e.status === 404 && /no encontrada/.test(e.message))
+})

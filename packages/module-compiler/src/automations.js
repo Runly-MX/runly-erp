@@ -249,6 +249,10 @@ function validateApprovalStep(step, { base, fieldNames, errors }) {
     errors.push(diagnostic(`${base}.approvers`, 'AUTOMATION_APPROVAL_INVALID', `Choose 1 to ${MAX_APPROVERS} different people.`))
   }
   validateTemplate(step.message, { path: `${base}.message`, fieldNames, errors, max: 200, code: 'AUTOMATION_APPROVAL_INVALID' })
+  // Optional chat channel (name or id) where the request is also posted with Aprobar / Rechazar buttons.
+  if (step.channel !== undefined && step.channel !== null && (typeof step.channel !== 'string' || step.channel.length > 120)) {
+    errors.push(diagnostic(`${base}.channel`, 'AUTOMATION_APPROVAL_INVALID', 'The channel must be a name up to 120 characters.'))
+  }
 }
 
 export function validateDefinitionAutomations(definition, errors, { allowWebhook = false } = {}) {
@@ -391,7 +395,7 @@ function normalizeWhen(when) {
 function normalizeStep(step) {
   if (isDelayStep(step)) return { type: 'delay', amount: step.amount, unit: step.unit }
   if (isHttpStep(step)) return { type: 'http', method: step.method, url: step.url, body: step.body ?? {} }
-  if (isApprovalStep(step)) return { type: 'approval', approvers: step.approvers, message: step.message.trim() }
+  if (isApprovalStep(step)) return { type: 'approval', approvers: step.approvers, message: step.message.trim(), ...(step.channel?.trim() ? { channel: step.channel.trim() } : {}) }
   if (isBranchStep(step)) return { type: 'branch', when: normalizeWhen(step.when), yes: step.yes, no: step.no }
   return { service: step.service, args: step.args ?? {} }
 }
@@ -440,7 +444,7 @@ export function toRuntimeSteps(automation) {
   return stepsOf(automation).map((step) => {
     if (isDelayStep(step)) return { type: 'delay', amount: step.amount, unit: step.unit, ms: delayMs(step) }
     if (isHttpStep(step)) return { type: 'http', method: step.method, url: step.url, body: step.body ?? {} }
-    if (isApprovalStep(step)) return { type: 'approval', approvers: step.approvers, message: step.message }
+    if (isApprovalStep(step)) return { type: 'approval', approvers: step.approvers, message: step.message, ...(step.channel?.trim() ? { channel: step.channel.trim() } : {}) }
     if (isBranchStep(step)) return { type: 'branch', when: step.when, yes: step.yes, no: step.no }
     const args = SERVICE_CONTRACTS[step.service]?.args ?? {}
     return {

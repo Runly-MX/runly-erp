@@ -5,6 +5,11 @@
 import { createChatIntegrationsService } from '../../routes/chat/chat-integrations-service.js'
 import { ChatServiceError } from '../../routes/chat/chat-service-error.js'
 
+// `buttons` arrives as JSON text: [{ "label": "Abrir", "url": "https://..." }].
+function parseButtons(value) {
+  try { const parsed = JSON.parse(String(value ?? '')); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
+}
+
 export function createChatHandlers({ prisma, ServiceError, broadcaster = null }) {
   const chat = createChatIntegrationsService({ prisma, broadcaster })
 
@@ -21,7 +26,7 @@ export function createChatHandlers({ prisma, ServiceError, broadcaster = null })
           companyId,
           channel: args.channel,
           source: { kind: 'module', name: await sourceName(moduleKey) },
-          input: { text: args.text, title: args.title, link: args.link },
+          input: { text: args.text, title: args.title, link: args.link, buttons: parseButtons(args.buttons), approvalId: args.approvalId },
         })
       } catch (error) {
         if (error instanceof ChatServiceError) throw new ServiceError(error.message, error.status, 'chat_post_failed')

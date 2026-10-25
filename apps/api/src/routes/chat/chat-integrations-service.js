@@ -37,6 +37,27 @@ export function safeLink(value) {
   }
 }
 
+export const MAX_BUTTONS = 3;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Buttons of an interactive message: up to 3 link buttons ({ label, url }), or the Aprobar /
+// Rechazar pair of an approval (`approvalId`). Pure; invalid buttons are dropped. Spec
+// docs/superpowers/specs/2026-10-26-interactive-messages-design.md.
+export function buildActions(input) {
+  const actions = [];
+  if (input?.approvalId && UUID.test(String(input.approvalId))) {
+    actions.push({ id: "approve", kind: "approval", approvalId: String(input.approvalId), decision: "approve", label: "Aprobar", style: "primary" });
+    actions.push({ id: "reject", kind: "approval", approvalId: String(input.approvalId), decision: "reject", label: "Rechazar", style: "danger" });
+    return actions;
+  }
+  const valid = (Array.isArray(input?.buttons) ? input.buttons : [])
+    .map((button) => ({ label: clip(button?.label, 30), url: safeLink(button?.url) }))
+    .filter((button) => button.label && button.url)
+    .slice(0, MAX_BUTTONS);
+  valid.forEach((button, index) => actions.push({ id: `link${index}`, kind: "link", label: button.label, url: button.url, style: "default" }));
+  return actions;
+}
+
 // { text, title?, link?, fields?: [{ label, value }] } -> the plain-text body of the message.
 // Pure; exported for tests. Throws ChatServiceError (400) when there is nothing to say.
 export function buildIntegrationBody(input) {
@@ -70,10 +91,11 @@ export function createChatIntegrationsService({ prisma, broadcaster = null, now 
     return recent.length > RATE_PER_MINUTE;
   }
 
-  async function postMessage({ conversationId, body, integration }) {
+  async function postMessage({ conversationId, body, integration, actions = [] }) {
+    const metadata = actions.length ? { integration, actions } : { integration };
     const rows = await prisma.$queryRaw`
       INSERT INTO chat_messages (conversation_id, sender_type, body, message_type, metadata)
-      VALUES (${conversationId}::uuid, 'system', ${body}, 'text', ${JSON.stringify({ integration })}::jsonb)
+      VALUES (${conversationId}::uuid, 'system', ${body}, 'text', ${JSON.stringify(metadata)}::jsonb)
       RETURNING id, created_at
     `;
     const messageId = rows?.[0]?.id;
@@ -109,7 +131,8 @@ export function createChatIntegrationsService({ prisma, broadcaster = null, now 
     if (!row) throw new ChatServiceError("Integración no encontrada.", 404);
     if (limited(row.id)) throw new ChatServiceError("Demasiados mensajes: espera un minuto.", 429);
     const body = buildIntegrationBody(input);
-    const posted = await postMessage({ conversationId: row.conversation_id, body, integration: { id: row.id, name: row.name, icon: row.icon } });
+    // Webhooks may only add link buttons (a decision button needs the platform's own approval id).
+    const posted = await postMessage({ conversationId: row.conversation_id, body, integration: { id: row.id, name: row.name, icon: row.icon }, actions: buildActions({ buttons: input.buttons }) });
     await prisma.$executeRaw`UPDATE chat_integrations SET last_used_at = NOW(), message_count = message_count + 1 WHERE id = ${row.id}::uuid`;
     return posted;
   }
@@ -132,8 +155,13 @@ export function createChatIntegrationsService({ prisma, broadcaster = null, now 
     const target = await resolveChannel(companyId, channel);
     if (limited(`svc:${companyId}:${target.id}`)) throw new ChatServiceError("Demasiados mensajes al canal: espera un minuto.", 429);
     const body = buildIntegrationBody(input);
-    const posted = await postMessage({ conversationId: target.id, body, integration: { kind: source.kind, name: clip(source.name, MAX_NAME) || "Integración", icon: source.icon ?? null } });
+    const posted = await postMessage({ conversationId: target.id, body, integration: { kind: source.kind, name: clip(source.name, MAX_NAME) || "Integración", icon: source.icon ?? null }, actions: buildActions(input) });
     return { ...posted, channel: target.title };
+  }
+
+  // An approval request as a card with Aprobar / Rechazar in a company channel.
+  async function postApproval({ companyId, channel, approvalId, message }) {
+    return postFromService({ companyId, channel, source: { kind: "automation", name: "Aprobaciones" }, input: { title: "Aprobación pendiente", text: message, approvalId } });
   }
 
   async function list(conversationId) {
@@ -189,5 +217,5 @@ export function createChatIntegrationsService({ prisma, broadcaster = null, now 
     return { id: integrationId };
   }
 
-  return { postFromToken, postFromService, resolveChannel, list, create, rotate, update, remove };
+  return { postFromToken, postFromService, postApproval, resolveChannel, list, create, rotate, update, remove };
 }
