@@ -108,7 +108,9 @@ export function TemplateMappingDialog({ template, warnings = [], kind, api, onOp
           <div className="space-y-2">
             <p className="flex items-center gap-1.5 text-sm font-medium">
               <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              {known} de {keys.length} campos coinciden con los datos de «{kind?.label}»
+              {kind?.freeTags
+                ? `${keys.length} campos libres: se llenan con los valores que envíe quien genere el documento`
+                : `${known} de ${keys.length} campos coinciden con los datos de «${kind?.label}»`}
             </p>
             {unknown.length ? (
               <div className="space-y-2 rounded-md border border-[hsl(var(--border))] p-3">

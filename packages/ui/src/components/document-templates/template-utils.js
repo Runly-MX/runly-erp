@@ -37,6 +37,7 @@ export function schemaOptions(kind, listName = null) {
 
 // Template tags that the kind does not know yet: these need a mapping.
 export function unknownTags(kind, placeholders) {
+  if (kind?.freeTags) return []
   const schema = kind?.schema ?? []
   const top = new Set(schema.map((entry) => entry.tag))
   const nested = new Map(schema.filter((e) => e.type === 'list').map((e) => [e.tag, new Set((e.fields ?? []).map((f) => f.tag))]))

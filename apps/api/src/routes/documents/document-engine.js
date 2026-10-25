@@ -123,6 +123,10 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
       values = await kind.load({ companyId, sourceId, actorId });
     }
     const source = await resolveTemplate({ companyId, kind, templateId, scopeKey, versionId, allowDraft, actorId, trusted });
+    // Free-tag kinds have no schema: a sample shows each tag's own name.
+    if (sample && !data && kind.freeTags) {
+      values = Object.fromEntries((source.version?.placeholders ?? []).filter((tag) => !/^[#^%/]|\./.test(tag)).map((tag) => [tag, `[${tag}]`]));
+    }
     const title = titleOverride || source.template?.name || kind.label || kind.key;
     const mapped = applyMapping(values, source.mapping);
     let buffer = await fill({ format: source.format, buffer: source.buffer, data: mapped, images, layout: source.layout, kind, title });

@@ -51,6 +51,7 @@ function knownTagSet(kind) {
 
 // Template tags not described by the kind schema (`#items`, `%sig`, `items.model`).
 export function unknownTags(kind, tags) {
+  if (kind.freeTags) return [];
   const { known, lists } = knownTagSet(kind);
   return tags.filter((raw) => {
     const tag = raw.replace(/^[#^%]/, "");

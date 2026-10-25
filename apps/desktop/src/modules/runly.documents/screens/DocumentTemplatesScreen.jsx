@@ -25,6 +25,7 @@ const MODULE_LABELS = {
   purchases: "Compras",
   fleet: "Flotilla",
   manual: "Manual",
+  general: "General",
 };
 const moduleOf = (kindKey) => String(kindKey).split(".")[0];
 const moduleLabel = (key) => MODULE_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);

@@ -86,6 +86,7 @@ export function createDocumentEngineRoutes({ hub, guard }) {
         label: kind.label ?? kind.key,
         formats: kind.formats ?? ["docx", "xlsx", "pptx", "pdf"],
         schema: kind.schema,
+        freeTags: Boolean(kind.freeTags),
       })),
     });
   });
