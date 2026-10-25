@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 
-import { createDocumentProviderRegistry } from "./document-provider-registry.js";
+import { createKindRegistry } from "./kinds/kind-registry.js";
 import { createDocumentGenerationRoutes } from "./document-generation-routes.js";
 import { createDocumentGenerationService } from "./document-generation-service.js";
 import { createDocumentTemplateRoutes } from "./document-template-routes.js";
@@ -13,7 +13,7 @@ export function createDocumentsRouter({
   requirePermission,
 }) {
   const app = new Hono();
-  const providerRegistry = createDocumentProviderRegistry();
+  const providerRegistry = createKindRegistry();
   providerRegistry.register(createGrowthLeadDocumentProvider({ prisma }));
   const service = createDocumentTemplateService({
     prisma,
