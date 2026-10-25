@@ -31,6 +31,7 @@ try {
   files.push('apps/api/src/services/__tests__/auth-middleware.test.js', 'apps/api/src/services/__tests__/jwt-verification.test.js',
     ...run('git', ['ls-files', 'apps/api/src/services/__tests__/*test.js']).split(/\r?\n/).filter(path => /\/(files-|realtime-|rbac-granular)/.test(path)),
     'apps/desktop/src/lib/__tests__/authorizedRealtime.test.js')
+  for (const path of ['apps/shared/studio/page.test.js', 'apps/desktop/src/lib/__tests__/navigation-guard.test.js', 'apps/desktop/src/lib/__tests__/navigation-guard-browser.test.js']) if (!files.includes(path)) files.push(path)
   run(process.execPath, ['--test', ...files], { env, stdio: 'inherit' })
   run(process.execPath, ['scripts/verify-studio-browser.mjs'], { env, stdio: 'inherit' })
   run(process.execPath, ['scripts/verify-studio-ui.mjs'], { env, stdio: 'inherit' })

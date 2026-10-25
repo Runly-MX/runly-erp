@@ -138,7 +138,7 @@ export async function verifyStudioSupabase(stack, { users, companies, admin }) {
     await second.page.getByRole('button', { name: '5. Imagen', exact: true }).click()
     await second.page.getByRole('button', { name: 'Copiar', exact: true }).click()
     await second.page.getByRole('button', { name: 'Pegar', exact: true }).click()
-    const editorRegion = second.page.getByRole('application', { name: 'Editor gráfico de Runly Studio' })
+    const editorRegion = second.page.getByRole('application', { name: 'Editor gráfico de Studio' })
     await editorRegion.focus(); await second.page.keyboard.press('Control+z')
     await second.page.getByRole('button', { name: '6. Imagen', exact: true }).waitFor({ state: 'detached' })
     assert.equal(await second.page.getByRole('button', { name: '6. Imagen', exact: true }).count(), 0)
@@ -199,6 +199,7 @@ export async function verifyStudioSupabase(stack, { users, companies, admin }) {
     await second.page.reload()
     await second.page.getByText('No se pudo completar la operación', { exact: true }).waitFor()
     assert.equal(await second.page.getByRole('button', { name: 'Exportar PNG', exact: true }).isDisabled(), true)
+    assert.equal(await second.page.getByLabel('Nombre del diseño').isDisabled(), true)
     assert.equal((await second.page.getByRole('application').innerText()).includes('token='), false)
     await stack.compose(['unpause', 'supabase-storage'])
     let storageReady = false

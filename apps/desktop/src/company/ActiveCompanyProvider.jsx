@@ -8,6 +8,7 @@ import { useBootLoader } from '../stores/bootLoader'
 import { clearCompanyQueryCache } from './companyQueryCache.js'
 import { CompanyAccessScreen } from './CompanyAccessScreen.jsx'
 import { ErrorState, Button } from '@runly/ui'
+import { guardNavigation } from '../lib/navigation-guard.js'
 
 const STORAGE_KEY = 'runly-active-company'
 
@@ -105,8 +106,9 @@ export function ActiveCompanyProvider({ children }) {
     const id = String(companyId)
     if (!companies.some((c) => String(c.id) === id)) return
     if (id === activeCompanyIdRef.current) return
-    applyActiveCompany(id)
-    writeStoredCompanyId(id)
+    guardNavigation(() => {
+      applyActiveCompany(id)
+    })
     // applyActiveCompany already clears resource data while preserving the
     // instance and membership queries needed to keep the shell mounted.
   }, [companies, applyActiveCompany])

@@ -11,7 +11,7 @@ const require = createRequire(resolve(root, 'packages/module-compiler/package.js
 const { build } = require('esbuild')
 const output = resolve(root, '.artifacts/studio')
 await mkdir(output, { recursive: true })
-const bundle = await build({ entryPoints: [resolve(root, 'scripts/fixtures/studio/browser.js')], bundle: true, platform: 'browser', format: 'esm', minify: true, write: false })
+const bundle = await build({ entryPoints: [resolve(root, 'scripts/fixtures/studio/browser.js')], nodePaths: [resolve(root, 'apps/desktop/node_modules')], bundle: true, platform: 'browser', format: 'esm', minify: true, write: false })
 await writeFile(resolve(output, 'renderer-spike.js'), bundle.outputFiles[0].contents)
 const server = createServer((request, response) => {
   if (request.url === '/fixture.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(bundle.outputFiles[0].contents); return }

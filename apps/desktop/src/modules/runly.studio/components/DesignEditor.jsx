@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Input, PageHeader, ErrorState, ConfirmDialog, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, PersonAvatar } from '@runly/ui'
+import { Button, Input, SelectField, PageHeader, ErrorState, ConfirmDialog, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, PersonAvatar } from '@runly/ui'
 import { runly } from '../../../lib/runly.js'
 import { StudioWorkspace } from './StudioWorkspace.jsx'
 import { createDraftStorage } from '../lib/draft-storage.js'
@@ -7,6 +7,7 @@ import { useStudioRealtime } from '../hooks/useStudioRealtime.js'
 import { StudioSharing } from './StudioSharing.jsx'
 import { StudioResources } from './StudioResources.jsx'
 import { createScopedClipboard } from '../lib/scoped-clipboard.js'
+import { useStudioNavigation } from '../hooks/useStudioNavigation.js'
 
 const unwrap = response => response?.data ?? response
 
@@ -22,7 +23,9 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     setItem: (key, value) => window.localStorage.setItem(key, value), removeItem: key => window.localStorage.removeItem(key) }, scope), [scope])
   const [initial, setInitial] = useState(record.document), [name, setName] = useState(record.name)
   const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('')
-  const [conflict, setConflict] = useState(false), [leaving, setLeaving] = useState(false), [server, setServer] = useState(null)
+  const [conflict, setConflict] = useState(false), [server, setServer] = useState(null)
+  const [format, setFormat] = useState('png'), [quality, setQuality] = useState('0.9'), [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
   const [recovery, setRecovery] = useState(() => store.read()), [copyWarning, setCopyWarning] = useState(false)
   const [workspaceVersion, setWorkspaceVersion] = useState(0)
   const [ready, setReady] = useState(false)
@@ -33,7 +36,10 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   const editorRef = useRef(null), revision = useRef(record.revision), generation = useRef(0), pending = useRef(null), timer = useRef(null), saving = useRef(false)
   const nameRef = useRef(name)
   const preserve = useCallback(() => {
-    if (pending.current) setCopyWarning(!store.write(pending.current))
+    if (!pending.current) return true
+    const saved = store.write(pending.current)
+    setCopyWarning(!saved)
+    return saved
   }, [store])
   const changed = useCallback(document => {
     dirtyRef.current = true
@@ -41,12 +47,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     pending.current = { name: nameRef.current, document, revision: revision.current }
     clearTimeout(timer.current); timer.current = setTimeout(preserve, 150)
   }, [preserve])
-  useEffect(() => {
-    if (!dirty) return
-    const warn = event => { preserve(); event.preventDefault(); event.returnValue = '' }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [dirty, preserve])
+  const navigation = useStudioNavigation(dirty, preserve)
   useEffect(() => () => { clearTimeout(timer.current); if (pending.current) store.write(pending.current) }, [store])
   const resolveImage = useCallback(async id => {
     const existing = boundAssets.current.has(id)
@@ -80,7 +81,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
         runly.studio.updateDesign(record.id, draft, token)))
       if (asCopy) {
         if (generation.current !== sent) { preserve(); setError('La copia se guardó, pero hay cambios más recientes en este editor. Consérvalos antes de salir.'); return }
-        pending.current = null; clearTimeout(timer.current); store.clear(); onCopy(saved.id); return
+        pending.current = null; clearTimeout(timer.current); store.clear(); dirtyRef.current = false; setDirty(false); navigation.finish(() => onCopy(saved.id)); return
       }
       revision.current = saved.revision
       if (generation.current === sent) { pending.current = null; clearTimeout(timer.current); store.clear(); dirtyRef.current = false; setDirty(false); setRecovery(null) }
@@ -100,6 +101,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     try { setServer(unwrap(await runly.studio.getDesign(record.id, token))) } catch (error) { setError(error.message) }
   }
   function loadServer() {
+    if (!preserve()) return
     boundAssets.current = new Set(server.document.objects.filter(object => object.type === 'image').map(object => object.fileAssetId))
     setWorkspaceVersion(value => value + 1)
     preserve(); setRecovery(pending.current); pending.current = null; clearTimeout(timer.current)
@@ -135,21 +137,26 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     const scale = Math.min(1, initial.page.width / width / 2, initial.page.height / height / 2)
     await editorRef.current.add('image', { fileAssetId: asset.id, width: width * scale, height: height * scale })
   }
-  async function exportPng() {
-    if (!editorRef.current) return
+  async function exportImage() {
+    if (!editorRef.current || exporting) return
+    setExporting(true); setExportError('')
     try {
-      const blob = await editorRef.current.exportPng(), url = URL.createObjectURL(blob)
-      const link = Object.assign(document.createElement('a'), { href: url, download: `${name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 80) || 'diseño'}.png` })
+      const blob = await editorRef.current.exportImage(format, Number(quality)), url = URL.createObjectURL(blob)
+      const link = Object.assign(document.createElement('a'), { href: url, download: `${name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 80) || 'diseño'}.${format}` })
       link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
-    } catch (error) { setError(error.message) }
+    } catch (error) { setExportError(error.message) } finally { setExporting(false) }
   }
   if (denied) return <ErrorState title="El diseño ya no está disponible" description="Tu copia local se conserva. Comprueba tus permisos con el propietario." showReport={false} onRetry={onBack} />
   return <div className="space-y-4 p-4">
-    <PageHeader compact title="Runly Studio" description="Tu espacio para dar forma a las ideas" onBack={() => dirty ? setLeaving(true) : onBack()} actions={<div className="flex flex-wrap gap-2">
-      <StudioSharing record={record} token={token} /><Button variant="outline" disabled={!ready} onClick={exportPng}>Exportar PNG</Button><Button onClick={() => save()} disabled={!ready || !canEdit || busy || conflict}>{busy ? 'Guardando…' : 'Guardar'}</Button>
+    <PageHeader compact title="Studio" description="Tu espacio para dar forma a las ideas" onBack={onBack} actions={<div className="flex flex-wrap items-center gap-2">
+      <StudioSharing record={record} token={token} />
+      <SelectField id="studio-export-format" label="Formato de exportación" value={format} onChange={setFormat} options={[{value:'png',label:'PNG'},{value:'jpg',label:'JPG'}]} className="w-40" />
+      {format === 'jpg' && <SelectField id="studio-jpg-quality" label="Calidad JPG" value={quality} onChange={setQuality} options={[{value:'0.7',label:'70 %'},{value:'0.9',label:'90 %'},{value:'1',label:'100 %'}]} className="w-32" />}
+      <Button variant="outline" disabled={!ready || exporting} onClick={exportImage}>{exporting ? 'Exportando…' : `Exportar ${format.toUpperCase()}`}</Button><Button onClick={() => save()} disabled={!ready || !canEdit || busy || conflict}>{busy ? 'Guardando…' : 'Guardar'}</Button>
     </div>} />
+    {exportError && <ErrorState title="No se pudo exportar" description={`${exportError} Vuelve a exportar cuando el recurso esté disponible.`} showReport={false} />}
     <div className="flex flex-wrap items-center gap-3">
-      <Input aria-label="Nombre del diseño" disabled={!canEdit} className="max-w-sm" value={name} maxLength={160} onChange={event => {
+      <Input aria-label="Nombre del diseño" disabled={!canEdit || !ready} className="max-w-sm" value={name} maxLength={160} onChange={event => {
         nameRef.current = event.target.value; setName(event.target.value)
         if (editorRef.current) changed(editorRef.current.snapshot())
       }} />
@@ -175,8 +182,8 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
       sharedClipboard={clipboard} authorizePaste={authorizePaste}
       resourcePanel={({ disabled, uploader }) => <StudioResources key={scope} token={token} disabled={disabled} uploader={uploader} onInsert={insertResource} />}
       onPointer={realtime.pointer} onSelectionChange={realtime.selection} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
-    <ConfirmDialog open={leaving} onOpenChange={setLeaving} title="Salir sin guardar" description="Los cambios pendientes se conservarán en una copia local en este navegador durante siete días."
-      confirmLabel="Salir" onConfirm={() => { preserve(); onBack() }} />
+    <ConfirmDialog open={navigation.pending} onOpenChange={open => { if (!open) navigation.cancel() }} title="Salir sin guardar" description={copyWarning ? 'No se pudo conservar la copia local. Si sales puedes perder estos cambios. Cancela y guarda antes de continuar.' : 'Los cambios pendientes se conservarán en una copia local en este navegador durante siete días.'}
+      confirmLabel="Salir" onConfirm={navigation.proceed} />
     <Dialog open={Boolean(server)} onOpenChange={open => { if (!open) setServer(null) }}><DialogContent><DialogHeader>
       <DialogTitle>Versión del servidor</DialogTitle><DialogDescription>La copia local se conserva al cargar esta versión.</DialogDescription>
     </DialogHeader>{server && <div className="space-y-3"><p>{server.name} · Revisión {server.revision} · {server.document.objects.length} elementos</p>

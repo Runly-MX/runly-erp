@@ -24,7 +24,7 @@ export async function seedStudioScenario(stack) {
     const role = (await pool.query(`INSERT INTO public.role(id,company_id,key,name,updated_at)
       VALUES(uuidv7(),$1,'studio.test.editor','Editor de pruebas',now()) RETURNING id`, [company.id])).rows[0]
     await pool.query(`INSERT INTO public.role_permission(id,role_id,permission_id)
-      SELECT uuidv7(),$1,id FROM public.permission WHERE key LIKE 'studio.%' OR key IN ('files.assets.read','files.assets.create')`, [role.id])
+      SELECT uuidv7(),$1,id FROM public.permission WHERE key LIKE 'studio.%' OR key IN ('files.access','files.assets.read','files.assets.create')`, [role.id])
     await pool.query(`INSERT INTO public.membership(id,company_id,user_id,role_id,updated_at)
       VALUES(uuidv7(),$1,$2,$3,now())`, [company.id, users[0].id, role.id])
     companies.push({ ...company, roleId: role.id })

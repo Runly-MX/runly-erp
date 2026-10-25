@@ -2,6 +2,7 @@ import { createStudioEditor } from '../../../apps/desktop/src/modules/runly.stud
 import { Canvas2DRenderer } from '../../../apps/desktop/src/modules/runly.canvas/engine/Canvas2DRenderer.js'
 import { LIGHT_THEME } from '../../../apps/desktop/src/modules/runly.canvas/engine/theme.js'
 import { appendObject, blankDocument } from '../../../apps/shared/studio/document.js'
+import { Rect, Ellipse } from 'fabric'
 
 const fileId = '00000000-0000-4000-8000-000000000005'
 window.studioVerification = async () => {
@@ -61,6 +62,56 @@ window.studioVerification = async () => {
   if (editor.snapshot().objects[0].hidden) throw Error('undo visibility failed')
   result.historyAndLayers = true
   await editor.destroy()
+  editor = await createStudioEditor(element(), { document: blankDocument(640, 480), resolveImage })
+  await editor.add('rectangle', { x: 60, y: 80, width: 120, height: 50, rotation: 35 })
+  await editor.add('ellipse', { x: 300, y: 160, width: 70, height: 90 })
+  await editor.add('rectangle', { x: 450, y: 280, width: 50, height: 50 })
+  await editor.add('rectangle', { x: 25, y: 25, locked: true })
+  await editor.add('rectangle', { x: 30, y: 30, hidden: true })
+  const composition = editor.snapshot(), ids = composition.objects.map(object => object.id)
+  editor.selectMany(ids)
+  if (JSON.stringify(editor.snapshot()) !== JSON.stringify(composition)) throw Error('Selecting objects changed document coordinates')
+  await editor.align('left', 'selection')
+  const aligned = editor.snapshot()
+  if (aligned.objects[0].rotation !== 35 || aligned.objects[3].x !== 25 || aligned.objects[4].x !== 30) throw Error('Alignment modified protected objects or rotation')
+  const visualBounds = item => (item.type === 'ellipse' ? new Ellipse({ left:item.x,top:item.y,rx:item.width/2,ry:item.height/2,angle:item.rotation }) : new Rect({ left:item.x,top:item.y,width:item.width,height:item.height,angle:item.rotation })).getBoundingRect()
+  const lefts=aligned.objects.slice(0,3).map(item=>visualBounds(item).left)
+  if (Math.max(...lefts)-Math.min(...lefts)>1e-8) throw Error('Rotated objects are not visually aligned')
+  await editor.undo()
+  if (JSON.stringify(editor.snapshot()) !== JSON.stringify(composition)) throw Error('Alignment undo is not atomic')
+  for(const action of ['left','center','right','top','middle','bottom']) {
+    editor.select(ids[0]);await editor.align(action,'page')
+    const box=visualBounds(editor.snapshot().objects[0])
+    const actual={left:box.left,center:box.left+box.width/2,right:box.left+box.width,top:box.top,middle:box.top+box.height/2,bottom:box.top+box.height}[action]
+    const expected={left:0,center:320,right:640,top:0,middle:240,bottom:480}[action]
+    if(Math.abs(actual-expected)>1e-8)throw Error(`Visual ${action} alignment failed`)
+    await editor.undo()
+  }
+  editor.selectMany(ids.slice(0,3)); await editor.align('distribute-x','selection')
+  const distributed = editor.snapshot()
+  const boxes=distributed.objects.slice(0,3).map(visualBounds).sort((a,b)=>a.left-b.left)
+  if(Math.abs((boxes[1].left-boxes[0].left-boxes[0].width)-(boxes[2].left-boxes[1].left-boxes[1].width))>1e-8)throw Error('Horizontal distribution has uneven visual gaps')
+  await editor.undo(); await editor.redo()
+  if (JSON.stringify(editor.snapshot()) !== JSON.stringify(distributed)) throw Error('Distribution redo lost geometry')
+  const beforeResize = editor.snapshot()
+  await editor.resize({ width: 800, height: 600, background: '#f97316' })
+  if (JSON.stringify(editor.snapshot().objects) !== JSON.stringify(beforeResize.objects)) throw Error('Resize moved objects without consent')
+  const orange=await createImageBitmap(await editor.exportImage('jpg',0.9)),orangeCanvas=element()
+  orangeCanvas.width=800;orangeCanvas.height=600;orangeCanvas.getContext('2d').drawImage(orange,0,0)
+  const orangePixel=[...orangeCanvas.getContext('2d').getImageData(799,599,1,1).data];orange.close()
+  if(Math.abs(orangePixel[0]-249)>8 || Math.abs(orangePixel[1]-115)>8 || orangePixel[3]!==255)throw Error('JPG alternate background failed')
+  await editor.undo()
+  if (JSON.stringify(editor.snapshot()) !== JSON.stringify(beforeResize)) throw Error('Resize undo failed')
+  await editor.resize({ width: 320, height: 240, background: '#84cc16' }, true)
+  if (editor.snapshot().objects[0].x !== beforeResize.objects[0].x / 2) throw Error('Uniform resize did not scale coordinates')
+  const jpegBlob = await editor.exportImage('jpg',0.9), jpeg = await createImageBitmap(jpegBlob)
+  if (jpegBlob.type !== 'image/jpeg' || jpeg.width !== 320 || jpeg.height !== 240) throw Error('Invalid JPEG export')
+  const opaque = element(); opaque.width = 320; opaque.height = 240
+  opaque.getContext('2d').drawImage(jpeg,0,0)
+  const background = [...opaque.getContext('2d').getImageData(319,239,1,1).data]
+  if (Math.abs(background[0]-132)>8 || Math.abs(background[1]-204)>8 || background[3]!==255) throw Error('JPG background is not opaque/exact')
+  jpeg.close(); result.composition = { multiSelection: true, resizeHistory: true, alignmentDistribution: true, jpg: { width:320,height:240,bytes:jpegBlob.size,background } }
+  await editor.destroy()
   let imageFailure
   try {
     await createStudioEditor(element(), { document: appendObject(blankDocument(), 'image', { fileAssetId: fileId }),
@@ -68,6 +119,21 @@ window.studioVerification = async () => {
   } catch (error) { imageFailure = error.message }
   if (!imageFailure || imageFailure.includes('token=') || imageFailure.includes('data:')) throw Error('image failure exposed its URL')
   result.safeImageErrors = true
+  let available=true
+  editor=await createStudioEditor(element(),{document:appendObject(blankDocument(64,64),'image',{fileAssetId:fileId,width:40,height:24}),resolveImage:async()=>{if(!available)throw Error('private-test-url?token=never-disclose');return imageUrl}})
+  const protectedScene=JSON.stringify(editor.snapshot());available=false
+  let blockedExport
+  try{await editor.exportImage('jpg',0.9)}catch(error){blockedExport=error.message}
+  if(!blockedExport || blockedExport.includes('token=') || JSON.stringify(editor.snapshot())!==protectedScene)throw Error('Export failed to protect an unavailable original')
+  available=true
+  if((await editor.exportImage('jpg',0.9)).type!=='image/jpeg')throw Error('Export retry did not recover')
+  await editor.destroy();result.exportRecovery=true
+  editor=await createStudioEditor(element(),{document:blankDocument(4096,4096),resolveImage})
+  const limitStart=performance.now(),limitPng=await editor.exportImage('png'),limitJpg=await editor.exportImage('jpg',0.9)
+  const limitImage=await createImageBitmap(limitJpg)
+  if(limitImage.width!==4096 || limitImage.height!==4096 || limitPng.type!=='image/png')throw Error('Maximum-size export failed')
+  limitImage.close();result.exportLimit={width:4096,height:4096,pngBytes:limitPng.size,jpgBytes:limitJpg.size,elapsedMs:performance.now()-limitStart}
+  await editor.destroy()
   const benchmarks = []
   for (const count of [20, 200, 500]) {
     const doc = blankDocument(1080, 1080)

@@ -82,7 +82,7 @@ Location & Navigation:
   Building2, Globe, Home, Hotel, Map, Network
 
 Security & Admin:
-  Award, Crown, Flag, Gavel, Key, Lock, Palette, Puzzle, Shield, ShieldCheck, Star
+  Award, Crown, Flag, Gavel, Key, Lock, Palette, PenTool, Puzzle, Shield, ShieldCheck, Star
 
 Time & Scheduling:
   Clock, History, Hourglass, Timer
