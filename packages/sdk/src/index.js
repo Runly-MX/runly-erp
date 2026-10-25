@@ -2446,6 +2446,19 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
+      // time tracking
+      listTaskTime: (projectId, taskId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/time`, { headers: withAuthHeaders(token) }),
+      addTaskTime: (projectId, taskId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/time`, { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      startTaskTimer: (projectId, taskId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/time/start`, { method: "POST", headers: withAuthHeaders(token) }),
+      deleteTaskTime: (projectId, taskId, entryId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/time/${encodeURIComponent(entryId)}`, { method: "DELETE", headers: withAuthHeaders(token) }),
+      getRunningTimer: (token) => request("/projects/time/running", { headers: withAuthHeaders(token) }),
+      stopRunningTimer: (token) => request("/projects/time/stop", { method: "POST", headers: withAuthHeaders(token) }),
+      getTimeSummary: (projectId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/time-summary`, { headers: withAuthHeaders(token) }),
       // dependencies
       listTaskDependencies: (projectId, taskId, token) =>
         request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/dependencies`, {

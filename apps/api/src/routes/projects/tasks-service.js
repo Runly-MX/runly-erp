@@ -190,7 +190,10 @@ export function createTasksService({ prisma }) {
     const task = await prisma.task.findFirst({ where: { id: taskId } })
     if (!task) throw new TaskServiceError('Tarea no encontrada.', 404)
     await validateTargets(task.projectId, data)
-    const { title, description, assigneeId, priority, startDate, dueDate, statusId, rrule } = data
+    const { title, description, assigneeId, priority, startDate, dueDate, statusId, rrule, estimateMinutes } = data
+    if (estimateMinutes !== undefined && estimateMinutes !== null && !(Number.isInteger(estimateMinutes) && estimateMinutes >= 0 && estimateMinutes <= 100000)) {
+      throw new TaskServiceError('La estimación debe ser un número entero de minutos (0 a 100000).', 400)
+    }
     const rruleNextAt = rrule !== undefined
       ? (rrule ? computeRruleNextAt(rrule) : null)
       : undefined
@@ -204,6 +207,7 @@ export function createTasksService({ prisma }) {
         ...(startDate !== undefined ? { startDate: startDate ? toNoonUTC(startDate) : null } : {}),
         ...(dueDate !== undefined ? { dueDate: dueDate ? toNoonUTC(dueDate) : null } : {}),
         ...(statusId ? { statusId } : {}),
+        ...(estimateMinutes !== undefined ? { estimateMinutes } : {}),
         ...(rrule !== undefined ? { rrule: rrule || null } : {}),
         ...(rruleNextAt !== undefined ? { rruleNextAt } : {}),
       },

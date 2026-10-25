@@ -557,6 +557,51 @@ export function useToggleTaskReaction(projectId, taskId) {
   })
 }
 
+// ── Time tracking ─────────────────────────────────────────────────────────────
+
+export function useTaskTime(projectId, taskId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['projects', projectId, 'tasks', taskId, 'time'],
+    queryFn: () => runly.projects.listTaskTime(projectId, taskId, token),
+    enabled: Boolean(token) && Boolean(projectId) && Boolean(taskId),
+    staleTime: 10 * 1000,
+  })
+}
+
+// The person's running timer (any project); polled lightly so two tabs agree.
+export function useRunningTimer() {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['projects', 'timer'],
+    queryFn: async () => (await runly.projects.getRunningTimer(token))?.running ?? null,
+    enabled: Boolean(token),
+    staleTime: 15 * 1000,
+    refetchInterval: 60 * 1000,
+  })
+}
+
+export function useTimeActions(projectId, taskId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId, 'time'] })
+    qc.invalidateQueries({ queryKey: ['projects', 'timer'] })
+    qc.invalidateQueries({ queryKey: ['projects', projectId, 'time-summary'] })
+  }
+  const fail = (message) => (error) => toast.error(message, { description: error?.message })
+  return {
+    add: useMutation({ mutationFn: (data) => runly.projects.addTaskTime(projectId, taskId, data, token), onSuccess: refresh, onError: fail('No se pudo registrar el tiempo') }),
+    start: useMutation({
+      mutationFn: () => runly.projects.startTaskTimer(projectId, taskId, token),
+      onSuccess: (result) => { refresh(); if (result?.stopped) toast.info('Se detuvo el cronómetro que tenías en otra tarea', { description: `Quedaron ${result.stopped.minutes} min registrados.` }) },
+      onError: fail('No se pudo iniciar el cronómetro'),
+    }),
+    stop: useMutation({ mutationFn: () => runly.projects.stopRunningTimer(token), onSuccess: refresh, onError: fail('No se pudo detener el cronómetro') }),
+    remove: useMutation({ mutationFn: (entryId) => runly.projects.deleteTaskTime(projectId, taskId, entryId, token), onSuccess: refresh, onError: fail('No se pudo borrar el registro') }),
+  }
+}
+
 // ── Gantt ─────────────────────────────────────────────────────────────────────
 
 export function useGantt(projectId) {

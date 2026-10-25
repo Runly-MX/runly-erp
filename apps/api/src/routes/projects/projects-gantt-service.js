@@ -12,7 +12,7 @@ export class GanttServiceError extends Error {
 
 const TASK_SELECT = {
   id: true, projectId: true, parentTaskId: true, title: true, taskNumber: true, position: true,
-  startDate: true, dueDate: true, calendarEventId: true, assigneeId: true, statusId: true,
+  startDate: true, dueDate: true, estimateMinutes: true, calendarEventId: true, assigneeId: true, statusId: true,
   assignee: { select: { id: true, firstName: true, lastName: true } },
   status: { select: { id: true, name: true, color: true, isDone: true } },
 }

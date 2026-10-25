@@ -16,6 +16,7 @@ import { createModuleServices } from '../../api/src/services/module-services/mod
 import { createFilesService } from '../../api/src/services/files-service.js'
 import { createTrashRegistry } from '../../api/src/services/trash/trash-registry.js'
 import { runAutoPurge } from '../../api/src/services/trash/trash-retention.js'
+import { createTimeService } from '../../api/src/routes/projects/projects-time-service.js'
 import { createAutomationRunsService } from '../../api/src/services/automation-runs-service.js'
 import { createAutomationWorker } from '../../api/src/services/automation-worker-service.js'
 import { purgeExpiredEvidence } from '../../api/src/routes/attendance/attendance-evidence.js'
@@ -441,6 +442,18 @@ setTimeout(runAttendanceEvidenceTick, 90_000)
 setInterval(() => {
   runAttendanceEvidenceTick()
 }, ATTENDANCE_EVIDENCE_INTERVAL_MS)
+// Task timers left running for more than 12 hours are closed (and flagged for review).
+const taskTimeService = createTimeService({ prisma })
+async function runTaskTimerTick() {
+  try {
+    const { closed } = await taskTimeService.closeStaleTimers()
+    if (closed) console.log(`[worker] cronómetros de tareas ${formatLogTimestamp()} closed=${closed}`)
+  } catch (err) {
+    console.error('[worker] task timer tick failed:', err?.message ?? err)
+  }
+}
+setTimeout(runTaskTimerTick, 100_000)
+setInterval(runTaskTimerTick, 30 * 60 * 1000)
 // Automation run log: keep 90 days.
 const automationRunsService = createAutomationRunsService({ prisma })
 async function runAutomationRunsRetentionTick() {

@@ -29,6 +29,7 @@ import { UserAvatarContext } from "../lib/UserAvatarContext.js";
 import KanbanView from "../components/KanbanView.jsx";
 import ListView from "../components/ListView.jsx";
 import GanttView from "../components/GanttView.jsx";
+import { RunningTimerChip } from "../components/RunningTimerChip.jsx";
 import TaskDetailPanel from "../components/TaskDetailPanel.jsx";
 import ProjectFormModal from "../components/ProjectFormModal.jsx";
 import TaskFormModal from "../components/TaskFormModal.jsx";
@@ -260,6 +261,7 @@ export default function ProjectsScreen() {
 
         {/* Main area */}
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <div className="flex shrink-0 justify-end empty:hidden px-3 pt-2"><RunningTimerChip onOpenTask={openTask} /></div>
           {!selectedProject ? (
             <div className="relative flex-1 flex flex-col">
               <div className="px-4 py-3 lg:hidden border-b border-border">

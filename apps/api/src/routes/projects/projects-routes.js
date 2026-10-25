@@ -3,6 +3,7 @@ import { createProjectsService, ProjectServiceError } from './projects-service.j
 import { createTasksService, TaskServiceError } from './tasks-service.js'
 import { createDependenciesService, DependencyServiceError } from './projects-dependencies-service.js'
 import { createGanttService, GanttServiceError } from './projects-gantt-service.js'
+import { createTimeService, TimeServiceError } from './projects-time-service.js'
 import { createFieldsService, FieldServiceError } from './projects-fields-service.js'
 import { createLinksService, LinkServiceError } from './projects-links-service.js'
 import { createProjectsCalendarBridge } from './projects-calendar-bridge.js'
@@ -40,6 +41,7 @@ function handleError(c, err, fallback) {
     err instanceof TaskServiceError ||
     err instanceof DependencyServiceError ||
     err instanceof GanttServiceError ||
+    err instanceof TimeServiceError ||
     err instanceof FieldServiceError ||
     err instanceof LinkServiceError
   ) return c.json({ error: err.message }, err.status)
@@ -56,6 +58,15 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   const tasksSvc = createTasksService({ prisma })
   const depsSvc = createDependenciesService({ prisma })
   const ganttSvc = createGanttService({ prisma })
+  const timeSvc = createTimeService({ prisma })
+  // Project owners see everybody's time; everyone else only their own.
+  const isProjectOwner = async (c) => {
+    const projectId = c.req.param('id')
+    const userId = getUserId(c)
+    const project = await prisma.project.findFirst({ where: { id: projectId }, select: { ownerId: true } })
+    if (project?.ownerId === userId) return true
+    return Boolean(await prisma.projectMember.findFirst({ where: { projectId, userId, role: 'OWNER' }, select: { id: true } }))
+  }
   const fieldsSvc = createFieldsService({ prisma })
   const linksSvc = createLinksService({ prisma, relationTargets })
   const bridge = createProjectsCalendarBridge({ prisma })
@@ -624,6 +635,53 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
       }
       return c.json({ tasks: changed.map(({ after }) => ({ id: after.id, startDate: after.startDate, dueDate: after.dueDate })) })
     } catch (err) { return handleError(c, err, 'Error al reprogramar la tarea.') }
+  })
+
+  // --- Time tracking ---
+  // The person's running timer, wherever it is (module header and "Mi trabajo").
+  app.get('/projects/time/running', requirePermission('projects.task.read'), async (c) => {
+    try {
+      return c.json({ running: await timeSvc.running({ companyId: getCompanyId(c), userId: getUserId(c) }) })
+    } catch (err) { return handleError(c, err, 'Error al consultar el cronómetro.') }
+  })
+
+  app.post('/projects/time/stop', requirePermission('projects.task.read'), async (c) => {
+    try {
+      return c.json({ stopped: await timeSvc.stopTimer({ companyId: getCompanyId(c), userId: getUserId(c) }) })
+    } catch (err) { return handleError(c, err, 'Error al detener el cronómetro.') }
+  })
+
+  app.get('/projects/:id/time-summary', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
+    try {
+      return c.json(await timeSvc.projectSummary({ companyId: getCompanyId(c), projectId: c.req.param('id'), userId: getUserId(c), canSeeAll: await isProjectOwner(c) }))
+    } catch (err) { return handleError(c, err, 'Error al resumir el tiempo.') }
+  })
+
+  app.get('/projects/:id/tasks/:tid/time', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
+    try {
+      return c.json(await timeSvc.listEntries({ companyId: getCompanyId(c), taskId: c.req.param('tid'), userId: getUserId(c), canSeeAll: await isProjectOwner(c) }))
+    } catch (err) { return handleError(c, err, 'Error al listar el tiempo.') }
+  })
+
+  app.post('/projects/:id/tasks/:tid/time', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
+    try {
+      const body = await c.req.json()
+      const entry = await timeSvc.addEntry({ companyId: getCompanyId(c), taskId: c.req.param('tid'), userId: getUserId(c), minutes: body.minutes, startedAt: body.startedAt, note: body.note })
+      broadcastTaskEvent(c.req.param('id'), c.req.param('tid'), 'time_logged')
+      return c.json(entry, 201)
+    } catch (err) { return handleError(c, err, 'Error al registrar el tiempo.') }
+  })
+
+  app.post('/projects/:id/tasks/:tid/time/start', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
+    try {
+      return c.json(await timeSvc.startTimer({ companyId: getCompanyId(c), taskId: c.req.param('tid'), userId: getUserId(c) }), 201)
+    } catch (err) { return handleError(c, err, 'Error al iniciar el cronómetro.') }
+  })
+
+  app.delete('/projects/:id/tasks/:tid/time/:entryId', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
+    try {
+      return c.json(await timeSvc.deleteEntry({ companyId: getCompanyId(c), entryId: c.req.param('entryId'), taskId: c.req.param('tid'), userId: getUserId(c), canSeeAll: await isProjectOwner(c) }))
+    } catch (err) { return handleError(c, err, 'Error al borrar el registro de tiempo.') }
   })
 
   // --- Task Dependencies ---

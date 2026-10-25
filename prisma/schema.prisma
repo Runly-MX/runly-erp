@@ -3592,6 +3592,8 @@ model ProjectMember {
   projectId String            @db.Uuid @map("project_id")
   userId    String            @db.Uuid @map("user_id")
   role      ProjectMemberRole @default(MEMBER)
+  // Capacity per week for the workload view (null = the default of 40 hours).
+  weeklyCapacityMinutes Int? @map("weekly_capacity_minutes")
   joinedAt  DateTime          @default(now()) @map("joined_at")
 
   project Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -3638,6 +3640,10 @@ model Task {
 
   rrule       String?   @map("rrule")
   rruleNextAt DateTime? @map("rrule_next_at")
+
+  // Planned effort in minutes (null = not estimated, 0 = a milestone).
+  estimateMinutes Int? @map("estimate_minutes")
+  timeEntries     TaskTimeEntry[] @relation("TaskTimeEntries")
 
   project  Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   status   TaskStatus   @relation(fields: [statusId], references: [id], onDelete: Restrict)
@@ -3690,6 +3696,26 @@ model TaskDependency {
 // Link from a task to a record of another module. targetType is a key of the
 // relation-targets catalog (contact, vehicle, inventory_item...); the record
 // lives in another table, so targetId has no foreign key.
+// Time logged on a task. `minutes` is null while a timer is running (at most one running
+// timer per person, enforced by a partial unique index in the migration).
+model TaskTimeEntry {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  taskId    String   @map("task_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  startedAt DateTime @map("started_at") @db.Timestamptz(6)
+  minutes   Int?
+  note      String?
+  source    String   @default("manual")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  task Task @relation("TaskTimeEntries", fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([companyId, userId, startedAt])
+  @@map("task_time_entry")
+}
+
 model TaskLink {
   id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId   String   @map("company_id") @db.Uuid
