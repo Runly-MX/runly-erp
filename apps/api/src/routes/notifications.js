@@ -4,16 +4,19 @@ import {
   NotificationServiceError,
 } from "../services/notification-service.js";
 import { createWebPushService } from "../services/web-push-service.js";
+import { createDeliveryCheckService, DeliveryCheckError } from "../services/notification-delivery-check-service.js";
 
 export function createNotificationsRouter({ prisma, requirePermission, supabaseAdmin = null }) {
   const app = new Hono();
   const service = createNotificationService({ prisma, supabaseAdmin });
   const webPushService = createWebPushService({ prisma });
+  const deliveryCheck = createDeliveryCheckService({ prisma, webPush: webPushService });
 
   function handleError(c, err, scope) {
     if (err instanceof NotificationServiceError) {
       return c.json({ error: err.message, code: err.code }, err.status);
     }
+    if (err instanceof DeliveryCheckError) return c.json({ error: err.message }, err.status);
     if (err?.name === "ZodError") {
       return c.json({ error: "Datos invalidos", details: err.flatten() }, 400);
     }
@@ -140,6 +143,37 @@ export function createNotificationsRouter({ prisma, requirePermission, supabaseA
         return c.json(result);
       } catch (err) {
         return handleError(c, err, "PUT /notifications/preferences");
+      }
+    },
+  );
+
+  // Sends a real test through one channel to the caller and explains the result.
+  app.post(
+    "/notifications/test",
+    requirePermission("notifications.read"),
+    async (c) => {
+      try {
+        const body = await c.req.json().catch(() => ({}));
+        const profile = await prisma.userProfile.findUnique({ where: { authUserId: c.get("authUserId") }, select: { id: true } });
+        if (!profile) return c.json({ error: "Perfil de usuario no encontrado." }, 404);
+        const result = await deliveryCheck.test({ companyId: c.get("companyId"), profileId: profile.id, channel: body.channel });
+        return c.json({ data: result });
+      } catch (err) {
+        return handleError(c, err, "POST /notifications/test");
+      }
+    },
+  );
+
+  // Delivery health of the company (administrators): counts, explained failures, what is configured.
+  app.get(
+    "/notifications/delivery-health",
+    requirePermission("notifications.manage"),
+    async (c) => {
+      try {
+        const result = await deliveryCheck.health({ companyId: c.get("companyId"), days: c.req.query("days") });
+        return c.json({ data: result });
+      } catch (err) {
+        return handleError(c, err, "GET /notifications/delivery-health");
       }
     },
   );
