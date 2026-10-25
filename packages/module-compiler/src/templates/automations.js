@@ -6,13 +6,13 @@
 // moduleContext.services / moduleContext.automations (record triggers) and the
 // dispatcher's or worker's `services`, `log` and `enqueue` (events, waits,
 // schedules).
-import { isEmpty, matches, render, sourceValue, buildArgs } from '@runly/module-engine/contracts'
+import { isEmpty, matches, render, sourceValue, buildArgs, safe, runSteps, runEntry, execute } from '@runly/module-engine/contracts'
 import { toRuntimeSteps } from '../automations.js'
 import { moduleSlug } from './helpers.js'
 
 // Serialize only trusted official functions; no user code is evaluated.
 function automationRuntimeSource() {
-  return 'const isEmpty = ' + isEmpty.toString() + '\n\n' + [matches, render, sourceValue, buildArgs].map(fn => 'export ' + fn.toString()).join('\n\n')
+  return 'const isEmpty = ' + isEmpty.toString() + '\n\n' + [matches, render, sourceValue, buildArgs, safe, runSteps, runEntry, execute].map(fn => 'export ' + fn.toString()).join('\n\n')
 }
 
 export function hasAutomations(config) {
@@ -49,84 +49,6 @@ export const AUTOMATIONS = ${JSON.stringify(list, null, 2)}
 
 ${automationRuntimeSource()}
 
-const safe = async (fn, entry) => { try { return await fn?.(entry) } catch { return null } }
-
-// Runs the steps of one automation in order, from \`from\`. Each step gets its own
-// idempotency key (<base>, then <base>:<index> from the second step; the first
-// keeps the v1 key so republishing never repeats work). With onError "stop"
-// (default) the steps after a failure are skipped. A wait step queues the
-// continuation (\`enqueue\`) and ends this pass: the run stays "waiting" until the
-// worker resumes it.
-export async function runSteps({ automation, services, base, data, recordId = null, actorId = null, from = 0, enqueue = null, approve = null, http = null, runId = null }) {
-  const steps = []
-  let failed = false
-  let waiting = false
-  for (let index = from; index < automation.steps.length; index += 1) {
-    const step = automation.steps[index]
-    if (failed && automation.onError !== 'continue') { steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, skipped: true }); continue }
-    try {
-      if (step.type === 'delay') {
-        if (!enqueue) throw new Error('Las esperas no están disponibles en esta instancia.')
-        const runAt = new Date(Date.now() + step.ms).toISOString()
-        await enqueue({ automationKey: automation.key, fromStep: index + 1, runAt, runId, payload: { data, recordId, actorId, base }, dedupe: base ? base + ':w' + (index + 1) : null })
-        steps.push({ index, type: 'delay', ok: true, waiting: true, runAt })
-        waiting = true
-        break
-      }
-      if (step.type === 'approval') {
-        if (!approve) throw new Error('Las aprobaciones no están disponibles en esta instancia.')
-        await approve({ automationKey: automation.key, fromStep: index + 1, runId, approvers: step.approvers, message: render(step.message, data), payload: { data, recordId, actorId, base }, dedupe: base ? base + ':a' + (index + 1) : null })
-        steps.push({ index, type: 'approval', ok: true, waiting: true, approvers: step.approvers.length })
-        waiting = true
-        break
-      }
-      if (step.type === 'http') {
-        if (!http) throw new Error('Las llamadas HTTP no están disponibles en esta instancia.')
-        const body = {}
-        for (const [name, source] of Object.entries(step.body)) {
-          const value = sourceValue(source, { data, recordId, actorId })
-          if (!isEmpty(value)) body[name] = value
-        }
-        await http({ method: step.method, url: step.url, body, automationKey: automation.key, idempotencyKey: base ? (index ? base + ':' + index : base) : automation.key + ':' + Date.now() })
-        steps.push({ index, type: 'http', ok: true })
-        continue
-      }
-      await services.call(step.service, buildArgs(automation, { step: index, data, recordId, actorId, idempotencyKey: base ? (index ? base + ':' + index : base) : null }))
-      steps.push({ index, service: step.service, ok: true })
-    } catch (error) {
-      failed = true
-      console.error('[automatizaciones] ' + automation.key + ' paso ' + (index + 1) + ':', error?.message ?? error)
-      steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, code: error?.code ?? null, error: String(error?.message ?? error) })
-    }
-  }
-  const failures = steps.filter((step) => !step.ok && !step.skipped)
-  return { key: automation.key, ok: !failures.length, waiting, steps, code: failures[0]?.code ?? null, error: failures.map((step) => step.error).join(' | ') || null }
-}
-
-// One run-log row per execution; logging never breaks the save or the event.
-function runEntry(result, { trigger, ref, startedAt, runId = null }) {
-  const done = result.steps.filter((step) => step.ok).length
-  return {
-    moduleKey: MODULE_KEY, automationKey: result.key, triggerKind: trigger, triggerRef: ref ?? null, runId,
-    status: result.ok ? (result.waiting ? 'waiting' : 'success') : (done ? 'partial' : 'failed'),
-    steps: result.steps, error: result.error, durationMs: Date.now() - startedAt,
-  }
-}
-
-// Logs one execution. Automations with waits open their run row first so the
-// continuation can find and finish it.
-async function execute({ automation, services, base, data, recordId, actorId, from = 0, enqueue, approve, http, log, runId = null, trigger, ref }) {
-  const startedAt = Date.now()
-  let id = runId
-  if (!id && automation.steps.some((step) => step.type === 'delay' || step.type === 'approval')) {
-    const row = await safe(log, { moduleKey: MODULE_KEY, automationKey: automation.key, triggerKind: trigger, triggerRef: ref ?? null, status: 'running', steps: [], error: null, durationMs: 0 })
-    id = row?.id ?? null
-  }
-  const result = await runSteps({ automation, services, base, data, recordId, actorId, from, enqueue, approve, http, runId: id })
-  await safe(log, runEntry(result, { trigger, ref, startedAt, runId: id }))
-  return result
-}
-
 // Runs after a record is created/updated. Never throws: a failed automation
 // does not undo the save; the route returns the results and logs the error.
 export async function runRecordAutomations({ c, moduleContext, entity, on, record, previous = null }) {
@@ -142,7 +64,7 @@ export async function runRecordAutomations({ c, moduleContext, entity, on, recor
   const http = moduleContext?.automations?.http ? (request) => moduleContext.automations.http(c, request) : null
   const results = []
   for (const automation of due) {
-    const result = await execute({ automation, services, base: on === 'create' ? automation.key + ':' + record.id + ':create' : null, data: record, recordId: record.id, actorId, enqueue, approve, http, log, trigger: 'record', ref: record.id })
+    const result = await execute({ moduleKey: MODULE_KEY, automation, services, base: on === 'create' ? automation.key + ':' + record.id + ':create' : null, data: record, recordId: record.id, actorId, enqueue, approve, http, log, trigger: 'record', ref: record.id })
     results.push({ key: result.key, ok: result.ok, ...(result.ok ? {} : { code: result.code, error: result.error }) })
   }
   return results
@@ -160,7 +82,7 @@ export function createEventHandlers() {
       if (!services) throw new Error('Los servicios no están disponibles en esta instancia.')
       const failures = []
       for (const automation of due) {
-        const result = await execute({ automation, services, base: automation.key + ':' + eventId, data: payload, enqueue, approve, http, log, trigger: 'event', ref: eventId })
+        const result = await execute({ moduleKey: MODULE_KEY, automation, services, base: automation.key + ':' + eventId, data: payload, enqueue, approve, http, log, trigger: 'event', ref: eventId })
         if (!result.ok) failures.push(automation.key + ': ' + result.error)
       }
       if (failures.length) throw new Error(failures.join(' | '))
@@ -176,7 +98,7 @@ export async function resume({ job, services, log, enqueue, approve, http }) {
   if (!automation.enabled) return { key: automation.key, ok: true, skipped: true, steps: [] }
   const { data, recordId = null, actorId = null, base = null } = job.payload ?? {}
   if (!services) throw new Error('Los servicios no están disponibles en esta instancia.')
-  const result = await execute({ automation, services, base, data, recordId, actorId, from: job.fromStep, enqueue, approve, http, log, runId: job.runId ?? null, trigger: 'delayed', ref: recordId })
+  const result = await execute({ moduleKey: MODULE_KEY, automation, services, base, data, recordId, actorId, from: job.fromStep, enqueue, approve, http, log, runId: job.runId ?? null, trigger: 'delayed', ref: recordId })
   if (!result.ok) throw new Error(result.error)
   return result
 }
@@ -203,7 +125,7 @@ export async function runScheduled({ key, companyId, occurrence, prisma, service
   let failed = 0
   for (const record of records) {
     const scoped = automation.scan ? record.id : 'all'
-    const result = await execute({ automation, services, base: automation.key + ':' + scoped + ':' + stamp, data: record, recordId: automation.scan ? record.id : null, actorId: null, enqueue, approve, http, log, trigger: 'schedule', ref: automation.scan ? record.id : stamp })
+    const result = await execute({ moduleKey: MODULE_KEY, automation, services, base: automation.key + ':' + scoped + ':' + stamp, data: record, recordId: automation.scan ? record.id : null, actorId: null, enqueue, approve, http, log, trigger: 'schedule', ref: automation.scan ? record.id : stamp })
     if (!result.ok) failed += 1
   }
   if (truncated) console.error('[automatizaciones] ' + key + ': más de ' + MAX_SCAN_RUNS + ' registros; se procesaron los primeros ' + MAX_SCAN_RUNS + '.')

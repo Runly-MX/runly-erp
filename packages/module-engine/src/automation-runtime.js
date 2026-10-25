@@ -45,3 +45,87 @@ export function buildArgs(automation, ctx) {
   if (ctx.idempotencyKey) args.idempotencyKey = ctx.idempotencyKey
   return args
 }
+
+// ---- Execution (shared by generated Builder modules and system automations) ----
+// Each function is self-contained or only uses the ones above/below, because the
+// compiler inlines them (via toString) into generated modules.
+
+export async function safe(fn, entry) {
+  try { return await fn?.(entry) } catch { return null }
+}
+
+// Runs the steps of one automation in order, from `from`. Each step gets its own
+// idempotency key (<base>, then <base>:<index> from the second step; the first
+// keeps the v1 key so republishing never repeats work). With onError "stop"
+// (default) the steps after a failure are skipped. A wait or approval step queues
+// the continuation and ends this pass: the run stays "waiting" until the worker
+// resumes it.
+export async function runSteps({ automation, services, base, data, recordId = null, actorId = null, from = 0, enqueue = null, approve = null, http = null, runId = null }) {
+  const steps = []
+  let failed = false
+  let waiting = false
+  for (let index = from; index < automation.steps.length; index += 1) {
+    const step = automation.steps[index]
+    if (failed && automation.onError !== 'continue') { steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, skipped: true }); continue }
+    try {
+      if (step.type === 'delay') {
+        if (!enqueue) throw new Error('Las esperas no están disponibles en esta instancia.')
+        const runAt = new Date(Date.now() + step.ms).toISOString()
+        await enqueue({ automationKey: automation.key, fromStep: index + 1, runAt, runId, payload: { data, recordId, actorId, base }, dedupe: base ? base + ':w' + (index + 1) : null })
+        steps.push({ index, type: 'delay', ok: true, waiting: true, runAt })
+        waiting = true
+        break
+      }
+      if (step.type === 'approval') {
+        if (!approve) throw new Error('Las aprobaciones no están disponibles en esta instancia.')
+        await approve({ automationKey: automation.key, fromStep: index + 1, runId, approvers: step.approvers, message: render(step.message, data), payload: { data, recordId, actorId, base }, dedupe: base ? base + ':a' + (index + 1) : null })
+        steps.push({ index, type: 'approval', ok: true, waiting: true, approvers: step.approvers.length })
+        waiting = true
+        break
+      }
+      if (step.type === 'http') {
+        if (!http) throw new Error('Las llamadas HTTP no están disponibles en esta instancia.')
+        const body = {}
+        for (const [name, source] of Object.entries(step.body)) {
+          const value = sourceValue(source, { data, recordId, actorId })
+          if (!isEmpty(value)) body[name] = value
+        }
+        await http({ method: step.method, url: step.url, body, automationKey: automation.key, idempotencyKey: base ? (index ? base + ':' + index : base) : automation.key + ':' + Date.now() })
+        steps.push({ index, type: 'http', ok: true })
+        continue
+      }
+      await services.call(step.service, buildArgs(automation, { step: index, data, recordId, actorId, idempotencyKey: base ? (index ? base + ':' + index : base) : null }))
+      steps.push({ index, service: step.service, ok: true })
+    } catch (error) {
+      failed = true
+      console.error('[automatizaciones] ' + automation.key + ' paso ' + (index + 1) + ':', error?.message ?? error)
+      steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, code: error?.code ?? null, error: String(error?.message ?? error) })
+    }
+  }
+  const failures = steps.filter((step) => !step.ok && !step.skipped)
+  return { key: automation.key, ok: !failures.length, waiting, steps, code: failures[0]?.code ?? null, error: failures.map((step) => step.error).join(' | ') || null }
+}
+
+// One run-log row per execution; logging never breaks the save or the event.
+export function runEntry(moduleKey, result, { trigger, ref, startedAt, runId = null }) {
+  const done = result.steps.filter((step) => step.ok).length
+  return {
+    moduleKey, automationKey: result.key, triggerKind: trigger, triggerRef: ref ?? null, runId,
+    status: result.ok ? (result.waiting ? 'waiting' : 'success') : (done ? 'partial' : 'failed'),
+    steps: result.steps, error: result.error, durationMs: Date.now() - startedAt,
+  }
+}
+
+// Logs one execution. Automations with waits or approvals open their run row first
+// so the continuation can find and finish it.
+export async function execute({ moduleKey, automation, services, base, data, recordId, actorId, from = 0, enqueue, approve, http, log, runId = null, trigger, ref }) {
+  const startedAt = Date.now()
+  let id = runId
+  if (!id && automation.steps.some((step) => step.type === 'delay' || step.type === 'approval')) {
+    const row = await safe(log, { moduleKey, automationKey: automation.key, triggerKind: trigger, triggerRef: ref ?? null, status: 'running', steps: [], error: null, durationMs: 0 })
+    id = row?.id ?? null
+  }
+  const result = await runSteps({ automation, services, base, data, recordId, actorId, from, enqueue, approve, http, runId: id })
+  await safe(log, runEntry(moduleKey, result, { trigger, ref, startedAt, runId: id }))
+  return result
+}
