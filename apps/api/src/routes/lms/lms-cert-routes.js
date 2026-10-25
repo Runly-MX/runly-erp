@@ -18,8 +18,8 @@ export function pdfResponse(c, { buffer, filename }) {
 }
 
 // service: optional override (tests).
-export function registerLmsCertRoutes(app, { prisma, requirePermission, signFile = null, supabaseAdmin = null, bucket = 'runly-files', run, service = null }) {
-  const certs = service ?? createLmsCertService({ prisma, signFile, supabaseAdmin, bucket })
+export function registerLmsCertRoutes(app, { prisma, requirePermission, signFile = null, supabaseAdmin = null, bucket = 'runly-files', run, service = null, hub = null }) {
+  const certs = service ?? createLmsCertService({ prisma, signFile, supabaseAdmin, bucket, hub })
   const access = requirePermission('lms.access')
   const courses = requirePermission('lms.course.manage')
   const enrollments = requirePermission('lms.enrollment.manage')

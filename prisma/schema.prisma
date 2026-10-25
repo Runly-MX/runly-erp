@@ -1840,6 +1840,7 @@ model DocumentTemplate {
   versions         DocumentTemplateVersion[] @relation("DocumentTemplateVersions")
   generatedDocuments GeneratedDocument[]
   invCustodies       InvCustody[] @relation("InvCustodyDocumentTemplate")
+  lmsCertificateTemplates LmsCertificateTemplate[] @relation("LmsCertificateDocumentTemplate")
 
   @@unique([companyId, key])
   @@index([companyId, sourceType, enabled])
@@ -6062,6 +6063,7 @@ model LmsCertificateTemplate {
   fileAssetId     String?  @map("file_asset_id") @db.Uuid // uploaded file when source != design
   placeholders    Json     @default("[]") // tags detected in an uploaded .docx/.pptx
   layout          Json     @default("{}") // pdf source: { page, fields: [{ key, x, y, w, h, fontSize, color, align, bold }] } in PDF points
+  documentTemplateId String? @map("document_template_id") @db.Uuid // Documents hub template (kind lms.certificate) that owns the file when source != design
   enabled         Boolean  @default(true)
   createdById     String?  @map("created_by_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -6069,8 +6071,10 @@ model LmsCertificateTemplate {
 
   courses      LmsCourse[]
   certificates LmsCertificate[]
+  documentTemplate DocumentTemplate? @relation("LmsCertificateDocumentTemplate", fields: [documentTemplateId], references: [id], onDelete: SetNull)
 
   @@index([companyId, enabled])
+  @@index([documentTemplateId])
   @@map("lms_certificate_template")
 }
 

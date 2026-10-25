@@ -2198,7 +2198,7 @@ const attendanceEvents = createAttendanceEvents({ prisma, broadcaster, notificat
 app.route("/", createAttendancePublicRouter({ prisma, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, events: attendanceEvents }));
 
 // Learning: certificate verification and course share links for guests, /public/lms/* (token in the path, no user auth).
-app.route("/", createLmsPublicRouter({ prisma, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService }));
+app.route("/", createLmsPublicRouter({ prisma, documentsHub, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService }));
 
 // File view/download public links: /public/files/:token (path-scoped, no auth).
 app.route("/", createFilesPublicRouter({
@@ -2502,7 +2502,7 @@ mountWithAuth(app, createCalendarRouter({ prisma, requirePermission, broadcaster
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService), broadcaster, relationTargets }));
 mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, entityResolver: resolveCanvasEntityLink, dataSources: createCanvasDataSources({ prisma, relationTargets }), removeFiles: createCanvasFileRemover({ prisma, supabaseAdmin }) }));
 mountWithAuth(app, createAttendanceRouter({ prisma, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail), buildInviteMail: buildAttendancePhoneInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env), requirePermission, requireAnyPermission, broadcaster, events: attendanceEvents, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
-mountWithAuth(app, createLmsRouter({ prisma, requirePermission, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId), buildMail: buildLmsCourseInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env) }));
+mountWithAuth(app, createLmsRouter({ prisma, requirePermission, documentsHub, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId), buildMail: buildLmsCourseInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));

@@ -19,7 +19,7 @@ function fail(c, error, fallback) {
 // service / guestService: optional overrides (tests). Guests behind one office IP
 // share a bucket, so the share limiter is wider than the certificate one.
 export function createLmsPublicRouter({
-  prisma, signFile = null, supabaseAdmin = null, bucket = 'runly-files', notificationService = null, service = null, guestService = null,
+  prisma, signFile = null, supabaseAdmin = null, bucket = 'runly-files', notificationService = null, service = null, guestService = null, documentsHub = null,
   limiter = createTokenBucketLimiter({ capacity: 30, refillPerSecond: 0.5 }),
   shareLimiter = createTokenBucketLimiter({ capacity: 300, refillPerSecond: 5 }),
   joinLimiter = createTokenBucketLimiter({ capacity: 20, refillPerSecond: 0.2 }),
@@ -27,7 +27,7 @@ export function createLmsPublicRouter({
   accessLimiter = createTokenBucketLimiter({ capacity: 10, refillPerSecond: 1 / 30 }),
 }) {
   const app = new Hono()
-  const certs = service ?? createLmsCertService({ prisma, signFile })
+  const certs = service ?? createLmsCertService({ prisma, signFile, hub: documentsHub })
   const hlsManifest = supabaseAdmin ? createLmsHls({ prisma, supabaseAdmin, bucket }).manifestFor : null
   const media = supabaseAdmin ? createLmsMedia({ prisma, supabaseAdmin, bucket }) : null
   const guest = guestService ?? createLmsGuestService({ prisma, signFile, hlsManifest, notificationService, media })

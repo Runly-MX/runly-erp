@@ -9,7 +9,7 @@ import { DocumentTemplateServiceError } from "./document-template-service.js";
 const BUCKET = "runly-files";
 const MODULE_KEY = "runly.documents";
 const SIGNED_URL_SECONDS = 3600;
-const LEGACY_TEMPLATE_ENTITIES = ["InvDocumentTemplate"];
+const LEGACY_TEMPLATE_ENTITIES = ["InvDocumentTemplate", "LmsCertificateTemplate"];
 
 const segment = (value) =>
   String(value).toLowerCase().replace(/[^a-z0-9-_]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "file";

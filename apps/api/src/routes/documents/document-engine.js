@@ -92,9 +92,11 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
     // Image tags carry their key; the renderers look the picture up by it.
     for (const key of Object.keys(images)) filled[key] = key;
     try {
-      if (format === "docx") return await renderDocx(buffer, filled, { images });
+      // Optional per-format image sizing from the kind (e.g. QR, signature and logo boxes).
+      const imageSize = kind.imageSize?.[format]?.(images);
+      if (format === "docx") return await renderDocx(buffer, filled, { images, imageSize });
       if (format === "xlsx") return await renderXlsx(buffer, filled, { images });
-      if (format === "pptx") return renderPptx(buffer, filled, { images });
+      if (format === "pptx") return renderPptx(buffer, filled, { images, imageSize });
       const text = Object.fromEntries(Object.entries(filled).map(([key, value]) => [key, Array.isArray(value) ? "" : toText(value)]));
       for (const field of layout?.fields ?? []) if (images[field.key]) imageKeys.add(field.key);
       return await fillPdf({ buffer, layout, data: text, images, imageKeys, title, issuedAt: now() });

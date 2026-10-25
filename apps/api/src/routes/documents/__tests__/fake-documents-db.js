@@ -5,12 +5,14 @@ const nextId = () => `00000000-0000-7000-8000-${String(++counter).padStart(12, "
 function matches(row, where = {}) {
   return Object.entries(where).every(([key, expected]) => {
     if (key === "NOT") return !matches(row, expected);
+    if (key === "OR") return expected.some((clause) => matches(row, clause));
+    if (expected && typeof expected === "object" && !(expected instanceof Date) && Array.isArray(expected.in)) return expected.in.includes(row[key]);
     if (expected && typeof expected === "object" && !(expected instanceof Date) && "not" in expected) return row[key] !== expected.not;
     return row[key] === expected;
   });
 }
 
-function table(defaults = {}) {
+export function table(defaults = {}) {
   const rows = [];
   return {
     rows,

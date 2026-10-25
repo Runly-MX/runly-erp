@@ -20,10 +20,26 @@ export function templateKeys(template) {
 
 // store: createLmsCertFiles(); instructorName(template, certificate) and
 // gradeFor(certificate) resolve the optional values.
-export function createCertFileRenderer({ store, convertPdf, env, instructorName, gradeFor }) {
+// hubRender({ companyId, template, certificate, data, images }) -> PDF Buffer | null renders hub-managed
+// templates (documentTemplateId) through documentsHub.engine. Revoked certificates keep the legacy path
+// because only it can stamp REVOCADO on a PDF.
+export function createCertFileRenderer({ store, convertPdf, env, instructorName, gradeFor, hubRender = null }) {
   // guestVars: intake answers of a share-link guest (guestCertVars), {} otherwise.
   async function render(companyId, certificate, template, verifyUrl, { brand, logoBuffer, signatureBuffer, guestVars = {} }) {
     const source = template?.source
+    if (hubRender && template?.documentTemplateId && (source === 'pdf' || OFFICE_RENDERERS[source]) && !certificate.revokedAt) {
+      try {
+        const [qr, instructor, calificacion] = await Promise.all([
+          verifyUrl ? qrPng(verifyUrl) : null, instructorName(template, certificate), gradeFor(certificate).catch(() => ''),
+        ])
+        const images = { qr, firma: isPdfImage(signatureBuffer) ? signatureBuffer : null, logo: isPdfImage(logoBuffer) ? logoBuffer : null }
+        const data = buildCertDocxData({ certificate, companyName: brand.name, instructor, calificacion, images, guestVars })
+        return await hubRender({ companyId, template, certificate, data, images })
+      } catch (error) {
+        if (process.env.NODE_ENV !== 'production') console.error(`[runly.lms] hub ${source} certificate render failed`, error?.message)
+        return null
+      }
+    }
     if (!template?.fileAssetId || !(source === 'pdf' || OFFICE_RENDERERS[source])) return null
     if (source !== 'pdf' && certificate.revokedAt) return null
     try {

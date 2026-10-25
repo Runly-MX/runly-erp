@@ -7,6 +7,7 @@ import { createDocumentEngine } from "./document-engine.js";
 import { createDocumentFileStore } from "./document-file-store.js";
 import { createDocumentFileTemplateService } from "./document-file-template-service.js";
 import { createInventoryCustodyDocumentKind } from "./kinds/inventory-custody-kind.js";
+import { createLmsCertificateDocumentKind } from "./kinds/lms-certificate-kind.js";
 import { createKindRegistry } from "./kinds/kind-registry.js";
 import { createGrowthLeadDocumentProvider } from "./providers/growth-lead-provider.js";
 
@@ -14,6 +15,7 @@ export function createDocumentsHub({ prisma, supabaseAdmin }) {
   const kinds = createKindRegistry();
   kinds.register(createGrowthLeadDocumentProvider({ prisma }));
   kinds.register(createInventoryCustodyDocumentKind({ prisma }));
+  kinds.register(createLmsCertificateDocumentKind({ prisma }));
   const files = createDocumentFileStore({ prisma, supabaseAdmin });
   const fileTemplates = createDocumentFileTemplateService({ prisma, files, kinds });
   const engine = createDocumentEngine({ prisma, files, kinds });

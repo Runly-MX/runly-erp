@@ -11,6 +11,7 @@ import { averageGrade, certTemplateWarnings, isOfficeAvailable } from './lms-cer
 import { createLmsCertFiles, createLmsCertTemplateFiles, isFileSource } from './lms-cert-templates.js'
 import { createCertFileRenderer } from './lms-cert-file-render.js'
 import { isCertFieldKey, normalizeCertLayout, readLayout } from './lms-cert-pdf-layout.js'
+import { createLmsCertHub } from './lms-cert-hub.js'
 import { SAMPLE_GUEST_CERT_VARS, guestCertVars } from './lms-intake-core.js'
 
 const iso = (value) => (value ? new Date(value).toISOString() : null)
@@ -44,13 +45,15 @@ async function fetchImage(fetchImpl, url) {
   }
 }
 
-// convertPdf and files are overridable (tests); env feeds the Office check.
+// convertPdf and files are overridable (tests); env feeds the Office check. hub: the Documents hub
+// (kind lms.certificate); without it uploaded templates are handled entirely inside LMS.
 export function createLmsCertService({
   prisma, signFile = null, supabaseAdmin = null, bucket = 'runly-files', appBaseUrl = () => resolveAppBaseUrl(process.env),
-  fetchImpl = (...args) => globalThis.fetch(...args), convertPdf = convertToPdf, files = null, env = process.env,
+  fetchImpl = (...args) => globalThis.fetch(...args), convertPdf = convertToPdf, files = null, env = process.env, hub = null,
 }) {
   const sign = async (fileId, variant) => (signFile && fileId ? signFile(fileId, variant).catch(() => null) : null)
   const store = files ?? createLmsCertFiles({ prisma, supabaseAdmin, bucket, signFile, fetchImpl })
+  const hubBridge = hub ? createLmsCertHub({ prisma, hub }) : null
 
   // Absolute when the app URL is known; otherwise relative (and the PDF skips the QR).
   function verifyUrlFor(token) {
@@ -77,6 +80,8 @@ export function createLmsCertService({
       id: row.id,
       source,
       fileAssetId: row.fileAssetId ?? null,
+      // Managed in Documents (kind lms.certificate): the file, tags and PDF fields live there.
+      hubManaged: Boolean(row.documentTemplateId),
       placeholders,
       tagCount: tagged ? placeholders.length : null,
       layout,
@@ -111,6 +116,7 @@ export function createLmsCertService({
   }
 
   async function listTemplates(companyId) {
+    if (hubBridge) await hubBridge.syncCompany(companyId)
     const rows = await prisma.lmsCertificateTemplate.findMany({ where: { companyId }, orderBy: [{ enabled: 'desc' }, { name: 'asc' }] })
     const counts = rows.length
       ? await prisma.lmsCourse.groupBy({ by: ['certificateTemplateId'], where: { certificateTemplateId: { in: rows.map((r) => r.id) }, enabled: true, status: { not: 'archived' } }, _count: { _all: true } })
@@ -178,7 +184,7 @@ export function createLmsCertService({
   }
 
   // Uploaded file (Word/PowerPoint through Office, PDF with pdf-lib); null = built-in design.
-  const fileRenderer = createCertFileRenderer({ store, convertPdf, env, instructorName, gradeFor })
+  const fileRenderer = createCertFileRenderer({ store, convertPdf, env, instructorName, gradeFor, hubRender: hubBridge?.renderPdf })
 
   async function renderPdf(companyId, certificate, template, verifyUrl) {
     const brand = await companyBrand(companyId)
@@ -319,7 +325,7 @@ export function createLmsCertService({
     return certificatePdf(await byToken(token))
   }
 
-  const fileTemplates = createLmsCertTemplateFiles({ prisma, files: store, serialize: serializeTemplate })
+  const fileTemplates = createLmsCertTemplateFiles({ prisma, files: store, serialize: serializeTemplate, hubBridge })
 
   return {
     officeAvailable: () => isOfficeAvailable(env),

@@ -15,6 +15,8 @@ import { PDF_MIME, inspectCertPdf } from './lms-cert-pdf-template.js'
 import { normalizeCertLayout, readLayout, suggestLayoutFromItems } from './lms-cert-pdf-layout.js'
 
 const MODULE_KEY = 'runly.lms'
+// Templates managed by the Documents hub keep their file under runly.documents.
+const HUB_MODULE_KEY = 'runly.documents'
 const ENTITY_TYPE = 'LmsCertificateTemplate'
 const SIGNED_URL_SECONDS = 3600
 const MAX_BYTES = 10 * 1024 * 1024
@@ -53,7 +55,7 @@ export function createLmsCertFiles({ prisma, supabaseAdmin = null, bucket = 'run
 
   async function findAsset(companyId, fileId) {
     if (!fileId) return null
-    const asset = await prisma.fileAsset.findFirst({ where: { id: fileId, moduleKey: MODULE_KEY, enabled: true } })
+    const asset = await prisma.fileAsset.findFirst({ where: { id: fileId, moduleKey: { in: [MODULE_KEY, HUB_MODULE_KEY] }, enabled: true } })
     return asset && asset.metadata?.companyId === companyId ? asset : null
   }
 
@@ -90,6 +92,8 @@ export function createCertTemplateOfficeRescan({ prisma }) {
     if (!row || !['docx', 'pptx'].includes(row.source)) return null
     let tags = []
     try { tags = (await CERT_FILE_FORMATS[row.source].inspect(Buffer.from(bytes), `plantilla.${row.source}`)).tags ?? [] } catch { tags = [] }
+    // The hub version that owns this file shows the same tags.
+    if (row.documentTemplateId) await prisma.documentTemplateVersion.updateMany({ where: { templateId: row.documentTemplateId, fileAssetId: file.id }, data: { placeholders: tags } })
     return prisma.lmsCertificateTemplate.update({ where: { id: row.id }, data: { placeholders: tags } })
   }
 }
@@ -154,7 +158,8 @@ const cleanName = (name, fileName, format) => String(name ?? '').trim().slice(0,
   || fileName.replace(/\.(docx|pptx|pdf)$/i, '').slice(0, 120) || `Plantilla de ${CERT_FILE_FORMATS[format].app}`
 
 // files: createLmsCertFiles(); serialize(row) -> API shape; extractText (tests).
-export function createLmsCertTemplateFiles({ prisma, files, serialize, extractText = extractPdfTextItems }) {
+// hubBridge (lms-cert-hub.js): when set, uploads, replacements and PDF layouts also go to the Documents hub.
+export function createLmsCertTemplateFiles({ prisma, files, serialize, extractText = extractPdfTextItems, hubBridge = null }) {
   async function findFileTemplate(companyId, id, formats = Object.keys(CERT_FILE_FORMATS)) {
     const row = await prisma.lmsCertificateTemplate.findFirst({ where: { id, companyId } })
     if (!row) throw new LmsError('La plantilla de certificado no existe.', 404)
@@ -192,6 +197,15 @@ export function createLmsCertTemplateFiles({ prisma, files, serialize, extractTe
   // (autoTagTemplate); a PDF gets its detected fields. The result carries
   // { template, warnings, autoTag, autoLayout } (null when not applied).
   async function upload(companyId, actorId, { file, name, format = null, autoTag = true, buffer = null, fileName = null }) {
+    if (hubBridge && !buffer) {
+      // Deprecated route: the hub stores the file (no auto-tagging; use Documents for suggestions).
+      const checked = await readTemplateUpload(file, format)
+      const saved = await hubBridge.upload({ companyId, actorId, file, name: cleanName(name, checked.fileName, checked.format) })
+      const row = await prisma.lmsCertificateTemplate.findFirst({ where: { id: saved.id, companyId } })
+      if (!row) throw new LmsError('No se pudo guardar la plantilla.', 500)
+      const template = await serialize(row, 0)
+      return { template, warnings: [...saved.warnings, ...template.warnings.filter((w) => !saved.warnings.includes(w))], autoTag: null, autoLayout: null }
+    }
     const read = buffer ? await inspectTemplateBuffer(buffer, fileName, format) : await readTemplateUpload(file, format)
     const { upload: up, autoTag: tagged } = autoTag ? await autoTagTemplate(read) : { upload: read, autoTag: null }
     const asset = await files.store({ companyId, actorId, buffer: up.buffer, fileName: up.fileName, format: up.format })
@@ -209,6 +223,12 @@ export function createLmsCertTemplateFiles({ prisma, files, serialize, extractTe
   async function replaceFile(companyId, actorId, id, { file }) {
     const current = await findFileTemplate(companyId, id)
     const up = await readTemplateUpload(file, current.source)
+    if (hubBridge && current.documentTemplateId) {
+      const replaced = await hubBridge.replaceFile({ companyId, actorId, row: current, file })
+      const row = await prisma.lmsCertificateTemplate.findFirst({ where: { id: current.id, companyId } })
+      const template = await serialize(row)
+      return { template, warnings: [...replaced.warnings, ...template.warnings.filter((w) => !replaced.warnings.includes(w))] }
+    }
     const asset = await files.store({ companyId, actorId, buffer: up.buffer, fileName: up.fileName, sourceEntityId: current.id, format: up.format })
     const data = { fileAssetId: asset.id, placeholders: up.tags }
     if (up.format === 'pdf') data.layout = (await initialLayout(up, current.layout)).layout
@@ -242,6 +262,7 @@ export function createLmsCertTemplateFiles({ prisma, files, serialize, extractTe
   async function saveLayout(companyId, id, body) {
     const row = await findFileTemplate(companyId, id, ['pdf'])
     const layout = normalizeCertLayout(body, readLayout(row.layout).page)
+    if (hubBridge && row.documentTemplateId) await hubBridge.saveLayout({ companyId, row, layout })
     return serialize(await prisma.lmsCertificateTemplate.update({ where: { id: row.id }, data: { layout } }))
   }
 

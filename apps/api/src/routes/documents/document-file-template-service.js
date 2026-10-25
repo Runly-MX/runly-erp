@@ -238,12 +238,15 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
       return { supported: true, format: "pdf", layout: scanned.layout, warnings: scanned.warnings };
     }
     try {
-      const result = suggestDocxTagsWithLabels(buffer, {
-        labels: kindLabels(kind),
-        itemColumns: kind.itemColumns ?? null,
-        signatures: kind.signatures ?? [],
-        important: kind.important ?? [],
-      });
+      // A kind may bring its own suggester (richer vocabulary than the label table).
+      const result = kind.suggestDocx
+        ? kind.suggestDocx(buffer)
+        : suggestDocxTagsWithLabels(buffer, {
+            labels: kindLabels(kind),
+            itemColumns: kind.itemColumns ?? null,
+            signatures: kind.signatures ?? [],
+            important: kind.important ?? [],
+          });
       const baseName = String(asset.originalName ?? template.name).replace(/\.docx$/i, "");
       return {
         supported: true,
