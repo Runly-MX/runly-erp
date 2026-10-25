@@ -7,6 +7,7 @@
 // color, align, bold, background }] }. background (hex or null) paints a box
 // under the text, used to cover sample text such as "NOMBRE DEL ALUMNO".
 import { normalizeLabel } from '../../services/document-templates/docx-autotag.js'
+import { groupLines, readLayout, xAt } from '../../services/document-templates/pdf-template.js'
 import { LmsError } from './lms-error.js'
 import { CERT_DOCX_IMAGE_TAGS, CERT_DOCX_SCALAR_TAGS } from './lms-cert-docx.js'
 import { CERT_LABELS, SIGNATURE, labelBefore, placeholderTag } from './lms-cert-docx-suggest.js'
@@ -33,14 +34,8 @@ const IMPORTANT = ['alumno', 'curso', 'fecha', 'folio']
 const round = (value) => Math.round(value * 100) / 100
 const bad = (message) => new LmsError(message, 400)
 
+export { groupLines, readLayout, xAt }
 export const emptyLayout = (page = null) => ({ page, fields: [] })
-
-// Stored JSON -> { page, fields } (never throws; unknown data is dropped).
-export function readLayout(value) {
-  const page = value?.page && Number(value.page.width) > 0 && Number(value.page.height) > 0
-    ? { width: Number(value.page.width), height: Number(value.page.height) } : null
-  return { page, fields: Array.isArray(value?.fields) ? value.fields : [] }
-}
 
 function number(value, label, what) {
   const n = Number(value)
@@ -82,41 +77,7 @@ export function normalizeCertLayout(input, page) {
   return { page: { width: page.width, height: page.height }, fields }
 }
 
-// ---- "Detectar campos" ------------------------------------------------------
-// items: pdfjs-like text items of page 1 as { str, x, y, w, h } (top-left
-// points, h = font size). Lines are rebuilt from items on the same baseline.
-export function groupLines(items) {
-  const sorted = items.filter((i) => String(i?.str ?? '').length && i.h > 0)
-    .map((i) => ({ ...i, base: i.y + i.h })).sort((a, b) => a.base - b.base || a.x - b.x)
-  const lines = []
-  for (const item of sorted) {
-    const line = lines.find((l) => Math.abs(l.base - item.base) <= Math.max(2, 0.3 * Math.min(l.h, item.h)))
-    if (line) { line.items.push(item); line.h = Math.max(line.h, item.h) } else lines.push({ base: item.base, h: item.h, items: [item] })
-  }
-  return lines.map((line) => {
-    line.items.sort((a, b) => a.x - b.x)
-    let text = ''
-    const spans = []
-    for (const item of line.items) {
-      const prev = spans[spans.length - 1]
-      if (prev && item.x - (prev.x + prev.w) > 0.15 * line.h && !/\s$/.test(text) && !/^\s/.test(item.str)) text += ' '
-      spans.push({ from: text.length, to: text.length + item.str.length, x: item.x, w: item.w })
-      text += item.str
-    }
-    const x = line.items[0].x
-    const last = line.items[line.items.length - 1]
-    return { text, spans, x, w: last.x + last.w - x, y: line.base - line.h, h: line.h, base: line.base }
-  }).sort((a, b) => a.base - b.base || a.x - b.x)
-}
-
-// x of a character index inside a line (interpolated within its item).
-export function xAt(line, index) {
-  const span = line.spans.find((s) => index >= s.from && index < s.to) ?? (index >= line.text.length ? line.spans[line.spans.length - 1] : null)
-  if (!span) return line.x
-  const len = Math.max(1, span.to - span.from)
-  return span.x + span.w * (Math.min(index, span.to) - span.from) / len
-}
-
+// ---- "Detectar campos" (line grouping is generic, see pdf-template.js) ----
 const PLACEHOLDER = /\[\s*([^[\]{}]{2,60}?)\s*\]|«\s*([^«»{}]{2,60}?)\s*»|<<\s*([^<>{}]{2,60}?)\s*>>|\{\{\s*(%?[a-z]+)\s*\}\}/g
 const ROLE = /^(director|directora|instructor|instructora|responsable|coordinador|coordinadora)\b/
 const keyOf = (tag) => (tag ? tag.replace(/^%/, '') : null)
