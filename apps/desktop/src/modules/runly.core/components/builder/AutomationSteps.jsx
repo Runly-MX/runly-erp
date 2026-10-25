@@ -13,6 +13,7 @@ const OWNER_LABELS = {
   "runly.calendar": "Calendario", "runly.files": "Archivos", "runly.notifications": "Notificaciones", "runly.contacts": "Contactos",
   "runly.inventory": "Inventario", "runly.projects": "Proyectos", "runly.ledger": "Libro de cuentas", "runly.fleet": "Flota", "runly.pfm": "Finanzas personales",
 };
+export const ownerLabel = (serviceKey) => OWNER_LABELS[serviceKey.split(":")[0]] ?? serviceKey.split(":")[0];
 export const serviceLabel = (key, label) => `${OWNER_LABELS[key.split(":")[0]] ?? key.split(":")[0]} · ${label}`;
 
 const UNIT_OPTIONS = [
@@ -29,7 +30,7 @@ function StepTitle({ icon: Icon, children }) {
   return <p className="flex items-center gap-2 pb-2 text-sm font-medium"><Icon className="h-4 w-4 text-(--brand-primary)" /> {children}</p>;
 }
 
-function DelayEditor({ step, readOnly, onChange }) {
+export function DelayEditor({ step, readOnly, onChange }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <TextField label="Esperar" type="number" min={1} value={String(step.amount ?? 1)} disabled={readOnly}
@@ -39,6 +40,30 @@ function DelayEditor({ step, readOnly, onChange }) {
       <p className="text-xs text-[hsl(var(--muted-foreground))] sm:col-span-2">
         De 1 minuto a 30 días. Después de esperar, el resto de los pasos corre en segundo plano y solo ofrece acciones que no necesitan a una persona.
       </p>
+    </div>
+  );
+}
+
+// Body of one step: the editor that matches its kind. `withServiceSelect` adds the
+// action picker on top (the visual editor's inspector; the form list draws its own).
+export function StepEditor({ step, steps, index, triggerType, fieldOptions, readOnly, onChange, withServiceSelect = false, label = "Acción" }) {
+  const afterDelay = steps.slice(0, index).some(isPauseStep);
+  const argsTrigger = triggerType === "schedule" ? "event" : triggerType;
+  if (isDelayStep(step)) return <DelayEditor step={step} readOnly={readOnly} onChange={onChange} />;
+  if (isApprovalStep(step)) return <ApprovalStepEditor step={step} readOnly={readOnly} onChange={onChange} />;
+  if (isHttpStep(step)) {
+    return <HttpStepEditor step={step} triggerType={triggerType === "schedule" || afterDelay ? "event" : triggerType} fieldOptions={fieldOptions} readOnly={readOnly} onChange={onChange} />;
+  }
+  const services = automationServices({ trigger: triggerType, afterDelay });
+  return (
+    <div className="space-y-3">
+      {withServiceSelect && (
+        <SelectField label={label} options={services.map((service) => ({ value: service.key, label: serviceLabel(service.key, service.label) }))}
+          value={step.service ?? ""} disabled={readOnly} placeholder="Elige una acción"
+          onValueChange={(service) => onChange({ service, args: {} })} />
+      )}
+      <AutomationArgsEditor contract={SERVICE_CONTRACTS[step.service]} args={step.args ?? {}} triggerType={argsTrigger}
+        fieldOptions={fieldOptions} readOnly={readOnly} onChange={(args) => onChange({ ...step, args })} />
     </div>
   );
 }
@@ -93,16 +118,7 @@ export function AutomationSteps({ steps, triggerType, onError, fieldOptions, rea
                 </>
               )}
             </div>
-            {delay ? (
-              <DelayEditor step={step} readOnly={readOnly} onChange={(next) => setStep(index, next)} />
-            ) : approval ? (
-              <ApprovalStepEditor step={step} readOnly={readOnly} onChange={(next) => setStep(index, next)} />
-            ) : http ? (
-              <HttpStepEditor step={step} triggerType={triggerType === "schedule" || afterDelay ? "event" : triggerType} fieldOptions={fieldOptions} readOnly={readOnly} onChange={(next) => setStep(index, next)} />
-            ) : (
-              <AutomationArgsEditor contract={SERVICE_CONTRACTS[step.service]} args={step.args ?? {}} triggerType={triggerType === "schedule" ? "event" : triggerType}
-                fieldOptions={fieldOptions} readOnly={readOnly} onChange={(args) => setStep(index, { ...step, args })} />
-            )}
+            <StepEditor step={step} steps={steps} index={index} triggerType={triggerType} fieldOptions={fieldOptions} readOnly={readOnly} onChange={(next) => setStep(index, next)} />
           </div>
         );
       })}

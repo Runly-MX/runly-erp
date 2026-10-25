@@ -7,6 +7,13 @@ Una **automatización** dice: «cuando pase esto, haz aquello en otro módulo».
 
 Debajo usa los mismos [servicios entre módulos](/documentacion/desarrolladores/servicios-y-eventos) que un módulo programado a mano: tu módulo nunca toca las tablas de otro módulo; todo pasa por el código del módulo dueño, con sus validaciones y su bitácora.
 
+## Dos vistas: Flujo y Formulario
+
+Cada automatización se puede editar de dos maneras, y las dos modifican lo mismo (el interruptor **Flujo | Formulario** está en la tarjeta; se recuerda tu elección):
+
+- **Flujo** (por omisión): la automatización como un hilo vertical, del disparador al último paso. La línea continua es lo que corre al momento; después de una espera o una aprobación la línea se vuelve punteada y gris: ahí todo corre en segundo plano. Toca o haz clic en un paso para editarlo (en pantallas anchas se edita en un panel a la derecha; en pantallas pequeñas se abre desde abajo). Agrega pasos con el **+** entre pasos o con la fila «Agregar un paso»; reordena arrastrando el asa o con `Alt` + flechas; quita un paso desde el panel o con `Supr`, y puedes deshacerlo desde el aviso. Las opciones que no se pueden usar en ese lugar aparecen desactivadas con la razón.
+- **Formulario**: los mismos datos en una lista de campos.
+
 ## Crear una automatización
 
 En el Constructor, pestaña **Automatizaciones** > *Nueva automatización*:
