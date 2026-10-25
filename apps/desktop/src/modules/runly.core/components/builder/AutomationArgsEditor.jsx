@@ -14,23 +14,9 @@ import { X } from "lucide-react";
 import { AUTOMATIC_ARGS } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../../auth/AuthProvider";
 import { runly } from "../../../../lib/runly";
+import { PeoplePicker } from "./PeoplePicker";
+import { ARG_LABELS, argLabel } from "../../lib/argLabels";
 
-const ARG_LABELS = {
-  title: "Título", description: "Descripción", startAt: "Inicio", endAt: "Fin", allDay: "Todo el día", location: "Lugar",
-  calendarId: "Calendario (id)", attendeeIds: "Invitados", reminderMinutes: "Recordatorios (minutos antes)",
-  userIds: "Destinatarios", body: "Mensaje", link: "Enlace", priority: "Prioridad", name: "Nombre", type: "Tipo",
-  email: "Correo", phone: "Teléfono", id: "Registro a cambiar (id)", status: "Estado", notes: "Notas", locationId: "Ubicación (id)",
-  projectId: "Proyecto (id)", assigneeId: "Responsable (id)", dueDate: "Fecha límite", statusId: "Estado (id)",
-  mimeType: "Tipo de archivo", contentBase64: "Contenido (base64)", shareWithCompany: "Compartir con la empresa",
-  plate: "Matrícula", vehicleId: "Vehículo (id)", driver: "Chofer", color: "Color", brand: "Marca", model: "Modelo", year: "Año",
-  insurer: "Aseguradora", policyNumber: "Número de póliza", coverageType: "Cobertura", startDate: "Inicio de vigencia",
-  expiryDate: "Vencimiento", premium: "Prima", currency: "Moneda", policyId: "Póliza (id)",
-  accountId: "Cuenta (id)", accountName: "Cuenta (nombre)", fecha: "Fecha", nombre: "Nombre", referencia: "Referencia",
-  concepto: "Concepto", numero: "Número", deposito: "Depósito", retiro: "Retiro", categoryId: "Categoría (id)", transactionId: "Movimiento (id)",
-  wallet: "Cartera (nombre o id)", direction: "Tipo de movimiento", amount: "Monto", occurredOn: "Fecha", category: "Categoría",
-  merchant: "Comercio", note: "Nota", movementId: "Movimiento (id)",
-  subject: "Asunto", to: "Correo externo", fileId: "Archivo adjunto (id)", source: "Qué incluye el reporte", format: "Formato", search: "Filtrar por texto",
-};
 
 // What an argument is for, in one line (only where the name is not obvious).
 const ARG_HINTS = {
@@ -59,7 +45,7 @@ const ENUM_LABELS = {
 };
 const PEOPLE_ARGS = new Set(["userIds", "attendeeIds"]);
 
-export const argLabel = (name) => ARG_LABELS[name] ?? name;
+export { argLabel };
 
 export function sourceOptions({ required, triggerType }) {
   return [
@@ -89,38 +75,7 @@ const selectOptions = (fieldOptions) => fieldOptions.map((option) => ({ value: o
 
 // People of the company to pick recipients from (never typed as ids).
 function PeopleValueInput({ label, value, readOnly, onChange }) {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const people = useQuery({
-    queryKey: ["builder-people"],
-    queryFn: async () => (await runly.modules.builderPeople(token))?.data ?? [],
-    enabled: Boolean(token),
-    staleTime: 5 * 60 * 1000,
-  });
-  const chosen = Array.isArray(value) ? value : [];
-  const list = people.data ?? [];
-  const nameOf = (id) => list.find((person) => person.id === id)?.name ?? "Persona";
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5">
-        {chosen.length === 0 && <span className="text-xs text-[hsl(var(--muted-foreground))]">Aún no eliges a nadie.</span>}
-        {chosen.map((id) => (
-          <Badge key={id} variant="secondary" className="gap-1 py-1">
-            {nameOf(id)}
-            {!readOnly && (
-              <button type="button" aria-label={`Quitar a ${nameOf(id)}`} className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-sm hover:bg-[hsl(var(--card))] [@media(pointer:coarse)]:h-8 [@media(pointer:coarse)]:w-8" onClick={() => onChange(chosen.filter((item) => item !== id))}>
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </Badge>
-        ))}
-      </div>
-      {!readOnly && (
-        <SelectField aria-label={label} options={list.filter((person) => !chosen.includes(person.id)).map((person) => ({ value: person.id, label: person.name }))}
-          value="" placeholder="Agregar persona..." onValueChange={(id) => id && onChange([...chosen, id])} />
-      )}
-    </div>
-  );
+  return <PeoplePicker label={label} value={Array.isArray(value) ? value : []} readOnly={readOnly} onChange={onChange} />;
 }
 
 // Data of the trigger and of earlier blocks, one tap to put it in a text.

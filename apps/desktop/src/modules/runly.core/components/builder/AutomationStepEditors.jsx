@@ -1,6 +1,7 @@
 // Module Builder — editors of the built-in automation steps that are not a
 // service call: "Llamar a una URL" (HTTP) and "Pedir aprobación" (spec
 // 2026-10-25-automation-studio-v2-stage-c-reach-design.md, C2/C3).
+import { PeoplePicker } from "./PeoplePicker";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, SelectField, TextField } from "@runly/ui";
 import { Plus, Trash2, X } from "lucide-react";
@@ -82,43 +83,12 @@ export function HttpStepEditor({ step, triggerType, fieldOptions, readOnly, onCh
 }
 
 export function ApprovalStepEditor({ step, readOnly, onChange }) {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const peopleQuery = useQuery({
-    queryKey: ["builder-people"],
-    queryFn: async () => (await runly.modules.builderPeople(token))?.data ?? [],
-    enabled: Boolean(token),
-    staleTime: 5 * 60 * 1000,
-  });
-  const people = peopleQuery.data ?? [];
-  const chosen = step.approvers ?? [];
-  const nameOf = (id) => people.find((person) => person.id === id)?.name ?? "Persona";
-  const options = people.filter((person) => !chosen.includes(person.id)).map((person) => ({ value: person.id, label: person.name }));
-
   return (
     <div className="space-y-3">
       <TextField label="Mensaje para quien aprueba" value={step.message ?? ""} disabled={readOnly} maxLength={200} placeholder="Ej. Aprobar la orden {{folio}}"
         onChange={(e) => onChange({ ...step, message: e.target.value })} />
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Quién puede aprobar</p>
-        <div className="flex flex-wrap gap-1.5">
-          {chosen.map((id) => (
-            <Badge key={id} variant="secondary" className="gap-1">
-              {nameOf(id)}
-              {!readOnly && (
-                <button type="button" aria-label={`Quitar a ${nameOf(id)}`} className="cursor-pointer" onClick={() => onChange({ ...step, approvers: chosen.filter((item) => item !== id) })}>
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </Badge>
-          ))}
-          {chosen.length === 0 && <span className="text-xs text-[hsl(var(--muted-foreground))]">Elige al menos una persona.</span>}
-        </div>
-        {!readOnly && chosen.length < MAX_APPROVERS && (
-          <SelectField aria-label="Agregar persona" options={options} value="" placeholder="Agregar persona..."
-            onValueChange={(id) => id && onChange({ ...step, approvers: [...chosen, id] })} />
-        )}
-      </div>
+      <PeoplePicker label="Quién puede aprobar" value={step.approvers ?? []} max={MAX_APPROVERS} readOnly={readOnly} emptyText="Elige al menos una persona."
+        onChange={(approvers) => onChange({ ...step, approvers })} />
       <p className="text-xs text-[hsl(var(--muted-foreground))]">
         Cualquiera de ellas puede aprobar o rechazar, una sola vez. Recibe una notificación y la ve en Inicio («Aprobaciones»). Si nadie responde en 7 días, la ejecución se cancela. Los pasos que siguen corren en segundo plano.
       </p>

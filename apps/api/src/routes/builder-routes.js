@@ -23,7 +23,8 @@ function handleBuilderError(c, error, fallbackMessage) {
   return c.json({ error: 'MODULE_BUILDER_UNEXPECTED_ERROR', message: fallbackMessage }, 500)
 }
 
-export function createBuilderRouter({ prisma, requirePermission, bundlerSvc = null, routeLoader = null, cacheDel = () => {} }) {
+import { buildAvatarUrlMapByFileIds } from '../lib/avatar-url-map.js'
+export function createBuilderRouter({ prisma, requirePermission, requireAnyPermission = null, supabaseAdmin = null, bundlerSvc = null, routeLoader = null, cacheDel = () => {} }) {
   const app = new Hono()
   const svc = createModuleBuilderService({ prisma, bundlerSvc, routeLoader, cacheDel })
   const aiDraft = createBuilderAiDraftService()
@@ -49,16 +50,20 @@ export function createBuilderRouter({ prisma, requirePermission, bundlerSvc = nu
 
   // People of the active company (never the MirAI bot) for pickers such as the
   // approvers of an automation.
-  app.get('/module-builder/people', requirePermission('core.modules.builder'), async (c) => {
+  // Also used by Automatizaciones (recipients, approvers), so its managers may read it too.
+  const peopleGuard = requireAnyPermission ? requireAnyPermission(['core.modules.builder', 'automations.manage']) : requirePermission('core.modules.builder')
+  app.get('/module-builder/people', peopleGuard, async (c) => {
     const companyId = c.get('companyId')
     if (!companyId) return c.json({ data: [] })
     const rows = await prisma.membership.findMany({
       where: { companyId, enabled: true, user: { isBot: false, enabled: true } },
-      select: { user: { select: { id: true, displayName: true, email: true } } },
+      select: { user: { select: { id: true, displayName: true, email: true, avatarFileId: true } } },
       orderBy: { user: { displayName: 'asc' } },
       take: 500,
     })
-    return c.json({ data: rows.map((row) => ({ id: row.user.id, name: row.user.displayName || row.user.email, email: row.user.email })) })
+    let urls = new Map()
+    if (supabaseAdmin) urls = await buildAvatarUrlMapByFileIds(rows.map((row) => row.user.avatarFileId).filter(Boolean), 'thumb', { prisma, supabaseAdmin }).catch(() => new Map())
+    return c.json({ data: rows.map((row) => ({ id: row.user.id, name: row.user.displayName || row.user.email, email: row.user.email, avatarUrl: urls.get(row.user.avatarFileId) ?? null })) })
   })
 
   app.get('/module-builder/capabilities', requirePermission('core.modules.builder'), (c) => {

@@ -2,6 +2,7 @@
 // moving and removing steps while keeping the rules the compiler enforces
 // (docs/developers/automatizaciones.md), and the texts shown on each node.
 // No React in here so it can be unit tested.
+import { argLabel } from "./argLabels.js";
 import { MAX_BRANCHES, MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, branchLanes, conditionsOf, isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isPauseStep, laneOwner, stepOutputKeys } from "@runly/module-compiler/browser";
 
 export const STEP_KINDS = Object.freeze({
@@ -279,7 +280,7 @@ export function describeAutomationDiagnostic(diagnostic) {
   if (!diagnostic?.code) return diagnostic?.message ?? "No se pudo guardar.";
   const index = /steps\[(\d+)\]/.exec(diagnostic.path ?? "");
   const where = index ? `bloque ${Number(index[1]) + 1}` : /\.action/.test(diagnostic.path ?? "") ? "bloque 1" : "";
-  const arg = /\.(?:args|body)\.([A-Za-z0-9_]+)/.exec(diagnostic.path ?? "")?.[1];
+  const arg = argLabel(/\.(?:args|body)\.([A-Za-z0-9_]+)/.exec(diagnostic.path ?? "")?.[1] ?? "");
   const place = where ? ` del ${where}` : "";
   switch (diagnostic.code) {
     case "AUTOMATION_SERVICE_UNKNOWN": return `Elige la acción${place}.`;
