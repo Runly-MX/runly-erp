@@ -1,96 +1,97 @@
 # Runly Studio: plan maestro consolidado
 
-Fecha: 2026-10-25. Identidad: `runly.studio`, m?dulo oficial de Runly ERP.
+Fecha: 2026-10-25. Identidad: `runly.studio`, módulo oficial de Runly ERP.
 
-## Precedencia y conservaci?n de fuentes
+## Precedencia y conservación de fuentes
 
-Este documento conserva ?ntegros el plan original, la ampliaci?n de los seis paquetes y la consolidaci?n aceptada, en los anexos A/B/C. Sus ?rdenes hist?ricas se interpretan con las decisiones vigentes de esta primera secci?n y con las reglas del repositorio. No se necesita otro plan conceptual antes de implementar.
+Este documento conserva íntegros el plan original, la ampliación de los seis paquetes y la consolidación aceptada, en los anexos A/B/C. Sus órdenes históricas se interpretan con las decisiones vigentes de esta primera sección y con las reglas del repositorio. No se necesita otro plan conceptual antes de implementar.
 
-Orden de autoridad dentro de este plan: consolidaci?n aceptada ? ampliaci?n ? plan original. Las rutas y capacidades citadas en los anexos son objetivos o referencias que deben contrastarse con c?digo actual.
+Orden de autoridad dentro de este plan: consolidación aceptada > ampliación > plan original. Las rutas y capacidades citadas en los anexos son objetivos o referencias que deben contrastarse con código actual.
 
 ## Precisiones efectivas
 
-- Reutilizaci?n primero, abstracci?n despu?s y distribuci?n al final. No hay obligaci?n de extraer geometr?a, colaboraci?n, assets o exportaci?n. Extraer ?nicamente con consumidores reales, sem?ntica com?n y pruebas de caracterizaci?n. Documentar y continuar si no se justifica ninguna extracci?n.
-- Auditar los seis paquetes, exports, versiones, alias legacy, consumidores, tarballs y CI antes de proponer infraestructura nueva. La matriz admite ?Ning?n paquete existente; responsabilidad interna de runly.studio?.
-- Comparar c?digo interno Studio, utilidades internas ERP y paquete graphics independiente. Elegir el paquete solo por necesidad de distribuci?n real y contrato estable. No alterar release scripts ni publicar para facilitar un prototipo.
-- Fase 2: persistencia segura, Presence, cursores y propagaci?n b?sica cuando la infraestructura y ACL lo permitan. La primera vertical puede completarse antes de estas capacidades, pero Fase 2 permanece abierta hasta validarlas.
-- Fase 4: concurrencia compleja, recuperaci?n y resoluci?n sofisticada de conflictos. No desarrollar un CRDT propio ni describir revisiones como CRDT.
-- Fase 2: dos o tres plantillas originales locales completamente editables. Fase 3: cat?logo empresarial, proveedores externos, b?squeda, filtros, cach?, licencias y atribuci?n.
-- Primera vertical: crear, insertar/modificar texto, formas e im?genes, guardar, reabrir editable y exportar PNG. El resto del MVP se entrega progresivamente; no hay botones ficticios.
+- Reutilización primero, abstracción después y distribución al final. No hay obligación de extraer geometría, colaboración, assets o exportación. Extraer únicamente con consumidores reales, semántica común y pruebas de caracterización. Documentar y continuar si no se justifica ninguna extracción.
+- Auditar los seis paquetes, exports, versiones, alias legacy, consumidores, tarballs y CI antes de proponer infraestructura nueva. La matriz admite "Ningún paquete existente; responsabilidad interna de runly.studio".
+- Comparar código interno Studio, utilidades internas ERP y paquete graphics independiente. Elegir el paquete solo por necesidad de distribución real y contrato estable. No alterar release scripts ni publicar para facilitar un prototipo.
+- Fase 2: persistencia segura, Presence, cursores y propagación básica cuando la infraestructura y ACL lo permitan. La primera vertical puede completarse antes de estas capacidades, pero Fase 2 permanece abierta hasta validarlas.
+- Fase 4: concurrencia compleja, recuperación y resolución sofisticada de conflictos. No desarrollar un CRDT propio ni describir revisiones como CRDT.
+- Fase 2: dos o tres plantillas originales locales completamente editables. Fase 3: catálogo empresarial, proveedores externos, búsqueda, filtros, caché, licencias y atribución.
+- Primera vertical: crear, insertar/modificar texto, formas e imágenes, guardar, reabrir editable y exportar PNG. El resto del MVP se entrega progresivamente; no hay botones ficticios.
 - Formato propio Runly, versionado; renderer como adaptador. No persistir exclusivamente Fabric JSON, blobs ni URLs firmadas. Identidad empresarial y propietario son datos del servidor, viewport es personal.
-- Evaluar por separado interacci?n en navegador, exportaci?n en navegador y render automatizado/headless. El servicio servidor no es requisito de la primera vertical.
-- Compatibilidad significa comportamientos observables comprobados, con escenarios y l?mites de cobertura. No significa equivalencia absoluta inferida de un build.
-- UI de @runly/ui; API mediante @runly/sdk; c?digo JavaScript y textos en espa?ol. Los motores pesados no entran en core/ui ni en el bundle inicial.
-- Sin cambios destructivos, migraciones aplicadas modificadas, despliegues, publicaci?n de paquetes o cambios a datos reales. Commits locales por responsabilidad, rama segura y preservaci?n del trabajo ajeno.
+- Evaluar por separado interacción en navegador, exportación en navegador y render automatizado/headless. El servicio servidor no es requisito de la primera vertical.
+- Compatibilidad significa comportamientos observables comprobados, con escenarios y límites de cobertura. No significa equivalencia absoluta inferida de un build.
+- UI de @runly/ui; API mediante @runly/sdk; código JavaScript y textos en español. Los motores pesados no entran en core/ui ni en el bundle inicial.
+- Sin cambios destructivos, migraciones aplicadas modificadas, despliegues, publicación de paquetes o cambios a datos reales. Commits locales por responsabilidad, rama segura y preservación del trabajo ajeno.
 
 ## Seguimiento ejecutable
 
 ### Fase 0: descubrimiento y arquitectura
 
 - [x] Verificar Git, remotos, commits y cambios locales; aislar rama/worktree.
-- [x] Auditar contratos y distribuci?n de los seis paquetes.
-- [x] Revisar Canvas, Notes, POS, Canvas Social, Builder, Automatizaciones y Documents; declarar l?mites de inspecci?n.
-- [x] Matriz de responsabilidades y reutilizaci?n.
-- [x] Baseline de pruebas gr?ficas, paquetes y Documents; pruebas adicionales de Automatizaciones.
+- [x] Auditar contratos y distribución de los seis paquetes.
+- [x] Revisar Canvas, Notes, POS, Canvas Social, Builder, Automatizaciones y Documents; declarar límites de inspección.
+- [x] Matriz de responsabilidades y reutilización.
+- [x] Baseline de pruebas gráficas, paquetes y Documents; pruebas adicionales de Automatizaciones.
 - [x] Spike comparativo con escenas comunes, reapertura y PNG en navegador/headless.
-- [x] ADR y documentaci?n de arquitectura/contratos.
-- [ ] Completar mediciones repetidas de memoria/FPS y validaci?n de un servicio servidor; no bloquean la vertical.
+- [x] ADR y documentación de arquitectura/contratos.
+- [ ] Completar mediciones repetidas de memoria/FPS y validación de un servicio servidor; no bloquean la vertical.
 
-### Fase 1: reutilizaci?n m?nima segura
+### Fase 1: reutilización mínima segura
 
-- [x] Decisi?n documentada: no extraer Canvas/POS/Notes ni crear @runly/graphics.
-- [x] Conservar integraci?n vigente Canvas/POS.
-- [x] Crear ?nicamente contrato interno de documento Studio para API/cliente.
-- [x] Verificar pruebas dirigidas de regresi?n y build.
+- [x] Decisión documentada: no extraer Canvas/POS/Notes ni crear @runly/graphics.
+- [x] Conservar integración vigente Canvas/POS.
+- [x] Crear únicamente contrato interno de documento Studio para API/cliente.
+- [x] Verificar pruebas dirigidas de regresión y build.
+- [x] Validar seis tarballs y consumidor independiente con reinstalación frozen, contratos Node y navegador; sin publicar.
 
-### Fase 2: primera vertical y ampliaci?n progresiva
+### Fase 2: primera vertical y ampliación progresiva
 
 - [x] Registro oficial, identidad PWA, permisos, ayuda y pantalla lazy.
 - [x] Crear documento y tres plantillas editables.
-- [x] Editar texto, formas e im?genes originales; mover/escalar/rotar.
-- [x] Contrato versionado, acceso empresarial/propietario y auditor?a transaccional.
-- [x] Guardar, reabrir editable y exportar PNG con comprobaci?n de p?xeles.
+- [x] Editar texto, formas e imágenes originales; mover/escalar/rotar.
+- [x] Contrato versionado, acceso empresarial/propietario y auditoría transaccional.
+- [x] Guardar, reabrir editable y exportar PNG con comprobación de píxeles.
 - [x] Pruebas SQL desechables y UI real con identidad/storage de fixture.
-- [ ] Validaci?n instalada con auth y Storage reales en entorno autorizado.
+- [ ] Validación instalada con auth y Storage reales en entorno autorizado.
 - [ ] Compartidos: modelo de colaboradores, permisos por documento y acceso de colaboradores a originales.
-- [ ] Realtime: autorizar canales desde API, revalidaci?n/revocaci?n y propagaci?n sin sobrescribir cambios locales.
-- [ ] Pruebas de dos usuarios: cursores, presencia, cambios distintos, conflicto, reconexi?n y revocaci?n.
-- [ ] Completar MVP: tama?os personalizados, pan/centrado, alineaci?n, orden/capas/bloqueo, duplicar/copiar/pegar, undo/redo, atajos y JPG.
-- [ ] Bloqueo com?n de navegaci?n del shell ante cambios pendientes.
+- [ ] Realtime: autorizar canales desde API, revalidación/revocación y propagación sin sobrescribir cambios locales.
+- [ ] Pruebas de dos usuarios: cursores, presencia, cambios distintos, conflicto, reconexión y revocación.
+- [ ] Completar MVP: tamaños personalizados, pan/centrado, alineación, orden/capas/bloqueo, duplicar/copiar/pegar, undo/redo, atajos y JPG.
+- [ ] Bloqueo común de navegación del shell ante cambios pendientes.
 
-### Fase 3: biblioteca y cat?logo
+### Fase 3: biblioteca y catálogo
 
-- [ ] Contratos de proveedores internos y externos; licencias y t?rminos actuales antes de cada integraci?n.
-- [ ] Plantillas sistema/empresa/usuario, aplicaci?n no destructiva y versiones con propietario definido.
-- [ ] B?squeda paginada, filtros, debounce, miniaturas separadas, cach? con cuotas/evicci?n y deduplicaci?n.
-- [ ] Importaci?n segura, atribuci?n en exportaciones y fallos de proveedor probados.
+- [ ] Contratos de proveedores internos y externos; licencias y términos actuales antes de cada integración.
+- [ ] Plantillas sistema/empresa/usuario, aplicación no destructiva y versiones con propietario definido.
+- [ ] Búsqueda paginada, filtros, debounce, miniaturas separadas, caché con cuotas/evicción y deduplicación.
+- [ ] Importación segura, atribución en exportaciones y fallos de proveedor probados.
 
 ### Fase 4: capacidades profesionales
 
-- [ ] Fuentes controladas, tipograf?a, filtros, recortes/m?scaras, gu?as y alineaci?n avanzada.
-- [ ] Evoluci?n expl?cita del esquema a grupos/capas/multip?gina con migraciones de documentos.
+- [ ] Fuentes controladas, tipografía, filtros, recortes/máscaras, guías y alineación avanzada.
+- [ ] Evolución explícita del esquema a grupos/capas/multipágina con migraciones de documentos.
 - [ ] SVG/PDF con fidelidad contrastada; no prometer PDF vectorial/CMYK antes de comprobarlo.
-- [ ] Concurrencia avanzada, recuperaci?n y conflictos con escenarios reproducibles.
-- [ ] Presupuestos medidos de memoria, interacci?n, apertura y exportaci?n.
+- [ ] Concurrencia avanzada, recuperación y conflictos con escenarios reproducibles.
+- [ ] Presupuestos medidos de memoria, interacción, apertura y exportación.
 
 ### Fase 5: ecosistema
 
-- [ ] Contrato Studio ? FileAsset ? Documents/LMS, sin duplicar el motor de plantillas ni su versionado.
-- [ ] Render headless en la cola/worker existente con aislamiento de empresa y l?mites de recursos.
-- [ ] Registrar servicios solo tras validar permisos, actor, idempotencia, auditor?a, reintentos y fallos parciales.
-- [ ] Probar finalizaci?n de curso ? un certificado autorizado sin duplicados.
-- [ ] Generaci?n masiva y APIs/MCP/MirAI seg?n contratos vigentes.
+- [ ] Contrato Studio > FileAsset > Documents/LMS, sin duplicar el motor de plantillas ni su versionado.
+- [ ] Render headless en la cola/worker existente con aislamiento de empresa y límites de recursos.
+- [ ] Registrar servicios solo tras validar permisos, actor, idempotencia, auditoría, reintentos y fallos parciales.
+- [ ] Probar finalización de curso > un certificado autorizado sin duplicados.
+- [ ] Generación masiva y APIs/MCP/MirAI según contratos vigentes.
 
 ### Fase 6: IA opcional
 
-- [ ] Evaluar asistencia de composici?n, texto, fondos, redimensionamiento e im?genes despu?s de estabilizar el editor.
-- [ ] Conservar operaci?n sin API de pago obligatoria; credenciales siempre fuera del frontend.
+- [ ] Evaluar asistencia de composición, texto, fondos, redimensionamiento e imágenes después de estabilizar el editor.
+- [ ] Conservar operación sin API de pago obligatoria; credenciales siempre fuera del frontend.
 
 ## Puertas de avance y evidencias
 
-La siguiente entrega ejecutable es completar el MVP y dise?ar compartir/realtime sobre el contrato existente. La colaboraci?n no puede activarse con un canal p?blico o un topic nuevo sin autorizaci?n y revocaci?n verificadas. La publicaci?n de core/sdk es una decisi?n posterior; los packs locales y el consumidor independiente no publican.
+La siguiente entrega ejecutable es completar el MVP y diseñar compartir/realtime sobre el contrato existente. La colaboración no puede activarse con un canal público o un topic nuevo sin autorización y revocación verificadas. La publicación de core/sdk es una decisión posterior; los packs locales y el consumidor independiente no publican.
 
-Fuentes de resultados: [auditor?a](../../architecture/runly-studio-audit.md), [n?cleo compartido](../../architecture/runly-shared-graphics.md), [arquitectura](../../architecture/runly-studio-architecture.md), [ADR](../../architecture/adr-runly-studio-renderer.md), [verificaci?n](../../architecture/runly-studio-verification.md).
+Fuentes de resultados: [auditoría](../../architecture/runly-studio-audit.md), [núcleo compartido](../../architecture/runly-shared-graphics.md), [arquitectura](../../architecture/runly-studio-architecture.md), [ADR](../../architecture/adr-runly-studio-renderer.md), [verificación](../../architecture/runly-studio-verification.md).
 
 ## Anexo A: plan original conservado
 

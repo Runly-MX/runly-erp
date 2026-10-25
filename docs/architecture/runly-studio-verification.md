@@ -18,7 +18,17 @@ Fecha: 2026-10-25. Node 22.23.3, pnpm 9.15.0, Chrome headless y PostgreSQL 18 en
 | React Doctor | 90/100, 5 archivos escaneados, sin issues informados en ese alcance |
 | Catálogo de permisos | 341 permisos manifest/catalog, 0 faltantes y 0 extras |
 | Instalación frozen | Aprobada; lock conserva resoluciones previas y añade Fabric con sus dependencias |
-| Packs y consumidor independiente | Pendiente de ejecutar sobre el commit limpio de implementación; se actualizará este informe con el resultado |
+| Packs y consumidor independiente | Aprobados sobre `52093822644c53ea079a2a037a7840929af0c078`: seis tarballs, instalación limpia, reinstalación frozen, contratos Node, build y browser en ambas |
+
+La suite final dirigida `pnpm test:studio`, con la variable de base desechable configurada, ejecutó 16 pruebas y aprobó las 16 sin omisiones. Se repitió el flujo UI después del ajuste final de los controles y también pasó.
+
+## Distribución local comprobada
+
+Se ejecutaron `pnpm release:shared` y `pnpm verify:shared-consumer --manifest .artifacts/shared-release/52093822644c53ea079a2a037a7840929af0c078/manifest.json`, sin el flag publish. La versión local de los artefactos es `0.1.0-source.52093822644c53ea079a2a037a7840929af0c078`.
+
+La instalación independiente verificó integridad y exports; el fixture probó los cuatro métodos Studio del SDK mediante su alias. Ambas instalaciones resolvieron una única instancia de React, React DOM y Query, y cargaron CSS correctamente. Runtime fijado: React/React DOM 19.3.1 y Query 5.104.4. Se validaron 4651 inputs aislados por build. GitHub Packages real conserva estado `registryAcceptance: not-tested`; no hubo publicación ni consulta de versiones publicadas.
+
+Una futura adopción externa deberá publicar el conjunto de seis paquetes desde un SHA revisado mediante el workflow protegido, después de autorización, y actualizar aliases exactos y lockfiles del consumidor. La vertical en el monorepo usa workspaces y no depende de esa publicación.
 
 La primera regresión tras instalar dependencias encontró 10 archivos de prueba que no podían importar Prisma porque faltaba generar el cliente en el worktree nuevo. Se ejecutó `pnpm db:generate` con una URL ficticia sin conexión a base y se repitió la suite; el resultado corregido es el indicado arriba. No se ocultó ni se eludió un fallo de código.
 
@@ -67,3 +77,9 @@ Estos checks globales permanecen rojos; no se reportan como aprobados ni se modi
 - Estado de migraciones de una instalación, aceptación de GitHub Packages o paquetes ya publicados.
 
 La siguiente validación de integración requiere un entorno de prueba autorizado con auth/Storage reales y los permisos sincronizados. La migración nueva fue aplicada únicamente dentro del contenedor desechable de verificación.
+
+## Rama e integración
+
+Commits de trabajo: `38fc5139` (plan/auditoría/arquitectura) y `52093822` (vertical y pruebas), rama `feat/runly-studio-foundation`. La evidencia de packs corresponde al segundo commit; el commit posterior solo actualiza documentación.
+
+El workspace original avanzó en paralelo hasta `f87f844602c84006de1260dad45ba27315b53868` al comprobar el cierre, además de conservar cambios sin commit. Esos cambios no se mezclaron ni se certifican en esta rama. Antes de integrar, revisar la diferencia desde la base `f60c8ed8`, resolver cualquier solapamiento y repetir las suites afectadas. No se integró en main ni se hizo push.
