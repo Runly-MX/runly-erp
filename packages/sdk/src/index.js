@@ -532,6 +532,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       regenerateAutomationWebhook: (key, token) => request(`/automations/${encodeURIComponent(key)}/webhook/regenerate`, { method: "POST", headers: withAuthHeaders(token) }),
       automationWebhookEvents: (key, token) => request(`/automations/${encodeURIComponent(key)}/webhook/events`, { headers: withAuthHeaders(token) }),
       // Home widgets contributed by Builder modules (manifest homeWidgets).
+      workMentions: (token) => request("/work/mentions", { headers: withAuthHeaders(token) }),
       homeWidgets: (token) => request("/home-widgets", { headers: withAuthHeaders(token) }),
       homeWidgetData: (moduleKey, widgetKey, token) => request(`/home-widgets/${encodeURIComponent(moduleKey)}/${encodeURIComponent(widgetKey)}`, { headers: withAuthHeaders(token) }),
       systemAutomations: (token) => request("/automations", { headers: withAuthHeaders(token) }),

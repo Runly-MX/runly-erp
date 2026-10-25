@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LayoutGrid, SearchX } from "lucide-react";
+import { Briefcase, LayoutGrid, SearchX } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Skeleton, EmptyState, Button } from "@runly/ui";
 import { useAuth } from "../auth/AuthProvider";
 import { useRuntimeModules } from "./useRuntimeModules";
@@ -162,11 +163,16 @@ export function HomeScreen() {
         }}
         isOfflineBlocked={isOfflineBlocked}
         actions={
-          <HomeWidgetCustomizer
-            widgets={offeredWidgets}
-            hidden={widgetPrefs.hidden}
-            onToggle={widgetPrefs.toggle}
-          />
+          <>
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link to="/app/work"><Briefcase size={14} aria-hidden /> Mi trabajo</Link>
+            </Button>
+            <HomeWidgetCustomizer
+              widgets={offeredWidgets}
+              hidden={widgetPrefs.hidden}
+              onToggle={widgetPrefs.toggle}
+            />
+          </>
         }
       />
 

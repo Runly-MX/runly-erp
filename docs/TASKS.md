@@ -24,6 +24,7 @@ Spec: `docs/superpowers/specs/2026-10-24-work-layer-task-links-design.md`. Roadm
 - [x] Stage D2 (MirAI part): `runly.automations` MirAI capability (`routes/automations/mirai-capabilities.js`: list, runs per block, catalog; create (paused), activate/pause, delete via proposals; webhook URL never exposed). Verified: 2026-10-25 (unit tests). Pending: MCP tools for external clients (ChatGPT/Claude), "Conectar tu IA".
 - [ ] (superseded)  record-level triggers for system modules remain out of scope.
 - [ ] Builder `workLinks` flag for entities of Builder modules; MirAI tool to list tasks by record; link/unlink as MirAI/MCP actions.
+- [x] Work platform phase 2 (spec `docs/superpowers/specs/2026-10-26-my-work-and-widget-contributions-design.md`): Builder modules contribute Home widgets through `homeWidgets` (count and list; compiler, manifest, `GET /home-widgets`, generic widget), `GET /work/mentions` + "Menciones" widget, "Mi trabajo" screen (`/app/work`) and its entry on Home. Verified: 2026-10-26 (unit tests, `.e2e/automations-homewidgets-e2e.mjs` 6/6, `.e2e/work-screen-e2e.mjs` 2/2, `pnpm lint`, `pnpm build:web`). Pending: order and size of widgets, a Builder UI tab to define `homeWidgets` (today JSON/MCP).
 - [ ] Next roadmap phases: My Work home and widget contributions, domain event coverage, Automation Studio v2, Projects depth, Slack parity gaps.
 
 ## Runly stabilization - recovery, isolation and delivery [IN PROGRESS]

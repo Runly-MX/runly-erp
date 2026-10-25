@@ -22,6 +22,7 @@ import { CallsProvider } from "../modules/runly.chat/calls/CallsProvider";
 import { RunlyApp } from "./RunlyApp";
 import { HomeScreen } from "./HomeScreen";
 import { HelpCenterScreen } from "./HelpCenterScreen";
+import WorkScreen from "./WorkScreen";
 import { ModuleOutlet } from "./ModuleOutlet";
 import { ProfileScreen } from "./ProfileScreen";
 import { LegacyPublicRedirect } from "./LegacyPublicRedirect.jsx";
@@ -230,6 +231,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                       <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />
                       <Route path="profile" element={<ProfileScreen />} />
                       <Route path="help" element={<HelpCenterScreen />} />
+                      <Route path="work" element={<WorkScreen />} />
                       <Route path="native-host" element={<NativeHostDiagnostics />} />
                     </Route>
                   </Route>

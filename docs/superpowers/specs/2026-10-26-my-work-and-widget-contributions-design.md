@@ -67,9 +67,9 @@ when the module is not available:
 | Menciones | new `GET /chat/mentions/mine` (last 7 days, unread first) |
 | Agenda de hoy | calendar events of the day |
 
-- One endpoint `GET /work/summary` returns the four lists and their totals in one call
-  (4 parallel queries; the dev database costs about 84 ms per query, so one request
-  matters). Sections fail independently (`{ error }` in one section, the rest render).
+- Implemented by composing the existing Home widgets (same data and permissions) in a wider
+  layout, plus one new endpoint `GET /work/mentions`; the sections load in parallel and fail
+  independently. A single `/work/summary` endpoint was dropped: it would duplicate the widgets' queries.
 - Home gets a compact "Mi trabajo" header card with the three counts and a link; the
   full screen is the destination. The old widgets stay.
 - Mobile first: sections stack, each row is a 44 px touch target.
