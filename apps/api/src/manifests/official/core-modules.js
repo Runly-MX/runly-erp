@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { createModuleManifest, MODULE_KINDS } from "@runly/core";
 import { loadHelpBlueprints } from "@runly/module-engine";
 import { inventoryAssistantThread, inventoryReusableCatalog } from './inventory-assistant.model.js';
+import { studioMap } from './studio.js';
 import {
   contactsMap,
   hrMap,
@@ -1761,6 +1762,7 @@ export const coreModules = [
   attendanceMap,
   lmsMap,
   inventoryMap,
+  studioMap,
   purchasesMap,
   chatMap,
   notesMap,

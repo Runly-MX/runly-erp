@@ -14,6 +14,7 @@ import { TRASH_SUBPATH } from "../shell/trash/useTrashProviders.js";
 const TrashScreen = lazy(() => import("../shell/trash/TrashScreen.jsx").then((m) => ({ default: m.TrashScreen })));
 
 const SCREEN_MAP = {
+  'runly.studio:/': lazy(() => import('../modules/runly.studio/screens/StudioScreen.jsx')),
   "runly.core:/modules": lazy(
     () => import("../modules/runly.core/screens/ModuleCatalog.jsx"),
   ),

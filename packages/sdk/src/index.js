@@ -6,6 +6,7 @@ import { createCallsDomain } from "./domains/calls.js";
 import { createSettingsDomain } from "./domains/settings.js";
 import { createBuilderDomain } from "./domains/builder.js";
 import { createCanvasDomain } from "./domains/canvas.js";
+import { createStudioDomain } from "./domains/studio.js";
 import { createAttendanceDomain } from "./domains/attendance.js";
 import { createLmsDomain } from "./domains/lms.js";
 import { createConnectionsDomain } from "./domains/connections.js";
@@ -126,6 +127,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
   }
 
   return {
+    studio: createStudioDomain({ request, withAuthHeaders, toQueryString }),
     settings: createSettingsDomain({ request, withAuthHeaders }),
     builder: createBuilderDomain({ request, requestBlob, withAuthHeaders }),
     support: {

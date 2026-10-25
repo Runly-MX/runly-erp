@@ -54,6 +54,16 @@ const client = createRunlyClient({ baseUrl: 'https://api.example.test', getActiv
   } });
 await assert.rejects(client.auth.me('test-only'), { code: 'company_changed', status: 409 });
 assert.equal(requestedCompany, 'a');
+const studioRequests = [];
+const studioClient = AliasClient({ baseUrl: 'https://api.example.test', getActiveCompanyId: () => 'studio-company',
+  fetch: async (url, options) => { studioRequests.push({ url, options }); return Response.json({ data: [] }); } });
+await studioClient.studio.listDesigns('test-only', { page: 2 });
+await studioClient.studio.getDesign('design/one', 'test-only');
+await studioClient.studio.createDesign({ name: 'Contrato' }, 'test-only');
+await studioClient.studio.updateDesign('design/one', { revision: 1 }, 'test-only');
+assert.deepEqual(studioRequests.map(({ options }) => options.method), ['GET', 'GET', 'POST', 'PUT']);
+assert.equal(studioRequests[1].url, 'https://api.example.test/studio/designs/design%2Fone');
+for (const { options } of studioRequests) assert.equal(options.headers['X-Runly-Company-Id'], 'studio-company');
 assert.equal(PREVIEW_RUNTIME_CONTRACT.schemaVersion, 3);
 const preferences = { get: async () => null, set: async (_key, value) => value, remove: async () => null };
 const session = createRuntimeSession({ id: 'external-contract', preferences, resources: { resolve: () => null },

@@ -1401,6 +1401,15 @@ export const PERMISSION_CATALOG = {
   "canvas.access": {
     displayNameEs: "Acceder a Canvas", descriptionEs: "Permite abrir el módulo Runly Canvas.", groupKey: "canvas", order: 10,
   },
+  "studio.view": {
+    displayNameEs: "Ver mis diseños", descriptionEs: "Permite abrir los diseños propios de Runly Studio en la empresa activa.", groupKey: "studio", order: 10,
+  },
+  "studio.create": {
+    displayNameEs: "Crear diseños", descriptionEs: "Permite crear diseños y usar plantillas originales.", groupKey: "studio", order: 20,
+  },
+  "studio.edit": {
+    displayNameEs: "Editar mis diseños", descriptionEs: "Permite guardar cambios en los diseños propios.", groupKey: "studio", order: 30,
+  },
   "canvas.view": {
     displayNameEs: "Ver Boards", descriptionEs: "Permite ver Boards donde el usuario participa.", groupKey: "canvas", order: 20,
   },

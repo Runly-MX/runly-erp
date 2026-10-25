@@ -121,3 +121,5 @@ apps/desktop/native-host/shell/runly-mark.svg
 # Kotlin daemon/session diagnostics and machine-specific compiler state.
 .kotlin/
 kotlin-compiler-*.log
+# Local Studio verification artifacts (screenshots, bundles and logs).
+.artifacts/studio/
