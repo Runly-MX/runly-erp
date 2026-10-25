@@ -57,19 +57,7 @@ export function createAutomationRunsService({ prisma }) {
     await prisma.automationRun.updateMany({ where: { id: runId, companyId, moduleKey, status: "waiting" }, data: { status: "cancelled" } });
   }
 
-  async function list({ companyId, moduleKey, automation = null, status = null, limit = 50 }) {
-    const take = Math.min(Math.max(Number(limit) || 50, 1), 200);
-    const rows = await prisma.automationRun.findMany({
-      where: {
-        companyId,
-        moduleKey,
-        ...(automation ? { automationKey: String(automation) } : {}),
-        ...(STATUSES.includes(status) ? { status } : {}),
-      },
-      orderBy: { createdAt: "desc" },
-      take,
-    });
-    return rows.map((row) => ({
+  const view = (row) => ({
       id: row.id,
       automationKey: row.automationKey,
       triggerKind: row.triggerKind,
@@ -80,7 +68,54 @@ export function createAutomationRunsService({ prisma }) {
       error: row.error,
       durationMs: row.durationMs,
       createdAt: row.createdAt,
-    }));
+  });
+
+  const TRIGGERS = ["record", "event", "schedule", "webhook", "delayed"];
+  function filters({ companyId, moduleKey, automation = null, status = null, trigger = null, from = null, to = null }) {
+    const day = (value, end) => {
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value ?? "")) ? new Date(`${value}T${end ? "23:59:59.999" : "00:00:00.000"}`) : null;
+      return date && !Number.isNaN(date.getTime()) ? date : null;
+    };
+    const start = day(from, false);
+    const finish = day(to, true);
+    return {
+      companyId,
+      moduleKey,
+      ...(automation ? { automationKey: String(automation) } : {}),
+      ...(STATUSES.includes(status) ? { status } : {}),
+      ...(TRIGGERS.includes(trigger) ? { triggerKind: trigger } : {}),
+      ...(start || finish ? { createdAt: { ...(start ? { gte: start } : {}), ...(finish ? { lte: finish } : {}) } } : {}),
+    };
+  }
+
+  async function list({ limit = 50, ...query }) {
+    const take = Math.min(Math.max(Number(limit) || 50, 1), 200);
+    const rows = await prisma.automationRun.findMany({ where: filters(query), orderBy: { createdAt: "desc" }, take });
+    return rows.map(view);
+  }
+
+  // Keyset pagination (newest first): `cursor` is "<createdAt ISO>|<id>" of the last row seen.
+  async function page({ limit = 25, cursor = null, ...query }) {
+    const take = Math.min(Math.max(Number(limit) || 25, 1), 100);
+    const where = filters(query);
+    const [at, id] = String(cursor ?? "").split("|");
+    const after = at && id && !Number.isNaN(new Date(at).getTime())
+      ? { OR: [{ createdAt: { lt: new Date(at) } }, { createdAt: new Date(at), id: { lt: id } }] }
+      : null;
+    const [rows, total] = await Promise.all([
+      prisma.automationRun.findMany({ where: after ? { AND: [where, after] } : where, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: take + 1 }),
+      cursor ? Promise.resolve(null) : prisma.automationRun.count({ where }),
+    ]);
+    const more = rows.length > take;
+    const items = rows.slice(0, take);
+    const last = items[items.length - 1];
+    return { items: items.map(view), total, nextCursor: more && last ? `${last.createdAt.toISOString()}|${last.id}` : null };
+  }
+
+  // Up to `max` rows for a file (CSV or Excel), newest first.
+  async function exportRows({ max = 5000, ...query }) {
+    const rows = await prisma.automationRun.findMany({ where: filters(query), orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: max });
+    return rows.map(view);
   }
 
   async function purgeOlderThan(days = AUTOMATION_RUN_RETENTION_DAYS, now = new Date()) {
@@ -89,5 +124,5 @@ export function createAutomationRunsService({ prisma }) {
     return result.count;
   }
 
-  return { log, list, markCancelled, purgeOlderThan };
+  return { log, list, page, exportRows, markCancelled, purgeOlderThan };
 }

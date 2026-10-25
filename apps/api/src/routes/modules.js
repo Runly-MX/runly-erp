@@ -1,4 +1,5 @@
 import { createAutomationRunsService } from "../services/automation-runs-service.js";
+import { buildRunsFile } from "../services/automation-runs-export.js";
 import { createAutomationJobsService } from "../services/automation-jobs-service.js";
 import { Hono } from "hono";
 import { resolvePersistedModuleKey } from '../services/module-key-alias.js';
@@ -2630,8 +2631,28 @@ export function createModulesRouter({
     const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
     const companyId = c.get("companyId");
     if (!companyId) return c.json({ error: "Selecciona una empresa activa." }, 400);
-    const { automation, status, limit } = c.req.query();
+    const { automation, status, limit, trigger, from, to, cursor, paged } = c.req.query();
+    // paged=1: { data, page: { total, nextCursor } } for the history screen (infinite loading).
+    if (paged) {
+      const result = await automationRunsSvc.page({ companyId, moduleKey: key, automation, status, trigger, from, to, cursor, limit });
+      return c.json({ data: result.items, page: { total: result.total, nextCursor: result.nextCursor } });
+    }
     return c.json({ data: await automationRunsSvc.list({ companyId, moduleKey: key, automation, status, limit }) });
+  });
+
+  // The filtered history as a file (csv | xlsx), up to 5000 runs.
+  app.get("/:key/automation-runs/export", authMiddleware, automationsGuard("automations.read"), async (c) => {
+    const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
+    const companyId = c.get("companyId");
+    if (!companyId) return c.json({ error: "Selecciona una empresa activa." }, 400);
+    const { automation, status, trigger, from, to, format } = c.req.query();
+    const rows = await automationRunsSvc.exportRows({ companyId, moduleKey: key, automation, status, trigger, from, to });
+    let labels = new Map();
+    if (key === "system.automations") labels = new Map((await prisma.systemAutomation.findMany({ where: { companyId }, select: { key: true, label: true } })).map((row) => [row.key, row.label]));
+    const file = await buildRunsFile({ rows, labels, format: format === "xlsx" ? "xlsx" : "csv" });
+    c.header("Content-Type", file.type);
+    c.header("Content-Disposition", `attachment; filename="historial-automatizaciones.${file.ext}"`);
+    return c.body(file.content);
   });
 
   // Waits of the module's automations that have not run yet; cancelling one

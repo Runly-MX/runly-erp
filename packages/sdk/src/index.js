@@ -511,6 +511,18 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
         });
       },
+      // Paged + filtered history: { data, page: { total, nextCursor } }.
+      automationRunsPage: (key, filters = {}, token) => {
+        const params = new URLSearchParams({ paged: "1" });
+        for (const [name, value] of Object.entries(filters)) if (value) params.set(name, String(value));
+        return request(`/modules/${encodeURIComponent(key)}/automation-runs?${params}`, { headers: withAuthHeaders(token) });
+      },
+      // The filtered history as a file ("csv" | "xlsx").
+      exportAutomationRuns: (key, filters = {}, token) => {
+        const params = new URLSearchParams();
+        for (const [name, value] of Object.entries(filters)) if (value) params.set(name, String(value));
+        return requestBlob(`/modules/${encodeURIComponent(key)}/automation-runs/export?${params}`, { headers: withAuthHeaders(token) });
+      },
       // Automations of the company that are not tied to a module (core.modules.manage).
       automationWebhookOrigins: (token) => request("/automations/webhook-origins", { headers: withAuthHeaders(token) }),
       setAutomationWebhookOrigins: (origins, token) =>

@@ -16,12 +16,12 @@ import { CodeSnippet } from "./CodeSnippet";
 // Picture of the two directions. Uses the theme tokens so it works in light and dark.
 function ConnectionsDiagram() {
   return (
-    <svg viewBox="0 0 560 150" role="img" aria-label="Otro sistema envía datos a Runly por webhook; Runly envía datos a otro sistema por HTTPS firmado" className="h-auto w-full text-[hsl(var(--foreground))]">
+    <svg viewBox="0 0 560 150" role="img" aria-label="Entrada: otro sistema envía datos a Runly. Salida: Runly envía datos a otro sistema" className="h-auto w-full text-[hsl(var(--foreground))]">
       <defs>
         <marker id="conn-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1 L9 5 L0 9 z" className="fill-(--brand-primary)" /></marker>
         <marker id="conn-arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1 L9 5 L0 9 z" className="fill-[hsl(var(--muted-foreground))]" /></marker>
       </defs>
-      {[{ x: 8, label: "Tu otro sistema", sub: "tienda, CRM, formulario..." }, { x: 432, label: "Otro sistema", sub: "webhook, API, ERP..." }].map((box) => (
+      {[{ x: 8, label: "Sistema de origen", sub: "tienda, CRM, formulario..." }, { x: 432, label: "Sistema de destino", sub: "API, ERP, chat..." }].map((box) => (
         <g key={box.x}>
           <rect x={box.x} y="38" width="120" height="74" rx="10" className="fill-[hsl(var(--card))] stroke-[hsl(var(--border))]" strokeWidth="1.5" />
           <rect x={box.x + 14} y="52" width="92" height="9" rx="3" className="fill-[hsl(var(--muted))]" />
@@ -34,11 +34,11 @@ function ConnectionsDiagram() {
       <text x="280" y="70" textAnchor="middle" className="fill-current text-[18px] font-bold">Runly</text>
       <text x="280" y="88" textAnchor="middle" className="fill-[hsl(var(--muted-foreground))] text-[10px]">tus automatizaciones</text>
       <path d="M130 64 H213" fill="none" strokeWidth="2" className="stroke-(--brand-primary)" markerEnd="url(#conn-arrow)" />
-      <text x="172" y="54" textAnchor="middle" className="fill-current text-[10px] font-medium">Recibe</text>
-      <text x="172" y="78" textAnchor="middle" className="fill-[hsl(var(--muted-foreground))] text-[9px]">POST + JSON</text>
+      <text x="172" y="54" textAnchor="middle" className="fill-current text-[10px] font-medium">ENTRADA</text>
+      <text x="172" y="78" textAnchor="middle" className="fill-[hsl(var(--muted-foreground))] text-[9px]">avisa a Runly</text>
       <path d="M347 90 H430" fill="none" strokeWidth="2" strokeDasharray="5 5" className="stroke-[hsl(var(--muted-foreground))]" markerEnd="url(#conn-arrow-muted)" />
-      <text x="389" y="82" textAnchor="middle" className="fill-current text-[10px] font-medium">Envía</text>
-      <text x="389" y="104" textAnchor="middle" className="fill-[hsl(var(--muted-foreground))] text-[9px]">HTTPS firmado</text>
+      <text x="389" y="82" textAnchor="middle" className="fill-current text-[10px] font-medium">SALIDA</text>
+      <text x="389" y="104" textAnchor="middle" className="fill-[hsl(var(--muted-foreground))] text-[9px]">Runly avisa</text>
     </svg>
   );
 }
@@ -133,29 +133,29 @@ export function AutomationConnectionsDialog({ open, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="2xl" className="flex max-h-[92dvh] flex-col md:max-w-3xl">
         <DialogHeader icon={Plug}>
-          <DialogTitle>Conexiones externas</DialogTitle>
-          <DialogDescription>Define con qué sistemas puede hablar Runly: de quién acepta mensajes y a quién puede enviarlos.</DialogDescription>
+          <DialogTitle>Conexiones con otros sistemas</DialogTitle>
+          <DialogDescription>Entrada: otro sistema le avisa a Runly y se ejecuta una automatización. Salida: una automatización de Runly le avisa a otro sistema.</DialogDescription>
         </DialogHeader>
         <div className="-mx-6 min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-1">
           <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30 p-4"><ConnectionsDiagram /></div>
 
           <Tabs defaultValue="receive" className="space-y-4">
             <TabsList>
-              <TabsTrigger value="receive">Recibir datos</TabsTrigger>
-              <TabsTrigger value="send">Enviar datos</TabsTrigger>
+              <TabsTrigger value="receive">Entrada: otros → Runly</TabsTrigger>
+              <TabsTrigger value="send">Salida: Runly → otros</TabsTrigger>
             </TabsList>
 
             <TabsContent value="receive" className="space-y-5">
               <ol className="space-y-3 text-sm">
                 <li><span className="font-medium">1. Crea una automatización</span> con el disparador «Recibe datos de otro sistema».</li>
-                <li><span className="font-medium">2. Copia su URL secreta</span> y pégala en el otro sistema como destino del webhook.</li>
-                <li><span className="font-medium">3. Ese sistema envía un JSON con POST.</span> Runly lo recibe, separa los campos y ejecuta los bloques de tu flujo.</li>
+                <li><span className="font-medium">2. Copia su URL secreta</span> (es la dirección de Runly) y pégala en el otro sistema como destino de su webhook.</li>
+                <li><span className="font-medium">3. El otro sistema envía un JSON con POST a esa URL.</span> Runly lo recibe, separa los campos y ejecuta los bloques de tu flujo. Así se vería el envío desde el otro sistema:</li>
               </ol>
               <CodeSnippet value={curl} label="Copiar el ejemplo de envío" />
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Orígenes permitidos</h3>
+                <h3 className="text-sm font-semibold">Quién puede avisarle a Runly</h3>
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                  Direcciones IP o redes desde las que se aceptan mensajes. Si la lista está vacía, cualquier sistema que conozca la URL secreta puede enviar; agrega las IP de tu proveedor para aceptar solo esas. Trata la URL como una contraseña: si se filtra, genera otra desde la automatización.
+                  Direcciones IP o redes desde las que Runly acepta mensajes. Si la lista está vacía, cualquier sistema que conozca la URL secreta puede enviar; agrega las IP de tu proveedor para aceptar solo esas. Trata la URL como una contraseña: si se filtra, genera otra desde la automatización.
                 </p>
                 {originsQuery.isError ? (
                   <p className="text-xs text-red-600">No se pudo cargar la lista de orígenes.</p>
@@ -167,11 +167,11 @@ export function AutomationConnectionsDialog({ open, onOpenChange }) {
 
             <TabsContent value="send" className="space-y-5">
               <p className="text-sm">
-                El bloque «Llamar a una URL» envía un JSON por HTTPS al servidor que indiques, siempre que esté en esta lista. No se permiten direcciones internas ni redirecciones.
+                Cuando una automatización usa el bloque «Llamar a una URL», <strong>Runly</strong> envía un JSON por HTTPS al servidor que indiques, siempre que esté en esta lista de destinos permitidos. No se permiten direcciones internas ni redirecciones.
               </p>
-              <ListEditor values={hosts} onChange={setHosts} canManage={canManage} label="Agregar destino" placeholder="hooks.ejemplo.com" empty="Aún no hay destinos: las llamadas HTTP fallarán." />
+              <ListEditor values={hosts} onChange={setHosts} canManage={canManage} label="Agregar servidor de destino" placeholder="hooks.ejemplo.com" empty="Aún no hay destinos: las llamadas HTTP fallarán." />
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Qué recibe el otro sistema</h3>
+                <h3 className="text-sm font-semibold">Qué recibe el otro sistema (enviado por Runly)</h3>
                 <CodeSnippet value={SAMPLE_BODY} label="Copiar el ejemplo del cuerpo" />
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">
                   Con los encabezados <code>X-Runly-Signature</code> (<code>sha256=</code> más el HMAC-SHA256 del cuerpo exacto) y <code>X-Runly-Idempotency-Key</code>, para verificar el origen y evitar duplicados.

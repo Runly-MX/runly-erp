@@ -6,7 +6,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, EmptyState, ErrorState, PageHeader, Skeleton, Switch, TextField } from "@runly/ui";
+import { Badge, Button, EmptyState, ErrorState, PageHeader, Skeleton, Switch, Tabs, TabsContent, TabsList, TabsTrigger, TextField } from "@runly/ui";
 import { Plug, Plus, Search, SearchX, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
@@ -84,6 +84,7 @@ export default function SystemAutomations() {
   const events = useMemo(() => automationEvents(), []);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [tab, setTab] = useState("flows");
   const [newOpen, setNewOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
 
@@ -130,6 +131,12 @@ export default function SystemAutomations() {
           }
         />
 
+        <Tabs value={tab} onValueChange={setTab} className="space-y-5">
+          <TabsList>
+            <TabsTrigger value="flows">Automatizaciones{items.length ? ` (${items.length})` : ""}</TabsTrigger>
+            <TabsTrigger value="history">Historial</TabsTrigger>
+          </TabsList>
+          <TabsContent value="flows" className="space-y-6">
         {items.length > 0 && (
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[14rem] max-w-md flex-1">
@@ -161,11 +168,13 @@ export default function SystemAutomations() {
           </ul>
         )}
 
-        {items.length > 0 && (
-          <section aria-label="Historial">
-            <AutomationRunsPanel moduleKey={SYSTEM_MODULE_KEY} published automations={items} />
-          </section>
-        )}
+          </TabsContent>
+          <TabsContent value="history">
+        <section aria-label="Historial">
+          <AutomationRunsPanel moduleKey={SYSTEM_MODULE_KEY} published automations={items} />
+        </section>
+          </TabsContent>
+        </Tabs>
       </div>
       <NewAutomationDialog open={newOpen} onOpenChange={setNewOpen} takenKeys={new Set(items.map((item) => item.key))} onCreate={create} />
       <AutomationConnectionsDialog open={connectionsOpen} onOpenChange={setConnectionsOpen} />

@@ -83,7 +83,7 @@ export function AutomationConsole({ moduleKey, automation, open, onToggle, onSel
       </button>
       <div className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`} inert={!open}>
        <div className="min-h-0 overflow-hidden">
-        <div className="grid max-h-[22rem] min-h-[14rem] border-t border-[hsl(var(--border))] md:grid-cols-[18rem_minmax(0,1fr)]">
+        <div className="grid h-[min(24rem,45dvh)] min-h-[12rem] grid-rows-[minmax(0,2fr)_minmax(0,3fr)] border-t border-[hsl(var(--border))] md:grid-cols-[18rem_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)]">
           <div className="min-h-0 overflow-y-auto border-b border-[hsl(var(--border))] md:border-b-0 md:border-r">
             <div className="flex items-center gap-2 p-2">
               <button type="button" aria-pressed={onlyErrors} onClick={() => setOnlyErrors((value) => !value)}

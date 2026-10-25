@@ -134,8 +134,8 @@ export function WebhookTriggerPanel({ automation, readOnly, onPatch }) {
       </section>
 
       <section className="space-y-2">
-        <h3 className="text-sm font-semibold">Cómo enviar los datos</h3>
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">Un POST con cuerpo JSON y el encabezado <code>Content-Type: application/json</code>. No necesita más autenticación: la URL es la llave.</p>
+        <h3 className="text-sm font-semibold">Qué hacer en el otro sistema</h3>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">Esta URL es la dirección de <strong>Runly</strong>. En tu tienda, formulario o CRM, configura un webhook (o una llamada HTTP) que apunte a ella y envíe los datos a Runly con un POST: cuerpo JSON y el encabezado <code>Content-Type: application/json</code>. Cada vez que llegue un mensaje, esta automatización se ejecuta. No necesita más contraseña: la URL es la llave, así que no la compartas.</p>
         {url && <CodeSnippet value={curl} label="Copiar el ejemplo de envío" />}
         <dl className="grid gap-x-3 gap-y-1 text-xs sm:grid-cols-[5.5rem_1fr]">
           {RESPONSES.map(([code, text]) => <div key={code} className="contents"><dt className="font-mono font-medium">{code}</dt><dd className="text-[hsl(var(--muted-foreground))]">{text}</dd></div>)}
