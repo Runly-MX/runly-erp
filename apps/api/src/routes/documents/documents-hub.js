@@ -10,12 +10,14 @@ import { createInventoryCustodyDocumentKind } from "./kinds/inventory-custody-ki
 import { createLmsCertificateDocumentKind } from "./kinds/lms-certificate-kind.js";
 import { createKindRegistry } from "./kinds/kind-registry.js";
 import { createGeneralManualDocumentKind } from "./kinds/general-manual-kind.js";
+import { createHrEmployeeDocumentKind } from "./kinds/hr-employee-kind.js";
 import { createGrowthLeadDocumentKind } from "./kinds/growth-lead-kind.js";
 
 export function createDocumentsHub({ prisma, supabaseAdmin }) {
   const kinds = createKindRegistry();
   kinds.register(createGeneralManualDocumentKind());
   kinds.register(createGrowthLeadDocumentKind({ prisma }));
+  kinds.register(createHrEmployeeDocumentKind({ prisma }));
   kinds.register(createInventoryCustodyDocumentKind({ prisma }));
   kinds.register(createLmsCertificateDocumentKind({ prisma }));
   const files = createDocumentFileStore({ prisma, supabaseAdmin });
