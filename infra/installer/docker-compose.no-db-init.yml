@@ -1,0 +1,10 @@
+# Opt-in override for a reviewed schema and an API image supporting this flag.
+# This skips entrypoint migration/seed only; the API and worker are NOT read-only.
+# Use together with the normal compose file and the correct installation profile.
+services:
+  runly-api-external:
+    environment:
+      RUNLY_SKIP_DB_INIT: "1"
+  runly-api-local:
+    environment:
+      RUNLY_SKIP_DB_INIT: "1"

@@ -1,12 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
+
+test('all package workspace manifests are present before frozen installation in each Node image', () => {
+  const manifests = readdirSync(join(root, 'packages'), { withFileTypes: true }).filter(entry => entry.isDirectory())
+    .map(entry => `packages/${entry.name}/package.json`);
+  for (const image of ['api', 'web', 'worker']) {
+    const source = readFileSync(join(root, `infra/docker/${image}.Dockerfile`), 'utf8');
+    const beforeInstall = source.split('RUN pnpm install --frozen-lockfile')[0];
+    for (const manifest of manifests) assert.ok(beforeInstall.includes(`COPY ${manifest} ${manifest}`), `${image} is missing ${manifest} during workspace installation`);
+  }
+});
 
 test('shared application contracts are copied into the web build and API/worker runtime stages', () => {
   for (const image of ['web', 'api', 'worker']) {

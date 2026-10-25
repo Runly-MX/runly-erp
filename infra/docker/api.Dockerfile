@@ -14,6 +14,7 @@ COPY packages/core/package.json packages/core/package.json
 COPY packages/module-compiler/package.json packages/module-compiler/package.json
 COPY packages/module-engine/package.json packages/module-engine/package.json
 COPY packages/offline/package.json packages/offline/package.json
+COPY packages/preview-runtime/package.json packages/preview-runtime/package.json
 COPY packages/sdk/package.json packages/sdk/package.json
 COPY packages/storefront-sdk/package.json packages/storefront-sdk/package.json
 COPY packages/ui/package.json packages/ui/package.json
