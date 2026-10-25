@@ -1594,7 +1594,7 @@ export const automationsMap = createModuleManifest({
   core: true,
   uninstallable: false,
   icon: 'Zap',
-  color: '#eab308',
+  color: '#dc2626',
   description: 'Flujos de la empresa que se ponen en marcha solos: eventos, horarios y webhooks, con esperas, aprobaciones, condiciones Sí / No, correos, reportes y llamadas a otros sistemas.',
   summary: 'Flujos automáticos de la empresa',
   category: 'plataforma',

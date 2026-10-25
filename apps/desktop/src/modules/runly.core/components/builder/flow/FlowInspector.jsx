@@ -24,9 +24,10 @@ const TILE = {
   amber: "border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-300",
 };
 
-export function InspectorHeader({ icon: Icon, tone = "neutral", kindLabel, title, subtitle, node, stepCount, readOnly, expanded, onToggleExpand, onMove, onRemove, onClose }) {
+export function InspectorHeader({ icon: Icon, tone = "neutral", kindLabel, title, subtitle, node, stepCount, readOnly, expanded, onToggleExpand, canMove = () => true, onMove, onRemove, onClose }) {
   const isStep = node?.kind === "step";
   return (
+    <div className="space-y-2">
     <div className="flex items-start gap-3">
       {Icon && (
         <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border ${TILE[tone] ?? TILE.neutral}`} aria-hidden="true"><Icon className="h-5 w-5" /></span>
@@ -37,16 +38,21 @@ export function InspectorHeader({ icon: Icon, tone = "neutral", kindLabel, title
         {subtitle && <p className="text-xs text-[hsl(var(--muted-foreground))]">{subtitle}</p>}
       </div>
       <div className="flex shrink-0 items-center">
-        {isStep && !readOnly && (
-          <>
-            <IconButton label="Subir un lugar en el flujo" disabled={node.index === 0} onClick={() => onMove(-1)}><ArrowUp className="h-4 w-4" /></IconButton>
-            <IconButton label="Bajar un lugar en el flujo" disabled={node.index === stepCount - 1} onClick={() => onMove(1)}><ArrowDown className="h-4 w-4" /></IconButton>
-            <IconButton label="Quitar bloque" onClick={onRemove}><Trash2 className="h-4 w-4" /></IconButton>
-          </>
-        )}
         {onToggleExpand && <IconButton label={expanded ? "Reducir panel" : "Ampliar panel"} onClick={onToggleExpand}>{expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</IconButton>}
         {onClose && <IconButton label="Cerrar" onClick={onClose}><X className="h-4 w-4" /></IconButton>}
       </div>
+    </div>
+    {isStep && !readOnly && (
+      <div className="flex items-center gap-1 border-y border-[hsl(var(--border))] py-1">
+        {(
+          <>
+            <IconButton label="Mover antes en el flujo" disabled={!canMove(-1)} onClick={() => onMove(-1)}><ArrowUp className="h-4 w-4" /></IconButton>
+            <IconButton label="Mover después en el flujo" disabled={!canMove(1)} onClick={() => onMove(1)}><ArrowDown className="h-4 w-4" /></IconButton>
+            <IconButton label="Quitar bloque" onClick={onRemove}><Trash2 className="h-4 w-4" /></IconButton>
+          </>
+        )}
+      </div>
+    )}
     </div>
   );
 }

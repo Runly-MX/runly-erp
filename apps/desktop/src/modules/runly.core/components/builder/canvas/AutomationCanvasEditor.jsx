@@ -17,7 +17,7 @@ import {
   describeCondition, describeStep, describeTrigger, flowPlan, insertStep, moveStep, positionsFromUi, removeStep, slotOptions, stepIssues, stepKindLabel, triggerKindLabel,
   uiAfterInsert, uiAfterMove, uiAfterRemove, uiArranged, uiFit, uiWithLayout, uiWithPosition,
 } from "../../../lib/flowModel";
-import { NODE, dropIndex, layoutNodes, nearestSlot, snap, toCanvas } from "../../../lib/canvasLayout";
+import { NODE, layoutNodes, nearestSlot, snap, toCanvas } from "../../../lib/canvasLayout";
 import { ownerLabel } from "../AutomationSteps";
 import { InspectorBody, InspectorHeader } from "../flow/FlowInspector";
 import { AddGhost, CanvasEdges, CanvasNode, EdgeLabels, EdgePlus } from "./CanvasParts";
@@ -70,7 +70,7 @@ function runStatuses(run) {
   return map;
 }
 
-export function AutomationCanvasEditor({ automation, entities, events, allowedTriggers, fieldOptions, readOnly, onPatch, className, runOverlay = null }) {
+export function AutomationCanvasEditor({ automation, entities, events, allowedTriggers, fieldOptions, readOnly, onPatch, className, runOverlay = null, refitKey = null }) {
   const steps = stepsOf(automation);
   const trigger = automation.trigger;
   const ui = automation.ui;
@@ -128,6 +128,14 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
   const statuses = useMemo(() => runStatuses(runOverlay), [runOverlay]);
 
   const { view, animate, viewportRef, fit, zoomBy, reveal, bind } = useCanvasView({ bounds: layout.bounds, fitKey: `${gridOrientation}:${nodes.length}:${refit}` });
+
+  // The canvas changes height when the console opens or closes: fit again once it settles.
+  const firstRefit = useRef(true);
+  useEffect(() => {
+    if (firstRefit.current) { firstRefit.current = false; return undefined; }
+    const timer = window.setTimeout(() => fit(true), 240);
+    return () => window.clearTimeout(timer);
+  }, [refitKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const element = viewportRef.current;
@@ -189,7 +197,14 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
   };
   const selectedStep = current?.kind === "step" ? current.index : null;
   // From the palette a block goes right after the selected one, on its path.
-  const addFromPalette = (kind) => insert(selectedStep === null ? endSlot : (plan.links.find((link) => link.from === selectedStep)?.slot ?? endSlot), kind);
+  const addFromPalette = (kind) => {
+    if (current?.kind === "trigger" || current?.kind === "conditions") { insert({ index: 0, lane: null }, kind); return; }
+    if (selectedStep === null) { insert(endSlot, kind); return; }
+    const chosen = steps[selectedStep];
+    // After a condition the new block goes after both of its paths, on the main line.
+    const slot = isBranchStep(chosen) ? { index: selectedStep + 1 + chosen.yes + chosen.no, lane: null } : plan.links.find((link) => link.from === selectedStep)?.slot;
+    insert(slot ?? endSlot, kind);
+  };
 
   // ---- presets
   const setPreset = (preset) => {
@@ -255,14 +270,17 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
     onPointerMove: (event) => {
       const drag = reorderRef.current;
       if (!drag) return;
-      const horizontal = gridOrientation === "horizontal";
       const offset = { x: (event.clientX - drag.startX) / view.k, y: (event.clientY - drag.startY) / view.k };
       const pointer = toCanvas(view, { x: event.clientX - drag.rect.left, y: event.clientY - drag.rect.top });
-      const centres = steps.map((_, i) => {
+      // Works in any layout (grid, conditions or blocks placed by hand): the block
+      // takes the place of the closest other block to the pointer.
+      let target = drag.index;
+      let best = NODE.width * 0.9;
+      steps.forEach((_, i) => {
         const node = layout.nodes[stepOffset + i];
-        return horizontal ? node.x + node.width / 2 : node.y + node.height / 2;
+        const distance = Math.hypot(node.x + node.width / 2 - pointer.x, node.y + node.height / 2 - pointer.y);
+        if (i !== drag.index && distance < best) { best = distance; target = i; }
       });
-      const target = dropIndex(centres, drag.index, horizontal ? pointer.x : pointer.y);
       setReorder({ index: drag.index, offset, target, valid: target !== drag.index && moveStep(steps, drag.index, target) !== null });
     },
     onPointerUp: () => finishReorder(true),
@@ -349,6 +367,7 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
         title={current.kind === "trigger" ? currentNode.title : current.kind === "conditions" ? "Solo si..." : describeStep(steps[current.index], ownerLabel, fieldLabel).title}
         subtitle={current.kind === "step" ? `Bloque ${current.index + 1} de ${steps.length}` : null}
         expanded={expanded} onToggleExpand={docked ? toggleExpanded : undefined}
+        canMove={(delta) => current.kind === "step" && moveStep(steps, current.index, current.index + delta) !== null}
         onMove={(delta) => move(current.index, current.index + delta)}
         onRemove={() => remove(current.index)}
         onClose={() => setSelectedId(null)}

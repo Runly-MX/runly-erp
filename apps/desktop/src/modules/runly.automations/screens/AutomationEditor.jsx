@@ -2,11 +2,11 @@
 // history, save) and the canvas below. Opened from the list (/automations/:key)
 // or as a new draft (/automations/nueva). Spec
 // docs/superpowers/specs/2026-10-25-automation-canvas-and-webhooks-design.md.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActionMenu, Button, ConfirmDialog, ErrorState, Skeleton, Switch, Tooltip, TooltipContent, TooltipTrigger, cn, useViewMode } from "@runly/ui";
-import { ArrowLeft, Check, FlaskConical, Fullscreen, Loader2, Maximize2, Minimize2, Plug, Save, Terminal, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, FlaskConical, Fullscreen, Loader2, Maximize2, Minimize2, Plug, Redo2, Save, Terminal, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -80,8 +80,17 @@ export default function SystemAutomationEditor() {
   const [confirm, setConfirm] = useState(null); // "leave" | "delete"
   const viewMode = useViewMode();
   const stepBackView = viewMode.stepBack;
+  const keys = useRef({});
   useEffect(() => {
-    const onKey = (event) => { if (event.key === "Escape" && !event.defaultPrevented) stepBackView(); };
+    const onKey = (event) => {
+      if (event.key === "Escape" && !event.defaultPrevented) { stepBackView(); return; }
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = event.key.toLowerCase();
+      const typing = /^(input|textarea|select)$/i.test(event.target?.tagName ?? "") || event.target?.isContentEditable;
+      if (key === "s") { event.preventDefault(); keys.current.save?.(); }
+      else if (key === "z" && !typing) { event.preventDefault(); if (event.shiftKey) keys.current.redo?.(); else keys.current.undo?.(); }
+      else if (key === "y" && !typing) { event.preventDefault(); keys.current.redo?.(); }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [stepBackView]);
@@ -110,9 +119,38 @@ export default function SystemAutomationEditor() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
+  // Undo / redo of this session's edits (typing the name merges into one step).
+  const itemRef = useRef(null);
+  itemRef.current = item;
+  const history = useRef({ past: [], future: [], at: 0 });
+  const [, bump] = useState(0);
   const patch = (changes) => {
+    const h = history.current;
+    const quickRename = Object.keys(changes).length === 1 && "label" in changes && Date.now() - h.at < 1000;
+    if (!quickRename && itemRef.current) h.past = [...h.past.slice(-49), itemRef.current];
+    h.at = Date.now();
+    h.future = [];
     setItem((current) => ({ ...current, ...changes }));
     setDiagnostics(null);
+    bump((n) => n + 1);
+  };
+  const undo = () => {
+    const h = history.current;
+    if (!h.past.length) return;
+    h.future = [itemRef.current, ...h.future];
+    const previous = h.past[h.past.length - 1];
+    h.past = h.past.slice(0, -1);
+    setItem(previous);
+    bump((n) => n + 1);
+  };
+  const redo = () => {
+    const h = history.current;
+    if (!h.future.length) return;
+    h.past = [...h.past, itemRef.current];
+    const next = h.future[0];
+    h.future = h.future.slice(1);
+    setItem(next);
+    bump((n) => n + 1);
   };
 
   const save = useMutation({
@@ -147,6 +185,8 @@ export default function SystemAutomationEditor() {
     onError: (error) => toast.error("No se pudo eliminar", { description: error.message }),
   });
 
+  keys.current = { save: () => { if (dirty && !save.isPending) save.mutate(); }, undo, redo };
+
   const back = () => (dirty ? setConfirm("leave") : navigate(LIST_PATH));
 
   if (!canManage) return <div className="p-6"><ErrorState title="Sin acceso" description="Necesitas el permiso para administrar automatizaciones." /></div>;
@@ -176,6 +216,8 @@ export default function SystemAutomationEditor() {
             <Switch checked={item.enabled !== false} onCheckedChange={(enabled) => patch({ enabled })} aria-label="Activa" />
             <span className="max-sm:sr-only">{item.enabled !== false ? "Activa" : "En pausa"}</span>
           </label>
+          <BarButton label="Deshacer (Ctrl+Z)" disabled={!history.current.past.length} onClick={undo}><Undo2 className="h-4 w-4" /></BarButton>
+          <BarButton label="Rehacer (Ctrl+Y)" disabled={!history.current.future.length} onClick={redo} className="max-sm:hidden"><Redo2 className="h-4 w-4" /></BarButton>
           <BarButton label="Conexiones" onClick={() => setConnectionsOpen(true)}><Plug className="h-4 w-4" /></BarButton>
           {!isNew && <BarButton label={consoleOpen ? "Ocultar la consola" : "Consola de ejecución"} active={consoleOpen} onClick={() => setConsoleOpen((open) => !open)}><Terminal className="h-4 w-4" /></BarButton>}
           <Button variant="outline" onClick={() => setTestOpen(true)} className="h-9 gap-1.5 [@media(pointer:coarse)]:h-11"><FlaskConical className="h-4 w-4" /> <span className="max-sm:sr-only">Probar</span></Button>
@@ -195,7 +237,7 @@ export default function SystemAutomationEditor() {
 
       <AutomationCanvasEditor
         automation={item} entities={NO_ENTITIES} events={events} allowedTriggers={ALLOWED_TRIGGERS}
-        fieldOptions={fieldOptions} readOnly={false} onPatch={patch} className="m-2 min-h-0 flex-1 sm:m-3" runOverlay={consoleOpen ? overlayRun : null}
+        fieldOptions={fieldOptions} readOnly={false} onPatch={patch} className="m-2 min-h-0 flex-1 sm:m-3" runOverlay={consoleOpen ? overlayRun : null} refitKey={consoleOpen}
       />
       {!isNew && <div className="mx-2 mb-2 shrink-0 sm:mx-3 sm:mb-3"><AutomationConsole moduleKey={SYSTEM_MODULE_KEY} automation={item} open={consoleOpen} onToggle={() => setConsoleOpen((open) => !open)} onSelectRun={setOverlayRun} /></div>}
 
