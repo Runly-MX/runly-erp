@@ -37,7 +37,7 @@ import { createChatSavedService } from "./chat-saved-service.js";
 import { createChatCommandsService } from "./chat-commands-service.js";
 import { createChatActionsService } from "./chat-actions-service.js";
 import { createAutomationApprovalsService } from "../../services/automation-approvals-service.js";
-import { createStatusService } from "../../services/status-service.js";
+import { announceStatusChange, createStatusService } from "../../services/status-service.js";
 import { createExternalInboxRoutes } from "./external-inbox-routes.js";
 import { createTemplateRoutes } from "./template-routes.js";
 import { createMessageForwardRoutes } from "./message-forward-routes.js";
@@ -638,7 +638,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   });
 
   // Slash commands that run on the server (/estado, /nomolestar, /tarea).
-  const commandsService = createChatCommandsService({ prisma, statusService: createStatusService({ prisma }), projectsService, tasksService });
+  const commandsService = createChatCommandsService({ prisma, statusService: createStatusService({ prisma }), projectsService, tasksService, announceStatus: (profileId) => announceStatusChange({ prisma, broadcaster, profileId }) });
   internal.post("/commands/run", requirePermission("chat.conversations.read"), async (c) => {
     try {
       const body = await c.req.json().catch(() => ({}));

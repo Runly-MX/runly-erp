@@ -47,3 +47,13 @@ test('status: one emoji, trimmed text, future expiry; empty or expired is none',
   assert.equal(activeStatus({ text: 'x', expiresAt: '2026-11-04T11:00:00Z' }, now), null)
   assert.equal(activeStatus({ text: 'x', expiresAt: null }, now).text, 'x')
 })
+
+import { announceStatusChange } from '../status-service.js'
+
+test('a status change is announced to the people who share a conversation, never to the person', async () => {
+  const sent = []
+  const prisma = { $queryRaw: async () => [{ user_id: 'u2' }, { user_id: 'u3' }] }
+  await announceStatusChange({ prisma, broadcaster: { broadcastToUsers: async (ids, event, payload) => sent.push([ids, event, payload]) }, profileId: 'u1' })
+  assert.deepEqual(sent, [[['u2', 'u3'], 'chat.status.changed', { userId: 'u1' }]])
+  await announceStatusChange({ prisma: { $queryRaw: async () => { throw new Error('db') } }, broadcaster: null, profileId: 'u1' })
+})

@@ -225,6 +225,9 @@ export function RealtimeProvider({ children }) {
           }, 1500))
         }
       })
+      .on('broadcast', { event: 'chat.status.changed' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['status-lookup'] })
+      })
       .on('broadcast', { event: 'chat.message.reaction' }, ({ payload }) => {
         dispatch('chat.message.reaction', payload)
       })

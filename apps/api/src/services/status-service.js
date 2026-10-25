@@ -7,6 +7,21 @@ export const DND_KEY = "notifications.dnd";
 export const MAX_LOOKUP = 200;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// People who share a conversation with `profileId` learn right away that their status or
+// Do Not Disturb changed (their lists refresh). Best effort.
+export async function announceStatusChange({ prisma, broadcaster, profileId }) {
+  try {
+    const rows = await prisma.$queryRaw`
+      SELECT DISTINCT other.user_id FROM chat_conversation_members mine
+      JOIN chat_conversation_members other ON other.conversation_id = mine.conversation_id AND other.left_at IS NULL AND other.user_id IS NOT NULL AND other.user_id <> ${profileId}::uuid
+      WHERE mine.user_id = ${profileId}::uuid AND mine.left_at IS NULL LIMIT 500`;
+    const ids = rows.map((row) => row.user_id.toString());
+    if (ids.length) await broadcaster?.broadcastToUsers?.(ids, "chat.status.changed", { userId: profileId });
+  } catch (error) {
+    console.error("[status] no se pudo avisar el cambio:", error?.message ?? error);
+  }
+}
+
 export function createStatusService({ prisma, now = () => new Date() }) {
   const read = async (userId, key) => (await prisma.userPreference.findUnique({ where: { userId_key: { userId, key } }, select: { value: true } }))?.value ?? null;
   const write = (userId, key, value) => prisma.userPreference.upsert({ where: { userId_key: { userId, key } }, update: { value }, create: { userId, key, value } });

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { usePinnedMessages } from "../hooks/usePinnedMessages";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
+import { useStatusOf } from "../../../hooks/useStatusDnd";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
 import { MemberAvatarStack } from "./MemberAvatarStack";
 import { MIRAI_SUBTITLE } from "../lib/mirai";
@@ -72,6 +73,7 @@ export function ChatHeader({
   const initial = (displayName?.[0] ?? "?").toUpperCase();
 
   const directOnline = otherMember ? isUserOnline(otherMember.userId) : false;
+  const peerStatus = useStatusOf(otherMember?.userId);
   const directLastSeen = otherMember ? getLastSeen(otherMember.userId) : null;
 
   useEffect(() => { setAvatarErr(false); }, [avatarUrl]);
@@ -276,7 +278,10 @@ export function ChatHeader({
             <p className="text-xs text-[hsl(var(--muted-foreground))]">{MIRAI_SUBTITLE}</p>
           ) : conversation?.type === "direct" ? (
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              {directOnline ? (
+              {peerStatus?.emoji || peerStatus?.text ? <span className="mr-1.5" title="Estado">{peerStatus.emoji} {peerStatus.text} ·</span> : null}
+              {peerStatus?.dnd ? (
+                <span className="text-red-500">No molestar</span>
+              ) : directOnline ? (
                 <span className="text-green-500">En linea</span>
               ) : directLastSeen ? (
                 `Visto ${formatLastSeen(directLastSeen)}`

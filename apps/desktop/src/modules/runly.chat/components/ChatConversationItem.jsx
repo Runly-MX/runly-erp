@@ -57,6 +57,15 @@ function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = fals
   );
 }
 
+// One-line preview of the last message ("Imagen", "Archivo adjunto" or its text).
+function previewOf(lastMsg) {
+  if (!lastMsg) return "";
+  if (lastMsg.messageType === "system") return lastMsg.body ?? "";
+  if (lastMsg.messageType === "image") return "Imagen";
+  if (lastMsg.messageType === "file") return "Archivo adjunto";
+  return lastMsg.body ?? "";
+}
+
 export function ChatConversationItem({ conversation, isActive, onClick, currentUserId, isOnline = false }) {
   const isMirai = conversation.type === "mirai";
   const otherMember = conversation.type === "direct"
@@ -159,12 +168,14 @@ export function ChatConversationRow({ conversation, isActive, onClick, currentUs
   const meeting = isMeeting(conversation);
   const photo = conversation.type !== "direct" ? (conversation.avatarUrl ?? null) : null;
   const emoji = conversation.type !== "direct" ? (conversation.avatar_emoji ?? null) : null;
+  const direct = conversation.type === "direct";
+  const preview = direct ? previewOf(conversation.last_message) : "";
   const lead = photo ? (
     <img src={photo} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
   ) : emoji ? (
     <span className="flex h-6 w-6 shrink-0 items-center justify-center text-base leading-none" aria-hidden>{emoji}</span>
   ) : conversation.type === "direct" ? (
-    <Avatar name={name} avatarUrl={conversation.avatarUrl ?? otherMember?.avatarUrl ?? null} avatarEmoji={conversation.avatar_emoji ?? null} type="direct" size="xs" online={isOnline} dnd={status?.dnd === true} />
+    <Avatar name={name} avatarUrl={conversation.avatarUrl ?? otherMember?.avatarUrl ?? null} avatarEmoji={conversation.avatar_emoji ?? null} type="direct" size="sm" online={isOnline} dnd={status?.dnd === true} />
   ) : (
     <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[hsl(var(--muted-foreground))]" aria-hidden>
       {meeting ? <Video className="h-3.5 w-3.5" /> : conversation.type === "channel" ? <Hash className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
@@ -176,13 +187,18 @@ export function ChatConversationRow({ conversation, isActive, onClick, currentUs
       onClick={onClick}
       aria-current={isActive ? "true" : undefined}
       className={[
-        "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors [@media(pointer:coarse)]:min-h-11",
+        "flex w-full items-center gap-2 rounded-md px-2 text-left text-sm transition-colors [@media(pointer:coarse)]:min-h-11", direct && preview ? "py-1.5" : "py-1",
         isActive ? "bg-[var(--brand-primary)]/15 text-[var(--brand-primary)]" : "text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
       ].join(" ")}
     >
       {lead}
-      <span className={["min-w-0 flex-1 truncate", unread > 0 || mentions > 0 ? "font-semibold" : "font-normal text-[hsl(var(--foreground))]/80"].join(" ")}>{conversation.type === "channel" && !meeting && (photo || emoji) && <span className="mr-0.5 text-[hsl(var(--muted-foreground))]">#</span>}{name}</span>
-      {conversation.type === "direct" && status?.emoji && <span title={status.text} aria-label={status.text} className="shrink-0 text-sm leading-none">{status.emoji}</span>}
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1">
+          <span className={["min-w-0 truncate", unread > 0 || mentions > 0 ? "font-semibold" : "font-normal text-[hsl(var(--foreground))]/80"].join(" ")}>{conversation.type === "channel" && !meeting && (photo || emoji) && <span className="mr-0.5 text-[hsl(var(--muted-foreground))]">#</span>}{name}</span>
+          {direct && status?.emoji && <span title={status.text} aria-label={status.text} className="shrink-0 text-sm leading-none">{status.emoji}</span>}
+        </span>
+        {direct && preview && <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{renderMentionText(preview)}</span>}
+      </span>
       {mentions > 0 && (
         <span title={`${mentions} mención${mentions === 1 ? "" : "es"} sin leer`} className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
           <AtSign className="h-2.5 w-2.5" strokeWidth={3} />{mentions > 9 ? "9+" : mentions}

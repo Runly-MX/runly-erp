@@ -172,6 +172,7 @@ export function UserMenu({
           <span className="text-sm font-medium text-[hsl(var(--foreground))] max-w-20 truncate hidden sm:block">
             {firstName}
           </span>
+          {status?.emoji && <span className="text-sm leading-none" title={status.text} aria-label={`Tu estado: ${status.text}`}>{status.emoji}</span>}
           <ChevronDown
             size={13}
             className="text-[hsl(var(--muted-foreground))]"

@@ -1,12 +1,13 @@
 // Own status and Do Not Disturb, and the lookup of others' status in the active company.
 // Spec docs/superpowers/specs/2026-10-26-status-and-dnd-design.md.
 import { Hono } from "hono";
-import { createStatusService } from "../services/status-service.js";
+import { announceStatusChange, createStatusService } from "../services/status-service.js";
 
-export function createStatusRouter({ prisma, requireActiveCompany }) {
+export function createStatusRouter({ prisma, requireActiveCompany, broadcaster = null }) {
   const app = new Hono();
   const service = createStatusService({ prisma });
   const profileOf = (c) => c.get("userContext")?.profile?.id ?? c.get("userId");
+  const announce = (profileId) => announceStatusChange({ prisma, broadcaster, profileId });
   const guard = (handler) => async (c) => {
     try {
       const profileId = profileOf(c);
@@ -19,9 +20,9 @@ export function createStatusRouter({ prisma, requireActiveCompany }) {
   };
 
   app.get("/profile/status", requireActiveCompany, guard((c, id) => service.getStatus(id)));
-  app.put("/profile/status", requireActiveCompany, guard(async (c, id) => service.setStatus(id, await c.req.json().catch(() => null))));
+  app.put("/profile/status", requireActiveCompany, guard(async (c, id) => { const saved = await service.setStatus(id, await c.req.json().catch(() => null)); announce(id); return saved; }));
   app.get("/notifications/dnd", requireActiveCompany, guard((c, id) => service.getDnd(id)));
-  app.put("/notifications/dnd", requireActiveCompany, guard(async (c, id) => service.setDnd(id, await c.req.json().catch(() => null))));
+  app.put("/notifications/dnd", requireActiveCompany, guard(async (c, id) => { const saved = await service.setDnd(id, await c.req.json().catch(() => null)); announce(id); return saved; }));
   app.get("/chat/status", requireActiveCompany, guard((c) => service.lookup(c.get("companyId"), String(c.req.query("userIds") ?? "").split(","))));
 
   return app;

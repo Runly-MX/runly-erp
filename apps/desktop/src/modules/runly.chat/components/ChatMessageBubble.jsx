@@ -26,6 +26,7 @@ import { RecordingReadyCard } from "./RecordingReadyCard";
 import { MessageActionSheet } from "./MessageActionSheet";
 import { MessageReminderPicker } from "./MessageReminderPicker";
 import { MessageButtons } from "./MessageButtons";
+import { useStatusOf } from "../../../hooks/useStatusDnd";
 import { useSavedActions, useSavedMessages } from "../hooks/useSavedMessages";
 import { hapticTick } from "../lib/haptics";
 import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
@@ -311,6 +312,7 @@ export function ChatMessageBubble({
   const [avatarErr, setAvatarErr] = useState(false);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [remindOpen, setRemindOpen] = useState(false);
+  const senderStatus = useStatusOf(message.sender_user_id);
   const { data: savedList } = useSavedMessages(true);
   const savedActions = useSavedActions();
   const isSaved = Boolean(savedList?.some((item) => item.messageId === message.id));
@@ -971,6 +973,7 @@ export function ChatMessageBubble({
           {isFirst && (
             <span className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-1 ml-1 truncate max-w-full">
               {isAssistant ? <AssistantWordmark /> : senderName}
+              {!isAssistant && senderStatus?.emoji && <span className="ml-1" title={senderStatus.text} aria-label={senderStatus.text}>{senderStatus.emoji}</span>}
               {integration && <span className="ml-1.5 rounded-md bg-[hsl(var(--muted))] px-1.5 py-0.5 text-[10px] font-medium text-[hsl(var(--muted-foreground))]">Integración</span>}
             </span>
           )}

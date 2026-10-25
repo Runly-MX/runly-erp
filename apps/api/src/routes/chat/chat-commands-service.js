@@ -30,20 +30,22 @@ export function parseStatusArgument(text) {
   return { emoji: "💬", text: raw };
 }
 
-export function createChatCommandsService({ prisma, statusService, projectsService, tasksService }) {
+export function createChatCommandsService({ prisma, statusService, projectsService, tasksService, announceStatus = null }) {
   const commands = {
     estado: async ({ profileId, args }) => {
       const parsed = parseStatusArgument(args);
-      if (parsed.clear) { await statusService.setStatus(profileId, null); return { summary: "Quitaste tu estado." }; }
+      if (parsed.clear) { await statusService.setStatus(profileId, null); announceStatus?.(profileId); return { summary: "Quitaste tu estado." }; }
       const saved = await statusService.setStatus(profileId, { emoji: parsed.emoji, text: parsed.text || "Ocupado", expiresAt: null });
+      announceStatus?.(profileId);
       return { summary: `Estado: ${saved?.emoji ?? ""} ${saved?.text ?? ""}`.trim() };
     },
     nomolestar: async ({ profileId, args }) => {
       const parsed = parseDndArgument(args);
       if (!parsed) throw new ChatServiceError("Usa /nomolestar 30m, 1h, mañana o off.", 400);
       const current = await statusService.getDnd(profileId);
-      if (parsed.off) { await statusService.setDnd(profileId, { ...current, until: null }); return { summary: "No molestar desactivado." }; }
+      if (parsed.off) { await statusService.setDnd(profileId, { ...current, until: null }); announceStatus?.(profileId); return { summary: "No molestar desactivado." }; }
       await statusService.setDnd(profileId, { ...current, until: parsed.until.toISOString() });
+      announceStatus?.(profileId);
       return { summary: "No molestar activado." };
     },
     tarea: async ({ profileId, companyId, conversationId, args }) => {

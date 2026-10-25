@@ -2477,7 +2477,7 @@ mountWithAuth(app, createCompanyRouter({ prisma, supabaseAdmin, requirePermissio
 mountWithAuth(app, createAutomationApprovalsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createHomeWidgetsRouter({ prisma, requireActiveCompany }));
 mountWithAuth(app, createWorkRouter({ prisma, requireActiveCompany }));
-mountWithAuth(app, createStatusRouter({ prisma, requireActiveCompany }));
+mountWithAuth(app, createStatusRouter({ prisma, requireActiveCompany, broadcaster }));
 mountWithAuth(app, createAutomationsRouter({ prisma, requirePermission, moduleServices }));
 mountWithAuth(app, createBuilderRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, bundlerSvc: bundlerService, routeLoader, cacheDel }));
 mountWithAuth(app, createModuleCatalogRouter({ prisma, requirePermission, bundlerSvc: bundlerService, routeLoader, cacheDel }));

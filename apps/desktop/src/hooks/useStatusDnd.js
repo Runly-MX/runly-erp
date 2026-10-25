@@ -1,3 +1,4 @@
+import { createContext, useContext } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthProvider";
@@ -41,6 +42,10 @@ export function useDnd() {
   });
   return { dnd: query.data ?? null, save };
 }
+
+// Status of the people in the open conversation, so message headers can show it without each asking.
+export const StatusLookupContext = createContext({});
+export const useStatusOf = (userId) => useContext(StatusLookupContext)?.[userId] ?? null;
 
 // { [userId]: { emoji, text, dnd } } for the given people (those with neither are absent).
 export function useStatusLookup(userIds) {

@@ -36,7 +36,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { useCalls } from "../calls/CallsProvider";
 import { ChatHeader } from "./ChatHeader";
 import { Moon } from "lucide-react";
-import { useStatusLookup } from "../../../hooks/useStatusDnd";
+import { StatusLookupContext, useStatusLookup } from "../../../hooks/useStatusDnd";
 import { LiveMeetingBanner } from "../calls/LiveMeetingBanner";
 
 // Same pattern as ConversationProfilePanel's backHeader — an explicit,
@@ -129,7 +129,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const speech = useSpeakText();
   // Writing to someone under Do Not Disturb: the message is delivered, just without push or email.
   const dmPeer = conversation?.type === "direct" ? (detailMembers ?? conversation?.members ?? []).find((m) => m.userId !== userProfile?.id) : null;
-  const dmStatus = useStatusLookup(dmPeer ? [dmPeer.userId] : [])[dmPeer?.userId];
+  // Status of everyone in this conversation (message headers, the header line, the DM notice).
+  const peopleStatus = useStatusLookup((detailMembers ?? conversation?.members ?? []).map((m) => m.userId).filter((id) => id && id !== userProfile?.id));
+  const dmStatus = peopleStatus[dmPeer?.userId];
   const ownMemberForComposer = findOwnMember(detailMembers ?? conversation?.members ?? [], userProfile?.id);
   const canSendMessages = !isChannelOrGroupType || roleHasPermission(ownMemberForComposer, CHAT_PERMISSIONS.MESSAGES_SEND);
   // Pinned messages also drive the anchored strip above the message list (not
@@ -572,6 +574,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const messages = messagesData?.data ?? [];
 
   return (
+    <StatusLookupContext.Provider value={peopleStatus}>
     <div
       className="relative flex w-full min-w-0 max-w-full flex-1 overflow-hidden min-h-0"
       onDragOver={handleDragOver}
@@ -904,5 +907,6 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         />
       )}
     </div>
+    </StatusLookupContext.Provider>
   );
 }

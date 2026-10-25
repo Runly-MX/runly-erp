@@ -77,7 +77,8 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
 
   const statusByUser = useStatusLookup((conversations ?? []).filter((c) => c.type === "direct").map((c) => (c.members ?? []).find((m) => m.userId !== userProfile?.id)?.userId));
   const { state: sidebarState, save: saveSidebar } = useChatSidebar();
-  const layout = buildSections({ conversations: filtered, state: sidebarState, filter: sidebarState.filter });
+  const chipFilter = sidebarState.filter === "unread" ? "unread" : "all";
+  const layout = buildSections({ conversations: filtered, state: sidebarState, filter: chipFilter });
   const onRowAction = (action, conversation) => (action === "move" ? setMoveTarget(conversation) : handleConversationAction(action, conversation));
   const assign = (conversationId, sectionId) => saveSidebar((current) => assignConversation(current, conversationId, sectionId));
   const saveSection = ({ name, icon }) => {
@@ -167,17 +168,31 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           onClear={() => setSearch('')}
           placeholder="Buscar conversaciones..."
         />
-        <div className="mt-2 flex gap-1" role="group" aria-label="Filtrar conversaciones">
-          {[["all", "Todo"], ["unread", "Sin leer"], ["mentions", "Menciones"]].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={sidebarState.filter === value}
-              onClick={() => saveSidebar((current) => ({ ...current, filter: value }))}
-              className={["rounded-md px-2 py-1 text-xs transition-colors [@media(pointer:coarse)]:min-h-9 [@media(pointer:coarse)]:px-3",
-                sidebarState.filter === value ? "bg-[var(--brand-primary)]/15 font-medium text-[var(--brand-primary)]" : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"].join(" ")}
-            >{label}</button>
-          ))}
+        <div className="mt-2 flex items-center gap-1">
+          <div className="flex gap-1" role="group" aria-label="Filtrar conversaciones">
+            {[["all", "Todo"], ["unread", "Sin leer"]].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={chipFilter === value}
+                onClick={() => saveSidebar((current) => ({ ...current, filter: value }))}
+                className={["rounded-md px-2 py-1 text-xs transition-colors [@media(pointer:coarse)]:min-h-9 [@media(pointer:coarse)]:px-3",
+                  chipFilter === value ? "bg-[var(--brand-primary)]/15 font-medium text-[var(--brand-primary)]" : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"].join(" ")}
+              >{label}</button>
+            ))}
+          </div>
+          <div className="ml-auto flex gap-0.5">
+            <button type="button" title="Menciones y actividad" aria-label="Menciones y actividad" onClick={() => setShowActivity(true)}
+              className="relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:w-10">
+              <Bell className="h-4 w-4" aria-hidden />
+              {activity?.unread > 0 && <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--brand-primary)] px-1 text-[10px] font-semibold text-[var(--brand-primary-foreground)]">{activity.unread > 99 ? "99+" : activity.unread}</span>}
+            </button>
+            <button type="button" title="Guardados" aria-label="Guardados" onClick={() => setShowSaved(true)}
+              className="relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:w-10">
+              <Bookmark className="h-4 w-4" aria-hidden />
+              {savedDue > 0 && <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--brand-primary)] px-1 text-[10px] font-semibold text-[var(--brand-primary-foreground)]">{savedDue}</span>}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -244,29 +259,6 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
               );
             })}
           </div>
-        )}
-
-        {!search.trim() && !isLoading && (
-          <button
-            type="button"
-            onClick={() => setShowActivity(true)}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-[hsl(var(--muted))] [@media(pointer:coarse)]:min-h-11"
-          >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[hsl(var(--muted-foreground))]" aria-hidden><Bell className="h-3.5 w-3.5" /></span>
-            <span className={["min-w-0 flex-1 truncate", activity?.unread ? "font-semibold" : "text-[hsl(var(--foreground))]/80"].join(" ")}>Menciones y actividad</span>
-            {activity?.unread > 0 && <span className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)] px-1 text-[10px] font-semibold text-[var(--brand-primary-foreground)]">{activity.unread > 99 ? "99+" : activity.unread}</span>}
-          </button>
-        )}
-        {!search.trim() && !isLoading && (
-          <button
-            type="button"
-            onClick={() => setShowSaved(true)}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-[hsl(var(--muted))] [@media(pointer:coarse)]:min-h-11"
-          >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[hsl(var(--muted-foreground))]" aria-hidden><Bookmark className="h-3.5 w-3.5" /></span>
-            <span className="min-w-0 flex-1 truncate text-[hsl(var(--foreground))]/80">Guardados</span>
-            {(savedItems?.length ?? 0) > 0 && <span className="text-[10px] tabular-nums text-[hsl(var(--muted-foreground))]">{savedDue > 0 ? `${savedDue} con recordatorio · ` : ""}{savedItems.length}</span>}
-          </button>
         )}
 
         {!search.trim() && !isLoading && layout.mirai.map((conv) => (
