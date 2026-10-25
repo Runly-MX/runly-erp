@@ -557,6 +557,50 @@ export function useToggleTaskReaction(projectId, taskId) {
   })
 }
 
+// ── Gantt ─────────────────────────────────────────────────────────────────────
+
+export function useGantt(projectId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['projects', projectId, 'gantt'],
+    queryFn: () => runly.projects.getGantt(projectId, token),
+    enabled: Boolean(token) && Boolean(projectId),
+    staleTime: 15 * 1000,
+  })
+}
+
+// Dates, dependencies and the lists that show them all change together.
+function refreshSchedule(qc, projectId) {
+  qc.invalidateQueries({ queryKey: ['projects', projectId, 'gantt'] })
+  qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
+}
+
+export function useRescheduleTask(projectId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ taskId, ...data }) => runly.projects.rescheduleTask(projectId, taskId, data, token),
+    onSettled: () => refreshSchedule(qc, projectId),
+    onError: (error) => toast.error('No se pudo mover la tarea', { description: error?.message }),
+  })
+}
+
+export function useGanttDependencies(projectId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  const add = useMutation({
+    mutationFn: ({ blockedId, blockerId }) => runly.projects.addTaskDependency(projectId, blockedId, { blockerId }, token),
+    onSettled: () => refreshSchedule(qc, projectId),
+    onError: (error) => toast.error('No se pudo crear la dependencia', { description: error?.message }),
+  })
+  const remove = useMutation({
+    mutationFn: ({ blockedId, depId }) => runly.projects.removeTaskDependency(projectId, blockedId, depId, token),
+    onSettled: () => refreshSchedule(qc, projectId),
+    onError: (error) => toast.error('No se pudo quitar la dependencia', { description: error?.message }),
+  })
+  return { add, remove }
+}
+
 // ── Task Dependencies ─────────────────────────────────────────────────────────
 
 export function useTaskDependencies(projectId, taskId) {

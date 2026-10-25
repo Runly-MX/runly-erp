@@ -1,3 +1,5 @@
+import { wouldCreateCycle } from './projects-schedule.js'
+
 export class DependencyServiceError extends Error {
   constructor(message, status = 500) {
     super(message)
@@ -39,12 +41,12 @@ export function createDependenciesService({ prisma }) {
     })
     if (existing) throw new DependencyServiceError('Esta dependencia ya existe.', 409)
 
-    // Cycle guard: if blockerId is already blocked by blockedTaskId (directly or transitively)
-    // we only check direct reverse to keep it simple and performant
-    const reverse = await prisma.taskDependency.findFirst({
-      where: { blockerId: blockedTaskId, blockedId: blockerId },
+    // Cycle guard over the whole chain: A -> B -> C -> A is rejected, a diamond is not.
+    const edges = await prisma.taskDependency.findMany({
+      where: { blocked: { projectId }, blocker: { projectId } },
+      select: { blockerId: true, blockedId: true },
     })
-    if (reverse) {
+    if (wouldCreateCycle(edges, blockerId, blockedTaskId)) {
       throw new DependencyServiceError('Esta dependencia crea un ciclo.', 409)
     }
 

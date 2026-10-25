@@ -2436,6 +2436,16 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
+      // Gantt: tasks with dates + every dependency in one call; reschedule moves the dates
+      // (and, with pushDependentsBy days, the tasks that depend on it).
+      getGantt: (projectId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/gantt`, { headers: withAuthHeaders(token) }),
+      rescheduleTask: (projectId, taskId, data, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/reschedule`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       // dependencies
       listTaskDependencies: (projectId, taskId, token) =>
         request(`/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/dependencies`, {

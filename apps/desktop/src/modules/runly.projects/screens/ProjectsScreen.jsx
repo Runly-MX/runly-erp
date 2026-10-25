@@ -28,7 +28,7 @@ import { getProjectIcon } from "../lib/projectIcons.js";
 import { UserAvatarContext } from "../lib/UserAvatarContext.js";
 import KanbanView from "../components/KanbanView.jsx";
 import ListView from "../components/ListView.jsx";
-import TimelineView from "../components/TimelineView.jsx";
+import GanttView from "../components/GanttView.jsx";
 import TaskDetailPanel from "../components/TaskDetailPanel.jsx";
 import ProjectFormModal from "../components/ProjectFormModal.jsx";
 import TaskFormModal from "../components/TaskFormModal.jsx";
@@ -43,7 +43,7 @@ import { useMiraiRecordContext } from "../../runly.chat/lib/miraiPageContext";
 const VIEWS = [
   { key: "kanban", label: "Kanban", Icon: LayoutGrid },
   { key: "list", label: "Lista", Icon: List },
-  { key: "timeline", label: "Timeline", Icon: Calendar },
+  { key: "timeline", label: "Gantt", Icon: Calendar },
 ];
 
 const LIFECYCLE_BADGE = {
@@ -471,11 +471,7 @@ export default function ProjectsScreen() {
                   />
                 )}
                 {activeView === "timeline" && (
-                  <TimelineView
-                    projectId={effectiveId}
-                    onTaskClick={openTask}
-                    showSubtasks
-                  />
+                  <GanttView projectId={effectiveId} onTaskClick={openTask} />
                 )}
               </div>
             </>

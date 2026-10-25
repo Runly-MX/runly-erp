@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { createProjectsService, ProjectServiceError } from './projects-service.js'
 import { createTasksService, TaskServiceError } from './tasks-service.js'
 import { createDependenciesService, DependencyServiceError } from './projects-dependencies-service.js'
+import { createGanttService, GanttServiceError } from './projects-gantt-service.js'
 import { createFieldsService, FieldServiceError } from './projects-fields-service.js'
 import { createLinksService, LinkServiceError } from './projects-links-service.js'
 import { createProjectsCalendarBridge } from './projects-calendar-bridge.js'
@@ -38,6 +39,7 @@ function handleError(c, err, fallback) {
     err instanceof ProjectServiceError ||
     err instanceof TaskServiceError ||
     err instanceof DependencyServiceError ||
+    err instanceof GanttServiceError ||
     err instanceof FieldServiceError ||
     err instanceof LinkServiceError
   ) return c.json({ error: err.message }, err.status)
@@ -53,6 +55,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   const projectConnections = createCoreTargetConnections({ prisma, targetType: 'project' })
   const tasksSvc = createTasksService({ prisma })
   const depsSvc = createDependenciesService({ prisma })
+  const ganttSvc = createGanttService({ prisma })
   const fieldsSvc = createFieldsService({ prisma })
   const linksSvc = createLinksService({ prisma, relationTargets })
   const bridge = createProjectsCalendarBridge({ prisma })
@@ -597,6 +600,30 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
       await prisma.fileAsset.update({ where: { id: c.req.param('fid') }, data: { enabled: false } })
       return c.json({ ok: true })
     } catch (err) { return handleError(c, err, 'Error al eliminar archivo.') }
+  })
+
+  // --- Gantt ---
+  app.get('/projects/:id/gantt', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
+    try {
+      return c.json(await ganttSvc.gantt(c.req.param('id')))
+    } catch (err) { return handleError(c, err, 'Error al cargar el diagrama de Gantt.') }
+  })
+
+  // Moves a task's dates; `pushDependentsBy` (days) also moves what depends on it.
+  app.post('/projects/:id/tasks/:tid/reschedule', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
+    try {
+      const body = await c.req.json()
+      const { changed } = await ganttSvc.reschedule({
+        projectId: c.req.param('id'), taskId: c.req.param('tid'),
+        startDate: body.startDate,
+        dueDate: body.dueDate,
+        pushDependentsBy: body.pushDependentsBy,
+      })
+      for (const { before, after } of changed) {
+        await taskEffects.afterUpdate(c, { id: before.id, statusId: before.statusId, assigneeId: before.assigneeId, projectId: before.projectId }, after, { startDate: after.startDate, dueDate: after.dueDate })
+      }
+      return c.json({ tasks: changed.map(({ after }) => ({ id: after.id, startDate: after.startDate, dueDate: after.dueDate })) })
+    } catch (err) { return handleError(c, err, 'Error al reprogramar la tarea.') }
   })
 
   // --- Task Dependencies ---
