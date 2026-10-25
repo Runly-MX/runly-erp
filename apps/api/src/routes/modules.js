@@ -1,4 +1,5 @@
 import { createAutomationRunsService } from "../services/automation-runs-service.js";
+import { createAutomationJobsService } from "../services/automation-jobs-service.js";
 import { Hono } from "hono";
 import { resolvePersistedModuleKey } from '../services/module-key-alias.js';
 import { fileURLToPath } from "node:url";
@@ -2621,12 +2622,35 @@ export function createModulesRouter({
 
   // Run log of the module's Builder automations (Historial tab).
   const automationRunsSvc = createAutomationRunsService({ prisma });
+  const automationJobsSvc = createAutomationJobsService({ prisma });
   app.get("/:key/automation-runs", authMiddleware, requirePermission("core.modules.manage"), async (c) => {
     const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
     const companyId = c.get("companyId");
     if (!companyId) return c.json({ error: "Selecciona una empresa activa." }, 400);
     const { automation, status, limit } = c.req.query();
     return c.json({ data: await automationRunsSvc.list({ companyId, moduleKey: key, automation, status, limit }) });
+  });
+
+  // Waits of the module's automations that have not run yet; cancelling one
+  // closes its run as "cancelled".
+  app.get("/:key/automation-jobs", authMiddleware, requirePermission("core.modules.manage"), async (c) => {
+    const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
+    const companyId = c.get("companyId");
+    if (!companyId) return c.json({ error: "Selecciona una empresa activa." }, 400);
+    return c.json({ data: await automationJobsSvc.listPending({ companyId, moduleKey: key }) });
+  });
+
+  app.delete("/:key/automation-jobs/:id", authMiddleware, requirePermission("core.modules.manage"), async (c) => {
+    const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
+    const companyId = c.get("companyId");
+    if (!companyId) return c.json({ error: "Selecciona una empresa activa." }, 400);
+    try {
+      const job = await automationJobsSvc.cancel({ companyId, moduleKey: key, id: c.req.param("id") });
+      await automationRunsSvc.markCancelled({ companyId, moduleKey: key, runId: job.runId });
+      return c.json({ data: { id: job.id, status: "cancelled" } });
+    } catch (err) {
+      return c.json({ error: err.message }, err.status ?? 500);
+    }
   });
 
   // Archived fields: removed by an update, column and data kept

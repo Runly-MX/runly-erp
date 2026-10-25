@@ -6,6 +6,7 @@ import { resolveModuleRoots } from './module-root-resolver.js'
 import { publishNotificationFromContext } from './notification-publisher.js'
 import { registerModuleHandler, getModuleHandler } from './module-cleanup-registry.js'
 import { createAutomationRunsService } from './automation-runs-service.js'
+import { createAutomationJobsService } from './automation-jobs-service.js'
 
 function isWithinPath(parentPath, childPath) {
   const rel = path.relative(parentPath, childPath)
@@ -87,6 +88,7 @@ class RouteCollisionError extends Error {
 
 export function createRouteLoaderService({ prisma, authMiddleware, requirePermission, cache = null, filesCapability = null, relationsCapability = null, aiCapability = null, moduleServices = null }) {
   const automationRuns = createAutomationRunsService({ prisma })
+  const automationJobs = createAutomationJobsService({ prisma })
   let moduleRoots = null
   const routerMap = new Map()
   // Optional api/public.js routers, served only through the module public-link
@@ -400,7 +402,10 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
         services: moduleServices ? { forRequest: (c) => moduleServices.forRequest(c, moduleKey) } : null,
         // Run log of the module's Builder automations (automation-runs-service.js);
         // bound to this module's key and the request's company.
-        automations: { log: (c, entry) => automationRuns.log({ companyId: c.get('companyId'), moduleKey, entry }) },
+        automations: {
+          log: (c, entry) => automationRuns.log({ companyId: c.get('companyId'), moduleKey, entry }),
+          enqueue: (c, job) => automationJobs.enqueue({ companyId: c.get('companyId'), moduleKey, job }),
+        },
         // MirAI tool loop + internet lookup limited to the manifest's
         // `ai.publicLookup` fields (services/ai/module-ai-capability.js).
         ai: aiCapability ? aiCapability(moduleKey, moduleRow.manifest ?? null) : null,

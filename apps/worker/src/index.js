@@ -16,6 +16,7 @@ import { createModuleServices } from '../../api/src/services/module-services/mod
 import { createTrashRegistry } from '../../api/src/services/trash/trash-registry.js'
 import { runAutoPurge } from '../../api/src/services/trash/trash-retention.js'
 import { createAutomationRunsService } from '../../api/src/services/automation-runs-service.js'
+import { createAutomationWorker } from '../../api/src/services/automation-worker-service.js'
 import { purgeExpiredEvidence } from '../../api/src/routes/attendance/attendance-evidence.js'
 import { resolveModulesDir } from '../../api/src/services/module-upload-service.js'
 import { resolveGoogleCalendarConfig } from '../../api/src/routes/calendar/google/google-config.js'
@@ -100,6 +101,9 @@ const syncCleanupWorker = createSyncLogCleanupWorker({ prisma })
 const SYNC_CLEANUP_INTERVAL_MS = syncCleanupWorker.SYNC_CLEANUP_INTERVAL_MS
 const moduleBackupService = createModuleBackupService({ prisma })
 const domainEventDispatcher = createDomainEventDispatcher({ prisma, resolveModulesDir, moduleServices: createModuleServices({ prisma }) })
+const automationWorker = createAutomationWorker({ prisma, resolveModulesDir, moduleServices: createModuleServices({ prisma }) })
+const AUTOMATION_JOBS_INTERVAL_MS = Number(process.env.RUNLY_AUTOMATION_JOBS_INTERVAL_MS ?? 30_000)
+const AUTOMATION_SCHEDULES_INTERVAL_MS = Number(process.env.RUNLY_AUTOMATION_SCHEDULES_INTERVAL_MS ?? 60_000)
 const DOMAIN_EVENTS_INTERVAL_MS = Number(process.env.RUNLY_DOMAIN_EVENTS_INTERVAL_MS ?? 15_000)
 const trashRegistry = createTrashRegistry({ prisma, supabaseAdmin: workerSupabaseAdmin })
 const TRASH_RETENTION_INTERVAL_MS = Number(process.env.RUNLY_TRASH_RETENTION_INTERVAL_MS ?? 12 * 60 * 60 * 1000)
@@ -197,7 +201,7 @@ async function reconnect() {
 // (slow SMTP, dead push endpoints) or when two worker processes overlap. A
 // per-tick in-flight flag keeps a single process from processing the same rows
 // twice; the delivery worker's atomic claim covers the multi-process case.
-const tickRunning = { calendar: false, delivery: false, tasksDueSoon: false, domainEvents: false, trashRetention: false, attendanceEvidence: false }
+const tickRunning = { automationJobs: false, automationSchedules: false, calendar: false, delivery: false, tasksDueSoon: false, domainEvents: false, trashRetention: false, attendanceEvidence: false }
 
 async function runCalendarReminderTick() {
   if (tickRunning.calendar) return
@@ -270,6 +274,35 @@ async function runDomainEventsTick() {
     if (isConnectionError(err)) await reconnect()
   } finally {
     tickRunning.domainEvents = false
+  }
+}
+
+// Builder automations: continuations after a wait, and schedule triggers.
+async function runAutomationJobsTick() {
+  if (tickRunning.automationJobs) return
+  tickRunning.automationJobs = true
+  try {
+    const result = await automationWorker.processJobs()
+    if (result.done || result.failed || result.retry) console.log(`[worker] automation jobs ${formatLogTimestamp()} done=${result.done} retry=${result.retry} failed=${result.failed}`)
+  } catch (err) {
+    console.error('[worker] automation jobs tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  } finally {
+    tickRunning.automationJobs = false
+  }
+}
+
+async function runAutomationSchedulesTick() {
+  if (tickRunning.automationSchedules) return
+  tickRunning.automationSchedules = true
+  try {
+    const result = await automationWorker.processSchedules()
+    if (result.fired || result.failed) console.log(`[worker] automation schedules ${formatLogTimestamp()} fired=${result.fired} failed=${result.failed}`)
+  } catch (err) {
+    console.error('[worker] automation schedules tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  } finally {
+    tickRunning.automationSchedules = false
   }
 }
 
@@ -409,7 +442,7 @@ setInterval(() => {
 const automationRunsService = createAutomationRunsService({ prisma })
 async function runAutomationRunsRetentionTick() {
   try {
-    const purged = await automationRunsService.purgeOlderThan()
+    const purged = (await automationRunsService.purgeOlderThan()) + (await automationWorker.jobs.purgeFinished())
     if (purged) console.log(`[worker] historial de automatizaciones ${formatLogTimestamp()} purged=${purged}`)
   } catch (err) {
     console.error('[worker] automation runs retention tick failed:', err?.message ?? err)
@@ -417,6 +450,10 @@ async function runAutomationRunsRetentionTick() {
 }
 setTimeout(runAutomationRunsRetentionTick, 90_000)
 setInterval(runAutomationRunsRetentionTick, 6 * 60 * 60 * 1000)
+setInterval(runAutomationJobsTick, AUTOMATION_JOBS_INTERVAL_MS)
+setInterval(runAutomationSchedulesTick, AUTOMATION_SCHEDULES_INTERVAL_MS)
+setTimeout(runAutomationJobsTick, 20_000)
+setTimeout(runAutomationSchedulesTick, 25_000)
 setTimeout(runTrashRetentionTick, 60_000)
 setInterval(() => {
   runTrashRetentionTick()

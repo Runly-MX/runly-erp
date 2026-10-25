@@ -25,7 +25,7 @@ const suggestKey = (name) => {
 
 function IconTile({ icon: Icon }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-(--brand-primary)/10 text-(--brand-primary)">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-(--brand-primary)/10 text-(--brand-primary)">
       <Icon className="h-4 w-4" />
     </span>
   );
@@ -52,7 +52,7 @@ function TemplateGrid({ templates, value, onChange }) {
             role="radio"
             aria-checked={active}
             onClick={() => onChange(template.key)}
-            className={`relative flex cursor-pointer flex-col gap-2 rounded-xl border p-4 text-left transition-colors ${active ? "border-(--brand-primary) bg-(--brand-primary)/5" : "border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/50"}`}
+            className={`relative flex cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition-colors ${active ? "border-transparent bg-(--brand-primary)/15" : "border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/50"}`}
           >
             <IconTile icon={resolveLucideIcon(template.icon)} />
             <span className="block text-sm font-semibold">{template.label}</span>
@@ -68,7 +68,7 @@ function TemplateGrid({ templates, value, onChange }) {
 function DraftPreview({ draft }) {
   const { definition, errors } = draft;
   return (
-    <div className="space-y-2 rounded-xl border border-[hsl(var(--border))] p-3">
+    <div className="space-y-2 rounded-lg border border-[hsl(var(--border))] p-3">
       <p className="text-sm font-medium">Borrador de MirAI</p>
       {(definition.entities ?? []).map((entity) => (
         <div key={entity.key} className="space-y-1">
@@ -106,7 +106,7 @@ function ModePicker({ mode, onChange, aiAvailable }) {
               aria-checked={active}
               disabled={disabled}
               onClick={() => onChange(item.key)}
-              className={`flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active ? "border-(--brand-primary) bg-(--brand-primary)/5" : "cursor-pointer border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/50"}`}
+              className={`flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active ? "border-transparent bg-(--brand-primary)/15" : "cursor-pointer border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/50"}`}
             >
               <IconTile icon={item.icon} />
               <span className="block text-sm font-semibold">{item.label}</span>
@@ -213,7 +213,7 @@ export function NewModuleDialog({ open, onOpenChange, token, onCreate, creating 
 
           {step === "data" && (
             <section className="space-y-4">
-              <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30 p-3 text-sm">
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30 p-3 text-sm">
                 {mode === "blank" && "Módulo en blanco: agregarás tablas, campos y pantallas en el Constructor."}
                 {mode === "ai" && `Borrador de MirAI con ${(draft?.definition?.entities ?? []).length} entidad(es).`}
                 {mode === "template" && <>Plantilla: <span className="font-medium">{selectedTemplate?.label ?? template}</span></>}

@@ -15,6 +15,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createAutomationRunsService } from '../automation-runs-service.js'
+import { createAutomationJobsService } from '../automation-jobs-service.js'
 
 export const MAX_ATTEMPTS = 8
 const BATCH = 50
@@ -30,6 +31,7 @@ export function subscribersOf(modules, event, disabledModuleIds = new Set()) {
 export function createDomainEventDispatcher({ prisma, resolveModulesDir, importHandlers = null, now = () => new Date(), moduleServices = null }) {
   const handlerCache = new Map()
   const automationRuns = createAutomationRunsService({ prisma })
+  const automationJobs = createAutomationJobsService({ prisma })
 
   async function defaultImport(moduleKey) {
     const dir = await resolveModulesDir()
@@ -53,7 +55,8 @@ export function createDomainEventDispatcher({ prisma, resolveModulesDir, importH
       if (typeof handler !== 'function') throw new Error(`${mod.key} se suscribe a ${row.event} pero api/events.js no lo maneja`)
       const services = moduleServices ? moduleServices.forSystem(mod.key, row.companyId) : null
       const log = (entry) => automationRuns.log({ companyId: row.companyId, moduleKey: mod.key, entry })
-      await handler({ event: row.event, payload: row.payload, companyId: row.companyId, eventId: row.id, prisma, services, log })
+      const enqueue = (job) => automationJobs.enqueue({ companyId: row.companyId, moduleKey: mod.key, job })
+      await handler({ event: row.event, payload: row.payload, companyId: row.companyId, eventId: row.id, prisma, services, log, enqueue })
     }
   }
 

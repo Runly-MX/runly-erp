@@ -504,6 +504,44 @@ model AutomationRun {
   @@map("automation_run")
 }
 
+// Continuation of a Builder automation after a wait step. Claimed by the
+// worker (FOR UPDATE SKIP LOCKED) when run_at passes. Spec
+// docs/superpowers/specs/2026-10-24-automation-studio-v2-stage-b-time-design.md.
+model AutomationJob {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  moduleKey     String   @map("module_key")
+  automationKey String   @map("automation_key")
+  runId         String?  @map("run_id") @db.Uuid
+  fromStep      Int      @map("from_step")
+  payload       Json     @default("{}")
+  runAt         DateTime @map("run_at") @db.Timestamptz(6)
+  status        String   @default("pending") // pending | running | done | failed | cancelled
+  attempts      Int      @default(0)
+  lastError     String?  @map("last_error")
+  dedupeKey     String?  @unique @map("dedupe_key")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, runAt])
+  @@index([companyId, moduleKey, status])
+  @@map("automation_job")
+}
+
+// Next firing of a Builder schedule trigger for one company.
+model AutomationSchedule {
+  companyId     String    @map("company_id") @db.Uuid
+  moduleKey     String    @map("module_key")
+  automationKey String    @map("automation_key")
+  nextRunAt     DateTime  @map("next_run_at") @db.Timestamptz(6)
+  lastRunAt     DateTime? @map("last_run_at") @db.Timestamptz(6)
+  lastError     String?   @map("last_error")
+
+  @@id([companyId, moduleKey, automationKey])
+  @@index([nextRunAt])
+  @@map("automation_schedule")
+}
+
 model Company {
   id String @id @default(uuid(7)) @db.Uuid
   name           String
