@@ -4,7 +4,7 @@
 
 El módulo oficial se registra en `manifests/official/studio.js` y el catálogo de core-modules; ModuleOutlet carga StudioScreen con React.lazy. La ruta es `/app/m/runly.studio/`, con `?design=<id>` para reabrir. No se modifica el resolver genérico de rutas.
 
-StudioScreen ofrece creación en blanco, tres plantillas propias y una lista paginada de diseños privados. El workspace usa tres regiones: herramientas, página desplazable con zoom e inspector contextual con una lista de elementos accesible por teclado. El usuario puede insertar/modificar texto, formas e imágenes y confirmar la eliminación de elementos. Guardado explícito, aviso de cambios pendientes y confirmación al volver a Mis diseños. La protección beforeunload cubre recarga/cierre; la navegación externa del shell todavía necesita un bloqueo de router común.
+StudioScreen ofrece creación en blanco, tamaños predefinidos/personalizados, tres plantillas propias y una lista paginada de diseños propios/compartidos. El workspace usa tres regiones: herramientas, página desplazable con zoom e inspector contextual con una lista de elementos accesible por teclado. El usuario puede insertar/modificar texto, formas e imágenes y confirmar la eliminación de elementos. El guardado es explícito; un adaptador de navegación opt-in protege este editor mientras está sucio, incluido el shell y el cambio manual de empresa.
 
 El editor mantiene interacción Fabric fuera del estado React durante arrastres. React recibe cambios comprometidos y texto/selección; no se usa un store global de documentos. La carga de originales es asíncrona y un error de imagen impide dar por exportado un diseño incompleto.
 
@@ -30,7 +30,55 @@ El adaptador mantiene hasta 50 pasos y un presupuesto de 8 MB de strings UTF-16 
 
 Se selecciona Fabric 6.9.1 para edición de Studio, manteniendo Canvas2DRenderer para diagramas y POS. La evidencia y alternativas están en [el ADR](adr-runly-studio-renderer.md). No se añade Fabric a core, ui, sdk ni a API/worker.
 
-El PNG actual se genera en navegador. Las pruebas también se ejecutan en Chrome headless, lo que demuestra viabilidad de esa ruta de renderizado, no una API de render servidor ya disponible. Un servicio futuro debe resolver archivos con identidad empresarial, fuentes instaladas y límites de CPU/memoria, dentro de la cola/worker existente cuando sea compatible. La opción fabric/node requiere evaluar dependencias nativas por separado.
+PNG y JPG se generan en navegador con las dimensiones exactas de la página y originales autorizados. JPG usa el fondo opaco canónico y calidad 70/90/100 %, por defecto 90 %. Antes de codificar se vuelven a resolver y comprobar los originales secuencialmente: una URL/bitmap cacheados no bastan como autorización vigente. El canvas auxiliar de salida se libera tras codificar; el máximo es 4096 × 4096. Las pruebas también se ejecutan en Chrome headless, lo que demuestra viabilidad de esa ruta, no una API de render servidor disponible. Un servicio futuro debe resolver archivos con identidad empresarial, fuentes instaladas y límites de CPU/memoria dentro de la cola existente; fabric/node requiere evaluar dependencias nativas por separado.
+
+## Identidad visual y composición
+
+El nombre visible es **Studio**: manifiesto, catálogo/dashboard, navegación,
+accesos, pantalla inicial/editor y títulos de ayuda. La clave `runly.studio`,
+permisos `studio.*`, rutas e identidad PWA permanecen estables. El nombre largo
+Runly Studio se conserva en documentación y contexto técnico. La descripción
+corta es «Diseño gráfico y edición multimedia». `PenTool` utiliza Lucide, ya
+presente en Runly; se añadió a la whitelist del motor, sin otra dependencia.
+El color `#D946EF` es un hex admitido directamente y alimenta tarjetas, menú,
+tema del módulo e iconos/PWA. Cursores y selecciones usan fucsia con variantes
+de contraste de los tokens existentes. El catálogo de una instalación existente
+tomará la identidad nueva mediante su sincronización habitual autorizada; esta
+entrega no modifica esa instalación ni fuerza escrituras sobre ella.
+
+El contrato sigue en v2, con lectura de v1. `resizeDocument` valida el resultado
+antes de mutar: conserva objetos incluso fuera de página; el escalado optativo
+usa el mínimo de las razones de anchura/altura, anclado al origen y sin deformar.
+Para texto escala `scaleX/scaleY`, conservando tamaño tipográfico y geometría base.
+Las cotas del contrato siguen vigentes: se rechaza un escalado que las exceda.
+Tamaño y fondo son una acción de historial; no hay DPI ni unidades físicas nuevas.
+
+La alineación emplea `getBoundingRect` de Fabric y traslada objetos sin modificar
+su rotación ni escala. Excluye bloqueados/ocultos; distribuye separaciones visuales
+con tres o más objetos. Cada operación es un paso reversible. La multiselección
+permite traslación/alineación, con escala/rotación conjuntas bloqueadas para evitar
+introducir skew que v2 no puede representar. Los objetos individuales conservan
+sus tiradores. Se estabiliza el ruido de coma flotante al leer grupos temporales;
+seleccionar no debe modificar coordenadas canónicas.
+
+El viewport usa scroll/CSS y coordenadas del documento. Ajustar, centrar, zoom
+5–400 %, Ctrl/Cmd + rueda y Mano/Espacio no generan historial ni datos persistidos.
+Zoom conserva el punto bajo el cursor o el centro cuando el espacio de scroll lo
+permite. ResizeObserver recalcula el ajuste activo. Espacio no captura inputs ni
+el editor de texto de Fabric; Mano admite puntero/táctil y el scroll sigue disponible.
+
+Runly usa BrowserRouter declarativo: `useBlocker` del data router no es compatible.
+`useStudioNavigation` adapta push/replace/go solo mientras este editor está sucio,
+restaura los métodos al desmontar/guardar y trata Back/Forward nativo reponiendo
+el índice antes de preguntar. El puente recibe popstate antes de que BrowserRouter
+se monte: un listener instalado por el editor lazy llega demasiado tarde y el
+router podría desmontarlo antes de preguntar. Fuera del editor sucio es un no-op;
+la prueba de navegador cubre guardar/reabrir, cancelar/confirmar links y Back/Forward.
+El cambio manual de empresa consulta un puente
+opt-in; sin guard es síncrono y no cambia la conducta de otros módulos. Los cambios
+de empresa forzados por revocación no se bloquean. Recarga/cierre conserva el
+beforeunload del navegador. Se conserva el borrador antes de preguntar/salir; una
+copia confirmada usa un bypass acotado para navegar sin un segundo aviso.
 
 ## Integraciones futuras y propiedad de datos
 

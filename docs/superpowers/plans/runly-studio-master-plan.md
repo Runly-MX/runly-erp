@@ -63,8 +63,10 @@ Orden de autoridad dentro de este plan: consolidación aceptada > ampliación > 
 - [x] Realtime: autorizar canales desde API, revalidación/revocación y propagación sin sobrescribir cambios locales.
 - [x] Pruebas de dos usuarios: cursores, presencia, cambios distintos, conflicto, reconexión y revocación.
 - [x] Clipboard interno entre diseños del mismo usuario/empresa, IDs nuevos, revalidación Files y undo/redo; probado con Supabase real.
-- [ ] Completar MVP: tamaños personalizados, pan/centrado, alineación y JPG; clipboard entre documentos, agrupación y capas independientes.
-- [ ] Bloqueo común de navegación del shell ante cambios pendientes.
+- [x] MVP de composición: tamaños personalizados/presets, fondo, escalado explícito, pan/centrado/zoom, alineación/distribución y PNG/JPG, con historial.
+- [x] Protección de navegación de Studio ante cambios pendientes: shell, Back/Forward, empresa y beforeunload; opt-in sin bloquear otros módulos.
+- [x] Branding corto Studio, PenTool de Lucide y fucsia #D946EF; clave técnica y permisos estables.
+- [ ] Agrupación persistente y capas independientes (no necesarias para esta entrega del MVP).
 
 ### Fase 3: biblioteca y catálogo
 

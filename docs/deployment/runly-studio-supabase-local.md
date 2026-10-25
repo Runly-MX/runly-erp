@@ -218,6 +218,81 @@ al finalizar; la imagen API de prueba permanece únicamente en Docker local.
 Implementación en main: `b98dbd0a`; protección de finales de línea: `b6996e20`.
 Se preservó el trabajo concurrente de Chat, sin publicarlo como parte de Studio.
 
+## MVP de composición y branding
+
+El nombre visible es **Studio** (catálogo, dashboard, navegación, pantallas,
+accesos y ayuda), con `PenTool` de Lucide y color `#D946EF`. La descripción es
+«Diseño gráfico y edición multimedia». La whitelist del motor admite PenTool;
+no se añade otro set de iconos. El nombre largo Runly Studio queda en contexto
+técnico. No cambian clave `runly.studio`, rutas, permisos ni identidad instalada.
+El cambio de catálogo se comprueba en el seed del stack desechable; no se ejecutó
+sync contra la base habitual. Una instalación existente lo tomará mediante su
+sincronización normal cuando esté autorizada.
+
+Se mantiene v2, compatible con v1, sin migraciones nuevas. La UI permite elegir
+presets o tamaño personalizado al crear y editar página/fondo después. Cambiar
+tamaño conserva objetos fuera de página; escalar es una opción uniforme explícita.
+Tamaño/fondo, alineación visual de objetos rotados y distribución múltiple son
+acciones reversibles. Bloqueados y ocultos no entran en la alineación.
+
+Fit/centrado, porcentaje, 100 %, Ctrl/Cmd + rueda, Mano y Espacio + arrastre usan
+viewport local. No cambian JSON ni historial. La prueba escribe espacios dentro
+del texto de Fabric sin activar pan. Se comprueba resize del viewport y zoom de
+lectores; una revisión de tamaño guardada llega al lector por WebSocket real.
+
+PNG y JPG se comprueban por formato binario, dimensiones y muestras del fondo y
+del original. JPG ofrece calidad 70/90/100 %, predeterminada 90 %. Un original
+inaccesible rechaza la exportación con error seguro y admite reintento. Se libera
+el canvas auxiliar; el preview no multiplica su backing store por el DPR del
+dispositivo. Chrome también exportó ambos formatos a 4096 × 4096.
+
+Ejemplo medido en la escena sintética de 600 × 450 del runner completo (tiempo
+incluye comprobación del original y descarga; no es un benchmark de producción):
+
+| Formato | Bytes | Tiempo |
+| --- | ---: | ---: |
+| PNG | 11736 | 349 ms |
+| JPG 70 % | 4391 | 224 ms |
+| JPG 100 % | 16219 | 190 ms |
+
+Fondo PNG: RGBA `[132,204,22,255]`; JPEG: RGB `[133,204,22]`. El píxel del
+original PNG `[245,158,11,255]` se conserva; JPEG queda dentro de la tolerancia
+de compresión de 15 niveles por canal. Renderer también prueba otro fondo.
+En la escena blanca de 4096 × 4096: PNG 332228 bytes y JPEG 99062 bytes;
+ambas exportaciones más la comprobación del JPEG tardaron 426.5 ms en una muestra.
+
+La navegación sucia protege Volver, módulo desde el launcher, historial nativo,
+recarga/cierre y cambio manual de empresa. El borrador es por empresa/usuario/
+diseño. BrowserRouter necesita un puente temprano para popstate; fuera de un
+Studio sucio es no-op. Las pruebas de navegador cubren cancelar/confirmar,
+guardar/reabrir y Back/Forward. El nombre no se habilita hasta cargar el lienzo,
+evitando cambios no registrados durante una reapertura lenta. Si falla la cuota
+local se advierte antes de salir y se impide cargar una versión concurrente
+sobre un borrador que no pudo preservarse.
+
+La suite completa de Supabase real pasó los **27 grupos E2E** de vertical,
+colaboración, Recursos/clipboard y composición, sin interceptores HTTP de Auth,
+Realtime ni Storage. El fallo de cuota se inyecta exclusivamente en localStorage
+del borrador del navegador. Los contenedores, redes y volúmenes se eliminaron.
+
+La regresión ampliada pasó **1305/1306**, con cero fallos y la misma prueba SQL
+de Files omitida por requerir `files_test`. Los **12 tests dirigidos** de PWA,
+página y navegación también pasan. ESLint de los cambios pasa. Los diagnósticos
+globales de React Doctor incluyen un error de hooks y warnings de trabajo
+concurrente de Chat, fuera de este diff; el único warning
+de Studio es el await secuencial de originales, intencional para limitar memoria.
+El check global de privacidad sigue mostrando 64 hallazgos preexistentes, sin
+añadir allowlists. El JSON privado de cada ejecución guarda checks, métricas y
+evidencia de chunk lazy; las capturas incluyen dashboard claro/oscuro y editor.
+La whitelist PenTool fue recogida por el commit concurrente `5f94b0cd` mientras
+se validaba esta entrega. Se conservó ese historial sin reescribirlo.
+La implementación propia queda en `186136b8`, directamente en main. La revisión
+individual de los 28 archivos de esta entrega no encontró hallazgos de privacidad.
+
+`--composition-only` ejecuta únicamente el bloque nuevo en un stack fresco para
+diagnóstico. La ejecución por defecto sigue validando vertical, colaboración,
+revocación, Recursos y clipboard antes del MVP; no se sustituyen por fixtures.
+
 ## Límites y siguiente desarrollo local
 
 La colaboración confirma revisiones; no hay edición de texto libre de conflictos
@@ -227,8 +302,8 @@ de archivos; requiere acceso vigente a los originales. El historial no persiste
 entre sesiones, el clipboard de objetos es interno a la aplicación y no cruza
 pestañas ni recargas; la revisión del servidor muestra resumen, no un diff gráfico.
 
-Se puede continuar con tamaños personalizados, pan/centrado, alineación, JPG y
-catálogo de plantillas con versiones y licencias. Los proveedores externos siguen
+Se puede continuar con agrupación/capas persistentes y catálogo de plantillas
+con versiones y licencias. Los proveedores externos siguen
 inactivos; su contrato se documenta en la arquitectura. Todo puede comprobarse
 en este Supabase local, sin VPS ni datos de la instalación habitual.
 
