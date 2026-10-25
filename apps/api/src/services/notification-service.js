@@ -7,6 +7,7 @@ import {
 } from "@runly/validators";
 
 import { getDefaultNotificationPreference } from '@runly/core';
+import { isInDnd, passesDnd } from './dnd.js';
 import { attachUserAvatarUrls } from '../lib/attach-user-avatars.js';
 
 const DEDUPE_WINDOW_MS = 5000;
@@ -471,8 +472,12 @@ export function createNotificationService({ prisma, broadcaster = null, supabase
         });
         const effective = { ...getDefaultNotificationPreference(parsed.eventType), ...pref };
         const muted = pref?.muteUntil && new Date(pref.muteUntil) > new Date();
+        // Do Not Disturb holds email and push (in-app rows are kept) unless the notification is urgent.
+        const dndRow = await tx.userPreference?.findUnique?.({ where: { userId_key: { userId, key: 'notifications.dnd' } }, select: { value: true } });
+        const inDnd = Boolean(dndRow) && isInDnd(dndRow.value) && !passesDnd({ priority: parsed.priority, eventType: parsed.eventType });
         const allowedChannels = parsed.channels.filter((ch) => {
           if (muted) return false;
+          if (inDnd && ch !== 'in_app') return false;
           if (ch === 'in_app') return effective.inAppEnabled !== false;
           if (ch === 'email') {
             return respectChannelDefaults ? effective.emailEnabled === true : pref?.emailEnabled !== false;

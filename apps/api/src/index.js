@@ -79,6 +79,7 @@ import { createAutomationApprovalsRouter } from "./routes/automation-approvals-r
 import { createAutomationsRouter } from "./routes/automations-routes.js";
 import { createHomeWidgetsRouter } from "./routes/home-widgets-routes.js";
 import { createWorkRouter } from "./routes/work-routes.js";
+import { createStatusRouter } from "./routes/status-routes.js";
 import { createAutomationWebhookPublicRouter } from "./routes/automation-webhook-public.js";
 import {
   createPublicWebsiteRouter,
@@ -2476,6 +2477,7 @@ mountWithAuth(app, createCompanyRouter({ prisma, supabaseAdmin, requirePermissio
 mountWithAuth(app, createAutomationApprovalsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createHomeWidgetsRouter({ prisma, requireActiveCompany }));
 mountWithAuth(app, createWorkRouter({ prisma, requireActiveCompany }));
+mountWithAuth(app, createStatusRouter({ prisma, requireActiveCompany }));
 mountWithAuth(app, createAutomationsRouter({ prisma, requirePermission, moduleServices }));
 mountWithAuth(app, createBuilderRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, bundlerSvc: bundlerService, routeLoader, cacheDel }));
 mountWithAuth(app, createModuleCatalogRouter({ prisma, requirePermission, bundlerSvc: bundlerService, routeLoader, cacheDel }));

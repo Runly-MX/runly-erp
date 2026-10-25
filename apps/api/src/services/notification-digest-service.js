@@ -7,6 +7,7 @@
 // once; a crash between claim and send skips that window rather than duplicating it).
 import { createCompanyMailer } from "./smtp-service.js";
 import { renderRunlyEmailLayout } from "./email-templates.js";
+import { isInDnd } from "./dnd.js";
 
 export const PREF_KEY = "notifications.digest";
 export const STATE_KEY = "notifications.digest.state";
@@ -161,6 +162,8 @@ export function createNotificationDigestService({ prisma, mailer = null, appBase
       const pref = normalizeDigestPref(row.value);
       const start = windowStart(at, pref);
       if (start === null || !row.user?.enabled || !row.user?.email) continue;
+      // Do Not Disturb: leave the window unclaimed so it is sent on the first pass after it ends.
+      if (isInDnd(await readJson(row.userId, "notifications.dnd"), at)) continue;
       const state = await readJson(row.userId, STATE_KEY);
       if (state?.windowStart && new Date(state.windowStart).getTime() >= start) continue;
       // Claim the window first: a second pass (or a second worker) sees it as served.
