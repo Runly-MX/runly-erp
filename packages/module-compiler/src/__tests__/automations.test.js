@@ -351,3 +351,49 @@ test('previewAutomation shows conditions and the exact arguments without calling
   assert.deepEqual(blocked.steps, [])
   assert.equal(blocked.conditions[0].passes, false)
 })
+
+test('steps can use the results of earlier steps (paso<N>_<key>) and the layout is validated and normalized', async () => {
+  const chain = {
+    key: 'encadena', label: 'Encadena', enabled: true,
+    trigger: { type: 'record', entity: 'orden', on: 'create' },
+    steps: [CONTACT_STEP, { service: 'runly.notifications:notifications.send', args: { userIds: { from: 'actor' }, title: { from: 'template', template: 'Contacto {{paso1_id}} para {{folio}}' }, sourceEntityId: { from: 'field', field: 'paso1_id' } } }],
+    ui: { layout: 'free', trigger: { x: 10.4, y: 20.6 }, steps: [{ x: 300, y: 40 }, null] },
+  }
+  assert.deepEqual(codes({ ...structuredClone(BASE), automations: [chain] }), [])
+  // The first step cannot use its own result nor a later one.
+  const early = structuredClone(chain)
+  early.steps[0].args.name = { from: 'template', template: '{{paso1_id}}' }
+  assert.ok(codes({ ...structuredClone(BASE), automations: [early] }).includes('AUTOMATION_FIELD_NOT_FOUND'))
+  const badUi = structuredClone(chain)
+  badUi.ui = { layout: 'diagonal', steps: [{ x: 'a', y: 1 }] }
+  assert.ok(codes({ ...structuredClone(BASE), automations: [badUi] }).includes('AUTOMATION_UI_INVALID'))
+  const compiled = compileModule({ ...structuredClone(BASE), automations: [chain] })
+  assert.match(fileOf(compiled, 'api/automations.js'), /"ui": \{\s+"layout": "free",\s+"trigger": \{\s+"x": 10,\s+"y": 21/)
+
+  // At run time the id returned by step 1 reaches step 2, and the log keeps what was sent.
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'runly-automations-chain-'))
+  writeFileSync(path.join(dir, 'automations.mjs'), fileOf(compiled, 'api/automations.js'))
+  const runtime = await import(pathToFileURL(path.join(dir, 'automations.mjs')).href)
+  const calls = []
+  const services = { call: async (service, args) => { calls.push({ service, args }); return service.includes('contacts') ? { id: '01a10900-0000-7000-8000-0000000000aa', name: 'x' } : { id: 'n1' } } }
+  const logs = []
+  const moduleContext = { services: { forRequest: () => services }, automations: { log: async (_c, entry) => { logs.push(entry); return { id: 'r' } } } }
+  await runtime.runRecordAutomations({ c: { get: () => '01a10900-0000-7000-8000-0000000000bb' }, moduleContext, entity: 'orden', on: 'create', record: { id: '01a10900-0000-7000-8000-0000000000cc', folio: 'OS-9' } })
+  assert.equal(calls[1].args.title, 'Contacto 01a10900-0000-7000-8000-0000000000aa para OS-9')
+  assert.equal(calls[1].args.sourceEntityId, '01a10900-0000-7000-8000-0000000000aa')
+  const [first, second] = logs.at(-1).steps
+  assert.equal(first.output.id, '01a10900-0000-7000-8000-0000000000aa')
+  assert.equal(second.args.title, 'Contacto 01a10900-0000-7000-8000-0000000000aa para OS-9')
+  assert.equal(typeof first.ms, 'number')
+})
+
+test('previewAutomation passes simulated results of one step to the next', async () => {
+  const { previewAutomation } = await import('../automations-preview.js')
+  const automation = {
+    key: 'p', label: 'p', trigger: { type: 'record', entity: 'orden', on: 'create' },
+    steps: [CONTACT_STEP, { service: 'runly.notifications:notifications.send', args: { userIds: { from: 'actor' }, title: { from: 'template', template: 'Contacto {{paso1_id}}' } } }],
+  }
+  const preview = previewAutomation(automation, { data: { id: 'r1', folio: 'OS-1' } })
+  assert.equal(preview.steps[1].args.title, 'Contacto 00000000-0000-7000-8000-00000000a003')
+  assert.equal(preview.steps[1].problems.length, 0)
+})

@@ -21,6 +21,41 @@ export const MAX_APPROVERS = 5
 export const MAX_APPROVALS = 1
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const BODY_KEY = /^[a-zA-Z][a-zA-Z0-9_]{0,40}$/
+export const UI_LAYOUTS = Object.freeze(['horizontal', 'vertical', 'free'])
+const UI_LIMIT = 20000
+
+// Names a step makes available to the steps after it: paso<N>_<key> for each
+// value its service returns (N counts from 1).
+export function stepOutputKeys(stepIndex, contract) {
+  return (contract?.returns ?? []).filter((key) => typeof key === 'string' && key !== 'items' && key !== 'total').map((key) => `paso${stepIndex + 1}_${key}`)
+}
+
+const validPoint = (point) => point && Number.isFinite(point.x) && Number.isFinite(point.y) && Math.abs(point.x) <= UI_LIMIT && Math.abs(point.y) <= UI_LIMIT
+
+// Canvas layout the person chose (positions of the blocks). Cosmetic: never affects execution.
+function validateUi(ui, { base, errors, stepCount }) {
+  if (ui === undefined) return
+  if (!ui || typeof ui !== 'object' || Array.isArray(ui)) { errors.push(diagnostic(`${base}.ui`, 'AUTOMATION_UI_INVALID', 'ui must be an object.')); return }
+  if (ui.layout !== undefined && !UI_LAYOUTS.includes(ui.layout)) errors.push(diagnostic(`${base}.ui.layout`, 'AUTOMATION_UI_INVALID', `layout must be one of ${UI_LAYOUTS.join(', ')}.`))
+  for (const name of ['trigger', 'conditions']) if (ui[name] !== undefined && ui[name] !== null && !validPoint(ui[name])) errors.push(diagnostic(`${base}.ui.${name}`, 'AUTOMATION_UI_INVALID', 'A position is { x, y } with finite numbers.'))
+  if (ui.steps !== undefined && (!Array.isArray(ui.steps) || ui.steps.length > stepCount || ui.steps.some((point) => point !== null && !validPoint(point)))) {
+    errors.push(diagnostic(`${base}.ui.steps`, 'AUTOMATION_UI_INVALID', 'steps must be a list of positions (or null), at most one per step.'))
+  }
+}
+
+function normalizeUi(ui, stepCount) {
+  if (!ui) return null
+  const round = (point) => (validPoint(point) ? { x: Math.round(point.x), y: Math.round(point.y) } : null)
+  const steps = Array.isArray(ui.steps) ? ui.steps.slice(0, stepCount).map(round) : []
+  const out = {
+    ...(UI_LAYOUTS.includes(ui.layout) ? { layout: ui.layout } : {}),
+    ...(round(ui.trigger) ? { trigger: round(ui.trigger) } : {}),
+    ...(round(ui.conditions) ? { conditions: round(ui.conditions) } : {}),
+    ...(steps.some(Boolean) ? { steps } : {}),
+  }
+  return Object.keys(out).length ? out : null
+}
+
 export const MAX_WEBHOOK_FIELDS = 30
 export const WEBHOOK_FIELD_KEY = /^[a-zA-Z][a-zA-Z0-9_]{0,60}$/
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -272,6 +307,9 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
     const delays = steps.filter(isDelayStep)
     if (delays.length > MAX_DELAYS) errors.push(diagnostic(`${base}.steps`, 'AUTOMATION_DELAY_INVALID', `At most ${MAX_DELAYS} waits per automation.`))
     if (steps.filter(isApprovalStep).length > MAX_APPROVALS) errors.push(diagnostic(`${base}.steps`, 'AUTOMATION_APPROVAL_INVALID', `At most ${MAX_APPROVALS} approval per automation.`))
+    validateUi(automation.ui, { base, errors, stepCount: steps.length })
+    // Each service step also offers its results (paso1_id...) to the steps after it.
+    const available = new Set(fieldNames)
     let afterDelay = false
     steps.forEach((step, stepIndex) => {
       const stepBase = usesSteps ? `${base}.steps[${stepIndex}]` : `${base}.action`
@@ -287,7 +325,7 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
         return
       }
       if (isApprovalStep(step)) {
-        validateApprovalStep(step, { base: stepBase, fieldNames, errors })
+        validateApprovalStep(step, { base: stepBase, fieldNames: available, errors })
         if (stepIndex === 0 || stepIndex === steps.length - 1 || isPauseStep(steps[stepIndex - 1])) {
           errors.push(diagnostic(stepBase, 'AUTOMATION_APPROVAL_INVALID', 'An approval goes between two actions.'))
         }
@@ -295,7 +333,7 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
         return
       }
       if (isHttpStep(step)) {
-        validateHttpStep(step, { base: stepBase, fieldNames, trigger: afterDelay ? { type: 'event' } : trigger, errors })
+        validateHttpStep(step, { base: stepBase, fieldNames: available, trigger: afterDelay ? { type: 'event' } : trigger, errors })
         return
       }
       const contract = Object.hasOwn(SERVICE_CONTRACTS, step?.service ?? '') ? SERVICE_CONTRACTS[step.service] : null
@@ -304,7 +342,8 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
       if ((trigger.type !== 'record' || afterDelay) && !contract.system) {
         errors.push(diagnostic(`${stepBase}.service`, 'AUTOMATION_SERVICE_NEEDS_USER', `"${contract.label}" needs a person and cannot run ${afterDelay ? 'after a wait' : trigger.type === 'schedule' ? 'on a schedule' : 'from a system event'}.`))
       }
-      validateArgs(step, { base: stepBase, fieldNames, trigger, contract, errors })
+      validateArgs(step, { base: stepBase, fieldNames: available, trigger, contract, errors })
+      for (const name of stepOutputKeys(stepIndex, contract)) available.add(name)
     })
   })
 }
@@ -349,6 +388,7 @@ export function normalizeAutomations(list) {
       ...(automation.onError === 'continue' ? { onError: 'continue' } : {}),
       trigger: normalizeTrigger(automation.trigger, condition),
       steps: stepsOf(automation).map(normalizeStep),
+      ...(normalizeUi(automation.ui, stepsOf(automation).length) ? { ui: normalizeUi(automation.ui, stepsOf(automation).length) } : {}),
     }
   })
 }
@@ -364,6 +404,7 @@ export function toRuntimeSteps(automation) {
     return {
       service: step.service,
       args: step.args ?? {},
+      outputs: (SERVICE_CONTRACTS[step.service]?.returns ?? []).filter((key) => typeof key === 'string' && key !== 'items' && key !== 'total'),
       runtime: {
         arrayArgs: Object.entries(args).filter(([, spec]) => spec.type.endsWith('[]')).map(([name]) => name),
         acceptsSource: Boolean(args.sourceEntityId),

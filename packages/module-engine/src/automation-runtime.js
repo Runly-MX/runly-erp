@@ -50,6 +50,12 @@ export function buildArgs(automation, ctx) {
 // Each function is self-contained or only uses the ones above/below, because the
 // compiler inlines them (via toString) into generated modules.
 
+// Keeps a logged value small: anything over `max` characters is stored as text.
+export function clip(value, max = 2000) {
+  const json = JSON.stringify(value)
+  return json && json.length > max ? { truncated: json.slice(0, max) } : value
+}
+
 export async function safe(fn, entry) {
   try { return await fn?.(entry) } catch { return null }
 }
@@ -64,21 +70,24 @@ export async function runSteps({ automation, services, base, data, recordId = nu
   const steps = []
   let failed = false
   let waiting = false
+  // Results of earlier service steps (paso<N>_<key>) join the data the next steps can use.
+  let scope = data
   for (let index = from; index < automation.steps.length; index += 1) {
     const step = automation.steps[index]
+    const startedAt = Date.now()
     if (failed && automation.onError !== 'continue') { steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, skipped: true }); continue }
     try {
       if (step.type === 'delay') {
         if (!enqueue) throw new Error('Las esperas no están disponibles en esta instancia.')
         const runAt = new Date(Date.now() + step.ms).toISOString()
-        await enqueue({ automationKey: automation.key, fromStep: index + 1, runAt, runId, payload: { data, recordId, actorId, base }, dedupe: base ? base + ':w' + (index + 1) : null })
+        await enqueue({ automationKey: automation.key, fromStep: index + 1, runAt, runId, payload: { data: scope, recordId, actorId, base }, dedupe: base ? base + ':w' + (index + 1) : null })
         steps.push({ index, type: 'delay', ok: true, waiting: true, runAt })
         waiting = true
         break
       }
       if (step.type === 'approval') {
         if (!approve) throw new Error('Las aprobaciones no están disponibles en esta instancia.')
-        await approve({ automationKey: automation.key, fromStep: index + 1, runId, approvers: step.approvers, message: render(step.message, data), payload: { data, recordId, actorId, base }, dedupe: base ? base + ':a' + (index + 1) : null })
+        await approve({ automationKey: automation.key, fromStep: index + 1, runId, approvers: step.approvers, message: render(step.message, scope), payload: { data: scope, recordId, actorId, base }, dedupe: base ? base + ':a' + (index + 1) : null })
         steps.push({ index, type: 'approval', ok: true, waiting: true, approvers: step.approvers.length })
         waiting = true
         break
@@ -87,19 +96,27 @@ export async function runSteps({ automation, services, base, data, recordId = nu
         if (!http) throw new Error('Las llamadas HTTP no están disponibles en esta instancia.')
         const body = {}
         for (const [name, source] of Object.entries(step.body)) {
-          const value = sourceValue(source, { data, recordId, actorId })
+          const value = sourceValue(source, { data: scope, recordId, actorId })
           if (!isEmpty(value)) body[name] = value
         }
         await http({ method: step.method, url: step.url, body, automationKey: automation.key, idempotencyKey: base ? (index ? base + ':' + index : base) : automation.key + ':' + Date.now() })
-        steps.push({ index, type: 'http', ok: true })
+        steps.push({ index, type: 'http', ok: true, ms: Date.now() - startedAt, request: clip({ method: step.method, url: step.url, body }, 1000) })
         continue
       }
-      await services.call(step.service, buildArgs(automation, { step: index, data, recordId, actorId, idempotencyKey: base ? (index ? base + ':' + index : base) : null }))
-      steps.push({ index, service: step.service, ok: true })
+      const args = buildArgs(automation, { step: index, data: scope, recordId, actorId, idempotencyKey: base ? (index ? base + ':' + index : base) : null })
+      const result = await services.call(step.service, args)
+      const output = {}
+      for (const key of step.outputs ?? []) {
+        const value = result?.[key]
+        if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) output[key] = value
+      }
+      scope = { ...scope }
+      for (const [key, value] of Object.entries(output)) scope['paso' + (index + 1) + '_' + key] = value
+      steps.push({ index, service: step.service, ok: true, ms: Date.now() - startedAt, args: clip(args), output: clip(output, 1000) })
     } catch (error) {
       failed = true
       console.error('[automatizaciones] ' + automation.key + ' paso ' + (index + 1) + ':', error?.message ?? error)
-      steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, code: error?.code ?? null, error: String(error?.message ?? error) })
+      steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, ms: Date.now() - startedAt, code: error?.code ?? null, error: String(error?.message ?? error) })
     }
   }
   const failures = steps.filter((step) => !step.ok && !step.skipped)
@@ -107,10 +124,10 @@ export async function runSteps({ automation, services, base, data, recordId = nu
 }
 
 // One run-log row per execution; logging never breaks the save or the event.
-export function runEntry(moduleKey, result, { trigger, ref, startedAt, runId = null }) {
+export function runEntry(moduleKey, result, { trigger, ref, startedAt, runId = null, input = null }) {
   const done = result.steps.filter((step) => step.ok).length
   return {
-    moduleKey, automationKey: result.key, triggerKind: trigger, triggerRef: ref ?? null, runId,
+    moduleKey, automationKey: result.key, triggerKind: trigger, triggerRef: ref ?? null, runId, input,
     status: result.ok ? (result.waiting ? 'waiting' : 'success') : (done ? 'partial' : 'failed'),
     steps: result.steps, error: result.error, durationMs: Date.now() - startedAt,
   }
@@ -122,10 +139,10 @@ export async function execute({ moduleKey, automation, services, base, data, rec
   const startedAt = Date.now()
   let id = runId
   if (!id && automation.steps.some((step) => step.type === 'delay' || step.type === 'approval')) {
-    const row = await safe(log, { moduleKey, automationKey: automation.key, triggerKind: trigger, triggerRef: ref ?? null, status: 'running', steps: [], error: null, durationMs: 0 })
+    const row = await safe(log, { moduleKey, automationKey: automation.key, triggerKind: trigger, triggerRef: ref ?? null, status: 'running', steps: [], error: null, durationMs: 0, input: clip(data, 4000) })
     id = row?.id ?? null
   }
   const result = await runSteps({ automation, services, base, data, recordId, actorId, from, enqueue, approve, http, runId: id })
-  await safe(log, runEntry(moduleKey, result, { trigger, ref, startedAt, runId: id }))
+  await safe(log, runEntry(moduleKey, result, { trigger, ref, startedAt, runId: id, input: from ? undefined : clip(data, 4000) }))
   return result
 }

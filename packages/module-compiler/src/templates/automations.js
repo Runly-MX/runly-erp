@@ -6,13 +6,13 @@
 // moduleContext.services / moduleContext.automations (record triggers) and the
 // dispatcher's or worker's `services`, `log` and `enqueue` (events, waits,
 // schedules).
-import { isEmpty, matches, render, sourceValue, buildArgs, safe, runSteps, runEntry, execute } from '@runly/module-engine/contracts'
+import { isEmpty, matches, render, sourceValue, buildArgs, clip, safe, runSteps, runEntry, execute } from '@runly/module-engine/contracts'
 import { toRuntimeSteps } from '../automations.js'
 import { moduleSlug } from './helpers.js'
 
 // Serialize only trusted official functions; no user code is evaluated.
 function automationRuntimeSource() {
-  return 'const isEmpty = ' + isEmpty.toString() + '\n\n' + [matches, render, sourceValue, buildArgs, safe, runSteps, runEntry, execute].map(fn => 'export ' + fn.toString()).join('\n\n')
+  return 'const isEmpty = ' + isEmpty.toString() + '\n\n' + [matches, render, sourceValue, buildArgs, clip, safe, runSteps, runEntry, execute].map(fn => 'export ' + fn.toString()).join('\n\n')
 }
 
 export function hasAutomations(config) {

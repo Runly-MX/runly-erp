@@ -2,7 +2,7 @@
 // Pure: no service is called and nothing is written. Spec
 // docs/superpowers/specs/2026-10-25-automation-studio-v2-stage-c-reach-design.md (C1).
 import { SERVICE_CONTRACTS, buildArgs, isEmpty, matches, render, sourceValue, validateServiceArgs } from '@runly/module-engine/contracts'
-import { conditionsOf, delayMs, stepsOf, toRuntimeSteps } from './automations.js'
+import { conditionsOf, delayMs, stepOutputKeys, stepsOf, toRuntimeSteps } from './automations.js'
 
 // UUID-shaped stand-ins so id arguments pass the contract checks.
 const SAMPLE_ACTOR = '00000000-0000-7000-8000-00000000a001'
@@ -21,6 +21,9 @@ function describeDelay(step) {
   if (minutes % 60 === 0) return `${minutes / 60} hora(s)`
   return `${minutes} minuto(s)`
 }
+
+// A believable stand-in for a value a service step would return.
+const sampleOutput = (key) => (key === 'id' || key.endsWith('Id') ? '00000000-0000-7000-8000-00000000a003' : `(${key})`)
 
 function previewStep(step, rawStep, index, automation, context) {
   if (step.type === 'delay') return { index, kind: 'delay', summary: `Esperar ${describeDelay(rawStep)} antes de continuar` }
@@ -56,6 +59,14 @@ export function previewAutomation(automation, { data = {}, previous = null } = {
   return {
     passes,
     conditions,
-    steps: passes ? runtimeSteps.map((step, index) => previewStep(step, rawSteps[index], index, { ...automation, steps: runtimeSteps }, context)) : [],
+    steps: passes ? runtimeSteps.map((step, index) => {
+      const preview = previewStep(step, rawSteps[index], index, { ...automation, steps: runtimeSteps }, context)
+      // Results of this step become data for the next ones, as at run time.
+      if (preview.kind === 'service') {
+        const contract = SERVICE_CONTRACTS[step.service]
+        for (const name of stepOutputKeys(index, contract)) context.data = { ...context.data, [name]: sampleOutput(name.replace(/^paso\d+_/, '')) }
+      }
+      return preview
+    }) : [],
   }
 }

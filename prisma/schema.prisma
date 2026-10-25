@@ -496,6 +496,7 @@ model AutomationRun {
   triggerRef    String?  @map("trigger_ref")
   status        String   // success | partial | failed
   steps         Json     @default("[]")
+  input         Json?
   error         String?
   durationMs    Int      @default(0) @map("duration_ms")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)

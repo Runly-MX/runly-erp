@@ -9,7 +9,7 @@ import { parseTrustedProxies, resolveClientIp } from "../mcp/client-ip.js";
 export function createAutomationWebhookPublicRouter({ prisma, env = process.env }) {
   const app = new Hono();
   const service = createAutomationWebhooksService({ prisma });
-  const trusted = parseTrustedProxies(env.RUNLY_TRUSTED_PROXIES ?? env.RUNLY_MCP_TRUSTED_PROXIES);
+  const trusted = parseTrustedProxies(env.RUNLY_TRUSTED_PROXIES || env.RUNLY_MCP_TRUSTED_PROXIES);
 
   app.get("/:token", (c) => c.json({ error: "Envía el mensaje con POST y un cuerpo JSON." }, 405));
 

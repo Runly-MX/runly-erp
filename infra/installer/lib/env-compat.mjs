@@ -67,6 +67,8 @@ export function envAssignments(text) {
 export const SAFE_TEMPLATE_DEFAULTS = new Set([
   // The API sits behind the web container/host proxy on the Docker network.
   'RUNLY_MCP_TRUSTED_PROXIES',
+  // Same proxy trust for the client IP of incoming automation webhooks.
+  'RUNLY_TRUSTED_PROXIES',
 ]);
 
 // Add only missing declarations, preserving every existing byte, including
