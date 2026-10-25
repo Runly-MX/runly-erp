@@ -226,6 +226,8 @@ Desde un evento solo funcionan los servicios que no necesitan a una persona: not
 | `fleet.vehicle.created` | `{ id, plate, status }` |
 | `fleet.vehicle.updated` | `{ id, plate, status }` |
 | `projects.task.completed` | `{ id, projectId, title }` (al pasar a un estado de tipo hecho) |
+| `projects.task.rescheduled` | `{ id, projectId, title, startDate, dueDate }` (fechas AAAA-MM-DD o `null`; al cambiar el inicio o la entrega, desde el formulario, el Gantt o la IA) |
+| `projects.time.logged` | `{ id, taskId, projectId, minutes }` (al registrar tiempo a mano o al detener el cronómetro) |
 | `hr.employee.created` | `{ id, firstName, lastName }` |
 | `purchases.order.approved` | `{ id, caseId, status }` |
 | `purchases.order.issued` | `{ id, caseId, status }` |

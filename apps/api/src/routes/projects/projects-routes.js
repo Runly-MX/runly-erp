@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { createProjectsService, ProjectServiceError } from './projects-service.js'
-import { createTasksService, TaskServiceError } from './tasks-service.js'
+import { createTasksService, TaskServiceError, rescheduledPayload } from './tasks-service.js'
+import { publishDomainEvent } from '../../services/domain-events/events.js'
 import { createDependenciesService, DependencyServiceError } from './projects-dependencies-service.js'
 import { createGanttService, GanttServiceError } from './projects-gantt-service.js'
 import { createTimeService, TimeServiceError } from './projects-time-service.js'
@@ -654,6 +655,10 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
         pushDependentsBy: body.pushDependentsBy,
       })
       for (const { before, after } of changed) {
+        const sameDay = (a, b) => (a ? new Date(a).getTime() : null) === (b ? new Date(b).getTime() : null)
+        if (!sameDay(before.startDate, after.startDate) || !sameDay(before.dueDate, after.dueDate)) {
+          await publishDomainEvent(prisma, { companyId: getCompanyId(c), event: 'projects.task.rescheduled', payload: rescheduledPayload({ ...after, projectId: before.projectId }) })
+        }
         await taskEffects.afterUpdate(c, { id: before.id, statusId: before.statusId, assigneeId: before.assigneeId, projectId: before.projectId }, after, { startDate: after.startDate, dueDate: after.dueDate })
       }
       return c.json({ tasks: changed.map(({ after }) => ({ id: after.id, startDate: after.startDate, dueDate: after.dueDate })) })

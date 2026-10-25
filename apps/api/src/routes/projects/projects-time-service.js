@@ -1,5 +1,6 @@
 // Time entries and the running timer of tasks. Spec
 // docs/superpowers/specs/2026-10-26-projects-depth-design.md, section 2.
+import { publishDomainEvent } from '../../services/domain-events/events.js'
 import { checkManualEntry, summarize, timerMinutes, TIMER_LIMIT_MINUTES } from './projects-time.js'
 
 export class TimeServiceError extends Error {
@@ -13,25 +14,39 @@ export class TimeServiceError extends Error {
 const SHOW = { id: true, taskId: true, userId: true, startedAt: true, minutes: true, note: true, source: true, createdAt: true }
 
 export function createTimeService({ prisma, now = () => new Date() }) {
+  // projects.time.logged for a finished entry (best effort, never breaks the timer).
+  async function announce(companyId, entry) {
+    try {
+      const task = await prisma.task.findFirst({ where: { id: entry.taskId }, select: { projectId: true } })
+      await publishDomainEvent(prisma, { companyId, event: 'projects.time.logged', payload: { id: entry.id, taskId: entry.taskId, projectId: task?.projectId ?? null, minutes: entry.minutes } })
+    } catch (err) {
+      console.error('[projects] no se pudo publicar projects.time.logged:', err?.message ?? err)
+    }
+  }
+
   // Closes the person's running timer (if any). Returns the closed entry or null.
   async function closeRunning(where) {
     const running = await prisma.taskTimeEntry.findFirst({ where: { ...where, minutes: null }, select: SHOW })
     if (!running) return null
     const { minutes, capped } = timerMinutes(running.startedAt, now())
-    return prisma.taskTimeEntry.update({
+    const closed = await prisma.taskTimeEntry.update({
       where: { id: running.id },
       data: { minutes, ...(capped ? { note: [running.note, 'Cerrado automáticamente a las 12 h: revisa el tiempo.'].filter(Boolean).join(' ') } : {}) },
       select: SHOW,
     })
+    await announce(where.companyId, closed)
+    return closed
   }
 
   async function addEntry({ companyId, taskId, userId, minutes, startedAt, note }) {
     const checked = checkManualEntry({ minutes, startedAt }, now())
     if (checked.error) throw new TimeServiceError(checked.error)
-    return prisma.taskTimeEntry.create({
+    const entry = await prisma.taskTimeEntry.create({
       data: { companyId, taskId, userId, startedAt: checked.startedAt, minutes: checked.minutes, note: note ? String(note).slice(0, 500) : null, source: 'manual' },
       select: SHOW,
     })
+    await announce(companyId, entry)
+    return entry
   }
 
   // One running timer per person: starting another stops the first and reports it.

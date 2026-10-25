@@ -154,8 +154,11 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `projects_detail` | Lectura | `projects.project.read` |
 | `projects_page` | Lectura | `projects.project.read` |
 | `projects_task_detail` | Lectura | `projects.task.read` |
+| `projects_workload` | Lectura | `projects.task.read` |
+| `projects_time_summary` | Lectura | `projects.task.read` |
 | `projects.task.create` | Escritura aprobada | `projects.task.create` + `projects.task.read` |
 | `projects.task.update` | Escritura aprobada | `projects.task.update` + `projects.task.read` |
+| `projects.time.log` | Escritura aprobada | `projects.task.update` + `projects.task.read` |
 | `projects.project.create` | Escritura aprobada | `projects.project.create` + `projects.project.read` |
 | `projects.project.update` | Escritura aprobada | `projects.project.update` + `projects.project.read` |
 

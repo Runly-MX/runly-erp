@@ -1,6 +1,12 @@
 import { createUserAccessService } from '../../services/user-access-service.js'
 import { createProjectFilesService } from './project-files.js'
 import { publishDomainEvent } from '../../services/domain-events/events.js'
+// Dates go out as plain days (YYYY-MM-DD) so automations compare them without time zones.
+export function rescheduledPayload(task) {
+  const day = (value) => (value ? new Date(value).toISOString().slice(0, 10) : null) // eslint-disable-line no-restricted-syntax -- task dates are UTC calendar days
+  return { id: task.id, projectId: task.projectId, title: task.title, startDate: day(task.startDate), dueDate: day(task.dueDate) }
+}
+
 export class TaskServiceError extends Error {
   constructor(message, status = 500) {
     super(message)
@@ -186,6 +192,18 @@ export function createTasksService({ prisma }) {
     }
   }
 
+  // Fires projects.task.rescheduled when a task's start or due date actually changed.
+  async function emitRescheduled(before, after) {
+    const same = (a, b) => (a ? new Date(a).getTime() : null) === (b ? new Date(b).getTime() : null)
+    if (same(before.startDate, after.startDate) && same(before.dueDate, after.dueDate)) return
+    try {
+      const project = await prisma.project.findFirst({ where: { id: after.projectId }, select: { companyId: true } })
+      await publishDomainEvent(prisma, { companyId: project?.companyId, event: 'projects.task.rescheduled', payload: rescheduledPayload(after) })
+    } catch (err) {
+      console.error('[projects] no se pudo publicar projects.task.rescheduled:', err?.message ?? err)
+    }
+  }
+
   async function updateTask(taskId, data) {
     const task = await prisma.task.findFirst({ where: { id: taskId } })
     if (!task) throw new TaskServiceError('Tarea no encontrada.', 404)
@@ -213,6 +231,7 @@ export function createTasksService({ prisma }) {
       },
     })
     await emitCompletion(task, updated)
+    if (startDate !== undefined || dueDate !== undefined) await emitRescheduled(task, updated)
     return updated
   }
 

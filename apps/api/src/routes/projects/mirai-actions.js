@@ -13,6 +13,8 @@
 // though the action's declared `permission` is a company-wide grant.
 import { z } from "zod";
 import { actorContext } from "../calendar/calendar-event-effects.js";
+import { createTimeService } from "./projects-time-service.js";
+import { checkManualEntry, minutesText } from "./projects-time.js";
 
 const LINK = (projectId, taskId) => `/app/m/runly.projects?open=task:${taskId ?? ""}&project=${projectId}`;
 const PRIORITIES = ["URGENT", "HIGH", "MEDIUM", "LOW", "NONE"];
@@ -34,6 +36,13 @@ const updateArgs = z.object({
   assignee: z.string().trim().min(1).optional(),
   dueDate: z.string().nullable().optional(),
   priority: z.enum(PRIORITIES).optional(),
+  estimateMinutes: z.number().int().min(0).max(100000).nullable().optional(),
+});
+const logTimeArgs = z.object({
+  taskId: z.string().min(1),
+  minutes: z.number().int().min(1).max(1440),
+  date: z.string().optional(),
+  note: z.string().trim().max(500).optional(),
 });
 const deleteArgs = z.object({ taskId: z.string().min(1) });
 
@@ -191,6 +200,7 @@ export function createProjectsMiraiActions({ prisma, projectsSvc, tasksSvc, effe
         assignee: { type: "string" },
         dueDate: { type: "string", description: "YYYY-MM-DD; cadena vacia para quitarla." },
         priority: { type: "string", enum: PRIORITIES },
+        estimateMinutes: { type: "integer", description: "Estimacion de la tarea en minutos (0 = hito); null para quitarla." },
       },
       required: ["taskId"],
     },
@@ -227,6 +237,10 @@ export function createProjectsMiraiActions({ prisma, projectsSvc, tasksSvc, effe
       if (a.priority !== undefined && a.priority !== task.priority) {
         data.priority = a.priority;
         fields.push({ label: "Prioridad", before: task.priority, value: a.priority });
+      }
+      if (a.estimateMinutes !== undefined && a.estimateMinutes !== task.estimateMinutes) {
+        data.estimateMinutes = a.estimateMinutes;
+        fields.push({ label: "Estimacion", before: task.estimateMinutes == null ? "(sin estimar)" : minutesText(task.estimateMinutes), value: a.estimateMinutes == null ? "(sin estimar)" : minutesText(a.estimateMinutes) });
       }
       if (a.dueDate !== undefined) {
         const next = a.dueDate || null;
@@ -280,5 +294,53 @@ export function createProjectsMiraiActions({ prisma, projectsSvc, tasksSvc, effe
     },
   };
 
-  return [create, update, remove];
+  const timeSvc = createTimeService({ prisma });
+  const logTime = {
+    key: "projects.time.log",
+    moduleKey: "runly.projects",
+    operation: "create",
+    label: "Registrar tiempo",
+    permission: "projects.task.update",
+    description: "Registra tiempo trabajado en una tarea (a nombre del usuario). Requiere el taskId de projects_list_tasks y los minutos (1 a 1440); la fecha es opcional (YYYY-MM-DD, por defecto ahora).",
+    parameters: {
+      type: "object",
+      properties: {
+        taskId: { type: "string" },
+        minutes: { type: "integer", description: "Minutos trabajados." },
+        date: { type: "string", description: "YYYY-MM-DD (opcional)." },
+        note: { type: "string" },
+      },
+      required: ["taskId", "minutes"],
+    },
+    async prepare(args, actx) {
+      const parsed = logTimeArgs.safeParse(args);
+      if (!parsed.success) return { error: "Indica el taskId (de projects_list_tasks) y los minutos (1 a 1440)." };
+      const a = parsed.data;
+      const found = await loadTaskWithProject(actx, a.taskId, "MEMBER");
+      if (found.error) return { error: found.error };
+      const startedAt = a.date ? `${a.date.slice(0, 10)}T12:00:00.000Z` : undefined;
+      const checked = checkManualEntry({ minutes: a.minutes, startedAt });
+      if (checked.error) return { error: checked.error };
+      return {
+        input: { taskId: found.task.id, minutes: a.minutes, startedAt, note: a.note ?? null },
+        targetId: found.task.id,
+        preview: {
+          title: "Registrar tiempo",
+          fields: [
+            { label: "Tarea", value: found.task.title },
+            { label: "Tiempo", value: minutesText(a.minutes) },
+            a.date ? { label: "Fecha", value: a.date.slice(0, 10) } : null,
+            a.note ? { label: "Nota", value: a.note } : null,
+          ].filter(Boolean),
+        },
+      };
+    },
+    async execute(input, actx) {
+      const entry = await timeSvc.addEntry({ companyId: actx.companyId, taskId: input.taskId, userId: actx.actorProfileId, minutes: input.minutes, startedAt: input.startedAt, note: input.note });
+      const task = await prisma.task.findFirst({ where: { id: input.taskId }, select: { id: true, title: true, projectId: true } });
+      return { id: entry.id, summary: `Tiempo registrado: ${minutesText(entry.minutes)} en ${task?.title ?? "la tarea"}`, link: LINK(task?.projectId, task?.id) };
+    },
+  };
+
+  return [create, update, logTime, remove];
 }

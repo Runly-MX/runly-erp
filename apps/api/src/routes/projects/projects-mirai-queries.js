@@ -7,6 +7,7 @@
 // same as the project list screen. Totals are computed in Prisma, never left
 // for the model to add up from a partial list.
 import { zonedLocalToDate, toLocalIso } from "@runly/core";
+import { createProjectsMiraiLoadQueries } from "./projects-mirai-load-queries.js";
 
 const LIST_MAX = 30;
 const PRIORITIES = ["URGENT", "HIGH", "MEDIUM", "LOW", "NONE"];
@@ -207,5 +208,5 @@ export function createProjectsMiraiQueries({ prisma, projectsSvc }) {
     },
   };
 
-  return [projects_list_tasks, projects_task_summary, projects_list_projects];
+  return [projects_list_tasks, projects_task_summary, projects_list_projects, ...createProjectsMiraiLoadQueries({ prisma, projectsSvc })];
 }
