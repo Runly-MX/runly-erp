@@ -16,6 +16,9 @@ export function buildActionContext(prisma, scope, ctx) {
     actorProfileId: scope.userId,
     actorAuthUserId: ctx.actorAuthUserId,
     actorProfile: scope.uctx?.profile ?? null,
+    // Lets capabilities with per-record permissions (document kinds) check the caller grants.
+    isAdmin: Boolean(scope.isAdmin),
+    permissionSet: scope.permissionSet,
     // The turn's own ctx (mirai-module-tools.js's per-turn state): tools read
     // actx.turn.pageContext (e.g. a list screen's selection) and can keep
     // per-turn counters on it (e.g. a public-lookup budget) across calls.

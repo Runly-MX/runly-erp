@@ -201,3 +201,22 @@ test('defineRunlyModule - falls back safely for unsupported legacy icons', () =>
   assert.equal(module.color, '#6366f1')
   assert.equal(module.pwa.legacyDerived, true)
 })
+
+const KIND = { name: 'invoice', label: 'Factura', model: 'invoice', permission: 'custom_fleet.invoice.read', fields: [{ tag: 'number', label: 'Número', type: 'text' }, { tag: 'total', label: 'Total', type: 'number' }] }
+
+test('defineRunlyModule - accepts documentKinds and keeps them in the manifest', () => {
+  const r = defineRunlyModule({ ...VALID, documentKinds: [KIND] })
+  assert.deepEqual(r.documentKinds, [KIND])
+})
+
+test('validateManifest - documentKinds rejects bad names, duplicate tags, unknown types and formats', () => {
+  const bad = { ...KIND, name: 'Bad Name', formats: ['txt'], fields: [{ tag: 'a', label: 'A', type: 'text' }, { tag: 'a', label: 'B', type: 'list' }] }
+  const { valid, errors } = validateManifest({ ...VALID, documentKinds: [bad, { ...KIND, permission: '' }] })
+  assert.equal(valid, false)
+  const text = errors.join('|')
+  assert.match(text, /name must be snake_case/)
+  assert.match(text, /formats must be/)
+  assert.match(text, /"a" is duplicated/)
+  assert.match(text, /type must be one of/)
+  assert.match(text, /permission is required/)
+})

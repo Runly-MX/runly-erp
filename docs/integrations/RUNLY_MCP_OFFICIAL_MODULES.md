@@ -7,7 +7,7 @@ en `server.js` consume el registro; no conoce la lógica de cada módulo.
 Inventario conserva contratos, nombres, propuestas y resultados anteriores.
 
 El [catálogo generado](RUNLY_MCP_CATALOG.md) detalla herramientas, operaciones y
-permisos. Hay 59 herramientas en total (el conteo exacto está fijado en `domain-contracts.test.js`). Los
+permisos. Hay 61 herramientas en total (el conteo exacto está fijado en `domain-contracts.test.js`). Los
 dominios con escritura publican tres herramientas semánticas por módulo:
 `runly_<dominio>_query`, `runly_<dominio>_prepare`, `runly_<dominio>_commit`.
 Las dos primeras reciben `companyId` y `request: { operation, input }`; el commit
@@ -115,7 +115,7 @@ sustituye el permiso ERP ni la ACL individual.
 | `catalog` | Productos, detalle con variantes y categorías; crear/editar productos y crear categorías. Solo imágenes PUBLIC de la empresa; publicar un producto es sensible | `catalog:read`, `catalog:write` |
 | `lms` | Cursos (estado, conteos, enlace compartido), curso con secciones y lecciones, lección completa, preguntas de examen en forma de autoría, alumnos con avance (`lms.enrollment.manage`) y plantillas de certificado con sus etiquetas/campos y la guía de etiquetas; crear/editar cursos, publicar/despublicar/archivar (publicar y archivar son sensibles), secciones (incluido `free` y eliminar solo vacías, sensible), orden completo de secciones y lecciones, lecciones `text`/`embed`/`quiz`/`assignment` con settings, desactivar lecciones, preguntas de los nueve tipos (crear hasta 50, editar, quitar, ordenar) y `lms.section.build` (sección con hasta 20 lecciones y sus preguntas en una propuesta). `lms.certificate_template.create` crea una plantilla de certificado desde un .docx/.pptx/.pdf ya importado (`runly_files_import_*` sin destino): sin etiquetas, Runly coloca las sugeridas (o detecta los campos del PDF) y la propuesta muestra los campos reconocidos y faltantes; `autoTag:false` lo evita. Video subido y archivos de lecciones se agregan en la app; no califica, no emite certificados ni gestiona enlaces o invitaciones | `lms:read`, `lms:write` |
 | `attendance` | Consultas de asistencia, jornadas y horas extra; no registra entradas/salidas | `attendance:read` |
-| `files`, `documents` | Consultar metadatos con ACL existente; importar originales a 30 destinos de los 20 módulos MCP (`lms.course` como referencia privada); `website.site` y `catalog.product` guardan imágenes públicas con URL permanente. Adjuntos nativos o referencias privadas claramente diferenciados, con aprobación | `files:read`, `files:write`, `documents:read` más scope del destino |
+| `files`, `documents` | Consultar metadatos con ACL existente (`documents` también lista tipos y plantillas de documentos y propone generar un documento desde una plantilla, con aprobación y el permiso del tipo); importar originales a 30 destinos de los 20 módulos MCP (`lms.course` como referencia privada); `website.site` y `catalog.product` guardan imágenes públicas con URL permanente. Adjuntos nativos o referencias privadas claramente diferenciados, con aprobación | `files:read`, `files:write`, `documents:read`, `documents:write` más scope del destino |
 | `identity` | Buscar perfiles activos de la empresa para referencias explícitas; no crea usuarios ni modifica roles | `identity:read` |
 | `activity` | Actividad propia y paginada en la empresa consentida | `activity:read` |
 | `chat` | Metadatos de conversaciones propias de la empresa; sin mensajes, adjuntos ni envíos | `chat:read` |
@@ -185,7 +185,7 @@ revocación, conflictos, commits concurrentes e idempotencia. Además comprueba
 presupuestos, pólizas, tareas con asignado/estado, borrador de compra, hotspot,
 participantes de calendario, relaciones de RR. HH., categorías contables ajenas
 y preservación de bytes Yjs. El registro valida esquemas y limita la superficie
-a 59 herramientas; no es la única evidencia de funcionamiento. `lms-adapter.test.js` ejecuta el runtime y el acceso MCP reales sobre un doble en memoria de Prisma para Aprendizaje.
+a 61 herramientas; no es la única evidencia de funcionamiento. `lms-adapter.test.js` ejecuta el runtime y el acceso MCP reales sobre un doble en memoria de Prisma para Aprendizaje.
 
 Inspector CLI 2.11.0 realiza OAuth real con DCR/PKCE, consentimiento web de fixture
 y token exchange, inicializa MCP, lista las 50 herramientas con los nuevos

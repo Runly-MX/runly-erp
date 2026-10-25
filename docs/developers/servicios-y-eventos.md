@@ -99,6 +99,8 @@ Los servicios marcados como **propios** solo actúan sobre lo que tu módulo cre
 | `runly.files` `files.signedUrl({ id })` | Enlace temporal de descarga de un archivo **propio** | `files.assets.read` |
 | `runly.notifications` `notifications.send({ userIds, title, body, link, priority, sourceEntityId })` | Notifica a usuarios de la empresa (los demás se ignoran); `priority`: `low, medium, high, critical` | Ninguno: basta ser miembro de la empresa |
 | `runly.notifications` `email.send({ userIds, to, subject, body, fileId, sourceEntityId })` | Envía un correo con el SMTP de la empresa (o el de la plataforma) a personas de la empresa (`userIds`, hasta 20) y/o a una dirección externa (`to`); `fileId` adjunta un archivo de la empresa (máx. 10 MB). Solo para automatizaciones y eventos (`system`). Devuelve `sent`, `failed` | Ninguno |
+| `runly.documents` `documents.generate({ kind, templateId, sourceId, values, output, name, sourceEntityId })` | Llena una plantilla de **Documentos** y guarda el resultado en **Archivos** de la empresa. `kind` es el tipo (`fleet.vehicle`, `hr.employee`, `general.manual`, un tipo de un módulo del Builder…); `sourceId` el registro de origen, o `values` (objeto, o texto JSON) para el documento general; sin `templateId` se usa la plantilla predeterminada de la empresa del tipo (o el formato estándar si existe); `output: 'pdf'` convierte a PDF cuando se puede. Usa solo plantillas de la empresa (las personales solo las usa su dueño); el tipo debe pertenecer a un módulo activo en la empresa y el usuario necesita el permiso del tipo (en automatizaciones y eventos, `system`, basta la autorización del servicio). Devuelve `id, name, mimeType, sizeBytes` (el `id` sirve como *Archivo adjunto* de `email.send`) | El del tipo de documento |
+| `runly.documents` `templates.list({ kind })` | Lista las plantillas que se pueden usar (`id, kind, name, format, visibility, isDefault, published`); sin `kind`, las de todos los tipos disponibles. Solo `system` además de usuarios | El del tipo de documento |
 | `runly.files` `report.generate({ source, format, search, name, shareWithCompany, sourceEntityId })` | Genera un reporte `csv` o `xlsx` (hasta 1000 filas) de `contacts`, `items` o `vehicles` y lo guarda en **Archivos** de la empresa (compartido salvo `shareWithCompany: false`). Solo para automatizaciones y eventos (`system`). Devuelve `id, name, mimeType, sizeBytes` | `files.assets.create` |
 | `runly.ledger` `accounts.list()` | Cuentas que el usuario puede ver: `id, name, bank, currency, balance` | `ledger.accounts.read` |
 | `runly.ledger` `categories.list()` | Categorías: `id, name, kind, system` | `ledger.categories.read` |
@@ -145,6 +147,23 @@ consumes: {
 },
 ```
 
+## Ofrecer un tipo de documento a Documentos
+
+Un módulo del Builder puede ofrecer una de sus entidades como **tipo de documento**: los usuarios suben su propio formato (Word, Excel, PowerPoint o PDF) en **Documentos**, y Runly lo llena con los datos de un registro. En la definición del módulo (ZIP o Builder):
+
+```json
+"documentKinds": [
+  { "name": "factura", "label": "Factura", "entity": "factura", "permission": "facturas.factura.read", "formats": ["docx", "pdf"], "fields": ["folio", "total", "emitida"] }
+]
+```
+
+- `name` (snake_case) y `label` identifican el tipo; Runly lo registra como `<clave del módulo>.<name>` (por ejemplo `custom.facturas.factura`).
+- `entity` es la entidad de la que se leen los datos. `permission` (opcional) es el permiso que se exige para ver y generar; por omisión, el de lectura de la entidad.
+- `fields` (opcional) son los campos disponibles como etiquetas `{{campo}}`; por omisión, todos los de texto, número, fecha, lista de opciones y sí/no (los archivos, relaciones y JSON no se ofrecen). `formats` (opcional) limita los formatos de plantilla.
+- En `module.manifest.js` el contrato equivalente es `documentKinds: [{ name, label, model, permission, formats?, fields: [{ tag, label, type }] }]` con `type` `text`, `number` o `date`; hasta 10 tipos por módulo y 60 campos por tipo.
+
+El tipo está disponible mientras el módulo esté instalado, activo y no desactivado para la empresa; al desactivarlo o desinstalarlo desaparece de Documentos y las plantillas ya subidas se conservan. Solo se leen los campos declarados, del registro de la empresa activa (y no desactivado).
+
 El contrato completo (argumentos, tipos, límites y campos de respuesta) se publica en `@runly/module-engine/contracts` como `SERVICE_CONTRACTS`; el Developer Hub simula los servicios con ese mismo contrato.
 
 ## Eventos
@@ -189,6 +208,11 @@ Desde un evento solo funcionan los servicios que no necesitan a una persona: not
 | `hr.employee.created` | `{ id, firstName, lastName }` |
 | `purchases.order.approved` | `{ id, caseId, status }` |
 | `purchases.order.issued` | `{ id, caseId, status }` |
+| `contacts.contact.updated` | `{ id }` |
+| `purchases.request.created` | `{ id, caseId, status }` |
+| `purchases.order.cancelled` | `{ id, caseId, status }` |
+| `purchases.invoice.paid` | `{ id, caseId, status }` (al quedar pagada por completo) |
+| `ledger.transaction.created` | `{ id, accountId, deposito, retiro }` (un movimiento registrado a mano o desde la app; las importaciones masivas no lo publican; sin nombres de cuenta ni de personas) |
 | `lms.enrollment.completed` | `{ id, courseId, learnerId }` (al completar el último requisito del curso) |
 
 Con `sourceModule` sabes si un evento de calendario lo creó tu módulo (por ejemplo, para marcar tu orden como reagendada cuando alguien mueve la cita desde el calendario). Libro de cuentas y Finanzas personales no publican eventos: su información depende del acceso por cuenta o cartera de cada persona.

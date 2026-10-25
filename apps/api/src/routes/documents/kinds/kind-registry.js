@@ -47,6 +47,7 @@ export function createKindRegistry() {
     return kinds.get(key);
   }
 
+  const unregister = (key) => kinds.delete(key);
   const getKind = (key) => kinds.get(key) ?? null;
   const listKinds = () => [...kinds.values()];
 
@@ -71,5 +72,5 @@ export function createKindRegistry() {
     return kind.load({ companyId, sourceId, actorId });
   }
 
-  return { register, getKind, listKinds, resolve, assertPermission, load };
+  return { register, unregister, getKind, listKinds, resolve, assertPermission, load };
 }

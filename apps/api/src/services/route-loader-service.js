@@ -89,7 +89,7 @@ class RouteCollisionError extends Error {
   }
 }
 
-export function createRouteLoaderService({ prisma, authMiddleware, requirePermission, cache = null, filesCapability = null, relationsCapability = null, aiCapability = null, moduleServices = null }) {
+export function createRouteLoaderService({ prisma, authMiddleware, requirePermission, cache = null, filesCapability = null, relationsCapability = null, aiCapability = null, moduleServices = null, onModulesChanged = null }) {
   const automationRuns = createAutomationRunsService({ prisma })
   const automationJobs = createAutomationJobsService({ prisma })
   const automationApprovals = createAutomationApprovalsService({ prisma, notifications: createNotificationService({ prisma }) })
@@ -105,6 +105,17 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
   const componentRegistryStore = new Map()
   const activeModuleKeySet = new Set()
   let middlewareRegistered = false
+  // Tells the platform (e.g. the documents hub) that the set of active modules
+  // changed. Coalesced: syncInstalledModules reloads many modules in a row.
+  let changeTimer = null
+  function notifyModulesChanged() {
+    if (!onModulesChanged || changeTimer) return
+    changeTimer = setTimeout(() => {
+      changeTimer = null
+      Promise.resolve(onModulesChanged()).catch((error) => console.error('[route-loader] onModulesChanged:', error?.message))
+    }, 50)
+    changeTimer.unref?.()
+  }
 
   const ComponentRegistry = {
     __activeModuleKey: null,
@@ -558,6 +569,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     const key = typeof moduleKey === 'string' ? moduleKey.trim() : ''
     if (!key) return { loaded: false, reason: 'invalid_module_key' }
 
+    notifyModulesChanged()
     routerMap.delete(key)
     publicRouterMap.delete(key)
     unloadModuleRoutes(key)
@@ -614,6 +626,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
   function unloadModule(moduleKey) {
     const key = typeof moduleKey === 'string' ? moduleKey.trim() : ''
     if (!key) return false
+    notifyModulesChanged()
     const removed = routerMap.delete(key)
     publicRouterMap.delete(key)
     unloadModuleRoutes(key)

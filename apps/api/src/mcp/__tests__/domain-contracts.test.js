@@ -9,7 +9,7 @@ import { PERMISSION_CATALOG } from '../../permission-catalog.js';
 
 test('registro: contratos estrictos, scopes declarados y superficie controlada', () => {
   const registry = createCapabilityRegistry({ prisma: {} });
-  assert.equal(registry.tools.length, 59);
+  assert.equal(registry.tools.length, 61);
   assert.ok(SCOPES.join(' ').length <= 500);
   assert.equal(new Set(registry.tools.map(tool => tool.name)).size, registry.tools.length);
   for (const tool of registry.tools) {
@@ -29,7 +29,9 @@ test('registro: contratos estrictos, scopes declarados y superficie controlada',
     }
     assert.ok(!/(delete|send_message|transfer|payment_execute|sql_query)/.test(tool.name));
   }
-  for (const domain of ['attendance', 'documents', 'identity', 'activity', 'chat']) {
+  // documents also proposes generating a document from a template (prepare / commit).
+  assert.equal(registry.tools.filter(tool => tool.domain === 'documents').length, 3);
+  for (const domain of ['attendance', 'identity', 'activity', 'chat']) {
     assert.equal(registry.tools.filter(tool => tool.domain === domain).length, 1);
     assert.equal(SCOPES.includes(`${domain}:write`), false);
   }

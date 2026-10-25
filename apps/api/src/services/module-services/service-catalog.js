@@ -19,6 +19,7 @@ import { createCalendarEventService } from '../../routes/calendar/calendar-event
 import { createCalendarEventEffects } from '../../routes/calendar/calendar-event-effects.js'
 import { createActionBackedServices } from './action-backed-services.js'
 import { createCommunicationHandlers } from './communication-services.js'
+import { createDocumentsHandlers } from './documents-services.js'
 
 export class ModuleServiceError extends Error {
   constructor(message, status = 400, code = 'module_service_error') {
@@ -38,7 +39,7 @@ const fileView = (asset) => asset && ({ id: asset.id, name: asset.originalName, 
 const withoutNull = (args, keys) => Object.fromEntries(Object.entries(args).filter(([key, value]) => !(keys.includes(key) && value === null)))
 const notFound = (label) => new ModuleServiceError(`${label} no existe o no lo creó este módulo.`, 404, 'not_found')
 
-export function createServiceCatalog({ prisma, filesService = null, broadcaster = null }) {
+export function createServiceCatalog({ prisma, filesService = null, broadcaster = null, documentsHub = null }) {
   const inventory = createInventoryService({ prisma, activityBridge: null })
   const contacts = createContactsService({ prisma })
   const tasks = createTasksService({ prisma })
@@ -181,6 +182,7 @@ export function createServiceCatalog({ prisma, filesService = null, broadcaster 
   }
 
   Object.assign(handlers, createActionBackedServices({ prisma, ServiceError: ModuleServiceError }).handlers)
+  Object.assign(handlers, createDocumentsHandlers({ prisma, ServiceError: ModuleServiceError, hub: documentsHub }))
   Object.assign(handlers, createCommunicationHandlers({ prisma, ServiceError: ModuleServiceError, filesService, searchHandlers: handlers }))
 
   return Object.fromEntries(Object.entries(handlers).map(([key, handler]) => [key, { ...SERVICE_CONTRACTS[key], handler }]))

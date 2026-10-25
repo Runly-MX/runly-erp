@@ -797,9 +797,9 @@ async function resolveCanvasEntityLink({ authUserId, companyId, moduleKey, entit
   return resolved.get(String(entityId)) ?? null;
 }
 
-const moduleServices = createModuleServices({ prisma, filesService, broadcaster });
 // Documents engine (kinds, templates, generate) shared with modules without HTTP.
 const documentsHub = createDocumentsHub({ prisma, supabaseAdmin });
+const moduleServices = createModuleServices({ prisma, filesService, broadcaster, documentsHub });
 const routeLoader = createRouteLoaderService({
   prisma,
   authMiddleware,
@@ -807,6 +807,8 @@ const routeLoader = createRouteLoaderService({
   filesCapability: createModuleFilesCapability({ prisma, filesService, supabaseAdmin }),
   relationsCapability: relationTargets.capability(),
   moduleServices,
+  // Builder modules offer document kinds in their manifest: keep the hub in step with install/enable/disable.
+  onModulesChanged: () => documentsHub.syncBuilderKinds(),
   // MirAI tool loop + shared public lookup for RME3 modules (lazy).
   aiCapability: createModuleAiCapability({ prisma, createMirai: () => createMiraiService({ prisma, env: process.env }) }),
   cache: {

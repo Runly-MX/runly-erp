@@ -53,6 +53,8 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `runly_attendance_query` | `attendance:read` | none |
 | `runly_files_query` | `files:read` | none |
 | `runly_documents_query` | `documents:read` | none |
+| `runly_documents_prepare` | `documents:write` | web-session-explicit |
+| `runly_documents_commit` | `documents:write` | web-session-explicit |
 | `runly_identity_query` | `identity:read` | none |
 | `runly_activity_query` | `activity:read` | none |
 | `runly_chat_query` | `chat:read` | none |

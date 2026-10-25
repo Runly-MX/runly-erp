@@ -53,9 +53,9 @@ function invalidArgs(label, fields) {
   return error
 }
 
-export function createModuleServices({ prisma, filesService = null, broadcaster = null }) {
+export function createModuleServices({ prisma, filesService = null, broadcaster = null, documentsHub = null }) {
   let catalog = null
-  const services = () => (catalog ??= createServiceCatalog({ prisma, filesService, broadcaster }))
+  const services = () => (catalog ??= createServiceCatalog({ prisma, filesService, broadcaster, documentsHub }))
 
   async function grantedKeys(moduleKey, companyId) {
     const rows = await prisma.moduleServiceGrant.findMany({
@@ -101,8 +101,10 @@ export function createModuleServices({ prisma, filesService = null, broadcaster 
       const previous = await previousResult({ companyId: ctx.companyId, moduleKey, serviceKey, idempotencyKey })
       if (previous.found) return previous.result
     }
-    const { user: _user, ...handlerCtx } = ctx
-    const result = await service.handler({ ...handlerCtx, moduleKey }, parsed.value)
+    // Handlers that enforce their own permission (a document kind) get the caller grants, never the user object.
+    const { user, ...handlerCtx } = ctx
+    const access = { isAdmin: Boolean(user?.isAdmin), permissionKeys: user?.permissionSet ? [...user.permissionSet] : [] }
+    const result = await service.handler({ ...handlerCtx, ...access, moduleKey }, parsed.value)
     if (service.mutates) {
       await prisma.auditLog.create({
         data: {

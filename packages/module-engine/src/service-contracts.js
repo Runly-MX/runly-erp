@@ -112,6 +112,16 @@ export const SERVICE_CONTRACTS = Object.freeze({
     args: { userIds: { type: 'uuid[]', max: 20 }, to: { type: 'email' }, subject: req(s(200)), body: req({ type: 'text', max: 5000 }), fileId: { type: 'uuid' }, sourceEntityId: SOURCE },
     returns: ['sent', 'failed'],
   },
+  'runly.documents:documents.generate': {
+    label: 'Generar documentos desde plantillas', permission: null, mutates: true, system: true,
+    args: { kind: req(s(80)), templateId: { type: 'uuid' }, sourceId: { type: 'uuid' }, values: { type: 'json', max: 20000 }, output: { type: 'enum', values: ['native', 'pdf'] }, name: s(120), sourceEntityId: SOURCE },
+    returns: FILE,
+  },
+  'runly.documents:templates.list': {
+    label: 'Ver plantillas de documentos', permission: null, mutates: false, system: true,
+    args: { kind: s(80) },
+    returns: ['items'],
+  },
   'runly.files:report.generate': {
     label: 'Generar reportes CSV o Excel', permission: 'files.assets.create', mutates: true, system: true,
     args: { source: req({ type: 'enum', values: REPORT_SOURCES }), format: req({ type: 'enum', values: ['csv', 'xlsx'] }), search: SEARCH, name: s(120), shareWithCompany: { type: 'boolean' }, sourceEntityId: SOURCE },
@@ -240,6 +250,14 @@ function coerce(spec, raw) {
         values.push(value)
       }
       return [[...new Set(values)]]
+    }
+    // Plain object (or JSON text of one), capped by serialized size.
+    case 'json': {
+      let value = raw
+      if (typeof raw === 'string') { try { value = JSON.parse(raw) } catch { return [null, 'debe ser un objeto JSON'] } }
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return [null, 'debe ser un objeto JSON']
+      if (JSON.stringify(value).length > (spec.max ?? 20000)) return [null, `máximo ${spec.max ?? 20000} caracteres`]
+      return [value]
     }
     case 'base64': {
       const value = String(raw).replace(/^data:[^;,]*;base64,/, '').replace(/\s+/g, '')

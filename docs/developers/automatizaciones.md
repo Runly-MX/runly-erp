@@ -132,9 +132,10 @@ Al guardar se valida igual que cualquier automatización, y los permisos de serv
 
 ## Enviar correos y generar reportes
 
-Dos bloques de acción pensados para las automatizaciones de la empresa (también se pueden autorizar a un módulo que reaccione a eventos):
+Tres bloques de acción pensados para las automatizaciones de la empresa (también se pueden autorizar a un módulo que reaccione a eventos):
 
 - **Enviar correos** (`runly.notifications:email.send`): elige a las personas de la empresa en *Destinatarios* y/o escribe una dirección en *Correo externo* (hasta 20 en total). Usa el correo de la empresa o del sitio web y, si no hay, el de la plataforma; si ninguno está configurado, el paso falla con un mensaje claro en la consola. *Asunto* y *Mensaje* aceptan datos con `{{campo}}`; el mensaje es texto plano. *Archivo adjunto (id)* adjunta un archivo de Archivos (máx. 10 MB).
+- **Generar documentos desde plantillas** (`runly.documents:documents.generate`): elige el *Tipo de documento*, el registro de origen (*sourceId*) o, para el documento general, los *Valores* como objeto JSON, y opcionalmente la plantilla y la salida (PDF). Usa la plantilla predeterminada de la empresa si no eliges una. El paso devuelve `paso<N>_id` y `paso<N>_name`; el identificador sirve de *Archivo adjunto* en un correo.
 - **Generar reportes CSV o Excel** (`runly.files:report.generate`): elige *Qué incluye el reporte* (contactos, inventario o vehículos de la flota), el formato y, opcionalmente, un texto para filtrar. El archivo se guarda en Archivos de la empresa y el paso devuelve `paso<N>_id` y `paso<N>_name`.
 
 Para mandar el reporte por correo, pon primero el bloque de reporte y en el correo usa como *Archivo adjunto* el dato «Identificador» de ese paso (`{{paso1_id}}`). Por seguridad, las automatizaciones de la empresa envían como máximo **200 correos por hora**; al llegar al límite el bloque falla con un mensaje claro. Si el módulo Automatizaciones se desactiva para la empresa, nada de lo suyo se ejecuta (eventos, webhooks, horarios ni esperas).

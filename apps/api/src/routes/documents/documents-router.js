@@ -13,18 +13,7 @@ export function createDocumentsRouter({
   hub = createDocumentsHub({ prisma, supabaseAdmin }),
 }) {
   const app = new Hono();
-  // Modules installed on the instance, enabled and not switched off for the company.
-  async function activeModules(companyId, moduleKeys) {
-    const rows = await prisma.runlyModule.findMany({
-      where: { key: { in: moduleKeys }, status: "INSTALLED", enabled: true },
-      select: { id: true, key: true, name: true },
-    });
-    const off = rows.length
-      ? await prisma.companyModule.findMany({ where: { companyId, moduleId: { in: rows.map((r) => r.id) }, enabled: false }, select: { moduleId: true } })
-      : [];
-    const disabled = new Set(off.map((r) => r.moduleId));
-    return new Map(rows.filter((r) => !disabled.has(r.id)).map((r) => [r.key, r.name]));
-  }
+  const activeModules = hub.activeModules;
 
   const generationService = createDocumentGenerationService({ prisma, supabaseAdmin });
 

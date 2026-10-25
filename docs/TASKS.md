@@ -609,6 +609,18 @@ Verified: 2026-06-15 (Prisma validate/generate and UUID policy passed; 84 Docume
 
 Update 2026-10-25: the legacy block templates (block editor, block renderer, provider registry, block routes) were removed; Documents now only manages file templates by kind (see `docs/superpowers/plans/2026-10-25-documents-v2-template-engine.md`). Forward migration `20261128000000_documents_remove_block_templates` deletes existing block templates and their versions and detaches their generated documents (files are kept). Growth generates through the hub (kind `growth.lead`).
 
+### Documents v2 hub UX and platform hooks (2026-10-25)
+
+Spec: `docs/superpowers/specs/2026-10-25-documents-v2-design.md`.
+
+- [x] Hub: one template list (module, type, format, state, visibility, fields) with filters; "Nueva plantilla" picks module then type; template dialogs use a fixed-header/footer frame with wrapping footer buttons.
+- [x] Automation services `runly.documents:documents.generate` and `templates.list`; arg type `json`.
+- [x] Builder kinds: manifest `documentKinds` + `ModuleDefinition.documentKinds`, registered and unregistered by the Route Loader hook.
+- [x] MirAI and MCP: `documents_kinds`, `documents_templates`, action `documents.document.generate`.
+- [ ] Browser QA of the hub dialogs at 390px and 1440px, and a real end-to-end run (automation step generating a document and emailing it; a Builder module with `documentKinds` installed on a live instance).
+
+Verified: 2026-10-25 (eslint clean on the touched UI files and API/package folders; `pnpm --filter @runly/desktop build:web` built; `node --test` over module-engine, module-compiler, module-services, documents routes, MCP, chat, automations and SDK suites: 864 tests, 862 pass, 0 fail; `generate-module-developer-docs.mjs` run and the developer-docs test passed)
+
 ## atlas.inventory — Asset Management [COMPLETE]
 
 Plan: `docs/superpowers/plans/2026-06-12-atlas-inventory.md`

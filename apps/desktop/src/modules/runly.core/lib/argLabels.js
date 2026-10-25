@@ -14,6 +14,7 @@ export const ARG_LABELS = {
   wallet: "Cartera (nombre o id)", direction: "Tipo de movimiento", amount: "Monto", occurredOn: "Fecha", category: "Categoría",
   merchant: "Comercio", note: "Nota", movementId: "Movimiento (id)",
   subject: "Asunto", to: "Correo externo", fileId: "Archivo adjunto (id)", source: "Qué incluye el reporte", format: "Formato", search: "Filtrar por texto",
+  kind: "Tipo de documento", templateId: "Plantilla (id)", sourceId: "Registro de origen (id)", values: "Valores (JSON)", output: "Salida (native o pdf)",
 };
 
 export const argLabel = (name) => ARG_LABELS[name] ?? name;

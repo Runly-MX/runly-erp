@@ -27,8 +27,53 @@ function validateSchedules(manifest, errors) {
   }
 }
 
+export const DOCUMENT_KIND_FIELD_TYPES = Object.freeze(['text', 'number', 'date'])
+export const DOCUMENT_KIND_FORMATS = Object.freeze(['docx', 'xlsx', 'pptx', 'pdf'])
+const DOCUMENT_KIND_NAME_RE = /^[a-z][a-z0-9_]{1,40}$/
+const DOCUMENT_KIND_TAG_RE = /^[a-z][a-z0-9_]{0,60}$/
+export const DOCUMENT_KINDS_MAX = 10
+export const DOCUMENT_KIND_FIELDS_MAX = 60
+
+// manifest.documentKinds (a module offers a document type to Runly Documents):
+//   [{ name: 'invoice', label: 'Factura', model: 'invoice', permission: 'x.invoice.read',
+//      formats?: ['docx','pdf'], fields: [{ tag: 'number', label: 'Número', type: 'text' }] }]
+// Each `tag` is a column (field) of `model`; the API registers the kind as
+// `<moduleKey>.<name>` while the module is installed and enabled.
+function validateDocumentKinds(manifest, errors) {
+  const list = manifest?.documentKinds
+  if (list === undefined) return
+  if (!Array.isArray(list)) { errors.push('documentKinds must be an array'); return }
+  if (list.length > DOCUMENT_KINDS_MAX) errors.push(`documentKinds: at most ${DOCUMENT_KINDS_MAX} kinds`)
+  const names = new Set()
+  list.forEach((kind, index) => {
+    const base = `documentKinds[${index}]`
+    if (!isPlainObject(kind)) { errors.push(`${base} must be an object`); return }
+    if (!DOCUMENT_KIND_NAME_RE.test(String(kind.name ?? ''))) errors.push(`${base}.name must be snake_case (2-41 chars)`)
+    else if (names.has(kind.name)) errors.push(`${base}.name "${kind.name}" is duplicated`)
+    names.add(kind.name)
+    if (typeof kind.label !== 'string' || !kind.label.trim() || kind.label.length > 80) errors.push(`${base}.label is required (max 80 chars)`)
+    if (!DOCUMENT_KIND_NAME_RE.test(String(kind.model ?? ''))) errors.push(`${base}.model must be the snake_case name of a model of this module`)
+    if (typeof kind.permission !== 'string' || !kind.permission.trim()) errors.push(`${base}.permission is required`)
+    if (kind.formats !== undefined && (!Array.isArray(kind.formats) || !kind.formats.length || kind.formats.some((f) => !DOCUMENT_KIND_FORMATS.includes(f)))) {
+      errors.push(`${base}.formats must be a non-empty subset of ${DOCUMENT_KIND_FORMATS.join(', ')}`)
+    }
+    if (!Array.isArray(kind.fields) || !kind.fields.length) { errors.push(`${base}.fields must be a non-empty array`); return }
+    if (kind.fields.length > DOCUMENT_KIND_FIELDS_MAX) errors.push(`${base}.fields: at most ${DOCUMENT_KIND_FIELDS_MAX} fields`)
+    const tags = new Set()
+    kind.fields.forEach((field, fieldIndex) => {
+      const at = `${base}.fields[${fieldIndex}]`
+      if (!isPlainObject(field) || !DOCUMENT_KIND_TAG_RE.test(String(field.tag ?? ''))) { errors.push(`${at}.tag must be a snake_case field name`); return }
+      if (tags.has(field.tag)) errors.push(`${at}.tag "${field.tag}" is duplicated`)
+      tags.add(field.tag)
+      if (typeof field.label !== 'string' || !field.label.trim()) errors.push(`${at}.label is required`)
+      if (!DOCUMENT_KIND_FIELD_TYPES.includes(field.type)) errors.push(`${at}.type must be one of ${DOCUMENT_KIND_FIELD_TYPES.join(', ')}`)
+    })
+  })
+}
+
 export function validateIntegrations(manifest, errors) {
   validateSchedules(manifest, errors)
+  validateDocumentKinds(manifest, errors)
   if (manifest?.consumes !== undefined) {
     if (!isPlainObject(manifest.consumes)) errors.push('consumes must be an object { moduleKey: [service, ...] }')
     else {
