@@ -88,6 +88,29 @@ function createApp({ loadLogo } = {}) {
   return app
 }
 
+test('existing Studio PWA rows use current display branding without changing the stored row or app identity', async () => {
+  const row = { key: 'runly.studio', status: 'INSTALLED', enabled: true, version: '0.1.0', manifest: {
+    name: 'Runly Studio', description: 'Diseños editables con texto...', icon: 'Palette', color: '#2563eb',
+    pwa: { shortName: 'Studio', startPath: '/' },
+  } }
+  const original = structuredClone(row)
+  modules.set(row.key, row)
+  try {
+    const response = await createApp().request('/pwa/manifest/runly.studio.webmanifest')
+    assert.equal(response.status, 200)
+    const manifest = await response.json()
+    assert.equal(manifest.name, 'Studio — Runly'); assert.equal(manifest.theme_color, '#D946EF')
+    assert.equal(manifest.start_url, '/app/m/runly.studio/'); assert.equal(manifest.id, '/pwa/apps/runly.studio')
+    const icon = await createApp().request(manifest.icons[0].src)
+    assert.equal(icon.status, 200)
+    const pixel = await sharp(Buffer.from(await icon.arrayBuffer())).extract({ left:96,top:20,width:1,height:1 }).raw().toBuffer()
+    assert.deepEqual([...pixel], [217,70,239,255])
+    assert.deepEqual(row, original)
+    row.enabled = false
+    assert.equal((await createApp().request('/pwa/manifest/runly.studio.webmanifest')).status, 404)
+  } finally { modules.delete(row.key) }
+})
+
 test('serves a stable module manifest with module-specific identity', async () => {
   const response = await createApp().request(
     'https://atlas.example.com/pwa/manifest/atlas.inventory.webmanifest',

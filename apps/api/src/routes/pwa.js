@@ -6,6 +6,7 @@ import * as LucideIcons from 'lucide-react'
 import sharp from 'sharp'
 import { validateModulePwaIdentity } from '@runly/module-engine'
 import { loadModuleLogo } from './pwa-icon-source.js'
+import { applyStudioBranding } from '../../../shared/studio/identity.js'
 
 const MODULE_KEY_RE = /^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9_-]*)+$/
 const ICON_SIZES = new Set([192, 512])
@@ -59,7 +60,7 @@ async function findPwaModule(prisma, moduleKey) {
     },
   })
 
-  return isAvailableModule(moduleRow) ? moduleRow : null
+  return isAvailableModule(moduleRow) ? applyStudioBranding(moduleRow) : null
 }
 
 function buildWebManifest(moduleRow, identityHash) {

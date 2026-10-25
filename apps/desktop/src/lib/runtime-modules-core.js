@@ -1,4 +1,5 @@
 import { findModuleByKey, getModuleKeyAliases, resolveModuleAliasPath } from '@runly/core';
+import { applyStudioBranding } from '../../../shared/studio/identity.js';
 
 const STATUS_ORDER = {
   INSTALLED: 0,
@@ -143,7 +144,7 @@ export function mergeRuntimeModules(rawApiModules, options = {}) {
       description ??
       "";
 
-    return {
+    return applyStudioBranding({
       id: apiRow?.id ?? null,
       key,
       name: apiRow?.name ?? manifest?.name ?? key,
@@ -187,7 +188,7 @@ export function mergeRuntimeModules(rawApiModules, options = {}) {
             ? "version"
             : "migrations"
         : null,
-    };
+    });
   });
 
   return merged.sort((a, b) => {

@@ -226,8 +226,11 @@ accesos y ayuda), con `PenTool` de Lucide y color `#D946EF`. La descripción es
 no se añade otro set de iconos. El nombre largo Runly Studio queda en contexto
 técnico. No cambian clave `runly.studio`, rutas, permisos ni identidad instalada.
 El cambio de catálogo se comprueba en el seed del stack desechable; no se ejecutó
-sync contra la base habitual. Una instalación existente lo tomará mediante su
-sincronización normal cuando esté autorizada.
+sync contra la base habitual. La corrección posterior de presentación también se
+prueba con registros antiguos: runtime/catálogo y PWA usan la identidad compartida
+sin modificar esos registros, incluso si la respuesta de la API está cacheada.
+Una prueba de Chrome renderiza HomeAppTile y ModuleSidebar reales a partir de
+«Runly Studio», Palette y azul; verifica Studio, PenTool y el fucsia calculado.
 
 Se mantiene v2, compatible con v1, sin migraciones nuevas. La UI permite elegir
 presets o tamaño personalizado al crear y editar página/fondo después. Cambiar

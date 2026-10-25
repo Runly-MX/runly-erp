@@ -42,9 +42,12 @@ corta es «Diseño gráfico y edición multimedia». `PenTool` utiliza Lucide, y
 presente en Runly; se añadió a la whitelist del motor, sin otra dependencia.
 El color `#D946EF` es un hex admitido directamente y alimenta tarjetas, menú,
 tema del módulo e iconos/PWA. Cursores y selecciones usan fucsia con variantes
-de contraste de los tokens existentes. El catálogo de una instalación existente
-tomará la identidad nueva mediante su sincronización habitual autorizada; esta
-entrega no modifica esa instalación ni fuerza escrituras sobre ella.
+de contraste de los tokens existentes. `apps/shared/studio/identity.js` es la fuente
+de esos metadatos. El normalizador común de runtime/catálogo proyecta esa identidad
+también sobre respuestas antiguas o cacheadas de instalaciones existentes; PWA
+aplica la misma presentación al leer. No requiere sync ni escrituras en la base.
+Solo cambia metadatos visibles del módulo exacto `runly.studio`: no añade módulos
+ni navegación filtrada y conserva estado, rutas, permisos y datos instalados.
 
 El contrato sigue en v2, con lectura de v1. `resizeDocument` valida el resultado
 antes de mutar: conserva objetos incluso fuera de página; el escalado optativo
