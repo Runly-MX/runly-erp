@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
   Button, TextField, SelectField, MarkdownField, ConfirmDialog,
-  Popover, PopoverTrigger, PopoverContent,
+  IconPickerField, SwatchField,
 } from '@runly/ui'
-import { CalendarCheck, CalendarX, RefreshCw, ChevronDown } from 'lucide-react'
+import { CalendarCheck, CalendarX, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCreateProject, useUpdateProject, useArchiveProject, useProject, useSyncProjectCalendar } from '../hooks/useProjectsData'
-import { PROJECT_ICONS, getProjectIcon } from '../lib/projectIcons.js'
+import { getProjectIcon } from '../lib/projectIcons.js'
 import { useConnectionForm } from '../../../shell/connections/useConnectionForm.js'
 import { ConnectionFormSections } from '../../../shell/connections/ConnectionFormSections.jsx'
 
@@ -45,7 +45,6 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
   const [icon, setIcon] = useState('FolderKanban')
   const [template, setTemplate] = useState('general')
   const [archiveOpen, setArchiveOpen] = useState(false)
-  const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
   const calendarLinked = projectDetail?.calendarLinked ?? (project?.calendarId != null)
 
@@ -136,74 +135,9 @@ export default function ProjectFormModal({ open, onOpenChange, project, onCreate
           </div>
 
           {/* Color picker */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
-              Color
-            </label>
-            <div className="grid grid-cols-8 gap-2">
-              {PRESET_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  className="w-8 h-8 rounded-full transition-all focus-visible:outline-none"
-                  style={{
-                    backgroundColor: c,
-                    border: color === c ? '2px solid white' : '2px solid transparent',
-                    transform: color === c ? 'scale(1.18)' : 'scale(1)',
-                    boxShadow: color === c ? `0 0 0 2px ${c}` : 'none',
-                  }}
-                />
-              ))}
-            </div>
-          </div>
+          <SwatchField label="Color" value={color} onChange={setColor} swatches={PRESET_COLORS} className="p-1" />
 
-          {/* Icon picker */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
-              Icono
-            </label>
-            <Popover open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="w-full flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:border-foreground/30 transition-colors"
-                >
-                  <span
-                    className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: color + '22', color }}
-                  >
-                    <SelectedIcon size={15} />
-                  </span>
-                  <span className="flex-1 text-left text-muted-foreground">Cambiar icono</span>
-                  <ChevronDown size={14} className="text-muted-foreground shrink-0" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-auto p-1.5">
-                <div className="grid grid-cols-9 gap-1 max-h-52 overflow-y-auto">
-                  {PROJECT_ICONS.map(({ name: iName, Icon: Ic }) => (
-                    <button
-                      key={iName}
-                      type="button"
-                      onClick={() => { setIcon(iName); setIconPickerOpen(false) }}
-                      title={iName}
-                      className="w-10 h-10 rounded-lg flex items-center justify-center transition-all focus-visible:outline-none"
-                      style={
-                        icon === iName
-                          ? { backgroundColor: color + '22', color }
-                          : {}
-                      }
-                    >
-                      <Ic
-                        size={17}
-                        className={icon === iName ? '' : 'text-muted-foreground hover:text-foreground'}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+          <IconPickerField label="Icono" value={icon} onChange={setIcon} placeholder="Elegir icono" />
 
           <MarkdownField
             label="Descripcion"

@@ -1,67 +1,8 @@
-import {
-  FolderKanban, SquareKanban,
-  Code2, Terminal, GitBranch, Database, Server, Globe, Cpu,
-  Palette, Pen, Layers, LayoutDashboard,
-  Briefcase, Building2, TrendingUp, BarChart3, DollarSign, Landmark,
-  Users, UserCheck, UsersRound, Mail, MessageSquare, Bell,
-  ShoppingCart, Package, Truck, Tag, ShoppingBag,
-  Target, Flag, Rocket, Zap, Star, Heart, Lightbulb, Activity,
-  FileText, BookOpen, ClipboardList, Wrench, Settings, Calendar,
-  MapPin, Network, Shield, Wallet, CreditCard,
-} from 'lucide-react'
+import { FolderKanban } from 'lucide-react'
+import { resolveLucideIcon } from '@runly/ui'
 
-export const PROJECT_ICONS = [
-  { name: 'FolderKanban',   Icon: FolderKanban },
-  { name: 'SquareKanban',   Icon: SquareKanban },
-  { name: 'Code2',          Icon: Code2 },
-  { name: 'Terminal',       Icon: Terminal },
-  { name: 'GitBranch',      Icon: GitBranch },
-  { name: 'Database',       Icon: Database },
-  { name: 'Server',         Icon: Server },
-  { name: 'Globe',          Icon: Globe },
-  { name: 'Cpu',            Icon: Cpu },
-  { name: 'Network',        Icon: Network },
-  { name: 'Palette',        Icon: Palette },
-  { name: 'Pen',            Icon: Pen },
-  { name: 'Layers',         Icon: Layers },
-  { name: 'LayoutDashboard',Icon: LayoutDashboard },
-  { name: 'Briefcase',      Icon: Briefcase },
-  { name: 'Building2',      Icon: Building2 },
-  { name: 'TrendingUp',     Icon: TrendingUp },
-  { name: 'BarChart3',      Icon: BarChart3 },
-  { name: 'DollarSign',     Icon: DollarSign },
-  { name: 'Landmark',       Icon: Landmark },
-  { name: 'Wallet',         Icon: Wallet },
-  { name: 'CreditCard',     Icon: CreditCard },
-  { name: 'Users',          Icon: Users },
-  { name: 'UserCheck',      Icon: UserCheck },
-  { name: 'UsersRound',     Icon: UsersRound },
-  { name: 'Mail',           Icon: Mail },
-  { name: 'MessageSquare',  Icon: MessageSquare },
-  { name: 'Bell',           Icon: Bell },
-  { name: 'ShoppingCart',   Icon: ShoppingCart },
-  { name: 'Package',        Icon: Package },
-  { name: 'Truck',          Icon: Truck },
-  { name: 'Tag',            Icon: Tag },
-  { name: 'ShoppingBag',    Icon: ShoppingBag },
-  { name: 'Target',         Icon: Target },
-  { name: 'Flag',           Icon: Flag },
-  { name: 'Rocket',         Icon: Rocket },
-  { name: 'Zap',            Icon: Zap },
-  { name: 'Star',           Icon: Star },
-  { name: 'Heart',          Icon: Heart },
-  { name: 'Lightbulb',      Icon: Lightbulb },
-  { name: 'Activity',       Icon: Activity },
-  { name: 'FileText',       Icon: FileText },
-  { name: 'BookOpen',       Icon: BookOpen },
-  { name: 'ClipboardList',  Icon: ClipboardList },
-  { name: 'Wrench',         Icon: Wrench },
-  { name: 'Settings',       Icon: Settings },
-  { name: 'Calendar',       Icon: Calendar },
-  { name: 'MapPin',         Icon: MapPin },
-  { name: 'Shield',         Icon: Shield },
-]
-
+// Projects store the lucide name chosen in the icon library (kebab-case); older ones hold
+// the PascalCase names of the first icon set. Both resolve; unknown or empty ones fall back.
 export function getProjectIcon(iconName) {
-  return PROJECT_ICONS.find((i) => i.name === iconName)?.Icon ?? FolderKanban
+  return resolveLucideIcon(iconName) ?? FolderKanban
 }
