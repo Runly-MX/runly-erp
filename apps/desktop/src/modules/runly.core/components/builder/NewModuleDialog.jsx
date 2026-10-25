@@ -1,14 +1,14 @@
 // Module Builder — "Crear módulo" (spec 2026-10-03-rme3-module-platform-v2
 // §5 goal 9, plan Task 5.1/5.2): start from a template, from a description
-// turned into a draft by MirAI ("Con IA"), or blank. Two columns on desktop
-// (how to start | content + module data), stacked on phones. Header and footer
-// stay fixed; only the middle scrolls.
+// turned into a draft by MirAI ("Con IA"), or blank. A short wizard: how to
+// start -> content (template / description; skipped when blank) -> module data.
+// Header, progress and footer stay fixed; only the middle scrolls.
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, TextField, TextareaField,
+  Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, TextField, TextareaField, WizardSteps,
 } from "@runly/ui";
-import { AlertTriangle, Check, Hammer, LayoutTemplate, Sparkles, SquarePlus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Hammer, LayoutTemplate, Sparkles, SquarePlus } from "lucide-react";
 import { runly } from "../../../../lib/runly";
 import { resolveLucideIcon } from "../../lib/builderHelpers";
 
@@ -42,7 +42,7 @@ function SectionTitle({ children, hint }) {
 
 function TemplateGrid({ templates, value, onChange }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" role="radiogroup" aria-label="Plantilla">
+    <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Plantilla">
       {templates.filter((template) => template.key !== "blank").map((template) => {
         const active = value === template.key;
         return (
@@ -93,8 +93,8 @@ function DraftPreview({ draft }) {
 function ModePicker({ mode, onChange, aiAvailable }) {
   return (
     <section>
-      <SectionTitle>Cómo empezar</SectionTitle>
-      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1" role="radiogroup" aria-label="Cómo empezar">
+      <SectionTitle hint="Siempre podrás cambiar todo después en el Constructor.">¿Cómo quieres empezar?</SectionTitle>
+      <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Cómo empezar">
         {MODES.map((item) => {
           const disabled = item.key === "ai" && !aiAvailable;
           const active = mode === item.key;
@@ -106,13 +106,11 @@ function ModePicker({ mode, onChange, aiAvailable }) {
               aria-checked={active}
               disabled={disabled}
               onClick={() => onChange(item.key)}
-              className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active ? "border-(--brand-primary) bg-(--brand-primary)/5" : "cursor-pointer border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/50"}`}
+              className={`flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active ? "border-(--brand-primary) bg-(--brand-primary)/5" : "cursor-pointer border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/50"}`}
             >
               <IconTile icon={item.icon} />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">{item.label}</span>
-                <span className="block text-xs text-[hsl(var(--muted-foreground))]">{disabled ? "La IA no está configurada en esta instancia." : item.description}</span>
-              </span>
+              <span className="block text-sm font-semibold">{item.label}</span>
+              <span className="block text-xs text-[hsl(var(--muted-foreground))]">{disabled ? "La IA no está configurada en esta instancia." : item.description}</span>
             </button>
           );
         })}
@@ -123,6 +121,7 @@ function ModePicker({ mode, onChange, aiAvailable }) {
 
 export function NewModuleDialog({ open, onOpenChange, token, onCreate, creating }) {
   const [mode, setMode] = useState("template");
+  const [step, setStep] = useState("mode");
   const [template, setTemplate] = useState("visitas");
   const [form, setForm] = useState({ name: "", moduleKey: "", description: "" });
   const [prompt, setPrompt] = useState("");
@@ -150,90 +149,100 @@ export function NewModuleDialog({ open, onOpenChange, token, onCreate, creating 
   });
 
   const suggestedKey = suggestKey(form.name);
-  const canCreate = form.name.trim() && (mode !== "ai" || draft);
+  const steps = mode === "blank"
+    ? [{ key: "mode", label: "Cómo empezar" }, { key: "data", label: "Datos del módulo" }]
+    : [{ key: "mode", label: "Cómo empezar" }, { key: "content", label: mode === "ai" ? "Tu descripción" : "Plantilla" }, { key: "data", label: "Datos del módulo" }];
+  const stepIndex = Math.max(steps.findIndex((item) => item.key === step), 0);
+  const isLast = stepIndex === steps.length - 1;
+  const canAdvance = step === "content" ? (mode !== "ai" || Boolean(draft)) : step === "data" ? Boolean(form.name.trim()) : true;
+  const selectedTemplate = templates.find((item) => item.key === template);
 
   function submit() {
     const base = { name: form.name.trim(), moduleKey: form.moduleKey || undefined, description: form.description };
     if (mode === "ai") onCreate({ ...base, definition: { ...draft.definition, name: form.name.trim(), description: form.description || draft.definition.description } });
     else onCreate({ ...base, template: mode === "blank" ? "blank" : template });
   }
+  function handleOpenChange(next) {
+    if (!next) setStep("mode");
+    onOpenChange(next);
+  }
+  function goNext() {
+    if (isLast) submit();
+    else setStep(steps[stepIndex + 1].key);
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="2xl" className="flex max-h-[92dvh] flex-col md:max-w-5xl">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent size="2xl" className="flex max-h-[92dvh] flex-col md:max-w-3xl">
         <DialogHeader icon={Hammer}>
           <DialogTitle>Crear módulo</DialogTitle>
           <DialogDescription>Elige cómo empezar y ponle nombre. Podrás editarlo todo después en el Constructor.</DialogDescription>
         </DialogHeader>
-        <div className="-mx-6 min-h-0 flex-1 overflow-y-auto px-6">
-          <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
-            <ModePicker mode={mode} onChange={setMode} aiAvailable={aiAvailable} />
+        <WizardSteps steps={steps} current={step} onStepClick={setStep} className="mb-4" />
+        <div className="-mx-6 min-h-0 flex-1 overflow-y-auto px-6 pb-1">
+          {step === "mode" && <ModePicker mode={mode} onChange={setMode} aiAvailable={aiAvailable} />}
 
-            <div className="min-w-0 space-y-6">
-              <section>
-                {mode === "template" && (
-                  <>
-                    <SectionTitle hint="Un módulo funcional con sus pantallas; lo ajustas después.">Elige una plantilla</SectionTitle>
-                    <TemplateGrid templates={templates} value={template} onChange={setTemplate} />
-                  </>
-                )}
-                {mode === "ai" && (
-                  <>
-                    <SectionTitle hint="MirAI arma el borrador con entidades y campos; lo revisas antes de crear.">Cuéntanos qué necesitas</SectionTitle>
-                    <div className="space-y-2">
-                      <TextareaField
-                        id="ai-module-description"
-                        label="¿Qué necesitas registrar?"
-                        rows={4}
-                        value={prompt}
-                        placeholder="Ej. Quiero llevar el control de las visitas de mis técnicos a clientes: cliente, técnico, fecha, motivo, estado y lo que se hizo."
-                        onChange={(e) => { setPrompt(e.target.value); setDraft(null); }}
-                      />
-                      <div className="flex justify-end">
-                        <Button variant="outline" disabled={prompt.trim().length < 10 || draftMutation.isPending} onClick={() => draftMutation.mutate()}>
-                          <Sparkles className="h-4 w-4" />
-                          {draftMutation.isPending ? "Generando..." : draft ? "Generar otra vez" : "Generar borrador"}
-                        </Button>
-                      </div>
-                      {draftMutation.isError && <p className="text-sm text-red-600">{draftMutation.error?.message ?? "La IA no respondió."}</p>}
-                      {draft && <DraftPreview draft={draft} />}
-                    </div>
-                  </>
-                )}
-                {mode === "blank" && (
-                  <>
-                    <SectionTitle>Módulo en blanco</SectionTitle>
-                    <div className="flex items-start gap-3 rounded-xl border border-dashed border-[hsl(var(--border))] p-4 text-sm text-[hsl(var(--muted-foreground))]">
-                      <SquarePlus className="mt-0.5 h-4 w-4 shrink-0" />
-                      Empiezas sin entidades. En el Constructor agregas las tablas, campos, pantallas y permisos que necesites.
-                    </div>
-                  </>
-                )}
-              </section>
+          {step === "content" && mode === "template" && (
+            <section>
+              <SectionTitle hint="Un módulo funcional con sus pantallas; lo ajustas después.">Elige una plantilla</SectionTitle>
+              <TemplateGrid templates={templates} value={template} onChange={setTemplate} />
+            </section>
+          )}
 
-              <section className="border-t border-[hsl(var(--border))] pt-5">
-                <SectionTitle>Datos del módulo</SectionTitle>
-                <div className="space-y-3">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <TextField id="new-module-name" label="Nombre" required value={form.name} placeholder="Control de visitas" onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-                    <TextField
-                      id="new-module-key"
-                      label="Clave del módulo"
-                      value={form.moduleKey}
-                      placeholder={suggestedKey || "custom.mi-modulo"}
-                      hint="Se sugiere a partir del nombre. No podrá cambiarse después."
-                      onChange={(e) => setForm((f) => ({ ...f, moduleKey: e.target.value }))}
-                    />
-                  </div>
-                  <TextareaField label="Descripción" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-                </div>
-              </section>
-            </div>
-          </div>
+          {step === "content" && mode === "ai" && (
+            <section className="space-y-2">
+              <SectionTitle hint="MirAI arma el borrador con entidades y campos; lo revisas antes de crear.">Cuéntanos qué necesitas</SectionTitle>
+              <TextareaField
+                id="ai-module-description"
+                label="¿Qué necesitas registrar?"
+                rows={5}
+                value={prompt}
+                placeholder="Ej. Quiero llevar el control de las visitas de mis técnicos a clientes: cliente, técnico, fecha, motivo, estado y lo que se hizo."
+                onChange={(e) => { setPrompt(e.target.value); setDraft(null); }}
+              />
+              <div className="flex justify-end">
+                <Button variant="outline" disabled={prompt.trim().length < 10 || draftMutation.isPending} onClick={() => draftMutation.mutate()}>
+                  <Sparkles className="h-4 w-4" />
+                  {draftMutation.isPending ? "Generando..." : draft ? "Generar otra vez" : "Generar borrador"}
+                </Button>
+              </div>
+              {draftMutation.isError && <p className="text-sm text-red-600">{draftMutation.error?.message ?? "La IA no respondió."}</p>}
+              {draft && <DraftPreview draft={draft} />}
+            </section>
+          )}
+
+          {step === "data" && (
+            <section className="space-y-4">
+              <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30 p-3 text-sm">
+                {mode === "blank" && "Módulo en blanco: agregarás tablas, campos y pantallas en el Constructor."}
+                {mode === "ai" && `Borrador de MirAI con ${(draft?.definition?.entities ?? []).length} entidad(es).`}
+                {mode === "template" && <>Plantilla: <span className="font-medium">{selectedTemplate?.label ?? template}</span></>}
+              </div>
+              <SectionTitle>Datos del módulo</SectionTitle>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <TextField id="new-module-name" label="Nombre" required value={form.name} placeholder="Control de visitas" onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+                <TextField
+                  id="new-module-key"
+                  label="Clave del módulo"
+                  value={form.moduleKey}
+                  placeholder={suggestedKey || "custom.mi-modulo"}
+                  hint="Se sugiere a partir del nombre. No podrá cambiarse después."
+                  onChange={(e) => setForm((f) => ({ ...f, moduleKey: e.target.value }))}
+                />
+              </div>
+              <TextareaField label="Descripción" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+            </section>
+          )}
         </div>
         <DialogFooter className="shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button disabled={!canCreate || creating} onClick={submit}>{creating ? "Creando..." : "Crear módulo"}</Button>
+          {stepIndex === 0 ? (
+            <Button variant="outline" onClick={() => handleOpenChange(false)}>Cancelar</Button>
+          ) : (
+            <Button variant="outline" onClick={() => setStep(steps[stepIndex - 1].key)}><ArrowLeft className="h-4 w-4" /> Atrás</Button>
+          )}
+          <Button disabled={!canAdvance || creating} onClick={goNext}>
+            {isLast ? (creating ? "Creando..." : "Crear módulo") : <>Siguiente <ArrowRight className="h-4 w-4" /></>}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

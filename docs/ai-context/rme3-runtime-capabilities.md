@@ -550,6 +550,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `SegmentedControl` | Pill single-choice control for short fixed sets; props `options`, `value`, `onChange` |
 | `ChoiceCardGroup` | Single choice as selectable cards (radiogroup, flat-fill selection, rounded-md) for options that need a small visual; props `options` (`{ value, label, description?, icon?, preview?, disabled? }`), `value`, `onChange`, `columns` (2/3/4), `size` (`sm`/`md`) |
 | `NumberStepper` | Numeric stepper `[-] value [+]` (rounded-md, commits typed text on blur/Enter, arrow keys step); props `value`, `onChange`, `min`, `max`, `step`, `precision` (decimals, default `0` = integers; accepts `.` or `,`), `label` (accessible name), `size` (`md` 44px touch targets / `sm` 36px), `disabled` |
+| `WizardSteps` | Progress header for multi-step dialogs; props `steps` (`[{ key, label }]`), `current` (active step key), `onStepClick` (completed steps become clickable to go back). Phones show "Paso N de M" only. Used by the Builder's Crear módulo wizard |
 | `CopyableValue` | Read-only label/value with a hover copy button; `mono` for RFC/ids, `copyable={false}` for descriptive values |
 | `Switch` | Toggle switch |
 | `Select`, `SelectTrigger`, `SelectContent`, `SelectItem`, `SelectValue`, `SelectLabel`, `SelectGroup`, `SelectSeparator` | Native select dropdown |

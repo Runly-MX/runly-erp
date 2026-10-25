@@ -288,6 +288,7 @@ export { FileUploader } from "./components/FileUploader.jsx";
 export { SignaturePad } from "./components/SignaturePad.jsx";
 export { AIUploadDropzone } from "./components/AIUploadDropzone.jsx";
 export { AIFlowSteps } from "./components/AIFlowSteps.jsx";
+export { WizardSteps } from "./components/WizardSteps.jsx";
 export { AdvancedFileViewer } from "./components/AdvancedFileViewer.jsx";
 export { useHlsPosterFrame } from "./lib/useHlsPosterFrame.js";
 export { useHlsPlayback } from "./lib/useHlsPlayback.js";
