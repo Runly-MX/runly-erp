@@ -5,7 +5,6 @@ import {
   LayoutGrid,
   List,
   Calendar,
-  Settings2,
   Users,
   Menu,
   X,
@@ -36,7 +35,6 @@ import { RunningTimerChip } from "../components/RunningTimerChip.jsx";
 import TaskDetailPanel from "../components/TaskDetailPanel.jsx";
 import ProjectFormModal from "../components/ProjectFormModal.jsx";
 import TaskFormModal from "../components/TaskFormModal.jsx";
-import StatusEditor from "../components/StatusEditor.jsx";
 import MembersPanel from "../components/MembersPanel.jsx";
 import ProjectFieldsSheet from "../components/ProjectFieldsSheet.jsx";
 import { ProjectChannelsButton, ProjectChannelItems } from "../components/ProjectChannelsMenu.jsx";
@@ -77,7 +75,6 @@ export default function ProjectsScreen() {
   const [taskPanelId, setTaskPanelId] = useState(null);
   const [projectFormOpen, setProjectFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [statusEditorOpen, setStatusEditorOpen] = useState(false);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -340,15 +337,6 @@ export default function ProjectsScreen() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  title="Gestionar columnas"
-                  className="hidden sm:flex"
-                  onClick={() => setStatusEditorOpen(true)}
-                >
-                  <Settings2 size={15} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
                   title="Campos personalizados"
                   className="hidden sm:flex"
                   onClick={() => setFieldsSheetOpen(true)}
@@ -407,10 +395,6 @@ export default function ProjectsScreen() {
                     >
                       <Pencil size={14} className="mr-2" />
                       Editar proyecto
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setStatusEditorOpen(true)}>
-                      <Settings2 size={14} className="mr-2" />
-                      Gestionar columnas
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setFieldsSheetOpen(true)}>
                       <SlidersHorizontal size={14} className="mr-2" />
@@ -513,14 +497,6 @@ export default function ProjectsScreen() {
           <TaskFormModal
             open={taskFormOpen}
             onOpenChange={setTaskFormOpen}
-            projectId={effectiveId}
-          />
-        )}
-
-        {selectedProject && (
-          <StatusEditor
-            open={statusEditorOpen}
-            onOpenChange={setStatusEditorOpen}
             projectId={effectiveId}
           />
         )}

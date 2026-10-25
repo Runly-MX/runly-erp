@@ -4,19 +4,19 @@ import {
   useSensor, useSensors, DragOverlay, useDroppable,
 } from '@dnd-kit/core'
 import {
-  SortableContext, verticalListSortingStrategy,
-  useSortable, sortableKeyboardCoordinates,
+  SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy,
+  useSortable, sortableKeyboardCoordinates, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Plus, GripVertical, AlertCircle, CornerDownRight, Layers, Lock, RefreshCw, Paperclip, ArrowRight } from 'lucide-react'
 import {
-  EmptyState,
   Input,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@runly/ui'
 import { toast } from 'sonner'
-import { useStatuses, useTasks, useMoveTask, useCreateTask } from '../hooks/useProjectsData'
+import { useStatuses, useTasks, useMoveTask, useCreateTask, useReorderStatuses } from '../hooks/useProjectsData'
 import { AssigneeAvatar, StackedAssignees } from '../lib/AssigneeChip.jsx'
+import { SortableColumn, AddColumn, COLUMN_DRAG_PREFIX } from './KanbanColumnParts.jsx'
 
 const PRIORITY_COLORS = {
   URGENT: 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -166,6 +166,39 @@ function TaskCard({ task, statusColor, onClick, isDragging, statuses, currentSta
   )
 }
 
+function TaskCardPreview({ task, statusColor }) {
+  return (
+    <div
+      className="bg-background border border-border rounded p-2.5"
+      style={{ borderLeftColor: statusColor ? `${statusColor}99` : undefined, borderLeftWidth: statusColor ? '3px' : undefined }}
+    >
+      {task.taskNumber != null && (
+        <span className="text-[10px] text-muted-foreground font-mono block mb-0.5">T-{task.taskNumber}</span>
+      )}
+      <span className="text-sm leading-snug line-clamp-2">{task.title}</span>
+      <div className="flex items-center gap-1.5 mt-2">
+        {task.priority !== 'NONE' && (
+          <span className={`text-xs border rounded px-1 ${PRIORITY_COLORS[task.priority]}`}>
+            {PRIORITY_LABELS[task.priority]}
+          </span>
+        )}
+        {task._count?.subtasks > 0 && (
+          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+            <Layers size={12} />
+            {task._count.subtasks}
+          </span>
+        )}
+        <StackedAssignees assignees={task.assignees} fallback={task.assignee} />
+        {task.dueDate && (
+          <span className={`text-xs ml-auto ${isOverdue(task.dueDate) ? 'text-red-400 font-medium' : 'text-muted-foreground'}`}>
+            {formatDate(task.dueDate)}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function QuickCreateInput({ statusId, projectId, onDone }) {
   const [value, setValue] = useState('')
   const createTask = useCreateTask(projectId)
@@ -205,9 +238,10 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
   const { data: tasksData } = useTasks(projectId, {
     ...(showSubtasks ? { include_subtasks: 'true' } : { parentTaskId: 'null' }),
   })
-  const statuses = statusesData?.data ?? statusesData ?? []
+  const statuses = [...(statusesData?.data ?? statusesData ?? [])].sort((a, b) => a.position - b.position)
   const tasks = tasksData?.data ?? tasksData ?? []
   const moveTask = useMoveTask(projectId)
+  const reorderStatuses = useReorderStatuses(projectId)
   const [activeId, setActiveId] = useState(null)
   const [quickCreate, setQuickCreate] = useState(null)
 
@@ -228,9 +262,33 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
     setActiveId(active.id)
   }
 
+  // Columns only collide with columns, tasks only with tasks and column drop zones.
+  function collisionDetection(args) {
+    const isColumn = String(args.active.id).startsWith(COLUMN_DRAG_PREFIX)
+    return closestCenter({
+      ...args,
+      droppableContainers: args.droppableContainers.filter(
+        (c) => String(c.id).startsWith(COLUMN_DRAG_PREFIX) === isColumn,
+      ),
+    })
+  }
+
+  function handleColumnDragEnd(active, over) {
+    const activeStatusId = String(active.id).slice(COLUMN_DRAG_PREFIX.length)
+    const overStatusId = String(over.id).slice(COLUMN_DRAG_PREFIX.length)
+    const oldIndex = statuses.findIndex((s) => s.id === activeStatusId)
+    const newIndex = statuses.findIndex((s) => s.id === overStatusId)
+    if (oldIndex === -1 || newIndex === -1) return
+    reorderStatuses.mutate(arrayMove(statuses, oldIndex, newIndex).map((s) => s.id))
+  }
+
   function handleDragEnd({ active, over }) {
     setActiveId(null)
     if (!over || active.id === over.id) return
+    if (String(active.id).startsWith(COLUMN_DRAG_PREFIX)) {
+      handleColumnDragEnd(active, over)
+      return
+    }
     const task = tasks.find((t) => t.id === active.id)
     if (!task) return
 
@@ -247,39 +305,28 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
     )
   }
 
-  const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null
-
-  if (statuses.length === 0) {
-    return (
-      <EmptyState
-        title="Sin columnas"
-        description="Este proyecto no tiene columnas de estado. Usa el icono de configuracion para agregar columnas."
-      />
-    )
-  }
+  const activeIsColumn = String(activeId ?? '').startsWith(COLUMN_DRAG_PREFIX)
+  const activeTask = activeId && !activeIsColumn ? tasks.find((t) => t.id === activeId) : null
+  const activeColumn = activeIsColumn
+    ? statuses.find((s) => `${COLUMN_DRAG_PREFIX}${s.id}` === activeId)
+    : null
 
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-4 p-4 h-full overflow-x-auto">
+        <SortableContext
+          items={statuses.map((s) => `${COLUMN_DRAG_PREFIX}${s.id}`)}
+          strategy={horizontalListSortingStrategy}
+        >
         {statuses.map((status) => {
           const colTasks = tasksByStatus[status.id] ?? []
           return (
-            <div key={status.id} className="shrink-0 w-72 flex flex-col">
-              <div className="flex items-center gap-2 mb-2 px-1">
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ background: status.color }}
-                />
-                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground truncate flex-1">
-                  {status.name}
-                </span>
-                <span className="text-xs text-muted-foreground">{colTasks.length}</span>
-              </div>
+            <SortableColumn key={status.id} status={status} count={colTasks.length} projectId={projectId}>
               <DroppableColumn id={status.id}>
                 <SortableContext
                   items={colTasks.map((t) => t.id)}
@@ -319,11 +366,39 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
                   </button>
                 )}
               </DroppableColumn>
-            </div>
+            </SortableColumn>
           )
         })}
+        </SortableContext>
+        <AddColumn projectId={projectId} />
       </div>
-      <DragOverlay>
+      <DragOverlay dropAnimation={{ duration: 220, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
+        {activeColumn && (() => {
+          const colTasks = tasksByStatus[activeColumn.id] ?? []
+          return (
+            <div className="w-72 rotate-2 scale-[1.02] cursor-grabbing flex flex-col rounded-lg shadow-2xl ring-1 ring-border bg-background p-1 max-h-[75vh]">
+              <div className="flex items-center gap-2 mb-2 px-2 pt-1.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: activeColumn.color }} />
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground truncate flex-1">
+                  {activeColumn.name}
+                </span>
+                <span className="text-xs text-muted-foreground">{colTasks.length}</span>
+              </div>
+              <div className="bg-muted/50 rounded-lg p-2 space-y-2 overflow-hidden">
+                {colTasks.slice(0, 6).map((t) => (
+                  <TaskCardPreview key={t.id} task={t} statusColor={activeColumn.color} />
+                ))}
+                {colTasks.length > 6 && (
+                  <div className="text-xs text-muted-foreground px-1">+{colTasks.length - 6} mas</div>
+                )}
+                <div className="text-xs text-muted-foreground py-1 px-1 flex items-center gap-1">
+                  <Plus size={12} />
+                  Agregar tarea
+                </div>
+              </div>
+            </div>
+          )
+        })()}
         {activeTask && (
           <div className="bg-background border border-accent-foreground/30 rounded p-2.5 shadow-xl text-sm w-64">
             {activeTask.title}
