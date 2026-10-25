@@ -2142,7 +2142,7 @@ app.route("/public/website", publicWebsiteRouter);
 const publicCatalogRouter = createPublicCatalogRouter({ prisma, supabaseAdmin });
 app.route("/public/catalog", publicCatalogRouter);
 app.route("/public/hooks", createAutomationWebhookPublicRouter({ prisma }));
-app.route("/public/inventory/custody", createInventoryCustodyPublicRouter({ prisma, supabaseAdmin }));
+app.route("/public/inventory/custody", createInventoryCustodyPublicRouter({ prisma, supabaseAdmin, documentsHub }));
 app.route("/public/inventory/items", createInventoryItemPublicRouter({ prisma, supabaseAdmin }));
 // Supplier portal (inventory guests): own `Authorization: Guest` auth, mounted before every mountWithAuth()
 // so no user-auth middleware ever sees these paths, and user tokens are rejected by the guest router.
@@ -2525,6 +2525,7 @@ mountWithAuth(
     filesService,
     enrichFilesWithSignedUrls: filesService.enrichFilesWithSignedUrls.bind(filesService),
     supabaseAdmin,
+    documentsHub,
   }),
 );
 mountWithAuth(app, createPurchasesRouter({ prisma, requirePermission, requireAnyPermission, broadcaster, inventoryService, supabaseAdmin }));

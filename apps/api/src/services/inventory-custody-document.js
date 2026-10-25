@@ -1,20 +1,23 @@
 // Renders a custody record (resguardo) with the company template, converts it
 // to PDF when Office is configured, stores it and links it to every item, and
 // e-mails it to the employee (best effort).
-import { TemplateError } from './document-templates/template-tags.js';
-import { buildCustodyTemplateData, renderCustodyTemplate } from './document-templates/custody-template-data.js';
-import { convertToPdf } from './document-templates/pdf-convert.js';
+import { buildCustodyTemplateData } from './document-templates/custody-template-data.js';
 import { InventoryServiceError } from './inventory-guards.js';
 import { escapeXml } from './document-templates/minimal-docx.js';
 
 const MAX_FILES_PER_ITEM = 20;
-const MIME_TYPES = {
+const KIND = 'inventory.custody';
+const FORMAT_MIME = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   pdf: 'application/pdf',
 };
 
-export function createCustodyDocumentRenderer({ prisma, files, templates, convert = convertToPdf, smtpFactory = null }) {
+// `engine` is the documents hub engine (hub.engine): it picks the template
+// (chosen, company default, built-in), fills it, converts to PDF when Office is
+// configured (else keeps the native file) and records a GeneratedDocument.
+export function createCustodyDocumentRenderer({ prisma, files, engine, smtpFactory = null }) {
   async function signatureImages(custody, companyId) {
     const images = {};
     for (const [key, fileId] of [['receiverSignature', custody.receiverSignatureFileId], ['delivererSignature', custody.delivererSignatureFileId]]) {
@@ -25,12 +28,11 @@ export function createCustodyDocumentRenderer({ prisma, files, templates, conver
     return images;
   }
 
-  // Returns { buffer, fileName, mimeType, format }; `custody` is the full record.
-  async function render(custody, { pdf = true } = {}) {
+  // Runs the engine; a chosen template that no longer exists falls back to the default.
+  async function run(method, custody, { pdf, profileId }) {
     const companyId = custody.companyId;
-    const [company, resolved, images] = await Promise.all([
+    const [company, images] = await Promise.all([
       prisma.company.findUnique({ where: { id: companyId }, select: { name: true, legalName: true, rfc: true } }),
-      templates.resolveForCustody(companyId, custody.templateId),
       signatureImages(custody, companyId),
     ]);
     const data = buildCustodyTemplateData({
@@ -39,22 +41,36 @@ export function createCustodyDocumentRenderer({ prisma, files, templates, conver
       hasReceiverSignature: Boolean(images.receiverSignature),
       hasDelivererSignature: Boolean(images.delivererSignature),
     });
-    let rendered;
+    const base = {
+      companyId, actorId: profileId, trusted: true, kind: KIND, data, images, sourceId: custody.id,
+      title: `Resguardo ${custody.folio}`, output: pdf ? 'pdf' : 'native',
+    };
+    const chosen = custody.documentTemplateId ?? custody.templateId ?? undefined;
     try {
-      rendered = await renderCustodyTemplate({ format: resolved.format, buffer: resolved.buffer, data, images });
+      try {
+        return await engine[method]({ ...base, templateId: chosen });
+      } catch (err) {
+        if (chosen && ['template_not_found', 'template_not_published', 'file_not_found'].includes(err?.code)) {
+          return await engine[method](base);
+        }
+        throw err;
+      }
     } catch (err) {
-      if (err instanceof TemplateError) throw new InventoryServiceError(`No se pudo generar el documento: ${err.message}`, 422);
+      if (err?.name === 'DocumentTemplateServiceError') throw new InventoryServiceError(`No se pudo generar el documento: ${err.message}`, err.status === 400 ? 422 : err.status);
       throw err;
     }
-    const baseName = `Resguardo ${custody.folio}`;
-    const converted = pdf ? await convert(rendered, `${baseName}.${resolved.format}`) : null;
-    if (converted) return { buffer: converted, fileName: `${baseName}.pdf`, mimeType: MIME_TYPES.pdf, format: 'pdf' };
-    return { buffer: rendered, fileName: `${baseName}.${resolved.format}`, mimeType: MIME_TYPES[resolved.format], format: resolved.format };
+  }
+
+  // Returns { buffer, fileName, mimeType, format }; `custody` is the full record.
+  async function render(custody, { pdf = true, record = false, profileId = null } = {}) {
+    const result = await run(record ? 'generate' : 'preview', custody, { pdf, profileId });
+    const mimeType = result.mimeType ?? FORMAT_MIME[result.format];
+    return { buffer: result.buffer, fileName: `Resguardo ${custody.folio}.${result.format}`, mimeType, format: result.format };
   }
 
   // Stores the final document and links it to the record and its items.
   async function generateAndAttach(custody, { profileId = null } = {}) {
-    const document = await render(custody);
+    const document = await render(custody, { record: true, profileId });
     const asset = await files.store({
       companyId: custody.companyId,
       uploadedById: profileId,

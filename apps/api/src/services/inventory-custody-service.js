@@ -7,6 +7,7 @@ import { assignItemTx, returnItemTx } from './inventory-assignment-tx.js';
 import { createCustodyFileStore } from './inventory-custody-files.js';
 import { createCustodyDocumentRenderer } from './inventory-custody-document.js';
 import { createInventoryDocumentTemplateService } from './inventory-document-template-service.js';
+import { createDocumentsHub } from '../routes/documents/documents-hub.js';
 import { createSmtpService } from './smtp-service.js';
 import { createCompanyBrandService } from './company-brand-service.js';
 import { createUserSignatureService } from './user-signature-service.js';
@@ -36,7 +37,7 @@ const CUSTODY_INCLUDE = {
   },
   deliverer: { select: { id: true, displayName: true, firstName: true, lastName: true } },
   createdBy: { select: { id: true, displayName: true } },
-  template: { select: { id: true, name: true, format: true } },
+  documentTemplate: { select: { id: true, name: true, format: true } },
 };
 
 // Custodies the caller may see: those holding at least one item of their areas, plus empty ones.
@@ -47,9 +48,12 @@ export function custodyScopeWhere(scope) {
 
 export function serializeCustody(row) {
   if (!row) return row;
-  const { publicTokenHash, ...rest } = row;
+  const { publicTokenHash, documentTemplate, documentTemplateId, ...rest } = row;
   return {
     ...rest,
+    // The template now lives in the documents hub; the API keeps its old field names.
+    templateId: documentTemplateId ?? rest.templateId ?? null,
+    template: documentTemplate ?? rest.template ?? null,
     itemCount: row.items?.length ?? row._count?.items ?? 0,
     receiverSigned: Boolean(row.receiverSignatureFileId),
     delivererSigned: Boolean(row.delivererSignatureFileId),
@@ -67,14 +71,15 @@ function appBaseUrl(env, origin) {
   return '';
 }
 
-export function createInventoryCustodyService({ prisma, supabaseAdmin = null, env = process.env, smtpFactory, convert, userSignatures = null } = {}) {
+export function createInventoryCustodyService({ prisma, supabaseAdmin = null, env = process.env, smtpFactory, userSignatures = null, documentsHub = null } = {}) {
   const files = createCustodyFileStore({ prisma, supabaseAdmin });
   const deliverers = createCustodyDeliverers({ prisma, supabaseAdmin });
   const savedSignatures = userSignatures ?? createUserSignatureService({ prisma, supabaseAdmin });
   const brand = createCompanyBrandService({ prisma, supabaseAdmin });
-  const templates = createInventoryDocumentTemplateService({ prisma, supabaseAdmin });
+  const hub = documentsHub ?? createDocumentsHub({ prisma, supabaseAdmin });
+  const templates = createInventoryDocumentTemplateService({ prisma, hub });
   const documents = createCustodyDocumentRenderer({
-    prisma, files, templates, convert,
+    prisma, files, engine: hub.engine,
     smtpFactory: smtpFactory ?? ((companyId) => createSmtpService({ prisma, companyId })),
   });
 
@@ -110,7 +115,9 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
 
   async function assertTemplate(db, companyId, templateId) {
     if (!templateId) return;
-    const row = await db.invDocumentTemplate.findFirst({ where: { id: templateId, companyId, enabled: true }, select: { id: true } });
+    const row = await db.documentTemplate.findFirst({
+      where: { id: templateId, companyId, kind: 'inventory.custody', enabled: true, format: { not: 'blocks' } }, select: { id: true },
+    });
     if (!row) throw new InventoryServiceError('La plantilla no existe.', 400);
   }
 
@@ -153,7 +160,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
         where,
         include: {
           employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
-          template: { select: { id: true, name: true } },
+          documentTemplate: { select: { id: true, name: true } },
           _count: { select: { items: true } },
         },
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
@@ -215,7 +222,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
       return tx.invCustody.create({
         data: {
           companyId, folio, sequence, kind: input.kind, employeeId: input.employeeId, date: input.date,
-          comments: input.comments ?? null, templateId: input.templateId ?? null,
+          comments: input.comments ?? null, documentTemplateId: input.templateId ?? null,
           delivererName: input.delivererId ? null : (input.delivererName ?? null),
           delivererId: input.delivererId || (input.delivererName ? null : profileId),
           createdById: profileId,
@@ -242,7 +249,9 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     const reset = signatureResetFor(current, input);
     const itemsChanged = input.itemIds !== undefined && input.itemIds.join(',') !== current.items.map((row) => row.itemId).join(',');
     const items = itemsChanged ? await loadItems(prisma, companyId, input.itemIds) : null;
-    const { itemIds, ...fields } = input;
+    const { itemIds, templateId, ...fields } = input;
+    // The chosen template is a documents-hub template; the legacy column is cleared.
+    if (templateId !== undefined) Object.assign(fields, { documentTemplateId: templateId, templateId: null });
     if (fields.delivererId) fields.delivererName = null;
     const cleared = [
       ...(reset.receiver && current.receiverSignatureFileId ? [current.receiverSignatureFileId] : []),

@@ -1839,6 +1839,7 @@ model DocumentTemplate {
   publishedVersion DocumentTemplateVersion?  @relation("PublishedDocumentTemplateVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
   versions         DocumentTemplateVersion[] @relation("DocumentTemplateVersions")
   generatedDocuments GeneratedDocument[]
+  invCustodies       InvCustody[] @relation("InvCustodyDocumentTemplate")
 
   @@unique([companyId, key])
   @@index([companyId, sourceType, enabled])
@@ -4224,6 +4225,7 @@ model InvCustody {
   delivererSignedAt        DateTime? @map("deliverer_signed_at")
   documentFileId           String?   @map("document_file_id") @db.Uuid
   templateId               String?   @map("template_id") @db.Uuid
+  documentTemplateId       String?   @map("document_template_id") @db.Uuid
   source                   String    @default("runly") @db.VarChar(20)
   legacyId                 String?   @map("legacy_id") @db.VarChar(64)
   createdById              String    @map("created_by_id") @db.Uuid
@@ -4240,12 +4242,14 @@ model InvCustody {
   deliverer UserProfile?         @relation("UserInvCustodiesDelivered", fields: [delivererId], references: [id], onDelete: SetNull)
   createdBy UserProfile          @relation("UserInvCustodiesCreated", fields: [createdById], references: [id], onDelete: Restrict)
   template  InvDocumentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  documentTemplate DocumentTemplate? @relation("InvCustodyDocumentTemplate", fields: [documentTemplateId], references: [id], onDelete: SetNull)
   items     InvCustodyItem[]
 
   @@unique([companyId, folio])
   @@unique([companyId, legacyId])
   @@index([companyId, status])
   @@index([employeeId])
+  @@index([documentTemplateId])
   @@map("inv_custody")
 }
 

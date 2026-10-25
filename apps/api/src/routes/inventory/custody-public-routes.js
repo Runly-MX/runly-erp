@@ -16,11 +16,12 @@ export function createInventoryCustodyPublicRouter({
   prisma,
   supabaseAdmin = null,
   custodyService = null,
+  documentsHub = null,
   limiter = createTokenBucketLimiter({ capacity: 30, refillPerSecond: 0.5 }),
 }) {
   const app = new Hono();
   let service = custodyService;
-  const svc = () => (service ??= createInventoryCustodyService({ prisma, supabaseAdmin }));
+  const svc = () => (service ??= createInventoryCustodyService({ prisma, supabaseAdmin, documentsHub }));
 
   const limited = (c) => {
     const rate = limiter.consume(clientIp(c));

@@ -44,6 +44,8 @@ export function createInventoryRouter({
   enrichFilesWithSignedUrls,
   filesService,
   supabaseAdmin = null,
+  // Documents hub (custody documents are filled by hub.engine); defaults to a private one.
+  documentsHub = null,
   // Area scoping (see services/inventory-scope.js). Injectable for tests; the default is the real one.
   inventoryScope = createInventoryScope({ prisma }),
   inventoryAreaService = createInventoryAreaService({ prisma }),
@@ -65,7 +67,7 @@ export function createInventoryRouter({
   router.route('/', createInventoryAdminRouter({ prisma, requirePermission, InventoryServiceError, inventoryNotifSvc, supabaseAdmin, inventoryScope }));
   router.route('/', createInventoryExportRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin, inventoryScope }));
   router.route('/', createInventoryImportRouter({ prisma, requirePermission, InventoryServiceError, inventoryService, filesService, inventoryScope }));
-  router.route('/', createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin, inventoryScope }));
+  router.route('/', createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin, inventoryScope, documentsHub }));
   const publicService = createInventoryPublicService({ prisma, supabaseAdmin });
   const labelService = createInventoryLabelService({ prisma, publicBaseUrl: appBaseUrlFromEnv(), publicService });
   router.route('/', createInventoryLabelRouter({ requirePermission, InventoryServiceError, labelService, publicService, publicBaseUrl: appBaseUrlFromEnv(), prisma, inventoryScope }));

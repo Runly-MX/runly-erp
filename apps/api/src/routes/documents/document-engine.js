@@ -104,7 +104,7 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
     }
   }
 
-  async function render({ companyId, actorId, permissions, isAdmin, trusted, kind: kindKey, templateId, scopeKey = null, data, sourceId, images = {}, output = "native", sample = false }) {
+  async function render({ companyId, actorId, permissions, isAdmin, trusted, title: titleOverride, kind: kindKey, templateId, scopeKey = null, data, sourceId, images = {}, output = "native", sample = false }) {
     const kind = kindOf(kindKey);
     if (!trusted) kinds.assertPermission(kind, { permissionKeys: permissions, isAdmin });
     let values = data;
@@ -114,7 +114,7 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
       values = await kind.load({ companyId, sourceId, actorId });
     }
     const source = await resolveTemplate({ companyId, kind, templateId, scopeKey });
-    const title = source.template?.name ?? kind.label ?? kind.key;
+    const title = titleOverride || source.template?.name || kind.label || kind.key;
     const mapped = applyMapping(values, source.mapping);
     let buffer = await fill({ format: source.format, buffer: source.buffer, data: mapped, images, layout: source.layout, kind, title });
     let format = source.format;

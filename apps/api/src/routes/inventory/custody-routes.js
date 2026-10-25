@@ -10,10 +10,10 @@ import { createScopeGuards } from './scope-guard.js';
 const CUSTODY_PATH = /^\/inventory\/custodies\/([^/]+)/;
 const NOT_FOUND = { error: 'Resguardo no encontrado.' };
 
-export function createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin = null, custodyService = null, inventoryScope = null }) {
+export function createInventoryCustodyRouter({ prisma, requirePermission, InventoryServiceError, supabaseAdmin = null, custodyService = null, inventoryScope = null, documentsHub = null }) {
   const router = new Hono();
   let service = custodyService;
-  const svc = () => (service ??= createInventoryCustodyService({ prisma, supabaseAdmin }));
+  const svc = () => (service ??= createInventoryCustodyService({ prisma, supabaseAdmin, documentsHub }));
   const guards = inventoryScope ? createScopeGuards({ prisma, inventoryScope }) : null;
   // A custody is visible when it holds an item of the caller's areas (or none); changing it
   // (anything but GET and the preview) needs write access to every item it holds. Else 404.

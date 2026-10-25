@@ -47,7 +47,8 @@ export function unknownTags(kind, tags) {
     const [head, ...rest] = tag.split(".");
     if (rest.length && lists.has(head)) {
       const fields = lists.get(head);
-      return fields ? !fields.includes(rest.join(".")) : false;
+      const inner = rest.join(".");
+      return fields ? !fields.includes(inner) && !known.has(inner) : false;
     }
     return true;
   });

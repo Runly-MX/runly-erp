@@ -40,7 +40,7 @@ const RECEIVER_SIGNATURE = /^(recibi|recibe|recibido|resguardante|firma de quien
 const DELIVERER_SIGNATURE = /^(entrega|entregue|entregado|firma de quien entrega)\b/;
 
 // Custody vocabulary (the default of suggestDocxTags).
-const CUSTODY_CONFIG = {
+export const CUSTODY_CONFIG = {
   labels: LABELS,
   itemColumns: ITEM_COLUMNS,
   signatures: [

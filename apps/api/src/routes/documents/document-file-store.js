@@ -9,6 +9,7 @@ import { DocumentTemplateServiceError } from "./document-template-service.js";
 const BUCKET = "runly-files";
 const MODULE_KEY = "runly.documents";
 const SIGNED_URL_SECONDS = 3600;
+const LEGACY_TEMPLATE_ENTITIES = ["InvDocumentTemplate"];
 
 const segment = (value) =>
   String(value).toLowerCase().replace(/[^a-z0-9-_]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "file";
@@ -47,7 +48,14 @@ export function createDocumentFileStore({ prisma, supabaseAdmin }) {
 
   async function findAsset(companyId, fileId) {
     if (!fileId) return null;
-    return prisma.fileAsset.findFirst({ where: { id: fileId, entityId: companyId, moduleKey: MODULE_KEY, enabled: true } });
+    // Template files uploaded before a module adopted the hub keep their owner module
+    // (e.g. runly.inventory / InvDocumentTemplate); they are the same company-scoped files.
+    return prisma.fileAsset.findFirst({
+      where: {
+        id: fileId, entityId: companyId, enabled: true,
+        OR: [{ moduleKey: MODULE_KEY }, { entityType: { in: LEGACY_TEMPLATE_ENTITIES } }],
+      },
+    });
   }
 
   async function read(asset) {
