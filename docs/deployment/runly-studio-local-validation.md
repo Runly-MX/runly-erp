@@ -1,6 +1,6 @@
 # Runly Studio: resultados de validación local
 
-Inspección: 2026-10-25. Base de código revisada: `7ad08075`, posterior a
+Inspección: 2026-10-25. Base inicial revisada: `7ad08075`, posterior a
 `3bd72ff6`, `4a65e871` y `7db85cb0`. Todo el trabajo se hizo en main.
 No se conectó al VPS, publicó una imagen ni ejecutó un despliegue. Las únicas
 consultas a la base configurada fueron transacciones explícitas READ ONLY.
@@ -96,13 +96,16 @@ servicios. Ninguna de esas ejecuciones equivale a un Supabase completo.
 
 ## Regresión y correcciones locales
 
-- **1249 pruebas aprobadas, 0 fallidas y 0 omitidas**: Studio, Canvas, POS, Notes,
+- **1254 pruebas aprobadas, 0 fallidas y 0 omitidas** en la repetición final: Studio, Canvas, POS, Notes,
   Proyectos, core, module-engine/compiler, SDK, UI, middleware Auth y JWT. El
   preflight de índices de module-engine se habilitó contra la base desechable.
 - **214 migraciones + seed** aplicados a otra base Docker vacía; **14/14** pruebas
   de aislamiento aprobadas, incluyendo Notes, búsqueda Chat, POS y Proyectos.
 - Los nuevos commits `3cdf271f` y `7ad08075` están en la base revisada; se probaron
   formatos/servicios de tiempo y el resto de tests de Proyectos y paquetes.
+- Durante el cierre entró `9ee91177` (carga de trabajo y overview de Proyectos).
+  Se revisó su alcance y se repitió el runner completo, incluyendo sus cinco
+  pruebas nuevas; navegador, persistencia y exportación de Studio volvieron a pasar.
 - Se corrigió el import de un test MediaGallery: groupMedia ya vive en un JS puro;
   importar el componente JSX fallaba bajo node:test. No cambia la UI.
 - El fixture del test de aislamiento exponía solo $queryRaw/instanceConfig;
