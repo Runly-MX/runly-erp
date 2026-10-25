@@ -36,7 +36,7 @@ export default function WorkScreen() {
       <PageHeader title="Mi trabajo" description="Lo que necesita tu atención hoy: tareas, aprobaciones, menciones y agenda." />
       {!prefs.isLoading && (
         <>
-          <HomeWidgetEditBar editing={editing} onToggle={() => setEditing((value) => !value)} tray={offered.filter((section) => !shownIds.includes(section.id))} onAdd={(id) => saveShown(addWidget(shownIds, id))} />
+          <HomeWidgetEditBar where="Mi trabajo" editing={editing} onToggle={() => setEditing((value) => !value)} tray={offered.filter((section) => !shownIds.includes(section.id))} onAdd={(id) => saveShown(addWidget(shownIds, id))} />
           <HomeWidgetBoard
             widgets={shownIds.map((id) => byId.get(id))}
             modulesByKey={byKey}

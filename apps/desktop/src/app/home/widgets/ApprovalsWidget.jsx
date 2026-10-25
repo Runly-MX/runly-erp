@@ -11,8 +11,8 @@ const MAX_ITEMS = 4;
 const QUERY_KEY = ["automation-approvals"];
 
 // Approvals that Builder automations are waiting on (spec
-// 2026-10-25-automation-studio-v2-stage-c-reach-design.md, C3). Hidden when
-// there is nothing to decide.
+// 2026-10-25-automation-studio-v2-stage-c-reach-design.md, C3). When there is
+// nothing to decide it says so: a widget the person added never renders as a blank cell.
 export function ApprovalsWidget({ module }) {
   const { session } = useAuth();
   const token = session?.access_token;
@@ -36,7 +36,6 @@ export function ApprovalsWidget({ module }) {
     onError: (error) => toast.error("No se pudo registrar tu decisión", { description: error.message }),
   });
 
-  if (query.isSuccess && items.length === 0) return null;
   return (
     <>
       <WidgetFrame module={module} title="Aprobaciones" subtitle={items.length ? `${items.length} esperando tu decisión` : "Pendientes"} query={query} isEmpty={items.length === 0} emptyText="No tienes aprobaciones pendientes.">

@@ -80,7 +80,7 @@ function BoardItem({ widget, module, size, editing, onRemove, onResize }) {
           <button type="button" ref={setActivatorNodeRef} {...attributes} {...listeners} className={`${HANDLE} absolute left-2 top-2 z-10 cursor-grab active:cursor-grabbing`} aria-label={`Mover ${widget.title}`} title="Arrastrar para mover (con el teclado: espacio y flechas)">
             <GripVertical size={16} aria-hidden />
           </button>
-          <button type="button" onClick={onRemove} className={`${HANDLE} absolute right-2 top-2 z-10 cursor-pointer`} aria-label={`Quitar ${widget.title} de Inicio`} title="Quitar de Inicio">
+          <button type="button" onClick={onRemove} className={`${HANDLE} absolute right-2 top-2 z-10 cursor-pointer`} aria-label={`Quitar ${widget.title}`} title="Quitar">
             <X size={16} aria-hidden />
           </button>
           <button
@@ -100,7 +100,7 @@ function BoardItem({ widget, module, size, editing, onRemove, onResize }) {
 }
 
 // "Personalizar" toggle and, while editing, the tray with the widgets not yet on the board.
-export function HomeWidgetEditBar({ editing, onToggle, tray, onAdd }) {
+export function HomeWidgetEditBar({ editing, onToggle, tray, onAdd, where = "Inicio" }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
@@ -113,9 +113,9 @@ export function HomeWidgetEditBar({ editing, onToggle, tray, onAdd }) {
       </div>
       {editing && (
         <section aria-label="Widgets disponibles" className="rounded-2xl border border-dashed border-[hsl(var(--border))] p-3">
-          <p className="mb-2 text-sm font-medium text-[hsl(var(--foreground))]">Agregar a Inicio</p>
+          <p className="mb-2 text-sm font-medium text-[hsl(var(--foreground))]">Agregar a {where}</p>
           {tray.length === 0 ? (
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">Ya agregaste todos los widgets de los módulos a los que tienes acceso.</p>
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">Ya agregaste todo lo disponible de los módulos a los que tienes acceso.</p>
           ) : (
             <ul className="flex flex-wrap gap-2">
               {tray.map((widget) => (
