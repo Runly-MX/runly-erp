@@ -33,7 +33,7 @@ export function createStudioService({ prisma }) {
     const rows = await db.$queryRaw`SELECT id, name, revision, document, updated_at AS "updatedAt" FROM studio_design
       WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid AND owner_id = ${actorId}::uuid AND enabled = true`
     if (!rows[0]) throw new StudioError('Diseño no encontrado.', 404)
-    return rows[0]
+    return { ...rows[0], document: validateDocument(rows[0].document) }
   }
   async function create(companyId, actorId, input) {
     identity(companyId, actorId)

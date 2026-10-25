@@ -19,7 +19,7 @@ test('all original templates are canonical, distinct and editable', () => {
 })
 test('invalid scenes, binary URLs, oversized scenes and duplicate ids fail closed', () => {
   const doc = appendObject(blankDocument(), 'rectangle')
-  for (const invalid of [null, {}, { ...doc, schemaVersion: 2 }, { ...doc, unit: 'mm' },
+  for (const invalid of [null, {}, { ...doc, schemaVersion: 3 }, { ...doc, unit: 'mm' },
     { ...doc, page: { ...doc.page, width: 100000 } },
     { ...doc, objects: [doc.objects[0], doc.objects[0]] },
     { ...doc, objects: [{ ...doc.objects[0], x: Infinity }] },

@@ -1,5 +1,5 @@
 // Internal Runly document contract. No renderer, browser or persistence dependency.
-export const STUDIO_SCHEMA_VERSION = 1
+export const STUDIO_SCHEMA_VERSION = 2
 export const STUDIO_LIMITS = Object.freeze({ side: 4096, objects: 500, bytes: 1_000_000 })
 export const FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COLOR = /^#[0-9a-f]{6}$/i
@@ -14,7 +14,7 @@ const fail = () => { throw new StudioError('El diseño contiene datos no válido
 const finite = (value, min, max) => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
 
 export function validateDocument(input) {
-  if (!input || input.schemaVersion !== STUDIO_SCHEMA_VERSION || input.unit !== 'px') fail()
+  if (!input || ![1, STUDIO_SCHEMA_VERSION].includes(input.schemaVersion) || input.unit !== 'px') fail()
   if (JSON.stringify(input).length > STUDIO_LIMITS.bytes) fail()
   const page = input.page
   if (!page || !Number.isInteger(page.width) || !Number.isInteger(page.height) ||
@@ -28,6 +28,10 @@ export function validateDocument(input) {
     for (const key of ['width', 'height']) if (!finite(object[key], 1, 16384)) fail()
     if (!finite(object.rotation, -360, 360) || !COLOR.test(object.fill)) fail()
     const clean = Object.fromEntries(['id', 'type', 'x', 'y', 'width', 'height', 'rotation', 'fill'].map(key => [key, object[key]]))
+    for (const key of ['locked', 'hidden']) {
+      if (object[key] !== undefined && typeof object[key] !== 'boolean') fail()
+      clean[key] = input.schemaVersion === 1 ? false : (object[key] ?? false)
+    }
     if (object.type === 'text') {
       if (typeof object.text !== 'string' || object.text.length > 10000 || !finite(object.fontSize, 8, 500)) fail()
       const scaleX = object.scaleX ?? 1, scaleY = object.scaleY ?? 1
@@ -45,7 +49,7 @@ export function validateDocument(input) {
 }
 
 export function blankDocument(width = 1080, height = 1080) {
-  return validateDocument({ schemaVersion: 1, unit: 'px', page: { width, height, background: '#ffffff' }, objects: [] })
+  return validateDocument({ schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { width, height, background: '#ffffff' }, objects: [] })
 }
 
 export function appendObject(document, type, extra = {}) {

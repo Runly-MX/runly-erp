@@ -50,6 +50,14 @@ test('Studio service against disposable PostgreSQL: isolation, atomic revisions,
       assert.deepEqual(await service.list(otherCompany, owner), [])
       assert.deepEqual(await service.list(company, otherOwner), [])
     })
+    await t.test('opens legacy v1 documents as v2 without rewriting stored history', async () => {
+      const v1 = { ...document, schemaVersion: 1, objects: document.objects.map(({ locked, hidden, ...item }) => item) }
+      const { rows: [legacy] } = await pool.query('INSERT INTO studio_design(company_id,owner_id,name,document) VALUES($1,$2,$3,$4) RETURNING id', [company, owner, 'Legacy', v1])
+      const reopened = await service.get(company, owner, legacy.id)
+      assert.equal(reopened.document.schemaVersion, 2)
+      assert.equal(reopened.document.objects[0].locked, false)
+      assert.equal((await pool.query('SELECT document FROM studio_design WHERE id=$1', [legacy.id])).rows[0].document.schemaVersion, 1)
+    })
     await t.test('two concurrent saves accept exactly one revision and keep the other client intact', async () => {
       const results = await Promise.allSettled(['Cliente A', 'Cliente B'].map(name => service.update(company, owner, record.id, { name, document, revision: 1 })))
       assert.equal(results.filter(r => r.status === 'fulfilled').length, 1)

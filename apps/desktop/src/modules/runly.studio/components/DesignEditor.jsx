@@ -14,8 +14,9 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   const [conflict, setConflict] = useState(false), [leaving, setLeaving] = useState(false), [server, setServer] = useState(null)
   const [recovery, setRecovery] = useState(() => store.read()), [copyWarning, setCopyWarning] = useState(false)
   const [workspaceVersion, setWorkspaceVersion] = useState(0)
+  const [ready, setReady] = useState(false)
   const editorRef = useRef(null), revision = useRef(record.revision), generation = useRef(0), pending = useRef(null), timer = useRef(null), saving = useRef(false)
-  const nameRef = useRef(name); nameRef.current = name
+  const nameRef = useRef(name)
   const preserve = useCallback(() => {
     if (pending.current) setCopyWarning(!store.write(pending.current))
   }, [store])
@@ -73,7 +74,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   function recover() {
     setWorkspaceVersion(value => value + 1)
     const stale = recovery.revision !== revision.current
-    setInitial(recovery.document); setName(recovery.name); revision.current = recovery.revision
+    setInitial(recovery.document); setName(recovery.name); nameRef.current = recovery.name; revision.current = recovery.revision
     pending.current = recovery; generation.current++; setDirty(true); setConflict(stale); setRecovery(null)
     setError(stale ? 'La copia local parte de una revisión anterior. Puedes guardarla como otro diseño.' : '')
   }
@@ -83,7 +84,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   function loadServer() {
     setWorkspaceVersion(value => value + 1)
     preserve(); setRecovery(pending.current); pending.current = null; clearTimeout(timer.current)
-    setInitial(server.document); setName(server.name); revision.current = server.revision
+    setInitial(server.document); setName(server.name); nameRef.current = server.name; revision.current = server.revision
     setDirty(false); setConflict(false); setError(''); setServer(null)
   }
   async function exportPng() {
@@ -96,7 +97,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   }
   return <div className="space-y-4 p-4">
     <PageHeader compact title="Runly Studio" description="Tu espacio para dar forma a las ideas" onBack={() => dirty ? setLeaving(true) : onBack()} actions={<div className="flex flex-wrap gap-2">
-      <Button variant="outline" onClick={exportPng}>Exportar PNG</Button><Button onClick={() => save()} disabled={busy || conflict}>{busy ? 'Guardando…' : 'Guardar'}</Button>
+      <Button variant="outline" disabled={!ready} onClick={exportPng}>Exportar PNG</Button><Button onClick={() => save()} disabled={!ready || busy || conflict}>{busy ? 'Guardando…' : 'Guardar'}</Button>
     </div>} />
     <div className="flex flex-wrap items-center gap-3">
       <Input aria-label="Nombre del diseño" className="max-w-sm" value={name} maxLength={160} onChange={event => {
@@ -112,12 +113,12 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     </div>}
     {error && <ErrorState title={conflict ? 'Conflicto de versiones' : 'El diseño conserva tus cambios'} description={error} showReport={false} />}
     {conflict && <div className="flex flex-wrap gap-2">
-      <Button variant="outline" disabled={busy} onClick={() => save(true)}>Guardar como copia</Button>
+      <Button variant="outline" disabled={!ready || busy} onClick={() => save(true)}>Guardar como copia</Button>
       <Button variant="outline" onClick={review}>Revisar versión del servidor</Button>
     </div>}
     {error && !conflict && <Button variant="outline" disabled={busy} onClick={() => save()}>Reintentar guardado</Button>}
     {copyWarning && <p role="alert" className="text-sm text-destructive">No se pudo conservar la copia en este navegador. Mantén esta página abierta y reintenta guardar.</p>}
-    <StudioWorkspace key={workspaceVersion} initial={initial} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} />
+    <StudioWorkspace key={workspaceVersion} initial={initial} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
     <ConfirmDialog open={leaving} onOpenChange={setLeaving} title="Salir sin guardar" description="Los cambios pendientes se conservarán en una copia local en este navegador durante siete días."
       confirmLabel="Salir" onConfirm={() => { preserve(); onBack() }} />
     <Dialog open={Boolean(server)} onOpenChange={open => { if (!open) setServer(null) }}><DialogContent><DialogHeader>

@@ -27,7 +27,40 @@ window.studioVerification = async () => {
   const result = { saved, reopened, png: { width: png.width, height: png.height, bytes: exported.size,
     blue: [...ctx.getImageData(50, 320, 1, 1).data], image: [...ctx.getImageData(470, 70, 1, 1).data] },
     identicalPng: beforeBlob.size === exported.size }
-  png.close(); await editor.destroy()
+  png.close()
+  for (const [index, patch] of [[0, { text: 'Cambio para historial', x: 90 }], [1, { width: 180, rotation: 30 }], [3, { width: 200, rotation: 45 }]]) {
+    const before = editor.snapshot()
+    editor.select(before.objects[index].id); editor.patch(patch)
+    const after = editor.snapshot()
+    await editor.undo()
+    if (JSON.stringify(editor.snapshot()) !== JSON.stringify(before)) throw Error('history did not restore object properties')
+    await editor.redo()
+    if (JSON.stringify(editor.snapshot()) !== JSON.stringify(after)) throw Error('redo lost object properties')
+    await editor.undo()
+  }
+  editor.select(saved.objects[1].id)
+  await editor.duplicate()
+  const duplicate = editor.snapshot().objects.at(-1)
+  if (duplicate.id === saved.objects[1].id || editor.snapshot().objects.length !== 5) throw Error('duplicate failed')
+  await editor.undo()
+  if (editor.snapshot().objects.length !== 4) throw Error('undo duplicate failed')
+  await editor.redo()
+  if (editor.snapshot().objects.length !== 5) throw Error('redo duplicate failed')
+  editor.select(duplicate.id); editor.order('back')
+  if (editor.snapshot().objects[0].id !== duplicate.id) throw Error('layer ordering failed')
+  editor.order('front'); editor.order('down')
+  if (editor.snapshot().objects.at(-2).id !== duplicate.id) throw Error('lower layer failed')
+  editor.order('up')
+  if (editor.snapshot().objects.at(-1).id !== duplicate.id) throw Error('raise layer failed')
+  editor.order('back')
+  editor.patch({ locked: true }); editor.patch({ x: 999 })
+  if (editor.snapshot().objects[0].x === 999) throw Error('locked transform changed')
+  editor.patch({ locked: false, hidden: true })
+  if (!editor.snapshot().objects[0].hidden) throw Error('visibility lost')
+  await editor.undo()
+  if (editor.snapshot().objects[0].hidden) throw Error('undo visibility failed')
+  result.historyAndLayers = true
+  await editor.destroy()
   const benchmarks = []
   for (const count of [20, 200, 500]) {
     const doc = blankDocument(1080, 1080)
