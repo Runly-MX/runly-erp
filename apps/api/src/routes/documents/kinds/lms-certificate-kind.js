@@ -9,7 +9,7 @@ import {
 import { CERT_LABELS, IMPORTANT, SIGNATURE, suggestCertificateTags } from "../../lms/lms-cert-docx-suggest.js";
 import { pptxImageSizer } from "../../lms/lms-cert-pptx.js";
 import { FIELD_LABELS } from "../../lms/lms-cert-pdf-layout.js";
-import { DocumentProviderError } from "../document-provider-registry.js";
+import { DocumentProviderError } from "../document-errors.js";
 
 export const LMS_CERTIFICATE_KIND = "lms.certificate";
 

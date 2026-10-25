@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 
 import { suggestDocxTagsWithLabels } from "../../services/document-templates/docx-autotag.js";
 import { TemplateError } from "../../services/document-templates/template-tags.js";
-import { DocumentTemplateServiceError } from "./document-template-service.js";
+import { DocumentTemplateServiceError } from "./document-errors.js";
 import {
   FORMAT_MIME,
   MAX_TEMPLATE_BYTES,
@@ -54,7 +54,7 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
 
   async function findTemplate(companyId, id) {
     const template = await prisma.documentTemplate.findFirst({ where: { id, companyId, enabled: true } });
-    if (!template || template.format === "blocks") throw fail("Plantilla no encontrada.", 404, "template_not_found");
+    if (!template) throw fail("Plantilla no encontrada.", 404, "template_not_found");
     return template;
   }
 
@@ -109,7 +109,7 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
 
   async function createTemplateRecord({ companyId, profileId, kind, scopeKey, format, name, asset, scanned, isDefault, publish }) {
     const created = await prisma.$transaction(async (tx) => {
-      const existing = await tx.documentTemplate.count({ where: { companyId, kind: kind.key, scopeKey, enabled: true, format: { not: "blocks" } } });
+      const existing = await tx.documentTemplate.count({ where: { companyId, kind: kind.key, scopeKey, enabled: true } });
       const makeDefault = isDefault === true || (publish && existing === 0);
       if (makeDefault) {
         await tx.documentTemplate.updateMany({ where: { companyId, kind: kind.key, scopeKey }, data: { isDefault: false } });
@@ -316,11 +316,11 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
       orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     });
     const out = [];
-    for (const row of rows) out.push(serializeFileTemplate(row, row.format === "blocks" ? null : await currentVersion(row)));
+    for (const row of rows) out.push(serializeFileTemplate(row, await currentVersion(row)));
     return out;
   }
 
-  // { kind, format } of any template (blocks included), null when missing.
+  // { kind, format } of any template, null when missing.
   async function describe({ companyId, templateId }) {
     const row = await prisma.documentTemplate.findFirst({ where: { id: templateId, companyId } });
     return row ? { kind: row.kind, format: row.format } : null;

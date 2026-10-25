@@ -9,7 +9,7 @@ import { renderPptx } from "../../services/document-templates/pptx-template.js";
 import { fillPdf } from "../../services/document-templates/pdf-template.js";
 import { convertToPdf } from "../../services/document-templates/pdf-convert.js";
 import { TemplateError, resolvePath, toText } from "../../services/document-templates/template-tags.js";
-import { DocumentTemplateServiceError } from "./document-template-service.js";
+import { DocumentTemplateServiceError } from "./document-errors.js";
 import { FORMAT_MIME, kindImageKeys } from "./document-template-files.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -57,16 +57,19 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
     return kind;
   }
 
-  async function loadVersion(template, versionId) {
-    const version = await prisma.documentTemplateVersion.findFirst({ where: { id: versionId ?? template.publishedVersionId, templateId: template.id } });
-    if (!version || version.status !== "published") throw fail("La plantilla no tiene una versión publicada.", 409, "template_not_published");
+  // Generation only uses published versions; a preview may also use the given draft.
+  async function loadVersion(template, versionId, allowDraft = false) {
+    const id = versionId ?? template.publishedVersionId;
+    if (!id) throw fail("La plantilla no tiene una versión publicada.", 409, "template_not_published");
+    const version = await prisma.documentTemplateVersion.findFirst({ where: { id, templateId: template.id } });
+    if (!version || (!allowDraft && version.status !== "published")) throw fail("La plantilla no tiene una versión publicada.", 409, "template_not_published");
     return version;
   }
 
   // Chosen template, else the company default (scope, then no scope), else
   // the kind's built-in one ({ format, buffer } from kind.defaultTemplate()).
-  async function resolveTemplate({ companyId, kind, templateId, scopeKey }) {
-    const base = { companyId, kind: kind.key, enabled: true, format: { not: "blocks" } };
+  async function resolveTemplate({ companyId, kind, templateId, scopeKey, versionId, allowDraft }) {
+    const base = { companyId, kind: kind.key, enabled: true };
     let template = null;
     if (templateId) {
       template = await prisma.documentTemplate.findFirst({ where: { ...base, id: templateId } });
@@ -76,7 +79,7 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
       template ??= await prisma.documentTemplate.findFirst({ where: { ...base, scopeKey: null, isDefault: true } });
     }
     if (template) {
-      const version = await loadVersion(template);
+      const version = await loadVersion(template, allowDraft ? versionId : undefined, allowDraft);
       const asset = await files.findAsset(companyId, version.fileAssetId);
       if (!asset) throw fail("El archivo de la plantilla ya no existe.", 404, "file_not_found");
       return { template, version, format: template.format, buffer: await files.read(asset), mapping: version.mapping ?? {}, layout: version.layout };
@@ -106,7 +109,7 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
     }
   }
 
-  async function render({ companyId, actorId, permissions, isAdmin, trusted, title: titleOverride, kind: kindKey, templateId, scopeKey = null, data, sourceId, images = {}, output = "native", sample = false }) {
+  async function render({ companyId, actorId, permissions, isAdmin, trusted, title: titleOverride, kind: kindKey, templateId, versionId, allowDraft = false, scopeKey = null, data, sourceId, images = {}, output = "native", sample = false }) {
     const kind = kindOf(kindKey);
     if (!trusted) kinds.assertPermission(kind, { permissionKeys: permissions, isAdmin });
     let values = data;
@@ -115,7 +118,7 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
       if (!sourceId) throw fail("Indica el registro (sourceId) o los datos para generar el documento.");
       values = await kind.load({ companyId, sourceId, actorId });
     }
-    const source = await resolveTemplate({ companyId, kind, templateId, scopeKey });
+    const source = await resolveTemplate({ companyId, kind, templateId, scopeKey, versionId, allowDraft });
     const title = titleOverride || source.template?.name || kind.label || kind.key;
     const mapped = applyMapping(values, source.mapping);
     let buffer = await fill({ format: source.format, buffer: source.buffer, data: mapped, images, layout: source.layout, kind, title });
@@ -137,7 +140,7 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
 
   // Fills a template and returns the file without storing anything.
   async function preview(input) {
-    const result = await render({ ...input, sample: input.data === undefined && !input.sourceId });
+    const result = await render({ ...input, allowDraft: true, sample: input.data === undefined && !input.sourceId });
     return { buffer: result.buffer, format: result.format, converted: result.converted, mimeType: result.mimeType, fileName: fileNameOf(result.title, result.format) };
   }
 

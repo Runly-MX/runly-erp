@@ -5,8 +5,8 @@
 // checked by the engine against the kind's own permission as the acting user.
 import { Hono } from "hono";
 
-import { DocumentProviderError } from "./document-provider-registry.js";
-import { DocumentTemplateServiceError } from "./document-template-service.js";
+import { DocumentProviderError } from "./document-errors.js";
+import { DocumentTemplateServiceError } from "./document-errors.js";
 
 const companyId = (c) => c.get("companyId") ?? null;
 const profileId = (c) => c.get("userContext")?.profile?.id ?? c.get("userId") ?? null;
@@ -43,6 +43,7 @@ export function createDocumentEngineRoutes({ hub, guard }) {
     const { permissions, isAdmin } = access(c);
     if (isAdmin || permissions.includes(`documents.templates.${action}`)) return true;
     const kind = kinds.getKind(kindKey);
+    if (action === "read" && kind?.permissionKey && permissions.includes(kind.permissionKey)) return true;
     return Boolean(kind?.managePermissionKey && permissions.includes(kind.managePermissionKey));
   }
 
@@ -54,7 +55,6 @@ export function createDocumentEngineRoutes({ hub, guard }) {
       try {
         const info = await fileTemplates.describe({ companyId: companyId(c), templateId: c.req.param("id") });
         if (!info) return c.json({ error: "Plantilla no encontrada.", code: "template_not_found" }, 404);
-        if (info.format === "blocks") return next();
         if (!allowed(c, action, info.kind)) return deny(c);
         return c.json(await fn(c));
       } catch (error) {
@@ -81,10 +81,9 @@ export function createDocumentEngineRoutes({ hub, guard }) {
     });
   });
 
-  // With ?kind= this is the file-template list; without it the legacy list answers.
-  app.get("/documents/templates", guard, async (c, next) => {
+  // Templates of a kind (kind permission applies) or, without ?kind=, every template of the company.
+  app.get("/documents/templates", guard, async (c) => {
     const kind = optionalText(c.req.query("kind"));
-    if (!kind) return next();
     if (!allowed(c, "read", kind)) return deny(c);
     try {
       return c.json({ items: await fileTemplates.list({ companyId: companyId(c), kind, scopeKey: optionalText(c.req.query("scopeKey")) }) });
@@ -158,7 +157,6 @@ export function createDocumentEngineRoutes({ hub, guard }) {
     }),
   );
 
-  // Block templates keep the legacy publish route (next()).
   app.post("/documents/templates/:id/versions/:versionId/publish", guard, onTemplate("publish", (c) => fileTemplates.publishVersion(ids(c))));
 
   app.patch("/documents/templates/:id/default", guard, onTemplate("update", (c) => fileTemplates.setDefault(ids(c))));
@@ -167,7 +165,8 @@ export function createDocumentEngineRoutes({ hub, guard }) {
 
   app.delete("/documents/templates/:id", guard, onTemplate("delete", (c) => fileTemplates.remove(ids(c))));
 
-  function generationInput(c, body) {
+  // versionId (a draft to try out) is honoured by previews only.
+  function generationInput(c, body, forPreview = false) {
     const images = {};
     for (const [key, value] of Object.entries(body.images ?? {})) {
       if (typeof value === "string") images[key] = Buffer.from(value, "base64");
@@ -178,6 +177,7 @@ export function createDocumentEngineRoutes({ hub, guard }) {
       ...access(c),
       kind: body.kind,
       templateId: optionalText(body.templateId) ?? undefined,
+      versionId: forPreview ? optionalText(body.versionId) ?? undefined : undefined,
       scopeKey: optionalText(body.scopeKey),
       data: body.data && typeof body.data === "object" ? body.data : undefined,
       sourceId: optionalText(body.sourceId) ?? undefined,
@@ -207,7 +207,7 @@ export function createDocumentEngineRoutes({ hub, guard }) {
 
   app.post("/documents/preview", guard, async (c) => {
     try {
-      const preview = await engine.preview(generationInput(c, await c.req.json().catch(() => ({}))));
+      const preview = await engine.preview(generationInput(c, await c.req.json().catch(() => ({})), true));
       return c.body(preview.buffer, 200, {
         "Content-Type": preview.mimeType,
         "Content-Disposition": `inline; filename="${encodeURIComponent(preview.fileName)}"`,

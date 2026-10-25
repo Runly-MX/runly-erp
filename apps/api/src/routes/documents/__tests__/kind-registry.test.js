@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { createKindRegistry } from "../kinds/kind-registry.js";
-import { DocumentProviderError } from "../document-provider-registry.js";
-import { createGrowthLeadDocumentProvider } from "../providers/growth-lead-provider.js";
+import { DocumentProviderError } from "../document-errors.js";
+import { createGrowthLeadDocumentKind } from "../kinds/growth-lead-kind.js";
 
 function kind(overrides = {}) {
   return {
@@ -48,11 +48,11 @@ test("checks the kind permission before loading data", async () => {
   await assert.rejects(registry.load({ sourceType: "test.record", sourceId: "1", permissionKeys: [] }), (err) => err.status === 403);
 });
 
-test("legacy providers register as kinds keyed by sourceType", () => {
+test("growth.lead kind has a valid schema and registers", () => {
   const registry = createKindRegistry();
-  registry.register(createGrowthLeadDocumentProvider({ prisma: {} }));
+  registry.register(createGrowthLeadDocumentKind({ prisma: {} }));
   const growth = registry.getKind("growth.lead");
   assert.ok(growth.schema.length > 10);
+  assert.ok(growth.formats.includes("docx") && growth.formats.includes("pdf"));
   assert.ok(growth.schema.every((entry) => entry.tag && entry.label && entry.type));
-  assert.equal(registry.getSchema({ sourceType: "growth.lead", isAdmin: true }).sourceType, "growth.lead");
 });

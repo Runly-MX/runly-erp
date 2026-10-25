@@ -42,8 +42,6 @@ function setup() {
   };
   const app = new Hono();
   app.route("", createDocumentEngineRoutes({ hub, guard }));
-  app.post("/documents/templates/:id/versions/:versionId/publish", (c) => c.json({ legacy: true }));
-  app.get("/documents/templates", (c) => c.json({ legacy: true }));
   return { app, prisma, files };
 }
 
@@ -73,7 +71,7 @@ test("kinds are listed by permission; the kind manage permission opens template 
   assert.equal(ok.status, 201);
 });
 
-test("lists by kind, sets default, maps, soft-deletes and falls through to legacy routes", async () => {
+test("lists by kind, sets default, maps, soft-deletes and lists every template without a kind", async () => {
   const { app } = setup();
   const headers = as("documents.templates.read,documents.templates.create,documents.templates.update,documents.templates.publish,documents.templates.delete");
   const created = await (await app.request("/documents/templates/upload", { method: "POST", headers, body: uploadBody() })).json();
@@ -82,7 +80,7 @@ test("lists by kind, sets default, maps, soft-deletes and falls through to legac
 
   const listed = await (await app.request("/documents/templates?kind=test.record", { headers })).json();
   assert.deepEqual(listed.items.map((t) => t.id), [id]);
-  assert.deepEqual(await (await app.request("/documents/templates", { headers })).json(), { legacy: true });
+  assert.deepEqual((await (await app.request("/documents/templates", { headers })).json()).items.map((t) => t.id), [id]);
 
   const second = await (await app.request("/documents/templates/blank", {
     method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ kind: "test.record", format: "xlsx", publish: true }),
@@ -95,8 +93,8 @@ test("lists by kind, sets default, maps, soft-deletes and falls through to legac
   });
   assert.equal(mapped.status, 409); // published versions are frozen
 
-  const publishLegacy = await app.request(`/documents/templates/${id}/versions/${versionId}/publish`, { method: "POST", headers });
-  assert.equal(publishLegacy.status, 409); // file template: handled by the engine (already published)
+  const publishAgain = await app.request(`/documents/templates/${id}/versions/${versionId}/publish`, { method: "POST", headers });
+  assert.equal(publishAgain.status, 409); // already published
 
   assert.equal((await app.request(`/documents/templates/${id}`, { method: "DELETE", headers })).status, 200);
   const after = await (await app.request("/documents/templates?kind=test.record", { headers })).json();

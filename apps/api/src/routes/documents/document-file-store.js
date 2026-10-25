@@ -4,7 +4,7 @@
 // metadata.sourceEntityId), usable without a user session.
 import crypto from "node:crypto";
 
-import { DocumentTemplateServiceError } from "./document-template-service.js";
+import { DocumentTemplateServiceError } from "./document-errors.js";
 
 const BUCKET = "runly-files";
 const MODULE_KEY = "runly.documents";

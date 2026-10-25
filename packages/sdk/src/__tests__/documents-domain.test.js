@@ -13,111 +13,22 @@ function makeFetch() {
   }));
 }
 
-test("documents domain sends template, version, preview, and generation requests", async () => {
+test("documents domain sends generated document history requests", async () => {
   const fetchMock = makeFetch();
   globalThis.fetch = fetchMock;
   const client = createRunlyClient({ baseUrl: "http://api" });
   const token = "tok";
 
-  await client.documents.listTemplates(token, { sourceType: "growth.lead" });
-  await client.documents.createTemplate({ key: "lead", name: "Lead" }, token);
-  await client.documents.getTemplate("tpl/1", token);
-  await client.documents.updateTemplate("tpl/1", { name: "Nuevo" }, token);
-  await client.documents.setTemplateEnabled(
-    "tpl/1",
-    {
-      enabled: false,
-      updatedAt: "2026-06-14T12:00:00.000Z",
-    },
-    token,
-  );
-  await client.documents.listVersions("tpl/1", token);
-  await client.documents.createVersion("tpl/1", { blocks: [] }, token);
-  await client.documents.updateVersion(
-    "tpl/1",
-    "ver/1",
-    { blocks: [] },
-    token,
-  );
-  await client.documents.publishVersion(
-    "tpl/1",
-    "ver/1",
-    { updatedAt: "2026-06-14T12:00:00.000Z" },
-    token,
-  );
-  await client.documents.getProviderSchema("growth.lead", token);
-  const preview = await client.documents.preview(
-    "tpl/1",
-    { sourceId: "source-1" },
-    token,
-  );
-  await client.documents.generate(
-    "tpl/1",
-    { sourceId: "source-1" },
-    token,
-  );
   await client.documents.listGenerated(token, { sourceId: "source-1" });
   await client.documents.getGenerated("gen/1", token);
   await client.documents.getGeneratedDownload("gen/1", token);
   await client.documents.setGeneratedEnabled("gen/1", false, token);
 
-  assert.ok(preview instanceof Blob);
   const calls = fetchMock.mock.calls.map((call) => call.arguments);
-  assert.equal(
-    calls[0][0],
-    "http://api/documents/templates?sourceType=growth.lead",
-  );
-  assert.equal(calls[1][1].method, "POST");
-  assert.equal(calls[2][0], "http://api/documents/templates/tpl%2F1");
-  assert.equal(calls[3][1].method, "PATCH");
-  assert.equal(
-    calls[4][0],
-    "http://api/documents/templates/tpl%2F1/enabled",
-  );
-  assert.deepEqual(JSON.parse(calls[4][1].body), {
-    enabled: false,
-    updatedAt: "2026-06-14T12:00:00.000Z",
-  });
-  assert.equal(
-    calls[5][0],
-    "http://api/documents/templates/tpl%2F1/versions",
-  );
-  assert.equal(calls[6][1].method, "POST");
-  assert.equal(
-    calls[7][0],
-    "http://api/documents/templates/tpl%2F1/versions/ver%2F1",
-  );
-  assert.equal(calls[7][1].method, "PATCH");
-  assert.equal(
-    calls[8][0],
-    "http://api/documents/templates/tpl%2F1/versions/ver%2F1/publish",
-  );
-  assert.equal(
-    calls[9][0],
-    "http://api/documents/providers/growth.lead/schema",
-  );
-  assert.equal(
-    calls[10][0],
-    "http://api/documents/templates/tpl%2F1/preview",
-  );
-  assert.equal(calls[10][1].method, "POST");
-  assert.equal(
-    calls[11][0],
-    "http://api/documents/templates/tpl%2F1/generate",
-  );
-  assert.equal(
-    calls[12][0],
-    "http://api/documents/generated?sourceId=source-1",
-  );
-  assert.equal(calls[13][0], "http://api/documents/generated/gen%2F1");
-  assert.equal(
-    calls[14][0],
-    "http://api/documents/generated/gen%2F1/download",
-  );
-  assert.equal(
-    calls[15][0],
-    "http://api/documents/generated/gen%2F1/enabled",
-  );
+  assert.equal(calls[0][0], "http://api/documents/generated?sourceId=source-1");
+  assert.equal(calls[1][0], "http://api/documents/generated/gen%2F1");
+  assert.equal(calls[2][0], "http://api/documents/generated/gen%2F1/download");
+  assert.equal(calls[3][0], "http://api/documents/generated/gen%2F1/enabled");
   for (const [, options] of calls) {
     assert.equal(options.headers.Authorization, "Bearer tok");
   }

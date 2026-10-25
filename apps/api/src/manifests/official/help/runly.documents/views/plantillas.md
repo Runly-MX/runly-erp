@@ -1,10 +1,10 @@
 ---
 viewKey: /templates
 title: Plantillas
-summary: Disena el documento base con espacios que se llenan automaticamente.
+summary: Sube tu propio formato y confirma los campos que se llenan automaticamente.
 ---
-Crea una plantilla de documento (contrato, constancia, etc.) con espacios que se llenan con datos reales al generar el documento final.
+Elige el tipo de documento (resguardo, certificado, lead...) y sube tu propio archivo de Word, Excel, PowerPoint o PDF, o crea un documento en blanco que ya incluye los campos de ese tipo.
 
-- Escribe el texto base del documento e inserta variables donde quieras que se llenen datos automaticamente (nombre, fecha, monto, etc.).
-- Una misma plantilla se puede reutilizar cuantas veces necesites, generando un documento distinto cada vez con datos diferentes.
-- Editar una plantilla crea una nueva version; los documentos ya generados con versiones anteriores no cambian.
+- Usa "Sugerir etiquetas" en un Word para que Runly coloque las etiquetas junto a titulos como "Nombre del empleado".
+- En "Campos" confirmas que dato va en cada etiqueta y publicas la plantilla. Puedes probarla con datos de ejemplo, incluso en borrador.
+- Una misma plantilla se reutiliza cuantas veces necesites; reemplazar el archivo crea una version nueva y los documentos ya generados no cambian.

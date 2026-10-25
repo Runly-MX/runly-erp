@@ -1,11 +1,9 @@
 // Registry of document template kinds. A kind is the contract a module
 // registers to use the documents engine: key, field schema (tags with labels
-// and types), permission and data loader. Legacy providers
-// ({ sourceType, getSchema, load }) are adapted so Growth keeps working.
-import { DocumentProviderError } from "../document-provider-registry.js";
+// and types), permission and data loader.
+import { DocumentProviderError } from "../document-errors.js";
 
 export const KIND_FIELD_TYPES = ["text", "number", "date", "image", "list"];
-const LEGACY_TYPES = { string: "text", number: "number", datetime: "date", date: "date" };
 
 const invalid = (message) =>
   new DocumentProviderError(message, 500, "invalid_kind");
@@ -35,27 +33,11 @@ function assertKind(kind) {
   }
 }
 
-function fromLegacyProvider(provider) {
-  const schema = provider.getSchema();
-  return {
-    key: provider.sourceType,
-    label: provider.sourceType,
-    permissionKey: provider.permissionKey,
-    schema: (schema.fields ?? []).map((field) => ({
-      tag: field.path,
-      label: field.label,
-      type: LEGACY_TYPES[field.type] ?? "text",
-    })),
-    legacySchema: schema,
-    load: (input) => provider.load(input),
-  };
-}
-
 export function createKindRegistry() {
   const kinds = new Map();
 
   function register(input) {
-    const kind = input && input.sourceType && !input.key ? fromLegacyProvider(input) : input;
+    const kind = input;
     assertKind(kind);
     const key = kind.key.trim();
     if (kinds.has(key)) {
@@ -83,18 +65,11 @@ export function createKindRegistry() {
     );
   }
 
-  // Provider-registry compatible API (sourceType === kind key).
-  function getSchema({ sourceType, permissionKeys, isAdmin }) {
-    const kind = resolve(sourceType);
-    assertPermission(kind, { permissionKeys, isAdmin });
-    return kind.legacySchema ?? { sourceType: kind.key, fields: kind.schema.map((e) => ({ path: e.tag, label: e.label, type: e.type })), collections: [] };
-  }
-
   async function load({ sourceType, companyId, sourceId, actorId, permissionKeys, isAdmin }) {
     const kind = resolve(sourceType);
     assertPermission(kind, { permissionKeys, isAdmin });
     return kind.load({ companyId, sourceId, actorId });
   }
 
-  return { register, getKind, listKinds, resolve, assertPermission, getSchema, load };
+  return { register, getKind, listKinds, resolve, assertPermission, load };
 }

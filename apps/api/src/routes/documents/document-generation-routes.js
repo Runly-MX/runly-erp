@@ -1,15 +1,13 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
-import { DocumentProviderError } from "./document-provider-registry.js";
+import { DocumentProviderError } from "./document-errors.js";
 import {
   DocumentGenerationServiceError,
 } from "./document-generation-service.js";
-import { DocumentRendererError } from "./document-renderer.js";
 import {
   documentGeneratedEnabledSchema,
   documentGeneratedQuerySchema,
-  documentRenderSchema,
 } from "./document-validators.js";
 
 function companyId(c) {
@@ -20,24 +18,10 @@ function actorId(c) {
   return c.get("userContext")?.profile?.id ?? c.get("userId") ?? null;
 }
 
-function accessContext(c) {
-  const context = c.get("userContext");
-  return {
-    permissions:
-      context?.permissionSet instanceof Set
-        ? [...context.permissionSet]
-        : Array.isArray(context?.permissions)
-          ? context.permissions
-          : [],
-    isAdmin: Boolean(context?.isAdmin),
-  };
-}
-
 function handleError(c, error) {
   if (
     error instanceof DocumentGenerationServiceError ||
-    error instanceof DocumentProviderError ||
-    error instanceof DocumentRendererError
+    error instanceof DocumentProviderError
   ) {
     return c.json(
       { error: error.message, code: error.code },
@@ -50,52 +34,6 @@ function handleError(c, error) {
 
 export function createDocumentGenerationRoutes({ service, requirePermission }) {
   const app = new Hono();
-
-  app.post(
-    "/documents/templates/:id/preview",
-    requirePermission("documents.generated.create"),
-    zValidator("json", documentRenderSchema),
-    async (c) => {
-      try {
-        const rendered = await service.preview({
-          companyId: companyId(c),
-          templateId: c.req.param("id"),
-          actorId: actorId(c),
-          ...accessContext(c),
-          input: c.req.valid("json"),
-        });
-        return c.body(rendered.buffer, 200, {
-          "Content-Type": "application/pdf",
-          "Content-Disposition": 'inline; filename="preview.pdf"',
-          "Cache-Control": "no-store",
-        });
-      } catch (error) {
-        return handleError(c, error);
-      }
-    },
-  );
-
-  app.post(
-    "/documents/templates/:id/generate",
-    requirePermission("documents.generated.create"),
-    zValidator("json", documentRenderSchema),
-    async (c) => {
-      try {
-        return c.json(
-          await service.generate({
-            companyId: companyId(c),
-            templateId: c.req.param("id"),
-            actorId: actorId(c),
-            ...accessContext(c),
-            input: c.req.valid("json"),
-          }),
-          201,
-        );
-      } catch (error) {
-        return handleError(c, error);
-      }
-    },
-  );
 
   app.get(
     "/documents/generated",

@@ -607,6 +607,8 @@ Plan: `docs/superpowers/plans/2026-06-14-atlas-documents-template-engine.md`
 
 Verified: 2026-06-15 (Prisma validate/generate and UUID policy passed; 84 Documents/Growth/SDK tests plus 3 manifest/schema contract tests passed; Vite and full monorepo/Tauri builds passed and produced the native executable, MSI, and NSIS bundles; React Doctor reported no correctness errors, with heuristic warnings documented. `rbac:verify-catalog` still reports only the known unrelated Calendar/Catalog/Inventory and platform catalog drift. Live migration and authenticated browser/storage QA remain pending. See `docs/superpowers/verifications/2026-06-15-atlas-documents-template-engine.md`.)
 
+Update 2026-10-25: the legacy block templates (block editor, block renderer, provider registry, block routes) were removed; Documents now only manages file templates by kind (see `docs/superpowers/plans/2026-10-25-documents-v2-template-engine.md`). Forward migration `20261128000000_documents_remove_block_templates` deletes existing block templates and their versions and detaches their generated documents (files are kept). Growth generates through the hub (kind `growth.lead`).
+
 ## atlas.inventory — Asset Management [COMPLETE]
 
 Plan: `docs/superpowers/plans/2026-06-12-atlas-inventory.md`

@@ -157,3 +157,19 @@ test("checks the kind permission as the acting user and previews with sample dat
   assert.match(docxText(preview.buffer), /Nombre de ejemplo/);
   assert.equal(preview.format, "docx");
 });
+
+test("preview may use a draft version, generate never does, and neither creates templates", async () => {
+  const { templates, engine, prisma } = setup();
+  const draft = await templates.upload({ companyId: COMPANY, kind: "test.record", file: fileOf(buildMinimalDocx(paragraph("Hola {{name}}")), "t.docx") });
+  const templateId = draft.template.id;
+  const versionId = draft.template.version.id;
+  const before = (await prisma.documentTemplate.findMany({})).length;
+
+  const preview = await engine.preview({ ...admin, kind: "test.record", templateId, versionId });
+  assert.equal(preview.format, "docx");
+  await assert.rejects(engine.generate({ ...admin, kind: "test.record", templateId, versionId, sourceId: SOURCE }), (err) => err.code === "template_not_published");
+  await engine.generate({ ...admin, kind: "test.record", data: { name: "x" }, templateId: (await upload(templates, buildMinimalDocx(paragraph("{{name}}")), "p.docx")).template.id });
+
+  // Only the explicit upload above added a template; preview/generate add none.
+  assert.equal((await prisma.documentTemplate.findMany({})).length, before + 1);
+});

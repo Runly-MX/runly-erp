@@ -125,3 +125,31 @@ test("replacing the file of a published version creates a new draft that keeps t
   assert.deepEqual(replaced.template.version.placeholders.sort(), ["date", "name"]);
   await assert.rejects(service.replaceVersionFile({ companyId: COMPANY, templateId: up.template.id, versionId: up.template.version.id, file: fileOf(await xlsx("x"), "c.xlsx") }), /es \.docx/);
 });
+
+test("inventory.custody accepts all four formats and tags a Word form with labels and empty cells", async () => {
+  const { createInventoryCustodyDocumentKind } = await import("../kinds/inventory-custody-kind.js");
+  const { table } = await import("../../../services/document-templates/minimal-docx.js");
+  const prisma = createFakePrisma();
+  const files = createFakeFiles(prisma);
+  const kinds = createKindRegistry();
+  kinds.register(createInventoryCustodyDocumentKind({ prisma: {} }));
+  const service = createDocumentFileTemplateService({ prisma, files, kinds });
+
+  // docx, xlsx, pptx and pdf are all valid uploads for the kind.
+  const formats = [["a.docx", docx("Resguardo")], ["a.xlsx", await xlsx("Resguardo")], ["a.pptx", buildMinimalPptx(textBox("Resguardo", { x: 0, y: 0, cx: 3000000, cy: 500000 }))], ["a.pdf", await pdfWithLabel()]];
+  for (const [name, buffer] of formats) {
+    const up = await service.upload({ companyId: COMPANY, kind: "inventory.custody", file: fileOf(buffer, name) });
+    assert.equal(up.template.format, name.split(".")[1]);
+  }
+
+  const form = buildMinimalDocx(
+    paragraph("Resguardo de equipo") + table([["Nombre del empleado", ""], ["Puesto", ""], ["Fecha", ""]], { headerRow: false }),
+  );
+  const word = await service.upload({ companyId: COMPANY, kind: "inventory.custody", file: fileOf(form, "formato.docx") });
+  const suggestion = await service.suggest({ companyId: COMPANY, templateId: word.template.id, versionId: word.template.version.id });
+  const tags = suggestion.applied.map((a) => a.tag);
+  assert.ok(tags.includes("receiverName"), `applied: ${tags.join(",")}`);
+  assert.ok(tags.includes("receiverJobTitle"));
+  assert.ok(tags.includes("date"));
+  assert.ok(suggestion.contentBase64.length > 100);
+});

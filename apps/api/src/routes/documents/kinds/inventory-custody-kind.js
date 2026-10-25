@@ -12,7 +12,7 @@ import {
   buildCustodyTemplateData,
   buildDefaultCustodyTemplate,
 } from "../../../services/document-templates/custody-template-data.js";
-import { DocumentProviderError } from "../document-provider-registry.js";
+import { DocumentProviderError } from "../document-errors.js";
 
 export const INVENTORY_CUSTODY_KIND = "inventory.custody";
 

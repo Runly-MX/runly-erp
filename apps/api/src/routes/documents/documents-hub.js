@@ -9,11 +9,11 @@ import { createDocumentFileTemplateService } from "./document-file-template-serv
 import { createInventoryCustodyDocumentKind } from "./kinds/inventory-custody-kind.js";
 import { createLmsCertificateDocumentKind } from "./kinds/lms-certificate-kind.js";
 import { createKindRegistry } from "./kinds/kind-registry.js";
-import { createGrowthLeadDocumentProvider } from "./providers/growth-lead-provider.js";
+import { createGrowthLeadDocumentKind } from "./kinds/growth-lead-kind.js";
 
 export function createDocumentsHub({ prisma, supabaseAdmin }) {
   const kinds = createKindRegistry();
-  kinds.register(createGrowthLeadDocumentProvider({ prisma }));
+  kinds.register(createGrowthLeadDocumentKind({ prisma }));
   kinds.register(createInventoryCustodyDocumentKind({ prisma }));
   kinds.register(createLmsCertificateDocumentKind({ prisma }));
   const files = createDocumentFileStore({ prisma, supabaseAdmin });

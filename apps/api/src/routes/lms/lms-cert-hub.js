@@ -4,7 +4,7 @@
 // can keep choosing from one list. The link row mirrors name, source, file,
 // tags and PDF layout from the hub (sync), and renders go through the engine.
 // The built-in 'design' source never touches the hub.
-import { DocumentTemplateServiceError } from '../documents/document-template-service.js'
+import { DocumentTemplateServiceError } from '../documents/document-errors.js'
 import { LMS_CERTIFICATE_KIND } from '../documents/kinds/lms-certificate-kind.js'
 import { LmsError } from './lms-error.js'
 
