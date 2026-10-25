@@ -1936,6 +1936,14 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/notifications${toQueryString(query)}`, {
           headers: withAuthHeaders(token),
         }),
+      getMyStatus: (token) => request("/profile/status", { headers: withAuthHeaders(token) }),
+      setMyStatus: (token, data) =>
+        request("/profile/status", { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify(data ?? {}) }),
+      getDnd: (token) => request("/notifications/dnd", { headers: withAuthHeaders(token) }),
+      setDnd: (token, data) =>
+        request("/notifications/dnd", { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify(data ?? {}) }),
+      statusLookup: (token, userIds) =>
+        request(`/chat/status?userIds=${encodeURIComponent((userIds ?? []).join(","))}`, { headers: withAuthHeaders(token) }),
       getDigest: (token) =>
         request("/notifications/digest", { headers: withAuthHeaders(token) }),
       setDigest: (token, data) =>

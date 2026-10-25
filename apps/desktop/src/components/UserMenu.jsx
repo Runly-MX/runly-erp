@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { isNativeMobile } from "@runly/core/native-runtime";
-import { ChevronDown, User, Settings, LogOut, Monitor, Download, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug, Server, ShieldCheck, PlugZap } from "lucide-react";
+import { Moon as MoonIcon, SmilePlus, ChevronDown, User, Settings, LogOut, Monitor, Download, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug, Server, ShieldCheck, PlugZap } from "lucide-react";
 import { toast } from "sonner";
 import { native } from "../native/index.js";
 import { useThemeStore } from "../stores/theme";
@@ -15,6 +15,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
   Avatar,
   AvatarFallback,
   AvatarImage,
@@ -24,6 +30,9 @@ import {
 import { useAuth } from "../auth/AuthProvider";
 import { RUNLY_DESKTOP_DOWNLOAD_URL, RUNLY_MOBILE_DOWNLOAD_URL } from "../lib/appConfig.js";
 import { getMobilePwaInstallMode } from "../lib/pwaInstallUi.js";
+import { StatusEditor } from "./StatusEditor";
+import { useDnd, useMyStatus } from "../hooks/useStatusDnd";
+import { DND_DURATIONS, durationFor, untilText } from "../lib/statusDnd";
 
 function getDevicePlatform() {
   const platform = globalThis.window?.__RUNLY_NATIVE_HOST__?.platform;
@@ -71,6 +80,10 @@ export function UserMenu({
   const navigate = useNavigate();
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
   const [openingNativeSettings, setOpeningNativeSettings] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const { status, save: saveStatus } = useMyStatus();
+  const { dnd, save: saveDnd } = useDnd();
+  const dndOn = dnd?.active === true;
 
   const platform = getDevicePlatform();
   const standalone = isStandaloneMode();
@@ -134,9 +147,12 @@ export function UserMenu({
   const showModuleInstallItem = !standalone && !showMobileInstall;
 
   return (
+    <Popover open={statusOpen} onOpenChange={setStatusOpen}>
     <DropdownMenu>
+      <PopoverAnchor asChild>
       <DropdownMenuTrigger asChild>
         <button className="flex items-center gap-2 h-9 pl-1 pr-2 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer outline-none">
+          <span className="relative">
           <Avatar className="h-7 w-7">
             {userProfile?.avatarUrl && (
               <AvatarImage src={userProfile.avatarUrl} alt={displayName} />
@@ -151,6 +167,8 @@ export function UserMenu({
               {initials}
             </AvatarFallback>
           </Avatar>
+          {dndOn && <span title="No molestar activo" className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[hsl(var(--background))] text-[var(--brand-primary)]"><MoonIcon size={10} aria-hidden /></span>}
+          </span>
           <span className="text-sm font-medium text-[hsl(var(--foreground))] max-w-20 truncate hidden sm:block">
             {firstName}
           </span>
@@ -160,7 +178,8 @@ export function UserMenu({
           />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
+      </PopoverAnchor>
+      <DropdownMenuContent align="end" onCloseAutoFocus={(event) => event.preventDefault()} className="w-64 max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
         {/* User info header */}
         <div className="px-2 py-2.5 border-b border-[hsl(var(--border))] mb-1">
           <p className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">
@@ -173,6 +192,24 @@ export function UserMenu({
           )}
         </div>
 
+        <DropdownMenuItem onSelect={() => setTimeout(() => setStatusOpen(true), 0)} className="gap-2 cursor-pointer">
+          {status?.emoji ? <span aria-hidden className="w-3.5 text-center text-sm leading-none">{status.emoji}</span> : <SmilePlus size={14} />}
+          <span className="min-w-0 flex-1 truncate">{status?.text || "Establecer estado"}</span>
+        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="gap-2 cursor-pointer">
+            <MoonIcon size={14} />
+            <span className="min-w-0 flex-1 truncate">{dndOn ? `No molestar ${untilText(dnd?.until)}`.trim() : "No molestar"}</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {DND_DURATIONS.map((item) => (
+              <DropdownMenuItem key={item.value} onClick={() => saveDnd.mutate({ ...dnd, until: durationFor(item.value, DND_DURATIONS) })} className="cursor-pointer">{item.label}</DropdownMenuItem>
+            ))}
+            <DropdownMenuItem onClick={() => navigate("/app/m/runly.notifications/settings")} className="cursor-pointer">Horario silencioso...</DropdownMenuItem>
+            {dndOn && <><DropdownMenuSeparator /><DropdownMenuItem onClick={() => saveDnd.mutate({ ...dnd, until: null })} className="cursor-pointer">Desactivar</DropdownMenuItem></>}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => navigate("/app/profile")}
           className="gap-2 cursor-pointer"
@@ -391,5 +428,9 @@ export function UserMenu({
         <CompanySwitcherModal onClose={() => setCompanyModalOpen(false)} />
       )}
     </DropdownMenu>
+      <PopoverContent align="end" sideOffset={8} className="w-auto p-0" onOpenAutoFocus={(event) => event.preventDefault()} onFocusOutside={(event) => event.preventDefault()}>
+        <StatusEditor status={status} onSave={(next) => saveStatus.mutate(next)} onClear={() => saveStatus.mutate(null)} onClose={() => setStatusOpen(false)} />
+      </PopoverContent>
+    </Popover>
   );
 }

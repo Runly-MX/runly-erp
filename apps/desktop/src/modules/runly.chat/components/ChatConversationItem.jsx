@@ -15,7 +15,7 @@ function getInitials(name) {
     .toUpperCase();
 }
 
-function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = false, isBot = false }) {
+function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = false, dnd = false, isBot = false }) {
   const sizeClass = size === "xs" ? "h-6 w-6 text-[10px]" : size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";
   if (isBot) {
     return (
@@ -50,7 +50,7 @@ function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = fals
         </div>
       )}
       {online && (
-        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[hsl(var(--background))]" />
+        <span title={dnd ? "No molestar" : "En línea"} className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full ring-2 ring-[hsl(var(--background))] ${dnd ? "bg-red-500" : "bg-green-500"}`} />
       )}
       <ConversationTypeBadge type={type} />
     </div>
@@ -149,7 +149,7 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
 // Dense row of the sectioned sidebar: channels read as "# name", direct messages keep a
 // small avatar with presence, groups and meetings get an icon. Unread conversations are
 // bold; mentions and unread counts sit on the right. 44 px on touch, 32 px with a mouse.
-export function ChatConversationRow({ conversation, isActive, onClick, currentUserId, isOnline = false }) {
+export function ChatConversationRow({ conversation, isActive, onClick, currentUserId, isOnline = false, status = null }) {
   const otherMember = conversation.type === "direct"
     ? (conversation.members ?? []).find((m) => m.userId !== currentUserId)
     : null;
@@ -164,7 +164,7 @@ export function ChatConversationRow({ conversation, isActive, onClick, currentUs
   ) : emoji ? (
     <span className="flex h-6 w-6 shrink-0 items-center justify-center text-base leading-none" aria-hidden>{emoji}</span>
   ) : conversation.type === "direct" ? (
-    <Avatar name={name} avatarUrl={conversation.avatarUrl ?? otherMember?.avatarUrl ?? null} avatarEmoji={conversation.avatar_emoji ?? null} type="direct" size="xs" online={isOnline} />
+    <Avatar name={name} avatarUrl={conversation.avatarUrl ?? otherMember?.avatarUrl ?? null} avatarEmoji={conversation.avatar_emoji ?? null} type="direct" size="xs" online={isOnline} dnd={status?.dnd === true} />
   ) : (
     <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[hsl(var(--muted-foreground))]" aria-hidden>
       {meeting ? <Video className="h-3.5 w-3.5" /> : conversation.type === "channel" ? <Hash className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
@@ -182,6 +182,7 @@ export function ChatConversationRow({ conversation, isActive, onClick, currentUs
     >
       {lead}
       <span className={["min-w-0 flex-1 truncate", unread > 0 || mentions > 0 ? "font-semibold" : "font-normal text-[hsl(var(--foreground))]/80"].join(" ")}>{conversation.type === "channel" && !meeting && (photo || emoji) && <span className="mr-0.5 text-[hsl(var(--muted-foreground))]">#</span>}{name}</span>
+      {conversation.type === "direct" && status?.emoji && <span title={status.text} aria-label={status.text} className="shrink-0 text-sm leading-none">{status.emoji}</span>}
       {mentions > 0 && (
         <span title={`${mentions} mención${mentions === 1 ? "" : "es"} sin leer`} className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
           <AtSign className="h-2.5 w-2.5" strokeWidth={3} />{mentions > 9 ? "9+" : mentions}

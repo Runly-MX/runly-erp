@@ -11,6 +11,7 @@ import { SectionDialog, MoveToSectionDialog } from "./SidebarSectionDialogs";
 import { addSection, assignConversation, buildSections, deleteSection, moveSection, renameSection } from "../lib/sidebarSections";
 import { uuidv7 } from "../lib/uuidv7";
 import { useChatSidebar } from "../hooks/useChatSidebar";
+import { useStatusLookup } from "../../../hooks/useStatusDnd";
 import { ConversationRowActions } from "./ConversationRowActions";
 import { MessageSearchResults } from "./MessageSearchResults";
 import { useChatMessageSearch } from "../hooks/useChatMessageSearch";
@@ -69,6 +70,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
     return displayName.toLowerCase().includes(search.toLowerCase());
   });
 
+  const statusByUser = useStatusLookup((conversations ?? []).filter((c) => c.type === "direct").map((c) => (c.members ?? []).find((m) => m.userId !== userProfile?.id)?.userId));
   const { state: sidebarState, save: saveSidebar } = useChatSidebar();
   const layout = buildSections({ conversations: filtered, state: sidebarState, filter: sidebarState.filter });
   const onRowAction = (action, conversation) => (action === "move" ? setMoveTarget(conversation) : handleConversationAction(action, conversation));
@@ -287,7 +289,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
                     return (
                       <div key={conv.id} draggable onDragStart={(event) => { event.dataTransfer.setData(DRAG_TYPE, conv.id); event.dataTransfer.effectAllowed = "move"; }}>
                         <ConversationRowActions conversation={conv} currentUserId={userProfile?.id} onAction={onRowAction} canOrganize swipeOpenId={openRowId} onSwipeOpen={setOpenRowId}>
-                          <ChatConversationRow conversation={conv} isActive={conv.id === activeId} onClick={() => onSelect(conv)} currentUserId={userProfile?.id} isOnline={otherMember ? isUserOnline(otherMember.userId) : false} />
+                          <ChatConversationRow conversation={conv} isActive={conv.id === activeId} onClick={() => onSelect(conv)} currentUserId={userProfile?.id} isOnline={otherMember ? isUserOnline(otherMember.userId) : false} status={otherMember ? statusByUser[otherMember.userId] : null} />
                         </ConversationRowActions>
                       </div>
                     );

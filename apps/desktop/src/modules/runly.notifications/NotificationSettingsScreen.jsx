@@ -19,6 +19,7 @@ import { useAuth } from "../../auth/AuthProvider";
 import PushDiagnosticsCard from "./PushDiagnosticsCard";
 import DeliveryCheckCard from "./DeliveryCheckCard";
 import DigestCard from "./DigestCard";
+import QuietHoursCard from "./QuietHoursCard";
 import { runly } from "../../lib/runly";
 import {
   getCurrentWebPushSubscription,
@@ -494,6 +495,7 @@ export default function NotificationSettingsScreen() {
           )}
         </CardContent>
       </Card>
+      <QuietHoursCard />
       <DigestCard token={token} />
       <DeliveryCheckCard token={token} />
       <PushDiagnosticsCard token={token} />

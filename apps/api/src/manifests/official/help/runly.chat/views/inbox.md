@@ -23,3 +23,10 @@ Aqui ves todas tus conversaciones activas, agrupadas en secciones.
 ## Integraciones
 
 Quien administra un canal puede crear **Integraciones** en la informacion del canal: una direccion secreta con la que otro sistema publica mensajes (aparecen con la insignia Integracion). La direccion se muestra una sola vez y se puede regenerar.
+
+## Estado y No molestar
+
+- En el menu de tu avatar (arriba a la derecha) elige **Establecer estado**: un emoji, un texto corto y cuanto dura (30 minutos, 1 hora, hoy, esta semana). Los demas lo ven junto a tu nombre en los mensajes directos.
+- **No molestar** (mismo menu) detiene los correos y avisos push por 30 minutos, 1 hora o hasta manana a las 8:00; los avisos dentro de Runly se guardan y los criticos siempre llegan. Tu avatar muestra una luna y tu punto de presencia se pone rojo.
+- En **Notificaciones > Horario silencioso** defines horas y dias fijos (por ejemplo de 22:00 a 07:00 de lunes a viernes).
+- Si escribes a alguien con No molestar, ves un aviso bajo el cuadro de escritura: el mensaje se entrega igual, solo sin aviso en su telefono ni por correo. El resumen por correo tambien espera.

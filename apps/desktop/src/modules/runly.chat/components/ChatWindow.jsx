@@ -35,6 +35,8 @@ import { buildAllAttachments, buildMessagesTranscript } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useCalls } from "../calls/CallsProvider";
 import { ChatHeader } from "./ChatHeader";
+import { Moon } from "lucide-react";
+import { useStatusLookup } from "../../../hooks/useStatusDnd";
 import { LiveMeetingBanner } from "../calls/LiveMeetingBanner";
 
 // Same pattern as ConversationProfilePanel's backHeader — an explicit,
@@ -125,6 +127,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const { data: ttsStatus } = useTtsStatus();
   const ttsEnabled = Boolean(ttsStatus?.enabled);
   const speech = useSpeakText();
+  // Writing to someone under Do Not Disturb: the message is delivered, just without push or email.
+  const dmPeer = conversation?.type === "direct" ? (detailMembers ?? conversation?.members ?? []).find((m) => m.userId !== userProfile?.id) : null;
+  const dmStatus = useStatusLookup(dmPeer ? [dmPeer.userId] : [])[dmPeer?.userId];
   const ownMemberForComposer = findOwnMember(detailMembers ?? conversation?.members ?? [], userProfile?.id);
   const canSendMessages = !isChannelOrGroupType || roleHasPermission(ownMemberForComposer, CHAT_PERMISSIONS.MESSAGES_SEND);
   // Pinned messages also drive the anchored strip above the message list (not
@@ -787,6 +792,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         </div>
       )}
 
+      {!filesView && !isExternal && dmStatus?.dnd && (
+        <p role="status" className="flex items-center gap-1.5 px-4 pb-1 text-xs text-[hsl(var(--muted-foreground))]"><Moon className="h-3 w-3 shrink-0" aria-hidden />{dmPeer?.displayName ?? "Esta persona"} tiene No molestar: recibirá tu mensaje cuando termine, sin aviso en el teléfono ni por correo.</p>
+      )}
       {!filesView && !isExternal && (
         <MessageComposer
           ref={composerRef}
