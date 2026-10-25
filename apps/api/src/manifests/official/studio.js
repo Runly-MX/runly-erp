@@ -9,6 +9,8 @@ export const studioMap = createModuleManifest({
   category: 'productividad', pwa: { shortName: STUDIO_BRANDING.name, startPath: '/' }, uninstallable: false,
   dependencies: [{ key: 'runly.identity' }, { key: 'runly.company' }, { key: 'runly.files' }],
   lifecycle: { installable: true, uninstallable: false, resettable: false, supportsDataPurge: false },
+  // Home and editor (`/?design=`) use the whole screen, without the module sidebar.
+  fullscreenPaths: ['/'],
   navigation: [{ label: 'Mis diseños', path: '/', icon: STUDIO_BRANDING.icon, layout: 'main', permissionKey: 'studio.view' }],
   permissions: [
     { key: 'studio.view', name: 'Ver mis diseños' }, { key: 'studio.create', name: 'Crear diseños' }, { key: 'studio.edit', name: 'Editar mis diseños' },

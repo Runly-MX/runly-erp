@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Input, SelectField, PageHeader, ErrorState, ConfirmDialog, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, PersonAvatar } from '@runly/ui'
+import { Alert, AlertDescription, AlertTitle, Button, ErrorState, ConfirmDialog, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@runly/ui'
+import { AlertTriangle, CloudDownload, History } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { StudioWorkspace } from './StudioWorkspace.jsx'
 import { createDraftStorage } from '../lib/draft-storage.js'
@@ -24,8 +25,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   const [initial, setInitial] = useState(record.document), [name, setName] = useState(record.name)
   const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const [conflict, setConflict] = useState(false), [server, setServer] = useState(null)
-  const [format, setFormat] = useState('png'), [quality, setQuality] = useState('0.9'), [exporting, setExporting] = useState(false)
-  const [exportError, setExportError] = useState('')
+  const [exporting, setExporting] = useState(false), [exportError, setExportError] = useState(''), [shareOpen, setShareOpen] = useState(false)
   const [recovery, setRecovery] = useState(() => store.read()), [copyWarning, setCopyWarning] = useState(false)
   const [workspaceVersion, setWorkspaceVersion] = useState(0)
   const [ready, setReady] = useState(false)
@@ -137,56 +137,70 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     const scale = Math.min(1, initial.page.width / width / 2, initial.page.height / height / 2)
     await editorRef.current.add('image', { fileAssetId: asset.id, width: width * scale, height: height * scale })
   }
-  async function exportImage() {
+  async function exportImage(format, quality) {
     if (!editorRef.current || exporting) return
     setExporting(true); setExportError('')
     try {
-      const blob = await editorRef.current.exportImage(format, Number(quality)), url = URL.createObjectURL(blob)
+      const blob = await editorRef.current.exportImage(format, quality), url = URL.createObjectURL(blob)
       const link = Object.assign(document.createElement('a'), { href: url, download: `${name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 80) || 'diseño'}.${format}` })
       link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (error) { setExportError(error.message) } finally { setExporting(false) }
   }
-  if (denied) return <ErrorState title="El diseño ya no está disponible" description="Tu copia local se conserva. Comprueba tus permisos con el propietario." showReport={false} onRetry={onBack} />
-  return <div className="space-y-4 p-4">
-    <PageHeader compact title="Studio" description="Tu espacio para dar forma a las ideas" onBack={onBack} actions={<div className="flex flex-wrap items-center gap-2">
-      <StudioSharing record={record} token={token} />
-      <SelectField id="studio-export-format" label="Formato de exportación" value={format} onChange={setFormat} options={[{value:'png',label:'PNG'},{value:'jpg',label:'JPG'}]} className="w-40" />
-      {format === 'jpg' && <SelectField id="studio-jpg-quality" label="Calidad JPG" value={quality} onChange={setQuality} options={[{value:'0.7',label:'70 %'},{value:'0.9',label:'90 %'},{value:'1',label:'100 %'}]} className="w-32" />}
-      <Button variant="outline" disabled={!ready || exporting} onClick={exportImage}>{exporting ? 'Exportando…' : `Exportar ${format.toUpperCase()}`}</Button><Button onClick={() => save()} disabled={!ready || !canEdit || busy || conflict}>{busy ? 'Guardando…' : 'Guardar'}</Button>
-    </div>} />
-    {exportError && <ErrorState title="No se pudo exportar" description={`${exportError} Vuelve a exportar cuando el recurso esté disponible.`} showReport={false} />}
-    <div className="flex flex-wrap items-center gap-3">
-      <Input aria-label="Nombre del diseño" disabled={!canEdit || !ready} className="max-w-sm" value={name} maxLength={160} onChange={event => {
-        nameRef.current = event.target.value; setName(event.target.value)
-        if (editorRef.current) changed(editorRef.current.snapshot())
-      }} />
-      <span role="status" className="text-xs text-muted-foreground">{busy ? 'Guardando…' : dirty ? 'Cambios sin guardar' : 'Guardado'}</span>
-      <span className="text-xs">{canEdit ? 'Edición' : 'Solo lectura'} · {realtime.status}</span>
-    </div>
-    <div aria-label="Participantes conectados" className="flex flex-wrap gap-2">{[...new Map(realtime.participants.map(user => [user.userId,user])).values()].map(user => <span key={user.userId} className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs">
-      <PersonAvatar name={user.name} src={user.avatarUrl} size="xs" />{user.name}
-    </span>)}</div>
-    {recovery && <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3" role="status">
-      <p className="text-sm">Hay una copia local pendiente de recuperar.</p>
-      <Button variant="outline" onClick={recover}>Recuperar copia local</Button>
-      <Button variant="ghost" onClick={() => { store.clear(); setRecovery(null) }}>Descartar copia local</Button>
-    </div>}
-    {error && <ErrorState title={conflict ? 'Conflicto de versiones' : 'El diseño conserva tus cambios'} description={error} showReport={false} />}
-    {conflict && <div className="flex flex-wrap gap-2">
-      <Button variant="outline" disabled={!ready || busy} onClick={() => save(true)}>Guardar como copia</Button>
-      <Button variant="outline" onClick={review}>Revisar versión del servidor</Button>
-    </div>}
-    {error && !conflict && <Button variant="outline" disabled={busy} onClick={() => save()}>Reintentar guardado</Button>}
-    {copyWarning && <p role="alert" className="text-sm text-destructive">No se pudo conservar la copia en este navegador. Mantén esta página abierta y reintenta guardar.</p>}
-    <StudioWorkspace key={workspaceVersion} initial={initial} readOnly={!canEdit} participants={realtime.participants}
+  if (denied) return <div className="flex h-full items-center justify-center p-6"><ErrorState title="El diseño ya no está disponible" description="Tu copia local se conserva. Comprueba tus permisos con el propietario." showReport={false} onRetry={onBack} /></div>
+  const notices = <>
+    {recovery ? <Notice icon={History} title="Hay una copia local sin guardar" description="Se conservó en este navegador la última vez que editaste.">
+      <Button size="sm" onClick={recover}>Recuperar</Button>
+      <Button size="sm" variant="ghost" onClick={() => { store.clear(); setRecovery(null) }}>Descartar</Button>
+    </Notice> : null}
+    {error ? <Notice variant="warning" icon={AlertTriangle} title={conflict ? 'Conflicto de versiones' : 'El diseño conserva tus cambios'} description={error}>
+      {conflict ? <>
+        <Button size="sm" disabled={!ready || busy} onClick={() => save(true)}>Guardar como copia</Button>
+        <Button size="sm" variant="outline" onClick={review}>Ver versión del servidor</Button>
+      </> : <Button size="sm" variant="outline" disabled={busy} onClick={() => save()}>Reintentar guardado</Button>}
+    </Notice> : null}
+    {copyWarning ? <Notice variant="destructive" icon={AlertTriangle} title="Sin copia local" description="No se pudo conservar la copia en este navegador. Mantén esta página abierta y reintenta guardar." /> : null}
+    {exportError ? <Notice variant="destructive" icon={AlertTriangle} title="No se pudo descargar" description={`${exportError} Vuelve a intentarlo cuando el recurso esté disponible.`}>
+      <Button size="sm" variant="ghost" onClick={() => setExportError('')}>Cerrar</Button>
+    </Notice> : null}
+  </>
+  const chrome = {
+    name, nameDisabled: !canEdit || !ready, onBack,
+    onName: value => { nameRef.current = value; setName(value); if (editorRef.current) changed(editorRef.current.snapshot()) },
+    saveState: busy ? 'saving' : dirty ? 'dirty' : 'saved', live: realtime.status,
+    onSave: () => save(), saveDisabled: !ready || !canEdit || busy || conflict,
+    onShare: () => setShareOpen(true), onExport: exportImage, exporting, exportDisabled: exporting, notices,
+  }
+  return <>
+    <StudioWorkspace key={workspaceVersion} initial={initial} readOnly={!canEdit} participants={realtime.participants} chrome={chrome}
       sharedClipboard={clipboard} authorizePaste={authorizePaste}
       resourcePanel={({ disabled, uploader }) => <StudioResources key={scope} token={token} disabled={disabled} uploader={uploader} onInsert={insertResource} />}
       onPointer={realtime.pointer} onSelectionChange={realtime.selection} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
+    <StudioSharing record={record} token={token} open={shareOpen} onOpenChange={setShareOpen} />
     <ConfirmDialog open={navigation.pending} onOpenChange={open => { if (!open) navigation.cancel() }} title="Salir sin guardar" description={copyWarning ? 'No se pudo conservar la copia local. Si sales puedes perder estos cambios. Cancela y guarda antes de continuar.' : 'Los cambios pendientes se conservarán en una copia local en este navegador durante siete días.'}
       confirmLabel="Salir" onConfirm={navigation.proceed} />
-    <Dialog open={Boolean(server)} onOpenChange={open => { if (!open) setServer(null) }}><DialogContent><DialogHeader>
-      <DialogTitle>Versión del servidor</DialogTitle><DialogDescription>La copia local se conserva al cargar esta versión.</DialogDescription>
-    </DialogHeader>{server && <div className="space-y-3"><p>{server.name} · Revisión {server.revision} · {server.document.objects.length} elementos</p>
-      <Button onClick={loadServer}>Cargar versión del servidor</Button></div>}</DialogContent></Dialog>
-  </div>
+    <Dialog open={Boolean(server)} onOpenChange={open => { if (!open) setServer(null) }}>
+      <DialogContent size="md">
+        <DialogHeader icon={CloudDownload}>
+          <DialogTitle>Versión del servidor</DialogTitle>
+          <DialogDescription>Tu copia local se conserva al cargar esta versión.</DialogDescription>
+        </DialogHeader>
+        {server ? <p className="text-sm">{server.name} · Revisión {server.revision} · {server.document.objects.length} elementos</p> : null}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setServer(null)}>Cancelar</Button>
+          <Button onClick={loadServer}>Cargar versión del servidor</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
+}
+
+function Notice({ variant = 'default', icon: Icon, title, description, children }) {
+  return (
+    <Alert variant={variant} className="pointer-events-auto max-w-lg bg-[hsl(var(--card))] shadow-lg">
+      <Icon className="h-4 w-4" />
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>{description}</AlertDescription>
+      {children ? <div className="mt-2.5 flex flex-wrap gap-2">{children}</div> : null}
+    </Alert>
+  )
 }

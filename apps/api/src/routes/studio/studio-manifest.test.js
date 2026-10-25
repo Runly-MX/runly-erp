@@ -15,6 +15,7 @@ test('Studio registers as a current-only official module with help and a built-i
   assert.ok(isModuleIconName(manifest.icon))
   assert.ok(validateModulePwaIdentity(manifest).valid)
   assert.equal(manifest.navigation[0].icon, 'PenTool')
+  assert.deepEqual(manifest.fullscreenPaths, ['/'])
   assert.ok(isOfficialCoreModuleKey('runly.studio'))
   assert.ok(CURRENT_ONLY_OFFICIAL_MODULE_KEYS.includes(manifest.key))
   assert.deepEqual(getModuleKeyAliases(manifest.key), ['runly.studio'])

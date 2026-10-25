@@ -42,7 +42,12 @@ test('Studio service against disposable PostgreSQL: isolation, atomic revisions,
       record = await service.create(company, owner, { name: 'Prueba', document })
       assert.equal(record.revision, 1)
       assert.deepEqual((await service.get(company, owner, record.id)).document, document)
-      assert.equal((await service.list(company, owner)).length, 1)
+      const [listed] = await service.list(company, owner)
+      assert.equal(listed.objectCount, 1)
+      assert.deepEqual(listed.preview.page, document.page)
+      assert.equal(listed.preview.objects[0].text, 'Persistencia real')
+      assert.equal((await service.list(company, owner, { q: 'prue' })).length, 1)
+      assert.equal((await service.list(company, owner, { q: '100%' })).length, 0)
     })
     await t.test('denies other companies, other owners and missing identity', async () => {
       for (const [c, a] of [[otherCompany, owner], [company, otherOwner], [null, owner]]) {

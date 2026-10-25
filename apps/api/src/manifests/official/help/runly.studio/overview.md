@@ -5,38 +5,40 @@ summary: Crea, compón y comparte diseños visuales editables.
 
 # Studio
 
-Crea un diseño en blanco, utiliza **Elegir tamaño** o parte de una plantilla original.
-Los presets y tamaños personalizados usan píxeles: de 32 a 4096 por lado. Son
-dimensiones gráficas orientativas, no medidas de impresión ni una promesa de DPI.
+Studio ocupa toda la pantalla. En el inicio elige un formato (publicación, historia,
+flyer, presentación, banner, logotipo…), **Tamaño personalizado** o una plantilla.
+Los filtros de la parte superior agrupan los formatos y el buscador encuentra tus
+diseños por nombre. Las tarjetas de **Tus diseños** muestran una vista previa; su menú
+permite abrir o **Duplicar**. Las medidas son píxeles, de 32 a 4096 por lado: son
+dimensiones de pantalla, no medidas de impresión ni una promesa de DPI.
 
-Añade texto, rectángulos, círculos e imágenes PNG, JPG o WebP. En **Recursos** puedes
-buscar tus imágenes o archivos de la empresa a los que tengas acceso, previsualizar
-e insertar un original existente sin volver a subirlo.
+En el editor, la barra lateral (abajo en el teléfono) abre los paneles **Elementos**
+(formas, líneas y bandas), **Texto** (título, subtítulo y párrafo), **Imágenes** (subir
+PNG, JPG o WebP, o insertar imágenes tuyas o de la empresa sin volver a subirlas),
+**Capas** (seleccionar, mostrar u ocultar y bloquear) y **Página** (tamaño y fondo).
 
-**Tamaño y fondo** cambia la página sin eliminar objetos: por defecto conserva sus
-coordenadas, incluso fuera de la página. Marca **Escalar contenido proporcionalmente**
-para aplicar un factor uniforme. Deshacer/Rehacer incluye tamaño, fondo y alineación.
+Al seleccionar algo aparece una barra flotante con color, tamaño de letra, duplicar,
+organizar, bloquear y eliminar. **Propiedades** (panel derecho, o botón en pantallas
+pequeñas) edita texto, color, posición, tamaño y rotación, alinea respecto a la página
+o entre sí (con tres o más elementos puedes distribuir) y cambia el orden. Se respetan
+los bloqueados y ocultos. **Página** cambia el tamaño sin eliminar objetos; marca
+**Escalar contenido proporcionalmente** para aplicar un factor uniforme.
 
-Selecciona objetos en el lienzo o mediante las casillas de Elementos. Alinea respecto
-a la página o a la selección; con tres o más objetos puedes distribuir. Se respetan
-los bloqueados/ocultos y los límites visuales de formas rotadas. La multiselección
-permite mover y alinear; escala o rota los objetos individualmente.
+El control de zoom (abajo a la derecha) ofrece porcentajes, **Ajustar a la pantalla**
+y **Mover la vista**; también funcionan Ctrl/Cmd + rueda y Espacio + arrastre. El
+botón de vista despejada y pantalla completa está junto a Propiedades. Atajos:
+Ctrl+Z / Ctrl+Y, Ctrl+C / Ctrl+V, Ctrl+D y Supr (pide confirmación).
 
-Usa **Ajustar página**, **Centrar**, **100 %**, el porcentaje o Ctrl/Cmd + rueda para
-navegar. **Mano** o Espacio + arrastre desplazan el área sin modificar el diseño.
-Espacio sigue escribiendo normalmente durante la edición de texto.
+**Guardar** conserva el documento editable. **Compartir** permite al propietario invitar
+lectores o editores de la misma empresa y cambiar o quitar su acceso. Verás quién está
+conectado, sus cursores y cambios confirmados. Si hay una revisión más reciente, tu
+borrador se conserva; revisa la versión del servidor o guarda una copia.
 
-Guarda para conservar el documento editable. **Colaboradores** permite al propietario
-autorizar lectores o editores de la misma empresa. Verás personas, cursores y cambios
-confirmados. Si hay una revisión más reciente, tu borrador se conserva; revisa el
-servidor o guarda una copia. No hay edición simultánea de texto libre de conflictos.
-
-El selector de exportación ofrece **PNG** y **JPG**. JPG permite calidad 70/90/100 %
-y utiliza el fondo opaco del documento. Ambos descargan a las dimensiones exactas
-de la página y comprueban los originales autorizados; no exportan miniaturas.
+**Descargar** ofrece PNG y JPG al 100, 90 o 70 %. Ambos usan las dimensiones exactas de
+la página y los originales autorizados, no miniaturas.
 
 Si sales, cambias de módulo o empresa con cambios pendientes, debes confirmar.
 Recargar/cerrar utiliza el aviso del navegador. La copia local dura hasta siete días;
-no sustituye a Guardar ni contiene los bytes de imágenes. El clipboard interno cruza
+no sustituye a Guardar ni contiene los bytes de imágenes. El portapapeles interno cruza
 diseños del mismo usuario y empresa, pero se pierde al recargar. Para reutilizar una
 imagen nueva en otro diseño necesitas acceso independiente a ese archivo en Files.

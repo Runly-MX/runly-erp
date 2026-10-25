@@ -261,6 +261,7 @@ export { resolveLucideIcon } from "./components/resolve-icon.js";
 export { DynamicTable } from "./components/DynamicTable.jsx";
 export { DynamicForm } from "./components/DynamicForm.jsx";
 export { ActionMenu } from "./components/ActionMenu.jsx";
+export { ToolButton } from "./components/ToolButton.jsx";
 export { ConfirmDialog } from "./components/ConfirmDialog.jsx";
 export { BackButton } from "./components/BackButton.jsx";
 export { MiraiAvatar } from "./components/MiraiAvatar.jsx";

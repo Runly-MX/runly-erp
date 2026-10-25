@@ -6,6 +6,10 @@ export const STUDIO_BRANDING = Object.freeze({
   color: '#D946EF',
 })
 
+// Studio is a full-screen workspace; stale rows without fullscreenPaths would
+// otherwise bring back the module sidebar.
+const STUDIO_FULLSCREEN_PATHS = Object.freeze(['/'])
+
 function navigationBranding(navigation) {
   if (!Array.isArray(navigation)) return navigation
   return navigation.map(item => ['/', '/app/m/runly.studio', '/app/m/runly.studio/'].includes(item?.path)
@@ -17,7 +21,7 @@ function navigationBranding(navigation) {
 export function applyStudioBranding(module) {
   if (module?.key !== 'runly.studio') return module
   return { ...module, ...STUDIO_BRANDING, summary: STUDIO_BRANDING.description,
-    navigation: navigationBranding(module.navigation),
+    navigation: navigationBranding(module.navigation), fullscreenPaths: STUDIO_FULLSCREEN_PATHS,
     manifest: module.manifest ? { ...module.manifest, ...STUDIO_BRANDING, summary: STUDIO_BRANDING.description,
       navigation: navigationBranding(module.manifest.navigation),
       ...(module.manifest.pwa ? { pwa: { ...module.manifest.pwa, shortName: STUDIO_BRANDING.name } } : {}),

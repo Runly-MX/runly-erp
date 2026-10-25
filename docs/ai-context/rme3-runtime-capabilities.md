@@ -650,6 +650,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `DynamicTable` | Blueprint-driven table renderer |
 | `DynamicForm` | Blueprint-driven form renderer |
 | `ActionMenu` | Row action dropdown button |
+| `ToolButton` | Icon-only editor tool button with tooltip label and optional `shortcut` kbd; `active` paints the brand fill and sets `aria-pressed`. Props: `label`, `shortcut?`, `active?`, `side?` (tooltip side), plus `Button` props. Used by the Canvas and Studio editors. |
 | `ConfirmDialog` | Confirmation dialog with destructive variant |
 | `BackButton` | "Back" arrow for headers and sub-panels: 44px touch target on phones (pulled into the gutter, layout unchanged), compact 32px on md+. Props: `onClick`, `label` (default "Volver"), `className`, `iconClassName`. |
 | `MiraiAvatar` | MirAI identity mark (SVG): brand-tinted orb with a friendly visor face, AI spark and orbit ring; follows `--brand-primary`. Props: `size` (px, default 40), `animated` (slow blink + spark twinkle, off under reduced motion), `title`. |

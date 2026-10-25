@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Separator,
-  Tooltip, TooltipContent, TooltipTrigger, cn,
+  ToolButton, Tooltip, TooltipContent, TooltipTrigger, cn,
 } from '@runly/ui'
 import {
   ArrowUpRight, ChevronUp, Circle, Database, Diamond, Hand, ImagePlus, Library, Loader2, MapPin, Minus, MousePointer2,
@@ -27,33 +27,8 @@ const SHAPE_AND_TEXT_TOOLS = [...SHAPE_TOOLS, 'text']
 // stays the same size across the whole <768px range.
 const COMPACT_SIZE = 'h-10 w-10 sm:h-10 sm:w-10'
 
-export function ToolButton({ label, shortcut, active, className, side = 'top', children, ...props }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          aria-label={shortcut ? `${label} (${shortcut})` : label}
-          aria-pressed={active}
-          className={cn(
-            'rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
-            active && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground',
-            className,
-          )}
-          {...props}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side={side} className="flex items-center gap-2">
-        {label}
-        {shortcut ? <kbd className="rounded border border-[hsl(var(--border))] px-1 font-mono text-[10px] text-[hsl(var(--muted-foreground))]">{shortcut}</kbd> : null}
-      </TooltipContent>
-    </Tooltip>
-  )
-}
+// Moved to @runly/ui; re-exported for this module's existing imports.
+export { ToolButton }
 
 // One button remembers the last shape used; its menu lists every shape.
 function ShapePicker({ tool, onToolChange }) {
