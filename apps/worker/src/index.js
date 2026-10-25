@@ -49,6 +49,7 @@ import { createGrowthAggregationWorker } from '../../api/src/services/growth-agg
 import { createGrowthPropertyHealthWorker } from '../../api/src/services/growth-property-health-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 import { sweepOrphanChatAttachments } from '../../api/src/routes/chat/orphan-attachment-sweep-job.js'
+import { archiveInactiveMeetingChannels } from '../../api/src/routes/chat/meeting-channel-archive-job.js'
 
 const { PrismaClient } = pkg
 
@@ -638,6 +639,19 @@ runChatOrphanAttachmentSweepTick()
 setInterval(() => {
   runChatOrphanAttachmentSweepTick()
 }, CHAT_ORPHAN_SWEEP_INTERVAL_MS)
+
+// Channels made by calls stop cluttering the sidebar after 14 inactive days.
+async function runMeetingChannelArchiveTick() {
+  try {
+    const { archived } = await archiveInactiveMeetingChannels({ prisma })
+    if (archived > 0) console.log(`[worker] canales de reuniones archivados ${formatLogTimestamp()} archived=${archived}`)
+  } catch (err) {
+    console.error('[worker] meeting channel archive tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+setTimeout(runMeetingChannelArchiveTick, 150_000)
+setInterval(runMeetingChannelArchiveTick, 6 * 60 * 60 * 1000)
 
 process.on('SIGTERM', async () => {
   await prisma.$disconnect().catch(() => {})
