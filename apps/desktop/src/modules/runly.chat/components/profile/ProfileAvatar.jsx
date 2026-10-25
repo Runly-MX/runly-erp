@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-  Dialog, DialogContent, DialogHeader, DialogTitle, MiraiAvatar, ThemedEmojiPicker, cn,
+  MiraiAvatar, Popover, PopoverAnchor, PopoverContent, ThemedEmojiPicker, cn,
 } from "@runly/ui";
 import { Eye, ImagePlus, Loader2, Pencil, Smile, Trash2 } from "lucide-react";
 import { useConversationAvatarEditor } from "../../hooks/useConversationAvatarEditor";
@@ -47,8 +47,9 @@ export function ProfileAvatar({ conversationId, canEdit, url, emoji, name, mirai
   }
 
   return (
-    <>
-      <span className="relative inline-flex">
+    <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+      <PopoverAnchor asChild>
+        <span className="relative inline-flex">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -67,7 +68,8 @@ export function ProfileAvatar({ conversationId, canEdit, url, emoji, name, mirai
                 </span>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-52">
+            {/* The menu must not hand focus back to its trigger on close: that focus change closed the emoji popover opened from it. */}
+            <DropdownMenuContent align="center" className="w-52" onCloseAutoFocus={(event) => event.preventDefault()}>
               {url && (
                 <DropdownMenuItem onSelect={onView}>
                   <Eye className="mr-2 h-4 w-4" /> Ver imagen
@@ -76,7 +78,7 @@ export function ProfileAvatar({ conversationId, canEdit, url, emoji, name, mirai
               <DropdownMenuItem onSelect={() => fileRef.current?.click()}>
                 <ImagePlus className="mr-2 h-4 w-4" /> Subir imagen
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setTimeout(() => setEmojiOpen(true), 150)}>
+              <DropdownMenuItem onSelect={() => setTimeout(() => setEmojiOpen(true), 0)}>
                 <Smile className="mr-2 h-4 w-4" /> Usar emoji
               </DropdownMenuItem>
               {(url || emoji) && (
@@ -89,20 +91,15 @@ export function ProfileAvatar({ conversationId, canEdit, url, emoji, name, mirai
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-      </span>
-      {/* A dialog, not a popover: a popover opened from the menu was closed at once by the menu returning focus to its trigger. */}
-      <Dialog open={emojiOpen} onOpenChange={setEmojiOpen}>
-        <DialogContent size="md" className="items-center">
-          <DialogHeader icon={Smile}><DialogTitle>Elegir emoji</DialogTitle></DialogHeader>
-          <div className="flex justify-center py-2">
-            <ThemedEmojiPicker
-              onEmojiClick={(data) => { editor.setEmoji(data.emoji); setEmojiOpen(false); }}
-              width="min(340px, calc(100vw - 3rem))"
-              height={380}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+        </span>
+      </PopoverAnchor>
+      <PopoverContent side="bottom" align="center" className="w-auto overflow-hidden p-0" onOpenAutoFocus={(event) => event.preventDefault()} onFocusOutside={(event) => event.preventDefault()}>
+        <ThemedEmojiPicker
+          onEmojiClick={(data) => { editor.setEmoji(data.emoji); setEmojiOpen(false); }}
+          width="min(300px, calc(100vw - 1.5rem))"
+          height={340}
+        />
+      </PopoverContent>
       <input
         ref={fileRef}
         type="file"
@@ -114,6 +111,6 @@ export function ProfileAvatar({ conversationId, canEdit, url, emoji, name, mirai
           e.target.value = "";
         }}
       />
-    </>
+    </Popover>
   );
 }
