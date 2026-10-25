@@ -11,7 +11,7 @@ Spec: `docs/superpowers/specs/2026-10-24-work-layer-task-links-design.md`. Roadm
 - [x] Migrations `20261119000000_task_links` and `20261119000100_project_kind` applied by the owner (2026-10-24). Browser smoke of endpoints and the three record screens still pending.
 - [x] Home widget "Mis tareas" + `GET /projects/my-tasks`. Verified: 2026-10-24 (unit test, `pnpm build:web`, lint).
 - [x] Domain events `projects.task.completed`, `hr.employee.created`, `purchases.order.approved`, `purchases.order.issued` published and documented. Verified: 2026-10-24 (369 tests across projects, compiler, engine, purchases, hr; developer docs regenerated). Pending: `node scripts/sync-help-content.mjs` in runly-web and `node scripts/sync-mcp-docs.mjs ../runly-web` in runly-developer-hub.
-- [ ] Add purchases (and other modules) to the relation-targets catalog so they can be linked.
+- [x] Purchase orders added to the relation-targets catalog (search, resolve, Builder docs) and `RecordTasks` mounted in the order detail. Verified: 2026-10-24 (192 tests across compiler, relation-targets and projects; `pnpm lint`; developer docs regenerated). Browser check pending. Other modules (ledger documents, LMS, POS) still not linkable.
 - [ ] Builder `workLinks` flag for entities of Builder modules; MirAI tool to list tasks by record; link/unlink as MirAI/MCP actions.
 - [ ] Next roadmap phases: My Work home and widget contributions, domain event coverage, Automation Studio v2, Projects depth, Slack parity gaps.
 

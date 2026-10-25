@@ -33,6 +33,7 @@ Se definen con `targetExternal`. El módulo dueño pasa a ser una **dependencia*
 | `task` | Tarea | runly.projects | `projects.task.read` |
 | `calendar_event` | Evento de calendario | runly.calendar | `calendar.events.read` |
 | `ledger_account` | Cuenta | runly.ledger | `ledger.accounts.read` |
+| `purchase_order` | Orden de compra | runly.purchases | `purchases.order.read` |
 | `file` | Archivo | runly.files | `files.assets.read` |
 
 - La búsqueda y la validación usan las reglas del módulo dueño: empresa activa y visibilidad por usuario (miembros de proyectos y tareas, calendarios compartidos, cuentas con acceso, alcance de archivos).

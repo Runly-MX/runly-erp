@@ -6,6 +6,7 @@ import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { runly } from '../../../lib/runly.js'
+import { RecordTasks } from '../../../components/RecordTasks.jsx'
 import { useMiraiRecordContext } from '../../runly.chat/lib/miraiPageContext.js'
 import { useCapabilities, useDocument, usePurchasesCan } from '../hooks/usePurchases.js'
 import { usePurchaseRoute } from '../hooks/usePurchaseRoute.js'
@@ -137,6 +138,8 @@ export default function PurchaseDocumentDetail() {
             limit={15} emptyMessage="Sin actividad registrada para este documento." />
         </TabsContent>
       </Tabs>
+
+      {kind === 'orders' ? <RecordTasks type="purchase_order" id={doc.id} /> : null}
 
       {kind === 'orders' ? <ReceiveOrderDialog order={doc} open={dialog === 'receive'} onOpenChange={(o) => setDialog(o ? 'receive' : null)} /> : null}
       {kind === 'invoices' ? <PaymentDialog invoice={doc} open={dialog === 'pay'} onOpenChange={(o) => setDialog(o ? 'pay' : null)} /> : null}

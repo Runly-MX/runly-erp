@@ -19,6 +19,7 @@ import { createTasksService } from "../routes/projects/tasks-service.js";
 import { createCalendarEventService } from "../routes/calendar/calendar-event-service.js";
 import { createFleetService } from "../routes/fleet/fleet-service.js";
 import { createChatEntityReferencesService } from "../routes/chat/chat-entity-references-service.js";
+import { createChatExtraEntityTypes } from "../routes/chat/chat-entity-extra-types.js";
 
 const SEARCH_LIMIT = 20;
 const contains = (value) => ({ contains: value, mode: "insensitive" });
@@ -45,6 +46,7 @@ export function createRelationTargetsService({ prisma, supabaseAdmin = null, ser
     inventoryService: services.inventoryService ?? createInventoryService({ prisma }),
   };
   const inventoryAccess = services.inventoryAccess ?? createInventoryAccess({ prisma });
+  const extraTypes = services.extraTypes ?? createChatExtraEntityTypes({ prisma });
   const references = services.references ?? createChatEntityReferencesService({ prisma, ...svc });
 
   async function profileIdOf(authUserId) {
@@ -115,6 +117,10 @@ export function createRelationTargetsService({ prisma, supabaseAdmin = null, ser
       const scope = await inventoryAccess.scopeFor({ companyId, actorId: profileId });
       const result = await svc.inventoryService.listItems({ companyId, search: q || undefined, limit, scope });
       return (result.data ?? []).map((row) => ({ id: row.id, title: row.name, subtitle: [row.assetTag, row.categoryName].filter(Boolean).join(" · ") || null }));
+    },
+    async purchase_order({ companyId, q, limit }) {
+      const rows = await extraTypes.search("purchase_order", companyId, q, limit);
+      return rows.map((row) => ({ id: row.recordId, title: row.label, subtitle: row.subtitle }));
     },
     async project({ companyId, profileId, q, limit }) {
       const rows = await svc.projectsService.listProjects(companyId, profileId);

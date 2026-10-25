@@ -41,7 +41,7 @@ test("resolve returns only visible records; catalog marks installed modules", as
   const catalog = await service.catalog();
   assert.equal(catalog.find((entry) => entry.type === "vehicle").installed, true);
   assert.equal(catalog.find((entry) => entry.type === "contact").installed, false);
-  assert.equal(catalog.length, 9);
+  assert.equal(catalog.length, 10);
 });
 
 test("inventory_item search passes the actor's inventory area scope to listItems", async () => {

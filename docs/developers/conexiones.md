@@ -16,7 +16,7 @@ Es distinto de una [relación](/documentacion/desarrolladores/relaciones): una r
 | `hr_employee` | RR. HH. > colaborador | `hr.connections.manage` |
 | `project` | Proyectos > proyecto | `projects.connections.manage` |
 
-Cada uno de estos módulos tiene en su menú la pantalla **Conexiones**. Otros tipos del catálogo de relaciones (`vehicle`, `task`, `calendar_event`, `ledger_account`, `file`) aún no tienen esa pantalla: la API acepta la declaración, pero nadie puede activarla todavía.
+Cada uno de estos módulos tiene en su menú la pantalla **Conexiones**. Otros tipos del catálogo de relaciones (`vehicle`, `task`, `calendar_event`, `ledger_account`, `purchase_order`, `file`) aún no tienen esa pantalla: la API acepta la declaración, pero nadie puede activarla todavía.
 
 ## Dos tipos
 
