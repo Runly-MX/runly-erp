@@ -95,3 +95,19 @@ test('schedule helpers only expose enabled schedule automations', async () => {
   assert.equal(await svc.scheduleOf({ companyId: 'c1', key: 'evento' }), null)
   assert.equal(await svc.scheduleOf({ companyId: 'c2', key: 'semanal' }), null)
 })
+
+test('nothing runs while the Automatizaciones module is off for the company', async () => {
+  const prisma = fakePrisma()
+  prisma.runlyModule = { findFirst: async () => ({ id: 'm1' }) }
+  let off = true
+  prisma.companyModule = { findFirst: async () => (off ? { id: 'x' } : null) }
+  const calls = []
+  const moduleServices = { forSystem: () => ({ call: async (service) => { calls.push(service) } }) }
+  const svc = createSystemAutomationsService({ prisma, moduleServices, now: () => NOW })
+  await svc.create({ companyId: 'c1', input: input() })
+  const event = { companyId: 'c1', event: 'purchases.order.approved', payload: { id: 'o1', status: 'APPROVED' }, eventId: 'e9' }
+  assert.deepEqual(await svc.runEvent(event), { skipped: true })
+  assert.equal(calls.length, 0)
+  off = false
+  assert.deepEqual(await svc.runEvent(event), { ran: 1 })
+})

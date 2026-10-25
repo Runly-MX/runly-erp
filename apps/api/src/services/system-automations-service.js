@@ -110,10 +110,21 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
     return { key };
   }
 
+  // The Automatizaciones module can be switched off instance-wide or for one company:
+  // then nothing of the company's own automations runs (events, webhooks, schedules, waits).
+  async function moduleOn(companyId) {
+    if (!prisma.runlyModule?.findFirst) return true;
+    const mod = await prisma.runlyModule.findFirst({ where: { key: "runly.automations", status: "INSTALLED", enabled: true }, select: { id: true } });
+    if (!mod) return false;
+    const off = await prisma.companyModule.findFirst({ where: { companyId, moduleId: mod.id, enabled: false }, select: { id: true } });
+    return !off;
+  }
+
   // Domain event: every enabled automation of the company listening to it. Same
   // contract as a module's event handler: idempotent per event, and a failure is
   // rethrown after the loop so the dispatcher retries.
   async function runEvent({ companyId, event, payload: received, eventId }) {
+    if (!(await moduleOn(companyId))) return { skipped: true };
     const rows = await prisma.systemAutomation.findMany({ where: { companyId, enabled: true } });
     // A webhook message is addressed to one automation; its data are the fields.
     const webhook = event === WEBHOOK_EVENT;
@@ -139,6 +150,7 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
     const row = await prisma.systemAutomation.findUnique({ where: { companyId_key: { companyId: job.companyId, key: job.automationKey } } });
     if (!row) throw new Error(`La automatización "${job.automationKey}" ya no existe.`);
     if (!row.enabled) return { skipped: true };
+    if (!(await moduleOn(job.companyId))) throw new Error("El módulo Automatizaciones está desactivado para esta empresa.");
     const automation = toRuntime(row);
     const { data, recordId = null, actorId = null, base = null } = job.payload ?? {};
     const result = await execute({
@@ -163,7 +175,7 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
 
   async function runSchedule({ companyId, key, occurrence }) {
     const row = await prisma.systemAutomation.findUnique({ where: { companyId_key: { companyId, key } } });
-    if (!row || !row.enabled || row.definition.trigger?.type !== "schedule") return { skipped: true };
+    if (!row || !row.enabled || row.definition.trigger?.type !== "schedule" || !(await moduleOn(companyId))) return { skipped: true };
     const automation = toRuntime(row);
     const result = await execute({
       moduleKey: SYSTEM_MODULE_KEY, automation, base: `${key}:all:${occurrence}`, data: { firedAt: occurrence }, recordId: null, actorId: null, trigger: "schedule", ref: occurrence, ...hostFor(companyId),

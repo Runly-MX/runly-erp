@@ -8,6 +8,7 @@ import { createCompanyMailer } from '../smtp-service.js'
 const MIME = { csv: 'text/csv', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
 const MAX_REPORT_ROWS = 1000
 const MAX_RECIPIENTS = 20
+const MAX_EMAILS_PER_HOUR = 200
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 
 const STATUS_LABELS = { available: 'Disponible', assigned: 'Asignado', maintenance: 'Mantenimiento', retired: 'Baja', active: 'Activo', inactive: 'Inactivo' }
@@ -83,6 +84,9 @@ export function createCommunicationHandlers({ prisma, ServiceError, filesService
     },
 
     'runly.notifications:email.send': async ({ companyId }, args) => {
+      // A webhook can pass the recipient along, so sending is capped per company and hour.
+      const sentLastHour = await prisma.auditLog?.count?.({ where: { companyId, action: 'module.service.runly.notifications:email.send', createdAt: { gte: new Date(Date.now() - 3_600_000) } } }).catch(() => 0) ?? 0
+      if (sentLastHour >= MAX_EMAILS_PER_HOUR) throw new ServiceError(`Se alcanzó el límite de ${MAX_EMAILS_PER_HOUR} correos por hora de automatizaciones. Intenta más tarde.`, 429, 'mail_rate_limited')
       const recipients = new Set()
       if (args.to) recipients.add(args.to.toLowerCase())
       if (args.userIds?.length) {
