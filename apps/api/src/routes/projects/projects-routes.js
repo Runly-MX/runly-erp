@@ -4,6 +4,7 @@ import { createTasksService, TaskServiceError } from './tasks-service.js'
 import { createDependenciesService, DependencyServiceError } from './projects-dependencies-service.js'
 import { createGanttService, GanttServiceError } from './projects-gantt-service.js'
 import { createTimeService, TimeServiceError } from './projects-time-service.js'
+import { createOverviewService, OverviewServiceError } from './projects-overview-service.js'
 import { createFieldsService, FieldServiceError } from './projects-fields-service.js'
 import { createLinksService, LinkServiceError } from './projects-links-service.js'
 import { createProjectsCalendarBridge } from './projects-calendar-bridge.js'
@@ -42,6 +43,7 @@ function handleError(c, err, fallback) {
     err instanceof DependencyServiceError ||
     err instanceof GanttServiceError ||
     err instanceof TimeServiceError ||
+    err instanceof OverviewServiceError ||
     err instanceof FieldServiceError ||
     err instanceof LinkServiceError
   ) return c.json({ error: err.message }, err.status)
@@ -59,6 +61,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   const depsSvc = createDependenciesService({ prisma })
   const ganttSvc = createGanttService({ prisma })
   const timeSvc = createTimeService({ prisma })
+  const overviewSvc = createOverviewService({ prisma })
   // Project owners see everybody's time; everyone else only their own.
   const isProjectOwner = async (c) => {
     const projectId = c.req.param('id')
@@ -611,6 +614,26 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
       await prisma.fileAsset.update({ where: { id: c.req.param('fid') }, data: { enabled: false } })
       return c.json({ ok: true })
     } catch (err) { return handleError(c, err, 'Error al eliminar archivo.') }
+  })
+
+  // --- Workload and overview ---
+  app.get('/projects/:id/workload', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
+    try {
+      return c.json(await overviewSvc.workload({ projectId: c.req.param('id'), from: c.req.query('from'), to: c.req.query('to') }))
+    } catch (err) { return handleError(c, err, 'Error al calcular la carga de trabajo.') }
+  })
+
+  app.patch('/projects/:id/members/:uid/capacity', requirePermission('projects.member.manage'), requireProjectAccess('OWNER'), async (c) => {
+    try {
+      const body = await c.req.json()
+      return c.json(await overviewSvc.setCapacity({ projectId: c.req.param('id'), userId: c.req.param('uid'), weeklyCapacityMinutes: body.weeklyCapacityMinutes ?? null }))
+    } catch (err) { return handleError(c, err, 'Error al guardar la capacidad.') }
+  })
+
+  app.get('/projects/:id/overview', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
+    try {
+      return c.json(await overviewSvc.overview({ projectId: c.req.param('id'), companyId: getCompanyId(c) }))
+    } catch (err) { return handleError(c, err, 'Error al cargar el resumen del proyecto.') }
   })
 
   // --- Gantt ---

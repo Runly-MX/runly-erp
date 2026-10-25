@@ -617,6 +617,8 @@ export function useGantt(projectId) {
 // Dates, dependencies and the lists that show them all change together.
 function refreshSchedule(qc, projectId) {
   qc.invalidateQueries({ queryKey: ['projects', projectId, 'gantt'] })
+  qc.invalidateQueries({ queryKey: ['projects', projectId, 'workload'] })
+  qc.invalidateQueries({ queryKey: ['projects', projectId, 'overview'] })
   qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
 }
 
@@ -854,5 +856,35 @@ export function useAllTasksForPicker(projectId, enabled = false) {
     enabled: Boolean(token) && Boolean(projectId) && enabled,
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
+  })
+}
+
+export function useWorkload(projectId, params) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['projects', projectId, 'workload', params ?? null],
+    queryFn: () => runly.projects.getWorkload(projectId, params, token),
+    enabled: Boolean(token) && Boolean(projectId),
+    staleTime: 15 * 1000,
+  })
+}
+
+export function useSetCapacity(projectId) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, weeklyCapacityMinutes }) => runly.projects.setMemberCapacity(projectId, userId, weeklyCapacityMinutes, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'workload'] }),
+    onError: (error) => toast.error('No se pudo guardar la capacidad', { description: error?.message }),
+  })
+}
+
+export function useProjectOverview(projectId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['projects', projectId, 'overview'],
+    queryFn: () => runly.projects.getOverview(projectId, token),
+    enabled: Boolean(token) && Boolean(projectId),
+    staleTime: 30 * 1000,
   })
 }

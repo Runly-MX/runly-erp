@@ -2438,6 +2438,18 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
       // Gantt: tasks with dates + every dependency in one call; reschedule moves the dates
       // (and, with pushDependentsBy days, the tasks that depend on it).
+      getWorkload: (projectId, params, token) => {
+        const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v)).toString()
+        return request(`/projects/${encodeURIComponent(projectId)}/workload${query ? `?${query}` : ""}`, { headers: withAuthHeaders(token) })
+      },
+      setMemberCapacity: (projectId, userId, weeklyCapacityMinutes, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(userId)}/capacity`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ weeklyCapacityMinutes }),
+        }),
+      getOverview: (projectId, token) =>
+        request(`/projects/${encodeURIComponent(projectId)}/overview`, { headers: withAuthHeaders(token) }),
       getGantt: (projectId, token) =>
         request(`/projects/${encodeURIComponent(projectId)}/gantt`, { headers: withAuthHeaders(token) }),
       rescheduleTask: (projectId, taskId, data, token) =>

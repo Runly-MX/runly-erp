@@ -14,6 +14,7 @@ import {
   MessageSquare,
   MoreVertical,
   Pencil,
+  BarChart3,
 } from "lucide-react";
 import {
   Button, Badge, EmptyState, ErrorState, LoadingState,
@@ -29,6 +30,8 @@ import { UserAvatarContext } from "../lib/UserAvatarContext.js";
 import KanbanView from "../components/KanbanView.jsx";
 import ListView from "../components/ListView.jsx";
 import GanttView from "../components/GanttView.jsx";
+import WorkloadView from "../components/WorkloadView.jsx";
+import OverviewView from "../components/OverviewView.jsx";
 import { RunningTimerChip } from "../components/RunningTimerChip.jsx";
 import TaskDetailPanel from "../components/TaskDetailPanel.jsx";
 import ProjectFormModal from "../components/ProjectFormModal.jsx";
@@ -45,6 +48,8 @@ const VIEWS = [
   { key: "kanban", label: "Kanban", Icon: LayoutGrid },
   { key: "list", label: "Lista", Icon: List },
   { key: "timeline", label: "Gantt", Icon: Calendar },
+  { key: "workload", label: "Carga", Icon: Users },
+  { key: "overview", label: "Resumen", Icon: BarChart3 },
 ];
 
 const LIFECYCLE_BADGE = {
@@ -474,6 +479,12 @@ export default function ProjectsScreen() {
                 )}
                 {activeView === "timeline" && (
                   <GanttView projectId={effectiveId} onTaskClick={openTask} />
+                )}
+                {activeView === "workload" && (
+                  <WorkloadView projectId={effectiveId} userId={session?.user?.id} onTaskClick={openTask} />
+                )}
+                {activeView === "overview" && (
+                  <OverviewView projectId={effectiveId} onTaskClick={openTask} />
                 )}
               </div>
             </>
