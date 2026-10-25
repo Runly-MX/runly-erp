@@ -2,13 +2,13 @@
 // `@[<profileId>:<name>]` inside message bodies (see lib/mention-utils.js); only
 // conversations the person belongs to, in the active company, with access, are read.
 import { Hono } from "hono";
+import { loadActivity, plainMentions } from "./work-activity.js";
 
 const WINDOW_DAYS = 7;
 const MAX_ITEMS = 20;
 const EXCERPT = 140;
 
-// Text of a message without mention tokens' ids: "@[id:Ana]" -> "@Ana".
-export const plainMentions = (body) => String(body ?? "").replace(/@\[[^:\]\s]+:([^\]]*)\]/g, "@$1").replace(/\s+/g, " ").trim();
+export { plainMentions };
 
 export function createWorkRouter({ prisma, requireActiveCompany }) {
   const app = new Hono();
@@ -44,6 +44,14 @@ export function createWorkRouter({ prisma, requireActiveCompany }) {
       unread: !row.last_read_at || new Date(row.last_read_at) < new Date(row.created_at),
     }));
     return c.json({ data: { items, unread: items.filter((item) => item.unread).length } });
+  });
+
+  // Chat activity addressed to the person: mentions, thread replies, reactions, invitations.
+  app.get("/work/activity", requireActiveCompany, async (c) => {
+    const companyId = c.get("companyId");
+    const profileId = c.get("userContext")?.profile?.id ?? c.get("userId");
+    if (!companyId || !profileId) return c.json({ data: { items: [], unread: 0 } });
+    return c.json({ data: await loadActivity({ prisma, companyId, profileId }) });
   });
 
   return app;

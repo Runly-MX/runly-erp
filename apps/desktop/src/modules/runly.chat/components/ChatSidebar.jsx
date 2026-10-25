@@ -3,8 +3,9 @@ import {
   Button, ConfirmDialog, EmptyState, SearchInput, Skeleton,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@runly/ui";
-import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Images, FolderPlus } from "lucide-react";
+import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Images, FolderPlus, Bell } from "lucide-react";
 import { ChatConversationItem, ChatConversationRow } from "./ChatConversationItem";
+import { ChatActivitySheet, useChatActivity } from "./ChatActivitySheet";
 import { SidebarSectionHeader, DRAG_TYPE } from "./SidebarSectionHeader";
 import { SectionDialog, MoveToSectionDialog } from "./SidebarSectionDialogs";
 import { addSection, assignConversation, buildSections, deleteSection, moveSection, renameSection } from "../lib/sidebarSections";
@@ -44,6 +45,8 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const [showSettings, setShowSettings] = useState(false);
   const [sectionDialog, setSectionDialog] = useState({ open: false, section: null, thenMove: null });
   const [moveTarget, setMoveTarget] = useState(null);
+  const [showActivity, setShowActivity] = useState(false);
+  const { data: activity } = useChatActivity(true);
   const [sectionToDelete, setSectionToDelete] = useState(null);
 
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
@@ -236,6 +239,18 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           </div>
         )}
 
+        {!search.trim() && !isLoading && (
+          <button
+            type="button"
+            onClick={() => setShowActivity(true)}
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-[hsl(var(--muted))] [@media(pointer:coarse)]:min-h-11"
+          >
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[hsl(var(--muted-foreground))]" aria-hidden><Bell className="h-3.5 w-3.5" /></span>
+            <span className={["min-w-0 flex-1 truncate", activity?.unread ? "font-semibold" : "text-[hsl(var(--foreground))]/80"].join(" ")}>Menciones y actividad</span>
+            {activity?.unread > 0 && <span className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)] px-1 text-[10px] font-semibold text-[var(--brand-primary-foreground)]">{activity.unread > 99 ? "99+" : activity.unread}</span>}
+          </button>
+        )}
+
         {!search.trim() && !isLoading && layout.mirai.map((conv) => (
           <ConversationRowActions key={conv.id} conversation={conv} currentUserId={userProfile?.id} onAction={handleConversationAction} swipeOpenId={openRowId} onSwipeOpen={setOpenRowId}>
             <ChatConversationItem conversation={conv} isActive={conv.id === activeId} onClick={() => onSelect(conv)} currentUserId={userProfile?.id} isOnline={false} />
@@ -366,6 +381,11 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
       )}
       </div>
 
+      <ChatActivitySheet
+        open={showActivity}
+        onOpenChange={setShowActivity}
+        onOpen={(item) => { setShowActivity(false); onSelect({ id: item.conversationId }, item.messageId ?? undefined); }}
+      />
       <SectionDialog open={sectionDialog.open} section={sectionDialog.section} onClose={() => setSectionDialog({ open: false, section: null, thenMove: null })} onSave={saveSection} />
       <MoveToSectionDialog
         open={Boolean(moveTarget)}
