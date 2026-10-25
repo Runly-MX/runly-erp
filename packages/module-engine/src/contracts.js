@@ -21,6 +21,11 @@ export const DOMAIN_EVENTS = Object.freeze({
   'purchases.order.approved': 'Se aprobó una orden de compra',
   'purchases.order.issued': 'Se emitió una orden de compra',
   'lms.enrollment.completed': 'Una persona completó un curso',
+  'contacts.contact.updated': 'Se actualizó un contacto',
+  'purchases.request.created': 'Se creó una solicitud de compra',
+  'purchases.order.cancelled': 'Se canceló una orden de compra',
+  'purchases.invoice.paid': 'Se pagó una factura de compra',
+  'ledger.transaction.created': 'Se registró un movimiento en el libro de cuentas',
   // Internal: a message arrived at the webhook of a company automation (hidden from pickers).
   'automations.webhook.received': 'Se recibió un mensaje en un webhook de automatización',
 })
@@ -44,6 +49,12 @@ export const DOMAIN_EVENT_PAYLOADS = Object.freeze({
   'purchases.order.approved': PURCHASE_ORDER_PAYLOAD,
   'purchases.order.issued': PURCHASE_ORDER_PAYLOAD,
   'lms.enrollment.completed': Object.freeze(['id', 'courseId', 'learnerId']),
+  'contacts.contact.updated': Object.freeze(['id']),
+  'purchases.request.created': PURCHASE_ORDER_PAYLOAD,
+  'purchases.order.cancelled': PURCHASE_ORDER_PAYLOAD,
+  'purchases.invoice.paid': PURCHASE_ORDER_PAYLOAD,
+  // No account or person names: a company automation can read every movement it receives.
+  'ledger.transaction.created': Object.freeze(['id', 'accountId', 'deposito', 'retiro']),
   'automations.webhook.received': Object.freeze(['automationKey', 'data']),
 })
 

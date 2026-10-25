@@ -1,5 +1,6 @@
 // runly.purchases — cases (expedientes), requests, quotes and approvals.
 import { buildStageMap, resolveTransition } from './purchase-policies.js'
+import { publishDomainEvent } from './domain-events/events.js'
 import { policyCheckFor } from './purchase-case-bundle.js'
 import {
   DECISION_STATUS, KINDS, MODULE_KEY, OWNER_TYPE_TO_KIND, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertLineCategories,
@@ -139,7 +140,7 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
       caseRow = await prisma.purchaseCase.findFirst({ where: { id: input.caseId, companyId } })
       if (!caseRow) throw notFound('El expediente no existe.')
     }
-    return plain(await audited(companyId, actorId, 'purchase_request', null, 'purchase.request.created', async tx => {
+    const created = plain(await audited(companyId, actorId, 'purchase_request', null, 'purchase.request.created', async tx => {
       const { sequence, number } = await allocateNumber(tx, { companyId, kind: 'requests', number: input.number })
       const purchaseCase = caseRow ?? await createCase(tx, { companyId, actorId, workflowId: workflow.id, title: data.title, currency: data.currency, estimatedTotal })
       const request = await tx.purchaseRequest.create({
@@ -150,6 +151,8 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
       await relate(tx, { companyId, actorId, sourceType: 'purchase_case', sourceId: purchaseCase.id, targetType: 'purchase_request', targetId: request.id, relationType: 'CONTAINS', origin: 'AUTOMATIC' })
       return request
     }))
+    await publishDomainEvent(prisma, { companyId, event: 'purchases.request.created', payload: { id: created.id, caseId: created.caseId, status: created.status } })
+    return created
   }
 
   async function updateRequest(companyId, actorId, id, input = {}) {

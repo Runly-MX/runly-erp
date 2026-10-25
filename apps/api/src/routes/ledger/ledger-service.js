@@ -1,3 +1,4 @@
+import { publishDomainEvent } from '../../services/domain-events/events.js'
 import {
   normalizePagination, normalizeOptionalString,
   isTableNotFoundError, isUniqueViolation, toCount, firstRow, hasOwn,
@@ -402,6 +403,7 @@ export function createLedgerService({ prisma }) {
     `
     const row = firstRow(rows)
     if (!row) throw new LedgerServiceError('Cuenta no encontrada o no disponible.', 404)
+    await publishDomainEvent(prisma, { companyId, event: 'ledger.transaction.created', payload: { id: row.id, accountId, deposito: row.deposito == null ? null : String(row.deposito), retiro: row.retiro == null ? null : String(row.retiro) } })
     return row
   }
 

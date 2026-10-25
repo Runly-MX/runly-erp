@@ -304,6 +304,7 @@ export function createContactsService({ prisma, supabaseAdmin = null, storageBuc
         }
         if (afterWrite) await afterWrite(tx, { id });
       }).catch(rethrowChildrenError);
+      await publishDomainEvent(prisma, { companyId, event: "contacts.contact.updated", payload: { id } });
       return prisma.contact.findUnique({ where: { id } });
     },
 

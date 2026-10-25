@@ -262,8 +262,10 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       return result
     })
     await broadcast(broadcaster, companyId, `${EVENT[kind]}.${action}`, { id, caseId: doc.caseId, status: updated.status })
-    if (kind === 'orders' && updated.status !== doc.status && ['APPROVED', 'ISSUED'].includes(updated.status)) {
-      await publishDomainEvent(prisma, { companyId, event: `purchases.order.${updated.status.toLowerCase()}`, payload: { id, caseId: doc.caseId, status: updated.status } })
+    if (updated.status !== doc.status) {
+      const event = kind === 'orders' && ['APPROVED', 'ISSUED', 'CANCELLED'].includes(updated.status) ? `purchases.order.${updated.status.toLowerCase()}`
+        : kind === 'invoices' && updated.status === 'PAID' ? 'purchases.invoice.paid' : null
+      if (event) await publishDomainEvent(prisma, { companyId, event, payload: { id, caseId: doc.caseId, status: updated.status } })
     }
     return plain(updated)
   }
