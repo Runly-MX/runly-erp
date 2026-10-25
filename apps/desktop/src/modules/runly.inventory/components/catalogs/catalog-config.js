@@ -7,7 +7,7 @@ export const CATALOGS = [
   { key: 'locations', label: 'Ubicaciones', icon: MapPin, description: 'Dónde se encuentran tus activos.' },
   { key: 'conditions', label: 'Condiciones', icon: Activity, description: 'Estado físico de cada activo (nuevo, en uso, descompuesto...). Es descriptivo; las altas y bajas se manejan aparte.' },
   { key: 'custom-fields', label: 'Campos personalizados', icon: SlidersHorizontal, description: 'Datos extra que pide cada tipo de activo (por ejemplo RAM o placas).' },
-  { key: 'templates', label: 'Plantillas', icon: FileText, description: 'Formatos de Word o Excel de tu empresa para generar los resguardos firmados.' },
+  { key: 'templates', label: 'Plantillas', icon: FileText, description: 'Formatos de Word, Excel, PowerPoint o PDF de tu empresa para generar los resguardos firmados.' },
 ]
 
 // Old links (?tab=categories) keep working.
