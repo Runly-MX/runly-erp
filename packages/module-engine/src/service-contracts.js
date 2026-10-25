@@ -107,6 +107,16 @@ export const SERVICE_CONTRACTS = Object.freeze({
     args: { userIds: req({ type: 'uuid[]', max: 100 }), title: req(s(200)), body: { type: 'text', max: 1000 }, link: s(500), priority: { type: 'enum', values: ['low', 'medium', 'high', 'critical'] }, sourceEntityId: SOURCE },
     returns: ['sent'],
   },
+  'runly.purchases:requests.create': {
+    label: 'Crear solicitudes de compra', permission: 'purchases.request.create', mutates: true, system: true,
+    args: { title: req(s(255)), justification: { type: 'text', max: 2000 }, priority: { type: 'enum', values: ['LOW', 'NORMAL', 'HIGH', 'URGENT'] }, currency: s(3), neededBy: DAY, sourceEntityId: SOURCE },
+    returns: ['id', 'number', 'status'],
+  },
+  'runly.hr:employees.search': {
+    label: 'Buscar colaboradores (solo nombre y área)', permission: 'hr.employee.read', mutates: false, system: true,
+    args: { search: SEARCH, status: s(40), limit: LIMIT },
+    returns: ['items', 'total'],
+  },
   'runly.notifications:email.send': {
     label: 'Enviar correos', permission: null, mutates: true, system: true,
     args: { userIds: { type: 'uuid[]', max: 20 }, to: { type: 'email' }, subject: req(s(200)), body: req({ type: 'text', max: 5000 }), fileId: { type: 'uuid' }, sourceEntityId: SOURCE },

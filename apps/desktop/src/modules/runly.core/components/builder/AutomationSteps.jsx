@@ -15,6 +15,7 @@ import { InspectorSection } from "./InspectorSection";
 const OWNER_LABELS = {
   "runly.calendar": "Calendario", "runly.files": "Archivos", "runly.notifications": "Notificaciones", "runly.contacts": "Contactos",
   "runly.inventory": "Inventario", "runly.projects": "Proyectos", "runly.ledger": "Libro de cuentas", "runly.fleet": "Flota", "runly.pfm": "Finanzas personales",
+  "runly.purchases": "Compras", "runly.hr": "Recursos Humanos", "runly.documents": "Documentos",
 };
 export const ownerLabel = (serviceKey) => OWNER_LABELS[serviceKey.split(":")[0]] ?? serviceKey.split(":")[0];
 export const serviceLabel = (key, label) => `${OWNER_LABELS[key.split(":")[0]] ?? key.split(":")[0]} · ${label}`;

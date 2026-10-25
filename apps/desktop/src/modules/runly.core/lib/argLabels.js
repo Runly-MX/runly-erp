@@ -12,6 +12,7 @@ export const ARG_LABELS = {
   accountId: "Cuenta (id)", accountName: "Cuenta (nombre)", fecha: "Fecha", nombre: "Nombre", referencia: "Referencia",
   concepto: "Concepto", numero: "Número", deposito: "Depósito", retiro: "Retiro", categoryId: "Categoría (id)", transactionId: "Movimiento (id)",
   wallet: "Cartera (nombre o id)", direction: "Tipo de movimiento", amount: "Monto", occurredOn: "Fecha", category: "Categoría",
+  justification: "Justificación", neededBy: "Se necesita para el",
   merchant: "Comercio", note: "Nota", movementId: "Movimiento (id)",
   subject: "Asunto", to: "Correo externo", fileId: "Archivo adjunto (id)", source: "Qué incluye el reporte", format: "Formato", search: "Filtrar por texto",
   kind: "Tipo de documento", templateId: "Plantilla (id)", sourceId: "Registro de origen (id)", values: "Valores (JSON)", output: "Salida (native o pdf)",

@@ -32,7 +32,7 @@ test('old root/server and Atlas declarations retain identical functions', () => 
 test('runtime capability inventory matches actual ERP externals and integrations', async () => {
   const { BUNDLE_EXTERNALS } = await import('../../../../packages/preview-runtime/src/externals.js')
   assert.deepEqual([...BUNDLE_EXTERNALS].sort(), [...RME3_CAPABILITIES.runtime.sharedExternals].sort())
-  const catalog = (await Promise.all(['service-catalog.js', 'action-backed-services.js', 'communication-services.js', 'documents-services.js'].map((file) => readFile(new URL(`../../../../apps/api/src/services/module-services/${file}`, import.meta.url), 'utf8')))).join('\n')
+  const catalog = (await Promise.all(['service-catalog.js', 'action-backed-services.js', 'communication-services.js', 'documents-services.js', 'work-services.js'].map((file) => readFile(new URL(`../../../../apps/api/src/services/module-services/${file}`, import.meta.url), 'utf8')))).join('\n')
   assert.deepEqual([...catalog.matchAll(/^    '(runly\.[^']+:[^']+)':/gm)].map((m) => m[1]).sort(), [...SERVICE_KEYS].sort())
   const events = await import('../../../../apps/api/src/services/domain-events/events.js')
   assert.equal(events.DOMAIN_EVENTS, DOMAIN_EVENTS)
