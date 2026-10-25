@@ -1,12 +1,14 @@
 import { useState } from "react";
 import {
-  Button, EmptyState, SearchInput, Skeleton,
+  Button, ConfirmDialog, EmptyState, SearchInput, Skeleton,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@runly/ui";
-import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Images } from "lucide-react";
+import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Images, FolderPlus } from "lucide-react";
 import { ChatConversationItem, ChatConversationRow } from "./ChatConversationItem";
-import { SidebarSectionHeader } from "./SidebarSectionHeader";
-import { buildSections } from "../lib/sidebarSections";
+import { SidebarSectionHeader, DRAG_TYPE } from "./SidebarSectionHeader";
+import { SectionDialog, MoveToSectionDialog } from "./SidebarSectionDialogs";
+import { addSection, assignConversation, buildSections, deleteSection, moveSection, renameSection } from "../lib/sidebarSections";
+import { uuidv7 } from "../lib/uuidv7";
 import { useChatSidebar } from "../hooks/useChatSidebar";
 import { ConversationRowActions } from "./ConversationRowActions";
 import { MessageSearchResults } from "./MessageSearchResults";
@@ -40,6 +42,9 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const [showMeeting, setShowMeeting] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [sectionDialog, setSectionDialog] = useState({ open: false, section: null, thenMove: null });
+  const [moveTarget, setMoveTarget] = useState(null);
+  const [sectionToDelete, setSectionToDelete] = useState(null);
 
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
   const archivedConversations = archivedData?.data ?? [];
@@ -63,6 +68,20 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
 
   const { state: sidebarState, save: saveSidebar } = useChatSidebar();
   const layout = buildSections({ conversations: filtered, state: sidebarState, filter: sidebarState.filter });
+  const onRowAction = (action, conversation) => (action === "move" ? setMoveTarget(conversation) : handleConversationAction(action, conversation));
+  const assign = (conversationId, sectionId) => saveSidebar((current) => assignConversation(current, conversationId, sectionId));
+  const saveSection = ({ name, icon }) => {
+    const { section, thenMove } = sectionDialog;
+    if (section) saveSidebar((current) => renameSection(current, section.id, { name, icon }));
+    else {
+      const id = uuidv7();
+      saveSidebar((current) => {
+        const added = addSection(current, { id, name, icon });
+        return thenMove ? assignConversation(added, thenMove, id) : added;
+      });
+    }
+    setSectionDialog({ open: false, section: null, thenMove: null });
+  };
   const toggleSection = (section) => saveSidebar((current) => section.kind === "custom"
     ? { ...current, sections: current.sections.map((item) => (item.id === section.id ? { ...item, collapsed: !section.collapsed } : item)) }
     : { ...current, collapsed: { ...current.collapsed, [section.key]: !section.collapsed } });
@@ -113,6 +132,10 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
               <DropdownMenuItem onSelect={() => setShowDirectory(true)}>
                 <Compass className="h-3.5 w-3.5 mr-2" />
                 Explorar canales
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setSectionDialog({ open: true, section: null, thenMove: null })}>
+                <FolderPlus className="h-3.5 w-3.5 mr-2" />
+                Nueva sección
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setShowMeeting(true)}>
                 <Video className="h-3.5 w-3.5 mr-2" />
@@ -225,11 +248,21 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
             <div key={section.key} className="pt-1.5">
               <SidebarSectionHeader
                 label={section.label}
+                icon={section.icon}
                 collapsed={collapsed}
                 unread={section.unread}
                 mentions={section.mentions}
                 count={section.items.length}
                 onToggle={() => toggleSection(section)}
+                onDropConversation={section.key === "starred" ? undefined : (id) => assign(id, section.kind === "custom" ? section.id : null)}
+                menu={section.kind === "custom" ? {
+                  onRename: () => setSectionDialog({ open: true, section: sidebarState.sections.find((item) => item.id === section.id), thenMove: null }),
+                  onDelete: () => setSectionToDelete(section),
+                  canMoveUp: sidebarState.sections[0]?.id !== section.id,
+                  canMoveDown: sidebarState.sections[sidebarState.sections.length - 1]?.id !== section.id,
+                  onMoveUp: () => saveSidebar((current) => moveSection(current, section.id, -1)),
+                  onMoveDown: () => saveSidebar((current) => moveSection(current, section.id, 1)),
+                } : null}
               />
               {!collapsed && (
                 <div className="space-y-px">
@@ -237,9 +270,11 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
                   {section.items.map((conv) => {
                     const otherMember = conv.type === "direct" ? (conv.members ?? []).find((m) => m.userId !== userProfile?.id) : null;
                     return (
-                      <ConversationRowActions key={conv.id} conversation={conv} currentUserId={userProfile?.id} onAction={handleConversationAction} swipeOpenId={openRowId} onSwipeOpen={setOpenRowId}>
-                        <ChatConversationRow conversation={conv} isActive={conv.id === activeId} onClick={() => onSelect(conv)} currentUserId={userProfile?.id} isOnline={otherMember ? isUserOnline(otherMember.userId) : false} />
-                      </ConversationRowActions>
+                      <div key={conv.id} draggable onDragStart={(event) => { event.dataTransfer.setData(DRAG_TYPE, conv.id); event.dataTransfer.effectAllowed = "move"; }}>
+                        <ConversationRowActions conversation={conv} currentUserId={userProfile?.id} onAction={onRowAction} canOrganize swipeOpenId={openRowId} onSwipeOpen={setOpenRowId}>
+                          <ChatConversationRow conversation={conv} isActive={conv.id === activeId} onClick={() => onSelect(conv)} currentUserId={userProfile?.id} isOnline={otherMember ? isUserOnline(otherMember.userId) : false} />
+                        </ConversationRowActions>
+                      </div>
                     );
                   })}
                 </div>
@@ -330,6 +365,25 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
         </div>
       )}
       </div>
+
+      <SectionDialog open={sectionDialog.open} section={sectionDialog.section} onClose={() => setSectionDialog({ open: false, section: null, thenMove: null })} onSave={saveSection} />
+      <MoveToSectionDialog
+        open={Boolean(moveTarget)}
+        conversationName={moveTarget ? (getConversationDisplayName(moveTarget, userProfile?.id) ?? "") : ""}
+        sections={sidebarState.sections}
+        current={moveTarget ? (sidebarState.assignments[moveTarget.id] ?? null) : null}
+        onClose={() => setMoveTarget(null)}
+        onPick={(sectionId) => { assign(moveTarget.id, sectionId); setMoveTarget(null); }}
+        onCreate={() => { const id = moveTarget.id; setMoveTarget(null); setSectionDialog({ open: true, section: null, thenMove: id }); }}
+      />
+      <ConfirmDialog
+        open={Boolean(sectionToDelete)}
+        onOpenChange={(value) => { if (!value) setSectionToDelete(null); }}
+        title="Eliminar sección"
+        description={`«${sectionToDelete?.label ?? ""}» se elimina y sus conversaciones vuelven a su sección automática. No se borra ninguna conversación.`}
+        confirmLabel="Eliminar sección"
+        onConfirm={() => { saveSidebar((current) => deleteSection(current, sectionToDelete.id)); setSectionToDelete(null); }}
+      />
 
       <CreateChatModal
         open={showCreate}

@@ -65,3 +65,45 @@ export function buildSections({ conversations, state = DEFAULT_SIDEBAR, filter =
   const sections = [...autos.filter((section) => section.key === "starred"), ...customs, ...autos.filter((section) => section.key !== "starred")];
   return { mirai, sections };
 }
+
+// ---- State changes (pure: each returns the next state) ----
+export const MAX_SECTIONS = 20;
+export const MAX_NAME = 40;
+
+export function addSection(state, { id, name, icon = null }) {
+  const label = String(name ?? "").trim().slice(0, MAX_NAME);
+  if (!label || state.sections.length >= MAX_SECTIONS) return state;
+  return { ...state, sections: [...state.sections, { id, name: label, icon: icon || null, collapsed: false }] };
+}
+
+export function renameSection(state, id, { name, icon }) {
+  const label = String(name ?? "").trim().slice(0, MAX_NAME);
+  if (!label) return state;
+  return { ...state, sections: state.sections.map((section) => (section.id === id ? { ...section, name: label, icon: icon === undefined ? section.icon : icon || null } : section)) };
+}
+
+// Its conversations go back to their automatic section.
+export function deleteSection(state, id) {
+  return {
+    ...state,
+    sections: state.sections.filter((section) => section.id !== id),
+    assignments: Object.fromEntries(Object.entries(state.assignments).filter(([, sectionId]) => sectionId !== id)),
+  };
+}
+
+export function moveSection(state, id, direction) {
+  const index = state.sections.findIndex((section) => section.id === id);
+  const target = index + (direction < 0 ? -1 : 1);
+  if (index < 0 || target < 0 || target >= state.sections.length) return state;
+  const sections = [...state.sections];
+  [sections[index], sections[target]] = [sections[target], sections[index]];
+  return { ...state, sections };
+}
+
+// sectionId null = back to the automatic section.
+export function assignConversation(state, conversationId, sectionId) {
+  const assignments = { ...state.assignments };
+  if (sectionId && state.sections.some((section) => section.id === sectionId)) assignments[conversationId] = sectionId;
+  else delete assignments[conversationId];
+  return { ...state, assignments };
+}

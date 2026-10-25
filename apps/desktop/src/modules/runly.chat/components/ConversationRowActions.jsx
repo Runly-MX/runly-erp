@@ -26,6 +26,7 @@ export function ConversationRowActions({
   onAction,
   swipeOpenId = null,
   onSwipeOpen = null,
+  canOrganize = false,
   children,
 }) {
   // Touch surface = coarse pointer AND a narrow-ish viewport (a desktop with a
@@ -39,7 +40,7 @@ export function ConversationRowActions({
   const confirmTimer = useRef(null);
   useEffect(() => () => { if (confirmTimer.current) clearTimeout(confirmTimer.current); }, []);
 
-  const actions = buildConversationActions(conversation, { currentUserId });
+  const actions = buildConversationActions(conversation, { currentUserId, canOrganize });
   const nonDestructive = actions.filter((a) => !a.destructive);
   const destructive = actions.filter((a) => a.destructive);
 

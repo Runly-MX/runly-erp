@@ -1,6 +1,6 @@
 import {
   Pin, PinOff, Bell, BellOff, CheckCheck,
-  Archive, ArchiveRestore, Trash2, LogOut,
+  Archive, ArchiveRestore, Trash2, LogOut, FolderInput,
 } from "lucide-react";
 
 // Single source of truth for the per-conversation row action list. Pure — takes
@@ -15,7 +15,7 @@ import {
 
 const MANAGER_ROLES = new Set(["owner", "admin"]);
 
-export function buildConversationActions(conversation, { currentUserId } = {}) {
+export function buildConversationActions(conversation, { currentUserId, canOrganize = false } = {}) {
   if (!conversation) return [];
   const {
     type,
@@ -33,6 +33,11 @@ export function buildConversationActions(conversation, { currentUserId } = {}) {
       ? { key: "pin", action: "unpin", label: "Desfijar", icon: PinOff }
       : { key: "pin", action: "pin", label: "Fijar arriba", icon: Pin },
   );
+
+  // Only the sectioned sidebar can place a conversation in one of the person's own sections.
+  if (canOrganize && !isArchived && type !== "mirai") {
+    actions.push({ key: "move", action: "move", label: "Mover a sección...", icon: FolderInput });
+  }
 
   actions.push(
     isMuted

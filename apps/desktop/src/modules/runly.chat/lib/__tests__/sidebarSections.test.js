@@ -49,3 +49,33 @@ test('assignments to a deleted section fall back to the automatic one', () => {
   const state = { ...DEFAULT_SIDEBAR, assignments: { a: 'gone' } }
   assert.deepEqual(buildSections({ conversations: [conv({ id: 'a', type: 'channel' })], state }).sections.map((s) => s.key), ['channels'])
 })
+
+import { addSection, renameSection, deleteSection, moveSection, assignConversation } from '../sidebarSections.js'
+
+test('sections can be added, renamed, reordered and deleted without touching other state', () => {
+  let state = addSection(DEFAULT_SIDEBAR, { id: 'a', name: '  Clientes ' })
+  state = addSection(state, { id: 'b', name: 'Equipo', icon: 'users' })
+  assert.deepEqual(state.sections.map((s) => s.name), ['Clientes', 'Equipo'])
+  assert.equal(addSection(state, { id: 'c', name: '   ' }), state)
+  state = renameSection(state, 'a', { name: 'Cuentas' })
+  state = moveSection(state, 'b', -1)
+  assert.deepEqual(state.sections.map((s) => s.id), ['b', 'a'])
+  assert.equal(moveSection(state, 'b', -1), state)
+  state = assignConversation(state, 'conv1', 'a')
+  assert.equal(state.assignments.conv1, 'a')
+  state = deleteSection(state, 'a')
+  assert.deepEqual(state.assignments, {})
+  assert.deepEqual(state.sections.map((s) => s.id), ['b'])
+})
+
+test('assigning to an unknown section or to null returns the conversation to its automatic section', () => {
+  const state = { ...DEFAULT_SIDEBAR, sections: [{ id: 'a', name: 'A' }], assignments: { c: 'a' } }
+  assert.deepEqual(assignConversation(state, 'c', null).assignments, {})
+  assert.deepEqual(assignConversation(state, 'd', 'nope').assignments, { c: 'a' })
+})
+
+test('sections are capped', () => {
+  let state = DEFAULT_SIDEBAR
+  for (let i = 0; i < 25; i += 1) state = addSection(state, { id: `s${i}`, name: `S${i}` })
+  assert.equal(state.sections.length, 20)
+})
