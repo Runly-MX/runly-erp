@@ -20,7 +20,7 @@ export function ActionMenu({ items = [], label = 'Acciones' }) {
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuContent align="end" className="min-w-52">
         {normalItems.map((item, index) => {
           const Icon = item.icon
           return (
