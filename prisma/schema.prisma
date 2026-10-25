@@ -576,6 +576,7 @@ model SystemAutomation {
   label       String
   enabled     Boolean  @default(true)
   definition  Json
+  webhookToken String? @unique @map("webhook_token")
   createdById String?  @map("created_by_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -583,6 +584,21 @@ model SystemAutomation {
   @@unique([companyId, key])
   @@index([companyId, enabled])
   @@map("system_automation")
+}
+
+// Messages received at the webhook of a company automation (last ones kept for
+// the editor's "listen for a test message"). Spec
+// docs/superpowers/specs/2026-10-25-automation-canvas-and-webhooks-design.md.
+model AutomationWebhookEvent {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  automationKey String   @map("automation_key")
+  payload       Json
+  sourceIp      String?  @map("source_ip")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([companyId, automationKey, createdAt(sort: Desc)])
+  @@map("automation_webhook_event")
 }
 
 model Company {

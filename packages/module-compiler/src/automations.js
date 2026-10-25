@@ -21,6 +21,8 @@ export const MAX_APPROVERS = 5
 export const MAX_APPROVALS = 1
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const BODY_KEY = /^[a-zA-Z][a-zA-Z0-9_]{0,40}$/
+export const MAX_WEBHOOK_FIELDS = 30
+export const WEBHOOK_FIELD_KEY = /^[a-zA-Z][a-zA-Z0-9_]{0,60}$/
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 // Filled in by the runtime, never required from the Builder user.
 export const AUTOMATIC_ARGS = Object.freeze(['sourceEntityId', 'idempotencyKey'])
@@ -62,8 +64,11 @@ export function automationServices({ trigger = 'record', afterDelay = false } = 
     .map(([key, contract]) => ({ key, label: contract.label, args: contract.args, system: Boolean(contract.system) }))
 }
 
+// Events a person can pick as a trigger (internal ones stay out).
+export const INTERNAL_EVENTS = Object.freeze(['automations.webhook.received'])
+
 export function automationEvents() {
-  return Object.entries(DOMAIN_EVENTS).map(([key, label]) => ({ key, label, payload: [...(DOMAIN_EVENT_PAYLOADS[key] ?? [])] }))
+  return Object.entries(DOMAIN_EVENTS).filter(([key]) => !INTERNAL_EVENTS.includes(key)).map(([key, label]) => ({ key, label, payload: [...(DOMAIN_EVENT_PAYLOADS[key] ?? [])] }))
 }
 
 // { 'runly.calendar': ['events.create'], ... } from the automations' services.
@@ -193,7 +198,7 @@ function validateApprovalStep(step, { base, fieldNames, errors }) {
   validateTemplate(step.message, { path: `${base}.message`, fieldNames, errors, max: 200, code: 'AUTOMATION_APPROVAL_INVALID' })
 }
 
-export function validateDefinitionAutomations(definition, errors) {
+export function validateDefinitionAutomations(definition, errors, { allowWebhook = false } = {}) {
   const list = definition.automations
   if (list === undefined) return
   if (!Array.isArray(list)) { errors.push(diagnostic('automations', 'AUTOMATIONS_INVALID', 'automations must be an array.')); return }
@@ -230,6 +235,22 @@ export function validateDefinitionAutomations(definition, errors) {
         else fieldNames = new Set((entity.fields ?? []).map(fieldKey))
       } else if (trigger.when !== undefined) {
         errors.push(diagnostic(`${base}.trigger.when`, 'AUTOMATION_CONDITION_INVALID', 'Conditions on a schedule need an entity.'))
+      }
+    } else if (trigger.type === 'webhook' && allowWebhook) {
+      const fields = trigger.fields === undefined ? [] : trigger.fields
+      if (!Array.isArray(fields) || fields.length > MAX_WEBHOOK_FIELDS) {
+        errors.push(diagnostic(`${base}.trigger.fields`, 'AUTOMATION_TRIGGER_INVALID', `fields must be a list of at most ${MAX_WEBHOOK_FIELDS} items.`))
+      } else {
+        const seen = new Set()
+        fields.forEach((field, fieldIndex) => {
+          const at = `${base}.trigger.fields[${fieldIndex}]`
+          if (!field || !WEBHOOK_FIELD_KEY.test(field.key ?? '')) errors.push(diagnostic(`${at}.key`, 'AUTOMATION_TRIGGER_INVALID', 'Field keys are letters, digits and underscore, starting with a letter (max 61).'))
+          else if (seen.has(field.key)) errors.push(diagnostic(`${at}.key`, 'AUTOMATION_TRIGGER_INVALID', `Duplicate field "${field.key}".`))
+          else seen.add(field.key)
+          if (field?.label !== undefined && (typeof field.label !== 'string' || field.label.length > 80 || UNSAFE_TEXT.test(field.label))) errors.push(diagnostic(`${at}.label`, 'AUTOMATION_TRIGGER_INVALID', 'Field label must be one line (max 80).'))
+          if (field?.sample !== undefined && (typeof field.sample !== 'string' || field.sample.length > 200)) errors.push(diagnostic(`${at}.sample`, 'AUTOMATION_TRIGGER_INVALID', 'Field sample must be text (max 200).'))
+        })
+        fieldNames = new Set(fields.map((field) => field?.key).filter(Boolean))
       }
     } else {
       errors.push(diagnostic(`${base}.trigger.type`, 'AUTOMATION_TRIGGER_INVALID', 'Trigger type must be record, event or schedule.'))
@@ -307,6 +328,13 @@ function normalizeTrigger(trigger, condition) {
       ...(trigger.entity ? condition : {}),
     }
   }
+  if (trigger.type === 'webhook') {
+    return {
+      type: 'webhook',
+      fields: (trigger.fields ?? []).map((field) => ({ key: field.key, ...(field.label ? { label: field.label.trim() } : {}), ...(field.sample ? { sample: field.sample } : {}) })),
+      ...condition,
+    }
+  }
   return { type: 'event', event: trigger.event, ...condition }
 }
 
@@ -350,10 +378,10 @@ export function toRuntimeSteps(automation) {
 export function validateSystemAutomation(automation) {
   const errors = []
   const type = automation?.trigger?.type
-  if (type !== 'event' && type !== 'schedule') {
-    errors.push(diagnostic('automations[0].trigger.type', 'AUTOMATION_TRIGGER_INVALID', 'Automations of the company react to a system event or run on a schedule.'))
+  if (type !== 'event' && type !== 'schedule' && type !== 'webhook') {
+    errors.push(diagnostic('automations[0].trigger.type', 'AUTOMATION_TRIGGER_INVALID', 'Automations of the company react to a system event, a webhook or run on a schedule.'))
     return errors
   }
-  validateDefinitionAutomations({ entities: [], automations: [automation] }, errors)
+  validateDefinitionAutomations({ entities: [], automations: [automation] }, errors, { allowWebhook: true })
   return errors
 }

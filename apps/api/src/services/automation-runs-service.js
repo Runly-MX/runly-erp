@@ -18,7 +18,7 @@ export function createAutomationRunsService({ prisma }) {
           companyId,
           moduleKey,
           automationKey: String(entry.automationKey).slice(0, 80),
-          triggerKind: ["event", "delayed", "schedule"].includes(entry.triggerKind) ? entry.triggerKind : "record",
+          triggerKind: ["event", "delayed", "schedule", "webhook"].includes(entry.triggerKind) ? entry.triggerKind : "record",
           triggerRef: entry.triggerRef ? String(entry.triggerRef).slice(0, 80) : null,
           status: STATUSES.includes(entry.status) ? entry.status : "failed",
           steps: Array.isArray(entry.steps) ? entry.steps.slice(0, MAX_STEPS_JSON) : [],

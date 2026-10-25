@@ -9,6 +9,7 @@ import { createAutomationJobsService } from "./automation-jobs-service.js";
 import { createAutomationApprovalsService } from "./automation-approvals-service.js";
 import { createAutomationHttpService } from "./automation-http-service.js";
 import { createNotificationService } from "./notification-service.js";
+import { createAutomationWebhooksService, WEBHOOK_EVENT } from "./automation-webhooks-service.js";
 
 export const SYSTEM_MODULE_KEY = "system.automations";
 export const MAX_SYSTEM_AUTOMATIONS = 50;
@@ -27,8 +28,9 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
   const jobs = createAutomationJobsService({ prisma, now });
   const approvals = createAutomationApprovalsService({ prisma, notifications: notifications ?? createNotificationService({ prisma }), now });
   const http = createAutomationHttpService({ prisma });
+  const webhooks = createAutomationWebhooksService({ prisma, now });
 
-  const toView = (row) => ({ id: row.id, key: row.key, label: row.label, enabled: row.enabled, ...row.definition, updatedAt: row.updatedAt });
+  const toView = (row) => ({ id: row.id, key: row.key, label: row.label, enabled: row.enabled, ...row.definition, ...(row.webhookToken ? { webhookToken: row.webhookToken } : {}), updatedAt: row.updatedAt });
   // The stored definition in the shape the step engine runs.
   const toRuntime = (row) => ({ ...row.definition, key: row.key, label: row.label, enabled: row.enabled, steps: toRuntimeSteps(row.definition) });
 
@@ -79,9 +81,11 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
     if (!existing && (await prisma.systemAutomation.count({ where: { companyId } })) >= MAX_SYSTEM_AUTOMATIONS) {
       throw new SystemAutomationError(`Máximo ${MAX_SYSTEM_AUTOMATIONS} automatizaciones por empresa.`, 409);
     }
+    // The secret URL of a webhook trigger is created once and survives edits.
+    const webhookToken = rest.trigger?.type === "webhook" ? (existing?.webhookToken ?? webhooks.newToken()) : null;
     const row = existing
-      ? await prisma.systemAutomation.update({ where: { id: existing.id }, data: { label, enabled, definition: rest } })
-      : await prisma.systemAutomation.create({ data: { companyId, key: finalKey, label, enabled, definition: rest, createdById: actorId ?? null } });
+      ? await prisma.systemAutomation.update({ where: { id: existing.id }, data: { label, enabled, definition: rest, webhookToken } })
+      : await prisma.systemAutomation.create({ data: { companyId, key: finalKey, label, enabled, definition: rest, webhookToken, createdById: actorId ?? null } });
     await syncGrants(companyId, actorId);
     return toView(row);
   }
@@ -103,16 +107,21 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
   // Domain event: every enabled automation of the company listening to it. Same
   // contract as a module's event handler: idempotent per event, and a failure is
   // rethrown after the loop so the dispatcher retries.
-  async function runEvent({ companyId, event, payload, eventId }) {
+  async function runEvent({ companyId, event, payload: received, eventId }) {
     const rows = await prisma.systemAutomation.findMany({ where: { companyId, enabled: true } });
-    const due = rows.filter((row) => row.definition.trigger?.type === "event" && row.definition.trigger.event === event && matches(row.definition.trigger.when, payload));
+    // A webhook message is addressed to one automation; its data are the fields.
+    const webhook = event === WEBHOOK_EVENT;
+    const payload = webhook ? (received?.data ?? {}) : received;
+    const due = rows.filter((row) => (webhook
+      ? row.key === received?.automationKey && row.definition.trigger?.type === "webhook"
+      : row.definition.trigger?.type === "event" && row.definition.trigger.event === event) && matches(row.definition.trigger.when, payload));
     if (!due.length) return { ran: 0 };
     const host = hostFor(companyId);
     if (!host.services) throw new SystemAutomationError("Los servicios no están disponibles en esta instancia.", 500);
     const failures = [];
     for (const row of due) {
       const automation = toRuntime(row);
-      const result = await execute({ moduleKey: SYSTEM_MODULE_KEY, automation, base: `${automation.key}:${eventId}`, data: payload, trigger: "event", ref: eventId, ...host });
+      const result = await execute({ moduleKey: SYSTEM_MODULE_KEY, automation, base: `${automation.key}:${eventId}`, data: payload, trigger: webhook ? "webhook" : "event", ref: eventId, ...host });
       if (!result.ok) failures.push(`${automation.key}: ${result.error}`);
     }
     if (failures.length) throw new Error(failures.join(" | "));
@@ -157,5 +166,15 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
     return result;
   }
 
-  return { list, catalog, create, save, remove, runEvent, resume, scheduleOf, listSchedules, runSchedule, hostFor };
+  // A new secret URL: the old one stops working at once.
+  async function regenerateWebhookToken({ companyId, key }) {
+    const row = await prisma.systemAutomation.findUnique({ where: { companyId_key: { companyId, key } } });
+    if (!row || row.definition.trigger?.type !== "webhook") throw new SystemAutomationError("Esta automatización no recibe webhooks.", 404);
+    const updated = await prisma.systemAutomation.update({ where: { id: row.id }, data: { webhookToken: webhooks.newToken() } });
+    return toView(updated);
+  }
+
+  const webhookEvents = ({ companyId, key }) => webhooks.recentEvents({ companyId, key });
+
+  return { list, catalog, create, save, remove, runEvent, resume, scheduleOf, listSchedules, runSchedule, hostFor, regenerateWebhookToken, webhookEvents, webhooks };
 }

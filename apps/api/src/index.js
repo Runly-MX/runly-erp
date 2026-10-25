@@ -77,6 +77,7 @@ import { createModulePublicLinksService } from "./services/module-public-links-s
 import { createBuilderRouter } from "./routes/builder-routes.js";
 import { createAutomationApprovalsRouter } from "./routes/automation-approvals-routes.js";
 import { createAutomationsRouter } from "./routes/automations-routes.js";
+import { createAutomationWebhookPublicRouter } from "./routes/automation-webhook-public.js";
 import {
   createPublicWebsiteRouter,
   createPublicCatalogRouter,
@@ -2137,6 +2138,7 @@ app.route("/public/website", publicWebsiteRouter);
 
 const publicCatalogRouter = createPublicCatalogRouter({ prisma, supabaseAdmin });
 app.route("/public/catalog", publicCatalogRouter);
+app.route("/public/hooks", createAutomationWebhookPublicRouter({ prisma }));
 app.route("/public/inventory/custody", createInventoryCustodyPublicRouter({ prisma, supabaseAdmin }));
 app.route("/public/inventory/items", createInventoryItemPublicRouter({ prisma, supabaseAdmin }));
 // Supplier portal (inventory guests): own `Authorization: Guest` auth, mounted before every mountWithAuth()

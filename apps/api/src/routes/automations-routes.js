@@ -20,6 +20,17 @@ export function createAutomationsRouter({ prisma, requirePermission, moduleServi
   app.get("/automations", guard, async (c) => c.json({ data: await service.list(c.get("companyId")) }));
   app.get("/automations/catalog", guard, (c) => c.json({ data: service.catalog() }));
 
+  // Origins (IPs / networks) allowed to send webhooks; empty = any with the secret URL.
+  app.get("/automations/webhook-origins", guard, async (c) => c.json({ data: { origins: await service.webhooks.getOrigins() } }));
+  app.put("/automations/webhook-origins", guard, async (c) => {
+    try {
+      const body = await c.req.json().catch(() => ({}));
+      return c.json({ data: { origins: await service.webhooks.setOrigins(body?.origins) } });
+    } catch (error) {
+      return fail(c, error);
+    }
+  });
+
   app.post("/automations", guard, async (c) => {
     try {
       const input = await c.req.json().catch(() => ({}));
@@ -33,6 +44,19 @@ export function createAutomationsRouter({ prisma, requirePermission, moduleServi
     try {
       const input = await c.req.json().catch(() => ({}));
       return c.json({ data: await service.save({ companyId: c.get("companyId"), actorId: actor(c), key: c.req.param("key"), input }) });
+    } catch (error) {
+      return fail(c, error);
+    }
+  });
+
+  // Webhook of an automation: recent messages (to pick the fields from a real one)
+  // and a new secret URL.
+  app.get("/automations/:key/webhook/events", guard, async (c) => {
+    return c.json({ data: await service.webhookEvents({ companyId: c.get("companyId"), key: c.req.param("key") }) });
+  });
+  app.post("/automations/:key/webhook/regenerate", guard, async (c) => {
+    try {
+      return c.json({ data: await service.regenerateWebhookToken({ companyId: c.get("companyId"), key: c.req.param("key") }) });
     } catch (error) {
       return fail(c, error);
     }
