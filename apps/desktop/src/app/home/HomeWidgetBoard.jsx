@@ -155,7 +155,7 @@ export function HomeWidgetBoard({ widgets, modulesByKey, sizeOfId, editing = fal
             <BoardItem
               key={widget.id}
               widget={widget}
-              module={modulesByKey.get(widget.moduleKey)}
+              module={modulesByKey.get(widget.moduleKey) ?? modulesByKey.get(widget.displayModuleKey)}
               size={sizeOfId(widget.id)}
               editing={editing}
               onRemove={() => onRemove(widget.id)}

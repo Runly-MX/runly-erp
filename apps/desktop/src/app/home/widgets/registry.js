@@ -12,7 +12,7 @@ import { MentionsWidget } from "./MentionsWidget";
 // Home widget catalog. A widget is offered only when its module is available
 // to the user; order here is the board order.
 export const HOME_WIDGETS = [
-  { id: "approvals", title: "Por aprobar", description: "Aprobaciones de automatizaciones que esperan tu decisión", moduleKey: "runly.automations", Component: ApprovalsWidget },
+  { id: "approvals", title: "Por aprobar", description: "Aprobaciones de automatizaciones que esperan tu decisión", moduleKey: "runly.automations", displayModuleKey: "runly.core", Component: ApprovalsWidget },
   { id: "my-tasks", title: "Mis tareas", description: "Tareas abiertas asignadas a ti", moduleKey: "runly.projects", Component: MyTasksWidget },
   { id: "mentions", title: "Menciones", description: "Quién te mencionó en el chat esta semana", moduleKey: "runly.chat", Component: MentionsWidget },
   { id: "agenda", title: "Agenda", description: "Tus próximos eventos", moduleKey: "runly.calendar", Component: AgendaWidget },

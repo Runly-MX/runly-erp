@@ -11,9 +11,12 @@ const LEGACY_WIDTH = { sm: 1, md: 2, lg: 3 };
 
 // Widgets whose module the user can open, in catalog order. A widget of a module the
 // person cannot use is never offered, saved or not.
-export function availableWidgets(catalog, availableModuleKeys) {
+// `extraIds`: widgets offered even without the module because the person has something
+// waiting there (an approval assigned to them must never be hidden by module access).
+export function availableWidgets(catalog, availableModuleKeys, extraIds = []) {
   const keys = new Set(availableModuleKeys);
-  return catalog.filter((w) => keys.has(w.moduleKey));
+  const extra = new Set(extraIds);
+  return catalog.filter((w) => keys.has(w.moduleKey) || extra.has(w.id));
 }
 
 // Ids to show, in board order, among the offered widgets.

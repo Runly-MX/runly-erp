@@ -5,6 +5,7 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "@runly/ui";
 import { useRuntimeModules } from "./useRuntimeModules";
+import { usePendingWidgetAccess } from "../hooks/usePendingWidgetAccess";
 import { useHomeWidgetPrefs } from "../hooks/useHomeWidgetPrefs";
 import { addWidget, availableWidgets, moveWidget, removeWidget, resolveShown, sizeOf, withShown, withSize } from "../lib/homeWidgets";
 import { HomeWidgetBoard, HomeWidgetEditBar } from "./home/HomeWidgetBoard";
@@ -15,7 +16,7 @@ import { AgendaWidget } from "./home/widgets/AgendaWidget";
 
 const SECTIONS = [
   { id: "tasks", title: "Mis tareas", description: "Tareas abiertas asignadas a ti", moduleKey: "runly.projects", Component: MyTasksWidget },
-  { id: "approvals", title: "Por aprobar", description: "Aprobaciones de automatizaciones que esperan tu decisión", moduleKey: "runly.automations", Component: ApprovalsWidget },
+  { id: "approvals", title: "Por aprobar", description: "Aprobaciones de automatizaciones que esperan tu decisión", moduleKey: "runly.automations", displayModuleKey: "runly.core", Component: ApprovalsWidget },
   { id: "mentions", title: "Menciones", description: "Quién te mencionó en el chat", moduleKey: "runly.chat", Component: MentionsWidget },
   { id: "agenda", title: "Agenda", description: "Tus próximos eventos", moduleKey: "runly.calendar", Component: AgendaWidget },
 ];
@@ -25,7 +26,8 @@ export default function WorkScreen() {
   const prefs = useHomeWidgetPrefs("work.widgets");
   const [editing, setEditing] = useState(false);
   const byKey = useMemo(() => new Map((availableModules ?? []).map((module) => [module.key, module])), [availableModules]);
-  const offered = useMemo(() => availableWidgets(SECTIONS, byKey.keys()), [byKey]);
+  const pendingAccess = usePendingWidgetAccess();
+  const offered = useMemo(() => availableWidgets(SECTIONS, byKey.keys(), pendingAccess), [byKey, pendingAccess]);
   const offeredIds = useMemo(() => offered.map((section) => section.id), [offered]);
   const shownIds = useMemo(() => resolveShown(prefs.pref, offeredIds, { defaultAll: true }), [prefs.pref, offeredIds]);
   const byId = useMemo(() => new Map(offered.map((section) => [section.id, section])), [offered]);

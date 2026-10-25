@@ -13,6 +13,11 @@ test("only widgets of modules the person can open are offered", () => {
   assert.deepEqual(availableWidgets(catalog, []).map((w) => w.id), []);
 });
 
+test("a widget with something waiting for the person is offered even without the module", () => {
+  assert.deepEqual(availableWidgets(catalog, ["m.a"], ["c"]).map((w) => w.id), ["a", "c"]);
+  assert.deepEqual(availableWidgets(catalog, ["m.a"], ["zzz"]).map((w) => w.id), ["a"]);
+});
+
 test("home starts empty and shows only what was added, in board order", () => {
   assert.deepEqual(resolveShown(undefined, ["a", "b", "c"]), []);
   assert.deepEqual(resolveShown({}, ["a", "b", "c"]), []);

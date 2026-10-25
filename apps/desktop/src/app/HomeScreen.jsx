@@ -12,6 +12,7 @@ import { filterModulesByQuery, readRecentModuleKeys, removeRecentModule } from "
 import { addWidget, availableWidgets, moveWidget, removeWidget, resolveShown, sizeOf, withShown, withSize } from "../lib/homeWidgets";
 import { useHomeWidgetPrefs } from "../hooks/useHomeWidgetPrefs";
 import { useContributedWidgets } from "../hooks/useContributedWidgets";
+import { usePendingWidgetAccess } from "../hooks/usePendingWidgetAccess";
 import { HomeHeader } from "./home/HomeHeader";
 import { HomeAppTile, HomeFeaturedTile } from "./home/HomeAppTiles";
 import { HomeWidgetBoard, HomeWidgetEditBar } from "./home/HomeWidgetBoard";
@@ -79,13 +80,14 @@ export function HomeScreen() {
 
   const widgetPrefs = useHomeWidgetPrefs();
   const contributedWidgets = useContributedWidgets();
+  const pendingAccess = usePendingWidgetAccess();
   const modulesByKey = useMemo(
     () => new Map(availableModules.map((m) => [m.key, m])),
     [availableModules],
   );
   const offeredWidgets = useMemo(
-    () => availableWidgets([...HOME_WIDGETS, ...contributedWidgets], modulesByKey.keys()),
-    [modulesByKey, contributedWidgets],
+    () => availableWidgets([...HOME_WIDGETS, ...contributedWidgets], modulesByKey.keys(), pendingAccess),
+    [modulesByKey, contributedWidgets, pendingAccess],
   );
   const [editingWidgets, setEditingWidgets] = useState(false);
   const shownIds = useMemo(() => resolveShown(widgetPrefs.pref, offeredWidgets.map((w) => w.id)), [widgetPrefs.pref, offeredWidgets]);
