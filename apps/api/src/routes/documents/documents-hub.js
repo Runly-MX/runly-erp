@@ -13,6 +13,7 @@ import { createGeneralManualDocumentKind } from "./kinds/general-manual-kind.js"
 import { createHrEmployeeDocumentKind } from "./kinds/hr-employee-kind.js";
 import { createContactsContactDocumentKind } from "./kinds/contacts-contact-kind.js";
 import { createPurchasesOrderDocumentKind } from "./kinds/purchases-order-kind.js";
+import { createFleetVehicleDocumentKind } from "./kinds/fleet-vehicle-kind.js";
 import { createGrowthLeadDocumentKind } from "./kinds/growth-lead-kind.js";
 
 export function createDocumentsHub({ prisma, supabaseAdmin }) {
@@ -22,6 +23,7 @@ export function createDocumentsHub({ prisma, supabaseAdmin }) {
   kinds.register(createHrEmployeeDocumentKind({ prisma }));
   kinds.register(createContactsContactDocumentKind({ prisma }));
   kinds.register(createPurchasesOrderDocumentKind({ prisma }));
+  kinds.register(createFleetVehicleDocumentKind({ prisma }));
   kinds.register(createInventoryCustodyDocumentKind({ prisma }));
   kinds.register(createLmsCertificateDocumentKind({ prisma }));
   const files = createDocumentFileStore({ prisma, supabaseAdmin });
