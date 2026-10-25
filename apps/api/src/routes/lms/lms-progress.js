@@ -3,6 +3,7 @@
 import { progressPct } from './lms-core.js'
 import { issueCertificate } from './lms-cert-issue.js'
 import { isSharedLesson, normalizeShareSettings } from './lms-share-core.js'
+import { publishDomainEvent } from '../../services/domain-events/events.js'
 
 // Interactive transactions on a remote database need more than the 5 s default.
 export const TX_OPTS = { maxWait: 10_000, timeout: 30_000 }
@@ -48,6 +49,7 @@ export async function setLessonOutcome(db, args) {
   const updated = await db.lmsEnrollment.update({ where: { id: enrollment.id }, data: update, include: { learner: true } })
   // Automatic certificate the moment the enrollment turns completed (no-op without a template).
   // issueCertificate decides for share-link guests (share_settings.issueCertificates).
+  if (completes) await publishDomainEvent(db, { companyId: enrollment.companyId, event: 'lms.enrollment.completed', payload: { id: enrollment.id, courseId: enrollment.courseId, learnerId: enrollment.learnerId } })
   const issued = completes ? await issue(db, { enrollment: { ...enrollment, ...updated }, now }) : null
   return { lessonStatus, enrollment: updated, certificate: issued?.certificate ?? null }
 }

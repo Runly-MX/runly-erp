@@ -187,6 +187,7 @@ Desde un evento solo funcionan los servicios que no necesitan a una persona: not
 | `hr.employee.created` | `{ id, firstName, lastName }` |
 | `purchases.order.approved` | `{ id, caseId, status }` |
 | `purchases.order.issued` | `{ id, caseId, status }` |
+| `lms.enrollment.completed` | `{ id, courseId, learnerId }` (al completar el último requisito del curso) |
 
 Con `sourceModule` sabes si un evento de calendario lo creó tu módulo (por ejemplo, para marcar tu orden como reagendada cuando alguien mueve la cita desde el calendario). Libro de cuentas y Finanzas personales no publican eventos: su información depende del acceso por cuenta o cartera de cada persona.
 

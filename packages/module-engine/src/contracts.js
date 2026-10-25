@@ -20,6 +20,7 @@ export const DOMAIN_EVENTS = Object.freeze({
   'hr.employee.created': 'Se creó un colaborador',
   'purchases.order.approved': 'Se aprobó una orden de compra',
   'purchases.order.issued': 'Se emitió una orden de compra',
+  'lms.enrollment.completed': 'Una persona completó un curso',
 })
 // Payload keys of each domain event (Builder automations, Developer Hub).
 const CALENDAR_EVENT_PAYLOAD = Object.freeze(['id', 'title', 'startAt', 'sourceModule', 'sourceEntityId'])
@@ -40,6 +41,7 @@ export const DOMAIN_EVENT_PAYLOADS = Object.freeze({
   'hr.employee.created': Object.freeze(['id', 'firstName', 'lastName']),
   'purchases.order.approved': PURCHASE_ORDER_PAYLOAD,
   'purchases.order.issued': PURCHASE_ORDER_PAYLOAD,
+  'lms.enrollment.completed': Object.freeze(['id', 'courseId', 'learnerId']),
 })
 
 export const RME3_ENGINE_CONTRACT = Object.freeze({
