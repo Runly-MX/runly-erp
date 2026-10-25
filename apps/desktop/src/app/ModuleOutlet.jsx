@@ -275,9 +275,6 @@ const SCREEN_MAP = {
   "runly.documents:/templates": lazy(
     () => import("../modules/runly.documents/screens/DocumentTemplatesScreen.jsx"),
   ),
-  "runly.documents:/templates/:id/editor": lazy(
-    () => import("../modules/runly.documents/screens/DocumentTemplateEditorScreen.jsx"),
-  ),
   "runly.documents:/generated": lazy(
     () => import("../modules/runly.documents/screens/GeneratedDocumentsScreen.jsx"),
   ),

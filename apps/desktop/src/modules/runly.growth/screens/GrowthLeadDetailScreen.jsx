@@ -573,14 +573,25 @@ export default function GrowthLeadDetailScreen() {
         onOpenChange={setGenerateOpen}
         leadId={lead.id}
         token={token}
-        onGenerated={({ generated, download }) => {
+        onGenerated={(result) => {
           setAttachmentsVersion((current) => current + 1);
-          setGeneratedFile({
-            id: generated.fileAssetId ?? generated.id,
-            originalName: `${lead.name || "lead"}-documento.pdf`,
-            mimeType: "application/pdf",
-            signedUrl: download.url,
-          });
+          if (result.format === "pdf") {
+            setGeneratedFile({
+              id: result.fileAssetId ?? result.generated?.id,
+              originalName: result.fileName ?? `${lead.name || "lead"}-documento.pdf`,
+              mimeType: "application/pdf",
+              signedUrl: result.url,
+            });
+            return;
+          }
+          // Word, Excel and PowerPoint have no inline viewer: download them.
+          const link = document.createElement("a");
+          link.href = result.url;
+          link.download = result.fileName ?? "documento";
+          link.rel = "noreferrer";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
         }}
       />
       {generatedFile && (

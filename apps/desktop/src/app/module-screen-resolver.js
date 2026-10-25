@@ -134,7 +134,6 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
   if (moduleKey === "runly.documents") {
     if (subPath === "/templates") return screenMap["runly.documents:/templates"] ?? null;
     if (subPath === "/generated") return screenMap["runly.documents:/generated"] ?? null;
-    if (/^\/templates\/[^/]+\/editor$/.test(subPath)) return screenMap["runly.documents:/templates/:id/editor"] ?? null;
     return null;
   }
   if (moduleKey === "runly.growth") {

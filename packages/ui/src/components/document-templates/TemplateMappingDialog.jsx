@@ -42,6 +42,15 @@ export function TemplateMappingDialog({ template, warnings = [], kind, api, onOp
     onError: (error) => toast.error(errorText(error, 'No se pudo guardar la plantilla')),
   })
 
+  // Drafts are tried out too: the current mapping is saved first so the preview matches the screen.
+  async function testSample() {
+    let current = template
+    if (!readOnly) {
+      try { current = await save.mutateAsync({ publish: false }) } catch { return }
+    }
+    onPreview?.(current)
+  }
+
   const optionsFor = (tag) => {
     const dot = tag.indexOf('.')
     return schemaOptions(kind, dot === -1 ? null : tag.slice(0, dot))
@@ -91,7 +100,7 @@ export function TemplateMappingDialog({ template, warnings = [], kind, api, onOp
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-[hsl(var(--muted-foreground))]">No se detectaron campos. Usa un PDF con etiquetas de texto como «Nombre:» o [Campo].</p>
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">No se detectaron campos. Usa un PDF con etiquetas de texto como «Nombre:» o marcas [Campo]. Con un archivo de Word las etiquetas se colocan solas y es la opción recomendada.</p>
               )}
             </div>
           ) : null}
@@ -115,21 +124,24 @@ export function TemplateMappingDialog({ template, warnings = [], kind, api, onOp
             ) : null}
           </div>
         </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" disabled={!readOnly || !onPreview} title={readOnly ? undefined : 'Publica la plantilla para probarla'}
-            onClick={() => onPreview?.(template)}>
-            <Eye className="mr-1.5 h-3.5 w-3.5" />Probar con datos de ejemplo
+        <DialogFooter className="sm:flex-wrap sm:justify-between">
+          <Button type="button" variant="ghost" className="justify-start" disabled={!onPreview || save.isPending}
+            title={readOnly ? undefined : 'Prueba el borrador con datos de ejemplo; se guarda el mapeo actual antes de generar la vista previa.'}
+            onClick={() => testSample()}>
+            <Eye className="mr-1.5 h-3.5 w-3.5 shrink-0" />Probar con datos de ejemplo
           </Button>
-          {!readOnly ? (
-            <>
-              <Button type="button" variant="outline" disabled={save.isPending} onClick={() => save.mutate({ publish: false })}>Guardar borrador</Button>
-              <Button type="button" disabled={save.isPending} onClick={() => save.mutate({ publish: true })}>
-                {save.isPending ? 'Guardando...' : 'Guardar y publicar'}
-              </Button>
-            </>
-          ) : (
-            <Button type="button" onClick={() => onOpenChange(false)}>Cerrar</Button>
-          )}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+            {!readOnly ? (
+              <>
+                <Button type="button" variant="outline" disabled={save.isPending} onClick={() => save.mutate({ publish: false })}>Guardar borrador</Button>
+                <Button type="button" disabled={save.isPending} onClick={() => save.mutate({ publish: true })}>
+                  {save.isPending ? 'Guardando...' : 'Guardar y publicar'}
+                </Button>
+              </>
+            ) : (
+              <Button type="button" onClick={() => onOpenChange(false)}>Cerrar</Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

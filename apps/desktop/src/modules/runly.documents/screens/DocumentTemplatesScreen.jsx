@@ -1,10 +1,6 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Badge,
-  Button,
-  ConfirmDialog,
-  DataTable,
   EmptyState,
   ErrorState,
   LoadingState,
@@ -15,7 +11,6 @@ import {
 } from "@runly/ui";
 import { LayoutTemplate } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { runly } from "../../../lib/runly.js";
@@ -37,7 +32,6 @@ const moduleLabel = (key) => MODULE_LABELS[key] ?? key.charAt(0).toUpperCase() +
 export default function DocumentTemplatesScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
   const office = useOfficeActions();
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
@@ -46,28 +40,12 @@ export default function DocumentTemplatesScreen() {
   const canRead = allowed("documents.templates.read");
   const canManage = allowed("documents.templates.create") || allowed("documents.templates.update");
   const [selected, setSelected] = useState(null);
-  const [toggleTarget, setToggleTarget] = useState(null);
 
   const kindsQuery = useQuery({
     queryKey: ["documents", "kinds"],
     queryFn: () => runly.documents.listKinds(token),
     enabled: Boolean(token && canRead),
     staleTime: 60_000,
-  });
-  const legacyQuery = useQuery({
-    queryKey: ["documents", "templates"],
-    queryFn: () => runly.documents.listTemplates(token, { enabled: true, pageSize: 100 }),
-    enabled: Boolean(token && canRead),
-    staleTime: 30_000,
-  });
-  const toggleMutation = useMutation({
-    mutationFn: (item) =>
-      runly.documents.setTemplateEnabled(item.id, { enabled: !item.enabled, updatedAt: item.updatedAt }, token),
-    onSuccess: async () => {
-      setToggleTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["documents", "templates"] });
-    },
-    onError: (error) => toast.error(error.message),
   });
 
   const kinds = kindsQuery.data?.items ?? [];
@@ -81,44 +59,6 @@ export default function DocumentTemplatesScreen() {
     return [...map.entries()].sort((a, b) => moduleLabel(a[0]).localeCompare(moduleLabel(b[0])));
   }, [kinds]);
   const active = kinds.find((kind) => kind.key === selected) ?? kinds[0] ?? null;
-
-  const legacy = (legacyQuery.data?.items ?? []).filter((item) => !item.format || item.format === "blocks");
-  const legacyColumns = useMemo(() => [
-    {
-      accessorKey: "name",
-      header: "Plantilla",
-      cell: ({ row }) => (
-        <button
-          type="button"
-          className="text-left font-medium hover:underline"
-          onClick={() => navigate(`/app/m/runly.documents/templates/${row.original.id}/editor`)}
-        >
-          {row.original.name}
-          <span className="block text-xs text-[hsl(var(--muted-foreground))]">{row.original.key}</span>
-        </button>
-      ),
-    },
-    { accessorKey: "sourceType", header: "Origen" },
-    {
-      id: "status",
-      header: "Estado",
-      cell: ({ row }) => (
-        <Badge variant={row.original.publishedVersionId ? "success" : "secondary"}>
-          {row.original.publishedVersionId ? "Publicada" : "Borrador"}
-        </Badge>
-      ),
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }) => allowed("documents.templates.delete") ? (
-        <Button type="button" size="sm" variant="ghost" onClick={() => setToggleTarget(row.original)}>
-          Desactivar
-        </Button>
-      ) : null,
-    },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [navigate, permissions, userProfile?.isAdmin]);
 
   const onEditDocument = office?.enabled && office?.canEdit
     ? (template) => {
@@ -187,43 +127,11 @@ export default function DocumentTemplatesScreen() {
                 kind={active}
                 canManage={canManage}
                 onEditDocument={onEditDocument}
-                onOpenLegacy={(template) => navigate(`/app/m/runly.documents/templates/${template.id}/editor`)}
               />
             ) : null}
           </section>
         </div>
       )}
-
-      {legacy.length ? (
-        <section className="space-y-3">
-          <div>
-            <h2 className="text-base font-semibold">Plantillas anteriores (bloques)</h2>
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              Siguen disponibles para generar documentos. Las plantillas nuevas se crean con tu propio archivo.
-            </p>
-          </div>
-          <DataTable
-            columns={legacyColumns}
-            data={legacy}
-            isLoading={legacyQuery.isLoading}
-            isError={legacyQuery.isError}
-            onRetry={() => legacyQuery.refetch()}
-            emptyIcon={LayoutTemplate}
-            emptyTitle="No hay plantillas anteriores"
-            searchPlaceholder="Buscar plantillas..."
-          />
-        </section>
-      ) : null}
-
-      <ConfirmDialog
-        open={Boolean(toggleTarget)}
-        onOpenChange={(open) => !open && setToggleTarget(null)}
-        title="Desactivar plantilla"
-        description="La plantilla dejará de estar disponible para nuevas generaciones."
-        confirmLabel="Desactivar"
-        onConfirm={() => toggleMutation.mutate(toggleTarget)}
-        loading={toggleMutation.isPending}
-      />
     </div>
   );
 }

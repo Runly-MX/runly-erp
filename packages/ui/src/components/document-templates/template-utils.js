@@ -1,6 +1,6 @@
 // Helpers shared by the document template manager components.
 
-export const FORMAT_LABELS = { docx: 'Word', xlsx: 'Excel', pptx: 'PowerPoint', pdf: 'PDF', blocks: 'Bloques' }
+export const FORMAT_LABELS = { docx: 'Word', xlsx: 'Excel', pptx: 'PowerPoint', pdf: 'PDF' }
 export const ALL_FORMATS = ['docx', 'xlsx', 'pptx', 'pdf']
 export const BLANK_FORMATS = ['docx', 'xlsx', 'pptx']
 export const MAX_TEMPLATE_MB = 10
@@ -10,7 +10,17 @@ export const formatOfName = (name) => {
   return match ? match[1].toLowerCase() : null
 }
 
-export const acceptFor = (formats) => (formats ?? ALL_FORMATS).map((f) => `.${f}`).join(',')
+export const FORMAT_MIME = {
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  pdf: 'application/pdf',
+}
+
+// Extensions plus MIME types: some file dialogs filter by type, not by extension,
+// and would hide Word/Excel/PowerPoint files when only extensions are given.
+export const acceptFor = (formats) => (formats?.length ? formats : ALL_FORMATS)
+  .flatMap((f) => [`.${f}`, FORMAT_MIME[f]].filter(Boolean)).join(',')
 
 // Field of a kind schema -> option list for the "data field" selector.
 export function schemaOptions(kind, listName = null) {

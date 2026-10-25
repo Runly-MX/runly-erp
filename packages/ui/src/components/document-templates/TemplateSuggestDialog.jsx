@@ -9,6 +9,7 @@ import { DOCX_MIME, base64ToFile, errorText, saveBlob } from './template-utils.j
 // Places suggested tags in the user's own Word form. Nothing is saved until
 // "Aplicar": the original file stays as it was otherwise.
 export function TemplateSuggestDialog({ template, api, schema, onOpenChange, onApplied }) {
+  const isPdf = template?.format === 'pdf'
   const [result, setResult] = useState(null)
   const suggest = useMutation({ mutationFn: () => api.suggestTemplate(template.id, template.version.id) })
   const apply = useMutation({
@@ -64,8 +65,26 @@ export function TemplateSuggestDialog({ template, api, schema, onOpenChange, onA
                     </li>
                   ))}
                 </ul>
+              ) : result.format === 'pdf' && result.layout?.fields?.length ? (
+                <div className="space-y-2 text-sm">
+                  <p>Campos detectados en el PDF: {result.layout.fields.map((f) => label(f.key)).join(', ')}.</p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Ya están en la plantilla; ajústalos y publícalos desde «Campos».</p>
+                </div>
+              ) : isPdf || result.format === 'pdf' ? (
+                <div className="space-y-2 text-sm">
+                  <p>No se detectaron campos en el PDF.</p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    Word es el formato recomendado para colocar las etiquetas automáticamente: sube tu formato como .docx.
+                    En un PDF se reconocen etiquetas de texto como «Nombre:» seguidas de un espacio en blanco, o marcas como [Campo] escritas en el documento.
+                  </p>
+                </div>
               ) : (
-                <p className="text-sm">No se reconoció ningún campo en el formato. Escribe las etiquetas a mano con la tabla de referencia.</p>
+                <div className="space-y-2 text-sm">
+                  <p>No se reconoció ningún campo en el formato.</p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    Se buscan títulos como «Nombre del empleado» o «Fecha» seguidos de una celda vacía, o de una línea de guiones bajos (____). Revisa que los títulos estén escritos como texto y no como imagen, o escribe las etiquetas a mano con la tabla de referencia.
+                  </p>
+                </div>
               )}
               {missing.length ? (
                 <div className="space-y-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">

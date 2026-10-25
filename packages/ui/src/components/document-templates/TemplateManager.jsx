@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlertTriangle, Download, Eye, FileText, FilePenLine, Link2, MoreHorizontal, RefreshCw, ScanSearch, Star, Trash2, Upload, WandSparkles,
+  AlertTriangle, Download, Eye, FileText, FilePenLine, Info, Link2, MoreHorizontal, RefreshCw, ScanSearch, Star, Trash2, Upload, WandSparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '../Badge.jsx'
@@ -53,10 +53,9 @@ function bindApi(client, token) {
  *
  * Props: client (SDK `documents` domain), token, kind ({ key, label, formats,
  * schema }), scopeKey?, canManage (show write actions), onEditDocument?(template)
- * (open the file in the office editor), onOpenLegacy?(template) (open a legacy
- * block template).
+ * (open the file in the office editor).
  */
-export function TemplateManager({ client, token, kind, scopeKey = null, canManage = false, onEditDocument, onOpenLegacy }) {
+export function TemplateManager({ client, token, kind, scopeKey = null, canManage = false, onEditDocument }) {
   const queryClient = useQueryClient()
   const api = useMemo(() => bindApi(client, token), [client, token])
   const queryKey = ['documents', 'file-templates', kind?.key, scopeKey]
@@ -125,7 +124,7 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
   async function runPreview(template) {
     setPreview({ open: false, blob: null, loading: true, error: '', title: template.name })
     try {
-      const blob = await api.previewDocument({ kind: kind.key, templateId: template.id, scopeKey, output: 'pdf' })
+      const blob = await api.previewDocument({ kind: kind.key, templateId: template.id, versionId: template.version?.id, scopeKey, output: 'pdf' })
       if (/pdf/i.test(blob.type)) {
         setPreview({ open: true, blob, loading: false, error: '', title: template.name })
       } else {
@@ -148,12 +147,11 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
     { id: 'format', header: 'Formato', cell: ({ row }) => <span className="text-xs">{FORMAT_LABELS[row.original.format] ?? row.original.format}</span> },
     { id: 'status', header: 'Estado', enableSorting: false, cell: ({ row }) => {
       const t = row.original
-      if (t.format === 'blocks') return <Badge variant="secondary">Anterior (bloques)</Badge>
       return t.publishedVersionId ? <Badge variant="success">Publicada</Badge> : <Badge variant="secondary">Borrador</Badge>
     } },
     { id: 'fields', header: 'Campos', enableSorting: false, cell: ({ row }) => {
       const t = row.original
-      if (t.format === 'blocks' || !t.version) return <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span>
+      if (!t.version) return <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span>
       const total = t.version.placeholders.length
       const unmapped = unknownTags(kind, t.version.placeholders).filter((tag) => !t.version.mapping?.[tag]).length
       if (!total) return <Badge variant="warning" title="La plantilla no contiene campos; el documento saldrá sin datos.">Sin campos</Badge>
@@ -163,13 +161,6 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
     } },
     { id: 'actions', header: '', enableSorting: false, cell: ({ row }) => {
       const t = row.original
-      if (t.format === 'blocks') {
-        return onOpenLegacy ? (
-          <div className="flex justify-end">
-            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenLegacy(t)}><FilePenLine className="mr-1.5 h-3.5 w-3.5" />Abrir editor</Button>
-          </div>
-        ) : null
-      }
       const canEditFile = Boolean(onEditDocument) && EDITABLE_IN_OFFICE.includes(t.format)
       return (
         <div className="flex justify-end gap-1">
@@ -183,7 +174,7 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onSelect={() => runPreview(t)} disabled={!t.publishedVersionId}><Eye className="mr-2 h-4 w-4" />Probar con datos de ejemplo</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => runPreview(t)}><Eye className="mr-2 h-4 w-4" />Probar con datos de ejemplo</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => download(t)}><Download className="mr-2 h-4 w-4" />Descargar</DropdownMenuItem>
               {canManage ? (
                 <>
@@ -206,9 +197,13 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
 
   return (
     <div className="space-y-4">
+      <p className="flex items-start gap-2 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <span>Sube tu propio documento (Word, Excel, PowerPoint o PDF) o crea uno en blanco; las plantillas solo se crean cuando tú lo haces.</span>
+      </p>
       <DataTable columns={columns} data={rows} isLoading={query.isLoading} isError={query.isError} onRetry={query.refetch}
         getRowId={(row) => row.id} searchPlaceholder="Buscar plantilla..." emptyTitle="Sin plantillas"
-        emptyDescription="Sube tu propio formato o crea un documento en blanco con los campos de este tipo. Sin plantilla se usa el formato estándar, si existe."
+        emptyDescription="Sube tu propio documento (Word, Excel, PowerPoint o PDF) o crea uno en blanco; las plantillas solo se crean cuando tú lo haces. Sin plantilla se usa el formato estándar, si existe."
         emptyIcon={FileText}
         emptyAction={canManage ? { label: 'Nueva plantilla', onClick: () => setUploadOpen(true) } : undefined}
         toolbarActions={canManage ? (
