@@ -1,5 +1,19 @@
 # Runly Studio: pruebas y límites de verificación
 
+## Integración posterior en main
+
+Por instrucción del usuario, la entrega se trasladó directamente a `main`, sin
+conflictos, después de los commits concurrentes hasta `8167d272`. Los commits
+equivalentes en main son `d7df17c0`, `e910abad` y `0ea39c8e`. El flujo vigente
+está en AGENTS.md: trabajar en main y commitear los cambios propios, sin ramas
+de tarea ni worktrees. Las referencias a la rama aislada más abajo son históricas.
+
+En main se repitió la instalación frozen, el build web y `pnpm test:studio`:
+9 pruebas aprobadas, 0 fallidas y 1 integración SQL omitida por no configurar una
+base desechable en esa repetición. La integración SQL de la entrega original
+había aprobado las 7 pruebas indicadas en este informe. Los artefactos locales
+de la ejecución anterior se conservaron en `.artifacts/` del workspace principal.
+
 Fecha: 2026-10-25. Node 22.23.3, pnpm 9.15.0, Chrome headless y PostgreSQL 18 en contenedor local desechable. No se cargaron credenciales ni datos empresariales reales.
 
 ## Resultados

@@ -2,6 +2,10 @@
 
 Fecha: 2026-10-25. Identidad: `runly.studio`, módulo oficial de Runly ERP.
 
+Flujo Git vigente por instrucción posterior del usuario: trabajar directamente en
+`main`, sin ramas de tarea ni worktrees, y commitear los cambios propios. Las
+referencias posteriores a la rama aislada describen la ejecución histórica inicial.
+
 ## Precedencia y conservación de fuentes
 
 Este documento conserva íntegros el plan original, la ampliación de los seis paquetes y la consolidación aceptada, en los anexos A/B/C. Sus órdenes históricas se interpretan con las decisiones vigentes de esta primera sección y con las reglas del repositorio. No se necesita otro plan conceptual antes de implementar.

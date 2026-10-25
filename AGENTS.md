@@ -1,5 +1,11 @@
 # Runly ERP v2 — Agent Instructions
 
+## Git workflow
+
+Work directly on `main`. Do not create task branches or worktrees. Commit your
+own changes coherently, preserving unrelated changes from other sessions.
+This user preference supersedes branch/worktree suggestions in historical plans.
+
 ## Desktop and Android publication destination
 
 The established download destination for Windows and Android is GitHub Releases
