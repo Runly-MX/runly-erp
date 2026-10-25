@@ -40,6 +40,7 @@ COPY prisma prisma
 COPY packages packages
 COPY modules modules
 COPY apps/api apps/api
+COPY apps/shared apps/shared
 COPY apps/worker apps/worker
 COPY apps/desktop/public/runly/runly-logo-email.png apps/desktop/public/runly/runly-logo-email.png
 CMD ["pnpm", "--filter", "@runly/worker", "start"]

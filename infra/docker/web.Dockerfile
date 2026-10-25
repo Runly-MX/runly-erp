@@ -24,6 +24,7 @@ RUN pnpm install --frozen-lockfile
 # modules/ is still needed before the vite build below (see vite.config.js).
 COPY packages packages
 COPY apps/desktop apps/desktop
+COPY apps/shared apps/shared
 COPY modules modules
 
 # VITE_ args are only needed for local dev builds — the distributed image

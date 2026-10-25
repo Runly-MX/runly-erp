@@ -66,7 +66,7 @@ const BUILDER   = "runly-multiplatform";
 
 const STATE_FILE = path.join(__dirname, ".release-state.json");
 
-// Files every Node image's `pnpm install` layer depends on.
+// Common inputs for every Node image: workspace installation and shared sources.
 const NODE_WORKSPACE_INPUTS = [
   "package.json",
   "pnpm-lock.yaml",
@@ -76,6 +76,7 @@ const NODE_WORKSPACE_INPUTS = [
   "apps/api/package.json",
   "apps/desktop/package.json",
   "apps/worker/package.json",
+  "apps/shared/",
   "packages/",
   "modules/",
 ];

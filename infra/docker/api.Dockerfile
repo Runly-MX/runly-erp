@@ -43,6 +43,7 @@ COPY prisma prisma
 COPY packages packages
 COPY modules modules
 COPY apps/api apps/api
+COPY apps/shared apps/shared
 COPY apps/desktop/public/module-logos apps/desktop/public/module-logos
 COPY apps/desktop/public/runly/runly-logo-email.png apps/desktop/public/runly/runly-logo-email.png
 COPY infra/docker/api-entrypoint.sh /entrypoint.sh
