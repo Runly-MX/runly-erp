@@ -7,7 +7,7 @@
 import { ChatServiceError } from "./chat-service-error.js";
 import { AutomationApprovalError } from "../../services/automation-approvals-service.js";
 
-export function createChatActionsService({ prisma, approvalsService, broadcaster = null, now = () => new Date() }) {
+export function createChatActionsService({ prisma, approvalsService, httpService = null, broadcaster = null, now = () => new Date() }) {
   async function loadReadable({ companyId, profileId, messageId }) {
     const [row] = await prisma.$queryRaw`
       SELECT m.id, m.conversation_id, m.metadata
@@ -26,15 +26,35 @@ export function createChatActionsService({ prisma, approvalsService, broadcaster
     const action = (metadata.actions ?? []).find((item) => item.id === actionId);
     if (!action) throw new ChatServiceError("Acción no encontrada.", 404);
     if (metadata.resolution) throw new ChatServiceError("Esta solicitud ya fue resuelta.", 409);
-    if (action.kind !== "approval") throw new ChatServiceError("Este botón no ejecuta acciones.", 400);
-    try {
-      await approvalsService.decide({ companyId, profileId, id: action.approvalId, decision: action.decision });
-    } catch (error) {
-      if (error instanceof AutomationApprovalError) throw new ChatServiceError(error.message, error.status);
-      throw error;
-    }
+    if (action.kind !== "approval" && action.kind !== "callback") throw new ChatServiceError("Este botón no ejecuta acciones.", 400);
     const [person] = await prisma.$queryRaw`SELECT display_name FROM user_profile WHERE id = ${profileId}::uuid`;
-    const resolution = { actionId, label: action.label, decision: action.decision, byName: person?.display_name ?? "Alguien", at: now().toISOString() };
+    const byName = person?.display_name ?? "Alguien";
+    if (action.kind === "approval") {
+      try {
+        await approvalsService.decide({ companyId, profileId, id: action.approvalId, decision: action.decision });
+      } catch (error) {
+        if (error instanceof AutomationApprovalError) throw new ChatServiceError(error.message, error.status);
+        throw error;
+      }
+    } else {
+      // The integration that posted the message receives the choice on its own reply address.
+      const [integration] = metadata.integration?.id
+        ? await prisma.$queryRaw`SELECT name, callback_url FROM chat_integrations WHERE id = ${metadata.integration.id}::uuid AND enabled = TRUE`
+        : [];
+      if (!integration?.callback_url || !httpService) throw new ChatServiceError("Esta integración ya no recibe respuestas de botones.", 409);
+      try {
+        await httpService.send({
+          companyId, moduleKey: "runly.chat",
+          request: {
+            url: integration.callback_url, method: "POST", automationKey: `chat:${integration.name}`, idempotencyKey: `${messageId}:${actionId}`,
+            body: { event: "button", messageId, conversationId: String(message.conversation_id), actionId, label: action.label, value: action.value, user: { id: profileId, name: byName } },
+          },
+        });
+      } catch (error) {
+        throw new ChatServiceError(`No se pudo avisar a la integración: ${error?.message ?? "error"}`, error?.status === 403 ? 403 : 502);
+      }
+    }
+    const resolution = { actionId, label: action.label, decision: action.kind === "approval" ? action.decision : "choice", byName, at: now().toISOString() };
     // Every button of the message closes together.
     await prisma.$executeRaw`UPDATE chat_messages SET metadata = jsonb_set(coalesce(metadata, '{}'::jsonb), '{resolution}', ${JSON.stringify(resolution)}::jsonb) WHERE id = ${messageId}::uuid`;
     const members = await prisma.$queryRaw`SELECT user_id FROM chat_conversation_members WHERE conversation_id = ${message.conversation_id}::uuid AND left_at IS NULL AND user_id IS NOT NULL`;

@@ -122,3 +122,35 @@ test('resolved cards, link buttons, unknown buttons and unreadable messages are 
   await assert.rejects(() => run(null, 'approve'), (e) => e.status === 404)
   await assert.rejects(() => run(card, 'approve', async () => { throw new AutomationApprovalError('Aprobación no encontrada.', 404) }), (e) => e.status === 404 && /no encontrada/.test(e.message))
 })
+
+test('own buttons ({label, value}) only exist for integrations with a reply address', () => {
+  const buttons = [{ label: 'Resolver', value: 'ok', style: 'primary' }, { label: 'Ver', url: 'https://example.com' }, { label: 'Sin valor' }]
+  assert.deepEqual(buildActions({ buttons }).map((a) => a.kind), ['link'])
+  const withCallbacks = buildActions({ buttons }, { allowCallbacks: true })
+  assert.deepEqual(withCallbacks.map((a) => [a.kind, a.label]), [['callback', 'Resolver'], ['link', 'Ver']])
+  assert.equal(withCallbacks[0].style, 'primary')
+  assert.equal(withCallbacks[0].value, 'ok')
+})
+
+test('pressing an own button sends a signed request to the integration and closes the card', async () => {
+  const sent = []
+  const meta = { integration: { id: 'i1' }, actions: [{ id: 'cb0', kind: 'callback', label: 'Resolver', value: 'ok' }] }
+  const prisma = {
+    $queryRaw: async (strings) => {
+      const sql = strings.join('?')
+      if (/FROM chat_messages m/.test(sql)) return [{ id: 'm1', conversation_id: 'c1', metadata: meta }]
+      if (/FROM chat_integrations/.test(sql)) return [{ name: 'Soporte', callback_url: 'https://mi-sistema.example/botones' }]
+      if (/FROM user_profile/.test(sql)) return [{ display_name: 'Ana' }]
+      return [{ user_id: 'u1' }]
+    },
+    $executeRaw: async () => 1,
+  }
+  const service = createChatActionsService({ prisma, approvalsService: {}, httpService: { send: async (x) => sent.push(x) } })
+  const out = await service.perform({ companyId: 'co', profileId: 'p', messageId: 'm1', actionId: 'cb0' })
+  assert.equal(out.resolution.decision, 'choice')
+  assert.equal(sent[0].request.url, 'https://mi-sistema.example/botones')
+  assert.deepEqual(sent[0].request.body, { event: 'button', messageId: 'm1', conversationId: 'c1', actionId: 'cb0', label: 'Resolver', value: 'ok', user: { id: 'p', name: 'Ana' } })
+  assert.equal(sent[0].request.idempotencyKey, 'm1:cb0')
+  const failing = createChatActionsService({ prisma, approvalsService: {}, httpService: { send: async () => { const e = new Error('destino no permitido'); e.status = 403; throw e } } })
+  await assert.rejects(() => failing.perform({ companyId: 'co', profileId: 'p', messageId: 'm1', actionId: 'cb0' }), (e) => e.status === 403 && /No se pudo avisar/.test(e.message))
+})

@@ -10,11 +10,15 @@ function parseButtons(value) {
   try { const parsed = JSON.parse(String(value ?? '')); return Array.isArray(parsed) ? parsed : [] } catch { return [] }
 }
 
+// Sources that are not installed modules still get a readable name.
+const SYSTEM_NAMES = { 'system.automations': 'Automatizaciones' }
+
 export function createChatHandlers({ prisma, ServiceError, broadcaster = null }) {
   const chat = createChatIntegrationsService({ prisma, broadcaster })
 
   // "Compras", "Mi módulo": the name members know it by.
   async function sourceName(moduleKey) {
+    if (SYSTEM_NAMES[moduleKey]) return SYSTEM_NAMES[moduleKey]
     const row = await prisma.runlyModule?.findFirst?.({ where: { key: moduleKey }, select: { name: true } }).catch(() => null)
     return row?.name || moduleKey || 'Integración'
   }

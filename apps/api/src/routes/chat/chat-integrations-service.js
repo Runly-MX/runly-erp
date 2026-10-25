@@ -43,18 +43,22 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Buttons of an interactive message: up to 3 link buttons ({ label, url }), or the Aprobar /
 // Rechazar pair of an approval (`approvalId`). Pure; invalid buttons are dropped. Spec
 // docs/superpowers/specs/2026-10-26-interactive-messages-design.md.
-export function buildActions(input) {
+export function buildActions(input, { allowCallbacks = false } = {}) {
   const actions = [];
   if (input?.approvalId && UUID.test(String(input.approvalId))) {
     actions.push({ id: "approve", kind: "approval", approvalId: String(input.approvalId), decision: "approve", label: "Aprobar", style: "primary" });
     actions.push({ id: "reject", kind: "approval", approvalId: String(input.approvalId), decision: "reject", label: "Rechazar", style: "danger" });
     return actions;
   }
+  // A button with `url` opens a link; one with `value` (only for integrations that have a
+  // reply address) sends that value back to the integration when pressed.
   const valid = (Array.isArray(input?.buttons) ? input.buttons : [])
-    .map((button) => ({ label: clip(button?.label, 30), url: safeLink(button?.url) }))
-    .filter((button) => button.label && button.url)
+    .map((button) => ({ label: clip(button?.label, 30), url: safeLink(button?.url), value: allowCallbacks ? clip(button?.value, 100) : "", style: button?.style === "primary" || button?.style === "danger" ? button.style : "default" }))
+    .filter((button) => button.label && (button.url || button.value))
     .slice(0, MAX_BUTTONS);
-  valid.forEach((button, index) => actions.push({ id: `link${index}`, kind: "link", label: button.label, url: button.url, style: "default" }));
+  valid.forEach((button, index) => actions.push(button.url
+    ? { id: `link${index}`, kind: "link", label: button.label, url: button.url, style: "default" }
+    : { id: `cb${index}`, kind: "callback", label: button.label, value: button.value, style: button.style }));
   return actions;
 }
 
@@ -122,7 +126,7 @@ export function createChatIntegrationsService({ prisma, broadcaster = null, now 
   // Public webhook: the token is the credential. Unknown, disabled or archived -> 404 without detail.
   async function postFromToken(token, input) {
     const [row] = await prisma.$queryRaw`
-      SELECT i.id, i.name, i.icon, i.conversation_id
+      SELECT i.id, i.name, i.icon, i.conversation_id, i.callback_url
       FROM chat_integrations i
       JOIN chat_conversations c ON c.id = i.conversation_id
       WHERE i.token_hash = ${hashToken(token)} AND i.enabled = TRUE
@@ -132,7 +136,7 @@ export function createChatIntegrationsService({ prisma, broadcaster = null, now 
     if (limited(row.id)) throw new ChatServiceError("Demasiados mensajes: espera un minuto.", 429);
     const body = buildIntegrationBody(input);
     // Webhooks may only add link buttons (a decision button needs the platform's own approval id).
-    const posted = await postMessage({ conversationId: row.conversation_id, body, integration: { id: row.id, name: row.name, icon: row.icon }, actions: buildActions({ buttons: input.buttons }) });
+    const posted = await postMessage({ conversationId: row.conversation_id, body, integration: { id: row.id, name: row.name, icon: row.icon }, actions: buildActions({ buttons: input.buttons }, { allowCallbacks: Boolean(row.callback_url) }) });
     await prisma.$executeRaw`UPDATE chat_integrations SET last_used_at = NOW(), message_count = message_count + 1 WHERE id = ${row.id}::uuid`;
     return posted;
   }
@@ -166,7 +170,7 @@ export function createChatIntegrationsService({ prisma, broadcaster = null, now 
 
   async function list(conversationId) {
     return prisma.$queryRaw`
-      SELECT id, name, icon, token_hint AS "tokenHint", enabled, last_used_at AS "lastUsedAt", message_count AS "messageCount", created_at AS "createdAt"
+      SELECT id, name, icon, token_hint AS "tokenHint", enabled, callback_url AS "callbackUrl", last_used_at AS "lastUsedAt", message_count AS "messageCount", created_at AS "createdAt"
       FROM chat_integrations WHERE conversation_id = ${conversationId}::uuid ORDER BY created_at DESC
     `;
   }
@@ -197,16 +201,27 @@ export function createChatIntegrationsService({ prisma, broadcaster = null, now 
     return { ...rows[0], token };
   }
 
-  async function update({ conversationId, integrationId, name, icon, enabled }) {
-    const current = (await prisma.$queryRaw`SELECT name, icon, enabled FROM chat_integrations WHERE id = ${integrationId}::uuid AND conversation_id = ${conversationId}::uuid`)[0];
+  // https only, no credentials or port; the host must also be an allowed destination (checked when a button is pressed).
+  function parseCallbackUrl(value) {
+    const text = clip(value, 500);
+    if (!text) return null;
+    let url;
+    try { url = new URL(text); } catch { throw new ChatServiceError("La dirección de respuesta no es válida.", 400); }
+    if (url.protocol !== "https:" || url.username || url.password || url.port) throw new ChatServiceError("La dirección de respuesta debe ser https, sin usuario, contraseña ni puerto.", 400);
+    return url.toString();
+  }
+
+  async function update({ conversationId, integrationId, name, icon, enabled, callbackUrl }) {
+    const current = (await prisma.$queryRaw`SELECT name, icon, enabled, callback_url FROM chat_integrations WHERE id = ${integrationId}::uuid AND conversation_id = ${conversationId}::uuid`)[0];
     if (!current) throw new ChatServiceError("Integración no encontrada.", 404);
     const nextName = name === undefined ? current.name : clip(name, MAX_NAME);
     if (!nextName) throw new ChatServiceError("Escribe un nombre para la integración.", 400);
     const nextIcon = icon === undefined ? current.icon : clip(icon, 60) || null;
     const nextEnabled = enabled === undefined ? current.enabled : enabled === true;
+    const nextCallback = callbackUrl === undefined ? current.callback_url : parseCallbackUrl(callbackUrl);
     const [row] = await prisma.$queryRaw`
-      UPDATE chat_integrations SET name = ${nextName}, icon = ${nextIcon}, enabled = ${nextEnabled}
-      WHERE id = ${integrationId}::uuid RETURNING id, name, icon, token_hint AS "tokenHint", enabled
+      UPDATE chat_integrations SET name = ${nextName}, icon = ${nextIcon}, enabled = ${nextEnabled}, callback_url = ${nextCallback}
+      WHERE id = ${integrationId}::uuid RETURNING id, name, icon, token_hint AS "tokenHint", enabled, callback_url AS "callbackUrl"
     `;
     return row;
   }

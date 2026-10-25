@@ -11,6 +11,7 @@ import { createAutomationJobsService } from "./automation-jobs-service.js";
 import { createAutomationRunsService } from "./automation-runs-service.js";
 import { createAutomationApprovalsService } from "./automation-approvals-service.js";
 import { createChatIntegrationsService } from "../routes/chat/chat-integrations-service.js";
+import { createRealtimeBroadcasterFromEnv } from "./realtime-broadcaster.js";
 import { createAutomationHttpService } from "./automation-http-service.js";
 import { createNotificationService } from "./notification-service.js";
 import { nextOccurrence } from "./automation-schedule-math.js";
@@ -25,7 +26,7 @@ const DISABLED_GRACE_MS = 24 * 3_600_000;
 export function createAutomationWorker({ prisma, resolveModulesDir, moduleServices = null, importRuntime = null, now = () => new Date(), approvals = null, httpService = null }) {
   const jobs = createAutomationJobsService({ prisma, now });
   const runs = createAutomationRunsService({ prisma });
-  const approvalsService = approvals ?? createAutomationApprovalsService({ prisma, notifications: createNotificationService({ prisma }), chat: createChatIntegrationsService({ prisma }), now });
+  const approvalsService = approvals ?? createAutomationApprovalsService({ prisma, notifications: createNotificationService({ prisma }), chat: createChatIntegrationsService({ prisma, broadcaster: createRealtimeBroadcasterFromEnv({ prisma }) }), now });
   const http = httpService ?? createAutomationHttpService({ prisma });
   const runtimeCache = new Map();
   const systemAutomations = createSystemAutomationsService({ prisma, moduleServices, now });

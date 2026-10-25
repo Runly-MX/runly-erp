@@ -1,4 +1,11 @@
 import { canReceiveResourceEvent } from './notification-access.js'
+// Same broadcaster for processes without the API's supabase wiring (the worker): null when the
+// realtime credentials are not in the environment.
+export function createRealtimeBroadcasterFromEnv({ prisma, env = process.env }) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) return null;
+  return createRealtimeBroadcaster({ prisma, supabaseUrl: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY });
+}
+
 export function createRealtimeBroadcaster({ supabaseUrl, serviceRoleKey, prisma }) {
   const endpoint = `${supabaseUrl}/realtime/v1/api/broadcast`
 

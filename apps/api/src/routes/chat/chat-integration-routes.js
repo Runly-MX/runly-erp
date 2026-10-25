@@ -50,7 +50,7 @@ export function createChatIntegrationRoutes({ prisma, requirePermission, permiss
     try {
       const { conversationId } = await guard(c);
       const body = await c.req.json();
-      return c.json({ data: await integrationsService.update({ conversationId, integrationId: c.req.param("iid"), name: body.name, icon: body.icon, enabled: body.enabled }) });
+      return c.json({ data: await integrationsService.update({ conversationId, integrationId: c.req.param("iid"), name: body.name, icon: body.icon, enabled: body.enabled, callbackUrl: body.callbackUrl }) });
     } catch (err) { return handleError(c, err, "Error al guardar la integración."); }
   });
 

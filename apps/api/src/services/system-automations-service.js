@@ -8,6 +8,7 @@ import { createAutomationRunsService } from "./automation-runs-service.js";
 import { createAutomationJobsService } from "./automation-jobs-service.js";
 import { createAutomationApprovalsService } from "./automation-approvals-service.js";
 import { createChatIntegrationsService } from "../routes/chat/chat-integrations-service.js";
+import { createRealtimeBroadcasterFromEnv } from "./realtime-broadcaster.js";
 import { createAutomationHttpService } from "./automation-http-service.js";
 import { createNotificationService } from "./notification-service.js";
 import { createAutomationWebhooksService, WEBHOOK_EVENT } from "./automation-webhooks-service.js";
@@ -27,7 +28,7 @@ export class SystemAutomationError extends Error {
 export function createSystemAutomationsService({ prisma, moduleServices = null, notifications = null, now = () => new Date() }) {
   const runs = createAutomationRunsService({ prisma });
   const jobs = createAutomationJobsService({ prisma, now });
-  const approvals = createAutomationApprovalsService({ prisma, notifications: notifications ?? createNotificationService({ prisma }), chat: createChatIntegrationsService({ prisma }), now });
+  const approvals = createAutomationApprovalsService({ prisma, notifications: notifications ?? createNotificationService({ prisma }), chat: createChatIntegrationsService({ prisma, broadcaster: createRealtimeBroadcasterFromEnv({ prisma }) }), now });
   const http = createAutomationHttpService({ prisma });
   const webhooks = createAutomationWebhooksService({ prisma, now });
 

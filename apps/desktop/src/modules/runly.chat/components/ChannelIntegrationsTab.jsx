@@ -1,9 +1,9 @@
 // "Integraciones" of a channel: external systems, automations and modules that post
 // messages into it. Each one has a secret address (shown once, regenerable). Spec
 // docs/superpowers/specs/2026-10-26-slack-parity-design.md, section 1.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, ConfirmDialog, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, IconPickerField, Skeleton, TextField, resolveLucideIcon } from "@runly/ui";
-import { Copy, KeyRound, Plug, Plus, Power, Trash2 } from "lucide-react";
+import { Copy, KeyRound, Link2, Plug, Plus, Power, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getApiUrl } from "../../../lib/runtimeConfig";
 import { useChannelIntegrationActions, useChannelIntegrations } from "../hooks/useChannelIntegrations";
@@ -27,6 +27,28 @@ function CreateDialog({ open, onClose, onCreate, pending }) {
         <DialogFooter>
           <Button variant="outline" onClick={close}>Cancelar</Button>
           <Button disabled={!name.trim() || pending} onClick={() => onCreate({ name: name.trim(), icon: icon || undefined })}>Crear integración</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Where the integration receives the presses of the buttons it posts (https, signed, allowed destinations only).
+function CallbackDialog({ item, onClose, onSave, pending }) {
+  const [url, setUrl] = useState("");
+  useEffect(() => { setUrl(item?.callbackUrl ?? ""); }, [item]);
+  return (
+    <Dialog open={Boolean(item)} onOpenChange={(value) => { if (!value) onClose(); }}>
+      <DialogContent size="md">
+        <DialogHeader icon={Link2}><DialogTitle>Respuesta a botones</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-2">
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">Si «{item?.name}» publica mensajes con botones propios (<span className="font-mono">{`"buttons": [{ "label": "Resolver", "value": "ok" }]`}</span>), Runly avisa a esta dirección cuando alguien presiona uno: un POST firmado con el botón y la persona. Sin dirección, solo se aceptan botones de enlace.</p>
+          <TextField label="Dirección https" value={url} maxLength={500} placeholder="https://mi-sistema.com/runly/botones" hint="El destino debe estar en la lista de destinos permitidos de Automatizaciones." onChange={(e) => setUrl(e.target.value)} autoFocus />
+        </div>
+        <DialogFooter>
+          {item?.callbackUrl && <Button variant="outline" onClick={() => onSave("")}>Quitar</Button>}
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button disabled={pending} onClick={() => onSave(url.trim())}>Guardar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -63,6 +85,7 @@ export function ChannelIntegrationsTab({ conversationId }) {
   const [shownToken, setShownToken] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [toRotate, setToRotate] = useState(null);
+  const [callbackFor, setCallbackFor] = useState(null);
   const items = data?.data ?? [];
 
   if (isLoading) return <div className="space-y-2 px-4 py-2">{Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}</div>;
@@ -82,6 +105,7 @@ export function ChannelIntegrationsTab({ conversationId }) {
                   <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">...{item.tokenHint} · {item.messageCount} mensajes · {lastUse(item.lastUsedAt)}</p>
                 </div>
                 <button type="button" title={item.enabled ? "Desactivar" : "Activar"} aria-label={item.enabled ? "Desactivar" : "Activar"} onClick={() => actions.update.mutate({ id: item.id, enabled: !item.enabled })} className={ROW_BUTTON}><Power size={14} aria-hidden /></button>
+                <button type="button" title="Respuesta a botones" aria-label="Respuesta a botones" onClick={() => setCallbackFor(item)} className={ROW_BUTTON}><Link2 size={14} aria-hidden /></button>
                 <button type="button" title="Regenerar dirección" aria-label="Regenerar dirección" onClick={() => setToRotate(item)} className={ROW_BUTTON}><KeyRound size={14} aria-hidden /></button>
                 <button type="button" title="Eliminar" aria-label="Eliminar" onClick={() => setToDelete(item)} className={ROW_BUTTON}><Trash2 size={14} aria-hidden /></button>
               </li>
@@ -94,6 +118,8 @@ export function ChannelIntegrationsTab({ conversationId }) {
       <CreateDialog open={creating} pending={actions.create.isPending} onClose={() => setCreating(false)}
         onCreate={(values) => actions.create.mutate(values, { onSuccess: (res) => { setCreating(false); setShownToken(res?.data?.token ?? null); } })} />
       <AddressDialog token={shownToken} onClose={() => setShownToken(null)} />
+      <CallbackDialog item={callbackFor} pending={actions.update.isPending} onClose={() => setCallbackFor(null)}
+        onSave={(callbackUrl) => actions.update.mutate({ id: callbackFor.id, callbackUrl }, { onSuccess: () => setCallbackFor(null) })} />
       <ConfirmDialog open={Boolean(toRotate)} onOpenChange={(value) => { if (!value) setToRotate(null); }} title="Regenerar la dirección"
         description={`La dirección actual de «${toRotate?.name ?? ""}» dejará de funcionar. Tendrás que actualizarla donde se use.`} confirmLabel="Regenerar" tone="warning"
         onConfirm={() => actions.rotate.mutate(toRotate.id, { onSuccess: (res) => { setToRotate(null); setShownToken(res?.data?.token ?? null); } })} />

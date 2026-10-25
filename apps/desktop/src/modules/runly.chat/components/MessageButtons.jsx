@@ -21,6 +21,9 @@ export function MessageButtons({ message }) {
   if (!Array.isArray(actions) || actions.length === 0) return null;
   const resolution = message.metadata?.resolution;
   if (resolution) {
+    if (resolution.decision === "choice") {
+      return <p role="status" className="mt-2 flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]"><Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden />{resolution.byName}: {resolution.label}</p>;
+    }
     const approved = resolution.decision === "approve";
     return (
       <p role="status" className="mt-2 flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">

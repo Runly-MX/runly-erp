@@ -12,8 +12,13 @@ Approvals live in a Home widget and the bell. A request that already happens in 
 - The approval step of Builder and company automations has an optional **channel** ("Publicar también en un canal"): the request is also posted there as a card ("Aprobaciones" integration label). The bell notification and the Home widget keep working; if the channel does not exist the step still works and the failure is logged.
 - Interface: buttons under the message text (primary / danger / link), 44 px on touch; link buttons are anchors, so they work with the keyboard and open in a new tab.
 
+## Own buttons and live cards (added 2026-10-26)
+- An integration can set a **reply address** (`chat_integrations.callback_url`, https, no credentials or port). Its webhook may then post buttons `{ label, value, style }`; without a reply address they are dropped. Pressing one sends a signed POST (`event: "button"`, message, button, value, person) through the guarded automation HTTP service (allowed destinations only, same HMAC secret and SSRF rules), closes the card ("Ana: Resolver") and fails with the destination's reason if it cannot be reached (the card stays open).
+- Cards posted by the worker or by automation runs use a realtime broadcaster built from the environment, so they appear live.
+- Source labels: system sources get readable names ("Automatizaciones").
+
 ## Not built
-Purchases approvals as cards (they have their own table and permission; same card, new action kind), custom action buttons from integrations, buttons that run slash commands, live push of a card posted by the worker (it appears on the next refresh).
+Purchases approvals as cards (they have their own table and permission; same card, new action kind), buttons that run slash commands.
 
 ## Testing
 Unit: button rules, action service (decide once, resolved/unknown/link/unreadable are refused, approval errors keep their status). E2E `.e2e/chat-buttons-e2e.mjs` (8 checks): non-approver 404, webhook link buttons and unsafe links dropped, webhook cannot forge decision buttons, press Aprobar in the interface, second decision 409.
