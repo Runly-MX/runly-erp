@@ -19,7 +19,9 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     else if (item.type === 'rectangle') object = new Rect({ ...options, width: item.width, height: item.height })
     else if (item.type === 'ellipse') object = new Ellipse({ ...options, rx: item.width / 2, ry: item.height / 2 })
     else {
-      object = await FabricImage.fromURL(await resolveImage(item.fileAssetId), { crossOrigin: 'anonymous' })
+      const url = await resolveImage(item.fileAssetId)
+      try { object = await FabricImage.fromURL(url, { crossOrigin: 'anonymous' }) }
+      catch { throw new Error('No se pudo cargar la imagen original. Comprueba el archivo y reintenta.') }
       object.set({ ...options, scaleX: item.width / object.width, scaleY: item.height / object.height })
     }
     object.studioId = item.id

@@ -1,5 +1,5 @@
 import { resolve, join } from 'node:path'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { createServer } from 'node:net'
@@ -56,6 +56,12 @@ export async function createStudioStack() {
   }
   services['supabase-db'].ports = [{ target: 5432, published: String(ports.db), host_ip: '127.0.0.1' }]
   services['supabase-auth'].environment.GOTRUE_SMTP_HOST = ''
+  // Fail a test outage promptly; production gateway timeouts remain unchanged.
+  const kongSource = services['supabase-kong'].volumes.find(mount => mount.target === '/home/kong/temp.yml')
+  const kongConfig = join(directory, 'kong.yml')
+  await writeFile(kongConfig, (await readFile(kongSource.source, 'utf8')).replace(/^    url:/gm,
+    '    connect_timeout: 2000\n    read_timeout: 3000\n    write_timeout: 3000\n    retries: 0\n    url:'))
+  kongSource.source = kongConfig
   const databaseUrl = `postgresql://postgres:${secret.SUPABASE_POSTGRES_PASSWORD}@supabase-db:5432/postgres`
   services['runly-api'] = { image: 'runly-studio-test:api-local', pull_policy: 'never', restart: 'no',
     entrypoint: ['node', 'apps/api/src/index.js'],
@@ -83,14 +89,22 @@ export async function createStudioStack() {
     verified = true
   }
   async function initialize() {
-    if (!verified || (await pool.query('SELECT id FROM runly_studio_test.environment')).rows[0]?.id !== name) throw Error('DISPOSABLE_DATABASE_NOT_VERIFIED')
+    const guard = async () => {
+      if (!verified || (await pool.query('SELECT id FROM runly_studio_test.environment')).rows[0]?.id !== name) throw Error('DISPOSABLE_DATABASE_NOT_VERIFIED')
+    }
+    await guard()
     await compose(['run', '--rm', '--no-deps', '--entrypoint', 'node', 'runly-api', 'node_modules/prisma/build/index.js', 'migrate', 'deploy'], { log: join(directory, 'migrate.log') })
+    await guard()
     await compose(['run', '--rm', '--no-deps', '--entrypoint', 'node', 'runly-api', 'prisma/seed.js'], { log: join(directory, 'seed.log') })
   }
+  let closing
   return { name, directory, secret, ports, urls, pool, compose, verifyTarget, initialize,
-    async close() {
+    close() {
+      return closing ??= (async () => {
       await pool.end()
+      await compose(['unpause', 'supabase-storage']).catch(() => {})
       await compose(['logs', '--no-color'], { log: join(directory, 'services.log') }).catch(() => {})
       await compose(['down', '--volumes', '--remove-orphans'], { log: join(directory, 'cleanup.log') })
+      })()
     } }
 }

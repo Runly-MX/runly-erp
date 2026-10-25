@@ -61,6 +61,13 @@ window.studioVerification = async () => {
   if (editor.snapshot().objects[0].hidden) throw Error('undo visibility failed')
   result.historyAndLayers = true
   await editor.destroy()
+  let imageFailure
+  try {
+    await createStudioEditor(element(), { document: appendObject(blankDocument(), 'image', { fileAssetId: fileId }),
+      resolveImage: async () => 'data:image/png;base64,bm90LWFuLWltYWdl#token=private-test-value' })
+  } catch (error) { imageFailure = error.message }
+  if (!imageFailure || imageFailure.includes('token=') || imageFailure.includes('data:')) throw Error('image failure exposed its URL')
+  result.safeImageErrors = true
   const benchmarks = []
   for (const count of [20, 200, 500]) {
     const doc = blankDocument(1080, 1080)

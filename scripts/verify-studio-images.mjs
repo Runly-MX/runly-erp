@@ -1,8 +1,8 @@
 // Validate local Docker artifacts without starting the API entrypoint or jobs.
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
-import { join, resolve, basename } from 'node:path';
-import { createRequire } from 'node:module';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { inspectStudioWeb } from './lib/studio-web-verification.mjs';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 
@@ -71,52 +71,7 @@ const artifact = await mkdtemp(join(output, 'web-image-'));
 const container = docker(['create', '--pull=never', '--network', 'none', images.web]).trim();
 try { docker(['cp', `${container}:/usr/share/nginx/html`, artifact]); }
 finally { docker(['rm', container]); }
-const html = join(artifact, 'html'), assets = join(html, 'assets');
-const filenames = await readdir(assets), studio = filenames.find(name => /^StudioScreen-.*\.js$/.test(name));
-assert.ok(studio, 'Studio lazy chunk missing');
-const studioCode = await readFile(join(assets, studio), 'utf8');
-assert.ok(studioCode.includes('fabric') && studioCode.includes('Textbox'), 'Fabric code missing from Studio chunk');
-const compilerRequire = createRequire(resolve(root, 'packages/module-compiler/package.json'));
-const { parse } = compilerRequire('acorn');
-function sources(code) {
-  const ast = parse(code, { ecmaVersion: 'latest', sourceType: 'module' }), staticImports = [], dynamicImports = [];
-  const visit = node => {
-    if (!node || typeof node !== 'object') return;
-    if (['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration'].includes(node.type) && node.source?.value) staticImports.push(basename(node.source.value));
-    if (node.type === 'ImportExpression') {
-      const source = node.source;
-      const value = typeof source?.value === 'string' ? source.value : source?.type === 'TemplateLiteral' && !source.expressions.length ? source.quasis[0].value.cooked : null;
-      if (value) dynamicImports.push(basename(value));
-    }
-    for (const value of Object.values(node)) { if (Array.isArray(value)) value.forEach(visit); else if (value && typeof value === 'object') visit(value); }
-  };
-  visit(ast); return { staticImports, dynamicImports };
-}
-const index = await readFile(join(html, 'index.html'), 'utf8');
-const entries = [...index.matchAll(/<script\b[^>]*\bsrc="([^"]+\.js)"[^>]*>/g)].map(match => basename(match[1])).filter(name => filenames.includes(name));
-assert.ok(entries.length, 'Web entry script missing');
-const initial = new Set(), dynamic = new Set();
-async function inspectInitial(name) {
-  if (initial.has(name)) return;
-  initial.add(name);
-  const graph = sources(await readFile(join(assets, name), 'utf8'));
-  graph.dynamicImports.forEach(value => dynamic.add(value));
-  for (const child of graph.staticImports) if (filenames.includes(child)) await inspectInitial(child);
-}
-for (const entry of entries) await inspectInitial(entry);
-assert.ok(!initial.has(studio), 'Studio/Fabric was eagerly bundled into the initial static graph');
-// The authenticated AppEntry can itself be lazy. Follow its graph without
-// treating any of those chunks as part of the initial static load.
-const reachable = new Set(initial), queue = [...dynamic];
-while (queue.length && !dynamic.has(studio)) {
-  const name = queue.shift();
-  if (reachable.has(name) || !filenames.includes(name)) continue;
-  reachable.add(name);
-  const graph = sources(await readFile(join(assets, name), 'utf8'));
-  graph.dynamicImports.forEach(value => dynamic.add(value));
-  queue.push(...graph.staticImports, ...graph.dynamicImports);
-}
-assert.ok(dynamic.has(studio), 'Studio is not reachable through a lazy import');
-results.web = { studioChunk: studio, studioBytes: Buffer.byteLength(studioCode), fabric: true, lazy: true, initialChunks: initial.size };
+const html = join(artifact, 'html');
+results.web = await inspectStudioWeb(html);
 await writeFile(join(output, 'image-verification.json'), JSON.stringify(results, null, 2));
 console.log(JSON.stringify(results));

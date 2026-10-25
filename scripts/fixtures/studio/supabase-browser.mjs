@@ -12,7 +12,7 @@ export async function verifyStudioSupabase(stack, { users, companies, admin }) {
   const checks = [], errors = []
   const [owner, denied, peer] = users, [a, b] = companies
   async function api(path, token, company = a.id, options = {}) {
-    return fetch(`${stack.urls.api}${path}`, { ...options, headers: {
+    return fetch(`${stack.urls.api}${path}`, { signal: AbortSignal.timeout(15000), ...options, headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}), 'X-Runly-Company-Id': company,
       ...(options.body && typeof options.body === 'string' ? { 'Content-Type': 'application/json' } : {}), ...options.headers } })
   }
@@ -40,6 +40,10 @@ export async function verifyStudioSupabase(stack, { users, companies, admin }) {
     assert.equal((await api('/studio/designs')).status, 401)
     assert.equal((await api('/studio/designs', deniedToken)).status, 403)
     assert.equal((await api('/studio/designs', token)).status, 200)
+    await stack.pool.query('UPDATE membership SET role_id=$1 WHERE company_id=$2 AND user_id=$3', [a.roleId, a.id, denied.id])
+    assert.equal((await api('/studio/designs', deniedToken)).status, 200)
+    await stack.pool.query('UPDATE membership SET role_id=NULL WHERE company_id=$1 AND user_id=$2', [a.id, denied.id])
+    assert.equal((await api('/studio/designs', deniedToken)).status, 403)
     checks.push('real Supabase users, Runly login, membership RBAC: 401/403/200')
     const { page, context } = await loginUi(owner)
     await page.getByRole('button', { name: 'Crear diseño', exact: true }).click()
@@ -129,11 +133,21 @@ export async function verifyStudioSupabase(stack, { users, companies, admin }) {
     await second.page.getByRole('button', { name: '4. Imagen', exact: true }).click()
     await second.page.getByRole('button', { name: 'Duplicar', exact: true }).click()
     await second.page.getByRole('button', { name: 'Deshacer', exact: true }).click()
+    await second.page.getByRole('button', { name: '5. Imagen', exact: true }).waitFor({ state: 'detached' })
     assert.equal(await second.page.getByRole('button', { name: '5. Imagen', exact: true }).count(), 0)
     await second.page.getByRole('button', { name: 'Rehacer', exact: true }).click()
     await second.page.getByRole('button', { name: '5. Imagen', exact: true }).click()
     await second.page.getByRole('button', { name: 'Copiar', exact: true }).click()
     await second.page.getByRole('button', { name: 'Pegar', exact: true }).click()
+    const editorRegion = second.page.getByRole('application', { name: 'Editor gráfico de Runly Studio' })
+    await editorRegion.focus(); await second.page.keyboard.press('Control+z')
+    await second.page.getByRole('button', { name: '6. Imagen', exact: true }).waitFor({ state: 'detached' })
+    assert.equal(await second.page.getByRole('button', { name: '6. Imagen', exact: true }).count(), 0)
+    await editorRegion.focus(); await second.page.keyboard.press('Control+Shift+z')
+    await second.page.getByRole('button', { name: '6. Imagen', exact: true }).waitFor()
+    await editorRegion.focus(); await second.page.keyboard.press('Control+z')
+    await second.page.getByRole('button', { name: '6. Imagen', exact: true }).waitFor({ state: 'detached' })
+    await editorRegion.focus(); await second.page.keyboard.press('Control+y')
     await second.page.getByRole('button', { name: '6. Imagen', exact: true }).click()
     await second.page.getByRole('button', { name: 'Enviar atrás', exact: true }).click()
     await second.page.getByRole('button', { name: 'Ocultar', exact: true }).click()
@@ -153,8 +167,8 @@ export async function verifyStudioSupabase(stack, { users, companies, admin }) {
     await second.page.getByRole('status').filter({ hasText: /^Guardado$/ }).waitFor()
     checks.push('undo/redo, duplicate, copy/paste, z-order, lock and visibility persist in document v2')
     // Actual company switch in the shell, followed by the stale design URL.
-    await page.getByRole('button', { name: 'Studio Test A', exact: true }).click()
-    await page.getByRole('menuitem', { name: 'Studio Test B', exact: true }).click()
+    await page.locator('button[title="Studio Test A"]').click()
+    await page.getByRole('menuitem').filter({ hasText: 'Studio Test B' }).click()
     await page.goto(`${stack.urls.web}/app/m/runly.studio/?design=${id}`)
     await page.getByText('Diseño no encontrado.', { exact: true }).waitFor()
     checks.push('real company switch clears context and rejects the previous design URL')
@@ -163,9 +177,15 @@ export async function verifyStudioSupabase(stack, { users, companies, admin }) {
     await stack.pool.query('UPDATE file_asset SET enabled=false WHERE id=$1', [fileId])
     assert.ok([403, 404].includes((await api(`/files/${fileId}/signed-url`, token)).status))
     assert.equal((await api('/studio/designs', token, a.id, { method: 'POST', body: JSON.stringify({ name: 'Disabled image', document: record.document }) })).status, 403)
+    await second.page.goto(`${stack.urls.web}/app/m/runly.studio/?design=${id}`)
+    await second.page.getByText('No se pudo completar la operación', { exact: true }).waitFor()
+    assert.equal(await second.page.getByRole('button', { name: 'Exportar PNG', exact: true }).isDisabled(), true)
     await stack.pool.query('UPDATE file_asset SET enabled=true,entity_id=$2 WHERE id=$1', [fileId, b.id])
     assert.equal((await api('/studio/designs', token, a.id, { method: 'POST', body: JSON.stringify({ name: 'Foreign image', document: record.document }) })).status, 403)
     await stack.pool.query('UPDATE file_asset SET entity_id=$2 WHERE id=$1', [fileId, a.id])
+    await second.page.getByRole('button', { name: 'Reintentar', exact: true }).click()
+    await second.page.getByRole('button', { name: '4. Imagen', exact: true }).click()
+    assert.equal(await second.page.getByRole('button', { name: 'Exportar PNG', exact: true }).isEnabled(), true)
     const { data: expiry, error } = await admin.storage.from(file.bucket).createSignedUrl(file.object_key, 1)
     assert.equal(error, null)
     await new Promise(resolve => setTimeout(resolve, 2100))
@@ -173,18 +193,40 @@ export async function verifyStudioSupabase(stack, { users, companies, admin }) {
     const fresh = await (await api(`/files/${fileId}/signed-url`, token)).json()
     assert.ok((await fetch(fresh.data?.signedUrl ?? fresh.signedUrl)).ok)
     checks.push('missing/disabled/foreign assets rejected; actual expired Storage signature rejected and refreshed')
-    await stack.compose(['stop', 'supabase-storage'])
-    assert.ok(!(await fetch(signedUrl)).ok)
-    await stack.compose(['start', '--wait', '--wait-timeout', '40', 'supabase-storage'])
+    // Pause retains its IP; stop/start can test Kong DNS churn instead of Storage recovery.
+    await stack.compose(['pause', 'supabase-storage'])
+    const outage = await fetch(signedUrl, { signal: AbortSignal.timeout(10000) }).catch(error => ({ ok: false, error: error.name }))
+    assert.equal(outage.ok, false)
     await second.page.reload()
-    await second.page.getByRole('button', { name: '4. Imagen', exact: true }).waitFor()
-    checks.push('actual Storage outage and restart; design reopens after recovery')
+    await second.page.getByText('No se pudo completar la operación', { exact: true }).waitFor()
+    assert.equal(await second.page.getByRole('button', { name: 'Exportar PNG', exact: true }).isDisabled(), true)
+    assert.equal((await second.page.getByRole('application').innerText()).includes('token='), false)
+    await stack.compose(['unpause', 'supabase-storage'])
+    let storageReady = false
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const response = await api(`/files/${fileId}/signed-url`, token).catch(() => null)
+      if (response?.ok) {
+        const signed = await response.json(), url = signed.data?.signedUrl ?? signed.signedUrl
+        if ((await fetch(url, { signal: AbortSignal.timeout(5000), cache: 'no-store' }).catch(() => null))?.ok) { storageReady = true; break }
+      }
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+    assert.equal(storageReady, true, 'Kong/API must observe Storage recovery before retry')
+    await second.page.getByRole('button', { name: 'Reintentar', exact: true }).click()
+    await second.page.getByRole('button', { name: '4. Imagen', exact: true }).click()
+    checks.push('actual Storage process outage (pause/unpause); image retry recovers editing')
     // A real template creates a separate, editable design.
     await second.page.goto(`${stack.urls.web}/app/m/runly.studio/`)
     await second.page.getByRole('button', { name: 'Usar plantilla', exact: true }).first().click()
     await second.page.getByRole('button', { name: 'Texto', exact: true }).waitFor()
     const templateId = new URL(second.page.url()).searchParams.get('design')
     assert.ok((await (await api(`/studio/designs/${templateId}`, token)).json()).data.document.objects.length > 0)
+    await second.page.getByRole('button', { name: '3. Texto', exact: true }).click()
+    await second.page.getByLabel('Texto del elemento', { exact: true }).fill('Plantilla verificada')
+    await second.page.getByRole('button', { name: 'Guardar', exact: true }).click()
+    await second.page.getByRole('status').filter({ hasText: /^Guardado$/ }).waitFor()
+    assert.ok((await (await api(`/studio/designs/${templateId}`, token)).json()).data.document.objects.some(object => object.text === 'Plantilla verificada'))
+    await second.page.screenshot({ path: join(stack.directory, 'studio-real.png'), fullPage: true })
     checks.push('real editable template creation')
     await context.close(); await second.context.close()
     assert.deepEqual(errors, [])
