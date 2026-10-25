@@ -294,6 +294,15 @@ export function FieldSheet({ open, onOpenChange, field, entity, definition, exis
             disabled={readOnly}
             onChange={(checked) => patch(checked && draft.onDisable === "setNull" ? { required: checked, onDisable: "restrict" } : { required: checked })}
           />
+          {["text", "textarea", "email", "phone", "url"].includes(draft.type) && (
+            <SwitchField
+              label="Buscable"
+              description="Aparece en la búsqueda global (Ctrl+K). Si ningún campo está marcado, se buscan los dos primeros de texto."
+              checked={Boolean(draft.searchable)}
+              disabled={readOnly}
+              onChange={(checked) => patch({ searchable: checked })}
+            />
+          )}
           {isSelect && <SelectOptionsEditor field={draft} onChange={setDraft} readOnly={readOnly} />}
           {draft.type === "relation" && (
             <SelectField

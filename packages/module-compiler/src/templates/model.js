@@ -37,6 +37,7 @@ function fieldToDefineModelField(field) {
     `    name: '${field.name}'`, `    type: '${field.type}'`, `    label: '${field.label || field.name}'`,
   ]
   if (field.required) parts.push('    required: true')
+  if (field.searchable === true) parts.push('    searchable: true')
   if (field.maxLength) parts.push(`    maxLength: ${field.maxLength}`)
   if (field.default !== undefined) {
     const val = typeof field.default === 'string' ? `'${field.default}'` : JSON.stringify(field.default)

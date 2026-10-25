@@ -57,10 +57,14 @@ export async function runProviders(providers, ctx, timeoutMs) {
 }
 
 export async function runSearch({
-  prisma, providers, moduleLabels = {}, tenant, actorId, q, moduleKey, limit,
+  prisma, providers: staticProviders, dynamicProviders = null, moduleLabels = {}, tenant, actorId, q, moduleKey, limit,
   timeoutMs = PROVIDER_TIMEOUT_MS, suggest = findSuggestions,
 }) {
   const companyId = tenant.companyId;
+  // Providers that depend on the installed modules (Builder modules) are resolved per company;
+  // a failure there only drops them, never the rest of the search.
+  const extra = dynamicProviders ? await dynamicProviders(companyId).catch(() => []) : [];
+  const providers = extra.length ? [...staticProviders, ...extra] : staticProviders;
   const scope = moduleKey && providers.some((p) => p.moduleKey === moduleKey) ? moduleKey : null;
   const allowed = providers.filter((p) => tenant.isAdmin || tenant.permissionSet?.has(p.permission));
   const base = { prisma, companyId, actorId, q };

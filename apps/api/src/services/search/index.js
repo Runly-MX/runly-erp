@@ -9,8 +9,8 @@
 // To add a module: write its provider(s) in a file of this folder (use
 // defineProvider/tokenSearch from helpers.js), append them to SEARCH_PROVIDERS
 // below and add its label to SEARCH_MODULE_LABELS. RME3 custom modules (tables
-// created by the Runly ORM) are not searched yet; the extension point is a
-// future provider factory that reads each installed module's searchable fields.
+// created by the Runly ORM) are searched through custom-module-providers.js, which
+// reads each installed module's searchable fields.
 import {
   contactsProvider, usersProvider, employeesProvider, helpProvider,
 } from "./directory-providers.js";
@@ -20,6 +20,7 @@ import {
   ledgerAccountsProvider, ledgerTransactionsProvider, projectsProvider, tasksProvider, calendarEventsProvider,
   notesProvider, canvasBoardsProvider, filesProvider, chatConversationsProvider,
 } from "./workspace-providers.js";
+import { chatMessagesProvider, lmsCoursesProvider, fleetVehiclesProvider, automationsProvider } from "./work-providers.js";
 
 export const SEARCH_MODULE_LABELS = {
   "runly.inventory": "Inventario",
@@ -34,6 +35,9 @@ export const SEARCH_MODULE_LABELS = {
   "runly.notes": "Notas",
   "runly.canvas": "Canvas",
   "runly.chat": "Chat",
+  "runly.lms": "Cursos",
+  "runly.fleet": "Flota",
+  "runly.automations": "Automatizaciones",
 };
 
 export const SEARCH_PROVIDERS = [
@@ -53,6 +57,10 @@ export const SEARCH_PROVIDERS = [
   notesProvider,
   canvasBoardsProvider,
   chatConversationsProvider,
+  chatMessagesProvider,
+  lmsCoursesProvider,
+  fleetVehiclesProvider,
+  automationsProvider,
   helpProvider,
 ];
 

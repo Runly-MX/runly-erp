@@ -4,6 +4,7 @@
 import { Hono } from "hono";
 import { SEARCH_PROVIDERS, SEARCH_MODULE_LABELS } from "../services/search/index.js";
 import { runSearch } from "../services/search/run-search.js";
+import { createCustomProviders } from "../services/search/custom-module-providers.js";
 
 const MIN_QUERY_LENGTH = 2;
 
@@ -14,6 +15,7 @@ const MIN_QUERY_LENGTH = 2;
 // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
 export function createSearchRouter({
   prisma, getUserContext, resolveTenantContext, providers = SEARCH_PROVIDERS, providerTimeoutMs, suggest,
+  dynamicProviders = createCustomProviders({ prisma }),
 }) {
   const app = new Hono();
 
@@ -43,6 +45,7 @@ export function createSearchRouter({
     const response = await runSearch({
       prisma,
       providers,
+      dynamicProviders,
       moduleLabels: SEARCH_MODULE_LABELS,
       tenant,
       actorId: context.profile.id,

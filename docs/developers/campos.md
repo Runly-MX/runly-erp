@@ -31,6 +31,10 @@ Todos los registros tienen además `id` (UUID v7), `company_id`, `enabled`, `cre
 - `required`: la API responde 400 si falta el valor al crear. Al editar no se vuelve a comprobar.
 - Si el campo está dentro de una pestaña, sección o campo con **condición de visibilidad** (por ejemplo "mostrar si Tipo = Empresa"), solo se exige mientras la condición se cumple; la API aplica la misma regla. Las condiciones solo pueden depender de campos `select` o `boolean`.
 
+## Búsqueda global
+
+Los registros de tu módulo aparecen en la búsqueda global (Ctrl+K) para quien tenga el permiso `<modelo>.read`. Se buscan los campos de texto (`text`, `textarea`, `email`, `phone`, `url`) marcados como **Buscable** (`searchable: true` en la definición; en el Constructor, el interruptor *Buscable* del campo). Si ninguno está marcado, se buscan los dos primeros campos de texto. Se muestran hasta 4 campos buscables; el primero es el título del resultado y el resultado abre la lista del módulo. Los módulos desactivados para la empresa no aparecen.
+
 ## Cambios en campos publicados
 
 Agregar campos es seguro. Quitar un campo con datos, cambiar su tipo o agregar un campo obligatorio a una tabla con registros son cambios destructivos: la publicación o la subida los bloquea para proteger los datos.
