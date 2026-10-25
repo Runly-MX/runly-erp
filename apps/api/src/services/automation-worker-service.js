@@ -9,6 +9,9 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createAutomationJobsService } from "./automation-jobs-service.js";
 import { createAutomationRunsService } from "./automation-runs-service.js";
+import { createAutomationApprovalsService } from "./automation-approvals-service.js";
+import { createAutomationHttpService } from "./automation-http-service.js";
+import { createNotificationService } from "./notification-service.js";
 import { nextOccurrence } from "./automation-schedule-math.js";
 
 const DEFAULT_TIME_ZONE = "America/Mexico_City";
@@ -17,9 +20,11 @@ const SCHEDULE_BATCH = 20;
 // A job whose module or company is off waits this long before it is given up.
 const DISABLED_GRACE_MS = 24 * 3_600_000;
 
-export function createAutomationWorker({ prisma, resolveModulesDir, moduleServices = null, importRuntime = null, now = () => new Date() }) {
+export function createAutomationWorker({ prisma, resolveModulesDir, moduleServices = null, importRuntime = null, now = () => new Date(), approvals = null, httpService = null }) {
   const jobs = createAutomationJobsService({ prisma, now });
   const runs = createAutomationRunsService({ prisma });
+  const approvalsService = approvals ?? createAutomationApprovalsService({ prisma, notifications: createNotificationService({ prisma }), now });
+  const http = httpService ?? createAutomationHttpService({ prisma });
   const runtimeCache = new Map();
 
   async function defaultImport(moduleKey) {
@@ -50,6 +55,8 @@ export function createAutomationWorker({ prisma, resolveModulesDir, moduleServic
       services: moduleServices ? moduleServices.forSystem(moduleKey, companyId) : null,
       log: (entry) => runs.log({ companyId, moduleKey, entry }),
       enqueue: (job) => jobs.enqueue({ companyId, moduleKey, job }),
+      approve: (request) => approvalsService.create({ companyId, moduleKey, request }),
+      http: (request) => http.send({ companyId, moduleKey, request }),
     };
   }
 
@@ -75,8 +82,9 @@ export function createAutomationWorker({ prisma, resolveModulesDir, moduleServic
   }
 
   async function processJobs() {
+    const expired = await approvalsService.expireOverdue();
     const claimed = await jobs.claimDue(JOB_BATCH);
-    const summary = { done: 0, retry: 0, failed: 0, skipped: 0 };
+    const summary = { done: 0, retry: 0, failed: 0, skipped: 0, expired };
     for (const job of claimed) summary[await runJob(job)] += 1;
     return summary;
   }

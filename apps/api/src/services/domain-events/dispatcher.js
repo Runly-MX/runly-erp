@@ -16,6 +16,9 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createAutomationRunsService } from '../automation-runs-service.js'
 import { createAutomationJobsService } from '../automation-jobs-service.js'
+import { createAutomationApprovalsService } from '../automation-approvals-service.js'
+import { createAutomationHttpService } from '../automation-http-service.js'
+import { createNotificationService } from '../notification-service.js'
 
 export const MAX_ATTEMPTS = 8
 const BATCH = 50
@@ -32,6 +35,8 @@ export function createDomainEventDispatcher({ prisma, resolveModulesDir, importH
   const handlerCache = new Map()
   const automationRuns = createAutomationRunsService({ prisma })
   const automationJobs = createAutomationJobsService({ prisma })
+  const automationApprovals = createAutomationApprovalsService({ prisma, notifications: createNotificationService({ prisma }) })
+  const automationHttp = createAutomationHttpService({ prisma })
 
   async function defaultImport(moduleKey) {
     const dir = await resolveModulesDir()
@@ -56,7 +61,9 @@ export function createDomainEventDispatcher({ prisma, resolveModulesDir, importH
       const services = moduleServices ? moduleServices.forSystem(mod.key, row.companyId) : null
       const log = (entry) => automationRuns.log({ companyId: row.companyId, moduleKey: mod.key, entry })
       const enqueue = (job) => automationJobs.enqueue({ companyId: row.companyId, moduleKey: mod.key, job })
-      await handler({ event: row.event, payload: row.payload, companyId: row.companyId, eventId: row.id, prisma, services, log, enqueue })
+      const approve = (request) => automationApprovals.create({ companyId: row.companyId, moduleKey: mod.key, request })
+      const http = (request) => automationHttp.send({ companyId: row.companyId, moduleKey: mod.key, request })
+      await handler({ event: row.event, payload: row.payload, companyId: row.companyId, eventId: row.id, prisma, services, log, enqueue, approve, http })
     }
   }
 

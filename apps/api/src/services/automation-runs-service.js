@@ -4,7 +4,7 @@
 // Spec docs/superpowers/specs/2026-10-24-automation-studio-v2-design.md.
 
 export const AUTOMATION_RUN_RETENTION_DAYS = 90
-const STATUSES = ["success", "partial", "failed", "running", "waiting", "cancelled"];
+const STATUSES = ["success", "partial", "failed", "running", "waiting", "cancelled", "rejected"];
 const MAX_STEPS_JSON = 20;
 
 export function createAutomationRunsService({ prisma }) {

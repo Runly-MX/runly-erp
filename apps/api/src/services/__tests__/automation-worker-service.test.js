@@ -59,6 +59,7 @@ function workerPrisma({ schedules = [], manifestSchedules = [] } = {}) {
       findMany: async () => [{ key: 'custom.x', manifest: { schedules: manifestSchedules } }],
     },
     companyModule: { findFirst: async () => null },
+    automationApproval: { findMany: async () => [] },
     company: { findMany: async () => [{ id: 'c1' }] },
     automationJob: { update: async ({ where, data }) => { state.jobUpdates.push({ id: where.id, ...data }) } },
     automationSchedule: {
@@ -85,7 +86,7 @@ test('worker resumes a due job through the module runtime and completes it', asy
     prisma, now: () => NOW, resolveModulesDir: async () => '',
     importRuntime: async () => ({ resume: async ({ job }) => { resumed.push(job) } }),
   })
-  assert.deepEqual(await worker.processJobs(), { done: 1, retry: 0, failed: 0, skipped: 0 })
+  assert.deepEqual(await worker.processJobs(), { done: 1, retry: 0, failed: 0, skipped: 0, expired: 0 })
   assert.equal(resumed[0].fromStep, 2)
   assert.equal(prisma.state.jobUpdates[0].status, 'done')
 })

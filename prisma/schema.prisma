@@ -542,6 +542,30 @@ model AutomationSchedule {
   @@map("automation_schedule")
 }
 
+// Approval step of a Builder automation: parks the continuation (an
+// automation_job in status awaiting_approval) until one approver decides.
+// Spec docs/superpowers/specs/2026-10-25-automation-studio-v2-stage-c-reach-design.md.
+model AutomationApproval {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId     String    @map("company_id") @db.Uuid
+  moduleKey     String    @map("module_key")
+  automationKey String    @map("automation_key")
+  runId         String?   @map("run_id") @db.Uuid
+  jobId         String    @unique @map("job_id") @db.Uuid
+  approverIds   String[]  @map("approver_ids") @db.Uuid
+  message       String
+  status        String    @default("pending") // pending | approved | rejected | expired
+  decidedById   String?   @map("decided_by_id") @db.Uuid
+  decidedAt     DateTime? @map("decided_at") @db.Timestamptz(6)
+  comment       String?
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([companyId, status])
+  @@index([status, expiresAt])
+  @@map("automation_approval")
+}
+
 model Company {
   id String @id @default(uuid(7)) @db.Uuid
   name           String

@@ -75,10 +75,10 @@ export function createAutomationJobsService({ prisma, now = () => new Date() }) 
 
   async function listPending({ companyId, moduleKey }) {
     return prisma.automationJob.findMany({
-      where: { companyId, moduleKey, status: "pending" },
+      where: { companyId, moduleKey, status: { in: ["pending", "awaiting_approval"] } },
       orderBy: { runAt: "asc" },
       take: 100,
-      select: { id: true, automationKey: true, runId: true, fromStep: true, runAt: true },
+      select: { id: true, automationKey: true, runId: true, fromStep: true, runAt: true, status: true },
     });
   }
 

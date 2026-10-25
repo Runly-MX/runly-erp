@@ -7,6 +7,9 @@ import { publishNotificationFromContext } from './notification-publisher.js'
 import { registerModuleHandler, getModuleHandler } from './module-cleanup-registry.js'
 import { createAutomationRunsService } from './automation-runs-service.js'
 import { createAutomationJobsService } from './automation-jobs-service.js'
+import { createAutomationApprovalsService } from './automation-approvals-service.js'
+import { createAutomationHttpService } from './automation-http-service.js'
+import { createNotificationService } from './notification-service.js'
 
 function isWithinPath(parentPath, childPath) {
   const rel = path.relative(parentPath, childPath)
@@ -89,6 +92,8 @@ class RouteCollisionError extends Error {
 export function createRouteLoaderService({ prisma, authMiddleware, requirePermission, cache = null, filesCapability = null, relationsCapability = null, aiCapability = null, moduleServices = null }) {
   const automationRuns = createAutomationRunsService({ prisma })
   const automationJobs = createAutomationJobsService({ prisma })
+  const automationApprovals = createAutomationApprovalsService({ prisma, notifications: createNotificationService({ prisma }) })
+  const automationHttp = createAutomationHttpService({ prisma })
   let moduleRoots = null
   const routerMap = new Map()
   // Optional api/public.js routers, served only through the module public-link
@@ -405,6 +410,8 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
         automations: {
           log: (c, entry) => automationRuns.log({ companyId: c.get('companyId'), moduleKey, entry }),
           enqueue: (c, job) => automationJobs.enqueue({ companyId: c.get('companyId'), moduleKey, job }),
+          approve: (c, request) => automationApprovals.create({ companyId: c.get('companyId'), moduleKey, request }),
+          http: (c, request) => automationHttp.send({ companyId: c.get('companyId'), moduleKey, request }),
         },
         // MirAI tool loop + internet lookup limited to the manifest's
         // `ai.publicLookup` fields (services/ai/module-ai-capability.js).

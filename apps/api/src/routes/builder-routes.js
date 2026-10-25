@@ -9,6 +9,7 @@
 import { Hono } from 'hono'
 import { FIELD_TYPES, KANBAN_GROUP_FIELD_TYPES, KANBAN_MAX_COLUMNS, MODULE_ICON_NAMES, RECORDS_VIEW_DATE_FIELD_TYPES, RECORDS_VIEW_KINDS } from '@runly/module-engine'
 import { createModuleBuilderService, ModuleBuilderError } from '../services/module-builder-service.js'
+import { createAutomationHttpService } from '../services/automation-http-service.js'
 import { buildStarterPackage, StarterPackageError } from '@runly/module-compiler'
 import { publishActivityFromContext, getActivityContext } from '../services/activity-publisher.js'
 import { BuilderAiDraftError, createBuilderAiDraftService } from '../services/builder-ai-draft-service.js'
@@ -30,6 +31,21 @@ export function createBuilderRouter({ prisma, requirePermission, bundlerSvc = nu
   function actor(c) {
     return c.get('userContext')?.profile?.id ?? null
   }
+
+  // Destinations the HTTP step of automations may call (administrators only).
+  const httpSvc = createAutomationHttpService({ prisma })
+  app.get('/module-builder/automation-http-hosts', requirePermission('core.modules.builder'), async (c) => {
+    return c.json({ data: { hosts: await httpSvc.getHosts(), canManage: Boolean(c.get('userContext')?.isAdmin || c.get('userContext')?.permissionSet?.has?.('core.modules.manage')) } })
+  })
+  app.put('/module-builder/automation-http-hosts', requirePermission('core.modules.manage'), async (c) => {
+    try {
+      const body = await c.req.json().catch(() => ({}))
+      return c.json({ data: { hosts: await httpSvc.setHosts(body?.hosts) } })
+    } catch (error) {
+      if (error?.status) return c.json({ error: error.message }, error.status)
+      throw error
+    }
+  })
 
   app.get('/module-builder/capabilities', requirePermission('core.modules.builder'), (c) => {
     return c.json({
