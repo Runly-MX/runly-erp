@@ -164,7 +164,7 @@ Cada vez que corre una automatización (al guardar un registro o por un evento) 
 
 ## Automatizaciones de la empresa (sin módulo)
 
-No hace falta crear un módulo para automatizar: en **Runly Core > Automatizaciones** un administrador (`core.modules.manage`) crea automatizaciones que pertenecen a la empresa activa. Usan las mismas tarjetas, condiciones, pasos, esperas, aprobaciones, llamadas HTTP, *Probar* e *Historial* que las del Constructor, con estas diferencias:
+No hace falta crear un módulo para automatizar: en el módulo **Automatizaciones** (`runly.automations`, un módulo oficial de Runly) quien tenga el permiso `automations.manage` crea automatizaciones que pertenecen a la empresa activa. Usan las mismas tarjetas, condiciones, pasos, esperas, aprobaciones, llamadas HTTP, *Probar* e *Historial* que las del Constructor, con estas diferencias:
 
 - El disparador es **un evento del sistema** (los de la tabla de arriba), **un horario** sin registros o **un mensaje de otro sistema** (webhook). No existe «cuando se guarda un registro» porque no hay una entidad de por medio.
 - Los pasos solo ofrecen las acciones que no necesitan a una persona detrás, porque todo corre en segundo plano.

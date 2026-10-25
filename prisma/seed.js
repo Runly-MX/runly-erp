@@ -184,6 +184,25 @@ async function main() {
     }
   }
 
+  // Automatizaciones became its own module (permissions automations.*): the roles
+  // that could manage module data, where they used to get the screen, keep their
+  // access. Runs once; later changes to roles are left alone.
+  const automationsFlag = await prisma.instanceConfig.findUnique({ where: { key: 'migration.automations_permissions' } })
+  if (!automationsFlag) {
+    const [legacy, created] = await Promise.all([
+      prisma.permission.findUnique({ where: { key: 'core.modules.manage' }, select: { id: true } }),
+      prisma.permission.findMany({ where: { key: { in: ['automations.access', 'automations.read', 'automations.manage'] } }, select: { id: true } }),
+    ])
+    if (legacy && created.length === 3) {
+      const holders = await prisma.rolePermission.findMany({ where: { permissionId: legacy.id }, select: { roleId: true } })
+      await prisma.rolePermission.createMany({
+        data: holders.flatMap((holder) => created.map((permission) => ({ roleId: holder.roleId, permissionId: permission.id }))),
+        skipDuplicates: true,
+      })
+      await prisma.instanceConfig.create({ data: { key: 'migration.automations_permissions', value: new Date().toISOString() } })
+    }
+  }
+
   // Storefront roles
   for (const roleData of [
     { key: 'storefront_client', name: 'Cliente (Storefront)', description: 'Usuario final registrado desde una app externa', system: true },

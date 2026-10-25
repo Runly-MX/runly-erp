@@ -26,11 +26,18 @@ const SCREEN_MAP = {
   "runly.core:/settings/webpush": lazy(
     () => import("../modules/runly.core/screens/WebPushSettingsScreen.jsx"),
   ),
+  "runly.automations:/": lazy(
+    () => import("../modules/runly.automations/screens/AutomationsList.jsx"),
+  ),
+  "runly.automations:/:key": lazy(
+    () => import("../modules/runly.automations/screens/AutomationEditor.jsx"),
+  ),
+  // Automatizaciones used to live inside Runly Core: old links keep working.
   "runly.core:/automations": lazy(
-    () => import("../modules/runly.core/screens/SystemAutomations.jsx"),
+    () => import("../modules/runly.automations/screens/LegacyAutomationsRedirect.jsx"),
   ),
   "runly.core:/automations/:key": lazy(
-    () => import("../modules/runly.core/screens/SystemAutomationEditor.jsx"),
+    () => import("../modules/runly.automations/screens/LegacyAutomationsRedirect.jsx"),
   ),
   "runly.core:/module-builder": lazy(
     () => import("../modules/runly.core/screens/ModuleBuilder.jsx"),

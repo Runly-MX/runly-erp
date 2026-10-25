@@ -227,6 +227,11 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     if (/^\/course\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/course/:courseId"] ?? null;
     return null;
   }
+  if (moduleKey === "runly.automations") {
+    if (subPath === "/") return screenMap["runly.automations:/"] ?? null;
+    if (/^\/[^/]+\/?$/.test(subPath)) return screenMap["runly.automations:/:key"] ?? null;
+    return null;
+  }
   if (moduleKey === "runly.core") {
     if (subPath === "/automations") return screenMap["runly.core:/automations"] ?? null;
     if (/^\/automations\/[^/]+$/.test(subPath)) return screenMap["runly.core:/automations/:key"] ?? null;

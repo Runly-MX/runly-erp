@@ -11,14 +11,14 @@ import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
-import { AutomationConnectionsDialog } from "../components/builder/AutomationConnectionsDialog";
-import { AutomationConsole } from "../components/builder/AutomationConsole";
-import { AutomationTestDialog } from "../components/builder/AutomationTestDialog";
-import { fieldOptionsFor } from "../components/builder/AutomationTrigger";
-import { AutomationCanvasEditor } from "../components/builder/canvas/AutomationCanvasEditor";
-import { describeAutomationDiagnostic } from "../lib/flowModel";
+import { AutomationConnectionsDialog } from "../../runly.core/components/builder/AutomationConnectionsDialog";
+import { AutomationConsole } from "../../runly.core/components/builder/AutomationConsole";
+import { AutomationTestDialog } from "../../runly.core/components/builder/AutomationTestDialog";
+import { fieldOptionsFor } from "../../runly.core/components/builder/AutomationTrigger";
+import { AutomationCanvasEditor } from "../../runly.core/components/builder/canvas/AutomationCanvasEditor";
+import { describeAutomationDiagnostic } from "../../runly.core/lib/flowModel";
 
-const LIST_PATH = "/app/m/runly.core/automations";
+const LIST_PATH = "/app/m/runly.automations";
 const SYSTEM_MODULE_KEY = "system.automations";
 const ALLOWED_TRIGGERS = ["event", "schedule", "webhook"];
 const NO_ENTITIES = [];
@@ -40,14 +40,14 @@ const writeDraft = (value) => { try { if (value) sessionStorage.setItem(DRAFT_KE
 
 export default function SystemAutomationEditor() {
   const { "*": wildcard } = useParams();
-  const slug = wildcard?.match(/^automations\/([^/]+)$/)?.[1] ?? null;
+  const slug = wildcard?.split("/").filter(Boolean).pop() ?? null;
   const isNew = slug === "nueva";
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
-  const canManage = Boolean(userProfile?.isAdmin || (userProfile?.permissions ?? []).includes("core.modules.manage"));
+  const canManage = Boolean(userProfile?.isAdmin || (userProfile?.permissions ?? []).includes("automations.manage"));
   const events = useMemo(() => automationEvents(), []);
 
   const [item, setItem] = useState(null);
@@ -120,7 +120,7 @@ export default function SystemAutomationEditor() {
 
   const back = () => (dirty ? setConfirm("leave") : navigate(LIST_PATH));
 
-  if (!canManage) return <div className="p-6"><ErrorState title="Sin acceso" description="Necesitas el permiso para administrar módulos." /></div>;
+  if (!canManage) return <div className="p-6"><ErrorState title="Sin acceso" description="Necesitas el permiso para administrar automatizaciones." /></div>;
   if (isNew && !draft) return <div className="p-6"><ErrorState title="Nada que editar" description="Empieza una automatización desde la lista." onRetry={() => navigate(LIST_PATH)} /></div>;
   if (!item) {
     if (query.isError) return <div className="p-6"><ErrorState title="No se pudo cargar" description={query.error.message} onRetry={() => query.refetch()} /></div>;

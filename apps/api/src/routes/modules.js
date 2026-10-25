@@ -2620,10 +2620,13 @@ export function createModulesRouter({
     return c.json({ data: moduleServicesSvc.describe(grants.map((grant) => grant.serviceKey)) });
   });
 
-  // Run log of the module's Builder automations (Historial tab).
+  // Run log of the module's Builder automations (Historial tab). The company's own
+  // automations (pseudo module system.automations) answer to the Automatizaciones
+  // permissions instead of the module-data one.
+  const automationsGuard = (systemPermission) => (c, next) => requirePermission(c.req.param("key") === "system.automations" ? systemPermission : "core.modules.manage")(c, next);
   const automationRunsSvc = createAutomationRunsService({ prisma });
   const automationJobsSvc = createAutomationJobsService({ prisma });
-  app.get("/:key/automation-runs", authMiddleware, requirePermission("core.modules.manage"), async (c) => {
+  app.get("/:key/automation-runs", authMiddleware, automationsGuard("automations.read"), async (c) => {
     const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
     const companyId = c.get("companyId");
     if (!companyId) return c.json({ error: "Selecciona una empresa activa." }, 400);
@@ -2633,14 +2636,14 @@ export function createModulesRouter({
 
   // Waits of the module's automations that have not run yet; cancelling one
   // closes its run as "cancelled".
-  app.get("/:key/automation-jobs", authMiddleware, requirePermission("core.modules.manage"), async (c) => {
+  app.get("/:key/automation-jobs", authMiddleware, automationsGuard("automations.read"), async (c) => {
     const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
     const companyId = c.get("companyId");
     if (!companyId) return c.json({ error: "Selecciona una empresa activa." }, 400);
     return c.json({ data: await automationJobsSvc.listPending({ companyId, moduleKey: key }) });
   });
 
-  app.delete("/:key/automation-jobs/:id", authMiddleware, requirePermission("core.modules.manage"), async (c) => {
+  app.delete("/:key/automation-jobs/:id", authMiddleware, automationsGuard("automations.manage"), async (c) => {
     const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
     const companyId = c.get("companyId");
     if (!companyId) return c.json({ error: "Selecciona una empresa activa." }, 400);

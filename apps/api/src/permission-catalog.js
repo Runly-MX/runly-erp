@@ -25,6 +25,7 @@ const GROUPS = {
   calendar: "Calendario",
   catalog: "Catalogo",
   lms: "Aprendizaje",
+  automations: "Automatizaciones",
 };
 
 const MODULE_LABELS = {
@@ -53,6 +54,7 @@ const MODULE_LABELS = {
   calendar: "Calendario",
   catalog: "Catalogo",
   lms: "Aprendizaje",
+  automations: "Automatizaciones",
 };
 
 const FEATURE_LABELS = {
@@ -1875,6 +1877,27 @@ export const PERMISSION_CATALOG = {
     descriptionEs: "Permite consultar capacidades, etapas y políticas de la empresa.",
     groupKey: "purchases",
     order: 59,
+  },
+  // -----------------------------------------------------------------------
+  // runly.automations
+  // -----------------------------------------------------------------------
+  "automations.access": {
+    displayNameEs: "Acceder a Automatizaciones",
+    descriptionEs: "Permite entrar al módulo de automatizaciones.",
+    groupKey: "automations",
+    order: 10,
+  },
+  "automations.read": {
+    displayNameEs: "Ver automatizaciones",
+    descriptionEs: "Permite ver las automatizaciones de la empresa, su consola y su historial de ejecuciones.",
+    groupKey: "automations",
+    order: 20,
+  },
+  "automations.manage": {
+    displayNameEs: "Administrar automatizaciones",
+    descriptionEs: "Permite crear, editar, activar, probar y borrar automatizaciones, gestionar sus webhooks y cancelar esperas pendientes.",
+    groupKey: "automations",
+    order: 30,
   },
   // -----------------------------------------------------------------------
   // runly.notes

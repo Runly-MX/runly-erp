@@ -1,0 +1,30 @@
+---
+title: Automatizaciones
+summary: Flujos que se ponen en marcha solos: reciben un aviso, esperan, deciden, avisan y crean cosas en otros módulos.
+---
+Automatizaciones junta en un solo lugar los flujos de tu empresa. Cada flujo empieza con un disparador y sigue con bloques que se ejecutan en orden.
+
+- **Disparadores**: un evento de otro módulo (por ejemplo, "se aprobó una orden"), un horario (cada hora, día, semana o mes) o un webhook, que es una dirección secreta a la que otro sistema puede enviar datos.
+- **Bloques**: crear o actualizar contactos, notificar a personas, enviar correos, generar un reporte en CSV o Excel y guardarlo en Archivos, agendar eventos, pedir una aprobación, esperar minutos, horas o días, o llamar a otro sistema por HTTPS.
+- **Condiciones Sí / No**: una condición divide el flujo en dos caminos que se juntan después.
+- **Datos entre bloques**: lo que devuelve un bloque (por ejemplo, el identificador de un reporte) lo pueden usar los bloques que siguen.
+
+### Cómo se usa
+
+1. Entra a Automatizaciones y elige **Nueva automatización**; parte de una plantilla o de cero.
+2. En el lienzo, arrastra bloques desde la paleta o usa el "+" de cada flecha. Haz clic en un bloque para configurarlo.
+3. Usa **Probar** para ver qué haría con datos de ejemplo, y **Guardar** cuando esté lista.
+4. En **Consola** ves cada ejecución: qué datos llegaron, qué envió cada bloque, qué devolvió y, si falló, el error completo.
+
+### Quién puede qué
+
+- Las automatizaciones son **de la empresa**, no personales: todas las personas con permiso para verlas ven las mismas, y quien puede administrarlas las crea, edita y borra.
+- Las ejecuciones corren en segundo plano a nombre de la empresa, sin una persona conectada; por eso solo ofrecen las acciones que pueden correr así.
+- Guardar una automatización autoriza los servicios que usa; si cambias de opinión, quitar el bloque quita la autorización.
+
+### Alcances y límites
+
+- Hasta 50 automatizaciones por empresa y 12 bloques en cada una (las esperas y las condiciones cuentan).
+- Hasta 2 esperas, 1 aprobación y 3 condiciones Sí / No por automatización.
+- Las llamadas HTTP solo van a servidores que un administrador permitió, por HTTPS y sin redirecciones.
+- Los reportes incluyen hasta 1000 filas y los correos aceptan un archivo adjunto de hasta 10 MB.

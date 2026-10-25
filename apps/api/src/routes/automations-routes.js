@@ -8,7 +8,8 @@ import { createSystemAutomationsService } from "../services/system-automations-s
 export function createAutomationsRouter({ prisma, requirePermission, moduleServices = null }) {
   const app = new Hono();
   const service = createSystemAutomationsService({ prisma, moduleServices });
-  const guard = requirePermission("core.modules.manage");
+  const read = requirePermission("automations.read");
+  const guard = requirePermission("automations.manage");
   const actor = (c) => c.get("userContext")?.profile?.id ?? null;
 
   function fail(c, error) {
@@ -17,8 +18,14 @@ export function createAutomationsRouter({ prisma, requirePermission, moduleServi
     return c.json({ error: "No se pudo completar la operación." }, 500);
   }
 
-  app.get("/automations", guard, async (c) => c.json({ data: await service.list(c.get("companyId")) }));
-  app.get("/automations/catalog", guard, (c) => c.json({ data: service.catalog() }));
+  // The secret webhook URL is only shown to who can administer automations.
+  app.get("/automations", read, async (c) => {
+    const user = c.get("userContext");
+    const canManage = Boolean(user?.isAdmin || user?.permissionSet?.has?.("automations.manage"));
+    const rows = await service.list(c.get("companyId"));
+    return c.json({ data: canManage ? rows : rows.map(({ webhookToken: _token, ...row }) => row) });
+  });
+  app.get("/automations/catalog", read, (c) => c.json({ data: service.catalog() }));
 
   // Origins (IPs / networks) allowed to send webhooks; empty = any with the secret URL.
   app.get("/automations/webhook-origins", guard, async (c) => c.json({ data: { origins: await service.webhooks.getOrigins() } }));

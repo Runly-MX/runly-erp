@@ -12,14 +12,14 @@ import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
-import { describeTrigger } from "../lib/flowModel";
-import { AutomationConnectionsDialog } from "../components/builder/AutomationConnectionsDialog";
-import { AutomationMiniFlow } from "../components/builder/AutomationMiniFlow";
-import { AutomationRunsPanel } from "../components/builder/AutomationRunsPanel";
-import { NewAutomationDialog } from "../components/builder/NewAutomationDialog";
+import { describeTrigger } from "../../runly.core/lib/flowModel";
+import { AutomationConnectionsDialog } from "../../runly.core/components/builder/AutomationConnectionsDialog";
+import { AutomationMiniFlow } from "../../runly.core/components/builder/AutomationMiniFlow";
+import { AutomationRunsPanel } from "../../runly.core/components/builder/AutomationRunsPanel";
+import { NewAutomationDialog } from "../../runly.core/components/builder/NewAutomationDialog";
 
 const SYSTEM_MODULE_KEY = "system.automations";
-const EDITOR_PATH = "/app/m/runly.core/automations";
+const EDITOR_PATH = "/app/m/runly.automations";
 const FILTERS = [{ value: "all", label: "Todas" }, { value: "active", label: "Activas" }, { value: "paused", label: "Pausadas" }];
 const RUN_STATUS = {
   success: { label: "Correcta", variant: "success" }, partial: { label: "Parcial", variant: "warning" }, failed: { label: "Falló", variant: "destructive" },
@@ -78,7 +78,9 @@ export default function SystemAutomations() {
   const token = session?.access_token;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const canManage = Boolean(userProfile?.isAdmin || (userProfile?.permissions ?? []).includes("core.modules.manage"));
+  const permissions = userProfile?.permissions ?? [];
+  const canManage = Boolean(userProfile?.isAdmin || permissions.includes("automations.manage"));
+  const canRead = canManage || permissions.includes("automations.read");
   const events = useMemo(() => automationEvents(), []);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -88,7 +90,7 @@ export default function SystemAutomations() {
   const query = useQuery({
     queryKey: ["system-automations", token],
     queryFn: async () => (await runly.modules.systemAutomations(token))?.data ?? [],
-    enabled: Boolean(token) && canManage,
+    enabled: Boolean(token) && canRead,
   });
   const items = query.data ?? [];
   const visible = items.filter((item) => (filter === "all" || (filter === "active") === item.enabled) && (!search.trim() || `${item.label} ${item.key}`.toLowerCase().includes(search.trim().toLowerCase())));
@@ -102,25 +104,29 @@ export default function SystemAutomations() {
     onError: (error) => toast.error("No se pudo cambiar el estado", { description: error.message }),
   });
 
-  const open = (item) => navigate(`${EDITOR_PATH}/${item.key}`);
+  const open = (item) => {
+    if (!canManage) { toast.info("Necesitas el permiso para administrar automatizaciones."); return; }
+    navigate(`${EDITOR_PATH}/${item.key}`);
+  };
   const create = (draft) => { setNewOpen(false); navigate(`${EDITOR_PATH}/nueva`, { state: { draft } }); };
 
-  if (!canManage) {
-    return <div className="p-6"><ErrorState title="Sin acceso" description="Necesitas el permiso para administrar módulos." /></div>;
+  if (!canRead) {
+    return <div className="p-6"><ErrorState title="Sin acceso" description="Necesitas el permiso para ver automatizaciones." /></div>;
   }
 
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex-1 space-y-6 p-4 md:p-6">
         <PageHeader
-          eyebrow="Runly Core"
           title="Automatizaciones"
           description="Haz que Runly actúe por ti: cuando pasa algo en un módulo, en un horario, o cuando otro sistema te envía datos."
           actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" onClick={() => setConnectionsOpen(true)}><Plug className="mr-1.5 h-4 w-4" /> Conexiones</Button>
-              <Button onClick={() => setNewOpen(true)}><Plus className="mr-1.5 h-4 w-4" /> Nueva automatización</Button>
-            </div>
+            canManage ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" onClick={() => setConnectionsOpen(true)}><Plug className="mr-1.5 h-4 w-4" /> Conexiones</Button>
+                <Button onClick={() => setNewOpen(true)}><Plus className="mr-1.5 h-4 w-4" /> Nueva automatización</Button>
+              </div>
+            ) : null
           }
         />
 
@@ -144,14 +150,14 @@ export default function SystemAutomations() {
         {query.isError && <ErrorState title="No se pudieron cargar las automatizaciones" description={query.error.message} onRetry={() => query.refetch()} />}
         {query.isSuccess && items.length === 0 && (
           <EmptyState icon={Zap} title="Aún no hay automatizaciones" description="Crea la primera: avisa cuando se apruebe una orden de compra, haz una revisión cada lunes o registra clientes que llegan desde tu tienda."
-            action={{ label: "Nueva automatización", onClick: () => setNewOpen(true) }} />
+            action={canManage ? { label: "Nueva automatización", onClick: () => setNewOpen(true) } : undefined} />
         )}
         {query.isSuccess && items.length > 0 && visible.length === 0 && (
           <EmptyState icon={SearchX} title="Sin resultados" description="Ninguna automatización coincide con la búsqueda." />
         )}
         {visible.length > 0 && (
           <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {visible.map((item) => <AutomationCardItem key={item.key} item={item} events={events} onOpen={open} onToggle={(target) => toggle.mutate(target)} toggling={toggle.isPending} />)}
+            {visible.map((item) => <AutomationCardItem key={item.key} item={item} events={events} onOpen={open} onToggle={(target) => toggle.mutate(target)} toggling={toggle.isPending || !canManage} />)}
           </ul>
         )}
 
