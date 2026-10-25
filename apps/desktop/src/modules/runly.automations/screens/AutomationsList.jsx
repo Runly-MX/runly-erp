@@ -43,9 +43,9 @@ function AutomationCardItem({ item, events, onOpen, onToggle, toggling, onDuplic
   const run = item.lastRun;
   return (
     <li className="group relative flex flex-col gap-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 transition-colors hover:border-[hsl(var(--muted-foreground))]/50 focus-within:border-(--brand-primary)/50">
-      <div className="flex items-start justify-between gap-3">
-        <AutomationMiniFlow automation={item} />
-        <label className="relative z-10 flex shrink-0 cursor-pointer items-center gap-2 text-xs text-[hsl(var(--muted-foreground))] [@media(pointer:coarse)]:min-h-11">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1"><AutomationMiniFlow automation={item} /></div>
+        <label className="relative z-10 ml-auto flex shrink-0 cursor-pointer items-center gap-2 text-xs text-[hsl(var(--muted-foreground))] [@media(pointer:coarse)]:min-h-11">
           {item.enabled ? "Activa" : "Pausada"}
           <Switch checked={item.enabled} disabled={toggling} onCheckedChange={() => onToggle(item)} aria-label={`${item.enabled ? "Pausar" : "Activar"} ${item.label}`} />
         </label>
@@ -175,7 +175,7 @@ export default function SystemAutomations() {
           </div>
         )}
 
-        {query.isLoading && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-40 rounded-lg" />)}</div>}
+        {query.isLoading && <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-40 rounded-lg" />)}</div>}
         {query.isError && <ErrorState title="No se pudieron cargar las automatizaciones" description={query.error.message} onRetry={() => query.refetch()} />}
         {query.isSuccess && items.length === 0 && (
           <EmptyState icon={Zap} title="Aún no hay automatizaciones" description="Crea la primera: avisa cuando se apruebe una orden de compra, haz una revisión cada lunes o registra clientes que llegan desde tu tienda."
@@ -185,7 +185,7 @@ export default function SystemAutomations() {
           <EmptyState icon={SearchX} title="Sin resultados" description="Ninguna automatización coincide con la búsqueda." />
         )}
         {visible.length > 0 && (
-          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {visible.map((item) => <AutomationCardItem key={item.key} item={item} events={events} onOpen={open} onToggle={(target) => toggle.mutate(target)} toggling={toggle.isPending || !canManage} canManage={canManage} onDuplicate={duplicate} />)}
           </ul>
         )}
