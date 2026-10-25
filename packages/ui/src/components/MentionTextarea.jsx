@@ -352,7 +352,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
   }, [displayValue, rows, maxRows])
 
   const filtered = slash
-    ? (slash.phase === 'source' ? slashSourceRows(slashSources, slash.query) : slashRows)
+    ? (slash.phase === 'source' ? slashSourceRows(slashSources, slash.query, slash.start === 0) : slashRows)
     : query
     ? members.filter((m) => {
         const q = query.toLowerCase()
@@ -453,6 +453,15 @@ const MentionTextarea = forwardRef(function MentionTextarea({
       if (slash && member.kind === 'source') {
         // Module picked: keep the dropdown open on its search results.
         const src = member.source
+        if (src.command) {
+          // A command: write it with a trailing space for its arguments and close the menu.
+          const text = `/${src.aliases[0]} `
+          commit(replaceRange(displayValue, ranges, slash.start, caret, text))
+          setSlash(null)
+          setOpen(false)
+          requestAnimationFrame(() => { const pos = slash.start + text.length; ta.setSelectionRange(pos, pos); ta.focus() })
+          return
+        }
         const typed = `/${src.aliases[0]}:`
         commit(replaceRange(displayValue, ranges, slash.start, caret, typed))
         setSlash({ phase: 'search', source: src, query: '', start: slash.start })
@@ -661,14 +670,14 @@ const MentionTextarea = forwardRef(function MentionTextarea({
           }}
         >
           {visible.map((m, i) => {
-            const groupStart = i === 0 || kindOf(visible[i - 1]) !== kindOf(m)
+            const groupStart = i === 0 || kindOf(visible[i - 1]) !== kindOf(m) || Boolean(visible[i - 1].source?.command) !== Boolean(m.source?.command)
             const group = KIND_GROUPS.find((g) => g.kind === kindOf(m))
             const active = i === activeIdx
             return (
               <div key={m.id} role="presentation">
                 {groupStart && (
                   <p className={`px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground ${i === 0 ? 'pt-1' : 'pt-2.5'}`}>
-                    {kindOf(m) === 'entity' && slash?.source ? `Resultados en ${slash.source.label}` : group?.label}
+                    {kindOf(m) === 'entity' && slash?.source ? `Resultados en ${slash.source.label}` : m.source?.command ? 'Comandos' : group?.label}
                   </p>
                 )}
                 <button

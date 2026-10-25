@@ -22,6 +22,9 @@ import { useChatSlashSources } from "../hooks/useChatSlashSources";
 import { ComposerChipPreview } from "./ComposerChipPreview";
 import { MIRAI_MENTION_ID } from "../lib/mirai";
 import { useAuth } from "../../../auth/AuthProvider";
+import { useCalls } from "../calls/CallsProvider";
+import { parseCommand } from "../lib/chatCommands";
+import { runChatCommand } from "../lib/runChatCommand";
 import { EntityReferencePicker } from "./EntityReferencePicker";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { MessageQuote } from "./MessageQuote";
@@ -154,7 +157,10 @@ export const MessageComposer = forwardRef(function MessageComposer(
   // real safety net is Plan A's backend Zod validation + resolver.
   const canAttachEntityRefs = Boolean(conversationType) && conversationType !== "external_support";
 
-  const { userProfile } = useAuth();
+  const { userProfile, session } = useAuth();
+  // The composer also lives in places without calls (guest widgets): /llamar then explains it is unavailable.
+  let startCall = null;
+  try { startCall = useCalls().startCall; } catch { startCall = null; }
   const currentUserId = userProfile?.id;
   const mentionCandidates = useMentionCandidates(conversationId, currentUserId);
   const slashSources = useChatSlashSources();
@@ -546,6 +552,21 @@ export const MessageComposer = forwardRef(function MessageComposer(
     const hasFiles = pendingFiles.length > 0;
     const hasEntityRefs = pendingEntityRefs.length > 0;
     if ((!trimmed && !hasFiles && !hasEntityRefs) || isSending) return;
+
+    // "/estado ...", "/tarea ...": run the command instead of sending the text.
+    const typed = !hasFiles && !hasEntityRefs ? parseCommand(trimmed) : null;
+    if (typed) {
+      setIsSending(true);
+      try {
+        await runChatCommand({ ...typed, conversationId, token: session?.access_token, startCall });
+        setBody("");
+      } catch (err) {
+        toast.error("No se pudo ejecutar el comando", { description: err?.message });
+      } finally {
+        setIsSending(false);
+      }
+      return;
+    }
 
     clearTimeout(typingTimeout.current);
     isTypingRef.current = false;

@@ -1,5 +1,7 @@
 // "/module:query" shortcuts in the chat composer. A source is
 // { key, label, aliases: string[], Icon, color, search(query) -> rows }.
+// A source with `command: true` is a chat command ("/estado ..."): it is only offered at the
+// start of the message, has a `description`, and never opens a record search.
 
 const normalize = (value) => String(value ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
@@ -23,18 +25,19 @@ export function parseSlashContext(before, sources) {
   const m = seg.match(/^([^\s:]+)[\s:](.*)$/)
   if (!m) return null
   const source = findSource(sources, m[1])
-  if (!source) return null
+  if (!source || source.command) return null
   return { phase: 'search', source, query: m[2].slice(0, 60), start }
 }
 
-export function slashSourceRows(sources, query) {
+export function slashSourceRows(sources, query, atStart = false) {
   const q = normalize(query)
   return (sources ?? [])
+    .filter((s) => atStart || !s.command)
     .filter((s) => !q || s.aliases.some((a) => normalize(a).startsWith(q)) || normalize(s.label).startsWith(q))
     .map((s) => ({
       id: `source:${s.key}`,
       displayName: s.label,
-      description: `/${s.aliases[0]}:`,
+      description: s.command ? (s.description ?? `/${s.aliases[0]}`) : `/${s.aliases[0]}:`,
       kind: 'source',
       Icon: s.Icon,
       color: s.color,

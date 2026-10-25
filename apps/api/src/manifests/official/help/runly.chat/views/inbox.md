@@ -36,3 +36,12 @@ Quien administra un canal puede crear **Integraciones** en la informacion del ca
 - En el menu de un mensaje elige **Guardar para despues** para tenerlo a la mano, o **Recordarme...** para que Runly te avise en 20 minutos, 1 hora, 3 horas, manana a las 9:00, el lunes o en una semana.
 - **Guardados** (debajo de Menciones y actividad) lista lo que guardaste, primero lo que tiene recordatorio. Desde ahi abres el mensaje, lo marcas como hecho o lo quitas.
 - El aviso del recordatorio llega dentro de Runly y, segun tus preferencias, por push o correo; con No molestar solo se guarda dentro de Runly.
+
+## Comandos con /
+
+Escribe `/` al inicio de un mensaje para ver los comandos y presiona Enter para ejecutarlos:
+- `/estado 🍽️ Comiendo` cambia tu estado (`/estado limpiar` lo quita).
+- `/nomolestar 30m`, `1h`, `mañana` u `off` activa o apaga No molestar.
+- `/tarea Llamar al cliente` crea una tarea en Mis tareas con un enlace a la conversacion.
+- `/llamar` inicia una llamada en la conversacion y `/ayuda` muestra esta lista.
+Los atajos `/inventario:texto` para insertar registros siguen funcionando en cualquier parte del mensaje.

@@ -91,6 +91,10 @@ export function createChatDomain(request, withAuthHeaders, toQueryString, reques
         body: JSON.stringify({}),
       }),
 
+    // Slash commands that run on the server.
+    runCommand: (data, token) =>
+      request("/chat/commands/run", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+
     // Saved messages and reminders.
     listSaved: (token) => request("/chat/saved", { headers: withAuthHeaders(token) }),
     saveMessage: (messageId, data, token) =>
