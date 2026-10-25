@@ -6,9 +6,10 @@
 // event happens), call up to MAX_STEPS services of system modules in order.
 import { useMemo, useState } from "react";
 import { Button, ConfirmDialog, EmptyState } from "@runly/ui";
-import { Plus, Zap } from "lucide-react";
+import { Globe, Plus, Zap } from "lucide-react";
 import { MAX_AUTOMATIONS, SERVICE_CONTRACTS, automationEvents, stepsOf } from "@runly/module-compiler/browser";
 import { AutomationCard } from "./AutomationCard";
+import { AutomationHostsDialog } from "./AutomationHostsDialog";
 import { AutomationRunsPanel } from "./AutomationRunsPanel";
 import { serviceLabel } from "./AutomationSteps";
 
@@ -34,6 +35,7 @@ export function AutomationsTab({ definition, onChange, readOnly, published = fal
   const entities = definition.entities ?? [];
   const events = useMemo(() => automationEvents(), []);
   const [removeIndex, setRemoveIndex] = useState(null);
+  const [hostsOpen, setHostsOpen] = useState(false);
   const used = [...new Set(automations.flatMap((automation) => stepsOf(automation).map((step) => step.service)).filter(Boolean))];
 
   const setAutomations = (update) => onChange((current) => {
@@ -59,11 +61,16 @@ export function AutomationsTab({ definition, onChange, readOnly, published = fal
         <p className="max-w-2xl text-sm text-[hsl(var(--muted-foreground))]">
           Haz que este módulo trabaje con los demás sin programar: al guardar un registro (o cuando algo pasa en otro módulo) crea un evento de calendario, envía una notificación, guarda un contacto, registra un movimiento y más, en varios pasos.
         </p>
-        {!readOnly && (
-          <Button onClick={addAutomation} disabled={automations.length >= MAX_AUTOMATIONS || !entities.length}>
-            <Plus className="mr-1 h-4 w-4" /> Nueva automatización
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={() => setHostsOpen(true)}>
+            <Globe className="mr-1 h-4 w-4" /> Destinos permitidos
           </Button>
-        )}
+          {!readOnly && (
+            <Button onClick={addAutomation} disabled={automations.length >= MAX_AUTOMATIONS || !entities.length}>
+              <Plus className="mr-1 h-4 w-4" /> Nueva automatización
+            </Button>
+          )}
+        </div>
       </div>
       {used.length > 0 && (
         <div className="rounded-lg border border-[hsl(var(--border))] p-3 text-sm">
@@ -90,6 +97,7 @@ export function AutomationsTab({ definition, onChange, readOnly, published = fal
         />
       ))}
       <AutomationRunsPanel moduleKey={definition.key} published={published} automations={automations} />
+      <AutomationHostsDialog open={hostsOpen} onOpenChange={setHostsOpen} />
       <ConfirmDialog
         open={removeIndex !== null}
         onOpenChange={(open) => !open && setRemoveIndex(null)}

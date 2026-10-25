@@ -511,6 +511,22 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
         });
       },
+      // Automations: people for approver pickers, HTTP destinations, approvals inbox.
+      builderPeople: (token) => request("/module-builder/people", { headers: withAuthHeaders(token) }),
+      automationHttpHosts: (token) => request("/module-builder/automation-http-hosts", { headers: withAuthHeaders(token) }),
+      setAutomationHttpHosts: (hosts, token) =>
+        request("/module-builder/automation-http-hosts", {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ hosts }),
+        }),
+      myAutomationApprovals: (token) => request("/automation-approvals/mine", { headers: withAuthHeaders(token) }),
+      decideAutomationApproval: (id, decision, comment, token) =>
+        request(`/automation-approvals/${encodeURIComponent(id)}/decide`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ decision, comment }),
+        }),
       // Pending waits of the module's automations (core.modules.manage).
       automationJobs: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/automation-jobs`, {

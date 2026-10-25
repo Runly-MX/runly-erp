@@ -2,10 +2,12 @@
 // Works on the v2 shape (`steps`); a v1 `action` is read as a single step and
 // rewritten as `steps` on the first edit.
 import { Badge, Button, Card, CardContent, SelectField, SwitchField, TextField } from "@runly/ui";
-import { Trash2, Zap } from "lucide-react";
+import { useState } from "react";
+import { FlaskConical, Trash2, Zap } from "lucide-react";
 import { stepsOf } from "@runly/module-compiler/browser";
 import { AutomationConditions } from "./AutomationConditions";
 import { AutomationSteps } from "./AutomationSteps";
+import { AutomationTestDialog } from "./AutomationTestDialog";
 
 const TRIGGER_TYPES = [
   { value: "record", label: "Cuando se guarda un registro de este módulo" },
@@ -117,6 +119,7 @@ export function AutomationCard({ automation, entities, events, readOnly, onPatch
     ? (events.find((event) => event.key === trigger.event)?.payload ?? []).map((key) => ({ value: key, label: key }))
     : (entity?.fields ?? []).map((field) => ({ value: keyOf(field), label: field.label ?? keyOf(field) }));
   const showConditions = trigger.type !== "schedule" || Boolean(trigger.entity);
+  const [testOpen, setTestOpen] = useState(false);
 
   return (
     <Card>
@@ -128,11 +131,16 @@ export function AutomationCard({ automation, entities, events, readOnly, onPatch
             {automation.enabled === false && <Badge variant="outline">Pausada</Badge>}
             <span className="font-mono text-xs text-[hsl(var(--muted-foreground))]">{automation.key}</span>
           </div>
-          {!readOnly && (
-            <Button variant="ghost" size="sm" onClick={onRemove} aria-label="Quitar automatización">
-              <Trash2 className="h-4 w-4" />
+          <div className="flex shrink-0 items-center gap-1">
+            <Button variant="outline" size="sm" onClick={() => setTestOpen(true)}>
+              <FlaskConical className="mr-1 h-4 w-4" /> Probar
             </Button>
-          )}
+            {!readOnly && (
+              <Button variant="ghost" size="sm" onClick={onRemove} aria-label="Quitar automatización">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
           <TextField label="Nombre" required value={automation.label ?? ""} disabled={readOnly} maxLength={120}
@@ -147,6 +155,7 @@ export function AutomationCard({ automation, entities, events, readOnly, onPatch
         <AutomationSteps steps={steps} triggerType={trigger.type} onError={automation.onError} fieldOptions={fieldOptions} readOnly={readOnly}
           onSteps={(next) => onPatch({ steps: next })} onOnError={(onError) => onPatch({ onError: onError === "continue" ? "continue" : undefined })} />
       </CardContent>
+      <AutomationTestDialog open={testOpen} onOpenChange={setTestOpen} automation={automation} fieldOptions={fieldOptions} />
     </Card>
   );
 }

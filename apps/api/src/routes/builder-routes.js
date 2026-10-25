@@ -47,6 +47,20 @@ export function createBuilderRouter({ prisma, requirePermission, bundlerSvc = nu
     }
   })
 
+  // People of the active company (never the MirAI bot) for pickers such as the
+  // approvers of an automation.
+  app.get('/module-builder/people', requirePermission('core.modules.builder'), async (c) => {
+    const companyId = c.get('companyId')
+    if (!companyId) return c.json({ data: [] })
+    const rows = await prisma.membership.findMany({
+      where: { companyId, enabled: true, user: { isBot: false, enabled: true } },
+      select: { user: { select: { id: true, displayName: true, email: true } } },
+      orderBy: { user: { displayName: 'asc' } },
+      take: 500,
+    })
+    return c.json({ data: rows.map((row) => ({ id: row.user.id, name: row.user.displayName || row.user.email, email: row.user.email })) })
+  })
+
   app.get('/module-builder/capabilities', requirePermission('core.modules.builder'), (c) => {
     return c.json({
       data: {

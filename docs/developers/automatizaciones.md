@@ -57,6 +57,37 @@ Corren en segundo plano unos segundos después del cambio, **sin una persona**. 
 | Se aprobó / emitió una orden de compra | `id`, `caseId`, `status` |
 | Una persona completó un curso | `id`, `courseId`, `learnerId` |
 
+## Probar una automatización
+
+El botón **Probar** de cada automatización abre un diálogo donde escribes datos de ejemplo. Muestra si se cumplen las condiciones y, para cada paso, los datos exactos que enviaría (con los problemas que tendría contra el servicio). **No ejecuta nada ni guarda ningún dato**: es una simulación en tu navegador.
+
+## Llamar a una URL
+
+El paso **Llamar a una URL** envía los datos a un servidor externo (por ejemplo, un webhook de otra herramienta):
+
+```json
+{ "type": "http", "method": "POST", "url": "https://hooks.ejemplo.com/runly", "body": { "folio": { "from": "field", "field": "folio" } } }
+```
+
+- Método `POST`, `PUT` o `PATCH`; la dirección es **fija**, `https`, sin usuario, contraseña ni puerto. Los datos (`body`) usan los mismos orígenes que las acciones.
+- El servidor recibe un JSON `{ module, automation, companyId, idempotencyKey, data }` con los encabezados `X-Runly-Idempotency-Key` (para que el receptor evite duplicados) y `X-Runly-Signature: sha256=<HMAC-SHA256 del cuerpo>`. No se pueden definir encabezados propios, porque una definición la ve cualquiera que use el Constructor y no debe llevar credenciales.
+- Solo funciona con **destinos permitidos**: un administrador (`core.modules.manage`) los registra en el botón *Destinos permitidos* de la pestaña. Si el servidor no está en la lista, el paso falla con un mensaje claro y la ejecución queda en el Historial.
+- Seguridad: se rechazan direcciones internas o privadas (también si el nombre se resuelve a una), no se siguen redirecciones, hay un límite de 10 segundos y 64 KB, y cualquier respuesta que no sea 2xx cuenta como fallo del paso.
+- Se puede usar en cualquier disparador y después de una espera.
+
+## Pedir aprobación
+
+El paso **Pedir aprobación** detiene la automatización hasta que una persona decida:
+
+```json
+{ "type": "approval", "approvers": ["<id de usuario>"], "message": "Aprobar la orden {{folio}}" }
+```
+
+- Va entre dos acciones, solo uno por automatización, con 1 a 5 personas de la empresa. Los pasos que le siguen corren en segundo plano, como después de una espera.
+- Las personas elegidas reciben una notificación y ven la solicitud en **Inicio > Aprobaciones**, donde pueden **Aprobar** o **Rechazar** (con motivo opcional). Basta una decisión; después ya no se puede cambiar.
+- Aprobar continúa la ejecución; rechazar la termina como *Rechazada* y los pasos restantes no se ejecutan. Si nadie decide en 7 días, la ejecución se cancela. Cada decisión queda en la bitácora de auditoría.
+- Por API: `GET /automation-approvals/mine` y `POST /automation-approvals/:id/decide` con `{ "decision": "approve" | "reject", "comment" }`.
+
 ## Esperas y horarios
 
 Las esperas y los horarios los ejecuta el **worker** (el proceso en segundo plano de Runly), no la petición del usuario. Por eso:
@@ -87,6 +118,6 @@ El Constructor genera `api/automations.js` (las automatizaciones y su lógica), 
 
 Formato en la definición (`automations`): `trigger.when` es una condición o una lista de condiciones; `steps` es la lista de acciones (`{ service, args }`) y `onError` es `"stop"` (por defecto) o `"continue"`. El formato anterior con una sola `action` se sigue aceptando y se trata como un paso. No se puede usar `action` y `steps` a la vez.
 
-Un disparador por horario se declara así: `trigger: { type: 'schedule', every: 'hour' | 'day' | 'week' | 'month', at: '08:00', weekday: 1, day: 15, entity?, when? }` (`at` no aplica a `every: 'hour'`; `weekday` 0 = domingo; `day` de 1 a 28). Una espera es un paso `{ type: 'delay', amount: 3, unit: 'minutes' | 'hours' | 'days' }` que no puede ser el primero ni el último ni ir junto a otra espera. El manifiesto del módulo lista los horarios en `schedules`.
+Un disparador por horario se declara así: `trigger: { type: 'schedule', every: 'hour' | 'day' | 'week' | 'month', at: '08:00', weekday: 1, day: 15, entity?, when? }` (`at` no aplica a `every: 'hour'`; `weekday` 0 = domingo; `day` de 1 a 28). Una espera es un paso `{ type: 'delay', amount: 3, unit: 'minutes' | 'hours' | 'days' }`; esperas y aprobaciones no pueden ser el primer ni el último paso ni ir una junto a otra. El manifiesto del módulo lista los horarios en `schedules`.
 
-Límites: hasta 20 automatizaciones por módulo, 5 pasos (las esperas cuentan) y 5 condiciones por disparador, y 2 esperas por automatización.
+Límites: hasta 20 automatizaciones por módulo, 5 pasos (las esperas cuentan) y 5 condiciones por disparador, 2 esperas y 1 aprobación por automatización, y 20 datos por llamada HTTP.

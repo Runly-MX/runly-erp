@@ -4,19 +4,22 @@
 import { Hono } from "hono";
 import { createAutomationApprovalsService } from "../services/automation-approvals-service.js";
 
-export function createAutomationApprovalsRouter({ prisma }) {
+// profile.self.read is a base permission every signed-in user has; it only resolves the active company.
+const BASE_PERMISSION = "profile.self.read";
+
+export function createAutomationApprovalsRouter({ prisma, requirePermission }) {
   const app = new Hono();
   const approvals = createAutomationApprovalsService({ prisma });
 
   const who = (c) => ({ companyId: c.get("companyId"), profileId: c.get("userContext")?.profile?.id ?? null });
 
-  app.get("/automation-approvals/mine", async (c) => {
+  app.get("/automation-approvals/mine", requirePermission(BASE_PERMISSION), async (c) => {
     const { companyId, profileId } = who(c);
     if (!companyId || !profileId) return c.json({ data: [] });
     return c.json({ data: await approvals.listMine({ companyId, profileId }) });
   });
 
-  app.post("/automation-approvals/:id/decide", async (c) => {
+  app.post("/automation-approvals/:id/decide", requirePermission(BASE_PERMISSION), async (c) => {
     const { companyId, profileId } = who(c);
     if (!companyId || !profileId) return c.json({ error: "Selecciona una empresa activa." }, 400);
     const body = await c.req.json().catch(() => ({}));

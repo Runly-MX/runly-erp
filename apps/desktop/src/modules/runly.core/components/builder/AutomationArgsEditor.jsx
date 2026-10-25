@@ -22,7 +22,7 @@ const ARG_LABELS = {
 
 export const argLabel = (name) => ARG_LABELS[name] ?? name;
 
-function sourceOptions({ required, triggerType }) {
+export function sourceOptions({ required, triggerType }) {
   return [
     ...(required ? [] : [{ value: "none", label: "No usar" }]),
     { value: "value", label: "Valor fijo" },
@@ -45,7 +45,7 @@ function toLiteral(spec, text) {
 }
 const fromLiteral = (value) => (Array.isArray(value) ? value.join(", ") : value === undefined || value === null ? "" : String(value));
 
-function ValueInput({ name, spec, source, fieldOptions, readOnly, onSource }) {
+export function ValueInput({ name, spec, source, fieldOptions, readOnly, onSource }) {
   const label = `Valor de ${argLabel(name).toLowerCase()}`;
   if (source.from === "field") {
     return <SelectField aria-label={label} options={fieldOptions} value={source.field ?? ""} disabled={readOnly} placeholder="Elige un campo"

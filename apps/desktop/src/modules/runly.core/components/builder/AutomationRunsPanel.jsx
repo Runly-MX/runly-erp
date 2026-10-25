@@ -17,10 +17,12 @@ const STATUS = {
   running: { label: "En curso", variant: "secondary" },
   waiting: { label: "En espera", variant: "warning" },
   cancelled: { label: "Cancelada", variant: "outline" },
+  rejected: { label: "Rechazada", variant: "destructive" },
 };
 const FILTERS = [
   { value: "all", label: "Todas" },
   { value: "waiting", label: "En espera" },
+  { value: "rejected", label: "Rechazadas" },
   { value: "failed", label: "Con fallas" },
   { value: "partial", label: "Parciales" },
   { value: "success", label: "Correctas" },
@@ -31,6 +33,8 @@ const dateText = (value) => new Date(value).toLocaleString("es-MX", { dateStyle:
 function stepsSummary(steps) {
   return steps.map((step) => {
     if (step.type === "delay") return `${step.index + 1}: espera`;
+    if (step.type === "approval") return `${step.index + 1}: aprobación`;
+    if (step.type === "http") return `${step.index + 1}: ${step.ok ? "llamada ok" : "llamada falló"}`;
     return `${step.index + 1}: ${step.skipped ? "omitido" : step.ok ? "ok" : "falló"}`;
   }).join(" · ");
 }
@@ -108,7 +112,10 @@ export function AutomationRunsPanel({ moduleKey, published, automations }) {
                     {TRIGGER_LABEL[run.triggerKind] ?? run.triggerKind} · {dateText(run.createdAt)} · {run.durationMs} ms
                   </span>
                 </div>
-                {job && (
+                {job && job.status === "awaiting_approval" && (
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Esperando aprobación; vence el {dateText(job.runAt)}</p>
+                )}
+                {job && job.status !== "awaiting_approval" && (
                   <div className="flex flex-wrap items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
                     <span>Continúa el {dateText(job.runAt)}</span>
                     <Button variant="outline" size="sm" onClick={() => setCancelJob(job)}>Cancelar espera</Button>

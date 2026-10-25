@@ -4,9 +4,10 @@
 // Steps after a wait, and every step of a schedule, only offer services that
 // run without a person.
 import { Button, SelectField, SwitchField, TextField } from "@runly/ui";
-import { ArrowDown, ArrowUp, Clock, Plus, Trash2 } from "lucide-react";
-import { MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, automationServices, isDelayStep } from "@runly/module-compiler/browser";
+import { ArrowDown, ArrowUp, Clock, Globe, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, automationServices, isApprovalStep, isDelayStep, isHttpStep, isPauseStep } from "@runly/module-compiler/browser";
 import { AutomationArgsEditor } from "./AutomationArgsEditor";
+import { ApprovalStepEditor, HttpStepEditor } from "./AutomationStepEditors";
 
 const OWNER_LABELS = {
   "runly.calendar": "Calendario", "runly.files": "Archivos", "runly.notifications": "Notificaciones", "runly.contacts": "Contactos",
@@ -20,6 +21,13 @@ const UNIT_OPTIONS = [
   { value: "days", label: "Días" },
 ];
 const newDelay = () => ({ type: "delay", amount: 1, unit: "days" });
+const newApproval = () => ({ type: "approval", approvers: [], message: "" });
+const newHttp = () => ({ type: "http", method: "POST", url: "", body: {} });
+const emptyAction = () => ({ service: "", args: {} });
+
+function StepTitle({ icon: Icon, children }) {
+  return <p className="flex items-center gap-2 pb-2 text-sm font-medium"><Icon className="h-4 w-4 text-(--brand-primary)" /> {children}</p>;
+}
 
 function DelayEditor({ step, readOnly, onChange }) {
   return (
@@ -43,9 +51,12 @@ export function AutomationSteps({ steps, triggerType, onError, fieldOptions, rea
     [next[index], next[index + delta]] = [next[index + delta], next[index]];
     onSteps(next);
   };
-  const lastIsAction = steps.length > 0 && !isDelayStep(steps[steps.length - 1]);
+  const approvals = steps.filter(isApprovalStep).length;
+  const lastIsAction = steps.length > 0 && !isPauseStep(steps[steps.length - 1]);
   const canAddAction = !readOnly && steps.length < MAX_STEPS;
-  const canAddDelay = canAddAction && delays < MAX_DELAYS && lastIsAction && steps.length <= MAX_STEPS - 2;
+  const canAddPause = canAddAction && lastIsAction && steps.length <= MAX_STEPS - 2;
+  const canAddDelay = canAddPause && delays < MAX_DELAYS;
+  const canAddApproval = canAddPause && approvals < 1;
   const hasMany = steps.length > 1;
   let actionNumber = 0;
 
@@ -54,16 +65,20 @@ export function AutomationSteps({ steps, triggerType, onError, fieldOptions, rea
       <p className="text-sm font-medium">Qué hacer</p>
       {steps.map((step, index) => {
         const delay = isDelayStep(step);
-        if (!delay) actionNumber += 1;
-        const afterDelay = steps.slice(0, index).some(isDelayStep);
+        const approval = isApprovalStep(step);
+        const http = isHttpStep(step);
+        const builtIn = delay || approval || http;
+        if (!builtIn) actionNumber += 1;
+        const afterDelay = steps.slice(0, index).some(isPauseStep);
         const services = automationServices({ trigger: triggerType, afterDelay });
         return (
           <div key={index} className="space-y-3 rounded-lg border border-[hsl(var(--border))] p-3">
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1">
-                {delay ? (
-                  <p className="flex items-center gap-2 pb-2 text-sm font-medium"><Clock className="h-4 w-4 text-(--brand-primary)" /> Espera</p>
-                ) : (
+                {delay ? <StepTitle icon={Clock}>Espera</StepTitle>
+                  : approval ? <StepTitle icon={ShieldCheck}>Pedir aprobación</StepTitle>
+                  : http ? <StepTitle icon={Globe}>Llamar a una URL</StepTitle>
+                  : (
                   <SelectField label={hasMany ? `Paso ${index + 1}` : "Acción"}
                     options={services.map((service) => ({ value: service.key, label: serviceLabel(service.key, service.label) }))}
                     value={step.service ?? ""} disabled={readOnly} placeholder="Elige una acción"
@@ -80,6 +95,10 @@ export function AutomationSteps({ steps, triggerType, onError, fieldOptions, rea
             </div>
             {delay ? (
               <DelayEditor step={step} readOnly={readOnly} onChange={(next) => setStep(index, next)} />
+            ) : approval ? (
+              <ApprovalStepEditor step={step} readOnly={readOnly} onChange={(next) => setStep(index, next)} />
+            ) : http ? (
+              <HttpStepEditor step={step} triggerType={triggerType === "schedule" || afterDelay ? "event" : triggerType} fieldOptions={fieldOptions} readOnly={readOnly} onChange={(next) => setStep(index, next)} />
             ) : (
               <AutomationArgsEditor contract={SERVICE_CONTRACTS[step.service]} args={step.args ?? {}} triggerType={triggerType === "schedule" ? "event" : triggerType}
                 fieldOptions={fieldOptions} readOnly={readOnly} onChange={(args) => setStep(index, { ...step, args })} />
@@ -97,13 +116,23 @@ export function AutomationSteps({ steps, triggerType, onError, fieldOptions, rea
       {!readOnly && (
         <div className="flex flex-wrap gap-2">
           {canAddAction && (
-            <Button variant="outline" size="sm" onClick={() => onSteps([...steps, { service: "", args: {} }])}>
+            <Button variant="outline" size="sm" onClick={() => onSteps([...steps, emptyAction()])}>
               <Plus className="mr-1 h-4 w-4" /> Agregar paso
             </Button>
           )}
+          {canAddAction && (
+            <Button variant="outline" size="sm" onClick={() => onSteps([...steps, newHttp()])}>
+              <Globe className="mr-1 h-4 w-4" /> Llamar a una URL
+            </Button>
+          )}
           {canAddDelay && (
-            <Button variant="outline" size="sm" onClick={() => onSteps([...steps, newDelay(), { service: "", args: {} }])}>
+            <Button variant="outline" size="sm" onClick={() => onSteps([...steps, newDelay(), emptyAction()])}>
               <Clock className="mr-1 h-4 w-4" /> Agregar espera
+            </Button>
+          )}
+          {canAddApproval && (
+            <Button variant="outline" size="sm" onClick={() => onSteps([...steps, newApproval(), emptyAction()])}>
+              <ShieldCheck className="mr-1 h-4 w-4" /> Pedir aprobación
             </Button>
           )}
         </div>
