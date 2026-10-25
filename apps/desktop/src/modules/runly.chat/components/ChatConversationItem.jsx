@@ -157,7 +157,13 @@ export function ChatConversationRow({ conversation, isActive, onClick, currentUs
   const unread = conversation.unread_count ?? 0;
   const mentions = conversation.unread_mention_count ?? 0;
   const meeting = isMeeting(conversation);
-  const lead = conversation.type === "direct" ? (
+  const photo = conversation.type !== "direct" ? (conversation.avatarUrl ?? null) : null;
+  const emoji = conversation.type !== "direct" ? (conversation.avatar_emoji ?? null) : null;
+  const lead = photo ? (
+    <img src={photo} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
+  ) : emoji ? (
+    <span className="flex h-6 w-6 shrink-0 items-center justify-center text-base leading-none" aria-hidden>{emoji}</span>
+  ) : conversation.type === "direct" ? (
     <Avatar name={name} avatarUrl={conversation.avatarUrl ?? otherMember?.avatarUrl ?? null} avatarEmoji={conversation.avatar_emoji ?? null} type="direct" size="xs" online={isOnline} />
   ) : (
     <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[hsl(var(--muted-foreground))]" aria-hidden>
