@@ -1012,3 +1012,16 @@ Para desactivar Office, cambia el indicador a `false` y ejecuta el setup; detien
 el editor y conserva los documentos y su clave para futuras activaciones.
 
 Consulta la [guia completa de despliegue, actualizaciones, proxy y recuperacion](../../docs/deployment/office-collabora.md).
+# Bases compartidas y actualizaciones sin inicialización
+
+La API aplica migraciones y seed al arrancar por defecto. `--skip-migrate` del
+instalador external omite su paso one-shot, pero no basta para evitar esa
+inicialización posterior. En imágenes que incluyen el soporte correspondiente,
+`RUNLY_SKIP_DB_INIT=1` omite ambos pasos del entrypoint. El override opt-in
+`docker-compose.no-db-init.yml` lo fija para API local y external; debe incluirse
+explícitamente en todos los comandos Compose de esa actualización.
+
+Este override no hace read-only a la aplicación ni a sus jobs. No usar los
+wrappers de update sobre una base compartida sin revisar su inicialización,
+backups y compatibilidad de ambos consumidores. Procedimiento completo:
+[Runly Studio: despliegue de pruebas](../../docs/deployment/runly-studio-test-upgrade.md).
