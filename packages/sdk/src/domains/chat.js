@@ -91,6 +91,15 @@ export function createChatDomain(request, withAuthHeaders, toQueryString, reques
         body: JSON.stringify({}),
       }),
 
+    // Saved messages and reminders.
+    listSaved: (token) => request("/chat/saved", { headers: withAuthHeaders(token) }),
+    saveMessage: (messageId, data, token) =>
+      request(`/chat/messages/${encodeURIComponent(messageId)}/save`, { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data ?? {}) }),
+    updateSavedMessage: (messageId, data, token) =>
+      request(`/chat/messages/${encodeURIComponent(messageId)}/save`, { method: "PATCH", headers: withAuthHeaders(token), body: JSON.stringify(data ?? {}) }),
+    unsaveMessage: (messageId, token) =>
+      request(`/chat/messages/${encodeURIComponent(messageId)}/save`, { method: "DELETE", headers: withAuthHeaders(token) }),
+
     // What is addressed to the person (mentions, thread replies, reactions, invitations).
     getActivity: (token) => request("/work/activity", { headers: withAuthHeaders(token) }),
 

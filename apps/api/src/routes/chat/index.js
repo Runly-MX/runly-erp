@@ -33,6 +33,7 @@ import { createChannelRoutes } from "./channel-routes.js";
 import { createChatIntegrationRoutes, createChatHookPublicRouter } from "./chat-integration-routes.js";
 import { createChatIntegrationsService } from "./chat-integrations-service.js";
 import { createChatSidebarService } from "./chat-sidebar-service.js";
+import { createChatSavedService } from "./chat-saved-service.js";
 import { createExternalInboxRoutes } from "./external-inbox-routes.js";
 import { createTemplateRoutes } from "./template-routes.js";
 import { createMessageForwardRoutes } from "./message-forward-routes.js";
@@ -622,6 +623,31 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   // Channel creation/directory, linked channels, joining, and per-channel
   // roles (Phase A foundation) — see channel-routes.js.
   internal.route("", createChannelRoutes({ prisma, requirePermission, chatService, channelDirectoryService, channelLinksService, permissionsService }));
+
+  // Saved messages and reminders ("recordarme de esto").
+  const savedService = createChatSavedService({ prisma, notificationService });
+  const savedContext = async (c) => ({ companyId: c.get("companyId"), profileId: await resolveUserProfileId(prisma, c.get("authUserId")) });
+  internal.get("/saved", requirePermission("chat.conversations.read"), async (c) => {
+    try { return c.json({ data: await savedService.list({ ...(await savedContext(c)), includeCompleted: c.req.query("completed") === "1" }) }); }
+    catch (err) { return handleError(c, err, "Error al listar los guardados."); }
+  });
+  internal.post("/messages/:id/save", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const body = await c.req.json().catch(() => ({}));
+      return c.json({ data: await savedService.save({ ...(await savedContext(c)), messageId: c.req.param("id"), remindAt: body.remindAt }) }, 201);
+    } catch (err) { return handleError(c, err, "Error al guardar el mensaje."); }
+  });
+  internal.patch("/messages/:id/save", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const body = await c.req.json().catch(() => ({}));
+      const { profileId } = await savedContext(c);
+      return c.json({ data: await savedService.update({ profileId, messageId: c.req.param("id"), remindAt: "remindAt" in body ? body.remindAt : undefined, completed: "completed" in body ? body.completed === true : undefined }) });
+    } catch (err) { return handleError(c, err, "Error al actualizar el guardado."); }
+  });
+  internal.delete("/messages/:id/save", requirePermission("chat.conversations.read"), async (c) => {
+    try { return c.json({ data: await savedService.remove({ profileId: (await savedContext(c)).profileId, messageId: c.req.param("id") }) }); }
+    catch (err) { return handleError(c, err, "Error al quitar el guardado."); }
+  });
 
   // Per-person sidebar organization (sections, collapsed state, filter).
   const sidebarService = createChatSidebarService({ prisma });

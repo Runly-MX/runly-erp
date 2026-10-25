@@ -19,7 +19,7 @@ const IMPORTANT_EVENTS = new Set([
 // Real-time conversation events people expect on their phone. Chat messages
 // collapse per conversation while unread (notification-service publish), so
 // this pushes once per unread conversation rather than once per message.
-const PUSH_BY_DEFAULT = new Set(['chat.call.incoming', 'chat.message.new', 'chat.thread.reply']);
+const PUSH_BY_DEFAULT = new Set(['chat.call.incoming', 'chat.message.new', 'chat.thread.reply', 'chat.reminder']);
 
 export function getDefaultNotificationPreference(eventType) {
   const important = IMPORTANT_EVENTS.has(eventType);

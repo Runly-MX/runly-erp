@@ -24,6 +24,8 @@ import { CallLogCard } from "./CallLogCard";
 import { getCallMeta, getRecordingMeta } from "./callLogMeta";
 import { RecordingReadyCard } from "./RecordingReadyCard";
 import { MessageActionSheet } from "./MessageActionSheet";
+import { MessageReminderPicker } from "./MessageReminderPicker";
+import { useSavedActions, useSavedMessages } from "../hooks/useSavedMessages";
 import { hapticTick } from "../lib/haptics";
 import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
 
@@ -112,12 +114,14 @@ function MessageActions({
   isOwn, hasBody, onCopy, onDelete, onHideForMe, onForward, onEnterSelection,
   canPin, isPinned, onPin, onReact, canReply, onOpenThread, onReply, onAskMirai, onShowReceipt,
   onSpeak, isSpeaking, isLoadingSpeak, onEdit, onQuickReact,
+  onSave, isSaved, onRemind, remindOpen, onRemindOpenChange, onRemindPick,
 }) {
   const [quickOpen, setQuickOpen] = useState(false);
   const actions = buildMessageActions({
     hasBody, isOwn, canPin, isPinned, canReply,
     onReply, onCopy, onForward, onEnterSelection, onPin, onReact, onOpenThread,
     onDelete, onHideForMe, onAskMirai, onShowReceipt, onSpeak, isSpeaking, isLoadingSpeak, onEdit,
+    onSave, isSaved, onRemind,
   });
   const primary = actions.filter((a) => a.group === "primary");
   const danger = actions.filter((a) => a.group === "danger");
@@ -178,6 +182,7 @@ function MessageActions({
         </button>
       )}
       <DropdownMenu>
+        <MessageReminderPicker open={Boolean(remindOpen)} onOpenChange={(value) => onRemindOpenChange?.(value)} onPick={(iso) => onRemindPick?.(iso)}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -187,6 +192,7 @@ function MessageActions({
             <MoreHorizontal className="h-3.5 w-3.5" />
           </button>
         </DropdownMenuTrigger>
+        </MessageReminderPicker>
         <DropdownMenuContent
           align={isOwn ? "start" : "end"}
           style={{ zIndex: 10000 }}
@@ -303,6 +309,10 @@ export function ChatMessageBubble({
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+  const [remindOpen, setRemindOpen] = useState(false);
+  const { data: savedList } = useSavedMessages(true);
+  const savedActions = useSavedActions();
+  const isSaved = Boolean(savedList?.some((item) => item.messageId === message.id));
   const [actionSheet, setActionSheet] = useState({ open: false, point: null, el: null, rect: null, attachment: null });
   const lastTapRef = useRef(0);
   // Set the instant a long-press fires so the click/tap that lands when the
@@ -613,6 +623,13 @@ export function ChatMessageBubble({
   const repliedToMe = !isDeleted && Boolean(message.reply_to?.senderUserId)
     && message.reply_to.senderUserId === currentUserId;
   const highlightRow = mentioned || repliedToMe;
+  // Save for later / remind me: not on unsent or deleted messages.
+  const canSave = !isDeleted && !String(message.id ?? "").startsWith("temp-") && message.message_type !== "date_separator";
+  const saveProps = canSave ? {
+    onSave: () => (isSaved ? savedActions.remove.mutate(message.id) : savedActions.save.mutate({ messageId: message.id })),
+    isSaved,
+    onRemind: () => setRemindOpen(true),
+  } : {};
   const canPin =
     (conversationType === "channel" || conversationType === "group") &&
     roleHasPermission(ownMember, CHAT_PERMISSIONS.MESSAGES_PIN);
@@ -669,6 +686,10 @@ export function ChatMessageBubble({
             onAskMirai={onAskMirai ? () => onAskMirai(message) : undefined}
             onShowReceipt={onShowReceipt ? () => onShowReceipt(message) : undefined}
             onSpeak={onSpeak ? () => onSpeak(message) : undefined}
+            {...saveProps}
+            remindOpen={remindOpen}
+            onRemindOpenChange={setRemindOpen}
+            onRemindPick={(iso) => savedActions.save.mutate({ messageId: message.id, remindAt: iso })}
             isSpeaking={isSpeaking}
             isLoadingSpeak={isLoadingSpeak}
           />
@@ -689,6 +710,7 @@ export function ChatMessageBubble({
             onAskMirai: onAskMirai ? () => onAskMirai(message) : undefined,
             onShowReceipt: onShowReceipt ? () => onShowReceipt(message) : undefined,
             onSpeak: onSpeak ? () => onSpeak(message) : undefined,
+            ...saveProps,
             isSpeaking,
             isLoadingSpeak,
           }}
@@ -906,6 +928,7 @@ export function ChatMessageBubble({
           onCopy, onForward, onEnterSelection, onPin, onOpenThread, onDelete, onHideForMe,
           onAskMirai: onAskMirai ? () => onAskMirai(message) : undefined,
           onSpeak: onSpeak ? () => onSpeak(message) : undefined,
+            ...saveProps,
           isSpeaking,
           isLoadingSpeak,
         }}
@@ -1102,6 +1125,10 @@ export function ChatMessageBubble({
           onReply={onReply ? () => onReply(message) : undefined}
           onAskMirai={onAskMirai ? () => onAskMirai(message) : undefined}
           onSpeak={onSpeak ? () => onSpeak(message) : undefined}
+            {...saveProps}
+            remindOpen={remindOpen}
+            onRemindOpenChange={setRemindOpen}
+            onRemindPick={(iso) => savedActions.save.mutate({ messageId: message.id, remindAt: iso })}
           isSpeaking={isSpeaking}
           isLoadingSpeak={isLoadingSpeak}
         />

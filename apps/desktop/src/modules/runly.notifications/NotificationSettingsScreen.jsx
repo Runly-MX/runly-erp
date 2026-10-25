@@ -44,6 +44,7 @@ const EVENT_CATALOG = [
   { eventType: 'projects.task.reaction', title: 'Reacción en tarea', description: 'Cuando reaccionan a tu comentario en una tarea.', icon: CheckSquare2 },
   { eventType: 'inventory.item.reaction', title: 'Reacción en inventario', description: 'Cuando reaccionan a tu comentario en inventario.', icon: CheckSquare2 },
   // runly.chat
+  { eventType: 'chat.reminder', title: 'Recordatorio de un mensaje', description: 'Cuando llega la hora de un mensaje que pediste recordar.', icon: CalendarClock },
   { eventType: 'chat.member.added', title: 'Invitación a un chat', description: 'Cuando te agregan a un canal o grupo.', icon: Users },
   { eventType: 'chat.mention.new', title: 'Mención en chat', description: 'Cuando te mencionan en una conversación.', icon: MessageCircle },
   { eventType: 'chat.thread.reply', title: 'Respuesta en un hilo', description: 'Cuando responden en un hilo en el que participas.', icon: MessageCircle },

@@ -1,4 +1,4 @@
-import { Copy, Forward, CheckSquare, Pin, PinOff, Smile, MessageSquare, Trash2, EyeOff, CornerUpLeft, Sparkles, Info, Volume2, Square, Loader2, Pencil } from "lucide-react";
+import { Copy, Forward, CheckSquare, Pin, PinOff, Smile, MessageSquare, Trash2, EyeOff, CornerUpLeft, Sparkles, Info, Volume2, Square, Loader2, Pencil, Bookmark, BookmarkCheck, BellRing } from "lucide-react";
 
 // Single source of truth for the per-message action list. Consumed by the
 // desktop hover menu (MessageActions in ChatMessageBubble) and the mobile /
@@ -11,6 +11,7 @@ export function buildMessageActions({
   hasBody, isOwn, canPin, isPinned, canReply,
   onReply, onCopy, onForward, onEnterSelection, onPin, onReact, onOpenThread,
   onDelete, onHideForMe, onAskMirai, onShowReceipt, onSpeak, isSpeaking, isLoadingSpeak, onEdit,
+  onSave, isSaved, onRemind,
 }) {
   const items = [];
   if (onReply) items.push({ key: "reply", label: "Responder", icon: CornerUpLeft, onSelect: onReply, group: "primary" });
@@ -32,6 +33,8 @@ export function buildMessageActions({
       group: "primary",
     });
   }
+  if (onSave) items.push({ key: "save", label: isSaved ? "Quitar de guardados" : "Guardar para después", icon: isSaved ? BookmarkCheck : Bookmark, onSelect: onSave, group: "primary" });
+  if (onRemind) items.push({ key: "remind", label: "Recordarme...", icon: BellRing, onSelect: onRemind, group: "primary" });
   if (onForward) items.push({ key: "forward", label: "Reenviar", icon: Forward, onSelect: onForward, group: "primary" });
   if (onAskMirai) items.push({ key: "ask-mirai", label: "Preguntar a MirAI", icon: Sparkles, onSelect: onAskMirai, group: "primary" });
   if (onEnterSelection) items.push({ key: "select", label: "Seleccionar", icon: CheckSquare, onSelect: onEnterSelection, group: "primary" });

@@ -49,6 +49,7 @@ import { createGrowthAggregationWorker } from '../../api/src/services/growth-agg
 import { createGrowthPropertyHealthWorker } from '../../api/src/services/growth-property-health-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 import { sweepOrphanChatAttachments } from '../../api/src/routes/chat/orphan-attachment-sweep-job.js'
+import { createChatSavedService } from '../../api/src/routes/chat/chat-saved-service.js'
 import { archiveInactiveMeetingChannels } from '../../api/src/routes/chat/meeting-channel-archive-job.js'
 
 const { PrismaClient } = pkg
@@ -639,6 +640,19 @@ runChatOrphanAttachmentSweepTick()
 setInterval(() => {
   runChatOrphanAttachmentSweepTick()
 }, CHAT_ORPHAN_SWEEP_INTERVAL_MS)
+
+// Saved-message reminders that are due notify their person (claimed first, never repeated).
+const chatSavedService = createChatSavedService({ prisma, notificationService: createNotificationService({ prisma }) })
+async function runChatReminderTick() {
+  try {
+    const { sent } = await chatSavedService.processDueReminders()
+    if (sent > 0) console.log(`[worker] recordatorios de chat ${formatLogTimestamp()} sent=${sent}`)
+  } catch (err) {
+    console.error('[worker] chat reminder tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+setInterval(runChatReminderTick, 60 * 1000)
 
 // Channels made by calls stop cluttering the sidebar after 14 inactive days.
 async function runMeetingChannelArchiveTick() {

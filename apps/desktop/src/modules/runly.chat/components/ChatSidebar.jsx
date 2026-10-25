@@ -3,9 +3,11 @@ import {
   Button, ConfirmDialog, EmptyState, SearchInput, Skeleton,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@runly/ui";
-import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Images, FolderPlus, Bell } from "lucide-react";
+import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Images, FolderPlus, Bell, Bookmark } from "lucide-react";
 import { ChatConversationItem, ChatConversationRow } from "./ChatConversationItem";
 import { ChatActivitySheet, useChatActivity } from "./ChatActivitySheet";
+import { ChatSavedSheet } from "./ChatSavedSheet";
+import { useSavedMessages } from "../hooks/useSavedMessages";
 import { SidebarSectionHeader, DRAG_TYPE } from "./SidebarSectionHeader";
 import { SectionDialog, MoveToSectionDialog } from "./SidebarSectionDialogs";
 import { addSection, assignConversation, buildSections, deleteSection, moveSection, renameSection } from "../lib/sidebarSections";
@@ -47,6 +49,9 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const [sectionDialog, setSectionDialog] = useState({ open: false, section: null, thenMove: null });
   const [moveTarget, setMoveTarget] = useState(null);
   const [showActivity, setShowActivity] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
+  const { data: savedItems } = useSavedMessages(true);
+  const savedDue = (savedItems ?? []).filter((item) => item.remindAt && !item.reminded).length;
   const { data: activity } = useChatActivity(true);
   const [sectionToDelete, setSectionToDelete] = useState(null);
 
@@ -252,6 +257,17 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
             {activity?.unread > 0 && <span className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)] px-1 text-[10px] font-semibold text-[var(--brand-primary-foreground)]">{activity.unread > 99 ? "99+" : activity.unread}</span>}
           </button>
         )}
+        {!search.trim() && !isLoading && (
+          <button
+            type="button"
+            onClick={() => setShowSaved(true)}
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-[hsl(var(--muted))] [@media(pointer:coarse)]:min-h-11"
+          >
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[hsl(var(--muted-foreground))]" aria-hidden><Bookmark className="h-3.5 w-3.5" /></span>
+            <span className="min-w-0 flex-1 truncate text-[hsl(var(--foreground))]/80">Guardados</span>
+            {(savedItems?.length ?? 0) > 0 && <span className="text-[10px] tabular-nums text-[hsl(var(--muted-foreground))]">{savedDue > 0 ? `${savedDue} con recordatorio · ` : ""}{savedItems.length}</span>}
+          </button>
+        )}
 
         {!search.trim() && !isLoading && layout.mirai.map((conv) => (
           <ConversationRowActions key={conv.id} conversation={conv} currentUserId={userProfile?.id} onAction={handleConversationAction} swipeOpenId={openRowId} onSwipeOpen={setOpenRowId}>
@@ -383,6 +399,11 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
       )}
       </div>
 
+      <ChatSavedSheet
+        open={showSaved}
+        onOpenChange={setShowSaved}
+        onOpen={(item) => { setShowSaved(false); onSelect({ id: item.conversationId }, item.messageId); }}
+      />
       <ChatActivitySheet
         open={showActivity}
         onOpenChange={setShowActivity}
