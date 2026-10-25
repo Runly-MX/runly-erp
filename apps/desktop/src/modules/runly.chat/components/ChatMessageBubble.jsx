@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import {
   CheckCheck, MoreHorizontal, Copy, Trash2, Forward, EyeOff, CheckSquare,
-  Pin, PinOff, Smile, MessageSquare, CornerUpLeft, Volume2, Square, Loader2,
+  Pin, PinOff, Smile, MessageSquare, CornerUpLeft, Volume2, Square, Loader2, Plug,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-  AssistantWordmark, MiraiAvatar, renderMentionText, renderRichText, useLongPress, useSwipeToReply, useCoarsePointer, useIsMobile,
+  AssistantWordmark, MiraiAvatar, renderMentionText, renderRichText, resolveLucideIcon, useLongPress, useSwipeToReply, useCoarsePointer, useIsMobile,
 } from "@runly/ui";
 import { formatMessageTime, isImageMime } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -333,8 +333,11 @@ export function ChatMessageBubble({
 
   const isDeleted = Boolean(message.deleted_at);
   const isPending = String(message.id ?? "").startsWith("temp-");
-  const gesturesDisabled = selectionMode || isDeleted || isPending || message.type === "date_separator"
-    || message.sender_type === "system" || message.message_type === "system";
+  // Messages posted by an integration (webhook, automation, module) are stored as system
+  // messages but read like a bot's message, not like a centered notice.
+  const integration = message.metadata?.integration ?? null;
+  const isNotice = !integration && (message.sender_type === "system" || message.message_type === "system");
+  const gesturesDisabled = selectionMode || isDeleted || isPending || message.type === "date_separator" || isNotice;
 
   const longPress = useLongPress({
     disabled: gesturesDisabled,
@@ -506,7 +509,7 @@ export function ChatMessageBubble({
     return <RecordingReadyCard message={message} />;
   }
 
-  if (message.sender_type === "system" || message.message_type === "system") {
+  if (isNotice) {
     return (
       <div className="flex justify-center my-2 px-4">
         <span className="text-xs text-[hsl(var(--muted-foreground))] bg-[hsl(var(--muted))] px-3 py-1 rounded-full">
@@ -520,6 +523,8 @@ export function ChatMessageBubble({
   const isAssistant = message.sender_type === "assistant";
   const senderName = isAssistant
     ? "MirAI"
+    : integration
+    ? integration.name || "Integración"
     : (message.sender?.displayName ??
       (message.sender_type === "guest" ? "Visitante" : "Usuario"));
 
@@ -896,6 +901,10 @@ export function ChatMessageBubble({
       <div className={["shrink-0", isLast ? "visible" : "invisible"].join(" ")}>
         {isAssistant ? (
           <MiraiAvatar size={28} />
+        ) : integration ? (
+          <div className="h-7 w-7 rounded-full bg-[hsl(var(--muted))] border border-[hsl(var(--border))] flex items-center justify-center text-[hsl(var(--muted-foreground))]" aria-hidden>
+            {(() => { const Icon = resolveLucideIcon(integration.icon) ?? Plug; return <Icon size={14} />; })()}
+          </div>
         ) : message.sender?.avatarUrl && !avatarErr ? (
           <img
             src={message.sender.avatarUrl}
@@ -923,6 +932,7 @@ export function ChatMessageBubble({
           {isFirst && (
             <span className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-1 ml-1 truncate max-w-full">
               {isAssistant ? <AssistantWordmark /> : senderName}
+              {integration && <span className="ml-1.5 rounded-md bg-[hsl(var(--muted))] px-1.5 py-0.5 text-[10px] font-medium text-[hsl(var(--muted-foreground))]">Integración</span>}
             </span>
           )}
 

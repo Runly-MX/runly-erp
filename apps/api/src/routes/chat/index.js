@@ -30,6 +30,8 @@ import { createChatExternalInboxService } from "./chat-external-inbox-service.js
 import { createChatModerationService, ChatModerationServiceError } from "./chat-moderation-service.js";
 import { createModerationRoutes } from "./moderation-routes.js";
 import { createChannelRoutes } from "./channel-routes.js";
+import { createChatIntegrationRoutes, createChatHookPublicRouter } from "./chat-integration-routes.js";
+import { createChatIntegrationsService } from "./chat-integrations-service.js";
 import { createExternalInboxRoutes } from "./external-inbox-routes.js";
 import { createTemplateRoutes } from "./template-routes.js";
 import { createMessageForwardRoutes } from "./message-forward-routes.js";
@@ -620,6 +622,10 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   // roles (Phase A foundation) — see channel-routes.js.
   internal.route("", createChannelRoutes({ prisma, requirePermission, chatService, channelDirectoryService, channelLinksService, permissionsService }));
 
+  // Channel integrations (incoming webhooks that post into a channel) — see chat-integration-routes.js.
+  const integrationsService = createChatIntegrationsService({ prisma, broadcaster });
+  internal.route("", createChatIntegrationRoutes({ prisma, requirePermission, permissionsService, integrationsService }));
+
   // PATCH /chat/availability
   internal.patch("/availability", requirePermission("chat.support.manage"), async (c) => {
     try {
@@ -1012,6 +1018,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   // Mount sub-routers
   app.route("/chat", internal);
   app.route("/public/chat", pub);
+  app.route("/public/chat-hooks", createChatHookPublicRouter({ integrationsService }));
   app.route("", mirai);
 
   return app;

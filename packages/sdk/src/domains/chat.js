@@ -91,6 +91,37 @@ export function createChatDomain(request, withAuthHeaders, toQueryString, reques
         body: JSON.stringify({}),
       }),
 
+    // Integrations that post into a channel through a secret webhook URL.
+    listChannelIntegrations: (conversationId, token) =>
+      request(`/chat/channels/${encodeURIComponent(conversationId)}/integrations`, { headers: withAuthHeaders(token) }),
+
+    createChannelIntegration: (conversationId, data, token) =>
+      request(`/chat/channels/${encodeURIComponent(conversationId)}/integrations`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify(data),
+      }),
+
+    updateChannelIntegration: (conversationId, integrationId, data, token) =>
+      request(`/chat/channels/${encodeURIComponent(conversationId)}/integrations/${encodeURIComponent(integrationId)}`, {
+        method: "PATCH",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify(data),
+      }),
+
+    rotateChannelIntegration: (conversationId, integrationId, token) =>
+      request(`/chat/channels/${encodeURIComponent(conversationId)}/integrations/${encodeURIComponent(integrationId)}/rotate`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({}),
+      }),
+
+    deleteChannelIntegration: (conversationId, integrationId, token) =>
+      request(`/chat/channels/${encodeURIComponent(conversationId)}/integrations/${encodeURIComponent(integrationId)}`, {
+        method: "DELETE",
+        headers: withAuthHeaders(token),
+      }),
+
     listChannelRoles: (conversationId, token) =>
       request(`/chat/conversations/${encodeURIComponent(conversationId)}/roles`, {
         headers: withAuthHeaders(token),

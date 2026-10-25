@@ -21,6 +21,7 @@ import { ARG_LABELS, argLabel } from "../../lib/argLabels";
 // What an argument is for, in one line (only where the name is not obvious).
 const ARG_HINTS = {
   userIds: "Las personas de la empresa que reciben el aviso.",
+  channel: "El nombre exacto del canal de chat (o su id). El mensaje aparece como una integración.",
   attendeeIds: "Las personas invitadas al evento.",
   title: "El título corto que verá la persona.",
   body: "El texto del mensaje.",

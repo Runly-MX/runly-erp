@@ -122,6 +122,11 @@ export const SERVICE_CONTRACTS = Object.freeze({
     args: { userIds: { type: 'uuid[]', max: 20 }, to: { type: 'email' }, subject: req(s(200)), body: req({ type: 'text', max: 5000 }), fileId: { type: 'uuid' }, sourceEntityId: SOURCE },
     returns: ['sent', 'failed'],
   },
+  'runly.chat:messages.post': {
+    label: 'Publicar mensajes en un canal de chat', permission: null, mutates: true, system: true,
+    args: { channel: req(s(120)), text: { type: 'text', max: 4000 }, title: s(200), link: s(500), sourceEntityId: SOURCE },
+    returns: ['id', 'conversationId', 'channel'],
+  },
   'runly.documents:documents.generate': {
     label: 'Generar documentos desde plantillas', permission: null, mutates: true, system: true,
     args: { kind: req(s(80)), templateId: { type: 'uuid' }, sourceId: { type: 'uuid' }, values: { type: 'json', max: 20000 }, output: { type: 'enum', values: ['native', 'pdf'] }, name: s(120), sourceEntityId: SOURCE },

@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/runly.chat/components/ConversationProfilePanel.jsx
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, ChevronDown, Sparkles } from "lucide-react";
+import { Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, ChevronDown, Sparkles, Plug } from "lucide-react";
 import {
   AdvancedFileViewer, AssistantWordmark, BackButton, Tabs, TabsList, TabsTrigger, TabsContent,
   Accordion, AccordionItem, AccordionTrigger, AccordionContent, cn,
@@ -13,6 +13,7 @@ import { ChannelDangerZoneTab } from "./ChannelDangerZoneTab";
 import { ConversationInfoTab } from "./ConversationInfoTab";
 import { ConversationMediaTab } from "./ConversationMediaTab";
 import { ChannelEventsTab } from "./ChannelEventsTab";
+import { ChannelIntegrationsTab } from "./ChannelIntegrationsTab";
 import { GroupsInCommonTab } from "./GroupsInCommonTab";
 import { NotificationsTab } from "./NotificationsTab";
 import { AvatarFace, ProfileAvatar } from "./profile/ProfileAvatar";
@@ -331,6 +332,12 @@ export function ConversationProfilePanel({
           <ChannelGeneralTab conversationId={conversationId} currentUserId={currentUserId} />
           <SectionHeader icon={CalendarDays} label="Eventos" />
           <ChannelEventsTab conversationId={conversationId} />
+          {type === "channel" && canManageChannel && (
+            <>
+              <SectionHeader icon={Plug} label="Integraciones" />
+              <ChannelIntegrationsTab conversationId={conversationId} />
+            </>
+          )}
           {media}
           <SectionHeader icon={Bell} label="Notificaciones" />
           <NotificationsTab conversationId={conversationId} isMuted={isMuted} />

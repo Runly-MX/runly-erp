@@ -19,6 +19,7 @@ import { createCalendarEventService } from '../../routes/calendar/calendar-event
 import { createCalendarEventEffects } from '../../routes/calendar/calendar-event-effects.js'
 import { createActionBackedServices } from './action-backed-services.js'
 import { createCommunicationHandlers } from './communication-services.js'
+import { createChatHandlers } from './chat-services.js'
 import { createWorkHandlers } from './work-services.js'
 import { createDocumentsHandlers } from './documents-services.js'
 
@@ -185,6 +186,7 @@ export function createServiceCatalog({ prisma, filesService = null, broadcaster 
   Object.assign(handlers, createActionBackedServices({ prisma, ServiceError: ModuleServiceError }).handlers)
   Object.assign(handlers, createDocumentsHandlers({ prisma, ServiceError: ModuleServiceError, hub: documentsHub }))
   Object.assign(handlers, createWorkHandlers({ prisma, ServiceError: ModuleServiceError, broadcaster }))
+  Object.assign(handlers, createChatHandlers({ prisma, ServiceError: ModuleServiceError, broadcaster }))
   Object.assign(handlers, createCommunicationHandlers({ prisma, ServiceError: ModuleServiceError, filesService, searchHandlers: handlers }))
 
   return Object.fromEntries(Object.entries(handlers).map(([key, handler]) => [key, { ...SERVICE_CONTRACTS[key], handler }]))

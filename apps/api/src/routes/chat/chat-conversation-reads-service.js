@@ -51,7 +51,7 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
           WHERE m.conversation_id = c.id
             AND m.deleted_at IS NULL
             AND m.thread_root_id IS NULL
-            AND m.sender_type != 'system'
+            AND (m.sender_type != 'system' OR m.metadata ? 'integration')
             AND m.sender_user_id IS DISTINCT FROM ${profileId}
             AND m.created_at > COALESCE(
               (SELECT last_read_at FROM chat_conversation_members
@@ -68,7 +68,7 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
           WHERE m.conversation_id = c.id
             AND m.deleted_at IS NULL
             AND m.thread_root_id IS NULL
-            AND m.sender_type != 'system'
+            AND (m.sender_type != 'system' OR m.metadata ? 'integration')
             AND m.sender_user_id IS DISTINCT FROM ${profileId}
             AND m.created_at > COALESCE(
               (SELECT last_read_at FROM chat_conversation_members

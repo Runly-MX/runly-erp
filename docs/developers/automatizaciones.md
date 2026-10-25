@@ -142,6 +142,20 @@ Para mandar el reporte por correo, pon primero el bloque de reporte y en el corr
 
 El CSV lleva marca de orden de bytes para que Excel respete los acentos, y las celdas que parecen fórmulas se neutralizan.
 
+## Publicar en un canal de chat
+
+El bloque **Publicar mensajes en un canal de chat** (`runly.chat:messages.post`) envía un mensaje a un canal de la empresa: *Canal* es el nombre exacto del canal (o su id), *Mensaje* acepta datos con `{{campo}}`, y *Título* y *Enlace* son opcionales. El mensaje aparece con la insignia **Integración** y el nombre del módulo que lo envía; no es una persona, no aparece en listas de usuarios y **no dispara automatizaciones** (así no hay ciclos). Hay un límite de 30 mensajes por minuto por canal.
+
+Para sistemas externos, los administradores de un canal crean una **integración** en la información del canal (*Integraciones*): Runly entrega una dirección secreta que se muestra una sola vez y se puede regenerar, desactivar o eliminar.
+
+```bash
+curl -X POST "https://tu-instancia/public/chat-hooks/<token-secreto>"   -H "Content-Type: application/json"   -d '{"title":"Deploy listo","text":"Versión 1.2 en producción","fields":[{"label":"Rama","value":"main"}],"link":"https://ejemplo.com/r/12"}'
+```
+
+- Cuerpo JSON de hasta 32 KB: `text` (hasta 4000 caracteres), `title`, `link` (`https`/`http` o una ruta de Runly) y hasta 10 `fields` con `label` y `value`. Debe haber al menos uno de texto, título o campos.
+- Respuestas: `201` publicado; `400` si el JSON no es válido o el mensaje queda vacío; `404` si la dirección no existe, está desactivada o el canal está archivado; `413` si supera 32 KB; `429` si pasa de 30 mensajes por minuto.
+- La dirección es la llave: trátala como una contraseña y regenérala si se filtra.
+
 ## Recibir datos de otro sistema (webhook)
 
 Una automatización de la empresa puede empezar cuando **otro sistema te envía un mensaje**. En el lienzo elige el disparador «Cuando otro sistema me envía datos»; al guardar, Runly le asigna una **URL secreta**:
