@@ -500,6 +500,17 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/modules/${encodeURIComponent(key)}/backups`, {
           headers: withAuthHeaders(token),
         }),
+      // Run log of the module's Builder automations (core.modules.manage).
+      automationRuns: (key, { automation, status, limit } = {}, token) => {
+        const params = new URLSearchParams();
+        if (automation) params.set("automation", automation);
+        if (status) params.set("status", status);
+        if (limit) params.set("limit", String(limit));
+        const query = params.toString();
+        return request(`/modules/${encodeURIComponent(key)}/automation-runs${query ? `?${query}` : ""}`, {
+          headers: withAuthHeaders(token),
+        });
+      },
       archivedFields: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/archived-fields`, {
           headers: withAuthHeaders(token),

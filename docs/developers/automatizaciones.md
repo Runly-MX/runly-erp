@@ -14,9 +14,9 @@ En el Constructor, pestaña **Automatizaciones** > *Nueva automatización*:
 1. **Cuándo**
    - *Cuando se guarda un registro de este módulo*: elige la entidad y el momento (*Al crear*, *Al actualizar* o *Al crear o actualizar*).
    - *Cuando pasa algo en otro módulo*: elige el evento (por ejemplo, «Se actualizó un vehículo de la flota»).
-2. **Solo si** (opcional): un campo del registro o un dato del evento y una condición: *Es igual a* un valor, *Tiene valor* o *Cambió* (solo al actualizar).
-3. **Qué hacer**: la acción en el otro módulo (crear un evento de calendario, enviar una notificación, crear o actualizar un contacto, registrar un movimiento…).
-4. **Datos que se envían**: para cada dato de la acción, de dónde sale su valor.
+2. **Solo si** (opcional): hasta 5 condiciones sobre un campo del registro o un dato del evento; deben cumplirse **todas**. Operadores: *Es igual a*, *Es distinto de*, *Contiene* (texto, sin distinguir mayúsculas), *Es mayor que*, *Es menor que*, *Tiene valor* y *Cambió* (solo al actualizar).
+3. **Qué hacer**: una o más acciones (hasta 5 pasos) en otros módulos (crear un evento de calendario, enviar una notificación, crear o actualizar un contacto, registrar un movimiento…). Los pasos corren **en orden**. Con *Si un paso falla, seguir con los siguientes* activado, un fallo no detiene los pasos que siguen; sin él (por defecto), los pasos restantes se omiten.
+4. **Datos que se envían**: para cada dato de cada acción, de dónde sale su valor.
 
 | Origen | Qué envía |
 |---|---|
@@ -26,7 +26,7 @@ En el Constructor, pestaña **Automatizaciones** > *Nueva automatización*:
 | Id del registro | El id del registro guardado (o el del registro del sistema, en un evento). |
 | Usuario que guarda | La persona que guardó el registro (por ejemplo, como destinatario de una notificación). Solo al guardar un registro. |
 
-Los datos marcados *Obligatorio* deben tener origen. Runly agrega solo el origen (`sourceEntityId`, para que el evento o la notificación sepan de qué registro vienen) y la protección contra duplicados.
+Los datos de un paso solo pueden venir del registro o evento que dispara la automatización, no del resultado de un paso anterior. Los datos marcados *Obligatorio* deben tener origen. Runly agrega solo el origen (`sourceEntityId`, para que el evento o la notificación sepan de qué registro vienen) y la protección contra duplicados.
 
 ## Qué pasa al guardar
 
@@ -37,7 +37,7 @@ Los datos marcados *Obligatorio* deben tener origen. Runly agrega solo el origen
 ```
 
 - Corre con los permisos de **la persona que guarda**: si no puede crear eventos en el Calendario, la automatización tampoco.
-- Al crear, la misma automatización no se repite para el mismo registro aunque la petición se reintente.
+- Al crear, la misma automatización no se repite para el mismo registro aunque la petición se reintente. Cada paso tiene su propia protección contra duplicados, así que un evento reintentado no repite los pasos que ya salieron bien.
 
 ## Automatizaciones por eventos del sistema
 
@@ -51,6 +51,14 @@ Corren en segundo plano unos segundos después del cambio, **sin una persona**. 
 | Se creó / actualizó / canceló un evento de calendario | `id`, `title`, `startAt`, `sourceModule`, `sourceEntityId` |
 | Se subió un archivo a Archivos | `id`, `name`, `mimeType` |
 | Se creó / actualizó un vehículo de la flota | `id`, `plate`, `status` |
+| Se completó una tarea de proyecto | `id`, `projectId`, `title` |
+| Se creó un colaborador | `id`, `firstName`, `lastName` |
+| Se aprobó / emitió una orden de compra | `id`, `caseId`, `status` |
+| Una persona completó un curso | `id`, `courseId`, `learnerId` |
+
+## Historial de ejecuciones
+
+Cada vez que corre una automatización (al guardar un registro o por un evento) queda una fila en el **Historial** de la pestaña, una vez publicado el módulo: resultado (*Correcta*, *Parcial* si algún paso falló y otro salió bien, *Falló*), momento, duración, el error y el resultado de cada paso (ok, falló u omitido). Se puede filtrar por automatización y resultado, y se conservan 90 días. Consultarlo requiere poder administrar módulos. Por API: `GET /modules/:key/automation-runs?automation=&status=&limit=`.
 
 ## Autorización al publicar
 
@@ -65,4 +73,6 @@ Al quitar una automatización y volver a publicar, se retira la autorización de
 
 El Constructor genera `api/automations.js` (las automatizaciones y su lógica), `api/events.js` (si hay automatizaciones por eventos) y agrega `consumes` y `events.subscribes` al manifiesto. No los edites a mano: se reescriben al publicar. En [modo desarrollador](/documentacion/desarrolladores/flujo-zip) el módulo ya es código: usa los servicios directamente.
 
-Límites: hasta 20 automatizaciones por módulo y una acción por automatización.
+Formato en la definición (`automations`): `trigger.when` es una condición o una lista de condiciones; `steps` es la lista de acciones (`{ service, args }`) y `onError` es `"stop"` (por defecto) o `"continue"`. El formato anterior con una sola `action` se sigue aceptando y se trata como un paso. No se puede usar `action` y `steps` a la vez.
+
+Límites: hasta 20 automatizaciones por módulo, 5 pasos por automatización y 5 condiciones por disparador.

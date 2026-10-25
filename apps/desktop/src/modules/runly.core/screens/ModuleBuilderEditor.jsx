@@ -396,7 +396,7 @@ export default function ModuleBuilderEditor() {
             <ConnectionsTab definition={definition} onChange={patchDefinition} readOnly={Boolean(project.detachedAt)} />
           </TabsContent>
           <TabsContent value="automations">
-            <AutomationsTab definition={definition} onChange={patchDefinition} readOnly={Boolean(project.detachedAt)} />
+            <AutomationsTab definition={definition} onChange={patchDefinition} readOnly={Boolean(project.detachedAt)} published={summary.published} />
           </TabsContent>
         </Tabs>
       </div>
