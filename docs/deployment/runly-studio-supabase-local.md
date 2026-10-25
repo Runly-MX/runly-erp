@@ -154,19 +154,82 @@ en `infra/installer/supabase/supabase/`, sin archivos ni datos y sin seguimiento
 Git. No se intentó borrar por otra vía. Los contenedores, redes y volúmenes de
 prueba sí se eliminaron con Compose, comprobado al terminar.
 
+## Colaboración y Recursos verificados localmente
+
+La migración forward `20261203000000_studio_collaboration` se aplicó únicamente
+en proyectos Compose nuevos y desechables: ahora son 216 migraciones. No se
+modificaron archivos históricos ni registros de `_prisma_migrations`.
+La carpeta de esa nueva migración fija `migration.sql` a LF mediante atributos
+Git locales; evita que un checkout Windows cambie sus bytes. No normaliza ni
+reescribe migraciones anteriores.
+
+`node scripts/verify-studio-supabase.mjs` ejecuta la vertical previa, colaboración
+y Recursos con Auth, PostgreSQL, Realtime, Storage, REST, Kong y API reales.
+`--collaboration-only` omite solamente la vertical previa para diagnóstico; sigue
+comprobando colaboración y Recursos. No intercepta Auth, Storage ni Realtime.
+
+La evidencia cubre dos participantes reales y un tercero de otra empresa:
+compartir desde la UI, VIEWER/EDITOR, presencia con nombres/avatares autorizados,
+cursores con zoom distinto, selección remota, cambios confirmados por WebSocket,
+409 y conservación del borrador, guardado como copia, desconexión/reconexión,
+dos sesiones separadas y eliminación de presencia al cerrar el editor.
+
+Se mantiene un socket admitido antes de revocar; tras la revocación recibe cero
+eventos nuevos. Se rechazan unirse al topic nuevo, lectura, edición, firmas de
+originales y acceso heredado de una copia. Otro usuario de otra empresa no puede
+suscribirse. Un broadcast falsificado puede recibir acuse `ok` del transporte,
+pero la política impide su entrega y no modifica la revisión persistida.
+Membresía inactiva, diseño/módulo deshabilitados y override empresarial también
+deniegan acceso. Las firmas del diseño duran 60 s; una firma anterior no se
+revoca físicamente antes de su expiración.
+
+Recursos se verifica desde UI: búsqueda, miniaturas lazy, preview, inserción,
+guardado y PNG. SQL demuestra que no se creó otro FileAsset y Storage conserva
+exactamente los bytes originales. La miniatura es de hasta 256 px. Se comprueban
+permisos y empresa en listado/miniaturas; revocar permiso o deshabilitar el
+archivo deniega incluso después de llenar la caché.
+
+La regresión ampliada reúne 1300 pruebas: 1299 aprobadas, cero fallos y una
+omitida (Files workspace SQL requiere su propia base `files_test`; no se le
+entregó la base habitual). Files sí se comprueba además mediante el E2E real
+de esta entrega. Pasan renderer Chrome, roundtrip, historial, imágenes y PNG;
+el build conserva Studio/Fabric en chunk lazy, separado de los 12 iniciales.
+ESLint pasa. React Doctor: 86/100, diez warnings sin errores; cinco de Studio
+(complejidad de dos componentes y dos awaits de bloqueo/autorización que deben
+ser secuenciales, más la autorización secuencial de imágenes del clipboard para
+evitar ráfagas sin límite) y cinco concurrentes de Chat. Dos tests dirigidos
+adicionales pasan: aislamiento/expiración/límites del clipboard y rechazo SDK
+de una miniatura si cambia la empresa durante su descarga.
+
+El E2E también copia una imagen entre diseños mediante la UI, verifica un ID de
+objeto nuevo, el mismo FileAsset, undo/redo, persistencia y ausencia de firmas.
+Deshabilitar el original hace que pegar falle sin cambiar la escena. El clipboard
+es una selección en memoria, limitada a 1 MB y diez minutos por empresa/usuario;
+recargar lo descarta. Nuevas imágenes del destino requieren permiso independiente
+en Files; el acceso privado de otro diseño no se transfiere mediante clipboard.
+
+El check global de privacidad mantiene 64 hallazgos preexistentes/concurrentes;
+no se modificaron allowlists. Las configuraciones, secretos sintéticos, capturas,
+PNG, logs y `result.json` permanecen en `.artifacts/studio/`, fuera de Git.
+La inspección individual de los 35 archivos de esta entrega no tiene hallazgos.
+Los contenedores, volúmenes y redes de los proyectos desechables se eliminaron
+al finalizar; la imagen API de prueba permanece únicamente en Docker local.
+
+Implementación en main: `b98dbd0a`; protección de finales de línea: `b6996e20`.
+Se preservó el trabajo concurrente de Chat, sin publicarlo como parte de Studio.
+
 ## Límites y siguiente desarrollo local
 
-Sin colaboración simultánea ni CRDT propio. El borrador no es un respaldo en
+La colaboración confirma revisiones; no hay edición de texto libre de conflictos
+ni CRDT propio. El borrador no es un respaldo en
 servidor, puede desaparecer si se limpia el navegador y no contiene los bytes
 de archivos; requiere acceso vigente a los originales. El historial no persiste
-entre sesiones, el clipboard de objetos no es el clipboard del sistema ni cruza
-documentos y la revisión del servidor muestra resumen, no un diff gráfico.
+entre sesiones, el clipboard de objetos es interno a la aplicación y no cruza
+pestañas ni recargas; la revisión del servidor muestra resumen, no un diff gráfico.
 
-Para colaboración: definir colaboradores/ACL por diseño y acceso compartido a
-originales, reutilizar autorización/revocación de Realtime, probar presencia,
-reconexión y cambios concurrentes antes de activar propagación. Para biblioteca:
-selector de assets Files con ámbito, búsqueda/miniaturas, deduplicación y cuotas;
-catálogo de plantillas con versiones y licencias. Ambos trabajos pueden continuar
+Se puede continuar con tamaños personalizados, pan/centrado, alineación, JPG y
+catálogo de plantillas con versiones y licencias. Los proveedores externos siguen
+inactivos; su contrato se documenta en la arquitectura. Todo puede comprobarse
 en este Supabase local, sin VPS ni datos de la instalación habitual.
 
 Una sesión concurrente incluyó los archivos nuevos de soporte Studio en

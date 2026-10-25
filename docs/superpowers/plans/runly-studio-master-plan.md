@@ -59,17 +59,18 @@ Orden de autoridad dentro de este plan: consolidación aceptada > ampliación > 
 - [x] Validación local con Auth/Storage reales, API y frontend en Compose desechable; login, RBAC, Files y PNG sin interceptores.
 - [x] Recuperación de 409 con borrador por identidad/empresa/diseño, revisión del servidor y guardado como copia; desconexión y recarga.
 - [x] Historial limitado, undo/redo y atajos; duplicar/copiar/pegar, orden, bloqueo y visibilidad con contrato v2 compatible con v1.
-- [ ] Compartidos: modelo de colaboradores, permisos por documento y acceso de colaboradores a originales.
-- [ ] Realtime: autorizar canales desde API, revalidación/revocación y propagación sin sobrescribir cambios locales.
-- [ ] Pruebas de dos usuarios: cursores, presencia, cambios distintos, conflicto, reconexión y revocación.
+- [x] Compartidos: modelo de colaboradores, permisos por documento y acceso de colaboradores a originales.
+- [x] Realtime: autorizar canales desde API, revalidación/revocación y propagación sin sobrescribir cambios locales.
+- [x] Pruebas de dos usuarios: cursores, presencia, cambios distintos, conflicto, reconexión y revocación.
+- [x] Clipboard interno entre diseños del mismo usuario/empresa, IDs nuevos, revalidación Files y undo/redo; probado con Supabase real.
 - [ ] Completar MVP: tamaños personalizados, pan/centrado, alineación y JPG; clipboard entre documentos, agrupación y capas independientes.
 - [ ] Bloqueo común de navegación del shell ante cambios pendientes.
 
 ### Fase 3: biblioteca y catálogo
 
-- [ ] Contratos de proveedores internos y externos; licencias y términos actuales antes de cada integración.
+- [x] Biblioteca interna Files y contrato futuro de proveedores documentado; adaptadores externos inactivos hasta verificar términos/licencias.
 - [ ] Plantillas sistema/empresa/usuario, aplicación no destructiva y versiones con propietario definido.
-- [ ] Búsqueda paginada, filtros, debounce, miniaturas separadas, caché con cuotas/evicción y deduplicación.
+- [x] Files: búsqueda paginada, filtros, debounce, miniaturas separadas, caché con cuotas/evicción y reutilización por FileAsset.id. El catálogo externo sigue pendiente.
 - [ ] Importación segura, atribución en exportaciones y fallos de proveedor probados.
 
 ### Fase 4: capacidades profesionales

@@ -34,6 +34,82 @@ El PNG actual se genera en navegador. Las pruebas también se ejecutan en Chrome
 
 ## Integraciones futuras y propiedad de datos
 
+### Colaboración privada y Files
+
+La migración forward `20261203000000_studio_collaboration` agrega colaboradores
+VIEWER/EDITOR, referencias de FileAsset por diseño y presencia con sesiones
+independientes. Solo el propietario administra colaboradores de su empresa.
+`runly_studio.can_access` comprueba membresía, módulo global y empresarial,
+permisos efectivos, rol, estado y cada imagen. Las tablas no tienen acceso
+directo desde anon/authenticated ni exposición REST en el esquema privado.
+
+El acceso a un original compartido es una capacidad del diseño; no amplía la
+visibilidad genérica de Files. Las firmas duran 60 segundos. Revocar impide
+emitir firmas nuevas; las ya emitidas sobreviven hasta expirar. El JSON sigue
+siendo v2 y contiene IDs, nunca firmas. Guardar una copia registra la procedencia
+de imágenes heredadas: revocar el origen también deniega esa capacidad en la
+copia. No convierte un original privado en un recurso independiente del lector.
+
+Realtime usa canales privados `studio:design:<id>@<authorizationRevision>`.
+Reutiliza la revisión global y el broadcaster autorizado de Runly. Cambiar ACL,
+membresía, permisos, módulos o estado de archivo/diseño rota la autorización;
+los sockets anteriores no reciben eventos posteriores. Las mutaciones bloquean
+primero la revisión y después el diseño; el broadcaster serializa contra ese
+mismo punto. Estos awaits son deliberadamente secuenciales.
+
+Los clientes no publican operaciones de edición. La API confirma una escritura
+optimista y emite únicamente ID/revisión. El receptor recupera el JSON mediante
+API autenticada, ignora revisiones antiguas/duplicadas y conserva borradores
+sucios. Reconectar reconcilia el estado actual. No hay CRDT ni edición de un
+mismo texto libre de conflictos. Presence valida identidad en servidor, admite
+hasta ocho sesiones por usuario/diseño, limita escrituras a una por 180 ms y
+expira participantes a los 15 segundos. Los cursores usan coordenadas de documento.
+
+El panel Recursos reutiliza `filesService.list/getById`, con empresa/contexto
+calculados en servidor. Lista 24 imágenes PNG/JPG/WebP por página sin firmas,
+filtra antes de paginar y busca con debounce de 300 ms. Cada miniatura autentica
+incluso un acierto de caché; Sharp limita a 25 MP y genera hasta 256 px sin cambiar
+el original. La caché del proceso usa empresa/usuario/archivo/fecha, TTL de 20 s,
+64 entradas y 16 MB; dos generaciones concurrentes, sin cola ilimitada. El cliente
+limita descargas a dos, observa el viewport y libera object URLs al desmontar.
+Insertar reutiliza FileAsset.id; previsualización, lienzo y PNG utilizan el
+original autorizado. No existe un segundo almacén ni deduplicación por nombre.
+
+### Contrato futuro de proveedores, aún inactivo
+
+Un adaptador pequeño podrá ofrecer `search({ query, cursor, limit, signal })`,
+`resolve({ providerId, assetId, variant, signal })` e
+`import({ resolved, companyId, actorId, rightsAcknowledgement })`.
+Search devuelve referencias y metadatos, no una escena ni credenciales. Resolve
+debe incluir `mediaType`, dimensiones, licencia con versión/URL, autor,
+atribución requerida y derechos de descarga, almacenamiento, redistribución y
+uso comercial. Import revalida permisos/derechos, tipo/tamaño y procedencia en
+servidor, usa Files y devuelve FileAsset.id; nunca persiste URL externa firmada
+en Studio. Fallos/expiración/cancelación son explícitos y paginados.
+
+Iconify, Tabler, Openverse, Google Fonts y fotografía permanecen desactivados.
+No se supone una licencia uniforme: hay que verificar términos del proveedor y
+del recurso antes de habilitar cada integración, decidir conservación de
+atribución y demostrar su presencia donde corresponda en exportación. Esta
+entrega no descarga recursos ni consulta proveedores externos.
+
+### Clipboard interno entre diseños
+
+El clipboard conserva una única selección canónica en memoria por empresa/usuario,
+sin bytes, URLs ni credenciales. Expira a los diez minutos, se elimina al detectar
+otro ámbito y limita a 1 MB de strings UTF-16 y los 500 objetos del contrato.
+Sobrevive a navegar entre diseños dentro de la aplicación; recargar la página lo
+descarta. Pegar crea IDs de objeto nuevos, valida v1/v2, conserva geometría/texto/
+estilos compatibles y constituye un único paso de undo/redo. La escena actual no
+se sustituye si falla una imagen o la validación.
+
+Una imagen ya referenciada por el destino usa su capacidad de diseño. Para una
+imagen nueva en el destino se exige acceso independiente en Files; el permiso
+de lectura sobre un diseño ajeno no transfiere su capacidad privada mediante
+clipboard. Se rechaza el pegado si falta ese permiso o desapareció el original;
+guardar vuelve a autorizar en servidor. No interactúa con clipboard del sistema
+ni promete conservar selecciones entre pestañas.
+
 Documents conserva versiones de plantillas documentales y GeneratedDocument. Studio conserva versiones de su esquema gráfico y revisiones de edición. Una futura generación debe entregar FileAsset + información de exportación al hub, evitando duplicar las versiones de una misma plantilla en ambos sistemas.
 
 El certificado local contiene únicamente texto de ejemplo. No obtiene datos empresariales ni emite certificados oficiales LMS.
