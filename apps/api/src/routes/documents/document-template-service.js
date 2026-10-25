@@ -118,6 +118,8 @@ export function createDocumentTemplateService({
     const parsed = documentTemplateQuerySchema.parse(query);
     const where = {
       companyId,
+      // File templates (docx/xlsx/pptx/pdf) are listed by /documents/templates?kind=.
+      format: "blocks",
       enabled: parsed.enabled,
       ...(parsed.sourceType ? { sourceType: parsed.sourceType } : {}),
       ...(parsed.search

@@ -108,6 +108,7 @@ import { createActivityRouter } from "./routes/activity.js";
 import { createNotificationsRouter } from "./routes/notifications.js";
 import { createGrowthRouter } from "./routes/growth/growth-router.js";
 import { createDocumentsRouter } from "./routes/documents/documents-router.js";
+import { createDocumentsHub } from "./routes/documents/documents-hub.js";
 import { createSyncRouter } from "./routes/sync.js";
 import { createPwaRouter } from "./routes/pwa.js";
 import { createChatRouter } from "./routes/chat/index.js";
@@ -797,6 +798,8 @@ async function resolveCanvasEntityLink({ authUserId, companyId, moduleKey, entit
 }
 
 const moduleServices = createModuleServices({ prisma, filesService, broadcaster });
+// Documents engine (kinds, templates, generate) shared with modules without HTTP.
+const documentsHub = createDocumentsHub({ prisma, supabaseAdmin });
 const routeLoader = createRouteLoaderService({
   prisma,
   authMiddleware,
@@ -2505,7 +2508,7 @@ mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission, supaba
 mountWithAuth(app, createGrowthRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService) }));
 mountWithAuth(
   app,
-  createDocumentsRouter({ prisma, supabaseAdmin, requirePermission }),
+  createDocumentsRouter({ prisma, supabaseAdmin, requirePermission, requireActiveCompany, hub: documentsHub }),
 );
 mountWithAuth(app, createSyncRouter({ prisma, getUserContext: getOrLoadUserContext, resolveTenantContext }));
 mountWithAuth(

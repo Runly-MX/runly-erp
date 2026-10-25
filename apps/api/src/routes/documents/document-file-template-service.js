@@ -317,6 +317,12 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
     return out;
   }
 
+  // { kind, format } of any template (blocks included), null when missing.
+  async function describe({ companyId, templateId }) {
+    const row = await prisma.documentTemplate.findFirst({ where: { id: templateId, companyId } });
+    return row ? { kind: row.kind, format: row.format } : null;
+  }
+
   async function remove({ companyId, templateId }) {
     await findTemplate(companyId, templateId);
     await prisma.documentTemplate.update({ where: { id: templateId }, data: { enabled: false, isDefault: false } });
@@ -332,5 +338,5 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
     return { url, expiresIn, fileName: asset.originalName };
   }
 
-  return { upload, createBlank, replaceVersionFile, suggest, saveMapping, publishVersion, setDefault, list, remove, fileUrl };
+  return { upload, createBlank, replaceVersionFile, suggest, saveMapping, publishVersion, setDefault, list, describe, remove, fileUrl };
 }
