@@ -511,6 +511,14 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
         });
       },
+      // Automations of the company that are not tied to a module (core.modules.manage).
+      systemAutomations: (token) => request("/automations", { headers: withAuthHeaders(token) }),
+      createSystemAutomation: (input, token) =>
+        request("/automations", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(input) }),
+      saveSystemAutomation: (key, input, token) =>
+        request(`/automations/${encodeURIComponent(key)}`, { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify(input) }),
+      deleteSystemAutomation: (key, token) =>
+        request(`/automations/${encodeURIComponent(key)}`, { method: "DELETE", headers: withAuthHeaders(token) }),
       // Automations: people for approver pickers, HTTP destinations, approvals inbox.
       builderPeople: (token) => request("/module-builder/people", { headers: withAuthHeaders(token) }),
       automationHttpHosts: (token) => request("/module-builder/automation-http-hosts", { headers: withAuthHeaders(token) }),

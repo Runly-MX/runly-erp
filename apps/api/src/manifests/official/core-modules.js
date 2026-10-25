@@ -50,6 +50,13 @@ export const runlyCoreMap = createModuleManifest({
       permissionKey: "core.modules.builder",
     },
     {
+      label: "Automatizaciones",
+      path: "/automations",
+      icon: "Zap",
+      layout: "main",
+      permissionKey: "core.modules.manage",
+    },
+    {
       label: "Configuracion",
       path: "/settings",
       icon: "Settings",

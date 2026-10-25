@@ -13,6 +13,7 @@ import { createAutomationApprovalsService } from "./automation-approvals-service
 import { createAutomationHttpService } from "./automation-http-service.js";
 import { createNotificationService } from "./notification-service.js";
 import { nextOccurrence } from "./automation-schedule-math.js";
+import { createSystemAutomationsService, SYSTEM_MODULE_KEY } from "./system-automations-service.js";
 
 const DEFAULT_TIME_ZONE = "America/Mexico_City";
 const JOB_BATCH = 20;
@@ -26,6 +27,7 @@ export function createAutomationWorker({ prisma, resolveModulesDir, moduleServic
   const approvalsService = approvals ?? createAutomationApprovalsService({ prisma, notifications: createNotificationService({ prisma }), now });
   const http = httpService ?? createAutomationHttpService({ prisma });
   const runtimeCache = new Map();
+  const systemAutomations = createSystemAutomationsService({ prisma, moduleServices, now });
 
   async function defaultImport(moduleKey) {
     const dir = await resolveModulesDir();
@@ -61,6 +63,16 @@ export function createAutomationWorker({ prisma, resolveModulesDir, moduleServic
   }
 
   async function runJob(job) {
+    if (job.moduleKey === SYSTEM_MODULE_KEY) {
+      try {
+        await systemAutomations.resume({ job });
+        await jobs.complete(job.id);
+        return "done";
+      } catch (error) {
+        const final = await jobs.fail(job, error?.message ?? error);
+        return final ? "failed" : "retry";
+      }
+    }
     if (!(await moduleState(job.moduleKey, job.companyId))) {
       const waited = now().getTime() - new Date(job.runAt).getTime();
       await jobs.fail(job, "El módulo o la empresa están desactivados.", { permanent: waited > DISABLED_GRACE_MS });
@@ -95,9 +107,11 @@ export function createAutomationWorker({ prisma, resolveModulesDir, moduleServic
     const zone = await timeZone();
     const modules = await prisma.runlyModule.findMany({ where: { status: "INSTALLED", enabled: true }, select: { key: true, manifest: true } });
     const wanted = modules.flatMap((mod) => (Array.isArray(mod.manifest?.schedules) ? mod.manifest.schedules.map((schedule) => ({ moduleKey: mod.key, schedule })) : []));
+    const systemWanted = await systemAutomations.listSchedules();
     const existing = await prisma.automationSchedule.findMany({ select: { companyId: true, moduleKey: true, automationKey: true } });
     const known = new Set(existing.map((row) => `${row.companyId}|${row.moduleKey}|${row.automationKey}`));
     const companies = wanted.length ? await prisma.company.findMany({ select: { id: true } }) : [];
+    const systemCreated = [];
     const created = [];
     for (const { moduleKey, schedule } of wanted) {
       for (const company of companies) {
@@ -105,9 +119,14 @@ export function createAutomationWorker({ prisma, resolveModulesDir, moduleServic
         created.push({ companyId: company.id, moduleKey, automationKey: schedule.key, nextRunAt: nextOccurrence(schedule, now(), zone) });
       }
     }
-    if (created.length) await prisma.automationSchedule.createMany({ data: created, skipDuplicates: true });
+    for (const { companyId, schedule } of systemWanted) {
+      if (known.has(`${companyId}|${SYSTEM_MODULE_KEY}|${schedule.key}`)) continue;
+      systemCreated.push({ companyId, moduleKey: SYSTEM_MODULE_KEY, automationKey: schedule.key, nextRunAt: nextOccurrence(schedule, now(), zone) });
+    }
+    if (created.length || systemCreated.length) await prisma.automationSchedule.createMany({ data: [...created, ...systemCreated], skipDuplicates: true });
     const live = new Set(wanted.map(({ moduleKey, schedule }) => `${moduleKey}|${schedule.key}`));
-    const stale = existing.filter((row) => !live.has(`${row.moduleKey}|${row.automationKey}`));
+    const liveSystem = new Set(systemWanted.map(({ companyId, schedule }) => `${companyId}|${schedule.key}`));
+    const stale = existing.filter((row) => (row.moduleKey === SYSTEM_MODULE_KEY ? !liveSystem.has(`${row.companyId}|${row.automationKey}`) : !live.has(`${row.moduleKey}|${row.automationKey}`)));
     for (const row of stale) {
       await prisma.automationSchedule.deleteMany({ where: { companyId: row.companyId, moduleKey: row.moduleKey, automationKey: row.automationKey } });
     }
@@ -123,7 +142,10 @@ export function createAutomationWorker({ prisma, resolveModulesDir, moduleServic
     const due = await prisma.automationSchedule.findMany({ where: { nextRunAt: { lte: now() } }, orderBy: { nextRunAt: "asc" }, take: SCHEDULE_BATCH });
     const summary = { fired: 0, failed: 0, skipped: 0 };
     for (const row of due) {
-      const schedule = modules.find((mod) => mod.key === row.moduleKey)?.manifest?.schedules?.find((item) => item.key === row.automationKey);
+      const isSystem = row.moduleKey === SYSTEM_MODULE_KEY;
+      const schedule = isSystem
+        ? await systemAutomations.scheduleOf({ companyId: row.companyId, key: row.automationKey })
+        : modules.find((mod) => mod.key === row.moduleKey)?.manifest?.schedules?.find((item) => item.key === row.automationKey);
       const occurrence = row.nextRunAt;
       const next = schedule ? nextOccurrence(schedule, now(), zone) : new Date(now().getTime() + 86_400_000);
       const claimed = await prisma.automationSchedule.updateMany({
@@ -131,8 +153,14 @@ export function createAutomationWorker({ prisma, resolveModulesDir, moduleServic
         where: { companyId: row.companyId, moduleKey: row.moduleKey, automationKey: row.automationKey, nextRunAt: { lte: now() } },
         data: { nextRunAt: next, lastRunAt: now() },
       });
-      if (!claimed.count || !schedule || !(await moduleState(row.moduleKey, row.companyId))) { summary.skipped += 1; continue; }
+      if (!claimed.count || !schedule || (!isSystem && !(await moduleState(row.moduleKey, row.companyId)))) { summary.skipped += 1; continue; }
       try {
+        if (isSystem) {
+          await systemAutomations.runSchedule({ companyId: row.companyId, key: row.automationKey, occurrence: occurrence.toISOString() });
+          summary.fired += 1;
+          await prisma.automationSchedule.updateMany({ where: { companyId: row.companyId, moduleKey: row.moduleKey, automationKey: row.automationKey }, data: { lastError: null } });
+          continue;
+        }
         const runtime = await loadRuntime(row.moduleKey);
         if (typeof runtime?.runScheduled !== "function") throw new Error("Vuelve a publicar el módulo para que sus horarios funcionen.");
         await runtime.runScheduled({ key: row.automationKey, companyId: row.companyId, occurrence: occurrence.toISOString(), prisma, ...bind(row.moduleKey, row.companyId) });

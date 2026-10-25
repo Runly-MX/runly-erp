@@ -343,3 +343,17 @@ export function toRuntimeSteps(automation) {
     }
   })
 }
+
+// Automations of a company (not tied to a module): triggered by a system event or a
+// schedule, never by a record, and without entities. Spec
+// docs/superpowers/specs/2026-10-25-system-automations-design.md.
+export function validateSystemAutomation(automation) {
+  const errors = []
+  const type = automation?.trigger?.type
+  if (type !== 'event' && type !== 'schedule') {
+    errors.push(diagnostic('automations[0].trigger.type', 'AUTOMATION_TRIGGER_INVALID', 'Automations of the company react to a system event or run on a schedule.'))
+    return errors
+  }
+  validateDefinitionAutomations({ entities: [], automations: [automation] }, errors)
+  return errors
+}

@@ -60,6 +60,7 @@ function workerPrisma({ schedules = [], manifestSchedules = [] } = {}) {
     },
     companyModule: { findFirst: async () => null },
     automationApproval: { findMany: async () => [] },
+    systemAutomation: { findMany: async () => [], findUnique: async () => null },
     company: { findMany: async () => [{ id: 'c1' }] },
     automationJob: { update: async ({ where, data }) => { state.jobUpdates.push({ id: where.id, ...data }) } },
     automationSchedule: {

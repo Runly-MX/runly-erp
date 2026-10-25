@@ -17,6 +17,7 @@ import { pathToFileURL } from 'node:url'
 import { createAutomationRunsService } from '../automation-runs-service.js'
 import { createAutomationJobsService } from '../automation-jobs-service.js'
 import { createAutomationApprovalsService } from '../automation-approvals-service.js'
+import { createSystemAutomationsService } from '../system-automations-service.js'
 import { createAutomationHttpService } from '../automation-http-service.js'
 import { createNotificationService } from '../notification-service.js'
 
@@ -37,6 +38,7 @@ export function createDomainEventDispatcher({ prisma, resolveModulesDir, importH
   const automationJobs = createAutomationJobsService({ prisma })
   const automationApprovals = createAutomationApprovalsService({ prisma, notifications: createNotificationService({ prisma }) })
   const automationHttp = createAutomationHttpService({ prisma })
+  const systemAutomations = moduleServices ? createSystemAutomationsService({ prisma, moduleServices }) : null
 
   async function defaultImport(moduleKey) {
     const dir = await resolveModulesDir()
@@ -65,6 +67,8 @@ export function createDomainEventDispatcher({ prisma, resolveModulesDir, importH
       const http = (request) => automationHttp.send({ companyId: row.companyId, moduleKey: mod.key, request })
       await handler({ event: row.event, payload: row.payload, companyId: row.companyId, eventId: row.id, prisma, services, log, enqueue, approve, http })
     }
+    // Automations of the company that are not tied to a module (same idempotent contract).
+    if (systemAutomations) await systemAutomations.runEvent({ companyId: row.companyId, event: row.event, payload: row.payload, eventId: row.id })
   }
 
   async function processDue() {

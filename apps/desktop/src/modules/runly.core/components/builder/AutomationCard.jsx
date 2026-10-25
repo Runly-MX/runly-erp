@@ -75,7 +75,7 @@ function ScheduleFields({ trigger, entities, readOnly, onTrigger }) {
   );
 }
 
-function TriggerEditor({ automation, entities, events, readOnly, onPatch }) {
+function TriggerEditor({ automation, entities, events, allowedTriggers, readOnly, onPatch }) {
   const trigger = automation.trigger;
   // Changing what triggers the automation invalidates the mapped arguments.
   const resetSteps = (steps) => steps.map((step) => (step.type === "delay" ? step : { ...step, args: {} }));
@@ -88,7 +88,7 @@ function TriggerEditor({ automation, entities, events, readOnly, onPatch }) {
   };
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <SelectField label="Cuándo" options={TRIGGER_TYPES} value={trigger.type} disabled={readOnly} onValueChange={changeType} />
+      <SelectField label="Cuándo" options={TRIGGER_TYPES.filter((item) => !allowedTriggers || allowedTriggers.includes(item.value))} value={trigger.type} disabled={readOnly} onValueChange={changeType} />
       {trigger.type === "record" && (
         <>
           <SelectField label="Entidad" options={entities.map((item) => ({ value: keyOf(item), label: item.label ?? keyOf(item) }))}
@@ -111,7 +111,8 @@ function TriggerEditor({ automation, entities, events, readOnly, onPatch }) {
   );
 }
 
-export function AutomationCard({ automation, entities, events, readOnly, onPatch, onRemove }) {
+// allowedTriggers limits the trigger types (company automations have no records).
+export function AutomationCard({ automation, entities, events, allowedTriggers = null, readOnly, onPatch, onRemove }) {
   const trigger = automation.trigger;
   const steps = stepsOf(automation);
   const entity = entities.find((item) => keyOf(item) === trigger.entity);
@@ -147,7 +148,7 @@ export function AutomationCard({ automation, entities, events, readOnly, onPatch
             onChange={(e) => onPatch({ label: e.target.value })} />
           <SwitchField label="Activa" checked={automation.enabled !== false} disabled={readOnly} onChange={(enabled) => onPatch({ enabled })} />
         </div>
-        <TriggerEditor automation={automation} entities={entities} events={events} readOnly={readOnly} onPatch={onPatch} />
+        <TriggerEditor automation={automation} entities={entities} events={events} allowedTriggers={allowedTriggers} readOnly={readOnly} onPatch={onPatch} />
         {showConditions && (
           <AutomationConditions trigger={trigger} fieldOptions={fieldOptions} readOnly={readOnly}
             onChange={(when) => onPatch({ trigger: { ...trigger, when } })} />

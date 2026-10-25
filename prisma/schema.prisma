@@ -566,6 +566,25 @@ model AutomationApproval {
   @@map("automation_approval")
 }
 
+// Automations of a company that are not tied to a module (event or schedule
+// triggers). `definition` is a normalized Builder automation item. Spec
+// docs/superpowers/specs/2026-10-25-system-automations-design.md.
+model SystemAutomation {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  key         String
+  label       String
+  enabled     Boolean  @default(true)
+  definition  Json
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, key])
+  @@index([companyId, enabled])
+  @@map("system_automation")
+}
+
 model Company {
   id String @id @default(uuid(7)) @db.Uuid
   name           String

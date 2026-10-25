@@ -76,6 +76,7 @@ import { createModulePublicGateway } from "./routes/module-public-gateway.js";
 import { createModulePublicLinksService } from "./services/module-public-links-service.js";
 import { createBuilderRouter } from "./routes/builder-routes.js";
 import { createAutomationApprovalsRouter } from "./routes/automation-approvals-routes.js";
+import { createAutomationsRouter } from "./routes/automations-routes.js";
 import {
   createPublicWebsiteRouter,
   createPublicCatalogRouter,
@@ -2463,6 +2464,7 @@ function mountWithAuth(baseApp, router) {
 
 mountWithAuth(app, createCompanyRouter({ prisma, supabaseAdmin, requirePermission, cacheDel }));
 mountWithAuth(app, createAutomationApprovalsRouter({ prisma, requirePermission }));
+mountWithAuth(app, createAutomationsRouter({ prisma, requirePermission, moduleServices }));
 mountWithAuth(app, createBuilderRouter({ prisma, requirePermission, bundlerSvc: bundlerService, routeLoader, cacheDel }));
 mountWithAuth(app, createModuleCatalogRouter({ prisma, requirePermission, bundlerSvc: bundlerService, routeLoader, cacheDel }));
 mountWithAuth(app, createContactsRouter({ prisma, requirePermission, supabaseAdmin, storageBucket: STORAGE_BUCKET_NAME }));
