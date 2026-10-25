@@ -27,6 +27,7 @@ const ACTION_RESULT = ['id', 'summary', 'link']
 const VEHICLE_STATUSES = ['active', 'maintenance', 'inactive', 'retired']
 const COVERAGE_TYPES = ['basic', 'comprehensive', 'third_party', 'other']
 const DIRECTIONS = ['EXPENSE', 'INCOME']
+export const REPORT_SOURCES = ['contacts', 'items', 'vehicles']
 
 export const IDEMPOTENCY_ARG = Object.freeze({ idempotencyKey: { type: 'string', max: 200 } })
 
@@ -105,6 +106,16 @@ export const SERVICE_CONTRACTS = Object.freeze({
     label: 'Enviar notificaciones', permission: null, mutates: true, system: true,
     args: { userIds: req({ type: 'uuid[]', max: 100 }), title: req(s(200)), body: { type: 'text', max: 1000 }, link: s(500), priority: { type: 'enum', values: ['low', 'medium', 'high', 'critical'] }, sourceEntityId: SOURCE },
     returns: ['sent'],
+  },
+  'runly.notifications:email.send': {
+    label: 'Enviar correos', permission: null, mutates: true, system: true,
+    args: { userIds: { type: 'uuid[]', max: 20 }, to: { type: 'email' }, subject: req(s(200)), body: req({ type: 'text', max: 5000 }), fileId: { type: 'uuid' }, sourceEntityId: SOURCE },
+    returns: ['sent', 'failed'],
+  },
+  'runly.files:report.generate': {
+    label: 'Generar reportes CSV o Excel', permission: 'files.assets.create', mutates: true, system: true,
+    args: { source: req({ type: 'enum', values: REPORT_SOURCES }), format: req({ type: 'enum', values: ['csv', 'xlsx'] }), search: SEARCH, name: s(120), shareWithCompany: { type: 'boolean' }, sourceEntityId: SOURCE },
+    returns: FILE,
   },
   // Ledger, fleet and pfm writes run the module's own MirAI action
   // (prepare + execute), so per-account/per-wallet access checks and effects

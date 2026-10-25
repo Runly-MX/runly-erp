@@ -112,7 +112,10 @@ export function stepIssues(step) {
   const missing = Object.entries(contract.args)
     .filter(([name, spec]) => spec.required && !["sourceEntityId", "idempotencyKey"].includes(name) && !step.args?.[name])
     .map(([name]) => name);
-  return missing.length ? [`Faltan datos obligatorios (${missing.length})`] : [];
+  if (missing.length) return [`Faltan datos obligatorios (${missing.length})`];
+  // An email needs someone to send it to: a company person or an outside address.
+  if (step.service === "runly.notifications:email.send" && !step.args?.userIds && !step.args?.to) return ["Elige quién recibe el correo"];
+  return [];
 }
 
 const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];

@@ -13,6 +13,7 @@ import { createCompanyDeletionService } from '../../api/src/services/company-del
 import { createCompanyDeletionResources } from '../../api/src/services/company-deletion-resources.js'
 import { createDomainEventDispatcher } from '../../api/src/services/domain-events/dispatcher.js'
 import { createModuleServices } from '../../api/src/services/module-services/module-services.js'
+import { createFilesService } from '../../api/src/services/files-service.js'
 import { createTrashRegistry } from '../../api/src/services/trash/trash-registry.js'
 import { runAutoPurge } from '../../api/src/services/trash/trash-retention.js'
 import { createAutomationRunsService } from '../../api/src/services/automation-runs-service.js'
@@ -100,8 +101,10 @@ const DELIVERY_INTERVAL_MS = Number(process.env.RUNLY_NOTIFICATION_DELIVERY_INTE
 const syncCleanupWorker = createSyncLogCleanupWorker({ prisma })
 const SYNC_CLEANUP_INTERVAL_MS = syncCleanupWorker.SYNC_CLEANUP_INTERVAL_MS
 const moduleBackupService = createModuleBackupService({ prisma })
-const domainEventDispatcher = createDomainEventDispatcher({ prisma, resolveModulesDir, moduleServices: createModuleServices({ prisma }) })
-const automationWorker = createAutomationWorker({ prisma, resolveModulesDir, moduleServices: createModuleServices({ prisma }) })
+// Automations can generate files and mail them, so their services get storage.
+const workerModuleServices = () => createModuleServices({ prisma, filesService: createFilesService({ prisma, supabaseAdmin: workerSupabaseAdmin }) })
+const domainEventDispatcher = createDomainEventDispatcher({ prisma, resolveModulesDir, moduleServices: workerModuleServices() })
+const automationWorker = createAutomationWorker({ prisma, resolveModulesDir, moduleServices: workerModuleServices() })
 const AUTOMATION_JOBS_INTERVAL_MS = Number(process.env.RUNLY_AUTOMATION_JOBS_INTERVAL_MS ?? 30_000)
 const AUTOMATION_SCHEDULES_INTERVAL_MS = Number(process.env.RUNLY_AUTOMATION_SCHEDULES_INTERVAL_MS ?? 60_000)
 const DOMAIN_EVENTS_INTERVAL_MS = Number(process.env.RUNLY_DOMAIN_EVENTS_INTERVAL_MS ?? 15_000)

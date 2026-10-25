@@ -75,6 +75,7 @@ export async function runSteps({ automation, services, base, data, recordId = nu
   for (let index = from; index < automation.steps.length; index += 1) {
     const step = automation.steps[index]
     const startedAt = Date.now()
+    let sent = null
     if (failed && automation.onError !== 'continue') { steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, skipped: true }); continue }
     try {
       if (step.type === 'delay') {
@@ -104,6 +105,7 @@ export async function runSteps({ automation, services, base, data, recordId = nu
         continue
       }
       const args = buildArgs(automation, { step: index, data: scope, recordId, actorId, idempotencyKey: base ? (index ? base + ':' + index : base) : null })
+      sent = args
       const result = await services.call(step.service, args)
       const output = {}
       for (const key of step.outputs ?? []) {
@@ -116,7 +118,7 @@ export async function runSteps({ automation, services, base, data, recordId = nu
     } catch (error) {
       failed = true
       console.error('[automatizaciones] ' + automation.key + ' paso ' + (index + 1) + ':', error?.message ?? error)
-      steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, ms: Date.now() - startedAt, code: error?.code ?? null, error: String(error?.message ?? error) })
+      steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, ms: Date.now() - startedAt, ...(sent ? { args: clip(sent) } : {}), code: error?.code ?? null, error: String(error?.message ?? error) })
     }
   }
   const failures = steps.filter((step) => !step.ok && !step.skipped)

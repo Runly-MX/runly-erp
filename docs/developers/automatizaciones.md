@@ -109,6 +109,15 @@ Cada bloque que crea o cambia algo devuelve datos (por ejemplo, *Crear contactos
 
 El botón **Consola** muestra las últimas ejecuciones de la automatización. Al elegir una ves los **datos que llegaron**, y por cada bloque su resultado (correcto, con error, omitido o en espera), cuánto tardó, **qué datos envió**, qué devolvió y, si falló, el **error completo** (copiable). El bloque de cada ejecución seleccionada se marca en el lienzo con una insignia: ✓ correcto, ✗ con error, – omitido. Se actualiza sola mientras está abierta.
 
+## Enviar correos y generar reportes
+
+Dos bloques de acción pensados para las automatizaciones de la empresa (también se pueden autorizar a un módulo que reaccione a eventos):
+
+- **Enviar correos** (`runly.notifications:email.send`): elige a las personas de la empresa en *Destinatarios* y/o escribe una dirección en *Correo externo* (hasta 20 en total). Usa el correo de la empresa o del sitio web y, si no hay, el de la plataforma; si ninguno está configurado, el paso falla con un mensaje claro en la consola. *Asunto* y *Mensaje* aceptan datos con `{{campo}}`; el mensaje es texto plano. *Archivo adjunto (id)* adjunta un archivo de Archivos (máx. 10 MB).
+- **Generar reportes CSV o Excel** (`runly.files:report.generate`): elige *Qué incluye el reporte* (contactos, inventario o vehículos de la flota), el formato y, opcionalmente, un texto para filtrar. El archivo se guarda en Archivos de la empresa y el paso devuelve `paso<N>_id` y `paso<N>_name`.
+
+Para mandar el reporte por correo, pon primero el bloque de reporte y en el correo usa como *Archivo adjunto* el dato «Identificador» de ese paso (`{{paso1_id}}`). El CSV lleva marca de orden de bytes para que Excel respete los acentos, y las celdas que parecen fórmulas se neutralizan.
+
 ## Recibir datos de otro sistema (webhook)
 
 Una automatización de la empresa puede empezar cuando **otro sistema te envía un mensaje**. En el lienzo elige el disparador «Cuando otro sistema me envía datos»; al guardar, Runly le asigna una **URL secreta**:

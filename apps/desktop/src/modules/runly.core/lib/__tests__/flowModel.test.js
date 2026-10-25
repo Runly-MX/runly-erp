@@ -68,6 +68,9 @@ test("node texts and issues", () => {
   assert.equal(describeStep({ type: "http", method: "POST", url: "https://hooks.example.com/x", body: {} }, label).detail, "hooks.example.com");
   assert.deepEqual(stepIssues({ type: "approval", approvers: [], message: "" }), ["Elige quién aprueba", "Escribe el mensaje"]);
   assert.deepEqual(stepIssues({ type: "http", method: "POST", url: "http://x", body: {} }), ["Escribe una dirección https"]);
+  const mail = { service: "runly.notifications:email.send", args: { subject: { from: "value", value: "Hola" }, body: { from: "value", value: "Texto" } } };
+  assert.deepEqual(stepIssues(mail), ["Elige quién recibe el correo"]);
+  assert.deepEqual(stepIssues({ ...mail, args: { ...mail.args, to: { from: "value", value: "a@b.com" } } }), []);
   assert.equal(stepIssues(action()).length, 1); // contacts.create has required args
 });
 

@@ -364,113 +364,134 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     return batchEnrichFileAssets(fileAssets.filter(f => !blocked.has(f.id)), supabaseAdmin.storage);
   }
 
-  return {
-    async upload({ authUserId, activeContext, file, fields = {} }) {
-      const context = await getUserCompanyContext(authUserId, activeContext);
+  async function storeAsset(context, file, fields = {}) {
+    if (!(file instanceof File) || file.size <= 0) {
+      throw new FilesServiceError("Selecciona un archivo válido.", 400);
+    }
 
-      if (!(file instanceof File) || file.size <= 0) {
-        throw new FilesServiceError("Selecciona un archivo válido.", 400);
-      }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      throw new FilesServiceError(
+        "El archivo supera el límite de 10 MB.",
+        400,
+      );
+    }
 
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        throw new FilesServiceError(
-          "El archivo supera el límite de 10 MB.",
-          400,
-        );
-      }
+    if (!isAllowedMimeType(file.type, file.name)) {
+      throw new FilesServiceError(
+        "Tipo de archivo no permitido. Usa imagen, PDF, texto u oficina.",
+        400,
+      );
+    }
 
-      if (!isAllowedMimeType(file.type, file.name)) {
-        throw new FilesServiceError(
-          "Tipo de archivo no permitido. Usa imagen, PDF, texto u oficina.",
-          400,
-        );
-      }
+    const moduleKey =
+      String(fields.moduleKey ?? "runly.files").trim() || "runly.files";
+    const entityType =
+      String(fields.entityType ?? "AtlasFile").trim() || "AtlasFile";
+    const entityId = context.companyId;
+    const sourceEntityId = String(fields.entityId ?? "").trim() || null;
+    const visibility = String(fields.visibility ?? "PRIVATE")
+      .trim()
+      .toUpperCase();
+    const metadata = parseMetadata(fields.metadata);
+    // Files uploaded in runly.files are private unless the uploader shares
+    // them with the company; module attachments keep their module's access.
+    const filesOrigin = isFilesOrigin({ entityType, moduleKey });
+    const shareWithCompany = ["true", "1", true].includes(fields.shareWithCompany);
+    let accessScope = filesOrigin && !shareWithCompany ? "RESTRICTED" : "COMPANY";
 
-      const moduleKey =
-        String(fields.moduleKey ?? "runly.files").trim() || "runly.files";
-      const entityType =
-        String(fields.entityType ?? "AtlasFile").trim() || "AtlasFile";
-      const entityId = context.companyId;
-      const sourceEntityId = String(fields.entityId ?? "").trim() || null;
-      const visibility = String(fields.visibility ?? "PRIVATE")
-        .trim()
-        .toUpperCase();
-      const metadata = parseMetadata(fields.metadata);
-      // Files uploaded in runly.files are private unless the uploader shares
-      // them with the company; module attachments keep their module's access.
-      const filesOrigin = isFilesOrigin({ entityType, moduleKey });
-      const shareWithCompany = ["true", "1", true].includes(fields.shareWithCompany);
-      let accessScope = filesOrigin && !shareWithCompany ? "RESTRICTED" : "COMPANY";
+    // Files-explorer uploads can target a folder; uploading into a shared
+    // folder shares the file with the company like moving one there does.
+    let folderId = null;
+    const requestedFolderId = String(fields.folderId ?? "").trim();
+    if (requestedFolderId && filesOrigin) {
+      const folder = await prisma.fileFolder.findFirst({
+        where: {
+          id: requestedFolderId,
+          companyId: context.companyId,
+          ...(context.admin ? {} : { OR: [{ scope: "COMPANY" }, { createdById: context.profileId }] }),
+        },
+        select: { id: true, scope: true },
+      });
+      if (!folder) throw new FilesServiceError("Carpeta no encontrada.", 404);
+      folderId = folder.id;
+      if (folder.scope === "COMPANY") accessScope = "COMPANY";
+    }
 
-      // Files-explorer uploads can target a folder; uploading into a shared
-      // folder shares the file with the company like moving one there does.
-      let folderId = null;
-      const requestedFolderId = String(fields.folderId ?? "").trim();
-      if (requestedFolderId && filesOrigin) {
-        const folder = await prisma.fileFolder.findFirst({
-          where: {
-            id: requestedFolderId,
-            companyId: context.companyId,
-            ...(context.admin ? {} : { OR: [{ scope: "COMPANY" }, { createdById: context.profileId }] }),
-          },
-          select: { id: true, scope: true },
-        });
-        if (!folder) throw new FilesServiceError("Carpeta no encontrada.", 404);
-        folderId = folder.id;
-        if (folder.scope === "COMPANY") accessScope = "COMPANY";
-      }
+    const objectKey = buildModuleObjectKey({
+      moduleKey,
+      entityType,
+      entityId,
+      fileName: file.name,
+      mimeType: file.type || "application/octet-stream",
+    });
 
-      const objectKey = buildModuleObjectKey({
+    const targetBucket = visibility === "PUBLIC" ? WEBSITE_BUCKET_NAME : STORAGE_BUCKET_NAME;
+    const arrayBuffer = await file.arrayBuffer();
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(targetBucket)
+      .upload(objectKey, arrayBuffer, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new FilesServiceError("No se pudo subir el archivo.", 500);
+    }
+
+    const asset = await prisma.fileAsset.create({
+      data: {
+        bucket: targetBucket,
+        objectKey,
+        originalName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+        visibility: ["PUBLIC", "INTERNAL", "PRIVATE"].includes(visibility)
+          ? visibility
+          : "PRIVATE",
         moduleKey,
         entityType,
         entityId,
-        fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
-      });
-
-      const targetBucket = visibility === "PUBLIC" ? WEBSITE_BUCKET_NAME : STORAGE_BUCKET_NAME;
-      const arrayBuffer = await file.arrayBuffer();
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from(targetBucket)
-        .upload(objectKey, arrayBuffer, {
-          contentType: file.type || "application/octet-stream",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw new FilesServiceError("No se pudo subir el archivo.", 500);
-      }
-
-      const asset = await prisma.fileAsset.create({
-        data: {
-          bucket: targetBucket,
-          objectKey,
-          originalName: file.name,
-          mimeType: file.type || "application/octet-stream",
-          sizeBytes: file.size,
-          visibility: ["PUBLIC", "INTERNAL", "PRIVATE"].includes(visibility)
-            ? visibility
-            : "PRIVATE",
-          moduleKey,
-          entityType,
-          entityId,
-          accessScope,
-          folderId,
-          uploadedById: context.profileId,
-          metadata: {
-            ...metadata,
-            companyId: context.companyId,
-            sourceEntityId,
-          },
+        accessScope,
+        folderId,
+        uploadedById: context.profileId,
+        metadata: {
+          ...metadata,
+          companyId: context.companyId,
+          sourceEntityId,
         },
+      },
+    });
+
+    // Files-explorer uploads only: module attachments belong to their record.
+    if (filesOrigin) {
+      await publishDomainEvent(prisma, { companyId: context.companyId, event: "files.file.created", payload: { id: asset.id, name: asset.originalName, mimeType: asset.mimeType } });
+    }
+
+    return asset;
+  }
+
+  return {
+    async upload({ authUserId, activeContext, file, fields = {} }) {
+      const context = await getUserCompanyContext(authUserId, activeContext);
+      return storeAsset(context, file, fields);
+    },
+
+    // Same storage path for a file the platform itself produces (company
+    // automations): no user, so the file belongs to the company with no uploader.
+    async uploadForCompany({ companyId, file, fields = {} }) {
+      return storeAsset({ profileId: null, companyId, admin: false, permissions: new Set() }, file, fields);
+    },
+
+    // Bytes of one of the company's files, for platform-produced mail.
+    async readForCompany({ companyId, id }) {
+      const asset = await prisma.fileAsset.findFirst({
+        where: { id, entityId: companyId, enabled: true },
+        select: { bucket: true, objectKey: true, originalName: true, mimeType: true, sizeBytes: true },
       });
-
-      // Files-explorer uploads only: module attachments belong to their record.
-      if (filesOrigin) {
-        await publishDomainEvent(prisma, { companyId: context.companyId, event: "files.file.created", payload: { id: asset.id, name: asset.originalName, mimeType: asset.mimeType } });
-      }
-
-      return asset;
+      if (!asset) throw new FilesServiceError("El archivo no existe en esta empresa.", 404);
+      const { data, error } = await supabaseAdmin.storage.from(asset.bucket).download(asset.objectKey);
+      if (error || !data) throw new FilesServiceError("No se pudo leer el archivo.", 500);
+      return { name: asset.originalName, mimeType: asset.mimeType, content: Buffer.from(await data.arrayBuffer()) };
     },
 
     async list({ authUserId, activeContext, query = {}, includeSignedUrls = true }) {

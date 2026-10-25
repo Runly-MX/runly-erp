@@ -29,6 +29,7 @@ const ARG_LABELS = {
   concepto: "Concepto", numero: "Número", deposito: "Depósito", retiro: "Retiro", categoryId: "Categoría (id)", transactionId: "Movimiento (id)",
   wallet: "Cartera (nombre o id)", direction: "Tipo de movimiento", amount: "Monto", occurredOn: "Fecha", category: "Categoría",
   merchant: "Comercio", note: "Nota", movementId: "Movimiento (id)",
+  subject: "Asunto", to: "Correo externo", fileId: "Archivo adjunto (id)", source: "Qué incluye el reporte", format: "Formato", search: "Filtrar por texto",
 };
 
 // What an argument is for, in one line (only where the name is not obvious).
@@ -45,6 +46,16 @@ const ARG_HINTS = {
   id: "El registro que se va a modificar.",
   contentBase64: "El contenido del archivo ya codificado.",
   dueDate: "Fecha límite, por ejemplo 2026-11-03.",
+  to: "Opcional: una dirección fuera de la empresa. Puedes combinarla con los destinatarios.",
+  fileId: "Opcional: un archivo de Archivos. Para adjuntar un reporte, elige el dato «Identificador» del paso que lo generó.",
+  search: "Opcional: solo incluye los registros que coinciden con este texto.",
+};
+
+// Friendly names for the fixed choices of some arguments.
+const ENUM_LABELS = {
+  source: { contacts: "Contactos", items: "Inventario", vehicles: "Vehículos de la flota" },
+  format: { csv: "CSV (texto)", xlsx: "Excel (.xlsx)" },
+  priority: { low: "Baja", medium: "Media", high: "Alta", critical: "Crítica" },
 };
 const PEOPLE_ARGS = new Set(["userIds", "attendeeIds"]);
 
@@ -162,7 +173,7 @@ export function ValueInput({ name, spec, source, fieldOptions, readOnly, onSourc
   if (spec.type === "enum" || spec.type === "boolean") {
     const options = spec.type === "boolean"
       ? [{ value: "true", label: "Sí" }, { value: "false", label: "No" }]
-      : spec.values.map((value) => ({ value, label: value }));
+      : spec.values.map((value) => ({ value, label: ENUM_LABELS[name]?.[value] ?? value }));
     return <SelectField aria-label={label} options={options} value={source.value === undefined ? "" : String(source.value)} disabled={readOnly}
       onValueChange={(value) => onSource({ from: "value", value: spec.type === "boolean" ? value === "true" : value })} />;
   }

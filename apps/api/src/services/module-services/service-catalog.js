@@ -18,6 +18,7 @@ import { createCalendarService } from '../../routes/calendar/calendar-service.js
 import { createCalendarEventService } from '../../routes/calendar/calendar-event-service.js'
 import { createCalendarEventEffects } from '../../routes/calendar/calendar-event-effects.js'
 import { createActionBackedServices } from './action-backed-services.js'
+import { createCommunicationHandlers } from './communication-services.js'
 
 export class ModuleServiceError extends Error {
   constructor(message, status = 400, code = 'module_service_error') {
@@ -180,6 +181,7 @@ export function createServiceCatalog({ prisma, filesService = null, broadcaster 
   }
 
   Object.assign(handlers, createActionBackedServices({ prisma, ServiceError: ModuleServiceError }).handlers)
+  Object.assign(handlers, createCommunicationHandlers({ prisma, ServiceError: ModuleServiceError, filesService, searchHandlers: handlers }))
 
   return Object.fromEntries(Object.entries(handlers).map(([key, handler]) => [key, { ...SERVICE_CONTRACTS[key], handler }]))
 }
