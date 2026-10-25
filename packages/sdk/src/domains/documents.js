@@ -21,7 +21,7 @@ export function createDocumentsDomain({
         headers: withAuthHeaders(token),
       }),
 
-    // fields: { kind, file, scopeKey?, name?, isDefault?, publish? }
+    // fields: { kind, file, scopeKey?, name?, isDefault?, publish?, visibility? }
     uploadTemplate: (fields, token) => {
       const formData = new FormData();
       Object.entries(fields).forEach(([key, value]) => {
@@ -77,6 +77,14 @@ export function createDocumentsDomain({
       request(`${templatePath(templateId)}/default`, {
         method: "PATCH",
         headers: withAuthHeaders(token),
+      }),
+
+    // visibility: 'personal' (only the owner) | 'company' (shared with the company)
+    setTemplateVisibility: (templateId, visibility, token) =>
+      request(`${templatePath(templateId)}/visibility`, {
+        method: "PATCH",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ visibility }),
       }),
 
     getTemplateFile: (templateId, token, query = {}) =>

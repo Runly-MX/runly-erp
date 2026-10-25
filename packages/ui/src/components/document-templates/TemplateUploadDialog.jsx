@@ -7,7 +7,7 @@ import { SegmentedControl } from '../SegmentedControl.jsx'
 import { CheckboxField, TextField } from '../FormFields.jsx'
 import { ALL_FORMATS, BLANK_FORMATS, FORMAT_LABELS, MAX_TEMPLATE_MB, acceptFor, formatOfName } from './template-utils.js'
 
-const EMPTY = { mode: 'upload', file: null, format: 'docx', name: '', isDefault: false }
+const EMPTY = { mode: 'upload', file: null, format: 'docx', name: '', isDefault: false, visibility: 'personal' }
 
 // Adds a template: an uploaded file (docx/xlsx/pptx/pdf) or a blank document
 // that already lists the kind's fields. `onSubmit` receives the form values.
@@ -68,8 +68,16 @@ export function TemplateUploadDialog({ open, onOpenChange, kind, hasTemplates, b
           )}
           <TextField label="Nombre" required={!isUpload} value={form.name} maxLength={120}
             placeholder={kind?.label ?? 'Plantilla'} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          <CheckboxField label="Usar como plantilla predeterminada" checked={form.isDefault}
-            onChange={(e) => setForm((f) => ({ ...f, isDefault: Boolean(e?.target ? e.target.checked : e) }))} />
+          <div className="space-y-1.5">
+            <SegmentedControl ariaLabel="Visibilidad de la plantilla" value={form.visibility}
+              onChange={(visibility) => setForm((f) => ({ ...f, visibility, isDefault: visibility === 'company' ? f.isDefault : false }))}
+              options={[{ value: 'personal', label: 'Personal' }, { value: 'company', label: 'Compartida con la empresa' }]} />
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              {form.visibility === 'personal' ? 'Solo tú la ves y la usas. Puedes compartirla con la empresa después.' : 'Todos los que usan este tipo de documento podrán usarla.'}
+            </p>
+          </div>
+          {form.visibility === 'company' ? <CheckboxField label="Usar como plantilla predeterminada" checked={form.isDefault}
+            onChange={(e) => setForm((f) => ({ ...f, isDefault: Boolean(e?.target ? e.target.checked : e) }))} /> : null}
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

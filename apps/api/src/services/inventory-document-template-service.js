@@ -74,7 +74,7 @@ export function createInventoryDocumentTemplateService({ prisma, hub }) {
     return row;
   }
 
-  const list = (companyId) => wrap(async () => (await fileTemplates.list({ companyId, kind: KIND })).map(fromHubTemplate));
+  const list = (companyId, viewerId = null) => wrap(async () => (await fileTemplates.list({ companyId, kind: KIND, viewerId })).map(fromHubTemplate));
 
   async function currentVersionId(row) {
     if (row.publishedVersionId) return row.publishedVersionId;

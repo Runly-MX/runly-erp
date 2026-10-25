@@ -85,3 +85,15 @@ test("documents domain sends template engine requests", async () => {
   assert.equal(form.has("name"), false);
   assert.deepEqual(JSON.parse(calls[6][1].body), { mapping: { a: "b" } });
 });
+
+test("documents domain changes the visibility of a template", async () => {
+  const fetchMock = makeFetch();
+  globalThis.fetch = fetchMock;
+  const client = createRunlyClient({ baseUrl: "http://api" });
+  await client.documents.setTemplateVisibility("t/1", "company", "tok");
+  const [url, options] = fetchMock.mock.calls[0].arguments;
+  assert.equal(url, "http://api/documents/templates/t%2F1/visibility");
+  assert.equal(options.method, "PATCH");
+  assert.deepEqual(JSON.parse(options.body), { visibility: "company" });
+  fetchMock.mock.restore();
+});

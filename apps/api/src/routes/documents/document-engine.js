@@ -68,15 +68,19 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
 
   // Chosen template, else the company default (scope, then no scope), else
   // the kind's built-in one ({ format, buffer } from kind.defaultTemplate()).
-  async function resolveTemplate({ companyId, kind, templateId, scopeKey, versionId, allowDraft }) {
+  async function resolveTemplate({ companyId, kind, templateId, scopeKey, versionId, allowDraft, actorId, trusted }) {
     const base = { companyId, kind: kind.key, enabled: true };
+    // Defaults and fallbacks are always company templates; a chosen template may
+    // also be the actor's own personal one (trusted module calls keep their stored choice).
+    const shared = { ...base, visibility: "company" };
     let template = null;
     if (templateId) {
       template = await prisma.documentTemplate.findFirst({ where: { ...base, id: templateId } });
-      if (!template) throw fail("Plantilla no encontrada.", 404, "template_not_found");
+      const usable = template && (trusted || (template.visibility ?? "company") === "company" || (actorId && template.ownerUserId === actorId));
+      if (!usable) throw fail("Plantilla no encontrada.", 404, "template_not_found");
     } else {
-      if (scopeKey) template = await prisma.documentTemplate.findFirst({ where: { ...base, scopeKey, isDefault: true } });
-      template ??= await prisma.documentTemplate.findFirst({ where: { ...base, scopeKey: null, isDefault: true } });
+      if (scopeKey) template = await prisma.documentTemplate.findFirst({ where: { ...shared, scopeKey, isDefault: true } });
+      template ??= await prisma.documentTemplate.findFirst({ where: { ...shared, scopeKey: null, isDefault: true } });
     }
     if (template) {
       const version = await loadVersion(template, allowDraft ? versionId : undefined, allowDraft);
@@ -118,7 +122,7 @@ export function createDocumentEngine({ prisma, files, kinds, convert = convertTo
       if (!sourceId) throw fail("Indica el registro (sourceId) o los datos para generar el documento.");
       values = await kind.load({ companyId, sourceId, actorId });
     }
-    const source = await resolveTemplate({ companyId, kind, templateId, scopeKey, versionId, allowDraft });
+    const source = await resolveTemplate({ companyId, kind, templateId, scopeKey, versionId, allowDraft, actorId, trusted });
     const title = titleOverride || source.template?.name || kind.label || kind.key;
     const mapped = applyMapping(values, source.mapping);
     let buffer = await fill({ format: source.format, buffer: source.buffer, data: mapped, images, layout: source.layout, kind, title });

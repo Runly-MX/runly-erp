@@ -1831,6 +1831,8 @@ model DocumentTemplate {
   format             String   @default("blocks")
   isDefault          Boolean  @default(false) @map("is_default")
   scopeKey           String?  @map("scope_key")
+  ownerUserId        String?  @db.Uuid @map("owner_user_id")
+  visibility         String   @default("company")
   publishedVersionId String?  @db.Uuid @map("published_version_id")
   enabled            Boolean  @default(true)
   createdAt          DateTime @default(now()) @map("created_at")
@@ -1845,6 +1847,7 @@ model DocumentTemplate {
   @@unique([companyId, key])
   @@index([companyId, sourceType, enabled])
   @@index([companyId, kind, scopeKey, enabled])
+  @@index([companyId, kind, visibility, ownerUserId], map: "document_template_company_id_kind_visibility_owner_user_id_idx")
   @@index([publishedVersionId])
   @@map("document_template")
 }

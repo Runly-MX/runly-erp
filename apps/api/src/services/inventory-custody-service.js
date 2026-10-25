@@ -113,10 +113,10 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     if (!employee) throw new InventoryServiceError('El colaborador no existe en esta empresa.', 400);
   }
 
-  async function assertTemplate(db, companyId, templateId) {
+  async function assertTemplate(db, companyId, templateId, profileId = null) {
     if (!templateId) return;
     const row = await db.documentTemplate.findFirst({
-      where: { id: templateId, companyId, kind: 'inventory.custody', enabled: true, format: { not: 'blocks' } }, select: { id: true },
+      where: { id: templateId, companyId, kind: 'inventory.custody', enabled: true, format: { not: 'blocks' }, OR: [{ visibility: 'company' }, ...(profileId ? [{ ownerUserId: profileId }] : [])] }, select: { id: true },
     });
     if (!row) throw new InventoryServiceError('La plantilla no existe.', 400);
   }
@@ -215,7 +215,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     const input = normalizeCustodyInput(body);
     await checkDeliverer(input, companyId, profileId, canDeliverOnBehalf);
     await assertEmployee(prisma, companyId, input.employeeId);
-    await assertTemplate(prisma, companyId, input.templateId);
+    await assertTemplate(prisma, companyId, input.templateId, profileId);
     const items = await loadItems(prisma, companyId, input.itemIds);
     const created = await prisma.$transaction(async (tx) => {
       const { folio, sequence } = await allocateFolio(tx, companyId, input.kind, input.date);
@@ -245,7 +245,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     if (input.delivererId && input.delivererId !== current.delivererId) await checkDeliverer(input, companyId, profileId, canDeliverOnBehalf);
     else if (input.delivererName !== undefined && !input.delivererId) await checkDeliverer(input, companyId, profileId, canDeliverOnBehalf);
     if (input.employeeId) await assertEmployee(prisma, companyId, input.employeeId);
-    if (input.templateId) await assertTemplate(prisma, companyId, input.templateId);
+    if (input.templateId) await assertTemplate(prisma, companyId, input.templateId, profileId);
     const reset = signatureResetFor(current, input);
     const itemsChanged = input.itemIds !== undefined && input.itemIds.join(',') !== current.items.map((row) => row.itemId).join(',');
     const items = itemsChanged ? await loadItems(prisma, companyId, input.itemIds) : null;

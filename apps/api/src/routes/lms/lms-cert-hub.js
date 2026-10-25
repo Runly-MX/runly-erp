@@ -21,7 +21,7 @@ export function createLmsCertHub({ prisma, hub }) {
 
   // Link rows for every hub template of the kind; idempotent.
   async function syncCompany(companyId) {
-    const templates = await prisma.documentTemplate.findMany({ where: { companyId, kind: LMS_CERTIFICATE_KIND, format: { not: 'blocks' } } })
+    const templates = await prisma.documentTemplate.findMany({ where: { companyId, kind: LMS_CERTIFICATE_KIND, visibility: 'company', format: { not: 'blocks' } } })
     if (!templates.length) return
     const ids = templates.map((t) => t.id)
     const [versions, rows] = await Promise.all([

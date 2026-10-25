@@ -47,7 +47,7 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
   // ── Templates (read with custody.read, write with template.manage) ─────────
   router.get('/inventory/document-templates', read, async (c) => {
     try {
-      return c.json({ templates: await svc().templates.list(c.get('companyId')), placeholders: CUSTODY_PLACEHOLDERS });
+      return c.json({ templates: await svc().templates.list(c.get('companyId'), c.get('userContext')?.profile?.id ?? null), placeholders: CUSTODY_PLACEHOLDERS });
     } catch (err) { return fail(c, err, 'No se pudieron cargar las plantillas.'); }
   });
 

@@ -20,7 +20,15 @@ import {
 const fail = (message, status = 400, code = "document_template_error") =>
   new DocumentTemplateServiceError(message, status, code);
 
-export function serializeFileTemplate(template, version) {
+export const VISIBILITIES = ["personal", "company"];
+
+// Where-clause fragment: company templates plus the viewer's own personal ones.
+// Without a viewer only company templates are visible.
+export const visibleTo = (viewerId) => ({
+  OR: [{ visibility: "company" }, ...(viewerId ? [{ ownerUserId: viewerId }] : [])],
+});
+
+export function serializeFileTemplate(template, version, viewerId = null) {
   const placeholders = Array.isArray(version?.placeholders) ? version.placeholders : [];
   return {
     id: template.id,
@@ -30,6 +38,9 @@ export function serializeFileTemplate(template, version) {
     name: template.name,
     isDefault: template.isDefault,
     enabled: template.enabled,
+    visibility: template.visibility ?? "company",
+    ownerUserId: template.ownerUserId ?? null,
+    isOwner: Boolean(viewerId && template.ownerUserId === viewerId),
     publishedVersionId: template.publishedVersionId,
     version: version
       ? {
@@ -109,10 +120,18 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
 
   const cleanName = (name, fallback) => String(name ?? "").trim().slice(0, 200) || fallback;
 
-  async function createTemplateRecord({ companyId, profileId, kind, scopeKey, format, name, asset, scanned, isDefault, publish }) {
+  const cleanVisibility = (value) => {
+    if (value === undefined || value === null) return "company";
+    if (!VISIBILITIES.includes(value)) throw fail("La visibilidad debe ser personal o de la empresa.");
+    return value;
+  };
+
+  async function createTemplateRecord({ companyId, profileId, kind, scopeKey, format, name, asset, scanned, isDefault, publish, visibility }) {
+    const shared = visibility === "company";
     const created = await prisma.$transaction(async (tx) => {
-      const existing = await tx.documentTemplate.count({ where: { companyId, kind: kind.key, scopeKey, enabled: true } });
-      const makeDefault = isDefault === true || (publish && existing === 0);
+      const existing = await tx.documentTemplate.count({ where: { companyId, kind: kind.key, scopeKey, enabled: true, visibility: "company" } });
+      // Only company templates can be the default.
+      const makeDefault = shared && (isDefault === true || (publish && existing === 0));
       if (makeDefault) {
         await tx.documentTemplate.updateMany({ where: { companyId, kind: kind.key, scopeKey }, data: { isDefault: false } });
       }
@@ -126,6 +145,8 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
           format,
           scopeKey,
           isDefault: makeDefault,
+          ownerUserId: profileId ?? null,
+          visibility,
         },
       });
       const version = await tx.documentTemplateVersion.create({
@@ -145,31 +166,33 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
       return { template, version };
     });
     if (publish) {
-      const published = await publishVersion({ companyId, templateId: created.template.id, versionId: created.version.id });
+      const published = await publishVersion({ companyId, templateId: created.template.id, versionId: created.version.id, viewerId: profileId });
       return { ...published, warnings: scanned.warnings };
     }
-    return { template: serializeFileTemplate(created.template, created.version), warnings: scanned.warnings };
+    return { template: serializeFileTemplate(created.template, created.version, profileId), warnings: scanned.warnings };
   }
 
-  async function upload({ companyId, profileId, kind: kindKey, scopeKey = null, file, name, isDefault = false, publish = false }) {
+  async function upload({ companyId, profileId, kind: kindKey, scopeKey = null, file, name, isDefault = false, publish = false, visibility }) {
     const kind = kindOf(kindKey);
+    const vis = cleanVisibility(visibility);
     const { buffer, format, scanned } = await readUpload(file, kind);
     const asset = await storeFile({ companyId, profileId, buffer, fileName: file.name, format });
     const fallback = String(file.name).replace(/\.[^.]+$/, "").slice(0, 200) || "Plantilla";
     return createTemplateRecord({
-      companyId, profileId, kind, scopeKey, format, name: cleanName(name, fallback), asset, scanned, isDefault, publish,
+      companyId, profileId, kind, scopeKey, format, name: cleanName(name, fallback), asset, scanned, isDefault, publish, visibility: vis,
     });
   }
 
-  async function createBlank({ companyId, profileId, kind: kindKey, scopeKey = null, format = "docx", name, isDefault = false, publish = false }) {
+  async function createBlank({ companyId, profileId, kind: kindKey, scopeKey = null, format = "docx", name, isDefault = false, publish = false, visibility }) {
     const kind = kindOf(kindKey);
+    const vis = cleanVisibility(visibility);
     if (!["docx", "xlsx", "pptx"].includes(format)) throw fail("Solo se pueden crear documentos en blanco de Word, Excel o PowerPoint.");
     assertFormat(kind, format);
     const title = cleanName(name, kind.label ?? "Documento");
     const buffer = await buildBlankTemplate(format, kind, title);
     const scanned = await scan(format, buffer, kind);
     const asset = await storeFile({ companyId, profileId, buffer, fileName: `${title}.${format}`, format });
-    return createTemplateRecord({ companyId, profileId, kind, scopeKey, format, name: title, asset, scanned, isDefault, publish });
+    return createTemplateRecord({ companyId, profileId, kind, scopeKey, format, name: title, asset, scanned, isDefault, publish, visibility: vis });
   }
 
   // Replaces the file of a version (re-upload, any format the kind allows) or
@@ -229,7 +252,7 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
       if (asset) await tx.fileAsset.update({ where: { id: asset.id }, data: { metadata: { ...(asset.metadata ?? {}), sourceEntityId: templateId } } });
       return next;
     });
-    return { template: serializeFileTemplate({ ...template, format }, saved), warnings: scanned.warnings };
+    return { template: serializeFileTemplate({ ...template, format }, saved, profileId), warnings: scanned.warnings };
   }
 
   // Suggestions for a version, nothing is saved: docx returns the file with
@@ -277,7 +300,7 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
   }
 
   // mapping: template tag -> data path. layout (pdf): adjusted field boxes.
-  async function saveMapping({ companyId, templateId, versionId, mapping, layout }) {
+  async function saveMapping({ companyId, templateId, versionId, mapping, layout, viewerId = null }) {
     const template = await findTemplate(companyId, templateId);
     const version = await findVersion(templateId, versionId);
     if (version.status === "published") throw fail("La versión ya está publicada; crea una nueva para cambiar el mapeo.", 409, "version_published");
@@ -298,10 +321,10 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
       data.placeholders = layout.fields.map((f) => f.key);
     }
     const updated = await prisma.documentTemplateVersion.update({ where: { id: version.id }, data });
-    return serializeFileTemplate(template, updated);
+    return serializeFileTemplate(template, updated, viewerId);
   }
 
-  async function publishVersion({ companyId, templateId, versionId }) {
+  async function publishVersion({ companyId, templateId, versionId, viewerId = null }) {
     const template = await findTemplate(companyId, templateId);
     const version = await findVersion(templateId, versionId);
     if (version.status === "published") throw fail("La versión ya está publicada.", 409, "version_published");
@@ -313,34 +336,49 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
       const updated = await tx.documentTemplate.update({ where: { id: templateId }, data: { publishedVersionId: versionId, format } });
       return { published, updated };
     });
-    return { template: serializeFileTemplate(saved.updated, saved.published), warnings: [] };
+    return { template: serializeFileTemplate(saved.updated, saved.published, viewerId), warnings: [] };
   }
 
   // One default per (company, kind, scopeKey).
-  async function setDefault({ companyId, templateId }) {
+  async function setDefault({ companyId, templateId, viewerId = null }) {
     const template = await findTemplate(companyId, templateId);
+    if (template.visibility === "personal") {
+      throw fail("Comparte la plantilla con la empresa antes de usarla como predeterminada.", 409, "template_personal");
+    }
     if (!template.publishedVersionId) throw fail("Publica la plantilla antes de usarla como predeterminada.", 409, "template_not_published");
     const updated = await prisma.$transaction(async (tx) => {
       await tx.documentTemplate.updateMany({ where: { companyId, kind: template.kind, scopeKey: template.scopeKey, NOT: { id: templateId } }, data: { isDefault: false } });
       return tx.documentTemplate.update({ where: { id: templateId }, data: { isDefault: true } });
     });
-    return serializeFileTemplate(updated, await currentVersion(updated));
+    return serializeFileTemplate(updated, await currentVersion(updated), viewerId);
   }
 
-  async function list({ companyId, kind, scopeKey }) {
+  // Personal (owner only) <-> company (everyone with the kind's read access).
+  // A personal template cannot stay the company default.
+  async function setVisibility({ companyId, templateId, visibility, viewerId = null }) {
+    if (!VISIBILITIES.includes(visibility)) throw fail("La visibilidad debe ser personal o de la empresa.");
+    await findTemplate(companyId, templateId);
+    const updated = await prisma.documentTemplate.update({
+      where: { id: templateId },
+      data: { visibility, ...(visibility === "personal" ? { isDefault: false } : {}) },
+    });
+    return serializeFileTemplate(updated, await currentVersion(updated), viewerId);
+  }
+
+  async function list({ companyId, kind, scopeKey, viewerId = null }) {
     const rows = await prisma.documentTemplate.findMany({
-      where: { companyId, enabled: true, ...(kind ? { kind } : {}), ...(scopeKey ? { scopeKey } : {}) },
+      where: { companyId, enabled: true, ...visibleTo(viewerId), ...(kind ? { kind } : {}), ...(scopeKey ? { scopeKey } : {}) },
       orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     });
     const out = [];
-    for (const row of rows) out.push(serializeFileTemplate(row, await currentVersion(row)));
+    for (const row of rows) out.push(serializeFileTemplate(row, await currentVersion(row), viewerId));
     return out;
   }
 
   // { kind, format } of any template, null when missing.
   async function describe({ companyId, templateId }) {
     const row = await prisma.documentTemplate.findFirst({ where: { id: templateId, companyId } });
-    return row ? { kind: row.kind, format: row.format } : null;
+    return row ? { kind: row.kind, format: row.format, ownerUserId: row.ownerUserId ?? null, visibility: row.visibility ?? "company" } : null;
   }
 
   async function remove({ companyId, templateId }) {
@@ -358,5 +396,5 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
     return { url, expiresIn, fileName: asset.originalName };
   }
 
-  return { upload, createBlank, replaceVersionFile, suggest, saveMapping, publishVersion, setDefault, list, describe, remove, fileUrl };
+  return { upload, createBlank, replaceVersionFile, suggest, saveMapping, publishVersion, setDefault, setVisibility, list, describe, remove, fileUrl };
 }

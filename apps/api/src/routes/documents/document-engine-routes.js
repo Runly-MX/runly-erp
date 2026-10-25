@@ -50,12 +50,20 @@ export function createDocumentEngineRoutes({ hub, guard }) {
   const deny = (c) => c.json({ error: "No tienes permiso para esta acción en Documentos.", code: "forbidden" }, 403);
 
   // Runs `fn` after checking the permission for the kind of template :id.
+  // Personal templates are visible only to their owner; the owner or a user
+  // with the manage permission may change them.
   function onTemplate(action, fn) {
     return async (c, next) => {
       try {
         const info = await fileTemplates.describe({ companyId: companyId(c), templateId: c.req.param("id") });
         if (!info) return c.json({ error: "Plantilla no encontrada.", code: "template_not_found" }, 404);
-        if (!allowed(c, action, info.kind)) return deny(c);
+        const owner = Boolean(profileId(c) && info.ownerUserId === profileId(c));
+        if (action === "read") {
+          if (info.visibility === "personal" && !owner) return c.json({ error: "Plantilla no encontrada.", code: "template_not_found" }, 404);
+          if (!allowed(c, action, info.kind) && !owner) return deny(c);
+        } else if (!owner && !allowed(c, action, info.kind)) {
+          return deny(c);
+        }
         return c.json(await fn(c));
       } catch (error) {
         return handleError(c, error);
@@ -63,7 +71,8 @@ export function createDocumentEngineRoutes({ hub, guard }) {
     };
   }
 
-  const ids = (c) => ({ companyId: companyId(c), templateId: c.req.param("id"), versionId: c.req.param("versionId") });
+  const ids = (c) => ({ companyId: companyId(c), templateId: c.req.param("id"), versionId: c.req.param("versionId"), viewerId: profileId(c) });
+  const visibilityOf = (value) => (value === "company" ? "company" : "personal");
 
   app.get("/documents/kinds", guard, async (c) => {
     const { permissions, isAdmin } = access(c);
@@ -86,7 +95,7 @@ export function createDocumentEngineRoutes({ hub, guard }) {
     const kind = optionalText(c.req.query("kind"));
     if (!allowed(c, "read", kind)) return deny(c);
     try {
-      return c.json({ items: await fileTemplates.list({ companyId: companyId(c), kind, scopeKey: optionalText(c.req.query("scopeKey")) }) });
+      return c.json({ items: await fileTemplates.list({ companyId: companyId(c), kind, scopeKey: optionalText(c.req.query("scopeKey")), viewerId: profileId(c) }) });
     } catch (error) {
       return handleError(c, error);
     }
@@ -107,6 +116,7 @@ export function createDocumentEngineRoutes({ hub, guard }) {
           name: form.name,
           isDefault: flag(form.isDefault),
           publish: flag(form.publish),
+          visibility: visibilityOf(form.visibility),
         }),
         201,
       );
@@ -129,6 +139,7 @@ export function createDocumentEngineRoutes({ hub, guard }) {
           name: body.name,
           isDefault: flag(body.isDefault),
           publish: flag(body.publish),
+          visibility: visibilityOf(body.visibility),
         }),
         201,
       );
@@ -158,6 +169,11 @@ export function createDocumentEngineRoutes({ hub, guard }) {
   );
 
   app.post("/documents/templates/:id/versions/:versionId/publish", guard, onTemplate("publish", (c) => fileTemplates.publishVersion(ids(c))));
+
+  app.patch("/documents/templates/:id/visibility", guard, onTemplate("update", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    return fileTemplates.setVisibility({ ...ids(c), visibility: body.visibility });
+  }));
 
   app.patch("/documents/templates/:id/default", guard, onTemplate("update", (c) => fileTemplates.setDefault(ids(c))));
 

@@ -50,7 +50,7 @@ export function table(defaults = {}) {
 
 export function createFakePrisma() {
   const prisma = {
-    documentTemplate: table({ enabled: true, isDefault: false, scopeKey: null, publishedVersionId: null }),
+    documentTemplate: table({ enabled: true, isDefault: false, scopeKey: null, publishedVersionId: null, visibility: "company", ownerUserId: null }),
     documentTemplateVersion: table({ blocks: [], placeholders: [], mapping: {}, layout: null, fileAssetId: null }),
     generatedDocument: table({ metadata: null }),
     fileAsset: table({ enabled: true, metadata: {} }),

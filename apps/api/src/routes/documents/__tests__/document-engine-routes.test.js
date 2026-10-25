@@ -37,7 +37,7 @@ function setup() {
   const guard = async (c, next) => {
     const permissions = new Set((c.req.header("x-permissions") ?? "").split(",").filter(Boolean));
     c.set("companyId", COMPANY);
-    c.set("userContext", { profile: { id: "44444444-4444-7444-8444-444444444444" }, permissionSet: permissions, isAdmin: false });
+    c.set("userContext", { profile: { id: c.req.header("x-user") ?? "44444444-4444-7444-8444-444444444444" }, permissionSet: permissions, isAdmin: false });
     await next();
   };
   const app = new Hono();
@@ -51,6 +51,7 @@ function uploadBody(kind = "test.record", extra = {}) {
   const form = new FormData();
   form.set("kind", kind);
   form.set("publish", "true");
+  form.set("visibility", "company");
   form.set("file", new File([buildMinimalDocx(paragraph("Hola {{name}}"))], "plantilla.docx"));
   for (const [key, value] of Object.entries(extra)) form.set(key, value);
   return form;
@@ -83,7 +84,7 @@ test("lists by kind, sets default, maps, soft-deletes and lists every template w
   assert.deepEqual((await (await app.request("/documents/templates", { headers })).json()).items.map((t) => t.id), [id]);
 
   const second = await (await app.request("/documents/templates/blank", {
-    method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ kind: "test.record", format: "xlsx", publish: true }),
+    method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ kind: "test.record", format: "xlsx", publish: true, visibility: "company" }),
   })).json();
   const makeDefault = await app.request(`/documents/templates/${second.template.id}/default`, { method: "PATCH", headers });
   assert.equal((await makeDefault.json()).isDefault, true);
@@ -122,4 +123,38 @@ test("generate stores the document and returns a link; preview returns the file;
   assert.equal(preview.status, 200);
   assert.match(preview.headers.get("content-type"), /wordprocessingml/);
   assert.match(new PizZip(Buffer.from(await preview.arrayBuffer())).file("word/document.xml").asText(), /Nombre de ejemplo/);
+});
+
+test("personal templates are only visible to their owner; the owner shares them and only company ones can be default", async () => {
+  const { app } = setup();
+  const ana = as("test.records.manage,test.records.read", { "x-user": "aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa" });
+  const beto = as("test.records.manage,test.records.read", { "x-user": "bbbbbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb" });
+  const mine = await (await app.request("/documents/templates/upload", { method: "POST", headers: ana, body: uploadBody("test.record", { visibility: "personal" }) })).json();
+  const id = mine.template.id;
+  assert.equal(mine.template.visibility, "personal");
+  assert.equal(mine.template.isDefault, false); // published but personal: never the default
+  assert.equal(mine.template.isOwner, true);
+
+  assert.equal((await (await app.request("/documents/templates?kind=test.record", { headers: ana })).json()).items.length, 1);
+  assert.equal((await (await app.request("/documents/templates?kind=test.record", { headers: beto })).json()).items.length, 0);
+  assert.equal((await app.request(`/documents/templates/${id}/file`, { headers: beto })).status, 404);
+  assert.equal((await app.request(`/documents/templates/${id}/default`, { method: "PATCH", headers: ana })).status, 409);
+
+  const json = { "content-type": "application/json" };
+  const generate = (headers, body) => app.request("/documents/generate", { method: "POST", headers: { ...headers, ...json }, body: JSON.stringify(body) });
+  assert.equal((await generate(beto, { kind: "test.record", templateId: id, sourceId: SOURCE })).status, 404);
+  assert.equal((await generate(beto, { kind: "test.record", sourceId: SOURCE })).status, 404); // no default for Beto
+  assert.equal((await generate(ana, { kind: "test.record", templateId: id, sourceId: SOURCE })).status, 201);
+
+  const shared = await app.request(`/documents/templates/${id}/visibility`, { method: "PATCH", headers: { ...ana, ...json }, body: JSON.stringify({ visibility: "company" }) });
+  assert.equal((await shared.json()).visibility, "company");
+  assert.equal((await (await app.request("/documents/templates?kind=test.record", { headers: beto })).json()).items.length, 1);
+  assert.equal((await app.request(`/documents/templates/${id}/default`, { method: "PATCH", headers: ana })).status, 200);
+  assert.equal((await generate(beto, { kind: "test.record", sourceId: SOURCE })).status, 201); // company default
+  // A non-owner without manage permission cannot change it.
+  const reader = as("test.records.read", { "x-user": "cccccccc-cccc-7ccc-8ccc-cccccccccccc" });
+  assert.equal((await app.request(`/documents/templates/${id}/visibility`, { method: "PATCH", headers: { ...reader, ...json }, body: JSON.stringify({ visibility: "personal" }) })).status, 403);
+  // Back to personal drops the default.
+  const back = await (await app.request(`/documents/templates/${id}/visibility`, { method: "PATCH", headers: { ...ana, ...json }, body: JSON.stringify({ visibility: "personal" }) })).json();
+  assert.equal(back.isDefault, false);
 });
