@@ -4,6 +4,9 @@
 import { SelectField } from "@runly/ui";
 import { stepsOf } from "@runly/module-compiler/browser";
 import { WebhookTriggerPanel } from "./WebhookTriggerPanel";
+import { keyOf } from "../../lib/flowModel";
+
+export { fieldOptionsFor, keyOf } from "../../lib/flowModel";
 
 const TRIGGER_TYPES = [
   { value: "record", label: "Cuando se guarda un registro de este módulo" },
@@ -28,8 +31,7 @@ const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => ({ value: String(ho
 const MINUTE_OPTIONS = ["00", "15", "30", "45"].map((value) => ({ value, label: value }));
 const NO_ENTITY = "none";
 
-export const keyOf = (item) => item.key ?? item.name;
-const emptySteps = [{ service: "", args: {} }];
+export const emptySteps = [{ service: "", args: {} }];
 
 // "Cambió" only applies to updates: drop those conditions when switching to create.
 function dropChanged(when) {
@@ -109,14 +111,4 @@ export function TriggerEditor({ automation, entities, events, allowedTriggers, r
       )}
     </div>
   );
-}
-
-
-// Fields a block can read from the trigger: the entity's fields, the event payload
-// or the fields a webhook announces.
-export function fieldOptionsFor(trigger, entities, events) {
-  if (trigger.type === "webhook") return (trigger.fields ?? []).map((field) => ({ value: field.key, label: field.label || field.key }));
-  if (trigger.type === "event") return (events.find((event) => event.key === trigger.event)?.payload ?? []).map((key) => ({ value: key, label: key }));
-  const entity = entities.find((item) => keyOf(item) === trigger.entity);
-  return (entity?.fields ?? []).map((field) => ({ value: keyOf(field), label: field.label ?? keyOf(field) }));
 }

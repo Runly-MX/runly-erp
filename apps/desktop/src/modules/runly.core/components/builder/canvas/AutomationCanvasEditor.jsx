@@ -1,19 +1,23 @@
 // Canvas editor of an automation (n8n-style): blocks on a pannable, zoomable
 // canvas joined by arrows; click a block to edit it in the inspector, drag a block
-// by its grip to reorder, drag blocks from the palette onto a "+" slot, or use the
-// "+" menus. It edits the same definition object as the form view. Spec
+// anywhere to arrange the canvas, drag its grip to change the order in the flow,
+// drag blocks from the palette onto a "+" slot, or use the "+" menus. It edits the
+// same definition object as the form view. Spec
 // docs/superpowers/specs/2026-10-25-automation-canvas-and-webhooks-design.md.
 //
-// Layout: canvas + docked inspector (>= 1024 px); below that the inspector opens
-// as a side/bottom sheet. Left-to-right on wide canvases, top-to-bottom on narrow
-// ones (< 640 px) so phones scroll the way they read.
+// Layout: canvas + docked, resizable inspector (>= 1024 px); below that the
+// inspector opens as a side/bottom sheet. Presets: horizontal, vertical (the
+// default follows the canvas width) and free positions saved with the automation.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, useIsMobile } from "@runly/ui";
-import { CalendarClock, Clock, Filter, Globe, Maximize, Minus, MousePointerClick, Plus, Radio, ShieldCheck, Webhook, Zap } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, useIsMobile } from "@runly/ui";
+import { ArrowDownUp, ArrowRightLeft, CalendarClock, Clock, Filter, Globe, LayoutDashboard, Maximize, Minus, MousePointerClick, Plus, Radio, ShieldCheck, Webhook, Wand2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { conditionsOf, isApprovalStep, isDelayStep, isHttpStep, isPauseStep, stepsOf } from "@runly/module-compiler/browser";
-import { describeCondition, describeStep, describeTrigger, insertStep, moveStep, removeStep, slotOptions, stepIssues, stepKindLabel, triggerKindLabel } from "../../../lib/flowModel";
-import { dropIndex, layoutNodes, nearestSlot, toCanvas } from "../../../lib/canvasLayout";
+import {
+  describeCondition, describeStep, describeTrigger, insertStep, moveStep, positionsFromUi, removeStep, slotOptions, stepIssues, stepKindLabel, triggerKindLabel,
+  uiAfterInsert, uiAfterMove, uiAfterRemove, uiArranged, uiWithLayout, uiWithPosition,
+} from "../../../lib/flowModel";
+import { NODE, dropIndex, layoutNodes, nearestSlot, snap, toCanvas } from "../../../lib/canvasLayout";
 import { ownerLabel } from "../AutomationSteps";
 import { InspectorBody, InspectorHeader } from "../flow/FlowInspector";
 import { AddGhost, CanvasEdges, CanvasNode, EdgePlus } from "./CanvasParts";
@@ -22,10 +26,13 @@ import { useCanvasView } from "./useCanvasView";
 
 const DOCK_WIDTH = 1024;
 const NARROW_CANVAS = 640;
-const INSPECTOR_WIDTH = 384;
+const WIDTH_KEY = "runly.automations.inspectorWidth";
+const DEFAULT_INSPECTOR = 400;
+const MIN_INSPECTOR = 340;
+const WIDE_INSPECTOR = 680;
+const MOVE_THRESHOLD = 5;
 const TRIGGER_ICON = { record: MousePointerClick, event: Radio, schedule: CalendarClock, webhook: Webhook };
 const cx = (...parts) => parts.filter(Boolean).join(" ");
-
 const stepIcon = (step) => (isDelayStep(step) ? Clock : isApprovalStep(step) ? ShieldCheck : isHttpStep(step) ? Globe : Zap);
 
 function usePrefersReducedMotion() {
@@ -40,9 +47,31 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-export function AutomationCanvasEditor({ automation, entities, events, allowedTriggers, fieldOptions, readOnly, onPatch, className }) {
+// A per-viewer convenience only: the page works without storage.
+function readWidth() {
+  try {
+    const value = Number(window.localStorage.getItem(WIDTH_KEY));
+    return Number.isFinite(value) && value >= MIN_INSPECTOR ? value : DEFAULT_INSPECTOR;
+  } catch { return DEFAULT_INSPECTOR; }
+}
+function rememberWidth(value) {
+  try { window.localStorage.setItem(WIDTH_KEY, String(Math.round(value))); } catch { /* storage blocked */ }
+}
+
+// Last run -> a status per block id.
+function runStatuses(run) {
+  if (!run) return {};
+  const map = { trigger: "success", conditions: "success" };
+  for (const entry of run.steps ?? []) {
+    map[`step-${entry.index}`] = entry.skipped ? "skipped" : entry.ok ? (entry.waiting ? "waiting" : "success") : "failed";
+  }
+  return map;
+}
+
+export function AutomationCanvasEditor({ automation, entities, events, allowedTriggers, fieldOptions, readOnly, onPatch, className, runOverlay = null }) {
   const steps = stepsOf(automation);
   const trigger = automation.trigger;
+  const ui = automation.ui;
   const docked = !useIsMobile(DOCK_WIDTH);
   const reducedMotion = usePrefersReducedMotion();
   const showConditions = trigger.type !== "schedule" || Boolean(trigger.entity);
@@ -52,11 +81,20 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
 
   const [selectedId, setSelectedId] = useState(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [orientation, setOrientation] = useState("horizontal");
-  const [reorder, setReorder] = useState(null); // { index, offset, target, valid }
+  const [responsive, setResponsive] = useState("horizontal");
+  const [refit, setRefit] = useState(0);
+  const [layoutMenu, setLayoutMenu] = useState(false);
+  const [reorder, setReorder] = useState(null); // grip drag: { index, offset, target, valid }
+  const [liveMove, setLiveMove] = useState(null); // block drag: { id, x, y }
   const [dragKind, setDragKind] = useState(null); // palette drag: { kind, slot }
+  const [inspectorWidth, setInspectorWidth] = useState(readWidth);
+  const reorderRef = useRef(null);
+  const moveRef = useRef(null);
+  const suppressClick = useRef(false);
+  const rootRef = useRef(null);
 
   // ---- nodes and layout
+  const gridOrientation = ui?.layout === "horizontal" || ui?.layout === "vertical" ? ui.layout : responsive;
   const nodes = useMemo(() => {
     const triggerText = describeTrigger(trigger, { entities, events });
     const list = [{ id: "trigger", Icon: TRIGGER_ICON[trigger.type] ?? MousePointerClick, tone: "brand", kind: triggerKindLabel(trigger), title: triggerText.title, detail: triggerText.detail }];
@@ -69,33 +107,30 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
     });
     return list;
   }, [trigger, entities, events, steps, showConditions, conditions, fieldLabel]);
-  const layout = useMemo(() => layoutNodes(nodes, orientation), [nodes, orientation]);
+  const positions = useMemo(() => ({ ...positionsFromUi(ui), ...(liveMove ? { [liveMove.id]: { x: liveMove.x, y: liveMove.y } } : {}) }), [ui, liveMove]);
+  const layout = useMemo(() => layoutNodes(nodes, gridOrientation, positions), [nodes, gridOrientation, positions]);
   const edges = useMemo(() => layout.edges.map((edge) => {
     const fromStep = layout.nodes.find((node) => node.id === edge.from)?.stepIndex;
     return { ...edge, background: fromStep !== undefined && steps.slice(0, fromStep + 1).some(isPauseStep) };
   }), [layout, steps]);
-  const tailBackground = steps.some(isPauseStep);
-  const addGhost = layout.add ? { ...layout.add, edge: layout.add.edge } : null;
+  const statuses = useMemo(() => runStatuses(runOverlay), [runOverlay]);
 
-  const { view, animate, viewportRef, fit, zoomBy, reveal, bind } = useCanvasView({ bounds: layout.bounds, fitKey: `${orientation}:${nodes.length}` });
+  const { view, animate, viewportRef, fit, zoomBy, reveal, bind } = useCanvasView({ bounds: layout.bounds, fitKey: `${gridOrientation}:${nodes.length}:${refit}` });
 
   useEffect(() => {
     const element = viewportRef.current;
     if (!element || typeof ResizeObserver === "undefined") return undefined;
-    const observer = new ResizeObserver(() => setOrientation(element.clientWidth < NARROW_CANVAS ? "vertical" : "horizontal"));
+    const observer = new ResizeObserver(() => setResponsive(element.clientWidth < NARROW_CANVAS ? "vertical" : "horizontal"));
     observer.observe(element);
     return () => observer.disconnect();
   }, [viewportRef]);
 
-  // Insertion slots in canvas units: before step i (an edge middle) or at the end (the add ghost).
+  // Insertion slots in canvas units: before step i (an arrow's middle) or at the end (the add slot).
   const slots = useMemo(() => {
-    const list = steps.map((_, index) => {
-      const edge = layout.edges[stepOffset + index - 1];
-      return { index, point: edge ? edge.mid : { x: 0, y: 0 } };
-    });
-    list.push({ index: steps.length, point: addGhost ? { x: addGhost.x + addGhost.width / 2, y: addGhost.y + addGhost.height / 2 } : { x: 0, y: 0 } });
+    const list = steps.map((_, index) => ({ index, point: layout.edges[stepOffset + index - 1]?.mid ?? { x: 0, y: 0 } }));
+    list.push({ index: steps.length, point: layout.add ? { x: layout.add.x + layout.add.width / 2, y: layout.add.y + layout.add.height / 2 } : { x: 0, y: 0 } });
     return list;
-  }, [steps, layout, stepOffset, addGhost]);
+  }, [steps, layout, stepOffset]);
 
   // ---- selection
   const selected = useMemo(() => {
@@ -107,43 +142,105 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
   }, [selectedId, steps.length, showConditions]);
   const current = selected;
 
-  // ---- operations
-  const patchSteps = (next, nextSelection) => {
-    onPatch({ steps: next });
+  // Select a block, bring it into view and make room for the inspector about to dock.
+  const select = (node) => {
+    reveal(node, docked && !current ? inspectorWidth : 0);
+    setSelectedId(node.id);
+  };
+
+  // ---- operations on the flow (the saved positions follow the steps)
+  const apply = (nextSteps, nextUi, nextSelection) => {
+    onPatch({ steps: nextSteps, ui: nextUi });
     if (nextSelection !== undefined) setSelectedId(nextSelection);
   };
   const insert = (index, kind) => {
     const result = insertStep(steps, index, kind);
     if (!result.ok) { toast.info(result.reason); return; }
-    patchSteps(result.steps, `step-${index}`);
+    let nextUi = uiAfterInsert(ui, index);
+    // In a free layout the new block starts just below the one before it.
+    if (nextUi?.layout === "free") {
+      const before = layout.nodes[stepOffset + index - 1] ?? layout.nodes[layout.nodes.length - 1];
+      nextUi = uiWithPosition(nextUi, `step-${index}`, { x: snap(before.x + 24), y: snap(before.y + NODE.height + 40) }, result.steps.length);
+    }
+    apply(result.steps, nextUi, `step-${index}`);
   };
   const move = (from, to) => {
     const next = moveStep(steps, from, to);
-    if (next) patchSteps(next, `step-${to}`);
+    if (next) apply(next, uiAfterMove(ui, from, to), `step-${to}`);
   };
   const remove = (index) => {
-    const previous = steps;
-    patchSteps(removeStep(steps, index), null);
-    toast("Bloque quitado", { action: { label: "Deshacer", onClick: () => onPatch({ steps: previous }) } });
+    const previous = { steps, ui };
+    apply(removeStep(steps, index), uiAfterRemove(ui, index), null);
+    toast("Bloque quitado", { action: { label: "Deshacer", onClick: () => onPatch(previous) } });
   };
   const selectedStep = current?.kind === "step" ? current.index : null;
   const addFromPalette = (kind) => insert(selectedStep === null ? steps.length : selectedStep + 1, kind);
 
-  // ---- reorder by dragging a grip
+  // ---- presets
+  const setPreset = (preset) => {
+    onPatch({ ui: preset === "arrange" ? uiArranged(ui) : uiWithLayout(preset) });
+    setRefit((value) => value + 1);
+    setLayoutMenu(false);
+  };
+
+  // ---- drag a block anywhere (free layout)
+  const finishMove = (commit) => {
+    const drag = moveRef.current;
+    moveRef.current = null;
+    const live = liveMove;
+    setLiveMove(null);
+    if (!drag?.moved) return;
+    suppressClick.current = true;
+    window.setTimeout(() => { suppressClick.current = false; }, 60);
+    if (!commit || !live) return;
+    // The first manual move freezes every block where it is, so nothing jumps.
+    let nextUi = ui?.layout === "free" ? ui : undefined;
+    if (!nextUi) layout.nodes.forEach((node) => { nextUi = uiWithPosition(nextUi, node.id, { x: node.x, y: node.y }, steps.length); });
+    onPatch({ ui: uiWithPosition(nextUi, live.id, { x: snap(live.x), y: snap(live.y) }, steps.length) });
+  };
+  const moveFor = (node) => (readOnly ? undefined : {
+    style: { touchAction: "none" },
+    onPointerDown: (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      moveRef.current = { id: node.id, startX: event.clientX, startY: event.clientY, origin: { x: node.x, y: node.y }, moved: false };
+    },
+    onPointerMove: (event) => {
+      const drag = moveRef.current;
+      if (!drag) return;
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      if (!drag.moved) {
+        if (Math.hypot(dx, dy) < MOVE_THRESHOLD) return;
+        drag.moved = true;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      }
+      setLiveMove({ id: drag.id, x: drag.origin.x + dx / view.k, y: drag.origin.y + dy / view.k });
+    },
+    onPointerUp: () => finishMove(true),
+    onPointerCancel: () => finishMove(false),
+  });
+
+  // ---- reorder in the flow by dragging a grip
+  const finishReorder = (commit) => {
+    const drag = reorderRef.current;
+    reorderRef.current = null;
+    const state = reorder;
+    setReorder(null);
+    if (commit && drag && state?.valid) move(drag.index, state.target);
+  };
   const handleFor = (index) => ({
     style: { touchAction: "none" },
     onPointerDown: (event) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
       event.stopPropagation();
       event.currentTarget.setPointerCapture?.(event.pointerId);
-      const rect = viewportRef.current.getBoundingClientRect();
-      reorderRef.current = { index, startX: event.clientX, startY: event.clientY, rect };
+      reorderRef.current = { index, startX: event.clientX, startY: event.clientY, rect: viewportRef.current.getBoundingClientRect() };
       setReorder({ index, offset: { x: 0, y: 0 }, target: index, valid: false });
     },
     onPointerMove: (event) => {
       const drag = reorderRef.current;
       if (!drag) return;
-      const horizontal = orientation === "horizontal";
+      const horizontal = gridOrientation === "horizontal";
       const offset = { x: (event.clientX - drag.startX) / view.k, y: (event.clientY - drag.startY) / view.k };
       const pointer = toCanvas(view, { x: event.clientX - drag.rect.left, y: event.clientY - drag.rect.top });
       const centres = steps.map((_, i) => {
@@ -156,14 +253,6 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
     onPointerUp: () => finishReorder(true),
     onPointerCancel: () => finishReorder(false),
   });
-  const reorderRef = useRef(null);
-  const finishReorder = (commit) => {
-    const drag = reorderRef.current;
-    reorderRef.current = null;
-    const state = reorder;
-    setReorder(null);
-    if (commit && drag && state?.valid) move(drag.index, state.target);
-  };
 
   // ---- palette drag: which slot is closest to the pointer
   const slotAtClient = (point) => {
@@ -194,26 +283,62 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
     else if ((event.key === "Delete" || event.key === "Backspace") && stepIndex !== undefined && !readOnly) { event.preventDefault(); remove(stepIndex); }
   };
 
-  // Select a block; bring it into view (and make room for the inspector about to dock).
-  const select = (node) => {
-    reveal(node, docked && !current ? INSPECTOR_WIDTH : 0);
-    setSelectedId(node.id);
+  // ---- resizable inspector
+  const clampWidth = (value) => {
+    const container = rootRef.current?.getBoundingClientRect().width ?? 1200;
+    return Math.max(MIN_INSPECTOR, Math.min(value, 780, container - 320));
+  };
+  const resizeProps = {
+    role: "separator",
+    "aria-orientation": "vertical",
+    "aria-label": "Cambiar el ancho del panel",
+    "aria-valuenow": Math.round(inspectorWidth),
+    "aria-valuemin": MIN_INSPECTOR,
+    tabIndex: 0,
+    onPointerDown: (event) => {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      event.currentTarget.dataset.resizing = "true";
+    },
+    onPointerMove: (event) => {
+      if (event.currentTarget.dataset.resizing !== "true") return;
+      const right = rootRef.current.getBoundingClientRect().right;
+      setInspectorWidth(clampWidth(right - event.clientX));
+    },
+    onPointerUp: (event) => { delete event.currentTarget.dataset.resizing; rememberWidth(inspectorWidth); },
+    onPointerCancel: (event) => { delete event.currentTarget.dataset.resizing; },
+    onKeyDown: (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const next = clampWidth(inspectorWidth + (event.key === "ArrowLeft" ? 32 : -32));
+      setInspectorWidth(next);
+      rememberWidth(next);
+    },
+  };
+  const expanded = inspectorWidth >= 600;
+  const toggleExpanded = () => {
+    const next = clampWidth(expanded ? DEFAULT_INSPECTOR : WIDE_INSPECTOR);
+    setInspectorWidth(next);
+    rememberWidth(next);
   };
 
+  // ---- inspector content
   const endSlot = steps.length;
   const options = (index) => slotOptions(steps, index);
   const endOptions = options(endSlot);
-  const inspector = current ? (
+  const currentNode = current ? nodes.find((node) => node.id === current.id) : null;
+  const inspector = current && currentNode ? (
     <>
       <InspectorHeader
+        icon={currentNode.Icon} tone={currentNode.tone} kindLabel={currentNode.kind}
         node={current} stepCount={steps.length} readOnly={readOnly}
-        title={current.kind === "trigger" ? "Cuándo empieza" : current.kind === "conditions" ? "Solo si" : describeStep(steps[current.index], ownerLabel).title}
+        title={current.kind === "trigger" ? currentNode.title : current.kind === "conditions" ? "Solo si..." : describeStep(steps[current.index], ownerLabel).title}
         subtitle={current.kind === "step" ? `Bloque ${current.index + 1} de ${steps.length}` : null}
+        expanded={expanded} onToggleExpand={docked ? toggleExpanded : undefined}
         onMove={(delta) => move(current.index, current.index + delta)}
         onRemove={() => remove(current.index)}
         onClose={() => setSelectedId(null)}
       />
-      <div className="mt-4">
+      <div className="mt-5">
         <InspectorBody
           node={current} automation={automation} steps={steps} entities={entities} events={events} allowedTriggers={allowedTriggers}
           fieldOptions={fieldOptions} readOnly={readOnly} onPatch={onPatch}
@@ -226,9 +351,10 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
   const markerSlot = reorder ? (reorder.target <= reorder.index ? reorder.target : reorder.target + 1) : dragKind?.slot ?? null;
   const markerValid = reorder ? reorder.valid : true;
   const marker = markerSlot !== null && markerSlot !== undefined ? slots.find((slot) => slot.index === markerSlot)?.point : null;
+  const horizontalFlow = gridOrientation === "horizontal";
 
   return (
-    <div className={cx("flex min-h-0 overflow-hidden rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))]", className)}>
+    <div ref={rootRef} className={cx("flex min-h-0 overflow-hidden rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))]", className)}>
       <section
         ref={viewportRef}
         role="group"
@@ -246,10 +372,10 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
           className={cx("absolute left-0 top-0 origin-top-left", animate && !reducedMotion && "transition-transform duration-200 ease-out")}
           style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}
         >
-          <CanvasEdges edges={edges} orientation={orientation} reducedMotion={reducedMotion} />
+          <CanvasEdges edges={edges} reducedMotion={reducedMotion} />
           {edges.map((edge) => (edge.toIndex >= stepOffset ? (
             <EdgePlus
-              key={edge.id} edge={edge} orientation={orientation} readOnly={readOnly}
+              key={edge.id} edge={edge} readOnly={readOnly}
               options={options(edge.toIndex - stepOffset)} onPick={(kind) => insert(edge.toIndex - stepOffset, kind)}
               active={markerSlot === edge.toIndex - stepOffset && dragKind !== null}
             />
@@ -264,18 +390,18 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
                 node={{ ...node, ...source }}
                 selected={current?.id === node.id}
                 dragging={dragging}
+                moving={liveMove?.id === node.id}
                 offset={dragging ? reorder.offset : null}
-                first={index === 0}
-                last={index === layout.nodes.length - 1}
-                orientation={orientation}
+                run={statuses[node.id]}
+                move={moveFor(node)}
                 handle={isStep && !readOnly && steps.length > 1 ? handleFor(node.stepIndex) : null}
-                onSelect={() => select(node)}
+                onSelect={() => { if (!suppressClick.current) select(node); }}
                 onKeyDown={(event) => onNodeKey(event, node.stepIndex)}
               />
             );
           })}
           <AddGhost
-            add={addGhost && { ...addGhost, edge: { start: addGhost.edge.start, end: addGhost.edge.end } }} orientation={orientation} readOnly={readOnly}
+            add={layout.add} readOnly={readOnly}
             options={endOptions} onPick={(kind) => insert(endSlot, kind)} full={endOptions.every((option) => option.disabled)}
             active={markerSlot === endSlot && dragKind !== null}
           />
@@ -283,9 +409,7 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
             <span
               aria-hidden="true"
               className={cx("pointer-events-none absolute z-40 rounded-full", markerValid ? "bg-(--brand-primary)" : "bg-red-500")}
-              style={orientation === "horizontal"
-                ? { left: marker.x - 2, top: marker.y - 30, width: 4, height: 60 }
-                : { left: marker.x - 30, top: marker.y - 2, width: 60, height: 4 }}
+              style={horizontalFlow ? { left: marker.x - 2, top: marker.y - 30, width: 4, height: 60 } : { left: marker.x - 30, top: marker.y - 2, width: 60, height: 4 }}
             />
           )}
         </div>
@@ -301,7 +425,31 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
           <button type="button" aria-label="Alejar" title="Alejar" onClick={() => zoomBy(1 / 1.25)} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-l-md hover:bg-[hsl(var(--muted))] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"><Minus className="h-4 w-4" /></button>
           <span className="w-12 text-center text-xs tabular-nums text-[hsl(var(--muted-foreground))]" aria-live="polite">{Math.round(view.k * 100)}%</span>
           <button type="button" aria-label="Acercar" title="Acercar" onClick={() => zoomBy(1.25)} className="flex h-8 w-8 cursor-pointer items-center justify-center hover:bg-[hsl(var(--muted))] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"><Plus className="h-4 w-4" /></button>
-          <button type="button" aria-label="Ajustar a la pantalla" title="Ajustar a la pantalla" onClick={() => fit(true)} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-r-md border-l border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"><Maximize className="h-4 w-4" /></button>
+          <button type="button" aria-label="Ajustar a la pantalla" title="Ajustar a la pantalla" onClick={() => fit(true)} className="flex h-8 w-8 cursor-pointer items-center justify-center border-l border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"><Maximize className="h-4 w-4" /></button>
+          {!readOnly && (
+            <Popover open={layoutMenu} onOpenChange={setLayoutMenu}>
+              <PopoverTrigger asChild>
+                <button type="button" aria-label="Disposición de los bloques" title="Disposición de los bloques" className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-r-md border-l border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] data-[state=open]:bg-(--brand-primary)/15 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"><LayoutDashboard className="h-4 w-4" /></button>
+              </PopoverTrigger>
+              <PopoverContent align="start" side="top" className="w-72 p-1.5">
+                <p className="px-2 py-1 text-xs text-[hsl(var(--muted-foreground))]">Arrastra cualquier bloque para acomodarlo a tu gusto, o elige una disposición.</p>
+                <ul className="space-y-0.5">
+                  {[
+                    ["horizontal", ArrowRightLeft, "Horizontal", "De izquierda a derecha"],
+                    ["vertical", ArrowDownUp, "Vertical", "De arriba hacia abajo"],
+                    ["arrange", Wand2, "Ordenar", "Vuelve a alinear los bloques"],
+                  ].map(([value, Icon, label, hint]) => (
+                    <li key={value}>
+                      <button type="button" onClick={() => setPreset(value)} className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 text-left hover:bg-[hsl(var(--muted))] [@media(pointer:coarse)]:min-h-11">
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span><span className="block text-sm font-medium leading-tight">{label}</span><span className="block text-xs text-[hsl(var(--muted-foreground))]">{hint}</span></span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
         <p className="pointer-events-none absolute bottom-3 right-3 z-20 hidden max-w-[16rem] text-right text-xs text-[hsl(var(--muted-foreground))] sm:block">
           <span className="[@media(hover:none)]:hidden">Arrastra el fondo para mover · Ctrl + rueda para acercar</span>
@@ -310,12 +458,16 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
       </section>
 
       {docked ? (current && (
-        <aside aria-label="Editar bloque" className="w-[24rem] shrink-0 overflow-y-auto border-l border-[hsl(var(--border))] p-4">
+        <aside aria-label="Editar bloque" style={{ width: inspectorWidth }} className="relative shrink-0 overflow-y-auto border-l border-[hsl(var(--border))] p-5">
+          <div
+            {...resizeProps}
+            className="absolute -left-1.5 top-0 z-20 h-full w-3 cursor-col-resize touch-none select-none after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 after:bg-transparent hover:after:bg-(--brand-primary)/50 focus-visible:after:bg-(--brand-primary)"
+          />
           {inspector}
         </aside>
       )) : (
         <Sheet open={Boolean(selected)} onOpenChange={(open) => { if (!open) setSelectedId(null); }}>
-          <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
+          <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto p-5 sm:max-w-lg">
             <SheetHeader className="sr-only">
               <SheetTitle>Editar bloque</SheetTitle>
               <SheetDescription>Cambia la configuración del bloque seleccionado.</SheetDescription>

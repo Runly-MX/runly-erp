@@ -5,14 +5,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, ConfirmDialog, ErrorState, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton, Switch, TextField } from "@runly/ui";
-import { ArrowLeft, FlaskConical, History, Plug, Save, Trash2 } from "lucide-react";
+import { Button, ConfirmDialog, ErrorState, Skeleton, Switch, TextField } from "@runly/ui";
+import { ArrowLeft, FlaskConical, Plug, Save, Terminal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
 import { AutomationConnectionsDialog } from "../components/builder/AutomationConnectionsDialog";
-import { AutomationRunsPanel } from "../components/builder/AutomationRunsPanel";
+import { AutomationConsole } from "../components/builder/AutomationConsole";
 import { AutomationTestDialog } from "../components/builder/AutomationTestDialog";
 import { fieldOptionsFor } from "../components/builder/AutomationTrigger";
 import { AutomationCanvasEditor } from "../components/builder/canvas/AutomationCanvasEditor";
@@ -48,7 +48,8 @@ export default function SystemAutomationEditor() {
   const [saved, setSaved] = useState(null); // snapshot of what is stored
   const [diagnostics, setDiagnostics] = useState(null);
   const [testOpen, setTestOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [overlayRun, setOverlayRun] = useState(null);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // "leave" | "delete"
 
@@ -121,7 +122,7 @@ export default function SystemAutomationEditor() {
 
   const fieldOptions = fieldOptionsFor(item.trigger, NO_ENTITIES, events);
   return (
-    <div className="flex min-h-full flex-col gap-3 p-3 md:p-5">
+    <div className="flex h-[calc(100dvh-7.5rem)] min-h-[40rem] flex-col gap-3 p-3 md:p-5">
       <header className="flex flex-wrap items-end gap-2">
         <Button variant="ghost" onClick={back} className="[@media(pointer:coarse)]:h-11"><ArrowLeft className="h-4 w-4 sm:mr-1.5" /> <span className="max-sm:sr-only">Automatizaciones</span></Button>
         <div className="min-w-[12rem] flex-1">
@@ -133,7 +134,7 @@ export default function SystemAutomationEditor() {
         <div className="flex flex-wrap items-center gap-2 pb-0.5">
           <Button variant="outline" onClick={() => setConnectionsOpen(true)} className="[@media(pointer:coarse)]:h-11"><Plug className="h-4 w-4 sm:mr-1.5" /> <span className="max-sm:sr-only">Conexiones</span></Button>
           <Button variant="outline" onClick={() => setTestOpen(true)} className="[@media(pointer:coarse)]:h-11"><FlaskConical className="h-4 w-4 sm:mr-1.5" /> <span className="max-sm:sr-only">Probar</span></Button>
-          {!isNew && <Button variant="outline" onClick={() => setHistoryOpen(true)} className="[@media(pointer:coarse)]:h-11"><History className="h-4 w-4 sm:mr-1.5" /> <span className="max-sm:sr-only">Historial</span></Button>}
+          {!isNew && <Button variant={consoleOpen ? "secondary" : "outline"} aria-pressed={consoleOpen} onClick={() => setConsoleOpen((open) => !open)} className="[@media(pointer:coarse)]:h-11"><Terminal className="h-4 w-4 sm:mr-1.5" /> <span className="max-sm:sr-only">Consola</span></Button>}
           {!isNew && <Button variant="ghost" aria-label="Eliminar automatización" onClick={() => setConfirm("delete")} className="[@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"><Trash2 className="h-4 w-4" /></Button>}
           <Button disabled={!dirty || save.isPending} onClick={() => save.mutate()} className="[@media(pointer:coarse)]:h-11"><Save className="mr-1.5 h-4 w-4" /> {save.isPending ? "Guardando..." : dirty ? "Guardar" : "Guardado"}</Button>
         </div>
@@ -147,17 +148,12 @@ export default function SystemAutomationEditor() {
 
       <AutomationCanvasEditor
         automation={item} entities={NO_ENTITIES} events={events} allowedTriggers={ALLOWED_TRIGGERS}
-        fieldOptions={fieldOptions} readOnly={false} onPatch={patch} className="h-[calc(100dvh-14rem)] min-h-[30rem]"
+        fieldOptions={fieldOptions} readOnly={false} onPatch={patch} className="min-h-0 flex-1" runOverlay={consoleOpen ? overlayRun : null}
       />
+      {!isNew && <AutomationConsole moduleKey={SYSTEM_MODULE_KEY} automation={item} open={consoleOpen} onToggle={() => setConsoleOpen((open) => !open)} onSelectRun={setOverlayRun} />}
 
       <AutomationTestDialog open={testOpen} onOpenChange={setTestOpen} automation={item} fieldOptions={fieldOptions} />
       <AutomationConnectionsDialog open={connectionsOpen} onOpenChange={setConnectionsOpen} />
-      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
-        <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-xl">
-          <SheetHeader><SheetTitle>Historial</SheetTitle><SheetDescription>Las últimas ejecuciones de esta automatización.</SheetDescription></SheetHeader>
-          <div className="mt-4"><AutomationRunsPanel moduleKey={SYSTEM_MODULE_KEY} published automations={[item]} automationKey={item.key} /></div>
-        </SheetContent>
-      </Sheet>
       <ConfirmDialog
         open={confirm === "leave"} onOpenChange={(open) => !open && setConfirm(null)}
         title="Hay cambios sin guardar" description="Si sales ahora, se pierden los cambios de esta automatización."

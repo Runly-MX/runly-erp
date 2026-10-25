@@ -8,6 +8,8 @@ import { ArrowDown, ArrowUp, Clock, Globe, Plus, ShieldCheck, Trash2 } from "luc
 import { MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, automationServices, isApprovalStep, isDelayStep, isHttpStep, isPauseStep } from "@runly/module-compiler/browser";
 import { AutomationArgsEditor } from "./AutomationArgsEditor";
 import { ApprovalStepEditor, HttpStepEditor } from "./AutomationStepEditors";
+import { outputsOf, withStepOutputs } from "../../lib/flowModel";
+import { InspectorSection } from "./InspectorSection";
 
 const OWNER_LABELS = {
   "runly.calendar": "Calendario", "runly.files": "Archivos", "runly.notifications": "Notificaciones", "runly.contacts": "Contactos",
@@ -44,26 +46,43 @@ export function DelayEditor({ step, readOnly, onChange }) {
   );
 }
 
-// Body of one step: the editor that matches its kind. `withServiceSelect` adds the
-// action picker on top (the visual editor's inspector; the form list draws its own).
-export function StepEditor({ step, steps, index, triggerType, fieldOptions, readOnly, onChange, withServiceSelect = false, compact = false, label = "Acción" }) {
+// Body of one step: the editor that matches its kind. `withServiceSelect` is the
+// canvas inspector: the action picker on top and the content in titled sections
+// (the form list draws its own header and shows the content plain).
+export function StepEditor({ step, steps, index, triggerType, fieldOptions, readOnly, onChange, withServiceSelect = false, label = "Acción" }) {
   const afterDelay = steps.slice(0, index).some(isPauseStep);
   const argsTrigger = triggerType === "schedule" ? "event" : triggerType;
-  if (isDelayStep(step)) return <DelayEditor step={step} readOnly={readOnly} onChange={onChange} />;
-  if (isApprovalStep(step)) return <ApprovalStepEditor step={step} readOnly={readOnly} onChange={onChange} />;
+  // The trigger's data plus what the blocks before this one return.
+  const available = withStepOutputs(fieldOptions, steps, index, ownerLabel);
+  const section = (title, description, body) => (withServiceSelect ? <InspectorSection title={title} description={description}>{body}</InspectorSection> : body);
+
+  if (isDelayStep(step)) return section("Cuánto espera", "Después de esperar, el flujo sigue en segundo plano.", <DelayEditor step={step} readOnly={readOnly} onChange={onChange} />);
+  if (isApprovalStep(step)) return section("Quién aprueba", "El flujo se detiene hasta que una persona decida.", <ApprovalStepEditor step={step} readOnly={readOnly} onChange={onChange} />);
   if (isHttpStep(step)) {
-    return <HttpStepEditor step={step} triggerType={triggerType === "schedule" || afterDelay ? "event" : triggerType} fieldOptions={fieldOptions} readOnly={readOnly} onChange={onChange} />;
+    return section("Llamada a otro sistema", "Envía los datos por HTTPS a un servidor permitido.",
+      <HttpStepEditor step={step} triggerType={triggerType === "schedule" || afterDelay ? "event" : triggerType} fieldOptions={available} readOnly={readOnly} onChange={onChange} />);
   }
   const services = automationServices({ trigger: triggerType, afterDelay });
+  const outputs = outputsOf(step, index);
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {withServiceSelect && (
-        <SelectField label={label} options={services.map((service) => ({ value: service.key, label: serviceLabel(service.key, service.label) }))}
-          value={step.service ?? ""} disabled={readOnly} placeholder="Elige una acción"
-          onValueChange={(service) => onChange({ service, args: {} })} />
+        <InspectorSection title="Acción" description="Qué hace este bloque en otro módulo.">
+          <SelectField label={label} options={services.map((service) => ({ value: service.key, label: serviceLabel(service.key, service.label) }))}
+            value={step.service ?? ""} disabled={readOnly} placeholder="Elige una acción"
+            onValueChange={(service) => onChange({ service, args: {} })} />
+        </InspectorSection>
       )}
-      <AutomationArgsEditor contract={SERVICE_CONTRACTS[step.service]} args={step.args ?? {}} triggerType={argsTrigger}
-        fieldOptions={fieldOptions} readOnly={readOnly} compact={compact} onChange={(args) => onChange({ ...step, args })} />
+      {SERVICE_CONTRACTS[step.service] && section("Datos que se envían", "Para cada dato, elige de dónde sale su valor.",
+        <AutomationArgsEditor contract={SERVICE_CONTRACTS[step.service]} args={step.args ?? {}} triggerType={argsTrigger}
+          fieldOptions={available} readOnly={readOnly} onChange={(args) => onChange({ ...step, args })} />)}
+      {withServiceSelect && outputs.length > 0 && (
+        <InspectorSection title="Lo que devuelve" description="Los bloques que van después pueden usar estos datos.">
+          <ul className="flex flex-wrap gap-1.5">
+            {outputs.slice(0, 8).map((output) => <li key={output.value} className="rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-2 py-0.5 text-xs">{output.label}</li>)}
+          </ul>
+        </InspectorSection>
+      )}
     </div>
   );
 }

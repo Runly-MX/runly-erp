@@ -2,7 +2,7 @@
 // moving and removing steps while keeping the rules the compiler enforces
 // (docs/developers/automatizaciones.md), and the texts shown on each node.
 // No React in here so it can be unit tested.
-import { MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, isApprovalStep, isDelayStep, isHttpStep, isPauseStep } from "@runly/module-compiler/browser";
+import { MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, isApprovalStep, isDelayStep, isHttpStep, isPauseStep, stepOutputKeys } from "@runly/module-compiler/browser";
 
 export const STEP_KINDS = Object.freeze({
   action: { label: "Hacer algo en un módulo", hint: "Crear un contacto, enviar una notificación, agendar un evento..." },
@@ -184,4 +184,102 @@ export function describeAutomationDiagnostic(diagnostic) {
     case "AUTOMATION_STEPS_INVALID": return "El flujo necesita de 1 a 5 bloques.";
     default: return diagnostic.message ?? "No se pudo guardar.";
   }
+}
+
+// ---- data available to a block ------------------------------------------------
+
+export const keyOf = (item) => item.key ?? item.name;
+
+// Fields a block can read from the trigger: the entity's fields, the event payload
+// or the fields a webhook announces.
+export function fieldOptionsFor(trigger, entities = [], events = []) {
+  if (trigger.type === "webhook") return (trigger.fields ?? []).map((field) => ({ value: field.key, label: field.label || field.key }));
+  if (trigger.type === "event") return (events.find((event) => event.key === trigger.event)?.payload ?? []).map((key) => ({ value: key, label: key }));
+  const entity = entities.find((item) => keyOf(item) === trigger.entity);
+  return (entity?.fields ?? []).map((field) => ({ value: keyOf(field), label: field.label ?? keyOf(field) }));
+}
+
+const OUTPUT_LABELS = {
+  id: "Identificador", name: "Nombre", type: "Tipo", email: "Correo", phone: "Teléfono", title: "Título", status: "Estado", summary: "Resumen",
+  link: "Enlace", plate: "Placa", mimeType: "Tipo de archivo", sizeBytes: "Tamaño", description: "Descripción", startAt: "Inicio", endAt: "Fin",
+  dueDate: "Vence", projectId: "Proyecto", taskNumber: "Número de tarea", assetTag: "Número de activo", enabled: "Activo",
+};
+const outputKey = (value) => value.replace(/^paso\d+_/, "");
+
+// Everything the block at `index` can use: the trigger's data, then the results of
+// the service blocks before it (paso<N>_<key>). Each option is { value, label, group }.
+export function availableFields({ trigger, entities = [], events = [], steps = [], index = steps.length, ownerOf = () => "" }) {
+  return withStepOutputs(fieldOptionsFor(trigger, entities, events), steps, index, ownerOf);
+}
+
+// Trigger options plus the results of the service blocks before `index`.
+export function withStepOutputs(triggerOptions, steps, index, ownerOf = () => "") {
+  const options = triggerOptions.map((option) => (option.group ? option : { ...option, group: "Del disparador" }));
+  steps.slice(0, index).forEach((step, stepIndex) => {
+    const contract = SERVICE_CONTRACTS[step?.service];
+    if (!contract) return;
+    const owner = ownerOf(step.service);
+    const group = `Del paso ${stepIndex + 1} · ${contract.label}${owner ? ` (${owner})` : ""}`;
+    for (const value of stepOutputKeys(stepIndex, contract)) options.push({ value, label: OUTPUT_LABELS[outputKey(value)] ?? outputKey(value), group });
+  });
+  return options;
+}
+
+// What the block at `index` offers to the blocks after it.
+export function outputsOf(step, index) {
+  const contract = SERVICE_CONTRACTS[step?.service];
+  return contract ? stepOutputKeys(index, contract).map((value) => ({ value, label: OUTPUT_LABELS[outputKey(value)] ?? value })) : [];
+}
+
+// ---- canvas layout stored with the automation (cosmetic) ---------------------
+
+const cleanUi = (ui) => {
+  const next = { ...ui, steps: (ui.steps ?? []).some(Boolean) ? ui.steps : undefined };
+  for (const name of Object.keys(next)) if (next[name] === undefined || next[name] === null) delete next[name];
+  return Object.keys(next).length ? next : undefined;
+};
+
+// Positions as the canvas wants them: node id -> { x, y }.
+export function positionsFromUi(ui) {
+  const positions = {};
+  if (ui?.trigger) positions.trigger = ui.trigger;
+  if (ui?.conditions) positions.conditions = ui.conditions;
+  (ui?.steps ?? []).forEach((point, index) => { if (point) positions[`step-${index}`] = point; });
+  return positions;
+}
+
+export function uiWithPosition(ui, nodeId, point, stepCount) {
+  const rounded = { x: Math.round(point.x), y: Math.round(point.y) };
+  const next = { ...(ui ?? {}), layout: "free" };
+  if (nodeId === "trigger" || nodeId === "conditions") next[nodeId] = rounded;
+  else {
+    const steps = Array.from({ length: stepCount }, (_, index) => (ui?.steps ?? [])[index] ?? null);
+    steps[Number(nodeId.replace("step-", ""))] = rounded;
+    next.steps = steps;
+  }
+  return cleanUi(next);
+}
+
+// Presets forget manual positions.
+export const uiWithLayout = (layout) => ({ layout });
+export const uiArranged = (ui) => ({ layout: ui?.layout === "vertical" ? "vertical" : "horizontal" });
+
+// The positions list follows the steps when one is added, removed or moved.
+export function uiAfterInsert(ui, index) {
+  if (!ui?.steps) return ui;
+  const steps = [...ui.steps];
+  steps.splice(index, 0, null);
+  return cleanUi({ ...ui, steps });
+}
+export function uiAfterRemove(ui, index) {
+  if (!ui?.steps) return ui;
+  return cleanUi({ ...ui, steps: ui.steps.filter((_, i) => i !== index) });
+}
+export function uiAfterMove(ui, from, to) {
+  if (!ui?.steps) return ui;
+  const steps = [...ui.steps];
+  while (steps.length <= Math.max(from, to)) steps.push(null);
+  const [item] = steps.splice(from, 1);
+  steps.splice(to, 0, item);
+  return cleanUi({ ...ui, steps });
 }

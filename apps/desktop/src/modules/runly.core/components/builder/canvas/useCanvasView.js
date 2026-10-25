@@ -88,6 +88,21 @@ export function useCanvasView({ bounds, fitKey }) {
     }
   };
 
+  // When the canvas gets taller or shorter (the console opens), keep what was in the
+  // middle in the middle instead of cropping it.
+  useEffect(() => {
+    const element = viewportRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return undefined;
+    let height = element.clientHeight;
+    const observer = new ResizeObserver(() => {
+      const next = element.clientHeight;
+      if (next !== height && height > 0) setView({ ...viewRef.current, y: viewRef.current.y + (next - height) / 2 });
+      height = next;
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [setView]);
+
   useEffect(() => {
     const element = viewportRef.current;
     if (!element) return undefined;

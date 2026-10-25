@@ -95,6 +95,20 @@ El paso **Pedir aprobación** detiene la automatización hasta que una persona d
 - Aprobar continúa la ejecución; rechazar la termina como *Rechazada* y los pasos restantes no se ejecutan. Si nadie decide en 7 días, la ejecución se cancela. Cada decisión queda en la bitácora de auditoría.
 - Por API: `GET /automation-approvals/mine` y `POST /automation-approvals/:id/decide` con `{ "decision": "approve" | "reject", "comment" }`.
 
+### Acomodar el lienzo
+
+- **Mueve cualquier bloque** arrastrándolo para acomodar el lienzo a tu gusto; el orden del flujo no cambia (para eso se usa el asa del bloque). La disposición se guarda con la automatización y es solo visual.
+- El botón **Disposición** (abajo a la izquierda) ofrece *Horizontal*, *Vertical* y *Ordenar* (vuelve a alinear los bloques). Por omisión, el lienzo elige horizontal o vertical según su ancho.
+- El **panel de edición** se puede ensanchar arrastrando su borde izquierdo (o con las flechas del teclado) y con el botón *Ampliar panel*; recuerda el ancho que dejaste.
+
+### Usar lo que devuelve un bloque
+
+Cada bloque que crea o cambia algo devuelve datos (por ejemplo, *Crear contactos* devuelve su identificador, nombre, correo y teléfono). Los bloques que van **después** pueden usarlos como si fueran datos del disparador: en «Texto con datos» aparecen como botones *Insertar* («Paso 1 · Identificador») y en los textos se escriben como `{{paso1_id}}`, `{{paso1_name}}`... (el número es el del bloque). En «Un dato disponible» se eligen de la lista. Si una espera o una aprobación los separa, los datos se conservan.
+
+### Consola de ejecución
+
+El botón **Consola** muestra las últimas ejecuciones de la automatización. Al elegir una ves los **datos que llegaron**, y por cada bloque su resultado (correcto, con error, omitido o en espera), cuánto tardó, **qué datos envió**, qué devolvió y, si falló, el **error completo** (copiable). El bloque de cada ejecución seleccionada se marca en el lienzo con una insignia: ✓ correcto, ✗ con error, – omitido. Se actualiza sola mientras está abierta.
+
 ## Recibir datos de otro sistema (webhook)
 
 Una automatización de la empresa puede empezar cuando **otro sistema te envía un mensaje**. En el lienzo elige el disparador «Cuando otro sistema me envía datos»; al guardar, Runly le asigna una **URL secreta**:
@@ -155,5 +169,7 @@ El Constructor genera `api/automations.js` (las automatizaciones y su lógica), 
 Formato en la definición (`automations`): `trigger.when` es una condición o una lista de condiciones; `steps` es la lista de acciones (`{ service, args }`) y `onError` es `"stop"` (por defecto) o `"continue"`. El formato anterior con una sola `action` se sigue aceptando y se trata como un paso. No se puede usar `action` y `steps` a la vez.
 
 Un disparador por horario se declara así: `trigger: { type: 'schedule', every: 'hour' | 'day' | 'week' | 'month', at: '08:00', weekday: 1, day: 15, entity?, when? }` (`at` no aplica a `every: 'hour'`; `weekday` 0 = domingo; `day` de 1 a 28). Una espera es un paso `{ type: 'delay', amount: 3, unit: 'minutes' | 'hours' | 'days' }`; esperas y aprobaciones no pueden ser el primer ni el último paso ni ir una junto a otra. El manifiesto del módulo lista los horarios en `schedules`.
+
+La disposición del lienzo vive en `ui` de la automatización: `{ layout: 'horizontal' | 'vertical' | 'free', trigger?: {x,y}, conditions?: {x,y}, steps?: [{x,y} | null, ...] }` (posiciones en el mismo orden que `steps`; no afecta a la ejecución).
 
 Límites: hasta 20 automatizaciones por módulo, 5 pasos (las esperas cuentan) y 5 condiciones por disparador, 2 esperas y 1 aprobación por automatización, y 20 datos por llamada HTTP.

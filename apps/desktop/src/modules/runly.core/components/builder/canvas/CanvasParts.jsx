@@ -1,16 +1,17 @@
-// Building blocks of the automation canvas: node cards, the edges that connect
+// Building blocks of the automation canvas: block cards, the arrows that connect
 // them (SVG) with their "+" insertion buttons, and the closing "add" slot.
 //
 // Conventions (Runly identity + touch/hover):
 // - Cards are rounded-lg containers; controls inside use rounded-md. Selection is
 //   a flat brand tint, never a ring or glow.
-// - An edge is solid (brand) while the flow runs right away and dashed (grey,
+// - An arrow is solid (brand) while the flow runs right away and dashed (grey,
 //   slowly flowing) once it has passed a wait or an approval: from there it runs
 //   in the background.
+// - Blocks can be dragged anywhere (free layout); the grip reorders the sequence.
 // - "+" buttons and grips are revealed on hover/focus where hover exists and are
 //   always visible on touch; they grow under `pointer: coarse`.
 import { Popover, PopoverContent, PopoverTrigger } from "@runly/ui";
-import { AlertCircle, GripVertical, Plus } from "lucide-react";
+import { AlertCircle, Check, GripVertical, Minus, Plus, X } from "lucide-react";
 import { edgePath } from "../../../lib/canvasLayout";
 import { InsertMenu } from "./InsertMenu";
 
@@ -23,17 +24,39 @@ const TILE = {
   amber: "border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-300",
 };
 
-export function CanvasNode({ node, selected, dragging, offset, first, last, orientation, handle, onSelect, onKeyDown, onFocus }) {
+// Result of the last run on a block: shape + colour + text (never colour alone).
+const RUN_BADGE = {
+  success: { Icon: Check, label: "Correcto", className: "bg-emerald-600 text-white" },
+  failed: { Icon: X, label: "Con error", className: "bg-red-600 text-white" },
+  skipped: { Icon: Minus, label: "Omitido", className: "bg-[hsl(var(--muted-foreground))] text-white" },
+  waiting: { Icon: Minus, label: "En espera", className: "bg-amber-500 text-white" },
+};
+
+const PORT_SIDE = {
+  left: "-left-[5px] top-1/2 -translate-y-1/2",
+  right: "-right-[5px] top-1/2 -translate-y-1/2",
+  top: "-top-[5px] left-1/2 -translate-x-1/2",
+  bottom: "-bottom-[5px] left-1/2 -translate-x-1/2",
+};
+
+function Port({ side, selected }) {
+  if (!side) return null;
+  return <span aria-hidden="true" className={cx("absolute z-20 h-2.5 w-2.5 rounded-full border-2 bg-[hsl(var(--card))]", selected ? "border-(--brand-primary)" : "border-[hsl(var(--muted-foreground))]/60", PORT_SIDE[side])} />;
+}
+
+export function CanvasNode({ node, selected, dragging, moving, offset, run, move, handle, onSelect, onKeyDown, onFocus }) {
   const { Icon, tone, kind, title, detail, issues = [] } = node;
   const issue = issues[0];
+  const badge = run ? RUN_BADGE[run] : null;
   return (
     <div
       data-no-pan
-      className={cx("group/node absolute", dragging ? "z-30 cursor-grabbing" : "z-10", !dragging && "transition-transform motion-reduce:transition-none")}
-      style={{ left: node.x, top: node.y, width: node.width, height: node.height, transform: offset ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
+      {...move}
+      className={cx("group/node absolute", dragging || moving ? "z-30 cursor-grabbing" : "z-10 cursor-grab", !dragging && !moving && "transition-transform motion-reduce:transition-none")}
+      style={{ left: node.x, top: node.y, width: node.width, height: node.height, transform: offset ? `translate(${offset.x}px, ${offset.y}px)` : undefined, ...(move?.style ?? {}) }}
     >
-      {!first && <span aria-hidden="true" className={cx("absolute z-20 h-2.5 w-2.5 rounded-full border-2 bg-[hsl(var(--card))]", selected ? "border-(--brand-primary)" : "border-[hsl(var(--muted-foreground))]/60", orientation === "horizontal" ? "-left-[5px] top-1/2 -translate-y-1/2" : "-top-[5px] left-1/2 -translate-x-1/2")} />}
-      {!last && <span aria-hidden="true" className={cx("absolute z-20 h-2.5 w-2.5 rounded-full border-2 bg-[hsl(var(--card))]", selected ? "border-(--brand-primary)" : "border-[hsl(var(--muted-foreground))]/60", orientation === "horizontal" ? "-right-[5px] top-1/2 -translate-y-1/2" : "-bottom-[5px] left-1/2 -translate-x-1/2")} />}
+      <Port side={node.ports?.in} selected={selected} />
+      <Port side={node.ports?.out} selected={selected} />
       <button
         type="button"
         data-canvas-node={node.id}
@@ -42,9 +65,9 @@ export function CanvasNode({ node, selected, dragging, offset, first, last, orie
         onKeyDown={onKeyDown}
         onFocus={onFocus}
         className={cx(
-          "relative flex h-full w-full cursor-pointer items-center gap-3 overflow-hidden rounded-lg border bg-[hsl(var(--card))] px-3.5 text-left transition-colors",
+          "relative flex h-full w-full cursor-[inherit] items-center gap-3 overflow-hidden rounded-lg border bg-[hsl(var(--card))] px-3.5 text-left transition-colors",
           selected ? "border-(--brand-primary)/30" : "border-[hsl(var(--border))] hover:border-[hsl(var(--muted-foreground))]/50",
-          dragging && "shadow-lg",
+          (dragging || moving) && "shadow-lg",
         )}
       >
         {selected && <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-(--brand-primary)/15" />}
@@ -61,13 +84,19 @@ export function CanvasNode({ node, selected, dragging, offset, first, last, orie
           )}
         </span>
       </button>
+      {badge && (
+        <span title={`Última ejecución: ${badge.label}`} className={cx("absolute -left-2 -top-2 z-30 flex h-5 w-5 items-center justify-center rounded-full ring-2 ring-[hsl(var(--card))]", badge.className)}>
+          <badge.Icon className="h-3 w-3" aria-hidden="true" />
+          <span className="sr-only">Última ejecución: {badge.label}</span>
+        </span>
+      )}
       {handle && (
         <span
           {...handle}
           role="button"
           tabIndex={-1}
           aria-label={`Arrastrar para reordenar: ${title}`}
-          title="Arrastrar para reordenar"
+          title="Arrastrar para cambiar el orden en el flujo"
           className={cx("absolute right-1.5 top-1.5 z-30 flex h-7 w-7 cursor-grab select-none items-center justify-center rounded-md text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] active:cursor-grabbing [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11", REVEAL)}
         >
           <GripVertical className="h-4 w-4" />
@@ -77,8 +106,8 @@ export function CanvasNode({ node, selected, dragging, offset, first, last, orie
   );
 }
 
-// Edges and arrowheads. `background` edges are dashed and drift to show direction.
-export function CanvasEdges({ edges, orientation, reducedMotion }) {
+// Arrows. `background` ones are dashed and drift to show direction.
+export function CanvasEdges({ edges, reducedMotion }) {
   return (
     <svg aria-hidden="true" className="pointer-events-none absolute left-0 top-0 overflow-visible" width="1" height="1">
       <defs>
@@ -88,7 +117,7 @@ export function CanvasEdges({ edges, orientation, reducedMotion }) {
       {edges.map((edge) => (
         <path
           key={edge.id}
-          d={edgePath(edge, orientation)}
+          d={edgePath(edge)}
           fill="none"
           strokeWidth="2"
           strokeLinecap="round"
@@ -127,30 +156,23 @@ function PlusButton({ label, options, onPick, active }) {
   );
 }
 
-// "+" at the middle of an edge; the invisible band around it reveals it on hover.
-export function EdgePlus({ edge, orientation, options, onPick, active, readOnly }) {
+// "+" at the middle of an arrow; the invisible square around it reveals it on hover.
+export function EdgePlus({ edge, options, onPick, active, readOnly }) {
   if (readOnly) return null;
-  const horizontal = orientation === "horizontal";
-  const length = Math.hypot(edge.end.x - edge.start.x, edge.end.y - edge.start.y);
   return (
-    <div
-      className="group/node absolute flex items-center justify-center"
-      style={horizontal
-        ? { left: edge.start.x, top: edge.mid.y - 28, width: length, height: 56 }
-        : { left: edge.mid.x - 28, top: edge.start.y, width: 56, height: length }}
-    >
+    <div className="group/node absolute z-10 flex items-center justify-center" style={{ left: edge.mid.x - 28, top: edge.mid.y - 28, width: 56, height: 56 }}>
       <PlusButton label="Agregar un bloque aquí" options={options} onPick={onPick} active={active} />
     </div>
   );
 }
 
 // Dashed ghost at the end of the flow: always visible, so adding never needs hover.
-export function AddGhost({ add, orientation, options, onPick, active, readOnly, full }) {
+export function AddGhost({ add, options, onPick, active, readOnly, full }) {
   if (!add) return null;
   return (
     <>
       <svg aria-hidden="true" className="pointer-events-none absolute left-0 top-0 overflow-visible" width="1" height="1">
-        <path d={edgePath(add.edge, orientation)} fill="none" strokeWidth="2" strokeLinecap="round" strokeDasharray="3 7" className="stroke-[hsl(var(--muted-foreground))]/40" />
+        <path d={edgePath(add.edge)} fill="none" strokeWidth="2" strokeLinecap="round" strokeDasharray="3 7" className="stroke-[hsl(var(--muted-foreground))]/40" />
       </svg>
       <div data-no-pan className="absolute z-10" style={{ left: add.x, top: add.y, width: add.width, height: add.height }}>
         {readOnly ? null : (

@@ -92,3 +92,31 @@ test("automation diagnostics are worded in Spanish and point at the block", asyn
   assert.equal(describeAutomationDiagnostic({ code: "SOMETHING_NEW", message: "Texto" }), "Texto");
   assert.equal(describeAutomationDiagnostic({ message: "Sin código" }), "Sin código");
 });
+
+test("a block can use the trigger data and the results of the blocks before it", async () => {
+  const { availableFields, outputsOf, fieldOptionsFor } = await import("../flowModel.js");
+  const contacts = { service: "runly.contacts:contacts.create", args: {} };
+  const send = { service: "runly.notifications:notifications.send", args: {} };
+  const trigger = { type: "webhook", fields: [{ key: "total", label: "Total" }] };
+  assert.deepEqual(fieldOptionsFor(trigger), [{ value: "total", label: "Total" }]);
+  assert.deepEqual(availableFields({ trigger, steps: [contacts, send], index: 0 }).map((option) => option.value), ["total"]);
+  const second = availableFields({ trigger, steps: [contacts, send], index: 1, ownerOf: () => "Contactos" });
+  assert.ok(second.some((option) => option.value === "paso1_id" && option.label === "Identificador" && /Del paso 1 · Crear contactos \(Contactos\)/.test(option.group)));
+  assert.deepEqual(outputsOf(contacts, 0).slice(0, 2).map((option) => option.value), ["paso1_id", "paso1_name"]);
+  assert.deepEqual(outputsOf({ type: "delay" }, 1), []);
+});
+
+test("the layout positions follow the steps and presets forget them", async () => {
+  const { positionsFromUi, uiWithPosition, uiWithLayout, uiArranged, uiAfterInsert, uiAfterRemove, uiAfterMove } = await import("../flowModel.js");
+  let ui = uiWithPosition(undefined, "step-1", { x: 10.4, y: 20.6 }, 3);
+  assert.deepEqual(ui, { layout: "free", steps: [null, { x: 10, y: 21 }, null] });
+  ui = uiWithPosition(ui, "trigger", { x: 5, y: 6 }, 3);
+  assert.deepEqual(positionsFromUi(ui), { trigger: { x: 5, y: 6 }, "step-1": { x: 10, y: 21 } });
+  assert.deepEqual(uiAfterInsert(ui, 0).steps, [null, null, { x: 10, y: 21 }, null]);
+  assert.equal(uiAfterRemove(ui, 1).steps, undefined);
+  assert.deepEqual(uiAfterMove(ui, 1, 0).steps, [{ x: 10, y: 21 }, null, null]);
+  assert.deepEqual(uiWithLayout("vertical"), { layout: "vertical" });
+  assert.deepEqual(uiArranged(ui), { layout: "horizontal" });
+  assert.deepEqual(uiArranged({ layout: "vertical" }), { layout: "vertical" });
+  assert.equal(uiAfterInsert(undefined, 0), undefined);
+});
