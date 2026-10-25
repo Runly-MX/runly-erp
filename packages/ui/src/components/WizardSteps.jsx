@@ -27,7 +27,7 @@ export function WizardSteps({ steps, current, onStepClick, className }) {
               >
                 <span
                   className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-xs font-semibold transition-colors",
                     active && "border-(--brand-primary) bg-(--brand-primary) text-(--brand-primary-foreground)",
                     done && "border-(--brand-primary)/40 bg-(--brand-primary)/10 text-(--brand-primary)",
                     !active && !done && "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]",

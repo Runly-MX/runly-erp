@@ -12,6 +12,11 @@ export const CONDITION_OPS = Object.freeze(['equals', 'not_equals', 'contains', 
 export const MAX_STEPS = 5
 export const MAX_CONDITIONS = 5
 export const ON_ERROR = Object.freeze(['stop', 'continue'])
+export const DELAY_UNITS = Object.freeze({ minutes: 60_000, hours: 3_600_000, days: 86_400_000 })
+export const MAX_DELAY_MS = 30 * 86_400_000
+export const MAX_DELAYS = 2
+export const SCHEDULE_EVERY = Object.freeze(['hour', 'day', 'week', 'month'])
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 // Filled in by the runtime, never required from the Builder user.
 export const AUTOMATIC_ARGS = Object.freeze(['sourceEntityId', 'idempotencyKey'])
 
@@ -31,15 +36,18 @@ export function stepsOf(automation) {
   return automation?.action ? [automation.action] : []
 }
 
+export const isDelayStep = (step) => step?.type === 'delay'
+export const delayMs = (step) => (Number(step?.amount) || 0) * (DELAY_UNITS[step?.unit] ?? 0)
+
 export function conditionsOf(when) {
   if (when === undefined || when === null) return []
   return Array.isArray(when) ? when : [when]
 }
 
 // Services an automation can call (writes only); event triggers need system ones.
-export function automationServices({ trigger = 'record' } = {}) {
+export function automationServices({ trigger = 'record', afterDelay = false } = {}) {
   return Object.entries(SERVICE_CONTRACTS)
-    .filter(([, contract]) => contract.mutates && (trigger !== 'event' || contract.system))
+    .filter(([, contract]) => contract.mutates && ((trigger === 'record' && !afterDelay) || contract.system))
     .map(([key, contract]) => ({ key, label: contract.label, args: contract.args, system: Boolean(contract.system) }))
 }
 
@@ -51,7 +59,7 @@ export function automationEvents() {
 export function automationConsumes(definition) {
   const consumes = {}
   for (const automation of definition.automations ?? []) {
-    for (const step of stepsOf(automation)) {
+    for (const step of stepsOf(automation).filter((item) => !isDelayStep(item))) {
       const [owner, name] = String(step?.service ?? '').split(':')
       if (!Object.hasOwn(SERVICE_CONTRACTS, step?.service ?? '')) throw new Error('AUTOMATION_SERVICE_UNKNOWN')
       consumes[owner] ??= []
@@ -62,7 +70,17 @@ export function automationConsumes(definition) {
 }
 
 export function automationServiceKeys(definition) {
-  return [...new Set((definition.automations ?? []).flatMap((automation) => stepsOf(automation).map((step) => step?.service)).filter(Boolean))]
+  return [...new Set((definition.automations ?? []).flatMap((automation) => stepsOf(automation).filter((step) => !isDelayStep(step)).map((step) => step?.service)).filter(Boolean))]
+}
+
+// Schedule triggers the worker has to fire (manifest `schedules`).
+export function automationSchedules(definition) {
+  return (definition.automations ?? [])
+    .filter((automation) => automation?.trigger?.type === 'schedule' && automation.enabled !== false)
+    .map((automation) => {
+      const { every, at, weekday, day } = automation.trigger
+      return { key: automation.key, every, ...(at ? { at } : {}), ...(weekday !== undefined ? { weekday } : {}), ...(day !== undefined ? { day } : {}) }
+    })
 }
 
 export function automationEventKeys(definition) {
@@ -150,8 +168,20 @@ export function validateDefinitionAutomations(definition, errors) {
     } else if (trigger.type === 'event') {
       if (!Object.hasOwn(DOMAIN_EVENTS, trigger.event ?? '')) errors.push(diagnostic(`${base}.trigger.event`, 'AUTOMATION_EVENT_UNKNOWN', `Unknown event "${trigger.event}".`))
       fieldNames = new Set(Object.hasOwn(DOMAIN_EVENT_PAYLOADS, trigger.event ?? '') ? DOMAIN_EVENT_PAYLOADS[trigger.event] : [])
+    } else if (trigger.type === 'schedule') {
+      if (!SCHEDULE_EVERY.includes(trigger.every)) errors.push(diagnostic(`${base}.trigger.every`, 'AUTOMATION_TRIGGER_INVALID', `every must be one of ${SCHEDULE_EVERY.join(', ')}.`))
+      if (trigger.every !== 'hour' && !TIME.test(trigger.at ?? '')) errors.push(diagnostic(`${base}.trigger.at`, 'AUTOMATION_TRIGGER_INVALID', 'at must be a time like "08:00".'))
+      if (trigger.every === 'week' && !(Number.isInteger(trigger.weekday) && trigger.weekday >= 0 && trigger.weekday <= 6)) errors.push(diagnostic(`${base}.trigger.weekday`, 'AUTOMATION_TRIGGER_INVALID', 'weekday must be 0 (Sunday) to 6.'))
+      if (trigger.every === 'month' && !(Number.isInteger(trigger.day) && trigger.day >= 1 && trigger.day <= 28)) errors.push(diagnostic(`${base}.trigger.day`, 'AUTOMATION_TRIGGER_INVALID', 'day must be 1 to 28.'))
+      if (trigger.entity !== undefined) {
+        const entity = entities.get(trigger.entity)
+        if (!entity) errors.push(diagnostic(`${base}.trigger.entity`, 'AUTOMATION_ENTITY_NOT_FOUND', `Entity "${trigger.entity}" does not exist.`))
+        else fieldNames = new Set((entity.fields ?? []).map(fieldKey))
+      } else if (trigger.when !== undefined) {
+        errors.push(diagnostic(`${base}.trigger.when`, 'AUTOMATION_CONDITION_INVALID', 'Conditions on a schedule need an entity.'))
+      }
     } else {
-      errors.push(diagnostic(`${base}.trigger.type`, 'AUTOMATION_TRIGGER_INVALID', 'Trigger type must be record or event.'))
+      errors.push(diagnostic(`${base}.trigger.type`, 'AUTOMATION_TRIGGER_INVALID', 'Trigger type must be record, event or schedule.'))
     }
     validateCondition(trigger.when, { base, fieldNames, trigger, errors })
 
@@ -167,17 +197,46 @@ export function validateDefinitionAutomations(definition, errors) {
     }
     const steps = stepsOf(automation)
     if (!steps.length) { errors.push(diagnostic(`${base}.action`, 'AUTOMATION_SERVICE_UNKNOWN', 'The automation has no action.')); return }
+    const delays = steps.filter(isDelayStep)
+    if (delays.length > MAX_DELAYS) errors.push(diagnostic(`${base}.steps`, 'AUTOMATION_DELAY_INVALID', `At most ${MAX_DELAYS} waits per automation.`))
+    let afterDelay = false
     steps.forEach((step, stepIndex) => {
       const stepBase = usesSteps ? `${base}.steps[${stepIndex}]` : `${base}.action`
+      if (isDelayStep(step)) {
+        const ms = delayMs(step)
+        if (!Number.isInteger(step.amount) || step.amount < 1 || !Object.hasOwn(DELAY_UNITS, step.unit ?? '') || ms < 60_000 || ms > MAX_DELAY_MS) {
+          errors.push(diagnostic(stepBase, 'AUTOMATION_DELAY_INVALID', 'A wait is 1 minute to 30 days (amount + minutes, hours or days).'))
+        }
+        if (stepIndex === 0 || stepIndex === steps.length - 1 || isDelayStep(steps[stepIndex - 1])) {
+          errors.push(diagnostic(stepBase, 'AUTOMATION_DELAY_INVALID', 'A wait goes between two actions.'))
+        }
+        afterDelay = true
+        return
+      }
       const contract = Object.hasOwn(SERVICE_CONTRACTS, step?.service ?? '') ? SERVICE_CONTRACTS[step.service] : null
       if (!contract) { errors.push(diagnostic(`${stepBase}.service`, 'AUTOMATION_SERVICE_UNKNOWN', `Unknown service "${step?.service}".`)); return }
       if (!contract.mutates) errors.push(diagnostic(`${stepBase}.service`, 'AUTOMATION_SERVICE_READONLY', 'Automations can only call services that create or change records.'))
-      if (trigger.type === 'event' && !contract.system) {
-        errors.push(diagnostic(`${stepBase}.service`, 'AUTOMATION_SERVICE_NEEDS_USER', `"${contract.label}" needs a person and cannot run from a system event.`))
+      if ((trigger.type !== 'record' || afterDelay) && !contract.system) {
+        errors.push(diagnostic(`${stepBase}.service`, 'AUTOMATION_SERVICE_NEEDS_USER', `"${contract.label}" needs a person and cannot run ${afterDelay ? 'after a wait' : trigger.type === 'schedule' ? 'on a schedule' : 'from a system event'}.`))
       }
       validateArgs(step, { base: stepBase, fieldNames, trigger, contract, errors })
     })
   })
+}
+
+function normalizeTrigger(trigger, condition) {
+  if (trigger.type === 'record') return { type: 'record', entity: trigger.entity, on: trigger.on, ...condition }
+  if (trigger.type === 'schedule') {
+    return {
+      type: 'schedule', every: trigger.every,
+      ...(trigger.every !== 'hour' ? { at: trigger.at } : {}),
+      ...(trigger.every === 'week' ? { weekday: trigger.weekday } : {}),
+      ...(trigger.every === 'month' ? { day: trigger.day } : {}),
+      ...(trigger.entity ? { entity: trigger.entity } : {}),
+      ...(trigger.entity ? condition : {}),
+    }
+  }
+  return { type: 'event', event: trigger.event, ...condition }
 }
 
 export function normalizeAutomations(list) {
@@ -189,10 +248,8 @@ export function normalizeAutomations(list) {
       label: automation.label.trim(),
       enabled: automation.enabled !== false,
       ...(automation.onError === 'continue' ? { onError: 'continue' } : {}),
-      trigger: automation.trigger.type === 'record'
-        ? { type: 'record', entity: automation.trigger.entity, on: automation.trigger.on, ...condition }
-        : { type: 'event', event: automation.trigger.event, ...condition },
-      steps: stepsOf(automation).map((step) => ({ service: step.service, args: step.args ?? {} })),
+      trigger: normalizeTrigger(automation.trigger, condition),
+      steps: stepsOf(automation).map((step) => (isDelayStep(step) ? { type: 'delay', amount: step.amount, unit: step.unit } : { service: step.service, args: step.args ?? {} })),
     }
   })
 }

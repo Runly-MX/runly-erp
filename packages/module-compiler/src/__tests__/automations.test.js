@@ -198,3 +198,78 @@ test('generated runtime runs steps in order, stops or continues on error and log
   calls.length = 0
   assert.deepEqual(await runtime.runRecordAutomations({ c, moduleContext, entity: 'orden', on: 'create', record: { ...record, estado: 'cerrada' } }), [])
 })
+
+const SYSTEM_STEP = { service: 'runly.notifications:notifications.send', args: { userIds: { from: 'actor' }, title: { from: 'template', template: 'Seguimiento {{folio}}' } } }
+const CONTACT_STEP = { service: 'runly.contacts:contacts.create', args: { name: { from: 'template', template: 'Cliente {{folio}}' }, type: { from: 'value', value: 'company' } } }
+const WAITING = {
+  key: 'seguimiento', label: 'Seguimiento', enabled: true,
+  trigger: { type: 'record', entity: 'orden', on: 'create' },
+  steps: [CONTACT_STEP, { type: 'delay', amount: 3, unit: 'days' }, CONTACT_STEP],
+}
+const SCHEDULED = {
+  key: 'revision', label: 'Revisión semanal', enabled: true,
+  trigger: { type: 'schedule', every: 'week', weekday: 1, at: '08:00', entity: 'orden', when: { field: 'estado', op: 'equals', value: 'abierta' } },
+  steps: [CONTACT_STEP],
+}
+
+test('waits and schedules validate: placement, system-only services, trigger shape', () => {
+  const ok = { ...structuredClone(BASE), automations: [WAITING, SCHEDULED] }
+  assert.deepEqual(codes(ok), [])
+  const first = { ...structuredClone(BASE), automations: [{ ...WAITING, steps: [{ type: 'delay', amount: 1, unit: 'hours' }, CONTACT_STEP] }] }
+  assert.ok(codes(first).includes('AUTOMATION_DELAY_INVALID'))
+  const tooLong = { ...structuredClone(BASE), automations: [{ ...WAITING, steps: [CONTACT_STEP, { type: 'delay', amount: 31, unit: 'days' }, CONTACT_STEP] }] }
+  assert.ok(codes(tooLong).includes('AUTOMATION_DELAY_INVALID'))
+  // A service that needs a person cannot run after a wait or on a schedule.
+  const userStep = { service: 'runly.calendar:events.create', args: { title: { from: 'value', value: 'x' }, startAt: { from: 'field', field: 'fecha' } } }
+  assert.ok(codes({ ...structuredClone(BASE), automations: [{ ...WAITING, steps: [CONTACT_STEP, { type: 'delay', amount: 1, unit: 'days' }, userStep] }] }).includes('AUTOMATION_SERVICE_NEEDS_USER'))
+  assert.ok(codes({ ...structuredClone(BASE), automations: [{ ...SCHEDULED, steps: [userStep] }] }).includes('AUTOMATION_SERVICE_NEEDS_USER'))
+  const badSchedule = { ...structuredClone(BASE), automations: [{ ...SCHEDULED, trigger: { type: 'schedule', every: 'month', at: '25:00', day: 30 } }] }
+  assert.ok(codes(badSchedule).includes('AUTOMATION_TRIGGER_INVALID'))
+  const compiled = compileModule(ok)
+  assert.match(fileOf(compiled, 'module.manifest.js'), /schedules: \[\{"key":"revision","every":"week","at":"08:00","weekday":1\}\]/)
+  assert.match(fileOf(compiled, 'module.manifest.js'), /"runly.contacts":\["contacts.create"\]/)
+})
+
+test('generated runtime queues a wait, resumes after it and fires schedules', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'runly-automations-wait-'))
+  const definition = { ...structuredClone(BASE), automations: [WAITING, SCHEDULED] }
+  writeFileSync(path.join(dir, 'automations.mjs'), fileOf(compileModule(definition), 'api/automations.js'))
+  const runtime = await import(pathToFileURL(path.join(dir, 'automations.mjs')).href)
+
+  const calls = []
+  const services = { call: async (service, args) => { calls.push({ service, args }) } }
+  const jobs = []
+  const logs = []
+  const log = async (entry) => { logs.push(entry); return { id: 'run-1' } }
+  const enqueue = async (job) => { jobs.push(job) }
+  const moduleContext = { services: { forRequest: () => services }, automations: { log: async (_c, entry) => log(entry), enqueue: async (_c, job) => enqueue(job) } }
+  const c = { get: () => 'user-1' }
+  const record = { id: 'rec-1', folio: 'OS-9', estado: 'abierta' }
+
+  const results = await runtime.runRecordAutomations({ c, moduleContext, entity: 'orden', on: 'create', record })
+  assert.deepEqual(results, [{ key: 'seguimiento', ok: true }])
+  assert.equal(calls.length, 1) // only the step before the wait
+  assert.equal(jobs.length, 1)
+  assert.equal(jobs[0].fromStep, 2)
+  assert.equal(jobs[0].runId, 'run-1')
+  assert.equal(jobs[0].dedupe, 'seguimiento:rec-1:create:w2')
+  assert.ok(Date.parse(jobs[0].runAt) - Date.now() > 2.9 * 86_400_000)
+  assert.deepEqual(logs.map((l) => l.status), ['running', 'waiting'])
+
+  // The worker resumes from step 2: the step after the wait runs with its own idempotency key.
+  calls.length = 0
+  logs.length = 0
+  await runtime.resume({ job: { automationKey: 'seguimiento', fromStep: 2, runId: 'run-1', payload: jobs[0].payload }, services, log, enqueue })
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].args.idempotencyKey, 'seguimiento:rec-1:create:2')
+  assert.equal(logs.at(-1).status, 'success')
+  assert.equal(logs.at(-1).runId, 'run-1')
+
+  // Schedule with an entity: one run per matching record, keyed by the occurrence.
+  calls.length = 0
+  const rows = [{ id: 'a', folio: 'OS-1', estado: 'abierta' }, { id: 'b', folio: 'OS-2', estado: 'cerrada' }]
+  const prisma = { $queryRawUnsafe: async (sql) => { assert.match(sql, /FROM "custom_servicio_orden"|FROM "[a-z_]+_orden"/); return rows } }
+  const fired = await runtime.runScheduled({ key: 'revision', companyId: 'co-1', occurrence: '2026-10-26T14:00:00.000Z', prisma, services, log, enqueue })
+  assert.equal(fired.runs, 1)
+  assert.equal(calls[0].args.idempotencyKey, 'revision:a:2026-10-26T14:00:00.000Z')
+})
