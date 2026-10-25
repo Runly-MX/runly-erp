@@ -27,8 +27,11 @@ const MODULE_LABELS = {
   manual: "Manual",
   general: "General",
 };
-const moduleOf = (kindKey) => String(kindKey).split(".")[0];
-const moduleLabel = (key) => MODULE_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
+const moduleOf = (kind) => kind.moduleKey ?? String(kind.key).split(".")[0];
+const moduleLabel = (key, kinds = []) =>
+  kinds.find((kind) => moduleOf(kind) === key && kind.moduleName)?.moduleName ??
+  MODULE_LABELS[String(key).replace(/^runly\./, "")] ??
+  key.charAt(0).toUpperCase() + key.slice(1);
 
 export default function DocumentTemplatesScreen() {
   const navigate = useNavigate();
@@ -53,11 +56,11 @@ export default function DocumentTemplatesScreen() {
   const groups = useMemo(() => {
     const map = new Map();
     for (const kind of kinds) {
-      const key = moduleOf(kind.key);
+      const key = moduleOf(kind);
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(kind);
     }
-    return [...map.entries()].sort((a, b) => moduleLabel(a[0]).localeCompare(moduleLabel(b[0])));
+    return [...map.entries()].sort((a, b) => moduleLabel(a[0], a[1]).localeCompare(moduleLabel(b[0], b[1])));
   }, [kinds]);
   const active = kinds.find((kind) => kind.key === selected) ?? kinds[0] ?? null;
 
@@ -97,7 +100,7 @@ export default function DocumentTemplatesScreen() {
             {groups.map(([moduleKey, items]) => (
               <div key={moduleKey} className="space-y-1">
                 <p className="px-2 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-                  {moduleLabel(moduleKey)}
+                  {moduleLabel(moduleKey, items)}
                 </p>
                 {items.map((kind) => (
                   <button
@@ -127,6 +130,7 @@ export default function DocumentTemplatesScreen() {
                 token={token}
                 kind={active}
                 canManage={canManage}
+                canDelete={allowed("documents.templates.delete")}
                 onEditDocument={onEditDocument}
               />
             ) : null}

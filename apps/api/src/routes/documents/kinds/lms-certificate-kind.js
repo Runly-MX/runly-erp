@@ -33,6 +33,7 @@ export function createLmsCertificateDocumentKind({ prisma }) {
     key: LMS_CERTIFICATE_KIND,
     label: "Certificado de curso",
     permissionKey: "lms.enrollment.manage",
+    moduleKey: "runly.lms",
     managePermissionKey: "lms.course.manage",
     formats: ["docx", "pptx", "pdf"],
     schema: LMS_CERTIFICATE_SCHEMA,

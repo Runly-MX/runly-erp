@@ -52,10 +52,11 @@ function bindApi(client, token) {
  * module screen; the hub (runly.documents) uses it for every registered kind.
  *
  * Props: client (SDK `documents` domain), token, kind ({ key, label, formats,
- * schema }), scopeKey?, canManage (show write actions), onEditDocument?(template)
+ * schema, moduleName? }), scopeKey?, canManage (show write actions), canDelete?
+ * (show "Eliminar"; defaults to canManage; the owner can always delete), onEditDocument?(template)
  * (open the file in the office editor).
  */
-export function TemplateManager({ client, token, kind, scopeKey = null, canManage = false, onEditDocument }) {
+export function TemplateManager({ client, token, kind, scopeKey = null, canManage = false, canDelete, onEditDocument }) {
   const queryClient = useQueryClient()
   const api = useMemo(() => bindApi(client, token), [client, token])
   const queryKey = ['documents', 'file-templates', kind?.key, scopeKey]
@@ -164,6 +165,9 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
           : <Badge variant="outline" title="Disponible para toda la empresa"><Building2 className="mr-1 h-3 w-3" />Empresa</Badge>}
       </span>
     ) },
+    { id: 'origin', header: 'Origen', enableSorting: false, cell: () => (
+      <span className="text-xs text-[hsl(var(--muted-foreground))]">{kind?.moduleName ?? 'General'} · {kind?.label}</span>
+    ) },
     { id: 'format', header: 'Formato', cell: ({ row }) => <span className="text-xs">{FORMAT_LABELS[row.original.format] ?? row.original.format}</span> },
     { id: 'status', header: 'Estado', enableSorting: false, cell: ({ row }) => {
       const t = row.original
@@ -182,6 +186,7 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
     { id: 'actions', header: '', enableSorting: false, cell: ({ row }) => {
       const t = row.original
       const canWrite = canManage || t.isOwner
+      const mayDelete = t.isOwner || (canDelete ?? canManage)
       const canEditFile = Boolean(onEditDocument) && EDITABLE_IN_OFFICE.includes(t.format)
       return (
         <div className="flex justify-end gap-1">
@@ -208,6 +213,10 @@ export function TemplateManager({ client, token, kind, scopeKey = null, canManag
                     ? <DropdownMenuItem onSelect={() => changeVisibility.mutate({ template: t, visibility: 'company' })}><Building2 className="mr-2 h-4 w-4" />Compartir con la empresa</DropdownMenuItem>
                     : <DropdownMenuItem onSelect={() => changeVisibility.mutate({ template: t, visibility: 'personal' })}><Lock className="mr-2 h-4 w-4" />Hacer personal</DropdownMenuItem>}
                   {!t.isDefault && t.visibility !== 'personal' ? <DropdownMenuItem onSelect={() => makeDefault.mutate(t)} disabled={!t.publishedVersionId}><Star className="mr-2 h-4 w-4" />Usar como predeterminada</DropdownMenuItem> : null}
+                </>
+              ) : null}
+              {mayDelete ? (
+                <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={() => setDeleting(t)} className="text-[hsl(var(--destructive))]"><Trash2 className="mr-2 h-4 w-4" />Eliminar</DropdownMenuItem>
                 </>

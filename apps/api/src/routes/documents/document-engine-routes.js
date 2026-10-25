@@ -35,7 +35,9 @@ const optionalText = (value) => (typeof value === "string" && value.trim() ? val
 
 // `guard` establishes the signed-in user and active company (index.js
 // requireActiveCompany); the per-route permission rule runs after it.
-export function createDocumentEngineRoutes({ hub, guard }) {
+// `activeModules(companyId, moduleKeys)` resolves to a Map(moduleKey -> name) of the
+// modules installed and enabled for the company; without it every kind is listed.
+export function createDocumentEngineRoutes({ hub, guard, activeModules = null }) {
   const app = new Hono();
   const { kinds, fileTemplates, engine, files } = hub;
 
@@ -74,16 +76,28 @@ export function createDocumentEngineRoutes({ hub, guard }) {
   const ids = (c) => ({ companyId: companyId(c), templateId: c.req.param("id"), versionId: c.req.param("versionId"), viewerId: profileId(c) });
   const visibilityOf = (value) => (value === "company" ? "company" : "personal");
 
+  // Kinds of modules that are installed and enabled for the company and for
+  // which the user has the kind's permission, plus the always-available ones
+  // (general.manual).
   app.get("/documents/kinds", guard, async (c) => {
     const { permissions, isAdmin } = access(c);
-    const everything = isAdmin || permissions.includes("documents.templates.read");
-    const visible = kinds.listKinds().filter(
-      (kind) => everything || permissions.includes(kind.permissionKey) || permissions.includes(kind.managePermissionKey),
+    const permitted = kinds.listKinds().filter(
+      (kind) => isAdmin || permissions.includes(kind.permissionKey) || permissions.includes(kind.managePermissionKey),
     );
+    const moduleKeys = [...new Set(permitted.map((kind) => kind.moduleKey).filter(Boolean))];
+    let modules = null;
+    try {
+      modules = activeModules && moduleKeys.length ? await activeModules(companyId(c), moduleKeys) : null;
+    } catch (error) {
+      return handleError(c, error);
+    }
+    const visible = permitted.filter((kind) => kind.alwaysVisible || !kind.moduleKey || !activeModules || modules?.has(kind.moduleKey));
     return c.json({
       items: visible.map((kind) => ({
         key: kind.key,
         label: kind.label ?? kind.key,
+        moduleKey: kind.moduleKey ?? null,
+        moduleName: (kind.moduleKey && modules?.get(kind.moduleKey)) || null,
         formats: kind.formats ?? ["docx", "xlsx", "pptx", "pdf"],
         schema: kind.schema,
         freeTags: Boolean(kind.freeTags),

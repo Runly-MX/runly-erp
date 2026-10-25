@@ -72,6 +72,7 @@ export function createGrowthLeadDocumentKind({ prisma }) {
   return {
     key: GROWTH_LEAD_KIND,
     label: "Lead de Growth",
+    moduleKey: "runly.growth",
     permissionKey: "growth.leads.read",
     formats: ["docx", "xlsx", "pptx", "pdf"],
     schema: GROWTH_LEAD_SCHEMA,

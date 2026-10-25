@@ -69,6 +69,7 @@ export function createInventoryCustodyDocumentKind({ prisma }) {
     key: INVENTORY_CUSTODY_KIND,
     label: "Resguardo de inventario",
     permissionKey: "inventory.custody.read",
+    moduleKey: "runly.inventory",
     managePermissionKey: "inventory.template.manage",
     formats: ["docx", "xlsx", "pptx", "pdf"],
     schema: INVENTORY_CUSTODY_SCHEMA,

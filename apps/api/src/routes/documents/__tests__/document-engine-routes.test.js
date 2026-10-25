@@ -14,7 +14,7 @@ import { createFakeFiles, createFakePrisma } from "./fake-documents-db.js";
 const COMPANY = "11111111-1111-7111-8111-111111111111";
 const SOURCE = "22222222-2222-7222-8222-222222222222";
 
-function setup() {
+function setup({ activeModules } = {}) {
   const prisma = createFakePrisma();
   const files = createFakeFiles(prisma);
   const kinds = createKindRegistry();
@@ -41,7 +41,7 @@ function setup() {
     await next();
   };
   const app = new Hono();
-  app.route("", createDocumentEngineRoutes({ hub, guard }));
+  app.route("", createDocumentEngineRoutes({ hub, guard, activeModules }));
   return { app, prisma, files };
 }
 
@@ -61,7 +61,10 @@ test("kinds are listed by permission; the kind manage permission opens template 
   const { app } = setup();
   const some = await (await app.request("/documents/kinds", { headers: as("test.records.manage") })).json();
   assert.deepEqual(some.items.map((k) => k.key), ["test.record"]);
-  const all = await (await app.request("/documents/kinds", { headers: as("documents.templates.read") })).json();
+  // documents.templates.read alone does not list module kinds: the kind permission is needed.
+  const none = await (await app.request("/documents/kinds", { headers: as("documents.templates.read") })).json();
+  assert.equal(none.items.length, 0);
+  const all = await (await app.request("/documents/kinds", { headers: as("test.records.read,other.read") })).json();
   assert.equal(all.items.length, 2);
 
   const denied = await app.request("/documents/templates/upload", { method: "POST", headers: as("test.records.read"), body: uploadBody() });
@@ -157,4 +160,41 @@ test("personal templates are only visible to their owner; the owner shares them 
   // Back to personal drops the default.
   const back = await (await app.request(`/documents/templates/${id}/visibility`, { method: "PATCH", headers: { ...ana, ...json }, body: JSON.stringify({ visibility: "personal" }) })).json();
   assert.equal(back.isDefault, false);
+});
+
+test("module kinds follow the module state and expose the module name", async () => {
+  const { createGeneralManualDocumentKind } = await import("../kinds/general-manual-kind.js");
+  const prisma = createFakePrisma();
+  const files = createFakeFiles(prisma);
+  const kinds = createKindRegistry();
+  kinds.register(createGeneralManualDocumentKind());
+  kinds.register({ key: "on.kind", label: "Activo", moduleKey: "runly.on", permissionKey: "on.read", schema: [], load: async () => ({}) });
+  kinds.register({ key: "off.kind", label: "Apagado", moduleKey: "runly.off", permissionKey: "off.read", schema: [], load: async () => ({}) });
+  const hub = { kinds, files, fileTemplates: createDocumentFileTemplateService({ prisma, files, kinds }), engine: createDocumentEngine({ prisma, files, kinds }) };
+  const guard = async (c, next) => {
+    c.set("companyId", COMPANY);
+    c.set("userContext", { profile: { id: "44444444-4444-7444-8444-444444444444" }, permissionSet: new Set((c.req.header("x-permissions") ?? "").split(",").filter(Boolean)), isAdmin: false });
+    await next();
+  };
+  const app = new Hono();
+  app.route("", createDocumentEngineRoutes({ hub, guard, activeModules: async () => new Map([["runly.on", "Módulo activo"]]) }));
+  const res = await (await app.request("/documents/kinds", { headers: as("on.read,off.read,documents.templates.read") })).json();
+  assert.deepEqual(res.items.map((k) => k.key).sort(), ["general.manual", "on.kind"]);
+  assert.equal(res.items.find((k) => k.key === "on.kind").moduleName, "Módulo activo");
+  // Without the kind permission the module kind is hidden too.
+  const limited = await (await app.request("/documents/kinds", { headers: as("documents.templates.read") })).json();
+  assert.deepEqual(limited.items.map((k) => k.key), ["general.manual"]);
+});
+
+test("a template created by a module (company-shared, another owner) can be deleted from the hub with the kind manage permission", async () => {
+  const { app, prisma } = setup();
+  const created = await prisma.documentTemplate.create({
+    data: { companyId: COMPANY, key: "test.record-x", name: "Del módulo", sourceType: "test.record", kind: "test.record", format: "docx", ownerUserId: "99999999-9999-7999-8999-999999999999", visibility: "company" },
+  });
+  const manage = as("test.records.manage");
+  assert.equal((await (await app.request("/documents/templates?kind=test.record", { headers: manage })).json()).items.length, 1);
+  assert.equal((await app.request(`/documents/templates/${created.id}`, { method: "DELETE", headers: as("test.records.read") })).status, 403);
+  assert.equal((await app.request(`/documents/templates/${created.id}`, { method: "DELETE", headers: manage })).status, 200);
+  assert.equal((await (await app.request("/documents/templates?kind=test.record", { headers: manage })).json()).items.length, 0);
+  assert.equal(prisma.documentTemplate.rows[0].enabled, false);
 });
