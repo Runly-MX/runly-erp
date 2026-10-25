@@ -38,7 +38,7 @@ export function ApprovalsWidget({ module }) {
 
   return (
     <>
-      <WidgetFrame module={module} title="Aprobaciones" subtitle={items.length ? `${items.length} esperando tu decisión` : "Pendientes"} query={query} isEmpty={items.length === 0} emptyText="No tienes aprobaciones pendientes.">
+      <WidgetFrame module={module} title="Por aprobar" subtitle={items.length ? `${items.length} esperando tu decisión` : "Pendientes"} query={query} isEmpty={items.length === 0} emptyText="No tienes aprobaciones de automatizaciones pendientes.">
         <ul className="space-y-2">
           {items.slice(0, MAX_ITEMS).map((item) => (
             <li key={item.id} className="space-y-1.5 rounded-md border border-[hsl(var(--border))] p-2">

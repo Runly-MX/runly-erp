@@ -15,7 +15,7 @@ import { AgendaWidget } from "./home/widgets/AgendaWidget";
 
 const SECTIONS = [
   { id: "tasks", title: "Mis tareas", description: "Tareas abiertas asignadas a ti", moduleKey: "runly.projects", Component: MyTasksWidget },
-  { id: "approvals", title: "Aprobaciones", description: "Lo que espera tu decisión", moduleKey: "runly.core", Component: ApprovalsWidget },
+  { id: "approvals", title: "Por aprobar", description: "Aprobaciones de automatizaciones que esperan tu decisión", moduleKey: "runly.automations", Component: ApprovalsWidget },
   { id: "mentions", title: "Menciones", description: "Quién te mencionó en el chat", moduleKey: "runly.chat", Component: MentionsWidget },
   { id: "agenda", title: "Agenda", description: "Tus próximos eventos", moduleKey: "runly.calendar", Component: AgendaWidget },
 ];
