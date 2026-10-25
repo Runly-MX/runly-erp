@@ -351,6 +351,7 @@ describe('company and resource isolation against PostgreSQL', { skip: !connectio
       // flag here; all website/domain/company queries still hit PostgreSQL.
       const publicWebsite = createPublicWebsiteRouter({ prisma: {
         $queryRaw: (...args) => db.$queryRaw(...args),
+        company: db.company,
         instanceConfig: { findUnique: args => args.where.key === 'initialized'
           ? Promise.resolve({ value: 'true' }) : db.instanceConfig.findUnique(args) },
       } });

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { groupMedia } from '../MediaGallery.jsx'
+import { groupMedia } from '../../lib/media-grouping.js'
 
 const items = [
   { id: 'a', date: '2026-10-01T10:00:00Z', groupId: 'x', groupLabel: 'B item' },
