@@ -124,3 +124,53 @@ test("documents domain sends template, version, preview, and generation requests
 
   fetchMock.mock.restore();
 });
+
+test("documents domain sends template engine requests", async () => {
+  const fetchMock = makeFetch();
+  globalThis.fetch = fetchMock;
+  const client = createRunlyClient({ baseUrl: "http://api" });
+  const token = "tok";
+  const file = new Blob(["x"]);
+
+  await client.documents.listKinds(token);
+  await client.documents.listFileTemplates(token, { kind: "inventory.custody", scopeKey: "c/1" });
+  await client.documents.uploadTemplate({ kind: "inventory.custody", file, publish: true, name: undefined }, token);
+  await client.documents.createBlankTemplate({ kind: "k", format: "docx" }, token);
+  await client.documents.suggestTemplate("tpl/1", "ver/1", token);
+  await client.documents.replaceTemplateFile("tpl/1", "ver/1", file, token);
+  await client.documents.saveTemplateMapping("tpl/1", "ver/1", { mapping: { a: "b" } }, token);
+  await client.documents.publishFileTemplate("tpl/1", "ver/1", token);
+  await client.documents.setTemplateDefault("tpl/1", token);
+  await client.documents.getTemplateFile("tpl/1", token, { versionId: "ver/1" });
+  await client.documents.deleteTemplate("tpl/1", token);
+  await client.documents.generateDocument({ kind: "k", sourceId: "s" }, token);
+  const preview = await client.documents.previewDocument({ kind: "k" }, token);
+
+  assert.ok(preview instanceof Blob);
+  const calls = fetchMock.mock.calls.map((call) => call.arguments);
+  const base = "http://api/documents/templates/tpl%2F1";
+  assert.deepEqual(
+    calls.map((c) => [c[1]?.method ?? "GET", c[0]]),
+    [
+      ["GET", "http://api/documents/kinds"],
+      ["GET", "http://api/documents/templates?kind=inventory.custody&scopeKey=c%2F1"],
+      ["POST", "http://api/documents/templates/upload"],
+      ["POST", "http://api/documents/templates/blank"],
+      ["POST", `${base}/versions/ver%2F1/suggest`],
+      ["PUT", `${base}/versions/ver%2F1/file`],
+      ["PATCH", `${base}/versions/ver%2F1/mapping`],
+      ["POST", `${base}/versions/ver%2F1/publish`],
+      ["PATCH", `${base}/default`],
+      ["GET", `${base}/file?versionId=ver%2F1`],
+      ["DELETE", base],
+      ["POST", "http://api/documents/generate"],
+      ["POST", "http://api/documents/preview"],
+    ],
+  );
+  const form = calls[2][1].body;
+  assert.ok(form instanceof FormData);
+  assert.equal(form.get("kind"), "inventory.custody");
+  assert.equal(form.get("publish"), "true");
+  assert.equal(form.has("name"), false);
+  assert.deepEqual(JSON.parse(calls[6][1].body), { mapping: { a: "b" } });
+});
