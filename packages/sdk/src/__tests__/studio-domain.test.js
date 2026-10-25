@@ -35,3 +35,33 @@ test('Studio never queues stale revisions for offline replay', async () => {
     else delete globalThis.navigator
   }
 })
+
+test('Studio collaboration uses authenticated company-scoped online endpoints', async () => {
+  const calls = []
+  const client = createRunlyClient({ baseUrl: 'https://api.example.test', getActiveCompanyId: () => 'company-a',
+    fetch: async (url, options) => { calls.push({ url, options }); return new Response('{}', { headers: { 'Content-Type': 'application/json' } }) } })
+  await client.studio.collaborators('design/one','token')
+  await client.studio.candidates('design/one','token','Persona')
+  await client.studio.share('design/one',{userId:'user',role:'VIEWER'},'token')
+  await client.studio.live('design/one',{sessionId:'local-session',cursor:{x:12,y:34}},'token')
+  await client.studio.assetUrl('design/one','file/one','token')
+  assert.deepEqual(calls.map(call=>call.options.method),['GET','GET','PUT','POST','GET'])
+  assert.ok(calls.every(call=>call.options.headers.Authorization==='Bearer token' && call.options.headers['X-Runly-Company-Id']==='company-a'))
+  assert.ok(calls[4].url.endsWith('/studio/designs/design%2Fone/assets/file%2Fone/signed-url'))
+  assert.deepEqual(JSON.parse(calls[2].options.body),{userId:'user',role:'VIEWER'})
+})
+
+test('Studio thumbnails reject a response when active company changes during download', async () => {
+  let company = 'company-a'
+  const controller = new AbortController()
+  const client = createRunlyClient({ baseUrl: 'https://api.example.test', getActiveCompanyId: () => company,
+    fetch: async (url, options) => {
+      assert.equal(options.headers.Authorization, 'Bearer token')
+      assert.equal(options.headers['X-Runly-Company-Id'], 'company-a')
+      assert.equal(options.signal, controller.signal)
+      assert.ok(url.endsWith('/studio/resources/file%2Fone/thumbnail'))
+      company = 'company-b'
+      return new Response('synthetic-image', { headers: { 'Content-Type': 'image/png' } })
+    } })
+  await assert.rejects(client.studio.thumbnail('file/one', 'token', controller.signal), { code: 'company_changed', status: 409 })
+})

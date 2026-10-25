@@ -9,6 +9,7 @@ import pg from 'pg'
 import { chromium } from 'playwright'
 import { createStudioService } from '../apps/api/src/routes/studio/studio-service.js'
 import { database } from './fixtures/studio/postgres-adapter.mjs'
+import { installMinimalStudioAccess } from './fixtures/studio/minimal-access.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url)), output = resolve(root, '.artifacts/studio')
 const url = process.env.STUDIO_TEST_DATABASE_URL
@@ -22,6 +23,7 @@ await pool.query(`CREATE TABLE company(id uuid PRIMARY KEY); CREATE TABLE user_p
   CREATE TABLE file_asset(id uuid PRIMARY KEY, entity_id uuid, uploaded_by_id uuid, enabled boolean, mime_type text);
   CREATE TABLE audit_log(action text NOT NULL, entity_id uuid, metadata jsonb);`)
 await pool.query(await readFile(resolve(root, 'prisma/migrations/20261130000000_studio_design/migration.sql'), 'utf8'))
+await installMinimalStudioAccess(pool)
 await pool.query('INSERT INTO company VALUES ($1);', [company]); await pool.query('INSERT INTO user_profile VALUES ($1)', [owner])
 const service = createStudioService({ prisma: database(pool, pool) })
 const require = createRequire(resolve(root, 'packages/module-compiler/package.json'))
@@ -31,6 +33,7 @@ const bundle = await build({ entryPoints: [resolve(root, 'scripts/fixtures/studi
   platform: 'browser', format: 'esm', jsx: 'automatic', minify: true, write: false, loader: { '.css': 'empty', '.svg': 'dataurl', '.woff2': 'dataurl', '.png': 'dataurl' },
   plugins: [{ name: 'fixture-identity-only', setup(build) {
     build.onResolve({ filter: /AuthProvider\.jsx$/ }, () => ({ path: resolve(root, 'scripts/fixtures/studio/auth.js') }))
+    build.onResolve({ filter: /useStudioRealtime\.js$/ }, () => ({ path: resolve(root, 'scripts/fixtures/studio/realtime.js') }))
     build.onResolve({ filter: /\/lib\/runly\.js$/ }, () => ({ path: resolve(root, 'scripts/fixtures/studio/client.js') }))
     build.onResolve({ filter: /^(react|react-dom|@tanstack\/react-query)(\/.*)?$/ }, args => ({ path: desktopRequire.resolve(args.path) }))
   } }] })
@@ -80,6 +83,7 @@ try {
     await route.fulfill({ json: { data: { id: assetId } } })
   })
   await page.route('**/files/*/signed-url', route => route.fulfill({ json: { signedUrl: `${origin}/fixture-image.png` } }))
+  await page.route('**/studio/designs/*/assets/*/signed-url', route => route.fulfill({ json: { data: { signedUrl: `${origin}/fixture-image.png` } } }))
   await page.goto(origin)
   await page.getByRole('button', { name: 'Crear diseño', exact: true }).click()
   await page.getByRole('button', { name: 'Texto', exact: true }).click()

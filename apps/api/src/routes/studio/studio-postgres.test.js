@@ -11,6 +11,7 @@ import { signHs256Jwt } from '../../services/jwt-verification.js'
 import { createStudioRouter } from './index.js'
 import { createStudioService } from './studio-service.js'
 import { appendObject, blankDocument } from '../../../../shared/studio/document.js'
+import { installMinimalStudioAccess } from '../../../../../scripts/fixtures/studio/minimal-access.mjs'
 
 const url = process.env.STUDIO_TEST_DATABASE_URL
 const company = '00000000-0000-4000-8000-000000000001', owner = '00000000-0000-4000-8000-000000000002'
@@ -31,6 +32,7 @@ test('Studio service against disposable PostgreSQL: isolation, atomic revisions,
       CREATE TABLE audit_log(id uuid PRIMARY KEY DEFAULT uuidv7(), company_id uuid, actor_id uuid, module_key text,
         entity_type text, entity_id uuid, action text NOT NULL, before jsonb, after jsonb, metadata jsonb, created_at timestamptz DEFAULT now());`)
     await pool.query(await readFile(new URL('../../../../../prisma/migrations/20261130000000_studio_design/migration.sql', import.meta.url), 'utf8'))
+    await installMinimalStudioAccess(pool)
     await pool.query('INSERT INTO company VALUES ($1),($2)', [company, otherCompany])
     await pool.query('INSERT INTO user_profile VALUES ($1),($2)', [owner, otherOwner])
     const service = createStudioService({ prisma })

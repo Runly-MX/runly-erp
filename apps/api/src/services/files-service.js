@@ -494,7 +494,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       return { name: asset.originalName, mimeType: asset.mimeType, content: Buffer.from(await data.arrayBuffer()) };
     },
 
-    async list({ authUserId, activeContext, query = {}, includeSignedUrls = true }) {
+    async list({ authUserId, activeContext, query = {}, includeSignedUrls = true, mimeTypes }) {
       const context = await getUserCompanyContext(authUserId, activeContext);
       const { companyId } = context;
       const { page, pageSize, skip, take } = normalizePagination(query);
@@ -530,6 +530,8 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       };
 
       where.AND = [await visibility.listWhere(context), { NOT: LEGACY_CANVAS_COVER }];
+      // Internal consumers can narrow formats before pagination without changing visibility.
+      if (mimeTypes) where.AND.push({ mimeType: { in: mimeTypes } });
       const workspace = String(query.workspace ?? "");
       const filesOriginWhere = { entityType: "AtlasFile", OR: [{ moduleKey: null }, { moduleKey: { in: FILES_ORIGIN_MODULES } }] };
       if (workspace === "mine") where.AND.push({ uploadedById: context.profileId });

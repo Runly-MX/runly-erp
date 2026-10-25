@@ -28,7 +28,9 @@ try {
     SUPABASE_URL: 'http://127.0.0.1:9', SUPABASE_ANON_KEY: '', SUPABASE_SERVICE_ROLE_KEY: '' }
   const files = run('git', ['ls-files', '*test.js', '*test.mjs']).split(/\r?\n/).filter(path =>
     /^(packages\/(core|module-engine|module-compiler|sdk|ui)\/|apps\/(shared\/studio|api\/src\/routes\/(studio|canvas|pos|notes|projects)\/|desktop\/src\/modules\/(runly|atlas)\.(studio|canvas|pos|notes|projects)\/))/.test(path) && !path.includes('integration'))
-  files.push('apps/api/src/services/__tests__/auth-middleware.test.js', 'apps/api/src/services/__tests__/jwt-verification.test.js')
+  files.push('apps/api/src/services/__tests__/auth-middleware.test.js', 'apps/api/src/services/__tests__/jwt-verification.test.js',
+    ...run('git', ['ls-files', 'apps/api/src/services/__tests__/*test.js']).split(/\r?\n/).filter(path => /\/(files-|realtime-|rbac-granular)/.test(path)),
+    'apps/desktop/src/lib/__tests__/authorizedRealtime.test.js')
   run(process.execPath, ['--test', ...files], { env, stdio: 'inherit' })
   run(process.execPath, ['scripts/verify-studio-browser.mjs'], { env, stdio: 'inherit' })
   run(process.execPath, ['scripts/verify-studio-ui.mjs'], { env, stdio: 'inherit' })

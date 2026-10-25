@@ -127,7 +127,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
   }
 
   return {
-    studio: createStudioDomain({ request, withAuthHeaders, toQueryString }),
+    studio: createStudioDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
     settings: createSettingsDomain({ request, withAuthHeaders }),
     builder: createBuilderDomain({ request, requestBlob, withAuthHeaders }),
     support: {

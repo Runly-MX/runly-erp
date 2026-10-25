@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Button, PageHeader, EmptyState, ErrorState, Skeleton } from '@runly/ui'
+import { Button, PageHeader, EmptyState, ErrorState, Skeleton, SelectField } from '@runly/ui'
 import { Palette } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
@@ -14,8 +14,9 @@ export default function StudioScreen() {
   const { session, profileCompanyId, userProfile } = useAuth(), token = session?.access_token
   const [params, setParams] = useSearchParams(), id = params.get('design')
   const [error, setError] = useState(''), [creating, setCreating] = useState(false), [page, setPage] = useState(1)
-  const designs = useQuery({ queryKey: ['studio', profileCompanyId, userProfile?.id, 'designs', page],
-    queryFn: async () => unwrap(await runly.studio.listDesigns(token, { page })), enabled: Boolean(token) && !id })
+  const [shared, setShared] = useState('all')
+  const designs = useQuery({ queryKey: ['studio', profileCompanyId, userProfile?.id, 'designs', page, shared],
+    queryFn: async () => unwrap(await runly.studio.listDesigns(token, { page, shared })), enabled: Boolean(token) && !id })
   const design = useQuery({ queryKey: ['studio', profileCompanyId, userProfile?.id, 'design', id],
     queryFn: async () => unwrap(await runly.studio.getDesign(id, token)), enabled: Boolean(token && id), refetchOnWindowFocus: false })
   async function create(templateKey) {
@@ -29,7 +30,7 @@ export default function StudioScreen() {
   if (id) {
     if (design.isPending) return <Skeleton className="m-4 h-96" />
     if (design.error) return <ErrorState description={design.error.message} onRetry={design.refetch} />
-    return <DesignEditor key={`${profileCompanyId}:${id}`} record={design.data} token={token} scope={`${profileCompanyId}:${userProfile?.id}:${id}`} onCopy={copyId => setParams({ design: copyId })} onBack={() => { setParams({}); designs.refetch() }} />
+    return <DesignEditor key={`${profileCompanyId}:${userProfile?.id}:${id}`} record={design.data} token={token} scope={`${profileCompanyId}:${userProfile?.id}:${id}`} onCopy={copyId => setParams({ design: copyId })} onBack={() => { setParams({}); designs.refetch() }} />
   }
   return <div className="space-y-6 p-4 md:p-6">
     <PageHeader title="Runly Studio" eyebrow="IDEAS QUE TOMAN FORMA" description="Crea composiciones propias con texto, formas e imágenes."
@@ -45,9 +46,11 @@ export default function StudioScreen() {
     </section>
     <section className="space-y-3" aria-label="Mis diseños">
       <h2 className="text-lg font-semibold">Mis diseños</h2>
+      <SelectField label="Mostrar diseños" value={shared} onChange={value => { setShared(value); setPage(1) }} options={[
+        { value: 'all', label: 'Todos' }, { value: 'mine', label: 'Mis diseños' }, { value: 'shared', label: 'Compartidos conmigo' }]} />
       {designs.isPending ? <Skeleton className="h-32" /> : designs.error ? <ErrorState description={designs.error.message} onRetry={designs.refetch} /> :
         !designs.data?.length ? <EmptyState icon={Palette} title="Tu próxima idea empieza aquí" description="Crea un diseño o elige una plantilla para comenzar." /> :
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{designs.data.map(item => <Button key={item.id} className="justify-start" variant="outline" onClick={() => setParams({ design: item.id })}>{item.name}</Button>)}</div>}
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{designs.data.map(item => <Button key={item.id} className="h-auto flex-col items-start justify-start" variant="outline" onClick={() => setParams({ design: item.id })}>{item.name}<span className="text-xs text-muted-foreground">{item.ownerName} · {item.role === 'OWNER' ? 'Propietario' : item.role === 'EDITOR' ? 'Editor' : 'Solo lectura'}</span></Button>)}</div>}
       <div className="flex justify-end gap-2"><Button variant="ghost" disabled={page === 1} onClick={() => setPage(value => value - 1)}>Anterior</Button>
         <Button variant="ghost" disabled={designs.data?.length !== 24} onClick={() => setPage(value => value + 1)}>Siguiente</Button></div>
     </section>

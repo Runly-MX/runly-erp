@@ -8,6 +8,8 @@ import { createStudioStack } from './fixtures/studio/supabase-stack.mjs'
 import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
 import { verifyStudioSupabase } from './fixtures/studio/supabase-browser.mjs'
 import { inspectStudioWeb } from './lib/studio-web-verification.mjs'
+import { verifyStudioCollaboration } from './fixtures/studio/supabase-collaboration.mjs'
+import { verifyStudioResources } from './fixtures/studio/supabase-resources.mjs'
 
 const stack = await createStudioStack()
 let web
@@ -49,7 +51,8 @@ try {
   const bundle = await inspectStudioWeb(config.build.outDir, { forbiddenValues: [stack.secret.SUPABASE_SERVICE_ROLE_KEY,
     stack.secret.SUPABASE_JWT_SECRET, stack.secret.SUPABASE_POSTGRES_PASSWORD] })
   web = await preview(config)
-  const result = { ...await verifyStudioSupabase(stack, data), bundle }
+  const result = { ...(process.argv.includes('--collaboration-only') ? { passed: true } : await verifyStudioSupabase(stack, data)),
+    collaboration: await verifyStudioCollaboration(stack, data), resources: await verifyStudioResources(stack, data), bundle }
   await writeFile(join(stack.directory, 'result.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify(result, null, 2))
 } finally {

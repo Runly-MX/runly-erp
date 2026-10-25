@@ -40,7 +40,7 @@ export function validateDocument(input) {
     }
     if (object.type === 'image') {
       if (!FILE_ID.test(object.fileAssetId)) fail()
-      clean.fileAssetId = object.fileAssetId
+      clean.fileAssetId = object.fileAssetId.toLowerCase()
     }
     return clean
   })

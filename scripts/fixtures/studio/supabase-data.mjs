@@ -9,7 +9,7 @@ export async function seedStudioScenario(stack) {
   const admin = createClient(stack.urls.kong, stack.secret.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
   const password = `Test-${randomBytes(18).toString('hex')}!`
   const users = []
-  for (const label of ['owner', 'denied', 'peer']) {
+  for (const label of ['owner', 'denied', 'peer', 'foreign']) {
     const email = `${label}@studio.example.test`
     const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true })
     if (error) throw error
@@ -31,6 +31,8 @@ export async function seedStudioScenario(stack) {
   }
   for (const [index, roleId] of [[1, null], [2, companies[0].roleId]]) await pool.query(`INSERT INTO public.membership(id,company_id,user_id,role_id,updated_at)
     VALUES(uuidv7(),$1,$2,$3,now())`, [companies[0].id, users[index].id, roleId])
+  await pool.query(`INSERT INTO public.membership(id,company_id,user_id,role_id,updated_at)
+    VALUES(uuidv7(),$1,$2,$3,now())`, [companies[1].id, users[3].id, companies[1].roleId])
   await pool.query(`UPDATE public.runly_module SET enabled=true,status='INSTALLED' WHERE key IN ('runly.studio','runly.files')`)
   await pool.query(`INSERT INTO public.instance_config(key,value,updated_at) VALUES ('initialized','true',now())
     ON CONFLICT(key) DO UPDATE SET value='true'`)
