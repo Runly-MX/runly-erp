@@ -21,11 +21,13 @@ real y se comprueba el grafo estático inicial y el import dinámico de Studio/F
 
 | Imagen local temporal | Resultado |
 | --- | --- |
-| `runly-studio-validation:api-20261025` | Build aprobado; 860 módulos locales / 2803 imports verificados; rutas Studio, paquetes, Prisma y Sharp aprobados |
-| `runly-studio-validation:worker-20261025` | Build aprobado; 264 módulos locales / 608 imports verificados; Studio, paquetes, Prisma y Sharp aprobados |
-| `runly-studio-validation:web-20261025` | Build aprobado; Studio/Fabric lazy, chunk de 305785 bytes; no pertenece a los 12 chunks iniciales |
+| `runly-studio-validation:api-4a65e871` | Build aprobado; 862 módulos locales / 2806 imports verificados; rutas Studio, paquetes, Prisma y Sharp aprobados; arranque sin migrate/seed comprobado |
+| `runly-studio-validation:worker-4a65e871` | Build aprobado; 264 módulos locales / 608 imports verificados; Studio, paquetes, Prisma y Sharp aprobados |
+| `runly-studio-validation:web-4a65e871` | Build aprobado; Studio/Fabric lazy, chunk de 305785 bytes; no pertenece a los 12 chunks iniciales |
 
-Runtime comprobado: Node 22.23.4, Linux x64. No se sustituyeron tags de imágenes
+Las tres imágenes se reconstruyeron desde main limpio en `4a65e871`, incluyendo
+los commits concurrentes de Proyectos. Runtime comprobado: Node 22.23.4, Linux x64.
+No se sustituyeron tags de imágenes
 en ejecución ni se publicaron estas imágenes. Son artefactos de validación,
 no una declaración de release de los cambios concurrentes del repositorio.
 
@@ -34,16 +36,18 @@ Reproducción:
 ```sh
 node --test scripts/tests/docker-shared-sources.test.mjs scripts/tests/api-entrypoint.test.mjs scripts/tests/deployment-preflight.test.mjs
 node scripts/verify-studio-images.mjs \
-  --api runly-studio-validation:api-20261025 \
-  --web runly-studio-validation:web-20261025 \
-  --worker runly-studio-validation:worker-20261025
+  --api runly-studio-validation:api-4a65e871 \
+  --web runly-studio-validation:web-4a65e871 \
+  --worker runly-studio-validation:worker-4a65e871
 pnpm docker:release:check
 ```
 
 El dry-run seleccionó **API, Worker y Web**, y omitió Transcriber, TTS y Backup.
 La regresión dirigida de core/engine/compiler/SDK, Studio, Canvas, POS, Notes,
 Automatizaciones y Documents ejecutó 900 pruebas: 898 aprobadas, 0 fallidas,
-2 omitidas. Esas pruebas no prueban login/Storage reales. Las pruebas de
+2 omitidas. La comprobación adicional de Proyectos pasó sus 29 pruebas.
+Las pruebas de empaquetado, preflight, arranque, env y preservación de backup
+pasaron sus 24 pruebas. Esas pruebas no prueban login/Storage reales. Los resultados de
 empaquetado, preflight, arranque, env y preservación de backup se registran en
 `.artifacts/studio/deployment/`, junto con los logs y resultados privados.
 
