@@ -36,6 +36,8 @@ import { createChatSidebarService } from "./chat-sidebar-service.js";
 import { createChatSavedService } from "./chat-saved-service.js";
 import { createChatCommandsService } from "./chat-commands-service.js";
 import { createChatActionsService } from "./chat-actions-service.js";
+import { createPurchasesServices } from "../purchases/index.js";
+import { createUserAccessService } from "../../services/user-access-service.js";
 import { createAutomationHttpService } from "../../services/automation-http-service.js";
 import { createAutomationApprovalsService } from "../../services/automation-approvals-service.js";
 import { announceStatusChange, createStatusService } from "../../services/status-service.js";
@@ -630,7 +632,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   internal.route("", createChannelRoutes({ prisma, requirePermission, chatService, channelDirectoryService, channelLinksService, permissionsService }));
 
   // Buttons on messages (approve / reject an approval).
-  const actionsService = createChatActionsService({ prisma, approvalsService: createAutomationApprovalsService({ prisma, notifications: notificationService }), httpService: createAutomationHttpService({ prisma }), broadcaster });
+  const actionsService = createChatActionsService({ prisma, approvalsService: createAutomationApprovalsService({ prisma, notifications: notificationService }), httpService: createAutomationHttpService({ prisma }), purchasesService: createPurchasesServices({ prisma, broadcaster }).procurement, accessService: createUserAccessService({ prisma }), broadcaster });
   internal.post("/messages/:id/actions/:actionId", requirePermission("chat.conversations.read"), async (c) => {
     try {
       const profileId = await resolveUserProfileId(prisma, c.get("authUserId"));

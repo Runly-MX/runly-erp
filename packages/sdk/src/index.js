@@ -2616,6 +2616,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       const api = {
         dashboard: (token) => get("/purchases/dashboard", token),
         getSettings: (token) => get("/purchases/settings", token),
+        getApprovalChannel: (token) => get("/purchases/approval-channel", token),
+        setApprovalChannel: (channel, token) => send("PUT", "/purchases/approval-channel", { channel }, token),
         updateSettings: (data, token) => send("PUT", "/purchases/settings", data, token),
         getCapabilities: (token) => get("/purchases/capabilities", token),
         nextNumber: (kind, params, token) => get(`/purchases/numbering/${seg(kind)}/next${toQueryString(params)}`, token),

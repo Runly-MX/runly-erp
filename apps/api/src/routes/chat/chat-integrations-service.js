@@ -45,6 +45,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // docs/superpowers/specs/2026-10-26-interactive-messages-design.md.
 export function buildActions(input, { allowCallbacks = false } = {}) {
   const actions = [];
+  if (input?.purchaseApprovalId && UUID.test(String(input.purchaseApprovalId))) {
+    actions.push({ id: "approve", kind: "purchase_approval", purchaseApprovalId: String(input.purchaseApprovalId), decision: "APPROVED", label: "Aprobar", style: "primary" });
+    actions.push({ id: "reject", kind: "purchase_approval", purchaseApprovalId: String(input.purchaseApprovalId), decision: "REJECTED", label: "Rechazar", style: "danger" });
+    return actions;
+  }
   if (input?.approvalId && UUID.test(String(input.approvalId))) {
     actions.push({ id: "approve", kind: "approval", approvalId: String(input.approvalId), decision: "approve", label: "Aprobar", style: "primary" });
     actions.push({ id: "reject", kind: "approval", approvalId: String(input.approvalId), decision: "reject", label: "Rechazar", style: "danger" });

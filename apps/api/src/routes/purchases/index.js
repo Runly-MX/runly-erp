@@ -14,6 +14,7 @@ import { createPurchaseReceiptsService } from '../../services/purchase-receipts-
 import { createPurchaseRelationsService } from '../../services/purchase-relations-service.js'
 import { createPurchaseInventoryBridge } from '../../services/purchase-inventory-bridge.js'
 import { createPurchaseSuppliersService } from '../../services/purchase-suppliers-service.js'
+import { createPurchaseApprovalChatService } from '../../services/purchase-approval-chat-service.js'
 import { createPurchasesSettingsRouter } from './settings-routes.js'
 import { createPurchasesDocumentsRouter } from './documents-routes.js'
 import { createPurchasesProcurementRouter } from './procurement-routes.js'
@@ -35,6 +36,7 @@ export function createPurchasesServices({ prisma, broadcaster, inventoryService,
     receipts: createPurchaseReceiptsService(deps),
     relations: createPurchaseRelationsService(deps),
     suppliers: createPurchaseSuppliersService({ prisma, broadcaster, supabaseAdmin }),
+    approvalChat: createPurchaseApprovalChatService({ prisma }),
     inventory: createPurchaseInventoryBridge({
       ...deps,
       // Lazily built so Compras boots and works without runly.inventory.

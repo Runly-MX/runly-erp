@@ -11,6 +11,7 @@ import { PresetCards } from '../components/settings/PresetCards.jsx'
 import { StagesPanel } from '../components/settings/StagesPanel.jsx'
 import { PoliciesEditor } from '../components/settings/PoliciesEditor.jsx'
 import { NumberingPanel } from '../components/settings/NumberingPanel.jsx'
+import { ApprovalChatPanel } from '../components/settings/ApprovalChatPanel.jsx'
 
 // Process configuration: template (preset), capabilities, stage modes and
 // policies, with the resulting track previewed live at the top.
@@ -67,6 +68,7 @@ export default function PurchaseSettingsScreen() {
       <StagesPanel capabilities={capabilities ?? {}} modes={modes ?? {}} onCapability={setCapability} onMode={setMode} disabled={!canManage} />
       <PoliciesEditor control={control} errors={errors} enabledStages={stages.map((s) => s.type)} disabled={!canManage} />
       <NumberingPanel control={control} capabilities={capabilities} disabled={!canManage} />
+      {capabilities?.approvals ? <ApprovalChatPanel disabled={!canManage} /> : null}
 
       {canManage && isDirty ? (
         <UnsavedChangesBar onSave={save} onDiscard={() => reset(toFormValues(workflow))} saving={update.isPending} saveLabel="Guardar cambios" />

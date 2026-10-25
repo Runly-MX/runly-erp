@@ -49,3 +49,4 @@ Los atajos `/inventario:texto` para insertar registros siguen funcionando en cua
 ## Mensajes con botones
 
 Algunas integraciones y automatizaciones publican mensajes con botones: enlaces que abren un informe o una pantalla de Runly, o **Aprobar / Rechazar** una solicitud. Solo las personas que deben aprobar pueden usar esos botones; al decidir, la tarjeta muestra quien lo hizo y se cierra para todos.
+Si en Compras > Configuracion eliges un canal en **Aprobaciones en el chat**, cada aprobacion de compra pendiente aparece alli como tarjeta con **Aprobar** y **Rechazar** (solo para quien tiene el permiso de aprobar compras); la tarjeta se cierra tambien si se decide desde Compras.

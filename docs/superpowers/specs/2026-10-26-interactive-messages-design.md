@@ -17,8 +17,12 @@ Approvals live in a Home widget and the bell. A request that already happens in 
 - Cards posted by the worker or by automation runs use a realtime broadcaster built from the environment, so they appear live.
 - Source labels: system sources get readable names ("Automatizaciones").
 
+## Purchase approvals (added 2026-10-26)
+- Compras > Configuración > **Aprobaciones en el chat**: the company picks a channel (stored in `company_module.config.approvalChannel` of `runly.purchases`; the channel must exist). A worker pass (every minute) posts each pending approval of the last 7 days as a card (document, case, estimated total, reason) with Aprobar / Rechazar, once.
+- Pressing a button runs `procurement.decideApproval` with the person's own permission (`purchases.approval.decide`) and the company's `approvals` capability, so the rules are those of the purchases screen. A card whose approval was decided elsewhere closes without deciding again; the same pass closes cards decided in Compras.
+
 ## Not built
-Purchases approvals as cards (they have their own table and permission; same card, new action kind), buttons that run slash commands.
+Buttons that run slash commands.
 
 ## Testing
 Unit: button rules, action service (decide once, resolved/unknown/link/unreadable are refused, approval errors keep their status). E2E `.e2e/chat-buttons-e2e.mjs` (8 checks): non-approver 404, webhook link buttons and unsafe links dropped, webhook cannot forge decision buttons, press Aprobar in the interface, second decision 409.

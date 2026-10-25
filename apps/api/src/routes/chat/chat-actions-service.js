@@ -7,7 +7,7 @@
 import { ChatServiceError } from "./chat-service-error.js";
 import { AutomationApprovalError } from "../../services/automation-approvals-service.js";
 
-export function createChatActionsService({ prisma, approvalsService, httpService = null, broadcaster = null, now = () => new Date() }) {
+export function createChatActionsService({ prisma, approvalsService, purchasesService = null, accessService = null, httpService = null, broadcaster = null, now = () => new Date() }) {
   async function loadReadable({ companyId, profileId, messageId }) {
     const [row] = await prisma.$queryRaw`
       SELECT m.id, m.conversation_id, m.metadata
@@ -26,10 +26,23 @@ export function createChatActionsService({ prisma, approvalsService, httpService
     const action = (metadata.actions ?? []).find((item) => item.id === actionId);
     if (!action) throw new ChatServiceError("Acción no encontrada.", 404);
     if (metadata.resolution) throw new ChatServiceError("Esta solicitud ya fue resuelta.", 409);
-    if (action.kind !== "approval" && action.kind !== "callback") throw new ChatServiceError("Este botón no ejecuta acciones.", 400);
+    if (!["approval", "callback", "purchase_approval"].includes(action.kind)) throw new ChatServiceError("Este botón no ejecuta acciones.", 400);
     const [person] = await prisma.$queryRaw`SELECT display_name FROM user_profile WHERE id = ${profileId}::uuid`;
     const byName = person?.display_name ?? "Alguien";
-    if (action.kind === "approval") {
+    if (action.kind === "purchase_approval") {
+      // Same permission and rules as the purchases screen; a card decided elsewhere just closes.
+      if (!purchasesService || !accessService) throw new ChatServiceError("Compras no está disponible.", 409);
+      try { await accessService.assertCompanyMember(companyId, profileId, "purchases.approval.decide"); } catch { throw new ChatServiceError("No tienes permiso para aprobar compras.", 403); }
+      const current = await prisma.purchaseApproval.findFirst({ where: { id: action.purchaseApprovalId, companyId }, select: { status: true } });
+      if (!current) throw new ChatServiceError("La aprobación ya no existe.", 404);
+      if (current.status === "PENDING") {
+        try {
+          await purchasesService.decideApproval(companyId, profileId, action.purchaseApprovalId, { decision: action.decision });
+        } catch (error) {
+          throw new ChatServiceError(error?.message ?? "No se pudo decidir la aprobación.", Number.isInteger(error?.status) ? error.status : 400);
+        }
+      }
+    } else if (action.kind === "approval") {
       try {
         await approvalsService.decide({ companyId, profileId, id: action.approvalId, decision: action.decision });
       } catch (error) {
@@ -54,7 +67,7 @@ export function createChatActionsService({ prisma, approvalsService, httpService
         throw new ChatServiceError(`No se pudo avisar a la integración: ${error?.message ?? "error"}`, error?.status === 403 ? 403 : 502);
       }
     }
-    const resolution = { actionId, label: action.label, decision: action.kind === "approval" ? action.decision : "choice", byName, at: now().toISOString() };
+    const resolution = { actionId, label: action.label, decision: action.kind === "callback" ? "choice" : action.kind === "purchase_approval" ? (action.decision === "APPROVED" ? "approve" : "reject") : action.decision, byName, at: now().toISOString() };
     // Every button of the message closes together.
     await prisma.$executeRaw`UPDATE chat_messages SET metadata = jsonb_set(coalesce(metadata, '{}'::jsonb), '{resolution}', ${JSON.stringify(resolution)}::jsonb) WHERE id = ${messageId}::uuid`;
     const members = await prisma.$queryRaw`SELECT user_id FROM chat_conversation_members WHERE conversation_id = ${message.conversation_id}::uuid AND left_at IS NULL AND user_id IS NOT NULL`;

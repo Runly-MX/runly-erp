@@ -49,6 +49,7 @@ import { createGrowthAggregationWorker } from '../../api/src/services/growth-agg
 import { createGrowthPropertyHealthWorker } from '../../api/src/services/growth-property-health-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 import { sweepOrphanChatAttachments } from '../../api/src/routes/chat/orphan-attachment-sweep-job.js'
+import { createPurchaseApprovalChatService } from '../../api/src/services/purchase-approval-chat-service.js'
 import { createChatSavedService } from '../../api/src/routes/chat/chat-saved-service.js'
 import { archiveInactiveMeetingChannels } from '../../api/src/routes/chat/meeting-channel-archive-job.js'
 
@@ -653,6 +654,20 @@ async function runChatReminderTick() {
   }
 }
 setInterval(runChatReminderTick, 60 * 1000)
+
+// Purchase approvals appear as cards in the channel a company chose, and close when decided elsewhere.
+const purchaseApprovalChat = createPurchaseApprovalChatService({ prisma })
+async function runPurchaseApprovalChatTick() {
+  try {
+    const { posted } = await purchaseApprovalChat.announcePending()
+    const { closed } = await purchaseApprovalChat.closeResolved()
+    if (posted || closed) console.log(`[worker] aprobaciones de compras en chat ${formatLogTimestamp()} posted=${posted} closed=${closed}`)
+  } catch (err) {
+    console.error('[worker] purchase approval chat tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+setInterval(runPurchaseApprovalChatTick, 60 * 1000)
 
 // Channels made by calls stop cluttering the sidebar after 14 inactive days.
 async function runMeetingChannelArchiveTick() {
