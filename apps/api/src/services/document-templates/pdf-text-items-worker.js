@@ -3,7 +3,23 @@
 // off the API event loop with memory limits set by the caller.
 import { parentPort, workerData } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+
+// pdfjs-dist loads the optional native @napi-rs/canvas on import (Node). That
+// addon is only needed for rendering and its teardown when a worker thread
+// exits intermittently crashes the process on Windows (0xC0000005). Text
+// extraction never draws, so block the addon (and stub the three globals
+// pdfjs wants to polyfill) while the module is imported.
+const realGetBuiltinModule = process.getBuiltinModule;
+const realLog = console.log;
+process.getBuiltinModule = (name) => {
+  if (name === 'module' || name === 'node:module') throw new Error('blocked');
+  return realGetBuiltinModule.call(process, name);
+};
+console.log = () => {};
+for (const name of ['DOMMatrix', 'ImageData', 'Path2D']) globalThis[name] ??= class {};
+let getDocument;
+try { ({ getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')); }
+finally { process.getBuiltinModule = realGetBuiltinModule; console.log = realLog; }
 
 const MAX_ITEMS = 2000;
 const task = getDocument({ data: new Uint8Array(workerData), isEvalSupported: false, useSystemFonts: false,

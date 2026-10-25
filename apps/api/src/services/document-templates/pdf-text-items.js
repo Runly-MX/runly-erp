@@ -11,11 +11,19 @@ export function extractPdfTextItems(buffer) {
       workerData: buffer,
       resourceLimits: { maxOldGenerationSizeMb: 256, maxYoungGenerationSizeMb: 32 },
     });
+    // Never terminate a worker that is still tearing pdfjs down (native
+    // access violation on Windows): let it exit by itself once it has
+    // answered, and only force-terminate on timeout.
     let settled = false;
-    const finish = (fn, value) => { if (settled) return; settled = true; clearTimeout(timer); void worker.terminate(); fn(value); };
-    const timer = setTimeout(() => finish(reject, new TemplateError('El PDF tardó demasiado en procesarse.')), TIMEOUT_MS);
-    worker.once('message', (msg) => (msg?.error ? finish(reject, new TemplateError('No se pudo leer el texto del PDF.')) : finish(resolve, msg)));
-    worker.once('error', () => finish(reject, new TemplateError('No se pudo leer el texto del PDF.')));
-    worker.once('exit', () => finish(reject, new TemplateError('No se pudo leer el texto del PDF.')));
+    let result;
+    const fail = () => new TemplateError('No se pudo leer el texto del PDF.');
+    const finish = (fn, value) => { if (settled) return; settled = true; clearTimeout(timer); fn(value); };
+    const timer = setTimeout(() => {
+      void worker.terminate();
+      finish(reject, new TemplateError('El PDF tardó demasiado en procesarse.'));
+    }, TIMEOUT_MS);
+    worker.once('message', (msg) => { result = msg; });
+    worker.once('error', () => finish(reject, fail()));
+    worker.once('exit', () => (result && !result.error ? finish(resolve, result) : finish(reject, fail())));
   });
 }
