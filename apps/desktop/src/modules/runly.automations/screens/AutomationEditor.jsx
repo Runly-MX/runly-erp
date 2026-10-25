@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActionMenu, Button, ConfirmDialog, ErrorState, Skeleton, Switch, Tooltip, TooltipContent, TooltipTrigger, cn, useViewMode } from "@runly/ui";
-import { ArrowLeft, Check, FlaskConical, Fullscreen, Loader2, Maximize2, Minimize2, Plug, Redo2, Save, Terminal, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, Check, Copy, Download, FlaskConical, Fullscreen, Loader2, Maximize2, Minimize2, Plug, Redo2, Save, Terminal, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -18,6 +18,8 @@ import { AutomationTestDialog } from "../../runly.core/components/builder/Automa
 import { fieldOptionsFor } from "../../runly.core/components/builder/AutomationTrigger";
 import { AutomationCanvasEditor } from "../../runly.core/components/builder/canvas/AutomationCanvasEditor";
 import { describeAutomationDiagnostic } from "../../runly.core/lib/flowModel";
+import { keyFromName } from "../../runly.core/lib/automationStarters";
+import { downloadFile, duplicateDraft } from "../lib/automationFile";
 
 const LIST_PATH = "/app/m/runly.automations";
 const SYSTEM_MODULE_KEY = "system.automations";
@@ -58,7 +60,13 @@ function BarButton({ label, active = false, className, children, ...props }) {
   );
 }
 
+// Each navigation (a copy, an import, another automation) starts the editor afresh.
 export default function SystemAutomationEditor() {
+  const location = useLocation();
+  return <AutomationEditorScreen key={location.key} />;
+}
+
+function AutomationEditorScreen() {
   const { "*": wildcard } = useParams();
   const slug = wildcard?.split("/").filter(Boolean).pop() ?? null;
   const isNew = slug === "nueva";
@@ -155,8 +163,15 @@ export default function SystemAutomationEditor() {
 
   const save = useMutation({
     mutationFn: async () => {
+      let payload = toPayload(item);
+      if (isNew) {
+        // The list this draft was made from can be stale: take a free key from the current one.
+        const current = (await runly.modules.systemAutomations(token))?.data ?? [];
+        const taken = new Set(current.map((entry) => entry.key));
+        if (taken.has(payload.key)) payload = { ...payload, key: keyFromName(payload.label, taken) };
+      }
       const result = isNew
-        ? await runly.modules.createSystemAutomation(toPayload(item), token)
+        ? await runly.modules.createSystemAutomation(payload, token)
         : await runly.modules.saveSystemAutomation(item.key, toPayload(item), token);
       return result.data;
     },
@@ -187,6 +202,12 @@ export default function SystemAutomationEditor() {
 
   keys.current = { save: () => { if (dirty && !save.isPending) save.mutate(); }, undo, redo };
 
+  // A copy starts from what is on screen; it is saved as a new, paused automation.
+  const copy = () => {
+    const taken = new Set((query.data ?? []).map((entry) => entry.key));
+    navigate(`${LIST_PATH}/nueva`, { state: { draft: duplicateDraft(item, taken) } });
+    toast.success("Copia lista: revísala y guárdala");
+  };
   const back = () => (dirty ? setConfirm("leave") : navigate(LIST_PATH));
 
   if (!canManage) return <div className="p-6"><ErrorState title="Sin acceso" description="Necesitas el permiso para administrar automatizaciones." /></div>;
@@ -224,7 +245,11 @@ export default function SystemAutomationEditor() {
           <BarButton label={VIEW_LABELS[viewMode.mode]} onClick={viewMode.cycle} className="max-sm:hidden">
             {viewMode.mode === "normal" ? <Maximize2 className="h-4 w-4" /> : viewMode.mode === "clean" ? <Fullscreen className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
           </BarButton>
-          {!isNew && <ActionMenu label="Más opciones" items={[{ label: "Eliminar automatización", icon: Trash2, variant: "destructive", onClick: () => setConfirm("delete") }]} />}
+          <ActionMenu label="Más opciones" items={[
+            ...(isNew ? [] : [{ label: "Duplicar", icon: Copy, onClick: copy }]),
+            { label: "Exportar a archivo", icon: Download, onClick: () => downloadFile(item) },
+            ...(isNew ? [] : [{ label: "Eliminar automatización", icon: Trash2, variant: "destructive", onClick: () => setConfirm("delete") }]),
+          ]} />
           <Button disabled={!dirty || save.isPending} onClick={() => save.mutate()} className="h-9 gap-1.5 [@media(pointer:coarse)]:h-11"><Save className="h-4 w-4" /> <span className="max-sm:sr-only">{save.isPending ? "Guardando..." : "Guardar"}</span></Button>
         </div>
       </header>

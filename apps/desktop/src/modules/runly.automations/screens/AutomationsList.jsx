@@ -3,16 +3,17 @@
 // canvas editor (SystemAutomationEditor). Spec
 // docs/superpowers/specs/2026-10-25-system-automations-design.md and
 // 2026-10-25-automation-canvas-and-webhooks-design.md.
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, EmptyState, ErrorState, PageHeader, Skeleton, Switch, Tabs, TabsContent, TabsList, TabsTrigger, TextField } from "@runly/ui";
-import { Plug, Plus, Search, SearchX, Zap } from "lucide-react";
+import { ActionMenu, Badge, Button, EmptyState, ErrorState, PageHeader, Skeleton, Switch, Tabs, TabsContent, TabsList, TabsTrigger, TextField } from "@runly/ui";
+import { Copy, Download, Plug, Plus, Search, SearchX, Upload, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
 import { describeTrigger } from "../../runly.core/lib/flowModel";
+import { downloadFile, duplicateDraft, parseFile } from "../lib/automationFile";
 import { AutomationConnectionsDialog } from "../../runly.core/components/builder/AutomationConnectionsDialog";
 import { AutomationMiniFlow } from "../../runly.core/components/builder/AutomationMiniFlow";
 import { AutomationRunsPanel } from "../../runly.core/components/builder/AutomationRunsPanel";
@@ -37,7 +38,7 @@ function relativeTime(value) {
   return `hace ${Math.round(hours / 24)} d`;
 }
 
-function AutomationCardItem({ item, events, onOpen, onToggle, toggling }) {
+function AutomationCardItem({ item, events, onOpen, onToggle, toggling, onDuplicate, canManage }) {
   const text = describeTrigger(item.trigger, { events });
   const run = item.lastRun;
   return (
@@ -48,6 +49,12 @@ function AutomationCardItem({ item, events, onOpen, onToggle, toggling }) {
           {item.enabled ? "Activa" : "Pausada"}
           <Switch checked={item.enabled} disabled={toggling} onCheckedChange={() => onToggle(item)} aria-label={`${item.enabled ? "Pausar" : "Activar"} ${item.label}`} />
         </label>
+        <span className="relative z-10 -my-1 -mr-1.5 shrink-0">
+          <ActionMenu label={`Más opciones de ${item.label}`} items={[
+            ...(canManage ? [{ label: "Duplicar", icon: Copy, onClick: () => onDuplicate(item) }] : []),
+            { label: "Exportar a archivo", icon: Download, onClick: () => downloadFile(item) },
+          ]} />
+        </span>
       </div>
       <div className="min-w-0 flex-1 space-y-1">
         <h3 className="text-base font-semibold leading-snug">
@@ -105,6 +112,19 @@ export default function SystemAutomations() {
     onError: (error) => toast.error("No se pudo cambiar el estado", { description: error.message }),
   });
 
+  const fileInput = useRef(null);
+  const takenKeys = new Set(items.map((item) => item.key));
+  const startDraft = (draft) => navigate(`${EDITOR_PATH}/nueva`, { state: { draft } });
+  const duplicate = (item) => { startDraft(duplicateDraft(item, takenKeys)); toast.success("Copia lista: revísala y guárdala"); };
+  const importFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const parsed = parseFile(await file.text(), takenKeys);
+    if (parsed.error) { toast.error("No se pudo importar", { description: parsed.error }); return; }
+    startDraft(parsed.draft);
+    toast.success("Archivo leído: revisa la automatización y guárdala", parsed.removedPeople ? { description: "Las personas (destinatarios y aprobadores) no se transfieren: vuelve a elegirlas." } : undefined);
+  };
   const open = (item) => {
     if (!canManage) { toast.info("Necesitas el permiso para administrar automatizaciones."); return; }
     navigate(`${EDITOR_PATH}/${item.key}`);
@@ -125,6 +145,8 @@ export default function SystemAutomations() {
             canManage ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" onClick={() => setConnectionsOpen(true)}><Plug className="mr-1.5 h-4 w-4" /> Conexiones</Button>
+                <Button variant="outline" onClick={() => fileInput.current?.click()}><Upload className="mr-1.5 h-4 w-4" /> Importar</Button>
+                <input ref={fileInput} type="file" accept=".json,application/json" className="sr-only" tabIndex={-1} aria-label="Archivo de automatización" onChange={importFile} />
                 <Button onClick={() => setNewOpen(true)}><Plus className="mr-1.5 h-4 w-4" /> Nueva automatización</Button>
               </div>
             ) : null
@@ -164,7 +186,7 @@ export default function SystemAutomations() {
         )}
         {visible.length > 0 && (
           <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {visible.map((item) => <AutomationCardItem key={item.key} item={item} events={events} onOpen={open} onToggle={(target) => toggle.mutate(target)} toggling={toggle.isPending || !canManage} />)}
+            {visible.map((item) => <AutomationCardItem key={item.key} item={item} events={events} onOpen={open} onToggle={(target) => toggle.mutate(target)} toggling={toggle.isPending || !canManage} canManage={canManage} onDuplicate={duplicate} />)}
           </ul>
         )}
 

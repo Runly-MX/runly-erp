@@ -120,6 +120,16 @@ Una **condición** parte el flujo en dos caminos: si se cumplen todas sus compro
 
 En el archivo, una condición es un paso `{ "type": "branch", "when": <condición o lista>, "yes": N, "no": M }`: los siguientes `N` pasos de la lista son el camino «Sí», los siguientes `M` el camino «No», y el flujo sigue después de ellos. Así los números de bloque (`paso<N>_...`), el historial y las esperas no cambian.
 
+## Duplicar, exportar e importar
+
+En el módulo **Automatizaciones** cada tarjeta (y el menú «Más opciones» del editor) ofrece:
+
+- **Duplicar**: abre una copia sin guardar, llamada «Copia de ...», **en pausa** y con su propia URL de webhook (se crea al guardar). Conserva destinatarios y aprobadores, porque es la misma empresa.
+- **Exportar a archivo**: descarga `nombre.runly-automation.json` con el flujo (disparador, bloques, condiciones y disposición del lienzo). El archivo **no** incluye identificadores, la URL secreta del webhook ni el historial, y siempre queda en pausa.
+- **Importar** (botón de la lista): lee un archivo exportado, aunque venga de otra empresa o instancia, y abre el borrador para que lo revises antes de guardar. Como las personas pertenecen a la empresa que exportó, **se quitan los destinatarios y aprobadores**: hay que volver a elegirlos. Los archivos de una versión más nueva de Runly o que no sean una automatización se rechazan con un mensaje.
+
+Al guardar se valida igual que cualquier automatización, y los permisos de servicio se autorizan en ese momento. Una llamada HTTP importada solo funciona si su servidor está en la lista de destinos de la instancia.
+
 ## Enviar correos y generar reportes
 
 Dos bloques de acción pensados para las automatizaciones de la empresa (también se pueden autorizar a un módulo que reaccione a eventos):
