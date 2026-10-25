@@ -11,3 +11,11 @@ test('portable automation rules keep condition, interpolation, array and idempot
   const automation = { action: { args: { userIds: { from: 'actor' }, title: { from: 'template', template: '{{name}}' }, empty: { from: 'field', field: 'missing' } } }, runtime: { arrayArgs: ['userIds'], acceptsSource: true } }
   assert.deepEqual(buildArgs(automation, { data: { name: 'Fixture' }, actorId: 'actor', recordId: 'record', idempotencyKey: 'key' }), { userIds: ['actor'], title: 'Fixture', sourceEntityId: 'record', idempotencyKey: 'key' })
 })
+
+test('condition lists require every condition; new operators compare text and numbers', () => {
+  const data = { name: 'Orden OS-7', total: 120 }
+  assert.equal(matches([{ field: 'name', op: 'contains', value: 'os-7' }, { field: 'total', op: 'gt', value: 100 }], data), true)
+  assert.equal(matches([{ field: 'name', op: 'contains', value: 'os-7' }, { field: 'total', op: 'lt', value: 100 }], data), false)
+  assert.equal(matches({ field: 'name', op: 'not_equals', value: 'X' }, data), true)
+  assert.equal(matches({ field: 'missing', op: 'gt', value: 1 }, data), false)
+})

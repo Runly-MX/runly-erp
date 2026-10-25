@@ -144,3 +144,57 @@ test('generated runtime maps args, conditions and idempotency', async () => {
   await handlers['fleet.vehicle.updated']({ payload: { id: 'v1', plate: 'ABC', status: 'maintenance' }, eventId: 'e2', services })
   assert.deepEqual(calls.at(-1), { service: 'runly.contacts:contacts.create', args: { name: 'Taller ABC', type: 'company', idempotencyKey: 'taller:e2' } })
 })
+
+const STEPS = {
+  key: 'cadena', label: 'Cadena', enabled: true,
+  trigger: { type: 'record', entity: 'orden', on: 'save', when: [{ field: 'folio', op: 'contains', value: 'OS' }, { field: 'estado', op: 'not_equals', value: 'cerrada' }] },
+  steps: [
+    { service: 'runly.notifications:notifications.send', args: { userIds: { from: 'actor' }, title: { from: 'template', template: 'Aviso {{folio}}' } } },
+    { service: 'runly.calendar:events.create', args: { title: { from: 'template', template: 'Visita {{folio}}' }, startAt: { from: 'field', field: 'fecha' } } },
+  ],
+}
+
+test('steps and multiple conditions validate, normalize and keep v1 compatibility', () => {
+  const ok = { ...structuredClone(BASE), automations: [STEPS] }
+  assert.deepEqual(codes(ok), [])
+  const both = { ...structuredClone(BASE), automations: [{ ...STEPS, action: BASE.automations[0].action }] }
+  assert.ok(codes(both).includes('AUTOMATION_STEPS_INVALID'))
+  const tooMany = { ...structuredClone(BASE), automations: [{ ...STEPS, steps: Array(6).fill(STEPS.steps[0]) }] }
+  assert.ok(codes(tooMany).includes('AUTOMATION_STEPS_INVALID'))
+  const badStep = structuredClone(ok)
+  badStep.automations[0].steps[1].args.title = { from: 'field', field: 'nope' }
+  const errors = validateModuleDefinition(badStep).errors
+  assert.ok(errors.some((e) => e.path === 'automations[0].steps[1].args.title' && e.code === 'AUTOMATION_FIELD_NOT_FOUND'))
+  const badCondition = structuredClone(ok)
+  badCondition.automations[0].trigger.when[1] = { field: 'estado', op: 'gt', value: 'x' }
+  assert.ok(codes(badCondition).includes('AUTOMATION_CONDITION_INVALID'))
+  // v1 `action` definitions compile to a single step.
+  const v1 = compileModule(structuredClone(BASE))
+  assert.match(fileOf(v1, 'api/automations.js'), /"steps": \[/)
+})
+
+test('generated runtime runs steps in order, stops or continues on error and logs the run', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'runly-automations-steps-'))
+  const definition = { ...structuredClone(BASE), automations: [STEPS, { ...STEPS, key: 'sigue', onError: 'continue' }] }
+  writeFileSync(path.join(dir, 'automations.mjs'), fileOf(compileModule(definition), 'api/automations.js'))
+  const runtime = await import(pathToFileURL(path.join(dir, 'automations.mjs')).href)
+
+  const calls = []
+  const services = { call: async (service, args) => { calls.push({ service, args }); if (service.startsWith('runly.notifications')) throw new Error('falla') } }
+  const logs = []
+  const moduleContext = { services: { forRequest: () => services }, automations: { log: async (_c, entry) => { logs.push(entry) } } }
+  const c = { get: () => 'user-1' }
+  const record = { id: 'rec-1', folio: 'OS-7', fecha: '2026-10-06T16:00:00.000Z', estado: 'abierta' }
+
+  const results = await runtime.runRecordAutomations({ c, moduleContext, entity: 'orden', on: 'create', record })
+  assert.equal(results.length, 2)
+  // "cadena" stops after the failing first step; "sigue" continues to the second.
+  assert.deepEqual(calls.map((call) => call.service), ['runly.notifications:notifications.send', 'runly.notifications:notifications.send', 'runly.calendar:events.create'])
+  assert.equal(calls[2].args.idempotencyKey, 'sigue:rec-1:create:1')
+  assert.deepEqual(logs.map((l) => [l.automationKey, l.status]), [['cadena', 'failed'], ['sigue', 'partial']])
+  assert.equal(logs[0].steps[1].skipped, true)
+
+  // Conditions: all must hold.
+  calls.length = 0
+  assert.deepEqual(await runtime.runRecordAutomations({ c, moduleContext, entity: 'orden', on: 'create', record: { ...record, estado: 'cerrada' } }), [])
+})

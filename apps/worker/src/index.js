@@ -15,6 +15,7 @@ import { createDomainEventDispatcher } from '../../api/src/services/domain-event
 import { createModuleServices } from '../../api/src/services/module-services/module-services.js'
 import { createTrashRegistry } from '../../api/src/services/trash/trash-registry.js'
 import { runAutoPurge } from '../../api/src/services/trash/trash-retention.js'
+import { createAutomationRunsService } from '../../api/src/services/automation-runs-service.js'
 import { purgeExpiredEvidence } from '../../api/src/routes/attendance/attendance-evidence.js'
 import { resolveModulesDir } from '../../api/src/services/module-upload-service.js'
 import { resolveGoogleCalendarConfig } from '../../api/src/routes/calendar/google/google-config.js'
@@ -404,6 +405,18 @@ setTimeout(runAttendanceEvidenceTick, 90_000)
 setInterval(() => {
   runAttendanceEvidenceTick()
 }, ATTENDANCE_EVIDENCE_INTERVAL_MS)
+// Automation run log: keep 90 days.
+const automationRunsService = createAutomationRunsService({ prisma })
+async function runAutomationRunsRetentionTick() {
+  try {
+    const purged = await automationRunsService.purgeOlderThan()
+    if (purged) console.log(`[worker] historial de automatizaciones ${formatLogTimestamp()} purged=${purged}`)
+  } catch (err) {
+    console.error('[worker] automation runs retention tick failed:', err?.message ?? err)
+  }
+}
+setTimeout(runAutomationRunsRetentionTick, 90_000)
+setInterval(runAutomationRunsRetentionTick, 6 * 60 * 60 * 1000)
 setTimeout(runTrashRetentionTick, 60_000)
 setInterval(() => {
   runTrashRetentionTick()

@@ -484,6 +484,26 @@ model DomainEventOutbox {
   @@map("domain_event_outbox")
 }
 
+// One row per execution of a Builder automation (record or event trigger),
+// written by the generated module runtime. Retained 90 days (worker sweep).
+// Spec docs/superpowers/specs/2026-10-24-automation-studio-v2-design.md.
+model AutomationRun {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  moduleKey     String   @map("module_key")
+  automationKey String   @map("automation_key")
+  triggerKind   String   @map("trigger_kind") // record | event
+  triggerRef    String?  @map("trigger_ref")
+  status        String   // success | partial | failed
+  steps         Json     @default("[]")
+  error         String?
+  durationMs    Int      @default(0) @map("duration_ms")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([companyId, moduleKey, createdAt(sort: Desc)])
+  @@map("automation_run")
+}
+
 model Company {
   id String @id @default(uuid(7)) @db.Uuid
   name           String

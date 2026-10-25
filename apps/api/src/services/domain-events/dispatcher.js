@@ -14,6 +14,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { createAutomationRunsService } from '../automation-runs-service.js'
 
 export const MAX_ATTEMPTS = 8
 const BATCH = 50
@@ -28,6 +29,7 @@ export function subscribersOf(modules, event, disabledModuleIds = new Set()) {
 
 export function createDomainEventDispatcher({ prisma, resolveModulesDir, importHandlers = null, now = () => new Date(), moduleServices = null }) {
   const handlerCache = new Map()
+  const automationRuns = createAutomationRunsService({ prisma })
 
   async function defaultImport(moduleKey) {
     const dir = await resolveModulesDir()
@@ -50,7 +52,8 @@ export function createDomainEventDispatcher({ prisma, resolveModulesDir, importH
       const handler = typeof handlers === 'function' ? handlers : handlers?.[row.event]
       if (typeof handler !== 'function') throw new Error(`${mod.key} se suscribe a ${row.event} pero api/events.js no lo maneja`)
       const services = moduleServices ? moduleServices.forSystem(mod.key, row.companyId) : null
-      await handler({ event: row.event, payload: row.payload, companyId: row.companyId, eventId: row.id, prisma, services })
+      const log = (entry) => automationRuns.log({ companyId: row.companyId, moduleKey: mod.key, entry })
+      await handler({ event: row.event, payload: row.payload, companyId: row.companyId, eventId: row.id, prisma, services, log })
     }
   }
 

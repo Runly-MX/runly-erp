@@ -1,3 +1,4 @@
+import { createAutomationRunsService } from "../services/automation-runs-service.js";
 import { Hono } from "hono";
 import { resolvePersistedModuleKey } from '../services/module-key-alias.js';
 import { fileURLToPath } from "node:url";
@@ -2616,6 +2617,16 @@ export function createModulesRouter({
     const services = Array.isArray(body?.services) ? body.services.map(String) : [];
     const grants = await moduleServicesSvc.setGrants({ moduleKey: key, serviceKeys: services, grantedBy: c.get("userContext")?.profile?.id ?? null });
     return c.json({ data: moduleServicesSvc.describe(grants.map((grant) => grant.serviceKey)) });
+  });
+
+  // Run log of the module's Builder automations (Historial tab).
+  const automationRunsSvc = createAutomationRunsService({ prisma });
+  app.get("/:key/automation-runs", authMiddleware, requirePermission("core.modules.manage"), async (c) => {
+    const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
+    const companyId = c.get("companyId");
+    if (!companyId) return c.json({ error: "Selecciona una empresa activa." }, 400);
+    const { automation, status, limit } = c.req.query();
+    return c.json({ data: await automationRunsSvc.list({ companyId, moduleKey: key, automation, status, limit }) });
   });
 
   // Archived fields: removed by an update, column and data kept
