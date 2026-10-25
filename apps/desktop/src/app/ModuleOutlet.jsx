@@ -29,6 +29,9 @@ const SCREEN_MAP = {
   "runly.core:/automations": lazy(
     () => import("../modules/runly.core/screens/SystemAutomations.jsx"),
   ),
+  "runly.core:/automations/:key": lazy(
+    () => import("../modules/runly.core/screens/SystemAutomationEditor.jsx"),
+  ),
   "runly.core:/module-builder": lazy(
     () => import("../modules/runly.core/screens/ModuleBuilder.jsx"),
   ),

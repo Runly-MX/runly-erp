@@ -42,7 +42,7 @@ export function InspectorBody({ node, automation, steps, entities, events, allow
   if (!node) return null;
   const trigger = automation.trigger;
   if (node.kind === "trigger") {
-    return <TriggerEditor automation={automation} entities={entities} events={events} allowedTriggers={allowedTriggers} readOnly={readOnly} onPatch={onPatch} />;
+    return <TriggerEditor automation={automation} entities={entities} events={events} allowedTriggers={allowedTriggers} readOnly={readOnly} onPatch={onPatch} compact />;
   }
   if (node.kind === "conditions") {
     return (
@@ -57,7 +57,7 @@ export function InspectorBody({ node, automation, steps, entities, events, allow
   return (
     <StepEditor
       step={steps[node.index]} steps={steps} index={node.index} triggerType={trigger.type} fieldOptions={fieldOptions}
-      readOnly={readOnly} withServiceSelect onChange={(next) => onStep(node.index, next)}
+      readOnly={readOnly} withServiceSelect compact onChange={(next) => onStep(node.index, next)}
     />
   );
 }

@@ -9,7 +9,7 @@ import { Button, ConfirmDialog, EmptyState } from "@runly/ui";
 import { Globe, Plus, Zap } from "lucide-react";
 import { MAX_AUTOMATIONS, SERVICE_CONTRACTS, automationEvents, stepsOf } from "@runly/module-compiler/browser";
 import { AutomationCard } from "./AutomationCard";
-import { AutomationHostsDialog } from "./AutomationHostsDialog";
+import { AutomationConnectionsDialog } from "./AutomationConnectionsDialog";
 import { AutomationRunsPanel } from "./AutomationRunsPanel";
 import { serviceLabel } from "./AutomationSteps";
 
@@ -63,7 +63,7 @@ export function AutomationsTab({ definition, onChange, readOnly, published = fal
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={() => setHostsOpen(true)}>
-            <Globe className="mr-1 h-4 w-4" /> Destinos permitidos
+            <Globe className="mr-1 h-4 w-4" /> Conexiones
           </Button>
           {!readOnly && (
             <Button onClick={addAutomation} disabled={automations.length >= MAX_AUTOMATIONS || !entities.length}>
@@ -97,7 +97,7 @@ export function AutomationsTab({ definition, onChange, readOnly, published = fal
         />
       ))}
       <AutomationRunsPanel moduleKey={definition.key} published={published} automations={automations} />
-      <AutomationHostsDialog open={hostsOpen} onOpenChange={setHostsOpen} />
+      <AutomationConnectionsDialog open={hostsOpen} onOpenChange={setHostsOpen} />
       <ConfirmDialog
         open={removeIndex !== null}
         onOpenChange={(open) => !open && setRemoveIndex(null)}

@@ -46,7 +46,7 @@ export function DelayEditor({ step, readOnly, onChange }) {
 
 // Body of one step: the editor that matches its kind. `withServiceSelect` adds the
 // action picker on top (the visual editor's inspector; the form list draws its own).
-export function StepEditor({ step, steps, index, triggerType, fieldOptions, readOnly, onChange, withServiceSelect = false, label = "Acción" }) {
+export function StepEditor({ step, steps, index, triggerType, fieldOptions, readOnly, onChange, withServiceSelect = false, compact = false, label = "Acción" }) {
   const afterDelay = steps.slice(0, index).some(isPauseStep);
   const argsTrigger = triggerType === "schedule" ? "event" : triggerType;
   if (isDelayStep(step)) return <DelayEditor step={step} readOnly={readOnly} onChange={onChange} />;
@@ -63,7 +63,7 @@ export function StepEditor({ step, steps, index, triggerType, fieldOptions, read
           onValueChange={(service) => onChange({ service, args: {} })} />
       )}
       <AutomationArgsEditor contract={SERVICE_CONTRACTS[step.service]} args={step.args ?? {}} triggerType={argsTrigger}
-        fieldOptions={fieldOptions} readOnly={readOnly} onChange={(args) => onChange({ ...step, args })} />
+        fieldOptions={fieldOptions} readOnly={readOnly} compact={compact} onChange={(args) => onChange({ ...step, args })} />
     </div>
   );
 }

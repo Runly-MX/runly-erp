@@ -39,12 +39,14 @@ function stepsSummary(steps) {
   }).join(" · ");
 }
 
-export function AutomationRunsPanel({ moduleKey, published, automations }) {
+// `automationKey` limits the history to one automation (no filter shown).
+export function AutomationRunsPanel({ moduleKey, published, automations, automationKey = null }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
   const [status, setStatus] = useState("all");
-  const [automation, setAutomation] = useState("all");
+  const [pickedAutomation, setAutomation] = useState("all");
+  const automation = automationKey ?? pickedAutomation;
   const [cancelJob, setCancelJob] = useState(null);
   const enabled = Boolean(token && moduleKey && published);
 
@@ -90,8 +92,8 @@ export function AutomationRunsPanel({ moduleKey, published, automations }) {
       <div className="flex flex-wrap items-end justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-medium"><History className="h-4 w-4" /> Historial</h3>
         <div className="flex gap-2">
-          <SelectField label="Automatización" value={automation} onValueChange={setAutomation}
-            options={[{ value: "all", label: "Todas" }, ...(automations ?? []).map((item) => ({ value: item.key, label: item.label || item.key }))]} />
+          {!automationKey && <SelectField label="Automatización" value={automation} onValueChange={setAutomation}
+            options={[{ value: "all", label: "Todas" }, ...(automations ?? []).map((item) => ({ value: item.key, label: item.label || item.key }))]} />}
           <SelectField label="Resultado" value={status} onValueChange={setStatus} options={FILTERS} />
         </div>
       </div>

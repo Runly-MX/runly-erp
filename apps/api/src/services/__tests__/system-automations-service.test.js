@@ -22,7 +22,7 @@ function fakePrisma() {
       deleteMany: async ({ where }) => { for (let i = grants.length - 1; i >= 0; i -= 1) if (grants[i].companyId === where.companyId && !where.serviceKey.notIn.includes(grants[i].serviceKey)) grants.splice(i, 1) },
       createMany: async ({ data }) => { for (const item of data) if (!grants.some((g) => g.companyId === item.companyId && g.serviceKey === item.serviceKey)) grants.push(item) },
     },
-    automationRun: { create: async ({ data }) => { runs.push(data); return { id: `r${runs.length}`, ...data } } },
+    automationRun: { create: async ({ data }) => { runs.push(data); return { id: `r${runs.length}`, ...data } }, findMany: async () => [] },
   }
   return db
 }

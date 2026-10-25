@@ -7,11 +7,11 @@ Una **automatización** dice: «cuando pase esto, haz aquello en otro módulo».
 
 Debajo usa los mismos [servicios entre módulos](/documentacion/desarrolladores/servicios-y-eventos) que un módulo programado a mano: tu módulo nunca toca las tablas de otro módulo; todo pasa por el código del módulo dueño, con sus validaciones y su bitácora.
 
-## Dos vistas: Flujo y Formulario
+## Dos vistas: Lienzo y Formulario
 
 Cada automatización se puede editar de dos maneras, y las dos modifican lo mismo (el interruptor **Flujo | Formulario** está en la tarjeta; se recuerda tu elección):
 
-- **Flujo** (por omisión): la automatización como un hilo vertical, del disparador al último paso. La línea continua es lo que corre al momento; después de una espera o una aprobación la línea se vuelve punteada y gris: ahí todo corre en segundo plano. Toca o haz clic en un paso para editarlo (en pantallas anchas se edita en un panel a la derecha; en pantallas pequeñas se abre desde abajo). Agrega pasos con el **+** entre pasos o con la fila «Agregar un paso»; reordena arrastrando el asa o con `Alt` + flechas; quita un paso desde el panel o con `Supr`, y puedes deshacerlo desde el aviso. Las opciones que no se pueden usar en ese lugar aparecen desactivadas con la razón.
+- **Lienzo** (por omisión): la automatización como bloques conectados con flechas sobre una superficie que puedes mover y acercar (arrastra el fondo; `Ctrl` + rueda o pellizco para el zoom; **Ajustar** muestra todo). Las flechas que salen de una espera o una aprobación son punteadas: ahí todo corre en segundo plano. Haz clic o toca un bloque para editarlo (en pantallas anchas en un panel a la derecha; en pantallas pequeñas se abre desde abajo). Agrega bloques con el **+** de cada flecha, con el cuadro punteado del final o **arrastrando un bloque desde «Agregar bloque»** hasta un «+»; reordena arrastrando el asa del bloque o con `Alt` + flechas; quita un bloque desde el panel o con `Supr` y deshazlo desde el aviso. Lo que no se puede hacer en ese lugar aparece desactivado con la razón.
 - **Formulario**: los mismos datos en una lista de campos.
 
 ## Crear una automatización
@@ -95,6 +95,24 @@ El paso **Pedir aprobación** detiene la automatización hasta que una persona d
 - Aprobar continúa la ejecución; rechazar la termina como *Rechazada* y los pasos restantes no se ejecutan. Si nadie decide en 7 días, la ejecución se cancela. Cada decisión queda en la bitácora de auditoría.
 - Por API: `GET /automation-approvals/mine` y `POST /automation-approvals/:id/decide` con `{ "decision": "approve" | "reject", "comment" }`.
 
+## Recibir datos de otro sistema (webhook)
+
+Una automatización de la empresa puede empezar cuando **otro sistema te envía un mensaje**. En el lienzo elige el disparador «Cuando otro sistema me envía datos»; al guardar, Runly le asigna una **URL secreta**:
+
+```bash
+curl -X POST "https://tu-instancia/public/hooks/<token-secreto>"   -H "Content-Type: application/json"   -d '{"cliente":{"nombre":"Ana"},"total":1250}'
+```
+
+- El cuerpo debe ser un **JSON** de hasta 64 KB. Los datos anidados se aplanan: `cliente.nombre` llega como el campo `cliente_nombre` (hasta 3 niveles y 100 campos; las listas llegan como texto JSON).
+- **Campos que recibe**: envía un mensaje de prueba y aparece en el panel como «Último mensaje recibido»; con *Usar los campos de este mensaje* quedan declarados y puedes usarlos en condiciones y en los datos de los demás bloques (por ejemplo `Pedido de {{cliente_nombre}}`).
+- Respuestas: `202` recibido (se procesa en segundo plano, con reintentos); `400` o `415` si no es un JSON válido; `403` si el origen no está permitido; `404` si la URL no existe o la automatización está pausada; `413` o `429` si pasa de 64 KB o de 60 mensajes por minuto.
+- **Seguridad**: la URL es la llave; trátala como una contraseña y genérala de nuevo con *Generar otra* si se filtra (la anterior deja de funcionar al instante). Además, un administrador puede limitar **de dónde** se aceptan mensajes con la lista de **orígenes permitidos** (IP o redes como `203.0.113.0/24`) en **Conexiones**; si está vacía, acepta a cualquiera que tenga la URL. Detrás de un proxy, configura `RUNLY_TRUSTED_PROXIES` para que se use la IP real.
+- Los pasos que siguen corren en segundo plano, igual que con un evento. Por API: `GET /automations/:key/webhook/events`, `POST /automations/:key/webhook/regenerate`, `GET|PUT /automations/webhook-origins`.
+
+## Conexiones externas
+
+El botón **Conexiones** reúne las dos direcciones: de quién aceptas mensajes (**orígenes permitidos**, para recibir) y a quién puede enviar Runly (**destinos permitidos**, para el bloque «Llamar a una URL»), con un esquema y ejemplos de lo que se envía y se recibe. Todos pueden consultarlas; solo quien administra módulos las modifica.
+
 ## Esperas y horarios
 
 Las esperas y los horarios los ejecuta el **worker** (el proceso en segundo plano de Runly), no la petición del usuario. Por eso:
@@ -114,9 +132,9 @@ Cada vez que corre una automatización (al guardar un registro o por un evento) 
 
 No hace falta crear un módulo para automatizar: en **Runly Core > Automatizaciones** un administrador (`core.modules.manage`) crea automatizaciones que pertenecen a la empresa activa. Usan las mismas tarjetas, condiciones, pasos, esperas, aprobaciones, llamadas HTTP, *Probar* e *Historial* que las del Constructor, con estas diferencias:
 
-- El disparador es **un evento del sistema** (los de la tabla de arriba) o **un horario** sin registros. No existe «cuando se guarda un registro» porque no hay una entidad de por medio.
+- El disparador es **un evento del sistema** (los de la tabla de arriba), **un horario** sin registros o **un mensaje de otro sistema** (webhook). No existe «cuando se guarda un registro» porque no hay una entidad de por medio.
 - Los pasos solo ofrecen las acciones que no necesitan a una persona detrás, porque todo corre en segundo plano.
-- Cada automatización se guarda por separado con su botón **Guardar**; si tiene errores, se muestran debajo de la tarjeta. Guardar autoriza los servicios que usa para esa empresa (y quita los que ya no se usan). Hasta 50 por empresa.
+- La pantalla es una **lista** (cada automatización con un esquema de su flujo, su estado y su última ejecución) y cada una se abre en un **editor a pantalla completa** con barra superior (nombre, activa, conexiones, probar, historial, guardar). Si tiene errores, se muestran arriba con el bloque que hay que corregir. Guardar autoriza los servicios que usa para esa empresa (y quita los que ya no se usan). Hasta 50 por empresa.
 - El Historial y las esperas pendientes se consultan con la clave `system.automations`: `GET /modules/system.automations/automation-runs` y `.../automation-jobs`.
 
 Por API: `GET|POST /automations`, `PUT|DELETE /automations/:key` y `GET /automations/catalog`, con el mismo formato de `automations[]` de una definición (`key`, `label`, `enabled`, `trigger`, `steps`, `onError`).

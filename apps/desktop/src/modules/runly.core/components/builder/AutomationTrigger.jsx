@@ -3,11 +3,13 @@
 // the visual editor.
 import { SelectField } from "@runly/ui";
 import { stepsOf } from "@runly/module-compiler/browser";
+import { WebhookTriggerPanel } from "./WebhookTriggerPanel";
 
 const TRIGGER_TYPES = [
   { value: "record", label: "Cuando se guarda un registro de este módulo" },
   { value: "event", label: "Cuando pasa algo en otro módulo" },
   { value: "schedule", label: "En un horario" },
+  { value: "webhook", label: "Cuando otro sistema me envía datos" },
 ];
 const ON_OPTIONS = [
   { value: "create", label: "Al crear" },
@@ -70,7 +72,8 @@ function ScheduleFields({ trigger, entities, readOnly, onTrigger }) {
   );
 }
 
-export function TriggerEditor({ automation, entities, events, allowedTriggers, readOnly, onPatch }) {
+// `compact` = one column (the canvas inspector is narrow).
+export function TriggerEditor({ automation, entities, events, allowedTriggers, readOnly, onPatch, compact = false }) {
   const trigger = automation.trigger;
   // Changing what triggers the automation invalidates the mapped arguments.
   const resetSteps = (steps) => steps.map((step) => (step.type === "delay" ? step : { ...step, args: {} }));
@@ -79,10 +82,11 @@ export function TriggerEditor({ automation, entities, events, allowedTriggers, r
   const changeType = (type) => {
     if (type === "record") onPatch({ trigger: { type, entity: keyOf(entities[0] ?? {}), on: "create" }, steps: emptySteps });
     else if (type === "event") onPatch({ trigger: { type, event: events[0]?.key }, steps: emptySteps });
+    else if (type === "webhook") onPatch({ trigger: { type, fields: [] }, steps: emptySteps });
     else onPatch({ trigger: { type, every: "day", at: "08:00" }, steps: emptySteps });
   };
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className={compact ? "grid gap-3" : "grid gap-3 sm:grid-cols-2"}>
       <SelectField label="Cuándo" options={TRIGGER_TYPES.filter((item) => !allowedTriggers || allowedTriggers.includes(item.value))} value={trigger.type} disabled={readOnly} onValueChange={changeType} />
       {trigger.type === "record" && (
         <>
@@ -98,6 +102,7 @@ export function TriggerEditor({ automation, entities, events, allowedTriggers, r
           value={trigger.event ?? ""} disabled={readOnly}
           onValueChange={(event) => onPatch({ trigger: { type: "event", event }, steps: resetSteps(steps) })} />
       )}
+      {trigger.type === "webhook" && <WebhookTriggerPanel automation={automation} readOnly={readOnly} onPatch={onPatch} />}
       {trigger.type === "schedule" && (
         <ScheduleFields trigger={trigger} entities={entities} readOnly={readOnly}
           onTrigger={(next) => onPatch({ trigger: next, steps: next.entity !== trigger.entity ? resetSteps(steps) : steps })} />
@@ -106,3 +111,12 @@ export function TriggerEditor({ automation, entities, events, allowedTriggers, r
   );
 }
 
+
+// Fields a block can read from the trigger: the entity's fields, the event payload
+// or the fields a webhook announces.
+export function fieldOptionsFor(trigger, entities, events) {
+  if (trigger.type === "webhook") return (trigger.fields ?? []).map((field) => ({ value: field.key, label: field.label || field.key }));
+  if (trigger.type === "event") return (events.find((event) => event.key === trigger.event)?.payload ?? []).map((key) => ({ value: key, label: key }));
+  const entity = entities.find((item) => keyOf(item) === trigger.entity);
+  return (entity?.fields ?? []).map((field) => ({ value: keyOf(field), label: field.label ?? keyOf(field) }));
+}

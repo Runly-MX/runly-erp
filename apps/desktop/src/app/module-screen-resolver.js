@@ -229,6 +229,7 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
   }
   if (moduleKey === "runly.core") {
     if (subPath === "/automations") return screenMap["runly.core:/automations"] ?? null;
+    if (/^\/automations\/[^/]+$/.test(subPath)) return screenMap["runly.core:/automations/:key"] ?? null;
     if (subPath === "/module-builder") return screenMap["runly.core:/module-builder"] ?? null;
     if (subPath.startsWith("/module-builder/")) return screenMap["runly.core:/module-builder/:id"] ?? null;
     return null;

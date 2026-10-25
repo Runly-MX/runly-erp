@@ -1,122 +1,109 @@
-// Runly Core > Automatizaciones: automations of the company that are not tied to
-// a module. Same cards, steps, Probar and Historial as the Module Builder, but
-// triggered by a system event or a schedule (spec
-// docs/superpowers/specs/2026-10-25-system-automations-design.md).
-import { useEffect, useMemo, useState } from "react";
+// Runly Core > Automatizaciones: the automations of the company that are not tied
+// to a module. This screen is the list; each automation opens in a full-screen
+// canvas editor (SystemAutomationEditor). Spec
+// docs/superpowers/specs/2026-10-25-system-automations-design.md and
+// 2026-10-25-automation-canvas-and-webhooks-design.md.
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, ConfirmDialog, EmptyState, ErrorState, PageHeader, Skeleton } from "@runly/ui";
-import { Globe, Plus, Save, Zap } from "lucide-react";
+import { Badge, Button, EmptyState, ErrorState, PageHeader, Skeleton, Switch, TextField } from "@runly/ui";
+import { Plug, Plus, Search, SearchX, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { MAX_AUTOMATIONS, automationEvents } from "@runly/module-compiler/browser";
+import { automationEvents } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
-import { AutomationCard } from "../components/builder/AutomationCard";
-import { AutomationHostsDialog } from "../components/builder/AutomationHostsDialog";
+import { describeTrigger } from "../lib/flowModel";
+import { AutomationConnectionsDialog } from "../components/builder/AutomationConnectionsDialog";
+import { AutomationMiniFlow } from "../components/builder/AutomationMiniFlow";
 import { AutomationRunsPanel } from "../components/builder/AutomationRunsPanel";
+import { NewAutomationDialog } from "../components/builder/NewAutomationDialog";
 
 const SYSTEM_MODULE_KEY = "system.automations";
-const ALLOWED_TRIGGERS = ["event", "schedule"];
-const NO_ENTITIES = [];
+const EDITOR_PATH = "/app/m/runly.core/automations";
+const FILTERS = [{ value: "all", label: "Todas" }, { value: "active", label: "Activas" }, { value: "paused", label: "Pausadas" }];
+const RUN_STATUS = {
+  success: { label: "Correcta", variant: "success" }, partial: { label: "Parcial", variant: "warning" }, failed: { label: "Falló", variant: "destructive" },
+  running: { label: "En curso", variant: "secondary" }, waiting: { label: "En espera", variant: "warning" }, cancelled: { label: "Cancelada", variant: "outline" }, rejected: { label: "Rechazada", variant: "destructive" },
+};
+const TRIGGER_LABEL = { event: "Evento", schedule: "Horario", webhook: "Webhook" };
 
-function newDraft(taken, firstEvent) {
-  let index = taken.size + 1;
-  while (taken.has(`automatizacion_${index}`)) index += 1;
-  return {
-    key: `automatizacion_${index}`,
-    label: "Nueva automatización",
-    enabled: true,
-    trigger: { type: "event", event: firstEvent },
-    steps: [{ service: "", args: {} }],
-  };
+function relativeTime(value) {
+  const seconds = Math.max(1, Math.round((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return "hace un momento";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  return `hace ${Math.round(hours / 24)} d`;
 }
 
-// What the API stores, without the view-only fields.
-const toPayload = (item) => {
-  const { id: _id, updatedAt: _updatedAt, ...definition } = item;
-  return definition;
-};
-
-function Diagnostics({ items }) {
-  if (!items?.length) return null;
+function AutomationCardItem({ item, events, onOpen, onToggle, toggling }) {
+  const text = describeTrigger(item.trigger, { events });
+  const run = item.lastRun;
   return (
-    <ul className="list-disc space-y-0.5 pl-5 text-xs text-red-600 dark:text-red-400">
-      {items.map((item, index) => <li key={index}>{item.message ?? String(item)}</li>)}
-    </ul>
+    <li className="group relative flex flex-col gap-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 transition-colors hover:border-[hsl(var(--muted-foreground))]/50 focus-within:border-(--brand-primary)/50">
+      <div className="flex items-start justify-between gap-3">
+        <AutomationMiniFlow automation={item} />
+        <label className="relative z-10 flex shrink-0 cursor-pointer items-center gap-2 text-xs text-[hsl(var(--muted-foreground))] [@media(pointer:coarse)]:min-h-11">
+          {item.enabled ? "Activa" : "Pausada"}
+          <Switch checked={item.enabled} disabled={toggling} onCheckedChange={() => onToggle(item)} aria-label={`${item.enabled ? "Pausar" : "Activar"} ${item.label}`} />
+        </label>
+      </div>
+      <div className="min-w-0 flex-1 space-y-1">
+        <h3 className="text-base font-semibold leading-snug">
+          <button type="button" onClick={() => onOpen(item)} className="cursor-pointer text-left after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none">
+            {item.label}
+          </button>
+        </h3>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">{text.title}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
+        <Badge variant="outline">{TRIGGER_LABEL[item.trigger.type] ?? "Disparador"}</Badge>
+        <span>{item.steps.length} {item.steps.length === 1 ? "bloque" : "bloques"}</span>
+        <span className="ml-auto flex items-center gap-1.5">
+          {run ? (
+            <>
+              <Badge variant={RUN_STATUS[run.status]?.variant ?? "outline"}>{RUN_STATUS[run.status]?.label ?? run.status}</Badge>
+              {relativeTime(run.createdAt)}
+            </>
+          ) : "Sin ejecuciones"}
+        </span>
+      </div>
+    </li>
   );
 }
 
 export default function SystemAutomations() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canManage = Boolean(userProfile?.isAdmin || (userProfile?.permissions ?? []).includes("core.modules.manage"));
   const events = useMemo(() => automationEvents(), []);
-  const [items, setItems] = useState([]);
-  const [meta, setMeta] = useState({});
-  const [removeKey, setRemoveKey] = useState(null);
-  const [hostsOpen, setHostsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [newOpen, setNewOpen] = useState(false);
+  const [connectionsOpen, setConnectionsOpen] = useState(false);
 
   const query = useQuery({
     queryKey: ["system-automations", token],
     queryFn: async () => (await runly.modules.systemAutomations(token))?.data ?? [],
     enabled: Boolean(token) && canManage,
   });
-  useEffect(() => {
-    if (query.data) {
-      setItems(query.data);
-      setMeta({});
-    }
-  }, [query.data]);
+  const items = query.data ?? [];
+  const visible = items.filter((item) => (filter === "all" || (filter === "active") === item.enabled) && (!search.trim() || `${item.label} ${item.key}`.toLowerCase().includes(search.trim().toLowerCase())));
 
-  const patch = (key, changes) => {
-    setItems((list) => list.map((item) => {
-      if (item.key !== key) return item;
-      const next = { ...item, ...changes };
-      if (next.onError === undefined) delete next.onError;
-      if (next.trigger?.when === undefined) next.trigger = Object.fromEntries(Object.entries(next.trigger ?? {}).filter(([name]) => name !== "when"));
-      return next;
-    }));
-    setMeta((current) => ({ ...current, [key]: { ...current[key], dirty: true, diagnostics: null } }));
-  };
-
-  const save = useMutation({
+  const toggle = useMutation({
     mutationFn: async (item) => {
-      const isNew = meta[item.key]?.isNew;
-      const result = isNew
-        ? await runly.modules.createSystemAutomation(toPayload(item), token)
-        : await runly.modules.saveSystemAutomation(item.key, toPayload(item), token);
-      return result.data;
+      const { id: _id, updatedAt: _updatedAt, lastRun: _lastRun, webhookToken: _token, ...definition } = item;
+      await runly.modules.saveSystemAutomation(item.key, { ...definition, enabled: !item.enabled }, token);
     },
-    onSuccess: (saved) => {
-      toast.success("Automatización guardada");
-      setItems((list) => list.map((item) => (item.key === saved.key ? saved : item)));
-      setMeta((current) => ({ ...current, [saved.key]: {} }));
-      queryClient.invalidateQueries({ queryKey: ["system-automations"] });
-    },
-    onError: (error, item) => {
-      setMeta((current) => ({ ...current, [item.key]: { ...current[item.key], diagnostics: error.details?.diagnostics ?? [{ message: error.message }] } }));
-      toast.error("No se pudo guardar", { description: error.message });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["system-automations"] }),
+    onError: (error) => toast.error("No se pudo cambiar el estado", { description: error.message }),
   });
 
-  const remove = useMutation({
-    mutationFn: async (key) => {
-      if (!meta[key]?.isNew) await runly.modules.deleteSystemAutomation(key, token);
-    },
-    onSuccess: (_data, key) => {
-      toast.success("Automatización eliminada");
-      setItems((list) => list.filter((item) => item.key !== key));
-      setRemoveKey(null);
-      queryClient.invalidateQueries({ queryKey: ["system-automations"] });
-    },
-    onError: (error) => toast.error("No se pudo eliminar", { description: error.message }),
-  });
-
-  const add = () => {
-    const draft = newDraft(new Set(items.map((item) => item.key)), events[0]?.key);
-    setItems((list) => [...list, draft]);
-    setMeta((current) => ({ ...current, [draft.key]: { isNew: true, dirty: true } }));
-  };
+  const open = (item) => navigate(`${EDITOR_PATH}/${item.key}`);
+  const create = (draft) => { setNewOpen(false); navigate(`${EDITOR_PATH}/nueva`, { state: { draft } }); };
 
   if (!canManage) {
     return <div className="p-6"><ErrorState title="Sin acceso" description="Necesitas el permiso para administrar módulos." /></div>;
@@ -124,61 +111,58 @@ export default function SystemAutomations() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <div className="flex-1 space-y-5 p-4 md:p-6">
+      <div className="flex-1 space-y-6 p-4 md:p-6">
         <PageHeader
           eyebrow="Runly Core"
           title="Automatizaciones"
-          description="Haz que Runly actúe por ti: cuando pasa algo en un módulo (una orden de compra aprobada, un colaborador nuevo, una tarea completada) o en un horario, ejecuta pasos en otros módulos, espera, pide una aprobación o llama a un servidor externo."
+          description="Haz que Runly actúe por ti: cuando pasa algo en un módulo, en un horario, o cuando otro sistema te envía datos."
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" onClick={() => setHostsOpen(true)}><Globe className="mr-1 h-4 w-4" /> Destinos permitidos</Button>
-              <Button onClick={add} disabled={items.length >= MAX_AUTOMATIONS * 2}><Plus className="mr-1 h-4 w-4" /> Nueva automatización</Button>
+              <Button variant="outline" onClick={() => setConnectionsOpen(true)}><Plug className="mr-1.5 h-4 w-4" /> Conexiones</Button>
+              <Button onClick={() => setNewOpen(true)}><Plus className="mr-1.5 h-4 w-4" /> Nueva automatización</Button>
             </div>
           }
         />
 
-        {query.isLoading && <Skeleton className="h-48 rounded-xl" />}
-        {query.isError && <ErrorState title="No se pudieron cargar las automatizaciones" description={query.error.message} onRetry={() => query.refetch()} />}
-        {query.isSuccess && items.length === 0 && (
-          <EmptyState icon={Zap} title="Sin automatizaciones" description="Crea una para que Runly notifique, cree tareas o registre información cuando ocurra algo en tu empresa." />
+        {items.length > 0 && (
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[14rem] max-w-md flex-1">
+              <TextField label="Buscar" icon={Search} value={search} placeholder="Nombre de la automatización" onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <div role="group" aria-label="Estado" className="inline-flex rounded-md border border-[hsl(var(--border))] p-0.5">
+              {FILTERS.map((option) => (
+                <button key={option.value} type="button" aria-pressed={filter === option.value} onClick={() => setFilter(option.value)}
+                  className={`cursor-pointer rounded-sm px-3 py-1.5 text-sm transition-colors [@media(pointer:coarse)]:min-h-10 ${filter === option.value ? "bg-(--brand-primary)/15 font-medium" : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"}`}>
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
-        {items.map((item) => {
-          const state = meta[item.key] ?? {};
-          return (
-            <div key={item.key} className="space-y-2">
-              <AutomationCard
-                automation={item}
-                entities={NO_ENTITIES}
-                events={events}
-                allowedTriggers={ALLOWED_TRIGGERS}
-                readOnly={false}
-                onPatch={(changes) => patch(item.key, changes)}
-                onRemove={() => (state.isNew ? remove.mutate(item.key) : setRemoveKey(item.key))}
-              />
-              <Diagnostics items={state.diagnostics} />
-              {state.dirty && (
-                <div className="flex justify-end">
-                  <Button disabled={save.isPending} onClick={() => save.mutate(item)}>
-                    <Save className="mr-1 h-4 w-4" /> {save.isPending ? "Guardando..." : "Guardar"}
-                  </Button>
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {query.isLoading && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-40 rounded-lg" />)}</div>}
+        {query.isError && <ErrorState title="No se pudieron cargar las automatizaciones" description={query.error.message} onRetry={() => query.refetch()} />}
+        {query.isSuccess && items.length === 0 && (
+          <EmptyState icon={Zap} title="Aún no hay automatizaciones" description="Crea la primera: avisa cuando se apruebe una orden de compra, haz una revisión cada lunes o registra clientes que llegan desde tu tienda."
+            action={{ label: "Nueva automatización", onClick: () => setNewOpen(true) }} />
+        )}
+        {query.isSuccess && items.length > 0 && visible.length === 0 && (
+          <EmptyState icon={SearchX} title="Sin resultados" description="Ninguna automatización coincide con la búsqueda." />
+        )}
+        {visible.length > 0 && (
+          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {visible.map((item) => <AutomationCardItem key={item.key} item={item} events={events} onOpen={open} onToggle={(target) => toggle.mutate(target)} toggling={toggle.isPending} />)}
+          </ul>
+        )}
 
-        <AutomationRunsPanel moduleKey={SYSTEM_MODULE_KEY} published automations={items} />
+        {items.length > 0 && (
+          <section aria-label="Historial">
+            <AutomationRunsPanel moduleKey={SYSTEM_MODULE_KEY} published automations={items} />
+          </section>
+        )}
       </div>
-      <AutomationHostsDialog open={hostsOpen} onOpenChange={setHostsOpen} />
-      <ConfirmDialog
-        open={removeKey !== null}
-        onOpenChange={(open) => !open && setRemoveKey(null)}
-        title="Eliminar automatización"
-        description="Dejará de ejecutarse. Lo que ya creó en otros módulos se conserva."
-        confirmLabel="Eliminar"
-        onConfirm={() => remove.mutate(removeKey)}
-      />
+      <NewAutomationDialog open={newOpen} onOpenChange={setNewOpen} takenKeys={new Set(items.map((item) => item.key))} onCreate={create} />
+      <AutomationConnectionsDialog open={connectionsOpen} onOpenChange={setConnectionsOpen} />
     </div>
   );
 }

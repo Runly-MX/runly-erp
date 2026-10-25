@@ -121,6 +121,10 @@ const OP_TEXT = { equals: "es", not_equals: "no es", contains: "contiene", gt: "
 
 // Title and detail of the trigger node.
 export function describeTrigger(trigger, { entities = [], events = [] } = {}) {
+  if (trigger.type === "webhook") {
+    const count = trigger.fields?.length ?? 0;
+    return { title: "Recibe datos de otro sistema", detail: count ? `${count} ${count === 1 ? "campo" : "campos"} esperados` : "Aún sin campos: envía un mensaje de prueba" };
+  }
   if (trigger.type === "event") {
     return { title: events.find((event) => event.key === trigger.event)?.label ?? "Elige un evento", detail: "Evento de otro módulo" };
   }
@@ -141,4 +145,43 @@ export function describeTrigger(trigger, { entities = [], events = [] } = {}) {
 export function describeCondition(condition, fieldLabel = (name) => name) {
   const value = condition.value === undefined ? "" : ` ${typeof condition.value === "string" ? `«${condition.value}»` : condition.value}`;
   return `${fieldLabel(condition.field)} ${OP_TEXT[condition.op] ?? condition.op}${value}`;
+}
+
+// Short type label shown on top of a canvas node.
+export function stepKindLabel(step) {
+  if (isDelayStep(step)) return "Espera";
+  if (isApprovalStep(step)) return "Aprobación";
+  if (isHttpStep(step)) return "Llamada HTTP";
+  return "Acción";
+}
+
+export function triggerKindLabel(trigger) {
+  return { record: "Disparador · registro", event: "Disparador · evento", schedule: "Disparador · horario", webhook: "Disparador · webhook" }[trigger.type] ?? "Disparador";
+}
+
+// Spanish wording for the diagnostics the API returns when an automation does not
+// validate ({ path, code, message }). The path tells which block.
+export function describeAutomationDiagnostic(diagnostic) {
+  if (!diagnostic?.code) return diagnostic?.message ?? "No se pudo guardar.";
+  const index = /steps\[(\d+)\]/.exec(diagnostic.path ?? "");
+  const where = index ? `bloque ${Number(index[1]) + 1}` : /\.action/.test(diagnostic.path ?? "") ? "bloque 1" : "";
+  const arg = /\.(?:args|body)\.([A-Za-z0-9_]+)/.exec(diagnostic.path ?? "")?.[1];
+  const place = where ? ` del ${where}` : "";
+  switch (diagnostic.code) {
+    case "AUTOMATION_SERVICE_UNKNOWN": return `Elige la acción${place}.`;
+    case "AUTOMATION_ARG_REQUIRED": return `Falta el dato obligatorio «${arg ?? ""}»${place}.`;
+    case "AUTOMATION_ARG_UNKNOWN": return `La acción${place} no acepta el dato «${arg ?? ""}».`;
+    case "AUTOMATION_ARG_INVALID": return `El dato «${arg ?? ""}»${place} no es válido: ${diagnostic.message}`;
+    case "AUTOMATION_FIELD_NOT_FOUND": return `El ${where || "flujo"} usa un campo que no existe en este disparador.`;
+    case "AUTOMATION_HTTP_INVALID": return `Revisa la llamada a una URL${place}: dirección https fija y método POST, PUT o PATCH.`;
+    case "AUTOMATION_APPROVAL_INVALID": return `Revisa la aprobación${place}: elige de 1 a 5 personas y escribe el mensaje; va entre dos acciones.`;
+    case "AUTOMATION_DELAY_INVALID": return `Revisa la espera${place}: de 1 minuto a 30 días y entre dos acciones.`;
+    case "AUTOMATION_SERVICE_NEEDS_USER": return `La acción${place} necesita a una persona y no puede correr en segundo plano.`;
+    case "AUTOMATION_SERVICE_READONLY": return `La acción${place} solo consulta datos; elige una que cree o cambie algo.`;
+    case "AUTOMATION_CONDITION_INVALID": return "Revisa las condiciones del flujo.";
+    case "AUTOMATION_TRIGGER_INVALID": return "Revisa el disparador (horario, campos o tipo).";
+    case "AUTOMATION_EVENT_UNKNOWN": return "Elige el evento que dispara la automatización.";
+    case "AUTOMATION_STEPS_INVALID": return "El flujo necesita de 1 a 5 bloques.";
+    default: return diagnostic.message ?? "No se pudo guardar.";
+  }
 }

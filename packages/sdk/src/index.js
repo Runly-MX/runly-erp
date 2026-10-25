@@ -512,6 +512,11 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         });
       },
       // Automations of the company that are not tied to a module (core.modules.manage).
+      automationWebhookOrigins: (token) => request("/automations/webhook-origins", { headers: withAuthHeaders(token) }),
+      setAutomationWebhookOrigins: (origins, token) =>
+        request("/automations/webhook-origins", { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify({ origins }) }),
+      regenerateAutomationWebhook: (key, token) => request(`/automations/${encodeURIComponent(key)}/webhook/regenerate`, { method: "POST", headers: withAuthHeaders(token) }),
+      automationWebhookEvents: (key, token) => request(`/automations/${encodeURIComponent(key)}/webhook/events`, { headers: withAuthHeaders(token) }),
       systemAutomations: (token) => request("/automations", { headers: withAuthHeaders(token) }),
       createSystemAutomation: (input, token) =>
         request("/automations", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(input) }),

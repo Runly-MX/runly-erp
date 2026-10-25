@@ -1,6 +1,6 @@
 # Automation visual editor "Flujo" (design)
 
-Status: implemented (autonomous decision, 2026-10-25), stage D1 of Automation Studio v2.
+Status: SUPERSEDED the same day by `2026-10-25-automation-canvas-and-webhooks-design.md` (the vertical thread felt like a form; the editor is now a canvas). Kept for the hover/touch rules, which still apply.
 Builds on: stages A-C and `2026-10-25-system-automations-design.md`. The MirAI/MCP tools (D2) are a separate step.
 
 ## Goal

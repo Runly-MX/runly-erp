@@ -8,12 +8,12 @@ import { FlaskConical, Trash2, Zap } from "lucide-react";
 import { stepsOf } from "@runly/module-compiler/browser";
 import { AutomationConditions } from "./AutomationConditions";
 import { AutomationSteps } from "./AutomationSteps";
-import { TriggerEditor, keyOf } from "./AutomationTrigger";
+import { TriggerEditor, fieldOptionsFor } from "./AutomationTrigger";
 import { AutomationTestDialog } from "./AutomationTestDialog";
-import { AutomationFlow } from "./flow/AutomationFlow";
+import { AutomationCanvasEditor } from "./canvas/AutomationCanvasEditor";
 
 const VIEW_KEY = "runly.automations.view";
-const VIEWS = [{ value: "flow", label: "Flujo" }, { value: "form", label: "Formulario" }];
+const VIEWS = [{ value: "flow", label: "Lienzo" }, { value: "form", label: "Formulario" }];
 
 // A per-viewer convenience only: the page works without storage.
 function readView() {
@@ -45,10 +45,7 @@ function ViewSwitch({ value, onChange }) {
 export function AutomationCard({ automation, entities, events, allowedTriggers = null, readOnly, onPatch, onRemove }) {
   const trigger = automation.trigger;
   const steps = stepsOf(automation);
-  const entity = entities.find((item) => keyOf(item) === trigger.entity);
-  const fieldOptions = trigger.type === "event"
-    ? (events.find((event) => event.key === trigger.event)?.payload ?? []).map((key) => ({ value: key, label: key }))
-    : (entity?.fields ?? []).map((field) => ({ value: keyOf(field), label: field.label ?? keyOf(field) }));
+  const fieldOptions = fieldOptionsFor(trigger, entities, events);
   const showConditions = trigger.type !== "schedule" || Boolean(trigger.entity);
   const [testOpen, setTestOpen] = useState(false);
   const [view, setView] = useState(readView);
@@ -82,9 +79,9 @@ export function AutomationCard({ automation, entities, events, allowedTriggers =
           <SwitchField label="Activa" checked={automation.enabled !== false} disabled={readOnly} onChange={(enabled) => onPatch({ enabled })} />
         </div>
         {view === "flow" ? (
-          <AutomationFlow
+          <AutomationCanvasEditor
             automation={automation} entities={entities} events={events} allowedTriggers={allowedTriggers}
-            fieldOptions={fieldOptions} readOnly={readOnly} onPatch={onPatch}
+            fieldOptions={fieldOptions} readOnly={readOnly} onPatch={onPatch} className="h-[34rem]"
           />
         ) : (
           <>

@@ -71,7 +71,8 @@ export function ValueInput({ name, spec, source, fieldOptions, readOnly, onSourc
   );
 }
 
-export function AutomationArgsEditor({ contract, args, triggerType, fieldOptions, readOnly, onChange }) {
+// `compact` stacks each row (narrow panels such as the canvas inspector).
+export function AutomationArgsEditor({ contract, args, triggerType, fieldOptions, readOnly, onChange, compact = false }) {
   if (!contract) return null;
   const names = Object.keys(contract.args).filter((name) => !AUTOMATIC_ARGS.includes(name));
   const setSource = (name, source) => {
@@ -88,7 +89,7 @@ export function AutomationArgsEditor({ contract, args, triggerType, fieldOptions
           const spec = contract.args[name];
           const source = args[name];
           return (
-            <div key={name} className="grid gap-2 p-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,12rem)_1fr] sm:items-center">
+            <div key={name} className={compact ? "grid gap-2 p-3" : "grid gap-2 p-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,12rem)_1fr] sm:items-center"}>
               <div className="flex flex-wrap items-center gap-1.5 text-sm">
                 <span>{argLabel(name)}</span>
                 {spec.required && <Badge variant="outline">Obligatorio</Badge>}

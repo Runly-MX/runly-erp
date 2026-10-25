@@ -46,7 +46,7 @@ export function HttpStepEditor({ step, triggerType, fieldOptions, readOnly, onCh
       </div>
       {host && hostsQuery.isSuccess && !allowed.includes(host) && (
         <p className="text-xs text-amber-700 dark:text-amber-400">
-          «{host}» aún no está en los destinos permitidos; la llamada fallará hasta que un administrador lo agregue (botón «Destinos permitidos»).
+          «{host}» aún no está en los destinos permitidos; la llamada fallará hasta que un administrador lo agregue (botón «Conexiones»).
         </p>
       )}
       <div className="space-y-2">

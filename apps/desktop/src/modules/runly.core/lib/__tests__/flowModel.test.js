@@ -83,3 +83,12 @@ test("trigger and condition texts", async () => {
   assert.equal(describeCondition({ field: "estado", op: "not_equals", value: "cerrada" }), "estado no es «cerrada»");
   assert.equal(describeCondition({ field: "total", op: "gt", value: 100 }), "total es mayor que 100");
 });
+
+test("automation diagnostics are worded in Spanish and point at the block", async () => {
+  const { describeAutomationDiagnostic } = await import("../flowModel.js");
+  assert.equal(describeAutomationDiagnostic({ code: "AUTOMATION_SERVICE_UNKNOWN", path: "automations[0].steps[2].service", message: 'Unknown service ""' }), "Elige la acción del bloque 3.");
+  assert.equal(describeAutomationDiagnostic({ code: "AUTOMATION_ARG_REQUIRED", path: "automations[0].steps[0].args.userIds", message: "x" }), "Falta el dato obligatorio «userIds» del bloque 1.");
+  assert.match(describeAutomationDiagnostic({ code: "AUTOMATION_APPROVAL_INVALID", path: "automations[0].steps[1]" }), /aprobación del bloque 2/);
+  assert.equal(describeAutomationDiagnostic({ code: "SOMETHING_NEW", message: "Texto" }), "Texto");
+  assert.equal(describeAutomationDiagnostic({ message: "Sin código" }), "Sin código");
+});

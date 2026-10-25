@@ -45,9 +45,15 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
     };
   }
 
+  // The automations with how their latest run went (for the list).
   async function list(companyId) {
     const rows = await prisma.systemAutomation.findMany({ where: { companyId }, orderBy: { createdAt: "asc" } });
-    return rows.map(toView);
+    const recent = prisma.automationRun?.findMany
+      ? await prisma.automationRun.findMany({ where: { companyId, moduleKey: SYSTEM_MODULE_KEY }, orderBy: { createdAt: "desc" }, take: 300, select: { automationKey: true, status: true, createdAt: true } })
+      : [];
+    const last = new Map();
+    for (const run of recent) if (!last.has(run.automationKey)) last.set(run.automationKey, { status: run.status, createdAt: run.createdAt });
+    return rows.map((row) => ({ ...toView(row), lastRun: last.get(row.key) ?? null }));
   }
 
   // What the editor offers: events with their payload fields and the services
