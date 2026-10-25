@@ -56,11 +56,13 @@ Orden de autoridad dentro de este plan: consolidación aceptada > ampliación > 
 - [x] Contrato versionado, acceso empresarial/propietario y auditoría transaccional.
 - [x] Guardar, reabrir editable y exportar PNG con comprobación de píxeles.
 - [x] Pruebas SQL desechables y UI real con identidad/storage de fixture.
-- [ ] Validación instalada con auth y Storage reales en entorno autorizado.
+- [x] Validación local con Auth/Storage reales, API y frontend en Compose desechable; login, RBAC, Files y PNG sin interceptores.
+- [x] Recuperación de 409 con borrador por identidad/empresa/diseño, revisión del servidor y guardado como copia; desconexión y recarga.
+- [x] Historial limitado, undo/redo y atajos; duplicar/copiar/pegar, orden, bloqueo y visibilidad con contrato v2 compatible con v1.
 - [ ] Compartidos: modelo de colaboradores, permisos por documento y acceso de colaboradores a originales.
 - [ ] Realtime: autorizar canales desde API, revalidación/revocación y propagación sin sobrescribir cambios locales.
 - [ ] Pruebas de dos usuarios: cursores, presencia, cambios distintos, conflicto, reconexión y revocación.
-- [ ] Completar MVP: tamaños personalizados, pan/centrado, alineación, orden/capas/bloqueo, duplicar/copiar/pegar, undo/redo, atajos y JPG.
+- [ ] Completar MVP: tamaños personalizados, pan/centrado, alineación y JPG; clipboard entre documentos, agrupación y capas independientes.
 - [ ] Bloqueo común de navegación del shell ante cambios pendientes.
 
 ### Fase 3: biblioteca y catálogo

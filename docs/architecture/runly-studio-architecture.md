@@ -18,7 +18,13 @@ Cada mutación y su AuditLog están en la misma transacción. El UPDATE compara 
 
 La nueva tabla tiene RLS y no concede acceso a anon/authenticated. Los endpoints autenticados aplican permisos y filtran por empresa/propietario en cada consulta. El JSON no decide pertenencia empresarial ni puede indicar URLs arbitrarias para imágenes. No se incorpora fetch de URLs remotas en servidor, importación SVG/ZIP, HTML, proveedores de recursos ni endpoints públicos.
 
-Las pruebas del servicio usan el cliente Prisma generado, PrismaPg y PostgreSQL desechable. El fixture UI usa un adaptador SQL de prueba para el mismo servicio y simula identidad/Storage; no reemplaza la comprobación con auth y Storage reales.
+Las pruebas del servicio usan el cliente Prisma generado, PrismaPg y PostgreSQL desechable. El fixture UI sigue disponible para regresiones rápidas. La suite `scripts/verify-studio-supabase.mjs` usa además GoTrue, Storage, REST, Realtime, Kong y PostgreSQL reales, la API completa y un build del frontend, en un proyecto Compose desechable. No intercepta Auth/Files/Storage. Su configuración procede del instalador, con secretos nuevos, puertos loopback y volúmenes propios; no usa env files de una instalación.
+
+## Recuperación e historial local
+
+DesignEditor conserva borradores canónicos por empresa/usuario/diseño en este navegador, recuperables durante siete días. Un 409 permite revisar la versión actual y guardar el trabajo como un diseño independiente; no actualiza la revisión de base para pisar el servidor. Los errores temporales permiten reintento explícito. La copia se elimina después de un guardado confirmado sin cambios posteriores. Los borradores son almacenamiento local de datos del usuario, sujeto a cuota y limpieza del navegador; no son un respaldo en servidor.
+
+El adaptador mantiene hasta 50 pasos y un presupuesto de 8 MB de strings UTF-16 de escenas, sin guardar bitmaps en el historial. Las transformaciones entran por object:modified; no por cada movimiento del puntero. Undo/redo prepara los objetos antes de sustituir la escena para no perder la actual ante un error de imagen. Incluye duplicado, clipboard de elementos dentro del editor, orden, bloqueo y visibilidad. Los atajos se limitan a la región del editor y respetan los controles de texto nativos. El historial se reinicia al reabrir o recuperar un documento; no se persiste como parte del diseño.
 
 ## Motor y exportación
 

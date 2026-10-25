@@ -1,5 +1,7 @@
 # Runly Studio: resultados de validación local
 
+Continuación implementada: [Supabase real, recuperación e historial](runly-studio-supabase-local.md).
+
 Inspección: 2026-10-25. Base inicial revisada: `7ad08075`, posterior a
 `3bd72ff6`, `4a65e871` y `7db85cb0`. Todo el trabajo se hizo en main.
 No se conectó al VPS, publicó una imagen ni ejecutó un despliegue. Las únicas

@@ -22,11 +22,11 @@ La revisión de los seis paquetes y sus consumidores está en [la auditoría](ru
 | Elementos y colaboración Excalidraw | runly.notes |
 | Plantillas documentales, versiones y archivos generados | runly.documents |
 
-## Contrato interno Studio v1
+## Contrato interno Studio v2 y lectura de v1
 
-`apps/shared/studio/document.js` tiene cero dependencias. Valida JSON por allowlist, versión 1, unidad px, una página, fondo hexadecimal y hasta 500 objetos. Los tipos iniciales son texto, rectángulo, elipse e imagen. Texto conserva escala X/Y para que un resize no pierda fidelidad al reabrir. Los identificadores de objetos son locales al documento; el UUID de la entidad persistente lo genera la base.
+`apps/shared/studio/document.js` tiene cero dependencias. Valida JSON por allowlist, versiones 1/2, unidad px, una página, fondo hexadecimal y hasta 500 objetos. La salida canónica es v2: añade `locked` y `hidden` booleanos por objeto. Al leer v1 se asignan ambos a false, sin mutar el input ni reescribir la fila en base de datos. El próximo guardado explícito conserva v2. Versiones desconocidas se rechazan. Los tipos son texto, rectángulo, elipse e imagen. Texto conserva escala X/Y para que un resize no pierda fidelidad al reabrir. Los identificadores de objetos son locales al documento; el UUID de la entidad persistente lo genera la base.
 
-La posición en el array determina orden de pintado. No hay grupos, capas independientes, variables ni múltiples páginas en v1. Incorporarlos requiere migración de contrato explícita, no aceptar silenciosamente JSON de Fabric. El viewport personal queda fuera del documento. También quedan fuera blobs, URLs firmadas e identidades de empresa/propietario suministradas por el cliente.
+La posición en el array determina orden de pintado y permite subir/bajar niveles y enviar al frente/fondo. No hay grupos, capas independientes, variables ni múltiples páginas. Incorporarlos requiere migración de contrato explícita, no aceptar silenciosamente JSON de Fabric. El viewport personal queda fuera del documento. También quedan fuera blobs, URLs firmadas e identidades de empresa/propietario suministradas por el cliente.
 
 `fabric-adapter.js` traduce ese contrato a objetos interactivos y vuelve a producir un documento validado al guardar. Su instancia, selección, listeners y cachés son por documento. Al desmontar se dispone el canvas. No se conecta a la base ni al SDK.
 
