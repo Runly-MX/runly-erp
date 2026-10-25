@@ -170,7 +170,7 @@ describe('createProjectsCalendarBridge', () => {
       }
       return { prisma, calls }
     }
-    const iso = (d) => d.toISOString().slice(0, 10)
+    const iso = (d) => d.toISOString().split('T')[0] // eslint-disable-line no-restricted-syntax -- all-day events are UTC instants
 
     it('a single due date is a one-day event', async () => {
       const { prisma, calls } = spy()
