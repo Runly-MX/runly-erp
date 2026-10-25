@@ -47,9 +47,22 @@ export default function GeneratedDocumentsScreen() {
   async function openDocument(item) {
     try {
       const download = await runly.documents.getGeneratedDownload(item.id, token);
+      const format = item.outputFormat ?? "pdf";
+      const name = item.fileAsset?.originalName ?? `${item.metadata?.templateName ?? item.template?.name ?? "documento"}.${format}`;
+      if (format !== "pdf") {
+        // The viewer previews PDFs; Word/Excel/PowerPoint outputs are downloaded.
+        const link = document.createElement("a");
+        link.href = download.url;
+        link.download = name;
+        link.rel = "noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        return;
+      }
       setViewerFile({
         id: item.fileAsset?.id ?? item.id,
-        originalName: item.fileAsset?.originalName ?? `${item.template?.name ?? "documento"}.pdf`,
+        originalName: name,
         mimeType: "application/pdf",
         signedUrl: download.url,
       });
@@ -64,14 +77,21 @@ export default function GeneratedDocumentsScreen() {
       header: "Documento",
       cell: ({ row }) => (
         <button type="button" className="text-left font-medium hover:underline" onClick={() => openDocument(row.original)}>
-          {row.original.template?.name ?? "Documento"}
+          {row.original.metadata?.templateName ?? row.original.template?.name ?? "Documento"}
           <span className="block text-xs text-[hsl(var(--muted-foreground))]">
-            Version {row.original.version?.versionNumber ?? "-"}
+            {row.original.template
+              ? `Versión ${row.original.version?.versionNumber ?? "-"}`
+              : "Formato estándar"}
           </span>
         </button>
       ),
     },
-    { accessorKey: "sourceType", header: "Origen" },
+    { id: "origin", header: "Tipo", cell: ({ row }) => row.original.kind ?? row.original.sourceType },
+    {
+      id: "format",
+      header: "Formato",
+      cell: ({ row }) => <span className="text-xs uppercase">{row.original.outputFormat ?? "pdf"}</span>,
+    },
     {
       id: "status",
       header: "Estado",
@@ -105,7 +125,7 @@ export default function GeneratedDocumentsScreen() {
       <PageHeader
         eyebrow="Runly Documents"
         title="Documentos generados"
-        description="Historial de PDFs vinculados a sus entidades de origen."
+        description="Historial de documentos generados y vinculados a sus registros de origen."
       />
       <DataTable
         columns={columns}
@@ -115,7 +135,7 @@ export default function GeneratedDocumentsScreen() {
         onRetry={() => query.refetch()}
         emptyIcon={Files}
         emptyTitle="No hay documentos generados"
-        emptyDescription="Los PDFs generados desde Growth apareceran aqui."
+        emptyDescription="Los documentos que generes desde los módulos aparecerán aquí."
       />
       {viewerFile && (
         <AdvancedFileViewer
@@ -131,7 +151,7 @@ export default function GeneratedDocumentsScreen() {
         open={Boolean(toggleTarget)}
         onOpenChange={(open) => !open && setToggleTarget(null)}
         title="Desactivar documento"
-        description="El archivo dejara de aparecer en el historial activo."
+        description="El archivo dejará de aparecer en el historial activo."
         confirmLabel="Desactivar"
         onConfirm={() => disableMutation.mutate(toggleTarget)}
         loading={disableMutation.isPending}

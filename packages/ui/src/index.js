@@ -283,6 +283,8 @@ export { requestBugReport, onBugReportRequest, hasBugReportListener } from "./li
 export { ContactPicker } from "./components/ContactPicker.jsx";
 export { FileCard } from "./components/FileCard.jsx";
 export { DistDropZone } from "./components/DistDropZone.jsx";
+export { TemplateManager } from "./components/document-templates/TemplateManager.jsx";
+export { TemplateFieldReference } from "./components/document-templates/TemplateFieldReference.jsx";
 export { ColumnMappingStep } from "./components/ColumnMappingStep.jsx";
 export { FileUploader } from "./components/FileUploader.jsx";
 export { SignaturePad } from "./components/SignaturePad.jsx";
