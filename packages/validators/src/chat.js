@@ -96,6 +96,8 @@ export const chatCreateChannelSchema = z.object({
   memberUserIds: z.array(z.string().uuid()).max(50).optional().default([]),
   linkedModule: z.string().trim().min(1).max(64).optional(),
   linkedEntityId: z.string().uuid().optional(),
+  // Channels made by a call are tagged so the sidebar groups them under "Reuniones".
+  origin: z.enum(["meeting"]).optional(),
 });
 
 export const chatCreateChannelRoleSchema = z.object({

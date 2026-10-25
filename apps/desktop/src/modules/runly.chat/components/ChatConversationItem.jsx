@@ -1,4 +1,5 @@
-import { AtSign, Pin } from "lucide-react";
+import { AtSign, Hash, Pin, Users, Video } from "lucide-react";
+import { isMeeting } from "../lib/sidebarSections";
 import { MiraiAvatar } from "@runly/ui";
 import { AssistantWordmark, renderMentionText } from "@runly/ui";
 import { formatMessageTime } from "../lib/chatUtils";
@@ -15,7 +16,7 @@ function getInitials(name) {
 }
 
 function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = false, isBot = false }) {
-  const sizeClass = size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";
+  const sizeClass = size === "xs" ? "h-6 w-6 text-[10px]" : size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";
   if (isBot) {
     return (
       <div className="relative shrink-0">
@@ -142,5 +143,49 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
         </div>
       </button>
     </div>
+  );
+}
+
+// Dense row of the sectioned sidebar: channels read as "# name", direct messages keep a
+// small avatar with presence, groups and meetings get an icon. Unread conversations are
+// bold; mentions and unread counts sit on the right. 44 px on touch, 32 px with a mouse.
+export function ChatConversationRow({ conversation, isActive, onClick, currentUserId, isOnline = false }) {
+  const otherMember = conversation.type === "direct"
+    ? (conversation.members ?? []).find((m) => m.userId !== currentUserId)
+    : null;
+  const name = conversation.title ?? otherMember?.displayName ?? (conversation.type === "group" ? "Grupo" : "Conversación directa");
+  const unread = conversation.unread_count ?? 0;
+  const mentions = conversation.unread_mention_count ?? 0;
+  const meeting = isMeeting(conversation);
+  const lead = conversation.type === "direct" ? (
+    <Avatar name={name} avatarUrl={conversation.avatarUrl ?? otherMember?.avatarUrl ?? null} avatarEmoji={conversation.avatar_emoji ?? null} type="direct" size="xs" online={isOnline} />
+  ) : (
+    <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[hsl(var(--muted-foreground))]" aria-hidden>
+      {meeting ? <Video className="h-3.5 w-3.5" /> : conversation.type === "channel" ? <Hash className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+    </span>
+  );
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={isActive ? "true" : undefined}
+      className={[
+        "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors [@media(pointer:coarse)]:min-h-11",
+        isActive ? "bg-[var(--brand-primary)]/15 text-[var(--brand-primary)]" : "text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]",
+      ].join(" ")}
+    >
+      {lead}
+      <span className={["min-w-0 flex-1 truncate", unread > 0 || mentions > 0 ? "font-semibold" : "font-normal text-[hsl(var(--foreground))]/80"].join(" ")}>{name}</span>
+      {mentions > 0 && (
+        <span title={`${mentions} mención${mentions === 1 ? "" : "es"} sin leer`} className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
+          <AtSign className="h-2.5 w-2.5" strokeWidth={3} />{mentions > 9 ? "9+" : mentions}
+        </span>
+      )}
+      {unread > 0 && (
+        <span className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)] px-1 text-[10px] font-semibold text-[var(--brand-primary-foreground)]">
+          {unread > 99 ? "99+" : unread}
+        </span>
+      )}
+    </button>
   );
 }

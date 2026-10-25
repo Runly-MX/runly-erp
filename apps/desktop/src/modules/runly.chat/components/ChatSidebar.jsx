@@ -4,7 +4,10 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@runly/ui";
 import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Images } from "lucide-react";
-import { ChatConversationItem } from "./ChatConversationItem";
+import { ChatConversationItem, ChatConversationRow } from "./ChatConversationItem";
+import { SidebarSectionHeader } from "./SidebarSectionHeader";
+import { buildSections } from "../lib/sidebarSections";
+import { useChatSidebar } from "../hooks/useChatSidebar";
 import { ConversationRowActions } from "./ConversationRowActions";
 import { MessageSearchResults } from "./MessageSearchResults";
 import { useChatMessageSearch } from "../hooks/useChatMessageSearch";
@@ -41,7 +44,6 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
   const archivedConversations = archivedData?.data ?? [];
   const handleConversationAction = useConversationActionHandler();
-
   const filtered = (conversations ?? [])
     .filter((c) => {
       if (!search.trim()) return true;
@@ -58,6 +60,12 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
     const displayName = getConversationDisplayName(c, userProfile?.id) ?? "";
     return displayName.toLowerCase().includes(search.toLowerCase());
   });
+
+  const { state: sidebarState, save: saveSidebar } = useChatSidebar();
+  const layout = buildSections({ conversations: filtered, state: sidebarState, filter: sidebarState.filter });
+  const toggleSection = (section) => saveSidebar((current) => section.kind === "custom"
+    ? { ...current, sections: current.sections.map((item) => (item.id === section.id ? { ...item, collapsed: !section.collapsed } : item)) }
+    : { ...current, collapsed: { ...current.collapsed, [section.key]: !section.collapsed } });
 
   return (
     <aside className="chat-glass flex flex-col w-full h-full border-r border-[hsl(var(--border))]">
@@ -126,6 +134,18 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           onClear={() => setSearch('')}
           placeholder="Buscar conversaciones..."
         />
+        <div className="mt-2 flex gap-1" role="group" aria-label="Filtrar conversaciones">
+          {[["all", "Todo"], ["unread", "Sin leer"], ["mentions", "Menciones"]].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={sidebarState.filter === value}
+              onClick={() => saveSidebar((current) => ({ ...current, filter: value }))}
+              className={["rounded-md px-2 py-1 text-xs transition-colors [@media(pointer:coarse)]:min-h-9 [@media(pointer:coarse)]:px-3",
+                sidebarState.filter === value ? "bg-[var(--brand-primary)]/15 font-medium text-[var(--brand-primary)]" : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"].join(" ")}
+            >{label}</button>
+          ))}
+        </div>
       </div>
 
       {/* Conversation list */}
@@ -193,29 +213,44 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           </div>
         )}
 
-        {!search.trim() && filtered.map((conv) => {
-          const otherMember = conv.type === "direct"
-            ? (conv.members ?? []).find((m) => m.userId !== userProfile?.id)
-            : null;
+        {!search.trim() && !isLoading && layout.mirai.map((conv) => (
+          <ConversationRowActions key={conv.id} conversation={conv} currentUserId={userProfile?.id} onAction={handleConversationAction} swipeOpenId={openRowId} onSwipeOpen={setOpenRowId}>
+            <ChatConversationItem conversation={conv} isActive={conv.id === activeId} onClick={() => onSelect(conv)} currentUserId={userProfile?.id} isOnline={false} />
+          </ConversationRowActions>
+        ))}
+
+        {!search.trim() && !isLoading && layout.sections.map((section) => {
+          const collapsed = section.collapsed && !(section.items.some((item) => item.id === activeId));
           return (
-            <ConversationRowActions
-              key={conv.id}
-              conversation={conv}
-              currentUserId={userProfile?.id}
-              onAction={handleConversationAction}
-              swipeOpenId={openRowId}
-              onSwipeOpen={setOpenRowId}
-            >
-              <ChatConversationItem
-                conversation={conv}
-                isActive={conv.id === activeId}
-                onClick={() => onSelect(conv)}
-                currentUserId={userProfile?.id}
-                isOnline={otherMember ? isUserOnline(otherMember.userId) : false}
+            <div key={section.key} className="pt-1.5">
+              <SidebarSectionHeader
+                label={section.label}
+                collapsed={collapsed}
+                unread={section.unread}
+                mentions={section.mentions}
+                count={section.items.length}
+                onToggle={() => toggleSection(section)}
               />
-            </ConversationRowActions>
+              {!collapsed && (
+                <div className="space-y-px">
+                  {section.items.length === 0 && <p className="px-3 py-1.5 text-xs text-[hsl(var(--muted-foreground))]">Sin conversaciones.</p>}
+                  {section.items.map((conv) => {
+                    const otherMember = conv.type === "direct" ? (conv.members ?? []).find((m) => m.userId !== userProfile?.id) : null;
+                    return (
+                      <ConversationRowActions key={conv.id} conversation={conv} currentUserId={userProfile?.id} onAction={handleConversationAction} swipeOpenId={openRowId} onSwipeOpen={setOpenRowId}>
+                        <ChatConversationRow conversation={conv} isActive={conv.id === activeId} onClick={() => onSelect(conv)} currentUserId={userProfile?.id} isOnline={otherMember ? isUserOnline(otherMember.userId) : false} />
+                      </ConversationRowActions>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
+
+        {!search.trim() && !isLoading && conversations?.length > 0 && layout.sections.length === 0 && layout.mirai.length === 0 && (
+          <EmptyState className="py-8" title="Nada por aquí" description="No hay conversaciones con este filtro." />
+        )}
 
         {/* Archived section */}
         {filteredArchived.length > 0 && (

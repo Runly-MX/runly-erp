@@ -32,6 +32,7 @@ import { createModerationRoutes } from "./moderation-routes.js";
 import { createChannelRoutes } from "./channel-routes.js";
 import { createChatIntegrationRoutes, createChatHookPublicRouter } from "./chat-integration-routes.js";
 import { createChatIntegrationsService } from "./chat-integrations-service.js";
+import { createChatSidebarService } from "./chat-sidebar-service.js";
 import { createExternalInboxRoutes } from "./external-inbox-routes.js";
 import { createTemplateRoutes } from "./template-routes.js";
 import { createMessageForwardRoutes } from "./message-forward-routes.js";
@@ -621,6 +622,21 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   // Channel creation/directory, linked channels, joining, and per-channel
   // roles (Phase A foundation) — see channel-routes.js.
   internal.route("", createChannelRoutes({ prisma, requirePermission, chatService, channelDirectoryService, channelLinksService, permissionsService }));
+
+  // Per-person sidebar organization (sections, collapsed state, filter).
+  const sidebarService = createChatSidebarService({ prisma });
+  internal.get("/sidebar", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const profileId = await resolveUserProfileId(prisma, c.get("authUserId"));
+      return c.json({ data: await sidebarService.get(profileId) });
+    } catch (err) { return handleError(c, err, "Error al cargar la barra lateral."); }
+  });
+  internal.put("/sidebar", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const profileId = await resolveUserProfileId(prisma, c.get("authUserId"));
+      return c.json({ data: await sidebarService.put(profileId, await c.req.json()) });
+    } catch (err) { return handleError(c, err, "Error al guardar la barra lateral."); }
+  });
 
   // Channel integrations (incoming webhooks that post into a channel) — see chat-integration-routes.js.
   const integrationsService = createChatIntegrationsService({ prisma, broadcaster });

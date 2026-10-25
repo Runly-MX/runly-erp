@@ -194,7 +194,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     if (conversationId !== NEW_ROOM) return conversationId;
     if (createdRoomRef.current) return createdRoomRef.current;
     const when = new Date().toLocaleDateString([], { day: "2-digit", month: "short" });
-    const room = unwrap(await runly.chat.createChannel({ title: `Reunión ${when}`, isPublic: false }, token));
+    const room = unwrap(await runly.chat.createChannel({ title: `Reunión ${when}`, isPublic: false, origin: "meeting" }, token));
     if (!room?.id) throw new Error("No se pudo crear la sala.");
     createdRoomRef.current = room.id;
     return room.id;

@@ -42,7 +42,8 @@ export function createChannelRoutes({ prisma, requirePermission, chatService, ch
       const authUserId = c.get("authUserId");
       const body = await c.req.json();
       const data = chatCreateChannelSchema.parse(body);
-      const result = await chatService.createConversation({ authUserId, type: "channel", ...data, companyId: c.get("companyId") });
+      const { origin, ...channel } = data;
+      const result = await chatService.createConversation({ authUserId, type: "channel", ...channel, ...(origin ? { metadata: { origin } } : {}), companyId: c.get("companyId") });
       return c.json({ data: result }, 201);
     } catch (err) {
       if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);

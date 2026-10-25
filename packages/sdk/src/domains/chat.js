@@ -91,6 +91,11 @@ export function createChatDomain(request, withAuthHeaders, toQueryString, reques
         body: JSON.stringify({}),
       }),
 
+    // Per-person sidebar organization (sections, collapsed state, filter).
+    getSidebar: (token) => request("/chat/sidebar", { headers: withAuthHeaders(token) }),
+    saveSidebar: (data, token) =>
+      request("/chat/sidebar", { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+
     // Integrations that post into a channel through a secret webhook URL.
     listChannelIntegrations: (conversationId, token) =>
       request(`/chat/channels/${encodeURIComponent(conversationId)}/integrations`, { headers: withAuthHeaders(token) }),
