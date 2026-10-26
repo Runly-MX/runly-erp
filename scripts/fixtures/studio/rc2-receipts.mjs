@@ -12,7 +12,8 @@ export async function measureRc2Receipts(stack,{users,companies},{duration=12000
     for(let i=0;i<count;i++)document=appendObject(document,kind==='typing'?'text':'rectangle',{id:`bench-${i}`,x:i%20*50,y:Math.floor(i/20)*50,...(kind==='typing'?{text:'Synthetic editing '.repeat(300)}:{groupId:'bench-group',width:30,height:30})})
     const record=await request('/studio/designs',{name:`RC2 receipt ${kind}`,document}),root=`/studio/designs/${record.id}`,latencies=[]
     const sizeBefore=Number((await stack.pool.query("SELECT pg_total_relation_size('audit_log')::text n")).rows[0].n)
-    const sync=createStudioSync({document:record.document,revision:record.revision,name:record.name,clientId:`rc2-benchmark-${kind}`,actorId:owner.id,delay:80,editor:{apply:async d=>d},transport:{fetch:()=>request(root),send:async batch=>{await request('/studio/protocol');const start=performance.now(),result=await request(root+'/changes',batch);latencies.push(performance.now()-start);return result}}})
+    let firstBatch
+    const sync=createStudioSync({document:record.document,revision:record.revision,name:record.name,clientId:`rc2-benchmark-${kind}`,actorId:owner.id,delay:80,editor:{apply:async d=>d},transport:{fetch:()=>request(root),send:async batch=>{firstBatch??=structuredClone(batch);await request('/studio/protocol');const start=performance.now(),result=await request(root+'/changes',batch);latencies.push(performance.now()-start);return result}}})
     const start=performance.now();let events=0
     try{
       while(performance.now()-start<ms){
@@ -23,6 +24,15 @@ export async function measureRc2Receipts(stack,{users,companies},{duration=12000
       await sync.flush()
     }finally{sync.close()}
     const elapsedMs=performance.now()-start
+    if(kind==='typing'){
+      // Age only synthetic receipts on the identity-checked disposable database.
+      await stack.pool.query("UPDATE audit_log SET created_at=now()-interval '400 days' WHERE entity_id=$1 AND metadata ? 'digest'",[record.id])
+      await stack.compose(['restart','runly-api'])
+      for(let attempt=0;attempt<180;attempt++){try{if((await fetch(stack.urls.api+'/public/website/desktop/config')).ok)break}catch{}await sleep(500)}
+      const before=(await request(root)).revision,replayed=await request(root+'/changes',firstBatch)
+      assert.equal(replayed.revision,2);assert.equal((await request(root)).revision,before)
+      checks.push('Synthetic 400-day-old receipt survives an actual API restart; exact first batch replays its original acknowledgement without reapplying or advancing the current revision')
+    }
     const stats=(await stack.pool.query(`SELECT count(*)::int batches,avg(pg_column_size(metadata))::float8 average_bytes,max(pg_column_size(metadata))::int max_bytes,sum(pg_column_size(metadata))::text metadata_bytes FROM audit_log WHERE entity_id=$1 AND metadata ? 'digest'`,[record.id])).rows[0]
     const sizeAfter=Number((await stack.pool.query("SELECT pg_total_relation_size('audit_log')::text n")).rows[0].n)
     const lookup=await stack.pool.query(`EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT metadata FROM audit_log WHERE company_id=$1 AND actor_id=$2 AND entity_id=$3 AND entity_type='StudioDesign' AND module_key='runly.studio' AND action='studio.design.update' AND metadata ? 'digest' AND metadata ? 'result' AND metadata->>'clientId'=$4 AND metadata->>'batchId'='1'`,[company.id,owner.id,record.id,`rc2-benchmark-${kind}`])
