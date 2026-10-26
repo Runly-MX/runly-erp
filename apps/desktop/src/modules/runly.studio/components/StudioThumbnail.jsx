@@ -9,7 +9,7 @@ function RenderedItem({item,images}) {
   const [preview,setPreview]=useState(null),url=images?.[photoFileId(item)],key=JSON.stringify(item)
   useEffect(()=>{
     const controller=new AbortController()
-    if(photoFileId(item)&&!url)return ()=>controller.abort()
+    if(photoFileId(JSON.parse(key))&&!url)return ()=>controller.abort()
     scheduled(async()=>{const {renderThumbnailItem}=await import('../lib/thumbnail-renderer.js');return renderThumbnailItem(JSON.parse(key),url)},controller.signal)
       .then(value=>{if(!controller.signal.aborted)setPreview({key,urlSource:url,...value})}).catch(()=>{})
     return ()=>controller.abort()
@@ -25,7 +25,6 @@ function RenderedItem({item,images}) {
 function Item({ item, images }) {
   const transform = `translate(${item.x} ${item.y}) rotate(${item.rotation ?? 0})`
   if(item.type==='line'||item.fillPaint||item.shape||(item.type==='image'&&item.image))return <g transform={`${transform} scale(${item.scaleX??1} ${item.scaleY??1})`}><RenderedItem item={item} images={images} /></g>
-  if(item.type==='line')return <polyline transform={`${transform} scale(${item.scaleX??1} ${item.scaleY??1})`} points={item.points.map(([x,y])=>`${x*item.width},${y*item.height}`).join(' ')} fill="none" stroke={item.fill} strokeWidth={item.strokeWidth} />
   if (item.type === 'rectangle') return <rect transform={transform} width={item.width} height={item.height} fill={item.fill} />
   if (item.type === 'ellipse') return <ellipse transform={transform} cx={item.width / 2} cy={item.height / 2} rx={item.width / 2} ry={item.height / 2} fill={item.fill} />
   if (item.type === 'vector') return <g transform={`${transform} scale(${item.width / item.geometry.width} ${item.height / item.geometry.height})`}>

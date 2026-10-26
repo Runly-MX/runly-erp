@@ -11,7 +11,7 @@ import { createStudioImageCopies } from './studio-image-copies.js'
 
 export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,
   service = createStudioService({ prisma, filesService, broadcaster }),
-  templates = createStudioTemplatesService({ prisma, filesService, designService: service }) }) {
+  templates = createStudioTemplatesService({ prisma, filesService, supabaseAdmin, designService: service }) }) {
   const app = new Hono()
   const collaboration = createStudioCollaboration({ prisma, access: service.access, broadcaster, supabaseAdmin })
   const resources = createStudioResources({ access: service.access, filesService, supabaseAdmin })
@@ -58,6 +58,10 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   app.get('/studio/templates', requirePermission('studio.view'), async c => {
     c.header('Cache-Control', 'private, no-store')
     return c.json({ data: await templates.list(...context(c), c.req.query()) })
+  })
+  app.get('/studio/templates/:id/assets/:fileId/signed-url', requirePermission('studio.view'), async c => {
+    c.header('Cache-Control','private, no-store')
+    return c.json({data:await templates.signedAsset(...context(c),c.req.param('id'),c.req.param('fileId'))})
   })
   app.get('/studio/templates/:id', requirePermission('studio.view'), async c => {
     c.header('Cache-Control', 'private, no-store')

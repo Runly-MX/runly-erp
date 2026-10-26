@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Button, EmptyState, ErrorState, SearchInput, Skeleton } from '@runly/ui'
 import { ChevronLeft, ChevronRight, SearchX } from 'lucide-react'
 import { runly } from '../../../../lib/runly.js'
-import { StudioThumbnail } from '../StudioThumbnail.jsx'
+import { StudioTemplateThumbnail } from '../StudioTemplateThumbnail.jsx'
 import { sizeLabel } from '../../lib/formats.js'
 import { TemplatePreviewDialog } from './TemplatePreviewDialog.jsx'
 
@@ -29,7 +29,7 @@ export function TemplateGrid({ token, scopeKey, creating, onUse, limit }) {
       {result?.data.map(template => <li key={template.key} className={limit ? 'w-[42%] shrink-0 snap-start sm:w-auto' : undefined}>
         <button type="button" onClick={() => setPreview(template)} aria-label={`Ver plantilla ${template.name}`} className="group w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">
           <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.5)] p-4 transition-colors group-hover:border-fuchsia-500/40">
-            <StudioThumbnail document={template.document} frameRatio={4 / 5} />
+            <StudioTemplateThumbnail templateId={template.id} document={template.document} frameRatio={4 / 5} />
           </div>
           <p className="mt-2 truncate text-sm font-semibold">{template.name}</p>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">{template.category} · {sizeLabel(template)}</p>

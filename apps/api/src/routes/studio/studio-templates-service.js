@@ -1,9 +1,10 @@
+import { signedUrlWithVariant } from '../../lib/image-variants.js'
 import { FILE_ID, StudioError, validateDocument } from '../../../../shared/studio/document.js'
 import { STUDIO_TEMPLATES, templateDocument } from '../../../../shared/studio/templates.js'
 import { createStudioAccess } from './studio-access.js'
 import { studioAssetIds, studioSummary } from './studio-document-data.js'
 
-export function createStudioTemplatesService({ prisma, filesService, designService }) {
+export function createStudioTemplatesService({ prisma, filesService, designService, supabaseAdmin }) {
   const access = designService?.access ?? createStudioAccess({ prisma, filesService })
   const missing = () => { throw new StudioError('Plantilla no encontrada.', 404) }
   function text(value, max, required = false) {
@@ -60,6 +61,20 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     const document = validateDocument(found.document)
     await checkReferences(db, companyId, id, document)
     return { ...found, key:found.id, document, ...studioSummary(document), ...flags(found, actorId, p) }
+  }
+  async function signedAsset(companyId,actorId,id,fileId) {
+    if(!FILE_ID.test(fileId))return missing()
+    const template=await get(companyId,actorId,id)
+    if(!studioAssetIds(template.document).includes(fileId))return missing()
+    const file=await prisma.fileAsset.findFirst({where:{id:fileId,entityId:companyId,enabled:true}})
+    if(!file)return missing()
+    const signedUrl=await signedUrlWithVariant(supabaseAdmin,file.bucket,file.objectKey,'full',60)
+    const fresh=await get(companyId,actorId,id)
+    if(!studioAssetIds(fresh.document).includes(fileId))return missing()
+    const exists=await prisma.fileAsset.findFirst({where:{id:fileId,entityId:companyId,enabled:true,bucket:file.bucket,objectKey:file.objectKey}})
+    if(!exists)return missing()
+    if(!signedUrl)throw new StudioError('No se pudo abrir la imagen.',503)
+    return {signedUrl,expiresIn:60}
   }
   async function list(companyId, actorId, query = {}) {
     const p = await permissions(prisma, companyId, actorId)
@@ -187,7 +202,7 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
       return {...saved,ownerId:actorId,role:'OWNER',canEdit:true}
     })
   }
-  return { list,get,prepare,use,create:(c,a,i,f,origin)=>mutate(c,a,'create',i,f,origin),
+  return { list,get,prepare,use,signedAsset,create:(c,a,i,f,origin)=>mutate(c,a,'create',i,f,origin),
     update:(c,a,id,i,f)=>mutate(c,a,'update',{...i,id},f),publish:(c,a,id,i,f)=>mutate(c,a,'publish',{...i,id},f),
     remove:(c,a,id,i,f)=>mutate(c,a,'delete',{...i,id},f) }
 }

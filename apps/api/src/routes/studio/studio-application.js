@@ -15,7 +15,7 @@ export const studioEditorLink = id => `/app/m/runly.studio?design=${encodeURICom
 // One application boundary for HTTP-compatible services and both agent surfaces.
 export function createStudioApplication({ prisma, supabaseAdmin, filesService = createFilesService({prisma,supabaseAdmin}), broadcaster }) {
   const designs=createStudioService({prisma,filesService,broadcaster})
-  const templates=createStudioTemplatesService({prisma,filesService,designService:designs})
+  const templates=createStudioTemplatesService({prisma,filesService,supabaseAdmin,designService:designs})
   const catalog=createStudioCatalog({prisma,access:designs.access,filesService,supabaseAdmin})
   const resources=createStudioResources({access:designs.access,filesService,supabaseAdmin})
   async function guide(a) {

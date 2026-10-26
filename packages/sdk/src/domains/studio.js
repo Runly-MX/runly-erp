@@ -12,6 +12,7 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
     catalogThumbnail: (provider, id, token, signal) => requestBlob(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}/thumbnail`, { ...options(token), signal }),
     catalogImport: (provider, id, designId, token) => request(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}/import`, options(token, 'POST', { designId })),
     credits: (id, document, token) => request(`${path(id)}/credits`, options(token, 'POST', { document })),
+    templateAssetUrl: (id,fileId,token,signal) => request(`/studio/templates/${encodeURIComponent(id)}/assets/${encodeURIComponent(fileId)}/signed-url`,{...options(token),signal}),
     templates: (token, query = {}, signal) => request(`/studio/templates${toQueryString(query)}`, { ...options(token), signal }),
     createFromTemplate: (key, token) => request(`/studio/templates/${encodeURIComponent(key)}/designs`, options(token, 'POST', {})),
     resources: (token, query = {}, signal) => request(`/studio/resources${toQueryString(query)}`, { ...options(token), signal }),

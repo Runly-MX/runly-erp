@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, ToolButton } from '@runly/ui'
 import { ChevronLeft, ChevronRight, Layers, Loader2, Maximize2, ShieldCheck, Type, Wand2 } from 'lucide-react'
 import { STUDIO_FONTS } from '../../../../../../shared/studio/fonts.js'
-import { StudioThumbnail } from '../StudioThumbnail.jsx'
+import { StudioTemplateThumbnail } from '../StudioTemplateThumbnail.jsx'
 import { FadeSwap } from '../editor/SidePanel.jsx'
 import { sizeLabel } from '../../lib/formats.js'
 
@@ -64,7 +64,7 @@ export function TemplatePreviewDialog({ templates, template, onChange, onUse, cr
           <div className="grid max-h-[92dvh] min-h-0 md:h-[min(86dvh,760px)] md:grid-cols-[minmax(0,1fr)_340px]">
             <div className="relative flex min-h-0 items-center justify-center bg-[hsl(var(--muted)/0.55)] px-12 py-8 max-md:h-[44dvh] md:px-16" style={DOTS}>
               <FadeSwap contentKey={template.key} className="flex h-full w-full items-center justify-center">
-                <StudioThumbnail document={template.document} frameRatio={1} className="max-h-full max-w-full rounded-md shadow-[0_24px_60px_-20px_rgb(0_0_0/0.45)]" />
+                <StudioTemplateThumbnail templateId={template.id} document={template.document} frameRatio={1} className="max-h-full max-w-full rounded-md shadow-[0_24px_60px_-20px_rgb(0_0_0/0.45)]" />
               </FadeSwap>
               <ToolButton label="Plantilla anterior" shortcut="←" side="right" disabled={index <= 0} onClick={() => go(-1)}
                 className="glass absolute left-3 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full shadow-md"><ChevronLeft /></ToolButton>
