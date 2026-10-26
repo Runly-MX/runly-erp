@@ -67,6 +67,153 @@
       "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/lato/Lato-Italic.ttf",
       "sha256": "e399c44efe1387100531d26c7e4800c5d12251b890d6654a3098c7c679cb1786",
       "bytes": 722900
+    },
+    {
+      "family": "Montserrat",
+      "file": "montserrat.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/montserrat/Montserrat%5Bwght%5D.ttf",
+      "sha256": "0f7b311b2f3279e4eef9b2f968bcdbab6e28f4daeb1f049f4f278a902bcd82f7",
+      "bytes": 744936
+    },
+    {
+      "family": "Montserrat",
+      "variant": "italic",
+      "file": "montserrat-italic.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/montserrat/Montserrat-Italic%5Bwght%5D.ttf",
+      "sha256": "51607f316bc020e59f03cbf51543eecffbea501c0b31d73e5b82927c5cca442c",
+      "bytes": 762376
+    },
+    {
+      "family": "Poppins",
+      "variant": "light",
+      "file": "poppins-light.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/poppins/Poppins-Light.ttf",
+      "sha256": "650ba57fa99d12ec40c31ccfb680be656be4497fbe14164617d67e32ffe9cd46",
+      "bytes": 161936
+    },
+    {
+      "family": "Poppins",
+      "file": "poppins.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/poppins/Poppins-Regular.ttf",
+      "sha256": "7e65201e9b79159e2300267cc885e16c8dcef2424cdfa09a29bfb0980a94a7ba",
+      "bytes": 160316
+    },
+    {
+      "family": "Poppins",
+      "variant": "medium",
+      "file": "poppins-medium.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/poppins/Poppins-Medium.ttf",
+      "sha256": "90373e7d838d32468438fc3e152dca0bdb12edcab99ea639f158790b1ba1fd05",
+      "bytes": 158576
+    },
+    {
+      "family": "Poppins",
+      "variant": "semibold",
+      "file": "poppins-semibold.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/poppins/Poppins-SemiBold.ttf",
+      "sha256": "d3bf1bdaf0550e83da9ac0b1d1d9fe6db086835a83aa28578e609a394b9a0286",
+      "bytes": 157312
+    },
+    {
+      "family": "Poppins",
+      "variant": "bold",
+      "file": "poppins-bold.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/poppins/Poppins-Bold.ttf",
+      "sha256": "983676516167748b74de6f4771fb384c664fd913acb8b471122ecacf5da5ea6c",
+      "bytes": 155996
+    },
+    {
+      "family": "Poppins",
+      "variant": "italic",
+      "file": "poppins-italic.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/poppins/Poppins-Italic.ttf",
+      "sha256": "4fa76ae75b40f926420514044722cb97f32186cafd3b38263cc34dad7174d46d",
+      "bytes": 184544
+    },
+    {
+      "family": "Raleway",
+      "file": "raleway.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/raleway/Raleway%5Bwght%5D.ttf",
+      "sha256": "8bbcc3eb8275c388f4bcd998832f8a4b943eadbaf6a595205312774b5951aefb",
+      "bytes": 312352
+    },
+    {
+      "family": "Raleway",
+      "variant": "italic",
+      "file": "raleway-italic.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/raleway/Raleway-Italic%5Bwght%5D.ttf",
+      "sha256": "96629caf2202183fab46c70237055a7d67e6a5400b85413d45a77ed6f2a0770c",
+      "bytes": 318476
+    },
+    {
+      "family": "Lora",
+      "file": "lora.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/lora/Lora%5Bwght%5D.ttf",
+      "sha256": "822a6621ccbe8d97d20ac88c1c41f5615c9c2c202eaa75f272cd452aac6475a7",
+      "bytes": 212196
+    },
+    {
+      "family": "Lora",
+      "variant": "italic",
+      "file": "lora-italic.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/lora/Lora-Italic%5Bwght%5D.ttf",
+      "sha256": "22d8d8854b53807aa664ca34f2031a9ed57a1d0dea296b8b96cdd3aad937a2b3",
+      "bytes": 221232
+    },
+    {
+      "family": "Nunito",
+      "file": "nunito.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/nunito/Nunito%5Bwght%5D.ttf",
+      "sha256": "bb55a5ca5c2042335b3991af27c4d0705d0ef41cac6164ac737fd8f2a1e85207",
+      "bytes": 276932
+    },
+    {
+      "family": "Nunito",
+      "variant": "italic",
+      "file": "nunito-italic.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/nunito/Nunito-Italic%5Bwght%5D.ttf",
+      "sha256": "b520cc871868b0acfca1beda875df7f4a44ebce914f8a89f83977fc9c09529c8",
+      "bytes": 281832
+    },
+    {
+      "family": "Dancing Script",
+      "file": "dancingscript.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/dancingscript/DancingScript%5Bwght%5D.ttf",
+      "sha256": "21808625578fe8d8cd10cb684be546dca077b27cd03a53a2f1ec11dc743c924c",
+      "bytes": 133636
+    },
+    {
+      "family": "Playfair Display",
+      "variant": "italic",
+      "file": "playfairdisplay-italic.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/playfairdisplay/PlayfairDisplay-Italic%5Bwght%5D.ttf",
+      "sha256": "a5e26dc5e2e77fb2803a0bf02fd4f81ee136ec8dea863ccdb0c59a263b21378b",
+      "bytes": 278688
+    },
+    {
+      "family": "Lato",
+      "variant": "light",
+      "file": "lato-light.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/lato/Lato-Light.ttf",
+      "sha256": "cf2a774503baf418d584f49967bd160e1e03f087c13b25602f28024ec7788f08",
+      "bytes": 643884
     }
   ]
 }

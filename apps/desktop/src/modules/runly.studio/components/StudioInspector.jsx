@@ -104,11 +104,7 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
       {selection.type === 'text' ? (
         <Section title="Texto">
           <Textarea aria-label="Texto del elemento" rows={3} disabled={editable} value={selection.text} onChange={event => onPatch({ text: event.target.value })} />
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">Cambia la fuente, el tamaño y el color desde la barra del lienzo.</p>
-          <details className="rounded-lg border border-[hsl(var(--border))] text-xs">
-            <summary className="cursor-pointer rounded-lg p-3 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">Disponibilidad de estilos</summary>
-            <p className="px-3 pb-3 leading-relaxed text-[hsl(var(--muted-foreground))]">Solo Regular 400. Negrita, cursiva, subrayado, tachado, alineación de párrafo, espaciado e interlineado aún no están disponibles.</p>
-          </details>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Fuente, estilo, tamaño, color, alineación y espaciado están en la barra del lienzo.</p>
         </Section>
       ) : null}
       {selection.type !== 'image' && selection.type !== 'text' ? (

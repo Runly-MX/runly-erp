@@ -18,6 +18,8 @@ function FontOption({ font }) {
   </SelectItem>
 }
 
+const styleCount = family => { const count = Object.keys(STUDIO_FONTS.find(font => font.family === family)?.variants ?? {}).length; return count === 1 ? '1 estilo' : `${count} estilos` }
+
 export function StudioFontPicker({ value, disabled, onChange, compact = false }) {
   const id = useId()
   const [loaded, setLoaded] = useState(''), [error, setError] = useState(''), [retry, setRetry] = useState(0)
@@ -34,13 +36,13 @@ export function StudioFontPicker({ value, disabled, onChange, compact = false })
         <SelectValue>{STUDIO_FONTS.find(font => font.family === value)?.name ?? value}</SelectValue>
       </SelectTrigger>
       <SelectContent align="start" className="w-72 max-w-[calc(100vw-2rem)] motion-reduce:animate-none">
-        <SelectGroup><SelectLabel>Fuentes locales · Regular 400</SelectLabel>{STUDIO_FONTS.map(font => <FontOption key={font.family} font={font} />)}</SelectGroup>
+        <SelectGroup><SelectLabel>Fuentes incluidas · licencia libre OFL</SelectLabel>{STUDIO_FONTS.map(font => <FontOption key={font.family} font={font} />)}</SelectGroup>
       </SelectContent>
     </Select>
     {error ? <ErrorState variant="compact" title="Fuente no disponible" description={error} onRetry={() => setRetry(value => value + 1)} /> : !compact ? (
       loaded === value ? <p aria-label="Vista previa de la fuente" className="rounded-lg bg-[hsl(var(--muted)/0.5)] p-3 text-xl" style={{ fontFamily: value, fontWeight: 400, fontStyle: 'normal', fontSynthesis: 'none' }}>Ideas que toman forma</p>
         : <Skeleton className="h-14" aria-label="Cargando fuente" />
     ) : null}
-    {!compact ? <p className="text-[11px] text-[hsl(var(--muted-foreground))]">Regular · 400 · {value === 'sans-serif' ? 'Fuente del sistema' : 'OFL 1.1 · Archivo local'}</p> : null}
+    {!compact ? <p className="text-[11px] text-[hsl(var(--muted-foreground))]">{value === 'sans-serif' ? 'Fuente del sistema' : `${styleCount(value)} · OFL 1.1`}</p> : null}
   </div>
 }
