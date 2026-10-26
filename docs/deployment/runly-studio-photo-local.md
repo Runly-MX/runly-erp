@@ -1,5 +1,17 @@
 # Studio — validación local del motor fotográfico
 
+## Ampliación: rellenos de formas y geometría v5
+
+El documento vigente es v5, compatible con v1-v4. Las cifras y limitaciones de
+la entrega fotográfica inicial registradas abajo se conservan como evidencia
+histórica. La ampliación y el diagnóstico de los 17 fallos MCP están en
+`docs/deployment/runly-studio-geometry-local.md`.
+
+Se añadieron rellenos tipados en formas, estilos persistentes, extremos de línea,
+previews con geometría real, firmas privadas de plantilla y autorización de
+historial tras quitar fotos. No hay migración SQL ni activación de quitar fondo.
+Las pruebas usan exclusivamente Docker y datos sintéticos desechables.
+
 La entrega se realizó directamente en main, sin ramas ni worktrees. Todas las
 escrituras de integración utilizaron proyectos Docker desechables con marcador
 de identidad comprobado. No se accedió a servidores, base compartida, datos

@@ -1,6 +1,107 @@
 # Studio — contrato entre editor y UI
 
-## Contrato vigente: motor multimedia v4
+## Contrato vigente: geometría y rellenos v5
+
+El validador devuelve v5 y acepta documentos v1/v2/v3/v4. Las secciones v4/v3
+inferiores son registro de las entregas anteriores. No hay migración SQL: el JSON
+se normaliza al leer/guardar. `fill` continúa siendo hexadecimal de seis dígitos,
+compatible con controles existentes y como color recuperado al quitar una foto.
+No convertir `fill` en objeto ni guardar Fabric JSON, blobs o firmas.
+
+```js
+{
+  id: 'shape-1', type: 'rectangle', x: 40, y: 40,
+  width: 320, height: 240, rotation: 0, fill: '#D946EF', opacity: 0.9,
+  shape: {fillEnabled: true, strokeWidth: 3, strokeColor: '#111827',
+    dash: 'dashed', strokeAlign: 'center', radius: 24},
+  fillPaint: {type: 'image', fileAssetId: '00000000-0000-4000-8000-000000000001',
+    image: {fit: 'cover', zoom: 1.2, offsetX: 0, offsetY: 0, rotation: 15, flipX: false, flipY: false}}
+}
+```
+
+`fillPaint` es opcional y discriminado: `solid` requiere `color`; `image` requiere
+UUID de Files e `image`. Los tipos futuros (por ejemplo gradientes) se rechazan
+hasta tener renderer. El original de la forma, ID, grupo, bordes, opacidad y orden
+no se convierten a un objeto imagen. La foto usa la geometría real como clip.
+Rectángulos y elipses (círculo = ancho/alto iguales) y vectores de un único path
+monocromo relleno, sin stroke, con subpaths cerrados, admiten fotos. Así se
+conservan huecos nonzero sin inventar una unión entre paths independientes.
+Los iconos abiertos de
+trazo conservan su renderer original; no se promete relleno fotográfico en ellos.
+La licencia y procedencia del vector siguen intactas y se suman a las de la foto.
+
+`shape` es opcional, persistente, con los valores predeterminados del ejemplo
+salvo strokeWidth=0, dash=solid, radius=0. Radio solo en rectangle (0..2048);
+strokeWidth 0..128; opacity 0..1 en el objeto. Solo strokeAlign=center esté
+implementado: inside/outside se rechazan. fillEnabled=false suprime el relleno
+manteniendo el borde; una forma sin fotografía es válida. El placeholder de un
+marco vacío corresponde a UI, nunca es una imagen ficticia persistida.
+
+La foto interna admite cover/contain, crop normalizado, offset en fracciones del
+marco, zoom, giro, volteos, filtros y sombra del contrato fotográfico. La máscara,
+radio y borde pertenecen a la geometría exterior: en fillPaint.image solo se
+aceptan los defaults mask=rectangle, radius=24, border.width=0. No ofrecer esos
+controles duplicados para rellenos de forma. Las transformaciones exteriores
+cambian la geometría del marco sin alterar estos parámetros internos.
+
+### Conexiones del motor para los controles visuales
+
+- `await editor.setPhotoFill(fileAssetId, image = {})`: forma seleccionada
+  compatible; autoriza el archivo antes de cargar. Conserva el color base.
+- `await editor.removePhotoFill()`: elimina la referencia fotográfica y recupera
+  `fill`; no elimina ni sobrescribe el original de Files.
+- `await editor.setShapeStyle(partial)`: combina propiedades de `shape`.
+- `patchImage`, `cropImage`, `updateImageAdjustments`, `resetImageFraming`,
+  `captureImage`, `replaceImage` y `editImage` también aceptan formas con foto.
+  `captureImage` devuelve `{object, fileAssetId, fingerprint}`; object es canónico.
+- `patch({fill})` actualiza el color sólido (y el fallback de un relleno foto).
+- Gestos continuos: esperar `beginInteraction`, operaciones, `endInteraction`;
+  cancelar con `endInteraction(false)`. Las mutaciones fotográficas son async.
+- El drop antiguo que elimina la forma y crea una imagen debe conectarse a
+  `setPhotoFill` para formas compatibles. Esta entrega no cambia controles ni
+  rediseña la UI. Los controles actuales de marcos de imagen siguen funcionando.
+
+Líneas v5: `startCap` y `endCap` independientes, enum
+`none | arrow | open-arrow | circle | square | bar | diamond`.
+`startArrow/endArrow` se normalizan a aliases booleanos de la flecha triangular;
+las líneas v4 se actualizan lógicamente. Los controles legacy siguen pudiendo
+escribir los booleanos. Para nuevos controles usar `setLineStyle({startCap,
+endCap})` o `patch`. El tamaño depende del grosor y se acota al segmento adyacente;
+se saltan puntos coincidentes, sin NaN en líneas cortas. Renderer y previews usan
+la misma geometría. Bounds de revisión incluyen un margen conservador de stroke
+/extremos; no constituyen medida exacta de glifos o paths arbitrarios.
+
+### Archivos, plantillas y revisión
+
+`documentAssetIds` / `photoFileId` son los extractores compartidos; backend usa
+`studioAssetIds`. Cubren imágenes normales y fillPaint.image en autorización,
+clipboard, créditos, firmas, publicación/uso de plantilla y exportación.
+La plantilla empresarial sigue exigiendo que cada foto sea propia del publicador
+o esté ya concedida a esa plantilla empresarial. Compartir un diseño no permite
+publicar fotos privadas de otro usuario.
+
+`GET /studio/templates/:id/assets/:fileId/signed-url` devuelve firma privada de
+60 segundos tras autorizar plantilla, referencia y archivo, con revalidación
+tras Storage. SDK: `templateAssetUrl(id,fileId,token,signal)`. No se devuelve en
+MCP ni se persiste. Las previews de plantillas se conectaron sin alterar layout.
+Los previews limitan a seis fotos, dos trabajos simultáneos, raster temporal de
+384 px por objeto y liberan fuentes; Fabric se importa bajo demanda. El documento
+permanece vectorial y la exportación usa originales, no estos previews.
+
+Al retirar una foto se guarda un evento backend `studio.image.reference` en la
+misma transacción: hasta 50 eventos recientes permiten undo/redo tras guardar,
+aunque no quede una foto en el documento. Se suman al historial de copias
+`studio.image.copy`, con profundidad 50. Estos eventos no los puede escribir el
+cliente; no conceden Files genérico ni acceso desde otro diseño. ACL, empresa y
+archivo habilitado se comprueban en cada firma, y revocar al colaborador corta
+el acceso. No se rescata historial anterior a estos eventos sin acceso normal.
+
+La guía MCP expone v5, rellenos, estilos y extremos; prepare y commit validan y
+autorizan con los servicios reales. `studio_review_design` exige revisión manual
+si hay fotos, máscara, esquina redondeada, borde, transparencia o geometría
+ambigua bajo el texto; no inventa contraste a partir de un color fallback.
+
+## Registro anterior: motor multimedia v4
 
 Esta sección reemplaza las limitaciones v3 registradas más abajo. Las capacidades
 descritas tienen implementación en el adaptador real, validadores compartidos y

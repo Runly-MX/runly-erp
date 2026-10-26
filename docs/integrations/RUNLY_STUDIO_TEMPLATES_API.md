@@ -2,6 +2,32 @@
 
 Contrato verificado con PostgreSQL desechable y Hono. Los UUID de los ejemplos son sintéticos. Ningún cambio visual forma parte de esta entrega.
 
+## Ampliación de documento v5
+
+`studio_composition_guide` devuelve v5, con los contratos `shapeContract` y
+`lineCaps`. El documento conserva `fill` hexadecimal; añade `fillPaint` tipado
+solid/image, propiedades `shape` y extremos `startCap/endCap`. Detalle, creación,
+actualización, guardado/uso de plantillas y review aceptan estos datos mediante
+el mismo validador y los mismos permisos; v1-v4 se normalizan al leer/guardar.
+Los cambios exactos están en `docs/architecture/studio-editor-ui-contract.md`.
+
+Las proyecciones ahora preservan geometría, estilos, encuadre y referencias de
+relleno de los primeros 40 objetos: vectores/líneas ya no se convierten en
+rectángulos. El preview sigue siendo incompleto y nunca debe guardarse como
+documento editable. El detalle sigue siendo la fuente para edición y agentes.
+
+`GET /studio/templates/:id/assets/:fileId/signed-url` (SDK `templateAssetUrl`)
+autoriza la plantilla y su referencia privada y devuelve `{data:{signedUrl,
+expiresIn:60}}`, con `Cache-Control: private, no-store`. Revalida después de
+Storage. No permite abrir otros archivos ni concede acceso genérico a Files.
+No se incorpora esta firma al documento, al detalle MCP ni a propuestas.
+
+Las fotos en `fillPaint` cuentan en todos los extractores de FileAssets, créditos,
+validación y reglas de publicación: una foto ajena recibida por colaboración no
+puede compartirse empresarialmente salvo concesión empresarial ya existente.
+Cuando el fondo depende de fotografía, máscara, borde o geometría ambigua,
+`studio_review_design` pide revisión manual y no calcula contraste ficticio.
+
 ## Autorización y permisos
 
 Todas las operaciones necesitan empresa activa, membresía vigente, módulo habilitado y `studio.view`. Personal solo es visible para su propietario; company para miembros autorizados de la misma empresa; runly es inmutable.
@@ -39,7 +65,7 @@ Scopes: all, runly, personal, company. Respuesta conserva el envelope anterior: 
 }
 ```
 
-`document` en una **tarjeta** es un alias de `preview` para los consumidores actuales. Máximo 40 objetos y 120 caracteres por texto; vectores/líneas se representan como rectángulos de posición/tamaño. Imágenes privadas no incluyen URLs ni datos de almacenamiento. Esa vista previa no es un documento de edición ni una reproducción fiel. Usar `GET /studio/templates/:id` para abrir/editar el documento completo; nunca guardar el preview. El endpoint de detalle devuelve `{data:{...metadata,document}}`, normalizado por `validateDocument()` vigente.
+`document` en una **tarjeta** es un alias de `preview` para los consumidores actuales. Máximo 40 objetos y 120 caracteres por texto; vectores/líneas conservan su geometría y estilos. Imágenes privadas no incluyen URLs ni datos de almacenamiento. Esa vista previa es incompleta y no es un documento de edición. Usar `GET /studio/templates/:id` para abrir/editar el documento completo; nunca guardar el preview. El endpoint de detalle devuelve `{data:{...metadata,document}}`, normalizado por `validateDocument()` vigente.
 
 Catálogo: id `runly:square`, key legacy `square`. Ambas formas se aceptan en detalle/uso; UUID distingue las persistidas. Runly tiene ownerId=null, ownerName=Runly, source=runly, permisos de edición falsos y updatedAt=null. El catálogo original continúa exclusivamente en código.
 

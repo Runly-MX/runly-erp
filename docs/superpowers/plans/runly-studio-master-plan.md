@@ -1499,3 +1499,24 @@ Al concluir esta ejecución, informa:
 **Comienza ahora. No vuelvas a solicitar aprobación para decisiones técnicas internas que puedas resolver de forma segura.**
 
 La prioridad es entregar código funcional sin comprometer la estabilidad de Runly.
+
+## Avance local: rellenos de formas y geometría v5
+
+- [x] Contrato v5 compatible con documentos v1-v4; `fill` hexadecimal conservado.
+- [x] `fillPaint` tipado, fotos en rectángulos, elipses/círculos y vectores
+  rellenos compatibles; encuadre independiente y recuperación de relleno sólido.
+- [x] Estilos de forma, radio de rectángulo, borde centrado sólido/dashed/dotted,
+  opacidad y siete extremos de línea independientes.
+- [x] Referencias privadas en rellenos: Files, firmas, créditos, colaboración,
+  clipboard, historial, plantillas y aprobación MCP.
+- [x] Previews con renderer compartido y firmas privadas de plantillas.
+- [x] Pruebas reales de renderer y servicios locales desechables; diagnóstico
+  reproducido de los 17 fallos MCP heredados, sin skips nuevos.
+- [ ] Conectar nuevos controles visuales y reemplazar el drop que convierte
+  una forma en imagen por `setPhotoFill`; corresponde a la sesión de UI.
+- [ ] Gradientes, bordes inside/outside, grupos anidados/escalado/giro conjunto.
+- [ ] Quitar fondo productivo: permanece experimental y fuera de esta entrega.
+
+Contrato: `docs/architecture/studio-editor-ui-contract.md`. Evidencias, límites
+y fallos exactos: `docs/deployment/runly-studio-geometry-local.md`. Trabajo solo
+en main y local; sin publicación, VPS, base compartida ni migraciones nuevas.
