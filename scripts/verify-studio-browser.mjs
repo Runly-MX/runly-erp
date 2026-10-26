@@ -34,6 +34,7 @@ try {
   result.multimedia = await page.evaluate(() => window.studioPhotoVerification())
   result.advanced=await page.evaluate(()=>window.studioAdvancedVerification())
   result.remoteResource=await page.evaluate(()=>window.studioRemoteResourceVerification())
+  result.rc2Export=await page.evaluate(()=>window.rc2ExportVerification())
   for(const zoom of [1,0.5,2]){
     const box=await page.evaluate(z=>window.setupStudioSnap(z),zoom)
     await page.mouse.move(box.x+130*zoom,box.y+130*zoom);await page.mouse.down();await page.mouse.move(box.x+300*zoom-2,box.y+130*zoom,{steps:5});await page.mouse.up()

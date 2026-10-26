@@ -15,7 +15,7 @@ export async function verifyStudioSupabase(stack, { users, companies, admin }) {
   const [owner, denied, peer] = users, [a, b] = companies
   async function api(path, token, company = a.id, options = {}) {
     return fetch(`${stack.urls.api}${path}`, { signal: AbortSignal.timeout(15000), ...options, headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}), 'X-Runly-Company-Id': company,
+      ...(token ? { 'X-Runly-Studio-Protocol':'2',Authorization: `Bearer ${token}` } : {}), 'X-Runly-Company-Id': company,
       ...(options.body && typeof options.body === 'string' ? { 'Content-Type': 'application/json' } : {}), ...options.headers } })
   }
   async function loginApi(user) {

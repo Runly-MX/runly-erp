@@ -13,7 +13,7 @@ export async function verifyStudioCollaboration(stack, { users, companies }) {
   const reportCheck=message=>{checks.push(message);console.log(`Studio regression: ${message}`)}
   async function api(path, token, body, company = a.id, method = body ? 'POST' : 'GET') {
     return fetch(`${stack.urls.api}${path}`, { method, signal: AbortSignal.timeout(15000),
-      headers: { Authorization: `Bearer ${token}`, 'X-Runly-Company-Id': company, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: { 'X-Runly-Studio-Protocol':'2',Authorization: `Bearer ${token}`, 'X-Runly-Company-Id': company, ...(body ? { 'Content-Type': 'application/json' } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}) })
   }
   async function login(user) {
@@ -52,7 +52,7 @@ export async function verifyStudioCollaboration(stack, { users, companies }) {
     const ownerToken = await login(owner), peerToken = await login(peer), foreignToken = await login(foreign)
     const bytes=await sharp({create:{width:80,height:50,channels:4,background:'#f59e0b'}}).png().toBuffer()
     const form=new FormData();form.append('file',new Blob([bytes],{type:'image/png'}),'collaboration-original.png');form.append('moduleKey','runly.files');form.append('entityType','AtlasFile')
-    const upload=await fetch(`${stack.urls.api}/files/upload`,{method:'POST',headers:{Authorization:`Bearer ${ownerToken}`,'X-Runly-Company-Id':a.id},body:form})
+    const upload=await fetch(`${stack.urls.api}/files/upload`,{method:'POST',headers:{'X-Runly-Studio-Protocol':'2',Authorization:`Bearer ${ownerToken}`,'X-Runly-Company-Id':a.id},body:form})
     assert.equal(upload.status,201)
     const asset=(await upload.json()).data
     const document = appendObject(appendObject(blankDocument(), 'text', { text: 'Colaboración segura' }), 'image', { fileAssetId: asset.id,x:500,y:300,width:160,height:100 })

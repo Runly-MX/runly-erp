@@ -1,5 +1,6 @@
 import './shape-engine.js'
 import './advanced-composition.js'
+import './rc2-export.js'
 import { createStudioEditor } from '../../../apps/desktop/src/modules/runly.studio/lib/fabric-adapter.js'
 import { Canvas2DRenderer } from '../../../apps/desktop/src/modules/runly.canvas/engine/Canvas2DRenderer.js'
 import { LIGHT_THEME } from '../../../apps/desktop/src/modules/runly.canvas/engine/theme.js'
