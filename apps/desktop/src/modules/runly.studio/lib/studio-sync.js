@@ -2,10 +2,10 @@ import { validateDocument } from '../../../../../shared/studio/document.js'
 import { applyOps, checkOps, compactOps, diffOps } from '../../../../../shared/studio/operations.js'
 
 // One immutable uncertain batch; newer edits stay in a separate outbox.
-export function createStudioSync({document,revision,name,clientId,transport,editor,onStatus,onName,onError,onConflict,
+export function createStudioSync({document,revision,name,clientId,transport,editor,onStatus,onName,onError,onConflict,onRevision,
   storage,storageKey,delay=80,gapTimeout=1500,retry=attempt=>Math.min(8000,500*2**attempt),timers=globalThis}) {
   let server=validateDocument(document),local=server,sequence=revision,title=name,outbox=[],outboxName,batch=null,nextBatch=1
-  let inflight=false,closed=false,blocked=null,renderError=null,flushTimer,gapTimer,retryTimer,attempt=0,status='synced',render=Promise.resolve(),resyncing=null,version=0
+  let inflight=false,closed=false,blocked=null,renderError=null,rendering=0,flushTimer,gapTimer,retryTimer,attempt=0,status='synced',render=Promise.resolve(),resyncing=null,version=0
   const buffered=new Map(),waiters=[],touched=new Set()
   const failure=(message,status=0)=>Object.assign(Error(message),{status})
   const work=()=>Boolean(batch||outbox.length||outboxName!==undefined)
@@ -30,7 +30,7 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
     persist()
     if(blocked){waiters.splice(0).forEach(w=>w.reject(blocked));return}
     if(renderError){waiters.splice(0).forEach(w=>w.reject(renderError));return}
-    if(!work()&&!inflight&&!buffered.size&&!resyncing){setStatus('synced');waiters.splice(0).forEach(w=>w.resolve())}
+    if(!work()&&!inflight&&!buffered.size&&!resyncing&&!rendering){setStatus('synced');onRevision?.(sequence);waiters.splice(0).forEach(w=>w.resolve())}
   }
   function collides(ops){return ops.some(op=>op.type==='remove'&&[...touched].some(k=>k.startsWith(`${op.id}:`))||op.type==='patch'&&[...Object.keys(op.set),...(op.unset??[])].some(k=>touched.has(`${op.id}:${k}`)))}
   function draft(reason){
@@ -43,6 +43,7 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
   }
   const remember=reason=>onConflict?.(draft(reason))
   function reconcile(){
+    rendering++
     render=render.catch(()=>{}).then(async()=>{
       if(closed||blocked)return
       const target=validateDocument(applyOps(server,[...(batch?.ops??[]),...outbox]))
@@ -54,7 +55,7 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
         renderError=null
       }catch(error){if(generation===version)local=previous;renderError=error;setStatus('error');throw error}
       persist()
-    })
+    }).finally(()=>{rendering--;settle()})
     return render
   }
   function schedule(wait=delay){if(!closed&&!blocked&&!flushTimer&&!retryTimer)flushTimer=timers.setTimeout(()=>{flushTimer=null;send()},wait)}
@@ -153,7 +154,7 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
       if(blocked)return Promise.reject(blocked)
       if(closed)return Promise.reject(failure('La sesión de edición está cerrada.'))
       timers.clearTimeout(flushTimer);timers.clearTimeout(retryTimer);flushTimer=retryTimer=null
-      const promise=new Promise((resolve,reject)=>waiters.push({resolve,reject}));send();render.then(settle);return promise
+      const promise=new Promise((resolve,reject)=>waiters.push({resolve,reject}));send();render.then(settle,settle);return promise
     },
     state:()=>({status,revision:sequence,pending:(batch?1:0)+(outbox.length||outboxName!==undefined?1:0),document:local,name:title}),
     close(){persist();closed=true;[flushTimer,gapTimer,retryTimer].forEach(t=>timers.clearTimeout(t));waiters.splice(0).forEach(w=>w.reject(failure('La sesión de edición está cerrada.')))},

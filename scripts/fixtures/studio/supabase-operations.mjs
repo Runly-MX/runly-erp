@@ -15,14 +15,14 @@ const edit=(doc,id,patch)=>({...doc,objects:doc.objects.map(o=>o.id===id?{...o,.
 // All identities, HTTP writes, Realtime RLS, Files and SQL are real and disposable.
 export async function verifyStudioOperations(stack,{users,companies}) {
   assert.equal((await stack.pool.query('SELECT id FROM runly_studio_test.environment')).rows[0]?.id,stack.name)
-  const [owner,viewer,peer,foreign]=users,[company,other]=companies,checks=[],contexts=[],clients=[],syncs=[]
+  const [owner,viewer,peer,foreign]=users,[company,other]=companies,checks=[],contexts=[],clients=[],syncs=[],errors=[]
   await stack.pool.query('UPDATE membership SET role_id=$1 WHERE company_id=$2 AND user_id=$3',[company.roleId,company.id,viewer.id])
   const tokens=await Promise.all([owner,peer,viewer,foreign].map(async user=>{
     const r=await fetch(`${stack.urls.api}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:user.email,password:user.password})})
     assert.equal(r.status,200);return(await r.json()).data.access_token
   }))
   const api=(path,{actor=0,data,body,method=data?'POST':'GET',companyId=actor===3?other.id:company.id}={})=>fetch(stack.urls.api+path,{method,headers:{Authorization:`Bearer ${tokens[actor]}`,'X-Runly-Company-Id':companyId,...(data?{'Content-Type':'application/json'}:{})},body:body??(data?JSON.stringify(data):undefined)})
-  const json=async r=>{const b=await r.json();if(!r.ok)throw Object.assign(Error(`${r.status}: ${JSON.stringify(b)}`),{status:r.status});return b.data}
+  const json=async r=>{const b=await r.json(),status=typeof r.status==='function'?r.status():r.status,ok=typeof r.ok==='function'?r.ok():r.ok;if(!ok)throw Object.assign(Error(`${status}: ${JSON.stringify(b)}`),{status});return b.data}
   const report=text=>{checks.push(text);console.log(`Studio operations: ${text}`)}
   let doc=appendObject(blankDocument(1080,720),'rectangle',{id:'shape-a',x:80,y:100,width:180,height:120})
   doc=appendObject(doc,'ellipse',{id:'shape-b',x:400,y:100,width:160,height:120})
@@ -58,6 +58,8 @@ export async function verifyStudioOperations(stack,{users,companies}) {
 
     async function open(user){
       const context=await browser.newContext({viewport:{width:1500,height:1100}}),page=await context.newPage();contexts.push(context)
+      page.on('dialog',dialog=>dialog.accept())
+      page.on('pageerror',error=>errors.push(error.message))
       await page.goto(stack.urls.web+'/app/login');await page.locator('#identifier').fill(user.email);await page.locator('#password').fill(user.password)
       await page.getByRole('button',{name:'Acceder al sistema',exact:true}).click();await page.waitForURL(url=>!url.pathname.includes('/login'))
       await page.goto(stack.urls.web+`/app/m/runly.studio/?design=${design.id}`);await page.locator('.upper-canvas').waitFor();return {context,page}
@@ -76,7 +78,7 @@ export async function verifyStudioOperations(stack,{users,companies}) {
     report('Three separate authenticated browsers: B edits, A/C receive, concurrent objects survive, Ctrl+Z/Y preserves B')
     await a.page.getByLabel('Posición X',{exact:true}).fill('171');await a.page.getByLabel('Posición X',{exact:true}).press('Tab')
     await a.page.getByRole('button',{name:'Guardar como plantilla',exact:true}).click()
-    const dialog=a.page.getByRole('dialog',{name:'Guardar como plantilla',exact:true});await dialog.getByLabel('Nombre',{exact:true}).fill('Synthetic confirmed operations')
+    const dialog=a.page.getByRole('dialog',{name:'Guardar como plantilla',exact:true});await dialog.getByRole('textbox',{name:/^Nombre/}).fill('Synthetic confirmed operations')
     const templateResponse=a.page.waitForResponse(r=>r.url()===stack.urls.api+'/studio/templates'&&r.request().method()==='POST')
     await dialog.getByRole('button',{name:'Guardar plantilla',exact:true}).click();const savedTemplate=await json(await templateResponse)
     assert.equal(savedTemplate.document.objects.find(o=>o.id==='shape-a').x,171);assert.equal((await fresh()).document.objects.find(o=>o.id==='shape-a').x,171)
@@ -90,6 +92,12 @@ export async function verifyStudioOperations(stack,{users,companies}) {
     assert.equal((await fresh()).document.objects.find(o=>o.id==='shape-a').x,171)
     await a.page.goto(stack.urls.web+`/app/m/runly.studio/?design=${design.id}`);await a.page.locator('.upper-canvas').waitFor()
     report('Working-copy template save waits for confirmed design changes; original design remains independent')
+    const reloadRevision=(await fresh()).revision
+    await a.context.setOffline(true);await selectLayer(a.page,1);await a.page.getByLabel('Posición X',{exact:true}).fill('182');await a.page.getByLabel('Posición X',{exact:true}).press('Tab')
+    await until(()=>a.page.evaluate(()=>Object.keys(sessionStorage).some(k=>k.startsWith('runly:studio:queue:'))),'Pending queue persisted in browser')
+    await a.context.setOffline(false);await a.page.reload();await a.page.locator('.upper-canvas').waitFor()
+    await until(async()=>{const r=await fresh();return r.document.objects.find(o=>o.id==='shape-a').x===182&&r.revision===reloadRevision+1},'Reload publishes pending browser queue exactly once')
+    report('Actual browser sessionStorage queue survives offline/reload and is confirmed once')
 
     const receiptOps=[{type:'patch',id:'shape-a',set:{fill:'#abcdef'},unset:[]}],before=(await fresh()).revision
     const replies=await Promise.all([changes(0,'duplicate-client',1,receiptOps).then(json),changes(0,'duplicate-client',1,receiptOps).then(json)])
@@ -97,6 +105,7 @@ export async function verifyStudioOperations(stack,{users,companies}) {
     assert.equal((await changes(0,'duplicate-client',1,[{type:'remove',id:'shape-a'}])).status,409)
     assert.equal((await changes(0,'duplicate-client',0,[])).status,400)
     assert.equal((await stack.pool.query("SELECT count(*)::int AS n FROM audit_log WHERE entity_id=$1 AND metadata->>'clientId'='duplicate-client'",[design.id])).rows[0].n,1)
+    assert.ok((await stack.pool.query("SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='studio_operation_receipt_identity'")).rowCount)
     report('Concurrent identical POSTs commit once, receipt survives real SQL, reused identity with changed content rejects 409')
 
     async function core(actor,id,options={}){
@@ -169,11 +178,17 @@ export async function verifyStudioOperations(stack,{users,companies}) {
     assert.equal((await api(`${root}/assets/${file.id}/edited-copy`,{actor:1,method:'POST',body:deniedEdit})).status,404)
     await changes(0,'post-revoke-owner-session',1,[{type:'patch',id:'shape-a',set:{x:350}}]).then(json);await sleep(500)
     assert.equal(sockets[1].messages.length,count)
+    const newLive=await json(await api(`${root}/live`,{data:{sessionId:'post-revoke-owner-peek',peek:true}}))
+    const revokedClient=createClient(stack.urls.kong,stack.secret.SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});clients.push(revokedClient);await revokedClient.realtime.setAuth(tokens[1])
+    const revokedChannel=revokedClient.channel(newLive.topic,{config:{private:true}})
+    const revokedState=await new Promise(resolve=>{const timer=setTimeout(()=>resolve('TIMED_OUT'),12000);revokedChannel.subscribe(s=>{if(['SUBSCRIBED','CHANNEL_ERROR','TIMED_OUT'].includes(s)){clearTimeout(timer);resolve(s)}})})
+    assert.notEqual(revokedState,'SUBSCRIBED')
     assert.notEqual((await fresh()).document.objects.find(o=>o.id==='shape-a').x,777);assert.ok(values.has('offline'))
     assert.equal((await fresh()).document.objects.find(o=>o.id==='private-photo').image.zoom,1)
     report('Active revocation blocks offline queue/retry/reload and private-image capability; old B channel receives no later operation; local draft retained')
     await a.page.screenshot({path:join(stack.directory,'operations-owner.png')});await c.page.screenshot({path:join(stack.directory,'operations-viewer.png')})
+    assert.deepEqual(errors,[])
     return {checks,identities:4,auth:'real Supabase',sql:'disposable only',faults:'explicit response loss/offline/message reorder injections; no forged auth'}
   }catch(error){for(const context of contexts)for(const page of context.pages())await page.screenshot({path:join(stack.directory,`operations-failure-${contexts.indexOf(context)}.png`)}).catch(()=>{});throw error}
-  finally{for(const sync of syncs)sync.close();await browser.close();await Promise.all(clients.map(c=>c.removeAllChannels()))}
+  finally{for(const sync of syncs)sync.close();await browser.close();await Promise.all(clients.map(c=>c.removeAllChannels()));await stack.pool.query('UPDATE membership SET role_id=NULL WHERE company_id=$1 AND user_id=$2',[company.id,viewer.id])}
 }

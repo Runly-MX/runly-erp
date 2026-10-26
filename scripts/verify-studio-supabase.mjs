@@ -79,7 +79,7 @@ try {
   if(baseline)bundle.baseline=baseline
   web = await preview(config)
   if(process.argv.includes('--operations-only')){
-    const result={passed:true,operations:await verifyStudioOperations(stack,data),gradients:await verifyStudioGradients(stack,data),bundle}
+    const result={passed:true,operations:await verifyStudioOperations(stack,data),gradients:await verifyStudioGradients(stack,data),photos:await verifyStudioPhotos(stack,data),shapePhotos:await verifyStudioPhotos(stack,data,{shape:true}),bundle}
     await writeFile(join(stack.directory,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2))
   }else if(process.argv.includes('--gradients-only')){
     const result={passed:true,gradients:await verifyStudioGradients(stack,data),bundle}

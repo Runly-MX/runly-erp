@@ -47,7 +47,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const [credits,setCredits]=useState(null)
   const [canEdit, setCanEdit] = useState(record.canEdit !== false), [denied, setDenied] = useState(false)
   const editorRef = useRef(null), nameRef = useRef(name), timer = useRef(null)
-  const { sync, status } = useStudioSync({ record, token, scope, editorRef,
+  const { sync, status,revision:sharedRevision } = useStudioSync({ record, token, scope, editorRef,
     onName: value => { nameRef.current = value; setName(value) },
     onError: message => setError(message),onConflict:draft=>{collisions.write(draft);setRecovery(draft)} })
   const unsynced = status !== 'synced'
@@ -77,7 +77,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     const state = sync.state()
     store.clear(); setCopyWarning(false); setError('')
     onRecordChange?.({ ...record, name: state.name, revision: state.revision, document: state.document })
-  }, [status]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [status,sharedRevision]) // eslint-disable-line react-hooks/exhaustive-deps
   const navigation = useStudioNavigation(unsynced, preserve)
   useEffect(() => () => { clearTimeout(timer.current); if (sync.state().status !== 'synced') preserve() }, [preserve, sync])
   // A (re)mounted canvas shows the shared state, which may be newer than `initial`.

@@ -10,6 +10,7 @@ const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), by
 // through the realtime channel and are shown through editor.applyRemote.
 export function useStudioSync({ record, token, scope, editorRef, onName, onError, onConflict }) {
   const [status, setStatus] = useState('synced')
+  const [revision,setRevision]=useState(record.revision)
   const callbacks = useRef({ onName, onError, onConflict, token })
   useEffect(() => { callbacks.current = { onName, onError, onConflict, token } }, [onName, onError, onConflict, token])
   const sync = useMemo(() => createStudioSync({
@@ -26,11 +27,12 @@ export function useStudioSync({ record, token, scope, editorRef, onName, onError
     // Before the canvas exists the shared state is kept and shown once it is ready.
     editor: { apply: async document => editorRef.current?.applyRemote(document) },
     onStatus: setStatus,
+    onRevision:setRevision,
     onName: name => callbacks.current.onName?.(name),
     onError: (message, error) => callbacks.current.onError?.(message, error),
     onConflict: draft => callbacks.current.onConflict?.(draft),
     storage: window.sessionStorage,storageKey:`runly:studio:queue:${scope}:${record.id}`,
   }), [record.id,scope]) // eslint-disable-line react-hooks/exhaustive-deps -- one session per scoped design
   useEffect(() => {sync.start();const online=()=>sync.resync();window.addEventListener('online',online);return () => {window.removeEventListener('online',online);sync.close()}}, [sync])
-  return { sync, status }
+  return { sync, status,revision }
 }

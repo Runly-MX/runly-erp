@@ -121,3 +121,18 @@ test('refetch receipt retires a confirmed remove/re-add before replay; remote ap
   await a.sync.resync();await saving
   assert.deepEqual(a.sync.state().document,server.document);assert.equal(server.requests.length,1);a.sync.close()
 })
+test('flush awaits remote renderer completion and publishes confirmed revision to the route cache observer',async()=>{
+  const doc=base(),revisions=[];let release
+  const wait=new Promise(resolve=>{release=resolve})
+  const sync=createStudioSync({document:doc,revision:1,name:'test',clientId:'client-test',transport:{send:async()=>({revision:2}),fetch:async()=>({document:doc,revision:2})},editor:{apply:async target=>{await wait;return target}},onRevision:n=>revisions.push(n)})
+  sync.receive({revision:2,clientId:'other-client',ops:diffOps(doc,edit(doc,0,{x:222}))})
+  let complete=false;const flushing=sync.flush().then(()=>{complete=true});await sleep(5);assert.equal(complete,false);assert.deepEqual(revisions,[])
+  release();await flushing;assert.ok(revisions.includes(2));sync.close()
+})
+test('failed remote rendering rejects flush, keeps the old scene and can recover with resync',async()=>{
+  const doc=base(),next=edit(doc,0,{x:222});let unavailable=true
+  const sync=createStudioSync({document:doc,revision:1,name:'test',clientId:'client-test',transport:{send:async()=>({revision:2}),fetch:async()=>({document:next,revision:2})},editor:{apply:async target=>{if(unavailable)throw Error('image unavailable');return target}}})
+  sync.receive({revision:2,clientId:'other-client',ops:diffOps(doc,next)});await assert.rejects(sync.flush(),/image unavailable/)
+  assert.deepEqual(sync.state().document,doc);assert.equal(sync.state().status,'error')
+  unavailable=false;await sync.resync();await sync.flush();assert.deepEqual(sync.state().document,next);assert.equal(sync.state().status,'synced');sync.close()
+})
