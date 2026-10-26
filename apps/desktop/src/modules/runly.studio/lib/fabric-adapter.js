@@ -86,6 +86,19 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     queue = task.catch(() => {})
     return task
   }
+  async function travelHistory(direction) {
+    writable()
+    const next = history.peek(direction)
+    if (!next) return
+    const ids = canvas.getActiveObjects().map(object => object.studioId)
+    await restore(next, true)
+    history.move(direction)
+    // Restore by stable document IDs, never by disposed Fabric object references.
+    const surviving = ids.filter(id => source.has(id) && !source.get(id).hidden)
+    if (surviving.length === 1) editor.select(surviving[0])
+    else editor.selectMany(surviving)
+    changed(false)
+  }
   try { await restore(current) } catch (error) { await canvas.dispose(); throw error }
   history = createDocumentHistory(snapshot())
   onHistory?.({ ...history.state(), canPaste: sharedClipboard ? sharedClipboard.read().length > 0 : false })
@@ -238,8 +251,8 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       const target = { front: objects.length - 1, back: 0, up: index + 1, down: index - 1 }[direction]
       canvas.moveObjectTo(object, Math.max(0, Math.min(objects.length - 1, target))); canvas.requestRenderAll(); changed()
     },
-    undo() { writable(); return enqueue(async () => { writable(); const next = history.peek('undo'); if (next) { await restore(next,true); history.move('undo'); changed(false) } }) },
-    redo() { writable(); return enqueue(async () => { writable(); const next = history.peek('redo'); if (next) { await restore(next,true); history.move('redo'); changed(false) } }) },
+    undo() { writable(); return enqueue(() => travelHistory('undo')) },
+    redo() { writable(); return enqueue(() => travelHistory('redo')) },
     exportImage(format = 'png', quality = 0.9, reviewedScene) {
       return enqueue(async () => {
         if (!['png','jpg'].includes(format) || !Number.isFinite(quality) || quality < 0.1 || quality > 1) throw new Error('Formato o calidad no válidos.')

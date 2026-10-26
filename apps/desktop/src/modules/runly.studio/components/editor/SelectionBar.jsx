@@ -1,6 +1,7 @@
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, NumberStepper, ToolButton } from '@runly/ui'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, ToolButton } from '@runly/ui'
 import { ArrowDown, ArrowUp, BringToFront, CopyPlus, Layers2, Lock, SendToBack, SlidersHorizontal, Trash2, Unlock } from 'lucide-react'
 import { ColorPopover } from './StudioColorPicker.jsx'
+import { TextSelectionControls } from './TextSelectionControls.jsx'
 
 const ORDER = [['front', 'Traer al frente', BringToFront], ['up', 'Subir un nivel', ArrowUp], ['down', 'Bajar un nivel', ArrowDown], ['back', 'Enviar al fondo', SendToBack]]
 
@@ -13,11 +14,11 @@ export function SelectionBar({ selection, selectedCount, disabled, onPatch, onAc
   const locked = Boolean(selection?.locked), editable = disabled || locked
   return (
     <div role="toolbar" aria-label="Opciones de la selección"
-      className="glass pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-2xl p-1 shadow-lg [scrollbar-width:none]">
+      className="glass pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-0.5 rounded-2xl p-1 shadow-lg max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11">
       {selection ? (
         <>
-          {selection.type !== 'image' ? <ColorPopover value={selection.fill} disabled={editable} onChange={fill => onPatch({ fill })} /> : null}
-          {selection.type === 'text' ? <NumberStepper label="Tamaño de letra" size="sm" min={8} max={500} step={2} value={Math.round(selection.fontSize)} disabled={editable} onChange={fontSize => onPatch({ fontSize })} className="shrink-0" /> : null}
+          {selection.type === 'text' ? <TextSelectionControls selection={selection} disabled={editable} onPatch={onPatch} />
+            : selection.type !== 'image' ? <ColorPopover value={selection.fill} disabled={editable} onChange={fill => onPatch({ fill })} /> : null}
           {selection.type !== 'image' ? <Divider /> : null}
         </>
       ) : <span className="whitespace-nowrap px-2.5 text-xs font-semibold tabular-nums">{selectedCount} seleccionados</span>}

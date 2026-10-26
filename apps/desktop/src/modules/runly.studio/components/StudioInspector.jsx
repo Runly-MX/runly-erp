@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Input, NumberStepper, SegmentedControl, Textarea, ToolButton } from '@runly/ui'
+import { Button, Input, SegmentedControl, Textarea, ToolButton } from '@runly/ui'
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalDistributeCenter, AlignStartHorizontal,
   AlignStartVertical, AlignVerticalDistributeCenter, ArrowDown, ArrowUp, BringToFront, ClipboardPaste, Copy, CopyPlus, Eye, EyeOff, Lock,
@@ -7,7 +7,6 @@ import {
 } from 'lucide-react'
 import { StudioColorPicker } from './editor/StudioColorPicker.jsx'
 import { OBJECT_META } from './editor/LayersPanel.jsx'
-import { StudioFontPicker } from './StudioFontPicker.jsx'
 
 const ALIGN = [
   ['left', 'Alinear a la izquierda', AlignStartVertical], ['center', 'Centrar horizontalmente', AlignCenterVertical], ['right', 'Alinear a la derecha', AlignEndVertical],
@@ -104,15 +103,15 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
       </div>
       {selection.type === 'text' ? (
         <Section title="Texto">
-          <StudioFontPicker value={selection.fontFamily} disabled={editable} onChange={fontFamily => onPatch({fontFamily})} />
           <Textarea aria-label="Texto del elemento" rows={3} disabled={editable} value={selection.text} onChange={event => onPatch({ text: event.target.value })} />
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-medium text-[hsl(var(--muted-foreground))]">Tamaño de letra</span>
-            <NumberStepper label="Tamaño de letra" size="sm" min={8} max={500} step={2} value={Math.round(selection.fontSize)} disabled={editable} onChange={fontSize => onPatch({ fontSize })} />
-          </div>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Cambia la fuente, el tamaño y el color desde la barra del lienzo.</p>
+          <details className="rounded-lg border border-[hsl(var(--border))] text-xs">
+            <summary className="cursor-pointer rounded-lg p-3 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">Disponibilidad de estilos</summary>
+            <p className="px-3 pb-3 leading-relaxed text-[hsl(var(--muted-foreground))]">Solo Regular 400. Negrita, cursiva, subrayado, tachado, alineación de párrafo, espaciado e interlineado aún no están disponibles.</p>
+          </details>
         </Section>
       ) : null}
-      {selection.type !== 'image' ? (
+      {selection.type !== 'image' && selection.type !== 'text' ? (
         <Section title="Color">
           <StudioColorPicker value={selection.fill} disabled={editable} onChange={fill => onPatch({ fill })} />
         </Section>
