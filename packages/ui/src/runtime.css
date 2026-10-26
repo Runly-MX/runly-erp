@@ -1224,6 +1224,37 @@ body,
   padding-left: var(--note-sheet-padding, 2rem);
 }
 .tiptap > .tableWrapper:hover .note-block-grip { opacity: 1; }
+.tiptap .resize-cursor .column-resize-handle {
+  opacity: 1;
+}
+/* :hover never fires on touch, so the handle would otherwise stay invisible
+   forever on phones even though the touch->mouse bridge (NoteEditor.jsx)
+   already forwards touch events to it. Always show it, and widen the strip
+   for a more forgiving touch target. */
+@media (pointer: coarse) {
+  .tiptap .column-resize-handle {
+    opacity: 1;
+    width: 12px;
+    right: -6px;
+  }
+}
+.tiptap .tableWrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0.75rem 0;
+  /* Breathing room so the image resize handle's -m-5 extended hit-area
+     (ImageAnnotationOverlay.jsx) isn't clipped by this wrapper's overflow
+     when the image sits in the table's last column/row. */
+  padding: 0 0.5rem 0.5rem 0;
+}
+/* Top-level tables: extend the scrolling wrapper into the sheet gutter so the
+   drag grip (TableDragHandles) sits beside the table like image grips do,
+   instead of taking a row above it. */
+.tiptap > .tableWrapper {
+  margin-left: calc(-1 * var(--note-sheet-padding, 2rem));
+  padding-left: var(--note-sheet-padding, 2rem);
+}
+.tiptap > .tableWrapper:hover .note-block-grip { opacity: 1; }
 /* Room for the add column/row strips (TableDragHandles) at the right and
    bottom edges; they are revealed on hover and always faint on touch. */
 .tiptap > .tableWrapper {

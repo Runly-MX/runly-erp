@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useCurrentEditor } from '@tiptap/react'
 import { Table2 } from 'lucide-react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, useCoarsePointer } from '@runly/ui'
+import { Popover, PopoverTrigger, PopoverContent, useCoarsePointer } from '@runly/ui'
 import { getTableMenuActions, tableMenuSections } from '../lib/tableMenuActions.js'
 import { findTableAtSelection } from '../lib/dragReorder.js'
 import { useBlockDragReorder } from '../hooks/useBlockDragReorder.js'
@@ -31,69 +31,63 @@ export function TableFloatingMenu({ bottom }) {
 
   if (!editor || !inTable || !isCoarsePointer) return null
 
-  function openSheet() {
+  function onTriggerClick(e) {
     if (wasDragRef.current) {
       wasDragRef.current = false
-      return
+      e.preventDefault()
     }
-    setOpen(true)
   }
 
   return (
-    <>
-      <button
-        onClick={openSheet}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-        // A mobile browser's own long-press context menu otherwise races
-        // (and usually wins over) the press-and-hold drag timer in
-        // useBlockDragReorder — see the matching fix + comment on
-        // ImageAnnotationOverlay.jsx's boxRef.
-        onContextMenu={(e) => e.preventDefault()}
-        aria-label="Opciones de tabla"
-        title="Opciones de tabla"
-        className="fixed z-20 flex items-center justify-center w-12 h-12 rounded-full bg-amber-500 text-white shadow-lg active:scale-95 transition-transform"
-        style={{
-          left: '1rem',
-          // Sits above the touch formatting bar (bottom comes from NoteEditor).
-        bottom: bottom ?? 'calc(1rem + var(--sab))',
-          touchAction: 'none',
-          WebkitTouchCallout: 'none',
-          userSelect: 'none',
-        }}
-      >
-        <Table2 className="w-5 h-5" />
-      </button>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="bottom">
-          <SheetHeader>
-            <SheetTitle>Opciones de tabla</SheetTitle>
-          </SheetHeader>
-          <div className="flex flex-col gap-1">
-            {tableMenuSections(getTableMenuActions(editor)).map((section, si) => (
-              <div key={section.group}>
-                {si > 0 && <div className="my-1 border-t border-border" />}
-                {section.items.map((action) => (
-                  <button
-                    key={action.label}
-                    onClick={() => { action.onClick(); setOpen(false) }}
-                    className={[
-                      'w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors',
-                      action.destructive
-                        ? 'text-destructive hover:bg-destructive/10'
-                        : 'text-foreground hover:bg-muted',
-                    ].join(' ')}
-                  >
-                    {action.label}
-                  </button>
-                ))}
-              </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          onClick={onTriggerClick}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          // A mobile browser's own long-press context menu otherwise races
+          // (and usually wins over) the press-and-hold drag timer in
+          // useBlockDragReorder — see the matching fix + comment on
+          // ImageAnnotationOverlay.jsx's boxRef.
+          onContextMenu={(e) => e.preventDefault()}
+          aria-label="Opciones de tabla"
+          title="Opciones de tabla"
+          className="fixed z-20 flex items-center justify-center w-12 h-12 rounded-full bg-amber-500 text-white shadow-lg active:scale-95 transition-transform"
+          style={{
+            left: '1rem',
+            // Sits above the touch formatting bar (bottom comes from NoteEditor).
+            bottom: bottom ?? 'calc(1rem + var(--sab))',
+            touchAction: 'none',
+            WebkitTouchCallout: 'none',
+            userSelect: 'none',
+          }}
+        >
+          <Table2 className="w-5 h-5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-64 p-1 max-h-[60vh] overflow-y-auto">
+        {tableMenuSections(getTableMenuActions(editor)).map((section, si) => (
+          <div key={section.group}>
+            {si > 0 && <div className="my-1 border-t border-border" />}
+            {section.items.map((action) => (
+              <button
+                key={action.label}
+                onClick={() => { action.onClick(); setOpen(false) }}
+                className={[
+                  'w-full text-left px-3 py-2 text-sm rounded-md transition-colors',
+                  action.destructive
+                    ? 'text-destructive hover:bg-destructive/10'
+                    : 'text-foreground hover:bg-muted',
+                ].join(' ')}
+              >
+                {action.label}
+              </button>
             ))}
           </div>
-        </SheetContent>
-      </Sheet>
-    </>
+        ))}
+      </PopoverContent>
+    </Popover>
   )
 }
