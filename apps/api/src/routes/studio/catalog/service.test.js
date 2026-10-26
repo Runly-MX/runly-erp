@@ -27,6 +27,29 @@ test('authorization precedes cache hits and scopes by company and actor; viewer 
   state.allowed=true;state.edit=false;await assert.rejects(service.insert('company-a','actor-a','iconify','tabler:star',design,{}),{status:404})
   assert.equal(state.requests,2);assert.equal(state.uploads,0)
 })
+test('Openverse search respects anonymous page size and preserves filters and pagination',async()=>{
+  const pages=[]
+  const{state,service}=fixture({get:async value=>{
+    const url=new URL(value)
+    assert.equal(url.origin,'https://api.openverse.org')
+    assert.equal(url.pathname,'/v1/images/')
+    assert.equal(url.searchParams.get('q'),'perro')
+    assert.equal(url.searchParams.get('page_size'),'20')
+    assert.equal(url.searchParams.get('license'),'cc0,pdm,by')
+    assert.equal(url.searchParams.get('license_type'),'commercial,modification')
+    assert.equal(url.searchParams.get('mature'),'false')
+    assert.equal(url.searchParams.has('collection'),false)
+    pages.push(Number(url.searchParams.get('page')))
+    return{mime:'application/json',bytes:Buffer.from(JSON.stringify({results:[row],page_count:2}))}
+  }})
+  for(const page of [1,2]){
+    const result=await service.search('company-a','actor-a','openverse',{q:'perro',page,collection:'tabler'})
+    assert.equal(result.data.length,1)
+    assert.deepEqual(result.pagination,{page,hasNext:page===1})
+  }
+  assert.deepEqual(pages,[1,2]);assert.equal(state.uploads,0)
+})
+
 test('photo import preserves original bytes and server provenance; searches never upload',async()=>{
   const{state,service}=fixture();state.bytes=await sharp({create:{width:32,height:24,channels:3,background:'#d946ef'}}).png().toBuffer()
   state.response={results:[row,{...row,license:'by-nc'}],page_count:2}

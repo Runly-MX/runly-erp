@@ -10,6 +10,8 @@ import { createLocalCatalogFixtureNetwork } from './test-network.js'
 import { isStudioRaster } from '../image-format.js'
 
 const MAX_BYTES=10*1024*1024, MIME={png:'image/png',jpeg:'image/jpeg',webp:'image/webp'}
+// Openverse anonymous searches allow at most 20 results per page.
+const OPENVERSE_PAGE_SIZE=20
 const text=(value,max=200)=>typeof value==='string'?value.slice(0,max):''
 const sourceUrl=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href.slice(0,2048):''}catch{return ''}}
 const unavailable=()=>{throw new StudioError('El proveedor devolvió un recurso no compatible.',502)}
@@ -97,8 +99,8 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
         if(!Array.isArray(response?.icons)||response.icons.length>32)unavailable()
         data=response.icons.map(iconSource).filter(row=>row&&row.id.startsWith(`${collection}:`));hasNext=response.icons.length===32
       }else{
-        const response=await json(`https://api.openverse.org/v1/images/?${new URLSearchParams({q,page:String(page),page_size:'24',license:'cc0,pdm,by',license_type:'commercial,modification',mature:'false'})}`)
-        if(!Array.isArray(response?.results)||response.results.length>24)unavailable()
+        const response=await json(`https://api.openverse.org/v1/images/?${new URLSearchParams({q,page:String(page),page_size:String(OPENVERSE_PAGE_SIZE),license:'cc0,pdm,by',license_type:'commercial,modification',mature:'false'})}`)
+        if(!Array.isArray(response?.results)||response.results.length>OPENVERSE_PAGE_SIZE)unavailable()
         data=response.results.flatMap(raw=>{
           const resource=photo(raw);if(!resource)return[]
           cache.set(`${scope}:original:openverse:${resource.id}`,{resource,originalUrl:raw.url,thumbnailUrl:raw.thumbnail})
