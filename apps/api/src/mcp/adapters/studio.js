@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { StudioError, validateDocument } from '../../../../shared/studio/document.js'
+import { StudioError, validateDocument, blankDocument } from '../../../../shared/studio/document.js'
 import { createStudioApplication,studioFileContext,studioEditorLink } from '../../routes/studio/studio-application.js'
 import { createStudioMiraiCapabilities } from '../../routes/studio/mirai-capabilities.js'
 import { studioSummary } from '../../routes/studio/studio-document-data.js'
@@ -13,10 +13,13 @@ export function createStudioAdapter(dependencies) {
     {label:'Documento editable',value:`${scene.page.width} × ${scene.page.height} px; ${studioSummary(scene).objectCount} objetos; fondo ${scene.page.background}`},
     ...scene.objects.filter(o=>o.type==='text').slice(0,8).map(o=>({label:`Texto ${o.id}`,value:`${o.text.slice(0,200)} (${o.fontFamily}, ${o.fontSize}px, ${o.fill})`}))]})
   const actions=[
-    {key:'studio_create_design',permission:'studio.create',operation:'create',label:'Crear diseño',inputSchema:z.strictObject({name:metadata.name,document:document.optional(),templateId:z.string().min(1).max(100).optional()}),
+    // New design from a full document, a template, or a blank page (size and background).
+    {key:'studio_create_design',permission:'studio.create',operation:'create',label:'Crear diseño',inputSchema:z.strictObject({name:metadata.name,document:document.optional(),templateId:z.string().min(1).max(100).optional(),
+      page:z.strictObject({width:z.number().int().min(32).max(4096),height:z.number().int().min(32).max(4096),background:z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#ffffff')}).optional()}),
       async prepare(input,a) {
         await app.designs.access.member(a.companyId,a.actorProfileId,'studio.create')
-        if(Boolean(input.document)===Boolean(input.templateId))throw new StudioError('Indica document o templateId, exclusivamente.')
+        if([input.document,input.templateId,input.page].filter(Boolean).length!==1)throw new StudioError('Indica document, templateId o page (lienzo en blanco), exclusivamente.')
+        if(input.page){const blank=blankDocument(input.page.width,input.page.height);input={...input,document:{...blank,page:{...blank.page,background:input.page.background.toLowerCase()}}};delete input.page}
         const template=input.templateId?await app.templates.get(a.companyId,a.actorProfileId,input.templateId):null
         const scene=validateDocument(template?.document??input.document)
         if(!template)await app.designs.access.assets(dependencies.prisma,a.companyId,a.actorProfileId,scene,null,studioFileContext(a))

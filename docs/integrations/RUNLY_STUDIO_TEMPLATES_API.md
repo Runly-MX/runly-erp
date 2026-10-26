@@ -19,6 +19,12 @@ imagen nueva (generada o adjunta en el chat) indica la cadena
 `runly_files_import_prepare/commit` sin destino → `studio_media` → `fileAssetId`
 como objeto `image` o `fillPaint` de una forma.
 
+`studio_create_design` acepta, de forma exclusiva, `document`, `templateId` o
+`page: {width, height, background}` para crear un lienzo en blanco (32–4096 px).
+Las imágenes deben llegar con `download_url` HTTPS del cliente (adjuntos o la
+herramienta de imágenes del chat); los archivos locales del entorno de código
+(`/mnt/data`) no son accesibles y se rechazan con `file_source_rejected`.
+
 Las proyecciones ahora preservan geometría, estilos, encuadre y referencias de
 relleno de los primeros 40 objetos: vectores/líneas ya no se convierten en
 rectángulos. El preview sigue siendo incompleto y nunca debe guardarse como
