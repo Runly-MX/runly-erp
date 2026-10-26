@@ -8,7 +8,9 @@ export function studioBounds(o) {
   const textHeight=o.type==='text'?o.text.split('\n').length*o.fontSize*(o.lineHeight??1.16):0
   const height = Math.max(o.height,textHeight) * (o.scaleY ?? 1)
   const angle = o.rotation * Math.PI / 180, c = Math.cos(angle), s = Math.sin(angle)
-  const corners = [[0,0],[width,0],[width,height],[0,height]].map(([x,y]) => [o.x+x*c-y*s,o.y+x*s+y*c])
+  const pad=o.type==='line'?Math.max(1,o.strokeWidth*2):((o.shape?.strokeWidth??o.image?.border?.width??0)/2)
+  const px=pad*(o.scaleX??1),py=pad*(o.scaleY??1)
+  const corners = [[-px,-py],[width+px,-py],[width+px,height+py],[-px,height+py]].map(([x,y]) => [o.x+x*c-y*s,o.y+x*s+y*c])
   return { left:Math.min(...corners.map(p=>p[0])),right:Math.max(...corners.map(p=>p[0])),top:Math.min(...corners.map(p=>p[1])),bottom:Math.max(...corners.map(p=>p[1])) }
 }
 const overlaps = (a,b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
@@ -43,7 +45,7 @@ export function reviewStudioDocument(input) {
       if (lower.hidden || lower.opacity===0 || !overlaps(b,studioBounds(lower))) continue
       // Only a fully covering, opaque, axis-aligned solid rectangle gives a
       // provable background. A later such rectangle occludes earlier ambiguity.
-      if (lower.type==='rectangle' && (lower.opacity??1)===1 && lower.rotation%180===0 && (!lower.fillPaint||lower.fillPaint.type==='solid') && lower.shape?.fillEnabled!==false && !lower.shape?.radius && contains(studioBounds(lower),b)) {
+      if (lower.type==='rectangle' && (lower.opacity??1)===1 && lower.rotation%180===0 && (!lower.fillPaint||lower.fillPaint.type==='solid') && lower.shape?.fillEnabled!==false && !lower.shape?.radius && !lower.shape?.strokeWidth && contains(studioBounds(lower),b)) {
         background=lower.fillPaint?.color??lower.fill; ambiguous=false
       } else ambiguous=true
     }

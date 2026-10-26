@@ -23,5 +23,7 @@ export function fillPaint(value,filePattern) {
   if(!value||!['solid','image'].includes(value.type))invalid()
   if(value.type==='solid'){if(!color(value.color))invalid();return {type:'solid',color:value.color}}
   if(typeof value.fileAssetId!=='string'||!filePattern.test(value.fileAssetId))invalid()
-  return {type:'image',fileAssetId:value.fileAssetId.toLowerCase(),image:imageProperties(value.image)}
+  const image=imageProperties(value.image)
+  if(image.mask!=='rectangle'||image.radius!==24||image.border.width!==0)invalid()
+  return {type:'image',fileAssetId:value.fileAssetId.toLowerCase(),image}
 }

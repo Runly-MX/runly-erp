@@ -209,7 +209,8 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
         const captured=editor.captureImage(target.id)
         if(canvas.getActiveObject()?.studioId!==target.id||photoFileId(captured.object)!==photoFileId(target))throw Error('La imagen seleccionada cambió durante la operación.')
         const properties=imageProperties({...imageProperties(captured.object.type==='image'?captured.object.image:captured.object.fillPaint.image),...patch})
-        const next=captured.object.type==='image'?{...captured.object,image:properties}:{...captured.object,fillPaint:{...captured.object.fillPaint,image:properties}}
+        const candidate=captured.object.type==='image'?{...captured.object,image:properties}:{...captured.object,fillPaint:{...captured.object.fillPaint,image:properties}}
+        const next=validateDocument({...snapshot(),objects:snapshot().objects.map(o=>o.id===candidate.id?candidate:o)}).objects.find(o=>o.id===candidate.id)
         const active=canvas.getActiveObject()
         if(active.configure){
           writable();active.configure({...next,width:active.width,height:active.height});source.set(next.id,next);canvas.requestRenderAll();changed();return

@@ -50,6 +50,11 @@ export async function verifyStudioPhotos(stack,{users,companies},{shape=false}={
   assert.deepEqual(Buffer.from(await(await fetch(copyAfterUndo.signedUrl)).arrayBuffer()),edited)
   const redoSave=await json(await api(path,{user:1,method:'PUT',data:{name:record.name,document:doc,revision:undoSave.revision}}))
   assert.deepEqual(redoSave.document,doc)
+  const removedDoc={...doc,objects:doc.objects.map(o=>shape?{...o,fillPaint:undefined}:o).filter(o=>shape||o.type!=='image')}
+  const removal=await json(await api(path,{user:1,method:'PUT',data:{name:record.name,document:removedDoc,revision:redoSave.revision}}))
+  await json(await api(`${path}/assets/${source.id}/signed-url`,{user:1}))
+  const restored=await json(await api(path,{user:1,method:'PUT',data:{name:record.name,document:doc,revision:removal.revision}}))
+  redoSave.revision=restored.revision
   const otherDesign=await json(await api('/studio/designs',{data:{name:'Otro diseño sintético',document:blankDocument()}}))
   assert.equal((await api(`/studio/designs/${otherDesign.id}/assets/${source.id}/signed-url`,{user:0})).status,404)
   assert.equal((await api(`/files/${source.id}/signed-url`,{user:1})).status,404)

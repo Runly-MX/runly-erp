@@ -8,6 +8,12 @@ export function createStudioImageLineage({prisma}) {
       CROSS JOIN LATERAL (SELECT CASE WHEN o->>'type'='image' THEN o->>'fileAssetId'
         WHEN o->'fillPaint'->>'type'='image' THEN o->'fillPaint'->>'fileAssetId' END AS file_id) ref
       WHERE d.id=${designId}::uuid AND d.company_id=${companyId}::uuid AND ref.file_id IS NOT NULL
+      UNION
+      SELECT DISTINCT history.file_id,0,ARRAY[history.file_id]
+      FROM (SELECT metadata FROM audit_log WHERE module_key='runly.studio' AND entity_type='StudioDesign'
+        AND entity_id=${designId}::uuid AND company_id=${companyId}::uuid AND action='studio.image.reference'
+        ORDER BY created_at DESC,id DESC LIMIT 50) event
+      CROSS JOIN LATERAL jsonb_array_elements_text(event.metadata->'fileIds') AS history(file_id)
       UNION ALL
       SELECT edge.file_id,l.depth+1,l.visited||edge.file_id
       FROM lineage l JOIN audit_log a ON a.module_key='runly.studio' AND a.entity_type='StudioDesign'

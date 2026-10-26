@@ -60,7 +60,10 @@ export function createStudioAccess({ prisma, filesService }) {
     return { ids, origins }
   }
   async function bindAssets(db, designId, actorId, { ids, origins }) {
-    await db.$queryRaw`DELETE FROM studio_design_asset WHERE design_id=${designId}::uuid AND NOT(file_id=ANY(${ids}::uuid[])) RETURNING file_id`
+    const removed=await db.$queryRaw`DELETE FROM studio_design_asset a USING studio_design d
+      WHERE a.design_id=${designId}::uuid AND d.id=a.design_id AND NOT(a.file_id=ANY(${ids}::uuid[])) RETURNING a.file_id,d.company_id`
+    if(removed.length)await db.auditLog.create({data:{companyId:removed[0].company_id,actorId,moduleKey:'runly.studio',entityType:'StudioDesign',entityId:designId,
+      action:'studio.image.reference',metadata:{fileIds:removed.map(row=>row.file_id)}}})
     for (const id of ids) await db.$queryRaw`INSERT INTO studio_design_asset(design_id,file_id,added_by,origin_design_id)
       VALUES(${designId}::uuid,${id}::uuid,${actorId}::uuid,${origins.get(id) ?? null}::uuid) ON CONFLICT DO NOTHING RETURNING file_id`
   }
