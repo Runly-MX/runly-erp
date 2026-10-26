@@ -1,14 +1,22 @@
 import { useEffect, useRef } from 'react'
 
 // Animated backdrop for the Studio hero: drifting colour glows plus floating
-// "dust" that twinkles and gently avoids the pointer. Pure canvas (no deps).
-// Pauses off-screen / in hidden tabs; prefers-reduced-motion paints one still frame.
-const COLORS = [[217, 70, 239], [139, 92, 246], [56, 189, 248], [244, 114, 182]]
+// "dust" that twinkles and gently avoids the pointer; a click on free space
+// drops a "water drop" (expanding rings + a wave that pushes the dust).
+// Pure canvas (no deps). Pauses off-screen / in hidden tabs;
+// prefers-reduced-motion paints one still frame and skips ripples.
+// Light mode uses deeper tones so the effect reads on a pale card.
+const PALETTE = {
+  dark: [[217, 70, 239], [139, 92, 246], [56, 189, 248], [244, 114, 182]],
+  light: [[192, 38, 211], [124, 58, 237], [2, 132, 199], [219, 39, 119]],
+}
 const BLOBS = [
-  { color: COLORS[0], radius: 0.55, x: [0.88, 0.12], y: [0.05, 0.18], period: [23, 31] },
-  { color: COLORS[1], radius: 0.48, x: [0.08, 0.1], y: [0.95, 0.12], period: [29, 19] },
-  { color: COLORS[2], radius: 0.36, x: [0.5, 0.25], y: [1.1, 0.1], period: [37, 27] },
+  { color: 0, radius: 0.55, x: [0.88, 0.12], y: [0.05, 0.18], period: [23, 31] },
+  { color: 1, radius: 0.48, x: [0.08, 0.1], y: [0.95, 0.12], period: [29, 19] },
+  { color: 2, radius: 0.36, x: [0.5, 0.25], y: [1.1, 0.1], period: [37, 27] },
 ]
+const RIPPLE_MS = 1500, RIPPLE_RINGS = [0, 160, 320], WAVE_SPEED = 0.32 // px per ms
+const INTERACTIVE = 'button, input, textarea, select, a, label, [role="tab"], [role="tablist"], [contenteditable="true"]'
 
 function makeParticles(width, height) {
   const count = Math.round(Math.min(130, Math.max(45, (width * height) / 7000)))
@@ -19,10 +27,12 @@ function makeParticles(width, height) {
       r: bokeh ? 3 + Math.random() * 3 : 0.8 + Math.random() * 2,
       vx: (Math.random() - 0.5) * 0.12, vy: -(0.04 + Math.random() * 0.16),
       depth: 0.3 + Math.random() * 0.7, phase: Math.random() * Math.PI * 2, speed: 0.6 + Math.random() * 1.6,
-      color: COLORS[index % COLORS.length], bokeh, ox: 0, oy: 0,
+      color: index % 4, bokeh, ox: 0, oy: 0, kx: 0, ky: 0,
     }
   })
 }
+
+const easeOut = progress => 1 - Math.pow(1 - progress, 3)
 
 export function HeroParticles({ className }) {
   const canvasRef = useRef(null)
@@ -30,7 +40,7 @@ export function HeroParticles({ className }) {
     const canvas = canvasRef.current, context = canvas?.getContext('2d')
     if (!canvas || !context) return undefined
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    let width = 0, height = 0, particles = [], frame = 0, visible = true, dark = document.documentElement.classList.contains('dark')
+    let width = 0, height = 0, particles = [], ripples = [], frame = 0, visible = true, dark = document.documentElement.classList.contains('dark')
     const pointer = { x: -1e4, y: -1e4, px: 0, py: 0 }
     function resize() {
       const rect = canvas.getBoundingClientRect(), ratio = Math.min(2, window.devicePixelRatio || 1)
@@ -39,8 +49,34 @@ export function HeroParticles({ className }) {
       context.setTransform(ratio, 0, 0, ratio, 0, 0)
       particles = makeParticles(width, height)
     }
+    function drawRipples(now, colors) {
+      ripples = ripples.filter(ripple => now - ripple.start < RIPPLE_MS + RIPPLE_RINGS.at(-1))
+      for (const ripple of ripples) {
+        const maxRadius = Math.max(220, Math.min(width, height * 2) * 0.45)
+        for (const delay of RIPPLE_RINGS) {
+          const progress = (now - ripple.start - delay) / RIPPLE_MS
+          if (progress <= 0 || progress >= 1) continue
+          const radius = easeOut(progress) * maxRadius, fade = 1 - progress
+          const [r, g, b] = colors[(ripple.color + delay / 160) % 4]
+          context.lineWidth = 0.8 + fade * 2.4
+          context.strokeStyle = dark ? `rgba(255,255,255,${fade * 0.35})` : `rgba(${r},${g},${b},${fade * 0.5})`
+          context.beginPath(); context.ellipse(ripple.x, ripple.y, radius, radius * 0.92, 0, 0, Math.PI * 2); context.stroke()
+          context.lineWidth = 6 * fade
+          context.strokeStyle = `rgba(${r},${g},${b},${fade * (dark ? 0.18 : 0.12)})`
+          context.stroke()
+        }
+        // Splash: a small bright core that fades fast.
+        const splash = 1 - (now - ripple.start) / 380
+        if (splash > 0) {
+          const [r, g, b] = colors[ripple.color]
+          const gradient = context.createRadialGradient(ripple.x, ripple.y, 0, ripple.x, ripple.y, 26)
+          gradient.addColorStop(0, `rgba(${r},${g},${b},${splash * 0.55})`); gradient.addColorStop(1, `rgba(${r},${g},${b},0)`)
+          context.fillStyle = gradient; context.beginPath(); context.arc(ripple.x, ripple.y, 26, 0, Math.PI * 2); context.fill()
+        }
+      }
+    }
     function draw(time) {
-      const t = time / 1000
+      const t = time / 1000, now = performance.now(), colors = dark ? PALETTE.dark : PALETTE.light
       context.globalCompositeOperation = 'source-over'
       context.clearRect(0, 0, width, height)
       context.globalCompositeOperation = dark ? 'lighter' : 'source-over'
@@ -49,10 +85,11 @@ export function HeroParticles({ className }) {
         const cy = (blob.y[0] + Math.cos((t / blob.period[1]) * Math.PI * 2) * blob.y[1]) * height
         const radius = blob.radius * Math.max(width, height * 1.6)
         const gradient = context.createRadialGradient(cx, cy, 0, cx, cy, radius)
-        const [r, g, b] = blob.color, alpha = dark ? 0.22 : 0.16
-        gradient.addColorStop(0, `rgba(${r},${g},${b},${alpha})`); gradient.addColorStop(1, `rgba(${r},${g},${b},0)`)
+        const [r, g, b] = colors[blob.color], alpha = dark ? 0.22 : 0.2
+        gradient.addColorStop(0, `rgba(${r},${g},${b},${alpha})`); gradient.addColorStop(0.55, `rgba(${r},${g},${b},${alpha * 0.4})`); gradient.addColorStop(1, `rgba(${r},${g},${b},0)`)
         context.fillStyle = gradient; context.fillRect(0, 0, width, height)
       }
+      if (ripples.length) drawRipples(now, colors)
       // Pointer parallax eases toward the cursor offset from the centre.
       pointer.px += ((pointer.x > -1e3 ? (pointer.x / width - 0.5) : 0) - pointer.px) * 0.04
       pointer.py += ((pointer.y > -1e3 ? (pointer.y / height - 0.5) : 0) - pointer.py) * 0.04
@@ -61,19 +98,30 @@ export function HeroParticles({ className }) {
           p.x += p.vx; p.y += p.vy
           const dx = p.x - pointer.x, dy = p.y - pointer.y, distance = Math.hypot(dx, dy)
           if (distance < 110 && distance > 0.1) { const push = (1 - distance / 110) * 2.2; p.ox += (dx / distance) * push; p.oy += (dy / distance) * push }
-          p.ox *= 0.94; p.oy *= 0.94
+          // The wave front pushes each particle once as it passes.
+          for (const ripple of ripples) {
+            if (ripple.hit.has(p)) continue
+            const rx = p.x + p.ox - ripple.x, ry = p.y + p.oy - ripple.y, d = Math.hypot(rx, ry)
+            if (d > 0.1 && Math.abs(d - (now - ripple.start) * WAVE_SPEED) < 14) {
+              ripple.hit.add(p)
+              const force = Math.max(0, 1 - d / 420) * 5
+              p.kx += (rx / d) * force; p.ky += (ry / d) * force
+            }
+          }
+          p.ox += p.kx; p.oy += p.ky; p.kx *= 0.9; p.ky *= 0.9
+          p.ox *= 0.95; p.oy *= 0.95
           if (p.y < -10) { p.y = height + 10; p.x = Math.random() * width }
           if (p.x < -10) p.x = width + 10; else if (p.x > width + 10) p.x = -10
         }
         const x = p.x + p.ox - pointer.px * 24 * p.depth, y = p.y + p.oy - pointer.py * 16 * p.depth
         const twinkle = 0.55 + 0.45 * Math.sin(t * p.speed + p.phase)
-        const [r, g, b] = p.color
+        const [r, g, b] = colors[p.color]
         if (p.bokeh) {
           const gradient = context.createRadialGradient(x, y, 0, x, y, p.r * 3)
-          gradient.addColorStop(0, `rgba(${r},${g},${b},${(dark ? 0.35 : 0.3) * twinkle})`); gradient.addColorStop(1, `rgba(${r},${g},${b},0)`)
+          gradient.addColorStop(0, `rgba(${r},${g},${b},${(dark ? 0.35 : 0.32) * twinkle})`); gradient.addColorStop(1, `rgba(${r},${g},${b},0)`)
           context.fillStyle = gradient; context.beginPath(); context.arc(x, y, p.r * 3, 0, Math.PI * 2); context.fill()
         } else {
-          context.fillStyle = `rgba(${r},${g},${b},${(dark ? 0.85 : 0.75) * twinkle * p.depth})`
+          context.fillStyle = `rgba(${r},${g},${b},${(dark ? 0.85 : 0.7) * twinkle * p.depth})`
           context.beginPath(); context.arc(x, y, p.r, 0, Math.PI * 2); context.fill()
         }
       }
@@ -91,13 +139,20 @@ export function HeroParticles({ className }) {
     const themeObserver = new MutationObserver(() => { dark = document.documentElement.classList.contains('dark'); if (reduced) draw(performance.now()) })
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
     const host = canvas.parentElement
-    const move = event => { const rect = canvas.getBoundingClientRect(); pointer.x = event.clientX - rect.left; pointer.y = event.clientY - rect.top }
+    const local = event => { const rect = canvas.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top } }
+    const move = event => Object.assign(pointer, local(event))
     const leave = () => { pointer.x = -1e4; pointer.y = -1e4 }
-    host?.addEventListener('pointermove', move); host?.addEventListener('pointerleave', leave)
+    const drop = event => {
+      if (reduced || event.button > 0 || event.target.closest?.(INTERACTIVE)) return
+      ripples.push({ ...local(event), start: performance.now(), color: Math.floor(Math.random() * 4), hit: new WeakSet() })
+      if (ripples.length > 6) ripples.shift()
+      start()
+    }
+    host?.addEventListener('pointermove', move); host?.addEventListener('pointerleave', leave); host?.addEventListener('pointerdown', drop)
     document.addEventListener('visibilitychange', start)
     return () => {
       cancelAnimationFrame(frame); resizeObserver.disconnect(); intersection.disconnect(); themeObserver.disconnect()
-      host?.removeEventListener('pointermove', move); host?.removeEventListener('pointerleave', leave)
+      host?.removeEventListener('pointermove', move); host?.removeEventListener('pointerleave', leave); host?.removeEventListener('pointerdown', drop)
       document.removeEventListener('visibilitychange', start)
     }
   }, [])
