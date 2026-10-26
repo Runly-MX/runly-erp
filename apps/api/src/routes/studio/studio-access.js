@@ -44,7 +44,7 @@ export function createStudioAccess({ prisma, filesService }) {
         AND f.enabled AND f.mime_type IN ('image/png','image/jpeg','image/webp') AND
         (f.uploaded_by_id=${actorId}::uuid OR EXISTS(SELECT 1 FROM studio_design_asset a WHERE a.design_id=${designId}::uuid AND a.file_id=f.id))`
       if(!file&&designId&&await imageAllowed(companyId,designId,id,db)){
-        ;[file]=await db.$queryRaw`SELECT id,uploaded_by_id AS \"uploadedById\",NULL::uuid AS origin FROM file_asset
+        ;[file]=await db.$queryRaw`SELECT id,uploaded_by_id AS "uploadedById",NULL::uuid AS origin FROM file_asset
           WHERE id=${id}::uuid AND entity_id=${companyId}::uuid AND enabled AND mime_type IN ('image/png','image/jpeg','image/webp')`
       }
       if (!file) {
