@@ -11,6 +11,8 @@ import { LayersPanel } from './editor/LayersPanel.jsx'
 import { PageSettingsForm } from './editor/PageSettingsForm.jsx'
 import { SelectionBar } from './editor/SelectionBar.jsx'
 import { ZoomPill } from './editor/ZoomPill.jsx'
+import { FadeSwap, SidePanel } from './editor/SidePanel.jsx'
+import { StudioContextMenu } from './editor/StudioContextMenu.jsx'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }
 
@@ -34,6 +36,9 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const [page, setPage] = useState(initial.page), [selectedIds, setSelectedIds] = useState([])
   const [panel, setPanel] = useState(() => (typeof window !== 'undefined' && window.innerWidth >= 1280 ? 'elements' : null))
   const [inspectorOpen, setInspectorOpen] = useState(true), [inspectorSheet, setInspectorSheet] = useState(false)
+  // Last opened panel keeps rendering while the side panel animates closed.
+  const [shownPanel, setShownPanel] = useState(panel)
+  if (panel && panel !== shownPanel) setShownPanel(panel)
   const pageRef = useRef(initial.page)
   const view = useStudioViewport(page, editorRef), zoom = view.zoom
   const [history, setHistory] = useState({ canUndo: false, canRedo: false }), [retry, setRetry] = useState(0), [busy, setBusy] = useState(false)
@@ -78,6 +83,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     if ((event.key === 'Delete' || event.key === 'Backspace') && hasSelection && !readOnly) { event.preventDefault(); setConfirm(true); return }
     if (!(event.ctrlKey || event.metaKey)) return
     const key = event.key.toLowerCase()
+    if (key === 'a') { event.preventDefault(); editorRef.current.selectAll(); return }
     const action = key === 'z' ? (event.shiftKey ? 'redo' : 'undo') : ({ y: 'redo', c: 'copy', v: 'paste', d: 'duplicate' })[key]
     if (!action) return
     if (readOnly && action !== 'copy') return
@@ -99,7 +105,8 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
       onPatchObject={(id, patch) => attempt(async () => { editorRef.current.select(id); editorRef.current.patch(patch) })} />,
     page: <PageSettingsForm key={`${page.width}x${page.height}:${page.background}`} page={page} disabled={readOnly || !ready} onApply={(next, scale) => editorRef.current.resize(next, scale)} />,
   }
-  const panelLabel = RAIL_ITEMS.find(item => item.key === panel)?.label
+  const panelLabel = RAIL_ITEMS.find(item => item.key === (panel ?? shownPanel))?.label
+  const openProperties = wide && inspectorOpen ? null : () => (wide ? setInspectorOpen(true) : setInspectorSheet(true))
   const inspector = <StudioInspector selection={selection} selectedCount={selectedIds.length} page={page} busy={busy || !ready} readOnly={readOnly} canPaste={history.canPaste}
     onPatch={patch => attempt(() => editorRef.current.patch(patch))} onRemove={() => setConfirm(true)}
     onAction={action => attempt(() => editorRef.current[action]())} onOrder={direction => attempt(() => editorRef.current.order(direction))}
@@ -114,16 +121,24 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
         viewMode={viewMode.mode} onCycleViewMode={viewMode.cycle} />
       <div className="flex min-h-0 flex-1">
         {!phone ? <StudioRail value={panel} onChange={setPanel} /> : null}
-        {!phone && panel ? (
-          <aside aria-label={panelLabel} className="flex w-[300px] shrink-0 flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] xl:w-[320px]">
+        {!phone ? (
+          <SidePanel side="left" open={Boolean(panel)} label={panelLabel}>
             <div className="flex h-12 shrink-0 items-center justify-between pl-4 pr-1.5">
               <h2 className="text-sm font-semibold">{panelLabel}</h2>
               <ToolButton label="Cerrar panel" side="right" onClick={() => setPanel(null)}><PanelLeftClose /></ToolButton>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{panels[panel]}</div>
-          </aside>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
+              {shownPanel ? <FadeSwap contentKey={shownPanel}>{panels[shownPanel]}</FadeSwap> : null}
+            </div>
+          </SidePanel>
         ) : null}
         <section aria-label="Área de diseño" className="relative min-w-0 flex-1 overflow-hidden bg-[hsl(var(--muted)/0.45)]">
+          <StudioContextMenu selection={selection} selectedCount={selectedIds.length} readOnly={readOnly} disabled={!ready || busy} canPaste={history.canPaste}
+            onPick={event => { if (ready && !editorRef.current?.isEditingText()) editorRef.current?.pick(event) }}
+            onAction={action => attempt(() => editorRef.current[action]())} onOrder={direction => attempt(() => editorRef.current.order(direction))}
+            onAlign={(direction, target) => attempt(() => editorRef.current.align(direction, target))} onPatch={patch => attempt(() => editorRef.current.patch(patch))}
+            onRemove={() => setConfirm(true)} onSelectAll={() => editorRef.current?.selectAll()} onFit={view.fit} onProperties={openProperties}
+            onPage={() => setPanel('page')}>
           <div ref={view.viewport} {...view.gestures} aria-label="Lienzo" className="absolute inset-0 overflow-auto overscroll-contain"
             style={{ ...DOTS, touchAction: view.hand ? 'none' : 'auto', cursor: view.hand ? 'grab' : undefined }}>
             <div style={{ position: 'relative', width: Math.max(view.size.width, page.width * zoom + 96), height: Math.max(view.size.height, page.height * zoom + 96) }}>
@@ -142,13 +157,15 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
               </div>
             </div>
           </div>
+          </StudioContextMenu>
           {!ready && !error ? <div className="pointer-events-none absolute inset-0 flex items-center justify-center"><Skeleton className="aspect-square w-2/5 max-w-sm" /></div> : null}
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center gap-2 px-2 pt-2 sm:px-4 sm:pt-3">
             {hasSelection && !readOnly && ready ? (
-              <SelectionBar selection={selection} selectedCount={selectedIds.length} disabled={blocked}
-                onPatch={patch => attempt(() => editorRef.current.patch(patch))} onAction={action => attempt(() => editorRef.current[action]())}
-                onOrder={direction => attempt(() => editorRef.current.order(direction))} onRemove={() => setConfirm(true)}
-                onProperties={wide && inspectorOpen ? null : () => (wide ? setInspectorOpen(true) : setInspectorSheet(true))} />
+              <FadeSwap contentKey="selection-bar" className="flex max-w-full justify-center">
+                <SelectionBar selection={selection} selectedCount={selectedIds.length} disabled={blocked}
+                  onPatch={patch => attempt(() => editorRef.current.patch(patch))} onAction={action => attempt(() => editorRef.current[action]())}
+                  onOrder={direction => attempt(() => editorRef.current.order(direction))} onRemove={() => setConfirm(true)} onProperties={openProperties} />
+              </FadeSwap>
             ) : null}
             {chrome.notices}
             {error ? (
@@ -167,8 +184,10 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
           </div>
           <p className="pointer-events-none absolute bottom-5 left-4 z-10 hidden text-xs tabular-nums text-[hsl(var(--muted-foreground))] md:block">{page.width} × {page.height} px</p>
         </section>
-        {wide && inspectorOpen ? (
-          <aside aria-label="Propiedades" className="w-[300px] shrink-0 overflow-y-auto overscroll-contain border-l border-[hsl(var(--border))] bg-[hsl(var(--card))] xl:w-[320px]">{inspector}</aside>
+        {wide ? (
+          <SidePanel side="right" open={inspectorOpen} label="Propiedades">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{inspector}</div>
+          </SidePanel>
         ) : null}
       </div>
       {phone ? <StudioRail orientation="horizontal" value={panel} onChange={setPanel} /> : null}

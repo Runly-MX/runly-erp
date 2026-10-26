@@ -100,6 +100,15 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       else if (objects.length > 1) canvas.setActiveObject(new ActiveSelection(objects, { canvas, lockMovementX: protectedMode, lockMovementY: protectedMode, lockScalingX: true, lockScalingY: true, lockRotation: true }))
       canvas.requestRenderAll(); selection()
     },
+    // Context menu: select what is under the pointer, keeping a multi-selection
+    // the pointer is inside of. Returns false on empty canvas.
+    pick(event) {
+      const target = canvas.findTarget(event)
+      if (!target) { canvas.discardActiveObject(); canvas.requestRenderAll(); selection(); return false }
+      if (target !== canvas.getActiveObject() && target.studioId) { canvas.setActiveObject(target); canvas.requestRenderAll(); selection() }
+      return true
+    },
+    selectAll() { editor.selectMany(canvas.getObjects().map(object => object.studioId)) },
     isEditingText: () => Boolean(canvas.getActiveObject()?.isEditing),
     setPanMode(value) { canvas.skipTargetFind = value; canvas.selection = !value; canvas.defaultCursor = value ? 'grab' : 'default' },
     resize(page, scaleContent = false) {

@@ -17,7 +17,10 @@ En el editor, la barra lateral (abajo en el teléfono) abre los paneles **Elemen
 PNG, JPG o WebP, o insertar imágenes tuyas o de la empresa sin volver a subirlas),
 **Capas** (seleccionar, mostrar u ocultar y bloquear) y **Página** (tamaño y fondo).
 
-Al seleccionar algo aparece una barra flotante con color, tamaño de letra, duplicar,
+Clic derecho (o mantener pulsado en pantallas táctiles) sobre un elemento abre su menú:
+copiar, pegar, duplicar, organizar, alinear, bloquear, ocultar, propiedades y eliminar.
+Sobre el área vacía ofrece pegar, seleccionar todo (Ctrl+A), ajustar a la pantalla y
+tamaño y fondo. Al seleccionar algo aparece una barra flotante con color, tamaño de letra, duplicar,
 organizar, bloquear y eliminar. **Propiedades** (panel derecho, o botón en pantallas
 pequeñas) edita texto, color, posición, tamaño y rotación, alinea respecto a la página
 o entre sí (con tres o más elementos puedes distribuir) y cambia el orden. Se respetan
