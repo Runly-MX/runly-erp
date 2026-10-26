@@ -29,7 +29,8 @@ export async function command(executable, args, { env = dockerEnv, input, log } 
   return output.trim()
 }
 
-export async function createStudioStack() {
+export async function createStudioStack({apiImage='runly-studio-test:api-local',webImage,normalApiStartup=false,enableMcp=false}={}) {
+  if(!/^[a-z0-9][a-z0-9./_-]*:[a-zA-Z0-9_.-]+$/.test(apiImage)||(webImage&&!/^[a-z0-9][a-z0-9./_-]*:[a-zA-Z0-9_.-]+$/.test(webImage)))throw Error('EXPLICIT_LOCAL_IMAGE_TAG_REQUIRED')
   const endpoint = await command('docker', ['context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'])
   if (!/^(npipe:|unix:)/.test(endpoint)) throw Error('LOCAL_DOCKER_ENGINE_REQUIRED')
   const name = `runly-studio-e2e-${randomBytes(6).toString('hex')}`
@@ -63,7 +64,7 @@ export async function createStudioStack() {
     '    connect_timeout: 2000\n    read_timeout: 3000\n    write_timeout: 3000\n    retries: 0\n    url:'))
   kongSource.source = kongConfig
   const databaseUrl = `postgresql://postgres:${secret.SUPABASE_POSTGRES_PASSWORD}@supabase-db:5432/postgres`
-  services['runly-api'] = { image: 'runly-studio-test:api-local', pull_policy: 'never', restart: 'no',
+  services['runly-api'] = { image: apiImage, pull_policy: 'never', restart: 'no',
     entrypoint: ['node', 'apps/api/src/index.js'],
     environment: { NODE_ENV: 'production', DATABASE_URL: databaseUrl, DIRECT_URL: databaseUrl,
       SUPABASE_URL: 'http://supabase-kong:8000', RUNLY_SUPABASE_PUBLIC_URL: urls.kong,
@@ -71,7 +72,13 @@ export async function createStudioStack() {
       SUPABASE_JWT_SECRET: secret.SUPABASE_JWT_SECRET, RUNLY_INTERNAL_SECRET: randomBytes(32).toString('hex'),
       RUNLY_SKIP_DB_INIT: '1', CORS_ORIGIN: urls.web, RUNLY_PROJECT_ROOT: '/app', RUNLY_MODULES_DIR: '/app/modules/custom', STUDIO_CATALOG_TEST_PROJECT:name },
     ports: [{ target: 4010, published: String(ports.api), host_ip: '127.0.0.1' }], networks: { default: null } }
-  services['studio-catalog-test']={image:'runly-studio-test:api-local',pull_policy:'never',restart:'no',entrypoint:['node','/app/studio-catalog-server.mjs'],
+  if(normalApiStartup){delete services['runly-api'].entrypoint;services['runly-api'].environment.RUNLY_SKIP_DB_INIT='0'}
+  if(enableMcp)Object.assign(services['runly-api'].environment,{RUNLY_MCP_ENABLED:'true',RUNLY_MCP_PUBLIC_URL:urls.api+'/mcp',RUNLY_MCP_WEB_URL:urls.web+'/app/'})
+  if(webImage)services['runly-web']={image:webImage,pull_policy:'never',restart:'no',
+    environment:{RUNLY_API_URL:urls.api,SUPABASE_URL:urls.kong,SUPABASE_ANON_KEY:secret.SUPABASE_ANON_KEY},
+    ports:[{target:80,published:String(ports.web),host_ip:'127.0.0.1'}],networks:{default:null}}
+  services['runly-api'].networks={default:{aliases:['api']}}
+  services['studio-catalog-test']={image:apiImage,pull_policy:'never',restart:'no',entrypoint:['node','/app/studio-catalog-server.mjs'],
     volumes:[{type:'bind',source:resolve('scripts/fixtures/studio/catalog-server.mjs'),target:'/app/studio-catalog-server.mjs',read_only:true}],networks:{default:null}}
   const volumes = Object.fromEntries(Object.keys(source.volumes).map(key => [key, {}]))
   const composeFile = join(directory, 'compose.json')
@@ -100,7 +107,7 @@ export async function createStudioStack() {
     await compose(['run', '--rm', '--no-deps', '--entrypoint', 'node', 'runly-api', 'prisma/seed.js'], { log: join(directory, 'seed.log') })
   }
   let closing
-  return { name, directory, secret, ports, urls, pool, compose, verifyTarget, initialize,
+  return { name, directory, secret, ports, urls, pool, compose, composeFile, verifyTarget, initialize,
     close() {
       return closing ??= (async () => {
       await pool.end()
