@@ -25,15 +25,6 @@ export async function measureRc2Receipts(stack,{users,companies},{duration=12000
       await sync.flush()
     }finally{sync.close()}
     const elapsedMs=performance.now()-start
-    if(kind==='typing'){
-      // Age only synthetic receipts on the identity-checked disposable database.
-      await stack.pool.query("UPDATE audit_log SET created_at=now()-interval '400 days' WHERE entity_id=$1 AND metadata ? 'digest'",[record.id])
-      await stack.compose(['restart','runly-api'])
-      for(let attempt=0;attempt<180;attempt++){try{if((await fetch(stack.urls.api+'/public/website/desktop/config')).ok)break}catch{}await sleep(500)}
-      const before=(await request(root)).revision,replayed=await request(root+'/changes',firstBatch)
-      assert.equal(replayed.revision,2);assert.equal((await request(root)).revision,before)
-      checks.push('Synthetic 400-day-old receipt survives an actual API restart; exact first batch replays its original acknowledgement without reapplying or advancing the current revision')
-    }
     const stats=(await stack.pool.query(`SELECT count(*)::int batches,avg(pg_column_size(metadata))::float8 average_bytes,max(pg_column_size(metadata))::int max_bytes,sum(pg_column_size(metadata))::text metadata_bytes FROM audit_log WHERE entity_id=$1 AND metadata ? 'digest'`,[record.id])).rows[0]
     const sizeAfter=Number((await stack.pool.query("SELECT pg_total_relation_size('audit_log')::text n")).rows[0].n)
     const indexes=(await stack.pool.query("SELECT pg_indexes_size('audit_log')::text total,pg_relation_size('studio_operation_receipt_identity')::text receipt")).rows[0]
@@ -43,6 +34,15 @@ export async function measureRc2Receipts(stack,{users,companies},{duration=12000
     const row={kind,events,elapsedMs,...stats,batchesPerSecond:stats.batches/(elapsedMs/1000),relationGrowthBytes:sizeAfter-sizeBefore,indexGrowthBytes:Number(indexes.total)-indexBefore,receiptIndexBytes:Number(indexes.receipt),receiptHttpMs:performance.now()-receiptStart,lookupPlan:lookup.rows[0]['QUERY PLAN'],p95CommitMs:latencies.sort((a,b)=>a-b)[Math.floor(latencies.length*0.95)],estimated8HourMetadataBytes:Number(stats.metadata_bytes)/(elapsedMs/1000)*8*3600}
     profiles.push(row);console.log(`RC2 receipt measurement ${kind}: ${stats.batches} batches / ${(elapsedMs/1000).toFixed(1)} s`)
     assert.equal((await request(root)).revision,stats.batches+1)
+    if(kind==='typing'){
+      // After measuring growth: age only synthetic receipts, not application data.
+      await stack.pool.query("UPDATE audit_log SET created_at=now()-interval '400 days' WHERE entity_id=$1 AND metadata ? 'digest'",[record.id])
+      await stack.compose(['restart','runly-api'])
+      for(let attempt=0;attempt<180;attempt++){try{if((await fetch(stack.urls.api+'/public/website/desktop/config')).ok)break}catch{}await sleep(500)}
+      const before=(await request(root)).revision,replayed=await request(root+'/changes',firstBatch)
+      assert.equal(replayed.revision,2);assert.equal((await request(root)).revision,before)
+      checks.push('Synthetic 400-day-old receipt survives an actual API restart; exact first batch replays its original acknowledgement without reapplying or advancing the current revision')
+    }
   }
   checks.push('Real prolonged typing, drop commits and 200-member transforms: batching, SQL/TOAST size, p95, indexed receipt lookup and revision count measured')
   return {checks,profiles,retention:'No purge; receipts retained for the lifetime of the installation. Isolated RC2 is time/data bounded; production requires capacity monitoring before activation.'}
