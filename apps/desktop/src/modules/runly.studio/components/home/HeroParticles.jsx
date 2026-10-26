@@ -74,8 +74,11 @@ export function HeroParticles({ className }) {
         for (let index = 0; index <= STOPS; index++) {
           const position = index / STOPS, height = waveAt(ripple, position * front, now)
           const up = Math.max(0, height), down = Math.max(0, -height)
-          crest.addColorStop(position, dark ? `rgba(255,255,255,${up * 0.14})` : `rgba(255,255,255,${up * 0.5})`)
-          trough.addColorStop(position, dark ? `rgba(${r},${g},${b},${down * 0.3})` : `rgba(${r},${g},${b},${down * 0.14})`)
+          // Dark: light physics, not neon: soft sheen + a tight specular peak on
+          // each crest (slightly tinted), troughs darken the backdrop like shadow.
+          const sheen = up * 0.07 + Math.pow(up, 6) * 0.2
+          crest.addColorStop(position, dark ? `rgba(${Math.round(232 + r * 0.09)},${Math.round(232 + g * 0.09)},${Math.round(232 + b * 0.09)},${sheen})` : `rgba(255,255,255,${up * 0.5})`)
+          trough.addColorStop(position, dark ? `rgba(4,2,12,${down * 0.32})` : `rgba(${r},${g},${b},${down * 0.14})`)
         }
         context.fillStyle = trough; context.beginPath(); context.arc(ripple.x, ripple.y, front, 0, Math.PI * 2); context.fill()
         context.fillStyle = crest; context.fill()
