@@ -4,13 +4,14 @@ import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogH
 import { ChevronLeft, ChevronRight, Expand, ImageOff, Images, ListFilter, Loader2, Plus, RefreshCw } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { scheduled } from '../lib/resource-queue.js'
+import { draggable } from '../lib/studio-drag.js'
 
 const unwrap = response => response?.data ?? response
 // Limit simultaneous decoding/downloads even when many cards enter the viewport.
 
 const FORMATS = [{ value: 'all', label: 'Todos los formatos' }, { value: 'png', label: 'PNG' }, { value: 'jpg', label: 'JPG' }, { value: 'webp', label: 'WebP' }]
 
-function ResourceCard({ asset, token, disabled, inserting, onInsert, onPreview }) {
+function ResourceCard({ asset, token, disabled, inserting, onInsert, onDragInsert, onPreview }) {
   const node = useRef(null)
   const [url, setUrl] = useState(''), [error, setError] = useState(false), [retry, setRetry] = useState(0)
   useEffect(() => {
@@ -30,6 +31,7 @@ function ResourceCard({ asset, token, disabled, inserting, onInsert, onPreview }
   return (
     <div ref={node} className="group relative aspect-square overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.5)]">
       <button type="button" disabled={disabled || !url} onClick={() => onInsert(asset)} aria-label={`Insertar ${asset.name}`} title={asset.name}
+        {...(onDragInsert && url && !disabled ? draggable({ kind: 'photo', label: asset.name, fileAssetId: asset.id, insert: point => onDragInsert(asset, point) }) : {})}
         className="absolute inset-0 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]">
         {url ? <img src={url} alt="" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105 motion-reduce:transition-none" />
           : error ? <ImageOff className="h-5 w-5 text-[hsl(var(--muted-foreground))]" /> : <Skeleton className="h-full w-full rounded-none" />}
@@ -102,7 +104,7 @@ export function StudioResources({ token, disabled, onInsert, uploader }) {
       {loading ? <div className="grid grid-cols-2 gap-2" aria-busy="true" aria-label="Buscando imágenes">{Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="aspect-square rounded-xl" />)}</div> : null}
       {result?.data.length === 0 ? <EmptyState variant="compact" icon={Images} title="Sin imágenes" description="Sube una imagen o cambia la búsqueda." /> : null}
       {result?.data.length ? <div className="grid grid-cols-2 gap-2">{result.data.map(asset => (
-        <ResourceCard key={asset.id} asset={asset} token={token} disabled={disabled || Boolean(inserting)} inserting={inserting === asset.id} onInsert={insert} onPreview={open} />
+        <ResourceCard key={asset.id} asset={asset} token={token} disabled={disabled || Boolean(inserting)} inserting={inserting === asset.id} onInsert={insert} onDragInsert={onInsert} onPreview={open} />
       ))}</div> : null}
       {totalPages > 1 ? (
         <div className="flex items-center justify-between gap-1">

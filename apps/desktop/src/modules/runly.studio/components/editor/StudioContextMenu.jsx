@@ -3,7 +3,7 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuLabel, Con
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalDistributeCenter, AlignStartHorizontal,
   AlignStartVertical, AlignVerticalDistributeCenter, ArrowDown, ArrowUp, BringToFront, ClipboardPaste, Copy, CopyPlus, EyeOff, Frame, Layers2,
-  Lock, Maximize, MousePointerSquareDashed, SendToBack, SlidersHorizontal, Trash2,
+  Group, Lock, Maximize, Ungroup, Unlock, MousePointerSquareDashed, SendToBack, SlidersHorizontal, Trash2,
 } from 'lucide-react'
 import { OBJECT_META } from './LayersPanel.jsx'
 
@@ -26,7 +26,7 @@ function Item({ icon: Icon, label, shortcut, onSelect, disabled, destructive }) 
 // Right click (or long press on touch) over the canvas. `onPick` selects what is
 // under the pointer before the menu renders, so the items match the target.
 export function StudioContextMenu({ children, onPick, selection, selectedCount, readOnly, disabled, canPaste, onAction, onOrder, onAlign, onPatch, onRemove,
-  onSelectAll, onFit, onProperties, onPage }) {
+  onSelectAll, onFit, onProperties, onPage, grouping, onPatchMany, lockedCount = 0, onUnlockAll }) {
   const multi = !selection && selectedCount > 1, has = Boolean(selection) || multi
   const editable = !readOnly && !disabled, locked = Boolean(selection?.locked)
   const alignItems = (target, list) => list.map(([direction, label, Icon]) => (
@@ -60,6 +60,14 @@ export function StudioContextMenu({ children, onPick, selection, selectedCount, 
                 {multi ? <><ContextMenuSeparator />{alignItems('selection', DISTRIBUTE)}</> : null}
               </ContextMenuSubContent>
             </ContextMenuSub>
+            {grouping?.canGroup ? <Item icon={Group} label="Agrupar" shortcut="Ctrl+G" disabled={!editable} onSelect={() => onAction('group')} /> : null}
+            {grouping?.canUngroup ? <Item icon={Ungroup} label="Desagrupar" shortcut="Ctrl+Shift+G" disabled={!editable} onSelect={() => onAction('ungroup')} /> : null}
+            {multi && onPatchMany ? (
+              <>
+                <Item icon={Lock} label="Bloquear todos" disabled={!editable} onSelect={() => onPatchMany({ locked: true })} />
+                <Item icon={EyeOff} label="Ocultar todos" disabled={!editable} onSelect={() => onPatchMany({ hidden: true })} />
+              </>
+            ) : null}
             {selection ? (
               <>
                 <Item icon={Lock} label={locked ? 'Desbloquear' : 'Bloquear'} disabled={!editable} onSelect={() => onPatch({ locked: !locked })} />
@@ -74,6 +82,7 @@ export function StudioContextMenu({ children, onPick, selection, selectedCount, 
           <>
             <Item icon={ClipboardPaste} label="Pegar" shortcut="Ctrl+V" disabled={!editable || !canPaste} onSelect={() => onAction('paste')} />
             <Item icon={MousePointerSquareDashed} label="Seleccionar todo" shortcut="Ctrl+A" disabled={disabled} onSelect={onSelectAll} />
+            {lockedCount && onUnlockAll ? <Item icon={Unlock} label={`Desbloquear todo (${lockedCount})`} disabled={!editable} onSelect={onUnlockAll} /> : null}
             <ContextMenuSeparator />
             <Item icon={Maximize} label="Ajustar a la pantalla" onSelect={onFit} />
             <Item icon={Frame} label="Tamaño y fondo" disabled={readOnly} onSelect={onPage} />

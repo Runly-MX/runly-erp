@@ -1,5 +1,5 @@
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, ToolButton } from '@runly/ui'
-import { ArrowDown, ArrowUp, BringToFront, CopyPlus, Group, Layers2, Lock, SendToBack, SlidersHorizontal, Trash2, Ungroup, Unlock } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Popover, PopoverContent, PopoverTrigger, SliderRow, ToolButton } from '@runly/ui'
+import { ArrowDown, ArrowUp, Blend, BringToFront, CopyPlus, Group, Layers2, Lock, SendToBack, SlidersHorizontal, Trash2, Ungroup, Unlock } from 'lucide-react'
 import { ColorPopover } from './StudioColorPicker.jsx'
 import { TextSelectionControls } from './TextSelectionControls.jsx'
 import { ImageSelectionControls } from './image/ImageSelectionControls.jsx'
@@ -24,6 +24,15 @@ export function SelectionBar({ selection, selectedCount, disabled, onPatch, onAc
             : selection.type === 'image' ? (imageTools ? <ImageSelectionControls selection={selection} disabled={editable} tools={imageTools} /> : null)
               : selection.type === 'line' ? <LineSelectionControls selection={selection} disabled={editable} onPatch={onPatch} />
               : <ColorPopover value={selection.fill} disabled={editable} onChange={fill => onPatch({ fill })} />}
+          {selection.type !== 'image' && imageTools ? (
+            <Popover>
+              <PopoverTrigger asChild><ToolButton label="Transparencia" side="bottom" disabled={editable} active={(selection.opacity ?? 1) < 1} className="shrink-0"><Blend /></ToolButton></PopoverTrigger>
+              <PopoverContent align="center" className="w-64 p-3">
+                <SliderRow label="Opacidad" min={0} max={100} zero={100} value={Math.round((selection.opacity ?? 1) * 100)} format={value => `${value} %`} disabled={editable}
+                  onStart={imageTools.begin} onCommit={imageTools.end} onChange={value => imageTools.patch({ opacity: value / 100 })} />
+              </PopoverContent>
+            </Popover>
+          ) : null}
           {selection.type !== 'image' || imageTools ? <Divider /> : null}
         </>
       ) : <span className="whitespace-nowrap px-2.5 text-xs font-semibold tabular-nums">{selectedCount} seleccionados</span>}

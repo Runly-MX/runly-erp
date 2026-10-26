@@ -136,7 +136,8 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     finally { refreshing.current = false }
   }, [record.id, token, preserve, revoked])
   const realtime = useStudioRealtime({ id: record.id, token, scope, onRevision: confirmed, onDenied: revoked })
-  async function insertResource(asset) {
+  // `point` (optional): centre of a drag-and-drop in page coordinates.
+  async function insertResource(asset, point = null) {
     const url = unwrap(await runly.files.getSignedUrl(asset.id, token)).signedUrl
     const response = await fetch(url)
     if (!response.ok) throw new Error('La imagen ya no está disponible.')
@@ -144,7 +145,8 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     const width = bitmap.width, height = bitmap.height; bitmap.close()
     if (width * height > 25_000_000) throw new Error('La imagen supera 25 megapíxeles.')
     const scale = Math.min(1, initial.page.width / width / 2, initial.page.height / height / 2)
-    await editorRef.current.add('image', { fileAssetId: asset.id, width: width * scale, height: height * scale })
+    const size = { width: width * scale, height: height * scale }
+    await editorRef.current.add('image', { fileAssetId: asset.id, ...size, ...(point ? { x: Math.round(point.x - size.width / 2), y: Math.round(point.y - size.height / 2) } : {}) })
   }
   async function openCredits(action) {
     const editor=editorRef.current

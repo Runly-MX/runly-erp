@@ -17,6 +17,8 @@ import { FadeSwap, SidePanel } from './editor/SidePanel.jsx'
 import { CanvasColorSampler } from './editor/CanvasColorSampler.jsx'
 import { EyedropperContext, nativeEyedropper, rememberColor, toHex } from '../lib/studio-colors.js'
 import { StudioContextMenu } from './editor/StudioContextMenu.jsx'
+import { useCanvasDrop } from './editor/useCanvasDrop.js'
+import { DropFrameHint } from './editor/DropFrameHint.jsx'
 import { useImageTools } from './editor/image/useImageTools.js'
 import { ImagePanel } from './editor/image/ImagePanel.jsx'
 import { FramingOverlay } from './editor/image/FramingOverlay.jsx'
@@ -88,15 +90,16 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const selectedObjects = objects.filter(object => selectedIds.includes(object.id))
   const sharedGroup = selectedObjects.length > 0 && selectedObjects.every(object => object.groupId && object.groupId === selectedObjects[0].groupId)
   const grouping = { canUngroup: sharedGroup, canGroup: selectedObjects.length > 1 && !sharedGroup && selectedObjects.every(object => !object.groupId && !object.locked && !object.hidden) }
-  function add(type, extra) {
-    attempt(() => editorRef.current.add(type, extra))
+  // New elements land centred on the page, or centred on the drop point.
+  const centered = (props, point = null) => ({ ...props,
+    x: Math.round(point ? point.x - props.width / 2 : (page.width - props.width) / 2), y: Math.round(point ? point.y - props.height / 2 : (page.height - props.height) / 2) })
+  function add(type, extra, point = null) {
+    attempt(() => editorRef.current.add(type, point || extra?.x === undefined ? centered(extra, point) : extra))
     if (phone) setPanel(null)
   }
-  // New library elements land centred on the page.
-  const centered = props => ({ ...props, x: Math.round((page.width - props.width) / 2), y: Math.round((page.height - props.height) / 2) })
   // Combined block: its parts are added, then grouped, as one undo step.
-  async function addBlock(block, accent) {
-    const editor = editorRef.current, origin = centered({ width: block.width, height: block.height }), parts = block.parts(accent)
+  async function addBlock(block, accent, point = null) {
+    const editor = editorRef.current, origin = centered({ width: block.width, height: block.height }, point), parts = block.parts(accent)
     await editor.beginInteraction()
     try {
       for (const part of parts) await editor.add(part.type, { ...part.props, x: origin.x + part.props.x, y: origin.y + part.props.y })
@@ -104,6 +107,13 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
       editor.group()
       await editor.endInteraction(true)
     } catch (error) { await editor.endInteraction(false); throw error }
+  }
+  // Same patch on several elements as one undo step (the engine patches the active object).
+  async function patchMany(ids, patch) {
+    const editor = editorRef.current
+    await editor.beginInteraction()
+    try { for (const id of ids) { editor.select(id, { individual: true }); editor.patch(patch) } await editor.endInteraction(true) }
+    catch (error) { await editor.endInteraction(false); throw error }
   }
   function shortcut(event) {
     if (!ready || busy || event.target.closest('input,textarea,[contenteditable=true]') || editorRef.current?.isEditingText()) return
@@ -150,16 +160,17 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   }
   const imageKit = useImageTools({ editorRef, selection, objects, resolveImage, readOnly, onError: setError, openPanel: openImagePanel,
     ensureSaved: chrome.saveState === 'saved' ? null : () => chrome.onSave() })
+  const drop = useCanvasDrop({ editorRef, canvasRef, objects, readOnly: readOnly || !ready, attempt })
   const uploader = <FileUploader accept="image/png,image/jpeg,image/webp" maxSizeMB={10} disabled={blocked} emptyLabel="Subir imagen" hint="PNG, JPG o WebP. Se conserva el original." onUpload={upload} />
   const panels = {
     elements: <ElementsLibrary disabled={blocked} onFrame={imageKit.tools.frame} loadThumbnail={catalog?.thumbnail}
-      onAddPrimitive={(type, props) => add(type, centered(props))} onAddLine={props => add('line', centered(props))}
-      onAddFigure={(id, fill) => attempt(async () => {
+      onAddPrimitive={(type, props, point) => add(type, props, point)} onAddLine={(props, point) => add('line', props, point)}
+      onAddFigure={(id, fill, point) => attempt(async () => {
         const object = await catalog.importIcon(id), ratio = object.height && object.width ? object.height / object.width : 1
-        await editorRef.current.add('vector', centered({ ...object, width: 240, height: Math.round(240 * ratio), fill }))
+        await editorRef.current.add('vector', centered({ ...object, width: 240, height: Math.round(240 * ratio), fill }, point))
         if (phone) setPanel(null)
       })}
-      onAddBlock={(block, accent) => attempt(async () => { await addBlock(block, accent); if (phone) setPanel(null) })}
+      onAddBlock={(block, accent, point) => attempt(async () => { await addBlock(block, accent, point); if (phone) setPanel(null) })}
       onImportSvg={file => attempt(async () => {
       if (file.size > 512 * 1024) throw new Error('El SVG supera 512 KB.')
       const result = await editorRef.current.importSvg(await file.text(), file.name)
@@ -171,7 +182,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     images: resourcePanel ? resourcePanel({ disabled: blocked, uploader }) : uploader,
     layers: <LayersPanel objects={objects} selectedIds={selectedIds} disabled={!ready || busy}
       onSelect={id => editorRef.current?.select(id)} onSelectGroup={id => editorRef.current?.selectGroup(id)} onToggleMany={ids => editorRef.current?.selectMany(ids)}
-      onPatchObject={(id, patch) => attempt(async () => { editorRef.current.select(id); editorRef.current.patch(patch) })} />,
+      onPatchObject={(id, patch) => attempt(async () => { editorRef.current.select(id, { individual: true }); editorRef.current.patch(patch) })} />,
     page: <PageSettingsForm key={`${page.width}x${page.height}:${page.background}`} page={page} disabled={readOnly || !ready} onApply={(next, scale) => editorRef.current.resize(next, scale)} />,
   }
   const panelLabel = (panel ?? shownPanel) === 'image' ? 'Imagen' : RAIL_ITEMS.find(item => item.key === (panel ?? shownPanel))?.label
@@ -217,12 +228,14 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
             </div>
           </SidePanel>
         ) : null}
-        <section aria-label="Área de diseño" className="relative min-w-0 flex-1 overflow-hidden bg-[hsl(var(--muted)/0.45)]">
+        <section aria-label="Área de diseño" className="relative min-w-0 flex-1 overflow-hidden bg-[hsl(var(--muted)/0.45)]" {...drop.handlers}>
           <StudioContextMenu selection={selection} selectedCount={selectedIds.length} readOnly={readOnly} disabled={!ready || busy} canPaste={history.canPaste}
             onPick={event => { if (ready && !editorRef.current?.isEditingText()) editorRef.current?.pick(event) }}
             onAction={action => attempt(() => editorRef.current[action]())} onOrder={direction => attempt(() => editorRef.current.order(direction))}
             onAlign={(direction, target) => attempt(() => editorRef.current.align(direction, target))} onPatch={patch => attempt(() => editorRef.current.patch(patch))}
             onRemove={() => setConfirm(true)} onSelectAll={() => editorRef.current?.selectAll()} onFit={view.fit} onProperties={openProperties}
+            grouping={grouping} onPatchMany={patch => attempt(() => patchMany(selectedIds, patch))}
+            lockedCount={objects.filter(object => object.locked).length} onUnlockAll={() => attempt(() => patchMany(objects.filter(object => object.locked).map(object => object.id), { locked: false }))}
             onPage={() => setPanel('page')}>
           <div ref={view.viewport} {...view.gestures} aria-label="Lienzo" className="absolute inset-0 overflow-auto overscroll-contain"
             // Double-click a photo: isolate it and move/scale it inside its frame.
@@ -232,6 +245,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
               <div ref={view.paper} className="shadow-[0_12px_48px_-12px_rgb(0_0_0/0.35)] ring-1 ring-black/5"
                 style={{ position: 'absolute', left: Math.max(48, (view.size.width - page.width * zoom) / 2), top: Math.max(48, (view.size.height - page.height * zoom) / 2), transform: `scale(${zoom})`, transformOrigin: 'top left', width: page.width, height: page.height }}>
                 <canvas ref={canvasRef} aria-label="Lienzo editable de Studio" />
+                {drop.target ? <DropFrameHint frame={drop.target} zoom={zoom} /> : null}
                 {imageKit.framing ? <FramingOverlay item={imageKit.framing.item} props={imageKit.framing.props} natural={imageKit.framing.natural} imageUrl={imageKit.framing.imageUrl} zoom={zoom}
                   onFrame={next => imageKit.tools.image(next)} onDone={() => imageKit.finishFraming(true)} onCancel={() => imageKit.finishFraming(false)} /> : null}
                 {participants.map(user => <div key={`${user.userId}:${user.sessionId}`} className="pointer-events-none absolute inset-0">
