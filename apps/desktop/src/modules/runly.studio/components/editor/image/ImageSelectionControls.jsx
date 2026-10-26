@@ -24,7 +24,7 @@ export function ImageSelectionControls({ selection, disabled, tools }) {
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-60">Recorta, endereza, anota o aplica filtros. Se guarda una copia; el original sigue intacto en Files.</TooltipContent>
       </Tooltip>
-      <ToolButton label="Recortar y encuadrar" side="bottom" disabled={disabled} onClick={tools.startFraming}><Crop /></ToolButton>
+      <ToolButton label="Recortar y encuadrar (doble clic en la foto)" side="bottom" disabled={disabled} onClick={tools.startFraming}><Crop /></ToolButton>
       <Popover open={framesOpen} onOpenChange={setFramesOpen}>
         <PopoverTrigger asChild>
           <ToolButton label="Marcos" side="bottom" disabled={disabled} active={props.mask !== 'rectangle' || props.border.width > 0}><Squircle /></ToolButton>

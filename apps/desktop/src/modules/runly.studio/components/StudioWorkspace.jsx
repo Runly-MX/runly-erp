@@ -190,6 +190,8 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
             onRemove={() => setConfirm(true)} onSelectAll={() => editorRef.current?.selectAll()} onFit={view.fit} onProperties={openProperties}
             onPage={() => setPanel('page')}>
           <div ref={view.viewport} {...view.gestures} aria-label="Lienzo" className="absolute inset-0 overflow-auto overscroll-contain"
+            // Double-click a photo: isolate it and move/scale it inside its frame.
+            onDoubleClick={() => { if (selection?.type === 'image' && !selection.locked && !readOnly && !imageKit.framing) imageKit.tools.startFraming() }}
             style={{ ...DOTS, touchAction: view.hand ? 'none' : 'auto', cursor: view.hand ? 'grab' : undefined }}>
             <div style={{ position: 'relative', width: Math.max(view.size.width, page.width * zoom + 96), height: Math.max(view.size.height, page.height * zoom + 96) }}>
               <div ref={view.paper} className="shadow-[0_12px_48px_-12px_rgb(0_0_0/0.35)] ring-1 ring-black/5"

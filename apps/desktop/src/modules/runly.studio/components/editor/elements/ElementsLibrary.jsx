@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { SearchInput, SegmentedControl, Skeleton, cn } from '@runly/ui'
+import { SearchInput, Skeleton, Tooltip, TooltipContent, TooltipTrigger, cn } from '@runly/ui'
 import { ChevronDown, FileUp, Shapes } from 'lucide-react'
 import { scheduled } from '../../../lib/resource-queue.js'
 import { BASIC_SHAPES, BLOCKS, ELEMENT_COLORS, FIGURES, FIGURE_GROUPS, LINE_BODIES, LINE_DASHES, LINE_ENDS, LINE_WEIGHTS, matches, normalizeQuery } from '../../../lib/element-library.js'
@@ -7,7 +7,6 @@ import { FramesGrid } from '../image/FramesGrid.jsx'
 import { FRAMES } from '../../../lib/frame-shapes.js'
 
 const TILE = 'group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] p-2 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-[transform,background-color,border-color,color] duration-150 hover:border-fuchsia-500/40 hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
-const COMPACT = 'w-full [&_button]:min-w-0 [&_button]:px-1.5 [&_button]:py-1 [&_button]:text-xs'
 
 function Section({ title, count, initial = 8, children, render }) {
   const [open, setOpen] = useState(false)
@@ -52,6 +51,41 @@ function FigureThumb({ id, color, loadThumbnail }) {
   )
 }
 
+// A stroke drawn the way it will look (dash, weight and arrow ends).
+function StrokeGlyph({ dash = 'solid', width = 2.5, start = false, end = false }) {
+  return (
+    <svg viewBox="0 0 32 16" className="h-4 w-8 overflow-visible" aria-hidden>
+      <line x1={start ? 7 : 2} y1="8" x2={end ? 25 : 30} y2="8" stroke="currentColor" strokeWidth={width} strokeLinecap={dash === 'dotted' ? 'round' : 'butt'}
+        strokeDasharray={dash === 'dashed' ? '5 3' : dash === 'dotted' ? '0.1 4' : undefined} />
+      {end ? <path d="M32 8L24 3.5L24 12.5Z" fill="currentColor" /> : null}
+      {start ? <path d="M0 8L8 3.5L8 12.5Z" fill="currentColor" /> : null}
+    </svg>
+  )
+}
+
+// Icon-only single choice (radiogroup); names live in tooltips / aria-labels.
+function VisualChoice({ label, options, value, onChange }) {
+  return (
+    <div role="radiogroup" aria-label={label} className="flex flex-1 gap-0.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] p-0.5">
+      {options.map(option => {
+        const active = option.value === value
+        return (
+          <Tooltip key={option.value}>
+            <TooltipTrigger asChild>
+              <button type="button" role="radio" aria-checked={active} aria-label={option.label} onClick={() => onChange(option.value)}
+                className={cn('flex h-9 flex-1 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
+                  active ? 'bg-fuchsia-600 text-white shadow-sm' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]')}>
+                {option.icon}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{option.label}</TooltipContent>
+          </Tooltip>
+        )
+      })}
+    </div>
+  )
+}
+
 function LinePreview({ body, dash, ends, color }) {
   const w = 60, h = body.key === 'spiral' ? 40 : 26, pad = 4
   const points = body.points.map(([x, y]) => `${(pad + x * (w - pad * 2)).toFixed(1)},${(pad + y * (h - pad * 2)).toFixed(1)}`).join(' ')
@@ -59,7 +93,7 @@ function LinePreview({ body, dash, ends, color }) {
   const head = (from, to) => { const a = Math.atan2(to[1] - from[1], to[0] - from[0]); return `M${to[0]} ${to[1]}L${to[0] - 7 * Math.cos(a - 0.5)} ${to[1] - 7 * Math.sin(a - 0.5)}L${to[0] - 7 * Math.cos(a + 0.5)} ${to[1] - 7 * Math.sin(a + 0.5)}Z` }
   const coords = body.points.map(([x, y]) => [pad + x * (w - pad * 2), pad + y * (h - pad * 2)])
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-8 w-full overflow-visible" aria-hidden>
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-10 w-full overflow-visible" aria-hidden>
       <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap={dash === 'dotted' ? 'round' : 'butt'} strokeDasharray={dash === 'dashed' ? '5 3' : dash === 'dotted' ? '0.5 3.5' : undefined} />
       {end.endArrow ? <path d={head(coords.at(-2), coords.at(-1))} fill={color} /> : null}
       {end.startArrow ? <path d={head(coords[1], coords[0])} fill={color} /> : null}
@@ -139,17 +173,21 @@ export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLi
 
       <Section title="Líneas y flechas" count={lines.length} initial={6} render={limit => (
         <div className="space-y-2">
-          <SegmentedControl ariaLabel="Trazo de la línea" options={LINE_DASHES} value={dash} onChange={setDash} className={COMPACT} />
-          <SegmentedControl ariaLabel="Extremos de la línea" options={LINE_ENDS} value={ends} onChange={setEnds} className={COMPACT} />
-          <SegmentedControl ariaLabel="Grosor de la línea" options={LINE_WEIGHTS} value={weight} onChange={setWeight} className={COMPACT} />
+          <div className="flex gap-2">
+            <VisualChoice label="Trazo de la línea" value={dash} onChange={setDash}
+              options={LINE_DASHES.map(option => ({ ...option, icon: <StrokeGlyph dash={option.value} /> }))} />
+            <VisualChoice label="Grosor de la línea" value={weight} onChange={setWeight}
+              options={LINE_WEIGHTS.map(option => ({ ...option, icon: <StrokeGlyph width={option.value / 3 + 1} /> }))} />
+          </div>
+          <VisualChoice label="Extremos de la línea" value={ends} onChange={setEnds}
+            options={LINE_ENDS.map(option => ({ ...option, icon: <StrokeGlyph start={option.startArrow} end={option.endArrow} /> }))} />
           <div className="grid grid-cols-3 gap-2 pt-1">
             {lines.slice(0, limit).map(body => {
               const end = LINE_ENDS.find(option => option.value === ends)
               return (
-                <button key={body.key} type="button" disabled={disabled} className={cn(TILE, 'h-[4.5rem]')}
+                <button key={body.key} type="button" disabled={disabled} className={cn(TILE, 'h-16 px-3')} title={body.label} aria-label={body.label}
                   onClick={() => onAddLine({ width: body.width, height: body.height, points: body.points, strokeWidth: weight, dash, startArrow: end.startArrow, endArrow: end.endArrow, fill: color })}>
                   <LinePreview body={body} dash={dash} ends={ends} color={color === '#ffffff' ? '#94a3b8' : color} />
-                  {body.label}
                 </button>
               )
             })}
