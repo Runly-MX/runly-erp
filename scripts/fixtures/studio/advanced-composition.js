@@ -17,11 +17,13 @@ window.studioAdvancedVerification=async()=>{
   const radial={type:'gradient',gradientType:'radial',centerX:0.3,centerY:0.6,radius:0.8,stops:linear.stops}
   await editor.setPageGradient({...DEFAULT_GRADIENT,angle:90})
   for(const [i,type]of ['rectangle','ellipse','vector'].entries()){
-    await editor.add(type,{x:60+i*170,y:50,width:140,height:90,rotation:i*15,fillPaint:i===1?radial:linear,...(type==='vector'?{svgName:'triangle.svg',geometry:{width:24,height:24,paths:[{d:'M0 24L12 0L24 24Z',fill:'color',stroke:'none',strokeWidth:0,cap:'butt',join:'miter'}]}}:{})})
+    await editor.add(type,{x:60+i*170,y:50,width:140,height:90,rotation:i*15,opacity:i===0?0.7:1,fillPaint:i===1?radial:linear,...(type==='vector'?{svgName:'triangle.svg',geometry:{width:24,height:24,paths:[{d:'M0 24L12 0L24 24Z',fill:'color',stroke:'none',strokeWidth:0,cap:'butt',join:'miter'}]}}:{})})
   }
   const first=editor.snapshot().objects[0].id
   await editor.add('image',{x:80,y:250,width:140,height:100,fileAssetId:file,image:{mask:'star',zoom:1.3}})
   await editor.add('text',{x:320,y:250,width:200,height:70,text:'Gradient scene',fill:'#ffffff',fontSize:24})
+  await editor.add('rectangle',{x:430,y:350,width:120,height:80,rotation:12,shape:{radius:16,strokeWidth:2},fillPaint:{type:'image',fileAssetId:file,image:{zoom:1.2,offsetX:0.1,rotation:25}}})
+  await editor.add('line',{x:80,y:400,width:200,height:20,rotation:5,strokeWidth:3,startCap:'circle',endCap:'diamond'})
   const doc=editor.snapshot(),png=await editor.exportPng(),jpg=await editor.exportImage('jpg',1)
   await editor.destroy();editor=await createStudioEditor(element(),{document:JSON.parse(JSON.stringify(doc)),...options})
   check(await same(png,await editor.exportPng()),'Gradient PNG changed after reopening');check(await same(jpg,await editor.exportImage('jpg',1)),'Gradient JPG changed after reopening')
@@ -29,7 +31,7 @@ window.studioAdvancedVerification=async()=>{
   // Interior pixel oracle: same canonical paint independently drawn in Canvas2D.
   const output=await raster(png),ctx=output.getContext('2d'),oracle=element();oracle.width=640;oracle.height=480
   const oc=oracle.getContext('2d');oc.fillStyle=canvasGradient(oc,doc.page.backgroundPaint,640,480);oc.fillRect(0,0,640,480)
-  oc.save();oc.translate(60,50);oc.fillStyle=canvasGradient(oc,linear,140,90);oc.fillRect(0,0,140,90);oc.restore()
+  oc.save();oc.globalAlpha=0.7;oc.translate(60,50);oc.fillStyle=canvasGradient(oc,linear,140,90);oc.fillRect(0,0,140,90);oc.restore()
   let maxError=0
   for(const [x,y]of [[80,80],[120,100],[170,110],[600,400]]){
     const a=ctx.getImageData(x,y,1,1).data,b=oc.getImageData(x,y,1,1).data
@@ -46,7 +48,8 @@ window.studioAdvancedVerification=async()=>{
   await editor.setSolidFill('#123456');check(editor.snapshot().objects[0].fillPaint.type==='solid','Solid conversion failed');await editor.undo()
   await editor.duplicate();check(editor.snapshot().objects.at(-1).fillPaint.type==='gradient','Gradient clipboard lost paint')
   checks.push('Stop editing/reverse/conversion/clipboard/one-entry gesture undo')
-  editor.selectMany(editor.snapshot().objects.slice(0,5).map(o=>o.id));const group=editor.group(),original=editor.snapshot()
+  editor.selectMany(editor.snapshot().objects.slice(0,7).map(o=>o.id));const group=editor.group(),original=editor.snapshot()
+  await editor.align('center','page');await editor.undo();check(JSON.stringify(editor.snapshot())===JSON.stringify(original),'Group alignment undo changed members')
   await editor.transformGroup(group.id,{scale:1.2,rotation:25,origin:{x:100,y:100}})
   const transformed=editor.snapshot(),groupPng=await editor.exportPng();await editor.undo();check(JSON.stringify(editor.snapshot())===JSON.stringify(original),'Group undo not atomic');await editor.redo()
   check(JSON.stringify(editor.snapshot())===JSON.stringify(transformed),'Group redo mismatch');editor.selectGroup(group.id);editor.ungroup();check(await same(groupPng,await editor.exportPng()),'Ungroup changed pixels')

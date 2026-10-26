@@ -216,6 +216,26 @@ export async function studioCases(t,{prisma,company,other,user,role,membership,r
     await prisma.fileAsset.update({where:{id:file.id},data:{enabled:false}})
     await assert.rejects(templates.use(company.id,second.id,published.id),{code:'STUDIO_ASSET_DENIED'})
   })
+  await t.test('Studio v6 MCP/MirAI: gradient contracts, approval, persistence, templates and conservative contrast',async()=>{
+    const paint={type:'gradient',gradientType:'linear',angle:135,stops:[{offset:0,color:'#d946ef',opacity:0.3},{offset:1,color:'#7945f5',opacity:1}]}
+    const scene=appendObject({...document,page:{...document.page,backgroundPaint:paint}},'ellipse',{fillPaint:{type:'gradient',gradientType:'radial',centerX:0.4,centerY:0.6,radius:0.8,stops:paint.stops}})
+    const query=async(operation,input)=>(await run('studio','query',{request:{operation,input}})).result
+    const guide=await query('studio_composition_guide',{})
+    assert.equal(guide.schemaVersion,6);assert.equal(guide.gradientContract.text,false);assert.equal(guide.shapeContract.fillPaint.gradient.type,'gradient')
+    const proposal=await prepare('studio','studio_create_design',{name:'Synthetic MCP gradient',document:scene})
+    await assert.rejects(commit('studio',proposal),{code:'approval_required'});await approve(proposal)
+    const made=await commit('studio',proposal)
+    assert.deepEqual((await query('studio_design_detail',{designId:made.result.id})).document,scene)
+    const saved=await prepare('studio','studio_template_save',{name:'Synthetic MCP gradient template',designId:made.result.id});await approve(saved)
+    const template=await commit('studio',saved)
+    assert.deepEqual((await query('studio_template_detail',{templateId:template.result.id})).document,scene)
+    const capability=createStudioMiraiCapabilities({prisma}),actor={companyId:company.id,actorProfileId:user.id}
+    const miraiGuide=await capability.tools.find(t=>t.name==='studio_composition_guide').run({},actor)
+    assert.deepEqual(miraiGuide.gradientContract,guide.gradientContract)
+    const review=await capability.tools.find(t=>t.name==='studio_review_design').run({document:scene},actor)
+    assert.ok(review.findings.some(f=>f.rule==='requires_manual_review'))
+    await assert.rejects(prepare('studio','studio_create_design',{name:'Invalid gradient',document:{...scene,page:{...scene.page,backgroundPaint:{...paint,angle:Infinity}}}}))
+  })
   const fixture=await templates.create(company.id,user.id,{name:'Consultas MCP',document})
   const design=await templates.use(company.id,user.id,fixture.id)
   return {templateId:fixture.id,designId:design.id}

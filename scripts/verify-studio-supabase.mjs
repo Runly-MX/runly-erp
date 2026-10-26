@@ -77,6 +77,10 @@ try {
   if(sourceRef)bundle.sourceRef=sourceRef
   if(baseline)bundle.baseline=baseline
   web = await preview(config)
+  if(process.argv.includes('--gradients-only')){
+    const result={passed:true,gradients:await verifyStudioGradients(stack,data),bundle}
+    await writeFile(join(stack.directory,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2))
+  }else{
   const photos=await verifyStudioPhotos(stack,data)
   const result = process.argv.includes('--creative-only') ? { passed:true,creative:await verifyStudioCreative(stack,data),bundle } : process.argv.includes('--composition-only') ? { passed: true, composition: await verifyStudioComposition(stack, data), bundle } : { ...(process.argv.includes('--collaboration-only') ? { passed: true } : await verifyStudioSupabase(stack, data)),
     collaboration: await verifyStudioCollaboration(stack, data), resources: await verifyStudioResources(stack, data), composition: await verifyStudioComposition(stack, data),creative:await verifyStudioCreative(stack,data), bundle }
@@ -85,6 +89,7 @@ try {
   result.gradients=await verifyStudioGradients(stack,data)
   await writeFile(join(stack.directory, 'result.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify(result, null, 2))
+  }
   }
 } finally {
   process.removeListener('SIGINT', interrupted); process.removeListener('SIGTERM', interrupted)

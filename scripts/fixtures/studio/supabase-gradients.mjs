@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import {blankDocument,appendObject} from '../../../apps/shared/studio/document.js'
 import {DEFAULT_GRADIENT} from '../../../apps/shared/studio/gradient.js'
+import {chromium} from 'playwright'
+import {join} from 'node:path'
+import {readFile} from 'node:fs/promises'
+import {createRequire} from 'node:module'
+import {exportImage} from './editor-controls.mjs'
+const sharp=createRequire(new URL('../../../apps/api/package.json',import.meta.url))('sharp')
 
 export async function verifyStudioGradients(stack,{users,companies}) {
   assert.equal((await stack.pool.query('SELECT id FROM runly_studio_test.environment')).rows[0]?.id,stack.name)
@@ -44,5 +50,31 @@ export async function verifyStudioGradients(stack,{users,companies}) {
   assert.equal((await api(root,{method:'PUT',data:{name:record.name,revision:saved.revision,document:malformed}})).status,400)
   assert.deepEqual((await json(await api(root))).document,edited)
   checks.push('v1-v5 real API upgrades; malformed stop rejection leaves persisted v6 untouched')
+  const browser=await chromium.launch({channel:'chrome',headless:true})
+  try{
+    const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[]
+    page.on('pageerror',e=>errors.push(e.message))
+    await page.goto(`${stack.urls.web}/app/login`);await page.locator('#identifier').fill(owner.email);await page.locator('#password').fill(owner.password)
+    await page.getByRole('button',{name:'Acceder al sistema',exact:true}).click();await page.waitForURL(url=>!url.pathname.includes('/login'))
+    await page.goto(`${stack.urls.web}/app/m/runly.studio/?view=designs`)
+    await page.getByLabel('Buscar en tus diseños',{exact:true}).fill('Synthetic v6 gradient')
+    await page.locator('svg radialGradient').first().waitFor({state:'attached'})
+    await page.screenshot({path:join(stack.directory,'gradient-home.png')})
+    await page.goto(`${stack.urls.web}/app/m/runly.studio?design=${record.id}`)
+    await page.getByRole('button',{name:'Descargar',exact:true}).waitFor()
+    const outputs=[]
+    for(const format of ['PNG','JPG']){
+      const downloaded=page.waitForEvent('download');await exportImage(page,format);const download=await downloaded,path=join(stack.directory,`gradient-export.${format.toLowerCase()}`);await download.saveAs(path)
+      const buffer=await readFile(path),{data,info}=await sharp(buffer).ensureAlpha().raw().toBuffer({resolveWithObject:true})
+      assert.equal(info.width,640);assert.equal(info.height,480)
+      const ratio=Math.hypot(600-320,440-240)/480,expected=[217+(121-217)*ratio,70+(69-70)*ratio,239+(245-239)*ratio,255],offset=(440*640+600)*4
+      expected.forEach((value,i)=>assert.ok(Math.abs(data[offset+i]-value)<=(format==='PNG'?2:4),`${format} radial page channel ${i}`))
+      outputs.push(buffer)
+    }
+    await page.reload();await page.getByRole('button',{name:'Descargar',exact:true}).waitFor()
+    const downloaded=page.waitForEvent('download');await exportImage(page);const download=await downloaded,path=join(stack.directory,'gradient-reopened.png');await download.saveAs(path)
+    assert.deepEqual(await readFile(path),outputs[0]);assert.deepEqual(errors,[])
+    checks.push('Real React Home radial SVG preview, authenticated editor reopen, PNG/JPG independent radial pixel oracle (2/4 tolerance), byte-identical PNG after reload')
+  }finally{await browser.close()}
   return {checks}
 }
