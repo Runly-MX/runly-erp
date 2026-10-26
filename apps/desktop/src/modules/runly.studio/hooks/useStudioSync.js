@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { runly } from '../../../lib/runly.js'
 import { createStudioSync } from '../lib/studio-sync.js'
+import {requireStudioProtocol} from '../../../../../shared/studio/protocol.js'
 
 const unwrap = response => response?.data ?? response
 const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), byte => byte.toString(16).padStart(2, '0')).join('')
@@ -16,8 +17,9 @@ export function useStudioSync({ record, token, scope, editorRef, onName, onError
   const sync = useMemo(() => createStudioSync({
     document: record.document, revision: record.revision, name: record.name, clientId: randomId(),actorId:scope.split(':')[1],
     transport: {
-      send: async batch => unwrap(await runly.studio.applyChanges(record.id, batch, callbacks.current.token)),
+      send: async batch => {try{requireStudioProtocol(unwrap(await runly.studio.protocol(callbacks.current.token)))}catch(error){if(error.status===404)requireStudioProtocol(null);throw error}return unwrap(await runly.studio.applyChanges(record.id, batch, callbacks.current.token))},
       fetch: async batch => {
+        try{requireStudioProtocol(unwrap(await runly.studio.protocol(callbacks.current.token)))}catch(error){if(error.status===404)requireStudioProtocol(null);throw error}
         let fresh=unwrap(await runly.studio.getDesign(record.id,callbacks.current.token))
         const receipt=batch?unwrap(await runly.studio.changeReceipt(record.id,batch,callbacks.current.token)):null
         if(receipt&&receipt.revision>fresh.revision)fresh=unwrap(await runly.studio.getDesign(record.id,callbacks.current.token))

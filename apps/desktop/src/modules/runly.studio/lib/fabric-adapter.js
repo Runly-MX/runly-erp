@@ -13,6 +13,7 @@ import { DEFAULT_GRADIENT, gradientPaint, gradientGeometry, editGradientStop, re
 import { DEFAULT_SNAPPING, DEFAULT_GRID, snappingOptions, gridOptions, createSnapIndex, snapBounds, viewportReferences } from '../../../../../shared/studio/snapping.js'
 import { transformStudioGroup } from '../../../../../shared/studio/group-transform.js'
 import { applyOps, diffOps } from '../../../../../shared/studio/operations.js'
+import { exportDimensions } from '../../../../../shared/studio/export-limits.js'
 import { controlStyle, styleControls } from './studio-controls.js'
 
 // Fabric owns interaction; only the canonical Runly scene enters history or storage.
@@ -593,9 +594,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       await editor.flush()
       return enqueue(async () => {
         if (!['png','jpg'].includes(format) || !Number.isFinite(quality) || quality < 0.1 || quality > 1) throw new Error('Formato o calidad no válidos.')
-        const width = current.page.width + 2 * bleed, height = current.page.height + 2 * bleed
-        if (!Number.isFinite(scale) || scale < 0.25 || scale > 8 || !Number.isFinite(bleed) || bleed < 0 || bleed > 400) throw new Error('Tamaño de exportación no válido.')
-        if (width * scale > 16384 || height * scale > 16384 || width * height * scale * scale > 80_000_000) throw new Error('La exportación supera 80 megapíxeles o 16384 px por lado. Elige un tamaño menor.')
+        const dimensions=exportDimensions(current.page,scale,bleed)
         if(reviewedScene && JSON.stringify(snapshot())!==JSON.stringify(validateDocument(reviewedScene)))throw new Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
         exportingNow = true; editor.setReadOnly(protectedMode)
         try {
@@ -610,8 +609,9 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
         if (transparent && format === 'png') canvas.backgroundColor = null
         canvas.renderAll()
         let output
-        try { output = canvas.toCanvasElement(scale, bleed ? { left: -bleed, top: -bleed, width, height } : undefined) }
+        try { output = canvas.toCanvasElement(scale, { left: -bleed, top: -bleed, width:dimensions.width/scale, height:dimensions.height/scale }) }
         finally { canvas.backgroundColor = background; canvas.renderAll() }
+        if(format==='jpg'){const ctx=output.getContext('2d');ctx.save();ctx.globalCompositeOperation='destination-over';ctx.fillStyle=current.page.background;ctx.fillRect(0,0,output.width,output.height);ctx.restore()}
         return await new Promise((resolve, reject) => output.toBlob(blob => { output.width = 0; output.height = 0; blob ? resolve(blob) : reject(new Error('No se pudo exportar el diseño.')) }, format === 'jpg' ? 'image/jpeg' : 'image/png', quality))
         } finally { exportingNow = false; editor.setReadOnly(protectedMode) }
       })

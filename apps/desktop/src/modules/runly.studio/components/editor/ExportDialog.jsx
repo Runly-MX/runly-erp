@@ -20,7 +20,7 @@ export function ExportDialog({ open, onOpenChange, page, exporting, onExport, on
   const [options, setOptions] = useState(remembered)
   const set = patch => setOptions(current => ({ ...current, ...patch }))
   const ppi = options.ppi ?? defaultPpi(page), size = printSizeMm(page, ppi)
-  const scaled = factor => { const scale = safeScale(page, factor); return `${Math.round(page.width * scale)} × ${Math.round(page.height * scale)} px` }
+  const scaled = factor => { try { const scale = safeScale(page, factor); return `${Math.round(page.width * scale)} × ${Math.round(page.height * scale)} px` } catch(error) { return error.message } }
   function submit() {
     try { window.localStorage.setItem(KEY, JSON.stringify(options)) } catch { /* storage unavailable */ }
     onExport({ ...options, ppi })
@@ -70,7 +70,7 @@ export function ExportDialog({ open, onOpenChange, page, exporting, onExport, on
                 <SegmentedControl ariaLabel="Perfil de color" value={options.profile} onChange={profile => set({ profile })} className="w-full [&_button]:min-w-0"
                   options={[{ value: 'cmyk', label: 'CMYK · imprenta' }, { value: 'rgb', label: 'RGB · digital' }]} />
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">{options.profile === 'cmyk'
-                  ? 'Convierte los colores a CMYK con un perfil de impresión estándar. Algunos tonos muy brillantes pueden verse más apagados; confirma el perfil con tu imprenta.'
+                  ? 'PDF rasterizado con conversión CMYK genérica. No es PDF/X ni incorpora el perfil ICC de tu imprenta; confirma sus requisitos.'
                   : 'Conserva los colores de pantalla. Úsalo para impresión digital o si tu imprenta convierte los colores.'}</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">

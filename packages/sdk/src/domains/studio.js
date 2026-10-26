@@ -1,6 +1,6 @@
 export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQueryString }) {
   const path = id => `/studio/designs/${encodeURIComponent(id)}`
-  const options = (token, method = 'GET', data) => ({ method, headers: withAuthHeaders(token), onlineOnly: true,
+  const options = (token, method = 'GET', data) => ({ method, headers: {...withAuthHeaders(token),...(method==='GET'?{}:{'X-Runly-Studio-Protocol':'2'})}, onlineOnly: true,
     ...(data === undefined ? {} : { body: JSON.stringify(data) }) })
   return {
     saveImageCopy: (id,fileId,file,token,signal) => {
@@ -31,6 +31,7 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
     thumbnail: (id, token, signal) => requestBlob(`/studio/resources/${encodeURIComponent(id)}/thumbnail`, { ...options(token), signal }),
     listDesigns: (token, query = {}) => request(`/studio/designs${toQueryString(query)}`, options(token)),
     getDesign: (id, token) => request(path(id), options(token)),
+    protocol: token=>request('/studio/protocol',options(token)),
     createDesign: (data, token) => request('/studio/designs', options(token, 'POST', data)),
     updateDesign: (id, data, token) => request(path(id), options(token, 'PUT', data)),
     applyChanges: (id, data, token) => request(`${path(id)}/changes`, options(token, 'POST', data)),

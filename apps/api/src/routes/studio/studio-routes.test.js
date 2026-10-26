@@ -42,8 +42,27 @@ test('live change batches require studio.edit and reach the service with the des
   const seen = []
   const service = { applyChanges: async (_company, _actor, id, input) => { seen.push([id, input.batchId]); return { revision: 2 } } }
   const deny = createStudioRouter({ service, requirePermission: key => async (c, next) => key === 'studio.edit' ? c.json({ error: 'Sin permiso' }, 403) : next() })
-  assert.equal((await deny.request('/studio/designs/d1/changes', { method: 'POST', body: '{"clientId":"abcdefgh","batchId":1,"ops":[]}' })).status, 403)
+  assert.equal((await deny.request('/studio/designs/d1/changes', { method: 'POST', headers:{'X-Runly-Studio-Protocol':'2'}, body: '{"clientId":"abcdefgh","batchId":1,"ops":[]}' })).status, 403)
   const allow = createStudioRouter({ service, requirePermission: () => async (_, next) => next() })
-  const response = await allow.request('/studio/designs/d1/changes', { method: 'POST', body: '{"clientId":"abcdefgh","batchId":1,"ops":[]}' })
+  const response = await allow.request('/studio/designs/d1/changes', { method: 'POST', headers:{'X-Runly-Studio-Protocol':'2'}, body: '{"clientId":"abcdefgh","batchId":1,"ops":[]}' })
   assert.equal(response.status, 200); assert.deepEqual((await response.json()).data, { revision: 2 }); assert.deepEqual(seen, [['d1', 1]])
+})
+test('obsolete writers get 426 before touching the document',async()=>{
+  let called=0;const app=createStudioRouter({service:{applyChanges:async()=>{called++},update:async()=>{called++}},requirePermission:()=>async(_,next)=>next()})
+  for(const [path,method]of [['/studio/designs/test/changes','POST'],['/studio/designs/test','PUT']])assert.equal((await app.request(path,{method,body:'{}'})).status,426)
+  assert.equal(called,0)
+})
+test('print checks access and revision after expensive processing, including read-only viewers',async()=>{
+  let revoked=false,revision=1,builds=0
+  const service={access:{get:async()=>{if(revoked)throw new StudioError('revoked',404);return {revision,canEdit:false,document:{objects:[]}}}}}
+  const form=()=>{const data=new FormData();data.set('file',new File(['synthetic'],'render.png'));data.set('revision','1');return data}
+  const router=builder=>createStudioRouter({service,requirePermission:()=>async(_,next)=>next(),printBuilder:builder})
+  const ok=router(async()=>{builds++;return Buffer.from('%PDF synthetic route test')})
+  assert.equal((await ok.request('/studio/designs/test/export/print-pdf',{method:'POST',body:form()})).status,200)
+  const revoke=router(async()=>{builds++;revoked=true;return Buffer.from('%PDF')})
+  assert.equal((await revoke.request('/studio/designs/test/export/print-pdf',{method:'POST',body:form()})).status,404)
+  revoked=false
+  const changed=router(async()=>{revision++;return Buffer.from('%PDF')})
+  assert.equal((await changed.request('/studio/designs/test/export/print-pdf',{method:'POST',body:form()})).status,409)
+  assert.equal(builds,2)
 })

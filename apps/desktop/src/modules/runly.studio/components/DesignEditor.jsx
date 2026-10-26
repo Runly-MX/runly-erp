@@ -1,3 +1,4 @@
+import {validateDocument} from '../../../../../shared/studio/document.js'
 import { documentAssetIds } from '../../../../../shared/studio/shape-properties.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, ErrorState, ConfirmDialog } from '@runly/ui'
@@ -139,7 +140,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   async function openCredits(action) {
     const editor=editorRef.current
     if(!editor)return
-    try {await editor.flush();if(editorRef.current===editor)setCredits({scene:editor.snapshot(),action})}
+    try {await ensureSaved();await editor.flush();if(editorRef.current===editor)setCredits({scene:editor.snapshot(),action})}
     catch(error){setExportError(error.message)}
   }
   // Screen (PNG/JPG) or print PDF (RGB/CMYK, bleed, crop marks) from ExportDialog.
@@ -147,7 +148,12 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     if (!editorRef.current || exporting) return
     setExporting(true); setExportError('')
     try {
-      const { blob, extension } = await exportDesign({ editor: editorRef.current, options, scene: reviewedScene, designId: record.id, token, name })
+      await ensureSaved()
+      const fresh=unwrap(await runly.studio.getDesign(record.id,token))
+      if(JSON.stringify(validateDocument(fresh.document))!==JSON.stringify(validateDocument(reviewedScene)))throw Error('El diseño cambió. Revisa la revisión actual antes de descargar.')
+      const { blob, extension } = await exportDesign({ editor: editorRef.current, options, scene: reviewedScene, designId: record.id, token, name,revision:fresh.revision })
+      const authorized=unwrap(await runly.studio.getDesign(record.id,token))
+      if(authorized.revision!==fresh.revision)throw Error('El diseño cambió durante la exportación. Vuelve a revisar y descargar.')
       const url = URL.createObjectURL(blob)
       const link = Object.assign(document.createElement('a'), { href: url, download: `${name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 80) || 'diseño'}.${extension}` })
       link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)

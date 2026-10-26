@@ -127,6 +127,15 @@ test('Studio service against disposable PostgreSQL: isolation, atomic revisions,
       assert.equal((await service.get(company,owner,design.id)).document.objects[0].x,150)
       const receipts=await pool.query("SELECT count(*)::int n FROM audit_log WHERE entity_id=$1 AND metadata->>'clientId'=$2",[design.id,input.clientId]);assert.equal(receipts.rows[0].n,1)
     })
+    await t.test('SQL guard rejects obsolete writers while current API remains usable',async()=>{
+      await pool.query(await readFile(new URL('../../../../../prisma/migrations/20261207000000_studio_protocol_guard/migration.sql',import.meta.url),'utf8'))
+      const design=await service.create(company,owner,{name:'Protocol guard',document})
+      await assert.rejects(pool.query('UPDATE studio_design SET name=$1 WHERE id=$2',['old writer',design.id]),/STUDIO_UPGRADE_REQUIRED/)
+      await assert.rejects(service.update(company,owner,design.id,{name:design.name,revision:1,document:{...document,schemaVersion:5}}),{code:'STUDIO_DOCUMENT_DOWNGRADE_DENIED'})
+      await service.update(company,owner,design.id,{name:'Current writer',revision:1,document})
+      await assert.rejects(pool.query('UPDATE studio_design SET name=$1 WHERE id=$2',['context must not leak',design.id]),/STUDIO_UPGRADE_REQUIRED/)
+      assert.equal((await service.get(company,owner,design.id)).revision,2)
+    })
     await t.test('audit failure rolls back the mutation', async () => {
       await pool.query("ALTER TABLE audit_log ADD CONSTRAINT reject_updates CHECK(action <> 'studio.design.update') NOT VALID")
       await assert.rejects(service.update(company, owner, record.id, { name: 'No debe persistir', document, revision: 2 }))

@@ -9,8 +9,10 @@ import { createStudioTemplatesService } from './studio-templates-service.js'
 import { createStudioCatalog } from './catalog/service.js'
 import { createStudioImageCopies } from './studio-image-copies.js'
 import { buildPrintPdf } from './studio-print.js'
+import {STUDIO_PROTOCOL_VERSION,STUDIO_PROTOCOL_HEADER} from '../../../../shared/studio/protocol.js'
+import {studioAssetIds} from './studio-document-data.js'
 
-export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,
+export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,printBuilder=buildPrintPdf,
   service = createStudioService({ prisma, filesService, broadcaster }),
   templates = createStudioTemplatesService({ prisma, filesService, supabaseAdmin, designService: service }) }) {
   const app = new Hono()
@@ -34,6 +36,9 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     return c.json({ error: 'No se pudo procesar el diseño.' }, 500)
   })
   app.get('/studio/designs', requirePermission('studio.view'), async c => c.json({ data: await service.list(...context(c), c.req.query()) }))
+  app.get('/studio/protocol',requirePermission('studio.view'),async c=>{await service.access.member(...context(c));c.header('Cache-Control','no-store');return c.json({data:{version:STUDIO_PROTOCOL_VERSION,schemaVersion:6}})})
+  app.use('/studio/designs/:id',async(c,next)=>{if(c.req.method==='PUT'&&c.req.header(STUDIO_PROTOCOL_HEADER)!==String(STUDIO_PROTOCOL_VERSION))throw new StudioError('Actualiza Studio antes de guardar. El borrador se conserva.',426,'STUDIO_UPGRADE_REQUIRED');await next()})
+  app.use('/studio/designs/:id/changes',async(c,next)=>{if(c.req.method==='POST'&&c.req.header(STUDIO_PROTOCOL_HEADER)!==String(STUDIO_PROTOCOL_VERSION))throw new StudioError('Actualiza Studio antes de guardar. El borrador se conserva.',426,'STUDIO_UPGRADE_REQUIRED');await next()})
   app.post('/studio/designs/:id/assets/:fileId/edited-copy',requirePermission('studio.edit'),async c => {
     const body = await c.req.parseBody()
     return c.json({data:await imageCopies.create(...context(c),c.req.param('id'),c.req.param('fileId'),body.file,fileContext(c))},201)
@@ -90,11 +95,18 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   // Real-time collaboration: a batch of object operations from an editor session.
   // Print PDF (RGB or CMYK, bleed, crop marks) from the editor's high-resolution render.
   app.post('/studio/designs/:id/export/print-pdf', requirePermission('studio.view'), async c => {
-    await service.access.get(...context(c), c.req.param('id'))
+    const before=await service.access.get(...context(c), c.req.param('id'))
+    const assetIds=studioAssetIds(before.document)
+    async function checkAssets(){if(!assetIds.length)return;const found=await prisma.fileAsset.findMany({where:{id:{in:assetIds},entityId:context(c)[0],enabled:true},select:{id:true}});if(found.length!==assetIds.length)throw new StudioError('Un archivo dejó de estar disponible.',403,'STUDIO_ASSET_DENIED')}
+    await checkAssets()
     const body = await c.req.parseBody()
     if (!(body.file instanceof Blob)) throw new StudioError('Falta la imagen de exportación.')
-    const pdf = await buildPrintPdf({ image: Buffer.from(await body.file.arrayBuffer()), widthMm: body.widthMm, heightMm: body.heightMm,
+    if(!Number.isSafeInteger(Number(body.revision))||Number(body.revision)!==before.revision)throw new StudioError('Revisa la revisión actual antes de imprimir.',409,'STUDIO_REVISION_CONFLICT')
+    const pdf = await printBuilder({ image: Buffer.from(await body.file.arrayBuffer()), widthMm: body.widthMm, heightMm: body.heightMm,
       bleedMm: body.bleedMm, cropMarks: body.cropMarks === 'true', profile: body.profile, title: body.title })
+    const after=await service.access.get(...context(c),c.req.param('id'))
+    await checkAssets()
+    if(after.revision!==before.revision)throw new StudioError('El diseño cambió durante el procesamiento.',409,'STUDIO_REVISION_CONFLICT')
     c.header('Cache-Control', 'private, no-store'); c.header('Content-Type', 'application/pdf')
     return c.body(pdf)
   })
