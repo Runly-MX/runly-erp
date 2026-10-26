@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Lock, Save } from 'lucide-react'
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader, UnsavedChangesBar } from '@runly/ui'
 import { usePurchasesCan, usePurchasesSettings, useUpdatePurchasesSettings } from '../hooks/usePurchases.js'
-import { HERO_GRADIENT, PRESETS } from '../lib/purchases-constants.js'
+import { PRESETS } from '../lib/purchases-constants.js'
 import { flowStages, presetValues, settingsSchema, toFormValues, toPayload } from '../lib/settings-form.js'
 import { PurchaseFlowRibbon } from '../components/PurchaseFlowRibbon.jsx'
 import { PresetCards } from '../components/settings/PresetCards.jsx'
@@ -52,11 +52,11 @@ export default function PurchaseSettingsScreen() {
       <PageHeader eyebrow="Compras" title="Configuración" description="Dimensiona el proceso a tu empresa. Cambiarlo no borra documentos ni historial."
         actions={canManage ? <Button onClick={save} disabled={!isDirty || update.isPending}><Save className="h-4 w-4" />{update.isPending ? 'Guardando...' : 'Guardar cambios'}</Button> : null} />
 
-      <section className="overflow-hidden rounded-3xl p-5 text-white shadow-xl md:p-7" style={{ background: HERO_GRADIENT }}>
-        <p className="text-sm text-teal-50/80">Así se verá tu proceso</p>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight">Flujo {presetName?.toLowerCase()}, {stages.length} {stages.length === 1 ? 'etapa' : 'etapas'}</h2>
-        <div className="mt-5 rounded-2xl border border-white/15 bg-white/6 px-3 py-4 backdrop-blur-md">
-          <PurchaseFlowRibbon stages={stages} surface="dark" />
+      <section className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 md:p-6">
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">Así se verá tu proceso</p>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight">Flujo {presetName?.toLowerCase()}, {stages.length} {stages.length === 1 ? 'etapa' : 'etapas'}</h2>
+        <div className="mt-4 rounded-xl bg-[hsl(var(--muted))]/30 px-3 py-4">
+          <PurchaseFlowRibbon stages={stages} />
         </div>
       </section>
 

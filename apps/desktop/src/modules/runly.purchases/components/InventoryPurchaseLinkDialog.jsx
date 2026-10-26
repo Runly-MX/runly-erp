@@ -96,7 +96,7 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
           />
         </div>
         {type === 'invoice' && selected?.order ? (
-          <p className="shrink-0 rounded-lg bg-teal-500/10 px-3 py-2 text-xs text-teal-800 dark:text-teal-200">
+          <p className="shrink-0 rounded-lg bg-[hsl(var(--primary))]/10 px-3 py-2 text-xs text-[hsl(var(--primary))]">
             Esta factura pertenece a la orden {selected.order.number}; también se relacionará con el activo.
           </p>
         ) : null}
@@ -122,12 +122,12 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
                       disabled={linked}
                       onClick={() => setSelected(doc)}
                       className={cn(
-                        'flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500',
-                        active ? 'border-teal-500 bg-teal-500/5' : 'border-[hsl(var(--border))] hover:border-teal-500/40',
+                        'flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))]',
+                        active ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5' : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary))]/40',
                         linked && 'cursor-not-allowed opacity-60',
                       )}
                     >
-                      <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-full border', active ? 'border-teal-600 bg-teal-600 text-white' : 'border-[hsl(var(--border))]')}>
+                      <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-full border', active ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))]')}>
                         {active ? <Check className="h-3 w-3" /> : null}
                       </span>
                       <span className="min-w-0 flex-1">
@@ -160,7 +160,7 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
           </div>
           <div className="flex gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="button" className="bg-teal-600 text-white hover:bg-teal-700" disabled={!selected || link.isPending} onClick={() => link.mutate(selected)}>
+            <Button type="button" disabled={!selected || link.isPending} onClick={() => link.mutate(selected)}>
               {link.isPending ? 'Guardando…' : (replaceTypes.includes(type) ? 'Cambiar' : 'Relacionar')}
             </Button>
           </div>

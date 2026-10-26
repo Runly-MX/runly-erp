@@ -3,16 +3,15 @@ import { cn } from '@runly/ui'
 // Same grammar as the inventory dashboard (Panel with a tinted icon badge and
 // a soft corner glow), copied rather than imported: modules never import each
 // other. Tones default to the Compras teal.
-export function Panel({ title, subtitle, icon: Icon, tone = '#0f766e', action = null, className, children }) {
+export function Panel({ title, subtitle, icon: Icon, tone = 'hsl(var(--primary))', action = null, className, children }) {
   return (
     <section
-      className={cn('relative min-w-0 overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/60 p-5 shadow-sm backdrop-blur-sm', className)}
-      style={{ backgroundImage: `radial-gradient(120% 80% at 100% 0%, color-mix(in oklab, ${tone} 12%, transparent), transparent 60%)` }}
+      className={cn('relative min-w-0 overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5', className)}
     >
       <header className="mb-4 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           {Icon ? (
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-sm" style={{ backgroundColor: tone }}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `color-mix(in oklab, ${tone} 14%, transparent)`, color: tone }}>
               <Icon className="h-4 w-4" />
             </span>
           ) : null}

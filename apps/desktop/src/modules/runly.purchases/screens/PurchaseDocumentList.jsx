@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
-import { Button, DataTable, EmptyState, ErrorState, FilterBar, MobileFiltersSheet, PageHeader, SearchInput } from '@runly/ui'
+import { Button, DataTable, EmptyState, ErrorState, FilterBar, MobileFiltersSheet, PageHeader, SearchInput, Skeleton, ViewModeSwitch } from '@runly/ui'
 import { useCapabilities, useDocumentList, usePurchasesCan } from '../hooks/usePurchases.js'
 import { usePurchaseRoute } from '../hooks/usePurchaseRoute.js'
 import { LIST_SECTIONS } from '../lib/list-config.js'
 import { KINDS, ROOT } from '../lib/purchases-constants.js'
 import { buildColumns } from '../components/DocumentColumns.jsx'
+import { DocumentCard } from '../components/DocumentCard.jsx'
 import { SupplierField } from '../components/SupplierField.jsx'
 import { CaseCreateDialog } from '../components/CaseCreateDialog.jsx'
 
 const PAGE_SIZE = 25
+const VIEW_KEY = 'runly.purchases.documents.view'
+const readView = () => { try { return localStorage.getItem(VIEW_KEY) === 'cards' ? 'cards' : 'table' } catch { return 'table' } }
+const WITH_ITEMS = new Set(['orders', 'invoices', 'receipts'])
 
 function useDebounced(value, delay = 300) {
   const [debounced, setDebounced] = useState(value)
@@ -35,6 +39,8 @@ export default function PurchaseDocumentList() {
   const [search, setSearch] = useState('')
   const [supplierId, setSupplierId] = useState(null)
   const [page, setPage] = useState(1)
+  const [view, setView] = useState(readView)
+  useEffect(() => { try { localStorage.setItem(VIEW_KEY, view) } catch { /* per-viewer convenience only */ } }, [view])
   const debouncedSearch = useDebounced(search)
   useEffect(() => { setStatus(config.defaultStatus ?? 'ALL'); setSearch(''); setSupplierId(null); setPage(1) }, [section, config.defaultStatus])
   useEffect(() => { setPage(1) }, [status, debouncedSearch, supplierId])
@@ -90,13 +96,14 @@ export default function PurchaseDocumentList() {
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} onClear={() => setSearch('')}
-            placeholder="Buscar por folio, título o referencia" className="min-w-48 flex-1" />
+            placeholder={WITH_ITEMS.has(config.kind) ? 'Buscar por folio, proveedor, número de activo o serie' : 'Buscar por folio, título o referencia'} className="min-w-48 flex-1" />
           <div className="hidden items-center gap-2 md:flex">
             {config.supplierFilter ? (
               <SupplierField label={null} value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="Todos los proveedores" className="w-60" />
             ) : null}
             <FilterBar filters={statusFilters} value={filterValue} onChange={onFilterChange} />
           </div>
+          <ViewModeSwitch modes={['table', 'cards']} value={view} onChange={setView} />
           <MobileFiltersSheet activeCount={activeFilters} onClear={clearFilters}>
             <div className="space-y-4">
               {config.supplierFilter ? (
@@ -114,6 +121,18 @@ export default function PurchaseDocumentList() {
       {list.isError ? (
         <ErrorState title="No se pudo cargar la lista" description={list.error?.message} onRetry={() => list.refetch()} />
       ) : (
+        view === 'cards' ? (
+          list.isLoading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}</div>
+          ) : rows.length ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {rows.map((row) => <DocumentCard key={row.id} kind={config.kind} row={row} onOpen={() => navigate(`${ROOT}/${config.kind}/${row.id}`)} />)}
+            </div>
+          ) : (
+            <EmptyState icon={kindMeta?.icon} title={debouncedSearch || status !== (config.defaultStatus ?? 'ALL') || supplierId ? 'Sin resultados con estos filtros' : config.emptyTitle}
+              description={config.emptyDescription} action={canCreate && !debouncedSearch ? { label: kindMeta.newLabel, onClick: onCreate } : null} />
+          )
+        ) : (
         <DataTable
           columns={columns}
           data={rows}
@@ -128,6 +147,7 @@ export default function PurchaseDocumentList() {
           emptyDescription={config.emptyDescription}
           emptyAction={canCreate && !debouncedSearch ? { label: kindMeta.newLabel, onClick: onCreate } : null}
         />
+        )
       )}
 
       {pageCount > 1 ? (

@@ -35,8 +35,7 @@ export default function PurchasesDashboard() {
   ].filter(Boolean)
 
   const actions = createActions.map(({ kind, icon: Icon }, index) => (
-    <Button key={kind} onClick={() => navigate(`${ROOT}/${kind}/new`)}
-      className={index === createActions.length - 1 ? 'bg-white text-teal-900 hover:bg-white/90' : 'border border-white/30 bg-white/10 text-white hover:bg-white/20'}>
+    <Button key={kind} variant={index === createActions.length - 1 ? 'default' : 'outline'} onClick={() => navigate(`${ROOT}/${kind}/new`)}>
       <Icon className="h-4 w-4" />{KINDS[kind].newLabel}
     </Button>
   ))

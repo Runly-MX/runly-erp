@@ -9,14 +9,14 @@ export const LIST_SECTIONS = {
     kind: 'orders', title: 'Órdenes de compra', capability: 'purchaseOrders',
     description: 'Compromisos con tus proveedores, de la emisión a la recepción.',
     chips: chips('orders', ['DRAFT', 'PENDING_APPROVAL', 'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED', 'CANCELLED']),
-    columns: ['folio', 'issueDate', 'expectedDate', 'status', 'total'],
+    columns: ['folio', 'issueDate', 'expectedDate', 'items', 'status', 'total'],
     supplierFilter: true, emptyTitle: 'Aún no hay órdenes', emptyDescription: 'Crea una orden para formalizar una compra con tu proveedor.',
   },
   invoices: {
     kind: 'invoices', title: 'Facturas de proveedor', capability: 'invoices',
     description: 'Comprobantes recibidos, su saldo y las órdenes que cubren.',
     chips: [...chips('invoices', ['DRAFT', 'PENDING_APPROVAL', 'PENDING', 'PARTIALLY_PAID', 'PAID', 'CANCELLED']), { value: 'OVERDUE', label: 'Vencidas', params: { overdue: 'true' } }],
-    columns: ['folio', 'issueDate', 'dueDate', 'status', 'total', 'balance'],
+    columns: ['folio', 'order', 'dueDate', 'items', 'status', 'total', 'balance'],
     supplierFilter: true, emptyTitle: 'Aún no hay facturas', emptyDescription: 'Registra la factura de un proveedor para darle seguimiento.',
   },
   requests: {
@@ -30,7 +30,7 @@ export const LIST_SECTIONS = {
     kind: 'receipts', title: 'Recepciones', capability: 'receipts',
     description: 'Mercancía recibida contra órdenes, incluso en entregas parciales.',
     chips: chips('receipts', ['DRAFT', 'COMPLETED', 'CANCELLED']),
-    columns: ['folio', 'order', 'receivedAt', 'status'],
+    columns: ['folio', 'order', 'receivedAt', 'items', 'status'],
     supplierFilter: true, emptyTitle: 'Aún no hay recepciones', emptyDescription: 'Registra una recepción desde el detalle de una orden emitida.',
   },
   cases: {
@@ -50,7 +50,7 @@ export const LIST_SECTIONS = {
       { value: 'ALL', label: 'Todas', params: { status: 'PENDING,PARTIALLY_PAID,PAID' } },
     ],
     defaultStatus: 'OPEN',
-    columns: ['folio', 'dueDate', 'status', 'total', 'paid', 'balance'],
+    columns: ['folio', 'order', 'dueDate', 'status', 'total', 'paid', 'balance'],
     supplierFilter: true, emptyTitle: 'Nada en esta vista', emptyDescription: 'Las facturas aparecen aquí cuando quedan por pagar.',
   },
 }

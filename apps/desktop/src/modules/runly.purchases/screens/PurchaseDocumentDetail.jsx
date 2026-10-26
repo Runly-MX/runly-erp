@@ -91,7 +91,7 @@ export default function PurchaseDocumentDetail() {
       <PageHeader
         compact eyebrow={`Compras · ${meta.plural}`} title={`${meta.short} ${doc.number ?? 'sin folio'}`}
         onBack={() => navigate(`${ROOT}/${kind}`)} backLabel={`Volver a ${meta.plural.toLowerCase()}`}
-        actions={actions.length ? <DocumentActionBar tone="header" kind={kind} doc={doc} actions={actions} onDialog={setDialog} /> : null}
+        actions={actions.length ? <DocumentActionBar kind={kind} doc={doc} actions={actions} onDialog={setDialog} /> : null}
       />
 
       <DocumentHero kind={kind} doc={doc} facts={factsFor(kind, doc).filter((f) => f.value)}
@@ -108,7 +108,7 @@ export default function PurchaseDocumentDetail() {
           <TabsList>
             {tabs.map((t) => (
               <TabsTrigger key={t.value} value={t.value} className="gap-1.5">
-                {t.label}{t.count ? <span className="rounded-full bg-teal-500/15 px-1.5 text-[11px] tabular-nums text-teal-700 dark:text-teal-300">{t.count}</span> : null}
+                {t.label}{t.count ? <span className="rounded-full bg-[hsl(var(--primary))]/15 px-1.5 text-[11px] tabular-nums text-[hsl(var(--primary))]">{t.count}</span> : null}
               </TabsTrigger>
             ))}
           </TabsList>

@@ -1,6 +1,7 @@
 import { cn } from '@runly/ui'
 import { PurchaseStatusBadge } from './PurchaseStatusBadge.jsx'
 import { MoneyText } from './MoneyText.jsx'
+import { ItemChips } from './ItemChips.jsx'
 import { PRIORITY_OPTIONS } from '../lib/purchases-constants.js'
 import { daysUntil, formatDate, toNumber } from '../lib/format.js'
 
@@ -10,7 +11,7 @@ const OPEN_INVOICE = new Set(['PENDING', 'PARTIALLY_PAID', 'PENDING_APPROVAL'])
 function Folio({ number, sub, onOpen }) {
   return (
     <button type="button" onClick={onOpen} className="group block max-w-[18rem] text-left focus-visible:outline-none">
-      <span className="block truncate font-semibold tabular-nums text-[hsl(var(--foreground))] group-hover:text-teal-700 group-hover:underline group-focus-visible:underline dark:group-hover:text-teal-300">{number || 'Sin folio'}</span>
+      <span className="block truncate font-semibold tabular-nums text-[hsl(var(--foreground))] group-hover:text-[hsl(var(--primary))] group-hover:underline group-focus-visible:underline dark:group-hover:text-[hsl(var(--primary))]">{number || 'Sin folio'}</span>
       <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{sub}</span>
     </button>
   )
@@ -40,6 +41,7 @@ export function buildColumns(names, { kind, open }) {
     folio: { id: 'folio', header: 'Folio', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={r.supplierName || 'Sin proveedor'} onOpen={() => open(r.id)} /> },
     request: { id: 'request', header: 'Solicitud', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={r.title} onOpen={() => open(r.id)} /> },
     caseTitle: { id: 'caseTitle', header: 'Expediente', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={[r.title, r.supplierName].filter(Boolean).join(', ')} onOpen={() => open(r.id)} /> },
+    items: { id: 'items', header: 'Activos', cell: ({ row: { original: r } }) => <ItemChips items={r.items} className="max-w-[16rem]" /> },
     order: { id: 'order', header: 'Orden', cell: ({ row: { original: r } }) => <span className="tabular-nums">{r.orderNumber ?? r.order?.number ?? 'Sin orden'}</span> },
     issueDate: { accessorKey: 'issueDate', header: 'Fecha', cell: ({ getValue }) => <span className="tabular-nums">{formatDate(getValue())}</span> },
     createdAt: { accessorKey: 'createdAt', header: 'Abierto', cell: ({ getValue }) => <span className="tabular-nums">{formatDate(getValue())}</span> },

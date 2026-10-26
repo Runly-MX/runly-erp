@@ -21,7 +21,7 @@ export const ORIGIN_LABELS = { MANUAL: 'Manual', INHERITED: 'Heredada', AUTOMATI
 const TONES = {
   neutral: 'bg-slate-500/10 text-slate-700 ring-slate-500/20 dark:text-slate-300',
   info: 'bg-sky-500/10 text-sky-700 ring-sky-500/20 dark:text-sky-300',
-  teal: 'bg-teal-500/10 text-teal-700 ring-teal-500/25 dark:text-teal-300',
+  teal: 'bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] ring-[hsl(var(--primary))]/25 dark:text-[hsl(var(--primary))]',
   success: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/25 dark:text-emerald-300',
   warning: 'bg-amber-500/10 text-amber-700 ring-amber-500/25 dark:text-amber-300',
   danger: 'bg-rose-500/10 text-rose-700 ring-rose-500/25 dark:text-rose-300',

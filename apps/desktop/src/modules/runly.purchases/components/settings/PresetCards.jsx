@@ -12,14 +12,14 @@ export function PresetCards({ presets = {}, value, customStages, onChange, disab
         const stages = (preset.key === 'CUSTOM' ? customStages : presets[preset.key]?.stages ?? []).filter((s) => s.mode !== 'DISABLED')
         return (
           <button key={preset.key} type="button" disabled={disabled} onClick={() => onChange(preset.key)} aria-pressed={active}
-            className={cn('flex min-w-0 flex-col rounded-2xl border bg-[hsl(var(--card))] p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 disabled:cursor-not-allowed',
-              active ? 'border-teal-600 ring-2 ring-teal-600/15' : 'border-[hsl(var(--border))] hover:border-teal-600/40')}>
+            className={cn('flex min-w-0 flex-col rounded-2xl border bg-[hsl(var(--card))] p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))]/40 disabled:cursor-not-allowed',
+              active ? 'border-[hsl(var(--primary))] ring-2 ring-[hsl(var(--primary))]/15' : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary))]/40')}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-semibold">{preset.name}</p>
                 <p className="mt-0.5 text-sm text-[hsl(var(--muted-foreground))]">{preset.description}</p>
               </div>
-              <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full border', active ? 'border-teal-600 bg-teal-600 text-white' : 'border-[hsl(var(--border))]')}>
+              <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full border', active ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-white' : 'border-[hsl(var(--border))]')}>
                 {active ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : null}
               </span>
             </div>

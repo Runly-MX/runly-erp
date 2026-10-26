@@ -2,7 +2,7 @@ import { cn } from '@runly/ui'
 import { TONE_PILL, statusMeta } from '../lib/purchases-constants.js'
 
 const DOT = {
-  slate: 'bg-slate-400', teal: 'bg-teal-500', sky: 'bg-sky-500', violet: 'bg-violet-500',
+  slate: 'bg-slate-400', teal: 'bg-[hsl(var(--primary))]', sky: 'bg-sky-500', violet: 'bg-violet-500',
   amber: 'bg-amber-500', emerald: 'bg-emerald-500', rose: 'bg-rose-500',
 }
 

@@ -36,11 +36,11 @@ export function DocumentHero({ kind, doc, facts = [], onOpenRef }) {
             <PurchaseStatusBadge kind={kind} status={doc.status} />
             {supplier?.name ? (
               supplier.id
-                ? <Link to={`${ROOT}/suppliers/${supplier.id}`} className={`${CHIP} hover:bg-teal-500/15`}>{supplier.name}</Link>
+                ? <Link to={`${ROOT}/suppliers/${supplier.id}`} className={`${CHIP} hover:bg-[hsl(var(--primary))]/15`}>{supplier.name}</Link>
                 : <span className={CHIP}>{supplier.name}</span>
             ) : null}
             {doc.caseId && kind !== 'cases' ? (
-              <Link to={docPath('purchase_case', doc.caseId)} className={`${CHIP} hover:bg-teal-500/15`}>Expediente {doc.caseNumber ?? doc.case?.number ?? ''}</Link>
+              <Link to={docPath('purchase_case', doc.caseId)} className={`${CHIP} hover:bg-[hsl(var(--primary))]/15`}>Expediente {doc.caseNumber ?? doc.case?.number ?? ''}</Link>
             ) : null}
             {doc.sequence ? <span className={`${CHIP} tabular-nums text-[hsl(var(--muted-foreground))]`} title="Consecutivo interno automático">N.º {doc.sequence}</span> : null}
           </div>

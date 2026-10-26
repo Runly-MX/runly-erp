@@ -38,8 +38,8 @@ export function AssignInvoiceDialog({ open, onOpenChange, order, invoices = [], 
             return (
               <li key={invoice.id}>
                 <button type="button" role="option" aria-selected={active} onClick={() => setInvoiceId(invoice.id)}
-                  className={cn('flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40',
-                    active ? 'border-teal-600/60 bg-teal-500/10' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/50')}>
+                  className={cn('flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))]/40',
+                    active ? 'border-[hsl(var(--primary))]/60 bg-[hsl(var(--primary))]/10' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/50')}>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold tabular-nums">{invoice.number ?? 'Sin folio'}</span>
                     <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{invoice.issueDate ? formatDate(invoice.issueDate) : invoice.sublabel ?? ''}</span>

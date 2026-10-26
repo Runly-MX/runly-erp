@@ -48,8 +48,8 @@ export function LinkedOrdersField({ value = [], onChange, known = {}, inherit, o
         hint={supplierId ? 'Una factura se relaciona con una sola orden. Se muestran las del proveedor elegido.' : 'Una factura se relaciona con una sola orden. Elige el proveedor para acotar la búsqueda.'}
       />
       {value.length && inheritable.length ? (
-        <div className="flex items-start gap-3 rounded-xl border border-teal-600/25 bg-teal-500/[0.07] p-3">
-          <GitMerge className="mt-0.5 h-4 w-4 shrink-0 text-teal-700 dark:text-teal-300" />
+        <div className="flex items-start gap-3 rounded-xl border border-[hsl(var(--primary))]/25 bg-[hsl(var(--primary))]/[0.07] p-3">
+          <GitMerge className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--primary))]" />
           <div className="min-w-0 flex-1">
             <SwitchField id="inherit-items" label={`Heredar ${inheritable.length} ${inheritable.length === 1 ? 'activo' : 'activos'} de la orden`}
               description={inheritable.slice(0, 3).map((i) => i.label ?? i.name ?? i.other?.label).filter(Boolean).join(', ') + (inheritable.length > 3 ? ` y ${inheritable.length - 3} más` : '')}

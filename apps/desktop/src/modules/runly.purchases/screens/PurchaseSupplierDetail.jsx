@@ -5,7 +5,7 @@ import { BarChart3, ClipboardList, ContactRound, History, Pencil, ReceiptText } 
 import { Button, EmptyState, ErrorState, PageHeader, StatStrip, DetailSkeleton } from '@runly/ui'
 import { usePurchasesCan, useSupplier } from '../hooks/usePurchases.js'
 import { usePurchaseRoute } from '../hooks/usePurchaseRoute.js'
-import { HERO_GRADIENT, KINDS, ROOT, TONES, kindOf } from '../lib/purchases-constants.js'
+import { KINDS, ROOT, TONES, kindOf } from '../lib/purchases-constants.js'
 import { formatDate, formatMoney, formatMoneyCompact, initials, monthLabel } from '../lib/format.js'
 import { AXIS, ChartTooltip, Panel } from '../components/dashboard/dashboard-theme.jsx'
 import { PurchaseStatusBadge } from '../components/PurchaseStatusBadge.jsx'
@@ -35,22 +35,21 @@ export default function PurchaseSupplierDetail() {
     <div className="min-h-dvh space-y-5 p-4 md:p-6">
       <PageHeader compact eyebrow="Compras" title="Proveedores" onBack={() => navigate(`${ROOT}/suppliers`)} backLabel="Volver a proveedores" />
 
-      <section className="relative overflow-hidden rounded-3xl p-5 text-white shadow-xl md:p-7" style={{ background: HERO_GRADIENT }}>
-        <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
-        <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+      <section className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 md:p-6">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 items-center gap-4">
             {s.avatarUrl
-              ? <img src={s.avatarUrl} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-1 ring-white/25" />
-              : <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-xl font-semibold ring-1 ring-white/25">{initials(s.name)}</span>}
+              ? <img src={s.avatarUrl} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-1 ring-[hsl(var(--border))]" />
+              : <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary))]/10 text-xl font-semibold text-[hsl(var(--primary))]">{initials(s.name)}</span>}
             <div className="min-w-0">
-              <h1 className="truncate text-3xl font-semibold tracking-tight">{s.name}</h1>
-              <p className="truncate text-sm text-teal-50/80">{[profile.supplierCode, s.taxId, s.email, s.phone].filter(Boolean).join(', ') || 'Sin datos de contacto'}</p>
-              {profile.paymentTerms ? <p className="mt-1 text-sm text-teal-50/90">Condiciones: {profile.paymentTerms}</p> : null}
+              <h1 className="truncate text-2xl font-semibold tracking-tight">{s.name}</h1>
+              <p className="truncate text-sm text-[hsl(var(--muted-foreground))]">{[profile.supplierCode, s.taxId, s.email, s.phone].filter(Boolean).join(', ') || 'Sin datos de contacto'}</p>
+              {profile.paymentTerms ? <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">Condiciones: {profile.paymentTerms}</p> : null}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button className="border border-white/30 bg-white/10 text-white hover:bg-white/20" onClick={() => navigate(`/app/m/runly.contacts/contacts/${s.id ?? id}`)}><ContactRound className="h-4 w-4" />Ver contacto</Button>
-            {can('purchases.supplier.manage') ? <Button className="bg-white text-teal-900 hover:bg-white/90" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" />Perfil de compras</Button> : null}
+            <Button variant="outline" onClick={() => navigate(`/app/m/runly.contacts/contacts/${s.id ?? id}`)}><ContactRound className="h-4 w-4" />Ver contacto</Button>
+            {can('purchases.supplier.manage') ? <Button onClick={() => setEditing(true)}><Pencil className="h-4 w-4" />Perfil de compras</Button> : null}
           </div>
         </div>
       </section>
@@ -88,7 +87,7 @@ export default function PurchaseSupplierDetail() {
                 return (
                   <li key={`${kind}:${d.id}`}>
                     <button type="button" onClick={() => navigate(`${ROOT}/${kind}/${d.id}`)} className="flex w-full items-center gap-3 py-2.5 text-left hover:bg-[hsl(var(--muted))]/40">
-                      <Icon className="h-4 w-4 shrink-0 text-teal-700 dark:text-teal-300" />
+                      <Icon className="h-4 w-4 shrink-0 text-[hsl(var(--primary))]" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold tabular-nums">{d.number}</span>
                         <span className="block text-xs text-[hsl(var(--muted-foreground))]">{formatDate(d.date ?? d.issueDate)}</span>

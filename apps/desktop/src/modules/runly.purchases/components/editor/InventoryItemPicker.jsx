@@ -56,8 +56,8 @@ export function InventoryItemPicker({ open, onOpenChange, selected = [], onConfi
                 return (
                   <li key={item.id}>
                     <div role="button" tabIndex={0} onClick={() => toggle(item)} onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(item) } }}
-                      className={cn('flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40',
-                        checked ? 'border-teal-600/50 bg-teal-500/10' : 'border-transparent bg-[hsl(var(--muted))]/35 hover:bg-[hsl(var(--muted))]/70')}>
+                      className={cn('flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))]/40',
+                        checked ? 'border-[hsl(var(--primary))]/50 bg-[hsl(var(--primary))]/10' : 'border-transparent bg-[hsl(var(--muted))]/35 hover:bg-[hsl(var(--muted))]/70')}>
                       <Checkbox checked={checked} onCheckedChange={() => toggle(item)} onClick={(e) => e.stopPropagation()} aria-label={`Elegir ${item.name}`} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">{item.name}</span>
