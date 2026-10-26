@@ -1,13 +1,14 @@
 // Internal Runly document contract. No renderer, browser or persistence dependency.
-import { validStudioFont } from './fonts.js'
+import { validStudioFont, studioFontStyle } from './fonts.js'
 import { validateGeometry } from './vector.js'
 import { iconSource } from './licenses.js'
-export const STUDIO_SCHEMA_VERSION = 3
+import { imageProperties } from './image-properties.js'
+export const STUDIO_SCHEMA_VERSION = 4
 export const STUDIO_LIMITS = Object.freeze({ side: 4096, objects: 500, bytes: 1_000_000 })
 export const FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COLOR = /^#[0-9a-f]{6}$/i
 const isColor = value => typeof value === 'string' && COLOR.test(value)
-const TYPES = new Set(['text', 'rectangle', 'ellipse', 'image', 'vector'])
+const TYPES = new Set(['text', 'rectangle', 'ellipse', 'image', 'vector', 'line'])
 
 export class StudioError extends Error {
   constructor(message, status = 400, code = 'STUDIO_INVALID') {
@@ -18,7 +19,7 @@ const fail = () => { throw new StudioError('El diseño contiene datos no válido
 const finite = (value, min, max) => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
 
 export function validateDocument(input) {
-  if (!input || ![1, 2, STUDIO_SCHEMA_VERSION].includes(input.schemaVersion) || input.unit !== 'px') fail()
+  if (!input || ![1, 2, 3, STUDIO_SCHEMA_VERSION].includes(input.schemaVersion) || input.unit !== 'px') fail()
   if (JSON.stringify(input).length > STUDIO_LIMITS.bytes) fail()
   const page = input.page
   if (!page || !Number.isInteger(page.width) || !Number.isInteger(page.height) ||
@@ -32,6 +33,8 @@ export function validateDocument(input) {
     for (const key of ['width', 'height']) if (!finite(object[key], 1, 16384)) fail()
     if (!finite(object.rotation, -360, 360) || !isColor(object.fill)) fail()
     const clean = Object.fromEntries(['id', 'type', 'x', 'y', 'width', 'height', 'rotation', 'fill'].map(key => [key, object[key]]))
+    if(object.opacity!==undefined){if(!finite(object.opacity,0,1))fail();clean.opacity=object.opacity}
+    if(object.groupId!==undefined){if(input.schemaVersion<4||typeof object.groupId!=='string'||!/^[a-zA-Z0-9_-]{1,64}$/.test(object.groupId))fail();clean.groupId=object.groupId}
     for (const key of ['locked', 'hidden']) {
       if (object[key] !== undefined && typeof object[key] !== 'boolean') fail()
       clean[key] = input.schemaVersion === 1 ? false : (object[key] ?? false)
@@ -41,17 +44,32 @@ export function validateDocument(input) {
       const scaleX = object.scaleX ?? 1, scaleY = object.scaleY ?? 1
       if (!finite(scaleX, 0.02, 8) || !finite(scaleY, 0.02, 8)) fail()
       const fontFamily = input.schemaVersion < 3 ? 'sans-serif' : (object.fontFamily ?? 'sans-serif')
-      if (!validStudioFont(fontFamily) || (object.fontVariant !== undefined && object.fontVariant !== 'regular')) fail()
-      Object.assign(clean, { text: object.text, fontSize: object.fontSize, fontFamily, fontVariant: 'regular', scaleX, scaleY })
+      const fontVariant=object.fontVariant??'regular'
+      if (!validStudioFont(fontFamily) || !studioFontStyle(fontFamily,fontVariant) || (input.schemaVersion<4&&fontVariant!=='regular')) fail()
+      Object.assign(clean, { text: object.text, fontSize: object.fontSize, fontFamily, fontVariant, scaleX, scaleY })
+      if(input.schemaVersion>=4){
+        const textAlign=object.textAlign??'left',lineHeight=object.lineHeight??1.16,charSpacing=object.charSpacing??0
+        if(!['left','center','right','justify'].includes(textAlign)||!finite(lineHeight,0.5,4)||!finite(charSpacing,-200,1000))fail()
+        for(const key of ['underline','linethrough']){if(object[key]!==undefined&&typeof object[key]!=='boolean')fail()}
+        Object.assign(clean,{textAlign,lineHeight,charSpacing,underline:object.underline??false,linethrough:object.linethrough??false})
+      }else Object.assign(clean,{textAlign:'left',lineHeight:1.16,charSpacing:0,underline:false,linethrough:false})
     }
     if (object.type === 'image') {
       if (typeof object.fileAssetId !== 'string' || !FILE_ID.test(object.fileAssetId)) fail()
       clean.fileAssetId = object.fileAssetId.toLowerCase()
+      if(object.image!==undefined){if(input.schemaVersion<4)fail();try{clean.image=imageProperties(object.image)}catch{fail()}}
+    }
+    if(object.type==='line'){
+      if(input.schemaVersion<4)fail()
+      const points=object.points??[[0,0],[1,1]],strokeWidth=object.strokeWidth??2,dash=object.dash??'solid',startArrow=object.startArrow??false,endArrow=object.endArrow??false,scaleX=object.scaleX??1,scaleY=object.scaleY??1
+      if(!Array.isArray(points)||points.length<2||points.length>256||!points.every(p=>Array.isArray(p)&&p.length===2&&p.every(v=>finite(v,0,1)))||!finite(strokeWidth,0.5,128)||!['solid','dashed','dotted'].includes(dash)||typeof startArrow!=='boolean'||typeof endArrow!=='boolean'||!finite(scaleX,0.02,8)||!finite(scaleY,0.02,8))fail()
+      Object.assign(clean,{points:points.map(p=>[...p]),strokeWidth,dash,startArrow,endArrow,scaleX,scaleY})
     }
     if (object.type === 'vector') {
-      if (input.schemaVersion < 3 || !iconSource(object.iconId)) fail()
+      if (input.schemaVersion < 3) fail()
+      if(object.svgName!==undefined){if(input.schemaVersion<4||typeof object.svgName!=='string'||!object.svgName||object.svgName.length>120||object.iconId!==undefined)fail();clean.svgName=object.svgName}
+      else {if(!iconSource(object.iconId))fail();clean.iconId=object.iconId}
       try { clean.geometry = validateGeometry(object.geometry) } catch { fail() }
-      clean.iconId = object.iconId
     }
     return clean
   })

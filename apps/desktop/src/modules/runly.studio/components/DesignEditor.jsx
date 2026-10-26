@@ -10,6 +10,7 @@ import { StudioCreativeResources } from './StudioCreativeResources.jsx'
 import { StudioCredits } from './StudioCredits.jsx'
 import { createScopedClipboard } from '../lib/scoped-clipboard.js'
 import { useStudioNavigation } from '../hooks/useStudioNavigation.js'
+import { useStudioImageEditing } from '../hooks/useStudioImageEditing.jsx'
 
 const unwrap = response => response?.data ?? response
 
@@ -36,6 +37,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   const initialAssets = useMemo(() => new Set(record.document.objects.filter(object => object.type === 'image').map(object => object.fileAssetId)), [record.document])
   const boundAssets = useRef(initialAssets)
   const editorRef = useRef(null), revision = useRef(record.revision), generation = useRef(0), pending = useRef(null), timer = useRef(null), saving = useRef(false)
+  const imageEditing = useStudioImageEditing({editorRef,designId:record.id,token,canEdit:canEdit && !denied})
   const nameRef = useRef(name)
   const preserve = useCallback(() => {
     if (!pending.current) return true
@@ -181,9 +183,10 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   }
   return <>
     <StudioWorkspace key={workspaceVersion} initial={initial} readOnly={!canEdit} participants={realtime.participants} chrome={chrome}
-      sharedClipboard={clipboard} authorizePaste={authorizePaste}
+      sharedClipboard={clipboard} authorizePaste={authorizePaste} onEditImage={imageEditing.editImage}
       resourcePanel={({ disabled, uploader }) => <StudioCreativeResources key={scope} token={token} designId={record.id} disabled={disabled} uploader={uploader} onFileInsert={insertResource} onVectorInsert={object => editorRef.current.add('vector',object)} />}
       onPointer={realtime.pointer} onSelectionChange={realtime.selection} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
+    {imageEditing.dialog}
     <StudioSharing record={record} token={token} open={shareOpen} onOpenChange={setShareOpen} />
     {credits?<StudioCredits id={record.id} token={token} scene={credits.scene} action={credits.action} onClose={()=>setCredits(null)} onContinue={()=>{const {action,scene}=credits;setCredits(null);if(action.kind==='share')setShareOpen(true);else exportImage(action.format,action.quality,scene)}}/>:null}
     <ConfirmDialog open={navigation.pending} onOpenChange={open => { if (!open) navigation.cancel() }} title="Salir sin guardar" description={copyWarning ? 'No se pudo conservar la copia local. Si sales puedes perder estos cambios. Cancela y guarda antes de continuar.' : 'Los cambios pendientes se conservarán en una copia local en este navegador durante siete días.'}

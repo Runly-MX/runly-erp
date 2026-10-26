@@ -9,7 +9,7 @@ test('v1/v2 scenes upgrade without changing text scale or trusting unsupported f
   const base=appendObject(blankDocument(),'text',{scaleX:1.4,scaleY:0.8})
   for(const version of [1,2]) {
     const doc=validateDocument({...base,schemaVersion:version,objects:base.objects.map(o=>({...o,fontFamily:'untrusted-font'}))})
-    assert.equal(doc.schemaVersion,3);assert.equal(doc.objects[0].fontFamily,'sans-serif');assert.equal(doc.objects[0].scaleX,1.4);assert.equal(doc.objects[0].scaleY,0.8)
+    assert.equal(doc.schemaVersion,4);assert.equal(doc.objects[0].fontFamily,'sans-serif');assert.equal(doc.objects[0].scaleX,1.4);assert.equal(doc.objects[0].scaleY,0.8)
   }
   for(const font of STUDIO_FONTS)assert.equal(appendObject(blankDocument(),'text',{fontFamily:font.family}).objects[0].fontFamily,font.family)
   assert.throws(()=>appendObject(blankDocument(),'text',{fontFamily:'url(https://example.com/font)'}))

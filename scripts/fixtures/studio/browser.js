@@ -4,6 +4,7 @@ import { LIGHT_THEME } from '../../../apps/desktop/src/modules/runly.canvas/engi
 import { appendObject, blankDocument } from '../../../apps/shared/studio/document.js'
 import { Rect, Ellipse } from 'fabric'
 import { STUDIO_FONTS } from '../../../apps/shared/studio/fonts.js'
+import './photo-engine.js'
 
 const fileId = '00000000-0000-4000-8000-000000000005'
 window.studioVerification = async () => {

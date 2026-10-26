@@ -14,7 +14,7 @@ await mkdir(output, { recursive: true })
 const bundle = await build({ entryPoints: [resolve(root, 'scripts/fixtures/studio/browser.js')], nodePaths: [resolve(root, 'apps/desktop/node_modules')], bundle: true, platform: 'browser', format: 'esm', minify: true, write: false,define:{'import.meta.env.BASE_URL':JSON.stringify('/')} })
 await writeFile(resolve(output, 'renderer-spike.js'), bundle.outputFiles[0].contents)
 const server = createServer((request, response) => {
-  if (/^\/studio-fonts\/(lato|playfairdisplay|bebasneue|pacifico|oswald|spacemono)\.ttf$/.test(request.url)) {
+  if (/^\/studio-fonts\/(lato|lato-bold|lato-italic|playfairdisplay|bebasneue|pacifico|oswald|spacemono)\.ttf$/.test(request.url)) {
     readFile(resolve(root,'apps/desktop/public',request.url.slice(1))).then(bytes=>{response.setHeader('Content-Type','font/ttf');response.end(bytes)},()=>{response.writeHead(404);response.end()});return
   }
   if (request.url === '/fixture.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(bundle.outputFiles[0].contents); return }
@@ -30,6 +30,7 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}`)
   await page.waitForFunction(() => typeof window.studioVerification === 'function')
   const result = await page.evaluate(() => window.studioVerification())
+  result.multimedia = await page.evaluate(() => window.studioPhotoVerification())
   assert.deepEqual(result.saved, result.reopened)
   assert.equal(result.saved.objects[0].text, 'Texto modificado')
   assert.equal(result.saved.objects[0].rotation, 12)

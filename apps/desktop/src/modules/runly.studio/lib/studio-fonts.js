@@ -1,12 +1,13 @@
-import { STUDIO_FONTS } from '../../../../../shared/studio/fonts.js'
+import { studioFontStyle } from '../../../../../shared/studio/fonts.js'
 const loaded = new Map()
-export function ensureStudioFont(family) {
-  const entry = STUDIO_FONTS.find(font => font.family === family)
+export function ensureStudioFont(family,variant='regular') {
+  const entry = studioFontStyle(family,variant)
   if (!entry) return Promise.reject(new Error('Fuente no admitida.'))
   if (!entry.file) return Promise.resolve()
-  if (loaded.has(family)) return loaded.get(family)
+  const key=`${family}:${variant}`
+  if (loaded.has(key)) return loaded.get(key)
   const promise = (async () => {
-    const face = new FontFace(family, `url("${import.meta.env.BASE_URL}studio-fonts/${entry.file}")`, { style: 'normal', weight: '400' })
+    const face = new FontFace(family, `url("${import.meta.env.BASE_URL}studio-fonts/${entry.file}")`, { style: entry.style, weight: String(entry.weight) })
     let timer
     try {
       await Promise.race([face.load(), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('La fuente tardó demasiado en cargar.')),8000) })])
@@ -15,7 +16,7 @@ export function ensureStudioFont(family) {
     } catch { throw new Error(`No se pudo cargar ${family}. Reintenta; el diseño se conserva sin sustituir la fuente.`) }
     finally { clearTimeout(timer) }
   })()
-  loaded.set(family,promise)
-  promise.catch(() => { if (loaded.get(family) === promise) loaded.delete(family) })
+  loaded.set(key,promise)
+  promise.catch(() => { if (loaded.get(key) === promise) loaded.delete(key) })
   return promise
 }

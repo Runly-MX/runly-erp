@@ -14,6 +14,6 @@ export function resizeDocument(document, page, scaleContent = false) {
   const scale = Math.min(page.width / current.page.width, page.height / current.page.height)
   return validateDocument({ ...current, page, objects: scaleContent ? current.objects.map(object => ({ ...object,
     x: object.x * scale, y: object.y * scale,
-    ...(object.type === 'text' ? { scaleX: object.scaleX * scale, scaleY: object.scaleY * scale } : { width: object.width * scale, height: object.height * scale }),
+    ...(['text','line'].includes(object.type) ? { scaleX: object.scaleX * scale, scaleY: object.scaleY * scale } : { width: object.width * scale, height: object.height * scale }),
   })) : current.objects })
 }

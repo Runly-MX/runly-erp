@@ -1,12 +1,14 @@
 import { memo, useEffect } from 'react'
 import { cn } from '@runly/ui'
 import { ensureStudioFont } from '../lib/studio-fonts.js'
+import {studioFontStyle} from '../../../../../shared/studio/fonts.js'
 
 // Vector preview of a Studio document (or the bounded list `preview`): shapes
 // and text render as SVG; images use the signed URLs passed in `images`, or a
 // neutral placeholder while they load or when access is missing.
 function Item({ item, images }) {
   const transform = `translate(${item.x} ${item.y}) rotate(${item.rotation ?? 0})`
+  if(item.type==='line')return <polyline transform={`${transform} scale(${item.scaleX??1} ${item.scaleY??1})`} points={item.points.map(([x,y])=>`${x*item.width},${y*item.height}`).join(' ')} fill="none" stroke={item.fill} strokeWidth={item.strokeWidth} />
   if (item.type === 'rectangle') return <rect transform={transform} width={item.width} height={item.height} fill={item.fill} />
   if (item.type === 'ellipse') return <ellipse transform={transform} cx={item.width / 2} cy={item.height / 2} rx={item.width / 2} ry={item.height / 2} fill={item.fill} />
   if (item.type === 'vector') return <g transform={`${transform} scale(${item.width / item.geometry.width} ${item.height / item.geometry.height})`}>
@@ -25,7 +27,9 @@ function Item({ item, images }) {
   return <g transform={`${transform} scale(${item.scaleX ?? 1} ${item.scaleY ?? 1})`}>
     {/* Visible overflow: stored heights are estimates; wrapped lines must not clip. */}
     <foreignObject width={item.width} height={Math.max(item.height, item.fontSize * 1.2)} overflow="visible">
-      <div style={{ color: item.fill, fontSize: item.fontSize, lineHeight: 1.16, fontFamily: item.fontFamily ?? 'sans-serif', whiteSpace: 'pre-wrap', overflowWrap: 'break-word' }}>{item.text}</div>
+      <div style={{ color: item.fill, fontSize: item.fontSize, lineHeight: item.lineHeight??1.16, textAlign:item.textAlign??'left',letterSpacing:((item.charSpacing??0)/1000)*item.fontSize,
+        fontWeight:studioFontStyle(item.fontFamily??'sans-serif',item.fontVariant)?.weight??400,fontStyle:studioFontStyle(item.fontFamily??'sans-serif',item.fontVariant)?.style??'normal',textDecoration:[item.underline?'underline':'',item.linethrough?'line-through':''].join(' '),
+        fontFamily: item.fontFamily ?? 'sans-serif', whiteSpace: 'pre-wrap', overflowWrap: 'break-word' }}>{item.text}</div>
     </foreignObject>
   </g>
 }
@@ -37,14 +41,14 @@ export const StudioThumbnail = memo(function StudioThumbnail({ document, images,
   const page = document?.page
   // Bundled fonts load on demand; once added to document.fonts the browser
   // re-lays out the foreignObject text, so the preview matches the editor.
-  const families = [...new Set((document?.objects ?? []).filter(item => item.type === 'text' && item.fontFamily).map(item => item.fontFamily))].sort().join('|')
-  useEffect(() => { for (const family of families.split('|').filter(Boolean)) ensureStudioFont(family).catch(() => {}) }, [families])
+  const families = [...new Set((document?.objects ?? []).filter(item => item.type === 'text' && item.fontFamily).map(item => `${item.fontFamily}:${item.fontVariant??'regular'}`))].sort().join('|')
+  useEffect(() => { for (const entry of families.split('|').filter(Boolean)) {const [family,variant]=entry.split(':');ensureStudioFont(family,variant).catch(() => {})} }, [families])
   if (!page) return null
   const wide = page.width / page.height >= frameRatio, cover = fit === 'cover'
   return <svg viewBox={`0 0 ${page.width} ${page.height}`} aria-hidden focusable="false" preserveAspectRatio={cover ? 'xMidYMin slice' : undefined}
     className={cn('block', cover ? 'h-full w-full' : cn('rounded-[3px] shadow-[0_8px_24px_-8px_rgb(0_0_0/0.35)] ring-1 ring-black/5', wide ? 'h-auto w-full' : 'h-full w-auto'), className)}
     style={cover ? undefined : { aspectRatio: `${page.width} / ${page.height}` }}>
     <rect width={page.width} height={page.height} fill={page.background} />
-    {(document.objects ?? []).filter(item => !item.hidden).map(item => <Item key={item.id} item={item} images={images} />)}
+    {(document.objects ?? []).filter(item => !item.hidden).map(item => <g key={item.id} opacity={item.opacity??1}><Item item={item} images={images} /></g>)}
   </svg>
 })

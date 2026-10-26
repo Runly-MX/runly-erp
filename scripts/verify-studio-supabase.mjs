@@ -13,6 +13,7 @@ import { verifyStudioResources } from './fixtures/studio/supabase-resources.mjs'
 import { verifyStudioComposition } from './fixtures/studio/supabase-composition.mjs'
 import { verifyStudioCreative } from './fixtures/studio/supabase-creative.mjs'
 import { measureStudioBaseline } from './lib/studio-web-baseline.mjs'
+import { verifyStudioPhotos } from './fixtures/studio/supabase-photos.mjs'
 
 const stack = await createStudioStack()
 let web
@@ -57,8 +58,10 @@ try {
     stack.secret.SUPABASE_JWT_SECRET, stack.secret.SUPABASE_POSTGRES_PASSWORD] })
   if(baseline)bundle.baseline=baseline
   web = await preview(config)
+  const photos=await verifyStudioPhotos(stack,data)
   const result = process.argv.includes('--creative-only') ? { passed:true,creative:await verifyStudioCreative(stack,data),bundle } : process.argv.includes('--composition-only') ? { passed: true, composition: await verifyStudioComposition(stack, data), bundle } : { ...(process.argv.includes('--collaboration-only') ? { passed: true } : await verifyStudioSupabase(stack, data)),
     collaboration: await verifyStudioCollaboration(stack, data), resources: await verifyStudioResources(stack, data), composition: await verifyStudioComposition(stack, data),creative:await verifyStudioCreative(stack,data), bundle }
+  result.photos=photos
   await writeFile(join(stack.directory, 'result.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify(result, null, 2))
 } finally {

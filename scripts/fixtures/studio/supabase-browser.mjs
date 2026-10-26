@@ -157,7 +157,7 @@ export async function verifyStudioSupabase(stack, { users, companies, admin }) {
     await second.page.getByRole('button', { name: 'Guardar', exact: true }).click()
     await second.page.getByRole('status').filter({ hasText: /^Guardado/ }).waitFor()
     const layered = (await (await api(`/studio/designs/${copiedId}`, token)).json()).data
-    assert.equal(layered.document.schemaVersion, 3)
+    assert.equal(layered.document.schemaVersion, 4)
     assert.equal(layered.document.objects.length, 6)
     assert.equal(layered.document.objects[0].hidden, true); assert.equal(layered.document.objects[0].locked, true)
     await second.page.reload()

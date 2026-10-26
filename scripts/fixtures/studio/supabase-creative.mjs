@@ -86,7 +86,7 @@ export async function verifyStudioCreative(stack,{users,companies,admin}) {
     record('Openverse photo imports original bytes to real private Storage/Files; SHA256 dedup, source/license/author credits retained; no persistent hotlinks')
 
     await page.getByRole('button',{name:'Capas',exact:true}).click();await page.getByRole('button',{name:'Respira.',exact:true}).click()
-    await choose(page,'Tipografía','Pacifico · Manuscrita');await page.getByLabel('Vista previa de la fuente',{exact:true}).waitFor();await save(page)
+    await choose(page,'Tipografía',/^Pacifico/);await page.getByRole('combobox',{name:'Tipografía',exact:true}).filter({hasText:'Pacifico'}).waitFor();await save(page)
     current=await get();assert.equal(current.document.objects.find(o=>o.text?.startsWith('Respira.')).fontFamily,'Pacifico')
     assert.equal(await page.evaluate(()=>document.fonts.check('32px Pacifico')),true)
     const png=await exportAs(page,'png','creative-pacifico.png'),jpg=await exportAs(page,'jpg','creative-pacifico.jpg')
@@ -96,7 +96,7 @@ export async function verifyStudioCreative(stack,{users,companies,admin}) {
     assert.equal(await page.evaluate(()=>document.fonts.check('32px Pacifico')),true)
     const reopen=await exportAs(page,'png','creative-reopened.png');assert.deepEqual(await sharp(reopen).raw().toBuffer(),pngBefore)
     await page.getByRole('button',{name:'Respira.',exact:true}).click()
-    await choose(page,'Tipografía','Space Mono · Monoespaciada');await page.getByLabel('Vista previa de la fuente',{exact:true}).waitFor();await save(page)
+    await choose(page,'Tipografía',/^Space Mono/);await page.getByRole('combobox',{name:'Tipografía',exact:true}).filter({hasText:'Space Mono'}).waitFor();await save(page)
     const mono=await exportAs(page,'png','creative-space-mono.png');assert.notDeepEqual(await sharp(mono).raw().toBuffer(),pngBefore)
     assert.ok(requests.some(url=>url.includes('studio-fonts/pacifico.ttf')));assert.ok(requests.some(url=>url.includes('studio-fonts/spacemono.ttf')))
     metrics.fontDownloads=requests.filter(url=>/studio-fonts\/.*\.ttf/.test(url)).length
@@ -110,7 +110,7 @@ export async function verifyStudioCreative(stack,{users,companies,admin}) {
     await page.getByRole('button',{name:'Elementos',exact:true}).click();await page.getByRole('button',{name:'Rectángulo #d946ef',exact:true}).click();await save(page)
     assert.ok((await get()).document.objects.some(o=>o.type==='rectangle'&&o.fill==='#d946ef'))
     assert.ok(!requests.slice(start).some(url=>/^https:\/\/(api.iconify.design|api.openverse.org)/.test(url)))
-    for(const version of [1,2]){const legacy=await data(await api('/studio/designs',{name:`Compatibilidad v${version}`,document:{...blankDocument(),schemaVersion:version}}));assert.equal(legacy.document.schemaVersion,3)}
+    for(const version of [1,2]){const legacy=await data(await api('/studio/designs',{name:`Compatibilidad v${version}`,document:{...blankDocument(),schemaVersion:version}}));assert.equal(legacy.document.schemaVersion,4)}
     await data(await api(`${uiRoot}/collaborators`,{userId:peer.id,role:'VIEWER'},0,company.id,'PUT'))
     const peerView=await data(await api(uiRoot,null,2));assert.equal(peerView.canEdit,false)
     assert.equal((await api(`${uiRoot}/assets/${photo.fileAssetId}/signed-url`,null,2)).status,200)

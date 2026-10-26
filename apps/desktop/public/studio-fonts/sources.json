@@ -49,6 +49,24 @@
       "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/spacemono/SpaceMono-Regular.ttf",
       "sha256": "95837e182baeeada83368f7748db28357f0a1b75c6b84ff7065b5edf933c8e18",
       "bytes": 99356
+    },
+    {
+      "family": "Lato",
+      "variant": "bold",
+      "file": "lato-bold.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/lato/Lato-Bold.ttf",
+      "sha256": "8a0aace75d33794eece4b28187bfc1df0bbd2888b5d8a56e01788c8d65d16be1",
+      "bytes": 656544
+    },
+    {
+      "family": "Lato",
+      "variant": "italic",
+      "file": "lato-italic.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/lato/Lato-Italic.ttf",
+      "sha256": "e399c44efe1387100531d26c7e4800c5d12251b890d6654a3098c7c679cb1786",
+      "bytes": 722900
     }
   ]
 }

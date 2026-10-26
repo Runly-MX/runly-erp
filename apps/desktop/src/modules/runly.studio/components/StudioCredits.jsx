@@ -16,9 +16,9 @@ function ResourceRow({ row }) {
         <p className="truncate text-sm font-semibold">{row.title}<span className="ml-1.5 font-normal text-[hsl(var(--muted-foreground))]">· {kind.label}</span></p>
         <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{row.author || 'Autor no indicado'}</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-xs">
-          <a href={row.licenseUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-700 hover:underline dark:text-emerald-300">
+          {row.licenseUrl ? <a href={row.licenseUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-700 hover:underline dark:text-emerald-300">
             {row.license}<ExternalLink className="h-3 w-3" aria-hidden />
-          </a>
+          </a> : <span className="text-amber-700 dark:text-amber-300">{row.license}</span>}
           {row.sourceUrl ? <a href={row.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:underline">Origen<ExternalLink className="h-3 w-3" aria-hidden /></a> : null}
           {row.attributionRequired ? <span className="text-amber-700 dark:text-amber-300">Pide atribución</span> : null}
         </div>

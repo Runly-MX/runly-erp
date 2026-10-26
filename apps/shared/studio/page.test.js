@@ -8,7 +8,7 @@ test('page presets and resize preserve v2 objects by default, with explicit unif
   const page = { width: 540, height: 800, background: '#84cc16' }
   assert.deepEqual(resizeDocument(original, page).objects, original.objects)
   const scaled = resizeDocument(original, page, true)
-  assert.equal(scaled.schemaVersion, 3)
+  assert.equal(scaled.schemaVersion, 4)
   assert.equal(scaled.objects[0].x, 40); assert.equal(scaled.objects[0].scaleX, 0.6)
   assert.equal(scaled.objects[0].scaleY, 0.4); assert.equal(scaled.objects[1].width, 160)
   assert.equal(scaled.objects[1].rotation, 45)
@@ -23,5 +23,5 @@ test('page mutation rejects invalid dimensions/background and unsafe scaled boun
   }
   const extreme = appendObject(blankDocument(), 'text', { scaleX: 8, scaleY: 8 })
   assert.throws(() => resizeDocument(extreme, { width: 4096, height: 4096, background: '#ffffff' }, true))
-  assert.equal(resizeDocument({ ...document, schemaVersion: 1 }, document.page).schemaVersion, 3)
+  assert.equal(resizeDocument({ ...document, schemaVersion: 1 }, document.page).schemaVersion, 4)
 })

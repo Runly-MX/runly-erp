@@ -30,7 +30,7 @@ export function iconSource(id) {
 }
 export function creditsText(resources) {
   const rows=[...new Map(resources.filter(Boolean).map(row=>[`${row.provider}:${row.id}`,row])).values()]
-  const credits=rows.map(row=>`${row.title} — ${row.author || 'Autor no indicado'}. ${row.license} (${row.licenseUrl}). ${row.sourceUrl}. Incluido en una composición; puede tener cambios de tamaño, color o recorte.`)
+  const credits=rows.map(row=>row.provider==='local-svg'?`${row.title} — SVG local. Licencia no declarada; verifica los derechos antes de publicar.`:`${row.title} — ${row.author || 'Autor no indicado'}. ${row.license} (${row.licenseUrl}). ${row.sourceUrl}. Incluido en una composición; puede tener cambios de tamaño, color o recorte.`)
   const collections=new Set(rows.filter(row=>row.provider==='iconify').map(row=>row.id.split(':')[0]))
   return [...credits,...[...collections].map(id=>ICON_NOTICES[id]).filter(Boolean)].join('\n\n')
 }

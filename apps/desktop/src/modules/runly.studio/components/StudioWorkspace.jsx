@@ -28,7 +28,7 @@ function MobileSheet({ open, onOpenChange, title, children }) {
 }
 
 export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, editorRef, onReady, readOnly = false,
-  participants = [], onPointer, onSelectionChange, resourcePanel, sharedClipboard, authorizePaste, chrome }) {
+  participants = [], onPointer, onSelectionChange, resourcePanel, sharedClipboard, authorizePaste, onEditImage, chrome }) {
   const canvasRef = useRef(null)
   const phone = useIsMobile(), wide = !useIsMobile(1280), viewMode = useViewMode()
   const [selection, setSelection] = useState(null), [error, setError] = useState('')
@@ -44,8 +44,8 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const [history, setHistory] = useState({ canUndo: false, canRedo: false }), [retry, setRetry] = useState(0), [busy, setBusy] = useState(false)
   const [objects, setObjects] = useState(initial.objects)
   const changed = useCallback(document => { setObjects(document.objects); setPage(document.page); pageRef.current = document.page; onChange(document) }, [onChange])
-  const callbacksRef = useRef({ resolveImage, changed, onPointer, onSelectionChange, authorizePaste }), modeRef = useRef(readOnly)
-  useEffect(() => { callbacksRef.current = { resolveImage, changed, onPointer, onSelectionChange, authorizePaste } }, [resolveImage, changed, onPointer, onSelectionChange, authorizePaste])
+  const callbacksRef = useRef({ resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage }), modeRef = useRef(readOnly)
+  useEffect(() => { callbacksRef.current = { resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage } }, [resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage])
   useEffect(() => { modeRef.current = readOnly; editorRef.current?.setReadOnly(readOnly) }, [readOnly, editorRef])
   // Fabric disposes asynchronously; a remount (retry, server reload, HMR) must
   // wait for the previous instance to release the same <canvas> element.
@@ -54,6 +54,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     let cancelled = false
     const creation = released.current.then(() => cancelled ? null : createStudioEditor(canvasRef.current, { document: initial, resolveImage: id => callbacksRef.current.resolveImage(id),
       sharedClipboard, authorizePaste: objects => callbacksRef.current.authorizePaste?.(objects),
+      onEditImage: id => callbacksRef.current.onEditImage?.(id),
       readOnly: modeRef.current, onPointer: point => callbacksRef.current.onPointer?.(point && point.x >= 0 && point.y >= 0 && point.x <= pageRef.current.width && point.y <= pageRef.current.height ? point : null),
       onChange: document => callbacksRef.current.changed(document), onSelection: (selection, ids) => { setSelection(selection); setSelectedIds(ids); callbacksRef.current.onSelectionChange?.(selection?.id ?? null) }, onError: setError, onHistory: setHistory }))
     creation.then(instance => {
