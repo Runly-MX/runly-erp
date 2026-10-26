@@ -36,7 +36,7 @@ function useDebounced(value, delay = 300) {
 
 // Three views (URL ?view=): Inicio (overview), Mis diseños (full list) and
 // Plantillas (full catalog). Desktop uses a side nav, phones sticky top tabs.
-export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, view = 'home', onView }) {
+export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEditTemplateContent, view = 'home', onView }) {
   const [heroQuery, setHeroQuery] = useState(''), [category, setCategory] = useState('all')
   const [designQuery, setDesignQuery] = useState(''), [shared, setShared] = useState('all'), [sizeOpen, setSizeOpen] = useState(false)
   const heroQ = useDebounced(heroQuery.trim()), designQ = useDebounced(designQuery.trim())
@@ -96,7 +96,7 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, view =
     templates: (
       <section aria-labelledby="studio-templates-page-title">
         <SectionTitle id="studio-templates-page-title" as="h1" title="Plantillas" description="Diseños originales listos para adaptar: todo es editable." />
-        <TemplateGrid token={token} scopeKey={scopeKey} creating={creating} onUse={template => onCreate('template', template)} />
+        <TemplateGrid token={token} scopeKey={scopeKey} creating={creating} onUse={template => onCreate('template', template)} onEditContent={onEditTemplateContent} />
       </section>
     ),
   }

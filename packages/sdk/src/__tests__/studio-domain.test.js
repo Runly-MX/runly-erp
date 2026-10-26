@@ -78,3 +78,18 @@ test('Studio thumbnails reject a response when active company changes during dow
     } })
   await assert.rejects(client.studio.thumbnail('file/one', 'token', controller.signal), { code: 'company_changed', status: 409 })
 })
+
+test('Studio template operations send revisions and encoded ids', async () => {
+  const calls = []
+  const client = createRunlyClient({ baseUrl: 'https://api.example.test', fetch: async (url, options) => { calls.push({ url, options }); return new Response('{}', { headers: { 'Content-Type': 'application/json' } }) } })
+  await client.studio.templateDetail('runly:square', 'test-token')
+  await client.studio.saveTemplate({ name: 'A', document: { page: {} }, scope: 'personal' }, 'test-token')
+  await client.studio.updateTemplate('t/1', { revision: 2, name: 'B' }, 'test-token')
+  await client.studio.publishTemplate('t/1', 3, 'test-token')
+  await client.studio.retireTemplate('t/1', 4, 'test-token')
+  assert.deepEqual(calls.map(c => c.options.method), ['GET', 'POST', 'PUT', 'POST', 'DELETE'])
+  assert.equal(calls[0].url, 'https://api.example.test/studio/templates/runly%3Asquare')
+  assert.equal(calls[3].url, 'https://api.example.test/studio/templates/t%2F1/publish')
+  assert.deepEqual(JSON.parse(calls[3].options.body), { revision: 3 })
+  assert.deepEqual(JSON.parse(calls[4].options.body), { revision: 4 })
+})

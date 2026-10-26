@@ -59,3 +59,27 @@ generada de 1600 × 1067 (`.e2e/fixtures/studio-photo.jpg`):
   «Grupo 1 · 3 elementos» en Capas, texto centrado desde el popover de párrafo,
   sin selector de variantes para la fuente del sistema; 1440 px claro/oscuro y 390 px.
 - ESLint y `pnpm --filter @runly/desktop build:web` aprobados.
+
+## Plantillas personales y de empresa (interfaz)
+
+Operaciones conectadas (SDK `runly.studio`, contrato en `docs/integrations/RUNLY_STUDIO_TEMPLATES_API.md`):
+
+| Acción | UI | SDK |
+| --- | --- | --- |
+| Listar por origen | Filtro Todas / De Runly / Mis plantillas / De mi empresa en Plantillas | `templates(token, { scope, q, category, page })` |
+| Guardar como plantilla | Editor: botón de plantilla (escritorio) o menú «Más opciones» (teléfono) | `saveTemplate({ name, category, description, scope, document })` |
+| Editar nombre y categoría | Menú de la tarjeta y del visor | `updateTemplate(id, { revision, name, category, description })` |
+| Editar contenido | Menú → crea un diseño desde la plantilla (`?template=`) y «Guardar en la plantilla» | `createFromTemplate`, `templateDetail`, `updateTemplate(id, { revision, document })` |
+| Compartir con la empresa | Menú (solo personales con `canPublish`) | `publishTemplate(id, revision)` |
+| Retirar | Menú con confirmación (retiro lógico) | `retireTemplate(id, revision)` |
+| Usar | Visor «Usar esta plantilla» | `createFromTemplate(key)` |
+
+Reglas:
+
+- Las acciones por plantilla dependen solo de `canEdit`, `canDelete` y `canPublish`. Las de Runly y las de empresa ajenas sin permisos no muestran menú.
+- Al crear (sin fila todavía) el alcance «Toda la empresa» aparece con `studio.templates.publish`; guardar requiere `studio.templates.manage` o publish (permisos efectivos del perfil, o administrador).
+- Guardar como plantilla espera `editor.flush()` y envía el documento completo del editor (incluye cambios sin guardar). Nunca se envía `preview`.
+- 409 `STUDIO_REVISION_CONFLICT`: el diálogo conserva lo escrito y ofrece «Cargar versión actual»; publicar y retirar recargan la revisión y piden repetir.
+- Textos: publicar comparte solo dentro de la empresa; ningún archivo se vuelve público.
+
+Verificación: `.e2e/studio-templates-ui.mjs` (escritorio 1440 claro, tableta 820, teléfono 390 oscuro): 13 comprobaciones por tamaño. La base de desarrollo no tiene aplicada la migración `20261205000000_studio_templates` (toda `/studio/templates` responde 500), por lo que la prueba sustituye solo esas rutas con un servicio en memoria que sigue el contrato (`.e2e/lib-templates-fake.mjs`); los diseños creados desde plantilla usan la API real.

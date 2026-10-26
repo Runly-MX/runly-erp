@@ -1,6 +1,6 @@
 import { Button, Input, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
   PersonAvatar, ToolButton, Tooltip, TooltipContent, TooltipTrigger, cn } from '@runly/ui'
-import { ArrowLeft, Check, CircleDot, Download, Eye, Fullscreen, Loader2, Maximize2, Minimize2, MoreVertical, PanelRight, Redo2, Save, Share2, Undo2 } from 'lucide-react'
+import { ArrowLeft, LayoutTemplate, Check, CircleDot, Download, Eye, Fullscreen, Loader2, Maximize2, Minimize2, MoreVertical, PanelRight, Redo2, Save, Share2, Undo2 } from 'lucide-react'
 
 export const EXPORTS = [
   { format: 'png', quality: 1, label: 'PNG', hint: 'Sin pérdida, ideal para texto y gráficos' },
@@ -50,7 +50,7 @@ function ExportItems({ onExport }) {
   ))
 }
 
-export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, live, canEdit, onBack, onSave, saveDisabled, onShare, onCredits, onExport, exporting, exportDisabled,
+export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, live, canEdit, onBack, onSave, saveDisabled, onShare, onCredits, onSaveTemplate, onExport, exporting, exportDisabled,
   history, onUndo, onRedo, participants, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode }) {
   const nameField = (
     <Input aria-label="Nombre del diseño" value={name} maxLength={160} disabled={nameDisabled} onChange={event => onName(event.target.value)}
@@ -81,6 +81,7 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, liv
             <DropdownMenuLabel className="font-normal"><SaveState state={saveState} live={live} /></DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onShare} className="gap-2.5"><Share2 className="h-4 w-4" />Compartir</DropdownMenuItem>
+            {onSaveTemplate ? <DropdownMenuItem onSelect={onSaveTemplate} className="gap-2.5"><LayoutTemplate className="h-4 w-4" />Guardar como plantilla</DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={onCredits}>Créditos del diseño</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Descargar</DropdownMenuLabel>
@@ -101,6 +102,7 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, liv
       {history_}
       <span aria-hidden className="h-6 w-px bg-[hsl(var(--border))]" />
       <Presence users={participants} />
+      {onSaveTemplate ? <ToolButton label="Guardar como plantilla" side="bottom" onClick={onSaveTemplate} className="h-9 w-9 shrink-0 border border-[hsl(var(--border))]"><LayoutTemplate /></ToolButton> : null}
       <Button variant="outline" onClick={onShare} className="h-9 shrink-0 gap-1.5 px-3"><Share2 className="h-4 w-4" /><span className="max-md:sr-only">Compartir</span></Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

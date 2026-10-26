@@ -12,10 +12,11 @@ import { StudioCredits } from './StudioCredits.jsx'
 import { createScopedClipboard } from '../lib/scoped-clipboard.js'
 import { useStudioNavigation } from '../hooks/useStudioNavigation.js'
 import { useStudioImageEditing } from '../hooks/useStudioImageEditing.jsx'
+import { useSaveAsTemplate, useTemplateEditing } from './templates/useTemplateEditing.jsx'
 
 const unwrap = response => response?.data ?? response
 
-export function DesignEditor({ record, token, scope, onBack, onCopy }) {
+export function DesignEditor({ record, token, scope, onBack, onCopy, editingTemplateId = null }) {
   const clipboard = useMemo(() => createScopedClipboard(scope.slice(0, scope.lastIndexOf(':'))), [scope])
   // Element library figures are real catalog icons (licensed, credited).
   const catalog = useMemo(() => ({
@@ -44,6 +45,11 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   const boundAssets = useRef(initialAssets)
   const editorRef = useRef(null), revision = useRef(record.revision), generation = useRef(0), pending = useRef(null), timer = useRef(null), saving = useRef(false)
   const imageEditing = useStudioImageEditing({editorRef,designId:record.id,token,canEdit:canEdit && !denied})
+  // Templates: save the current scene as a template; or, when opened from
+  // "Editar contenido", write this design back to its template.
+  const templateScope = scope.split(':').slice(0, 2)
+  const saveAsTemplate = useSaveAsTemplate({ editorRef, token, scopeKey: templateScope, name })
+  const templateEditing = useTemplateEditing({ editorRef, token, scopeKey: templateScope, templateId: editingTemplateId, onExit: onBack })
   const nameRef = useRef(name)
   const preserve = useCallback(() => {
     if (!pending.current) return true
@@ -166,6 +172,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   }
   if (denied) return <div className="flex h-full items-center justify-center p-6"><ErrorState title="El diseño ya no está disponible" description="Tu copia local se conserva. Comprueba tus permisos con el propietario." showReport={false} onRetry={onBack} /></div>
   const notices = <>
+    {templateEditing.notice}
     {recovery ? <Notice icon={History} title="Hay una copia local sin guardar" description="Se conservó en este navegador la última vez que editaste.">
       <Button size="sm" onClick={recover}>Recuperar</Button>
       <Button size="sm" variant="ghost" onClick={() => { store.clear(); setRecovery(null) }}>Descartar</Button>
@@ -187,7 +194,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     saveState: busy ? 'saving' : dirty ? 'dirty' : 'saved', live: realtime.status,
     onSave: () => save(), saveDisabled: !ready || !canEdit || busy || conflict,
     onShare: () => openCredits({kind:'share'}), onExport: (format,quality) => openCredits({kind:'export',format,quality}),
-    onCredits: () => openCredits(), exporting, exportDisabled: exporting, notices,
+    onCredits: () => openCredits(), onSaveTemplate: ready ? saveAsTemplate.open : null, exporting, exportDisabled: exporting, notices,
   }
   return <>
     <StudioWorkspace key={workspaceVersion} initial={initial} readOnly={!canEdit} participants={realtime.participants} chrome={chrome}
@@ -196,6 +203,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
       onPointer={realtime.pointer} onSelectionChange={realtime.selection} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
     <StudioSharing record={record} token={token} open={shareOpen} onOpenChange={setShareOpen} />
     {imageEditing.dialog}
+    {saveAsTemplate.dialog}
     {credits?<StudioCredits id={record.id} token={token} scene={credits.scene} action={credits.action} onClose={()=>setCredits(null)} onContinue={()=>{const {action,scene}=credits;setCredits(null);if(action.kind==='share')setShareOpen(true);else exportImage(action.format,action.quality,scene)}}/>:null}
     <ConfirmDialog open={navigation.pending} onOpenChange={open => { if (!open) navigation.cancel() }} title="Salir sin guardar" description={copyWarning ? 'No se pudo conservar la copia local. Si sales puedes perder estos cambios. Cancela y guarda antes de continuar.' : 'Los cambios pendientes se conservarán en una copia local en este navegador durante siete días.'}
       confirmLabel="Salir" onConfirm={navigation.proceed} />

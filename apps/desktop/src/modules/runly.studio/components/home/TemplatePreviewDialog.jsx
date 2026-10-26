@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, ToolButton } from '@runly/ui'
-import { ChevronLeft, ChevronRight, Layers, Loader2, Maximize2, ShieldCheck, Type, Wand2 } from 'lucide-react'
+import { ActionMenu, Button, Dialog, DialogContent, DialogDescription, DialogTitle, ToolButton } from '@runly/ui'
+import { Building2, ChevronLeft, ChevronRight, Layers, Loader2, Maximize2, ShieldCheck, Sparkles, Type, User, Wand2 } from 'lucide-react'
 import { STUDIO_FONTS } from '../../../../../../shared/studio/fonts.js'
 import { StudioTemplateThumbnail } from '../StudioTemplateThumbnail.jsx'
 import { FadeSwap } from '../editor/SidePanel.jsx'
-import { sizeLabel } from '../../lib/formats.js'
+import { editedAgo, sizeLabel } from '../../lib/formats.js'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.18) 1px, transparent 1px)', backgroundSize: '18px 18px' }
 
@@ -38,7 +38,8 @@ function Detail({ icon: Icon, label, children }) {
 
 // Large template viewer: the preview takes the space, details sit beside it
 // (stacked on phones). ←/→ browse the templates of the current page.
-export function TemplatePreviewDialog({ templates, template, onChange, onUse, creating }) {
+// `actions`: per-template menu items (edit, publish, retire) allowed by the API flags.
+export function TemplatePreviewDialog({ templates, template, onChange, onUse, creating, actions = [] }) {
   // Initial focus on the primary action: focusing an arrow would open its tooltip
   // and make the first Escape close the tooltip instead of the dialog.
   const primaryRef = useRef(null)
@@ -82,6 +83,12 @@ export function TemplatePreviewDialog({ templates, template, onChange, onUse, cr
                 <Detail icon={Maximize2} label="Formato">
                   <p className="text-sm font-medium tabular-nums">{sizeLabel(template)}</p>
                 </Detail>
+                {template.scope && template.scope !== 'runly' ? (
+                  <Detail icon={template.scope === 'company' ? Building2 : User} label={template.scope === 'company' ? 'De mi empresa' : 'Mi plantilla'}>
+                    <p className="text-sm">{template.ownerName}{template.updatedAt ? ` · actualizada ${editedAgo(template.updatedAt)}` : ''}</p>
+                    {template.source === 'ai' ? <p className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]"><Sparkles className="h-3.5 w-3.5" />Creada con un asistente de IA</p> : null}
+                  </Detail>
+                ) : null}
                 <Detail icon={Type} label="Tipografías">
                   <div className="flex flex-wrap gap-2">
                     {info.fonts.map(font => <span key={font.family} className="rounded-md border border-[hsl(var(--border))] px-2.5 py-1 text-sm" style={{ fontFamily: font.family }}>{font.name}</span>)}
@@ -93,13 +100,17 @@ export function TemplatePreviewDialog({ templates, template, onChange, onUse, cr
                   </div>
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">{info.count} elementos editables: cambia textos, colores, formas e imágenes.</p>
                 </Detail>
-                <div className="flex gap-2.5 rounded-xl bg-[hsl(var(--muted)/0.6)] p-3 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                  <p>Diseño original de {template.creator ?? 'Runly'}. {notes.length ? `${notes.join(' · ')}: ` : ''}puedes usarla en tus piezas, incluso con fines comerciales.</p>
-                </div>
+                {!template.scope || template.scope === 'runly' ? (
+                  <div className="flex gap-2.5 rounded-xl bg-[hsl(var(--muted)/0.6)] p-3 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                    <p>Diseño original de Runly. {notes.length ? `${notes.join(' · ')}: ` : ''}puedes usarla en tus piezas, incluso con fines comerciales.</p>
+                  </div>
+                ) : null}
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">Usarla crea un diseño propio e independiente: los cambios posteriores en la plantilla no lo modifican.</p>
               </div>
-              <div className="shrink-0 border-t border-[hsl(var(--border))] p-4 pb-[max(1rem,var(--sab))]">
-                <Button ref={primaryRef} className="h-11 w-full bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white hover:from-fuchsia-500 hover:to-violet-500" disabled={Boolean(creating)} onClick={() => onUse(template)}>
+              <div className="flex shrink-0 gap-2 border-t border-[hsl(var(--border))] p-4 pb-[max(1rem,var(--sab))]">
+                {actions.length ? <div className="flex h-11 items-center rounded-md border border-[hsl(var(--border))] px-1"><ActionMenu label="Más opciones de la plantilla" items={actions} /></div> : null}
+                <Button ref={primaryRef} className="h-11 flex-1 bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white hover:from-fuchsia-500 hover:to-violet-500" disabled={Boolean(creating)} onClick={() => onUse(template)}>
                   {creating ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : <Wand2 />}{creating ? 'Creando…' : 'Usar esta plantilla'}
                 </Button>
               </div>

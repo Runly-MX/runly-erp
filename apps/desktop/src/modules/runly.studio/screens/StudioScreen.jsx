@@ -50,8 +50,15 @@ export default function StudioScreen() {
     if (design.isPending) return <EditorSkeleton />
     if (design.error) return <div className="flex h-full items-center justify-center p-6"><ErrorState title="No se pudo abrir el diseño" description={design.error.message} onRetry={design.refetch} /></div>
     return <DesignEditor key={`${profileCompanyId}:${userProfile?.id}:${id}`} record={design.data} token={token} scope={`${profileCompanyId}:${userProfile?.id}:${id}`}
+      editingTemplateId={params.get('template')}
       onCopy={copyId => setParams(withView({ design: copyId }))} onBack={() => { setParams(withView({})); queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'designs'] }) }} />
   }
-  return <StudioHome token={token} scopeKey={scopeKey} creating={creating} onCreate={create} onOpen={designId => setParams(withView({ design: designId }))}
+  // "Editar contenido": work on a design created from the template, linked by ?template=.
+  async function editTemplateContent(template) {
+    setCreating(template.key)
+    try { const record = unwrap(await runly.studio.createFromTemplate(template.id, token)); setParams({ view: 'templates', design: record.id, template: template.id }) }
+    catch (error) { toast.error(error.message) } finally { setCreating(null) }
+  }
+  return <StudioHome token={token} scopeKey={scopeKey} creating={creating} onCreate={create} onEditTemplateContent={editTemplateContent} onOpen={designId => setParams(withView({ design: designId }))}
     view={view} onView={next => setParams(next === 'home' ? {} : { view: next })} />
 }
