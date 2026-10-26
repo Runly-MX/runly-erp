@@ -22,7 +22,8 @@ export async function command(executable, args, { env = dockerEnv, input, log } 
   let output = ''
   child.stdout.on('data', chunk => { output += chunk })
   child.stderr.on('data', chunk => { output += chunk })
-  child.stdin.end(input)
+  if(input?.pipe)input.pipe(child.stdin)
+  else child.stdin.end(input)
   const status = await new Promise((resolve, reject) => { child.on('error', reject); child.on('close', resolve) })
   if (log) await writeFile(log, output)
   if (status !== 0) throw Error(`${executable} failed (${status}); ${log ? 'see private log' : output.slice(-1500)}`)

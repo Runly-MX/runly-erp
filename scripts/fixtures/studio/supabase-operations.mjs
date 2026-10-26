@@ -95,9 +95,17 @@ export async function verifyStudioOperations(stack,{users,companies}) {
     const reloadRevision=(await fresh()).revision
     await a.context.setOffline(true);await selectLayer(a.page,1);await a.page.getByLabel('Posición X',{exact:true}).fill('182');await a.page.getByLabel('Posición X',{exact:true}).press('Tab')
     await until(()=>a.page.evaluate(()=>Object.keys(sessionStorage).some(k=>k.startsWith('runly:studio:queue:'))),'Pending queue persisted in browser')
-    await a.context.setOffline(false);await a.page.reload();await a.page.locator('.upper-canvas').waitFor()
+    const changesUrl=stack.urls.api+root+'/changes',reloadUrl=a.page.url()
+    await a.page.route(changesUrl,route=>route.request().method()==='POST'?route.abort('internetdisconnected'):route.continue())
+    await a.context.setOffline(false)
+    await until(()=>a.page.evaluate(async()=>{try{return(await fetch('/',{cache:'no-store'})).ok}catch{return false}}),'Browser network actually restored')
+    try{await a.page.reload()}catch(error){if(!error.message.includes('net::ERR_FAILED'))throw error;await a.page.goto(reloadUrl)}
+    await a.page.locator('.upper-canvas').waitFor()
+    await a.page.getByRole('button',{name:'Reintentar',exact:true}).first().waitFor()
+    assert.equal((await fresh()).revision,reloadRevision,'Pending batch must not commit before the reload/retry check')
+    await a.page.unroute(changesUrl);await a.page.getByRole('button',{name:'Reintentar',exact:true}).first().click()
     await until(async()=>{const r=await fresh();return r.document.objects.find(o=>o.id==='shape-a').x===182&&r.revision===reloadRevision+1},'Reload publishes pending browser queue exactly once')
-    report('Actual browser sessionStorage queue survives offline/reload and is confirmed once')
+    report('Actual browser sessionStorage queue survives offline/reload with a blocked transport; authorized retry confirms it exactly once')
 
     const receiptOps=[{type:'patch',id:'shape-a',set:{fill:'#abcdef'},unset:[]}],before=(await fresh()).revision
     const replies=await Promise.all([changes(0,'duplicate-client',1,receiptOps).then(json),changes(0,'duplicate-client',1,receiptOps).then(json)])
