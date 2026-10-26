@@ -1,3 +1,4 @@
+import {waitForSynced} from './editor-controls.mjs'
 import {openPanel,layer,selectLayer,insertText,insertShape,showFiles,createBlank,exportImage,shareDialog,properties} from './editor-controls.mjs'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
@@ -56,8 +57,7 @@ export async function verifyStudioResources(stack, { users, companies }) {
     await card.waitFor();await card.locator('img').waitFor()
     const before=(await stack.pool.query('SELECT count(*) FROM file_asset')).rows[0].count
     await card.click()
-    await selectLayer(page,1);await page.getByRole('button',{name:'Guardar',exact:true}).click()
-    await page.getByRole('status').filter({hasText:/^Guardado/}).waitFor()
+    await selectLayer(page,1);await waitForSynced(page)
     const record=(await(await get(`/studio/designs/${designId}`)).json()).data
     assert.equal(record.document.objects[0].fileAssetId,privateAsset.id)
     assert.equal((await stack.pool.query('SELECT count(*) FROM file_asset')).rows[0].count,before)
@@ -79,8 +79,7 @@ export async function verifyStudioResources(stack, { users, companies }) {
     await layer(page,1).waitFor({state:'detached'})
     await page.getByRole('button',{name:'Rehacer (Ctrl+Y)',exact:true}).click()
     await layer(page,1).waitFor()
-    await page.getByRole('button',{name:'Guardar',exact:true}).click()
-    await page.getByRole('status').filter({hasText:/^Guardado/}).waitFor()
+    await waitForSynced(page)
     const copied=(await(await get(`/studio/designs/${new URL(page.url()).searchParams.get('design')}`)).json()).data
     assert.notEqual(copied.document.objects[0].id,record.document.objects[0].id)
     assert.equal(copied.document.objects[0].fileAssetId,privateAsset.id)

@@ -13,9 +13,10 @@ import {verifyRc2Exports} from './fixtures/studio/rc2-exports.mjs'
 import {measureRc2Receipts} from './fixtures/studio/rc2-receipts.mjs'
 import {verifyRc2Compatibility} from './fixtures/studio/rc2-compatibility.mjs'
 import {inspectStudioWeb} from './lib/studio-web-verification.mjs'
+import {verifyStudioFinalUi} from './fixtures/studio/final-ui.mjs'
 const arg=name=>process.argv.find(a=>a.startsWith(`--${name}=`))?.slice(name.length+3)
 const phase=arg('phase')??'all'
-assert.ok(['all','exports','compatibility','receipts'].includes(phase))
+assert.ok(['all','exports','compatibility','receipts','ui'].includes(phase))
 const revision=execFileSync('git',['rev-parse','--verify',arg('revision')??'HEAD'],{encoding:'utf8'}).trim(),short=revision.slice(0,8)
 const image=kind=>`runly-studio-rc2:${short}-${kind}`,result={revision,phase,passed:false,checks:[],images:{}}
 for(const kind of ['api','web','worker']){const [info]=JSON.parse(await command('docker',['image','inspect',image(kind)]));assert.equal(info.Config.Labels['org.opencontainers.image.revision'],revision);result.images[kind]={tag:image(kind),id:info.Id}}
@@ -57,6 +58,7 @@ try{
   record('Independent PDF inspection/rasterization validates RGB/CMYK, real effective PPI, physical boxes, flattened alpha and crop marks')
   }
   if(['all','receipts'].includes(phase))result.receipts=await measureRc2Receipts(stack,data,{duration:Number(arg('receipt-duration-ms')??120000)})
+  if(['all','ui'].includes(phase)){result.finalUi=await verifyStudioFinalUi(stack,data);record(`${result.finalUi.checks.length} final collaboration/export UI checks passed`)}
   if(['all','compatibility'].includes(phase))result.compatibility=await verifyRc2Compatibility(stack,data,{apiImage:image('api'),webImage:image('web')})
   const config=JSON.parse(await readFile(stack.composeFile,'utf8'));config.services['runly-worker']={image:image('worker'),pull_policy:'never',restart:'no',environment:{...config.services['runly-api'].environment,RUNLY_SKIP_DB_INIT:'1'},networks:{default:null}};await writeFile(stack.composeFile,JSON.stringify(config,null,2))
   await stack.compose(['up','-d','runly-worker'],{log:join(stack.directory,'worker-start.log')});await new Promise(r=>setTimeout(r,5000))

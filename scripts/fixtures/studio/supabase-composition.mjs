@@ -1,3 +1,4 @@
+import {waitForSynced} from './editor-controls.mjs'
 import {openPanel,layer,selectLayer,insertText,insertShape,showFiles,createBlank,exportImage,shareDialog,properties} from './editor-controls.mjs'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
@@ -24,7 +25,7 @@ export async function verifyStudioComposition(stack, { users, companies }) {
     await page.getByLabel(label,{exact:true}).click()
     await page.getByRole('option',{name:option,exact:true}).click()
   }
-  async function save(page) {await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('status').filter({hasText:/^Guardado/}).waitFor()}
+  async function save(page) {await waitForSynced(page)}
   async function size(page,width,height,background,scale=false) {
     await openPanel(page,'Página')
     await page.getByRole('textbox',{name:'Ancho (px)',exact:true}).fill(String(width));await page.getByRole('textbox',{name:'Alto (px)',exact:true}).fill(String(height))
@@ -150,24 +151,28 @@ export async function verifyStudioComposition(stack, { users, companies }) {
     await page.getByRole('button',{name:'Volver a mis diseños',exact:true}).click()
     await page.getByRole('button',{name:/^Abrir Composición sintética MVP/}).click()
     await page.getByText('640 × 480 px',{exact:true}).first().waitFor()
+    let releasePending
+    const holdChanges=async()=>{const pending=new Promise(resolve=>{releasePending=resolve});await page.route('**/studio/designs/*/changes',async route=>{if(route.request().method()==='POST')await pending;await route.continue().catch(()=>{})})}
+    await holdChanges()
     await page.getByLabel('Nombre del diseño').fill('Borrador protegido MVP')
-    await page.getByRole('button',{name:'Volver a mis diseños',exact:true}).click();await page.getByRole('dialog',{name:'Salir sin guardar',exact:true}).waitFor()
+    await page.getByRole('button',{name:'Volver a mis diseños',exact:true}).click();await page.getByRole('dialog',{name:'Salir antes de sincronizar',exact:true}).waitFor()
     await page.getByRole('button',{name:'Cancelar',exact:true}).click();assert.equal(new URL(page.url()).searchParams.get('design'),id)
     await page.keyboard.press('Control+.');await page.getByPlaceholder('Buscar aplicación...').fill('Archivos')
     await page.getByText('Archivos',{exact:true}).click()
-    await page.getByRole('dialog',{name:'Salir sin guardar',exact:true}).waitFor();await page.getByRole('button',{name:'Cancelar',exact:true}).click()
+    await page.getByRole('dialog',{name:'Salir antes de sincronizar',exact:true}).waitFor();await page.getByRole('button',{name:'Cancelar',exact:true}).click()
     assert.equal(new URL(page.url()).searchParams.get('design'),id)
-    await page.evaluate(()=>history.back());await page.getByRole('dialog',{name:'Salir sin guardar',exact:true}).waitFor()
+    await page.evaluate(()=>history.back());await page.getByRole('dialog',{name:'Salir antes de sincronizar',exact:true}).waitFor()
     await page.getByRole('button',{name:'Cancelar',exact:true}).click();assert.equal(new URL(page.url()).searchParams.get('design'),id)
     await page.locator('button[title="Studio Test A"]').click();await page.getByRole('menuitem').filter({hasText:'Studio Test B'}).click()
-    await page.getByRole('dialog',{name:'Salir sin guardar',exact:true}).waitFor();await page.getByRole('button',{name:'Cancelar',exact:true}).click()
+    await page.getByRole('dialog',{name:'Salir antes de sincronizar',exact:true}).waitFor();await page.getByRole('button',{name:'Cancelar',exact:true}).click()
     assert.ok(await page.locator('button[title="Studio Test A"]').count())
     const unload=page.waitForEvent('dialog');const reload=page.reload().catch(()=>{})
     const dialog=await unload;assert.equal(dialog.type(),'beforeunload');await dialog.dismiss();await reload
     await page.getByText('640 × 480 px',{exact:true}).first().waitFor()
     assert.equal(await page.getByLabel('Nombre del diseño').inputValue(),'Borrador protegido MVP')
-    assert.equal(await page.getByRole('button',{name:'Guardar',exact:true}).isEnabled(),true)
-    await save(page)
+    assert.equal(await page.getByRole('button',{name:'Guardar',exact:true}).count(),0)
+    releasePending();await page.unroute('**/studio/designs/*/changes');await save(page)
+    await holdChanges()
     // Fault injection is limited to the browser draft store. Auth and Supabase
     // Storage/network remain real and untouched.
     await page.evaluate(()=>{
@@ -176,24 +181,21 @@ export async function verifyStudioComposition(stack, { users, companies }) {
     })
     await page.getByLabel('Nombre del diseño').fill('Borrador con cuota agotada')
     await page.getByRole('button',{name:'Volver a mis diseños',exact:true}).click()
-    await page.getByRole('dialog',{name:'Salir sin guardar',exact:true}).getByText(/No se pudo conservar la copia local/).waitFor()
+    await page.getByRole('dialog',{name:'Salir antes de sincronizar',exact:true}).getByText(/No se pudo conservar la copia local/).waitFor()
     await page.getByRole('button',{name:'Cancelar',exact:true}).click()
     const concurrent=await get()
     assert.equal((await api(root,{name:'Versión concurrente sintética',document:concurrent.document,revision:concurrent.revision},'PUT')).status,200)
-    await page.getByText('Conflicto de versiones',{exact:true}).waitFor()
-    await page.getByRole('button',{name:'Ver versión del servidor',exact:true}).click()
-    await page.getByRole('button',{name:'Cargar versión del servidor',exact:true}).click()
-    assert.equal(await page.getByRole('dialog',{name:'Versión del servidor',exact:true}).count(),1)
     assert.equal(await page.getByLabel('Nombre del diseño').inputValue(),'Borrador con cuota agotada')
     await page.evaluate(()=>{Storage.prototype.setItem=window.studioOriginalSetItem;delete window.studioOriginalSetItem})
-    await page.getByRole('button',{name:'Cargar versión del servidor',exact:true}).click()
-    await page.getByRole('dialog',{name:'Versión del servidor',exact:true}).waitFor({state:'detached'})
-    assert.equal(await page.getByLabel('Nombre del diseño').inputValue(),'Versión concurrente sintética')
+    releasePending();await page.unroute('**/studio/designs/*/changes');await save(page)
+    assert.equal((await get()).name,'Borrador con cuota agotada')
+    await holdChanges()
     await page.getByLabel('Nombre del diseño').fill('Copia local al cambiar empresa')
     await page.locator('button[title="Studio Test A"]').click();await page.getByRole('menuitem').filter({hasText:'Studio Test B'}).click()
-    await page.getByRole('dialog',{name:'Salir sin guardar',exact:true}).waitFor();await page.getByRole('button',{name:'Salir',exact:true}).click()
+    await page.getByRole('dialog',{name:'Salir antes de sincronizar',exact:true}).waitFor();await page.getByRole('button',{name:'Salir',exact:true}).click()
     await page.locator('button[title="Studio Test B"]').waitFor()
     assert.ok((await page.evaluate(()=>Object.values(localStorage))).some(value=>value.includes('Copia local al cambiar empresa')))
+    releasePending();await page.unroute('**/studio/designs/*/changes')
     record('dirty Back, shell module change, native history, beforeunload and company switch cancel safely; quota failure warns and prevents losing a conflicting draft; confirmed company change retains scoped draft')
     return {passed:true,checks,metrics,interceptors:0}
   }catch(error){let index=0;for(const context of contexts)for(const page of context.pages())await page.screenshot({path:join(stack.directory,`composition-failure-${index++}.png`),fullPage:true}).catch(()=>{});throw error}

@@ -1,3 +1,4 @@
+import {waitForSynced} from './editor-controls.mjs'
 import assert from 'node:assert/strict'
 import {createRequire}from'node:module'
 import {join}from'node:path'
@@ -5,7 +6,7 @@ import {readFile}from'node:fs/promises'
 import {createHash}from'node:crypto'
 import {chromium}from'playwright'
 import {blankDocument}from'../../../apps/shared/studio/document.js'
-import {openTemplates,useTemplate}from'./editor-controls.mjs'
+import {openTemplates,useTemplate,exportImage}from'./editor-controls.mjs'
 const sharp=createRequire(new URL('../../../apps/api/package.json',import.meta.url))('sharp')
 
 export async function verifyStudioCreative(stack,{users,companies,admin}) {
@@ -20,14 +21,10 @@ export async function verifyStudioCreative(stack,{users,companies,admin}) {
     await page.goto(`${stack.urls.web}/app/login`);await page.locator('#identifier').fill(user.email);await page.locator('#password').fill(user.password)
     await page.getByRole('button',{name:'Acceder al sistema',exact:true}).click();await page.waitForURL(url=>!url.pathname.includes('/login'));return{page,context}
   }
-  async function save(page){await page.getByRole('button',{name:'Guardar',exact:true}).click();await page.getByRole('status').filter({hasText:/^Guardado/}).first().waitFor()}
+  async function save(page){await waitForSynced(page)}
   async function choose(page,label,option){await page.getByLabel(label,{exact:true}).click();await page.getByRole('option',{name:option,exact:true}).click()}
   async function exportAs(page,format,name) {
-    await page.getByRole('button',{name:'Descargar',exact:true}).click()
-    await page.getByRole('menuitem',{name:format==='png'?/^PNG/:/^JPG · 100/}).click()
-    await page.getByRole('dialog',{name:'Créditos del diseño',exact:true}).waitFor()
-    await page.getByRole('button',{name:`Exportar ${format.toUpperCase()}`,exact:true}).waitFor({state:'visible'})
-    const download=page.waitForEvent('download');await page.getByRole('button',{name:`Exportar ${format.toUpperCase()}`,exact:true}).click()
+    const download=page.waitForEvent('download');await exportImage(page,format.toUpperCase())
     const path=join(stack.directory,name);await(await download).saveAs(path);return path
   }
   try {
@@ -105,7 +102,7 @@ export async function verifyStudioCreative(stack,{users,companies,admin}) {
     await page.screenshot({path:join(stack.directory,'creative-editor-desktop.png'),fullPage:true})
     record('bundled font selection and persisted family; real PNG/JPG; reopened Pacifico PNG pixel-identical; Space Mono changes pixels; fonts load only on demand')
 
-    const start=requests.length;await page.reload();await page.getByRole('button',{name:'Guardar',exact:true}).waitFor();await page.getByRole('button',{name:'Imágenes',exact:true}).click();await page.getByRole('radio',{name:'Iconos',exact:true}).click()
+    const start=requests.length;await page.reload();await waitForSynced(page);await page.getByRole('button',{name:'Imágenes',exact:true}).click();await page.getByRole('radio',{name:'Iconos',exact:true}).click()
     await page.getByLabel('Buscar iconos',{exact:true}).fill('offline');await page.getByText('Catálogo no disponible',{exact:true}).waitFor()
     await page.getByRole('button',{name:'Elementos',exact:true}).click();await page.getByRole('button',{name:'Rectángulo',exact:true}).click();await save(page)
     assert.ok((await get()).document.objects.some(o=>o.type==='rectangle'&&o.fill==='#d946ef'))

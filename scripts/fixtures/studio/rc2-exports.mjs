@@ -29,6 +29,7 @@ export async function verifyRc2Exports(stack,{users,companies}){
     async function check(label,value){const input=dialog.getByRole('checkbox',{name:label,exact:true});if(await input.isChecked()!==value)await dialog.getByText(label,{exact:true}).click();assert.equal(await input.isChecked(),value)}
     if(type!=='PDF'){await dialog.getByRole('radio',{name:`×${scale}`,exact:true}).click();if(type==='PNG')await check('Fondo transparente',transparent)}
     else{await dialog.getByRole('radiogroup',{name:'Perfil de color',exact:true}).getByRole('radio',{name:profile==='cmyk'?/CMYK/:/RGB/}).click();await check('Sangrado de 3 mm',true);await check('Marcas de corte',true)}
+    if(type!=='PDF')assert.ok((await dialog.getByRole('status').innerText()).replaceAll(',','').includes(`${600*scale} × ${400*scale} px`),'Announced dimensions differ from requested output')
     await dialog.getByRole('button',{name:'Descargar',exact:true}).click()
     await page.getByRole('button',{name:`Exportar ${type}`,exact:true}).click()
   }
@@ -45,6 +46,22 @@ export async function verifyRc2Exports(stack,{users,companies}){
     checks.push('Reader exports real PNG/JPG x1/x2/x3; decoded exact dimensions/alpha/pixels, groups, local font, masked original, off-page crop')
     for(const profile of ['rgb','cmyk']){const path=join(stack.directory,`rc2-print-${profile}.pdf`),buffer=await download(b,{type:'PDF',profile},path);assert.ok(buffer.subarray(0,5).equals(Buffer.from('%PDF-')));outputs.push({type:'PDF',profile,bytes:buffer.length,path:path.split(/[\\/]/).at(-1)})}
     checks.push('Authorized reader obtains real 300 ppi RGB/DeviceCMYK PDF with bleed/crop marks; artifacts retained for independent rasterization')
+    {
+      let release,seen,failed=0,downloads=0
+      const held=new Promise(r=>{release=r}),started=new Promise(r=>{seen=r}),before=await json(await api(root))
+      const failure=request=>{if(request.url().includes('/storage/v1/object/sign/'))failed++},downloaded=()=>downloads++
+      b.on('requestfailed',failure);b.on('download',downloaded)
+      await b.route('**/storage/v1/object/sign/**',async route=>{seen();await held;await route.continue().catch(()=>{})})
+      try{
+        await prepare(b,{type:'PNG'});await started;await b.getByRole('button',{name:'Cancelar',exact:true}).click()
+        await b.getByText('Descarga cancelada. No se guardó ningún archivo.',{exact:true}).waitFor()
+      }finally{release()}
+      await sleep(500);await b.unroute('**/storage/v1/object/sign/**');b.off('requestfailed',failure);b.off('download',downloaded)
+      assert.ok(failed>0,'Private-original HTTP load was not cancelled');assert.equal(downloads,0)
+      assert.deepEqual(await json(await api(root)),before)
+      const signed=await json(await api(`/files/${file.id}/signed-url`));assert.deepEqual(Buffer.from(await(await fetch(signed.signedUrl)).arrayBuffer()),image)
+      checks.push('Cancel aborts private-original HTTP loading, produces no late file and leaves document revision and original Storage bytes unchanged')
+    }
     async function concurrent(action,label){
       // Do not intercept the initial image load after reload: wait until the
       // editor is ready, then hold only the export's reauthorization request.

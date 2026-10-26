@@ -1,4 +1,7 @@
 // Semantic controls shared by the real Supabase browser suites after the editor redesign.
+export async function waitForSynced(page){
+  await page.getByRole('status').filter({hasText:/^Sincronizado(?:$| ·)/}).first().waitFor({timeout:20000})
+}
 export async function openPanel(page,name) {
   if(await page.getByRole('dialog',{name,exact:true}).count())return
   const button=page.getByRole('navigation',{name:'Herramientas de diseño'}).getByRole('button',{name,exact:true})
@@ -34,4 +37,4 @@ export async function useTemplate(page) {
   await page.getByRole('button',{name:/^Usar (esta )?plantilla$/}).click()
 }
 export const properties=page=>page.getByRole('complementary',{name:'Propiedades',exact:true})
-export async function presenceNames(page) {await page.getByRole('img',{name:/persona\(s\) editando/}).hover();return page.getByRole('tooltip').innerText()}
+export async function presenceNames(page) {await page.getByRole('group',{name:/persona\(s\) editando/}).getByRole('img').first().hover();return page.getByRole('tooltip').innerText()}
