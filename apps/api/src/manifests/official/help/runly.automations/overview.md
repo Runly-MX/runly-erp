@@ -1,6 +1,6 @@
 ---
 title: Automatizaciones
-summary: Flujos que se ponen en marcha solos: reciben un aviso, esperan, deciden, avisan y crean cosas en otros módulos.
+summary: Flujos que se ponen en marcha solos; reciben un aviso, esperan, deciden, avisan y crean cosas en otros módulos.
 ---
 Automatizaciones es un módulo propio, con su menú y sus permisos, que junta en un solo lugar los flujos de tu empresa (los módulos creados con el Constructor tienen además sus propias automatizaciones dentro del módulo). Cada flujo empieza con un disparador y sigue con bloques que se ejecutan en orden.
 

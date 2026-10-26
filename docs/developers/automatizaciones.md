@@ -1,6 +1,6 @@
 ---
 title: Automatizaciones
-summary: Automatizaciones de la empresa (módulo Automatizaciones) y de un módulo del Constructor: crean o actualizan registros en Calendario, Notificaciones, Contactos, Inventario, Proyectos, Libro de cuentas, Flota y más cuando pasa algo, sin programar.
+summary: Automatizaciones de la empresa (módulo Automatizaciones) y de un módulo del Constructor; crean o actualizan registros en Calendario, Notificaciones, Contactos, Inventario, Proyectos, Libro de cuentas, Flota y más cuando pasa algo, sin programar.
 order: 4.4
 ---
 Una **automatización** dice: «cuando pase esto, haz aquello en otro módulo». Por ejemplo: al crear una orden de servicio, agendar la visita en el Calendario; al cerrar la orden, avisar a quien la cerró; cuando un vehículo entra a mantenimiento, crear el contacto del taller.
