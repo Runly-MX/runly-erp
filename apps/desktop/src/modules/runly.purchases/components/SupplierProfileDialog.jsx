@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Building2 } from 'lucide-react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -27,7 +28,7 @@ export function SupplierProfileDialog({ contactId, name, profile, open, onOpenCh
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent scrollable size="md">
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0" icon={Building2}>
           <DialogTitle>Perfil de compras</DialogTitle>
           <DialogDescription>{name}. Los datos de contacto se editan en el directorio.</DialogDescription>
         </DialogHeader>

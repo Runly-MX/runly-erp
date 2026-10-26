@@ -5,6 +5,7 @@ import {
 } from './purchases-shared.js'
 import { PURCHASE_ENTITY_TYPES } from './purchase-relation-hydration.js'
 import { assertItemsFreeOfKind, isUniqueItemRelation, itemsWithOtherDocument } from './inventory-purchase-uniqueness.js'
+import { invoiceItemIds, linkItemsToInvoiceOrder } from './purchase-relation-cascade.js'
 
 const ITEM_RELATION_TYPE = {
   purchase_order: 'PURCHASED_IN',
@@ -98,6 +99,7 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     // `replace: true` ("Cambiar" in the item card) swaps the item's current document atomically.
     const replace = singleLink && input.replace === true
     if (singleLink && !replace) await assertItemsFreeOfKind(prisma, companyId, data.relationType, [data.targetId], data.sourceId, conflict)
+    let cascade = null
     const relation = await prisma.$transaction(async tx => {
       if (replace) {
         const removed = await tx.entityRelation.deleteMany({
@@ -107,10 +109,15 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
       }
       const value = await tx.entityRelation.create({ data })
       await writeAudit(tx, { companyId, actorId, entityType: 'entity_relation', entityId: value.id, action: 'purchase.relation.created', after: value })
+      if (data.relationType === 'INVOICED_ITEM' && targetType === 'inventory_item') {
+        cascade = await linkItemsToInvoiceOrder(tx, { companyId, actorId, invoiceId: data.sourceId, itemIds: [data.targetId] })
+      } else if (data.relationType === 'BILLED_FROM' && sourceType === 'purchase_invoice' && targetType === 'purchase_order') {
+        cascade = await linkItemsToInvoiceOrder(tx, { companyId, actorId, invoiceId: data.sourceId, itemIds: await invoiceItemIds(tx, companyId, data.sourceId), orderId: data.targetId })
+      }
       return value
     })
     await broadcast(broadcaster, companyId, 'purchase.relation.created', { relationId: relation.id, sourceType, sourceId: relation.sourceId, targetType, targetId: relation.targetId })
-    return relation
+    return cascade?.linked || cascade?.skipped ? { ...relation, cascade } : relation
   }
 
   async function bulkRelate(companyId, actorId, input = {}) {
@@ -127,6 +134,7 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     if (items.length !== targetIds.length) throw notFound('Uno o más inventarios no existen o pertenecen a otra empresa.')
     const relationType = defaultRelationType(sourceType, targetType)
     await assertItemsFreeOfKind(prisma, companyId, relationType, targetIds, sourceId, conflict)
+    let cascade = null
     const result = await prisma.$transaction(async tx => {
       const created = await tx.entityRelation.createMany({
         data: targetIds.map(targetId => ({
@@ -136,10 +144,11 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
         skipDuplicates: true,
       })
       await writeAudit(tx, { companyId, actorId, entityType: sourceType, entityId: sourceId, action: 'purchase.relation.bulk_created', metadata: { targetType, targetIds, created: created.count } })
+      if (sourceType === 'purchase_invoice') cascade = await linkItemsToInvoiceOrder(tx, { companyId, actorId, invoiceId: sourceId, itemIds: targetIds })
       return created
     })
     await broadcast(broadcaster, companyId, 'purchase.relation.created', { sourceType, sourceId, targetType, targetIds, bulk: true })
-    return { created: result.count, skipped: targetIds.length - result.count }
+    return { created: result.count, skipped: targetIds.length - result.count, ...(cascade?.orderId ? { cascade } : {}) }
   }
 
   async function deleteRelation(companyId, actorId, id) {

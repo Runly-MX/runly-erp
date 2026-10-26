@@ -49,7 +49,7 @@ export function ReceiveOrderDialog({ order, open, onOpenChange }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent scrollable size="xl">
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0" icon={PackageCheck}>
           <DialogTitle>Registrar recepción de {order?.number}</DialogTitle>
           <DialogDescription>Captura lo que llegó. Si falta algo, la orden queda como recibida parcial.</DialogDescription>
         </DialogHeader>

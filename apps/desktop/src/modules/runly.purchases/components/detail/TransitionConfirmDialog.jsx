@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ClipboardCheck } from 'lucide-react'
 import { Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, TextareaField } from '@runly/ui'
 
 // Confirmation before a transition; with `comment` it also asks why
@@ -20,7 +21,7 @@ export function TransitionConfirmDialog({ action, open, onOpenChange, onConfirm,
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent scrollable size="md">
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0" icon={ClipboardCheck}>
           <DialogTitle>{confirm.title}</DialogTitle>
           <DialogDescription>{confirm.description}</DialogDescription>
         </DialogHeader>

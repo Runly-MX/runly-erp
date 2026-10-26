@@ -36,7 +36,10 @@ export default function InventoryPurchaseSection({ data: item }) {
     queryFn: () => runly.purchases.inventorySummary(itemId, token),
     enabled: Boolean(token && itemId && canRead),
   })
-  const refresh = () => client.invalidateQueries({ queryKey: summaryKey })
+  const refresh = () => {
+    client.invalidateQueries({ queryKey: summaryKey })
+    client.invalidateQueries({ queryKey: ['inventory'] })
+  }
 
   const unlink = useMutation({
     mutationFn: (doc) => runly.purchases.deleteRelation(doc.relationId, token),

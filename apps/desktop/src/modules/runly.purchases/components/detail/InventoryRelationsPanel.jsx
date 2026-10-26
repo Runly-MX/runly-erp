@@ -5,6 +5,7 @@ import { Button, ConfirmDialog, EmptyState } from '@runly/ui'
 import { useRelationMutations } from '../../hooks/usePurchases.js'
 import { INVENTORY_BASE, ORIGIN_LABELS, toAppPath } from '../../lib/purchases-constants.js'
 import { InventoryItemPicker } from '../editor/InventoryItemPicker.jsx'
+import { AssignInvoiceDialog } from './AssignInvoiceDialog.jsx'
 
 const ORIGIN_TONE = { MANUAL: 'bg-slate-500/10 text-slate-600 dark:text-slate-300', INHERITED: 'bg-sky-500/10 text-sky-700 dark:text-sky-300', AUTOMATIC: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300', MIGRATED: 'bg-amber-500/10 text-amber-700 dark:text-amber-300' }
 
@@ -17,13 +18,18 @@ export function InventoryRelationsPanel({ entityType, doc, canManage }) {
   const { bulk, remove } = useRelationMutations()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [unlink, setUnlink] = useState(null)
+  const [assign, setAssign] = useState([])
   const relations = (doc.relations ?? []).filter(isInventoryRelation)
+  const invoices = doc.invoices ?? []
 
   const addItems = (items) => {
     const known = new Set(relations.map((r) => r.other.id))
     const targetIds = items.map((i) => i.id).filter((id) => !known.has(id))
     if (!targetIds.length) return
-    bulk.mutate({ sourceType: entityType, sourceId: doc.id, targetType: 'inventory_item', targetIds })
+    bulk.mutate({ sourceType: entityType, sourceId: doc.id, targetType: 'inventory_item', targetIds }, {
+      // An order may have several invoices: ask which one covers the new assets.
+      onSuccess: () => { if (entityType === 'purchase_order' && invoices.length) setAssign(targetIds) },
+    })
   }
 
   return (
@@ -57,6 +63,7 @@ export function InventoryRelationsPanel({ entityType, doc, canManage }) {
           ))}
         </ul>
       )}
+      <AssignInvoiceDialog open={assign.length > 0} onOpenChange={(o) => { if (!o) setAssign([]) }} order={doc} invoices={invoices} itemIds={assign} />
       <InventoryItemPicker open={pickerOpen} onOpenChange={setPickerOpen} onConfirm={addItems} />
       <ConfirmDialog open={Boolean(unlink)} onOpenChange={(o) => { if (!o) setUnlink(null) }}
         title="Quitar relación" description="El activo sigue en Inventario; solo deja de estar ligado a este documento."

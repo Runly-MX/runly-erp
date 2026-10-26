@@ -33,7 +33,7 @@ export function InventoryItemPicker({ open, onOpenChange, selected = [], onConfi
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent scrollable size="2xl">
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0" icon={Boxes}>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>Busca por nombre, etiqueta o número de serie. Puedes elegir varios.</DialogDescription>
         </DialogHeader>

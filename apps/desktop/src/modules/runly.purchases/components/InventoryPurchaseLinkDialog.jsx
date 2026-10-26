@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, ChevronLeft, ChevronRight, FileSearch } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, FileSearch, Link2 } from 'lucide-react'
 import {
   Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
   EmptyState, ErrorState, SearchInput, SegmentedControl, Skeleton, cn,
@@ -58,10 +58,13 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
       origin: 'MANUAL',
       replace: replaceTypes.includes(type) || undefined,
     }, token),
-    onSuccess: (_, doc) => {
+    onSuccess: (result, doc) => {
       client.invalidateQueries({ queryKey: ['purchases', 'relations'] })
       onLinked?.()
-      toast.success(`${TYPES[type].label} ${doc.number ?? ''} relacionada`.replace(/\s+/g, ' ').trim())
+      const cascade = result?.data?.cascade ?? result?.cascade
+      toast.success(`${TYPES[type].label} ${doc.number ?? ''} relacionada`.replace(/\s+/g, ' ').trim(), {
+        description: cascade?.linked ? `También se relacionó su orden${doc.order?.number ? ` ${doc.order.number}` : ''}.` : undefined,
+      })
       onOpenChange(false)
     },
     onError: (error) => toast.error(error?.message ?? 'No se pudo crear la relación'),
@@ -72,7 +75,7 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="md" scrollable>
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0" icon={Link2}>
           <DialogTitle>{replaceTypes.length ? 'Cambiar o relacionar documento' : 'Relacionar documento existente'}</DialogTitle>
           <DialogDescription>
             {replaceTypes.includes(type)
@@ -92,6 +95,11 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
             aria-label="Buscar documentos"
           />
         </div>
+        {type === 'invoice' && selected?.order ? (
+          <p className="shrink-0 rounded-lg bg-teal-500/10 px-3 py-2 text-xs text-teal-800 dark:text-teal-200">
+            Esta factura pertenece a la orden {selected.order.number}; también se relacionará con el activo.
+          </p>
+        ) : null}
         <div className="min-h-[220px] flex-1 overflow-y-auto overscroll-contain py-3">
           {results.isLoading ? (
             <div className="space-y-2">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}</div>

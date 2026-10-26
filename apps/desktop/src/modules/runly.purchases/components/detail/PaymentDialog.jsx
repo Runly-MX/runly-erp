@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Banknote } from 'lucide-react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -38,7 +39,7 @@ export function PaymentDialog({ invoice, open, onOpenChange }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent scrollable size="md">
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0" icon={Banknote}>
           <DialogTitle>Registrar pago de {invoice?.number}</DialogTitle>
           <DialogDescription>Saldo actual {formatMoney(balance, invoice?.currency)}.</DialogDescription>
         </DialogHeader>

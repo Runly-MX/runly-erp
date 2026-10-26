@@ -162,9 +162,18 @@ export function useRelations(params, { enabled = true } = {}) {
   })
 }
 
+// Relations show up on both sides: the document and the inventory item.
+export function useInvalidateRelations() {
+  const client = useQueryClient()
+  return () => Promise.all([
+    client.invalidateQueries({ queryKey: ['purchases'] }),
+    client.invalidateQueries({ queryKey: ['inventory'] }),
+  ])
+}
+
 export function useRelationMutations() {
   const token = useToken()
-  const invalidate = useInvalidateAll()
+  const invalidate = useInvalidateRelations()
   const onError = (error) => toast.error(errorText(error, 'No se pudo actualizar la relación'))
   const bulk = useMutation({
     mutationFn: (data) => runly.purchases.bulkRelate(data, token).then(one),

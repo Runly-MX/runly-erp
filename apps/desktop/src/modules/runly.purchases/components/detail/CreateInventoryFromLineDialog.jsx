@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { PackagePlus } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -77,7 +78,7 @@ export function CreateInventoryFromLineDialog({ line, open, onOpenChange }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent scrollable size="xl">
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0" icon={PackagePlus}>
           <DialogTitle>Crear activos desde el concepto</DialogTitle>
           <DialogDescription>{line?.description ? `${line.description}. ` : ''}Cada activo queda relacionado con este documento y con su costo unitario.</DialogDescription>
         </DialogHeader>

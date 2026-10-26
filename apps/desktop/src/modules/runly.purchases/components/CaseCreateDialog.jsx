@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { FolderPlus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -42,7 +43,7 @@ export function CaseCreateDialog({ open, onOpenChange }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent scrollable size="lg">
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0" icon={FolderPlus}>
           <DialogTitle>Nuevo expediente</DialogTitle>
           <DialogDescription>Agrupa todo lo que ocurra en una compra: solicitud, cotizaciones, orden, facturas y pagos.</DialogDescription>
         </DialogHeader>

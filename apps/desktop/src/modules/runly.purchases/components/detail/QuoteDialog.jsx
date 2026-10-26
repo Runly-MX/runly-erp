@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { FileSearch } from 'lucide-react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -49,7 +50,7 @@ export function QuoteDialog({ caseId, requestId, currency = 'MXN', open, onOpenC
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent scrollable size="lg">
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0" icon={FileSearch}>
           <DialogTitle>Registrar cotización</DialogTitle>
           <DialogDescription>Captura la propuesta del proveedor para compararla con las demás.</DialogDescription>
         </DialogHeader>

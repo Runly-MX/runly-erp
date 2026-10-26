@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { FilePlus2 } from 'lucide-react'
 import { Button, DatePickerField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, TextField } from '@runly/ui'
 import { toast } from 'sonner'
 import { SupplierField } from '../../runly.purchases/components/SupplierField.jsx'
@@ -40,7 +41,7 @@ export function InventoryPurchaseQuickCreateDialog({ open, onOpenChange, kind, i
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="md">
-        <DialogHeader className="shrink-0">
+        <DialogHeader className="shrink-0" icon={FilePlus2}>
           <DialogTitle>{copy.title}</DialogTitle>
           <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
