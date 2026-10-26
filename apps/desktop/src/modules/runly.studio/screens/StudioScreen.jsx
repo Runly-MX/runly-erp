@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, ErrorState, Skeleton } from '@runly/ui'
@@ -40,6 +40,11 @@ export default function StudioScreen() {
   const starting = useRef(false)
   const queryClient = useQueryClient()
   const scopeKey = [profileCompanyId, userProfile?.id]
+  // Do not remount a pre-save scene from the route cache when returning home or
+  // cancelling history navigation while its background request is in flight.
+  const updateRecord = useCallback(record => {
+    queryClient.setQueryData(['studio', profileCompanyId, userProfile?.id, 'design', record.id], current => ({ ...current, ...record }))
+  }, [queryClient, profileCompanyId, userProfile?.id])
   const design = useQuery({ queryKey: ['studio', ...scopeKey, 'design', id],
     queryFn: async () => unwrap(await runly.studio.getDesign(id, token)), enabled: Boolean(token && id), refetchOnWindowFocus: false })
   // `rethrow` lets the size dialog keep itself open and show the error.
@@ -57,6 +62,7 @@ export default function StudioScreen() {
     if (design.error) return <div className="flex h-full items-center justify-center p-6"><ErrorState title="No se pudo abrir el diseño" description={design.error.message} onRetry={design.refetch} /></div>
     return <DesignEditor key={`${profileCompanyId}:${userProfile?.id}:${id}`} record={design.data} token={token} scope={`${profileCompanyId}:${userProfile?.id}:${id}`}
       editingTemplateId={params.get('template')}
+      onRecordChange={updateRecord}
       onCopy={copyId => setParams(withView({ design: copyId }))} onBack={() => { setParams(withView({})); queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'designs'] }) }} />
   }
   // "Editar contenido": work on a design created from the template, linked by

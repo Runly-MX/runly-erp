@@ -164,6 +164,9 @@ export async function verifyStudioComposition(stack, { users, companies }) {
     assert.ok(await page.locator('button[title="Studio Test A"]').count())
     const unload=page.waitForEvent('dialog');const reload=page.reload().catch(()=>{})
     const dialog=await unload;assert.equal(dialog.type(),'beforeunload');await dialog.dismiss();await reload
+    await page.getByText('640 × 480 px',{exact:true}).first().waitFor()
+    assert.equal(await page.getByLabel('Nombre del diseño').inputValue(),'Borrador protegido MVP')
+    assert.equal(await page.getByRole('button',{name:'Guardar',exact:true}).isEnabled(),true)
     await save(page)
     // Fault injection is limited to the browser draft store. Auth and Supabase
     // Storage/network remain real and untouched.

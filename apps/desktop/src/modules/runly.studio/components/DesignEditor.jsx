@@ -16,7 +16,7 @@ import { useSaveAsTemplate, useTemplateEditing } from './templates/useTemplateEd
 
 const unwrap = response => response?.data ?? response
 
-export function DesignEditor({ record, token, scope, onBack, onCopy, editingTemplateId = null }) {
+export function DesignEditor({ record, token, scope, onBack, onCopy, onRecordChange, editingTemplateId = null }) {
   const clipboard = useMemo(() => createScopedClipboard(scope.slice(0, scope.lastIndexOf(':'))), [scope])
   // Element library figures are real catalog icons (licensed, credited).
   const catalog = useMemo(() => ({
@@ -116,6 +116,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy, editingTemp
         pending.current = null; clearTimeout(timer.current); store.clear(); dirtyRef.current = false; setDirty(false); navigation.finish(() => onCopy(saved.id)); return true
       }
       revision.current = saved.revision
+      onRecordChange?.(saved)
       if (generation.current === sent) { pending.current = null; clearTimeout(timer.current); store.clear(); dirtyRef.current = false; setDirty(false); setRecovery(null) }
       else { pending.current = { ...pending.current, revision: saved.revision }; preserve() }
       return true
@@ -135,6 +136,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy, editingTemp
   }
   function loadServer() {
     if (!preserve()) return
+    onRecordChange?.(server)
     boundAssets.current = new Set(documentAssetIds(server.document))
     setWorkspaceVersion(value => value + 1)
     preserve(); setRecovery(pending.current); pending.current = null; clearTimeout(timer.current)
@@ -154,11 +156,12 @@ export function DesignEditor({ record, token, scope, onBack, onCopy, editingTemp
       if (fresh.revision <= revision.current) return
       if (dirtyRef.current) { preserve(); setConflict(true); setError('Hay una revisión nueva. Tu borrador se conserva.'); return }
       boundAssets.current = new Set(documentAssetIds(fresh.document))
+      onRecordChange?.(fresh)
       setInitial(fresh.document); setName(fresh.name); nameRef.current = fresh.name; revision.current = fresh.revision
       setCanEdit(fresh.canEdit); setWorkspaceVersion(value => value + 1)
     } catch (error) { if ([401,403,404].includes(error.status)) revoked() }
     finally { refreshing.current = false }
-  }, [record.id, token, preserve, revoked])
+  }, [record.id, token, preserve, revoked, onRecordChange])
   const realtime = useStudioRealtime({ id: record.id, token, scope, onRevision: confirmed, onDenied: revoked })
   // `point` (optional): centre of a drag-and-drop in page coordinates.
   async function insertResource(asset, point = null) {

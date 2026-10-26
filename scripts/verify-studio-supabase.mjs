@@ -16,7 +16,8 @@ import { verifyStudioCreative } from './fixtures/studio/supabase-creative.mjs'
 import { measureStudioBaseline } from './lib/studio-web-baseline.mjs'
 import { verifyStudioPhotos } from './fixtures/studio/supabase-photos.mjs'
 
-const stack = await createStudioStack()
+const apiImage=process.argv.find(value=>value.startsWith('--api-image='))?.slice('--api-image='.length)
+const stack = await createStudioStack(apiImage?{apiImage}:{})
 let web
 async function close() {
   web?.httpServer.closeAllConnections()
