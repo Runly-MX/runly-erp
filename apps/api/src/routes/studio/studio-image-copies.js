@@ -14,7 +14,7 @@ export function createStudioImageCopies({ prisma, access, filesService }) {
     await access.member(companyId,actorId,'files.assets.read')
     await access.member(companyId,actorId,'files.assets.create')
     const design = await access.get(companyId,actorId,designId,prisma,true)
-    if (!design.document.objects.some(object => object.type === 'image' && object.fileAssetId === fileId)) throw new StudioError('La imagen ya no pertenece al diseño.',409)
+    if (!design.document.objects.some(object => object.type === 'image' && object.fileAssetId === fileId) && !await access.imageAllowed(companyId,designId,fileId)) throw new StudioError('La imagen ya no pertenece al diseño.',409)
     const file = await prisma.fileAsset.findFirst({where:{id:fileId,entityId:companyId,enabled:true}})
     if (!file || !MIME.has(file.mimeType)) throw new StudioError('Imagen no disponible.',404)
     // Access to a bound design image is delegated by the current design ACL.
@@ -41,6 +41,9 @@ export function createStudioImageCopies({ prisma, access, filesService }) {
           studioEditedFrom:fileId,...(original.metadata?.studioSource ? {studioSource:original.metadata.studioSource} : {})}}})
       // An upload cannot grant Studio access after a revocation. The private copy
       // stays owned by its uploader if access changes during Storage I/O.
+      await authorize(companyId,actorId,designId,fileId)
+      await prisma.auditLog.create({data:{companyId,actorId,moduleKey:'runly.studio',entityType:'StudioDesign',entityId:designId,
+        action:'studio.image.copy',metadata:{sourceFileId:fileId,copyFileId:result.id}}})
       await authorize(companyId,actorId,designId,fileId)
       return {id:result.id,name:result.originalName,width:metadata.width,height:metadata.height,mimeType:file.type}
     } finally { running-- }

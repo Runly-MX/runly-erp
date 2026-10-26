@@ -27,7 +27,7 @@ END $$`)
 await pool.query(`CREATE SCHEMA ${schema}`)
 await pool.query(`CREATE TABLE company(id uuid PRIMARY KEY); CREATE TABLE user_profile(id uuid PRIMARY KEY);
   CREATE TABLE file_asset(id uuid PRIMARY KEY, entity_id uuid, uploaded_by_id uuid, enabled boolean, mime_type text);
-  CREATE TABLE audit_log(action text NOT NULL, entity_id uuid, metadata jsonb);`)
+  CREATE TABLE audit_log(action text NOT NULL, entity_id uuid, module_key text, entity_type text, metadata jsonb);`)
 await pool.query(await readFile(resolve(root, 'prisma/migrations/20261130000000_studio_design/migration.sql'), 'utf8'))
 await installMinimalStudioAccess(pool)
 await pool.query('INSERT INTO company VALUES ($1);', [company]); await pool.query('INSERT INTO user_profile(id) VALUES ($1)', [owner])

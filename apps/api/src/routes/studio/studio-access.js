@@ -1,6 +1,8 @@
 import { FILE_ID, StudioError } from '../../../../shared/studio/document.js'
+import {createStudioImageLineage} from './studio-image-lineage.js'
 
 export function createStudioAccess({ prisma, filesService }) {
+  const {imageAllowed}=createStudioImageLineage({prisma})
   function identity(companyId, actorId) {
     if (!FILE_ID.test(companyId) || !FILE_ID.test(actorId)) throw new StudioError('Diseño no encontrado.', 404)
   }
@@ -35,11 +37,15 @@ export function createStudioAccess({ prisma, filesService }) {
     const ids = [...new Set(document.objects.filter(o => o.type === 'image').map(o => o.fileAssetId))]
     const origins = new Map()
     for (const id of ids) {
-      const [file] = await db.$queryRaw`SELECT f.id,f.uploaded_by_id AS "uploadedById",
+      let [file] = await db.$queryRaw`SELECT f.id,f.uploaded_by_id AS "uploadedById",
         (SELECT a.origin_design_id FROM studio_design_asset a WHERE a.design_id=${designId}::uuid AND a.file_id=f.id) AS origin
         FROM file_asset f WHERE f.id=${id}::uuid AND f.entity_id=${companyId}::uuid
         AND f.enabled AND f.mime_type IN ('image/png','image/jpeg','image/webp') AND
         (f.uploaded_by_id=${actorId}::uuid OR EXISTS(SELECT 1 FROM studio_design_asset a WHERE a.design_id=${designId}::uuid AND a.file_id=f.id))`
+      if(!file&&designId&&await imageAllowed(companyId,designId,id,db)){
+        ;[file]=await db.$queryRaw`SELECT id,uploaded_by_id AS \"uploadedById\",NULL::uuid AS origin FROM file_asset
+          WHERE id=${id}::uuid AND entity_id=${companyId}::uuid AND enabled AND mime_type IN ('image/png','image/jpeg','image/webp')`
+      }
       if (!file) {
         if (!filesService || !fileContext) throw new StudioError('Una imagen no está disponible o no está autorizada.', 403, 'STUDIO_ASSET_DENIED')
         await member(companyId, actorId, 'files.assets.read', db)
@@ -61,5 +67,5 @@ export function createStudioAccess({ prisma, filesService }) {
     await db.auditLog.create({ data: { companyId, actorId, moduleKey: 'runly.studio', entityType: 'StudioDesign', entityId: row.id,
       action, metadata: { revision: row.revision, name: row.name, ...metadata } } })
   }
-  return { identity, member, lock, get, owner, assets, bindAssets, audit }
+  return { identity, member, lock, get, owner, assets, bindAssets, audit, imageAllowed }
 }

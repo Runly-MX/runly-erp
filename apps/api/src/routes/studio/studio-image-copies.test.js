@@ -10,7 +10,8 @@ function fixture() {
     assert.equal(edit,true);if(!state.allowed)throw new StudioError('Denied',403)
     return {document:{objects:state.removed?[]:[{type:'image',fileAssetId:fileId}]}}
   }}
-  const prisma={fileAsset:{findFirst:async({where})=>{assert.equal(where.entityId,'company');assert.equal(where.enabled,true);return state.source}}}
+  access.imageAllowed=async()=>false
+  const prisma={auditLog:{create:async entry=>{state.audit=entry}},fileAsset:{findFirst:async({where})=>{assert.equal(where.entityId,'company');assert.equal(where.enabled,true);return state.source}}}
   const filesService={upload:async input=>{if(state.failure)throw Error('Storage unavailable');state.uploads.push(input);if(state.revoke)state.allowed=false;return {id:'copy',originalName:'copy.png'}}}
   return {state,service:createStudioImageCopies({prisma,access,filesService})}
 }
@@ -21,6 +22,7 @@ test('private copy preserves source/provenance; edits require current membership
   assert.equal(copy.width,32);assert.equal(copy.height,24);assert.deepEqual(state.source,original)
   assert.equal(state.uploads[0].fields.visibility,'PRIVATE');assert.equal(state.uploads[0].fields.entityType,'AtlasFile')
   assert.deepEqual(state.uploads[0].fields.metadata,{studioEditedFrom:fileId,studioSource:original.metadata.studioSource})
+  assert.deepEqual(state.audit.data.metadata,{sourceFileId:fileId,copyFileId:'copy'})
   state.allowed=false;await assert.rejects(service.create('company','viewer','design',fileId,await image(),{}),{status:403})
   assert.equal(state.uploads.length,1)
 })

@@ -60,6 +60,9 @@ window.studioPhotoVerification=async()=>{
   const highDoc={transform:{quarterTurns:1,angle:0},adjust:NO_ADJUST,filter:{id:'none',amount:100},annotations:[],layers:[],cropN:{x:0,y:0,w:1,h:1}}
   const output=await exportImageDocument(image,highDoc,{originalResolution:true}),bitmap=await createImageBitmap(output)
   check(preview.width===1800,'legacy preview changed');check(bitmap.width===1200&&bitmap.height===2400,'original resolution lost');bitmap.close()
+  const cropped=await exportImageDocument(image,{...highDoc,cropN:{x:0.1,y:0.1,w:0.8,h:0.8},annotations:[{id:'test-line',type:'line',from:[100,100],to:[400,300],width:10,color:'#ef4444'}]},{originalResolution:true})
+  const croppedBitmap=await createImageBitmap(cropped);check(croppedBitmap.width===960&&croppedBitmap.height===1920,'Full-resolution crop dimensions incorrect');croppedBitmap.close()
+  let limited=false;try{await exportImageDocument({naturalWidth:10000,naturalHeight:10},highDoc,{originalResolution:true})}catch{limited=true}check(limited,'Oversized original was silently reduced')
   checks.push('Shared photo export preserves 2400px original; legacy preview remains 1800px')
   await editor.destroy();return {checks,benchmarks,document:composition}
 }

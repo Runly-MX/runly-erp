@@ -1,5 +1,6 @@
 // Real Runly app + Auth + Storage. No request interception, deployment env or workers.
 import { createRequire } from 'node:module'
+import {execFileSync} from 'node:child_process'
 import { resolve, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { writeFile } from 'node:fs/promises'
@@ -41,6 +42,10 @@ try {
     await new Promise(resolve => setTimeout(resolve, 500))
   }
   if (!ready) throw Error('ISOLATED_API_NOT_READY')
+  if(process.argv.includes('--photos-only')){
+    const result={passed:true,photos:await verifyStudioPhotos(stack,data)}
+    await writeFile(join(stack.directory,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2))
+  }else{
   const require = createRequire(resolve('apps/desktop/package.json'))
   for (const key of Object.keys(process.env)) if (key.startsWith('VITE_')) delete process.env[key]
   Object.assign(process.env, { VITE_RUNLY_API_URL: stack.urls.api, VITE_SUPABASE_URL: stack.urls.kong, VITE_SUPABASE_ANON_KEY: stack.secret.SUPABASE_ANON_KEY })
@@ -50,12 +55,24 @@ try {
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(stack.urls.kong), 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(stack.secret.SUPABASE_ANON_KEY) },
     build: { outDir: join(stack.directory, 'web'), emptyOutDir: true },
     preview: { host: '127.0.0.1', port: stack.ports.web, strictPort: true } }
+  // Verify a committed source snapshot while another session edits UI, without
+  // checkout, branch, worktree or modifying any working file.
+  const requestedRef=process.argv.find(value=>value.startsWith('--source-ref='))?.slice('--source-ref='.length)
+  let sourceRef
+  if(requestedRef){
+    if(!/^(HEAD|[a-f0-9]{7,40})$/i.test(requestedRef))throw Error('COMMITTED_SOURCE_REF_REQUIRED')
+    sourceRef=execFileSync('git',['rev-parse','--verify',requestedRef],{encoding:'utf8'}).trim()
+    const changed=execFileSync('git',['diff','--name-only','--diff-filter=M',sourceRef,'--','apps/desktop','apps/shared','packages/ui','packages/sdk'],{encoding:'utf8'}).trim().split(/\r?\n/).filter(file=>/\.(?:js|jsx|css)$/.test(file))
+    const sources=new Map(changed.map(file=>[resolve(file).replaceAll('\\','/'),execFileSync('git',['show',`${sourceRef}:${file}`],{encoding:'utf8',maxBuffer:16*1024*1024})]))
+    config.plugins=[{name:'studio-committed-source',enforce:'pre',load(id){return sources.get(id.split('?')[0].replaceAll('\\','/'))??null}}]
+  }
   console.log('Building real React frontend with isolated public configuration.')
   const baselineRef=process.argv.find(value=>value.startsWith('--baseline-ref='))?.slice('--baseline-ref='.length)??'HEAD'
   const baseline=process.argv.includes('--measure-baseline')?await measureStudioBaseline(build,config,stack.directory,baselineRef):null
   await build(config)
   const bundle = await inspectStudioWeb(config.build.outDir, { forbiddenValues: [stack.secret.SUPABASE_SERVICE_ROLE_KEY,
     stack.secret.SUPABASE_JWT_SECRET, stack.secret.SUPABASE_POSTGRES_PASSWORD] })
+  if(sourceRef)bundle.sourceRef=sourceRef
   if(baseline)bundle.baseline=baseline
   web = await preview(config)
   const photos=await verifyStudioPhotos(stack,data)
@@ -64,6 +81,7 @@ try {
   result.photos=photos
   await writeFile(join(stack.directory, 'result.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify(result, null, 2))
+  }
 } finally {
   process.removeListener('SIGINT', interrupted); process.removeListener('SIGTERM', interrupted)
   await close()
