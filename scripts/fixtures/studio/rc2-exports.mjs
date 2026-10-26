@@ -22,7 +22,7 @@ export async function verifyRc2Exports(stack,{users,companies}){
   const record=await json(await api('/studio/designs',{name:'RC2 synthetic export',document:doc})),root=`/studio/designs/${record.id}`
   await json(await api(root+'/collaborators',{userId:peer.id,role:'VIEWER'},0,'PUT'))
   const browser=await chromium.launch({channel:'chrome',headless:true})
-  async function open(user){const context=await browser.newContext({viewport:{width:1500,height:1100}}),page=await context.newPage();contexts.push(context);page.on('dialog',d=>d.accept());await page.goto(stack.urls.web+'/app/login');await page.locator('#identifier').fill(user.email);await page.locator('#password').fill(user.password);await page.getByRole('button',{name:'Acceder al sistema',exact:true}).click();await page.waitForURL(u=>!u.pathname.includes('/login'));await page.goto(stack.urls.web+`/app/m/runly.studio/?design=${record.id}`);await page.locator('.upper-canvas').waitFor();return page}
+  async function open(user){const context=await browser.newContext({viewport:{width:1500,height:1100}}),page=await context.newPage();page.setDefaultTimeout(10000);contexts.push(context);page.on('dialog',d=>d.accept());await page.goto(stack.urls.web+'/app/login');await page.locator('#identifier').fill(user.email);await page.locator('#password').fill(user.password);await page.getByRole('button',{name:'Acceder al sistema',exact:true}).click();await page.waitForURL(u=>!u.pathname.includes('/login'));await page.goto(stack.urls.web+`/app/m/runly.studio/?design=${record.id}`);await page.locator('.upper-canvas').waitFor();return page}
   async function prepare(page,{type='PNG',scale=1,transparent=false,profile='rgb'}={}){
     await page.getByRole('button',{name:'Descargar',exact:true}).click()
     const dialog=page.getByRole('dialog',{name:'Descargar',exact:true});await dialog.getByRole('radio',{name:new RegExp(`^${type}`)}).click()
@@ -31,7 +31,7 @@ export async function verifyRc2Exports(stack,{users,companies}){
     await dialog.getByRole('button',{name:'Descargar',exact:true}).click()
     await page.getByRole('button',{name:`Exportar ${type}`,exact:true}).click()
   }
-  async function download(page,options,path){const pending=page.waitForEvent('download');await prepare(page,options);const result=await pending;await result.saveAs(path);return readFile(path)}
+  async function download(page,options,path){const pending=page.waitForEvent('download',{timeout:45000}).catch(error=>({error}));await prepare(page,options);const result=await pending;if(result.error)throw result.error;await result.saveAs(path);return readFile(path)}
   try{
     const a=await open(owner),b=await open(peer)
     for(const scale of [1,2,3])for(const type of ['PNG','JPG']){
@@ -62,6 +62,6 @@ export async function verifyRc2Exports(stack,{users,companies}){
     checks.push('Revocation during original-image refresh blocks final download; read-only role was permitted before revocation')
     await a.screenshot({path:join(stack.directory,'rc2-export-owner.png')})
     return {checks,outputs,designId:record.id}
-  }catch(error){for(const context of contexts)for(const page of context.pages())await page.screenshot({path:join(stack.directory,`rc2-export-failure-${contexts.indexOf(context)}.png`)}).catch(()=>{});throw error}
+  }catch(error){for(const context of contexts)for(const page of context.pages()){await page.screenshot({path:join(stack.directory,`rc2-export-failure-${contexts.indexOf(context)}.png`)}).catch(()=>{});console.log((await page.locator('body').innerText()).slice(-2200))}throw error}
   finally{await browser.close()}
 }

@@ -53,6 +53,7 @@ export async function verifyStudioGradients(stack,{users,companies}) {
   const browser=await chromium.launch({channel:'chrome',headless:true})
   try{
     const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[]
+    page.setDefaultTimeout(10000)
     page.on('pageerror',e=>errors.push(e.message))
     await page.goto(`${stack.urls.web}/app/login`);await page.locator('#identifier').fill(owner.email);await page.locator('#password').fill(owner.password)
     await page.getByRole('button',{name:'Acceder al sistema',exact:true}).click();await page.waitForURL(url=>!url.pathname.includes('/login'))
@@ -64,7 +65,7 @@ export async function verifyStudioGradients(stack,{users,companies}) {
     await page.getByRole('button',{name:'Descargar',exact:true}).waitFor()
     const outputs=[]
     for(const format of ['PNG','JPG']){
-      const downloaded=page.waitForEvent('download');await exportImage(page,format);const download=await downloaded,path=join(stack.directory,`gradient-export.${format.toLowerCase()}`);await download.saveAs(path)
+      const downloaded=page.waitForEvent('download',{timeout:45000}).catch(error=>({error}));await exportImage(page,format);const download=await downloaded;if(download.error)throw download.error;const path=join(stack.directory,`gradient-export.${format.toLowerCase()}`);await download.saveAs(path)
       const buffer=await readFile(path),{data,info}=await sharp(buffer).ensureAlpha().raw().toBuffer({resolveWithObject:true})
       assert.equal(info.width,640);assert.equal(info.height,480)
       const ratio=Math.hypot(600-320,440-240)/480,expected=[217+(121-217)*ratio,70+(69-70)*ratio,239+(245-239)*ratio,255],offset=(440*640+600)*4
@@ -75,6 +76,6 @@ export async function verifyStudioGradients(stack,{users,companies}) {
     const downloaded=page.waitForEvent('download');await exportImage(page);const download=await downloaded,path=join(stack.directory,'gradient-reopened.png');await download.saveAs(path)
     assert.deepEqual(await readFile(path),outputs[0]);assert.deepEqual(errors,[])
     checks.push('Real React Home radial SVG preview, authenticated editor reopen, PNG/JPG independent radial pixel oracle (2/4 tolerance), byte-identical PNG after reload')
-  }finally{await browser.close()}
+  }catch(error){for(const context of browser.contexts())for(const page of context.pages()){await page.screenshot({path:join(stack.directory,'gradient-failure.png')});console.log((await page.locator('body').innerText()).slice(-2200))}throw error}finally{await browser.close()}
   return {checks}
 }

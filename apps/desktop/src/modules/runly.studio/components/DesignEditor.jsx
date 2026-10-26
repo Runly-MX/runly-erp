@@ -150,7 +150,9 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     try {
       await ensureSaved()
       const fresh=unwrap(await runly.studio.getDesign(record.id,token))
-      if(JSON.stringify(validateDocument(fresh.document))!==JSON.stringify(validateDocument(reviewedScene)))throw Error('El diseño cambió. Revisa la revisión actual antes de descargar.')
+      // Fabric measures text boxes at render time. Compare persisted documents
+      // here; exportImage separately verifies the exact reviewed canvas snapshot.
+      if(fresh.revision!==sync.state().revision||JSON.stringify(validateDocument(fresh.document))!==JSON.stringify(validateDocument(sync.state().document)))throw Error('El diseño cambió. Revisa la revisión actual antes de descargar.')
       const { blob, extension } = await exportDesign({ editor: editorRef.current, options, scene: reviewedScene, designId: record.id, token, name,revision:fresh.revision })
       const authorized=unwrap(await runly.studio.getDesign(record.id,token))
       if(authorized.revision!==fresh.revision)throw Error('El diseño cambió durante la exportación. Vuelve a revisar y descargar.')
