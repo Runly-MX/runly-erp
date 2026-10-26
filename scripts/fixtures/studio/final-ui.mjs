@@ -42,6 +42,7 @@ export async function verifyStudioFinalUi(stack,scenario){
   browser = await chromium.launch({ channel: 'chrome', headless: true })
   async function open(user, id, { width = 1440, height = 1000, dark = false, mobile = false, reducedMotion = 'no-preference' } = {}) {
     const context = await browser.newContext({ viewport: { width, height }, colorScheme: dark ? 'dark' : 'light', reducedMotion, ...(mobile ? { hasTouch: true, isMobile: true } : {}) })
+    await context.addInitScript(dark=>localStorage.setItem('runly-theme',JSON.stringify({state:{isDark:dark},version:0})),dark)
     const page = await context.newPage()
     page.on('pageerror', error => pageErrors.push(`${user.email}: ${error.message}`))
     await page.goto(`${stack.urls.web}/app/login`)
@@ -49,8 +50,8 @@ export async function verifyStudioFinalUi(stack,scenario){
     await page.getByRole('button', { name: 'Acceder al sistema', exact: true }).click()
     await page.waitForURL(url => !url.pathname.includes('/login'))
     await page.goto(`${stack.urls.web}/app/m/runly.studio/?design=${id}`)
-    await page.evaluate(dark=>document.documentElement.classList.toggle('dark',dark),dark)
     await page.getByRole('button', { name: 'Deshacer' }).or(page.getByText('Solo lectura')).first().waitFor({ timeout: 60000 })
+    assert.equal(await page.evaluate(()=>document.documentElement.classList.contains('dark')),dark,'Effective application theme differs from test mode')
     return { context, page }
   }
   const shot = (page, name) => page.screenshot({ path: join(SHOTS, `${name}.png`) })
