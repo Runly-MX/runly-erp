@@ -42,17 +42,24 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const callbacksRef = useRef({ resolveImage, changed, onPointer, onSelectionChange, authorizePaste }), modeRef = useRef(readOnly)
   useEffect(() => { callbacksRef.current = { resolveImage, changed, onPointer, onSelectionChange, authorizePaste } }, [resolveImage, changed, onPointer, onSelectionChange, authorizePaste])
   useEffect(() => { modeRef.current = readOnly; editorRef.current?.setReadOnly(readOnly) }, [readOnly, editorRef])
+  // Fabric disposes asynchronously; a remount (retry, server reload, HMR) must
+  // wait for the previous instance to release the same <canvas> element.
+  const released = useRef(Promise.resolve())
   useEffect(() => {
-    let cancelled = false, editor
-    createStudioEditor(canvasRef.current, { document: initial, resolveImage: id => callbacksRef.current.resolveImage(id),
+    let cancelled = false
+    const creation = released.current.then(() => cancelled ? null : createStudioEditor(canvasRef.current, { document: initial, resolveImage: id => callbacksRef.current.resolveImage(id),
       sharedClipboard, authorizePaste: objects => callbacksRef.current.authorizePaste?.(objects),
       readOnly: modeRef.current, onPointer: point => callbacksRef.current.onPointer?.(point && point.x >= 0 && point.y >= 0 && point.x <= pageRef.current.width && point.y <= pageRef.current.height ? point : null),
-      onChange: document => callbacksRef.current.changed(document), onSelection: (selection, ids) => { setSelection(selection); setSelectedIds(ids); callbacksRef.current.onSelectionChange?.(selection?.id ?? null) }, onError: setError, onHistory: setHistory }).then(instance => {
-      editor = instance
-      if (cancelled) { instance.destroy(); return }
+      onChange: document => callbacksRef.current.changed(document), onSelection: (selection, ids) => { setSelection(selection); setSelectedIds(ids); callbacksRef.current.onSelectionChange?.(selection?.id ?? null) }, onError: setError, onHistory: setHistory }))
+    creation.then(instance => {
+      if (!instance || cancelled) return
       instance.setReadOnly(modeRef.current); editorRef.current = instance; setReady(true); onReady?.(true)
     }).catch(error => { if (!cancelled) setError(error.message) })
-    return () => { cancelled = true; editorRef.current = null; onReady?.(false); editor?.destroy() }
+    return () => {
+      cancelled = true; editorRef.current = null; onReady?.(false)
+      setReady(false); setSelection(null); setSelectedIds([])
+      released.current = creation.then(instance => instance?.destroy()).catch(() => {})
+    }
   }, [initial, editorRef, retry, onReady, sharedClipboard])
   // Fit the page once the editor and the viewport exist; the hook keeps fitting on resize until the user zooms.
   useEffect(() => { if (ready) requestAnimationFrame(view.fit) }, [ready]) // eslint-disable-line react-hooks/exhaustive-deps
