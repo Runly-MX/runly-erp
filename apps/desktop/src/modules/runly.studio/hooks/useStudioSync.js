@@ -16,7 +16,12 @@ export function useStudioSync({ record, token, scope, editorRef, onName, onError
     document: record.document, revision: record.revision, name: record.name, clientId: randomId(),
     transport: {
       send: async batch => unwrap(await runly.studio.applyChanges(record.id, batch, callbacks.current.token)),
-      fetch: async () => { const fresh = unwrap(await runly.studio.getDesign(record.id, callbacks.current.token)); return { document: fresh.document, revision: fresh.revision, name: fresh.name,canEdit:fresh.canEdit } },
+      fetch: async batch => {
+        let fresh=unwrap(await runly.studio.getDesign(record.id,callbacks.current.token))
+        const receipt=batch?unwrap(await runly.studio.changeReceipt(record.id,batch,callbacks.current.token)):null
+        if(receipt&&receipt.revision>fresh.revision)fresh=unwrap(await runly.studio.getDesign(record.id,callbacks.current.token))
+        return {document:fresh.document,revision:fresh.revision,name:fresh.name,canEdit:fresh.canEdit,receipt}
+      },
     },
     // Before the canvas exists the shared state is kept and shown once it is ready.
     editor: { apply: async document => editorRef.current?.applyRemote(document) },

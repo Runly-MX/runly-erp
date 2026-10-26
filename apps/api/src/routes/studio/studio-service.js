@@ -5,6 +5,20 @@ import { createHash } from 'node:crypto'
 
 export function createStudioService({ prisma, filesService, broadcaster }) {
   const access = createStudioAccess({ prisma, filesService })
+  function batchIdentity(input){
+    if(typeof input?.clientId!=='string'||!/^[a-zA-Z0-9_-]{8,64}$/.test(input.clientId)||!Number.isSafeInteger(input.batchId)||input.batchId<1)throw new StudioError('Sesión de edición inválida.')
+  }
+  async function findReceipt(db,companyId,actorId,id,clientId,batchId){
+    const [row]=await db.$queryRaw`SELECT metadata FROM audit_log WHERE company_id=${companyId}::uuid AND actor_id=${actorId}::uuid
+      AND entity_id=${id}::uuid AND entity_type='StudioDesign' AND module_key='runly.studio' AND action='studio.design.update'
+      AND metadata ? 'digest' AND metadata ? 'result' AND metadata->>'clientId'=${clientId} AND metadata->>'batchId'=${String(batchId)} LIMIT 1`
+    return row?.metadata??null
+  }
+  async function changeReceipt(companyId,actorId,id,input){
+    await access.get(companyId,actorId,id);batchIdentity(input)
+    const receipt=await findReceipt(prisma,companyId,actorId,id,input.clientId,input.batchId)
+    return receipt?{clientId:input.clientId,batchId:input.batchId,revision:receipt.result.revision}:null
+  }
   async function list(companyId, actorId, { page = 1, shared = 'all', q = '' } = {}) {
     await access.member(companyId, actorId)
     const offset = (Math.max(1, Math.min(10000, Number.parseInt(page, 10) || 1)) - 1) * 24
@@ -73,7 +87,7 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
   // then broadcast so every open editor replays the same operations.
   async function applyChanges(companyId, actorId, id, input, fileContext) {
     access.identity(companyId, actorId)
-    if (typeof input?.clientId !== 'string' || !/^[a-zA-Z0-9_-]{8,64}$/.test(input.clientId) || !Number.isSafeInteger(input?.batchId)||input.batchId<1) throw new StudioError('Sesión de edición inválida.')
+    batchIdentity(input)
     if(JSON.stringify(input).length>1_100_000)throw new StudioError('Lote demasiado grande.',413)
     let ops
     try { ops = checkOps(input.ops) } catch (error) { throw new StudioError(error.message) }
@@ -84,13 +98,10 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
       const current = await access.get(companyId, actorId, id, db, true)
       // The design lock serializes identical concurrent requests. Receipts are
       // durable audit records, scoped to the authenticated actor, never clientId alone.
-      const [receipt]=await db.$queryRaw`SELECT metadata FROM audit_log WHERE company_id=${companyId}::uuid AND actor_id=${actorId}::uuid
-        AND entity_id=${id}::uuid AND entity_type='StudioDesign' AND module_key='runly.studio' AND action='studio.design.update'
-        AND metadata ? 'digest' AND metadata ? 'result'
-        AND metadata->>'clientId'=${input.clientId} AND metadata->>'batchId'=${String(input.batchId)} LIMIT 1`
+      const receipt=await findReceipt(db,companyId,actorId,id,input.clientId,input.batchId)
       if(receipt){
-        if(receipt.metadata.digest!==digest)throw new StudioError('El identificador del lote ya corresponde a otros cambios.',409,'STUDIO_BATCH_REUSED')
-        return {...receipt.metadata.result,id}
+        if(receipt.digest!==digest)throw new StudioError('El identificador del lote ya corresponde a otros cambios.',409,'STUDIO_BATCH_REUSED')
+        return {...receipt.result,id}
       }
       let document
       try { document = validateDocument(applyOps(validateDocument(current.document), ops)) } catch (error) { throw error instanceof StudioError ? error : new StudioError(error.message) }
@@ -109,5 +120,5 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
       { authorize: async () => { try { await access.get(companyId, actorId, id); return true } catch { return false } } })
     return { revision: row.revision, name: row.name, ops:row.ops }
   }
-  return { list, get, create, update, applyChanges, access }
+  return { list, get, create, update, applyChanges, changeReceipt, access }
 }

@@ -1,4 +1,5 @@
 import { documentAssetIds } from '../../../../../shared/studio/shape-properties.js'
+import {applyOps,checkOps} from '../../../../../shared/studio/operations.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, ErrorState, ConfirmDialog } from '@runly/ui'
 import { AlertTriangle, History } from 'lucide-react'
@@ -56,11 +57,11 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const templateScope = scope.split(':').slice(0, 2)
   const saveAsTemplate = useSaveAsTemplate({ editorRef, token, scopeKey: templateScope, name,ensureSaved })
   const templateEditing = useTemplateEditing({ editorRef, token, scopeKey: templateScope, templateId: editingTemplateId,
-    designName: name, saveDesign: () => ensureSaved().then(() => true), onExit: onBack })
+    designName: name, saveDesign: ensureSaved, onExit: onBack })
   const preserve = useCallback(() => {
     const { document, revision } = sync.state()
     if (sync.state().status === 'synced') { store.clear(); return true }
-    const saved = store.write({ name: nameRef.current, document, revision })
+    const saved = store.write({ ...sync.draft(),name: nameRef.current, document, revision })
     setCopyWarning(!saved)
     return saved
   }, [store, sync])
@@ -110,9 +111,10 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     await editorRef.current?.flush()
     await sync.flush()
     if (sync.state().status !== 'synced') throw new Error('Los cambios todavía no llegan al servidor. Revisa la conexión; tus cambios se conservan.')
+    return sync.state().document
   }
   async function recover() {
-    try { await editorRef.current.load(recovery.document); if (recovery.name && recovery.name !== nameRef.current) { nameRef.current = recovery.name; setName(recovery.name); sync.rename(recovery.name) } collisions.clear();setRecovery(null) }
+    try { await editorRef.current.load(recovery.operations?applyOps(sync.state().document,checkOps(recovery.operations,2000)):recovery.document); if (recovery.name && recovery.name !== nameRef.current) { nameRef.current = recovery.name; setName(recovery.name); sync.rename(recovery.name) } collisions.clear();setRecovery(null) }
     catch (failure) { setError(failure.message) }
   }
   const revoked = useCallback(() => { preserve();sync.deny(); setDenied(true) }, [preserve,sync])
@@ -152,11 +154,11 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   if (denied) return <div className="flex h-full items-center justify-center p-6"><ErrorState title="El diseño ya no está disponible" description="Los cambios que no llegaron al servidor se conservan en este navegador. Comprueba tus permisos con el propietario." showReport={false} onRetry={onBack} /></div>
   const notices = <>
     {templateEditing.notice}
-    {recovery && canEdit ? <Notice icon={History} title="Hay cambios de este navegador sin sincronizar" description="No llegaron al servidor la última vez que editaste. Recupéralos para aplicarlos sobre la versión compartida.">
+    {recovery && canEdit ? <Notice icon={History} title="Hay una copia local para revisar" description="Se conservó tu trabajo durante la sincronización. Recuperar aplica los cambios locales disponibles sobre el diseño actual; revisa el resultado.">
       <Button size="sm" disabled={!ready} onClick={recover}>Recuperar</Button>
       <Button size="sm" variant="ghost" onClick={() => { store.clear();collisions.clear(); setRecovery(null) }}>Descartar</Button>
     </Notice> : null}
-    {error ? <Notice variant="warning" icon={AlertTriangle} title="No se pudo sincronizar un cambio" description={`${error} El diseño muestra la versión compartida.`}>
+    {error ? <Notice variant="warning" icon={AlertTriangle} title="No se pudo sincronizar un cambio" description={`${error} Los cambios locales se conservan para revisarlos.`}>
       <Button size="sm" variant="ghost" onClick={() => setError('')}>Cerrar</Button>
     </Notice> : null}
     {copyWarning ? <Notice variant="destructive" icon={AlertTriangle} title="Sin copia local" description="No se pudo conservar en este navegador lo que aún no se sincroniza. Mantén esta página abierta hasta que diga «Sincronizado»." /> : null}

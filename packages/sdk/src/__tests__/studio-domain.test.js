@@ -36,6 +36,15 @@ test('Studio never queues stale revisions for offline replay', async () => {
   }
 })
 
+test('Studio batch receipt lookup is scoped, encoded and carries no mutation body',async()=>{
+  const client=createRunlyClient({baseUrl:'https://api.example.test',getActiveCompanyId:()=> 'company-a',fetch:async(url,options)=>{
+    assert.equal(url,'https://api.example.test/studio/designs/design%2Fone/changes?clientId=client-one&batchId=2')
+    assert.equal(options.method,'GET');assert.equal(options.headers.Authorization,'Bearer token');assert.equal(options.headers['X-Runly-Company-Id'],'company-a');assert.equal(options.body,undefined)
+    return new Response('{}',{headers:{'Content-Type':'application/json'}})
+  }})
+  await client.studio.changeReceipt('design/one',{clientId:'client-one',batchId:2},'token')
+})
+
 test('Studio image copies use company-scoped multipart, cancellation and encoded asset ids',async()=>{
   const signal=new AbortController().signal
   const file=new File(['fixture'],'edited.png',{type:'image/png'})

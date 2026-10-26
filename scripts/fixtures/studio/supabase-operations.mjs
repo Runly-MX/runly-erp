@@ -52,7 +52,8 @@ export async function verifyStudioOperations(stack,{users,companies}) {
     const deniedChannel=deniedClient.channel(sockets[0].topic,{config:{private:true}})
     const deniedState=await new Promise(resolve=>{const timer=setTimeout(()=>resolve('TIMED_OUT'),12000);deniedChannel.subscribe(s=>{if(['SUBSCRIBED','CHANNEL_ERROR','TIMED_OUT'].includes(s)){clearTimeout(timer);resolve(s)}})})
     assert.notEqual(deniedState,'SUBSCRIBED')
-    const forged=await sockets[2].channel.send({type:'broadcast',event:'change',payload:{revision:999,ops:[]}});assert.notEqual(forged,'ok')
+    await sockets[2].channel.send({type:'broadcast',event:'change',payload:{revision:999,ops:[]}});await sleep(700)
+    assert.ok(sockets.every(s=>!s.messages.some(m=>m.revision===999)));assert.equal((await fresh()).revision,1)
     report('A owner, B editor, C viewer, D foreign: actual private channel admission, forbidden document/write/forged broadcast')
 
     async function open(user){
@@ -73,6 +74,22 @@ export async function verifyStudioOperations(stack,{users,companies}) {
     await until(async()=>{const d=(await fresh()).document;return d.objects[0].x===123&&d.objects[1].x===430},'Selective Ctrl+Z')
     await a.page.keyboard.press('Control+y');await until(async()=>(await fresh()).document.objects[0].x===170,'Selective Ctrl+Y')
     report('Three separate authenticated browsers: B edits, A/C receive, concurrent objects survive, Ctrl+Z/Y preserves B')
+    await a.page.getByLabel('Posición X',{exact:true}).fill('171');await a.page.getByLabel('Posición X',{exact:true}).press('Tab')
+    await a.page.getByRole('button',{name:'Guardar como plantilla',exact:true}).click()
+    const dialog=a.page.getByRole('dialog',{name:'Guardar como plantilla',exact:true});await dialog.getByLabel('Nombre',{exact:true}).fill('Synthetic confirmed operations')
+    const templateResponse=a.page.waitForResponse(r=>r.url()===stack.urls.api+'/studio/templates'&&r.request().method()==='POST')
+    await dialog.getByRole('button',{name:'Guardar plantilla',exact:true}).click();const savedTemplate=await json(await templateResponse)
+    assert.equal(savedTemplate.document.objects.find(o=>o.id==='shape-a').x,171);assert.equal((await fresh()).document.objects.find(o=>o.id==='shape-a').x,171)
+    await dialog.waitFor({state:'hidden'});report('Real UI template creation waits for confirmed operations and captures that coherent revision')
+    const copy=await json(await api(`/studio/templates/${savedTemplate.id}/use`,{data:{name:'Synthetic working copy'}}))
+    await a.page.goto(stack.urls.web+`/app/m/runly.studio/?design=${copy.id}&template=${savedTemplate.id}`);await a.page.locator('.upper-canvas').waitFor()
+    await selectLayer(a.page,1);await a.page.getByLabel('Posición X',{exact:true}).fill('199');await a.page.getByLabel('Posición X',{exact:true}).press('Tab')
+    const savedCopyResponse=a.page.waitForResponse(r=>r.url()===stack.urls.api+`/studio/templates/${savedTemplate.id}`&&r.request().method()==='PUT')
+    await a.page.getByRole('button',{name:'Guardar en la plantilla',exact:true}).click();const savedCopy=await json(await savedCopyResponse)
+    assert.equal(savedCopy.document.objects.find(o=>o.id==='shape-a').x,199);assert.equal((await json(await api(`/studio/designs/${copy.id}`))).document.objects.find(o=>o.id==='shape-a').x,199)
+    assert.equal((await fresh()).document.objects.find(o=>o.id==='shape-a').x,171)
+    await a.page.goto(stack.urls.web+`/app/m/runly.studio/?design=${design.id}`);await a.page.locator('.upper-canvas').waitFor()
+    report('Working-copy template save waits for confirmed design changes; original design remains independent')
 
     const receiptOps=[{type:'patch',id:'shape-a',set:{fill:'#abcdef'},unset:[]}],before=(await fresh()).revision
     const replies=await Promise.all([changes(0,'duplicate-client',1,receiptOps).then(json),changes(0,'duplicate-client',1,receiptOps).then(json)])
@@ -86,7 +103,7 @@ export async function verifyStudioOperations(stack,{users,companies}) {
       const initial=await json(await api(root,{actor})),connection=sockets[actor],state={shown:initial.document,offline:false,loseReply:false,requests:[]}
       state.sync=createStudioSync({document:initial.document,revision:initial.revision,name:initial.name,clientId:id,delay:0,gapTimeout:100,retry:()=>50,...options,
         editor:{apply:async document=>{state.shown=document;return document}},transport:{
-          fetch:()=>api(root,{actor}).then(json),send:async batch=>{state.requests.push(structuredClone(batch));if(state.offline)throw Error('simulated disconnected transport');const result=await json(await api(`${root}/changes`,{actor,data:batch}));if(state.loseReply){state.loseReply=false;throw Error('injected lost reply after actual commit')}return result},
+          fetch:async batch=>{let latest=await json(await api(root,{actor}));const receipt=batch?await json(await api(`${root}/changes?${new URLSearchParams(batch)}`,{actor})):null;if(receipt&&receipt.revision>latest.revision)latest=await json(await api(root,{actor}));return {...latest,receipt}},send:async batch=>{state.requests.push(structuredClone(batch));if(state.offline)throw Error('simulated disconnected transport');const result=await json(await api(`${root}/changes`,{actor,data:batch}));if(state.loseReply){state.loseReply=false;throw Error('injected lost reply after actual commit')}return result},
         }})
       connection.core=state.sync;syncs.push(state.sync);state.change=patch=>{state.shown=edit(state.sync.state().document,'shape-a',patch);state.sync.local(state.shown)};return state
     }
@@ -139,6 +156,8 @@ export async function verifyStudioOperations(stack,{users,companies}) {
     await b.context.setOffline(true)
     await selectLayer(b.page,1);await b.page.getByLabel('Posición X',{exact:true}).fill('777');await b.page.getByLabel('Posición X',{exact:true}).press('Tab')
     pending.change({x:888});const abandoned=pending.sync.flush();await sleep(50)
+    const pendingPhoto=pending.sync.state().document.objects.find(o=>o.id==='private-photo')
+    pending.sync.local(edit(pending.sync.state().document,pendingPhoto.id,{image:{...pendingPhoto.image,zoom:2}}))
     await share(1,null);pending.offline=false
     const count=sockets[1].messages.length
     pending.sync.resync();await assert.rejects(abandoned,e=>[403,404].includes(e.status));assert.equal(pending.sync.state().document.objects.find(o=>o.id==='shape-a').x,888)
@@ -146,9 +165,12 @@ export async function verifyStudioOperations(stack,{users,companies}) {
     await b.context.setOffline(false);await b.page.reload();await b.page.getByText('No se pudo abrir el diseño',{exact:true}).waitFor()
     assert.ok([403,404].includes((await changes(1,'duplicate-editor-after-revoke',1,[])).status))
     assert.equal((await api(`${root}/assets/${file.id}/signed-url`,{actor:1})).status,404)
+    const deniedEdit=new FormData();deniedEdit.set('file',new File([await sharp({create:{width:20,height:20,channels:4,background:'#123456'}}).png().toBuffer()],'edited.png',{type:'image/png'}))
+    assert.equal((await api(`${root}/assets/${file.id}/edited-copy`,{actor:1,method:'POST',body:deniedEdit})).status,404)
     await changes(0,'post-revoke-owner-session',1,[{type:'patch',id:'shape-a',set:{x:350}}]).then(json);await sleep(500)
     assert.equal(sockets[1].messages.length,count)
     assert.notEqual((await fresh()).document.objects.find(o=>o.id==='shape-a').x,777);assert.ok(values.has('offline'))
+    assert.equal((await fresh()).document.objects.find(o=>o.id==='private-photo').image.zoom,1)
     report('Active revocation blocks offline queue/retry/reload and private-image capability; old B channel receives no later operation; local draft retained')
     await a.page.screenshot({path:join(stack.directory,'operations-owner.png')});await c.page.screenshot({path:join(stack.directory,'operations-viewer.png')})
     return {checks,identities:4,auth:'real Supabase',sql:'disposable only',faults:'explicit response loss/offline/message reorder injections; no forged auth'}

@@ -20,9 +20,10 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
   try{
     const saved=storage&&storageKey&&JSON.parse(storage.getItem(storageKey))
     if(saved?.version===1){
-      checkOps(saved.outbox)
+      checkOps(saved.outbox,10000)
       if(saved.batch){checkOps(saved.batch.ops);if(!/^[a-zA-Z0-9_-]{8,64}$/.test(saved.batch.clientId)||!Number.isSafeInteger(saved.batch.id)||saved.batch.id<1)throw Error('Cola inválida.')}
       local=validateDocument(saved.document);outbox=saved.outbox;outboxName=saved.outboxName;batch=saved.batch;status=work()?'offline':'synced'
+      for(const op of [...(batch?.ops??[]),...outbox])if(op.type==='patch')for(const key of [...Object.keys(op.set),...(op.unset??[])])touched.add(`${op.id}:${key}`)
     }
   }catch(e){onError?.('La cola local no se pudo recuperar. El borrador se conserva.',e)}
   const settle=()=>{
@@ -30,7 +31,16 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
     if(blocked){waiters.splice(0).forEach(w=>w.reject(blocked));return}
     if(!work()&&!inflight&&!buffered.size&&!resyncing){setStatus('synced');waiters.splice(0).forEach(w=>w.resolve())}
   }
-  function remember(reason){onConflict?.({document:local,revision:sequence,name:title,reason})}
+  function collides(ops){return ops.some(op=>op.type==='remove'&&[...touched].some(k=>k.startsWith(`${op.id}:`))||op.type==='patch'&&[...Object.keys(op.set),...(op.unset??[])].some(k=>touched.has(`${op.id}:${k}`)))}
+  function draft(reason){
+    const properties=new Map()
+    for(const key of touched){const colon=key.indexOf(':'),id=key.slice(0,colon),field=key.slice(colon+1),object=local.objects.find(o=>o.id===id);if(!object)continue
+      if(!properties.has(id))properties.set(id,{type:'patch',id,set:{},unset:[]})
+      if(object[field]===undefined)properties.get(id).unset.push(field);else properties.get(id).set[field]=object[field]
+    }
+    return {document:local,revision:sequence,name:title,reason,operations:compactOps([...diffOps(server,local),...properties.values()])}
+  }
+  const remember=reason=>onConflict?.(draft(reason))
   function reconcile(){
     render=render.catch(()=>{}).then(async()=>{
       if(closed||blocked)return
@@ -92,7 +102,7 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
         if(message.refetch){resync();return}
         checkOps(message.ops??[])
         const affected=message.ops??[]
-        if(message.clientId!==clientId&&affected.some(op=>op.type==='remove'&&[...touched].some(k=>k.startsWith(`${op.id}:`))||op.type==='patch'&&Object.keys(op.set).some(k=>touched.has(`${op.id}:${k}`)))){remember('last-write-wins');touched.clear()}
+        if(message.clientId!==clientId&&collides(affected)){remember('last-write-wins');touched.clear()}
         server=validateDocument(applyOps(server,affected));sequence=message.revision;applied=true
         if(message.name!==undefined&&outboxName===undefined&&batch?.name===undefined&&message.name!==title){title=message.name;onName?.(title)}
       }
@@ -106,12 +116,13 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
     if(resyncing)return resyncing
     resyncing=(async()=>{
       try{
-        const latest=await transport.fetch()
+        const latest=await transport.fetch(batch?{clientId:batch.clientId,batchId:batch.id}:undefined)
         if(closed||blocked)return
         if(latest.canEdit===false&&work()){deny(failure('El diseño es de solo lectura.',403));return}
+        if(batch&&latest.receipt?.clientId===batch.clientId&&latest.receipt.batchId===batch.id&&latest.receipt.revision<=latest.revision)batch=null
         if(latest.revision>=sequence){
           const next=validateDocument(latest.document)
-          if(work()&&JSON.stringify(next)!==JSON.stringify(server))remember('reconcile')
+          if(collides(diffOps(server,next)))remember('reconcile')
           server=next;sequence=latest.revision
           for(const n of buffered.keys())if(n<=sequence)buffered.delete(n)
           if(latest.name!==undefined&&outboxName===undefined&&batch?.name===undefined){title=latest.name;onName?.(title)}
@@ -132,7 +143,7 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
       outbox=compactOps([...outbox,...ops]);setStatus(status==='offline'?'offline':'syncing');persist();schedule()
     },
     rename(value){if(closed||blocked||value===title)return;title=value;outboxName=value;setStatus('syncing');persist();schedule()},
-    receive,resync,deny,start(){closed=false;return resync()},
+    receive,resync,deny,draft,start(){closed=false;return resync()},
     changed(n){if(!Number.isSafeInteger(n)||n>sequence)return resync()},
     flush(){
       if(blocked)return Promise.reject(blocked)

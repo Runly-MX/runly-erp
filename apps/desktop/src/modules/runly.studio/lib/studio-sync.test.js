@@ -27,7 +27,7 @@ function createServer(document) {
         if(state.loseReply-->0)throw Error('response lost after commit')
         return ack
       },
-      fetch: async () => ({ document: state.document, revision: state.revision, name: state.name }),
+      fetch: async batch => ({ document: state.document, revision: state.revision, name: state.name,receipt:batch&&state.receipts.has(`${batch.clientId}:${batch.batchId}`)?{...batch,revision:state.receipts.get(`${batch.clientId}:${batch.batchId}`).revision}:null }),
     }
     const client = { editor, lag: overrides.lag, change: doc => { editor.shown = doc; client.sync.local(doc) } }
     client.sync = createStudioSync({ document: view, revision: state.revision, name: state.name, clientId, transport, editor, delay: 0, gapTimeout: 30, retry: () => 10,...overrides })
@@ -112,4 +112,12 @@ test('reordered duplicates/gaps and MCP resync preserve pending properties witho
   await a.sync.resync();await a.sync.flush()
   assert.equal(server.document.objects[0].x,99);assert.equal(server.document.objects[0].fill,'#abcdef');assert.equal(a.sync.state().revision,5)
   a.sync.receive({revision:4,ops:[{type:'remove',id:doc.objects[0].id}]});assert.equal(a.sync.state().document.objects.length,2);a.sync.close()
+})
+test('refetch receipt retires a confirmed remove/re-add before replay; remote appended objects keep their order',async()=>{
+  const server=createServer(base()),a=server.connect('client-a',{delay:10000,retry:()=>10000});server.drop=true;server.loseReply=1
+  const doc=a.editor.shown,object=doc.objects[0];a.change({...doc,objects:doc.objects.slice(1)});a.change({...doc,objects:[doc.objects[1],object]})
+  const saving=a.sync.flush();await sleep(5)
+  server.document=appendObject(server.document,'rectangle',{id:'remote-new'});server.revision++
+  await a.sync.resync();await saving
+  assert.deepEqual(a.sync.state().document,server.document);assert.equal(server.requests.length,1);a.sync.close()
 })

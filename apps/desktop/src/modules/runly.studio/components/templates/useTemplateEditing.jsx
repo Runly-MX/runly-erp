@@ -26,8 +26,8 @@ export function useSaveAsTemplate({ editorRef, token, scopeKey, name, ensureSave
   const dialog = available ? (
     <TemplateFormDialog open={open} onOpenChange={setOpen} mode="create" template={open ? { name } : null} canSaveCompany={permissions.canSaveCompany}
       onSubmit={async values => {
-        await ensureSaved?.()
-        const document = await captureScene(editorRef.current)
+        const confirmed=await ensureSaved?.()
+        const document = confirmed?.schemaVersion?confirmed:await captureScene(editorRef.current)
         const saved = unwrap(await runly.studio.saveTemplate({ ...values, scope: permissions.canSaveCompany ? values.scope : 'personal', document }, token))
         queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'templates'] })
         toast.success(saved?.scope === 'company' ? 'Plantilla compartida con tu empresa' : 'Guardada en «Mis plantillas»')
@@ -53,8 +53,8 @@ export function useTemplateEditing({ editorRef, token, scopeKey, templateId, des
     // Clear the previous confirmation so it never shows while this save is pending.
     inFlight.current = true; setSaving(true); setError(null); setSavedAt(null)
     try {
-      await saveDesign?.()
-      const document = await captureScene(editorRef.current)
+      const confirmed=await saveDesign?.()
+      const document = confirmed?.schemaVersion?confirmed:await captureScene(editorRef.current)
       await runly.studio.updateTemplate(templateId, { revision: detail.data.revision, document }, token)
       await detail.refetch()
       queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'templates'] })
