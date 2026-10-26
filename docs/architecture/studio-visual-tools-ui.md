@@ -104,3 +104,48 @@ Reglas:
 Verificación con backend real (2026-10-26, `.e2e/studio-v5-real.mjs`, pila desechable): guardar personal desde el editor (con foto en forma), compartir con la empresa, editar contenido y guardar (doble clic = un guardado; plantilla y copia de trabajo coinciden), 409 tras un cambio externo con sobrescritura, reutilizar la copia de trabajo, usar la plantilla, retirar. Usuario sin `studio.templates.publish`: no ve «Toda la empresa» ni acciones sobre plantillas de empresa, guarda plantillas personales, y el backend responde 403 a crear de empresa, publicar, editar y retirar una de empresa.
 
 Verificación anterior: `.e2e/studio-templates-ui.mjs` (escritorio 1440 claro, tableta 820, teléfono 390 oscuro): 13 comprobaciones por tamaño. La base de desarrollo no tiene aplicada la migración `20261205000000_studio_templates` (toda `/studio/templates` responde 500), por lo que la prueba sustituye solo esas rutas con un servicio en memoria que sigue el contrato (`.e2e/lib-templates-fake.mjs`); los diseños creados desde plantilla usan la API real.
+
+## Composición v6: rellenos, degradados, guías, cuadrícula y grupos (interfaz)
+
+Controles sobre las operaciones reales v6 de `fabric-adapter.js` (contrato en
+`studio-editor-ui-contract.md`). Nada de esto añade CSS ni preferencias al JSON.
+
+| Superficie | Componente | Operaciones del motor |
+| --- | --- | --- |
+| Tipo de relleno (Ninguno / Color / Degradado / Foto) | `editor/paint/FillControls.jsx` (`FillPicker` en Propiedades, `FillPopover` en la barra) | `setShapeStyle({fillEnabled})`, `setSolidFill`, `setGradient`, `setPhotoFill` (vía selección de foto); cada cambio de tipo es un paso de deshacer |
+| Editor de degradados | `editor/paint/GradientEditor.jsx` | `updateGradientStop`, `addGradientStop`, `removeGradientStop`, `reverseGradient`, `resetGradient`, `setGradient` (tipo, ángulo, centro, radio, presets) |
+| Fondo de página | `editor/paint/PageBackground.jsx` en el panel Página | `setPageBackground`, `setPageGradient`; «Aplicar a la forma seleccionada» / «Usar como fondo de la página» reutilizan la pintura |
+| Guías inteligentes | `editor/canvas/CanvasOverlays.jsx` (`GuidesOverlay`) | `onGuides`: línea de 1 px de pantalla con halo, discontinua para separación/cuadrícula y etiqueta de separación |
+| Cuadrícula y reglas | `GridOverlay`, `Rulers` | `setGridOptions`, `setViewport` (zoom mostrado y desplazamiento de la página en el viewport), marcas de `onEditorPreferences` |
+| Preferencias del lienzo | `editor/canvas/CanvasPreferencesMenu.jsx` en la píldora de zoom, `useCanvasPreferences.js` | `setSnappingOptions`; imán de un clic; menú con página/objetos/cuadrícula, guías visibles, cuadrícula, reglas y tamaño. Guardado por persona en `localStorage` |
+| Grupo | Sección «Grupo» y «Transformar grupo» de Propiedades | `group`, `ungroup`, `duplicate`, `align`, `transformGroup(id, {scale|rotation, origin: centro})` seguido de `selectGroup` |
+
+Reglas:
+
+- Arrastrar un punto, los deslizadores de ángulo, opacidad, tamaño y centro usan
+  `beginInteraction`/`endInteraction`: un gesto = un paso de deshacer. Las
+  llamadas al motor se serializan y durante un arrastre solo se envía el último
+  valor pendiente. El tirador conserva la captura del puntero aunque los puntos
+  se reordenen; los desplazamientos se separan 0,001 para no duplicarse.
+- Teclado en los puntos: flechas ±1 % (Mayús ±10 %), Supr/Retroceso quita el
+  punto (sin propagarse al atajo «Eliminar selección»). Clic en la barra añade un
+  punto con el color interpolado.
+- Atajos: Ctrl+' cuadrícula, Mayús+R reglas, Alt al mover desactiva el ajuste
+  (motor). Las preferencias no entran en el diseño, exportación ni colaboración.
+- Los manejadores de escala/giro múltiple de Fabric siguen bloqueados por el
+  motor; la escala y el giro de grupo son pasos de 10 %, 15°, 90°, 180° y ×2
+  alrededor del centro visual. No hay grupos anidados (el motor no los soporta).
+
+Verificación (2026-10-26, `.e2e/studio-v6-ui.mjs`, servidores locales y empresa
+de pruebas): 14 comprobaciones, 0 fallos, 0 errores de página. Degradado lineal
+por defecto; arrastre de un punto deshecho en un paso; añadir, opacidad y quitar
+punto; radial con tamaño; ángulo 45° e invertir; fondo «Noche» y reutilización en
+la elipse; guías visibles durante el arrastre y eliminadas al soltar; imán
+desactivado sin guías ni ajuste; cuadrícula y reglas por menú y atajos (sin
+entrar en el JSON); grupo ampliado 110 % y girado 15° con deshacer/rehacer;
+recarga sin errores; PNG exportado con los colores de los extremos del degradado
+y de las esquinas del fondo; 390/820/1440 px claro y oscuro sin desbordamiento.
+
+Hallazgo para el motor: al ajustar al centro de página una elipse de 300 px con
+degradado, la guía se dibuja en 540 pero el centro guardado queda en 541
+(1 px de diferencia, probablemente por el rectángulo envolvente de Fabric).

@@ -25,6 +25,12 @@ import { FramingOverlay } from './editor/image/FramingOverlay.jsx'
 import { FramingBar } from './editor/image/FramingBar.jsx'
 import { PendingPhotoBanner } from './editor/image/PendingPhotoBanner.jsx'
 import { BackgroundRemovalDialog } from './editor/image/BackgroundRemovalDialog.jsx'
+import { usePaintTools } from './editor/paint/usePaintTools.js'
+import { PageBackground } from './editor/paint/PageBackground.jsx'
+import { useCanvasPreferences } from './editor/canvas/useCanvasPreferences.js'
+import { CanvasPreferencesMenu } from './editor/canvas/CanvasPreferencesMenu.jsx'
+import { GridOverlay, GuidesOverlay, Rulers } from './editor/canvas/CanvasOverlays.jsx'
+import { canHoldPhoto } from '../lib/photo-target.js'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }
 
@@ -56,8 +62,11 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const [history, setHistory] = useState({ canUndo: false, canRedo: false }), [retry, setRetry] = useState(0), [busy, setBusy] = useState(false)
   const [objects, setObjects] = useState(initial.objects)
   const changed = useCallback(document => { setObjects(document.objects); setPage(document.page); pageRef.current = document.page; onChange(document) }, [onChange])
-  const callbacksRef = useRef({ resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage }), modeRef = useRef(readOnly)
-  useEffect(() => { callbacksRef.current = { resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage } }, [resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage])
+  const canvas = useCanvasPreferences(editorRef, ready)
+  const { onGuides, onEditorPreferences } = canvas
+  const callbacksRef = useRef({ resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage, onGuides, onEditorPreferences }), modeRef = useRef(readOnly)
+  useEffect(() => { callbacksRef.current = { resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage, onGuides, onEditorPreferences } },
+    [resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage, onGuides, onEditorPreferences])
   useEffect(() => { modeRef.current = readOnly; editorRef.current?.setReadOnly(readOnly) }, [readOnly, editorRef])
   // Fabric disposes asynchronously; a remount (retry, server reload, HMR) must
   // wait for the previous instance to release the same <canvas> element.
@@ -67,6 +76,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     const creation = released.current.then(() => cancelled ? null : createStudioEditor(canvasRef.current, { document: initial, resolveImage: id => callbacksRef.current.resolveImage(id),
       sharedClipboard, authorizePaste: objects => callbacksRef.current.authorizePaste?.(objects),
       onEditImage: id => callbacksRef.current.onEditImage?.(id),
+      onGuides: guides => callbacksRef.current.onGuides?.(guides), onEditorPreferences: state => callbacksRef.current.onEditorPreferences?.(state),
       readOnly: modeRef.current, onPointer: point => callbacksRef.current.onPointer?.(point && point.x >= 0 && point.y >= 0 && point.x <= pageRef.current.width && point.y <= pageRef.current.height ? point : null),
       onChange: document => callbacksRef.current.changed(document), onSelection: (selection, ids) => { setSelection(selection); setSelectedIds(ids); callbacksRef.current.onSelectionChange?.(selection?.id ?? null) }, onError: setError, onHistory: setHistory }))
     creation.then(instance => {
@@ -81,6 +91,24 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   }, [initial, editorRef, retry, onReady, sharedClipboard])
   // Fit the page once the editor and the viewport exist; the hook keeps fitting on resize until the user zooms.
   useEffect(() => { if (ready) requestAnimationFrame(view.fit) }, [ready]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The engine needs the displayed zoom and the page's screen offset in the
+  // viewport for grid/ruler ticks (setViewport never moves the canvas).
+  useEffect(() => {
+    const node = view.viewport.current
+    if (!ready || !node) return undefined
+    let frame = 0
+    const sync = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const paper = view.paper.current, editor = editorRef.current
+        if (!paper || !editor) return
+        const area = node.getBoundingClientRect(), rect = paper.getBoundingClientRect()
+        try { editor.setViewport({ zoom, panX: rect.left - area.left, panY: rect.top - area.top }) } catch { /* zoom outside engine range */ }
+      })
+    }
+    sync(); node.addEventListener('scroll', sync, { passive: true })
+    return () => { cancelAnimationFrame(frame); node.removeEventListener('scroll', sync) }
+  }, [ready, zoom, view.size, view.viewport, view.paper, editorRef])
   async function attempt(action) {
     try { setBusy(true); setError(''); await action() } catch (error) { setError(error.message) } finally { setBusy(false) }
   }
@@ -90,6 +118,15 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const selectedObjects = objects.filter(object => selectedIds.includes(object.id))
   const sharedGroup = selectedObjects.length > 0 && selectedObjects.every(object => object.groupId && object.groupId === selectedObjects[0].groupId)
   const grouping = { canUngroup: sharedGroup, canGroup: selectedObjects.length > 1 && !sharedGroup && selectedObjects.every(object => !object.groupId && !object.locked && !object.hidden) }
+  const group = sharedGroup && selectedObjects.length > 1 ? { id: selectedObjects[0].groupId, count: objects.filter(object => object.groupId === selectedObjects[0].groupId).length } : null
+  // Scale/rotate a flat group around its visual centre (engine transformGroup), then keep it selected.
+  const transformGroup = options => attempt(async () => {
+    const members = objects.filter(object => object.groupId === group.id)
+    const left = Math.min(...members.map(o => o.x)), top = Math.min(...members.map(o => o.y))
+    const right = Math.max(...members.map(o => o.x + o.width * (o.scaleX ?? 1))), bottom = Math.max(...members.map(o => o.y + o.height * (o.scaleY ?? 1)))
+    await editorRef.current.transformGroup(group.id, { ...options, origin: { x: (left + right) / 2, y: (top + bottom) / 2 } })
+    editorRef.current.selectGroup(group.id)
+  })
   // New elements land centred on the page, or centred on the drop point.
   const centered = (props, point = null) => ({ ...props,
     x: Math.round(point ? point.x - props.width / 2 : (page.width - props.width) / 2), y: Math.round(point ? point.y - props.height / 2 : (page.height - props.height) / 2) })
@@ -123,6 +160,8 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     if (!event.ctrlKey && !event.metaKey && !event.altKey) {
       if (event.key === 'h' || event.key === 'H') { event.preventDefault(); view.setHand(true); return }
       if (event.key === 'v' || event.key === 'V') { event.preventDefault(); view.setHand(false); return }
+      // Mayús+R = reglas.
+      if (event.shiftKey && event.key === 'R') { event.preventDefault(); canvas.toggle.rulers(); return }
       // I = cuentagotas: colorea la selección con el color tomado.
       if ((event.key === 'i' || event.key === 'I') && selection && selection.type !== 'image' && !selection.locked && !readOnly) {
         event.preventDefault()
@@ -133,6 +172,8 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     }
     if (!(event.ctrlKey || event.metaKey)) return
     const key = event.key.toLowerCase()
+    // Ctrl+' = cuadrícula (as in other design tools).
+    if (event.key === "'") { event.preventDefault(); canvas.toggle.grid(); return }
     if (key === 'a') { event.preventDefault(); editorRef.current.selectAll(); return }
     if (key === 'g' && !readOnly) {
       event.preventDefault()
@@ -160,6 +201,8 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   }
   const imageKit = useImageTools({ editorRef, selection, objects, resolveImage, readOnly, onError: setError, openPanel: openImagePanel,
     ensureSaved: chrome.saveState === 'saved' ? null : chrome.ensureSaved })
+  const paint = usePaintTools({ editorRef, page, selection, begin: imageKit.tools.begin, end: imageKit.tools.end, onError: setError, fillShape: imageKit.tools.fillShape })
+  const tools = { ...imageKit.tools, paint }
   const drop = useCanvasDrop({ editorRef, canvasRef, objects, readOnly: readOnly || !ready, attempt })
   const uploader = <FileUploader accept="image/png,image/jpeg,image/webp" maxSizeMB={10} disabled={blocked} emptyLabel="Subir imagen" hint="PNG, JPG o WebP. Se conserva el original." onUpload={upload} />
   const panels = {
@@ -183,7 +226,8 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     layers: <LayersPanel objects={objects} selectedIds={selectedIds} disabled={!ready || busy}
       onSelect={id => editorRef.current?.select(id)} onSelectGroup={id => editorRef.current?.selectGroup(id)} onToggleMany={ids => editorRef.current?.selectMany(ids)}
       onPatchObject={(id, patch) => attempt(async () => { editorRef.current.select(id, { individual: true }); editorRef.current.patch(patch) })} />,
-    page: <PageSettingsForm key={`${page.width}x${page.height}:${page.background}`} page={page} disabled={readOnly || !ready} onApply={(next, scale) => editorRef.current.resize(next, scale)} />,
+    page: <PageSettingsForm key={`${page.width}x${page.height}:${page.background}`} page={page} disabled={readOnly || !ready} onApply={(next, scale) => editorRef.current.resize(next, scale)}
+      background={<PageBackground page={page} disabled={readOnly || !ready} paint={paint} onError={setError} canApplyToSelection={canHoldPhoto(selection) && !selection.locked} />} />,
   }
   const panelLabel = (panel ?? shownPanel) === 'image' ? 'Imagen' : RAIL_ITEMS.find(item => item.key === (panel ?? shownPanel))?.label
   const openProperties = wide && inspectorOpen ? null : () => (wide ? setInspectorOpen(true) : setInspectorSheet(true))
@@ -191,7 +235,8 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     onPatch={patch => attempt(() => editorRef.current.patch(patch))} onRemove={() => setConfirm(true)}
     onAction={action => attempt(() => editorRef.current[action]())} onOrder={direction => attempt(() => editorRef.current.order(direction))}
     onAlign={(direction, target) => attempt(() => editorRef.current.align(direction, target))} onOpenPage={() => { setPanel('page'); setInspectorSheet(false) }}
-    photoTools={imageKit.tools.photo && !readOnly ? panels.image : null} shapeTools={readOnly ? null : imageKit.tools} />
+    photoTools={imageKit.tools.photo && !readOnly ? panels.image : null} shapeTools={readOnly ? null : tools} onError={setError}
+    group={readOnly ? null : group} grouping={readOnly ? null : grouping} onTransformGroup={transformGroup} />
   // Eyedropper fallback + colors already used in the design (for every color picker).
   const [sampling, setSampling] = useState(null)
   const pickFromCanvas = useCallback(() => new Promise(resolve => setSampling(() => resolve)), [])
@@ -245,6 +290,8 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
               <div ref={view.paper} className="shadow-[0_12px_48px_-12px_rgb(0_0_0/0.35)] ring-1 ring-black/5"
                 style={{ position: 'absolute', left: Math.max(48, (view.size.width - page.width * zoom) / 2), top: Math.max(48, (view.size.height - page.height * zoom) / 2), transform: `scale(${zoom})`, transformOrigin: 'top left', width: page.width, height: page.height }}>
                 <canvas ref={canvasRef} aria-label="Lienzo editable de Studio" />
+                {canvas.preferences.grid.visible ? <GridOverlay page={page} zoom={zoom} step={canvas.references?.grid.displayStep ?? canvas.preferences.grid.size} /> : null}
+                {canvas.preferences.guides ? <GuidesOverlay guides={canvas.guides} page={page} zoom={zoom} /> : null}
                 {drop.target ? <DropFrameHint frame={drop.target} zoom={zoom} /> : null}
                 {imageKit.framing ? <FramingOverlay item={imageKit.framing.item} props={imageKit.framing.props} natural={imageKit.framing.natural} imageUrl={imageKit.framing.imageUrl} outline={imageKit.framing.outline} zoom={zoom}
                   onFrame={next => imageKit.tools.image(next)} onDone={() => imageKit.finishFraming(true)} onCancel={() => imageKit.finishFraming(false)} /> : null}
@@ -261,6 +308,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
             </div>
           </div>
           </StudioContextMenu>
+          {canvas.preferences.grid.rulers ? <Rulers references={canvas.references} /> : null}
           {sampling ? <CanvasColorSampler canvas={canvasRef.current} onPick={finishSampling} onCancel={() => finishSampling(null)} /> : null}
           {!ready && !error ? <div className="pointer-events-none absolute inset-0 flex items-center justify-center"><Skeleton className="aspect-square w-2/5 max-w-sm" /></div> : null}
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center gap-2 px-2 pt-2 sm:px-4 sm:pt-3">
@@ -273,7 +321,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
             {imageKit.pending ? <PendingPhotoBanner pending={imageKit.pending} onCancel={imageKit.cancelPending} /> : null}
             {hasSelection && !readOnly && ready && !imageKit.framing ? (
               <FadeSwap contentKey="selection-bar" className="flex max-w-full justify-center">
-                <SelectionBar selection={selection} selectedCount={selectedIds.length} disabled={blocked} imageTools={imageKit.tools} grouping={grouping}
+                <SelectionBar selection={selection} selectedCount={selectedIds.length} disabled={blocked} imageTools={tools} grouping={grouping}
                   onPatch={patch => attempt(() => editorRef.current.patch(patch))} onAction={action => attempt(() => editorRef.current[action]())}
                   onOrder={direction => attempt(() => editorRef.current.order(direction))} onRemove={() => setConfirm(true)} onProperties={openProperties} />
               </FadeSwap>
@@ -291,7 +339,9 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
             ) : null}
           </div>
           <div className={cn('pointer-events-none absolute z-20', phone ? 'bottom-2 right-2' : 'bottom-4 right-4')}>
-            <ZoomPill compact={phone} zoom={zoom} onZoom={view.changeZoom} onFit={view.fit} hand={view.hand} onHand={view.setHand} />
+            <ZoomPill compact={phone} zoom={zoom} onZoom={view.changeZoom} onFit={view.fit} hand={view.hand} onHand={view.setHand}>
+              <CanvasPreferencesMenu canvas={canvas} compact={phone} />
+            </ZoomPill>
           </div>
           <p className="pointer-events-none absolute bottom-5 left-4 z-10 hidden text-xs tabular-nums text-[hsl(var(--muted-foreground))] md:block">{page.width} × {page.height} px</p>
         </section>

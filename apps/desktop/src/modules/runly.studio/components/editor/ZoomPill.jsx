@@ -3,7 +3,8 @@ import { Hand, Maximize, Minus, Plus } from 'lucide-react'
 
 const PRESETS = [0.25, 0.5, 0.75, 1, 1.5, 2]
 
-export function ZoomPill({ zoom, onZoom, onFit, hand, onHand, compact = false }) {
+// `children`: extra view controls (canvas preferences) after a divider.
+export function ZoomPill({ zoom, onZoom, onFit, hand, onHand, compact = false, children }) {
   return (
     <div role="group" aria-label="Zoom y vista" className="glass pointer-events-auto flex items-center gap-0.5 rounded-2xl p-1 shadow-lg">
       {compact ? null : <ToolButton label="Alejar" shortcut="Ctrl+rueda" onClick={() => onZoom(zoom / 1.2)}><Minus /></ToolButton>}
@@ -23,6 +24,7 @@ export function ZoomPill({ zoom, onZoom, onFit, hand, onHand, compact = false })
       <span aria-hidden className="mx-0.5 h-6 w-px bg-[hsl(var(--border))]" />
       <ToolButton label="Ajustar a la pantalla" onClick={onFit} className={compact ? 'h-10 w-10' : undefined}><Maximize /></ToolButton>
       <ToolButton label="Mover la vista (o mantén la rueda del ratón)" shortcut="H" active={hand} onClick={() => onHand(!hand)} className={compact ? 'h-10 w-10' : undefined}><Hand /></ToolButton>
+      {children ? <><span aria-hidden className="mx-0.5 h-6 w-px bg-[hsl(var(--border))]" />{children}</> : null}
     </div>
   )
 }

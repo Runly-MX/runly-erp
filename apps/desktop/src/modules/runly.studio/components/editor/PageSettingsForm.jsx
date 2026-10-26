@@ -7,8 +7,9 @@ import { StudioColorPicker } from './StudioColorPicker.jsx'
 const PRESETS = STUDIO_FORMATS.filter((format, index, all) => all.findIndex(other => other.width === format.width && other.height === format.height) === index)
 
 // Size + background for a page. Used by the "Página" panel (resize) and the
-// custom-size dialog on the home (create).
-export function PageSettingsForm({ page, onApply, creating = false, disabled = false, onDone }) {
+// custom-size dialog on the home (create). `background` replaces the draft
+// color with a live control (the editor's page background, solid or gradient).
+export function PageSettingsForm({ page, onApply, creating = false, disabled = false, onDone, background }) {
   const [draft, setDraft] = useState(page), [scale, setScale] = useState(false)
   const [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const changed = draft.width !== page.width || draft.height !== page.height || draft.background !== page.background
@@ -44,10 +45,12 @@ export function PageSettingsForm({ page, onApply, creating = false, disabled = f
           </div>
         ))}
       </section>
-      <section aria-label="Fondo" className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">Fondo</p>
-        <StudioColorPicker value={draft.background} disabled={disabled} onChange={background => setDraft(current => ({ ...current, background }))} />
-      </section>
+      {background ?? (
+        <section aria-label="Fondo" className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">Fondo</p>
+          <StudioColorPicker value={draft.background} disabled={disabled} onChange={color => setDraft(current => ({ ...current, background: color }))} />
+        </section>
+      )}
       {!creating ? <CheckboxField label="Escalar contenido proporcionalmente" checked={scale} onChange={event => setScale(event.target.checked)} disabled={disabled}
         hint="Si no lo marcas, los elementos conservan su posición y tamaño." /> : null}
       {error ? <ErrorState description={error} showReport={false} /> : null}

@@ -3,11 +3,13 @@ import { Button, Input, SegmentedControl, Textarea, ToolButton } from '@runly/ui
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalDistributeCenter, AlignStartHorizontal,
   AlignStartVertical, AlignVerticalDistributeCenter, ArrowDown, ArrowUp, BringToFront, ClipboardPaste, Copy, CopyPlus, Eye, EyeOff, Lock,
-  ImagePlus, MousePointerClick, PaintBucket, Ruler, SendToBack, Trash2, Unlock,
+  Group, MousePointerClick, RotateCcw, RotateCw, Ruler, SendToBack, Trash2, Ungroup, Unlock, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { StudioColorPicker } from './editor/StudioColorPicker.jsx'
 import { ShapeStyleFields } from './editor/ShapeSelectionControls.jsx'
-import { canHoldPhoto, isShape, photoOf } from '../lib/photo-target.js'
+import { FillPicker } from './editor/paint/FillControls.jsx'
+import { canHoldPhoto, isShape } from '../lib/photo-target.js'
+import { paintCss } from '../lib/paint.js'
 import { OBJECT_META } from './editor/LayersPanel.jsx'
 
 const ALIGN = [
@@ -55,20 +57,49 @@ function Alignment({ count, disabled, onAlign }) {
   )
 }
 
+// Flat group scale/rotation through the engine's transformGroup (one undo
+// step each, around the group's centre). Fabric's multi-selection handles stay
+// locked: they cannot preserve every member's appearance yet.
+function GroupTransform({ disabled, onTransform }) {
+  const step = (label, Icon, options) => <ToolButton label={label} side="bottom" className="h-10 w-full" disabled={disabled} onClick={() => onTransform(options)}><Icon /></ToolButton>
+  return (
+    <Section title="Transformar grupo">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Escala</p>
+          <div className="grid grid-cols-2 gap-1">{step('Reducir 10 %', ZoomOut, { scale: 1 / 1.1 })}{step('Ampliar 10 %', ZoomIn, { scale: 1.1 })}</div>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Giro</p>
+          <div className="grid grid-cols-2 gap-1">{step('Girar 15° a la izquierda', RotateCcw, { rotation: -15 })}{step('Girar 15° a la derecha', RotateCw, { rotation: 15 })}</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-1">
+        <Button variant="ghost" size="sm" className="text-xs" disabled={disabled} onClick={() => onTransform({ rotation: 90 })}>Girar 90°</Button>
+        <Button variant="ghost" size="sm" className="text-xs" disabled={disabled} onClick={() => onTransform({ rotation: 180 })}>Girar 180°</Button>
+        <Button variant="ghost" size="sm" className="text-xs" disabled={disabled} onClick={() => onTransform({ scale: 2 })}>Doble tamaño</Button>
+      </div>
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">Escala proporcional y giro alrededor del centro del grupo. Cada paso se deshace con Ctrl+Z.</p>
+    </Section>
+  )
+}
+
 // `photoTools`: live photo editing (crop, filters, adjustments, effects) shown
-// first for photos (frames and shape fills). `shapeTools`: v5 shape photo,
-// fill, border and radius operations (useImageTools).
-export function StudioInspector({ selection, selectedCount, page, busy, readOnly, canPaste, onPatch, onRemove, onAction, onOrder, onAlign, onOpenPage, photoTools, shapeTools }) {
-  const locked = Boolean(selection?.locked), disabled = busy || readOnly, photo = Boolean(photoOf(selection))
+// first for photos (frames and shape fills). `shapeTools`: shape photo, fill
+// (none/solid/gradient/photo), border and radius operations (useImageTools).
+// `group`: {id, count} when the selection is exactly one flat group.
+export function StudioInspector({ selection, selectedCount, page, busy, readOnly, canPaste, onPatch, onRemove, onAction, onOrder, onAlign, onOpenPage, photoTools, shapeTools,
+  group, grouping, onTransformGroup, onError }) {
+  const locked = Boolean(selection?.locked), disabled = busy || readOnly
   if (!selection && selectedCount < 2) {
     return (
       <div>
         <Section title="Página">
           <div className="flex items-center gap-3">
-            <span aria-hidden className="h-10 w-10 shrink-0 rounded-md border border-[hsl(var(--border))]" style={{ backgroundColor: page.background }} />
+            <span aria-hidden className="h-10 w-10 shrink-0 rounded-md border border-[hsl(var(--border))]" style={{ background: paintCss(page.backgroundPaint) ?? page.background }} />
             <div className="min-w-0">
               <p className="text-sm font-semibold tabular-nums">{page.width} × {page.height} px</p>
-              <p className="font-mono text-xs uppercase text-[hsl(var(--muted-foreground))]">{page.background}</p>
+              <p className="font-mono text-xs uppercase text-[hsl(var(--muted-foreground))]">{page.backgroundPaint ? `Degradado ${page.backgroundPaint.gradientType === 'linear' ? 'lineal' : 'radial'}` : page.background}</p>
             </div>
           </div>
           <Button variant="outline" className="w-full" disabled={readOnly} onClick={onOpenPage}><Ruler />Tamaño y fondo</Button>
@@ -85,13 +116,16 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
   if (!selection) {
     return (
       <div>
-        <Section title="Selección">
-          <p className="text-sm font-semibold">{selectedCount} elementos seleccionados</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1" disabled={disabled} onClick={() => onAction('duplicate')}><CopyPlus />Duplicar</Button>
-            <Button variant="outline" size="sm" className="flex-1 text-destructive" disabled={disabled} onClick={onRemove}><Trash2 />Eliminar</Button>
+        <Section title={group ? 'Grupo' : 'Selección'}>
+          <p className="text-sm font-semibold">{group ? `Grupo de ${group.count} elementos` : `${selectedCount} elementos seleccionados`}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {grouping?.canGroup ? <Button variant="outline" size="sm" disabled={disabled} onClick={() => onAction('group')}><Group />Agrupar</Button> : null}
+            {grouping?.canUngroup ? <Button variant="outline" size="sm" disabled={disabled} onClick={() => onAction('ungroup')}><Ungroup />Desagrupar</Button> : null}
+            <Button variant="outline" size="sm" disabled={disabled} onClick={() => onAction('duplicate')}><CopyPlus />Duplicar</Button>
+            <Button variant="outline" size="sm" className="text-destructive" disabled={disabled} onClick={onRemove}><Trash2 />Eliminar</Button>
           </div>
         </Section>
+        {group && onTransformGroup ? <GroupTransform disabled={disabled} onTransform={onTransformGroup} /> : null}
         <Alignment count={selectedCount} disabled={disabled} onAlign={onAlign} />
       </div>
     )
@@ -113,21 +147,21 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
           <p className="text-xs text-[hsl(var(--muted-foreground))]">Fuente, estilo, tamaño, color, alineación y espaciado están en la barra del lienzo.</p>
         </Section>
       ) : null}
-      {selection.type !== 'image' && selection.type !== 'text' ? (
-        <Section title={photo ? 'Color (al quitar la foto)' : 'Color'}>
+      {selection.type !== 'image' && selection.type !== 'text' && !(shapeTools && isShape(selection)) ? (
+        <Section title="Color">
           <StudioColorPicker value={selection.fill} disabled={editable} onChange={fill => onPatch({ fill })} />
         </Section>
       ) : null}
       {shapeTools && isShape(selection) ? (
-        <Section title="Foto, relleno y borde">
-          {canHoldPhoto(selection) ? (
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm" disabled={editable} onClick={shapeTools.photo ? shapeTools.replace : shapeTools.fillShape}><ImagePlus />{shapeTools.photo ? 'Reemplazar foto' : 'Poner una foto'}</Button>
-              <Button variant="outline" size="sm" disabled={editable || !shapeTools.photo} onClick={shapeTools.removePhotoFill}><PaintBucket />Quitar foto</Button>
-            </div>
-          ) : <p className="text-xs text-[hsl(var(--muted-foreground))]">Esta figura no admite foto: solo las formas cerradas de un único trazo pueden contenerla.</p>}
-          <ShapeStyleFields selection={selection} disabled={editable} tools={shapeTools} />
-        </Section>
+        <>
+          <Section title="Relleno">
+            <FillPicker item={selection} disabled={editable} tools={shapeTools} onPatch={onPatch} onError={onError} />
+            {!canHoldPhoto(selection) ? <p className="text-xs text-[hsl(var(--muted-foreground))]">Degradados y fotos: solo en formas cerradas de un único trazo.</p> : null}
+          </Section>
+          <Section title="Borde y esquinas">
+            <ShapeStyleFields selection={selection} disabled={editable} tools={shapeTools} />
+          </Section>
+        </>
       ) : null}
       <Section title="Posición y tamaño">
         <div className="grid grid-cols-2 gap-2">
