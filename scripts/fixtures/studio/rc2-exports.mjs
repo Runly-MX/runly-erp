@@ -28,7 +28,7 @@ export async function verifyRc2Exports(stack,{users,companies}){
     const dialog=page.getByRole('dialog',{name:'Descargar',exact:true});await dialog.getByRole('radio',{name:new RegExp(`^${type}`)}).click()
     async function check(label,value){const input=dialog.getByRole('checkbox',{name:label,exact:true});if(await input.isChecked()!==value)await dialog.getByText(label,{exact:true}).click();assert.equal(await input.isChecked(),value)}
     if(type!=='PDF'){await dialog.getByRole('radio',{name:`×${scale}`,exact:true}).click();if(type==='PNG')await check('Fondo transparente',transparent)}
-    else{await dialog.getByRole('radio',{name:profile==='cmyk'?/CMYK/:/RGB/}).click();await check('Sangrado de 3 mm',true);await check('Marcas de corte',true)}
+    else{await dialog.getByRole('radiogroup',{name:'Perfil de color',exact:true}).getByRole('radio',{name:profile==='cmyk'?/CMYK/:/RGB/}).click();await check('Sangrado de 3 mm',true);await check('Marcas de corte',true)}
     await dialog.getByRole('button',{name:'Descargar',exact:true}).click()
     await page.getByRole('button',{name:`Exportar ${type}`,exact:true}).click()
   }

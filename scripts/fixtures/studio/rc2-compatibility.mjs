@@ -39,10 +39,16 @@ export async function verifyRc2Compatibility(stack,{users,companies},{apiImage,w
     config.services['runly-web'].environment.RUNLY_API_URL=stack.urls.api;await writeFile(stack.composeFile,JSON.stringify(config,null,2));await stack.compose(['up','-d','--force-recreate','runly-web'])
     checks.push('Actual new Web + old API detects absent protocol before writes and preserves a local pending queue')
     const cached=await open(oldWeb);await cached.locator('.upper-canvas').waitFor();await selectLayer(cached,1);await cached.getByLabel('Texto del elemento',{exact:true}).fill('Legacy pending must survive')
+    await cached.waitForFunction(()=>Object.entries(localStorage).some(([k,v])=>k.startsWith('runly:studio:draft:')&&v.includes('Legacy pending must survive')))
+    // Explicit notification-loss fault: an old tab must remain safe even when
+    // background GETs cannot discover the newer revision before its next PUT.
+    const legacyUrl=oldUrl+`/studio/designs/${legacy.id}`
+    await cached.route(legacyUrl,route=>route.request().method()==='GET'?route.abort('internetdisconnected'):route.continue())
     const upgraded=await fetch(stack.urls.api+`/studio/designs/${legacy.id}`,{method:'PUT',headers,body:JSON.stringify({name:'RC2 cached tab',revision:1,document:appendObject(blankDocument(),'text',{text:'Server v6 protected'})})});assert.equal(upgraded.status,200)
     config.services['previous-api'].image=apiImage;await writeFile(stack.composeFile,JSON.stringify(config,null,2));await stack.compose(['up','-d','--force-recreate','previous-api']);await ready(oldUrl)
     await cached.getByRole('button',{name:'Guardar',exact:true}).click();await cached.getByText(/Actualiza Studio antes de guardar/).first().waitFor()
     assert.ok(await cached.evaluate(()=>Object.entries(localStorage).some(([k,v])=>k.startsWith('runly:studio:draft:')&&v.includes('Legacy pending must survive'))))
+    await cached.unroute(legacyUrl)
     config.services['previous-web'].image=webImage;await writeFile(stack.composeFile,JSON.stringify(config,null,2));await stack.compose(['up','-d','--force-recreate','previous-web']);await cached.reload()
     await cached.getByText(/copia local|cambios de este navegador/i).first().waitFor()
     assert.ok(await cached.evaluate(()=>Object.entries(localStorage).some(([k,v])=>k.startsWith('runly:studio:draft:')&&v.includes('Legacy pending must survive'))))
