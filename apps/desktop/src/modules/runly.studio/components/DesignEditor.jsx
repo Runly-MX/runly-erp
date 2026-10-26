@@ -49,7 +49,8 @@ export function DesignEditor({ record, token, scope, onBack, onCopy, editingTemp
   // "Editar contenido", write this design back to its template.
   const templateScope = scope.split(':').slice(0, 2)
   const saveAsTemplate = useSaveAsTemplate({ editorRef, token, scopeKey: templateScope, name })
-  const templateEditing = useTemplateEditing({ editorRef, token, scopeKey: templateScope, templateId: editingTemplateId, onExit: onBack })
+  const templateEditing = useTemplateEditing({ editorRef, token, scopeKey: templateScope, templateId: editingTemplateId,
+    designName: name, saveDesign: () => save(), onExit: onBack })
   const nameRef = useRef(name)
   const preserve = useCallback(() => {
     if (!pending.current) return true
@@ -83,27 +84,43 @@ export function DesignEditor({ record, token, scope, onBack, onCopy, editingTemp
     const scale = Math.min(1, initial.page.width / width / 2, initial.page.height / height / 2)
     return { id: asset.id, width: Math.max(1, width * scale), height: Math.max(1, height * scale) }
   }, [token, initial])
-  async function save(asCopy = false) {
-    if (!editorRef.current || saving.current || (!asCopy && (!canEdit || conflict))) return
-    saving.current = true; setBusy(true); setError('')
+  // Resolves true once the server has this scene; a second call while saving
+  // joins the save in flight instead of being dropped.
+  function save(asCopy = false) {
+    if (saving.current) return saving.current
+    const task = performSave(asCopy).finally(() => { saving.current = null })
+    saving.current = task
+    return task
+  }
+  // The photo editor reads originals through the design's saved assets, so a
+  // photo added since the last save must be saved first; never open it blindly.
+  async function ensureSaved() {
+    if (await save()) return
+    throw new Error(conflict ? 'Resuelve el conflicto de versiones antes de editar la imagen. Tus cambios se conservan.'
+      : 'Guarda el diseño antes de editar la imagen. Tus cambios se conservan.')
+  }
+  async function performSave(asCopy) {
+    if (!editorRef.current || (!asCopy && (!canEdit || conflict))) return false
+    setBusy(true); setError('')
     try {
       const editor = editorRef.current
       await editor.flush()
-      if (editorRef.current !== editor) return
+      if (editorRef.current !== editor) return false
       const sent = generation.current
       const draft = { name, document: editor.snapshot(), revision: revision.current }
       pending.current = draft; preserve()
       const saved = unwrap(await (asCopy ? runly.studio.createDesign({ name: `${name.slice(0, 145)} (copia)`, document: draft.document, sourceDesignId: record.id }, token) :
         runly.studio.updateDesign(record.id, draft, token)))
       if (asCopy) {
-        if (generation.current !== sent) { preserve(); setError('La copia se guardó, pero hay cambios más recientes en este editor. Consérvalos antes de salir.'); return }
-        pending.current = null; clearTimeout(timer.current); store.clear(); dirtyRef.current = false; setDirty(false); navigation.finish(() => onCopy(saved.id)); return
+        if (generation.current !== sent) { preserve(); setError('La copia se guardó, pero hay cambios más recientes en este editor. Consérvalos antes de salir.'); return false }
+        pending.current = null; clearTimeout(timer.current); store.clear(); dirtyRef.current = false; setDirty(false); navigation.finish(() => onCopy(saved.id)); return true
       }
       revision.current = saved.revision
       if (generation.current === sent) { pending.current = null; clearTimeout(timer.current); store.clear(); dirtyRef.current = false; setDirty(false); setRecovery(null) }
       else { pending.current = { ...pending.current, revision: saved.revision }; preserve() }
-    } catch (error) { setConflict(error.status === 409); setError(error.message) }
-    finally { saving.current = false; setBusy(false) }
+      return true
+    } catch (error) { setConflict(error.status === 409); setError(error.message); return false }
+    finally { setBusy(false) }
   }
   function recover() {
     setWorkspaceVersion(value => value + 1)
@@ -192,7 +209,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy, editingTemp
     name, nameDisabled: !canEdit || !ready, onBack,
     onName: value => { nameRef.current = value; setName(value); if (editorRef.current) changed(editorRef.current.snapshot()) },
     saveState: busy ? 'saving' : dirty ? 'dirty' : 'saved', live: realtime.status,
-    onSave: () => save(), saveDisabled: !ready || !canEdit || busy || conflict,
+    onSave: () => save(), ensureSaved, saveDisabled: !ready || !canEdit || busy || conflict,
     onShare: () => openCredits({kind:'share'}), onExport: (format,quality) => openCredits({kind:'export',format,quality}),
     onCredits: () => openCredits(), onSaveTemplate: ready ? saveAsTemplate.open : null, exporting, exportDisabled: exporting, notices,
   }

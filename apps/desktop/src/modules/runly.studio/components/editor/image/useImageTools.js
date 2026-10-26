@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { imageProperties } from '../../../../../../../shared/studio/image-properties.js'
-import { framePatch } from '../../../lib/frame-shapes.js'
+import { framePatch, shapeOutline } from '../../../lib/frame-shapes.js'
+import { canHoldPhoto, photoOf } from '../../../lib/photo-target.js'
 
 // Glue between the Studio photo UI and the engine (fabric-adapter). Live
 // gestures (sliders, framing drags) never toggle the workspace "busy" state,
@@ -16,9 +17,9 @@ export function useImageTools({ editorRef, selection, objects, resolveImage, rea
   const begin = useCallback(() => run(() => inOrder(async () => { if (interacting.current) return; await editor().beginInteraction(); interacting.current = true })), [run]) // eslint-disable-line react-hooks/exhaustive-deps
   const end = useCallback((commit = true) => run(() => inOrder(async () => { if (!interacting.current) return; interacting.current = false; await editor().endInteraction(commit) })), [run]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Signed URL of the selected photo, for previews (filters, frames).
+  // Signed URL of the selected photo (frame or shape fill), for previews (filters, frames).
   const [urls, setUrls] = useState({})
-  const fileId = selection?.type === 'image' ? selection.fileAssetId : null
+  const photo = photoOf(selection), fileId = photo?.fileId ?? null
   // Signed URLs expire in 60 s, so previews use a local blob URL fetched once.
   const blobs = useRef(new Map())
   useEffect(() => () => { for (const url of blobs.current.values()) URL.revokeObjectURL(url) }, [])
@@ -50,7 +51,7 @@ export function useImageTools({ editorRef, selection, objects, resolveImage, rea
   // Framing mode (pan/zoom the photo inside a fixed mask).
   const [framing, setFraming] = useState(null)
   const startFraming = () => run(async () => {
-    if (selection?.type !== 'image' || selection.locked) return
+    if (!photo || selection.locked || readOnly) return
     await begin(); setFraming(selection.id)
   })
   const finishFraming = commit => { setFraming(null); end(commit) }
@@ -70,8 +71,11 @@ export function useImageTools({ editorRef, selection, objects, resolveImage, rea
       try {
         if (job.kind === 'frame') { editor().select(fresh.id); await editor().patchImage(framePatch(job.preset)) }
         else {
-          editor().select(fresh.id); editor().remove(); editor().select(job.targetId)
-          await editor().replaceImage(job.targetId, fresh.fileAssetId)
+          // The inserted photo only carries the file: it is removed and its file
+          // goes into the target (replace a photo, or fill a shape).
+          editor().select(fresh.id); editor().remove(); editor().select(job.targetId, { individual: true })
+          if (job.kind === 'fill') await editor().setPhotoFill(fresh.fileAssetId, { fit: 'cover' })
+          else await editor().replaceImage(job.targetId, fresh.fileAssetId)
         }
         await end(true)
       } catch (error) { await end(false); throw error }
@@ -79,10 +83,12 @@ export function useImageTools({ editorRef, selection, objects, resolveImage, rea
   }, [objects]) // eslint-disable-line react-hooks/exhaustive-deps
   const cancelPending = () => { setPending(null); end(false) }
 
-  const isImage = selection?.type === 'image' && !selection.locked && !readOnly
+  const editable = Boolean(selection) && !selection.locked && !readOnly
+  const isImage = selection?.type === 'image' && editable, isPhoto = Boolean(photo) && editable
   const [background, setBackground] = useState(null)
   const tools = {
     imageUrl: fileId ? urls[fileId] : null,
+    photo,
     begin, end,
     patch: patch => run(() => editor().patch(patch)),
     image: patch => run(() => editor().patchImage(patch)),
@@ -103,9 +109,17 @@ export function useImageTools({ editorRef, selection, objects, resolveImage, rea
       await begin(); setPending({ kind: 'frame', preset }); openPanel(null, 'images')
     }),
     replace: () => run(async () => {
-      if (!isImage) return
+      if (!isPhoto) return
       await begin(); setPending({ kind: 'replace', targetId: selection.id }); openPanel(null, 'images')
     }),
+    // Shape photo fills (v5): place waits for the next chosen photo; removing
+    // restores the shape's solid color. The Files original is never touched.
+    fillShape: () => run(async () => {
+      if (!editable || !canHoldPhoto(selection)) return
+      await begin(); setPending({ kind: 'fill', targetId: selection.id }); openPanel(null, 'images')
+    }),
+    removePhotoFill: () => run(() => editor().removePhotoFill()),
+    shapeStyle: patch => run(() => editor().setShapeStyle(patch)),
     // Only offered when the engine really implements it (no placeholder control).
     removeBackground: isImage && typeof editor()?.removeBackground === 'function' ? () => setBackground(selection.id) : null,
   }
@@ -113,7 +127,7 @@ export function useImageTools({ editorRef, selection, objects, resolveImage, rea
     open: true, onOpenChange: open => { if (!open) setBackground(null) },
     run: options => editor().removeBackground(background, options),
   } : null
-  const framingProps = framing && selection?.id === framing ? imageProperties(selection.image ?? {}) : null
-  return { tools, framing: framingProps ? { item: selection, props: framingProps, natural: sizes[fileId] ?? null, imageUrl: url } : null,
+  const framingProps = framing && selection?.id === framing && photo ? imageProperties(photo.image) : null
+  return { tools, framing: framingProps ? { item: selection, props: framingProps, natural: sizes[fileId] ?? null, imageUrl: url, outline: photo.shape ? shapeOutline(selection) : null } : null,
     finishFraming, pending, cancelPending, backgroundRemoval }
 }

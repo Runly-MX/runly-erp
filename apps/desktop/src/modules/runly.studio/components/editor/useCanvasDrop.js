@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { hitTest, isStudioDrag, peekStudioDrag, photoMaskFor, takeStudioDrag } from '../../lib/studio-drag.js'
+import { hitTest, isStudioDrag, peekStudioDrag, takeStudioDrag } from '../../lib/studio-drag.js'
+import { canHoldPhoto } from '../../lib/photo-target.js'
 
 // Drop target for panel → canvas drag and drop. Elements land where they are
 // dropped; a photo dropped on a photo frame replaces its picture, and a photo
-// dropped on a shape (rectangle, circle, oval, triangle, star) becomes a
-// photo with that shape as its frame, in the same place and stacking order.
+// dropped on a compatible shape becomes that shape's photo fill (v5
+// setPhotoFill): the shape keeps its id, geometry, border, opacity and order.
 export function useCanvasDrop({ editorRef, canvasRef, objects, readOnly, attempt }) {
   const [target, setTarget] = useState(null)
   const pointFrom = event => {
@@ -12,21 +13,14 @@ export function useCanvasDrop({ editorRef, canvasRef, objects, readOnly, attempt
     if (!rect?.width) return null
     return { x: (event.clientX - rect.left) * canvas.width / rect.width, y: (event.clientY - rect.top) * canvas.height / rect.height }
   }
-  const frameUnder = point => point && peekStudioDrag()?.kind === 'photo' ? hitTest(objects, point, object => photoMaskFor(object)) : null
+  const frameUnder = point => point && peekStudioDrag()?.kind === 'photo' ? hitTest(objects, point, object => object.type === 'image' || canHoldPhoto(object)) : null
 
   async function fillWithPhoto(frame, fileAssetId) {
     const editor = editorRef.current
-    if (frame.type === 'image') { editor.select(frame.id, { individual: true }); return editor.replaceImage(frame.id, fileAssetId) }
-    const index = objects.findIndex(object => object.id === frame.id), above = objects.length - 1 - index
-    await editor.beginInteraction()
-    try {
-      await editor.add('image', { fileAssetId, x: frame.x, y: frame.y, width: frame.width, height: frame.height, rotation: frame.rotation ?? 0, opacity: frame.opacity ?? 1, image: { mask: photoMaskFor(frame), fit: 'cover' } })
-      const photoId = editor.snapshot().objects.at(-1).id
-      editor.select(frame.id, { individual: true }); editor.remove()
-      editor.select(photoId)
-      for (let step = 0; step < above; step++) editor.order('down')
-      await editor.endInteraction(true)
-    } catch (error) { await editor.endInteraction(false); throw error }
+    editor.select(frame.id, { individual: true })
+    // A photo already in the frame or shape is swapped, keeping its framing.
+    if (frame.type === 'image' || frame.fillPaint?.type === 'image') return editor.replaceImage(frame.id, fileAssetId)
+    return editor.setPhotoFill(fileAssetId, { fit: 'cover' })
   }
 
   const handlers = readOnly ? {} : {

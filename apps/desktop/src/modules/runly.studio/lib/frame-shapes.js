@@ -71,6 +71,16 @@ export function maskPath(mask, w, h, radius = 24) {
   return `M0 0H${w}V${h}H0Z`
 }
 
+// Outline of a shape's own geometry (the clip of a shape photo fill), top-left
+// based like maskPath. Vectors keep their path in geometry units plus a scale.
+export function shapeOutline(item) {
+  if (item.type === 'ellipse') return { d: maskPath('ellipse', item.width, item.height) }
+  if (item.type === 'rectangle') return { d: item.shape?.radius ? maskPath('rounded', item.width, item.height, item.shape.radius) : maskPath('rectangle', item.width, item.height) }
+  const { width, height, paths } = item.geometry
+  const sx = item.width / width, sy = item.height / height
+  return { d: paths.map(path => path.d).join(' '), transform: `scale(${sx} ${sy})`, scale: Math.min(sx, sy) }
+}
+
 // Filter presets: canonical adjustments only (brightness/contrast/saturation in
 // −1…1, blur 0…1, grayscale/sepia). `css` approximates them for previews.
 export const FILTER_PRESETS = Object.freeze([

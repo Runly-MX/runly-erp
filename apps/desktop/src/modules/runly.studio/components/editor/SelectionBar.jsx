@@ -4,6 +4,8 @@ import { ColorPopover } from './StudioColorPicker.jsx'
 import { TextSelectionControls } from './TextSelectionControls.jsx'
 import { ImageSelectionControls } from './image/ImageSelectionControls.jsx'
 import { LineSelectionControls } from './LineSelectionControls.jsx'
+import { ShapeSelectionControls } from './ShapeSelectionControls.jsx'
+import { isShape } from '../../lib/photo-target.js'
 
 const ORDER = [['front', 'Traer al frente', BringToFront], ['up', 'Subir un nivel', ArrowUp], ['down', 'Bajar un nivel', ArrowDown], ['back', 'Enviar al fondo', SendToBack]]
 
@@ -23,6 +25,7 @@ export function SelectionBar({ selection, selectedCount, disabled, onPatch, onAc
           {selection.type === 'text' ? <TextSelectionControls selection={selection} disabled={editable} onPatch={onPatch} live={imageTools} />
             : selection.type === 'image' ? (imageTools ? <ImageSelectionControls selection={selection} disabled={editable} tools={imageTools} /> : null)
               : selection.type === 'line' ? <LineSelectionControls selection={selection} disabled={editable} onPatch={onPatch} />
+              : isShape(selection) ? <ShapeSelectionControls selection={selection} disabled={editable} onPatch={onPatch} tools={imageTools} />
               : <ColorPopover value={selection.fill} disabled={editable} onChange={fill => onPatch({ fill })} />}
           {selection.type !== 'image' && imageTools ? (
             <Popover>

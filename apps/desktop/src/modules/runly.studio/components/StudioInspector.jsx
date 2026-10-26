@@ -3,9 +3,11 @@ import { Button, Input, SegmentedControl, Textarea, ToolButton } from '@runly/ui
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalDistributeCenter, AlignStartHorizontal,
   AlignStartVertical, AlignVerticalDistributeCenter, ArrowDown, ArrowUp, BringToFront, ClipboardPaste, Copy, CopyPlus, Eye, EyeOff, Lock,
-  MousePointerClick, Ruler, SendToBack, Trash2, Unlock,
+  ImagePlus, MousePointerClick, PaintBucket, Ruler, SendToBack, Trash2, Unlock,
 } from 'lucide-react'
 import { StudioColorPicker } from './editor/StudioColorPicker.jsx'
+import { ShapeStyleFields } from './editor/ShapeSelectionControls.jsx'
+import { canHoldPhoto, isShape, photoOf } from '../lib/photo-target.js'
 import { OBJECT_META } from './editor/LayersPanel.jsx'
 
 const ALIGN = [
@@ -53,9 +55,11 @@ function Alignment({ count, disabled, onAlign }) {
   )
 }
 
-// `photoTools`: live photo editing (crop, filters, adjustments, effects) shown first for images.
-export function StudioInspector({ selection, selectedCount, page, busy, readOnly, canPaste, onPatch, onRemove, onAction, onOrder, onAlign, onOpenPage, photoTools }) {
-  const locked = Boolean(selection?.locked), disabled = busy || readOnly
+// `photoTools`: live photo editing (crop, filters, adjustments, effects) shown
+// first for photos (frames and shape fills). `shapeTools`: v5 shape photo,
+// fill, border and radius operations (useImageTools).
+export function StudioInspector({ selection, selectedCount, page, busy, readOnly, canPaste, onPatch, onRemove, onAction, onOrder, onAlign, onOpenPage, photoTools, shapeTools }) {
+  const locked = Boolean(selection?.locked), disabled = busy || readOnly, photo = Boolean(photoOf(selection))
   if (!selection && selectedCount < 2) {
     return (
       <div>
@@ -110,8 +114,19 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
         </Section>
       ) : null}
       {selection.type !== 'image' && selection.type !== 'text' ? (
-        <Section title="Color">
+        <Section title={photo ? 'Color (al quitar la foto)' : 'Color'}>
           <StudioColorPicker value={selection.fill} disabled={editable} onChange={fill => onPatch({ fill })} />
+        </Section>
+      ) : null}
+      {shapeTools && isShape(selection) ? (
+        <Section title="Foto, relleno y borde">
+          {canHoldPhoto(selection) ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" size="sm" disabled={editable} onClick={shapeTools.photo ? shapeTools.replace : shapeTools.fillShape}><ImagePlus />{shapeTools.photo ? 'Reemplazar foto' : 'Poner una foto'}</Button>
+              <Button variant="outline" size="sm" disabled={editable || !shapeTools.photo} onClick={shapeTools.removePhotoFill}><PaintBucket />Quitar foto</Button>
+            </div>
+          ) : <p className="text-xs text-[hsl(var(--muted-foreground))]">Esta figura no admite foto: solo las formas cerradas de un único trazo pueden contenerla.</p>}
+          <ShapeStyleFields selection={selection} disabled={editable} tools={shapeTools} />
         </Section>
       ) : null}
       <Section title="Posición y tamaño">

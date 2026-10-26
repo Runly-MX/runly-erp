@@ -27,7 +27,9 @@ function limit(next, item, props, place) {
 // the part of the photo outside the frame shows as a faint ghost, everything
 // else is dimmed. Changes stream through onFrame; the caller commits or rolls
 // back the whole session (one undo step).
-export function FramingOverlay({ item, props, natural, imageUrl, zoom, onFrame, onDone, onCancel }) {
+// `outline` ({d, transform?}) replaces the mask path for a shape photo fill,
+// whose clip is the shape's own geometry.
+export function FramingOverlay({ item, props, natural, imageUrl, zoom, outline, onFrame, onDone, onCancel }) {
   const id = useId().replace(/:/g, '')
   const box = useRef(null), drag = useRef(null), frame = useRef(0)
   const live = useRef({ offsetX: props.offsetX, offsetY: props.offsetY, zoom: props.zoom })
@@ -68,7 +70,9 @@ export function FramingOverlay({ item, props, natural, imageUrl, zoom, onFrame, 
     else if (event.key === 'Enter') { event.preventDefault(); onDone() }
     else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onCancel() }
   }
-  const stroke = 2 / zoom, d = maskPath(props.mask, item.width, item.height, props.radius)
+  const stroke = 2 / zoom, d = outline?.d ?? maskPath(props.mask, item.width, item.height, props.radius), shapeTransform = outline?.transform
+  // Vector outlines are in geometry units: keep the on-screen stroke width constant.
+  const scale = outline?.scale ?? 1
   const fullCrop = props.crop.x === 0 && props.crop.y === 0 && props.crop.width === 1 && props.crop.height === 1
   const ghost = place && imageUrl && fullCrop ? (() => {
     const k = place.base * props.zoom, width = place.width * k, height = place.height * k
@@ -90,7 +94,7 @@ export function FramingOverlay({ item, props, natural, imageUrl, zoom, onFrame, 
               <defs>
                 <mask id={`outside-${id}`} maskUnits="userSpaceOnUse" x={-item.width * 20} y={-item.height * 20} width={item.width * 41} height={item.height * 41}>
                   <rect x={-item.width * 20} y={-item.height * 20} width={item.width * 41} height={item.height * 41} fill="#fff" />
-                  <path d={d} fill="#000" />
+                  <path d={d} transform={shapeTransform} fill="#000" />
                 </mask>
               </defs>
               <g mask={`url(#outside-${id})`} opacity="0.4">
@@ -99,8 +103,8 @@ export function FramingOverlay({ item, props, natural, imageUrl, zoom, onFrame, 
               </g>
             </>
           ) : null}
-          <path d={d} fill="none" stroke="#ffffff" strokeWidth={stroke * 3} strokeOpacity="0.35" />
-          <path d={d} fill="none" stroke="#d946ef" strokeWidth={stroke} strokeDasharray={`${8 / zoom} ${6 / zoom}`} />
+          <path d={d} transform={shapeTransform} fill="none" stroke="#ffffff" strokeWidth={stroke * 3 / scale} strokeOpacity="0.35" />
+          <path d={d} transform={shapeTransform} fill="none" stroke="#d946ef" strokeWidth={stroke / scale} strokeDasharray={`${8 / zoom / scale} ${6 / zoom / scale}`} />
           {[1, 2].map(n => <line key={`v${n}`} x1={(item.width * n) / 3} x2={(item.width * n) / 3} y1="0" y2={item.height} stroke="#ffffff" strokeOpacity="0.35" strokeWidth={stroke / 2} />)}
           {[1, 2].map(n => <line key={`h${n}`} y1={(item.height * n) / 3} y2={(item.height * n) / 3} x1="0" x2={item.width} stroke="#ffffff" strokeOpacity="0.35" strokeWidth={stroke / 2} />)}
         </svg>

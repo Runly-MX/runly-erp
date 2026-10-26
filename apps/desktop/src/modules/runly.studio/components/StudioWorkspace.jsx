@@ -159,7 +159,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     setPanel(key)
   }
   const imageKit = useImageTools({ editorRef, selection, objects, resolveImage, readOnly, onError: setError, openPanel: openImagePanel,
-    ensureSaved: chrome.saveState === 'saved' ? null : () => chrome.onSave() })
+    ensureSaved: chrome.saveState === 'saved' ? null : chrome.ensureSaved })
   const drop = useCanvasDrop({ editorRef, canvasRef, objects, readOnly: readOnly || !ready, attempt })
   const uploader = <FileUploader accept="image/png,image/jpeg,image/webp" maxSizeMB={10} disabled={blocked} emptyLabel="Subir imagen" hint="PNG, JPG o WebP. Se conserva el original." onUpload={upload} />
   const panels = {
@@ -191,11 +191,11 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     onPatch={patch => attempt(() => editorRef.current.patch(patch))} onRemove={() => setConfirm(true)}
     onAction={action => attempt(() => editorRef.current[action]())} onOrder={direction => attempt(() => editorRef.current.order(direction))}
     onAlign={(direction, target) => attempt(() => editorRef.current.align(direction, target))} onOpenPage={() => { setPanel('page'); setInspectorSheet(false) }}
-    photoTools={selection?.type === 'image' && !readOnly ? panels.image : null} />
+    photoTools={imageKit.tools.photo && !readOnly ? panels.image : null} shapeTools={readOnly ? null : imageKit.tools} />
   // Eyedropper fallback + colors already used in the design (for every color picker).
   const [sampling, setSampling] = useState(null)
   const pickFromCanvas = useCallback(() => new Promise(resolve => setSampling(() => resolve)), [])
-  const documentColors = [...new Set([page.background, ...objects.map(object => object.fill), ...objects.map(object => object.image?.border?.width ? object.image.border.color : null)]
+  const documentColors = [...new Set([page.background, ...objects.map(object => object.fill), ...objects.map(object => object.image?.border?.width ? object.image.border.color : null), ...objects.map(object => object.shape?.strokeWidth ? object.shape.strokeColor : null)]
     .filter(color => /^#[0-9a-f]{6}$/i.test(color ?? '')).map(color => color.toLowerCase()))]
   const colorContext = { pickFromCanvas, documentColors }
   const finishSampling = color => { sampling?.(color); setSampling(null) }
@@ -239,14 +239,14 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
             onPage={() => setPanel('page')}>
           <div ref={view.viewport} {...view.gestures} aria-label="Lienzo" className="absolute inset-0 overflow-auto overscroll-contain"
             // Double-click a photo: isolate it and move/scale it inside its frame.
-            onDoubleClick={() => { if (selection?.type === 'image' && !selection.locked && !readOnly && !imageKit.framing) imageKit.tools.startFraming() }}
+            onDoubleClick={() => { if (imageKit.tools.photo && !selection.locked && !readOnly && !imageKit.framing) imageKit.tools.startFraming() }}
             style={{ ...DOTS, touchAction: view.hand ? 'none' : 'auto', cursor: view.panning ? 'grabbing' : view.hand ? 'grab' : undefined }}>
             <div style={{ position: 'relative', width: Math.max(view.size.width, page.width * zoom + 96), height: Math.max(view.size.height, page.height * zoom + 96) }}>
               <div ref={view.paper} className="shadow-[0_12px_48px_-12px_rgb(0_0_0/0.35)] ring-1 ring-black/5"
                 style={{ position: 'absolute', left: Math.max(48, (view.size.width - page.width * zoom) / 2), top: Math.max(48, (view.size.height - page.height * zoom) / 2), transform: `scale(${zoom})`, transformOrigin: 'top left', width: page.width, height: page.height }}>
                 <canvas ref={canvasRef} aria-label="Lienzo editable de Studio" />
                 {drop.target ? <DropFrameHint frame={drop.target} zoom={zoom} /> : null}
-                {imageKit.framing ? <FramingOverlay item={imageKit.framing.item} props={imageKit.framing.props} natural={imageKit.framing.natural} imageUrl={imageKit.framing.imageUrl} zoom={zoom}
+                {imageKit.framing ? <FramingOverlay item={imageKit.framing.item} props={imageKit.framing.props} natural={imageKit.framing.natural} imageUrl={imageKit.framing.imageUrl} outline={imageKit.framing.outline} zoom={zoom}
                   onFrame={next => imageKit.tools.image(next)} onDone={() => imageKit.finishFraming(true)} onCancel={() => imageKit.finishFraming(false)} /> : null}
                 {participants.map(user => <div key={`${user.userId}:${user.sessionId}`} className="pointer-events-none absolute inset-0">
                   {objects.filter(object => object.id === user.selectedId).map(object => <span key={object.id} aria-label={`Selección de ${user.name}`}

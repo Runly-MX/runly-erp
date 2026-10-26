@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Button, EmptyState, NumberStepper, SegmentedControl, SliderRow, Switch, ToolButton, cn } from '@runly/ui'
-import { ChevronDown, Crop, FlipHorizontal2, FlipVertical2, ImageIcon, RotateCcw, RotateCw, WandSparkles } from 'lucide-react'
+import { ChevronDown, Crop, FlipHorizontal2, FlipVertical2, ImageIcon, PaintBucket, RotateCcw, RotateCw, WandSparkles } from 'lucide-react'
 import { imageProperties } from '../../../../../../../shared/studio/image-properties.js'
 import { FILTER_PRESETS, activeFilter, adjustmentsCss } from '../../../lib/frame-shapes.js'
+import { photoOf } from '../../../lib/photo-target.js'
 import { ColorPopover } from '../StudioColorPicker.jsx'
 
 const TABS = [{ value: 'crop', label: 'Recorte' }, { value: 'filters', label: 'Filtros' }, { value: 'adjust', label: 'Ajustes' }, { value: 'effects', label: 'Efectos' }]
@@ -106,24 +107,34 @@ function CropTab({ props, disabled, api }) {
   )
 }
 
-function Effects({ selection, props, disabled, api }) {
+function Effects({ selection, props, shape, disabled, api }) {
   const shadow = SHADOWS.find(option => option.shadow.blur === props.shadow.blur)?.value ?? 'soft'
   return (
     <div className="space-y-5">
       <SliderRow label="Opacidad" min={0} max={100} zero={100} value={Math.round((selection.opacity ?? 1) * 100)} format={value => `${value} %`} disabled={disabled}
         onStart={api.begin} onCommit={api.end} onChange={value => api.patch({ opacity: value / 100 })} />
-      {props.mask === 'rounded' ? (
-        <SliderRow label="Esquinas" min={0} max={400} zero={24} value={Math.round(props.radius)} format={value => `${value} px`} disabled={disabled}
-          onStart={api.begin} onCommit={api.end} onChange={value => api.image({ radius: value })} />
-      ) : null}
-      <div className="space-y-2">
-        <Heading>Borde</Heading>
-        <div className="flex items-center gap-2">
-          <NumberStepper label="Grosor del borde" size="sm" min={0} max={64} step={2} value={Math.round(props.border.width)} disabled={disabled}
-            onChange={width => api.image({ border: { ...props.border, width } })} />
-          <ColorPopover label="Color del borde" value={props.border.color} disabled={disabled || !props.border.width} onChange={color => api.image({ border: { ...props.border, color } })} />
+      {shape ? (
+        // Border, radius and fill of a shape are in Propiedades and in the canvas bar.
+        <div className="space-y-2">
+          <Heading>Foto en la forma</Heading>
+          <Button variant="outline" size="sm" disabled={disabled} onClick={api.removePhotoFill} className="w-full gap-1.5"><PaintBucket className="h-3.5 w-3.5" />Quitar la foto (volver al color)</Button>
         </div>
-      </div>
+      ) : (
+        <>
+          {props.mask === 'rounded' ? (
+            <SliderRow label="Esquinas" min={0} max={400} zero={24} value={Math.round(props.radius)} format={value => `${value} px`} disabled={disabled}
+              onStart={api.begin} onCommit={api.end} onChange={value => api.image({ radius: value })} />
+          ) : null}
+          <div className="space-y-2">
+            <Heading>Borde</Heading>
+            <div className="flex items-center gap-2">
+              <NumberStepper label="Grosor del borde" size="sm" min={0} max={64} step={2} value={Math.round(props.border.width)} disabled={disabled}
+                onChange={width => api.image({ border: { ...props.border, width } })} />
+              <ColorPopover label="Color del borde" value={props.border.color} disabled={disabled || !props.border.width} onChange={color => api.image({ border: { ...props.border, color } })} />
+            </div>
+          </div>
+        </>
+      )}
       <div className="space-y-2">
         <Heading>Sombra</Heading>
         <SegmentedControl ariaLabel="Sombra" options={SHADOWS} value={shadow} disabled={disabled}
@@ -133,19 +144,22 @@ function Effects({ selection, props, disabled, api }) {
   )
 }
 
-// Contextual photo panel (left side panel on desktop, sheet on phones).
+// Contextual photo panel (left side panel on desktop, sheet on phones), for a
+// photo frame or a shape's photo fill. Shape fills take mask, radius and border
+// from the shape itself, so those frame controls are not offered for them.
 export function ImagePanel({ selection, imageUrl, tab, onTab, disabled, api }) {
-  if (selection?.type !== 'image') {
+  const photo = photoOf(selection)
+  if (!photo) {
     return <EmptyState variant="compact" icon={ImageIcon} title="Selecciona una imagen del diseño para ajustarla." />
   }
-  const props = imageProperties(selection.image ?? {})
+  const props = imageProperties(photo.image)
   return (
     <div className="space-y-4">
       <SegmentedControl ariaLabel="Herramientas de imagen" options={TABS} value={tab} onChange={onTab} className="w-full [&_button]:min-w-0 [&_button]:px-1.5 [&_button]:text-xs" />
       {tab === 'crop' ? <CropTab props={props} disabled={disabled} api={api} /> : null}
       {tab === 'filters' ? <Filters props={props} imageUrl={imageUrl} disabled={disabled} onApply={api.filter} /> : null}
       {tab === 'adjust' ? <Adjustments key={selection.id} props={props} disabled={disabled} api={api} /> : null}
-      {tab === 'effects' ? <Effects selection={selection} props={props} disabled={disabled} api={api} /> : null}
+      {tab === 'effects' ? <Effects selection={selection} props={props} shape={photo.shape} disabled={disabled} api={api} /> : null}
       <div className="space-y-2 border-t border-[hsl(var(--border))] pt-4">
         <Button variant="outline" className="h-11 w-full gap-2" disabled={disabled} onClick={api.editImage}><WandSparkles />Editor avanzado</Button>
         <p className="text-xs text-[hsl(var(--muted-foreground))]">Dibujo, retoque, viñeta, calidez y recorte libre se guardan como una copia; el original queda en Files.</p>

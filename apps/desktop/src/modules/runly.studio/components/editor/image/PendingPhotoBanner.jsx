@@ -2,8 +2,8 @@ import { Button } from '@runly/ui'
 import { ImagePlus } from 'lucide-react'
 import { FrameThumb } from './FramesGrid.jsx'
 
-// Shown while Studio waits for the user to pick a photo (for a frame, or to
-// replace the selected one). Cancelling rolls back the pending step.
+// Shown while Studio waits for the user to pick a photo (for a frame, to
+// replace the selected one, or to fill the selected shape). Cancelling rolls back the pending step.
 export function PendingPhotoBanner({ pending, onCancel }) {
   const frame = pending.kind === 'frame' ? pending.preset : null
   return (
@@ -12,7 +12,7 @@ export function PendingPhotoBanner({ pending, onCancel }) {
         {frame ? <span className="h-7 w-7"><FrameThumb preset={frame} /></span> : <ImagePlus className="h-4 w-4" />}
       </span>
       <p className="min-w-0 text-sm">
-        <span className="font-semibold">{frame ? `Marco «${frame.label}»` : 'Reemplazar foto'}</span>
+        <span className="font-semibold">{frame ? `Marco «${frame.label}»` : pending.kind === 'fill' ? 'Foto dentro de la forma' : 'Reemplazar foto'}</span>
         <span className="text-[hsl(var(--muted-foreground))]"> · Elige o sube una foto en Imágenes</span>
       </p>
       <Button variant="ghost" size="sm" onClick={onCancel}>Cancelar</Button>

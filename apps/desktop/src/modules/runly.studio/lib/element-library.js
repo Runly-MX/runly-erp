@@ -52,10 +52,16 @@ export const LINE_BODIES = [
   { key: 'spiral', label: 'Espiral', width: 260, height: 260, points: range(180, t => { const angle = t * Math.PI * 7, radius = 0.5 * t; return [0.5 + radius * Math.cos(angle), 0.5 + radius * Math.sin(angle)] }).map(round) },
 ]
 export const LINE_DASHES = [{ value: 'solid', label: 'Sólido' }, { value: 'dashed', label: 'Discontinuo' }, { value: 'dotted', label: 'Punteado' }]
+// Library presets; each end can then be changed independently on the canvas.
 export const LINE_ENDS = [
-  { value: 'none', label: 'Sin extremos', startArrow: false, endArrow: false },
-  { value: 'arrow', label: 'Flecha', startArrow: false, endArrow: true },
-  { value: 'double', label: 'Doble flecha', startArrow: true, endArrow: true },
+  { value: 'none', label: 'Sin extremos', startCap: 'none', endCap: 'none' },
+  { value: 'arrow', label: 'Flecha', startCap: 'none', endCap: 'arrow' },
+  { value: 'double', label: 'Doble flecha', startCap: 'arrow', endCap: 'arrow' },
+]
+// The seven v5 line caps (shared LINE_CAPS order).
+export const LINE_CAP_OPTIONS = [
+  { value: 'none', label: 'Ninguno' }, { value: 'arrow', label: 'Flecha' }, { value: 'open-arrow', label: 'Flecha abierta' },
+  { value: 'circle', label: 'Círculo' }, { value: 'square', label: 'Cuadrado' }, { value: 'bar', label: 'Barra' }, { value: 'diamond', label: 'Rombo' },
 ]
 export const LINE_WEIGHTS = [{ value: 4, label: 'Fino' }, { value: 8, label: 'Medio' }, { value: 16, label: 'Grueso' }]
 

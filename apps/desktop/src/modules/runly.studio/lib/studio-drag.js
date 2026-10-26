@@ -20,16 +20,6 @@ export function draggable(payload) {
   return { draggable: true, onDragStart: event => startStudioDrag(event, payload), onDragEnd: endStudioDrag }
 }
 
-// Shapes that can hold a photo: the photo takes the shape's mask.
-const VECTOR_MASKS = { 'tabler:triangle-filled': 'triangle', 'tabler:star-filled': 'star', 'tabler:circle-filled': 'circle' }
-export function photoMaskFor(object) {
-  if (object.type === 'image') return 'keep'
-  if (object.type === 'ellipse') return Math.abs(object.width - object.height) < 1 ? 'circle' : 'ellipse'
-  if (object.type === 'rectangle') return 'rectangle'
-  if (object.type === 'vector') return VECTOR_MASKS[object.iconId] ?? null
-  return null
-}
-
 // Topmost visible, unlocked object under a document point (rotation-aware;
 // objects rotate around their top-left corner).
 export function hitTest(objects, point, accept = () => true) {

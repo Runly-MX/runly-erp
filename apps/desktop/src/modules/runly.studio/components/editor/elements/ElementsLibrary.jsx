@@ -97,8 +97,8 @@ function LinePreview({ body, dash, ends, color }) {
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="h-10 w-full overflow-visible" aria-hidden>
       <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap={dash === 'dotted' ? 'round' : 'butt'} strokeDasharray={dash === 'dashed' ? '5 3' : dash === 'dotted' ? '0.5 3.5' : undefined} />
-      {end.endArrow ? <path d={head(coords.at(-2), coords.at(-1))} fill={color} /> : null}
-      {end.startArrow ? <path d={head(coords[1], coords[0])} fill={color} /> : null}
+      {end.endCap !== 'none' ? <path d={head(coords.at(-2), coords.at(-1))} fill={color} /> : null}
+      {end.startCap !== 'none' ? <path d={head(coords[1], coords[0])} fill={color} /> : null}
     </svg>
   )
 }
@@ -191,11 +191,11 @@ export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLi
               options={LINE_WEIGHTS.map(option => ({ ...option, icon: <StrokeGlyph width={option.value / 3 + 1} /> }))} />
           </div>
           <VisualChoice label="Extremos de la línea" value={ends} onChange={setEnds}
-            options={LINE_ENDS.map(option => ({ ...option, icon: <StrokeGlyph start={option.startArrow} end={option.endArrow} /> }))} />
+            options={LINE_ENDS.map(option => ({ ...option, icon: <StrokeGlyph start={option.startCap !== 'none'} end={option.endCap !== 'none'} /> }))} />
           <div className="grid grid-cols-3 gap-2 pt-1">
             {lines.slice(0, limit).map(body => {
               const end = LINE_ENDS.find(option => option.value === ends)
-              const lineProps = (line, cap) => ({ width: line.width, height: line.height, points: line.points, strokeWidth: weight, dash, startArrow: cap.startArrow, endArrow: cap.endArrow, fill: color })
+              const lineProps = (line, cap) => ({ width: line.width, height: line.height, points: line.points, strokeWidth: weight, dash, startCap: cap.startCap, endCap: cap.endCap, fill: color })
               return (
                 <button key={body.key} type="button" disabled={disabled} className={cn(TILE, 'h-16 px-3')} title={body.label} aria-label={body.label}
                   {...draggable({ kind: 'element', label: body.label, insert: point => onAddLine(lineProps(body, end), point) })}
