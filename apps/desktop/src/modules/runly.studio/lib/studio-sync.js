@@ -5,7 +5,7 @@ import { applyOps, checkOps, compactOps, diffOps } from '../../../../../shared/s
 export function createStudioSync({document,revision,name,clientId,transport,editor,onStatus,onName,onError,onConflict,
   storage,storageKey,delay=80,gapTimeout=1500,retry=attempt=>Math.min(8000,500*2**attempt),timers=globalThis}) {
   let server=validateDocument(document),local=server,sequence=revision,title=name,outbox=[],outboxName,batch=null,nextBatch=1
-  let inflight=false,closed=false,blocked=null,flushTimer,gapTimer,retryTimer,attempt=0,status='synced',render=Promise.resolve(),resyncing=null,version=0
+  let inflight=false,closed=false,blocked=null,renderError=null,flushTimer,gapTimer,retryTimer,attempt=0,status='synced',render=Promise.resolve(),resyncing=null,version=0
   const buffered=new Map(),waiters=[],touched=new Set()
   const failure=(message,status=0)=>Object.assign(Error(message),{status})
   const work=()=>Boolean(batch||outbox.length||outboxName!==undefined)
@@ -29,6 +29,7 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
   const settle=()=>{
     persist()
     if(blocked){waiters.splice(0).forEach(w=>w.reject(blocked));return}
+    if(renderError){waiters.splice(0).forEach(w=>w.reject(renderError));return}
     if(!work()&&!inflight&&!buffered.size&&!resyncing){setStatus('synced');waiters.splice(0).forEach(w=>w.resolve())}
   }
   function collides(ops){return ops.some(op=>op.type==='remove'&&[...touched].some(k=>k.startsWith(`${op.id}:`))||op.type==='patch'&&[...Object.keys(op.set),...(op.unset??[])].some(k=>touched.has(`${op.id}:${k}`)))}
@@ -46,9 +47,12 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
       if(closed||blocked)return
       const target=validateDocument(applyOps(server,[...(batch?.ops??[]),...outbox]))
       if(JSON.stringify(target)===JSON.stringify(local))return
-      const generation=version;local=target
-      const shown=await editor.apply(target)
-      if(shown&&generation===version)local=validateDocument(shown)
+      const generation=version,previous=local;local=target
+      try{
+        const shown=await editor.apply(target)
+        if(shown&&generation===version)local=validateDocument(shown)
+        renderError=null
+      }catch(error){if(generation===version)local=previous;renderError=error;setStatus('error');throw error}
       persist()
     })
     return render
@@ -129,7 +133,7 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
         }
         await reconcile()
         if(work()){setStatus('syncing');schedule(0)}else settle()
-      }catch(error){if([401,403,404].includes(error.status))deny(error);else{setStatus('offline');onError?.(error.message,error)}}
+      }catch(error){if([401,403,404].includes(error.status))deny(error);else{setStatus(renderError?'error':'offline');onError?.(error.message,error)}}
       finally{resyncing=null;drain();settle()}
     })()
     return resyncing

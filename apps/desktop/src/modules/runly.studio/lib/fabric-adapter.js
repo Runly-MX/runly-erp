@@ -171,22 +171,36 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
   // Minimal canvas update to `document`: in-place property updates, rebuild
   // only when the object kind changes, add, remove, reorder and page. Keeps the
   // selection by id and never touches history.
-  async function applyDocument(document, { skip = new Set() } = {}) {
+  async function applyDocument(document, { skip = new Set(),attempt=0 } = {}) {
     const next = validateDocument(document), wanted = new Map(next.objects.map(item => [item.id, item]))
-    const live=new Map(snapshot().objects.map(item=>[item.id,item]))
+    const before=snapshot(),live=new Map(before.objects.map(item=>[item.id,item])),prepared=new Map()
+    const budget={pixels:canvas.getObjects().reduce((n,o)=>n+(skip.has(o.studioId)||wanted.has(o.studioId)&&inPlace(live.get(o.studioId),wanted.get(o.studioId))?o.studioPixels??0:0),0)}
+    try{
+      for(const item of next.objects){
+        if(skip.has(item.id))continue
+        const prev=live.get(item.id),object=canvas.getObjects().find(o=>o.studioId===item.id)
+        if(!object||!inPlace(prev,item))prepared.set(item.id,await build(item,budget))
+      }
+      if(destroyed){for(const object of prepared.values())object.dispose();return}
+      const now=snapshot(),delta=diffOps(before,now)
+      if(delta.length){
+        for(const object of prepared.values())object.dispose()
+        prepared.clear()
+        if(attempt>=3)throw Error('El diseño cambió durante la carga de recursos. Reintenta la sincronización.')
+        return applyDocument(applyOps(next,delta),{skip:busyIds(),attempt:attempt+1})
+      }
+    }catch(error){for(const object of prepared.values())object.dispose();throw error}
     const selectedIds = canvas.getActiveObjects().map(object => object.studioId)
     let reselect = false
     if(canvas.getActiveObject()?.type==='activeselection'&&!selectedIds.some(id=>skip.has(id))){canvas.discardActiveObject();reselect=true}
     const drop = object => { if (selectedIds.includes(object.studioId)) { canvas.discardActiveObject(); reselect = true }; canvas.remove(object); object.dispose() }
     for (const object of [...canvas.getObjects()]) if (!wanted.has(object.studioId) && !skip.has(object.studioId)) { drop(object); source.delete(object.studioId) }
-    const budget = { pixels: 0 }
     for (const item of next.objects) {
       if (skip.has(item.id)) continue
       const prev = live.get(item.id), object = canvas.getObjects().find(candidate => candidate.studioId === item.id)
       if (object && JSON.stringify(prev) === JSON.stringify(item)) continue
       if (object && inPlace(prev, item)) { setItem(object, item, item); continue }
-      const built = await build(item, budget)
-      if (destroyed) { built.dispose(); return }
+      const built = prepared.get(item.id)
       const stale = canvas.getObjects().find(candidate => candidate.studioId === item.id)
       if (stale) { const index = canvas.getObjects().indexOf(stale); drop(stale); canvas.insertAt(index, built) } else canvas.add(built)
       built.set(flags(item)); source.set(item.id, item)
@@ -268,6 +282,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       return enqueue(async () => {
         const before = snapshot()
         await applyDocument(document, { skip: busyIds() })
+        if(destroyed)return
         const after = snapshot(), remote = diffOps(before, after)
         history.rebase(remote)
         if (interaction) interaction.document = validateDocument(applyOps(interaction.document, remote))

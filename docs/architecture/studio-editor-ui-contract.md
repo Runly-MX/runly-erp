@@ -1,6 +1,125 @@
 # Studio — contrato entre editor y UI
 
-## Colaboración en tiempo real (operaciones, sin guardado manual)
+## Endurecimiento de operaciones e historial (vigente, posterior a 2e428110)
+
+La persistencia principal sigue siendo incremental. El documento continúa en
+v6; estas son nuevas operaciones del protocolo, no un CRDT ni un cambio de
+formato del diseño. Las secciones anteriores de la entrega original que siguen
+mencionando LWW por objeto, descarte de rechazos o auditoría cada diez minutos
+son históricas y quedan sustituidas por esta sección.
+
+### Operaciones y conflictos
+
+`diffOps` emite `upsert` para crear/cambiar tipo, `remove` para borrar, `order`
+para capas y ahora parches de propiedades para objetos/página:
+
+```js
+{type:'patch',id:'object-1',set:{x:390,fill:'#D946EF'},unset:[]}
+{type:'patchPage',set:{backgroundPaint:gradient},unset:[]}
+```
+
+`set` solo admite campos canónicos, sin id/type; `unset` elimina propiedades
+opcionales. Campos requeridos ausentes o valores inválidos se rechazan al validar
+el resultado. `checkOps` acota estructura/IDs/campos, `validateDocument` valida
+el documento y el servidor autoriza cada FileAsset resultante. Los parches a
+objetos ya eliminados se ignoran: no resucitan una eliminación remota.
+
+Dos usuarios que cambian color y posición del mismo objeto conservan ambos
+resultados. Sobre la misma propiedad gana el último lote secuenciado por SQL.
+Texto, `fillPaint`, `image`, `shape`, geometría y puntos son propiedades atómicas:
+no hay mezcla por carácter ni fusión entre stops del mismo degradado. `upsert`
+histórico sigue reemplazando el objeto entero y puede perder cambios ajenos;
+los clientes actuales usan parches. No se promete colaboración sin pérdida.
+
+`order` rellena únicamente los slots de los IDs listados; el orden concurrente
+se resuelve según la secuencia del servidor. `compactOps` combina solamente
+operaciones consecutivas compatibles; no descarta órdenes intermedios ni el
+efecto de eliminar/reinsertar un objeto.
+
+### Lotes, recibos y sincronización
+
+`POST /studio/designs/:id/changes` recibe `{clientId,batchId,ops,name?}`. clientId
+es un identificador de 8–64 caracteres alfanuméricos/guion/underscore; batchId
+es entero seguro positivo. Máximo 500 operaciones y cuerpo de 1,1 MB. La identidad
+real sigue siendo empresa/actor autenticados, nunca esos identificadores.
+
+La transacción bloquea/autoriza el diseño, busca un recibo de ese actor y lote,
+aplica/valida/autoriza, actualiza una revisión y registra el recibo en `audit_log`.
+Reintentar el mismo contenido devuelve `{revision,name,ops}` originales sin
+incrementar revisión ni repetir binding/auditoría. Reutilizar la identidad con
+contenido distinto devuelve 409 `STUDIO_BATCH_REUSED`. `ops` contiene el delta
+canónico efectivo: no se difunden atributos descartados de la entrada.
+
+El índice único parcial nuevo `studio_operation_receipt_identity` hace la búsqueda
+por identidad y refuerza la exclusión. Es una migración aditiva: ningún SQL
+histórico fue alterado. Solo se ejecuta en las bases desechables de validación.
+Los recibos deben conservarse con la auditoría; purgarlos elimina la garantía
+de deduplicación para reintentos históricos. No hay purga implementada aquí.
+
+`GET /studio/designs/:id/changes?clientId=...&batchId=...` devuelve `null` o
+`{clientId,batchId,revision}` del actor autenticado, previa autorización actual
+de lectura. SDK: `studio.changeReceipt(id,batch,token)`. Al refetch el cliente
+consulta su lote incierto, obtiene un documento que incluya su revisión y retira
+el lote confirmado **antes** de reproducir la cola. No vuelve a aplicar una
+secuencia confirmada de eliminar/reinsertar sobre objetos añadidos después.
+
+`studio-sync` mantiene un lote inmutable en vuelo/reintento y una bandeja separada
+para cambios nuevos. Ambos se conservan en sessionStorage por empresa/usuario/
+diseño. Recargar restaura la identidad del lote incierto; las ediciones nuevas
+usan otra identidad de sesión, evitando colisiones entre pestañas. El diario se
+escribe al cambiar la cola, no solo al cerrar. Cuotas fallidas producen aviso;
+el borrador local adicional continúa disponible. La sincronización ordena por
+revisión, ignora duplicados, limita el buffer a 128 mensajes y refetch ante huecos.
+
+`flush()` solo resuelve cuando no hay lote, bandeja, hueco ni resincronización
+pendiente. Ante 4xx rechaza, conserva trabajo/cola y detiene publicación automática;
+no indica «Sincronizado» tras un rechazo. `deny()` suspende la sesión revocada.
+Se reautoriza al reconectar y renovar token. Las respuestas async de una sesión
+cerrada no alteran la siguiente. `start()` permite el montaje de efecto de React.
+
+Colisiones detectadas conservan snapshot y operaciones propias en un borrador
+separado, sin borrarlo al llegar una sincronización posterior. Recuperar aplica
+esas operaciones sobre el documento actual y no elimina objetos ajenos nuevos.
+No recrea automáticamente un objeto remoto borrado por medio de un parche;
+el snapshot queda conservado para revisar el trabajo. Los borradores históricos
+sin operaciones mantienen su recuperación explícita de snapshot.
+
+### Historial, MCP, plantillas y geometría
+
+Undo/redo compara cada propiedad con el valor que dejó la acción propia. Solo
+revierte valores todavía atribuibles a esa acción; una propiedad cambiada después
+por un colaborador se conserva. Un undo de edición no recrea objetos eliminados
+remotamente. Undo de creación no borra un objeto modificado por otro usuario.
+Redo se construye del delta realmente deshecho. Las operaciones remotas no crean
+entradas; los gestos continúan agrupándose mediante begin/endInteraction.
+
+La actualización mínima de Fabric compara con `snapshot()` actual, no solo con
+el Map de origen: una transformación hecha por Fabric puede no estar en ese Map.
+Se descompone temporalmente ActiveSelection al aplicar un cambio completo fuera
+de un gesto y se recuperan IDs de selección supervivientes. Durante el gesto se
+conserva el comportamiento de no arrancar el objeto de debajo del puntero.
+
+MCP mantiene PUT con revisión esperada y aprobación. El facade publica `changed`
+**después** de confirmar la transacción MCP, con autorización actual. Los editores
+refetch y superponen únicamente sus propiedades pendientes. Guardar plantilla
+y guardar copia de trabajo esperan `ensureSaved()`; este devuelve el documento
+confirmado que se captura, evitando añadir ediciones posteriores aún pendientes.
+
+Las primitivas Fabric sin borde usan `strokeWidth:0` explícito. El borde implícito
+invisible de 1 px ya no entra en el AABB: una guía en x=540 ajusta el centro
+canónico a 540, incluso con tamaño impar, zoom, pan y rotación. No se redondea ni
+se oculta el valor persistido.
+
+La vista remota transitoria del arrastre queda pendiente y es opcional. Se envía
+la operación persistente al soltar; no se añadió difusión cliente sin autorización
+ni escrituras SQL por cada evento de movimiento. Los cursores existentes no
+equivalen a un preview remoto del objeto.
+
+**Compatibilidad:** actualizar coordinadamente API y todos los clientes antes
+de publicar: un cliente anterior a `patch/patchPage` no entiende estos mensajes.
+Los SDK/lectores v6 de documento no necesitan una conversión del JSON guardado.
+
+## Registro original: colaboración en tiempo real (operaciones, sin guardado manual)
 
 Spec: `docs/superpowers/specs/2026-10-26-studio-realtime-collaboration-design.md`.
 No hay botón Guardar ni conflictos 409 en el editor. Cada cambio local se

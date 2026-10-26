@@ -82,3 +82,15 @@ window.setupCanonicalSnap=async({zoom=1,width=300,rotation=0,pan=0}={})=>{
   const bounds=wrapper.querySelector('.upper-canvas').getBoundingClientRect().toJSON(),a=rotation*Math.PI/180
   return {bounds,cx:80+width/2*Math.cos(a)-90*Math.sin(a),cy:80+width/2*Math.sin(a)+90*Math.cos(a)}
 }
+window.studioRemoteResourceVerification=async()=>{
+  let denied=true
+  const original=element();original.width=10;original.height=10;original.getContext('2d').fillRect(0,0,10,10)
+  const editor=await createStudioEditor(element(),{document:blankDocument(640,480),resolveImage:async()=>{if(denied)throw Error('private image unavailable');return original.toDataURL()}})
+  await editor.add('rectangle',{x:100,width:100,height:80});const before=editor.snapshot(),id=before.objects[0].id
+  const target={...before,objects:[{...before.objects[0],x:250},{id:'remote-photo',type:'image',x:400,y:100,width:80,height:80,rotation:0,fill:'#ffffff',fileAssetId:'00000000-0000-4000-8000-000000000001'}]}
+  let failed=false;try{await editor.applyRemote(target)}catch{failed=true}
+  check(failed&&JSON.stringify(editor.snapshot())===JSON.stringify(before),'Failed remote image partially mutated the canvas')
+  denied=false;await editor.applyRemote(target);check(editor.snapshot().objects.find(o=>o.id===id).x===250,'Remote resource retry failed')
+  editor.select(id);await editor.patch({y:150});await editor.undo();check(editor.snapshot().objects.find(o=>o.id===id).x===250,'Resource retry entered local history')
+  await editor.destroy();original.remove();return {atomicFailure:true,retry:true,selectiveHistory:true}
+}
