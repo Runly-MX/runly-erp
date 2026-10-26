@@ -13,6 +13,7 @@ import { DEFAULT_GRADIENT, gradientPaint, gradientGeometry, editGradientStop, re
 import { DEFAULT_SNAPPING, DEFAULT_GRID, snappingOptions, gridOptions, createSnapIndex, snapBounds, viewportReferences } from '../../../../../shared/studio/snapping.js'
 import { transformStudioGroup } from '../../../../../shared/studio/group-transform.js'
 import { applyOps, diffOps } from '../../../../../shared/studio/operations.js'
+import { controlStyle, styleControls } from './studio-controls.js'
 
 // Fabric owns interaction; only the canonical Runly scene enters history or storage.
 export async function createStudioEditor(element, { document, resolveImage, onChange, onSelection, onError, onHistory, onPointer, onEditImage, onGuides, onEditorPreferences, readOnly = false, sharedClipboard, authorizePaste }) {
@@ -224,6 +225,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     }
     source.set(item.id,item);object.setCoords();canvas.requestRenderAll()
   }
+  styleControls(canvas)
   try { await restore(current) } catch (error) { await canvas.dispose(); throw error }
   history = createDocumentHistory(snapshot())
   onHistory?.({ ...history.state(), canPaste: sharedClipboard ? sharedClipboard.read().length > 0 : false })
@@ -252,6 +254,9 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
   canvas.on('mouse:move', event => { const point = canvas.getScenePoint(event.e); onPointer?.({ x: point.x, y: point.y }) })
   canvas.on('mouse:out', () => onPointer?.(null))
   for (const event of ['selection:created', 'selection:updated', 'selection:cleared']) canvas.on(event, selection)
+  // New objects and multi-selections get the handles for the current zoom.
+  canvas.on('object:added', ({ target }) => target.set(controlStyle(viewport.zoom)))
+  canvas.on('selection:created', () => canvas.getActiveObject()?.set(controlStyle(viewport.zoom)))
   const editor = {
     snapshot,
     // Real-time collaboration: show the shared document. Not a local change:
@@ -282,7 +287,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     setSnappingEnabled(enabled){return editor.setSnappingOptions({enabled})},
     setSnappingOptions(patch){snapping=snappingOptions({...snapping,...patch});clearGuides();preferences();return {...snapping}},
     setGridOptions(patch){grid=gridOptions({...grid,...patch});clearGuides();preferences();return {...grid}},
-    setViewport(value){const next={...viewport,...value};viewportReferences(current.page,next,grid);viewport=next;clearGuides();preferences()},
+    setViewport(value){const next={...viewport,...value};viewportReferences(current.page,next,grid);const zoomed=next.zoom!==viewport.zoom;viewport=next;clearGuides();preferences();if(zoomed)styleControls(canvas,next.zoom)},
     getEditorPreferences(){return {snapping:{...snapping},...viewportReferences(current.page,viewport,grid)}},
     transformGroup(groupId,options={}){writable();return enqueue(async()=>{
       writable();const members=canvas.getObjects().filter(o=>source.get(o.studioId)?.groupId===groupId)
