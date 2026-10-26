@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { PurchaseStatusBadge } from './PurchaseStatusBadge.jsx'
 import { MoneyText } from './MoneyText.jsx'
 import { ItemChips } from './ItemChips.jsx'
@@ -16,7 +17,7 @@ function Meta({ label, children }) {
 
 // Card form of a list row: folio and status, who it is with, the assets it
 // covers (asset number + serial) and the dates and amount that matter.
-export function DocumentCard({ kind, row: r, onOpen }) {
+export function DocumentCard({ kind, row: r, to }) {
   const estimated = kind === 'requests' || kind === 'cases'
   const isInvoice = kind === 'invoices'
   const balance = isInvoice && r.status !== 'CANCELLED' ? Math.max(0, toNumber(r.total) - toNumber(r.paidAmount)) : 0
@@ -30,7 +31,7 @@ export function DocumentCard({ kind, row: r, onOpen }) {
   const sub = r.supplierName || r.title || (kind === 'receipts' && r.orderNumber ? `Orden ${r.orderNumber}` : null)
 
   return (
-    <button type="button" onClick={onOpen}
+    <Link to={to}
       className="flex min-w-0 flex-col gap-3 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-left transition-colors hover:border-[hsl(var(--primary))]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))]/40">
       <div className="flex items-start justify-between gap-2">
         <span className="min-w-0">
@@ -56,6 +57,6 @@ export function DocumentCard({ kind, row: r, onOpen }) {
           ) : null}
         </div>
       </div>
-    </button>
+    </Link>
   )
 }

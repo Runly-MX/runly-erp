@@ -30,6 +30,8 @@ export const inventoryFiltersSchema = z.object({
   unassigned: z.boolean().optional(),
   purchaseFrom: z.iso.date().optional(), purchaseTo: z.iso.date().optional(),
   labeled: z.enum(['true', 'false']).optional(),
+  // '<custom field id>::<value>': items whose custom field holds exactly that value (detail magnifier).
+  customField: z.string().max(2100).optional(),
   // 'Mios': created by me or assigned to me. The identity is never read from filters (see buildInventoryWhere).
   mine: z.boolean().optional(),
   // Area filter: an area id, or '__none__' for General (no area).
@@ -42,6 +44,16 @@ const ADMIN_STATUS_SET = new Set(['registration_pending', 'registered', 'deregis
 
 // `scope` (see inventory-scope.js) restricts the result to the caller's areas; null = unrestricted.
 // `mine` ({ userId, employeeIds }) is the viewer identity, resolved by the caller; filters.mine without it matches nothing.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function parseCustomFieldFilter(raw) {
+  const text = String(raw ?? '');
+  const at = text.indexOf('::');
+  if (at < 0) return null;
+  const fieldId = text.slice(0, at);
+  const value = text.slice(at + 2).trim();
+  return UUID.test(fieldId) && value ? { fieldId, value } : null;
+}
+
 export function buildInventoryWhere(companyId, filters = {}, scope = null, mine = null) {
   if (!companyId) throw new Error('Empresa requerida.');
   const where = { companyId, enabled: true };
@@ -76,6 +88,8 @@ export function buildInventoryWhere(companyId, filters = {}, scope = null, mine 
     ...(purchaseFrom ? { gte: purchaseFrom } : {}),
     ...(purchaseTo ? { lte: purchaseTo } : {}),
   };
+  const custom = parseCustomFieldFilter(filters.customField);
+  if (custom) where.AND = [...(where.AND ?? []), { customValues: { some: { fieldId: custom.fieldId, value: { equals: custom.value, mode: 'insensitive' } } } }];
   if (filters.mine === true || filters.mine === 'true') where.AND = [...(where.AND ?? []), mineWhere(mine)];
   const areaFilter = scopeWhere(scope);
   if (areaFilter) where.AND = [...(where.AND ?? []), areaFilter];

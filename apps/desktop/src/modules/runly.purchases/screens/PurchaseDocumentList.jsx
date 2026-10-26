@@ -70,7 +70,7 @@ export default function PurchaseDocumentList() {
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const columns = useMemo(
-    () => buildColumns(config.columns, { kind: config.kind, open: (id) => navigate(`${ROOT}/${config.kind}/${id}`) }),
+    () => buildColumns(config.columns, { kind: config.kind, href: (id) => `${ROOT}/${config.kind}/${id}` }),
     [config, navigate],
   )
 
@@ -126,7 +126,7 @@ export default function PurchaseDocumentList() {
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}</div>
           ) : rows.length ? (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {rows.map((row) => <DocumentCard key={row.id} kind={config.kind} row={row} onOpen={() => navigate(`${ROOT}/${config.kind}/${row.id}`)} />)}
+              {rows.map((row) => <DocumentCard key={row.id} kind={config.kind} row={row} to={`${ROOT}/${config.kind}/${row.id}`} />)}
             </div>
           ) : (
             <EmptyState icon={kindMeta?.icon} title={debouncedSearch || status !== (config.defaultStatus ?? 'ALL') || supplierId ? 'Sin resultados con estos filtros' : config.emptyTitle}

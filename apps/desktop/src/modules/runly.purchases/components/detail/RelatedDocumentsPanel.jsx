@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Link2 } from 'lucide-react'
 import { EmptyState } from '@runly/ui'
 import { PurchaseStatusBadge } from '../PurchaseStatusBadge.jsx'
@@ -26,7 +26,6 @@ export function collectRelated(doc) {
 }
 
 export function RelatedDocumentsPanel({ doc }) {
-  const navigate = useNavigate()
   const groups = collectRelated(doc)
   if (!groups.length) {
     return <EmptyState icon={Link2} title="Sin documentos relacionados" description="Aquí aparecen las órdenes, recepciones y facturas ligadas a este documento." />
@@ -43,8 +42,8 @@ export function RelatedDocumentsPanel({ doc }) {
                 const path = toAppPath(row.path) ?? docPath(group.kind, row.id)
                 return (
                   <li key={row.id}>
-                    <button type="button" disabled={!path} onClick={() => path && navigate(path)}
-                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[hsl(var(--muted))]/40 disabled:cursor-default">
+                    <Link to={path ?? '#'} onClick={(e) => { if (!path) e.preventDefault() }}
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[hsl(var(--muted))]/40">
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold tabular-nums">{row.number ?? row.label ?? row.reference ?? 'Documento'}</span>
                         <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">
@@ -53,7 +52,7 @@ export function RelatedDocumentsPanel({ doc }) {
                       </span>
                       {row.total != null ? <MoneyText value={row.total} currency={row.currency} className="hidden text-sm sm:inline" /> : null}
                       {row.status ? <PurchaseStatusBadge kind={group.kind} status={row.status} /> : null}
-                    </button>
+                    </Link>
                   </li>
                 )
               })}

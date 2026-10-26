@@ -44,6 +44,7 @@ export function RunlyCardView({
   resolveItemColor = null,
   onView,
   onRowOpen = null,
+  rowHref = null,
   onEdit,
   onDelete,
   token,
@@ -90,7 +91,7 @@ export function RunlyCardView({
         return (
           <div
             key={id}
-            {...rowOpenProps(onRowOpen, row)}
+            {...rowOpenProps(onRowOpen, row, rowHref?.(row))}
             className={`surface-card group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] flex flex-col overflow-hidden rounded-xl border transition-all sm:rounded-2xl duration-150 hover:bg-[hsl(var(--muted))]/20${
               isSelected
                 ? " border-indigo-500/60 bg-indigo-500/5"

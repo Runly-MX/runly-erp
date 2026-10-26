@@ -274,3 +274,14 @@ export function useSupplierSearch() {
 
 export { errorText, policyReasons }
 
+
+// Number of files attached to a document, for the tab badge.
+export function useFilesCount(entityType, recordId, enabled = true) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['purchases', 'files-count', entityType, recordId],
+    queryFn: () => runly.files.list({ moduleKey: 'runly.purchases', entityType, sourceEntityId: recordId, pageSize: 1 }, token),
+    enabled: Boolean(enabled && token && recordId && entityType),
+    select: (response) => Number(response?.pagination?.total ?? response?.total ?? response?.data?.length ?? 0),
+  })
+}

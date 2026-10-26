@@ -48,6 +48,7 @@ export function RunlyListView({
   rowMenuItems,
   onView,
   onRowOpen = null,
+  rowHref = null,
   accentColor = null,
   token,
   apiBaseUrl,
@@ -107,7 +108,7 @@ export function RunlyListView({
         return (
           <div
             key={id}
-            {...rowOpenProps(onRowOpen, row)}
+            {...rowOpenProps(onRowOpen, row, rowHref?.(row))}
             className={`flex items-center gap-3 px-4 py-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))] border-b border-[hsl(var(--border))] last:border-0 hover:bg-[hsl(var(--muted))]/30 transition-colors${isSelected ? " bg-indigo-500/5" : ""}`}
           >
             <Checkbox

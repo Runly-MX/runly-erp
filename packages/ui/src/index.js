@@ -223,6 +223,7 @@ export { StatStrip } from "./components/StatStrip.jsx";
 export { CopyOnDoubleClick } from "./components/CopyOnDoubleClick.jsx";
 export { RecordHeader } from "./components/RecordHeader.jsx";
 export { FilterByValueButton } from "./components/FilterByValueButton.jsx";
+export { isNewTabClick, openInNewTab } from "./runly-renderer/row-open.js";
 export { useCopyValue } from "./hooks/useCopyValue.js";
 export { copyText } from "./lib/copy-text.js";
 export { DetailHero } from "./components/DetailHero.jsx";

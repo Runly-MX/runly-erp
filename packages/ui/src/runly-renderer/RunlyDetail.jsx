@@ -714,7 +714,7 @@ export function RunlyDetail({
                   <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                     <FieldLabel field={field} />
                   </dt>
-                  <dd className={cn("text-sm font-semibold text-[hsl(var(--foreground))]", (canFilter || fieldActions?.[field.name]) && "flex items-center gap-1")}>
+                  <dd className={cn("text-sm font-semibold text-[hsl(var(--foreground))]", (canFilter || fieldActions?.[field.name]) && "flex items-center gap-2")}>
                     {isMarkdown ? (
                       strValue ? (
                         <MarkdownViewer value={strValue} />
@@ -746,24 +746,25 @@ export function RunlyDetail({
                     ) : (
                       renderValue(field, value, data)
                     )}
+                    {fieldActions?.[field.name]
+                      ? (typeof fieldActions[field.name] === "function" ? fieldActions[field.name](data) : fieldActions[field.name])
+                      : null}
                     {canFilter ? (
                       <FilterByValueButton
+                        className="ml-auto"
                         label={field.label}
                         value={strValue}
-                        onClick={() =>
+                        onClick={(event) =>
                           onFilterByValue({
                             param: field.filterBy.param,
                             value: String(filterValue),
                             label: field.label,
                             displayValue: strValue,
                             field: field.name,
-                          })
+                          }, event)
                         }
                       />
                     ) : null}
-                    {fieldActions?.[field.name]
-                      ? (typeof fieldActions[field.name] === "function" ? fieldActions[field.name](data) : fieldActions[field.name])
-                      : null}
                   </dd>
                 </div>
               );

@@ -38,12 +38,12 @@ export function createRelationHydrator({ prisma }) {
       if (type === 'inventory_item') {
         const rows = await prisma.invItem.findMany({
           where: { companyId, id: { in: ids }, enabled: true },
-          select: { id: true, name: true, assetTag: true, status: true, category: { select: { name: true } } },
+          select: { id: true, name: true, assetTag: true, serialNumber: true, status: true, category: { select: { name: true } } },
         })
         for (const row of rows) {
           out.set(`${type}:${row.id}`, {
             module: 'runly.inventory', type, id: row.id, label: row.name, sublabel: row.assetTag,
-            status: row.status, total: null, currency: null, path: `/inventory/${row.id}`, categoryName: row.category?.name ?? null,
+            status: row.status, total: null, currency: null, path: `/inventory/${row.id}`, categoryName: row.category?.name ?? null, assetTag: row.assetTag ?? null, serialNumber: row.serialNumber ?? null,
           })
         }
         return

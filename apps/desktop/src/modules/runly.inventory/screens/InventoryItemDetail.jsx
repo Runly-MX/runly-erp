@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { itemLabel } from '../lib/item-label.js'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ErrorState, ConfirmDialog, RecordHeader, DetailSkeleton, Tooltip, TooltipTrigger, TooltipContent } from '@runly/ui'
+import { ErrorState, ConfirmDialog, RecordHeader, DetailSkeleton, Tooltip, TooltipTrigger, TooltipContent, isNewTabClick, openInNewTab } from '@runly/ui'
 import { InventoryItemPresentation } from '@runly/ui/integrations'
 import { ArrowLeft, FolderInput, Plus, PowerOff, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
@@ -115,7 +115,11 @@ export default function InventoryItemDetail() {
         apiBaseUrl={API_BASE}
         componentRegistry={componentRegistry}
         onBack={() => navigate('/app/m/runly.inventory/inventory')}
-        onFilterByValue={({ param, value }) => navigate(`/app/m/runly.inventory/inventory?${new URLSearchParams({ [param]: value })}`)}
+        onFilterByValue={({ param, value }, event) => {
+          const url = `/app/m/runly.inventory/inventory?${new URLSearchParams({ [param]: value })}`
+          if (event && isNewTabClick(event)) openInNewTab(url)
+          else navigate(url)
+        }}
         onEdit={readOnly ? undefined : () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`)}
         fieldActions={fieldActions}
         mainExtra={<><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /><RecordTasks type="inventory_item" id={id} /></>}

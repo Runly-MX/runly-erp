@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { AuditTrail, AttachmentsPanel, EmptyState, ErrorState, PageHeader, Tabs, TabsContent, TabsList, TabsTrigger, DetailSkeleton } from '@runly/ui'
 import { FileX } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
@@ -8,7 +9,7 @@ import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { runly } from '../../../lib/runly.js'
 import { RecordTasks } from '../../../components/RecordTasks.jsx'
 import { useMiraiRecordContext } from '../../runly.chat/lib/miraiPageContext.js'
-import { useCapabilities, useDocument, usePurchasesCan } from '../hooks/usePurchases.js'
+import { useCapabilities, useDocument, useFilesCount, usePurchasesCan } from '../hooks/usePurchases.js'
 import { usePurchaseRoute } from '../hooks/usePurchaseRoute.js'
 import { KINDS, PAYMENT_METHODS, PRIORITY_OPTIONS, ROOT, docPath } from '../lib/purchases-constants.js'
 import { getDocumentActions } from '../lib/document-actions.js'
@@ -48,6 +49,8 @@ export default function PurchaseDocumentDetail() {
   const caps = useCapabilities()
   const can = usePurchasesCan()
   const query = useDocument(kind, id)
+  const queryClient = useQueryClient()
+  const filesCount = useFilesCount(meta.entityType, id, ['orders', 'invoices', 'receipts', 'requests'].includes(kind))
   const [dialog, setDialog] = useState(null)
   const [lineForItems, setLineForItems] = useState(null)
   const doc = query.data
@@ -82,7 +85,7 @@ export default function PurchaseDocumentDetail() {
     quotesOn && { value: 'quotes', label: 'Cotizaciones', count: doc.quotes?.length },
     inventoryOn && { value: 'inventory', label: 'Inventario', count: inventoryCount },
     kind !== 'cases' && { value: 'related', label: 'Relacionados', count: related.reduce((n, g) => n + g.rows.length, 0) },
-    filesOn && { value: 'files', label: 'Archivos' },
+    filesOn && { value: 'files', label: 'Archivos', count: filesCount.data },
     { value: 'activity', label: 'Actividad' },
   ].filter(Boolean)
 
@@ -130,7 +133,7 @@ export default function PurchaseDocumentDetail() {
         {filesOn ? (
           <TabsContent value="files">
             <AttachmentsPanel apiBaseUrl={getApiUrl()} token={session?.access_token} companyId={activeCompanyId} recordId={doc.id}
-              config={attachmentsConfig(meta.entityType)} context="detail" readOnly={!can(meta.update)} showHeading={false} showViewToggle />
+              config={attachmentsConfig(meta.entityType)} context="detail" onChange={() => queryClient.invalidateQueries({ queryKey: ['purchases', 'files-count', meta.entityType, doc.id] })} readOnly={!can(meta.update)} showHeading={false} showViewToggle />
           </TabsContent>
         ) : null}
         <TabsContent value="activity">

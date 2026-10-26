@@ -170,6 +170,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     purchaseTo,
     labeled,
     areaId,
+    customField,
     mine = null,
     sortBy,
     sortDir,
@@ -185,7 +186,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     // A text search looks through bajas too (their notes and actas are searchable); only the plain list hides them.
     const defaultAdminStatuses = term ? undefined : DEFAULT_LISTED_ADMIN_STATUSES;
     const filters = {
-      categoryId, brandId, locationId, conditionId, status, assignedToId, unassigned, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, areaId, mine: mine ? true : undefined,
+      categoryId, brandId, locationId, conditionId, status, assignedToId, unassigned, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, areaId, customField, mine: mine ? true : undefined,
       adminStatus: adminStatus === 'all' ? undefined : (adminStatus || defaultAdminStatuses),
     };
     let where;

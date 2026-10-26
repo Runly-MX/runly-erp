@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { cn } from '@runly/ui'
 import { PurchaseStatusBadge } from './PurchaseStatusBadge.jsx'
 import { MoneyText } from './MoneyText.jsx'
@@ -8,12 +9,13 @@ import { daysUntil, formatDate, toNumber } from '../lib/format.js'
 const PRIORITY_TONE = { LOW: 'text-slate-500', NORMAL: 'text-[hsl(var(--foreground))]', HIGH: 'text-amber-600 dark:text-amber-400', URGENT: 'text-rose-600 dark:text-rose-400 font-semibold' }
 const OPEN_INVOICE = new Set(['PENDING', 'PARTIALLY_PAID', 'PENDING_APPROVAL'])
 
-function Folio({ number, sub, onOpen }) {
+// A real link: Ctrl/Cmd + click or middle click opens the document in a new tab.
+function Folio({ number, sub, to }) {
   return (
-    <button type="button" onClick={onOpen} className="group block max-w-[18rem] text-left focus-visible:outline-none">
+    <Link to={to} className="group block max-w-[18rem] text-left focus-visible:outline-none">
       <span className="block truncate font-semibold tabular-nums text-[hsl(var(--foreground))] group-hover:text-[hsl(var(--primary))] group-hover:underline group-focus-visible:underline dark:group-hover:text-[hsl(var(--primary))]">{number || 'Sin folio'}</span>
       <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{sub}</span>
-    </button>
+    </Link>
   )
 }
 
@@ -36,11 +38,11 @@ function DueDate({ value, status }) {
 const right = (node) => <div className="text-right">{node}</div>
 
 // Column builders keyed by name (see lib/list-config.js).
-export function buildColumns(names, { kind, open }) {
+export function buildColumns(names, { kind, href }) {
   const defs = {
-    folio: { id: 'folio', header: 'Folio', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={r.supplierName || 'Sin proveedor'} onOpen={() => open(r.id)} /> },
-    request: { id: 'request', header: 'Solicitud', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={r.title} onOpen={() => open(r.id)} /> },
-    caseTitle: { id: 'caseTitle', header: 'Expediente', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={[r.title, r.supplierName].filter(Boolean).join(', ')} onOpen={() => open(r.id)} /> },
+    folio: { id: 'folio', header: 'Folio', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={r.supplierName || 'Sin proveedor'} to={href(r.id)} /> },
+    request: { id: 'request', header: 'Solicitud', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={r.title} to={href(r.id)} /> },
+    caseTitle: { id: 'caseTitle', header: 'Expediente', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={[r.title, r.supplierName].filter(Boolean).join(', ')} to={href(r.id)} /> },
     items: { id: 'items', header: 'Activos', cell: ({ row: { original: r } }) => <ItemChips items={r.items} className="max-w-[16rem]" /> },
     order: { id: 'order', header: 'Orden', cell: ({ row: { original: r } }) => <span className="tabular-nums">{r.orderNumber ?? r.order?.number ?? 'Sin orden'}</span> },
     issueDate: { accessorKey: 'issueDate', header: 'Fecha', cell: ({ getValue }) => <span className="tabular-nums">{formatDate(getValue())}</span> },

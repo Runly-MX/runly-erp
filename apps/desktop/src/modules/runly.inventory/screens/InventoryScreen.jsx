@@ -26,6 +26,7 @@ import { AreaTreePanel } from '../components/areas/AreaTreePanel.jsx'
 import { useAreaTreeDock } from '../hooks/useAreaTreeDock.js'
 import { areaPathLabel } from '../lib/area-tree.js'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
+import { customFieldValueLabel } from '../lib/custom-field-filter.js'
 import { InventoryProposalsSheet } from '../components/proposals/InventoryProposalsSheet.jsx'
 import { useChangeProposals } from '../hooks/useChangeProposals.js'
 
@@ -34,7 +35,7 @@ const STATUS_OPTIONS = ITEM_STATUSES.map(s => ({ value: s.value, label: s.label 
 // Deep links from Catálogos (e.g. ?categoryId=...) open the list pre-filtered.
 // Exact-match text filters opened from the detail view magnifier (?serialNumber=...).
 const TEXT_FILTER_LABELS = { model: 'Modelo', folio: 'Folio', assetTag: 'N.º de activo', serialNumber: 'No. Serie', partNumber: 'N.º de parte' }
-const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo', 'labeled', 'areaId', 'mine', ...Object.keys(TEXT_FILTER_LABELS)]
+const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo', 'labeled', 'areaId', 'mine', 'customField', ...Object.keys(TEXT_FILTER_LABELS)]
 const MINE_OPTIONS = [{ value: 'true', label: 'Solo mis items' }]
 const LABELED_OPTIONS = [{ value: 'false', label: 'Sin etiquetar' }, { value: 'true', label: 'Etiquetados' }]
 const ADMIN_OPTIONS = ADMIN_STATUSES.map(s => ({ value: s.value, label: s.label }))
@@ -212,6 +213,7 @@ export default function InventoryScreen() {
         ...Object.entries(TEXT_FILTER_LABELS)
           .filter(([key]) => initialFilters[key])
           .map(([key, label]) => ({ key, label, type: 'select', options: [{ value: initialFilters[key], label: initialFilters[key] }] })),
+        ...(initialFilters.customField ? [{ key: 'customField', label: searchParams.get('customFieldLabel') || 'Campo personalizado', type: 'select', options: [{ value: initialFilters.customField, label: customFieldValueLabel(initialFilters.customField) }] }] : []),
         ...(initialFilters.modelId ? [{ key: 'modelId', label: 'Modelo', type: 'select', options: modelOptions }] : []),
         // -> createdFrom/createdTo and purchaseFrom/purchaseTo on /inventory/items.
         { key: 'created',    label: 'Fecha de alta',   type: 'daterange', icon: CalendarPlus },
@@ -219,7 +221,7 @@ export default function InventoryScreen() {
       ],
       emptyState: { message: 'No hay activos registrados.' },
     },
-  }), [categoryOptions, brandOptions, locationOptions, conditionOptions, modelOptions, initialFilters, canReadLabels, areaChoices.filterOptions])
+  }), [categoryOptions, brandOptions, locationOptions, conditionOptions, modelOptions, initialFilters, searchParams, canReadLabels, areaChoices.filterOptions])
 
   const deleteMutation = useMutation({
     mutationFn: id => runly.inventory.deleteItem(id, token),
@@ -330,6 +332,7 @@ export default function InventoryScreen() {
         apiBaseUrl={getApiUrl()}
         onView={openItem}
         onRowOpen={openItem}
+        rowHref={row => `/app/m/runly.inventory/inventory/${row.id}`}
         onEdit={row => navigate(`/app/m/runly.inventory/inventory/${row.id}/edit`)}
         onDelete={row => setConfirmDelete(row)}
         deleteLabel="Desactivar"

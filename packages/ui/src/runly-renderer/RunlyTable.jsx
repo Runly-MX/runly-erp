@@ -34,7 +34,7 @@ import {
 } from "./renderer-adapters.js";
 import { resolveColorHex } from "./runly-form-utils.js";
 import { accentFor } from "./records-view-format.js";
-import { rowOpenProps } from "./row-open.js";
+import { isNewTabClick, rowOpenProps } from "./row-open.js";
 import { loadTableViewState, saveTableViewState } from "./table-view-state.js";
 import { toggleWithRange } from "./selection-range.js";
 
@@ -88,6 +88,8 @@ export function RunlyTable({
   // Optional: double click / Enter on a row or card opens the record, and the
   // row menu gets "Ver detalle". Off by default.
   onRowOpen = null,
+  // (row) => URL of the record: enables Ctrl/Cmd + click / middle click in a new tab.
+  rowHref = null,
   onEdit,
   onDelete,
   // Row menu text for onDelete; screens whose delete only deactivates pass "Desactivar".
@@ -689,7 +691,7 @@ export function RunlyTable({
                   key={id}
                   data-selected={isSelected || undefined}
                   className={rowOpenHandler ? `${zebraClass ?? ""} cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]` : zebraClass}
-                  {...rowOpenProps(rowOpenHandler, row)}
+                  {...rowOpenProps(rowOpenHandler, row, rowHref?.(row))}
                 >
                   <TableCell>
                     <Checkbox
@@ -734,13 +736,17 @@ export function RunlyTable({
                       );
                     } else if (col.isLink && onView && !col.component) {
                       cellContent = (
-                        <button
-                          type="button"
-                          onClick={() => onView(row)}
+                        <a
+                          href={rowHref?.(row) ?? "#"}
+                          onClick={(event) => {
+                            if (isNewTabClick(event) && rowHref) return;
+                            event.preventDefault();
+                            onView(row);
+                          }}
                           className="text-left font-medium hover:underline focus:outline-none focus-visible:underline"
                         >
                           {renderValue(value)}
-                        </button>
+                        </a>
                       );
                     } else if (col.type === "select" && col.options) {
                       const str = String(value ?? "");
@@ -850,6 +856,7 @@ export function RunlyTable({
         rowMenuItems={rowMenuItems}
         onView={onView}
         onRowOpen={rowOpenHandler}
+        rowHref={rowHref}
         accentColor={accentColor}
         token={token}
         apiBaseUrl={apiBaseUrl}
@@ -909,6 +916,7 @@ export function RunlyTable({
         resolveItemColor={resolveItemColor}
         onView={onView}
         onRowOpen={rowOpenHandler}
+        rowHref={rowHref}
         token={token}
         apiBaseUrl={apiBaseUrl}
         companyId={companyId}
