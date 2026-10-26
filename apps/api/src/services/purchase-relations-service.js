@@ -243,9 +243,19 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     const search = cleanText(query.search, 120)
     const model = prisma[KINDS[kind].model]
     const extra = search ? await matchesBySupplierOrLinkedDocument(companyId, kind, search) : null
+    // Invoices of one order (the inventory form narrows the invoice picker to the chosen order).
+    let billedIds = null
+    if (kind === 'invoices' && query.orderId) {
+      const billed = await prisma.entityRelation.findMany({
+        where: { companyId, sourceModule: MODULE_KEY, sourceType: 'purchase_invoice', relationType: 'BILLED_FROM', targetType: 'purchase_order', targetId: String(query.orderId) },
+        select: { sourceId: true },
+      })
+      billedIds = billed.map(row => row.sourceId)
+    }
     const where = {
       companyId,
       status: { not: 'CANCELLED' },
+      ...(billedIds ? { id: { in: billedIds } } : {}),
       ...(search ? { OR: [
         { number: { contains: search, mode: 'insensitive' } },
         { notes: { contains: search, mode: 'insensitive' } },

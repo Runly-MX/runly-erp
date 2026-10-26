@@ -36,7 +36,7 @@ export function InventoryPurchaseLinkField({ field, value, onChange, error, init
 
   const initial = initialData?.[meta.linkKey]
   if (initial?.id && !known.current.has(initial.id)) known.current.set(initial.id, initial)
-  const query = useSearchDocuments({ type: meta.kind, search: debounced || undefined, pageSize: 20 }, canEdit)
+  const query = useSearchDocuments({ type: meta.kind, search: debounced || undefined, pageSize: 20, ...(meta.kind === 'invoice' && values?.purchaseOrderId && !debounced ? { orderId: values.purchaseOrderId } : {}) }, canEdit)
   const rows = useMemo(() => query.data?.data ?? [], [query.data?.data])
   rows.forEach((row) => known.current.set(row.id, row))
 
@@ -97,7 +97,7 @@ export function InventoryPurchaseLinkField({ field, value, onChange, error, init
         onCreate={canCreate ? (term) => setDialog({ number: term }) : undefined}
         createLabel={meta.createLabel}
         placeholder={meta.placeholder}
-        searchPlaceholder="Folio, proveedor u otro documento"
+        searchPlaceholder={meta.kind === 'invoice' && values?.purchaseOrderId ? 'Facturas de la orden; escribe para buscar otras' : 'Folio, proveedor u otro documento'}
         emptyText="Sin resultados"
         missingLabel="Documento"
       />

@@ -15,7 +15,7 @@ function ReceivedBar({ line }) {
     <div className="min-w-[6rem]">
       <span className="text-xs tabular-nums">{formatQty(got)} de {formatQty(qty)}</span>
       <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-[hsl(var(--muted))]">
-        <span className={`block h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-violet-500'}`} style={{ width: `${pct}%` }} />
+        <span className={`block h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-[hsl(var(--primary))]'}`} style={{ width: `${pct}%` }} />
       </span>
     </div>
   )

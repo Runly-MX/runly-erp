@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { BadgeCheck, CheckCircle2 } from 'lucide-react'
 import { Button, EmptyState, ErrorState, PageHeader, SegmentedControl, Skeleton } from '@runly/ui'
 import { useApprovals, useCapabilities, useDecideApproval, usePurchasesCan } from '../hooks/usePurchases.js'
@@ -25,7 +25,6 @@ const APPROVE = {
 
 // Approvals inbox: every document waiting for a decision, oldest first.
 export default function PurchaseApprovalsScreen() {
-  const navigate = useNavigate()
   const caps = useCapabilities()
   const can = usePurchasesCan()
   const [status, setStatus] = useState('PENDING')
@@ -53,16 +52,15 @@ export default function PurchaseApprovalsScreen() {
           {rows.map((row) => {
             const kind = row.ownerKind ?? kindOf(row.ownerType) ?? 'orders'
             return (
-              <li key={row.id} className="flex flex-col gap-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 shadow-sm md:flex-row md:items-center">
-                <span className="hidden h-12 w-1 shrink-0 rounded-full bg-violet-500 md:block" />
-                <button type="button" onClick={() => navigate(`${ROOT}/${kind}/${row.ownerId}`)} className="min-w-0 flex-1 text-left">
+              <li key={row.id} className="flex flex-col gap-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 md:flex-row md:items-center">
+                <Link to={`${ROOT}/${kind}/${row.ownerId}`} className="min-w-0 flex-1 text-left">
                   <span className="text-xs text-[hsl(var(--muted-foreground))]">{OWNER_LABEL[kind] ?? 'Documento'}</span>
                   <span className="block truncate text-lg font-semibold tabular-nums hover:underline">{row.ownerNumber ?? 'Documento'}{row.ownerTitle ? <span className="ml-2 text-sm font-normal text-[hsl(var(--muted-foreground))]">{row.ownerTitle}</span> : null}</span>
                   <span className="block truncate text-sm text-[hsl(var(--muted-foreground))]">
                     {[row.supplierName, row.reason ?? 'Requiere autorización', formatDate(row.createdAt)].filter(Boolean).join('. ')}
                   </span>
                   {row.comment ? <span className="mt-1 block text-sm italic text-[hsl(var(--muted-foreground))]">{row.comment}</span> : null}
-                </button>
+                </Link>
                 <div className="flex items-center justify-between gap-4 md:justify-end">
                   {row.ownerTotal != null ? <span className="text-lg font-semibold tabular-nums">{formatMoney(row.ownerTotal, row.currency)}</span> : null}
                   {row.status === 'PENDING' && canDecide ? (

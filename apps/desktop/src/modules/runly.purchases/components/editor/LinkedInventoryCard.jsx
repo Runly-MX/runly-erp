@@ -24,10 +24,10 @@ export function LinkedInventoryCard({ ids = [], onChange, known, onKnown, disabl
   const labelOf = (id) => known[id] ?? lookups[missing.indexOf(id)]?.data ?? null
 
   return (
-    <section className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 shadow-sm">
+    <section className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600 text-white"><Boxes className="h-4 w-4" /></span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"><Boxes className="h-4 w-4" /></span>
           <div>
             <h3 className="text-sm font-semibold">Activos de Inventario</h3>
             <p className="text-xs text-[hsl(var(--muted-foreground))]">{ids.length ? `${ids.length} relacionados con este documento` : 'Relaciona los equipos que cubre esta compra'}</p>
@@ -40,12 +40,13 @@ export function LinkedInventoryCard({ ids = [], onChange, known, onKnown, disabl
           {ids.map((id) => {
             const item = labelOf(id)
             return (
-              <li key={id} className="flex max-w-full items-center gap-2 rounded-full border border-violet-500/25 bg-violet-500/10 py-1 pl-3 pr-1 text-xs">
-                <span className="truncate font-medium">{item?.name ?? 'Activo'}</span>
-                {item?.assetTag ? <span className="tabular-nums text-[hsl(var(--muted-foreground))]">{item.assetTag}</span> : null}
+              <li key={id} className="flex max-w-full items-center gap-2 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 py-1 pl-3 pr-1 text-xs">
+                <span className="truncate font-medium tabular-nums">{item?.assetTag || item?.name || 'Activo'}</span>
+                {item?.assetTag && item?.name ? <span className="truncate text-[hsl(var(--muted-foreground))]">{item.name}</span> : null}
+                {item?.serialNumber ? <span className="tabular-nums text-[hsl(var(--muted-foreground))]">{`S/N ${item.serialNumber}`}</span> : null}
                 {!disabled ? (
                   <button type="button" aria-label={`Quitar ${item?.name ?? 'activo'}`} onClick={() => onChange(ids.filter((x) => x !== id))}
-                    className="rounded-full p-1 text-[hsl(var(--muted-foreground))] hover:bg-violet-500/20 hover:text-[hsl(var(--foreground))]">
+                    className="rounded-full p-1 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]">
                     <X className="h-3 w-3" />
                   </button>
                 ) : null}

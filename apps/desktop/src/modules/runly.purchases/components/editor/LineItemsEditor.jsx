@@ -29,9 +29,8 @@ export function LineItemsEditor({ control, getValues, errors, currency = 'MXN', 
         {fields.map((field, index) => {
           const err = lineErrors?.[index] ?? {}
           return (
-            <li key={field.id} className="group relative rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 shadow-sm transition-colors focus-within:border-[hsl(var(--primary))]/50">
-              <span aria-hidden className="absolute -left-px top-4 h-8 w-1 rounded-r-full bg-[hsl(var(--primary))]/70" />
-              <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <li key={field.id} className="group relative rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 transition-colors focus-within:border-[hsl(var(--primary))]/50">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-end">
                 <span className="hidden h-10 w-7 shrink-0 items-center justify-center text-sm font-semibold tabular-nums text-[hsl(var(--muted-foreground))] md:flex">{index + 1}</span>
                 <div className="min-w-0 flex-1">
                   <Controller control={control} name={`lines.${index}.description`} render={({ field: f }) => (
