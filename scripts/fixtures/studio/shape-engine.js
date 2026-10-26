@@ -1,3 +1,4 @@
+import {createScopedClipboard} from '../../../apps/desktop/src/modules/runly.studio/lib/scoped-clipboard.js'
 import {createStudioEditor} from '../../../apps/desktop/src/modules/runly.studio/lib/fabric-adapter.js'
 import {blankDocument} from '../../../apps/shared/studio/document.js'
 import {LINE_CAPS} from '../../../apps/shared/studio/shape-properties.js'
@@ -7,7 +8,7 @@ const element=()=>{const c=document.createElement('canvas');document.body.append
 const same=async(a,b)=>{const x=new Uint8Array(await a.arrayBuffer()),y=new Uint8Array(await b.arrayBuffer());return x.length===y.length&&x.every((v,i)=>v===y[i])}
 window.studioShapeVerification=async()=>{
  const image=element();image.width=120;image.height=80;const ctx=image.getContext('2d');ctx.fillStyle='#ef4444';ctx.fillRect(0,0,60,80);ctx.fillStyle='#2563eb';ctx.fillRect(60,0,60,80)
- const resolveImage=async()=>image.toDataURL(),authorized=[],options={resolveImage,authorizePaste:async objects=>{authorized.push(objects)}}
+ const resolveImage=async()=>image.toDataURL(),authorized=[],options={resolveImage,sharedClipboard:createScopedClipboard('shape-company:member'),authorizePaste:async objects=>{authorized.push(objects)}}
  let editor=await createStudioEditor(element(),{document:blankDocument(640,480),...options})
  const checks=[]
  for(const label of ['rectangle','circle','ellipse','vector']){
@@ -34,6 +35,9 @@ window.studioShapeVerification=async()=>{
   await editor.replaceImage(id,copy);check(editor.snapshot().objects.at(-1).fillPaint.fileAssetId===copy,'Shape replacement lost')
   await editor.removePhotoFill();check(editor.snapshot().objects.at(-1).fill===(solid.fillPaint?.color??solid.fill),'Original solid fill lost');check(!editor.snapshot().objects.at(-1).fillPaint,'Photo not removed')
   await editor.undo();check(editor.snapshot().objects.at(-1).fillPaint.fileAssetId===copy,'Remove photo undo lost')
+  editor.select(id);editor.copy()
+  const target=await createStudioEditor(element(),{document:blankDocument(640,480),...options});await target.paste();check(target.snapshot().objects[0].fillPaint.fileAssetId===copy,'Cross-design clipboard lost photo fill');await target.destroy()
+  const denied=await createStudioEditor(element(),{document:blankDocument(640,480),...options,authorizePaste:async()=>{throw Error('denied')}});let blocked=false;try{await denied.paste()}catch{blocked=true}check(blocked&&denied.snapshot().objects.length===0,'Unauthorized cross-design paste mutated target');await denied.destroy()
   editor.select(id);await editor.duplicate();check(editor.snapshot().objects.at(-1).fillPaint.fileAssetId===copy,'Clipboard lost fill')
   checks.push(label+' solid/photo, styles, inner framing, replace, remove, history, clipboard, exact PNG/JPG reopen')
   editor.selectAll();editor.remove()

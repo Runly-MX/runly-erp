@@ -76,6 +76,8 @@ export async function verifyStudioPhotos(stack,{users,companies},{shape=false}={
   if(shape){
     const templateDoc={...doc,objects:doc.objects.map(o=>withFile(o,source.id))}
     const templateSaved=await json(await api(path,{user:1,method:'PUT',data:{name:record.name,document:templateDoc,revision:redoSave.revision}}))
+    assert.equal((await api('/studio/designs',{user:1,data:{name:'Unauthorized copied fill',document:templateDoc}})).status,403)
+    const independent=await json(await api('/studio/designs',{data:{name:'Authorized copied fill',document:templateDoc}}));assert.deepEqual(independent.document,templateDoc)
     let personal=await json(await api('/studio/templates',{data:{name:'Synthetic fill personal',designId:record.id}}))
     const details=await json(await api(`/studio/templates/${personal.id}`));assert.deepEqual(details.document,templateSaved.document)
     // A collaborator can receive design-scoped access but cannot republish somebody else's private photo.
