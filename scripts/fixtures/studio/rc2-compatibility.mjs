@@ -34,7 +34,7 @@ export async function verifyRc2Compatibility(stack,{users,companies},{apiImage,w
     config.services['runly-web'].environment.RUNLY_API_URL=oldUrl;await writeFile(stack.composeFile,JSON.stringify(config,null,2));await stack.compose(['up','-d','--force-recreate','runly-web'])
     const newAgainstOld=await open(stack.urls.web),posts=[];newAgainstOld.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/changes'))posts.push(r.url())})
     await newAgainstOld.getByText(/La API y Studio no son compatibles/).first().waitFor();await insertText(newAgainstOld)
-    assert.ok(await newAgainstOld.evaluate(()=>Object.keys(sessionStorage).some(k=>k.startsWith('runly:studio:queue:'))));assert.equal(posts.length,0)
+    await newAgainstOld.waitForFunction(()=>Object.keys(sessionStorage).some(k=>k.startsWith('runly:studio:queue:')));assert.equal(posts.length,0)
     await newAgainstOld.screenshot({path:join(stack.directory,'new-web-old-api.png')});await newAgainstOld.close()
     config.services['runly-web'].environment.RUNLY_API_URL=stack.urls.api;await writeFile(stack.composeFile,JSON.stringify(config,null,2));await stack.compose(['up','-d','--force-recreate','runly-web'])
     checks.push('Actual new Web + old API detects absent protocol before writes and preserves a local pending queue')

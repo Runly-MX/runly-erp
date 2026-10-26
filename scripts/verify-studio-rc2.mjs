@@ -43,9 +43,13 @@ try{
   record('Actual nginx Web image: isolated runtime config, no server secrets, lazy Studio/Fabric')
   if(phase==='all'){
   result.operations=await verifyStudioOperations(stack,data)
+  record(`${result.operations.checks.length} collaboration/receipt/template/security groups passed`)
   result.gradients=await verifyStudioGradients(stack,data)
+  record(`${result.gradients.checks.length} gradient groups passed`)
   result.photos=await verifyStudioPhotos(stack,data)
+  record(`${result.photos.checks.length} photo groups passed`)
   result.shapePhotos=await verifyStudioPhotos(stack,data,{shape:true})
+  record(`${result.shapePhotos.checks.length} shape photo groups passed`)
   }
   if(['all','exports'].includes(phase)){
   result.exports=await verifyRc2Exports(stack,data)

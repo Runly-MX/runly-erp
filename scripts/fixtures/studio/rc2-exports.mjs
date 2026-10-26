@@ -26,8 +26,8 @@ export async function verifyRc2Exports(stack,{users,companies}){
   async function prepare(page,{type='PNG',scale=1,transparent=false,profile='rgb'}={}){
     await page.getByRole('button',{name:'Descargar',exact:true}).click()
     const dialog=page.getByRole('dialog',{name:'Descargar',exact:true});await dialog.getByRole('radio',{name:new RegExp(`^${type}`)}).click()
-    if(type!=='PDF'){await dialog.getByRole('button',{name:`×${scale}`,exact:true}).click();if(type==='PNG')await dialog.getByRole('checkbox',{name:'Fondo transparente',exact:true}).setChecked(transparent)}
-    else{await dialog.getByRole('button',{name:profile==='cmyk'?/CMYK/:/RGB/}).click();await dialog.getByRole('checkbox',{name:'Sangrado de 3 mm',exact:true}).check();await dialog.getByRole('checkbox',{name:'Marcas de corte',exact:true}).check()}
+    if(type!=='PDF'){await dialog.getByRole('radio',{name:`×${scale}`,exact:true}).click();if(type==='PNG')await dialog.getByRole('checkbox',{name:'Fondo transparente',exact:true}).setChecked(transparent)}
+    else{await dialog.getByRole('radio',{name:profile==='cmyk'?/CMYK/:/RGB/}).click();await dialog.getByRole('checkbox',{name:'Sangrado de 3 mm',exact:true}).check();await dialog.getByRole('checkbox',{name:'Marcas de corte',exact:true}).check()}
     await dialog.getByRole('button',{name:'Descargar',exact:true}).click()
     await page.getByRole('button',{name:`Exportar ${type}`,exact:true}).click()
   }
