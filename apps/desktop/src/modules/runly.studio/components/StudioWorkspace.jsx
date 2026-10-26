@@ -240,7 +240,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
           <div ref={view.viewport} {...view.gestures} aria-label="Lienzo" className="absolute inset-0 overflow-auto overscroll-contain"
             // Double-click a photo: isolate it and move/scale it inside its frame.
             onDoubleClick={() => { if (imageKit.tools.photo && !selection.locked && !readOnly && !imageKit.framing) imageKit.tools.startFraming() }}
-            style={{ ...DOTS, touchAction: view.hand ? 'none' : 'auto', cursor: view.panning ? 'grabbing' : view.hand ? 'grab' : undefined }}>
+            style={{ ...DOTS, touchAction: 'none', cursor: view.panning ? 'grabbing' : view.hand ? 'grab' : undefined }}>
             <div style={{ position: 'relative', width: Math.max(view.size.width, page.width * zoom + 96), height: Math.max(view.size.height, page.height * zoom + 96) }}>
               <div ref={view.paper} className="shadow-[0_12px_48px_-12px_rgb(0_0_0/0.35)] ring-1 ring-black/5"
                 style={{ position: 'absolute', left: Math.max(48, (view.size.width - page.width * zoom) / 2), top: Math.max(48, (view.size.height - page.height * zoom) / 2), transform: `scale(${zoom})`, transformOrigin: 'top left', width: page.width, height: page.height }}>

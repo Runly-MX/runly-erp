@@ -3,7 +3,8 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 export function useStudioViewport(page, editorRef) {
   const viewport = useRef(null), paper = useRef(null), drag = useRef(null), space = useRef(false), fitMode = useRef(false)
   const [zoom, setZoom] = useState(0.5), [hand, setHand] = useState(false), [size, setSize] = useState({ width: 0, height: 0 })
-  const zoomRef = useRef(zoom)
+  const zoomRef = useRef(zoom), handRef = useRef(hand)
+  useEffect(() => { handRef.current = hand }, [hand])
   const center = useCallback(() => {
     const node = viewport.current
     if (node) { node.scrollLeft = (node.scrollWidth - node.clientWidth) / 2; node.scrollTop = (node.scrollHeight - node.clientHeight) / 2 }
@@ -42,6 +43,85 @@ export function useStudioViewport(page, editorRef) {
     node.addEventListener('wheel', wheel, { passive: false })
     return () => { observer.disconnect(); node.removeEventListener('wheel', wheel) }
   }, [fit, changeZoom])
+  // Touch: two fingers pan and pinch-zoom anywhere (anchored at their
+  // midpoint); one finger on the empty area around the page (or anywhere with
+  // the hand tool) pans. One finger
+  // on the page stays with Fabric (select, move). The viewport owns all touch
+  // gestures (touch-action: none), so the browser never zooms the whole app.
+  useEffect(() => {
+    const node = viewport.current
+    let gesture = null, pan = null, owned = false, first = null, frame = 0, pending = null
+    const midpoint = list => { const [a, b] = list; return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2, distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) } }
+    const apply = () => {
+      frame = 0
+      if (!pending || !paper.current) return
+      const { zoom: next, anchor, doc } = pending
+      if (next !== zoomRef.current) { zoomRef.current = next; setZoom(next) }
+      // Keep the document point that started under the fingers under their current midpoint.
+      requestAnimationFrame(() => {
+        if (!paper.current) return
+        const rect = paper.current.getBoundingClientRect()
+        node.scrollLeft += rect.left + doc.x * next - anchor.x
+        node.scrollTop += rect.top + doc.y * next - anchor.y
+      })
+    }
+    const schedule = value => { pending = value; if (!frame) frame = requestAnimationFrame(apply) }
+    // Fabric already started a one-finger interaction: bring that finger back to
+    // where it began and end it there, so the gesture never moves an object.
+    function releaseFabric() {
+      if (!first || !paper.current?.contains(first.target)) return
+      const init = { bubbles: true, cancelable: true, changedTouches: [first.touch] }
+      first.target.dispatchEvent(new TouchEvent('touchmove', { ...init, touches: [first.touch], targetTouches: [first.touch] }))
+      first.target.dispatchEvent(new TouchEvent('touchend', { ...init, touches: [], targetTouches: [] }))
+    }
+    const own = event => { event.preventDefault(); event.stopPropagation() }
+    // The touch's pointerdown already reached the context menu trigger, which
+    // starts a long-press timer; cancel it, since its pointerup is now ours.
+    const cancelLongPress = (target, touch) => target?.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, pointerType: 'touch', isPrimary: true, clientX: touch.clientX, clientY: touch.clientY }))
+    function start(event) {
+      if (!event.isTrusted) return
+      const list = event.touches
+      if (list.length === 1) {
+        first = { touch: list[0], target: event.target }
+        owned = handRef.current || !paper.current?.contains(event.target)
+        if (owned) { pan = { x: list[0].clientX, y: list[0].clientY, left: node.scrollLeft, top: node.scrollTop }; cancelLongPress(event.target, list[0]); own(event) }
+        return
+      }
+      if (!gesture && list.length >= 2) {
+        if (!owned) releaseFabric()
+        cancelLongPress(first?.target, list[0]); cancelLongPress(event.target, list[list.length - 1])
+        const mid = midpoint(list), rect = paper.current.getBoundingClientRect()
+        gesture = { distance: Math.max(mid.distance, 1), zoom: zoomRef.current, doc: { x: (mid.x - rect.left) / zoomRef.current, y: (mid.y - rect.top) / zoomRef.current } }
+        fitMode.current = false; pan = null; owned = true
+      }
+      if (owned) own(event)
+    }
+    function move(event) {
+      if (!event.isTrusted || !owned) return
+      own(event)
+      if (gesture && event.touches.length >= 2) {
+        const mid = midpoint(event.touches)
+        schedule({ zoom: Math.max(0.05, Math.min(4, gesture.zoom * mid.distance / gesture.distance)), anchor: mid, doc: gesture.doc })
+      } else if (pan) {
+        node.scrollLeft = pan.left - event.touches[0].clientX + pan.x; node.scrollTop = pan.top - event.touches[0].clientY + pan.y
+      }
+    }
+    function end(event) {
+      if (!event.isTrusted || !owned) return
+      own(event)
+      if (event.touches.length < 2) gesture = null
+      if (!event.touches.length) { owned = false; pan = null; first = null }
+    }
+    // Pointer events of owned touches must not reach Fabric or the hand tool either.
+    const pointer = event => { if (event.isTrusted && event.pointerType === 'touch' && owned) event.stopPropagation() }
+    // iOS Safari pinch events would zoom the page itself.
+    const block = event => event.preventDefault()
+    const options = { capture: true, passive: false }
+    const listeners = [['touchstart', start], ['touchmove', move], ['touchend', end], ['touchcancel', end],
+      ['pointermove', pointer], ['pointerup', pointer], ['pointercancel', pointer], ['gesturestart', block], ['gesturechange', block]]
+    for (const [type, listener] of listeners) node.addEventListener(type, listener, options)
+    return () => { cancelAnimationFrame(frame); for (const [type, listener] of listeners) node.removeEventListener(type, listener, options) }
+  }, [])
   useEffect(() => {
     function keydown(event) {
       if (event.code !== 'Space' || event.target.closest('input,textarea,[contenteditable=true]') || editorRef.current?.isEditingText()) return
@@ -58,6 +138,7 @@ export function useStudioViewport(page, editorRef) {
   // Pan with the hand tool, Space + drag, or holding the middle mouse button
   // (wheel click) in any tool, as in other design editors.
   function down(event) {
+    if (event.pointerType === 'touch') return // touch panning lives in the gesture effect
     const middle = event.button === 1
     if (!middle && (!(hand || space.current) || event.button !== 0)) return
     event.preventDefault(); event.stopPropagation()
