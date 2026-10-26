@@ -1,18 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, ConfirmDialog, FileUploader, Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton, ToolButton, cn, useIsMobile, useViewMode } from '@runly/ui'
 import { AlertTriangle, MousePointer2, PanelLeftClose } from 'lucide-react'
+import { toast } from 'sonner'
 import { createStudioEditor } from '../lib/fabric-adapter.js'
 import { StudioInspector } from './StudioInspector.jsx'
 import { useStudioViewport } from '../hooks/useStudioViewport.js'
 import { StudioTopBar } from './editor/StudioTopBar.jsx'
 import { RAIL_ITEMS, StudioRail } from './editor/StudioRail.jsx'
-import { ElementsPanel, TextPanel } from './editor/InsertPanels.jsx'
+import { TextPanel } from './editor/InsertPanels.jsx'
+import { ElementsLibrary } from './editor/elements/ElementsLibrary.jsx'
 import { LayersPanel } from './editor/LayersPanel.jsx'
 import { PageSettingsForm } from './editor/PageSettingsForm.jsx'
 import { SelectionBar } from './editor/SelectionBar.jsx'
 import { ZoomPill } from './editor/ZoomPill.jsx'
 import { FadeSwap, SidePanel } from './editor/SidePanel.jsx'
 import { StudioContextMenu } from './editor/StudioContextMenu.jsx'
+import { useImageTools } from './editor/image/useImageTools.js'
+import { ImagePanel } from './editor/image/ImagePanel.jsx'
+import { FramingOverlay } from './editor/image/FramingOverlay.jsx'
+import { FramingBar } from './editor/image/FramingBar.jsx'
+import { PendingPhotoBanner } from './editor/image/PendingPhotoBanner.jsx'
+import { BackgroundRemovalDialog } from './editor/image/BackgroundRemovalDialog.jsx'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }
 
@@ -28,7 +36,7 @@ function MobileSheet({ open, onOpenChange, title, children }) {
 }
 
 export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, editorRef, onReady, readOnly = false,
-  participants = [], onPointer, onSelectionChange, resourcePanel, sharedClipboard, authorizePaste, onEditImage, chrome }) {
+  participants = [], onPointer, onSelectionChange, resourcePanel, sharedClipboard, authorizePaste, onEditImage, catalog, chrome }) {
   const canvasRef = useRef(null)
   const phone = useIsMobile(), wide = !useIsMobile(1280), viewMode = useViewMode()
   const [selection, setSelection] = useState(null), [error, setError] = useState('')
@@ -74,9 +82,26 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   }
   const blocked = readOnly || !ready || busy
   const hasSelection = Boolean(selection) || selectedIds.length > 1
+  // Group state of the selection: one shared groupId → can ungroup; 2+ free editable items → can group.
+  const selectedObjects = objects.filter(object => selectedIds.includes(object.id))
+  const sharedGroup = selectedObjects.length > 0 && selectedObjects.every(object => object.groupId && object.groupId === selectedObjects[0].groupId)
+  const grouping = { canUngroup: sharedGroup, canGroup: selectedObjects.length > 1 && !sharedGroup && selectedObjects.every(object => !object.groupId && !object.locked && !object.hidden) }
   function add(type, extra) {
     attempt(() => editorRef.current.add(type, extra))
     if (phone) setPanel(null)
+  }
+  // New library elements land centred on the page.
+  const centered = props => ({ ...props, x: Math.round((page.width - props.width) / 2), y: Math.round((page.height - props.height) / 2) })
+  // Combined block: its parts are added, then grouped, as one undo step.
+  async function addBlock(block, accent) {
+    const editor = editorRef.current, origin = centered({ width: block.width, height: block.height }), parts = block.parts(accent)
+    await editor.beginInteraction()
+    try {
+      for (const part of parts) await editor.add(part.type, { ...part.props, x: origin.x + part.props.x, y: origin.y + part.props.y })
+      editor.selectMany(editor.snapshot().objects.slice(-parts.length).map(object => object.id))
+      editor.group()
+      await editor.endInteraction(true)
+    } catch (error) { await editor.endInteraction(false); throw error }
   }
   function shortcut(event) {
     if (!ready || busy || event.target.closest('input,textarea,[contenteditable=true]') || editorRef.current?.isEditingText()) return
@@ -85,6 +110,11 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     if (!(event.ctrlKey || event.metaKey)) return
     const key = event.key.toLowerCase()
     if (key === 'a') { event.preventDefault(); editorRef.current.selectAll(); return }
+    if (key === 'g' && !readOnly) {
+      event.preventDefault()
+      if (event.shiftKey ? grouping.canUngroup : grouping.canGroup) attempt(() => editorRef.current[event.shiftKey ? 'ungroup' : 'group']())
+      return
+    }
     const action = key === 'z' ? (event.shiftKey ? 'redo' : 'undo') : ({ y: 'redo', c: 'copy', v: 'paste', d: 'duplicate' })[key]
     if (!action) return
     if (readOnly && action !== 'copy') return
@@ -96,17 +126,36 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     if (phone) setPanel(null)
     return null
   }
+  // Photo tools: contextual "image" panel (not a rail item), framing mode, frames.
+  const [imageTab, setImageTab] = useState('filters')
+  const openImagePanel = (tab, key = 'image') => { if (tab) setImageTab(tab); setPanel(key) }
+  const imageKit = useImageTools({ editorRef, selection, objects, resolveImage, readOnly, onError: setError, openPanel: openImagePanel,
+    ensureSaved: chrome.saveState === 'saved' ? null : () => chrome.onSave() })
   const uploader = <FileUploader accept="image/png,image/jpeg,image/webp" maxSizeMB={10} disabled={blocked} emptyLabel="Subir imagen" hint="PNG, JPG o WebP. Se conserva el original." onUpload={upload} />
   const panels = {
-    elements: <ElementsPanel disabled={blocked} onAdd={add} />,
+    elements: <ElementsLibrary disabled={blocked} onFrame={imageKit.tools.frame} loadThumbnail={catalog?.thumbnail}
+      onAddPrimitive={(type, props) => add(type, centered(props))} onAddLine={props => add('line', centered(props))}
+      onAddFigure={(id, fill) => attempt(async () => {
+        const object = await catalog.importIcon(id), ratio = object.height && object.width ? object.height / object.width : 1
+        await editorRef.current.add('vector', centered({ ...object, width: 240, height: Math.round(240 * ratio), fill }))
+        if (phone) setPanel(null)
+      })}
+      onAddBlock={(block, accent) => attempt(async () => { await addBlock(block, accent); if (phone) setPanel(null) })}
+      onImportSvg={file => attempt(async () => {
+      if (file.size > 512 * 1024) throw new Error('El SVG supera 512 KB.')
+      const result = await editorRef.current.importSvg(await file.text(), file.name)
+      if (result?.warnings?.length) toast.warning('SVG importado con cambios', { description: result.warnings.join(' ') })
+      if (phone) setPanel(null)
+    })} />,
+    image: <ImagePanel selection={selection} imageUrl={imageKit.tools.imageUrl} tab={imageTab} onTab={setImageTab} disabled={readOnly || !ready} api={imageKit.tools} />,
     text: <TextPanel disabled={blocked} onAdd={add} />,
     images: resourcePanel ? resourcePanel({ disabled: blocked, uploader }) : uploader,
     layers: <LayersPanel objects={objects} selectedIds={selectedIds} disabled={!ready || busy}
-      onSelect={id => editorRef.current?.select(id)} onToggleMany={ids => editorRef.current?.selectMany(ids)}
+      onSelect={id => editorRef.current?.select(id)} onSelectGroup={id => editorRef.current?.selectGroup(id)} onToggleMany={ids => editorRef.current?.selectMany(ids)}
       onPatchObject={(id, patch) => attempt(async () => { editorRef.current.select(id); editorRef.current.patch(patch) })} />,
     page: <PageSettingsForm key={`${page.width}x${page.height}:${page.background}`} page={page} disabled={readOnly || !ready} onApply={(next, scale) => editorRef.current.resize(next, scale)} />,
   }
-  const panelLabel = RAIL_ITEMS.find(item => item.key === (panel ?? shownPanel))?.label
+  const panelLabel = (panel ?? shownPanel) === 'image' ? 'Imagen' : RAIL_ITEMS.find(item => item.key === (panel ?? shownPanel))?.label
   const openProperties = wide && inspectorOpen ? null : () => (wide ? setInspectorOpen(true) : setInspectorSheet(true))
   const inspector = <StudioInspector selection={selection} selectedCount={selectedIds.length} page={page} busy={busy || !ready} readOnly={readOnly} canPaste={history.canPaste}
     onPatch={patch => attempt(() => editorRef.current.patch(patch))} onRemove={() => setConfirm(true)}
@@ -146,6 +195,8 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
               <div ref={view.paper} className="shadow-[0_12px_48px_-12px_rgb(0_0_0/0.35)] ring-1 ring-black/5"
                 style={{ position: 'absolute', left: Math.max(48, (view.size.width - page.width * zoom) / 2), top: Math.max(48, (view.size.height - page.height * zoom) / 2), transform: `scale(${zoom})`, transformOrigin: 'top left', width: page.width, height: page.height }}>
                 <canvas ref={canvasRef} aria-label="Lienzo editable de Studio" />
+                {imageKit.framing ? <FramingOverlay item={imageKit.framing.item} props={imageKit.framing.props} natural={imageKit.framing.natural} imageUrl={imageKit.framing.imageUrl} zoom={zoom}
+                  onFrame={next => imageKit.tools.image(next)} onDone={() => imageKit.finishFraming(true)} onCancel={() => imageKit.finishFraming(false)} /> : null}
                 {participants.map(user => <div key={`${user.userId}:${user.sessionId}`} className="pointer-events-none absolute inset-0">
                   {objects.filter(object => object.id === user.selectedId).map(object => <span key={object.id} aria-label={`Selección de ${user.name}`}
                     className="absolute rounded-[2px] border-fuchsia-500" style={{ left: object.x, top: object.y, width: object.width * (object.scaleX ?? 1), height: object.height * (object.scaleY ?? 1), borderWidth: 2 / zoom, transform: `rotate(${object.rotation}deg)`, transformOrigin: 'top left' }} />)}
@@ -161,9 +212,16 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
           </StudioContextMenu>
           {!ready && !error ? <div className="pointer-events-none absolute inset-0 flex items-center justify-center"><Skeleton className="aspect-square w-2/5 max-w-sm" /></div> : null}
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center gap-2 px-2 pt-2 sm:px-4 sm:pt-3">
-            {hasSelection && !readOnly && ready ? (
+            {imageKit.framing ? (
+              <FadeSwap contentKey="framing-bar" className="flex max-w-full justify-center">
+                <FramingBar props={imageKit.framing.props} disabled={readOnly || !ready} onZoom={zoom => imageKit.tools.image({ zoom })} onFit={fit => imageKit.tools.image({ fit })}
+                  onReset={() => imageKit.tools.image({ offsetX: 0, offsetY: 0, zoom: 1 })} onCancel={() => imageKit.finishFraming(false)} onDone={() => imageKit.finishFraming(true)} />
+              </FadeSwap>
+            ) : null}
+            {imageKit.pending ? <PendingPhotoBanner pending={imageKit.pending} onCancel={imageKit.cancelPending} /> : null}
+            {hasSelection && !readOnly && ready && !imageKit.framing ? (
               <FadeSwap contentKey="selection-bar" className="flex max-w-full justify-center">
-                <SelectionBar selection={selection} selectedCount={selectedIds.length} disabled={blocked}
+                <SelectionBar selection={selection} selectedCount={selectedIds.length} disabled={blocked} imageTools={imageKit.tools} grouping={grouping}
                   onPatch={patch => attempt(() => editorRef.current.patch(patch))} onAction={action => attempt(() => editorRef.current[action]())}
                   onOrder={direction => attempt(() => editorRef.current.order(direction))} onRemove={() => setConfirm(true)} onProperties={openProperties} />
               </FadeSwap>
@@ -201,6 +259,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
           </SheetContent>
         </Sheet>
       ) : null}
+      {imageKit.backgroundRemoval ? <BackgroundRemovalDialog {...imageKit.backgroundRemoval} /> : null}
       <ConfirmDialog open={confirm} onOpenChange={setConfirm} title="Eliminar selección" description="Se eliminarán los elementos seleccionados del diseño. Puedes deshacerlo con Ctrl+Z."
         confirmLabel="Eliminar" onConfirm={() => attempt(() => { editorRef.current.remove(); setConfirm(false) })} />
     </div>

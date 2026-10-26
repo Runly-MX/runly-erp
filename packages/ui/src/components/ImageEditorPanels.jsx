@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight, Bold, ChevronDown, ChevronUp, Circle, Contrast, Copy, Crop, Droplets, FlipHorizontal2, FlipVertical2, Grid3x3, Hand,
   Highlighter, ImagePlus, Minus, MousePointer2, Moon, Palette, PenLine, Pipette, RectangleHorizontal, RotateCcw, RotateCw,
@@ -74,8 +74,20 @@ function ToolButton({ label, icon: Icon, active = false, disabled, onClick }) {
 }
 
 // Labelled range with a 44px-tall touch lane; tapping the value resets it.
-export function SliderRow({ label, value, min, max, zero = min, format, disabled, onChange }) {
+// Optional onStart/onCommit bracket one drag (pointer) or key burst, so callers
+// can record a single undo step for the whole gesture.
+export function SliderRow({ label, value: external, min, max, step = 1, zero = min, format, disabled, onChange: emit, onStart, onCommit }) {
+  // Asynchronous owners (e.g. a canvas engine) echo the value back later; keep
+  // the local value until they catch up so drags and key repeats never jump back.
+  const [local, setLocal] = useState(null);
+  const value = local ?? external;
+  useEffect(() => { if (local !== null && external === local) setLocal(null); }, [external, local]);
+  useEffect(() => { if (local === null) return undefined; const timer = setTimeout(() => setLocal(null), 1500); return () => clearTimeout(timer); }, [local]);
+  const onChange = (next) => { setLocal(next); emit(next); };
   const shown = format ? format(value) : `${value - zero > 0 ? "+" : ""}${value - zero}`;
+  const dragging = useRef(false);
+  const start = () => { if (!dragging.current) { dragging.current = true; onStart?.(); } };
+  const commit = () => { if (dragging.current) { dragging.current = false; onCommit?.(); } };
   return (
     <div>
       <div className="flex items-center justify-between text-sm">
@@ -91,7 +103,9 @@ export function SliderRow({ label, value, min, max, zero = min, format, disabled
         </button>
       </div>
       <div className="flex h-11 items-center">
-        <input type="range" min={min} max={max} step={1} value={value} disabled={disabled} aria-label={label} onChange={(e) => onChange(Number(e.target.value))} className="h-2 w-full cursor-pointer accent-[hsl(var(--primary))]" />
+        <input type="range" min={min} max={max} step={step} value={value} disabled={disabled} aria-label={label} onChange={(e) => onChange(Number(e.target.value))}
+          onPointerDown={start} onPointerUp={commit} onPointerCancel={commit} onKeyDown={start} onKeyUp={commit} onBlur={commit}
+          className="h-2 w-full cursor-pointer accent-[hsl(var(--primary))]" />
       </div>
     </div>
   );

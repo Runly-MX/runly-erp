@@ -1,7 +1,9 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, ToolButton } from '@runly/ui'
-import { ArrowDown, ArrowUp, BringToFront, CopyPlus, Layers2, Lock, SendToBack, SlidersHorizontal, Trash2, Unlock } from 'lucide-react'
+import { ArrowDown, ArrowUp, BringToFront, CopyPlus, Group, Layers2, Lock, SendToBack, SlidersHorizontal, Trash2, Ungroup, Unlock } from 'lucide-react'
 import { ColorPopover } from './StudioColorPicker.jsx'
 import { TextSelectionControls } from './TextSelectionControls.jsx'
+import { ImageSelectionControls } from './image/ImageSelectionControls.jsx'
+import { LineSelectionControls } from './LineSelectionControls.jsx'
 
 const ORDER = [['front', 'Traer al frente', BringToFront], ['up', 'Subir un nivel', ArrowUp], ['down', 'Bajar un nivel', ArrowDown], ['back', 'Enviar al fondo', SendToBack]]
 
@@ -10,18 +12,23 @@ function Divider() {
 }
 
 // Floating contextual toolbar for the current selection (Canva-style).
-export function SelectionBar({ selection, selectedCount, disabled, onPatch, onAction, onOrder, onRemove, onProperties }) {
+// `grouping` = { canGroup, canUngroup } for the current selection.
+export function SelectionBar({ selection, selectedCount, disabled, onPatch, onAction, onOrder, onRemove, onProperties, imageTools, grouping }) {
   const locked = Boolean(selection?.locked), editable = disabled || locked
   return (
     <div role="toolbar" aria-label="Opciones de la selección"
-      className="glass pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-0.5 rounded-2xl p-1 shadow-lg max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11">
+      className="glass pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-0.5 rounded-2xl p-1 shadow-lg [scrollbar-width:none] max-sm:flex-nowrap max-sm:justify-start max-sm:overflow-x-auto max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11 max-sm:[&>*]:shrink-0">
       {selection ? (
         <>
-          {selection.type === 'text' ? <TextSelectionControls selection={selection} disabled={editable} onPatch={onPatch} />
-            : selection.type !== 'image' ? <ColorPopover value={selection.fill} disabled={editable} onChange={fill => onPatch({ fill })} /> : null}
-          {selection.type !== 'image' ? <Divider /> : null}
+          {selection.type === 'text' ? <TextSelectionControls selection={selection} disabled={editable} onPatch={onPatch} live={imageTools} />
+            : selection.type === 'image' ? (imageTools ? <ImageSelectionControls selection={selection} disabled={editable} tools={imageTools} /> : null)
+              : selection.type === 'line' ? <LineSelectionControls selection={selection} disabled={editable} onPatch={onPatch} />
+              : <ColorPopover value={selection.fill} disabled={editable} onChange={fill => onPatch({ fill })} />}
+          {selection.type !== 'image' || imageTools ? <Divider /> : null}
         </>
       ) : <span className="whitespace-nowrap px-2.5 text-xs font-semibold tabular-nums">{selectedCount} seleccionados</span>}
+      {grouping?.canGroup ? <ToolButton label="Agrupar" shortcut="Ctrl+G" side="bottom" disabled={disabled} onClick={() => onAction('group')} className="shrink-0"><Group /></ToolButton> : null}
+      {grouping?.canUngroup ? <ToolButton label="Desagrupar" shortcut="Ctrl+Shift+G" side="bottom" disabled={disabled} onClick={() => onAction('ungroup')} className="shrink-0"><Ungroup /></ToolButton> : null}
       <ToolButton label="Duplicar" shortcut="Ctrl+D" side="bottom" disabled={disabled} onClick={() => onAction('duplicate')} className="shrink-0"><CopyPlus /></ToolButton>
       {selection ? (
         <>

@@ -16,6 +16,11 @@ const unwrap = response => response?.data ?? response
 
 export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   const clipboard = useMemo(() => createScopedClipboard(scope.slice(0, scope.lastIndexOf(':'))), [scope])
+  // Element library figures are real catalog icons (licensed, credited).
+  const catalog = useMemo(() => ({
+    importIcon: async id => (await runly.studio.catalogImport('iconify', id, record.id, token)).data.object,
+    thumbnail: (id, signal) => runly.studio.catalogThumbnail('iconify', id, token, signal),
+  }), [record.id, token])
   const authorizePaste = useCallback(async objects => {
     for (const id of new Set(objects.filter(object => object.type === 'image').map(object => object.fileAssetId))) {
       // Cross-document reuse needs independent Files access; a source design's private capability is not transferable.
@@ -183,11 +188,11 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   }
   return <>
     <StudioWorkspace key={workspaceVersion} initial={initial} readOnly={!canEdit} participants={realtime.participants} chrome={chrome}
-      sharedClipboard={clipboard} authorizePaste={authorizePaste} onEditImage={imageEditing.editImage}
+      sharedClipboard={clipboard} authorizePaste={authorizePaste} onEditImage={imageEditing.editImage} catalog={catalog}
       resourcePanel={({ disabled, uploader }) => <StudioCreativeResources key={scope} token={token} designId={record.id} disabled={disabled} uploader={uploader} onFileInsert={insertResource} onVectorInsert={object => editorRef.current.add('vector',object)} />}
       onPointer={realtime.pointer} onSelectionChange={realtime.selection} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
-    {imageEditing.dialog}
     <StudioSharing record={record} token={token} open={shareOpen} onOpenChange={setShareOpen} />
+    {imageEditing.dialog}
     {credits?<StudioCredits id={record.id} token={token} scene={credits.scene} action={credits.action} onClose={()=>setCredits(null)} onContinue={()=>{const {action,scene}=credits;setCredits(null);if(action.kind==='share')setShareOpen(true);else exportImage(action.format,action.quality,scene)}}/>:null}
     <ConfirmDialog open={navigation.pending} onOpenChange={open => { if (!open) navigation.cancel() }} title="Salir sin guardar" description={copyWarning ? 'No se pudo conservar la copia local. Si sales puedes perder estos cambios. Cancela y guarda antes de continuar.' : 'Los cambios pendientes se conservarán en una copia local en este navegador durante siete días.'}
       confirmLabel="Salir" onConfirm={navigation.proceed} />
