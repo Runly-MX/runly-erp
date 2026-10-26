@@ -17,7 +17,7 @@ export async function exportImage(page,format='PNG',quality='100 %') {
   const dialog=page.getByRole('dialog',{name:'Descargar',exact:true})
   await dialog.getByRole('radio',{name:new RegExp(`^${format}`)}).click()
   await dialog.getByRole('radio',{name:'×1',exact:true}).click()
-  if(format==='PNG'){const box=dialog.getByRole('checkbox',{name:'Fondo transparente',exact:true});if(await box.isChecked())await box.uncheck()}
+  if(format==='PNG'){const box=dialog.getByRole('checkbox',{name:'Fondo transparente',exact:true});if(await box.isChecked())await dialog.getByText('Fondo transparente',{exact:true}).click()}
   await dialog.getByRole('button',{name:'Descargar',exact:true}).click()
   await page.getByRole('button',{name:`Exportar ${format}`,exact:true}).click()
 }
