@@ -11,6 +11,14 @@ actualización, guardado/uso de plantillas y review aceptan estos datos mediante
 el mismo validador y los mismos permisos; v1-v4 se normalizan al leer/guardar.
 Los cambios exactos están en `docs/architecture/studio-editor-ui-contract.md`.
 
+La guía también incluye `textContract`, `lineContract` e `imageContract` (campos y
+rangos de texto, polilíneas e imágenes), técnicas de ilustración con primitivas
+editables (`illustration`) y dos ejemplos completos para leer con
+`studio_template_detail`: `runly:slow-mornings` y `runly:sunrise-trail`. Para una
+imagen nueva (generada o adjunta en el chat) indica la cadena
+`runly_files_import_prepare/commit` sin destino → `studio_media` → `fileAssetId`
+como objeto `image` o `fillPaint` de una forma.
+
 Las proyecciones ahora preservan geometría, estilos, encuadre y referencias de
 relleno de los primeros 40 objetos: vectores/líneas ya no se convierten en
 rectángulos. El preview sigue siendo incompleto y nunca debe guardarse como
