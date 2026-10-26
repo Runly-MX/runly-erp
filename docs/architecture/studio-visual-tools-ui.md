@@ -171,22 +171,120 @@ relleno del rectángulo al soltarla encima; táctil 390 px — círculo y subtí
 insertados por pulsar-y-arrastrar, y un deslizamiento rápido en el panel no
 inserta nada. Sin errores de página.
 
-## Descargar: pantalla e impresión
+## Descargar: formatos, dimensiones reales y estados
 
 `editor/ExportDialog.jsx` (botón «Descargar» de la barra; «Descargar…» en el
-menú del teléfono) reemplaza el menú de formatos. Las opciones se recuerdan por
-navegador y los créditos se revisan después, como antes.
+menú del teléfono). Las opciones se recuerdan por navegador y los créditos se
+revisan después, como antes. El diálogo no calcula límites por su cuenta: usa
+`apps/shared/studio/export-limits.js` (los mismos que aplica el motor) a través
+de `lib/studio-export-plan.js`, una función pura con prueba.
 
-| Tipo | Dónde se genera | Opciones |
+| Formato | Para qué | Opciones | Dónde se genera |
+| --- | --- | --- | --- |
+| PNG | Gráficos y logotipos; sin pérdida | ×1/×2/×3, fondo transparente | Navegador |
+| JPG | Fotografías; archivo ligero, sin transparencia | ×1/×2/×3, calidad 50–100 % | Navegador |
+| PDF para imprimir | Imprenta | Medidas en mm desde la resolución del diseño (72/96/150/300 ppp), perfil CMYK o RGB, sangrado de 3 mm, marcas de corte | Render PNG a 300 ppp en el navegador; el PDF lo arma `POST /studio/designs/:id/export/print-pdf` |
+
+Bloque fijo «Se generará…» (siempre visible, también en el teléfono, fuera del
+área que se desplaza; `role="status"`):
+
+- PNG/JPG: «Tamaño final» en píxeles y megapíxeles.
+- PDF: «Medida de corte» en mm, «Hoja del PDF» (corte + sangrado + marcas) e
+  «Imagen incrustada» en píxeles a 300 ppp.
+- Si el límite se supera, el bloque lo explica con las cifras y **Descargar queda
+  desactivado**: no se reduce la resolución en silencio (el motor tampoco lo hace;
+  ver `STUDIO_RC2_READINESS.md`). Límites: PNG/JPG 80 MP y 16 384 px por lado;
+  PDF a 300 ppp 32 MP; medida de corte 10–2 000 mm.
+
+Textos que el diálogo asegura: el PDF es una imagen incrustada (no vectorial, no
+PDF/X); CMYK usa una conversión genérica y no el perfil ICC de la imprenta, con la
+recomendación de descargar RGB si la imprenta exige un perfil concreto; JPG no
+admite transparencia y el peso final depende de la imagen (sin estimaciones).
+
+### Estados de la descarga
+
+`DesignEditor.exportImage` + `editor/DownloadNotice.jsx` (una línea sobre el
+lienzo, `role="status"`; `role="alert"` en error):
+
+| Estado | Cuándo | Acciones |
 | --- | --- | --- |
-| PNG | Navegador (`exportImage(png, 1, escena, {scale, transparent})`) | ×1/×2/×3 (limitado a 80 MP y 16384 px), fondo transparente |
-| JPG | Navegador | ×1/×2/×3, calidad 50–100 % |
-| PDF para imprimir | Render PNG a 300 ppp con sangrado (`exportImage(..., {scale, bleed})`) y `POST /studio/designs/:id/export/print-pdf` (`studio-print.js`: sharp + pdf-lib) | Perfil CMYK (perfil estándar de libvips, JPEG con marca Adobe, `/DeviceCMYK`) o RGB; resolución del diseño (72/96/150/300 ppp → medidas en mm); sangrado 3 mm; marcas de corte en color de registro; `TrimBox` y `BleedBox` |
+| Preparando | Confirmar cambios, comprobar revisión y renderizar en el navegador (se pinta el aviso antes del render síncrono) | Cancelar |
+| Procesando | Solo PDF: el servidor arma el archivo (se detecta al terminar el render del navegador) | Cancelar |
+| Descargando | Entrega del archivo al navegador | — |
+| Listo | «Se descargó nombre.ext» (se oculta solo a los 6 s) | Cerrar |
+| Cancelado | «Descarga cancelada. No se guardó ningún archivo.» El render no se puede interrumpir: su resultado se descarta y se puede iniciar otra descarga de inmediato | Cerrar |
+| Error | Mensaje saneado | Cerrar |
 
-El navegador no produce CMYK; la conversión es del servidor y no lee el
-documento. Verificación (2026-10-26, `.e2e/studio-export.mjs`): PNG ×2 de
-2160 × 2160 px con esquina transparente; PDF CMYK de 305,8 mm (285,8 mm de corte
-+ 3 mm de sangrado + marcas) renderizado con pdf.js: el sangrado lleva el fondo
-oscuro (7,18,49 frente a #0f172a) y fuera de él queda blanco.
-«Guardar como plantilla» pasa a ser un botón con texto en la barra (icono en
-pantallas medianas, menú en el teléfono).
+- Una referencia (`job`) impide descargas duplicadas aunque se pulse varias veces
+  («Descargar» de la barra también se desactiva mientras hay un trabajo).
+- `lib/studio-download.js` (`sanitizeExportError`): los estados HTTP conocidos (401,
+  403, 404, 408, 413, 429, 5xx) y los fallos de red se traducen a frases propias;
+  un mensaje solo se muestra tal cual si es corto y no contiene URL, credencial,
+  ruta, traza ni direcciones locales. No se muestran estimaciones de tiempo.
+
+## Colaboración visible (interfaz)
+
+Sin cambiar el modelo de operaciones. Toda la información sale de
+`useStudioRealtime` (`participants`: `userId`, `sessionId`, `name`, `avatarUrl`,
+cursor `x`/`y`, `selectedId`) y de `useStudioSync` (estado y reintento).
+
+| Superficie | Componente | Datos reales |
+| --- | --- | --- |
+| Avatares de colaboradores (hasta 3, nombre al pasar el cursor o enfocar con teclado) y lista de personas con su actividad | `editor/collaboration/PresenceStack.jsx` | Presencia (`/studio/designs/:id/live`) |
+| Cursores remotos y selección remota (borde, tinte y etiqueta con nombre y tipo de elemento, tamaño constante en pantalla) | `editor/collaboration/RemotePresence.jsx` | Presencia: `x`, `y`, `selectedId` |
+| Marca de «Seleccionado por» en Capas (iniciales con el color de la persona) | `LayersPanel.jsx` (`remoteSelections`) | Presencia |
+| Estado Sincronizado / Sincronizando / Sin conexión / Error, «Reintentar» (limitado a un intento por clic) y «Sincronizado · reconectando colaboración» si el canal en vivo se cae | `editor/collaboration/SyncStatus.jsx` | `useStudioSync.status`, `sync.resync()`, estado del canal |
+| Cambio a solo lectura en vivo («Ahora solo puedes ver este diseño», con «Entendido») | `DesignEditor` (`lostEdit`) | `canEdit` del sondeo de `/live` |
+| Acceso revocado o diseño eliminado | `editor/collaboration/AccessLost.jsx` | 401/403/404 del canal en vivo |
+
+Reglas:
+
+- Fucsia es solo la selección local. Cada persona tiene un color estable de una
+  paleta de 10 (hash de su `userId`, `lib/studio-presence.js`); si dos personas
+  presentes chocan (incluida la persona local, que nunca se dibuja), la de id
+  posterior pasa al siguiente color libre, igual en todos los clientes.
+- Varias pestañas de la misma persona son una sola en avatares y cuenta; las otras
+  pestañas de quien mira se dibujan en el lienzo como «Tú (otra pestaña)».
+- Las selecciones remotas son solo un indicador: no se muestran candados ni se
+  impide editar. No hay bloqueos ficticios.
+- Las etiquetas y bordes usan `1/zoom`; con `prefers-reduced-motion` el cursor no
+  se anima (`motion-reduce:transition-none`, giros `motion-reduce:animate-none`).
+- Tras revocar el acceso se retira la protección de salida (el aviso «Salir antes de
+  sincronizar» no se puede mostrar en esa pantalla) y se conserva el borrador.
+
+## Qué está conectado a backend real y qué depende todavía de Codex
+
+Conectado (verificado con `.e2e/studio-collab-export-ui.mjs`, pila Supabase
+desechable, dos identidades Auth reales y la API/Realtime reales):
+
+- Avatares, nombres, colores, cursores, selección remota y marca en Capas:
+  presencia real. Revocación y cambio de rol (`PUT /studio/designs/:id/collaborators`)
+  reflejados en la otra sesión.
+- Estado de sincronización y «Reintentar»: `createStudioSync` real (sin conexión
+  con `context.setOffline`, error con una respuesta 400 simulada del cliente).
+- Exportación PNG, JPG y PDF con datos sintéticos: el archivo descargado coincide
+  con lo anunciado (píxeles, formato, hoja en mm); límites y errores de servidor.
+
+Depende de Codex (motor/API; la interfaz no lo simula):
+
+- **Movimiento transitorio de objetos** de otras personas: no existe en el
+  protocolo de presencia; cuando exista se mostrará como un contorno ligero que no
+  interfiere con la selección local. Hoy solo se ve el resultado al confirmarse.
+- **Recuperación tras un cambio rechazado**: después de un 4xx del servidor la
+  sesión queda en «Error al sincronizar» y «Reintentar» no la recupera hasta
+  recargar (`deny` en `studio-sync.js`). La interfaz lo muestra y conserva el
+  borrador; el motor decide si se podrá reintentar sin recargar.
+- **Cancelar una descarga** no aborta el render ni la petición del PDF
+  (`exportDesign` no recibe una señal): se descarta el resultado.
+- **Resolución de salida del PDF** distinta de 300 ppp: el motor la exige; si
+  hiciera falta bajarla por el límite de 32 MP sería una opción nueva de
+  `exportDesign`.
+- **Tiradores de transformación** en modo solo lectura: el motor muestra los de la
+  selección que había antes de perder el permiso.
+- Los fixtures `scripts/fixtures/studio/*` aún buscan `Guardar`, un `img` «persona(s)
+  editando» (ahora es un `group` con los avatares como `img`) y botones «×1» (son
+  `radio`); su adaptación es del motor/pruebas.
+
+Verificación (2026-10-26, `.e2e/studio-collab-export-ui.mjs`): ver el resumen de la
+sesión; recorrido en 1440, 820 y 390 px, claro y oscuro, sin desbordamiento
+horizontal, lienzo visible y diálogo de descarga dentro de la ventana.

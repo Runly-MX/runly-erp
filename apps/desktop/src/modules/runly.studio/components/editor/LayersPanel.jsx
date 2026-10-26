@@ -1,4 +1,4 @@
-import { Checkbox, EmptyState, ToolButton, cn } from '@runly/ui'
+import { Checkbox, EmptyState, ToolButton, cn, personInitials } from '@runly/ui'
 import { Circle, Eye, EyeOff, Group, Image, Layers, Lock, Square, Type, Unlock, PenTool, Minus } from 'lucide-react'
 
 export const OBJECT_META = {
@@ -14,7 +14,7 @@ const describe = object => object.type === 'text' ? (object.text.split('\n')[0].
 
 // Top of the list = front of the stack (the document stores back-to-front).
 // Grouped elements get a "Grupo" header (selects the whole group) and indent.
-export function LayersPanel({ objects, selectedIds, disabled, onSelect, onSelectGroup, onToggleMany, onPatchObject }) {
+export function LayersPanel({ objects, selectedIds, remoteSelections = new Map(), disabled, onSelect, onSelectGroup, onToggleMany, onPatchObject }) {
   if (!objects.length) return <EmptyState variant="compact" icon={Layers} title="Añade formas, texto o imágenes para verlas aquí." />
   const selected = new Set(selectedIds)
   const counts = objects.reduce((map, object) => object.groupId ? map.set(object.groupId, (map.get(object.groupId) ?? 0) + 1) : map, new Map())
@@ -23,7 +23,7 @@ export function LayersPanel({ objects, selectedIds, disabled, onSelect, onSelect
   return (
     <ul className="space-y-1" aria-label="Capas del diseño">
       {[...objects].reverse().flatMap(object => {
-        const Icon = OBJECT_META[object.type].icon, active = selected.has(object.id)
+        const Icon = OBJECT_META[object.type].icon, active = selected.has(object.id), others = remoteSelections.get(object.id) ?? []
         const header = object.groupId && !headed.has(object.groupId) ? (headed.add(object.groupId), (
           <li key={`group-${object.groupId}`}>
             <button type="button" disabled={disabled || !onSelectGroup} onClick={() => onSelectGroup?.(object.groupId)}
@@ -42,6 +42,10 @@ export function LayersPanel({ objects, selectedIds, disabled, onSelect, onSelect
                 <Icon className="h-3.5 w-3.5" />
               </span>
               <span className={cn('min-w-0 flex-1 truncate', active && 'font-semibold')}>{describe(object)}</span>
+              {others.length ? <span className="flex shrink-0 items-center gap-0.5" title={`Seleccionado por ${others.map(person => person.name).join(', ')}`}>
+                {others.slice(0, 3).map(person => <span key={person.userId} aria-hidden className="-ml-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold leading-none text-white ring-1 ring-[hsl(var(--card))] first:ml-0" style={{ backgroundColor: person.color }}>{person.isSelf ? 'Tú' : personInitials(person.name)}</span>)}
+                <span className="sr-only">Seleccionado por {others.map(person => person.name).join(', ')}</span>
+              </span> : null}
               {object.type === 'image' ? null : <span aria-hidden className="h-3 w-3 shrink-0 rounded-full ring-1 ring-[hsl(var(--border))]" style={{ backgroundColor: object.fill }} />}
             </button>
             <ToolButton label={object.hidden ? 'Mostrar' : 'Ocultar'} side="left" disabled={disabled} className={cn('h-9 w-9', !object.hidden && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100')}

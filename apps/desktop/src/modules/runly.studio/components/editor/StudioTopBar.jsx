@@ -1,48 +1,15 @@
 import { useState } from 'react'
 import { Button, Input, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-  PersonAvatar, ToolButton, Tooltip, TooltipContent, TooltipTrigger, cn } from '@runly/ui'
+  ToolButton, Tooltip, TooltipContent, TooltipTrigger } from '@runly/ui'
 import { ExportDialog } from './ExportDialog.jsx'
-import { ArrowLeft, LayoutTemplate, Check, CloudOff, Download, Eye, Fullscreen, Loader2, Maximize2, Minimize2, MoreVertical, PanelRight, Redo2, RefreshCw, Share2, TriangleAlert, Undo2 } from 'lucide-react'
+import { PresenceStack } from './collaboration/PresenceStack.jsx'
+import { SyncStatus } from './collaboration/SyncStatus.jsx'
+import { ArrowLeft, LayoutTemplate, Download, Eye, Fullscreen, Loader2, Maximize2, Minimize2, MoreVertical, PanelRight, Redo2, Share2, Undo2 } from 'lucide-react'
 
 const VIEW_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
 
-// Real-time sync state: every change is shared automatically (no save button).
-const SYNC = {
-  synced: { icon: Check, text: 'Sincronizado', className: 'text-emerald-600 dark:text-emerald-400' },
-  syncing: { icon: Loader2, text: 'Sincronizando…', className: 'animate-spin motion-reduce:animate-none' },
-  offline: { icon: CloudOff, text: 'Sin conexión · se enviará al reconectar', className: 'text-amber-500' },
-  error: { icon: TriangleAlert, text: 'Error al sincronizar', className: 'text-[hsl(var(--destructive))]' },
-}
-function SyncState({ state, live, onRetry, compact = false }) {
-  const map = SYNC[state] ?? SYNC.synced, Icon = map.icon
-  return (
-    <span role="status" aria-live="polite" aria-label={compact ? map.text : undefined} title={compact ? map.text : undefined}
-      className="inline-flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
-      <Icon className={cn('h-3.5 w-3.5 shrink-0', map.className)} aria-hidden />{compact ? null : map.text}
-      {!compact && live && (state === 'synced' || state === 'syncing') ? <span className="hidden lg:inline">· {live}</span> : null}
-      {state === 'error' && onRetry && !compact ? <Button size="sm" variant="ghost" onClick={onRetry} className="h-7 gap-1 px-2 text-xs"><RefreshCw className="h-3 w-3" />Reintentar</Button> : null}
-    </span>
-  )
-}
-
-function Presence({ users }) {
-  if (!users.length) return null
-  const visible = users.slice(0, 3), extra = users.length - visible.length
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div role="img" aria-label={`${users.length} persona(s) editando`} className="flex -space-x-2">
-          {visible.map(user => <PersonAvatar key={user.userId} name={user.name} src={user.avatarUrl ?? null} size="md" className="h-8 w-8 ring-2 ring-fuchsia-500" />)}
-          {extra > 0 ? <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--muted))] text-[11px] font-semibold ring-2 ring-[hsl(var(--card))]">+{extra}</span> : null}
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{users.map(user => user.name).join(', ')}</TooltipContent>
-    </Tooltip>
-  )
-}
-
 export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, live, canEdit, onBack, onRetrySync, onShare, onCredits, onSaveTemplate, onExport, exporting, exportDisabled,
-  history, onUndo, onRedo, participants, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode, page }) {
+  history, onUndo, onRedo, people, objects, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode, page }) {
   const [exportOpen, setExportOpen] = useState(false)
   // onExport(options): screen (PNG/JPG) or print PDF, chosen in ExportDialog.
   const exportDialog = page ? <ExportDialog open={exportOpen} onOpenChange={setExportOpen} page={page} exporting={exporting}
@@ -67,11 +34,12 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, liv
         <Button variant="ghost" size="icon" aria-label="Volver a mis diseños" onClick={onBack} className="h-10 w-10 shrink-0"><ArrowLeft /></Button>
         <div className="min-w-0 flex-1">{nameField}</div>
         {history_}
-        <span className="flex h-10 w-8 shrink-0 items-center justify-center"><SyncState state={syncState} compact /></span>
+        <PresenceStack people={people} objects={objects} compact />
+        <SyncStatus state={syncState} live={live} onRetry={onRetrySync} compact />
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Más opciones" className="h-10 w-10 shrink-0"><MoreVertical /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-60">
-            <DropdownMenuLabel className="font-normal"><SyncState state={syncState} live={live} onRetry={onRetrySync} /></DropdownMenuLabel>
+            <DropdownMenuLabel className="font-normal"><SyncStatus state={syncState} live={live} onRetry={onRetrySync} /></DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onShare} className="gap-2.5"><Share2 className="h-4 w-4" />Compartir</DropdownMenuItem>
             {onSaveTemplate ? <DropdownMenuItem onSelect={onSaveTemplate} className="gap-2.5"><LayoutTemplate className="h-4 w-4" />Guardar como plantilla</DropdownMenuItem> : null}
@@ -89,11 +57,11 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, liv
       <span aria-hidden className="h-6 w-px bg-[hsl(var(--border))]" />
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="min-w-0 max-w-xs flex-1">{nameField}</div>
-        <SyncState state={syncState} live={live} onRetry={onRetrySync} />
+        <SyncStatus state={syncState} live={live} onRetry={onRetrySync} />
       </div>
       {history_}
       <span aria-hidden className="h-6 w-px bg-[hsl(var(--border))]" />
-      <Presence users={participants} />
+      <PresenceStack people={people} objects={objects} />
       {onSaveTemplate ? (
         <Tooltip>
           <TooltipTrigger asChild>

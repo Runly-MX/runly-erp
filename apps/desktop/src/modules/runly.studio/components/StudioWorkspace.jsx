@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, ConfirmDialog, FileUploader, Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton, ToolButton, cn, useIsMobile, useViewMode } from '@runly/ui'
-import { AlertTriangle, MousePointer2, PanelLeftClose } from 'lucide-react'
+import { AlertTriangle, PanelLeftClose } from 'lucide-react'
 import { toast } from 'sonner'
 import { createStudioEditor } from '../lib/fabric-adapter.js'
 import { StudioInspector } from './StudioInspector.jsx'
@@ -33,6 +33,8 @@ import { CanvasPreferencesMenu } from './editor/canvas/CanvasPreferencesMenu.jsx
 import { GridOverlay, GuidesOverlay } from './editor/canvas/CanvasOverlays.jsx'
 import { Rulers } from './editor/canvas/Rulers.jsx'
 import { canHoldPhoto } from '../lib/photo-target.js'
+import { RemotePresence } from './editor/collaboration/RemotePresence.jsx'
+import { groupParticipants, selectionsByObject } from '../lib/studio-presence.js'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }
 
@@ -48,7 +50,7 @@ function MobileSheet({ open, onOpenChange, title, children }) {
 }
 
 export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, editorRef, onReady, readOnly = false,
-  participants = [], onPointer, onSelectionChange, resourcePanel, sharedClipboard, authorizePaste, onEditImage, catalog, chrome }) {
+  participants = [], selfId = null, onPointer, onSelectionChange, resourcePanel, sharedClipboard, authorizePaste, onEditImage, catalog, chrome }) {
   const canvasRef = useRef(null)
   const phone = useIsMobile(), wide = !useIsMobile(1280), viewMode = useViewMode()
   const [selection, setSelection] = useState(null), [error, setError] = useState('')
@@ -65,6 +67,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const view = useStudioViewport(page, editorRef), zoom = view.zoom
   const [history, setHistory] = useState({ canUndo: false, canRedo: false }), [retry, setRetry] = useState(0), [busy, setBusy] = useState(false)
   const [objects, setObjects] = useState(initial.objects)
+  const people = useMemo(() => groupParticipants(participants, selfId), [participants, selfId]), remoteSelections = useMemo(() => selectionsByObject(participants, selfId), [participants, selfId])
   const changed = useCallback((document, meta) => { setObjects(document.objects); setPage(document.page); pageRef.current = document.page; onChange(document, meta) }, [onChange])
   const canvas = useCanvasPreferences(editorRef, ready)
   const { onGuides, onEditorPreferences } = canvas
@@ -233,7 +236,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     image: <ImagePanel selection={selection} imageUrl={imageKit.tools.imageUrl} tab={imageTab} onTab={setImageTab} disabled={readOnly || !ready} api={imageKit.tools} />,
     text: <TextPanel disabled={blocked} onAdd={add} />,
     images: resourcePanel ? resourcePanel({ disabled: blocked, uploader }) : uploader,
-    layers: <LayersPanel objects={objects} selectedIds={selectedIds} disabled={!ready || busy}
+    layers: <LayersPanel objects={objects} selectedIds={selectedIds} remoteSelections={remoteSelections} disabled={!ready || busy}
       onSelect={id => editorRef.current?.select(id)} onSelectGroup={id => editorRef.current?.selectGroup(id)} onToggleMany={ids => editorRef.current?.selectMany(ids)}
       onPatchObject={(id, patch) => attempt(async () => { editorRef.current.select(id, { individual: true }); editorRef.current.patch(patch) })} />,
     page: <PageSettingsForm key={`${page.width}x${page.height}:${page.background}`} page={page} disabled={readOnly || !ready} onApply={(next, scale) => editorRef.current.resize(next, scale)}
@@ -265,7 +268,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     <EyedropperContext.Provider value={colorContext}>
     <div role="application" aria-label="Editor gráfico de Studio" tabIndex={-1} onKeyDown={shortcut}
       className={cn('flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))] outline-none', viewMode.isImmersive ? 'fixed inset-0 z-50 h-dvh' : 'h-full')}>
-      <StudioTopBar phone={phone} {...chrome} page={page} canEdit={!readOnly} history={history} participants={[...new Map(participants.map(user => [user.userId, user])).values()]}
+      <StudioTopBar phone={phone} {...chrome} page={page} canEdit={!readOnly} history={history} people={people.filter(person => !person.isSelf)} objects={objects}
         onUndo={() => attempt(() => editorRef.current.undo())} onRedo={() => attempt(() => editorRef.current.redo())}
         exportDisabled={!ready || chrome.exportDisabled} inspectorToggle inspectorOpen={wide ? inspectorOpen : inspectorSheet}
         onToggleInspector={() => (wide ? setInspectorOpen(value => !value) : setInspectorSheet(value => !value))}
@@ -306,15 +309,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
                 {drop.landing ? <DropLandingHint landing={drop.landing} zoom={zoom} /> : null}
                 {imageKit.framing ? <FramingOverlay item={imageKit.framing.item} props={imageKit.framing.props} natural={imageKit.framing.natural} imageUrl={imageKit.framing.imageUrl} outline={imageKit.framing.outline} zoom={zoom}
                   onFrame={next => imageKit.tools.image(next)} onDone={() => imageKit.finishFraming(true)} onCancel={() => imageKit.finishFraming(false)} /> : null}
-                {participants.map(user => <div key={`${user.userId}:${user.sessionId}`} className="pointer-events-none absolute inset-0">
-                  {objects.filter(object => object.id === user.selectedId).map(object => <span key={object.id} aria-label={`Selección de ${user.name}`}
-                    className="absolute rounded-[2px] border-fuchsia-500" style={{ left: object.x, top: object.y, width: object.width * (object.scaleX ?? 1), height: object.height * (object.scaleY ?? 1), borderWidth: 2 / zoom, transform: `rotate(${object.rotation}deg)`, transformOrigin: 'top left' }} />)}
-                  {Number.isFinite(user.x) && Number.isFinite(user.y) ? <span aria-label={`Cursor de ${user.name}`} data-document-x={user.x} data-document-y={user.y}
-                    className="absolute flex items-start gap-0.5" style={{ left: user.x, top: user.y, transform: `scale(${1 / zoom})`, transformOrigin: 'top left' }}>
-                    <MousePointer2 className="h-4 w-4 fill-fuchsia-500 text-white" aria-hidden />
-                    <span className="mt-3 whitespace-nowrap rounded-full bg-fuchsia-600 px-2 py-0.5 text-[11px] font-semibold text-white shadow">{user.name}</span>
-                  </span> : null}
-                </div>)}
+                <RemotePresence people={people} selections={remoteSelections} objects={objects} zoom={zoom} />
               </div>
             </div>
           </div>

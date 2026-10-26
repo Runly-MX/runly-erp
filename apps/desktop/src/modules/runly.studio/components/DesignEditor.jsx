@@ -1,8 +1,8 @@
-import {validateDocument} from '../../../../../shared/studio/document.js'
 import { documentAssetIds } from '../../../../../shared/studio/shape-properties.js'
+import {validateDocument} from '../../../../../shared/studio/document.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, AlertDescription, AlertTitle, Button, ErrorState, ConfirmDialog } from '@runly/ui'
-import { AlertTriangle, History } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle, Button, ConfirmDialog } from '@runly/ui'
+import { AlertTriangle, Eye, History } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { StudioWorkspace } from './StudioWorkspace.jsx'
 import { createDraftStorage, recoverDraftDocument, createDraftArchive, sameDraft } from '../lib/draft-storage.js'
@@ -16,6 +16,9 @@ import { useStudioNavigation } from '../hooks/useStudioNavigation.js'
 import { useStudioImageEditing } from '../hooks/useStudioImageEditing.jsx'
 import { useSaveAsTemplate, useTemplateEditing } from './templates/useTemplateEditing.jsx'
 import { exportDesign } from '../lib/studio-export.js'
+import { downloadName, nextPaint, sanitizeExportError } from '../lib/studio-download.js'
+import { AccessLost } from './editor/collaboration/AccessLost.jsx'
+import { DownloadNotice } from './editor/DownloadNotice.jsx'
 
 const unwrap = response => response?.data ?? response
 
@@ -43,11 +46,13 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const archive=useMemo(()=>createDraftArchive(window.localStorage,scope),[scope])
   const [initial] = useState(record.document), [name, setName] = useState(record.name)
   const [error, setError] = useState('')
-  const [exporting, setExporting] = useState(false), [exportError, setExportError] = useState(''), [shareOpen, setShareOpen] = useState(false)
+  // Download: null | { phase: preparing|processing|downloading|done|cancelled|error, format, file, message }. The ref is the real guard against double clicks.
+  const [download, setDownload] = useState(null), job = useRef(null), [shareOpen, setShareOpen] = useState(false)
+  const exporting = Boolean(download && ['preparing', 'processing', 'downloading'].includes(download.phase))
   const [recovery, setRecovery] = useState(() => archive.read()??store.read()??collisions.read()), [copyWarning, setCopyWarning] = useState(false)
   const [ready, setReady] = useState(false)
   const [credits,setCredits]=useState(null)
-  const [canEdit, setCanEdit] = useState(record.canEdit !== false), [denied, setDenied] = useState(false)
+  const [canEdit, setCanEdit] = useState(record.canEdit !== false), [denied, setDenied] = useState(false), [lostEdit, setLostEdit] = useState(false), [viewerSeen, setViewerSeen] = useState(false)
   const editorRef = useRef(null), nameRef = useRef(name), timer = useRef(null)
   const { sync, status,revision:sharedRevision } = useStudioSync({ record, token, scope, editorRef,
     onName: value => { nameRef.current = value; setName(value) },
@@ -83,7 +88,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     setCopyWarning(!protectedCopy); setError('')
     onRecordChange?.({ ...record, name: state.name, revision: state.revision, document: state.document })
   }, [status,sharedRevision,recovery]) // eslint-disable-line react-hooks/exhaustive-deps
-  const navigation = useStudioNavigation(unsynced, preserve)
+  const navigation = useStudioNavigation(unsynced && !denied, preserve)
   useEffect(() => () => { clearTimeout(timer.current); if (sync.state().status !== 'synced') preserve() }, [preserve, sync])
   // A (re)mounted canvas shows the shared state, which may be newer than `initial`.
   useEffect(() => { if (ready) editorRef.current?.applyRemote(sync.state().document) }, [ready, sync])
@@ -131,7 +136,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const revoked = useCallback(() => { preserve();sync.deny(); setDenied(true) }, [preserve,sync])
   // Polling and whole-document updates (MCP, PUT): permission and missed revisions.
   const confirmed = useCallback((nextRevision, permission) => {
-    if (typeof permission === 'boolean') {setCanEdit(permission);if(!permission&&sync.state().pending)sync.deny()}
+    if (typeof permission === 'boolean') {setCanEdit(current => { if (current && !permission) { setLostEdit(true); setViewerSeen(false) } if (!current && permission) setLostEdit(false); return permission });if(!permission&&sync.state().pending)sync.deny()}
     if (Number.isSafeInteger(nextRevision) && nextRevision > sync.state().revision) sync.changed(nextRevision)
   }, [sync])
   const realtime = useStudioRealtime({ id: record.id, token, scope, onRevision: confirmed, onDenied: revoked, onChange: sync.receive })
@@ -151,40 +156,53 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     const editor=editorRef.current
     if(!editor)return
     try {await ensureSaved();await editor.flush();if(editorRef.current===editor)setCredits({scene:editor.snapshot(),action})}
-    catch(error){setExportError(error.message)}
+    catch(error){setDownload({ phase: 'error', message: sanitizeExportError(error) })}
   }
   // Screen (PNG/JPG) or print PDF (RGB/CMYK, bleed, crop marks) from ExportDialog.
   async function exportImage(options, reviewedScene) {
-    if (!editorRef.current || exporting) return
-    setExporting(true); setExportError('')
+    const editor = editorRef.current
+    if (!editor || job.current) return
+    const current = job.current = { cancelled: false }, format = options.type === 'pdf' ? 'PDF' : options.type.toUpperCase()
+    const phase = (value, extra) => { if (!current.cancelled) setDownload({ phase: value, format, ...extra }) }
+    phase('preparing')
+    // The render is synchronous work: paint the notice first, and tell the flow when the browser render is over (a PDF is then built on the server).
+    const observed = new Proxy(editor, { get: (target, key) => key === 'exportImage'
+      ? async (...args) => { const blob = await target.exportImage(...args); phase('processing'); return blob }
+      : typeof target[key] === 'function' ? target[key].bind(target) : target[key] })
     try {
+      await nextPaint()
       await ensureSaved()
       const fresh=unwrap(await runly.studio.getDesign(record.id,token))
       // Fabric measures text boxes at render time. Compare persisted documents
       // here; exportImage separately verifies the exact reviewed canvas snapshot.
       if(fresh.revision!==sync.state().revision||JSON.stringify(validateDocument(fresh.document))!==JSON.stringify(validateDocument(sync.state().document)))throw Error('El diseño cambió. Revisa la revisión actual antes de descargar.')
-      const { blob, extension } = await exportDesign({ editor: editorRef.current, options, scene: reviewedScene, designId: record.id, token, name,revision:fresh.revision })
+      const { blob, extension } = await exportDesign({ editor: observed, options, scene: reviewedScene, designId: record.id, token, name,revision:fresh.revision })
       const authorized=unwrap(await runly.studio.getDesign(record.id,token))
       if(authorized.revision!==fresh.revision)throw Error('El diseño cambió durante la exportación. Vuelve a revisar y descargar.')
-      const url = URL.createObjectURL(blob)
-      const link = Object.assign(document.createElement('a'), { href: url, download: `${name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 80) || 'diseño'}.${extension}` })
-      link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
-    } catch (error) { setExportError(error.message) } finally { setExporting(false) }
+      if (current.cancelled) return
+      phase('downloading'); await nextPaint()
+      const file = downloadName(name, extension), url = URL.createObjectURL(blob)
+      Object.assign(document.createElement('a'), { href: url, download: file }).click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+      phase('done', { file }); setTimeout(() => setDownload(now => now?.phase === 'done' ? null : now), 6000)
+    } catch (error) { phase('error', { message: sanitizeExportError(error) }) } finally { if (job.current === current) job.current = null }
   }
-  if (denied) return <div className="flex h-full items-center justify-center p-6"><ErrorState title="El diseño ya no está disponible" description="Los cambios que no llegaron al servidor se conservan en este navegador. Comprueba tus permisos con el propietario." showReport={false} onRetry={onBack} /></div>
+  // The render cannot be interrupted, but its result is discarded and nothing is downloaded; a new download can start right away.
+  function cancelDownload() { if (job.current) { job.current.cancelled = true; job.current = null; setDownload({ phase: 'cancelled' }) } }
+  if (denied) return <AccessLost onBack={onBack} preserved={sync.state().status !== 'synced' || Boolean(store.read())} />
   const notices = <>
     {templateEditing.notice}
     {recovery && canEdit ? <Notice icon={History} title="Hay una copia local para revisar" description="Se conservó tu trabajo durante la sincronización. Recuperar aplica los cambios locales disponibles sobre el diseño actual; revisa el resultado.">
       <Button size="sm" disabled={!ready} onClick={recover}>Recuperar</Button>
       <Button size="sm" variant="ghost" onClick={retireRecovery}>Descartar</Button>
     </Notice> : null}
-    {error ? <Notice variant="warning" icon={AlertTriangle} title="No se pudo sincronizar un cambio" description={`${error} Los cambios locales se conservan para revisarlos.`}>
+    {lostEdit && !canEdit && !viewerSeen ? <Notice icon={Eye} title="Ahora solo puedes ver este diseño" description="Tu permiso de edición cambió y ya no puedes modificarlo. Los cambios que no llegaron al servidor se conservan en este navegador.">
+      <Button size="sm" variant="ghost" onClick={() => setViewerSeen(true)}>Entendido</Button>
+    </Notice> : null}
+    {error && !(lostEdit && !canEdit) ? <Notice variant="warning" icon={AlertTriangle} title="No se pudo sincronizar un cambio" description={`${error} Los cambios locales se conservan para revisarlos.`}>
       <Button size="sm" variant="ghost" onClick={() => setError('')}>Cerrar</Button>
     </Notice> : null}
     {copyWarning ? <Notice variant="destructive" icon={AlertTriangle} title="Sin copia local" description="No se pudo conservar en este navegador lo que aún no se sincroniza. Mantén esta página abierta hasta que diga «Sincronizado»." /> : null}
-    {exportError ? <Notice variant="destructive" icon={AlertTriangle} title="No se pudo descargar" description={`${exportError} Vuelve a intentarlo cuando el recurso esté disponible.`}>
-      <Button size="sm" variant="ghost" onClick={() => setExportError('')}>Cerrar</Button>
-    </Notice> : null}
+    <DownloadNotice download={download} onCancel={cancelDownload} onClose={() => setDownload(null)} />
   </>
   const chrome = {
     name, nameDisabled: !canEdit || !ready, onBack,
@@ -194,7 +212,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     onCredits: () => openCredits(), onSaveTemplate: ready ? async()=>{try{await ensureSaved();saveAsTemplate.open()}catch(e){setError(e.message)}} : null, exporting, exportDisabled: exporting, notices,
   }
   return <>
-    <StudioWorkspace initial={initial} readOnly={!canEdit} participants={realtime.participants} chrome={chrome}
+    <StudioWorkspace initial={initial} readOnly={!canEdit} participants={realtime.participants} selfId={scope.split(':')[1]} chrome={chrome}
       sharedClipboard={clipboard} authorizePaste={authorizePaste} onEditImage={imageEditing.editImage} catalog={catalog}
       resourcePanel={({ disabled, uploader }) => <StudioCreativeResources key={scope} token={token} designId={record.id} disabled={disabled} uploader={uploader} onFileInsert={insertResource} onVectorInsert={object => editorRef.current.add('vector',object)} />}
       onPointer={realtime.pointer} onSelectionChange={realtime.selection} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
