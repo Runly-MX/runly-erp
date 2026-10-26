@@ -3,6 +3,7 @@ import { Canvas2DRenderer } from '../../../apps/desktop/src/modules/runly.canvas
 import { LIGHT_THEME } from '../../../apps/desktop/src/modules/runly.canvas/engine/theme.js'
 import { appendObject, blankDocument } from '../../../apps/shared/studio/document.js'
 import { Rect, Ellipse } from 'fabric'
+import { STUDIO_FONTS } from '../../../apps/shared/studio/fonts.js'
 
 const fileId = '00000000-0000-4000-8000-000000000005'
 window.studioVerification = async () => {
@@ -128,6 +129,54 @@ window.studioVerification = async () => {
   available=true
   if((await editor.exportImage('jpg',0.9)).type!=='image/jpeg')throw Error('Export retry did not recover')
   await editor.destroy();result.exportRecovery=true
+  let releaseOriginal,signalOriginal,gate=false
+  const originalStarted=new Promise(resolve=>{signalOriginal=resolve})
+  editor=await createStudioEditor(element(),{document:appendObject(blankDocument(64,64),'image',{fileAssetId:fileId,width:40,height:24}),resolveImage:async()=>{
+    if(gate){signalOriginal();return new Promise(resolve=>{releaseOriginal=()=>resolve(imageUrl)})}return imageUrl
+  }})
+  const reviewed=editor.snapshot();editor.select(reviewed.objects[0].id);gate=true
+  const frozenExport=editor.exportImage('png',1,reviewed);await originalStarted
+  let mutationDenied=false
+  try{editor.patch({x:12})}catch(error){mutationDenied=error.message.includes('exportación')}
+  if(!mutationDenied)throw Error('Scene changed while exporting authorized originals')
+  editor.setReadOnly(true);releaseOriginal();await frozenExport
+  let stillRevoked=false;try{editor.patch({x:20})}catch(error){stillRevoked=error.message.includes('solo lectura')}
+  if(!stillRevoked)throw Error('Export restored write access after revocation')
+  editor.setReadOnly(false);editor.select(reviewed.objects[0].id);editor.patch({x:20});let staleCredits=false
+  try{await editor.exportImage('png',1,reviewed)}catch(error){staleCredits=error.message.includes('créditos')}
+  if(!staleCredits)throw Error('Export accepted credits from a different scene')
+  await editor.destroy();result.exportIsolation={frozen:true,revocationPreserved:true,staleCreditsRejected:true}
+  let releaseInsertion,signalInsertion
+  const inserting=new Promise(resolve=>{signalInsertion=resolve})
+  editor=await createStudioEditor(element(),{document:blankDocument(100,100),resolveImage:async()=>{signalInsertion();return new Promise(resolve=>{releaseInsertion=()=>resolve(imageUrl)})}})
+  const insertion=editor.add('image',{fileAssetId:fileId,width:40,height:24});await inserting
+  editor.setReadOnly(true);releaseInsertion();let insertDenied=false
+  try{await insertion}catch(error){insertDenied=error.message.includes('solo lectura')}
+  if(!insertDenied||editor.snapshot().objects.length)throw Error('Revoked asynchronous image insertion changed the scene')
+  await editor.destroy();result.revokedInsertion=true
+  editor=await createStudioEditor(element(),{document:blankDocument(400,200),resolveImage})
+  await editor.add('vector',{iconId:'tabler:square',x:20,y:20,width:80,height:80,geometry:{width:24,height:24,paths:[{d:'M0 0H24V24H0Z',fill:'color',stroke:'none',strokeWidth:0,cap:'butt',join:'miter'}]}})
+  editor.patch({fill:'#d946ef',width:120})
+  const vectorScene=editor.snapshot(),vectorPng=await createImageBitmap(await editor.exportPng()),vectorCanvas=element()
+  vectorCanvas.width=400;vectorCanvas.height=200;vectorCanvas.getContext('2d').drawImage(vectorPng,0,0)
+  if(JSON.stringify([...vectorCanvas.getContext('2d').getImageData(60,60,1,1).data])!==JSON.stringify([217,70,239,255]))throw Error('Vector recolor was not rendered')
+  vectorPng.close();vectorCanvas.remove()
+  await editor.undo();await editor.redo();if(JSON.stringify(editor.snapshot())!==JSON.stringify(vectorScene))throw Error('Vector undo/redo failed')
+  await editor.destroy()
+  editor=await createStudioEditor(element(),{document:vectorScene,resolveImage});if(JSON.stringify(editor.snapshot())!==JSON.stringify(vectorScene))throw Error('Vector reopen failed');await editor.destroy()
+  result.vector={recolorPixels:true,history:true,reopen:true}
+  editor=await createStudioEditor(element(),{document:blankDocument(500,240),resolveImage})
+  await editor.add('text',{x:10,y:20,width:470,height:120,fontSize:48,text:'Ideas que toman forma'})
+  const fonts=[]
+  for(const font of STUDIO_FONTS.filter(font=>font.file)) {
+    editor.select(editor.snapshot().objects[0].id)
+    await editor.patch({fontFamily:font.family})
+    if(editor.snapshot().objects[0].fontFamily!==font.family||!document.fonts.check(`48px "${font.family}"`))throw Error(`Font was not loaded: ${font.family}`)
+    const png=await editor.exportPng(),jpg=await editor.exportImage('jpg',1)
+    if(png.type!=='image/png'||jpg.type!=='image/jpeg')throw Error('Font export failed')
+    fonts.push({family:font.family,pngBytes:png.size,jpgBytes:jpg.size})
+  }
+  await editor.destroy();result.fonts=fonts
   editor=await createStudioEditor(element(),{document:blankDocument(4096,4096),resolveImage})
   const limitStart=performance.now(),limitPng=await editor.exportImage('png'),limitJpg=await editor.exportImage('jpg',0.9)
   const limitImage=await createImageBitmap(limitJpg)
@@ -156,4 +205,18 @@ window.studioVerification = async () => {
     canvas.remove()
   }
   return { ...result, benchmarks }
+}
+
+window.studioFontFailure=async()=>{
+  const canvas=document.createElement('canvas');document.body.append(canvas)
+  const editor=await createStudioEditor(canvas,{document:appendObject(blankDocument(500,240),'text')})
+  editor.select(editor.snapshot().objects[0].id)
+  const before=JSON.stringify(editor.snapshot());let message=''
+  try{await editor.patch({fontFamily:'Pacifico'})}catch(error){message=error.message}
+  if(!message.includes('Pacifico')||JSON.stringify(editor.snapshot())!==before)throw Error('Failed font replaced text or silently substituted')
+  await editor.destroy()
+  const another=document.createElement('canvas');document.body.append(another);let blocked=false
+  try{await createStudioEditor(another,{document:appendObject(blankDocument(),'text',{fontFamily:'Pacifico'})})}catch{blocked=true}
+  if(!blocked)throw Error('Unavailable saved font opened silently with a fallback')
+  return{failedPatchPreservesScene:true,failedReopenBlocksFallback:true}
 }

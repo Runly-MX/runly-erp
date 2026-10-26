@@ -7,6 +7,7 @@ import { catalogUrl, createCatalogNetwork } from './network.js'
 import { createCatalogCache } from './cache.js'
 import { iconGeometry } from './vector.js'
 import { createLocalCatalogFixtureNetwork } from './test-network.js'
+import { isStudioRaster } from '../image-format.js'
 
 const MAX_BYTES=10*1024*1024, MIME={png:'image/png',jpeg:'image/jpeg',webp:'image/webp'}
 const text=(value,max=200)=>typeof value==='string'?value.slice(0,max):''
@@ -60,7 +61,7 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
     if(metadata?.[prefix]?.license?.spdx!==(prefix==='tabler'?'MIT':'ISC'))throw new StudioError('La licencia actual de esta colección necesita revisión.',403)
     cache.set(key,{approved:true})
   }
-  async function original(p,id,freshLicense=false) {
+  async function original(p,id,freshLicense=false,scope) {
     checkedId(p,id)
     if(p==='iconify') {
       const[prefix,name]=id.split(':')
@@ -74,9 +75,13 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
       try{geometry=iconGeometry(icon.body,icon.width??row.width??16,icon.height??row.height??16)}catch{unavailable()}
       return {resource:{...iconSource(id),width:geometry.width,height:geometry.height},geometry}
     }
+    const key=scope?`${scope}:original:openverse:${id}`:null
+    if(key&&!freshLicense){const hit=cache.get(key);if(hit)return hit}
     const raw=await json(`https://api.openverse.org/v1/images/${encodeURIComponent(id)}/`),resource=photo(raw)
     if(!resource||resource.id!==id)throw new StudioError('La licencia o el origen de esta fotografía no están admitidos.',403)
-    return {resource,originalUrl:raw.url,thumbnailUrl:raw.thumbnail}
+    const result={resource,originalUrl:raw.url,thumbnailUrl:raw.thumbnail}
+    if(key)cache.set(key,result)
+    return result
   }
   async function search(companyId,actorId,p,query={}) {
     provider(p)
@@ -94,7 +99,11 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
       }else{
         const response=await json(`https://api.openverse.org/v1/images/?${new URLSearchParams({q,page:String(page),page_size:'24',license:'cc0,pdm,by',license_type:'commercial,modification',mature:'false'})}`)
         if(!Array.isArray(response?.results)||response.results.length>24)unavailable()
-        data=response.results.map(photo).filter(Boolean);hasNext=Number.isInteger(response.page_count)&&page<response.page_count
+        data=response.results.flatMap(raw=>{
+          const resource=photo(raw);if(!resource)return[]
+          cache.set(`${scope}:original:openverse:${resource.id}`,{resource,originalUrl:raw.url,thumbnailUrl:raw.thumbnail})
+          return[resource]
+        });hasNext=Number.isInteger(response.page_count)&&page<response.page_count
       }
       const result={data,pagination:{page,hasNext},collections:p==='iconify'?ICON_COLLECTIONS:[]};cache.set(key,result);return result
     })
@@ -103,13 +112,13 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
     checkedId(p,id)
     return work(companyId,actorId,async scope=>{
       const key=`${scope}:${p}:${id}`,hit=cache.get(key);if(hit)return hit
-      const row=await original(p,id),result={...row.resource,...(row.geometry?{geometry:row.geometry}:{})};cache.set(key,result);return result
+      const row=await original(p,id,false,scope),result={...row.resource,...(row.geometry?{geometry:row.geometry}:{})};cache.set(key,result);return result
     })
   }
   async function thumbnail(companyId,actorId,p,id) {
     checkedId(p,id)
-    return work(companyId,actorId,async()=>{
-      const row=await original(p,id)
+    return work(companyId,actorId,async scope=>{
+      const row=await original(p,id,false,scope)
       if(row.geometry) {
         const{width,height,paths}=row.geometry
         const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${paths.map(path=>`<path d="${path.d}" fill="${path.fill==='color'?'#262626':'none'}" stroke="${path.stroke==='color'?'#262626':'none'}" stroke-width="${path.strokeWidth}" stroke-linecap="${path.cap}" stroke-linejoin="${path.join}"/>`).join('')}</svg>`
@@ -121,6 +130,7 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
   }
   async function checkedImage(response) {
     if(!Object.values(MIME).includes(response.mime)||!response.bytes.length||response.bytes.length>MAX_BYTES)throw new StudioError('Formato o tamaño de imagen no admitido.',413)
+    if(!isStudioRaster(response.bytes,response.mime))throw new StudioError('El archivo no coincide con el formato de imagen declarado.',400)
     try {
       const processor=sharp(response.bytes,{limitInputPixels:25_000_000,animated:false}),metadata=await processor.metadata()
       if(MIME[metadata.format]!==response.mime||!metadata.width||!metadata.height||metadata.width*metadata.height>25_000_000||(metadata.pages??1)>1)throw Error('invalid')
@@ -137,7 +147,7 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
       if(imports.has(key))throw new StudioError('Este recurso se está importando. Espera un momento.',429)
       imports.add(key)
       try {
-        const row=await original(p,id,true) // Never trust a cached or client supplied license on import.
+        const row=await original(p,id,true,scope) // Never trust a cached or client supplied license on import.
         if(p==='iconify'){await authorize(companyId,actorId,designId);return {resource:row.resource,object:{type:'vector',iconId:id,geometry:row.geometry,width:160,height:160*row.geometry.height/row.geometry.width}}}
         const response=await network.get(row.originalUrl,{maxBytes:MAX_BYTES}),{metadata}=await decode(()=>checkedImage(response))
         await authorize(companyId,actorId,designId,true)

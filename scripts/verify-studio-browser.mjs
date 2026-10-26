@@ -11,9 +11,12 @@ const require = createRequire(resolve(root, 'packages/module-compiler/package.js
 const { build } = require('esbuild')
 const output = resolve(root, '.artifacts/studio')
 await mkdir(output, { recursive: true })
-const bundle = await build({ entryPoints: [resolve(root, 'scripts/fixtures/studio/browser.js')], nodePaths: [resolve(root, 'apps/desktop/node_modules')], bundle: true, platform: 'browser', format: 'esm', minify: true, write: false })
+const bundle = await build({ entryPoints: [resolve(root, 'scripts/fixtures/studio/browser.js')], nodePaths: [resolve(root, 'apps/desktop/node_modules')], bundle: true, platform: 'browser', format: 'esm', minify: true, write: false,define:{'import.meta.env.BASE_URL':JSON.stringify('/')} })
 await writeFile(resolve(output, 'renderer-spike.js'), bundle.outputFiles[0].contents)
 const server = createServer((request, response) => {
+  if (/^\/studio-fonts\/(lato|playfairdisplay|bebasneue|pacifico|oswald|spacemono)\.ttf$/.test(request.url)) {
+    readFile(resolve(root,'apps/desktop/public',request.url.slice(1))).then(bytes=>{response.setHeader('Content-Type','font/ttf');response.end(bytes)},()=>{response.writeHead(404);response.end()});return
+  }
   if (request.url === '/fixture.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(bundle.outputFiles[0].contents); return }
   if (request.url === '/favicon.ico') { response.writeHead(204); response.end(); return }
   response.setHeader('Content-Type', 'text/html'); response.end('<!doctype html><html lang="es"><body><script type="module" src="/fixture.js"></script></body></html>')
@@ -34,7 +37,13 @@ try {
   assert.equal(result.png.width, 640); assert.equal(result.png.height, 480)
   assert.deepEqual(result.png.blue, [37, 99, 235, 255])
   assert.deepEqual(result.png.image, [245, 158, 11, 255])
+  assert.equal(result.fonts.length,6);assert.equal(result.vector.recolorPixels,true)
   assert.deepEqual(errors, [])
+  const failedContext=await browser.newContext(),failedPage=await failedContext.newPage()
+  await failedPage.route('**/studio-fonts/pacifico.ttf',route=>route.abort())
+  await failedPage.goto(`http://127.0.0.1:${server.address().port}`)
+  await failedPage.waitForFunction(()=>typeof window.studioFontFailure==='function')
+  result.fontFailure=await failedPage.evaluate(()=>window.studioFontFailure());await failedContext.close()
   await page.screenshot({ path: resolve(output, 'renderer-spike.png'), fullPage: true })
   await writeFile(resolve(output, 'renderer-result.json'), JSON.stringify({ ...result, fixtureBundleBytes: bundle.outputFiles[0].contents.length }, null, 2))
   console.log(JSON.stringify({ checks: 'editable text/shapes/image roundtrip, PNG dimensions and original image pixels', benchmarks: result.benchmarks, fixtureBundleBytes: bundle.outputFiles[0].contents.length }))

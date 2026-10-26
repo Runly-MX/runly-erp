@@ -70,13 +70,14 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       onChange?.(document); selection(); onHistory?.({ ...history.state(), canPaste: clipboard.length > 0 })
     } catch (error) { onError?.(error.message) }
   }
-  async function restore(document) {
+  async function restore(document, requiresWrite = false) {
     const next = validateDocument(document), objects = []
-    try { for (const item of next.objects) objects.push(await build(item)) }
+    try { for (const item of next.objects) objects.push(await build(item)); if(requiresWrite)writable() }
     catch (error) { objects.forEach(object => object.dispose()); throw error }
     if (destroyed) { objects.forEach(object => object.dispose()); return }
     canvas.discardActiveObject(); canvas.getObjects().forEach(object => { canvas.remove(object); object.dispose() })
     current = next; source.clear(); next.objects.forEach(item => source.set(item.id, item))
+    objects.forEach(object=>object.set(flags(source.get(object.studioId))))
     canvas.add(...objects); canvas.setDimensions({ width: next.page.width, height: next.page.height })
     canvas.backgroundColor = next.page.background; canvas.requestRenderAll()
   }
@@ -127,11 +128,12 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     setPanMode(value) { canvas.skipTargetFind = value; canvas.selection = !value; canvas.defaultCursor = value ? 'grab' : 'default' },
     resize(page, scaleContent = false) {
       writable()
-      return enqueue(async () => { const next = resizeDocument(snapshot(), page, scaleContent); await restore(next); changed() })
+      return enqueue(async () => { writable(); const next = resizeDocument(snapshot(), page, scaleContent); await restore(next,true); changed() })
     },
     align(direction, target = 'page') {
       writable()
       return enqueue(async () => {
+        writable()
         const ids = canvas.getActiveObjects().map(object => object.studioId)
         const wanted = new Set(ids)
         canvas.discardActiveObject()
@@ -164,8 +166,10 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     add(type, extra) {
       writable()
       return enqueue(async () => {
+        writable()
         const item = appendObject(snapshot(), type, extra).objects.at(-1), object = await build(item)
         if (destroyed) { object.dispose(); return }
+        try{writable()}catch(error){object.dispose();throw error}
         source.set(item.id, item); canvas.add(object); canvas.setActiveObject(object); canvas.requestRenderAll(); changed()
       })
     },
@@ -222,7 +226,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
           const id = `clip-${Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('')}`
           next = appendObject(next, item.type, { ...properties, id, x: item.x + 20, y: item.y + 20, locked: false, hidden: false })
         }
-        await restore(next); editor.select(next.objects.at(-1).id); changed()
+        await restore(next,true); editor.select(next.objects.at(-1).id); changed()
       })
     },
     duplicate() { editor.copy(); return editor.paste() },
@@ -234,8 +238,8 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       const target = { front: objects.length - 1, back: 0, up: index + 1, down: index - 1 }[direction]
       canvas.moveObjectTo(object, Math.max(0, Math.min(objects.length - 1, target))); canvas.requestRenderAll(); changed()
     },
-    undo() { writable(); return enqueue(async () => { const next = history.peek('undo'); if (next) { await restore(next); history.move('undo'); changed(false) } }) },
-    redo() { writable(); return enqueue(async () => { const next = history.peek('redo'); if (next) { await restore(next); history.move('redo'); changed(false) } }) },
+    undo() { writable(); return enqueue(async () => { writable(); const next = history.peek('undo'); if (next) { await restore(next,true); history.move('undo'); changed(false) } }) },
+    redo() { writable(); return enqueue(async () => { writable(); const next = history.peek('redo'); if (next) { await restore(next,true); history.move('redo'); changed(false) } }) },
     exportImage(format = 'png', quality = 0.9, reviewedScene) {
       return enqueue(async () => {
         if (!['png','jpg'].includes(format) || !Number.isFinite(quality) || quality < 0.1 || quality > 1) throw new Error('Formato o calidad no válidos.')

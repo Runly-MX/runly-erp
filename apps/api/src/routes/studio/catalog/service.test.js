@@ -31,6 +31,8 @@ test('photo import preserves original bytes and server provenance; searches neve
   const{state,service}=fixture();state.bytes=await sharp({create:{width:32,height:24,channels:3,background:'#d946ef'}}).png().toBuffer()
   state.response={results:[row,{...row,license:'by-nc'}],page_count:2}
   const results=await service.search('company-a','actor-a','openverse',{q:'synthetic'});assert.equal(results.data.length,1);assert.equal(state.uploads,0)
+  state.response=null;const before=state.requests
+  await service.thumbnail('company-a','actor-a','openverse',id);assert.equal(state.requests,before+1) // No redundant metadata request for each thumbnail.
   state.response=null;const result=await service.insert('company-a','actor-a','openverse',id,design,{})
   assert.equal(result.file.id,id);assert.equal(result.resource.author,'Autor de prueba');assert.equal(state.uploads,1)
 })
@@ -42,6 +44,10 @@ test('unknown licenses, private URLs, malformed responses, missing resources and
   await assert.rejects(service.insert('company-a','actor-a','openverse',id,design,{}),{status:413});assert.equal(state.uploads,0)
   state.response={icons:'malformed'};await assert.rejects(service.search('company-a','actor-a','iconify',{q:'bad'}),{status:502})
   const missing=fixture({get:async()=>{throw new StudioError('Removed',404)}});await assert.rejects(missing.service.details('company-a','actor-a','openverse',id),{status:404})
+})
+test('SVG disguised as an allowed raster MIME is rejected before image decoding or Files upload',async()=>{
+  const{state,service}=fixture();state.bytes=Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><foreignObject/><image href="file:///etc/passwd"/></svg>')
+  await assert.rejects(service.insert('company-a','actor-a','openverse',id,design,{}),{status:400});assert.equal(state.uploads,0)
 })
 test('revocation while downloading blocks upload and insertion; provider failures preserve no persistent state',async()=>{
   const bytes=await sharp({create:{width:32,height:24,channels:3,background:'#ffffff'}}).png().toBuffer()

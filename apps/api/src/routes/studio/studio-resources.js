@@ -1,5 +1,6 @@
 import sharp from 'sharp'
 import { FILE_ID, StudioError } from '../../../../shared/studio/document.js'
+import { isStudioRaster } from './image-format.js'
 
 const formats = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' }
 const MAX_BYTES = 10 * 1024 * 1024
@@ -44,7 +45,9 @@ export function createStudioResources({ access, filesService, supabaseAdmin }) {
       const { data, error } = await supabaseAdmin.storage.from(row.bucket).download(row.objectKey)
       if (error || !data) throw new StudioError('No se pudo leer la imagen.', 404)
       if (data.size > MAX_BYTES) throw new StudioError('Imagen demasiado grande.', 413)
-      const output = await sharp(Buffer.from(await data.arrayBuffer()), { limitInputPixels: 25_000_000 })
+      const input=Buffer.from(await data.arrayBuffer())
+      if(!isStudioRaster(input,row.mimeType))throw new StudioError('El archivo no coincide con el formato de imagen declarado.',400)
+      const output = await sharp(input, { limitInputPixels: 25_000_000 })
         .rotate().resize(256, 256, { fit: 'inside', withoutEnlargement: true }).png().toBuffer()
       // Permission may have changed while reading Storage; do not return cached bytes on that basis.
       await file(companyId, actorId, id, context)
