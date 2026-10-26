@@ -1,4 +1,16 @@
 import { validateDocument } from '../../../../../shared/studio/document.js'
+import {applyOps,checkOps} from '../../../../../shared/studio/operations.js'
+
+export function recoverDraftDocument(document,draft){
+  if(!draft.operations)return validateDocument(draft.document)
+  const current=validateDocument(document),ops=checkOps(draft.operations,10000),ids=new Set(current.objects.map(o=>o.id))
+  for(const op of ops){
+    if(op.type==='upsert')ids.add(op.object.id)
+    else if(op.type==='remove')ids.delete(op.id)
+    else if(op.type==='patch'&&!ids.has(op.id))throw Error('La copia local incluye objetos eliminados por otra sesión. Se conserva para una recuperación independiente; no se aplicó ni descartó el borrador.')
+  }
+  return validateDocument(applyOps(current,ops))
+}
 
 export function createDraftStorage(storage, scope, now = Date.now) {
   const key = `runly:studio:draft:${scope}`

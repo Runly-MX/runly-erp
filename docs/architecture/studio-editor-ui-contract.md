@@ -92,6 +92,9 @@ esas operaciones sobre el documento actual y no elimina objetos ajenos nuevos.
 No recrea automáticamente un objeto remoto borrado por medio de un parche;
 el snapshot queda conservado para revisar el trabajo. Los borradores históricos
 sin operaciones mantienen su recuperación explícita de snapshot.
+`recoverDraftDocument` rechaza la recuperación si un parche apunta a un objeto
+remoto eliminado y no lo crea antes un upsert del propio borrador. En ese caso
+la UI no limpia la copia ni anuncia éxito. Los objetos nuevos ajenos se conservan.
 
 ### Historial, MCP, plantillas y geometría
 

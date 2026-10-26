@@ -58,6 +58,11 @@ El resultado completo sigue pasando `validateDocument` y autorización de Files.
   más los paquetes compartidos del runner.
   Esta ejecución usa el árbol local, incluidos los cambios concurrentes presentes;
   la foto E2E de producto se fija por separado al commit indicado más abajo.
+- Seguimiento posterior a la foto E2E: tres pruebas de `draft-storage` aprobadas
+  verifican también la guarda de recuperación de objetos eliminados. Si no se
+  puede aplicar el parche, no se limpia el snapshot; recuperar una copia válida
+  conserva objetos añadidos por otra persona. No se suma esta ejecución solapada
+  al total de la suite completa.
 - `node scripts/verify-studio-browser.mjs`: Chrome y Fabric reales; v6, fuentes,
   fotos, máscaras, gradientes, grupos, portapapeles, undo y PNG/JPG. Se añade fallo
   remoto de imagen con escena intacta, carga posterior y undo selectivo.

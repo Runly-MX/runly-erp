@@ -1,11 +1,10 @@
 import { documentAssetIds } from '../../../../../shared/studio/shape-properties.js'
-import {applyOps,checkOps} from '../../../../../shared/studio/operations.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, ErrorState, ConfirmDialog } from '@runly/ui'
 import { AlertTriangle, History } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { StudioWorkspace } from './StudioWorkspace.jsx'
-import { createDraftStorage } from '../lib/draft-storage.js'
+import { createDraftStorage, recoverDraftDocument } from '../lib/draft-storage.js'
 import { useStudioRealtime } from '../hooks/useStudioRealtime.js'
 import { useStudioSync } from '../hooks/useStudioSync.js'
 import { StudioSharing } from './StudioSharing.jsx'
@@ -115,7 +114,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     return sync.state().document
   }
   async function recover() {
-    try { await editorRef.current.load(recovery.operations?applyOps(sync.state().document,checkOps(recovery.operations,2000)):recovery.document); if (recovery.name && recovery.name !== nameRef.current) { nameRef.current = recovery.name; setName(recovery.name); sync.rename(recovery.name) } collisions.clear();setRecovery(null) }
+    try { await editorRef.current.load(recoverDraftDocument(sync.state().document,recovery)); if (recovery.name && recovery.name !== nameRef.current) { nameRef.current = recovery.name; setName(recovery.name); sync.rename(recovery.name) } collisions.clear();setRecovery(null) }
     catch (failure) { setError(failure.message) }
   }
   const revoked = useCallback(() => { preserve();sync.deny(); setDenied(true) }, [preserve,sync])
