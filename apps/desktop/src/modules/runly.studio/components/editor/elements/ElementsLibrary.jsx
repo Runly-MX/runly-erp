@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { SearchInput, Skeleton, Tooltip, TooltipContent, TooltipTrigger, cn } from '@runly/ui'
-import { ChevronDown, FileUp, Shapes } from 'lucide-react'
+import { ChevronDown, FileUp, Pipette, Shapes } from 'lucide-react'
+import { useEyedropper, useRecentColors } from '../../../lib/studio-colors.js'
 import { scheduled } from '../../../lib/resource-queue.js'
 import { BASIC_SHAPES, BLOCKS, ELEMENT_COLORS, FIGURES, FIGURE_GROUPS, LINE_BODIES, LINE_DASHES, LINE_ENDS, LINE_WEIGHTS, matches, normalizeQuery } from '../../../lib/element-library.js'
 import { FramesGrid } from '../image/FramesGrid.jsx'
@@ -120,6 +121,7 @@ function BlockPreview({ block, color }) {
 // "Elementos": searchable library with one color for new elements.
 export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLine, onAddBlock, onFrame, onImportSvg, loadThumbnail }) {
   const [search, setSearch] = useState(''), [color, setColor] = useState(ELEMENT_COLORS[0])
+  const recent = useRecentColors(), dropper = useEyedropper()
   const [dash, setDash] = useState('solid'), [ends, setEnds] = useState('none'), [weight, setWeight] = useState(8)
   const svgInput = useRef(null)
   const query = normalizeQuery(search)
@@ -133,11 +135,17 @@ export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLi
     <div className="space-y-5">
       <SearchInput value={search} onChange={event => setSearch(event.target.value)} onClear={() => setSearch('')} placeholder="Buscar formas, líneas, bloques…" aria-label="Buscar elementos" maxLength={60} />
       <div role="radiogroup" aria-label="Color para los nuevos elementos" className="flex flex-wrap gap-1.5">
-        {ELEMENT_COLORS.map(hex => (
+        {[...new Set([...ELEMENT_COLORS, ...recent])].slice(0, 20).map(hex => (
           <button key={hex} type="button" role="radio" aria-checked={color === hex} aria-label={`Color ${hex}`} onClick={() => setColor(hex)}
             className={cn('h-7 w-7 rounded-full border border-black/10 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] dark:border-white/20 motion-reduce:transition-none',
               color === hex && 'ring-2 ring-[hsl(var(--foreground))] ring-offset-2 ring-offset-[hsl(var(--card))]')} style={{ backgroundColor: hex }} />
         ))}
+        {dropper.available ? (
+          <button type="button" aria-label="Tomar un color con el cuentagotas" title="Cuentagotas" onClick={async () => { const hex = await dropper.pick(); if (hex) setColor(hex) }}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">
+            <Pipette className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
       </div>
       {nothing ? <p className="rounded-xl border border-dashed border-[hsl(var(--border))] p-4 text-center text-sm text-[hsl(var(--muted-foreground))]">Nada coincide con «{search.trim()}». Prueba en Imágenes → Iconos.</p> : null}
 

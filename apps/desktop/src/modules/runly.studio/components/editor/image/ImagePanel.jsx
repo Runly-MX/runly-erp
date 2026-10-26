@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Button, EmptyState, NumberStepper, SegmentedControl, SliderRow, cn } from '@runly/ui'
-import { ChevronDown, ImageIcon, RotateCcw } from 'lucide-react'
+import { Button, EmptyState, NumberStepper, SegmentedControl, SliderRow, Switch, ToolButton, cn } from '@runly/ui'
+import { ChevronDown, Crop, FlipHorizontal2, FlipVertical2, ImageIcon, RotateCcw, RotateCw, WandSparkles } from 'lucide-react'
 import { imageProperties } from '../../../../../../../shared/studio/image-properties.js'
 import { FILTER_PRESETS, activeFilter, adjustmentsCss } from '../../../lib/frame-shapes.js'
 import { ColorPopover } from '../StudioColorPicker.jsx'
 
-const TABS = [{ value: 'filters', label: 'Filtros' }, { value: 'adjust', label: 'Ajustes' }, { value: 'effects', label: 'Efectos' }]
+const TABS = [{ value: 'crop', label: 'Recorte' }, { value: 'filters', label: 'Filtros' }, { value: 'adjust', label: 'Ajustes' }, { value: 'effects', label: 'Efectos' }]
 const SHADOWS = [
   { value: 'none', label: 'Ninguna', shadow: { blur: 0, offsetX: 0, offsetY: 0, color: '#000000' } },
   { value: 'soft', label: 'Suave', shadow: { blur: 32, offsetX: 0, offsetY: 14, color: '#64748b' } },
@@ -62,7 +62,46 @@ function Adjustments({ props, disabled, api }) {
         className="flex min-h-10 w-full items-center justify-between rounded-md text-sm font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">
         Más ajustes<ChevronDown className={cn('h-4 w-4 transition-transform duration-200 motion-reduce:transition-none', more && 'rotate-180')} />
       </button>
-      {more ? slider('blur', 'Desenfoque', { min: 0, format: value => `${value}` }) : null}
+      {more ? (
+        <div className="space-y-2">
+          {slider('blur', 'Desenfoque', { min: 0, format: value => `${value}` })}
+          {[['grayscale', 'Blanco y negro'], ['sepia', 'Sepia']].map(([key, label]) => (
+            <label key={key} className="flex min-h-10 items-center justify-between text-sm">
+              {label}<Switch checked={Boolean(a[key])} disabled={disabled} onCheckedChange={checked => api.adjust({ [key]: checked })} aria-label={label} />
+            </label>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function CropTab({ props, disabled, api }) {
+  const rotate = step => api.image({ rotation: ((Math.round(props.rotation / 90) * 90 + step + 540) % 360) - 180 })
+  const straighten = Math.round(props.rotation - Math.round(props.rotation / 90) * 90)
+  return (
+    <div className="space-y-5">
+      <Button variant="outline" className="h-11 w-full gap-2" disabled={disabled} onClick={api.startFraming}><Crop />Mover y acercar la foto en el marco</Button>
+      <p className="-mt-3 text-xs text-[hsl(var(--muted-foreground))]">También con doble clic sobre la foto. Para cambiar el recorte, ajusta el marco con sus tiradores.</p>
+      <div className="space-y-2">
+        <Heading>Girar y voltear</Heading>
+        <div className="grid grid-cols-4 gap-1">
+          <ToolButton label="Girar a la izquierda" side="bottom" disabled={disabled} onClick={() => rotate(-90)} className="h-11 w-full"><RotateCcw /></ToolButton>
+          <ToolButton label="Girar a la derecha" side="bottom" disabled={disabled} onClick={() => rotate(90)} className="h-11 w-full"><RotateCw /></ToolButton>
+          <ToolButton label="Voltear en horizontal" side="bottom" active={props.flipX} disabled={disabled} onClick={() => api.image({ flipX: !props.flipX })} className="h-11 w-full"><FlipHorizontal2 /></ToolButton>
+          <ToolButton label="Voltear en vertical" side="bottom" active={props.flipY} disabled={disabled} onClick={() => api.image({ flipY: !props.flipY })} className="h-11 w-full"><FlipVertical2 /></ToolButton>
+        </div>
+        <SliderRow label="Enderezar" min={-45} max={45} zero={0} value={straighten} format={value => `${value}°`} disabled={disabled}
+          onStart={api.begin} onCommit={api.end} onChange={value => api.image({ rotation: Math.round(props.rotation / 90) * 90 + value })} />
+      </div>
+      <div className="space-y-2">
+        <Heading>Foto en el marco</Heading>
+        <SegmentedControl ariaLabel="Ajuste de la foto en el marco" value={props.fit} disabled={disabled} onChange={fit => api.image({ fit })}
+          options={[{ value: 'cover', label: 'Rellenar' }, { value: 'contain', label: 'Completa' }]} />
+        <SliderRow label="Zoom" min={50} max={400} zero={100} step={5} value={Math.round(props.zoom * 100)} format={value => `${value} %`} disabled={disabled}
+          onStart={api.begin} onCommit={api.end} onChange={value => api.image({ zoom: value / 100 })} />
+        <Button variant="ghost" size="sm" disabled={disabled} onClick={api.resetFraming} className="gap-1.5"><RotateCcw className="h-3.5 w-3.5" />Restablecer recorte y giro</Button>
+      </div>
     </div>
   )
 }
@@ -102,10 +141,15 @@ export function ImagePanel({ selection, imageUrl, tab, onTab, disabled, api }) {
   const props = imageProperties(selection.image ?? {})
   return (
     <div className="space-y-4">
-      <SegmentedControl ariaLabel="Herramientas de imagen" options={TABS} value={tab} onChange={onTab} />
+      <SegmentedControl ariaLabel="Herramientas de imagen" options={TABS} value={tab} onChange={onTab} className="w-full [&_button]:min-w-0 [&_button]:px-1.5 [&_button]:text-xs" />
+      {tab === 'crop' ? <CropTab props={props} disabled={disabled} api={api} /> : null}
       {tab === 'filters' ? <Filters props={props} imageUrl={imageUrl} disabled={disabled} onApply={api.filter} /> : null}
       {tab === 'adjust' ? <Adjustments key={selection.id} props={props} disabled={disabled} api={api} /> : null}
       {tab === 'effects' ? <Effects selection={selection} props={props} disabled={disabled} api={api} /> : null}
+      <div className="space-y-2 border-t border-[hsl(var(--border))] pt-4">
+        <Button variant="outline" className="h-11 w-full gap-2" disabled={disabled} onClick={api.editImage}><WandSparkles />Editor avanzado</Button>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">Dibujo, retoque, viñeta, calidez y recorte libre se guardan como una copia; el original queda en Files.</p>
+      </div>
     </div>
   )
 }

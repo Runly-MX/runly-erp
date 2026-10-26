@@ -47,7 +47,7 @@ export function FramesGrid({ activeKey, imageUrl, disabled, onPick, columns = 4,
             {group.frames.map(preset => {
               const active = preset.key === activeKey
               return (
-                <button key={preset.key} type="button" disabled={disabled} onClick={() => onPick(preset)} aria-pressed={active} title={preset.label} aria-label={preset.label}
+                <button key={preset.key} type="button" disabled={disabled} onClick={() => onPick(preset)} aria-pressed={active} title={preset.label} aria-label={`Marco ${preset.label.toLowerCase()}`}
                   className={cn('group flex flex-col items-center gap-1 rounded-xl p-1.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none disabled:opacity-50',
                     active ? 'bg-fuchsia-500/12 text-fuchsia-700 dark:text-fuchsia-300' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]')}>
                   <span className="aspect-square w-full p-1 transition-transform duration-200 group-hover:scale-105 group-active:scale-95 motion-reduce:transition-none">

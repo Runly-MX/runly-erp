@@ -54,19 +54,26 @@ export function useStudioViewport(page, editorRef) {
     editorRef.current?.setPanMode(hand)
     return () => { window.removeEventListener('keydown', keydown); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', reset); editorRef.current?.setPanMode(false) }
   }, [hand, editorRef])
+  const [panning, setPanning] = useState(false)
+  // Pan with the hand tool, Space + drag, or holding the middle mouse button
+  // (wheel click) in any tool, as in other design editors.
   function down(event) {
-    if (!(hand || space.current) || event.button !== 0) return
+    const middle = event.button === 1
+    if (!middle && (!(hand || space.current) || event.button !== 0)) return
     event.preventDefault(); event.stopPropagation()
     drag.current = { x: event.clientX, y: event.clientY, left: viewport.current.scrollLeft, top: viewport.current.scrollTop }
-    viewport.current.setPointerCapture(event.pointerId)
+    viewport.current.setPointerCapture(event.pointerId); setPanning(true)
   }
+  const stop = () => { drag.current = null; setPanning(false) }
   function move(event) {
     if (!drag.current) return
     event.preventDefault(); event.stopPropagation()
     viewport.current.scrollLeft = drag.current.left - event.clientX + drag.current.x
     viewport.current.scrollTop = drag.current.top - event.clientY + drag.current.y
   }
-  return { viewport, paper, zoom, hand, setHand, center, fit, size,
+  return { viewport, paper, zoom, hand, setHand, center, fit, size, panning,
     changeZoom: value => { fitMode.current = false; changeZoom(value) },
-    gestures: { onPointerDownCapture: down, onPointerMoveCapture: move, onPointerUpCapture: () => { drag.current = null }, onPointerCancel: () => { drag.current = null } } }
+    // onAuxClick/onMouseDown keep the browser's middle-click autoscroll and link-open away.
+    gestures: { onPointerDownCapture: down, onPointerMoveCapture: move, onPointerUpCapture: stop, onPointerCancel: stop,
+      onMouseDownCapture: event => { if (event.button === 1) event.preventDefault() }, onAuxClick: event => event.preventDefault() } }
 }

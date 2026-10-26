@@ -22,7 +22,7 @@ export function ZoomPill({ zoom, onZoom, onFit, hand, onHand, compact = false })
       {compact ? null : <ToolButton label="Acercar" shortcut="Ctrl+rueda" onClick={() => onZoom(zoom * 1.2)}><Plus /></ToolButton>}
       <span aria-hidden className="mx-0.5 h-6 w-px bg-[hsl(var(--border))]" />
       <ToolButton label="Ajustar a la pantalla" onClick={onFit} className={compact ? 'h-10 w-10' : undefined}><Maximize /></ToolButton>
-      <ToolButton label="Mover la vista" shortcut="Espacio" active={hand} onClick={() => onHand(!hand)} className={compact ? 'h-10 w-10' : undefined}><Hand /></ToolButton>
+      <ToolButton label="Mover la vista (o mantén la rueda del ratón)" shortcut="H" active={hand} onClick={() => onHand(!hand)} className={compact ? 'h-10 w-10' : undefined}><Hand /></ToolButton>
     </div>
   )
 }

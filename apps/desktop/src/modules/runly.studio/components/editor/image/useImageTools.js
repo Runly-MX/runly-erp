@@ -19,11 +19,21 @@ export function useImageTools({ editorRef, selection, objects, resolveImage, rea
   // Signed URL of the selected photo, for previews (filters, frames).
   const [urls, setUrls] = useState({})
   const fileId = selection?.type === 'image' ? selection.fileAssetId : null
+  // Signed URLs expire in 60 s, so previews use a local blob URL fetched once.
+  const blobs = useRef(new Map())
+  useEffect(() => () => { for (const url of blobs.current.values()) URL.revokeObjectURL(url) }, [])
   useEffect(() => {
     if (!fileId || urls[fileId]) return undefined
-    let active = true
-    Promise.resolve(resolveImage(fileId)).then(url => { if (active && url) setUrls(current => ({ ...current, [fileId]: url })) }).catch(() => {})
-    return () => { active = false }
+    const controller = new AbortController()
+    ;(async () => {
+      const signed = await resolveImage(fileId)
+      const response = await fetch(signed, { signal: controller.signal })
+      if (!response.ok) throw Error('preview unavailable')
+      const local = URL.createObjectURL(await response.blob())
+      if (controller.signal.aborted) { URL.revokeObjectURL(local); return }
+      blobs.current.set(fileId, local); setUrls(current => ({ ...current, [fileId]: local }))
+    })().catch(() => {})
+    return () => controller.abort()
   }, [fileId, resolveImage, urls])
 
   // Natural size of the selected photo (framing limits and the outside "ghost").

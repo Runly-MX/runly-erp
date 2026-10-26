@@ -14,6 +14,8 @@ import { PageSettingsForm } from './editor/PageSettingsForm.jsx'
 import { SelectionBar } from './editor/SelectionBar.jsx'
 import { ZoomPill } from './editor/ZoomPill.jsx'
 import { FadeSwap, SidePanel } from './editor/SidePanel.jsx'
+import { CanvasColorSampler } from './editor/CanvasColorSampler.jsx'
+import { EyedropperContext, nativeEyedropper, rememberColor, toHex } from '../lib/studio-colors.js'
 import { StudioContextMenu } from './editor/StudioContextMenu.jsx'
 import { useImageTools } from './editor/image/useImageTools.js'
 import { ImagePanel } from './editor/image/ImagePanel.jsx'
@@ -107,6 +109,18 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     if (!ready || busy || event.target.closest('input,textarea,[contenteditable=true]') || editorRef.current?.isEditingText()) return
     if (event.key === 'Escape' && viewMode.isImmersive) { viewMode.stepBack(); return }
     if ((event.key === 'Delete' || event.key === 'Backspace') && hasSelection && !readOnly) { event.preventDefault(); setConfirm(true); return }
+    // Tools without modifiers: H = mover vista, V = seleccionar.
+    if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+      if (event.key === 'h' || event.key === 'H') { event.preventDefault(); view.setHand(true); return }
+      if (event.key === 'v' || event.key === 'V') { event.preventDefault(); view.setHand(false); return }
+      // I = cuentagotas: colorea la selección con el color tomado.
+      if ((event.key === 'i' || event.key === 'I') && selection && selection.type !== 'image' && !selection.locked && !readOnly) {
+        event.preventDefault()
+        const target = selection.id
+        pickColor().then(color => { if (color && editorRef.current) attempt(async () => { editorRef.current.select(target); editorRef.current.patch({ fill: color }) }) })
+        return
+      }
+    }
     if (!(event.ctrlKey || event.metaKey)) return
     const key = event.key.toLowerCase()
     if (key === 'a') { event.preventDefault(); editorRef.current.selectAll(); return }
@@ -128,7 +142,12 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   }
   // Photo tools: contextual "image" panel (not a rail item), framing mode, frames.
   const [imageTab, setImageTab] = useState('filters')
-  const openImagePanel = (tab, key = 'image') => { if (tab) setImageTab(tab); setPanel(key) }
+  // Photo tools live in Propiedades when it is docked; otherwise in the left panel / sheet.
+  const openImagePanel = (tab, key = 'image') => {
+    if (tab) setImageTab(tab)
+    if (key === 'image' && wide && inspectorOpen) { setPanel(current => (current === 'image' ? null : current)); return }
+    setPanel(key)
+  }
   const imageKit = useImageTools({ editorRef, selection, objects, resolveImage, readOnly, onError: setError, openPanel: openImagePanel,
     ensureSaved: chrome.saveState === 'saved' ? null : () => chrome.onSave() })
   const uploader = <FileUploader accept="image/png,image/jpeg,image/webp" maxSizeMB={10} disabled={blocked} emptyLabel="Subir imagen" hint="PNG, JPG o WebP. Se conserva el original." onUpload={upload} />
@@ -160,8 +179,24 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const inspector = <StudioInspector selection={selection} selectedCount={selectedIds.length} page={page} busy={busy || !ready} readOnly={readOnly} canPaste={history.canPaste}
     onPatch={patch => attempt(() => editorRef.current.patch(patch))} onRemove={() => setConfirm(true)}
     onAction={action => attempt(() => editorRef.current[action]())} onOrder={direction => attempt(() => editorRef.current.order(direction))}
-    onAlign={(direction, target) => attempt(() => editorRef.current.align(direction, target))} onOpenPage={() => { setPanel('page'); setInspectorSheet(false) }} />
+    onAlign={(direction, target) => attempt(() => editorRef.current.align(direction, target))} onOpenPage={() => { setPanel('page'); setInspectorSheet(false) }}
+    photoTools={selection?.type === 'image' && !readOnly ? panels.image : null} />
+  // Eyedropper fallback + colors already used in the design (for every color picker).
+  const [sampling, setSampling] = useState(null)
+  const pickFromCanvas = useCallback(() => new Promise(resolve => setSampling(() => resolve)), [])
+  const documentColors = [...new Set([page.background, ...objects.map(object => object.fill), ...objects.map(object => object.image?.border?.width ? object.image.border.color : null)]
+    .filter(color => /^#[0-9a-f]{6}$/i.test(color ?? '')).map(color => color.toLowerCase()))]
+  const colorContext = { pickFromCanvas, documentColors }
+  const finishSampling = color => { sampling?.(color); setSampling(null) }
+  async function pickColor() {
+    let color = null
+    if (nativeEyedropper()) { try { color = (await new window.EyeDropper().open()).sRGBHex } catch { return null } } else color = await pickFromCanvas()
+    color = toHex(color)
+    if (color) rememberColor(color)
+    return color
+  }
   return (
+    <EyedropperContext.Provider value={colorContext}>
     <div role="application" aria-label="Editor gráfico de Studio" tabIndex={-1} onKeyDown={shortcut}
       className={cn('flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))] outline-none', viewMode.isImmersive ? 'fixed inset-0 z-50 h-dvh' : 'h-full')}>
       <StudioTopBar phone={phone} {...chrome} canEdit={!readOnly} history={history} participants={[...new Map(participants.map(user => [user.userId, user])).values()]}
@@ -192,7 +227,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
           <div ref={view.viewport} {...view.gestures} aria-label="Lienzo" className="absolute inset-0 overflow-auto overscroll-contain"
             // Double-click a photo: isolate it and move/scale it inside its frame.
             onDoubleClick={() => { if (selection?.type === 'image' && !selection.locked && !readOnly && !imageKit.framing) imageKit.tools.startFraming() }}
-            style={{ ...DOTS, touchAction: view.hand ? 'none' : 'auto', cursor: view.hand ? 'grab' : undefined }}>
+            style={{ ...DOTS, touchAction: view.hand ? 'none' : 'auto', cursor: view.panning ? 'grabbing' : view.hand ? 'grab' : undefined }}>
             <div style={{ position: 'relative', width: Math.max(view.size.width, page.width * zoom + 96), height: Math.max(view.size.height, page.height * zoom + 96) }}>
               <div ref={view.paper} className="shadow-[0_12px_48px_-12px_rgb(0_0_0/0.35)] ring-1 ring-black/5"
                 style={{ position: 'absolute', left: Math.max(48, (view.size.width - page.width * zoom) / 2), top: Math.max(48, (view.size.height - page.height * zoom) / 2), transform: `scale(${zoom})`, transformOrigin: 'top left', width: page.width, height: page.height }}>
@@ -212,6 +247,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
             </div>
           </div>
           </StudioContextMenu>
+          {sampling ? <CanvasColorSampler canvas={canvasRef.current} onPick={finishSampling} onCancel={() => finishSampling(null)} /> : null}
           {!ready && !error ? <div className="pointer-events-none absolute inset-0 flex items-center justify-center"><Skeleton className="aspect-square w-2/5 max-w-sm" /></div> : null}
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center gap-2 px-2 pt-2 sm:px-4 sm:pt-3">
             {imageKit.framing ? (
@@ -265,5 +301,6 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
       <ConfirmDialog open={confirm} onOpenChange={setConfirm} title="Eliminar selección" description="Se eliminarán los elementos seleccionados del diseño. Puedes deshacerlo con Ctrl+Z."
         confirmLabel="Eliminar" onConfirm={() => attempt(() => { editorRef.current.remove(); setConfirm(false) })} />
     </div>
+    </EyedropperContext.Provider>
   )
 }

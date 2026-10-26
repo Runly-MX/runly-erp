@@ -53,7 +53,8 @@ function Alignment({ count, disabled, onAlign }) {
   )
 }
 
-export function StudioInspector({ selection, selectedCount, page, busy, readOnly, canPaste, onPatch, onRemove, onAction, onOrder, onAlign, onOpenPage }) {
+// `photoTools`: live photo editing (crop, filters, adjustments, effects) shown first for images.
+export function StudioInspector({ selection, selectedCount, page, busy, readOnly, canPaste, onPatch, onRemove, onAction, onOrder, onAlign, onOpenPage, photoTools }) {
   const locked = Boolean(selection?.locked), disabled = busy || readOnly
   if (!selection && selectedCount < 2) {
     return (
@@ -101,6 +102,7 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
         <ToolButton label={selection.hidden ? 'Mostrar' : 'Ocultar'} side="bottom" disabled={disabled} onClick={() => onPatch({ hidden: !selection.hidden })}>{selection.hidden ? <EyeOff /> : <Eye />}</ToolButton>
         <ToolButton label={locked ? 'Desbloquear' : 'Bloquear'} side="bottom" active={locked} disabled={disabled} onClick={() => onPatch({ locked: !locked })}>{locked ? <Lock /> : <Unlock />}</ToolButton>
       </div>
+      {photoTools && !locked ? <div className="border-b border-[hsl(var(--border))] px-4 py-4">{photoTools}</div> : null}
       {selection.type === 'text' ? (
         <Section title="Texto">
           <Textarea aria-label="Texto del elemento" rows={3} disabled={editable} value={selection.text} onChange={event => onPatch({ text: event.target.value })} />
