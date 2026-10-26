@@ -6,7 +6,8 @@ import { StudioWorkspace } from './StudioWorkspace.jsx'
 import { createDraftStorage } from '../lib/draft-storage.js'
 import { useStudioRealtime } from '../hooks/useStudioRealtime.js'
 import { StudioSharing } from './StudioSharing.jsx'
-import { StudioResources } from './StudioResources.jsx'
+import { StudioCreativeResources } from './StudioCreativeResources.jsx'
+import { StudioCredits } from './StudioCredits.jsx'
 import { createScopedClipboard } from '../lib/scoped-clipboard.js'
 import { useStudioNavigation } from '../hooks/useStudioNavigation.js'
 
@@ -29,6 +30,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   const [recovery, setRecovery] = useState(() => store.read()), [copyWarning, setCopyWarning] = useState(false)
   const [workspaceVersion, setWorkspaceVersion] = useState(0)
   const [ready, setReady] = useState(false)
+  const [credits,setCredits]=useState(null)
   const [canEdit, setCanEdit] = useState(record.canEdit !== false), [denied, setDenied] = useState(false)
   const dirtyRef = useRef(false), refreshing = useRef(false)
   const initialAssets = useMemo(() => new Set(record.document.objects.filter(object => object.type === 'image').map(object => object.fileAssetId)), [record.document])
@@ -70,11 +72,11 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   async function save(asCopy = false) {
     if (!editorRef.current || saving.current || (!asCopy && (!canEdit || conflict))) return
     saving.current = true; setBusy(true); setError('')
-    const sent = generation.current
     try {
       const editor = editorRef.current
       await editor.flush()
       if (editorRef.current !== editor) return
+      const sent = generation.current
       const draft = { name, document: editor.snapshot(), revision: revision.current }
       pending.current = draft; preserve()
       const saved = unwrap(await (asCopy ? runly.studio.createDesign({ name: `${name.slice(0, 145)} (copia)`, document: draft.document, sourceDesignId: record.id }, token) :
@@ -137,11 +139,17 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     const scale = Math.min(1, initial.page.width / width / 2, initial.page.height / height / 2)
     await editorRef.current.add('image', { fileAssetId: asset.id, width: width * scale, height: height * scale })
   }
-  async function exportImage(format, quality) {
+  async function openCredits(action) {
+    const editor=editorRef.current
+    if(!editor)return
+    try {await editor.flush();if(editorRef.current===editor)setCredits({scene:editor.snapshot(),action})}
+    catch(error){setExportError(error.message)}
+  }
+  async function exportImage(format, quality, reviewedScene) {
     if (!editorRef.current || exporting) return
     setExporting(true); setExportError('')
     try {
-      const blob = await editorRef.current.exportImage(format, quality), url = URL.createObjectURL(blob)
+      const blob = await editorRef.current.exportImage(format, quality, reviewedScene), url = URL.createObjectURL(blob)
       const link = Object.assign(document.createElement('a'), { href: url, download: `${name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 80) || 'diseño'}.${format}` })
       link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (error) { setExportError(error.message) } finally { setExporting(false) }
@@ -168,14 +176,16 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     onName: value => { nameRef.current = value; setName(value); if (editorRef.current) changed(editorRef.current.snapshot()) },
     saveState: busy ? 'saving' : dirty ? 'dirty' : 'saved', live: realtime.status,
     onSave: () => save(), saveDisabled: !ready || !canEdit || busy || conflict,
-    onShare: () => setShareOpen(true), onExport: exportImage, exporting, exportDisabled: exporting, notices,
+    onShare: () => openCredits({kind:'share'}), onExport: (format,quality) => openCredits({kind:'export',format,quality}),
+    onCredits: () => openCredits(), exporting, exportDisabled: exporting, notices,
   }
   return <>
     <StudioWorkspace key={workspaceVersion} initial={initial} readOnly={!canEdit} participants={realtime.participants} chrome={chrome}
       sharedClipboard={clipboard} authorizePaste={authorizePaste}
-      resourcePanel={({ disabled, uploader }) => <StudioResources key={scope} token={token} disabled={disabled} uploader={uploader} onInsert={insertResource} />}
+      resourcePanel={({ disabled, uploader }) => <StudioCreativeResources key={scope} token={token} designId={record.id} disabled={disabled} uploader={uploader} onFileInsert={insertResource} onVectorInsert={object => editorRef.current.add('vector',object)} />}
       onPointer={realtime.pointer} onSelectionChange={realtime.selection} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
     <StudioSharing record={record} token={token} open={shareOpen} onOpenChange={setShareOpen} />
+    {credits?<StudioCredits id={record.id} token={token} scene={credits.scene} action={credits.action} onClose={()=>setCredits(null)} onContinue={()=>{const {action,scene}=credits;setCredits(null);if(action.kind==='share')setShareOpen(true);else exportImage(action.format,action.quality,scene)}}/>:null}
     <ConfirmDialog open={navigation.pending} onOpenChange={open => { if (!open) navigation.cancel() }} title="Salir sin guardar" description={copyWarning ? 'No se pudo conservar la copia local. Si sales puedes perder estos cambios. Cancela y guarda antes de continuar.' : 'Los cambios pendientes se conservarán en una copia local en este navegador durante siete días.'}
       confirmLabel="Salir" onConfirm={navigation.proceed} />
     <Dialog open={Boolean(server)} onOpenChange={open => { if (!open) setServer(null) }}>

@@ -12,10 +12,27 @@ diseños por nombre. Las tarjetas de **Tus diseños** muestran una vista previa;
 permite abrir o **Duplicar**. Las medidas son píxeles, de 32 a 4096 por lado: son
 dimensiones de pantalla, no medidas de impresión ni una promesa de DPI.
 
+La biblioteca de **Plantillas** tiene su propio buscador y categorías. Abre una
+vista previa y pulsa **Usar plantilla**: creas una copia editable e independiente.
+Modificarla no cambia la plantilla original.
+
 En el editor, la barra lateral (abajo en el teléfono) abre los paneles **Elementos**
 (formas, líneas y bandas), **Texto** (título, subtítulo y párrafo), **Imágenes** (subir
 PNG, JPG o WebP, o insertar imágenes tuyas o de la empresa sin volver a subirlas),
 **Capas** (seleccionar, mostrar u ocultar y bloquear) y **Página** (tamaño y fondo).
+
+Dentro de **Imágenes**, **Archivos** reúne tus archivos y los de la empresa;
+**Fotos** busca fotografías en Openverse e **Iconos** permite buscar en las
+colecciones Tabler y Lucide de Iconify. Abre un recurso para revisar autor,
+licencia y origen. Insertar una fotografía guarda su original en Files; insertar
+un icono conserva geometría editable dentro del diseño. Puedes cambiar su color,
+tamaño, rotación y orden como con las formas. La biblioteca consulta páginas bajo
+demanda; si un catálogo falla, puedes seguir editando los diseños ya guardados.
+
+**Texto** y **Propiedades** permiten elegir seis fuentes locales: Lato, Playfair
+Display, Bebas Neue, Pacifico, Oswald y Space Mono, además de la fuente del sistema.
+La muestra utiliza la fuente seleccionada. Por ahora se ofrece la variante regular;
+si una fuente no puede cargarse, Studio muestra el error y permite reintentar.
 
 Clic derecho (o mantener pulsado en pantallas táctiles) sobre un elemento abre su menú:
 copiar, pegar, duplicar, organizar, alinear, bloquear, ocultar, propiedades y eliminar.
@@ -39,6 +56,12 @@ borrador se conserva; revisa la versión del servidor o guarda una copia.
 
 **Descargar** ofrece PNG y JPG al 100, 90 o 70 %. Ambos usan las dimensiones exactas de
 la página y los originales autorizados, no miniaturas.
+
+Antes de descargar o compartir se muestran los **Créditos del diseño**: puedes
+copiarlos o descargar un TXT. Las fotos admitidas son CC0, dominio público o CC BY;
+los recursos con licencias no compatibles se excluyen. Conserva las atribuciones
+que correspondan al publicar. Los créditos se entregan por separado de los píxeles
+del PNG/JPG. La exportación espera las fuentes, sin sustituirlas silenciosamente.
 
 Si sales, cambias de módulo o empresa con cambios pendientes, debes confirmar.
 Recargar/cerrar utiliza el aviso del navegador. La copia local dura hasta siete días;

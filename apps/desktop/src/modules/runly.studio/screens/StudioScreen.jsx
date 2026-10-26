@@ -5,7 +5,6 @@ import { ErrorState, Skeleton } from '@runly/ui'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
-import { templateDocument } from '../../../../../shared/studio/templates.js'
 import { DesignEditor } from '../components/DesignEditor.jsx'
 import { StudioHome } from '../components/home/StudioHome.jsx'
 import { blankDocument, validateDocument } from '../../../../../shared/studio/document.js'
@@ -15,7 +14,6 @@ const unwrap = response => response?.data ?? response
 // kind: 'format' | 'template' | 'custom' | 'copy'
 function draftFor(kind, value) {
   if (kind === 'copy') return value
-  if (kind === 'template') return { name: value.name, document: templateDocument(value.key) }
   if (kind === 'custom') return { name: 'Diseño sin título', document: validateDocument({ ...blankDocument(), page: value }) }
   return { name: value.label ? `${value.label} sin título` : 'Diseño sin título', document: blankDocument(value.width, value.height) }
 }
@@ -41,7 +39,7 @@ export default function StudioScreen() {
   async function create(kind, value, rethrow = false) {
     setCreating(kind === 'format' || kind === 'template' ? value.key : kind)
     try {
-      const record = unwrap(await runly.studio.createDesign(draftFor(kind, value), token))
+      const record = unwrap(await (kind === 'template' ? runly.studio.createFromTemplate(value.key, token) : runly.studio.createDesign(draftFor(kind, value), token)))
       setParams({ design: record.id })
     } catch (error) { if (rethrow) throw error; toast.error(error.message) } finally { setCreating(null) }
   }

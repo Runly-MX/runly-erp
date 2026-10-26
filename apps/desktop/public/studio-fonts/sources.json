@@ -1,0 +1,54 @@
+{
+  "repository": "https://github.com/google/fonts",
+  "commit": "e7db6ca603fd4862010383ff17ffd6cc4ffac1c0",
+  "fonts": [
+    {
+      "family": "Lato",
+      "file": "lato.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/lato/Lato-Regular.ttf",
+      "sha256": "d636e4683231f931eda222d588e944d082bfd3bdba02f928bee461c0f185b251",
+      "bytes": 656568
+    },
+    {
+      "family": "Playfair Display",
+      "file": "playfairdisplay.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/playfairdisplay/PlayfairDisplay%5Bwght%5D.ttf",
+      "sha256": "c40f2293766a503bc70cce9e512ef844a4ccb7cbcde792fe2ea31d191917d8d6",
+      "bytes": 300724
+    },
+    {
+      "family": "Bebas Neue",
+      "file": "bebasneue.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/bebasneue/BebasNeue-Regular.ttf",
+      "sha256": "08e4623805102d819f58601e46e345648846075e363b2ceb23313c2d1c83ec73",
+      "bytes": 61400
+    },
+    {
+      "family": "Pacifico",
+      "file": "pacifico.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/pacifico/Pacifico-Regular.ttf",
+      "sha256": "5b6c0d5334a7bf77dea52b975c5a0c408878c0f7115ed5b6fb151f634b7bf701",
+      "bytes": 329380
+    },
+    {
+      "family": "Oswald",
+      "file": "oswald.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/oswald/Oswald%5Bwght%5D.ttf",
+      "sha256": "5b38c246e255a12f5712d640d56bcced0472466fc68983d2d0410ec0457c2817",
+      "bytes": 172088
+    },
+    {
+      "family": "Space Mono",
+      "file": "spacemono.ttf",
+      "license": "OFL-1.1",
+      "source": "https://raw.githubusercontent.com/google/fonts/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/spacemono/SpaceMono-Regular.ttf",
+      "sha256": "95837e182baeeada83368f7748db28357f0a1b75c6b84ff7065b5edf933c8e18",
+      "bytes": 99356
+    }
+  ]
+}

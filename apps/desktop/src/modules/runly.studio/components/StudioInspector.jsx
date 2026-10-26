@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { StudioColorPicker } from './editor/StudioColorPicker.jsx'
 import { OBJECT_META } from './editor/LayersPanel.jsx'
+import { StudioFontPicker } from './StudioFontPicker.jsx'
 
 const ALIGN = [
   ['left', 'Alinear a la izquierda', AlignStartVertical], ['center', 'Centrar horizontalmente', AlignCenterVertical], ['right', 'Alinear a la derecha', AlignEndVertical],
@@ -103,6 +104,7 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
       </div>
       {selection.type === 'text' ? (
         <Section title="Texto">
+          <StudioFontPicker value={selection.fontFamily} disabled={editable} onChange={fontFamily => onPatch({fontFamily})} />
           <Textarea aria-label="Texto del elemento" rows={3} disabled={editable} value={selection.text} onChange={event => onPatch({ text: event.target.value })} />
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs font-medium text-[hsl(var(--muted-foreground))]">Tamaño de letra</span>

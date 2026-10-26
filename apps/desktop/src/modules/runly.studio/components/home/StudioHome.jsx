@@ -92,7 +92,7 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen }) {
           {designsSection}
           <section aria-labelledby="studio-templates-title">
             <SectionTitle id="studio-templates-title" title="Plantillas para inspirarte" description="Todo es editable: cambia textos, colores, formas e imágenes." />
-            <TemplateGrid creating={creating} onUse={template => onCreate('template', template)} />
+            <TemplateGrid token={token} scopeKey={scopeKey} creating={creating} onUse={template => onCreate('template', template)} />
           </section>
         </>
       )}

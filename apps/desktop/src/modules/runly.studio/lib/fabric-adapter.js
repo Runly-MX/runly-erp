@@ -1,26 +1,40 @@
-import { Canvas, Rect, Ellipse, Textbox, FabricImage, ActiveSelection } from 'fabric'
+import { Canvas, Rect, Ellipse, Textbox, FabricImage, ActiveSelection, Group, Path } from 'fabric'
 import { appendObject, validateDocument } from '../../../../../shared/studio/document.js'
 import { resizeDocument } from '../../../../../shared/studio/page.js'
 import { createDocumentHistory } from './document-history.js'
+import { ensureStudioFont } from './studio-fonts.js'
 
 // Fabric owns interaction; only the canonical Runly scene enters history or storage.
 export async function createStudioEditor(element, { document, resolveImage, onChange, onSelection, onError, onHistory, onPointer, readOnly = false, sharedClipboard, authorizePaste }) {
-  let protectedMode = readOnly
-  const writable = () => { if (protectedMode) throw new Error('Diseño de solo lectura.') }
+  let protectedMode = readOnly, exportingNow = false
+  const writable = () => {
+    if (protectedMode) throw new Error('Diseño de solo lectura.')
+    if (exportingNow) throw new Error('Espera a que termine la exportación.')
+  }
   let current = validateDocument(document), destroyed = false, history, clipboard = []
   let queue = Promise.resolve()
   const canvas = new Canvas(element, { width: current.page.width, height: current.page.height,
     backgroundColor: current.page.background, preserveObjectStacking: true, enableRetinaScaling: false })
   const source = new Map()
   const flags = item => ({ visible: !item.hidden, selectable: !item.locked, evented: !item.locked,
-    lockMovementX: item.locked || protectedMode, lockMovementY: item.locked || protectedMode, lockScalingX: item.locked || protectedMode, lockScalingY: item.locked || protectedMode,
-    lockRotation: item.locked || protectedMode, editable: !item.locked && !protectedMode })
+    lockMovementX: item.locked || protectedMode || exportingNow, lockMovementY: item.locked || protectedMode || exportingNow, lockScalingX: item.locked || protectedMode || exportingNow, lockScalingY: item.locked || protectedMode || exportingNow,
+    lockRotation: item.locked || protectedMode || exportingNow, editable: !item.locked && !protectedMode && !exportingNow })
   async function build(item) {
     const options = { left: item.x, top: item.y, angle: item.rotation, fill: item.fill, originX: 'left', originY: 'top' }
     let object
-    if (item.type === 'text') object = new Textbox(item.text, { ...options, width: item.width, fontSize: item.fontSize, fontFamily: 'sans-serif', scaleX: item.scaleX, scaleY: item.scaleY })
+    if (item.type === 'text') {
+      await ensureStudioFont(item.fontFamily)
+      object = new Textbox(item.text, { ...options, width: item.width, fontSize: item.fontSize, fontFamily: item.fontFamily, fontWeight:400, fontStyle:'normal', scaleX: item.scaleX, scaleY: item.scaleY })
+    }
     else if (item.type === 'rectangle') object = new Rect({ ...options, width: item.width, height: item.height })
     else if (item.type === 'ellipse') object = new Ellipse({ ...options, rx: item.width / 2, ry: item.height / 2 })
+    else if (item.type === 'vector') {
+      const { width,height,paths } = item.geometry
+      const shapes = [new Rect({ left:0,top:0,width,height,fill:'transparent',strokeWidth:0 })]
+      for (const path of paths) shapes.push(new Path(path.d, { fill:path.fill==='color'?item.fill:null, stroke:path.stroke==='color'?item.fill:null, strokeWidth:path.strokeWidth, strokeLineCap:path.cap, strokeLineJoin:path.join }))
+      object = new Group(shapes, { ...options, subTargetCheck:false, interactive:false })
+      object.set({ scaleX:item.width/object.width,scaleY:item.height/object.height })
+    }
     else {
       try { object = await FabricImage.fromURL(await resolveImage(item.fileAssetId), { crossOrigin: 'anonymous' }) }
       catch { throw new Error('No se pudo cargar la imagen original. Comprueba el archivo y reintenta.') }
@@ -46,7 +60,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
   }
   function selection() {
     const active = canvas.getActiveObject()
-    if (active?.type === 'activeselection') active.set({ lockMovementX: protectedMode, lockMovementY: protectedMode, lockScalingX: true, lockScalingY: true, lockRotation: true })
+    if (active?.type === 'activeselection') active.set({ lockMovementX: protectedMode || exportingNow, lockMovementY: protectedMode || exportingNow, lockScalingX: true, lockScalingY: true, lockRotation: true })
     onSelection?.(selected(), canvas.getActiveObjects().map(object => object.studioId))
   }
   function changed(record = true) {
@@ -85,7 +99,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     flush: () => queue,
     setReadOnly(value) {
       protectedMode = value; canvas.getObjects().forEach(object => object.set(flags(source.get(object.studioId))))
-      if (canvas.getActiveObject()?.type === 'activeselection') canvas.getActiveObject().set({ lockMovementX: value, lockMovementY: value })
+      if (canvas.getActiveObject()?.type === 'activeselection') canvas.getActiveObject().set({ lockMovementX: value || exportingNow, lockMovementY: value || exportingNow })
       canvas.requestRenderAll()
     },
     select(id) {
@@ -97,7 +111,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       const wanted = new Set(ids)
       const objects = canvas.getObjects().filter(object => wanted.has(object.studioId) && !source.get(object.studioId)?.hidden && !source.get(object.studioId)?.locked)
       if (objects.length === 1) canvas.setActiveObject(objects[0])
-      else if (objects.length > 1) canvas.setActiveObject(new ActiveSelection(objects, { canvas, lockMovementX: protectedMode, lockMovementY: protectedMode, lockScalingX: true, lockScalingY: true, lockRotation: true }))
+      else if (objects.length > 1) canvas.setActiveObject(new ActiveSelection(objects, { canvas, lockMovementX: protectedMode || exportingNow, lockMovementY: protectedMode || exportingNow, lockScalingX: true, lockScalingY: true, lockRotation: true }))
       canvas.requestRenderAll(); selection()
     },
     // Context menu: select what is under the pointer, keeping a multi-selection
@@ -163,7 +177,17 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       if (original.locked && Object.keys(patch).some(key => !['locked', 'hidden'].includes(key))) return
       const next = validateDocument({ ...snapshot(), objects: snapshot().objects.map(item => item.id === object.studioId ? { ...item, ...patch } : item) })
       const item = next.objects.find(item => item.id === object.studioId)
+      if (item.type === 'text' && item.fontFamily !== original.fontFamily) return enqueue(async () => {
+        await ensureStudioFont(item.fontFamily); writable()
+        if (destroyed || !canvas.getObjects().includes(object)) return
+        // Preserve intervening edits and selection while the font downloads.
+        const latest=source.get(item.id)
+        if(latest.locked)return
+        source.set(item.id,{...latest,fontFamily:item.fontFamily})
+        object.set({fontFamily:item.fontFamily});object.setCoords();canvas.requestRenderAll();changed()
+      })
       object.set({ left: item.x, top: item.y, angle: item.rotation, fill: item.fill, ...flags(item) })
+      if(item.type==='vector') object.getObjects().slice(1).forEach((shape,index) => { const path=item.geometry.paths[index];shape.set({fill:path.fill==='color'?item.fill:null,stroke:path.stroke==='color'?item.fill:null}) })
       if (item.type === 'text') object.set({ text: item.text, fontSize: item.fontSize, width: item.width, scaleX: item.scaleX, scaleY: item.scaleY })
       else {
         if (patch.width !== undefined) object.set({ scaleX: item.width / object.width })
@@ -212,9 +236,13 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     },
     undo() { writable(); return enqueue(async () => { const next = history.peek('undo'); if (next) { await restore(next); history.move('undo'); changed(false) } }) },
     redo() { writable(); return enqueue(async () => { const next = history.peek('redo'); if (next) { await restore(next); history.move('redo'); changed(false) } }) },
-    exportImage(format = 'png', quality = 0.9) {
+    exportImage(format = 'png', quality = 0.9, reviewedScene) {
       return enqueue(async () => {
         if (!['png','jpg'].includes(format) || !Number.isFinite(quality) || quality < 0.1 || quality > 1) throw new Error('Formato o calidad no válidos.')
+        if(reviewedScene && JSON.stringify(snapshot())!==JSON.stringify(validateDocument(reviewedScene)))throw new Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
+        exportingNow = true; editor.setReadOnly(protectedMode)
+        try {
+        for(const family of new Set(snapshot().objects.filter(item=>item.type==='text').map(item=>item.fontFamily))) await ensureStudioFont(family)
         // Refresh every original capability before rendering; a cached bitmap is not fresh authorization.
         for (const id of new Set(snapshot().objects.filter(item => item.type === 'image').map(item => item.fileAssetId))) {
           try { const original = await FabricImage.fromURL(await resolveImage(id), { crossOrigin: 'anonymous' }); original.dispose() }
@@ -222,7 +250,8 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
         }
         canvas.discardActiveObject(); canvas.renderAll()
         const output = canvas.toCanvasElement(1)
-        return new Promise((resolve, reject) => output.toBlob(blob => { output.width = 0; output.height = 0; blob ? resolve(blob) : reject(new Error('No se pudo exportar el diseño.')) }, format === 'jpg' ? 'image/jpeg' : 'image/png', quality))
+        return await new Promise((resolve, reject) => output.toBlob(blob => { output.width = 0; output.height = 0; blob ? resolve(blob) : reject(new Error('No se pudo exportar el diseño.')) }, format === 'jpg' ? 'image/jpeg' : 'image/png', quality))
+        } finally { exportingNow = false; editor.setReadOnly(protectedMode) }
       })
     },
     exportPng() { return editor.exportImage('png') },

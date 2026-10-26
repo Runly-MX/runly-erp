@@ -50,7 +50,7 @@ function ExportItems({ onExport }) {
   ))
 }
 
-export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, live, canEdit, onBack, onSave, saveDisabled, onShare, onExport, exporting, exportDisabled,
+export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, live, canEdit, onBack, onSave, saveDisabled, onShare, onCredits, onExport, exporting, exportDisabled,
   history, onUndo, onRedo, participants, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode }) {
   const nameField = (
     <Input aria-label="Nombre del diseño" value={name} maxLength={160} disabled={nameDisabled} onChange={event => onName(event.target.value)}
@@ -81,6 +81,7 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, liv
             <DropdownMenuLabel className="font-normal"><SaveState state={saveState} live={live} /></DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onShare} className="gap-2.5"><Share2 className="h-4 w-4" />Compartir</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onCredits}>Créditos del diseño</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Descargar</DropdownMenuLabel>
             {exportDisabled ? null : <ExportItems onExport={onExport} />}
@@ -107,7 +108,7 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, liv
             {exporting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Download className="h-4 w-4" />}<span className="max-md:sr-only">Descargar</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-64"><DropdownMenuLabel>Descargar como</DropdownMenuLabel><ExportItems onExport={onExport} /></DropdownMenuContent>
+        <DropdownMenuContent align="end" className="min-w-64"><DropdownMenuItem onSelect={onCredits}>Créditos del diseño</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuLabel>Descargar como</DropdownMenuLabel><ExportItems onExport={onExport} /></DropdownMenuContent>
       </DropdownMenu>
       {canEdit ? <Button onClick={onSave} disabled={saveDisabled} className="h-9 shrink-0 gap-1.5 bg-gradient-to-r from-fuchsia-600 to-violet-600 px-3.5 text-white hover:from-fuchsia-500 hover:to-violet-500">
         {saveState === 'saving' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Save className="h-4 w-4" />}Guardar

@@ -19,11 +19,12 @@ test('all original templates are canonical, distinct and editable', () => {
 })
 test('invalid scenes, binary URLs, oversized scenes and duplicate ids fail closed', () => {
   const doc = appendObject(blankDocument(), 'rectangle')
-  for (const invalid of [null, {}, { ...doc, schemaVersion: 3 }, { ...doc, unit: 'mm' },
+  for (const invalid of [null, {}, { ...doc, schemaVersion: 999 }, { ...doc, unit: 'mm' },
     { ...doc, page: { ...doc.page, width: 100000 } },
     { ...doc, objects: [doc.objects[0], doc.objects[0]] },
     { ...doc, objects: [{ ...doc.objects[0], x: Infinity }] },
     { ...doc, objects: [{ ...doc.objects[0], fill: 'url(https://example.com)' }] },
+    { ...doc, objects: [{ ...doc.objects[0], fill: {toString:'invalid'} }] },
     { ...doc, objects: [{ ...doc.objects[0], type: 'image', fileAssetId: 'data:image/png;base64,test' }] },
     { ...doc, objects: Array.from({ length: 501 }, (_, n) => ({ ...doc.objects[0], id: `o${n}` })) }]) {
     assert.throws(() => validateDocument(invalid), { code: 'STUDIO_INVALID' })

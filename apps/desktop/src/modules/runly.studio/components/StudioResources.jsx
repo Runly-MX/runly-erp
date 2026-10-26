@@ -3,23 +3,10 @@ import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogH
   DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger, EmptyState, ErrorState, SearchInput, SegmentedControl, Skeleton, ToolButton, cn } from '@runly/ui'
 import { ChevronLeft, ChevronRight, Expand, ImageOff, Images, ListFilter, Loader2, Plus, RefreshCw } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
+import { scheduled } from '../lib/resource-queue.js'
 
 const unwrap = response => response?.data ?? response
 // Limit simultaneous decoding/downloads even when many cards enter the viewport.
-const waiting = []
-let active = 0
-function pump() {
-  while (active < 2 && waiting.length) {
-    const job = waiting.shift()
-    if (job.signal.aborted) { job.reject(new DOMException('Cancelado', 'AbortError')); continue }
-    active++
-    job.work().then(job.resolve, job.reject).finally(() => { active--; pump() })
-  }
-}
-function scheduled(work, signal) {
-  if (waiting.length >= 48) return Promise.reject(new Error('Vuelve a abrir la biblioteca.'))
-  return new Promise((resolve, reject) => { waiting.push({ work, signal, resolve, reject }); pump() })
-}
 
 const FORMATS = [{ value: 'all', label: 'Todos los formatos' }, { value: 'png', label: 'PNG' }, { value: 'jpg', label: 'JPG' }, { value: 'webp', label: 'WebP' }]
 

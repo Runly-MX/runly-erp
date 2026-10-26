@@ -8,6 +8,9 @@ function Item({ item }) {
   const transform = `translate(${item.x} ${item.y}) rotate(${item.rotation ?? 0})`
   if (item.type === 'rectangle') return <rect transform={transform} width={item.width} height={item.height} fill={item.fill} />
   if (item.type === 'ellipse') return <ellipse transform={transform} cx={item.width / 2} cy={item.height / 2} rx={item.width / 2} ry={item.height / 2} fill={item.fill} />
+  if (item.type === 'vector') return <g transform={`${transform} scale(${item.width / item.geometry.width} ${item.height / item.geometry.height})`}>
+    {item.geometry.paths.map((path,index) => <path key={index} d={path.d} fill={path.fill === 'color' ? item.fill : 'none'} stroke={path.stroke === 'color' ? item.fill : 'none'} strokeWidth={path.strokeWidth} strokeLinecap={path.cap} strokeLinejoin={path.join} />)}
+  </g>
   if (item.type === 'image') {
     return <g transform={transform}>
       <rect width={item.width} height={item.height} className="fill-[hsl(var(--muted-foreground))]" opacity="0.22" />
@@ -18,7 +21,7 @@ function Item({ item }) {
   // Fabric Textbox: unscaled width, then scaleX/scaleY; lineHeight 1.16.
   return <g transform={`${transform} scale(${item.scaleX ?? 1} ${item.scaleY ?? 1})`}>
     <foreignObject width={item.width} height={Math.max(item.height, item.fontSize * 1.2)}>
-      <div style={{ color: item.fill, fontSize: item.fontSize, lineHeight: 1.16, fontFamily: 'sans-serif', whiteSpace: 'pre-wrap', overflowWrap: 'break-word' }}>{item.text}</div>
+      <div style={{ color: item.fill, fontSize: item.fontSize, lineHeight: 1.16, fontFamily: item.fontFamily ?? 'sans-serif', whiteSpace: 'pre-wrap', overflowWrap: 'break-word' }}>{item.text}</div>
     </foreignObject>
   </g>
 }

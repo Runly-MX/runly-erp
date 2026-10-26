@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { cn } from '@runly/ui'
+import { StudioFontPicker } from '../StudioFontPicker.jsx'
 
 const SHAPE_COLORS = ['#d946ef', '#7c3aed', '#2563eb', '#14b8a6', '#f97316', '#1e293b']
 const TILE = 'flex items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] transition-[transform,background-color,border-color] duration-150 hover:border-fuchsia-500/40 hover:bg-[hsl(var(--muted))] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
@@ -45,12 +47,14 @@ const TEXT_STYLES = [
 ]
 
 export function TextPanel({ disabled, onAdd }) {
+  const [fontFamily,setFontFamily]=useState('sans-serif')
   return (
     <div className="space-y-2">
       <Heading>Estilos de texto</Heading>
+      <StudioFontPicker value={fontFamily} disabled={disabled} onChange={setFontFamily}/>
       {TEXT_STYLES.map(style => (
         <button key={style.label} type="button" disabled={disabled}
-          onClick={() => onAdd('text', { text: style.text, fontSize: style.fontSize, width: style.width, height: Math.ceil(style.fontSize * 1.2), fill: '#0f172a' })}
+          onClick={() => onAdd('text', { text: style.text, fontSize: style.fontSize, width: style.width, height: Math.ceil(style.fontSize * 1.2), fill: '#0f172a',fontFamily })}
           className={cn(TILE, 'min-h-14 w-full justify-start px-4 py-3 text-left text-[hsl(var(--foreground))]', style.className)}>
           {style.label}
         </button>

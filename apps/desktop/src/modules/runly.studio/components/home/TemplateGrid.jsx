@@ -1,32 +1,48 @@
-import { useMemo } from 'react'
-import { Loader2, Wand2 } from 'lucide-react'
-import { STUDIO_TEMPLATES, templateDocument } from '../../../../../../shared/studio/templates.js'
+import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, ErrorState, SearchInput, Skeleton } from '@runly/ui'
+import { ChevronLeft, ChevronRight, SearchX, Wand2 } from 'lucide-react'
+import { runly } from '../../../../lib/runly.js'
 import { StudioThumbnail } from '../StudioThumbnail.jsx'
 import { sizeLabel } from '../../lib/formats.js'
 
-export function TemplateGrid({ creating, onUse }) {
-  const templates = useMemo(() => STUDIO_TEMPLATES.map(template => ({ ...template, document: templateDocument(template.key) })), [])
-  return (
+export function TemplateGrid({ token, scopeKey, creating, onUse }) {
+  const [search, setSearch] = useState(''), [q, setQ] = useState(''), [category, setCategory] = useState('all'), [page, setPage] = useState(1), [preview, setPreview] = useState(null)
+  useEffect(() => { const timer = setTimeout(() => { setQ(search); setPage(1) }, 300); return () => clearTimeout(timer) }, [search])
+  const catalog = useQuery({ queryKey: ['studio', ...scopeKey, 'templates', q, category, page], gcTime: 60000, staleTime: 60000,
+    queryFn: async ({ signal }) => (await runly.studio.templates(token, { q, category, page }, signal)).data, enabled: Boolean(token), retry: false })
+  const result = catalog.data
+  return <div className="space-y-4">
+    <SearchInput value={search} onChange={event => setSearch(event.target.value)} onClear={() => setSearch('')} placeholder="Buscar plantillas" aria-label="Buscar plantillas" maxLength={80} />
+    <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Categorías de plantillas">
+      {['all', ...(result?.categories ?? [])].map(value => <Button key={value} size="sm" variant={category === value ? 'secondary' : 'ghost'} aria-pressed={category === value}
+        className="shrink-0" onClick={() => { setCategory(value); setPage(1) }}>{value === 'all' ? 'Todas' : value}</Button>)}
+    </div>
+    {catalog.isPending ? <div className="grid grid-cols-2 gap-4 md:grid-cols-6" aria-label="Cargando plantillas" aria-busy="true">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="aspect-[4/5]" />)}</div> : null}
+    {catalog.error ? <ErrorState title="No se pudieron cargar las plantillas" description={catalog.error.message} onRetry={catalog.refetch} /> : null}
+    {result && !result.data.length ? <EmptyState icon={SearchX} title="Sin plantillas con estos filtros" description="Prueba otra búsqueda o categoría." /> : null}
     <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-6">
-      {templates.map(template => (
-        <li key={template.key} className="flex">
-          <button
-            type="button" disabled={Boolean(creating)} onClick={() => onUse(template)} aria-label={`Usar plantilla ${template.name}`}
-            className="group flex w-full flex-col rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none disabled:opacity-60"
-          >
-            <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-gradient-to-b from-[hsl(var(--muted)/0.35)] to-[hsl(var(--muted)/0.8)] p-4 transition-[box-shadow,border-color] duration-200 group-hover:border-fuchsia-500/40 group-hover:shadow-md">
-              <div className="flex h-full w-full items-center justify-center transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100">
-                <StudioThumbnail document={template.document} frameRatio={4 / 5} />
-              </div>
-              <span className="absolute inset-x-3 bottom-3 flex items-center justify-center gap-1.5 rounded-full bg-[hsl(var(--foreground))] py-2 text-xs font-semibold text-[hsl(var(--background))] opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:hidden">
-                {creating === template.key ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" /> : <Wand2 className="h-3.5 w-3.5" />}Usar plantilla
-              </span>
-            </div>
-            <p className="mt-2 truncate px-0.5 text-sm font-semibold text-[hsl(var(--foreground))]">{template.name}</p>
-            <p className="px-0.5 text-xs tabular-nums text-[hsl(var(--muted-foreground))]">{sizeLabel(template)}</p>
-          </button>
-        </li>
-      ))}
+      {result?.data.map(template => <li key={template.key}>
+        <button type="button" onClick={() => setPreview(template)} aria-label={`Ver plantilla ${template.name}`} className="group w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">
+          <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.5)] p-4 transition-colors group-hover:border-fuchsia-500/40">
+            <StudioThumbnail document={template.document} frameRatio={4 / 5} />
+          </div>
+          <p className="mt-2 truncate text-sm font-semibold">{template.name}</p>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">{template.category} · {sizeLabel(template)}</p>
+        </button>
+      </li>)}
     </ul>
-  )
+    {result?.pagination.totalPages > 1 ? <nav className="flex items-center justify-center gap-2" aria-label="Paginación de plantillas">
+      <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(value => value - 1)}><ChevronLeft />Anterior</Button>
+      <span className="text-sm">{page} / {result.pagination.totalPages}</span>
+      <Button size="sm" variant="outline" disabled={page >= result.pagination.totalPages} onClick={() => setPage(value => value + 1)}>Siguiente<ChevronRight /></Button>
+    </nav> : null}
+    <Dialog open={Boolean(preview)} onOpenChange={open => { if (!open) setPreview(null) }}>
+      <DialogContent size="md">
+        <DialogHeader><DialogTitle>{preview?.name}</DialogTitle><DialogDescription>{preview?.description}</DialogDescription></DialogHeader>
+        {preview ? <><div className="flex h-72 justify-center"><StudioThumbnail document={preview.document} /></div><p className="text-xs text-[hsl(var(--muted-foreground))]">{preview.creator} · Original · Versión {preview.version} · {sizeLabel(preview)}{preview.licenses?.length?` · Recursos: ${preview.licenses.join(', ')}`:''}</p></> : null}
+        <DialogFooter><Button variant="outline" onClick={() => setPreview(null)}>Cerrar</Button><Button disabled={Boolean(creating)} onClick={() => onUse(preview)}><Wand2 />{creating ? 'Creando…' : 'Usar plantilla'}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
 }

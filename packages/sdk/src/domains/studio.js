@@ -3,6 +3,13 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
   const options = (token, method = 'GET', data) => ({ method, headers: withAuthHeaders(token), onlineOnly: true,
     ...(data === undefined ? {} : { body: JSON.stringify(data) }) })
   return {
+    catalogSearch: (provider, token, query = {}, signal) => request(`/studio/catalog/${encodeURIComponent(provider)}/search${toQueryString(query)}`, { ...options(token), signal }),
+    catalogDetails: (provider, id, token, signal) => request(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}`, { ...options(token), signal }),
+    catalogThumbnail: (provider, id, token, signal) => requestBlob(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}/thumbnail`, { ...options(token), signal }),
+    catalogImport: (provider, id, designId, token) => request(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}/import`, options(token, 'POST', { designId })),
+    credits: (id, document, token) => request(`${path(id)}/credits`, options(token, 'POST', { document })),
+    templates: (token, query = {}, signal) => request(`/studio/templates${toQueryString(query)}`, { ...options(token), signal }),
+    createFromTemplate: (key, token) => request(`/studio/templates/${encodeURIComponent(key)}/designs`, options(token, 'POST', {})),
     resources: (token, query = {}, signal) => request(`/studio/resources${toQueryString(query)}`, { ...options(token), signal }),
     thumbnail: (id, token, signal) => requestBlob(`/studio/resources/${encodeURIComponent(id)}/thumbnail`, { ...options(token), signal }),
     listDesigns: (token, query = {}) => request(`/studio/designs${toQueryString(query)}`, options(token)),

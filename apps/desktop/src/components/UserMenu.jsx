@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { isNativeMobile } from "@runly/core/native-runtime";
-import { Moon as MoonIcon, SmilePlus, ChevronDown, User, Settings, LogOut, Monitor, Download, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug, Server, ShieldCheck, PlugZap } from "lucide-react";
+import { Moon as MoonIcon, SmilePlus, ChevronDown, User, Settings, LogOut, Download, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug, Server, ShieldCheck, PlugZap } from "lucide-react";
 import { toast } from "sonner";
 import { native } from "../native/index.js";
 import { useThemeStore } from "../stores/theme";
@@ -297,23 +297,17 @@ export function UserMenu({
         {showWindowsApp && (
           <>
             <DropdownMenuSeparator />
-            <div className="px-2 py-2 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <Monitor size={12} className="text-[hsl(var(--muted-foreground))] shrink-0" />
-                  <p className="text-xs font-medium text-[hsl(var(--foreground))]">App de escritorio</p>
-                </div>
-              </div>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] leading-snug">
-                Descarga la app nativa para Windows y conéctala a esta instancia.
-              </p>
+            <div className="px-2 py-1.5">
               <Button
                 type="button"
                 onClick={handleDesktopDownload}
-                className="w-full justify-start text-xs"
+                className="h-auto w-full justify-start gap-2 py-1.5 text-left"
               >
-                <Download size={11} />
-                Descargar para Windows
+                <Download size={14} className="shrink-0" />
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold leading-tight">Descargar para Windows</span>
+                  <span className="block truncate text-[10px] font-normal leading-tight opacity-80">App de escritorio para esta instancia</span>
+                </span>
               </Button>
             </div>
           </>
