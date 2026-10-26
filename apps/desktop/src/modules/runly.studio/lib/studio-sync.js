@@ -2,7 +2,7 @@ import { validateDocument } from '../../../../../shared/studio/document.js'
 import { applyOps, checkOps, compactOps, diffOps } from '../../../../../shared/studio/operations.js'
 
 // One immutable uncertain batch; newer edits stay in a separate outbox.
-export function createStudioSync({document,revision,name,clientId,transport,editor,onStatus,onName,onError,onConflict,onRevision,
+export function createStudioSync({document,revision,name,clientId,actorId,transport,editor,onStatus,onName,onError,onConflict,onRevision,
   storage,storageKey,delay=80,gapTimeout=1500,retry=attempt=>Math.min(8000,500*2**attempt),timers=globalThis}) {
   let server=validateDocument(document),local=server,sequence=revision,title=name,outbox=[],outboxName,batch=null,nextBatch=1
   let inflight=false,closed=false,blocked=null,renderError=null,rendering=0,flushTimer,gapTimer,retryTimer,attempt=0,status='synced',render=Promise.resolve(),resyncing=null,version=0
@@ -93,7 +93,7 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
   }
   function receive(message){
     if(closed||blocked||!Number.isSafeInteger(message?.revision))return
-    if(batch&&message.clientId===batch.clientId&&message.batchId===batch.id)batch=null
+    if(batch&&message.clientId===batch.clientId&&message.batchId===batch.id&&message.actorId===actorId)batch=null
     if(message.revision<=sequence){settle();return}
     if(buffered.size>=128&&!buffered.has(message.revision)){resync();return}
     buffered.set(message.revision,message);drain()
@@ -107,7 +107,7 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
         if(message.refetch){resync();return}
         checkOps(message.ops??[])
         const affected=message.ops??[]
-        if(message.clientId!==clientId&&collides(affected)){remember('last-write-wins');touched.clear()}
+        if((message.clientId!==clientId||message.actorId!==actorId)&&collides(affected)){remember('last-write-wins');touched.clear()}
         server=validateDocument(applyOps(server,affected));sequence=message.revision;applied=true
         if(message.name!==undefined&&outboxName===undefined&&batch?.name===undefined&&message.name!==title){title=message.name;onName?.(title)}
       }
@@ -141,13 +141,13 @@ export function createStudioSync({document,revision,name,clientId,transport,edit
   }
   return {
     local(document){
-      if(closed||blocked)return
+      if(closed)return
       const next=validateDocument(document),ops=diffOps(local,next);local=next;version++
       if(!ops.length)return
       for(const op of ops)if(op.type==='patch')for(const key of [...Object.keys(op.set),...(op.unset??[])])touched.add(`${op.id}:${key}`)
-      outbox=compactOps([...outbox,...ops]);setStatus(status==='offline'?'offline':'syncing');persist();schedule()
+      outbox=compactOps([...outbox,...ops]);setStatus(blocked?'error':status==='offline'?'offline':'syncing');persist();schedule()
     },
-    rename(value){if(closed||blocked||value===title)return;title=value;outboxName=value;setStatus('syncing');persist();schedule()},
+    rename(value){if(closed||value===title)return;title=value;outboxName=value;setStatus(blocked?'error':'syncing');persist();schedule()},
     receive,resync,deny,draft,start(){closed=false;return resync()},
     changed(n){if(!Number.isSafeInteger(n)||n>sequence)return resync()},
     flush(){

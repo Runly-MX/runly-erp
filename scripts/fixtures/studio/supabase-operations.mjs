@@ -110,15 +110,22 @@ export async function verifyStudioOperations(stack,{users,companies}) {
 
     async function core(actor,id,options={}){
       const initial=await json(await api(root,{actor})),connection=sockets[actor],state={shown:initial.document,offline:false,loseReply:false,requests:[]}
-      state.sync=createStudioSync({document:initial.document,revision:initial.revision,name:initial.name,clientId:id,delay:0,gapTimeout:100,retry:()=>50,...options,
+      state.sync=createStudioSync({document:initial.document,revision:initial.revision,name:initial.name,clientId:id,actorId:[owner,peer,viewer,foreign][actor].id,delay:0,gapTimeout:100,retry:()=>50,...options,
         editor:{apply:async document=>{state.shown=document;return document}},transport:{
           fetch:async batch=>{let latest=await json(await api(root,{actor}));const receipt=batch?await json(await api(`${root}/changes?${new URLSearchParams(batch)}`,{actor})):null;if(receipt&&receipt.revision>latest.revision)latest=await json(await api(root,{actor}));return {...latest,receipt}},send:async batch=>{state.requests.push(structuredClone(batch));if(state.offline)throw Error('simulated disconnected transport');const result=await json(await api(`${root}/changes`,{actor,data:batch}));if(state.loseReply){state.loseReply=false;throw Error('injected lost reply after actual commit')}return result},
         }})
       connection.core=state.sync;syncs.push(state.sync);state.change=patch=>{state.shown=edit(state.sync.state().document,'shape-a',patch);state.sync.local(state.shown)};return state
     }
     const x=await core(0,'owner-core-session'),y=await core(1,'editor-core-session')
-    sockets[0].enabled=false;x.loseReply=true;const lostBefore=(await fresh()).revision;x.change({x:211});const saving=x.sync.flush();await sleep(20);x.change({y:150});await saving
-    assert.equal((await fresh()).revision,lostBefore+2);assert.deepEqual(x.requests[0],x.requests[1]);sockets[0].enabled=true
+    x.offline=true;x.change({x:205});const spoofedSaving=x.sync.flush();await sleep(20)
+    const uncertain=x.requests.at(-1)
+    await changes(1,uncertain.clientId,uncertain.batchId,[{type:'patch',id:'shape-a',set:{y:145}}]).then(json)
+    await until(()=>sockets[0].messages.some(m=>m.actorId===peer.id&&m.clientId===uncertain.clientId&&m.batchId===uncertain.batchId),'Actor-bound broadcast received')
+    assert.ok(x.sync.state().pending>0,'Another actor spoofed an acknowledgement')
+    x.offline=false;await x.sync.flush();await spoofedSaving;const proof=(await fresh()).document.objects.find(o=>o.id==='shape-a');assert.equal(proof.x,205);assert.equal(proof.y,145)
+    report('An authorized peer copying clientId/batchId cannot acknowledge or suppress the owner pending work; receipts and echoes are actor-bound')
+    sockets[0].enabled=false;x.loseReply=true;const lostBefore=(await fresh()).revision,lostStart=x.requests.length;x.change({x:211});const saving=x.sync.flush();await sleep(20);x.change({y:150});await saving
+    assert.equal((await fresh()).revision,lostBefore+2);assert.deepEqual(x.requests[lostStart],x.requests[lostStart+1]);sockets[0].enabled=true
     report('Actual commit followed by lost HTTP reply retries unchanged batch once; edits during retry use a separate batch')
     await Promise.all([x.sync.resync(),y.sync.resync()]);x.change({fill:'#d946ef'});y.change({x:300});await Promise.all([x.sync.flush(),y.sync.flush()])
     await until(async()=>{const d=(await fresh()).document.objects[0];return d.fill==='#d946ef'&&d.x===300},'Independent properties')

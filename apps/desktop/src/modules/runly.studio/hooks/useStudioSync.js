@@ -14,7 +14,7 @@ export function useStudioSync({ record, token, scope, editorRef, onName, onError
   const callbacks = useRef({ onName, onError, onConflict, token })
   useEffect(() => { callbacks.current = { onName, onError, onConflict, token } }, [onName, onError, onConflict, token])
   const sync = useMemo(() => createStudioSync({
-    document: record.document, revision: record.revision, name: record.name, clientId: randomId(),
+    document: record.document, revision: record.revision, name: record.name, clientId: randomId(),actorId:scope.split(':')[1],
     transport: {
       send: async batch => unwrap(await runly.studio.applyChanges(record.id, batch, callbacks.current.token)),
       fetch: async batch => {

@@ -94,7 +94,7 @@ test('403 preserves draft and queue, rejects flush and stops retries; reload rec
   const values=new Map(),storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)}
   const server=createServer(base()),a=server.connect('client-a',{storage,storageKey:'queue'});server.denied=true
   a.change(edit(a.editor.shown,0,{x:999}));await assert.rejects(a.sync.flush(),{status:403});assert.equal(a.sync.state().document.objects[0].x,999)
-  const count=server.requests.length;await sleep(35);assert.equal(server.requests.length,count);a.sync.close()
+  const count=server.requests.length;a.change(edit(a.sync.state().document,0,{y:888}));await sleep(35);assert.equal(server.requests.length,count);assert.equal(a.sync.state().document.objects[0].y,888);a.sync.close()
   const b=server.connect('new-tab-b',{storage,storageKey:'queue'});await assert.rejects(b.sync.flush(),{status:403});assert.equal(server.revision,1);assert.ok(values.has('queue'));b.sync.close()
 })
 test('reload retains uncertain batch id but rotates session for new edits, receipts never re-execute',async()=>{
@@ -135,4 +135,13 @@ test('failed remote rendering rejects flush, keeps the old scene and can recover
   sync.receive({revision:2,clientId:'other-client',ops:diffOps(doc,next)});await assert.rejects(sync.flush(),/image unavailable/)
   assert.deepEqual(sync.state().document,doc);assert.equal(sync.state().status,'error')
   unavailable=false;await sync.resync();await sync.flush();assert.deepEqual(sync.state().document,next);assert.equal(sync.state().status,'synced');sync.close()
+})
+test('another actor copying the session/batch identity cannot retire pending work',async()=>{
+  const doc=base();let offline=true,server=doc,revision=1
+  const sync=createStudioSync({document:doc,revision,name:'test',clientId:'owned-session',actorId:'owner',delay:10000,retry:()=>10000,
+    editor:{apply:async target=>target},transport:{fetch:async()=>({document:server,revision}),send:async batch=>{if(offline)throw Error('offline');server=validateDocument(applyOps(server,batch.ops));return {revision:++revision,actorId:'owner',ops:batch.ops}}}})
+  sync.local(edit(doc,0,{x:222}));const saving=sync.flush();await sleep(5)
+  server=edit(doc,0,{y:333});revision=2;sync.receive({revision,clientId:'owned-session',batchId:1,actorId:'other-actor',ops:diffOps(doc,server)})
+  assert.equal(sync.state().pending,1)
+  offline=false;await sync.flush();await saving;assert.equal(server.objects[0].x,222);assert.equal(server.objects[0].y,333);sync.close()
 })

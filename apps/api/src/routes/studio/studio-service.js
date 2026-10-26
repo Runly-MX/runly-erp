@@ -114,11 +114,11 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
       await access.audit(db, companyId, actorId, 'studio.design.update', row, {live:true,clientId:input.clientId,batchId:input.batchId,digest,result})
       return {...row,...result}
     })
-    const message = { designId: id, revision: row.revision, clientId: input.clientId, batchId: input.batchId, ops:row.ops, ...(name !== null ? { name: row.name } : {}) }
-    const payload = JSON.stringify(message).length > 200_000 ? { designId: id, revision: row.revision, clientId: input.clientId, batchId: input.batchId, refetch: true } : message
+    const message = { designId: id, revision: row.revision, actorId, clientId: input.clientId, batchId: input.batchId, ops:row.ops, ...(name !== null ? { name: row.name } : {}) }
+    const payload = JSON.stringify(message).length > 200_000 ? { designId: id, revision: row.revision, actorId, clientId: input.clientId, batchId: input.batchId, refetch: true } : message
     await broadcaster?.broadcastToChannel(`studio:design:${id}`, 'change', payload,
       { authorize: async () => { try { await access.get(companyId, actorId, id); return true } catch { return false } } })
-    return { revision: row.revision, name: row.name, ops:row.ops }
+    return { revision: row.revision, name: row.name, actorId, ops:row.ops }
   }
   return { list, get, create, update, applyChanges, changeReceipt, access }
 }

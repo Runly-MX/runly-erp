@@ -48,7 +48,10 @@ aplica/valida/autoriza, actualiza una revisión y registra el recibo en `audit_l
 Reintentar el mismo contenido devuelve `{revision,name,ops}` originales sin
 incrementar revisión ni repetir binding/auditoría. Reutilizar la identidad con
 contenido distinto devuelve 409 `STUDIO_BATCH_REUSED`. `ops` contiene el delta
-canónico efectivo: no se difunden atributos descartados de la entrada.
+canónico efectivo: no se difunden atributos descartados de la entrada. Respuestas
+y broadcasts incorporan `actorId` asignado por el servidor. Un eco solo retira
+pendientes cuando coinciden actor, clientId y batchId; otro editor que copie los
+identificadores de sesión no puede confirmar el trabajo de esa persona.
 
 El índice único parcial nuevo `studio_operation_receipt_identity` hace la búsqueda
 por identidad y refuerza la exclusión. Es una migración aditiva: ningún SQL
@@ -74,8 +77,14 @@ revisión, ignora duplicados, limita el buffer a 128 mensajes y refetch ante hue
 `flush()` solo resuelve cuando no hay lote, bandeja, hueco ni resincronización
 pendiente. Ante 4xx rechaza, conserva trabajo/cola y detiene publicación automática;
 no indica «Sincronizado» tras un rechazo. `deny()` suspende la sesión revocada.
-Se reautoriza al reconectar y renovar token. Las respuestas async de una sesión
+Se reautoriza al reconectar y cada envío usa el token vigente. Una suspensión
+por rechazo requiere revisar el borrador y reabrir tras recuperar permisos; no
+se publica automáticamente desde el botón de reconexión. Las respuestas async de una sesión
 cerrada no alteran la siguiente. `start()` permite el montaje de efecto de React.
+También espera al renderer remoto. Un fallo de recurso rechaza la espera y
+permite reintentar su carga; no anuncia éxito mientras el canvas sigue incompleto.
+`onRevision` notifica revisiones confirmadas incluso sin cambio de estado, para
+mantener vigente la caché de navegación tras ediciones de otros usuarios.
 
 Colisiones detectadas conservan snapshot y operaciones propias en un borrador
 separado, sin borrarlo al llegar una sincronización posterior. Recuperar aplica
@@ -85,6 +94,12 @@ el snapshot queda conservado para revisar el trabajo. Los borradores históricos
 sin operaciones mantienen su recuperación explícita de snapshot.
 
 ### Historial, MCP, plantillas y geometría
+
+La actualización remota prepara los recursos antes de alterar objetos y cuenta
+también las imágenes retenidas en el límite de decodificación de 25 MP. Un fallo
+de imagen/fuente deja la escena anterior intacta. Si aparecen cambios locales
+durante la carga se fusiona su delta y se prepara de nuevo (hasta tres reintentos);
+no se sobrescribe una edición local que ocurrió durante ese I/O.
 
 Undo/redo compara cada propiedad con el valor que dejó la acción propia. Solo
 revierte valores todavía atribuibles a esa acción; una propiedad cambiada después

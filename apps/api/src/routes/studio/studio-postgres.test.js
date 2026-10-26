@@ -115,9 +115,9 @@ test('Studio service against disposable PostgreSQL: isolation, atomic revisions,
     await t.test('incremental receipts deduplicate concurrent requests, survive service recreation and reject changed payload',async()=>{
       await pool.query(await readFile(new URL('../../../../../prisma/migrations/20261206000000_studio_operation_receipts/migration.sql',import.meta.url),'utf8'))
       const design=await service.create(company,owner,{name:'Receipt test',document:appendObject(blankDocument(),'rectangle')})
-      const id=design.document.objects[0].id,input={clientId:'test-receipt-session',batchId:1,ops:[{type:'patch',id,set:{x:150},unset:[]}]}
+      const id=design.document.objects[0].id,input={clientId:'test-receipt-session',batchId:1,actorId:otherOwner,ops:[{type:'patch',id,set:{x:150},unset:[]}]}
       const [a,b]=await Promise.all([service.applyChanges(company,owner,design.id,input),service.applyChanges(company,owner,design.id,input)])
-      assert.deepEqual(a,b);assert.equal((await service.get(company,owner,design.id)).revision,2)
+      assert.deepEqual(a,b);assert.equal(a.actorId,owner);assert.equal((await service.get(company,owner,design.id)).revision,2)
       const again=await createStudioService({prisma}).applyChanges(company,owner,design.id,input);assert.deepEqual(again,a)
       assert.deepEqual(await service.changeReceipt(company,owner,design.id,input),{clientId:input.clientId,batchId:1,revision:2})
       assert.equal(await service.changeReceipt(company,owner,design.id,{...input,batchId:9}),null)
