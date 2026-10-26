@@ -12,6 +12,7 @@ export async function measureRc2Receipts(stack,{users,companies},{duration=12000
     for(let i=0;i<count;i++)document=appendObject(document,kind==='typing'?'text':'rectangle',{id:`bench-${i}`,x:i%20*50,y:Math.floor(i/20)*50,...(kind==='typing'?{text:'Synthetic editing '.repeat(300)}:{groupId:'bench-group',width:30,height:30})})
     const record=await request('/studio/designs',{name:`RC2 receipt ${kind}`,document}),root=`/studio/designs/${record.id}`,latencies=[]
     const sizeBefore=Number((await stack.pool.query("SELECT pg_total_relation_size('audit_log')::text n")).rows[0].n)
+    const indexBefore=Number((await stack.pool.query("SELECT pg_indexes_size('audit_log')::text n")).rows[0].n)
     let firstBatch
     const sync=createStudioSync({document:record.document,revision:record.revision,name:record.name,clientId:`rc2-benchmark-${kind}`,actorId:owner.id,delay:80,editor:{apply:async d=>d},transport:{fetch:()=>request(root),send:async batch=>{firstBatch??=structuredClone(batch);await request('/studio/protocol');const start=performance.now(),result=await request(root+'/changes',batch);latencies.push(performance.now()-start);return result}}})
     const start=performance.now();let events=0
@@ -35,10 +36,11 @@ export async function measureRc2Receipts(stack,{users,companies},{duration=12000
     }
     const stats=(await stack.pool.query(`SELECT count(*)::int batches,avg(pg_column_size(metadata))::float8 average_bytes,max(pg_column_size(metadata))::int max_bytes,sum(pg_column_size(metadata))::text metadata_bytes FROM audit_log WHERE entity_id=$1 AND metadata ? 'digest'`,[record.id])).rows[0]
     const sizeAfter=Number((await stack.pool.query("SELECT pg_total_relation_size('audit_log')::text n")).rows[0].n)
+    const indexes=(await stack.pool.query("SELECT pg_indexes_size('audit_log')::text total,pg_relation_size('studio_operation_receipt_identity')::text receipt")).rows[0]
     const lookup=await stack.pool.query(`EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT metadata FROM audit_log WHERE company_id=$1 AND actor_id=$2 AND entity_id=$3 AND entity_type='StudioDesign' AND module_key='runly.studio' AND action='studio.design.update' AND metadata ? 'digest' AND metadata ? 'result' AND metadata->>'clientId'=$4 AND metadata->>'batchId'='1'`,[company.id,owner.id,record.id,`rc2-benchmark-${kind}`])
     const payload={clientId:`rc2-benchmark-${kind}`,batchId:1}
     const receiptStart=performance.now();const receipt=await request(root+'/changes?'+new URLSearchParams(payload));assert.ok(receipt?.revision)
-    const row={kind,events,elapsedMs,...stats,batchesPerSecond:stats.batches/(elapsedMs/1000),relationGrowthBytes:sizeAfter-sizeBefore,receiptHttpMs:performance.now()-receiptStart,lookupPlan:lookup.rows[0]['QUERY PLAN'],p95CommitMs:latencies.sort((a,b)=>a-b)[Math.floor(latencies.length*0.95)],estimated8HourMetadataBytes:Number(stats.metadata_bytes)/(elapsedMs/1000)*8*3600}
+    const row={kind,events,elapsedMs,...stats,batchesPerSecond:stats.batches/(elapsedMs/1000),relationGrowthBytes:sizeAfter-sizeBefore,indexGrowthBytes:Number(indexes.total)-indexBefore,receiptIndexBytes:Number(indexes.receipt),receiptHttpMs:performance.now()-receiptStart,lookupPlan:lookup.rows[0]['QUERY PLAN'],p95CommitMs:latencies.sort((a,b)=>a-b)[Math.floor(latencies.length*0.95)],estimated8HourMetadataBytes:Number(stats.metadata_bytes)/(elapsedMs/1000)*8*3600}
     profiles.push(row);console.log(`RC2 receipt measurement ${kind}: ${stats.batches} batches / ${(elapsedMs/1000).toFixed(1)} s`)
     assert.equal((await request(root)).revision,stats.batches+1)
   }
