@@ -15,7 +15,8 @@ const BLOBS = [
   { color: 1, radius: 0.48, x: [0.08, 0.1], y: [0.95, 0.12], period: [29, 19] },
   { color: 2, radius: 0.36, x: [0.5, 0.25], y: [1.1, 0.1], period: [37, 27] },
 ]
-const RIPPLE_MS = 1500, RIPPLE_RINGS = [0, 160, 320], WAVE_SPEED = 0.32 // px per ms
+// Liquid ripple: a damped sine train behind an expanding front (no hard lines).
+const RIPPLE_MS = 2400, WAVELENGTH = 70, TRAIN = WAVELENGTH * 2.2, STOPS = 64
 const INTERACTIVE = 'button, input, textarea, select, a, label, [role="tab"], [role="tablist"], [contenteditable="true"]'
 
 function makeParticles(width, height) {
@@ -27,7 +28,7 @@ function makeParticles(width, height) {
       r: bokeh ? 3 + Math.random() * 3 : 0.8 + Math.random() * 2,
       vx: (Math.random() - 0.5) * 0.12, vy: -(0.04 + Math.random() * 0.16),
       depth: 0.3 + Math.random() * 0.7, phase: Math.random() * Math.PI * 2, speed: 0.6 + Math.random() * 1.6,
-      color: index % 4, bokeh, ox: 0, oy: 0, kx: 0, ky: 0,
+      color: index % 4, bokeh, ox: 0, oy: 0,
     }
   })
 }
@@ -49,31 +50,44 @@ export function HeroParticles({ className }) {
       context.setTransform(ratio, 0, 0, ratio, 0, 0)
       particles = makeParticles(width, height)
     }
+    // Wave height at `distance` from the drop: a short sine train behind the
+    // front with a finite envelope (no near-zero exponential tail, which the
+    // 8-bit canvas would quantize into many thin false rings).
+    function waveAt(ripple, distance, now) {
+      const progress = (now - ripple.start) / RIPPLE_MS
+      const behind = ripple.front(progress) - distance
+      if (behind < 0 || behind > TRAIN) return 0
+      const envelope = Math.pow(1 - behind / TRAIN, 2)
+      return Math.sin((behind / WAVELENGTH) * Math.PI * 2) * envelope * Math.pow(1 - progress, 1.6)
+    }
     function drawRipples(now, colors) {
-      ripples = ripples.filter(ripple => now - ripple.start < RIPPLE_MS + RIPPLE_RINGS.at(-1))
+      ripples = ripples.filter(ripple => now - ripple.start < RIPPLE_MS)
+      const composite = context.globalCompositeOperation
+      context.globalCompositeOperation = 'source-over'
       for (const ripple of ripples) {
-        const maxRadius = Math.max(220, Math.min(width, height * 2) * 0.45)
-        for (const delay of RIPPLE_RINGS) {
-          const progress = (now - ripple.start - delay) / RIPPLE_MS
-          if (progress <= 0 || progress >= 1) continue
-          const radius = easeOut(progress) * maxRadius, fade = 1 - progress
-          const [r, g, b] = colors[(ripple.color + delay / 160) % 4]
-          context.lineWidth = 0.8 + fade * 2.4
-          context.strokeStyle = dark ? `rgba(255,255,255,${fade * 0.35})` : `rgba(${r},${g},${b},${fade * 0.5})`
-          context.beginPath(); context.ellipse(ripple.x, ripple.y, radius, radius * 0.92, 0, 0, Math.PI * 2); context.stroke()
-          context.lineWidth = 6 * fade
-          context.strokeStyle = `rgba(${r},${g},${b},${fade * (dark ? 0.18 : 0.12)})`
-          context.stroke()
+        const progress = (now - ripple.start) / RIPPLE_MS, front = ripple.front(progress)
+        if (front < 2) continue
+        const [r, g, b] = colors[ripple.color]
+        // Crests as soft light, troughs as soft tint/shade: reads like light on water.
+        const crest = context.createRadialGradient(ripple.x, ripple.y, 0, ripple.x, ripple.y, front)
+        const trough = context.createRadialGradient(ripple.x, ripple.y, 0, ripple.x, ripple.y, front)
+        for (let index = 0; index <= STOPS; index++) {
+          const position = index / STOPS, height = waveAt(ripple, position * front, now)
+          const up = Math.max(0, height), down = Math.max(0, -height)
+          crest.addColorStop(position, dark ? `rgba(255,255,255,${up * 0.14})` : `rgba(255,255,255,${up * 0.5})`)
+          trough.addColorStop(position, dark ? `rgba(${r},${g},${b},${down * 0.3})` : `rgba(${r},${g},${b},${down * 0.14})`)
         }
-        // Splash: a small bright core that fades fast.
-        const splash = 1 - (now - ripple.start) / 380
+        context.fillStyle = trough; context.beginPath(); context.arc(ripple.x, ripple.y, front, 0, Math.PI * 2); context.fill()
+        context.fillStyle = crest; context.fill()
+        // Soft splash where the drop landed.
+        const splash = 1 - (now - ripple.start) / 520
         if (splash > 0) {
-          const [r, g, b] = colors[ripple.color]
-          const gradient = context.createRadialGradient(ripple.x, ripple.y, 0, ripple.x, ripple.y, 26)
-          gradient.addColorStop(0, `rgba(${r},${g},${b},${splash * 0.55})`); gradient.addColorStop(1, `rgba(${r},${g},${b},0)`)
-          context.fillStyle = gradient; context.beginPath(); context.arc(ripple.x, ripple.y, 26, 0, Math.PI * 2); context.fill()
+          const gradient = context.createRadialGradient(ripple.x, ripple.y, 0, ripple.x, ripple.y, 34)
+          gradient.addColorStop(0, `rgba(${r},${g},${b},${splash * 0.28})`); gradient.addColorStop(1, `rgba(${r},${g},${b},0)`)
+          context.fillStyle = gradient; context.beginPath(); context.arc(ripple.x, ripple.y, 34, 0, Math.PI * 2); context.fill()
         }
       }
+      context.globalCompositeOperation = composite
     }
     function draw(time) {
       const t = time / 1000, now = performance.now(), colors = dark ? PALETTE.dark : PALETTE.light
@@ -98,22 +112,16 @@ export function HeroParticles({ className }) {
           p.x += p.vx; p.y += p.vy
           const dx = p.x - pointer.x, dy = p.y - pointer.y, distance = Math.hypot(dx, dy)
           if (distance < 110 && distance > 0.1) { const push = (1 - distance / 110) * 2.2; p.ox += (dx / distance) * push; p.oy += (dy / distance) * push }
-          // The wave front pushes each particle once as it passes.
-          for (const ripple of ripples) {
-            if (ripple.hit.has(p)) continue
-            const rx = p.x + p.ox - ripple.x, ry = p.y + p.oy - ripple.y, d = Math.hypot(rx, ry)
-            if (d > 0.1 && Math.abs(d - (now - ripple.start) * WAVE_SPEED) < 14) {
-              ripple.hit.add(p)
-              const force = Math.max(0, 1 - d / 420) * 5
-              p.kx += (rx / d) * force; p.ky += (ry / d) * force
-            }
-          }
-          p.ox += p.kx; p.oy += p.ky; p.kx *= 0.9; p.ky *= 0.9
           p.ox *= 0.95; p.oy *= 0.95
           if (p.y < -10) { p.y = height + 10; p.x = Math.random() * width }
           if (p.x < -10) p.x = width + 10; else if (p.x > width + 10) p.x = -10
         }
-        const x = p.x + p.ox - pointer.px * 24 * p.depth, y = p.y + p.oy - pointer.py * 16 * p.depth
+        let x = p.x + p.ox - pointer.px * 24 * p.depth, y = p.y + p.oy - pointer.py * 16 * p.depth
+        // Floating on the water: particles bob radially with the passing waves.
+        for (const ripple of ripples) {
+          const rx = x - ripple.x, ry = y - ripple.y, d = Math.hypot(rx, ry)
+          if (d > 0.1) { const lift = waveAt(ripple, d, now) * 7 * p.depth; x += (rx / d) * lift; y += (ry / d) * lift }
+        }
         const twinkle = 0.55 + 0.45 * Math.sin(t * p.speed + p.phase)
         const [r, g, b] = colors[p.color]
         if (p.bokeh) {
@@ -144,7 +152,8 @@ export function HeroParticles({ className }) {
     const leave = () => { pointer.x = -1e4; pointer.y = -1e4 }
     const drop = event => {
       if (reduced || event.button > 0 || event.target.closest?.(INTERACTIVE)) return
-      ripples.push({ ...local(event), start: performance.now(), color: Math.floor(Math.random() * 4), hit: new WeakSet() })
+      const reach = Math.max(260, Math.hypot(width, height) * 0.42)
+      ripples.push({ ...local(event), start: performance.now(), color: Math.floor(Math.random() * 4), front: progress => easeOut(progress) * reach })
       if (ripples.length > 6) ripples.shift()
       start()
     }
