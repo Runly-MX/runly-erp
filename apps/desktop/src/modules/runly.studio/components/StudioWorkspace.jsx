@@ -18,7 +18,8 @@ import { CanvasColorSampler } from './editor/CanvasColorSampler.jsx'
 import { EyedropperContext, nativeEyedropper, rememberColor, toHex } from '../lib/studio-colors.js'
 import { StudioContextMenu } from './editor/StudioContextMenu.jsx'
 import { useCanvasDrop } from './editor/useCanvasDrop.js'
-import { DropFrameHint } from './editor/DropFrameHint.jsx'
+import { DropFrameHint, DropLandingHint } from './editor/DropFrameHint.jsx'
+import { watchTouchDrag } from '../lib/studio-drag.js'
 import { useImageTools } from './editor/image/useImageTools.js'
 import { ImagePanel } from './editor/image/ImagePanel.jsx'
 import { FramingOverlay } from './editor/image/FramingOverlay.jsx'
@@ -53,6 +54,8 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const [ready, setReady] = useState(false), [confirm, setConfirm] = useState(false)
   const [page, setPage] = useState(initial.page), [selectedIds, setSelectedIds] = useState([])
   const [panel, setPanel] = useState(() => (typeof window !== 'undefined' && window.innerWidth >= 1280 ? 'elements' : null))
+  // A touch drag from the phone sheet needs the canvas: the sheet steps aside.
+  useEffect(() => watchTouchDrag(active => { if (active && window.matchMedia('(max-width: 767px)').matches) setPanel(null) }), [])
   const [inspectorOpen, setInspectorOpen] = useState(true), [inspectorSheet, setInspectorSheet] = useState(false)
   // Last opened panel keeps rendering while the side panel animates closed.
   const [shownPanel, setShownPanel] = useState(panel)
@@ -273,7 +276,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
             </div>
           </SidePanel>
         ) : null}
-        <section aria-label="Área de diseño" className="relative min-w-0 flex-1 overflow-hidden bg-[hsl(var(--muted)/0.45)]" {...drop.handlers}>
+        <section ref={drop.zoneRef} aria-label="Área de diseño" className="relative min-w-0 flex-1 overflow-hidden bg-[hsl(var(--muted)/0.45)]" {...drop.handlers}>
           <StudioContextMenu selection={selection} selectedCount={selectedIds.length} readOnly={readOnly} disabled={!ready || busy} canPaste={history.canPaste}
             onPick={event => { if (ready && !editorRef.current?.isEditingText()) editorRef.current?.pick(event) }}
             onAction={action => attempt(() => editorRef.current[action]())} onOrder={direction => attempt(() => editorRef.current.order(direction))}
@@ -293,6 +296,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
                 {canvas.preferences.grid.visible ? <GridOverlay page={page} zoom={zoom} step={canvas.references?.grid.displayStep ?? canvas.preferences.grid.size} /> : null}
                 {canvas.preferences.guides ? <GuidesOverlay guides={canvas.guides} page={page} zoom={zoom} /> : null}
                 {drop.target ? <DropFrameHint frame={drop.target} zoom={zoom} /> : null}
+                {drop.landing ? <DropLandingHint landing={drop.landing} zoom={zoom} /> : null}
                 {imageKit.framing ? <FramingOverlay item={imageKit.framing.item} props={imageKit.framing.props} natural={imageKit.framing.natural} imageUrl={imageKit.framing.imageUrl} outline={imageKit.framing.outline} zoom={zoom}
                   onFrame={next => imageKit.tools.image(next)} onDone={() => imageKit.finishFraming(true)} onCancel={() => imageKit.finishFraming(false)} /> : null}
                 {participants.map(user => <div key={`${user.userId}:${user.sessionId}`} className="pointer-events-none absolute inset-0">

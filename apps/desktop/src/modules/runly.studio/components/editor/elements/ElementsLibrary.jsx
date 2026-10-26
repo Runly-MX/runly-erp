@@ -8,7 +8,7 @@ import { BASIC_SHAPES, BLOCKS, ELEMENT_COLORS, FIGURES, FIGURE_GROUPS, LINE_BODI
 import { FramesGrid } from '../image/FramesGrid.jsx'
 import { FRAMES } from '../../../lib/frame-shapes.js'
 
-const TILE = 'group flex flex-col items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] p-2 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-[transform,background-color,border-color,color] duration-150 hover:border-fuchsia-500/40 hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
+const TILE = 'group select-none [-webkit-touch-callout:none] flex flex-col items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] p-2 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-[transform,background-color,border-color,color] duration-150 hover:border-fuchsia-500/40 hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
 
 function Section({ title, count, initial = 8, children, render }) {
   const [open, setOpen] = useState(false)
@@ -156,7 +156,7 @@ export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLi
             const ratio = item.width / item.height, w = ratio >= 1 ? 30 : 30 * ratio, h = ratio >= 1 ? 30 / ratio : 30
             return (
               <button key={item.key} type="button" disabled={disabled} title={item.label} aria-label={item.label} className={cn(TILE, 'aspect-square')}
-                {...draggable({ kind: 'element', label: item.label, insert: point => onAddPrimitive(item.type, { width: item.width, height: item.height, fill: color }, point) })}
+                {...draggable({ kind: 'element', label: item.label, size: { width: item.width, height: item.height }, insert: point => onAddPrimitive(item.type, { width: item.width, height: item.height, fill: color }, point) })}
                 onClick={() => onAddPrimitive(item.type, { width: item.width, height: item.height, fill: color })}>
                 <span className={cn('block transition-transform duration-200 group-hover:scale-110 motion-reduce:transition-none', item.type === 'ellipse' ? 'rounded-full' : 'rounded-[2px]')}
                   style={{ width: Math.max(4, w), height: Math.max(3, h), backgroundColor: color === '#ffffff' ? '#e2e8f0' : color }} />
@@ -173,7 +173,7 @@ export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLi
             <div className="grid grid-cols-4 gap-2">
               {items.slice(0, limit).map(item => (
                 <button key={item.id} type="button" disabled={disabled} title={item.label} aria-label={item.label} className={cn(TILE, 'aspect-square')} onClick={() => onAddFigure(item.id, color)}
-                  {...draggable({ kind: 'element', label: item.label, insert: point => onAddFigure(item.id, color, point) })}>
+                  {...draggable({ kind: 'element', label: item.label, size: { width: 240, height: 240 }, insert: point => onAddFigure(item.id, color, point) })}>
                   <FigureThumb id={item.id} color={color} loadThumbnail={loadThumbnail} />
                 </button>
               ))}
@@ -198,7 +198,7 @@ export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLi
               const lineProps = (line, cap) => ({ width: line.width, height: line.height, points: line.points, strokeWidth: weight, dash, startCap: cap.startCap, endCap: cap.endCap, fill: color })
               return (
                 <button key={body.key} type="button" disabled={disabled} className={cn(TILE, 'h-16 px-3')} title={body.label} aria-label={body.label}
-                  {...draggable({ kind: 'element', label: body.label, insert: point => onAddLine(lineProps(body, end), point) })}
+                  {...draggable({ kind: 'element', label: body.label, size: { width: body.width, height: body.height }, insert: point => onAddLine(lineProps(body, end), point) })}
                   onClick={() => onAddLine(lineProps(body, end))}>
                   <LinePreview body={body} dash={dash} ends={ends} color={color === '#ffffff' ? '#94a3b8' : color} />
                 </button>
@@ -212,7 +212,7 @@ export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLi
         <div className="grid grid-cols-2 gap-2">
           {blocks.slice(0, limit).map(block => (
             <button key={block.key} type="button" disabled={disabled} className={cn(TILE, 'h-24 text-[hsl(var(--foreground))]')} onClick={() => onAddBlock(block, color)}
-              {...draggable({ kind: 'element', label: block.label, insert: point => onAddBlock(block, color, point) })}>
+              {...draggable({ kind: 'element', label: block.label, size: { width: block.width, height: block.height }, insert: point => onAddBlock(block, color, point) })}>
               <BlockPreview block={block} color={color === '#ffffff' ? '#0f172a' : color} />
               <span className="text-[hsl(var(--muted-foreground))]">{block.label}</span>
             </button>

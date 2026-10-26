@@ -11,6 +11,9 @@ const unwrap = response => response?.data ?? response
 
 const FORMATS = [{ value: 'all', label: 'Todos los formatos' }, { value: 'png', label: 'PNG' }, { value: 'jpg', label: 'JPG' }, { value: 'webp', label: 'WebP' }]
 
+// Landing outline while dragging a photo (its final size depends on the original).
+const PHOTO_DROP = { width: 320, height: 240 }
+
 function ResourceCard({ asset, token, disabled, inserting, onInsert, onDragInsert, onPreview }) {
   const node = useRef(null)
   const [url, setUrl] = useState(''), [error, setError] = useState(false), [retry, setRetry] = useState(0)
@@ -30,9 +33,9 @@ function ResourceCard({ asset, token, disabled, inserting, onInsert, onDragInser
   }, [asset.id, token, retry])
   return (
     <div ref={node} className="group relative aspect-square overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.5)]">
-      <button type="button" disabled={disabled || !url} onClick={() => onInsert(asset)} aria-label={`Insertar ${asset.name}`} title={asset.name}
-        {...(onDragInsert && url && !disabled ? draggable({ kind: 'photo', label: asset.name, fileAssetId: asset.id, insert: point => onDragInsert(asset, point) }) : {})}
-        className="absolute inset-0 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]">
+      <button type="button" disabled={disabled} onClick={() => onInsert(asset)} aria-label={`Insertar ${asset.name}`} title={asset.name}
+        {...(onDragInsert && !disabled ? draggable({ kind: 'photo', label: asset.name, fileAssetId: asset.id, size: PHOTO_DROP, insert: point => onDragInsert(asset, point) }) : {})}
+        className="absolute inset-0 flex select-none items-center justify-center [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]">
         {url ? <img src={url} alt="" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105 motion-reduce:transition-none" />
           : error ? <ImageOff className="h-5 w-5 text-[hsl(var(--muted-foreground))]" /> : <Skeleton className="h-full w-full rounded-none" />}
         {url ? <span aria-hidden className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity group-hover:opacity-100">

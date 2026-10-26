@@ -149,3 +149,24 @@ y de las esquinas del fondo; 390/820/1440 px claro y oscuro sin desbordamiento.
 Hallazgo para el motor: al ajustar al centro de página una elipse de 300 px con
 degradado, la guía se dibuja en 540 pero el centro guardado queda en 541
 (1 px de diferencia, probablemente por el rectángulo envolvente de Fabric).
+
+## Arrastrar y soltar desde los paneles
+
+Todos los mosaicos de Elementos (formas, figuras, líneas, bloques), Texto e
+Imágenes usan `draggable()` de `lib/studio-drag.js`:
+
+- **Ratón/lápiz:** arrastre HTML5 con imagen de arrastre propia (el mosaico como
+  tarjeta elevada). **Táctil:** mantener ~220 ms levanta el mosaico; una copia
+  flotante sigue al dedo por encima de él, la hoja del panel se aparta en el
+  teléfono y al soltar sobre el lienzo se inserta allí. Mover antes de ese tiempo
+  desplaza el panel (no arrastra); soltar fuera del lienzo no inserta nada.
+- **Lienzo:** `useCanvasDrop` dibuja el contorno de aterrizaje con el tamaño real
+  del elemento (`DropLandingHint`), o «Suelta para rellenar» sobre un marco o una
+  forma compatible con foto. La misma lógica atiende ratón y dedo.
+- Las fotos se pueden arrastrar aunque su miniatura no haya cargado.
+
+Verificación (2026-10-26, `.e2e/studio-dnd-probe.mjs`, empresa de pruebas):
+ratón — rectángulo y texto insertados con contorno visible y foto convertida en
+relleno del rectángulo al soltarla encima; táctil 390 px — círculo y subtítulo
+insertados por pulsar-y-arrastrar, y un deslizamiento rápido en el panel no
+inserta nada. Sin errores de página.
