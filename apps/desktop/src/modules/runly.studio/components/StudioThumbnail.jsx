@@ -31,17 +31,19 @@ function Item({ item, images }) {
 }
 
 // `images` (optional) maps fileAssetId → signed URL; missing ones stay placeholders.
-export const StudioThumbnail = memo(function StudioThumbnail({ document, images, frameRatio = 4 / 3, className }) {
+// fit "contain" shows the whole page as paper; "cover" fills its box (cropped from
+// the top), so a grid of mixed sizes lines up.
+export const StudioThumbnail = memo(function StudioThumbnail({ document, images, frameRatio = 4 / 3, fit = 'contain', className }) {
   const page = document?.page
   // Bundled fonts load on demand; once added to document.fonts the browser
   // re-lays out the foreignObject text, so the preview matches the editor.
   const families = [...new Set((document?.objects ?? []).filter(item => item.type === 'text' && item.fontFamily).map(item => item.fontFamily))].sort().join('|')
   useEffect(() => { for (const family of families.split('|').filter(Boolean)) ensureStudioFont(family).catch(() => {}) }, [families])
   if (!page) return null
-  const wide = page.width / page.height >= frameRatio
-  return <svg viewBox={`0 0 ${page.width} ${page.height}`} aria-hidden focusable="false"
-    className={cn('block rounded-[3px] shadow-[0_8px_24px_-8px_rgb(0_0_0/0.35)] ring-1 ring-black/5', wide ? 'h-auto w-full' : 'h-full w-auto', className)}
-    style={{ aspectRatio: `${page.width} / ${page.height}` }}>
+  const wide = page.width / page.height >= frameRatio, cover = fit === 'cover'
+  return <svg viewBox={`0 0 ${page.width} ${page.height}`} aria-hidden focusable="false" preserveAspectRatio={cover ? 'xMidYMin slice' : undefined}
+    className={cn('block', cover ? 'h-full w-full' : cn('rounded-[3px] shadow-[0_8px_24px_-8px_rgb(0_0_0/0.35)] ring-1 ring-black/5', wide ? 'h-auto w-full' : 'h-full w-auto'), className)}
+    style={cover ? undefined : { aspectRatio: `${page.width} / ${page.height}` }}>
     <rect width={page.width} height={page.height} fill={page.background} />
     {(document.objects ?? []).filter(item => !item.hidden).map(item => <Item key={item.id} item={item} images={images} />)}
   </svg>

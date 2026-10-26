@@ -3,6 +3,9 @@ import { Loader2, Plus, Ruler } from 'lucide-react'
 import { formatsFor, sizeLabel } from '../../lib/formats.js'
 
 const DOT_GRID = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.22) 1px, transparent 1px)', backgroundSize: '14px 14px' }
+// Phones: one swipeable row (keeps Inicio short); grid from sm up.
+const RAIL = '-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 xl:grid-cols-6'
+const RAIL_ITEM = 'flex w-[42%] shrink-0 snap-start sm:w-auto'
 const CARD = 'group flex flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-2.5 text-left transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-fuchsia-500/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none disabled:opacity-60 motion-reduce:transition-none motion-reduce:hover:translate-y-0'
 
 // Mini frame keeps the real aspect ratio inside a 4:3 tile.
@@ -28,11 +31,11 @@ function CardFooter({ title, subtitle, busy }) {
 export function FormatGrid({ category, creating, onCreate, onCustom }) {
   const formats = formatsFor(category)
   return (
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+    <ul className={RAIL}>
       {formats.map(format => {
         const Icon = format.icon
         return (
-          <li key={format.key} className="flex">
+          <li key={format.key} className={RAIL_ITEM}>
             <button type="button" className={cn(CARD, 'w-full')} disabled={Boolean(creating)} onClick={() => onCreate(format)} aria-label={`Crear ${format.label}, ${sizeLabel(format)}`}>
               <div className="relative flex aspect-[4/3] items-center justify-center rounded-xl bg-[hsl(var(--muted)/0.5)]" style={DOT_GRID}>
                 <span className={cn('flex items-center justify-center rounded-md bg-gradient-to-br text-white shadow-lg transition-transform duration-200 group-hover:scale-105 motion-reduce:transition-none', format.tone)} style={frameStyle(format)}>
@@ -45,7 +48,7 @@ export function FormatGrid({ category, creating, onCreate, onCustom }) {
           </li>
         )
       })}
-      <li className="flex">
+      <li className={RAIL_ITEM}>
         <button type="button" className={cn(CARD, 'w-full border-dashed')} disabled={Boolean(creating)} onClick={onCustom}>
           <div className="flex aspect-[4/3] items-center justify-center rounded-xl border border-dashed border-[hsl(var(--border))]">
             <Ruler className="h-7 w-7 text-[hsl(var(--muted-foreground))] transition-colors group-hover:text-fuchsia-600" aria-hidden />

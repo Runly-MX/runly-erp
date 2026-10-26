@@ -30,6 +30,9 @@ function EditorSkeleton() {
 export default function StudioScreen() {
   const { session, profileCompanyId, userProfile } = useAuth(), token = session?.access_token
   const [params, setParams] = useSearchParams(), id = params.get('design')
+  // Home view survives opening a design and coming back (?view=designs|templates).
+  const view = ['designs', 'templates'].includes(params.get('view')) ? params.get('view') : 'home'
+  const withView = extra => ({ ...(view === 'home' ? {} : { view }), ...extra })
   const [creating, setCreating] = useState(null)
   const queryClient = useQueryClient()
   const scopeKey = [profileCompanyId, userProfile?.id]
@@ -40,14 +43,15 @@ export default function StudioScreen() {
     setCreating(kind === 'format' || kind === 'template' ? value.key : kind)
     try {
       const record = unwrap(await (kind === 'template' ? runly.studio.createFromTemplate(value.key, token) : runly.studio.createDesign(draftFor(kind, value), token)))
-      setParams({ design: record.id })
+      setParams(withView({ design: record.id }))
     } catch (error) { if (rethrow) throw error; toast.error(error.message) } finally { setCreating(null) }
   }
   if (id) {
     if (design.isPending) return <EditorSkeleton />
     if (design.error) return <div className="flex h-full items-center justify-center p-6"><ErrorState title="No se pudo abrir el diseño" description={design.error.message} onRetry={design.refetch} /></div>
     return <DesignEditor key={`${profileCompanyId}:${userProfile?.id}:${id}`} record={design.data} token={token} scope={`${profileCompanyId}:${userProfile?.id}:${id}`}
-      onCopy={copyId => setParams({ design: copyId })} onBack={() => { setParams({}); queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'designs'] }) }} />
+      onCopy={copyId => setParams(withView({ design: copyId }))} onBack={() => { setParams(withView({})); queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'designs'] }) }} />
   }
-  return <StudioHome token={token} scopeKey={scopeKey} creating={creating} onCreate={create} onOpen={designId => setParams({ design: designId })} />
+  return <StudioHome token={token} scopeKey={scopeKey} creating={creating} onCreate={create} onOpen={designId => setParams(withView({ design: designId }))}
+    view={view} onView={next => setParams(next === 'home' ? {} : { view: next })} />
 }

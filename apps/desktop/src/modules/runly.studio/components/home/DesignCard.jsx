@@ -31,8 +31,10 @@ export function DesignCard({ design, onOpen, onDuplicate }) {
     <div className="group relative flex w-full flex-col overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-fuchsia-500/40 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0">
       <button type="button" onClick={onOpen} aria-label={`Abrir ${design.name}`}
         className="absolute inset-0 z-0 cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2" />
-      <div className="pointer-events-none relative flex aspect-[4/3] items-center justify-center bg-gradient-to-b from-[hsl(var(--muted)/0.35)] to-[hsl(var(--muted)/0.8)] p-4">
-        <StudioThumbnail document={design.preview} images={images} />
+      <div className="pointer-events-none relative aspect-[4/3] overflow-hidden border-b border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.5)]">
+        <div className="h-full w-full transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100">
+          <StudioThumbnail document={design.preview} images={images} fit="cover" />
+        </div>
         {design.preview?.page ? <span className="absolute left-2 top-2 rounded-full bg-[hsl(var(--card)/0.9)] px-2 py-0.5 text-[11px] font-medium tabular-nums text-[hsl(var(--muted-foreground))] backdrop-blur max-sm:hidden">{sizeLabel(design.preview.page)}</span> : null}
         {shared ? <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-fuchsia-600 px-2 py-0.5 text-[11px] font-semibold text-white shadow"><Users className="h-3 w-3" aria-hidden />Compartido</span> : null}
       </div>
