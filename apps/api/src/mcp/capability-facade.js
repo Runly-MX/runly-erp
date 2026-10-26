@@ -9,8 +9,9 @@ import { parameterSchema } from './contracts.js';
 import { createFileImport } from './file-import.js';
 import { createMcpActivity } from './activity.js';
 import { waitForApproval } from './approval-wait.js';
+import { createStudioAccess } from '../routes/studio/studio-access.js';
 
-export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, downloadFile, approvalWaitMs = 0 }) {
+export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, broadcaster, downloadFile, approvalWaitMs = 0 }) {
   const inventory = createInventoryMcpCapabilities({ prisma, config, oauth });
   const registry = createCapabilityRegistry({ prisma, supabaseAdmin });
   const runtime = createDomainRuntime({ prisma, config, registry });
@@ -52,7 +53,17 @@ export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, do
       await waitForApproval(id => state.get('proposal', id), args?.proposalId, auth, { waitMs: approvalWaitMs });
     }
     if (tool.fileImport) return imports[tool.fileImport](args, auth);
-    if (tool?.domain) return runtime.run(tool.domain, tool.mode, args, auth);
+    if (tool?.domain) {
+      const result=await runtime.run(tool.domain, tool.mode, args, auth);
+      // Publish only AFTER the MCP transaction committed. Do not inject a
+      // broadcaster into adapters running inside the serializable transaction.
+      if(tool.domain==='studio'&&tool.mode==='commit'&&result.operation==='studio_update_design'&&broadcaster){
+        await broadcaster.broadcastToChannel(`studio:design:${result.result.id}`,'changed',{designId:result.result.id,revision:result.result.revision},{authorize:async()=>{
+          try{const a=await accessFor(auth,prisma,prisma).company(auth.authUserId,args.companyId);await createStudioAccess({prisma}).get(args.companyId,a.actorProfileId,result.result.id);return true}catch{return false}
+        }}).catch(()=>{});
+      }
+      return result;
+    }
     if (name === 'runly_modules_list' || name === 'runly_module_schema') return discovery(name, args, auth);
     return inventory.run(name, args, auth);
   }

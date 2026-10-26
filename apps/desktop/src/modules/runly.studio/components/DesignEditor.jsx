@@ -37,25 +37,26 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   }, [token])
   const store = useMemo(() => createDraftStorage({ getItem: key => window.localStorage.getItem(key),
     setItem: (key, value) => window.localStorage.setItem(key, value), removeItem: key => window.localStorage.removeItem(key) }, scope), [scope])
+  const collisions=useMemo(()=>createDraftStorage({getItem:key=>window.localStorage.getItem(key),setItem:(key,value)=>window.localStorage.setItem(key,value),removeItem:key=>window.localStorage.removeItem(key)},`${scope}:collision`),[scope])
   const [initial] = useState(record.document), [name, setName] = useState(record.name)
   const [error, setError] = useState('')
   const [exporting, setExporting] = useState(false), [exportError, setExportError] = useState(''), [shareOpen, setShareOpen] = useState(false)
-  const [recovery, setRecovery] = useState(() => store.read()), [copyWarning, setCopyWarning] = useState(false)
+  const [recovery, setRecovery] = useState(() => store.read()??collisions.read()), [copyWarning, setCopyWarning] = useState(false)
   const [ready, setReady] = useState(false)
   const [credits,setCredits]=useState(null)
   const [canEdit, setCanEdit] = useState(record.canEdit !== false), [denied, setDenied] = useState(false)
   const editorRef = useRef(null), nameRef = useRef(name), timer = useRef(null)
-  const { sync, status } = useStudioSync({ record, token, editorRef,
+  const { sync, status } = useStudioSync({ record, token, scope, editorRef,
     onName: value => { nameRef.current = value; setName(value) },
-    onError: message => setError(message) })
+    onError: message => setError(message),onConflict:draft=>{collisions.write(draft);setRecovery(draft)} })
   const unsynced = status !== 'synced'
   const imageEditing = useStudioImageEditing({editorRef,designId:record.id,token,canEdit:canEdit && !denied})
   // Templates: save the current scene as a template; or, when opened from
   // "Editar contenido", write this design back to its template.
   const templateScope = scope.split(':').slice(0, 2)
-  const saveAsTemplate = useSaveAsTemplate({ editorRef, token, scopeKey: templateScope, name })
+  const saveAsTemplate = useSaveAsTemplate({ editorRef, token, scopeKey: templateScope, name,ensureSaved })
   const templateEditing = useTemplateEditing({ editorRef, token, scopeKey: templateScope, templateId: editingTemplateId,
-    designName: name, saveDesign: () => sync.flush().then(() => true), onExit: onBack })
+    designName: name, saveDesign: () => ensureSaved().then(() => true), onExit: onBack })
   const preserve = useCallback(() => {
     const { document, revision } = sync.state()
     if (sync.state().status === 'synced') { store.clear(); return true }
@@ -111,13 +112,13 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     if (sync.state().status !== 'synced') throw new Error('Los cambios todavía no llegan al servidor. Revisa la conexión; tus cambios se conservan.')
   }
   async function recover() {
-    try { await editorRef.current.load(recovery.document); if (recovery.name && recovery.name !== nameRef.current) { nameRef.current = recovery.name; setName(recovery.name); sync.rename(recovery.name) } setRecovery(null) }
+    try { await editorRef.current.load(recovery.document); if (recovery.name && recovery.name !== nameRef.current) { nameRef.current = recovery.name; setName(recovery.name); sync.rename(recovery.name) } collisions.clear();setRecovery(null) }
     catch (failure) { setError(failure.message) }
   }
-  const revoked = useCallback(() => { preserve(); setDenied(true) }, [preserve])
+  const revoked = useCallback(() => { preserve();sync.deny(); setDenied(true) }, [preserve,sync])
   // Polling and whole-document updates (MCP, PUT): permission and missed revisions.
   const confirmed = useCallback((nextRevision, permission) => {
-    if (typeof permission === 'boolean') setCanEdit(permission)
+    if (typeof permission === 'boolean') {setCanEdit(permission);if(!permission&&sync.state().pending)sync.deny()}
     if (Number.isSafeInteger(nextRevision) && nextRevision > sync.state().revision) sync.changed(nextRevision)
   }, [sync])
   const realtime = useStudioRealtime({ id: record.id, token, scope, onRevision: confirmed, onDenied: revoked, onChange: sync.receive })
@@ -153,7 +154,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     {templateEditing.notice}
     {recovery && canEdit ? <Notice icon={History} title="Hay cambios de este navegador sin sincronizar" description="No llegaron al servidor la última vez que editaste. Recupéralos para aplicarlos sobre la versión compartida.">
       <Button size="sm" disabled={!ready} onClick={recover}>Recuperar</Button>
-      <Button size="sm" variant="ghost" onClick={() => { store.clear(); setRecovery(null) }}>Descartar</Button>
+      <Button size="sm" variant="ghost" onClick={() => { store.clear();collisions.clear(); setRecovery(null) }}>Descartar</Button>
     </Notice> : null}
     {error ? <Notice variant="warning" icon={AlertTriangle} title="No se pudo sincronizar un cambio" description={`${error} El diseño muestra la versión compartida.`}>
       <Button size="sm" variant="ghost" onClick={() => setError('')}>Cerrar</Button>
@@ -168,7 +169,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     onName: value => { nameRef.current = value; setName(value); if (value.trim()) sync.rename(value.trim()) },
     syncState: status, live: realtime.status, onRetrySync: () => sync.resync(), ensureSaved,
     onShare: () => openCredits({kind:'share'}), onExport: (format,quality) => openCredits({kind:'export',format,quality}),
-    onCredits: () => openCredits(), onSaveTemplate: ready ? saveAsTemplate.open : null, exporting, exportDisabled: exporting, notices,
+    onCredits: () => openCredits(), onSaveTemplate: ready ? async()=>{try{await ensureSaved();saveAsTemplate.open()}catch(e){setError(e.message)}} : null, exporting, exportDisabled: exporting, notices,
   }
   return <>
     <StudioWorkspace initial={initial} readOnly={!canEdit} participants={realtime.participants} chrome={chrome}

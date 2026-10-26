@@ -19,13 +19,14 @@ async function captureScene(editor) {
 
 // "Guardar como plantilla" from the editor: posts the full current document
 // (never a card preview), so unsaved changes are included.
-export function useSaveAsTemplate({ editorRef, token, scopeKey, name }) {
+export function useSaveAsTemplate({ editorRef, token, scopeKey, name, ensureSaved }) {
   const permissions = useTemplatePermissions(), queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const available = permissions.canSavePersonal || permissions.canSaveCompany
   const dialog = available ? (
     <TemplateFormDialog open={open} onOpenChange={setOpen} mode="create" template={open ? { name } : null} canSaveCompany={permissions.canSaveCompany}
       onSubmit={async values => {
+        await ensureSaved?.()
         const document = await captureScene(editorRef.current)
         const saved = unwrap(await runly.studio.saveTemplate({ ...values, scope: permissions.canSaveCompany ? values.scope : 'personal', document }, token))
         queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'templates'] })
@@ -52,14 +53,13 @@ export function useTemplateEditing({ editorRef, token, scopeKey, templateId, des
     // Clear the previous confirmation so it never shows while this save is pending.
     inFlight.current = true; setSaving(true); setError(null); setSavedAt(null)
     try {
+      await saveDesign?.()
       const document = await captureScene(editorRef.current)
       await runly.studio.updateTemplate(templateId, { revision: detail.data.revision, document }, token)
       await detail.refetch()
       queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'templates'] })
       setSavedAt(new Date())
       toast.success(`Plantilla «${detail.data.name}» actualizada`)
-      // Best effort: a failed design save keeps its own warning and local draft.
-      await saveDesign?.()
     } catch (failure) { setError(failure) } finally { inFlight.current = false; setSaving(false) }
   }
   async function reload() {

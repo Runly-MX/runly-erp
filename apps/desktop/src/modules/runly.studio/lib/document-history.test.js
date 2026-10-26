@@ -40,3 +40,21 @@ test('undo reverts only local changes and keeps a collaborator change made meanw
   assert.equal(undone.objects[0].x, 10); assert.equal(undone.objects[1].fill, '#123456')
   assert.equal(history.move('redo').objects[0].x, 99)
 })
+
+test('selective undo preserves remote properties on the same object and does not resurrect remote deletions',()=>{
+  const doc=appendObject(blankDocument(),'rectangle'),history=createDocumentHistory(doc),id=doc.objects[0].id
+  history.commit({...doc,objects:[{...doc.objects[0],x:123,fill:'#123456'}]})
+  history.rebase([{type:'patch',id,set:{fill:'#abcdef',y:222}}])
+  let next=history.move('undo');assert.equal(next.objects[0].x,80);assert.equal(next.objects[0].fill,'#abcdef');assert.equal(next.objects[0].y,222)
+  next=history.move('redo');assert.equal(next.objects[0].x,123);assert.equal(next.objects[0].fill,'#abcdef')
+  history.rebase([{type:'remove',id}]);assert.deepEqual(history.move('undo').objects,[]);assert.equal(history.state().canRedo,false)
+})
+test('gradient/photo/group properties remain atomic; undo of creation never deletes a remotely edited object',()=>{
+  const doc=appendObject(blankDocument(),'rectangle'),id=doc.objects[0].id,history=createDocumentHistory(blankDocument())
+  history.commit(doc);history.rebase([{type:'patch',id,set:{groupId:'remote-group'}}])
+  assert.equal(history.move('undo').objects[0].groupId,'remote-group')
+  const h=createDocumentHistory(doc),paint={type:'gradient',gradientType:'linear',angle:0,stops:[{offset:0,color:'#000000',opacity:1},{offset:1,color:'#ffffff',opacity:1}]}
+  h.commit({...doc,objects:[{...doc.objects[0],fillPaint:paint,groupId:'local'}]})
+  h.rebase([{type:'patch',id,set:{fillPaint:{...paint,angle:45}}}])
+  const undone=h.move('undo');assert.equal(undone.objects[0].fillPaint.angle,45);assert.equal(undone.objects[0].groupId,undefined)
+})

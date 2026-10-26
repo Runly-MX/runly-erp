@@ -1,6 +1,7 @@
 import { StudioError, validateDocument } from '../../../../shared/studio/document.js'
 import { createStudioAccess } from './studio-access.js'
-import { applyOps, checkOps } from '../../../../shared/studio/operations.js'
+import { applyOps, checkOps, diffOps } from '../../../../shared/studio/operations.js'
+import { createHash } from 'node:crypto'
 
 export function createStudioService({ prisma, filesService, broadcaster }) {
   const access = createStudioAccess({ prisma, filesService })
@@ -72,30 +73,41 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
   // then broadcast so every open editor replays the same operations.
   async function applyChanges(companyId, actorId, id, input, fileContext) {
     access.identity(companyId, actorId)
-    if (typeof input?.clientId !== 'string' || !/^[a-zA-Z0-9_-]{8,64}$/.test(input.clientId) || !Number.isSafeInteger(input?.batchId)) throw new StudioError('Sesión de edición inválida.')
+    if (typeof input?.clientId !== 'string' || !/^[a-zA-Z0-9_-]{8,64}$/.test(input.clientId) || !Number.isSafeInteger(input?.batchId)||input.batchId<1) throw new StudioError('Sesión de edición inválida.')
+    if(JSON.stringify(input).length>1_100_000)throw new StudioError('Lote demasiado grande.',413)
     let ops
     try { ops = checkOps(input.ops) } catch (error) { throw new StudioError(error.message) }
     const name = input.name === undefined ? null : title(input.name)
+    const digest=createHash('sha256').update(JSON.stringify({ops,name})).digest('hex')
     const row = await prisma.$transaction(async db => {
       await access.lock(db, id)
       const current = await access.get(companyId, actorId, id, db, true)
+      // The design lock serializes identical concurrent requests. Receipts are
+      // durable audit records, scoped to the authenticated actor, never clientId alone.
+      const [receipt]=await db.$queryRaw`SELECT metadata FROM audit_log WHERE company_id=${companyId}::uuid AND actor_id=${actorId}::uuid
+        AND entity_id=${id}::uuid AND entity_type='StudioDesign' AND module_key='runly.studio' AND action='studio.design.update'
+        AND metadata ? 'digest' AND metadata ? 'result'
+        AND metadata->>'clientId'=${input.clientId} AND metadata->>'batchId'=${String(input.batchId)} LIMIT 1`
+      if(receipt){
+        if(receipt.metadata.digest!==digest)throw new StudioError('El identificador del lote ya corresponde a otros cambios.',409,'STUDIO_BATCH_REUSED')
+        return {...receipt.metadata.result,id}
+      }
       let document
       try { document = validateDocument(applyOps(validateDocument(current.document), ops)) } catch (error) { throw error instanceof StudioError ? error : new StudioError(error.message) }
       const ids = await access.assets(db, companyId, actorId, document, id, fileContext)
+      const effective=diffOps(validateDocument(current.document),document)
       const [row] = await db.$queryRaw`UPDATE studio_design SET name=COALESCE(${name},name),document=${JSON.stringify(document)}::jsonb,
         revision=revision+1,updated_at=now() WHERE id=${id}::uuid AND company_id=${companyId}::uuid RETURNING id,name,revision,updated_at AS "updatedAt"`
       await access.bindAssets(db, id, actorId, ids)
-      // Live editing produces many small batches: audit one entry per actor and design every 10 minutes.
-      const [recent] = await db.$queryRaw`SELECT 1 AS found FROM audit_log WHERE entity_id=${id}::uuid AND actor_id=${actorId}::uuid AND module_key='runly.studio' AND action='studio.design.update'
-        AND created_at > now() - interval '10 minutes' LIMIT 1`
-      if (!recent) await access.audit(db, companyId, actorId, 'studio.design.update', row, { live: true })
-      return row
+      const result={revision:row.revision,name:row.name,ops:effective}
+      await access.audit(db, companyId, actorId, 'studio.design.update', row, {live:true,clientId:input.clientId,batchId:input.batchId,digest,result})
+      return {...row,...result}
     })
-    const message = { designId: id, revision: row.revision, clientId: input.clientId, batchId: input.batchId, ops, ...(name !== null ? { name: row.name } : {}) }
+    const message = { designId: id, revision: row.revision, clientId: input.clientId, batchId: input.batchId, ops:row.ops, ...(name !== null ? { name: row.name } : {}) }
     const payload = JSON.stringify(message).length > 200_000 ? { designId: id, revision: row.revision, clientId: input.clientId, batchId: input.batchId, refetch: true } : message
     await broadcaster?.broadcastToChannel(`studio:design:${id}`, 'change', payload,
       { authorize: async () => { try { await access.get(companyId, actorId, id); return true } catch { return false } } })
-    return { revision: row.revision, name: row.name }
+    return { revision: row.revision, name: row.name, ops:row.ops }
   }
   return { list, get, create, update, applyChanges, access }
 }

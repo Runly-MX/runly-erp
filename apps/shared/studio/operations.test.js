@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { appendObject, blankDocument, validateDocument } from './document.js'
-import { applyOps, compactOps, diffOps, orderSlots } from './operations.js'
+import { applyOps, compactOps, diffOps, orderSlots, checkOps } from './operations.js'
 
 const base = () => {
   let doc = blankDocument(800, 600)
@@ -42,4 +42,22 @@ test('compaction keeps the final effect of a long local burst', () => {
   const compact = compactOps(ops)
   assert.ok(compact.length < ops.length)
   assert.deepEqual(applyOps(a, compact), doc)
+})
+
+test('independent properties merge, atomic paints/text use sequenced LWW, deletion beats stale patch',()=>{
+  const doc=base(),a={...doc,objects:doc.objects.map((o,i)=>i?o:{...o,fill:'#abcdef'})},b={...doc,objects:doc.objects.map((o,i)=>i?o:{...o,x:95})}
+  const opsA=diffOps(doc,a),opsB=diffOps(doc,b)
+  assert.equal(opsA[0].type,'patch')
+  for(const ops of [[...opsA,...opsB],[...opsB,...opsA]]){
+    const result=applyOps(doc,ops);assert.equal(result.objects[0].fill,'#abcdef');assert.equal(result.objects[0].x,95)
+  }
+  assert.equal(applyOps(doc,[{type:'remove',id:doc.objects[0].id},...opsB]).objects.length,2)
+  const pageA=diffOps(doc,{...doc,page:{...doc.page,width:1000}}),pageB=diffOps(doc,{...doc,page:{...doc.page,background:'#111111'}})
+  assert.deepEqual(applyOps(doc,[...pageA,...pageB]).page,{width:1000,height:600,background:'#111111'})
+})
+test('compaction preserves remove/re-add slot effects and every intervening order operation',()=>{
+  const doc=base(),[a,b,c]=doc.objects
+  const ops=[{type:'remove',id:a.id},{type:'upsert',object:a},{type:'order',ids:[c.id,b.id]},{type:'order',ids:[a.id,b.id]}]
+  assert.deepEqual(applyOps(doc,compactOps(ops)),applyOps(doc,ops))
+  for(const bad of [[{type:'patch',id:a.id,set:{id:'forged'}}],[{type:'patch',id:a.id,set:[]}],[{type:'patch',id:a.id,set:{x:1},unset:['x']}],[{type:'order',ids:[a.id,a.id]}],[{type:'patchPage',set:{__proto__:null,unknown:1}}]])assert.throws(()=>checkOps(bad))
 })

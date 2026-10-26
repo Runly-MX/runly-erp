@@ -1,6 +1,33 @@
 import { validateDocument } from '../../../../../shared/studio/document.js'
 import { applyOps, diffOps } from '../../../../../shared/studio/operations.js'
 
+const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b)
+// Invert only values still owned by this action. A later collaborator wins a
+// collision; undo never recreates an edited object removed by another session.
+function selective(document,desired,expected) {
+  const objects=new Map(document.objects.map(o=>[o.id,o])),result=[]
+  const key=op=>op.type==='upsert'?op.object.id:op.id
+  for(const op of desired){
+    const other=expected.find(e=>key(e)===key(op)&&(['patchPage','page','order'].includes(op.type)?e.type===op.type:true))
+    if(op.type==='patch'||op.type==='patchPage'){
+      const current=op.type==='patch'?objects.get(op.id):document.page
+      if(!current||!other)continue
+      const matches=k=>same(current[k],other.set?.[k])
+      const set=Object.fromEntries(Object.entries(op.set).filter(([k])=>matches(k))),unset=(op.unset??[]).filter(matches)
+      if(Object.keys(set).length||unset.length)result.push({...op,set,unset})
+    }else if(op.type==='remove'){
+      if(other?.type==='upsert'&&same(objects.get(op.id),other.object))result.push(op)
+    }else if(op.type==='upsert'){
+      const current=objects.get(op.object.id)
+      if(other?.type==='remove'?!current:other?.type==='upsert'&&same(current,other.object))result.push(op)
+    }else if(op.type==='order'){
+      const ids=new Set(other?.ids??[]),actual=document.objects.map(o=>o.id).filter(id=>ids.has(id))
+      if(same(actual,other?.ids.filter(id=>objects.has(id))))result.push(op)
+    }
+  }
+  return result
+}
+
 // Selective undo for a shared document: each entry keeps the forward and
 // inverse operations of one local change. Undo applies the inverse on top of
 // the current document, so changes made meanwhile by collaborators (folded in
@@ -18,7 +45,7 @@ export function createDocumentHistory(initial, { limit = 50, maxBytes = 8_000_00
   }
   const travel = direction => {
     const entry = (direction === 'undo' ? past : future).at(-1)
-    return entry ? validateDocument(applyOps(base, direction === 'undo' ? entry.inverse : entry.forward)) : null
+    return entry ? validateDocument(applyOps(base, selective(base,direction === 'undo' ? entry.inverse : entry.forward,direction === 'undo' ? entry.forward : entry.inverse))) : null
   }
   return {
     commit(document) {
@@ -33,7 +60,10 @@ export function createDocumentHistory(initial, { limit = 50, maxBytes = 8_000_00
       const next = travel(direction)
       if (!next) return null
       const from = direction === 'undo' ? past : future, to = direction === 'undo' ? future : past
-      to.push(from.pop()); base = next; trim(); return next
+      from.pop()
+      const forward=direction==='undo'?diffOps(next,base):diffOps(base,next),inverse=direction==='undo'?diffOps(base,next):diffOps(next,base)
+      if(forward.length||inverse.length)to.push({forward,inverse})
+      base = next; trim(); return next
     },
     state() { return { canUndo: past.length > 0, canRedo: future.length > 0, entries: past.length + future.length } },
   }

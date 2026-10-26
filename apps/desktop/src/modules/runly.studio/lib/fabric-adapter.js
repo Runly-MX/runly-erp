@@ -50,7 +50,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       if(!pixels||image.width>8192||image.height>8192||pixels>25_000_000||budget.pixels+pixels>25_000_000)throw Error('El diseño supera el límite de 25 megapíxeles de imágenes decodificadas o 8192 px por lado.')
       budget.pixels+=pixels
     }
-    const options = { left: item.x, top: item.y, angle: item.rotation, fill: item.fill, originX: 'left', originY: 'top' }
+    const options = { left: item.x, top: item.y, angle: item.rotation, fill: item.fill, strokeWidth:0, originX: 'left', originY: 'top' }
     let object
     if(SHAPE_TYPES.includes(item.type)&&(item.fillPaint||item.shape)){
       object=photoFileId(item)?await createStudioPhoto(item,resolveImage,reserve):new StudioPhoto(item,null)
@@ -173,14 +173,16 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
   // selection by id and never touches history.
   async function applyDocument(document, { skip = new Set() } = {}) {
     const next = validateDocument(document), wanted = new Map(next.objects.map(item => [item.id, item]))
+    const live=new Map(snapshot().objects.map(item=>[item.id,item]))
     const selectedIds = canvas.getActiveObjects().map(object => object.studioId)
     let reselect = false
+    if(canvas.getActiveObject()?.type==='activeselection'&&!selectedIds.some(id=>skip.has(id))){canvas.discardActiveObject();reselect=true}
     const drop = object => { if (selectedIds.includes(object.studioId)) { canvas.discardActiveObject(); reselect = true }; canvas.remove(object); object.dispose() }
     for (const object of [...canvas.getObjects()]) if (!wanted.has(object.studioId) && !skip.has(object.studioId)) { drop(object); source.delete(object.studioId) }
     const budget = { pixels: 0 }
     for (const item of next.objects) {
       if (skip.has(item.id)) continue
-      const prev = source.get(item.id), object = canvas.getObjects().find(candidate => candidate.studioId === item.id)
+      const prev = live.get(item.id), object = canvas.getObjects().find(candidate => candidate.studioId === item.id)
       if (object && JSON.stringify(prev) === JSON.stringify(item)) continue
       if (object && inPlace(prev, item)) { setItem(object, item, item); continue }
       const built = await build(item, budget)

@@ -78,7 +78,7 @@ window.studioVerification = async () => {
   await editor.align('left', 'selection')
   const aligned = editor.snapshot()
   if (aligned.objects[0].rotation !== 35 || aligned.objects[3].x !== 25 || aligned.objects[4].x !== 30) throw Error('Alignment modified protected objects or rotation')
-  const visualBounds = item => (item.type === 'ellipse' ? new Ellipse({ left:item.x,top:item.y,rx:item.width/2,ry:item.height/2,angle:item.rotation }) : new Rect({ left:item.x,top:item.y,width:item.width,height:item.height,angle:item.rotation })).getBoundingRect()
+  const visualBounds = item => (item.type === 'ellipse' ? new Ellipse({ left:item.x,top:item.y,rx:item.width/2,ry:item.height/2,angle:item.rotation,strokeWidth:0 }) : new Rect({ left:item.x,top:item.y,width:item.width,height:item.height,angle:item.rotation,strokeWidth:0 })).getBoundingRect()
   const lefts=aligned.objects.slice(0,3).map(item=>visualBounds(item).left)
   if (Math.max(...lefts)-Math.min(...lefts)>1e-8) throw Error('Rotated objects are not visually aligned')
   await editor.undo()

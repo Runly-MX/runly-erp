@@ -74,3 +74,11 @@ window.setupStudioSnap=async(zoom=1)=>{
   canvas.scrollIntoView({block:'start'})
   return canvas.parentElement.querySelector('.upper-canvas').getBoundingClientRect().toJSON()
 }
+window.setupCanonicalSnap=async({zoom=1,width=300,rotation=0,pan=0}={})=>{
+  const canvas=element(),editor=await createStudioEditor(canvas,{document:blankDocument(1080,720)})
+  await editor.add('ellipse',{x:80,y:80,width,height:180,rotation})
+  const wrapper=canvas.parentElement;wrapper.style.transformOrigin='top left';wrapper.style.transform=`scale(${zoom})`;wrapper.style.marginLeft=`${40+pan}px`
+  window.snapTest={editor,canvas};canvas.scrollIntoView({block:'start'})
+  const bounds=wrapper.querySelector('.upper-canvas').getBoundingClientRect().toJSON(),a=rotation*Math.PI/180
+  return {bounds,cx:80+width/2*Math.cos(a)-90*Math.sin(a),cy:80+width/2*Math.sin(a)+90*Math.cos(a)}
+}

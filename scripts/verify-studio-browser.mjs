@@ -46,6 +46,13 @@ try {
     await page.evaluate(()=>window.snapTest.editor.destroy())
   }
   assert.deepEqual(result.saved, result.reopened)
+  for(const [zoom,width,rotation,pan]of [[1,300,0,0],[0.5,301,0,30],[2,300,30,-10],[1,301,-20,20]]){
+    const {bounds,cx,cy}=await page.evaluate(options=>window.setupCanonicalSnap(options),{zoom,width,rotation,pan})
+    await page.mouse.move(bounds.x+cx*zoom,bounds.y+cy*zoom);await page.mouse.down();await page.mouse.move(bounds.x+540*zoom-2,bounds.y+cy*zoom,{steps:6});await page.mouse.up()
+    const item=(await page.evaluate(()=>window.snapTest.editor.snapshot())).objects[0],a=item.rotation*Math.PI/180,center=item.x+item.width/2*Math.cos(a)-item.height/2*Math.sin(a)
+    assert.ok(Math.abs(center-540)<1e-6,`canonical ellipse center at guide 540: ${center} (zoom=${zoom}, width=${width}, rotation=${rotation})`)
+    await page.evaluate(()=>window.snapTest.editor.destroy())
+  }
   assert.equal(result.saved.objects[0].text, 'Texto modificado')
   assert.equal(result.saved.objects[0].rotation, 12)
   assert.equal(result.reopened.objects[0].scaleX, 1.4); assert.equal(result.reopened.objects[0].scaleY, 0.8)

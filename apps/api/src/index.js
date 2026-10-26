@@ -830,7 +830,7 @@ const readiness = createReadinessService({
   isRuntimeReady: () => isModuleRuntimeReady(moduleRuntimeInitialized, routeLoader.getModuleRouteStatus()),
 });
 
-app.route('/', createMcpRouter({ prisma, authMiddleware, supabaseAdmin, signLogo: fileId => getSignedUrlByFileId(fileId, "full", { prisma, supabaseAdmin }) }));
+app.route('/', createMcpRouter({ prisma, authMiddleware, supabaseAdmin, broadcaster, signLogo: fileId => getSignedUrlByFileId(fileId, "full", { prisma, supabaseAdmin }) }));
 
 app.use(
   "*",

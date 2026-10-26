@@ -16,9 +16,10 @@ import { verifyStudioCreative } from './fixtures/studio/supabase-creative.mjs'
 import { measureStudioBaseline } from './lib/studio-web-baseline.mjs'
 import { verifyStudioPhotos } from './fixtures/studio/supabase-photos.mjs'
 import { verifyStudioGradients } from './fixtures/studio/supabase-gradients.mjs'
+import { verifyStudioOperations } from './fixtures/studio/supabase-operations.mjs'
 
 const apiImage=process.argv.find(value=>value.startsWith('--api-image='))?.slice('--api-image='.length)
-const stack = await createStudioStack(apiImage?{apiImage}:{})
+const stack = await createStudioStack({...apiImage?{apiImage}:{},enableMcp:process.argv.includes('--operations-only')})
 let web
 async function close() {
   web?.httpServer.closeAllConnections()
@@ -77,7 +78,10 @@ try {
   if(sourceRef)bundle.sourceRef=sourceRef
   if(baseline)bundle.baseline=baseline
   web = await preview(config)
-  if(process.argv.includes('--gradients-only')){
+  if(process.argv.includes('--operations-only')){
+    const result={passed:true,operations:await verifyStudioOperations(stack,data),gradients:await verifyStudioGradients(stack,data),bundle}
+    await writeFile(join(stack.directory,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2))
+  }else if(process.argv.includes('--gradients-only')){
     const result={passed:true,gradients:await verifyStudioGradients(stack,data),bundle}
     await writeFile(join(stack.directory,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2))
   }else{

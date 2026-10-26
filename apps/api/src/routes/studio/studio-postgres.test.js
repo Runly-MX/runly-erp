@@ -112,12 +112,26 @@ test('Studio service against disposable PostgreSQL: isolation, atomic revisions,
       assert.equal(response.status, 200)
       assert.ok((await response.json()).data.some(item => item.id === record.id))
     })
+    await t.test('incremental receipts deduplicate concurrent requests, survive service recreation and reject changed payload',async()=>{
+      await pool.query(await readFile(new URL('../../../../../prisma/migrations/20261206000000_studio_operation_receipts/migration.sql',import.meta.url),'utf8'))
+      const design=await service.create(company,owner,{name:'Receipt test',document:appendObject(blankDocument(),'rectangle')})
+      const id=design.document.objects[0].id,input={clientId:'test-receipt-session',batchId:1,ops:[{type:'patch',id,set:{x:150},unset:[]}]}
+      const [a,b]=await Promise.all([service.applyChanges(company,owner,design.id,input),service.applyChanges(company,owner,design.id,input)])
+      assert.deepEqual(a,b);assert.equal((await service.get(company,owner,design.id)).revision,2)
+      const again=await createStudioService({prisma}).applyChanges(company,owner,design.id,input);assert.deepEqual(again,a)
+      await assert.rejects(service.applyChanges(company,owner,design.id,{...input,ops:[{type:'remove',id}]}),{code:'STUDIO_BATCH_REUSED'})
+      await service.applyChanges(company,owner,design.id,{clientId:'other-receipt-session',batchId:1,ops:[{type:'patch',id,set:{fill:'#abcdef'},unset:[]}]})
+      assert.equal((await service.get(company,owner,design.id)).document.objects[0].x,150)
+      const receipts=await pool.query("SELECT count(*)::int n FROM audit_log WHERE entity_id=$1 AND metadata->>'clientId'=$2",[design.id,input.clientId]);assert.equal(receipts.rows[0].n,1)
+    })
     await t.test('audit failure rolls back the mutation', async () => {
       await pool.query("ALTER TABLE audit_log ADD CONSTRAINT reject_updates CHECK(action <> 'studio.design.update') NOT VALID")
       await assert.rejects(service.update(company, owner, record.id, { name: 'No debe persistir', document, revision: 2 }))
       const persisted = await service.get(company, owner, record.id)
       assert.equal(persisted.revision, 2)
       assert.notEqual(persisted.name, 'No debe persistir')
+      await assert.rejects(service.applyChanges(company,owner,record.id,{clientId:'rollback-session',batchId:1,ops:[]}))
+      assert.equal((await service.get(company,owner,record.id)).revision,2)
     })
     await t.test('Data API roles cannot read the table', async () => {
       const { rows } = await pool.query("SELECT relrowsecurity AS rls FROM pg_class WHERE oid = 'studio_design'::regclass")
