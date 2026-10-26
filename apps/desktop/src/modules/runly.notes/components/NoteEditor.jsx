@@ -704,7 +704,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       }
     >
       {!viewing && <SpellcheckApplier noteId={note.id} />}
-      {!viewing && <TableFloatingMenu />}
+      {!viewing && <TableFloatingMenu bottom={barVisible ? `calc(${TOUCH_BAR_HEIGHT}px + ${barBottom} + 0.75rem)` : undefined} />}
       {!viewing && <TableDragHandles />}
       {paged.enabled && <PageCounterChip host={containerRef.current} />}
       <OutlinePanel open={outlineOpen} onClose={() => setOutlineOpen(false)} railHost={scrollable ? railHost : null} />

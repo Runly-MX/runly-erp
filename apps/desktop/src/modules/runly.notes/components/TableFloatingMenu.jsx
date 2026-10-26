@@ -8,7 +8,7 @@ import { useBlockDragReorder } from '../hooks/useBlockDragReorder.js'
 
 // Mobile table options. Dedicated grips beside every table are rendered by
 // TableDragHandles; this existing button also keeps its long-press gesture.
-export function TableFloatingMenu() {
+export function TableFloatingMenu({ bottom }) {
   const { editor } = useCurrentEditor()
   const isCoarsePointer = useCoarsePointer()
   const [open, setOpen] = useState(false)
@@ -57,7 +57,8 @@ export function TableFloatingMenu() {
         className="fixed z-20 flex items-center justify-center w-12 h-12 rounded-full bg-amber-500 text-white shadow-lg active:scale-95 transition-transform"
         style={{
           left: '1rem',
-          bottom: 'calc(1rem + var(--sab))',
+          // Sits above the touch formatting bar (bottom comes from NoteEditor).
+        bottom: bottom ?? 'calc(1rem + var(--sab))',
           touchAction: 'none',
           WebkitTouchCallout: 'none',
           userSelect: 'none',

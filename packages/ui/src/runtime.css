@@ -1216,6 +1216,27 @@ body,
      when the image sits in the table's last column/row. */
   padding: 0 0.5rem 0.5rem 0;
 }
+/* Top-level tables: extend the scrolling wrapper into the sheet gutter so the
+   drag grip (TableDragHandles) sits beside the table like image grips do,
+   instead of taking a row above it. */
+.tiptap > .tableWrapper {
+  margin-left: calc(-1 * var(--note-sheet-padding, 2rem));
+  padding-left: var(--note-sheet-padding, 2rem);
+}
+.tiptap > .tableWrapper:hover .note-block-grip { opacity: 1; }
+/* Room for the add column/row strips (TableDragHandles) at the right and
+   bottom edges; they are revealed on hover and always faint on touch. */
+.tiptap > .tableWrapper {
+  position: relative;
+  padding-right: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+.tiptap .note-table-add { opacity: 0; transition: opacity 120ms ease, background-color 120ms ease; }
+.tiptap > .tableWrapper:hover .note-table-add,
+.tiptap .note-table-add:focus-visible { opacity: 1; }
+@media (hover: none) {
+  .tiptap .note-table-add { opacity: 0.5; }
+}
 .tiptap .resize-cursor { cursor: col-resize; }
 
 /* Placeholder — TipTap adds data-placeholder + is-empty on empty blocks */
