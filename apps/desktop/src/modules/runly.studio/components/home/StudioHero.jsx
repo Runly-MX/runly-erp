@@ -1,15 +1,12 @@
 import { ChipTabs, SearchInput } from '@runly/ui'
 import { PenTool } from 'lucide-react'
 import { FORMAT_CATEGORIES } from '../../lib/formats.js'
-
-const GLOW = {
-  backgroundImage: 'radial-gradient(55% 90% at 88% 0%, rgb(217 70 239 / 0.20), transparent 62%), radial-gradient(45% 80% at 0% 100%, rgb(124 58 237 / 0.16), transparent 60%), radial-gradient(30% 50% at 50% 120%, rgb(14 165 233 / 0.10), transparent 70%)',
-}
+import { HeroParticles } from './HeroParticles.jsx'
 
 export function StudioHero({ query, onQuery, category, onCategory }) {
   return (
     <section aria-labelledby="studio-hero-title" className="relative overflow-hidden rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-8 sm:px-10 sm:py-12">
-      <div aria-hidden className="pointer-events-none absolute inset-0" style={GLOW} />
+      <HeroParticles className="pointer-events-none absolute inset-0 h-full w-full" />
       <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-fuchsia-500/25 bg-fuchsia-500/10 px-3 py-1 text-xs font-semibold text-fuchsia-700 dark:text-fuchsia-300">
           <PenTool className="h-3.5 w-3.5" aria-hidden />Studio

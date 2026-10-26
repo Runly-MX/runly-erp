@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { cn } from '@runly/ui'
 
 // Docked side panel that animates open/close: width collapses while the
@@ -18,21 +18,20 @@ export function SidePanel({ side = 'left', open, label, children, className }) {
   )
 }
 
-const FROM = { below: 'translate-y-1.5', left: '-translate-x-6', right: 'translate-x-6' }
+const FROM = { below: 'translateY(8px)', left: 'translateX(-32px)', right: 'translateX(32px)' }
 
-// Fades content in when `contentKey` changes (switching rail tabs or views);
+// Animates content in when `contentKey` changes (switching rail tabs or views);
 // `from` picks the entry direction (lift from below, or slide from a side).
-export function FadeSwap({ contentKey, from = 'below', children, className }) {
-  const [entered, setEntered] = useState(false)
-  useEffect(() => {
-    setEntered(false)
-    const frame = requestAnimationFrame(() => setEntered(true))
-    return () => cancelAnimationFrame(frame)
-  }, [contentKey])
-  return (
-    <div className={cn('transition-[opacity,transform] ease-out motion-reduce:transition-none', from === 'below' ? 'duration-200' : 'duration-300',
-      entered ? 'translate-x-0 translate-y-0 opacity-100' : cn(FROM[from], 'opacity-0 motion-reduce:translate-x-0 motion-reduce:translate-y-0'), className)}>
-      {children}
-    </div>
-  )
+// Web Animations API: runs before paint on every key change, interruptible,
+// and skipped entirely with prefers-reduced-motion.
+export function FadeSwap({ contentKey, from = 'below', children, className, ...props }) {
+  const node = useRef(null)
+  useLayoutEffect(() => {
+    const element = node.current
+    if (!element?.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined
+    const animation = element.animate([{ opacity: 0, transform: FROM[from] }, { opacity: 1, transform: 'none' }],
+      { duration: from === 'below' ? 220 : 380, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' })
+    return () => animation.cancel()
+  }, [contentKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  return <div ref={node} {...props} className={className}>{children}</div>
 }

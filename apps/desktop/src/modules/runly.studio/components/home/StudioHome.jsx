@@ -105,7 +105,7 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, view =
       <StudioHomeSidebar view={view} onView={changeView} creating={creating} onCreate={createFormat} onCustom={() => setSizeOpen(true)} />
       <div className="min-w-0 flex-1 overflow-x-clip">
         <StudioHomeTabs view={view} onView={changeView} />
-        <FadeSwap contentKey={view} from={shown.from} className="pt-4 sm:pt-6 lg:pt-0">{views[view] ?? views.home}</FadeSwap>
+        <FadeSwap data-studio-view={view} contentKey={view} from={shown.from} className="pt-4 sm:pt-6 lg:pt-0">{views[view] ?? views.home}</FadeSwap>
       </div>
       {sizeOpen ? <StudioPageDialog open creating page={{ width: 1080, height: 1080, background: '#ffffff' }} onClose={() => setSizeOpen(false)} onApply={page => onCreate('custom', page, true)} /> : null}
     </div>
