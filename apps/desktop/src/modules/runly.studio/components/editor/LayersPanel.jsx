@@ -2,7 +2,7 @@ import { Checkbox, EmptyState, ToolButton, cn } from '@runly/ui'
 import { Circle, Eye, EyeOff, Image, Layers, Lock, Square, Type, Unlock, PenTool, Minus } from 'lucide-react'
 
 export const OBJECT_META = {
-  line: {label:'L?nea',icon:Minus},
+  line: {label:'Línea',icon:Minus},
   vector: { label: 'Icono', icon: PenTool },
   text: { label: 'Texto', icon: Type },
   rectangle: { label: 'Rectángulo', icon: Square },
