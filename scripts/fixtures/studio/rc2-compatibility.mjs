@@ -29,7 +29,7 @@ export async function verifyRc2Compatibility(stack,{users,companies},{apiImage,w
   const legacyDoc={...appendObject(blankDocument(),'text',{text:'Legacy original'}),schemaVersion:5}
   const legacy=(await stack.pool.query('INSERT INTO studio_design(company_id,owner_id,name,document) VALUES($1,$2,$3,$4) RETURNING id',[company.id,owner.id,'RC2 cached tab',legacyDoc])).rows[0]
   const browser=await chromium.launch({channel:'chrome',headless:true})
-  async function open(url){const page=await browser.newPage({viewport:{width:1440,height:1100}});page.on('dialog',d=>d.accept());await page.goto(url+'/app/login');await page.locator('#identifier').fill(owner.email);await page.locator('#password').fill(owner.password);await page.getByRole('button',{name:'Acceder al sistema',exact:true}).click();await page.waitForURL(u=>!u.pathname.includes('/login'));await page.goto(url+`/app/m/runly.studio/?design=${legacy.id}`);return page}
+  async function open(url,{blockNotifications=false}={}){const page=await browser.newPage({viewport:{width:1440,height:1100}});if(blockNotifications){await page.route('**/studio/designs/*/live',route=>route.abort('internetdisconnected'));await page.routeWebSocket('**/realtime/v1/websocket*',socket=>socket.close())}page.on('dialog',d=>d.accept());await page.goto(url+'/app/login');await page.locator('#identifier').fill(owner.email);await page.locator('#password').fill(owner.password);await page.getByRole('button',{name:'Acceder al sistema',exact:true}).click();await page.waitForURL(u=>!u.pathname.includes('/login'));await page.goto(url+`/app/m/runly.studio/?design=${legacy.id}`);return page}
   try{
     config.services['runly-web'].environment.RUNLY_API_URL=oldUrl;await writeFile(stack.composeFile,JSON.stringify(config,null,2));await stack.compose(['up','-d','--force-recreate','runly-web'])
     const newAgainstOld=await open(stack.urls.web),posts=[];newAgainstOld.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/changes'))posts.push(r.url())})
@@ -38,7 +38,7 @@ export async function verifyRc2Compatibility(stack,{users,companies},{apiImage,w
     await newAgainstOld.screenshot({path:join(stack.directory,'new-web-old-api.png')});await newAgainstOld.close()
     config.services['runly-web'].environment.RUNLY_API_URL=stack.urls.api;await writeFile(stack.composeFile,JSON.stringify(config,null,2));await stack.compose(['up','-d','--force-recreate','runly-web'])
     checks.push('Actual new Web + old API detects absent protocol before writes and preserves a local pending queue')
-    const cached=await open(oldWeb);await cached.locator('.upper-canvas').waitFor();await selectLayer(cached,1);await cached.getByLabel('Texto del elemento',{exact:true}).fill('Legacy pending must survive')
+    const cached=await open(oldWeb,{blockNotifications:true});await cached.locator('.upper-canvas').waitFor();await selectLayer(cached,1);await cached.getByLabel('Texto del elemento',{exact:true}).fill('Legacy pending must survive')
     await cached.waitForFunction(()=>Object.entries(localStorage).some(([k,v])=>k.startsWith('runly:studio:draft:')&&v.includes('Legacy pending must survive')))
     // Explicit notification-loss fault: an old tab must remain safe even when
     // background GETs cannot discover the newer revision before its next PUT.
