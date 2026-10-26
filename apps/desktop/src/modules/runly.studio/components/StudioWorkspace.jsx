@@ -30,7 +30,8 @@ import { usePaintTools } from './editor/paint/usePaintTools.js'
 import { PageBackground } from './editor/paint/PageBackground.jsx'
 import { useCanvasPreferences } from './editor/canvas/useCanvasPreferences.js'
 import { CanvasPreferencesMenu } from './editor/canvas/CanvasPreferencesMenu.jsx'
-import { GridOverlay, GuidesOverlay, Rulers } from './editor/canvas/CanvasOverlays.jsx'
+import { GridOverlay, GuidesOverlay } from './editor/canvas/CanvasOverlays.jsx'
+import { Rulers } from './editor/canvas/Rulers.jsx'
 import { canHoldPhoto } from '../lib/photo-target.js'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }
@@ -121,6 +122,12 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const selectedObjects = objects.filter(object => selectedIds.includes(object.id))
   const sharedGroup = selectedObjects.length > 0 && selectedObjects.every(object => object.groupId && object.groupId === selectedObjects[0].groupId)
   const grouping = { canUngroup: sharedGroup, canGroup: selectedObjects.length > 1 && !sharedGroup && selectedObjects.every(object => !object.groupId && !object.locked && !object.hidden) }
+  // Extent of the selection in page units (rulers highlight it).
+  const selectionBox = selectedObjects.length ? (() => {
+    const left = Math.min(...selectedObjects.map(o => o.x)), top = Math.min(...selectedObjects.map(o => o.y))
+    const right = Math.max(...selectedObjects.map(o => o.x + o.width * (o.scaleX ?? 1))), bottom = Math.max(...selectedObjects.map(o => o.y + o.height * (o.scaleY ?? 1)))
+    return { x: left, y: top, width: right - left, height: bottom - top }
+  })() : null
   const group = sharedGroup && selectedObjects.length > 1 ? { id: selectedObjects[0].groupId, count: objects.filter(object => object.groupId === selectedObjects[0].groupId).length } : null
   // Scale/rotate a flat group around its visual centre (engine transformGroup), then keep it selected.
   const transformGroup = options => attempt(async () => {
@@ -312,7 +319,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
             </div>
           </div>
           </StudioContextMenu>
-          {canvas.preferences.grid.rulers ? <Rulers references={canvas.references} /> : null}
+          {canvas.preferences.grid.rulers ? <Rulers viewportRef={view.viewport} paperRef={view.paper} page={page} zoom={zoom} selection={selectionBox} /> : null}
           {sampling ? <CanvasColorSampler canvas={canvasRef.current} onPick={finishSampling} onCancel={() => finishSampling(null)} /> : null}
           {!ready && !error ? <div className="pointer-events-none absolute inset-0 flex items-center justify-center"><Skeleton className="aspect-square w-2/5 max-w-sm" /></div> : null}
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center gap-2 px-2 pt-2 sm:px-4 sm:pt-3">
@@ -347,7 +354,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
               <CanvasPreferencesMenu canvas={canvas} compact={phone} />
             </ZoomPill>
           </div>
-          <p className="pointer-events-none absolute bottom-5 left-4 z-10 hidden text-xs tabular-nums text-[hsl(var(--muted-foreground))] md:block">{page.width} × {page.height} px</p>
+          <p className={cn('pointer-events-none absolute bottom-5 z-10 hidden text-xs tabular-nums text-[hsl(var(--muted-foreground))] md:block', canvas.preferences.grid.rulers ? 'left-8' : 'left-4')}>{page.width} × {page.height} px</p>
         </section>
         {wide ? (
           <SidePanel side="right" open={inspectorOpen} label="Propiedades">

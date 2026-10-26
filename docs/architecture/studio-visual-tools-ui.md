@@ -116,7 +116,7 @@ Controles sobre las operaciones reales v6 de `fabric-adapter.js` (contrato en
 | Editor de degradados | `editor/paint/GradientEditor.jsx` | `updateGradientStop`, `addGradientStop`, `removeGradientStop`, `reverseGradient`, `resetGradient`, `setGradient` (tipo, ángulo, centro, radio, presets) |
 | Fondo de página | `editor/paint/PageBackground.jsx` en el panel Página | `setPageBackground`, `setPageGradient`; «Aplicar a la forma seleccionada» / «Usar como fondo de la página» reutilizan la pintura |
 | Guías inteligentes | `editor/canvas/CanvasOverlays.jsx` (`GuidesOverlay`) | `onGuides`: línea de 1 px de pantalla con halo, discontinua para separación/cuadrícula y etiqueta de separación |
-| Cuadrícula y reglas | `GridOverlay`, `Rulers` | `setGridOptions`, `setViewport` (zoom mostrado y desplazamiento de la página en el viewport), marcas de `onEditorPreferences` |
+| Cuadrícula y reglas | `GridOverlay`; reglas en `editor/canvas/Rulers.jsx` | Cuadrícula: `setGridOptions`. Reglas sin ida y vuelta al motor: pasos «redondos» 1-2-5 × 10ⁿ según el zoom (etiquetas ≥ 64 px, 4–5 subdivisiones), marcas que solo cambian con el zoom y un único `transform` por fotograma al desplazar (sin temblor), líneas nítidas, tramo de la página resaltado y extensión de la selección en fucsia |
 | Preferencias del lienzo | `editor/canvas/CanvasPreferencesMenu.jsx` en la píldora de zoom, `useCanvasPreferences.js` | `setSnappingOptions`; imán de un clic; menú con página/objetos/cuadrícula, guías visibles, cuadrícula, reglas y tamaño. Guardado por persona en `localStorage` |
 | Grupo | Sección «Grupo» y «Transformar grupo» de Propiedades | `group`, `ungroup`, `duplicate`, `align`, `transformGroup(id, {scale|rotation, origin: centro})` seguido de `selectGroup` |
 
