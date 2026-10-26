@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join, basename } from 'node:path';
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
+import { gzipSync } from 'node:zlib';
 
 export async function inspectStudioWeb(html, { forbiddenValues = [] } = {}) {
 const assets = join(html, 'assets');
@@ -55,5 +56,7 @@ while (queue.length && !dynamic.has(studio)) {
   queue.push(...graph.staticImports, ...graph.dynamicImports);
 }
 assert.ok(dynamic.has(studio), 'Studio is not reachable through a lazy import');
-return { studioChunk: studio, studioBytes: Buffer.byteLength(studioCode), fabric: true, lazy: true, initialChunks: initial.size };
+const initialCode=await Promise.all([...initial].map(name=>readFile(join(assets,name))))
+return { studioChunk: studio, studioBytes: Buffer.byteLength(studioCode), studioGzipBytes:gzipSync(studioCode).length, fabric: true, lazy: true, initialChunks: initial.size,
+  initialBytes:initialCode.reduce((sum,code)=>sum+code.length,0),initialGzipBytes:initialCode.reduce((sum,code)=>sum+gzipSync(code).length,0) };
 }

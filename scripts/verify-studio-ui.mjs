@@ -10,6 +10,8 @@ import { chromium } from 'playwright'
 import { createStudioService } from '../apps/api/src/routes/studio/studio-service.js'
 import { database } from './fixtures/studio/postgres-adapter.mjs'
 import { installMinimalStudioAccess } from './fixtures/studio/minimal-access.mjs'
+import { createBlank,insertText,insertShape,showFiles,selectLayer,exportImage } from './fixtures/studio/editor-controls.mjs'
+import { searchTemplates } from '../apps/shared/studio/templates.js'
 
 const root = fileURLToPath(new URL('../', import.meta.url)), output = resolve(root, '.artifacts/studio')
 const url = process.env.STUDIO_TEST_DATABASE_URL
@@ -18,13 +20,17 @@ const schema = `studio_ui_${Date.now()}`
 const pool = new pg.Pool({ connectionString: url, options: `-c search_path=${schema},public` })
 const company = '00000000-0000-4000-8000-000000000001', owner = '00000000-0000-4000-8000-000000000002'
 const assetId = '00000000-0000-4000-8000-000000000005'
+await pool.query(`DO $$ BEGIN
+  IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon; END IF;
+  IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated; END IF;
+END $$`)
 await pool.query(`CREATE SCHEMA ${schema}`)
 await pool.query(`CREATE TABLE company(id uuid PRIMARY KEY); CREATE TABLE user_profile(id uuid PRIMARY KEY);
   CREATE TABLE file_asset(id uuid PRIMARY KEY, entity_id uuid, uploaded_by_id uuid, enabled boolean, mime_type text);
   CREATE TABLE audit_log(action text NOT NULL, entity_id uuid, metadata jsonb);`)
 await pool.query(await readFile(resolve(root, 'prisma/migrations/20261130000000_studio_design/migration.sql'), 'utf8'))
 await installMinimalStudioAccess(pool)
-await pool.query('INSERT INTO company VALUES ($1);', [company]); await pool.query('INSERT INTO user_profile VALUES ($1)', [owner])
+await pool.query('INSERT INTO company VALUES ($1);', [company]); await pool.query('INSERT INTO user_profile(id) VALUES ($1)', [owner])
 const service = createStudioService({ prisma: database(pool, pool) })
 const require = createRequire(resolve(root, 'packages/module-compiler/package.json'))
 const desktopRequire = createRequire(resolve(root, 'apps/desktop/package.json'))
@@ -55,10 +61,12 @@ try {
   browser = await chromium.launch({ channel: 'chrome', headless: true })
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }), errors = []
   page.on('pageerror', error => errors.push(error.message))
+  await page.route('**/studio/templates**',route=>route.fulfill({json:{data:searchTemplates(Object.fromEntries(new URL(route.request().url()).searchParams))}}))
   await page.route('**/studio/designs**', async route => {
     const request = route.request(), pathname = new URL(request.url()).pathname
     assert.equal(request.headers()['x-runly-company-id'], company)
     assert.equal(request.headers().authorization, 'Bearer studio-fixture-token')
+    if(pathname.endsWith('/credits')){await route.fulfill({json:{data:[]}});return}
     if (request.method() === 'PUT' && failNextSave) {
       failNextSave = false
       await route.fulfill({ status: 503, json: { error: 'Fallo temporal de prueba' } }); return
@@ -85,14 +93,14 @@ try {
   await page.route('**/files/*/signed-url', route => route.fulfill({ json: { signedUrl: `${origin}/fixture-image.png` } }))
   await page.route('**/studio/designs/*/assets/*/signed-url', route => route.fulfill({ json: { data: { signedUrl: `${origin}/fixture-image.png` } } }))
   await page.goto(origin)
-  await page.getByRole('button', { name: 'Crear diseño', exact: true }).click()
-  await page.getByRole('button', { name: 'Texto', exact: true }).click()
+  await createBlank(page)
+  await insertText(page)
   await page.getByLabel('Texto del elemento', { exact: true }).fill('Primera composición real')
   await page.getByLabel('Posición X', { exact: true }).fill('120')
-  await page.getByRole('button', { name: 'Rectángulo', exact: true }).click()
+  await insertShape(page,'Rectángulo')
   await page.getByLabel('Ancho', { exact: true }).fill('280')
   await page.getByLabel('Posición Y', { exact: true }).fill('400')
-  await page.getByRole('button', { name: 'Círculo', exact: true }).click()
+  await insertShape(page,'Círculo')
   await page.getByLabel('Posición X', { exact: true }).fill('500')
   await page.getByLabel('Posición Y', { exact: true }).fill('400')
   const png = await page.evaluate(() => {
@@ -100,14 +108,14 @@ try {
     const ctx = canvas.getContext('2d'); ctx.fillStyle = '#f59e0b'; ctx.fillRect(0, 0, 40, 24)
     return canvas.toDataURL().split(',')[1]
   })
+  await showFiles(page)
   await page.locator('input[type=file]').setInputFiles({ name: 'original.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })
-  await page.getByRole('button', { name: '4. Imagen', exact: true }).waitFor()
-  await page.getByRole('button', { name: '4. Imagen', exact: true }).click()
+  await selectLayer(page,4)
   await page.getByLabel('Ancho', { exact: true }).fill('160')
   await page.getByLabel('Posición X', { exact: true }).fill('700')
   await page.getByLabel('Nombre del diseño').fill('Composición de prueba')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
-  await page.getByRole('status').filter({ hasText: /^Guardado$/ }).waitFor()
+  await page.getByRole('status').filter({ hasText: /^Guardado/ }).waitFor()
   const designId = new URL(page.url()).searchParams.get('design')
   const persisted = await service.get(company, owner, designId)
   assert.equal(persisted.document.objects.length, 4)
@@ -118,7 +126,7 @@ try {
   assert.equal(persisted.document.objects[3].width, 160)
   assert.equal(persisted.document.objects[3].x, 700)
   await page.reload()
-  await page.getByRole('button', { name: '1. Texto', exact: true }).click()
+  await selectLayer(page,1)
   await page.getByLabel('Texto del elemento', { exact: true }).waitFor()
   assert.equal(await page.getByLabel('Texto del elemento', { exact: true }).inputValue(), 'Primera composición real')
   // A failed save must preserve local edits and leave the stored revision intact.
@@ -129,7 +137,7 @@ try {
   assert.equal(await page.getByLabel('Texto del elemento', { exact: true }).inputValue(), 'Recuperado tras fallo temporal')
   assert.equal((await service.get(company, owner, designId)).revision, persisted.revision)
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
-  await page.getByRole('status').filter({ hasText: /^Guardado$/ }).waitFor()
+  await page.getByRole('status').filter({ hasText: /^Guardado/ }).waitFor()
   assert.equal((await service.get(company, owner, designId)).document.objects[0].text, 'Recuperado tras fallo temporal')
   await page.getByLabel('Texto del elemento', { exact: true }).fill('Cambios locales en conflicto')
   conflictNextSave = true
@@ -138,7 +146,7 @@ try {
   assert.equal(await page.getByLabel('Texto del elemento', { exact: true }).inputValue(), 'Cambios locales en conflicto')
   assert.equal((await service.get(company, owner, designId)).document.objects[0].text, 'Recuperado tras fallo temporal')
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Exportar PNG', exact: true }).click()
+  await exportImage(page)
   const download = await downloadPromise
   await download.saveAs(resolve(output, 'ui-export.png'))
   const bytes = await readFile(resolve(output, 'ui-export.png'))
@@ -149,11 +157,16 @@ try {
   await page.screenshot({ path: resolve(output, 'studio-dark.png'), fullPage: true, animations: 'disabled' })
   await page.setViewportSize({ width: 375, height: 900 })
   await page.screenshot({ path: resolve(output, 'studio-mobile.png'), fullPage: true })
-  await page.getByRole('button', { name: '1. Texto', exact: true }).scrollIntoViewIfNeeded()
+  await selectLayer(page,1)
+  await page.keyboard.press('Escape')
+  await page.getByRole('button',{name:'Propiedades',exact:true}).click()
   await page.screenshot({ path: resolve(output, 'studio-mobile-inspector.png'), fullPage: true })
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
   assert.deepEqual(errors, [])
   await writeFile(resolve(output, 'ui-result.json'), JSON.stringify({ passed: true, objects: 4, pngBytes: bytes.length,
     png: [1080, 1080], realPostgres: true, auth: 'fixture', storage: 'fixture-original-bytes', saveFailureRecovery: true, revisionConflictPreservesEdits: true, viewports: [1440, 375], errors }, null, 2))
   console.log('Studio UI passed: create, edit text/shapes/image, save in PostgreSQL, reload editable, export PNG, dark/mobile layout.')
+} catch(error) {
+  for(const context of browser?.contexts()??[])for(const page of context.pages())await page.screenshot({path:resolve(output,'studio-ui-failure.png'),fullPage:true}).catch(()=>{})
+  throw error
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); await pool.end() }

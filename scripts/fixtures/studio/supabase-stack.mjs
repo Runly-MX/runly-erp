@@ -69,8 +69,10 @@ export async function createStudioStack() {
       SUPABASE_URL: 'http://supabase-kong:8000', RUNLY_SUPABASE_PUBLIC_URL: urls.kong,
       SUPABASE_ANON_KEY: secret.SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY: secret.SUPABASE_SERVICE_ROLE_KEY,
       SUPABASE_JWT_SECRET: secret.SUPABASE_JWT_SECRET, RUNLY_INTERNAL_SECRET: randomBytes(32).toString('hex'),
-      RUNLY_SKIP_DB_INIT: '1', CORS_ORIGIN: urls.web, RUNLY_PROJECT_ROOT: '/app', RUNLY_MODULES_DIR: '/app/modules/custom' },
+      RUNLY_SKIP_DB_INIT: '1', CORS_ORIGIN: urls.web, RUNLY_PROJECT_ROOT: '/app', RUNLY_MODULES_DIR: '/app/modules/custom', STUDIO_CATALOG_TEST_PROJECT:name },
     ports: [{ target: 4010, published: String(ports.api), host_ip: '127.0.0.1' }], networks: { default: null } }
+  services['studio-catalog-test']={image:'runly-studio-test:api-local',pull_policy:'never',restart:'no',entrypoint:['node','/app/studio-catalog-server.mjs'],
+    volumes:[{type:'bind',source:resolve('scripts/fixtures/studio/catalog-server.mjs'),target:'/app/studio-catalog-server.mjs',read_only:true}],networks:{default:null}}
   const volumes = Object.fromEntries(Object.keys(source.volumes).map(key => [key, {}]))
   const composeFile = join(directory, 'compose.json')
   await writeFile(composeFile, JSON.stringify({ name, services, volumes, networks: { default: {} } }, null, 2))

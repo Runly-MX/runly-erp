@@ -11,6 +11,8 @@ import { inspectStudioWeb } from './lib/studio-web-verification.mjs'
 import { verifyStudioCollaboration } from './fixtures/studio/supabase-collaboration.mjs'
 import { verifyStudioResources } from './fixtures/studio/supabase-resources.mjs'
 import { verifyStudioComposition } from './fixtures/studio/supabase-composition.mjs'
+import { verifyStudioCreative } from './fixtures/studio/supabase-creative.mjs'
+import { measureStudioBaseline } from './lib/studio-web-baseline.mjs'
 
 const stack = await createStudioStack()
 let web
@@ -31,7 +33,7 @@ try {
   await stack.pool.query('UPDATE runly_studio_test.environment SET id=$1', [stack.name])
   await stack.initialize()
   const data = await seedStudioScenario(stack)
-  await stack.compose(['up', '-d', 'runly-api'], { log: join(stack.directory, 'api-start.log') })
+  await stack.compose(['up', '-d', 'studio-catalog-test', 'runly-api'], { log: join(stack.directory, 'api-start.log') })
   let ready = false
   for (let attempt = 0; attempt < 90; attempt++) {
     try { if ((await fetch(`${stack.urls.api}/public/website/desktop/config`)).ok) { ready = true; break } } catch { /* startup */ }
@@ -48,12 +50,15 @@ try {
     build: { outDir: join(stack.directory, 'web'), emptyOutDir: true },
     preview: { host: '127.0.0.1', port: stack.ports.web, strictPort: true } }
   console.log('Building real React frontend with isolated public configuration.')
+  const baselineRef=process.argv.find(value=>value.startsWith('--baseline-ref='))?.slice('--baseline-ref='.length)??'HEAD'
+  const baseline=process.argv.includes('--measure-baseline')?await measureStudioBaseline(build,config,stack.directory,baselineRef):null
   await build(config)
   const bundle = await inspectStudioWeb(config.build.outDir, { forbiddenValues: [stack.secret.SUPABASE_SERVICE_ROLE_KEY,
     stack.secret.SUPABASE_JWT_SECRET, stack.secret.SUPABASE_POSTGRES_PASSWORD] })
+  if(baseline)bundle.baseline=baseline
   web = await preview(config)
-  const result = process.argv.includes('--composition-only') ? { passed: true, composition: await verifyStudioComposition(stack, data), bundle } : { ...(process.argv.includes('--collaboration-only') ? { passed: true } : await verifyStudioSupabase(stack, data)),
-    collaboration: await verifyStudioCollaboration(stack, data), resources: await verifyStudioResources(stack, data), composition: await verifyStudioComposition(stack, data), bundle }
+  const result = process.argv.includes('--creative-only') ? { passed:true,creative:await verifyStudioCreative(stack,data),bundle } : process.argv.includes('--composition-only') ? { passed: true, composition: await verifyStudioComposition(stack, data), bundle } : { ...(process.argv.includes('--collaboration-only') ? { passed: true } : await verifyStudioSupabase(stack, data)),
+    collaboration: await verifyStudioCollaboration(stack, data), resources: await verifyStudioResources(stack, data), composition: await verifyStudioComposition(stack, data),creative:await verifyStudioCreative(stack,data), bundle }
   await writeFile(join(stack.directory, 'result.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify(result, null, 2))
 } finally {

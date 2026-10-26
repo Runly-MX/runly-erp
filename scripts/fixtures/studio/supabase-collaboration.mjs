@@ -1,3 +1,4 @@
+import {openPanel,layer,selectLayer,insertText,insertShape,showFiles,createBlank,exportImage,shareDialog,properties,presenceNames} from './editor-controls.mjs'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
@@ -9,6 +10,7 @@ const { createClient } = require('@supabase/supabase-js'), sharp = require('shar
 export async function verifyStudioCollaboration(stack, { users, companies }) {
   const [owner, , peer, foreign] = users, [a, b] = companies
   const browser = await chromium.launch({ channel: 'chrome', headless: true }), clients = [], checks = []
+  const reportCheck=message=>{checks.push(message);console.log(`Studio regression: ${message}`)}
   async function api(path, token, body, company = a.id, method = body ? 'POST' : 'GET') {
     return fetch(`${stack.urls.api}${path}`, { method, signal: AbortSignal.timeout(15000),
       headers: { Authorization: `Bearer ${token}`, 'X-Runly-Company-Id': company, ...(body ? { 'Content-Type': 'application/json' } : {}) },
@@ -59,15 +61,14 @@ export async function verifyStudioCollaboration(stack, { users, companies }) {
     const record = (await created.json()).data, id = record.id, root = `/studio/designs/${id}`
     assert.equal((await api(root, peerToken)).status, 404)
     const A = await open(owner, id)
-    await A.page.getByRole('button', { name: 'Colaboradores', exact: true }).click()
+    await shareDialog(A.page)
     await A.page.getByLabel('Buscar colaborador').fill('peer')
-    await A.page.getByRole('button', { name: 'Buscar integrantes', exact: true }).click()
     await A.page.getByRole('button', { name: 'Compartir con Studio peer', exact: true }).click()
     await until(async () => (await api(root,peerToken)).ok, 'Viewer grant did not take effect')
     await A.page.keyboard.press('Escape')
     const B = await open(peer, id)
-    await B.page.getByRole('button', { name: '1. Texto', exact: true }).click()
-    assert.equal(await B.page.getByRole('button', { name: 'Guardar', exact: true }).isDisabled(), true)
+    await selectLayer(B.page,1)
+    assert.equal(await B.page.getByRole('button', { name: 'Guardar', exact: true }).count(), 0)
     assert.equal(await B.page.getByLabel('Texto del elemento', { exact: true }).isDisabled(), true)
     assert.equal((await api(root,peerToken,{ name: 'Denied',document,revision:1 },a.id,'PUT')).status,404)
     assert.equal((await api(`${root}/collaborators`,peerToken,{ userId:foreign.id,role:'EDITOR' },a.id,'PUT')).status,404)
@@ -79,19 +80,19 @@ export async function verifyStudioCollaboration(stack, { users, companies }) {
     assert.equal(capability.expiresIn,60); assert.ok((await fetch(capability.signedUrl)).ok)
     const claims=JSON.parse(Buffer.from(new URL(capability.signedUrl).searchParams.get('token').split('.')[1],'base64url'))
     assert.equal(claims.exp-claims.iat,60)
-    checks.push('real UI sharing; same-company VIEWER, no privilege escalation or generic private Files access; document-scoped original TTL60')
-    await until(async () => (await A.page.getByLabel('Participantes conectados').innerText()).includes('Studio peer'), 'A did not see B')
-    await until(async () => (await B.page.getByLabel('Participantes conectados').innerText()).includes('Studio owner'), 'B did not see A')
-    await B.page.getByRole('button', { name: 'Acercar', exact: true }).click()
+    reportCheck('real UI sharing; same-company VIEWER, no privilege escalation or generic private Files access; document-scoped original TTL60')
+    await until(async () => (await presenceNames(A.page)).includes('Studio peer'), 'A did not see B')
+    await until(async () => (await presenceNames(B.page)).includes('Studio owner'), 'B did not see A')
+    await B.page.getByRole('button', { name: 'Acercar (Ctrl+rueda)', exact: true }).click()
     const canvas = await A.page.locator('canvas.upper-canvas').boundingBox()
     await A.page.mouse.move(canvas.x+100,canvas.y+120)
     const cursor = B.page.getByLabel('Cursor de Studio owner', { exact: true })
     await cursor.waitFor()
-    assert.ok(Math.abs(Number(await cursor.getAttribute('data-document-x'))-200)<5)
-    assert.ok(Math.abs(Number(await cursor.getAttribute('data-document-y'))-240)<5)
-    await B.page.getByRole('button', { name: '2. Imagen', exact: true }).click()
+    assert.ok(Math.abs(Number(await cursor.getAttribute('data-document-x'))-100*1080/canvas.width)<5)
+    assert.ok(Math.abs(Number(await cursor.getAttribute('data-document-y'))-120*1080/canvas.width)<5)
+    await selectLayer(B.page,2)
     await A.page.getByLabel('Selección de Studio peer', { exact: true }).waitFor()
-    checks.push('two actual Auth identities: authorized roster, document-space cursors at different zoom levels, remote selection')
+    reportCheck('two actual Auth identities: authorized roster, document-space cursors at different zoom levels, remote selection')
     const forged = await api(`${root}/live`,peerToken,{sessionId:'identity-proof-session',userId:owner.id,name:'Impostor',cursor:{x:5,y:9}})
     assert.equal(forged.status,200)
     assert.ok((await forged.json()).data.participants.some(user=>user.sessionId==='identity-proof-session' && user.userId===peer.id && user.name==='Studio peer'))
@@ -108,18 +109,19 @@ export async function verifyStudioCollaboration(stack, { users, companies }) {
     assert.equal(A.frames.slice(frameCount).some(frame=>JSON.stringify(frame).includes('999999')),false,'An untrusted client broadcast reached another subscriber')
     assert.equal((await(await api(root,ownerToken)).json()).data.revision,1)
     assert.equal((await api('/realtime/broadcast',peerToken,{topic:`studio:design:${id}`,event:'changed',payload:{revision:999999}})).status,404)
-    checks.push('actual Realtime RLS rejects other-company admission and client-forged edit broadcasts')
-    await A.page.getByRole('button', { name: 'Colaboradores', exact: true }).click()
-    await A.page.getByRole('button', { name: 'Cambiar permiso de Studio peer', exact: true }).click()
-    await A.page.keyboard.press('Escape')
+    reportCheck('actual Realtime RLS rejects other-company admission and client-forged edit broadcasts')
+    await shareDialog(A.page)
+    await A.page.getByRole('button', { name: 'Permiso de Studio peer', exact: true }).click()
+    await A.page.getByRole('menuitemradio',{name:'Puede editar',exact:true}).click()
+    await A.page.getByRole('dialog').getByRole('button',{name:'Cerrar',exact:true}).click()
     await B.page.getByRole('button', { name:'Texto',exact:true }).click({trial:true})
-    await B.page.getByRole('button', { name:'1. Texto',exact:true }).click()
+    await selectLayer(B.page,1)
     await B.page.getByLabel('Texto del elemento',{exact:true}).fill('Borrador privado de B')
     const before = (await (await api(root,ownerToken)).json()).data
-    await A.page.getByRole('button', { name:'1. Texto',exact:true }).click()
+    await selectLayer(A.page,1)
     await A.page.getByLabel('Texto del elemento',{exact:true}).fill('Revisión confirmada de A')
     await A.page.getByRole('button', { name:'Guardar',exact:true }).click()
-    await A.page.getByRole('status').filter({hasText:/^Guardado$/}).waitFor()
+    await A.page.getByRole('status').filter({hasText:/^Guardado/}).waitFor()
     await B.page.getByText('Conflicto de versiones',{exact:true}).waitFor()
     assert.equal(await B.page.getByLabel('Texto del elemento',{exact:true}).inputValue(),'Borrador privado de B')
     assert.equal((await api(root,peerToken,{name:before.name,document:before.document,revision:before.revision},a.id,'PUT')).status,409)
@@ -129,25 +131,25 @@ export async function verifyStudioCollaboration(stack, { users, companies }) {
     const copyId = new URL(B.page.url()).searchParams.get('design')
     assert.ok(copyId)
     assert.equal((await api(`/studio/designs/${copyId}`,peerToken)).status,200)
-    checks.push('confirmed revision delivered via WebSocket; stale save 409; draft retained and copied without laundering private asset access')
+    reportCheck('confirmed revision delivered via WebSocket; stale save 409; draft retained and copied without laundering private asset access')
     await B.page.goto(`${stack.urls.web}/app/m/runly.studio/?design=${id}`)
-    await B.page.getByRole('button',{name:'1. Texto',exact:true}).click()
+    await selectLayer(B.page,1)
     await B.context.setOffline(true)
     const latest = (await (await api(root,ownerToken)).json()).data
     latest.document.objects[0].text='Estado al reconectar'
     assert.equal((await api(root,ownerToken,{name:latest.name,document:latest.document,revision:latest.revision},a.id,'PUT')).status,200)
     await B.context.setOffline(false)
     await until(async()=>{
-      await B.page.getByRole('button',{name:'1. Texto',exact:true}).click({timeout:1500}).catch(()=>{})
+      await selectLayer(B.page,1)
       return await B.page.getByLabel('Texto del elemento',{exact:true}).inputValue({timeout:500}).catch(()=>null)==='Estado al reconectar'
     },'Reconnect did not reconcile current state')
     const duplicate = await B.context.newPage()
     await duplicate.goto(`${stack.urls.web}/app/m/runly.studio/?design=${id}`)
-    await duplicate.getByRole('button',{name:'1. Texto',exact:true}).click()
+    await selectLayer(duplicate,1)
     await until(async()=>((await (await api(`${root}/live`,ownerToken,peek)).json()).data.participants.filter(user=>user.userId===peer.id).length===2),'Duplicate sessions collapsed')
     await duplicate.goto(`${stack.urls.web}/app/m/runly.studio/`); await duplicate.close()
     await until(async()=>((await (await api(`${root}/live`,ownerToken,peek)).json()).data.participants.filter(user=>user.userId===peer.id).length===1),'Closed editor presence remained')
-    checks.push('offline/online recovery and separate bounded sessions; editor close removes presence')
+    reportCheck('offline/online recovery and separate bounded sessions; editor close removes presence')
     live=(await(await api(`${root}/live`,ownerToken,peek)).json()).data
     const oldSocket=await subscribe(peerToken,live.topic)
     const current=(await(await api(root,ownerToken)).json()).data
@@ -164,7 +166,7 @@ export async function verifyStudioCollaboration(stack, { users, companies }) {
     const newLive=(await(await api(`${root}/live`,ownerToken,peek)).json()).data
     assert.notEqual(newLive.topic,live.topic)
     await subscribe(peerToken,newLive.topic,false)
-    checks.push('revocation rotates authorization; cached old socket gets no later event; fresh join, document, mutation and private asset capabilities denied')
+    reportCheck('revocation rotates authorization; cached old socket gets no later event; fresh join, document, mutation and private asset capabilities denied')
     // SQL mutations below only affect the synthetic membership/resource in this container.
     await api(`${root}/collaborators`,ownerToken,{userId:peer.id,role:'EDITOR'},a.id,'PUT')
     await stack.pool.query('UPDATE membership SET enabled=false WHERE company_id=$1 AND user_id=$2',[a.id,peer.id])
@@ -183,7 +185,7 @@ export async function verifyStudioCollaboration(stack, { users, companies }) {
     const audit=(await stack.pool.query("SELECT action FROM audit_log WHERE entity_id=$1 AND action LIKE 'studio.collaborator.%'",[id])).rows
     assert.ok(audit.some(row=>row.action==='studio.collaborator.grant'));assert.ok(audit.some(row=>row.action==='studio.collaborator.revoke'))
     await A.page.screenshot({path:join(stack.directory,'collaboration-owner.png'),fullPage:true})
-    checks.push('membership, disabled document and disabled module deny access; grant/change/revoke audit exists')
+    reportCheck('membership, disabled document and disabled module deny access; grant/change/revoke audit exists')
     return {passed:true,identities:3,interceptors:0,checks}
   } catch(error) {
     for(const context of browser.contexts())for(const page of context.pages())await page.screenshot({path:join(stack.directory,'collaboration-failure.png'),fullPage:true}).catch(()=>{})
