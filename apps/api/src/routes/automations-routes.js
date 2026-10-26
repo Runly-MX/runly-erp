@@ -1,13 +1,15 @@
-// Automations of the company that are not tied to a module (Runly Core >
-// Automatizaciones). Runs, pending waits and their cancellation reuse
+// Automations of the company that are not tied to a module (the Automatizaciones
+// module, runly.automations, independent of Core). Runs, pending waits and their cancellation reuse
 // /modules/system.automations/automation-runs|automation-jobs. Spec
 // docs/superpowers/specs/2026-10-25-system-automations-design.md.
+import { createAutomationHttpService } from "../services/automation-http-service.js";
 import { Hono } from "hono";
 import { createSystemAutomationsService } from "../services/system-automations-service.js";
 
 export function createAutomationsRouter({ prisma, requirePermission, moduleServices = null }) {
   const app = new Hono();
   const service = createSystemAutomationsService({ prisma, moduleServices });
+  const httpService = createAutomationHttpService({ prisma });
   const read = requirePermission("automations.read");
   const guard = requirePermission("automations.manage");
   const actor = (c) => c.get("userContext")?.profile?.id ?? null;
@@ -26,6 +28,17 @@ export function createAutomationsRouter({ prisma, requirePermission, moduleServi
     return c.json({ data: canManage ? rows : rows.map(({ webhookToken: _token, ...row }) => row) });
   });
   app.get("/automations/catalog", read, (c) => c.json({ data: service.catalog() }));
+
+  // Destinations the "Llamar a una URL" block may call: managed by who administers automations.
+  app.get("/automations/http-hosts", guard, async (c) => c.json({ data: { hosts: await httpService.getHosts(), canManage: true } }));
+  app.put("/automations/http-hosts", guard, async (c) => {
+    try {
+      const body = await c.req.json().catch(() => ({}));
+      return c.json({ data: { hosts: await httpService.setHosts(body?.hosts) } });
+    } catch (error) {
+      return fail(c, error);
+    }
+  });
 
   // Origins (IPs / networks) allowed to send webhooks; empty = any with the secret URL.
   app.get("/automations/webhook-origins", guard, async (c) => c.json({ data: { origins: await service.webhooks.getOrigins() } }));

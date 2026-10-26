@@ -54,3 +54,7 @@ Compiler: system validation (record trigger rejected, schedule without entity ac
 1. Compiler validator + engine extraction (done first, regression-tested).
 2. Migration, service, routes, dispatcher and worker integration, tests.
 3. UI screen + navigation, docs, E2E.
+
+## Update 2026-10-26: independent module
+
+Automatizaciones is no longer part of Runly Core: it is the module `runly.automations` with its own navigation, permissions (`automations.read` / `automations.manage`) and help. Its destinations list (`GET|PUT /automations/http-hosts`) and webhook origins no longer require Core permissions; the Module Builder tab keeps its own endpoints for the same instance-wide list.

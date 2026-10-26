@@ -545,6 +545,10 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       // Automations: people for approver pickers, HTTP destinations, approvals inbox.
       builderPeople: (token) => request("/module-builder/people", { headers: withAuthHeaders(token) }),
       automationHttpHosts: (token) => request("/module-builder/automation-http-hosts", { headers: withAuthHeaders(token) }),
+      // The same list managed from the Automatizaciones module (needs automations.manage, not Core permissions).
+      systemAutomationHttpHosts: (token) => request("/automations/http-hosts", { headers: withAuthHeaders(token) }),
+      setSystemAutomationHttpHosts: (hosts, token) =>
+        request("/automations/http-hosts", { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify({ hosts }) }),
       setAutomationHttpHosts: (hosts, token) =>
         request("/module-builder/automation-http-hosts", {
           method: "PUT",

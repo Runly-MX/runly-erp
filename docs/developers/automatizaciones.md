@@ -1,11 +1,18 @@
 ---
-title: Automatizaciones del Constructor
-summary: Cómo un módulo hecho con el Constructor crea o actualiza registros en Calendario, Notificaciones, Contactos, Inventario, Proyectos, Libro de cuentas, Flota y más al guardar un registro o cuando pasa algo en otro módulo, sin programar.
+title: Automatizaciones
+summary: Automatizaciones de la empresa (módulo Automatizaciones) y de un módulo del Constructor: crean o actualizan registros en Calendario, Notificaciones, Contactos, Inventario, Proyectos, Libro de cuentas, Flota y más cuando pasa algo, sin programar.
 order: 4.4
 ---
 Una **automatización** dice: «cuando pase esto, haz aquello en otro módulo». Por ejemplo: al crear una orden de servicio, agendar la visita en el Calendario; al cerrar la orden, avisar a quien la cerró; cuando un vehículo entra a mantenimiento, crear el contacto del taller.
 
 Debajo usa los mismos [servicios entre módulos](/documentacion/desarrolladores/servicios-y-eventos) que un módulo programado a mano: tu módulo nunca toca las tablas de otro módulo; todo pasa por el código del módulo dueño, con sus validaciones y su bitácora.
+
+## Dónde se crean
+
+- **Módulo Automatizaciones** (`runly.automations`, un módulo propio de Runly, no parte de Core ni del Constructor): las automatizaciones **de la empresa**, que no dependen de ningún módulo. Es el lugar para empezar. Necesitas el permiso `automations.manage` (y `automations.read` para verlas). Ahí mismo, en el botón **Conexiones**, se administran los orígenes y destinos permitidos. Más abajo, en «Automatizaciones de la empresa (sin módulo)», están sus diferencias.
+- **Pestaña Automatizaciones de un módulo del Constructor**: las que viajan **con tu módulo** y pueden reaccionar a sus propios registros («cuando se guarda un registro de este módulo»). Se publican con el módulo.
+
+Las dos usan el mismo editor, los mismos bloques y los mismos servicios; esta página describe ambas y marca lo que solo existe en una.
 
 ## Dos vistas: Lienzo y Formulario
 
@@ -16,7 +23,7 @@ Cada automatización se puede editar de dos maneras, y las dos modifican lo mism
 
 ## Crear una automatización
 
-En el Constructor, pestaña **Automatizaciones** > *Nueva automatización*:
+En el módulo **Automatizaciones** (o, para una automatización que viaja con tu módulo, en el Constructor, pestaña **Automatizaciones**) > *Nueva automatización*. La opción *Cuando se guarda un registro de este módulo* existe solo en el Constructor:
 
 1. **Cuándo**
    - *Cuando se guarda un registro de este módulo*: elige la entidad y el momento (*Al crear*, *Al actualizar* o *Al crear o actualizar*).
@@ -78,7 +85,7 @@ El paso **Llamar a una URL** envía los datos a un servidor externo (por ejemplo
 
 - Método `POST`, `PUT` o `PATCH`; la dirección es **fija**, `https`, sin usuario, contraseña ni puerto. Los datos (`body`) usan los mismos orígenes que las acciones.
 - El servidor recibe un JSON `{ module, automation, companyId, idempotencyKey, data }` con los encabezados `X-Runly-Idempotency-Key` (para que el receptor evite duplicados) y `X-Runly-Signature: sha256=<HMAC-SHA256 del cuerpo>`. No se pueden definir encabezados propios, porque una definición la ve cualquiera que use el Constructor y no debe llevar credenciales.
-- Solo funciona con **destinos permitidos**: un administrador (`core.modules.manage`) los registra en el botón *Destinos permitidos* de la pestaña. Si el servidor no está en la lista, el paso falla con un mensaje claro y la ejecución queda en el Historial.
+- Solo funciona con **destinos permitidos**: quien administra automatizaciones (`automations.manage`) los registra en **Automatizaciones > Conexiones > Enviar** (en la pestaña del Constructor, el mismo botón, con el permiso `core.modules.manage`). Es una sola lista para toda la instancia. Si el servidor no está en la lista, el paso falla con un mensaje claro y la ejecución queda en el Historial.
 - Seguridad: se rechazan direcciones internas o privadas (también si el nombre se resuelve a una), no se siguen redirecciones, hay un límite de 10 segundos y 64 KB, y cualquier respuesta que no sea 2xx cuenta como fallo del paso.
 - Se puede usar en cualquier disparador y después de una espera.
 
@@ -176,7 +183,7 @@ curl -X POST "https://tu-instancia/public/hooks/<token-secreto>"   -H "Content-T
 
 ## Conexiones externas
 
-El botón **Conexiones** reúne las dos direcciones: de quién aceptas mensajes (**orígenes permitidos**, para recibir) y a quién puede enviar Runly (**destinos permitidos**, para el bloque «Llamar a una URL»), con un esquema y ejemplos de lo que se envía y se recibe. Todos pueden consultarlas; solo quien administra módulos las modifica.
+El botón **Conexiones** (arriba en el módulo Automatizaciones, y en el editor de cada automatización) reúne las dos direcciones: de quién aceptas mensajes (**orígenes permitidos**, para recibir) y a quién puede enviar Runly (**destinos permitidos**, para el bloque «Llamar a una URL» y para las respuestas de los botones del chat), con un esquema y ejemplos de lo que se envía y se recibe. En el módulo Automatizaciones las ve y modifica quien tiene `automations.manage`; en el Constructor las modifica quien administra módulos (`core.modules.manage`). Por API: `GET|PUT /automations/http-hosts` y `GET|PUT /automations/webhook-origins`.
 
 ## Esperas y horarios
 
@@ -195,7 +202,7 @@ Cada vez que corre una automatización (al guardar un registro o por un evento) 
 
 ## Automatizaciones de la empresa (sin módulo)
 
-No hace falta crear un módulo para automatizar: en el módulo **Automatizaciones** (`runly.automations`, un módulo oficial de Runly) quien tenga el permiso `automations.manage` crea automatizaciones que pertenecen a la empresa activa. Usan las mismas tarjetas, condiciones, pasos, esperas, aprobaciones, llamadas HTTP, *Probar* e *Historial* que las del Constructor, con estas diferencias:
+No hace falta crear un módulo para automatizar: en el módulo **Automatizaciones** (`runly.automations`, un módulo propio de Runly con su menú, sus permisos y su ayuda) quien tenga el permiso `automations.manage` crea automatizaciones que pertenecen a la empresa activa. Usan las mismas tarjetas, condiciones, pasos, esperas, aprobaciones, llamadas HTTP, *Probar* e *Historial* que las del Constructor, con estas diferencias:
 
 - El disparador es **un evento del sistema** (los de la tabla de arriba), **un horario** sin registros o **un mensaje de otro sistema** (webhook). No existe «cuando se guarda un registro» porque no hay una entidad de por medio.
 - Los pasos solo ofrecen las acciones que no necesitan a una persona detrás, porque todo corre en segundo plano.

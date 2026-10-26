@@ -86,7 +86,9 @@ const SAMPLE_BODY = `{
   "data": { "folio": "OS-1042" }
 }`;
 
-export function AutomationConnectionsDialog({ open, onOpenChange }) {
+// `scope` "automations" is the Automatizaciones module (its own permission); "builder" is the Module Builder tab.
+export function AutomationConnectionsDialog({ open, onOpenChange, scope = "builder" }) {
+  const own = scope === "automations";
   const { session } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
@@ -94,8 +96,8 @@ export function AutomationConnectionsDialog({ open, onOpenChange }) {
   const [origins, setOrigins] = useState([]);
 
   const hostsQuery = useQuery({
-    queryKey: ["automation-http-hosts"],
-    queryFn: async () => (await runly.modules.automationHttpHosts(token))?.data ?? { hosts: [], canManage: false },
+    queryKey: ["automation-http-hosts", scope],
+    queryFn: async () => (await (own ? runly.modules.systemAutomationHttpHosts(token) : runly.modules.automationHttpHosts(token)))?.data ?? { hosts: [], canManage: false },
     enabled: open && Boolean(token),
   });
   const originsQuery = useQuery({
@@ -110,7 +112,7 @@ export function AutomationConnectionsDialog({ open, onOpenChange }) {
 
   const save = useMutation({
     mutationFn: async () => {
-      const sent = await runly.modules.setAutomationHttpHosts(hosts, token);
+      const sent = await (own ? runly.modules.setSystemAutomationHttpHosts(hosts, token) : runly.modules.setAutomationHttpHosts(hosts, token));
       if (sent?.error) throw new Error(sent.error);
       if (originsQuery.isSuccess) {
         const received = await runly.modules.setAutomationWebhookOrigins(origins, token);

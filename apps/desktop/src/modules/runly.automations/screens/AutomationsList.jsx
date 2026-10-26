@@ -1,4 +1,4 @@
-// Runly Core > Automatizaciones: the automations of the company that are not tied
+// Automatizaciones module (runly.automations): the automations of the company that are not tied
 // to a module. This screen is the list; each automation opens in a full-screen
 // canvas editor (SystemAutomationEditor). Spec
 // docs/superpowers/specs/2026-10-25-system-automations-design.md and
@@ -199,7 +199,7 @@ export default function SystemAutomations() {
         </Tabs>
       </div>
       <NewAutomationDialog open={newOpen} onOpenChange={setNewOpen} takenKeys={new Set(items.map((item) => item.key))} onCreate={create} />
-      <AutomationConnectionsDialog open={connectionsOpen} onOpenChange={setConnectionsOpen} />
+      <AutomationConnectionsDialog scope="automations" open={connectionsOpen} onOpenChange={setConnectionsOpen} />
     </div>
   );
 }

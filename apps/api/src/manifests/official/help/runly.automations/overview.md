@@ -2,7 +2,7 @@
 title: Automatizaciones
 summary: Flujos que se ponen en marcha solos: reciben un aviso, esperan, deciden, avisan y crean cosas en otros módulos.
 ---
-Automatizaciones junta en un solo lugar los flujos de tu empresa. Cada flujo empieza con un disparador y sigue con bloques que se ejecutan en orden.
+Automatizaciones es un módulo propio, con su menú y sus permisos, que junta en un solo lugar los flujos de tu empresa (los módulos creados con el Constructor tienen además sus propias automatizaciones dentro del módulo). Cada flujo empieza con un disparador y sigue con bloques que se ejecutan en orden.
 
 - **Disparadores**: un evento de otro módulo (por ejemplo, "se aprobó una orden"), un horario (cada hora, día, semana o mes) o un webhook, que es una dirección secreta a la que otro sistema puede enviar datos.
 - **Bloques**: crear o actualizar contactos, notificar a personas, enviar correos, generar un reporte en CSV o Excel y guardarlo en Archivos, agendar eventos, pedir una aprobación, esperar minutos, horas o días, o llamar a otro sistema por HTTPS.
@@ -15,6 +15,13 @@ Automatizaciones junta en un solo lugar los flujos de tu empresa. Cada flujo emp
 2. En el lienzo, arrastra bloques desde la paleta o usa el "+" de cada flecha. Haz clic en un bloque para configurarlo.
 3. Usa **Probar** para ver qué haría con datos de ejemplo, y **Guardar** cuando esté lista.
 4. En **Consola** ves cada ejecución: qué datos llegaron, qué envió cada bloque, qué devolvió y, si falló, el error completo.
+
+### Conexiones (a quién hablas y de quién recibes)
+
+El botón **Conexiones**, arriba en la lista y en cada automatización, tiene dos listas que administra quien tiene el permiso de administrar automatizaciones:
+
+- **Recibir**: los orígenes (IP o redes) desde donde se aceptan mensajes de webhook. Vacío acepta a cualquiera que tenga la dirección secreta.
+- **Enviar**: los servidores a los que Runly puede llamar con el bloque «Llamar a una URL» y a los que responden los botones de las integraciones del chat. Si un servidor no está en la lista, la llamada falla con un aviso claro. La lista es una sola para toda la instancia.
 
 ### Con MirAI
 
