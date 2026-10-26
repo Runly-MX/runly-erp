@@ -1,5 +1,21 @@
 # Runly Studio: arquitectura de la primera vertical
 
+## Estado vigente: biblioteca creativa (2026-10-25)
+
+Studio incorpora catálogo de plantillas originales paginado, Iconify (Tabler y
+Lucide), Openverse con importación privada a Files y seis fuentes locales OFL.
+El contrato v3 admite geometría vectorial restringida y familias tipográficas
+registradas, con lectura de v1/v2. No se añadió migración SQL ni paquete.
+La [arquitectura de proveedores y licencias](runly-studio-creative-providers.md)
+define operaciones, permisos, límites, persistencia, créditos y restricciones.
+Las secciones siguientes conservan decisiones y evolución de la primera vertical;
+sus referencias a tres plantillas, documento v2 o proveedores inactivos son históricas.
+
+La UI vigente conserva el rediseño de home/editor y sus paneles animados. La
+biblioteca se integra en Imágenes mediante Archivos/Fotos/Iconos; Texto incluye
+fuentes con muestra real. La descarga y el acceso a compartir permiten revisar
+los créditos vigentes. El fallo de un catálogo no impide editar diseños guardados.
+
 ## Flujo implementado
 
 El módulo oficial se registra en `manifests/official/studio.js` y el catálogo de core-modules; ModuleOutlet carga StudioScreen con React.lazy. La ruta es `/app/m/runly.studio/`, con `?design=<id>` para reabrir. No se modifica el resolver genérico de rutas.

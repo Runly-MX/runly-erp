@@ -14,6 +14,16 @@ Orden de autoridad dentro de este plan: consolidación aceptada > ampliación > 
 
 ## Precisiones efectivas
 
+Fase 3 implementada localmente: catálogo de plantillas originales con búsqueda,
+categorías, preview y copia independiente; proveedores Iconify/Openverse bajo
+demanda; vectores restringidos; importación de fotos a Files; créditos; seis
+fuentes locales y documento v3 compatible con v1/v2. Contratos, licencias,
+límites y pendientes están en
+[biblioteca creativa](../../architecture/runly-studio-creative-providers.md).
+Las plantillas privadas por empresa/usuario siguen pendientes de un modelo
+versionado y permisos de gestión. No se ejecutaron migraciones sobre una
+instalación existente, publicación ni despliegue.
+
 - Reutilización primero, abstracción después y distribución al final. No hay obligación de extraer geometría, colaboración, assets o exportación. Extraer únicamente con consumidores reales, semántica común y pruebas de caracterización. Documentar y continuar si no se justifica ninguna extracción.
 - Auditar los seis paquetes, exports, versiones, alias legacy, consumidores, tarballs y CI antes de proponer infraestructura nueva. La matriz admite "Ningún paquete existente; responsabilidad interna de runly.studio".
 - Comparar código interno Studio, utilidades internas ERP y paquete graphics independiente. Elegir el paquete solo por necesidad de distribución real y contrato estable. No alterar release scripts ni publicar para facilitar un prototipo.

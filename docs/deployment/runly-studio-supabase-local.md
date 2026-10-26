@@ -1,5 +1,76 @@
 # Studio: integración real local y herramientas del editor
 
+## Biblioteca creativa: resultados del 2026-10-25
+
+La ejecución final pasó **33 grupos E2E** con Auth, PostgreSQL, Storage, Files y
+Realtime reales en el stack desechable. Iconify y Openverse se simulan mediante
+un servicio HTTP en la red Docker privada: no hay interceptores de red del
+navegador ni dependencia de Internet/cuotas públicas. El resultado privado está
+en `.artifacts/studio/runly-studio-e2e-9eb90474d089/result.json`; su limpieza
+finalizó correctamente, incluidos contenedores y volúmenes de ese proyecto.
+
+Comandos comprobados:
+
+```sh
+node scripts/verify-studio-local.mjs
+node scripts/verify-studio-supabase.mjs --measure-baseline --baseline-ref=1b69b9d7
+```
+
+La regresión pasó **1324/1325**, cero fallos y una omisión conocida de SQL Files
+que requiere `files_test`. Incluye Studio, Canvas, Notes, POS, Files, proyectos,
+SDK, paquetes compartidos, JWT y permisos. También pasó el fixture rápido de UI
+con PostgreSQL. El renderer comprobó las seis fuentes, píxeles de recoloración
+vectorial, undo/redo, exportación 4096 × 4096, fallo de fuentes sin sustitución,
+escena congelada al exportar, créditos obsoletos rechazados y revocación durante
+una inserción. PNG con Pacifico resultó idéntico píxel a píxel tras reabrir;
+Space Mono produjo píxeles distintos. PNG/JPG conservan dimensiones y originales.
+
+El catálogo base pasó de 6 a 16 plantillas propias con 10 composiciones nuevas.
+Una sesión concurrente incorporó otras 10: el catálogo actual de main tiene 26.
+La suite busca una plantilla, abre su preview y crea una copia independiente;
+inserta/recolorea/redimensiona un icono, importa una foto a Files, verifica bytes,
+SHA256 y atribución, cambia fuente, guarda/reabre, exporta, comparte y revoca.
+Comprueba además errores 429, respuestas malformadas, licencias no admitidas,
+aislamiento empresarial, lector sin edición, proveedores caídos y documentos v1/v2.
+
+Comparación de build contra `1b69b9d7` (incluye los cambios concurrentes del home):
+
+| Medida | Base | Resultado | Diferencia |
+| --- | ---: | ---: | ---: |
+| JavaScript inicial | 750429 B | 751230 B | +801 B |
+| JavaScript inicial gzip | 209800 B | 209959 B | +159 B |
+| Chunk Studio diferido | 395772 B | 434996 B | +39224 B |
+| Chunk Studio gzip | 118590 B | 130096 B | +11506 B |
+
+Se mantienen 12 chunks iniciales y Fabric diferido. Los seis TTF suman 1619516 B
+como assets estáticos bajo demanda, fuera del JS inicial. En el caso sintético
+medido, el heap JavaScript pasó de 44238668 B a 58783661 B tras recursos, fuentes
+y exportaciones; no representa memoria nativa/GPU ni una prueba de cientos de
+fotografías grandes. El historial y las cachés tienen presupuestos separados.
+
+ESLint pasó. React Doctor del alcance revisado obtuvo 90/100 sin errores, con
+advertencias de complejidad, awaits secuenciales intencionales y un diagnóstico
+de blob URL cuyo cleanup sí revoca la URL. `pnpm check:privacy` sigue detectando
+64 hallazgos previos/ajenos; la revisión de los archivos propios no encontró
+hallazgos y no se añadieron excepciones. Los nuevos cambios de Automations en
+main se revisaron y sus 2 tests de secretos HTTP también pasaron.
+
+La implementación principal quedó incluida por una sesión concurrente en
+`42e09ba4`; se conserva ese historial. `de3e1479` protege las mutaciones
+asíncronas, comprueba firmas raster antes del decodificador y añade pruebas del
+renderer. `88aa6e84` registra las suites aisladas; este reporte se registra por separado.
+No se publicaron imágenes/paquetes, no hubo despliegue ni comandos SSH, y no se
+ejecutaron migraciones, seeds o escrituras sobre la base compartida.
+
+Las [reglas de proveedores, licencias y persistencia](../architecture/runly-studio-creative-providers.md)
+describen Iconify, Openverse y fuentes. Quedan pendientes plantillas privadas
+versionadas por empresa/usuario, variantes bold/italic y agrupación persistente.
+Todo ese trabajo puede continuar con esta infraestructura local.
+
+Los flags `--creative-only`, `--composition-only`, `--collaboration-only`,
+`--tests-only` y `--ui-only` permiten diagnóstico focalizado. La comprobación
+conjunta por defecto sigue ejecutando todas las suites.
+
 Validación del 2026-10-25, exclusivamente local. Continúa la preparación Docker
 y la [validación anterior](runly-studio-local-validation.md). No usa la base
 compartida ni credenciales reales; no publica imágenes ni inicia workers.
