@@ -20,9 +20,11 @@ import { createCatalogAdapter } from './adapters/catalog.js';
 import { createLmsAdapter } from './adapters/lms.js';
 import { createAutomationsAdapter } from './adapters/automations.js';
 import { createDocumentsAdapter } from './adapters/documents.js';
+import { createStudioAdapter } from './adapters/studio.js';
 
 const factories = new Map(Object.entries({ hr: createHrAdapter, fleet: createFleetAdapter, notes: createNotesAdapter, pfm: createPfmAdapter, ledger: createLedgerAdapter, projects: createProjectsAdapter, calendar: createCalendarAdapter,
   contacts: createContactsAdapter, purchases: createPurchasesAdapter, canvas: createCanvasAdapter, attendance: createAttendanceAdapter, files: createFilesAdapter, documents: createDocumentsAdapter, identity: createIdentityAdapter, activity: createActivityAdapter, chat: createChatAdapter, website: createWebsiteAdapter, catalog: createCatalogAdapter, lms: createLmsAdapter,
+  studio: createStudioAdapter,
 }).map(([domain, factory]) => [`runly.${domain}`, factory]));
 export const MCP_DOMAINS = [...factories.keys()].map(key => key.slice(6));
 
@@ -34,7 +36,7 @@ export function createCapabilityRegistry({ prisma, supabaseAdmin = null }) {
     // Every write-capable domain must decide explicitly whether its proposals
     // need the extra sensitive confirmation; a missing declaration is a bug.
     insist(!adapter.actions.length || typeof adapter.sensitive === 'boolean' || typeof adapter.sensitive === 'function', 'invalid_adapter', `${moduleKey} debe declarar sensitive.`, 500);
-    adapter.actions =adapter.actions.map(action => ({ ...action, readPermission: moduleKey === 'runly.canvas' ? 'canvas.view' : action.key.startsWith('pfm.budget.') ? 'pfm.wallets.read' : action.permission.replace(/\.(create|update)$/, '.read') }));
+    adapter.actions =adapter.actions.map(action => ({ ...action, readPermission: action.readPermission ?? (moduleKey === 'runly.canvas' ? 'canvas.view' : action.key.startsWith('pfm.budget.') ? 'pfm.wallets.read' : action.permission.replace(/\.(create|update)$/, '.read')) }));
     return adapter;
   }
   const adapters = [...factories.keys()].map(key => create(key));

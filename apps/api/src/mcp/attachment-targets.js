@@ -14,6 +14,7 @@ import { createTasksService } from '../routes/projects/tasks-service.js';
 import { createCanvasService } from '../routes/canvas/canvas-service.js';
 import { createCatalogProductService } from '../routes/catalog/catalog-product-service.js';
 import { createNotesService } from '../routes/notes/notes-service.js';
+import { createStudioService } from '../routes/studio/studio-service.js';
 import { createWalletsService } from '../routes/pfm/wallets-service.js';
 import { createMovementsService } from '../routes/pfm/movements-service.js';
 import { createLedgerService } from '../routes/ledger/ledger-service.js';
@@ -48,6 +49,7 @@ export const ATTACHMENT_TARGETS = [
   native('catalog.product', 'catalog', 'AtlasFile', 'catalog.products.read', 'catalog.products.update', '', 'PUBLIC'),
   reference('projects.project', 'projects', 'projects.project.read', ''),
   reference('notes.note', 'notes', 'notes.notes.read', ''),
+  reference('studio.design', 'studio', 'studio.view', ''),
   reference('pfm.wallet', 'pfm', 'pfm.wallets.read', ''),
   reference('pfm.movement', 'pfm', 'pfm.movements.read', ''),
   reference('ledger.account', 'ledger', 'ledger.accounts.read', ''),
@@ -109,6 +111,7 @@ export function createAttachmentTargets({ prisma }) {
         await project(a, link.projectId, write);
         return createTasksService({ prisma }).getTask(id, { ...ctx, projectId: link.projectId });
       }
+      case 'studio.design': return createStudioService({prisma}).get(a.companyId,a.actorProfileId,id);
       case 'canvas.board': return (await canvas.assertBoardAccess(a.companyId, a.actorProfileId, id, write ? 'COMMENTER' : 'VIEWER')).board;
       case 'canvas.hotspot': {
         const hotspot = await prisma.canvasHotspot.findFirst({ where: { id, companyId: a.companyId, archivedAt: null }, select: { id: true, boardId: true, title: true, updatedAt: true } });
@@ -194,6 +197,7 @@ export function createAttachmentTargets({ prisma }) {
     if (spec.type === 'projects.project') link = `/app/m/runly.projects?project=${spec.id}`;
     if (spec.type === 'catalog.product') link = `/app/m/runly.catalog/${spec.id}`;
     if (spec.type === 'notes.note') link = `/app/m/runly.notes?note=${spec.id}`;
+    if (spec.type === 'studio.design') link = `/app/m/runly.studio?design=${spec.id}`;
     if (spec.type === 'calendar.event') link = `/app/m/runly.calendar?eventId=${spec.id}`;
     if (spec.type === 'ledger.account' || spec.type === 'ledger.transaction') link = `/app/m/runly.ledger/accounts/${spec.type === 'ledger.account' ? spec.id : row.accountId}`;
     if (spec.type === 'files.file' || spec.type === 'documents.file') link = `/app/m/runly.files?fileId=${spec.id}`;

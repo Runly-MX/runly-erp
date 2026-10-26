@@ -23,6 +23,7 @@ import { createHrMiraiCapabilities } from "../hr/mirai-capabilities.js";
 import { createFleetMiraiCapabilities } from "../fleet/mirai-capabilities.js";
 import { createLedgerMiraiCapabilities } from "../ledger/mirai-capabilities.js";
 import { createCanvasMiraiCapabilities } from "../canvas/mirai-capabilities.js";
+import { createStudioMiraiCapabilities } from "../studio/mirai-capabilities.js";
 import { createAttendanceMiraiCapabilities } from "../attendance/mirai-capabilities.js";
 import { createAutomationsMiraiCapabilities } from "../automations/mirai-capabilities.js";
 import { createDocumentsMiraiCapabilities } from "../documents/mirai-capabilities.js";
@@ -90,6 +91,7 @@ export function createMiraiActionsStack({ prisma, broadcaster = null, notificati
     createFleetMiraiCapabilities({ prisma }),
     createLedgerMiraiCapabilities({ prisma, attachments }),
     createCanvasMiraiCapabilities({ prisma, broadcaster }),
+    createStudioMiraiCapabilities({ prisma, broadcaster }),
     createAttendanceMiraiCapabilities({ prisma }),
     createAutomationsMiraiCapabilities({ prisma }),
     createDocumentsMiraiCapabilities({ prisma }),

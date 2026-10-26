@@ -67,6 +67,9 @@ Las herramientas disponibles dependen del consentimiento OAuth. Cada operación 
 | `runly_lms_query` | `lms:read` | none |
 | `runly_lms_prepare` | `lms:write` | web-session-explicit |
 | `runly_lms_commit` | `lms:write` | web-session-explicit |
+| `runly_studio_query` | `studio:read` | none |
+| `runly_studio_prepare` | `studio:write` | web-session-explicit |
+| `runly_studio_commit` | `studio:write` | web-session-explicit |
 
 ## runly.hr
 
@@ -311,6 +314,25 @@ Grabaciones: solo metadatos y enlace, nunca el video ni URLs firmadas. Transcrip
 | `lms.question.reorder` | Escritura aprobada | `lms.course.manage` |
 | `lms.certificate_template.create` | Escritura aprobada | `lms.course.manage` |
 
+## runly.studio
+
+| Operación | Modo | Permiso ERP |
+| --- | --- | --- |
+| `studio_overview` | Lectura | `studio.view` |
+| `studio_designs` | Lectura | `studio.view` |
+| `studio_design_detail` | Lectura | `studio.view` |
+| `studio_templates` | Lectura | `studio.view` |
+| `studio_template_detail` | Lectura | `studio.view` |
+| `studio_icon_search` | Lectura | `studio.view` |
+| `studio_media` | Lectura | `studio.view` |
+| `studio_composition_guide` | Lectura | `studio.view` |
+| `studio_review_design` | Lectura | `studio.view` |
+| `studio_create_design` | Escritura aprobada | `studio.create` + `studio.view` |
+| `studio_update_design` | Escritura aprobada | `studio.edit` + `studio.view` |
+| `studio_template_save` | Escritura aprobada | `studio.view` |
+| `studio_template_update` | Escritura aprobada | `studio.view` |
+| `studio_template_publish` | Escritura aprobada | `studio.templates.publish` + `studio.view` |
+
 ## Destinos de archivos originales
 
 `runly_files_import_prepare` admite `target: { type, id }`; `itemId` conserva compatibilidad con Inventario. Consultar `runly_files_query` / `files_attachment_targets` para la disponibilidad de la instancia y `files_record_attachments` para listar archivos de un registro.
@@ -349,5 +371,6 @@ Grabaciones: solo metadatos y enlace, nunca el video ni URLs firmadas. Transcrip
 | `documents.file` | `runly.documents` | private-reference | `documents:read` | `files.assets.read` |
 | `files.file` | `runly.files` | private-reference | `files:read` | `files.assets.read` |
 | `lms.course` | `runly.lms` | private-reference | `lms:read` | `lms.course.manage` |
+| `studio.design` | `runly.studio` | private-reference | `studio:read` | `studio.view` |
 
 Inventario conserva sus ocho operaciones y sus cuatro herramientas base de identidad/descubrimiento. RME3 con metadata `mcp.version=1` continúa siendo solo descubrimiento; no se anuncia CRUD ejecutable.

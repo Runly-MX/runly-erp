@@ -16,6 +16,7 @@ import { createPurchasesService } from '../../services/purchases-service.js';
 import * as Y from 'yjs';
 import { fileImportTests } from './file-import-cases.js';
 import { moduleAttachmentTests } from './module-attachment-cases.js';
+import { installStudioSchema, studioCases } from './studio-cases.js';
 
 async function notesSchema(url) {
   const client = new pg.Client({ connectionString: url });
@@ -45,6 +46,7 @@ async function notesSchema(url) {
 
 export async function officialDomainTests(t, { prisma, url, config, company, other, user, authUserId, role, membership, request, webToken }) {
   await notesSchema(url);
+  await installStudioSchema(url);
   const registry = createCapabilityRegistry({ prisma });
   const permissions = [...new Set(registry.tools.flatMap(tool => tool.operations.flatMap(op => [op.permission, op.readPermission].filter(Boolean))))];
   for (const key of permissions) {
@@ -76,6 +78,7 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
     const response = await request(`/mcp/proposals/${proposal.proposalId}`, { approve: value, acknowledgeSensitive }, webToken());
     assert.equal(response.status, 200, JSON.stringify(await response.clone().json()));
   }
+  const studioFixtures=await studioCases(t,{prisma,company,other,user,role,membership,run,prepare,commit,approve,request,webToken});
   const wallet = await prisma.pfmWallet.create({ data: { companyId: company.id, ownerId: user.id, name: 'Personal MCP', kind: 'CASH', currency: 'MXN' } });
   const category = await prisma.pfmCategory.create({ data: { companyId: company.id, ownerId: user.id, name: 'Mantenimiento MCP', kind: 'EXPENSE' } });
   const account = await prisma.ledgerAccount.create({ data: { companyId: company.id, ownerId: user.id, name: 'Cuenta MCP', bank: 'Efectivo' } });
@@ -341,6 +344,7 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
       files_metadata: { fileId: file.id }, documents_metadata: { fileId: file.id }, files_record_attachments: { target: { type: 'hr.employee', id: ids.hr } }, attendance_person_status: { search: 'Fixture inexistente' }, attendance_overtime: { from: '2026-10-01', to: '2026-10-07' },
       lms_course_detail: { courseId: course.id }, lms_lesson_detail: { lessonId: quizLesson.id }, lms_quiz_questions: { lessonId: quizLesson.id }, lms_enrollments: { courseId: course.id },
       website_page_detail: { pageId: sitePage.id }, catalog_product_detail: { productId: product.id },
+      studio_design_detail:{designId:studioFixtures.designId},studio_template_detail:{templateId:studioFixtures.templateId},studio_review_design:{designId:studioFixtures.designId},
     };
     for (const moduleKey of registry.moduleKeys.filter(key => key !== 'runly.chat')) for (const query of registry.create(moduleKey).queries) await t.test(query.name, async () => {
       const result = await run(moduleKey.slice(6), 'query', { request: { operation: query.name, input: inputs[query.name] ?? {} } });

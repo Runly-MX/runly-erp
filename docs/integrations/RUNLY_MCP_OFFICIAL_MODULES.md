@@ -7,7 +7,7 @@ en `server.js` consume el registro; no conoce la lógica de cada módulo.
 Inventario conserva contratos, nombres, propuestas y resultados anteriores.
 
 El [catálogo generado](RUNLY_MCP_CATALOG.md) detalla herramientas, operaciones y
-permisos. Hay 61 herramientas en total (el conteo exacto está fijado en `domain-contracts.test.js`). Los
+permisos. Hay 64 herramientas en total (el conteo exacto está fijado en `domain-contracts.test.js`). Los
 dominios con escritura publican tres herramientas semánticas por módulo:
 `runly_<dominio>_query`, `runly_<dominio>_prepare`, `runly_<dominio>_commit`.
 Las dos primeras reciben `companyId` y `request: { operation, input }`; el commit
@@ -84,8 +84,8 @@ repetir commit devuelve el mismo resultado y no duplica escrituras ni auditoría
   Los calendarios con source Google y los eventos
   vinculados a otro módulo no se modifican mediante MCP.
 
-No hay nuevas tablas, variables, migraciones, SQL arbitrario, borrado genérico ni
-pagos o llamadas externas desde los adaptadores. Las pruebas utilizan PostgreSQL temporal y datos sintéticos,
+Studio incorpora almacenamiento oficial de plantillas y referencias privadas mediante una migración forward. No hay SQL arbitrario, borrado genérico ni
+pagos desde los adaptadores. Iconify reutiliza el catálogo autorizado de Studio. Las pruebas utilizan PostgreSQL temporal y datos sintéticos,
 incluyendo funciones de acceso y tablas de Notas de las migraciones existentes;
 no aplican DDL a la base configurada en `.env`.
 
@@ -108,6 +108,15 @@ sustituye el permiso ERP ni la ACL individual.
 | `ledger` | Cuentas accesibles, transacciones, categorías, grupos y resúmenes; crear/editar transacciones | `ledger:read`, `ledger:write` |
 | `projects` | Proyectos, miembros, tareas, responsables, estados y dependencias; crear/editar proyectos y tareas, asignar y cambiar estado | `projects:read`, `projects:write` |
 | `calendar` | Calendarios, agenda, participantes y disponibilidad; crear/editar/reprogramar eventos internos y agregar participantes | `calendar:read`, `calendar:write` |
+| `studio` | Diseños, plantillas runly/personal/company, recursos autorizados, guía y revisión determinista; crear/editar diseños y guardar/editar/publicar plantillas con aprobación | `studio:read`, `studio:write` |
+
+Studio declara `studio.view` como permiso de lectura para todas sus escrituras.
+Guardar/actualizar plantillas revalida el permiso específico del alcance en el servicio.
+Publicación y guardado empresarial necesitan confirmación sensible adicional; por
+conservadurismo, todas las actualizaciones de plantillas también la necesitan.
+MirAI comparte las consultas; las mutaciones de Studio se realizan por MCP aprobado.
+El [contrato de plantillas](RUNLY_STUDIO_TEMPLATES_API.md) explica recursos privados,
+revisiones y compatibilidad HTTP. No se implementa `studio_render_preview`.
 | `contacts` | Buscar/consultar y crear/editar contactos | `contacts:read`, `contacts:write` |
 | `purchases` | Consultas de solicitudes, proveedores, órdenes, facturas y pendientes; crear borrador de solicitud y decidir una aprobación existente si el workflow lo permite | `purchases:read`, `purchases:write` |
 | `canvas` | Consultar boards/hotspots autorizados; crear board y editar hotspot conservando escena/geometría | `canvas:read`, `canvas:write` |

@@ -46,7 +46,7 @@ Al usar una plantilla se revalidan todos los recursos y se crean referencias ind
 
 ## HTTP y contrato visual
 
-Todos los resultados conservan `{data: ...}`. GET `/studio/templates` conserva `data` como array para clientes actuales; filtros scope=all/runly/personal/company, q, category, page (24 persistidas por página; catálogo acotado). Cada tarjeta ofrece id/key, name, category, description, scope, ownerId/ownerName, source, revision, updatedAt, canEdit/canDelete/canPublish, preview acotada, width/height, objectCount. No enviar el documento completo en tarjetas. Categorías disponibles mediante resumen de capacidades.
+Todos los resultados conservan `{data: ...}`. GET `/studio/templates` conserva `{data:{data:[],pagination,categories}}` para clientes actuales; filtros scope=all/runly/personal/company, q, category, page (12 por página). Cada tarjeta ofrece id/key, name, category, description, scope, ownerId/ownerName, source, revision, updatedAt, canEdit/canDelete/canPublish, preview acotada, width/height, objectCount. `document` en tarjetas es un alias del preview por compatibilidad; no es editable. No enviar el documento completo en tarjetas. Categorías disponibles mediante resumen de capacidades.
 
 - GET `/:id`: documento validado y metadatos efectivos.
 - POST: name, category?, description?, scope?=personal y exactamente uno de designId/document. Source de navegador siempre user.
@@ -63,7 +63,9 @@ Registrar runly.studio con scopes studio:read/write, herramientas runly_studio_q
 
 Acciones: studio_create_design, studio_update_design, studio_template_save, studio_template_update, studio_template_publish. Todas declaran readPermission studio.view explícito y llaman servicios comunes. Prepare valida datos, ACL, revisión y archivos; muestra nombre, alcance, dimensiones, recuento y cambios. Commit repite preparación y validaciones mediante el runtime actual. Fuente ai solo en acciones internas autenticadas; el input no admite owner/company/source. Company save/update/publish son sensibles. No debilitar la inferencia global de permisos: admitir el readPermission explícito del adaptador.
 
-MirAI reutiliza consultas; sus escrituras solo se habilitan si el motor de propuestas ofrece las mismas garantías de revisión y confirmación sensible. Si no las ofrece, registrar solo consultas y explicar el flujo MCP aprobado para mutaciones. No introducir bypass directo.
+MirAI reutiliza consultas; el motor actual de propuestas no ofrece confirmación sensible equivalente, por lo que se registran solo consultas y se utiliza MCP aprobado para mutaciones. No introducir bypass directo.
+
+Decisiones verificadas: Studio ya usa SQL parametrizado sin modelos Prisma para sus tablas oficiales; conservar esa convención y no alterar schema.prisma. El provisioning/sync crea definiciones de permisos y reserva la asignación automática al catálogo administrativo vigente; no agregar grants de roles normales. Las actualizaciones de plantilla MCP son siempre sensibles por conservadurismo, ya que el descriptor de sensibilidad opera sobre input antes de resolver el alcance. El destino Files studio.design es private-reference y nunca inserta automáticamente imágenes en el documento.
 
 ## Revisión determinista
 
