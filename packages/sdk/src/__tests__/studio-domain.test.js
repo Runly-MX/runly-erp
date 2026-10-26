@@ -36,6 +36,19 @@ test('Studio never queues stale revisions for offline replay', async () => {
   }
 })
 
+test('Studio image copies use company-scoped multipart, cancellation and encoded asset ids',async()=>{
+  const signal=new AbortController().signal
+  const file=new File(['fixture'],'edited.png',{type:'image/png'})
+  const client=createRunlyClient({baseUrl:'https://api.example.test',getActiveCompanyId:()=> 'company-a',fetch:async(url,options)=>{
+    assert.equal(url,'https://api.example.test/studio/designs/design%2Fone/assets/file%2Fone/edited-copy')
+    assert.equal(options.method,'POST');assert.equal(options.headers.Authorization,'Bearer token');assert.equal(options.headers['X-Runly-Company-Id'],'company-a')
+    assert.ok(options.body instanceof FormData);assert.equal(options.body.get('file').name,'edited.png')
+    assert.ok(!options.headers['Content-Type']);assert.ok(options.signal)
+    return new Response('{}',{headers:{'Content-Type':'application/json'}})
+  }})
+  await client.studio.saveImageCopy('design/one','file/one',file,'token',signal)
+})
+
 test('Studio collaboration uses authenticated company-scoped online endpoints', async () => {
   const calls = []
   const client = createRunlyClient({ baseUrl: 'https://api.example.test', getActiveCompanyId: () => 'company-a',

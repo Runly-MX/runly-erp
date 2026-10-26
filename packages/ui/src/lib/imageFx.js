@@ -15,7 +15,7 @@ export const FX_MODES = [
 ];
 
 const pixelBlock = (s) => Math.max(3, Math.round(s.size * (0.06 + 0.28 * (s.strength / 100))));
-const blurRadius = (s) => Math.max(2, s.size * 0.04 + s.strength * 0.18);
+const blurRadius = (s) => Math.max(2 * (s.pixelScale ?? 1), s.size * 0.04 + s.strength * 0.18 * (s.pixelScale ?? 1));
 
 function adjustFor(mode, strength) {
   const k = strength / 100;

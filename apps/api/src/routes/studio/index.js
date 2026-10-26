@@ -7,6 +7,7 @@ import { tenantActiveContext } from '../../lib/active-context.js'
 import { createStudioResources } from './studio-resources.js'
 import { searchTemplates, STUDIO_TEMPLATES, templateDocument } from '../../../../shared/studio/templates.js'
 import { createStudioCatalog } from './catalog/service.js'
+import { createStudioImageCopies } from './studio-image-copies.js'
 
 export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,
   service = createStudioService({ prisma, filesService, broadcaster }) }) {
@@ -14,7 +15,9 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   const collaboration = createStudioCollaboration({ prisma, access: service.access, broadcaster, supabaseAdmin })
   const resources = createStudioResources({ access: service.access, filesService, supabaseAdmin })
   const catalog = createStudioCatalog({ prisma, access: service.access, filesService, supabaseAdmin })
-  app.use('/studio/*', bodyLimit({ maxSize: 1_100_000, onError: c => c.json({ error: 'El diseño supera el tamaño permitido.' }, 413) }))
+  const imageCopies = createStudioImageCopies({prisma,access:service.access,filesService})
+  app.use('/studio/*', (c,next) => bodyLimit({ maxSize: /^\/studio\/designs\/[^/]+\/assets\/[^/]+\/edited-copy$/.test(c.req.path) ? 11 * 1024 * 1024 : 1_100_000,
+    onError: c => c.json({ error: 'El contenido supera el tamaño permitido.' }, 413) })(c,next))
   const context = c => [c.get('companyId'), c.get('userContext')?.profile?.id]
   const fileContext = c => ({ authUserId: c.get('authUserId'), activeContext: tenantActiveContext(c) })
   app.use('/studio/designs/:id/live', bodyLimit({ maxSize: 4096, onError: c => c.json({ error: 'Presencia demasiado grande.' }, 413) }))
@@ -27,6 +30,10 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     return c.json({ error: 'No se pudo procesar el diseño.' }, 500)
   })
   app.get('/studio/designs', requirePermission('studio.view'), async c => c.json({ data: await service.list(...context(c), c.req.query()) }))
+  app.post('/studio/designs/:id/assets/:fileId/edited-copy',requirePermission('studio.edit'),async c => {
+    const body = await c.req.parseBody()
+    return c.json({data:await imageCopies.create(...context(c),c.req.param('id'),c.req.param('fileId'),body.file,fileContext(c))},201)
+  })
   app.get('/studio/catalog/:provider/search', requirePermission('studio.view'), async c => {
     c.header('Cache-Control', 'private, no-store')
     return c.json({ data: await catalog.search(...context(c), c.req.param('provider'), c.req.query()) })

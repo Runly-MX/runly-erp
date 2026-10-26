@@ -19,6 +19,7 @@ import { remapAnnotation, remapLayer } from "../lib/imageGeometry.js";
 import { drawLayers, newLayer, scaleLayer } from "../lib/imageLayers.js";
 import { useImageEditorHistory } from "../hooks/useImageEditorHistory.js";
 import { useStageGestures } from "../hooks/useStageGestures.js";
+import { exportImageDocument } from '../lib/imageDocumentExport.js';
 
 const MAX_VIEW_ZOOM = 8;
 const MAX_LAYER_BYTES = 10 * 1024 * 1024;
@@ -75,6 +76,7 @@ export function ImageEditorDialog({
   onReplace = null,
   saveLabel = "Guardar copia",
   title = "Editar imagen",
+  originalResolution = false,
 }) {
   const areaRef = useRef(null);
   const pictureRef = useRef(null);
@@ -441,6 +443,7 @@ export function ImageEditorDialog({
 
   // ---- saving / closing -------------------------------------------------
   async function buildFile() {
+    if (originalResolution) return exportImageDocument(source, doc, { originalResolution: true, fileName, mimeType });
     const flat = document.createElement("canvas");
     flat.width = work.width;
     flat.height = work.height;
@@ -461,6 +464,8 @@ export function ImageEditorDialog({
     setSaving(true);
     try {
       await handler(await buildFile());
+    } catch (error) {
+      setNotice(error.message || 'No se pudo guardar la copia. Los cambios se conservan.');
     } finally {
       setSaving(false);
     }

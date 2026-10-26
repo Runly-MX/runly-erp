@@ -67,16 +67,19 @@ export function workSourceSize(img) {
   return { w: img.naturalWidth * k, h: img.naturalHeight * k };
 }
 
-export function renderTransformed(img, { quarterTurns = 0, angle = 0, flipX = false, flipY = false, adjust = null, filter = null } = {}) {
-  const scale = Math.min(1, MAX_WORK_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+export function renderTransformed(img, { quarterTurns = 0, angle = 0, flipX = false, flipY = false, adjust = null, filter = null, maxSide = MAX_WORK_SIDE, maxPixels = 25_000_000 } = {}) {
+  if (!Number.isFinite(maxSide) || maxSide < 1 || maxSide > 8192 || !Number.isFinite(maxPixels) || maxPixels < 1 || maxPixels > 25_000_000) throw new Error('Límites de imagen no válidos.');
+  const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
   const w = img.naturalWidth * scale;
   const h = img.naturalHeight * scale;
   const rad = ((quarterTurns * 90 + angle) * Math.PI) / 180;
   const cos = Math.abs(Math.cos(rad));
   const sin = Math.abs(Math.sin(rad));
+  const width = Math.max(1, Math.round(w * cos + h * sin)), height = Math.max(1, Math.round(w * sin + h * cos));
+  if (width > 8192 || height > 8192 || width * height > maxPixels) throw new Error('La imagen procesada supera el límite de 25 megapíxeles o 8192 px por lado.');
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(w * cos + h * sin));
-  canvas.height = Math.max(1, Math.round(w * sin + h * cos));
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingQuality = "high";
   // Browsers that ignore ctx.filter (Safari before 18, i.e. most iPhones) get a
