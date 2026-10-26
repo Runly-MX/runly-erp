@@ -16,7 +16,7 @@ export function useStudioImageEditing({ editorRef, designId, token, canEdit }) {
     const editor = editorRef.current, captured = editor.captureImage(objectId)
     const next = {editor,...captured,controller:new AbortController()}
     active.current = next
-    const response = unwrap(await runly.studio.assetUrl(designId,captured.object.fileAssetId,token))
+    const response = unwrap(await runly.studio.assetUrl(designId,captured.fileAssetId,token))
     if (active.current !== next || !mode.current || editorRef.current !== editor) return
     setSession({...next,src:response.signedUrl})
   },[close,editorRef,designId,token])
@@ -24,7 +24,7 @@ export function useStudioImageEditing({ editorRef, designId, token, canEdit }) {
     const current = active.current
     if (!current || !mode.current || editorRef.current !== current.editor) throw Error('La edición ya no está disponible.')
     if (current.editor.captureImage(current.object.id).fingerprint !== current.fingerprint) throw Error('La imagen cambió. Cierra esta edición y vuelve a abrirla.')
-    const copy = unwrap(await runly.studio.saveImageCopy(designId,current.object.fileAssetId,file,token,current.controller.signal))
+    const copy = unwrap(await runly.studio.saveImageCopy(designId,current.fileAssetId,file,token,current.controller.signal))
     if (active.current !== current || !mode.current || editorRef.current !== current.editor) throw Error('La copia está en Files; la sesión de edición cambió.')
     await current.editor.replaceImage(current.object.id,copy.id,current.fingerprint)
     close()

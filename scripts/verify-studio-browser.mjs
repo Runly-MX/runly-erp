@@ -14,7 +14,7 @@ await mkdir(output, { recursive: true })
 const bundle = await build({ entryPoints: [resolve(root, 'scripts/fixtures/studio/browser.js')], nodePaths: [resolve(root, 'apps/desktop/node_modules')], bundle: true, platform: 'browser', format: 'esm', minify: true, write: false,define:{'import.meta.env.BASE_URL':JSON.stringify('/')} })
 await writeFile(resolve(output, 'renderer-spike.js'), bundle.outputFiles[0].contents)
 const server = createServer((request, response) => {
-  if (/^\/studio-fonts\/(lato|lato-bold|lato-italic|playfairdisplay|bebasneue|pacifico|oswald|spacemono)\.ttf$/.test(request.url)) {
+  if (/^\/studio-fonts\/[a-z0-9-]+\.ttf$/.test(request.url)) {
     readFile(resolve(root,'apps/desktop/public',request.url.slice(1))).then(bytes=>{response.setHeader('Content-Type','font/ttf');response.end(bytes)},()=>{response.writeHead(404);response.end()});return
   }
   if (request.url === '/fixture.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(bundle.outputFiles[0].contents); return }
@@ -30,6 +30,7 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}`)
   await page.waitForFunction(() => typeof window.studioVerification === 'function')
   const result = await page.evaluate(() => window.studioVerification())
+  result.shapes=await page.evaluate(()=>window.studioShapeVerification())
   result.multimedia = await page.evaluate(() => window.studioPhotoVerification())
   assert.deepEqual(result.saved, result.reopened)
   assert.equal(result.saved.objects[0].text, 'Texto modificado')
@@ -38,7 +39,7 @@ try {
   assert.equal(result.png.width, 640); assert.equal(result.png.height, 480)
   assert.deepEqual(result.png.blue, [37, 99, 235, 255])
   assert.deepEqual(result.png.image, [245, 158, 11, 255])
-  assert.equal(result.fonts.length,6);assert.equal(result.vector.recolorPixels,true)
+  assert.ok(result.fonts.length>=6);assert.equal(result.vector.recolorPixels,true)
   assert.deepEqual(errors, [])
   const failedContext=await browser.newContext(),failedPage=await failedContext.newPage()
   await failedPage.route('**/studio-fonts/pacifico.ttf',route=>route.abort())

@@ -1,3 +1,4 @@
+import {documentAssetIds} from '../../../../../../shared/studio/shape-properties.js'
 import { useQuery } from '@tanstack/react-query'
 import { ActionMenu, Skeleton } from '@runly/ui'
 import { Copy, ExternalLink, Layers, Users } from 'lucide-react'
@@ -13,7 +14,7 @@ const MAX_PREVIEW_IMAGES = 6
 // capability (works for collaborators without direct Files access).
 function usePreviewImages(design) {
   const token = useAuth().session?.access_token
-  const ids = [...new Set((design.preview?.objects ?? []).filter(item => item.type === 'image' && !item.hidden).map(item => item.fileAssetId))].slice(0, MAX_PREVIEW_IMAGES).sort()
+  const ids = documentAssetIds({objects:(design.preview?.objects??[]).filter(item=>!item.hidden)}).slice(0, MAX_PREVIEW_IMAGES).sort()
   return useQuery({
     queryKey: ['studio', 'preview-images', design.id, design.revision, ids],
     queryFn: async () => Object.fromEntries((await Promise.all(ids.map(async id => {

@@ -1,3 +1,4 @@
+import { documentAssetIds as studioAssetIds } from '../../../../shared/studio/shape-properties.js'
 import sharp from 'sharp'
 import { FILE_ID, StudioError } from '../../../../shared/studio/document.js'
 import { isStudioRaster } from './image-format.js'
@@ -14,7 +15,7 @@ export function createStudioImageCopies({ prisma, access, filesService }) {
     await access.member(companyId,actorId,'files.assets.read')
     await access.member(companyId,actorId,'files.assets.create')
     const design = await access.get(companyId,actorId,designId,prisma,true)
-    if (!design.document.objects.some(object => object.type === 'image' && object.fileAssetId === fileId) && !await access.imageAllowed(companyId,designId,fileId)) throw new StudioError('La imagen ya no pertenece al diseño.',409)
+    if (!studioAssetIds(design.document).includes(fileId) && !await access.imageAllowed(companyId,designId,fileId)) throw new StudioError('La imagen ya no pertenece al diseño.',409)
     const file = await prisma.fileAsset.findFirst({where:{id:fileId,entityId:companyId,enabled:true}})
     if (!file || !MIME.has(file.mimeType)) throw new StudioError('Imagen no disponible.',404)
     // Access to a bound design image is delegated by the current design ACL.

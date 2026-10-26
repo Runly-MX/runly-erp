@@ -43,8 +43,8 @@ export function reviewStudioDocument(input) {
       if (lower.hidden || lower.opacity===0 || !overlaps(b,studioBounds(lower))) continue
       // Only a fully covering, opaque, axis-aligned solid rectangle gives a
       // provable background. A later such rectangle occludes earlier ambiguity.
-      if (lower.type==='rectangle' && (lower.opacity??1)===1 && lower.rotation%180===0 && contains(studioBounds(lower),b)) {
-        background=lower.fill; ambiguous=false
+      if (lower.type==='rectangle' && (lower.opacity??1)===1 && lower.rotation%180===0 && (!lower.fillPaint||lower.fillPaint.type==='solid') && lower.shape?.fillEnabled!==false && !lower.shape?.radius && contains(studioBounds(lower),b)) {
+        background=lower.fillPaint?.color??lower.fill; ambiguous=false
       } else ambiguous=true
     }
     if (ambiguous || (o.opacity??1)!==1) {

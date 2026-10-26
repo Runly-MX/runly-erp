@@ -3,9 +3,11 @@
 export function createStudioImageLineage({prisma}) {
   async function imageAllowed(companyId,designId,fileId,db=prisma) {
     const [row]=await db.$queryRaw`WITH RECURSIVE lineage(file_id,depth,visited) AS (
-      SELECT DISTINCT o->>'fileAssetId',0,ARRAY[o->>'fileAssetId'] FROM studio_design d,
+      SELECT DISTINCT ref.file_id,0,ARRAY[ref.file_id] FROM studio_design d,
         jsonb_array_elements(d.document->'objects') o
-      WHERE d.id=${designId}::uuid AND d.company_id=${companyId}::uuid AND o->>'type'='image'
+      CROSS JOIN LATERAL (SELECT CASE WHEN o->>'type'='image' THEN o->>'fileAssetId'
+        WHEN o->'fillPaint'->>'type'='image' THEN o->'fillPaint'->>'fileAssetId' END AS file_id) ref
+      WHERE d.id=${designId}::uuid AND d.company_id=${companyId}::uuid AND ref.file_id IS NOT NULL
       UNION ALL
       SELECT edge.file_id,l.depth+1,l.visited||edge.file_id
       FROM lineage l JOIN audit_log a ON a.module_key='runly.studio' AND a.entity_type='StudioDesign'

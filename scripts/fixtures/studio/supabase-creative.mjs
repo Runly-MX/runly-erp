@@ -110,7 +110,7 @@ export async function verifyStudioCreative(stack,{users,companies,admin}) {
     await page.getByRole('button',{name:'Elementos',exact:true}).click();await page.getByRole('button',{name:'Rectángulo #d946ef',exact:true}).click();await save(page)
     assert.ok((await get()).document.objects.some(o=>o.type==='rectangle'&&o.fill==='#d946ef'))
     assert.ok(!requests.slice(start).some(url=>/^https:\/\/(api.iconify.design|api.openverse.org)/.test(url)))
-    for(const version of [1,2]){const legacy=await data(await api('/studio/designs',{name:`Compatibilidad v${version}`,document:{...blankDocument(),schemaVersion:version}}));assert.equal(legacy.document.schemaVersion,4)}
+    for(const version of [1,2]){const legacy=await data(await api('/studio/designs',{name:`Compatibilidad v${version}`,document:{...blankDocument(),schemaVersion:version}}));assert.equal(legacy.document.schemaVersion,5)}
     await data(await api(`${uiRoot}/collaborators`,{userId:peer.id,role:'VIEWER'},0,company.id,'PUT'))
     const peerView=await data(await api(uiRoot,null,2));assert.equal(peerView.canEdit,false)
     assert.equal((await api(`${uiRoot}/assets/${photo.fileAssetId}/signed-url`,null,2)).status,200)

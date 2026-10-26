@@ -3,7 +3,8 @@ import { validStudioFont, studioFontStyle } from './fonts.js'
 import { validateGeometry } from './vector.js'
 import { iconSource } from './licenses.js'
 import { imageProperties } from './image-properties.js'
-export const STUDIO_SCHEMA_VERSION = 4
+import { fillPaint, shapeStyle, supportsPhotoFill, SHAPE_TYPES, LINE_CAPS } from './shape-properties.js'
+export const STUDIO_SCHEMA_VERSION = 5
 export const STUDIO_LIMITS = Object.freeze({ side: 4096, objects: 500, bytes: 1_000_000 })
 export const FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COLOR = /^#[0-9a-f]{6}$/i
@@ -19,7 +20,7 @@ const fail = () => { throw new StudioError('El diseño contiene datos no válido
 const finite = (value, min, max) => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
 
 export function validateDocument(input) {
-  if (!input || ![1, 2, 3, STUDIO_SCHEMA_VERSION].includes(input.schemaVersion) || input.unit !== 'px') fail()
+  if (!input || ![1, 2, 3, 4, STUDIO_SCHEMA_VERSION].includes(input.schemaVersion) || input.unit !== 'px') fail()
   if (JSON.stringify(input).length > STUDIO_LIMITS.bytes) fail()
   const page = input.page
   if (!page || !Number.isInteger(page.width) || !Number.isInteger(page.height) ||
@@ -64,12 +65,26 @@ export function validateDocument(input) {
       const points=object.points??[[0,0],[1,1]],strokeWidth=object.strokeWidth??2,dash=object.dash??'solid',startArrow=object.startArrow??false,endArrow=object.endArrow??false,scaleX=object.scaleX??1,scaleY=object.scaleY??1
       if(!Array.isArray(points)||points.length<2||points.length>256||!points.every(p=>Array.isArray(p)&&p.length===2&&p.every(v=>finite(v,0,1)))||!finite(strokeWidth,0.5,128)||!['solid','dashed','dotted'].includes(dash)||typeof startArrow!=='boolean'||typeof endArrow!=='boolean'||!finite(scaleX,0.02,8)||!finite(scaleY,0.02,8))fail()
       Object.assign(clean,{points:points.map(p=>[...p]),strokeWidth,dash,startArrow,endArrow,scaleX,scaleY})
+      const startCap=object.startCap??(startArrow?'arrow':'none'),endCap=object.endCap??(endArrow?'arrow':'none')
+      if(!LINE_CAPS.includes(startCap)||!LINE_CAPS.includes(endCap)||(input.schemaVersion<5&&(object.startCap!==undefined||object.endCap!==undefined)))fail()
+      Object.assign(clean,{startCap,endCap,startArrow:startCap==='arrow',endArrow:endCap==='arrow'})
     }
     if (object.type === 'vector') {
       if (input.schemaVersion < 3) fail()
       if(object.svgName!==undefined){if(input.schemaVersion<4||typeof object.svgName!=='string'||!object.svgName||object.svgName.length>120||object.iconId!==undefined)fail();clean.svgName=object.svgName}
       else {if(!iconSource(object.iconId))fail();clean.iconId=object.iconId}
       try { clean.geometry = validateGeometry(object.geometry) } catch { fail() }
+    }
+    if(object.fillPaint!==undefined){
+      if(input.schemaVersion<5||!SHAPE_TYPES.includes(object.type))fail()
+      try{clean.fillPaint=fillPaint(object.fillPaint,FILE_ID)}catch{fail()}
+      if(clean.fillPaint.type==='image'&&!supportsPhotoFill(clean))fail()
+    }
+    if(object.shape!==undefined){
+      if(input.schemaVersion<5||!SHAPE_TYPES.includes(object.type))fail()
+      try{clean.shape=shapeStyle(object.shape)}catch{fail()}
+      if(object.type!=='rectangle'&&clean.shape.radius)fail()
+      if(object.type==='vector'&&!supportsPhotoFill(clean))fail()
     }
     return clean
   })

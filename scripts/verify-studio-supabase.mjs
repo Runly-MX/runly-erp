@@ -43,7 +43,7 @@ try {
   }
   if (!ready) throw Error('ISOLATED_API_NOT_READY')
   if(process.argv.includes('--photos-only')){
-    const result={passed:true,photos:await verifyStudioPhotos(stack,data)}
+    const result={passed:true,photos:await verifyStudioPhotos(stack,data),shapePhotos:await verifyStudioPhotos(stack,data,{shape:true})}
     await writeFile(join(stack.directory,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2))
   }else{
   const require = createRequire(resolve('apps/desktop/package.json'))
@@ -78,6 +78,7 @@ try {
   const photos=await verifyStudioPhotos(stack,data)
   const result = process.argv.includes('--creative-only') ? { passed:true,creative:await verifyStudioCreative(stack,data),bundle } : process.argv.includes('--composition-only') ? { passed: true, composition: await verifyStudioComposition(stack, data), bundle } : { ...(process.argv.includes('--collaboration-only') ? { passed: true } : await verifyStudioSupabase(stack, data)),
     collaboration: await verifyStudioCollaboration(stack, data), resources: await verifyStudioResources(stack, data), composition: await verifyStudioComposition(stack, data),creative:await verifyStudioCreative(stack,data), bundle }
+  result.shapePhotos=await verifyStudioPhotos(stack,data,{shape:true})
   result.photos=photos
   await writeFile(join(stack.directory, 'result.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify(result, null, 2))

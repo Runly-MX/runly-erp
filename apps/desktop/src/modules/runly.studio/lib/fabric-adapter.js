@@ -3,7 +3,8 @@ import { appendObject, validateDocument } from '../../../../../shared/studio/doc
 import { resizeDocument } from '../../../../../shared/studio/page.js'
 import { createDocumentHistory } from './document-history.js'
 import { ensureStudioFont } from './studio-fonts.js'
-import { createStudioPhoto } from './studio-photo.js'
+import { photoFileId, documentAssetIds, supportsPhotoFill, SHAPE_TYPES } from '../../../../../shared/studio/shape-properties.js'
+import { createStudioPhoto, StudioPhoto } from './studio-photo.js'
 import { imageProperties, DEFAULT_IMAGE } from '../../../../../shared/studio/image-properties.js'
 import { studioFontStyle } from '../../../../../shared/studio/fonts.js'
 import { StudioLine } from './studio-line.js'
@@ -33,7 +34,10 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     }
     const options = { left: item.x, top: item.y, angle: item.rotation, fill: item.fill, originX: 'left', originY: 'top' }
     let object
-    if (item.type === 'text') {
+    if(SHAPE_TYPES.includes(item.type)&&(item.fillPaint||item.shape)){
+      object=photoFileId(item)?await createStudioPhoto(item,resolveImage,reserve):new StudioPhoto(item,null)
+    }
+    else if (item.type === 'text') {
       await ensureStudioFont(item.fontFamily,item.fontVariant)
       const style=studioFontStyle(item.fontFamily,item.fontVariant)
       object = new Textbox(item.text, { ...options, width: item.width, fontSize: item.fontSize, fontFamily: item.fontFamily, fontWeight:style.weight, fontStyle:style.style, scaleX: item.scaleX, scaleY: item.scaleY,
@@ -67,11 +71,12 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       const item = source.get(object.studioId)
       const position = object.getXY(), scaling = object.group ? object.getObjectScaling() : { x: object.scaleX, y: object.scaleY }
       return { ...item, x: stable(position.x, item.x), y: stable(position.y, item.y), width: stable(Math.max(1, object.width * scaling.x), item.width),
-        height: stable(Math.max(1, object.height * scaling.y), item.height), rotation: stable(object.getTotalAngle() % 360, item.rotation), fill: object.fill,
+        height: stable(Math.max(1, object.height * scaling.y), item.height), rotation: stable(object.getTotalAngle() % 360, item.rotation), fill: item.fill,
         ...(item.type === 'text' ? { text: object.text, fontSize: object.fontSize } : {}),
         ...(['text','line'].includes(item.type) ? { width: object.width, height: object.height, scaleX: stable(scaling.x, item.scaleX), scaleY: stable(scaling.y, item.scaleY) } : {}) }
     }) })
   }
+  const withPhoto=(item,fileAssetId)=>item.type==='image'?{...item,fileAssetId}:{...item,fillPaint:{...item.fillPaint,fileAssetId}}
   function selected() {
     const object = canvas.getActiveObject()
     return object?.studioId ? snapshot().objects.find(item => item.id === object.studioId) : null
@@ -125,14 +130,14 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
   }
   function applyItem(object,item,patch) {
     object.set({left:item.x,top:item.y,angle:item.rotation,fill:item.fill,opacity:item.opacity??1,...flags(item)})
-    if(item.type==='vector')object.getObjects().slice(1).forEach((shape,index)=>{const path=item.geometry.paths[index];shape.set({fill:path.fill==='color'?item.fill:null,stroke:path.stroke==='color'?item.fill:null})})
+    if(item.type==='vector'&&!object.configure)object.getObjects().slice(1).forEach((shape,index)=>{const path=item.geometry.paths[index];shape.set({fill:path.fill==='color'?item.fill:null,stroke:path.stroke==='color'?item.fill:null})})
     if(item.type==='text'){
       const style=studioFontStyle(item.fontFamily,item.fontVariant)
       object.set({text:item.text,fontSize:item.fontSize,width:item.width,scaleX:item.scaleX,scaleY:item.scaleY,fontFamily:item.fontFamily,fontWeight:style.weight,fontStyle:style.style,
         textAlign:item.textAlign,lineHeight:item.lineHeight,charSpacing:item.charSpacing,underline:item.underline,linethrough:item.linethrough})
     }
     if(item.type==='line'){object.set({width:item.width,height:item.height,scaleX:item.scaleX,scaleY:item.scaleY});object.configure(item)}
-    if(item.type==='image'&&item.image&&object.configure)object.configure({...item,width:object.width,height:object.height})
+    if((item.type==='image'||SHAPE_TYPES.includes(item.type))&&object.configure)object.configure({...item,width:object.width,height:object.height})
     if(!['text','line'].includes(item.type)){
       if(patch.width!==undefined)object.set({scaleX:item.width/object.width})
       if(patch.height!==undefined)object.set({scaleY:item.height/object.height})
@@ -146,7 +151,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
   canvas.on('object:modified', () => {
     // A frame resize recomputes cover/contain instead of baking a stretched photo.
     const doc=snapshot(),items=new Map(doc.objects.map(item=>[item.id,item]))
-    for(const object of canvas.getObjects())if(source.get(object.studioId)?.type==='image'&&object.configure&&!object.group){
+    for(const object of canvas.getObjects())if(object.configure&&source.get(object.studioId)?.type!=='line'&&!object.group){
       const item=items.get(object.studioId);object.set({scaleX:1,scaleY:1});object.configure(item);object.setCoords();source.set(item.id,item)
     }
     changed()
@@ -157,6 +162,9 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
   for (const event of ['selection:created', 'selection:updated', 'selection:cleared']) canvas.on(event, selection)
   const editor = {
     snapshot,
+    setShapeStyle(patch){const item=selected();if(!item||!SHAPE_TYPES.includes(item.type))throw Error('Selecciona una forma.');return editor.patch({shape:{...item.shape,...patch}})},
+    setPhotoFill(fileAssetId,image={}){const item=selected();if(!item||!supportsPhotoFill(item))throw Error('Esta geometr?a no admite fotograf?a.');return editor.patch({fill:item.fillPaint?.type==='solid'?item.fillPaint.color:item.fill,fillPaint:{type:'image',fileAssetId,image}})},
+    removePhotoFill(){const item=selected();if(!item||!SHAPE_TYPES.includes(item.type))throw Error('Selecciona una forma.');return editor.patch({fillPaint:undefined})},
     async importSvg(svg,name){writable();const result=importStudioSvg(svg,name);await editor.add('vector',result.object);return {warnings:result.warnings,provenance:result.provenance}},
     setLineStyle(patch){if(selected()?.type!=='line')throw Error('Selecciona una línea.');return editor.patch(patch)},
     group() {
@@ -199,9 +207,9 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       const target=editor.captureImage().object
       return enqueue(async () => {
         const captured=editor.captureImage(target.id)
-        if(canvas.getActiveObject()?.studioId!==target.id||captured.object.fileAssetId!==target.fileAssetId)throw Error('La imagen seleccionada cambió durante la operación.')
-        const properties=imageProperties({...imageProperties(captured.object.image),...patch})
-        const next={...captured.object,image:properties}
+        if(canvas.getActiveObject()?.studioId!==target.id||photoFileId(captured.object)!==photoFileId(target))throw Error('La imagen seleccionada cambió durante la operación.')
+        const properties=imageProperties({...imageProperties(captured.object.type==='image'?captured.object.image:captured.object.fillPaint.image),...patch})
+        const next=captured.object.type==='image'?{...captured.object,image:properties}:{...captured.object,fillPaint:{...captured.object.fillPaint,image:properties}}
         const active=canvas.getActiveObject()
         if(active.configure){
           writable();active.configure({...next,width:active.width,height:active.height});source.set(next.id,next);canvas.requestRenderAll();changed();return
@@ -219,20 +227,20 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       const captured=editor.captureImage()
       // One filter pass per animation frame, with the latest slider values.
       if(pendingAdjustments&&pendingAdjustments.id===captured.object.id){Object.assign(pendingAdjustments.patch,patch);return pendingAdjustments.promise}
-      const pending={id:captured.object.id,fileId:captured.object.fileAssetId,patch:{...patch}}
+      const pending={id:captured.object.id,fileId:photoFileId(captured.object),patch:{...patch}}
       pendingAdjustments=pending
       pending.promise=(async()=>{
         await new Promise(resolve=>requestAnimationFrame(resolve))
         if(pendingAdjustments===pending)pendingAdjustments=null
         const latest=editor.captureImage(pending.id)
-        if(latest.object.fileAssetId!==pending.fileId)throw Error('La fotografía cambió durante el ajuste.')
+        if(photoFileId(latest.object)!==pending.fileId)throw Error('La fotografía cambió durante el ajuste.')
         if(canvas.getActiveObject()?.studioId!==pending.id)throw Error('La selección cambió durante el ajuste.')
-        return editor.patchImage({adjustments:{...imageProperties(latest.object.image).adjustments,...pending.patch}})
+        return editor.patchImage({adjustments:{...imageProperties(latest.object.type==='image'?latest.object.image:latest.object.fillPaint.image).adjustments,...pending.patch}})
       })()
       return pending.promise
     },
     resetImageAdjustments() {return editor.patchImage({adjustments:DEFAULT_IMAGE.adjustments})},
-    resetImageFraming() {const {object}=editor.captureImage();const properties=imageProperties(object.image);return editor.patchImage({...properties,offsetX:0,offsetY:0,zoom:1,rotation:0,crop:DEFAULT_IMAGE.crop})},
+    resetImageFraming() {const {object}=editor.captureImage();const properties=imageProperties(object.type==='image'?object.image:object.fillPaint.image);return editor.patchImage({...properties,offsetX:0,offsetY:0,zoom:1,rotation:0,crop:DEFAULT_IMAGE.crop})},
     editImage(id = canvas.getActiveObject()?.studioId) {
       writable()
       if (!onEditImage) throw Error('El editor fotográfico no está conectado.')
@@ -240,9 +248,9 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     },
     captureImage(id = canvas.getActiveObject()?.studioId) {
       writable()
-      const item = snapshot().objects.find(item => item.id === id && item.type === 'image' && !item.locked && !item.hidden)
+      const item = snapshot().objects.find(item => item.id === id && photoFileId(item) && !item.locked && !item.hidden)
       if (!item) throw Error('Selecciona una imagen editable.')
-      return { object: item, fingerprint: JSON.stringify(item) }
+      return { object: item, fileAssetId:photoFileId(item), fingerprint: JSON.stringify(item) }
     },
     replaceImage(id, fileAssetId, fingerprint) {
       writable()
@@ -250,8 +258,8 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
         writable()
         const captured = editor.captureImage(id)
         if (fingerprint && captured.fingerprint !== fingerprint) throw Error('La imagen cambió durante la edición. La copia se conserva en Files.')
-        await authorizePaste?.([{...captured.object,fileAssetId}])
-        const item = validateDocument({...snapshot(),objects:snapshot().objects.map(object => object.id === id ? {...object,fileAssetId} : object)}).objects.find(object => object.id === id)
+        await authorizePaste?.([withPhoto(captured.object,fileAssetId)])
+        const item = validateDocument({...snapshot(),objects:snapshot().objects.map(object => object.id === id ? withPhoto(object,fileAssetId) : object)}).objects.find(object => object.id === id)
         const replacement = await build(item)
         try {
           writable()
@@ -342,12 +350,22 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     },
     patch(patch) {
       writable()
+      patch={...patch}
+      for(const end of ['start','end'])if(patch[end+'Arrow']!==undefined&&patch[end+'Cap']===undefined)patch[end+'Cap']=patch[end+'Arrow']?'arrow':'none'
       const object = canvas.getActiveObject()
       if (!object?.studioId) return
       const original = source.get(object.studioId)
       if (original.locked && Object.keys(patch).some(key => !['locked', 'hidden'].includes(key))) return
       const next = validateDocument({ ...snapshot(), objects: snapshot().objects.map(item => item.id === object.studioId ? { ...item, ...patch } : item) })
       const item = next.objects.find(item => item.id === object.studioId)
+      if(SHAPE_TYPES.includes(item.type)&&(item.fillPaint||item.shape||original.fillPaint||original.shape))return enqueue(async()=>{
+        const fingerprint=JSON.stringify(snapshot().objects.find(o=>o.id===original.id))
+        if(JSON.stringify(snapshot().objects.find(o=>o.id===original.id))!==fingerprint)throw Error('La forma cambi\u00f3 durante la operaci\u00f3n.')
+        await authorizePaste?.([item]);const replacement=await build(item)
+        try{writable();if(destroyed||JSON.stringify(snapshot().objects.find(o=>o.id===original.id))!==fingerprint)throw Error('La forma cambi\u00f3 durante la operaci\u00f3n.')
+          const index=canvas.getObjects().indexOf(object);canvas.discardActiveObject();canvas.remove(object);object.dispose();source.set(item.id,item);canvas.insertAt(index,replacement);editor.select(item.id);canvas.requestRenderAll();changed()
+        }catch(error){replacement.dispose();throw error}
+      })
       if (item.type === 'text' && (item.fontFamily !== original.fontFamily || item.fontVariant !== original.fontVariant)) return enqueue(async () => {
         await ensureStudioFont(item.fontFamily,item.fontVariant); writable()
         if (destroyed || !canvas.getObjects().includes(object)) return
@@ -411,7 +429,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
         try {
         for(const item of snapshot().objects.filter(item=>item.type==='text')) await ensureStudioFont(item.fontFamily,item.fontVariant)
         // Refresh every original capability before rendering; a cached bitmap is not fresh authorization.
-        for (const id of new Set(snapshot().objects.filter(item => item.type === 'image').map(item => item.fileAssetId))) {
+        for (const id of documentAssetIds(snapshot())) {
           try { const original = await FabricImage.fromURL(await resolveImage(id), { crossOrigin: 'anonymous' }); original.dispose() }
           catch { throw new Error('No se pudo cargar la imagen original. Comprueba el archivo y reintenta.') }
         }

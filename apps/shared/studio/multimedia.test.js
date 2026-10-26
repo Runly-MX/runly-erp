@@ -9,7 +9,7 @@ test('v1/v2/v3 upgrade logically to v4; original assets and regular text semanti
   for(const schemaVersion of [1,2,3]){
     const input=appendObject(appendObject(blankDocument(),'text'),'image',{fileAssetId:id})
     const doc=validateDocument({...input,schemaVersion})
-    assert.equal(doc.schemaVersion,4);assert.equal(doc.objects[0].textAlign,'left');assert.equal(doc.objects[1].fileAssetId,id);assert.equal(doc.objects[1].image,undefined)
+    assert.equal(doc.schemaVersion,5);assert.equal(doc.objects[0].textAlign,'left');assert.equal(doc.objects[1].fileAssetId,id);assert.equal(doc.objects[1].image,undefined)
   }
 })
 test('masks, crop, inner transform, adjustments and group identity have a bounded canonical roundtrip',()=>{

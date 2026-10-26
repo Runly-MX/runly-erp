@@ -7,7 +7,7 @@ test('v1 upgrades without mutating its input and v2 flags survive roundtrip', ()
   const v1 = { ...appendObject(blankDocument(), 'rectangle'), schemaVersion: 1 }
   delete v1.objects[0].locked; delete v1.objects[0].hidden
   const upgraded = validateDocument(v1)
-  assert.equal(upgraded.schemaVersion, 4); assert.equal(upgraded.objects[0].locked, false)
+  assert.equal(upgraded.schemaVersion, 5); assert.equal(upgraded.objects[0].locked, false)
   assert.equal(v1.objects[0].locked, undefined)
   upgraded.objects[0].locked = true; upgraded.objects[0].hidden = true
   assert.deepEqual(validateDocument(upgraded), upgraded)

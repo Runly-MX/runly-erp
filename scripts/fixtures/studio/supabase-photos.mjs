@@ -4,7 +4,7 @@ import {blankDocument,appendObject} from '../../../apps/shared/studio/document.j
 const sharp=createRequire(new URL('../../../apps/api/package.json',import.meta.url))('sharp')
 
 // Real Auth, Studio router, Files and Storage on the disposable project only.
-export async function verifyStudioPhotos(stack,{users,companies}) {
+export async function verifyStudioPhotos(stack,{users,companies},{shape=false}={}) {
   assert.equal((await stack.pool.query('SELECT id FROM runly_studio_test.environment')).rows[0]?.id,stack.name)
   const [owner,,peer,foreign]=users,[company,other]=companies,checks=[]
   const tokens=await Promise.all([owner,peer,foreign].map(async user=>{
@@ -19,6 +19,8 @@ export async function verifyStudioPhotos(stack,{users,companies}) {
   const upload=new FormData();upload.set('file',new File([original],'synthetic-photo.png',{type:'image/png'}));upload.set('moduleKey','runly.files');upload.set('entityType','AtlasFile')
   const source=await json(await api('/files/upload',{method:'POST',body:upload}))
   let doc=appendObject(blankDocument(800,600),'image',{fileAssetId:source.id,image:{mask:'star',offsetX:0.1,rotation:25,zoom:1.4,adjustments:{grayscale:true}},x:80,y:80,width:300,height:250})
+  if(shape)doc=appendObject(blankDocument(800,600),'ellipse',{fill:'#123456',fillPaint:{type:'image',fileAssetId:source.id,image:{offsetX:0.1,rotation:25,zoom:1.4,adjustments:{grayscale:true}}},shape:{strokeWidth:4,strokeColor:'#000000',dash:'dotted'},x:80,y:80,width:300,height:250})
+  const withFile=(o,fileAssetId)=>shape?{...o,fillPaint:{...o.fillPaint,fileAssetId}}:{...o,fileAssetId}
   const record=await json(await api('/studio/designs',{data:{name:'Fotografía sintética',document:doc}})),path=`/studio/designs/${record.id}`
   assert.deepEqual(record.document,doc)
   await json(await api(`${path}/collaborators`,{method:'PUT',data:{userId:peer.id,role:'EDITOR'}}))
@@ -34,7 +36,7 @@ export async function verifyStudioPhotos(stack,{users,companies}) {
   const signed=await json(await api(`${path}/assets/${source.id}/signed-url`,{user:1}))
   assert.deepEqual(Buffer.from(await(await fetch(signed.signedUrl)).arrayBuffer()),original)
   checks.push('Real editor collaborator creates a new private restricted FileAsset; original bytes and ownership unchanged')
-  doc={...doc,objects:doc.objects.map(o=>({...o,fileAssetId:result.id}))}
+  doc={...doc,objects:doc.objects.map(o=>withFile(o,result.id))}
   const updated=await json(await api(path,{user:1,method:'PUT',data:{name:record.name,document:doc,revision:record.revision}}))
   const reopened=await json(await api(path,{user:1}));assert.deepEqual(reopened.document,doc);assert.equal(reopened.revision,updated.revision)
   const live=await json(await api(`${path}/live`,{data:{sessionId:'photo-owner-session-001',peek:true}}));assert.equal(live.revision,updated.revision)
@@ -42,7 +44,7 @@ export async function verifyStudioPhotos(stack,{users,companies}) {
   assert.deepEqual(Buffer.from(await(await fetch(freshCopy.signedUrl)).arrayBuffer()),edited)
   const previous=await json(await api(`${path}/assets/${source.id}/signed-url`,{user:1}))
   assert.deepEqual(Buffer.from(await(await fetch(previous.signedUrl)).arrayBuffer()),original)
-  const undone={...doc,objects:doc.objects.map(o=>({...o,fileAssetId:source.id}))}
+  const undone={...doc,objects:doc.objects.map(o=>withFile(o,source.id))}
   const undoSave=await json(await api(path,{user:1,method:'PUT',data:{name:record.name,document:undone,revision:updated.revision}}))
   const copyAfterUndo=await json(await api(`${path}/assets/${result.id}/signed-url`))
   assert.deepEqual(Buffer.from(await(await fetch(copyAfterUndo.signedUrl)).arrayBuffer()),edited)
@@ -66,5 +68,22 @@ export async function verifyStudioPhotos(stack,{users,companies}) {
   const malformed=new FormData();malformed.set('file',new File(['<svg/>'],'bad.png',{type:'image/png'}))
   assert.equal((await api(`${path}/assets/${result.id}/edited-copy`,{user:1,method:'POST',body:malformed})).status,400)
   checks.push('Real cross-company, reader, revoked Files permission and MIME-spoof requests fail')
+  if(shape){
+    const templateDoc={...doc,objects:doc.objects.map(o=>withFile(o,source.id))}
+    const templateSaved=await json(await api(path,{user:1,method:'PUT',data:{name:record.name,document:templateDoc,revision:redoSave.revision}}))
+    let personal=await json(await api('/studio/templates',{data:{name:'Synthetic fill personal',designId:record.id}}))
+    const details=await json(await api(`/studio/templates/${personal.id}`));assert.deepEqual(details.document,templateSaved.document)
+    // A collaborator can receive design-scoped access but cannot republish somebody else's private photo.
+    const denied=await api('/studio/templates',{user:1,data:{name:'Unauthorized company fill',scope:'company',designId:record.id}})
+    assert.equal(denied.status,403)
+    personal=await json(await api(`/studio/templates/${personal.id}/publish`,{data:{revision:personal.revision}}))
+    const used=await json(await api(`/studio/templates/${personal.id}/use`,{user:1,data:{name:'Synthetic authorized template copy'}}))
+    const originalFill=used.document.objects.find(o=>o.fillPaint?.type==='image');assert.equal(originalFill.fillPaint.fileAssetId,source.id)
+    const signedFill=await json(await api(`/studio/designs/${used.id}/assets/${source.id}/signed-url`,{user:1}));assert.deepEqual(Buffer.from(await(await fetch(signedFill.signedUrl)).arrayBuffer()),original)
+    await stack.pool.query('UPDATE file_asset SET enabled=false WHERE id=$1',[source.id])
+    assert.equal((await api(`/studio/designs/${used.id}/assets/${source.id}/signed-url`,{user:1})).status,404)
+    await stack.pool.query('UPDATE file_asset SET enabled=true WHERE id=$1',[source.id])
+    checks.push('Typed photo fills: personal/company template persistence, no unauthorized publishing, authorized reuse and actual asset revocation')
+  }
   return {checks}
 }

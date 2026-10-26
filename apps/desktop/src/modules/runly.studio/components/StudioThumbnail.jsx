@@ -1,13 +1,30 @@
-import { memo, useEffect } from 'react'
+import {photoFileId} from '../../../../../shared/studio/shape-properties.js'
+import {scheduled} from '../lib/resource-queue.js'
+import { memo, useEffect, useState } from 'react'
 import { cn } from '@runly/ui'
 import { ensureStudioFont } from '../lib/studio-fonts.js'
 import {studioFontStyle} from '../../../../../shared/studio/fonts.js'
+
+function RenderedItem({item,images}) {
+  const [preview,setPreview]=useState(null),url=images?.[photoFileId(item)],key=JSON.stringify(item)
+  useEffect(()=>{
+    const controller=new AbortController()
+    if(photoFileId(item)&&!url)return ()=>controller.abort()
+    scheduled(async()=>{const {renderThumbnailItem}=await import('../lib/thumbnail-renderer.js');return renderThumbnailItem(JSON.parse(key),url)},controller.signal)
+      .then(value=>{if(!controller.signal.aborted)setPreview({key,urlSource:url,...value})}).catch(()=>{})
+    return ()=>controller.abort()
+  },[key,url])
+  if(!preview||preview.key!==key||preview.urlSource!==url)return <rect width={item.width} height={item.height} fill="#94a3b8" opacity="0.22" />
+  const p=preview.padding
+  return <image href={preview.url} x={-p} y={-p} width={item.width+p*2} height={item.height+p*2} preserveAspectRatio="none" />
+}
 
 // Vector preview of a Studio document (or the bounded list `preview`): shapes
 // and text render as SVG; images use the signed URLs passed in `images`, or a
 // neutral placeholder while they load or when access is missing.
 function Item({ item, images }) {
   const transform = `translate(${item.x} ${item.y}) rotate(${item.rotation ?? 0})`
+  if(item.type==='line'||item.fillPaint||item.shape||(item.type==='image'&&item.image))return <g transform={`${transform} scale(${item.scaleX??1} ${item.scaleY??1})`}><RenderedItem item={item} images={images} /></g>
   if(item.type==='line')return <polyline transform={`${transform} scale(${item.scaleX??1} ${item.scaleY??1})`} points={item.points.map(([x,y])=>`${x*item.width},${y*item.height}`).join(' ')} fill="none" stroke={item.fill} strokeWidth={item.strokeWidth} />
   if (item.type === 'rectangle') return <rect transform={transform} width={item.width} height={item.height} fill={item.fill} />
   if (item.type === 'ellipse') return <ellipse transform={transform} cx={item.width / 2} cy={item.height / 2} rx={item.width / 2} ry={item.height / 2} fill={item.fill} />

@@ -1,3 +1,4 @@
+import { documentAssetIds } from '../../../../shared/studio/shape-properties.js'
 // Backend projections/reference traversal; the shared validator remains canonical.
 export function studioObjects(document) {
   const result = []
@@ -13,13 +14,13 @@ export function studioObjects(document) {
   return result
 }
 
-export const studioAssetIds = document => [...new Set(studioObjects(document).filter(o => o.type === 'image').map(o => o.fileAssetId))]
+export const studioAssetIds = document => documentAssetIds({objects:studioObjects(document)})
 
 export function studioSummary(document) {
   // Explicit scalar projection bounds vector geometry, nested images and long text.
   const objects = studioObjects(document)
   return { width: document.page.width, height: document.page.height, objectCount: objects.length,
     preview: { page: { ...document.page }, objects: objects.slice(0, 40).map(o => Object.fromEntries(
-      ['id','type','x','y','width','height','rotation','fill','opacity','hidden','fontSize','fontFamily','fontVariant','scaleX','scaleY','groupId','text']
-        .filter(key => o[key] !== undefined).map(key => [key, key === 'text' ? o.text.slice(0,120) : key === 'type' && ['vector','line'].includes(o.type) ? 'rectangle' : o[key]]))) } }
+      ['id','type','x','y','width','height','rotation','fill','opacity','hidden','fontSize','fontFamily','fontVariant','scaleX','scaleY','groupId','text','fillPaint','shape','image','geometry','points','strokeWidth','dash','startCap','endCap','startArrow','endArrow']
+        .filter(key => o[key] !== undefined).map(key => [key, key === 'text' ? o.text.slice(0,120) : o[key]]))) } }
 }

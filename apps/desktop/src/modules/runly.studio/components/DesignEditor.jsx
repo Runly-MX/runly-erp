@@ -1,3 +1,4 @@
+import { documentAssetIds } from '../../../../../shared/studio/shape-properties.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, ErrorState, ConfirmDialog, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@runly/ui'
 import { AlertTriangle, CloudDownload, History } from 'lucide-react'
@@ -22,7 +23,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
     thumbnail: (id, signal) => runly.studio.catalogThumbnail('iconify', id, token, signal),
   }), [record.id, token])
   const authorizePaste = useCallback(async objects => {
-    for (const id of new Set(objects.filter(object => object.type === 'image').map(object => object.fileAssetId))) {
+    for (const id of documentAssetIds({objects})) {
       // Cross-document reuse needs independent Files access; a source design's private capability is not transferable.
       if (!boundAssets.current.has(id)) await runly.files.getSignedUrl(id, token)
     }
@@ -39,7 +40,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   const [credits,setCredits]=useState(null)
   const [canEdit, setCanEdit] = useState(record.canEdit !== false), [denied, setDenied] = useState(false)
   const dirtyRef = useRef(false), refreshing = useRef(false)
-  const initialAssets = useMemo(() => new Set(record.document.objects.filter(object => object.type === 'image').map(object => object.fileAssetId)), [record.document])
+  const initialAssets = useMemo(() => new Set(documentAssetIds(record.document)), [record.document])
   const boundAssets = useRef(initialAssets)
   const editorRef = useRef(null), revision = useRef(record.revision), generation = useRef(0), pending = useRef(null), timer = useRef(null), saving = useRef(false)
   const imageEditing = useStudioImageEditing({editorRef,designId:record.id,token,canEdit:canEdit && !denied})
@@ -111,7 +112,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
   }
   function loadServer() {
     if (!preserve()) return
-    boundAssets.current = new Set(server.document.objects.filter(object => object.type === 'image').map(object => object.fileAssetId))
+    boundAssets.current = new Set(documentAssetIds(server.document))
     setWorkspaceVersion(value => value + 1)
     preserve(); setRecovery(pending.current); pending.current = null; clearTimeout(timer.current)
     setInitial(server.document); setName(server.name); nameRef.current = server.name; revision.current = server.revision
@@ -129,7 +130,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy }) {
       const fresh = unwrap(await runly.studio.getDesign(record.id, token))
       if (fresh.revision <= revision.current) return
       if (dirtyRef.current) { preserve(); setConflict(true); setError('Hay una revisión nueva. Tu borrador se conserva.'); return }
-      boundAssets.current = new Set(fresh.document.objects.filter(object => object.type === 'image').map(object => object.fileAssetId))
+      boundAssets.current = new Set(documentAssetIds(fresh.document))
       setInitial(fresh.document); setName(fresh.name); nameRef.current = fresh.name; revision.current = fresh.revision
       setCanEdit(fresh.canEdit); setWorkspaceVersion(value => value + 1)
     } catch (error) { if ([401,403,404].includes(error.status)) revoked() }
