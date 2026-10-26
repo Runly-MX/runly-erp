@@ -2,8 +2,9 @@ import { FILE_ID, StudioError } from '../../../../shared/studio/document.js'
 import { signedUrlWithVariant } from '../../lib/image-variants.js'
 import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js'
 import { studioAssetIds } from './studio-document-data.js'
+import { createNotificationService } from '../../services/notification-service.js'
 
-export function createStudioCollaboration({ prisma, access, broadcaster, supabaseAdmin }) {
+export function createStudioCollaboration({ prisma, access, broadcaster, supabaseAdmin, notificationService = createNotificationService({ prisma }) }) {
   async function collaborators(companyId, actorId, id) {
     await access.get(companyId, actorId, id)
     return prisma.$queryRaw`SELECT c.user_id AS id,u.display_name AS name,c.role FROM studio_collaborator c
@@ -19,9 +20,10 @@ export function createStudioCollaboration({ prisma, access, broadcaster, supabas
   }
   async function share(companyId, actorId, id, input) {
     if (!FILE_ID.test(input?.userId) || !['VIEWER','EDITOR',null].includes(input?.role)) throw new StudioError('Colaborador o permiso inválido.')
-    return prisma.$transaction(async db => {
+    const result = await prisma.$transaction(async db => {
       await access.lock(db, id)
       const record = await access.owner(companyId, actorId, id, db)
+      const [before] = await db.$queryRaw`SELECT role FROM studio_collaborator WHERE design_id=${id}::uuid AND user_id=${input.userId}::uuid`
       if (input.userId === actorId) throw new StudioError('El propietario conserva la administración.')
       if (input.role !== null) await access.member(companyId, input.userId, 'studio.view', db)
       if (input.role === 'EDITOR') await access.member(companyId, input.userId, 'studio.edit', db)
@@ -34,8 +36,25 @@ export function createStudioCollaboration({ prisma, access, broadcaster, supabas
           ON CONFLICT(design_id,user_id) DO UPDATE SET role=excluded.role,granted_by=excluded.granted_by RETURNING user_id`
       }
       await access.audit(db, companyId, actorId, input.role ? 'studio.collaborator.grant' : 'studio.collaborator.revoke', record, { userId: input.userId, role: input.role })
-      return { ok: true }
+      return { record, granted: input.role !== null && before?.role !== input.role }
     })
+    // Tell the person they can open the design (new access or a new role); never on revoke or an unchanged role.
+    if (result.granted) await notifyShare(companyId, actorId, result.record, input).catch(error => console.warn('[runly.studio] No se pudo notificar al colaborador:', error?.message ?? error))
+    return { ok: true }
+  }
+  async function notifyShare(companyId, actorId, record, input) {
+    const [actor] = await prisma.$queryRaw`SELECT display_name AS name FROM user_profile WHERE id=${actorId}::uuid`
+    const editor = input.role === 'EDITOR', who = actor?.name ?? 'Alguien'
+    await notificationService.publish({ companyId, actorId, input: {
+      eventType: 'studio.design.shared',
+      title: `${who} compartió «${record.name}» contigo`,
+      body: editor ? 'Puedes editar el diseño en Studio y trabajar en él al mismo tiempo.' : 'Puedes ver el diseño en Studio.',
+      link: `/app/m/runly.studio/?design=${record.id}`,
+      recipients: { userIds: [input.userId] }, channels: ['in_app', 'web_push'],
+      sourceType: 'studio.design', sourceId: record.id,
+      metadata: { designId: record.id, role: input.role },
+      dedupeKey: `studio.design.shared:${record.id}:${input.userId}:${input.role}`,
+    } })
   }
   async function signedAsset(companyId, actorId, id, fileId) {
     const record = await access.get(companyId, actorId, id)
