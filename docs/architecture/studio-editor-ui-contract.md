@@ -1,5 +1,44 @@
 # Studio — contrato entre editor y UI
 
+## Compatibilidad y exportación RC2
+
+El formato guardado sigue en v6; el protocolo de escritura es **2**.
+`GET /studio/protocol` requiere `studio.view` y membresía; devuelve
+`{version:2,schemaVersion:6}` sin caché. El SDK adjunta
+`X-Runly-Studio-Protocol: 2` a escrituras; PUT de diseño y POST de cambios sin
+esa cabecera reciben 426 `STUDIO_UPGRADE_REQUIRED`. El cliente comprueba el
+endpoint antes de publicar/reconciliar. Una API sin endpoint es incompatible:
+se conserva la copia local y la cola, sin recarga destructiva automática.
+
+Las copias sin revisar se conservan en `runly:studio:recovery:<scope>`, separadas
+del slot de autosave. Se deduplican por contenido y se retiran individualmente
+al recuperar/descartar; el arranque sincronizado no las elimina. No caducan por
+antigüedad. Si falla la cuota, no se sobrescribe la copia anterior y se avisa.
+La cola por sesión conserva además la identidad del lote incierto.
+
+La migración aditiva `studio_protocol_guard` requiere la marca transaccional
+`runly.studio.protocol=2` para actualizar documento/nombre/revisión v6, y evita
+downgrade de esquema. El servicio nuevo la establece dentro de su transacción;
+una API antigua queda bloqueada en SQL aunque ignore la negociación HTTP.
+Los lectores v1–v5 siguen convirtiéndose a v6; los clientes que usan `upsert`
+histórico deben negociar protocolo 2 y conservan su semántica anterior.
+
+Antes de descargar se confirman pendientes. Se comparan revisión y documento
+persistido con el estado sincronizado; las medidas tipográficas calculadas por
+Fabric pertenecen al snapshot visual y no se comparan con las cajas del JSON
+guardado. El renderer comprueba que ese snapshot siga siendo el revisado.
+Tras renderizar se verifica otra vez acceso y revisión. Si cambian, se rechaza
+la descarga y se conserva el trabajo local.
+
+PNG/JPG usan escala exacta o error: 80 MP y 16,384 px/lado. PDF exige revisión
+coincidente y 300 ppp reales: 32 MP, PNG de entrada único sin orientación EXIF,
+64 MiB de entrada/salida, un trabajo por proceso (429 si está ocupado), nueva
+autorización y comprobación de archivos después de procesar. Son presupuestos
+de píxeles, no un máximo absoluto de memoria RSS. El PDF aplana sobre blanco y
+contiene JPEG RGB o DeviceCMYK genérico, TrimBox/BleedBox y marcas opcionales;
+no es PDF/X, perfil ICC de imprenta ni contenido vectorial editable. Detalles,
+mediciones y evidencia en [RC2 readiness](../deployment/STUDIO_RC2_READINESS.md).
+
 ## Endurecimiento de operaciones e historial (vigente, posterior a 2e428110)
 
 La persistencia principal sigue siendo incremental. El documento continúa en
@@ -271,10 +310,10 @@ no se implementan handles que pierdan apariencia. Anidación pendiente: exige
 árbol acíclico con profundidad limitada y matrices locales, además de normalizar
 trazos, máscaras y fuentes de extremo a extremo. No inventar parentGroupId.
 
-**Compatibilidad de escritores:** el lector v5 rechaza v6; escritores v5 pueden
-sustituir contenido degradado por documentos antiguos en una revisión vigente.
-Una futura publicación deberá coordinar API/clientes/cachés y todas las vías de
-escritura. Esta entrega local no cambia RC1 ni autoriza mezclar sus versiones.
+**Compatibilidad de escritores:** el lector v5 rechaza v6. La protección de
+protocolo y SQL descrita al inicio bloquea escritores anteriores; no se debe
+retirar para permitirles degradar contenido. Una futura publicación debe
+coordinar API/clientes/cachés. Esta entrega local no cambia RC1.
 
 ## Registro anterior: geometría y rellenos v5
 
