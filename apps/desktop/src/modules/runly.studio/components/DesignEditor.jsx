@@ -5,7 +5,7 @@ import { Alert, AlertDescription, AlertTitle, Button, ErrorState, ConfirmDialog 
 import { AlertTriangle, History } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { StudioWorkspace } from './StudioWorkspace.jsx'
-import { createDraftStorage, recoverDraftDocument } from '../lib/draft-storage.js'
+import { createDraftStorage, recoverDraftDocument, createDraftArchive, sameDraft } from '../lib/draft-storage.js'
 import { useStudioRealtime } from '../hooks/useStudioRealtime.js'
 import { useStudioSync } from '../hooks/useStudioSync.js'
 import { StudioSharing } from './StudioSharing.jsx'
@@ -40,17 +40,18 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const store = useMemo(() => createDraftStorage({ getItem: key => window.localStorage.getItem(key),
     setItem: (key, value) => window.localStorage.setItem(key, value), removeItem: key => window.localStorage.removeItem(key) }, scope), [scope])
   const collisions=useMemo(()=>createDraftStorage({getItem:key=>window.localStorage.getItem(key),setItem:(key,value)=>window.localStorage.setItem(key,value),removeItem:key=>window.localStorage.removeItem(key)},`${scope}:collision`),[scope])
+  const archive=useMemo(()=>createDraftArchive(window.localStorage,scope),[scope])
   const [initial] = useState(record.document), [name, setName] = useState(record.name)
   const [error, setError] = useState('')
   const [exporting, setExporting] = useState(false), [exportError, setExportError] = useState(''), [shareOpen, setShareOpen] = useState(false)
-  const [recovery, setRecovery] = useState(() => store.read()??collisions.read()), [copyWarning, setCopyWarning] = useState(false)
+  const [recovery, setRecovery] = useState(() => archive.read()??store.read()??collisions.read()), [copyWarning, setCopyWarning] = useState(false)
   const [ready, setReady] = useState(false)
   const [credits,setCredits]=useState(null)
   const [canEdit, setCanEdit] = useState(record.canEdit !== false), [denied, setDenied] = useState(false)
   const editorRef = useRef(null), nameRef = useRef(name), timer = useRef(null)
   const { sync, status,revision:sharedRevision } = useStudioSync({ record, token, scope, editorRef,
     onName: value => { nameRef.current = value; setName(value) },
-    onError: message => setError(message),onConflict:draft=>{collisions.write(draft);setRecovery(draft)} })
+    onError: message => setError(message),onConflict:draft=>{if(!archive.stash(draft))setCopyWarning(true);collisions.write(draft);setRecovery(current=>current??draft)} })
   const unsynced = status !== 'synced'
   const imageEditing = useStudioImageEditing({editorRef,designId:record.id,token,canEdit:canEdit && !denied})
   // Templates: save the current scene as a template; or, when opened from
@@ -60,12 +61,13 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const templateEditing = useTemplateEditing({ editorRef, token, scopeKey: templateScope, templateId: editingTemplateId,
     designName: name, saveDesign: ensureSaved, onExit: onBack })
   const preserve = useCallback(() => {
+    if(recovery&&!archive.stash(recovery)){setCopyWarning(true);return false}
     const { document, revision } = sync.state()
     if (sync.state().status === 'synced') { store.clear(); return true }
     const saved = store.write({ ...sync.draft(),name: nameRef.current, document, revision })
     setCopyWarning(!saved)
     return saved
-  }, [store, sync])
+  }, [store, sync,recovery,archive])
   // Local edits only; collaborators' changes ({remote: true}) are already shared.
   const changed = useCallback((document, meta) => {
     if (meta?.remote) { for (const id of documentAssetIds(document)) boundAssets.current.add(id); return }
@@ -76,9 +78,11 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   useEffect(() => {
     if (status !== 'synced') return
     const state = sync.state()
-    store.clear(); setCopyWarning(false); setError('')
+    const protectedCopy=!recovery||archive.stash(recovery)
+    if(protectedCopy)store.clear()
+    setCopyWarning(!protectedCopy); setError('')
     onRecordChange?.({ ...record, name: state.name, revision: state.revision, document: state.document })
-  }, [status,sharedRevision]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [status,sharedRevision,recovery]) // eslint-disable-line react-hooks/exhaustive-deps
   const navigation = useStudioNavigation(unsynced, preserve)
   useEffect(() => () => { clearTimeout(timer.current); if (sync.state().status !== 'synced') preserve() }, [preserve, sync])
   // A (re)mounted canvas shows the shared state, which may be newer than `initial`.
@@ -115,8 +119,14 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     return sync.state().document
   }
   async function recover() {
-    try { await editorRef.current.load(recoverDraftDocument(sync.state().document,recovery)); if (recovery.name && recovery.name !== nameRef.current) { nameRef.current = recovery.name; setName(recovery.name); sync.rename(recovery.name) } collisions.clear();setRecovery(null) }
+    try { await editorRef.current.load(recoverDraftDocument(sync.state().document,recovery)); if (recovery.name && recovery.name !== nameRef.current) { nameRef.current = recovery.name; setName(recovery.name); sync.rename(recovery.name) } retireRecovery() }
     catch (failure) { setError(failure.message) }
+  }
+  function retireRecovery(){
+    if(!archive.remove(recovery)){setCopyWarning(true);return}
+    if(sameDraft(store.read(),recovery))store.clear()
+    if(sameDraft(collisions.read(),recovery))collisions.clear()
+    setRecovery(archive.read())
   }
   const revoked = useCallback(() => { preserve();sync.deny(); setDenied(true) }, [preserve,sync])
   // Polling and whole-document updates (MCP, PUT): permission and missed revisions.
@@ -166,7 +176,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     {templateEditing.notice}
     {recovery && canEdit ? <Notice icon={History} title="Hay una copia local para revisar" description="Se conservó tu trabajo durante la sincronización. Recuperar aplica los cambios locales disponibles sobre el diseño actual; revisa el resultado.">
       <Button size="sm" disabled={!ready} onClick={recover}>Recuperar</Button>
-      <Button size="sm" variant="ghost" onClick={() => { store.clear();collisions.clear(); setRecovery(null) }}>Descartar</Button>
+      <Button size="sm" variant="ghost" onClick={retireRecovery}>Descartar</Button>
     </Notice> : null}
     {error ? <Notice variant="warning" icon={AlertTriangle} title="No se pudo sincronizar un cambio" description={`${error} Los cambios locales se conservan para revisarlos.`}>
       <Button size="sm" variant="ghost" onClick={() => setError('')}>Cerrar</Button>

@@ -46,6 +46,9 @@ export async function verifyRc2Exports(stack,{users,companies}){
     for(const profile of ['rgb','cmyk']){const path=join(stack.directory,`rc2-print-${profile}.pdf`),buffer=await download(b,{type:'PDF',profile},path);assert.ok(buffer.subarray(0,5).equals(Buffer.from('%PDF-')));outputs.push({type:'PDF',profile,bytes:buffer.length,path:path.split(/[\\/]/).at(-1)})}
     checks.push('Authorized reader obtains real 300 ppi RGB/DeviceCMYK PDF with bleed/crop marks; artifacts retained for independent rasterization')
     async function concurrent(action,label){
+      // Do not intercept the initial image load after reload: wait until the
+      // editor is ready, then hold only the export's reauthorization request.
+      await b.waitForFunction(()=>Array.from(document.querySelectorAll('button')).some(button=>button.textContent.trim()==='Descargar'&&!button.disabled))
       let release,started;const held=new Promise(r=>{release=r}),seen=new Promise(r=>{started=r});let intercepted=false,downloads=0
       const onDownload=()=>{downloads++};b.on('download',onDownload)
       await b.route('**/storage/v1/object/sign/**',async route=>{if(!intercepted){intercepted=true;started();await held}await route.continue()})

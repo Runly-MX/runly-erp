@@ -20,7 +20,7 @@ export function createDraftStorage(storage, scope, now = Date.now) {
         const draft = JSON.parse(storage.getItem(key))
         if (!draft || draft.scope !== scope || !Number.isSafeInteger(draft.revision) || draft.revision < 1 ||
           typeof draft.name !== 'string' || draft.name.length > 160 || !Number.isFinite(draft.savedAt) ||
-          now() - draft.savedAt > 7 * 24 * 60 * 60_000) return null
+          draft.savedAt > now() + 60_000) return null
         return { ...draft, document: validateDocument(draft.document) }
       } catch { return null }
     },
@@ -28,5 +28,21 @@ export function createDraftStorage(storage, scope, now = Date.now) {
       try { storage.setItem(key, JSON.stringify({ ...draft, document: validateDocument(draft.document), scope, savedAt: now() })); return true } catch { return false }
     },
     clear() { try { storage.removeItem(key) } catch { /* storage unavailable */ } },
+  }
+}
+
+// Unreviewed copies are independent of the current autosave slot. A successful
+// server fetch or new edits must not erase an older, still-unreviewed scene.
+export function sameDraft(a,b){
+  const value=d=>d&&({name:d.name,revision:d.revision,document:validateDocument(d.document),operations:d.operations})
+  return Boolean(a&&b)&&JSON.stringify(value(a))===JSON.stringify(value(b))
+}
+export function createDraftArchive(storage,scope){
+  const key=`runly:studio:recovery:${scope}`
+  function entries(){const raw=storage.getItem(key);if(!raw)return [];const rows=JSON.parse(raw);if(!Array.isArray(rows))throw Error('Invalid recovery archive');return rows.map(d=>({...d,document:validateDocument(d.document)}))}
+  return {
+    read(){try{return entries()[0]??null}catch{return null}},
+    stash(draft){try{const rows=entries();if(!rows.some(d=>sameDraft(d,draft)))storage.setItem(key,JSON.stringify([...rows,{...draft,document:validateDocument(draft.document)}]));return true}catch{return false}},
+    remove(draft){try{const rows=entries().filter(d=>!sameDraft(d,draft));if(rows.length)storage.setItem(key,JSON.stringify(rows));else storage.removeItem(key);return true}catch{return false}},
   }
 }
