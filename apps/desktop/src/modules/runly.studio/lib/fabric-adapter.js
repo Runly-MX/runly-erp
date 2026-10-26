@@ -1,4 +1,4 @@
-import { Canvas, Rect, Ellipse, Textbox, FabricImage, ActiveSelection, Group, Path } from 'fabric'
+import { Canvas, Rect, Ellipse, Textbox, FabricImage, ActiveSelection, Group, Path, Gradient } from 'fabric'
 import { appendObject, validateDocument } from '../../../../../shared/studio/document.js'
 import { resizeDocument } from '../../../../../shared/studio/page.js'
 import { createDocumentHistory } from './document-history.js'
@@ -9,9 +9,12 @@ import { imageProperties, DEFAULT_IMAGE } from '../../../../../shared/studio/ima
 import { studioFontStyle } from '../../../../../shared/studio/fonts.js'
 import { StudioLine } from './studio-line.js'
 import { importStudioSvg } from '../../../../../shared/studio/svg-geometry.js'
+import { DEFAULT_GRADIENT, gradientPaint, gradientGeometry, editGradientStop, reverseGradient } from '../../../../../shared/studio/gradient.js'
+import { DEFAULT_SNAPPING, DEFAULT_GRID, snappingOptions, gridOptions, createSnapIndex, snapBounds, viewportReferences } from '../../../../../shared/studio/snapping.js'
+import { transformStudioGroup } from '../../../../../shared/studio/group-transform.js'
 
 // Fabric owns interaction; only the canonical Runly scene enters history or storage.
-export async function createStudioEditor(element, { document, resolveImage, onChange, onSelection, onError, onHistory, onPointer, onEditImage, readOnly = false, sharedClipboard, authorizePaste }) {
+export async function createStudioEditor(element, { document, resolveImage, onChange, onSelection, onError, onHistory, onPointer, onEditImage, onGuides, onEditorPreferences, readOnly = false, sharedClipboard, authorizePaste }) {
   let protectedMode = readOnly, exportingNow = false
   const writable = () => {
     if (protectedMode) throw new Error('Diseño de solo lectura.')
@@ -22,6 +25,19 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
   const canvas = new Canvas(element, { width: current.page.width, height: current.page.height,
     backgroundColor: current.page.background, preserveObjectStacking: true, enableRetinaScaling: false })
   const source = new Map()
+  let snapping={...DEFAULT_SNAPPING},grid={...DEFAULT_GRID},viewport={zoom:1,panX:0,panY:0},snapIndex=null
+  const clearGuides=()=>{snapIndex=null;onGuides?.([])}
+  function pagePaint(page) {
+    const p=page.backgroundPaint
+    return p?new Gradient({type:p.gradientType,gradientUnits:'pixels',coords:gradientGeometry(p,page.width,page.height),colorStops:p.stops.map(s=>({...s}))}):page.background
+  }
+  const preferences=()=>onEditorPreferences?.({snapping:{...snapping},...viewportReferences(current.page,viewport,grid)})
+  function gestureIndex(target) {
+    const ids=new Set(target.type==='activeselection'?target.getObjects().map(o=>o.studioId):[target.studioId])
+    const groups=new Set([...ids].map(id=>source.get(id)?.groupId).filter(Boolean))
+    for(const item of source.values())if(groups.has(item.groupId))ids.add(item.id)
+    return createSnapIndex(current.page,canvas.getObjects().map(o=>({...o.getBoundingRect(),id:o.studioId,hidden:source.get(o.studioId)?.hidden})),[...ids])
+  }
   const flags = item => ({ visible: !item.hidden, selectable: !item.locked, evented: !item.locked,
     lockMovementX: item.locked || protectedMode || exportingNow, lockMovementY: item.locked || protectedMode || exportingNow, lockScalingX: item.locked || protectedMode || exportingNow, lockScalingY: item.locked || protectedMode || exportingNow,
     lockRotation: item.locked || protectedMode || exportingNow, editable: !item.locked && !protectedMode && !exportingNow })
@@ -109,12 +125,21 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     current = next; source.clear(); next.objects.forEach(item => source.set(item.id, item))
     objects.forEach(object=>object.set(flags(source.get(object.studioId))))
     canvas.add(...objects); canvas.setDimensions({ width: next.page.width, height: next.page.height })
-    canvas.backgroundColor = next.page.background; canvas.requestRenderAll()
+    canvas.backgroundColor = pagePaint(next.page); clearGuides(); canvas.requestRenderAll()
   }
   function enqueue(action) {
     const task = queue.then(() => destroyed ? undefined : action())
     queue = task.catch(() => {})
     return task
+  }
+  function editSelectedGradient(edit) {
+    writable();const id=selected()?.id
+    return enqueue(()=>{
+      writable();const item=snapshot().objects.find(o=>o.id===id),object=canvas.getObjects().find(o=>o.studioId===id)
+      if(!item||item.locked||item.hidden||item.fillPaint?.type!=='gradient'||!(object instanceof StudioPhoto))throw Error('Selecciona un degradado editable.')
+      const next={...item,fillPaint:gradientPaint(edit(item.fillPaint))}
+      object.configure(next);source.set(id,next);canvas.requestRenderAll();changed()
+    })
   }
   async function travelHistory(direction) {
     writable()
@@ -150,6 +175,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
   onHistory?.({ ...history.state(), canPaste: sharedClipboard ? sharedClipboard.read().length > 0 : false })
   // Only committed transforms enter history; pointer moves do not create entries.
   canvas.on('object:modified', () => {
+    clearGuides()
     // A frame resize recomputes cover/contain instead of baking a stretched photo.
     const doc=snapshot(),items=new Map(doc.objects.map(item=>[item.id,item]))
     for(const object of canvas.getObjects())if(object.configure&&source.get(object.studioId)?.type!=='line'&&!object.group){
@@ -157,12 +183,44 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     }
     changed()
   })
+  canvas.on('before:transform',({transform})=>{snapIndex=gestureIndex(transform.target)})
+  canvas.on('object:moving',({target,e})=>{
+    if(protectedMode||exportingNow||target.lockMovementX||target.lockMovementY)return
+    snapIndex??=gestureIndex(target)
+    target.setCoords()
+    // The viewport is currently CSS scaled; measure the actual displayed canvas.
+    const measured=canvas.upperCanvasEl.getBoundingClientRect().width/canvas.getWidth()
+    const result=snapBounds(snapIndex,target.getBoundingRect(),{zoom:measured||viewport.zoom,disabled:Boolean(e?.altKey),options:snapping,grid})
+    target.set({left:target.left+result.dx,top:target.top+result.dy});target.setCoords();onGuides?.(result.guides)
+  })
+  canvas.on('mouse:up',clearGuides)
   canvas.on('text:changed', () => changed())
   canvas.on('mouse:move', event => { const point = canvas.getScenePoint(event.e); onPointer?.({ x: point.x, y: point.y }) })
   canvas.on('mouse:out', () => onPointer?.(null))
   for (const event of ['selection:created', 'selection:updated', 'selection:cleared']) canvas.on(event, selection)
   const editor = {
     snapshot,
+    setGradient(paint=DEFAULT_GRADIENT){const item=selected();if(!item||!supportsPhotoFill(item))throw Error('Selecciona una forma compatible.');return editor.patch({fillPaint:gradientPaint(paint)})},
+    updateGradientStop(index,patch){return editSelectedGradient(paint=>editGradientStop(paint,index,patch))},
+    addGradientStop(stop){return editSelectedGradient(paint=>({...paint,stops:[...paint.stops,stop].sort((a,b)=>a.offset-b.offset)}))},
+    removeGradientStop(index){return editSelectedGradient(paint=>{if(!Number.isInteger(index)||index<0||index>=paint.stops.length)throw Error('Punto no válido.');return {...paint,stops:paint.stops.filter((_,i)=>i!==index)}})},
+    reverseGradient(){return editSelectedGradient(reverseGradient)},
+    resetGradient(){return editor.setGradient(DEFAULT_GRADIENT)},
+    setSolidFill(color){return editor.patch({fill:color,fillPaint:{type:'solid',color}})},
+    setPageGradient(paint=DEFAULT_GRADIENT){writable();const value=gradientPaint(paint);return enqueue(async()=>{writable();await restore({...snapshot(),page:{...current.page,backgroundPaint:value}},true);changed()})},
+    setPageBackground(color){writable();return enqueue(async()=>{writable();await restore({...snapshot(),page:{...current.page,background:color,backgroundPaint:undefined}},true);changed()})},
+    setSnappingEnabled(enabled){return editor.setSnappingOptions({enabled})},
+    setSnappingOptions(patch){snapping=snappingOptions({...snapping,...patch});clearGuides();preferences();return {...snapping}},
+    setGridOptions(patch){grid=gridOptions({...grid,...patch});clearGuides();preferences();return {...grid}},
+    setViewport(value){const next={...viewport,...value};viewportReferences(current.page,next,grid);viewport=next;clearGuides();preferences()},
+    getEditorPreferences(){return {snapping:{...snapping},...viewportReferences(current.page,viewport,grid)}},
+    transformGroup(groupId,options={}){writable();return enqueue(async()=>{
+      writable();const members=canvas.getObjects().filter(o=>source.get(o.studioId)?.groupId===groupId)
+      canvas.discardActiveObject()
+      const bounds=members.map(o=>o.getBoundingRect()),origin=options.origin??{x:Math.min(...bounds.map(b=>b.left)),y:Math.min(...bounds.map(b=>b.top))}
+      const next=transformStudioGroup(snapshot(),groupId,{...options,origin})
+      await restore(next,true);editor.selectGroup(groupId);changed()
+    })},
     setShapeStyle(patch){const item=selected();if(!item||!SHAPE_TYPES.includes(item.type))throw Error('Selecciona una forma.');return editor.patch({shape:patch})},
     setPhotoFill(fileAssetId,image={}){const item=selected();if(!item||!supportsPhotoFill(item))throw Error('Esta geometría no admite fotografía.');return editor.patch({fill:item.fillPaint?.type==='solid'?item.fillPaint.color:item.fill,fillPaint:{type:'image',fileAssetId,image}})},
     removePhotoFill(){const item=selected();if(!item||!SHAPE_TYPES.includes(item.type))throw Error('Selecciona una forma.');return editor.patch({fillPaint:undefined})},
@@ -330,10 +388,16 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
           const gap = (last[axis] + last[size] - first - bounds.reduce((sum,{box}) => sum + box[size],0)) / (bounds.length - 1)
           let position = first
           for (const {object,box} of bounds) { object.set(axis, object[axis] + position - box[axis]); object.setCoords(); position += box[size] + gap }
-        } else for (const {object,box} of bounds) {
+        } else {
+        const groupIds=new Set(objects.map(o=>source.get(o.studioId)?.groupId))
+        const asGroup=target==='page'&&objects.length>1&&groupIds.size===1&&!groupIds.has(undefined)
+        const union=asGroup?{left:Math.min(...bounds.map(b=>b.box.left)),top:Math.min(...bounds.map(b=>b.box.top)),right:Math.max(...bounds.map(b=>b.box.left+b.box.width)),bottom:Math.max(...bounds.map(b=>b.box.top+b.box.height))}:null
+        for (const entry of bounds) {
+          const {object}=entry,box=union?{left:union.left,top:union.top,width:union.right-union.left,height:union.bottom-union.top}:entry.box
           const dx = { left: reference.left - box.left, center: reference.left + reference.width / 2 - box.left - box.width / 2, right: reference.left + reference.width - box.left - box.width }[direction] ?? 0
           const dy = { top: reference.top - box.top, middle: reference.top + reference.height / 2 - box.top - box.height / 2, bottom: reference.top + reference.height - box.top - box.height }[direction] ?? 0
           object.set({ left: object.left + dx, top: object.top + dy }); object.setCoords()
+        }
         }
         // Validate before recording; rollback all object coordinates on invalid limits.
         try { validateDocument(snapshot()) } catch (error) { for (const object of objects) { object.set(positions.get(object)); object.setCoords() }; editor.selectMany(ids); throw error }

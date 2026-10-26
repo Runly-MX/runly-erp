@@ -1,4 +1,5 @@
 import { imageProperties } from './image-properties.js'
+import { gradientPaint } from './gradient.js'
 
 export const LINE_CAPS = Object.freeze(['none','arrow','open-arrow','circle','square','bar','diamond'])
 export const SHAPE_TYPES = Object.freeze(['rectangle','ellipse','vector'])
@@ -21,7 +22,8 @@ export function shapeStyle(value={}) {
   return Object.fromEntries(['fillEnabled','strokeWidth','strokeColor','dash','strokeAlign','radius'].map(k=>[k,style[k]]))
 }
 export function fillPaint(value,filePattern) {
-  if(!value||!['solid','image'].includes(value.type))invalid()
+  if(!value||!['solid','image','gradient'].includes(value.type))invalid()
+  if(value.type==='gradient')return gradientPaint(value)
   if(value.type==='solid'){if(!color(value.color))invalid();return {type:'solid',color:value.color}}
   if(typeof value.fileAssetId!=='string'||!filePattern.test(value.fileAssetId))invalid()
   const image=imageProperties(value.image)

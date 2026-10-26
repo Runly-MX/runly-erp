@@ -3,8 +3,9 @@ import { validStudioFont, studioFontStyle } from './fonts.js'
 import { validateGeometry } from './vector.js'
 import { iconSource } from './licenses.js'
 import { imageProperties } from './image-properties.js'
+import { gradientPaint } from './gradient.js'
 import { fillPaint, shapeStyle, supportsPhotoFill, SHAPE_TYPES, LINE_CAPS } from './shape-properties.js'
-export const STUDIO_SCHEMA_VERSION = 5
+export const STUDIO_SCHEMA_VERSION = 6
 export const STUDIO_LIMITS = Object.freeze({ side: 4096, objects: 500, bytes: 1_000_000 })
 export const FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COLOR = /^#[0-9a-f]{6}$/i
@@ -20,12 +21,14 @@ const fail = () => { throw new StudioError('El diseño contiene datos no válido
 const finite = (value, min, max) => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
 
 export function validateDocument(input) {
-  if (!input || ![1, 2, 3, 4, STUDIO_SCHEMA_VERSION].includes(input.schemaVersion) || input.unit !== 'px') fail()
+  if (!input || ![1, 2, 3, 4, 5, STUDIO_SCHEMA_VERSION].includes(input.schemaVersion) || input.unit !== 'px') fail()
   if (JSON.stringify(input).length > STUDIO_LIMITS.bytes) fail()
   const page = input.page
   if (!page || !Number.isInteger(page.width) || !Number.isInteger(page.height) ||
     !finite(page.width, 32, STUDIO_LIMITS.side) || !finite(page.height, 32, STUDIO_LIMITS.side) || !isColor(page.background)) fail()
   if (!Array.isArray(input.objects) || input.objects.length > STUDIO_LIMITS.objects) fail()
+  let backgroundPaint
+  if(page.backgroundPaint!==undefined){if(input.schemaVersion<6)fail();try{backgroundPaint=gradientPaint(page.backgroundPaint)}catch{fail()}}
   const ids = new Set()
   const objects = input.objects.map((object) => {
     if (!object || !TYPES.has(object.type) || typeof object.id !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(object.id) || ids.has(object.id)) fail()
@@ -78,6 +81,7 @@ export function validateDocument(input) {
     if(object.fillPaint!==undefined){
       if(input.schemaVersion<5||!SHAPE_TYPES.includes(object.type))fail()
       try{clean.fillPaint=fillPaint(object.fillPaint,FILE_ID)}catch{fail()}
+      if(clean.fillPaint.type==='gradient'&&(input.schemaVersion<6||!supportsPhotoFill(clean)))fail()
       if(clean.fillPaint.type==='image'&&!supportsPhotoFill(clean))fail()
     }
     if(object.shape!==undefined){
@@ -89,7 +93,7 @@ export function validateDocument(input) {
     return clean
   })
   // Explicit allowlist: viewport, signed URLs and Fabric internals never persist.
-  return { schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { width: page.width, height: page.height, background: page.background }, objects }
+  return { schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { width: page.width, height: page.height, background: page.background, ...(backgroundPaint?{backgroundPaint}:{}) }, objects }
 }
 
 export function blankDocument(width = 1080, height = 1080) {

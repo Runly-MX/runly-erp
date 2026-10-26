@@ -15,6 +15,7 @@ import { verifyStudioComposition } from './fixtures/studio/supabase-composition.
 import { verifyStudioCreative } from './fixtures/studio/supabase-creative.mjs'
 import { measureStudioBaseline } from './lib/studio-web-baseline.mjs'
 import { verifyStudioPhotos } from './fixtures/studio/supabase-photos.mjs'
+import { verifyStudioGradients } from './fixtures/studio/supabase-gradients.mjs'
 
 const apiImage=process.argv.find(value=>value.startsWith('--api-image='))?.slice('--api-image='.length)
 const stack = await createStudioStack(apiImage?{apiImage}:{})
@@ -81,6 +82,7 @@ try {
     collaboration: await verifyStudioCollaboration(stack, data), resources: await verifyStudioResources(stack, data), composition: await verifyStudioComposition(stack, data),creative:await verifyStudioCreative(stack,data), bundle }
   result.shapePhotos=await verifyStudioPhotos(stack,data,{shape:true})
   result.photos=photos
+  result.gradients=await verifyStudioGradients(stack,data)
   await writeFile(join(stack.directory, 'result.json'), JSON.stringify(result, null, 2))
   console.log(JSON.stringify(result, null, 2))
   }

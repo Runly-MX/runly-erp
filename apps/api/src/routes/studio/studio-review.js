@@ -40,7 +40,7 @@ export function reviewStudioDocument(input) {
     if (Math.max(document.page.width,document.page.height)>1000 && o.fontSize*(o.scaleY??1)<24) {
       add(o,'info','small_text','El tamaño vertical efectivo del texto es inferior a 24 px.','Revisa legibilidad; puede ser intencional para texto secundario. Convención: fontSize × scaleY.')
     }
-    let background = document.page.background, ambiguous = !contains(page,b)
+    let background = document.page.background, ambiguous = !contains(page,b)||Boolean(document.page.backgroundPaint)
     for (const lower of objects.slice(0,index)) {
       if (lower.hidden || lower.opacity===0 || !overlaps(b,studioBounds(lower))) continue
       // Only a fully covering, opaque, axis-aligned solid rectangle gives a

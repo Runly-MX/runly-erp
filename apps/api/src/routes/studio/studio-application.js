@@ -1,3 +1,4 @@
+import { DEFAULT_GRADIENT } from '../../../../shared/studio/gradient.js'
 import { LINE_CAPS } from '../../../../shared/studio/shape-properties.js'
 import { blankDocument, appendObject, STUDIO_LIMITS, STUDIO_SCHEMA_VERSION, validateDocument, StudioError } from '../../../../shared/studio/document.js'
 import { STUDIO_FONTS, STUDIO_FONT_VARIANTS, studioFontStyle } from '../../../../shared/studio/fonts.js'
@@ -21,9 +22,10 @@ export function createStudioApplication({ prisma, supabaseAdmin, filesService = 
   async function guide(a) {
     await designs.access.member(a.companyId,a.actorProfileId)
     return {schemaVersion:STUDIO_SCHEMA_VERSION,limits:STUDIO_LIMITS,unit:'px',
-      shapeContract:{fill:'six-digit hex fallback',fillPaint:{solid:{type:'solid',color:'#2563eb'},image:{type:'image',fileAssetId:'UUID autorizado de Files',image:{fit:'cover',zoom:1,offsetX:0,offsetY:0,rotation:0,flipX:false,flipY:false}}},shape:{fillEnabled:true,strokeWidth:0,strokeColor:'#000000',dash:'solid',strokeAlign:'center',radius:0},photoGeometry:'rectangle, ellipse or a single closed filled monochrome vector path without stroke'},
+      shapeContract:{fill:'six-digit hex fallback',fillPaint:{gradient:DEFAULT_GRADIENT,solid:{type:'solid',color:'#2563eb'},image:{type:'image',fileAssetId:'UUID autorizado de Files',image:{fit:'cover',zoom:1,offsetX:0,offsetY:0,rotation:0,flipX:false,flipY:false}}},shape:{fillEnabled:true,strokeWidth:0,strokeColor:'#000000',dash:'solid',strokeAlign:'center',radius:0},photoGeometry:'rectangle, ellipse or a single closed filled monochrome vector path without stroke'},
       lineCaps:LINE_CAPS,
       objectTypes:['text','rectangle','ellipse','image','vector','line'],
+      gradientContract:{surfaces:['rectangle','ellipse','single closed filled monochrome vector','page.backgroundPaint'],stops:'2-12 strictly increasing unique offsets 0-1; hex color and opacity 0-1',linear:'angle -360..360 clockwise; 0 left to right',radial:'centerX/centerY 0-1, radius 0.01-2 times min(width,height)',text:false,stroke:false,conic:false},
       textContract:{text:'string, \n para saltos',fontSize:'8–500',fontFamily:'familia de fonts',fontVariant:'solo las variantes listadas en fonts',textAlign:['left','center','right','justify'],lineHeight:'0.5–4 (por defecto 1.16)',charSpacing:'-200–1000, milésimas de em',underline:false,linethrough:false,width:'ancho de caja; el texto se ajusta a ese ancho'},
       lineContract:{points:'2–256 pares [x,y] normalizados 0–1 dentro de width/height (polilínea)',strokeWidth:'0.5–128',dash:['solid','dashed','dotted'],startCap:LINE_CAPS,endCap:LINE_CAPS,fill:'color del trazo',note:'El tamaño de cada extremo crece con el grosor y se limita al segmento contiguo: deja el primer y último segmento largos si usas extremos.'},
       imageContract:{fileAssetId:'UUID de Files autorizado',image:{fit:['cover','contain'],zoom:'0.1–8',offsetX:'-4–4 fracción del marco',offsetY:'-4–4',mask:['rectangle','rounded','circle','ellipse','arch','star','triangle'],radius:'para rounded',border:{width:0,color:'#000000'},shadow:{blur:0,offsetX:0,offsetY:0,color:'#000000'}}},

@@ -1,6 +1,116 @@
 # Studio — contrato entre editor y UI
 
-## Contrato vigente: geometría y rellenos v5
+## Contrato vigente: composición v6 (entrega posterior a RC1)
+
+El motor devuelve **v6**, admite v1–v5 sin migración SQL y conserva las pinturas
+fotográficas existentes. RC1 sigue congelada en su revisión v5. Las secciones
+inferiores describen entregas anteriores; prevalece esta sección.
+
+### Pintura canónica y renderer
+
+`fill` conserva el hexadecimal de respaldo. `fillPaint` admite `solid`, `image`
+y ahora `gradient`. Superficies: rectángulo, elipse/círculo y vector compatible
+con relleno fotográfico (un único path cerrado monocromo relleno, sin trazo).
+El fondo admite `page.backgroundPaint` exclusivamente de tipo `gradient` y
+mantiene `page.background` de respaldo. No hay degradados de texto, trazos ni
+cónicos en esta entrega; el validador los rechaza.
+
+```js
+const linear = {type:'gradient',gradientType:'linear',angle:135,stops:[
+  {offset:0,color:'#D946EF',opacity:1},
+  {offset:1,color:'#7945F5',opacity:0.3},
+]}
+const radial = {type:'gradient',gradientType:'radial',centerX:0.5,centerY:0.5,
+  radius:0.8,stops:linear.stops}
+```
+
+Entre 2 y 12 puntos; offsets finitos 0–1, estrictamente crecientes y únicos;
+hexadecimal de seis dígitos y opacidad finita 0–1 obligatoria por punto. No se
+admiten strings CSS. Ángulo −360–360, horario; 0 izquierda→derecha, 90 arriba→abajo.
+Coordenadas locales desde la esquina superior izquierda. Los extremos lineales
+cubren la proyección del rectángulo sobre la dirección; el radio radial es
+0.01–2 veces el lado menor, centro normalizado 0–1. La transformación externa
+rota/escala la pintura con la forma. Opacidad del objeto multiplica la del punto.
+Stops extremos ausentes extienden su color hasta el borde, como Canvas2D/SVG.
+
+Métodos reales del editor, asíncronos salvo preferencias:
+
+- `setGradient(paint = DEFAULT_GRADIENT)` reemplaza explícitamente el relleno
+  de la forma seleccionada, incluida una fotografía. Esperar su promesa antes
+  de editar stops. No hay conversión automática al cambiar el color de respaldo.
+- `updateGradientStop(index, patch)` admite offset/color/opacity; reordena y
+  rechaza duplicados. `addGradientStop({offset,color,opacity})` ordena;
+  `removeGradientStop(index)` rechaza bajar de dos. Índices desde cero sobre el
+  orden actual. Operaciones encoladas se aplican a la pintura más reciente.
+- `reverseGradient()` invierte offsets y colores conservando opacidades;
+  `resetGradient()` restaura lineal 0°, magenta/violeta, dos puntos opacos.
+- `setSolidFill('#hexhex')` conversión explícita a sólido.
+- `setPageGradient(paint = DEFAULT_GRADIENT)` y `setPageBackground('#hexhex')`;
+  este último quita el degradado. `resize` conserva la pintura de fondo.
+- Para un gesto de controles: `await beginInteraction()`, esperar cada edición,
+  `await endInteraction(true)`; `false` cancela. Un solo undo al confirmar.
+
+Las operaciones de pintura respetan solo lectura, bloqueo y validación antes
+de guardar historial. JSON, clipboard y plantillas conservan stops editables.
+Fabric y miniaturas usan pintura vectorial; la miniatura de una forma puede
+rasterizar temporalmente para mostrarla, sin convertir el documento en imagen.
+Home y plantillas consumen la misma miniatura. Contraste sobre degradados exige
+revisión manual; un rectángulo sólido opaco que los cubra puede resolverla.
+SDK, MCP y MirAI usan el validador compartido; la guía publica v6 y sus límites.
+
+### Guías, cuadrícula y reglas: preferencias locales
+
+- `setSnappingEnabled(boolean)` y `setSnappingOptions({enabled,page,objects,
+  grid,threshold})`; defaults true/true/true/false/6. Umbral 0–24 **px de pantalla**.
+- `setGridOptions({visible,size,rulers})`: defaults false/20/false; size 2–1024
+  unidades del documento. Grid snap se controla por separado de visibilidad.
+- `setViewport({zoom,panX,panY})`: zoom 0.01–64; pan en px de pantalla.
+  No mueve el canvas: notifica al motor el viewport que ya administra la UI.
+- `getEditorPreferences()` devuelve snapping, zoom/pan, grid y arrays `x/y` de
+  `{value,screen}` para cuadrícula/reglas. Espaciado visual mínimo 8 px y hasta
+  2.049 marcas por eje. `onEditorPreferences(state)` notifica cambios locales.
+- Pasar `onGuides(guides)` a `createStudioEditor`; cada guía contiene axis x/y,
+  position en documento y kind page/object/grid/spacing; opcional id o ids/gap.
+  La UI dibuja el overlay; recibe `[]` al soltar, restaurar, cambiar preferencias
+  o salir del gesto. No se han añadido controles/overlays a los componentes UX.
+
+El movimiento real ajusta bordes/centros a página y objetos visibles. Alt lo
+desactiva temporalmente. Objetos bloqueados son referencias visibles pero no se
+mueven; se excluyen todos los miembros del grupo activo. Índice por gesto,
+anchors ordenados con búsqueda binaria, máximo 500 referencias. Separación
+uniforme: exclusivamente al insertar entre vecinos no solapados con cobertura
+perpendicular compartida; no promete distribución general. El zoom de movimiento
+se mide en el canvas mostrado para respetar el escalado CSS existente; pan solo
+traslada las referencias. Un gesto genera una entrada de historial. No hay
+snapping de resize todavía. Preferencias y guías no entran en JSON/export/collab.
+
+### Grupos planos: transformaciones disponibles y límite preciso
+
+`await transformGroup(groupId, {scale=1,rotation=0,dx=0,dy=0,origin})` aplica una
+similitud atómica a todos los miembros. scale >0 y ≤8, rotation −360–360; origen
+opcional `{x,y}` en documento, por defecto esquina del AABB visual conjunto.
+Giro alrededor del origen, escala proporcional y finalmente traslación.
+Se valida el documento resultante completo; límites dimensionales/de estilo o
+miembros ocultos/bloqueados rechazan la operación. No redondea coordenadas.
+Texto y líneas escalan mediante scaleX/Y; formas, radios, bordes y sombras
+mediante magnitudes canónicas; encuadres fotográficos normalizados se conservan.
+`align(direction,'page')` trata un grupo seleccionado como conjunto visual.
+Duplicar remapea groupId y desagrupar conserva píxeles.
+
+Los handles Fabric de escala/giro múltiple siguen bloqueados: el método anterior
+es la vía validada, disponible para controles de UI. Una escala no uniforme en
+ejes globales sobre un miembro rotado produce sesgo, que v6 no representa; además
+recalcular cover/contain cambiaría la fotografía. Se rechazan opciones scaleX/Y;
+no se implementan handles que pierdan apariencia. Anidación pendiente: exige
+árbol acíclico con profundidad limitada y matrices locales, además de normalizar
+trazos, máscaras y fuentes de extremo a extremo. No inventar parentGroupId.
+
+**Compatibilidad de escritores:** el lector v5 rechaza v6; escritores v5 pueden
+sustituir contenido degradado por documentos antiguos en una revisión vigente.
+Una futura publicación deberá coordinar API/clientes/cachés y todas las vías de
+escritura. Esta entrega local no cambia RC1 ni autoriza mezclar sus versiones.
+
+## Registro anterior: geometría y rellenos v5
 
 El validador devuelve v5 y acepta documentos v1/v2/v3/v4. Las secciones v4/v3
 inferiores son registro de las entregas anteriores. No hay migración SQL: el JSON

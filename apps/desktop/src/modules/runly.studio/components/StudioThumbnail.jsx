@@ -1,6 +1,7 @@
 import {photoFileId} from '../../../../../shared/studio/shape-properties.js'
 import {scheduled} from '../lib/resource-queue.js'
-import { memo, useEffect, useState } from 'react'
+import { memo, useEffect, useState, useId } from 'react'
+import { gradientGeometry } from '../../../../../shared/studio/gradient.js'
 import { cn } from '@runly/ui'
 import { ensureStudioFont } from '../lib/studio-fonts.js'
 import {studioFontStyle} from '../../../../../shared/studio/fonts.js'
@@ -55,16 +56,20 @@ function Item({ item, images }) {
 // the top), so a grid of mixed sizes lines up.
 export const StudioThumbnail = memo(function StudioThumbnail({ document, images, frameRatio = 4 / 3, fit = 'contain', className }) {
   const page = document?.page
+  const gradientId=useId().replace(/:/g,'')
   // Bundled fonts load on demand; once added to document.fonts the browser
   // re-lays out the foreignObject text, so the preview matches the editor.
   const families = [...new Set((document?.objects ?? []).filter(item => item.type === 'text' && item.fontFamily).map(item => `${item.fontFamily}:${item.fontVariant??'regular'}`))].sort().join('|')
   useEffect(() => { for (const entry of families.split('|').filter(Boolean)) {const [family,variant]=entry.split(':');ensureStudioFont(family,variant).catch(() => {})} }, [families])
   if (!page) return null
   const wide = page.width / page.height >= frameRatio, cover = fit === 'cover'
+  const paint=page.backgroundPaint,coords=paint&&gradientGeometry(paint,page.width,page.height)
+  const stops=paint?.stops.map((stop,index)=><stop key={index} offset={stop.offset} stopColor={stop.color} stopOpacity={stop.opacity} />)
   return <svg viewBox={`0 0 ${page.width} ${page.height}`} aria-hidden focusable="false" preserveAspectRatio={cover ? 'xMidYMin slice' : undefined}
     className={cn('block', cover ? 'h-full w-full' : cn('rounded-[3px] shadow-[0_8px_24px_-8px_rgb(0_0_0/0.35)] ring-1 ring-black/5', wide ? 'h-auto w-full' : 'h-full w-auto'), className)}
     style={cover ? undefined : { aspectRatio: `${page.width} / ${page.height}` }}>
-    <rect width={page.width} height={page.height} fill={page.background} />
+    {paint&&<defs>{paint.gradientType==='linear'?<linearGradient id={gradientId} gradientUnits="userSpaceOnUse" {...coords}>{stops}</linearGradient>:<radialGradient id={gradientId} gradientUnits="userSpaceOnUse" cx={coords.x2} cy={coords.y2} r={coords.r2}>{stops}</radialGradient>}</defs>}
+    <rect width={page.width} height={page.height} fill={paint?`url(#${gradientId})`:page.background} />
     {(document.objects ?? []).filter(item => !item.hidden).map(item => <g key={item.id} opacity={item.opacity??1}><Item item={item} images={images} /></g>)}
   </svg>
 })

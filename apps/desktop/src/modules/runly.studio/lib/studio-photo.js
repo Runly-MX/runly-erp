@@ -1,6 +1,7 @@
 import { FabricObject, FabricImage, Shadow, filters, Canvas2dFilterBackend } from 'fabric'
 import { shapeStyle, photoFileId } from '../../../../../shared/studio/shape-properties.js'
 import { imageProperties } from '../../../../../shared/studio/image-properties.js'
+import { canvasGradient } from '../../../../../shared/studio/gradient.js'
 
 function mask(ctx,kind,w,h,radius) {
   ctx.beginPath()
@@ -67,7 +68,7 @@ export class StudioPhoto extends FabricObject {
         const c=p.crop,sw=source.width*c.width,sh=source.height*c.height,k=(p.fit==='contain'?Math.min(w/sw,h/sh):Math.max(w/sw,h/sh))*p.zoom
         ctx.save();ctx.clip(path);ctx.translate(p.offsetX*w,p.offsetY*h);ctx.rotate(p.rotation*Math.PI/180);ctx.scale(p.flipX?-1:1,p.flipY?-1:1)
         ctx.drawImage(source,c.x*source.width,c.y*source.height,sw,sh,-sw*k/2,-sh*k/2,sw*k,sh*k);ctx.restore()
-      }else{ctx.fillStyle=this.item.fillPaint?.color??this.fill;ctx.fill(path)}
+      }else{ctx.fillStyle=this.item.fillPaint?.type==='gradient'?canvasGradient(ctx,this.item.fillPaint,w,h,true):(this.item.fillPaint?.color??this.fill);ctx.fill(path)}
     }
     if(style.strokeWidth){ctx.save();ctx.lineWidth=style.strokeWidth;ctx.strokeStyle=style.strokeColor;ctx.lineJoin='round';ctx.lineCap=style.dash==='dotted'?'round':'butt'
       ctx.setLineDash(style.dash==='dashed'?[style.strokeWidth*4,style.strokeWidth*3]:style.dash==='dotted'?[0.01,style.strokeWidth*2.5]:[]);ctx.stroke(path);ctx.restore()}

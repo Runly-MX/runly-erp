@@ -61,7 +61,7 @@ test('Studio service against disposable PostgreSQL: isolation, atomic revisions,
       const v1 = { ...document, schemaVersion: 1, objects: document.objects.map(({ locked, hidden, ...item }) => item) }
       const { rows: [legacy] } = await pool.query('INSERT INTO studio_design(company_id,owner_id,name,document) VALUES($1,$2,$3,$4) RETURNING id', [company, owner, 'Legacy', v1])
       const reopened = await service.get(company, owner, legacy.id)
-      assert.equal(reopened.document.schemaVersion, 5)
+      assert.equal(reopened.document.schemaVersion, 6)
       assert.equal(reopened.document.objects[0].locked, false)
       assert.equal((await pool.query('SELECT document FROM studio_design WHERE id=$1', [legacy.id])).rows[0].document.schemaVersion, 1)
     })
