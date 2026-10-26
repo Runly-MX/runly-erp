@@ -555,6 +555,11 @@ export const MessageComposer = forwardRef(function MessageComposer(
 
     // "/estado ...", "/tarea ...": run the command instead of sending the text.
     const typed = !hasFiles && !hasEntityRefs ? parseCommand(trimmed) : null;
+    if (typed?.command.key === "ayuda" && mentionTaRef.current?.openSlashMenu) {
+      // The command list is the slash menu itself: open it instead of a notice.
+      mentionTaRef.current.openSlashMenu();
+      return;
+    }
     if (typed) {
       setIsSending(true);
       try {

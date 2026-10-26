@@ -202,6 +202,19 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // Registered before /projects/:id so the literal segment is not read as an id.
+  // Deep links (notifications, MirAI, chat) carry only the task: say which project it lives in,
+  // but only to people who can open that project.
+  app.get('/projects/tasks/:tid/project', requirePermission('projects.task.read'), async (c) => {
+    try {
+      const userId = getUserId(c) ?? c.get('userId')
+      const task = await prisma.task.findFirst({ where: { id: c.req.param('tid') }, select: { projectId: true, project: { select: { companyId: true, ownerId: true } } } })
+      if (!task || task.project.companyId !== getCompanyId(c)) return c.json({ error: 'Tarea no encontrada.' }, 404)
+      const member = task.project.ownerId === userId || await prisma.projectMember.findFirst({ where: { projectId: task.projectId, userId }, select: { id: true } })
+      if (!member) return c.json({ error: 'Tarea no encontrada.' }, 404)
+      return c.json({ projectId: task.projectId })
+    } catch (err) { return handleError(c, err, 'Error al buscar la tarea.') }
+  })
+
   app.get('/projects/tasks-by-target', requirePermission('projects.task.read'), async (c) => {
     try {
       return c.json(await linksSvc.listTasksByTarget({

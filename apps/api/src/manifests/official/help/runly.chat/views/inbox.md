@@ -43,7 +43,7 @@ Escribe `/` al inicio de un mensaje para ver los comandos y presiona Enter para 
 - `/estado 🍽️ Comiendo` cambia tu estado (`/estado limpiar` lo quita).
 - `/nomolestar 30m`, `1h`, `mañana` u `off` activa o apaga No molestar.
 - `/tarea Llamar al cliente` crea una tarea en Mis tareas con un enlace a la conversacion.
-- `/llamar` inicia una llamada en la conversacion y `/ayuda` muestra esta lista.
+- `/llamar` inicia una llamada en la conversacion y `/ayuda` abre el menu con todos los comandos para que elijas uno.
 Los atajos `/inventario:texto` para insertar registros siguen funcionando en cualquier parte del mensaje.
 
 ## Mensajes con botones

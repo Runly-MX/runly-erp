@@ -2482,6 +2482,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
       getOverview: (projectId, token) =>
         request(`/projects/${encodeURIComponent(projectId)}/overview`, { headers: withAuthHeaders(token) }),
+      getTaskProject: (taskId, token) =>
+        request(`/projects/tasks/${encodeURIComponent(taskId)}/project`, { headers: withAuthHeaders(token) }),
       getGantt: (projectId, token) =>
         request(`/projects/${encodeURIComponent(projectId)}/gantt`, { headers: withAuthHeaders(token) }),
       rescheduleTask: (projectId, taskId, data, token) =>

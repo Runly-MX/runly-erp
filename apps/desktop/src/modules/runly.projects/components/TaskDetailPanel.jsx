@@ -426,6 +426,8 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
         <SheetContent
           className="w-full flex flex-col gap-0 p-0"
           style={{
+            // The header starts at the very top so the badge and the delete button line up with the close button.
+            paddingTop: "var(--sat)",
             maxWidth: "min(960px, 95vw)",
             backdropFilter: "none",
             WebkitBackdropFilter: "none",
@@ -438,13 +440,13 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
               those overlays. */}
           <div ref={setFloatingLayer} className="contents" />
           <div
-            className={`h-0.5 shrink-0 transition-opacity duration-200 bg-primary ${isPending ? "opacity-100 animate-pulse" : "opacity-0"}`}
+            className={`absolute inset-x-0 top-0 z-10 h-0.5 transition-opacity duration-200 bg-primary ${isPending ? "opacity-100 animate-pulse" : "opacity-0"}`}
           />
 
           {/* Two rows: meta (task number + actions) on top, full-width title
               below. On desktop the right padding clears the Sheet's close
               button; on mobile that button sits in the drag-handle row above. */}
-          <SheetHeader className="gap-1 border-b border-border px-5 pb-3 pt-1 md:pl-6 md:pr-14 md:pt-4">
+          <SheetHeader className="gap-1 border-b border-border px-5 pb-3 pt-3 md:pl-6 md:pr-14">
             <SheetTitle className="sr-only">Detalles de tarea</SheetTitle>
             {isLoading && !task ? (
               <>

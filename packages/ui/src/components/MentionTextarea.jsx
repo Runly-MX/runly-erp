@@ -277,6 +277,18 @@ const MentionTextarea = forwardRef(function MentionTextarea({
   // otherwise have no way to do since this component owns its own ref.
   useImperativeHandle(ref, () => ({
     focus: (opts) => textareaRef.current?.focus(opts),
+    // Writes "/" and opens the slash menu (what the "/ayuda" command shows: every command, selectable).
+    openSlashMenu: () => {
+      const ta = textareaRef.current
+      if (!ta || !slashSources?.length) return
+      commit(applyEdit(displayValue, '/', ranges))
+      setSlash({ phase: 'source', query: '', start: 0 })
+      setQuery('')
+      setOpen(true)
+      setActiveIdx(0)
+      setMenuPos(computeMenuPos(ta))
+      requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(1, 1) })
+    },
     blur: () => textareaRef.current?.blur(),
     // Wraps the current selection (or, with nothing selected, just places the
     // cursor between the marks) in the given marker pair — the primitive

@@ -81,9 +81,12 @@ export default function ProjectsScreen() {
   const [fieldsSheetOpen, setFieldsSheetOpen] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const { session } = useAuth();
+  const token = session?.access_token;
 
   // Capture the deep-link value on first render before clearing the URL.
   const initialOpenRef = useRef(searchParams.get("open") ?? null);
+  const initialProjectRef = useRef(searchParams.get("project") ?? null);
 
   // Clear ?open from the URL immediately so back-navigation doesn't re-trigger.
   useEffect(() => {
@@ -101,7 +104,15 @@ export default function ProjectsScreen() {
     if (open.startsWith("task:")) {
       const taskId = open.slice("task:".length);
       if (taskId) {
+        // Wait for the session when the link does not say which project the task is in.
+        if (!initialProjectRef.current && !token) return;
         initialOpenRef.current = null;
+        // The link may come from another project (or from a notification that only knows the
+        // task): show the project the task lives in before opening it, never a blank panel.
+        const linkedProject = initialProjectRef.current;
+        initialProjectRef.current = null;
+        if (linkedProject) setSelectedId(linkedProject);
+        else if (token) runly.projects.getTaskProject(taskId, token).then((res) => { if (res?.projectId) setSelectedId(res.projectId); }).catch(() => {});
         openTask(taskId);
       }
       return;
@@ -115,10 +126,8 @@ export default function ProjectsScreen() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading]);
+  }, [isLoading, token]);
 
-  const { session } = useAuth();
-  const token = session?.access_token;
 
   const projectList = projects?.data ?? projects ?? [];
   const selectedProject =
@@ -476,7 +485,7 @@ export default function ProjectsScreen() {
         </main>
 
         {/* Task detail panel */}
-        {taskPanelId && (
+        {taskPanelId && effectiveId && (
           <TaskDetailPanel
             projectId={effectiveId}
             taskId={taskPanelId}
