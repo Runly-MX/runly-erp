@@ -1,13 +1,9 @@
+import { useState } from 'react'
 import { Button, Input, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
   PersonAvatar, ToolButton, Tooltip, TooltipContent, TooltipTrigger, cn } from '@runly/ui'
+import { ExportDialog } from './ExportDialog.jsx'
 import { ArrowLeft, LayoutTemplate, Check, CloudOff, Download, Eye, Fullscreen, Loader2, Maximize2, Minimize2, MoreVertical, PanelRight, Redo2, RefreshCw, Share2, TriangleAlert, Undo2 } from 'lucide-react'
 
-export const EXPORTS = [
-  { format: 'png', quality: 1, label: 'PNG', hint: 'Sin pérdida, ideal para texto y gráficos' },
-  { format: 'jpg', quality: 1, label: 'JPG · 100 %', hint: 'Máxima calidad' },
-  { format: 'jpg', quality: 0.9, label: 'JPG · 90 %', hint: 'Recomendado para fotos' },
-  { format: 'jpg', quality: 0.7, label: 'JPG · 70 %', hint: 'Archivo ligero' },
-]
 const VIEW_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
 
 // Real-time sync state: every change is shared automatically (no save button).
@@ -45,17 +41,12 @@ function Presence({ users }) {
   )
 }
 
-function ExportItems({ onExport }) {
-  return EXPORTS.map(option => (
-    <DropdownMenuItem key={option.label} onSelect={() => onExport(option.format, option.quality)} className="flex-col items-start gap-0">
-      <span className="text-sm font-medium">{option.label}</span>
-      <span className="text-xs text-[hsl(var(--muted-foreground))]">{option.hint}</span>
-    </DropdownMenuItem>
-  ))
-}
-
 export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, live, canEdit, onBack, onRetrySync, onShare, onCredits, onSaveTemplate, onExport, exporting, exportDisabled,
-  history, onUndo, onRedo, participants, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode }) {
+  history, onUndo, onRedo, participants, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode, page }) {
+  const [exportOpen, setExportOpen] = useState(false)
+  // onExport(options): screen (PNG/JPG) or print PDF, chosen in ExportDialog.
+  const exportDialog = page ? <ExportDialog open={exportOpen} onOpenChange={setExportOpen} page={page} exporting={exporting}
+    onExport={options => { setExportOpen(false); onExport(options) }} onCredits={() => { setExportOpen(false); onCredits() }} /> : null
   const nameField = (
     <Input aria-label="Nombre del diseño" value={name} maxLength={160} disabled={nameDisabled} onChange={event => onName(event.target.value)}
       className="h-9 w-full min-w-0 truncate border-transparent bg-transparent px-2 font-semibold shadow-none hover:border-[hsl(var(--border))] disabled:opacity-100 sm:text-sm" />
@@ -85,11 +76,10 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, liv
             <DropdownMenuItem onSelect={onShare} className="gap-2.5"><Share2 className="h-4 w-4" />Compartir</DropdownMenuItem>
             {onSaveTemplate ? <DropdownMenuItem onSelect={onSaveTemplate} className="gap-2.5"><LayoutTemplate className="h-4 w-4" />Guardar como plantilla</DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={onCredits}>Créditos del diseño</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Descargar</DropdownMenuLabel>
-            {exportDisabled ? null : <ExportItems onExport={onExport} />}
+            <DropdownMenuItem disabled={exportDisabled} onSelect={() => setExportOpen(true)} className="gap-2.5"><Download className="h-4 w-4" />Descargar…</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {exportDialog}
       </header>
     )
   }
@@ -104,16 +94,19 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, liv
       {history_}
       <span aria-hidden className="h-6 w-px bg-[hsl(var(--border))]" />
       <Presence users={participants} />
-      {onSaveTemplate ? <ToolButton label="Guardar como plantilla" side="bottom" onClick={onSaveTemplate} className="h-9 w-9 shrink-0 border border-[hsl(var(--border))]"><LayoutTemplate /></ToolButton> : null}
+      {onSaveTemplate ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" onClick={onSaveTemplate} className="h-9 shrink-0 gap-1.5 px-3"><LayoutTemplate className="h-4 w-4" /><span className="max-xl:sr-only">Guardar como plantilla</span></Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Guardar como plantilla personal o de tu empresa</TooltipContent>
+        </Tooltip>
+      ) : null}
       <Button variant="outline" onClick={onShare} className="h-9 shrink-0 gap-1.5 px-3"><Share2 className="h-4 w-4" /><span className="max-md:sr-only">Compartir</span></Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" disabled={exportDisabled || exporting} className="h-9 shrink-0 gap-1.5 px-3">
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Download className="h-4 w-4" />}<span className="max-md:sr-only">Descargar</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-64"><DropdownMenuItem onSelect={onCredits}>Créditos del diseño</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuLabel>Descargar como</DropdownMenuLabel><ExportItems onExport={onExport} /></DropdownMenuContent>
-      </DropdownMenu>
+      <Button variant="outline" disabled={exportDisabled || exporting} onClick={() => setExportOpen(true)} className="h-9 shrink-0 gap-1.5 px-3">
+        {exporting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Download className="h-4 w-4" />}<span className="max-md:sr-only">Descargar</span>
+      </Button>
+      {exportDialog}
       <div className="flex items-center">
         {inspectorToggle ? <ToolButton label={inspectorOpen ? 'Ocultar propiedades' : 'Propiedades'} side="bottom" active={inspectorOpen} onClick={onToggleInspector}><PanelRight /></ToolButton> : null}
         <ToolButton label={VIEW_LABELS[viewMode]} side="bottom" onClick={onCycleViewMode}>

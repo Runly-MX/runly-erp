@@ -15,6 +15,7 @@ import { createScopedClipboard } from '../lib/scoped-clipboard.js'
 import { useStudioNavigation } from '../hooks/useStudioNavigation.js'
 import { useStudioImageEditing } from '../hooks/useStudioImageEditing.jsx'
 import { useSaveAsTemplate, useTemplateEditing } from './templates/useTemplateEditing.jsx'
+import { exportDesign } from '../lib/studio-export.js'
 
 const unwrap = response => response?.data ?? response
 
@@ -142,12 +143,14 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     try {await editor.flush();if(editorRef.current===editor)setCredits({scene:editor.snapshot(),action})}
     catch(error){setExportError(error.message)}
   }
-  async function exportImage(format, quality, reviewedScene) {
+  // Screen (PNG/JPG) or print PDF (RGB/CMYK, bleed, crop marks) from ExportDialog.
+  async function exportImage(options, reviewedScene) {
     if (!editorRef.current || exporting) return
     setExporting(true); setExportError('')
     try {
-      const blob = await editorRef.current.exportImage(format, quality, reviewedScene), url = URL.createObjectURL(blob)
-      const link = Object.assign(document.createElement('a'), { href: url, download: `${name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 80) || 'diseño'}.${format}` })
+      const { blob, extension } = await exportDesign({ editor: editorRef.current, options, scene: reviewedScene, designId: record.id, token, name })
+      const url = URL.createObjectURL(blob)
+      const link = Object.assign(document.createElement('a'), { href: url, download: `${name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 80) || 'diseño'}.${extension}` })
       link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (error) { setExportError(error.message) } finally { setExporting(false) }
   }
@@ -170,7 +173,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     name, nameDisabled: !canEdit || !ready, onBack,
     onName: value => { nameRef.current = value; setName(value); if (value.trim()) sync.rename(value.trim()) },
     syncState: status, live: realtime.status, onRetrySync: () => sync.resync(), ensureSaved,
-    onShare: () => openCredits({kind:'share'}), onExport: (format,quality) => openCredits({kind:'export',format,quality}),
+    onShare: () => openCredits({kind:'share'}), onExport: options => openCredits({kind:'export',format:options.type,options}),
     onCredits: () => openCredits(), onSaveTemplate: ready ? async()=>{try{await ensureSaved();saveAsTemplate.open()}catch(e){setError(e.message)}} : null, exporting, exportDisabled: exporting, notices,
   }
   return <>
@@ -181,7 +184,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     <StudioSharing record={record} token={token} open={shareOpen} onOpenChange={setShareOpen} />
     {imageEditing.dialog}
     {saveAsTemplate.dialog}
-    {credits?<StudioCredits id={record.id} token={token} scene={credits.scene} action={credits.action} onClose={()=>setCredits(null)} onContinue={()=>{const {action,scene}=credits;setCredits(null);if(action.kind==='share')setShareOpen(true);else exportImage(action.format,action.quality,scene)}}/>:null}
+    {credits?<StudioCredits id={record.id} token={token} scene={credits.scene} action={credits.action} onClose={()=>setCredits(null)} onContinue={()=>{const {action,scene}=credits;setCredits(null);if(action.kind==='share')setShareOpen(true);else exportImage(action.options,scene)}}/>:null}
     <ConfirmDialog open={navigation.pending} onOpenChange={open => { if (!open) navigation.cancel() }} title="Salir antes de sincronizar" description={copyWarning ? 'No se pudo conservar la copia local. Si sales puedes perder los últimos cambios. Espera a que diga «Sincronizado».' : 'Algunos cambios aún no llegan al servidor. Se conservarán en este navegador y podrás recuperarlos al volver.'}
       confirmLabel="Salir" onConfirm={navigation.proceed} />
   </>

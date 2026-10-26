@@ -7,6 +7,12 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
       const body = new FormData(); body.set('file',file)
       return request(`${path(id)}/assets/${encodeURIComponent(fileId)}/edited-copy`,{method:'POST',headers:withAuthHeaders(token),body,signal,onlineOnly:true})
     },
+    // Print PDF (RGB/CMYK, bleed, crop marks) from a high-resolution PNG render of the design.
+    exportPrintPdf: (id, file, params, token, signal) => {
+      const body = new FormData(); body.set('file', file, 'render.png')
+      for (const [key, value] of Object.entries(params)) body.set(key, String(value))
+      return requestBlob(`${path(id)}/export/print-pdf`, { method: 'POST', headers: withAuthHeaders(token), body, signal, onlineOnly: true })
+    },
     catalogSearch: (provider, token, query = {}, signal) => request(`/studio/catalog/${encodeURIComponent(provider)}/search${toQueryString(query)}`, { ...options(token), signal }),
     catalogDetails: (provider, id, token, signal) => request(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}`, { ...options(token), signal }),
     catalogThumbnail: (provider, id, token, signal) => requestBlob(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}/thumbnail`, { ...options(token), signal }),

@@ -170,3 +170,23 @@ ratón — rectángulo y texto insertados con contorno visible y foto convertida
 relleno del rectángulo al soltarla encima; táctil 390 px — círculo y subtítulo
 insertados por pulsar-y-arrastrar, y un deslizamiento rápido en el panel no
 inserta nada. Sin errores de página.
+
+## Descargar: pantalla e impresión
+
+`editor/ExportDialog.jsx` (botón «Descargar» de la barra; «Descargar…» en el
+menú del teléfono) reemplaza el menú de formatos. Las opciones se recuerdan por
+navegador y los créditos se revisan después, como antes.
+
+| Tipo | Dónde se genera | Opciones |
+| --- | --- | --- |
+| PNG | Navegador (`exportImage(png, 1, escena, {scale, transparent})`) | ×1/×2/×3 (limitado a 80 MP y 16384 px), fondo transparente |
+| JPG | Navegador | ×1/×2/×3, calidad 50–100 % |
+| PDF para imprimir | Render PNG a 300 ppp con sangrado (`exportImage(..., {scale, bleed})`) y `POST /studio/designs/:id/export/print-pdf` (`studio-print.js`: sharp + pdf-lib) | Perfil CMYK (perfil estándar de libvips, JPEG con marca Adobe, `/DeviceCMYK`) o RGB; resolución del diseño (72/96/150/300 ppp → medidas en mm); sangrado 3 mm; marcas de corte en color de registro; `TrimBox` y `BleedBox` |
+
+El navegador no produce CMYK; la conversión es del servidor y no lee el
+documento. Verificación (2026-10-26, `.e2e/studio-export.mjs`): PNG ×2 de
+2160 × 2160 px con esquina transparente; PDF CMYK de 305,8 mm (285,8 mm de corte
++ 3 mm de sangrado + marcas) renderizado con pdf.js: el sangrado lleva el fondo
+oscuro (7,18,49 frente a #0f172a) y fuera de él queda blanco.
+«Guardar como plantilla» pasa a ser un botón con texto en la barra (icono en
+pantallas medianas, menú en el teléfono).

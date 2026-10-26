@@ -587,10 +587,15 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     },
     undo() { writable(); return enqueue(() => travelHistory('undo')) },
     redo() { writable(); return enqueue(() => travelHistory('redo')) },
-    async exportImage(format = 'png', quality = 0.9, reviewedScene) {
+    // options: scale (resolution multiplier), transparent (PNG without page
+    // background), bleed (px rendered beyond each page edge, for print).
+    async exportImage(format = 'png', quality = 0.9, reviewedScene, { scale = 1, transparent = false, bleed = 0 } = {}) {
       await editor.flush()
       return enqueue(async () => {
         if (!['png','jpg'].includes(format) || !Number.isFinite(quality) || quality < 0.1 || quality > 1) throw new Error('Formato o calidad no válidos.')
+        const width = current.page.width + 2 * bleed, height = current.page.height + 2 * bleed
+        if (!Number.isFinite(scale) || scale < 0.25 || scale > 8 || !Number.isFinite(bleed) || bleed < 0 || bleed > 400) throw new Error('Tamaño de exportación no válido.')
+        if (width * scale > 16384 || height * scale > 16384 || width * height * scale * scale > 80_000_000) throw new Error('La exportación supera 80 megapíxeles o 16384 px por lado. Elige un tamaño menor.')
         if(reviewedScene && JSON.stringify(snapshot())!==JSON.stringify(validateDocument(reviewedScene)))throw new Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
         exportingNow = true; editor.setReadOnly(protectedMode)
         try {
@@ -600,8 +605,13 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
           try { const original = await FabricImage.fromURL(await resolveImage(id), { crossOrigin: 'anonymous' }); original.dispose() }
           catch { throw new Error('No se pudo cargar la imagen original. Comprueba el archivo y reintenta.') }
         }
-        canvas.discardActiveObject(); canvas.renderAll()
-        const output = canvas.toCanvasElement(1)
+        canvas.discardActiveObject()
+        const background = canvas.backgroundColor
+        if (transparent && format === 'png') canvas.backgroundColor = null
+        canvas.renderAll()
+        let output
+        try { output = canvas.toCanvasElement(scale, bleed ? { left: -bleed, top: -bleed, width, height } : undefined) }
+        finally { canvas.backgroundColor = background; canvas.renderAll() }
         return await new Promise((resolve, reject) => output.toBlob(blob => { output.width = 0; output.height = 0; blob ? resolve(blob) : reject(new Error('No se pudo exportar el diseño.')) }, format === 'jpg' ? 'image/jpeg' : 'image/png', quality))
         } finally { exportingNow = false; editor.setReadOnly(protectedMode) }
       })

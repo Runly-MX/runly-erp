@@ -8,6 +8,7 @@ import { createStudioResources } from './studio-resources.js'
 import { createStudioTemplatesService } from './studio-templates-service.js'
 import { createStudioCatalog } from './catalog/service.js'
 import { createStudioImageCopies } from './studio-image-copies.js'
+import { buildPrintPdf } from './studio-print.js'
 
 export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,
   service = createStudioService({ prisma, filesService, broadcaster }),
@@ -17,7 +18,9 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   const resources = createStudioResources({ access: service.access, filesService, supabaseAdmin })
   const catalog = createStudioCatalog({ prisma, access: service.access, filesService, supabaseAdmin })
   const imageCopies = createStudioImageCopies({prisma,access:service.access,filesService})
-  app.use('/studio/*', (c,next) => bodyLimit({ maxSize: /^\/studio\/designs\/[^/]+\/assets\/[^/]+\/edited-copy$/.test(c.req.path) ? 11 * 1024 * 1024 : 1_100_000,
+  // High-resolution print renders are larger than documents and photo copies.
+  const bodyMax = path => /\/export\/print-pdf$/.test(path) ? 64 * 1024 * 1024 : /^\/studio\/designs\/[^/]+\/assets\/[^/]+\/edited-copy$/.test(path) ? 11 * 1024 * 1024 : 1_100_000
+  app.use('/studio/*', (c,next) => bodyLimit({ maxSize: bodyMax(c.req.path),
     onError: c => c.json({ error: 'El contenido supera el tamaño permitido.' }, 413) })(c,next))
   const context = c => [c.get('companyId'), c.get('userContext')?.profile?.id]
   const fileContext = c => ({ authUserId: c.get('authUserId'), activeContext: tenantActiveContext(c) })
@@ -85,6 +88,16 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   app.post('/studio/designs', requirePermission('studio.create'), async c => c.json({ data: await service.create(...context(c), await c.req.json(), fileContext(c)) }, 201))
   app.put('/studio/designs/:id', requirePermission('studio.edit'), async c => c.json({ data: await service.update(...context(c), c.req.param('id'), await c.req.json(), fileContext(c)) }))
   // Real-time collaboration: a batch of object operations from an editor session.
+  // Print PDF (RGB or CMYK, bleed, crop marks) from the editor's high-resolution render.
+  app.post('/studio/designs/:id/export/print-pdf', requirePermission('studio.view'), async c => {
+    await service.access.get(...context(c), c.req.param('id'))
+    const body = await c.req.parseBody()
+    if (!(body.file instanceof Blob)) throw new StudioError('Falta la imagen de exportación.')
+    const pdf = await buildPrintPdf({ image: Buffer.from(await body.file.arrayBuffer()), widthMm: body.widthMm, heightMm: body.heightMm,
+      bleedMm: body.bleedMm, cropMarks: body.cropMarks === 'true', profile: body.profile, title: body.title })
+    c.header('Cache-Control', 'private, no-store'); c.header('Content-Type', 'application/pdf')
+    return c.body(pdf)
+  })
   app.post('/studio/designs/:id/changes', requirePermission('studio.edit'), async c => c.json({ data: await service.applyChanges(...context(c), c.req.param('id'), await c.req.json(), fileContext(c)) }))
   app.get('/studio/designs/:id/changes', requirePermission('studio.view'), async c => c.json({data:await service.changeReceipt(...context(c),c.req.param('id'),{clientId:c.req.query('clientId'),batchId:Number(c.req.query('batchId'))})}))
   app.get('/studio/designs/:id/collaborators', requirePermission('studio.view'), async c => c.json({ data: await collaboration.collaborators(...context(c), c.req.param('id')) }))

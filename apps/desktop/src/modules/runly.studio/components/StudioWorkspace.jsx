@@ -265,7 +265,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     <EyedropperContext.Provider value={colorContext}>
     <div role="application" aria-label="Editor gráfico de Studio" tabIndex={-1} onKeyDown={shortcut}
       className={cn('flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))] outline-none', viewMode.isImmersive ? 'fixed inset-0 z-50 h-dvh' : 'h-full')}>
-      <StudioTopBar phone={phone} {...chrome} canEdit={!readOnly} history={history} participants={[...new Map(participants.map(user => [user.userId, user])).values()]}
+      <StudioTopBar phone={phone} {...chrome} page={page} canEdit={!readOnly} history={history} participants={[...new Map(participants.map(user => [user.userId, user])).values()]}
         onUndo={() => attempt(() => editorRef.current.undo())} onRedo={() => attempt(() => editorRef.current.redo())}
         exportDisabled={!ready || chrome.exportDisabled} inspectorToggle inspectorOpen={wide ? inspectorOpen : inspectorSheet}
         onToggleInspector={() => (wide ? setInspectorOpen(value => !value) : setInspectorSheet(value => !value))}
