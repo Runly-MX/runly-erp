@@ -32,7 +32,7 @@ const LUCIDE = {
   'arrow-up-right': { paths: ['M7 7h10v10', 'M7 17 17 7'], filled: false },
   heart: { paths: ['M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.457 5.457 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5'], filled: true },
 }
-const icon = (name, x, y, size, fill, rotation = 0) => ({ type: 'vector', iconId: `lucide:${name}`, x, y, width: size, height: size, fill, rotation,
+export const icon = (name, x, y, size, fill, rotation = 0) => ({ type: 'vector', iconId: `lucide:${name}`, x, y, width: size, height: size, fill, rotation,
   geometry: { width: 24, height: 24, paths: LUCIDE[name].paths.map(d => ({ d, fill: LUCIDE[name].filled ? 'color' : 'none', stroke: 'color', strokeWidth: 2, cap: 'round', join: 'round' })) } })
 
 const CONFETTI = [
