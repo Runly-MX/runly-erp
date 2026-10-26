@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription, AlertTitle, Button } from '@runly/ui'
-import { LayoutTemplate, Loader2, RefreshCw } from 'lucide-react'
+import { Check, LayoutTemplate, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { runly } from '../../../../lib/runly.js'
 import { TemplateFormDialog } from './TemplateFormDialog.jsx'
@@ -35,35 +35,52 @@ export function useSaveAsTemplate({ editorRef, token, scopeKey, name }) {
   return { open: available ? () => setOpen(true) : null, dialog }
 }
 
-// Editing a template's content: the editor works on a design created from it;
-// "Guardar en la plantilla" writes that design's scene back with the revision.
-export function useTemplateEditing({ editorRef, token, scopeKey, templateId, onExit }) {
+// Editing a template's content: the editor works on a separate working design
+// (kept in Mis diseños) created from it. "Guardar en la plantilla" writes that
+// scene back with the template revision and also saves the working design, so
+// both match. A 409 never discards the edit: the user reloads the revision and
+// decides to overwrite, or finishes without touching the template.
+export function useTemplateEditing({ editorRef, token, scopeKey, templateId, designName, saveDesign, onExit }) {
   const queryClient = useQueryClient()
   const detail = useQuery({ queryKey: ['studio', ...scopeKey, 'template', templateId], enabled: Boolean(templateId && token), refetchOnWindowFocus: false,
     queryFn: async () => unwrap(await runly.studio.templateDetail(templateId, token)) })
-  const [saving, setSaving] = useState(false), [error, setError] = useState(null)
+  const [saving, setSaving] = useState(false), [error, setError] = useState(null), [savedAt, setSavedAt] = useState(null)
+  const inFlight = useRef(false)
   if (!templateId) return { notice: null }
   async function save() {
-    setSaving(true); setError(null)
+    if (inFlight.current) return
+    // Clear the previous confirmation so it never shows while this save is pending.
+    inFlight.current = true; setSaving(true); setError(null); setSavedAt(null)
     try {
       const document = await captureScene(editorRef.current)
       await runly.studio.updateTemplate(templateId, { revision: detail.data.revision, document }, token)
       await detail.refetch()
       queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'templates'] })
+      setSavedAt(new Date())
       toast.success(`Plantilla «${detail.data.name}» actualizada`)
-    } catch (failure) { setError(failure) } finally { setSaving(false) }
+      // Best effort: a failed design save keeps its own warning and local draft.
+      await saveDesign?.()
+    } catch (failure) { setError(failure) } finally { inFlight.current = false; setSaving(false) }
   }
+  async function reload() {
+    setError(null)
+    try { await detail.refetch({ throwOnError: true }); setError({ reloaded: true }) } catch (failure) { setError(failure) }
+  }
+  const busy = saving || detail.isFetching
   const notice = detail.data?.canEdit ? (
     <Alert className="pointer-events-auto max-w-xl bg-[hsl(var(--card))] shadow-lg">
       <LayoutTemplate className="h-4 w-4" />
-      <AlertTitle>Editando la plantilla «{detail.data.name}»</AlertTitle>
+      <AlertTitle>Copia de trabajo de la plantilla «{detail.data.name}»</AlertTitle>
       <AlertDescription className="space-y-2">
-        <p>Los cambios se aplican a la plantilla al guardar. Los diseños ya creados con ella no cambian.</p>
-        {error ? <p className="text-[hsl(var(--destructive))]">{templateErrorMessage(error)}</p> : null}
+        <p>Editas un diseño aparte{designName ? ` («${designName}»)` : ''}. La plantilla solo cambia al pulsar «Guardar en la plantilla»; los diseños ya creados con ella no cambian.</p>
+        {savedAt && !error ? <p className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300"><Check className="h-3.5 w-3.5" />Plantilla actualizada. Esta copia de trabajo sigue en Mis diseños; puedes seguir editando o eliminarla desde allí.</p> : null}
+        {error?.status === 409 ? <p className="text-[hsl(var(--destructive))]">Otra persona guardó la plantilla mientras la editabas. Tus cambios siguen aquí. Carga su revisión y decide si la sobrescribes con tu versión.</p>
+          : error?.reloaded ? <p>Revisión actual cargada. «Sobrescribir con mi versión» reemplaza el contenido que guardó la otra persona.</p>
+          : error ? <p className="text-[hsl(var(--destructive))]">{templateErrorMessage(error)} Tus cambios siguen aquí.</p> : null}
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" disabled={saving || detail.isFetching} onClick={save}>{saving ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}Guardar en la plantilla</Button>
-          {error?.status === 409 ? <Button size="sm" variant="outline" onClick={() => { setError(null); detail.refetch() }}><RefreshCw />Usar revisión actual</Button> : null}
-          <Button size="sm" variant="ghost" onClick={onExit}>Terminar</Button>
+          {error?.status === 409 ? <Button size="sm" variant="outline" disabled={busy} onClick={reload}><RefreshCw />Cargar revisión actual</Button>
+            : <Button size="sm" disabled={busy} onClick={save}>{saving ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}{error?.reloaded ? 'Sobrescribir con mi versión' : 'Guardar en la plantilla'}</Button>}
+          <Button size="sm" variant="ghost" disabled={saving} onClick={onExit}>Terminar</Button>
         </div>
       </AlertDescription>
     </Alert>

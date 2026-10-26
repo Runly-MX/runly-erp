@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ErrorState, Skeleton } from '@runly/ui'
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, ErrorState, Skeleton } from '@runly/ui'
+import { FilePenLine } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
 import { DesignEditor } from '../components/DesignEditor.jsx'
 import { StudioHome } from '../components/home/StudioHome.jsx'
 import { blankDocument, validateDocument } from '../../../../../shared/studio/document.js'
+import { forgetWorkingDesign, rememberWorkingDesign, workingDesignFor } from '../components/templates/template-work.js'
 
 const unwrap = response => response?.data ?? response
 
@@ -33,18 +35,22 @@ export default function StudioScreen() {
   // Home view survives opening a design and coming back (?view=designs|templates).
   const view = ['designs', 'templates'].includes(params.get('view')) ? params.get('view') : 'home'
   const withView = extra => ({ ...(view === 'home' ? {} : { view }), ...extra })
-  const [creating, setCreating] = useState(null)
+  const [creating, setCreating] = useState(null), [resume, setResume] = useState(null)
+  // One creation at a time: repeated clicks never create duplicate designs.
+  const starting = useRef(false)
   const queryClient = useQueryClient()
   const scopeKey = [profileCompanyId, userProfile?.id]
   const design = useQuery({ queryKey: ['studio', ...scopeKey, 'design', id],
     queryFn: async () => unwrap(await runly.studio.getDesign(id, token)), enabled: Boolean(token && id), refetchOnWindowFocus: false })
   // `rethrow` lets the size dialog keep itself open and show the error.
   async function create(kind, value, rethrow = false) {
+    if (starting.current) return
+    starting.current = true
     setCreating(kind === 'format' || kind === 'template' ? value.key : kind)
     try {
       const record = unwrap(await (kind === 'template' ? runly.studio.createFromTemplate(value.key, token) : runly.studio.createDesign(draftFor(kind, value), token)))
       setParams(withView({ design: record.id }))
-    } catch (error) { if (rethrow) throw error; toast.error(error.message) } finally { setCreating(null) }
+    } catch (error) { if (rethrow) throw error; toast.error(error.message) } finally { starting.current = false; setCreating(null) }
   }
   if (id) {
     if (design.isPending) return <EditorSkeleton />
@@ -53,12 +59,41 @@ export default function StudioScreen() {
       editingTemplateId={params.get('template')}
       onCopy={copyId => setParams(withView({ design: copyId }))} onBack={() => { setParams(withView({})); queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'designs'] }) }} />
   }
-  // "Editar contenido": work on a design created from the template, linked by ?template=.
-  async function editTemplateContent(template) {
-    setCreating(template.key)
-    try { const record = unwrap(await runly.studio.createFromTemplate(template.id, token)); setParams({ view: 'templates', design: record.id, template: template.id }) }
-    catch (error) { toast.error(error.message) } finally { setCreating(null) }
+  // "Editar contenido": work on a design created from the template, linked by
+  // ?template=. A working copy opened before is offered again instead of
+  // silently creating another design; repeated clicks start only one.
+  async function editTemplateContent(template, fresh = false) {
+    if (starting.current) return
+    starting.current = true; setCreating(template.key)
+    try {
+      const known = fresh ? null : workingDesignFor(scopeKey, template.id)
+      if (known) {
+        const existing = await runly.studio.getDesign(known, token).then(unwrap, error => { if ([403, 404].includes(error.status)) return null; throw error })
+        if (existing && existing.canEdit !== false) { setResume({ template, design: existing }); return }
+        forgetWorkingDesign(scopeKey, template.id)
+      }
+      const record = unwrap(await runly.studio.createFromTemplate(template.id, token))
+      rememberWorkingDesign(scopeKey, template.id, record.id)
+      setResume(null); setParams({ view: 'templates', design: record.id, template: template.id })
+    } catch (error) { toast.error(error.message) } finally { starting.current = false; setCreating(null) }
   }
-  return <StudioHome token={token} scopeKey={scopeKey} creating={creating} onCreate={create} onEditTemplateContent={editTemplateContent} onOpen={designId => setParams(withView({ design: designId }))}
-    view={view} onView={next => setParams(next === 'home' ? {} : { view: next })} />
+  return <>
+    <StudioHome token={token} scopeKey={scopeKey} creating={creating} onCreate={create} onEditTemplateContent={template => editTemplateContent(template)} onOpen={designId => setParams(withView({ design: designId }))}
+      view={view} onView={next => setParams(next === 'home' ? {} : { view: next })} />
+    <Dialog open={Boolean(resume)} onOpenChange={open => { if (!open) setResume(null) }}>
+      <DialogContent size="md">
+        <DialogHeader icon={FilePenLine}>
+          <DialogTitle>Ya tienes una copia de trabajo</DialogTitle>
+          <DialogDescription>Editaste antes el contenido de «{resume?.template.name}» en un diseño de Mis diseños.</DialogDescription>
+        </DialogHeader>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+          Continúa con «{resume?.design.name}» para no crear otro diseño. Si la plantilla cambió desde entonces, crea una copia nueva con su contenido actual; la anterior se queda en Mis diseños.
+        </p>
+        <DialogFooter>
+          <Button variant="outline" disabled={Boolean(creating)} onClick={() => editTemplateContent(resume.template, true)}>Crear copia nueva</Button>
+          <Button disabled={Boolean(creating)} onClick={() => { const { template, design: working } = resume; setResume(null); setParams({ view: 'templates', design: working.id, template: template.id }) }}>Continuar con la copia</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
 }
