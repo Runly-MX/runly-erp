@@ -21,7 +21,7 @@ export function createStudioApplication({ prisma, supabaseAdmin, filesService = 
   async function guide(a) {
     await designs.access.member(a.companyId,a.actorProfileId)
     return {schemaVersion:STUDIO_SCHEMA_VERSION,limits:STUDIO_LIMITS,unit:'px',
-      shapeContract:{fill:'six-digit hex fallback',fillPaint:{solid:{type:'solid',color:'#2563eb'},image:{type:'image',fileAssetId:'UUID autorizado de Files',image:{fit:'cover',zoom:1,offsetX:0,offsetY:0,rotation:0,flipX:false,flipY:false}}},shape:{fillEnabled:true,strokeWidth:0,strokeColor:'#000000',dash:'solid',strokeAlign:'center',radius:0},photoGeometry:'rectangle, ellipse or filled monochrome vector paths only'},
+      shapeContract:{fill:'six-digit hex fallback',fillPaint:{solid:{type:'solid',color:'#2563eb'},image:{type:'image',fileAssetId:'UUID autorizado de Files',image:{fit:'cover',zoom:1,offsetX:0,offsetY:0,rotation:0,flipX:false,flipY:false}}},shape:{fillEnabled:true,strokeWidth:0,strokeColor:'#000000',dash:'solid',strokeAlign:'center',radius:0},photoGeometry:'rectangle, ellipse or a single closed filled monochrome vector path without stroke'},
       lineCaps:LINE_CAPS,
       objectTypes:['text','rectangle','ellipse','image','vector','line'],
       fonts:STUDIO_FONTS.map(font=>({family:font.family,name:font.name,variants:Object.keys(STUDIO_FONT_VARIANTS).filter(v=>studioFontStyle(font.family,v))})),

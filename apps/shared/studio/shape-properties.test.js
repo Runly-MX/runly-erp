@@ -22,6 +22,8 @@ test('photo references and shape properties fail closed; stroke-only icons remai
   assert.throws(()=>appendObject(blankDocument(),'text',{fillPaint:paint}))
   assert.throws(()=>appendObject(blankDocument(),'ellipse',{shape:{radius:2}}))
   assert.throws(()=>appendObject(blankDocument(),'vector',{iconId:'tabler:star',geometry:{width:24,height:24,paths:[{d:'M0 0L24 24',fill:'none',stroke:'color',strokeWidth:2,cap:'round',join:'round'}]},fillPaint:paint}))
+  const path={d:'M0 0L24 0L12 24Z',fill:'color',stroke:'none',strokeWidth:0,cap:'butt',join:'miter'}
+  for(const paths of [[{...path,d:'M0 0L24 0L12 24'}],[path,path]])assert.throws(()=>appendObject(blankDocument(),'vector',{svgName:'unsupported.svg',geometry:{width:24,height:24,paths},fillPaint:paint}))
 })
 test('all line cap pairs persist; v4 booleans migrate without losing semantics',()=>{
   for(const startCap of LINE_CAPS)for(const endCap of LINE_CAPS){const doc=appendObject(blankDocument(),'line',{startCap,endCap});assert.equal(doc.objects[0].startCap,startCap);assert.deepEqual(validateDocument(doc),doc)}

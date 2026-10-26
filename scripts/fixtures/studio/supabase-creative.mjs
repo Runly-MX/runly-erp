@@ -107,7 +107,7 @@ export async function verifyStudioCreative(stack,{users,companies,admin}) {
 
     const start=requests.length;await page.reload();await page.getByRole('button',{name:'Guardar',exact:true}).waitFor();await page.getByRole('button',{name:'Imágenes',exact:true}).click();await page.getByRole('radio',{name:'Iconos',exact:true}).click()
     await page.getByLabel('Buscar iconos',{exact:true}).fill('offline');await page.getByText('Catálogo no disponible',{exact:true}).waitFor()
-    await page.getByRole('button',{name:'Elementos',exact:true}).click();await page.getByRole('button',{name:'Rectángulo #d946ef',exact:true}).click();await save(page)
+    await page.getByRole('button',{name:'Elementos',exact:true}).click();await page.getByRole('button',{name:'Rectángulo',exact:true}).click();await save(page)
     assert.ok((await get()).document.objects.some(o=>o.type==='rectangle'&&o.fill==='#d946ef'))
     assert.ok(!requests.slice(start).some(url=>/^https:\/\/(api.iconify.design|api.openverse.org)/.test(url)))
     for(const version of [1,2]){const legacy=await data(await api('/studio/designs',{name:`Compatibilidad v${version}`,document:{...blankDocument(),schemaVersion:version}}));assert.equal(legacy.document.schemaVersion,5)}

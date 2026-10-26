@@ -14,7 +14,6 @@ for (const name of filenames.filter(name => name.endsWith('.js'))) {
 }
 assert.ok(studio, 'Studio lazy chunk missing');
 const studioCode = await readFile(join(assets, studio), 'utf8');
-assert.ok(studioCode.includes('fabric') && studioCode.includes('Textbox'), 'Fabric code missing from Studio chunk');
 const compilerRequire = createRequire(new URL('../../packages/module-compiler/package.json', import.meta.url));
 const { parse } = compilerRequire('acorn');
 function sources(code) {
@@ -44,6 +43,19 @@ async function inspectInitial(name) {
 }
 for (const entry of entries) await inspectInitial(entry);
 assert.ok(!initial.has(studio), 'Studio/Fabric was eagerly bundled into the initial static graph');
+// Fabric can be shared with the lazy thumbnail renderer. Follow actual imports
+// instead of requiring a particular bundler chunk name or physical placement.
+const studioGraph = new Set(), fabricChunks = [];
+async function inspectStudio(name) {
+  if(studioGraph.has(name)||!filenames.includes(name))return;
+  studioGraph.add(name);
+  const code=await readFile(join(assets,name),'utf8');
+  if(code.includes('fabric')&&code.includes('Textbox'))fabricChunks.push(name);
+  for(const child of sources(code).staticImports)await inspectStudio(child);
+}
+await inspectStudio(studio);
+assert.ok(fabricChunks.length, 'Fabric missing from Studio dependency graph');
+assert.ok(fabricChunks.every(name=>!initial.has(name)), 'Fabric is in the initial static graph');
 // The authenticated AppEntry can itself be lazy. Follow its graph without
 // treating any of those chunks as part of the initial static load.
 const reachable = new Set(initial), queue = [...dynamic];
@@ -57,6 +69,6 @@ while (queue.length && !dynamic.has(studio)) {
 }
 assert.ok(dynamic.has(studio), 'Studio is not reachable through a lazy import');
 const initialCode=await Promise.all([...initial].map(name=>readFile(join(assets,name))))
-return { studioChunk: studio, studioBytes: Buffer.byteLength(studioCode), studioGzipBytes:gzipSync(studioCode).length, fabric: true, lazy: true, initialChunks: initial.size,
+return { studioChunk: studio, studioBytes: Buffer.byteLength(studioCode), studioGzipBytes:gzipSync(studioCode).length, fabricChunks, fabric: true, lazy: true, initialChunks: initial.size,
   initialBytes:initialCode.reduce((sum,code)=>sum+code.length,0),initialGzipBytes:initialCode.reduce((sum,code)=>sum+gzipSync(code).length,0) };
 }

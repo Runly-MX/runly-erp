@@ -9,9 +9,10 @@ export function photoFileId(object) {
   return object.type==='image' ? object.fileAssetId : object.fillPaint?.type==='image' ? object.fillPaint.fileAssetId : null
 }
 export const documentAssetIds = document => [...new Set((document.objects??[]).map(photoFileId).filter(Boolean))]
-// Open stroke-only icons are not photo silhouettes. Keep their original paths.
+// A single closed filled path preserves SVG nonzero holes exactly. Multiple
+// independent paths need a real boolean union before they can be one silhouette.
 export function supportsPhotoFill(object) {
-  return ['rectangle','ellipse'].includes(object.type) || (object.type==='vector' && object.geometry.paths.every(p=>p.fill==='color' && p.stroke==='none'))
+  return ['rectangle','ellipse'].includes(object.type) || (object.type==='vector' && object.geometry.paths.length===1 && object.geometry.paths.every(p=>p.fill==='color' && p.stroke==='none' && p.d.split(/(?=[Mm])/).filter(Boolean).every(part=>/[zZ]\s*$/.test(part))))
 }
 export function shapeStyle(value={}) {
   if(!value||typeof value!=='object'||Array.isArray(value))invalid()

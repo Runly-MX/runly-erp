@@ -9,7 +9,7 @@ export function layer(page,ordinal) {
 }
 export async function selectLayer(page,ordinal) {await openPanel(page,'Capas');await layer(page,ordinal).click()}
 export async function insertText(page) {await openPanel(page,'Texto');await page.getByRole('button',{name:'Añadir un título',exact:true}).click()}
-export async function insertShape(page,type) {await openPanel(page,'Elementos');await page.getByRole('button',{name:`${type} #2563eb`,exact:true}).click()}
+export async function insertShape(page,type) {await openPanel(page,'Elementos');await page.getByRole('button',{name:type,exact:true}).click()}
 export async function showFiles(page) {await openPanel(page,'Imágenes')}
 export async function createBlank(page) {await page.getByRole('button',{name:/^Crear Publicación cuadrada,/}).click()}
 export async function exportImage(page,format='PNG',quality='100 %') {

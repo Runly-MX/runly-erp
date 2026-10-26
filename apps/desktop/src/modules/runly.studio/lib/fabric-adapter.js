@@ -76,6 +76,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
         ...(['text','line'].includes(item.type) ? { width: object.width, height: object.height, scaleX: stable(scaling.x, item.scaleX), scaleY: stable(scaling.y, item.scaleY) } : {}) }
     }) })
   }
+  const mergePatch=(item,patch)=>({...item,...patch,...(patch.shape?{shape:{...item.shape,...patch.shape}}:{})})
   const withPhoto=(item,fileAssetId)=>item.type==='image'?{...item,fileAssetId}:{...item,fillPaint:{...item.fillPaint,fileAssetId}}
   function selected() {
     const object = canvas.getActiveObject()
@@ -162,8 +163,8 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
   for (const event of ['selection:created', 'selection:updated', 'selection:cleared']) canvas.on(event, selection)
   const editor = {
     snapshot,
-    setShapeStyle(patch){const item=selected();if(!item||!SHAPE_TYPES.includes(item.type))throw Error('Selecciona una forma.');return editor.patch({shape:{...item.shape,...patch}})},
-    setPhotoFill(fileAssetId,image={}){const item=selected();if(!item||!supportsPhotoFill(item))throw Error('Esta geometr?a no admite fotograf?a.');return editor.patch({fill:item.fillPaint?.type==='solid'?item.fillPaint.color:item.fill,fillPaint:{type:'image',fileAssetId,image}})},
+    setShapeStyle(patch){const item=selected();if(!item||!SHAPE_TYPES.includes(item.type))throw Error('Selecciona una forma.');return editor.patch({shape:patch})},
+    setPhotoFill(fileAssetId,image={}){const item=selected();if(!item||!supportsPhotoFill(item))throw Error('Esta geometría no admite fotografía.');return editor.patch({fill:item.fillPaint?.type==='solid'?item.fillPaint.color:item.fill,fillPaint:{type:'image',fileAssetId,image}})},
     removePhotoFill(){const item=selected();if(!item||!SHAPE_TYPES.includes(item.type))throw Error('Selecciona una forma.');return editor.patch({fillPaint:undefined})},
     async importSvg(svg,name){writable();const result=importStudioSvg(svg,name);await editor.add('vector',result.object);return {warnings:result.warnings,provenance:result.provenance}},
     setLineStyle(patch){if(selected()?.type!=='line')throw Error('Selecciona una línea.');return editor.patch(patch)},
@@ -353,15 +354,24 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       writable()
       patch={...patch}
       for(const end of ['start','end'])if(patch[end+'Arrow']!==undefined&&patch[end+'Cap']===undefined)patch[end+'Cap']=patch[end+'Arrow']?'arrow':'none'
-      const object = canvas.getActiveObject()
+      let object = canvas.getActiveObject()
       if (!object?.studioId) return
       const original = source.get(object.studioId)
+      if(patch.fill!==undefined&&original.fillPaint?.type==='solid'&&patch.fillPaint===undefined)patch.fillPaint={type:'solid',color:patch.fill}
       if (original.locked && Object.keys(patch).some(key => !['locked', 'hidden'].includes(key))) return
-      const next = validateDocument({ ...snapshot(), objects: snapshot().objects.map(item => item.id === object.studioId ? { ...item, ...patch } : item) })
-      const item = next.objects.find(item => item.id === object.studioId)
+      const next = validateDocument({ ...snapshot(), objects: snapshot().objects.map(item => item.id === object.studioId ? mergePatch(item,patch) : item) })
+      let item = next.objects.find(item => item.id === object.studioId)
       if(SHAPE_TYPES.includes(item.type)&&(item.fillPaint||item.shape||original.fillPaint||original.shape))return enqueue(async()=>{
+        writable()
+        object=canvas.getObjects().find(o=>o.studioId===original.id)
+        if(!object)throw Error('La forma ya no existe.')
+        if(source.get(original.id)?.locked&&Object.keys(patch).some(k=>!['locked','hidden'].includes(k)))throw Error('La forma est\u00e1 bloqueada.')
+        item=validateDocument({...snapshot(),objects:snapshot().objects.map(o=>o.id===original.id?mergePatch(o,patch):o)}).objects.find(o=>o.id===original.id)
         const fingerprint=JSON.stringify(snapshot().objects.find(o=>o.id===original.id))
-        if(JSON.stringify(snapshot().objects.find(o=>o.id===original.id))!==fingerprint)throw Error('La forma cambi\u00f3 durante la operaci\u00f3n.')
+        if(object instanceof StudioPhoto&&photoFileId(item)===photoFileId(source.get(item.id))){
+          object.set({left:item.x,top:item.y,angle:item.rotation,fill:item.fill,scaleX:1,scaleY:1,...flags(item)})
+          object.configure(item);source.set(item.id,item);object.setCoords();canvas.requestRenderAll();changed();return
+        }
         await authorizePaste?.([item]);const replacement=await build(item)
         try{writable();if(destroyed||JSON.stringify(snapshot().objects.find(o=>o.id===original.id))!==fingerprint)throw Error('La forma cambi\u00f3 durante la operaci\u00f3n.')
           const index=canvas.getObjects().indexOf(object);canvas.discardActiveObject();canvas.remove(object);object.dispose();source.set(item.id,item);canvas.insertAt(index,replacement);editor.select(item.id);canvas.requestRenderAll();changed()
