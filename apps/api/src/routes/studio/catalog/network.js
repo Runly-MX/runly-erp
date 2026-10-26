@@ -21,7 +21,7 @@ export function publicCatalogAddress(address) {
   return /^[23][\da-f]{0,3}:/i.test(address) && !/^200[12]:/i.test(address)
 }
 
-export function createCatalogNetwork({ lookup = dns.lookup, transport = https.request, timeoutMs = 8000, addressAllowed = publicCatalogAddress } = {}) {
+export function createCatalogNetwork({ lookup = dns.lookup, transport = https.request, timeoutMs = 15000, addressAllowed = publicCatalogAddress } = {}) {
   async function get(value, { maxBytes = 262144, redirects = 0, signal } = {}) {
     const url = catalogUrl(value)
     if (signal?.aborted) throw new StudioError('Solicitud cancelada.', 499)
@@ -31,8 +31,10 @@ export function createCatalogNetwork({ lookup = dns.lookup, transport = https.re
       const abort = () => { request?.destroy(); finish(new StudioError('Solicitud cancelada.',499)) }
       const timer = setTimeout(() => { request?.destroy(); finish(new StudioError('El proveedor tardó demasiado. Reintenta más tarde.',504)) },timeoutMs)
       signal?.addEventListener('abort',abort,{once:true})
-      lookup(url.hostname,{all:true,verbatim:true}).then(addresses => {
+      lookup(url.hostname,{all:true,verbatim:true}).then(resolved => {
         if (settled) return
+        // Home ISPs often return AAAA records without a working IPv6 route; try IPv4 first so the connect does not hang.
+        const addresses = [...resolved].sort((a,b) => a.family - b.family)
         if (!addresses.length || !addresses.every(row=>addressAllowed(row.address))) return finish(new StudioError('El origen resuelve a una red no permitida.',403))
         request = transport(url,{ method:'GET',servername:url.hostname,headers:{Accept:'application/json,image/*','User-Agent':'Runly-Studio/1'},
           lookup: (_host,options,callback) => options?.all ? callback(null,addresses) : callback(null,addresses[0].address,addresses[0].family) },response => {
