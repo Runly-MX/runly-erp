@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { runly } from '../../../lib/runly.js'
 import { supabase } from '../../../lib/supabase.js'
 
-export function useStudioRealtime({ id, token, scope, onRevision, onDenied }) {
+// onChange: collaborators' operation batches (real-time sync); onRevision: whole-document
+// revisions (polling and `changed` broadcasts from PUT/MCP) plus edit permission.
+export function useStudioRealtime({ id, token, scope, onRevision, onDenied, onChange }) {
   const [participants, setParticipants] = useState([]), [status, setStatus] = useState('Conectando')
   const [sessionId] = useState(() => Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join(''))
-  const callbacks = useRef({ onRevision, onDenied }), live = useRef({ cursor: null, selectedId: null }), send = useRef(null)
-  useEffect(() => { callbacks.current = { onRevision, onDenied } }, [onRevision, onDenied])
+  const callbacks = useRef({ onRevision, onDenied, onChange }), live = useRef({ cursor: null, selectedId: null }), send = useRef(null)
+  useEffect(() => { callbacks.current = { onRevision, onDenied, onChange } }, [onRevision, onDenied, onChange])
   useEffect(() => {
     let active = true, channel, topic, busy = false, lastSent = 0, scheduled, pointerTimer, pendingCursor = false, requestPending = false
     async function refresh(peek = false) {
@@ -23,6 +25,9 @@ export function useStudioRealtime({ id, token, scope, onRevision, onDenied }) {
           if (!active) return
           topic = data.topic
           channel = supabase.channel(topic, { config: { private: true } })
+            .on('broadcast', { event: 'change' }, message => {
+              if (active && Number.isSafeInteger(message.payload?.revision)) callbacks.current.onChange?.(message.payload)
+            })
             .on('broadcast', { event: 'changed' }, message => {
               if (active && Number.isSafeInteger(message.payload?.revision)) callbacks.current.onRevision?.(message.payload.revision)
             })

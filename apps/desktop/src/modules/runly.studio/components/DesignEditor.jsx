@@ -1,11 +1,12 @@
 import { documentAssetIds } from '../../../../../shared/studio/shape-properties.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, AlertDescription, AlertTitle, Button, ErrorState, ConfirmDialog, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@runly/ui'
-import { AlertTriangle, CloudDownload, History } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle, Button, ErrorState, ConfirmDialog } from '@runly/ui'
+import { AlertTriangle, History } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { StudioWorkspace } from './StudioWorkspace.jsx'
 import { createDraftStorage } from '../lib/draft-storage.js'
 import { useStudioRealtime } from '../hooks/useStudioRealtime.js'
+import { useStudioSync } from '../hooks/useStudioSync.js'
 import { StudioSharing } from './StudioSharing.jsx'
 import { StudioCreativeResources } from './StudioCreativeResources.jsx'
 import { StudioCredits } from './StudioCredits.jsx'
@@ -16,13 +17,18 @@ import { useSaveAsTemplate, useTemplateEditing } from './templates/useTemplateEd
 
 const unwrap = response => response?.data ?? response
 
-export function DesignEditor({ record, token, scope, onBack, onCopy, onRecordChange, editingTemplateId = null }) {
+// Real-time collaborative editor: every local change is synced as object
+// operations (useStudioSync); collaborators' changes arrive live. There is no
+// save button and no revision conflict. The browser draft only protects work
+// that has not reached the server yet (offline, closing the tab).
+export function DesignEditor({ record, token, scope, onBack, onRecordChange, editingTemplateId = null }) {
   const clipboard = useMemo(() => createScopedClipboard(scope.slice(0, scope.lastIndexOf(':'))), [scope])
   // Element library figures are real catalog icons (licensed, credited).
   const catalog = useMemo(() => ({
     importIcon: async id => (await runly.studio.catalogImport('iconify', id, record.id, token)).data.object,
     thumbnail: (id, signal) => runly.studio.catalogThumbnail('iconify', id, token, signal),
   }), [record.id, token])
+  const boundAssets = useRef(new Set(documentAssetIds(record.document)))
   const authorizePaste = useCallback(async objects => {
     for (const id of documentAssetIds({objects})) {
       // Cross-document reuse needs independent Files access; a source design's private capability is not transferable.
@@ -31,45 +37,58 @@ export function DesignEditor({ record, token, scope, onBack, onCopy, onRecordCha
   }, [token])
   const store = useMemo(() => createDraftStorage({ getItem: key => window.localStorage.getItem(key),
     setItem: (key, value) => window.localStorage.setItem(key, value), removeItem: key => window.localStorage.removeItem(key) }, scope), [scope])
-  const [initial, setInitial] = useState(record.document), [name, setName] = useState(record.name)
-  const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('')
-  const [conflict, setConflict] = useState(false), [server, setServer] = useState(null)
+  const [initial] = useState(record.document), [name, setName] = useState(record.name)
+  const [error, setError] = useState('')
   const [exporting, setExporting] = useState(false), [exportError, setExportError] = useState(''), [shareOpen, setShareOpen] = useState(false)
   const [recovery, setRecovery] = useState(() => store.read()), [copyWarning, setCopyWarning] = useState(false)
-  const [workspaceVersion, setWorkspaceVersion] = useState(0)
   const [ready, setReady] = useState(false)
   const [credits,setCredits]=useState(null)
   const [canEdit, setCanEdit] = useState(record.canEdit !== false), [denied, setDenied] = useState(false)
-  const dirtyRef = useRef(false), refreshing = useRef(false)
-  const initialAssets = useMemo(() => new Set(documentAssetIds(record.document)), [record.document])
-  const boundAssets = useRef(initialAssets)
-  const editorRef = useRef(null), revision = useRef(record.revision), generation = useRef(0), pending = useRef(null), timer = useRef(null), saving = useRef(false)
+  const editorRef = useRef(null), nameRef = useRef(name), timer = useRef(null)
+  const { sync, status } = useStudioSync({ record, token, editorRef,
+    onName: value => { nameRef.current = value; setName(value) },
+    onError: message => setError(message) })
+  const unsynced = status !== 'synced'
   const imageEditing = useStudioImageEditing({editorRef,designId:record.id,token,canEdit:canEdit && !denied})
   // Templates: save the current scene as a template; or, when opened from
   // "Editar contenido", write this design back to its template.
   const templateScope = scope.split(':').slice(0, 2)
   const saveAsTemplate = useSaveAsTemplate({ editorRef, token, scopeKey: templateScope, name })
   const templateEditing = useTemplateEditing({ editorRef, token, scopeKey: templateScope, templateId: editingTemplateId,
-    designName: name, saveDesign: () => save(), onExit: onBack })
-  const nameRef = useRef(name)
+    designName: name, saveDesign: () => sync.flush().then(() => true), onExit: onBack })
   const preserve = useCallback(() => {
-    if (!pending.current) return true
-    const saved = store.write(pending.current)
+    const { document, revision } = sync.state()
+    if (sync.state().status === 'synced') { store.clear(); return true }
+    const saved = store.write({ name: nameRef.current, document, revision })
     setCopyWarning(!saved)
     return saved
-  }, [store])
-  const changed = useCallback(document => {
-    dirtyRef.current = true
-    generation.current++; setDirty(true)
-    pending.current = { name: nameRef.current, document, revision: revision.current }
-    clearTimeout(timer.current); timer.current = setTimeout(preserve, 150)
-  }, [preserve])
-  const navigation = useStudioNavigation(dirty, preserve)
-  useEffect(() => () => { clearTimeout(timer.current); if (pending.current) store.write(pending.current) }, [store])
+  }, [store, sync])
+  // Local edits only; collaborators' changes ({remote: true}) are already shared.
+  const changed = useCallback((document, meta) => {
+    if (meta?.remote) { for (const id of documentAssetIds(document)) boundAssets.current.add(id); return }
+    sync.local(document)
+    clearTimeout(timer.current); timer.current = setTimeout(preserve, 400)
+  }, [sync, preserve])
+  // Fully synced: no local draft is needed and the route cache gets the latest scene.
+  useEffect(() => {
+    if (status !== 'synced') return
+    const state = sync.state()
+    store.clear(); setCopyWarning(false); setError('')
+    onRecordChange?.({ ...record, name: state.name, revision: state.revision, document: state.document })
+  }, [status]) // eslint-disable-line react-hooks/exhaustive-deps
+  const navigation = useStudioNavigation(unsynced, preserve)
+  useEffect(() => () => { clearTimeout(timer.current); if (sync.state().status !== 'synced') preserve() }, [preserve, sync])
+  // A (re)mounted canvas shows the shared state, which may be newer than `initial`.
+  useEffect(() => { if (ready) editorRef.current?.applyRemote(sync.state().document) }, [ready, sync])
+  // Images added by collaborators are bound to the design: read them through it.
   const resolveImage = useCallback(async id => {
-    const existing = boundAssets.current.has(id)
-    const signed = unwrap(await (existing ? runly.studio.assetUrl(record.id, id, token) : runly.files.getSignedUrl(id, token)))
-    if (!signed.signedUrl) throw new Error('No se pudo abrir la imagen original.')
+    let signed = null
+    if (boundAssets.current.has(id)) signed = unwrap(await runly.studio.assetUrl(record.id, id, token))
+    else {
+      try { signed = unwrap(await runly.files.getSignedUrl(id, token)) }
+      catch (error) { signed = unwrap(await runly.studio.assetUrl(record.id, id, token).catch(() => { throw error })) }
+    }
+    if (!signed?.signedUrl) throw new Error('No se pudo abrir la imagen original.')
     return signed.signedUrl
   }, [token, record.id])
   const uploadImage = useCallback(async file => {
@@ -81,88 +100,27 @@ export function DesignEditor({ record, token, scope, onBack, onCopy, onRecordCha
     form.append('file', file); form.append('moduleKey', 'runly.files'); form.append('entityType', 'AtlasFile')
     form.append('metadata', JSON.stringify({ source: 'runly.studio', originalWidth: width, originalHeight: height }))
     const asset = unwrap(await runly.files.upload(form, token))
-    const scale = Math.min(1, initial.page.width / width / 2, initial.page.height / height / 2)
+    const page = sync.state().document.page, scale = Math.min(1, page.width / width / 2, page.height / height / 2)
     return { id: asset.id, width: Math.max(1, width * scale), height: Math.max(1, height * scale) }
-  }, [token, initial])
-  // Resolves true once the server has this scene; a second call while saving
-  // joins the save in flight instead of being dropped.
-  function save(asCopy = false) {
-    if (saving.current) return saving.current
-    const task = performSave(asCopy).finally(() => { saving.current = null })
-    saving.current = task
-    return task
-  }
-  // The photo editor reads originals through the design's saved assets, so a
-  // photo added since the last save must be saved first; never open it blindly.
+  }, [token, sync])
+  // The photo editor reads originals through the design's assets: the photo
+  // must have reached the server first.
   async function ensureSaved() {
-    if (await save()) return
-    throw new Error(conflict ? 'Resuelve el conflicto de versiones antes de editar la imagen. Tus cambios se conservan.'
-      : 'Guarda el diseño antes de editar la imagen. Tus cambios se conservan.')
+    await editorRef.current?.flush()
+    await sync.flush()
+    if (sync.state().status !== 'synced') throw new Error('Los cambios todavía no llegan al servidor. Revisa la conexión; tus cambios se conservan.')
   }
-  async function performSave(asCopy) {
-    if (!editorRef.current || (!asCopy && (!canEdit || conflict))) return false
-    setBusy(true); setError('')
-    try {
-      const editor = editorRef.current
-      await editor.flush()
-      if (editorRef.current !== editor) return false
-      const sent = generation.current
-      const draft = { name, document: editor.snapshot(), revision: revision.current }
-      pending.current = draft; preserve()
-      const saved = unwrap(await (asCopy ? runly.studio.createDesign({ name: `${name.slice(0, 145)} (copia)`, document: draft.document, sourceDesignId: record.id }, token) :
-        runly.studio.updateDesign(record.id, draft, token)))
-      if (asCopy) {
-        if (generation.current !== sent) { preserve(); setError('La copia se guardó, pero hay cambios más recientes en este editor. Consérvalos antes de salir.'); return false }
-        pending.current = null; clearTimeout(timer.current); store.clear(); dirtyRef.current = false; setDirty(false); navigation.finish(() => onCopy(saved.id)); return true
-      }
-      revision.current = saved.revision
-      onRecordChange?.(saved)
-      if (generation.current === sent) { pending.current = null; clearTimeout(timer.current); store.clear(); dirtyRef.current = false; setDirty(false); setRecovery(null) }
-      else { pending.current = { ...pending.current, revision: saved.revision }; preserve() }
-      return true
-    } catch (error) { setConflict(error.status === 409); setError(error.message); return false }
-    finally { setBusy(false) }
-  }
-  function recover() {
-    setWorkspaceVersion(value => value + 1)
-    const stale = recovery.revision !== revision.current
-    setInitial(recovery.document); setName(recovery.name); nameRef.current = recovery.name; revision.current = recovery.revision
-    pending.current = recovery; generation.current++; setDirty(true); setConflict(stale); setRecovery(null)
-    dirtyRef.current = true
-    setError(stale ? 'La copia local parte de una revisión anterior. Puedes guardarla como otro diseño.' : '')
-  }
-  async function review() {
-    try { setServer(unwrap(await runly.studio.getDesign(record.id, token))) } catch (error) { setError(error.message) }
-  }
-  function loadServer() {
-    if (!preserve()) return
-    onRecordChange?.(server)
-    boundAssets.current = new Set(documentAssetIds(server.document))
-    setWorkspaceVersion(value => value + 1)
-    preserve(); setRecovery(pending.current); pending.current = null; clearTimeout(timer.current)
-    setInitial(server.document); setName(server.name); nameRef.current = server.name; revision.current = server.revision
-    setDirty(false); setConflict(false); setError(''); setServer(null)
-    dirtyRef.current = false
+  async function recover() {
+    try { await editorRef.current.load(recovery.document); if (recovery.name && recovery.name !== nameRef.current) { nameRef.current = recovery.name; setName(recovery.name); sync.rename(recovery.name) } setRecovery(null) }
+    catch (failure) { setError(failure.message) }
   }
   const revoked = useCallback(() => { preserve(); setDenied(true) }, [preserve])
-  const confirmed = useCallback(async (nextRevision, permission) => {
+  // Polling and whole-document updates (MCP, PUT): permission and missed revisions.
+  const confirmed = useCallback((nextRevision, permission) => {
     if (typeof permission === 'boolean') setCanEdit(permission)
-    if (saving.current) return
-    if (nextRevision <= revision.current || refreshing.current) return
-    if (dirtyRef.current) { preserve(); setConflict(true); setError('Hay una revisión nueva. Tu borrador se conserva; revisa el servidor o guarda una copia.'); return }
-    refreshing.current = true
-    try {
-      const fresh = unwrap(await runly.studio.getDesign(record.id, token))
-      if (fresh.revision <= revision.current) return
-      if (dirtyRef.current) { preserve(); setConflict(true); setError('Hay una revisión nueva. Tu borrador se conserva.'); return }
-      boundAssets.current = new Set(documentAssetIds(fresh.document))
-      onRecordChange?.(fresh)
-      setInitial(fresh.document); setName(fresh.name); nameRef.current = fresh.name; revision.current = fresh.revision
-      setCanEdit(fresh.canEdit); setWorkspaceVersion(value => value + 1)
-    } catch (error) { if ([401,403,404].includes(error.status)) revoked() }
-    finally { refreshing.current = false }
-  }, [record.id, token, preserve, revoked, onRecordChange])
-  const realtime = useStudioRealtime({ id: record.id, token, scope, onRevision: confirmed, onDenied: revoked })
+    if (Number.isSafeInteger(nextRevision) && nextRevision > sync.state().revision) sync.changed(nextRevision)
+  }, [sync])
+  const realtime = useStudioRealtime({ id: record.id, token, scope, onRevision: confirmed, onDenied: revoked, onChange: sync.receive })
   // `point` (optional): centre of a drag-and-drop in page coordinates.
   async function insertResource(asset, point = null) {
     const url = unwrap(await runly.files.getSignedUrl(asset.id, token)).signedUrl
@@ -171,7 +129,7 @@ export function DesignEditor({ record, token, scope, onBack, onCopy, onRecordCha
     const bitmap = await createImageBitmap(await response.blob())
     const width = bitmap.width, height = bitmap.height; bitmap.close()
     if (width * height > 25_000_000) throw new Error('La imagen supera 25 megapíxeles.')
-    const scale = Math.min(1, initial.page.width / width / 2, initial.page.height / height / 2)
+    const page = sync.state().document.page, scale = Math.min(1, page.width / width / 2, page.height / height / 2)
     const size = { width: width * scale, height: height * scale }
     await editorRef.current.add('image', { fileAssetId: asset.id, ...size, ...(point ? { x: Math.round(point.x - size.width / 2), y: Math.round(point.y - size.height / 2) } : {}) })
   }
@@ -190,34 +148,30 @@ export function DesignEditor({ record, token, scope, onBack, onCopy, onRecordCha
       link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (error) { setExportError(error.message) } finally { setExporting(false) }
   }
-  if (denied) return <div className="flex h-full items-center justify-center p-6"><ErrorState title="El diseño ya no está disponible" description="Tu copia local se conserva. Comprueba tus permisos con el propietario." showReport={false} onRetry={onBack} /></div>
+  if (denied) return <div className="flex h-full items-center justify-center p-6"><ErrorState title="El diseño ya no está disponible" description="Los cambios que no llegaron al servidor se conservan en este navegador. Comprueba tus permisos con el propietario." showReport={false} onRetry={onBack} /></div>
   const notices = <>
     {templateEditing.notice}
-    {recovery ? <Notice icon={History} title="Hay una copia local sin guardar" description="Se conservó en este navegador la última vez que editaste.">
-      <Button size="sm" onClick={recover}>Recuperar</Button>
+    {recovery && canEdit ? <Notice icon={History} title="Hay cambios de este navegador sin sincronizar" description="No llegaron al servidor la última vez que editaste. Recupéralos para aplicarlos sobre la versión compartida.">
+      <Button size="sm" disabled={!ready} onClick={recover}>Recuperar</Button>
       <Button size="sm" variant="ghost" onClick={() => { store.clear(); setRecovery(null) }}>Descartar</Button>
     </Notice> : null}
-    {error ? <Notice variant="warning" icon={AlertTriangle} title={conflict ? 'Conflicto de versiones' : 'El diseño conserva tus cambios'} description={error}>
-      {conflict ? <>
-        <Button size="sm" disabled={!ready || busy} onClick={() => save(true)}>Guardar como copia</Button>
-        <Button size="sm" variant="outline" onClick={review}>Ver versión del servidor</Button>
-      </> : <Button size="sm" variant="outline" disabled={busy} onClick={() => save()}>Reintentar guardado</Button>}
+    {error ? <Notice variant="warning" icon={AlertTriangle} title="No se pudo sincronizar un cambio" description={`${error} El diseño muestra la versión compartida.`}>
+      <Button size="sm" variant="ghost" onClick={() => setError('')}>Cerrar</Button>
     </Notice> : null}
-    {copyWarning ? <Notice variant="destructive" icon={AlertTriangle} title="Sin copia local" description="No se pudo conservar la copia en este navegador. Mantén esta página abierta y reintenta guardar." /> : null}
+    {copyWarning ? <Notice variant="destructive" icon={AlertTriangle} title="Sin copia local" description="No se pudo conservar en este navegador lo que aún no se sincroniza. Mantén esta página abierta hasta que diga «Sincronizado»." /> : null}
     {exportError ? <Notice variant="destructive" icon={AlertTriangle} title="No se pudo descargar" description={`${exportError} Vuelve a intentarlo cuando el recurso esté disponible.`}>
       <Button size="sm" variant="ghost" onClick={() => setExportError('')}>Cerrar</Button>
     </Notice> : null}
   </>
   const chrome = {
     name, nameDisabled: !canEdit || !ready, onBack,
-    onName: value => { nameRef.current = value; setName(value); if (editorRef.current) changed(editorRef.current.snapshot()) },
-    saveState: busy ? 'saving' : dirty ? 'dirty' : 'saved', live: realtime.status,
-    onSave: () => save(), ensureSaved, saveDisabled: !ready || !canEdit || busy || conflict,
+    onName: value => { nameRef.current = value; setName(value); if (value.trim()) sync.rename(value.trim()) },
+    syncState: status, live: realtime.status, onRetrySync: () => sync.resync(), ensureSaved,
     onShare: () => openCredits({kind:'share'}), onExport: (format,quality) => openCredits({kind:'export',format,quality}),
     onCredits: () => openCredits(), onSaveTemplate: ready ? saveAsTemplate.open : null, exporting, exportDisabled: exporting, notices,
   }
   return <>
-    <StudioWorkspace key={workspaceVersion} initial={initial} readOnly={!canEdit} participants={realtime.participants} chrome={chrome}
+    <StudioWorkspace initial={initial} readOnly={!canEdit} participants={realtime.participants} chrome={chrome}
       sharedClipboard={clipboard} authorizePaste={authorizePaste} onEditImage={imageEditing.editImage} catalog={catalog}
       resourcePanel={({ disabled, uploader }) => <StudioCreativeResources key={scope} token={token} designId={record.id} disabled={disabled} uploader={uploader} onFileInsert={insertResource} onVectorInsert={object => editorRef.current.add('vector',object)} />}
       onPointer={realtime.pointer} onSelectionChange={realtime.selection} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
@@ -225,21 +179,8 @@ export function DesignEditor({ record, token, scope, onBack, onCopy, onRecordCha
     {imageEditing.dialog}
     {saveAsTemplate.dialog}
     {credits?<StudioCredits id={record.id} token={token} scene={credits.scene} action={credits.action} onClose={()=>setCredits(null)} onContinue={()=>{const {action,scene}=credits;setCredits(null);if(action.kind==='share')setShareOpen(true);else exportImage(action.format,action.quality,scene)}}/>:null}
-    <ConfirmDialog open={navigation.pending} onOpenChange={open => { if (!open) navigation.cancel() }} title="Salir sin guardar" description={copyWarning ? 'No se pudo conservar la copia local. Si sales puedes perder estos cambios. Cancela y guarda antes de continuar.' : 'Los cambios pendientes se conservarán en una copia local en este navegador durante siete días.'}
+    <ConfirmDialog open={navigation.pending} onOpenChange={open => { if (!open) navigation.cancel() }} title="Salir antes de sincronizar" description={copyWarning ? 'No se pudo conservar la copia local. Si sales puedes perder los últimos cambios. Espera a que diga «Sincronizado».' : 'Algunos cambios aún no llegan al servidor. Se conservarán en este navegador y podrás recuperarlos al volver.'}
       confirmLabel="Salir" onConfirm={navigation.proceed} />
-    <Dialog open={Boolean(server)} onOpenChange={open => { if (!open) setServer(null) }}>
-      <DialogContent size="md">
-        <DialogHeader icon={CloudDownload}>
-          <DialogTitle>Versión del servidor</DialogTitle>
-          <DialogDescription>Tu copia local se conserva al cargar esta versión.</DialogDescription>
-        </DialogHeader>
-        {server ? <p className="text-sm">{server.name} · Revisión {server.revision} · {server.document.objects.length} elementos</p> : null}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setServer(null)}>Cancelar</Button>
-          <Button onClick={loadServer}>Cargar versión del servidor</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   </>
 }
 

@@ -12,6 +12,7 @@ import { importStudioSvg } from '../../../../../shared/studio/svg-geometry.js'
 import { DEFAULT_GRADIENT, gradientPaint, gradientGeometry, editGradientStop, reverseGradient } from '../../../../../shared/studio/gradient.js'
 import { DEFAULT_SNAPPING, DEFAULT_GRID, snappingOptions, gridOptions, createSnapIndex, snapBounds, viewportReferences } from '../../../../../shared/studio/snapping.js'
 import { transformStudioGroup } from '../../../../../shared/studio/group-transform.js'
+import { applyOps, diffOps } from '../../../../../shared/studio/operations.js'
 
 // Fabric owns interaction; only the canonical Runly scene enters history or storage.
 export async function createStudioEditor(element, { document, resolveImage, onChange, onSelection, onError, onHistory, onPointer, onEditImage, onGuides, onEditorPreferences, readOnly = false, sharedClipboard, authorizePaste }) {
@@ -145,16 +146,69 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     writable()
     const next = history.peek(direction)
     if (!next) return
-    const ids = canvas.getActiveObjects().map(object => object.studioId)
-    await restore(next, true)
+    // Selective history: the result already contains collaborators' changes.
+    await applyDocument(next)
     history.move(direction)
-    // Restore by stable document IDs, never by disposed Fabric object references.
-    const surviving = ids.filter(id => source.has(id) && !source.get(id).hidden)
-    if (surviving.length === 1) editor.select(surviving[0])
-    else editor.selectMany(surviving)
     changed(false)
   }
-  function applyItem(object,item,patch) {
+  // Same kind of Fabric object for both versions, so it can be updated in place.
+  const photoClass = item => SHAPE_TYPES.includes(item.type) && Boolean(item.fillPaint || item.shape)
+  function inPlace(prev, item) {
+    if (!prev || prev.type !== item.type || photoFileId(prev) !== photoFileId(item) || photoClass(prev) !== photoClass(item)) return false
+    if (item.type === 'text' && (prev.fontFamily !== item.fontFamily || prev.fontVariant !== item.fontVariant)) return false
+    if (item.type === 'vector' && JSON.stringify(prev.geometry) !== JSON.stringify(item.geometry)) return false
+    return !(item.type === 'image' && Boolean(prev.image) !== Boolean(item.image))
+  }
+  // Objects the local user is dragging, transforming or typing in: a remote
+  // version must not yank them mid-gesture (the local result is sent at the end).
+  function busyIds() {
+    const target = canvas._currentTransform?.target, active = canvas.getActiveObject()
+    const ids = target ? (target.type === 'activeselection' ? target.getObjects() : [target]).map(object => object.studioId) : []
+    if (active?.isEditing) ids.push(active.studioId)
+    return new Set(ids)
+  }
+  // Minimal canvas update to `document`: in-place property updates, rebuild
+  // only when the object kind changes, add, remove, reorder and page. Keeps the
+  // selection by id and never touches history.
+  async function applyDocument(document, { skip = new Set() } = {}) {
+    const next = validateDocument(document), wanted = new Map(next.objects.map(item => [item.id, item]))
+    const selectedIds = canvas.getActiveObjects().map(object => object.studioId)
+    let reselect = false
+    const drop = object => { if (selectedIds.includes(object.studioId)) { canvas.discardActiveObject(); reselect = true }; canvas.remove(object); object.dispose() }
+    for (const object of [...canvas.getObjects()]) if (!wanted.has(object.studioId) && !skip.has(object.studioId)) { drop(object); source.delete(object.studioId) }
+    const budget = { pixels: 0 }
+    for (const item of next.objects) {
+      if (skip.has(item.id)) continue
+      const prev = source.get(item.id), object = canvas.getObjects().find(candidate => candidate.studioId === item.id)
+      if (object && JSON.stringify(prev) === JSON.stringify(item)) continue
+      if (object && inPlace(prev, item)) { setItem(object, item, item); continue }
+      const built = await build(item, budget)
+      if (destroyed) { built.dispose(); return }
+      const stale = canvas.getObjects().find(candidate => candidate.studioId === item.id)
+      if (stale) { const index = canvas.getObjects().indexOf(stale); drop(stale); canvas.insertAt(index, built) } else canvas.add(built)
+      built.set(flags(item)); source.set(item.id, item)
+    }
+    next.objects.forEach((item, index) => {
+      const object = canvas.getObjects().find(candidate => candidate.studioId === item.id)
+      if (object && canvas.getObjects().indexOf(object) !== index) canvas.moveObjectTo(object, index)
+    })
+    if (JSON.stringify(current.page) !== JSON.stringify(next.page)) {
+      canvas.setDimensions({ width: next.page.width, height: next.page.height }); canvas.backgroundColor = pagePaint(next.page); clearGuides()
+    }
+    current = { ...current, page: next.page }
+    if (reselect) {
+      // Restore by stable document IDs, never by disposed Fabric object references.
+      const surviving = selectedIds.filter(id => source.has(id) && !source.get(id).hidden)
+      if (surviving.length === 1) editor.select(surviving[0]); else if (surviving.length) editor.selectMany(surviving)
+    }
+    canvas.requestRenderAll()
+  }
+  function applyItem(object,item,patch) { setItem(object,item,patch); changed() }
+  function setItem(object,item,patch) {
+    if(object instanceof StudioPhoto){
+      object.set({left:item.x,top:item.y,angle:item.rotation,fill:item.fill,opacity:item.opacity??1,scaleX:1,scaleY:1,...flags(item)})
+      object.configure(item);source.set(item.id,item);object.setCoords();canvas.requestRenderAll();return
+    }
     object.set({left:item.x,top:item.y,angle:item.rotation,fill:item.fill,opacity:item.opacity??1,...flags(item)})
     if(item.type==='vector'&&!object.configure)object.getObjects().slice(1).forEach((shape,index)=>{const path=item.geometry.paths[index];shape.set({fill:path.fill==='color'?item.fill:null,stroke:path.stroke==='color'?item.fill:null})})
     if(item.type==='text'){
@@ -168,7 +222,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       if(patch.width!==undefined)object.set({scaleX:item.width/object.width})
       if(patch.height!==undefined)object.set({scaleY:item.height/object.height})
     }
-    source.set(item.id,item);object.setCoords();canvas.requestRenderAll();changed()
+    source.set(item.id,item);object.setCoords();canvas.requestRenderAll()
   }
   try { await restore(current) } catch (error) { await canvas.dispose(); throw error }
   history = createDocumentHistory(snapshot())
@@ -200,6 +254,22 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
   for (const event of ['selection:created', 'selection:updated', 'selection:cleared']) canvas.on(event, selection)
   const editor = {
     snapshot,
+    // Real-time collaboration: show the shared document. Not a local change:
+    // no history entry; history and an open interaction are rebased by the
+    // remote delta. Objects under a local gesture keep their local version.
+    applyRemote(document) {
+      return enqueue(async () => {
+        const before = snapshot()
+        await applyDocument(document, { skip: busyIds() })
+        const after = snapshot(), remote = diffOps(before, after)
+        history.rebase(remote)
+        if (interaction) interaction.document = validateDocument(applyOps(interaction.document, remote))
+        try { onChange?.(after, { remote: true }); selection(); onHistory?.({ ...history.state(), canPaste: clipboard.length > 0 }) } catch (error) { onError?.(error.message) }
+        return after
+      })
+    },
+    // Replace the scene as a local change (draft recovery); one undo step.
+    load(document) { writable(); return enqueue(async () => { writable(); await applyDocument(document); changed() }) },
     setGradient(paint=DEFAULT_GRADIENT){const item=selected();if(!item||!supportsPhotoFill(item))throw Error('Selecciona una forma compatible.');return editor.patch({fillPaint:gradientPaint(paint)})},
     updateGradientStop(index,patch){return editSelectedGradient(paint=>editGradientStop(paint,index,patch))},
     addGradientStop(stop){return editSelectedGradient(paint=>({...paint,stops:[...paint.stops,stop].sort((a,b)=>a.offset-b.offset)}))},
@@ -254,7 +324,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     },
     async endInteraction(commit = true) {
       writable();await pendingAdjustments?.promise;return enqueue(async () => {writable();if(!interaction)return;const previous=interaction;interaction=null
-        if(!commit){await restore(previous.document,true);editor.selectMany(previous.ids)}
+        if(!commit){await applyDocument(previous.document);writable();editor.selectMany(previous.ids)}
         else history.commit(snapshot())
         changed(false)
       })

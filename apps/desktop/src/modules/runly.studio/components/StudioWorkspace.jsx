@@ -64,7 +64,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const view = useStudioViewport(page, editorRef), zoom = view.zoom
   const [history, setHistory] = useState({ canUndo: false, canRedo: false }), [retry, setRetry] = useState(0), [busy, setBusy] = useState(false)
   const [objects, setObjects] = useState(initial.objects)
-  const changed = useCallback(document => { setObjects(document.objects); setPage(document.page); pageRef.current = document.page; onChange(document) }, [onChange])
+  const changed = useCallback((document, meta) => { setObjects(document.objects); setPage(document.page); pageRef.current = document.page; onChange(document, meta) }, [onChange])
   const canvas = useCanvasPreferences(editorRef, ready)
   const { onGuides, onEditorPreferences } = canvas
   const callbacksRef = useRef({ resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage, onGuides, onEditorPreferences }), modeRef = useRef(readOnly)
@@ -81,7 +81,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
       onEditImage: id => callbacksRef.current.onEditImage?.(id),
       onGuides: guides => callbacksRef.current.onGuides?.(guides), onEditorPreferences: state => callbacksRef.current.onEditorPreferences?.(state),
       readOnly: modeRef.current, onPointer: point => callbacksRef.current.onPointer?.(point && point.x >= 0 && point.y >= 0 && point.x <= pageRef.current.width && point.y <= pageRef.current.height ? point : null),
-      onChange: document => callbacksRef.current.changed(document), onSelection: (selection, ids) => { setSelection(selection); setSelectedIds(ids); callbacksRef.current.onSelectionChange?.(selection?.id ?? null) }, onError: setError, onHistory: setHistory }))
+      onChange: (document, meta) => callbacksRef.current.changed(document, meta), onSelection: (selection, ids) => { setSelection(selection); setSelectedIds(ids); callbacksRef.current.onSelectionChange?.(selection?.id ?? null) }, onError: setError, onHistory: setHistory }))
     creation.then(instance => {
       if (!instance || cancelled) return
       instance.setReadOnly(modeRef.current); editorRef.current = instance; setReady(true); onReady?.(true)
@@ -203,7 +203,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     setPanel(key)
   }
   const imageKit = useImageTools({ editorRef, selection, objects, resolveImage, readOnly, onError: setError, openPanel: openImagePanel,
-    ensureSaved: chrome.saveState === 'saved' ? null : chrome.ensureSaved })
+    ensureSaved: chrome.syncState === 'synced' ? null : chrome.ensureSaved })
   const paint = usePaintTools({ editorRef, page, selection, begin: imageKit.tools.begin, end: imageKit.tools.end, onError: setError, fillShape: imageKit.tools.fillShape })
   const tools = { ...imageKit.tools, paint }
   const drop = useCanvasDrop({ editorRef, canvasRef, objects, readOnly: readOnly || !ready, attempt })

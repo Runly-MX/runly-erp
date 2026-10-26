@@ -84,6 +84,8 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   app.get('/studio/designs/:id', requirePermission('studio.view'), async c => c.json({ data: await service.get(...context(c), c.req.param('id')) }))
   app.post('/studio/designs', requirePermission('studio.create'), async c => c.json({ data: await service.create(...context(c), await c.req.json(), fileContext(c)) }, 201))
   app.put('/studio/designs/:id', requirePermission('studio.edit'), async c => c.json({ data: await service.update(...context(c), c.req.param('id'), await c.req.json(), fileContext(c)) }))
+  // Real-time collaboration: a batch of object operations from an editor session.
+  app.post('/studio/designs/:id/changes', requirePermission('studio.edit'), async c => c.json({ data: await service.applyChanges(...context(c), c.req.param('id'), await c.req.json(), fileContext(c)) }))
   app.get('/studio/designs/:id/collaborators', requirePermission('studio.view'), async c => c.json({ data: await collaboration.collaborators(...context(c), c.req.param('id')) }))
   app.get('/studio/designs/:id/candidates', requirePermission('studio.edit'), async c => c.json({ data: await collaboration.candidates(...context(c), c.req.param('id'), c.req.query('q')) }))
   app.put('/studio/designs/:id/collaborators', requirePermission('studio.edit'), async c => c.json({ data: await collaboration.share(...context(c), c.req.param('id'), await c.req.json()) }))

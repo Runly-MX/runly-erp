@@ -27,6 +27,7 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
     getDesign: (id, token) => request(path(id), options(token)),
     createDesign: (data, token) => request('/studio/designs', options(token, 'POST', data)),
     updateDesign: (id, data, token) => request(path(id), options(token, 'PUT', data)),
+    applyChanges: (id, data, token) => request(`${path(id)}/changes`, options(token, 'POST', data)),
     collaborators: (id, token) => request(`${path(id)}/collaborators`, options(token)),
     candidates: (id, token, q = '') => request(`${path(id)}/candidates${toQueryString({ q })}`, options(token)),
     share: (id, data, token) => request(`${path(id)}/collaborators`, options(token, 'PUT', data)),

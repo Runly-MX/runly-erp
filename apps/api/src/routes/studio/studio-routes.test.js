@@ -38,3 +38,12 @@ test('template creation uses a fresh server scene and catalog failures authorize
   assert.equal((await app.request('/studio/catalog/iconify/search?q=star')).status,403)
   assert.equal((await app.request('/studio/templates')).status,403)
 })
+test('live change batches require studio.edit and reach the service with the design id', async () => {
+  const seen = []
+  const service = { applyChanges: async (_company, _actor, id, input) => { seen.push([id, input.batchId]); return { revision: 2 } } }
+  const deny = createStudioRouter({ service, requirePermission: key => async (c, next) => key === 'studio.edit' ? c.json({ error: 'Sin permiso' }, 403) : next() })
+  assert.equal((await deny.request('/studio/designs/d1/changes', { method: 'POST', body: '{"clientId":"abcdefgh","batchId":1,"ops":[]}' })).status, 403)
+  const allow = createStudioRouter({ service, requirePermission: () => async (_, next) => next() })
+  const response = await allow.request('/studio/designs/d1/changes', { method: 'POST', body: '{"clientId":"abcdefgh","batchId":1,"ops":[]}' })
+  assert.equal(response.status, 200); assert.deepEqual((await response.json()).data, { revision: 2 }); assert.deepEqual(seen, [['d1', 1]])
+})

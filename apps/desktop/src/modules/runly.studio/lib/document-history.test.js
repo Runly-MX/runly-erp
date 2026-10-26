@@ -29,3 +29,14 @@ test('history restores all object properties, branches safely and bounds retenti
   const tiny = createDocumentHistory(doc, { maxBytes: 1 }); tiny.commit(modified)
   assert.equal(tiny.state().entries, 0)
 })
+
+test('undo reverts only local changes and keeps a collaborator change made meanwhile', () => {
+  let doc = appendObject(appendObject(blankDocument(), 'rectangle', { x: 10 }), 'ellipse', { x: 300 })
+  const history = createDocumentHistory(doc)
+  const mine = structuredClone(doc); mine.objects[0].x = 99; history.commit(mine)
+  const theirs = structuredClone(mine); theirs.objects[1].fill = '#123456'
+  history.rebase([{ type: 'upsert', object: theirs.objects[1] }])
+  const undone = history.move('undo')
+  assert.equal(undone.objects[0].x, 10); assert.equal(undone.objects[1].fill, '#123456')
+  assert.equal(history.move('redo').objects[0].x, 99)
+})

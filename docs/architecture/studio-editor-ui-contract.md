@@ -1,5 +1,34 @@
 # Studio — contrato entre editor y UI
 
+## Colaboración en tiempo real (operaciones, sin guardado manual)
+
+Spec: `docs/superpowers/specs/2026-10-26-studio-realtime-collaboration-design.md`.
+No hay botón Guardar ni conflictos 409 en el editor. Cada cambio local se
+convierte en operaciones por objeto (`apps/shared/studio/operations.js`:
+`upsert`, `remove`, `order`, `page`, más `name`) que `POST
+/studio/designs/:id/changes` aplica sobre la versión vigente bajo bloqueo de
+fila, valida, autoriza imágenes, incrementa la revisión y difunde como `change`
+en `studio:design:{id}`. `PUT` sigue disponible (MCP) y difunde `changed`.
+
+- `lib/studio-sync.js`: reconciliación con el servidor (servidor + lotes
+  pendientes + bandeja local), lotes de ~80 ms con uno en vuelo, mensajes en
+  orden de revisión, refetch ante huecos (1,5 s), `refetch` o `changed`,
+  reintento con espera ante errores de red y descarte con resincronización ante
+  rechazos. `flush()` espera a que todo lo local esté secuenciado.
+- Motor: `applyRemote(document)` actualiza el lienzo de forma mínima, conserva la
+  selección, respeta objetos bajo un gesto local o edición de texto, no crea
+  historial y rebasa historial e interacción; `onChange(doc, {remote:true})`.
+  `load(document)` aplica un documento como cambio local (recuperar borrador).
+- Deshacer selectivo (`document-history.js`): entradas `{forward, inverse}`;
+  deshacer aplica la inversa sobre el estado actual y solo revierte lo propio.
+  Mismo objeto editado por dos personas: gana el último cambio secuenciado.
+- Estado en la barra: «Sincronizado», «Sincronizando…», «Sin conexión · se
+  enviará al reconectar», «Error al sincronizar» con «Reintentar». El borrador
+  local solo guarda lo no sincronizado y se ofrece recuperarlo al volver.
+- Límites: 500 operaciones por lote, cuerpo ≤ 1,1 MB; difusiones > 200 KB se
+  envían como `refetch`. Durante un arrastre Fabric el resultado se envía al
+  soltar; deslizadores y texto envían estados intermedios.
+
 ## Contrato vigente: composición v6 (entrega posterior a RC1)
 
 El motor devuelve **v6**, admite v1–v5 sin migración SQL y conserva las pinturas

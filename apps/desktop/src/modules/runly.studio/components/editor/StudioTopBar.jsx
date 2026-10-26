@@ -1,6 +1,6 @@
 import { Button, Input, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
   PersonAvatar, ToolButton, Tooltip, TooltipContent, TooltipTrigger, cn } from '@runly/ui'
-import { ArrowLeft, LayoutTemplate, Check, CircleDot, Download, Eye, Fullscreen, Loader2, Maximize2, Minimize2, MoreVertical, PanelRight, Redo2, Save, Share2, Undo2 } from 'lucide-react'
+import { ArrowLeft, LayoutTemplate, Check, CloudOff, Download, Eye, Fullscreen, Loader2, Maximize2, Minimize2, MoreVertical, PanelRight, Redo2, RefreshCw, Share2, TriangleAlert, Undo2 } from 'lucide-react'
 
 export const EXPORTS = [
   { format: 'png', quality: 1, label: 'PNG', hint: 'Sin pérdida, ideal para texto y gráficos' },
@@ -10,17 +10,21 @@ export const EXPORTS = [
 ]
 const VIEW_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
 
-function SaveState({ state, live }) {
-  const map = {
-    saving: { icon: Loader2, text: 'Guardando…', className: 'animate-spin motion-reduce:animate-none' },
-    dirty: { icon: CircleDot, text: 'Sin guardar', className: 'text-amber-500' },
-    saved: { icon: Check, text: 'Guardado', className: 'text-emerald-600 dark:text-emerald-400' },
-  }[state]
-  const Icon = map.icon
+// Real-time sync state: every change is shared automatically (no save button).
+const SYNC = {
+  synced: { icon: Check, text: 'Sincronizado', className: 'text-emerald-600 dark:text-emerald-400' },
+  syncing: { icon: Loader2, text: 'Sincronizando…', className: 'animate-spin motion-reduce:animate-none' },
+  offline: { icon: CloudOff, text: 'Sin conexión · se enviará al reconectar', className: 'text-amber-500' },
+  error: { icon: TriangleAlert, text: 'Error al sincronizar', className: 'text-[hsl(var(--destructive))]' },
+}
+function SyncState({ state, live, onRetry, compact = false }) {
+  const map = SYNC[state] ?? SYNC.synced, Icon = map.icon
   return (
-    <span role="status" aria-live="polite" className="inline-flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
-      <Icon className={cn('h-3.5 w-3.5', map.className)} aria-hidden />{map.text}
-      {live ? <span className="hidden lg:inline">· {live}</span> : null}
+    <span role="status" aria-live="polite" aria-label={compact ? map.text : undefined} title={compact ? map.text : undefined}
+      className="inline-flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
+      <Icon className={cn('h-3.5 w-3.5 shrink-0', map.className)} aria-hidden />{compact ? null : map.text}
+      {!compact && live && (state === 'synced' || state === 'syncing') ? <span className="hidden lg:inline">· {live}</span> : null}
+      {state === 'error' && onRetry && !compact ? <Button size="sm" variant="ghost" onClick={onRetry} className="h-7 gap-1 px-2 text-xs"><RefreshCw className="h-3 w-3" />Reintentar</Button> : null}
     </span>
   )
 }
@@ -50,7 +54,7 @@ function ExportItems({ onExport }) {
   ))
 }
 
-export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, live, canEdit, onBack, onSave, saveDisabled, onShare, onCredits, onSaveTemplate, onExport, exporting, exportDisabled,
+export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, live, canEdit, onBack, onRetrySync, onShare, onCredits, onSaveTemplate, onExport, exporting, exportDisabled,
   history, onUndo, onRedo, participants, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode }) {
   const nameField = (
     <Input aria-label="Nombre del diseño" value={name} maxLength={160} disabled={nameDisabled} onChange={event => onName(event.target.value)}
@@ -72,13 +76,11 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, liv
         <Button variant="ghost" size="icon" aria-label="Volver a mis diseños" onClick={onBack} className="h-10 w-10 shrink-0"><ArrowLeft /></Button>
         <div className="min-w-0 flex-1">{nameField}</div>
         {history_}
-        {canEdit ? <Button size="icon" aria-label={saveState === 'saving' ? 'Guardando' : 'Guardar'} disabled={saveDisabled} onClick={onSave} className="h-10 w-10 shrink-0">
-          {saveState === 'saving' ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : <Save />}
-        </Button> : null}
+        <span className="flex h-10 w-8 shrink-0 items-center justify-center"><SyncState state={syncState} compact /></span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Más opciones" className="h-10 w-10 shrink-0"><MoreVertical /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-60">
-            <DropdownMenuLabel className="font-normal"><SaveState state={saveState} live={live} /></DropdownMenuLabel>
+            <DropdownMenuLabel className="font-normal"><SyncState state={syncState} live={live} onRetry={onRetrySync} /></DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onShare} className="gap-2.5"><Share2 className="h-4 w-4" />Compartir</DropdownMenuItem>
             {onSaveTemplate ? <DropdownMenuItem onSelect={onSaveTemplate} className="gap-2.5"><LayoutTemplate className="h-4 w-4" />Guardar como plantilla</DropdownMenuItem> : null}
@@ -97,7 +99,7 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, liv
       <span aria-hidden className="h-6 w-px bg-[hsl(var(--border))]" />
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="min-w-0 max-w-xs flex-1">{nameField}</div>
-        <SaveState state={saveState} live={live} />
+        <SyncState state={syncState} live={live} onRetry={onRetrySync} />
       </div>
       {history_}
       <span aria-hidden className="h-6 w-px bg-[hsl(var(--border))]" />
@@ -112,9 +114,6 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, saveState, liv
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-64"><DropdownMenuItem onSelect={onCredits}>Créditos del diseño</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuLabel>Descargar como</DropdownMenuLabel><ExportItems onExport={onExport} /></DropdownMenuContent>
       </DropdownMenu>
-      {canEdit ? <Button onClick={onSave} disabled={saveDisabled} className="h-9 shrink-0 gap-1.5 bg-gradient-to-r from-fuchsia-600 to-violet-600 px-3.5 text-white hover:from-fuchsia-500 hover:to-violet-500">
-        {saveState === 'saving' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Save className="h-4 w-4" />}Guardar
-      </Button> : null}
       <div className="flex items-center">
         {inspectorToggle ? <ToolButton label={inspectorOpen ? 'Ocultar propiedades' : 'Propiedades'} side="bottom" active={inspectorOpen} onClick={onToggleInspector}><PanelRight /></ToolButton> : null}
         <ToolButton label={VIEW_LABELS[viewMode]} side="bottom" onClick={onCycleViewMode}>
