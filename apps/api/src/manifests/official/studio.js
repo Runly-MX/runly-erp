@@ -14,6 +14,8 @@ export const studioMap = createModuleManifest({
   navigation: [{ label: 'Mis diseños', path: '/', icon: STUDIO_BRANDING.icon, layout: 'main', permissionKey: 'studio.view' }],
   permissions: [
     { key: 'studio.view', name: 'Ver mis diseños' }, { key: 'studio.create', name: 'Crear diseños' }, { key: 'studio.edit', name: 'Editar mis diseños' },
+    { key: 'studio.templates.manage', name: 'Administrar mis plantillas' },
+    { key: 'studio.templates.publish', name: 'Publicar y administrar plantillas de empresa' },
   ],
   acl: { module: 'studio.view', actions: { read: 'studio.view', create: 'studio.create', update: 'studio.edit' }, models: {} },
   blueprints: loadHelpBlueprints('runly.studio', path.join(path.dirname(fileURLToPath(import.meta.url)), 'help/runly.studio')),

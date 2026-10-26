@@ -1404,6 +1404,12 @@ export const PERMISSION_CATALOG = {
   "studio.view": {
     displayNameEs: "Ver mis diseños", descriptionEs: "Permite abrir los diseños propios de Runly Studio en la empresa activa.", groupKey: "studio", order: 10,
   },
+  "studio.templates.manage": {
+    displayNameEs: "Administrar mis plantillas", descriptionEs: "Permite crear, editar y retirar plantillas personales propias.", groupKey: "studio", order: 40,
+  },
+  "studio.templates.publish": {
+    displayNameEs: "Publicar plantillas de empresa", descriptionEs: "Permite publicar y administrar plantillas empresariales, incluidas las de otros propietarios.", groupKey: "studio", order: 50,
+  },
   "studio.create": {
     displayNameEs: "Crear diseños", descriptionEs: "Permite crear diseños y usar plantillas originales.", groupKey: "studio", order: 20,
   },

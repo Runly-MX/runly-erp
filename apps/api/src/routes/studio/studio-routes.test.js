@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createStudioRouter } from './index.js'
 import { StudioError } from '../../../../shared/studio/document.js'
+import { createStudioTemplatesService } from './studio-templates-service.js'
 
 test('routes enforce action permissions before invoking the service', async () => {
   let calls = 0
@@ -22,11 +23,15 @@ test('malformed JSON and oversized bodies are rejected without service writes', 
 })
 test('template creation uses a fresh server scene and catalog failures authorize before any network work',async()=>{
   let denied=false,calls=0
-  const service={access:{member:async()=>{if(denied)throw new StudioError('Denied',403)}},create:async(_company,_actor,input)=>{calls++;input.document.objects[0].fill='#000000';return input}}
-  const app=createStudioRouter({service,requirePermission:key=>async(c,next)=>key==='studio.edit'?c.json({error:'Denied'},403):next()})
+  const prisma={$queryRaw:async(strings)=>{await service.access.member();return strings.join('').includes('AS manage')?[{manage:true,publish:false}]:strings.join('').includes('count(*)')?[{total:0}]:[]},$transaction:async fn=>fn(prisma),auditLog:{create:async()=>{}}}
+  const service={access:{identity:()=>{},member:async()=>{if(denied)throw new StudioError('Denied',403)},lock:async()=>{},bindAssets:async()=>{},audit:async()=>{}}}
+  const raw=prisma.$queryRaw
+  prisma.$queryRaw=async(strings,...values)=>strings.join('').includes('INSERT INTO studio_design')?(calls++,[{id:'00000000-0000-4000-8000-000000000001',name:'Copia',revision:1,document:JSON.parse(values.at(-1))}]):raw(strings,...values)
+  const templates=createStudioTemplatesService({prisma,designService:service})
+  const app=createStudioRouter({prisma,service,templates,requirePermission:key=>async(c,next)=>key==='studio.edit'?c.json({error:'Denied'},403):next()})
   const first=await app.request('/studio/templates/quiet/designs',{method:'POST',body:'{}'});assert.equal(first.status,201)
   const listing=await(await app.request('/studio/templates?q=Un%20momento')).json()
-  assert.notEqual(listing.data.data[0].document.objects[0].fill,'#000000');assert.equal(calls,1)
+  assert.ok(listing.data.data[0].preview.objects.length>0);assert.equal(calls,1)
   assert.equal((await app.request('/studio/templates/unknown/designs',{method:'POST',body:'{}'})).status,404)
   assert.equal((await app.request('/studio/catalog/iconify/tabler%3Astar/import',{method:'POST',body:'{}'})).status,403)
   denied=true

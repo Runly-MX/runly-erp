@@ -1,5 +1,6 @@
 import { FILE_ID, StudioError } from '../../../../shared/studio/document.js'
 import {createStudioImageLineage} from './studio-image-lineage.js'
+import { studioAssetIds } from './studio-document-data.js'
 
 export function createStudioAccess({ prisma, filesService }) {
   const {imageAllowed}=createStudioImageLineage({prisma})
@@ -34,7 +35,7 @@ export function createStudioAccess({ prisma, filesService }) {
     return row
   }
   async function assets(db, companyId, actorId, document, designId = null, fileContext, copying = false) {
-    const ids = [...new Set(document.objects.filter(o => o.type === 'image').map(o => o.fileAssetId))]
+    const ids = studioAssetIds(document)
     const origins = new Map()
     for (const id of ids) {
       let [file] = await db.$queryRaw`SELECT f.id,f.uploaded_by_id AS "uploadedById",
@@ -51,7 +52,7 @@ export function createStudioAccess({ prisma, filesService }) {
         await member(companyId, actorId, 'files.assets.read', db)
         try {
           const candidate = await filesService.getById({ ...fileContext, id })
-          if (!candidate.enabled || !['image/png','image/jpeg','image/webp'].includes(candidate.mimeType)) throw Error('invalid')
+          if (!candidate.enabled || candidate.entityId !== companyId || !['image/png','image/jpeg','image/webp'].includes(candidate.mimeType)) throw Error('invalid')
         } catch { throw new StudioError('Una imagen no está disponible o no está autorizada.', 403, 'STUDIO_ASSET_DENIED') }
       }
       if (copying && file && file.uploadedById !== actorId) origins.set(id, file.origin ?? designId)

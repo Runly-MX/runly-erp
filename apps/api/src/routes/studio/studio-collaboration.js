@@ -1,6 +1,7 @@
 import { FILE_ID, StudioError } from '../../../../shared/studio/document.js'
 import { signedUrlWithVariant } from '../../lib/image-variants.js'
 import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js'
+import { studioAssetIds } from './studio-document-data.js'
 
 export function createStudioCollaboration({ prisma, access, broadcaster, supabaseAdmin }) {
   async function collaborators(companyId, actorId, id) {
@@ -38,13 +39,13 @@ export function createStudioCollaboration({ prisma, access, broadcaster, supabas
   }
   async function signedAsset(companyId, actorId, id, fileId) {
     const record = await access.get(companyId, actorId, id)
-    if (!record.document.objects.some(object => object.type === 'image' && object.fileAssetId === fileId) && !await access.imageAllowed(companyId,id,fileId)) throw new StudioError('Imagen no encontrada.', 404)
+    if (!studioAssetIds(record.document).includes(fileId) && !await access.imageAllowed(companyId,id,fileId)) throw new StudioError('Imagen no encontrada.', 404)
     const file = await prisma.fileAsset.findFirst({ where: { id: fileId, entityId: companyId, enabled: true } })
     if (!file) throw new StudioError('Imagen no encontrada.', 404)
     const signedUrl = await signedUrlWithVariant(supabaseAdmin, file.bucket, file.objectKey, 'full', 60)
     // Recheck after I/O; never return a newly minted capability after a revocation.
     const fresh=await access.get(companyId, actorId, id)
-    if(!fresh.document.objects.some(object=>object.type==='image'&&object.fileAssetId===fileId)&&!await access.imageAllowed(companyId,id,fileId))throw new StudioError('Imagen no encontrada.',404)
+    if(!studioAssetIds(fresh.document).includes(fileId)&&!await access.imageAllowed(companyId,id,fileId))throw new StudioError('Imagen no encontrada.',404)
     if(!await prisma.fileAsset.findFirst({where:{id:fileId,entityId:companyId,enabled:true}}))throw new StudioError('Imagen no encontrada.',404)
     await access.get(companyId,actorId,id)
     if (!signedUrl) throw new StudioError('No se pudo abrir la imagen original.', 503)

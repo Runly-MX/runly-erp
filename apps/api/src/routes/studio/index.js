@@ -5,12 +5,13 @@ import { StudioError } from '../../../../shared/studio/document.js'
 import { createStudioCollaboration } from './studio-collaboration.js'
 import { tenantActiveContext } from '../../lib/active-context.js'
 import { createStudioResources } from './studio-resources.js'
-import { searchTemplates, STUDIO_TEMPLATES, templateDocument } from '../../../../shared/studio/templates.js'
+import { createStudioTemplatesService } from './studio-templates-service.js'
 import { createStudioCatalog } from './catalog/service.js'
 import { createStudioImageCopies } from './studio-image-copies.js'
 
 export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,
-  service = createStudioService({ prisma, filesService, broadcaster }) }) {
+  service = createStudioService({ prisma, filesService, broadcaster }),
+  templates = createStudioTemplatesService({ prisma, filesService, designService: service }) }) {
   const app = new Hono()
   const collaboration = createStudioCollaboration({ prisma, access: service.access, broadcaster, supabaseAdmin })
   const resources = createStudioResources({ access: service.access, filesService, supabaseAdmin })
@@ -55,14 +56,19 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     return c.json({ data: await catalog.credits(...context(c), c.req.param('id'), (await c.req.json()).document, fileContext(c)) })
   })
   app.get('/studio/templates', requirePermission('studio.view'), async c => {
-    await service.access.member(...context(c))
-    return c.json({ data: searchTemplates(c.req.query()) })
+    c.header('Cache-Control', 'private, no-store')
+    return c.json({ data: await templates.list(...context(c), c.req.query()) })
   })
-  app.post('/studio/templates/:key/designs', requirePermission('studio.create'), async c => {
-    const template = STUDIO_TEMPLATES.find(row => row.key === c.req.param('key'))
-    if (!template) throw new StudioError('Plantilla no encontrada.', 404)
-    return c.json({ data: await service.create(...context(c), { name: template.name, document: templateDocument(template.key) }, fileContext(c)) }, 201)
+  app.get('/studio/templates/:id', requirePermission('studio.view'), async c => {
+    c.header('Cache-Control', 'private, no-store')
+    return c.json({ data: await templates.get(...context(c),c.req.param('id')) })
   })
+  app.post('/studio/templates', requirePermission('studio.view'), async c => c.json({data:await templates.create(...context(c),await c.req.json(),fileContext(c))},201))
+  app.put('/studio/templates/:id', requirePermission('studio.view'), async c => c.json({data:await templates.update(...context(c),c.req.param('id'),await c.req.json(),fileContext(c))}))
+  app.post('/studio/templates/:id/publish', requirePermission('studio.templates.publish'), async c => c.json({data:await templates.publish(...context(c),c.req.param('id'),await c.req.json(),fileContext(c))}))
+  app.delete('/studio/templates/:id', requirePermission('studio.view'), async c => c.json({data:await templates.remove(...context(c),c.req.param('id'),await c.req.json(),fileContext(c))}))
+  for (const suffix of ['designs','use']) app.post(`/studio/templates/:key/${suffix}`,requirePermission('studio.create'),async c =>
+    c.json({data:await templates.use(...context(c),c.req.param('key'),fileContext(c))},201))
   app.get('/studio/resources', requirePermission('studio.view'), async c => {
     c.header('Cache-Control', 'private, no-store')
     return c.json({ data: await resources.list(...context(c), c.req.query(), fileContext(c)) })
