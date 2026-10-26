@@ -1,269 +1,226 @@
-# Studio — preparación de RC2 local
+# Studio — certificación conjunta RC2
 
-Fecha: 2026-10-26. Candidato de producto congelado:
-`c5f22aeed8bd70f69d75cd63c13fba6065100598`.
-API, Web nginx y Worker se construyen desde el mismo archivo Git y declaran ese
-SHA en `org.opencontainers.image.revision`. Los commits posteriores del harness
-o del informe no sustituyen esa identidad. RC1 `32fe936c` permanece intacta;
-su certificación no se reutiliza. La UI concurrente de `5c52d00a` se incorporó
-después del congelado: queda preservada y fuera de estas imágenes. El resultado
-Docker no certifica automáticamente el HEAD posterior.
+## Identidad y alcance
 
-| Imagen local `runly-studio-rc2:c5f22aee-*` | ID verificado |
+Candidato de producto: **3fc081b31347de55fdbdbc52e0dea9e0e90f6c51**.
+Contiene c5f22aee, la UI de 5c52d00a y las correcciones de integración eb9eb2e5.
+API, Web nginx y Worker se construyeron desde el mismo archivo Git y declaran
+ese SHA en org.opencontainers.image.revision. RC1 **32fe936c permanece congelada**.
+
+La certificación utiliza una sola ejecución completa nueva, con Supabase
+desechable, Auth real, Storage, Realtime e identidades sintéticas. No se suman
+los resultados anteriores de c5f22aee, el ensayo UI separado ni la primera pasada
+cuya comprobación de dark mode resultó insuficiente. El harness corregido está
+versionado hasta e73cc41a; sus cambios posteriores solo afectan pruebas/build
+local, no el producto contenido en las tres imágenes.
+
+| Imagen local runly-studio-rc2:3fc081b3-* | ID |
 | --- | --- |
-| `api` | `sha256:fe221001d9cb0d48a3271e334914c2064884f9c338c73addf2423015370e7ecd` |
-| `web` | `sha256:5e955ed206776d779586d70422774249cb72bc45dfc98f1110a9bf3c01d96cbf` |
-| `worker` | `sha256:6a5ee04d8e68091893c56db8c03e595a32a50c25761dc980a43d14a58bb0b352` |
+| api | sha256:7f1877367e95f5160a1d9c2bc3f673fce88b81721418f6e10d5ab37bb78320b2 |
+| web | sha256:f26182807cf2d7d2aa19c9721e3c5207c84d865521fe1cf2bc3a94e2d18801a7 |
+| worker | sha256:6930fde57c019d6875fd0cf49c20b06962cff64c293858defe83287c5ff3cb00 |
 
-Solo se utilizan Docker local, puertos loopback, identidades sintéticas y una
-base Supabase nueva con comprobación de identidad antes de escribir. No se
-carga la configuración de la instalación habitual. No hubo SSH, acceso al VPS,
-escritura en una base compartida, publicación de imágenes ni despliegue.
+Solo local y directamente en main. Sin SSH, VPS, publicación de imágenes,
+despliegues, escrituras en bases compartidas ni modificación de cambios ajenos.
+La configuración habitual de conexión no se carga. Cada entorno verifica su
+identidad antes de escribir y elimina únicamente sus propios volúmenes al cerrar.
 
-## Correcciones del candidato
+## Resultado conjunto
 
-- PNG/JPG conservan exactamente la escala solicitada o rechazan el tamaño.
-  Se elimina el límite silencioso que reducía la resolución. JPG aplana el
-  fondo translúcido sobre el color de página en lugar de producir negro.
-- Antes de exportar se confirman los cambios pendientes y se compara la escena
-  revisada con la revisión del servidor. Se vuelve a consultar autorización y
-  revisión antes de descargar. Una modificación concurrente rechaza el resultado.
-- PDF exige revisión coincidente, autorización inicial/final y archivos vigentes.
-  El servidor verifica la relación entre píxeles, medidas físicas y 300 ppp;
-  rechaza orientación EXIF, PNG multipágina, entradas inválidas y exceso de tamaño.
-  Un trabajo PDF por proceso limita la concurrencia de decodificadores.
-  La revocación bloquea una nueva descarga; no elimina píxeles que el cliente
-  recibió legítimamente antes de perder acceso.
-- Protocolo 2: negociación autenticada y sin caché, cabecera obligatoria en
-  PUT y lotes. Un cliente nuevo detecta API antigua antes de enviar cambios;
-  un cliente antiguo recibe 426. La cola y el borrador se conservan, sin recarga
-  automática que borre trabajo pendiente.
-- Migración aditiva `20261207000000_studio_protocol_guard`: los UPDATE de
-  documento/nombre/revisión v6 requieren la marca transaccional del servicio
-  nuevo. También impide bajar de versión. Una API antigua no puede ignorar la
-  protección aunque no conozca la cabecera. No se alteran migraciones históricas,
-  checksums ni `_prisma_migrations`.
-- Las copias sin revisar se archivan separadamente del autosave actual. Cargar
-  una revisión confirmada y continuar editando ya no las borra ni sobrescribe.
-  Recuperar/descartar retira únicamente la copia elegida; otra queda disponible.
-  Se elimina la caducidad automática de siete días. Si la cuota impide archivar,
-  se conserva el slot anterior y se muestra el aviso de falta de copia.
+**GO para RC2 conjunta local aislada de 3fc081b3: 74 comprobaciones E2E
+aprobadas, cero fallos y cero omisiones.** La integración de ambas sesiones queda
+cerrada para este candidato. No se afirma validación de una base compartida ni
+del MCP global completo, y no se publica ni despliega.
 
-## Límites de exportación
+Evidencia local: **.artifacts/studio/runly-studio-e2e-079b2790addf/rc2-result.json**.
+El JSON declara phase=all y passed=true y conserva SHA, IDs de imágenes,
+resultados por suite, medidas SQL/PDF y compatibilidad; junto a él están logs,
+descargas, rasterizados y capturas de las seis combinaciones de pantalla/tema.
 
-| Recurso | Límite explícito |
-| --- | --- |
-| PNG/JPG | 80 millones de píxeles; 16,384 px por lado; escala 0.25–8 |
-| PDF a 300 ppp | 32 millones de píxeles; 16,384 px por lado |
-| Medida de corte | 10–2,000 mm; también debe cumplir el límite de píxeles |
-| Sangrado API | 0–10 mm; interfaz 3 mm |
-| Imagen de entrada/PDF resultante | 64 MiB cada uno; el multipart tiene además su límite HTTP |
-| Decodificación PDF concurrente | Un trabajo por proceso; otro recibe 429 |
-| Fotos del editor | 25 MP decodificados agregados y 8,192 px por lado |
-
-80 MP equivalen a unos 305 MiB de un solo buffer RGBA y 32 MP a unos 122 MiB.
-Son presupuestos de píxeles, **no un límite absoluto de RSS**: hay lienzo activo,
-codificadores, copias y buffers adicionales. Se rechaza antes de renderizar o
-decodificar lo que excede los presupuestos; no se promete que un dispositivo
-con poca memoria pueda exportar al máximo. Los errores conservan el documento.
-
-El PDF contiene una imagen JPEG rasterizada RGB o `/DeviceCMYK`, con alfa
-aplanado sobre blanco, TrimBox, BleedBox y marcas opcionales. No es PDF/X, no
-incorpora un perfil ICC específico de imprenta y no conserva vectores/textos
-editables. La conversión CMYK genérica puede cambiar colores. Debe aprobarla la
-imprenta para un trabajo concreto. Referencia de la conversión:
-[Sharp colour](https://sharp.pixelplumbing.com/api-colour/).
-
-## Política de recibos
-
-Se mantiene el recibo en `audit_log`, con digest y resultado original, asociado
-a empresa, actor, diseño, clientId y batchId. El índice único parcial
-`studio_operation_receipt_identity` permite consultar esa identidad. El recibo
-no se duplica al reintentar ni pierde la autorización actual del diseño.
-
-No existe una caducidad demostrada para las colas de clientes ausentes; por eso
-**no se purgan recibos por antigüedad**, ni se asume que borrar un diseño o
-desactivar un usuario habilite a borrar su identidad idempotente. No se encontró
-un job genérico de retención de AuditLog en el código revisado; las eliminaciones
-encontradas corresponden a fixtures y rollback de un importador específico.
-Cualquier retención externa de AuditLog debe excluir estos recibos.
-
-Para RC2 aislada: datos sintéticos, duración acotada y eliminación completa del
-entorno por el runner. Para una instalación permanente: conservar todos los
-recibos, monitorear bytes de heap/TOAST/índices y crecimiento diario, presupuestar
-según sesiones simultáneas y no habilitar escala sin esa capacidad. Una futura
-separación de auditoría y recibos compactos deberá conservar búsqueda/digest y
-ack original o introducir épocas de cliente que rechacen explícitamente lotes
-caducados. Requiere migración compatible y prueba de reconexión; no se implementa
-una purga ni esa migración sin demostrar que sea necesaria y segura.
-
-## Compatibilidad y futura actualización
-
-La futura publicación debe coordinar migración aditiva y API/Web/Worker de la
-misma versión. Los escritores antiguos deben quedar bloqueados antes de habilitar
-documentos v6. Un rollback de API sobre la base protegida rechaza escritura v6;
-no se debe quitar el trigger para permitir que un escritor antiguo la degrade.
-La recarga del cliente es manual, conservando copias locales para revisión.
-No se ha aplicado esta secuencia a una instalación existente ni compartida.
-
-La vista remota del arrastre queda como entrega independiente. Los cursores y
-la presencia no equivalen a preview de objetos. El canal actual no concede a
-clientes difusión arbitraria: abrirlo para enviar transformaciones exige un relay
-efímero autorizado, throttle, expiración y revocación verificables. El arrastre
-definitivo sigue persistiendo al soltar; no hay SQL por cada movimiento.
-
-## Verificaciones y veredicto
-
-**GO para RC2 local aislada del SHA indicado. NO GO para una instalación
-compartida o una publicación general con esta evidencia.** No se ejecutó ninguna
-publicación. El resultado no certifica la UI posterior de `5c52d00a` ni elimina
-los fallos MCP globales o los hallazgos generales de privacidad.
-
-Ejecución nueva completa, `phase=all`, `passed=true`: **40 grupos aprobados,
-cero fallos y cero omisiones E2E**. Son 36 grupos de dominio y cuatro de
-infraestructura/inspección; no se cuentan dos veces los mensajes resumen.
-
-| Cobertura de la ejecución final | Grupos |
+| Grupos de la misma ejecución | Cantidad |
 | --- | ---: |
-| Colaboración, recibos, historial, plantillas, MCP abierto y seguridad | 13 |
+| Operaciones, permisos, historial, recuperación, plantillas y MCP abierto | 13 |
 | Degradados | 4 |
 | Fotografías | 4 |
-| Fotografías dentro de formas | 5 |
-| Descargas y cambios/revocación durante exportación | 5 |
-| Medición de recibos y reconexión tras reinicio | 2 |
-| Compatibilidad API/Web y pestañas antiguas | 3 |
+| Fotos dentro de formas | 5 |
+| Exportación, colaboración concurrente y cancelación de original privado | 6 |
+| Recibos y reconexión tras reinicio | 2 |
+| UI final: presencia, selecciones, estados, permisos, descargas y responsive | 33 |
+| Compatibilidad API/Web | 3 |
 | Arranque/migraciones, nginx/bundle, PDF independiente y Worker | 4 |
+| **Total** | **74** |
 
-Los **221 registros de migración** tienen checksum idéntico al SQL de la imagen;
-su SQL normalizado coincide con Git. Worker arranca sin errores de importación.
-El runner terminó eliminando únicamente sus contenedores, red y volúmenes.
-La evidencia local está en
-`.artifacts/studio/runly-studio-e2e-d0f7bbce7f85/rc2-result.json`, con logs,
-imágenes descargadas, PDF, rasterizados y captura de la recuperación antigua.
-El harness utilizado incluye `bccb3228`; su SHA no sustituye al de producto.
+Son las 40 comprobaciones anteriores **repetidas**, las 33 de la UI final
+**repetidas** y una comprobación nueva de cancelación sobre un original privado.
+Los mensajes resumen no se cuentan otra vez.
 
-Reproducción, con las tres imágenes locales conservadas:
+Regresión automatizada actual: **1,408 pruebas, 1,407 aprobadas, cero fallos y
+una omisión preexistente**, 148 suites. Incluye Studio, Canvas, Notes, POS,
+Projects, Files, SDK/UI, paquetes compartidos, JWT, SQL, historial y plantillas.
+Los totales unitarios y E2E se presentan separados, sin sumar ejecuciones solapadas.
 
-```sh
-node scripts/verify-studio-rc2.mjs --revision=c5f22aeed8bd70f69d75cd63c13fba6065100598
-```
+## Reproducir
 
-### Exportaciones finales
+Desde main, con Docker local y las dependencias del repositorio instaladas:
 
-Se descargaron y decodificaron PNG/JPG de **600×400, 1200×800 y 1800×1200**.
-El lector autorizado puede exportar; PNG conserva alfa real y la multiplicación
-de opacidades. Los recursos incluyen Lato local, grupo, fotografía en estrella,
-degradado y objeto parcialmente fuera de página. Un cambio de A o de MCP durante
-la exportación de B impide descargar la revisión antigua. Revocar a B durante
-el acceso al original también impide la descarga; el GET posterior devuelve 404.
+    node scripts/build-studio-rc2.mjs --revision=3fc081b31347de55fdbdbc52e0dea9e0e90f6c51
+    node scripts/verify-studio-rc2.mjs --revision=3fc081b31347de55fdbdbc52e0dea9e0e90f6c51
+    node scripts/verify-studio-local.mjs --tests-only
 
-Ambos PDF tienen imagen de **1946×1321**, resolución efectiva **300.0206 ppp**,
-corte **158.75×105.8333 mm**, sangrado de 3 mm y hoja de 178.75×125.8333 mm.
-PyMuPDF inspeccionó cajas, espacio de color, rotación cero, ausencia de máscara
-alfa y de OutputIntent, y rasterizó las marcas y el contenido. El error máximo
-de muestras fue 1 canal RGB y 21 tras CMYK genérico; las tolerancias previas
-eran 5 y 25. También se revisaron visualmente ambos rasterizados.
-Las pruebas de API rechazan PNG malformado, falsa resolución, EXIF rotado,
-dimensiones excesivas y decodificadores concurrentes; una barrera de procesamiento
-verifica revocación y cambio de revisión antes de responder.
+El builder usa git archive, el contexto Docker local comprobado y su builder
+integrado; no usa ramas, worktrees ni el directorio de trabajo como contexto
+de compilación. Solo carga imágenes locales. Una reconstrucción con IDs distintos
+requiere repetir la certificación; los IDs anteriores identifican lo ensayado.
 
-### Recibos: medición final
+El recorrido antes ignorado está ahora en scripts/fixtures/studio/final-ui.mjs
+y se integra en verify-studio-rc2.mjs. No requiere archivos de .e2e ni secretos
+versionados. Los entrypoints antiguos de browser/colaboración utilizan las
+suites canónicas del protocolo incremental. Resources, Creative y Composition
+esperan sincronización automática; presencia es un group con avatares y escala
+usa radios. Los botones históricos permanecen únicamente en pruebas explícitas
+de RC1/compatibilidad. No se restauraron controles retirados.
 
-Un actor/diseño por perfil, transporte HTTP real y `studio-sync` con ventana
-de 80 ms. No es una prueba de capacidad multiusuario ni una promesa de latencia
-en otro equipo. El perfil de escritura contiene texto completo de unos 5,400
-caracteres; transformar un grupo modifica 200 objetos.
+## Reconexión y autorización
 
-| Perfil | Tiempo / eventos locales / lotes SQL | Lotes/s | Metadata media/máxima (B) | Commit p95 (ms) | Metadata estimada en 8 h (MB decimales) |
+| Situación | Comportamiento comprobado |
+| --- | --- |
+| Sincronizado | Operaciones confirmadas; el canal puede anunciar por separado que está reconectando |
+| Sincronizando | Lote pendiente y trabajo nuevo separados; no se descarta trabajo al llegar cambios de otros |
+| Sin conexión | Reintento autorizado con backoff; al volver la red se consulta estado/recibo antes de reproducir |
+| Error al sincronizar | Copia y cola conservadas; la UI ofrece **Recargar Studio**, sin fingir que resync desbloquea una sesión rechazada |
+| Storage temporal al exportar | Error sanitizado; una nueva descarga obtiene autorización/original fresco, sin modificar el archivo |
+| Fallo de render al aplicar cambios remotos | Escena previa y copia conservadas; la recarga vuelve a comprobar recursos y permisos |
+| Conflicto recuperable | Archivo local independiente del autosave; recuperación explícita sobre estado actual, sin resucitar objetos eliminados |
+| Revocación 401/403/404 | Se suspende la cola; online/resync no reenvían operaciones. Si se pierde lectura/presencia, se detiene también el canal. Recargar comprueba permisos antes de enviar |
+
+La prueba UI provoca un rechazo 400 y verifica que la recarga explícita confirma
+el cambio pendiente en el servidor. No se acepta una nota de que el botón no
+funciona como resultado aprobado. Los tests 401/403 verifican también cambios
+nuevos después del rechazo, ausencia de nuevos envíos y conservación de la cola.
+La revocación real y el descenso a lector se ensayan entre identidades distintas.
+
+El ensayo offline/reload bloquea explícitamente POST de cambios, verifica que la
+revisión no avance antes de recargar y luego confirma exactamente una aplicación
+tras el reintento autorizado. Comprueba conectividad real antes de navegar; una
+repetición acotada solo contempla net::ERR_FAILED de navegación, nunca errores
+de autorización ni aserciones de datos.
+
+## Cancelación efectiva y límites
+
+AbortController se propaga desde DesignEditor a las consultas de autorización,
+la carga temporal del original mediante Fabric, el SDK y la petición HTTP del PDF.
+También se aborta al desmontar el editor. Se comprueba la señal entre etapas y
+antes de descargar; un trabajo cancelado no puede sustituir el aviso de otro
+trabajo ni descargar tarde.
+
+Cancelar la espera de sincronización **no cancela la sincronización independiente**.
+La cancelación deja intactos documento, revisión y bytes originales de Storage.
+El doble clic no crea un segundo trabajo. Un test con un cliente HTTP real
+desconectado verifica que el servidor observa el aborto antes de la autorización
+final; otros tests verifican aborto del pipeline y liberación de su turno.
+
+Fabric toCanvasElement/toBlob y libvips no ofrecen preempción fiable del trabajo
+CPU ya iniciado. Ese trabajo puede terminar; no se inicia la siguiente etapa,
+se libera lienzo/stream y se descarta el resultado. El turno PDF permanece ocupado
+hasta terminar la etapa nativa, evitando multiplicar decodificadores tras cancelar.
+Las fuentes compartidas pueden seguir cargándose aunque se cancele la espera.
+
+| Recurso | Presupuesto |
+| --- | --- |
+| PNG/JPG | 80 MP, 16,384 px por lado; escala exacta o rechazo explícito |
+| PDF | 32 MP y 16,384 px por lado a 300 ppp |
+| Entrada/respuesta PDF | 64 MiB; el multipart tiene además límite HTTP de 64 MiB |
+| Concurrencia PDF | Un trabajo por proceso; otro recibe 429 |
+| Fotos decodificadas del editor | 25 MP agregados, 8,192 px por lado |
+
+Son presupuestos de píxeles, no un límite absoluto de RSS: un buffer RGBA de
+80 MP ocupa unos 305 MiB y uno de 32 MP unos 122 MiB, además de copias/codificadores.
+
+## Exportación y UI final
+
+PNG/JPG ×1/×2/×3: tamaños anunciados y archivos decodificados coinciden
+(600×400, 1200×800, 1800×1200). Se verifican alfa PNG, gradientes, Lato local,
+grupos, foto enmascarada y elementos fuera de página. El renderer también prueba
+4,096² reales y rechaza ×3 sin reducción silenciosa. La UI anuncia los excesos,
+deshabilita Descargar y vuelve a habilitarlo al elegir una escala válida.
+
+PDF RGB y DeviceCMYK: 1946×1321 píxeles a **300.0206 ppp** efectivos, corte
+158.75×105.8333 mm, sangrado de 3 mm y marcas fuera del BleedBox. PyMuPDF inspecciona
+y rasteriza ambos archivos, incluidas TrimBox/BleedBox, orientación y aplanado.
+Las muestras independientes tienen error máximo de canal 1 en RGB y 21 en CMYK
+(tolerancias previas 5/25). Se rechazan resolución falsa, entrada malformada,
+orientación EXIF y medidas excesivas; la autorización se repite después de procesar.
+
+El PDF es **rasterizado**, con conversión CMYK genérica. **No es PDF/X certificado**,
+no incorpora el perfil ICC de una imprenta concreta ni conserva vectores editables.
+La UI lo explica. La revocación impide una nueva descarga; no borra los píxeles
+que un cliente recibió legítimamente antes.
+
+La UI se ensaya en 1440/820/390 px, claro y oscuro, con teclado y movimiento
+reducido. La preferencia se establece mediante runly-theme y se comprueba el tema
+efectivo tras cargar, evitando capturas claras etiquetadas como oscuras.
+Se comprueban ausencia de desbordamiento, lienzo utilizable, diálogo dentro de
+la ventana, colores/nombres de presencia, selección remota y su tamaño al hacer zoom.
+Cambios de A o de MCP mientras B exporta rechazan la revisión obsoleta; el lector
+autorizado puede exportar. Se revisan visualmente capturas y PDF rasterizados.
+
+## Compatibilidad y migraciones
+
+| Combinación | Resultado |
+| --- | --- |
+| API RC1 con base protegida v6 | Su UPDATE se rechaza por SQL (500 en esa API antigua); JSON/revisión intactos |
+| Web nueva con API RC1 | Detecta protocolo ausente, conserva cola y no envía POST de operaciones |
+| Web RC1 con API nueva | PUT sin handshake recibe 426 |
+| Pestaña antigua sin notificaciones durante actualización | 426 real; borrador conservado tras dos recargas con la Web nueva |
+| Downgrade explícito v6 → v5 | 409; el contenido v6 permanece |
+| upsert anterior con protocolo 2 | Sigue admitido con su semántica histórica |
+
+**Cero migraciones nuevas en esta integración.** Las 221 migraciones existentes
+se aplican solamente en la base desechable; checksums coinciden con la imagen y
+SQL normalizado con Git. Se conserva el guard aditivo de protocolo ya existente.
+No se altera SQL histórico, _prisma_migrations ni se usa migrate resolve.
+La futura actualización debe coordinar guard/API/Web/Worker; no retirar el guard
+para permitir que un escritor antiguo degrade v6.
+
+## Recibos y rendimiento
+
+Se repiten medición SQL, consulta indexada y reinicio real de API con recibos
+sintéticos fechados 400 días atrás. El primer lote devuelve su ack original sin
+incrementar la revisión ni reaplicarse. Esto no equivale a 400 días reales de uso.
+
+| Perfil (un actor/diseño) | Segundos / eventos locales / lotes | Lotes/s | Metadata media (B) | Commit p95 (ms) | Consulta HTTP (ms) |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Escritura continua | 120.1 s / 3944 / 1258 | 10.48 | 462.4 / 464 | 46.4 | 139.5 |
-| Soltar arrastre | 15.1 s / 15 / 15 | 0.99 | 436 / 436 | 54.9 | 12.5 |
-| Grupo de 200 objetos | 15.0 s / 71 / 71 | 4.73 | 1851.1 / 1852 | 63.3 | 252.2 |
+| Texto completo continuo | 120.0 / 4658 / 1214 | 10.12 | 462.6 | 31.4 | 7.9 |
+| Soltar arrastre | 15.1 / 15 / 15 | 0.99 | 436 | 36.9 | 11.4 |
+| Transformación de 200 objetos | 15.1 / 72 / 72 | 4.77 | 1851.1 | 37.5 | 8.8 |
 
-`pg_column_size(metadata)` mide el payload almacenado, con compresión, sin todo
-el overhead de tuplas/TOAST/índices. La relación completa de AuditLog creció
-1,224/32/8 KiB respectivamente, y todos sus índices 432/16/8 KiB. Son páginas
-adicionales reservadas: pueden reutilizar espacio libre y no equivalen al coste
-total por fila del perfil. El índice parcial de recibos terminó en 264 KiB.
-Los tres EXPLAIN usan **Index Scan de `studio_operation_receipt_identity`**;
-ejecución SQL 0.042/0.042/0.064 ms y búsqueda HTTP 12.5/11.7/22.6 ms.
+Los tres planes usan studio_operation_receipt_identity; SQL medido
+0.022/0.026/0.030 ms. El payload usa pg_column_size(metadata), con compresión,
+sin todo el overhead de heap/TOAST/índices. Ocho horas al ritmo observado
+extrapolan 134.8/12.5/254.5 MB decimales de metadata por perfil. No son ocho horas
+observadas ni una prueba de capacidad multiusuario o promesa de latencia.
 
-Las ocho horas son extrapolación, no ocho horas observadas: cien escritores
-continuos al ritmo medido implican unos **14 GB de metadata** por jornada,
-además del resto del almacenamiento. Por eso conservar indefinidamente y
-monitorear no basta para autorizar escala: antes de producción se debe definir
-capacidad y una estrategia compatible de recibos compactos/épocas. RC2 aislada
-permanece acotada. No se debilita idempotencia ni se introduce una purga.
+La política sigue sin purga temporal: las colas no tienen una caducidad demostrada.
+Los recibos deben excluirse de cualquier retención externa de AuditLog. Antes de
+escalar una instalación permanente hay que presupuestar almacenamiento y diseñar
+recibos compactos/épocas que preserven idempotencia. La prueba local está acotada
+y se elimina como entorno completo; no se debilita el protocolo para ahorrar disco.
 
-Después de medir se envejecieron **solo recibos sintéticos a 400 días**, se
-reinició realmente la API y se reenvió el primer lote. Devolvió su ack original
-de revisión 2 sin cambiar la revisión actual ni ejecutar de nuevo las operaciones.
-Esto comprueba persistencia y ausencia de filtro temporal; no simula 400 días
-reales de uso, retención externa o expiración de credenciales.
+## Reservas independientes y cierre
 
-### Matriz de compatibilidad final
+MCP global repetido con PostgreSQL 18 desechable: **207 casos, 188 aprobados,
+17 fallidos heredados y dos omisiones**. Comparación de nombres contra el control:
+cero fallos nuevos y cero eliminados. Son 14 hojas y tres padres: fixture de Notes
+sin parent_note_id y casos dependientes, Projects sin parámetro project y Documents
+hub no inicializado. No se declara aprobado el MCP global. El recorrido Studio
+MCP/OAuth/aprobación y los casos Studio/MirAI propios sí se verifican por separado.
 
-| Combinación | Resultado observado |
-| --- | --- |
-| API RC1 + base protegida v6 | PUT antiguo devuelve 500 por el guard SQL; JSON/revisión quedan intactos |
-| API RC1 + Web nueva | Detecta protocolo ausente, conserva cola y no envía POST de cambios |
-| API nueva + Web RC1 | Escritura sin handshake devuelve 426; borrador se conserva |
-| Pestaña RC1 sin notificaciones + actualización coordinada | PUT real recibe 426; al cambiar a Web nueva la copia sobrevive a **dos recargas** |
-| Documento v5/v6 | Lectura/creación antigua se normaliza; downgrade explícito de v6 devuelve 409 |
-| Operación anterior `upsert` | Aceptada con protocolo 2; semántica histórica conservada |
+Lint dirigido aprobado. React Doctor: **81/100, cero errores**, con advertencias
+de complejidad y otras preexistentes; se corrigieron updater impuro y rol de botón.
+pnpm check:privacy conserva **67 hallazgos fuera de esta entrega**. La inspección
+de los 30 archivos propios, incluidos informes y fixtures, terminó con **cero
+hallazgos**. No se eliminaron atribuciones ni se alteraron archivos ajenos para
+silenciar el control global.
 
-Se bloquean explícitamente notificaciones HTTP/Realtime en el ensayo de pestaña
-antigua para comprobar la barrera del servidor sin falsear identidad ni permisos.
-Con notificaciones, el cliente RC1 ya había bloqueado Guardar por conflicto antes
-del PUT. Las pruebas no interpretan ese bloqueo seguro como pérdida de datos.
-
-La regresión de árbol local se repitió tras corregir texto y recuperación:
-**1,402 pruebas, 1,401 aprobadas, cero fallos, una omisión preexistente**, 148
-suites. Incluye Studio, Canvas, Notes, POS, Projects, Files, SDK/UI y paquetes
-compartidos, autenticación, historial, plantillas, SQL y seguridad multiempresa.
-El árbol local incluye cambios concurrentes: esa cifra no sustituye la prueba
-de producto congelado con las tres imágenes.
-
-Chrome/Fabric reales comprobaron PNG/JPG ×1/×2/×3, muestras de alfa y fondo
-JPEG, foto enmascarada, agrupación, fuente local, recorte fuera de página,
-render real de 4,096² y rechazo de 4,096² ×3 sin reducción. La exportación no
-modificó documento/historial. Este ensayo del renderer se ejecutó después de
-los cambios de escala/aplanado; la comprobación de revisión del componente
-React se valida adicionalmente en las imágenes.
-
-### MCP global: fallos heredados separados
-
-La nueva ejecución global con PostgreSQL 18 desechable produjo **207 casos,
-188 aprobados, 17 fallidos y 2 omitidos**. Los 17 nombres coinciden con los
-documentados en [el diagnóstico previo](runly-studio-geometry-local.md): 14
-hojas y tres padres; no equivalen a 17 defectos independientes. No se presenta
-la suite MCP global como aprobada. MirAI está incluido en las consultas de
-dominio y tampoco se certifica globalmente sin esas reservas.
-
-| Casos heredados | Causa verificada en el log nuevo |
-| --- | --- |
-| `notes: lectura…`, metadatos Yjs, `notes_search/get/page`, recursos privados, adjuntos de Notes, conflictos/asociaciones y SDK de siete dominios | El fixture no tiene `parent_note_id`; fallan altas y pruebas dependientes |
-| `projects_workload`, `projects_time_summary` | Input vacío aunque el contrato requiere proyecto |
-| `documents_kinds`, `documents_templates` | Fixture sin inicialización de Documents hub |
-| Lecturas completas, dominios oficiales, MCP integrado | Padres que propagan fallos de sus subtests |
-
-### Controles de repositorio
-
-Lint dirigido: aprobado. `pnpm check:privacy`: falla por **67 hallazgos fuera
-de esta entrega**, incluidos archivos concurrentes. La inspección de todos los
-archivos propios, incluido este informe, dio cero hallazgos. No se copian valores
-sensibles a este documento.
-
-React Doctor final del árbol concurrente: 80/100, una incidencia de updater con
-efectos secundarios en la UI de otra sesión y nueve advertencias.
-Ese updater no está en el candidato congelado; se conserva el trabajo ajeno.
-No se declara que todo el árbol de trabajo esté certificado por estas imágenes.
-
-## Siguiente trabajo local
-
-Integrar la UI posterior de `5c52d00a` en otro candidato y repetir su Docker/E2E;
-resolver los fixtures MCP de Notes/Projects/Documents y las incidencias de UI
-concurrente; diseñar el relay autorizado para preview de arrastre y el presupuesto
-de recibos de instalaciones permanentes. Todo puede seguir usando bases
-independientes locales. PDF/X, perfiles de imprenta y vectores requieren una
-necesidad concreta y otra validación; no se incluyen por inferencia en este GO.
+No se inició evolución mayor del JSON/documento ni preview transitorio de arrastre.
+Esta entrega cierra integración y certificación local; no publica ni despliega.

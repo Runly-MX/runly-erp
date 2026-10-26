@@ -39,6 +39,21 @@ contiene JPEG RGB o DeviceCMYK genérico, TrimBox/BleedBox y marcas opcionales;
 no es PDF/X, perfil ICC de imprenta ni contenido vectorial editable. Detalles,
 mediciones y evidencia en [RC2 readiness](../deployment/STUDIO_RC2_READINESS.md).
 
+La integración conjunta propaga AbortSignal desde la UI al SDK, consultas de
+autorización, originales de Fabric y petición PDF. Se comprueba entre etapas y
+antes de descargar; desmontar o cancelar impide resultados tardíos. Cancelar la
+espera de guardado no cancela las operaciones independientes del documento.
+Canvas y libvips pueden terminar CPU ya iniciada: se descarta el resultado y
+se liberan superficies/streams al salir; el turno PDF no se libera antes de que
+termine la etapa nativa. No se promete preempción síncrona.
+
+Un fallo temporal de red permite reintento autorizado. Un rechazo 4xx conserva
+cola/copia y bloquea la sesión: la UI ofrece «Recargar Studio», previa conservación
+local y nueva comprobación de permisos. El botón no simula recuperación llamando
+a resync sobre una sesión bloqueada. Si presencia devuelve 401/403/404 se
+suspende también el canal, sin reintentos al volver online. La UI distingue los cuatro estados
+de sincronización y la reconexión separada del canal.
+
 ## Endurecimiento de operaciones e historial (vigente, posterior a 2e428110)
 
 La persistencia principal sigue siendo incremental. El documento continúa en

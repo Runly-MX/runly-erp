@@ -212,7 +212,7 @@ lienzo, `role="status"`; `role="alert"` en error):
 | Procesando | Solo PDF: el servidor arma el archivo (se detecta al terminar el render del navegador) | Cancelar |
 | Descargando | Entrega del archivo al navegador | — |
 | Listo | «Se descargó nombre.ext» (se oculta solo a los 6 s) | Cerrar |
-| Cancelado | «Descarga cancelada. No se guardó ningún archivo.» El render no se puede interrumpir: su resultado se descarta y se puede iniciar otra descarga de inmediato | Cerrar |
+| Cancelado | «Descarga cancelada. No se guardó ningún archivo.» Aborta I/O y etapas posteriores; CPU síncrona en curso termina sin descargar su resultado | Cerrar |
 | Error | Mensaje saneado | Cerrar |
 
 - Una referencia (`job`) impide descargas duplicadas aunque se pulse varias veces
@@ -233,7 +233,7 @@ cursor `x`/`y`, `selectedId`) y de `useStudioSync` (estado y reintento).
 | Avatares de colaboradores (hasta 3, nombre al pasar el cursor o enfocar con teclado) y lista de personas con su actividad | `editor/collaboration/PresenceStack.jsx` | Presencia (`/studio/designs/:id/live`) |
 | Cursores remotos y selección remota (borde, tinte y etiqueta con nombre y tipo de elemento, tamaño constante en pantalla) | `editor/collaboration/RemotePresence.jsx` | Presencia: `x`, `y`, `selectedId` |
 | Marca de «Seleccionado por» en Capas (iniciales con el color de la persona) | `LayersPanel.jsx` (`remoteSelections`) | Presencia |
-| Estado Sincronizado / Sincronizando / Sin conexión / Error, «Reintentar» (limitado a un intento por clic) y «Sincronizado · reconectando colaboración» si el canal en vivo se cae | `editor/collaboration/SyncStatus.jsx` | `useStudioSync.status`, `sync.resync()`, estado del canal |
+| Sincronizado / Sincronizando / Sin conexión / Error. «Reintentar» para red; «Recargar Studio» para una sesión bloqueada, conservando copias y comprobando permisos. Reconexión del canal diferenciada | `editor/collaboration/SyncStatus.jsx` | `useStudioSync.status`, `sync.resync()`, recarga explícita y estado del canal |
 | Cambio a solo lectura en vivo («Ahora solo puedes ver este diseño», con «Entendido») | `DesignEditor` (`lostEdit`) | `canEdit` del sondeo de `/live` |
 | Acceso revocado o diseño eliminado | `editor/collaboration/AccessLost.jsx` | 401/403/404 del canal en vivo |
 
@@ -252,7 +252,7 @@ Reglas:
 - Tras revocar el acceso se retira la protección de salida (el aviso «Salir antes de
   sincronizar» no se puede mostrar en esa pantalla) y se conserva el borrador.
 
-## Qué está conectado a backend real y qué depende todavía de Codex
+## Verificación integrada y límites actuales
 
 Conectado (verificado con `.e2e/studio-collab-export-ui.mjs`, pila Supabase
 desechable, dos identidades Auth reales y la API/Realtime reales):
@@ -265,26 +265,32 @@ desechable, dos identidades Auth reales y la API/Realtime reales):
 - Exportación PNG, JPG y PDF con datos sintéticos: el archivo descargado coincide
   con lo anunciado (píxeles, formato, hoja en mm); límites y errores de servidor.
 
-Depende de Codex (motor/API; la interfaz no lo simula):
+Límites del motor/API:
 
 - **Movimiento transitorio de objetos** de otras personas: no existe en el
   protocolo de presencia; cuando exista se mostrará como un contorno ligero que no
   interfiere con la selección local. Hoy solo se ve el resultado al confirmarse.
-- **Recuperación tras un cambio rechazado**: después de un 4xx del servidor la
-  sesión queda en «Error al sincronizar» y «Reintentar» no la recupera hasta
-  recargar (`deny` en `studio-sync.js`). La interfaz lo muestra y conserva el
-  borrador; el motor decide si se podrá reintentar sin recargar.
-- **Cancelar una descarga** no aborta el render ni la petición del PDF
-  (`exportDesign` no recibe una señal): se descarta el resultado.
+- **Recuperación tras un cambio rechazado**: después de un rechazo 4xx la sesión
+  conserva la cola y se bloquea. La UI ofrece «Recargar Studio» y explica que
+  comprobará permisos; no anuncia un reintento que no puede realizar. Tras
+  revocación no se reenvían operaciones automáticamente ni se reabre el canal.
+- **Cancelar una descarga** propaga AbortController a autorización, originales
+  y HTTP PDF. Fabric/libvips no garantizan interrumpir CPU ya iniciada: se
+  comprueba la señal entre etapas, se libera el lienzo/stream y no se descarga
+  tarde. El servidor conserva el turno de concurrencia mientras acaba libvips.
+  La sincronización del documento y los originales no se cancelan ni modifican.
 - **Resolución de salida del PDF** distinta de 300 ppp: el motor la exige; si
   hiciera falta bajarla por el límite de 32 MP sería una opción nueva de
   `exportDesign`.
 - **Tiradores de transformación** en modo solo lectura: el motor muestra los de la
   selección que había antes de perder el permiso.
-- Los fixtures `scripts/fixtures/studio/*` aún buscan `Guardar`, un `img` «persona(s)
-  editando» (ahora es un `group` con los avatares como `img`) y botones «×1» (son
-  `radio`); su adaptación es del motor/pruebas.
+- Los fixtures actuales esperan sincronización automática, presencia como
+  `group` con avatares y radios de escala. Los controles históricos solo se
+  conservan en las pruebas explícitas de RC1/compatibilidad con ese cliente.
 
-Verificación (2026-10-26, `.e2e/studio-collab-export-ui.mjs`): ver el resumen de la
-sesión; recorrido en 1440, 820 y 390 px, claro y oscuro, sin desbordamiento
-horizontal, lienzo visible y diálogo de descarga dentro de la ventana.
+El recorrido antes ignorado ahora está versionado en
+`scripts/fixtures/studio/final-ui.mjs` y se ejecuta desde
+`scripts/verify-studio-rc2.mjs`, usando la misma Web nginx, API, Worker y Supabase
+desechable de la certificación conjunta. Incluye 1440/820/390 px, claro/oscuro,
+teclado, movimiento reducido, ausencia de desbordamiento, permisos y descargas.
+Resultados y SHA en [STUDIO_RC2_READINESS](../deployment/STUDIO_RC2_READINESS.md).
