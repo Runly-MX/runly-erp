@@ -1,11 +1,11 @@
 import { lazy, Suspense } from 'react'
 import {
   Plus, ArrowLeft, Settings2, Share2, RotateCcw, Trash2, PenLine,
-  Maximize2, Minimize2, Fullscreen, Eye, PanelTop,
+  Maximize2, Minimize2, Fullscreen, Eye, PanelTop, MoreVertical,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, useCoarsePointer,
 } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { NoteIcon } from '../noteIcons.jsx'
@@ -39,10 +39,11 @@ export function NoteEditorPanel({
   className = '',
 }) {
   const isCanvasNote = note?.note_type === 'canvas'
-  const { session } = useAuth()
+  const { userProfile } = useAuth()
+  const coarse = useCoarsePointer()
   const ancestors = useNoteAncestors(note)
   const hasCrumbs = ancestors.length > 0
-  const canCreateSubpage = Boolean(note) && !isTrashView && !viewOnly && canEditNote(note, session?.user?.id)
+  const canCreateSubpage = Boolean(note) && !isTrashView && !viewOnly && canEditNote(note, userProfile?.id)
   const depthBlocked = !canCreateSubpageAtDepth(ancestors.length)
   // One entry point for the strip, toolbar and slash command.
   function handleCreateSubpage() {
@@ -135,7 +136,7 @@ export function NoteEditorPanel({
               onClick={onOpenShare}
               type="button"
               aria-label="Compartir nota"
-              className="flex items-center gap-1.5 px-2 py-1.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:justify-center text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
+              className="hidden sm:flex items-center gap-1.5 px-2 py-1.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:justify-center text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
             >
               <Share2 size={13} />
               <span className="hidden sm:inline">Compartir</span>
@@ -144,14 +145,25 @@ export function NoteEditorPanel({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Modo de vista"
-                  title="Modo de vista"
+                  aria-label="Mas opciones"
+                  title="Mas opciones"
                   className="flex items-center gap-1.5 px-2 py-1.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:justify-center text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
                 >
-                  {viewMode.isImmersive ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                  <MoreVertical size={14} className="sm:hidden" />
+                  <span className="hidden sm:inline">
+                    {viewMode.isImmersive ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                  </span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {/* Narrow screens: share and settings fold into this menu so
+                    the header keeps room for the note title. */}
+                <DropdownMenuItem className="sm:hidden" onSelect={onOpenShare}>
+                  <Share2 size={13} className="mr-2" /> Compartir
+                </DropdownMenuItem>
+                <DropdownMenuItem className="sm:hidden" onSelect={onOpenSettings}>
+                  <Settings2 size={13} className="mr-2" /> Ajustes de la nota
+                </DropdownMenuItem>
                 {viewMode.mode !== 'normal' && (
                   <DropdownMenuItem onSelect={() => viewMode.setMode('normal')}>
                     <PanelTop size={13} className="mr-2" /> Vista normal
@@ -173,7 +185,7 @@ export function NoteEditorPanel({
               onClick={onOpenSettings}
               type="button"
               aria-label="Ajustes de la nota"
-              className={`flex items-center gap-1.5 px-2 py-1.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:justify-center text-xs font-medium rounded-lg transition-colors ${
+              className={`hidden sm:flex items-center gap-1.5 px-2 py-1.5 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11 [@media(pointer:coarse)]:justify-center text-xs font-medium rounded-lg transition-colors ${
                 settingsOpen
                   ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -210,7 +222,9 @@ export function NoteEditorPanel({
         />
       )}
 
-      {!isTrashView && !isCanvasNote && note && (
+      {/* Touch editing: pinch zooms, and the floating control would sit on
+          top of the formatting bar. */}
+      {!isTrashView && !isCanvasNote && note && !(coarse && !viewOnly) && (
         <ZoomControl zoom={zoom} onZoomChange={onZoomChange} onReset={() => onZoomChange(100)} />
       )}
     </div>

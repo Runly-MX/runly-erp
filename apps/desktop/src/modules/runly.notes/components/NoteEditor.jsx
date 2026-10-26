@@ -585,8 +585,11 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
     // broadcasts local ydoc updates (SupabaseYjsProvider's readOnly mode),
     // so seeding here only affects what this one visitor sees locally —
     // nothing to duplicate.
+    // owner_user_id is the profile id (the API's userContext.profile.id), not
+    // the auth user id — comparing against session.user.id never matched, so
+    // owners never seeded and their composer-made notes opened blank.
     const isOwner =
-      Boolean(note?.owner_user_id) && note.owner_user_id === session?.user?.id
+      Boolean(note?.owner_user_id) && note.owner_user_id === userProfile?.id
     if (!isOwner && !readOnly) return
     // Decide from the shared Y.Doc, which is ALREADY hydrated from the server
     // state at this point — NOT from editor.isEmpty. y-prosemirror has not
@@ -642,7 +645,9 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       }}
       slotBefore={
         <>
-          {note.cover_url ? cover : !viewing && toolbarHost ? createPortal(cover, toolbarHost) : null}
+          {/* Touch: the toolbar lives in the bottom bar, so the empty-cover
+              button stays on the sheet instead of a grey band above it. */}
+          {note.cover_url || barVisible ? cover : !viewing && toolbarHost ? createPortal(cover, toolbarHost) : null}
           {!viewing && (barVisible ? barHost : toolbarHost) && createPortal(
             <NoteToolbar noteId={note.id} token={token} bar={barVisible} />,
             barVisible ? barHost : toolbarHost,
@@ -755,14 +760,17 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
           <div
             ref={scrollRef}
             data-note-scroll
-            className="min-w-0 flex-1 overflow-auto overscroll-contain pb-20"
-            style={barVisible
-              ? { paddingBottom: `calc(${TOUCH_BAR_HEIGHT}px + ${barBottom})` }
-              : keyboardInset > 0 ? { paddingBottom: keyboardInset } : undefined}
+            className={`min-w-0 flex-1 overflow-auto overscroll-contain ${barVisible ? '' : 'pb-20'}`}
+            style={!barVisible && keyboardInset > 0 ? { paddingBottom: keyboardInset } : undefined}
             onClick={viewing ? undefined : handleContainerClick}
           >
             <NoteSheet note={note} isDark={isDark} zoom={zoom} paged={paged} fillEditor>
               {editorProvider}
+              {/* Room for the touch bar inside the sheet, so the paper runs
+                  under the bar instead of ending in a grey band above it. */}
+              {barVisible && (
+                <div aria-hidden className="shrink-0" style={{ height: `calc(${TOUCH_BAR_HEIGHT}px + ${barBottom})` }} />
+              )}
             </NoteSheet>
           </div>
           <div ref={setRailHost} className="flex shrink-0 empty:hidden" />

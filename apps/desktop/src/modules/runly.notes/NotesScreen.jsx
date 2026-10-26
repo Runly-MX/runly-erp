@@ -79,8 +79,9 @@ export default function NotesScreen() {
   const [noteToAction, setNoteToAction] = useState(null)
   const [removeTarget, setRemoveTarget] = useState(null)
   const [bulkTrash, setBulkTrash] = useState(null) // { notes, done }
-  const { session } = useAuth()
-  const userId = session?.user?.id ?? null
+  const { userProfile } = useAuth()
+  // notes.owner_user_id holds the profile id, not the auth user id.
+  const userId = userProfile?.id ?? null
   const removeTargetIsOwned = isNoteOwner(removeTarget, userId)
   const [mobileView, setMobileView]     = useState('list')
   const [listCollapsed, setListCollapsed] = useState(getListCollapsed)
