@@ -31,3 +31,13 @@ test('print rejects fake resolution, orientation, oversized physical requests an
   const pending=buildPrintPdf({image,widthMm:100,heightMm:70})
   await assert.rejects(buildPrintPdf({image,widthMm:100,heightMm:70}),{status:429});await pending
 })
+
+test('print cancellation stops at native boundaries, releases its slot and leaves source bytes intact',async()=>{
+  const image=await png(150,150),original=Buffer.from(image),controller=new AbortController()
+  const job=buildPrintPdf({image,widthMm:150,heightMm:150,signal:controller.signal})
+  controller.abort()
+  await assert.rejects(job,{name:'AbortError'})
+  assert.deepEqual(image,original)
+  assert.ok((await buildPrintPdf({image,widthMm:150,heightMm:150})).subarray(0,5).equals(Buffer.from('%PDF-')))
+  await assert.rejects(buildPrintPdf({image,widthMm:150,heightMm:150,signal:controller.signal}),{name:'AbortError'})
+})

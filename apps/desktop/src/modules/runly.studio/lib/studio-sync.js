@@ -156,7 +156,7 @@ export function createStudioSync({document,revision,name,clientId,actorId,transp
       timers.clearTimeout(flushTimer);timers.clearTimeout(retryTimer);flushTimer=retryTimer=null
       const promise=new Promise((resolve,reject)=>waiters.push({resolve,reject}));send();render.then(settle,settle);return promise
     },
-    state:()=>({status,revision:sequence,pending:(batch?1:0)+(outbox.length||outboxName!==undefined?1:0),document:local,name:title}),
+    state:()=>({status,requiresReload:Boolean(blocked||renderError),revision:sequence,pending:(batch?1:0)+(outbox.length||outboxName!==undefined?1:0),document:local,name:title}),
     close(){persist();closed=true;[flushTimer,gapTimer,retryTimer].forEach(t=>timers.clearTimeout(t));waiters.splice(0).forEach(w=>w.reject(failure('La sesión de edición está cerrada.')))},
   }
 }

@@ -11,6 +11,7 @@ import { createStudioImageCopies } from './studio-image-copies.js'
 import { buildPrintPdf } from './studio-print.js'
 import {STUDIO_PROTOCOL_VERSION,STUDIO_PROTOCOL_HEADER} from '../../../../shared/studio/protocol.js'
 import {studioAssetIds} from './studio-document-data.js'
+import {checkAbort} from '../../../../shared/studio/abort.js'
 
 export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,printBuilder=buildPrintPdf,
   service = createStudioService({ prisma, filesService, broadcaster }),
@@ -28,6 +29,7 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   const fileContext = c => ({ authUserId: c.get('authUserId'), activeContext: tenantActiveContext(c) })
   app.use('/studio/designs/:id/live', bodyLimit({ maxSize: 4096, onError: c => c.json({ error: 'Presencia demasiado grande.' }, 413) }))
   app.onError((error, c) => {
+    if(error.name==='AbortError')return c.body(null,499)
     if (error instanceof StudioError) {
       if(error.status===429)c.header('Retry-After','60')
       return c.json({ error: error.message, code: error.code }, error.status)
@@ -95,6 +97,7 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   // Real-time collaboration: a batch of object operations from an editor session.
   // Print PDF (RGB or CMYK, bleed, crop marks) from the editor's high-resolution render.
   app.post('/studio/designs/:id/export/print-pdf', requirePermission('studio.view'), async c => {
+    const signal=c.req.raw.signal;checkAbort(signal)
     const before=await service.access.get(...context(c), c.req.param('id'))
     const assetIds=studioAssetIds(before.document)
     async function checkAssets(){if(!assetIds.length)return;const found=await prisma.fileAsset.findMany({where:{id:{in:assetIds},entityId:context(c)[0],enabled:true},select:{id:true}});if(found.length!==assetIds.length)throw new StudioError('Un archivo dejó de estar disponible.',403,'STUDIO_ASSET_DENIED')}
@@ -103,7 +106,8 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     if (!(body.file instanceof Blob)) throw new StudioError('Falta la imagen de exportación.')
     if(!Number.isSafeInteger(Number(body.revision))||Number(body.revision)!==before.revision)throw new StudioError('Revisa la revisión actual antes de imprimir.',409,'STUDIO_REVISION_CONFLICT')
     const pdf = await printBuilder({ image: Buffer.from(await body.file.arrayBuffer()), widthMm: body.widthMm, heightMm: body.heightMm,
-      bleedMm: body.bleedMm, cropMarks: body.cropMarks === 'true', profile: body.profile, title: body.title })
+      bleedMm: body.bleedMm, cropMarks: body.cropMarks === 'true', profile: body.profile, title: body.title,signal })
+    checkAbort(signal)
     const after=await service.access.get(...context(c),c.req.param('id'))
     await checkAssets()
     if(after.revision!==before.revision)throw new StudioError('El diseño cambió durante el procesamiento.',409,'STUDIO_REVISION_CONFLICT')

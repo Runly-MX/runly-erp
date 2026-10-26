@@ -2,6 +2,7 @@ import sharp from 'sharp'
 import { PDFDocument, cmyk, rgb } from 'pdf-lib'
 import { StudioError } from '../../../../shared/studio/document.js'
 import {STUDIO_EXPORT_LIMITS} from '../../../../shared/studio/export-limits.js'
+import {checkAbort} from '../../../../shared/studio/abort.js'
 
 // Print-ready PDF from a high-resolution render made by the editor. The
 // browser only produces RGB pixels; here they become a CMYK JPEG (libvips,
@@ -17,11 +18,12 @@ const number = (value, min, max, label) => {
 }
 
 export async function buildPrintPdf(input) {
+  checkAbort(input.signal)
   if(processing)throw new StudioError('Hay otra exportación PDF en curso. Reintenta al terminar.',429)
   processing=true
   try{return await renderPrintPdf(input)}finally{processing=false}
 }
-async function renderPrintPdf({ image, widthMm, heightMm, bleedMm = 0, cropMarks = false, profile = 'cmyk', title = 'Diseño' }) {
+async function renderPrintPdf({ image, widthMm, heightMm, bleedMm = 0, cropMarks = false, profile = 'cmyk', title = 'Diseño',signal }) {
   const width = number(widthMm, 10, 2000, 'Ancho'), height = number(heightMm, 10, 2000, 'Alto'), bleed = number(bleedMm, 0, 10, 'Sangrado')
   if (!['rgb', 'cmyk'].includes(profile)) throw new StudioError('Perfil de color no válido.')
   if(!Buffer.isBuffer(image)||image.length>64*1024*1024)throw new StudioError('La imagen supera 64 MiB.',413)
@@ -30,18 +32,25 @@ async function renderPrintPdf({ image, widthMm, heightMm, bleedMm = 0, cropMarks
   if(expected.width>STUDIO_EXPORT_LIMITS.side||expected.height>STUDIO_EXPORT_LIMITS.side||expected.width*expected.height>STUDIO_EXPORT_LIMITS.printPixels)throw new StudioError('El PDF supera 32 megapíxeles o 16384 px por lado a 300 ppp.',413)
   let metadata
   try { metadata = await sharp(image, { limitInputPixels: STUDIO_EXPORT_LIMITS.printPixels }).metadata() } catch { throw new StudioError('La imagen de exportación no es válida.') }
+  checkAbort(signal)
   if (metadata.format !== 'png' || !metadata.width || !metadata.height) throw new StudioError('La imagen de exportación debe ser PNG.')
   if((metadata.pages??1)!==1||(metadata.orientation??1)!==1||metadata.width>16384||metadata.height>16384||metadata.width*metadata.height>STUDIO_EXPORT_LIMITS.printPixels)throw new StudioError('PNG multipágina, orientación o dimensiones no admitidas.')
   if(Math.abs(metadata.width-expected.width)>1||Math.abs(metadata.height-expected.height)>1)throw new StudioError('El render no corresponde a las medidas físicas y 300 ppp solicitados.')
   const flat = sharp(image, { limitInputPixels: STUDIO_EXPORT_LIMITS.printPixels }).flatten({ background: '#ffffff' })
-  const bytes = profile === 'cmyk'
+  // Native libvips work has no reliable preemption API. Keep the concurrency
+  // slot until it finishes; stop before the next stage and release the stream.
+  let bytes
+  try{bytes = profile === 'cmyk'
     ? await flat.toColourspace('cmyk').jpeg({ quality: 95, chromaSubsampling: '4:4:4' }).toBuffer()
-    : await flat.jpeg({ quality: 95, chromaSubsampling: '4:4:4' }).toBuffer()
+    : await flat.jpeg({ quality: 95, chromaSubsampling: '4:4:4' }).toBuffer()}finally{flat.destroy()}
+  checkAbort(signal)
   const margin = cropMarks ? bleed + MARK_OFFSET + MARK_LENGTH : bleed
   const pdf = await PDFDocument.create()
+  checkAbort(signal)
   pdf.setTitle(String(title).slice(0, 160)); pdf.setCreator('Runly Studio'); pdf.setProducer('Runly Studio')
   const page = pdf.addPage([(width + 2 * margin) * MM, (height + 2 * margin) * MM])
   const art = await pdf.embedJpg(bytes)
+  checkAbort(signal)
   // The render already covers the bleed: it is drawn over trim + bleed.
   page.drawImage(art, { x: (margin - bleed) * MM, y: (margin - bleed) * MM, width: (width + 2 * bleed) * MM, height: (height + 2 * bleed) * MM })
   page.setTrimBox(margin * MM, margin * MM, width * MM, height * MM)
@@ -59,6 +68,7 @@ async function renderPrintPdf({ image, widthMm, heightMm, bleedMm = 0, cropMarks
     }
   }
   const output=Buffer.from(await pdf.save())
+  checkAbort(signal)
   if(output.length>64*1024*1024)throw new StudioError('El PDF supera 64 MiB.',413)
   return output
 }

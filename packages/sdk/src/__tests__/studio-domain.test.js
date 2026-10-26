@@ -20,6 +20,15 @@ test('Studio SDK carries active company and auth and encodes ids', async () => {
   assert.deepEqual(JSON.parse(calls[3].options.body), { revision: 1 })
 })
 
+test('export cancellation reaches JSON authorization and binary PDF HTTP requests',async()=>{
+  const controller=new AbortController(),calls=[]
+  const client=createRunlyClient({baseUrl:'https://api.example.test',getActiveCompanyId:()=> 'tenant',fetch:async(url,options)=>{calls.push(options);return new Response(url.includes('print-pdf')?'%PDF-':'{}',{headers:{'Content-Type':url.includes('print-pdf')?'application/pdf':'application/json'}})}})
+  await client.studio.getDesign('design','token',controller.signal)
+  await client.studio.assetUrl('design','asset','token',controller.signal)
+  await client.studio.exportPrintPdf('design',new Blob(['synthetic']),{revision:1},'token',controller.signal)
+  for(const call of calls)assert.equal(call.signal,controller.signal)
+})
+
 test('Studio never queues stale revisions for offline replay', async () => {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: false } })

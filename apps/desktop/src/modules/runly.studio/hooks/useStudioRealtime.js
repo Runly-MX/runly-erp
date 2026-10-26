@@ -10,9 +10,9 @@ export function useStudioRealtime({ id, token, scope, onRevision, onDenied, onCh
   const callbacks = useRef({ onRevision, onDenied, onChange }), live = useRef({ cursor: null, selectedId: null }), send = useRef(null)
   useEffect(() => { callbacks.current = { onRevision, onDenied, onChange } }, [onRevision, onDenied, onChange])
   useEffect(() => {
-    let active = true, channel, topic, busy = false, lastSent = 0, scheduled, pointerTimer, pendingCursor = false, requestPending = false
+    let active = true, denied=false, channel, topic, busy = false, lastSent = 0, scheduled, pointerTimer, pendingCursor = false, requestPending = false
     async function refresh(peek = false) {
-      if (!active || busy) return
+      if (!active || denied || busy) return
       busy = true
       if (!peek) pendingCursor = false
       try {
@@ -47,6 +47,7 @@ export function useStudioRealtime({ id, token, scope, onRevision, onDenied, onCh
         if (!active) return
         setStatus('Reconectando'); setParticipants([])
         if ([401, 403, 404].includes(error.status)) {
+          denied=true
           if (channel) await supabase.removeChannel(channel)
           channel = null; topic = null; setStatus('Sin acceso'); callbacks.current.onDenied?.()
         }

@@ -145,3 +145,14 @@ test('another actor copying the session/batch identity cannot retire pending wor
   assert.equal(sync.state().pending,1)
   offline=false;await sync.flush();await saving;assert.equal(server.objects[0].x,222);assert.equal(server.objects[0].y,333);sync.close()
 })
+
+for(const status of [401,403])test(`authorization ${status} blocks automatic and manual resync sends while retaining newer work`,async()=>{
+  const document=base(),values=new Map();let sends=0,fetches=0
+  const sync=createStudioSync({document,revision:1,name:'Scoped',clientId:'denied-session',delay:10000,
+    storage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)},storageKey:'queue',
+    editor:{apply:async d=>d},transport:{fetch:async()=>{fetches++;return {document,revision:1}},send:async()=>{sends++;throw Object.assign(Error('denied'),{status})}}})
+  sync.local(edit(document,0,{x:123}));await assert.rejects(sync.flush(),e=>e.status===status)
+  sync.local(edit(sync.state().document,0,{y:456}));await sync.resync();await sleep(20)
+  assert.equal(sends,1);assert.equal(fetches,0);assert.equal(sync.state().requiresReload,true)
+  assert.equal(JSON.parse(values.get('queue')).document.objects[0].y,456);sync.close()
+})

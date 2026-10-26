@@ -19,6 +19,7 @@ import { exportDesign } from '../lib/studio-export.js'
 import { downloadName, nextPaint, sanitizeExportError } from '../lib/studio-download.js'
 import { AccessLost } from './editor/collaboration/AccessLost.jsx'
 import { DownloadNotice } from './editor/DownloadNotice.jsx'
+import { checkAbort,abortable } from '../../../../../shared/studio/abort.js'
 
 const unwrap = response => response?.data ?? response
 
@@ -48,6 +49,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const [error, setError] = useState('')
   // Download: null | { phase: preparing|processing|downloading|done|cancelled|error, format, file, message }. The ref is the real guard against double clicks.
   const [download, setDownload] = useState(null), job = useRef(null), [shareOpen, setShareOpen] = useState(false)
+  useEffect(()=>()=>{job.current?.controller.abort();job.current=null},[])
   const exporting = Boolean(download && ['preparing', 'processing', 'downloading'].includes(download.phase))
   const [recovery, setRecovery] = useState(() => archive.read()??store.read()??collisions.read()), [copyWarning, setCopyWarning] = useState(false)
   const [ready, setReady] = useState(false)
@@ -93,9 +95,9 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   // A (re)mounted canvas shows the shared state, which may be newer than `initial`.
   useEffect(() => { if (ready) editorRef.current?.applyRemote(sync.state().document) }, [ready, sync])
   // Images added by collaborators are bound to the design: read them through it.
-  const resolveImage = useCallback(async id => {
+  const resolveImage = useCallback(async (id,signal) => {
     let signed = null
-    if (boundAssets.current.has(id)) signed = unwrap(await runly.studio.assetUrl(record.id, id, token))
+    if (signal||boundAssets.current.has(id)) signed = unwrap(await runly.studio.assetUrl(record.id, id, token,signal))
     else {
       try { signed = unwrap(await runly.files.getSignedUrl(id, token)) }
       catch (error) { signed = unwrap(await runly.studio.assetUrl(record.id, id, token).catch(() => { throw error })) }
@@ -136,9 +138,9 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const revoked = useCallback(() => { preserve();sync.deny(); setDenied(true) }, [preserve,sync])
   // Polling and whole-document updates (MCP, PUT): permission and missed revisions.
   const confirmed = useCallback((nextRevision, permission) => {
-    if (typeof permission === 'boolean') {setCanEdit(current => { if (current && !permission) { setLostEdit(true); setViewerSeen(false) } if (!current && permission) setLostEdit(false); return permission });if(!permission&&sync.state().pending)sync.deny()}
+    if (typeof permission === 'boolean') {if(canEdit&&!permission){setLostEdit(true);setViewerSeen(false)}if(!canEdit&&permission)setLostEdit(false);setCanEdit(permission);if(!permission&&sync.state().pending)sync.deny()}
     if (Number.isSafeInteger(nextRevision) && nextRevision > sync.state().revision) sync.changed(nextRevision)
-  }, [sync])
+  }, [sync,canEdit])
   const realtime = useStudioRealtime({ id: record.id, token, scope, onRevision: confirmed, onDenied: revoked, onChange: sync.receive })
   // `point` (optional): centre of a drag-and-drop in page coordinates.
   async function insertResource(asset, point = null) {
@@ -162,32 +164,32 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   async function exportImage(options, reviewedScene) {
     const editor = editorRef.current
     if (!editor || job.current) return
-    const current = job.current = { cancelled: false }, format = options.type === 'pdf' ? 'PDF' : options.type.toUpperCase()
-    const phase = (value, extra) => { if (!current.cancelled) setDownload({ phase: value, format, ...extra }) }
+    const current = job.current = { controller:new AbortController() }, format = options.type === 'pdf' ? 'PDF' : options.type.toUpperCase(),signal=current.controller.signal
+    const phase = (value, extra) => { if (!signal.aborted&&job.current===current) setDownload({ phase: value, format, ...extra }) }
     phase('preparing')
     // The render is synchronous work: paint the notice first, and tell the flow when the browser render is over (a PDF is then built on the server).
     const observed = new Proxy(editor, { get: (target, key) => key === 'exportImage'
       ? async (...args) => { const blob = await target.exportImage(...args); phase('processing'); return blob }
       : typeof target[key] === 'function' ? target[key].bind(target) : target[key] })
     try {
-      await nextPaint()
-      await ensureSaved()
-      const fresh=unwrap(await runly.studio.getDesign(record.id,token))
+      await nextPaint();checkAbort(signal)
+      await abortable(ensureSaved(),signal)
+      const fresh=unwrap(await runly.studio.getDesign(record.id,token,signal));checkAbort(signal)
       // Fabric measures text boxes at render time. Compare persisted documents
       // here; exportImage separately verifies the exact reviewed canvas snapshot.
       if(fresh.revision!==sync.state().revision||JSON.stringify(validateDocument(fresh.document))!==JSON.stringify(validateDocument(sync.state().document)))throw Error('El diseño cambió. Revisa la revisión actual antes de descargar.')
-      const { blob, extension } = await exportDesign({ editor: observed, options, scene: reviewedScene, designId: record.id, token, name,revision:fresh.revision })
-      const authorized=unwrap(await runly.studio.getDesign(record.id,token))
+      const { blob, extension } = await exportDesign({ editor: observed, options, scene: reviewedScene, designId: record.id, token, name,revision:fresh.revision,signal })
+      const authorized=unwrap(await runly.studio.getDesign(record.id,token,signal));checkAbort(signal)
       if(authorized.revision!==fresh.revision)throw Error('El diseño cambió durante la exportación. Vuelve a revisar y descargar.')
-      if (current.cancelled) return
-      phase('downloading'); await nextPaint()
+      phase('downloading'); await nextPaint();checkAbort(signal)
       const file = downloadName(name, extension), url = URL.createObjectURL(blob)
       Object.assign(document.createElement('a'), { href: url, download: file }).click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
-      phase('done', { file }); setTimeout(() => setDownload(now => now?.phase === 'done' ? null : now), 6000)
+      const completed={phase:'done',format,file};setDownload(completed);setTimeout(()=>setDownload(now=>now===completed?null:now),6000)
     } catch (error) { phase('error', { message: sanitizeExportError(error) }) } finally { if (job.current === current) job.current = null }
   }
-  // The render cannot be interrupted, but its result is discarded and nothing is downloaded; a new download can start right away.
-  function cancelDownload() { if (job.current) { job.current.cancelled = true; job.current = null; setDownload({ phase: 'cancelled' }) } }
+  // Abort I/O and later stages; synchronous canvas/native CPU work ends at its
+  // next cancellation boundary. Document synchronization remains independent.
+  function cancelDownload() { if (job.current) { job.current.controller.abort(); job.current = null; setDownload({ phase: 'cancelled' }) } }
   if (denied) return <AccessLost onBack={onBack} preserved={sync.state().status !== 'synced' || Boolean(store.read())} />
   const notices = <>
     {templateEditing.notice}
@@ -207,7 +209,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const chrome = {
     name, nameDisabled: !canEdit || !ready, onBack,
     onName: value => { nameRef.current = value; setName(value); if (value.trim()) sync.rename(value.trim()) },
-    syncState: status, live: realtime.status, onRetrySync: () => sync.resync(), ensureSaved,
+    syncState: status, live: realtime.status, onRetrySync: () => {if(status==='error'){if(preserve())window.location.reload()}else return sync.resync()}, ensureSaved,
     onShare: () => openCredits({kind:'share'}), onExport: options => openCredits({kind:'export',format:options.type,options}),
     onCredits: () => openCredits(), onSaveTemplate: ready ? async()=>{try{await ensureSaved();saveAsTemplate.open()}catch(e){setError(e.message)}} : null, exporting, exportDisabled: exporting, notices,
   }

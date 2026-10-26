@@ -14,6 +14,7 @@ import { DEFAULT_SNAPPING, DEFAULT_GRID, snappingOptions, gridOptions, createSna
 import { transformStudioGroup } from '../../../../../shared/studio/group-transform.js'
 import { applyOps, diffOps } from '../../../../../shared/studio/operations.js'
 import { exportDimensions } from '../../../../../shared/studio/export-limits.js'
+import { checkAbort,abortable } from '../../../../../shared/studio/abort.js'
 import { controlStyle, styleControls } from './studio-controls.js'
 
 // Fabric owns interaction; only the canonical Runly scene enters history or storage.
@@ -590,20 +591,23 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
     redo() { writable(); return enqueue(() => travelHistory('redo')) },
     // options: scale (resolution multiplier), transparent (PNG without page
     // background), bleed (px rendered beyond each page edge, for print).
-    async exportImage(format = 'png', quality = 0.9, reviewedScene, { scale = 1, transparent = false, bleed = 0 } = {}) {
-      await editor.flush()
+    async exportImage(format = 'png', quality = 0.9, reviewedScene, { scale = 1, transparent = false, bleed = 0,signal } = {}) {
+      checkAbort(signal)
+      await abortable(editor.flush(),signal)
       return enqueue(async () => {
+        checkAbort(signal)
         if (!['png','jpg'].includes(format) || !Number.isFinite(quality) || quality < 0.1 || quality > 1) throw new Error('Formato o calidad no válidos.')
         const dimensions=exportDimensions(current.page,scale,bleed)
         if(reviewedScene && JSON.stringify(snapshot())!==JSON.stringify(validateDocument(reviewedScene)))throw new Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
         exportingNow = true; editor.setReadOnly(protectedMode)
         try {
-        for(const item of snapshot().objects.filter(item=>item.type==='text')) await ensureStudioFont(item.fontFamily,item.fontVariant)
+        for(const item of snapshot().objects.filter(item=>item.type==='text')) await abortable(ensureStudioFont(item.fontFamily,item.fontVariant),signal)
         // Refresh every original capability before rendering; a cached bitmap is not fresh authorization.
         for (const id of documentAssetIds(snapshot())) {
-          try { const original = await FabricImage.fromURL(await resolveImage(id), { crossOrigin: 'anonymous' }); original.dispose() }
-          catch { throw new Error('No se pudo cargar la imagen original. Comprueba el archivo y reintenta.') }
+          try { const original = await FabricImage.fromURL(await abortable(resolveImage(id,signal),signal), { crossOrigin: 'anonymous',signal }); original.dispose() }
+          catch (error) { checkAbort(signal);throw error?.status ? error : new Error('No se pudo cargar la imagen original. Comprueba el archivo y reintenta.') }
         }
+        checkAbort(signal)
         canvas.discardActiveObject()
         const background = canvas.backgroundColor
         if (transparent && format === 'png') canvas.backgroundColor = null
@@ -611,8 +615,12 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
         let output
         try { output = canvas.toCanvasElement(scale, { left: -bleed, top: -bleed, width:dimensions.width/scale, height:dimensions.height/scale }) }
         finally { canvas.backgroundColor = background; canvas.renderAll() }
-        if(format==='jpg'){const ctx=output.getContext('2d');ctx.save();ctx.globalCompositeOperation='destination-over';ctx.fillStyle=current.page.background;ctx.fillRect(0,0,output.width,output.height);ctx.restore()}
-        return await new Promise((resolve, reject) => output.toBlob(blob => { output.width = 0; output.height = 0; blob ? resolve(blob) : reject(new Error('No se pudo exportar el diseño.')) }, format === 'jpg' ? 'image/jpeg' : 'image/png', quality))
+        try{
+          checkAbort(signal)
+          if(format==='jpg'){const ctx=output.getContext('2d');ctx.save();ctx.globalCompositeOperation='destination-over';ctx.fillStyle=current.page.background;ctx.fillRect(0,0,output.width,output.height);ctx.restore()}
+          const blob=await new Promise((resolve, reject) => output.toBlob(blob => blob ? resolve(blob) : reject(new Error('No se pudo exportar el diseño.')), format === 'jpg' ? 'image/jpeg' : 'image/png', quality))
+          checkAbort(signal);return blob
+        }finally{output.width=0;output.height=0}
         } finally { exportingNow = false; editor.setReadOnly(protectedMode) }
       })
     },
