@@ -10,6 +10,7 @@ import { createLocalCatalogFixtureNetwork } from './test-network.js'
 import { isStudioRaster } from '../image-format.js'
 
 const MAX_BYTES=10*1024*1024, MIME={png:'image/png',jpeg:'image/jpeg',webp:'image/webp'}
+const ICONIFY_PAGES=31
 // Openverse anonymous searches allow at most 20 results per page.
 const OPENVERSE_PAGE_SIZE=20
 const text=(value,max=200)=>typeof value==='string'?value.slice(0,max):''
@@ -95,9 +96,11 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
       if(!q) return {data:[],pagination:{page,hasNext:false},collections:p==='iconify'?ICON_COLLECTIONS:[],requiresQuery:true}
       if(p==='iconify') {
         await approvedCollection(collection)
-        const response=await json(`https://api.iconify.design/search?${new URLSearchParams({query:q,prefix:collection,limit:'32',start:String((page-1)*32)})}`)
+        // Iconify's limit is the end index (start must stay below it, max 999), not a page size.
+        if(page>ICONIFY_PAGES)return {data:[],pagination:{page,hasNext:false},collections:ICON_COLLECTIONS}
+        const response=await json(`https://api.iconify.design/search?${new URLSearchParams({query:q,prefix:collection,limit:String(page*32),start:String((page-1)*32)})}`)
         if(!Array.isArray(response?.icons)||response.icons.length>32)unavailable()
-        data=response.icons.map(iconSource).filter(row=>row&&row.id.startsWith(`${collection}:`));hasNext=response.icons.length===32
+        data=response.icons.map(iconSource).filter(row=>row&&row.id.startsWith(`${collection}:`));hasNext=response.icons.length===32&&page<ICONIFY_PAGES
       }else{
         const response=await json(`https://api.openverse.org/v1/images/?${new URLSearchParams({q,page:String(page),page_size:String(OPENVERSE_PAGE_SIZE),license:'cc0,pdm,by',license_type:'commercial,modification',mature:'false'})}`)
         if(!Array.isArray(response?.results)||response.results.length>OPENVERSE_PAGE_SIZE)unavailable()

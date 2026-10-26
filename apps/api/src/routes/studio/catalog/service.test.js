@@ -27,6 +27,19 @@ test('authorization precedes cache hits and scopes by company and actor; viewer 
   state.allowed=true;state.edit=false;await assert.rejects(service.insert('company-a','actor-a','iconify','tabler:star',design,{}),{status:404})
   assert.equal(state.requests,2);assert.equal(state.uploads,0)
 })
+test('Iconify pages use limit as end index (start < limit) and stop at the API maximum',async()=>{
+  const ranges=[]
+  const{service}=fixture({get:async value=>{
+    const url=new URL(value)
+    if(url.pathname==='/collections')return{mime:'application/json',bytes:Buffer.from(JSON.stringify({tabler:{license:{spdx:'MIT'}}}))}
+    ranges.push([Number(url.searchParams.get('start')),Number(url.searchParams.get('limit'))])
+    return{mime:'application/json',bytes:Buffer.from(JSON.stringify({icons:Array.from({length:32},(_,i)=>`tabler:icon-${i}`)}))}
+  }})
+  assert.equal((await service.search('company-a','actor-a','iconify',{q:'star',page:2})).pagination.hasNext,true)
+  assert.equal((await service.search('company-a','actor-a','iconify',{q:'star',page:31})).pagination.hasNext,false)
+  assert.deepEqual(await service.search('company-a','actor-a','iconify',{q:'star',page:32}),{data:[],pagination:{page:32,hasNext:false},collections:(await service.search('company-a','actor-a','iconify',{q:'star',page:33})).collections})
+  assert.deepEqual(ranges,[[32,64],[960,992]])
+})
 test('Openverse search respects anonymous page size and preserves filters and pagination',async()=>{
   const pages=[]
   const{state,service}=fixture({get:async value=>{
