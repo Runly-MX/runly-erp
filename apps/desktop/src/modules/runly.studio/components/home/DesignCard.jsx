@@ -1,19 +1,38 @@
+import { useQuery } from '@tanstack/react-query'
 import { ActionMenu, Skeleton } from '@runly/ui'
 import { Copy, ExternalLink, Layers, Users } from 'lucide-react'
+import { useAuth } from '../../../../auth/AuthProvider.jsx'
+import { runly } from '../../../../lib/runly.js'
 import { StudioThumbnail } from '../StudioThumbnail.jsx'
 import { editedAgo, sizeLabel } from '../../lib/formats.js'
 
 const ROLE = { EDITOR: 'Puede editar', VIEWER: 'Solo lectura' }
+const MAX_PREVIEW_IMAGES = 6
+
+// Signed URLs for the images in a card preview, through the design's own asset
+// capability (works for collaborators without direct Files access).
+function usePreviewImages(design) {
+  const token = useAuth().session?.access_token
+  const ids = [...new Set((design.preview?.objects ?? []).filter(item => item.type === 'image' && !item.hidden).map(item => item.fileAssetId))].slice(0, MAX_PREVIEW_IMAGES).sort()
+  return useQuery({
+    queryKey: ['studio', 'preview-images', design.id, design.revision, ids],
+    queryFn: async () => Object.fromEntries((await Promise.all(ids.map(async id => {
+      try { const result = await runly.studio.assetUrl(design.id, id, token); return [id, (result?.data ?? result)?.signedUrl] } catch { return [id, null] }
+    }))).filter(([, url]) => url)),
+    enabled: Boolean(token && ids.length), staleTime: 20 * 60_000, gcTime: 30 * 60_000,
+  }).data
+}
 
 // Card-wide button underneath + menu sibling on top (no nested controls).
 export function DesignCard({ design, onOpen, onDuplicate }) {
   const shared = design.role && design.role !== 'OWNER'
+  const images = usePreviewImages(design)
   return (
     <div className="group relative flex w-full flex-col overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-fuchsia-500/40 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0">
       <button type="button" onClick={onOpen} aria-label={`Abrir ${design.name}`}
         className="absolute inset-0 z-0 cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2" />
       <div className="pointer-events-none relative flex aspect-[4/3] items-center justify-center bg-gradient-to-b from-[hsl(var(--muted)/0.35)] to-[hsl(var(--muted)/0.8)] p-4">
-        <StudioThumbnail document={design.preview} />
+        <StudioThumbnail document={design.preview} images={images} />
         {design.preview?.page ? <span className="absolute left-2 top-2 rounded-full bg-[hsl(var(--card)/0.9)] px-2 py-0.5 text-[11px] font-medium tabular-nums text-[hsl(var(--muted-foreground))] backdrop-blur max-sm:hidden">{sizeLabel(design.preview.page)}</span> : null}
         {shared ? <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-fuchsia-600 px-2 py-0.5 text-[11px] font-semibold text-white shadow"><Users className="h-3 w-3" aria-hidden />Compartido</span> : null}
       </div>

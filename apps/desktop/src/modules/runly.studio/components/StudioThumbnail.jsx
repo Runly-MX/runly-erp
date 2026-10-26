@@ -1,16 +1,19 @@
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
 import { cn } from '@runly/ui'
+import { ensureStudioFont } from '../lib/studio-fonts.js'
 
 // Vector preview of a Studio document (or the bounded list `preview`): shapes
-// and text render as SVG, images as a neutral placeholder so a grid of cards
-// never needs one signed URL per design.
-function Item({ item }) {
+// and text render as SVG; images use the signed URLs passed in `images`, or a
+// neutral placeholder while they load or when access is missing.
+function Item({ item, images }) {
   const transform = `translate(${item.x} ${item.y}) rotate(${item.rotation ?? 0})`
   if (item.type === 'rectangle') return <rect transform={transform} width={item.width} height={item.height} fill={item.fill} />
   if (item.type === 'ellipse') return <ellipse transform={transform} cx={item.width / 2} cy={item.height / 2} rx={item.width / 2} ry={item.height / 2} fill={item.fill} />
   if (item.type === 'vector') return <g transform={`${transform} scale(${item.width / item.geometry.width} ${item.height / item.geometry.height})`}>
     {item.geometry.paths.map((path,index) => <path key={index} d={path.d} fill={path.fill === 'color' ? item.fill : 'none'} stroke={path.stroke === 'color' ? item.fill : 'none'} strokeWidth={path.strokeWidth} strokeLinecap={path.cap} strokeLinejoin={path.join} />)}
   </g>
+  // Fabric stretches images to width × height (scaleX/scaleY), hence "none".
+  if (item.type === 'image' && images?.[item.fileAssetId]) return <image transform={transform} href={images[item.fileAssetId]} width={item.width} height={item.height} preserveAspectRatio="none" />
   if (item.type === 'image') {
     return <g transform={transform}>
       <rect width={item.width} height={item.height} className="fill-[hsl(var(--muted-foreground))]" opacity="0.22" />
@@ -20,20 +23,26 @@ function Item({ item }) {
   }
   // Fabric Textbox: unscaled width, then scaleX/scaleY; lineHeight 1.16.
   return <g transform={`${transform} scale(${item.scaleX ?? 1} ${item.scaleY ?? 1})`}>
-    <foreignObject width={item.width} height={Math.max(item.height, item.fontSize * 1.2)}>
+    {/* Visible overflow: stored heights are estimates; wrapped lines must not clip. */}
+    <foreignObject width={item.width} height={Math.max(item.height, item.fontSize * 1.2)} overflow="visible">
       <div style={{ color: item.fill, fontSize: item.fontSize, lineHeight: 1.16, fontFamily: item.fontFamily ?? 'sans-serif', whiteSpace: 'pre-wrap', overflowWrap: 'break-word' }}>{item.text}</div>
     </foreignObject>
   </g>
 }
 
-export const StudioThumbnail = memo(function StudioThumbnail({ document, frameRatio = 4 / 3, className }) {
+// `images` (optional) maps fileAssetId → signed URL; missing ones stay placeholders.
+export const StudioThumbnail = memo(function StudioThumbnail({ document, images, frameRatio = 4 / 3, className }) {
   const page = document?.page
+  // Bundled fonts load on demand; once added to document.fonts the browser
+  // re-lays out the foreignObject text, so the preview matches the editor.
+  const families = [...new Set((document?.objects ?? []).filter(item => item.type === 'text' && item.fontFamily).map(item => item.fontFamily))].sort().join('|')
+  useEffect(() => { for (const family of families.split('|').filter(Boolean)) ensureStudioFont(family).catch(() => {}) }, [families])
   if (!page) return null
   const wide = page.width / page.height >= frameRatio
   return <svg viewBox={`0 0 ${page.width} ${page.height}`} aria-hidden focusable="false"
     className={cn('block rounded-[3px] shadow-[0_8px_24px_-8px_rgb(0_0_0/0.35)] ring-1 ring-black/5', wide ? 'h-auto w-full' : 'h-full w-auto', className)}
     style={{ aspectRatio: `${page.width} / ${page.height}` }}>
     <rect width={page.width} height={page.height} fill={page.background} />
-    {(document.objects ?? []).filter(item => !item.hidden).map(item => <Item key={item.id} item={item} />)}
+    {(document.objects ?? []).filter(item => !item.hidden).map(item => <Item key={item.id} item={item} images={images} />)}
   </svg>
 })

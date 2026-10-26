@@ -1,5 +1,6 @@
 import { appendObject, blankDocument, validateDocument } from './document.js'
 import { iconSource } from './licenses.js'
+import { PREMIUM_TEMPLATES } from './templates-premium.js'
 
 const rect = (x, y, width, height, fill) => ({ type: 'rectangle', x, y, width, height, fill })
 const circle = (x, y, size, fill) => ({ type: 'ellipse', x, y, width: size, height: size, fill })
@@ -92,6 +93,7 @@ const DEFINITIONS = [
     text(50,55,700,24,'#182116','SONIDOS PARA ENCONTRARNOS'),rect(540,-100,90,800,'#182116'),circle(460,500,360,'#182116'),circle(540,580,200,'#c9f348'),
     text(40,240,710,116,'#182116','FRECUENCIA\nNOCTURNA'),rect(50,780,700,4,'#182116'),text(50,835,680,48,'#182116','SÁBADO · 20:00 H'),text(50,970,700,30,'#182116','MÚSICA EN VIVO · FORO ABIERTO'),
   ]},
+  ...PREMIUM_TEMPLATES,
 ]
 
 export const STUDIO_TEMPLATES = Object.freeze(DEFINITIONS.map(({ key, name, width, height,category,description,objects }) => Object.freeze({ key, name, width, height,

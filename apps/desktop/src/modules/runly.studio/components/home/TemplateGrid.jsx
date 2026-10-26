@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, ErrorState, SearchInput, Skeleton } from '@runly/ui'
-import { ChevronLeft, ChevronRight, SearchX, Wand2 } from 'lucide-react'
+import { Button, EmptyState, ErrorState, SearchInput, Skeleton } from '@runly/ui'
+import { ChevronLeft, ChevronRight, SearchX } from 'lucide-react'
 import { runly } from '../../../../lib/runly.js'
 import { StudioThumbnail } from '../StudioThumbnail.jsx'
 import { sizeLabel } from '../../lib/formats.js'
+import { TemplatePreviewDialog } from './TemplatePreviewDialog.jsx'
 
 export function TemplateGrid({ token, scopeKey, creating, onUse }) {
   const [search, setSearch] = useState(''), [q, setQ] = useState(''), [category, setCategory] = useState('all'), [page, setPage] = useState(1), [preview, setPreview] = useState(null)
@@ -37,12 +38,6 @@ export function TemplateGrid({ token, scopeKey, creating, onUse }) {
       <span className="text-sm">{page} / {result.pagination.totalPages}</span>
       <Button size="sm" variant="outline" disabled={page >= result.pagination.totalPages} onClick={() => setPage(value => value + 1)}>Siguiente<ChevronRight /></Button>
     </nav> : null}
-    <Dialog open={Boolean(preview)} onOpenChange={open => { if (!open) setPreview(null) }}>
-      <DialogContent size="md">
-        <DialogHeader><DialogTitle>{preview?.name}</DialogTitle><DialogDescription>{preview?.description}</DialogDescription></DialogHeader>
-        {preview ? <><div className="flex h-72 justify-center"><StudioThumbnail document={preview.document} /></div><p className="text-xs text-[hsl(var(--muted-foreground))]">{preview.creator} · Original · Versión {preview.version} · {sizeLabel(preview)}{preview.licenses?.length?` · Recursos: ${preview.licenses.join(', ')}`:''}</p></> : null}
-        <DialogFooter><Button variant="outline" onClick={() => setPreview(null)}>Cerrar</Button><Button disabled={Boolean(creating)} onClick={() => onUse(preview)}><Wand2 />{creating ? 'Creando…' : 'Usar plantilla'}</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <TemplatePreviewDialog templates={result?.data ?? []} template={preview} onChange={setPreview} onUse={onUse} creating={creating} />
   </div>
 }
