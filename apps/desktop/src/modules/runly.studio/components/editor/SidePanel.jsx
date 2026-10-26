@@ -18,8 +18,11 @@ export function SidePanel({ side = 'left', open, label, children, className }) {
   )
 }
 
-// Fades and lifts content in when `contentKey` changes (switching rail tabs).
-export function FadeSwap({ contentKey, children, className }) {
+const FROM = { below: 'translate-y-1.5', left: '-translate-x-6', right: 'translate-x-6' }
+
+// Fades content in when `contentKey` changes (switching rail tabs or views);
+// `from` picks the entry direction (lift from below, or slide from a side).
+export function FadeSwap({ contentKey, from = 'below', children, className }) {
   const [entered, setEntered] = useState(false)
   useEffect(() => {
     setEntered(false)
@@ -27,7 +30,8 @@ export function FadeSwap({ contentKey, children, className }) {
     return () => cancelAnimationFrame(frame)
   }, [contentKey])
   return (
-    <div className={cn('transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none', entered ? 'translate-y-0 opacity-100' : 'translate-y-1.5 opacity-0', className)}>
+    <div className={cn('transition-[opacity,transform] ease-out motion-reduce:transition-none', from === 'below' ? 'duration-200' : 'duration-300',
+      entered ? 'translate-x-0 translate-y-0 opacity-100' : cn(FROM[from], 'opacity-0 motion-reduce:translate-x-0 motion-reduce:translate-y-0'), className)}>
       {children}
     </div>
   )

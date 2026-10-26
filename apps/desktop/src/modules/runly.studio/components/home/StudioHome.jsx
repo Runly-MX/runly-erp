@@ -9,6 +9,7 @@ import { StudioHomeSidebar, StudioHomeTabs } from './StudioHomeNav.jsx'
 import { FadeSwap } from '../editor/SidePanel.jsx'
 import { StudioPageDialog } from '../StudioPageDialog.jsx'
 
+const VIEW_ORDER = ['home', 'designs', 'templates']
 const SHARED = [{ value: 'all', label: 'Todos' }, { value: 'mine', label: 'Míos' }, { value: 'shared', label: 'Compartidos' }]
 
 function SectionTitle({ id, as: Heading = 'h2', title, description, children }) {
@@ -43,6 +44,9 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, view =
   const top = useRef(null)
   // Switching views starts at the top, like a page change.
   const changeView = next => { onView(next); top.current?.scrollIntoView({ block: 'start' }) }
+  // The new view slides in from the side of the tab it comes from.
+  const [shown, setShown] = useState({ view, from: 'below' })
+  if (shown.view !== view) setShown({ view, from: VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(shown.view) ? 'right' : 'left' })
   const list = props => <DesignsList token={token} scopeKey={scopeKey} creating={creating} onCreate={onCreate} onOpen={onOpen} {...props} />
   const createFormat = format => onCreate('format', format)
   const views = {
@@ -99,9 +103,9 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, view =
   return (
     <div ref={top} className="mx-auto w-full max-w-[1600px] px-4 pb-10 sm:px-6 lg:flex lg:gap-8 lg:px-8 lg:pt-6">
       <StudioHomeSidebar view={view} onView={changeView} creating={creating} onCreate={createFormat} onCustom={() => setSizeOpen(true)} />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-x-clip">
         <StudioHomeTabs view={view} onView={changeView} />
-        <FadeSwap contentKey={view} className="pt-4 sm:pt-6 lg:pt-0">{views[view] ?? views.home}</FadeSwap>
+        <FadeSwap contentKey={view} from={shown.from} className="pt-4 sm:pt-6 lg:pt-0">{views[view] ?? views.home}</FadeSwap>
       </div>
       {sizeOpen ? <StudioPageDialog open creating page={{ width: 1080, height: 1080, background: '#ffffff' }} onClose={() => setSizeOpen(false)} onApply={page => onCreate('custom', page, true)} /> : null}
     </div>
