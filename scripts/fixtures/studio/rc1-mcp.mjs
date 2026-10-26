@@ -57,7 +57,7 @@ export async function verifyRcMcp(stack,{token:humanToken,companyId,actorId,desi
     assert.equal(Boolean((await commit(revoked)).isError),true)
     await stack.pool.query('UPDATE file_asset SET enabled=true WHERE id=$1',[disabledFile]);disabledFile=null
     await stack.pool.query('UPDATE membership SET enabled=false WHERE company_id=$1 AND user_id=$2',[companyId,actorId])
-    assert.equal(Boolean((await call('query','studio_overview')).isError),true)
+    await assert.rejects(()=>call('query','studio_overview'),error=>error.code===403)
     await stack.pool.query('UPDATE membership SET enabled=true WHERE company_id=$1 AND user_id=$2',[companyId,actorId])
     assert.equal((await query('studio_overview')).schemaVersion,5)
     const audit=(await stack.pool.query("SELECT action,count(*)::int AS count FROM audit_log WHERE module_key='runly.studio' AND actor_id=$1 GROUP BY action",[actorId])).rows
