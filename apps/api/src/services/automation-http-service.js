@@ -96,6 +96,13 @@ export function createAutomationHttpService({ prisma, transport = defaultTranspo
     return secret;
   }
 
+  // A new signing key: the receiving systems must be updated with it.
+  async function regenerateSecret() {
+    const secret = crypto.randomBytes(32).toString("hex");
+    await writeConfig(SECRET_KEY, secret);
+    return secret;
+  }
+
   // lookup() handed to https.request: resolves, rejects non-public addresses
   // and connects only to a validated one.
   function safeLookup(hostname, options, callback) {
@@ -142,5 +149,5 @@ export function createAutomationHttpService({ prisma, transport = defaultTranspo
     return { status: response.status };
   }
 
-  return { getHosts, setHosts, getSecret, send, safeLookup };
+  return { getHosts, setHosts, getSecret, regenerateSecret, send, safeLookup };
 }

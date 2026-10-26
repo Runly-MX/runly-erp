@@ -547,6 +547,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       automationHttpHosts: (token) => request("/module-builder/automation-http-hosts", { headers: withAuthHeaders(token) }),
       // The same list managed from the Automatizaciones module (needs automations.manage, not Core permissions).
       systemAutomationHttpHosts: (token) => request("/automations/http-hosts", { headers: withAuthHeaders(token) }),
+      systemAutomationHttpSecret: (token) => request("/automations/http-secret", { headers: withAuthHeaders(token) }),
+      regenerateSystemAutomationHttpSecret: (token) => request("/automations/http-secret/regenerate", { method: "POST", headers: withAuthHeaders(token), body: "{}" }),
       setSystemAutomationHttpHosts: (hosts, token) =>
         request("/automations/http-hosts", { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify({ hosts }) }),
       setAutomationHttpHosts: (hosts, token) =>

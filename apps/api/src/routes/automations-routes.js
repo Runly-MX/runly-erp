@@ -40,6 +40,10 @@ export function createAutomationsRouter({ prisma, requirePermission, moduleServi
     }
   });
 
+  // Key that signs what Runly sends (X-Runly-Signature), so the receiver can verify it. Administrators only.
+  app.get("/automations/http-secret", guard, async (c) => c.json({ data: { secret: await httpService.getSecret() } }));
+  app.post("/automations/http-secret/regenerate", guard, async (c) => c.json({ data: { secret: await httpService.regenerateSecret() } }));
+
   // Origins (IPs / networks) allowed to send webhooks; empty = any with the secret URL.
   app.get("/automations/webhook-origins", guard, async (c) => c.json({ data: { origins: await service.webhooks.getOrigins() } }));
   app.put("/automations/webhook-origins", guard, async (c) => {

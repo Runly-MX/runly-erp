@@ -78,6 +78,51 @@ function ListEditor({ values, onChange, canManage, label, placeholder, empty }) 
   );
 }
 
+const VERIFY_SNIPPET = `// Node.js: comprueba que el mensaje viene de Runly (usa el cuerpo EXACTO, sin volver a serializarlo)
+import crypto from "node:crypto";
+const esperada = "sha256=" + crypto.createHmac("sha256", CLAVE_DE_FIRMA).update(cuerpoCrudo).digest("hex");
+const valida = crypto.timingSafeEqual(Buffer.from(esperada), Buffer.from(encabezadoXRunlySignature));`;
+
+// The key that signs what Runly sends. Shown only on request, to who administers automations.
+function SigningKey({ token }) {
+  const [secret, setSecret] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const run = async (action) => {
+    setBusy(true);
+    try {
+      const res = await action();
+      setSecret(res?.data?.secret ?? null);
+    } catch (error) {
+      toast.error("No se pudo obtener la clave", { description: error?.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(secret); toast.success("Clave copiada"); } catch { toast.error("No se pudo copiar: selecciónala y cópiala."); }
+  };
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold">Clave de firma</h3>
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">Con esta clave tu servidor comprueba que el mensaje viene de Runly (el encabezado <code>X-Runly-Signature</code>). Trátala como una contraseña; es una sola para toda la instancia.</p>
+      {secret ? (
+        <div className="space-y-2">
+          <code className="block break-all rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 p-2 text-xs select-all">{secret}</code>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={copy}>Copiar</Button>
+            <Button size="sm" variant="outline" onClick={() => setSecret(null)}>Ocultar</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => runly.modules.regenerateSystemAutomationHttpSecret(token))}>Generar otra</Button>
+          </div>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Al generar otra, la anterior deja de servir: actualiza los servidores que la usan.</p>
+        </div>
+      ) : (
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => runly.modules.systemAutomationHttpSecret(token))}>Mostrar clave</Button>
+      )}
+      <CodeSnippet value={VERIFY_SNIPPET} label="Copiar el ejemplo de verificación" />
+    </div>
+  );
+}
+
 const SAMPLE_BODY = `{
   "module": "system.automations",
   "automation": "aviso_pedido",
@@ -175,13 +220,14 @@ export function AutomationConnectionsDialog({ open, onOpenChange, scope = "build
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold">Qué recibe el otro sistema (enviado por Runly)</h3>
                 <CodeSnippet value={SAMPLE_BODY} label="Copiar el ejemplo del cuerpo" />
+                {own && canManage ? <SigningKey token={token} /> : null}
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">
                   Con los encabezados <code>X-Runly-Signature</code> (<code>sha256=</code> más el HMAC-SHA256 del cuerpo exacto) y <code>X-Runly-Idempotency-Key</code>, para verificar el origen y evitar duplicados.
                 </p>
               </div>
             </TabsContent>
           </Tabs>
-          {!canManage && <p className="text-xs text-[hsl(var(--muted-foreground))]">Solo quien administra módulos puede cambiar estas listas.</p>}
+          {!canManage && <p className="text-xs text-[hsl(var(--muted-foreground))]">{own ? "Solo quien administra automatizaciones puede cambiar estas listas." : "Solo quien administra módulos puede cambiar estas listas."}</p>}
         </div>
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>{canManage ? "Cancelar" : "Cerrar"}</Button>

@@ -22,6 +22,7 @@ El botón **Conexiones**, arriba en la lista y en cada automatización, tiene do
 
 - **Recibir**: los orígenes (IP o redes) desde donde se aceptan mensajes de webhook. Vacío acepta a cualquiera que tenga la dirección secreta.
 - **Enviar**: los servidores a los que Runly puede llamar con el bloque «Llamar a una URL» y a los que responden los botones de las integraciones del chat. Si un servidor no está en la lista, la llamada falla con un aviso claro. La lista es una sola para toda la instancia.
+- En **Enviar** también está la **clave de firma**: con ella tu servidor comprueba que el mensaje viene de Runly (encabezado `X-Runly-Signature`).
 
 ### Con MirAI
 
