@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDocumentHistory } from './document-history.js'
 import { blankDocument, appendObject, validateDocument } from '../../../../../shared/studio/document.js'
+import { transformStudioGroup } from '../../../../../shared/studio/group-transform.js'
 
 test('v1 upgrades without mutating its input and v2 flags survive roundtrip', () => {
   const v1 = { ...appendObject(blankDocument(), 'rectangle'), schemaVersion: 1 }
@@ -57,4 +58,17 @@ test('gradient/photo/group properties remain atomic; undo of creation never dele
   h.commit({...doc,objects:[{...doc.objects[0],fillPaint:paint,groupId:'local'}]})
   h.rebase([{type:'patch',id,set:{fillPaint:{...paint,angle:45}}}])
   const undone=h.move('undo');assert.equal(undone.objects[0].fillPaint.angle,45);assert.equal(undone.objects[0].groupId,undefined)
+})
+test('group transform undo preserves remote photo framing and text color without adding remote history steps',()=>{
+  const fileAssetId='00000000-0000-4000-8000-000000000001'
+  let doc=appendObject(blankDocument(),'rectangle',{groupId:'g',fillPaint:{type:'image',fileAssetId,image:{zoom:1.2,offsetX:0.1}}})
+  doc=appendObject(doc,'text',{groupId:'g',x:400,text:'Group test'})
+  const history=createDocumentHistory(doc),next=transformStudioGroup(doc,'g',{scale:1.2,rotation:20,origin:{x:0,y:0}})
+  history.commit(next)
+  const framing={...next.objects[0].fillPaint,image:{...next.objects[0].fillPaint.image,offsetX:0.3}}
+  history.rebase([{type:'patch',id:doc.objects[0].id,set:{fillPaint:framing}},{type:'patch',id:doc.objects[1].id,set:{fill:'#abcdef'}}])
+  assert.equal(history.state().entries,1)
+  const undone=history.move('undo');assert.equal(undone.objects[0].width,doc.objects[0].width);assert.equal(undone.objects[0].rotation,0)
+  assert.equal(undone.objects[0].fillPaint.fileAssetId,fileAssetId);assert.equal(undone.objects[0].fillPaint.image.offsetX,0.3);assert.equal(undone.objects[1].fill,'#abcdef')
+  assert.equal(history.move('redo').objects[0].fillPaint.image.offsetX,0.3)
 })
