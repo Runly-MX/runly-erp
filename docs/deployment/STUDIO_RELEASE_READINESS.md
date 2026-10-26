@@ -14,6 +14,9 @@ la referencia **local** origin/main. Durante la revisión entraron commits de
 otras sesiones; se fijó el checkpoint de producto commiteado `32fe936c` y se
 construyeron las tres imágenes desde su archivo Git, sin ramas ni worktrees.
 Las nuevas ediciones concurrentes posteriores quedan fuera de este candidato.
+En particular, `924602fb` (paginación de búsqueda Iconify) entró después del
+congelado y no está en estas imágenes ni queda certificado por este GO. El
+HEAD posterior del repositorio no debe sustituirse al SHA de producto al publicar.
 El SHA del informe o de correcciones posteriores del harness no sustituye el
 SHA de producto indicado arriba.
 
