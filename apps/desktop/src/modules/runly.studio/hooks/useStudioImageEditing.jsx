@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { runly } from '../../../lib/runly.js'
 
 const SharedImageEditor = lazy(() => import('@runly/ui').then(module => ({default:module.ImageEditorDialog})))
@@ -7,10 +7,9 @@ const unwrap = value => value?.data ?? value
 // Glue only: all editing controls remain in the shared editor. No replace-original callback.
 export function useStudioImageEditing({ editorRef, designId, token, canEdit }) {
   const [session,setSession] = useState(null), active = useRef(null), mode = useRef(canEdit)
-  mode.current = canEdit
   const close = useCallback(() => { active.current?.controller.abort(); active.current = null; setSession(null) },[])
   useEffect(() => close,[close,designId,token])
-  useEffect(() => { if (!canEdit) close() },[canEdit,close])
+  useLayoutEffect(() => { mode.current=canEdit; if (!canEdit) close() },[canEdit,close])
   const editImage = useCallback(async objectId => {
     if (!mode.current) throw Error('Diseño de solo lectura.')
     close()

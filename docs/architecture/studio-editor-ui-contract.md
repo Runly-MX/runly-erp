@@ -31,6 +31,15 @@ concede acceso genérico en Files. Una revocación durante la subida puede dejar
 una copia privada del editor en Files, pero no devuelve una capacidad de Studio
 ni modifica el documento o el original. Un fallo de Storage conserva el diseño.
 
+Las sustituciones nuevas registran `studio.image.copy` en el audit log protegido
+por el backend. El acceso al original y a sus copias puede reconstruirse desde
+las imágenes actualmente enlazadas al mismo diseño, hasta 50 enlaces, con control
+de ciclos. Esto permite undo/redo incluso después de guardar, sin convertir el
+acceso de un colaborador en acceso general a Files. Se exige acceso actual al
+diseño y archivo habilitado; otro diseño no hereda ese permiso. La consulta usa
+el índice existente de módulo/tipo/ID de entidad. `studioEditedFrom` editable no
+concede permisos y los clientes PostgREST no pueden fabricar estos eventos.
+
 `captureImage(id?)` devuelve `{object,fingerprint}`. Después del guardado,
 `replaceImage(objectId,fileAssetId,fingerprint?)` cambia una sola referencia,
 conserva el marco y crea un paso de historial. Reautoriza el nuevo archivo y su
@@ -84,7 +93,9 @@ mostrar el error de la promesa si se revoca el acceso o cambia la selección.
 - `studioFontStyle(family, variant)` devuelve el archivo, peso y estilo real o
   `null`. Oswald ofrece light/regular/medium/semibold/bold; Playfair Display
   regular/medium/semibold/bold; Lato regular/bold/italic. Las demás familias
-  ofrecen regular. Las fuentes OFL se descargan del propio Runly bajo demanda;
+  se consultan mediante el resolver: el catálogo puede ampliarse sin asumir pesos
+  disponibles. Estas fueron las familias/variantes verificadas en esta entrega.
+  Las fuentes OFL se descargan del propio Runly bajo demanda;
   los orígenes y hashes están en `studio-fonts/sources.json`. No hay cursivas o
   pesos sintéticos. La UI debe deshabilitar combinaciones no disponibles.
 - `add('line', properties)` crea una línea/polilínea real. `points` contiene 2…256
