@@ -77,6 +77,7 @@ export function createStudioRealtimeSession({id,companyId,getToken,api,client,cr
         planRenew(Math.min(P.renewMs,Math.max(1000,data.expiresAt-serverNow()-8000)))
       }catch(error){
         count(`contextFailure_${error.status??'transport'}`)
+        if(instrument)counts.contextFailureName=error.name
         if(!active||denied)return
         // Auth may refresh just after resume. Stop all capabilities immediately,
         // but let the latest token recover without labelling it an ACL revoke.
@@ -196,6 +197,7 @@ export function createStudioRealtimeSession({id,companyId,getToken,api,client,cr
     if(!validEphemeral(payload,c,grant.pages,serverNow()))return
     const envelope=await signEphemeral(payload,identity.pair.privateKey,crypto)
     if(!alive()||epoch!==generation)return
+    if(grant.certificate!==c){queue('activity',true);return}
     if(trackPending){trackPending=false;tracker.push({generation:epoch,certificate:c,entry:{certificate:c,certificateSignature,...envelope}})}
     if(!alive()||epoch!==generation||!visible()||!receivers())return
     // send() must never fall back to Supabase's HTTP broadcast endpoint.

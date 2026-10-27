@@ -6,7 +6,7 @@ import { createEphemeralKey,signEphemeral,realtimeBytes,packEphemeral } from '..
 const designId='00000000-0000-4000-8000-000000000001',companyId='00000000-0000-4000-8000-000000000002',actorId='00000000-0000-4000-8000-000000000003'
 const sleep=ms=>new Promise(r=>setTimeout(r,ms))
 async function until(check){for(let i=0;i<100;i++){if(check())return;await sleep(2)}assert.fail('Condition did not settle')}
-function fixture(){
+function fixture(options={}){
   let clock=Date.now(),token='auth-1',fail,calls=0,next=0,denied=0;const tasks=new Map(),channels=[],sent=[],metadata=[]
   const {privateKey,publicKey}=generateKeyPairSync('ed25519'),verificationKey=publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('base64url')
   const timers={setTimeout(fn,ms){tasks.set(++next,{fn,at:clock+ms});return next},clearTimeout:id=>tasks.delete(id),setInterval(fn,ms){tasks.set(++next,{fn,at:clock+ms,interval:ms});return next},clearInterval:id=>tasks.delete(id)}
@@ -14,7 +14,7 @@ function fixture(){
   function attest(publicKey,sessionId='a'.repeat(32),actor=actorId){const certificate={v:1,designId,companyId,actorId:actor,sessionId,publicKey,name:'Verified',role:'EDITOR',epoch:'4',issuedAt:clock,expiresAt:clock+30000};return {certificate,certificateSignature:sign(null,realtimeBytes(certificate),privateKey).toString('base64url')}}
   const api=async(_id,input,auth,signal)=>{calls++;assert.equal(auth,token);if(fail)throw fail;assert.equal(signal.aborted,false);return {version:1,...attest(input.publicKey),verificationKey,socketToken:`socket-${calls}`,serverTime:clock,expiresAt:clock+30000,topic:`studio:ephemeral:${designId}@4`,documentTopic:`studio:design:${designId}@4`,revision:1,canEdit:true,pages:[{id:'page-1',width:320,height:240},{id:'page-2',width:240,height:320}]}}
   function client(){const local=[];return {removeAllChannels:async()=>{for(const ch of local){ch.state='closed';ch.emit('status','CLOSED')}},realtime:{setAuth:async()=>{},disconnect(){}},removeChannel:async ch=>{ch.state='closed';ch.emit('status','CLOSED')},channel(topic){const bindings=[];const ch={topic,state:'closed',presence:{},on(type,filter,fn){bindings.push({type,event:filter.event,fn});return ch},subscribe(fn){bindings.push({type:'status',fn});ch.state='joined';queueMicrotask(()=>fn('SUBSCRIBED'));return ch},presenceState:()=>ch.presence,track:async p=>{ch.tracked=p;return'ok'},untrack:async()=>{ch.tracked=null;return'ok'},send:async frame=>{sent.push(frame);return'ok'},emit(type,event,payload){for(const b of bindings)if(b.type===type&&(type==='status'||b.event===event))b.fn(type==='status'?event:payload)}};channels.push(ch);local.push(ch);return ch}}}
-  const session=createStudioRealtimeSession({id:designId,companyId,getToken:()=>token,api,client:client(),createSocket:()=>client(),onParticipants:r=>metadata.push(r),onDenied:()=>denied++,timers,now:()=>clock,random:()=>0,instrument:true})
+  const session=createStudioRealtimeSession({id:designId,companyId,getToken:()=>token,api,client:client(),createSocket:()=>client(),onParticipants:r=>metadata.push(r),onDenied:()=>denied++,timers,now:()=>clock,random:()=>0,instrument:true,crypto:options.crypto??globalThis.crypto})
   return {session,advance,channels,sent,tasks,metadata,attest,now:()=>clock,get calls(){return calls},get denied(){return denied},set token(t){token=t},set fail(e){fail=e}}
 }
 test('cursor coalescing uses Broadcast, suppresses duplicate selection and never calls the context per movement',async()=>{
@@ -68,4 +68,23 @@ test('a temporarily unknown page cannot turn pointer events into repeated contex
     for(let i=0;i<100;i++)f.session.pointer({x:i+1,y:20},'pending-page')
     await f.advance(100);assert.equal(f.calls,2)
   }finally{await f.session.close()}
+})
+
+test('an in-flight old signature cannot consume the Presence renewal of a newer certificate',async()=>{
+  let paused=false,release
+  const native=globalThis.crypto
+  const signing=new Proxy(native.subtle,{get(target,key){
+    if(key==='sign')return async(...args)=>{if(paused)await new Promise(resolve=>{release=resolve});return target.sign(...args)}
+    const value=Reflect.get(target,key);return typeof value==='function'?value.bind(target):value
+  }})
+  const f=fixture({crypto:{getRandomValues:bytes=>native.getRandomValues(bytes),subtle:signing}})
+  try{
+    await f.session.start();await f.advance(0);await sleep(10)
+    paused=true;f.session.visibility();await f.advance(100);await until(()=>Boolean(release))
+    await f.advance(21000);await until(()=>f.calls===2);const renewedAt=f.now()
+    paused=false;release();await sleep(10);await f.advance(1000);await sleep(10);await f.advance(1000)
+    const channel=f.channels.find(c=>c.topic.includes('ephemeral'))
+    await until(()=>channel.tracked?.certificate.issuedAt===renewedAt)
+    assert.ok(channel.tracked.payload.at>=renewedAt)
+  }finally{paused=false;release?.();await f.session.close()}
 })

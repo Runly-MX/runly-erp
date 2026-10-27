@@ -116,6 +116,7 @@ try {
     for(let i=0;i<scenario.n;i++) {
       const context=await browser.newContext(),page=await context.newPage();contexts.push(context);pages.push(page)
       page.on('pageerror',error=>console.error('Browser error:',error.message))
+      page.on('requestfailed',request=>{if(request.url().endsWith('/collaboration'))console.error('Context transport:',request.failure()?.errorText)})
       page.on('response',response=>{if(response.url().endsWith('/collaboration')&&!response.ok())void response.text().then(body=>console.error('Context rejected:',response.status(),body))})
       const cdp=await context.newCDPSession(page);await cdp.send('Network.enable');await cdp.send('Performance.enable');page.cdp=cdp
       cdp.on('Network.webSocketFrameSent',e=>{if(recording){metrics.wsSent++;metrics.wsBytesSent+=Buffer.byteLength(e.response.payloadData,e.response.opcode===2?'base64':'utf8')}})
@@ -129,7 +130,8 @@ try {
     await wait(1500)
     if(phase==='after')try{for(const page of pages)await page.waitForFunction(n=>window.state().participants.length===n-1,scenario.n,{timeout:20000})}catch(e){console.error('Roster diagnostics:',JSON.stringify(await Promise.all(pages.map(p=>p.evaluate(()=>window.state().diagnostics)))));throw e}
     const diagnosticsBefore=await Promise.all(pages.map(p=>p.evaluate(()=>window.state().diagnostics)))
-    await Promise.all(pages.map(p=>p.cdp.send('HeapProfiler.collectGarbage')))
+    const measureRetainedHeap=process.argv.includes('--retained-heap')
+    if(measureRetainedHeap)await Promise.all(pages.map(p=>p.cdp.send('HeapProfiler.collectGarbage')))
     const before=await sql(),apiCpu=await cpu('runly-api'),pgCpu=await cpu('supabase-db'),realtimeCpu=await cpu('supabase-realtime'),browserBefore=await Promise.all(pages.map(p=>p.cdp.send('Performance.getMetrics')))
     recording=true
     for(const [i,page]of pages.entries())if(scenario.move)await page.evaluate(pageId=>window.move(pageId),scenario.pages&&i?'page-2':'page-1')
@@ -141,6 +143,7 @@ try {
     const pointLogs=await Promise.all(pages.map(p=>p.evaluate(()=>({sent:window.sentPoints,received:window.receivedPoints}))))
     metrics.diagnosticsBefore=diagnosticsBefore
     metrics.diagnostics=await Promise.all(pages.map(p=>p.evaluate(()=>window.state().diagnostics)))
+    await writeFile(join(output,`${arg('result')??phase}-diagnostics.json`),JSON.stringify({scenario:scenario.name,seconds,capacity:tenantCapacity[0],...metrics},null,2))
     if(phase==='after'){
       assert.ok(metrics.diagnostics.every(d=>d.sessions===scenario.n-1),'Final roster lost a live participant')
       assert.ok(metrics.diagnostics.every(d=>d.nativePresenceMetas<=scenario.n),'Native Presence retained historical metadata')
@@ -150,12 +153,16 @@ try {
       metrics.delivery={sent:delta('sent'),received:delta('received'),dropped:delta('dropped'),failedAcks:delta('sendFailed'),reconnections:delta('reconnections')}
       metrics.delivery.expected=metrics.delivery.sent*(scenario.n-1)
       metrics.delivery.gap=metrics.delivery.expected-metrics.delivery.received
+      assert.equal(metrics.delivery.gap,0,'Some expected peer deliveries were not observed')
+      assert.equal(metrics.delivery.dropped,0,'Valid benchmark frames were discarded')
+      assert.equal(metrics.delivery.failedAcks,0,'A broadcast acknowledgement failed')
+      assert.equal(metrics.delivery.reconnections,0,'Healthy benchmark unexpectedly reconnected')
     }
-    const retainedHeap=await Promise.all(pages.map(async p=>{
+    const retainedHeap=measureRetainedHeap?await Promise.all(pages.map(async p=>{
       await p.evaluate(()=>{window.sentPoints=[];window.receivedPoints=[]})
       await p.cdp.send('HeapProfiler.collectGarbage')
       return (await p.cdp.send('Performance.getMetrics')).metrics.find(m=>m.name==='JSHeapUsedSize')?.value??0
-    }))
+    })):[]
     const sentPoints=new Map(),pointKey=p=>`${p.userId}:${p.x}:${p.y}`
     for(const p of pointLogs.flatMap(l=>l.sent??[])){const key=pointKey(p),list=sentPoints.get(key)??[];list.push(p.at);sentPoints.set(key,list)}
     for(const point of pointLogs.flatMap(l=>l.received??[])){const list=sentPoints.get(pointKey(point))??[];let at=-1;for(let i=list.length-1;i>=0;i--)if(list[i]<=point.at){at=list[i];break}if(at>=0)metrics.cursorLatencies.push(point.at-at)}
