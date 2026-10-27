@@ -4,6 +4,7 @@ import { PREMIUM_TEMPLATES } from './templates-premium.js'
 import { ILLUSTRATED_TEMPLATES } from './templates-illustrated.js'
 import { FAMILY_TEMPLATES } from './templates-families.js'
 import { STYLE_TEMPLATES } from './templates-styles.js'
+import { THEME_TEMPLATES } from './templates-themes.js'
 
 const rect = (x, y, width, height, fill) => ({ type: 'rectangle', x, y, width, height, fill })
 const circle = (x, y, size, fill) => ({ type: 'ellipse', x, y, width: size, height: size, fill })
@@ -100,6 +101,7 @@ const DEFINITIONS = [
   ...ILLUSTRATED_TEMPLATES,
   ...FAMILY_TEMPLATES,
   ...STYLE_TEMPLATES,
+  ...THEME_TEMPLATES,
 ]
 
 export const STUDIO_TEMPLATES = Object.freeze(DEFINITIONS.map(({ key, name, width, height,category,description,objects }) => Object.freeze({ key, name, width, height,
