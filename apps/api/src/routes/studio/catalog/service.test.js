@@ -6,11 +6,30 @@ import { StudioError } from '../../../../../shared/studio/document.js'
 import { iconGeometry } from './vector.js'
 
 const id='00000000-0000-4000-8000-000000000001',design='00000000-0000-4000-8000-000000000002'
+
+test('included basic icons search and import editable geometry without any external request',async()=>{
+  const {service,state}=fixture()
+  const result=await service.search('company-a','actor-a','iconify',{q:'estrella',collection:'local'})
+  assert.equal(result.local,true);assert.equal(result.data[0].id,'lucide:star')
+  const icon=await service.insert('company-a','actor-a','iconify','lucide:star',design,{})
+  assert.equal(icon.object.type,'vector');assert.ok(icon.object.geometry.paths.length>0);assert.equal(state.requests,0);assert.equal(state.uploads,0)
+})
+
+test('thumbnail saturation leaves search capacity available and cancelled requests release their lane',async()=>{
+  const controller=new AbortController()
+  const {service}=fixture({get:async(_url,_state,{signal})=>new Promise((resolve,reject)=>{if(signal.aborted)return reject(new StudioError('Cancelled',499));signal.addEventListener('abort',()=>reject(new StudioError('Cancelled',499)),{once:true})})})
+  const requests=Array.from({length:8},()=>service.thumbnail('company-a','actor-a','iconify','tabler:star',{signal:controller.signal}))
+  const settled=Promise.allSettled(requests)
+  await new Promise(resolve=>setImmediate(resolve))
+  await assert.rejects(service.thumbnail('company-a','actor-a','iconify','tabler:star'),{status:429})
+  assert.equal((await service.search('company-a','actor-a','iconify',{q:'estrella',collection:'local'})).data.length,1)
+  controller.abort();assert.ok((await settled).every(row=>row.status==='rejected'&&row.reason.status===499))
+})
 const row={id,title:'Foto sintética',creator:'Autor de prueba',license:'by',license_version:'4.0',foreign_landing_url:'https://example.com/photo',url:'https://upload.wikimedia.org/fixture/photo.png',thumbnail:'https://upload.wikimedia.org/fixture/thumb.png',width:32,height:24}
 function fixture(overrides={}) {
   const state={allowed:true,edit:true,uploads:0,requests:0,bytes:null,row:{...row},response:null}
   const access={member:async(company,actor,permission)=>{if(!state.allowed||company!=='company-a'||actor!=='actor-a'||permission===state.deniedPermission)throw new StudioError('Denied',403)},get:async(_c,_a,_d,_db,edit)=>{if(edit&&!state.edit)throw new StudioError('Viewer',404);return{}},assets:async()=>({ids:[]})}
-  const network={get:async(url)=>{state.requests++;if(overrides.get)return overrides.get(url,state);if(url.includes('upload.wikimedia.org'))return{bytes:state.bytes,mime:'image/png'};return{mime:'application/json',bytes:Buffer.from(JSON.stringify(url.includes('/collections?')?{tabler:{license:{spdx:'MIT'}}}:state.response??(url.includes('/search?')?{icons:['tabler:star']}:url.includes('/tabler.json')?{prefix:'tabler',width:24,height:24,icons:{star:{body:'<path fill="none" stroke="currentColor" d="M2 2L22 22"/>'}}}:state.row)))}}}
+  const network={get:async(url,options)=>{state.requests++;if(overrides.get)return overrides.get(url,state,options);if(url.includes('upload.wikimedia.org'))return{bytes:state.bytes,mime:'image/png'};return{mime:'application/json',bytes:Buffer.from(JSON.stringify(url.includes('/collections?')?{tabler:{license:{spdx:'MIT'}}}:state.response??(url.includes('/search?')?{icons:['tabler:star']}:url.includes('/tabler.json')?{prefix:'tabler',width:24,height:24,icons:{star:{body:'<path fill="none" stroke="currentColor" d="M2 2L22 22"/>'}}}:state.row)))}}}
   const filesService={upload:async({file,fields})=>{state.uploads++;assert.equal(file.type,'image/png');assert.deepEqual(Buffer.from(await file.arrayBuffer()),state.bytes);assert.equal(fields.visibility,'PRIVATE');assert.equal(fields.metadata.studioSource.license,'CC-BY-4.0');return{id,originalName:'fixture.png'}},getById:async()=>{if(state.candidate&&!state.fileDenied)return state.candidate;throw new StudioError('Inaccessible',403)}}
   const supabaseAdmin={storage:{from:()=>({download:async()=>({data:new Blob([state.storedBytes])})})}}
   return{state,service:createStudioCatalog({prisma:{$queryRaw:async()=>state.candidate?[{id}]:[]},access,network,filesService,supabaseAdmin})}

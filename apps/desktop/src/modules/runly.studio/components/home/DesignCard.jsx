@@ -1,7 +1,7 @@
 import {documentAssetIds} from '../../../../../../shared/studio/shape-properties.js'
 import { useQuery } from '@tanstack/react-query'
 import { ActionMenu, Skeleton } from '@runly/ui'
-import { Copy, ExternalLink, Layers, Users } from 'lucide-react'
+import { Copy, ExternalLink, Layers, Users, Trash2 } from 'lucide-react'
 import { useAuth } from '../../../../auth/AuthProvider.jsx'
 import { runly } from '../../../../lib/runly.js'
 import { StudioThumbnail } from '../StudioThumbnail.jsx'
@@ -25,7 +25,7 @@ function usePreviewImages(design) {
 }
 
 // Card-wide button underneath + menu sibling on top (no nested controls).
-export function DesignCard({ design, onOpen, onDuplicate }) {
+export function DesignCard({ design, onOpen, onDuplicate, onDelete }) {
   const shared = design.role && design.role !== 'OWNER'
   const images = usePreviewImages(design)
   return (
@@ -53,6 +53,7 @@ export function DesignCard({ design, onOpen, onDuplicate }) {
           <ActionMenu label={`Opciones de ${design.name}`} items={[
             { label: 'Abrir', icon: ExternalLink, onClick: onOpen },
             { label: 'Duplicar', icon: Copy, onClick: onDuplicate },
+            ...(design.canDelete && onDelete ? [{ label: 'Eliminar diseño', icon: Trash2, onClick: onDelete, variant: 'destructive' }] : []),
           ]} />
         </div>
       </div>

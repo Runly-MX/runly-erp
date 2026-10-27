@@ -837,9 +837,9 @@ app.use(
   cors({
     origin: (origin) => origin || "*",
     credentials: true,
-    allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Studio-Protocol", "X-Runly-Site", "Idempotency-Key", "X-Pair-Secret"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Studio-Protocol", "X-Runly-Catalog-Request", "X-Runly-Site", "Idempotency-Key", "X-Pair-Secret"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id", "X-Label-Count", "X-Label-Overflow"],
+    exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Catalog-Request", "X-Label-Count", "X-Label-Overflow"],
   }),
 );
 

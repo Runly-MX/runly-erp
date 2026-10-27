@@ -23,6 +23,7 @@ export const ICON_COLLECTIONS=Object.freeze([
   {id:'tabler',name:'Tabler Icons',author:'Paweł Kuna / Tabler',license:'MIT',licenseUrl:'https://github.com/tabler/tabler-icons/blob/main/LICENSE',sourceUrl:'https://tabler.io/icons'},
   {id:'lucide',name:'Lucide',author:'Lucide Contributors / Cole Bemis',license:'ISC / MIT',licenseUrl:'https://github.com/lucide-icons/lucide/blob/main/LICENSE',sourceUrl:'https://lucide.dev/icons/'},
 ])
+export const LOCAL_ICON_COLLECTION=Object.freeze({id:'local',name:'Básicos sin conexión',license:'ISC / MIT'})
 export function iconSource(id) {
   if(typeof id!=='string'||! /^(tabler|lucide):[a-z0-9][a-z0-9-]{0,79}$/.test(id)) return null
   const collection=ICON_COLLECTIONS.find(row=>row.id===id.split(':')[0])

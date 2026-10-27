@@ -27,6 +27,7 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
     // home renders vector thumbnails without shipping whole documents.
     return prisma.$queryRaw`SELECT d.id,d.name,d.revision,d.owner_id AS "ownerId",u.display_name AS "ownerName",d.updated_at AS "updatedAt",
       CASE WHEN d.owner_id=${actorId}::uuid THEN 'OWNER' ELSE c.role END AS role,
+      (d.owner_id=${actorId}::uuid AND runly_studio.can_access(d.id,${actorId}::uuid,true)) AS "canDelete",
       (jsonb_array_length(d.document->'objects') + COALESCE((SELECT sum(jsonb_array_length(p->'objects')) FROM jsonb_array_elements(COALESCE(d.document->'additionalPages','[]'::jsonb)) p),0))::int AS "objectCount",
       (1 + jsonb_array_length(COALESCE(d.document->'additionalPages','[]'::jsonb)))::int AS "pageCount",
       jsonb_build_object('page', d.document->'page', 'objects', COALESCE((SELECT jsonb_agg(CASE WHEN o.value->>'type'='text'
@@ -34,7 +35,7 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
         FROM jsonb_array_elements(d.document->'objects') WITH ORDINALITY o WHERE o.ordinality <= 40), '[]'::jsonb)) AS preview
       FROM studio_design d
       JOIN user_profile u ON u.id=d.owner_id LEFT JOIN studio_collaborator c ON c.design_id=d.id AND c.user_id=${actorId}::uuid
-      WHERE d.company_id=${companyId}::uuid AND runly_studio.can_access(d.id,${actorId}::uuid,false)
+      WHERE d.company_id=${companyId}::uuid AND d.enabled AND runly_studio.can_access(d.id,${actorId}::uuid,false)
         AND (${shared}='all' OR (${shared}='mine' AND d.owner_id=${actorId}::uuid) OR (${shared}='shared' AND d.owner_id<>${actorId}::uuid))
         AND d.name ILIKE ${search}
       ORDER BY d.updated_at DESC,d.id LIMIT 24 OFFSET ${offset}`
@@ -125,5 +126,25 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
       { authorize: async () => { try { await access.get(companyId, actorId, id); return true } catch { return false } } })
     return { revision: row.revision, name: row.name, actorId, ops:row.ops }
   }
-  return { list, get, create, update, applyChanges, changeReceipt, access }
+  async function remove(companyId, actorId, id, input) {
+    access.identity(companyId, actorId)
+    if (!Number.isSafeInteger(input?.revision) || input.revision < 1) throw new StudioError('Falta la revisión del diseño.')
+    return prisma.$transaction(async db => {
+      await access.lock(db, id)
+      const current = await access.get(companyId, actorId, id, db, true)
+      if (current.ownerId !== actorId) throw new StudioError('Solo el propietario puede eliminar este diseño.', 403)
+      if (current.revision !== input.revision) throw new StudioError('El diseño cambió. Actualiza la lista antes de eliminarlo.', 409, 'STUDIO_REVISION_CONFLICT')
+      await db.$queryRaw`SELECT set_config('runly.studio.protocol','3',true)`
+      const [row] = await db.$queryRaw`UPDATE studio_design SET enabled=false,revision=revision+1,updated_at=now()
+        WHERE id=${id}::uuid AND company_id=${companyId}::uuid AND owner_id=${actorId}::uuid AND enabled AND revision=${input.revision}
+        RETURNING id,name,revision,enabled,updated_at AS "updatedAt"`
+      if (!row) throw new StudioError('Diseño no encontrado.', 404)
+      await db.$queryRaw`DELETE FROM studio_presence WHERE design_id=${id}::uuid RETURNING user_id`
+      await access.audit(db, companyId, actorId, 'studio.design.delete', row)
+      // The existing enabled trigger rotates the shared authorization epoch in
+      // this same transaction. Keep all assets, collaborators and template links.
+      return row
+    })
+  }
+  return { list, get, create, update, remove, applyChanges, changeReceipt, access }
 }

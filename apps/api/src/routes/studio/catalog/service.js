@@ -2,12 +2,14 @@ import sharp from 'sharp'
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import { FILE_ID, StudioError, validateDocument } from '../../../../../shared/studio/document.js'
-import { ICON_COLLECTIONS, iconSource, openverseLicense } from '../../../../../shared/studio/licenses.js'
+import { ICON_COLLECTIONS, LOCAL_ICON_COLLECTION, iconSource, openverseLicense } from '../../../../../shared/studio/licenses.js'
+import { localIcon, searchLocalIcons } from './local-icons.js'
 import { catalogUrl, createCatalogNetwork } from './network.js'
 import { createCatalogCache } from './cache.js'
 import { iconGeometry } from './vector.js'
 import { createLocalCatalogFixtureNetwork } from './test-network.js'
 import { isStudioRaster } from '../image-format.js'
+import { AsyncLocalStorage } from 'node:async_hooks'
 
 const MAX_BYTES=10*1024*1024, MIME={png:'image/png',jpeg:'image/jpeg',webp:'image/webp'}
 const ICONIFY_PAGES=31
@@ -17,7 +19,7 @@ const OPENVERSE_PAGE_SIZE=20
 const OPENVERSE_CATEGORIES=['photograph','illustration','digitized_artwork']
 const text=(value,max=200)=>typeof value==='string'?value.slice(0,max):''
 const sourceUrl=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href.slice(0,2048):''}catch{return ''}}
-const unavailable=()=>{throw new StudioError('El proveedor devolvió un recurso no compatible.',502)}
+const unavailable=()=>{throw new StudioError('El proveedor devolvió un recurso no compatible.',502,'CATALOG_RESPONSE_INVALID')}
 function photo(row) {
   const license=openverseLicense(row)
   if(!row||typeof row.id!=='string'||!FILE_ID.test(row.id)||!license||!sourceUrl(row.foreign_landing_url))return null
@@ -30,42 +32,62 @@ function photo(row) {
 
 // Provider operations share authentication, quotas and bounded metadata caching.
 // Browser input is an ID/query, never a URL. Originals only enter Files on import.
-export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,network=createCatalogNetwork(),clock=Date.now}) {
+export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,network=createCatalogNetwork(),clock=Date.now,onDiagnostic}) {
   if(process.env.STUDIO_CATALOG_TEST_PROJECT)network=createLocalCatalogFixtureNetwork(prisma,process.env.STUDIO_CATALOG_TEST_PROJECT)
   const cache=createCatalogCache({clock,ttl:5*60000,maxEntries:400}),rates=new Map(),imports=new Set();let decoding=0
+  const operations=new AsyncLocalStorage();let lastDiagnostic=-Infinity
+  const record=event=>{const context=operations.getStore();if(context&&context.events.length<32)context.events.push(event)}
+  const check=()=>{const context=operations.getStore();if(context?.signal?.aborted)throw new StudioError(context.expired?'El catálogo agotó el tiempo de espera.':'Solicitud cancelada.',context.expired?504:499,context.expired?'CATALOG_TOTAL_TIMEOUT':'CATALOG_CANCELLED')}
   // Public thumbnails are cached as base64 (PNG, ~256px) so re-renders and other users do not hit the provider again.
   const thumbs=createCatalogCache({clock,ttl:15*60000,maxEntries:300,maxBytes:24*1024*1024})
   async function decode(task) {
+    check();record({stage:'PROCESSING_START'})
     if(decoding>=2)throw new StudioError('Hay imágenes procesándose. Espera antes de reintentar.',429)
     decoding++
-    try{return await task()}finally{decoding--}
+    try{return await task()}finally{decoding--;record({stage:'PROCESSING_END'})}
   }
   async function authorize(companyId,actorId,editId,upload=false) {
+    check()
     await access.member(companyId,actorId,editId?'studio.edit':'studio.view')
     if(editId)await access.get(companyId,actorId,editId,prisma,true)
     if(upload){await access.member(companyId,actorId,'files.assets.read');await access.member(companyId,actorId,'files.assets.create')}
   }
   // Thumbnails use their own lane: a page of results fires ~20 of them and must not exhaust the search quota.
   const lanes={api:{limit:100,concurrent:4,running:0},thumb:{limit:1200,concurrent:8,running:0}}
-  async function work(companyId,actorId,action,laneName='api') {
-    await authorize(companyId,actorId)
+  async function work(companyId,actorId,action,laneName='api',options={}) {
+    const controller=new AbortController(),context={signal:controller.signal,deadline:Date.now()+(options.operation==='import'?30000:15000),events:[],expired:false,status:200},started=Date.now()
+    const abort=()=>controller.abort();options.signal?.addEventListener('abort',abort,{once:true});if(options.signal?.aborted)abort()
+    const timer=setTimeout(()=>{context.expired=true;controller.abort()},Math.max(1,context.deadline-Date.now()))
+    return operations.run(context,async()=>{try{
+    record({stage:'API_ENTRY',elapsedMs:0});record({stage:'ROUTE_AUTHORIZED',elapsedMs:options.entryElapsedMs??0});record({stage:'AUTHORIZATION_START'});await authorize(companyId,actorId);record({stage:'AUTHORIZATION_END'})
     const lane=lanes[laneName],now=clock(),key=`${companyId}:${actorId}:${laneName}`
     for(const[k,v]of rates)if(v.until<=now)rates.delete(k)
     if(!rates.has(key)){if(rates.size>=512)throw new StudioError('Catálogo ocupado. Reintenta más tarde.',429);rates.set(key,{count:0,until:now+60000})}
     if(++rates.get(key).count>lane.limit||lane.running>=lane.concurrent)throw new StudioError('Demasiadas consultas. Espera antes de reintentar.',429)
     lane.running++
-    try{const result=await action(`${companyId}:${actorId}`);await authorize(companyId,actorId);return result}finally{lane.running--}
+    try{record({stage:'OPERATION_START'});const result=await action(`${companyId}:${actorId}`);await authorize(companyId,actorId);check();return result}finally{lane.running--}
+    }catch(error){context.status=context.expired?504:error.status??500;context.code=context.expired?'CATALOG_TOTAL_TIMEOUT':error.code;check();throw error}finally{
+      clearTimeout(timer);options.signal?.removeEventListener('abort',abort)
+      context.events[ Math.min(context.events.length,31) ]={stage:'API_EXIT',status:context.status,elapsedMs:Date.now()-started}
+      const report={requestId:options.requestId,operation:options.operation,status:context.status,code:context.code,durationMs:Date.now()-started,events:context.events}
+      try{if(onDiagnostic)onDiagnostic(report)
+      else if(process.env.RUNLY_STUDIO_CATALOG_DIAGNOSTICS==='1'&&clock()-lastDiagnostic>=60000){lastDiagnostic=clock();console.info('[studio.catalog]',JSON.stringify(report))}}catch{/* diagnostic sinks cannot fail a request */}
+    }})
   }
   // Openverse and its thumbnail proxy intermittently answer 502/504; one retry clears most of them.
   async function fetchRetry(url,options) {
-    try{return await network.get(url,options)}
+    const context=operations.getStore()
+    const attempt=()=>{check();return network.get(url,{...options,signal:context?.signal,timeoutMs:Math.min(options?.timeoutMs??15000,Math.max(1,(context?.deadline??Date.now()+15000)-Date.now())),onTiming:record})}
+    try{return await attempt()}
     catch(error){
-      if(![502,504].includes(error?.status))throw error
-      return network.get(url,options)
+      if(!/^CATALOG_UPSTREAM_(502|503|504)$/.test(error?.code??'')||context&&context.deadline-Date.now()<1000)throw error
+      await new Promise(resolve=>setTimeout(resolve,100+Math.floor(Math.random()*150)))
+      return attempt()
     }
   }
   async function json(url) {
     const response=await fetchRetry(url,{maxBytes:262144})
+    check();record({stage:'VALIDATION'})
     if(response.mime!=='application/json')unavailable()
     try{return JSON.parse(response.bytes.toString('utf8'))}catch{unavailable()}
   }
@@ -75,12 +97,13 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
     const key=`license:${prefix}`
     if(!fresh&&cache.get(key))return
     const metadata=await json(`https://api.iconify.design/collections?prefix=${prefix}`)
-    if(metadata?.[prefix]?.license?.spdx!==(prefix==='tabler'?'MIT':'ISC'))throw new StudioError('La licencia actual de esta colección necesita revisión.',403)
+    if(metadata?.[prefix]?.license?.spdx!==(prefix==='tabler'?'MIT':'ISC'))throw new StudioError('La licencia actual de esta colección necesita revisión.',403,'CATALOG_LICENSE_DENIED')
     cache.set(key,{approved:true})
   }
   async function original(p,id,freshLicense=false,scope) {
     checkedId(p,id)
     if(p==='iconify') {
+      const included=localIcon(id);if(included)return included
       const[prefix,name]=id.split(':')
       await approvedCollection(prefix,freshLicense)
       const row=await json(`https://api.iconify.design/${prefix}.json?icons=${encodeURIComponent(name)}`)
@@ -95,19 +118,20 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
     const key=scope?`${scope}:original:openverse:${id}`:null
     if(key&&!freshLicense){const hit=cache.get(key);if(hit)return hit}
     const raw=await json(`https://api.openverse.org/v1/images/${encodeURIComponent(id)}/`),resource=photo(raw)
-    if(!resource||resource.id!==id)throw new StudioError('La licencia o el origen de esta fotografía no están admitidos.',403)
+    if(!resource||resource.id!==id)throw new StudioError('La licencia o el origen de esta fotografía no están admitidos.',403,'CATALOG_LICENSE_DENIED')
     const result={resource,originalUrl:raw.url,thumbnailUrl:raw.thumbnail}
     if(key)cache.set(key,result)
     return result
   }
-  async function search(companyId,actorId,p,query={}) {
+  async function search(companyId,actorId,p,query={},options={}) {
     provider(p)
     const q=text(query.q,80).trim(),page=Math.max(1,Math.min(100,Number.parseInt(query.page,10)||1)),collection=query.collection??'tabler'
     const category=OPENVERSE_CATEGORIES.includes(query.category)?query.category:''
-    if(p==='iconify'&&!ICON_COLLECTIONS.some(row=>row.id===collection))throw new StudioError('Colección no disponible.',400)
+    if(p==='iconify'&&collection!=='local'&&!ICON_COLLECTIONS.some(row=>row.id===collection))throw new StudioError('Colección no disponible.',400)
     return work(companyId,actorId,async scope=>{
       const key=JSON.stringify([scope,p,q,page,collection,category]),hit=cache.get(key);if(hit)return hit
       let data,hasNext
+      if(p==='iconify'&&collection==='local')return {data:searchLocalIcons(q,page),pagination:{page,hasNext:false},collections:[LOCAL_ICON_COLLECTION,...ICON_COLLECTIONS],local:true}
       if(!q) return {data:[],pagination:{page,hasNext:false},collections:p==='iconify'?ICON_COLLECTIONS:[],requiresQuery:true}
       if(p==='iconify') {
         await approvedCollection(collection)
@@ -129,16 +153,16 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
         });hasNext=Number.isInteger(response.page_count)&&page<response.page_count
       }
       const result={data,pagination:{page,hasNext},collections:p==='iconify'?ICON_COLLECTIONS:[]};cache.set(key,result);return result
-    })
+    },'api',{...options,operation:'search'})
   }
-  async function details(companyId,actorId,p,id) {
+  async function details(companyId,actorId,p,id,options={}) {
     checkedId(p,id)
     return work(companyId,actorId,async scope=>{
       const key=`${scope}:${p}:${id}`,hit=cache.get(key);if(hit)return hit
       const row=await original(p,id,false,scope),result={...row.resource,...(row.geometry?{geometry:row.geometry}:{})};cache.set(key,result);return result
-    })
+    },'api',{...options,operation:'details'})
   }
-  async function thumbnail(companyId,actorId,p,id) {
+  async function thumbnail(companyId,actorId,p,id,options={}) {
     checkedId(p,id)
     return work(companyId,actorId,async scope=>{
       const cached=thumbs.get(`${p}:${id}`)
@@ -154,12 +178,12 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
       catch(error){
         // The provider's thumbnail proxy is the flaky part; fall back to the (larger) original and shrink it here.
         if(![502,504].includes(error?.status))throw error
-        response=await network.get(row.originalUrl,{maxBytes:MAX_BYTES,timeoutMs:25000})
+        response=await fetchRetry(row.originalUrl,{maxBytes:MAX_BYTES})
       }
       const png=await decode(async()=> (await checkedImage(response)).processor.rotate().resize(256,256,{fit:'inside',withoutEnlargement:true}).png().toBuffer())
       thumbs.set(`${p}:${id}`,png.toString('base64'))
       return png
-    },'thumb')
+    },'thumb',{...options,operation:'thumbnail'})
   }
   async function checkedImage(response) {
     if(!Object.values(MIME).includes(response.mime)||!response.bytes.length||response.bytes.length>MAX_BYTES)throw new StudioError('Formato o tamaño de imagen no admitido.',413)
@@ -172,7 +196,7 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
       return {processor,metadata}
     }catch{throw new StudioError('El archivo no es una imagen válida de hasta 25 megapíxeles.',400)}
   }
-  async function insert(companyId,actorId,p,id,designId,context) {
+  async function insert(companyId,actorId,p,id,designId,context,options={}) {
     checkedId(p,id);if(typeof designId!=='string'||!FILE_ID.test(designId))throw new StudioError('Diseño no encontrado.',404)
     await authorize(companyId,actorId,designId,p==='openverse')
     return work(companyId,actorId,async scope=>{
@@ -207,7 +231,7 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
         await authorize(companyId,actorId,designId,true)
         return {resource:row.resource,file:{id:file.id,name:file.originalName,width:metadata.width,height:metadata.height}}
       }finally{imports.delete(key)}
-    })
+    },'api',{...options,operation:'import'})
   }
   async function credits(companyId,actorId,designId,input,context) {
     const document=validateDocument(input)

@@ -3,6 +3,11 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
   const options = (token, method = 'GET', data) => ({ method, headers: {...withAuthHeaders(token),...(method==='GET'?{}:{'X-Runly-Studio-Protocol':'3'})}, onlineOnly: true,
     ...(data === undefined ? {} : { body: JSON.stringify(data) }) })
   const interchange = '/studio/interchange'
+  const catalogRequest = async (url, config, blob = false) => {
+    const requestId=`studio-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,12)}`
+    try { return await (blob?requestBlob:request)(url,{...config,headers:{...config.headers,'X-Runly-Catalog-Request':requestId}}) }
+    catch(error){error.catalogRequestId=requestId;error.code=error.code??error.details?.code;throw error}
+  }
   const packageBody = (file, data) => {
     const body = new FormData(), name = file.name || 'plantilla.runlystudio'
     const type = file.type || (name.endsWith('.svg') ? 'image/svg+xml' : 'application/vnd.runly.studio+zip')
@@ -39,10 +44,10 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
       for (const [key, value] of Object.entries(params)) body.set(key, String(value))
       return requestBlob(`${path(id)}/export/print-pdf`, { method: 'POST', headers: withAuthHeaders(token), body, signal, onlineOnly: true })
     },
-    catalogSearch: (provider, token, query = {}, signal) => request(`/studio/catalog/${encodeURIComponent(provider)}/search${toQueryString(query)}`, { ...options(token), signal }),
-    catalogDetails: (provider, id, token, signal) => request(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}`, { ...options(token), signal }),
-    catalogThumbnail: (provider, id, token, signal) => requestBlob(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}/thumbnail`, { ...options(token), signal }),
-    catalogImport: (provider, id, designId, token) => request(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}/import`, options(token, 'POST', { designId })),
+    catalogSearch: (provider, token, query = {}, signal) => catalogRequest(`/studio/catalog/${encodeURIComponent(provider)}/search${toQueryString(query)}`, { ...options(token), signal }),
+    catalogDetails: (provider, id, token, signal) => catalogRequest(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}`, { ...options(token), signal }),
+    catalogThumbnail: (provider, id, token, signal) => catalogRequest(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}/thumbnail`, { ...options(token), signal },true),
+    catalogImport: (provider, id, designId, token, signal) => catalogRequest(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}/import`, {...options(token, 'POST', { designId }),signal}),
     credits: (id, document, token) => request(`${path(id)}/credits`, options(token, 'POST', { document })),
     templates: (token, query = {}, signal) => request(`/studio/templates${toQueryString(query)}`, { ...options(token), signal }),
     createFromTemplate: (key, token) => request(`/studio/templates/${encodeURIComponent(key)}/designs`, options(token, 'POST', {})),
@@ -60,6 +65,7 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
     protocol: token=>request('/studio/protocol',options(token)),
     createDesign: (data, token) => request('/studio/designs', options(token, 'POST', data)),
     updateDesign: (id, data, token) => request(path(id), options(token, 'PUT', data)),
+    deleteDesign: (id, revision, token) => request(path(id), options(token, 'DELETE', { revision })),
     applyChanges: (id, data, token) => request(`${path(id)}/changes`, options(token, 'POST', data)),
     changeReceipt: (id, batch, token) => request(`${path(id)}/changes?${new URLSearchParams({clientId:batch.clientId,batchId:String(batch.batchId)})}`, options(token)),
     collaborators: (id, token) => request(`${path(id)}/collaborators`, options(token)),

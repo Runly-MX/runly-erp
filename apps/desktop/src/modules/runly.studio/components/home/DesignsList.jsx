@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Button, EmptyState, ErrorState } from '@runly/ui'
+import { useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Button, ConfirmDialog, EmptyState, ErrorState } from '@runly/ui'
 import { ChevronLeft, ChevronRight, PenTool, Plus, SearchX } from 'lucide-react'
 import { toast } from 'sonner'
 import { runly } from '../../../../lib/runly.js'
 import { DesignCard, DesignCardSkeleton } from './DesignCard.jsx'
+import { retireDesignCaches } from '../../lib/design-retirement.js'
 
 const unwrap = response => response?.data ?? response
 const PAGE_SIZE = 24
@@ -14,14 +15,33 @@ const RECENT_GRID = 'grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4'
 // Designs grid. `limit` = "recent" teaser on the Inicio view: first page only,
 // no pagination, and nothing at all when there are no designs yet.
 export function DesignsList({ token, scopeKey, q = '', shared = 'all', limit, creating, onCreate, onOpen, onClearSearch }) {
-  const [page, setPage] = useState(1)
-  useEffect(() => setPage(1), [q, shared])
+  const queryClient = useQueryClient()
+  const [removing, setRemoving] = useState(null)
+  const [deleting, setDeleting] = useState(false), deletingRef = useRef(false)
+  const filterKey=JSON.stringify([q,shared])
+  const [pagination,setPagination]=useState({filterKey,page:1})
+  const page=pagination.filterKey===filterKey?pagination.page:1
   const designs = useQuery({
     queryKey: ['studio', ...scopeKey, 'designs', page, shared, q],
     queryFn: async () => unwrap(await runly.studio.listDesigns(token, { page, shared, ...(q ? { q } : {}) })),
     enabled: Boolean(token), placeholderData: previous => previous,
+    refetchInterval: 30000,
   })
   const all = designs.data ?? [], list = limit ? all.slice(0, limit) : all
+  useEffect(() => { if (!designs.isFetching && !designs.isError && designs.data?.length === 0 && page > 1) setPagination({filterKey,page:page-1}) }, [designs.isFetching, designs.isError, designs.data, page,filterKey])
+  async function remove() {
+    if (!removing?.canDelete || deletingRef.current) return
+    deletingRef.current = true; setDeleting(true)
+    try {
+      await runly.studio.deleteDesign(removing.id, removing.revision, token)
+      retireDesignCaches(queryClient,scopeKey,removing.id)
+      setRemoving(null)
+      toast.success('Diseño eliminado.')
+    } catch (error) {
+      if ([404, 409].includes(error.status)) setRemoving(null)
+      toast.error(error.status === 404 ? 'El diseño ya no está disponible.' : error.message)
+    } finally { deletingRef.current = false; setDeleting(false); await queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'designs'] }) }
+  }
   async function duplicate(design) {
     try {
       const source = unwrap(await runly.studio.getDesign(design.id, token))
@@ -41,13 +61,16 @@ export function DesignsList({ token, scopeKey, q = '', shared = 'all', limit, cr
   return (
     <>
       <ul className={limit ? RECENT_GRID : GRID} aria-busy={designs.isFetching}>
-        {list.map(design => <li key={design.id} className="flex"><DesignCard design={design} onOpen={() => onOpen(design.id)} onDuplicate={() => duplicate(design)} /></li>)}
+        {list.map(design => <li key={design.id} className="flex"><DesignCard design={design} onOpen={() => onOpen(design.id)} onDuplicate={() => duplicate(design)} onDelete={() => setRemoving(design)} /></li>)}
       </ul>
+      <ConfirmDialog open={Boolean(removing)} loading={deleting} onOpenChange={open => { if (!open && !deletingRef.current) setRemoving(null) }} title="Eliminar diseño"
+        description={removing ? `«${removing.name}» dejará de estar disponible para ti y sus colaboradores. Las plantillas y los archivos originales se conservarán.` : ''}
+        confirmLabel="Eliminar diseño" onConfirm={remove} />
       {!limit && (page > 1 || all.length === PAGE_SIZE) ? (
         <nav aria-label="Paginación de diseños" className="mt-5 flex items-center justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page === 1 || designs.isFetching} onClick={() => setPage(value => value - 1)}><ChevronLeft />Anterior</Button>
+          <Button variant="outline" size="sm" disabled={page === 1 || designs.isFetching} onClick={() => setPagination({filterKey,page:page-1})}><ChevronLeft />Anterior</Button>
           <span className="min-w-20 text-center text-sm tabular-nums text-[hsl(var(--muted-foreground))]">Página {page}</span>
-          <Button variant="outline" size="sm" disabled={all.length !== PAGE_SIZE || designs.isFetching} onClick={() => setPage(value => value + 1)}>Siguiente<ChevronRight /></Button>
+          <Button variant="outline" size="sm" disabled={all.length !== PAGE_SIZE || designs.isFetching} onClick={() => setPagination({filterKey,page:page+1})}>Siguiente<ChevronRight /></Button>
         </nav>
       ) : null}
     </>
@@ -60,6 +83,7 @@ export function useHasDesigns({ token, scopeKey }) {
     queryKey: ['studio', ...scopeKey, 'designs', 1, 'all', ''],
     queryFn: async () => unwrap(await runly.studio.listDesigns(token, { page: 1, shared: 'all' })),
     enabled: Boolean(token),
+    refetchInterval: 30000,
   })
   return Boolean(designs.data?.length)
 }

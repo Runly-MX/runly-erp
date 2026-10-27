@@ -59,7 +59,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const editorRef = useRef(null), nameRef = useRef(name), timer = useRef(null)
   const { sync, status,revision:sharedRevision } = useStudioSync({ record, token, scope, editorRef,
     onName: value => { nameRef.current = value; setName(value) },
-    onError: message => setError(message),onConflict:draft=>{if(!archive.stash(draft))setCopyWarning(true);collisions.write(draft);setRecovery(current=>current??draft)} })
+      onError: (message,error) => {setError(message);if(error?.status===404){setCanEdit(false);setDenied(true)}},onConflict:draft=>{if(!archive.stash(draft))setCopyWarning(true);collisions.write(draft);setRecovery(current=>current??draft)} })
   const unsynced = status !== 'synced'
   const imageEditing = useStudioImageEditing({editorRef,designId:record.id,token,canEdit:canEdit && !denied})
   // Templates: save the current scene as a template; or, when opened from
@@ -199,7 +199,11 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   // Abort I/O and later stages; synchronous canvas/native CPU work ends at its
   // next cancellation boundary. Document synchronization remains independent.
   function cancelDownload() { if (job.current) { job.current.controller.abort(); job.current = null; setDownload({ phase: 'cancelled' }) } }
-  if (denied) return <AccessLost onBack={onBack} preserved={sync.state().status !== 'synced' || Boolean(store.read())} />
+  if (denied) return <AccessLost onBack={onBack} copyFailed={copyWarning} preserved={!copyWarning && (sync.state().pending > 0 || Boolean(store.read()))}
+    onDownload={sync.state().pending || recovery ? () => {
+      const url=URL.createObjectURL(new Blob([JSON.stringify({format:'runly-studio-local-draft',version:1,...sync.draft()})],{type:'application/json'}))
+      const link=document.createElement('a');link.href=url;link.download=downloadName(name,'borrador.json');link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)
+    } : undefined} />
   const notices = <>
     {templateEditing.notice}
     {recovery && canEdit ? <Notice icon={History} title="Hay una copia local para revisar" description="Se conservó tu trabajo durante la sincronización. Recuperar aplica los cambios locales disponibles sobre el diseño actual; revisa el resultado.">

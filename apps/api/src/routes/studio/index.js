@@ -15,6 +15,7 @@ import {studioAssetIds} from './studio-document-data.js'
 import {checkAbort} from '../../../../shared/studio/abort.js'
 import {createStudioPrintJobs} from './studio-print-jobs.js'
 import {documentPages, pageDocument} from '../../../../shared/studio/pages.js'
+import { randomBytes } from 'node:crypto'
 
 export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,printBuilder=buildPrintPdf,
   service = createStudioService({ prisma, filesService, broadcaster }),
@@ -39,11 +40,16 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   const context = c => [c.get('companyId'), c.get('userContext')?.profile?.id]
   const fileContext = c => ({ authUserId: c.get('authUserId'), activeContext: tenantActiveContext(c) })
   app.use('/studio/designs/:id/live', bodyLimit({ maxSize: 4096, onError: c => c.json({ error: 'Presencia demasiado grande.' }, 413) }))
+  app.use('/studio/catalog/*',async(c,next)=>{
+    const supplied=c.req.header('X-Runly-Catalog-Request'),requestId=/^[a-z0-9-]{8,64}$/i.test(supplied??'')?supplied:randomBytes(12).toString('hex')
+    c.set('studioCatalogRequest',requestId);c.set('studioCatalogEntry',Date.now());c.header('X-Runly-Catalog-Request',requestId);await next()
+  })
+  const catalogContext=c=>({signal:c.req.raw.signal,requestId:c.get('studioCatalogRequest'),entryElapsedMs:Date.now()-c.get('studioCatalogEntry')})
   app.onError((error, c) => {
     if(error.name==='AbortError')return c.body(null,499)
     if (error instanceof StudioError) {
       if(error.status===429)c.header('Retry-After','60')
-      return c.json({ error: error.message, code: error.code }, error.status)
+      return c.json({ error: error.message, code: error.code, ...(c.get('studioCatalogRequest')?{requestId:c.get('studioCatalogRequest')}: {}) }, error.status)
     }
     if (error instanceof SyntaxError) return c.json({ error: 'El diseño no contiene JSON válido.' }, 400)
     return c.json({ error: 'No se pudo procesar el diseño.' }, 500)
@@ -58,19 +64,19 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   })
   app.get('/studio/catalog/:provider/search', requirePermission('studio.view'), async c => {
     c.header('Cache-Control', 'private, no-store')
-    return c.json({ data: await catalog.search(...context(c), c.req.param('provider'), c.req.query()) })
+    return c.json({ data: await catalog.search(...context(c), c.req.param('provider'), c.req.query(), catalogContext(c)) })
   })
   app.get('/studio/catalog/:provider/:id', requirePermission('studio.view'), async c => {
     c.header('Cache-Control', 'private, no-store')
-    return c.json({ data: await catalog.details(...context(c), c.req.param('provider'), c.req.param('id')) })
+    return c.json({ data: await catalog.details(...context(c), c.req.param('provider'), c.req.param('id'), catalogContext(c)) })
   })
   app.get('/studio/catalog/:provider/:id/thumbnail', requirePermission('studio.view'), async c => {
     c.header('Cache-Control', 'private, max-age=3600'); c.header('Content-Type', 'image/png')
-    return c.body(await catalog.thumbnail(...context(c), c.req.param('provider'), c.req.param('id')))
+    return c.body(await catalog.thumbnail(...context(c), c.req.param('provider'), c.req.param('id'), catalogContext(c)))
   })
   app.post('/studio/catalog/:provider/:id/import', requirePermission('studio.edit'), async c => {
     const body = await c.req.json()
-    return c.json({ data: await catalog.insert(...context(c), c.req.param('provider'), c.req.param('id'), body.designId, fileContext(c)) })
+    return c.json({ data: await catalog.insert(...context(c), c.req.param('provider'), c.req.param('id'), body.designId, fileContext(c), catalogContext(c)) })
   })
   app.post('/studio/designs/:id/credits', requirePermission('studio.view'), async c => {
     c.header('Cache-Control', 'private, no-store')
@@ -116,6 +122,7 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   })
   app.post('/studio/designs', requirePermission('studio.create'), async c => c.json({ data: await service.create(...context(c), await c.req.json(), fileContext(c)) }, 201))
   app.put('/studio/designs/:id', requirePermission('studio.edit'), async c => c.json({ data: await service.update(...context(c), c.req.param('id'), await c.req.json(), fileContext(c)) }))
+  app.delete('/studio/designs/:id', requirePermission('studio.edit'), async c => c.json({ data: await service.remove(...context(c), c.req.param('id'), await c.req.json()) }))
   // Real-time collaboration: a batch of object operations from an editor session.
   // Print PDF (RGB or CMYK, bleed, crop marks) from the editor's high-resolution render.
   app.post('/studio/designs/:id/export/jobs',requirePermission('studio.view'),async c =>

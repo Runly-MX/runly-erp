@@ -9,7 +9,13 @@ Studio ocupa toda la pantalla. En el inicio elige un formato (publicación, hist
 flyer, presentación, banner, logotipo…), **Tamaño personalizado** o una plantilla.
 Los filtros de la parte superior agrupan los formatos y el buscador encuentra tus
 diseños por nombre. Las tarjetas de **Tus diseños** muestran una vista previa; su menú
-permite abrir o **Duplicar**. Las medidas son píxeles, de 32 a 4096 por lado: son
+permite abrir o **Duplicar**. Si eres propietario y conservas permiso de edición,
+también ofrece **Eliminar diseño**. La confirmación retira el diseño para ti y sus
+colaboradores; conserva las plantillas, copias independientes y archivos originales.
+No hay una acción para restaurarlo. Si cambió desde que abriste la lista, actualiza
+y revisa su estado antes de confirmar otra vez.
+
+Las medidas son píxeles, de 32 a 4096 por lado: son
 dimensiones de pantalla, no medidas de impresión ni una promesa de DPI.
 
 La biblioteca de **Plantillas** tiene su propio buscador y categorías. Abre una
@@ -22,12 +28,16 @@ PNG, JPG o WebP, o insertar imágenes tuyas o de la empresa sin volver a subirla
 **Capas** (seleccionar, mostrar u ocultar y bloquear) y **Página** (tamaño y fondo).
 
 Dentro de **Imágenes**, **Archivos** reúne tus archivos y los de la empresa;
-**Fotos** busca fotografías en Openverse e **Iconos** permite buscar en las
-colecciones Tabler y Lucide de Iconify. Abre un recurso para revisar autor,
+**Fotos** e **Ilustraciones** buscan categorías distintas de Openverse. **Iconos**
+incluye ocho iconos básicos que funcionan sin internet; cambia la colección para
+buscar en Tabler o Lucide de Iconify. Abre un recurso para revisar autor,
 licencia y origen. Insertar una fotografía guarda su original en Files; insertar
 un icono conserva geometría editable dentro del diseño. Puedes cambiar su color,
 tamaño, rotación y orden como con las formas. La biblioteca consulta páginas bajo
-demanda; si un catálogo falla, puedes seguir editando los diseños ya guardados.
+demanda. Si un catálogo falla, verás si agotó el tiempo, está limitado o no está
+disponible. Puedes reintentar, cambiar la búsqueda o usar **Archivos** y subir una
+imagen propia sin interrumpir la edición. Cada miniatura fallida tiene su propio
+botón para reintentar; un resultado vacío se muestra por separado de un error.
 
 **Texto** y **Propiedades** permiten elegir seis fuentes locales: Lato, Playfair
 Display, Bebas Neue, Pacifico, Oswald y Space Mono, además de la fuente del sistema.
@@ -53,6 +63,10 @@ Ctrl+Z / Ctrl+Y, Ctrl+C / Ctrl+V, Ctrl+D y Supr (pide confirmación).
 lectores o editores de la misma empresa y cambiar o quitar su acceso. Verás quién está
 conectado, sus cursores y cambios confirmados. Si hay una revisión más reciente, tu
 borrador se conserva; revisa la versión del servidor o guarda una copia.
+Si el propietario retira un diseño abierto, el editor deja de aceptar cambios
+y muestra que ya no está disponible. Si quedaron cambios sin enviar, puedes
+descargar el borrador local en JSON; no incluye los bytes de imágenes ni restaura
+el acceso al diseño.
 
 **Descargar** ofrece PNG y JPG al 100, 90 o 70 %. Ambos usan las dimensiones exactas de
 la página y los originales autorizados, no miniaturas.

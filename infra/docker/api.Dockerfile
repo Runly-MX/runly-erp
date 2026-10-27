@@ -48,6 +48,7 @@ COPY infra/installer/supabase/volumes/db/studio-realtime-role.sql infra/installe
 COPY modules modules
 COPY apps/api apps/api
 COPY apps/shared apps/shared
+COPY scripts/diagnose-studio-catalog.mjs scripts/diagnose-studio-catalog.mjs
 COPY apps/desktop/public/module-logos apps/desktop/public/module-logos
 COPY apps/desktop/public/runly/runly-logo-email.png apps/desktop/public/runly/runly-logo-email.png
 COPY infra/docker/api-entrypoint.sh /entrypoint.sh

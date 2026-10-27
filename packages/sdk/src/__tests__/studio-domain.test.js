@@ -2,6 +2,27 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createRunlyClient } from '../index.js'
 
+test('catalog errors preserve correlation and stage code and import cancellation reaches fetch',async()=>{
+  let sent
+  const client=createRunlyClient({baseUrl:'https://api.example.test',fetch:async(_url,options)=>{sent=options;return new Response(JSON.stringify({error:'Timeout',code:'CATALOG_HEADERS_TIMEOUT'}),{status:504,headers:{'Content-Type':'application/json'}})}})
+  const controller=new AbortController()
+  await assert.rejects(client.studio.catalogImport('openverse','resource','design','token',controller.signal),error=>error.code==='CATALOG_HEADERS_TIMEOUT'&&error.catalogRequestId===sent.headers['X-Runly-Catalog-Request'])
+  assert.equal(sent.signal,controller.signal)
+})
+
+test('deleteDesign sends an expected revision with auth/company and preserves denial/conflict statuses',async()=>{
+  const calls=[]
+  const client=createRunlyClient({baseUrl:'https://api.example.test',getActiveCompanyId:()=> 'tenant',fetch:async(url,options)=>{calls.push({url,options});return new Response('{}',{headers:{'Content-Type':'application/json'}})}})
+  await client.studio.deleteDesign('design/one',7,'token')
+  assert.equal(calls[0].url,'https://api.example.test/studio/designs/design%2Fone')
+  assert.equal(calls[0].options.method,'DELETE');assert.deepEqual(JSON.parse(calls[0].options.body),{revision:7})
+  assert.equal(calls[0].options.headers.Authorization,'Bearer token');assert.equal(calls[0].options.headers['X-Runly-Company-Id'],'tenant')
+  for(const status of [403,404,409]){
+    const denied=createRunlyClient({baseUrl:'https://api.example.test',fetch:async()=>new Response(JSON.stringify({error:'Denegado',code:'STUDIO_REVISION_CONFLICT'}),{status,headers:{'Content-Type':'application/json'}})})
+    await assert.rejects(denied.studio.deleteDesign('one',7,'token'),error=>error.status===status)
+  }
+})
+
 test('Studio SDK carries active company and auth and encodes ids', async () => {
   const calls = []
   const client = createRunlyClient({ baseUrl: 'https://api.example.test', getActiveCompanyId: () => 'company-a',
