@@ -51,3 +51,21 @@ window.studioMultipageVerification=async()=>{
     return {pages:saved.additionalPages.length+1,switchingMs,selectedRestored:true,selectiveHistory:true,thumbnailCache:true,privateCacheDenied:true,deselection:true,activeExport:true,reorder:true,deletedActive:true,saved}
   }finally{await editor.destroy();canvas.remove()}
 }
+window.studioMultipageBudgetVerification=async()=>{
+  const canvas=document.createElement('canvas');document.body.append(canvas)
+  const object=appendObject(blankDocument(320,240),'rectangle').objects[0]
+  const scenes=Array.from({length:5},(_,p)=>({page:{id:p?`p${p+1}`:'page-1',width:320,height:240,background:'#ffffff'},objects:Array.from({length:400},(_,n)=>({...object,id:`budget-${p}-${n}`}))}))
+  scenes[1].objects[0].groupId='other-group'
+  const editor=await createStudioEditor(canvas,{document:{schemaVersion:7,unit:'px',...scenes[0],additionalPages:scenes.slice(1)}})
+  try{
+    const before=JSON.stringify(editor.snapshot())
+    for(const extra of [{},{id:'budget-1-0'}]){
+      let rejected=false;try{await editor.add('rectangle',extra)}catch{rejected=true}
+      assert(rejected&&JSON.stringify(editor.snapshot())===before,'global quota/collision must fail before changing the active canvas')
+    }
+    editor.select('budget-0-0')
+    let rejected=false;try{editor.patch({groupId:'other-group'})}catch{rejected=true}
+    assert(rejected&&JSON.stringify(editor.snapshot())===before,'cross-page group assignment fails atomically')
+    return {globalObjects:2000,addRejectedAtomically:true,groupRejectedAtomically:true}
+  }finally{await editor.destroy();canvas.remove()}
+}

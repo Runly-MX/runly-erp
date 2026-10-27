@@ -15,6 +15,7 @@ async function until(fn,label){for(let n=0;n<120;n++){if(await fn())return;await
 export async function verifyStudioMultipage(stack,{users,companies}) {
   assert.equal((await stack.pool.query('SELECT id FROM runly_studio_test.environment')).rows[0]?.id,stack.name)
   const [owner,viewer,peer,foreign]=users,[company,other]=companies,checks=[],outputs=[],contexts=[],clients=[]
+  await stack.pool.query('UPDATE membership SET role_id=$1 WHERE company_id=$2 AND user_id=$3',[company.roleId,company.id,viewer.id])
   const tokens=await Promise.all([owner,peer,viewer,foreign].map(async user=>{
     const r=await fetch(stack.urls.api+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:user.email,password:user.password})})
     assert.equal(r.status,200);return(await r.json()).data.access_token

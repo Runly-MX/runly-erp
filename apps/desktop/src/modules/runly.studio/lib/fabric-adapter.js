@@ -35,6 +35,7 @@ export async function createStudioEditor(element, options) {
   }
   inner = await createPageEditor(element, {...options, document: pageDocument(current, active),
     allObjects: () => documentPages(snapshot()).flatMap(scene => scene.objects),
+    validateScene: scene => validateDocument(replacePage(current,scene)),
     onChange: changed, onHistory: notifyHistory,
     onSelection: (selection, ids) => { selections.set(active, ids); options.onSelection?.(selection, ids) },
   })
@@ -186,13 +187,18 @@ export async function createStudioEditor(element, options) {
 }
 
 // Fabric owns interaction; only the canonical Runly scene enters history or storage.
-async function createPageEditor(element, { document, resolveImage, onChange, onSelection, onError, onHistory, onPointer, onEditImage, onGuides, onEditorPreferences, readOnly = false, sharedClipboard, authorizePaste, allObjects }) {
+async function createPageEditor(element, { document, resolveImage, onChange, onSelection, onError, onHistory, onPointer, onEditImage, onGuides, onEditorPreferences, readOnly = false, sharedClipboard, authorizePaste, allObjects, validateScene }) {
+  function validateCandidate(input) {
+    const clean = validateDocument(input)
+    validateScene?.(clean)
+    return clean
+  }
   let protectedMode = readOnly, exportingNow = false
   const writable = () => {
     if (protectedMode) throw new Error('Diseño de solo lectura.')
     if (exportingNow) throw new Error('Espera a que termine la exportación.')
   }
-  let current = validateDocument(document), destroyed = false, history, clipboard = []
+  let current = validateCandidate(document), destroyed = false, history, clipboard = []
   let queue = Promise.resolve(), interaction = null, pendingAdjustments = null, selectingGroup = false, individualSelection = null
   const canvas = new Canvas(element, { width: current.page.width, height: current.page.height,
     backgroundColor: current.page.background, preserveObjectStacking: true, enableRetinaScaling: false })
@@ -289,7 +295,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
     } catch (error) { onError?.(error.message) }
   }
   async function restore(document, requiresWrite = false) {
-    const next = validateDocument(document), objects = [],budget={pixels:0}
+    const next = validateCandidate(document), objects = [],budget={pixels:0}
     try { for (const item of next.objects) objects.push(await build(item,budget)); if(requiresWrite)writable() }
     catch (error) { objects.forEach(object => object.dispose()); throw error }
     if (destroyed) { objects.forEach(object => object.dispose()); return }
@@ -342,7 +348,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
   // only when the object kind changes, add, remove, reorder and page. Keeps the
   // selection by id and never touches history.
   async function applyDocument(document, { skip = new Set(),attempt=0 } = {}) {
-    const next = validateDocument(document), wanted = new Map(next.objects.map(item => [item.id, item]))
+    const next = validateCandidate(document), wanted = new Map(next.objects.map(item => [item.id, item]))
     const before=snapshot(),live=new Map(before.objects.map(item=>[item.id,item])),prepared=new Map()
     const budget={pixels:canvas.getObjects().reduce((n,o)=>n+(skip.has(o.studioId)||wanted.has(o.studioId)&&inPlace(live.get(o.studioId),wanted.get(o.studioId))?o.studioPixels??0:0),0)}
     try{
@@ -455,7 +461,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
         if(destroyed)return
         const after = snapshot(), remote = diffOps(before, after)
         history.rebase(remote)
-        if (interaction) interaction.document = validateDocument(applyOps(interaction.document, remote))
+        if (interaction) interaction.document = validateCandidate(applyOps(interaction.document, remote))
         try { onChange?.(after, { remote: true }); selection(); onHistory?.({ ...history.state(), canPaste: clipboard.length > 0 }) } catch (error) { onError?.(error.message) }
         return after
       })
@@ -494,6 +500,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
       if(items.length<2||items.some(o=>o.locked||o.hidden||o.groupId))throw Error('Selecciona al menos dos elementos editables y sin agrupar.')
       let n=1;while((allObjects?.()??doc.objects).some(o=>o.groupId===`group-${n}`||o.id===`group-${n}`))n++
       const groupId=`group-${n}`
+      validateCandidate({...doc,objects:doc.objects.map(item=>ids.has(item.id)?{...item,groupId}:item)})
       for(const item of items)source.set(item.id,{...item,groupId})
       changed();return {id:groupId,objectIds:items.map(o=>o.id)}
     },
@@ -531,7 +538,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
         if(canvas.getActiveObject()?.studioId!==target.id||photoFileId(captured.object)!==photoFileId(target))throw Error('La imagen seleccionada cambió durante la operación.')
         const properties=imageProperties({...imageProperties(captured.object.type==='image'?captured.object.image:captured.object.fillPaint.image),...patch})
         const candidate=captured.object.type==='image'?{...captured.object,image:properties}:{...captured.object,fillPaint:{...captured.object.fillPaint,image:properties}}
-        const next=validateDocument({...snapshot(),objects:snapshot().objects.map(o=>o.id===candidate.id?candidate:o)}).objects.find(o=>o.id===candidate.id)
+        const next=validateCandidate({...snapshot(),objects:snapshot().objects.map(o=>o.id===candidate.id?candidate:o)}).objects.find(o=>o.id===candidate.id)
         const active=canvas.getActiveObject()
         if(active.configure){
           writable();active.configure({...next,width:active.width,height:active.height});source.set(next.id,next);canvas.requestRenderAll();changed();return
@@ -581,7 +588,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
         const captured = editor.captureImage(id)
         if (fingerprint && captured.fingerprint !== fingerprint) throw Error('La imagen cambió durante la edición. La copia se conserva en Files.')
         await authorizePaste?.([withPhoto(captured.object,fileAssetId)])
-        const item = validateDocument({...snapshot(),objects:snapshot().objects.map(object => object.id === id ? withPhoto(object,fileAssetId) : object)}).objects.find(object => object.id === id)
+        const item = validateCandidate({...snapshot(),objects:snapshot().objects.map(object => object.id === id ? withPhoto(object,fileAssetId) : object)}).objects.find(object => object.id === id)
         const replacement = await build(item)
         try {
           writable()
@@ -670,7 +677,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
         }
         }
         // Validate before recording; rollback all object coordinates on invalid limits.
-        try { validateDocument(snapshot()) } catch (error) { for (const object of objects) { object.set(positions.get(object)); object.setCoords() }; editor.selectMany(ids); throw error }
+        try { validateCandidate(snapshot()) } catch (error) { for (const object of objects) { object.set(positions.get(object)); object.setCoords() }; editor.selectMany(ids); throw error }
         editor.selectMany(ids); canvas.requestRenderAll(); changed()
       })
     },
@@ -681,9 +688,10 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
         const occupied = new Set((allObjects?.() ?? snapshot().objects).map(object => object.id))
         let ordinal = 1
         while (occupied.has(`object-${ordinal}`)) ordinal++
-        const item = appendObject(snapshot(), type, {id: `object-${ordinal}`, ...extra}).objects.at(-1), object = await build(item)
+        const next = validateCandidate(appendObject(snapshot(), type, {id: `object-${ordinal}`, ...extra}))
+        const item = next.objects.at(-1), object = await build(item)
         if (destroyed) { object.dispose(); return }
-        try{writable()}catch(error){object.dispose();throw error}
+        try{writable();validateCandidate(next)}catch(error){object.dispose();throw error}
         source.set(item.id, item); canvas.add(object); canvas.setActiveObject(object); canvas.requestRenderAll(); changed()
       })
     },
@@ -696,14 +704,14 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
       const original = source.get(object.studioId)
       if(patch.fill!==undefined&&original.fillPaint?.type==='solid'&&patch.fillPaint===undefined)patch.fillPaint={type:'solid',color:patch.fill}
       if (original.locked && Object.keys(patch).some(key => !['locked', 'hidden'].includes(key))) return
-      const next = validateDocument({ ...snapshot(), objects: snapshot().objects.map(item => item.id === object.studioId ? mergePatch(item,patch) : item) })
+      const next = validateCandidate({ ...snapshot(), objects: snapshot().objects.map(item => item.id === object.studioId ? mergePatch(item,patch) : item) })
       let item = next.objects.find(item => item.id === object.studioId)
       if(SHAPE_TYPES.includes(item.type)&&(item.fillPaint||item.shape||original.fillPaint||original.shape))return enqueue(async()=>{
         writable()
         object=canvas.getObjects().find(o=>o.studioId===original.id)
         if(!object)throw Error('La forma ya no existe.')
         if(source.get(original.id)?.locked&&Object.keys(patch).some(k=>!['locked','hidden'].includes(k)))throw Error('La forma est\u00e1 bloqueada.')
-        item=validateDocument({...snapshot(),objects:snapshot().objects.map(o=>o.id===original.id?mergePatch(o,patch):o)}).objects.find(o=>o.id===original.id)
+        item=validateCandidate({...snapshot(),objects:snapshot().objects.map(o=>o.id===original.id?mergePatch(o,patch):o)}).objects.find(o=>o.id===original.id)
         const fingerprint=JSON.stringify(snapshot().objects.find(o=>o.id===original.id))
         if(object instanceof StudioPhoto&&photoFileId(item)===photoFileId(source.get(item.id))){
           object.set({left:item.x,top:item.y,angle:item.rotation,fill:item.fill,scaleX:1,scaleY:1,...flags(item)})
@@ -720,7 +728,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
         // Preserve intervening edits and selection while the font downloads.
         const latest=source.get(item.id)
         if(latest.locked)return
-        const refreshed=validateDocument({...snapshot(),objects:snapshot().objects.map(current=>current.id===item.id?{...current,...patch}:current)}).objects.find(current=>current.id===item.id)
+        const refreshed=validateCandidate({...snapshot(),objects:snapshot().objects.map(current=>current.id===item.id?{...current,...patch}:current)}).objects.find(current=>current.id===item.id)
         applyItem(object,refreshed,patch)
       })
       applyItem(object,item,patch)
@@ -777,7 +785,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
         checkAbort(signal)
         if (!['png','jpg'].includes(format) || !Number.isFinite(quality) || quality < 0.1 || quality > 1) throw new Error('Formato o calidad no válidos.')
         const dimensions=exportDimensions(current.page,scale,bleed)
-        if(reviewedScene && JSON.stringify(snapshot())!==JSON.stringify(validateDocument(reviewedScene)))throw new Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
+        if(reviewedScene && JSON.stringify(snapshot())!==JSON.stringify(validateCandidate(reviewedScene)))throw new Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
         exportingNow = true; editor.setReadOnly(protectedMode)
         try {
         for(const item of snapshot().objects.filter(item=>item.type==='text')) await abortable(ensureStudioFont(item.fontFamily,item.fontVariant),signal)

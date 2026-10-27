@@ -39,6 +39,20 @@ function createServer(document) {
 const base = () => appendObject(appendObject(blankDocument(800, 600), 'rectangle', { x: 10 }), 'ellipse', { x: 300 })
 const edit = (doc, index, patch) => ({ ...doc, objects: doc.objects.map((object, i) => (i === index ? { ...object, ...patch } : object)) })
 
+test('deleted-page property changes are archived even when the stale batch was already acknowledged',async()=>{
+  const document=validateDocument(applyOps(blankDocument(),[{type:'duplicatePage',pageId:'page-1',newId:'p2'}])),copies=[]
+  const removed=validateDocument(applyOps(document,[{type:'removePage',pageId:'p2'}]))
+  const sync=createStudioSync({document,revision:1,name:'Synthetic gap',clientId:'page-gap-client',delay:60000,gapTimeout:5,
+    transport:{send:async()=>({revision:3,ops:[]}),fetch:async()=>({document:removed,revision:3,name:'Synthetic gap',canEdit:true})},
+    editor:{apply:async doc=>doc},onConflict:draft=>copies.push(draft)})
+  try {
+    sync.local(validateDocument(applyOps(document,[{type:'patchPage',pageId:'p2',set:{background:'#ff0000'}}])))
+    await sync.flush()
+    assert.equal(sync.state().document.additionalPages.length,0)
+    assert.ok(copies.some(copy=>copy.document.additionalPages[0]?.page.background==='#ff0000'))
+  }finally{sync.close()}
+})
+
 test('edits on different objects by two clients converge everywhere', async () => {
   const server = createServer(base()), a = server.connect('client-a'), b = server.connect('client-b')
   a.change(edit(a.editor.shown, 0, { x: 111 })); b.change(edit(b.editor.shown, 1, { fill: '#123456' }))
