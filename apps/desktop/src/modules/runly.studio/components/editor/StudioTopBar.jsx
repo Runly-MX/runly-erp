@@ -9,10 +9,10 @@ import { ArrowLeft, LayoutTemplate, Download, Eye, Fullscreen, Loader2, Maximize
 const VIEW_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
 
 export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, live, canEdit, onBack, onRetrySync, onShare, onCredits, onSaveTemplate, onExport, exporting, exportDisabled,
-  history, onUndo, onRedo, people, objects, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode, page, pageCount = 1 }) {
+  history, onUndo, onRedo, people, objects, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode, page, pages = [], pageCount = 1 }) {
   const [exportOpen, setExportOpen] = useState(false)
   // onExport(options): screen (PNG/JPG) or print PDF, chosen in ExportDialog.
-  const exportDialog = page ? <ExportDialog open={exportOpen} onOpenChange={setExportOpen} page={page} pageCount={pageCount} exporting={exporting}
+  const exportDialog = page ? <ExportDialog open={exportOpen} onOpenChange={setExportOpen} page={page} pages={pages} pageCount={pageCount} exporting={exporting}
     onExport={options => { setExportOpen(false); onExport(options) }} onCredits={() => { setExportOpen(false); onCredits() }} /> : null
   const nameField = (
     <Input aria-label="Nombre del diseño" value={name} maxLength={160} disabled={nameDisabled} onChange={event => onName(event.target.value)}

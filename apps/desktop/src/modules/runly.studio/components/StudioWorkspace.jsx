@@ -1,4 +1,4 @@
-import { findPage } from '../../../../../shared/studio/pages.js'
+import { documentPages, findPage, pageId } from '../../../../../shared/studio/pages.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, ConfirmDialog, FileUploader, Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton, ToolButton, cn, useIsMobile, useViewMode } from '@runly/ui'
 import { AlertTriangle, PanelLeftClose } from 'lucide-react'
@@ -36,6 +36,10 @@ import { Rulers } from './editor/canvas/Rulers.jsx'
 import { canHoldPhoto } from '../lib/photo-target.js'
 import { RemotePresence } from './editor/collaboration/RemotePresence.jsx'
 import { groupParticipants, selectionsByObject } from '../lib/studio-presence.js'
+import { newContentId, pageLabel, pageSignature } from '../lib/studio-pages.js'
+import { usePageThumbnails } from '../hooks/usePageThumbnails.js'
+import { PagesPanel } from './editor/pages/PagesPanel.jsx'
+import { PageNavigator, PageSwitcher } from './editor/pages/PageSwitcher.jsx'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }
 
@@ -65,15 +69,16 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   const [shownPanel, setShownPanel] = useState(panel)
   if (panel && panel !== shownPanel) setShownPanel(panel)
   const pageRef = useRef(initial.page)
-  const view = useStudioViewport(page, editorRef), zoom = view.zoom
+  const view = useStudioViewport(page, editorRef), zoom = view.zoom, fitRef = useRef(view.fit)
+  fitRef.current = view.fit
   const [history, setHistory] = useState({ canUndo: false, canRedo: false }), [retry, setRetry] = useState(0), [busy, setBusy] = useState(false)
   const [objects, setObjects] = useState(initial.objects)
-  const [pageCount, setPageCount] = useState(1 + (initial.additionalPages?.length ?? 0))
+  const [doc, setDoc] = useState(initial), [browsing, setBrowsing] = useState(false), [removing, setRemoving] = useState(null)
   const [activePageId, setActivePageId] = useState(initial.page.id ?? 'page-1')
   const visibleParticipants = useMemo(() => participants.filter(person => (person.pageId ?? 'page-1') === activePageId), [participants, activePageId])
   const canvasPeople = useMemo(() => groupParticipants(visibleParticipants, selfId), [visibleParticipants, selfId])
   const people = useMemo(() => groupParticipants(participants, selfId), [participants, selfId]), remoteSelections = useMemo(() => selectionsByObject(participants, selfId), [participants, selfId])
-  const changed = useCallback((document, meta) => { setPageCount(1 + (document.additionalPages?.length ?? 0)); const scene = findPage(document, editorRef.current?.activePageId()) ?? document; setObjects(scene.objects); setPage(scene.page); pageRef.current = scene.page; onChange(document, meta) }, [onChange, editorRef])
+  const changed = useCallback((document, meta) => { setDoc(document); const scene = findPage(document, editorRef.current?.activePageId()) ?? document; setObjects(scene.objects); setPage(scene.page); pageRef.current = scene.page; onChange(document, meta) }, [onChange, editorRef])
   const canvas = useCanvasPreferences(editorRef, ready)
   const { onGuides, onEditorPreferences } = canvas
   const callbacksRef = useRef({ resolveImage, authorizePage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage, onGuides, onEditorPreferences }), modeRef = useRef(readOnly)
@@ -87,7 +92,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
     let cancelled = false
     const creation = released.current.then(() => cancelled ? null : createStudioEditor(canvasRef.current, { document: initial, resolveImage: (...args) => callbacksRef.current.resolveImage(...args),
       authorizePage: callbacksRef.current.authorizePage ? (...args) => callbacksRef.current.authorizePage(...args) : undefined,
-      onActivePage: (id, viewport) => { setActivePageId(id); view.restore(viewport) },
+      onActivePage: (id, viewport) => { setActivePageId(id); if (viewport) view.restore(viewport); else requestAnimationFrame(() => requestAnimationFrame(() => fitRef.current())) },
       sharedClipboard, authorizePaste: objects => callbacksRef.current.authorizePaste?.(objects),
       onEditImage: id => callbacksRef.current.onEditImage?.(id),
       onGuides: guides => callbacksRef.current.onGuides?.(guides), onEditorPreferences: state => callbacksRef.current.onEditorPreferences?.(state),
@@ -127,6 +132,35 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
     try { setBusy(true); setError(''); await action() } catch (error) { setError(error.message) } finally { setBusy(false) }
   }
   const blocked = readOnly || !ready || busy
+  // Page browser: metadata from the real document; signatures only while a page view is open.
+  const pagesOpen = panel === 'pages' || browsing, signatures = useRef(new WeakMap())
+  const pageList = useMemo(() => documentPages(doc).map((scene, index) => {
+    let key = ''
+    if (pagesOpen) { key = signatures.current.get(scene) ?? pageSignature(scene); signatures.current.set(scene, key) }
+    return { ...scene.page, id: pageId(scene), objectCount: scene.objects.length, key, active: pageId(scene) === activePageId, label: pageLabel(scene.page, index) }
+  }), [doc, activePageId, pagesOpen])
+  const pageCount = pageList.length, activeIndex = Math.max(0, pageList.findIndex(item => item.active))
+  const thumbnails = usePageThumbnails(editorRef, pageList, pagesOpen && ready)
+  const closeBrowsers = () => { setBrowsing(false); if (phone) setPanel(current => (current === 'pages' ? null : current)) }
+  const goToPage = id => attempt(async () => { await editorRef.current.selectPage(id); closeBrowsers() })
+  const pageActions = {
+    onSelect: goToPage,
+    onAdd: () => attempt(async () => {
+      const editor = editorRef.current, id = newContentId('p'), current = editor.activeScene().page
+      await editor.addPage({ id, width: current.width, height: current.height, background: current.background, afterId: editor.activePageId() })
+      await editor.selectPage(id)
+    }),
+    onDuplicate: source => attempt(async () => { const id = newContentId('p'); await editorRef.current.duplicatePage(source, id); await editorRef.current.selectPage(id) }),
+    onRename: (id, name) => attempt(() => editorRef.current.updatePage(id, { name })),
+    onRemove: id => setRemoving(pageList.find(item => item.id === id) ?? null),
+    onReorder: ids => attempt(() => editorRef.current.reorderPages(ids)),
+    onTransfer: (target, copy) => attempt(async () => {
+      const editor = editorRef.current, label = pageList.find(item => item.id === target)?.label ?? 'otra página'
+      await editor.transferObjects(editor.activePageId(), target, selectedIds, { copy, ...(copy ? { copyId: newContentId('c') } : {}) })
+      toast.success(copy ? `Copiado a ${label}` : `Movido a ${label}`)
+    }),
+  }
+  const pagesProps = { pages: pageList, canEdit: !readOnly && ready, busy: busy || !ready, selectedCount: selectedIds.length, people, thumbnails, ...pageActions }
   const hasSelection = Boolean(selection) || selectedIds.length > 1
   // Group state of the selection: one shared groupId → can ungroup; 2+ free editable items → can group.
   const selectedObjects = objects.filter(object => selectedIds.includes(object.id))
@@ -173,7 +207,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
     catch (error) { await editor.endInteraction(false); throw error }
   }
   function shortcut(event) {
-    if (!ready || busy || event.target.closest('input,textarea,[contenteditable=true]') || editorRef.current?.isEditingText()) return
+    if (!ready || busy || browsing || event.target.closest('input,textarea,[contenteditable=true]') || editorRef.current?.isEditingText()) return
     if (event.key === 'Escape' && viewMode.isImmersive) { viewMode.stepBack(); return }
     if ((event.key === 'Delete' || event.key === 'Backspace') && hasSelection && !readOnly) { event.preventDefault(); setConfirm(true); return }
     // Tools without modifiers: H = mover vista, V = seleccionar.
@@ -246,6 +280,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
     layers: <LayersPanel objects={objects} selectedIds={selectedIds} remoteSelections={remoteSelections} disabled={!ready || busy}
       onSelect={id => editorRef.current?.select(id)} onSelectGroup={id => editorRef.current?.selectGroup(id)} onToggleMany={ids => editorRef.current?.selectMany(ids)}
       onPatchObject={(id, patch) => attempt(async () => { editorRef.current.select(id, { individual: true }); editorRef.current.patch(patch) })} />,
+    pages: <PagesPanel {...pagesProps} layout={phone ? 'grid' : 'list'} />,
     page: <PageSettingsForm key={`${page.width}x${page.height}:${page.background}`} page={page} disabled={readOnly || !ready} onApply={(next, scale) => editorRef.current.resize(next, scale)}
       background={<PageBackground page={page} disabled={readOnly || !ready} paint={paint} onError={setError} canApplyToSelection={canHoldPhoto(selection) && !selection.locked} />} />,
   }
@@ -275,7 +310,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
     <EyedropperContext.Provider value={colorContext}>
     <div role="application" aria-label="Editor gráfico de Studio" tabIndex={-1} onKeyDown={shortcut}
       className={cn('flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))] outline-none', viewMode.isImmersive ? 'fixed inset-0 z-50 h-dvh' : 'h-full')}>
-      <StudioTopBar phone={phone} {...chrome} page={page} pageCount={pageCount} canEdit={!readOnly} history={history} people={people.filter(person => !person.isSelf)} objects={objects}
+      <StudioTopBar phone={phone} {...chrome} page={page} pages={pageList} pageCount={pageCount} canEdit={!readOnly} history={history} people={people.filter(person => !person.isSelf)} objects={objects}
         onUndo={() => attempt(() => editorRef.current.undo())} onRedo={() => attempt(() => editorRef.current.redo())}
         exportDisabled={!ready || chrome.exportDisabled} inspectorToggle inspectorOpen={wide ? inspectorOpen : inspectorSheet}
         onToggleInspector={() => (wide ? setInspectorOpen(value => !value) : setInspectorSheet(value => !value))}
@@ -361,7 +396,13 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
               <CanvasPreferencesMenu canvas={canvas} compact={phone} />
             </ZoomPill>
           </div>
-          <p className={cn('pointer-events-none absolute bottom-5 z-10 hidden text-xs tabular-nums text-[hsl(var(--muted-foreground))] md:block', canvas.preferences.grid.rulers ? 'left-8' : 'left-4')}>{page.width} × {page.height} px</p>
+          <div className={cn('pointer-events-none absolute z-20 flex', phone ? 'inset-x-0 bottom-16 justify-center' : 'bottom-4 left-4')}>
+            <PageSwitcher index={activeIndex} total={pageCount} label={pageList[activeIndex]?.label ?? ''} compact={phone} navigatorOpen={browsing} disabled={!ready}
+              onPrev={() => goToPage(pageList[activeIndex - 1].id)} onNext={() => goToPage(pageList[activeIndex + 1].id)}
+              onBrowse={() => (phone ? setPanel(current => (current === 'pages' ? null : 'pages')) : setBrowsing(value => !value))} />
+          </div>
+          <p className={cn('pointer-events-none absolute bottom-16 z-10 hidden text-xs tabular-nums text-[hsl(var(--muted-foreground))] md:block', canvas.preferences.grid.rulers ? 'left-8' : 'left-4')}>{page.width} × {page.height} px</p>
+          {browsing ? <PageNavigator onClose={() => { setBrowsing(false); requestAnimationFrame(() => document.querySelector('[data-page-browse]')?.focus()) }} {...pagesProps} /> : null}
         </section>
         {wide ? (
           <SidePanel side="right" open={inspectorOpen} label="Propiedades">
@@ -380,6 +421,9 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
         </Sheet>
       ) : null}
       {imageKit.backgroundRemoval ? <BackgroundRemovalDialog {...imageKit.backgroundRemoval} /> : null}
+      <ConfirmDialog open={Boolean(removing)} onOpenChange={open => { if (!open) setRemoving(null) }} title={`Eliminar ${removing?.label ?? 'página'}`}
+        description="Se eliminará la página con sus elementos. Puedes deshacerlo con Ctrl+Z mientras no cierres el editor." confirmLabel="Eliminar página"
+        onConfirm={() => { const id = removing.id; setRemoving(null); attempt(() => editorRef.current.removePage(id)) }} />
       <ConfirmDialog open={confirm} onOpenChange={setConfirm} title="Eliminar selección" description="Se eliminarán los elementos seleccionados del diseño. Puedes deshacerlo con Ctrl+Z."
         confirmLabel="Eliminar" onConfirm={() => attempt(() => { editorRef.current.remove(); setConfirm(false) })} />
     </div>

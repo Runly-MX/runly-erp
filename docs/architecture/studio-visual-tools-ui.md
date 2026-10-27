@@ -252,6 +252,85 @@ Reglas:
 - Tras revocar el acceso se retira la protección de salida (el aviso «Salir antes de
   sincronizar» no se puede mostrar en esa pantalla) y se conserva el borrador.
 
+## Páginas (interfaz multipágina)
+
+Interfaz sobre el motor v7 (`listPages`, `selectPage`, `addPage`, `duplicatePage`,
+`removePage`, `reorderPages`, `updatePage`, `transferObjects`, `getPageThumbnail`).
+No se añade estado al documento: la página activa, las miniaturas y el navegador
+son estado de la sesión. Todo lo que se ve sale del documento real y de la
+presencia (`pageId`); no hay controles simulados.
+
+| Superficie | Componente | Qué hace |
+| --- | --- | --- |
+| Panel «Páginas» (rail; hoja inferior en teléfono) | `editor/pages/PagesPanel.jsx`, `PageCard.jsx` | Lista con miniatura, número, nombre, medidas y número de elementos; quién está en cada página; añadir |
+| Control «Página n de N» sobre el lienzo | `editor/pages/PageSwitcher.jsx` | Anterior/siguiente y acceso al navegador (teléfono: abre la hoja) |
+| Navegador de páginas (escritorio) | `PageNavigator` en `PageSwitcher.jsx` | Cuadrícula que sustituye la vista del lienzo; Escape o «Volver al lienzo» regresa y devuelve el foco |
+| Descargar | `editor/ExportDialog.jsx`, `lib/studio-export-plan.js` | Alcance del PDF: actual, todas o rango |
+
+El botón del rail que antes se llamaba «Página» (tamaño y fondo) ahora se llama
+«Formato», para no confundirlo con «Páginas».
+
+### Acciones por página
+
+Menú de cada tarjeta (también disponible con teclado): ir a la página, duplicar,
+cambiar nombre, mover antes/después, copiar o mover la selección a esa página y
+eliminar (con confirmación; no se puede eliminar la última). Todas pasan por el
+motor y se sincronizan como cualquier otro cambio, por lo que las demás personas
+ven el nuevo orden, nombres y páginas.
+
+- **Añadir**: crea una página con el tamaño y fondo de la activa, justo después de
+  ella, y la selecciona. Los identificadores (`p-…`, `c-…`) son identificadores de
+  contenido generados en el cliente (`lib/studio-pages.js`), no filas de base de datos.
+- **Reordenar**: arrastrar desde el tirador (puntero: ratón, lápiz y táctil, con
+  desplazamiento automático), flechas con el tirador enfocado (se anuncia la nueva
+  posición y el foco permanece en el tirador) o «Mover antes/después» en el menú.
+- **Copiar/mover elementos**: usa `transferObjects` con la selección actual; deshabilitado
+  si no hay selección o si el destino es la página activa. El motor rechaza partir un grupo.
+- **Eliminar**: el motor no ofrece hoy deshacer una página eliminada con Ctrl+Z
+  (verificado), por lo que el diálogo no lo promete.
+- **Presencia por página**: cada tarjeta muestra los avatares (color estable) de quien
+  está editando esa página, según `pageId` de la presencia.
+
+### Miniaturas
+
+Se piden solo cuando la tarjeta está en pantalla (`IntersectionObserver`, margen de
+160 px), de una en una (el motor usa un único renderer auxiliar) y solo si el panel o
+el navegador está abierto. Se vuelve a pedir una miniatura únicamente cuando cambia la
+firma de contenido de esa página (`pageSignature`); la anterior se mantiene visible hasta
+que llega la nueva. Las URLs de blob se liberan al quitar la página o al cerrar el editor.
+Verificado: con 16 páginas, la primera miniatura está lista mientras la de una página
+fuera de pantalla no se ha pedido; al desplazarse se renderiza bajo demanda.
+
+### Descargar con varias páginas
+
+- PNG/JPG: una sola página (la activa); el diálogo lo dice con su nombre.
+- PDF: «Actual», «Todas (N)» o «Rango» (`1-3, 5`, validado: formato, límites y
+  duplicados; se incluyen en orden del documento). Resolución «Según el tamaño de cada
+  página» o fija.
+- El bloque «Se generará…» muestra las páginas incluidas, la medida de corte/hoja/imagen
+  de cada una (lista desplazable si difieren) y «Total a procesar» en MP a 300 ppp. Se
+  bloquea la descarga, con el motivo, si una página supera 32 MP o el conjunto 256 MP
+  (límite del trabajo de impresión del API). No hay estimaciones de peso ni de tiempo.
+
+### Verificación
+
+`.e2e/studio-pages-ui.mjs` (pila Supabase desechable, dos identidades Auth reales,
+documento de 16 páginas con tamaños mixtos): miniaturas progresivas, seleccionar,
+añadir, duplicar, reordenar (arrastre y teclado), renombrar, copiar y mover
+elementos, eliminar, navegador, PDF por rango (tamaños distintos conservados) y barrido
+390/820/1440 px en claro y oscuro (sin desbordamiento horizontal, control de páginas sin
+solaparse con el zoom, hoja y diálogo dentro de la ventana).
+
+### Pendiente del motor (observado, no diagnosticado a fondo)
+
+Con documentos sembrados por API cuyos textos llevan una altura distinta de la que
+Fabric mide, exportar un PDF que incluye la página activa se rechaza con «El diseño
+cambió. Vuelve a descargar para revisar los créditos actualizados.» (la comprobación
+del lienzo revisado contra el documento vivo de `exportImage`). Con rectángulos y
+elipses el PDF «Todas» (16 páginas, tamaños mixtos) se descarga completo; el rango que
+no incluye la página activa también. La interfaz muestra el mensaje saneado y no
+reintenta. Prueba: paso informativo «text document» de `.e2e/studio-pages-ui.mjs`.
+
 ## Verificación integrada y límites actuales
 
 Conectado (verificado con `.e2e/studio-collab-export-ui.mjs`, pila Supabase

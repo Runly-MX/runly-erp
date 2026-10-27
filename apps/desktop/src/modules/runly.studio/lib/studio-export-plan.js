@@ -42,3 +42,20 @@ export function planExport(page, options) {
     ? planPrintExport(page, { ppi: options.ppi, bleed: options.bleed, cropMarks: options.cropMarks })
     : planScreenExport(page, options)
 }
+
+// Multipage print job: every selected page is planned with its own size and
+// resolution; the job also has an accumulated pixel budget (mirrors
+// STUDIO_PRINT_JOB_LIMITS in the API). Nothing is reduced silently.
+export const PRINT_JOB_PIXELS = 256_000_000
+
+export function planPdfPages(pages, options) {
+  const items = pages.map(entry => ({ entry, plan: planPrintExport(entry, { ppi: options.ppi ?? entry.ppiDefault, bleed: options.bleed, cropMarks: options.cropMarks }) }))
+  const failed = items.find(item => item.plan.error)
+  const total = items.reduce((sum, item) => sum + (item.plan.size ? item.plan.size.width * item.plan.size.height : 0), 0)
+  let error = failed ? (failed.entry.label ? `${failed.entry.label}: ${failed.plan.error}` : failed.plan.error) : null
+  if (!error && !items.length) error = 'Elige al menos una página.'
+  if (!error && total > PRINT_JOB_PIXELS) {
+    error = `Las ${items.length} páginas suman ${(total / 1e6).toLocaleString('es-MX', { maximumFractionDigits: 0 })} MP a ${PRINT_PPI} ppp; un PDF admite como máximo ${PRINT_JOB_PIXELS / 1e6} MP en total. Descarga menos páginas o reduce las medidas.`
+  }
+  return { kind: 'print-pages', items, total, error }
+}

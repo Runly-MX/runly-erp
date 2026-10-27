@@ -1,12 +1,13 @@
 import { cn } from '@runly/ui'
-import { Frame, Images, Layers, Shapes, Type } from 'lucide-react'
+import { Files, Frame, Images, Layers, Shapes, Type } from 'lucide-react'
 
 export const RAIL_ITEMS = [
   { key: 'elements', label: 'Elementos', icon: Shapes },
   { key: 'text', label: 'Texto', icon: Type },
   { key: 'images', label: 'Imágenes', icon: Images },
   { key: 'layers', label: 'Capas', icon: Layers },
-  { key: 'page', label: 'Página', icon: Frame },
+  { key: 'pages', label: 'Páginas', icon: Files },
+  { key: 'page', label: 'Formato', icon: Frame },
 ]
 
 // Vertical rail (tablet/desktop) or bottom bar (phone). Choosing the active
