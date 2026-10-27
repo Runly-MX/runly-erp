@@ -10,7 +10,7 @@ export { fieldOptionsFor, keyOf } from "../../lib/flowModel";
 
 const TRIGGER_TYPES = [
   { value: "record", label: "Cuando se guarda un registro de este módulo" },
-  { value: "event", label: "Cuando pasa algo en otro módulo" },
+  { value: "event", label: "Cuando pasa algo en Runly" },
   { value: "schedule", label: "En un horario" },
   { value: "webhook", label: "Cuando otro sistema me envía datos" },
 ];
@@ -74,6 +74,29 @@ function ScheduleFields({ trigger, entities, readOnly, onTrigger }) {
   );
 }
 
+// What the chosen event brings: each value with where it comes from, so the
+// "Solo si" and the blocks that follow are not a guess.
+function EventDataPanel({ event }) {
+  if (!event?.fields?.length) return null;
+  return (
+    <div className="space-y-2 rounded-md border border-[hsl(var(--border))] p-3 sm:col-span-2">
+      <div>
+        <p className="text-sm font-medium">Datos que trae este evento</p>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">{event.description} Úsalos en «Solo si» y en los textos de los bloques.</p>
+      </div>
+      <ul className="space-y-1.5">
+        {event.fields.map((item) => (
+          <li key={item.key} className="text-xs">
+            <span className="font-medium">{item.label}</span>
+            <span className="text-[hsl(var(--muted-foreground))]"> · {item.description}{item.example ? ` Ej. ${item.example}` : ""}</span>
+            <code className="ml-1.5 rounded bg-[hsl(var(--muted))] px-1 py-0.5 text-[11px]">{`{{${item.key}}}`}</code>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // `compact` = one column (the canvas inspector is narrow).
 export function TriggerEditor({ automation, entities, events, allowedTriggers, readOnly, onPatch, compact = false }) {
   const trigger = automation.trigger;
@@ -100,9 +123,13 @@ export function TriggerEditor({ automation, entities, events, allowedTriggers, r
         </>
       )}
       {trigger.type === "event" && (
-        <SelectField label="Evento" options={events.map((event) => ({ value: event.key, label: event.label }))}
-          value={trigger.event ?? ""} disabled={readOnly}
-          onValueChange={(event) => onPatch({ trigger: { type: "event", event }, steps: resetSteps(steps) })} />
+        <>
+          <SelectField label="Qué pasa" options={events.map((event) => ({ value: event.key, label: event.label, group: event.module || undefined, description: event.description || undefined }))}
+            value={trigger.event ?? ""} disabled={readOnly}
+            // Conditions of the previous event may point to fields the new one does not carry.
+            onValueChange={(event) => onPatch({ trigger: { type: "event", event }, steps: resetSteps(steps) })} />
+          <EventDataPanel event={events.find((event) => event.key === trigger.event)} />
+        </>
       )}
       {trigger.type === "webhook" && <WebhookTriggerPanel automation={automation} readOnly={readOnly} onPatch={onPatch} />}
       {trigger.type === "schedule" && (

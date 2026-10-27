@@ -513,6 +513,13 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
         });
       },
+      // Sandbox run of a draft automation with sample data: { data: { runId, status, passes, conditions, steps, error } }.
+      automationTest: (key, body, token) =>
+        request(`/modules/${encodeURIComponent(key)}/automation-test`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(body),
+        }),
       // Paged + filtered history: { data, page: { total, nextCursor } }.
       automationRunsPage: (key, filters = {}, token) => {
         const params = new URLSearchParams({ paged: "1" });

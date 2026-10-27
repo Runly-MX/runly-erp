@@ -65,6 +65,23 @@ const ITEM_SORTS = {
   assignedToName: (dir) => [{ assignedTo: { firstName: dir } }, { assignedTo: { lastName: dir } }],
 };
 
+// Payload of every inventory.item.* event. Keep in sync with INVENTORY_ITEM_FIELDS in
+// packages/module-engine/src/event-catalog.js. Relation names are null when the row was read without includes.
+export function itemEventPayload(item) {
+  return {
+    id: item.id,
+    name: item.name ?? null,
+    assetTag: item.assetTag ?? null,
+    status: item.status ?? null,
+    serialNumber: item.serialNumber ?? null,
+    categoryId: item.categoryId ?? null,
+    categoryName: item.category?.name ?? null,
+    brandName: item.brand?.name ?? null,
+    locationId: item.locationId ?? null,
+    locationName: item.location?.name ?? null,
+  };
+}
+
 export function itemOrderBy(sortBy, sortDir) {
   const dir = sortDir === 'asc' ? 'asc' : 'desc';
   const build = ITEM_SORTS[sortBy];
@@ -508,7 +525,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       hint: { verb: 'created', label: created.name },
       companyId,
     }).catch(() => {});
-    await publishDomainEvent(prisma, { companyId, event: 'inventory.item.created', payload: { id: created.id, name: created.name, assetTag: created.assetTag ?? null } });
+    await publishDomainEvent(prisma, { companyId, event: 'inventory.item.created', payload: itemEventPayload(created) });
     return created;
   }
 
@@ -661,7 +678,7 @@ export function createInventoryService({ prisma, activityBridge }) {
         hint: { verb: 'updated', label: result?.name ?? id },
         companyId,
       }).catch(() => {});
-      await publishDomainEvent(prisma, { companyId, event: 'inventory.item.updated', payload: { id, name: result?.name ?? null } });
+      await publishDomainEvent(prisma, { companyId, event: 'inventory.item.updated', payload: itemEventPayload(result ?? { id }) });
       return result;
     }
 
@@ -690,7 +707,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       hint: { verb: 'updated', label: updated.name ?? id },
       companyId,
     }).catch(() => {});
-    await publishDomainEvent(prisma, { companyId, event: 'inventory.item.updated', payload: { id, name: updated.name ?? null } });
+    await publishDomainEvent(prisma, { companyId, event: 'inventory.item.updated', payload: itemEventPayload(updated) });
     return updated;
   }
 
@@ -712,6 +729,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       hint: { verb: 'deleted', label: existing.name ?? id },
       companyId,
     }).catch(() => {});
+    await publishDomainEvent(prisma, { companyId, event: 'inventory.item.deleted', payload: itemEventPayload(existing) });
     return updated;
   }
 

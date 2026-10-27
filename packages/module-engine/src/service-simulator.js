@@ -25,8 +25,9 @@ function splitKey(serviceKey) {
   return { owner, group, method, collection: `${owner}:${group}` }
 }
 
+// lenient: updates/cancels of unknown ids act on a stand-in record (used by the automation sandbox).
 // fixtures: { 'runly.contacts:contacts': [{ id, name, ... }], ... }
-export function createServiceSimulator({ moduleKey, companyId = '00000000-0000-7000-8000-00000000c0de', user = { id: '00000000-0000-7000-8000-0000000000a1', permissions: [], isAdmin: false }, grants = [], fixtures = {} } = {}) {
+export function createServiceSimulator({ moduleKey, companyId = '00000000-0000-7000-8000-00000000c0de', user = { id: '00000000-0000-7000-8000-0000000000a1', permissions: [], isAdmin: false }, grants = [], fixtures = {}, lenient = false } = {}) {
   const store = new Map(Object.entries(fixtures).map(([name, rows]) => [name, rows.map((row) => ({ enabled: true, ...row }))]))
   const idempotent = new Map()
   const calls = []
@@ -39,7 +40,9 @@ export function createServiceSimulator({ moduleKey, companyId = '00000000-0000-7
 
   function findRow(contract, collection, args) {
     const idKey = ID_KEYS.find((key) => args[key] !== undefined && contract.args[key])
-    const row = idKey ? rowsOf(collection).find((r) => r.id === args[idKey] && r.enabled !== false) : null
+    let row = idKey ? rowsOf(collection).find((r) => r.id === args[idKey] && r.enabled !== false) : null
+    // Sandbox runs use made-up ids: stand in for the record instead of failing on it.
+    if (!row && lenient && idKey) { row = { id: args[idKey], companyId, enabled: true, sourceModule: moduleKey }; rowsOf(collection).push(row) }
     if (!row || (contract.scope === 'own' && row.sourceModule !== moduleKey)) {
       throw new SimulatedServiceError('El registro no existe o no lo creó este módulo.', 404, 'not_found')
     }

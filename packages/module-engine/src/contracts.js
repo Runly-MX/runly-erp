@@ -1,66 +1,15 @@
 import { BLUEPRINT_KINDS, FIELD_TYPES, MODULE_KINDS } from './constants.js'
+import { EVENT_CATALOG } from './event-catalog.js'
 
 export const RME3_CONTRACT_VERSION = 1
 export const RME3_ENGINE_VERSION = '0.1.0'
 // Shared metadata only. Handlers remain inside the ERP API.
 export { SERVICE_CONTRACTS, SERVICE_KEYS, IDEMPOTENCY_ARG, validateServiceArgs } from './service-contracts.js'
 export { createServiceSimulator, SimulatedServiceError } from './service-simulator.js'
-export const DOMAIN_EVENTS = Object.freeze({
-  'inventory.item.created': 'Se creó un artículo de inventario',
-  'inventory.item.updated': 'Se actualizó un artículo de inventario',
-  'contacts.contact.created': 'Se creó un contacto',
-  'projects.task.created': 'Se creó una tarea de proyecto',
-  'calendar.event.created': 'Se creó un evento de calendario',
-  'calendar.event.updated': 'Se actualizó un evento de calendario',
-  'calendar.event.cancelled': 'Se canceló un evento de calendario',
-  'files.file.created': 'Se subió un archivo a Archivos',
-  'fleet.vehicle.created': 'Se creó un vehículo de la flota',
-  'fleet.vehicle.updated': 'Se actualizó un vehículo de la flota',
-  'projects.task.completed': 'Se completó una tarea de proyecto',
-  'projects.task.rescheduled': 'Se cambiaron las fechas de una tarea de proyecto',
-  'projects.time.logged': 'Se registró tiempo en una tarea de proyecto',
-  'hr.employee.created': 'Se creó un colaborador',
-  'purchases.order.approved': 'Se aprobó una orden de compra',
-  'purchases.order.issued': 'Se emitió una orden de compra',
-  'lms.enrollment.completed': 'Una persona completó un curso',
-  'contacts.contact.updated': 'Se actualizó un contacto',
-  'purchases.request.created': 'Se creó una solicitud de compra',
-  'purchases.order.cancelled': 'Se canceló una orden de compra',
-  'purchases.invoice.paid': 'Se pagó una factura de compra',
-  'ledger.transaction.created': 'Se registró un movimiento en el libro de cuentas',
-  // Internal: a message arrived at the webhook of a company automation (hidden from pickers).
-  'automations.webhook.received': 'Se recibió un mensaje en un webhook de automatización',
-})
-// Payload keys of each domain event (Builder automations, Developer Hub).
-const CALENDAR_EVENT_PAYLOAD = Object.freeze(['id', 'title', 'startAt', 'sourceModule', 'sourceEntityId'])
-const VEHICLE_PAYLOAD = Object.freeze(['id', 'plate', 'status'])
-const PURCHASE_ORDER_PAYLOAD = Object.freeze(['id', 'caseId', 'status'])
-export const DOMAIN_EVENT_PAYLOADS = Object.freeze({
-  'inventory.item.created': Object.freeze(['id', 'name', 'assetTag']),
-  'inventory.item.updated': Object.freeze(['id', 'name']),
-  'contacts.contact.created': Object.freeze(['id']),
-  'projects.task.created': Object.freeze(['id', 'projectId', 'title']),
-  'calendar.event.created': CALENDAR_EVENT_PAYLOAD,
-  'calendar.event.updated': CALENDAR_EVENT_PAYLOAD,
-  'calendar.event.cancelled': CALENDAR_EVENT_PAYLOAD,
-  'files.file.created': Object.freeze(['id', 'name', 'mimeType']),
-  'fleet.vehicle.created': VEHICLE_PAYLOAD,
-  'fleet.vehicle.updated': VEHICLE_PAYLOAD,
-  'projects.task.completed': Object.freeze(['id', 'projectId', 'title']),
-  'projects.task.rescheduled': Object.freeze(['id', 'projectId', 'title', 'startDate', 'dueDate']),
-  'projects.time.logged': Object.freeze(['id', 'taskId', 'projectId', 'minutes']),
-  'hr.employee.created': Object.freeze(['id', 'firstName', 'lastName']),
-  'purchases.order.approved': PURCHASE_ORDER_PAYLOAD,
-  'purchases.order.issued': PURCHASE_ORDER_PAYLOAD,
-  'lms.enrollment.completed': Object.freeze(['id', 'courseId', 'learnerId']),
-  'contacts.contact.updated': Object.freeze(['id']),
-  'purchases.request.created': PURCHASE_ORDER_PAYLOAD,
-  'purchases.order.cancelled': PURCHASE_ORDER_PAYLOAD,
-  'purchases.invoice.paid': PURCHASE_ORDER_PAYLOAD,
-  // No account or person names: a company automation can read every movement it receives.
-  'ledger.transaction.created': Object.freeze(['id', 'accountId', 'deposito', 'retiro']),
-  'automations.webhook.received': Object.freeze(['automationKey', 'data']),
-})
+export { EVENT_CATALOG } from './event-catalog.js'
+// Derived from the catalog (labels and payload keys); see event-catalog.js for the data each event carries.
+export const DOMAIN_EVENTS = Object.freeze(Object.fromEntries(Object.entries(EVENT_CATALOG).map(([key, entry]) => [key, entry.label])))
+export const DOMAIN_EVENT_PAYLOADS = Object.freeze(Object.fromEntries(Object.entries(EVENT_CATALOG).map(([key, entry]) => [key, Object.freeze(entry.fields.map((item) => item.key))])))
 
 export const RME3_ENGINE_CONTRACT = Object.freeze({
   schemaVersion: RME3_CONTRACT_VERSION,

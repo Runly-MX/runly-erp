@@ -14,7 +14,7 @@ import { publishDomainEvent } from "../../services/domain-events/events.js";
 // Domain event payload (subscribers in api/events.js). Published here so the
 // HTTP routes, MirAI and module services all emit it.
 function eventPayload(event, id = event?.id) {
-  return { id: id ?? null, title: event?.title ?? null, startAt: event?.startAt ?? null, sourceModule: event?.sourceModule ?? null, sourceEntityId: event?.sourceEntityId ?? null };
+  return { id: id ?? null, title: event?.title ?? null, startAt: event?.startAt ?? null, endAt: event?.endAt ?? null, location: event?.location ?? null, sourceModule: event?.sourceModule ?? null, sourceEntityId: event?.sourceEntityId ?? null };
 }
 
 const TRACKED_FIELDS = ["title", "calendarId", "startDate", "endDate", "allDay", "location", "description", "status"];

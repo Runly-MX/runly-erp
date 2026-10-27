@@ -73,7 +73,11 @@ Corren en segundo plano unos segundos después del cambio, **sin una persona**. 
 
 ## Probar una automatización
 
-El botón **Probar** de cada automatización abre un diálogo donde escribes datos de ejemplo. Muestra si se cumplen las condiciones y, para cada paso, los datos exactos que enviaría (con los problemas que tendría contra el servicio). **No ejecuta nada ni guarda ningún dato**: es una simulación en tu navegador.
+El botón **Probar** abre un diálogo donde escribes (o cargas con **Cargar ejemplo**) los datos del disparador y pulsas **Ejecutar prueba**. Corre el motor real (condiciones «Solo si», caminos Sí/No, plantillas y resultados entre pasos) contra servicios **simulados**: no se crea, avisa ni envía nada de verdad. Las esperas se saltan, las aprobaciones se dan por aprobadas y la llamada a una URL solo se registra. Cada intento queda en la **Consola** de la automatización como una ejecución de tipo *Prueba* (nunca dispara el evento «terminó una automatización»). Endpoint: `POST /modules/:key/automation-test` con `{ automation, data, previous? }` (para las automatizaciones de la empresa `:key` es `system.automations`; requiere el permiso `automations.manage`).
+
+## Encadenar automatizaciones
+
+El evento **Terminó de ejecutarse una automatización** (`automations.run.finished`) se publica cuando una ejecución termina (correcta, parcial, fallida o rechazada), sea de un módulo o de la empresa. Trae `automationKey`, `moduleKey`, `status`, `error`, `durationMs` y `depth`. Úsalo como disparador y filtra con «Solo si» (por ejemplo `automationKey` es `avisar_compra` y `status` es `failed`) para avisar de un fallo o continuar con otro proceso. Para evitar ciclos, una ejecución disparada por este evento hereda `depth + 1` y a partir de 3 niveles ya no se publican más.
 
 ## Llamar a una URL
 

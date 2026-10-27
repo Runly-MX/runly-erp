@@ -3,14 +3,46 @@
 // company, lists them for the Builder "Historial" and purges old ones.
 // Spec docs/superpowers/specs/2026-10-24-automation-studio-v2-design.md.
 
+import { publishDomainEvent } from "./domain-events/events.js";
+
 export const AUTOMATION_RUN_RETENTION_DAYS = 90
+// How many automations can start one another through "terminó una automatización".
+export const MAX_CHAIN_DEPTH = 3;
+const FINAL = ["success", "partial", "failed", "rejected"];
 const STATUSES = ["success", "partial", "failed", "running", "waiting", "cancelled", "rejected"];
+const TRIGGER_KINDS = ["event", "delayed", "schedule", "webhook", "test"];
 const MAX_STEPS_JSON = 20;
 
 export function createAutomationRunsService({ prisma }) {
+  // A finished run is itself an event, so automations can be chained (spec
+  // 2026-10-27 §2). Runs started by this event carry its depth in their input; test
+  // runs never publish.
+  async function announce({ companyId, moduleKey, entry, input }) {
+    if (!FINAL.includes(entry.status) || entry.triggerKind === "test") return;
+    const fromChain = input && typeof input === "object" && typeof input.depth === "number" && "automationKey" in input;
+    const depth = fromChain ? input.depth + 1 : 0;
+    if (depth > MAX_CHAIN_DEPTH) return;
+    await publishDomainEvent(prisma, {
+      companyId,
+      event: "automations.run.finished",
+      payload: { automationKey: String(entry.automationKey).slice(0, 80), moduleKey, status: entry.status, error: entry.error ? String(entry.error).slice(0, 300) : null, durationMs: Math.max(0, Number(entry.durationMs) || 0), depth },
+    });
+  }
+
   // Never throws: a log failure must not affect the user's save.
   async function log({ companyId, moduleKey, entry }) {
     if (!companyId || !moduleKey || !entry?.automationKey) return null;
+    try {
+      const row = await save({ companyId, moduleKey, entry });
+      if (row) await announce({ companyId, moduleKey, entry, input: row.input ?? entry.input });
+      return row;
+    } catch (error) {
+      console.error("[automation-runs] no se pudo registrar:", error?.message ?? error);
+      return null;
+    }
+  }
+
+  async function save({ companyId, moduleKey, entry }) {
     try {
       if (entry.runId) return await finish({ companyId, moduleKey, entry });
       return await prisma.automationRun.create({
@@ -18,7 +50,7 @@ export function createAutomationRunsService({ prisma }) {
           companyId,
           moduleKey,
           automationKey: String(entry.automationKey).slice(0, 80),
-          triggerKind: ["event", "delayed", "schedule", "webhook"].includes(entry.triggerKind) ? entry.triggerKind : "record",
+          triggerKind: TRIGGER_KINDS.includes(entry.triggerKind) ? entry.triggerKind : "record",
           triggerRef: entry.triggerRef ? String(entry.triggerRef).slice(0, 80) : null,
           status: STATUSES.includes(entry.status) ? entry.status : "failed",
           steps: Array.isArray(entry.steps) ? entry.steps.slice(0, MAX_STEPS_JSON) : [],

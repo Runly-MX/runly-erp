@@ -112,6 +112,20 @@ function normalizeRecordId(id, notFoundMessage) {
   return value.toLowerCase();
 }
 
+// Payload of every fleet.vehicle.* event. Keep in sync with VEHICLE_FIELDS in
+// packages/module-engine/src/event-catalog.js (the fleet has no odometer column).
+export function vehicleEventPayload(row) {
+  return {
+    id: row.id,
+    plate: row.plate ?? null,
+    status: row.status ?? null,
+    brand: row.vehicle_brand_name ?? row.brand ?? null,
+    model: row.vehicle_model_name ?? row.model_name ?? null,
+    year: row.year ?? null,
+    color: row.color ?? null,
+  };
+}
+
 async function withDbErrorMapping(fn) {
   try {
     return await fn();
@@ -540,7 +554,7 @@ export function createFleetService({ prisma, activityBridge }) {
         after: row,
         companyId: safeCompanyId,
       });
-      if (row?.id) await publishDomainEvent(prisma, { companyId: safeCompanyId, event: "fleet.vehicle.created", payload: { id: row.id, plate: row.plate ?? null, status: row.status ?? null } });
+      if (row?.id) await publishDomainEvent(prisma, { companyId: safeCompanyId, event: "fleet.vehicle.created", payload: vehicleEventPayload(row) });
 
       return row;
     } catch (error) {
@@ -686,7 +700,7 @@ export function createFleetService({ prisma, activityBridge }) {
         after: toFleetVehicleSnapshot(after),
         companyId: safeCompanyId,
       });
-      await publishDomainEvent(prisma, { companyId: safeCompanyId, event: "fleet.vehicle.updated", payload: { id: updated.id, plate: after?.plate ?? updated.plate ?? null, status: after?.status ?? updated.status ?? null } });
+      await publishDomainEvent(prisma, { companyId: safeCompanyId, event: "fleet.vehicle.updated", payload: vehicleEventPayload({ ...updated, ...(after ?? {}), id: updated.id }) });
 
       return updated;
     } catch (error) {
@@ -729,6 +743,7 @@ export function createFleetService({ prisma, activityBridge }) {
       metadata: { enabled: Boolean(enabled) },
       companyId: safeCompanyId,
     });
+    if (!updated.enabled) await publishDomainEvent(prisma, { companyId: safeCompanyId, event: "fleet.vehicle.deactivated", payload: vehicleEventPayload({ ...updated, ...(before ?? {}), id: updated.id }) });
 
     return updated;
   }

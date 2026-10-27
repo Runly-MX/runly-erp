@@ -181,7 +181,7 @@ Un módulo del Builder puede mostrar en **Inicio** un contador o una lista corta
 ```
 
 - `kind`: `count` (un número grande con el total) o `list` (hasta 10 registros con título y una línea de detalle). Máximo 5 widgets por módulo.
-- `when` (opcional, hasta 5 condiciones que deben cumplirse todas): `equals`, `not_equals`, `contains`, `gt`, `lt` (solo campos numéricos) y `filled`. Los registros desactivados nunca cuentan.
+- `when` (opcional, hasta 5 condiciones que deben cumplirse todas): `equals`, `not_equals`, `contains`, `not_contains`, `gt`, `gte`, `lt`, `lte` (solo campos numéricos), `filled` y `empty`. Los registros desactivados nunca cuentan.
 - `permission` (opcional): el permiso que hace falta para ver el widget; por omisión, el de lectura de la entidad. Quien no lo tiene no ve el widget en «Personalizar».
 - El total es exacto (se cuenta en la base de datos, no sobre una página). Al hacer clic se abre tu módulo. Cada persona puede ocultarlo desde **Personalizar**.
 - En `module.manifest.js` el contrato equivalente es `homeWidgets: [{ key, label, kind, model, permission, where?, titleField?, detailField?, sortField?, sortDir?, limit? }]`. Si un campo ya no existe, el widget responde con un error claro en vez de mostrar datos incorrectos.
@@ -216,27 +216,39 @@ Desde un evento solo funcionan los servicios que no necesitan a una persona: not
 
 | Evento | `payload` |
 |---|---|
-| `inventory.item.created` | `{ id, name, assetTag }` |
-| `inventory.item.updated` | `{ id, name }` |
-| `contacts.contact.created` | `{ id }` |
-| `projects.task.created` | `{ id, projectId, title }` |
-| `calendar.event.created` | `{ id, title, startAt, sourceModule, sourceEntityId }` |
-| `calendar.event.updated` | `{ id, title, startAt, sourceModule, sourceEntityId }` |
-| `calendar.event.cancelled` | `{ id, title, startAt, sourceModule, sourceEntityId }` |
-| `files.file.created` | `{ id, name, mimeType }` (solo archivos subidos a Archivos, no adjuntos de registros) |
-| `fleet.vehicle.created` | `{ id, plate, status }` |
-| `fleet.vehicle.updated` | `{ id, plate, status }` |
-| `projects.task.completed` | `{ id, projectId, title }` (al pasar a un estado de tipo hecho) |
-| `projects.task.rescheduled` | `{ id, projectId, title, startDate, dueDate }` (fechas AAAA-MM-DD o `null`; al cambiar el inicio o la entrega, desde el formulario, el Gantt o la IA) |
+| `inventory.item.created` | `{ id, name, assetTag, status, serialNumber, categoryId, categoryName, brandName, locationId, locationName }` |
+| `inventory.item.updated` | `{ id, name, assetTag, status, serialNumber, categoryId, categoryName, brandName, locationId, locationName }` |
+| `inventory.item.deleted` | `{ id, name, assetTag, status, serialNumber, categoryId, categoryName, brandName, locationId, locationName }` (los nombres de tipo, marca y ubicación vienen vacíos) |
+| `contacts.contact.created` | `{ id, name, type, email, phone }` |
+| `contacts.contact.updated` | `{ id, name, type, email, phone }` |
+| `contacts.contact.deactivated` | `{ id, name, type, email, phone }` |
+| `contacts.contact.deleted` | `{ id, name, type, email, phone }` (eliminación definitiva) |
+| `projects.task.created` | `{ id, projectId, title, statusId, assigneeId, priority, startDate, dueDate }` |
+| `projects.task.updated` | `{ id, projectId, title, statusId, assigneeId, priority, startDate, dueDate }` |
+| `projects.task.deleted` | `{ id, projectId, title, statusId, assigneeId, priority, startDate, dueDate }` |
+| `projects.task.completed` | `{ id, projectId, title, statusId, assigneeId, priority, startDate, dueDate }` (al pasar a un estado de tipo hecho) |
+| `projects.task.rescheduled` | `{ id, projectId, title, statusId, assigneeId, priority, startDate, dueDate }` (fechas AAAA-MM-DD o `null`; al cambiar el inicio o la entrega, desde el formulario, el Gantt o la IA) |
 | `projects.time.logged` | `{ id, taskId, projectId, minutes }` (al registrar tiempo a mano o al detener el cronómetro) |
-| `hr.employee.created` | `{ id, firstName, lastName }` |
-| `purchases.order.approved` | `{ id, caseId, status }` |
-| `purchases.order.issued` | `{ id, caseId, status }` |
-| `contacts.contact.updated` | `{ id }` |
-| `purchases.request.created` | `{ id, caseId, status }` |
-| `purchases.order.cancelled` | `{ id, caseId, status }` |
-| `purchases.invoice.paid` | `{ id, caseId, status }` (al quedar pagada por completo) |
-| `ledger.transaction.created` | `{ id, accountId, deposito, retiro }` (un movimiento registrado a mano o desde la app; las importaciones masivas no lo publican; sin nombres de cuenta ni de personas) |
+| `calendar.event.created` | `{ id, title, startAt, endAt, location, sourceModule, sourceEntityId }` |
+| `calendar.event.updated` | `{ id, title, startAt, endAt, location, sourceModule, sourceEntityId }` |
+| `calendar.event.cancelled` | `{ id, title, startAt, endAt, location, sourceModule, sourceEntityId }` |
+| `files.file.created` | `{ id, name, mimeType, sizeBytes }` (solo archivos subidos a Archivos, no adjuntos de registros) |
+| `files.file.deleted` | `{ id, name, mimeType, sizeBytes }` (solo archivos de Archivos) |
+| `fleet.vehicle.created` | `{ id, plate, status, brand, model, year, color }` |
+| `fleet.vehicle.updated` | `{ id, plate, status, brand, model, year, color }` |
+| `fleet.vehicle.deactivated` | `{ id, plate, status, brand, model, year, color }` |
+| `hr.employee.created` | `{ id, firstName, lastName, employeeCode, workEmail, jobTitle, department, status }` |
+| `hr.employee.updated` | `{ id, firstName, lastName, employeeCode, workEmail, jobTitle, department, status }` |
+| `hr.employee.deactivated` | `{ id, firstName, lastName, employeeCode, workEmail, jobTitle, department, status }` |
+| `purchases.request.created` | `{ id, caseId, status, number, total, currency, supplierId }` (`total` es el estimado y `supplierId` viene vacío) |
+| `purchases.order.approved` | `{ id, caseId, status, number, total, currency, supplierId }` |
+| `purchases.order.issued` | `{ id, caseId, status, number, total, currency, supplierId }` |
+| `purchases.order.updated` | `{ id, caseId, status, number, total, currency, supplierId }` (al editar una orden en borrador) |
+| `purchases.order.cancelled` | `{ id, caseId, status, number, total, currency, supplierId }` |
+| `purchases.invoice.paid` | `{ id, caseId, status, number, total, currency, supplierId }` (al quedar pagada por completo) |
+| `ledger.transaction.created` | `{ id, accountId, deposito, retiro, fecha, categoryId }` (un movimiento registrado a mano o desde la app; las importaciones masivas no lo publican; sin nombres de cuenta ni de personas) |
+| `ledger.transaction.updated` | `{ id, accountId, deposito, retiro, fecha, categoryId }` |
+| `ledger.transaction.deleted` | `{ id, accountId, deposito, retiro, fecha, categoryId }` (al mandar el movimiento a la papelera) |
 | `lms.enrollment.completed` | `{ id, courseId, learnerId }` (al completar el último requisito del curso) |
 
 Con `sourceModule` sabes si un evento de calendario lo creó tu módulo (por ejemplo, para marcar tu orden como reagendada cuando alguien mueve la cita desde el calendario). Libro de cuentas y Finanzas personales no publican eventos: su información depende del acceso por cuenta o cartera de cada persona.

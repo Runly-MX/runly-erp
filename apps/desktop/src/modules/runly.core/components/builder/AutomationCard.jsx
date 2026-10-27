@@ -42,7 +42,7 @@ function ViewSwitch({ value, onChange }) {
 }
 
 // allowedTriggers limits the trigger types (company automations have no records).
-export function AutomationCard({ automation, entities, events, allowedTriggers = null, readOnly, onPatch, onRemove }) {
+export function AutomationCard({ moduleKey, automation, entities, events, allowedTriggers = null, readOnly, onPatch, onRemove }) {
   const trigger = automation.trigger;
   const steps = stepsOf(automation);
   const fieldOptions = fieldOptionsFor(trigger, entities, events);
@@ -95,7 +95,7 @@ export function AutomationCard({ automation, entities, events, allowedTriggers =
           </>
         )}
       </CardContent>
-      <AutomationTestDialog open={testOpen} onOpenChange={setTestOpen} automation={automation} fieldOptions={fieldOptions} />
+      <AutomationTestDialog moduleKey={moduleKey} open={testOpen} onOpenChange={setTestOpen} automation={automation} fieldOptions={fieldOptions} />
     </Card>
   );
 }

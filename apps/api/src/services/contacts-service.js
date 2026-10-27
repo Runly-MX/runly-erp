@@ -161,6 +161,18 @@ function rethrowChildrenError(err) {
   throw err;
 }
 
+// Payload of every contacts.contact.* event. Keep in sync with CONTACT_FIELDS in
+// packages/module-engine/src/event-catalog.js.
+export function contactEventPayload(contact) {
+  return {
+    id: contact.id,
+    name: contact.name ?? null,
+    type: contact.type ?? null,
+    email: contact.email ?? null,
+    phone: contact.phone ?? null,
+  };
+}
+
 export function createContactsService({ prisma, supabaseAdmin = null, storageBucket = "runly-files" }) {
   // activeCompanyId: the caller's validated active company, resolved by the
   // API's tenant middleware (c.get("companyId"), see
@@ -175,7 +187,7 @@ export function createContactsService({ prisma, supabaseAdmin = null, storageBuc
   async function assertContactOwnership({ id, companyId }) {
     const existing = await prisma.contact.findFirst({
       where: { id, companyId },
-      select: { id: true, avatarFileId: true },
+      select: { id: true, avatarFileId: true, name: true, type: true, email: true, phone: true },
     });
     if (!existing) {
       throw new ContactsServiceError("Contacto no encontrado.", 404);
@@ -285,8 +297,9 @@ export function createContactsService({ prisma, supabaseAdmin = null, storageBuc
         if (afterWrite) await afterWrite(tx, contact);
         return contact.id;
       }).catch(rethrowChildrenError);
-      await publishDomainEvent(prisma, { companyId, event: "contacts.contact.created", payload: { id } });
-      return prisma.contact.findUnique({ where: { id } });
+      const created = await prisma.contact.findUnique({ where: { id } });
+      await publishDomainEvent(prisma, { companyId, event: "contacts.contact.created", payload: contactEventPayload(created ?? { id }) });
+      return created;
     },
 
     async update({ authUserId, companyId: activeCompanyId, id, payload, afterWrite = null }) {
@@ -304,8 +317,9 @@ export function createContactsService({ prisma, supabaseAdmin = null, storageBuc
         }
         if (afterWrite) await afterWrite(tx, { id });
       }).catch(rethrowChildrenError);
-      await publishDomainEvent(prisma, { companyId, event: "contacts.contact.updated", payload: { id } });
-      return prisma.contact.findUnique({ where: { id } });
+      const updated = await prisma.contact.findUnique({ where: { id } });
+      await publishDomainEvent(prisma, { companyId, event: "contacts.contact.updated", payload: contactEventPayload(updated ?? { id }) });
+      return updated;
     },
 
     async findDuplicates({ authUserId, companyId: activeCompanyId, taxId, email, phone, excludeId }) {
@@ -392,16 +406,19 @@ export function createContactsService({ prisma, supabaseAdmin = null, storageBuc
     async setEnabled({ authUserId, companyId: activeCompanyId, id, enabled }) {
       const companyId = await getCompanyContext(activeCompanyId);
       await assertContactOwnership({ id, companyId });
-      return prisma.contact.update({
+      const updated = await prisma.contact.update({
         where: { id },
         data: { enabled: Boolean(enabled) },
       });
+      if (!updated.enabled) await publishDomainEvent(prisma, { companyId, event: "contacts.contact.deactivated", payload: contactEventPayload(updated) });
+      return updated;
     },
 
     async delete({ authUserId, companyId: activeCompanyId, id }) {
       const companyId = await getCompanyContext(activeCompanyId);
-      await assertContactOwnership({ id, companyId });
+      const existing = await assertContactOwnership({ id, companyId });
       await prisma.contact.delete({ where: { id } });
+      await publishDomainEvent(prisma, { companyId, event: "contacts.contact.deleted", payload: contactEventPayload(existing ?? { id }) });
     },
 
     async bulkSetEnabled({ authUserId, companyId: activeCompanyId, ids, enabled }) {

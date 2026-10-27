@@ -7,10 +7,14 @@ export function matches(when, data, previous = null) {
   if (Array.isArray(when)) return when.every((condition) => matches(condition, data, previous))
   const value = data?.[when.field]
   if (when.op === 'filled') return !isEmpty(value)
+  if (when.op === 'empty') return isEmpty(value)
   if (when.op === 'changed') return Boolean(previous) && JSON.stringify(previous[when.field] ?? null) !== JSON.stringify(value ?? null)
   if (when.op === 'equals') return String(value ?? '') === String(when.value)
   if (when.op === 'not_equals') return String(value ?? '') !== String(when.value)
   if (when.op === 'contains') return String(value ?? '').toLowerCase().includes(String(when.value ?? '').toLowerCase())
+  if (when.op === 'not_contains') return !String(value ?? '').toLowerCase().includes(String(when.value ?? '').toLowerCase())
+  if (when.op === 'gte') return !isEmpty(value) && Number(value) >= Number(when.value)
+  if (when.op === 'lte') return !isEmpty(value) && Number(value) <= Number(when.value)
   if (when.op === 'gt') return !isEmpty(value) && Number(value) > Number(when.value)
   if (when.op === 'lt') return !isEmpty(value) && Number(value) < Number(when.value)
   return false

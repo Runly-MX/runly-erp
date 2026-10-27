@@ -57,8 +57,14 @@ describe('createTasksService', () => {
       assert.equal(task.position, 0)
       assert.equal(task.createdBy, 'user-1')
       assert.equal(task.taskNumber, 1)
-      assert.deepEqual(events, [{ companyId: 'co-1', event: 'projects.task.created',
-        payload: { id: task.id, projectId: 'proj-1', title: 'Nueva tarea' } }])
+      assert.equal(events.length, 1)
+      assert.equal(events[0].event, 'projects.task.created')
+      assert.equal(events[0].companyId, 'co-1')
+      assert.deepEqual(
+        { id: events[0].payload.id, projectId: events[0].payload.projectId, title: events[0].payload.title },
+        { id: task.id, projectId: 'proj-1', title: 'Nueva tarea' },
+      )
+      assert.deepEqual(Object.keys(events[0].payload).sort(), ['assigneeId', 'dueDate', 'id', 'priority', 'projectId', 'startDate', 'statusId', 'title'])
     })
 
     it('throws 400 when title is empty', async () => {

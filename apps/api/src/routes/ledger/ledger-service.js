@@ -12,6 +12,14 @@ export class LedgerServiceError extends Error {
   }
 }
 
+// Payload of every ledger.transaction.* event. Keep in sync with TRANSACTION_FIELDS in
+// packages/module-engine/src/event-catalog.js. No person or account names: only ids, amounts and the day.
+export function transactionEventPayload(row) {
+  const money = (value) => (value == null ? null : String(value))
+  const day = row.fecha instanceof Date ? row.fecha.toISOString().slice(0, 10) : (row.fecha ? String(row.fecha).slice(0, 10) : null) // eslint-disable-line no-restricted-syntax -- ledger dates are UTC calendar days
+  return { id: row.id, accountId: row.account_id ?? null, deposito: money(row.deposito), retiro: money(row.retiro), fecha: day, categoryId: row.category_id ?? null }
+}
+
 export function createLedgerService({ prisma }) {
 
   // ── Accounts ────────────────────────────────────────────────────────────────
@@ -403,7 +411,7 @@ export function createLedgerService({ prisma }) {
     `
     const row = firstRow(rows)
     if (!row) throw new LedgerServiceError('Cuenta no encontrada o no disponible.', 404)
-    await publishDomainEvent(prisma, { companyId, event: 'ledger.transaction.created', payload: { id: row.id, accountId, deposito: row.deposito == null ? null : String(row.deposito), retiro: row.retiro == null ? null : String(row.retiro) } })
+    await publishDomainEvent(prisma, { companyId, event: 'ledger.transaction.created', payload: transactionEventPayload(row) })
     return row
   }
 
@@ -452,6 +460,7 @@ export function createLedgerService({ prisma }) {
     `
     const row = firstRow(rows)
     if (!row) throw new LedgerServiceError('Movimiento no encontrado.', 404)
+    await publishDomainEvent(prisma, { companyId, event: 'ledger.transaction.updated', payload: transactionEventPayload(row) })
     return row
   }
 
@@ -523,6 +532,7 @@ export function createLedgerService({ prisma }) {
     `
     const row = firstRow(rows)
     if (!row) throw new LedgerServiceError('Movimiento no encontrado.', 404)
+    if (row.enabled === false) await publishDomainEvent(prisma, { companyId, event: 'ledger.transaction.deleted', payload: transactionEventPayload(row) })
     return row
   }
 

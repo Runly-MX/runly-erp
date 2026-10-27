@@ -1,4 +1,5 @@
 import { createAutomationRunsService } from "../services/automation-runs-service.js";
+import { createAutomationSandboxService } from "../services/automation-sandbox-service.js";
 import { buildRunsFile } from "../services/automation-runs-export.js";
 import { createAutomationJobsService } from "../services/automation-jobs-service.js";
 import { Hono } from "hono";
@@ -2627,6 +2628,27 @@ export function createModulesRouter({
   const automationsGuard = (systemPermission) => (c, next) => requirePermission(c.req.param("key") === "system.automations" ? systemPermission : "core.modules.manage")(c, next);
   const automationRunsSvc = createAutomationRunsService({ prisma });
   const automationJobsSvc = createAutomationJobsService({ prisma });
+  const automationSandboxSvc = createAutomationSandboxService({ prisma });
+  // "Probar": runs a draft automation through the real engine against simulated
+  // services (nothing is written outside the run log). Spec 2026-10-27 §3.
+  app.post("/:key/automation-test", authMiddleware, automationsGuard("automations.manage"), async (c) => {
+    const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
+    const companyId = c.get("companyId");
+    if (!companyId) return c.json({ error: "Selecciona una empresa activa." }, 400);
+    const body = await c.req.json().catch(() => ({}));
+    const automation = body?.automation;
+    if (!automation || typeof automation !== "object" || !automation.trigger || !Array.isArray(automation.steps ?? (automation.action ? [automation.action] : null))) {
+      return c.json({ error: "Falta la automatización que se quiere probar." }, 400);
+    }
+    const data = body?.data && typeof body.data === "object" && !Array.isArray(body.data) ? body.data : {};
+    const previous = body?.previous && typeof body.previous === "object" ? body.previous : null;
+    try {
+      return c.json({ data: await automationSandboxSvc.run({ companyId, moduleKey: key, automation, data, previous, actorId: c.get("userContext")?.profile?.id ?? null }) });
+    } catch (error) {
+      console.error("[automation-test]", error?.message);
+      return c.json({ error: "No se pudo ejecutar la prueba." }, 500);
+    }
+  });
   app.get("/:key/automation-runs", authMiddleware, automationsGuard("automations.read"), async (c) => {
     const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
     const companyId = c.get("companyId");

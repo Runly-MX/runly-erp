@@ -87,6 +87,7 @@ export function AutomationsTab({ definition, onChange, readOnly, published = fal
         <EmptyState icon={Zap} title="Sin automatizaciones" description="Crea una para que este módulo agende, notifique o registre información en otros módulos al guardar." />
       ) : automations.map((automation, index) => (
         <AutomationCard
+          moduleKey={definition.key}
           key={automation.key}
           automation={automation}
           entities={entities}

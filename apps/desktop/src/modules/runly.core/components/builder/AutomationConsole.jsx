@@ -16,11 +16,11 @@ const RUN_STATUS = {
   success: { label: "Correcta", variant: "success" }, partial: { label: "Parcial", variant: "warning" }, failed: { label: "Falló", variant: "destructive" },
   running: { label: "En curso", variant: "secondary" }, waiting: { label: "En espera", variant: "warning" }, cancelled: { label: "Cancelada", variant: "outline" }, rejected: { label: "Rechazada", variant: "destructive" },
 };
-const TRIGGER_LABEL = { record: "Registro", event: "Evento", schedule: "Horario", delayed: "Tras una espera", webhook: "Webhook" };
+const TRIGGER_LABEL = { record: "Registro", event: "Evento", schedule: "Horario", delayed: "Tras una espera", webhook: "Webhook", test: "Prueba" };
 const time = (value) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "medium" });
 const json = (value) => JSON.stringify(value, null, 2);
 
-function StepResult({ step, entry }) {
+export function StepResult({ step, entry }) {
   const state = entry.skipped ? "skipped" : entry.ok ? (entry.waiting ? "waiting" : "success") : "failed";
   const Icon = { success: Check, failed: X, skipped: Minus, waiting: Minus }[state];
   const tone = { success: "bg-emerald-600", failed: "bg-red-600", skipped: "bg-[hsl(var(--muted-foreground))]", waiting: "bg-amber-500" }[state];
@@ -45,9 +45,10 @@ function StepResult({ step, entry }) {
           {entry.args && <div><p className="mb-1 text-xs font-semibold">Datos enviados</p><CodeSnippet value={json(entry.args)} label="Copiar los datos enviados" /></div>}
           {entry.request && <div><p className="mb-1 text-xs font-semibold">Llamada</p><CodeSnippet value={json(entry.request)} label="Copiar la llamada" /></div>}
           {entry.output && Object.keys(entry.output).length > 0 && <div><p className="mb-1 text-xs font-semibold">Resultado</p><CodeSnippet value={json(entry.output)} label="Copiar el resultado" /></div>}
+          {entry.note && <p className="text-xs text-[hsl(var(--muted-foreground))]">{entry.note}</p>}
           {entry.runAt && <p className="text-xs text-[hsl(var(--muted-foreground))]">Continúa el {time(entry.runAt)}.</p>}
           {entry.path && <p className="text-xs text-[hsl(var(--muted-foreground))]">La condición {entry.path === "yes" ? "se cumplió: el flujo siguió por «Sí»" : "no se cumplió: el flujo siguió por «No»"}.</p>}
-          {!entry.error && !entry.args && !entry.request && !entry.output && !entry.runAt && !entry.path && <p className="text-xs text-[hsl(var(--muted-foreground))]">{state === "skipped" ? (entry.byCondition ? "No se ejecutó: el flujo siguió por el otro camino de la condición." : "No se ejecutó porque un paso anterior falló.") : "Sin más detalle."}</p>}
+          {!entry.error && !entry.args && !entry.request && !entry.output && !entry.runAt && !entry.path && !entry.note && <p className="text-xs text-[hsl(var(--muted-foreground))]">{state === "skipped" ? (entry.byCondition ? "No se ejecutó: el flujo siguió por el otro camino de la condición." : "No se ejecutó porque un paso anterior falló.") : "Sin más detalle."}</p>}
         </div>
       </details>
     </li>

@@ -110,6 +110,21 @@ function mapCatalogPayload(payload) {
   };
 }
 
+// Payload of every hr.employee.* event. Keep in sync with EMPLOYEE_FIELDS in
+// packages/module-engine/src/event-catalog.js. Work data only: no personal contact data or pay.
+export function employeeEventPayload(employee) {
+  return {
+    id: employee.id,
+    firstName: employee.firstName ?? null,
+    lastName: employee.lastName ?? null,
+    employeeCode: employee.employeeCode ?? null,
+    workEmail: employee.workEmail ?? null,
+    jobTitle: employee.jobTitle ?? null,
+    department: employee.department ?? null,
+    status: employee.status ?? null,
+  };
+}
+
 export function createHrService({ prisma, activityBridge }) {
   const bridge =
     activityBridge ??
@@ -609,7 +624,7 @@ export function createHrService({ prisma, activityBridge }) {
         metadata: { source: "api" },
         companyId,
       });
-      await publishDomainEvent(prisma, { companyId, event: "hr.employee.created", payload: { id: created.id, firstName: created.firstName ?? null, lastName: created.lastName ?? null } });
+      await publishDomainEvent(prisma, { companyId, event: "hr.employee.created", payload: employeeEventPayload(created) });
       return created;
     },
 
@@ -675,6 +690,7 @@ export function createHrService({ prisma, activityBridge }) {
         metadata: { source: "api" },
         companyId,
       });
+      await publishDomainEvent(prisma, { companyId, event: "hr.employee.updated", payload: employeeEventPayload(updated) });
       return updated;
     },
 
@@ -703,6 +719,7 @@ export function createHrService({ prisma, activityBridge }) {
           link: `/hr/employees/${id}`,
         },
       });
+      if (!updated.enabled) await publishDomainEvent(prisma, { companyId, event: "hr.employee.deactivated", payload: employeeEventPayload(updated) });
       return updated;
     },
 

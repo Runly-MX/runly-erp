@@ -4,8 +4,19 @@ import { publishDomainEvent } from '../../services/domain-events/events.js'
 // Dates go out as plain days (YYYY-MM-DD) so automations compare them without time zones.
 export function rescheduledPayload(task) {
   const day = (value) => (value ? new Date(value).toISOString().slice(0, 10) : null) // eslint-disable-line no-restricted-syntax -- task dates are UTC calendar days
-  return { id: task.id, projectId: task.projectId, title: task.title, startDate: day(task.startDate), dueDate: day(task.dueDate) }
+  return {
+    id: task.id,
+    projectId: task.projectId,
+    title: task.title,
+    statusId: task.statusId ?? null,
+    assigneeId: task.assigneeId ?? null,
+    priority: task.priority ?? null,
+    startDate: day(task.startDate),
+    dueDate: day(task.dueDate),
+  }
 }
+// Every projects.task.* event carries the same payload (PROJECT_TASK_FIELDS in event-catalog.js).
+export const taskEventPayload = rescheduledPayload
 
 export class TaskServiceError extends Error {
   constructor(message, status = 500) {
@@ -174,8 +185,18 @@ export function createTasksService({ prisma }) {
       })
     })
     const project = await prisma.project.findUnique({ where: { id: projectId }, select: { companyId: true } })
-    await publishDomainEvent(prisma, { companyId: project?.companyId, event: 'projects.task.created', payload: { id: task.id, projectId, title: task.title } })
+    await publishDomainEvent(prisma, { companyId: project?.companyId, event: 'projects.task.created', payload: taskEventPayload(task) })
     return task
+  }
+
+  // Best-effort publish of projects.task.updated / deleted (never fails the request).
+  async function announce(event, task) {
+    try {
+      const project = await prisma.project.findFirst({ where: { id: task.projectId }, select: { companyId: true } })
+      await publishDomainEvent(prisma, { companyId: project?.companyId, event, payload: taskEventPayload(task) })
+    } catch (err) {
+      console.error(`[projects] no se pudo publicar ${event}:`, err?.message ?? err)
+    }
   }
 
   // Fires projects.task.completed when a status change moves a task into a done status.
@@ -186,7 +207,7 @@ export function createTasksService({ prisma }) {
       const done = (id) => statuses.find((s) => s.id === id)?.isDone === true
       if (!done(after.statusId) || done(before.statusId)) return
       const project = await prisma.project.findFirst({ where: { id: after.projectId }, select: { companyId: true } })
-      await publishDomainEvent(prisma, { companyId: project?.companyId, event: 'projects.task.completed', payload: { id: after.id, projectId: after.projectId, title: after.title } })
+      await publishDomainEvent(prisma, { companyId: project?.companyId, event: 'projects.task.completed', payload: taskEventPayload(after) })
     } catch (err) {
       console.error('[projects] no se pudo publicar projects.task.completed:', err?.message ?? err)
     }
@@ -232,6 +253,7 @@ export function createTasksService({ prisma }) {
     })
     await emitCompletion(task, updated)
     if (startDate !== undefined || dueDate !== undefined) await emitRescheduled(task, updated)
+    await announce('projects.task.updated', updated)
     return updated
   }
 
@@ -253,6 +275,7 @@ export function createTasksService({ prisma }) {
     if (!task) throw new TaskServiceError('Tarea no encontrada.', 404)
     await prisma.task.deleteMany({ where: { parentTaskId: taskId } })
     await prisma.task.delete({ where: { id: taskId } })
+    await announce('projects.task.deleted', task)
     return task
   }
 

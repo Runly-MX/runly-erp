@@ -231,7 +231,7 @@ export function stepIssues(step) {
 
 const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const ON_TEXT = { create: "se crea", update: "se actualiza", save: "se guarda" };
-const OP_TEXT = { equals: "es", not_equals: "no es", contains: "contiene", gt: "es mayor que", lt: "es menor que", changed: "cambió", filled: "tiene valor" };
+const OP_TEXT = { equals: "es", not_equals: "no es", contains: "contiene", not_contains: "no contiene", gt: "es mayor que", gte: "es mayor o igual a", lt: "es menor que", lte: "es menor o igual a", changed: "cambió", filled: "tiene valor", empty: "está vacío" };
 
 // Title and detail of the trigger node.
 export function describeTrigger(trigger, { entities = [], events = [] } = {}) {
@@ -240,7 +240,8 @@ export function describeTrigger(trigger, { entities = [], events = [] } = {}) {
     return { title: "Recibe datos de otro sistema", detail: count ? `${count} ${count === 1 ? "campo" : "campos"} esperados` : "Aún sin campos: envía un mensaje de prueba" };
   }
   if (trigger.type === "event") {
-    return { title: events.find((event) => event.key === trigger.event)?.label ?? "Elige un evento", detail: "Evento de otro módulo" };
+    const event = events.find((item) => item.key === trigger.event);
+    return { title: event?.label ?? "Elige un evento", detail: event?.module ? `Evento de ${event.module}` : "Evento de otro módulo" };
   }
   if (trigger.type === "schedule") {
     const at = trigger.at ?? "";
@@ -310,7 +311,12 @@ export const keyOf = (item) => item.key ?? item.name;
 // or the fields a webhook announces.
 export function fieldOptionsFor(trigger, entities = [], events = []) {
   if (trigger.type === "webhook") return (trigger.fields ?? []).map((field) => ({ value: field.key, label: field.label || field.key }));
-  if (trigger.type === "event") return (events.find((event) => event.key === trigger.event)?.payload ?? []).map((key) => ({ value: key, label: key }));
+  if (trigger.type === "event") {
+    const event = events.find((item) => item.key === trigger.event);
+    // The catalog describes each field; an older API only sends the bare keys.
+    if (event?.fields?.length) return event.fields.map((item) => ({ value: item.key, label: item.label, description: item.description, example: item.example, type: item.type }));
+    return (event?.payload ?? []).map((key) => ({ value: key, label: key }));
+  }
   const entity = entities.find((item) => keyOf(item) === trigger.entity);
   return (entity?.fields ?? []).map((field) => ({ value: keyOf(field), label: field.label ?? keyOf(field) }));
 }

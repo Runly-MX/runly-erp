@@ -266,7 +266,7 @@ function AutomationEditorScreen() {
       />
       {!isNew && <div className="mx-2 mb-2 shrink-0 sm:mx-3 sm:mb-3"><AutomationConsole moduleKey={SYSTEM_MODULE_KEY} automation={item} open={consoleOpen} onToggle={() => setConsoleOpen((open) => !open)} onSelectRun={setOverlayRun} /></div>}
 
-      <AutomationTestDialog open={testOpen} onOpenChange={setTestOpen} automation={item} fieldOptions={fieldOptions} />
+      <AutomationTestDialog moduleKey={SYSTEM_MODULE_KEY} open={testOpen} onOpenChange={setTestOpen} automation={item} fieldOptions={fieldOptions} />
       <AutomationConnectionsDialog scope="automations" open={connectionsOpen} onOpenChange={setConnectionsOpen} />
       <ConfirmDialog
         open={confirm === "leave"} onOpenChange={(open) => !open && setConfirm(null)}

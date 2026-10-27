@@ -85,6 +85,12 @@ class FilesServiceError extends Error {
   }
 }
 
+// Payload of every files.file.* event. Keep in sync with FILE_FIELDS in
+// packages/module-engine/src/event-catalog.js.
+export function fileEventPayload(asset) {
+  return { id: asset.id, name: asset.originalName ?? null, mimeType: asset.mimeType ?? null, sizeBytes: asset.sizeBytes ?? null };
+}
+
 function sanitizeSegment(value, fallback = "file") {
   return (
     String(value ?? fallback)
@@ -470,7 +476,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
 
     // Files-explorer uploads only: module attachments belong to their record.
     if (filesOrigin) {
-      await publishDomainEvent(prisma, { companyId: context.companyId, event: "files.file.created", payload: { id: asset.id, name: asset.originalName, mimeType: asset.mimeType } });
+      await publishDomainEvent(prisma, { companyId: context.companyId, event: "files.file.created", payload: fileEventPayload(asset) });
     }
 
     return asset;
@@ -836,6 +842,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       // Keep Office recovery objects; serializes with WOPI before disabling.
       if (getOfficeFormat(file) || file.contentRevision > 1) {
         await mutateUnlockedFile(id, { enabled: false });
+        if (isFilesOrigin(file)) await publishDomainEvent(prisma, { companyId, event: "files.file.deleted", payload: fileEventPayload(file) });
         return { ok: true };
       }
 
@@ -851,6 +858,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       }
 
       await prisma.fileAsset.delete({ where: { id: file.id } });
+      if (isFilesOrigin(file)) await publishDomainEvent(prisma, { companyId, event: "files.file.deleted", payload: fileEventPayload(file) });
 
       // Audit log for HR employee file deletions
       if (["runly.hr", "atlas.hr"].includes(file.moduleKey) && file.entityType === "HrEmployee") {

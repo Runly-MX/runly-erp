@@ -1,0 +1,141 @@
+// Single source of the domain events a person can pick as an automation trigger:
+// what happened (label, description), which module raised it and the data it
+// carries (each field with a label, type, description and example). DOMAIN_EVENTS and
+// DOMAIN_EVENT_PAYLOADS in contracts.js are derived from this list. Spec
+// docs/superpowers/specs/2026-10-27-automation-events-chaining-sandbox-design.md.
+
+const field = (key, label, type, description, example) => Object.freeze({ key, label, type, description, example })
+
+const ID = (what) => field('id', 'Identificador', 'id', `Código único de ${what}; sirve para enlazarlo desde otros bloques.`, '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e31')
+
+const CALENDAR_FIELDS = [
+  ID('el evento'),
+  field('title', 'Título', 'text', 'Nombre del evento.', 'Reunión con proveedores'),
+  field('startAt', 'Inicio', 'date', 'Fecha y hora en que empieza.', '2026-11-03T15:00:00Z'),
+  field('endAt', 'Fin', 'date', 'Fecha y hora en que termina, si tiene.', '2026-11-03T16:00:00Z'),
+  field('location', 'Lugar', 'text', 'Lugar del evento, si lo hay.', 'Sala de juntas'),
+  field('sourceModule', 'Módulo de origen', 'text', 'Módulo que creó el evento, si lo agendó una automatización.', 'runly.projects'),
+  field('sourceEntityId', 'Registro de origen', 'id', 'Registro que lo originó, si lo hay.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e32'),
+]
+const VEHICLE_FIELDS = [
+  ID('el vehículo'),
+  field('plate', 'Placa', 'text', 'Placa del vehículo.', 'ABC-123-D'),
+  field('status', 'Estado', 'text', 'Estado actual del vehículo en la flota.', 'ACTIVE'),
+  field('brand', 'Marca', 'text', 'Marca del vehículo.', 'Nissan'),
+  field('model', 'Modelo', 'text', 'Modelo del vehículo.', 'NP300'),
+  field('year', 'Año', 'number', 'Año del modelo.', '2022'),
+  field('color', 'Color', 'text', 'Color del vehículo.', 'Blanco'),
+]
+const PURCHASE_FIELDS = [
+  ID('el documento de compra'),
+  field('caseId', 'Expediente de compra', 'id', 'Expediente que agrupa la solicitud, la orden y la factura de una misma compra.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e33'),
+  field('status', 'Estado', 'text', 'Estado del documento después del cambio.', 'APPROVED'),
+  field('number', 'Folio', 'text', 'Folio del documento.', 'OC-0042'),
+  field('total', 'Total', 'number', 'Importe total del documento (el estimado en una solicitud).', '12500.00'),
+  field('currency', 'Moneda', 'text', 'Moneda del documento.', 'MXN'),
+  field('supplierId', 'Proveedor', 'id', 'Proveedor del documento; vacío en una solicitud.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e39'),
+]
+const INVENTORY_ITEM_FIELDS = [
+  ID('el artículo'),
+  field('name', 'Nombre', 'text', 'Nombre del artículo.', 'Laptop Dell 14'),
+  field('assetTag', 'Número de activo', 'text', 'Número de activo asignado, si lo tiene.', 'ACT-0042'),
+  field('status', 'Estado', 'text', 'Estado del artículo (available, assigned, maintenance...).', 'available'),
+  field('serialNumber', 'Número de serie', 'text', 'Número de serie, si lo tiene.', 'SN-8841-X'),
+  field('categoryId', 'Tipo', 'id', 'Tipo de artículo.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3a'),
+  field('categoryName', 'Nombre del tipo', 'text', 'Nombre del tipo; vacío si el evento no lo trae.', 'Laptops'),
+  field('brandName', 'Marca', 'text', 'Marca del artículo; vacío si el evento no la trae.', 'Dell'),
+  field('locationId', 'Ubicación', 'id', 'Ubicación del artículo.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3b'),
+  field('locationName', 'Nombre de la ubicación', 'text', 'Nombre de la ubicación; vacío si el evento no lo trae.', 'Oficina central'),
+]
+const CONTACT_FIELDS = [
+  ID('el contacto'),
+  field('name', 'Nombre', 'text', 'Nombre del contacto o de la empresa.', 'Distribuidora del Norte'),
+  field('type', 'Tipo', 'text', 'Tipo de contacto (persona o empresa).', 'company'),
+  field('email', 'Correo', 'text', 'Correo principal, si lo tiene.', 'compras@distnorte.example'),
+  field('phone', 'Teléfono', 'text', 'Teléfono principal, si lo tiene.', '+52 55 1234 5678'),
+]
+const PROJECT_TASK_FIELDS = [
+  ID('la tarea'),
+  field('projectId', 'Proyecto', 'id', 'Proyecto al que pertenece la tarea.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e34'),
+  field('title', 'Título', 'text', 'Título de la tarea.', 'Revisar contrato'),
+  field('statusId', 'Estado', 'id', 'Estado (columna) de la tarea.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3c'),
+  field('assigneeId', 'Responsable', 'id', 'Persona responsable, si hay.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3d'),
+  field('priority', 'Prioridad', 'text', 'Prioridad de la tarea.', 'HIGH'),
+  field('startDate', 'Inicio', 'date', 'Fecha de inicio, si tiene.', '2026-11-03'),
+  field('dueDate', 'Vence', 'date', 'Fecha de vencimiento, si tiene.', '2026-11-10'),
+]
+const EMPLOYEE_FIELDS = [
+  ID('el colaborador'),
+  field('firstName', 'Nombre', 'text', 'Nombre(s) del colaborador.', 'Ana'),
+  field('lastName', 'Apellidos', 'text', 'Apellidos del colaborador.', 'Pérez'),
+  field('employeeCode', 'Código de colaborador', 'text', 'Código interno, si lo tiene.', 'EMP-015'),
+  field('workEmail', 'Correo de trabajo', 'text', 'Correo de trabajo, si lo tiene.', 'ana.perez@empresa.example'),
+  field('jobTitle', 'Puesto', 'text', 'Puesto del colaborador.', 'Analista de compras'),
+  field('department', 'Departamento', 'text', 'Departamento del colaborador.', 'Finanzas'),
+  field('status', 'Estado', 'text', 'Estado laboral del colaborador.', 'active'),
+]
+const FILE_FIELDS = [
+  ID('el archivo'),
+  field('name', 'Nombre', 'text', 'Nombre original del archivo.', 'contrato.pdf'),
+  field('mimeType', 'Tipo de archivo', 'text', 'Tipo del archivo (PDF, imagen, hoja de cálculo...).', 'application/pdf'),
+  field('sizeBytes', 'Tamaño (bytes)', 'number', 'Tamaño del archivo en bytes.', '245760'),
+]
+// No account or person names: a company automation can read every movement it receives.
+const TRANSACTION_FIELDS = [
+  ID('el movimiento'),
+  field('accountId', 'Cuenta', 'id', 'Cuenta donde se registró.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e38'),
+  field('deposito', 'Depósito', 'number', 'Monto depositado; vacío si fue un retiro.', '1500.00'),
+  field('retiro', 'Retiro', 'number', 'Monto retirado; vacío si fue un depósito.', '320.50'),
+  field('fecha', 'Fecha', 'date', 'Fecha del movimiento.', '2026-11-03'),
+  field('categoryId', 'Categoría', 'id', 'Categoría del movimiento, si tiene.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3e'),
+]
+
+// key -> { module, label, description, fields }
+export const EVENT_CATALOG = Object.freeze({
+  'inventory.item.created': { module: 'Inventario', label: 'Se creó un artículo de inventario', description: 'Cuando alguien da de alta un artículo, a mano o por importación.', fields: INVENTORY_ITEM_FIELDS },
+  'inventory.item.updated': { module: 'Inventario', label: 'Se actualizó un artículo de inventario', description: 'Cuando cambia cualquier dato de un artículo o se mueve su existencia.', fields: INVENTORY_ITEM_FIELDS },
+  'inventory.item.deleted': { module: 'Inventario', label: 'Se eliminó un artículo de inventario', description: 'Cuando alguien elimina un artículo (queda fuera del inventario activo). Los nombres de tipo, marca y ubicación no vienen en este evento.', fields: INVENTORY_ITEM_FIELDS },
+  'contacts.contact.created': { module: 'Contactos', label: 'Se creó un contacto', description: 'Cuando se agrega un contacto nuevo.', fields: CONTACT_FIELDS },
+  'contacts.contact.updated': { module: 'Contactos', label: 'Se actualizó un contacto', description: 'Cuando se editan los datos de un contacto.', fields: CONTACT_FIELDS },
+  'contacts.contact.deleted': { module: 'Contactos', label: 'Se eliminó un contacto', description: 'Cuando se elimina un contacto de forma definitiva.', fields: CONTACT_FIELDS },
+  'contacts.contact.deactivated': { module: 'Contactos', label: 'Se desactivó un contacto', description: 'Cuando un contacto se desactiva y deja de aparecer en las listas activas.', fields: CONTACT_FIELDS },
+  'projects.task.created': { module: 'Proyectos', label: 'Se creó una tarea de proyecto', description: 'Cuando se agrega una tarea a un proyecto.', fields: PROJECT_TASK_FIELDS },
+  'projects.task.updated': { module: 'Proyectos', label: 'Se actualizó una tarea de proyecto', description: 'Cuando cambia cualquier dato de una tarea (título, responsable, prioridad, estado, fechas).', fields: PROJECT_TASK_FIELDS },
+  'projects.task.completed': { module: 'Proyectos', label: 'Se completó una tarea de proyecto', description: 'Cuando una tarea pasa a completada.', fields: PROJECT_TASK_FIELDS },
+  'projects.task.rescheduled': { module: 'Proyectos', label: 'Se cambiaron las fechas de una tarea de proyecto', description: 'Cuando se mueve la fecha de inicio o de vencimiento de una tarea.', fields: PROJECT_TASK_FIELDS },
+  'projects.task.deleted': { module: 'Proyectos', label: 'Se eliminó una tarea de proyecto', description: 'Cuando se elimina una tarea.', fields: PROJECT_TASK_FIELDS },
+  'projects.time.logged': { module: 'Proyectos', label: 'Se registró tiempo en una tarea de proyecto', description: 'Cuando alguien captura horas en una tarea.', fields: [ID('el registro de tiempo'), field('taskId', 'Tarea', 'id', 'Tarea a la que se cargó el tiempo.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e35'), field('projectId', 'Proyecto', 'id', 'Proyecto de la tarea.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e34'), field('minutes', 'Minutos', 'number', 'Minutos registrados.', '90')] },
+  'calendar.event.created': { module: 'Calendario', label: 'Se creó un evento de calendario', description: 'Cuando se agenda un evento nuevo.', fields: CALENDAR_FIELDS },
+  'calendar.event.updated': { module: 'Calendario', label: 'Se actualizó un evento de calendario', description: 'Cuando cambia la fecha, el título u otro dato de un evento.', fields: CALENDAR_FIELDS },
+  'calendar.event.cancelled': { module: 'Calendario', label: 'Se canceló un evento de calendario', description: 'Cuando se cancela un evento agendado.', fields: CALENDAR_FIELDS },
+  'files.file.created': { module: 'Archivos', label: 'Se subió un archivo a Archivos', description: 'Cuando alguien sube un archivo.', fields: FILE_FIELDS },
+  'files.file.deleted': { module: 'Archivos', label: 'Se eliminó un archivo de Archivos', description: 'Cuando alguien elimina un archivo subido desde el explorador de Archivos.', fields: FILE_FIELDS },
+  'fleet.vehicle.created': { module: 'Flota', label: 'Se creó un vehículo de la flota', description: 'Cuando se da de alta un vehículo.', fields: VEHICLE_FIELDS },
+  'fleet.vehicle.updated': { module: 'Flota', label: 'Se actualizó un vehículo de la flota', description: 'Cuando cambia un dato o el estado de un vehículo.', fields: VEHICLE_FIELDS },
+  'fleet.vehicle.deactivated': { module: 'Flota', label: 'Se desactivó un vehículo de la flota', description: 'Cuando un vehículo se da de baja de la flota activa.', fields: VEHICLE_FIELDS },
+  'hr.employee.created': { module: 'Recursos humanos', label: 'Se creó un colaborador', description: 'Cuando se da de alta un colaborador.', fields: EMPLOYEE_FIELDS },
+  'hr.employee.updated': { module: 'Recursos humanos', label: 'Se actualizó un colaborador', description: 'Cuando se editan los datos de un colaborador.', fields: EMPLOYEE_FIELDS },
+  'hr.employee.deactivated': { module: 'Recursos humanos', label: 'Se desactivó un colaborador', description: 'Cuando un colaborador se deshabilita.', fields: EMPLOYEE_FIELDS },
+  'purchases.request.created': { module: 'Compras', label: 'Se creó una solicitud de compra', description: 'Cuando alguien solicita comprar algo.', fields: PURCHASE_FIELDS },
+  'purchases.order.approved': { module: 'Compras', label: 'Se aprobó una orden de compra', description: 'Cuando se aprueba una orden, antes de emitirla al proveedor.', fields: PURCHASE_FIELDS },
+  'purchases.order.updated': { module: 'Compras', label: 'Se editó una orden de compra', description: 'Cuando se modifica una orden en borrador (proveedor, líneas, importes).', fields: PURCHASE_FIELDS },
+  'purchases.order.issued': { module: 'Compras', label: 'Se emitió una orden de compra', description: 'Cuando la orden se envía al proveedor.', fields: PURCHASE_FIELDS },
+  'purchases.order.cancelled': { module: 'Compras', label: 'Se canceló una orden de compra', description: 'Cuando se cancela una orden.', fields: PURCHASE_FIELDS },
+  'purchases.invoice.paid': { module: 'Compras', label: 'Se pagó una factura de compra', description: 'Cuando una factura de proveedor queda pagada.', fields: PURCHASE_FIELDS },
+  'lms.enrollment.completed': { module: 'Capacitación', label: 'Una persona completó un curso', description: 'Cuando alguien termina todas las lecciones de un curso.', fields: [ID('la inscripción'), field('courseId', 'Curso', 'id', 'Curso completado.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e36'), field('learnerId', 'Persona', 'id', 'Persona que completó el curso.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e37')] },
+  // No account or person names: a company automation can read every movement it receives.
+  'ledger.transaction.created': { module: 'Libro de cuentas', label: 'Se registró un movimiento en el libro de cuentas', description: 'Cuando se captura un depósito o un retiro.', fields: TRANSACTION_FIELDS },
+  'ledger.transaction.updated': { module: 'Libro de cuentas', label: 'Se editó un movimiento del libro de cuentas', description: 'Cuando se cambia un depósito, retiro u otro dato de un movimiento.', fields: TRANSACTION_FIELDS },
+  'ledger.transaction.deleted': { module: 'Libro de cuentas', label: 'Se eliminó un movimiento del libro de cuentas', description: 'Cuando un movimiento se manda a la papelera del libro.', fields: TRANSACTION_FIELDS },
+  // Published by the run log when any automation finishes (chaining). Spec §2.
+  'automations.run.finished': { module: 'Automatizaciones', label: 'Terminó de ejecutarse una automatización', description: 'Cuando otra automatización termina, con éxito o con error. Úsalo para encadenar: avisar si una falla o seguir con otro proceso.', fields: [
+    field('automationKey', 'Automatización', 'text', 'Clave de la automatización que terminó.', 'avisar_compra'),
+    field('moduleKey', 'Módulo', 'text', 'Módulo al que pertenece (system.automations si es de la empresa).', 'system.automations'),
+    field('status', 'Resultado', 'text', 'success (correcta), partial (parcial), failed (falló) o rejected (rechazada).', 'failed'),
+    field('error', 'Error', 'text', 'Resumen del error, vacío si salió bien.', 'No tienes permiso para esta acción'),
+    field('durationMs', 'Duración (ms)', 'number', 'Cuánto tardó en ejecutarse.', '240'),
+    field('depth', 'Nivel de encadenamiento', 'number', 'Cuántas automatizaciones encadenadas hay antes de esta (límite 3).', '0'),
+  ] },
+  // Internal: a message arrived at the webhook of a company automation (hidden from pickers).
+  'automations.webhook.received': { module: 'Automatizaciones', label: 'Se recibió un mensaje en un webhook de automatización', description: 'Interno.', fields: [field('automationKey', 'Automatización', 'text', 'Automatización destino.', 'pedido'), field('data', 'Datos', 'text', 'Datos recibidos.', '{}')] },
+})

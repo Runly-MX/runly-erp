@@ -3,12 +3,12 @@
 // mapping. Spec docs/superpowers/specs/2026-10-04-builder-automations-design.md.
 // Validated against the shared service contract; the manifest's `consumes` and
 // `events.subscribes` are derived from them (never written by hand).
-import { DOMAIN_EVENTS, DOMAIN_EVENT_PAYLOADS, SERVICE_CONTRACTS, validateServiceArgs } from '@runly/module-engine/contracts'
+import { DOMAIN_EVENTS, DOMAIN_EVENT_PAYLOADS, EVENT_CATALOG, SERVICE_CONTRACTS, validateServiceArgs } from '@runly/module-engine/contracts'
 
 export const MAX_AUTOMATIONS = 20
 export const AUTOMATION_ARG_SOURCES = Object.freeze(['value', 'field', 'template', 'recordId', 'actor'])
 export const RECORD_TRIGGER_ON = Object.freeze(['create', 'update', 'save'])
-export const CONDITION_OPS = Object.freeze(['equals', 'not_equals', 'contains', 'gt', 'lt', 'changed', 'filled'])
+export const CONDITION_OPS = Object.freeze(['equals', 'not_equals', 'contains', 'not_contains', 'gt', 'gte', 'lt', 'lte', 'changed', 'filled', 'empty'])
 export const MAX_STEPS = 12
 export const MAX_BRANCHES = 3
 export const MAX_CONDITIONS = 5
@@ -122,7 +122,10 @@ export function automationServices({ trigger = 'record', afterDelay = false } = 
 export const INTERNAL_EVENTS = Object.freeze(['automations.webhook.received'])
 
 export function automationEvents() {
-  return Object.entries(DOMAIN_EVENTS).filter(([key]) => !INTERNAL_EVENTS.includes(key)).map(([key, label]) => ({ key, label, payload: [...(DOMAIN_EVENT_PAYLOADS[key] ?? [])] }))
+  return Object.entries(DOMAIN_EVENTS).filter(([key]) => !INTERNAL_EVENTS.includes(key)).map(([key, label]) => ({
+    key, label, module: EVENT_CATALOG[key]?.module ?? '', description: EVENT_CATALOG[key]?.description ?? '',
+    payload: [...(DOMAIN_EVENT_PAYLOADS[key] ?? [])], fields: (EVENT_CATALOG[key]?.fields ?? []).map((item) => ({ ...item })),
+  }))
 }
 
 // { 'runly.calendar': ['events.create'], ... } from the automations' services.
@@ -172,10 +175,10 @@ function validateCondition(when, { base, fieldNames, trigger, errors, path = `${
     if (['equals', 'not_equals'].includes(condition.op) && !['string', 'number', 'boolean'].includes(typeof condition.value)) {
       errors.push(diagnostic(`${at}.value`, 'AUTOMATION_CONDITION_INVALID', `"${condition.op}" needs a text, number or boolean value.`))
     }
-    if (condition.op === 'contains' && (typeof condition.value !== 'string' || !condition.value)) {
-      errors.push(diagnostic(`${at}.value`, 'AUTOMATION_CONDITION_INVALID', '"contains" needs a text value.'))
+    if (['contains', 'not_contains'].includes(condition.op) && (typeof condition.value !== 'string' || !condition.value)) {
+      errors.push(diagnostic(`${at}.value`, 'AUTOMATION_CONDITION_INVALID', `"${condition.op}" needs a text value.`))
     }
-    if (['gt', 'lt'].includes(condition.op) && !Number.isFinite(condition.value)) {
+    if (['gt', 'gte', 'lt', 'lte'].includes(condition.op) && !Number.isFinite(condition.value)) {
       errors.push(diagnostic(`${at}.value`, 'AUTOMATION_CONDITION_INVALID', `"${condition.op}" needs a number.`))
     }
   })

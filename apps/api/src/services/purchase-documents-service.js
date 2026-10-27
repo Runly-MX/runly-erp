@@ -13,6 +13,21 @@ import {
 
 const EVENT = { orders: 'purchase.order', invoices: 'purchase.invoice' }
 
+// Payload of every purchases.* event. Keep in sync with PURCHASE_FIELDS in
+// packages/module-engine/src/event-catalog.js (requests use their estimated total and have no supplier yet).
+export function purchaseEventPayload(doc) {
+  const total = doc.total ?? doc.estimatedTotal
+  return {
+    id: doc.id,
+    caseId: doc.caseId ?? null,
+    status: doc.status ?? null,
+    number: doc.number ?? null,
+    total: total == null ? null : Number(total),
+    currency: doc.currency ?? null,
+    supplierId: doc.supplierId ?? null,
+  }
+}
+
 export function createPurchaseDocumentsService({ prisma, broadcaster, workflowService, caseBundle, hydrator }) {
   const def = kind => {
     if (!EVENT[kind]) throw new PurchasesServiceError('Tipo de documento no válido.')
@@ -202,6 +217,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       return doc
     })
     await broadcast(broadcaster, companyId, `${EVENT[kind]}.updated`, { id, caseId: updated.caseId })
+    if (kind === 'orders') await publishDomainEvent(prisma, { companyId, event: 'purchases.order.updated', payload: purchaseEventPayload(updated) })
     return plain(updated)
   }
 
@@ -265,7 +281,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     if (updated.status !== doc.status) {
       const event = kind === 'orders' && ['APPROVED', 'ISSUED', 'CANCELLED'].includes(updated.status) ? `purchases.order.${updated.status.toLowerCase()}`
         : kind === 'invoices' && updated.status === 'PAID' ? 'purchases.invoice.paid' : null
-      if (event) await publishDomainEvent(prisma, { companyId, event, payload: { id, caseId: doc.caseId, status: updated.status } })
+      if (event) await publishDomainEvent(prisma, { companyId, event, payload: purchaseEventPayload(updated) })
     }
     return plain(updated)
   }

@@ -38,3 +38,20 @@ test('list is scoped to company and module and filters; purge drops old rows', a
   prisma.rows[0].createdAt = new Date(Date.now() - 100 * 86_400_000)
   assert.equal(await svc.purgeOlderThan(90), 1)
 })
+
+test('a finished run is published as an event; chained runs add depth, tests and waits stay silent', async () => {
+  const prisma = fakePrisma()
+  const events = []
+  prisma.domainEventOutbox = { create: async ({ data }) => { events.push(data); return data } }
+  const svc = createAutomationRunsService({ prisma })
+  const log = (entry) => svc.log({ companyId: 'c1', moduleKey: 'm', entry: { automationKey: 'a', steps: [], ...entry } })
+  await log({ status: 'failed', error: 'x', triggerKind: 'event' })
+  await log({ status: 'waiting', triggerKind: 'event' })
+  await log({ status: 'success', triggerKind: 'test' })
+  assert.equal(events.length, 1)
+  assert.deepEqual([events[0].event, events[0].payload.status, events[0].payload.depth], ['automations.run.finished', 'failed', 0])
+  await log({ status: 'success', triggerKind: 'event', input: { automationKey: 'a', status: 'failed', depth: 2 } })
+  assert.equal(events[1].payload.depth, 3)
+  await log({ status: 'success', triggerKind: 'event', input: { automationKey: 'a', status: 'failed', depth: 3 } })
+  assert.equal(events.length, 2)
+})

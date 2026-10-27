@@ -263,11 +263,12 @@ describe('projects.task.completed', () => {
       domainEventOutbox: { create: async ({ data }) => { outbox.push(data) } },
     }
     const svc = createTasksService({ prisma })
+    const completed = () => outbox.filter((e) => e.event === 'projects.task.completed')
     await svc.updateTask('t-1', { statusId: 's-2' })
-    assert.equal(outbox.length, 1)
-    assert.equal(outbox[0].event, 'projects.task.completed')
-    assert.equal(outbox[0].companyId, 'co-1')
+    assert.equal(completed().length, 1)
+    assert.equal(completed()[0].companyId, 'co-1')
+    assert.ok(outbox.some((e) => e.event === 'projects.task.updated'))
     await svc.updateTask('t-1', { title: 'Otro' })
-    assert.equal(outbox.length, 1)
+    assert.equal(completed().length, 1)
   })
 })
