@@ -24,6 +24,9 @@ export async function verifyStudioRealtimeSecurity(stack,{users,companies},token
     assert.ok((await fetch(stack.urls.kong+'/rest/v1/studio_design?select=id',{headers:{apikey:stack.secret.SUPABASE_ANON_KEY,Authorization:`Bearer ${owner.data.socketToken}`}})).status>=400)
     const policy=(await stack.pool.query("SELECT array_to_json(roles) roles,with_check FROM pg_policies WHERE schemaname='realtime' AND policyname='runly_realtime_server_writes'")).rows[0]
     assert.deepEqual([...policy.roles].sort(),['anon','authenticated']);assert.equal(policy.with_check,'false')
+    const privileges=(await stack.pool.query("SELECT count(*)::int n FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','auth','storage') AND c.relkind IN ('r','p') AND has_table_privilege('runly_studio_socket',c.oid,'SELECT,INSERT,UPDATE,DELETE')")).rows[0]
+    assert.equal(privileges.n,0,'Socket role inherited business table privileges')
+    assert.equal((await stack.pool.query("SELECT count(*)::int n FROM pg_auth_members WHERE roleid='runly_studio_socket'::regrole OR member='runly_studio_socket'::regrole")).rows[0].n,0)
     checks.push('Real socket role joins only its exact private ephemeral scope; Auth/anon/cross-design and API/Data API token reuse denied; global restrictive policy unchanged')
     const legacy=await request(`/studio/designs/${design.id}/live`,0,{sessionId:'legacy-compatible-session',peek:true});assert.equal(legacy.status,200);assert.ok(legacy.data.topic.startsWith('studio:design:'))
     await stack.pool.query('UPDATE membership SET role_id=$1 WHERE company_id=$2 AND user_id=$3',[company.roleId,company.id,users[1].id])
@@ -37,7 +40,11 @@ export async function verifyStudioRealtimeSecurity(stack,{users,companies},token
     const freshOwner=await context(0),ownerPeer=client(freshOwner.data.socketToken),ownerChannel=await join(ownerPeer,freshOwner.data.topic,freshOwner.data.socketToken)
     assert.equal(ownerChannel.status,'SUBSCRIBED')
     let received=0;ownerChannel.channel.on('broadcast',{event:'probe'},()=>received++)
-    await peerChannel.channel.send({type:'broadcast',event:'probe',payload:{v:1}});await wait(200);assert.equal(received,1)
+    let publicReceived=0
+    const publicClient=client(stack.secret.SUPABASE_ANON_KEY),publicChannel=publicClient.channel(peer.data.topic,{config:{private:false}}).on('broadcast',{event:'probe'},()=>publicReceived++)
+    await new Promise((resolve,reject)=>publicChannel.subscribe(s=>{if(s==='SUBSCRIBED')resolve();else if(['CHANNEL_ERROR','TIMED_OUT'].includes(s))reject(Error('PUBLIC_PROBE_NOT_READY'))}))
+    await peerChannel.channel.send({type:'broadcast',event:'probe',payload:{v:1}});await wait(200);assert.equal(received,1);assert.equal(publicReceived,0,'Public topic received a private broadcast')
+    await publicClient.removeAllChannels();publicClient.realtime.disconnect()
     const revokedAt=Date.now()
     assert.equal((await request(`/studio/designs/${design.id}/collaborators`,0,{userId:users[2].id,role:null},'PUT')).status,200)
     assert.equal((await context(2)).status,404)

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { generateKeyPairSync, sign } from 'node:crypto'
-import { createEphemeralKey, signEphemeral, verifyEphemeral, importEphemeralKey, validCertificate, validEphemeral, verifyAttestation, realtimeBytes, createLatestSender } from './realtime.js'
+import { createEphemeralKey, signEphemeral, verifyEphemeral, importEphemeralKey, validCertificate, validEphemeral, verifyAttestation, realtimeBytes, createLatestSender, packEphemeral, unpackEphemeral, realtimeSize } from './realtime.js'
 
 const scope={designId:'00000000-0000-4000-8000-000000000001',companyId:'00000000-0000-4000-8000-000000000002',epoch:'4',now:100000}
 const certificate={v:1,...scope,actorId:'00000000-0000-4000-8000-000000000003',sessionId:'a'.repeat(32),publicKey:'A'.repeat(87),name:'Persona verificada',role:'EDITOR',issuedAt:99000,expiresAt:129000};delete certificate.now
@@ -19,6 +19,15 @@ test('client keys cannot be extracted; signatures reject altered fields and anot
   const envelope=await signEphemeral(payload,first.pair.privateKey)
   assert.ok(await verifyEphemeral(envelope,key));assert.equal(await verifyEphemeral({...envelope,payload:{...payload,x:30}},key),false)
   assert.equal(await verifyEphemeral(envelope,await importEphemeralKey(second.publicKey)),false)
+})
+
+test('compact wire format preserves signed fields, rejects extra slots and does not authorize altered coordinates',async()=>{
+  const identity=await createEphemeralKey(),key=await importEphemeralKey(identity.publicKey),envelope=await signEphemeral(payload,identity.pair.privateKey)
+  const packed=packEphemeral(envelope),roundTrip=unpackEphemeral(JSON.parse(JSON.stringify(packed)))
+  assert.deepEqual(roundTrip,envelope);assert.ok(await verifyEphemeral(roundTrip,key))
+  assert.ok(realtimeSize(packed)<realtimeSize(envelope)*.7)
+  assert.equal(unpackEphemeral([...packed,'forged actor']),null);assert.equal(unpackEphemeral(envelope),null)
+  packed[6]=31;assert.equal(await verifyEphemeral(unpackEphemeral(packed),key),false)
 })
 test('server attestation proves name, role and session public key without sharing a signing secret',async()=>{
   const {privateKey,publicKey}=generateKeyPairSync('ed25519'),key=publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('base64url')

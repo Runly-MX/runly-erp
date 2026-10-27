@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { generateKeyPairSync,sign } from 'node:crypto'
 import { createStudioRealtimeSession } from './studio-realtime.js'
-import { createEphemeralKey,signEphemeral,realtimeBytes } from '../../../../../shared/studio/realtime.js'
+import { createEphemeralKey,signEphemeral,realtimeBytes,packEphemeral } from '../../../../../shared/studio/realtime.js'
 const designId='00000000-0000-4000-8000-000000000001',companyId='00000000-0000-4000-8000-000000000002',actorId='00000000-0000-4000-8000-000000000003'
 const sleep=ms=>new Promise(r=>setTimeout(r,ms))
 async function until(check){for(let i=0;i<100;i++){if(check())return;await sleep(2)}assert.fail('Condition did not settle')}
@@ -35,9 +35,9 @@ test('signed Presence and cursors ignore spoofed fields, signatures and out-of-o
     const payload={v:1,sessionId:proof.certificate.sessionId,type:'cursor',seq:1,at:f.now(),pageId:'page-1',x:20,y:30,selectedId:'shape-1',activity:'active'}
     const envelope=await signEphemeral(payload,peer.pair.privateKey),ch=f.channels.find(c=>c.topic.includes('ephemeral'))
     ch.presence={peer:[{...proof,...envelope}]};ch.emit('presence','sync',{});await until(()=>f.session.store.getSnapshot().length===1)
-    ch.emit('broadcast','ephemeral:v1',{payload:{...envelope,payload:{...payload,seq:2,x:100}}});await sleep(10);assert.equal(f.session.store.getSnapshot()[0].x,20)
-    const next=await signEphemeral({...payload,seq:3,x:50},peer.pair.privateKey);ch.emit('broadcast','ephemeral:v1',{payload:next});await until(()=>f.session.store.getSnapshot()[0].x===50)
-    ch.emit('broadcast','ephemeral:v1',{payload:envelope});await sleep(5);assert.equal(f.session.store.getSnapshot()[0].x,50)
+    ch.emit('broadcast','ephemeral:v1',{payload:packEphemeral({...envelope,payload:{...payload,seq:2,x:100}})});await sleep(10);assert.equal(f.session.store.getSnapshot()[0].x,20)
+    const next=await signEphemeral({...payload,seq:3,x:50},peer.pair.privateKey);ch.emit('broadcast','ephemeral:v1',{payload:packEphemeral(next)});await until(()=>f.session.store.getSnapshot()[0].x===50)
+    ch.emit('broadcast','ephemeral:v1',{payload:packEphemeral(envelope)});await sleep(5);assert.equal(f.session.store.getSnapshot()[0].x,50)
     f.channels.find(c=>c.topic.includes('design')).emit('broadcast','change',{payload:{revision:2,ops:[{type:'remove',pageId:'page-1',id:'shape-1'}]}})
     assert.equal(f.session.store.getSnapshot()[0].selectedId,null)
     ch.presence={};ch.emit('presence','sync',{});await until(()=>f.session.store.getSnapshot().length===0)

@@ -1,5 +1,61 @@
 # Studio — contrato entre editor y UI
 
+## Transporte efímero vigente (2026-10-27)
+
+El documento conserva v7/protocolo HTTP 3. La colaboración efímera usa su propio
+protocolo 1: Presence nativa para sesiones y Broadcast para cursor, selección,
+página y actividad. `POST /studio/designs/:id/collaboration` autoriza al entrar
+y renueva una capacidad de 30 s cada unos 20 s con jitter. Devuelve ACL, revisión
+y dimensiones de páginas, sin descargar el documento ni consultar el roster.
+El hook nuevo no llama `/live`; esa ruta sigue compatible para clientes viejos.
+
+Los cambios persistentes continúan por `/changes`, recibos e historial existentes.
+Solo el servidor publica `change/changed` confirmado en
+`studio:design:<id>@<epoch>`. El cliente publica `ephemeral:v1` únicamente en
+`studio:ephemeral:<id>@<epoch>`. Un evento efímero nunca llega al motor sync.
+
+Un canal privado no acredita el actor de un payload. La API verifica Auth, sesión,
+membresía, permiso y diseño; atesta una clave pública junto con actor, nombre,
+rol, empresa, diseño, epoch y caducidad. Cada estado va firmado por su clave
+privada no exportable. El receptor valida ambas firmas, alcance, secuencia,
+página, geometría finita, tiempo y tamaño (2 KiB). Los avatares remotos utilizan
+las iniciales existentes; no se difunden URLs privadas, tokens ni documentos.
+
+El JWT socket limitado no tiene `sub`, dura como máximo 30 s y utiliza un rol SQL
+NOLOGIN/NOINHERIT aislado. No autentica contra el API ni permite escribir tablas
+de negocio. Las políticas globales de authenticated/anon quedan intactas.
+Una conexión dedicada al mismo Supabase evita sustituir la identidad del singleton
+que comparten Notes/Canvas/Chat; el canal persistente sigue usando ese singleton.
+
+Cursor: última posición, distancia mínima 1 px, máximo 10 Hz, una operación en
+vuelo y una muestra pendiente. Sin otros participantes activos en la página no
+se difunden movimientos. Presence: entrar, renovar o cambiar página/actividad,
+con coalescing independiente de 1 s. La selección viaja al cambiar y se limpia
+al borrar objeto/página. Las selecciones remotas se filtran por página; el fucsia
+local se conserva. Los cursores usan el overlay e interpolación CSS existentes
+mediante un store externo, sin render completo del editor por cada posición.
+No se incorporan locks.
+
+Ocultar retira Presence y detiene el cursor; mantiene la renovación de seguridad.
+Mostrar revalida. Desmontar cancela peticiones, timers y listeners y libera los
+canales propios. El singleton sin suscripciones Studio puede seguir disponible
+para otros módulos. Fallos de red usan backoff/jitter; no hay cursor HTTP de
+respaldo. Un hueco persistente sigue recuperándose mediante sync. Un 401 retira
+capacidades y espera Auth; 403/404 suspende sync y conserva el borrador.
+
+Las revocaciones impiden inmediatamente nuevas capacidades y operaciones. La
+rotación de epoch deja de publicar cambios confirmados al topic anterior.
+Realtime v2.102.3 conserva grants del socket: existe recepción residual efímera
+hasta caducar el JWT, máximo 30 s desde la última autorización. No se promete
+expulsión instantánea. Los clientes viejos comparten cambios persistentes con los
+nuevos, pero sus rosters efímeros quedan separados hasta recargar.
+
+API, SQL y provisión propietaria deben preceder a Web. El Installer declara
+2,000 eventos/s, 2 MB/s y 30 Presence/30 s. Los tenants existentes requieren
+configuración explícita, pues las variables de seed no los actualizan.
+Procedimiento, mediciones, pruebas y límites:
+[informe local](../deployment/STUDIO_REALTIME_OPTIMIZATION_LOCAL.md).
+
 ## Documento v7 y motor multipágina (2026-10-26)
 
 Contrato vigente: `schemaVersion:7`, protocolo HTTP **3**. El resto de las notas

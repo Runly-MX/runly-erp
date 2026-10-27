@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { createEphemeralKey } from '../../../apps/shared/studio/realtime.js'
+import { createEphemeralKey, packEphemeral } from '../../../apps/shared/studio/realtime.js'
 import { documentPages } from '../../../apps/shared/studio/pages.js'
 import { commitStudioMcpUpdate } from './operations-mcp.mjs'
 const {createClient}=createRequire(new URL('../../../apps/api/package.json',import.meta.url))('@supabase/supabase-js')
 const sleep=ms=>new Promise(r=>setTimeout(r,ms))
 async function until(fn,message,timeout=10000){const start=Date.now();while(Date.now()-start<timeout){if(await fn())return;await sleep(100)}assert.fail(message)}
 
-export async function verifyStudioRealtimeBrowser({stack,data,tokens,authSessions,design,browser,url,outageMs=30000}) {
+export async function verifyStudioRealtimeBrowser({stack,data,tokens,authSessions,design,browser,url,outageMs=30000,nativeLifecycle=false}) {
   const {users,companies}=data,company=companies[0],contexts=[],checks=[],network=[],clients=[]
   const api=async(path,{actor=0,body,method=body?'POST':'GET'}={})=>{
     const r=await fetch(stack.urls.api+path,{method,headers:{Authorization:`Bearer ${tokens[actor]}`,'X-Runly-Company-Id':company.id,'X-Runly-Studio-Protocol':'3','Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})})
@@ -21,7 +21,7 @@ export async function verifyStudioRealtimeBrowser({stack,data,tokens,authSession
     await page.waitForFunction(()=>window.state().status==='Conectado',null,{timeout:20000});return {page,context}
   }
   const person=async(page,actor)=>page.evaluate(id=>window.state().participants.find(p=>p.userId===id),users[actor].id)
-  let owner,peer,viewer
+  let owner,peer,viewer,lifecycle
   try{
     await stack.pool.query('UPDATE membership SET role_id=$1 WHERE company_id=$2 AND user_id=$3',[company.roleId,company.id,users[1].id])
     await api(`/studio/designs/${design.id}/collaborators`,{method:'PUT',body:{userId:users[1].id,role:'VIEWER'}})
@@ -50,7 +50,7 @@ export async function verifyStudioRealtimeBrowser({stack,data,tokens,authSession
     const victim=await person(peer.page,0)
     await owner.page.evaluate(()=>{const c=window.studioSockets.at(-1).getChannels()[0],send=c.send.bind(c);c.send=(frame,...args)=>{if(frame.event==='ephemeral:v1')window.capturedEnvelope=frame.payload;return send(frame,...args)}})
     await new Promise((resolve,reject)=>ch.subscribe(s=>{if(s==='SUBSCRIBED')resolve();else if(s==='CHANNEL_ERROR')reject(Error('Attacker scope failed'))}))
-    assert.equal(await ch.send({type:'broadcast',event:'ephemeral:v1',payload:{payload:{v:1,sessionId:victim.sessionId,type:'cursor',seq:999999,at:Date.now(),pageId:'page-1',x:319,y:239,selectedId:null,activity:'active'},signature:'A'.repeat(86)}}),'ok')
+    assert.equal(await ch.send({type:'broadcast',event:'ephemeral:v1',payload:packEphemeral({payload:{v:1,sessionId:victim.sessionId,type:'cursor',seq:999999,at:Date.now(),pageId:'page-1',x:319,y:239,selectedId:null,activity:'active'},signature:'A'.repeat(86)})}),'ok')
     assert.equal(await ch.track({certificate:{...grant.certificate,actorId:users[0].id,name:'Forged name'},certificateSignature:grant.certificateSignature,payload:{},signature:'A'.repeat(86)}),'ok')
     await owner.page.evaluate(()=>window.point({x:110,y:65},'page-1'))
     try{await until(()=>owner.page.evaluate(()=>Boolean(window.capturedEnvelope)),'No signed frame captured')}catch(e){console.error('Owner transport:',await owner.page.evaluate(()=>window.state()));console.error('Peer transport:',await peer.page.evaluate(()=>window.state()));throw e}
@@ -76,6 +76,38 @@ export async function verifyStudioRealtimeBrowser({stack,data,tokens,authSession
     await commitStudioMcpUpdate(stack,{token:tokens[0],companyId:company.id,designId:design.id,name:saved.name,document:mcpDocument,revision:saved.revision})
     await until(async()=> (await peer.page.evaluate(()=>window.syncState().document.objects[0].y))===99,'MCP whole-document update did not reconcile')
     checks.push('Multiple tabs clean up independently; concurrent multipage changes and real MCP approval/commit converge through the unchanged sync engine')
+
+    if(nativeLifecycle){
+      const cdp=await peer.context.newCDPSession(peer.page),{windowId}=await cdp.send('Browser.getWindowForTarget')
+      await cdp.send('Browser.setWindowBounds',{windowId,bounds:{windowState:'minimized'}})
+      assert.equal((await cdp.send('Browser.getWindowBounds',{windowId})).bounds.windowState,'minimized')
+      await sleep(1000)
+      lifecycle={minimizedVisibility:await peer.page.evaluate(()=>document.visibilityState)}
+      await cdp.send('Browser.setWindowBounds',{windowId,bounds:{windowState:'normal'}})
+      const background=await peer.context.newPage();await background.goto('about:blank');await background.bringToFront();await sleep(1000)
+      lifecycle.backgroundVisibility=await peer.page.evaluate(()=>document.visibilityState)
+      await background.close();await peer.page.bringToFront()
+      // Automated Chrome can keep visibilityState visible even with native window
+      // bounds minimized. Exercise the hidden-event branch explicitly, and label it.
+      await peer.page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,get:()=> 'hidden'});document.dispatchEvent(new Event('visibilitychange'))})
+      await until(async()=>!await person(owner.page,2),'Hidden session retained Presence')
+      await peer.page.evaluate(()=>{delete document.visibilityState;document.dispatchEvent(new Event('visibilitychange'))})
+      await until(async()=>Boolean(await person(owner.page,2)),'Visible session failed to rejoin')
+      await peer.context.route('**/studio/designs/*/changes',route=>route.abort())
+      await peer.page.evaluate(()=>window.localEdit('shape-2','page-2',171))
+      await cdp.send('Page.setWebLifecycleState',{state:'frozen'})
+      try{
+        await owner.page.evaluate(()=>window.localEdit('shape-1','page-1',172));await owner.page.evaluate(()=>window.flush())
+        await sleep(35000)
+        await until(async()=>!await person(owner.page,2),'Frozen session outlived socket capability',5000)
+      }finally{await cdp.send('Page.setWebLifecycleState',{state:'active'})}
+      await peer.context.unroute('**/studio/designs/*/changes');await peer.page.evaluate(()=>window.dispatchEvent(new Event('online')))
+      await until(async()=> (await peer.page.evaluate(()=>window.state().status))==='Conectado','Frozen renderer did not reconnect',20000)
+      await peer.page.evaluate(()=>window.flush())
+      await until(async()=>{const s=await peer.page.evaluate(()=>window.syncState());return s.document.objects[0].x===172&&s.document.additionalPages[0].objects[0].x===171&&!s.pending},'Freeze/resume lost local or remote changes',20000)
+      lifecycle.rendererFrozenMs=35000;lifecycle.osSuspensionTested=false;lifecycle.hiddenEventSynthetic=true
+      checks.push('Native minimize/tab switch exercised; explicit hidden event removes Presence; 35 s renderer freeze/resume preserves pending and remote changes (not OS suspension)')
+    }
 
     const legacyState=await api(`/studio/designs/${design.id}/live`,{body:{sessionId:'legacy-compatible-session',cursor:{x:12,y:14}}})
     const legacy=createClient(stack.urls.kong,stack.secret.SUPABASE_ANON_KEY,{accessToken:async()=>tokens[0],auth:{persistSession:false,autoRefreshToken:false}});clients.push(legacy)
@@ -129,6 +161,6 @@ export async function verifyStudioRealtimeBrowser({stack,data,tokens,authSession
     assert.equal(await owner.page.evaluate(()=>window.state().participants.length),0)
     await owner.page.evaluate(()=>window.stop());await until(async()=> (await owner.page.evaluate(()=>window.activeSockets()))===0,'Final unmount retained Studio subscriptions',2000)
     checks.push('Design switch and final unmount release channels and timers without participant leakage')
-    return {passed:true,checks,cursorObservedMs,leaveObservedMs,revocationObservedMs,documentPages:documentPages(saved.document).length,liveRequests:network.filter(p=>p.endsWith('/live')).length}
+    return {passed:true,checks,cursorObservedMs,leaveObservedMs,revocationObservedMs,documentPages:documentPages(saved.document).length,liveRequests:network.filter(p=>p.endsWith('/live')).length,...lifecycle?{lifecycle}:{}}
   }finally{await stack.compose(['unpause','supabase-realtime']).catch(()=>{});for(const c of clients){await c.removeAllChannels();c.realtime.disconnect()}for(const c of contexts)await c.close()}
 }

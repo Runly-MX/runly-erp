@@ -43,6 +43,15 @@ function sqlDelta(before, after) {
 }
 const percentile = (values, p) => values.length ? [...values].sort((a,b) => a-b)[Math.min(values.length-1,Math.floor(values.length*p))] : null
 try {
+  if(arg('events-per-second')||arg('bytes-per-second')){
+    const events=Number(arg('events-per-second')??2000),bytes=Number(arg('bytes-per-second')??2000000)
+    assert.ok(Number.isInteger(events)&&events>=100&&events<=100000)
+    assert.ok(Number.isInteger(bytes)&&bytes>=100000&&bytes<=100000000)
+    const config=JSON.parse(await readFile(stack.composeFile,'utf8'))
+    assert.equal(config.name,stack.name)
+    Object.assign(config.services['supabase-realtime'].environment,{TENANT_MAX_EVENTS_PER_SECOND:String(events),TENANT_MAX_BYTES_PER_SECOND:String(bytes)})
+    await writeFile(stack.composeFile,JSON.stringify(config,null,2))
+  }
   // Generic fault fixtures use 3 s HTTP timeouts. Preserve Kong's normal
   // 60 s WebSocket idle budget for intentionally quiet native Presence.
   const kongPath=join(stack.directory,'kong.yml'),kong=await readFile(kongPath,'utf8')
@@ -86,11 +95,14 @@ try {
   const compiled = await build({entryPoints:['scripts/fixtures/studio/realtime-browser.jsx'],bundle:true,platform:'browser',format:'esm',write:false,nodePaths:[resolve('apps/desktop/node_modules')],plugins:[{name:'fixture-boundary',setup(b){b.onResolve({filter:/studio-realtime-boundary|\/lib\/(runly|supabase)\.js$/},()=>({path:boundaryPath}));b.onResolve({filter:/^@supabase\/supabase-js$/},args=>args.importer.endsWith('useStudioRealtime.js')?{path:boundaryPath}:null);if(legacySource)b.onLoad({filter:/useStudioRealtime\.js$/},()=>({contents:legacySource,loader:'js'}))}}]})
   server = createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/fixture.js'?'text/javascript':'text/html');res.end(req.url==='/fixture.js'?compiled.outputFiles[0].contents:'<!doctype html><div id="root"></div><script type="module" src="/fixture.js"></script>')})
   await new Promise(r=>server.listen(0,'127.0.0.1',r)); const url=`http://127.0.0.1:${server.address().port}`
-  browser=await chromium.launch({channel:'chrome',headless:true,args:['--disable-background-timer-throttling','--disable-backgrounding-occluded-windows']})
+  const nativeLifecycle=process.argv.includes('--native-lifecycle')
+  browser=await chromium.launch({channel:'chrome',headless:!nativeLifecycle,
+    ...(nativeLifecycle?{ignoreDefaultArgs:['--disable-background-timer-throttling','--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding']}:{}),
+    args:nativeLifecycle?['--window-position=-32000,-32000']:['--disable-background-timer-throttling','--disable-backgrounding-occluded-windows']})
   if(process.argv.includes('--e2e')){
     const {verifyStudioRealtimeBrowser}=await import('./fixtures/studio/realtime-e2e.mjs')
     const outageSeconds=Number(arg('outage-seconds')??30);assert.ok(outageSeconds>=30&&outageSeconds<=180)
-    const result=await verifyStudioRealtimeBrowser({stack,data,tokens,authSessions,design,browser,url,outageMs:outageSeconds*1000})
+    const result=await verifyStudioRealtimeBrowser({stack,data,tokens,authSessions,design,browser,url,outageMs:outageSeconds*1000,nativeLifecycle})
     await writeFile(join(output,'e2e.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result))
   }
   const scenarios=[{name:'idle-1',n:1},{name:'cursor-1',n:1,move:true},{name:'editing-2',n:2,move:true,edit:true},{name:'cursor-5',n:5,move:true},{name:'cursor-10',n:10,move:true},{name:'different-pages',n:2,move:true,pages:true},{name:'same-user-tabs',n:2,move:true,same:true},{name:'hidden',n:1,move:true,hidden:true},...(arg('scenario')?.includes('cursor-20')?[{name:'cursor-20',n:20,move:true}]:[])]
@@ -113,14 +125,14 @@ try {
     await wait(1500)
     if(phase==='after')for(const page of pages)await page.waitForFunction(n=>window.state().participants.length===n-1,scenario.n,{timeout:20000})
     const diagnosticsBefore=await Promise.all(pages.map(p=>p.evaluate(()=>window.state().diagnostics)))
-    const before=await sql(),apiCpu=await cpu('runly-api'),pgCpu=await cpu('supabase-db'),browserBefore=await Promise.all(pages.map(p=>p.cdp.send('Performance.getMetrics')))
+    const before=await sql(),apiCpu=await cpu('runly-api'),pgCpu=await cpu('supabase-db'),realtimeCpu=await cpu('supabase-realtime'),browserBefore=await Promise.all(pages.map(p=>p.cdp.send('Performance.getMetrics')))
     recording=true
     for(const [i,page]of pages.entries())if(scenario.move)await page.evaluate(pageId=>window.move(pageId),scenario.pages&&i?'page-2':'page-1')
     if(scenario.hidden)await pages[0].evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,get:()=> 'hidden'});document.dispatchEvent(new Event('visibilitychange'))})
     const begin=Date.now();let batch=0
     while(Date.now()-begin<seconds*1000){await wait(1000);if(scenario.edit){batch++;await Promise.all(pages.map(p=>p.evaluate(n=>window.edit(n),batch)))}}
     recording=false;await Promise.all(pages.map(p=>p.evaluate(()=>window.pause())));await Promise.all(tasks)
-    const after=await sql(),apiCpuAfter=await cpu('runly-api'),pgCpuAfter=await cpu('supabase-db'),browserAfter=await Promise.all(pages.map(p=>p.cdp.send('Performance.getMetrics')))
+    const after=await sql(),apiCpuAfter=await cpu('runly-api'),pgCpuAfter=await cpu('supabase-db'),realtimeCpuAfter=await cpu('supabase-realtime'),browserAfter=await Promise.all(pages.map(p=>p.cdp.send('Performance.getMetrics')))
     const pointLogs=await Promise.all(pages.map(p=>p.evaluate(()=>({sent:window.sentPoints,received:window.receivedPoints}))))
     metrics.diagnosticsBefore=diagnosticsBefore
     metrics.diagnostics=await Promise.all(pages.map(p=>p.evaluate(()=>window.state().diagnostics)))
@@ -128,10 +140,10 @@ try {
     for(const p of pointLogs.flatMap(l=>l.sent??[])){const key=pointKey(p),list=sentPoints.get(key)??[];list.push(p.at);sentPoints.set(key,list)}
     for(const point of pointLogs.flatMap(l=>l.received??[])){const list=sentPoints.get(pointKey(point))??[];let at=-1;for(let i=list.length-1;i>=0;i--)if(list[i]<=point.at){at=list[i];break}if(at>=0)metrics.cursorLatencies.push(point.at-at)}
     const browserMetrics=browserAfter.map((m,i)=>{const get=(a,n)=>a.metrics.find(v=>v.name===n)?.value??0;return{taskSeconds:get(m,'TaskDuration')-get(browserBefore[i],'TaskDuration'),heapBytes:get(m,'JSHeapUsedSize')}})
-    const result={scenario:scenario.name,users:scenario.n,seconds,visibility:await pages[0].evaluate(()=>document.visibilityState),syntheticVisibility:Boolean(scenario.hidden),livePerMinute:metrics.live*60/seconds,...metrics,p50:percentile(metrics.latencies,.5),p95:percentile(metrics.latencies,.95),cursorP50:percentile(metrics.cursorLatencies,.5),cursorP95:percentile(metrics.cursorLatencies,.95),apiCpuSeconds:apiCpuAfter-apiCpu,postgresCpuSeconds:pgCpuAfter-pgCpu,sql:sqlDelta(before,after),browser:browserMetrics}
+    const result={scenario:scenario.name,users:scenario.n,seconds,visibility:await pages[0].evaluate(()=>document.visibilityState),syntheticVisibility:Boolean(scenario.hidden),livePerMinute:metrics.live*60/seconds,...metrics,p50:percentile(metrics.latencies,.5),p95:percentile(metrics.latencies,.95),cursorP50:percentile(metrics.cursorLatencies,.5),cursorP95:percentile(metrics.cursorLatencies,.95),apiCpuSeconds:apiCpuAfter-apiCpu,postgresCpuSeconds:pgCpuAfter-pgCpu,realtimeCpuSeconds:realtimeCpuAfter-realtimeCpu,sql:sqlDelta(before,after),browser:browserMetrics}
     delete result.latencies;delete result.cursorLatencies;results.push(result)
     console.log(JSON.stringify({scenario:result.scenario,livePerMinute:result.livePerMinute,p95:result.p95,writes:result.sql.table.n_tup_ins+result.sql.table.n_tup_upd,wsSent:result.wsSent}))
     for(const page of pages)await page.evaluate(()=>window.stop());for(const context of contexts)await context.close();await wait(1000)
-    await writeFile(join(output,`${arg('result')??phase}.json`),JSON.stringify({phase,seconds,source:sourceRef??execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),apiImage,results},null,2))
+    await writeFile(join(output,`${arg('result')??phase}.json`),JSON.stringify({phase,seconds,source:sourceRef??execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),apiImage,capacity:{eventsPerSecond:Number(arg('events-per-second')??2000),bytesPerSecond:Number(arg('bytes-per-second')??2000000)},results},null,2))
   }
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await stack.close()}

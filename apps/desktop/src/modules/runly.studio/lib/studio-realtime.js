@@ -1,5 +1,5 @@
 import { STUDIO_REALTIME as P, createEphemeralKey, createLatestSender, validCertificate, validEphemeral,
-  signEphemeral, verifyAttestation, importEphemeralKey, verifyEphemeral, realtimeSize } from '../../../../../shared/studio/realtime.js'
+  signEphemeral, verifyAttestation, importEphemeralKey, verifyEphemeral, realtimeSize, packEphemeral, unpackEphemeral } from '../../../../../shared/studio/realtime.js'
 
 const releasing=new WeakMap()
 function releaseDocument(client,channel){
@@ -165,8 +165,10 @@ export function createStudioRealtimeSession({id,companyId,getToken,api,client,cr
     if(changed)publish()
     if(pagesChanged&&grant.pages.some(p=>p.id===state.pageId))queue('page',true)
   }
-  async function receive(envelope,epoch){
+  async function receive(frame,epoch){
     count('received')
+    if(realtimeSize(frame)>P.maxBytes){count('dropped');return}
+    const envelope=unpackEphemeral(frame)
     if(instrument&&!counts.envelopeShape)counts.envelopeShape={keys:Object.keys(envelope??{}),payloadKeys:Object.keys(envelope?.payload??{})}
     const p=envelope?.payload,known=sessions.get(p?.sessionId),time=serverNow(),rate=rates.get(p?.sessionId)
     if(!alive()||epoch!==generation||!known||realtimeSize(envelope)>P.maxBytes||verifying.has(p.sessionId)||
@@ -194,7 +196,7 @@ export function createStudioRealtimeSession({id,companyId,getToken,api,client,cr
     if(trackPending){trackPending=false;tracker.push({generation:epoch,certificate:c,entry:{certificate:c,certificateSignature,...envelope}})}
     if(!alive()||epoch!==generation||!visible()||!receivers())return
     // send() must never fall back to Supabase's HTTP broadcast endpoint.
-    if(ephemeralChannel.state==='joined'){const result=await ephemeralChannel.send({type:'broadcast',event:'ephemeral:v1',payload:envelope});count(result==='ok'?'sent':'sendFailed')}
+    if(ephemeralChannel.state==='joined'){const result=await ephemeralChannel.send({type:'broadcast',event:'ephemeral:v1',payload:packEphemeral(envelope)});count(result==='ok'?'sent':'sendFailed')}
   },{timers,now,onError:()=>{onStatus('Reconectando')}})
   function queue(type,track=false){
     if(!active||denied)return

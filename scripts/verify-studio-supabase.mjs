@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import {execFileSync} from 'node:child_process'
 import { resolve, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 import { createStudioStack } from './fixtures/studio/supabase-stack.mjs'
 import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
@@ -18,6 +18,8 @@ import { measureStudioBaseline } from './lib/studio-web-baseline.mjs'
 import { verifyStudioPhotos } from './fixtures/studio/supabase-photos.mjs'
 import { verifyStudioGradients } from './fixtures/studio/supabase-gradients.mjs'
 import { verifyStudioOperations } from './fixtures/studio/supabase-operations.mjs'
+import { verifyStudioMultipage } from './fixtures/studio/supabase-multipage.mjs'
+import { verifyStudioTextMultipage } from './fixtures/studio/supabase-text-multipage.mjs'
 
 const apiImage=process.argv.find(value=>value.startsWith('--api-image='))?.slice('--api-image='.length)
 const stack = await createStudioStack({...apiImage?{apiImage}:{},enableMcp:process.argv.includes('--operations-only')})
@@ -30,6 +32,12 @@ async function close() {
 const interrupted = () => { close().finally(() => process.exit(130)) }
 process.once('SIGINT', interrupted); process.once('SIGTERM', interrupted)
 try {
+  if(process.argv.includes('--current-realtime')){
+    const file=join(stack.directory,'kong.yml'),source=await readFile(file,'utf8')
+    const configured=source.replace(/(  - name: realtime-v1-ws[\s\S]*?read_timeout:) 3000/,'$1 60000')
+    assert.notEqual(configured,source,'Expected disposable WebSocket fault timeout')
+    await writeFile(file,configured)
+  }
   console.log('Starting dedicated local Supabase project (no workers).')
   await stack.compose(['up', '-d', '--wait', '--wait-timeout', '120', 'supabase-db', 'supabase-auth', 'supabase-rest', 'supabase-realtime', 'supabase-storage', 'supabase-kong'], { log: join(stack.directory, 'startup.log') })
   await assert.rejects(stack.initialize(), /DISPOSABLE_DATABASE_NOT_VERIFIED/)
@@ -82,6 +90,12 @@ try {
   web = await preview(config)
   if(process.argv.includes('--operations-only')){
     const result={passed:true,operations:await verifyStudioOperations(stack,data),gradients:await verifyStudioGradients(stack,data),photos:await verifyStudioPhotos(stack,data),shapePhotos:await verifyStudioPhotos(stack,data,{shape:true}),bundle}
+    if(process.argv.includes('--include-multipage')){
+      result.multipage=await verifyStudioMultipage(stack,data)
+      result.textMultipage=await verifyStudioTextMultipage(stack,data)
+      const python=execFileSync('python',['scripts/fixtures/studio/v7-inspect-pdf.py',stack.directory],{encoding:'utf8'})
+      result.multipagePdf=JSON.parse(python)
+    }
     await writeFile(join(stack.directory,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2))
   }else if(process.argv.includes('--gradients-only')){
     const result={passed:true,gradients:await verifyStudioGradients(stack,data),bundle}

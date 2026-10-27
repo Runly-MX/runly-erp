@@ -53,7 +53,7 @@ No se consulta roster HTTP. La renovación devuelve revisión, permisos, epoch y
 páginas, permitiendo reconciliar cambios perdidos. Recibir Presence no llama HTTP.
 La caducidad detiene publicación y recepción incluso si el API está caído; un
 403/404 bloquea sync preservando el borrador. Un 401 limpia capacidades y espera
-la renovaci?n Auth, sin confundirla con una revocaci?n de ACL. Fallos transitorios no equivalen
+la renovación Auth, sin confundirla con una revocación de ACL. Fallos transitorios no equivalen
 a revocación: backoff y recuperación sin descartar el outbox.
 
 Las mutaciones ACL rotan el epoch existente. El servidor deja inmediatamente de
@@ -87,7 +87,7 @@ Cursor: coalescing, distancia mínima, secuencias monotónicas, una firma/envío
 vuelo y última muestra pendiente. Selección solo al cambiar; cambio de página
 limpia cursor/selección anterior. Presence solo al entrar, renovar, cambiar página
 o actividad. Untrack al ocultar/salir y expiración/disconnect para cierres abruptos.
-Presence tiene su propio coalescing de 1 s; nunca sigue la frecuencia del rat?n.
+Presence tiene su propio coalescing de 1 s; nunca sigue la frecuencia del ratón.
 No hay colas ilimitadas. Receptor acotado por sesiones y frecuencia.
 
 Cursores actualizan un store externo que escucha el overlay existente; el editor
@@ -122,22 +122,22 @@ Fuentes primarias: [autorización Realtime](https://supabase.com/docs/guides/rea
 El changelog Markdown no pudo leerse con la herramienta web (MIME no soportado);
 se verifican documentación actual, dependencias locales y servidor desechable.
 
-## Provisi?n y capacidad
+## Provisión y capacidad
 
 La fase propietaria `prisma/provision-studio-realtime-role.mjs` requiere una URL
-administrativa expl?cita y debe preceder a la nueva migraci?n en instalaciones
-existentes. La inicializaci?n de instalaciones nuevas incluye el SQL propietario.
+administrativa explícita y debe preceder a la nueva migración en instalaciones
+existentes. La inicialización de instalaciones nuevas incluye el SQL propietario.
 No puede sustituirse por un GRANT emitido desde el rol postgres: el esquema
-Realtime pertenece a supabase_admin. La migraci?n verifica esta condici?n.
+Realtime pertenece a supabase_admin. La migración verifica esta condición.
 El rol no es miembro de authenticator ni tiene privilegios de negocio.
 
 Realtime v2.102.3 limita por defecto a 100 eventos/s y cinco llamadas Presence
 cada 30 s. El Installer declara 2,000 eventos/s, 2 MB/s y 30 Presence/30 s; el
-cliente permanece limitado a 10 Broadcast/s y una actualizaci?n Presence/s.
-Las variables de seed solo configuran tenants nuevos. La provisi?n permite
-actualizar un tenant existente identificado expl?citamente, sin elegir uno por
+cliente permanece limitado a 10 Broadcast/s y una actualización Presence/s.
+Las variables de seed solo configuran tenants nuevos. La provisión permite
+actualizar un tenant existente identificado explícitamente, sin elegir uno por
 defecto; las variables de Presence requieren recrear el contenedor.
 
-El contexto consulta solo ACL, revisi?n y dimensiones de p?ginas, sin transmitir
-el documento entero en cada renovaci?n. Los avatares remotos utilizan las
-iniciales existentes; no se distribuyen URLs privadas en el canal ef?mero.
+El contexto consulta solo ACL, revisión y dimensiones de páginas, sin transmitir
+el documento entero en cada renovación. Los avatares remotos utilizan las
+iniciales existentes; no se distribuyen URLs privadas en el canal efímero.

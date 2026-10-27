@@ -35,6 +35,16 @@ export async function createEphemeralKey(crypto = globalThis.crypto) {
 export async function signEphemeral(payload, privateKey, crypto = globalThis.crypto) {
   return {payload,signature:encodeRealtime(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},privateKey,realtimeBytes(payload)))}
 }
+// Fixed protocol-v1 tuple omits repeated JSON field names on every fan-out.
+// Signatures still cover the full closed canonical object after decoding.
+export function packEphemeral({payload:p,signature}) {
+  return [p.v,p.sessionId,p.type,p.seq,p.at,p.pageId,p.x,p.y,p.selectedId,p.activity,signature]
+}
+export function unpackEphemeral(frame) {
+  if(!Array.isArray(frame)||frame.length!==11)return null
+  const [v,sessionId,type,seq,at,pageId,x,y,selectedId,activity,signature]=frame
+  return {payload:{v,sessionId,type,seq,at,pageId,x,y,selectedId,activity},signature}
+}
 export async function verifyAttestation(certificate, signature, key, crypto = globalThis.crypto) {
   if(!signaturePattern.test(signature ?? '')||!/^[A-Za-z0-9_-]{43}$/.test(key ?? ''))return false
   try { const publicKey=await crypto.subtle.importKey('raw',decodeRealtime(key),'Ed25519',false,['verify']); return await crypto.subtle.verify('Ed25519',publicKey,decodeRealtime(signature),realtimeBytes(certificate)) } catch {return false}
