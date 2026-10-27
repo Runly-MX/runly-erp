@@ -21,7 +21,7 @@ export function FramingBar({ props, disabled, onZoom, onFit, onReset, onReplace,
         <span aria-hidden className="mx-0.5 h-6 w-px bg-[hsl(var(--border))]" />
         <ToolButton label="Alejar la foto" side="bottom" disabled={disabled} onClick={() => onZoom(clamp((zoom - 10) / 100, 0.5, 4))} className="h-9 w-9"><Minus /></ToolButton>
         <input type="range" min={50} max={400} step={5} value={zoom} disabled={disabled} aria-label="Zoom de la foto" onChange={event => onZoom(Number(event.target.value) / 100)}
-          className="h-2 w-24 cursor-pointer accent-fuchsia-600 sm:w-32" />
+          style={{ touchAction: 'none' }} className="h-9 w-24 cursor-pointer accent-fuchsia-600 sm:w-32" />
         <ToolButton label="Acercar la foto" side="bottom" disabled={disabled} onClick={() => onZoom(clamp((zoom + 10) / 100, 0.5, 4))} className="h-9 w-9"><Plus /></ToolButton>
         <span className="w-11 text-center text-xs font-medium tabular-nums text-[hsl(var(--muted-foreground))]">{zoom}%</span>
       </div>

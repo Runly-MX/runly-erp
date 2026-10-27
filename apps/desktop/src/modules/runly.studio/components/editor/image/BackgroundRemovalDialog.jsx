@@ -48,7 +48,7 @@ export function BackgroundRemovalDialog({ open, onOpenChange, run }) {
               <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">Antes</span>
               <span className="absolute right-2 top-2 rounded-full bg-fuchsia-600 px-2 py-0.5 text-xs text-white">Después</span>
               <input type="range" min={0} max={100} value={split} onChange={event => setSplit(Number(event.target.value))} aria-label="Comparar antes y después"
-                className="absolute inset-0 h-full w-full cursor-ew-resize opacity-0" />
+                style={{ touchAction: 'none' }} className="absolute inset-0 h-full w-full cursor-ew-resize opacity-0" />
             </div>
           ) : (
             <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[hsl(var(--border))] p-6 text-center" style={state === 'working' ? CHECKER : undefined}>

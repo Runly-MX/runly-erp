@@ -83,11 +83,27 @@ export function SliderRow({ label, value: external, min, max, step = 1, zero = m
   const value = local ?? external;
   useEffect(() => { if (local !== null && external === local) setLocal(null); }, [external, local]);
   useEffect(() => { if (local === null) return undefined; const timer = setTimeout(() => setLocal(null), 1500); return () => clearTimeout(timer); }, [local]);
-  const onChange = (next) => { setLocal(next); emit(next); };
+  // Touch drags fire change events faster than a canvas can re-render, so emit
+  // at most once per frame and flush the latest value before the gesture ends.
+  const pending = useRef(null);
+  const frame = useRef(0);
+  const emitRef = useRef(emit);
+  emitRef.current = emit;
+  const flush = () => {
+    cancelAnimationFrame(frame.current);
+    frame.current = 0;
+    if (pending.current !== null) { const next = pending.current; pending.current = null; emitRef.current(next); }
+  };
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  const onChange = (next) => {
+    setLocal(next);
+    pending.current = next;
+    if (!frame.current) frame.current = requestAnimationFrame(() => { frame.current = 0; flush(); });
+  };
   const shown = format ? format(value) : `${value - zero > 0 ? "+" : ""}${value - zero}`;
   const dragging = useRef(false);
   const start = () => { if (!dragging.current) { dragging.current = true; onStart?.(); } };
-  const commit = () => { if (dragging.current) { dragging.current = false; onCommit?.(); } };
+  const commit = () => { flush(); if (dragging.current) { dragging.current = false; onCommit?.(); } };
   return (
     <div>
       <div className="flex items-center justify-between text-sm">
@@ -105,7 +121,8 @@ export function SliderRow({ label, value: external, min, max, step = 1, zero = m
       <div className="flex h-11 items-center">
         <input type="range" min={min} max={max} step={step} value={value} disabled={disabled} aria-label={label} onChange={(e) => onChange(Number(e.target.value))}
           onPointerDown={start} onPointerUp={commit} onPointerCancel={commit} onKeyDown={start} onKeyUp={commit} onBlur={commit}
-          className="h-2 w-full cursor-pointer accent-[hsl(var(--primary))]" />
+          style={{ touchAction: "none" }}
+          className="h-11 w-full cursor-pointer accent-[hsl(var(--primary))]" />
       </div>
     </div>
   );
