@@ -25,7 +25,7 @@ const css = await readFile(resolve(assets, cssFile))
 const server = createServer(async (request, response) => {
   if (request.url === '/fixture.js') { response.setHeader('Content-Type', 'text/javascript'); response.end(bundle.outputFiles[0].contents); return }
   if (request.url === '/fixture.css') { response.setHeader('Content-Type', 'text/css'); response.end(css); return }
-  if (/^\/studio-fonts\/(lato|playfairdisplay|bebasneue|pacifico|oswald|spacemono)\.ttf$/.test(request.url)) {
+  if (/^\/studio-fonts\/[a-z0-9-]+\.ttf$/.test(request.url)) {
     response.setHeader('Content-Type', 'font/ttf'); response.end(await readFile(resolve(root, 'apps/desktop/public', request.url.slice(1)))); return
   }
   if (request.url === '/favicon.ico') { response.writeHead(204); response.end(); return }

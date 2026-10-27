@@ -1,0 +1,3 @@
+# Keep original font bytes and stable license checksums across Windows/Linux.
+*.ttf binary
+*-OFL.txt text eol=lf

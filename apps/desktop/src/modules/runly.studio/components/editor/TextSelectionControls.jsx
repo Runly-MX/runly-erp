@@ -1,10 +1,9 @@
 import { NumberStepper, Popover, PopoverContent, PopoverTrigger, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SliderRow, ToolButton } from '@runly/ui'
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Strikethrough, Underline } from 'lucide-react'
-import { STUDIO_FONT_VARIANTS, studioFontStyle } from '../../../../../../shared/studio/fonts.js'
+import { STUDIO_FONT_VARIANTS, STUDIO_FONT_VARIANT_LABELS as VARIANT_LABELS, studioFontStyle } from '../../../../../../shared/studio/fonts.js'
 import { StudioFontPicker } from '../StudioFontPicker.jsx'
 import { ColorPopover } from './StudioColorPicker.jsx'
 
-const VARIANT_LABELS = { light: 'Ligera', regular: 'Regular', medium: 'Media', semibold: 'Seminegrita', bold: 'Negrita', italic: 'Cursiva' }
 const ALIGN = [['left', 'Alinear a la izquierda', AlignLeft], ['center', 'Centrar', AlignCenter], ['right', 'Alinear a la derecha', AlignRight], ['justify', 'Justificar', AlignJustify]]
 
 // Only variants with a real bundled file for the family (no fake "No disponible" rows).
