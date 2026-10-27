@@ -18,6 +18,18 @@ import { checkAbort,abortable } from '../../../../../shared/studio/abort.js'
 import { controlStyle, styleControls } from './studio-controls.js'
 import { documentPages, findPage, pageId, pageDocument, replacePage } from '../../../../../shared/studio/pages.js'
 
+// Fabric's hidden input uses font-size 1px; iOS Safari zooms the whole page when
+// a focused field is below 16px. Keep it at 16px (it is invisible and 1px wide).
+const initHiddenTextarea = Textbox.prototype.initHiddenTextarea
+if (initHiddenTextarea && !initHiddenTextarea.studioKeyboardSafe) {
+  Textbox.prototype.initHiddenTextarea = function studioHiddenTextarea(...args) {
+    const result = initHiddenTextarea.apply(this, args)
+    if (this.hiddenTextarea) this.hiddenTextarea.style.fontSize = '16px'
+    return result
+  }
+  Textbox.prototype.initHiddenTextarea.studioKeyboardSafe = true
+}
+
 // One interactive Fabric scene. Page changes flush that scene before replacing it.
 // Selection and viewport are session state and never enter the saved document.
 export async function createStudioEditor(element, options) {
@@ -463,6 +475,13 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
   })
   canvas.on('mouse:up',clearGuides)
   canvas.on('text:changed', () => changed())
+  // After hiding the keyboard, tapping the text being edited must show it again:
+  // Fabric only focuses its input when editing starts, so do it inside the tap.
+  canvas.on('mouse:up', ({ e }) => {
+    const text = canvas.getActiveObject()
+    if (!text?.isEditing || !text.hiddenTextarea || e?.type === 'mouseup') return
+    if (text.hiddenTextarea.ownerDocument.activeElement !== text.hiddenTextarea) text.hiddenTextarea.focus({ preventScroll: true })
+  })
   canvas.on('mouse:move', event => { const point = canvas.getScenePoint(event.e); onPointer?.({ x: point.x, y: point.y }) })
   canvas.on('mouse:out', () => onPointer?.(null))
   for (const event of ['selection:created', 'selection:updated', 'selection:cleared']) canvas.on(event, selection)
@@ -658,6 +677,31 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
     },
     selectAll() { editor.selectMany(canvas.getObjects().map(object => object.studioId)) },
     isEditingText: () => Boolean(canvas.getActiveObject()?.isEditing),
+    // Text being typed, in page coordinates: its box plus the line holding the
+    // caret, so the viewport can keep what the person is writing in sight.
+    textEditingBounds() {
+      const text = canvas.getActiveObject()
+      if (!text?.isEditing) return null
+      const box = text.getBoundingRect(), scale = Math.abs(text.scaleY ?? 1) || 1
+      let caret = { top: box.top, height: box.height }
+      if (!text.angle) {
+        try {
+          const { lineIndex } = text.get2DCursorLocation(text.selectionStart ?? 0)
+          let top = 0
+          for (let line = 0; line < lineIndex; line++) top += text.getHeightOfLine(line)
+          caret = { top: box.top + top * scale, height: Math.min(box.height, text.getHeightOfLine(lineIndex) * scale) }
+        } catch { /* keep the whole box */ }
+      }
+      return { left: box.left, top: box.top, width: box.width, height: box.height, caret, fontSize: text.fontSize * scale }
+    },
+    // The keyboard was dismissed but the text is still being edited: bring it back (needs a user gesture).
+    focusText() {
+      const text = canvas.getActiveObject()
+      if (!text || text.type !== 'textbox' || text.locked || protectedMode) return false
+      if (!text.isEditing) text.enterEditing()
+      text.hiddenTextarea?.focus({ preventScroll: true })
+      return true
+    },
     setPanMode(value) { canvas.skipTargetFind = value; canvas.selection = !value; canvas.defaultCursor = value ? 'grab' : 'default' },
     resize(page, scaleContent = false) {
       writable()

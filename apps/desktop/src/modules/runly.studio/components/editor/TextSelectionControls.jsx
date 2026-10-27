@@ -1,5 +1,6 @@
-import { NumberStepper, Popover, PopoverContent, PopoverTrigger, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SliderRow, ToolButton } from '@runly/ui'
-import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Strikethrough, Underline } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { NumberStepper, Popover, PopoverContent, PopoverTrigger, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SliderRow, Textarea, ToolButton } from '@runly/ui'
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Strikethrough, TextCursorInput, Underline } from 'lucide-react'
 import { STUDIO_FONT_VARIANTS, STUDIO_FONT_VARIANT_LABELS as VARIANT_LABELS, studioFontStyle } from '../../../../../../shared/studio/fonts.js'
 import { StudioFontPicker } from '../StudioFontPicker.jsx'
 import { ColorPopover } from './StudioColorPicker.jsx'
@@ -8,6 +9,24 @@ const ALIGN = [['left', 'Alinear a la izquierda', AlignLeft], ['center', 'Centra
 
 // Only variants with a real bundled file for the family (no fake "No disponible" rows).
 export const availableVariants = family => Object.keys(STUDIO_FONT_VARIANTS).filter(variant => studioFontStyle(family, variant))
+
+// Edit the words from the toolbar, without touching the canvas: reliable on touch
+// when the on-screen keyboard was dismissed or the text is small and hard to tap.
+function Content({ selection, disabled, onPatch }) {
+  const field = useRef(null), [value, setValue] = useState(selection.text ?? '')
+  // Follow remote or canvas edits, but never rewrite what is being typed here.
+  useEffect(() => { if (field.current?.ownerDocument.activeElement !== field.current) setValue(selection.text ?? '') }, [selection.text])
+  return (
+    <Popover>
+      <PopoverTrigger asChild><ToolButton label="Editar el texto" side="bottom" disabled={disabled}><TextCursorInput /></ToolButton></PopoverTrigger>
+      <PopoverContent align="start" collisionPadding={12} className="w-[min(22rem,calc(100vw-1.5rem))] space-y-2 p-3">
+        <Textarea ref={field} aria-label="Contenido del texto" rows={4} disabled={disabled} value={value} className="text-base"
+          onChange={event => { setValue(event.target.value); onPatch({ text: event.target.value }) }} />
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">El cambio se ve en el lienzo mientras escribes.</p>
+      </PopoverContent>
+    </Popover>
+  )
+}
 
 function Paragraph({ selection, disabled, onPatch, live }) {
   const Icon = ALIGN.find(([value]) => value === (selection.textAlign ?? 'left'))?.[2] ?? AlignLeft
@@ -36,6 +55,7 @@ function Paragraph({ selection, disabled, onPatch, live }) {
 export function TextSelectionControls({ selection, disabled, onPatch, live }) {
   const variants = availableVariants(selection.fontFamily), variant = selection.fontVariant ?? 'regular'
   return <div role="group" aria-label="Formato de texto" className="flex min-w-0 flex-wrap items-center gap-1 max-sm:flex-nowrap max-sm:[&>*]:shrink-0">
+    <Content selection={selection} disabled={disabled} onPatch={onPatch} />
     <StudioFontPicker compact value={selection.fontFamily} disabled={disabled}
       onChange={fontFamily => onPatch({ fontFamily, fontVariant: studioFontStyle(fontFamily, variant) ? variant : 'regular' })} />
     {variants.length > 1 ? (

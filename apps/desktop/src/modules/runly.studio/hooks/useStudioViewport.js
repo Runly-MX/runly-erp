@@ -7,6 +7,8 @@ export function useStudioViewport(page, editorRef) {
   const zoomRef = useRef(zoom), handRef = useRef(hand)
   useEffect(() => { handRef.current = hand }, [hand])
   const frame = useRef(0), pending = useRef(null), desiredZoom = useRef(zoom)
+  // Touch text editing: { saved, moved } while the on-screen keyboard is in play.
+  const editing = useRef(null)
   const sync = useCallback(() => {
     const node = viewport.current, sheet = paper.current
     if (!node || !sheet) return
@@ -61,6 +63,8 @@ export function useStudioViewport(page, editorRef) {
   useEffect(() => {
     const node = viewport.current
     const observer = new ResizeObserver(() => {
+      // The keyboard shrinks this area: re-fitting would zoom the page out under the text being typed.
+      if (editing.current) return
       if (fitMode.current) fit()
       else if (pending.current) schedule(pending.current)
       else changeZoom(zoomRef.current)
@@ -91,7 +95,7 @@ export function useStudioViewport(page, editorRef) {
       first.target.dispatchEvent(new TouchEvent('touchmove', { ...init, touches: [first.touch], targetTouches: [first.touch] }))
       first.target.dispatchEvent(new TouchEvent('touchend', { ...init, touches: [], targetTouches: [] }))
     }
-    const own = event => { event.preventDefault(); event.stopPropagation() }
+    const own = event => { event.preventDefault(); event.stopPropagation(); if (editing.current) editing.current.moved = true }
     // The touch's pointerdown already reached the context menu trigger, which
     // starts a long-press timer; cancel it, since its pointerup is now ours.
     const cancelLongPress = (target, touch) => target?.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, pointerType: 'touch', isPrimary: true, clientX: touch.clientX, clientY: touch.clientY }))
@@ -174,6 +178,59 @@ export function useStudioViewport(page, editorRef) {
     fitMode.current = false
     schedule({ zoom: Math.max(0.05, Math.min(4, saved.zoom)), restore: saved })
   }, [schedule])
+  // On touch, typing on the canvas opens the keyboard over half the screen. Keep
+  // the line being written in the visible area at a readable size, and give the
+  // person their previous view back when editing ends (unless they moved it).
+  useEffect(() => {
+    if (!window.matchMedia?.('(pointer: coarse)').matches) return undefined
+    const isFabricInput = target => target instanceof Element && target.matches('textarea[data-fabric="textarea"]')
+    const MIN_FONT_PX = 16, TOP_MARGIN = 72, BOTTOM_MARGIN = 24, SIDE_MARGIN = 16
+    let timer = 0, watch = 0
+    // `onlyIfHidden`: while typing, move the view only when the caret line leaves the visible band.
+    function reveal(onlyIfHidden = false) {
+      const node = viewport.current, bounds = editorRef.current?.textEditingBounds?.()
+      if (!node || !paper.current || !bounds || !editing.current) return
+      const area = node.getBoundingClientRect(), vv = window.visualViewport
+      const top = Math.max(area.top, vv?.offsetTop ?? 0) + TOP_MARGIN, bottom = Math.min(area.bottom, vv ? vv.offsetTop + vv.height : area.bottom) - BOTTOM_MARGIN
+      const left = Math.max(area.left, vv?.offsetLeft ?? 0) + SIDE_MARGIN, right = Math.min(area.right, vv ? vv.offsetLeft + vv.width : area.right) - SIDE_MARGIN
+      if (bottom - top < 40 || right - left < 80) return
+      if (onlyIfHidden) {
+        const sheet = paper.current.getBoundingClientRect(), lineTop = sheet.top + bounds.caret.top * zoomRef.current, lineBottom = lineTop + bounds.caret.height * zoomRef.current
+        if (lineTop >= top - TOP_MARGIN / 2 && lineBottom <= bottom + BOTTOM_MARGIN / 2) return
+      }
+      const next = Math.min(4, Math.max(zoomRef.current, MIN_FONT_PX / Math.max(bounds.fontSize, 1)))
+      const fits = bounds.width * next <= right - left
+      fitMode.current = false
+      schedule({ zoom: next, doc: { x: fits ? bounds.left + bounds.width / 2 : bounds.left, y: bounds.caret.top + bounds.caret.height / 2 },
+        anchor: { x: fits ? (left + right) / 2 : left, y: (top + bottom) / 2 } })
+    }
+    const later = (delay = 120, onlyIfHidden = false) => { clearTimeout(timer); timer = setTimeout(() => reveal(onlyIfHidden), delay) }
+    function begin() {
+      if (!editing.current) {
+        const node = viewport.current
+        editing.current = { saved: { zoom: zoomRef.current, scrollLeft: node?.scrollLeft ?? 0, scrollTop: node?.scrollTop ?? 0 }, fit: fitMode.current, moved: false }
+        // The keyboard has no event of its own on every device; the edit ends when Fabric leaves editing.
+        watch = setInterval(() => { if (!editorRef.current?.isEditingText()) finish() }, 400)
+      }
+      later(250)
+    }
+    function finish() {
+      clearInterval(watch); clearTimeout(timer)
+      const session = editing.current; editing.current = null
+      if (!session || session.moved) return
+      if (session.fit) { fitMode.current = true; fit() } else restore(session.saved)
+    }
+    const focusin = event => { if (isFabricInput(event.target)) begin() }
+    const typing = event => { if (editing.current && isFabricInput(event.target)) later(80, true) }
+    document.addEventListener('input', typing)
+    const vv = window.visualViewport, onViewport = () => { if (editing.current) later(60) }
+    document.addEventListener('focusin', focusin)
+    vv?.addEventListener('resize', onViewport); vv?.addEventListener('scroll', onViewport)
+    return () => {
+      document.removeEventListener('focusin', focusin); document.removeEventListener('input', typing); vv?.removeEventListener('resize', onViewport); vv?.removeEventListener('scroll', onViewport)
+      clearInterval(watch); clearTimeout(timer); editing.current = null
+    }
+  }, [editorRef, fit, restore, schedule])
   // A viewport-sized gutter keeps cursor anchoring possible even when the
   // paper is smaller than the viewport (scroll cannot otherwise go negative).
   const paperStyle = { position: 'absolute', left: Math.max(48, size.width), top: Math.max(48, size.height), transform: `scale(${zoom})`, transformOrigin: 'top left', width: page.width, height: page.height }
