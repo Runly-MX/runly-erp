@@ -1,3 +1,5 @@
+import { modifyAwarenessUpdate } from 'y-protocols/awareness';
+
 export function createRealtimeAccessService({ prisma, broadcaster }) {
   async function revision() {
     const [row] = await prisma.$queryRaw`SELECT revision::text FROM realtime_authorization_revision WHERE id`;
@@ -43,8 +45,30 @@ export function createRealtimeAccessService({ prisma, broadcaster }) {
     if ((!note && !canvas && !typing) || !actorId || typeof event !== 'string' || event.length > 80) return false;
     if (JSON.stringify(payload ?? {}).length > 2_000_000) return false;
     if (!(await allowed(topic, actorId, note || canvas))) return false;
-    const user = await prisma.userProfile.findFirst({ where: { id: actorId, enabled: true }, select: { displayName: true } });
+    const user = await prisma.userProfile.findFirst({ where: { id: actorId, enabled: true }, select: { displayName: true, authUserId: true } });
     if (!user) return false;
+    let outgoingPayload = payload;
+    if (topic.startsWith('note:ydoc:') && event === 'awareness.update') {
+      // The channel grant authenticates access, not the identity inside Y.js
+      // awareness JSON. Rewrite it at the existing authenticated relay, using
+      // the standard protocol helper; never alter cursor/selection CRDT data.
+      if (typeof payload?.update !== 'string' || payload.update.length > 100_000) return false;
+      const id = user.authUserId ?? actorId;
+      try {
+        let states = 0;
+        const bytes = modifyAwarenessUpdate(new Uint8Array(Buffer.from(payload.update, 'base64')), (state) => {
+          if (++states > 200) throw new Error('Awareness demasiado grande');
+          if (state === null) return null;
+          if (!state || typeof state !== 'object' || Array.isArray(state)) throw new Error('Awareness invalido');
+          // Older clients can forward a roster at join. Reject such a packet
+          // rather than reattribute another person's state to this sender.
+          if (state.user?.id && state.user.id !== id) throw new Error('Identidad ajena');
+          const color = /^#[0-9a-f]{6}$/i.test(state.user?.color ?? '') ? state.user.color : '#64748b';
+          return { ...state, user: { id, name: user.displayName || 'Usuario', color, avatarUrl: null } };
+        });
+        outgoingPayload = { ...payload, update: Buffer.from(bytes).toString('base64') };
+      } catch { return false; }
+    }
     // Canvas peers identify cursors by the authenticated actor, never by a
     // client-supplied id.
     const outgoing = typing
@@ -52,7 +76,7 @@ export function createRealtimeAccessService({ prisma, broadcaster }) {
       : canvas ? { ...(payload ?? {}), actorId }
         : topic.startsWith('note:canvas:') && event === 'pointer'
           ? { ...(payload ?? {}), senderId: actorId, user: { id: actorId, name: user.displayName } }
-          : payload;
+          : outgoingPayload;
     await broadcaster.broadcastToChannel(topic, event, outgoing, { authorize: (tx) => allowed(topic, actorId, note || canvas, tx) });
     return true;
   }

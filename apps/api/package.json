@@ -52,6 +52,7 @@
     "stripe": "^22.2.0",
     "tailwindcss": "4.2.4",
     "web-push": "^3.6.7",
+    "y-protocols": "^1.0.7",
     "yauzl": "^3.4.0",
     "yjs": "^13.6.31",
     "zod": "latest"

@@ -251,6 +251,9 @@ importers:
       web-push:
         specifier: ^3.6.7
         version: 3.6.7
+      y-protocols:
+        specifier: ^1.0.7
+        version: 1.0.7(yjs@13.6.31)
       yauzl:
         specifier: ^3.4.0
         version: 3.4.0

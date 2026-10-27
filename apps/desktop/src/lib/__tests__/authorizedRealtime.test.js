@@ -5,12 +5,12 @@ import { authorizeRealtimeClient } from '../authorizedRealtime.js'
 test('protected sockets rotate grants, relay every write and stop all timers on logout', async () => {
   const original = { fetch: globalThis.fetch, setInterval: globalThis.setInterval, clearInterval: globalThis.clearInterval }
   const timers = new Set(), sockets = [], requests = []
-  let revision = '1', allowed = true
+  let revision = '1', allowed = true, identityProtocol = 1
   globalThis.setInterval = (fn) => { timers.add(fn); return fn }
   globalThis.clearInterval = (fn) => timers.delete(fn)
   globalThis.fetch = async (url, options) => {
     requests.push({ url, options })
-    return { ok: !options.body || allowed, json: async () => ({ revision, data: {} }) }
+    return { ok: !options.body || allowed, json: async () => ({ revision, identityProtocol, data: {} }) }
   }
   const client = {
     auth: { getSession: async () => ({ data: { session: { access_token: 'fixture-only' } } }) },
@@ -27,10 +27,13 @@ test('protected sockets rotate grants, relay every write and stop all timers on 
     const channel = client.channel('chat:presence:room').subscribe()
     await new Promise(setImmediate)
     assert.equal(sockets[0].topic, 'realtime:chat:presence:room@1')
+    assert.equal(channel.identityProtocol,1)
     revision = '2'
+    identityProtocol = undefined
     await Promise.all([...timers].map((fn) => fn()))
     assert.equal(sockets.length, 1)
     assert.equal(sockets[0].topic, 'realtime:chat:presence:room@2')
+    assert.equal(channel.identityProtocol,0)
     assert.equal(await channel.send({ event: 'typing', payload: { isTyping: true } }), 'ok')
     assert.equal(requests.at(-1).options.headers.Authorization, 'Bearer fixture-only')
     allowed = false

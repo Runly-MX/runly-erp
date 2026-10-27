@@ -40,13 +40,14 @@ export function authorizeRealtimeClient(client) {
   client.channel = (topic, options) => {
     if (!protectedTopic.test(topic)) return nativeChannel(topic, options)
     const bindings = []
-    let socket, currentRevision, callback, timer, closed = false, busy = false
+    let socket, currentRevision, callback, timer, closed = false, busy = false, identityProtocol = 0
     let tracked = false, presence = {}
     const sender = crypto.randomUUID()
     const emitPresence = (event, payload) => bindings.filter(([type, filter]) => type === 'presence' && filter.event === event).forEach(([, , fn]) => fn(payload))
     const wrapper = {
       topic: `realtime:${topic}`,
       get state() { return socket?.state ?? 'closed' },
+      get identityProtocol() { return identityProtocol },
       on(type, filter, fn) { bindings.push([type, filter, fn]); return wrapper },
       presenceState() { return presence },
       async track() { tracked = true; await heartbeat(); return 'ok' },
@@ -96,8 +97,9 @@ export function authorizeRealtimeClient(client) {
       if (closed || busy) return
       busy = true
       try {
-        const { revision } = await fetchRevision()
+        const { revision, identityProtocol: serverIdentityProtocol } = await fetchRevision()
         if (closed) return
+        identityProtocol = serverIdentityProtocol === 1 ? 1 : 0
         if (currentRevision !== revision) {
           if (socket) await nativeRemove(socket)
           if (closed) return

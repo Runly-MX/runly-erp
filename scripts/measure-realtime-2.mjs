@@ -10,6 +10,7 @@ import { chromium } from 'playwright'
 import { createStudioStack } from './fixtures/studio/supabase-stack.mjs'
 import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
 import { verifyRealtimeSecurity } from './fixtures/realtime-2/security.mjs'
+import { DEFAULT_CHANNEL_ROLES } from '../apps/api/src/routes/chat/chat-permissions-service.js'
 
 const require = createRequire(resolve('apps/api/package.json'))
 const { build } = require('esbuild'), { createClient } = require('@supabase/supabase-js')
@@ -20,7 +21,7 @@ const modules = (arg('modules') ?? 'canvas,notes,chat').split(',')
 const activities = (arg('activity') ?? 'idle,active').split(',')
 assert.ok(['before', 'after'].includes(phase)); assert.ok(seconds >= 5 && seconds <= 1800)
 assert.ok(counts.every(n => Number.isInteger(n) && n >= 1 && n <= 20))
-assert.ok(modules.every(name => ['canvas', 'notes', 'chat', 'chat-ui'].includes(name)))
+assert.ok(modules.every(name => ['canvas', 'notes', 'notes-canvas', 'chat', 'chat-ui'].includes(name)))
 assert.ok(activities.every(name => ['idle', 'active'].includes(name)))
 const image = arg('api-image')
 assert.match(image ?? '', /^runly-realtime2:[a-zA-Z0-9_-]+$/)
@@ -40,7 +41,8 @@ async function snapshot() {
     const id = await stack.compose(['ps', '-q', service])
     const stat = execFileSync('docker', ['exec', id, 'cat', '/sys/fs/cgroup/cpu.stat'], { encoding: 'utf8' })
     const memory = execFileSync('docker', ['exec', id, 'cat', '/sys/fs/cgroup/memory.current'], { encoding: 'utf8' })
-    containers[service] = { cpuSeconds: Number(stat.match(/usage_usec (\d+)/)[1]) / 1e6, cgroupMemoryBytes: Number(memory) }
+    const status = service==='runly-api'?execFileSync('docker',['exec',id,'cat','/proc/1/status'],{encoding:'utf8'}):null
+    containers[service] = { cpuSeconds: Number(stat.match(/usage_usec (\d+)/)[1]) / 1e6, cgroupMemoryBytes: Number(memory), apiRssBytes:status?Number(status.match(/VmRSS:\s*(\d+)/)?.[1]??0)*1024:null, apiHeapBytes:null }
   }
   await stack.pool.query('SELECT pg_stat_clear_snapshot()')
   const tables = (await stack.pool.query("SELECT relname,n_tup_ins,n_tup_upd,n_tup_del FROM pg_stat_user_tables WHERE relname IN ('realtime_user_presence','notes','note_ydoc_state','canvas_object','chat_messages')")).rows
@@ -51,6 +53,8 @@ function difference(before, after) {
   return {
     cpuSeconds: Object.fromEntries(Object.entries(after.containers).map(([key, value]) => [key, value.cpuSeconds-before.containers[key].cpuSeconds])),
     cgroupMemoryBytes: Object.fromEntries(Object.entries(after.containers).map(([key,value]) => [key, { before: before.containers[key].cgroupMemoryBytes, after: value.cgroupMemoryBytes }])),
+    apiRssBytes:{before:before.containers['runly-api'].apiRssBytes,after:after.containers['runly-api'].apiRssBytes},
+    apiHeapBytes:null,
     tables: after.tables.map(row => ({ table: row.relname, ...Object.fromEntries(['n_tup_ins','n_tup_upd','n_tup_del'].map(key => [key, Number(row[key])-Number(before.tables.find(old=>old.relname===row.relname)?.[key]??0)])) })),
     // Keep normalized SQL only in ignored local artifacts, no parameter values.
     queries: after.queries.map(row => { const old=before.queries.find(value=>value.queryid===row.queryid);return { query: row.query, calls: row.calls-(old?.calls??0), ms: row.total_exec_time-(old?.total_exec_time??0), category: /realtime.*messages|runly_.*access|realtime_authorization_revision/.test(row.query)?'authorization': /^(INSERT|UPDATE|DELETE)/i.test(row.query)?'write': /^SELECT/i.test(row.query)?'read':'other' } }).filter(row=>row.calls>0),
@@ -89,8 +93,18 @@ try {
     const {data:session,error}=await client.auth.signInWithPassword(actor); if(error)throw error
     actor.session=session.session
   }
+  const roleIds = {}
+  for(const role of DEFAULT_CHANNEL_ROLES) {
+    const row=(await stack.pool.query('INSERT INTO chat_channel_roles(conversation_id,name,position,is_system,permissions) VALUES($1,$2,$3,$4,$5::jsonb) RETURNING id',[conversation.id,role.name,role.position,role.isSystem,JSON.stringify(role.permissions)])).rows[0]
+    roleIds[role.name]=row.id
+  }
+  await stack.pool.query('UPDATE chat_conversation_members SET role_id=CASE WHEN user_id=$2 THEN $3::uuid ELSE $4::uuid END WHERE conversation_id=$1',[conversation.id,actors[0].id,roleIds.Owner,roleIds.Member])
   await stack.compose(['up','-d','runly-api'], { log: join(output,'api-start.log') })
   for(let attempt=0;;attempt++) { if(await fetch(stack.urls.api+'/public/website/desktop/config').then(r=>r.ok).catch(()=>false))break;if(attempt>=120)throw Error('API_NOT_READY');await wait(500) }
+  if(modules.includes('chat-ui')) {
+    const response=await fetch(`${stack.urls.api}/chat/conversations/${conversation.id}/messages`,{method:'POST',headers:{Authorization:`Bearer ${actors[0].session.access_token}`,'X-Runly-Company-Id':company.id,'Content-Type':'application/json'},body:JSON.stringify({body:'Preflight'})})
+    assert.equal(response.status,201,'Chat fixture must be authorized to send before measuring')
+  }
   const boundary=join(output,'boundary.js')
   await writeFile(boundary, `
     import {createClient} from '@supabase/supabase-js'
@@ -111,7 +125,7 @@ try {
       runly=createRunlyClient({baseUrl:c.api,getActiveCompanyId:()=>c.companyId})
     }
   `)
-  const bundle=await build({entryPoints:['scripts/fixtures/realtime-2/browser.jsx'],bundle:true,write:false,platform:'browser',format:'esm',jsx:'automatic',nodePaths:[resolve('apps/desktop/node_modules')],plugins:[{name:'configuration',setup(b){
+  const bundle=await build({entryPoints:['scripts/fixtures/realtime-2/browser.jsx'],bundle:true,write:false,platform:'browser',format:'esm',jsx:'automatic',define:{'import.meta.env.REALTIME_2_CANVAS':String(modules.includes('notes-canvas'))},nodePaths:[resolve('apps/desktop/node_modules')],plugins:[{name:'configuration',setup(b){
     b.onResolve({filter:/^realtime-2-boundary$|\/auth\/AuthProvider(?:\.jsx)?$|\/company\/ActiveCompanyProvider(?:\.jsx)?$|(?:^|\/)(?:supabase|runly)(?:\.js)?$|\/runtimeConfig\.js$/},()=>({path:boundary}))
     if(sourceRef)b.onLoad({filter:/apps[\\/]desktop[\\/]src[\\/].*\.(js|jsx)$/},({path})=>({contents:execFileSync('git',['show',`${sourceRef}:${path.slice(resolve('.').length+1).replaceAll('\\','/')}`],{encoding:'utf8'}),loader:path.endsWith('.jsx')?'jsx':'js'}))
   }}]})
@@ -122,8 +136,8 @@ try {
   browser=await chromium.launch({channel:'chrome',headless:true})
   for(const module of modules) for(const n of counts) for(const activity of activities) {
     const active = activity === 'active'
-    const contexts=[],pages=[],pending=[],metrics={http:{},httpStarted:0,httpFailed:0,browserErrors:[],wsSent:0,wsReceived:0,wsBytesSent:0,wsBytesReceived:0,httpBodyBytes:0,httpTransferBytes:0,httpErrors:0,latencies:[]}
-    let recording=false
+    const contexts=[],pages=[],pending=[],metrics={http:{},joinHttp:{},joinBroadcastEvents:{},broadcastEvents:{},joinBodyBytes:0,httpStarted:0,httpFailed:0,browserErrors:[],wsSent:0,wsReceived:0,wsBytesSent:0,wsBytesReceived:0,httpBodyBytes:0,httpTransferBytes:0,httpErrors:0,latencies:[]}
+    let recording=false,joining=true
     for(let i=0;i<n;i++) {
       const context=await browser.newContext(),p=await context.newPage();contexts.push(context);pages.push(p)
       p.on('pageerror',error=>{metrics.browserErrors.push(error.message)})
@@ -131,14 +145,28 @@ try {
       p.on('requestfailed',request=>{if(recording&&request.url().startsWith(stack.urls.api))metrics.httpFailed++})
       const cdp=await context.newCDPSession(p);await cdp.send('Network.enable')
       for(const [event,direction]of [['Network.webSocketFrameSent','Sent'],['Network.webSocketFrameReceived','Received']])cdp.on(event,e=>{if(recording){metrics[`ws${direction}`]++;metrics[`wsBytes${direction}`]+=Buffer.byteLength(e.response.payloadData,e.response.opcode===2?'base64':'utf8')}})
-      p.on('requestfinished',request=>{if(!recording||!request.url().startsWith(stack.urls.api))return;const key=request.method()+' '+new URL(request.url()).pathname;metrics.http[key]=(metrics.http[key]??0)+1;metrics.latencies.push(request.timing().responseEnd);pending.push((async()=>{const response=await request.response();if(!response.ok())metrics.httpErrors++;metrics.httpBodyBytes+=Buffer.byteLength(request.postData()??'')+(await response.body()).length;const s=await request.sizes();metrics.httpTransferBytes+=s.requestBodySize+s.requestHeadersSize+s.responseBodySize+s.responseHeadersSize})().catch(()=>{}))})
+      p.on('requestfinished',request=>{
+        if((!recording&&!joining)||!request.url().startsWith(stack.urls.api))return
+        const key=request.method()+' '+new URL(request.url()).pathname,isJoin=joining
+        const counts=isJoin?metrics.joinHttp:metrics.http;counts[key]=(counts[key]??0)+1
+        try{const event=JSON.parse(request.postData()??'{}').event;if(event){const events=isJoin?metrics.joinBroadcastEvents:metrics.broadcastEvents;events[event]=(events[event]??0)+1}}catch{/* not a JSON request */}
+        if(!isJoin)metrics.latencies.push(request.timing().responseEnd)
+        pending.push((async()=>{const response=await request.response();const bytes=Buffer.byteLength(request.postData()??'')+(await response.body()).length;if(isJoin){metrics.joinBodyBytes+=bytes;return}if(!response.ok())metrics.httpErrors++;metrics.httpBodyBytes+=bytes;const s=await request.sizes();metrics.httpTransferBytes+=s.requestBodySize+s.requestHeadersSize+s.responseBodySize+s.responseHeadersSize})().catch(()=>{}))
+      })
       await p.goto(`http://127.0.0.1:${server.address().port}`);await p.waitForFunction(()=>!!window.start)
       await p.evaluate(input=>window.start(input),{module,api:stack.urls.api,url:stack.urls.kong,key:stack.secret.SUPABASE_ANON_KEY,session:actors[i].session,token:actors[i].session.access_token,actorId:actors[i].id,companyId:company.id,boardId:board.id,pageId:page.id,noteId:note.id,conversationId:conversation.id})
       await p.waitForFunction(()=>window.state().ready,null,{timeout:25000})
     }
     if(module === 'canvas' || module === 'chat') for(const p of pages) await p.waitForFunction(({n,module})=>window.state().peers >= (module==='canvas'?n-1:n),{n,module},{timeout:20000})
     await wait(1200)
+    if(module==='notes' && n>=2 && process.argv.includes('--compatibility')) {
+      await pages[0].evaluate(()=>window.forgeAwareness())
+      await pages[1].waitForFunction(()=>window.state().awarenessPeers.some(Boolean),null,{timeout:10000})
+      await wait(200)
+      assert.ok((await pages[1].evaluate(()=>window.state().awarenessPeers)).every(user=>user?.name!=='Forged name'),'Unverified peer identity displayed')
+    }
     const stateBefore=await Promise.all(pages.map(p=>p.evaluate(()=>window.state())))
+    joining=false
     const before=await snapshot(),begin=Date.now(); recording=true
     if(active)await Promise.all(pages.map(p=>p.evaluate(()=>window.active())))
     await wait(seconds*1000)
@@ -151,6 +179,31 @@ try {
     results.push(result)
     await writeFile(join(output,'results.json'),JSON.stringify({phase,source,sourceMode:sourceRef?'committed':'working tree',bundleSha256,image,capacity,stack:stack.name,scope:'production transports and optional Chat hooks; not full editors',results},null,2))
     console.log(JSON.stringify({module,users:n,active,http:metrics.http,cpu:result.resources.cpuSeconds,httpErrors:metrics.httpErrors}))
+    if(module==='notes-canvas' && n>=2 && process.argv.includes('--scene-regression')) {
+      await pages[0].evaluate(()=>window.newerScene())
+      await pages[1].evaluate(()=>window.oldScene())
+      await wait(700)
+      const version=await pages[0].evaluate(()=>window.state().sceneVersions.find(([id])=>id==='shape-0')?.[1])
+      await writeFile(join(output,`scene-regression-${n}.json`),JSON.stringify({version,snapshotRewound:version!==9},null,2))
+      if(phase==='after')assert.equal(version,9,'Delayed snapshot overwrote a newer local element')
+    }
+    if(module==='notes' && n>=2 && process.argv.includes('--recovery')) {
+      const a=pages[0],b=pages[1]
+      await a.route('**/realtime/broadcast',route=>route.abort())
+      await a.evaluate(()=>window.localText('offline-A'))
+      await b.evaluate(()=>window.localText('online-B'))
+      await wait(200)
+      await Promise.all([a.evaluate(()=>window.persist()),b.evaluate(()=>window.persist())])
+      await Promise.all([a.evaluate(()=>window.persist()),b.evaluate(()=>window.persist())])
+      await a.unroute('**/realtime/broadcast')
+      await a.evaluate(()=>window.reconnect())
+      await a.waitForFunction(()=>window.state().ready,null,{timeout:20000})
+      await wait(500)
+      const recovered=await Promise.all([a,b].map(p=>p.evaluate(()=>window.state().text)))
+      assert.equal(recovered[0],recovered[1],'HTTP catch-up and reconnect failed to recover lost broadcasts')
+      assert.ok(recovered[0].includes('offline-A') && recovered[0].includes('online-B'))
+      await writeFile(join(output,`recovery-${n}.json`),JSON.stringify({passed:true,scenario:'Browser broadcast aborted; concurrent real API merge/save and reconnect',characters:recovered[0].length},null,2))
+    }
     for(const p of pages)await p.evaluate(()=>window.stop())
     for(const context of contexts)await context.close()
     await wait(1000)

@@ -1858,7 +1858,7 @@ app.route("/", createIdentitySessionsRouter({ prisma, supabaseAdmin, authMiddlew
 const realtimeAccess = createRealtimeAccessService({ prisma, broadcaster });
 app.get('/realtime/revision', async (c) => {
   c.header('Cache-Control', 'no-store');
-  return c.json({ revision: await realtimeAccess.revision() });
+  return c.json({ revision: await realtimeAccess.revision(), identityProtocol: 1 });
 });
 app.post('/realtime/broadcast', authMiddleware, async (c) => {
   const context = await getOrLoadUserContext(c);

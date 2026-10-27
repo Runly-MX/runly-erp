@@ -6,6 +6,7 @@ const require = createRequire(new URL('../../../apps/api/package.json', import.m
 const { createClient } = require('@supabase/supabase-js')
 const { PrismaClient } = require('@prisma/client'), { PrismaPg } = require('@prisma/adapter-pg')
 const Y = require('yjs')
+const awarenessProtocol = require('y-protocols/awareness')
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 // Must only be called with the verified, newly-created fixture. No environment URLs.
@@ -106,7 +107,35 @@ export async function verifyRealtimeSecurity(stack, { actors, data, board, note,
     assert.notEqual(unpublished.status,'SUBSCRIBED')
     checks.push('Real Realtime RLS denies private anonymous/foreign joins; public read-only joins and unpublication rotates topic')
 
+    const noteChannel=await join(actors[0],`${topics[1]}@${unpublishedRevision}`)
+    assert.equal(noteChannel.status,'SUBSCRIBED')
+    const identityDoc=new Y.Doc(),observedDoc=new Y.Doc(),identityAwareness=new awarenessProtocol.Awareness(identityDoc),observedAwareness=new awarenessProtocol.Awareness(observedDoc)
+    let identityReceived=false
+    noteChannel.channel.on('broadcast',{event:'awareness.update'},({payload})=>{
+      awarenessProtocol.applyAwarenessUpdate(observedAwareness,new Uint8Array(Buffer.from(payload.update,'base64')),'server')
+      identityReceived=true
+    })
+    try {
+      identityAwareness.setLocalState({user:{id:actors[0].session.user.id,name:'Forged name',avatarUrl:'https://avatar.example.test/fake'},cursor:{anchor:1,head:2}})
+      const sendIdentity=()=>relay(actors[0],topics[1],'awareness.update',{update:Buffer.from(awarenessProtocol.encodeAwarenessUpdate(identityAwareness,[identityDoc.clientID])).toString('base64')})
+      assert.equal((await sendIdentity()).status,200)
+      for(let i=0;i<50&&!identityReceived;i++)await wait(50)
+      assert.equal(identityReceived,true)
+      const state=observedAwareness.getStates().get(identityDoc.clientID)
+      observations.awarenessNameVerified=state?.user?.name!=='Forged name'
+      if(phase==='after'){assert.equal(observations.awarenessNameVerified,true);assert.equal(state.user.id,actors[0].session.user.id);assert.equal(state.user.avatarUrl,null);assert.deepEqual(state.cursor,{anchor:1,head:2})}
+      identityAwareness.setLocalStateField('user',{id:foreign.session.user.id,name:'Foreign'})
+      observations.awarenessIdentitySpoofRejected=(await sendIdentity()).status>=400
+      if(phase==='after')assert.equal(observations.awarenessIdentitySpoofRejected,true)
+    } finally {identityAwareness.destroy();observedAwareness.destroy();identityDoc.destroy();observedDoc.destroy()}
+    checks.push('Y.js awareness attribution tested through real HTTP relay and private Realtime delivery')
+
     // Real concurrent API persistence and reopen. No mocked database or Auth.
+    const beforeSave=await request(`/notes/${note.id}/ydoc`,actors[0])
+    const previousDoc=new Y.Doc()
+    if(beforeSave.body.data?.state)Y.applyUpdate(previousDoc,new Uint8Array(Buffer.from(beforeSave.body.data.state,'base64')))
+    const previousCharacters=previousDoc.getText('benchmark').length
+    previousDoc.destroy()
     const a=new Y.Doc(),b=new Y.Doc()
     a.getText('benchmark').insert(0,'A'.repeat(128000));b.getText('benchmark').insert(0,'B')
     const save = (actor,doc) => request(`/notes/${note.id}/ydoc`,actor,{state:Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64'),stateVector:Buffer.from(Y.encodeStateVector(doc)).toString('base64')},'PUT')
@@ -114,7 +143,7 @@ export async function verifyRealtimeSecurity(stack, { actors, data, board, note,
     for(const saved of saves)assert.equal(saved.status,200)
     const persisted=await request(`/notes/${note.id}/ydoc`,actors[0])
     const reopened=new Y.Doc();Y.applyUpdate(reopened,new Uint8Array(Buffer.from(persisted.body.data.state,'base64')))
-    assert.equal(reopened.getText('benchmark').length,128001)
+    assert.equal(reopened.getText('benchmark').length,previousCharacters+128001)
     assert.ok((await save(viewer,b)).status>=400)
     a.destroy();b.destroy();reopened.destroy()
     checks.push('Large Y.Doc concurrent API saves merge without loss, reopen and read-only save denial')

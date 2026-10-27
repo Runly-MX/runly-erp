@@ -106,3 +106,32 @@ Con una demora HTTP local inyectada de 750 ms, la rotación de revisión esperó
 769.9 ms al broadcaster. Se conserva `FOR SHARE` durante el envío: moverlo fuera
 de la transacción sin otro protocolo de autorización sería inseguro. No se introduce
 outbox, rol o migración por este hallazgo; primero corregir el uso del pool.
+
+## Cambios Y.js y transición de identidad
+
+Batch local máximo 80 ms, 256 KiB antes de flush: `Y.mergeUpdates`, sin convertir
+el contenido a snapshots LWW. Los deltas de guardado, CAS, missing updates, IME y
+flush al cerrar conservan sus contratos. Se mantiene full-state al reconectar:
+suprimirlo sin handshake compatible y recuperación pública probada sería prematuro.
+Se elimina el log por cada update remoto. Awareness solo emite el clientID propio,
+no vuelve a difundir la identidad de todos los peers al conectar/expirar.
+
+El relay usa `modifyAwarenessUpdate` de `y-protocols` (dependencia API explícita,
+misma versión ya usada por el editor). Conserva clocks y selección; normaliza
+nombre/id desde el perfil y rechaza estados atribuidos a otra cuenta. No certifica
+el clientID Y.js como una sesión ni impide todas las interferencias efímeras de un
+editor malicioso. El avatar declarado por el navegador se omite: iniciales hasta
+disponer de una fuente autorizada, sin añadir consultas por cursor.
+
+`/realtime/revision` anuncia `identityProtocol: 1`. El wrapper lee esa capacidad
+del HTTP del servidor, nunca del Broadcast. API antigua + Web nueva mantiene
+awareness posicional con nombre genérico. API nueva + Web antigua recibe identidad
+normalizada en el formato awareness existente; un roster antiguo con identidades
+mezcladas se rechaza y los updates propios posteriores siguen funcionando.
+Sin cambios SQL ni privilegios nuevos en realtime. Mantener orden API primero
+para que también los clientes antiguos reciban la protección del relay.
+
+Corrida Y.js posterior de 60 s: 603/3017/6035 Broadcast HTTP con 1/5/10 editores;
+convergencia en los tres. Con 5 usuarios CPU API/PG/Realtime 16.75/15.51/9.55 s,
+frente a 50.75/55.39/34.30 s de la base sana. Con 10, comparar entrega además de CPU:
+la base falló, la nueva corrida entregó aproximadamente el doble de HTTP.

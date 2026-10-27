@@ -34,5 +34,11 @@ refactors profundos de B/C/D sin línea base. No migrar instalaciones existentes
   Evento `canvas.changed` reservado al backend. Comparación 60 s con 1/5/10 y pruebas
   Auth/RLS posteriores completadas; 223 tests Canvas pasaron. Pendiente: validar
   visualmente el editor completo y los escenarios extendidos antes del GO.
-- C/D/E: pendientes; conservar los resultados fallidos de Notes con 10 usuarios y
-  comparar integridad además de consumo. No considerar esa caída de tráfico un éxito.
+- C1: Y.js agrupa updates locales con merge CRDT, ventana máxima 80 ms y límite
+  de memoria; conserva snapshot de recuperación y persistencia. Awareness publica
+  solo estado propio; relay normaliza identidad con el protocolo estándar, y Web
+  nueva usa identidad genérica con API antigua. Corridas 60 s 1/5/10 convergieron;
+  275 tests Notes pasaron antes de añadir pruebas de identidad adicionales.
+  Conservar el resultado fallido de base con 10; no comparar su tráfico perdido
+  como si fuera una implementación sana. C2: Excalidraw pendiente de medición.
+- D/E: pendientes. Soak de 10 minutos y recuperación HTTP/compatibilidad en curso.

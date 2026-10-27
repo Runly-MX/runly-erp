@@ -3,6 +3,7 @@ import { authorizeRealtimeClient } from '../../../lib/authorizedRealtime.js'
 import * as Y from 'yjs'
 import * as awarenessProtocol from 'y-protocols/awareness'
 import { createUpdateGate } from './updateGate.js'
+import { createUpdateBatch } from './updateBatch.js'
 
 // btoa(String.fromCharCode(...bytes)) blows the call stack once a Y.js update or
 // full-document state grows past ~100 KB. Encode in fixed-size chunks instead.
@@ -32,6 +33,13 @@ export function extractServerYState(res) {
   const payload = res && typeof res === 'object' && res.data != null ? res.data : res
   const state = payload?.state
   return typeof state === 'string' && state.length > 0 ? state : null
+}
+
+export function prepareAwarenessUpdate(update, identityProtocol) {
+  if (identityProtocol === 1) return update
+  return awarenessProtocol.modifyAwarenessUpdate(update, state => state === null ? null : ({
+    ...state, user: { id: null, name: 'Colaborador', color: '#64748b', avatarUrl: null },
+  }))
 }
 
 export class SupabaseYjsProvider {
@@ -74,6 +82,7 @@ export class SupabaseYjsProvider {
 
     // Remote doc updates wait here while an IME composition is active.
     this._remoteGate = createUpdateGate((bytes) => Y.applyUpdate(this.ydoc, bytes, 'broadcast'))
+    this._localBatch = createUpdateBatch(bytes => this._send('ydoc.update', bytesToBase64(bytes)))
 
     this._init(runly, token)
   }
@@ -139,16 +148,18 @@ export class SupabaseYjsProvider {
       .on('broadcast', { event: 'ydoc.update' }, ({ payload }) => {
         try {
           this._remoteGate.push(base64ToBytes(payload.update))
-          console.debug('[notes/yjs] applied remote ydoc.update')
         } catch (err) {
           console.warn('[notes/yjs] bad ydoc.update payload:', err?.message ?? err)
         }
       })
       .on('broadcast', { event: 'awareness.update' }, ({ payload }) => {
         try {
+          // Older relays forward browser-declared identity. Keep positions
+          // compatible without presenting those names as verified.
+          const update = prepareAwarenessUpdate(base64ToBytes(payload.update), this._channel.identityProtocol)
           awarenessProtocol.applyAwarenessUpdate(
             this.awareness,
-            base64ToBytes(payload.update),
+            update,
             'broadcast',
           )
         } catch (err) {
@@ -167,8 +178,10 @@ export class SupabaseYjsProvider {
           // A readOnly (public) provider never sends — note_ydoc_send stays
           // authenticated-only, so this would just be rejected by RLS anyway.
           if (!this._readOnly) {
+            // The full CRDT update already contains every queued local change.
+            this._localBatch.clear()
             this._broadcastFullState()
-            this._broadcastAwareness([...this.awareness.getStates().keys()])
+            this._broadcastAwareness([this.awareness.clientID])
           }
         } else if (
           status === 'CHANNEL_ERROR' ||
@@ -188,7 +201,7 @@ export class SupabaseYjsProvider {
     if (!this._readOnly) {
       this._updateHandler = (update, origin) => {
         if (origin === 'server-load' || origin === 'broadcast') return
-        this._send('ydoc.update', bytesToBase64(update))
+        this._localBatch.push(update)
       }
       this.ydoc.on('update', this._updateHandler)
 
@@ -216,8 +229,11 @@ export class SupabaseYjsProvider {
   }
 
   _broadcastAwareness(clientIds) {
-    if (!clientIds || clientIds.length === 0) return
-    const update = awarenessProtocol.encodeAwarenessUpdate(this.awareness, clientIds)
+    // Expiry of a remote peer is local housekeeping, not our own identity to
+    // retransmit. Only publish this tab's awareness, including its removal.
+    const localIds = (clientIds ?? []).filter(id => id === this.awareness.clientID)
+    if (!localIds.length) return
+    const update = awarenessProtocol.encodeAwarenessUpdate(this.awareness, localIds)
     this._send('awareness.update', bytesToBase64(update))
   }
 
@@ -230,6 +246,8 @@ export class SupabaseYjsProvider {
   }
 
   destroy() {
+    this._localBatch.flush()
+    this._localBatch.clear()
     this._destroyed = true
     this._remoteGate.destroy()
     this.connected = false
