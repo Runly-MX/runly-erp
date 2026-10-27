@@ -87,4 +87,68 @@ export const chip = (x, y, width, height, fill, label, ink, { font = 'Space Mono
     text(x, y + (height - size * 1.16) / 2, width, size, ink, label, { font, variant, align: 'center', lineHeight: 1, spacing })]
 }
 
+// Hex color interpolation (documents have no gradient paint, so gradients are bands).
+export const mix = (from, to, t) => {
+  const a = [1, 3, 5].map(i => parseInt(from.slice(i, i + 2), 16)), b = [1, 3, 5].map(i => parseInt(to.slice(i, i + 2), 16))
+  return `#${a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, '0')).join('')}`
+}
+
+// Linear gradient as stacked bands (vertical by default; `across` for left to right).
+export const gradientBands = (x, y, width, height, from, to, steps = 32, { across = false } = {}) =>
+  Array.from({ length: steps }, (_, index) => {
+    const t = steps === 1 ? 0 : index / (steps - 1), fill = mix(from, to, t)
+    // 1px overlap hides seams from rounding.
+    return across ? box(x + Math.floor((width / steps) * index), y, Math.ceil(width / steps) + 1, height, fill)
+      : box(x, y + Math.floor((height / steps) * index), width, Math.ceil(height / steps) + 1, fill)
+  })
+
+// Dots that grow along one direction (halftone print effect).
+export const halftone = (x, y, columns, rows, gap, maxSize, fill, { toward = 'down', opacity } = {}) =>
+  Array.from({ length: columns * rows }, (_, index) => {
+    const column = index % columns, row = Math.floor(index / columns)
+    const t = { down: row / (rows - 1), up: 1 - row / (rows - 1), right: column / (columns - 1), left: 1 - column / (columns - 1) }[toward]
+    const size = Math.max(2, Math.round(maxSize * t))
+    return circle(x + column * gap + (maxSize - size) / 2, y + row * gap + (maxSize - size) / 2, size, fill, { opacity })
+  })
+
+// Graph-paper grid made of thin bars.
+export const gridLines = (x, y, width, height, step, fill, { weight = 1, opacity } = {}) => [
+  ...Array.from({ length: Math.floor(width / step) + 1 }, (_, index) => box(x + index * step, y, weight, height, fill, { opacity })),
+  ...Array.from({ length: Math.floor(height / step) + 1 }, (_, index) => box(x, y + index * step, width, weight, fill, { opacity }))]
+
+// Position for a w×h box whose center is (cx, cy) once turned `rotation` degrees
+// (rotation happens around the top-left corner).
+export const centered = (cx, cy, width, height, rotation = 0) => {
+  const angle = rotation * Math.PI / 180, dx = width / 2, dy = height / 2
+  return [Math.round(cx - (dx * Math.cos(angle) - dy * Math.sin(angle))), Math.round(cy - (dx * Math.sin(angle) + dy * Math.cos(angle)))]
+}
+
+// Pointed burst (comic sticker): squares turned around a shared center.
+export const starburst = (cx, cy, size, fill, { layers = 4, ...style } = {}) =>
+  Array.from({ length: layers }, (_, index) => {
+    const rotation = (90 / layers) * index, [x, y] = centered(cx, cy, size, size, rotation)
+    return box(x, y, size, size, fill, { rotation, ...style })
+  })
+
+// Concentric outline rings.
+export const rings = (cx, cy, sizes, stroke, { weight = 3, opacity, dash = 'solid' } = {}) =>
+  sizes.map(size => circle(cx - size / 2, cy - size / 2, size, stroke, { noFill: true, strokeWidth: weight, stroke, opacity, dash }))
+
+// Zigzag as one polyline.
+export const zigzag = (x, y, width, height, teeth, fill, { weight = 8, opacity } = {}) =>
+  line(x, y, width, height, Array.from({ length: teeth * 2 + 1 }, (_, index) => [round(index / (teeth * 2)), index % 2]), fill, { weight, opacity })
+
+// Block with a hard offset shadow (neo-brutalist card).
+export const shadowBox = (x, y, width, height, fill, { offset = 12, shadow = '#000000', stroke = '#000000', strokeWidth = 4, radius = 0 } = {}) => [
+  box(x + offset, y + offset, width, height, shadow, { radius }),
+  box(x, y, width, height, fill, { radius, stroke, strokeWidth })]
+
+// Translucent strip of tape.
+export const tape = (x, y, width, height, fill, rotation = 0, opacity = 0.75) => box(x, y, width, height, fill, { rotation, opacity })
+
+// Checkerboard of squares.
+export const checker = (x, y, columns, rows, size, fill, opacity) =>
+  Array.from({ length: columns * rows }, (_, index) => ({ column: index % columns, row: Math.floor(index / columns) }))
+    .filter(({ column, row }) => (column + row) % 2 === 0).map(({ column, row }) => box(x + column * size, y + row * size, size, size, fill, { opacity }))
+
 export { icon }
