@@ -35,7 +35,8 @@ export function PageNumbers({ pageIndex, pageCount, siblings, onPageChange, clas
 
 // Page numbers with both responsive windows (compact below `sm`, wider from `sm` up) in one nav.
 // `onPageChange` receives a zero-based page index, like PageFooter.
-export function PageNumbersNav({ pageIndex, pageCount, onPageChange }) {
+export function PageNumbersNav({ pageIndex, pageCount, onPageChange, compact = false }) {
+  if (compact) return <nav aria-label="Paginación" className="flex items-center"><PageNumbers pageIndex={pageIndex} pageCount={pageCount} siblings={0} onPageChange={onPageChange} className="flex" /></nav>
   return (
     <nav aria-label="Paginación" className="flex items-center">
       <PageNumbers pageIndex={pageIndex} pageCount={pageCount} siblings={0} onPageChange={onPageChange} className="flex sm:hidden" />

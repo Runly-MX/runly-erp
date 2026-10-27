@@ -23,6 +23,8 @@ export function PageFooter({
   onPageSizeChange,
   pageSizeOptions = PAGE_SIZE_OPTIONS,
   allSelected = false,
+  hideCount = false,
+  compact = false,
   className,
 }) {
   const from = total === 0 ? 0 : pageIndex * pageSize + 1
@@ -35,10 +37,10 @@ export function PageFooter({
   const showPager = pageCount > 1
 
   return (
-    <div className={cn('flex flex-wrap items-center justify-between gap-3 px-1 pt-3 text-xs text-[hsl(var(--muted-foreground))]', className)}>
-      <p className="tabular-nums">
+    <div className={cn('flex flex-wrap items-center gap-3 px-1 pt-3 text-xs text-[hsl(var(--muted-foreground))]', hideCount ? 'justify-center' : 'justify-between', className)}>
+      {!hideCount && <p className="tabular-nums">
         {total === 0 ? 'Sin registros' : allSelected || total <= pageSize ? `${total} ${total === 1 ? 'registro' : 'registros'}` : `${from}–${to} de ${total} registros`}
-      </p>
+      </p>}
 
       {(showSize || showPager) && (
         <div className="flex items-center gap-4">
@@ -64,7 +66,7 @@ export function PageFooter({
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               {onPageChange ? (
-                <PageNumbersNav pageIndex={pageIndex} pageCount={pageCount} onPageChange={onPageChange} />
+                <PageNumbersNav pageIndex={pageIndex} pageCount={pageCount} onPageChange={onPageChange} compact={compact} />
               ) : (
                 <span className="min-w-20 text-center tabular-nums">Página {pageIndex + 1} de {pageCount}</span>
               )}

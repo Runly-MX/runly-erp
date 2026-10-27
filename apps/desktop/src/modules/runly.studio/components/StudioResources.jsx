@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DropdownMenu, DropdownMenuContent, DropdownMenuLabel,
-  DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger, EmptyState, ErrorState, SearchInput, SegmentedControl, Skeleton, ToolButton, cn } from '@runly/ui'
-import { ChevronLeft, ChevronRight, Expand, ImageOff, Images, ListFilter, Loader2, Plus, RefreshCw } from 'lucide-react'
+  DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger, EmptyState, ErrorState, PageFooter, SearchInput, SegmentedControl, Skeleton, cn } from '@runly/ui'
+import { Expand, ImageOff, Images, ListFilter, Loader2, Plus, RefreshCw } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { scheduled } from '../lib/resource-queue.js'
 import { draggable } from '../lib/studio-drag.js'
@@ -112,11 +112,9 @@ export function StudioResources({ token, disabled, onInsert, uploader }) {
         <ResourceCard key={asset.id} asset={asset} token={token} disabled={disabled || Boolean(inserting)} inserting={inserting === asset.id} onInsert={insert} onDragInsert={onInsert} onPreview={open} />
       ))}</div> : null}
       {totalPages > 1 ? (
-        <div className="flex items-center justify-between gap-1">
-          <ToolButton label="Página anterior" disabled={page === 1 || loading} onClick={() => setPage(value => value - 1)}><ChevronLeft /></ToolButton>
-          <span className="text-xs tabular-nums text-[hsl(var(--muted-foreground))]">{page} / {totalPages}</span>
-          <ToolButton label="Página siguiente" disabled={page >= totalPages || loading} onClick={() => setPage(value => value + 1)}><ChevronRight /></ToolButton>
-        </div>
+        <PageFooter hideCount compact pageIndex={page - 1} pageCount={totalPages} pageSize={result.pagination.pageSize ?? 1}
+          canPrevious={page > 1 && !loading} canNext={page < totalPages && !loading}
+          onPrevious={() => setPage(value => value - 1)} onNext={() => setPage(value => value + 1)} onPageChange={index => setPage(index + 1)} />
       ) : null}
       <Dialog open={Boolean(preview)} onOpenChange={value => { if (!value) close() }}>
         <DialogContent size="lg">

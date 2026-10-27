@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, ErrorState, SearchInput, SegmentedControl, SelectField, Skeleton, cn } from '@runly/ui'
-import { ChevronLeft, ChevronRight, ImageOff, Search } from 'lucide-react'
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, ErrorState, PageFooter, SearchInput, SegmentedControl, SelectField, Skeleton, cn } from '@runly/ui'
+import { ImageOff, Search } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { ICON_COLLECTIONS, LOCAL_ICON_COLLECTION } from '../../../../../shared/studio/licenses.js'
 import { scheduled } from '../lib/resource-queue.js'
@@ -82,10 +82,9 @@ function ProviderCatalog({tab,token,designId,disabled,onInsert}) {
         <p className="truncate px-0.5 pt-1.5 text-xs text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--foreground))]">{resource.title}</p>
       </div></li>)}
     </ul>
-    {q?<nav className="flex items-center justify-between gap-1" aria-label="Paginación de recursos">
-      <Button size="sm" variant="ghost" disabled={page===1||loading} onClick={()=>setPage(value=>value-1)}><ChevronLeft/>Anterior</Button><span className="text-xs">{page}</span>
-      <Button size="sm" variant="ghost" disabled={!result?.pagination.hasNext||loading} onClick={()=>setPage(value=>value+1)}>Siguiente<ChevronRight/></Button>
-    </nav>:null}
+    {q&&(page>1||result?.pagination.hasNext)?<PageFooter hideCount compact pageIndex={page-1} pageCount={result?.pagination.hasNext?page+1:page} pageSize={1}
+      canPrevious={page>1&&!loading} canNext={Boolean(result?.pagination.hasNext)&&!loading}
+      onPrevious={()=>setPage(value=>value-1)} onNext={()=>setPage(value=>value+1)} onPageChange={index=>setPage(index+1)}/>:null}
     <Dialog open={Boolean(preview)} onOpenChange={open=>{if(!open&&!inserting){setPreview(null);setError('')}}}>
       <DialogContent size="md"><DialogHeader><DialogTitle>{preview?.title}</DialogTitle><DialogDescription>Revisa el origen y las condiciones de uso antes de insertar.</DialogDescription></DialogHeader>
         {preview?<><div className="h-64 overflow-hidden rounded-xl"><CatalogImage key={preview.id} resource={preview} token={token} fit="contain"/></div>

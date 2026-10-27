@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ActionMenu, Button, EmptyState, ErrorState, SearchInput, SegmentedControl, Skeleton, cn } from '@runly/ui'
-import { Building2, ChevronLeft, ChevronRight, LayoutTemplate, SearchX, Sparkles, User } from 'lucide-react'
+import { ActionMenu, Button, EmptyState, ErrorState, PageFooter, SearchInput, SegmentedControl, Skeleton, cn } from '@runly/ui'
+import { Building2, LayoutTemplate, SearchX, Sparkles, User } from 'lucide-react'
 import { runly } from '../../../../lib/runly.js'
 import { StudioTemplateThumbnail } from '../StudioTemplateThumbnail.jsx'
 import { editedAgo, sizeLabel } from '../../lib/formats.js'
@@ -99,11 +99,8 @@ export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, 
         )
       })}
     </ul>
-    {result?.pagination.totalPages > 1 ? <nav className="flex items-center justify-center gap-2" aria-label="Paginación de plantillas">
-      <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(value => value - 1)}><ChevronLeft />Anterior</Button>
-      <span className="text-sm tabular-nums">{page} / {result.pagination.totalPages}</span>
-      <Button size="sm" variant="outline" disabled={page >= result.pagination.totalPages} onClick={() => setPage(value => value + 1)}>Siguiente<ChevronRight /></Button>
-    </nav> : null}
+    {!limit && result?.pagination.totalPages > 1 ? <PageFooter total={result.pagination.total} pageIndex={page - 1} pageCount={result.pagination.totalPages} pageSize={result.pagination.pageSize}
+      canPrevious={page > 1} canNext={page < result.pagination.totalPages} onPrevious={() => setPage(value => value - 1)} onNext={() => setPage(value => value + 1)} onPageChange={index => setPage(index + 1)} /> : null}
     <TemplatePreviewDialog templates={result?.data ?? []} template={preview} onChange={setPreview} onUse={onUse} creating={creating} actions={preview ? actions.items(preview) : []} />
     {actions.dialogs}
   </div>

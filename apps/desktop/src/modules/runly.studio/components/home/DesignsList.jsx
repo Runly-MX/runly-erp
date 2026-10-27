@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, ConfirmDialog, EmptyState, ErrorState } from '@runly/ui'
-import { ChevronLeft, ChevronRight, PenTool, Plus, SearchX } from 'lucide-react'
+import { Button, ConfirmDialog, EmptyState, ErrorState, PageFooter } from '@runly/ui'
+import { PenTool, Plus, SearchX } from 'lucide-react'
 import { toast } from 'sonner'
 import { runly } from '../../../../lib/runly.js'
 import { DesignCard, DesignCardSkeleton } from './DesignCard.jsx'
@@ -67,11 +67,9 @@ export function DesignsList({ token, scopeKey, q = '', shared = 'all', limit, cr
         description={removing ? `«${removing.name}» dejará de estar disponible para ti y sus colaboradores. Las plantillas y los archivos originales se conservarán.` : ''}
         confirmLabel="Eliminar diseño" onConfirm={remove} />
       {!limit && (page > 1 || all.length === PAGE_SIZE) ? (
-        <nav aria-label="Paginación de diseños" className="mt-5 flex items-center justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page === 1 || designs.isFetching} onClick={() => setPagination({filterKey,page:page-1})}><ChevronLeft />Anterior</Button>
-          <span className="min-w-20 text-center text-sm tabular-nums text-[hsl(var(--muted-foreground))]">Página {page}</span>
-          <Button variant="outline" size="sm" disabled={all.length !== PAGE_SIZE || designs.isFetching} onClick={() => setPagination({filterKey,page:page+1})}>Siguiente<ChevronRight /></Button>
-        </nav>
+        <PageFooter hideCount className="mt-2" pageIndex={page - 1} pageCount={all.length === PAGE_SIZE ? page + 1 : page} pageSize={PAGE_SIZE}
+          canPrevious={page > 1 && !designs.isFetching} canNext={all.length === PAGE_SIZE && !designs.isFetching}
+          onPrevious={() => setPagination({ filterKey, page: page - 1 })} onNext={() => setPagination({ filterKey, page: page + 1 })} onPageChange={index => setPagination({ filterKey, page: index + 1 })} />
       ) : null}
     </>
   )
