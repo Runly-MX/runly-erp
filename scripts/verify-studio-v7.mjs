@@ -15,6 +15,7 @@ import {verifyStudioMultipage} from './fixtures/studio/supabase-multipage.mjs'
 import {verifyV7Compatibility} from './fixtures/studio/v7-compatibility.mjs'
 import {inspectStudioWeb} from './lib/studio-web-verification.mjs'
 import {verifyStudioFinalUi} from './fixtures/studio/final-ui.mjs'
+import {verifyStudioTextMultipage} from './fixtures/studio/supabase-text-multipage.mjs'
 const arg=name=>process.argv.find(a=>a.startsWith(`--${name}=`))?.slice(name.length+3)
 const phase=arg('phase')??'all'
 assert.ok(['all','multipage','exports','compatibility','receipts','ui'].includes(phase))
@@ -43,7 +44,7 @@ try{
   const webContainer=await stack.compose(['ps','-q','runly-web']),webDir=join(stack.directory,'docker-web');await mkdir(webDir,{recursive:true});await command('docker',['cp',`${webContainer}:/usr/share/nginx/html/.`,webDir])
   result.bundle=await inspectStudioWeb(webDir,{forbiddenValues:[stack.secret.SUPABASE_SERVICE_ROLE_KEY,stack.secret.SUPABASE_JWT_SECRET,stack.secret.SUPABASE_POSTGRES_PASSWORD]})
   record('Actual nginx Web image: isolated runtime config, no server secrets, lazy Studio/Fabric')
-  if(['all','multipage'].includes(phase)){result.multipage=await verifyStudioMultipage(stack,data);result.multipagePdf=JSON.parse(await command('python',['scripts/fixtures/studio/v7-inspect-pdf.py',stack.directory]))}
+  if(['all','multipage'].includes(phase)){result.multipage=await verifyStudioMultipage(stack,data);result.multipagePdf=JSON.parse(await command('python',['scripts/fixtures/studio/v7-inspect-pdf.py',stack.directory]));result.textMultipage=await verifyStudioTextMultipage(stack,data)}
   if(phase==='all'){
   result.operations=await verifyStudioOperations(stack,data)
   record(`${result.operations.checks.length} collaboration/receipt/template/security groups passed`)

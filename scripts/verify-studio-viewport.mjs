@@ -156,6 +156,18 @@ try {
       assert.ok(error <= 1, `Pinch+pan drift ${error}`)
     }
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    const handle = await target.evaluate(async () => {
+      const { editor, view } = window.viewportTest
+      editor.current.deselect(); editor.current.select('text'); view.changeZoom(0.05)
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+      const paper = view.paper.current.getBoundingClientRect()
+      return { x: paper.left + 80 * 0.05 - 4, y: paper.top + 100 * 0.05 - 4, before: JSON.stringify(editor.current.snapshot()) }
+    })
+    // The drawn handle is 11 CSS px even at 5%; its 4px rim must be hittable.
+    await target.waitForTimeout(450) // Fabric suppresses ghost mouse input after touch.
+    await target.mouse.move(handle.x, handle.y); await target.mouse.down()
+    await target.mouse.move(handle.x - 10, handle.y - 10, { steps: 3 }); await target.mouse.up()
+    assert.notEqual(await target.evaluate(() => JSON.stringify(window.viewportTest.editor.current.snapshot())), handle.before, 'Visible control rim is not hittable after zoom')
     await context.close()
   }
   const workspaceResults = []

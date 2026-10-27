@@ -499,7 +499,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
     setSnappingEnabled(enabled){return editor.setSnappingOptions({enabled})},
     setSnappingOptions(patch){snapping=snappingOptions({...snapping,...patch});clearGuides();preferences();return {...snapping}},
     setGridOptions(patch){grid=gridOptions({...grid,...patch});clearGuides();preferences();return {...grid}},
-    setViewport(value){const next={...viewport,...value};viewportReferences(current.page,next,grid);const zoomed=next.zoom!==viewport.zoom;viewport=next;clearGuides();preferences();if(zoomed){styleControls(canvas,next.zoom);canvas.renderAll()}
+    setViewport(value){const next={...viewport,...value};viewportReferences(current.page,next,grid);const zoomed=next.zoom!==viewport.zoom;viewport=next;clearGuides();preferences();if(zoomed){styleControls(canvas,next.zoom);canvas.getActiveObject()?.setCoords();canvas.renderAll()}
       canvas.calcOffset();const text=canvas.getActiveObject();if(text?.isEditing)text.updateTextareaPosition()},
     getEditorPreferences(){return {snapping:{...snapping},...viewportReferences(current.page,viewport,grid)}},
     transformGroup(groupId,options={}){writable();return enqueue(async()=>{
