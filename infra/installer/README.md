@@ -1032,6 +1032,16 @@ node recover-studio-realtime.mjs
 La recuperación y sus comprobaciones se describen en
 [Studio: recuperación de migración](../../docs/deployment/STUDIO_REALTIME_MIGRATION_RECOVERY.md).
 
+En modo `external`, el setup también verifica y prepara los permisos antes de
+Prisma mediante la conexión `DIRECT_URL` (o `DATABASE_URL`). Si esa cuenta ya
+tiene los permisos necesarios, no requiere configuración adicional. Si no los
+tiene, se detiene antes de crear un intento fallido de migración e indica la
+preparación que falta. Puede utilizar una conexión del propietario en
+`.secrets/studio-admin.env`, exclusivamente durante la preparación; no se añade
+a API ni worker. Esto no permite eludir las restricciones de Supabase alojado:
+si el proveedor no permite otorgar esos privilegios, hace falta su intervención
+o un diseño de transporte distinto para Studio.
+
 # Bases compartidas y actualizaciones sin inicialización
 
 La API aplica migraciones y seed al arrancar por defecto. `--skip-migrate` del

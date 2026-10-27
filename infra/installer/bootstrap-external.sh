@@ -32,6 +32,10 @@ files=(
   lib/transcriber-db.mjs
   lib/instance-identity.mjs
   lib/backup-config.mjs
+  lib/studio-realtime-db.mjs
+  lib/studio-realtime-external.mjs
+  studio-realtime-external.mjs
+  supabase/volumes/db/studio-realtime-role.sql
   package.json
   setup-external.mjs
   setup-external.sh

@@ -49,6 +49,45 @@ permite reintentar la migración. No la marca como aplicada ni elimina datos.
 El setup posterior ejecuta el SQL pendiente. Este uso de `--rolled-back` sigue
 el procedimiento de [recuperación de Prisma](https://www.prisma.io/docs/orm/v7/prisma-migrate/workflows/patching-and-hotfixing).
 
+## Instalaciones external
+
+El setup external corregido ejecuta una comprobación previa con la misma
+conexión y red que Prisma. Si el rol ya está preparado, continúa sin cambios.
+Si falta preparación, intenta ejecutarla de forma atómica con la cuenta de la
+base configurada. Una cuenta con permiso suficiente no requiere acceso SSH al
+servidor de PostgreSQL ni credenciales adicionales.
+
+Si esa cuenta no puede preparar el rol, el setup se detiene antes de ejecutar
+Prisma. No convierte la cuenta de aplicación en administrador ni elimina RLS.
+Para usar una conexión autorizada temporal, crear un archivo privado
+`.secrets/studio-admin.env` con una sola asignación:
+
+```dotenv
+SUPABASE_ADMIN_DATABASE_URL=postgresql://OWNER:PASSWORD@database.example:5432/postgres
+```
+
+La conexión debe apuntar al mismo host, puerto y base que la conexión efectiva
+de Prisma. Usar credenciales reales solo en ese archivo ignorado y restringir
+su lectura al propietario (por ejemplo, `chmod 600 .secrets/studio-admin.env`).
+No añadirlas a `.env.external`. El archivo se pasa únicamente a la tarea de
+preparación; la tarea de Prisma y los servicios no lo reciben. También puede
+prepararse el SQL del propietario por separado y retirar el archivo privado.
+
+Si la actualización ya falló, usar la imagen API existente explícitamente:
+
+```bash
+node studio-realtime-external.mjs --api-image=YOUR_EXISTING_API_IMAGE
+node studio-realtime-external.mjs --api-image=YOUR_EXISTING_API_IMAGE --recover-known-failure
+./update-external.sh
+```
+
+El primer comando solo consulta. El segundo aplica las mismas comprobaciones
+de checksum, transacción y fallos ajenos que la recuperación local antes de
+marcar el intento como revertido. Una base restringida puede requerir que su
+propietario prepare el rol. Supabase alojado no garantiza acceso a
+`supabase_admin`; este procedimiento no pretende eludir las restricciones del
+proveedor ni certifica compatibilidad con cualquier plan o proyecto alojado.
+
 ## Verificación local
 
 `node scripts/verify-studio-realtime-upgrade.mjs` usa una pila Docker desechable
@@ -58,3 +97,9 @@ diagnóstico no escribe y que un fallo desconocido se rechaza. Después ejecuta
 la recuperación real y dos migraciones consecutivas. Verifica datos testigo,
 checksums históricos, conservación del intento fallido y restricciones globales
 de Realtime. No utiliza la base de una instancia existente.
+
+`node scripts/verify-studio-realtime-external-upgrade.mjs` prueba el flujo external
+contra otra pila local desechable: cuenta insuficiente sin nuevo fallo Prisma,
+cuenta autorizada sin configuración adicional, rechazo de conexión admin a otra
+base, recuperación del fallo conocido y actualizaciones repetibles. No sustituye
+una validación en un proyecto de Supabase alojado.

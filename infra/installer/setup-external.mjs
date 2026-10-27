@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { canonicalizeRunlyEnvText, preserveEnvAssignments, syncMissingEnvFile } from "./lib/env-compat.mjs";
 import { resolveDevKitDir } from './lib/devkit-installer.mjs';
+import { prepareExternalStudioRealtime } from './lib/studio-realtime-external.mjs';
 import { configureOffice, checkOfficeRuntime } from "./lib/office-config.mjs";
 import { configureFirebase } from "./lib/firebase-config.mjs";
 import { resolveInstanceIdentity, renderInstanceIdentityEnv } from "./lib/instance-identity.mjs";
@@ -1094,6 +1095,8 @@ async function main() {
       "--add-host", "host.docker.internal:host-gateway",
       "--env-file", envFile,
     ];
+    console.log('Preparing Studio Realtime before migrations...');
+    prepareExternalStudioRealtime({ image: resolvedApiImage, envFile, cwd: installerDir });
     run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:migrate"]);
     run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:seed"]);
     if (transcription.mode === "local") {
