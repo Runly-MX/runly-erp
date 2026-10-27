@@ -1,6 +1,6 @@
 import { authorizeRealtimeClient } from '../../../lib/authorizedRealtime.js'
 import { reconcileElements } from '@excalidraw/excalidraw'
-import { diffElements, throttle } from './canvasSync.js'
+import { coversSnapshot, diffElements, throttle } from './canvasSync.js'
 
 // Realtime transport for a canvas note. Excalidraw-native (no Yjs): broadcasts
 // changed elements and reconciles incoming ones by version. Mirrors the
@@ -43,6 +43,7 @@ export class SupabaseCanvasSync {
     this._destroyed = false
     this._connected = false
     this._sentVersions = new Map()
+    this._snapshotReplyTimer = null
 
     this._sendDeltaThrottled = throttle(() => this._flushDelta(), 200)
     this._sendLayersThrottled = throttle((layers) => this._rawSend('scene.layers', { layers, senderId: this._identity.id }), 200)
@@ -84,7 +85,22 @@ export class SupabaseCanvasSync {
     this._channel
       .on('broadcast', { event: 'scene.delta' }, ({ payload }) => this._applyIncoming(payload?.elements))
       .on('broadcast', { event: 'scene.full' }, ({ payload }) => {
-        if (payload && this._onRemoteSnapshot) this._onRemoteSnapshot(payload)
+        if (!payload || !Array.isArray(payload.elements) || payload.elements.some(element => typeof element?.id !== 'string')) return
+        const local = this._getSnapshot?.() ?? { elements: this._getLocalElements?.() ?? [] }
+        if (coversSnapshot(payload, local)) {
+          clearTimeout(this._snapshotReplyTimer)
+          this._snapshotReplyTimer = null
+        }
+        if (coversSnapshot(local, payload)) return
+        const elements = reconcileElements(this._getLocalElements?.() ?? [], payload.elements, {})
+        // Only accepted remote versions are already sent. A newer pending
+        // local element must still leave through the normal delta path.
+        const accepted = new Map(elements.map(element => [element.id, element]))
+        for (const element of payload.elements) {
+          const merged = accepted.get(element.id)
+          if (merged?.version === element.version && merged.versionNonce === element.versionNonce) this._sentVersions.set(element.id, element.version ?? 0)
+        }
+        this._onRemoteSnapshot?.({ ...payload, elements, files: { ...(local.files ?? {}), ...(payload.files ?? {}) } })
       })
       .on('broadcast', { event: 'scene.request' }, () => this._answerRequest())
       .on('broadcast', { event: 'scene.files' }, ({ payload }) => {
@@ -145,8 +161,13 @@ export class SupabaseCanvasSync {
   }
 
   _answerRequest() {
-    if (this._readOnly) return
-    this._broadcastFull()
+    if (this._readOnly || this._snapshotReplyTimer) return
+    let hash = 0
+    for (const char of String(this._identity.id)) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
+    this._snapshotReplyTimer = setTimeout(() => {
+      this._snapshotReplyTimer = null
+      if (!this._destroyed) this._broadcastFull()
+    }, 150 + hash % 350)
   }
 
   _broadcastFull() {
@@ -201,6 +222,11 @@ export class SupabaseCanvasSync {
 
   destroy() {
     this._destroyed = true
+    clearTimeout(this._snapshotReplyTimer)
+    this._snapshotReplyTimer = null
+    this._sendDeltaThrottled.cancel()
+    this._sendLayersThrottled.cancel()
+    this._sendPointerThrottled.cancel()
     this._connected = false
     if (this._channel) {
       try {

@@ -51,7 +51,7 @@ window.start = async input => {
   } else if (import.meta.env.REALTIME_2_CANVAS && config.module === 'notes-canvas') {
     const { SupabaseCanvasSync } = await import('../../../apps/desktop/src/modules/runly.notes/lib/SupabaseCanvasSync.js')
     const { convertToExcalidrawElements } = await import('@excalidraw/excalidraw')
-    scene = convertToExcalidrawElements(Array.from({length:100},(_,index)=>({id:`shape-${index}`,type:'rectangle',x:index*25,y:0,width:20,height:20,version:1,versionNonce:100+index})))
+    scene = convertToExcalidrawElements(Array.from({length:100},(_,index)=>({id:`shape-${index}`,type:'rectangle',x:index*25,y:0,width:20,height:20})),{regenerateIds:false}).map((element,index)=>({...element,version:1,versionNonce:100+index,seed:100+index,updated:0}))
     sceneSync = new SupabaseCanvasSync({ noteId: config.noteId, supabase: client, identity: { id: config.actorId, name: 'Peer' },
       getLocalElements: () => scene, getSnapshot: () => ({elements:scene,layers:[{id:'layer',name:'Objects',order:0}],files:{},appState:{}}),
       onRemoteElements: elements => { scene=elements;received++ }, onRemoteSnapshot: snapshot => { scene=snapshot.elements;received++ },

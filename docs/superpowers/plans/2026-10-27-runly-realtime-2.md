@@ -40,5 +40,11 @@ refactors profundos de B/C/D sin línea base. No migrar instalaciones existentes
   nueva usa identidad genérica con API antigua. Corridas 60 s 1/5/10 convergieron;
   275 tests Notes pasaron antes de añadir pruebas de identidad adicionales.
   Conservar el resultado fallido de base con 10; no comparar su tráfico perdido
-  como si fuera una implementación sana. C2: Excalidraw pendiente de medición.
+  como si fuera una implementación sana.
+- C2: entrada de 2/5/10 con 100 elementos medida; snapshots completos 3/15/55
+  antes y 2/9/11 en la corrida posterior. Snapshot tardío reproducido: versión
+  local 9 bajaba a 1; ahora conserva 9 con reconciliación Excalidraw. Respuesta
+  diferida se cancela solo si todos los elementos/tombstones, archivos, capas y
+  appState están cubiertos. Guard de hidratación saliente conservado. Los metadatos
+  de capas siguen sin revisión propia; falta validación completa de imágenes/GUI.
 - D/E: pendientes. Soak de 10 minutos y recuperación HTTP/compatibilidad en curso.

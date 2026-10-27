@@ -181,6 +181,7 @@ try {
     console.log(JSON.stringify({module,users:n,active,http:metrics.http,cpu:result.resources.cpuSeconds,httpErrors:metrics.httpErrors}))
     if(module==='notes-canvas' && n>=2 && process.argv.includes('--scene-regression')) {
       await pages[0].evaluate(()=>window.newerScene())
+      assert.equal(await pages[0].evaluate(()=>window.state().sceneVersions.find(([id])=>id==='shape-0')?.[1]),9,'Scene fixture must contain the protected element')
       await pages[1].evaluate(()=>window.oldScene())
       await wait(700)
       const version=await pages[0].evaluate(()=>window.state().sceneVersions.find(([id])=>id==='shape-0')?.[1])
