@@ -33,7 +33,17 @@ export function createAutomationSandboxService({ prisma }) {
     }
 
     const sim = createServiceSimulator({ moduleKey, grants: [...SERVICE_KEYS], user: { id: actorId ?? SAMPLE_RECORD, permissions: [], isAdmin: true }, lenient: true });
-    const services = trigger.type === "record" ? sim.forRequest() : sim.forSystem();
+    const base = trigger.type === "record" ? sim.forRequest() : sim.forSystem();
+    // Say which field the service rejected, not only that the data were invalid.
+    const services = {
+      ...base,
+      call: async (serviceKey, args) => {
+        try { return await base.call(serviceKey, args); } catch (failure) {
+          if (failure?.fields) failure.message = `${failure.message} ${Object.entries(failure.fields).map(([name, why]) => `${name}: ${why}`).join("; ")}`;
+          throw failure;
+        }
+      },
+    };
     const runtime = { ...automation, key, steps: toRuntimeSteps(automation) };
     const recordId = UUID.test(String(data?.id ?? "")) ? data.id : SAMPLE_RECORD;
 

@@ -212,6 +212,11 @@ function validateArgs(step, { base, fieldNames, trigger, contract, errors }) {
   for (const [name, source] of Object.entries(args)) {
     const path = `${base}.args.${name}`
     if (!Object.hasOwn(contract.args, name) || name === 'idempotencyKey') { errors.push(diagnostic(path, 'AUTOMATION_ARG_UNKNOWN', `The service does not accept "${name}".`)); continue }
+    // A sentence cannot stand for a person, an id list, a number or a yes/no.
+    if (source?.from === 'template' && (/(\[\]|^uuid)$/.test(contract.args[name].type) || ['number', 'integer', 'boolean'].includes(contract.args[name].type))) {
+      errors.push(diagnostic(path, 'AUTOMATION_ARG_INVALID', `"${name}" cannot be built from a text with data; choose a fixed value or an available field.`))
+      continue
+    }
     validateSource(source, { path, fieldNames, trigger, errors, literal: (value) => validateServiceArgs(step.service, { [name]: value }).errors[name] ?? null })
   }
   for (const [name, spec] of Object.entries(contract.args)) {

@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url'
 import * as acorn from 'acorn'
 import { compileModule, validateModuleDefinition } from '../index.js'
 import { archiveModule } from '../archive.js'
+import { validateDefinitionAutomations } from '../automations.js'
 import { inspectModuleZip } from '../inspection/index.js'
 
 const BASE = {
@@ -396,4 +397,10 @@ test('previewAutomation passes simulated results of one step to the next', async
   const preview = previewAutomation(automation, { data: { id: 'r1', folio: 'OS-1' } })
   assert.equal(preview.steps[1].args.title, 'Contacto 00000000-0000-7000-8000-00000000a003')
   assert.equal(preview.steps[1].problems.length, 0)
+})
+
+test('a text with data cannot fill a people list', () => {
+  const errors = []
+  validateDefinitionAutomations({ entities: [], automations: [{ key: 'aviso', label: 'Aviso', trigger: { type: 'event', event: 'inventory.item.created' }, steps: [{ service: 'runly.notifications:notifications.send', args: { title: { from: 'value', value: 'Hola' }, userIds: { from: 'template', template: 'Hola {{name}}' } } }] }] }, errors)
+  assert.ok(errors.some((error) => error.path.endsWith('args.userIds') && error.code === 'AUTOMATION_ARG_INVALID'))
 })

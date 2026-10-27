@@ -49,13 +49,17 @@ const PEOPLE_ARGS = new Set(["userIds", "attendeeIds"]);
 
 export { argLabel };
 
-export function sourceOptions({ required, triggerType }) {
+// Only the origins that make sense for the kind of value: a person or a list of ids
+// cannot come from a sentence, a number cannot be built from text.
+export function sourceOptions({ required, triggerType, type = "string", name = "" }) {
+  const isText = !(/(\[\]|^uuid)$/.test(type) || ["number", "integer", "boolean"].includes(type));
+  const isPeople = PEOPLE_ARGS.has(name) && type.endsWith("[]");
   return [
     ...(required ? [] : [{ value: "none", label: "No usar" }]),
-    { value: "value", label: "Valor fijo" },
-    { value: "field", label: "Un dato disponible" },
-    { value: "template", label: "Texto con datos" },
-    { value: "recordId", label: triggerType === "event" ? "Id del registro del sistema" : "Id del registro" },
+    { value: "value", label: isPeople ? "Elegir personas" : "Valor fijo" },
+    ...(isPeople ? [] : [{ value: "field", label: "Un dato disponible" }]),
+    ...(isText ? [{ value: "template", label: "Texto con datos" }] : []),
+    ...(isPeople || type.endsWith("[]") || !(isText || type === "uuid") ? [] : [{ value: "recordId", label: triggerType === "event" ? "Id del registro del sistema" : "Id del registro" }]),
     ...(triggerType === "record" ? [{ value: "actor", label: "Usuario que guarda" }] : []),
   ];
 }
@@ -166,7 +170,7 @@ export function AutomationArgsEditor({ contract, args, triggerType, fieldOptions
               {ARG_HINTS[name] && <p className="text-xs text-[hsl(var(--muted-foreground))]">{ARG_HINTS[name]}</p>}
             </div>
             <div className="grid gap-2 @md:grid-cols-[11rem_minmax(0,1fr)]">
-              <SelectField aria-label={`Origen de ${argLabel(name).toLowerCase()}`} options={sourceOptions({ required: spec.required, triggerType })}
+              <SelectField aria-label={`Origen de ${argLabel(name).toLowerCase()}`} options={sourceOptions({ required: spec.required, triggerType, type: spec.type, name })}
                 value={source?.from ?? (spec.required ? "" : "none")} disabled={readOnly} placeholder="¿De dónde sale?"
                 onValueChange={(from) => setSource(name, from === "none" ? null : { from })} />
               {source ? (
