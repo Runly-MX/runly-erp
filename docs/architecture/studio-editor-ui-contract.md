@@ -48,7 +48,7 @@ antes de devolver incluso una miniatura en caché; liberar la caché al destruir
 | `deselect()` | Sale de edición de texto y limpia selección sin mutar JSON/historial |
 
 La selección y viewport se recuerdan por página durante la sesión; solo se
-restauran IDs visibles y editables que sobrevivan. `onActivePage(id,viewport)`
+restauran IDs visibles y no bloqueados que sobrevivan. `onActivePage(id,viewport)`
 integra el viewport de React; `onChange(doc,meta)` mantiene el documento completo.
 La URL `?design=<id>&pageId=<id>` abre una página sin añadir paneles nuevos.
 Clic primario fuera del papel limpia la selección. Mano, Espacio, botón central,
@@ -64,6 +64,10 @@ con `scene`, `duplicatePage` con `newId`, `removePage`, `pageOrder` con `ids` y
 Es secuenciación de operaciones, no CRDT. Un destino eliminado es no-op, sin
 resurrección; la cola local conserva una copia para recuperación independiente.
 Undo selectivo respeta otras páginas y propiedades posteriores de colaboradores.
+Una actualización que afecta varias páginas se incorpora de forma atómica: durante
+su carga se pausa la edición gráfica para que un cambio remoto de otra página no
+entre en el historial local. Las actualizaciones de una sola página mantienen la
+reconciliación de cambios locales durante la carga de recursos.
 
 `GET /studio/protocol` devuelve `{version:3,schemaVersion:7}`; SDK envía
 `X-Runly-Studio-Protocol:3`. La migración aditiva

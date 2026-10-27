@@ -2,7 +2,7 @@
 import json
 import sys
 from pathlib import Path
-import fitz
+import pymupdf as fitz
 
 directory = Path(sys.argv[1])
 outputs = []

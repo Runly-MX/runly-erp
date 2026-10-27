@@ -37,6 +37,7 @@ try {
   result.rc2Export=await page.evaluate(()=>window.rc2ExportVerification())
   result.multipage=await page.evaluate(()=>window.studioMultipageVerification())
   result.multipageBudgets=await page.evaluate(()=>window.studioMultipageBudgetVerification())
+  result.multipageAtomic=await page.evaluate(()=>window.studioMultipageAtomicRemoteVerification())
   let privateRequest, releasePrivate
   const privateStarted=new Promise(resolve=>{privateRequest=resolve})
   const privateHeld=new Promise(resolve=>{releasePrivate=resolve})

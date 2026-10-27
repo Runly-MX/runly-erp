@@ -57,8 +57,13 @@ export async function createStudioEditor(element, options) {
     const destination = findPage(current, select) ? select : current.page.id, switched = destination !== active
     const destinationSelection = selections.get(destination) ?? []
     const destinationViewport = viewports.get(destination) ?? viewports.get(active) ?? {zoom:1,panX:0,panY:0}
+    // A cross-page update must be atomic relative to local history. Otherwise
+    // an edit during active-page image I/O could claim an incoming inactive
+    // page as its own undo entry (or temporarily duplicate transferred IDs).
+    const crossPage = diffOps(before,current).some(op => ['addPage','removePage','pageOrder','transferObjects'].includes(op.type) || op.pageId !== active)
+    const guarded = switched || crossPage
+    if (guarded) { transitions++; transitioning = true; inner.setReadOnly(true) }
     if (switched) {
-      transitions++; transitioning = true; inner.setReadOnly(true)
       const previousSelection = selections.get(active)
       inner.deselect(); selections.set(active, previousSelection ?? []); active = destination
       options.onActivePage?.(active, destinationViewport)
@@ -71,7 +76,7 @@ export async function createStudioEditor(element, options) {
       options.onActivePage?.(active, viewports.get(active))
       throw error
     } finally {
-      if (switched) { transitions--; transitioning = transitions > 0; inner.setReadOnly(protectedMode) }
+      if (guarded) { transitions--; transitioning = transitions > 0; inner.setReadOnly(protectedMode) }
     }
     if (switched) { inner.selectMany(destinationSelection); inner.setViewport(destinationViewport) }
     if (track) { if (remote) history.rebase(diffOps(before, current)); else history.commit(current) }

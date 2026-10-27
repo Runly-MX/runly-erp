@@ -78,3 +78,25 @@ window.setupStudioMultipageAbort=async()=>{
   const controller=new AbortController(),before=JSON.stringify(editor.snapshot())
   window.multipageAbort={editor,controller,canvas,before,promise:editor.exportPage('private-page','png',1,editor.snapshot(),{signal:controller.signal}).then(()=>({accepted:true}),error=>({name:error.name}))}
 }
+window.studioMultipageAtomicRemoteVerification=async()=>{
+  const canvas=document.createElement('canvas');document.body.append(canvas)
+  let release,started
+  const gate=new Promise(resolve=>{release=resolve}),seen=new Promise(resolve=>{started=resolve})
+  const photo=document.createElement('canvas');photo.width=photo.height=8;const url=photo.toDataURL()
+  let doc=appendObject(blankDocument(320,240),'rectangle',{id:'local-shape'})
+  doc=applyOps(doc,[{type:'duplicatePage',pageId:'page-1',newId:'p2'}])
+  const editor=await createStudioEditor(canvas,{document:doc,resolveImage:async()=>{started();await gate;return url}})
+  try{
+    editor.select('local-shape')
+    const image={...doc.objects[0],id:'incoming-photo',type:'image',fileAssetId:'00000000-0000-4000-8000-000000000001'}
+    const remote=editor.applyRemote(applyOps(doc,[{type:'upsert',pageId:'page-1',object:image},{type:'patchPage',pageId:'p2',set:{background:'#112233'}}]))
+    await seen
+    let guarded=false;try{editor.patch({x:111})}catch{guarded=true}
+    assert(guarded,'cross-page I/O must not attribute foreign pages to a local undo entry')
+    release();await remote
+    editor.select('local-shape');editor.patch({x:123});await editor.undo()
+    assert(editor.snapshot().objects[0].x===80,'local edit undone')
+    assert(findPage(editor.snapshot(),'p2').page.background==='#112233'&&editor.snapshot().objects.some(o=>o.id==='incoming-photo'),'foreign changes preserved')
+    return {crossPageAtomic:true,foreignUndoPreserved:true}
+  }finally{release();await editor.destroy();canvas.remove();photo.remove()}
+}
