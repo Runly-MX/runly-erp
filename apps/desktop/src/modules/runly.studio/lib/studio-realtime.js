@@ -67,13 +67,16 @@ export function createStudioRealtimeSession({id,companyId,getToken,api,client,cr
         offset=data.serverTime-started
         const changed=grant?.topic!==data.topic
         grant=data;attempt=0;lastSuccess=now();lastToken=authToken
+        // An offline unsubscribe can wait for its timeout. Retire the old lease
+        // timer before that await so it cannot erase an already renewed grant.
+        timers.clearTimeout(expiryTimer)
+        expiryTimer=timers.setTimeout(()=>{if(active&&grant===data){grant=null;void removeChannels();onStatus('Reconectando')}},Math.max(0,data.expiresAt-serverNow()))
         for(const page of data.pages)unknownPages.delete(page.id)
         if(changed||!ephemeralChannel||!documentChannel||ephemeralChannel.state==='closed'||documentChannel.state==='closed')await connect()
         else {await socketClient.realtime.setAuth(data.socketToken);queue('activity',true)}
         if(!active||denied)return
+        if(grant!==data){planRenew(1000);return}
         onRevision?.(data.revision,data.canEdit)
-        timers.clearTimeout(expiryTimer)
-        expiryTimer=timers.setTimeout(()=>{if(active){grant=null;void removeChannels();onStatus('Reconectando')}},Math.max(0,data.expiresAt-serverNow()))
         planRenew(Math.min(P.renewMs,Math.max(1000,data.expiresAt-serverNow()-8000)))
       }catch(error){
         count(`contextFailure_${error.status??'transport'}`)
@@ -235,7 +238,7 @@ export function createStudioRealtimeSession({id,companyId,getToken,api,client,cr
     visibility(){state={...state,activity:visible()?'active':'idle',x:null,y:null};queue('activity',true);if(visible())void refresh()},
     stats:()=>{
       const native=instrument?Object.values(ephemeralChannel?.presenceState()??{}).flat():[]
-      return {...counts,channels:Number(Boolean(documentChannel))+Number(Boolean(ephemeralChannel)),sessions:sessions.size,documentState:documentChannel?.state,ephemeralState:ephemeralChannel?.state,sequence,leaseRemainingMs:grant?grant.expiresAt-serverNow():0,sender:sender.state(),tracker:tracker.state(),...instrument?{nativePresenceMetas:native.length,expiredPresenceMetas:native.filter(e=>e.certificate?.expiresAt<=serverNow()).length}:{}}
+      return {...counts,channels:Number(Boolean(documentChannel))+Number(Boolean(ephemeralChannel)),sessions:sessions.size,documentState:documentChannel?.state,ephemeralState:ephemeralChannel?.state,sequence,leaseRemainingMs:grant?grant.expiresAt-serverNow():0,sender:sender.state(),tracker:tracker.state(),...instrument?{sessionId:grant?.certificate.sessionId,nativePresenceMetas:native.length,expiredPresenceMetas:native.filter(e=>e.certificate?.expiresAt<=serverNow()).length}:{}}
     },
     close(){if(!active)return;active=false;requestAbort?.abort();sender.cancel();tracker.cancel();timers.clearTimeout(renewTimer);timers.clearTimeout(expiryTimer);timers.clearInterval(expiry);return removeChannels()},
   }

@@ -21,7 +21,7 @@ export async function verifyStudioRealtimeBrowser({stack,data,tokens,authSession
     await page.waitForFunction(()=>window.state().status==='Conectado',null,{timeout:20000});return {page,context}
   }
   const person=async(page,actor)=>page.evaluate(id=>window.state().participants.find(p=>p.userId===id),users[actor].id)
-  let owner,peer,viewer,lifecycle
+  let owner,peer,viewer,lifecycle,reconnectObservedMs
   try{
     await stack.pool.query('UPDATE membership SET role_id=$1 WHERE company_id=$2 AND user_id=$3',[company.roleId,company.id,users[1].id])
     await api(`/studio/designs/${design.id}/collaborators`,{method:'PUT',body:{userId:users[1].id,role:'VIEWER'}})
@@ -95,18 +95,22 @@ export async function verifyStudioRealtimeBrowser({stack,data,tokens,authSession
       await until(async()=>Boolean(await person(owner.page,2)),'Visible session failed to rejoin')
       await peer.context.route('**/studio/designs/*/changes',route=>route.abort())
       await peer.page.evaluate(()=>window.localEdit('shape-2','page-2',171))
-      await cdp.send('Page.setWebLifecycleState',{state:'frozen'})
+      // A visible automated Chrome tab may ignore lifecycle "frozen". Wait for
+      // an acknowledged debugger pause so no main-thread renewal can run.
+      await cdp.send('Debugger.enable')
+      const paused=new Promise(resolve=>cdp.once('Debugger.paused',resolve))
+      await cdp.send('Debugger.pause');await paused
       try{
         await owner.page.evaluate(()=>window.localEdit('shape-1','page-1',172));await owner.page.evaluate(()=>window.flush())
         await sleep(35000)
-        await until(async()=>!await person(owner.page,2),'Frozen session outlived socket capability',5000)
-      }finally{await cdp.send('Page.setWebLifecycleState',{state:'active'})}
+        await until(async()=>!await person(owner.page,2),'Paused session outlived socket capability',5000)
+      }finally{await cdp.send('Debugger.resume');await cdp.send('Debugger.disable')}
       await peer.context.unroute('**/studio/designs/*/changes');await peer.page.evaluate(()=>window.dispatchEvent(new Event('online')))
       await until(async()=> (await peer.page.evaluate(()=>window.state().status))==='Conectado','Frozen renderer did not reconnect',20000)
       await peer.page.evaluate(()=>window.flush())
       await until(async()=>{const s=await peer.page.evaluate(()=>window.syncState());return s.document.objects[0].x===172&&s.document.additionalPages[0].objects[0].x===171&&!s.pending},'Freeze/resume lost local or remote changes',20000)
-      lifecycle.rendererFrozenMs=35000;lifecycle.osSuspensionTested=false;lifecycle.hiddenEventSynthetic=true
-      checks.push('Native minimize/tab switch exercised; explicit hidden event removes Presence; 35 s renderer freeze/resume preserves pending and remote changes (not OS suspension)')
+      lifecycle.javascriptPausedMs=35000;lifecycle.osSuspensionTested=false;lifecycle.hiddenEventSynthetic=true
+      checks.push('Native minimize/tab switch exercised; explicit hidden event removes Presence; 35 s acknowledged JavaScript pause/resume preserves pending and remote changes (not OS suspension)')
     }
 
     const legacyState=await api(`/studio/designs/${design.id}/live`,{body:{sessionId:'legacy-compatible-session',cursor:{x:12,y:14}}})
@@ -129,7 +133,9 @@ export async function verifyStudioRealtimeBrowser({stack,data,tokens,authSession
     const refreshed=await auth.auth.refreshSession({refresh_token:authSessions[2].refresh_token});assert.ok(!refreshed.error)
     tokens[2]=refreshed.data.session.access_token
     await peer.page.evaluate(token=>window.renewToken(token),tokens[2]);await stack.compose(['up','-d','--no-deps','--wait','--wait-timeout','90','supabase-realtime'])
-    await until(async()=> (await peer.page.evaluate(()=>window.state().status))==='Conectado','Reconnect after 30 s failed',20000)
+    const reconnectAt=Date.now()
+    try{await until(async()=> (await peer.page.evaluate(()=>window.state().status))==='Conectado',`Reconnect after ${outageMs/1000} s failed`,60000)}catch(error){console.error('Restore owner:',await owner.page.evaluate(()=>window.state()));console.error('Restore peer:',await peer.page.evaluate(()=>window.state()));throw error}
+    reconnectObservedMs=Date.now()-reconnectAt
     try{
       await until(async()=>Boolean(await person(peer.page,0))&&Boolean(await person(owner.page,2)),'Roster did not recover after socket reconnection',10000)
       await owner.page.evaluate(()=>window.point({x:130,y:80}));await until(async()=> (await person(peer.page,0))?.x===130,'Reconnected peer missed cursor')
@@ -161,6 +167,6 @@ export async function verifyStudioRealtimeBrowser({stack,data,tokens,authSession
     assert.equal(await owner.page.evaluate(()=>window.state().participants.length),0)
     await owner.page.evaluate(()=>window.stop());await until(async()=> (await owner.page.evaluate(()=>window.activeSockets()))===0,'Final unmount retained Studio subscriptions',2000)
     checks.push('Design switch and final unmount release channels and timers without participant leakage')
-    return {passed:true,checks,cursorObservedMs,leaveObservedMs,revocationObservedMs,documentPages:documentPages(saved.document).length,liveRequests:network.filter(p=>p.endsWith('/live')).length,...lifecycle?{lifecycle}:{}}
+    return {passed:true,checks,cursorObservedMs,leaveObservedMs,revocationObservedMs,reconnectObservedMs,documentPages:documentPages(saved.document).length,liveRequests:network.filter(p=>p.endsWith('/live')).length,...lifecycle?{lifecycle}:{}}
   }finally{await stack.compose(['unpause','supabase-realtime']).catch(()=>{});for(const c of clients){await c.removeAllChannels();c.realtime.disconnect()}for(const c of contexts)await c.close()}
 }

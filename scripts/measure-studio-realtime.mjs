@@ -107,7 +107,7 @@ try {
     const {verifyStudioRealtimeBrowser}=await import('./fixtures/studio/realtime-e2e.mjs')
     const outageSeconds=Number(arg('outage-seconds')??30);assert.ok(outageSeconds>=30&&outageSeconds<=180)
     const result=await verifyStudioRealtimeBrowser({stack,data,tokens,authSessions,design,browser,url,outageMs:outageSeconds*1000,nativeLifecycle})
-    await writeFile(join(output,'e2e.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result))
+    await writeFile(join(output,arg('result')?`${arg('result')}-e2e.json`:'e2e.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result))
   }
   const scenarios=[{name:'idle-1',n:1},{name:'cursor-1',n:1,move:true},{name:'editing-2',n:2,move:true,edit:true},{name:'cursor-5',n:5,move:true},{name:'cursor-10',n:10,move:true},{name:'different-pages',n:2,move:true,pages:true},{name:'same-user-tabs',n:2,move:true,same:true},{name:'hidden',n:1,move:true,hidden:true},...(arg('scenario')?.includes('cursor-20')?[{name:'cursor-20',n:20,move:true}]:[])]
   for(const scenario of scenarios.filter(s=>!arg('scenario')||arg('scenario').split(',').includes(s.name))) {
@@ -116,6 +116,7 @@ try {
     for(let i=0;i<scenario.n;i++) {
       const context=await browser.newContext(),page=await context.newPage();contexts.push(context);pages.push(page)
       page.on('pageerror',error=>console.error('Browser error:',error.message))
+      page.on('request',request=>{if(request.url().endsWith('/live')){try{page.transportSessionId=JSON.parse(request.postData()??'{}').sessionId}catch{}}})
       page.on('requestfailed',request=>{if(request.url().endsWith('/collaboration'))console.error('Context transport:',request.failure()?.errorText)})
       page.on('response',response=>{if(response.url().endsWith('/collaboration')&&!response.ok())void response.text().then(body=>console.error('Context rejected:',response.status(),body))})
       const cdp=await context.newCDPSession(page);await cdp.send('Network.enable');await cdp.send('Performance.enable');page.cdp=cdp
@@ -163,8 +164,9 @@ try {
       await p.cdp.send('HeapProfiler.collectGarbage')
       return (await p.cdp.send('Performance.getMetrics')).metrics.find(m=>m.name==='JSHeapUsedSize')?.value??0
     })):[]
-    const sentPoints=new Map(),pointKey=p=>`${p.userId}:${p.x}:${p.y}`
-    for(const p of pointLogs.flatMap(l=>l.sent??[])){const key=pointKey(p),list=sentPoints.get(key)??[];list.push(p.at);sentPoints.set(key,list)}
+    const sentPoints=new Map(),pointKey=p=>`${p.sessionId??p.userId}:${p.x}:${p.y}`
+    for(const [i,log]of pointLogs.entries())for(const p of log.sent??[]){const key=pointKey({...p,sessionId:metrics.diagnostics[i]?.sessionId??pages[i].transportSessionId}),list=sentPoints.get(key)??[];list.push(p.at);sentPoints.set(key,list)}
+    for(const list of sentPoints.values())list.sort((a,b)=>a-b)
     for(const point of pointLogs.flatMap(l=>l.received??[])){const list=sentPoints.get(pointKey(point))??[];let at=-1;for(let i=list.length-1;i>=0;i--)if(list[i]<=point.at){at=list[i];break}if(at>=0)metrics.cursorLatencies.push(point.at-at)}
     const browserMetrics=browserAfter.map((m,i)=>{const get=(a,n)=>a.metrics.find(v=>v.name===n)?.value??0;return{taskSeconds:get(m,'TaskDuration')-get(browserBefore[i],'TaskDuration'),heapBytes:get(m,'JSHeapUsedSize'),heapBeforeBytes:get(browserBefore[i],'JSHeapUsedSize'),retainedHeapBytes:retainedHeap[i]}})
     const result={scenario:scenario.name,users:scenario.n,seconds,visibility:await pages[0].evaluate(()=>document.visibilityState),syntheticVisibility:Boolean(scenario.hidden),livePerMinute:metrics.live*60/seconds,...metrics,p50:percentile(metrics.latencies,.5),p95:percentile(metrics.latencies,.95),cursorP50:percentile(metrics.cursorLatencies,.5),cursorP95:percentile(metrics.cursorLatencies,.95),apiCpuSeconds:apiCpuAfter-apiCpu,postgresCpuSeconds:pgCpuAfter-pgCpu,realtimeCpuSeconds:realtimeCpuAfter-realtimeCpu,sql:sqlDelta(before,after),browser:browserMetrics}

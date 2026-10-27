@@ -13,7 +13,7 @@ function fixture(options={}){
   const advance=async ms=>{clock+=ms;for(const [key,t]of [...tasks])if(t.at<=clock){if(t.interval)t.at=clock+t.interval;else tasks.delete(key);t.fn()}await sleep(2)}
   function attest(publicKey,sessionId='a'.repeat(32),actor=actorId){const certificate={v:1,designId,companyId,actorId:actor,sessionId,publicKey,name:'Verified',role:'EDITOR',epoch:'4',issuedAt:clock,expiresAt:clock+30000};return {certificate,certificateSignature:sign(null,realtimeBytes(certificate),privateKey).toString('base64url')}}
   const api=async(_id,input,auth,signal)=>{calls++;assert.equal(auth,token);if(fail)throw fail;assert.equal(signal.aborted,false);return {version:1,...attest(input.publicKey),verificationKey,socketToken:`socket-${calls}`,serverTime:clock,expiresAt:clock+30000,topic:`studio:ephemeral:${designId}@4`,documentTopic:`studio:design:${designId}@4`,revision:1,canEdit:true,pages:[{id:'page-1',width:320,height:240},{id:'page-2',width:240,height:320}]}}
-  function client(){const local=[];return {removeAllChannels:async()=>{for(const ch of local){ch.state='closed';ch.emit('status','CLOSED')}},realtime:{setAuth:async()=>{},disconnect(){}},removeChannel:async ch=>{ch.state='closed';ch.emit('status','CLOSED')},channel(topic){const bindings=[];const ch={topic,state:'closed',presence:{},on(type,filter,fn){bindings.push({type,event:filter.event,fn});return ch},subscribe(fn){bindings.push({type:'status',fn});ch.state='joined';queueMicrotask(()=>fn('SUBSCRIBED'));return ch},presenceState:()=>ch.presence,track:async p=>{ch.tracked=p;return'ok'},untrack:async()=>{ch.tracked=null;return'ok'},send:async frame=>{sent.push(frame);return'ok'},emit(type,event,payload){for(const b of bindings)if(b.type===type&&(type==='status'||b.event===event))b.fn(type==='status'?event:payload)}};channels.push(ch);local.push(ch);return ch}}}
+  function client(){const local=[];return {removeAllChannels:async()=>{for(const ch of local){ch.state='closed';ch.emit('status','CLOSED')}},realtime:{setAuth:async()=>{},disconnect(){}},removeChannel:async ch=>{ch.state='closed';ch.emit('status','CLOSED');if(options.blockRemove)await new Promise(resolve=>{options.releaseRemove=resolve})},channel(topic){const bindings=[];const ch={topic,state:'closed',presence:{},on(type,filter,fn){bindings.push({type,event:filter.event,fn});return ch},subscribe(fn){bindings.push({type:'status',fn});ch.state='joined';queueMicrotask(()=>fn('SUBSCRIBED'));return ch},presenceState:()=>ch.presence,track:async p=>{ch.tracked=p;return'ok'},untrack:async()=>{ch.tracked=null;return'ok'},send:async frame=>{sent.push(frame);return'ok'},emit(type,event,payload){for(const b of bindings)if(b.type===type&&(type==='status'||b.event===event))b.fn(type==='status'?event:payload)}};channels.push(ch);local.push(ch);return ch}}}
   const session=createStudioRealtimeSession({id:designId,companyId,getToken:()=>token,api,client:client(),createSocket:()=>client(),onParticipants:r=>metadata.push(r),onDenied:()=>denied++,timers,now:()=>clock,random:()=>0,instrument:true,crypto:options.crypto??globalThis.crypto})
   return {session,advance,channels,sent,tasks,metadata,attest,now:()=>clock,get calls(){return calls},get denied(){return denied},set token(t){token=t},set fail(e){fail=e}}
 }
@@ -87,4 +87,17 @@ test('an in-flight old signature cannot consume the Presence renewal of a newer 
     await until(()=>channel.tracked?.certificate.issuedAt===renewedAt)
     assert.ok(channel.tracked.payload.at>=renewedAt)
   }finally{paused=false;release?.();await f.session.close()}
+})
+
+test('the previous expiry cannot erase a renewed lease while offline channel removal is still pending',async()=>{
+  const options={},f=fixture(options)
+  try{
+    await f.session.start();await f.advance(0)
+    f.channels.find(c=>c.topic.includes('design')).state='closed';options.blockRemove=true
+    await f.advance(21000);await until(()=>Boolean(options.releaseRemove))
+    await f.advance(10000)
+    options.blockRemove=false;options.releaseRemove();await sleep(10)
+    await until(()=>f.session.stats().channels===2)
+    assert.equal(f.calls,2);assert.ok(f.session.stats().leaseRemainingMs>10000)
+  }finally{options.blockRemove=false;options.releaseRemove?.();await f.session.close()}
 })

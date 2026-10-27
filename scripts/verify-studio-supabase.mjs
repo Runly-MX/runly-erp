@@ -3,9 +3,9 @@ import { createRequire } from 'node:module'
 import {execFileSync} from 'node:child_process'
 import { resolve, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
-import { createStudioStack } from './fixtures/studio/supabase-stack.mjs'
+import { createStudioStack, command } from './fixtures/studio/supabase-stack.mjs'
 import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
 import { useStudioRealtimeSource } from './fixtures/studio/realtime-source.mjs'
 import { verifyStudioSupabase } from './fixtures/studio/supabase-browser.mjs'
@@ -22,7 +22,10 @@ import { verifyStudioMultipage } from './fixtures/studio/supabase-multipage.mjs'
 import { verifyStudioTextMultipage } from './fixtures/studio/supabase-text-multipage.mjs'
 
 const apiImage=process.argv.find(value=>value.startsWith('--api-image='))?.slice('--api-image='.length)
-const stack = await createStudioStack({...apiImage?{apiImage}:{},enableMcp:process.argv.includes('--operations-only')})
+const webImage=process.argv.find(value=>value.startsWith('--web-image='))?.slice('--web-image='.length)
+const workerImage=process.argv.find(value=>value.startsWith('--worker-image='))?.slice('--worker-image='.length)
+if(workerImage&&!/^runly-studio-realtime:[a-f0-9]{8}-worker$/.test(workerImage))throw Error('EXPLICIT_LOCAL_WORKER_IMAGE_REQUIRED')
+const stack = await createStudioStack({...apiImage?{apiImage}:{},...webImage?{webImage}:{},enableMcp:process.argv.includes('--operations-only')})
 let web
 async function close() {
   web?.httpServer.closeAllConnections()
@@ -32,7 +35,7 @@ async function close() {
 const interrupted = () => { close().finally(() => process.exit(130)) }
 process.once('SIGINT', interrupted); process.once('SIGTERM', interrupted)
 try {
-  if(process.argv.includes('--current-realtime')){
+  if(process.argv.includes('--current-realtime')||webImage){
     const file=join(stack.directory,'kong.yml'),source=await readFile(file,'utf8')
     const configured=source.replace(/(  - name: realtime-v1-ws[\s\S]*?read_timeout:) 3000/,'$1 60000')
     assert.notEqual(configured,source,'Expected disposable WebSocket fault timeout')
@@ -55,7 +58,30 @@ try {
     await new Promise(resolve => setTimeout(resolve, 500))
   }
   if (!ready) throw Error('ISOLATED_API_NOT_READY')
-  if(process.argv.includes('--photos-only')){
+  if(webImage){
+    assert.ok(process.argv.includes('--operations-only'),'Image verification requires the operations suite')
+    await stack.compose(['up','-d','runly-web'],{log:join(stack.directory,'web-start.log')})
+    const id=await stack.compose(['ps','-q','runly-web']),directory=join(stack.directory,'docker-web')
+    await mkdir(directory,{recursive:true});await command('docker',['cp',`${id}:/usr/share/nginx/html/.`,directory])
+    const bundle=await inspectStudioWeb(directory,{forbiddenValues:[stack.secret.SUPABASE_SERVICE_ROLE_KEY,stack.secret.SUPABASE_JWT_SECRET,stack.secret.SUPABASE_POSTGRES_PASSWORD]})
+    const result={passed:true,apiImage,webImage,bundle,operations:await verifyStudioOperations(stack,data),gradients:await verifyStudioGradients(stack,data),photos:await verifyStudioPhotos(stack,data),shapePhotos:await verifyStudioPhotos(stack,data,{shape:true})}
+    if(process.argv.includes('--include-multipage')){
+      result.multipage=await verifyStudioMultipage(stack,data)
+      result.textMultipage=await verifyStudioTextMultipage(stack,data)
+      result.multipagePdf=JSON.parse(execFileSync('python',['scripts/fixtures/studio/v7-inspect-pdf.py',stack.directory],{encoding:'utf8'}))
+    }
+    if(workerImage){
+      const config=JSON.parse(await readFile(stack.composeFile,'utf8'))
+      config.services['runly-worker']={image:workerImage,pull_policy:'never',restart:'no',environment:{...config.services['runly-api'].environment,RUNLY_SKIP_DB_INIT:'1'},networks:{default:null}}
+      await writeFile(stack.composeFile,JSON.stringify(config,null,2))
+      await stack.compose(['up','-d','runly-worker'],{log:join(stack.directory,'worker-start.log')});await new Promise(r=>setTimeout(r,5000))
+      const workerId=await stack.compose(['ps','-q','runly-worker']),[info]=JSON.parse(await command('docker',['inspect',workerId]))
+      assert.equal(info.State.Running,true)
+      assert.ok(!/ERR_MODULE_NOT_FOUND|Cannot find package|SyntaxError/.test(await stack.compose(['logs','--no-color','runly-worker'])))
+      result.worker={image:workerImage,running:true,importsValid:true}
+    }
+    await writeFile(join(stack.directory,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2))
+  }else if(process.argv.includes('--photos-only')){
     const result={passed:true,photos:await verifyStudioPhotos(stack,data),shapePhotos:await verifyStudioPhotos(stack,data,{shape:true})}
     await writeFile(join(stack.directory,'result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2))
   }else{

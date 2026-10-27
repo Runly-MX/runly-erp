@@ -14,7 +14,7 @@ function Session({ input }) {
     onDenied: () => { window.denied = true;sync.deny() }, onChange: value => {window.changes.push(value);sync.receive(value)} })
   latest = live
   const rows=useSyncExternalStore(live.presenceStore?.subscribe??subscribe,live.presenceStore?.getSnapshot??snapshot,snapshot)
-  useEffect(() => { for (const p of live.presenceStore?rows:live.participants) if (p.x != null) recordPoint(window.receivedPoints,{ userId:p.userId, x:p.x, y:p.y, at:Date.now() }) }, [rows,live.participants,live.presenceStore])
+  useEffect(() => { for (const p of live.presenceStore?rows:live.participants) if (p.x != null) recordPoint(window.receivedPoints,{ sessionId:p.sessionId,userId:p.userId, x:p.x, y:p.y, at:Date.now() }) }, [rows,live.participants,live.presenceStore])
   useEffect(() => { window.ready = true; return () => { window.ready = false } }, [])
   return <div data-status={live.status}>{live.participants.map(p => <span key={p.sessionId} data-session={p.sessionId}>{p.name}</span>)}</div>
 }

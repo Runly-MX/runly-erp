@@ -54,6 +54,7 @@ export async function verifyStudioRealtimeSecurity(stack,{users,companies},token
     const cachedDelivery=received>1
     while(Date.now()<peer.data.expiresAt+1500)await wait(250)
     const joinedAfterExpiry=peerChannel.channel.state==='joined'
+    assert.equal(joinedAfterExpiry,false,'An expired socket capability remained joined')
     checks.push('Revocation denies new grants/subscriptions and all subsequent changes; cached channel behavior measured through real JWT expiry')
     await request(`/studio/designs/${design.id}/collaborators`,0,{userId:users[2].id,role:'EDITOR'},'PUT')
     return {checks,cachedDeliveryAfterRevocation:cachedDelivery,rawSocketJoinedAfterExpiry:joinedAfterExpiry,observedMs:Date.now()-revokedAt,leaseMs:peer.data.expiresAt-peer.data.certificate.issuedAt}
