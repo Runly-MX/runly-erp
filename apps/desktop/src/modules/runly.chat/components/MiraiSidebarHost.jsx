@@ -12,13 +12,14 @@ import {
   AssistantWordmark, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input,
   ModuleAssistantPanel, Sheet, SheetContent, SheetTitle, useCoarsePointer,
 } from "@runly/ui";
-import { ExternalLink, MoreVertical, Pencil, Sparkles } from "lucide-react";
+import { EyeOff, ExternalLink, MoreVertical, Pencil, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useEnsureMiraiConversation, useMiraiStatus } from "../hooks/useMirAI";
 import { useMiraiThreads } from "../hooks/useMiraiThreads";
 import { MiraiSidebarThread } from "./MiraiSidebarThread";
 import { moduleKeyFromPath, setVisibleMiraiConversation, shouldShowMiraiTab, useMiraiOpenRequest } from "../lib/miraiPageContext";
 import { useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPreferences";
+import { isMiraiTabHidden, miraiShortcut, setMiraiTabHidden, useMiraiTabHidden } from "../lib/miraiTabPreference";
 import "../chat-theme.css";
 
 const LS_KEY = "mirai.sidebar.open";
@@ -135,6 +136,23 @@ export function MiraiSidebarHost() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
+  // Alt+M shows/hides the floating tab, Alt+Shift+M opens/closes the panel.
+  const tabHidden = useMiraiTabHidden();
+  useEffect(() => {
+    if (!visible) return undefined;
+    const onShortcut = (e) => {
+      const action = miraiShortcut(e);
+      if (!action) return;
+      e.preventDefault();
+      if (action === "panel") { setOpen((value) => !value); return; }
+      const hide = !isMiraiTabHidden();
+      setMiraiTabHidden(hide);
+      toast(hide ? "Botón de MirAI oculto. Alt+M para mostrarlo." : "Botón de MirAI visible.");
+    };
+    document.addEventListener("keydown", onShortcut);
+    return () => document.removeEventListener("keydown", onShortcut);
+  }, [visible]);
+
   const coarse = useCoarsePointer();
   const { prefs } = useChatPreferences();
   const tab = useDraggableTab(() => setOpen(true));
@@ -149,11 +167,11 @@ export function MiraiSidebarHost() {
 
   return (
     <>
-      {!open && (
+      {!open && !tabHidden && (
         <Button
           variant="outline"
           aria-label="Abrir MirAI"
-          title="Abrir MirAI (arrastra para moverlo)"
+          title="Abrir MirAI (arrastra para moverlo, Alt+M lo oculta)"
           {...tab.handlers}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(true); } }}
           style={tabStyle}
@@ -289,6 +307,9 @@ function MiraiPanel({ open, coarse, onClose }) {
               </DropdownMenuItem>
               <DropdownMenuItem disabled={!conversationId} onSelect={() => navigate(`/app/m/runly.chat/chat/inbox/${conversationId}`)}>
                 <ExternalLink className="mr-2 h-4 w-4" />Abrir en Chat
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => { setMiraiTabHidden(true); toast("Botón de MirAI oculto. Vuelve a mostrarlo con Alt+M o desde tu menú de usuario."); }}>
+                <EyeOff className="mr-2 h-4 w-4" />Ocultar botón flotante
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

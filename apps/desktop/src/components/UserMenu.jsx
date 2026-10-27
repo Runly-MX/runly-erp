@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { isNativeMobile } from "@runly/core/native-runtime";
-import { Moon as MoonIcon, SmilePlus, ChevronDown, User, Settings, LogOut, Download, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug, Server, ShieldCheck, PlugZap } from "lucide-react";
+import { Moon as MoonIcon, SmilePlus, ChevronDown, User, Settings, LogOut, Download, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2, Bug, Server, ShieldCheck, PlugZap, Sparkles, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { native } from "../native/index.js";
 import { useThemeStore } from "../stores/theme";
 import { useChatFloatStore } from "../modules/runly.chat/store/chatFloatStore";
 import { useChatUnreadCount } from "../modules/runly.chat/hooks/useChatConversations";
+import { useMiraiStatus } from "../modules/runly.chat/hooks/useMirAI";
+import { setMiraiTabHidden, useMiraiTabHidden } from "../modules/runly.chat/lib/miraiTabPreference";
 import { useActiveCompany } from "../company/ActiveCompanyProvider";
 import { CompanySwitcherModal } from "./CompanySwitcherModal";
 import {
@@ -81,6 +83,9 @@ export function UserMenu({
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
   const [openingNativeSettings, setOpeningNativeSettings] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const { data: miraiStatus } = useMiraiStatus();
+  const miraiTabHidden = useMiraiTabHidden();
+  const miraiAvailable = Boolean(miraiStatus?.available) && miraiStatus?.forbidden !== true;
   const { status, save: saveStatus } = useMyStatus();
   const { dnd, save: saveDnd } = useDnd();
   const dndOn = dnd?.active === true;
@@ -225,6 +230,13 @@ export function UserMenu({
           <PlugZap size={14} />
           Conexiones de asistentes
         </DropdownMenuItem>
+        {miraiAvailable && (
+          <DropdownMenuItem onClick={() => setMiraiTabHidden(!miraiTabHidden)} className="gap-2 cursor-pointer">
+            {miraiTabHidden ? <Sparkles size={14} /> : <EyeOff size={14} />}
+            {miraiTabHidden ? "Mostrar botón de MirAI" : "Ocultar botón de MirAI"}
+            <span className="ml-auto text-xs text-muted-foreground">Alt+M</span>
+          </DropdownMenuItem>
+        )}
         {(userProfile?.isAdmin ||
           userProfile?.permissions?.includes("platform.settings.manage")) && (
           <DropdownMenuItem
