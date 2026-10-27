@@ -151,4 +151,13 @@ export const checker = (x, y, columns, rows, size, fill, opacity) =>
   Array.from({ length: columns * rows }, (_, index) => ({ column: index % columns, row: Math.floor(index / columns) }))
     .filter(({ column, row }) => (column + row) % 2 === 0).map(({ column, row }) => box(x + column * size, y + row * size, size, size, fill, { opacity }))
 
+// Flower seen from above (marigold, dahlia): ring of petals around a center.
+export const flower = (cx, cy, size, petal, center, { petals = 10, accent } = {}) => [
+  ...Array.from({ length: petals }, (_, index) => {
+    const angle = (360 / petals) * index, radians = angle * Math.PI / 180, distance = size * 0.27
+    const [x, y] = centered(cx + distance * Math.cos(radians), cy + distance * Math.sin(radians), size * 0.42, size * 0.22, angle)
+    return oval(x, y, size * 0.42, size * 0.22, index % 2 && accent ? accent : petal, { rotation: angle })
+  }),
+  circle(cx - size * 0.14, cy - size * 0.14, size * 0.28, center)]
+
 export { icon }
