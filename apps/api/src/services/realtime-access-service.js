@@ -4,11 +4,11 @@ export function createRealtimeAccessService({ prisma, broadcaster }) {
     return row.revision;
   }
 
-  async function allowed(topic, userId, edit = false) {
+  async function allowed(topic, userId, edit = false, db = prisma) {
     if (typeof topic !== 'string') return false;
     const note = topic.match(/^note:(ydoc|canvas):([0-9a-f-]{36})$/i);
     if (note) {
-      const [row] = await prisma.$queryRaw`SELECT
+      const [row] = await db.$queryRaw`SELECT
         public.runly_note_user_access(${note[2]}::uuid, ${userId ?? null}::uuid, ${edit})
         OR (${!edit} AND public.notes_realtime_is_public(${note[2]}::uuid)) AS allowed`;
       return row?.allowed === true;
@@ -16,27 +16,29 @@ export function createRealtimeAccessService({ prisma, broadcaster }) {
     if (!userId) return false;
     const canvas = topic.match(/^canvas:board:([0-9a-f-]{36})$/i);
     if (canvas) {
-      const [row] = await prisma.$queryRaw`SELECT public.runly_canvas_user_access(${canvas[1]}::uuid, ${userId}::uuid, ${edit}) AS allowed`;
+      const [row] = await db.$queryRaw`SELECT public.runly_canvas_user_access(${canvas[1]}::uuid, ${userId}::uuid, ${edit}) AS allowed`;
       return row?.allowed === true;
     }
     const chat = topic.match(/^chat:(presence|conv):([0-9a-f-]{36})$/i);
     if (chat) {
-      const [row] = await prisma.$queryRaw`SELECT public.runly_chat_user_access(${chat[2]}::uuid, ${userId}::uuid) AS allowed`;
+      const [row] = await db.$queryRaw`SELECT public.runly_chat_user_access(${chat[2]}::uuid, ${userId}::uuid) AS allowed`;
       return row?.allowed === true;
     }
     const company = topic.match(/^company:([0-9a-f-]{36}):(presence|events)$/i) ?? topic.match(/^chat:company:([0-9a-f-]{36})$/i);
     if (company) {
-      const [row] = await prisma.$queryRaw`SELECT public.runly_member_active(${company[1]}::uuid, ${userId}::uuid) AS allowed`;
+      const [row] = await db.$queryRaw`SELECT public.runly_member_active(${company[1]}::uuid, ${userId}::uuid) AS allowed`;
       return row?.allowed === true;
     }
-    return topic === `user:${userId}:events` && Boolean(await prisma.userProfile.findFirst({ where: { id: userId, enabled: true }, select: { id: true } }));
+    return topic === `user:${userId}:events` && Boolean(await db.userProfile.findFirst({ where: { id: userId, enabled: true }, select: { id: true } }));
   }
 
   async function relay({ topic, event, payload, actorId }) {
     // Arbitrary company/user events and guest messages can only be emitted by
     // their module service. This relay serves document edits and chat typing.
     const note = /^note:(ydoc|canvas):[0-9a-f-]{36}$/i.test(topic ?? '');
-    const canvas = /^canvas:board:[0-9a-f-]{36}$/i.test(topic ?? '');
+    // canvas.changed is authoritative: only Canvas services may announce a
+    // committed delta/deletion. An editor's cursor permission cannot mint it.
+    const canvas = /^canvas:board:[0-9a-f-]{36}$/i.test(topic ?? '') && event === 'cursor';
     const typing = /^chat:presence:[0-9a-f-]{36}$/i.test(topic ?? '') && event === 'typing';
     if ((!note && !canvas && !typing) || !actorId || typeof event !== 'string' || event.length > 80) return false;
     if (JSON.stringify(payload ?? {}).length > 2_000_000) return false;
@@ -47,8 +49,11 @@ export function createRealtimeAccessService({ prisma, broadcaster }) {
     // client-supplied id.
     const outgoing = typing
       ? { isTyping: Boolean(payload?.isTyping), userId: actorId, displayName: user.displayName }
-      : canvas ? { ...(payload ?? {}), actorId } : payload;
-    await broadcaster.broadcastToChannel(topic, event, outgoing, { authorize: () => allowed(topic, actorId, note || canvas) });
+      : canvas ? { ...(payload ?? {}), actorId }
+        : topic.startsWith('note:canvas:') && event === 'pointer'
+          ? { ...(payload ?? {}), senderId: actorId, user: { id: actorId, name: user.displayName } }
+          : payload;
+    await broadcaster.broadcastToChannel(topic, event, outgoing, { authorize: (tx) => allowed(topic, actorId, note || canvas, tx) });
     return true;
   }
 

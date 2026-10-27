@@ -24,14 +24,47 @@ export function visibleCursors(state, { pageId, presence, now = Date.now() }) {
     .map((cursor) => ({ id: cursor.actorId, name: names.get(cursor.actorId), color: colorFor(cursor.actorId), x: cursor.x, y: cursor.y, selectedIds: cursor.selectedIds }))
 }
 
+// Owned by one Board session. Cursor arrivals repaint the viewport directly;
+// they never update the Board's React state or its mutation/history cache.
+export function createCursorStore() {
+  let state = new Map(), context = { presence: [] }, snapshot = [], timer = null
+  const listeners = new Set()
+  function publish() {
+    clearTimeout(timer)
+    timer = null
+    const now = Date.now()
+    for (const [id, cursor] of state) if (now - cursor.at >= CURSOR_TTL_MS) state.delete(id)
+    snapshot = visibleCursors(state, { ...context, now })
+    listeners.forEach(listener => listener())
+    if (state.size) {
+      const expiresAt = Math.min(...[...state.values()].map(cursor => cursor.at + CURSOR_TTL_MS))
+      timer = setTimeout(publish, Math.max(1, expiresAt - Date.now()))
+    }
+  }
+  return {
+    getSnapshot: () => snapshot,
+    subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener) },
+    update(payload) {
+      const next = reduceCursor(state, payload, context)
+      if (next === state) return
+      state = next
+      publish()
+    },
+    setContext(next) { context = next; publish() },
+    clear() { state.clear(); clearTimeout(timer); timer = null; snapshot = []; listeners.forEach(listener => listener()) },
+  }
+}
+
 // Leading call, then at most one trailing call per interval with the latest value.
 export function createThrottle(fn, interval) {
   let last = 0, timer = null, pending
-  return (value) => {
+  const throttled = (value) => {
     pending = value
     const wait = interval - (Date.now() - last)
     if (wait <= 0 && !timer) { last = Date.now(); fn(value); return }
     if (timer) return
     timer = setTimeout(() => { timer = null; last = Date.now(); fn(pending) }, Math.max(wait, 0))
   }
+  throttled.cancel = () => { clearTimeout(timer); timer = null; pending = undefined; last = 0 }
+  return throttled
 }

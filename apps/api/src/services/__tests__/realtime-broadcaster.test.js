@@ -70,4 +70,12 @@ describe("createRealtimeBroadcaster — private:true on every message", () => {
     assert.equal(calls[0].body.messages[0].private, true);
     assert.equal(calls[0].body.messages[0].topic, "chat:conv:conv-1@7");
   });
+  it('passes its locked transaction to authorization and never publishes a denied event', async () => {
+    const b = createRealtimeBroadcaster({ prisma, supabaseUrl: 'https://realtime.example.test', serviceRoleKey: 'fixture' });
+    await b.broadcastToChannel('canvas:board:board-1', 'cursor', {}, { authorize: async (tx) => {
+      assert.equal(tx, prisma);
+      return false;
+    } });
+    assert.equal(calls.length, 0);
+  });
 });

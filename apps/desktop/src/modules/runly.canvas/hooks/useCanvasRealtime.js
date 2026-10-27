@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { getSupabaseClient } from '../../../lib/supabase.js'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { applyObjectDelta, invalidationTargets } from '../lib/realtimeCache.js'
-import { CURSOR_SEND_MS, createThrottle, reduceCursor, visibleCursors } from '../lib/remoteCursors.js'
+import { CURSOR_SEND_MS, createThrottle, createCursorStore } from '../lib/remoteCursors.js'
 
 function createCanvasRealtimeSession({ boardId, user, onChanged, onCursor, onPresence }) {
   const supabase = getSupabaseClient()
@@ -26,23 +26,17 @@ export function useCanvasRealtime(boardId, { pageId, selectedIds, onBoardDeleted
   const userId = userProfile?.id, displayName = userProfile?.displayName, email = userProfile?.email
   const channelRef = useRef(null)
   const [presence, setPresence] = useState([])
-  const [cursors, setCursors] = useState(() => new Map())
+  const cursorStoreRef = useRef(null)
+  if (!cursorStoreRef.current) cursorStoreRef.current = createCursorStore()
+  const cursorStore = cursorStoreRef.current
   // Updated every render (no effect dep) so the subscription below always
   // calls the latest callback without resubscribing the channel.
   const onBoardDeletedRef = useRef(onBoardDeleted)
   onBoardDeletedRef.current = onBoardDeleted
-  // Ticking "now" lets stale cursors disappear even without a new message;
-  // it only runs while someone else's cursor is known, so a solo editor
-  // never re-renders on a timer.
-  const [now, setNow] = useState(() => Date.now())
-  const hasCursors = cursors.size > 0
-  useEffect(() => {
-    if (!hasCursors) return undefined
-    const timer = setInterval(() => setNow(Date.now()), 2000)
-    return () => clearInterval(timer)
-  }, [hasCursors])
   useEffect(() => {
     if (!boardId || !userId) return undefined
+    setPresence([])
+    cursorStore.clear()
     const session = createCanvasRealtimeSession({
       boardId,
       user: { id: userId, displayName, email },
@@ -70,15 +64,18 @@ export function useCanvasRealtime(boardId, { pageId, selectedIds, onBoardDeleted
           client.invalidateQueries({ queryKey: keys[target], exact: target === 'board' })
         }
       },
-      onCursor: (message) => setCursors((state) => reduceCursor(state, message?.payload, { selfId: userId })),
+      onCursor: (message) => cursorStore.update(message?.payload),
       onPresence: setPresence,
     })
     channelRef.current = session.channel
-    return () => { channelRef.current = null; session.destroy() }
-  }, [boardId, client, displayName, email, userId])
+    return () => { channelRef.current = null; sendRef.current?.cancel(); cursorStore.clear(); session.destroy() }
+  }, [boardId, client, cursorStore, displayName, email, userId])
   // presenceState() includes this session and one entry per open tab, so the
   // UI receives other collaborators only, de-duplicated by user.
   const others = [...new Map(presence.filter((user) => user.id !== userId).map((user) => [user.id, user])).values()]
+  useLayoutEffect(() => {
+    cursorStore.setContext({ selfId: userId, pageId, presence: others })
+  })
 
   const othersRef = useRef(0), pageRef = useRef(pageId), selectionRef = useRef(selectedIds ?? [])
   othersRef.current = others.length; pageRef.current = pageId; selectionRef.current = selectedIds ?? []
@@ -97,7 +94,7 @@ export function useCanvasRealtime(boardId, { pageId, selectedIds, onBoardDeleted
 
   return {
     presence: others,
-    cursors: visibleCursors(cursors, { pageId, presence: others, now }),
+    cursorStore,
     broadcastPointer,
   }
 }

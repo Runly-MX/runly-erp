@@ -76,3 +76,33 @@ State vectors requieren handshake compatible y recuperación probada, incluida l
 pública sin emisión anónima. Outbox requiere demostrar necesidad y preservar revocación.
 Completar la línea base y matriz antes de modificar producción; detener cada etapa si
 la integridad no pasa. GO exige evidencia integral, no solo tests unitarios.
+
+## Hallazgos comprobados en Docker
+
+Línea base de 60 s, 1/5/10 usuarios: Canvas 12/2410/4820 solicitudes API
+(incluye revisión y Presence), p95 de observación de cursor 103 ms con 5 y 115 ms
+con 10. El consumidor del hook renderizó aproximadamente 1916 y 4258 veces,
+respectivamente. Son datos del harness del hook, no un perfil del Board completo.
+
+Notes emitió 1204/6012 Broadcast HTTP con 1/5 editores a 20 cambios locales/s por
+usuario; ambos convergieron. Con 10, el transporte dejó documentos distintos y
+solo completó 3326 Broadcast HTTP: NO interpretar ese descenso como ahorro.
+Los logs de esa pila registraron 158 errores `broadcastToChannel`. La revalidación
+del relay dentro del broadcaster usa el Prisma global mientras mantiene una
+transacción: necesita una segunda conexión y puede agotar el pool. Pasar `tx`
+a `authorize` y a `allowed` conserva el mismo bloqueo de revisión y evita esa
+dependencia de una conexión adicional. Requiere repetición real bajo carga.
+
+Chat typing emitió 60/300/600 Broadcast HTTP, además de revisión/Presence, con
+1/5/10 usuarios (una emisión/s). Esto aún no mide envío de mensajes ni notificaciones.
+
+La prueba Auth/RLS confirmó acceso privado denegado a otra empresa/anónimo,
+escritura denegada a lector/revocado/deshabilitado, lectura anónima al publicar y
+rotación al despublicar. Dos guardados simultáneos de Y.Doc (128 KB + otro update)
+conservaron ambos al reabrir. Un editor pudo falsificar `canvas.changed` mediante
+el relay: ese evento debe reservarse a los servicios de persistencia.
+
+Con una demora HTTP local inyectada de 750 ms, la rotación de revisión esperó
+769.9 ms al broadcaster. Se conserva `FOR SHARE` durante el envío: moverlo fuera
+de la transacción sin otro protocolo de autorización sería inseguro. No se introduce
+outbox, rol o migración por este hallazgo; primero corregir el uso del pool.

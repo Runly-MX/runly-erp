@@ -5,9 +5,11 @@ import { createServer } from 'node:http'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { chromium } from 'playwright'
 import { createStudioStack } from './fixtures/studio/supabase-stack.mjs'
 import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
+import { verifyRealtimeSecurity } from './fixtures/realtime-2/security.mjs'
 
 const require = createRequire(resolve('apps/api/package.json'))
 const { build } = require('esbuild'), { createClient } = require('@supabase/supabase-js')
@@ -18,7 +20,7 @@ const modules = (arg('modules') ?? 'canvas,notes,chat').split(',')
 const activities = (arg('activity') ?? 'idle,active').split(',')
 assert.ok(['before', 'after'].includes(phase)); assert.ok(seconds >= 5 && seconds <= 1800)
 assert.ok(counts.every(n => Number.isInteger(n) && n >= 1 && n <= 20))
-assert.ok(modules.every(name => ['canvas', 'notes', 'chat'].includes(name)))
+assert.ok(modules.every(name => ['canvas', 'notes', 'chat', 'chat-ui'].includes(name)))
 assert.ok(activities.every(name => ['idle', 'active'].includes(name)))
 const image = arg('api-image')
 assert.match(image ?? '', /^runly-realtime2:[a-zA-Z0-9_-]+$/)
@@ -90,21 +92,43 @@ try {
   await stack.compose(['up','-d','runly-api'], { log: join(output,'api-start.log') })
   for(let attempt=0;;attempt++) { if(await fetch(stack.urls.api+'/public/website/desktop/config').then(r=>r.ok).catch(()=>false))break;if(attempt>=120)throw Error('API_NOT_READY');await wait(500) }
   const boundary=join(output,'boundary.js')
-  await writeFile(boundary, `import{createClient}from'@supabase/supabase-js';import{createRunlyClient}from'${resolve('packages/sdk/src/index.js').replaceAll('\\','/')}';import{authorizeRealtimeClient}from'${resolve('apps/desktop/src/lib/authorizedRealtime.js').replaceAll('\\','/')}';let config,client;export let runly;export const useAuth=()=>({userProfile:{id:config.actorId,displayName:'Peer'},session:config.session});export const getApiUrl=()=>config.api;export const getSupabaseClient=()=>client;export async function configure(c){config=c;client=createClient(c.url,c.key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});await client.auth.setSession(c.session);authorizeRealtimeClient(client);runly=createRunlyClient({baseUrl:c.api,getActiveCompanyId:()=>c.companyId})}`)
+  await writeFile(boundary, `
+    import {createClient} from '@supabase/supabase-js'
+    import {createRunlyClient} from '${resolve('packages/sdk/src/index.js').replaceAll('\\','/')}'
+    import {authorizeRealtimeClient} from '${resolve('apps/desktop/src/lib/authorizedRealtime.js').replaceAll('\\','/')}'
+    let config, client
+    export let runly
+    export const useAuth = () => ({userProfile:{id:config.actorId,displayName:'Peer'},session:config.session})
+    export const useActiveCompany = () => ({activeCompanyId:config.companyId})
+    export const getApiUrl = () => config.api
+    export const getSupabaseClient = () => client
+    export const runtimeConfig = {}
+    export async function configure(c) {
+      config=c
+      client=createClient(c.url,c.key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}})
+      await client.auth.setSession(c.session)
+      authorizeRealtimeClient(client)
+      runly=createRunlyClient({baseUrl:c.api,getActiveCompanyId:()=>c.companyId})
+    }
+  `)
   const bundle=await build({entryPoints:['scripts/fixtures/realtime-2/browser.jsx'],bundle:true,write:false,platform:'browser',format:'esm',jsx:'automatic',nodePaths:[resolve('apps/desktop/node_modules')],plugins:[{name:'configuration',setup(b){
-    b.onResolve({filter:/^realtime-2-boundary$|\/auth\/AuthProvider(?:\.jsx)?$|\/lib\/supabase\.js$|\/runtimeConfig\.js$/},()=>({path:boundary}))
+    b.onResolve({filter:/^realtime-2-boundary$|\/auth\/AuthProvider(?:\.jsx)?$|\/company\/ActiveCompanyProvider(?:\.jsx)?$|(?:^|\/)(?:supabase|runly)(?:\.js)?$|\/runtimeConfig\.js$/},()=>({path:boundary}))
     if(sourceRef)b.onLoad({filter:/apps[\\/]desktop[\\/]src[\\/].*\.(js|jsx)$/},({path})=>({contents:execFileSync('git',['show',`${sourceRef}:${path.slice(resolve('.').length+1).replaceAll('\\','/')}`],{encoding:'utf8'}),loader:path.endsWith('.jsx')?'jsx':'js'}))
   }}]})
+  const bundleSha256=createHash('sha256').update(bundle.outputFiles[0].contents).digest('hex')
+  const capacity=(await stack.pool.query('SELECT max_events_per_second,max_bytes_per_second,max_presence_events_per_second FROM _realtime.tenants')).rows
   server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/fixture.js'?'text/javascript':'text/html');res.end(req.url==='/fixture.js'?bundle.outputFiles[0].contents:'<!doctype html><div id="root"></div><script type="module" src="/fixture.js"></script>')})
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
   browser=await chromium.launch({channel:'chrome',headless:true})
   for(const module of modules) for(const n of counts) for(const activity of activities) {
     const active = activity === 'active'
-    const contexts=[],pages=[],pending=[],metrics={http:{},wsSent:0,wsReceived:0,wsBytesSent:0,wsBytesReceived:0,httpBodyBytes:0,httpTransferBytes:0,httpErrors:0,latencies:[]}
+    const contexts=[],pages=[],pending=[],metrics={http:{},httpStarted:0,httpFailed:0,browserErrors:[],wsSent:0,wsReceived:0,wsBytesSent:0,wsBytesReceived:0,httpBodyBytes:0,httpTransferBytes:0,httpErrors:0,latencies:[]}
     let recording=false
     for(let i=0;i<n;i++) {
       const context=await browser.newContext(),p=await context.newPage();contexts.push(context);pages.push(p)
-      p.on('pageerror',error=>{throw error})
+      p.on('pageerror',error=>{metrics.browserErrors.push(error.message)})
+      p.on('request',request=>{if(recording&&request.url().startsWith(stack.urls.api))metrics.httpStarted++})
+      p.on('requestfailed',request=>{if(recording&&request.url().startsWith(stack.urls.api))metrics.httpFailed++})
       const cdp=await context.newCDPSession(p);await cdp.send('Network.enable')
       for(const [event,direction]of [['Network.webSocketFrameSent','Sent'],['Network.webSocketFrameReceived','Received']])cdp.on(event,e=>{if(recording){metrics[`ws${direction}`]++;metrics[`wsBytes${direction}`]+=Buffer.byteLength(e.response.payloadData,e.response.opcode===2?'base64':'utf8')}})
       p.on('requestfinished',request=>{if(!recording||!request.url().startsWith(stack.urls.api))return;const key=request.method()+' '+new URL(request.url()).pathname;metrics.http[key]=(metrics.http[key]??0)+1;metrics.latencies.push(request.timing().responseEnd);pending.push((async()=>{const response=await request.response();if(!response.ok())metrics.httpErrors++;metrics.httpBodyBytes+=Buffer.byteLength(request.postData()??'')+(await response.body()).length;const s=await request.sizes();metrics.httpTransferBytes+=s.requestBodySize+s.requestHeadersSize+s.responseBodySize+s.responseHeadersSize})().catch(()=>{}))})
@@ -112,7 +136,7 @@ try {
       await p.evaluate(input=>window.start(input),{module,api:stack.urls.api,url:stack.urls.kong,key:stack.secret.SUPABASE_ANON_KEY,session:actors[i].session,token:actors[i].session.access_token,actorId:actors[i].id,companyId:company.id,boardId:board.id,pageId:page.id,noteId:note.id,conversationId:conversation.id})
       await p.waitForFunction(()=>window.state().ready,null,{timeout:25000})
     }
-    if(module !== 'notes') for(const p of pages) await p.waitForFunction(({n,module})=>window.state().peers >= (module==='canvas'?n-1:n),{n,module},{timeout:20000})
+    if(module === 'canvas' || module === 'chat') for(const p of pages) await p.waitForFunction(({n,module})=>window.state().peers >= (module==='canvas'?n-1:n),{n,module},{timeout:20000})
     await wait(1200)
     const stateBefore=await Promise.all(pages.map(p=>p.evaluate(()=>window.state())))
     const before=await snapshot(),begin=Date.now(); recording=true
@@ -125,12 +149,27 @@ try {
     const result={module,users:n,active,requestedSeconds:seconds,elapsedSeconds,converged,metrics:{...metrics,p50:percentile(metrics.latencies,.5),p95:percentile(metrics.latencies,.95),deliveryP50:percentile(deliveryLatencies,.5),deliveryP95:percentile(deliveryLatencies,.95)},resources:difference(before,after),stateBefore,stateAfter}
     delete result.metrics.latencies
     results.push(result)
-    await writeFile(join(output,'results.json'),JSON.stringify({phase,source,image,stack:stack.name,scope:'production transports; not full editors',results},null,2))
+    await writeFile(join(output,'results.json'),JSON.stringify({phase,source,sourceMode:sourceRef?'committed':'working tree',bundleSha256,image,capacity,stack:stack.name,scope:'production transports and optional Chat hooks; not full editors',results},null,2))
     console.log(JSON.stringify({module,users:n,active,http:metrics.http,cpu:result.resources.cpuSeconds,httpErrors:metrics.httpErrors}))
     for(const p of pages)await p.evaluate(()=>window.stop())
     for(const context of contexts)await context.close()
     await wait(1000)
+    if(phase==='after') {
+      assert.equal(metrics.browserErrors.length,0,'Browser runtime errors')
+      assert.equal(metrics.httpErrors,0,'HTTP failure during healthy benchmark')
+      if(module==='notes')assert.equal(converged,true,'Y.Doc transport failed to converge')
+    }
   }
+  if(process.argv.includes('--security')) {
+    assert.ok(actors.length >= 2, 'Security scenarios require at least two actors')
+    const security=await verifyRealtimeSecurity(stack,{actors,data,board,note,conversation,phase})
+    await writeFile(join(output,'security.json'),JSON.stringify(security,null,2))
+    console.log(JSON.stringify(security))
+  }
+  const apiLogs=await stack.compose(['logs','--no-color','runly-api'])
+  const apiErrors={broadcastErrors:(apiLogs.match(/broadcastToChannel error/g)??[]).length,transactionErrors:(apiLogs.match(/Unable to start a transaction|Transaction already closed/g)??[]).length}
+  await writeFile(join(output,'api-errors.json'),JSON.stringify(apiErrors,null,2))
+  if(phase==='after')assert.equal(apiErrors.broadcastErrors,0,'Broadcaster errors during healthy benchmark')
 } catch(error) {
   await writeFile(join(output,'failure.json'),JSON.stringify({message:error.message,source,phase},null,2))
   throw error

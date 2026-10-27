@@ -115,7 +115,7 @@ export default function BoardEditor() {
   const objects = useCanvasObjects(boardId, pageId), linksQuery = useEntityLinks(boardId), updateHotspot = useUpdateHotspot(boardId, pageId)
   // Another collaborator deleting this Board while it is open here: this
   // Other sessions get redirected to the list when the Board is deleted.
-  const { presence, cursors, broadcastPointer } = useCanvasRealtime(boardId, {
+  const { presence, cursorStore, broadcastPointer } = useCanvasRealtime(boardId, {
     pageId, selectedIds,
     onBoardDeleted: () => { if (selfDeleteRef.current) return; toast.info('Este Board fue eliminado'); navigate('/app/m/runly.canvas') },
   })
@@ -332,7 +332,7 @@ export default function BoardEditor() {
             onSelect={select} onCreate={actions.create} onCommit={actions.commit} onOpen={openObject}
             tool={tool} spacePan={spacePan} viewport={viewport} onViewportChange={setViewport} onResize={setSize}
             readOnly={readOnly} grid={pageMap.hasMap ? { ...(settings?.grid ?? {}), enabled: false } : settings?.grid} snapSize={snapSizeFor(settings)}
-            remote={cursors} onPointerWorld={broadcastPointer} bindings={bindings.data ?? {}} flash={flash}
+            remoteStore={cursorStore} onPointerWorld={broadcastPointer} bindings={bindings.data ?? {}} flash={flash}
             scale={pageScale.scale} onCalibrate={pageScale.onViewportCalibrate} onContextMenu={contextMenu.openAt}
           />
           <CanvasContextMenu

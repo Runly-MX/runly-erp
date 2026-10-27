@@ -12,7 +12,7 @@ export function createRealtimeBroadcaster({ supabaseUrl, serviceRoleKey, prisma 
   async function _send(messages, authorize = null) {
     await prisma.$transaction(async (tx) => {
       const [scope] = await tx.$queryRaw`SELECT revision::text FROM realtime_authorization_revision WHERE id FOR SHARE`;
-      if (authorize && !(await authorize())) return;
+      if (authorize && !(await authorize(tx))) return;
       const safe = [];
       for (const message of messages) {
         const match = message.topic.match(/^user:([0-9a-f-]{36}):events$/i);

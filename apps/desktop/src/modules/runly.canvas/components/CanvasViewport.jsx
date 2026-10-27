@@ -51,7 +51,7 @@ export function CanvasViewport(props) {
     objects = resolveConnectors(objects)
     const single = live?.objects?.size === 1 ? [...live.objects.values()][0] : null
     renderer.render({
-      objects, viewport: p.viewport, images: p.images, linkedIds: p.linkedIds, grid: p.grid, remote: p.remote ?? [], bindings: p.bindings ?? {}, drawers: p.drawers ?? {},
+      objects, viewport: p.viewport, images: p.images, linkedIds: p.linkedIds, grid: p.grid, remote: p.remoteStore?.getSnapshot() ?? p.remote ?? [], bindings: p.bindings ?? {}, drawers: p.drawers ?? {},
       selectedIds: live?.draft ? new Set() : new Set(p.selectedIds),
       overlay: single && live.mode !== 'move' ? { object: single, text: overlayText(live.mode, single, p.scale) } : live?.draft ? { object: live.draft, text: overlayText('create', live.draft, p.scale) } : null,
       marquee: live?.marquee ?? null,
@@ -75,6 +75,13 @@ export function CanvasViewport(props) {
     if (liveRef.current?.committed && props.objects !== liveRef.current.objectsAtCommit) liveRef.current = null
     draw()
   })
+
+  useEffect(() => {
+    return props.remoteStore?.subscribe(schedule)
+    // Repaint reads current committed props through propsRef; no resubscription
+    // or React update is needed for each remote pointer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.remoteStore])
 
   useEffect(() => {
     const canvas = canvasRef.current
