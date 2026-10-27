@@ -42,6 +42,8 @@ files=(
   lib/instance-identity.mjs
   lib/supabase-selfhosted-config.mjs
   lib/backup-config.mjs
+  lib/studio-realtime-db.mjs
+  recover-studio-realtime.mjs
   package.json
   setup-local.mjs
   setup-local.ps1
@@ -57,12 +59,18 @@ files=(
   supabase/volumes/db/webhooks.sql
   supabase/volumes/db/roles.sql
   supabase/volumes/db/jwt.sql
+  supabase/volumes/db/studio-realtime-role.sql
 )
 
 echo "[runly-bootstrap] Descargando instalador local en $(pwd)"
 
 for file in "${files[@]}"; do
   mkdir -p "$(dirname "$file")"
+  # Docker creates a directory when a missing bind-mounted file is referenced.
+  # Replace only an EMPTY shadow directory; retain any user contents.
+  if [[ -d "$file" ]]; then
+    rmdir -- "$file" || { echo "[runly-bootstrap] Se esperaba un archivo: $file; el directorio no está vacío." >&2; exit 1; }
+  fi
   curl -fsSLo "$file" "$base_url/$file"
   # curl never preserves or sets the executable bit — every .sh entry point
   # downloaded fresh here would otherwise need a manual `chmod +x` before it

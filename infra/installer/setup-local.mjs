@@ -25,6 +25,7 @@ import {
 import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME, LINUX_HOST_NETWORK_SERVICES, probePublicHealth } from "./lib/hairpin-nat.mjs";
 import { buildTranscriberDatabaseUrl, generateTranscriberPassword } from "./lib/transcriber-db.mjs";
 import { resolveBackupConfig, getBackupComposeProfiles } from "./lib/backup-config.mjs";
+import { createStudioDatabaseRunner, prepareStudioRealtimeOwner } from './lib/studio-realtime-db.mjs';
 
 const argv = new Set(process.argv.slice(2));
 const skipComposeUp = argv.has("--skip-compose-up");
@@ -1273,6 +1274,11 @@ async function main() {
     console.log("[6b/8] Starting self-hosted Supabase and waiting for it to become healthy...");
     run("docker", ["compose", ...composeFiles, "up", "-d", ...SELF_HOSTED_SUPABASE_REQUIRED_SERVICES, ...SELF_HOSTED_SUPABASE_BEST_EFFORT_SERVICES]);
     await waitForSelfHostedSupabaseHealthy(identity.containerPrefix);
+    console.log('[6c/8] Preparing Studio Realtime with the database schema owner...');
+    await prepareStudioRealtimeOwner({
+      execute:createStudioDatabaseRunner({composeArgs:composeFiles,cwd:installerDir}),
+      sqlFile:path.join(installerDir,'supabase/volumes/db/studio-realtime-role.sql'),
+    });
     // migrate/seed run as one-shot `docker run` containers (not compose
     // services), so they must explicitly join this project's network to
     // reach supabase-db by service name — Compose's default network is

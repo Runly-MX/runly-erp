@@ -40,6 +40,8 @@ $files = @(
   "lib/instance-identity.mjs",
   "lib/supabase-selfhosted-config.mjs",
   "lib/backup-config.mjs",
+  "lib/studio-realtime-db.mjs",
+  "recover-studio-realtime.mjs",
   "package.json",
   "setup-local.mjs",
   "setup-local.ps1",
@@ -53,7 +55,8 @@ $files = @(
   "supabase/volumes/db/realtime.sql",
   "supabase/volumes/db/webhooks.sql",
   "supabase/volumes/db/roles.sql",
-  "supabase/volumes/db/jwt.sql"
+  "supabase/volumes/db/jwt.sql",
+  "supabase/volumes/db/studio-realtime-role.sql"
 )
 
 Write-Host "[runly-bootstrap] Descargando instalador local en $PWD"
@@ -63,6 +66,13 @@ foreach ($file in $files) {
   $outDir = Split-Path -Parent $outFile
   if ($outDir) {
     New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+  }
+  if (Test-Path -LiteralPath $outFile -PathType Container) {
+    $item = Get-Item -LiteralPath $outFile -Force
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or @(Get-ChildItem -LiteralPath $outFile -Force).Count) {
+      throw "Se esperaba un archivo; se conserva el directorio existente: $outFile"
+    }
+    [IO.Directory]::Delete($item.FullName, $false)
   }
   Invoke-WebRequest -Uri "$baseUrl/$file" -OutFile $outFile
 }

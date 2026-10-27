@@ -27,6 +27,7 @@ for (const language of ['sh', 'ps1']) for (const mode of ['external', 'local']) 
     const credential = path.join(target, '.secrets/firebase/service-account.json')
     await fs.writeFile(credential, 'preserve-private-file')
     await fs.writeFile(path.join(target, '.env.external'), 'PRESERVE=true\n')
+    if(mode==='local')await fs.mkdir(path.join(target,'supabase/volumes/db/studio-realtime-role.sql'),{recursive:true})
     const name = `bootstrap-${mode}.${language}`
     const text = (await fs.readFile(path.join(source, name), 'utf8')).replaceAll('\r\n', '\n')
     const fresh = language === 'sh'
@@ -67,6 +68,14 @@ function global:Invoke-WebRequest {
     assert.equal(await fs.readFile(path.join(target, '.env.external'), 'utf8'), 'PRESERVE=true\n')
     assert.equal(await fs.readFile(credential, 'utf8'), 'preserve-private-file')
     await fs.access(path.join(target, 'lib/firebase-config.mjs'))
+    if(mode==='local'){
+      const mounted=path.join(target,'supabase/volumes/db/studio-realtime-role.sql')
+      assert.equal((await fs.stat(mounted)).isFile(),true)
+      await fs.unlink(mounted);await fs.mkdir(mounted);await fs.writeFile(path.join(mounted,'keep.txt'),'preserve')
+      const blocked=spawnSync(executable,args,{cwd:target,env:environment,encoding:'utf8',timeout:30000})
+      assert.notEqual(blocked.status,0)
+      assert.equal(await fs.readFile(path.join(mounted,'keep.txt'),'utf8'),'preserve')
+    }
     // A failed bootstrap download must not overwrite the installed script.
     await fs.unlink(path.join(remote, name))
     result = spawnSync(executable, args, { cwd: target, env: environment, encoding: 'utf8', timeout: 30000 })

@@ -1012,6 +1012,26 @@ Para desactivar Office, cambia el indicador a `false` y ejecuta el setup; detien
 el editor y conserva los documentos y su clave para futuras activaciones.
 
 Consulta la [guia completa de despliegue, actualizaciones, proxy y recuperacion](../../docs/deployment/office-collabora.md).
+
+### Studio Realtime en bases existentes
+
+En modo `selfhosted`, el setup prepara el rol y los permisos de Studio con
+`supabase_admin` antes de ejecutar Prisma. Esta fase también se ejecuta cuando
+el volumen de PostgreSQL ya existe; los scripts de inicialización del volumen
+solo cubren bases nuevas. El bootstrap descarga el SQL y sus helpers. Si Docker
+había creado un directorio vacío en lugar del SQL ausente, lo reemplaza por el
+archivo; se detiene si el directorio contiene archivos.
+
+Para diagnosticar un P3009 anterior sin modificar la base, desde la carpeta
+del instalador actualizado:
+
+```bash
+node recover-studio-realtime.mjs
+```
+
+La recuperación y sus comprobaciones se describen en
+[Studio: recuperación de migración](../../docs/deployment/STUDIO_REALTIME_MIGRATION_RECOVERY.md).
+
 # Bases compartidas y actualizaciones sin inicialización
 
 La API aplica migraciones y seed al arrancar por defecto. `--skip-migrate` del
