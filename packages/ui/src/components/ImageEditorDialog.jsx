@@ -609,9 +609,9 @@ export function ImageEditorDialog({
                 >
                   <div className="absolute left-0 top-0" style={{ width: areaSize.w, height: areaSize.h, transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`, transformOrigin: "0 0" }}>
                     <div className="absolute" style={display ? { left: (areaSize.w - display.w) / 2, top: (areaSize.h - display.h) / 2, width: display.w, height: display.h } : undefined}>
-                    <canvas ref={canvasRef} aria-label="Imagen en edición" className="absolute inset-0 h-full w-full" style={eraseCount > 0 ? CHECKER : undefined} />
+                    <canvas ref={canvasRef} aria-label="Imagen en edición" className={`absolute inset-0 h-full w-full ${comparing ? "invisible" : ""}`} style={eraseCount > 0 ? CHECKER : undefined} />
                     {display ? (
-                      <div ref={pictureRef} className="absolute left-0 top-0" style={{ width: picture.w, height: picture.h, transform: `scale(${display.k})`, transformOrigin: "0 0" }}>
+                      <div ref={pictureRef} className={`absolute left-0 top-0 ${comparing ? "invisible" : ""}`} style={{ width: picture.w, height: picture.h, transform: `scale(${display.k})`, transformOrigin: "0 0" }}>
                         <ImageLayerOverlay
                           layers={doc.layers}
                           selectedId={selectedId}
@@ -657,17 +657,13 @@ export function ImageEditorDialog({
                         onChange={(r) => hist.update({ cropN: { x: r.x / display.w, y: r.y / display.h, w: r.w / display.w, h: r.h / display.h } }, "crop")}
                       />
                     ) : null}
-                    {cropPx && tab !== "crop" && !isFullCrop ? (
+                    {cropPx && tab !== "crop" && !isFullCrop && !comparing ? (
                       <div className="pointer-events-none absolute border border-white/70" style={{ left: cropPx.x, top: cropPx.y, width: cropPx.w, height: cropPx.h, boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)" }} />
                     ) : null}
+                    {comparing && original ? <canvas ref={originalRef} aria-label="Imagen original" className="pointer-events-none absolute inset-0 h-full w-full object-contain" /> : null}
                     </div>
                   </div>
-                  {comparing && original ? (
-                    <div className="absolute inset-0 bg-[hsl(var(--background))]">
-                      <canvas ref={originalRef} aria-label="Imagen original" className="h-full w-full object-contain" />
-                      <span className="absolute left-2 top-2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white">Original</span>
-                    </div>
-                  ) : null}
+                  {comparing && original ? <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white">Original</span> : null}
                 </div>
               ) : error ? (
                 <p className="px-4 text-sm text-[hsl(var(--destructive))]">{error}</p>
