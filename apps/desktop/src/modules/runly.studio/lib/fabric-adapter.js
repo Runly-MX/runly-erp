@@ -93,19 +93,20 @@ export async function createStudioEditor(element, options) {
     if (reviewed && JSON.stringify(validateDocument(reviewed)) !== JSON.stringify(snapshot())) throw Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
   }
   async function renderPage(id, scene, task, signal) {
+    const canonical = validateDocument(scene)
     checkAbort(signal)
     await options.authorizePage?.(id, signal)
     checkAbort(signal)
     const canvas = element.ownerDocument.createElement('canvas')
     let renderer
     try {
-      renderer = await createPageEditor(canvas, {document: pageDocument(scene, id), resolveImage: assetId => options.resolveImage(assetId, signal), readOnly: true, loadSignal: signal})
+      renderer = await createPageEditor(canvas, {document: pageDocument(canonical, id), resolveImage: assetId => options.resolveImage(assetId, signal), readOnly: true, loadSignal: signal})
       checkAbort(signal)
       const result = await task(renderer)
-      for(const assetId of documentAssetIds(pageDocument(scene,id))) { await options.resolveImage(assetId,signal); checkAbort(signal) }
+      for(const assetId of documentAssetIds(pageDocument(canonical,id))) { await options.resolveImage(assetId,signal); checkAbort(signal) }
       await options.authorizePage?.(id, signal)
       checkAbort(signal)
-      if (JSON.stringify(findPage(snapshot(), id)) !== JSON.stringify(findPage(scene, id))) throw Error('La página cambió durante la exportación.')
+      if (JSON.stringify(findPage(snapshot(), id)) !== JSON.stringify(findPage(canonical, id))) throw Error('La página cambió durante la exportación.')
       return result
     } finally { await renderer?.destroy(); canvas.width = canvas.height = 0; canvas.remove() }
   }

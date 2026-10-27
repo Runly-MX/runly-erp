@@ -1,3 +1,4 @@
+import { createStudioInterchangeRouter } from './interchange/router.js'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { createStudioService } from './studio-service.js'
@@ -19,6 +20,7 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   service = createStudioService({ prisma, filesService, broadcaster }),
   templates = createStudioTemplatesService({ prisma, filesService, supabaseAdmin, designService: service }) }) {
   const app = new Hono()
+  app.route('/', createStudioInterchangeRouter({ prisma, filesService, supabaseAdmin, service, templates, requirePermission }))
   const collaboration = createStudioCollaboration({ prisma, access: service.access, broadcaster, supabaseAdmin })
   const resources = createStudioResources({ access: service.access, filesService, supabaseAdmin })
   const catalog = createStudioCatalog({ prisma, access: service.access, filesService, supabaseAdmin })

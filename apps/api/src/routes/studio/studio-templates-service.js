@@ -164,9 +164,9 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     if (operation !== 'delete') await authorizeAssets(db,companyId,actorId,document,scope,current,source?.id,fileContext)
     return { current,document,name,category,description,scope,sourceDesignId:source?.id ?? current?.sourceDesignId ?? null }
   }
-  async function mutate(companyId,actorId,operation,input,fileContext,origin = 'user') {
+  async function mutate(companyId,actorId,operation,input,fileContext,origin = 'user', transaction) {
     access.identity(companyId,actorId)
-    return prisma.$transaction(async db => {
+    const work = async db => {
       await access.lock(db)
       await db.$queryRaw`SELECT set_config('runly.studio.protocol','3',true)`
       if (operation !== 'create') { if (!FILE_ID.test(input.id)) missing(); await row(db,companyId,actorId,input.id,true) }
@@ -186,7 +186,8 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
       await bind(db,saved.id,actorId,document)
       await audit(db,companyId,actorId,operation,saved,{source:operation === 'create' ? origin : prepared.current.source})
       return operation === 'delete' ? { ...saved,enabled:false } : get(companyId,actorId,saved.id,db)
-    })
+    }
+    return transaction ? work(transaction) : prisma.$transaction(work)
   }
   async function use(companyId,actorId,id,fileContext,{name} = {}) {
     access.identity(companyId,actorId)
@@ -206,7 +207,7 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
       return {...saved,ownerId:actorId,role:'OWNER',canEdit:true}
     })
   }
-  return { list,get,prepare,use,signedAsset,create:(c,a,i,f,origin)=>mutate(c,a,'create',i,f,origin),
+  return { list,get,prepare,use,signedAsset,create:(c,a,i,f,origin,transaction)=>mutate(c,a,'create',i,f,origin,transaction),
     update:(c,a,id,i,f)=>mutate(c,a,'update',{...i,id},f),publish:(c,a,id,i,f)=>mutate(c,a,'publish',{...i,id},f),
     remove:(c,a,id,i,f)=>mutate(c,a,'delete',{...i,id},f) }
 }

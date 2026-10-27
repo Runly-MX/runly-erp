@@ -47,10 +47,10 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
     if (typeof value !== 'string' || !value.trim() || value.length > 160) throw new StudioError('Escribe un nombre de hasta 160 caracteres.')
     return value.trim()
   }
-  async function create(companyId, actorId, input, fileContext) {
+  async function create(companyId, actorId, input, fileContext, transaction) {
     access.identity(companyId, actorId)
     const name = title(input?.name), document = validateDocument(input?.document)
-    const row = await prisma.$transaction(async db => {
+    const work = async db => {
       await access.lock(db); await access.member(companyId, actorId, 'studio.create', db); await access.member(companyId, actorId, 'studio.view', db)
       if (input?.sourceDesignId) await access.get(companyId, actorId, input.sourceDesignId, db)
       const ids = await access.assets(db, companyId, actorId, document, input?.sourceDesignId ?? null, fileContext, Boolean(input?.sourceDesignId))
@@ -60,7 +60,8 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
       await access.bindAssets(db, row.id, actorId, ids)
       await access.audit(db, companyId, actorId, 'studio.design.create', row)
       return row
-    })
+    }
+    const row = transaction ? await work(transaction) : await prisma.$transaction(work)
     return { ...row, ownerId: actorId, role: 'OWNER', canEdit: true }
   }
   async function update(companyId, actorId, id, input, fileContext) {

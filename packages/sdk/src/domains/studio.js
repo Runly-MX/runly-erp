@@ -2,7 +2,24 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
   const path = id => `/studio/designs/${encodeURIComponent(id)}`
   const options = (token, method = 'GET', data) => ({ method, headers: {...withAuthHeaders(token),...(method==='GET'?{}:{'X-Runly-Studio-Protocol':'3'})}, onlineOnly: true,
     ...(data === undefined ? {} : { body: JSON.stringify(data) }) })
+  const interchange = '/studio/interchange'
+  const packageBody = (file, data) => {
+    const body = new FormData(), name = file.name || 'plantilla.runlystudio'
+    const type = file.type || (name.endsWith('.svg') ? 'image/svg+xml' : 'application/vnd.runly.studio+zip')
+    body.set('file', new Blob([file], { type }), name)
+    if (data) body.set('options', JSON.stringify(data))
+    return body
+  }
   return {
+    packageContract: (token, signal) => request(`${interchange}/schema`, { ...options(token), signal }),
+    inspectPackage: (file, token, signal) => request(`${interchange}/inspect`, { ...options(token, 'POST'), body: packageBody(file), signal }),
+    preparePackageImport: (file, data, token, signal) => request(`${interchange}/imports`, { ...options(token, 'POST'), body: packageBody(file, data), signal }),
+    packageImportStatus: (id, token, signal) => request(`${interchange}/imports/${encodeURIComponent(id)}`, { ...options(token), signal }),
+    packageImportAsset: (id, resourceId, token, signal) => requestBlob(`${interchange}/imports/${encodeURIComponent(id)}/assets/${encodeURIComponent(resourceId)}`, { ...options(token), signal }),
+    confirmPackageImport: (id, data, token, signal) => request(`${interchange}/imports/${encodeURIComponent(id)}/confirm`, { ...options(token, 'POST', data), signal }),
+    cancelPackageImport: (id, token, signal) => request(`${interchange}/imports/${encodeURIComponent(id)}`, { ...options(token, 'DELETE'), signal }),
+    recoverPackageImports: (token, signal) => request(`${interchange}/recover`, { ...options(token, 'POST'), signal }),
+    exportPackage: (kind, id, data, token, signal) => requestBlob(`${interchange}/${kind === 'template' ? 'templates' : 'designs'}/${encodeURIComponent(id)}/export`, { ...options(token, 'POST', data), signal }),
     listPages: (id,token,signal) => request(`${path(id)}/pages`,{...options(token),signal}),
     getPage: (id,pageId,token,signal) => request(`${path(id)}/pages/${encodeURIComponent(pageId)}`,{...options(token),signal}),
     createPrintJob: (id,data,token,signal) => request(`${path(id)}/export/jobs`,{...options(token,'POST',data),signal}),

@@ -364,7 +364,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     return batchEnrichFileAssets(fileAssets.filter(f => !blocked.has(f.id)), supabaseAdmin.storage);
   }
 
-  async function storeAsset(context, file, fields = {}) {
+  async function storeAsset(context, file, fields = {}, staging) {
     if (!(file instanceof File) || file.size <= 0) {
       throw new FilesServiceError("Selecciona un archivo válido.", 400);
     }
@@ -427,6 +427,11 @@ export function createFilesService({ prisma, supabaseAdmin }) {
 
     const targetBucket = visibility === "PUBLIC" ? WEBSITE_BUCKET_NAME : STORAGE_BUCKET_NAME;
     const arrayBuffer = await file.arrayBuffer();
+    // Internal saga hook: journal the exact private key before Storage I/O.
+    if (staging) {
+      if (visibility !== "PRIVATE" || typeof staging.beforeStorage !== "function") throw new FilesServiceError("Staging inválido.", 400);
+      await staging.beforeStorage({ bucket: targetBucket, objectKey });
+    }
     const { error: uploadError } = await supabaseAdmin.storage
       .from(targetBucket)
       .upload(objectKey, arrayBuffer, {
@@ -438,8 +443,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       throw new FilesServiceError("No se pudo subir el archivo.", 500);
     }
 
-    const asset = await prisma.fileAsset.create({
-      data: {
+    const assetData = {
         bucket: targetBucket,
         objectKey,
         originalName: file.name,
@@ -459,8 +463,10 @@ export function createFilesService({ prisma, supabaseAdmin }) {
           companyId: context.companyId,
           sourceEntityId,
         },
-      },
-    });
+    };
+    // No FileAsset is exposed until the caller commits its target and journal.
+    if (staging) return { staged: assetData };
+    const asset = await prisma.fileAsset.create({ data: assetData });
 
     // Files-explorer uploads only: module attachments belong to their record.
     if (filesOrigin) {
@@ -471,9 +477,9 @@ export function createFilesService({ prisma, supabaseAdmin }) {
   }
 
   return {
-    async upload({ authUserId, activeContext, file, fields = {} }) {
+    async upload({ authUserId, activeContext, file, fields = {}, staging }) {
       const context = await getUserCompanyContext(authUserId, activeContext);
-      return storeAsset(context, file, fields);
+      return storeAsset(context, file, fields, staging);
     },
 
     // Same storage path for a file the platform itself produces (company
