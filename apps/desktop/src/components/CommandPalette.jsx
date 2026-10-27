@@ -30,6 +30,13 @@ import {
 } from "../lib/commandQuery";
 import { useCommandSearch } from "../lib/useCommandSearch";
 import { useQuickNoteStore } from "../modules/runly.notes/quick/quickNoteStore";
+import { toast } from "sonner";
+import { buildPaletteCommands } from "../lib/paletteCommands";
+import { useThemeStore } from "../stores/theme";
+import { useChatFloatStore } from "../modules/runly.chat/store/chatFloatStore";
+import { useMiraiStatus } from "../modules/runly.chat/hooks/useMirAI";
+import { openMiraiSidebar } from "../modules/runly.chat/lib/miraiPageContext";
+import { isMiraiTabHidden, setMiraiTabHidden, useMiraiTabHidden } from "../modules/runly.chat/lib/miraiTabPreference";
 
 export function CommandPalette({ activeModule }) {
   const { isOpen, closeCommand, openCommand } = useCommandStore();
@@ -57,6 +64,24 @@ export function CommandPalette({ activeModule }) {
     token,
   });
   const [recents, setRecents] = useState(() => loadRecents());
+  const isDark = useThemeStore((s) => s.isDark);
+  const chatHidden = useChatFloatStore((s) => s.hidden);
+  const miraiTabHidden = useMiraiTabHidden();
+  const { data: miraiStatus } = useMiraiStatus();
+  const miraiAvailable = Boolean(miraiStatus?.available) && miraiStatus?.forbidden !== true;
+  const commands = useMemo(
+    () =>
+      buildPaletteCommands({
+        miraiAvailable,
+        miraiTabHidden,
+        chatAvailable: availableModules.some((m) => m.key === "runly.chat"),
+        chatHidden,
+        isDark,
+        fullscreenEnabled: Boolean(document.fullscreenEnabled),
+        isFullscreen: Boolean(document.fullscreenElement),
+      }),
+    [miraiAvailable, miraiTabHidden, availableModules, chatHidden, isDark, isOpen],
+  );
 
   const { sections, flat } = useMemo(() => {
     const base = buildCommandItems({
@@ -68,16 +93,38 @@ export function CommandPalette({ activeModule }) {
       searchGroups: filterGroupsForMode(orderGroups(response?.groups ?? [], scope.moduleKey), mode),
       mode,
       recents,
+      commands,
     });
     const extras = buildSearchExtras({ scope, response, searching: searchActive });
     const all = [...extras.top, ...base.sections, ...extras.bottom];
     return { sections: all, flat: all.flatMap((sec) => sec.items) };
-  }, [availableModules, activeModule, text, mode, recents, isOnline, response, scope.moduleKey, scope.canWiden, scope.label, searchActive]);
+  }, [availableModules, activeModule, commands, text, mode, recents, isOnline, response, scope.moduleKey, scope.canWiden, scope.label, searchActive]);
 
   const notice = fallbackNotice(response, scope.label);
   const showEmpty = searchActive && !loading && !error && flat.length === 0 && isReallyEmpty(response);
 
   const searching = searchActive && loading;
+
+  function runCommand(id) {
+    if (id === "mirai-tab") {
+      const hide = !isMiraiTabHidden();
+      setMiraiTabHidden(hide);
+      toast(hide ? "Botón de MirAI oculto. Alt+M para mostrarlo." : "Botón de MirAI visible.");
+    } else if (id === "mirai-open") openMiraiSidebar();
+    else if (id === "chat-float") {
+      const store = useChatFloatStore.getState();
+      const wasHidden = store.hidden;
+      if (wasHidden) store.show();
+      else store.hide();
+      toast(wasHidden ? "Chat flotante visible." : "Chat flotante oculto.");
+    } else if (id === "theme") useThemeStore.getState().toggle();
+    else if (id === "fullscreen") {
+      if (document.fullscreenElement) document.exitFullscreen?.();
+      else document.documentElement.requestFullscreen?.().catch(() => toast.error("El navegador no permitió la pantalla completa."));
+    } else if (id === "copy-link") {
+      navigator.clipboard?.writeText(window.location.href).then(() => toast.success("Enlace copiado."), () => toast.error("No se pudo copiar el enlace."));
+    } else if (id === "reload") window.location.reload();
+  }
 
   function runItem(item) {
     if (!item || item.blocked) return;
@@ -87,6 +134,12 @@ export function CommandPalette({ activeModule }) {
     }
     if (item.kind === "suggestion" && !item.target) {
       setQuery(item.text);
+      return;
+    }
+    if (item.kind === "command") {
+      runCommand(item.command);
+      closeCommand();
+      setQuery("");
       return;
     }
     const recent = toRecent(item);

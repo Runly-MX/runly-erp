@@ -63,7 +63,12 @@ export function scoreItem(query, { title, subtitle, keywords = [] } = {}) {
     best = Math.max(best, scoreMatch(q, kw) * 1.5);
   }
   best = Math.max(best, scoreMatch(q, subtitle) * 1);
-  return best;
+  if (best > 0) return best;
+  // Several words ("ocultar chat"): every word must hit some field, in any order.
+  const words = q.split(" ").filter(Boolean);
+  if (words.length < 2) return 0;
+  const fields = [title, subtitle, ...keywords];
+  return words.every((word) => fields.some((field) => scoreMatch(word, field) > 0)) ? 20 : 0;
 }
 
 // ---- descriptors ----------------------------------------------------------
@@ -204,6 +209,7 @@ export function buildCommandItems({
   searchGroups = [],
   mode = null,
   recents = [],
+  commands = [],
 } = {}) {
   const isBlocked = makeBlocked(isOnline, offlineModuleKeys);
   const q = normalizeText(query);
@@ -259,6 +265,8 @@ export function buildCommandItems({
     });
   }
 
+  if (commands.length > 0) rawSections.push({ id: "commands", title: "Comandos", items: commands });
+
   rawSections.push({
     id: "pages",
     title: "Páginas",
@@ -266,7 +274,7 @@ export function buildCommandItems({
   });
 
   const MODE_SECTIONS = {
-    actions: ["active", "tools", "actions"],
+    actions: ["active", "tools", "actions", "commands"],
     modules: ["modules"],
     people: [],
     records: [],
