@@ -65,9 +65,9 @@ export function Rulers({ viewportRef, paperRef, page, zoom, selection }) {
     }
     const schedule = () => { if (!frame) frame = requestAnimationFrame(place) }
     place()
-    viewport.addEventListener('scroll', schedule, { passive: true })
+    viewport.addEventListener('scroll', place, { passive: true }); viewport.addEventListener('studio:viewport', place)
     const observer = new ResizeObserver(schedule); observer.observe(viewport)
-    return () => { cancelAnimationFrame(frame); viewport.removeEventListener('scroll', schedule); observer.disconnect() }
+    return () => { cancelAnimationFrame(frame); viewport.removeEventListener('scroll', place); viewport.removeEventListener('studio:viewport', place); observer.disconnect() }
   }, [viewportRef, paperRef, zoom, page.width, page.height])
   const text = '[&_line]:stroke-[hsl(var(--muted-foreground)/0.7)] [&_text]:fill-[hsl(var(--muted-foreground))] [&_text]:text-[9px] [&_text]:font-medium [&_text]:tabular-nums'
   return (

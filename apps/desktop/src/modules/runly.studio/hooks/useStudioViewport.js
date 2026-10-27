@@ -1,48 +1,79 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
+import { flushSync } from 'react-dom'
 
 export function useStudioViewport(page, editorRef) {
   const viewport = useRef(null), paper = useRef(null), drag = useRef(null), space = useRef(false), fitMode = useRef(false)
   const [zoom, setZoom] = useState(0.5), [hand, setHand] = useState(false), [size, setSize] = useState({ width: 0, height: 0 })
   const zoomRef = useRef(zoom), handRef = useRef(hand)
   useEffect(() => { handRef.current = hand }, [hand])
+  const frame = useRef(0), pending = useRef(null), desiredZoom = useRef(zoom)
+  const sync = useCallback(() => {
+    const node = viewport.current, sheet = paper.current
+    if (!node || !sheet) return
+    const area = node.getBoundingClientRect(), rect = sheet.getBoundingClientRect()
+    editorRef.current?.setViewport({ zoom: zoomRef.current, panX: rect.left - area.left, panY: rect.top - area.top, scrollLeft: node.scrollLeft, scrollTop: node.scrollTop })
+    node.dispatchEvent(new Event('studio:viewport'))
+  }, [editorRef])
   const center = useCallback(() => {
     const node = viewport.current
-    if (node) { node.scrollLeft = (node.scrollWidth - node.clientWidth) / 2; node.scrollTop = (node.scrollHeight - node.clientHeight) / 2 }
-  }, [])
+    if (node) { node.scrollLeft = (node.scrollWidth - node.clientWidth) / 2; node.scrollTop = (node.scrollHeight - node.clientHeight) / 2; sync() }
+  }, [sync])
+  // One frame owns the visual transaction. React commits the scale and every
+  // overlay first; scroll compensation and Fabric controls follow before paint.
+  const schedule = useCallback(value => {
+    pending.current = value; desiredZoom.current = value.zoom
+    if (frame.current) return
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0
+      const update = pending.current; pending.current = null
+      const node = viewport.current
+      if (!node || !paper.current || !update) return
+      zoomRef.current = update.zoom
+      flushSync(() => { setZoom(update.zoom); setSize({ width: node.clientWidth, height: node.clientHeight }) })
+      if (update.center) center()
+      else if (update.restore) {
+        node.scrollLeft = update.restore.scrollLeft ?? 0; node.scrollTop = update.restore.scrollTop ?? 0
+      } else {
+        const rect = paper.current.getBoundingClientRect()
+        node.scrollLeft += rect.left + update.doc.x * update.zoom - update.anchor.x
+        node.scrollTop += rect.top + update.doc.y * update.zoom - update.anchor.y
+      }
+      sync()
+    })
+  }, [center, sync])
   const changeZoom = useCallback((value, point) => {
     const node = viewport.current, sheet = paper.current
     if (!node || !sheet) return
     const rect = sheet.getBoundingClientRect(), view = node.getBoundingClientRect()
     const anchor = point ?? { x: view.left + node.clientWidth / 2, y: view.top + node.clientHeight / 2 }
-    const x = (anchor.x - rect.left) / zoomRef.current, y = (anchor.y - rect.top) / zoomRef.current
-    const next = Math.max(0.05, Math.min(4, value))
-    zoomRef.current = next; setZoom(next)
-    requestAnimationFrame(() => {
-      if (!paper.current || !viewport.current) return
-      const current = paper.current.getBoundingClientRect()
-      viewport.current.scrollLeft += current.left + x * next - anchor.x
-      viewport.current.scrollTop += current.top + y * next - anchor.y
-    })
-  }, [])
+    const doc = { x: (anchor.x - rect.left) / zoomRef.current, y: (anchor.y - rect.top) / zoomRef.current }
+    const next = Math.max(0.05, Math.min(4, typeof value === 'function' ? value(desiredZoom.current) : value))
+    if (Number.isFinite(next)) schedule({ zoom: next, anchor, doc })
+  }, [schedule])
   const fit = useCallback(() => {
     const node = viewport.current
     if (!node) return
     fitMode.current = true
-    const next = Math.max(0.05, Math.min(4, (node.clientWidth - 96) / page.width, (node.clientHeight - 96) / page.height))
-    zoomRef.current = next; setZoom(next); requestAnimationFrame(center)
-  }, [page.width, page.height, center])
+    schedule({ zoom: Math.max(0.05, Math.min(4, (node.clientWidth - 96) / page.width, (node.clientHeight - 96) / page.height)), center: true })
+  }, [page.width, page.height, schedule])
+  useLayoutEffect(() => { sync() }, [zoom, size, page.width, page.height, sync])
+  useEffect(() => () => { cancelAnimationFrame(frame.current); frame.current = 0; pending.current = null }, [])
   useEffect(() => {
     const node = viewport.current
-    const observer = new ResizeObserver(() => { setSize({ width: node.clientWidth, height: node.clientHeight }); if (fitMode.current) fit() })
+    const observer = new ResizeObserver(() => {
+      if (fitMode.current) fit()
+      else if (pending.current) schedule(pending.current)
+      else changeZoom(zoomRef.current)
+    })
     observer.observe(node)
     const wheel = event => {
       if (!event.ctrlKey && !event.metaKey) return
       event.preventDefault(); fitMode.current = false
-      changeZoom(zoomRef.current * Math.exp(-event.deltaY * 0.002), { x: event.clientX, y: event.clientY })
+      changeZoom(value => value * Math.exp(-event.deltaY * 0.002), { x: event.clientX, y: event.clientY })
     }
-    node.addEventListener('wheel', wheel, { passive: false })
-    return () => { observer.disconnect(); node.removeEventListener('wheel', wheel) }
-  }, [fit, changeZoom])
+    node.addEventListener('wheel', wheel, { passive: false }); node.addEventListener('scroll', sync, { passive: true })
+    return () => { observer.disconnect(); node.removeEventListener('wheel', wheel); node.removeEventListener('scroll', sync) }
+  }, [fit, changeZoom, schedule, sync])
   // Touch: two fingers pan and pinch-zoom anywhere (anchored at their
   // midpoint); one finger on the empty area around the page (or anywhere with
   // the hand tool) pans. One finger
@@ -50,22 +81,8 @@ export function useStudioViewport(page, editorRef) {
   // gestures (touch-action: none), so the browser never zooms the whole app.
   useEffect(() => {
     const node = viewport.current
-    let gesture = null, pan = null, owned = false, first = null, frame = 0, pending = null
+    let gesture = null, pan = null, owned = false, first = null
     const midpoint = list => { const [a, b] = list; return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2, distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) } }
-    const apply = () => {
-      frame = 0
-      if (!pending || !paper.current) return
-      const { zoom: next, anchor, doc } = pending
-      if (next !== zoomRef.current) { zoomRef.current = next; setZoom(next) }
-      // Keep the document point that started under the fingers under their current midpoint.
-      requestAnimationFrame(() => {
-        if (!paper.current) return
-        const rect = paper.current.getBoundingClientRect()
-        node.scrollLeft += rect.left + doc.x * next - anchor.x
-        node.scrollTop += rect.top + doc.y * next - anchor.y
-      })
-    }
-    const schedule = value => { pending = value; if (!frame) frame = requestAnimationFrame(apply) }
     // Fabric already started a one-finger interaction: bring that finger back to
     // where it began and end it there, so the gesture never moves an object.
     function releaseFabric() {
@@ -120,8 +137,8 @@ export function useStudioViewport(page, editorRef) {
     const listeners = [['touchstart', start], ['touchmove', move], ['touchend', end], ['touchcancel', end],
       ['pointermove', pointer], ['pointerup', pointer], ['pointercancel', pointer], ['gesturestart', block], ['gesturechange', block]]
     for (const [type, listener] of listeners) node.addEventListener(type, listener, options)
-    return () => { cancelAnimationFrame(frame); for (const [type, listener] of listeners) node.removeEventListener(type, listener, options) }
-  }, [])
+    return () => { for (const [type, listener] of listeners) node.removeEventListener(type, listener, options) }
+  }, [schedule])
   useEffect(() => {
     function keydown(event) {
       if (event.code !== 'Space' || event.target.closest('input,textarea,[contenteditable=true]') || editorRef.current?.isEditingText()) return
@@ -155,14 +172,13 @@ export function useStudioViewport(page, editorRef) {
   const restore = useCallback(saved => {
     if (!saved) return
     fitMode.current = false
-    zoomRef.current = saved.zoom; setZoom(saved.zoom)
-    requestAnimationFrame(() => {
-      if (!viewport.current) return
-      viewport.current.scrollLeft = saved.scrollLeft ?? 0
-      viewport.current.scrollTop = saved.scrollTop ?? 0
-    })
-  }, [])
-  return { viewport, paper, zoom, hand, setHand, center, fit, restore, size, panning,
+    schedule({ zoom: Math.max(0.05, Math.min(4, saved.zoom)), restore: saved })
+  }, [schedule])
+  // A viewport-sized gutter keeps cursor anchoring possible even when the
+  // paper is smaller than the viewport (scroll cannot otherwise go negative).
+  const paperStyle = { position: 'absolute', left: Math.max(48, size.width), top: Math.max(48, size.height), transform: `scale(${zoom})`, transformOrigin: 'top left', width: page.width, height: page.height }
+  const stageStyle = { position: 'relative', overflow: 'hidden', width: page.width * zoom + 2 * Math.max(48, size.width), height: page.height * zoom + 2 * Math.max(48, size.height) }
+  return { viewport, paper, zoom, hand, setHand, center, fit, restore, size, panning, paperStyle, stageStyle,
     changeZoom: value => { fitMode.current = false; changeZoom(value) },
     // onAuxClick/onMouseDown keep the browser's middle-click autoscroll and link-open away.
     gestures: { onPointerDownCapture: down, onPointerMoveCapture: move, onPointerUpCapture: stop, onPointerCancel: stop,

@@ -110,24 +110,6 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   }, [initial, editorRef, retry, onReady, sharedClipboard, view.restore])
   // Fit the page once the editor and the viewport exist; the hook keeps fitting on resize until the user zooms.
   useEffect(() => { if (ready) requestAnimationFrame(view.fit) }, [ready]) // eslint-disable-line react-hooks/exhaustive-deps
-  // The engine needs the displayed zoom and the page's screen offset in the
-  // viewport for grid/ruler ticks (setViewport never moves the canvas).
-  useEffect(() => {
-    const node = view.viewport.current
-    if (!ready || !node) return undefined
-    let frame = 0
-    const sync = () => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => {
-        const paper = view.paper.current, editor = editorRef.current
-        if (!paper || !editor) return
-        const area = node.getBoundingClientRect(), rect = paper.getBoundingClientRect()
-        try { editor.setViewport({ zoom, panX: rect.left - area.left, panY: rect.top - area.top, scrollLeft: node.scrollLeft, scrollTop: node.scrollTop }) } catch { /* zoom outside engine range */ }
-      })
-    }
-    sync(); node.addEventListener('scroll', sync, { passive: true })
-    return () => { cancelAnimationFrame(frame); node.removeEventListener('scroll', sync) }
-  }, [ready, zoom, view.size, view.viewport, view.paper, editorRef])
   async function attempt(action) {
     try { setBusy(true); setError(''); await action() } catch (error) { setError(error.message) } finally { setBusy(false) }
   }
@@ -345,10 +327,10 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
             }}
             // Double-click a photo: isolate it and move/scale it inside its frame.
             onDoubleClick={() => { if (imageKit.tools.photo && !selection.locked && !readOnly && !imageKit.framing) imageKit.tools.startFraming() }}
-            style={{ ...DOTS, touchAction: 'none', cursor: view.panning ? 'grabbing' : view.hand ? 'grab' : undefined }}>
-            <div style={{ position: 'relative', width: Math.max(view.size.width, page.width * zoom + 96), height: Math.max(view.size.height, page.height * zoom + 96) }}>
+            style={{ ...DOTS, touchAction: 'none', overflowAnchor: 'none', cursor: view.panning ? 'grabbing' : view.hand ? 'grab' : undefined }}>
+            <div style={view.stageStyle}>
               <div ref={view.paper} className="shadow-[0_12px_48px_-12px_rgb(0_0_0/0.35)] ring-1 ring-black/5"
-                style={{ position: 'absolute', left: Math.max(48, (view.size.width - page.width * zoom) / 2), top: Math.max(48, (view.size.height - page.height * zoom) / 2), transform: `scale(${zoom})`, transformOrigin: 'top left', width: page.width, height: page.height }}>
+                style={view.paperStyle}>
                 <canvas ref={canvasRef} aria-label="Lienzo editable de Studio" />
                 {canvas.preferences.grid.visible ? <GridOverlay page={page} zoom={zoom} step={canvas.references?.grid.displayStep ?? canvas.preferences.grid.size} /> : null}
                 {canvas.preferences.guides ? <GuidesOverlay guides={canvas.guides} page={page} zoom={zoom} /> : null}

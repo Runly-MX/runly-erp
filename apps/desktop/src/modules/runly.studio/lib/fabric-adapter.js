@@ -89,6 +89,9 @@ export async function createStudioEditor(element, options) {
     auxiliaryQueue = next.catch(() => {})
     return next
   }
+  function assertReviewed(reviewed) {
+    if (reviewed && JSON.stringify(validateDocument(reviewed)) !== JSON.stringify(snapshot())) throw Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
+  }
   async function renderPage(id, scene, task, signal) {
     checkAbort(signal)
     await options.authorizePage?.(id, signal)
@@ -148,13 +151,18 @@ export async function createStudioEditor(element, options) {
     async flush() { await queue; await inner.flush() },
     async exportImage(format, quality, reviewed, settings) {
       await methods.flush()
-      if (reviewed && JSON.stringify(validateDocument(reviewed)) !== JSON.stringify(snapshot())) throw Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
-      return inner.exportImage(format, quality, reviewed ? pageDocument(reviewed, active) : undefined, settings)
+      assertReviewed(reviewed)
+      const result = await inner.exportImage(format, quality, reviewed ? pageDocument(reviewed, active) : undefined, settings)
+      assertReviewed(reviewed)
+      return result
     },
     exportPng() { return methods.exportImage('png') },
-    exportPage(id, format = 'png', quality = 1, reviewed = snapshot(), settings = {}) {
+    async exportPage(id, format = 'png', quality = 1, reviewed = snapshot(), settings = {}) {
       if (id === active) return methods.exportImage(format, quality, reviewed, settings)
-      return auxiliary(() => renderPage(id, reviewed, renderer => renderer.exportImage(format, quality, pageDocument(reviewed, id), settings), settings.signal))
+      assertReviewed(reviewed)
+      const result = await auxiliary(() => renderPage(id, reviewed, renderer => renderer.exportImage(format, quality, pageDocument(reviewed, id), settings), settings.signal))
+      assertReviewed(reviewed)
+      return result
     },
     getPageThumbnail(id, {signal} = {}) {
       return auxiliary(async () => {
@@ -261,6 +269,9 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
       try{reserve(object)}catch(error){object.dispose();throw error}
       object.set({ ...options, scaleX: item.width / object.width, scaleY: item.height / object.height })
     }
+    // Textbox measures its own bounds; those are renderer state, not an edit
+    // of an API/template/historical document's canonical text box.
+    if (item.type === 'text') object.studioTextMetrics = { width: object.width, height: object.height }
     object.studioId = item.id
     object.studioPixels=pixels
     object.set({ ...flags(item), opacity:item.opacity??1, lockScalingFlip: true, minScaleLimit: 0.02 })
@@ -274,7 +285,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
       return { ...item, x: stable(position.x, item.x), y: stable(position.y, item.y), width: stable(Math.max(1, object.width * scaling.x), item.width),
         height: stable(Math.max(1, object.height * scaling.y), item.height), rotation: stable(object.getTotalAngle() % 360, item.rotation), fill: item.fill,
         ...(item.type === 'text' ? { text: object.text, fontSize: object.fontSize } : {}),
-        ...(['text','line'].includes(item.type) ? { width: object.width, height: object.height, scaleX: stable(scaling.x, item.scaleX), scaleY: stable(scaling.y, item.scaleY) } : {}) }
+        ...(['text','line'].includes(item.type) ? { width: item.type === 'text' && object.width === object.studioTextMetrics?.width ? item.width : object.width, height: item.type === 'text' && object.height === object.studioTextMetrics?.height ? item.height : object.height, scaleX: stable(scaling.x, item.scaleX), scaleY: stable(scaling.y, item.scaleY) } : {}) }
     }) })
   }
   const mergePatch=(item,patch)=>({...item,...patch,...(patch.shape?{shape:{...item.shape,...patch.shape}}:{})})
@@ -422,6 +433,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
       if(patch.width!==undefined)object.set({scaleX:item.width/object.width})
       if(patch.height!==undefined)object.set({scaleY:item.height/object.height})
     }
+    if (item.type === 'text') object.studioTextMetrics = { width: object.width, height: object.height }
     source.set(item.id,item);object.setCoords();canvas.requestRenderAll()
   }
   styleControls(canvas)
@@ -487,7 +499,8 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
     setSnappingEnabled(enabled){return editor.setSnappingOptions({enabled})},
     setSnappingOptions(patch){snapping=snappingOptions({...snapping,...patch});clearGuides();preferences();return {...snapping}},
     setGridOptions(patch){grid=gridOptions({...grid,...patch});clearGuides();preferences();return {...grid}},
-    setViewport(value){const next={...viewport,...value};viewportReferences(current.page,next,grid);const zoomed=next.zoom!==viewport.zoom;viewport=next;clearGuides();preferences();if(zoomed)styleControls(canvas,next.zoom)},
+    setViewport(value){const next={...viewport,...value};viewportReferences(current.page,next,grid);const zoomed=next.zoom!==viewport.zoom;viewport=next;clearGuides();preferences();if(zoomed){styleControls(canvas,next.zoom);canvas.renderAll()}
+      canvas.calcOffset();const text=canvas.getActiveObject();if(text?.isEditing)text.updateTextareaPosition()},
     getEditorPreferences(){return {snapping:{...snapping},...viewportReferences(current.page,viewport,grid)}},
     transformGroup(groupId,options={}){writable();return enqueue(async()=>{
       writable();const members=canvas.getObjects().filter(o=>source.get(o.studioId)?.groupId===groupId)

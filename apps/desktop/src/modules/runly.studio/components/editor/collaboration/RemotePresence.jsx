@@ -8,8 +8,8 @@ import { OBJECT_META } from '../LayersPanel.jsx'
 function Cursor({ person, session, zoom }) {
   return (
     <span aria-label={`Cursor de ${person.name}`} role="img" data-document-x={session.x} data-document-y={session.y}
-      className="absolute left-0 top-0 transition-[transform] duration-150 ease-linear motion-reduce:transition-none"
-      style={{ transform: `translate(${session.x}px, ${session.y}px) scale(${1 / zoom})`, transformOrigin: 'top left' }}>
+      className="absolute left-0 top-0 transition-[translate] duration-150 ease-linear motion-reduce:transition-none"
+      style={{ translate: `${session.x}px ${session.y}px`, transform: `scale(${1 / zoom})`, transformOrigin: 'top left' }}>
       <svg width="18" height="20" viewBox="0 0 18 20" aria-hidden className="drop-shadow-sm">
         <path d="M1.5 1.2 16 8.6l-6.2 1.9-2.3 6.4Z" fill={person.color} stroke="#fff" strokeWidth="1.5" strokeLinejoin="round" />
       </svg>

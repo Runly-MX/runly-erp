@@ -55,6 +55,7 @@
     "test:studio": "node --test apps/shared/studio/*.test.js apps/api/src/routes/studio/*.test.js packages/sdk/src/__tests__/studio-domain.test.js",
     "verify:studio:browser": "node scripts/verify-studio-browser.mjs",
     "verify:studio:ui": "node scripts/verify-studio-ui.mjs",
+    "verify:studio:viewport": "node scripts/verify-studio-viewport.mjs",
     "test:mcp": "node scripts/test-runly-mcp.mjs",
     "test:isolation:fresh": "node scripts/verify-user-isolation.mjs",
     "release:shared": "node scripts/shared-package-release.mjs",
