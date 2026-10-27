@@ -10,6 +10,8 @@ import { HOLIDAY_TEMPLATES } from './templates-holidays.js'
 import { HOLIDAYS_A } from './templates-holidays-a.js'
 import { HOLIDAYS_B } from './templates-holidays-b.js'
 import { HOLIDAYS_C } from './templates-holidays-c.js'
+import { HOLIDAYS_D } from './templates-holidays-d.js'
+import { HOLIDAYS_E } from './templates-holidays-e.js'
 
 const rect = (x, y, width, height, fill) => ({ type: 'rectangle', x, y, width, height, fill })
 const circle = (x, y, size, fill) => ({ type: 'ellipse', x, y, width: size, height: size, fill })
@@ -112,6 +114,8 @@ const DEFINITIONS = [
   ...HOLIDAYS_A,
   ...HOLIDAYS_B,
   ...HOLIDAYS_C,
+  ...HOLIDAYS_D,
+  ...HOLIDAYS_E,
 ]
 
 export const STUDIO_TEMPLATES = Object.freeze(DEFINITIONS.map(({ key, name, width, height,category,description,objects }) => Object.freeze({ key, name, width, height,
