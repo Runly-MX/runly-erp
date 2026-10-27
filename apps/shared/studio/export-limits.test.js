@@ -10,6 +10,6 @@ test('export dimensions are exact at x1/x2/x3; limits reject instead of downsamp
   assert.equal(exportDimensions({width:601,height:401},1.25).width,752)
 })
 test('an absent or old protocol cannot authorize new-client writes',()=>{
-  for(const value of [null,{version:1},{version:'2'},{}])assert.throws(()=>requireStudioProtocol(value),{status:426})
-  assert.equal(requireStudioProtocol({version:2}).version,2)
+  for(const value of [null,{version:1},{version:'2'},{version:2},{}])assert.throws(()=>requireStudioProtocol(value),{status:426})
+  assert.equal(requireStudioProtocol({version:3}).version,3)
 })

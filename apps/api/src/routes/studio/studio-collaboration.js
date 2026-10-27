@@ -1,3 +1,4 @@
+import {findPage, LEGACY_PAGE_ID} from '../../../../shared/studio/pages.js'
 import { FILE_ID, StudioError } from '../../../../shared/studio/document.js'
 import { signedUrlWithVariant } from '../../lib/image-variants.js'
 import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js'
@@ -77,19 +78,21 @@ export function createStudioCollaboration({ prisma, access, broadcaster, supabas
     if (input.leave === true) await prisma.$queryRaw`DELETE FROM studio_presence WHERE design_id=${id}::uuid AND user_id=${actorId}::uuid AND session_id=${sessionId} RETURNING session_id`
     else if (input.peek !== true) {
       const record = await access.get(companyId, actorId, id)
+      const pageId = input.pageId ?? LEGACY_PAGE_ID, scene = findPage(record.document,pageId)
+      if(!scene)throw new StudioError('La página ya no existe.',409,'STUDIO_PAGE_REMOVED')
       const point = input.cursor
       const x = point?.x ?? null, y = point?.y ?? null
-      if ((x !== null && (!Number.isFinite(x) || x < 0 || x > record.document.page.width)) ||
-          (y !== null && (!Number.isFinite(y) || y < 0 || y > record.document.page.height))) throw new StudioError('Coordenadas inválidas.')
-      const selected = record.document.objects.some(object => object.id === input.selectedId) ? input.selectedId : null
+      if ((x !== null && (!Number.isFinite(x) || x < 0 || x > scene.page.width)) ||
+          (y !== null && (!Number.isFinite(y) || y < 0 || y > scene.page.height))) throw new StudioError('Coordenadas inválidas.')
+      const selected = scene.objects.some(object => object.id === input.selectedId) ? input.selectedId : null
       const rows = await prisma.$transaction(async db => {
         await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${id}:${actorId}`},0))::text`
         await db.$queryRaw`DELETE FROM studio_presence WHERE design_id=${id}::uuid AND seen_at<now()-interval '40 seconds' RETURNING session_id`
         const [capacity] = await db.$queryRaw`SELECT count(*)::int AS count FROM studio_presence WHERE design_id=${id}::uuid AND user_id=${actorId}::uuid AND session_id<>${sessionId}`
         if (capacity.count >= 8) throw new StudioError('Demasiadas sesiones abiertas.', 429)
-        return db.$queryRaw`INSERT INTO studio_presence(design_id,user_id,session_id,cursor_x,cursor_y,selected_id)
-        VALUES(${id}::uuid,${actorId}::uuid,${sessionId},${x},${y},${selected}) ON CONFLICT(design_id,user_id,session_id)
-        DO UPDATE SET cursor_x=excluded.cursor_x,cursor_y=excluded.cursor_y,selected_id=excluded.selected_id,seen_at=now()
+        return db.$queryRaw`INSERT INTO studio_presence(design_id,user_id,session_id,cursor_x,cursor_y,selected_id,page_id)
+        VALUES(${id}::uuid,${actorId}::uuid,${sessionId},${x},${y},${selected},${pageId}) ON CONFLICT(design_id,user_id,session_id)
+        DO UPDATE SET page_id=excluded.page_id,cursor_x=excluded.cursor_x,cursor_y=excluded.cursor_y,selected_id=excluded.selected_id,seen_at=now()
         WHERE studio_presence.seen_at < now()-interval '180 milliseconds' RETURNING session_id`
       })
       if (rows.length) await broadcaster?.broadcastToChannel(`studio:design:${id}`, 'presence', { actorId, sessionId }, {
@@ -99,7 +102,7 @@ export function createStudioCollaboration({ prisma, access, broadcaster, supabas
     // Short TTLs, bounded active roster; remove stale sessions without workers.
     await prisma.$queryRaw`DELETE FROM studio_presence WHERE design_id=${id}::uuid AND seen_at<now()-interval '40 seconds' RETURNING session_id`
     const participants = await prisma.$queryRaw`SELECT p.user_id AS "userId",p.session_id AS "sessionId",u.display_name AS name,
-      u.avatar_file_id AS "avatarFileId",p.cursor_x AS x,p.cursor_y AS y,p.selected_id AS "selectedId",p.seen_at AS "seenAt"
+      u.avatar_file_id AS "avatarFileId",p.page_id AS "pageId",p.cursor_x AS x,p.cursor_y AS y,p.selected_id AS "selectedId",p.seen_at AS "seenAt"
       FROM studio_presence p JOIN user_profile u ON u.id=p.user_id WHERE p.design_id=${id}::uuid
       AND p.seen_at>now()-interval '15 seconds' AND runly_studio.can_access(p.design_id,p.user_id,false)
       ORDER BY p.seen_at DESC LIMIT 100`

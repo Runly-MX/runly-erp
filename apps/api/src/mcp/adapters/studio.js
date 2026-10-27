@@ -3,6 +3,7 @@ import { StudioError, validateDocument, blankDocument } from '../../../../shared
 import { createStudioApplication,studioFileContext,studioEditorLink } from '../../routes/studio/studio-application.js'
 import { createStudioMiraiCapabilities } from '../../routes/studio/mirai-capabilities.js'
 import { studioSummary } from '../../routes/studio/studio-document-data.js'
+import {applyOps, checkOps} from '../../../../shared/studio/operations.js'
 
 export function createStudioAdapter(dependencies) {
   const app=dependencies.application ?? createStudioApplication(dependencies)
@@ -35,6 +36,18 @@ export function createStudioAdapter(dependencies) {
         return {input,targetId:row.id,preview:summary(input.name,scene,[{label:'Nombre anterior',value:row.name}])}
       },
       async execute(input,a) { const row=await app.designs.update(a.companyId,a.actorProfileId,input.designId,input,studioFileContext(a));return {id:row.id,name:row.name,revision:row.revision,link:studioEditorLink(row.id)} } },
+    {key:'studio_apply_changes',permission:'studio.edit',operation:'update',label:'Editar páginas de Studio',
+      inputSchema:z.strictObject({designId:z.uuid(),revision,clientId:z.string().regex(/^[a-zA-Z0-9_-]{8,64}$/),batchId:z.number().int().positive(),ops:z.array(z.json()).max(500)}),
+      async prepare(input,a) {
+        const row=await app.designs.access.get(a.companyId,a.actorProfileId,input.designId,dependencies.prisma,true)
+        if(row.revision!==input.revision)throw new StudioError('El diseño cambió.',409,'STUDIO_REVISION_CONFLICT')
+        let scene
+        try {scene=validateDocument(applyOps(validateDocument(row.document),checkOps(input.ops)))} catch(error) {throw new StudioError(error.message)}
+        await app.designs.access.assets(dependencies.prisma,a.companyId,a.actorProfileId,scene,input.designId,studioFileContext(a))
+        return {input,targetId:row.id,preview:summary(row.name,scene)}
+      },
+      async execute(input,a) {const row=await app.designs.applyChanges(a.companyId,a.actorProfileId,input.designId,input,studioFileContext(a));return {id:input.designId,...row,link:studioEditorLink(input.designId)}}
+    },
     ...[
       ['studio_template_save','studio.view','create',z.strictObject({...metadata,scope:z.enum(['personal','company']).default('personal'),designId:z.uuid().optional(),document:document.optional()})],
       ['studio_template_update','studio.view','update',z.strictObject({templateId,revision,...Object.fromEntries(Object.entries(metadata).map(([k,v])=>[k,v.optional()])),document:document.optional()})],
@@ -54,7 +67,7 @@ export function createStudioAdapter(dependencies) {
   ].map(action=>({...action,readPermission:'studio.view'}))
   return {moduleKey:'runly.studio',label:'Studio',queries:capability.tools,actions,
     async revision(definition,prepared,a) {
-      if(definition.key==='studio_update_design')return app.detail(a,prepared.targetId)
+      if(['studio_update_design','studio_apply_changes'].includes(definition.key))return app.detail(a,prepared.targetId)
       if(prepared.targetId)return app.templates.get(a.companyId,a.actorProfileId,prepared.targetId)
       if(prepared.input.templateId)return app.templates.get(a.companyId,a.actorProfileId,prepared.input.templateId)
       if(prepared.input.designId)return app.detail(a,prepared.input.designId)

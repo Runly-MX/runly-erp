@@ -93,7 +93,14 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const navigation = useStudioNavigation(unsynced && !denied, preserve)
   useEffect(() => () => { clearTimeout(timer.current); if (sync.state().status !== 'synced') preserve() }, [preserve, sync])
   // A (re)mounted canvas shows the shared state, which may be newer than `initial`.
-  useEffect(() => { if (ready) editorRef.current?.applyRemote(sync.state().document) }, [ready, sync])
+  useEffect(() => {
+    if (!ready) return
+    const editor=editorRef.current
+    editor.applyRemote(sync.state().document).then(async()=>{
+      const id=new URLSearchParams(window.location.search).get('pageId')
+      if(id && editorRef.current===editor)await editor.selectPage(id)
+    }).catch(error=>setError(error.message))
+  }, [ready, sync])
   // Images added by collaborators are bound to the design: read them through it.
   const resolveImage = useCallback(async (id,signal) => {
     let signed = null
@@ -114,7 +121,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     form.append('file', file); form.append('moduleKey', 'runly.files'); form.append('entityType', 'AtlasFile')
     form.append('metadata', JSON.stringify({ source: 'runly.studio', originalWidth: width, originalHeight: height }))
     const asset = unwrap(await runly.files.upload(form, token))
-    const page = sync.state().document.page, scale = Math.min(1, page.width / width / 2, page.height / height / 2)
+    const page = editorRef.current?.activeScene().page ?? sync.state().document.page, scale = Math.min(1, page.width / width / 2, page.height / height / 2)
     return { id: asset.id, width: Math.max(1, width * scale), height: Math.max(1, height * scale) }
   }, [token, sync])
   // The photo editor reads originals through the design's assets: the photo
@@ -150,7 +157,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     const bitmap = await createImageBitmap(await response.blob())
     const width = bitmap.width, height = bitmap.height; bitmap.close()
     if (width * height > 25_000_000) throw new Error('La imagen supera 25 megapíxeles.')
-    const page = sync.state().document.page, scale = Math.min(1, page.width / width / 2, page.height / height / 2)
+    const page = editorRef.current?.activeScene().page ?? sync.state().document.page, scale = Math.min(1, page.width / width / 2, page.height / height / 2)
     const size = { width: width * scale, height: height * scale }
     await editorRef.current.add('image', { fileAssetId: asset.id, ...size, ...(point ? { x: Math.round(point.x - size.width / 2), y: Math.round(point.y - size.height / 2) } : {}) })
   }
@@ -168,8 +175,8 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     const phase = (value, extra) => { if (!signal.aborted&&job.current===current) setDownload({ phase: value, format, ...extra }) }
     phase('preparing')
     // The render is synchronous work: paint the notice first, and tell the flow when the browser render is over (a PDF is then built on the server).
-    const observed = new Proxy(editor, { get: (target, key) => key === 'exportImage'
-      ? async (...args) => { const blob = await target.exportImage(...args); phase('processing'); return blob }
+    const observed = new Proxy(editor, { get: (target, key) => ['exportImage','exportPage'].includes(key)
+      ? async (...args) => { const blob = await target[key](...args); phase('processing'); return blob }
       : typeof target[key] === 'function' ? target[key].bind(target) : target[key] })
     try {
       await nextPaint();checkAbort(signal)
@@ -217,7 +224,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     <StudioWorkspace initial={initial} readOnly={!canEdit} participants={realtime.participants} selfId={scope.split(':')[1]} chrome={chrome}
       sharedClipboard={clipboard} authorizePaste={authorizePaste} onEditImage={imageEditing.editImage} catalog={catalog}
       resourcePanel={({ disabled, uploader }) => <StudioCreativeResources key={scope} token={token} designId={record.id} disabled={disabled} uploader={uploader} onFileInsert={insertResource} onVectorInsert={object => editorRef.current.add('vector',object)} />}
-      onPointer={realtime.pointer} onSelectionChange={realtime.selection} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
+      onPointer={point => realtime.pointer(point,editorRef.current?.activePageId())} onSelectionChange={id => realtime.selection(id,editorRef.current?.activePageId())} authorizePage={async (pageId,signal) => { const fresh=unwrap(await runly.studio.getDesign(record.id,token,signal)); if(![fresh.document,...(fresh.document.additionalPages??[])].some(scene=>(scene.page.id??'page-1')===pageId))throw Error('La página ya no existe.') }} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
     <StudioSharing record={record} token={token} open={shareOpen} onOpenChange={setShareOpen} />
     {imageEditing.dialog}
     {saveAsTemplate.dialog}

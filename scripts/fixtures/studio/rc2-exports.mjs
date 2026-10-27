@@ -11,7 +11,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms))
 export async function verifyRc2Exports(stack,{users,companies}){
   const [owner,,peer]=users,[company]=companies,checks=[],outputs=[],contexts=[]
   const tokens=await Promise.all([owner,peer].map(async user=>{const r=await fetch(stack.urls.api+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:user.email,password:user.password})});assert.equal(r.status,200);return(await r.json()).data.access_token}))
-  const api=(path,data,actor=0,method=data?'POST':'GET')=>fetch(stack.urls.api+path,{method,headers:{Authorization:`Bearer ${tokens[actor]}`,'X-Runly-Company-Id':company.id,'X-Runly-Studio-Protocol':'2',...(data&&!(data instanceof FormData)?{'Content-Type':'application/json'}:{})},body:data?(data instanceof FormData?data:JSON.stringify(data)):undefined})
+  const api=(path,data,actor=0,method=data?'POST':'GET')=>fetch(stack.urls.api+path,{method,headers:{Authorization:`Bearer ${tokens[actor]}`,'X-Runly-Company-Id':company.id,'X-Runly-Studio-Protocol':'3',...(data&&!(data instanceof FormData)?{'Content-Type':'application/json'}:{})},body:data?(data instanceof FormData?data:JSON.stringify(data)):undefined})
   const json=async r=>{const b=await r.json();assert.ok(r.ok,`${r.status}: ${JSON.stringify(b)}`);return b.data}
   const image=await sharp({create:{width:100,height:60,channels:4,background:'#f59e0b'}}).png().toBuffer(),form=new FormData();form.set('file',new File([image],'synthetic.png',{type:'image/png'}));form.set('moduleKey','runly.files');form.set('entityType','AtlasFile')
   const file=await json(await api('/files/upload',form))

@@ -7,7 +7,7 @@ import { supabase } from '../../../lib/supabase.js'
 export function useStudioRealtime({ id, token, scope, onRevision, onDenied, onChange }) {
   const [participants, setParticipants] = useState([]), [status, setStatus] = useState('Conectando')
   const [sessionId] = useState(() => Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join(''))
-  const callbacks = useRef({ onRevision, onDenied, onChange }), live = useRef({ cursor: null, selectedId: null }), send = useRef(null)
+  const callbacks = useRef({ onRevision, onDenied, onChange }), live = useRef({ cursor: null, selectedId: null, pageId: 'page-1' }), send = useRef(null)
   useEffect(() => { callbacks.current = { onRevision, onDenied, onChange } }, [onRevision, onDenied, onChange])
   useEffect(() => {
     let active = true, denied=false, channel, topic, busy = false, lastSent = 0, scheduled, pointerTimer, pendingCursor = false, requestPending = false
@@ -69,7 +69,7 @@ export function useStudioRealtime({ id, token, scope, onRevision, onDenied, onCh
       if (channel) supabase.removeChannel(channel)
     }
   }, [id, token, scope, sessionId])
-  const pointer = useCallback(cursor => { live.current.cursor = cursor; send.current?.() }, [])
-  const selection = useCallback(selectedId => { live.current.selectedId = selectedId; send.current?.() }, [])
+  const pointer = useCallback((cursor,pageId='page-1') => { live.current.pageId=pageId; live.current.cursor = cursor; send.current?.() }, [])
+  const selection = useCallback((selectedId,pageId='page-1') => { live.current.pageId=pageId; live.current.selectedId = selectedId; send.current?.() }, [])
   return { participants: participants.filter(user => user.sessionId !== sessionId), status, pointer, selection }
 }

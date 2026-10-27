@@ -1,3 +1,4 @@
+import { findPage } from '../../../../../shared/studio/pages.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, ConfirmDialog, FileUploader, Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton, ToolButton, cn, useIsMobile, useViewMode } from '@runly/ui'
 import { AlertTriangle, PanelLeftClose } from 'lucide-react'
@@ -49,7 +50,7 @@ function MobileSheet({ open, onOpenChange, title, children }) {
   )
 }
 
-export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, editorRef, onReady, readOnly = false,
+export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadImage, onChange, editorRef, onReady, readOnly = false,
   participants = [], selfId = null, onPointer, onSelectionChange, resourcePanel, sharedClipboard, authorizePaste, onEditImage, catalog, chrome }) {
   const canvasRef = useRef(null)
   const phone = useIsMobile(), wide = !useIsMobile(1280), viewMode = useViewMode()
@@ -67,20 +68,26 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
   const view = useStudioViewport(page, editorRef), zoom = view.zoom
   const [history, setHistory] = useState({ canUndo: false, canRedo: false }), [retry, setRetry] = useState(0), [busy, setBusy] = useState(false)
   const [objects, setObjects] = useState(initial.objects)
+  const [pageCount, setPageCount] = useState(1 + (initial.additionalPages?.length ?? 0))
+  const [activePageId, setActivePageId] = useState(initial.page.id ?? 'page-1')
+  const visibleParticipants = useMemo(() => participants.filter(person => (person.pageId ?? 'page-1') === activePageId), [participants, activePageId])
+  const canvasPeople = useMemo(() => groupParticipants(visibleParticipants, selfId), [visibleParticipants, selfId])
   const people = useMemo(() => groupParticipants(participants, selfId), [participants, selfId]), remoteSelections = useMemo(() => selectionsByObject(participants, selfId), [participants, selfId])
-  const changed = useCallback((document, meta) => { setObjects(document.objects); setPage(document.page); pageRef.current = document.page; onChange(document, meta) }, [onChange])
+  const changed = useCallback((document, meta) => { setPageCount(1 + (document.additionalPages?.length ?? 0)); const scene = findPage(document, editorRef.current?.activePageId()) ?? document; setObjects(scene.objects); setPage(scene.page); pageRef.current = scene.page; onChange(document, meta) }, [onChange, editorRef])
   const canvas = useCanvasPreferences(editorRef, ready)
   const { onGuides, onEditorPreferences } = canvas
-  const callbacksRef = useRef({ resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage, onGuides, onEditorPreferences }), modeRef = useRef(readOnly)
-  useEffect(() => { callbacksRef.current = { resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage, onGuides, onEditorPreferences } },
-    [resolveImage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage, onGuides, onEditorPreferences])
+  const callbacksRef = useRef({ resolveImage, authorizePage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage, onGuides, onEditorPreferences }), modeRef = useRef(readOnly)
+  useEffect(() => { callbacksRef.current = { resolveImage, authorizePage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage, onGuides, onEditorPreferences } },
+    [resolveImage, authorizePage, changed, onPointer, onSelectionChange, authorizePaste, onEditImage, onGuides, onEditorPreferences])
   useEffect(() => { modeRef.current = readOnly; editorRef.current?.setReadOnly(readOnly) }, [readOnly, editorRef])
   // Fabric disposes asynchronously; a remount (retry, server reload, HMR) must
   // wait for the previous instance to release the same <canvas> element.
   const released = useRef(Promise.resolve())
   useEffect(() => {
     let cancelled = false
-    const creation = released.current.then(() => cancelled ? null : createStudioEditor(canvasRef.current, { document: initial, resolveImage: id => callbacksRef.current.resolveImage(id),
+    const creation = released.current.then(() => cancelled ? null : createStudioEditor(canvasRef.current, { document: initial, resolveImage: (...args) => callbacksRef.current.resolveImage(...args),
+      authorizePage: callbacksRef.current.authorizePage ? (...args) => callbacksRef.current.authorizePage(...args) : undefined,
+      onActivePage: (id, viewport) => { setActivePageId(id); view.restore(viewport) },
       sharedClipboard, authorizePaste: objects => callbacksRef.current.authorizePaste?.(objects),
       onEditImage: id => callbacksRef.current.onEditImage?.(id),
       onGuides: guides => callbacksRef.current.onGuides?.(guides), onEditorPreferences: state => callbacksRef.current.onEditorPreferences?.(state),
@@ -95,7 +102,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
       setReady(false); setSelection(null); setSelectedIds([])
       released.current = creation.then(instance => instance?.destroy()).catch(() => {})
     }
-  }, [initial, editorRef, retry, onReady, sharedClipboard])
+  }, [initial, editorRef, retry, onReady, sharedClipboard, view.restore])
   // Fit the page once the editor and the viewport exist; the hook keeps fitting on resize until the user zooms.
   useEffect(() => { if (ready) requestAnimationFrame(view.fit) }, [ready]) // eslint-disable-line react-hooks/exhaustive-deps
   // The engine needs the displayed zoom and the page's screen offset in the
@@ -110,7 +117,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
         const paper = view.paper.current, editor = editorRef.current
         if (!paper || !editor) return
         const area = node.getBoundingClientRect(), rect = paper.getBoundingClientRect()
-        try { editor.setViewport({ zoom, panX: rect.left - area.left, panY: rect.top - area.top }) } catch { /* zoom outside engine range */ }
+        try { editor.setViewport({ zoom, panX: rect.left - area.left, panY: rect.top - area.top, scrollLeft: node.scrollLeft, scrollTop: node.scrollTop }) } catch { /* zoom outside engine range */ }
       })
     }
     sync(); node.addEventListener('scroll', sync, { passive: true })
@@ -153,7 +160,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     await editor.beginInteraction()
     try {
       for (const part of parts) await editor.add(part.type, { ...part.props, x: origin.x + part.props.x, y: origin.y + part.props.y })
-      editor.selectMany(editor.snapshot().objects.slice(-parts.length).map(object => object.id))
+      editor.selectMany(editor.activeScene().objects.slice(-parts.length).map(object => object.id))
       editor.group()
       await editor.endInteraction(true)
     } catch (error) { await editor.endInteraction(false); throw error }
@@ -268,7 +275,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
     <EyedropperContext.Provider value={colorContext}>
     <div role="application" aria-label="Editor gráfico de Studio" tabIndex={-1} onKeyDown={shortcut}
       className={cn('flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))] outline-none', viewMode.isImmersive ? 'fixed inset-0 z-50 h-dvh' : 'h-full')}>
-      <StudioTopBar phone={phone} {...chrome} page={page} canEdit={!readOnly} history={history} people={people.filter(person => !person.isSelf)} objects={objects}
+      <StudioTopBar phone={phone} {...chrome} page={page} pageCount={pageCount} canEdit={!readOnly} history={history} people={people.filter(person => !person.isSelf)} objects={objects}
         onUndo={() => attempt(() => editorRef.current.undo())} onRedo={() => attempt(() => editorRef.current.redo())}
         exportDisabled={!ready || chrome.exportDisabled} inspectorToggle inspectorOpen={wide ? inspectorOpen : inspectorSheet}
         onToggleInspector={() => (wide ? setInspectorOpen(value => !value) : setInspectorSheet(value => !value))}
@@ -296,6 +303,11 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
             lockedCount={objects.filter(object => object.locked).length} onUnlockAll={() => attempt(() => patchMany(objects.filter(object => object.locked).map(object => object.id), { locked: false }))}
             onPage={() => setPanel('page')}>
           <div ref={view.viewport} {...view.gestures} aria-label="Lienzo" className="absolute inset-0 overflow-auto overscroll-contain"
+            onPointerDownCapture={event => {
+              view.gestures.onPointerDownCapture?.(event)
+              if (event.defaultPrevented || event.pointerType === 'touch' || event.button !== 0 || view.hand || view.panning || event.altKey || sampling || imageKit.framing) return
+              if (!view.paper.current?.contains(event.target)) editorRef.current?.deselect()
+            }}
             // Double-click a photo: isolate it and move/scale it inside its frame.
             onDoubleClick={() => { if (imageKit.tools.photo && !selection.locked && !readOnly && !imageKit.framing) imageKit.tools.startFraming() }}
             style={{ ...DOTS, touchAction: 'none', cursor: view.panning ? 'grabbing' : view.hand ? 'grab' : undefined }}>
@@ -309,7 +321,7 @@ export function StudioWorkspace({ initial, resolveImage, uploadImage, onChange, 
                 {drop.landing ? <DropLandingHint landing={drop.landing} zoom={zoom} /> : null}
                 {imageKit.framing ? <FramingOverlay item={imageKit.framing.item} props={imageKit.framing.props} natural={imageKit.framing.natural} imageUrl={imageKit.framing.imageUrl} outline={imageKit.framing.outline} zoom={zoom}
                   onFrame={next => imageKit.tools.image(next)} onDone={() => imageKit.finishFraming(true)} onCancel={() => imageKit.finishFraming(false)} /> : null}
-                <RemotePresence people={people} selections={remoteSelections} objects={objects} zoom={zoom} />
+                <RemotePresence people={canvasPeople} selections={remoteSelections} objects={objects} zoom={zoom} />
               </div>
             </div>
           </div>

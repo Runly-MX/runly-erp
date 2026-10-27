@@ -18,7 +18,7 @@ test('malformed JSON and oversized bodies are rejected without service writes', 
   const service = { create: async () => { calls++; return {} } }
   const app = createStudioRouter({ service, requirePermission: () => async (_, next) => next() })
   assert.equal((await app.request('/studio/designs', { method: 'POST', body: '{' })).status, 400)
-  assert.equal((await app.request('/studio/designs', { method: 'POST', body: 'x'.repeat(1_100_001) })).status, 413)
+  assert.equal((await app.request('/studio/designs', { method: 'POST', body: 'x'.repeat(4_100_001) })).status, 413)
   assert.equal(calls, 0)
 })
 test('template creation uses a fresh server scene and catalog failures authorize before any network work',async()=>{
@@ -42,9 +42,9 @@ test('live change batches require studio.edit and reach the service with the des
   const seen = []
   const service = { applyChanges: async (_company, _actor, id, input) => { seen.push([id, input.batchId]); return { revision: 2 } } }
   const deny = createStudioRouter({ service, requirePermission: key => async (c, next) => key === 'studio.edit' ? c.json({ error: 'Sin permiso' }, 403) : next() })
-  assert.equal((await deny.request('/studio/designs/d1/changes', { method: 'POST', headers:{'X-Runly-Studio-Protocol':'2'}, body: '{"clientId":"abcdefgh","batchId":1,"ops":[]}' })).status, 403)
+  assert.equal((await deny.request('/studio/designs/d1/changes', { method: 'POST', headers:{'X-Runly-Studio-Protocol':'3'}, body: '{"clientId":"abcdefgh","batchId":1,"ops":[]}' })).status, 403)
   const allow = createStudioRouter({ service, requirePermission: () => async (_, next) => next() })
-  const response = await allow.request('/studio/designs/d1/changes', { method: 'POST', headers:{'X-Runly-Studio-Protocol':'2'}, body: '{"clientId":"abcdefgh","batchId":1,"ops":[]}' })
+  const response = await allow.request('/studio/designs/d1/changes', { method: 'POST', headers:{'X-Runly-Studio-Protocol':'3'}, body: '{"clientId":"abcdefgh","batchId":1,"ops":[]}' })
   assert.equal(response.status, 200); assert.deepEqual((await response.json()).data, { revision: 2 }); assert.deepEqual(seen, [['d1', 1]])
 })
 test('obsolete writers get 426 before touching the document',async()=>{

@@ -12,7 +12,7 @@ export async function verifyStudioResources(stack, { users, companies }) {
     const response=await fetch(`${stack.urls.api}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:user.email,password:user.password})})
     assert.equal(response.status,200);return(await response.json()).data.access_token
   }))
-  const headers=(index=0,company=a.id)=>({'X-Runly-Studio-Protocol':'2',Authorization:`Bearer ${tokens[index]}`,'X-Runly-Company-Id':company})
+  const headers=(index=0,company=a.id)=>({'X-Runly-Studio-Protocol':'3',Authorization:`Bearer ${tokens[index]}`,'X-Runly-Company-Id':company})
   const get=(path,index=0,company=a.id)=>fetch(`${stack.urls.api}${path}`,{headers:headers(index,company)})
   const original=await sharp({create:{width:1200,height:800,channels:4,background:'#16a34a'}}).png().toBuffer()
   async function upload(name,shared=false){

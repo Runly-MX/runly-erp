@@ -11,7 +11,7 @@ export async function verifyStudioPhotos(stack,{users,companies},{shape=false}={
     const response=await fetch(`${stack.urls.api}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:user.email,password:user.password})})
     assert.equal(response.status,200);return(await response.json()).data.access_token
   }))
-  const headers=(user=0,companyId=company.id)=>({'X-Runly-Studio-Protocol':'2',Authorization:`Bearer ${tokens[user]}`,'X-Runly-Company-Id':companyId})
+  const headers=(user=0,companyId=company.id)=>({'X-Runly-Studio-Protocol':'3',Authorization:`Bearer ${tokens[user]}`,'X-Runly-Company-Id':companyId})
   const api=(path,{user=0,companyId=company.id,data,body,method=data?'POST':'GET'}={})=>fetch(`${stack.urls.api}${path}`,{
     method,headers:{...headers(user,companyId),...(data?{'Content-Type':'application/json'}:{})},body:body??(data?JSON.stringify(data):undefined)})
   const json=async response=>{const body=await response.json();assert.ok(response.ok,`${response.status}: ${JSON.stringify(body)}`);return body.data}
@@ -59,7 +59,7 @@ export async function verifyStudioPhotos(stack,{users,companies},{shape=false}={
   assert.equal((await api(`/studio/designs/${otherDesign.id}/assets/${source.id}/signed-url`,{user:0})).status,404)
   assert.equal((await api(`/files/${source.id}/signed-url`,{user:1})).status,404)
   const forged=await fetch(`${stack.urls.kong}/rest/v1/audit_log`,{method:'POST',headers:{apikey:stack.secret.SUPABASE_ANON_KEY,
-    'X-Runly-Studio-Protocol':'2',Authorization:`Bearer ${tokens[1]}`,'Content-Type':'application/json'},body:JSON.stringify({entity_id:record.id,action:'studio.image.copy',metadata:{sourceFileId:source.id,copyFileId:result.id}})})
+    'X-Runly-Studio-Protocol':'3',Authorization:`Bearer ${tokens[1]}`,'Content-Type':'application/json'},body:JSON.stringify({entity_id:record.id,action:'studio.image.copy',metadata:{sourceFileId:source.id,copyFileId:result.id}})})
   assert.ok([401,403].includes(forged.status))
   checks.push('After save, scoped server audit authorizes original pixels and collaborator undo/redo without generic Files access')
   checks.push('Save/reopen retains v4 masks and adjustments; owner and collaborator resolve new pixels; realtime revision agrees')

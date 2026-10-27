@@ -12,13 +12,179 @@ import { importStudioSvg } from '../../../../../shared/studio/svg-geometry.js'
 import { DEFAULT_GRADIENT, gradientPaint, gradientGeometry, editGradientStop, reverseGradient } from '../../../../../shared/studio/gradient.js'
 import { DEFAULT_SNAPPING, DEFAULT_GRID, snappingOptions, gridOptions, createSnapIndex, snapBounds, viewportReferences } from '../../../../../shared/studio/snapping.js'
 import { transformStudioGroup } from '../../../../../shared/studio/group-transform.js'
-import { applyOps, diffOps } from '../../../../../shared/studio/operations.js'
+import { applyOps, diffOps, checkOps } from '../../../../../shared/studio/operations.js'
 import { exportDimensions } from '../../../../../shared/studio/export-limits.js'
 import { checkAbort,abortable } from '../../../../../shared/studio/abort.js'
 import { controlStyle, styleControls } from './studio-controls.js'
+import { documentPages, findPage, pageId, pageDocument, replacePage } from '../../../../../shared/studio/pages.js'
+
+// One interactive Fabric scene. Page changes flush that scene before replacing it.
+// Selection and viewport are session state and never enter the saved document.
+export async function createStudioEditor(element, options) {
+  let current = validateDocument(options.document), active = current.page.id, closed = false
+  let interacting = false
+  let protectedMode = options.readOnly ?? false, transitioning = false, queue = Promise.resolve(), inner
+  const selections = new Map(), viewports = new Map(), thumbnails = new Map(), history = createDocumentHistory(current)
+  let auxiliaryQueue = Promise.resolve(), auxiliaryBytes = 0, transitions = 0
+  const snapshot = () => inner ? validateDocument(replacePage(current, inner.snapshot())) : current
+  const notifyHistory = state => options.onHistory?.({...state, ...history.state()})
+  const changed = (scene, meta) => {
+    current = validateDocument(replacePage(current, scene))
+    if (!meta?.remote && !interacting) history.commit(current)
+    options.onChange?.(current, meta)
+  }
+  inner = await createPageEditor(element, {...options, document: pageDocument(current, active),
+    allObjects: () => documentPages(snapshot()).flatMap(scene => scene.objects),
+    onChange: changed, onHistory: notifyHistory,
+    onSelection: (selection, ids) => { selections.set(active, ids); options.onSelection?.(selection, ids) },
+  })
+  function writable() {
+    if (closed) throw Error('El editor está cerrado.')
+    if (protectedMode) throw Error('Diseño de solo lectura.')
+  }
+  function enqueue(task, {block = true} = {}) {
+    if (block) transitions++
+    transitioning = transitions > 0
+    const next = queue.then(async () => { if (closed) throw Error('El editor está cerrado.'); await inner.flush(); current = snapshot(); return task() })
+    const completed = next.finally(() => { if (block) transitions--; transitioning = transitions > 0 })
+    queue = completed.catch(() => {})
+    return completed
+  }
+  async function show(next, {remote = false, select = active, track = true} = {}) {
+    const before = current, previousActive = active
+    current = validateDocument(next)
+    const destination = findPage(current, select) ? select : current.page.id, switched = destination !== active
+    const destinationSelection = selections.get(destination) ?? []
+    if (switched) {
+      transitions++; transitioning = true; inner.setReadOnly(true)
+      const previousSelection = selections.get(active)
+      inner.deselect(); selections.set(active, previousSelection ?? []); active = destination
+      options.onActivePage?.(active, viewports.get(active))
+    }
+    try {
+      await inner.applyRemote(pageDocument(current, active))
+      current = snapshot()
+    } catch (error) {
+      current = before; active = previousActive
+      options.onActivePage?.(active, viewports.get(active))
+      throw error
+    } finally {
+      if (switched) { transitions--; transitioning = transitions > 0; inner.setReadOnly(protectedMode) }
+    }
+    if (switched) { inner.selectMany(destinationSelection); inner.setViewport(viewports.get(active) ?? {zoom: 1, panX: 0, panY: 0}) }
+    if (track) { if (remote) history.rebase(diffOps(before, current)); else history.commit(current) }
+    options.onChange?.(current, {remote, pageId: active})
+    notifyHistory({})
+    return current
+  }
+  function auxiliary(task) {
+    const next = auxiliaryQueue.then(async () => { if (closed) throw Error('El editor está cerrado.'); return task() })
+    auxiliaryQueue = next.catch(() => {})
+    return next
+  }
+  async function renderPage(id, scene, task, signal) {
+    checkAbort(signal)
+    await options.authorizePage?.(id, signal)
+    checkAbort(signal)
+    const canvas = element.ownerDocument.createElement('canvas')
+    let renderer
+    try {
+      renderer = await createPageEditor(canvas, {document: pageDocument(scene, id), resolveImage: assetId => options.resolveImage(assetId, signal), readOnly: true})
+      checkAbort(signal)
+      const result = await task(renderer)
+      await options.authorizePage?.(id, signal)
+      checkAbort(signal)
+      if (JSON.stringify(findPage(snapshot(), id)) !== JSON.stringify(findPage(scene, id))) throw Error('La página cambió durante la exportación.')
+      return result
+    } finally { await renderer?.destroy(); canvas.width = canvas.height = 0; canvas.remove() }
+  }
+  async function signatureOf(scene) {
+    const bytes = new TextEncoder().encode(JSON.stringify(scene))
+    const digest = await crypto.subtle.digest('SHA-256',bytes)
+    return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('')
+  }
+  const methods = {
+    beginInteraction() { interacting = true; return inner.beginInteraction() },
+    async endInteraction(commit = true) { await inner.endInteraction(commit); interacting = false; if (commit) history.commit(snapshot()); notifyHistory({}) },
+    snapshot, activePageId: () => active, activeScene: () => pageDocument(snapshot(), active),
+    listPages: () => documentPages(snapshot()).map(scene => ({...scene.page, objectCount: scene.objects.length, active: pageId(scene) === active})),
+    selectPage(id) { return enqueue(async () => { if (!findPage(current, id)) throw Error('La página ya no existe.'); return show(current, {remote: true, select: id}) }) },
+    applyRemote(document) { return enqueue(() => show(document, {remote: true}), {block: false}) },
+    load(document) { writable(); return enqueue(() => { writable(); return show(document) }) },
+    applyPageOperations(ops) {
+      writable()
+      return enqueue(() => { writable(); return show(validateDocument(applyOps(current, checkOps(ops)))) })
+    },
+    addPage({id, width = current.page.width, height = current.page.height, background = '#ffffff', name, afterId = active} = {}) {
+      if (!id) throw Error('Proporciona una identidad estable para la página.')
+      return methods.applyPageOperations([{type: 'addPage', afterId, scene: {page: {id, width, height, background, ...(name ? {name} : {})}, objects: []}}])
+    },
+    duplicatePage(id, newId) { return methods.applyPageOperations([{type: 'duplicatePage', pageId: id, newId}]) },
+    removePage(id) {
+      writable()
+      return enqueue(() => {
+        writable()
+        if (documentPages(current).length === 1) throw Error('No puedes eliminar la última página.')
+        return show(validateDocument(applyOps(current, [{type: 'removePage', pageId: id}])))
+      })
+    },
+    reorderPages(ids) { return methods.applyPageOperations([{type: 'pageOrder', ids}]) },
+    updatePage(id, set) { return methods.applyPageOperations([{type: 'patchPage', pageId: id, set}]) },
+    transferObjects(pageId, targetPageId, ids, {copy = false, copyId} = {}) {
+      return methods.applyPageOperations([{type: 'transferObjects', pageId, targetPageId, ids, copy, ...(copy ? {copyId} : {})}])
+    },
+    undo() { writable(); return enqueue(async () => { writable(); const next = history.peek('undo'); if (next) { await show(next, {remote: true, track: false}); history.move('undo'); notifyHistory({}) } }) },
+    redo() { writable(); return enqueue(async () => { writable(); const next = history.peek('redo'); if (next) { await show(next, {remote: true, track: false}); history.move('redo'); notifyHistory({}) } }) },
+    setViewport(viewport) { viewports.set(active, viewport); return inner.setViewport(viewport) },
+    setReadOnly(value) { protectedMode = value; inner.setReadOnly(value) },
+    async flush() { await queue; await inner.flush() },
+    async exportImage(format, quality, reviewed, settings) {
+      await methods.flush()
+      if (reviewed && JSON.stringify(validateDocument(reviewed)) !== JSON.stringify(snapshot())) throw Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
+      return inner.exportImage(format, quality, reviewed ? pageDocument(reviewed, active) : undefined, settings)
+    },
+    exportPng() { return methods.exportImage('png') },
+    exportPage(id, format = 'png', quality = 1, reviewed = snapshot(), settings = {}) {
+      if (id === active) return methods.exportImage(format, quality, reviewed, settings)
+      return auxiliary(() => renderPage(id, reviewed, renderer => renderer.exportImage(format, quality, pageDocument(reviewed, id), settings), settings.signal))
+    },
+    getPageThumbnail(id, {signal} = {}) {
+      return auxiliary(async () => {
+        if (!options.authorizePage) throw Error('Falta la autorización vigente para miniaturas privadas.')
+        await options.authorizePage(id, signal); checkAbort(signal)
+        const scene = snapshot(), signature = await signatureOf(findPage(scene, id)), cached = thumbnails.get(id)
+        if (!findPage(scene, id)) throw Error('La página ya no existe.')
+        if (cached?.signature === signature) {
+          for (const assetId of documentAssetIds(pageDocument(scene,id))) { await options.resolveImage(assetId,signal); checkAbort(signal) }
+          await options.authorizePage(id,signal); checkAbort(signal)
+          if(closed || await signatureOf(findPage(snapshot(),id)) !== signature) throw Error('La página cambió.')
+          thumbnails.delete(id); thumbnails.set(id,cached); return cached.blob
+        }
+        if (cached) { auxiliaryBytes -= cached.blob.size; thumbnails.delete(id) }
+        const blob = await renderPage(id, scene, renderer => renderer.thumbnail(signal), signal)
+        if (closed) throw Error('El editor está cerrado.')
+        if (blob.size <= 2 * 1024 * 1024) {
+          thumbnails.set(id, {signature, blob}); auxiliaryBytes += blob.size
+          while (thumbnails.size > 8 || auxiliaryBytes > 2 * 1024 * 1024) {
+            const oldest = thumbnails.keys().next().value
+            auxiliaryBytes -= thumbnails.get(oldest).blob.size; thumbnails.delete(oldest)
+          }
+        }
+        return blob
+      })
+    },
+    async destroy() { closed = true; await queue; await auxiliaryQueue; thumbnails.clear(); auxiliaryBytes = 0; selections.clear(); viewports.clear(); await inner.destroy() },
+  }
+  return new Proxy(methods, {get(target, key) {
+    if (key in target) return target[key]
+    const value = inner[key]
+    if (typeof value !== 'function') return value
+    return (...args) => { if (transitioning || closed) throw Error('Espera a que termine el cambio de página.'); return value.apply(inner, args) }
+  }})
+}
 
 // Fabric owns interaction; only the canonical Runly scene enters history or storage.
-export async function createStudioEditor(element, { document, resolveImage, onChange, onSelection, onError, onHistory, onPointer, onEditImage, onGuides, onEditorPreferences, readOnly = false, sharedClipboard, authorizePaste }) {
+async function createPageEditor(element, { document, resolveImage, onChange, onSelection, onError, onHistory, onPointer, onEditImage, onGuides, onEditorPreferences, readOnly = false, sharedClipboard, authorizePaste, allObjects }) {
   let protectedMode = readOnly, exportingNow = false
   const writable = () => {
     if (protectedMode) throw new Error('Diseño de solo lectura.')
@@ -324,7 +490,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       writable()
       const ids=new Set(canvas.getActiveObjects().map(o=>o.studioId)),doc=snapshot(),items=doc.objects.filter(o=>ids.has(o.id))
       if(items.length<2||items.some(o=>o.locked||o.hidden||o.groupId))throw Error('Selecciona al menos dos elementos editables y sin agrupar.')
-      let n=1;while(doc.objects.some(o=>o.groupId===`group-${n}`||o.id===`group-${n}`))n++
+      let n=1;while((allObjects?.()??doc.objects).some(o=>o.groupId===`group-${n}`||o.id===`group-${n}`))n++
       const groupId=`group-${n}`
       for(const item of items)source.set(item.id,{...item,groupId})
       changed();return {id:groupId,objectIds:items.map(o=>o.id)}
@@ -452,6 +618,14 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       if (target !== canvas.getActiveObject() && target.studioId) { canvas.setActiveObject(target); canvas.requestRenderAll(); selection() }
       return true
     },
+    deselect() {
+      const active = canvas.getActiveObject()
+      if (active?.isEditing) active.exitEditing()
+      individualSelection = null
+      canvas.discardActiveObject()
+      canvas.requestRenderAll()
+      selection()
+    },
     selectAll() { editor.selectMany(canvas.getObjects().map(object => object.studioId)) },
     isEditingText: () => Boolean(canvas.getActiveObject()?.isEditing),
     setPanMode(value) { canvas.skipTargetFind = value; canvas.selection = !value; canvas.defaultCursor = value ? 'grab' : 'default' },
@@ -502,7 +676,10 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
       writable()
       return enqueue(async () => {
         writable()
-        const item = appendObject(snapshot(), type, extra).objects.at(-1), object = await build(item)
+        const occupied = new Set((allObjects?.() ?? snapshot().objects).map(object => object.id))
+        let ordinal = 1
+        while (occupied.has(`object-${ordinal}`)) ordinal++
+        const item = appendObject(snapshot(), type, {id: `object-${ordinal}`, ...extra}).objects.at(-1), object = await build(item)
         if (destroyed) { object.dispose(); return }
         try{writable()}catch(error){object.dispose();throw error}
         source.set(item.id, item); canvas.add(object); canvas.setActiveObject(object); canvas.requestRenderAll(); changed()
@@ -568,7 +745,7 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
         await authorizePaste?.(clipboard)
         writable()
         let next = snapshot()
-        const groupIds=new Map(),occupiedGroupIds=new Set(next.objects.flatMap(object=>[object.groupId,object.id]).filter(Boolean))
+        const groupIds=new Map(),occupiedGroupIds=new Set((allObjects?.()??next.objects).flatMap(object=>[object.groupId,object.id]).filter(Boolean))
         for (const item of clipboard) {
           const properties = Object.fromEntries(Object.entries(item).filter(([key]) => key !== 'id'))
           if(properties.groupId){if(!groupIds.has(properties.groupId)){let n=1;while(occupiedGroupIds.has(`group-${n}`))n++;const groupId=`group-${n}`;occupiedGroupIds.add(groupId);groupIds.set(properties.groupId,groupId)}properties.groupId=groupIds.get(properties.groupId)}
@@ -623,6 +800,16 @@ export async function createStudioEditor(element, { document, resolveImage, onCh
         }finally{output.width=0;output.height=0}
         } finally { exportingNow = false; editor.setReadOnly(protectedMode) }
       })
+    },
+    async thumbnail(signal) {
+      await editor.flush(); checkAbort(signal)
+      const output = canvas.toCanvasElement(Math.min(1, 256 / Math.max(current.page.width, current.page.height)))
+      try {
+        const blob = await new Promise(resolve => output.toBlob(resolve, 'image/png'))
+        checkAbort(signal)
+        if (!blob) throw Error('No se pudo generar la miniatura.')
+        return blob
+      } finally { output.width = output.height = 0 }
     },
     exportPng() { return editor.exportImage('png') },
     async destroy() { destroyed = true; await queue; await canvas.dispose() },

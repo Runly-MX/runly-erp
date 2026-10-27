@@ -19,8 +19,8 @@ export const studioAssetIds = document => documentAssetIds({objects:studioObject
 export function studioSummary(document) {
   // Explicit scalar projection bounds vector geometry, nested images and long text.
   const objects = studioObjects(document)
-  return { width: document.page.width, height: document.page.height, objectCount: objects.length,
-    preview: { page: { ...document.page }, objects: objects.slice(0, 40).map(o => Object.fromEntries(
+  return { width: document.page.width, height: document.page.height, objectCount: objects.length, pageCount: 1 + (document.additionalPages?.length ?? 0),
+    preview: { page: { ...document.page }, objects: (document.objects ?? []).slice(0, 40).map(o => Object.fromEntries(
       ['id','type','x','y','width','height','rotation','fill','opacity','hidden','fontSize','fontFamily','fontVariant','scaleX','scaleY','groupId','text','fillPaint','shape','image','geometry','points','strokeWidth','dash','startCap','endCap','startArrow','endArrow']
         .filter(key => o[key] !== undefined).map(key => [key, key === 'text' ? o.text.slice(0,120) : o[key]]))) } }
 }

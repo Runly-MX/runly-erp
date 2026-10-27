@@ -21,7 +21,7 @@ export async function verifyStudioOperations(stack,{users,companies}) {
     const r=await fetch(`${stack.urls.api}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:user.email,password:user.password})})
     assert.equal(r.status,200);return(await r.json()).data.access_token
   }))
-  const api=(path,{actor=0,data,body,method=data?'POST':'GET',companyId=actor===3?other.id:company.id}={})=>fetch(stack.urls.api+path,{method,headers:{'X-Runly-Studio-Protocol':'2',Authorization:`Bearer ${tokens[actor]}`,'X-Runly-Company-Id':companyId,...(data?{'Content-Type':'application/json'}:{})},body:body??(data?JSON.stringify(data):undefined)})
+  const api=(path,{actor=0,data,body,method=data?'POST':'GET',companyId=actor===3?other.id:company.id}={})=>fetch(stack.urls.api+path,{method,headers:{'X-Runly-Studio-Protocol':'3',Authorization:`Bearer ${tokens[actor]}`,'X-Runly-Company-Id':companyId,...(data?{'Content-Type':'application/json'}:{})},body:body??(data?JSON.stringify(data):undefined)})
   const json=async r=>{const b=await r.json(),status=typeof r.status==='function'?r.status():r.status,ok=typeof r.ok==='function'?r.ok():r.ok;if(!ok)throw Object.assign(Error(`${status}: ${JSON.stringify(b)}`),{status});return b.data}
   const report=text=>{checks.push(text);console.log(`Studio operations: ${text}`)}
   let doc=appendObject(blankDocument(1080,720),'rectangle',{id:'shape-a',x:80,y:100,width:180,height:120})

@@ -12,7 +12,7 @@ export async function verifyStudioComposition(stack, { users, companies }) {
   const record = message => { checks.push(message); console.log(`Studio MVP: ${message}`) }
   const login = async user => (await (await fetch(`${stack.urls.api}/auth/login`, { method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:user.email,password:user.password}) })).json()).data.access_token
   const token=await login(owner), peerToken=await login(peer)
-  const api=(path,body,method=body?'POST':'GET',actor=token)=>fetch(`${stack.urls.api}${path}`, {method,headers:{'X-Runly-Studio-Protocol':'2',Authorization:`Bearer ${actor}`,'X-Runly-Company-Id':a.id,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})})
+  const api=(path,body,method=body?'POST':'GET',actor=token)=>fetch(`${stack.urls.api}${path}`, {method,headers:{'X-Runly-Studio-Protocol':'3',Authorization:`Bearer ${actor}`,'X-Runly-Company-Id':a.id,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})})
   const browser=await chromium.launch({channel:'chrome',headless:true})
   const contexts=[]
   async function ui(user) {

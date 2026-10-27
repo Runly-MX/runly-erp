@@ -12,7 +12,7 @@ const sharp=createRequire(new URL('../../../apps/api/package.json',import.meta.u
 export async function verifyStudioCreative(stack,{users,companies,admin}) {
   const[owner,denied,peer,foreign]=users,[company,other]=companies,checks=[],metrics={}
   const tokens=await Promise.all(users.map(async user=>{const r=await fetch(`${stack.urls.api}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:user.email,password:user.password})});assert.equal(r.status,200);return(await r.json()).data.access_token}))
-  const api=(path,body,index=0,companyId=company.id,method=body?'POST':'GET')=>fetch(`${stack.urls.api}${path}`,{method,headers:{'X-Runly-Studio-Protocol':'2',Authorization:`Bearer ${tokens[index]}`,'X-Runly-Company-Id':companyId,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})})
+  const api=(path,body,index=0,companyId=company.id,method=body?'POST':'GET')=>fetch(`${stack.urls.api}${path}`,{method,headers:{'X-Runly-Studio-Protocol':'3',Authorization:`Bearer ${tokens[index]}`,'X-Runly-Company-Id':companyId,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})})
   const data=async response=>{assert.ok(response.ok,`${response.status}: ${await response.clone().text()}`);return(await response.json()).data}
   const record=message=>{checks.push(message);console.log(`Studio creative: ${message}`)}
   const browser=await chromium.launch({channel:'chrome',headless:true}),contexts=[]
@@ -107,7 +107,7 @@ export async function verifyStudioCreative(stack,{users,companies,admin}) {
     await page.getByRole('button',{name:'Elementos',exact:true}).click();await page.getByRole('button',{name:'Rectángulo',exact:true}).click();await save(page)
     assert.ok((await get()).document.objects.some(o=>o.type==='rectangle'&&o.fill==='#d946ef'))
     assert.ok(!requests.slice(start).some(url=>/^https:\/\/(api.iconify.design|api.openverse.org)/.test(url)))
-    for(const version of [1,2]){const legacy=await data(await api('/studio/designs',{name:`Compatibilidad v${version}`,document:{...blankDocument(),schemaVersion:version}}));assert.equal(legacy.document.schemaVersion,6)}
+    for(const version of [1,2]){const legacy=await data(await api('/studio/designs',{name:`Compatibilidad v${version}`,document:{...blankDocument(),schemaVersion:version}}));assert.equal(legacy.document.schemaVersion,7)}
     await data(await api(`${uiRoot}/collaborators`,{userId:peer.id,role:'VIEWER'},0,company.id,'PUT'))
     const peerView=await data(await api(uiRoot,null,2));assert.equal(peerView.canEdit,false)
     assert.equal((await api(`${uiRoot}/assets/${photo.fileAssetId}/signed-url`,null,2)).status,200)

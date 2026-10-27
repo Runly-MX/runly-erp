@@ -6,7 +6,7 @@ const require=createRequire(new URL('../../../apps/api/package.json',import.meta
 const {Client}=await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/index.js')).href)
 const {StreamableHTTPClientTransport}=await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/streamableHttp.js')).href)
 
-export async function commitStudioMcpUpdate(stack,{token,companyId,designId,name,document,revision}) {
+export async function commitStudioMcpUpdate(stack,{token,companyId,designId,name,document,revision,ops}) {
   const resource=stack.urls.api+'/mcp',redirectUri='http://127.0.0.1/studio-test-callback'
   const request=(path,data,bearer,form=false)=>fetch(stack.urls.api+path,{method:data?'POST':'GET',redirect:'manual',headers:{...(data?{'Content-Type':form?'application/x-www-form-urlencoded':'application/json'}:{}),...(bearer?{Authorization:`Bearer ${bearer}`,'X-Runly-Company-Id':companyId}:{})},body:data?(form?new URLSearchParams(data):JSON.stringify(data)):undefined})
   const ok=async r=>{const b=await r.json();assert.ok(r.ok,`${r.status}: ${JSON.stringify(b)}`);return b}
@@ -21,8 +21,8 @@ export async function commitStudioMcpUpdate(stack,{token,companyId,designId,name
     await client.connect(new StreamableHTTPClientTransport(new URL(resource),{requestInit:{headers:{Authorization:`Bearer ${oauth.access_token}`}}}))
     const call=(mode,operation,input={})=>client.callTool({name:`runly_studio_${mode}`,arguments:{companyId,request:{operation,input}}})
     const value=reply=>{assert.equal(Boolean(reply.isError),false,JSON.stringify(reply));return reply.structuredContent.data}
-    const guide=value(await call('query','studio_overview')).result;assert.equal(guide.schemaVersion,6)
-    const proposal=value(await call('prepare','studio_update_design',{designId,name,document,revision}))
+    const guide=value(await call('query','studio_overview')).result;assert.equal(guide.schemaVersion,7)
+    const proposal=value(await call('prepare','studio_update_design',{designId,name,document,revision,ops}))
     const commit=()=>client.callTool({name:'runly_studio_commit',arguments:{companyId,proposalId:proposal.proposalId}})
     assert.equal(Boolean((await commit()).isError),true)
     await ok(await request(`/mcp/proposals/${proposal.proposalId}`,{approve:true,acknowledgeSensitive:true},token))

@@ -37,7 +37,7 @@ function Result({ options, plan }) {
 // "Descargar": screen (PNG/JPG: size, transparency, quality) or print (PDF at
 // 300 ppp, RGB/CMYK, 3 mm bleed, crop marks). Choices are remembered per
 // browser; credits are reviewed after this step, as before.
-export function ExportDialog({ open, onOpenChange, page, exporting, onExport, onCredits }) {
+export function ExportDialog({ open, onOpenChange, page, pageCount = 1, exporting, onExport, onCredits }) {
   const [options, setOptions] = useState(remembered), group = useRef(null)
   const set = patch => setOptions(current => ({ ...current, ...patch }))
   const ppi = options.ppi ?? defaultPpi(page)
@@ -60,7 +60,7 @@ export function ExportDialog({ open, onOpenChange, page, exporting, onExport, on
       <DialogContent size="md" className="flex max-h-[90dvh] flex-col">
         <DialogHeader icon={Download}>
           <DialogTitle>Descargar</DialogTitle>
-          <DialogDescription>Elige el formato según el uso del archivo.</DialogDescription>
+          <DialogDescription>Elige el formato según el uso del archivo.{pageCount > 1 ? ` PNG/JPG: página activa. PDF: las ${pageCount} páginas en orden, cada una con sus propias dimensiones.` : ''}</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
           <div ref={group} role="radiogroup" aria-label="Tipo de archivo" onKeyDown={arrows} className="grid gap-2 sm:grid-cols-3">

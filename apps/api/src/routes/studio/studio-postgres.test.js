@@ -61,7 +61,7 @@ test('Studio service against disposable PostgreSQL: isolation, atomic revisions,
       const v1 = { ...document, schemaVersion: 1, objects: document.objects.map(({ locked, hidden, ...item }) => item) }
       const { rows: [legacy] } = await pool.query('INSERT INTO studio_design(company_id,owner_id,name,document) VALUES($1,$2,$3,$4) RETURNING id', [company, owner, 'Legacy', v1])
       const reopened = await service.get(company, owner, legacy.id)
-      assert.equal(reopened.document.schemaVersion, 6)
+      assert.equal(reopened.document.schemaVersion, 7)
       assert.equal(reopened.document.objects[0].locked, false)
       assert.equal((await pool.query('SELECT document FROM studio_design WHERE id=$1', [legacy.id])).rows[0].document.schemaVersion, 1)
     })
@@ -129,6 +129,8 @@ test('Studio service against disposable PostgreSQL: isolation, atomic revisions,
     })
     await t.test('SQL guard rejects obsolete writers while current API remains usable',async()=>{
       await pool.query(await readFile(new URL('../../../../../prisma/migrations/20261207000000_studio_protocol_guard/migration.sql',import.meta.url),'utf8'))
+      await pool.query('CREATE TABLE studio_template(id uuid PRIMARY KEY,document jsonb,name text,revision integer); CREATE TABLE studio_presence(id uuid)')
+      await pool.query(await readFile(new URL('../../../../../prisma/migrations/20261208000000_studio_multipage_protocol/migration.sql',import.meta.url),'utf8'))
       const design=await service.create(company,owner,{name:'Protocol guard',document})
       await assert.rejects(pool.query('UPDATE studio_design SET name=$1 WHERE id=$2',['old writer',design.id]),/STUDIO_UPGRADE_REQUIRED/)
       await assert.rejects(service.update(company,owner,design.id,{name:design.name,revision:1,document:{...document,schemaVersion:5}}),{code:'STUDIO_DOCUMENT_DOWNGRADE_DENIED'})

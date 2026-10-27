@@ -12,7 +12,7 @@ test('v6 paints and page survive JSON/resize; v1-v5 upgrade; future/unsafe paint
   doc.page.backgroundPaint={type:'gradient',gradientType:'radial',centerX:0.3,centerY:0.7,radius:0.8,stops:paint().stops}
   assert.deepEqual(validateDocument(JSON.parse(JSON.stringify(doc))),doc)
   assert.deepEqual(resizeDocument(doc,{width:800,height:600}).page.backgroundPaint,doc.page.backgroundPaint)
-  for(const schemaVersion of [1,2,3,4,5])assert.equal(validateDocument({...blankDocument(),schemaVersion}).schemaVersion,6)
+  for(const schemaVersion of [1,2,3,4,5])assert.equal(validateDocument({...blankDocument(),schemaVersion}).schemaVersion,7)
   for(const schemaVersion of [1,2,3,4,5])assert.throws(()=>validateDocument({...doc,schemaVersion}))
   for(const change of [{gradientType:'conic'},{angle:Infinity},{angle:361},{stops:[]},{stops:Array(13).fill(paint().stops[0])},
     {stops:[{offset:0,color:'url(example)',opacity:1},paint().stops[1]]},

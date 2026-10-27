@@ -9,11 +9,11 @@ const id='00000000-0000-4000-8000-000000000001'
 const paint={type:'image',fileAssetId:id,image:{zoom:2,rotation:30}}
 test('v5 typed paints preserve legacy fill, geometry, stable IDs and reference projections',()=>{
   const doc=appendObject(blankDocument(),'rectangle',{fill:'#123456',fillPaint:paint,shape:{radius:24,strokeWidth:4,dash:'dotted'}})
-  assert.equal(doc.schemaVersion,6);assert.equal(doc.objects[0].fill,'#123456')
+  assert.equal(doc.schemaVersion,7);assert.equal(doc.objects[0].fill,'#123456')
   assert.deepEqual(documentAssetIds(doc),[id]);assert.equal(studioSummary(doc).preview.objects[0].fillPaint.fileAssetId,id)
   assert.deepEqual(validateDocument(JSON.parse(JSON.stringify(doc))),doc)
   assert.equal(validateDocument({...doc,objects:doc.objects.map(o=>({...o,fillPaint:undefined}))}).objects[0].fill,'#123456')
-  for(const version of [1,2,3,4])assert.equal(validateDocument({...blankDocument(),schemaVersion:version}).schemaVersion,6)
+  for(const version of [1,2,3,4])assert.equal(validateDocument({...blankDocument(),schemaVersion:version}).schemaVersion,7)
   assert.throws(()=>validateDocument({...doc,schemaVersion:4}))
 })
 test('photo references and shape properties fail closed; stroke-only icons remain geometry',()=>{

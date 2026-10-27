@@ -1,3 +1,4 @@
+import {findPage, LEGACY_PAGE_ID} from '../../../../../shared/studio/pages.js'
 import { validateDocument } from '../../../../../shared/studio/document.js'
 import { applyOps, checkOps, compactOps, diffOps } from '../../../../../shared/studio/operations.js'
 
@@ -23,7 +24,7 @@ export function createStudioSync({document,revision,name,clientId,actorId,transp
       checkOps(saved.outbox,10000)
       if(saved.batch){checkOps(saved.batch.ops);if(!/^[a-zA-Z0-9_-]{8,64}$/.test(saved.batch.clientId)||!Number.isSafeInteger(saved.batch.id)||saved.batch.id<1)throw Error('Cola inválida.')}
       local=validateDocument(saved.document);outbox=saved.outbox;outboxName=saved.outboxName;batch=saved.batch;status=work()?'offline':'synced'
-      for(const op of [...(batch?.ops??[]),...outbox])if(op.type==='patch')for(const key of [...Object.keys(op.set),...(op.unset??[])])touched.add(`${op.id}:${key}`)
+      for(const op of [...(batch?.ops??[]),...outbox])if(op.type==='patch')for(const key of [...Object.keys(op.set),...(op.unset??[])])touched.add(`${op.pageId??LEGACY_PAGE_ID}:${op.id}:${key}`)
     }
   }catch(e){onError?.('La cola local no se pudo recuperar. El borrador se conserva.',e)}
   const settle=()=>{
@@ -32,11 +33,11 @@ export function createStudioSync({document,revision,name,clientId,actorId,transp
     if(renderError){waiters.splice(0).forEach(w=>w.reject(renderError));return}
     if(!work()&&!inflight&&!buffered.size&&!resyncing&&!rendering){setStatus('synced');onRevision?.(sequence);waiters.splice(0).forEach(w=>w.resolve())}
   }
-  function collides(ops){return ops.some(op=>op.type==='remove'&&[...touched].some(k=>k.startsWith(`${op.id}:`))||op.type==='patch'&&[...Object.keys(op.set),...(op.unset??[])].some(k=>touched.has(`${op.id}:${k}`)))}
+  function collides(ops){return ops.some(op=>op.type==='removePage'&&([...touched].some(key=>key.startsWith(`${op.pageId}:`))||[...(batch?.ops??[]),...outbox].some(pending=>(pending.pageId??LEGACY_PAGE_ID)===op.pageId||pending.targetPageId===op.pageId))||op.type==='remove'&&[...touched].some(k=>k.startsWith(`${op.pageId??LEGACY_PAGE_ID}:${op.id}:`))||op.type==='patch'&&[...Object.keys(op.set),...(op.unset??[])].some(k=>touched.has(`${op.pageId??LEGACY_PAGE_ID}:${op.id}:${k}`)))}
   function draft(reason){
     const properties=new Map()
-    for(const key of touched){const colon=key.indexOf(':'),id=key.slice(0,colon),field=key.slice(colon+1),object=local.objects.find(o=>o.id===id);if(!object)continue
-      if(!properties.has(id))properties.set(id,{type:'patch',id,set:{},unset:[]})
+    for(const key of touched){const [pageId,id,field]=key.split(':'),object=findPage(local,pageId)?.objects.find(o=>o.id===id);if(!object)continue
+      if(!properties.has(id))properties.set(id,{type:'patch',pageId,id,set:{},unset:[]})
       if(object[field]===undefined)properties.get(id).unset.push(field);else properties.get(id).set[field]=object[field]
     }
     return {document:local,revision:sequence,name:title,reason,operations:compactOps([...diffOps(server,local),...properties.values()])}
@@ -144,7 +145,7 @@ export function createStudioSync({document,revision,name,clientId,actorId,transp
       if(closed)return
       const next=validateDocument(document),ops=diffOps(local,next);local=next;version++
       if(!ops.length)return
-      for(const op of ops)if(op.type==='patch')for(const key of [...Object.keys(op.set),...(op.unset??[])])touched.add(`${op.id}:${key}`)
+      for(const op of ops)if(op.type==='patch')for(const key of [...Object.keys(op.set),...(op.unset??[])])touched.add(`${op.pageId??LEGACY_PAGE_ID}:${op.id}:${key}`)
       outbox=compactOps([...outbox,...ops]);setStatus(blocked?'error':status==='offline'?'offline':'syncing');persist();schedule()
     },
     rename(value){if(closed||value===title)return;title=value;outboxName=value;setStatus(blocked?'error':'syncing');persist();schedule()},

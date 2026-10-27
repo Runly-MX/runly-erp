@@ -1,8 +1,17 @@
 export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQueryString }) {
   const path = id => `/studio/designs/${encodeURIComponent(id)}`
-  const options = (token, method = 'GET', data) => ({ method, headers: {...withAuthHeaders(token),...(method==='GET'?{}:{'X-Runly-Studio-Protocol':'2'})}, onlineOnly: true,
+  const options = (token, method = 'GET', data) => ({ method, headers: {...withAuthHeaders(token),...(method==='GET'?{}:{'X-Runly-Studio-Protocol':'3'})}, onlineOnly: true,
     ...(data === undefined ? {} : { body: JSON.stringify(data) }) })
   return {
+    listPages: (id,token,signal) => request(`${path(id)}/pages`,{...options(token),signal}),
+    getPage: (id,pageId,token,signal) => request(`${path(id)}/pages/${encodeURIComponent(pageId)}`,{...options(token),signal}),
+    createPrintJob: (id,data,token,signal) => request(`${path(id)}/export/jobs`,{...options(token,'POST',data),signal}),
+    appendPrintPage: (id,jobId,pageId,file,token,signal) => {
+      const body=new FormData();body.set('file',file,'render.png')
+      return request(`${path(id)}/export/jobs/${encodeURIComponent(jobId)}/pages/${encodeURIComponent(pageId)}`,{...options(token,'POST'),body,signal})
+    },
+    finishPrintJob: (id,jobId,token,signal) => requestBlob(`${path(id)}/export/jobs/${encodeURIComponent(jobId)}/finish`,{...options(token,'POST'),signal}),
+    cancelPrintJob: (id,jobId,token) => request(`${path(id)}/export/jobs/${encodeURIComponent(jobId)}`,options(token,'DELETE')),
     saveImageCopy: (id,fileId,file,token,signal) => {
       const body = new FormData(); body.set('file',file)
       return request(`${path(id)}/assets/${encodeURIComponent(fileId)}/edited-copy`,{method:'POST',headers:withAuthHeaders(token),body,signal,onlineOnly:true})

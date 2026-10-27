@@ -5,8 +5,8 @@ import { iconSource } from './licenses.js'
 import { imageProperties } from './image-properties.js'
 import { gradientPaint } from './gradient.js'
 import { fillPaint, shapeStyle, supportsPhotoFill, SHAPE_TYPES, LINE_CAPS } from './shape-properties.js'
-export const STUDIO_SCHEMA_VERSION = 6
-export const STUDIO_LIMITS = Object.freeze({ side: 4096, objects: 500, bytes: 1_000_000 })
+export const STUDIO_SCHEMA_VERSION = 7
+export const STUDIO_LIMITS = Object.freeze({ side: 4096, objects: 500, totalObjects: 2000, pages: 24, assets: 100, bytes: 4_000_000 })
 export const FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COLOR = /^#[0-9a-f]{6}$/i
 const isColor = value => typeof value === 'string' && COLOR.test(value)
@@ -20,9 +20,8 @@ export class StudioError extends Error {
 const fail = () => { throw new StudioError('El diseño contiene datos no válidos o supera los límites permitidos.') }
 const finite = (value, min, max) => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
 
-export function validateDocument(input) {
-  if (!input || ![1, 2, 3, 4, 5, STUDIO_SCHEMA_VERSION].includes(input.schemaVersion) || input.unit !== 'px') fail()
-  if (JSON.stringify(input).length > STUDIO_LIMITS.bytes) fail()
+function validateScene(input) {
+  if (!input || ![1, 2, 3, 4, 5, 6, STUDIO_SCHEMA_VERSION].includes(input.schemaVersion) || input.unit !== 'px') fail()
   const page = input.page
   if (!page || !Number.isInteger(page.width) || !Number.isInteger(page.height) ||
     !finite(page.width, 32, STUDIO_LIMITS.side) || !finite(page.height, 32, STUDIO_LIMITS.side) || !isColor(page.background)) fail()
@@ -93,16 +92,49 @@ export function validateDocument(input) {
     return clean
   })
   // Explicit allowlist: viewport, signed URLs and Fabric internals never persist.
-  return { schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { width: page.width, height: page.height, background: page.background, ...(backgroundPaint?{backgroundPaint}:{}) }, objects }
+  return { schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { id: page.id ?? 'page-1', ...(page.name !== undefined ? {name: page.name} : {}), width: page.width, height: page.height, background: page.background, ...(backgroundPaint?{backgroundPaint}:{}) }, objects }
+}
+
+export function validateDocument(input) {
+  if (!input || new TextEncoder().encode(JSON.stringify(input)).byteLength > STUDIO_LIMITS.bytes) fail()
+  if (input.schemaVersion < 7 && input.additionalPages?.length) fail()
+  if (input.additionalPages !== undefined && !Array.isArray(input.additionalPages)) fail()
+  const scenes = [{page: input.page, objects: input.objects}, ...(input.additionalPages ?? [])]
+  if (scenes.length > STUDIO_LIMITS.pages) fail()
+  const ids = new Set(), objectIds = new Set(), groups = new Map(), assets = new Set()
+  let count = 0
+  const pages = scenes.map(scene => {
+    if (!scene || !scene.page || (input.schemaVersion >= 7 && typeof scene.page.id !== 'string')) fail()
+    const clean = validateScene({...scene, schemaVersion: input.schemaVersion, unit: input.unit})
+    const id = clean.page.id
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(id) || ids.has(id)) fail()
+    if (clean.page.name !== undefined && (typeof clean.page.name !== 'string' || !clean.page.name.trim() || clean.page.name.length > 120)) fail()
+    ids.add(id)
+    for (const object of clean.objects) {
+      if (objectIds.has(object.id)) fail()
+      objectIds.add(object.id)
+      if (object.groupId) {
+        if (groups.has(object.groupId) && groups.get(object.groupId) !== id) fail()
+        groups.set(object.groupId, id)
+      }
+      const asset = object.fileAssetId ?? (object.fillPaint?.type === 'image' ? object.fillPaint.fileAssetId : undefined)
+      if (asset) assets.add(asset)
+      count++
+    }
+    return {page: clean.page, objects: clean.objects}
+  })
+  if (count > STUDIO_LIMITS.totalObjects || assets.size > STUDIO_LIMITS.assets) fail()
+  const [first, ...additionalPages] = pages
+  return {schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', ...first, additionalPages}
 }
 
 export function blankDocument(width = 1080, height = 1080) {
-  return validateDocument({ schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { width, height, background: '#ffffff' }, objects: [] })
+  return validateDocument({ schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { id: 'page-1', width, height, background: '#ffffff' }, objects: [] })
 }
 
 export function appendObject(document, type, extra = {}) {
   let ordinal = document.objects.length + 1
-  const ids = new Set(document.objects.map(object => object.id))
+  const ids = new Set([document, ...(document.additionalPages ?? [])].flatMap(scene => scene.objects.map(object => object.id)))
   while (ids.has(`object-${ordinal}`)) ordinal++
   const object = { id: `object-${ordinal}`, type, x: 80, y: 100, width: type === 'ellipse' ? 220 : 320, height: type === 'text' ? 100 : 220, rotation: 0, fill: '#2563eb',
     ...(type === 'text' ? { text: 'Escribe tu idea', fontSize: 48, fontFamily: 'sans-serif' } : {}), ...extra }

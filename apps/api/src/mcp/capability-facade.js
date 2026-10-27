@@ -57,7 +57,7 @@ export function createMcpCapabilities({ prisma, config, oauth, supabaseAdmin, br
       const result=await runtime.run(tool.domain, tool.mode, args, auth);
       // Publish only AFTER the MCP transaction committed. Do not inject a
       // broadcaster into adapters running inside the serializable transaction.
-      if(tool.domain==='studio'&&tool.mode==='commit'&&result.operation==='studio_update_design'&&broadcaster){
+      if(tool.domain==='studio'&&tool.mode==='commit'&&['studio_update_design','studio_apply_changes'].includes(result.operation)&&broadcaster){
         await broadcaster.broadcastToChannel(`studio:design:${result.result.id}`,'changed',{designId:result.result.id,revision:result.result.revision},{authorize:async()=>{
           try{const a=await accessFor(auth,prisma,prisma).company(auth.authUserId,args.companyId);await createStudioAccess({prisma}).get(args.companyId,a.actorProfileId,result.result.id);return true}catch{return false}
         }}).catch(()=>{});

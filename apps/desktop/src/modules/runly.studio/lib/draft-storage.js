@@ -1,15 +1,21 @@
+import {findPage, LEGACY_PAGE_ID} from '../../../../../shared/studio/pages.js'
 import { validateDocument } from '../../../../../shared/studio/document.js'
 import {applyOps,checkOps} from '../../../../../shared/studio/operations.js'
 
 export function recoverDraftDocument(document,draft){
   if(!draft.operations)return validateDocument(draft.document)
   const current=validateDocument(document),ops=checkOps(draft.operations,10000),ids=new Set(current.objects.map(o=>o.id))
+  let staged=current
   for(const op of ops){
+    const scene=findPage(staged,op.pageId??LEGACY_PAGE_ID)
+    if(op.pageId && !scene && !['addPage','pageOrder','removePage'].includes(op.type))throw Error('La copia local incluye páginas eliminadas. Se conserva para recuperación independiente.')
+    ids.clear(); for(const object of scene?.objects??[])ids.add(object.id)
     if(op.type==='upsert')ids.add(op.object.id)
     else if(op.type==='remove')ids.delete(op.id)
     else if(op.type==='patch'&&!ids.has(op.id))throw Error('La copia local incluye objetos eliminados por otra sesión. Se conserva para una recuperación independiente; no se aplicó ni descartó el borrador.')
+    staged=applyOps(staged,[op])
   }
-  return validateDocument(applyOps(current,ops))
+  return validateDocument(staged)
 }
 
 export function createDraftStorage(storage, scope, now = Date.now) {

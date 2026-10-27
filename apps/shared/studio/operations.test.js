@@ -53,7 +53,7 @@ test('independent properties merge, atomic paints/text use sequenced LWW, deleti
   }
   assert.equal(applyOps(doc,[{type:'remove',id:doc.objects[0].id},...opsB]).objects.length,2)
   const pageA=diffOps(doc,{...doc,page:{...doc.page,width:1000}}),pageB=diffOps(doc,{...doc,page:{...doc.page,background:'#111111'}})
-  assert.deepEqual(applyOps(doc,[...pageA,...pageB]).page,{width:1000,height:600,background:'#111111'})
+  assert.deepEqual(applyOps(doc,[...pageA,...pageB]).page,{...doc.page,width:1000,background:'#111111'})
 })
 test('compaction preserves remove/re-add slot effects and every intervening order operation',()=>{
   const doc=base(),[a,b,c]=doc.objects

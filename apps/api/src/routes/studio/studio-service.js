@@ -27,7 +27,8 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
     // home renders vector thumbnails without shipping whole documents.
     return prisma.$queryRaw`SELECT d.id,d.name,d.revision,d.owner_id AS "ownerId",u.display_name AS "ownerName",d.updated_at AS "updatedAt",
       CASE WHEN d.owner_id=${actorId}::uuid THEN 'OWNER' ELSE c.role END AS role,
-      jsonb_array_length(d.document->'objects')::int AS "objectCount",
+      (jsonb_array_length(d.document->'objects') + COALESCE((SELECT sum(jsonb_array_length(p->'objects')) FROM jsonb_array_elements(COALESCE(d.document->'additionalPages','[]'::jsonb)) p),0))::int AS "objectCount",
+      (1 + jsonb_array_length(COALESCE(d.document->'additionalPages','[]'::jsonb)))::int AS "pageCount",
       jsonb_build_object('page', d.document->'page', 'objects', COALESCE((SELECT jsonb_agg(CASE WHEN o.value->>'type'='text'
         THEN o.value || jsonb_build_object('text', left(o.value->>'text', 120)) ELSE o.value END ORDER BY o.ordinality)
         FROM jsonb_array_elements(d.document->'objects') WITH ORDINALITY o WHERE o.ordinality <= 40), '[]'::jsonb)) AS preview
@@ -68,8 +69,8 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
     if (!Number.isSafeInteger(input?.revision) || input.revision < 1) throw new StudioError('Falta la revisión del diseño.')
     const row = await prisma.$transaction(async db => {
       await access.lock(db, id); const current=await access.get(companyId, actorId, id, db, true)
-      if(current.document.schemaVersion>=6&&input.document.schemaVersion<6)throw new StudioError('El cliente no admite la versión actual del documento. Actualiza antes de guardar.',409,'STUDIO_DOCUMENT_DOWNGRADE_DENIED')
-      await db.$queryRaw`SELECT set_config('runly.studio.protocol','2',true)`
+      if(current.document.schemaVersion>=6&&input.document.schemaVersion<current.document.schemaVersion)throw new StudioError('El cliente no admite la versión actual del documento. Actualiza antes de guardar.',409,'STUDIO_DOCUMENT_DOWNGRADE_DENIED')
+      await db.$queryRaw`SELECT set_config('runly.studio.protocol','3',true)`
       const ids = await access.assets(db, companyId, actorId, document, id, fileContext)
       const [row] = await db.$queryRaw`UPDATE studio_design SET name=${name},document=${JSON.stringify(document)}::jsonb,
         revision=revision+1,updated_at=now() WHERE id=${id}::uuid AND company_id=${companyId}::uuid AND revision=${input.revision}
@@ -90,14 +91,14 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
   async function applyChanges(companyId, actorId, id, input, fileContext) {
     access.identity(companyId, actorId)
     batchIdentity(input)
-    if(JSON.stringify(input).length>1_100_000)throw new StudioError('Lote demasiado grande.',413)
+    if(new TextEncoder().encode(JSON.stringify(input)).byteLength>4_100_000)throw new StudioError('Lote demasiado grande.',413)
     let ops
     try { ops = checkOps(input.ops) } catch (error) { throw new StudioError(error.message) }
     const name = input.name === undefined ? null : title(input.name)
     const digest=createHash('sha256').update(JSON.stringify({ops,name})).digest('hex')
     const row = await prisma.$transaction(async db => {
       await access.lock(db, id)
-      await db.$queryRaw`SELECT set_config('runly.studio.protocol','2',true)`
+      await db.$queryRaw`SELECT set_config('runly.studio.protocol','3',true)`
       const current = await access.get(companyId, actorId, id, db, true)
       // The design lock serializes identical concurrent requests. Receipts are
       // durable audit records, scoped to the authenticated actor, never clientId alone.

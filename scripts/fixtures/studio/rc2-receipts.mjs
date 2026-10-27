@@ -6,7 +6,7 @@ export async function measureRc2Receipts(stack,{users,companies},{duration=12000
   const owner=users[0],company=companies[0],checks=[],profiles=[]
   assert.equal((await stack.pool.query('SELECT id FROM runly_studio_test.environment')).rows[0].id,stack.name)
   const login=await fetch(stack.urls.api+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:owner.email,password:owner.password})}),token=(await login.json()).data.access_token
-  const request=async(path,data)=>{const r=await fetch(stack.urls.api+path,{method:data?'POST':'GET',headers:{Authorization:`Bearer ${token}`,'X-Runly-Company-Id':company.id,'X-Runly-Studio-Protocol':'2',...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined});const body=await r.json();assert.ok(r.ok,`${r.status}: ${JSON.stringify(body)}`);return body.data}
+  const request=async(path,data)=>{const r=await fetch(stack.urls.api+path,{method:data?'POST':'GET',headers:{Authorization:`Bearer ${token}`,'X-Runly-Company-Id':company.id,'X-Runly-Studio-Protocol':'3',...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined});const body=await r.json();assert.ok(r.ok,`${r.status}: ${JSON.stringify(body)}`);return body.data}
   for(const [kind,ms,interval,count]of [['typing',duration,20,1],['drag-commit',15000,1000,1],['group-transform',15000,200,200]]){
     let document=blankDocument(2000,2000)
     for(let i=0;i<count;i++)document=appendObject(document,kind==='typing'?'text':'rectangle',{id:`bench-${i}`,x:i%20*50,y:Math.floor(i/20)*50,...(kind==='typing'?{text:'Synthetic editing '.repeat(300)}:{groupId:'bench-group',width:30,height:30})})

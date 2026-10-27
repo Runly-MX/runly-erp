@@ -27,7 +27,7 @@ export async function verifyStudioFinalUi(stack,scenario){
   }
   const ownerToken = await login(owner)
   const api = (path, { token = ownerToken, data, method = data ? 'POST' : 'GET' } = {}) => fetch(`${stack.urls.api}${path}`, { method,
-    headers: { 'X-Runly-Studio-Protocol':'2', Authorization: `Bearer ${token}`, 'X-Runly-Company-Id': company.id, ...(data ? { 'Content-Type': 'application/json' } : {}) }, body: data ? JSON.stringify(data) : undefined })
+    headers: { 'X-Runly-Studio-Protocol':'3', Authorization: `Bearer ${token}`, 'X-Runly-Company-Id': company.id, ...(data ? { 'Content-Type': 'application/json' } : {}) }, body: data ? JSON.stringify(data) : undefined })
   const json = async response => { const payload = await response.json(); assert.ok(response.ok, `${response.status} ${JSON.stringify(payload).slice(0, 300)}`); return payload.data ?? payload }
   let doc = blankDocument(1080, 1080)
   doc = appendObject(doc, 'rectangle', { x: 100, y: 120, width: 380, height: 260, fill: '#7c3aed' })
@@ -289,9 +289,9 @@ export async function verifyStudioFinalUi(stack,scenario){
     const events = []
     A.page.on('download', file => events.push(file))
     let pdfRequests=0,abortedRequests=0
-    A.page.on('requestfailed',request=>{if(request.url().endsWith('/export/print-pdf'))abortedRequests++})
+    A.page.on('requestfailed',request=>{if(/\/export\/jobs\/[^/]+\/pages\//.test(request.url()))abortedRequests++})
     const baseline=await json(await api(`/studio/designs/${design.id}`))
-    await A.page.route('**/export/print-pdf', async route => {pdfRequests++;await wait(2500);await route.continue().catch(()=>{})})
+    await A.page.route('**/export/jobs/*/pages/*', async route => {pdfRequests++;await wait(2500);await route.continue().catch(()=>{})})
     await openExport(A.page)
     await dialog(A.page).getByRole('radio', { name: /^PDF/ }).click()
     await dialog(A.page).getByRole('button', { name: 'Descargar', exact: true }).click()
@@ -309,8 +309,8 @@ export async function verifyStudioFinalUi(stack,scenario){
     assert.equal(pdfRequests,1);assert.ok(abortedRequests>0,'PDF HTTP request was not aborted')
     assert.deepEqual(await json(await api(`/studio/designs/${design.id}`)),baseline)
     ok('Cancel discards the result: nothing downloaded; double click produced no extra job')
-    await A.page.unroute('**/export/print-pdf')
-    await A.page.route('**/export/print-pdf', route => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'boom Bearer eyJhbGciOiJIUzI1NiJ9.AAAAAAAAAAAAAAAA.BBBB at https://internal.example.com/db' }) }))
+    await A.page.unroute('**/export/jobs/*/pages/*')
+    await A.page.route('**/export/jobs/*/pages/*', route => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'boom Bearer eyJhbGciOiJIUzI1NiJ9.AAAAAAAAAAAAAAAA.BBBB at https://internal.example.com/db' }) }))
     await openExport(A.page)
     await dialog(A.page).getByRole('radio', { name: /^PDF/ }).click()
     await dialog(A.page).getByRole('button', { name: 'Descargar', exact: true }).click()
@@ -321,7 +321,7 @@ export async function verifyStudioFinalUi(stack,scenario){
     assert.ok(!/Bearer|eyJ|internal\.example|https?:/.test(text), text)
     await shot(A.page, 'download-error')
     ok(`server error is shown without secrets or URLs: «${text.replace(/\s+/g, ' ').slice(0, 110)}»`)
-    await A.page.unroute('**/export/print-pdf')
+    await A.page.unroute('**/export/jobs/*/pages/*')
   })
 
   // ---- responsive, themes, keyboard, motion ----

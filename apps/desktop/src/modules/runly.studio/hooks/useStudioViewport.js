@@ -152,7 +152,17 @@ export function useStudioViewport(page, editorRef) {
     viewport.current.scrollLeft = drag.current.left - event.clientX + drag.current.x
     viewport.current.scrollTop = drag.current.top - event.clientY + drag.current.y
   }
-  return { viewport, paper, zoom, hand, setHand, center, fit, size, panning,
+  const restore = useCallback(saved => {
+    if (!saved) return
+    fitMode.current = false
+    zoomRef.current = saved.zoom; setZoom(saved.zoom)
+    requestAnimationFrame(() => {
+      if (!viewport.current) return
+      viewport.current.scrollLeft = saved.scrollLeft ?? 0
+      viewport.current.scrollTop = saved.scrollTop ?? 0
+    })
+  }, [])
+  return { viewport, paper, zoom, hand, setHand, center, fit, restore, size, panning,
     changeZoom: value => { fitMode.current = false; changeZoom(value) },
     // onAuxClick/onMouseDown keep the browser's middle-click autoscroll and link-open away.
     gestures: { onPointerDownCapture: down, onPointerMoveCapture: move, onPointerUpCapture: stop, onPointerCancel: stop,

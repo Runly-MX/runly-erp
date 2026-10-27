@@ -21,7 +21,8 @@ export function createStudioApplication({ prisma, supabaseAdmin, filesService = 
   const resources=createStudioResources({access:designs.access,filesService,supabaseAdmin})
   async function guide(a) {
     await designs.access.member(a.companyId,a.actorProfileId)
-    return {schemaVersion:STUDIO_SCHEMA_VERSION,limits:STUDIO_LIMITS,unit:'px',
+    return {schemaVersion:STUDIO_SCHEMA_VERSION,protocolVersion:3,limits:STUDIO_LIMITS,unit:'px',
+      pagesContract:{cover:'page + objects',additionalPages:'ordered array of {page:{id,width,height,background,name?,backgroundPaint?},objects:[]}',identity:'stable page.id; object IDs unique across document',operations:['addPage','duplicatePage','removePage','pageOrder','patchPage','transferObjects'],scope:'pageId on all graphic operations; legacy unscoped operations target page-1',lastPage:'cannot remove last remaining page'},
       shapeContract:{fill:'six-digit hex fallback',fillPaint:{gradient:DEFAULT_GRADIENT,solid:{type:'solid',color:'#2563eb'},image:{type:'image',fileAssetId:'UUID autorizado de Files',image:{fit:'cover',zoom:1,offsetX:0,offsetY:0,rotation:0,flipX:false,flipY:false}}},shape:{fillEnabled:true,strokeWidth:0,strokeColor:'#000000',dash:'solid',strokeAlign:'center',radius:0},photoGeometry:'rectangle, ellipse or a single closed filled monochrome vector path without stroke'},
       lineCaps:LINE_CAPS,
       objectTypes:['text','rectangle','ellipse','image','vector','line'],
@@ -48,7 +49,7 @@ export function createStudioApplication({ prisma, supabaseAdmin, filesService = 
         'Grupos actuales: groupId compartido entre objetos planos. No inventes árboles Fabric ni campos del renderer.',
         'Consulta studio_review_design antes de proponer; es informativo y no sustituye la inspección visual.',
         'Toda escritura requiere prepare → aprobación web → commit MCP. La publicación empresarial pide confirmación sensible adicional.'],
-      link:'/app/m/runly.studio',capabilities:{templates:true,review:true,renderPreview:false,mutations:'MCP aprobado'} }
+      link:'/app/m/runly.studio',capabilities:{multipage:true,pageScopedOperations:true,templates:true,review:true,renderPreview:false,mutations:'MCP aprobado'} }
   }
   async function overview(a) {
     const contract=await guide(a)

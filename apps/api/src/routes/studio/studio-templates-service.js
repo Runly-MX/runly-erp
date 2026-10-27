@@ -95,7 +95,8 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     const stored = !remaining || scope === 'runly' ? [] : await prisma.$queryRaw`SELECT t.id,t.name,t.category,t.description,t.scope,t.source,t.revision,
       t.owner_id AS "ownerId",u.display_name AS "ownerName",t.updated_at AS "updatedAt",
       (t.document->'page'->>'width')::int AS width,(t.document->'page'->>'height')::int AS height,
-      jsonb_array_length(t.document->'objects') AS "objectCount",
+      (jsonb_array_length(t.document->'objects') + COALESCE((SELECT sum(jsonb_array_length(p->'objects')) FROM jsonb_array_elements(COALESCE(t.document->'additionalPages','[]'::jsonb)) p),0))::int AS "objectCount",
+      (1+jsonb_array_length(COALESCE(t.document->'additionalPages','[]'::jsonb)))::int AS "pageCount",
       jsonb_build_object('page',t.document->'page','objects',COALESCE((SELECT jsonb_agg(jsonb_build_object(
         'id',o->'id','type',o->'type','x',o->'x','y',o->'y','width',o->'width','height',o->'height','rotation',o->'rotation',
         'fill',o->'fill','fillPaint',o->'fillPaint','shape',o->'shape','image',o->'image','geometry',o->'geometry','fileAssetId',o->'fileAssetId','points',o->'points','strokeWidth',o->'strokeWidth','dash',o->'dash','startCap',o->'startCap','endCap',o->'endCap','startArrow',o->'startArrow','endArrow',o->'endArrow','scaleX',o->'scaleX','scaleY',o->'scaleY','hidden',o->'hidden','opacity',o->'opacity','fontSize',o->'fontSize','fontFamily',o->'fontFamily',
@@ -157,6 +158,7 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     if (input.source !== undefined || input.ownerId !== undefined || input.companyId !== undefined) throw new StudioError('Identidad u origen no editables.')
     if (operation === 'create' && Boolean(input.designId) === Boolean(input.document)) throw new StudioError('Indica designId o document, exclusivamente.')
     const source = input.designId ? await access.get(companyId,actorId,input.designId,db) : null
+    if(current && input.document && input.document.schemaVersion < current.document.schemaVersion) throw new StudioError('Actualiza Studio antes de editar esta plantilla.',409,'STUDIO_DOCUMENT_DOWNGRADE_DENIED')
     const document = validateDocument(input.document ?? source?.document ?? current?.document)
     const name = text(input.name ?? current?.name,160,true), category = text(input.category ?? current?.category ?? '',80), description = text(input.description ?? current?.description ?? '',1000)
     if (operation !== 'delete') await authorizeAssets(db,companyId,actorId,document,scope,current,source?.id,fileContext)
@@ -166,6 +168,7 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     access.identity(companyId,actorId)
     return prisma.$transaction(async db => {
       await access.lock(db)
+      await db.$queryRaw`SELECT set_config('runly.studio.protocol','3',true)`
       if (operation !== 'create') { if (!FILE_ID.test(input.id)) missing(); await row(db,companyId,actorId,input.id,true) }
       const prepared = await prepare(companyId,actorId,operation,input,db,fileContext)
       const { name,category,description,scope,document,sourceDesignId } = prepared
@@ -189,6 +192,7 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     access.identity(companyId,actorId)
     return prisma.$transaction(async db => {
       await access.lock(db)
+      await db.$queryRaw`SELECT set_config('runly.studio.protocol','3',true)`
       await access.member(companyId,actorId,'studio.create',db)
       const template = await get(companyId,actorId,id,db)
       const designName=name === undefined ? template.name : text(name,160,true)

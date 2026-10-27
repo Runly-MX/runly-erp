@@ -1,4 +1,5 @@
 import { validateDocument } from '../../../../shared/studio/document.js'
+import { documentPages } from '../../../../shared/studio/pages.js'
 import { studioObjects } from './studio-document-data.js'
 
 // Fabric uses left/top origins. AABB is exact for the declared rotated rectangle;
@@ -24,8 +25,8 @@ export function studioContrast(a,b) {
   return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05)
 }
 
-export function reviewStudioDocument(input) {
-  const document = validateDocument(input), objects = studioObjects(document), findings = []
+function reviewScene(document) {
+  const objects = studioObjects(document), findings = []
   const page = {left:0,top:0,right:document.page.width,bottom:document.page.height}
   const add = (o,severity,rule,message,suggestion) => findings.push({objectId:o?.id ?? null,severity,rule,message,suggestion})
   const families = new Set(objects.filter(o=>o.type==='text'&&!o.hidden).map(o=>o.fontFamily))
@@ -57,4 +58,10 @@ export function reviewStudioDocument(input) {
     }
   }
   return {findings,informational:true,geometry:'Rectángulos declarados con escala y rotación; métricas de texto aproximadas, sin rasterización.'}
+}
+
+export function reviewStudioDocument(input) {
+  const document = validateDocument(input)
+  const results = documentPages(document).map(scene => ({pageId: scene.page.id, ...reviewScene(scene)}))
+  return {...results[0], findings: results.flatMap(result => result.findings.map(finding => ({...finding, pageId: result.pageId}))), pages: results}
 }

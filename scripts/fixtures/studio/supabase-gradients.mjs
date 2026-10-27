@@ -15,7 +15,7 @@ export async function verifyStudioGradients(stack,{users,companies}) {
     const r=await fetch(`${stack.urls.api}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:user.email,password:user.password})})
     assert.equal(r.status,200);return(await r.json()).data.access_token
   }))
-  const api=(path,{user=0,companyId=company.id,data,method=data?'POST':'GET'}={})=>fetch(`${stack.urls.api}${path}`,{method,headers:{'X-Runly-Studio-Protocol':'2',Authorization:`Bearer ${tokens[user]}`,'X-Runly-Company-Id':companyId,'Content-Type':'application/json'},body:data?JSON.stringify(data):undefined})
+  const api=(path,{user=0,companyId=company.id,data,method=data?'POST':'GET'}={})=>fetch(`${stack.urls.api}${path}`,{method,headers:{'X-Runly-Studio-Protocol':'3',Authorization:`Bearer ${tokens[user]}`,'X-Runly-Company-Id':companyId,'Content-Type':'application/json'},body:data?JSON.stringify(data):undefined})
   const json=async r=>{const b=await r.json();assert.ok(r.ok,`${r.status}: ${JSON.stringify(b)}`);return b.data}
   let doc=appendObject(blankDocument(640,480),'rectangle',{x:20,y:20,width:300,height:200,rotation:20,opacity:0.6,fillPaint:DEFAULT_GRADIENT})
   doc.page.backgroundPaint={type:'gradient',gradientType:'radial',centerX:0.5,centerY:0.5,radius:1,stops:DEFAULT_GRADIENT.stops}
@@ -44,7 +44,7 @@ export async function verifyStudioGradients(stack,{users,companies}) {
   checks.push('Personal/company templates and work copies preserve page/object paint; actual template SQL list projection')
   for(const version of [1,2,3,4,5]){
     const historical={...blankDocument(320,240),schemaVersion:version}
-    const legacy=await json(await api('/studio/designs',{data:{name:`Synthetic legacy ${version}`,document:historical}}));assert.equal(legacy.document.schemaVersion,6)
+    const legacy=await json(await api('/studio/designs',{data:{name:`Synthetic legacy ${version}`,document:historical}}));assert.equal(legacy.document.schemaVersion,7)
   }
   const malformed={...doc,objects:doc.objects.map(o=>({...o,...(o.fillPaint?{fillPaint:{...o.fillPaint,stops:[o.fillPaint.stops[0],o.fillPaint.stops[0]]}}:{})}))}
   assert.equal((await api(root,{method:'PUT',data:{name:record.name,revision:saved.revision,document:malformed}})).status,400)

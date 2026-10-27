@@ -1,5 +1,101 @@
 # Studio — contrato entre editor y UI
 
+## Documento v7 y motor multipágina (2026-10-26)
+
+Contrato vigente: `schemaVersion:7`, protocolo HTTP **3**. El resto de las notas
+RC2 de este archivo describe el corte histórico v6/protocolo 2.
+
+```js
+{
+  schemaVersion: 7, unit: 'px',
+  page: {id: 'page-1', width: 1080, height: 1920, background: '#ffffff', name: 'Portada'},
+  objects: [],
+  additionalPages: [
+    {page: {id: 'interior', width: 1920, height: 1080, background: '#ffffff'}, objects: []}
+  ]
+}
+```
+
+La primera escena es la portada y el resto se ordena en `additionalPages`. Cada
+escena existe una sola vez. `documentPages`, `findPage`, `pageDocument` y
+`replacePage` son los accesores compartidos; no guardar un `activePageId`, viewport,
+selección, URL firmada ni estado Fabric en el documento. v1–v6 se normalizan en
+memoria a `page-1`, sin reescritura masiva. Los IDs de objetos son únicos en el
+documento; cada grupo pertenece a una página.
+
+Límites: 24 páginas, 500 objetos por página, 2.000 por documento, JSON UTF-8
+4.000.000 bytes, 100 FileAssets distintos, lados 32–4096 px. Se mantiene un
+canvas interactivo y como máximo uno auxiliar secuencial; cada escena admite
+25 MP de fotografías decodificadas. Miniaturas de 256 px máximo, LRU de ocho
+blobs/2 MiB por instancia y huellas SHA-256 por página. Autorizar diseño y archivos
+antes de devolver incluso una miniatura en caché; liberar la caché al destruir.
+
+### API del editor para integrar controles
+
+| Método | Contrato |
+|---|---|
+| `listPages()` | Metadatos ordenados, `objectCount`, `active` |
+| `activePageId()`, `activeScene()` | Identidad/escena activa; `snapshot()` siempre devuelve el documento completo |
+| `selectPage(id)` | Promise; vacía la cola antes de cargar una sola escena |
+| `addPage({id,width,height,background,name,afterId})` | ID estable proporcionado por el llamador; no selecciona implícitamente |
+| `duplicatePage(id,newId)` | Copia independiente, IDs nuevos deterministas para objetos/grupos |
+| `removePage(id)` | Rechaza la última página; si desaparece la activa selecciona la primera superviviente |
+| `reorderPages(ids)` | Reordena por identidad, conserva la página activa |
+| `updatePage(id,set)` | Fondo, dimensiones y nombre; nunca cambiar `id` |
+| `transferObjects(source,target,ids,{copy,copyId})` | Grupo completo; conserva coordenadas; `copyId` requerido al copiar |
+| `getPageThumbnail(id,{signal})` | Promise<Blob>; requiere `authorizePage`, no persistir ni compartir el blob entre usuarios |
+| `exportPage(id,format,quality,reviewed,options)` | Render aislado diferido o escena activa; PNG/JPG |
+| `deselect()` | Sale de edición de texto y limpia selección sin mutar JSON/historial |
+
+La selección y viewport se recuerdan por página durante la sesión; solo se
+restauran IDs visibles y editables que sobrevivan. `onActivePage(id,viewport)`
+integra el viewport de React; `onChange(doc,meta)` mantiene el documento completo.
+La URL `?design=<id>&pageId=<id>` abre una página sin añadir paneles nuevos.
+Clic primario fuera del papel limpia la selección. Mano, Espacio, botón central,
+gestos táctiles, muestreador y encuadre conservan su manejo previo.
+
+### Operaciones, permisos y recuperación
+
+Las operaciones gráficas llevan `pageId`; las antiguas sin alcance apuntan a
+`page-1`, incluso tras reordenar. No transformar un lote incierto: su digest y
+recibo conservan el contenido original. Operaciones estructurales: `addPage`
+con `scene`, `duplicatePage` con `newId`, `removePage`, `pageOrder` con `ids` y
+`transferObjects` con destino/IDs/copy. El servidor publica el diff efectivo.
+Es secuenciación de operaciones, no CRDT. Un destino eliminado es no-op, sin
+resurrección; la cola local conserva una copia para recuperación independiente.
+Undo selectivo respeta otras páginas y propiedades posteriores de colaboradores.
+
+`GET /studio/protocol` devuelve `{version:3,schemaVersion:7}`; SDK envía
+`X-Runly-Studio-Protocol:3`. La migración aditiva
+`20261208000000_studio_multipage_protocol` protege diseños y plantillas v7 frente
+a escritores anteriores, y añade `page_id` a presencia. Mantiene v6 con protocolo
+2/3; prohíbe downgrade. Aplicarla antes de combinar lectores/escritores nuevos.
+
+SDK: `listPages`, `getPage`, `applyChanges`; rutas GET `/designs/:id/pages` y
+`/pages/:pageId`. MCP incorpora `studio_apply_changes` bajo el mismo flujo de
+prepare/aprobación/commit; MirAI y MCP leen el contrato v7 en la guía compartida.
+Plantillas y créditos recorren todas las escenas y referencias Files.
+
+### PDF progresivo y rango
+
+`exportDesign({options:{type:'pdf',pageIds?,...},scene,...})` exporta todas las
+páginas o el subconjunto solicitado en orden documental. PNG/JPG usan la activa.
+SDK: `createPrintJob`, `appendPrintPage`, `finishPrintJob`, `cancelPrintJob`.
+POST `/designs/:id/export/jobs` fija actor/empresa/revisión/páginas; POST
+`/jobs/:jobId/pages/:pageId` recibe un PNG y lo convierte/incorpora; POST
+`/jobs/:jobId/finish` devuelve PDF; DELETE `/jobs/:jobId` cancela. No se guardan
+bitmaps en Files ni en SQL. El endpoint previo `print-pdf` exige `pageId` explícito
+si hay más de una página, para impedir truncamientos silenciosos.
+
+PDF rasterizado a 300 ppp RGB/CMYK genérico, TrimBox/BleedBox y marcas; no vectorial
+ni PDF/X certificado. Máximo 32 MP por página, 256 MP acumulados y 64 MiB de PDF.
+Un trabajo por proceso, 60 s inactivo/5 min totales. Se autoriza y comprueba la
+revisión antes/después de cada etapa: si cambia o se revoca, no se entrega un
+PDF parcial. Cancelación aborta HTTP y siguientes etapas; Sharp/Fabric CPU síncrona
+termina antes de liberar el turno. Los originales y sincronización no se mutan.
+Los trabajos son efímeros: varias instancias necesitan afinidad; tras reinicio
+se debe repetir la exportación. No se añade infraestructura distribuida en esta fase.
+
 ## Compatibilidad y exportación RC2
 
 El formato guardado sigue en v6; el protocolo de escritura es **2**.

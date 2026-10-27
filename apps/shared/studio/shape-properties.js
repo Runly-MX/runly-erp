@@ -9,7 +9,7 @@ const invalid = () => { throw Error('Estilo de forma no admitido.') }
 export function photoFileId(object) {
   return object.type==='image' ? object.fileAssetId : object.fillPaint?.type==='image' ? object.fillPaint.fileAssetId : null
 }
-export const documentAssetIds = document => [...new Set((document.objects??[]).map(photoFileId).filter(Boolean))]
+export const documentAssetIds = document => [...new Set([document, ...(document.additionalPages??[])].flatMap(scene=>(scene.objects??[]).map(photoFileId)).filter(Boolean))]
 // A single closed filled path preserves SVG nonzero holes exactly. Multiple
 // independent paths need a real boolean union before they can be one silhouette.
 export function supportsPhotoFill(object) {
