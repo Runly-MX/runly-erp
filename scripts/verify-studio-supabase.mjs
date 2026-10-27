@@ -1,4 +1,4 @@
-// Real Runly app + Auth + Storage. No request interception, deployment env or workers.
+// Real Runly app + Auth + Storage. Isolated only; Worker requires --worker-image.
 import { createRequire } from 'node:module'
 import {execFileSync} from 'node:child_process'
 import { resolve, join } from 'node:path'
@@ -41,7 +41,7 @@ try {
     assert.notEqual(configured,source,'Expected disposable WebSocket fault timeout')
     await writeFile(file,configured)
   }
-  console.log('Starting dedicated local Supabase project (no workers).')
+  console.log('Starting dedicated local Supabase project.')
   await stack.compose(['up', '-d', '--wait', '--wait-timeout', '120', 'supabase-db', 'supabase-auth', 'supabase-rest', 'supabase-realtime', 'supabase-storage', 'supabase-kong'], { log: join(stack.directory, 'startup.log') })
   await assert.rejects(stack.initialize(), /DISPOSABLE_DATABASE_NOT_VERIFIED/)
   await stack.verifyTarget()

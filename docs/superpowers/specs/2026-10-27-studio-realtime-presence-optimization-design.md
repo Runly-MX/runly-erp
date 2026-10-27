@@ -6,7 +6,7 @@ Local, main, sin despliegues, bases compartidas ni imágenes certificadas altera
 HEAD inicial `0c870ba2`. Cambios concurrentes de catálogo/importación/UI se preservan.
 El hook actual combina cursor HTTP a 200 ms, heartbeat a 2500 ms y refresh por
 broadcast. Cada live escribe SQL, consulta roster, avatares, ACL y revisión.
-La matriz base registra unas 49 llamadas live/min en reposo y 466 al mover el
+La matriz base registra 48 llamadas live/min en reposo y 422 al mover el
 cursor. Se mide con Chrome y Auth/SQL/Realtime reales y desechables; las muestras
 preliminares con timeout de WebSocket de 3 s se descartan del resultado final.
 
@@ -104,7 +104,7 @@ sustituto. Renovación Auth actualiza el token HTTP, no reinicia el outbox.
 
 Protocolo efímero v1 independiente del protocolo persistente 3. Se mantiene live
 para clientes anteriores, sin cambiar sus límites/ACL. Los clientes nuevos requieren
-API y migración nuevos: capacidad ausente da aviso de actualización y falla cerrada,
+API y migración nuevos: una capacidad ausente falla cerrada y requiere actualización,
 no cae a cursor HTTP. Clientes viejos/nuevos comparten cambios persistentes; su
 presencia efímera usa transportes distintos durante la transición. Actualizar API
 y SQL antes de Web. No mezclar atestaciones de epochs distintos.
