@@ -7,6 +7,9 @@ import { STYLE_TEMPLATES } from './templates-styles.js'
 import { THEME_TEMPLATES } from './templates-themes.js'
 import { AIRPORT_TEMPLATES } from './templates-airport.js'
 import { HOLIDAY_TEMPLATES } from './templates-holidays.js'
+import { HOLIDAYS_A } from './templates-holidays-a.js'
+import { HOLIDAYS_B } from './templates-holidays-b.js'
+import { HOLIDAYS_C } from './templates-holidays-c.js'
 
 const rect = (x, y, width, height, fill) => ({ type: 'rectangle', x, y, width, height, fill })
 const circle = (x, y, size, fill) => ({ type: 'ellipse', x, y, width: size, height: size, fill })
@@ -106,6 +109,9 @@ const DEFINITIONS = [
   ...THEME_TEMPLATES,
   ...AIRPORT_TEMPLATES,
   ...HOLIDAY_TEMPLATES,
+  ...HOLIDAYS_A,
+  ...HOLIDAYS_B,
+  ...HOLIDAYS_C,
 ]
 
 export const STUDIO_TEMPLATES = Object.freeze(DEFINITIONS.map(({ key, name, width, height,category,description,objects }) => Object.freeze({ key, name, width, height,
