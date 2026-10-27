@@ -250,6 +250,7 @@ test("mapSearchGroups shapes sections and items, drops empty groups", () => {
     keywords: [],
     icon: "ContactRound",
     color: null,
+    source: "contacts",
     target: "/app/m/atlas.contacts/contacts/c1",
     blocked: false,
   });

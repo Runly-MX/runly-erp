@@ -1,8 +1,8 @@
 // Commands for the command palette (Ctrl+K): things to do, not places to go.
 // Pure: the palette passes the current state and runs the chosen command id.
 
-const command = (id, title, subtitle, keywords, icon) => ({
-  key: `command:${id}`, kind: "command", command: id, title, subtitle, keywords, icon, color: undefined, target: null, blocked: false,
+const command = (id, title, subtitle, keywords, icon, color) => ({
+  key: `command:${id}`, kind: "command", command: id, title, subtitle, keywords, icon, color, target: null, blocked: false,
 });
 
 export function buildPaletteCommands({
@@ -18,23 +18,23 @@ export function buildPaletteCommands({
   if (miraiAvailable) {
     items.push(
       command("mirai-tab", miraiTabHidden ? "Mostrar botón flotante de MirAI" : "Ocultar botón flotante de MirAI",
-        "Alt+M · MirAI sigue disponible con Alt+Shift+M", ["mirai", "asistente", "boton", "flotante", "ocultar", "mostrar", "quitar", "pestana"], "Sparkles"),
-      command("mirai-open", "Abrir MirAI", "Alt+Shift+M · tu asistente en todo Runly", ["mirai", "asistente", "ia", "pregunta", "ayuda"], "Bot"),
+        "Alt+M · MirAI sigue disponible con Alt+Shift+M", ["mirai", "asistente", "boton", "flotante", "ocultar", "mostrar", "quitar", "pestana"], "Sparkles", "#c026d3"),
+      command("mirai-open", "Abrir MirAI", "Alt+Shift+M · tu asistente en todo Runly", ["mirai", "asistente", "ia", "pregunta", "ayuda"], "Bot", "#8b5cf6"),
     );
   }
   if (chatAvailable) {
     items.push(command("chat-float", chatHidden ? "Mostrar chat flotante" : "Ocultar chat flotante",
-      "La burbuja de chat sobre las pantallas", ["chat", "mensajes", "burbuja", "flotante", "ocultar", "mostrar", "quitar"], "MessageSquare"));
+      "La burbuja de chat sobre las pantallas", ["chat", "mensajes", "burbuja", "flotante", "ocultar", "mostrar", "quitar"], "MessageSquare", "#0ea5e9"));
   }
   items.push(command("theme", isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro", "Apariencia de Runly en este dispositivo",
-    ["tema", "oscuro", "claro", "dark", "light", "modo", "apariencia", "noche"], isDark ? "Sun" : "Moon"));
+    ["tema", "oscuro", "claro", "dark", "light", "modo", "apariencia", "noche"], isDark ? "Sun" : "Moon", "#f59e0b"));
   if (fullscreenEnabled) {
     items.push(command("fullscreen", isFullscreen ? "Salir de pantalla completa" : "Pantalla completa", "Oculta la barra del navegador",
-      ["pantalla", "completa", "fullscreen", "maximizar"], "Maximize"));
+      ["pantalla", "completa", "fullscreen", "maximizar"], "Maximize", "#64748b"));
   }
   items.push(
-    command("copy-link", "Copiar enlace de esta página", "Lo copia al portapapeles", ["copiar", "enlace", "link", "url", "compartir"], "Link"),
-    command("reload", "Recargar Runly", "Vuelve a cargar la aplicación", ["recargar", "actualizar", "refrescar", "reiniciar", "reload"], "RefreshCw"),
+    command("copy-link", "Copiar enlace de esta página", "Lo copia al portapapeles", ["copiar", "enlace", "link", "url", "compartir"], "Link", "#10b981"),
+    command("reload", "Recargar Runly", "Vuelve a cargar la aplicación", ["recargar", "actualizar", "refrescar", "reiniciar", "reload"], "RefreshCw", "#6366f1"),
   );
   return items;
 }

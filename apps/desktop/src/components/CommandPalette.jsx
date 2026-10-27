@@ -32,6 +32,7 @@ import { useCommandSearch } from "../lib/useCommandSearch";
 import { useQuickNoteStore } from "../modules/runly.notes/quick/quickNoteStore";
 import { toast } from "sonner";
 import { buildPaletteCommands } from "../lib/paletteCommands";
+import { glassTileStyle, itemAccent } from "../lib/paletteAccent";
 import { useThemeStore } from "../stores/theme";
 import { useChatFloatStore } from "../modules/runly.chat/store/chatFloatStore";
 import { useMiraiStatus } from "../modules/runly.chat/hooks/useMirAI";
@@ -352,11 +353,7 @@ export function CommandPalette({ activeModule }) {
                           ) : (
                             <div
                               className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-                              style={{
-                                backgroundColor: item.color
-                                  ? `${item.color}20`
-                                  : "hsl(var(--muted))",
-                              }}
+                              style={item.blocked ? { backgroundColor: "hsl(var(--muted))" } : glassTileStyle(itemAccent(item))}
                             >
                               {item.blocked ? (
                                 <WifiOff
@@ -364,15 +361,7 @@ export function CommandPalette({ activeModule }) {
                                   className="text-[hsl(var(--muted-foreground))]"
                                 />
                               ) : (
-                                <ModuleNavIcon
-                                  name={item.icon}
-                                  size={14}
-                                  style={{
-                                    color:
-                                      item.color ||
-                                      "hsl(var(--muted-foreground))",
-                                  }}
-                                />
+                                <ModuleNavIcon name={item.icon} size={15} />
                               )}
                             </div>
                           )}
@@ -391,6 +380,15 @@ export function CommandPalette({ activeModule }) {
                               </p>
                             )}
                           </div>
+                          {item.badge && (
+                            <span
+                              title={item.badgeLabel ?? undefined}
+                              className="ml-2 max-w-[9rem] shrink-0 truncate rounded-md px-2 py-0.5 font-mono text-[11px] font-semibold"
+                              style={glassTileStyle(itemAccent(item))}
+                            >
+                              {item.badge}
+                            </span>
+                          )}
                         </button>
                       );
                     })}

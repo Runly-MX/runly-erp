@@ -45,7 +45,9 @@ export const inventoryProvider = defineProvider({
       return {
         id: r.id,
         title: safeTitle("Equipo sin nombre", r.name, r.serial_number, r.asset_tag),
-        subtitle: joinParts([r.serial_number && `Serie ${r.serial_number}`, r.asset_tag && `Activo ${r.asset_tag}`, assignee && `Asignado a ${assignee}`]),
+        subtitle: joinParts([r.serial_number && `Serie ${r.serial_number}`, assignee && `Asignado a ${assignee}`]),
+        // Número de activo, shown as a badge on the result row.
+        ...(r.asset_tag ? { badge: `# ${r.asset_tag}`, badgeLabel: "Número de activo" } : {}),
         icon: "Boxes",
         ...(outside ? { matchedIn: "Datos relacionados (notas, compras, resguardos, archivos)" } : {}),
       };

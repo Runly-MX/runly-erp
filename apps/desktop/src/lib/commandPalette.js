@@ -142,7 +142,7 @@ function expandNav(module, nav, opts) {
 
 // Maps the `/search` response groups into palette sections. Server-side results
 // are already filtered by the query, so these are never re-scored locally.
-export function mapSearchGroups(groups = []) {
+export function mapSearchGroups(groups = [], moduleColors = {}) {
   return (groups ?? [])
     .filter((g) => g && Array.isArray(g.items) && g.items.length > 0)
     .map((g) => {
@@ -161,9 +161,11 @@ export function mapSearchGroups(groups = []) {
         subtitle: it.subtitle || null,
         keywords: [],
         icon: it.icon,
-        color: null,
+        color: moduleColors[g.moduleKey] ?? null,
+        source: g.source,
         target: it.target,
         blocked: false,
+        ...(it.badge ? { badge: String(it.badge).slice(0, 60), badgeLabel: it.badgeLabel ? String(it.badgeLabel) : null } : {}),
         ...(it.matchedIn ? { matchedIn: String(it.matchedIn) } : {}),
       }));
       const total = Number.isFinite(g.total) ? g.total : items.length;
@@ -175,7 +177,8 @@ export function mapSearchGroups(groups = []) {
           subtitle: `${total} resultados`,
           keywords: [],
           icon: "ArrowRight",
-          color: null,
+          color: moduleColors[g.moduleKey] ?? null,
+          source: g.source,
           target: g.seeAllTarget,
           blocked: false,
         });
@@ -303,7 +306,7 @@ export function buildCommandItems({
   // Records the user explicitly searched for sit just under the active module's
   // own actions and above the generic module list. Help articles are reference
   // material, so they go last, after modules/tools/pages.
-  const allSearchSections = mapSearchGroups(searchGroups);
+  const allSearchSections = mapSearchGroups(searchGroups, Object.fromEntries(availableModules.map((m) => [m.key, m.color])));
   const helpSections = allSearchSections.filter((s) => s.id === "search:help");
   const searchSections = allSearchSections.filter((s) => s.id !== "search:help");
   const hasActive = localSections[0]?.id === "active";
