@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
 import { DesignEditor } from '../components/DesignEditor.jsx'
+import { DesignUnavailable, isDesignUnavailable } from '../components/editor/collaboration/DesignUnavailable.jsx'
 import { StudioHome } from '../components/home/StudioHome.jsx'
 import { StudioImportDialog } from '../components/import/StudioImportDialog.jsx'
 import { blankDocument, validateDocument } from '../../../../../shared/studio/document.js'
@@ -60,6 +61,8 @@ export default function StudioScreen() {
   }
   if (id) {
     if (design.isPending) return <EditorSkeleton />
+    if (design.error && isDesignUnavailable(design.error)) return <DesignUnavailable error={design.error} onRetry={design.refetch}
+      onBack={() => { setParams(withView({})); queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey, 'designs'] }) }} />
     if (design.error) return <div className="flex h-full items-center justify-center p-6"><ErrorState title="No se pudo abrir el diseño" description={design.error.message} onRetry={design.refetch} /></div>
     return <DesignEditor key={`${profileCompanyId}:${userProfile?.id}:${id}`} record={design.data} token={token} scope={`${profileCompanyId}:${userProfile?.id}:${id}`}
       editingTemplateId={params.get('template')}
