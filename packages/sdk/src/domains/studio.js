@@ -66,6 +66,7 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
     candidates: (id, token, q = '') => request(`${path(id)}/candidates${toQueryString({ q })}`, options(token)),
     share: (id, data, token) => request(`${path(id)}/collaborators`, options(token, 'PUT', data)),
     assetUrl: (id, fileId, token, signal) => request(`${path(id)}/assets/${encodeURIComponent(fileId)}/signed-url`, {...options(token),signal}),
-    live: (id, data, token) => request(`${path(id)}/live`, options(token, 'POST', data)),
+    collaborationContext: (id, data, token, signal) => request(`${path(id)}/collaboration`, {...options(token, 'POST', data),signal}),
+    live: (id, data, token, signal) => request(`${path(id)}/live`, {...options(token, 'POST', data),signal}),
   }
 }

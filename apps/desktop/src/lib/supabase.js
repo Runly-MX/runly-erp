@@ -6,6 +6,7 @@ import { isNativeDesktop } from '@runly/core/native-runtime'
 
 let currentSupabaseClient = null
 let currentSupabaseKey = null
+let currentSupabaseConfig = null
 
 function getFallbackSupabaseConfig() {
   const url = runtimeConfig.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL
@@ -64,6 +65,7 @@ export async function initSupabaseClient({
     },
   })
   currentSupabaseKey = nextKey
+  currentSupabaseConfig = { ...resolvedConfig }
   return authorizeRealtimeClient(currentSupabaseClient)
 }
 
@@ -84,9 +86,20 @@ export function getSupabaseClient() {
       },
     })
     currentSupabaseKey = `${fallbackConfig.url}::${fallbackConfig.anonKey}`
+    currentSupabaseConfig = { ...fallbackConfig }
   }
 
   return authorizeRealtimeClient(currentSupabaseClient)
+}
+
+// Separate scoped credentials must never replace the Auth token of the shared
+// client (Notes, Canvas, Chat and notifications use that connection).
+export function createIsolatedRealtimeClient(getAccessToken) {
+  getSupabaseClient()
+  return createClient(currentSupabaseConfig.url, currentSupabaseConfig.anonKey, {
+    accessToken: async () => getAccessToken(),
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  })
 }
 
 export const supabase = new Proxy(

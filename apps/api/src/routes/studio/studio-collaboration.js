@@ -4,8 +4,10 @@ import { signedUrlWithVariant } from '../../lib/image-variants.js'
 import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js'
 import { studioAssetIds } from './studio-document-data.js'
 import { createNotificationService } from '../../services/notification-service.js'
+import { createStudioRealtime } from './studio-realtime.js'
 
 export function createStudioCollaboration({ prisma, access, broadcaster, supabaseAdmin, notificationService = createNotificationService({ prisma }) }) {
+  const realtime = createStudioRealtime({ prisma, access })
   async function collaborators(companyId, actorId, id) {
     await access.get(companyId, actorId, id)
     return prisma.$queryRaw`SELECT c.user_id AS id,u.display_name AS name,c.role FROM studio_collaborator c
@@ -112,5 +114,5 @@ export function createStudioCollaboration({ prisma, access, broadcaster, supabas
     const [scope] = await prisma.$queryRaw`SELECT revision::text FROM realtime_authorization_revision WHERE id`
     return { participants, topic: `studio:design:${id}@${scope.revision}`, revision: record.revision, role: record.role, canEdit: record.canEdit }
   }
-  return { collaborators, candidates, share, signedAsset, live }
+  return { collaborators, candidates, share, signedAsset, live, realtimeContext: realtime.context }
 }

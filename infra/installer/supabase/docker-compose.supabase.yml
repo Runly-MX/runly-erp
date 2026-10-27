@@ -37,6 +37,7 @@ services:
       - ./supabase/volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:ro
       - ./supabase/volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:ro
       - ./supabase/volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:ro
+      - ./supabase/volumes/db/studio-realtime-role.sql:/docker-entrypoint-initdb.d/init-scripts/100-studio-realtime-role.sql:ro
       - supabase-db-data:/var/lib/postgresql/data
       - supabase-db-config:/etc/postgresql-custom
     healthcheck:
@@ -173,6 +174,11 @@ services:
       SEED_SELF_HOST: "true"
       RUN_JANITOR: "true"
       DISABLE_HEALTHCHECK_LOGGING: "true"
+      # Native Studio Presence is coalesced independently from cursor Broadcast.
+      CLIENT_PRESENCE_MAX_CALLS: ${RUNLY_REALTIME_PRESENCE_MAX_CALLS:-30}
+      CLIENT_PRESENCE_WINDOW_MS: "30000"
+      TENANT_MAX_EVENTS_PER_SECOND: ${RUNLY_REALTIME_MAX_EVENTS_PER_SECOND:-2000}
+      TENANT_MAX_BYTES_PER_SECOND: ${RUNLY_REALTIME_MAX_BYTES_PER_SECOND:-2000000}
 
   supabase-storage:
     image: supabase/storage-api:v1.60.4

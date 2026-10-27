@@ -34,7 +34,7 @@ import { CanvasPreferencesMenu } from './editor/canvas/CanvasPreferencesMenu.jsx
 import { GridOverlay, GuidesOverlay } from './editor/canvas/CanvasOverlays.jsx'
 import { Rulers } from './editor/canvas/Rulers.jsx'
 import { canHoldPhoto } from '../lib/photo-target.js'
-import { RemotePresence } from './editor/collaboration/RemotePresence.jsx'
+import { LiveRemotePresence } from './editor/collaboration/LiveRemotePresence.jsx'
 import { groupParticipants, selectionsByObject } from '../lib/studio-presence.js'
 import { newContentId, pageLabel, pageSignature } from '../lib/studio-pages.js'
 import { usePageThumbnails } from '../hooks/usePageThumbnails.js'
@@ -55,7 +55,7 @@ function MobileSheet({ open, onOpenChange, title, children }) {
 }
 
 export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadImage, onChange, editorRef, onReady, readOnly = false,
-  participants = [], selfId = null, onPointer, onSelectionChange, resourcePanel, sharedClipboard, authorizePaste, onEditImage, catalog, chrome }) {
+  participants = [], presenceStore, selfId = null, onPointer, onSelectionChange, resourcePanel, sharedClipboard, authorizePaste, onEditImage, catalog, chrome }) {
   const canvasRef = useRef(null)
   const phone = useIsMobile(), wide = !useIsMobile(1280), viewMode = useViewMode()
   const [selection, setSelection] = useState(null), [error, setError] = useState('')
@@ -77,7 +77,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   const [activePageId, setActivePageId] = useState(initial.page.id ?? 'page-1')
   const visibleParticipants = useMemo(() => participants.filter(person => (person.pageId ?? 'page-1') === activePageId), [participants, activePageId])
   const canvasPeople = useMemo(() => groupParticipants(visibleParticipants, selfId), [visibleParticipants, selfId])
-  const people = useMemo(() => groupParticipants(participants, selfId), [participants, selfId]), remoteSelections = useMemo(() => selectionsByObject(participants, selfId), [participants, selfId])
+  const people = useMemo(() => groupParticipants(participants, selfId), [participants, selfId]), remoteSelections = useMemo(() => selectionsByObject(visibleParticipants, selfId), [visibleParticipants, selfId])
   const changed = useCallback((document, meta) => { setDoc(document); const scene = findPage(document, editorRef.current?.activePageId()) ?? document; setObjects(scene.objects); setPage(scene.page); pageRef.current = scene.page; onChange(document, meta) }, [onChange, editorRef])
   const canvas = useCanvasPreferences(editorRef, ready)
   const { onGuides, onEditorPreferences } = canvas
@@ -338,7 +338,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
                 {drop.landing ? <DropLandingHint landing={drop.landing} zoom={zoom} /> : null}
                 {imageKit.framing ? <FramingOverlay item={imageKit.framing.item} props={imageKit.framing.props} natural={imageKit.framing.natural} imageUrl={imageKit.framing.imageUrl} outline={imageKit.framing.outline} zoom={zoom}
                   onFrame={next => imageKit.tools.image(next)} onDone={() => imageKit.finishFraming(true)} onCancel={() => imageKit.finishFraming(false)} /> : null}
-                <RemotePresence people={canvasPeople} selections={remoteSelections} objects={objects} zoom={zoom} />
+                <LiveRemotePresence store={presenceStore} pageId={activePageId} selfId={selfId} people={canvasPeople} selections={remoteSelections} objects={objects} zoom={zoom} />
               </div>
             </div>
           </div>

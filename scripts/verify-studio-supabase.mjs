@@ -7,6 +7,7 @@ import { writeFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 import { createStudioStack } from './fixtures/studio/supabase-stack.mjs'
 import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
+import { useStudioRealtimeSource } from './fixtures/studio/realtime-source.mjs'
 import { verifyStudioSupabase } from './fixtures/studio/supabase-browser.mjs'
 import { inspectStudioWeb } from './lib/studio-web-verification.mjs'
 import { verifyStudioCollaboration } from './fixtures/studio/supabase-collaboration.mjs'
@@ -38,6 +39,7 @@ try {
   await stack.pool.query('UPDATE runly_studio_test.environment SET id=$1', [stack.name])
   await stack.initialize()
   const data = await seedStudioScenario(stack)
+  if(process.argv.includes('--current-realtime'))await useStudioRealtimeSource(stack)
   await stack.compose(['up', '-d', 'studio-catalog-test', 'runly-api'], { log: join(stack.directory, 'api-start.log') })
   let ready = false
   for (let attempt = 0; attempt < 90; attempt++) {

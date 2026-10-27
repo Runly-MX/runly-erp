@@ -42,6 +42,7 @@ COPY --from=deps /app /app
 # member), so copying them here keeps the expensive install+prisma layer cached.
 COPY prisma prisma
 COPY packages packages
+COPY infra/installer/supabase/volumes/db/studio-realtime-role.sql infra/installer/supabase/volumes/db/studio-realtime-role.sql
 COPY modules modules
 COPY apps/api apps/api
 COPY apps/shared apps/shared

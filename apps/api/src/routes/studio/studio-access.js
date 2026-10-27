@@ -17,9 +17,23 @@ export function createStudioAccess({ prisma, filesService }) {
     await db.$queryRaw`SELECT revision FROM realtime_authorization_revision WHERE id FOR UPDATE`
     if (id) await db.$queryRaw`SELECT id FROM studio_design WHERE id=${id}::uuid FOR UPDATE`
   }
-  async function get(companyId, actorId, id, db = prisma, edit = false) {
+  async function get(companyId, actorId, id, db = prisma, edit = false, projection) {
     identity(companyId, actorId)
     if (!FILE_ID.test(id)) throw new StudioError('Diseño no encontrado.', 404)
+    if(projection==='collaboration'){
+      // Same can_access authority, but never transfer the entire v7 document
+      // from PostgreSQL for an authorization lease or presence refresh.
+      const [summary]=await db.$queryRaw`SELECT d.id,d.revision,
+        CASE WHEN d.owner_id=${actorId}::uuid THEN 'OWNER' ELSE c.role END AS role,
+        runly_studio.can_access(d.id,${actorId}::uuid,true) AS "canEdit",
+        (SELECT jsonb_agg(jsonb_build_object('id',COALESCE(p->'page'->>'id','page-1'),
+          'width',p->'page'->'width','height',p->'page'->'height') ORDER BY ordinal)
+         FROM jsonb_array_elements(jsonb_build_array(d.document)||COALESCE(d.document->'additionalPages','[]'::jsonb)) WITH ORDINALITY AS pages(p,ordinal)) AS pages
+        FROM studio_design d LEFT JOIN studio_collaborator c ON c.design_id=d.id AND c.user_id=${actorId}::uuid
+        WHERE d.id=${id}::uuid AND d.company_id=${companyId}::uuid AND runly_studio.can_access(d.id,${actorId}::uuid,${edit})`
+      if(!summary)throw new StudioError('Diseño no encontrado.',404)
+      return summary
+    }
     const [row] = await db.$queryRaw`SELECT d.id,d.name,d.revision,d.document,d.owner_id AS "ownerId",u.display_name AS "ownerName",
       d.updated_at AS "updatedAt", CASE WHEN d.owner_id=${actorId}::uuid THEN 'OWNER' ELSE c.role END AS role,
       runly_studio.can_access(d.id,${actorId}::uuid,true) AS "canEdit"

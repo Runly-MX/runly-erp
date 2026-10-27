@@ -164,6 +164,10 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     c.header('Cache-Control', 'no-store')
     return c.json({ data: await collaboration.signedAsset(...context(c), c.req.param('id'), c.req.param('fileId')) })
   })
+  app.post('/studio/designs/:id/collaboration', requirePermission('studio.view'), bodyLimit({maxSize:2048,onError:c=>c.json({error:'La sesión de colaboración es demasiado grande.'},413)}), async c => {
+    c.header('Cache-Control', 'private, no-store')
+    return c.json({ data: await collaboration.realtimeContext(...context(c), c.req.param('id'), await c.req.json(), c.get('authUserId'), c.req.header('Authorization')?.slice(7)) })
+  })
   app.post('/studio/designs/:id/live', requirePermission('studio.view'), async c => {
     c.header('Cache-Control', 'no-store')
     return c.json({ data: await collaboration.live(...context(c), c.req.param('id'), await c.req.json()) })

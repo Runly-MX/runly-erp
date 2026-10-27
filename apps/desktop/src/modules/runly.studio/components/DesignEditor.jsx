@@ -224,7 +224,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     onCredits: () => openCredits(), onSaveTemplate: ready ? async()=>{try{await ensureSaved();saveAsTemplate.open()}catch(e){setError(e.message)}} : null, exporting, exportDisabled: exporting, notices,
   }
   return <>
-    <StudioWorkspace initial={initial} readOnly={!canEdit} participants={realtime.participants} selfId={scope.split(':')[1]} chrome={chrome}
+    <StudioWorkspace initial={initial} readOnly={!canEdit} participants={realtime.participants} presenceStore={realtime.presenceStore} selfId={scope.split(':')[1]} chrome={chrome}
       sharedClipboard={clipboard} authorizePaste={authorizePaste} onEditImage={imageEditing.editImage} catalog={catalog}
       resourcePanel={({ disabled, uploader }) => <StudioCreativeResources key={scope} token={token} designId={record.id} disabled={disabled} uploader={uploader} onFileInsert={insertResource} onVectorInsert={object => editorRef.current.add('vector',object)} />}
       onPointer={point => realtime.pointer(point,editorRef.current?.activePageId())} onSelectionChange={id => realtime.selection(id,editorRef.current?.activePageId())} authorizePage={async (pageId,signal) => { const fresh=unwrap(await runly.studio.getDesign(record.id,token,signal)); if(![fresh.document,...(fresh.document.additionalPages??[])].some(scene=>(scene.page.id??'page-1')===pageId))throw Error('La página ya no existe.') }} resolveImage={resolveImage} uploadImage={uploadImage} onChange={changed} editorRef={editorRef} onReady={setReady} />
