@@ -16,6 +16,7 @@ import { useStudioNavigation } from '../hooks/useStudioNavigation.js'
 import { useStudioImageEditing } from '../hooks/useStudioImageEditing.jsx'
 import { useSaveAsTemplate, useTemplateEditing } from './templates/useTemplateEditing.jsx'
 import { exportDesign } from '../lib/studio-export.js'
+import { useInterchangeContract } from '../hooks/useInterchangeContract.js'
 import { downloadName, nextPaint, sanitizeExportError } from '../lib/studio-download.js'
 import { AccessLost } from './editor/collaboration/AccessLost.jsx'
 import { DownloadNotice } from './editor/DownloadNotice.jsx'
@@ -64,6 +65,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   // Templates: save the current scene as a template; or, when opened from
   // "Editar contenido", write this design back to its template.
   const templateScope = scope.split(':').slice(0, 2)
+  const interchange = useInterchangeContract({ token, scopeKey: templateScope })
   const saveAsTemplate = useSaveAsTemplate({ editorRef, token, scopeKey: templateScope, name,ensureSaved })
   const templateEditing = useTemplateEditing({ editorRef, token, scopeKey: templateScope, templateId: editingTemplateId,
     designName: name, saveDesign: ensureSaved, onExit: onBack })
@@ -171,7 +173,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   async function exportImage(options, reviewedScene) {
     const editor = editorRef.current
     if (!editor || job.current) return
-    const current = job.current = { controller:new AbortController() }, format = options.type === 'pdf' ? 'PDF' : options.type.toUpperCase(),signal=current.controller.signal
+    const current = job.current = { controller:new AbortController() }, format = options.type === 'pdf' ? 'PDF' : options.type === 'runlystudio' ? 'paquete .runlystudio' : options.type.toUpperCase(),signal=current.controller.signal
     const phase = (value, extra) => { if (!signal.aborted&&job.current===current) setDownload({ phase: value, format, ...extra }) }
     phase('preparing')
     // The render is synchronous work: paint the notice first, and tell the flow when the browser render is over (a PDF is then built on the server).
@@ -216,6 +218,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const chrome = {
     name, nameDisabled: !canEdit || !ready, onBack,
     onName: value => { nameRef.current = value; setName(value); if (value.trim()) sync.rename(value.trim()) },
+    packageExport: interchange.data?.exportNotice ? { notice: interchange.data.exportNotice, imageCount: documentAssetIds(sync.state().document).length } : null,
     syncState: status, live: realtime.status, onRetrySync: () => {if(status==='error'){if(preserve())window.location.reload()}else return sync.resync()}, ensureSaved,
     onShare: () => openCredits({kind:'share'}), onExport: options => openCredits({kind:'export',format:options.type,options}),
     onCredits: () => openCredits(), onSaveTemplate: ready ? async()=>{try{await ensureSaved();saveAsTemplate.open()}catch(e){setError(e.message)}} : null, exporting, exportDisabled: exporting, notices,

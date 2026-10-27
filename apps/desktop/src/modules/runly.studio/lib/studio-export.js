@@ -22,6 +22,13 @@ export function safeScale(page, wanted, bleed = 0) {
 
 export async function exportDesign({ editor, options, scene, designId, token, name,revision,signal }) {
   checkAbort(signal)
+  // Native editable package: built by the API from the saved design; the browser renders nothing.
+  if (options.type === 'runlystudio') {
+    if (options.acknowledgeImageCopies !== true) throw Error('Confirma la inclusión de copias de las imágenes para descargar el paquete.')
+    const blob = await runly.studio.exportPackage('design', designId, { acknowledgeImageCopies: true }, token, signal)
+    checkAbort(signal)
+    return { blob, extension: 'runlystudio' }
+  }
   if (options.type === 'pdf') {
     const all = documentPages(scene), wanted = options.pageIds ?? all.map(({page}) => page.id)
     if (!Array.isArray(wanted) || !wanted.length || new Set(wanted).size !== wanted.length || wanted.some(id => !findPage(scene,id))) throw Error('Rango de páginas no válido.')

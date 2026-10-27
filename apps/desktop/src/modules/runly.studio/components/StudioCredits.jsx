@@ -80,7 +80,7 @@ export function StudioCredits({ id, token, scene, action, onClose, onContinue })
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>Cerrar</Button>
-            {action ? <Button disabled={text === null} onClick={onContinue}>{action.kind === 'share' ? 'Continuar a compartir' : `Exportar ${action.format.toUpperCase()}`}</Button> : null}
+            {action ? <Button disabled={text === null} onClick={onContinue}>{action.kind === 'share' ? 'Continuar a compartir' : `Exportar ${action.format === 'runlystudio' ? 'proyecto Studio' : action.format.toUpperCase()}`}</Button> : null}
           </div>
         </DialogFooter>
       </DialogContent>

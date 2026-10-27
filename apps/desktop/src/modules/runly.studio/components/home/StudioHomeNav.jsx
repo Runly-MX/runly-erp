@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, cn } from '@runly/ui'
-import { FolderOpen, House, LayoutTemplate, Plus, Ruler } from 'lucide-react'
+import { FileUp, FolderOpen, House, LayoutTemplate, Plus, Ruler } from 'lucide-react'
 import { STUDIO_FORMATS, sizeLabel } from '../../lib/formats.js'
 
 export const HOME_VIEWS = [
@@ -57,11 +57,12 @@ function useIndicator(view) {
 const SLIDE = 'pointer-events-none absolute left-0 top-0 transition-[transform,width,height,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none'
 
 // Desktop (lg+): sticky side navigation with the create menu.
-export function StudioHomeSidebar({ view, onView, creating, onCreate, onCustom }) {
+export function StudioHomeSidebar({ view, onView, creating, onCreate, onCustom, onImport }) {
   const [list, box] = useIndicator(view)
   return (
     <aside className="sticky top-6 hidden w-56 shrink-0 self-start lg:block">
       <CreateMenu creating={creating} onCreate={onCreate} onCustom={onCustom} />
+      {onImport ? <Button variant="outline" disabled={Boolean(creating)} onClick={onImport} className="mt-2 h-10 w-full justify-center gap-2"><FileUp />Importar diseño o plantilla</Button> : null}
       <nav aria-label="Secciones de Studio" ref={list} className="relative mt-5 space-y-1">
         <span aria-hidden className={cn(SLIDE, 'rounded-md bg-fuchsia-500/12', box ? 'opacity-100' : 'opacity-0')}
           style={box ? { transform: `translateY(${box.y}px)`, width: box.width, height: box.height } : undefined} />

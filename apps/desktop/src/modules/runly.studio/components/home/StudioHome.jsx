@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, SearchInput, SegmentedControl } from '@runly/ui'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, FileUp } from 'lucide-react'
 import { StudioHero } from './StudioHero.jsx'
 import { FormatGrid } from './FormatGrid.jsx'
 import { TemplateGrid } from './TemplateGrid.jsx'
@@ -36,7 +36,7 @@ function useDebounced(value, delay = 300) {
 
 // Three views (URL ?view=): Inicio (overview), Mis diseños (full list) and
 // Plantillas (full catalog). Desktop uses a side nav, phones sticky top tabs.
-export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEditTemplateContent, view = 'home', onView }) {
+export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEditTemplateContent, onImport, view = 'home', onView }) {
   const [heroQuery, setHeroQuery] = useState(''), [category, setCategory] = useState('all')
   const [designQuery, setDesignQuery] = useState(''), [shared, setShared] = useState('all'), [sizeOpen, setSizeOpen] = useState(false)
   const heroQ = useDebounced(heroQuery.trim()), designQ = useDebounced(designQuery.trim())
@@ -61,7 +61,9 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEdit
         ) : (
           <>
             <section aria-labelledby="studio-formats-title">
-              <SectionTitle id="studio-formats-title" title="Empieza con un formato" description="Un lienzo con la medida justa, listo para crear." />
+              <SectionTitle id="studio-formats-title" title="Empieza con un formato" description="Un lienzo con la medida justa, listo para crear.">
+                {onImport ? <Button variant="outline" size="sm" disabled={Boolean(creating)} onClick={onImport} className="gap-1.5 self-start sm:self-auto lg:hidden"><FileUp />Importar diseño o plantilla</Button> : null}
+              </SectionTitle>
               <FormatGrid category={category} creating={creating} onCreate={createFormat} onCustom={() => setSizeOpen(true)} />
             </section>
             {hasDesigns ? (
@@ -102,7 +104,7 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEdit
   }
   return (
     <div ref={top} className="mx-auto w-full max-w-[1600px] px-4 pb-10 sm:px-6 lg:flex lg:gap-8 lg:px-8 lg:pt-6">
-      <StudioHomeSidebar view={view} onView={changeView} creating={creating} onCreate={createFormat} onCustom={() => setSizeOpen(true)} />
+      <StudioHomeSidebar view={view} onView={changeView} creating={creating} onCreate={createFormat} onCustom={() => setSizeOpen(true)} onImport={onImport} />
       <div className="min-w-0 flex-1 overflow-x-clip">
         <StudioHomeTabs view={view} onView={changeView} />
         <FadeSwap data-studio-view={view} contentKey={view} from={shown.from} className="pt-4 sm:pt-6 lg:pt-0">{views[view] ?? views.home}</FadeSwap>

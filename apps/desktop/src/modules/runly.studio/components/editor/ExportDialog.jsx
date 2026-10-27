@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { Button, CheckboxField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, SegmentedControl, SelectField, SliderRow, TextField, cn } from '@runly/ui'
-import { AlertTriangle, Download, Image as ImageIcon, Images, Info, Loader2, Printer } from 'lucide-react'
+import { AlertTriangle, Download, Image as ImageIcon, Images, Info, Loader2, PackageOpen, Printer } from 'lucide-react'
 import { DEFAULT_EXPORT, SOURCE_PPI, defaultPpi } from '../../lib/studio-export.js'
 import { PRINT_PPI, megapixels, mm, pixels, planExport, planPdfPages } from '../../lib/studio-export-plan.js'
 import { parsePageRange } from '../../lib/studio-pages.js'
@@ -11,6 +11,8 @@ const TYPES = [
   { value: 'jpg', label: 'JPG', purpose: 'Fotografías', hint: 'Archivo ligero con calidad ajustable. Sin transparencia.', icon: Images },
   { value: 'pdf', label: 'PDF para imprimir', purpose: 'Imprenta', hint: `Medidas en mm, ${PRINT_PPI} ppp, sangrado y marcas de corte.`, icon: Printer },
 ]
+// Only offered when the API publishes the package contract (packageExport).
+const PACKAGE_TYPE = { value: 'runlystudio', label: 'Proyecto Studio', purpose: 'Editable en Studio', hint: 'Paquete .runlystudio: conserva páginas, texto y formas para seguir editando.', icon: PackageOpen }
 function remembered() {
   try { return { ...DEFAULT_EXPORT, ...JSON.parse(window.localStorage.getItem(KEY) ?? '{}') } } catch { return DEFAULT_EXPORT }
 }
@@ -52,22 +54,29 @@ function Result({ options, plan }) {
 // "Descargar": screen (PNG/JPG: size, transparency, quality) or print (PDF at
 // 300 ppp, RGB/CMYK, 3 mm bleed, crop marks). Choices are remembered per
 // browser; credits are reviewed after this step, as before.
-export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount = 1, exporting, onExport, onCredits }) {
-  const [options, setOptions] = useState(remembered), group = useRef(null)
+export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount = 1, exporting, onExport, onCredits, packageExport = null }) {
+  const [stored, setOptions] = useState(remembered), group = useRef(null), [acknowledged, setAcknowledged] = useState(false)
+  const types = useMemo(() => (packageExport ? [...TYPES, PACKAGE_TYPE] : TYPES), [packageExport])
+  // A remembered or stale choice that is no longer offered falls back to PNG.
+  const options = useMemo(() => (types.some(type => type.value === stored.type) ? stored : { ...stored, type: 'png' }), [stored, types])
+  const native = options.type === 'runlystudio'
   const [scope, setScope] = useState('all'), [range, setRange] = useState('')
   const entries = useMemo(() => (pages.length ? pages : [{ ...page, id: 'page-1', active: true, label: 'Página 1' }]).map(item => ({ ...item, label: pages.length > 1 ? item.label : '', ppiDefault: defaultPpi(item) })), [pages, page])
   const multiple = entries.length > 1
   const parsed = useMemo(() => (scope === 'range' ? parsePageRange(range, entries.map(item => item.id)) : null), [scope, range, entries])
   const selected = scope === 'current' || !multiple ? entries.filter(item => item.active || !multiple) : scope === 'all' ? entries : entries.filter(item => parsed?.ids?.includes(item.id))
-  const set = patch => setOptions(current => ({ ...current, ...patch }))
+  // The consent is per download: choosing another type always asks again.
+  const set = patch => { if (patch.type) setAcknowledged(false); setOptions(current => ({ ...current, ...patch })) }
   const ppi = options.ppi ?? defaultPpi(page)
   const plan = useMemo(() => {
+    if (native) return { kind: 'package' }
     if (options.type !== 'pdf') return planExport(page, { ...options, ppi })
     const base = planPdfPages(selected, options)
     return scope === 'range' && parsed?.error ? { ...base, error: parsed.error, items: [] } : base
-  }, [page, options, ppi, selected, scope, parsed])
+  }, [page, options, ppi, selected, scope, parsed, native])
   function submit() {
-    if (plan.error || exporting) return
+    if (plan.error || exporting || (native && !acknowledged)) return
+    if (native) { onExport({ type: 'runlystudio', acknowledgeImageCopies: true }); return }
     try { window.localStorage.setItem(KEY, JSON.stringify(options)) } catch { /* storage unavailable */ }
     onExport({ ...options, ppi: options.type === 'pdf' ? options.ppi : ppi, ...(options.type === 'pdf' ? { pageIds: selected.map(item => item.id) } : {}) })
   }
@@ -75,7 +84,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
     const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
     if (!delta) return
     event.preventDefault()
-    const next = TYPES[(TYPES.findIndex(type => type.value === options.type) + delta + TYPES.length) % TYPES.length]
+    const next = types[(types.findIndex(type => type.value === options.type) + delta + types.length) % types.length]
     set({ type: next.value })
     requestAnimationFrame(() => group.current?.querySelector('[aria-checked="true"]')?.focus())
   }
@@ -87,8 +96,8 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
           <DialogDescription>Elige el formato según el uso del archivo.{multiple ? ` Este diseño tiene ${pageCount} páginas.` : ''}</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
-          <div ref={group} role="radiogroup" aria-label="Tipo de archivo" onKeyDown={arrows} className="grid gap-2 sm:grid-cols-3">
-            {TYPES.map(type => {
+          <div ref={group} role="radiogroup" aria-label="Tipo de archivo" onKeyDown={arrows} className={cn('grid gap-2', packageExport ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
+            {types.map(type => {
               const active = options.type === type.value, Icon = type.icon
               return (
                 <button key={type.value} type="button" role="radio" aria-checked={active} tabIndex={active ? 0 : -1} onClick={() => set({ type: type.value })}
@@ -104,7 +113,20 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
               )
             })}
           </div>
-          {options.type !== 'pdf' ? (
+          {native ? (
+            <div className="space-y-4">
+              <p className="flex gap-2 rounded-md bg-[hsl(var(--muted)/0.5)] p-2.5 text-xs text-[hsl(var(--muted-foreground))]">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>PNG, JPG y PDF sirven sobre todo para ver o imprimir. El paquete .runlystudio conserva el diseño completo{multiple ? ` (${pageCount} páginas)` : ''} para abrirlo y editarlo de nuevo en Studio.</span>
+              </p>
+              <div role="note" className="space-y-2 rounded-lg border border-amber-400/50 bg-amber-400/10 p-3 text-sm text-amber-900 dark:text-amber-100">
+                <p className="flex items-center gap-1.5 font-semibold"><AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />{packageExport.imageCount ? `Incluye copias de ${packageExport.imageCount} ${packageExport.imageCount === 1 ? 'imagen original' : 'imágenes originales'}` : 'Revisa el contenido antes de compartirlo'}</p>
+                <p className="text-xs sm:text-sm">{packageExport.notice}</p>
+              </div>
+              <CheckboxField label={packageExport.imageCount ? 'Entiendo que el paquete incluye copias completas de las imágenes originales, también las ocultas o recortadas.' : 'Entiendo que el paquete incluye el texto del diseño y puede contener información personal.'}
+                checked={acknowledged} onChange={event => setAcknowledged(event.target.checked)} />
+            </div>
+          ) : options.type !== 'pdf' ? (
             <div className="space-y-4">
               {multiple ? <p className="flex gap-2 rounded-md bg-[hsl(var(--muted)/0.5)] p-2.5 text-xs text-[hsl(var(--muted-foreground))]"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span>{options.type.toUpperCase()} descarga una sola página: {entries.find(item => item.active)?.label}. Para varias páginas en un archivo elige PDF para imprimir.</span></p> : null}
@@ -156,12 +178,12 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
             </div>
           )}
         </div>
-        <div className="shrink-0"><Result options={options} plan={plan} /></div>
+        {native ? null : <div className="shrink-0"><Result options={options} plan={plan} /></div>}
         <DialogFooter className="sm:justify-between">
           <Button variant="ghost" onClick={onCredits}>Créditos del diseño</Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={submit} disabled={exporting || Boolean(plan.error)} className="gap-1.5">
+            <Button onClick={submit} disabled={exporting || Boolean(plan.error) || (native && !acknowledged)} className="gap-1.5">
               {exporting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : <Download className="h-4 w-4" aria-hidden />}Descargar
             </Button>
           </div>

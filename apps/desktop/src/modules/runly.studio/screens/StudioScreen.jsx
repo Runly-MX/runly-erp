@@ -8,6 +8,7 @@ import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
 import { DesignEditor } from '../components/DesignEditor.jsx'
 import { StudioHome } from '../components/home/StudioHome.jsx'
+import { StudioImportDialog } from '../components/import/StudioImportDialog.jsx'
 import { blankDocument, validateDocument } from '../../../../../shared/studio/document.js'
 import { forgetWorkingDesign, rememberWorkingDesign, workingDesignFor } from '../components/templates/template-work.js'
 
@@ -35,7 +36,7 @@ export default function StudioScreen() {
   // Home view survives opening a design and coming back (?view=designs|templates).
   const view = ['designs', 'templates'].includes(params.get('view')) ? params.get('view') : 'home'
   const withView = extra => ({ ...(view === 'home' ? {} : { view }), ...extra })
-  const [creating, setCreating] = useState(null), [resume, setResume] = useState(null)
+  const [creating, setCreating] = useState(null), [resume, setResume] = useState(null), [importing, setImporting] = useState(false)
   // One creation at a time: repeated clicks never create duplicate designs.
   const starting = useRef(false)
   const queryClient = useQueryClient()
@@ -83,8 +84,16 @@ export default function StudioScreen() {
       setResume(null); setParams({ view: 'templates', design: record.id, template: template.id })
     } catch (error) { toast.error(error.message) } finally { starting.current = false; setCreating(null) }
   }
+  // A confirmed import is a normal design or template: refresh the lists and open it.
+  function imported(result) {
+    setImporting(false)
+    queryClient.invalidateQueries({ queryKey: ['studio', ...scopeKey] })
+    if (result.kind === 'design') { toast.success('Diseño importado.'); setParams(withView({ design: result.id })) }
+    else { toast.success(result.scope === 'company' ? 'Plantilla de la empresa guardada.' : 'Plantilla personal guardada.'); setParams({ view: 'templates' }) }
+  }
   return <>
-    <StudioHome token={token} scopeKey={scopeKey} creating={creating} onCreate={create} onEditTemplateContent={template => editTemplateContent(template)} onOpen={designId => setParams(withView({ design: designId }))}
+    <StudioImportDialog open={importing} onOpenChange={setImporting} token={token} onImported={imported} />
+    <StudioHome token={token} scopeKey={scopeKey} creating={creating} onImport={() => setImporting(true)} onCreate={create} onEditTemplateContent={template => editTemplateContent(template)} onOpen={designId => setParams(withView({ design: designId }))}
       view={view} onView={next => setParams(next === 'home' ? {} : { view: next })} />
     <Dialog open={Boolean(resume)} onOpenChange={open => { if (!open) setResume(null) }}>
       <DialogContent size="md">
