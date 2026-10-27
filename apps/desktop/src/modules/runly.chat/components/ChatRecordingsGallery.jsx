@@ -366,16 +366,25 @@ export function ChatRecordingsGallery({ conversationId }) {
   const recordings = data?.data ?? data ?? [];
   const { data: transcriptsData } = useConversationTranscripts(conversationId);
   const transcriptsByRecordingId = useMemo(() => {
+    const rows = transcriptsData?.data ?? transcriptsData ?? [];
     const map = new Map();
     // Newest first from the API; a speaker-attributed (PER_TRACK) transcript
     // wins over a mixed-audio one for the same recording.
-    for (const t of (transcriptsData?.data ?? transcriptsData ?? [])) {
-      if (!t.recordingId) continue;
-      const current = map.get(t.recordingId);
-      if (!current || (current.sourceKind !== "PER_TRACK" && t.sourceKind === "PER_TRACK")) map.set(t.recordingId, t);
+    const put = (key, t) => {
+      const current = map.get(key);
+      if (!current || (current.sourceKind !== "PER_TRACK" && t.sourceKind === "PER_TRACK")) map.set(key, t);
+    };
+    for (const t of rows) if (t.recordingId) put(t.recordingId, t);
+    // Transcripts created before recordings were pinned have no recordingId:
+    // attach them to the newest recording of their call that has none yet.
+    const newestFirst = [...recordings].sort((a, b) => new Date(b.startedAt ?? 0) - new Date(a.startedAt ?? 0));
+    for (const t of rows) {
+      if (t.recordingId || !t.callId) continue;
+      const target = newestFirst.find((r) => r.callId === t.callId && !map.has(r.id));
+      if (target) put(target.id, t);
     }
     return map;
-  }, [transcriptsData]);
+  }, [transcriptsData, recordings]);
   // Only playable recordings are browsable in the viewer — FAILED/processing/
   // unavailable rows have nothing to show and stay as their own row with a
   // warning icon on the list side (see RecordingRow's errorDetail).

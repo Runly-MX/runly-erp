@@ -185,7 +185,11 @@ export function createCallTranscriptService({
     }
 
     const existing = await prisma.callTranscript.findFirst({
-      where: { recordingId: recording.id, status: { not: "FAILED" } },
+      // A legacy transcript with no recordingId belongs to this call's latest recording.
+      where: {
+        status: { not: "FAILED" },
+        OR: [{ recordingId: recording.id }, ...(recordingId ? [] : [{ callId, recordingId: null }])],
+      },
       orderBy: { createdAt: "desc" },
     });
     if (existing) return { id: existing.id, status: existing.status, existing: true };
