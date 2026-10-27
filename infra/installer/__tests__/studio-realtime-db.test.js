@@ -6,6 +6,8 @@ const expected={name:STUDIO_REALTIME_MIGRATION,checksum:'37275b48040e5b877b86813
 test('only the known failed transaction with no installed function/policies is recoverable',()=>{
   assert.doesNotThrow(()=>assertRecoverableStudioFailure({failed:[expected],clean:true}))
   assert.doesNotThrow(()=>assertRecoverableStudioFailure({failed:[{...expected,logs:null}],clean:true}))
+  assert.throws(()=>assertRecoverableStudioFailure({failed:[expected],clean:true,history:[{checksum:expected.checksum,finished:true}]}),/REQUIRES_REVIEW/)
+  assert.throws(()=>assertRecoverableStudioFailure({failed:[expected],clean:true,history:[{checksum:'unknown',finished:false}]}),/REQUIRES_REVIEW/)
   for(const state of [{failed:[],clean:true},{failed:[expected],clean:false},{failed:[{...expected,checksum:'unknown',logs:null}],clean:true},{failed:[{...expected,logs:'permission denied for another object'}],clean:true},{failed:[{...expected,name:'another_migration'}],clean:true},{failed:[expected,expected],clean:true}])assert.throws(()=>assertRecoverableStudioFailure(state),/REQUIRES_REVIEW/)
 })
 test('owner phase uses only the selected Compose DB, piped SQL and one atomic transaction',()=>{
@@ -16,7 +18,7 @@ test('owner phase uses only the selected Compose DB, piped SQL and one atomic tr
   assert.equal(captured.args.includes('--network'),false)
 })
 test('a new database has no failed history to repair; SQL errors stop rather than continue',()=>{
-  assert.deepEqual(inspectStudioRealtimeFailure(()=>({exists:false})),{failed:[],clean:true})
+  assert.deepEqual(inspectStudioRealtimeFailure(()=>({exists:false})),{failed:[],clean:true,history:[]})
   const execute=createStudioDatabaseRunner({composeArgs:[],spawn:()=>({status:1,stderr:'sensitive connection details'})})
   assert.throws(()=>execute('SELECT 1'),error=>/COMMAND_FAILED/.test(error.message)&&!error.message.includes('sensitive'))
 })

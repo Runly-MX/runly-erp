@@ -1,0 +1,675 @@
+{
+  "schema": 1,
+  "contract": "studio-realtime-1",
+  "version": "2026.10.27.1",
+  "files": {
+    ".env.local.example": {
+      "sha256": "ef097c568385535ca646f29353f834a1646b773663def037f49020680eed47ab",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": [
+        "00d013b6722a70b79c8dfc2ad4bfb293656e6b30",
+        "0640e1d5b0bd4f1b508e1b01092485d0e90a43f3",
+        "077646628450052dac4f7f9805a1b19439f47348",
+        "0c0df8eff2a6fa1752f7b40c717b6e3c8bea76bc",
+        "147c4dbb76106148e19e716eb043b6fb9466421a",
+        "18b43ff4c7dc96b1a9a40426513fc30f924259c3",
+        "221f79cf5ced3dfd30aced7c9c8c175312357f16",
+        "2760d565a131de9076a2e9df0c39ef1d0ebeeab3",
+        "29913f01a5e45a4d5249d511279d05b3ef80959f",
+        "2dd7192d245f7e0fe9a17a619a11f566b215353a",
+        "335f604bbb56d09843e4cd0a2a0e9fb4e8441f24",
+        "45f0201c596dca12d1da463ba786e4a3b7576f34",
+        "60c1c6ffdc4ac2d781bb06fd8e497e19979b1ca8",
+        "79073d2675e344f0a84e764ba27390f62ba0b2a4",
+        "84fcde5e2bb015f62cb4ee154958a5d768ff4d6d",
+        "8833234853f4a4c44f618a9bd345edcf5c0e0b91",
+        "8dc2d81406c51a98a86fe9cead1355132b0045c6",
+        "926708e93a3477b7535b79d8b3090bf476cdd9dd",
+        "9b305e1851147833f2c99b56043d2cabe2d44742",
+        "9fe05167f0eab8d17b6d3912d0c4f90d19b5c229",
+        "a4088e4ab02fdfd463aca9d2e1eecfa62c0d9645",
+        "c42e81f190179077febf4c29068da9787f1b73c7",
+        "c7c61284d07fd6f1e8ff31fb3ef81d910786016b",
+        "dc66cac9681924163939de25ff198e70463822f7",
+        "e4dda466897ec796fbe6212bc649ad9bb7cbfd1a",
+        "f4bb2fdbcfdbd6a616082e193c9384296ee3151b",
+        "fa1219bd5c0c67cf4c6d6be0e2e856d816cf339f"
+      ]
+    },
+    "bootstrap-external.ps1": {
+      "sha256": "d956fc5a66badd989245d647a28ba0248b01b6032662465a6e69f6ec9571d6a7",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "026132fc357f924ec685a8c680b8c1ad9dbfdd61",
+        "046c40b152a674be153073b5d2c4a95d960e9d4f",
+        "216d0f0db53ba5ffb428012af8fa875d1df11b2a",
+        "24af17ca765d6aafeeeaae9ea5934d327ba1fb94",
+        "282d51c8aee7b2858a99357fe6cb9793405877bd",
+        "506701cee8c92b595e15e22b74f3081b0d20f183",
+        "5de513415b9f3cc4f4a5ce02aeb380f8d58c1d37",
+        "65303e7bd030f32bd85962ec4a88bb696c8363a2",
+        "7c309d1f57a45cfa3328e7ff8534d26ab42409c4",
+        "abae32e3bc7fed9e7f6fd24d837b39460c9bfa07",
+        "b0eae1d8e35b51251cc55c277455c4e649db9e0c",
+        "c24ce8abf44b499edf9f018363d91e05aa544916",
+        "e2327444c20d9e964145ab6cbb6fbc12269dada1"
+      ]
+    },
+    "bootstrap-external.sh": {
+      "sha256": "7b08ace6f9eeb8b7755d8c4ece5474f0dca610c1e6c93046d497595912c31be1",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "04bf2aa4b199ea6aa5147249bd085fec2582e8c8",
+        "14ef375f9d84d3236119a120e10fe8cf49905a14",
+        "250f12f57684b603e3f514d2a95f637c9f6d0f67",
+        "26f3227d9ac0e2c1b1343a52105dd58b62e7053f",
+        "41d43d6eed9e96601e53afc91372b3ae332d7c1a",
+        "45ecafafba8e61360e9fba1ab5d743fa7efef02f",
+        "504d42a4495bde5158a11aca3c757b80c0ae790f",
+        "514dfdeb186ca08bf08088d57d34871cbae40570",
+        "94c01b38f7e56f57c4f2d21a103c3a1adb0d3531",
+        "993fc288dcf25fd4c44a6c652bb02860862ab5c7",
+        "a271cc5e0cd352b0bfd3c44a33189c8e87d184f3",
+        "cec1a7cc660a1e191c141f564e5db81bd3008035",
+        "ceed50af7237c33b8102ca20764841ca836f54a7",
+        "dd2c2daa5950b5f07ce3eb93bd30598458341360",
+        "ec3df5f5e76a40c3af90742a67df1c337a9e067d"
+      ]
+    },
+    "bootstrap-local.ps1": {
+      "sha256": "0beb2e0985a02650d6525e2930a8b13e8fa6b2249387ffa09145181f2257d759",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "018793f56cd428ab7cd2ff25ae03f9d209d5a6e1",
+        "098f9a1e66735b94446775c5fbacaa7f6f6ecb1a",
+        "0ffed7a78342ca18ead7d88db86d613bf3bb18c1",
+        "12f60d729feaa0e924b9a914f062ae69d0aaa007",
+        "3cdbab32f82b70e298df274162fefd2be2ebac64",
+        "6a122e5906fada0425d7be85c4008f2cc28234eb",
+        "71e8d6ea0c9afd808f08b437b333a0e87c3168e6",
+        "7bac6f2456f8a3cb24a7131c9dec4d3222714901",
+        "9b62b3045a0269572f87bc1902fb9f780d8939c1",
+        "9ec81aa1d59dea8fa944fedb106c762f8612d2c0",
+        "9ecef6a137bd3a47a80cc1c151553f5b937b3c88",
+        "b10ca72f788d3c0fe8937ff39800771a53048fdb",
+        "c5173b0cb0fd9e84c2191e68a4d67120f034f680",
+        "d9eb05d8817988ee6f7aa7641e5c9cc06ff62b56",
+        "dab9dbb9df7f98bb1705a383cbebb2b730854f91",
+        "e89537d943500e1b4c2fa8f26d80c6d15fffa687"
+      ]
+    },
+    "bootstrap-local.sh": {
+      "sha256": "9c4803f45b50f9b108ca0ad0c605435f793bb0deee9592b4992062006f4c3b49",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "03de1b694ef7e6ac3ea7b4d2b435ce39f4d1a0c0",
+        "0a009d520780d77cd6279238ce72e88f0b09c6c9",
+        "1e62a22d9d2d83c7f5c1658f249fd5e982a75c67",
+        "281c1dad9d390549349bd0501a1fe4862a6b113e",
+        "2c406e36a4b6bd527a5933abe32b772f21311c1c",
+        "30a80cb31f0ca8cbdce930b170df37e669fe2521",
+        "3b78c9e3da5b4e08238c134efee3854b6f764b8d",
+        "40e1e04ef837be9e950092e030f6ceb141cdc872",
+        "5655d93581d5702b7b44e7a0a07d247fb6738951",
+        "5bbb146b8e5724fbc3967837aad3923ebb1a7f09",
+        "72d853a1255cba6ff7f5118a22806de004d9732c",
+        "839f3dec6f17dafbd943946ccba291b9bb8495f8",
+        "b17e894a16825cce99cd46f21993f6dd59a049e3",
+        "d47fd16b2c6feed1ac7185b7c56cbdf5d19a225b",
+        "e038d34dbc06b2df9843a04d226a2725a9cad2af",
+        "e283bea62ec7ad0e78d75db42fa6b361ff020ab7",
+        "e9f5ece96786072a3eeb3ee2ba7d66ad0000740f"
+      ]
+    },
+    "docker-compose.linux.yml": {
+      "sha256": "2ebcb1fda73bc4c8f587ace913a8aedea33795bcce7898fdc162d97bb4cd2301",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "058ac29075a203e216d5dcd780ddd165c5a0629f",
+        "38f8d9fd35d3172ecb37c5cfb392e67105473ac8",
+        "9db1cf76d87bf7136b555151cf58766449cf23e6",
+        "c7d1feea1d8690f482a09c62825425c581480da0",
+        "fe005b73acb6a588c00f5d2b5e85b9d4e2b4023f"
+      ]
+    },
+    "docker-compose.yml": {
+      "sha256": "f0f749276b251cf5d7344eefa67d36702db202f64a7db5fb863a1b2da3c1f351",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "037a6f94961c8d0973e38ee4e2d543b1ca7e5db8",
+        "0e76e72353d67068db2728294b346ebb42a9c82a",
+        "183d6f0996800e17a320d2b57574be81bdab8055",
+        "2aa18ce7f319cd17238b4a8525373c67ef33099a",
+        "330ec1e2c137933f8669d88d36843655cd2371d9",
+        "380af6af91f142a4c216bb614f681cbfe974347a",
+        "3c3458a65c61c8f959d4e06fa69b23eb91c4b5c6",
+        "3d79f2dd0a3358692055f6b918c94113589e7547",
+        "41c8ffe5e61f07173ba2db573a79596dd9f5f8b9",
+        "4a10af144505600708c0a730469d3c159b29db77",
+        "51e4e99fd175496b2be429fb333c6aae1fae7b6d",
+        "6bfdb981256af2e6ea594ca7aba3689677f1eb94",
+        "7474169aca45b32a66960c5f816561b93c8a1c19",
+        "7a10f03060150241588049d5fde2b0861dc40a7c",
+        "7f48ec7d9e0e560576e821f1535bcac133952294",
+        "84352fa338c44f7c00ae20dbf3c41a5a54ff841e",
+        "acf080cfd4f136c9303721eb63e7eb7ec59c9f9e",
+        "ae6c97b60d71ab985620088e91042773e99d0238",
+        "b42ad1cca7af4075c44c570bebe4ef6c2017abe9",
+        "b67936b3446812ff78a685ba32113baa2682f2aa",
+        "b6d5c5240007207337f820425184b91ee2334e2d",
+        "b9bbc9577d35c9b96b2f24ab6c3e3be476c9eee5",
+        "bcd71cd6bbf5bd1e7f4f2f51e35192b5b903d9be",
+        "c029f0155eebcf7bc6574242cbe8387bd7a543c9",
+        "d21f63adb6732ef2f4005f07eafd44efc68ebaf8",
+        "d305eae209b1c29620c4b3e9790f8fc03dc400a1",
+        "e5ed24ee0cfb6e42f35526f78472d5ca1ff71907",
+        "f446b91f5b0aebcf7d481ea9c8d4ae49776bc8b1"
+      ]
+    },
+    "lib/backup-config.mjs": {
+      "sha256": "5dbeacc0f09c646ca9292209644df3cb2c2062eace51050f75ef688719daf6f3",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "f7d41eb17ea53b472f01aba8c7895863d745bfb6"
+      ]
+    },
+    "lib/devkit-installer.mjs": {
+      "sha256": "3511a2336f6617093f4384663ebe579de7181e610a7f7395ee1e41f73a9efd59",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "a63d24091f35d214c30cb5dd5b2917b3f4932717"
+      ]
+    },
+    "lib/env-compat.mjs": {
+      "sha256": "79048d946108b17a116c1ba960d6673f19045927f90d940850660723f6a48c52",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "04642e28e2816c592bc6f4b4abee7c4a40bad440",
+        "6c301a8eb0ade8c480b421df514fdbeb4e7ea0e5",
+        "76344d6c84a795d7ab40c4e68491e91aec21795b",
+        "c5803ed5230b68e98cd869a586f50fc276638d10"
+      ]
+    },
+    "lib/firebase-config.mjs": {
+      "sha256": "3d78d30e90628c3699eb43f94d7bdd695ae0e9647506a226bed709ce11cdd210",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "28cb793cb4c0993f33b0f9f33bf7297ebdbc639f",
+        "68c308f947c3869b0116b8111f00116cfe4964b9"
+      ]
+    },
+    "lib/hairpin-nat.mjs": {
+      "sha256": "9c68a0beebdae08a8697372deae4656be275a96ea71bd80afa2e59ef858728bc",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "5759dece4124708fe5bc2f97bccea68b0da18b0b"
+      ]
+    },
+    "lib/installer-runtime.mjs": {
+      "sha256": "d3e4e7bd51af6551104561124686f5eafdf471cca326b215c19aa2ad3a421044",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": []
+    },
+    "lib/instance-identity.mjs": {
+      "sha256": "6b9a188c74cd978d45eaed0977a4a46c4cc273386658d2d987414842264171c7",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": []
+    },
+    "lib/livekit-config.mjs": {
+      "sha256": "0090f35d4f9481e9b6cfdf5f2010b875059673f96fcf75400305ff9383d31337",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "1c5b0c72fe5662f3a8a819dc44f5d17bddba6073",
+        "73e7855a3600affee1b9cefcf1909258db5ee11a",
+        "768534e1867d40a1f9383105576149ea8f2d16bd",
+        "9f25320d5c4690584848fb292d687cce66a2395e",
+        "c936e01544a5bae80a1ccd6dfe00b5658d664199",
+        "cb98b2a248c9e9b835c26b196ebb1185dc516d5d",
+        "f2b163911327287adb94d1b7004c4e70e0d2cc63"
+      ]
+    },
+    "lib/office-config.mjs": {
+      "sha256": "044bf367eb6d6a835e620edf72db0865420210d77fa0ab995de69ef8ea87b1a0",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "3960b2ab027258200c9f1e35db2e0eee5cb3ead2",
+        "58559dbb58687e4e83799422120a86195def93bb",
+        "9442b5c4487621451be4b5ac4babb0c7014bb48d"
+      ]
+    },
+    "lib/studio-realtime-db.mjs": {
+      "sha256": "1f9a497991880761adb8daf5a630ca293e1681877f85dbf2affc77ac66317bfc",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "c402dbd0c8f08567474287a924df9f8c94faffae"
+      ]
+    },
+    "lib/studio-realtime-external.mjs": {
+      "sha256": "344917b7d50e0124c9517411a3e12200ca37cb70dabf34c02681df3ac9646283",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "95d1d7c73072b49186aa3af63ef59e8322335bf8"
+      ]
+    },
+    "lib/supabase-selfhosted-config.mjs": {
+      "sha256": "59ed92c55b0ec31c9915d5e0df19b1407ba5637fbaf30a2423edf1c6b3c7521c",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": [
+        "c978e0c03b8d8a28ea258c1224f0626e312bfa92"
+      ]
+    },
+    "lib/transcriber-db.mjs": {
+      "sha256": "25160deaed19537c6b6aa764726167b23a202f332df81c8e0554f1b887c4edb8",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": []
+    },
+    "package.json": {
+      "sha256": "5ed55b5bc0f265b91d4696013ef002f9226494491854e3abe66f5f9fecc304b7",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "5886d200db4b3936efc04abfcfaed02441048a48",
+        "6a1f5425c6ce269d99a7babd80d3c64483bb3d3d",
+        "ac0be2ae06baa0edb8ab291ce02d4793acb46448"
+      ]
+    },
+    "recover-studio-realtime.mjs": {
+      "sha256": "3960711a520e519564a8a5dae4dd514d37260055c74bbb154cdef33e9361cab7",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": [
+        "50cd1beac84ee1cd9e1a6144e3fafe59f367817c"
+      ]
+    },
+    "setup-local.mjs": {
+      "sha256": "18187a1c9b8737481bc83cd57e0b062a664a4215424f78c0270f659bbd36802e",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": [
+        "08f856acde59314cc26442a797b8df4d3458536a",
+        "0e20cab57707839c5f21b6b313a5792d4530d11c",
+        "120cf101ee58cf717612811897ee0cf96877a531",
+        "124ec3ee09af3d1bed3b98583c60d7dcdcc5ba75",
+        "1371df7aac8648b00b7cfb1fa316694ad5ce73fe",
+        "172bda3a6439f0165a4fcfa39e49540550ed0fa5",
+        "178fab964aef8fd308ddbb4e3a8171e8ba22ea4d",
+        "1fe1e24cd27d60b76bf64ba3b5b0814ad1891e90",
+        "22f84b4ee6d5de92ce01edfeb93fc5fcad9f0b67",
+        "275f439522bbc66aee4acc9037b646291e40ff5c",
+        "40f08838d10069e2e99921faf1bbed26480929c4",
+        "47f78d1b07fc244a25e16b6165c1c7f19a2aa0e8",
+        "4b36b71d3a5c0feddabba04addd9f81ca802cfa2",
+        "5278e25c2c7e4d5b4c7c40f84bf3fdc1c900426f",
+        "56496d95e4a779d12f853ec4d9540da14c40b4c2",
+        "5702a1a29dc56fb4db760f25aea1db7ff5693802",
+        "572009072d5d98bbbaa87eb341236c2a8d9f731a",
+        "62d62b85eaaf7deacafab1313173548fb49e7217",
+        "6569d84cf653b657e67d34e0e87896c8cdfb91f4",
+        "6996b6775781c261755fe1c4352b9e58d35a42e0",
+        "69b7bb0992739db9e57b6aa6d19a2a635f6122de",
+        "707e6b59e647820088199602efa75d79d3af30c9",
+        "784c49f962989e31c172065cfe21d10854505aa6",
+        "7d369893e1195ba8a98dda11ea1e6033a2bbf9cc",
+        "8137b143603118dc95e5fef95a71e58be878c292",
+        "83b6c77a47bea70c5f1b9b166a478a2b694de97e",
+        "88fc35e925c1d0049b69923bc633dd05fc9e2198",
+        "892fba5f3092e32d365486cc30bab5b70b1c0671",
+        "8e757f98f4f496bcc2ef0ed31b821d1a239a4db0",
+        "9483e8be90e2d7668fc8c03193b3aa4efa07b49d",
+        "97d78d66ab535ec73f63b7aa4cd977c79f507db3",
+        "9b5177b1596b17ab521c1ee818ebf1a4e6058600",
+        "9d299afbf3e5ce16ae8f16789bc1358be86c8db9",
+        "9da02b707a4ecaa5880ccee4df4a8d38f2a24f77",
+        "9e3950b47a94c36d3a9cdf90545a8a56631622b4",
+        "9fc8c465ef5588485817ce88ed57a0aaa2c2d5ac",
+        "a29ae3c6abdfcd36760bf561845d020f2dde6cb4",
+        "a36f66bcc8e51ec45ac79688e8db3cb7166ed9cd",
+        "ae2f675ac363d77374f932b6017d23f6dd1349b9",
+        "b08dedb79143eb6b6150e72d400fcbff54f58f8f",
+        "b1ecf920216c44023162a69a2bbdbaff3b73ca32",
+        "b7270f433c05d774c1d1d97b1df6ebf675e3a16d",
+        "b8ea8e7f2d8fbdb31fc039f4ed7ac9c507557501",
+        "bf144004799a4ff5f2eda2b0a5ba317d9adbf7be",
+        "c0a9b797061407dfc80a936c725e2cf8695f29ad",
+        "c0e7acc308f370f3999e600154271894b10c32ab",
+        "c619bce0c2a22579b75002eafd08914502fabf65",
+        "ca02959e95a5aa18e5206ff0db3927fdaaec77ee",
+        "d32eb1faa67d7a3f1da10f6b13050ea61ef4942d",
+        "d79d2e080b450602c267b975ad5b01dff2fd8e10",
+        "e26c6f83049b0a3cb54f73183d604d6d6e41d242",
+        "e540292aee3740f51ac3b318b1d6a09f0ab3f554",
+        "f4552848f19dc5114dc69a72f5e732ec73378f6f",
+        "ffcdb24b12d0e3e8fe556c67da6ecafa66d9d46f"
+      ]
+    },
+    "setup-local.ps1": {
+      "sha256": "8017a6ea56ba3ef039bc8a1138412baafc8f609cfb67109ffe53ba278d8a08d1",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": [
+        "3fe49ce90d54473dbba1eeb86b56dc9330a22fc6"
+      ]
+    },
+    "setup-local.sh": {
+      "sha256": "433c9d08defd7db6240db02d33dda7c1f4d877c767684a278a2aabd3e3232e90",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": [
+        "350d156cafc0202a3c2e6f3f0ceab8d543be3208"
+      ]
+    },
+    "stop-local.mjs": {
+      "sha256": "117c32c987fca02b8980bb7286cbfca9d91f78858927a51bb734fb4dbd59b5ac",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": [
+        "12307ea97da6805532f8b4bb59ef85c16655393a",
+        "1a573bae55804641120aeae7adbb102bda89d3c7",
+        "1b63640da6e0bd20170c8b34ce27c32b95651a1e",
+        "4257009c7110cce227959b8c9ffec231bfcb369c",
+        "85ba9698681620b755fe4f61d0f1189165fe4bff",
+        "b44a505907f92231db6eeb1c441add0932764758",
+        "c3a316bf5bd1225bec17078c8baddd97977214cd",
+        "f25a94c75ab5ca1c8694d6fbe12dde5e750c561b"
+      ]
+    },
+    "stop-local.ps1": {
+      "sha256": "2b8ef7729b0cdb6f99988eb7e145742e3fb8f5d9c5decd8d599ae1304166d9ac",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": []
+    },
+    "stop-local.sh": {
+      "sha256": "46f55f2f43496e2554f9d02791c3e81f9b5acd03116ff9d5e642d24f321f52e3",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": [
+        "599dfb636f0d3597267996f49e7db33e4a5c82b1"
+      ]
+    },
+    "studio-realtime-external.mjs": {
+      "sha256": "23776a1dab4a9c76e5461758230e447cf9b0bf0136bd2bd198cf058d4a135d08",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "78a40d60d931f1a2ca0a9bb72b736a4c839b1a6e"
+      ]
+    },
+    "supabase/docker-compose.supabase.yml": {
+      "sha256": "791442e8369452195feec8cab60687ebce235a15b64db0a643e6ed5018765542",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": [
+        "ec80a1e0e62b98c5b8924a1f15eb00d71439b9ba",
+        "ee763a22b988b647b64e86b503a3874ad7fb0295"
+      ]
+    },
+    "supabase/volumes/api/kong-entrypoint.sh": {
+      "sha256": "399394576635f7477dfee32e870f509567fc496f0dc86a5a6611f58d1099031f",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": []
+    },
+    "supabase/volumes/api/kong.yml": {
+      "sha256": "eb732e0cdecb7ada8ea6d600d9eb57380c2618b069762b71dc16c964f8b58d17",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": []
+    },
+    "supabase/volumes/db/jwt.sql": {
+      "sha256": "1cc94a4f16f6e2932b383cd68e211a96bcae298437ca4120d8a5106396c58465",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": []
+    },
+    "supabase/volumes/db/realtime.sql": {
+      "sha256": "7e9e442e7fc4dae05544c07b67bede37a00d84644304dfce4d937134cb4c8f88",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": []
+    },
+    "supabase/volumes/db/roles.sql": {
+      "sha256": "3ad717b225daa38aa982da26750f35641eb404e1eb5e69a763c22236ab96c1b2",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": []
+    },
+    "supabase/volumes/db/studio-realtime-role.sql": {
+      "sha256": "72e5bb9be3f4d98a8342ad5b22d4a3f4dc787d0888492a9349bae4665714bfb4",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": []
+    },
+    "supabase/volumes/db/webhooks.sql": {
+      "sha256": "b584aaaa0c393f27218f81e01e76e1d07d42f947083249adcd6097ad471cde62",
+      "modes": [
+        "local"
+      ],
+      "legacyGitBlobs": []
+    },
+    "update-external.sh": {
+      "sha256": "11b6c6bc3bfe96a00079102108be00824a9599448f11fea084462a0fd05eed37",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "a64e4a847689b3f511d9c34416de23f4f5bda464",
+        "cf19b9e8dad99f854be5572d3c9b2438c254dbff"
+      ]
+    },
+    "update-installer.mjs": {
+      "sha256": "84216be9baae306611d01f800685146d00e364d94a71438f3eced4a0d9743650",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": []
+    },
+    "update-local.sh": {
+      "sha256": "0f8052d9614bf6a41bfdbbe6a81929442bc65bfcdb72c71255720beb17446052",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "776117faccbd74b38e0ce4e1c1e810e434ca24e9",
+        "b9ab1545dba416da060827ffaa802c5dd7f1a464"
+      ]
+    },
+    ".env.external.example": {
+      "sha256": "7dad5a484961c977f3b7a3d32e4fae6b11a1ad33bb16a8154aa31b9214b6c8a1",
+      "modes": [
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "006dc085c406915c10a8f1479e47fdb8eda3fd50",
+        "00fa0759088954c6ce6a1924a9c472367bd05bfe",
+        "0a6ab0d75f96f65387dddfccfa1e1da9369477c5",
+        "14a6db7aa13dd497af660e47064e654e9f7a519b",
+        "17eb0b5c66d4eb2045f0bc4b1e4c29b922fae0aa",
+        "23a734452070feb38bb163e8d65980024e2a65ea",
+        "2b7ce0f273d3faa7a904dce805cef3a377956be4",
+        "346367a5c689b5ec5b809fa482a3d5ee1f003ca0",
+        "393b415d9f422c9d9a2484e0516207cc493d48ec",
+        "3e10d625411b00cfcd46c3bead782a9b11c7746d",
+        "3f3e6ca3440f1baf87b043960c41ce436a1aa02a",
+        "4643bc5755e86f0f201a335c9d324cb8d06685eb",
+        "488edc6d4ee3fbc9e5f40e572ff8befc84f8e596",
+        "4b63e0b7dfe2bc2a71b70eb2304187f4ecce7cda",
+        "60ff657208e0fd9578629d7e67b9a6152c131e65",
+        "6ac5e5988c30b616c96dbfafd42444c201bbf7af",
+        "7d066af75fd3bb99771d43a48444c21ec8a6f32a",
+        "a8928a882573b4cfe2ebc83438740f2ce044aa58",
+        "d2b6ec6aa6ce186641955aa5efc5b831765e895c",
+        "dca328ebc50bfd11ea7a08258b64641eda675df5",
+        "dfbd04822258f1e4cc6585e4207e9d6aec0a52dd",
+        "e468e6262da3d6cbd902e32f80c90a8a79589bff",
+        "e9a783c49a0adec3f1fb5f1ad3aff11a25f7caf7",
+        "edf9a808bcc035fb06df7fd31eb0bd8dc05741af",
+        "f0266566bf20a17d780473a89af47e7e04d38906",
+        "f21801c6f26ba29146de85c96f09e911148a54b1",
+        "f6a6ae68ea2ec438565cc720e172f3b7372ab36c"
+      ]
+    },
+    "setup-external.mjs": {
+      "sha256": "efa94f71314ff78de84cb33e6762cc5208626e82f8f6c8689c8c741b0341f126",
+      "modes": [
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "009a6f42ad9dd8c17a11e4552b9fe29573c7fcca",
+        "00f23eced85c9d10272aadbf8408dcae01b37f02",
+        "045dbc09309447b621bc593c7f8868d54a4d4698",
+        "0acfd670517c1de4ad9f83b8a90ebca342d14ca1",
+        "0f1bc225c3ef22ae316f474af191b7726960d4ee",
+        "124425f5ee7e20cb99b060d4a35d22e112c9a246",
+        "18f2a370f22d9a29b46b6a54089f8fe3c5ac4f62",
+        "19e99fd5ae7e2a6b1ee13c9083491dd62d541187",
+        "224e6cb89a8841696e827447d58b95f04fffa826",
+        "26ea812f604d55ee8a6323602acd09b90e428460",
+        "2ebbcd568768e93954daca10fa3d164ba50e5b4a",
+        "3c1ecd4ae23f3d850c46a530cab134e923d840b0",
+        "4a5785aeb08bb006f502729026c898759b813933",
+        "4f6f1428813c6f27c3f40bfe97f09c2f71e6e7a5",
+        "5f4fe99fc2b4f5972750b20096ce622c1e040dd1",
+        "641bb0567011b3c35da4a4be7cbaf1e6575905b9",
+        "6916bd498b42ecefda17201771a1338313e44a21",
+        "6e758b328d00a99100e404d74699665ca864d023",
+        "6f4c64f6e9debf08b22cb0a9a611a1feee132d1b",
+        "72fce45c5d2c2c11bd72f6213f5d47cc98fcac31",
+        "7751d6a87cd43a049f9a4d5c8c006a47188eeff1",
+        "7bcbc7fbd62b8cfb28e91e6edbb7fe49e93d2fba",
+        "879e18e934054188f9edb292834ea77b1704e09d",
+        "916b0f1ec602e148edf0b223f1dbabdc4535e158",
+        "a3314d1d9029276d9b1c4c419c24c3933127a4af",
+        "a72ec0c8aa5ae6ba10d1b048a1b2f5d375349fe8",
+        "aacf0c34821b2a12a4e44fe6c0b82470e4e7b729",
+        "ab37869137d020baca592be98a3f1897d8feed2f",
+        "ac565d86032f18e4d7e00ad669fc7732c541fe03",
+        "aed85abf6fd8f523ba1abd1dea6d8229d588f648",
+        "aee7e83444c75dba6f33316ef47c68be5d86a176",
+        "b2ebb0c768b8b76a533b932c25730335b5e9b9d1",
+        "b567736f42c3d40f31ec1d31a896fd0c87761f2f",
+        "ba1db03e43af9b9a7e49670001784ae1b47fefe8",
+        "ba3f87fb113d01f3fac8aa57ef7553c9933b6a9b",
+        "c50b6df9f00c6425b4694fa8ffc2df199ab3e3ee",
+        "c735b830333eb7501b602bc2639842768fc6c4c0",
+        "c8a8f6a9e79890bf9dcb3a6a9829c448e055862c",
+        "cd6092857852d3fa40de61275fbd45e4d34ac659",
+        "d60572a485e151bf0899a7bd452af532476beace",
+        "ebc1913ae95fed91b2c11b6a2f5a14eb92c4b8a1",
+        "ef499e3d1e5b8a84eba1543b9ba6fd42a3925f48"
+      ]
+    },
+    "setup-external.sh": {
+      "sha256": "5a1303ab9612710f1b401c0ca8a773a2deb693eaeeb5799d575b9e6bc3f87d67",
+      "modes": [
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "92ed98e1a26a55086f6b9ebfc0d1fee918a9179e"
+      ]
+    },
+    "stop-external.mjs": {
+      "sha256": "2b07b12081aad811861b2485101ea2969dc10022120267596d66d639dac4579b",
+      "modes": [
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "0832f47456609eeeaf31c7eb0342ec63ef1ca404",
+        "171ea55783f28ef62d194c76e01bf06a77f3f53c",
+        "6f8539436ae883be7a4875d669d58da2be7df975",
+        "9092b57ce0ef18f21d7e2baf04956b420c337053",
+        "a316bd5ca0b5354940c4eecbd39e52502784f481",
+        "b84394b1b4713fca145ad71553baddc2303554d5"
+      ]
+    },
+    "stop-external.sh": {
+      "sha256": "5bd2bc2a0019e4e877e41409d0693bc951b528070c434f9e7e7cb5ef53d63c4f",
+      "modes": [
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "314bc061b9fffbf2cd4007aaab3a881160cd7c56"
+      ]
+    }
+  }
+}

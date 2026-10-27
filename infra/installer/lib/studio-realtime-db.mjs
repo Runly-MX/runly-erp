@@ -28,17 +28,25 @@ export async function prepareStudioRealtimeOwner({ execute, sqlFile }) {
 
 export function inspectStudioRealtimeFailure(execute) {
   const history=execute("SELECT json_build_object('exists',to_regclass('public._prisma_migrations') IS NOT NULL);",{json:true})
-  if(!history.exists)return {failed:[],clean:true}
+  if(!history.exists)return {failed:[],clean:true,history:[]}
   return execute(`SELECT json_build_object(
     'failed',COALESCE((SELECT json_agg(json_build_object('name',migration_name,'logs',logs,'checksum',checksum)) FROM public._prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL),'[]'::json),
+    'history',COALESCE((SELECT json_agg(json_build_object('checksum',checksum,'finished',finished_at IS NOT NULL)) FROM public._prisma_migrations WHERE migration_name='20261210000000_studio_realtime_ephemeral'),'[]'::json),
     'clean',to_regprocedure('runly_studio.socket_allowed(text)') IS NULL AND NOT EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='realtime' AND policyname IN ('studio_socket_read','studio_socket_write'))
   );`,{json:true})
 }
 
 export function assertRecoverableStudioFailure(state) {
   if(state.failed.length!==1||state.failed[0].name!==STUDIO_REALTIME_MIGRATION||!state.clean||
+    (state.history??[]).some(row=>row.finished||!STUDIO_REALTIME_CHECKSUMS.has(row.checksum))||
     !STUDIO_REALTIME_CHECKSUMS.has(state.failed[0].checksum)||
     (state.failed[0].logs?.trim()&&!state.failed[0].logs.includes('STUDIO_SOCKET_SCHEMA_OWNER_REQUIRED: run owner-phase provisioning first'))) {
     throw Error('STUDIO_FAILURE_REQUIRES_REVIEW: la causa o el estado no corresponden al fallo transaccional conocido; no se modifica el historial.')
   }
+}
+
+export function assertStudioMigrationsUnblocked(state) {
+  if (!state.failed.length) return
+  assertRecoverableStudioFailure(state)
+  throw Error('STUDIO_KNOWN_FAILURE: run recover-studio-realtime.mjs --recover-known-failure --api-image=YOUR_EXISTING_API_IMAGE before setup; history has not been changed')
 }

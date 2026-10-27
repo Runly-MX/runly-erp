@@ -97,6 +97,7 @@ const ALL_IMAGES = [
       "apps/desktop/public/module-logos/",
       "infra/docker/api.Dockerfile",
       "infra/docker/api-entrypoint.sh",
+      "infra/installer/supabase/volumes/db/studio-realtime-role.sql",
     ],
   },
   {
@@ -193,6 +194,11 @@ const explicitKeys = ALL_IMAGES.map((i) => i.key).filter((k) => argv.has(`--${k}
 const forceAll = argv.has("--all");
 const dryRun = argv.has("--dry-run");
 const releaseState = readState();
+// Docker images do not distribute Installer scripts. Refuse stale file hashes
+// and print the independent publication requirement even in a dry run.
+const installerCheck = spawnSync(process.execPath, ['scripts/generate-installer-release.mjs', '--check'], { cwd: repoRoot, stdio: 'inherit', shell: false });
+if (installerCheck.error || installerCheck.status !== 0) process.exit(1);
+console.log('Installer: publish the committed bootstrap, updater and installer-release.json with their listed files separately; Docker push does not publish them.');
 
 let images;
 if (explicitKeys.length > 0) {

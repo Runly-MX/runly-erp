@@ -30,6 +30,12 @@ test('preparation adds missing defaults once, preserves original env and never i
   assert.equal(await fs.readFile(f.envFile, 'utf8'), once);
 });
 
+test('an empty optional push declaration from old template sync remains disabled', async t => {
+  const f = await fixture(t, 'RUNLY_FCM_ENABLED=\n');
+  assert.equal((await configureFirebase(f)).enabled, false);
+  assert.ok((await fs.readFile(f.envFile, 'utf8')).startsWith('RUNLY_FCM_ENABLED=\n'));
+});
+
 test('enabled configuration fails before deployment without a valid matching service account', async t => {
   const f = await fixture(t, 'ATLAS_FCM_ENABLED=true\nFIREBASE_PROJECT_ID=my-project\n');
   await assert.rejects(configureFirebase(f), /valid private service-account/);

@@ -30,6 +30,7 @@ RUN DIRECT_URL=postgresql://postgres:postgres@localhost:5432/postgres pnpm prism
     pnpm prune --prod
 
 FROM node:22-alpine
+LABEL io.runly.installer.contract="studio-realtime-1"
 WORKDIR /app
 # Alpine ships no fonts: sharp/librsvg needs at least one to draw text, otherwise
 # the label PNG preview shows empty boxes. Liberation Sans is metric-compatible

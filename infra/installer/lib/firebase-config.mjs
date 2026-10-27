@@ -29,6 +29,9 @@ export async function configureFirebase({ envFile }) {
       + canonicalizeRunlyEnvText(missing.map(([key, value]) => `${key}=${value}`).join('\n')).replaceAll('\n', eol) + eol);
   }
   const config = { ...FIREBASE_DEFAULTS, ...stored };
+  // Older template synchronization added blank declarations. An unconfigured
+  // optional push integration stays disabled and must not block an ERP update.
+  if (config.ATLAS_FCM_ENABLED === '') config.ATLAS_FCM_ENABLED = 'false';
   if (!['true', 'false'].includes(config.ATLAS_FCM_ENABLED)) throw new Error('ATLAS_FCM_ENABLED must be true or false');
   if (config.ATLAS_FCM_ENABLED === 'false') return { enabled: false, directory };
   if (config.GOOGLE_APPLICATION_CREDENTIALS !== FIREBASE_DEFAULTS.GOOGLE_APPLICATION_CREDENTIALS) {

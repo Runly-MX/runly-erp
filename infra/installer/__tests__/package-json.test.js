@@ -48,8 +48,9 @@ test('installer quick-start docs use bootstrap scripts instead of hardcoded file
 test('bootstrap entry scripts download every local library imported by setup', async () => {
   const setupLocal = await fs.readFile(path.resolve('infra/installer/setup-local.mjs'), 'utf8')
   const setupExternal = await fs.readFile(path.resolve('infra/installer/setup-external.mjs'), 'utf8')
-  const bootstrapLocal = await fs.readFile(path.resolve('infra/installer/bootstrap-local.sh'), 'utf8')
-  const bootstrapExternal = await fs.readFile(path.resolve('infra/installer/bootstrap-external.sh'), 'utf8')
+  const catalog = JSON.parse(await fs.readFile(path.resolve('infra/installer/release-files.json'), 'utf8'))
+  const bootstrapLocal = catalog.modes.local
+  const bootstrapExternal = catalog.modes.external
 
   for (const [setup, bootstrap, label] of [
     [setupLocal, bootstrapLocal, 'local'],
@@ -81,9 +82,8 @@ test('bootstrap-local downloads docker-compose.supabase.yml and every file it mo
   const mounted = [...compose.matchAll(/-\s+\.\/(supabase\/[^:]+):/g)].map((m) => m[1])
   assert.ok(mounted.length > 0, 'expected docker-compose.supabase.yml to bind-mount at least one ./supabase/... file')
 
-  const bootstrapLocalSh = await fs.readFile(path.resolve('infra/installer/bootstrap-local.sh'), 'utf8')
-  const bootstrapLocalPs1 = await fs.readFile(path.resolve('infra/installer/bootstrap-local.ps1'), 'utf8')
-  for (const bootstrap of [bootstrapLocalSh, bootstrapLocalPs1]) {
+  const catalog = JSON.parse(await fs.readFile(path.resolve('infra/installer/release-files.json'), 'utf8'))
+  for (const bootstrap of [catalog.modes.local]) {
     assert.ok(bootstrap.includes('supabase/docker-compose.supabase.yml'), 'bootstrap-local must download supabase/docker-compose.supabase.yml itself')
     for (const mountedFile of mounted) {
       assert.ok(bootstrap.includes(mountedFile), `bootstrap-local must download ${mountedFile} (mounted by docker-compose.supabase.yml)`)
@@ -92,10 +92,11 @@ test('bootstrap-local downloads docker-compose.supabase.yml and every file it mo
 })
 
 test('bootstrap scripts download the full installer file set for local and external flows', async () => {
-  const bootstrapLocalPs1 = await fs.readFile(path.resolve('infra/installer/bootstrap-local.ps1'), 'utf8')
-  const bootstrapLocalSh = await fs.readFile(path.resolve('infra/installer/bootstrap-local.sh'), 'utf8')
-  const bootstrapExternalPs1 = await fs.readFile(path.resolve('infra/installer/bootstrap-external.ps1'), 'utf8')
-  const bootstrapExternalSh = await fs.readFile(path.resolve('infra/installer/bootstrap-external.sh'), 'utf8')
+  const catalog = JSON.parse(await fs.readFile(path.resolve('infra/installer/release-files.json'), 'utf8'))
+  const bootstrapLocalPs1 = catalog.modes.local.join('\n')
+  const bootstrapLocalSh = bootstrapLocalPs1
+  const bootstrapExternalPs1 = catalog.modes.external.join('\n')
+  const bootstrapExternalSh = bootstrapExternalPs1
 
   for (const content of [bootstrapLocalPs1, bootstrapLocalSh]) {
     assert.match(content, /docker-compose\.yml/i)

@@ -309,14 +309,8 @@ describe("LiveKit installer contract", () => {
   });
 
   it("bootstraps the shared configuration library", async () => {
-    for (const file of [
-      "bootstrap-local.sh",
-      "bootstrap-local.ps1",
-      "bootstrap-external.sh",
-      "bootstrap-external.ps1",
-    ]) {
-      assert.match(await read(file), /livekit-config\.mjs/);
-    }
+    const manifest = JSON.parse(await read('installer-release.json'));
+    assert.deepEqual(manifest.files['lib/livekit-config.mjs'].modes, ['local', 'external']);
   });
 
   it("renders managed TLS against the correct platform upstream", () => {

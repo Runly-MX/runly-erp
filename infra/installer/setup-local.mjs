@@ -25,7 +25,9 @@ import {
 import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME, LINUX_HOST_NETWORK_SERVICES, probePublicHealth } from "./lib/hairpin-nat.mjs";
 import { buildTranscriberDatabaseUrl, generateTranscriberPassword } from "./lib/transcriber-db.mjs";
 import { resolveBackupConfig, getBackupComposeProfiles } from "./lib/backup-config.mjs";
-import { createStudioDatabaseRunner, prepareStudioRealtimeOwner } from './lib/studio-realtime-db.mjs';
+import { createStudioDatabaseRunner, prepareStudioRealtimeOwner, inspectStudioRealtimeFailure, assertStudioMigrationsUnblocked } from './lib/studio-realtime-db.mjs';
+import { prepareExternalStudioRealtime } from './lib/studio-realtime-external.mjs';
+import { applyStoredImageSelections, acquireInstallerDeployment, verifyRuntimeImages, getUserComposeOverrides, resolveComposeMigrationNetwork } from './lib/installer-runtime.mjs';
 
 const argv = new Set(process.argv.slice(2));
 const skipComposeUp = argv.has("--skip-compose-up");
@@ -39,6 +41,7 @@ const npxCommand = "npx";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const installerDir = __dirname;
+applyStoredImageSelections({ cwd: installerDir, mode: 'local' });
 const composeFile = path.resolve(__dirname, "docker-compose.yml");
 const linuxComposeOverride = path.resolve(__dirname, "docker-compose.linux.yml");
 const hairpinComposeOverride = path.resolve(__dirname, HAIRPIN_OVERRIDE_FILENAME);
@@ -1145,7 +1148,9 @@ ${supabaseComposeSecrets}
   return { liveKit, office, supabase, transcriptionMode, miraiTtsMode, backup };
 }
 
+let releaseDeployment = () => {};
 async function main() {
+  releaseDeployment = acquireInstallerDeployment(installerDir);
   // ── docs-only shortcut ────────────────────────────────────────────────────
   if (docsOnly) {
     console.log("[setup-local] --docs-only: downloading Dev Kit files only.");
@@ -1228,7 +1233,7 @@ async function main() {
     hostNetworkServices: isLinux ? LINUX_HOST_NETWORK_SERVICES : [],
   });
   hairpinHosts = hairpin.hostnames;
-  composeFiles = [...composeFiles, ...hairpin.composeArgs];
+  composeFiles = [...composeFiles, ...hairpin.composeArgs, ...getUserComposeOverrides(installerDir, 'local')];
   if (supabase.mode === "selfhosted") {
     console.log(`  Supabase gateway (Kong): port ${supabase.ports.kongPort} (bind: ${process.env.RUNLY_PUBLIC_BIND_ADDR || "0.0.0.0"})`);
     console.log(`  Supabase Studio: 127.0.0.1:${supabase.ports.studioPort} (loopback only — use an SSH tunnel)`);
@@ -1269,11 +1274,16 @@ async function main() {
     tryRun("docker", ["image", "prune", "-f"]);
   }
 
+  const pinned = verifyRuntimeImages({ cwd: installerDir, mode: 'local', images: { api: resolvedApiImage, worker: resolvedWorkerImage, web: resolvedWebImage } });
+  resolvedApiImage = pinned.api; resolvedWorkerImage = pinned.worker; resolvedWebImage = pinned.web;
   let migrateNetworkArgs = [];
   if (supabaseMode === "selfhosted") {
     console.log("[6b/8] Starting self-hosted Supabase and waiting for it to become healthy...");
     run("docker", ["compose", ...composeFiles, "up", "-d", ...SELF_HOSTED_SUPABASE_REQUIRED_SERVICES, ...SELF_HOSTED_SUPABASE_BEST_EFFORT_SERVICES]);
     await waitForSelfHostedSupabaseHealthy(identity.containerPrefix);
+    assertStudioMigrationsUnblocked(inspectStudioRealtimeFailure(createStudioDatabaseRunner({composeArgs:composeFiles,cwd:installerDir})));
+    migrateNetworkArgs = resolveComposeMigrationNetwork({ cwd: installerDir, composeArgs: composeFiles });
+    prepareExternalStudioRealtime({ image: resolvedApiImage, envFile: localEnvFile, cwd: installerDir, diagnose:true, dockerArgs:migrateNetworkArgs });
     console.log('[6c/8] Preparing Studio Realtime with the database schema owner...');
     await prepareStudioRealtimeOwner({
       execute:createStudioDatabaseRunner({composeArgs:composeFiles,cwd:installerDir}),
@@ -1283,9 +1293,10 @@ async function main() {
     // services), so they must explicitly join this project's network to
     // reach supabase-db by service name — Compose's default network is
     // named "<project-name>_default" unless the project overrides it.
-    migrateNetworkArgs = ["--network", `${identity.projectName}_default`];
   }
 
+  prepareExternalStudioRealtime({ image: resolvedApiImage, envFile: localEnvFile, cwd: installerDir, dockerArgs: migrateNetworkArgs,
+    recoveryCommand: supabaseMode === 'selfhosted' ? 'node recover-studio-realtime.mjs --recover-known-failure --api-image=YOUR_EXISTING_API_IMAGE' : 'node studio-realtime-external.mjs --env-file=.env.local --recover-known-failure --api-image=YOUR_EXISTING_API_IMAGE' });
   console.log("[7/8] Running migrations and seed...");
   run("docker", [
     "run", "--rm",
@@ -1400,5 +1411,5 @@ main().catch((error) => {
   console.error("");
   console.error("[setup-local] Error:");
   console.error(error.message);
-  process.exit(1);
-});
+  process.exitCode = 1;
+}).finally(() => releaseDeployment());

@@ -2,6 +2,7 @@
 import { canonicalizeRunlyEnvText, preserveEnvAssignments, syncMissingEnvFile } from "./lib/env-compat.mjs";
 import { resolveDevKitDir } from './lib/devkit-installer.mjs';
 import { prepareExternalStudioRealtime } from './lib/studio-realtime-external.mjs';
+import { applyStoredImageSelections, acquireInstallerDeployment, verifyRuntimeImages, getUserComposeOverrides, externalMigrationNetwork } from './lib/installer-runtime.mjs';
 import { configureOffice, checkOfficeRuntime } from "./lib/office-config.mjs";
 import { configureFirebase } from "./lib/firebase-config.mjs";
 import { resolveInstanceIdentity, renderInstanceIdentityEnv } from "./lib/instance-identity.mjs";
@@ -49,6 +50,7 @@ const isWindows   = process.platform === "win32";
 const __filename    = fileURLToPath(import.meta.url);
 const __dirname     = path.dirname(__filename);
 const installerDir  = __dirname;
+applyStoredImageSelections({ cwd: installerDir, mode: 'external' });
 const composeFile   = path.resolve(__dirname, "docker-compose.yml");
 const linuxComposeOverride = path.resolve(__dirname, "docker-compose.linux.yml");
 const envFile       = path.resolve(__dirname, ".env.external");
@@ -960,7 +962,9 @@ async function downloadDevKit() {
 
 // ── main ─────────────────────────────────────────────────────────────────────
 
+let releaseDeployment = () => {};
 async function main() {
+  releaseDeployment = acquireInstallerDeployment(installerDir);
   let liveKit = resolveLiveKitConfig({
     deployment: "external",
     isLinux,
@@ -1057,6 +1061,7 @@ async function main() {
   // ── 4. Pull images ─────────────────────────────────────────────────────────
   await fs.mkdir(path.resolve(installerDir, "custom-modules"), { recursive: true });
 
+  composeFiles = [...composeFiles, ...getUserComposeOverrides(installerDir, 'external')];
   let resolvedApiImage    = apiImage;
   let resolvedWorkerImage = workerImage;
   let resolvedWebImage    = webImage;
@@ -1084,6 +1089,13 @@ async function main() {
   }
 
   // ── 5. Migrate + seed (first install or explicit reset) ───────────────────
+  const pinned = verifyRuntimeImages({ cwd: installerDir, mode: 'external', images: { api: resolvedApiImage, worker: resolvedWorkerImage, web: resolvedWebImage } });
+  resolvedApiImage = pinned.api; resolvedWorkerImage = pinned.worker; resolvedWebImage = pinned.web;
+  const migrationEnv = await fs.readFile(envFile, 'utf8');
+  if (!(skipMigrate || upOnly) || parseEnvValue(migrationEnv, 'RUNLY_SKIP_DB_INIT') !== '1') {
+    console.log('Checking Studio Realtime before any API database initialization...');
+    prepareExternalStudioRealtime({ image: resolvedApiImage, envFile, cwd: installerDir, dockerArgs:externalMigrationNetwork(migrationEnv), prepare:!(skipMigrate || upOnly) });
+  }
   if (skipMigrate || upOnly) {
     console.log("[5/5] Skipping migrations.");
   } else {
@@ -1092,11 +1104,10 @@ async function main() {
     // same machine; harmless when pointing to a remote host.
     const dockerRunBase = [
       "run", "--rm",
+      ...externalMigrationNetwork(await fs.readFile(envFile, 'utf8')),
       "--add-host", "host.docker.internal:host-gateway",
       "--env-file", envFile,
     ];
-    console.log('Preparing Studio Realtime before migrations...');
-    prepareExternalStudioRealtime({ image: resolvedApiImage, envFile, cwd: installerDir });
     run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:migrate"]);
     run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:seed"]);
     if (transcription.mode === "local") {
@@ -1161,5 +1172,5 @@ async function main() {
 main().catch((err) => {
   console.error("");
   console.error("[setup-external] Error:", err.message);
-  process.exit(1);
-});
+  process.exitCode = 1;
+}).finally(() => releaseDeployment());

@@ -65,6 +65,7 @@ export function envAssignments(text) {
 // Template values copied when a key is missing. Only non-secret, host-agnostic
 // defaults that are correct for every installer deployment belong here.
 export const SAFE_TEMPLATE_DEFAULTS = new Set([
+  'RUNLY_FCM_ENABLED',
   // The API sits behind the web container/host proxy on the Docker network.
   'RUNLY_MCP_TRUSTED_PROXIES',
   // Same proxy trust for the client IP of incoming automation webhooks.

@@ -31,7 +31,7 @@ try{
   record('Existing DB without new init SQL reproduces schema-owner failure followed by P3009')
 
   const directory=join(stack.directory,'installer')
-  for(const file of ['recover-studio-realtime.mjs','lib/studio-realtime-db.mjs','lib/instance-identity.mjs','supabase/volumes/db/studio-realtime-role.sql']){
+  for(const file of ['recover-studio-realtime.mjs','lib/studio-realtime-db.mjs','lib/studio-realtime-external.mjs','lib/installer-runtime.mjs','lib/instance-identity.mjs','supabase/volumes/db/studio-realtime-role.sql']){
     const target=join(directory,file);await mkdir(resolve(target,'..'),{recursive:true});await copyFile(join('infra/installer',file),target)
   }
   await writeFile(join(directory,'docker-compose.yml'),JSON.stringify(config,null,2))

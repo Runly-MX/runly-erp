@@ -47,6 +47,7 @@ ENV VITE_BASE_PATH=$VITE_BASE_PATH
 RUN pnpm --filter @runly/desktop build:web
 
 FROM nginx:alpine
+LABEL io.runly.installer.contract="studio-realtime-1"
 COPY --from=build /app/apps/desktop/dist /usr/share/nginx/html
 COPY infra/nginx/spa.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

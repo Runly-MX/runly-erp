@@ -22,8 +22,13 @@ if [[ ! -f .env.external ]]; then
 fi
 
 echo "[runly-update] 1/2 Refrescando scripts del instalador..."
-curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/Runly-MX/runly-erp/main/infra/installer/bootstrap-external.sh
-bash ./bootstrap-external.sh
-
-echo "[runly-update] 2/2 Actualizando Runly (pull + migrate + recreate)..."
-exec npm run runly:external
+REF="${RUNLY_INSTALLER_REF:-}"
+if [[ -z "$REF" ]]; then
+  REF=$(curl --proto '=https' --tlsv1.2 -fsS https://api.github.com/repos/Runly-MX/runly-erp/git/ref/heads/main | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>process.stdout.write(JSON.parse(s).object.sha))')
+fi
+[[ "$REF" =~ ^[a-f0-9]{40}$ ]] || { echo "INSTALLER_IMMUTABLE_REF_REQUIRED" >&2; exit 1; }
+NEXT=$(mktemp "$DIR/.bootstrap-external.XXXXXX")
+trap 'rm -f "$NEXT"' EXIT
+curl --proto '=https' --tlsv1.2 -fsSLo "$NEXT" "https://raw.githubusercontent.com/Runly-MX/runly-erp/$REF/infra/installer/bootstrap-external.sh"
+bash -n "$NEXT"
+RUNLY_INSTALLER_REF="$REF" bash "$NEXT" --run

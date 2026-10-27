@@ -124,3 +124,4 @@ apps/desktop/native-host/shell/runly-mark.svg
 kotlin-compiler-*.log
 # Local Studio verification artifacts (screenshots, bundles and logs).
 .artifacts/studio/
+infra/installer/.runly-installer/

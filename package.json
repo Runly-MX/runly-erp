@@ -23,6 +23,8 @@
     "docker:build": "node infra/docker/build-push.mjs --build",
     "docker:push": "node infra/docker/build-push.mjs --push",
     "docker:release": "node infra/docker/build-push.mjs",
+    "installer:manifest": "node scripts/generate-installer-release.mjs",
+    "installer:check": "node scripts/generate-installer-release.mjs --check",
     "docker:release:all": "node infra/docker/build-push.mjs --all",
     "docker:release:check": "node infra/docker/build-push.mjs --dry-run",
     "docker:release:arm64": "node infra/docker/build-push.mjs --all --arm64",
