@@ -89,7 +89,7 @@ export function AutomationTestDialog({ moduleKey, open, onOpenChange, automation
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {fieldOptions.map((field) => (
-                  <TextField key={field.value} label={field.label} hint={field.description} placeholder={field.example ? `Ej. ${field.example}` : undefined}
+                  <TextField key={field.value} label={field.label} hint={[field.value !== field.label ? field.value : null, field.description].filter(Boolean).join(" · ") || undefined} placeholder={field.example ? `Ej. ${field.example}` : undefined}
                     value={sample[field.value] ?? ""} onChange={(e) => setSample((current) => ({ ...current, [field.value]: e.target.value }))} />
                 ))}
               </div>

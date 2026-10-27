@@ -307,18 +307,48 @@ export function describeAutomationDiagnostic(diagnostic) {
 
 export const keyOf = (item) => item.key ?? item.name;
 
+// Friendly name of a technical key when nobody labelled it: modelId -> "Modelo",
+// created_at -> "Creado". A trailing "Id" only says it points to another record.
+const WORDS = {
+  model: "modelo", brand: "marca", status: "estado", plate: "placa", title: "título", name: "nombre", description: "descripción", email: "correo", phone: "teléfono",
+  date: "fecha", amount: "monto", total: "total", quantity: "cantidad", price: "precio", type: "tipo", category: "categoría", location: "ubicación", project: "proyecto",
+  task: "tarea", user: "usuario", customer: "cliente", supplier: "proveedor", vehicle: "vehículo", account: "cuenta", course: "curso", file: "archivo", employee: "colaborador",
+  contact: "contacto", order: "orden", invoice: "factura", case: "expediente", number: "número", code: "código", notes: "notas", created: "creado", updated: "actualizado",
+  start: "inicio", end: "fin", due: "vence", year: "año", color: "color", serial: "serie", first: "nombre", last: "apellidos", mime: "tipo de", size: "tamaño", minutes: "minutos",
+  deposito: "depósito", retiro: "retiro", fecha: "fecha", job: "puesto", department: "departamento", assignee: "responsable", priority: "prioridad", currency: "moneda", learner: "persona",
+};
+export function friendlyLabel(key) {
+  const words = String(key ?? "").replace(/([a-z0-9])([A-Z])/g, "$1 $2").split(/[\s_.-]+/).filter(Boolean).map((word) => word.toLowerCase());
+  const meaningful = words.length > 1 ? words.filter((word, index) => !(index === words.length - 1 && ["id", "at"].includes(word))) : words;
+  const text = meaningful.map((word) => WORDS[word] ?? word).join(" ");
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : String(key ?? "");
+}
+
+// Options for a data picker: the friendly name first, the technical key small and
+// searchable (typing "modelId" finds "Modelo"), the description as a second line.
+export function pickerOptions(fieldOptions = []) {
+  return fieldOptions.map((option) => {
+    const technical = String(option.value).replace(/^paso\d+_/, "");
+    return {
+      ...option,
+      hint: technical !== option.label ? String(option.value) : undefined,
+      keywords: [technical, option.description].filter(Boolean).join(" "),
+    };
+  });
+}
+
 // Fields a block can read from the trigger: the entity's fields, the event payload
 // or the fields a webhook announces.
 export function fieldOptionsFor(trigger, entities = [], events = []) {
-  if (trigger.type === "webhook") return (trigger.fields ?? []).map((field) => ({ value: field.key, label: field.label || field.key }));
+  if (trigger.type === "webhook") return (trigger.fields ?? []).map((field) => ({ value: field.key, label: field.label || friendlyLabel(field.key) }));
   if (trigger.type === "event") {
     const event = events.find((item) => item.key === trigger.event);
     // The catalog describes each field; an older API only sends the bare keys.
     if (event?.fields?.length) return event.fields.map((item) => ({ value: item.key, label: item.label, description: item.description, example: item.example, type: item.type }));
-    return (event?.payload ?? []).map((key) => ({ value: key, label: key }));
+    return (event?.payload ?? []).map((key) => ({ value: key, label: friendlyLabel(key) }));
   }
   const entity = entities.find((item) => keyOf(item) === trigger.entity);
-  return (entity?.fields ?? []).map((field) => ({ value: keyOf(field), label: field.label ?? keyOf(field) }));
+  return (entity?.fields ?? []).map((field) => ({ value: keyOf(field), label: field.label ?? friendlyLabel(keyOf(field)) }));
 }
 
 const OUTPUT_LABELS = {
@@ -342,7 +372,7 @@ export function withStepOutputs(triggerOptions, steps, index, ownerOf = () => ""
     if (!contract) return;
     const owner = ownerOf(step.service);
     const group = `Del paso ${stepIndex + 1} · ${contract.label}${owner ? ` (${owner})` : ""}`;
-    for (const value of stepOutputKeys(stepIndex, contract)) options.push({ value, label: OUTPUT_LABELS[outputKey(value)] ?? outputKey(value), group });
+    for (const value of stepOutputKeys(stepIndex, contract)) options.push({ value, label: OUTPUT_LABELS[outputKey(value)] ?? friendlyLabel(outputKey(value)), group });
   });
   return options;
 }

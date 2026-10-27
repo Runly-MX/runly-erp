@@ -16,6 +16,7 @@ import { useAuth } from "../../../../auth/AuthProvider";
 import { runly } from "../../../../lib/runly";
 import { PeoplePicker } from "./PeoplePicker";
 import { ARG_LABELS, argLabel } from "../../lib/argLabels";
+import { pickerOptions } from "../../lib/flowModel";
 
 
 // What an argument is for, in one line (only where the name is not obvious).
@@ -72,7 +73,7 @@ function toLiteral(spec, text) {
 const fromLiteral = (value) => (Array.isArray(value) ? value.join(", ") : value === undefined || value === null ? "" : String(value));
 
 // Options of a select: data from earlier blocks say where they come from.
-const selectOptions = (fieldOptions) => fieldOptions.map((option) => ({ value: option.value, label: option.group && !option.group.startsWith("Del disparador") ? `${option.label} · ${option.group.replace(/^Del /, "")}` : option.label }));
+const selectOptions = (fieldOptions) => pickerOptions(fieldOptions).map((option) => ({ ...option, label: option.group && !option.group.startsWith("Del disparador") ? `${option.label} · ${option.group.replace(/^Del /, "")}` : option.label }));
 
 // People of the company to pick recipients from (never typed as ids).
 function PeopleValueInput({ label, value, readOnly, onChange }) {
@@ -91,7 +92,7 @@ function DataChips({ fieldOptions, onInsert }) {
         <button
           key={option.value}
           type="button"
-          title={option.group ?? undefined}
+          title={[option.group, option.value].filter(Boolean).join(" · ") || undefined}
           onClick={() => onInsert(option.value)}
           className="cursor-pointer rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/50 px-2 py-0.5 text-xs hover:bg-(--brand-primary)/15 [@media(pointer:coarse)]:min-h-9 [@media(pointer:coarse)]:px-2.5"
         >

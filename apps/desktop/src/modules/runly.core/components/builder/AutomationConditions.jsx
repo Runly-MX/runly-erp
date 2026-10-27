@@ -3,6 +3,7 @@
 import { Button, SelectField, TextField } from "@runly/ui";
 import { Plus, Trash2 } from "lucide-react";
 import { MAX_CONDITIONS, conditionsOf } from "@runly/module-compiler/browser";
+import { pickerOptions } from "../../lib/flowModel";
 
 const OP_OPTIONS = [
   { value: "equals", label: "Es igual a" },
@@ -45,7 +46,7 @@ export function AutomationConditions({ trigger, fieldOptions, readOnly, onChange
       <p className="text-sm font-medium">{heading ?? `Solo si${list.length ? "" : " (siempre)"}`}</p>
       {list.map((condition, index) => (
         <div key={index} className="grid gap-2 @md:grid-cols-[1fr_1fr_1fr_auto] @md:items-end">
-          <SelectField label={index === 0 ? "Campo" : "Y además"} options={fieldOptions} value={condition.field ?? ""} disabled={readOnly}
+          <SelectField label={index === 0 ? "Campo" : "Y además"} options={pickerOptions(fieldOptions)} value={condition.field ?? ""} disabled={readOnly}
             onValueChange={(field) => update(index, { ...condition, field })} />
           <SelectField label="Condición" options={ops} value={condition.op} disabled={readOnly}
             onValueChange={(op) => update(index, { field: condition.field, op, ...valueFor(op, condition.value) })} />
