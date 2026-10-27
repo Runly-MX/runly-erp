@@ -218,3 +218,10 @@ de producto sobre los contenedores. Arrancó también el Worker. Comprobó:
 Las capturas de retirada y recuperación del catálogo se revisaron visualmente.
 El bloqueo público de búsquedas Openverse descrito arriba continúa: el simulador
 demuestra la integración, no disponibilidad de ese proveedor externo.
+
+## Commits
+
+- `0e132441` — eliminación lógica, autorización, conservación de referencias,
+  SDK/UI, transporte acotado, catálogo local, diagnóstico, documentación y pruebas.
+- El cierre documental que añade esta referencia no cambia el producto ni los
+  archivos concurrentes del Installer o de edición de imágenes.
