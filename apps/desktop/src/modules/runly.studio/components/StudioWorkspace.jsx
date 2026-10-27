@@ -373,15 +373,18 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
               </Alert>
             ) : null}
           </div>
-          <div className={cn('pointer-events-none absolute z-20', phone ? 'bottom-2 right-2' : 'bottom-4 right-4')}>
+          {/* On phones both controls share one bottom row (page switcher left, zoom right); wrap-reverse moves the switcher up only when they do not fit. */}
+          <div className={cn('pointer-events-none absolute z-20', phone ? 'inset-x-2 bottom-2 flex flex-row-reverse flex-wrap-reverse items-end justify-between gap-2' : 'contents')}>
+          <div className={cn('pointer-events-none', !phone && 'absolute bottom-4 right-4 z-20')}>
             <ZoomPill compact={phone} zoom={zoom} onZoom={view.changeZoom} onFit={view.fit} hand={view.hand} onHand={view.setHand}>
               <CanvasPreferencesMenu canvas={canvas} compact={phone} />
             </ZoomPill>
           </div>
-          <div className={cn('pointer-events-none absolute z-20 flex', phone ? 'inset-x-0 bottom-16 justify-center' : 'bottom-4 left-4')}>
+          <div className={cn('pointer-events-none flex', !phone && 'absolute bottom-4 left-4 z-20')}>
             <PageSwitcher index={activeIndex} total={pageCount} label={pageList[activeIndex]?.label ?? ''} compact={phone} navigatorOpen={browsing} disabled={!ready}
               onPrev={() => goToPage(pageList[activeIndex - 1].id)} onNext={() => goToPage(pageList[activeIndex + 1].id)}
               onBrowse={() => (phone ? setPanel(current => (current === 'pages' ? null : 'pages')) : setBrowsing(value => !value))} />
+          </div>
           </div>
           <p className={cn('pointer-events-none absolute bottom-16 z-10 hidden text-xs tabular-nums text-[hsl(var(--muted-foreground))] md:block', canvas.preferences.grid.rulers ? 'left-8' : 'left-4')}>{page.width} × {page.height} px</p>
           {browsing ? <PageNavigator onClose={() => { setBrowsing(false); requestAnimationFrame(() => document.querySelector('[data-page-browse]')?.focus()) }} {...pagesProps} /> : null}

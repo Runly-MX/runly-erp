@@ -6,13 +6,15 @@ import { PagesPanel } from './PagesPanel.jsx'
 // Compact "Página 2 de 5" control over the canvas: previous/next page and the
 // way into the page browser (full navigator on desktop, bottom sheet on phone).
 export function PageSwitcher({ index, total, label, compact, navigatorOpen, onPrev, onNext, onBrowse, disabled }) {
+  // A single page has nothing to step through: on phones only the count and the browser button remain.
+  const single = compact && total <= 1
   return (
     <div role="group" aria-label="Navegación entre páginas" className="pointer-events-auto flex items-center rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-0.5 shadow-md">
-      <ToolButton label="Página anterior" side="top" disabled={disabled || index <= 0} onClick={onPrev} className="h-8 w-8"><ChevronLeft /></ToolButton>
-      <span className={cn('px-2 text-center text-xs font-medium tabular-nums', compact ? 'min-w-[4.5rem]' : 'min-w-[7rem]')} aria-live="polite" aria-atomic="true">
+      {single ? null : <ToolButton label="Página anterior" side="top" disabled={disabled || index <= 0} onClick={onPrev} className="h-8 w-8"><ChevronLeft /></ToolButton>}
+      <span className={cn('px-2 text-center text-xs font-medium tabular-nums', compact ? (single ? 'min-w-[2.75rem]' : 'min-w-[3.5rem]') : 'min-w-[7rem]')} aria-live="polite" aria-atomic="true">
         {compact ? `${index + 1} / ${total}` : <>Página {index + 1} de {total}<span className="sr-only">: {label}</span></>}
       </span>
-      <ToolButton label="Página siguiente" side="top" disabled={disabled || index >= total - 1} onClick={onNext} className="h-8 w-8"><ChevronRight /></ToolButton>
+      {single ? null : <ToolButton label="Página siguiente" side="top" disabled={disabled || index >= total - 1} onClick={onNext} className="h-8 w-8"><ChevronRight /></ToolButton>}
       <span aria-hidden className="mx-0.5 h-5 w-px bg-[hsl(var(--border))]" />
       <ToolButton data-page-browse label={navigatorOpen ? 'Volver al lienzo' : 'Ver todas las páginas'} side="top" active={navigatorOpen} onClick={onBrowse} className="h-8 w-8"><LayoutGrid /></ToolButton>
     </div>
