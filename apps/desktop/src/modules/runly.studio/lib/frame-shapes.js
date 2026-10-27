@@ -91,6 +91,12 @@ export const FILTER_PRESETS = Object.freeze([
   { key: 'mono', label: 'Blanco y negro', adjustments: { brightness: 0, contrast: 0.05, saturation: 0, blur: 0, grayscale: true, sepia: false } },
   { key: 'noir', label: 'Noir', adjustments: { brightness: -0.05, contrast: 0.4, saturation: 0, blur: 0, grayscale: true, sepia: false } },
   { key: 'vintage', label: 'Vintage', adjustments: { brightness: 0.05, contrast: -0.1, saturation: -0.15, blur: 0, grayscale: false, sepia: true } },
+  { key: 'punch', label: 'Intenso', adjustments: { brightness: 0, contrast: 0.3, saturation: 0.55, blur: 0, grayscale: false, sepia: false } },
+  { key: 'fade', label: 'Desvanecido', adjustments: { brightness: 0.12, contrast: -0.25, saturation: -0.3, blur: 0, grayscale: false, sepia: false } },
+  { key: 'matte', label: 'Mate', adjustments: { brightness: 0.05, contrast: -0.2, saturation: -0.2, blur: 0, grayscale: false, sepia: false } },
+  { key: 'antique', label: 'Antiguo', adjustments: { brightness: -0.05, contrast: 0.2, saturation: 0, blur: 0, grayscale: false, sepia: true } },
+  { key: 'silver', label: 'Plata', adjustments: { brightness: 0.12, contrast: 0.1, saturation: 0, blur: 0, grayscale: true, sepia: false } },
+  { key: 'bright', label: 'Luminoso', adjustments: { brightness: 0.2, contrast: 0.05, saturation: 0.15, blur: 0, grayscale: false, sepia: false } },
   { key: 'dream', label: 'Ensueño', adjustments: { brightness: 0.1, contrast: -0.1, saturation: 0.1, blur: 0.08, grayscale: false, sepia: false } },
 ])
 

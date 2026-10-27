@@ -6,6 +6,8 @@ import { runly } from '../../../lib/runly.js'
 import { scheduled } from '../lib/resource-queue.js'
 import { draggable } from '../lib/studio-drag.js'
 
+// Every tab of the images panel (files, photos, illustrations, icons) uses the same grid.
+export const RESOURCE_GRID = 'grid grid-cols-2 gap-2'
 const unwrap = response => response?.data ?? response
 // Limit simultaneous decoding/downloads even when many cards enter the viewport.
 
@@ -104,9 +106,9 @@ export function StudioResources({ token, disabled, onInsert, uploader }) {
         <ToolButton label="Actualizar" side="left" onClick={() => setRetry(value => value + 1)} className="shrink-0"><RefreshCw /></ToolButton>
       </div>
       {error ? <ErrorState title="Recurso no disponible" description={error} showReport={false} onRetry={() => setRetry(value => value + 1)} /> : null}
-      {loading ? <div className="grid grid-cols-2 gap-2" aria-busy="true" aria-label="Buscando imágenes">{Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="aspect-square rounded-xl" />)}</div> : null}
+      {loading ? <div className={RESOURCE_GRID} aria-busy="true" aria-label="Buscando imágenes">{Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="aspect-square rounded-xl" />)}</div> : null}
       {result?.data.length === 0 ? <EmptyState variant="compact" icon={Images} title="Sin imágenes" description="Sube una imagen o cambia la búsqueda." /> : null}
-      {result?.data.length ? <div className="grid grid-cols-2 gap-2">{result.data.map(asset => (
+      {result?.data.length ? <div className={RESOURCE_GRID}>{result.data.map(asset => (
         <ResourceCard key={asset.id} asset={asset} token={token} disabled={disabled || Boolean(inserting)} inserting={inserting === asset.id} onInsert={insert} onDragInsert={onInsert} onPreview={open} />
       ))}</div> : null}
       {totalPages > 1 ? (

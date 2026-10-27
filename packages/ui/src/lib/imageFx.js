@@ -4,6 +4,7 @@
 // be undone, moved and rotated with the picture like any other element.
 
 import { applyOps, colorOps, softBlur } from "./canvasColor.js";
+import { eraseBounds, eraseStroke } from "./imageErase.js";
 
 export const FX_MODES = [
   { id: "blur", label: "Desenfocar" },
@@ -27,6 +28,7 @@ function adjustFor(mode, strength) {
 
 // Bounds of a retouch element on a canvas of the given size.
 export function fxStrokeBounds(s, width, height) {
+  if (s.mode === "erase") return eraseBounds(s, width, height);
   return strokeBounds(s.points, s.size, width, height, s.mode === "pixelate" ? pixelBlock(s) : 1);
 }
 
@@ -68,6 +70,7 @@ function pixelate(effect, block) {
 }
 
 export function applyFxStroke(canvas, s) {
+  if (s.mode === "erase") return eraseStroke(canvas, s);
   const grid = s.mode === "pixelate" ? pixelBlock(s) : 1;
   const bb = strokeBounds(s.points, s.size, canvas.width, canvas.height, grid);
   if (!bb) return;

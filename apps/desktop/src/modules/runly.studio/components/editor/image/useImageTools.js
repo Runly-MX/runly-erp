@@ -98,9 +98,9 @@ export function useImageTools({ editorRef, selection, objects, resolveImage, rea
     resetFraming: () => run(() => editor().resetImageFraming()),
     // The photo editor reads the image through the design's saved assets, so a
     // just-inserted photo needs the design saved first.
-    editImage: () => run(async () => {
+    editImage: options => run(async () => {
       if (ensureSaved) await ensureSaved()
-      await editor().editImage()
+      await editor().editImage(undefined, options)
     }),
     startFraming,
     openPanel,

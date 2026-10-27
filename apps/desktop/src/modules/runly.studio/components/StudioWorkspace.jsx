@@ -94,7 +94,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
       authorizePage: callbacksRef.current.authorizePage ? (...args) => callbacksRef.current.authorizePage(...args) : undefined,
       onActivePage: (id, viewport) => { setActivePageId(id); if (viewport) view.restore(viewport); else requestAnimationFrame(() => requestAnimationFrame(() => fitRef.current())) },
       sharedClipboard, authorizePaste: objects => callbacksRef.current.authorizePaste?.(objects),
-      onEditImage: id => callbacksRef.current.onEditImage?.(id),
+      onEditImage: (id, options) => callbacksRef.current.onEditImage?.(id, options),
       onGuides: guides => callbacksRef.current.onGuides?.(guides), onEditorPreferences: state => callbacksRef.current.onEditorPreferences?.(state),
       readOnly: modeRef.current, onPointer: point => callbacksRef.current.onPointer?.(point && point.x >= 0 && point.y >= 0 && point.x <= pageRef.current.width && point.y <= pageRef.current.height ? point : null),
       onChange: (document, meta) => callbacksRef.current.changed(document, meta), onSelection: (selection, ids) => { setSelection(selection); setSelectedIds(ids); callbacksRef.current.onSelectionChange?.(selection?.id ?? null) }, onError: setError, onHistory: setHistory }))

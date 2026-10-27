@@ -20,7 +20,8 @@ export async function exportImageDocument(source, doc, { originalResolution = fa
   const c = doc.cropN;
   if (![c.x,c.y,c.w,c.h].every(Number.isFinite) || c.x < 0 || c.y < 0 || c.w <= 0 || c.h <= 0 || c.x + c.w > 1.000001 || c.y + c.h > 1.000001) throw Error('Recorte no válido.');
   const out = c.x === 0 && c.y === 0 && c.w === 1 && c.h === 1 ? retouched : cropRect(retouched, { x: c.x * retouched.width, y: c.y * retouched.height, w: c.w * retouched.width, h: c.h * retouched.height });
-  const type = mimeType === 'image/png' || mimeType === 'image/gif' || doc.transform.angle !== 0 ? 'image/png' : mimeType === 'image/webp' ? 'image/webp' : 'image/jpeg';
+  const erased = doc.annotations.some(a => a.type === 'fx' && a.mode === 'erase');
+  const type = erased || mimeType === 'image/png' || mimeType === 'image/gif' || doc.transform.angle !== 0 ? 'image/png' : mimeType === 'image/webp' ? 'image/webp' : 'image/jpeg';
   const ext = type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
   try { return await canvasToFile(out, { name: `${fileName.replace(/\.[^.]+$/, '')}-editada.${ext}`, type }); }
   finally { for (const canvas of new Set([flat, retouched, out])) { canvas.width = 0; canvas.height = 0; } }

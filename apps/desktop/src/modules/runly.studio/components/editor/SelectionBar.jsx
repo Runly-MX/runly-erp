@@ -19,7 +19,7 @@ export function SelectionBar({ selection, selectedCount, disabled, onPatch, onAc
   const locked = Boolean(selection?.locked), editable = disabled || locked
   return (
     <div role="toolbar" aria-label="Opciones de la selección"
-      className="glass pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-0.5 rounded-2xl p-1 shadow-lg [scrollbar-width:none] max-sm:flex-nowrap max-sm:justify-start max-sm:overflow-x-auto max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11 max-sm:[&>*]:shrink-0">
+      className="glass pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-0.5 rounded-2xl p-1 shadow-lg [scrollbar-width:none] max-sm:flex-nowrap max-sm:justify-start max-sm:overflow-x-auto max-sm:rounded-xl max-sm:p-0.5 max-sm:[&_button]:h-9 max-sm:[&_button]:min-h-9 max-sm:[&_button]:min-w-9 max-sm:[&>*]:shrink-0">
       {selection ? (
         <>
           {selection.type === 'text' ? <TextSelectionControls selection={selection} disabled={editable} onPatch={onPatch} live={imageTools} />

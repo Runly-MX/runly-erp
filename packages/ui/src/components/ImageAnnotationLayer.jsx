@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import {
   arrowHead, bounds, brushPasses, hitTest, isMeaningful, newAnnotationId, normalizeRect, textBackground, textBox, translateAnnotation,
 } from "../lib/imageAnnotations.js";
+import { AREA_SHAPES } from "../lib/imageErase.js";
 
 function Shape({ a }) {
   const common = { fill: "none", stroke: a.color, strokeWidth: a.width, strokeLinecap: "round", strokeLinejoin: "round" };
@@ -40,6 +41,30 @@ function Shape({ a }) {
     );
   }
   return null; // "fx" strokes are painted into the photo canvas
+}
+
+// Dashed outline of the area being erased (rectangle, oval or lasso).
+function EraseOutline({ a, unit }) {
+  const first = a.points[0];
+  const last = a.points[a.points.length - 1];
+  const common = { fill: "none", strokeDasharray: `${unit * 6} ${unit * 4}`, pointerEvents: "none" };
+  let node;
+  if (a.shape === "lasso") node = (c) => <polygon points={a.points.map((q) => q.join(",")).join(" ")} {...c} />;
+  else {
+    const x = Math.min(first[0], last[0]);
+    const y = Math.min(first[1], last[1]);
+    const w = Math.abs(first[0] - last[0]);
+    const h = Math.abs(first[1] - last[1]);
+    node = a.shape === "rect"
+      ? (c) => <rect x={x} y={y} width={w} height={h} {...c} />
+      : (c) => <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...c} />;
+  }
+  return (
+    <>
+      {node({ ...common, stroke: "#000", strokeWidth: unit * 3, opacity: 0.5 })}
+      {node({ ...common, stroke: "#fff", strokeWidth: unit * 1.5 })}
+    </>
+  );
 }
 
 // SVG layer over the editor stage. Always renders the vector annotations; when
@@ -96,9 +121,14 @@ export function ImageAnnotationLayer({
     event.currentTarget.setPointerCapture(event.pointerId);
     const base = { id: newAnnotationId(), color, width: width * kk };
     if (tool === "fx") {
-      const stroke = { id: base.id, type: "fx", mode: fx.mode, size: fx.size * kk, strength: fx.strength, points: [p] };
+      const erase = fx.mode === "erase";
+      const shape = erase ? fx.shape : null;
+      const stroke = {
+        id: base.id, type: "fx", mode: fx.mode, size: shape && shape !== "brush" ? 0 : fx.size * kk, strength: fx.strength, points: [p],
+        ...(erase ? { shape, tolerance: fx.tolerance, contiguous: fx.contiguous } : {}),
+      };
       setDraft(stroke);
-      onLiveFx?.(stroke);
+      if (shape !== "color") onLiveFx?.(stroke);
     } else if (tool === "pen") setDraft({ ...base, type: "pen", brush, points: [p] });
     else if (tool === "line" || tool === "arrow") setDraft({ ...base, type: tool, from: p, to: p });
     else if (tool === "rect" || tool === "ellipse") setDraft({ ...base, type: tool, origin: p, x: p[0], y: p[1], w: 0, h: 0 });
@@ -123,7 +153,9 @@ export function ImageAnnotationLayer({
     if (!draft) return;
     const p = toPicture(event);
     let next;
-    if (draft.type === "pen" || draft.type === "fx") next = { ...draft, points: [...draft.points, p] };
+    if (draft.shape === "color") return;
+    if (draft.shape === "rect" || draft.shape === "ellipse") next = { ...draft, points: [draft.points[0], p] };
+    else if (draft.type === "pen" || draft.type === "fx") next = { ...draft, points: [...draft.points, p] };
     else if (draft.type === "line" || draft.type === "arrow") next = { ...draft, to: p };
     else next = { ...draft, ...normalizeRect(draft.origin, p) };
     setDraft(next);
@@ -137,6 +169,14 @@ export function ImageAnnotationLayer({
     const { origin: _origin, ...done } = draft;
     setDraft(null);
     // A tap with a retouch brush is a single dab.
+    if (AREA_SHAPES.includes(done.shape)) {
+      const xs = done.points.map((q) => q[0]);
+      const ys = done.points.map((q) => q[1]);
+      if (Math.max(...xs) - Math.min(...xs) < 4 * unit || Math.max(...ys) - Math.min(...ys) < 4 * unit) {
+        onLiveFx?.(null);
+        return;
+      }
+    }
     if (done.type === "fx" && done.points.length === 1) done.points = [done.points[0], [done.points[0][0] + 0.01, done.points[0][1]]];
     if (isMeaningful(done)) onAdd?.(done);
     else if (done.type === "fx") onLiveFx?.(null);
@@ -189,8 +229,9 @@ export function ImageAnnotationLayer({
       >
         {annotations.map((a) => <Shape key={a.id} a={a} />)}
         {draft && draft.type !== "fx" ? <Shape a={draft} /> : null}
-        {ringAt ? <circle cx={ringAt[0]} cy={ringAt[1]} r={draft.size / 2} fill="none" stroke="#fff" strokeWidth={unit * 1.5} /> : null}
-        {!draft && hover && tool === "fx" ? <circle cx={hover[0]} cy={hover[1]} r={(fx.size * k()) / 2} fill="none" stroke="#fff" strokeWidth={unit * 1.5} /> : null}
+        {draft?.shape && AREA_SHAPES.includes(draft.shape) ? <EraseOutline a={draft} unit={unit} /> : null}
+        {ringAt && draft.size > 0 ? <circle cx={ringAt[0]} cy={ringAt[1]} r={draft.size / 2} fill="none" stroke="#fff" strokeWidth={unit * 1.5} /> : null}
+        {!draft && hover && tool === "fx" && (fx.mode !== "erase" || fx.shape === "brush") ? <circle cx={hover[0]} cy={hover[1]} r={(fx.size * k()) / 2} fill="none" stroke="#fff" strokeWidth={unit * 1.5} /> : null}
         {sel ? (
           <rect x={sel.x} y={sel.y} width={sel.w} height={sel.h} fill="none" strokeWidth={unit * 2} strokeDasharray={`${unit * 6} ${unit * 4}`} style={{ stroke: "hsl(var(--primary))" }} pointerEvents="none" />
         ) : null}

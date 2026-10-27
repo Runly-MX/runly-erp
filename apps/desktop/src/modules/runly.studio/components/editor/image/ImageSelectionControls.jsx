@@ -72,9 +72,10 @@ export function ImageSelectionControls({ selection, disabled, tools }) {
               <DropdownMenuItem onSelect={tools.removePhotoFill} className="gap-2.5"><PaintBucket className="h-4 w-4" />Quitar la foto (volver al color)</DropdownMenuItem>
             </>
           ) : null}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => tools.editImage({ tab: 'erase' })} className="gap-2.5"><Eraser className="h-4 w-4" />Borrar y quitar fondo</DropdownMenuItem>
           {tools.removeBackground ? (
             <>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={tools.removeBackground} className="gap-2.5"><Eraser className="h-4 w-4" />Quitar fondo</DropdownMenuItem>
             </>
           ) : null}

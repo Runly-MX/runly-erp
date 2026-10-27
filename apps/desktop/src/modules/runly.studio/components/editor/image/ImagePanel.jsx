@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button, EmptyState, NumberStepper, SegmentedControl, SliderRow, Switch, ToolButton, cn } from '@runly/ui'
-import { ChevronDown, Crop, FlipHorizontal2, FlipVertical2, ImageIcon, PaintBucket, RotateCcw, RotateCw, WandSparkles } from 'lucide-react'
+import { ChevronDown, Crop, Eraser, FlipHorizontal2, FlipVertical2, ImageIcon, PaintBucket, RotateCcw, RotateCw, WandSparkles } from 'lucide-react'
 import { imageProperties } from '../../../../../../../shared/studio/image-properties.js'
 import { FILTER_PRESETS, activeFilter, adjustmentsCss } from '../../../lib/frame-shapes.js'
 import { photoOf } from '../../../lib/photo-target.js'
@@ -157,12 +157,18 @@ export function ImagePanel({ selection, imageUrl, tab, onTab, disabled, api }) {
     <div className="space-y-4">
       <SegmentedControl ariaLabel="Herramientas de imagen" options={TABS} value={tab} onChange={onTab} className="w-full [&_button]:min-w-0 [&_button]:px-1.5 [&_button]:text-xs" />
       {tab === 'crop' ? <CropTab props={props} disabled={disabled} api={api} /> : null}
-      {tab === 'filters' ? <Filters props={props} imageUrl={imageUrl} disabled={disabled} onApply={api.filter} /> : null}
+      {tab === 'filters' ? (
+        <>
+          <Filters props={props} imageUrl={imageUrl} disabled={disabled} onApply={api.filter} />
+          <Button variant="outline" className="h-11 w-full gap-2" disabled={disabled} onClick={() => api.editImage({ tab: 'filters' })}><WandSparkles />Más filtros: colores, óleo, acuarela...</Button>
+        </>
+      ) : null}
       {tab === 'adjust' ? <Adjustments key={selection.id} props={props} disabled={disabled} api={api} /> : null}
       {tab === 'effects' ? <Effects selection={selection} props={props} shape={photo.shape} disabled={disabled} api={api} /> : null}
       <div className="space-y-2 border-t border-[hsl(var(--border))] pt-4">
-        <Button variant="outline" className="h-11 w-full gap-2" disabled={disabled} onClick={api.editImage}><WandSparkles />Editor avanzado</Button>
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">Dibujo, retoque, viñeta, calidez y recorte libre se guardan como una copia; el original queda en Files.</p>
+        <Button variant="outline" className="h-11 w-full gap-2" disabled={disabled} onClick={() => api.editImage()}><WandSparkles />Editor avanzado</Button>
+        <Button variant="outline" className="h-11 w-full gap-2" disabled={disabled} onClick={() => api.editImage({ tab: 'erase' })}><Eraser />Borrar y quitar fondo</Button>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">Dibujo, retoque, borrado, viñeta, calidez y recorte libre se guardan como una copia; el original queda en Files.</p>
       </div>
     </div>
   )

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight, Bold, ChevronDown, ChevronUp, Circle, Contrast, Copy, Crop, Droplets, FlipHorizontal2, FlipVertical2, Grid3x3, Hand,
-  Highlighter, ImagePlus, Minus, MousePointer2, Moon, Palette, PenLine, Pipette, RectangleHorizontal, RotateCcw, RotateCw,
+  Eraser, Highlighter, ImagePlus, Lasso, Minus, MousePointer2, Moon, Palette, PenLine, Pipette, RectangleHorizontal, RotateCcw, RotateCw,
   Rotate3d, SlidersHorizontal, Sparkles, Sun, Trash2, Type, Undo2, Wand2,
 } from "lucide-react";
 import { Button } from "./Button.jsx";
+import { Switch } from "./Switch.jsx";
 import { ImageFilterStrip } from "./ImageFilterStrip.jsx";
 import { ANNOTATION_COLORS } from "../lib/imageAnnotations.js";
 import { FX_MODES } from "../lib/imageFx.js";
@@ -17,6 +18,7 @@ export const EDITOR_TOOLS = [
   { id: "adjust", label: "Ajustes", icon: SlidersHorizontal },
   { id: "annotate", label: "Dibujo", icon: PenLine },
   { id: "retouch", label: "Retoque", icon: Wand2 },
+  { id: "erase", label: "Borrar", icon: Eraser },
   { id: "layers", label: "Imagen", icon: ImagePlus },
 ];
 
@@ -298,6 +300,62 @@ export function RetouchPanel({ fx, count, disabled, onChange, onUndo, onClear })
       <div className="flex gap-2">
         <Button type="button" variant="outline" disabled={count === 0} onClick={onUndo} className="h-11"><Undo2 className="mr-1.5 h-4 w-4" />Quitar último</Button>
         <Button type="button" variant="ghost" disabled={count === 0} onClick={onClear} className="h-11">Limpiar retoques</Button>
+      </div>
+    </>
+  );
+}
+
+const ERASE_MODES = [
+  { id: "brush", label: "Pincel", icon: Eraser },
+  { id: "rect", label: "Rectángulo", icon: RectangleHorizontal },
+  { id: "ellipse", label: "Óvalo", icon: Circle },
+  { id: "lasso", label: "Lazo", icon: Lasso },
+  { id: "color", label: "Por color", icon: Pipette },
+];
+const ERASE_HINTS = {
+  brush: "Pasa el pincel sobre lo que quieras borrar.",
+  rect: "Arrastra para borrar un rectángulo.",
+  ellipse: "Arrastra para borrar un óvalo.",
+  lasso: "Dibuja el contorno de la zona a borrar y suelta.",
+  color: "Toca un color de la imagen y se borra todo lo parecido.",
+};
+
+export function ErasePanel({ opts, count, disabled, onChange, onAutoBackground, onUndo, onClear }) {
+  return (
+    <>
+      <Section title="Quitar fondo">
+        <Button type="button" disabled={disabled} onClick={onAutoBackground} className="h-11 w-full">
+          <Wand2 className="mr-2 h-4 w-4" />Quitar fondo liso
+        </Button>
+        <SliderRow label="Tolerancia de color" value={opts.tolerance} min={0} max={100} zero={30} format={(v) => `${v}%`} disabled={disabled} onChange={(tolerance) => onChange({ tolerance })} />
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">Borra el color de las esquinas. Funciona mejor con fondos de un solo color; para otros, usa el pincel, el lazo o Por color. Sube la tolerancia si queda un borde; también aplica a Por color.</p>
+      </Section>
+      <Section title="Borrar">
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Forma del borrado">
+          {ERASE_MODES.map(({ id, label, icon: Icon }) => (
+            <Button key={id} type="button" role="radio" aria-checked={opts.shape === id} variant={opts.shape === id ? "default" : "outline"} disabled={disabled} onClick={() => onChange({ shape: id })} className="h-12 justify-start">
+              <Icon className="mr-2 h-4 w-4" />{label}
+            </Button>
+          ))}
+        </div>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">{ERASE_HINTS[opts.shape]}</p>
+      </Section>
+      {opts.shape === "brush" ? (
+        <>
+          <SliderRow label="Tamaño del pincel" value={opts.size} min={8} max={200} zero={40} format={(v) => `${v}px`} disabled={disabled} onChange={(size) => onChange({ size })} />
+          <SliderRow label="Suavidad del borde" value={opts.softness} min={0} max={100} zero={25} format={(v) => `${v}%`} disabled={disabled} onChange={(softness) => onChange({ softness })} />
+        </>
+      ) : null}
+      {opts.shape === "color" ? (
+        <label className="flex min-h-10 items-center justify-between text-sm">
+          Solo la zona conectada
+          <Switch checked={opts.contiguous} disabled={disabled} onCheckedChange={(contiguous) => onChange({ contiguous })} aria-label="Solo la zona conectada" />
+        </label>
+      ) : null}
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">Lo borrado queda transparente y la copia se guarda como PNG. Cada borrado se puede deshacer.</p>
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" disabled={count === 0} onClick={onUndo} className="h-11"><Undo2 className="mr-1.5 h-4 w-4" />Quitar último</Button>
+        <Button type="button" variant="ghost" disabled={count === 0} onClick={onClear} className="h-11">Restaurar todo</Button>
       </div>
     </>
   );

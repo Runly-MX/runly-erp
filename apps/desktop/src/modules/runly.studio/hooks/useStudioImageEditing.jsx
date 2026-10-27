@@ -10,11 +10,11 @@ export function useStudioImageEditing({ editorRef, designId, token, canEdit }) {
   const close = useCallback(() => { active.current?.controller.abort(); active.current = null; setSession(null) },[])
   useEffect(() => close,[close,designId,token])
   useLayoutEffect(() => { mode.current=canEdit; if (!canEdit) close() },[canEdit,close])
-  const editImage = useCallback(async objectId => {
+  const editImage = useCallback(async (objectId, options) => {
     if (!mode.current) throw Error('Diseño de solo lectura.')
     close()
     const editor = editorRef.current, captured = editor.captureImage(objectId)
-    const next = {editor,...captured,controller:new AbortController()}
+    const next = {editor,...captured,tab:options?.tab,controller:new AbortController()}
     active.current = next
     const response = unwrap(await runly.studio.assetUrl(designId,captured.fileAssetId,token))
     if (active.current !== next || !mode.current || editorRef.current !== editor) return
@@ -29,6 +29,6 @@ export function useStudioImageEditing({ editorRef, designId, token, canEdit }) {
     await current.editor.replaceImage(current.object.id,copy.id,current.fingerprint)
     close()
   }
-  return {editImage,dialog:session ? <Suspense fallback={null}><SharedImageEditor open src={session.src} mimeType="image/png" fileName="studio" originalResolution
+  return {editImage,dialog:session ? <Suspense fallback={null}><SharedImageEditor open src={session.src} mimeType="image/png" fileName="studio" originalResolution initialTab={session.tab}
     title="Editar copia de la imagen" saveLabel="Guardar copia en Studio" onOpenChange={open => {if (!open) close()}} onSave={save} /></Suspense> : null}
 }

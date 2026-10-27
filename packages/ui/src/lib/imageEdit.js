@@ -2,7 +2,8 @@
 // editor for the file viewer / files module). Pure functions, no React.
 
 import { applyColorFallback, applyTint, supportsCanvasFilter } from "./canvasColor.js";
-import { presetFilter, presetTint } from "./imageFilters.js";
+import { presetEffect, presetFilter, presetTint } from "./imageFilters.js";
+import { applyEffect } from "./imageEffects.js";
 
 const MAX_WORK_SIDE = 1800;
 
@@ -93,6 +94,8 @@ export function renderTransformed(img, { quarterTurns = 0, angle = 0, flipX = fa
   ctx.drawImage(img, -w / 2, -h / 2, w, h);
   if (!native) applyColorFallback(canvas, filter, adjust);
   applyTint(canvas, presetTint(filter));
+  const effect = presetEffect(filter);
+  if (effect) applyEffect(canvas, effect.effect, effect.amount);
   applyOverlays(ctx, canvas, adjust);
   return canvas;
 }

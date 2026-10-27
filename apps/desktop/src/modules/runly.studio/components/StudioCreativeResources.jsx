@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, ImageOff, Search } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { ICON_COLLECTIONS } from '../../../../../shared/studio/licenses.js'
 import { scheduled } from '../lib/resource-queue.js'
-import { StudioResources } from './StudioResources.jsx'
+import { RESOURCE_GRID, StudioResources } from './StudioResources.jsx'
 
 // Photos fill the tile (cover) and fade in; icons (dark strokes) sit on a light
 // tile in both themes. Placeholder and failure use theme tokens, never white.
@@ -71,10 +71,10 @@ function ProviderCatalog({tab,token,designId,disabled,onInsert}) {
     <SearchInput aria-label={`Buscar ${label}`} placeholder={provider==='iconify'?'Buscar iconos (p. ej. star)':`Buscar ${label}`} value={search} maxLength={80} onChange={event=>setSearch(event.target.value)} onClear={()=>setSearch('')}/>
     {provider==='iconify'?<SelectField id={collectionId} label="Colección" value={collection} options={ICON_COLLECTIONS.map(row=>({value:row.id,label:`${row.name} · ${row.license}`}))} onChange={value=>{setCollection(value);setPage(1)}}/>:
       <p className="text-xs text-[hsl(var(--muted-foreground))]">{hint}</p>}
-    {loading?<div className="grid grid-cols-3 gap-2" aria-busy="true" aria-label="Buscando recursos">{Array.from({length:6},(_,i)=><div key={i} className="space-y-1.5"><Skeleton className="aspect-square rounded-xl"/><Skeleton className="h-2.5 w-3/4 rounded-full"/></div>)}</div>:null}
+    {loading?<div className={RESOURCE_GRID} aria-busy="true" aria-label="Buscando recursos">{Array.from({length:6},(_,i)=><div key={i} className="space-y-1.5"><Skeleton className="aspect-square rounded-xl"/><Skeleton className="h-2.5 w-3/4 rounded-full"/></div>)}</div>:null}
     {error&&!preview?<ErrorState variant="compact" title="Catálogo no disponible" description={error} onRetry={()=>setRetry(value=>value+1)}/>:null}
     {result&&!result.data.length?<EmptyState variant="compact" icon={Search} title={result.requiresQuery?'Busca tu próximo recurso':'Sin recursos compatibles'} description={result.requiresQuery?'Escribe una búsqueda para consultar el catálogo.':'Prueba otra consulta; las licencias y orígenes no admitidos se excluyen.'}/>:null}
-    <ul className="grid grid-cols-3 gap-2">
+    <ul className={RESOURCE_GRID}>
       {result?.data.map(resource=><li key={resource.id}><button type="button" onClick={()=>setPreview(resource)} aria-label={`Ver recurso ${resource.title}`} title={resource.title}
         className="group w-full text-left focus-visible:outline-none">
         <div className="aspect-square overflow-hidden rounded-xl ring-1 ring-[hsl(var(--border))] transition-[box-shadow] group-hover:ring-2 group-hover:ring-fuchsia-500/50 group-focus-visible:ring-2 group-focus-visible:ring-[hsl(var(--ring))]">

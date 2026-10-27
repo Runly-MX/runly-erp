@@ -610,10 +610,10 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
     },
     resetImageAdjustments() {return editor.patchImage({adjustments:DEFAULT_IMAGE.adjustments})},
     resetImageFraming() {const {object}=editor.captureImage();const properties=imageProperties(object.type==='image'?object.image:object.fillPaint.image);return editor.patchImage({...properties,offsetX:0,offsetY:0,zoom:1,rotation:0,crop:DEFAULT_IMAGE.crop})},
-    editImage(id = canvas.getActiveObject()?.studioId) {
+    editImage(id = canvas.getActiveObject()?.studioId, options) {
       writable()
       if (!onEditImage) throw Error('El editor fotográfico no está conectado.')
-      return onEditImage(id)
+      return onEditImage(id, options)
     },
     captureImage(id = canvas.getActiveObject()?.studioId) {
       writable()

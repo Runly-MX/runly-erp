@@ -8,10 +8,11 @@ import { ImageAnnotationLayer } from "./ImageAnnotationLayer.jsx";
 import { ImageCropOverlay } from "./ImageCropOverlay.jsx";
 import { ImageLayerOverlay } from "./ImageLayerOverlay.jsx";
 import {
-  AdjustPanel, AnnotatePanel, CropPanel, EDITOR_TOOLS, FiltersPanel, LayersPanel, RATIOS, RetouchPanel, TurnPanel,
+  AdjustPanel, AnnotatePanel, CropPanel, EDITOR_TOOLS, ErasePanel, FiltersPanel, LayersPanel, RATIOS, RetouchPanel, TurnPanel,
 } from "./ImageEditorPanels.jsx";
 import { ANNOTATION_COLORS, drawAnnotations, newAnnotationId } from "../lib/imageAnnotations.js";
 import { applyFx, applyFxStroke, fxStrokeBounds } from "../lib/imageFx.js";
+import { isErase } from "../lib/imageErase.js";
 import { fitRect } from "../lib/cropRect.js";
 import { NO_FILTER } from "../lib/imageFilters.js";
 import { NO_ADJUST, canvasToFile, cropRect, loadImageFromFile, loadImageFromUrl, makeThumbnail, renderTransformed, workSourceSize } from "../lib/imageEdit.js";
@@ -34,6 +35,7 @@ const INITIAL_DOC = Object.freeze({
   ratioId: "free",
   cropN: FULL_CROP,
 });
+const CHECKER = { backgroundImage: "conic-gradient(#cbd5e1 25%, #f8fafc 0 50%, #cbd5e1 0 75%, #f8fafc 0)", backgroundSize: "16px 16px" };
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
 // Keeps the same array while every retouch element is unchanged, so the photo
@@ -77,6 +79,7 @@ export function ImageEditorDialog({
   saveLabel = "Guardar copia",
   title = "Editar imagen",
   originalResolution = false,
+  initialTab = "crop",
 }) {
   const areaRef = useRef(null);
   const pictureRef = useRef(null);
@@ -94,6 +97,7 @@ export function ImageEditorDialog({
   const [brush, setBrush] = useState("pen");
   const [textOpts, setTextOpts] = useState({ bold: true, bg: false });
   const [fxOpts, setFxOpts] = useState({ mode: "blur", size: 40, strength: 60 });
+  const [eraseOpts, setEraseOpts] = useState({ shape: "brush", size: 40, softness: 25, tolerance: 30, contiguous: true });
   const [selectedAnnoId, setSelectedAnnoId] = useState(null);
   const canvasNodeRef = useRef(null);
   const liveRef = useRef({ stroke: null, raf: 0 });
@@ -114,7 +118,7 @@ export function ImageEditorDialog({
     setSource(null);
     setError(null);
     setNotice(null);
-    setTab("crop");
+    setTab(initialTab);
     setSelectedId(null);
     setComparing(false);
     setView({ s: 1, x: 0, y: 0 });
@@ -258,7 +262,8 @@ export function ImageEditorDialog({
   };
   const selectedAnno = doc.annotations.find((a) => a.id === selectedAnnoId) ?? null;
   const vectorCount = doc.annotations.filter((a) => a.type !== "fx").length;
-  const fxCount = doc.annotations.length - vectorCount;
+  const eraseCount = doc.annotations.filter(isErase).length;
+  const fxCount = doc.annotations.length - vectorCount - eraseCount;
   const patchAnno = (id, patch, mergeKey = null) =>
     hist.update((d) => ({ annotations: d.annotations.map((a) => (a.id === id ? { ...a, ...patch } : a)) }), mergeKey);
   const removeAnnotations = (keep) => hist.update((d) => ({ annotations: d.annotations.filter(keep) }));
@@ -385,7 +390,21 @@ export function ImageEditorDialog({
     },
   });
 
-  const canPanWithPointer = view.s > 1 && (tab === "annotate" ? tool === "pan" : tab !== "retouch");
+  // Removes the background by erasing the color found at the four corners.
+  const autoRemoveBackground = () => {
+    if (!preview) return;
+    const m = 2;
+    const { width: w, height: h } = preview;
+    const seeds = [[m, m], [w - 1 - m, m], [m, h - 1 - m], [w - 1 - m, h - 1 - m]];
+    hist.update((d) => ({
+      annotations: [...d.annotations, ...seeds.map((p) => ({
+        id: newAnnotationId(), type: "fx", mode: "erase", shape: "color", size: 0, strength: 0,
+        tolerance: eraseOpts.tolerance, contiguous: true, points: [p, [p[0] + 0.01, p[1]]],
+      }))],
+    }));
+  };
+
+  const canPanWithPointer = view.s > 1 && (tab === "annotate" ? tool === "pan" : tab !== "retouch" && tab !== "erase");
   function handlePanDown(event) {
     if (tab === "layers") setSelectedId(null);
     if (!canPanWithPointer || multiRef.current) return;
@@ -407,7 +426,7 @@ export function ImageEditorDialog({
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
   function handleDoubleClick(event) {
-    if ((tab === "annotate" && tool !== "pan") || tab === "retouch") return;
+    if ((tab === "annotate" && tool !== "pan") || tab === "retouch" || tab === "erase") return;
     if (view.s > 1) setView({ s: 1, x: 0, y: 0 });
     else zoomAt(2.5, event.clientX, event.clientY);
   }
@@ -453,7 +472,7 @@ export function ImageEditorDialog({
     drawAnnotations(ctx, doc.annotations);
     const c = doc.cropN;
     const out = isFullCrop ? flat : cropRect(flat, { x: c.x * flat.width, y: c.y * flat.height, w: c.w * flat.width, h: c.h * flat.height });
-    const keepPng = mimeType === "image/png" || mimeType === "image/gif" || doc.transform.angle !== 0;
+    const keepPng = mimeType === "image/png" || mimeType === "image/gif" || doc.transform.angle !== 0 || eraseCount > 0;
     const type = keepPng ? "image/png" : mimeType === "image/webp" ? "image/webp" : "image/jpeg";
     const ext = type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";
     const base = fileName.replace(/\.[^.]+$/, "");
@@ -590,7 +609,7 @@ export function ImageEditorDialog({
                 >
                   <div className="absolute left-0 top-0" style={{ width: areaSize.w, height: areaSize.h, transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`, transformOrigin: "0 0" }}>
                     <div className="absolute" style={display ? { left: (areaSize.w - display.w) / 2, top: (areaSize.h - display.h) / 2, width: display.w, height: display.h } : undefined}>
-                    <canvas ref={canvasRef} aria-label="Imagen en edición" className="absolute inset-0 h-full w-full" />
+                    <canvas ref={canvasRef} aria-label="Imagen en edición" className="absolute inset-0 h-full w-full" style={eraseCount > 0 ? CHECKER : undefined} />
                     {display ? (
                       <div ref={pictureRef} className="absolute left-0 top-0" style={{ width: picture.w, height: picture.h, transform: `scale(${display.k})`, transformOrigin: "0 0" }}>
                         <ImageLayerOverlay
@@ -607,12 +626,12 @@ export function ImageEditorDialog({
                         <ImageAnnotationLayer
                           size={{ w: picture.w, h: picture.h }}
                           annotations={doc.annotations}
-                          tool={tab === "annotate" ? (tool === "pan" ? null : tool) : tab === "retouch" ? "fx" : null}
+                          tool={tab === "annotate" ? (tool === "pan" ? null : tool) : tab === "retouch" || tab === "erase" ? "fx" : null}
                           brush={brush}
                           color={color}
                           width={stroke}
                           text={textOpts}
-                          fx={fxOpts}
+                          fx={tab === "erase" ? { mode: "erase", shape: eraseOpts.shape, size: eraseOpts.size, strength: eraseOpts.softness, tolerance: eraseOpts.tolerance, contiguous: eraseOpts.contiguous } : fxOpts}
                           selectedId={selectedAnnoId}
                           showSelection={tab === "annotate"}
                           unit={1 / scale}
@@ -728,8 +747,19 @@ export function ImageEditorDialog({
                   count={fxCount}
                   disabled={busy}
                   onChange={(patch) => setFxOpts((o) => ({ ...o, ...patch }))}
-                  onUndo={() => removeLast((a) => a.type === "fx")}
-                  onClear={() => removeAnnotations((a) => a.type !== "fx")}
+                  onUndo={() => removeLast((a) => a.type === "fx" && a.mode !== "erase")}
+                  onClear={() => removeAnnotations((a) => a.type !== "fx" || a.mode === "erase")}
+                />
+              ) : null}
+              {tab === "erase" ? (
+                <ErasePanel
+                  opts={eraseOpts}
+                  count={eraseCount}
+                  disabled={busy}
+                  onChange={(patch) => setEraseOpts((o) => ({ ...o, ...patch }))}
+                  onAutoBackground={autoRemoveBackground}
+                  onUndo={() => removeLast(isErase)}
+                  onClear={() => removeAnnotations((a) => !isErase(a))}
                 />
               ) : null}
               {tab === "layers" ? (
