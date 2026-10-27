@@ -24,3 +24,14 @@ implementar por la solicitud. No requiere publicación ni acceso a instalación 
 Los criterios no se cierran por cantidad de código: una prueba fallida exige
 corrección o bloqueo explícito. No introducir purgas de recibos ni migraciones
 de datos históricos. No iniciar evolución gráfica adicional de documento v8.
+
+## Cierre verificado
+
+Implementado y validado localmente en el corte de producto
+`342d24ea5d5d0434f7317d8c906105ad383d8a9a`: 76 grupos E2E en una sola
+ejecución con API/Web/Worker del mismo SHA y Supabase desechable.
+Regresión: 1.420 aprobadas, una omisión existente, cero fallos.
+El clic fuera del papel también se comprobó en la Web real.
+
+Resultados, reproducción, límites y pendientes de integración visual:
+[validación v7](../../deployment/STUDIO_V7_LOCAL_VALIDATION.md).
