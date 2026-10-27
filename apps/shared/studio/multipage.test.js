@@ -92,3 +92,14 @@ test('undo restores an intermediate page in place and removes a newly added tran
   assert.deepEqual(transfer.move('undo'),doc)
   assert.deepEqual(transfer.move('redo'),moved)
 })
+test('document-wide object, group and unique FileAsset quotas include inactive pages',()=>{
+  const doc=five(),object=doc.objects[0]
+  const populated=documentPages(doc).map((scene,index)=>({...scene,objects:Array.from({length:400},(_,n)=>({...object,id:`p${index}-o${n}`}))}))
+  const input={...doc,...populated[0],additionalPages:populated.slice(1)}
+  assert.equal(documentPages(validateDocument(input)).flatMap(p=>p.objects).length,2000)
+  assert.throws(()=>validateDocument({...input,objects:[...input.objects,{...object,id:'overflow'}]}),{code:'STUDIO_INVALID'})
+  assert.throws(()=>validateDocument({...doc,objects:[{...object,groupId:'cross-page'}],additionalPages:doc.additionalPages.map((scene,n)=>n?scene:{...scene,objects:[{...scene.objects[0],groupId:'cross-page'}]})}),{code:'STUDIO_INVALID'})
+  const photos=Array.from({length:101},(_,n)=>({...object,id:`photo${n}`,type:'image',fileAssetId:`00000000-0000-4000-8000-${n.toString(16).padStart(12,'0')}`}))
+  assert.throws(()=>validateDocument({...blankDocument(),objects:photos}),{code:'STUDIO_INVALID'})
+  assert.equal(documentAssetIds(validateDocument({...blankDocument(),objects:photos.slice(0,100)})).length,100)
+})

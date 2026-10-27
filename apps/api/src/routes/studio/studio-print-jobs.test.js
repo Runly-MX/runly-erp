@@ -64,3 +64,11 @@ test('cancel, abort, revocation and concurrent edits discard all output, retaini
     await assert.rejects(f.jobs.finish('c','a','d',job.id),{status:404})
   }
 })
+test('subset keeps document order and pixel budgets reject excessive aggregate resolution before rendering',async()=>{
+  const f=fixture(),job=await f.jobs.create('c','a','d',{...f.input,pages:[f.input.pages[3],f.input.pages[0]]})
+  assert.deepEqual(job.pages.map(p=>p.pageId),['page-1','p4']);await f.jobs.cancel('c','a','d',job.id)
+  const document=validateDocument(applyOps(blankDocument(4096,4096),Array.from({length:15},(_,n)=>({type:'duplicatePage',pageId:'page-1',newId:`p${n+2}`}))))
+  const jobs=createStudioPrintJobs({getDesign:async()=>({revision:1,document,name:'Synthetic limit'}),authorizeAssets:async()=>{}})
+  await assert.rejects(jobs.create('c','a','d',{...f.input,pages:[{pageId:'page-1',ppi:96}]}),{status:413})
+  await assert.rejects(jobs.create('c','a','d',{...f.input,pages:[document,...document.additionalPages].map(p=>({pageId:p.page.id,ppi:300}))}),{status:413})
+})
