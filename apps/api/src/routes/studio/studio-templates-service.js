@@ -99,8 +99,8 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
       (1+jsonb_array_length(COALESCE(t.document->'additionalPages','[]'::jsonb)))::int AS "pageCount",
       jsonb_build_object('page',t.document->'page','objects',COALESCE((SELECT jsonb_agg(jsonb_build_object(
         'id',o->'id','type',o->'type','x',o->'x','y',o->'y','width',o->'width','height',o->'height','rotation',o->'rotation',
-        'fill',o->'fill','fillPaint',o->'fillPaint','shape',o->'shape','image',o->'image','geometry',o->'geometry','fileAssetId',o->'fileAssetId','points',o->'points','strokeWidth',o->'strokeWidth','dash',o->'dash','startCap',o->'startCap','endCap',o->'endCap','startArrow',o->'startArrow','endArrow',o->'endArrow','scaleX',o->'scaleX','scaleY',o->'scaleY','hidden',o->'hidden','opacity',o->'opacity','fontSize',o->'fontSize','fontFamily',o->'fontFamily',
-        'text',left(o->>'text',120)) ORDER BY n) FROM jsonb_array_elements(t.document->'objects') WITH ORDINALITY a(o,n) WHERE n<=40),'[]'::jsonb)) AS preview
+        'fill',o->'fill','fillPaint',o->'fillPaint','shape',o->'shape','image',o->'image','geometry',o->'geometry','fileAssetId',o->'fileAssetId','points',o->'points','strokeWidth',o->'strokeWidth','dash',o->'dash','startCap',o->'startCap','endCap',o->'endCap','startArrow',o->'startArrow','endArrow',o->'endArrow','scaleX',o->'scaleX','scaleY',o->'scaleY','hidden',o->'hidden','opacity',o->'opacity','fontSize',o->'fontSize','fontFamily',o->'fontFamily','fontVariant',o->'fontVariant','textAlign',o->'textAlign','lineHeight',o->'lineHeight','charSpacing',o->'charSpacing','groupId',o->'groupId',
+        'text',left(o->>'text',120)) ORDER BY n) FROM jsonb_array_elements(t.document->'objects') WITH ORDINALITY a(o,n) WHERE n<=500),'[]'::jsonb)) AS preview
       FROM studio_template t JOIN user_profile u ON u.id=t.owner_id
       WHERE t.company_id=${companyId}::uuid AND t.enabled AND (t.scope='company' OR t.owner_id=${actorId}::uuid)
       AND (${whereScope}='' OR t.scope=${whereScope}) AND (${category}='all' OR t.category=${category})

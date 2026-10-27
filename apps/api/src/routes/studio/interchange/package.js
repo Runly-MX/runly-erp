@@ -89,7 +89,7 @@ export function describePackage(manifest, portable) {
   if ([...manifest.resources, ...manifest.notices].some(r => r.license.redistribution === 'forbidden')) throw invalidPackage('Una licencia impide redistribuir el recurso.')
   const fonts = manifest.fonts.map(f => ({ ...f, available: Boolean(STUDIO_FONTS.some(row => row.family === f.family) && studioFontStyle(f.family, f.variant)) }))
   if (fonts.some(f => !f.available)) throw invalidPackage('El paquete depende de una fuente o variante no disponible.')
-  const first = portable.objects.slice(0, 40).map(o => ({ ...o, ...(o.text ? { text: o.text.slice(0, 120) } : {}) }))
+  const first = portable.objects.slice(0, 500).map(o => ({ ...o, ...(o.text ? { text: o.text.slice(0, 120) } : {}) }))
   return { format: manifest.format, formatVersion: 1, kind: manifest.kind, title: manifest.title, packageId: manifest.packageId, pages: documentPages(portable).map(s => ({ ...s.page, objectCount: s.objects.length })), resources: manifest.resources, fonts, notices: manifest.notices, warnings, blockingErrors: [], preview: { page: portable.page, objects: first }, previewKind: 'studio-declarative', requiresWarningAcceptance: warnings.length > 0 }
 }
 export async function inspectNativePackage(bytes) {
