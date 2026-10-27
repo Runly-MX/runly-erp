@@ -250,6 +250,11 @@ export async function verifyStudioFinalUi(stack,scenario){
   await step('PDF: physical size, bleed and marks, CMYK explanation, no vector claim', async () => {
     await openExport(A.page)
     await dialog(A.page).getByRole('radio', { name: /^PDF/ }).click()
+    for (const label of ['Sangrado de 3 mm', 'Marcas de corte']) {
+      const input = dialog(A.page).getByRole('checkbox', { name: label, exact: true })
+      if (!(await input.isChecked())) await dialog(A.page).getByText(label, { exact: true }).click()
+      assert.equal(await input.isChecked(), true)
+    }
     await dialog(A.page).getByText(/conversión genérica de RGB a CMYK/).waitFor()
     await dialog(A.page).getByText(/No es un PDF vectorial ni cumple PDF\/X/).waitFor()
     assert.equal(await dialog(A.page).getByText(/PDF\/X-1a|certificad|vectorial\b(?! ni)/i).count(), 0)

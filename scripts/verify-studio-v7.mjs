@@ -62,7 +62,7 @@ try{
   }
   if(['all','receipts'].includes(phase))result.receipts=await measureRc2Receipts(stack,data,{duration:Number(arg('receipt-duration-ms')??120000)})
   if(['all','ui'].includes(phase)){result.finalUi=await verifyStudioFinalUi(stack,data);record(`${result.finalUi.checks.length} final collaboration/export UI checks passed`)}
-  if(['all','compatibility'].includes(phase))result.compatibility=await verifyV7Compatibility(stack,data)
+  if(['all','compatibility','ui'].includes(phase))result.compatibility=await verifyV7Compatibility(stack,data)
   const config=JSON.parse(await readFile(stack.composeFile,'utf8'));config.services['runly-worker']={image:image('worker'),pull_policy:'never',restart:'no',environment:{...config.services['runly-api'].environment,RUNLY_SKIP_DB_INIT:'1'},networks:{default:null}};await writeFile(stack.composeFile,JSON.stringify(config,null,2))
   await stack.compose(['up','-d','runly-worker'],{log:join(stack.directory,'worker-start.log')});await new Promise(r=>setTimeout(r,5000))
   const workerId=await stack.compose(['ps','-q','runly-worker']),[worker]=JSON.parse(await command('docker',['inspect',workerId]));assert.equal(worker.State.Running,true)

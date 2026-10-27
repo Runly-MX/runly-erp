@@ -52,14 +52,15 @@ export async function verifyStudioTextMultipage(stack, { users, companies }) {
       await dialog.getByRole('radiogroup', { name: 'Perfil de color', exact: true }).getByRole('radio', { name: profile === 'rgb' ? 'RGB' : 'CMYK', exact: true }).click()
       await dialog.getByRole('radiogroup', { name: 'Páginas a incluir', exact: true }).getByRole('radio', { name: scope === 'current' ? 'Actual' : scope === 'all' ? 'Todas (16)' : 'Rango', exact: true }).click()
       if (scope === 'range') await dialog.getByLabel('Rango de páginas', { exact: true }).fill('1-3, 5')
-      await dialog.getByRole('combobox', { name: 'Resolución del diseño', exact: true }).click()
+      await dialog.locator('label').filter({ hasText: 'Resolución del diseño' }).locator('..').getByRole('button').click()
       await page.getByRole('option', { name: '300 ppp', exact: true }).click()
-      const bleed = dialog.getByRole('checkbox', { name: 'Sangrado de 3 mm', exact: true }); if (await bleed.isChecked()) await bleed.click()
+      const bleed = dialog.getByRole('checkbox', { name: 'Sangrado de 3 mm', exact: true }); if (await bleed.isChecked()) await dialog.getByText('Sangrado de 3 mm', { exact: true }).click()
       await dialog.getByRole('button', { name: 'Descargar', exact: true }).click()
-      const download = page.waitForEvent('download', { timeout: 60000 })
+      const download = page.waitForEvent('download', { timeout: 60000 }).then(download => ({ download }), error => ({ error }))
       await page.getByRole('button', { name: 'Exportar PDF', exact: true }).click()
       const filename = `v7-text-${profile}-${scope}.pdf`, path = join(stack.directory, filename)
-      await (await download).saveAs(path)
+      const completed = await download; if (completed.error) throw completed.error
+      await completed.download.saveAs(path)
       const pdf = await PDFDocument.load(await readFile(path)), indices = scope === 'current' ? [1] : scope === 'all' ? scenes.map((_, i) => i) : [0, 1, 2, 4]
       assert.equal(pdf.getPageCount(), indices.length)
       for (const [i, printed] of pdf.getPages().entries()) {
@@ -76,5 +77,8 @@ export async function verifyStudioTextMultipage(stack, { users, companies }) {
     assert.ok(!other.isClosed())
     console.log('Studio v7: two authenticated sessions preserve API text heights; actual/current/range 16-page RGB/CMYK UI downloads pass without a revision write')
     return { outputs, twoSessions: true, noRendererWrites: true }
+  } catch (error) {
+    for (const [index, context] of contexts.entries()) for (const page of context.pages()) await page.screenshot({ path: join(stack.directory, `v7-text-failure-${index}.png`) }).catch(() => {})
+    throw error
   } finally { await browser.close() }
 }

@@ -82,6 +82,11 @@ export async function verifyStudioMultipage(stack,{users,companies}) {
     const objectIds=documentPages(current.document).flatMap(p=>p.objects.map(o=>o.id));assert.equal(new Set(objectIds).size,objectIds.length)
     record('Offline work on a concurrently deleted page is archived; no resurrection; simultaneous duplicates have distinct identities')
 
+    // The MCP revision is intentionally fixed. Drain the browser recovery
+    // writers first; a late offline replay must remain a real revision conflict.
+    await Promise.all([a.context.close(),b.context.close()])
+    let stable=0
+    await until(async()=>{const next=await fresh();stable=next.revision===current.revision?stable+1:0;current=next;return stable>=3},'browser recovery writers drained before MCP review')
     await commitStudioMcpUpdate(stack,{token:tokens[0],companyId:company.id,designId:made.id,revision:current.revision,ops:[{type:'patch',pageId:'p3',id:'p3-o1',set:{y:111}}]})
     assert.equal(findPage((await fresh()).document,'p3').objects[0].y,111)
     record('Actual OAuth MCP prepare/approval/commit uses incremental page-scoped action and keeps other pages')
@@ -107,15 +112,17 @@ export async function verifyStudioMultipage(stack,{users,companies}) {
       await dialog.getByRole('radio',{name:new RegExp(`^${type}`)}).click()
       if(type==='PDF'){
         await dialog.getByRole('radiogroup',{name:'Perfil de color',exact:true}).getByRole('radio',{name:profile==='rgb'?/RGB/:/CMYK/}).click()
-        assert.match(await dialog.innerText(),/las 5 páginas/)
+        assert.equal(await dialog.getByRole('radio',{name:'Todas (5)',exact:true}).getAttribute('aria-checked'),'true')
+        assert.match(await dialog.getByRole('status').innerText(),/5 en orden del diseño/)
       }else await dialog.getByRole('radio',{name:'×1',exact:true}).click()
       await dialog.getByRole('button',{name:'Descargar',exact:true}).click()
       await exportPage.getByRole('button',{name:`Exportar ${type}`,exact:true}).click()
     }
     for(const type of ['PNG','JPG','PDF-rgb','PDF-cmyk']){
-      const isPdf=type.startsWith('PDF'),pending=exportPage.waitForEvent('download',{timeout:60000})
+      const isPdf=type.startsWith('PDF'),pending=exportPage.waitForEvent('download',{timeout:60000}).then(download=>({download}),error=>({error}))
       await prepare(isPdf?'PDF':type,type.endsWith('cmyk')?'cmyk':'rgb')
-      const download=await pending,filename=`v7-${type.toLowerCase()}.${isPdf?'pdf':type.toLowerCase()}`,path=join(stack.directory,filename)
+      const result=await pending;if(result.error)throw result.error
+      const download=result.download,filename=`v7-${type.toLowerCase()}.${isPdf?'pdf':type.toLowerCase()}`,path=join(stack.directory,filename)
       await download.saveAs(path);const bytes=await readFile(path)
       if(isPdf){const pdf=await PDFDocument.load(bytes);assert.equal(pdf.getPageCount(),5);assert.ok(pdf.getPage(0).getWidth()>pdf.getPage(0).getHeight());assert.ok(pdf.getPage(1).getWidth()<pdf.getPage(1).getHeight())}
       else {const meta=await sharp(bytes).metadata();assert.equal(meta.width,240);assert.equal(meta.height,320)}
