@@ -119,9 +119,12 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   app.post('/studio/designs/:id/export/jobs',requirePermission('studio.view'),async c =>
     c.json({data:await printJobs.create(...context(c),c.req.param('id'),await c.req.json(),c.req.raw.signal)},201))
   app.post('/studio/designs/:id/export/jobs/:jobId/pages/:pageId',requirePermission('studio.view'),async c => {
-    const body=await c.req.parseBody()
-    if(!(body.file instanceof Blob))throw new StudioError('Falta la imagen de exportación.')
-    return c.json({data:await printJobs.append(...context(c),c.req.param('id'),c.req.param('jobId'),c.req.param('pageId'),Buffer.from(await body.file.arrayBuffer()),c.req.raw.signal)})
+    const image=async()=>{
+      const body=await c.req.parseBody()
+      if(!(body.file instanceof Blob))throw new StudioError('Falta la imagen de exportación.')
+      return Buffer.from(await body.file.arrayBuffer())
+    }
+    return c.json({data:await printJobs.append(...context(c),c.req.param('id'),c.req.param('jobId'),c.req.param('pageId'),image,c.req.raw.signal)})
   })
   app.post('/studio/designs/:id/export/jobs/:jobId/finish',requirePermission('studio.view'),async c => {
     const pdf=await printJobs.finish(...context(c),c.req.param('id'),c.req.param('jobId'),c.req.raw.signal)

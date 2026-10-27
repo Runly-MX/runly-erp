@@ -8,6 +8,7 @@ import { createStudioRouter } from '../../routes/studio/index.js'
 import { createStudioMiraiCapabilities } from '../../routes/studio/mirai-capabilities.js'
 import { appendObject,blankDocument,STUDIO_SCHEMA_VERSION } from '../../../../shared/studio/document.js'
 import { digest } from '../state.js'
+import {applyOps} from '../../../../shared/studio/operations.js'
 
 // Full forward migrations + real Studio/RBAC access functions, in the MCP
 // runner's fresh local Docker database only. No .env or remote fallback.
@@ -24,7 +25,7 @@ export async function installStudioSchema(url) {
       INSERT INTO realtime_authorization_revision VALUES(true,1);
       CREATE FUNCTION public.runly_rotate_realtime() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
         UPDATE public.realtime_authorization_revision SET revision=revision+1 WHERE id; RETURN NULL; END $$;`)
-    for(const folder of ['20261130000000_studio_design','20261203000000_studio_collaboration','20261205000000_studio_templates']) {
+    for(const folder of ['20261130000000_studio_design','20261203000000_studio_collaboration','20261205000000_studio_templates','20261207000000_studio_protocol_guard','20261208000000_studio_multipage_protocol']) {
       await db.query(await readFile(new URL(`../../../../../prisma/migrations/${folder}/migration.sql`,import.meta.url),'utf8'))
     }
   } finally {await db.end()}
@@ -221,7 +222,7 @@ export async function studioCases(t,{prisma,company,other,user,role,membership,r
     const scene=appendObject({...document,page:{...document.page,backgroundPaint:paint}},'ellipse',{fillPaint:{type:'gradient',gradientType:'radial',centerX:0.4,centerY:0.6,radius:0.8,stops:paint.stops}})
     const query=async(operation,input)=>(await run('studio','query',{request:{operation,input}})).result
     const guide=await query('studio_composition_guide',{})
-    assert.equal(guide.schemaVersion,6);assert.equal(guide.gradientContract.text,false);assert.equal(guide.shapeContract.fillPaint.gradient.type,'gradient')
+    assert.equal(guide.schemaVersion,STUDIO_SCHEMA_VERSION);assert.equal(guide.gradientContract.text,false);assert.equal(guide.shapeContract.fillPaint.gradient.type,'gradient')
     const proposal=await prepare('studio','studio_create_design',{name:'Synthetic MCP gradient',document:scene})
     await assert.rejects(commit('studio',proposal),{code:'approval_required'});await approve(proposal)
     const made=await commit('studio',proposal)
@@ -235,6 +236,21 @@ export async function studioCases(t,{prisma,company,other,user,role,membership,r
     const review=await capability.tools.find(t=>t.name==='studio_review_design').run({document:scene},actor)
     assert.ok(review.findings.some(f=>f.rule==='requires_manual_review'))
     await assert.rejects(prepare('studio','studio_create_design',{name:'Invalid gradient',document:{...scene,page:{...scene.page,backgroundPaint:{...paint,angle:Infinity}}}}))
+  })
+  await t.test('Studio v7 MCP and MirAI share multipage contract and approved incremental operations',async()=>{
+    const scene=applyOps(document,[{type:'duplicatePage',pageId:'page-1',newId:'interior'}])
+    const proposed=await prepare('studio','studio_create_design',{name:'Synthetic MCP multipage',document:scene})
+    await approve(proposed);const made=await commit('studio',proposed)
+    const ops=[{type:'patchPage',pageId:'interior',set:{name:'Página MCP',background:'#112233'}}]
+    const change=await prepare('studio','studio_apply_changes',{designId:made.result.id,revision:1,clientId:'mcp-multipage-client',batchId:1,ops})
+    await assert.rejects(commit('studio',change),{code:'approval_required'});await approve(change)
+    const committed=await commit('studio',change);assert.deepEqual(await commit('studio',change),committed)
+    const capability=createStudioMiraiCapabilities({prisma}),actor={companyId:company.id,actorProfileId:user.id}
+    const guide=await capability.tools.find(t=>t.name==='studio_composition_guide').run({},actor)
+    assert.equal(guide.schemaVersion,7);assert.equal(guide.capabilities.multipage,true)
+    const detail=await capability.tools.find(t=>t.name==='studio_design_detail').run({designId:made.result.id},actor)
+    assert.equal(detail.pageCount,2);assert.equal(detail.document.additionalPages[0].page.name,'Página MCP')
+    assert.deepEqual(detail.document.page,document.page)
   })
   const fixture=await templates.create(company.id,user.id,{name:'Consultas MCP',document})
   const design=await templates.use(company.id,user.id,fixture.id)

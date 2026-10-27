@@ -55,11 +55,12 @@ export async function createStudioEditor(element, options) {
     current = validateDocument(next)
     const destination = findPage(current, select) ? select : current.page.id, switched = destination !== active
     const destinationSelection = selections.get(destination) ?? []
+    const destinationViewport = viewports.get(destination) ?? viewports.get(active) ?? {zoom:1,panX:0,panY:0}
     if (switched) {
       transitions++; transitioning = true; inner.setReadOnly(true)
       const previousSelection = selections.get(active)
       inner.deselect(); selections.set(active, previousSelection ?? []); active = destination
-      options.onActivePage?.(active, viewports.get(active))
+      options.onActivePage?.(active, destinationViewport)
     }
     try {
       await inner.applyRemote(pageDocument(current, active))
@@ -71,7 +72,7 @@ export async function createStudioEditor(element, options) {
     } finally {
       if (switched) { transitions--; transitioning = transitions > 0; inner.setReadOnly(protectedMode) }
     }
-    if (switched) { inner.selectMany(destinationSelection); inner.setViewport(viewports.get(active) ?? {zoom: 1, panX: 0, panY: 0}) }
+    if (switched) { inner.selectMany(destinationSelection); inner.setViewport(destinationViewport) }
     if (track) { if (remote) history.rebase(diffOps(before, current)); else history.commit(current) }
     options.onChange?.(current, {remote, pageId: active})
     notifyHistory({})
@@ -92,6 +93,7 @@ export async function createStudioEditor(element, options) {
       renderer = await createPageEditor(canvas, {document: pageDocument(scene, id), resolveImage: assetId => options.resolveImage(assetId, signal), readOnly: true})
       checkAbort(signal)
       const result = await task(renderer)
+      for(const assetId of documentAssetIds(pageDocument(scene,id))) { await options.resolveImage(assetId,signal); checkAbort(signal) }
       await options.authorizePage?.(id, signal)
       checkAbort(signal)
       if (JSON.stringify(findPage(snapshot(), id)) !== JSON.stringify(findPage(scene, id))) throw Error('La página cambió durante la exportación.')

@@ -112,7 +112,7 @@ export function diffOps(before, after) {
   }
   for (const scene of previousPages) if (!nextPages.some(next => pageId(next) === pageId(scene))) ops.push({type: 'removePage', pageId: pageId(scene)})
   const ids = nextPages.map(pageId)
-  if (!same(documentPages(applyOps(before, ops)).map(pageId), ids)) ops.push({type: 'pageOrder', ids})
+  if (ops.some(op => op.type === 'addPage' || op.type === 'removePage') || !same(documentPages(applyOps(before, ops)).map(pageId), ids)) ops.push({type: 'pageOrder', ids})
   return ops
 }
 

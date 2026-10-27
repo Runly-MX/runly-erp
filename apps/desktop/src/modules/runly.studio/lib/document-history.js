@@ -9,26 +9,27 @@ function selective(document,desired,expected) {
   const result=[]
   const key=op=>op.type==='upsert'?op.object.id:op.id
   for(const op of desired){
-    const scene=findPage(document,op.pageId??LEGACY_PAGE_ID),objects=new Map((scene?.objects??[]).map(o=>[o.id,o]))
+    const staged=applyOps(document,result)
+    const scene=findPage(staged,op.pageId??LEGACY_PAGE_ID),objects=new Map((scene?.objects??[]).map(o=>[o.id,o]))
     if(op.type==='transferObjects'){
-      const source=findPage(document,op.pageId),target=findPage(document,op.targetPageId),ids=new Set(op.ids)
+      const source=findPage(staged,op.pageId),target=findPage(staged,op.targetPageId),ids=new Set(op.ids)
       const forward=expected.find(e=>e.type==='transferObjects'&&e.pageId===op.targetPageId&&e.targetPageId===op.pageId)
       const selected=source?.objects.filter(o=>ids.has(o.id))??[],groups=new Set(selected.map(o=>o.groupId).filter(Boolean))
       if(forward&&target&&selected.length===ids.size&&!source.objects.some(o=>groups.has(o.groupId)&&!ids.has(o.id)))result.push(op)
       continue
     }
     if(op.type==='addPage'){
-      const allIds=new Set(documentPages(document).flatMap(p=>p.objects.map(o=>o.id)))
-      if(!findPage(document,pageId(op.scene))&&!op.scene.objects.some(o=>allIds.has(o.id)))result.push(op)
+      const allIds=new Set(documentPages(staged).flatMap(p=>p.objects.map(o=>o.id)))
+      if(!findPage(staged,pageId(op.scene))&&!op.scene.objects.some(o=>allIds.has(o.id)))result.push(op)
       continue
     }
     if(op.type==='removePage'){
       const forward=expected.find(e=>e.type==='addPage'&&pageId(e.scene)===op.pageId)
-      if(documentPages(document).length>1&&forward&&same(scene,forward.scene))result.push(op)
+      if(documentPages(staged).length>1&&forward&&same(scene,forward.scene))result.push(op)
       continue
     }
     if(op.type==='pageOrder'){
-      const forward=expected.find(e=>e.type==='pageOrder'),actual=documentPages(document).map(pageId)
+      const forward=expected.find(e=>e.type==='pageOrder'),actual=documentPages(staged).map(pageId)
       if(forward&&same(actual.filter(id=>forward.ids.includes(id)),forward.ids.filter(id=>actual.includes(id))))result.push(op)
       continue
     }

@@ -73,6 +73,8 @@ export function createStudioPrintJobs({getDesign, authorizeAssets, builder=build
       await authorize(current,signal)
       const page=current.pages[current.next]
       if(!page||page.pageId!==pageId)throw error('Envía las páginas una a una en el orden indicado.',409)
+      if(typeof image==='function')image=await image()
+      checkAbort(signal)
       if(!Buffer.isBuffer(image)||image.length>STUDIO_PRINT_JOB_LIMITS.bytes)throw error('Imagen demasiado grande.',413)
       const output=await builder({...page,image,profile:current.profile,cropMarks:current.cropMarks,title:current.title,signal})
       await authorize(current,signal)

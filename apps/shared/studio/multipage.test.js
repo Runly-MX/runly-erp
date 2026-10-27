@@ -81,3 +81,14 @@ test('global and page budgets fail closed; extraction cannot change saved page o
   assert.equal(compactOps([first,second]).length,2)
   assert.throws(()=>checkOps([{type:'patchPage',pageId:'p2',set:{id:'forged'}}]))
 })
+test('undo restores an intermediate page in place and removes a newly added transfer destination',()=>{
+  const doc=five(),history=createDocumentHistory(doc)
+  history.commit(update(doc,[{type:'removePage',pageId:'p2'}]))
+  assert.deepEqual(history.move('undo'),doc)
+  assert.equal(findPage(history.move('redo'),'p2'),undefined)
+  const transfer=createDocumentHistory(doc),destination={page:{id:'new-target',width:320,height:240,background:'#ffffff'},objects:[]}
+  const moved=update(doc,[{type:'addPage',scene:destination},{type:'transferObjects',pageId:'page-1',targetPageId:'new-target',ids:['original'],copy:false}])
+  transfer.commit(moved)
+  assert.deepEqual(transfer.move('undo'),doc)
+  assert.deepEqual(transfer.move('redo'),moved)
+})
