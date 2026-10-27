@@ -10,7 +10,7 @@ export const PRINT_PPI = 300
 export const BLEED_MM = 3
 export const SOURCE_PPI = [72, 96, 150, 300]
 
-export const DEFAULT_EXPORT = { type: 'png', scale: 1, transparent: false, quality: 0.9, profile: 'cmyk', ppi: null, bleed: true, cropMarks: true }
+export const DEFAULT_EXPORT = { type: 'png', scale: 1, transparent: false, quality: 0.9, profile: 'cmyk', ppi: null, bleed: true, cropMarks: false }
 // Pixel presets are screen sizes; large ones (flyers, posters) are print sizes at 150 ppp.
 export const defaultPpi = page => (Math.max(page.width, page.height) >= 1500 ? 150 : 96)
 export const printSizeMm = (page, ppi) => ({ width: Math.round(page.width / ppi * 25.4 * 10) / 10, height: Math.round(page.height / ppi * 25.4 * 10) / 10 })
