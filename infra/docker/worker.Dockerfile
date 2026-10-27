@@ -6,6 +6,7 @@ RUN corepack enable
 # images, so the (slow, QEMU-emulated on arm64) install only runs once per
 # release and the resulting layer is pushed once and shared by both tags.
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY patches patches
 COPY prisma.config.ts prisma.config.ts
 COPY apps/api/package.json apps/api/package.json
 COPY apps/desktop/package.json apps/desktop/package.json

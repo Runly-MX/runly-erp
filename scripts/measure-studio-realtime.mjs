@@ -62,6 +62,10 @@ try {
   await stack.verifyTarget(); await stack.initialize()
   await stack.pool.query('CREATE EXTENSION IF NOT EXISTS pg_stat_statements')
   const data = await seedStudioScenario(stack), { users, companies, admin } = data, company = companies[0]
+  const tenantCapacity=(await stack.pool.query('SELECT max_events_per_second,max_bytes_per_second,max_presence_events_per_second FROM _realtime.tenants')).rows
+  assert.equal(tenantCapacity.length,1)
+  assert.equal(tenantCapacity[0].max_events_per_second,Number(arg('events-per-second')??2000))
+  assert.equal(tenantCapacity[0].max_bytes_per_second,Number(arg('bytes-per-second')??2000000))
   for (let i=users.length; i<(arg('scenario')?.includes('cursor-20')?22:12); i++) {
     const email = `bench-${i}@studio.example.test`, password = users[0].password
     const result = await admin.auth.admin.createUser({email,password,email_confirm:true}); assert.ok(!result.error)
@@ -123,27 +127,43 @@ try {
       try{await page.waitForFunction(()=>window.state().status==='Conectado',{},{timeout:20000})}catch(error){console.error('Connection state:',await page.evaluate(()=>window.state()));throw error}metrics.joinMs.push(Date.now()-start)
     }
     await wait(1500)
-    if(phase==='after')for(const page of pages)await page.waitForFunction(n=>window.state().participants.length===n-1,scenario.n,{timeout:20000})
+    if(phase==='after')try{for(const page of pages)await page.waitForFunction(n=>window.state().participants.length===n-1,scenario.n,{timeout:20000})}catch(e){console.error('Roster diagnostics:',JSON.stringify(await Promise.all(pages.map(p=>p.evaluate(()=>window.state().diagnostics)))));throw e}
     const diagnosticsBefore=await Promise.all(pages.map(p=>p.evaluate(()=>window.state().diagnostics)))
+    await Promise.all(pages.map(p=>p.cdp.send('HeapProfiler.collectGarbage')))
     const before=await sql(),apiCpu=await cpu('runly-api'),pgCpu=await cpu('supabase-db'),realtimeCpu=await cpu('supabase-realtime'),browserBefore=await Promise.all(pages.map(p=>p.cdp.send('Performance.getMetrics')))
     recording=true
     for(const [i,page]of pages.entries())if(scenario.move)await page.evaluate(pageId=>window.move(pageId),scenario.pages&&i?'page-2':'page-1')
     if(scenario.hidden)await pages[0].evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,get:()=> 'hidden'});document.dispatchEvent(new Event('visibilitychange'))})
     const begin=Date.now();let batch=0
     while(Date.now()-begin<seconds*1000){await wait(1000);if(scenario.edit){batch++;await Promise.all(pages.map(p=>p.evaluate(n=>window.edit(n),batch)))}}
-    recording=false;await Promise.all(pages.map(p=>p.evaluate(()=>window.pause())));await Promise.all(tasks)
+    recording=false;await Promise.all(pages.map(p=>p.evaluate(()=>window.pause())));await wait(300);await Promise.all(tasks)
     const after=await sql(),apiCpuAfter=await cpu('runly-api'),pgCpuAfter=await cpu('supabase-db'),realtimeCpuAfter=await cpu('supabase-realtime'),browserAfter=await Promise.all(pages.map(p=>p.cdp.send('Performance.getMetrics')))
     const pointLogs=await Promise.all(pages.map(p=>p.evaluate(()=>({sent:window.sentPoints,received:window.receivedPoints}))))
     metrics.diagnosticsBefore=diagnosticsBefore
     metrics.diagnostics=await Promise.all(pages.map(p=>p.evaluate(()=>window.state().diagnostics)))
+    if(phase==='after'){
+      assert.ok(metrics.diagnostics.every(d=>d.sessions===scenario.n-1),'Final roster lost a live participant')
+      assert.ok(metrics.diagnostics.every(d=>d.nativePresenceMetas<=scenario.n),'Native Presence retained historical metadata')
+    }
+    if(phase==='after'){
+      const delta=k=>metrics.diagnostics.reduce((sum,d,i)=>sum+(d?.[k]??0)-(diagnosticsBefore[i]?.[k]??0),0)
+      metrics.delivery={sent:delta('sent'),received:delta('received'),dropped:delta('dropped'),failedAcks:delta('sendFailed'),reconnections:delta('reconnections')}
+      metrics.delivery.expected=metrics.delivery.sent*(scenario.n-1)
+      metrics.delivery.gap=metrics.delivery.expected-metrics.delivery.received
+    }
+    const retainedHeap=await Promise.all(pages.map(async p=>{
+      await p.evaluate(()=>{window.sentPoints=[];window.receivedPoints=[]})
+      await p.cdp.send('HeapProfiler.collectGarbage')
+      return (await p.cdp.send('Performance.getMetrics')).metrics.find(m=>m.name==='JSHeapUsedSize')?.value??0
+    }))
     const sentPoints=new Map(),pointKey=p=>`${p.userId}:${p.x}:${p.y}`
     for(const p of pointLogs.flatMap(l=>l.sent??[])){const key=pointKey(p),list=sentPoints.get(key)??[];list.push(p.at);sentPoints.set(key,list)}
     for(const point of pointLogs.flatMap(l=>l.received??[])){const list=sentPoints.get(pointKey(point))??[];let at=-1;for(let i=list.length-1;i>=0;i--)if(list[i]<=point.at){at=list[i];break}if(at>=0)metrics.cursorLatencies.push(point.at-at)}
-    const browserMetrics=browserAfter.map((m,i)=>{const get=(a,n)=>a.metrics.find(v=>v.name===n)?.value??0;return{taskSeconds:get(m,'TaskDuration')-get(browserBefore[i],'TaskDuration'),heapBytes:get(m,'JSHeapUsedSize')}})
+    const browserMetrics=browserAfter.map((m,i)=>{const get=(a,n)=>a.metrics.find(v=>v.name===n)?.value??0;return{taskSeconds:get(m,'TaskDuration')-get(browserBefore[i],'TaskDuration'),heapBytes:get(m,'JSHeapUsedSize'),heapBeforeBytes:get(browserBefore[i],'JSHeapUsedSize'),retainedHeapBytes:retainedHeap[i]}})
     const result={scenario:scenario.name,users:scenario.n,seconds,visibility:await pages[0].evaluate(()=>document.visibilityState),syntheticVisibility:Boolean(scenario.hidden),livePerMinute:metrics.live*60/seconds,...metrics,p50:percentile(metrics.latencies,.5),p95:percentile(metrics.latencies,.95),cursorP50:percentile(metrics.cursorLatencies,.5),cursorP95:percentile(metrics.cursorLatencies,.95),apiCpuSeconds:apiCpuAfter-apiCpu,postgresCpuSeconds:pgCpuAfter-pgCpu,realtimeCpuSeconds:realtimeCpuAfter-realtimeCpu,sql:sqlDelta(before,after),browser:browserMetrics}
     delete result.latencies;delete result.cursorLatencies;results.push(result)
     console.log(JSON.stringify({scenario:result.scenario,livePerMinute:result.livePerMinute,p95:result.p95,writes:result.sql.table.n_tup_ins+result.sql.table.n_tup_upd,wsSent:result.wsSent}))
     for(const page of pages)await page.evaluate(()=>window.stop());for(const context of contexts)await context.close();await wait(1000)
-    await writeFile(join(output,`${arg('result')??phase}.json`),JSON.stringify({phase,seconds,source:sourceRef??execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),apiImage,capacity:{eventsPerSecond:Number(arg('events-per-second')??2000),bytesPerSecond:Number(arg('bytes-per-second')??2000000)},results},null,2))
+    await writeFile(join(output,`${arg('result')??phase}.json`),JSON.stringify({phase,seconds,source:sourceRef??execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),apiImage,capacity:tenantCapacity[0],results},null,2))
   }
 } finally {await browser?.close();if(server)await new Promise(r=>server.close(r));await stack.close()}

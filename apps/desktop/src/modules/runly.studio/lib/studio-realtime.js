@@ -125,15 +125,18 @@ export function createStudioRealtimeSession({id,companyId,getToken,api,client,cr
       const raw=Object.values(ephemeralChannel.presenceState()).flat().slice(0,P.maxSessions),seen=new Set()
       for(const entry of raw){
         const c=entry?.certificate
-        if(!c||c.sessionId===grant.certificate.sessionId||realtimeSize(entry)>P.maxBytes||Object.keys(entry).some(k=>!['certificate','certificateSignature','payload','signature','presence_ref'].includes(k))||!validCertificate(c,{designId:id,companyId,epoch:grant.certificate.epoch,now:serverNow()}))continue
+        if(!c||c.sessionId===grant.certificate.sessionId)continue
+        if(realtimeSize(entry)>P.maxBytes||Object.keys(entry).some(k=>!['certificate','certificateSignature','payload','signature','presence_ref'].includes(k))){count('presenceRejected_shape');continue}
+        if(!validCertificate(c,{designId:id,companyId,epoch:grant.certificate.epoch,now:serverNow()})){count('presenceRejected_certificate');continue}
         if(sequences.size>=1000&&!sequences.has(c.sessionId))continue
         let known=sessions.get(c.sessionId)
         if(!known||known.certificateSignature!==entry.certificateSignature){
-          if(!await verifyAttestation(c,entry.certificateSignature,grant.verificationKey,crypto))continue
+          if(!await verifyAttestation(c,entry.certificateSignature,grant.verificationKey,crypto)){count('presenceRejected_attestation');continue}
           known={...known,certificate:c,certificateSignature:entry.certificateSignature,key:await importEphemeralKey(c.publicKey,crypto),lastSeq:known?.lastSeq??sequences.get(c.sessionId)?.seq??0}
         }
         const envelope={payload:entry.payload,signature:entry.signature}
-        if(!validEphemeral(entry.payload,c,grant.pages,serverNow(),P.leaseMs)||!await verifyEphemeral(envelope,known.key,crypto))continue
+        if(!validEphemeral(entry.payload,c,grant.pages,serverNow(),P.leaseMs)){count('presenceRejected_state');continue}
+        if(!await verifyEphemeral(envelope,known.key,crypto)){count('presenceRejected_signature');continue}
         if(!alive()||epoch!==generation)return
         seen.add(c.sessionId);sessions.set(c.sessionId,known)
         if(entry.payload.seq>known.lastSeq)apply(known,entry.payload)
@@ -228,7 +231,10 @@ export function createStudioRealtimeSession({id,companyId,getToken,api,client,cr
     },
     selection(selectedId,pageId=state.pageId){if(pageId===state.pageId&&(selectedId??null)===state.selectedId)return;const changed=pageId!==state.pageId;if(changed)state={...state,x:null,y:null};state={...state,pageId,selectedId:selectedId??null};queue('selection',changed);discoverPage(pageId)},
     visibility(){state={...state,activity:visible()?'active':'idle',x:null,y:null};queue('activity',true);if(visible())void refresh()},
-    stats:()=>({...counts,channels:Number(Boolean(documentChannel))+Number(Boolean(ephemeralChannel)),sessions:sessions.size,documentState:documentChannel?.state,ephemeralState:ephemeralChannel?.state,sequence,leaseRemainingMs:grant?grant.expiresAt-serverNow():0,sender:sender.state(),tracker:tracker.state()}),
+    stats:()=>{
+      const native=instrument?Object.values(ephemeralChannel?.presenceState()??{}).flat():[]
+      return {...counts,channels:Number(Boolean(documentChannel))+Number(Boolean(ephemeralChannel)),sessions:sessions.size,documentState:documentChannel?.state,ephemeralState:ephemeralChannel?.state,sequence,leaseRemainingMs:grant?grant.expiresAt-serverNow():0,sender:sender.state(),tracker:tracker.state(),...instrument?{nativePresenceMetas:native.length,expiredPresenceMetas:native.filter(e=>e.certificate?.expiresAt<=serverNow()).length}:{}}
+    },
     close(){if(!active)return;active=false;requestAbort?.abort();sender.cancel();tracker.cancel();timers.clearTimeout(renewTimer);timers.clearTimeout(expiryTimer);timers.clearInterval(expiry);return removeChannels()},
   }
 }

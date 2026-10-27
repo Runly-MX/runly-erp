@@ -1,0 +1,42 @@
+diff --git a/dist/main/phoenix/presenceAdapter.js b/dist/main/phoenix/presenceAdapter.js
+index a149790272e4a535c75eb73425f3204e6ad30bc3..ab63a0e844fb45ab184fab507b0bc72444fda772 100644
+--- a/dist/main/phoenix/presenceAdapter.js
++++ b/dist/main/phoenix/presenceAdapter.js
+@@ -74,7 +74,8 @@ class PresenceAdapter {
+ }
+ exports.default = PresenceAdapter;
+ function transformState(presences) {
+-    return presences.metas.map((presence) => {
++    return presences.metas.map((rawPresence) => {
++        const presence = { ...rawPresence };
+         presence['presence_ref'] = presence['phx_ref'];
+         delete presence['phx_ref'];
+         delete presence['phx_ref_prev'];
+diff --git a/dist/module/phoenix/presenceAdapter.js b/dist/module/phoenix/presenceAdapter.js
+index dd3cbcc0992c7441e33f78cd79e1998bb84ddeaa..4d07483fdd143e56a3e040cc12763a72e4649cdd 100644
+--- a/dist/module/phoenix/presenceAdapter.js
++++ b/dist/module/phoenix/presenceAdapter.js
+@@ -71,7 +71,8 @@ export default class PresenceAdapter {
+     }
+ }
+ function transformState(presences) {
+-    return presences.metas.map((presence) => {
++    return presences.metas.map((rawPresence) => {
++        const presence = { ...rawPresence };
+         presence['presence_ref'] = presence['phx_ref'];
+         delete presence['phx_ref'];
+         delete presence['phx_ref_prev'];
+diff --git a/src/phoenix/presenceAdapter.ts b/src/phoenix/presenceAdapter.ts
+index 8ab25927c744e650f1bf9515489f9098498b0cc1..58939006966d58b4e0684fe15e0a12fdbed7f5e1 100644
+--- a/src/phoenix/presenceAdapter.ts
++++ b/src/phoenix/presenceAdapter.ts
+@@ -93,7 +93,8 @@ export default class PresenceAdapter {
+ }
+ 
+ function transformState(presences: PresenceState) {
+-  return presences.metas.map((presence) => {
++  return presences.metas.map((rawPresence) => {
++    const presence = { ...rawPresence }
+     presence['presence_ref'] = presence['phx_ref']
+ 
+     delete presence['phx_ref']

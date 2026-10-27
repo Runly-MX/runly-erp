@@ -22,6 +22,11 @@ overrides:
   brace-expansion@2: ^2.1.7
   nanoid: ^5.1.16
 
+patchedDependencies:
+  '@supabase/realtime-js@2.105.1':
+    hash: 5vkfcosefnrzwwit4dtkuqhl4e
+    path: patches/@supabase__realtime-js@2.105.1.patch
+
 importers:
 
   .:
@@ -10357,7 +10362,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@supabase/realtime-js@2.105.1':
+  '@supabase/realtime-js@2.105.1(patch_hash=5vkfcosefnrzwwit4dtkuqhl4e)':
     dependencies:
       '@supabase/phoenix': 0.4.1
       '@types/ws': 8.18.1
@@ -10377,7 +10382,7 @@ snapshots:
       '@supabase/auth-js': 2.105.1
       '@supabase/functions-js': 2.105.1
       '@supabase/postgrest-js': 2.105.1
-      '@supabase/realtime-js': 2.105.1
+      '@supabase/realtime-js': 2.105.1(patch_hash=5vkfcosefnrzwwit4dtkuqhl4e)
       '@supabase/storage-js': 2.105.1
     transitivePeerDependencies:
       - bufferutil

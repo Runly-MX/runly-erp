@@ -7,6 +7,7 @@ WORKDIR /app
 RUN corepack enable
 # Copy workspace manifests and lockfile for deterministic install
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY patches patches
 COPY apps/api/package.json apps/api/package.json
 COPY apps/desktop/package.json apps/desktop/package.json
 COPY apps/worker/package.json apps/worker/package.json

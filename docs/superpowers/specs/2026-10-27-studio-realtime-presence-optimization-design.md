@@ -141,3 +141,14 @@ defecto; las variables de Presence requieren recrear el contenedor.
 El contexto consulta solo ACL, revisión y dimensiones de páginas, sin transmitir
 el documento entero en cada renovación. Los avatares remotos utilizan las
 iniciales existentes; no se distribuyen URLs privadas en el canal efímero.
+
+## Corrección necesaria del SDK instalado
+
+La carga prolongada reveló que el adaptador Presence de realtime-js 2.105.1
+elimina `phx_ref` del tracker al preparar callbacks públicos. Phoenix ya no puede
+retirar esas metas y las renovaciones acumulan estados históricos. Se incorpora
+un parche pnpm versionado que copia la meta antes de transformarla, sin cambiar
+protocolos ni permisos. Una prueba con 150 actualizaciones y leave exige una sola
+meta actual y cero al salir. Los tres Dockerfiles copian el parche antes del
+install frozen. Al actualizar Supabase hay que reevaluar y retirar este parche
+solo cuando la versión nueva supere esa prueba y la carga real prolongada.
