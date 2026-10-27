@@ -20,7 +20,9 @@ test('originales: rechazar credenciales, HTTP, tipos falsos, nombres de ruta y e
     await assert.rejects(() => readImportFiles([{ ...file, download_url: url }], () => assert.fail('no fetch')), { code: 'file_source_rejected' });
   }
   await assert.rejects(() => readImportFiles([file], async () => ({ buffer: Buffer.from('<svg onload="test"/>') })), { code: 'file_type_rejected' });
-  await assert.rejects(() => readImportFiles([{ ...file, mime_type: 'image/jpeg' }], async () => ({ buffer: png })), { code: 'file_type_rejected' });
+  await assert.rejects(() => readImportFiles([{ ...file, mime_type: 'application/pdf' }], async () => ({ buffer: png })), { code: 'file_type_rejected' });
+  const [relabeled] = await readImportFiles([{ ...file, mime_type: 'image/jpeg' }], async () => ({ buffer: png }));
+  assert.equal(relabeled.manifest.mimeType, 'image/png');
   await assert.rejects(() => readImportFiles([{ ...file, file_name: '../image.png' }], async () => ({ buffer: png })), { code: 'invalid_filename' });
   await assert.rejects(() => readImportFiles([file], async () => ({ buffer: Buffer.alloc(10 * 1024 * 1024 + 1) })), { code: 'file_too_large' });
   await assert.rejects(() => readImportFiles([file], async () => { throw new Error('signed-url-must-not-leak'); }), error => error.code === 'file_unavailable' && !error.message.includes('signed-url-must-not-leak'));

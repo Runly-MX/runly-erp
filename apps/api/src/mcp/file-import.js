@@ -61,7 +61,8 @@ export async function readImportFiles(files, download = readCatalogBytes) {
     const type = hex.startsWith('89504e470d0a1a0a') ? ['image/png', '.png'] : hex.startsWith('ffd8ff') ? ['image/jpeg', '.jpg'] : /^(GIF87a|GIF89a)/.test(buffer.subarray(0, 6).toString()) ? ['image/gif', '.gif'] : buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP' ? ['image/webp', '.webp'] : buffer.subarray(0, 5).toString() === '%PDF-' ? ['application/pdf', '.pdf'] : isSafeXml(buffer) ? ['application/xml', '.xml'] : officeType(buffer);
     insist(type, 'file_type_rejected', 'Esta carga admite originales JPEG, PNG, GIF, WebP, PDF, XML UTF-8 sin DTD ni contenido activo, y Word (.docx) o PowerPoint (.pptx) sin macros. No se convierte ni reconstruye contenido.', 422);
     const declared = ref.mime_type?.toLowerCase() === 'text/xml' ? 'application/xml' : ref.mime_type?.toLowerCase();
-    insist(!declared || declared === 'application/octet-stream' || declared === type[0], 'file_type_rejected', 'El tipo declarado no coincide con el original.', 422);
+    // Clients (ChatGPT image generation) often label a WebP as PNG or vice versa; the signature above decides, so only non-image mismatches are rejected.
+    insist(!declared || declared === 'application/octet-stream' || declared === type[0] || (declared.startsWith('image/') && type[0].startsWith('image/')), 'file_type_rejected', 'El tipo declarado no coincide con el original.', 422);
     const name = ref.file_name ?? `${ref.file_id}${type[1]}`;
     insist(!/[\x00-\x1f\x7f/\\]/.test(name) && name !== '.' && name !== '..', 'invalid_filename', 'Nombre de archivo inválido.', 400);
     loaded.push({ buffer, manifest: { fileId: ref.file_id, name, mimeType: type[0], sizeBytes: buffer.length, sha256: digest(buffer) } });
