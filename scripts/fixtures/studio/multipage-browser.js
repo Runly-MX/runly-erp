@@ -69,3 +69,12 @@ window.studioMultipageBudgetVerification=async()=>{
     return {globalObjects:2000,addRejectedAtomically:true,groupRejectedAtomically:true}
   }finally{await editor.destroy();canvas.remove()}
 }
+window.setupStudioMultipageAbort=async()=>{
+  const canvas=document.createElement('canvas');document.body.append(canvas)
+  const documentData=blankDocument(320,240),fileId='00000000-0000-4000-8000-000000000001'
+  const photo=appendObject(blankDocument(320,240),'rectangle',{fillPaint:{type:'image',fileAssetId:fileId}})
+  documentData.additionalPages=[{page:{...photo.page,id:'private-page'},objects:photo.objects}]
+  const editor=await createStudioEditor(canvas,{document:documentData,resolveImage:async()=>'/studio-test-private.png',authorizePage:async()=>{}})
+  const controller=new AbortController(),before=JSON.stringify(editor.snapshot())
+  window.multipageAbort={editor,controller,canvas,before,promise:editor.exportPage('private-page','png',1,editor.snapshot(),{signal:controller.signal}).then(()=>({accepted:true}),error=>({name:error.name}))}
+}

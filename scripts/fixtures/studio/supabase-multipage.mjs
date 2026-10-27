@@ -28,6 +28,7 @@ export async function verifyStudioMultipage(stack,{users,companies}) {
   const file=await json(await api('/files/upload',{data:form}))
   let document=appendObject(blankDocument(320,240),'rectangle',{id:'cover-shape',x:40,y:40,width:100,height:80,fill:'#123456'})
   document=validateDocument(applyOps(document,[2,3,4,5].map(n=>({type:'duplicatePage',pageId:'page-1',newId:`p${n}`}))))
+  document=validateDocument(applyOps(document,[{type:'pageOrder',ids:['page-1','p2','p3','p4','p5']}]))
   document=validateDocument(applyOps(document,[2,3,4,5].map(n=>({type:'patchPage',pageId:`p${n}`,set:{width:n%2?320:240,height:n%2?240:320,background:['#ffffff','#ffdddd','#ddffdd','#ddddff'][n-2]}}))))
   document=validateDocument(applyOps(document,[{type:'upsert',pageId:'p3',object:{...document.objects[0],id:'private-shape',x:180,fillPaint:{type:'image',fileAssetId:file.id}}}]))
   const made=await json(await api('/studio/designs',{data:{name:'Synthetic v7 multipage',document}})),root=`/studio/designs/${made.id}`

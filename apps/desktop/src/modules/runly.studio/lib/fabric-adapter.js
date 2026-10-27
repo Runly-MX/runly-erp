@@ -91,7 +91,7 @@ export async function createStudioEditor(element, options) {
     const canvas = element.ownerDocument.createElement('canvas')
     let renderer
     try {
-      renderer = await createPageEditor(canvas, {document: pageDocument(scene, id), resolveImage: assetId => options.resolveImage(assetId, signal), readOnly: true})
+      renderer = await createPageEditor(canvas, {document: pageDocument(scene, id), resolveImage: assetId => options.resolveImage(assetId, signal), readOnly: true, loadSignal: signal})
       checkAbort(signal)
       const result = await task(renderer)
       for(const assetId of documentAssetIds(pageDocument(scene,id))) { await options.resolveImage(assetId,signal); checkAbort(signal) }
@@ -153,6 +153,7 @@ export async function createStudioEditor(element, options) {
     },
     getPageThumbnail(id, {signal} = {}) {
       return auxiliary(async () => {
+        checkAbort(signal)
         if (!options.authorizePage) throw Error('Falta la autorización vigente para miniaturas privadas.')
         await options.authorizePage(id, signal); checkAbort(signal)
         const scene = snapshot(), signature = await signatureOf(findPage(scene, id)), cached = thumbnails.get(id)
@@ -187,7 +188,7 @@ export async function createStudioEditor(element, options) {
 }
 
 // Fabric owns interaction; only the canonical Runly scene enters history or storage.
-async function createPageEditor(element, { document, resolveImage, onChange, onSelection, onError, onHistory, onPointer, onEditImage, onGuides, onEditorPreferences, readOnly = false, sharedClipboard, authorizePaste, allObjects, validateScene }) {
+async function createPageEditor(element, { document, resolveImage, onChange, onSelection, onError, onHistory, onPointer, onEditImage, onGuides, onEditorPreferences, readOnly = false, sharedClipboard, authorizePaste, allObjects, validateScene, loadSignal }) {
   function validateCandidate(input) {
     const clean = validateDocument(input)
     validateScene?.(clean)
@@ -220,6 +221,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
     lockMovementX: item.locked || protectedMode || exportingNow, lockMovementY: item.locked || protectedMode || exportingNow, lockScalingX: item.locked || protectedMode || exportingNow, lockScalingY: item.locked || protectedMode || exportingNow,
     lockRotation: item.locked || protectedMode || exportingNow, editable: !item.locked && !protectedMode && !exportingNow })
   async function build(item,budget={pixels:canvas.getObjects().filter(object=>object.studioId!==item.id).reduce((sum,object)=>sum+(object.studioPixels??0),0)}) {
+    checkAbort(loadSignal)
     let pixels=0
     const reserve=image=>{
       pixels=image.width*image.height
@@ -229,7 +231,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
     const options = { left: item.x, top: item.y, angle: item.rotation, fill: item.fill, strokeWidth:0, originX: 'left', originY: 'top' }
     let object
     if(SHAPE_TYPES.includes(item.type)&&(item.fillPaint||item.shape)){
-      object=photoFileId(item)?await createStudioPhoto(item,resolveImage,reserve):new StudioPhoto(item,null)
+      object=photoFileId(item)?await createStudioPhoto(item,resolveImage,reserve,loadSignal):new StudioPhoto(item,null)
     }
     else if (item.type === 'text') {
       await ensureStudioFont(item.fontFamily,item.fontVariant)
@@ -247,10 +249,10 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
       object = new Group(shapes, { ...options, subTargetCheck:false, interactive:false })
       object.set({ scaleX:item.width/object.width,scaleY:item.height/object.height })
     }
-    else if(item.type==='image'&&item.image) object=await createStudioPhoto(item,resolveImage,reserve)
+    else if(item.type==='image'&&item.image) object=await createStudioPhoto(item,resolveImage,reserve,loadSignal)
     else {
-      try { object = await FabricImage.fromURL(await resolveImage(item.fileAssetId), { crossOrigin: 'anonymous' }) }
-      catch { throw new Error('No se pudo cargar la imagen original. Comprueba el archivo y reintenta.') }
+      try { object = await FabricImage.fromURL(await resolveImage(item.fileAssetId,loadSignal), { crossOrigin: 'anonymous', signal: loadSignal }) }
+      catch { checkAbort(loadSignal); throw new Error('No se pudo cargar la imagen original. Comprueba el archivo y reintenta.') }
       try{reserve(object)}catch(error){object.dispose();throw error}
       object.set({ ...options, scaleX: item.width / object.width, scaleY: item.height / object.height })
     }

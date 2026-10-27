@@ -37,6 +37,21 @@ try {
   result.rc2Export=await page.evaluate(()=>window.rc2ExportVerification())
   result.multipage=await page.evaluate(()=>window.studioMultipageVerification())
   result.multipageBudgets=await page.evaluate(()=>window.studioMultipageBudgetVerification())
+  let privateRequest, releasePrivate
+  const privateStarted=new Promise(resolve=>{privateRequest=resolve})
+  const privateHeld=new Promise(resolve=>{releasePrivate=resolve})
+  await page.route('**/studio-test-private.png',async route=>{privateRequest(route);await privateHeld;await route.abort().catch(()=>{})})
+  await page.evaluate(()=>window.setupStudioMultipageAbort())
+  await Promise.race([privateStarted,new Promise((_,reject)=>setTimeout(()=>reject(Error('Inactive private render did not request its photo')),10000))])
+  result.multipageAbort=await page.evaluate(async()=>{
+    const {editor,controller,canvas,before,promise}=window.multipageAbort
+    controller.abort();const result=await promise
+    const unchanged=JSON.stringify(editor.snapshot())===before
+    await editor.destroy();canvas.remove()
+    return {...result,unchanged}
+  })
+  releasePrivate();await page.unroute('**/studio-test-private.png')
+  assert.equal(result.multipageAbort.name,'AbortError');assert.equal(result.multipageAbort.unchanged,true)
   for(const zoom of [1,0.5,2]){
     const box=await page.evaluate(z=>window.setupStudioSnap(z),zoom)
     await page.mouse.move(box.x+130*zoom,box.y+130*zoom);await page.mouse.down();await page.mouse.move(box.x+300*zoom-2,box.y+130*zoom,{steps:5});await page.mouse.up()

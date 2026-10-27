@@ -2,6 +2,7 @@ import { FabricObject, FabricImage, Shadow, filters, Canvas2dFilterBackend } fro
 import { shapeStyle, photoFileId } from '../../../../../shared/studio/shape-properties.js'
 import { imageProperties } from '../../../../../shared/studio/image-properties.js'
 import { canvasGradient } from '../../../../../shared/studio/gradient.js'
+import {checkAbort} from '../../../../../shared/studio/abort.js'
 
 function mask(ctx,kind,w,h,radius) {
   ctx.beginPath()
@@ -75,8 +76,13 @@ export class StudioPhoto extends FabricObject {
   }
   dispose() {if(this.filtered){this.filtered.width=0;this.filtered.height=0}for(const canvas of Object.values(this.filterBackend.resources)){if(canvas&&'width'in canvas){canvas.width=0;canvas.height=0}}this.original?.dispose();super.dispose()}
 }
-export async function createStudioPhoto(item,resolveImage,onLoad=()=>{}) {
-  const image=await FabricImage.fromURL(await resolveImage(photoFileId(item)),{crossOrigin:'anonymous'})
+export async function createStudioPhoto(item,resolveImage,onLoad=()=>{},signal) {
+  checkAbort(signal)
+  const url=await resolveImage(photoFileId(item),signal)
+  checkAbort(signal)
+  let image
+  try{image=await FabricImage.fromURL(url,{crossOrigin:'anonymous',signal})}catch(error){checkAbort(signal);throw error}
+  if(signal?.aborted){image.dispose();checkAbort(signal)}
   if(!image.width||!image.height||image.width>8192||image.height>8192||image.width*image.height>25_000_000){image.dispose();throw Error('La imagen supera 25 megapíxeles o 8192 px por lado.')}
   try{onLoad(image);return new StudioPhoto(item,image)}catch(error){image.dispose();throw error}
 }

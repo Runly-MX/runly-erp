@@ -22,7 +22,8 @@ export async function commitStudioMcpUpdate(stack,{token,companyId,designId,name
     const call=(mode,operation,input={})=>client.callTool({name:`runly_studio_${mode}`,arguments:{companyId,request:{operation,input}}})
     const value=reply=>{assert.equal(Boolean(reply.isError),false,JSON.stringify(reply));return reply.structuredContent.data}
     const guide=value(await call('query','studio_overview')).result;assert.equal(guide.schemaVersion,7)
-    const proposal=value(await call('prepare','studio_update_design',{designId,name,document,revision,ops}))
+    const proposal=value(await call('prepare',ops?'studio_apply_changes':'studio_update_design',ops?
+      {designId,revision,ops,clientId:'multipage-mcp-client',batchId:1}:{designId,name,document,revision}))
     const commit=()=>client.callTool({name:'runly_studio_commit',arguments:{companyId,proposalId:proposal.proposalId}})
     assert.equal(Boolean((await commit()).isError),true)
     await ok(await request(`/mcp/proposals/${proposal.proposalId}`,{approve:true,acknowledgeSensitive:true},token))
