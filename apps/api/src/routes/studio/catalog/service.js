@@ -13,6 +13,8 @@ const MAX_BYTES=10*1024*1024, MIME={png:'image/png',jpeg:'image/jpeg',webp:'imag
 const ICONIFY_PAGES=31
 // Openverse anonymous searches allow at most 20 results per page.
 const OPENVERSE_PAGE_SIZE=20
+// Illustrations are a separate Openverse category; photos exclude them so each tab stays coherent.
+const OPENVERSE_CATEGORIES=['photograph','illustration','digitized_artwork']
 const text=(value,max=200)=>typeof value==='string'?value.slice(0,max):''
 const sourceUrl=value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href.slice(0,2048):''}catch{return ''}}
 const unavailable=()=>{throw new StudioError('El proveedor devolvió un recurso no compatible.',502)}
@@ -30,7 +32,9 @@ function photo(row) {
 // Browser input is an ID/query, never a URL. Originals only enter Files on import.
 export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,network=createCatalogNetwork(),clock=Date.now}) {
   if(process.env.STUDIO_CATALOG_TEST_PROJECT)network=createLocalCatalogFixtureNetwork(prisma,process.env.STUDIO_CATALOG_TEST_PROJECT)
-  const cache=createCatalogCache({clock}),rates=new Map(),imports=new Set();let running=0,decoding=0
+  const cache=createCatalogCache({clock,ttl:5*60000,maxEntries:400}),rates=new Map(),imports=new Set();let decoding=0
+  // Public thumbnails are cached as base64 (PNG, ~256px) so re-renders and other users do not hit the provider again.
+  const thumbs=createCatalogCache({clock,ttl:15*60000,maxEntries:300,maxBytes:24*1024*1024})
   async function decode(task) {
     if(decoding>=2)throw new StudioError('Hay imágenes procesándose. Espera antes de reintentar.',429)
     decoding++
@@ -41,17 +45,27 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
     if(editId)await access.get(companyId,actorId,editId,prisma,true)
     if(upload){await access.member(companyId,actorId,'files.assets.read');await access.member(companyId,actorId,'files.assets.create')}
   }
-  async function work(companyId,actorId,action) {
+  // Thumbnails use their own lane: a page of results fires ~20 of them and must not exhaust the search quota.
+  const lanes={api:{limit:100,concurrent:4,running:0},thumb:{limit:1200,concurrent:8,running:0}}
+  async function work(companyId,actorId,action,laneName='api') {
     await authorize(companyId,actorId)
-    const now=clock(),key=`${companyId}:${actorId}`
+    const lane=lanes[laneName],now=clock(),key=`${companyId}:${actorId}:${laneName}`
     for(const[k,v]of rates)if(v.until<=now)rates.delete(k)
     if(!rates.has(key)){if(rates.size>=512)throw new StudioError('Catálogo ocupado. Reintenta más tarde.',429);rates.set(key,{count:0,until:now+60000})}
-    if(++rates.get(key).count>100||running>=4)throw new StudioError('Demasiadas consultas. Espera antes de reintentar.',429)
-    running++
-    try{const result=await action(key);await authorize(companyId,actorId);return result}finally{running--}
+    if(++rates.get(key).count>lane.limit||lane.running>=lane.concurrent)throw new StudioError('Demasiadas consultas. Espera antes de reintentar.',429)
+    lane.running++
+    try{const result=await action(`${companyId}:${actorId}`);await authorize(companyId,actorId);return result}finally{lane.running--}
+  }
+  // Openverse and its thumbnail proxy intermittently answer 502/504; one retry clears most of them.
+  async function fetchRetry(url,options) {
+    try{return await network.get(url,options)}
+    catch(error){
+      if(![502,504].includes(error?.status))throw error
+      return network.get(url,options)
+    }
   }
   async function json(url) {
-    const response=await network.get(url,{maxBytes:262144})
+    const response=await fetchRetry(url,{maxBytes:262144})
     if(response.mime!=='application/json')unavailable()
     try{return JSON.parse(response.bytes.toString('utf8'))}catch{unavailable()}
   }
@@ -89,9 +103,10 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
   async function search(companyId,actorId,p,query={}) {
     provider(p)
     const q=text(query.q,80).trim(),page=Math.max(1,Math.min(100,Number.parseInt(query.page,10)||1)),collection=query.collection??'tabler'
+    const category=OPENVERSE_CATEGORIES.includes(query.category)?query.category:''
     if(p==='iconify'&&!ICON_COLLECTIONS.some(row=>row.id===collection))throw new StudioError('Colección no disponible.',400)
     return work(companyId,actorId,async scope=>{
-      const key=JSON.stringify([scope,p,q,page,collection]),hit=cache.get(key);if(hit)return hit
+      const key=JSON.stringify([scope,p,q,page,collection,category]),hit=cache.get(key);if(hit)return hit
       let data,hasNext
       if(!q) return {data:[],pagination:{page,hasNext:false},collections:p==='iconify'?ICON_COLLECTIONS:[],requiresQuery:true}
       if(p==='iconify') {
@@ -102,7 +117,10 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
         if(!Array.isArray(response?.icons)||response.icons.length>32)unavailable()
         data=response.icons.map(iconSource).filter(row=>row&&row.id.startsWith(`${collection}:`));hasNext=response.icons.length===32&&page<ICONIFY_PAGES
       }else{
-        const response=await json(`https://api.openverse.org/v1/images/?${new URLSearchParams({q,page:String(page),page_size:String(OPENVERSE_PAGE_SIZE),license:'cc0,pdm,by',license_type:'commercial,modification',mature:'false'})}`)
+        // Only raster formats can be imported; skipping SVG/GIF avoids results that fail at insert time.
+        const params={q,page:String(page),page_size:String(OPENVERSE_PAGE_SIZE),license:'cc0,pdm,by',license_type:'commercial,modification',mature:'false',extension:'jpg,jpeg,png,webp'}
+        if(category)params.category=category
+        const response=await json(`https://api.openverse.org/v1/images/?${new URLSearchParams(params)}`)
         if(!Array.isArray(response?.results)||response.results.length>OPENVERSE_PAGE_SIZE)unavailable()
         data=response.results.flatMap(raw=>{
           const resource=photo(raw);if(!resource)return[]
@@ -123,15 +141,25 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
   async function thumbnail(companyId,actorId,p,id) {
     checkedId(p,id)
     return work(companyId,actorId,async scope=>{
+      const cached=thumbs.get(`${p}:${id}`)
+      if(cached)return Buffer.from(cached,'base64')
       const row=await original(p,id,false,scope)
       if(row.geometry) {
         const{width,height,paths}=row.geometry
         const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${paths.map(path=>`<path d="${path.d}" fill="${path.fill==='color'?'#262626':'none'}" stroke="${path.stroke==='color'?'#262626':'none'}" stroke-width="${path.strokeWidth}" stroke-linecap="${path.cap}" stroke-linejoin="${path.join}"/>`).join('')}</svg>`
         return sharp(Buffer.from(svg)).resize(128,128,{fit:'inside'}).png().toBuffer()
       }
-      const response=await network.get(row.thumbnailUrl,{maxBytes:MAX_BYTES})
-      return decode(async()=> (await checkedImage(response)).processor.rotate().resize(256,256,{fit:'inside',withoutEnlargement:true}).png().toBuffer())
-    })
+      let response
+      try{response=await fetchRetry(row.thumbnailUrl,{maxBytes:MAX_BYTES})}
+      catch(error){
+        // The provider's thumbnail proxy is the flaky part; fall back to the (larger) original and shrink it here.
+        if(![502,504].includes(error?.status))throw error
+        response=await network.get(row.originalUrl,{maxBytes:MAX_BYTES,timeoutMs:25000})
+      }
+      const png=await decode(async()=> (await checkedImage(response)).processor.rotate().resize(256,256,{fit:'inside',withoutEnlargement:true}).png().toBuffer())
+      thumbs.set(`${p}:${id}`,png.toString('base64'))
+      return png
+    },'thumb')
   }
   async function checkedImage(response) {
     if(!Object.values(MIME).includes(response.mime)||!response.bytes.length||response.bytes.length>MAX_BYTES)throw new StudioError('Formato o tamaño de imagen no admitido.',413)
@@ -154,7 +182,7 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
       try {
         const row=await original(p,id,true,scope) // Never trust a cached or client supplied license on import.
         if(p==='iconify'){await authorize(companyId,actorId,designId);return {resource:row.resource,object:{type:'vector',iconId:id,geometry:row.geometry,width:160,height:160*row.geometry.height/row.geometry.width}}}
-        const response=await network.get(row.originalUrl,{maxBytes:MAX_BYTES}),{metadata}=await decode(()=>checkedImage(response))
+        const response=await fetchRetry(row.originalUrl,{maxBytes:MAX_BYTES,timeoutMs:30000}),{metadata}=await decode(()=>checkedImage(response))
         await authorize(companyId,actorId,designId,true)
         const hash=createHash('sha256').update(response.bytes).digest('hex')
         const [existing]=await prisma.$queryRaw`SELECT id FROM file_asset WHERE entity_id=${companyId}::uuid AND uploaded_by_id=${actorId}::uuid AND enabled

@@ -1,8 +1,8 @@
-// Shared by Files and external catalogs: at most two active thumbnail downloads.
+// Shared by Files and external catalogs: at most four active thumbnail downloads.
 const waiting=[]
 let active=0
 function pump() {
-  while(active<2&&waiting.length) {
+  while(active<4&&waiting.length) {
     const job=waiting.shift()
     if(job.signal.aborted){job.reject(new DOMException('Cancelado','AbortError'));continue}
     active++

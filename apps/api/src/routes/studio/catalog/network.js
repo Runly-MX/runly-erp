@@ -22,14 +22,14 @@ export function publicCatalogAddress(address) {
 }
 
 export function createCatalogNetwork({ lookup = dns.lookup, transport = https.request, timeoutMs = 15000, addressAllowed = publicCatalogAddress } = {}) {
-  async function get(value, { maxBytes = 262144, redirects = 0, signal } = {}) {
+  async function get(value, { maxBytes = 262144, redirects = 0, signal, timeoutMs: callTimeoutMs = timeoutMs } = {}) {
     const url = catalogUrl(value)
     if (signal?.aborted) throw new StudioError('Solicitud cancelada.', 499)
     return new Promise((resolve,reject) => {
       let request, settled = false
       const finish = (error,result) => { if (settled) return; settled=true; clearTimeout(timer); signal?.removeEventListener('abort',abort); error ? reject(error) : resolve(result) }
       const abort = () => { request?.destroy(); finish(new StudioError('Solicitud cancelada.',499)) }
-      const timer = setTimeout(() => { request?.destroy(); finish(new StudioError('El proveedor tardó demasiado. Reintenta más tarde.',504)) },timeoutMs)
+      const timer = setTimeout(() => { request?.destroy(); finish(new StudioError('El proveedor tardó demasiado. Reintenta más tarde.',504)) },callTimeoutMs)
       signal?.addEventListener('abort',abort,{once:true})
       lookup(url.hostname,{all:true,verbatim:true}).then(resolved => {
         if (settled) return
@@ -44,7 +44,7 @@ export function createCatalogNetwork({ lookup = dns.lookup, transport = https.re
             if (redirects >= 2 || !response.headers.location) return finish(new StudioError('Redirección del proveedor no permitida.',403))
             let next
             try { next=catalogUrl(new URL(response.headers.location,url).href) } catch(error) { return finish(error) }
-            get(next.href,{maxBytes,redirects:redirects+1,signal}).then(result=>finish(null,result),finish);return
+            get(next.href,{maxBytes,redirects:redirects+1,signal,timeoutMs:callTimeoutMs}).then(result=>finish(null,result),finish);return
           }
           if (status !== 200) { response.resume(); return finish(new StudioError(status===429?'El proveedor limitó las solicitudes. Espera antes de reintentar.':status===404?'El recurso ya no está disponible.':'No se pudo consultar el proveedor.',status===429?429:status===404?404:502)) }
           if (Number(response.headers['content-length'])>maxBytes) { response.destroy(); return finish(new StudioError('El recurso supera el límite permitido.',413)) }

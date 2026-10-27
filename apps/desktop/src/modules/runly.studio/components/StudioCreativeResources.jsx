@@ -16,7 +16,17 @@ function CatalogImage({resource,token,fit='cover'}) {
     const observer=new IntersectionObserver(entries=>{
       if(started||!entries.some(row=>row.isIntersecting))return
       started=true;observer.disconnect()
-      scheduled(()=>runly.studio.catalogThumbnail(resource.provider,resource.id,token,controller.signal),controller.signal).then(blob=>{
+      // The provider proxy fails intermittently; retry with backoff before showing "Sin vista previa".
+      const load=async()=>{
+        for(let attempt=0;;attempt++) {
+          try{return await runly.studio.catalogThumbnail(resource.provider,resource.id,token,controller.signal)}
+          catch(error){
+            if(attempt>=2||controller.signal.aborted||![429,502,504].includes(error?.status))throw error
+            await new Promise(resolve=>setTimeout(resolve,1200*(attempt+1)))
+          }
+        }
+      }
+      scheduled(load,controller.signal).then(blob=>{
         if(!controller.signal.aborted){objectUrl=URL.createObjectURL(blob);setUrl(objectUrl)}
       }).catch(()=>{if(!controller.signal.aborted)setFailed(true)})
     },{rootMargin:'80px'})
@@ -32,7 +42,14 @@ function CatalogImage({resource,token,fit='cover'}) {
   </div>
 }
 
-function ProviderCatalog({provider,token,designId,disabled,onInsert}) {
+const CATALOG_TABS={
+  openverse:{provider:'openverse',category:'photograph',label:'fotografías',hint:'Openverse · CC0, dominio público y CC BY. Orígenes admitidos: Wikimedia y Flickr. Revisa los créditos antes de publicar.'},
+  illustrations:{provider:'openverse',category:'illustration',label:'ilustraciones',hint:'Openverse · ilustraciones y dibujos CC0, dominio público y CC BY (PNG, JPG, WebP). Revisa los créditos antes de publicar.'},
+  iconify:{provider:'iconify',label:'iconos'},
+}
+
+function ProviderCatalog({tab,token,designId,disabled,onInsert}) {
+  const {provider,category,label,hint}=CATALOG_TABS[tab]
   const collectionId=useId()
   const [search,setSearch]=useState(''),[q,setQ]=useState(''),[page,setPage]=useState(1),[collection,setCollection]=useState('tabler')
   const [result,setResult]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(false),[retry,setRetry]=useState(0)
@@ -40,20 +57,20 @@ function ProviderCatalog({provider,token,designId,disabled,onInsert}) {
   useEffect(()=>{const timer=setTimeout(()=>{setQ(search.trim());setPage(1)},300);return()=>clearTimeout(timer)},[search])
   useEffect(()=>{
     const controller=new AbortController();setResult(null);setLoading(true);setError('')
-    runly.studio.catalogSearch(provider,token,{q,page,collection},controller.signal).then(response=>{if(!controller.signal.aborted)setResult(response.data)})
+    runly.studio.catalogSearch(provider,token,{q,page,collection,category},controller.signal).then(response=>{if(!controller.signal.aborted)setResult(response.data)})
       .catch(error=>{if(!controller.signal.aborted)setError(error.message)}).finally(()=>{if(!controller.signal.aborted)setLoading(false)})
     return()=>controller.abort()
-  },[provider,token,q,page,collection,retry])
+  },[provider,category,token,q,page,collection,retry])
   async function insert() {
     if(disabled||inserting)return
     setInserting(true);setError('')
     try{const response=await runly.studio.catalogImport(provider,preview.id,designId,token);await onInsert(response.data);setPreview(null)}
     catch(error){setError(error.message)}finally{setInserting(false)}
   }
-  return <section className="space-y-3" aria-label={provider==='iconify'?'Catálogo de iconos':'Catálogo de fotografías'}>
-    <SearchInput aria-label={provider==='iconify'?'Buscar iconos':'Buscar fotografías'} placeholder={provider==='iconify'?'Buscar iconos (p. ej. star)':'Buscar fotografías'} value={search} maxLength={80} onChange={event=>setSearch(event.target.value)} onClear={()=>setSearch('')}/>
+  return <section className="space-y-3" aria-label={`Catálogo de ${label}`}>
+    <SearchInput aria-label={`Buscar ${label}`} placeholder={provider==='iconify'?'Buscar iconos (p. ej. star)':`Buscar ${label}`} value={search} maxLength={80} onChange={event=>setSearch(event.target.value)} onClear={()=>setSearch('')}/>
     {provider==='iconify'?<SelectField id={collectionId} label="Colección" value={collection} options={ICON_COLLECTIONS.map(row=>({value:row.id,label:`${row.name} · ${row.license}`}))} onChange={value=>{setCollection(value);setPage(1)}}/>:
-      <p className="text-xs text-[hsl(var(--muted-foreground))]">Openverse · CC0, dominio público y CC BY. Orígenes admitidos: Wikimedia y Flickr. Revisa los créditos antes de publicar.</p>}
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">{hint}</p>}
     {loading?<div className="grid grid-cols-3 gap-2" aria-busy="true" aria-label="Buscando recursos">{Array.from({length:6},(_,i)=><div key={i} className="space-y-1.5"><Skeleton className="aspect-square rounded-xl"/><Skeleton className="h-2.5 w-3/4 rounded-full"/></div>)}</div>:null}
     {error&&!preview?<ErrorState variant="compact" title="Catálogo no disponible" description={error} onRetry={()=>setRetry(value=>value+1)}/>:null}
     {result&&!result.data.length?<EmptyState variant="compact" icon={Search} title={result.requiresQuery?'Busca tu próximo recurso':'Sin recursos compatibles'} description={result.requiresQuery?'Escribe una búsqueda para consultar el catálogo.':'Prueba otra consulta; las licencias y orígenes no admitidos se excluyen.'}/>:null}
@@ -86,7 +103,7 @@ function ProviderCatalog({provider,token,designId,disabled,onInsert}) {
 export function StudioCreativeResources({token,designId,disabled,onFileInsert,onVectorInsert,uploader}) {
   const [tab,setTab]=useState('files')
   return <div className="space-y-4">
-    <SegmentedControl ariaLabel="Tipo de recursos" value={tab} onChange={setTab} options={[{value:'files',label:'Archivos'},{value:'openverse',label:'Fotos'},{value:'iconify',label:'Iconos'}]}/>
-    {tab==='files'?<StudioResources token={token} disabled={disabled} uploader={uploader} onInsert={onFileInsert}/>:<ProviderCatalog key={tab} provider={tab} token={token} designId={designId} disabled={disabled} onInsert={async result=>{if(result.object)await onVectorInsert(result.object);else await onFileInsert(result.file)}}/>}
+    <SegmentedControl ariaLabel="Tipo de recursos" value={tab} onChange={setTab} options={[{value:'files',label:'Archivos'},{value:'openverse',label:'Fotos'},{value:'illustrations',label:'Ilustraciones'},{value:'iconify',label:'Iconos'}]}/>
+    {tab==='files'?<StudioResources token={token} disabled={disabled} uploader={uploader} onInsert={onFileInsert}/>:<ProviderCatalog key={tab} tab={tab} token={token} designId={designId} disabled={disabled} onInsert={async result=>{if(result.object)await onVectorInsert(result.object);else await onFileInsert(result.file)}}/>}
   </div>
 }

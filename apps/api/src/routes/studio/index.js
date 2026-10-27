@@ -65,7 +65,7 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     return c.json({ data: await catalog.details(...context(c), c.req.param('provider'), c.req.param('id')) })
   })
   app.get('/studio/catalog/:provider/:id/thumbnail', requirePermission('studio.view'), async c => {
-    c.header('Cache-Control', 'private, no-store'); c.header('Content-Type', 'image/png')
+    c.header('Cache-Control', 'private, max-age=3600'); c.header('Content-Type', 'image/png')
     return c.body(await catalog.thumbnail(...context(c), c.req.param('provider'), c.req.param('id')))
   })
   app.post('/studio/catalog/:provider/:id/import', requirePermission('studio.edit'), async c => {
