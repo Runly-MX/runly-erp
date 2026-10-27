@@ -1,5 +1,10 @@
 # Studio: optimización local de Presence y Broadcast
 
+Actualización de mantenimiento: la preparación de roles, recuperación P3009 y
+distribución del Installer se cierran por separado en
+[Studio: cierre local del Installer](STUDIO_INSTALLER_CLOSURE_LOCAL.md).
+Ese cierre conserva este transporte y no amplía sus mediciones de carga.
+
 ## Alcance y evidencia
 
 Trabajo local sobre main, sin despliegue, publicación, SSH ni escrituras en bases

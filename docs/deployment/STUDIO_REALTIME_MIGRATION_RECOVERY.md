@@ -1,5 +1,8 @@
 # Recuperar la migración de Studio Realtime
 
+Distribución versionada, compatibilidad, matriz de instalaciones y decisión de
+seguridad: [cierre local del Installer](STUDIO_INSTALLER_CLOSURE_LOCAL.md).
+
 `P3009` indica que Prisma encontró una migración fallida y bloqueó las siguientes.
 En actualizaciones selfhosted, `20261210000000_studio_realtime_ephemeral` podía
 fallar porque el Installer anterior solo montaba la preparación del rol para
@@ -87,6 +90,11 @@ marcar el intento como revertido. Una base restringida puede requerir que su
 propietario prepare el rol. Supabase alojado no garantiza acceso a
 `supabase_admin`; este procedimiento no pretende eludir las restricciones del
 proveedor ni certifica compatibilidad con cualquier plan o proyecto alojado.
+
+Si los jobs deben entrar en una red Docker existente, configurar
+`RUNLY_MIGRATION_NETWORK` en el entorno del Installer. La misma red se utiliza
+para diagnóstico, preparación, recuperación y migraciones external. No se
+construye automáticamente a partir de un nombre de servidor.
 
 ## Verificación local
 

@@ -1,5 +1,14 @@
 # Runly ERP Docker Installer
 
+El Installer usa un manifiesto versionado, descarga desde un commit fijado y
+verifica todos los hashes antes de sustituir archivos. Conserva entornos,
+secretos y overrides; si un archivo distribuido fue personalizado, detiene la
+actualización antes de sobrescribirlo. API/Worker/Web deben declarar un contrato
+compatible. Publicar imágenes Docker no publica estos scripts.
+
+Procedimientos y matriz actual de instalación, actualización, publicación y
+recuperación: [cierre de Studio Realtime](../../docs/deployment/STUDIO_INSTALLER_CLOSURE_LOCAL.md).
+
 ## Recuperación y cobertura del respaldo
 
 La guía actual de recuperación está en
@@ -937,11 +946,12 @@ curl -fsSLo bootstrap-external.sh.next https://raw.githubusercontent.com/Runly-M
 bash ./bootstrap-external.sh
 ```
 
-Las versiones nuevas de los bootstrap external/local (Bash y PowerShell) refrescan
-su propio código antes de descargar la lista de archivos. Si la descarga falla,
-se detienen sin sustituir el bootstrap. Conservan los archivos de entorno y las
-credenciales de `.secrets/`. Una versión antigua necesita la renovación manual
-anterior para incorporar esta capacidad.
+Los wrappers de actualización external/local refrescan el bootstrap desde una
+revisión fijada. El bootstrap verifica el downloader y este descarga el manifiesto
+de esa misma revisión, comprueba todos los hashes y aplica el lote con journal.
+Si falla la descarga o la integridad, conserva los archivos en uso. Conserva
+entornos y `.secrets/`. Una copia anterior a la capacidad de refrescar el
+bootstrap necesita la renovación manual anterior para adoptar este flujo.
 
 El bootstrap descarga los scripts y Compose. El setup (`npm run runly:external`)
 descarga las imágenes/Dev Kit y ejecuta la instalación. Para preparar únicamente
@@ -976,9 +986,10 @@ curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/Runly-MX/run
 bash ./bootstrap-external.sh
 ```
 
-Conserva `.env.external` y `custom-modules/`; sobrescribe los archivos distribuidos
-del instalador, por lo que debes guardar/reaplicar cualquier personalizacion de
-esos archivos. El comando `npm run runly:external` descarga imagenes y Dev Kit,
+Conserva `.env.external` y `custom-modules/`; actualiza los archivos distribuidos
+solo si coinciden con una versión conocida o con el estado instalado. Si hay
+personalizaciones, se detiene y las conserva; usa overrides para configuración
+Compose. El comando `npm run runly:external` descarga imagenes y Dev Kit,
 pero **no actualiza sus propios scripts ni Compose**.
 
 Configura el DNS y proxy HTTPS/WebSocket de Office, y edita estas variables en

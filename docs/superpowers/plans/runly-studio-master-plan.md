@@ -1,5 +1,32 @@
 # Runly Studio: plan maestro consolidado
 
+## Mantenimiento de instalación y actualizaciones — 2026-10-27
+
+- [x] Conservar Presence/Broadcast y el rol aislado; evaluar la sustitución por
+  `authenticated` sin relajar las restricciones compartidas de Realtime.
+- [x] Preparar local selfhosted antes de Prisma en volúmenes nuevos y existentes.
+- [x] Preflight external por la conexión efectiva, privilegios faltantes precisos
+  y credencial propietaria temporal separada de los servicios de aplicación.
+- [x] Recuperación explícita del P3009 conocido: checksum, historial y objetos;
+  conservar intentos y datos, rechazar errores desconocidos o estados parciales.
+- [x] Installer versionado: commit fijado, hashes, staging, journal, recuperación
+  de interrupciones, conservación de configuración y rechazo de cambios locales.
+- [x] Contrato de compatibilidad API/Worker/Web e IDs inmutables por despliegue;
+  impedir que una imagen incompatible llegue a Prisma.
+- [x] Pruebas Docker desechables de instalación limpia, actualización antigua,
+  permisos external, fallos conocidos/desconocidos y repetición con datos testigo.
+- [ ] Publicar scripts e imágenes compatibles: excluido por instrucción del usuario.
+- [ ] Validar en Supabase alojado: no confundir la prueba external local con esa certificación.
+
+No se elimina la preparación única del propietario en bases external que niegan
+los privilegios necesarios. Se documenta esa dependencia en lugar de ampliar
+permisos globales. Evidencia, matriz, recuperación y riesgos:
+[cierre local del Installer](../../deployment/STUDIO_INSTALLER_CLOSURE_LOCAL.md).
+
+Este bloque es mantenimiento de distribución y migraciones. Las futuras
+funcionalidades del editor, suspensión real del sistema y validación de veinte
+colaboradores conservan su estado previo; este cierre no las da por terminadas.
+
 Fecha: 2026-10-25. Identidad: `runly.studio`, módulo oficial de Runly ERP.
 
 Flujo Git vigente por instrucción posterior del usuario: trabajar directamente en
