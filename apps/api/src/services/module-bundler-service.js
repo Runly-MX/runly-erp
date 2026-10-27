@@ -68,7 +68,10 @@ async function resolveModuleBaseDir(key) {
   }
 }
 
-export function createModuleBundlerService({ prisma, supabaseAdmin }) {
+export function createModuleBundlerService({ prisma, supabaseAdmin, bundlesDir = BUNDLES_DIR }) {
+  // A shared database can point at a newer release than this host's disk cache.
+  const BUNDLES_DIR = bundlesDir
+  const restores = new Map()
   async function ensureBundlesDir() {
     await fs.mkdir(BUNDLES_DIR, { recursive: true })
   }
@@ -113,7 +116,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
     return { content, hasBundle: row?.hasBundle === true, bundleHash: row?.bundleHash ?? null }
   }
 
-  async function writePublishedBundle(key, content) {
+  async function writePublishedBundle(key, content, bundleHash = null) {
     await ensureBundlesDir()
     const target = path.join(BUNDLES_DIR, `${key}.js`)
     const temporary = path.join(BUNDLES_DIR, `.${key}.${randomSuffix()}.tmp`)
@@ -122,6 +125,37 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
       await fs.rm(temporary, { force: true }).catch(() => {})
       throw error
     })
+    const metadata = JSON.stringify({ bundleHash, contentHash: createHash('sha256').update(content).digest('hex') })
+    const metadataTemp = `${temporary}.json`
+    await fs.writeFile(metadataTemp, metadata)
+    await fs.rename(metadataTemp, `${target}.json`).catch(async error => {
+      await fs.rm(metadataTemp, { force: true }).catch(() => {})
+      throw error
+    })
+  }
+
+  async function readPublishedBundle(key, bundleHash) {
+    if (!/^[\w.-]+$/.test(key)) throw new Error('Invalid module key')
+    bundleHash ??= null
+    const cacheKey = `${key}:${bundleHash ?? ''}`
+    if (restores.has(cacheKey)) return restores.get(cacheKey)
+    const restore = (async () => {
+      const target = path.join(BUNDLES_DIR, `${key}.js`)
+      try {
+        const [content, rawMetadata] = await Promise.all([fs.readFile(target), fs.readFile(`${target}.json`, 'utf8')])
+        const metadata = JSON.parse(rawMetadata)
+        if (metadata?.bundleHash === bundleHash && metadata?.contentHash === createHash('sha256').update(content).digest('hex')) return content
+      } catch (error) {
+        if (!['ENOENT', 'ENOTDIR'].includes(error?.code) && !(error instanceof SyntaxError)) throw error
+      }
+      const { data, error } = await supabaseAdmin.storage.from(STORAGE_BUCKET).download(`${key}.js`)
+      if (error || !data) throw new Error(`Bundle restore failed: ${error?.message ?? 'no data'}`)
+      const content = Buffer.from(await data.arrayBuffer())
+      await writePublishedBundle(key, content, bundleHash)
+      return content
+    })()
+    restores.set(cacheKey, restore)
+    try { return await restore } finally { restores.delete(cacheKey) }
   }
 
   function randomSuffix() {
@@ -131,7 +165,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
   async function publishStagedBundle(key, stagedBundle) {
     const hasBundle = stagedBundle?.built === true
     const content = hasBundle ? await fs.readFile(stagedBundle.artifactPath) : null
-    if (content) await writePublishedBundle(key, content)
+    if (content) await writePublishedBundle(key, content, stagedBundle.hash)
     else await fs.rm(path.join(BUNDLES_DIR, `${key}.js`), { force: true })
 
     await ensureStorageBucket()
@@ -158,7 +192,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
   async function restorePublishedBundle(key, snapshot) {
     const storage = supabaseAdmin.storage.from(STORAGE_BUCKET)
     if (snapshot?.content) {
-      await writePublishedBundle(key, snapshot.content)
+      await writePublishedBundle(key, snapshot.content, snapshot.bundleHash)
       const { error } = await storage.upload(`${key}.js`, snapshot.content, {
         contentType: 'application/javascript',
         upsert: true,
@@ -213,6 +247,8 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
       outfile,
       sourcemap: process.env.NODE_ENV === 'development' ? 'inline' : false,
     })
+
+    await writePublishedBundle(key, await fs.readFile(outfile), newHash)
 
     try {
       await ensureStorageBucket()
@@ -321,43 +357,19 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
     try {
       modules = await prisma.runlyModule.findMany({
         where: { status: 'INSTALLED', enabled: true, hasBundle: true },
-        select: { key: true },
+        select: { key: true, bundleHash: true },
       })
     } catch (err) {
       console.warn('[bundler] restoreModuleBundlesOnBoot: DB query failed:', err.message)
       return
     }
 
-    for (const { key } of modules) {
-      const bundlePath = path.join(BUNDLES_DIR, `${key}.js`)
+    for (const { key, bundleHash } of modules) {
       try {
-        await fs.access(bundlePath)
-      } catch {
-        try {
-          const { data, error } = await supabaseAdmin.storage
-            .from(STORAGE_BUCKET)
-            .download(`${key}.js`)
-
-          if (error || !data) {
-            console.warn(`[bundler] Could not restore bundle for ${key}: ${error?.message ?? 'no data'}`)
-            await prisma.runlyModule.update({
-              where: { key },
-              data: { hasBundle: false, bundleHash: null },
-            })
-            continue
-          }
-
-          const buffer = Buffer.from(await data.arrayBuffer())
-          await fs.writeFile(bundlePath, buffer)
-          console.log(`[bundler] restored ${key} from Storage`)
-        } catch (restoreErr) {
-          console.warn(`[bundler] restore failed for ${key}:`, restoreErr.message)
-          try {
-            await prisma.runlyModule.update({ where: { key }, data: { hasBundle: false, bundleHash: null } })
-          } catch {
-            // ignore secondary DB failure
-          }
-        }
+        await readPublishedBundle(key, bundleHash)
+      } catch (restoreErr) {
+        // A transient outage on one host must not disable every other host.
+        console.warn(`[bundler] restore failed for ${key}:`, restoreErr.message)
       }
     }
 
@@ -418,6 +430,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
     snapshotPublishedBundle,
     publishStagedBundle,
     restorePublishedBundle,
+    readPublishedBundle,
     inspectModuleBundle,
     deleteModuleBundle,
     restoreModuleBundlesOnBoot,

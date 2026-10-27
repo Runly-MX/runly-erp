@@ -2503,11 +2503,13 @@ export function createModulesRouter({
 
     let content;
     try {
-      content = await fs.readFile(bundlePath, "utf8");
+      content = bundlerSvc?.readPublishedBundle
+        ? (await bundlerSvc.readPublishedBundle(key, moduleRow.bundleHash)).toString('utf8')
+        : await fs.readFile(bundlePath, "utf8");
     } catch {
       return c.json(
-        { error: "Bundle no encontrado. Ejecuta sync para reconstruirlo." },
-        404,
+        { error: "No se pudo recuperar el componente del modulo. Reintenta en unos momentos." },
+        503,
       );
     }
 

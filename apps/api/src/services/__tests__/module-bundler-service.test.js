@@ -166,6 +166,7 @@ describe('module-bundler-service', () => {
       }
       await fs.rm(externalRoot, { recursive: true, force: true })
       await fs.rm(path.resolve(__dirname, '../../../bundles/custom.externalbundle.js'), { force: true }).catch(() => {})
+      await fs.rm(path.resolve(__dirname, '../../../bundles/custom.externalbundle.js.json'), { force: true }).catch(() => {})
     })
 
     it('returns { built: false, reason: "module-not-found" } when module directory is missing', async () => {

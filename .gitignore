@@ -38,6 +38,7 @@ dist
 build
 coverage
 apps/api/bundles/*.js
+apps/api/bundles/*.js.json
 
 # Module folders are instance data, not source: the Module Builder, ZIP uploads
 # and installs write here (plus .staging/.previews/.backups/.locks). Only the
