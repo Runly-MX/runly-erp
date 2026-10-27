@@ -146,6 +146,80 @@ export function ValueInput({ name, spec, source, fieldOptions, readOnly, onSourc
   );
 }
 
+// What kind of control an argument needs, from its contract type.
+function kindOf(name, spec) {
+  if (spec.type === "enum" || spec.type === "boolean") return "choice";
+  if (PEOPLE_ARGS.has(name) && spec.type.endsWith("[]")) return "people";
+  return ["string", "text", "date", "datetime"].includes(spec.type) ? "text" : "typed";
+}
+
+// "Usar un dato": the data the block can read, plus the record that started the
+// automation (and who saved it) for the arguments that take an id.
+function dataChoices({ spec, triggerType, fieldOptions }) {
+  const takesId = spec.type === "uuid" || spec.type === "string";
+  return [
+    ...(takesId ? [{ value: "@recordId", label: triggerType === "event" ? "El registro que activó la automatización" : "Este registro" }] : []),
+    ...(takesId && triggerType === "record" ? [{ value: "@actor", label: "La persona que guarda" }] : []),
+    ...selectOptions(fieldOptions),
+  ];
+}
+const choiceOf = (source) => (source?.from === "recordId" ? "@recordId" : source?.from === "actor" ? "@actor" : source?.field ?? "");
+const sourceOfChoice = (choice) => (choice === "@recordId" ? { from: "recordId" } : choice === "@actor" ? { from: "actor" } : { from: "field", field: choice });
+
+// One control per argument, chosen by what it needs (a list of choices, people, text
+// that can mix in data, or a typed value). Taking its value from data is a small
+// secondary action, never a menu of "origins" the person has to understand first.
+function ArgControl({ name, spec, source, triggerType, fieldOptions, readOnly, onSource }) {
+  const label = argLabel(name);
+  const kind = kindOf(name, spec);
+  const clear = () => onSource(null);
+  if (kind === "choice") {
+    const options = spec.type === "boolean"
+      ? [{ value: "true", label: "Sí" }, { value: "false", label: "No" }]
+      : spec.values.map((value) => ({ value, label: ENUM_LABELS[name]?.[value] ?? value }));
+    return (
+      <SelectField aria-label={label} options={[...(spec.required ? [] : [{ value: "__none", label: "Sin especificar" }]), ...options]} value={source?.value === undefined ? (spec.required ? "" : "__none") : String(source.value)}
+        disabled={readOnly} placeholder="Elige una opción"
+        onValueChange={(value) => (value === "__none" ? clear() : onSource({ from: "value", value: spec.type === "boolean" ? value === "true" : value }))} />
+    );
+  }
+  if (kind === "people") {
+    return <PeopleValueInput label={label} value={source?.value} readOnly={readOnly} onChange={(value) => (value.length ? onSource({ from: "value", value }) : clear())} />;
+  }
+  const fromData = ["field", "recordId", "actor"].includes(source?.from);
+  const choices = dataChoices({ spec, triggerType, fieldOptions });
+  if (fromData) {
+    return (
+      <div className="min-w-0 space-y-1">
+        <SelectField aria-label={label} options={choices} value={choiceOf(source)} disabled={readOnly} placeholder="Elige un dato"
+          onValueChange={(choice) => onSource(sourceOfChoice(choice))} />
+        {!readOnly && <button type="button" onClick={clear} className="cursor-pointer text-xs text-(--brand-primary) hover:underline [@media(pointer:coarse)]:min-h-9">Mejor escribirlo yo</button>}
+      </div>
+    );
+  }
+  const canUseData = !readOnly && choices.length > 0 && kind !== "text";
+  if (kind === "text") {
+    const text = source?.from === "template" ? source.template ?? "" : fromLiteral(source?.value);
+    const set = (next) => (next === "" ? clear() : onSource(next.includes("{{") ? { from: "template", template: next } : { from: "value", value: next }));
+    return (
+      <div className="min-w-0 space-y-2">
+        <TextField aria-label={label} value={text} disabled={readOnly} onChange={(e) => set(e.target.value)}
+          placeholder={spec.type === "datetime" ? "2026-10-06T10:00:00" : spec.type === "date" ? "AAAA-MM-DD" : "Escribe el texto"} />
+        {!readOnly && <DataChips fieldOptions={fieldOptions} onInsert={(key) => set(`${text}{{${key}}}`)} />}
+      </div>
+    );
+  }
+  const numeric = spec.type === "number" || spec.type === "integer";
+  return (
+    <div className="min-w-0 space-y-1">
+      <TextField aria-label={label} type={numeric ? "number" : "text"} value={fromLiteral(source?.value)} disabled={readOnly}
+        placeholder={spec.type.endsWith("[]") ? "Separa con comas" : spec.type === "uuid" ? "Identificador" : ""}
+        onChange={(e) => { const value = toLiteral(spec, e.target.value); if (value === undefined) clear(); else onSource({ from: "value", value }); }} />
+      {canUseData && <button type="button" onClick={() => onSource(sourceOfChoice(choices[0].value))} className="cursor-pointer text-xs text-(--brand-primary) hover:underline [@media(pointer:coarse)]:min-h-9">Usar un dato en vez de escribirlo</button>}
+    </div>
+  );
+}
+
 export function AutomationArgsEditor({ contract, args, triggerType, fieldOptions, readOnly, onChange }) {
   if (!contract) return null;
   const names = Object.keys(contract.args).filter((name) => !AUTOMATIC_ARGS.includes(name));
@@ -159,9 +233,8 @@ export function AutomationArgsEditor({ contract, args, triggerType, fieldOptions
     <div className="@container space-y-3">
       {names.map((name) => {
         const spec = contract.args[name];
-        const source = args[name];
         return (
-          <div key={name} className="space-y-2.5 rounded-lg border border-[hsl(var(--border))] p-3">
+          <div key={name} className="space-y-2 rounded-lg border border-[hsl(var(--border))] p-3">
             <div className="min-w-0">
               <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
                 {argLabel(name)}
@@ -169,14 +242,7 @@ export function AutomationArgsEditor({ contract, args, triggerType, fieldOptions
               </p>
               {ARG_HINTS[name] && <p className="text-xs text-[hsl(var(--muted-foreground))]">{ARG_HINTS[name]}</p>}
             </div>
-            <div className="grid gap-2 @md:grid-cols-[11rem_minmax(0,1fr)]">
-              <SelectField aria-label={`Origen de ${argLabel(name).toLowerCase()}`} options={sourceOptions({ required: spec.required, triggerType, type: spec.type, name })}
-                value={source?.from ?? (spec.required ? "" : "none")} disabled={readOnly} placeholder="¿De dónde sale?"
-                onValueChange={(from) => setSource(name, from === "none" ? null : { from })} />
-              {source ? (
-                <ValueInput name={name} spec={spec} source={source} fieldOptions={fieldOptions} readOnly={readOnly} onSource={(next) => setSource(name, next)} />
-              ) : <span className="hidden @md:block" />}
-            </div>
+            <ArgControl name={name} spec={spec} source={args[name]} triggerType={triggerType} fieldOptions={fieldOptions} readOnly={readOnly} onSource={(source) => setSource(name, source)} />
           </div>
         );
       })}
