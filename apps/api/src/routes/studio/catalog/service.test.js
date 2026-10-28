@@ -123,11 +123,11 @@ test('dedup never trusts client-editable metadata without checking actual Storag
   state.deniedPermission='files.assets.create'
   await assert.rejects(service.insert('company-a','actor-a','openverse',id,design,{}),{status:403});assert.equal(state.uploads,2)
 })
-test('image decoding concurrency is bounded separately from metadata requests',async()=>{
+test('image decoding concurrency is bounded separately from metadata requests and extra work waits its turn',async()=>{
   const{state,service}=fixture({get:async(url,state)=>url.includes('upload.wikimedia.org')?{mime:'image/png',bytes:state.bytes}:
     {mime:'application/json',bytes:Buffer.from(JSON.stringify({...row,id:url.split('/').filter(Boolean).at(-1)}))}})
   state.bytes=await sharp({create:{width:32,height:24,channels:3,background:'#ffffff'}}).png().toBuffer()
   const results=await Promise.allSettled(['00000000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000012','00000000-0000-4000-8000-000000000013'].map(id=>service.insert('company-a','actor-a','openverse',id,design,{})))
-  assert.equal(results.filter(row=>row.status==='fulfilled').length,2)
-  assert.equal(results.find(row=>row.status==='rejected').reason.status,429)
+  // Two decode at once; the third waits in the bounded FIFO queue and completes (saturation answers 429: decode-queue.test.js).
+  assert.equal(results.filter(row=>row.status==='fulfilled').length,3)
 })

@@ -219,3 +219,20 @@ Los resultados nuevos solo añaden campos (`source`, `library`, `availability`).
   transformaciones); se conservan como PNG.
 - Una colección mayor de Open Peeps/Open Doodles se amplía ejecutando el script con otro N.
 - E2E con el stack Supabase completo y navegador: pendiente de reconstruir las imágenes locales.
+
+### Miniaturas simultáneas y colas de decodificación
+
+El navegador puede pedir hasta 4 miniaturas a la vez, pero el servidor decodifica como máximo 2
+imágenes simultáneas. Antes, la tercera simultánea fallaba con `429 «Hay imágenes procesándose»` y
+la tarjeta quedaba en «Sin vista previa» (reproducido en el E2E aislado). Ahora las que sobran
+esperan en una cola FIFO acotada (32): respeta `AbortSignal`, cancelaciones y el tiempo máximo de
+la operación, y libera su lugar al cancelarse. Solo la saturación real de la cola responde 429, con
+el código `CATALOG_PROCESSING_BUSY`; las cuotas por usuario y por proveedor no cambian. No hay
+reintentos automáticos en el servidor.
+
+### Integridad de las colecciones entre plataformas
+
+Los manifiestos fijan el SHA256 de cada SVG. En Windows (`core.eol` nativo con `* text=auto`) un
+checkout o `git archive` los convertía a CRLF y las dos colecciones se rechazaban enteras. Una regla
+de `.gitattributes` (`packs/**/assets/*.svg -text`) conserva los bytes; `packs-integrity.test.js`
+reproduce un checkout CRLF y verifica los 24 hashes.

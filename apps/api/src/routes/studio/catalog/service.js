@@ -24,11 +24,14 @@ const ICONIFY_PAGES=31
 const ICONIFY_HOSTS=['api.iconify.design','api.simplesvg.com','api.unisvg.com']
 const unavailable=()=>{throw new StudioError('El proveedor devolvió un recurso no compatible.',502,'CATALOG_RESPONSE_INVALID')}
 const LANES={api:{limit:100,concurrent:4},thumb:{limit:1200,concurrent:8}}
+// Pixel work is limited to two simultaneous decodes; a browser may ask for four thumbnails at once, so the
+// extra ones wait in a bounded FIFO queue (cancellable, bounded by the operation deadline) instead of failing.
+const DECODE_LIMIT=2, DECODE_QUEUE=32
 
 // Provider operations share authentication, quotas and bounded metadata caching.
 // Browser input is an ID/query, never a URL. Originals only enter Files on import.
 // Every provider has its own request lanes and circuit breaker: a stalled provider cannot block the others.
-export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,network=createCatalogNetwork(),clock=Date.now,onDiagnostic,env=process.env,packs=createPacksProvider(),health=createProviderHealth({clock})}) {
+export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,network=createCatalogNetwork(),clock=Date.now,onDiagnostic,decodeQueue=DECODE_QUEUE,env=process.env,packs=createPacksProvider(),health=createProviderHealth({clock})}) {
   if(process.env.STUDIO_CATALOG_TEST_PROJECT)network=createLocalCatalogFixtureNetwork(prisma,process.env.STUDIO_CATALOG_TEST_PROJECT)
   const adapters={openverse,wikimedia,pixabay,packs}
   const cache=createCatalogCache({clock,ttl:5*60000,maxEntries:400}),rates=new Map(),imports=new Set();let decoding=0
@@ -42,11 +45,33 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
   const thumbs=createCatalogCache({clock,ttl:15*60000,maxEntries:300,maxBytes:24*1024*1024})
   const longThumbs=createCatalogCache({clock,ttl:24*3600000,maxEntries:300,maxBytes:24*1024*1024})
   const thumbCache=p=>adapters[p]?.ttl>=24*3600000?longThumbs:thumbs
+  const decodeWaiting=[]
+  // Resolves when a decoding slot is held. Rejects (without holding a slot) on cancellation, deadline or a full queue.
+  function acquireDecode() {
+    const context=operations.getStore(),signal=context?.signal
+    const cancelled=()=>new StudioError(context?.expired?'El catálogo agotó el tiempo de espera.':'Solicitud cancelada.',context?.expired?504:499,context?.expired?'CATALOG_TOTAL_TIMEOUT':'CATALOG_CANCELLED')
+    if(signal?.aborted)return Promise.reject(cancelled())
+    if(decoding<DECODE_LIMIT){decoding++;return Promise.resolve()}
+    if(decodeWaiting.length>=decodeQueue)return Promise.reject(new StudioError('Hay imágenes procesándose. Espera antes de reintentar.',429,'CATALOG_PROCESSING_BUSY'))
+    record({stage:'PROCESSING_QUEUED',at:performance.now(),waiting:decodeWaiting.length+1})
+    return new Promise((resolve,reject)=>{
+      const waiter={resolve,reject}
+      const onAbort=()=>{const index=decodeWaiting.indexOf(waiter);if(index>=0)decodeWaiting.splice(index,1);reject(cancelled())}
+      waiter.release=()=>signal?.removeEventListener('abort',onAbort)
+      signal?.addEventListener('abort',onAbort,{once:true})
+      decodeWaiting.push(waiter)
+    })
+  }
+  function releaseDecode() {
+    decoding--
+    // Hand the slot to the oldest live waiter; aborted ones already removed themselves.
+    while(decodeWaiting.length&&decoding<DECODE_LIMIT){const next=decodeWaiting.shift();next.release();decoding++;next.resolve()}
+  }
   async function decode(task) {
-    check();record({stage:'PROCESSING_START'})
-    if(decoding>=2)throw new StudioError('Hay imágenes procesándose. Espera antes de reintentar.',429)
-    decoding++
-    try{return await task()}finally{decoding--;record({stage:'PROCESSING_END'})}
+    check()
+    await acquireDecode()
+    let started=false
+    try{check();started=true;record({stage:'PROCESSING_START',at:performance.now()});return await task()}finally{if(started)record({stage:'PROCESSING_END',at:performance.now()});releaseDecode()}
   }
   async function authorize(companyId,actorId,editId,upload=false) {
     check()
