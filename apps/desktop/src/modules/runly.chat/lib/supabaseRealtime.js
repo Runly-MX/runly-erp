@@ -1,36 +1,13 @@
 import { getSupabaseClient } from "../../../lib/supabase.js";
 import { sharePresence } from './sharedPresence.js';
+import { shareMessages, shareBroadcasts } from './sharedSubscriptions.js';
 
 /**
  * Subscribe to new/updated messages in a conversation via Postgres Changes.
  * Returns an unsubscribe function.
  */
-export function subscribeToMessages(conversationId, onMessage) {
-  const client = getSupabaseClient();
-  const channelName = `chat:messages:${conversationId}`;
-
-  // Supabase client.channel() returns an existing channel if one with the same
-  // topic is still registered. If that channel is already subscribed, calling
-  // .on() on it throws. Remove any stale channel before creating a fresh one.
-  // This happens in React strict-mode (double-mount) and on dep-triggered re-runs.
-  const stale = client.getChannels().find((ch) => ch.topic === `realtime:${channelName}`);
-  if (stale) client.removeChannel(stale);
-
-  const channel = client
-    .channel(channelName)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "chat_messages",
-        filter: `conversation_id=eq.${conversationId}`,
-      },
-      (payload) => onMessage(payload),
-    )
-    .subscribe();
-
-  return () => client.removeChannel(channel);
+export function subscribeToMessages(conversationId, onMessage, options) {
+  return shareMessages(getSupabaseClient(), conversationId, onMessage, options);
 }
 
 // chat:conv:<id> is now covered too (migration
@@ -50,16 +27,7 @@ function isPrivateTopic(channelName) {
  * Returns an unsubscribe function.
  */
 export function subscribeToBroadcast(channelName, event, onEvent) {
-  const client = getSupabaseClient();
-  const stale = client.getChannels().find((ch) => ch.topic === `realtime:${channelName}`);
-  if (stale) client.removeChannel(stale);
-
-  const channel = client
-    .channel(channelName, isPrivateTopic(channelName) ? { config: { private: true } } : undefined)
-    .on("broadcast", { event }, (payload) => onEvent(payload))
-    .subscribe();
-
-  return () => client.removeChannel(channel);
+  return subscribeToMultiBroadcast(channelName, { [event]: onEvent });
 }
 
 /**
@@ -70,17 +38,7 @@ export function subscribeToBroadcast(channelName, event, onEvent) {
  * Returns an unsubscribe function.
  */
 export function subscribeToMultiBroadcast(channelName, handlers) {
-  const client = getSupabaseClient();
-  const stale = client.getChannels().find((ch) => ch.topic === `realtime:${channelName}`);
-  if (stale) client.removeChannel(stale);
-
-  let ch = client.channel(channelName, isPrivateTopic(channelName) ? { config: { private: true } } : undefined);
-  for (const [event, fn] of Object.entries(handlers)) {
-    ch = ch.on("broadcast", { event }, (payload) => fn(payload));
-  }
-  ch.subscribe();
-
-  return () => client.removeChannel(ch);
+  return shareBroadcasts(getSupabaseClient(), channelName, handlers, isPrivateTopic(channelName) ? { config: { private: true } } : undefined);
 }
 
 /**

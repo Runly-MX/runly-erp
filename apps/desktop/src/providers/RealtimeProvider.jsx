@@ -1,3 +1,4 @@
+import { invalidateRealtimeQuery } from '../lib/realtimeInvalidation.js'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -62,6 +63,7 @@ export function RealtimeProvider({ children }) {
 
   useEffect(() => {
     if (!userProfile?.id || !session?.access_token) return
+    let disposed = false
     const client = getSupabaseClient()
     // private: true enables Realtime Authorization — the server checks the
     // user_events_receive RLS policy (migration
@@ -70,7 +72,7 @@ export function RealtimeProvider({ children }) {
     const channel = client
       .channel(`user:${userProfile.id}:events`, { config: { private: true } })
       .on('broadcast', { event: 'notification.new' }, async ({ payload }) => {
-        queryClient.invalidateQueries({ queryKey: ['notifications'] })
+        invalidateRealtimeQuery(queryClient, ['notifications'])
         // A mention/comment notification means some thread changed; refresh
         // any comment thread cached or on screen so its link opens fresh.
         queryClient.invalidateQueries({ predicate: isCommentsQuery })
@@ -105,7 +107,8 @@ export function RealtimeProvider({ children }) {
           // message: unread_count from a moment ago reflects the state
           // BEFORE this message existed, which would read as "0 unread" for
           // every brand-new message and wrongly suppress it every time.
-          await queryClient.invalidateQueries({ queryKey: ['chat-conversations'] })
+          await invalidateRealtimeQuery(queryClient, ['chat-conversations'])
+          if (disposed) return
           const cachedConversations = queryClient.getQueryData(['chat-conversations'])?.data ?? []
           const alreadyReadElsewhere = cachedConversations.some((c) => c.id === convId && c.unread_count === 0)
           chatAlreadyRead = alreadyReadElsewhere || ((isOpenAndVisible || isOnRoute) && !document.hidden)
@@ -143,7 +146,7 @@ export function RealtimeProvider({ children }) {
               if (!currentToken) return
               runly.notifications
                 .markReadBySource(currentToken, payload.sourceType, payload.sourceId)
-                .then(() => queryClient.invalidateQueries({ queryKey: ['notifications'] }))
+                .then(() => invalidateRealtimeQuery(queryClient, ['notifications']))
                 .catch(() => {})
             }, toastDuration)
           }
@@ -160,7 +163,7 @@ export function RealtimeProvider({ children }) {
         // Own message echoed back, or a malformed payload — just refresh the
         // list preview, nothing to decide about toasting/muting below.
         if (isSelf || !payload?.senderName) {
-          queryClient.invalidateQueries({ queryKey: ['chat-conversations'] })
+          invalidateRealtimeQuery(queryClient, ['chat-conversations'])
           dispatch('chat.message.new', payload)
           return
         }
@@ -169,7 +172,8 @@ export function RealtimeProvider({ children }) {
         // this message: unread_count from a moment ago reflects the state
         // BEFORE this message existed, which would read as "0 unread" for
         // every brand-new message and wrongly suppress its toast every time.
-        await queryClient.invalidateQueries({ queryKey: ['chat-conversations'] })
+        await invalidateRealtimeQuery(queryClient, ['chat-conversations'])
+        if (disposed) return
         dispatch('chat.message.new', payload)
         const openChats = useChatFloatStore.getState().openChats
         const isOpenAndVisible = convId && openChats.some((c) => c.id === convId && !c.minimized)
@@ -216,11 +220,11 @@ export function RealtimeProvider({ children }) {
             if (!currentToken) return
             runly.notifications
               .markReadBySource(currentToken, 'chat_conversation', convId)
-              .then(() => queryClient.invalidateQueries({ queryKey: ['notifications'] }))
+              .then(() => invalidateRealtimeQuery(queryClient, ['notifications']))
               .catch(() => {})
             runly.chat
               .markRead(convId, currentToken)
-              .then(() => queryClient.invalidateQueries({ queryKey: ['chat-conversations'] }))
+              .then(() => invalidateRealtimeQuery(queryClient, ['chat-conversations']))
               .catch(() => {})
           }, 1500))
         }
@@ -232,8 +236,12 @@ export function RealtimeProvider({ children }) {
         dispatch('chat.message.reaction', payload)
       })
       .on('broadcast', { event: 'chat.conversation.new' }, ({ payload }) => {
-        queryClient.invalidateQueries({ queryKey: ['chat-conversations'] })
+        invalidateRealtimeQuery(queryClient, ['chat-conversations'])
         dispatch('chat.conversation.new', payload)
+      })
+      .on('broadcast', { event: 'chat.conversation.deleted' }, ({ payload }) => {
+        invalidateRealtimeQuery(queryClient, ['chat-conversations'])
+        dispatch('chat.conversation.deleted', payload)
       })
       .on('broadcast', { event: 'chat.call.incoming' }, ({ payload }) => {
         dispatch('chat.call.incoming', payload)
@@ -290,6 +298,7 @@ export function RealtimeProvider({ children }) {
       .subscribe()
 
     return () => {
+      disposed = true
       client.removeChannel(channel)
       markConversationReadTimersRef.current.forEach((timer) => clearTimeout(timer))
       markConversationReadTimersRef.current.clear()
@@ -384,7 +393,7 @@ export function RealtimeProvider({ children }) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notification', filter: `user_id=eq.${userProfile.id}` },
-        () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+        () => invalidateRealtimeQuery(queryClient, ['notifications']),
       )
       .subscribe()
     return () => { client.removeChannel(channel) }

@@ -1,16 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
-import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 import { useMuteConversation } from "./useChatModeration";
 
 export function useChatConversations() {
   const { session } = useAuth();
   const token = session?.access_token;
-  const queryClient = useQueryClient();
-  const { on } = useRealtimeContext();
 
   const query = useQuery({
     queryKey: ["chat-conversations"],
@@ -20,22 +17,8 @@ export function useChatConversations() {
     refetchOnWindowFocus: true,
   });
 
-  useEffect(() => {
-    const unsub1 = on("chat.conversation.new", () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-    });
-    const unsub2 = on("chat.message.new", () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-    });
-    const unsub3 = on("chat.conversation.deleted", () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-    });
-    return () => {
-      unsub1();
-      unsub2();
-      unsub3();
-    };
-  }, [on, queryClient]);
+  // RealtimeProvider owns list invalidation once per client. Consumers in the
+  // badge, main page and floating view only observe this shared query.
 
   return query;
 }

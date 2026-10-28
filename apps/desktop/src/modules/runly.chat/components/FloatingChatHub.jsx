@@ -1,3 +1,4 @@
+import { invalidateRealtimeQuery } from '../../../lib/realtimeInvalidation.js'
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
@@ -438,20 +439,18 @@ function FloatingChatHubInner() {
   });
   const externalConversations = externalData?.data ?? [];
 
-  // Invalidate immediately on new messages so the badge updates in real time
+  // Internal previews are invalidated once by RealtimeProvider. External
+  // inbox events additionally affect the bubble's separate inbox query.
   useEffect(() => {
-    const unsub1 = on("chat.message.new", () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-    });
     const unsub2 = on("external_message", () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-      queryClient.invalidateQueries({ queryKey: ["chat-external-inbox-bubble"] });
+      invalidateRealtimeQuery(queryClient, ["chat-conversations"]);
+      invalidateRealtimeQuery(queryClient, ["chat-external-inbox-bubble"]);
     });
     const unsub3 = on("new_external_conversation", () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-      queryClient.invalidateQueries({ queryKey: ["chat-external-inbox-bubble"] });
+      invalidateRealtimeQuery(queryClient, ["chat-conversations"]);
+      invalidateRealtimeQuery(queryClient, ["chat-external-inbox-bubble"]);
     });
-    return () => { unsub1(); unsub2(); unsub3(); };
+    return () => { unsub2(); unsub3(); };
   }, [on, queryClient]);
 
   const safeArea = useSafeAreaInsets();

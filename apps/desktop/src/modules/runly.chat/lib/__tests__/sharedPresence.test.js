@@ -92,3 +92,21 @@ test('a remount during asynchronous removal waits before creating the new channe
   finishRemoval('ok'); await tick(); assert.equal(channels.length, 2);
   next.unsubscribe(); await tick(); finishRemoval('ok'); await tick();
 });
+
+test('typing sends a bounded heartbeat and stop is immediate only after all views stop', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'], now: 1000 });
+  const { client, channels } = fixture();
+  const a = sharePresence(client, 'chat:presence:one', { userId: 'profile' });
+  const b = sharePresence(client, 'chat:presence:one', { userId: 'profile' });
+  await tick(); const channel = channels[0]; channel.status('SUBSCRIBED');
+  for(let i=0;i<20;i++)a.sendTyping(true);
+  b.sendTyping(true);a.sendTyping(false);
+  assert.equal(channel.sends.length,1);
+  context.mock.timers.tick(1000);b.sendTyping(true);
+  assert.equal(channel.sends.length,2);
+  b.sendTyping(false);
+  assert.equal(channel.sends.length,3);
+  assert.equal(channel.sends.at(-1).payload.isTyping,false);
+  b.sendTyping(false);assert.equal(channel.sends.length,3);
+  a.unsubscribe();b.unsubscribe();await tick();
+});

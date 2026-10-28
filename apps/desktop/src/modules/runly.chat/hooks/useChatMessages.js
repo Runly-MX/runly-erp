@@ -1,3 +1,4 @@
+import { invalidateRealtimeQuery } from '../../../lib/realtimeInvalidation.js'
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -6,7 +7,7 @@ import { subscribeToMessages } from "../lib/supabaseRealtime";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 
 export function useChatMessages(conversationId) {
-  const { session } = useAuth();
+  const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
   const unsubRef = useRef(null);
@@ -82,9 +83,9 @@ export function useChatMessages(conversationId) {
         );
         return { ...old, data: [...filtered, newMsg] };
       });
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      invalidateRealtimeQuery(queryClient, ["chat-conversations"]);
       if (Number(newMsg.attachment_count) > 0) {
-        queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+        invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
       }
     },
     [conversationId, queryClient],
@@ -117,9 +118,15 @@ export function useChatMessages(conversationId) {
     if (!conversationId) return;
     unsubRef.current = subscribeToMessages(conversationId, (payload) => {
       messageHandlerRef.current?.(payload);
+    }, {
+      ownerId: userProfile?.id,
+      onReconnect: () => {
+        invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
+        invalidateRealtimeQuery(queryClient, ["chat-conversations"]);
+      },
     });
     return () => { unsubRef.current?.(); };
-  }, [conversationId]);
+  }, [conversationId, queryClient, userProfile?.id]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -128,7 +135,7 @@ export function useChatMessages(conversationId) {
         // Full refetch — this also pulls the server-resolved `reply_to`
         // preview for any quoted reply in the incoming message, so the
         // broadcast payload's raw `replyToMessageId` needs no handling here.
-        queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+        invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
       }
     });
   }, [conversationId, on, queryClient]);
@@ -138,8 +145,8 @@ export function useChatMessages(conversationId) {
     if (!conversationId) return;
     return on("chat.message.reaction", ({ conversationId: cid }) => {
       if (cid === conversationId) {
-        queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
-        queryClient.invalidateQueries({ queryKey: ["chat-thread"] });
+        invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
+        invalidateRealtimeQuery(queryClient, ["chat-thread"]);
       }
     });
   }, [conversationId, on, queryClient]);
@@ -148,8 +155,8 @@ export function useChatMessages(conversationId) {
     if (!conversationId) return;
     function handleVisibility() {
       if (document.visibilityState === "visible") {
-        queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
-        queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+        invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
+        invalidateRealtimeQuery(queryClient, ["chat-conversations"]);
       }
     }
     document.addEventListener("visibilitychange", handleVisibility);
@@ -159,7 +166,7 @@ export function useChatMessages(conversationId) {
   useEffect(() => {
     if (!conversationId || !token) return;
     runly.notifications.markReadBySource(token, "chat_conversation", conversationId).catch(() => {});
-    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    invalidateRealtimeQuery(queryClient, ["notifications"]);
   }, [conversationId, token, queryClient]);
 
   // Combine older pages with the latest page, deduplicating by id
@@ -269,8 +276,8 @@ export function useSendMessage(conversationId) {
         }
         return { ...old, data: [...withoutTemp, real] };
       });
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+      invalidateRealtimeQuery(queryClient, ["chat-conversations"]);
+      invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
     },
   });
 }
@@ -283,7 +290,7 @@ export function useMarkRead(conversationId) {
   return useMutation({
     mutationFn: () => runly.chat.markRead(conversationId, token),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+      invalidateRealtimeQuery(queryClient, ["chat-conversations"]);
     },
   });
 }
@@ -317,7 +324,7 @@ export function useDeleteMessage(conversationId) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+      invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
     },
   });
 }
@@ -351,7 +358,7 @@ export function useEditMessage(conversationId) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+      invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
     },
   });
 }
@@ -364,8 +371,8 @@ export function usePinMessage(conversationId) {
   return useMutation({
     mutationFn: ({ messageId, pinned }) => runly.chat.pinMessage(messageId, pinned, token),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
-      queryClient.invalidateQueries({ queryKey: ["chat-pinned-messages", conversationId] });
+      invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
+      invalidateRealtimeQuery(queryClient, ["chat-pinned-messages", conversationId]);
     },
   });
 }
@@ -380,7 +387,7 @@ export function useToggleReaction(conversationId) {
     mutationFn: ({ messageId, emoji, attachmentId = null }) =>
       runly.chat.toggleReaction(messageId, emoji, token, { attachmentId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+      invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
     },
   });
 }
@@ -399,7 +406,7 @@ export function useDeleteAttachment(conversationId) {
       // message got soft-deleted (messageDeleted in the response), is more
       // bookkeeping than a straight refetch is worth for an action a user
       // takes rarely and expects to see settle in under a second either way.
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+      invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
     },
   });
 }

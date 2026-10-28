@@ -13,7 +13,7 @@ export function sharePresence(client, topic, presence, handlers = {}) {
   }
   if (!entry || entry.closing) {
     const previous = entry?.closing;
-    entry = { userId: presence.userId, listeners: new Set(), channel: null, ready: false, closing: null };
+    entry = { userId: presence.userId, listeners: new Set(), typingSources: new Set(), typingSent: false, lastTypingAt: 0, channel: null, ready: false, closing: null };
     topics.set(topic, entry);
     const connect = () => {
       if (!entry.listeners.size) return;
@@ -28,6 +28,7 @@ export function sharePresence(client, topic, presence, handlers = {}) {
       });
       channel.subscribe((status) => {
         entry.ready = status === 'SUBSCRIBED';
+        if (!entry.ready) { entry.typingSent = false; entry.lastTypingAt = 0; }
         if (entry.ready && entry.listeners.size) channel.track(presence).catch(() => {});
         else if (!entry.ready) entry.listeners.forEach((listener) => listener.onPresenceSync?.({}));
       });
@@ -43,14 +44,28 @@ export function sharePresence(client, topic, presence, handlers = {}) {
   entry.listeners.add(listener);
   if (entry.ready) listener.onPresenceSync?.(entry.channel.presenceState());
   let disposed = false;
+  function publishTyping(isTyping) {
+    if (!entry.ready) return;
+    const now = Date.now();
+    if (isTyping && entry.typingSent && now - entry.lastTypingAt < 1000) return;
+    if (!isTyping && !entry.typingSent) return;
+    entry.typingSent = isTyping;
+    entry.lastTypingAt = now;
+    entry.channel.send({ type: 'broadcast', event: 'typing', payload: { userId: presence.userId, isTyping } }).catch(() => {});
+  }
   return {
     sendTyping(isTyping) {
-      if (!disposed && entry.listeners.has(listener) && entry.ready) entry.channel.send({ type: 'broadcast', event: 'typing', payload: { userId: presence.userId, isTyping } }).catch(() => {});
+      if (disposed || !entry.listeners.has(listener)) return;
+      if (isTyping) entry.typingSources.add(listener);
+      else entry.typingSources.delete(listener);
+      publishTyping(entry.typingSources.size > 0);
     },
     unsubscribe() {
       if (disposed) return;
       disposed = true;
       entry.listeners.delete(listener);
+      entry.typingSources.delete(listener);
+      if (!entry.typingSources.size) publishTyping(false);
       queueMicrotask(() => {
         if (entry.listeners.size || entry.closing) return;
         entry.ready = false;
