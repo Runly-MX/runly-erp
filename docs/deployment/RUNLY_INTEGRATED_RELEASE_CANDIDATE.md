@@ -25,6 +25,12 @@ apuntan a la misma imagen API (mismo id `de6655e51930`): los scripts de prueba v
 el nombre del repositorio de la imagen, por lo que se re-etiqueto sin reconstruir.
 
 Version del Installer (`infra/installer/release-files.json`): `2026.10.28.5`.
+
+Actualizacion posterior: una actualizacion real de `update-external.sh` con el installer
+`2026.10.28.5` aplico migraciones antes de que el gate de Storage se detuviera. El installer
+`2026.10.28.6` ejecuta el gate antes de cualquier migracion (ver
+`NOTES_PRIVATE_STORAGE_SECURITY_CLOSURE.md`, seccion "Orden de actualizacion"). Este
+candidato debe publicarse con el installer `.6`, no con el `.5`.
 Version de `package.json`: `0.1.0` (sin cambios). Edicion: Jaguar.
 
 Compatibilidad entre componentes: API, Worker y Web salen del mismo SHA; el Installer

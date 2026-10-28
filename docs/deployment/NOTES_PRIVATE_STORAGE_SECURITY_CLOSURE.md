@@ -325,3 +325,102 @@ Lint, `build:web` y las imagenes Docker de API, Worker y Web compilan. 4.323 pru
 - No se desplego, publico ni modifico ninguna instalacion real.
 - Esto no convierte el GO local condicionado en un GO global de Runly: queda condicionado a
   ensayar primero en un clon restaurado de cada instalacion existente.
+
+## Orden de actualizacion: el gate de Storage va antes de cualquier migracion (2026-10-28)
+
+Installer `2026.10.28.6` (antes `2026.10.28.5`).
+
+### Defecto
+
+En una actualizacion real de `update-external.sh` el gate de Storage de Notes se
+detuvo correctamente (`NOTES_STORAGE_NOT_PREPARED`: guard ausente y bucket publico),
+pero `setup-external.mjs` ya habia ejecutado `prisma migrate deploy` y `db:seed`
+(migraciones `20261028011349_notes_private_images` y
+`20261211000000_studio_retired_asset_lineage`). La seguridad no se debilito (la API no
+arranco ni se reemplazaron contenedores), pero la base quedo con el esquema nuevo y la
+aplicacion antigua: una actualizacion parcial evitable, porque la condicion que
+detuvo la operacion se puede verificar antes.
+
+`setup-local.mjs` tenia el mismo orden (verificaba despues de migrar). En
+autoalojado el SQL del propietario ya corria antes, pero el `--verify` quedaba
+despues; en modo Supabase CLI no habia preparacion previa.
+
+### Correccion
+
+- `setup-external.mjs`: la preparacion con propietario (si hay credencial) y
+  `--verify` se ejecutan **antes** de la comprobacion/preparacion de Studio Realtime,
+  de `db:migrate`, de `db:seed` y del aprovisionamiento del transcriptor. Ocurre en
+  todas las pasadas, tambien con `--skip-migrate` y `--up-only`.
+- `setup-local.mjs`: el gate se movio antes de la segunda comprobacion de Studio y de
+  las migraciones.
+- `--verify` solo lee `storage.*` y los catalogos de Postgres
+  (`inspectNotesStorage`), por lo que no necesita el esquema nuevo ni las tablas de
+  Notes: puede correr sobre una base sin migrar.
+- Sin cambios: `--probe` anonimo y `/health` despues del arranque; la politica
+  RESTRICTIVE, el guard del bucket y RLS; la credencial de propietario sigue
+  llegando solo por entorno (la E2E sigue comprobando que no aparece en la salida ni
+  en el entorno del contenedor de la API).
+
+Si el preflight falla (sin credencial suficiente, credencial incorrecta o
+preparacion parcial) la operacion termina antes de tocar el esquema de la
+aplicacion y antes de reemplazar contenedores.
+
+### Recuperacion de una base ya migrada con el guard ausente
+
+Es el estado que dejo la actualizacion fallida. La recuperacion es volver a ejecutar
+el installer con la credencial del propietario (o aplicar
+`prisma/prepare-notes-storage-owner.sql` como propietario): crea la politica y el guard
+si faltan, es idempotente, no revierte migraciones y no toca datos. Las migraciones
+Prisma aplicadas son inmutables y no se deshacen.
+
+### Verificacion (bases y Supabase desechables, imagenes del SHA `330e4a712049`)
+
+`scripts/verify-notes-installer-e2e.mjs`, 10 de 10 PASS:
+
+| Caso | Resultado |
+|---|---|
+| local-existing-upgrade, local-fresh | PASS |
+| external-owner-available, external-no-owner-prepared | PASS |
+| external-no-owner-unprepared, external-bad-owner-credential, external-partial-preparation | PASS, y ahora comprueba que `_prisma_migrations`, el catalogo de columnas y las filas del seed son identicos antes y despues del fallo, y que la migracion de Notes sigue sin aplicarse |
+| external-regression-to-unsafe | PASS: sobre una base ya migrada con guard ausente, el fallo no cambia el esquema; la repeticion con propietario recupera el guard y deja el bucket privado, sin migraciones nuevas ni cambios en la nota; una segunda recuperacion es idempotente |
+| external-skip-migrate-unprepared | PASS (`--skip-migrate`) |
+| external-up-only-unprepared | PASS (`--up-only`) |
+
+Control negativo: con el `setup-external.mjs` anterior, `external-no-owner-unprepared`
+**falla** con `a failed preflight must not migrate or seed`. Ademas una prueba
+estatica (`infra/installer/__tests__/notes-storage-gate.test.js`) exige que el gate
+aparezca antes de `db:migrate`, `db:seed` y la preparacion de Studio en ambos
+installers, y una sola vez por pasada. Installer: 108 de 108.
+
+### Compatibilidad Installer, imagenes y esquema
+
+- Las imagenes del SHA `330e4a712049` llevan el contrato
+  `io.runly.installer.contract=studio-realtime-1` (API, Worker y Web), el mismo que
+  exige el installer (`INSTALLER_CONTRACT`); incluyen
+  `apps/api/scripts/notes-storage-preflight.mjs`, `prisma/prepare-notes-storage-owner.sql`
+  y migraciones hasta `20261211000000_studio_retired_asset_lineage`. La E2E las usa
+  ademas con una capa de etiqueta propia.
+- El gate se ejecuta **desde la imagen de la API**: una imagen anterior a
+  `17a5b0561` no contiene el preflight y el gate falla cerrado (con el mensaje
+  generico `NOTES_STORAGE_NOT_PREPARED`, que en ese caso no describe bien la causa).
+  Nunca publicar el installer `2026.10.28.6` junto a imagenes anteriores a ese commit.
+- El manifiesto del installer (`installer-release.json`) lo valida
+  `build-push.mjs` en cada release; `node scripts/generate-installer-release.mjs
+  --check` pasa.
+
+### Antes de otra publicacion
+
+1. Publicar installer e imagenes del mismo SHA (o posterior) con
+   `pnpm docker:release`; no mezclar con imagenes antiguas.
+2. Ensayar `update-external.sh` en un clon restaurado de la instancia afectada
+   **con** credencial de propietario, y otra vez **sin** ella para confirmar que se
+   detiene sin tocar el esquema.
+3. En la instancia que quedo migrada con el guard ausente: aplicar la preparacion con
+   el propietario antes de cualquier otra accion.
+
+### Limites
+
+No se ejecuto `update-external.sh` / `update-local.sh` directamente (descargan el
+installer publicado), ni se accedio a instancias existentes; la reproduccion es con
+bases desechables. El mensaje del gate para imagenes sin el preflight no se
+diferencia aun del de Storage no preparado.

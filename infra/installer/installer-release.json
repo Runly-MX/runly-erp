@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.10.28.5",
+  "version": "2026.10.28.6",
   "files": {
     ".env.local.example": {
       "sha256": "ef097c568385535ca646f29353f834a1646b773663def037f49020680eed47ab",
@@ -362,7 +362,7 @@
       ]
     },
     "setup-local.mjs": {
-      "sha256": "36544fec7c5c727a07f78c86ad26d06ab1fbfdf101b14fcb04bb418b1d1449b6",
+      "sha256": "1ce6044d52deea7024e6b20cbf3e1a4642b83739a4f6dd407e4d1fcbf38ba92c",
       "modes": [
         "local"
       ],
@@ -404,6 +404,7 @@
         "9d299afbf3e5ce16ae8f16789bc1358be86c8db9",
         "9da02b707a4ecaa5880ccee4df4a8d38f2a24f77",
         "9e3950b47a94c36d3a9cdf90545a8a56631622b4",
+        "9f2ef72fe68d0a98f42b14fc237edf19b8b133e8",
         "9fc8c465ef5588485817ce88ed57a0aaa2c2d5ac",
         "a29ae3c6abdfcd36760bf561845d020f2dde6cb4",
         "a36f66bcc8e51ec45ac79688e8db3cb7166ed9cd",
@@ -621,7 +622,7 @@
       ]
     },
     "setup-external.mjs": {
-      "sha256": "1e04144a4d111538807cc49a958d1cc98b6b79fb17d1db0b9951eba4a136bcc0",
+      "sha256": "b789fc4ba002a62eed5dc09aa4a5daeb645c1b14fc81915f22e0c8e1e4e7f5ad",
       "modes": [
         "external"
       ],
@@ -652,6 +653,7 @@
         "7bcbc7fbd62b8cfb28e91e6edbb7fe49e93d2fba",
         "879e18e934054188f9edb292834ea77b1704e09d",
         "916b0f1ec602e148edf0b223f1dbabdc4535e158",
+        "9819136fa393af61862787490e50c045385f64be",
         "a3314d1d9029276d9b1c4c419c24c3933127a4af",
         "a72ec0c8aa5ae6ba10d1b048a1b2f5d375349fe8",
         "aacf0c34821b2a12a4e44fe6c0b82470e4e7b729",

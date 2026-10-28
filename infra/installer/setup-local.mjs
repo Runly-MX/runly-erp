@@ -1302,6 +1302,14 @@ async function main() {
     // named "<project-name>_default" unless the project overrides it.
   }
 
+  // Fail before any migration or seed, not after an incompatible API restarts in a loop:
+  // an unsafe Storage must leave the application schema untouched.
+  const notesGateBase = ["run", "--rm", ...addHostArgs, ...migrateNetworkArgs, "--env-file", localEnvFile];
+  prepareAndVerifyNotesStorage({
+    run, image: resolvedApiImage, dockerRunBase: notesGateBase,
+    ownerUrl: process.env.RUNLY_NOTES_OWNER_DATABASE_URL ?? null,
+  });
+
   prepareExternalStudioRealtime({ image: resolvedApiImage, envFile: localEnvFile, cwd: installerDir, dockerArgs: migrateNetworkArgs,
     recoveryCommand: supabaseMode === 'selfhosted' ? 'node recover-studio-realtime.mjs --recover-known-failure --api-image=YOUR_EXISTING_API_IMAGE' : 'node studio-realtime-external.mjs --env-file=.env.local --recover-known-failure --api-image=YOUR_EXISTING_API_IMAGE' });
   console.log("[7/8] Running migrations and seed...");
@@ -1328,13 +1336,6 @@ async function main() {
       resolvedApiImage, "pnpm", "db:provision-transcriber-role",
     ]);
   }
-
-  // Fail before an incompatible API starts, not after it restarts in a loop.
-  const notesGateBase = ["run", "--rm", ...addHostArgs, ...migrateNetworkArgs, "--env-file", localEnvFile];
-  prepareAndVerifyNotesStorage({
-    run, image: resolvedApiImage, dockerRunBase: notesGateBase,
-    ownerUrl: process.env.RUNLY_NOTES_OWNER_DATABASE_URL ?? null,
-  });
 
   console.log("[8/8] Starting Runly local profile...");
   if (!office.enabled) run("docker", ["compose", ...composeFiles, "--profile", "office", "stop", "collabora"]);

@@ -43,7 +43,19 @@ async function seedLegacy(stack) {
   return { noteId: note.id, key, url, content: (await stack.pool.query('SELECT content FROM notes WHERE id=$1', [note.id])).rows[0].content, admin }
 }
 
-async function scenario(name, { mode, legacy = true, prepare = null, owner = 'none', repeat = true, expectFailure = null, after = null }) {
+const NOTES_MIGRATION = '20261028011349_notes_private_images'
+// Everything an update could change in the application schema/data: applied migrations,
+// the column catalog, and the rows the seed writes. Equal snapshots mean nothing ran.
+async function schemaSnapshot(stack) {
+  const has = (await stack.pool.query("SELECT to_regclass('public._prisma_migrations') AS t")).rows[0].t
+  if (!has) return { migrations: [], columns: null, seeded: null }
+  const migrations = (await stack.pool.query('SELECT migration_name FROM _prisma_migrations ORDER BY migration_name')).rows.map(row => row.migration_name)
+  const columns = (await stack.pool.query("SELECT md5(string_agg(table_name||'.'||column_name||':'||data_type, ',' ORDER BY table_name, column_name)) AS h FROM information_schema.columns WHERE table_schema='public'")).rows[0].h
+  const seeded = (await stack.pool.query('SELECT (SELECT count(*) FROM permission) AS permissions, (SELECT count(*) FROM runly_module) AS modules')).rows[0]
+  return { migrations, columns, seeded }
+}
+
+async function scenario(name, { mode, legacy = true, prepare = null, owner = 'none', repeat = true, expectFailure = null, after = null, args = [] }) {
   if (only.length && !only.includes(name)) return
   const stack = await createStudioStack({ apiImage: legacy ? legacyImage : tagged.api })
   stack.pool.on('error', () => {})
@@ -89,18 +101,22 @@ async function scenario(name, { mode, legacy = true, prepare = null, owner = 'no
     const storageOwnerUrl = config.services['supabase-storage'].environment.DATABASE_URL
     const ownerEnv = owner === 'good' ? { RUNLY_NOTES_OWNER_DATABASE_URL: storageOwnerUrl }
       : owner === 'bad' ? { RUNLY_NOTES_OWNER_DATABASE_URL: storageOwnerUrl.replace(/\/\/([^:]+):[^@]+@/, '//$1:wrong-password-marker@') } : {}
-    const run = async suffix => {
+    const run = async (suffix, { env = {}, extraArgs = args } = {}) => {
       const log = join(stack.directory, `${name}-${suffix}.log`)
-      try { await command(process.execPath, [join(directory, `setup-${mode}.mjs`), '--skip-pull', '--skip-dev-kit'], { env: { ...cleanEnv, ...ownerEnv }, log }); return { ok: true, output: await readFile(log, 'utf8') } }
+      try { await command(process.execPath, [join(directory, `setup-${mode}.mjs`), '--skip-pull', '--skip-dev-kit', ...extraArgs], { env: { ...cleanEnv, ...ownerEnv, ...env }, log }); return { ok: true, output: await readFile(log, 'utf8') } }
       catch { return { ok: false, output: await readFile(log, 'utf8') } }
     }
     const containerExists = async () => (await command('docker', ['ps', '-a', '--filter', `name=${appName}-api-${mode}`, '--format', '{{.Names}}'])).includes(`${appName}-api-${mode}`)
+    const before = await schemaSnapshot(stack)
     const first = await run('first')
     if (expectFailure) {
       assert.equal(first.ok, false, `${name}: installation must fail`)
       assert.match(first.output, expectFailure, `${name}: failure must be explicit`)
       for (const secret of [ownerEnv.RUNLY_NOTES_OWNER_DATABASE_URL, 'wrong-password-marker'].filter(Boolean)) assert.equal(first.output.includes(secret), false, `${name}: output leaked the owner credential`)
       assert.equal(await containerExists(), false, `${name}: no API may be started when the gate fails`)
+      // The preflight runs before any migration or seed: a failed update leaves the application schema exactly as it was.
+      if (legacy) assert.equal(before.migrations.includes(NOTES_MIGRATION), false, `${name}: fixture must start without the Notes migration`)
+      assert.deepEqual(await schemaSnapshot(stack), before, `${name}: a failed preflight must not migrate or seed`)
       if (state) assert.equal((await fetch(state.url)).status !== undefined, true)
     } else {
       if (!first.ok) console.log(`--- ${name}: API container log ---
@@ -127,7 +143,7 @@ async function scenario(name, { mode, legacy = true, prepare = null, owner = 'no
       }
       if (repeat) { const again = await run('repeat'); assert.equal(again.ok, true, `${name}: repeated installation must succeed\n${again.output.slice(-1500)}`) }
     }
-    if (after) await after({ stack, run, state, containerExists })
+    if (after) await after({ stack, run, state, containerExists, storageOwnerUrl, snapshot: () => schemaSnapshot(stack) })
     results.push(`${name}: PASS`); console.log(`${name}: PASS`)
   } finally {
     try {
@@ -163,10 +179,29 @@ await scenario('external-no-owner-unprepared', { mode: 'external', repeat: false
 await scenario('external-bad-owner-credential', { mode: 'external', owner: 'bad', repeat: false, expectFailure: /NOTES_STORAGE_NOT_PREPARED|preflight failed/ })
 await scenario('external-partial-preparation', { mode: 'external', prepare: policyOnly, repeat: false, expectFailure: /NOTES_STORAGE_NOT_PREPARED/ })
 await scenario('external-no-owner-prepared', { mode: 'external', prepare: prepareDisposableNotesStorageOwner })
-await scenario('external-regression-to-unsafe', { mode: 'external', prepare: prepareDisposableNotesStorageOwner, after: async ({ stack, run, containerExists }) => {
+await scenario('external-regression-to-unsafe', { mode: 'external', prepare: prepareDisposableNotesStorageOwner, after: async ({ stack, run, state, storageOwnerUrl, snapshot }) => {
   await dropGuardAndOpen(stack)
+  const migrated = await snapshot()
+  assert.equal(migrated.migrations.includes(NOTES_MIGRATION), true, 'precondition: the Prisma migration is already applied')
   const regressed = await run('regressed')
   assert.equal(regressed.ok, false, 'an update over regressed Storage must not succeed silently')
   assert.match(regressed.output, /NOTES_STORAGE_NOT_PREPARED/)
+  assert.deepEqual(await snapshot(), migrated, 'a failed preflight over a migrated database must not change the schema or seed')
+  // Recovery: migration applied but guard missing. Re-running with the owner restores the guard
+  // idempotently without reverting migrations or touching data.
+  const recovered = await run('recovered', { env: { RUNLY_NOTES_OWNER_DATABASE_URL: storageOwnerUrl } })
+  assert.equal(recovered.ok, true, `recovery with the owner must succeed
+${recovered.output.slice(-1500)}`)
+  assert.deepEqual(await snapshot(), migrated, 'recovery must not revert or add migrations')
+  const owner = await ownerPool(stack)
+  try {
+    assert.equal((await owner.query("SELECT 1 FROM pg_trigger WHERE tgname='runly_notes_bucket_private_v1' AND NOT tgisinternal")).rowCount, 1, 'guard must be restored')
+    assert.equal((await owner.query("SELECT public FROM storage.buckets WHERE id='runly-notes'")).rows[0].public, false, 'bucket must be private again')
+  } finally { await owner.end() }
+  assert.equal(JSON.stringify((await stack.pool.query('SELECT content FROM notes WHERE id=$1', [state.noteId])).rows[0].content), JSON.stringify(state.content), 'note content must survive the recovery')
+  const again = await run('recovered-again', { env: { RUNLY_NOTES_OWNER_DATABASE_URL: storageOwnerUrl } })
+  assert.equal(again.ok, true, 'a second recovery run must be idempotent')
 } })
+await scenario('external-skip-migrate-unprepared', { mode: 'external', repeat: false, args: ['--skip-migrate'], expectFailure: /NOTES_STORAGE_NOT_PREPARED/ })
+await scenario('external-up-only-unprepared', { mode: 'external', repeat: false, args: ['--up-only'], expectFailure: /NOTES_STORAGE_NOT_PREPARED/ })
 console.log(JSON.stringify({ passed: true, images: images, legacyImage, results }))

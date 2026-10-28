@@ -24,3 +24,19 @@ test('owner connection travels through the environment, never through arguments'
 test('an anonymous read during the post-start probe fails the installation', () => {
   assert.throws(() => probeNotesStorage({ run: () => { throw Error('exit 1') }, dockerRunBase: base, image: 'img:1', log: () => {} }), /NOTES_STORAGE_ANONYMOUS_ACCESS/)
 })
+
+// The Notes Storage gate must run before any migration, seed or Studio provisioning:
+// a failed preflight may not leave a half-updated application schema behind.
+test('both installers run the Notes Storage gate before migrations and seed', async () => {
+  const { readFile } = await import('node:fs/promises')
+  for (const file of ['setup-external.mjs', 'setup-local.mjs']) {
+    const source = (await readFile(new URL(`../${file}`, import.meta.url), 'utf8')).replaceAll('\r\n', '\n')
+    const gate = source.indexOf('prepareAndVerifyNotesStorage({')
+    assert.ok(gate > 0, `${file}: gate call not found`)
+    for (const later of ['"pnpm", "db:migrate"', '"pnpm", "db:seed"', 'prepareExternalStudioRealtime({ image: resolvedApiImage']) {
+      const index = source.lastIndexOf(later)
+      assert.ok(index > gate, `${file}: ${later} must come after the Notes Storage gate`)
+    }
+    assert.equal(source.split('prepareAndVerifyNotesStorage({').length - 1, 1, `${file}: the gate must run once per pass`)
+  }
+})

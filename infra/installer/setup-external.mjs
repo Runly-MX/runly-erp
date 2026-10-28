@@ -1094,6 +1094,18 @@ async function main() {
   const pinned = verifyRuntimeImages({ cwd: installerDir, mode: 'external', images: { api: resolvedApiImage, worker: resolvedWorkerImage, web: resolvedWebImage } });
   resolvedApiImage = pinned.api; resolvedWorkerImage = pinned.worker; resolvedWebImage = pinned.web;
   const migrationEnv = await fs.readFile(envFile, 'utf8');
+  // The Notes Storage gate runs FIRST, on every pass (also --skip-migrate / --up-only),
+  // before any migration, seed or Studio provisioning: if Storage cannot be made safe
+  // the application schema must stay exactly as it was and no container is replaced.
+  // It reads only storage.* and the catalogs, so it does not need the new schema.
+  {
+    const gateEnv = await fs.readFile(envFile, "utf8");
+    prepareAndVerifyNotesStorage({
+      run, image: resolvedApiImage,
+      ownerUrl: process.env.RUNLY_NOTES_OWNER_DATABASE_URL ?? parseEnvValue(gateEnv, "RUNLY_NOTES_OWNER_DATABASE_URL") ?? null,
+      dockerRunBase: ["run", "--rm", ...externalMigrationNetwork(gateEnv), "--add-host", "host.docker.internal:host-gateway", "--env-file", envFile],
+    });
+  }
   if (!(skipMigrate || upOnly) || parseEnvValue(migrationEnv, 'RUNLY_SKIP_DB_INIT') !== '1') {
     console.log('Checking Studio Realtime before any API database initialization...');
     prepareExternalStudioRealtime({ image: resolvedApiImage, envFile, cwd: installerDir, dockerArgs:externalMigrationNetwork(migrationEnv), prepare:!(skipMigrate || upOnly) });
@@ -1115,17 +1127,6 @@ async function main() {
     if (transcription.mode === "local") {
       run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:provision-transcriber-role"]);
     }
-  }
-
-  // The Notes Storage gate runs on every pass (also --skip-migrate / --up-only):
-  // an existing installation must never start a new API on unverified Storage.
-  {
-    const gateEnv = await fs.readFile(envFile, "utf8");
-    prepareAndVerifyNotesStorage({
-      run, image: resolvedApiImage,
-      ownerUrl: process.env.RUNLY_NOTES_OWNER_DATABASE_URL ?? parseEnvValue(gateEnv, "RUNLY_NOTES_OWNER_DATABASE_URL") ?? null,
-      dockerRunBase: ["run", "--rm", ...externalMigrationNetwork(gateEnv), "--add-host", "host.docker.internal:host-gateway", "--env-file", envFile],
-    });
   }
 
   // ── 6. Start containers ────────────────────────────────────────────────────
