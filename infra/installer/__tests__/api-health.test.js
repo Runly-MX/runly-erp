@@ -20,7 +20,7 @@ test('probes the published address and port, not a fixed one', async () => {
   const { resolveApiHealthUrl } = await import('../lib/api-health.mjs')
   assert.equal(resolveApiHealthUrl({}), 'http://127.0.0.1:4010/health')
   assert.equal(resolveApiHealthUrl({ bindAddr: '0.0.0.0', port: '4123' }), 'http://127.0.0.1:4123/health')
-  assert.equal(resolveApiHealthUrl({ bindAddr: '10.0.0.5', port: '4010' }), 'http://10.0.0.5:4010/health')
+  assert.equal(resolveApiHealthUrl({ bindAddr: '203.0.113.5', port: '4010' }), 'http://203.0.113.5:4010/health')
   assert.equal(resolveApiHealthUrl({ port: 'oops' }), 'http://127.0.0.1:4010/health')
 })
 

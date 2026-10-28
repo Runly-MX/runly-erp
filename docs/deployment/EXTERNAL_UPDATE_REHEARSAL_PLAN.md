@@ -14,6 +14,10 @@ Candidato autorizado para el ensayo: SHA de producto
 
 ## 0. Que falta para poder ejecutarlo
 
+Como identificar un respaldo existente, generar uno nuevo de forma autorizada, trasladarlo
+cifrado y restaurarlo en una replica aislada esta en `EXTERNAL_BACKUP_ACQUISITION_RUNBOOK.md`
+(diagnostico de solo lectura, generacion y traslado, restauracion, consistencia y aislamiento).
+
 Necesita una decision y accion de quien administra la instalacion real, con autorizacion
 separada (no se pidio ni se usa en este trabajo):
 
