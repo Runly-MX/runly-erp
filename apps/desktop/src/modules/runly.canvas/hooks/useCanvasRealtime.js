@@ -5,7 +5,7 @@ import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { applyObjectDelta, invalidationTargets } from '../lib/realtimeCache.js'
 import { CURSOR_SEND_MS, createThrottle, createCursorStore } from '../lib/remoteCursors.js'
 
-function createCanvasRealtimeSession({ boardId, user, onChanged, onCursor, onPresence }) {
+function createCanvasRealtimeSession({ boardId, user, onChanged, onCursor, onPresence, onReconnect }) {
   const supabase = getSupabaseClient()
   const channel = supabase.channel(`canvas:board:${boardId}`, {
     config: { private: true, broadcast: { self: false }, presence: { key: user.id } },
@@ -15,8 +15,12 @@ function createCanvasRealtimeSession({ boardId, user, onChanged, onCursor, onPre
   channel.on('presence', { event: 'sync' }, () => {
     onPresence(Object.values(channel.presenceState()).flat().map((item) => item.user).filter(Boolean))
   })
+  let subscribed = false
   channel.subscribe((status) => {
-    if (status === 'SUBSCRIBED') channel.track({ user: { id: user.id, name: user.displayName ?? user.email, avatarUrl: user.avatarUrl ?? null } })
+    if (status !== 'SUBSCRIBED') return
+    channel.track({ user: { id: user.id, name: user.displayName ?? user.email, avatarUrl: user.avatarUrl ?? null } })
+    if (subscribed) onReconnect?.()
+    subscribed = true
   })
   return { channel, destroy: () => supabase.removeChannel(channel) }
 }
@@ -66,6 +70,13 @@ export function useCanvasRealtime(boardId, { pageId, selectedIds, onBoardDeleted
       },
       onCursor: (message) => cursorStore.update(message?.payload),
       onPresence: setPresence,
+      onReconnect: () => {
+        cursorStore.clear()
+        // Deltas sent during an outage are not a durable log. Reconcile only
+        // this Board after rejoin; initial subscription already has its load.
+        client.invalidateQueries({ queryKey: ['canvas', 'boards', boardId], exact: true })
+        for (const kind of ['objects', 'links', 'versions']) client.invalidateQueries({ queryKey: ['canvas', 'boards', boardId, kind] })
+      },
     })
     channelRef.current = session.channel
     return () => { channelRef.current = null; sendRef.current?.cancel(); cursorStore.clear(); session.destroy() }

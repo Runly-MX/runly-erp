@@ -104,7 +104,7 @@ export function CanvasViewport(props) {
     canvas.addEventListener('wheel', wheel, { passive: false })
     return () => {
       observer.disconnect(); stopTheme(); canvas.removeEventListener('wheel', wheel)
-      cancelAnimationFrame(frameRef.current); clearTimeout(pressTimerRef.current); rendererRef.current = null
+      cancelAnimationFrame(frameRef.current); frameRef.current = 0; clearTimeout(pressTimerRef.current); rendererRef.current = null
     }
     // Created once; the callbacks are stable state setters from the editor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
