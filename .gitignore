@@ -126,3 +126,4 @@ kotlin-compiler-*.log
 .artifacts/studio/
 .artifacts/realtime-2/
 infra/installer/.runly-installer/
+.artifacts/notifications/

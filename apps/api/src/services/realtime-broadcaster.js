@@ -50,7 +50,8 @@ export function createRealtimeBroadcaster({ supabaseUrl, serviceRoleKey, prisma 
   // event stopped arriving in real time the moment those RLS policies went
   // live, without the subscribe-side auth ever failing or logging anything.
   async function broadcastToUser(profileId, event, payload) {
-    if (!profileId || !(await canReceiveResourceEvent(prisma, profileId, payload))) return
+    // Authorization is evaluated once, inside _send, under the revision lock.
+    if (!profileId) return
     await _send([{
       topic: `user:${profileId}:events`,
       event,
@@ -61,16 +62,17 @@ export function createRealtimeBroadcaster({ supabaseUrl, serviceRoleKey, prisma 
     })
   }
 
+  // payload may be a function of the recipient id for per-recipient fields
+  // (for example the id of that recipient's own notification row).
   async function broadcastToUsers(profileIds, event, payload) {
-    const candidates = [...new Set((profileIds ?? []).filter(Boolean))]
-    const checks = await Promise.all(candidates.map((id) => canReceiveResourceEvent(prisma, id, payload)))
-    const ids = candidates.filter((_, i) => checks[i])
+    const payloadFor = (id) => (typeof payload === 'function' ? payload(id) : payload)
+    const ids = [...new Set((profileIds ?? []).filter(Boolean))]
     if (!ids.length) return
     await _send(
       ids.map((id) => ({
         topic: `user:${id}:events`,
         event,
-        payload: payload ?? {},
+        payload: payloadFor(id) ?? {},
         private: true,
       })),
     ).catch((err) => {

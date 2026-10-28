@@ -84,7 +84,6 @@ function buildPrismaMock() {
   };
 
   const prisma = {
-    $queryRaw: async () => [{ allowed: true }],
     _notifications: notifications,
     _deliveries: deliveries,
     userProfile: {
@@ -101,6 +100,15 @@ function buildPrismaMock() {
           .filter((id) => [PROFILE_ID, RECIPIENT_A, RECIPIENT_B].includes(id))
           .map((id) => ({ userId: id }));
       },
+    },
+    // Tagged-template summary query: (strings, userId, companyId).
+    $queryRaw: async (strings, userId, companyId) => {
+      if (!strings.join('?').includes('notification_summary')) return [{ allowed: true }];
+      const rows = notifications.filter((row) => row.userId === userId && row.readAt === null
+        && (row.companyId === companyId || row.companyId === null));
+      const chat = rows.filter((row) => row.eventType.startsWith('chat.'));
+      return [{ total: rows.length, messages: chat.length, general: rows.length - chat.length,
+        latest_unread_id: rows.map((row) => String(row.id)).sort().at(-1) ?? null }];
     },
     notification: {
       count: async ({ where }) => notifications.filter(row => matchWhere(row, where)).length,
@@ -717,5 +725,41 @@ describe('fcm token subscriptions', () => {
       () => service.unsubscribeFcm({ authUserId: AUTH_USER_ID, companyId: COMPANY_ID, id: 'not-mine' }),
       /Token FCM no encontrado/,
     );
+  });
+});
+
+describe('notification.new payload', () => {
+  it('carries each recipient own notification id', async () => {
+    const prisma = buildPrismaMock();
+    const sent = [];
+    const broadcaster = { broadcastToUsers: async (ids, event, payload) => { sent.push({ ids, event, payload }) } };
+    const service = createNotificationService({ prisma, broadcaster });
+    const result = await service.publish({ companyId: COMPANY_ID, input: { eventType: 'system.alert', title: 'Aviso', recipients: { userIds: [RECIPIENT_A, RECIPIENT_B] } } });
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].event, 'notification.new');
+    const [a, b] = [sent[0].payload(RECIPIENT_A), sent[0].payload(RECIPIENT_B)];
+    assert.ok(a.notificationId && b.notificationId && a.notificationId !== b.notificationId);
+    assert.deepEqual(new Set(result.data.map((row) => row.id)), new Set([a.notificationId, b.notificationId]));
+    assert.equal(a.count, 1);
+  });
+});
+
+describe('notification summary', () => {
+  it('matches the counters of list and skips them with counts=0', async () => {
+    const prisma = buildPrismaMock();
+    const service = createNotificationService({ prisma });
+    for (const eventType of ['system.alert', 'chat.message.new', 'calendar.event']) {
+      await service.publish({ companyId: COMPANY_ID, input: { eventType, title: eventType, sourceId: eventType, recipients: { userIds: [PROFILE_ID] } } });
+    }
+    const list = await service.list({ authUserId: AUTH_USER_ID, companyId: COMPANY_ID, query: {} });
+    const summary = await service.summary({ authUserId: AUTH_USER_ID, companyId: COMPANY_ID });
+    assert.equal(summary.unreadCount, list.unreadCount);
+    assert.deepEqual(summary.unreadByCategory, list.unreadByCategory);
+    assert.equal(summary.unreadByCategory.messages, 1);
+    assert.equal(summary.unreadByCategory.general, 2);
+    assert.ok(summary.latestUnreadId);
+    const light = await service.list({ authUserId: AUTH_USER_ID, companyId: COMPANY_ID, query: { counts: '0' } });
+    assert.equal(light.unreadCount, undefined);
+    assert.equal(light.data.length, 3);
   });
 });

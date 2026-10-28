@@ -34,7 +34,7 @@ export function buildFcmData({ notification }) {
     : eventType === "chat.message.new" && notification?.sourceId
       ? `chat:${notification.sourceId}`
       : String(notification?.id ?? "");
-  return { title, body, link, eventType, callId, tag };
+  return { title, body, link, eventType, callId, tag, notificationId: String(notification?.id ?? "") };
 }
 
 let sharedApp = null;

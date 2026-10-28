@@ -41,6 +41,20 @@ export function createNotificationsRouter({ prisma, requirePermission, supabaseA
     },
   );
 
+  app.get(
+    "/notifications/summary",
+    requirePermission("notifications.read"),
+    async (c) => {
+      try {
+        const result = await service.summary({ authUserId: c.get("authUserId"), companyId: c.get("companyId") });
+        c.header("Cache-Control", "private, no-store");
+        return c.json(result);
+      } catch (err) {
+        return handleError(c, err, "GET /notifications/summary");
+      }
+    },
+  );
+
   app.patch(
     "/notifications/read-all",
     requirePermission("notifications.read"),

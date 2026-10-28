@@ -9,6 +9,7 @@ import {
 import { getDefaultNotificationPreference } from '@runly/core';
 import { isInDnd, passesDnd } from './dnd.js';
 import { attachUserAvatarUrls } from '../lib/attach-user-avatars.js';
+import { createRealtimeBroadcasterFromEnv } from './realtime-broadcaster.js';
 
 const DEDUPE_WINDOW_MS = 5000;
 
@@ -101,7 +102,44 @@ function buildListWhere({ userId, companyId, query }) {
   return where;
 }
 
-export function createNotificationService({ prisma, broadcaster = null, supabaseAdmin = null }) {
+// One grouped query for the whole unread summary. The predicate mirrors
+// buildListWhere (company scope + in-app delivery rule + chat. prefix category)
+// and is pinned against list() by a parity test.
+async function readUnreadSummary(prisma, { userId, companyId }) {
+  const [row] = await prisma.$queryRaw`
+    /* notification_summary */
+    SELECT count(*)::int AS total,
+      count(*) FILTER (WHERE n.event_type LIKE 'chat.%')::int AS messages,
+      count(*) FILTER (WHERE n.event_type NOT LIKE 'chat.%')::int AS general,
+      (array_agg(n.id ORDER BY n.id DESC))[1]::text AS latest_unread_id
+    FROM notification n
+    WHERE n.user_id = ${userId}::uuid
+      AND (n.company_id = ${companyId}::uuid OR n.company_id IS NULL)
+      AND n.read_at IS NULL
+      AND (
+        EXISTS (SELECT 1 FROM notification_delivery d WHERE d.notification_id = n.id AND d.channel = 'in_app')
+        OR NOT EXISTS (SELECT 1 FROM notification_delivery d WHERE d.notification_id = n.id)
+      )`;
+  return {
+    unreadCount: row?.total ?? 0,
+    unreadByCategory: { messages: row?.messages ?? 0, general: row?.general ?? 0 },
+    latestUnreadId: row?.latest_unread_id ?? null,
+  };
+}
+
+// Producers build their own service instances without wiring a broadcaster, so
+// without a fallback only the instance created in index.js ever announced
+// `notification.new`; every other producer relied on polling. One lazy
+// broadcaster per prisma client covers all of them (null without credentials).
+const sharedBroadcasters = new WeakMap();
+function sharedBroadcaster(prisma) {
+  if (!prisma || typeof prisma !== "object") return null;
+  if (!sharedBroadcasters.has(prisma)) sharedBroadcasters.set(prisma, createRealtimeBroadcasterFromEnv({ prisma }));
+  return sharedBroadcasters.get(prisma);
+}
+
+export function createNotificationService({ prisma, broadcaster: injectedBroadcaster = null, supabaseAdmin = null }) {
+  const broadcaster = injectedBroadcaster ?? sharedBroadcaster(prisma);
   // activeCompanyId: the caller's validated active company, resolved by the
   // API's tenant middleware and threaded down from routes/notifications.js.
   // See docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
@@ -148,13 +186,11 @@ export function createNotificationService({ prisma, broadcaster = null, supabase
       options.skip = 1;
     }
 
-    const unreadWhere = (category) =>
-      buildListWhere({ userId: profileId, companyId, query: { unreadOnly: true, category } });
-    const [rows, unreadCount, unreadMessages, unreadGeneral] = await Promise.all([
+    // counts=0 lets a caller that already holds the summary skip the counters.
+    const withCounts = String(query?.counts ?? "1") !== "0";
+    const [rows, summary] = await Promise.all([
       prisma.notification.findMany(options),
-      prisma.notification.count({ where: unreadWhere(undefined) }),
-      prisma.notification.count({ where: unreadWhere("messages") }),
-      prisma.notification.count({ where: unreadWhere("general") }),
+      withCounts ? readUnreadSummary(prisma, { userId: profileId, companyId }) : null,
     ]);
     const hasNext = rows.length > parsed.limit;
     const items = hasNext ? rows.slice(0, parsed.limit) : rows;
@@ -164,10 +200,15 @@ export function createNotificationService({ prisma, broadcaster = null, supabase
 
     return {
       data,
-      unreadCount,
-      unreadByCategory: { messages: unreadMessages, general: unreadGeneral },
+      ...(summary ? { unreadCount: summary.unreadCount, unreadByCategory: summary.unreadByCategory } : {}),
       pageInfo: { nextCursor },
     };
+  }
+
+  // Cheap counters for the bell: no list rows, no actor lookup.
+  async function summary({ authUserId, companyId: activeCompanyId }) {
+    const { profileId, companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
+    return readUnreadSummary(prisma, { userId: profileId, companyId });
   }
 
   // Chat notifications created before the actor was stamped carry no sender:
@@ -428,6 +469,9 @@ export function createNotificationService({ prisma, broadcaster = null, supabase
       const created = [];
       const updated = [];
       const inAppRecipientIds = [];
+      // Per-recipient identity of the row the alert is about, so every delivery
+      // path (broadcast, push) can share one stable notification identity.
+      const identities = new Map();
       let deduped = 0;
 
       for (const userId of recipientUserIds) {
@@ -457,6 +501,7 @@ export function createNotificationService({ prisma, broadcaster = null, supabase
               },
             });
             inAppRecipientIds.push(userId);
+            identities.set(userId, { id: updatedNotification.id, count: updatedNotification.metadata?.count ?? priorCount + 1 });
             updated.push(updatedNotification);
             continue;
           }
@@ -530,12 +575,15 @@ export function createNotificationService({ prisma, broadcaster = null, supabase
           });
         }
 
-        if (allowedChannels.includes('in_app')) inAppRecipientIds.push(userId);
+        if (allowedChannels.includes('in_app')) {
+          inAppRecipientIds.push(userId);
+          identities.set(userId, { id: notification.id, count: notification.metadata?.count ?? 1 });
+        }
 
         created.push(notification);
       }
 
-      return { created, updated, deduped, inAppRecipientIds };
+      return { created, updated, deduped, inAppRecipientIds, identities };
     });
 
     const publishResult = {
@@ -547,7 +595,9 @@ export function createNotificationService({ prisma, broadcaster = null, supabase
     };
 
     if (broadcaster && result.inAppRecipientIds.length > 0) {
-      await broadcaster.broadcastToUsers(result.inAppRecipientIds, "notification.new", {
+      await broadcaster.broadcastToUsers(result.inAppRecipientIds, "notification.new", (userId) => ({
+        notificationId: result.identities.get(userId)?.id ?? null,
+        count: result.identities.get(userId)?.count ?? 1,
         companyId, sourceType: parsed.sourceType, sourceId: parsed.sourceId,
         eventType: parsed.eventType,
         title: parsed.title,
@@ -559,7 +609,7 @@ export function createNotificationService({ prisma, broadcaster = null, supabase
         // explicit dedupeKey was supplied (chat events do); otherwise the client
         // falls back to a content hash, which already matches across surfaces.
         dedupeKey: parsed.dedupeKey ?? null,
-      }).catch(() => {});
+      })).catch(() => {});
     }
 
     return publishResult;
@@ -704,6 +754,7 @@ export function createNotificationService({ prisma, broadcaster = null, supabase
   return {
     resolveCompanyContext,
     list,
+    summary,
     markRead,
     markAllRead,
     markReadBySource,
