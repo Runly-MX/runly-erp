@@ -14,6 +14,7 @@ import { getSystemNotificationPermission, isTauriRuntime } from "../lib/systemNo
 import { isWebPushSupported } from "../lib/webPush";
 import { useNotificationSoundStore } from "../stores/notificationSound";
 import { NotificationItem } from "./notifications/NotificationItem";
+import { NOTIFICATION_SUMMARY_KEY, applyReadChange, notificationCategory, summaryRefetchInterval } from "../lib/notificationSync";
 
 const TABS = [
   { value: "general", label: "General", empty: "Sin notificaciones generales" },
@@ -37,42 +38,50 @@ export function NotificationBell({
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState("general");
+  const [open, setOpen] = useState(false);
 
-  // Always fetches the unread counters; the list itself follows the active tab.
-  const { data } = useQuery({
-    queryKey: ["notifications", "panel", tab],
-    queryFn: () => runly.notifications.list(token, { category: tab, limit: 15 }),
+  // The badge only needs counters: one cheap request, kept fresh by Realtime
+  // events (see RealtimeProvider), reconnect/visibility reconciliation and a slow
+  // heartbeat that bounds how long a lost broadcast can stay invisible.
+  const { data: summary } = useQuery({
+    queryKey: [...NOTIFICATION_SUMMARY_KEY, token],
+    queryFn: () => runly.notifications.summary(token),
     enabled: Boolean(token),
-    refetchInterval: 30_000,
-    staleTime: 10_000,
+    staleTime: 30_000,
+    refetchInterval: summaryRefetchInterval,
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
-  const { data: unreadData } = useQuery({
-    queryKey: ["notifications", "bell-unread"],
-    queryFn: () => runly.notifications.list(token, { unreadOnly: true, limit: 1 }),
-    enabled: Boolean(token),
-    refetchInterval: 30_000,
-    staleTime: 10_000,
-    refetchOnWindowFocus: true,
+  // Rows are fetched only while the panel is open (counters come from the summary).
+  const { data } = useQuery({
+    queryKey: ["notifications", "panel", tab],
+    queryFn: () => runly.notifications.list(token, { category: tab, limit: 15, counts: "0" }),
+    enabled: Boolean(token) && open,
+    staleTime: 5_000,
   });
 
   const recent = Array.isArray(data) ? data : (data?.data ?? []);
-  const unreadCount = unreadData?.unreadCount ?? data?.unreadCount ?? 0;
-  const unreadByCategory = unreadData?.unreadByCategory ?? data?.unreadByCategory ?? {};
+  const unreadCount = summary?.unreadCount ?? 0;
+  const unreadByCategory = summary?.unreadByCategory ?? {};
   const activeTab = TABS.find((t) => t.value === tab) ?? TABS[0];
+
+  const settle = () => queryClient.invalidateQueries({ queryKey: ["notifications"] });
 
   const markAllRead = useMutation({
     mutationFn: () => runly.notifications.markAllRead(token),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    onMutate: () => ({ rollback: applyReadChange(queryClient, { all: true }) }),
+    onError: (_error, _variables, context) => context?.rollback?.(),
+    onSettled: settle,
   });
 
   const markOneRead = useMutation({
-    mutationFn: (id) => runly.notifications.markRead(token, id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    mutationFn: ({ id }) => runly.notifications.markRead(token, id),
+    onMutate: ({ eventType }) => ({ rollback: applyReadChange(queryClient, { category: notificationCategory(eventType) }) }),
+    onError: (_error, _variables, context) => context?.rollback?.(),
+    onSettled: settle,
   });
 
-  const [open, setOpen] = useState(false);
   const [showEnableReminder, setShowEnableReminder] = useState(false);
   const soundMuted = useNotificationSoundStore((s) => s.muted);
   const toggleSound = useNotificationSoundStore((s) => s.toggle);
@@ -99,7 +108,7 @@ export function NotificationBell({
   function handleNotificationClick(notification) {
     if (!notification) return;
     setOpen(false);
-    if (!notification.read) markOneRead.mutate(notification.id);
+    if (!notification.read) markOneRead.mutate({ id: notification.id, eventType: notification.eventType });
     if (notification.link && typeof onNavigate === "function") {
       onNavigate(notification.link);
       return;

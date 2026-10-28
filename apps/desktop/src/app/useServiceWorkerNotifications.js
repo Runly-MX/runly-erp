@@ -34,7 +34,9 @@ export function useServiceWorkerNotifications({ navigate, queryClient }) {
       if (!message || typeof message !== "object") return;
 
       if (message.type === "runly.notifications.push") {
-        const notificationId = message.notificationId ?? null;
+        // A chat conversation folds successive messages into one row whose count
+        // grows, so identity is the row id plus its count, not the id alone.
+        const notificationId = message.notificationId ? `${message.notificationId}:${message.count ?? 1}` : null;
         if (notificationId && seenNotificationIds.current.has(notificationId)) return;
         if (notificationId) {
           seenNotificationIds.current.add(notificationId);
@@ -68,6 +70,8 @@ export function useServiceWorkerNotifications({ navigate, queryClient }) {
         // notificationKey() produces the same `dk:` key on each; it falls back
         // to a content hash when no dedupeKey is present.
         const dupKey = notificationKey({
+          notificationId: message.notificationId,
+          count: message.count,
           dedupeKey: message.dedupeKey,
           eventType: message.eventType,
           title,

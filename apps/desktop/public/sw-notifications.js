@@ -62,6 +62,7 @@ self.addEventListener("push", (event) => {
         notificationId: payload?.data?.notificationId ?? null,
         eventType: payload?.data?.eventType ?? null,
         dedupeKey: payload?.data?.dedupeKey ?? null,
+        count: payload?.data?.metadata?.count ?? 1,
         callId: payload?.data?.metadata?.callId ?? payload?.data?.sourceId ?? null,
       }),
       self.registration.showNotification(title, options),

@@ -12,6 +12,7 @@ import { useChatFloatStore } from '../modules/runly.chat/store/chatFloatStore'
 import { isMiraiConversationVisible } from '../modules/runly.chat/lib/miraiPageContext'
 import { useNotificationSoundStore } from '../stores/notificationSound'
 import { notificationKey, claimNotification } from '../lib/notificationDedup'
+import { applyIncomingNotification, refreshNotifications } from '../lib/notificationSync'
 import { trackToastHoverRead } from '../lib/toastHoverRead'
 import { getStoredWebPushSubscriptionId } from '../lib/webPush'
 import { runly } from '../lib/runly'
@@ -72,7 +73,10 @@ export function RealtimeProvider({ children }) {
     const channel = client
       .channel(`user:${userProfile.id}:events`, { config: { private: true } })
       .on('broadcast', { event: 'notification.new' }, async ({ payload }) => {
-        invalidateRealtimeQuery(queryClient, ['notifications'])
+        // Instant badge feedback, then an authoritative counters refresh (leading +
+        // trailing, at most one per second). The payload is a hint, never the state.
+        applyIncomingNotification(queryClient, payload)
+        refreshNotifications(queryClient)
         // A mention/comment notification means some thread changed; refresh
         // any comment thread cached or on screen so its link opens fresh.
         queryClient.invalidateQueries({ predicate: isCommentsQuery })
@@ -295,7 +299,11 @@ export function RealtimeProvider({ children }) {
         }
         dispatch('notes.note.updated', payload)
       })
-      .subscribe()
+      .subscribe((status) => {
+        // Every (re)join, including after a dropped socket, reconciles with HTTP: a
+        // broadcast sent while this client was away is not replayed by Realtime.
+        if (status === 'SUBSCRIBED') refreshNotifications(queryClient)
+      })
 
     return () => {
       disposed = true
@@ -383,20 +391,21 @@ export function RealtimeProvider({ children }) {
     return () => { client.removeChannel(channel) }
   }, [userProfile?.id, activeCompanyId, queryClient])
 
-  // Postgres Changes on the notification table — fires when the API inserts a notification
-  // for the current user. This is a reliable backup when the REST broadcast is unavailable.
+  // Reconcile notification counters when the tab becomes visible again or the
+  // network returns (a suspended PWA or sleeping laptop misses broadcasts).
+  // This replaces the former `postgres_changes` subscription on `notification`:
+  // that table is never added to the `supabase_realtime` publication by any
+  // migration, so the subscription could not deliver in any installation.
   useEffect(() => {
-    if (!userProfile?.id) return
-    const client = getSupabaseClient()
-    const channel = client
-      .channel(`pg-notifications-${userProfile.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notification', filter: `user_id=eq.${userProfile.id}` },
-        () => invalidateRealtimeQuery(queryClient, ['notifications']),
-      )
-      .subscribe()
-    return () => { client.removeChannel(channel) }
+    if (!userProfile?.id) return undefined
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshNotifications(queryClient) }
+    const onOnline = () => refreshNotifications(queryClient)
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('online', onOnline)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('online', onOnline)
+    }
   }, [userProfile?.id, queryClient])
 
   const isUserOnline = useCallback((id) => Boolean(onlineUsers[id]), [onlineUsers])

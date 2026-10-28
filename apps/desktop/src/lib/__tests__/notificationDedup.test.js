@@ -39,3 +39,25 @@ describe("notificationDedup", () => {
     assert.equal(claimNotification(null), true);
   });
 });
+
+describe("notification identity", () => {
+  it("collapses broadcast and push of the same row, even when their text differs", () => {
+    const broadcast = notificationKey({ notificationId: "n1", count: 1, title: "A", body: "x" });
+    const push = notificationKey({ notificationId: "n1", metadata: undefined, title: "A (otro texto)" });
+    assert.equal(broadcast, push);
+  });
+
+  it("keeps two legitimate alerts with identical text apart", () => {
+    const first = notificationKey({ notificationId: "n1", title: "Aviso", body: "igual" });
+    const second = notificationKey({ notificationId: "n2", title: "Aviso", body: "igual" });
+    assert.notEqual(first, second);
+  });
+
+  it("separates successive messages folded into one chat row by their count", () => {
+    assert.notEqual(
+      notificationKey({ notificationId: "chat1", count: 1 }),
+      notificationKey({ notificationId: "chat1", count: 2 }),
+    );
+    assert.equal(notificationKey({ notificationId: "chat1", metadata: { count: 2 } }), notificationKey({ notificationId: "chat1", count: 2 }));
+  });
+});

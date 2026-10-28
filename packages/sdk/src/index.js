@@ -1949,6 +1949,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/notifications${toQueryString(query)}`, {
           headers: withAuthHeaders(token),
         }),
+      // Counters only (no rows): the bell's cheap read.
+      summary: (token) => request("/notifications/summary", { headers: withAuthHeaders(token) }),
       getMyStatus: (token) => request("/profile/status", { headers: withAuthHeaders(token) }),
       setMyStatus: (token, data) =>
         request("/profile/status", { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify(data ?? {}) }),
