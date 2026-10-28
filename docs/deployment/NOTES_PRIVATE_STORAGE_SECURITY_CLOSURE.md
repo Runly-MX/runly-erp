@@ -238,3 +238,90 @@ instalación), ensayo previo en un clon restaurado y purga de cachés externas.
 Riesgos residuales: copias ya descargadas o cacheadas, uploads firmados ya emitidos hasta
 su caducidad, clientes Web antiguos sin resolver, y regresiones de Files, Chat, Canvas y
 Studio pendientes de una corrida completa antes de producción.
+
+## Certificacion del Installer con imagenes del HEAD (2026-10-28)
+
+SHA probado: imagenes de API, Worker y Web construidas desde `5b9e1722fb83`
+(`runly-notifications:{api,worker,web}-5b9e1722fb83`), con el Installer del arbol en
+`1ef3c3ca1`. La regresion de Notes usa `runly-notes-private:full-api-205d2739ca05`
+(HEAD `89f971d5`). Ninguna imagen anterior certifica codigo nuevo; la version previa
+(`runly-realtime2:full-api-fa6f6d2a2877`) solo se usa como "instalacion existente".
+Las imagenes se construyen con Git Bash/Windows anteponiendo `/c/Windows/System32` al PATH
+para que `tar` sea el de Windows.
+
+### Cambios
+
+- El Installer ya no supone que Storage esta preparado. Antes de recrear ningun contenedor
+  ejecuta, desde la imagen nueva, `node apps/api/scripts/notes-storage-preflight.mjs --verify`
+  (solo lectura, cuenta de la aplicacion): politica restrictiva y guard de buckets con la
+  definicion exacta. Si faltan y no hay propietario disponible, falla con
+  `NOTES_STORAGE_NOT_PREPARED` y la instalacion existente sigue intacta. Un bucket aun
+  publico antes del primer arranque se informa como pendiente (lo cierra la API nueva).
+- Con `RUNLY_NOTES_OWNER_DATABASE_URL`, `--prepare-owner` se ejecuta antes del `--verify`.
+  El valor viaja solo por entorno del proceso: no aparece en argumentos, logs ni errores
+  (comprobado en la prueba de credencial incorrecta) ni llega al contenedor de la API.
+- Despues de `/health` corre `--probe`: sube un objeto temporal y comprueba con
+  peticiones anonimas reales la URL publica, el objeto, el render y el listado; cualquier
+  200 hace fallar la instalacion. El objeto se elimina.
+- La sonda de salud usa la direccion y el puerto publicados reales
+  (`RUNLY_PUBLIC_BIND_ADDR`, `RUNLY_API_HOST_PORT`) y un temporizador normal.
+- El gate corre en cada pasada de `setup-local` y `setup-external` (tambien con
+  `--skip-migrate` y `--up-only`). `update-local.sh` y `update-external.sh` invocan esos
+  scripts; no se ejecutaron directamente (descargan el Installer publicado).
+- Manifiesto del Installer `2026.10.28.5`.
+
+### Defectos del propio Installer encontrados por esta prueba E2E (corregidos)
+
+1. La verificacion de salud sondeaba siempre `127.0.0.1:4010`: fallaba con otro puerto
+   publicado.
+2. `AbortSignal.timeout` usa un temporizador sin referencia: una peticion colgada hacia que
+   `setup-local` terminara con codigo 0 sin veredicto ni banner. Ahora hay un temporizador
+   normal y una prueba para ello.
+
+### Resultados
+
+Comando: `node scripts/verify-notes-installer-e2e.mjs --api-image=... --worker-image=...
+--web-image=...`. Ejecuta los `setup-local.mjs` y `setup-external.mjs` reales con Compose de
+produccion sobre pilas desechables y puertos libres (no toca los servidores de desarrollo).
+Cada caso exitoso comprueba `/health`, que el propietario no llega al contenedor de la API,
+que las lecturas anonimas (URL publica, objeto, render) no devuelven 200, que el bucket es
+privado, que los bytes originales y el contenido de la nota quedan identicos, que la imagen
+historica queda vinculada a su nota y que repetir el Installer es idempotente.
+
+| Caso | Resultado |
+|---|---|
+| `local-existing-upgrade`: instalacion previa con bucket publico, nota e imagen | PASA |
+| `local-fresh` | PASA |
+| `external-owner-available` | PASA |
+| `external-no-owner-prepared`: sin propietario, Storage ya preparado | PASA |
+| `external-no-owner-unprepared`: sin propietario, Storage sin preparar | PASA: falla con `NOTES_STORAGE_NOT_PREPARED`, no arranca la API |
+| `external-bad-owner-credential` | PASA: falla, la credencial no aparece en la salida |
+| `external-partial-preparation`: solo la politica | PASA: falla |
+| `external-regression-to-unsafe`: tras una instalacion buena se retira el guard y se abre el bucket | PASA: la actualizacion falla, no continua en silencio |
+
+Regresion de Notes con la imagen del HEAD: `verify-notes-private-storage.mjs` (nueva) y con
+`--upgrade --ui` pasan completos (matriz propietario/editor/lector/ajeno/otra empresa/anonimo,
+publicacion y despublicacion, revocacion, URLs firmadas caducadas, fallo de Storage,
+Y.js/Tiptap, Excalidraw, movil tactil, portadas, exportacion y flujo MirAI/MCP simulado).
+Lint, `build:web` y las imagenes Docker de API, Worker y Web compilan. 4.323 pruebas Node:
+4.310 pasan y las 7 que fallan son heredadas (ver el informe de Notificaciones).
+
+### Dictamen por tipo de instalacion
+
+| Tipo | Dictamen |
+|---|---|
+| Local con Supabase autohospedado (`setup-local`, `update-local.sh`) | GO local |
+| External con conexion de propietario de Storage | GO local |
+| External sin propietario y Storage ya preparado | GO local (se verifica, no se supone) |
+| External sin propietario y Storage sin preparar o regresado | NO GO hasta preparar: el Installer se detiene antes de reemplazar contenedores |
+| Supabase Cloud o proveedor que no permite crear politicas/triggers en `storage` | NO GO para esa configuracion; no se probo en un proveedor real |
+| Local con Supabase CLI de desarrollo (no autohospedado) | No certificado: solo aplica `--verify`; sin preparacion el Installer se detiene |
+
+### Limites
+
+- Las copias de imagenes que se descargaron o quedaron en caches mientras el bucket era
+  publico no se pueden retirar; hay que purgar las caches administradas y comunicarlo.
+- No se probo un proveedor externo real ni `update-*.sh` descargando un Installer publicado.
+- No se desplego, publico ni modifico ninguna instalacion real.
+- Esto no convierte el GO local condicionado en un GO global de Runly: queda condicionado a
+  ensayar primero en un clon restaurado de cada instalacion existente.
