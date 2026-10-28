@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Test-only stand-in for curl. Serves the versioned Installer distribution from
+# $RUNLY_TEST_ORIGIN instead of GitHub so update-*.sh can be exercised without
+# touching the network. Any other URL is refused and recorded.
+set -u
+origin="${RUNLY_TEST_ORIGIN:?RUNLY_TEST_ORIGIN is required}"
+url=""; out=""; args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  a="${args[$i]}"
+  case "$a" in
+    https://*) url="$a" ;;
+    --proto) i=$((i + 1)) ;;
+    -o) out="${args[$((i + 1))]}"; i=$((i + 1)) ;;
+    -[A-Za-z]*o) out="${args[$((i + 1))]}"; i=$((i + 1)) ;;
+  esac
+done
+echo "$url" >> "$origin/requests.log"
+emit() { if [[ -n "$out" ]]; then cat > "$out"; else cat; fi; }
+case "$url" in
+  https://api.github.com/repos/Runly-MX/runly-erp/git/ref/heads/main)
+    printf '{"object":{"sha":"%s"}}' "$(cat "$origin/main-ref")" | emit ;;
+  https://raw.githubusercontent.com/Runly-MX/runly-erp/*/infra/installer/*)
+    rest="${url#https://raw.githubusercontent.com/Runly-MX/runly-erp/}"
+    ref="${rest%%/*}"; file="${rest#*/infra/installer/}"
+    mode=$(grep -E "^${file} " "$origin/fail" 2>/dev/null | head -1 | cut -d' ' -f2 || true)
+    if [[ "$mode" == "network" ]]; then echo "curl: (22) simulated network failure" >&2; exit 22; fi
+    [[ -f "$origin/$ref/$file" ]] || { echo "curl: (22) 404 $file" >&2; exit 22; }
+    if [[ "$mode" == "corrupt" ]]; then printf 'corrupted-in-transit' | emit; else emit < "$origin/$ref/$file"; fi ;;
+  *) echo "UNEXPECTED $url" >> "$origin/requests.log"; echo "curl: refused $url" >&2; exit 6 ;;
+esac

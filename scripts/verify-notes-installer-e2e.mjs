@@ -4,8 +4,11 @@
 //   node scripts/verify-notes-installer-e2e.mjs --api-image=... --worker-image=... --web-image=... [--legacy-image=runly-realtime2:full-api-fa6f6d2a2877]
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { readFile, writeFile, mkdir, copyFile, cp } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
+import { delimiter, dirname, join, resolve, sep } from 'node:path'
 import { createStudioStack, command, unusedPort } from './fixtures/studio/supabase-stack.mjs'
 import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
 import { prepareDisposableNotesStorageOwner } from './fixtures/realtime-2/notes-storage-owner.mjs'
@@ -25,6 +28,7 @@ const manifest = JSON.parse(await readFile('infra/installer/installer-release.js
 const sources = new Map(await Promise.all(Object.keys(manifest.files).map(async file => [file, Buffer.from((await readFile(`infra/installer/${file}`, 'utf8')).replaceAll('\r\n', '\n'))])))
 const require = createRequire(resolve('apps/api/package.json'))
 const sharp = require('sharp')
+const { createClient } = require('@supabase/supabase-js')
 const png = await sharp({ create: { width: 16, height: 16, channels: 4, background: '#2563eb' } }).png().toBuffer()
 const results = []
 const wait = ms => new Promise(r => setTimeout(r, ms))
@@ -43,6 +47,20 @@ async function seedLegacy(stack) {
   return { noteId: note.id, key, url, content: (await stack.pool.query('SELECT content FROM notes WHERE id=$1', [note.id])).rows[0].content, admin }
 }
 
+// The Installer published before the ordering fix (2026.10.28.5), read from Git, is what an existing
+// installation has on disk when update-*.sh runs. The update scripts then refresh it from a controlled origin.
+const PREVIOUS_INSTALLER_COMMIT = '330e4a71204990cc6b5bd7f4dfdfe20bd08a8296'
+let previousReleaseCache = null
+function previousRelease() {
+  if (previousReleaseCache) return previousReleaseCache
+  const show = file => execFileSync('git', ['show', `${PREVIOUS_INSTALLER_COMMIT}:infra/installer/${file}`], { maxBuffer: 64 * 1024 * 1024 })
+  const previousManifest = JSON.parse(show('installer-release.json').toString('utf8'))
+  previousReleaseCache = { manifest: previousManifest, sources: new Map(Object.keys(previousManifest.files).map(file => [file, Buffer.from(show(file).toString('utf8').replaceAll('\r\n', '\n'))])) }
+  return previousReleaseCache
+}
+const updateFixture = resolve('scripts/fixtures/installer-update')
+// Git Bash explicitly: on Windows a bare bash can resolve to the WSL launcher, which cannot read D:/ paths.
+const gitBash = process.env.RUNLY_BASH ?? (process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash')
 const recoveryStateScript = (await readFile('docs/deployment/EXTERNAL_NOTES_STORAGE_RECOVERY.md', 'utf8')).replaceAll('\r\n', '\n').match(/```js\n([\s\S]*?)```/)[1]
 const NOTES_MIGRATION = '20261028011349_notes_private_images'
 // Everything an update could change in the application schema/data: applied migrations,
@@ -56,7 +74,7 @@ async function schemaSnapshot(stack) {
   return { migrations, columns, seeded }
 }
 
-async function scenario(name, { mode, legacy = true, prepare = null, owner = 'none', repeat = true, expectFailure = null, after = null, args = [] }) {
+async function scenario(name, { mode, legacy = true, prepare = null, owner = 'none', repeat = true, expectFailure = null, after = null, args = [], via = null, fail = '', composeFault = false, schemaChangesOnFailure = false, premigrated = false }) {
   if (only.length && !only.includes(name)) return
   const stack = await createStudioStack({ apiImage: legacy ? legacyImage : tagged.api })
   stack.pool.on('error', () => {})
@@ -72,9 +90,31 @@ async function scenario(name, { mode, legacy = true, prepare = null, owner = 'no
     await stack.verifyTarget()
     if (legacy) await stack.initialize()
     const state = legacy ? await seedLegacy(stack) : null
-    if (prepare) await prepare(stack)
+    if (prepare) await prepare(stack, state)
     await mkdir(directory)
-    await installRelease({ root: directory, mode, ref: 'd'.repeat(40), manifest, readSource: file => sources.get(file) })
+    const installed = via ? previousRelease() : { manifest, sources }
+    await installRelease({ root: directory, mode, ref: (via ? 'c' : 'd').repeat(40), manifest: installed.manifest, readSource: file => installed.sources.get(file) })
+    // A controlled origin that serves the versioned distribution the update scripts download.
+    const originDirectory = join(stack.directory, 'origin'), currentRef = 'd'.repeat(40)
+    const origin = {
+      directory: originDirectory,
+      setFail: text => writeFile(join(originDirectory, 'fail'), text),
+      requests: async () => (await readFile(join(originDirectory, 'requests.log'), 'utf8').catch(() => '')).split(/\r?\n/).filter(Boolean),
+    }
+    if (via) {
+      await mkdir(join(originDirectory, currentRef), { recursive: true })
+      for (const file of [...Object.keys(manifest.files), 'installer-release.json']) {
+        await mkdir(dirname(join(originDirectory, currentRef, file)), { recursive: true })
+        await writeFile(join(originDirectory, currentRef, file), file === 'installer-release.json' ? await readFile('infra/installer/installer-release.json') : sources.get(file))
+      }
+      // The Dev Kit export is downloaded from main by setup-external; serve it from the same origin.
+      await cp('infra/installer/devkit-export', join(originDirectory, currentRef, 'devkit-export'), { recursive: true })
+      await writeFile(join(originDirectory, 'main-ref'), currentRef)
+      await origin.setFail(fail)
+      if (composeFault) await writeFile(join(originDirectory, 'fail-compose-up-once'), '1')
+      if (!existsSync(join(directory, via.script))) await copyFile(join('infra/installer', via.script), join(directory, via.script))
+    }
+    const installerState = async () => JSON.parse(await readFile(join(directory, '.runly-installer/state.json'), 'utf8'))
     const values = new Map((await readFile(join(stack.directory, 'test.env'), 'utf8')).split('\n').filter(Boolean).map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]))
     const appUrl = config.services['runly-api'].environment.DATABASE_URL
     const settings = {
@@ -104,11 +144,13 @@ async function scenario(name, { mode, legacy = true, prepare = null, owner = 'no
       : owner === 'bad' ? { RUNLY_NOTES_OWNER_DATABASE_URL: storageOwnerUrl.replace(/\/\/([^:]+):[^@]+@/, '//$1:wrong-password-marker@') } : {}
     const run = async (suffix, { env = {}, extraArgs = args } = {}) => {
       const log = join(stack.directory, `${name}-${suffix}.log`)
-      try { await command(process.execPath, [join(directory, `setup-${mode}.mjs`), '--skip-pull', '--skip-dev-kit', ...extraArgs], { env: { ...cleanEnv, ...ownerEnv, ...env }, log }); return { ok: true, output: await readFile(log, 'utf8') } }
+      const viaEnv = { PATH: `${join(updateFixture, 'bin')}${delimiter}${cleanEnv.PATH ?? cleanEnv.Path ?? ''}`, NODE_OPTIONS: `--require ${join(updateFixture, 'origin-preload.cjs').split(sep).join('/')}`, RUNLY_TEST_ORIGIN: originDirectory.split(sep).join('/'), RUNLY_TEST_BIN: join(updateFixture, 'bin').split(sep).join('/'), BASH_ENV: join(updateFixture, 'bash-env.sh').split(sep).join('/') }
+      try { if (via) await command(gitBash, [join(directory, via.script).split(sep).join('/')], { env: { ...Object.fromEntries(Object.entries(cleanEnv).filter(([key]) => key.toLowerCase() !== 'path')), ...ownerEnv, ...viaEnv, ...env }, log }); else await command(process.execPath, [join(directory, `setup-${mode}.mjs`), '--skip-pull', '--skip-dev-kit', ...extraArgs], { env: { ...cleanEnv, ...ownerEnv, ...env }, log }); return { ok: true, output: await readFile(log, 'utf8') } }
       catch { return { ok: false, output: await readFile(log, 'utf8') } }
     }
     const containerExists = async () => (await command('docker', ['ps', '-a', '--filter', `name=${appName}-api-${mode}`, '--format', '{{.Names}}'])).includes(`${appName}-api-${mode}`)
     const before = await schemaSnapshot(stack)
+    const installerBefore = via ? await installerState() : null
     const first = await run('first')
     if (expectFailure) {
       assert.equal(first.ok, false, `${name}: installation must fail`)
@@ -116,10 +158,11 @@ async function scenario(name, { mode, legacy = true, prepare = null, owner = 'no
       for (const secret of [ownerEnv.RUNLY_NOTES_OWNER_DATABASE_URL, 'wrong-password-marker'].filter(Boolean)) assert.equal(first.output.includes(secret), false, `${name}: output leaked the owner credential`)
       assert.equal(await containerExists(), false, `${name}: no API may be started when the gate fails`)
       // The preflight runs before any migration or seed: a failed update leaves the application schema exactly as it was.
-      if (legacy) assert.equal(before.migrations.includes(NOTES_MIGRATION), false, `${name}: fixture must start without the Notes migration`)
-      assert.deepEqual(await schemaSnapshot(stack), before, `${name}: a failed preflight must not migrate or seed`)
+      if (legacy && !premigrated) assert.equal(before.migrations.includes(NOTES_MIGRATION), false, `${name}: fixture must start without the Notes migration`)
+      if (!schemaChangesOnFailure) assert.deepEqual(await schemaSnapshot(stack), before, `${name}: a failed preflight must not migrate or seed`)
       if (state) assert.equal((await fetch(state.url)).status !== undefined, true)
     } else {
+      if (!first.ok && via) console.log([`--- ${name}: origin requests ---`, ...(await origin.requests()).slice(-12), '--- origin files ---', (await command('ls', ['-la', join(originDirectory, currentRef)]).catch(e => String(e.message))).slice(0, 600)].join(String.fromCharCode(10)))
       if (!first.ok) console.log(`--- ${name}: API container log ---
 ` + (await command('docker', ['logs', '--tail', '60', `${appName}-api-${mode}`]).catch(e => String(e.message))).slice(-3500))
       assert.equal(first.ok, true, `${name}: installation must succeed\n${first.output.slice(-1500)}`)
@@ -144,7 +187,7 @@ async function scenario(name, { mode, legacy = true, prepare = null, owner = 'no
       }
       if (repeat) { const again = await run('repeat'); assert.equal(again.ok, true, `${name}: repeated installation must succeed\n${again.output.slice(-1500)}`) }
     }
-    if (after) await after({ stack, run, state, containerExists, storageOwnerUrl, snapshot: () => schemaSnapshot(stack),
+    if (after) await after({ stack, run, state, containerExists, storageOwnerUrl, origin, installerState, installerBefore, before, directory, tagged, snapshot: () => schemaSnapshot(stack),
       // The recovery runbook's own read-only state script, run exactly as documented.
       readState: async () => JSON.parse(await command('docker', ['run', '--rm', '-i', '--network', `${stack.name}_default`, '--env-file', join(directory, `.env.${mode}`), tagged.api, 'node', '-'], { input: recoveryStateScript })),
       apiContainer: async () => (await command('docker', ['inspect', `${appName}-api-${mode}`, '--format', '{{.Id}} {{.Image}} {{.State.StartedAt}}'])).trim() })
@@ -221,4 +264,153 @@ ${recovered.output.slice(-1500)}`)
 } })
 await scenario('external-skip-migrate-unprepared', { mode: 'external', repeat: false, args: ['--skip-migrate'], expectFailure: /NOTES_STORAGE_NOT_PREPARED/ })
 await scenario('external-up-only-unprepared', { mode: 'external', repeat: false, args: ['--up-only'], expectFailure: /NOTES_STORAGE_NOT_PREPARED/ })
+
+// ---- update-external.sh / update-local.sh against a controlled origin (no GitHub, no registry) ----
+// The installation on disk is the previously published Installer (2026.10.28.5); the scripts download
+// the current distribution from the fixture origin and run the real setup. Image pulls and prunes are
+// no-ops (the images are local); any other outbound request is refused and recorded.
+const published = () => manifest.version
+const noUnexpectedInstallerRequests = async origin => {
+  const requests = await origin.requests()
+  assert.ok(requests.some(line => line.startsWith('https://api.github.com/repos/Runly-MX/runly-erp/git/ref/heads/main')), 'the script must resolve the published ref')
+  assert.deepEqual(requests.filter(line => line.startsWith('UNEXPECTED') && line.includes('/infra/installer/')), [], 'no Installer file may be fetched outside the controlled origin')
+}
+await scenario('update-script-external-owner', { mode: 'external', via: { script: 'update-external.sh' }, owner: 'good', repeat: false, after: async ({ origin, installerState, installerBefore }) => {
+  assert.notEqual(installerBefore.version, published(), 'precondition: the installation starts on the previous Installer')
+  assert.equal((await installerState()).version, published(), 'update-external.sh must refresh the Installer')
+  await noUnexpectedInstallerRequests(origin)
+} })
+await scenario('update-script-external-unprepared', { mode: 'external', via: { script: 'update-external.sh' }, repeat: false, expectFailure: /NOTES_STORAGE_NOT_PREPARED/, after: async ({ installerState, installerBefore }) => {
+  // The refresh of the scripts is complete and safe; the failure is the Storage gate, before any migration.
+  assert.equal((await installerState()).version, published())
+  assert.notEqual(installerBefore.version, published())
+} })
+for (const [name, failure, expected] of [
+  ['update-script-refresh-network', 'setup-external.mjs network', /simulated network failure|INSTALLER_DOWNLOAD_FAILED/],
+  ['update-script-refresh-corrupt', 'setup-external.mjs corrupt', /INSTALLER_INTEGRITY_FAILED/],
+  ['update-script-bootstrap-unreachable', 'bootstrap-external.sh network', /simulated network failure/],
+]) {
+  await scenario(name, { mode: 'external', via: { script: 'update-external.sh' }, owner: 'good', fail: failure, repeat: false, expectFailure: expected, after: async ({ origin, run, installerState, installerBefore, containerExists, snapshot, before }) => {
+    // An interrupted refresh changes nothing: the old Installer, its files and the database stay as they were.
+    assert.deepEqual(await installerState(), installerBefore, 'a failed refresh must leave the installed Installer untouched')
+    assert.deepEqual(await snapshot(), before, 'a failed refresh must not run migrations or the seed')
+    await origin.setFail('')
+    const retry = await run('retry')
+    assert.equal(retry.ok, true, `rerun after the origin recovers must succeed\n${retry.output.slice(-1200)}`)
+    assert.equal((await installerState()).version, published())
+    assert.equal(await containerExists(), true)
+  } })
+}
+await scenario('update-script-compose-interrupted', { mode: 'external', via: { script: 'update-external.sh' }, owner: 'good', composeFault: true, schemaChangesOnFailure: true, repeat: false, expectFailure: /INSTALLER_SETUP_FAILED|simulated interruption/, after: async ({ run, snapshot, before, installerState, containerExists }) => {
+  // Interruption while recreating containers: migrations were already applied and are NOT rolled back.
+  const interrupted = await snapshot()
+  assert.equal(before.migrations.includes(NOTES_MIGRATION), false, 'precondition: pending migration')
+  assert.equal(interrupted.migrations.includes(NOTES_MIGRATION), true, 'the migrations stay applied after an interrupted recreation')
+  assert.equal(await containerExists(), false)
+  assert.equal((await installerState()).version, published())
+  const retry = await run('retry')
+  assert.equal(retry.ok, true, `rerun must converge\n${retry.output.slice(-1200)}`)
+  assert.deepEqual((await snapshot()).migrations, interrupted.migrations, 'the rerun must not repeat or revert migrations')
+  assert.equal(await containerExists(), true)
+} })
+await scenario('update-script-migration-failed', { mode: 'external', via: { script: 'update-external.sh' }, owner: 'good', schemaChangesOnFailure: true, repeat: false,
+  prepare: async stack => { await stack.pool.query('CREATE TABLE note_image_binding (id integer)') },
+  expectFailure: /INSTALLER_SETUP_FAILED|db:migrate|failed with exit code/, after: async ({ stack, run, containerExists, tagged, directory }) => {
+    // A failed Prisma migration is recorded as unfinished and is NOT rolled back automatically.
+    const unfinished = async () => (await stack.pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL')).rows.map(row => row.migration_name)
+    assert.deepEqual(await unfinished(), ['20261028011349_notes_private_images'])
+    assert.equal(await containerExists(), false)
+    await stack.pool.query('DROP TABLE note_image_binding')
+    const blocked = await run('blocked')
+    assert.equal(blocked.ok, false, 'fixing the cause is not enough: the Installer (or Prisma) refuses to continue over a failed migration')
+    assert.match(blocked.output, /STUDIO_FAILURE_REQUIRES_REVIEW|P3009|failed migrations|failed to apply/i)
+    // The documented manual step: mark it rolled back (its transaction already was), then the update converges.
+    await command('docker', ['run', '--rm', '--network', `${stack.name}_default`, '--env-file', join(directory, '.env.external'), tagged.api, 'node', 'node_modules/prisma/build/index.js', 'migrate', 'resolve', '--rolled-back', '20261028011349_notes_private_images'])
+    const recovered = await run('recovered')
+    assert.equal(recovered.ok, true, `update must converge after the manual resolve\n${recovered.output.slice(-1200)}`)
+    assert.deepEqual(await unfinished(), [])
+    assert.equal(await containerExists(), true)
+  } })
+await scenario('update-script-local', { mode: 'local', via: { script: 'update-local.sh' }, repeat: false, after: async ({ origin, installerState, installerBefore }) => {
+  assert.notEqual(installerBefore.version, published())
+  assert.equal((await installerState()).version, published(), 'update-local.sh must refresh the Installer')
+  await noUnexpectedInstallerRequests(origin)
+} })
+
+// ---- Rehearsal of the affected external instance on a disposable replica ----
+// The replica reproduces what the previous Installer left behind: the Prisma migrations and the seed were applied
+// with the candidate image, Storage was never prepared (no guard, no policy) and the Notes buckets are still public.
+// It holds users, permissions, notes and historical objects of several kinds in both buckets. A restored backup of the
+// real instance is NOT used here; this is a synthetic replica, and the rehearsal on the real backup stays pending.
+let replicaBefore = null
+const supabaseAdminFor = stack => createClient(stack.urls.kong, stack.secret.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+async function replicaState(stack) {
+  const admin = supabaseAdminFor(stack), rows = async sql => (await stack.pool.query(sql)).rows
+  const objects = {}
+  for (const row of await rows("SELECT bucket_id, name FROM storage.objects WHERE bucket_id IN ('runly-notes','atlas-notes') ORDER BY bucket_id, name")) {
+    const downloaded = await admin.storage.from(row.bucket_id).download(row.name)
+    assert.equal(downloaded.error, null, `object ${row.bucket_id}/${row.name} must stay readable by the service role`)
+    objects[`${row.bucket_id}/${row.name}`] = createHash('sha256').update(Buffer.from(await downloaded.data.arrayBuffer())).digest('hex')
+  }
+  return {
+    migrations: (await rows('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name')).map(row => row.migration_name),
+    people: (await rows("SELECT (SELECT count(*) FROM user_profile)::int AS users, (SELECT count(*) FROM membership)::int AS memberships, (SELECT count(*) FROM role_permission)::int AS grants, (SELECT md5(string_agg(id::text || coalesce(email,''), ',' ORDER BY id)) FROM user_profile) AS identities"))[0],
+    notes: (await rows("SELECT count(*)::int AS count, md5(string_agg(id::text || coalesce(title,'') || coalesce(content::text,''), ',' ORDER BY id)) AS digest FROM notes"))[0],
+    objects,
+    buckets: await rows("SELECT id, public FROM storage.buckets WHERE id IN ('runly-notes','atlas-notes') ORDER BY id"),
+  }
+}
+await scenario('external-affected-replica-rehearsal', { mode: 'external', via: { script: 'update-external.sh' }, premigrated: true, repeat: false, expectFailure: /NOTES_STORAGE_NOT_PREPARED/,
+  prepare: async (stack, state) => {
+    const admin = state.admin, company = (await stack.pool.query('SELECT company_id FROM notes WHERE id=$1', [state.noteId])).rows[0].company_id
+    const green = await sharp({ create: { width: 24, height: 24, channels: 4, background: '#16a34a' } }).png().toBuffer()
+    const extras = [['runly-notes', `companies/${company}/notes/${state.noteId}/second.png`, green, 'image/png'], ['runly-notes', `companies/${company}/notes/${state.noteId}/historic.pdf`, Buffer.from('%PDF-1.4 historical document'), 'application/pdf']]
+    assert.equal((await admin.storage.createBucket('atlas-notes', { public: true })).error, null)
+    extras.push(['atlas-notes', `legacy/${state.noteId}/old.png`, green, 'image/png'])
+    for (const [bucket, name, bytes, contentType] of extras) assert.equal((await admin.storage.from(bucket).upload(name, bytes, { contentType })).error, null)
+    // What the previous Installer did before it stopped at the Storage gate.
+    const config = JSON.parse(await readFile(stack.composeFile, 'utf8')), appUrl = config.services['runly-api'].environment.DATABASE_URL
+    const migrationEnv = { ...cleanEnv, DATABASE_URL: appUrl, DIRECT_URL: appUrl }
+    for (const script of ['db:migrate', 'db:seed']) await command('docker', ['run', '--rm', '--network', `${stack.name}_default`, '-e', 'DATABASE_URL', '-e', 'DIRECT_URL', tagged.api, 'pnpm', script], { env: migrationEnv })
+    replicaBefore = await replicaState(stack)
+    assert.ok(replicaBefore.migrations.includes(NOTES_MIGRATION), 'precondition: the migrations are already applied')
+    assert.deepEqual(replicaBefore.buckets.map(bucket => bucket.public), [true, true], 'precondition: both buckets are still public')
+    assert.ok(Object.keys(replicaBefore.objects).length >= 4, 'precondition: historical objects of several kinds')
+    assert.equal((await stack.pool.query("SELECT count(*)::int AS n FROM pg_trigger WHERE tgname='runly_notes_bucket_private_v1'")).rows[0].n, 0, 'precondition: no guard')
+  },
+  after: async ({ stack, run, state, storageOwnerUrl, containerExists, installerState, directory, origin }) => {
+    // 1. Without the owner the update stops before touching schema, seed, data, Storage or containers.
+    assert.deepEqual(await replicaState(stack), replicaBefore, 'a failed preflight must leave the replica exactly as it was')
+    assert.equal(await containerExists(), false)
+    // 2. With a temporary owner credential (process environment only) it prepares, closes the buckets and updates.
+    const recovered = await run('recovered', { env: { RUNLY_NOTES_OWNER_DATABASE_URL: storageOwnerUrl } })
+    assert.equal(recovered.ok, true, `update with the temporary owner must succeed\n${recovered.output.slice(-1500)}`)
+    assert.equal(recovered.output.includes(storageOwnerUrl), false, 'the owner connection must not appear in the update output')
+    const environment = await command('docker', ['inspect', `${stack.name}-app-api-external`, '--format', '{{json .Config.Env}}'])
+    assert.equal(environment.includes('RUNLY_NOTES_OWNER_DATABASE_URL'), false, 'the owner connection must not reach the API container')
+    const envFile = await readFile(join(directory, '.env.external'), 'utf8')
+    assert.equal(envFile.includes('RUNLY_NOTES_OWNER_DATABASE_URL'), false, 'the owner connection must not be written to .env.external')
+    assert.ok(envFile.includes(`SUPABASE_SERVICE_ROLE_KEY=${stack.secret.SUPABASE_SERVICE_ROLE_KEY}`), 'existing configuration values are preserved')
+    const after = await replicaState(stack)
+    assert.deepEqual(after.migrations, replicaBefore.migrations, 'Prisma history is preserved (no migration reverted, none repeated)')
+    assert.deepEqual(after.objects, replicaBefore.objects, 'every Storage object keeps its exact bytes')
+    assert.deepEqual([after.people, after.notes], [replicaBefore.people, replicaBefore.notes], 'users, permissions and notes are preserved')
+    assert.deepEqual(after.buckets.map(bucket => bucket.public), [false, false], 'both buckets are private')
+    assert.equal((await installerState()).version, manifest.version)
+    // 3. Real anonymous requests against every historical object and against the listing.
+    const anonymous = { apikey: stack.secret.SUPABASE_ANON_KEY, Authorization: `Bearer ${stack.secret.SUPABASE_ANON_KEY}` }
+    for (const key of Object.keys(replicaBefore.objects)) {
+      const [bucket, ...rest] = key.split('/'), name = rest.join('/')
+      const urls = [`/storage/v1/object/public/${bucket}/${name}`, `/storage/v1/object/${bucket}/${name}`, `/storage/v1/object/authenticated/${bucket}/${name}`, ...(name.endsWith('.png') ? [`/storage/v1/render/image/public/${bucket}/${name}?width=8`] : [])]
+      for (const path of urls) assert.notEqual((await fetch(stack.urls.kong + path, { headers: anonymous })).status, 200, `anonymous read must be denied: ${bucket}/${name.slice(0, 24)}... ${path.split('/')[3]}`)
+    }
+    for (const bucket of ['runly-notes', 'atlas-notes']) {
+      const listing = await fetch(`${stack.urls.kong}/storage/v1/object/list/${bucket}`, { method: 'POST', headers: { ...anonymous, 'Content-Type': 'application/json' }, body: JSON.stringify({ prefix: '', limit: 20 }) })
+      assert.ok(!listing.ok || (await listing.json()).length === 0, `anonymous listing of ${bucket} must be empty`)
+    }
+    // 4. A repeated update converges and changes nothing.
+    const again = await run('again', { env: { RUNLY_NOTES_OWNER_DATABASE_URL: storageOwnerUrl } })
+    assert.equal(again.ok, true, `a repeated update must succeed\n${again.output.slice(-1200)}`)
+    assert.deepEqual(await replicaState(stack), after, 'a repeated update must not change data or history')
+  } })
 console.log(JSON.stringify({ passed: true, images: images, legacyImage, results }))

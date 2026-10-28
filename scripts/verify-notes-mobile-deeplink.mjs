@@ -25,7 +25,8 @@ try {
   await stack.verifyTarget(); await stack.initialize(); await prepareDisposableNotesStorageOwner(stack)
   const { users, companies } = await seedStudioScenario(stack), company = companies[0], user = users[0]
   await stack.pool.query("UPDATE runly_module SET enabled=true,status='INSTALLED' WHERE key IN ('runly.notes')")
-  const note = (await stack.pool.query("INSERT INTO notes(company_id,owner_user_id,title,content) VALUES($1,$2,'Nota enlace profundo','<p>Contenido enlace profundo</p>') RETURNING id", [company.id, user.id])).rows[0]
+  await stack.pool.query("INSERT INTO role_permission(id,role_id,permission_id) SELECT uuidv7(),$1,id FROM permission WHERE key LIKE 'notes.%' ON CONFLICT DO NOTHING", [company.roleId])
+  const note = (await stack.pool.query("INSERT INTO notes(company_id,owner_user_id,title,content) VALUES($1,$2,'Nota enlace profundo',$3::jsonb) RETURNING id", [company.id, user.id, JSON.stringify('<p>Contenido enlace profundo</p>')])).rows[0]
   await stack.compose(['up', '-d', 'runly-api'])
   for (let i = 0; i < 120; i++) { try { if ((await fetch(`${stack.urls.api}/health`)).ok) break } catch {} await wait(500) }
 
@@ -59,6 +60,11 @@ try {
       await page.goto(`${stack.urls.web}/app/m/runly.notes/?note=${note.id}`)
       let opened = false
       try { await page.locator('.ProseMirror:visible').first().waitFor({ timeout: 20000 }); opened = true } catch {}
+      if (!opened && process.env.RUNLY_DEEPLINK_DIAG && n === 1) {
+        await mkdir(process.env.RUNLY_DEEPLINK_DIAG, { recursive: true })
+        await page.screenshot({ path: join(process.env.RUNLY_DEEPLINK_DIAG, label + '.png') }).catch(() => {})
+        console.error(JSON.stringify({ diag: await page.evaluate(() => ({ url: location.href, text: document.body.innerText.slice(0, 800), rootChildren: document.querySelector('#root')?.children.length })) }))
+      }
       const finalUrl = new URL(page.url())
       results.push({ run: n, opened, keptNoteParam: finalUrl.searchParams.get('note') === note.id, path: finalUrl.pathname + finalUrl.search.replace(note.id, '<id>'), ms: Date.now() - started })
     } finally { await context.close() }

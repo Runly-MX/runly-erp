@@ -39,12 +39,7 @@ export async function verifyNotesImagesUi(stack,{users,company,noteId,canvasId,s
     page.on('console',message=>{if(['error','warning'].includes(message.type()))consoleErrors.push(message.text().slice(0,300))})
     await page.goto(`${stack.urls.web}/app/m/runly.notes/?note=${noteId}`)
     mark('goto done')
-    for(let i=0;i<40;i++) {
-      if(await page.locator('.ProseMirror:visible').count()){mark('editor visible');break}
-      const card=page.locator('h3:visible').filter({hasText:/Historica|Contenido historico/}).first()
-      if(await card.count()){mark('click card');await card.click({timeout:500}).catch(()=>{})}
-      await page.waitForTimeout(250)
-    }
+    // No tapping fallback: the deep link itself must open the note (a fallback once masked a lost ?note= parameter).
     try { await page.locator('.ProseMirror:visible').first().waitFor({timeout:30000}) }
     catch(error) {
       // Failure evidence for diagnosis only; the assertion itself is unchanged.
