@@ -13,6 +13,7 @@ export default [
       "**/.vite/**",
       "apps/api/bundles/**",
       "modules/custom/.previews/**",
+      ".artifacts/**",
     ],
   },
   {
