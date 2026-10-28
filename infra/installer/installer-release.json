@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.10.28.1",
+  "version": "2026.10.28.2",
   "files": {
     ".env.local.example": {
       "sha256": "ef097c568385535ca646f29353f834a1646b773663def037f49020680eed47ab",
@@ -248,6 +248,14 @@
       ],
       "legacyGitBlobs": []
     },
+    "lib/api-health.mjs": {
+      "sha256": "4c9e4f7f3edef279b32d50b7e32bccce1c9f231b87b965e41abe9b026df28e8d",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": []
+    },
     "lib/instance-identity.mjs": {
       "sha256": "6b9a188c74cd978d45eaed0977a4a46c4cc273386658d2d987414842264171c7",
       "modes": [
@@ -343,7 +351,7 @@
       ]
     },
     "setup-local.mjs": {
-      "sha256": "4f19809799ff01c609eeb2ab2abf6b19050d66cc6297d61a083e82a13b2b9f81",
+      "sha256": "f7b31a3b8b09710a38bf5447835f945735847b23b394a8c795c0e0036fa5d3a5",
       "modes": [
         "local"
       ],
@@ -371,6 +379,7 @@
         "69b7bb0992739db9e57b6aa6d19a2a635f6122de",
         "707e6b59e647820088199602efa75d79d3af30c9",
         "784c49f962989e31c172065cfe21d10854505aa6",
+        "7d19cc80cf8952817dbffdabb9b7e13811c75020",
         "7d369893e1195ba8a98dda11ea1e6033a2bbf9cc",
         "8137b143603118dc95e5fef95a71e58be878c292",
         "83b6c77a47bea70c5f1b9b166a478a2b694de97e",
@@ -599,7 +608,7 @@
       ]
     },
     "setup-external.mjs": {
-      "sha256": "efa94f71314ff78de84cb33e6762cc5208626e82f8f6c8689c8c741b0341f126",
+      "sha256": "2824ec5d85d704a0b965b512bb2ac2aa57fb6e22cb3d5b3fc6b7c8d301f0caa2",
       "modes": [
         "external"
       ],
@@ -639,6 +648,7 @@
         "b567736f42c3d40f31ec1d31a896fd0c87761f2f",
         "ba1db03e43af9b9a7e49670001784ae1b47fefe8",
         "ba3f87fb113d01f3fac8aa57ef7553c9933b6a9b",
+        "c2ff915f0d899860741246783398b69ead3664e7",
         "c50b6df9f00c6425b4694fa8ffc2df199ab3e3ee",
         "c735b830333eb7501b602bc2639842768fc6c4c0",
         "c8a8f6a9e79890bf9dcb3a6a9829c448e055862c",

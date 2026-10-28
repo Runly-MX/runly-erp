@@ -23,6 +23,7 @@ import {
   toLiveKitHttpUrl,
 } from "./lib/livekit-config.mjs";
 import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME, LINUX_HOST_NETWORK_SERVICES, probePublicHealth } from "./lib/hairpin-nat.mjs";
+import { waitForApiHealth } from "./lib/api-health.mjs";
 import { buildTranscriberDatabaseUrl, generateTranscriberPassword } from "./lib/transcriber-db.mjs";
 import { resolveBackupConfig, getBackupComposeProfiles } from "./lib/backup-config.mjs";
 import { createStudioDatabaseRunner, prepareStudioRealtimeOwner, inspectStudioRealtimeFailure, assertStudioMigrationsUnblocked } from './lib/studio-realtime-db.mjs';
@@ -1367,6 +1368,8 @@ async function main() {
   );
 
   if (office.enabled) run("docker", ["compose", ...composeFiles, ...office.profiles, "up", "-d", "collabora"]);
+  console.log("Waiting for the API to answer /health...");
+  await waitForApiHealth();
   await validateLiveKitRuntime(liveKit);
   await checkOfficeRuntime(office);
 
