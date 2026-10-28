@@ -43,6 +43,7 @@ async function seedLegacy(stack) {
   return { noteId: note.id, key, url, content: (await stack.pool.query('SELECT content FROM notes WHERE id=$1', [note.id])).rows[0].content, admin }
 }
 
+const recoveryStateScript = (await readFile('docs/deployment/EXTERNAL_NOTES_STORAGE_RECOVERY.md', 'utf8')).replaceAll('\r\n', '\n').match(/```js\n([\s\S]*?)```/)[1]
 const NOTES_MIGRATION = '20261028011349_notes_private_images'
 // Everything an update could change in the application schema/data: applied migrations,
 // the column catalog, and the rows the seed writes. Equal snapshots mean nothing ran.
@@ -143,7 +144,10 @@ async function scenario(name, { mode, legacy = true, prepare = null, owner = 'no
       }
       if (repeat) { const again = await run('repeat'); assert.equal(again.ok, true, `${name}: repeated installation must succeed\n${again.output.slice(-1500)}`) }
     }
-    if (after) await after({ stack, run, state, containerExists, storageOwnerUrl, snapshot: () => schemaSnapshot(stack) })
+    if (after) await after({ stack, run, state, containerExists, storageOwnerUrl, snapshot: () => schemaSnapshot(stack),
+      // The recovery runbook's own read-only state script, run exactly as documented.
+      readState: async () => JSON.parse(await command('docker', ['run', '--rm', '-i', '--network', `${stack.name}_default`, '--env-file', join(directory, `.env.${mode}`), tagged.api, 'node', '-'], { input: recoveryStateScript })),
+      apiContainer: async () => (await command('docker', ['inspect', `${appName}-api-${mode}`, '--format', '{{.Id}} {{.Image}} {{.State.StartedAt}}'])).trim() })
     results.push(`${name}: PASS`); console.log(`${name}: PASS`)
   } finally {
     try {
@@ -179,20 +183,33 @@ await scenario('external-no-owner-unprepared', { mode: 'external', repeat: false
 await scenario('external-bad-owner-credential', { mode: 'external', owner: 'bad', repeat: false, expectFailure: /NOTES_STORAGE_NOT_PREPARED|preflight failed/ })
 await scenario('external-partial-preparation', { mode: 'external', prepare: policyOnly, repeat: false, expectFailure: /NOTES_STORAGE_NOT_PREPARED/ })
 await scenario('external-no-owner-prepared', { mode: 'external', prepare: prepareDisposableNotesStorageOwner })
-await scenario('external-regression-to-unsafe', { mode: 'external', prepare: prepareDisposableNotesStorageOwner, after: async ({ stack, run, state, storageOwnerUrl, snapshot }) => {
+await scenario('external-regression-to-unsafe', { mode: 'external', prepare: prepareDisposableNotesStorageOwner, after: async ({ stack, run, state, storageOwnerUrl, snapshot, readState, apiContainer }) => {
   await dropGuardAndOpen(stack)
   const migrated = await snapshot()
+  const stateBefore = await readState()
+  const containerBefore = await apiContainer()
+  for (const name of [NOTES_MIGRATION, '20261211000000_studio_retired_asset_lineage']) assert.ok(stateBefore.migrations.includes(name), `precondition: ${name} applied`)
+  assert.deepEqual([stateBefore.guard, stateBefore.policy], [0, 1], 'precondition: guard missing')
+  assert.equal(stateBefore.buckets.find(bucket => bucket.id === 'runly-notes').public, true, 'precondition: bucket public again')
+  assert.ok(stateBefore.objects.find(row => row.bucket_id === 'runly-notes').n >= 1, 'precondition: stored objects exist')
   assert.equal(migrated.migrations.includes(NOTES_MIGRATION), true, 'precondition: the Prisma migration is already applied')
   const regressed = await run('regressed')
   assert.equal(regressed.ok, false, 'an update over regressed Storage must not succeed silently')
   assert.match(regressed.output, /NOTES_STORAGE_NOT_PREPARED/)
   assert.deepEqual(await snapshot(), migrated, 'a failed preflight over a migrated database must not change the schema or seed')
+  assert.equal(await apiContainer(), containerBefore, 'a failed preflight must not replace or restart the running containers')
+  assert.deepEqual(await readState(), stateBefore, 'a failed preflight must not change Storage, notes or migration history')
   // Recovery: migration applied but guard missing. Re-running with the owner restores the guard
   // idempotently without reverting migrations or touching data.
   const recovered = await run('recovered', { env: { RUNLY_NOTES_OWNER_DATABASE_URL: storageOwnerUrl } })
   assert.equal(recovered.ok, true, `recovery with the owner must succeed
 ${recovered.output.slice(-1500)}`)
   assert.deepEqual(await snapshot(), migrated, 'recovery must not revert or add migrations')
+  const stateAfter = await readState()
+  assert.deepEqual(stateAfter.migrations, stateBefore.migrations, 'migration history must be preserved')
+  assert.deepEqual([stateAfter.notes, stateAfter.objects], [stateBefore.notes, stateBefore.objects], 'notes and every Storage object must be preserved')
+  assert.deepEqual([stateAfter.guard, stateAfter.policy], [1, 1], 'guard and policy must be present after recovery')
+  assert.equal(stateAfter.buckets.find(bucket => bucket.id === 'runly-notes').public, false, 'bucket must be private after recovery')
   const owner = await ownerPool(stack)
   try {
     assert.equal((await owner.query("SELECT 1 FROM pg_trigger WHERE tgname='runly_notes_bucket_private_v1' AND NOT tgisinternal")).rowCount, 1, 'guard must be restored')

@@ -1,5 +1,9 @@
 # Runly: certificacion integrada y Release Candidate (local)
 
+El Release Candidate vigente esta en la seccion 0 (SHA `44e09bb7f71d`, Installer `2026.10.28.6`).
+Las secciones 1 a 13 documentan la certificacion previa sobre `330e4a712` y se conservan
+por trazabilidad.
+
 Fecha: 2026-10-28. Alcance: exclusivamente local (Docker y Supabase desechables).
 No se uso SSH, VPS, credenciales de produccion, publicacion de imagenes ni
 `update-local.sh` / `update-external.sh`. No se publico ni desplego nada.
@@ -7,6 +11,217 @@ No se uso SSH, VPS, credenciales de produccion, publicacion de imagenes ni
 Este documento certifica la integracion, no introduce funcionalidades. Las unicas
 modificaciones de codigo de esta pasada son correcciones de fixtures de prueba
 (seccion 2).
+
+## 0. Release Candidate final: SHA `44e09bb7f71d46f02517db7af0c91fd25ea447c0`
+
+Actualizacion del 2026-10-28, posterior a la certificacion de `330e4a712` (secciones 1 a
+13, conservadas abajo por trazabilidad). Local, sin SSH, sin actualizaciones reales, sin
+publicacion Docker, sin acceso a instancias existentes. **Esta seccion sustituye a la
+seccion 12 como dictamen vigente.**
+
+### 0.1 Estado del repositorio
+
+- HEAD local: `44e09bb7f` (rama `main`). `origin/main` esta en `330e4a712`
+  (`git fetch` de solo lectura): el local esta **3 commits por delante y 0 por detras**.
+  No hay nada ajeno en el remoto. Los tres commits no publicados son
+  `bf16ccd1e` (fixtures de prueba), `6a014228c` (informe) y `44e09bb7f` (orden del
+  preflight, Installer `2026.10.28.6`).
+- **Arbol no limpio**: `apps/desktop/src/modules/runly.studio/components/StudioResources.jsx`
+  tiene una edicion sin commit de otra sesion (se anade `ToolButton` al import desde
+  `@runly/ui`). No es de esta tarea, no se descarto ni se incorporo. El SHA se fija
+  por commit y las imagenes se construyen con `git archive`, por lo que esa edicion
+  **no** esta en ellas. Las pruebas que construyen el frontend desde el arbol de
+  trabajo (UI de Notes/Canvas) si la incluyeron; es un cambio de una linea en una
+  pantalla de Studio que esas pruebas no abren.
+- Pendiente de commit en esta entrega: `scripts/verify-notes-installer-e2e.mjs`
+  (E2E ampliada), `docs/deployment/EXTERNAL_NOTES_STORAGE_RECOVERY.md` y este informe.
+  Son pruebas y documentacion, sin codigo de producto.
+
+### 0.2 Imagenes, Installer y contratos
+
+Construidas con `scripts/build-local-api-image.mjs --ref=44e09bb7f71d46f02517db7af0c91fd25ea447c0`.
+
+| Imagen | Tag local | Digest (id) |
+|---|---|---|
+| API | `runly-notifications:api-44e09bb7f71d` | `sha256:e9d93230881148dbe13b21514a229a358dcb0eb82fcb3eaef7e92a9afb14ecfb` |
+| Worker | `runly-notifications:worker-44e09bb7f71d` | `sha256:73ac7f8805a1c61af812e701d97b80e5ccde586c5733173fa7904afe5d251951` |
+| Web | `runly-notifications:web-44e09bb7f71d` | `sha256:e103de8d3d539c2170cdfb686b9873cd5ee943d37a4776555831b140149287cf` |
+
+- Installer `2026.10.28.6`; `node scripts/generate-installer-release.mjs --check` pasa.
+- Contrato `io.runly.installer.contract=studio-realtime-1` presente de forma nativa en
+  las tres imagenes e igual a `INSTALLER_CONTRACT`.
+- Las imagenes incluyen `notes-storage-preflight.mjs`,
+  `prepare-notes-storage-owner.sql` y migraciones hasta
+  `20261211000000_studio_retired_asset_lineage`.
+- Los alias `runly-studio:rc-…`, `runly-notes-private:rc-…` y `…:api-…` apuntan a la
+  misma imagen API (mismo id); los scripts validan el nombre del repositorio.
+- Las imagenes del SHA `330e4a712` quedan obsoletas para el ensayo: el par Installer
+  mas imagenes debe ser del mismo SHA.
+
+### 0.3 Installer: 10 de 10 E2E con las imagenes finales
+
+`scripts/verify-notes-installer-e2e.mjs` (bases y Supabase desechables):
+
+| Caso | Resultado |
+|---|---|
+| local-existing-upgrade, local-fresh | PASS |
+| external-owner-available, external-no-owner-prepared | PASS |
+| external-no-owner-unprepared, external-bad-owner-credential, external-partial-preparation | PASS; esquema, historial de migraciones y filas del seed identicos antes y despues del fallo |
+| external-regression-to-unsafe | PASS: **base ya migrada (con `20261028011349_notes_private_images` y `20261211000000_studio_retired_asset_lineage`) y Storage sin guard** |
+| external-skip-migrate-unprepared (`--skip-migrate`), external-up-only-unprepared (`--up-only`) | PASS |
+
+Ante falta de permisos (sin propietario, credencial incorrecta, preparacion parcial,
+guard ausente) el installer se detiene antes de cualquier migracion o seed. Evidencia:
+(1) instantanea del esquema (migraciones aplicadas, catalogo de columnas, filas del seed)
+igual antes y despues; (2) en la base ya migrada, el contenedor de la API en
+ejecucion conserva identificador, imagen y `StartedAt` tras el intento fallido (no se
+reemplaza ni reinicia); (3) el estado de Storage, el numero de notas y los objetos no
+cambian; (4) la credencial no aparece en la salida ni en el entorno del contenedor de la
+API. Control negativo: con el orden anterior la prueba falla.
+
+Recuperacion de la base migrada con guard ausente, ejecutada con el script de estado
+**tal como esta en el runbook** (la E2E extrae el bloque del documento): el historial de
+Prisma se conserva, `notes` y todos los objetos de Storage quedan iguales, el guard y la
+politica se restauran (`1/1`), el bucket vuelve a privado, la nota conserva su
+contenido y una segunda recuperacion es idempotente.
+
+### 0.4 Procedimiento de recuperacion de la external afectada
+
+`docs/deployment/EXTERNAL_NOTES_STORAGE_RECOVERY.md`: estado de la instancia, copia de
+seguridad previa, script de estado de solo lectura (antes y despues), preparacion
+temporal del propietario (`read -rs`, variable solo en el entorno del proceso, nunca en
+argumentos ni en `.env.external`, pasada por nombre al contenedor de un solo uso con
+`--rm`, `unset` al terminar, alternativa con el SQL aplicado por el administrador),
+recuperacion, verificacion y tabla de fallos. **No reabrir el bucket** en ningun
+caso.
+
+**Condicion critica**: `update-external.sh` descarga el installer desde `main` en
+GitHub. Mientras los tres commits no estan publicados en `origin/main`, ejecutaria el
+installer `.5` (con el orden defectuoso). Antes del ensayo hay que publicar los
+commits (lo decide quien publica; no se hizo) o usar el installer de este arbol
+directamente (`node setup-external.mjs` desde `infra/installer`).
+
+### 0.5 Regresiones criticas con el SHA final
+
+| Area | Resultado |
+|---|---|
+| Notes, instalacion nueva (`verify-notes-private-storage.mjs`) | PASS |
+| Notes, con actualizacion y UI (`--upgrade --ui`) | **Intermitente**: 4 PASS y 2 FAIL en 6 ejecuciones del SHA final (fallo: no aparece el editor al abrir la nota con viewport movil, 30 s). Con la imagen anterior `330e4a712049`, en condiciones identicas: 2 PASS y 1 FAIL. Mismo codigo de producto; no es regresion del Installer ni de este SHA. Causa raiz sin aislar |
+| Notes realtime + seguridad (Tiptap, awareness, imagenes privadas, revocacion) | PASS, `releaseBlockers: []`, `privateNoteImagePubliclyReadable: false` |
+| Studio E2E + seguridad | PASS: cursor 107 ms, revocacion 20,6 s, reconexion 5,9 s, 0 peticiones `live`, socket crudo sin reentrar tras expirar |
+| Studio benchmark (30 s) | 0 `live`/min y 0 escrituras de presencia; p95 de 16,5 a 50,8 ms en todos los escenarios |
+| Aislamiento entre empresas contra PostgreSQL | 14 de 14 |
+| Canvas, CPU total 1/5/10 usuarios | 1,11 / 26,9 / 49,8 s (certificado: 1,20 / 29,59 / 62,65) |
+| Notes, CPU total 1/5/10 | 8,2 / 34,4 / 68,1 s (certificado: 11,24 / 41,81 / 77,18) |
+| Chat (`chat-ui`), CPU total 1/5/10 | 9,4 / 47,6 / 125,8 s (certificado, otro modo: 14,28 / 102,13 / 208,30) |
+| Errores HTTP en esas corridas | 0 |
+
+Notificaciones (45 s por escenario; 1 / 5 / 10 usuarios):
+
+| Metrica | 1 | 5 | 10 |
+|---|---:|---:|---:|
+| Nueve avisos, p95 de aparicion | 61 ms | 155 ms | 297 ms |
+| Dos pestanas, p95 | 81 ms | 150 ms | 289 ms |
+| Caida de Realtime, p95 de recuperacion | 133 ms | 102 ms | 95 ms |
+| Reposo, llamadas SQL por ventana | 127 | 648 | 1.557 |
+| Rafaga de 100 avisos: CPU API / PG / Realtime | 1,3 / 0,7 / 0,3 s | 3,4 / 4,4 / 1,4 s | 7,8 / 14,1 / 4,1 s |
+| Rafaga: ultimo aviso visible (p95) | 1,9 s | 4,6 s | 9,2 s |
+| Perdidos / duplicados / fallos de seguridad | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+
+La rafaga de 10 usuarios varia entre corridas de la misma maquina (PG 14,1 s en esta,
+21,1 y 23,8 s en las de `330e4a712`; visible 9,2 s frente a 14,2 y 14,7 s). La
+linea base previa (PG 6,7 s, API 3,7 s, visible 27,5 s) sigue siendo mas barata en CPU y
+mas lenta en visibilidad: el coste de la entrega inmediata en rafagas (R1) continua.
+El CPU de Realtime del escenario de caida es invalido (contador reiniciado).
+
+### 0.6 Pruebas generales con el SHA final
+
+| Gate | Resultado |
+|---|---|
+| Suite Node (950 archivos, lotes de 80) | 5.701 pruebas: 5.675 PASS, 11 FAIL, 15 SKIP, 0 canceladas (suman 5.701; +1 prueba nueva del orden del gate) |
+| Installer (`infra/installer/__tests__`) | 108 de 108 |
+| `pnpm lint` | exit 0 |
+| `pnpm --filter @runly/desktop build:web` | exit 0 |
+| `pnpm test:mcp` | 208 pruebas: 189 PASS, 17 FAIL, 2 SKIP (heredado) |
+
+**Fallos heredados de Node (11, 9 archivos, identicos a la linea base `133a8972`
+anterior a este trabajo)**: `contacts-proposal-module` (2, los dos de Contacts),
+`call-transcript-analysis-service` (1), `public-website-capture-config` (1),
+`module-runtime-routes` (2), `module-runtime-catalog` (1), `installer-devkit-snapshot`
+(1), `runly-env-config` (1), `docker-shared-sources` (1),
+`prosemirror-clipboard-security` (1). Ninguno es un archivo de esta entrega.
+
+**Fallos heredados de MCP (17)**: `column n.parent_note_id does not exist`; el runner crea
+la base con `prisma db push` desde `schema.prisma`, pero esas columnas solo existen en la
+migracion `20261117000000_notes_references_and_subpages`. Codigo y runner son anteriores
+a este trabajo; no se ejecuto `test:mcp` en el baseline (clasificacion por causa e
+historial).
+
+### 0.7 No ejecutado
+
+Push/FCM real y Tauri; PWA movil; DND de extremo a extremo; cambio de empresa en vivo;
+inbox E2E en navegador; plantillas, guardado y exportacion de Studio en navegador; Chat
+con adjuntos, invitados y senales de llamada en navegador; actualizacion interrumpida a
+mitad del proceso (proceso del installer matado); `update-local.sh` /
+`update-external.sh` ejecutados directamente; memoria y fugas de conexiones; CPU y
+memoria del Worker; 20 usuarios con 1.000 notificaciones; `test:mcp` en el baseline; el
+runbook de recuperacion sobre una copia restaurada de la instancia real.
+
+### 0.8 Limitaciones de Supabase Cloud y proveedores gestionados
+
+No se probo. El gate necesita crear una politica RESTRICTIVE sobre `storage.objects` y un
+trigger sobre `storage.buckets`, lo que exige ser propietario de ambas tablas. Si el
+proveedor no concede ese acceso a ninguna credencial utilizable, la preparacion es
+imposible y esa configuracion es NO GO (no hay alternativa que no implique abrir el
+bucket, que esta prohibido). Con una credencial que solo lea, `--verify` falla cerrado.
+
+### 0.9 Riesgos residuales actualizados
+
+| Id | Riesgo | Gravedad |
+|---|---|---|
+| R1 | Coste de CPU en rafagas de avisos (agrupar por destinatario: mejora posterior) | Media |
+| R2 | `test:mcp` rojo por incompatibilidad runner/esquema | Media |
+| R4 | UI de Notes (movil, abrir la nota desde la lista) intermitente: 2 de 6 en el SHA final y 1 de 3 en el anterior | Baja a media; revisar el fixture antes de usarlo como compuerta |
+| R5 | 11 pruebas Node heredadas | Baja |
+| R7 | Memoria, conexiones, Worker y 20 usuarios sin medir | Media |
+| R9 | `update-external.sh` usa el installer publicado en `main`: con los commits sin publicar aplica el `.5` | **Alta hasta publicar** |
+| R10 | Edicion ajena sin commit en `StudioResources.jsx` | Baja (fuera de las imagenes) |
+
+### 0.10 Dictamen vigente
+
+Niveles: (1) GO local del modulo; (2) GO local de la instalacion; (3) preparado para
+ensayo en copia restaurada; (4) autorizado para despliegue real. **El nivel 4 no se
+concede.**
+
+| Configuracion | 1 | 2 | 3 |
+|---|---|---|---|
+| Installer local (nueva y existente) | GO | GO | Preparado |
+| Installer external con credencial de propietario | GO | GO | Preparado |
+| Installer external sin credencial, Storage ya preparado | GO | GO | Preparado |
+| **External migrada con Storage sin preparar (la afectada), con credencial temporal de propietario** | GO | GO | **GO para iniciar el ensayo en copia restaurada** |
+| External sin credencial y sin preparar | NO GO (se detiene antes de tocar nada, por diseno) | NO GO | No aplica |
+| Proveedor sin acceso al esquema `storage` (p. ej. Supabase Cloud) | NO GO | NO GO | No aplica |
+| Notes, Studio, Canvas, Chat, Notificaciones | GO | GO | Preparado (R1, R4) |
+
+**Recomendacion: GO para iniciar el ensayo en una copia restaurada de la external,
+bajo estas condiciones**:
+
+1. Usar installer `2026.10.28.6` e imagenes del SHA `44e09bb7f71d` (hashes de 0.2), no
+   las de `330e4a712`.
+2. Que el ensayo use el installer de este arbol o que los tres commits se publiquen
+   antes (R9); si no, `update-external.sh` aplicara el `.5`.
+3. Copia de seguridad previa de la base y del almacenamiento de objetos, y la copia
+   restaurada sin contacto con la instancia real.
+4. Credencial de propietario temporal segun el runbook, y ensayar ademas **sin** ella
+   para ver que se detiene sin tocar el esquema.
+5. Medir en el ensayo lo no medido (0.7) y repetir la UI de Notes con actualizacion
+   (R4).
+
+Esto no es una autorizacion de despliegue productivo.
+
+---
+
+## Anexo: certificacion previa sobre `330e4a712` (secciones 1 a 13)
 
 ## 1. SHA certificado e imagenes
 
