@@ -760,14 +760,14 @@ export const MessageComposer = forwardRef(function MessageComposer(
 
   return (
     <div className={[
-      "w-full min-w-0 shrink-0 bg-[hsl(var(--surface-2))]",
+      "chat-tint-bar w-full min-w-0 shrink-0",
       // Device geometry must stay outside chat-scale-target: zooming text
       // must not enlarge the space reserved for the iOS home indicator.
       edgeInset ? "safe-bottom" : "",
     ].join(" ")}>
     <div
       className={[
-        "chat-scale-target relative w-auto min-w-0 max-w-full shrink-0 overflow-x-hidden border-t border-[hsl(var(--border))] transition-colors",
+        "chat-scale-target relative w-auto min-w-0 max-w-full shrink-0 overflow-x-hidden border-t border-transparent transition-colors",
         // Horizontal padding + top padding only here — padding-bottom is set
         // exactly once, on its own line below, so a plain `pb-*` and an
         // `env()` calc never both compile to `padding-bottom` at equal
@@ -783,7 +783,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
         // crucially, its safe-area bottom inset blends with the bar instead
         // of showing as a band of page background below the input on
         // iOS/tablet PWA.
-        !dropZoneDisabled && isDragOver ? "bg-[var(--brand-primary)]/5" : "bg-[hsl(var(--surface-2))]",
+        !dropZoneDisabled && isDragOver ? "bg-[var(--brand-primary)]/5" : "",
       ].join(" ")}
       onDragOver={dropZoneDisabled ? undefined : handleDragOver}
       onDragLeave={dropZoneDisabled ? undefined : handleDragLeave}
@@ -884,7 +884,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
           onSend={() => stopRecording(false)}
         />
       ) : (
-        <div className="chat-glass flex w-full min-w-0 max-w-full flex-col overflow-hidden rounded-2xl">
+        <div className="chat-glass chat-composer-box flex w-full min-w-0 max-w-full flex-col overflow-hidden rounded-2xl">
           {!coarse && selection.hasSelection && (
             <ComposerFormatToolbar onApplyFormat={applyFormat} onApplyLineFormat={applyLineFormat} />
           )}

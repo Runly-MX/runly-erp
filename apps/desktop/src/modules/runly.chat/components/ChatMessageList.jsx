@@ -118,6 +118,38 @@ export function ChatMessageList({
   // Gates every auto-scroll-to-latest so we never yank someone who has
   // scrolled up to read history.
   const atBottomRef = useRef(true);
+  // Active eased scroll-to-bottom (rAF id). While set, the resize observers
+  // below stand down: they snap scrollTop instantly, which used to cancel the
+  // native smooth scroll mid-flight and leave the newest message jerked into
+  // place (or tucked behind the composer).
+  const bottomAnimRef = useRef(0);
+  const cancelBottomAnim = useCallback(() => {
+    if (bottomAnimRef.current) cancelAnimationFrame(bottomAnimRef.current);
+    bottomAnimRef.current = 0;
+  }, []);
+  // Eased follow of the LIVE bottom: re-reads scrollHeight every frame so
+  // images/receipts growing the column during the animation don't strand it.
+  const animateToBottom = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    cancelBottomAnim();
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+    const step = () => {
+      const target = el.scrollHeight - el.clientHeight;
+      const diff = target - el.scrollTop;
+      if (diff <= 1) {
+        el.scrollTop = target;
+        bottomAnimRef.current = 0;
+        return;
+      }
+      el.scrollTop += Math.max(1, diff * 0.2);
+      bottomAnimRef.current = requestAnimationFrame(step);
+    };
+    bottomAnimRef.current = requestAnimationFrame(step);
+  }, [cancelBottomAnim]);
   // Head/tail ids from the previous render — lets the follow effect tell a
   // real append (scroll down) from a load-more prepend (stay put) or a
   // background refetch that leaves both ends unchanged (do nothing).
@@ -246,14 +278,14 @@ export function ChatMessageList({
     const appended = prevLast !== null && lastId !== prevLast;
     if (prepended || !appended) return;
     if (!atBottomRef.current) return;
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    animateToBottom();
+  }, [messages, animateToBottom]);
 
   useEffect(() => {
     if (!typingUsers?.length) return;
     if (suppressAutoScrollRef.current || !atBottomRef.current) return;
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [typingUsers?.length]);
+    animateToBottom();
+  }, [typingUsers?.length, animateToBottom]);
 
   // Scroll to the current search match
   useEffect(() => {
@@ -286,7 +318,7 @@ export function ChatMessageList({
     if (!el || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
       if (suppressAutoScrollRef.current || restoreScrollRef.current) return;
-      if (!atBottomRef.current) return;
+      if (!atBottomRef.current || bottomAnimRef.current) return;
       el.scrollTop = el.scrollHeight;
     });
     observer.observe(el);
@@ -307,7 +339,7 @@ export function ChatMessageList({
     if (!content || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
       if (suppressAutoScrollRef.current || restoreScrollRef.current) return;
-      if (!atBottomRef.current) return;
+      if (!atBottomRef.current || bottomAnimRef.current) return;
       const el = listRef.current;
       if (el) el.scrollTop = el.scrollHeight;
     });
@@ -316,8 +348,21 @@ export function ChatMessageList({
   }, []);
 
   const handleScrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
+    animateToBottom();
+  }, [animateToBottom]);
+
+  // A deliberate gesture hands control back to the viewer immediately.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return undefined;
+    el.addEventListener("wheel", cancelBottomAnim, { passive: true });
+    el.addEventListener("touchstart", cancelBottomAnim, { passive: true });
+    return () => {
+      el.removeEventListener("wheel", cancelBottomAnim);
+      el.removeEventListener("touchstart", cancelBottomAnim);
+      cancelBottomAnim();
+    };
+  }, [cancelBottomAnim]);
 
   // "N mensajes sin leer" banner — visible for a few seconds after opening a
   // conversation with unread messages, then fades out on its own (WhatsApp
@@ -663,7 +708,7 @@ export function ChatMessageList({
 
         {typingNames.length > 0 && <TypingIndicator names={typingNames} />}
 
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="h-2 shrink-0" />
         </div>
       </div>
 

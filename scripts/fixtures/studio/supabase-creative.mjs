@@ -10,7 +10,7 @@ import {openTemplates,useTemplate,exportImage}from'./editor-controls.mjs'
 const sharp=createRequire(new URL('../../../apps/api/package.json',import.meta.url))('sharp')
 
 export async function verifyStudioCreative(stack,{users,companies,admin}) {
-  const[owner,denied,peer,foreign]=users,[company,other]=companies,checks=[],metrics={}
+  const[owner,denied,peer,foreign]=users,[company,other]=companies,checks=[],metrics={},failedThumbnails=[]
   const tokens=await Promise.all(users.map(async user=>{const r=await fetch(`${stack.urls.api}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:user.email,password:user.password})});assert.equal(r.status,200);return(await r.json()).data.access_token}))
   const api=(path,body,index=0,companyId=company.id,method=body?'POST':'GET')=>fetch(`${stack.urls.api}${path}`,{method,headers:{'X-Runly-Studio-Protocol':'3',Authorization:`Bearer ${tokens[index]}`,'X-Runly-Company-Id':companyId,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})})
   const data=async response=>{assert.ok(response.ok,`${response.status}: ${await response.clone().text()}`);return(await response.json()).data}
@@ -60,6 +60,7 @@ export async function verifyStudioCreative(stack,{users,companies,admin}) {
 
     const{page,context}=await login(owner),errors=[];page.on('pageerror',error=>errors.push(error.message))
     const requests=[];page.on('request',request=>requests.push(request.url()))
+    page.on('response',response=>{if(/\/studio\/catalog\/[^/]+\/[^/]+\/thumbnail/.test(response.url())&&response.status()>=400)failedThumbnails.push(`${response.status()} ${new URL(response.url()).pathname}`)})
     await page.goto(`${stack.urls.web}/app/m/runly.studio/`)
     await openTemplates(page)
     await page.getByLabel('Buscar plantillas',{exact:true}).fill('Un momento')
@@ -189,6 +190,6 @@ export async function verifyStudioCreative(stack,{users,companies,admin}) {
     assert.deepEqual(errors,[])
     record('mobile resource sheet, desktop layout and no browser runtime errors')
     return{passed:true,checks,metrics,interceptors:0,providers:'deterministic local Docker simulators; real Supabase Auth/Storage/Files'}
-  }catch(error){for(const context of contexts)for(const page of context.pages())await page.screenshot({path:join(stack.directory,'creative-failure.png'),fullPage:true}).catch(()=>{});throw error}
+  }catch(error){console.log('Failed catalog thumbnails:',JSON.stringify(failedThumbnails));for(const context of contexts)for(const page of context.pages())await page.screenshot({path:join(stack.directory,'creative-failure.png'),fullPage:true}).catch(()=>{});throw error}
   finally{await browser.close()}
 }

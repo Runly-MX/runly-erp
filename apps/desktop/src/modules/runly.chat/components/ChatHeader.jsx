@@ -176,7 +176,7 @@ export function ChatHeader({
     const guestName = conversation?.guest_name ?? conversation?.guest_email ?? "Visitante";
     const closed = externalStatus === "closed";
     return (
-      <div className="chat-glass flex h-16 items-center gap-3 px-3 sm:px-4 shrink-0 border-x-0! border-t-0! border-b! border-[hsl(var(--border))]!">
+      <div className="chat-glass chat-tint-bar relative z-10 flex h-16 items-center gap-3 px-3 sm:px-4 shrink-0 border-x-0! border-t-0! border-b! border-[hsl(var(--border))]!">
         {onClose && (
           <BackButton onClick={onClose} className="-mr-1 md:hidden" />
         )}
@@ -227,7 +227,7 @@ export function ChatHeader({
   // ── Normal mode ─────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="chat-glass flex h-16 items-center gap-3 px-3 sm:px-4 shrink-0 border-x-0! border-t-0! border-b! border-[hsl(var(--border))]!">
+      <div className="chat-glass chat-tint-bar relative z-10 flex h-16 items-center gap-3 px-3 sm:px-4 shrink-0 border-x-0! border-t-0! border-b! border-[hsl(var(--border))]!">
         {embedded === "call" ? (
           <button
             type="button"

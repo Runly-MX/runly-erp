@@ -15,6 +15,9 @@ export function buildMessageActions({
 }) {
   const items = [];
   if (onReply) items.push({ key: "reply", label: "Responder", icon: CornerUpLeft, onSelect: onReply, group: "primary" });
+  // Right under "Responder": long-press -> Seleccionar starts multi-select with
+  // this message already checked (ChatWindow.enterSelectionMode).
+  if (onEnterSelection) items.push({ key: "select", label: "Seleccionar", icon: CheckSquare, onSelect: onEnterSelection, group: "primary" });
   // Own text messages only — editing an attachment's caption/body still goes
   // through this same PATCH (the API only ever touches `body`).
   if (isOwn && hasBody && onEdit) items.push({ key: "edit", label: "Editar", icon: Pencil, onSelect: onEdit, group: "primary" });
@@ -37,7 +40,6 @@ export function buildMessageActions({
   if (onRemind) items.push({ key: "remind", label: "Recordarme...", icon: BellRing, onSelect: onRemind, group: "primary" });
   if (onForward) items.push({ key: "forward", label: "Reenviar", icon: Forward, onSelect: onForward, group: "primary" });
   if (onAskMirai) items.push({ key: "ask-mirai", label: "Preguntar a MirAI", icon: Sparkles, onSelect: onAskMirai, group: "primary" });
-  if (onEnterSelection) items.push({ key: "select", label: "Seleccionar", icon: CheckSquare, onSelect: onEnterSelection, group: "primary" });
   if (canPin && onPin) items.push({ key: "pin", label: isPinned ? "Desfijar mensaje" : "Fijar mensaje", icon: isPinned ? PinOff : Pin, onSelect: onPin, group: "primary" });
   if (onReact) items.push({ key: "react", label: "Reaccionar", icon: Smile, onSelect: onReact, group: "primary" });
   if (canReply && onOpenThread) items.push({ key: "thread", label: "Responder en hilo", icon: MessageSquare, onSelect: onOpenThread, group: "primary" });

@@ -134,3 +134,53 @@ export function computeActionSheetLayout({
     sRect: { top: cloneTop, bottom: cloneTop + ch, left: cloneLeft, right: cloneLeft + cw },
   };
 }
+
+// One combined menu (reactions row + actions) anchored to a bubble rect or a
+// cursor point. Prefers opening below the anchor, flips above when there is
+// more room there, and otherwise clamps inside the safe area — the menu itself
+// scrolls (maxHeight) instead of ever running off screen. Also returns the
+// transform-origin so the entrance grows from the anchored edge.
+export function computeAnchoredMenuLayout({
+  vw,
+  vh,
+  rect,
+  anchorPoint,
+  size,                 // { width, height } natural size of the menu
+  isOwn = false,
+  safeTop = 0,
+  safeBottom = 0,
+  gap = 6,
+  margin = 8,
+}) {
+  const mTop = margin + safeTop;
+  const mBottom = margin + safeBottom;
+  const maxHeight = Math.max(120, vh - mTop - mBottom);
+  const w = size.width;
+  const h = Math.min(size.height, maxHeight);
+  const clampX = (x) => Math.max(margin, Math.min(x, vw - w - margin));
+
+  if (!rect && anchorPoint) {
+    const top = Math.max(mTop, Math.min(anchorPoint.y, vh - h - mBottom));
+    return { left: clampX(anchorPoint.x), top, maxHeight, originY: "top" };
+  }
+
+  const r = rect ?? { top: vh / 2 - 40, bottom: vh / 2 + 40, left: margin, right: vw - margin };
+  const left = clampX(isOwn ? r.right - w : r.left);
+  const roomBelow = vh - mBottom - (r.bottom + gap);
+  const roomAbove = r.top - gap - mTop;
+  let top;
+  let originY = "top";
+  if (h <= roomBelow) {
+    top = r.bottom + gap;
+  } else if (h <= roomAbove) {
+    top = r.top - gap - h;
+    originY = "bottom";
+  } else {
+    // Neither side fits the whole menu (tall bubble): sit over the bubble,
+    // clamped on screen — the menu scrolls internally.
+    top = Math.max(mTop, Math.min(r.bottom - h, vh - mBottom - h));
+  }
+  // cloneLeft/Top/Width: where the lifted bubble copy sits — exactly over the
+  // real bubble (only used when keepClear / a copy is mounted).
+  return { left, top, maxHeight, originY, cloneLeft: r.left, cloneTop: r.top, cloneWidth: r.right - r.left };
+}
