@@ -6,15 +6,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import * as Y from 'yjs'
 import { configure, getSupabaseClient, runly, useAuth } from 'realtime-2-boundary'
 import { useCanvasRealtime } from '../../../apps/desktop/src/modules/runly.canvas/hooks/useCanvasRealtime.js'
+import { useCanvasObjects } from '../../../apps/desktop/src/modules/runly.canvas/hooks/useCanvasData.js'
 import { SupabaseYjsProvider } from '../../../apps/desktop/src/modules/runly.notes/lib/SupabaseYjsProvider.js'
 import { buildYDocSave, applyServerCatchUp } from '../../../apps/desktop/src/modules/runly.notes/lib/ydocPersistence.js'
-import { createPresenceChannel, subscribeToMessages } from '../../../apps/desktop/src/modules/runly.chat/lib/supabaseRealtime.js'
+import { createPresenceChannel, subscribeToMessages, subscribeToMultiBroadcast } from '../../../apps/desktop/src/modules/runly.chat/lib/supabaseRealtime.js'
 import { RealtimeProvider } from '../../../apps/desktop/src/providers/RealtimeProvider.jsx'
 import { useChatMessages } from '../../../apps/desktop/src/modules/runly.chat/hooks/useChatMessages.js'
 import { useChatConversations } from '../../../apps/desktop/src/modules/runly.chat/hooks/useChatConversations.js'
 
 let root, provider, doc, sceneSync, scene = [], presence, unsub, timer, query, config, renders = 0, received = 0
-let latest, status, failures = [], latencies = [], sent = 0
+let latest, status, failures = [], latencies = [], sent = 0, committed = 0
+const extraUnsubscribers = []
+let boardRows = []
 const cursorSequences = new Map()
 function Board() {
   const state = useCanvasRealtime(config.boardId, { pageId: config.pageId, selectedIds: [] })
@@ -38,12 +41,18 @@ function Chat() {
   latest = messages.data
   return null
 }
+function BoardDataProbe() {
+  const objects=useCanvasObjects(config.boardId,config.pageId)
+  boardRows=objects.data??[]
+  return null
+}
 window.start = async input => {
   config = input; await configure(input); query = new QueryClient()
   const client = getSupabaseClient()
   if (config.module === 'canvas') {
     root = createRoot(document.getElementById('root'))
-    root.render(<QueryClientProvider client={query}><Board /></QueryClientProvider>)
+    const tree=<QueryClientProvider client={query}><Board />{config.canvasRecovery?<BoardDataProbe />:null}</QueryClientProvider>
+    root.render(config.strict?<React.StrictMode>{tree}</React.StrictMode>:tree)
   } else if (config.module === 'notes') {
     doc = new Y.Doc()
     doc.on('update', (_bytes, origin) => { if (origin === 'broadcast') received++ })
@@ -59,7 +68,8 @@ window.start = async input => {
     })
   } else if (config.module === 'chat-ui') {
     root = createRoot(document.getElementById('root'))
-    root.render(<QueryClientProvider client={query}><BrowserRouter><RealtimeProvider><Chat /><Chat /></RealtimeProvider></BrowserRouter></QueryClientProvider>)
+    const tree=<QueryClientProvider client={query}><BrowserRouter><RealtimeProvider><Chat /><Chat /></RealtimeProvider></BrowserRouter></QueryClientProvider>
+    root.render(config.strict?<React.StrictMode>{tree}</React.StrictMode>:tree)
   } else {
     presence = createPresenceChannel(`chat:presence:${config.conversationId}`, { userId: useAuth().userProfile.id }, {
       onPresenceSync: state => { latest = state },
@@ -70,12 +80,14 @@ window.start = async input => {
 }
 window.state = () => ({
   ready: config?.module === 'notes' ? provider?.connected : config?.module === 'notes-canvas' ? status==='SUBSCRIBED' : config?.module === 'canvas' ? Boolean(latest) && getSupabaseClient().getChannels().some(ch => ch.state === 'joined') : Boolean(latest),
-  channels: getSupabaseClient().getChannels().length, renders, received, sent, status, failures,
+  channels: getSupabaseClient().getChannels().length, renders, received, sent, committed, status, failures,
   cursors: (latest?.cursorStore?.getSnapshot() ?? latest?.cursors)?.length ?? 0, text: doc?.getText('benchmark').toString(),
   peers: config?.module === 'canvas' ? latest?.presence?.length ?? 0 : config?.module === 'chat' ? Object.keys(latest ?? {}).length : null,
   heapBytes: performance.memory?.usedJSHeapSize ?? null,
   sceneVersions: scene.map(element=>[element.id,element.version]),
   awarenessPeers: provider ? [...provider.awareness.getStates()].filter(([id])=>id!==doc.clientID).map(([,state])=>state.user) : [],
+  messageIds: config?.module==='chat-ui'?(latest?.data??[]).filter(message=>!message._pending).map(message=>message.id):[],
+  boardObjectIds: boardRows.map(object=>object.id),
 })
 window.forgeAwareness = () => provider.setAwarenessField('user',{id:config.session.user.id,name:'Forged name',color:'#64748b'})
 window.localText = value => doc.getText('benchmark').insert(doc.getText('benchmark').length,value)
@@ -99,9 +111,9 @@ window.active = () => {
     if (config.module === 'canvas') latest.broadcastPointer({ x: seq, y: Date.now() })
     else if (config.module === 'notes') doc.getText('benchmark').insert(doc.getText('benchmark').length, String(seq % 10))
     else if (config.module === 'notes-canvas') sceneSync.broadcastPointer({x:seq,y:Date.now(),selectedElementIds:{}})
-    else if (config.module === 'chat-ui') runly.chat.sendMessage(config.conversationId,{body:`Message ${seq}`},config.token).catch(error=>failures.push(error.message))
+    else if (config.module === 'chat-ui') runly.chat.sendMessage(config.conversationId,{body:`Message ${seq}`},config.token).then(()=>{committed++}).catch(error=>failures.push(error.message))
     else presence.sendTyping(true)
-  }, config.module === 'canvas' ? 16 : config.module.startsWith('notes') ? 50 : 1000)
+  }, config.module === 'canvas' ? 16 : config.module.startsWith('notes') ? 50 : config.module==='chat' ? config.typingMs : 1000)
 }
 window.pause = () => clearInterval(timer)
 window.ownership = async () => {
@@ -115,8 +127,20 @@ window.ownership = async () => {
   window.releaseSecond = b
   unsub = a
 }
+window.broadcastOwnership = async () => {
+  const counts={message:0,typing:0}
+  const topic=`chat:conv:${config.conversationId}`
+  const first=subscribeToMultiBroadcast(topic,{new_operator_message:()=>counts.message++})
+  extraUnsubscribers.push(first)
+  await new Promise(resolve=>setTimeout(resolve,1000))
+  const second=subscribeToMultiBroadcast(topic,{guest_typing:()=>counts.typing++})
+  extraUnsubscribers.push(second)
+  window.broadcastCounts=()=>counts
+  await new Promise(resolve=>setTimeout(resolve,700))
+}
 window.stop = async () => {
   clearInterval(timer); root?.unmount(); provider?.destroy(); doc?.destroy(); sceneSync?.destroy(); presence?.unsubscribe(); unsub?.(); window.releaseSecond?.()
   await getSupabaseClient().removeAllChannels()
+  extraUnsubscribers.forEach(unsubscribe=>unsubscribe())
   getSupabaseClient().realtime.disconnect()
 }

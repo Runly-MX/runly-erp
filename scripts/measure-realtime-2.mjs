@@ -11,6 +11,7 @@ import { createStudioStack } from './fixtures/studio/supabase-stack.mjs'
 import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
 import { verifyRealtimeSecurity } from './fixtures/realtime-2/security.mjs'
 import { DEFAULT_CHANNEL_ROLES } from '../apps/api/src/routes/chat/chat-permissions-service.js'
+import { verifyRealtimeUi } from './fixtures/realtime-2/ui.mjs'
 
 const require = createRequire(resolve('apps/api/package.json'))
 const { build } = require('esbuild'), { createClient } = require('@supabase/supabase-js')
@@ -19,6 +20,8 @@ const phase = arg('phase') ?? 'before', seconds = Number(arg('seconds') ?? 60)
 const counts = (arg('users') ?? '1,5,10').split(',').map(Number)
 const modules = (arg('modules') ?? 'canvas,notes,chat').split(',')
 const activities = (arg('activity') ?? 'idle,active').split(',')
+const typingMs = Number(arg('typing-ms') ?? 1000)
+assert.ok(Number.isInteger(typingMs) && typingMs>=20 && typingMs<=2000)
 assert.ok(['before', 'after'].includes(phase)); assert.ok(seconds >= 5 && seconds <= 1800)
 assert.ok(counts.every(n => Number.isInteger(n) && n >= 1 && n <= 20))
 assert.ok(modules.every(name => ['canvas', 'notes', 'notes-canvas', 'chat', 'chat-ui'].includes(name)))
@@ -154,7 +157,7 @@ try {
         pending.push((async()=>{const response=await request.response();const bytes=Buffer.byteLength(request.postData()??'')+(await response.body()).length;if(isJoin){metrics.joinBodyBytes+=bytes;return}if(!response.ok())metrics.httpErrors++;metrics.httpBodyBytes+=bytes;const s=await request.sizes();metrics.httpTransferBytes+=s.requestBodySize+s.requestHeadersSize+s.responseBodySize+s.responseHeadersSize})().catch(()=>{}))
       })
       await p.goto(`http://127.0.0.1:${server.address().port}`);await p.waitForFunction(()=>!!window.start)
-      await p.evaluate(input=>window.start(input),{module,api:stack.urls.api,url:stack.urls.kong,key:stack.secret.SUPABASE_ANON_KEY,session:actors[i].session,token:actors[i].session.access_token,actorId:actors[i].id,companyId:company.id,boardId:board.id,pageId:page.id,noteId:note.id,conversationId:conversation.id})
+      await p.evaluate(input=>window.start(input),{module,typingMs,strict:process.argv.includes('--strict'),canvasRecovery:process.argv.includes('--canvas-recovery'),api:stack.urls.api,url:stack.urls.kong,key:stack.secret.SUPABASE_ANON_KEY,session:actors[i].session,token:actors[i].session.access_token,actorId:actors[i].id,companyId:company.id,boardId:board.id,pageId:page.id,noteId:note.id,conversationId:conversation.id})
       await p.waitForFunction(()=>window.state().ready,null,{timeout:25000})
     }
     if(module === 'canvas' || module === 'chat') for(const p of pages) await p.waitForFunction(({n,module})=>window.state().peers >= (module==='canvas'?n-1:n),{n,module},{timeout:20000})
@@ -176,9 +179,50 @@ try {
     const converged=module==='notes'?stateAfter.every(s=>s.text===stateAfter[0].text):null
     const result={module,users:n,active,requestedSeconds:seconds,elapsedSeconds,converged,metrics:{...metrics,p50:percentile(metrics.latencies,.5),p95:percentile(metrics.latencies,.95),deliveryP50:percentile(deliveryLatencies,.5),deliveryP95:percentile(deliveryLatencies,.95)},resources:difference(before,after),stateBefore,stateAfter}
     delete result.metrics.latencies
+    if(module==='chat-ui' && active) {
+      const drainStart=Date.now()
+      result.allSendsSettled=true
+      for(const p of pages)try{await p.waitForFunction(()=>{const s=window.state();return s.committed+s.failures.length===s.sent},null,{timeout:10000})}catch{result.allSendsSettled=false}
+      result.drainMs=Date.now()-drainStart
+      result.afterDrain=await Promise.all(pages.map(p=>p.evaluate(()=>window.state())))
+      if(result.allSendsSettled) {
+        const response=await fetch(`${stack.urls.api}/chat/conversations/${conversation.id}/messages?limit=40`,{headers:{Authorization:`Bearer ${actors[0].session.access_token}`,'X-Runly-Company-Id':company.id}})
+        assert.equal(response.status,200)
+        const expected=((await response.json()).data??[]).map(message=>message.id)
+        assert.ok(expected.length>0)
+        result.cacheCaughtUp=true
+        for(const p of pages)try{await p.waitForFunction(ids=>{const actual=window.state().messageIds;return ids.every(id=>actual.includes(id))&&new Set(actual).size===actual.length},expected,{timeout:7000})}catch{result.cacheCaughtUp=false}
+      }
+      if(phase==='after'){assert.equal(result.allSendsSettled,true,'Some Chat sends never settled');assert.equal(result.cacheCaughtUp,true,'Chat cache missed authoritative messages');assert.ok(result.afterDrain.every(state=>state.failures.length===0),'Chat send failed')}
+    }
     results.push(result)
     await writeFile(join(output,'results.json'),JSON.stringify({phase,source,sourceMode:sourceRef?'committed':'working tree',bundleSha256,image,capacity,stack:stack.name,scope:'production transports and optional Chat hooks; not full editors',results},null,2))
     console.log(JSON.stringify({module,users:n,active,http:metrics.http,cpu:result.resources.cpuSeconds,httpErrors:metrics.httpErrors}))
+    if(process.argv.includes('--ws-recovery') && n>=2 && ['canvas','notes'].includes(module)) {
+      let layer
+      if(module==='canvas') {
+        const response=await fetch(`${stack.urls.api}/canvas/boards/${board.id}/pages/${page.id}/layers`,{method:'POST',headers:{Authorization:`Bearer ${actors[0].session.access_token}`,'X-Runly-Company-Id':company.id,'Content-Type':'application/json'},body:JSON.stringify({name:'Recovery',type:'vector'})})
+        assert.equal(response.status,201);layer=await response.json()
+      }
+      await stack.compose(['stop','supabase-realtime'],{log:join(output,`ws-stop-${module}.log`)})
+      if(module==='notes') {
+        await Promise.all(pages.map(p=>p.waitForFunction(()=>!window.state().ready,null,{timeout:15000})))
+        await pages[0].evaluate(()=>window.localText('socket-A'))
+        await pages[1].evaluate(()=>window.localText('socket-B'))
+      }
+      let objectId
+      if(module==='canvas') {
+        const response=await fetch(`${stack.urls.api}/canvas/boards/${board.id}/objects/batch`,{method:'POST',headers:{Authorization:`Bearer ${actors[0].session.access_token}`,'X-Runly-Company-Id':company.id,'Content-Type':'application/json'},body:JSON.stringify({operations:[{op:'create',data:{pageId:page.id,layerId:layer.id,type:'rectangle',geometry:{width:20,height:20},transform:{x:0,y:0}}}]})})
+        assert.equal(response.status,200);objectId=(await response.json()).data[0].object.id
+      }
+      const reconnectStart=Date.now()
+      await stack.compose(['start','supabase-realtime'],{log:join(output,`ws-start-${module}.log`)})
+      await Promise.all(pages.map(p=>p.waitForFunction(()=>window.state().ready,null,{timeout:45000})))
+      let recovered=true
+      for(const p of pages)try{await p.waitForFunction(({module,objectId})=>module==='canvas'?window.state().boardObjectIds.includes(objectId):window.state().text.includes('socket-A')&&window.state().text.includes('socket-B'),{module,objectId},{timeout:10000})}catch{recovered=false}
+      await writeFile(join(output,`ws-recovery-${module}.json`),JSON.stringify({recovered,elapsedMs:Date.now()-reconnectStart,module,scenario:'Real Realtime container stop/start and edits during outage'},null,2))
+      if(phase==='after')assert.equal(recovered,true,'WebSocket recovery missed changes made while disconnected')
+    }
     if(module==='notes-canvas' && n>=2 && process.argv.includes('--scene-regression')) {
       await pages[0].evaluate(()=>window.newerScene())
       assert.equal(await pages[0].evaluate(()=>window.state().sceneVersions.find(([id])=>id==='shape-0')?.[1]),9,'Scene fixture must contain the protected element')
@@ -187,6 +231,27 @@ try {
       const version=await pages[0].evaluate(()=>window.state().sceneVersions.find(([id])=>id==='shape-0')?.[1])
       await writeFile(join(output,`scene-regression-${n}.json`),JSON.stringify({version,snapshotRewound:version!==9},null,2))
       if(phase==='after')assert.equal(version,9,'Delayed snapshot overwrote a newer local element')
+    }
+    if(module==='chat' && process.argv.includes('--ownership')) {
+      const p=pages[0]
+      await p.evaluate(()=>window.ownership())
+      const sendMessage=async body=>{
+        const response=await fetch(`${stack.urls.api}/chat/conversations/${conversation.id}/messages`,{method:'POST',headers:{Authorization:`Bearer ${actors[0].session.access_token}`,'X-Runly-Company-Id':company.id,'Content-Type':'application/json'},body:JSON.stringify({body})})
+        assert.equal(response.status,201)
+        await wait(500)
+      }
+      await sendMessage('Two consumers')
+      const both=await p.evaluate(()=>window.ownershipResult())
+      await p.evaluate(()=>window.releaseSecond())
+      await sendMessage('Remaining consumer')
+      const remaining=await p.evaluate(()=>window.ownershipResult())
+      await p.evaluate(()=>window.broadcastOwnership())
+      const revision=(await stack.pool.query('SELECT revision::text FROM realtime_authorization_revision WHERE id')).rows[0].revision
+      const response=await fetch(stack.urls.kong+'/realtime/v1/api/broadcast',{method:'POST',headers:{Authorization:`Bearer ${stack.secret.SUPABASE_SERVICE_ROLE_KEY}`,apikey:stack.secret.SUPABASE_SERVICE_ROLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({messages:['new_operator_message','guest_typing'].map(event=>({topic:`chat:conv:${conversation.id}@${revision}`,event,payload:{sample:true},private:true}))})})
+      assert.ok(response.ok);await wait(500)
+      const broadcasts=await p.evaluate(()=>window.broadcastCounts())
+      await writeFile(join(output,'ownership.json'),JSON.stringify({both,remaining,broadcasts},null,2))
+      if(phase==='after') {assert.equal(both.first,1);assert.equal(both.second,1);assert.equal(remaining.first,2);assert.equal(remaining.second,1);assert.deepEqual(broadcasts,{message:1,typing:1})}
     }
     if(module==='notes' && n>=2 && process.argv.includes('--recovery')) {
       const a=pages[0],b=pages[1]
@@ -214,16 +279,23 @@ try {
       if(module==='notes')assert.equal(converged,true,'Y.Doc transport failed to converge')
     }
   }
+  if(process.argv.includes('--ui')) {
+    const ui=await verifyRealtimeUi(stack,{actors,company,conversation})
+    await writeFile(join(output,'ui.json'),JSON.stringify(ui,null,2))
+    console.log(JSON.stringify(ui))
+  }
   if(process.argv.includes('--security')) {
     assert.ok(actors.length >= 2, 'Security scenarios require at least two actors')
     const security=await verifyRealtimeSecurity(stack,{actors,data,board,note,conversation,phase})
     await writeFile(join(output,'security.json'),JSON.stringify(security,null,2))
     console.log(JSON.stringify(security))
+    if(security.releaseBlockers?.length)process.exitCode=1
   }
   const apiLogs=await stack.compose(['logs','--no-color','runly-api'])
   const apiErrors={broadcastErrors:(apiLogs.match(/broadcastToChannel error/g)??[]).length,transactionErrors:(apiLogs.match(/Unable to start a transaction|Transaction already closed/g)??[]).length}
   await writeFile(join(output,'api-errors.json'),JSON.stringify(apiErrors,null,2))
-  if(phase==='after')assert.equal(apiErrors.broadcastErrors,0,'Broadcaster errors during healthy benchmark')
+  if(phase==='after'&&!process.argv.includes('--ws-recovery'))assert.equal(apiErrors.broadcastErrors,0,'Broadcaster errors during healthy benchmark')
+  await writeFile(join(output,'completion.json'),JSON.stringify({passed:!process.exitCode,releaseBlocked:process.exitCode===1},null,2))
 } catch(error) {
   await writeFile(join(output,'failure.json'),JSON.stringify({message:error.message,source,phase},null,2))
   throw error

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { createServer } from 'node:http'
 import { createRealtimeBroadcaster } from '../../../apps/api/src/services/realtime-broadcaster.js'
+import { signHs256Jwt } from '../../../apps/api/src/services/jwt-verification.js'
 const require = createRequire(new URL('../../../apps/api/package.json', import.meta.url))
 const { createClient } = require('@supabase/supabase-js')
 const { PrismaClient } = require('@prisma/client'), { PrismaPg } = require('@prisma/adapter-pg')
@@ -18,7 +19,10 @@ export async function verifyRealtimeSecurity(stack, { actors, data, board, note,
       ...(actor?.session ? { Authorization: `Bearer ${actor.session.access_token}` } : {}),
       'X-Runly-Company-Id': data.companies[0].id, 'Content-Type': 'application/json',
     }, ...(body ? { body: JSON.stringify(body) } : {}) })
-    return { status: response.status, body: await response.json() }
+    const text=await response.text()
+    let result=null
+    if(text)try{result=JSON.parse(text)}catch{result={error:'Non-JSON response'}}
+    return { status: response.status, body: result }
   }
   const login = async person => {
     const c = createClient(stack.urls.kong, stack.secret.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
@@ -68,7 +72,8 @@ export async function verifyRealtimeSecurity(stack, { actors, data, board, note,
     checks.push('Canvas cursor attribution is authenticated; authoritative-event forgery measured')
 
     const page=(await stack.pool.query('SELECT id FROM canvas_page WHERE board_id=$1 ORDER BY position LIMIT 1',[board.id])).rows[0]
-    const layer=(await stack.pool.query("INSERT INTO canvas_layer(page_id,name,position) VALUES($1,'Objects',0) RETURNING id",[page.id])).rows[0]
+    const layer=(await stack.pool.query("INSERT INTO canvas_layer(page_id,name,position) SELECT $1,'Objects',COALESCE(max(position),-1)+1 FROM canvas_layer WHERE page_id=$1 RETURNING id",[page.id])).rows[0]
+    const previousObjects=Number((await stack.pool.query('SELECT count(*) AS count FROM canvas_object WHERE board_id=$1 AND deleted_at IS NULL',[board.id])).rows[0].count)
     const batch=async(actor,operations)=>{
       const result=await request(`/canvas/boards/${board.id}/objects/batch`,actor,{operations})
       assert.equal(result.status,200,JSON.stringify(result.body))
@@ -84,7 +89,7 @@ export async function verifyRealtimeSecurity(stack, { actors, data, board, note,
     assert.equal(restored[0].object.id,created[1].object.id)
     const persistedObjects=await request(`/canvas/boards/${board.id}/objects`,actors[0])
     const objects=persistedObjects.body.data??persistedObjects.body
-    assert.equal(objects.length,2)
+    assert.equal(objects.length,previousObjects+2)
     assert.equal(objects.find(row=>row.id===created[0].object.id).revision,3)
     assert.ok((await request(`/canvas/boards/${board.id}/objects/batch`,viewer,{operations:[{op:'delete',id:created[0].object.id}]})).status>=400)
     checks.push('Canvas real API: independent concurrent object edits, same-object revision conflict, deletion/restore identity and reader denial')
@@ -99,12 +104,21 @@ export async function verifyRealtimeSecurity(stack, { actors, data, board, note,
     const publishedRevision=(await request('/realtime/revision')).body.revision
     const publicReader=await join(null,`${topics[1]}@${publishedRevision}`)
     assert.equal(publicReader.status,'SUBSCRIBED')
+    let latePublicUpdates=0
+    publicReader.channel.on('broadcast',{event:'ydoc.update'},()=>{latePublicUpdates++})
     assert.ok((await relay(null,topics[1],'ydoc.update')).status>=400)
     await stack.pool.query('UPDATE notes SET is_public=false WHERE id=$1',[note.id])
     const unpublishedRevision=(await request('/realtime/revision')).body.revision
     assert.notEqual(unpublishedRevision,publishedRevision)
     const unpublished=await join(null,`${topics[1]}@${unpublishedRevision}`)
     assert.notEqual(unpublished.status,'SUBSCRIBED')
+    const emptyDoc=new Y.Doc()
+    try {
+      assert.equal((await relay(actors[0],topics[1],'ydoc.update',{update:Buffer.from(Y.encodeStateAsUpdate(emptyDoc)).toString('base64')})).status,200)
+      await wait(1000)
+      observations.revokedPublicSocket={stillJoined:publicReader.channel.state==='joined',observationMs:1000,postRevocationUpdates:latePublicUpdates}
+      assert.equal(latePublicUpdates,0,'Unpublished note delivered a new update to its old public topic')
+    } finally {emptyDoc.destroy()}
     checks.push('Real Realtime RLS denies private anonymous/foreign joins; public read-only joins and unpublication rotates topic')
 
     const noteChannel=await join(actors[0],`${topics[1]}@${unpublishedRevision}`)
@@ -154,6 +168,85 @@ export async function verifyRealtimeSecurity(stack, { actors, data, board, note,
     assert.ok((await relay(actors[1],topics[0],'cursor')).status>=400)
     checks.push('Disabled profile and revoked Canvas collaborator cannot relay subsequent writes')
 
+    const claims=JSON.parse(Buffer.from(actors[0].session.access_token.split('.')[1],'base64url'))
+    const expired=signHs256Jwt({...claims,exp:Math.floor(Date.now()/1000)-60},stack.secret.SUPABASE_JWT_SECRET,-60)
+    assert.ok((await relay({...actors[0],session:{access_token:expired}},topics[0],'cursor')).status>=400)
+    const refreshing=createClient(stack.urls.kong,stack.secret.SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}})
+    const refreshed=await refreshing.auth.refreshSession({refresh_token:actors[0].session.refresh_token})
+    assert.equal(refreshed.error,null)
+    assert.equal(refreshed.data.user.id,actors[0].session.user.id)
+    assert.equal((await relay({...actors[0],session:refreshed.data.session},topics[0],'cursor')).status,200)
+    checks.push('Expired token for a real Auth identity denied; real Auth refresh preserves authorized relay access')
+
+    const messagePath=`/chat/conversations/${conversation.id}/messages`
+    const original=await request(messagePath,actors[0],{body:'Original'})
+    assert.equal(original.status,201)
+    const messageId=original.body.data.id
+    const reply=await request(messagePath,actors[1],{body:'Respuesta',replyToMessageId:messageId})
+    assert.equal(reply.status,201)
+    assert.equal((await request(`/chat/messages/${messageId}`,actors[0],{body:'Editado'},'PATCH')).status,200)
+    assert.equal((await request(`/chat/messages/${messageId}/reactions`,actors[1],{emoji:'👍',attachmentId:null})).status,200)
+    const listed=await request(messagePath,actors[0])
+    const messages=listed.body.data
+    assert.equal(messages.find(message=>message.id===messageId).body,'Editado')
+    assert.equal(messages.find(message=>message.id===reply.body.data.id).reply_to.id,messageId)
+    assert.ok(JSON.stringify(messages.find(message=>message.id===messageId).reactions).includes('👍'))
+    assert.ok((await request(messagePath,foreign)).status>=400)
+    assert.ok((await request(`/chat/conversations/${conversation.id}/read`,actors[1],{})).status<300)
+    assert.ok((await stack.pool.query('SELECT last_read_at FROM chat_conversation_members WHERE conversation_id=$1 AND user_id=$2',[conversation.id,actors[1].id])).rows[0].last_read_at)
+    assert.ok((await request(`/chat/messages/${messageId}`,actors[0],undefined,'DELETE')).status<300)
+    const deleted=await request(messagePath,actors[0])
+    assert.ok(deleted.body.data.find(message=>message.id===messageId)?.deleted_at)
+    checks.push('Real Chat API: send, quoted reply, edit, reaction, read receipt, soft deletion and foreign-company denial')
+
+    const slug=(await stack.pool.query('SELECT slug FROM company WHERE id=$1',[data.companies[0].id])).rows[0].slug
+    const guestRequest=async(path,body)=>{
+      const response=await fetch(stack.urls.api+'/public/chat'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','X-Runly-Company':slug},...(body?{body:JSON.stringify(body)}:{})})
+      const text=await response.text()
+      return {status:response.status,body:text?JSON.parse(text):null}
+    }
+    const guestA=await guestRequest('/session',{email:'guest-a@realtime.example.test',name:'Guest A'})
+    const guestB=await guestRequest('/session',{email:'guest-b@realtime.example.test',name:'Guest B'})
+    assert.equal(guestA.status,201);assert.equal(guestB.status,201)
+    const guestDataA=guestA.body.data,guestDataB=guestB.body.data
+    const guestActor={session:{access_token:guestDataA.realtimeToken}}
+    const guestRevision=(await request('/realtime/revision')).body.revision
+    const ownGuest=await join(guestActor,`chat:conv:${guestDataA.conversationId}@${guestRevision}`)
+    assert.equal(ownGuest.status,'SUBSCRIBED')
+    for(const topic of [`chat:conv:${guestDataB.conversationId}`,topics[0],`user:${actors[0].id}:events`])assert.notEqual((await join(guestActor,`${topic}@${guestRevision}`)).status,'SUBSCRIBED')
+    assert.ok((await request('/chat/conversations',guestActor)).status>=400)
+    assert.equal((await guestRequest(`/session/${guestDataA.token}/messages`,{body:'Guest message'})).status,201)
+    const guestMessages=await guestRequest(`/session/${guestDataA.token}/messages`)
+    const otherMessages=await guestRequest(`/session/${guestDataB.token}/messages`)
+    assert.equal(guestMessages.status,200);assert.equal(otherMessages.status,200)
+    assert.ok(guestMessages.body.data.some(message=>message.body==='Guest message'))
+    assert.ok(!otherMessages.body.data.some(message=>message.body==='Guest message'))
+    assert.ok((await guestRequest(`/session/${guestDataA.token}/close`,{})).status<300)
+    assert.ok((await guestRequest(`/session/${guestDataA.token}/messages`,{body:'After close'})).status>=400)
+    const closedRevision=(await request('/realtime/revision')).body.revision
+    assert.notEqual(closedRevision,guestRevision)
+    assert.notEqual((await join(guestActor,`chat:conv:${guestDataA.conversationId}@${closedRevision}`)).status,'SUBSCRIBED')
+    observations.closedGuestSocketStillJoined=ownGuest.channel.state==='joined'
+    await stack.pool.query("UPDATE chat_guest_sessions SET idle_expires_at=now()-interval '1 second',absolute_expires_at=now()-interval '1 second' WHERE id=$1",[guestDataB.sessionId])
+    assert.ok((await guestRequest(`/session/${guestDataB.token}/messages`)).status>=400)
+    checks.push('Real guest API/token: own private conversation only, internal API denied, message isolation, close/revocation and expiry denial; cached socket state recorded')
+
+    const privateNote=(await stack.pool.query('SELECT is_public FROM notes WHERE id=$1',[note.id])).rows[0]
+    assert.equal(privateNote.is_public,false)
+    const presign=await request('/notes/presign-image',actors[0],{noteId:note.id,fileName:'private-fixture.png',mimeType:'image/png'})
+    assert.equal(presign.status,201)
+    const image=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS3sAAAAASUVORK5CYII=','base64')
+    const uploadClient=createClient(stack.urls.kong,stack.secret.SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}})
+    const uploaded=await uploadClient.storage.from('runly-notes').uploadToSignedUrl(presign.body.objectKey,presign.body.uploadToken,image,{contentType:'image/png'})
+    assert.equal(uploaded.error,null)
+    // Resolve only this disposable gateway, even if an older API returns its
+    // container-internal origin. Never contact infrastructure from .env.
+    const publicObjectPath=new URL(presign.body.publicUrl).pathname
+    const anonymousImage=await fetch(stack.urls.kong+publicObjectPath)
+    observations.privateNoteImagePubliclyReadable=anonymousImage.status===200
+    if(anonymousImage.ok)assert.equal((await anonymousImage.arrayBuffer()).byteLength,image.length)
+    checks.push('Private-note image uploaded to real disposable Storage; anonymous object read probed separately from Realtime RLS')
+
     // Measure transaction lock time against a real local HTTP server and PG.
     const prisma = new PrismaClient({adapter:new PrismaPg({connectionString:stack.pool.options.connectionString})})
     let reached
@@ -176,6 +269,7 @@ export async function verifyRealtimeSecurity(stack, { actors, data, board, note,
       assert.ok(observations.authorizationRotationBlockedMs>=600)
       checks.push('Real PG revocation lock held through injected 750 ms Broadcast network latency')
     } finally {await prisma.$disconnect();await new Promise(resolve=>proxy.close(resolve))}
-    return {checks,observations}
+    const releaseBlockers=observations.privateNoteImagePubliclyReadable?['PRIVATE_NOTE_IMAGES_PUBLIC']:[]
+    return {checks,observations,releaseBlockers,passed:releaseBlockers.length===0}
   } finally {for(const c of clients){await c.removeAllChannels();c.realtime.disconnect()}}
 }
