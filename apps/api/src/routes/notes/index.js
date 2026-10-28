@@ -7,6 +7,7 @@ import { createYDocService } from './ydoc-service.js'
 import { createCanvasService } from './canvas-service.js'
 import { ALLOWED_TYPES, createNoteReferencesService } from './references-service.js'
 import { isUuid } from './subpages.js'
+import { createNoteImageService } from './image-service.js'
 import { withResourceInvitationAccess } from '../../services/resource-invitation-access.js'
 
 export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster, notificationService }) {
@@ -19,6 +20,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   const ydoc = createYDocService({ prisma })
   const canvas = createCanvasService({ prisma })
   const references = createNoteReferencesService({ prisma })
+  const images = createNoteImageService({ prisma, supabaseAdmin })
 
   // ----------------------------------------------------------------
   // All /notes/* routes — dedicated internal router with auth
@@ -49,6 +51,21 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     const companyId = c.get('companyId') ?? null
     return { userId, companyId }
   }
+
+  internal.get('/:id/media', requirePermission('notes.notes.read'), async c => {
+    try {
+      const { userId } = getAuth(c)
+      const image = await images.resolve(c.req.query('src'), { noteId: c.req.param('id'), userId })
+      return new Response(image.bytes, { headers: { 'Content-Type': image.mime, 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } })
+    } catch (error) { return c.json({ error: 'Imagen no disponible.' }, error.status ?? 503) }
+  })
+
+  internal.post('/:id/images/attach', requirePermission('notes.notes.update'), async c => {
+    try {
+      await images.attachReferences(c.req.param('id'), getAuth(c).userId, (await c.req.json()).sources)
+      return c.json({ ok: true })
+    } catch (error) { return c.json({ error: 'No se pudo autorizar la imagen.' }, error.status ?? 503) }
+  })
 
   // ==============================================================
   // FOLDERS — register BEFORE /:id to avoid "folders" matching :id
@@ -166,12 +183,16 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       const { userId, companyId } = getAuth(c)
       const body = await c.req.json()
       const { fileName, mimeType, noteId } = body
+      let imageCompanyId = companyId
+      if (typeof mimeType !== 'string' || !/^image\/[a-z0-9.+-]+$/i.test(mimeType)) return c.json({ error: 'Formato de imagen no permitido.' }, 400)
       // If a real note is targeted, the caller must be able to edit it.
       if (noteId && noteId !== 'draft') {
         const [note] = await prisma.$queryRaw`
-          SELECT id FROM notes
+          SELECT id, company_id FROM notes
           WHERE id = ${noteId}::uuid
             AND deleted_at IS NULL
+            AND NOT is_trashed
+            AND public.runly_note_user_access(id, ${userId}::uuid, true)
             AND (
               owner_user_id = ${userId}::uuid
               OR id IN (
@@ -181,14 +202,16 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
             )
         `
         if (!note) return c.json({ error: 'No tienes permiso para editar esta nota' }, 403)
+        imageCompanyId = note.company_id
       }
       const ext = fileName?.split('.')?.pop()?.toLowerCase() ?? 'jpg'
       const safeNoteId = noteId && noteId !== 'draft' ? noteId : 'draft'
-      const prefix = companyId ? `companies/${companyId}/notes/${safeNoteId}` : `notes/${userId}/${safeNoteId}`
+      const prefix = imageCompanyId ? `companies/${imageCompanyId}/notes/${safeNoteId}${safeNoteId === 'draft' ? `/${userId}` : ''}` : `notes/${userId}/${safeNoteId}`
       const key = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { data, error } = await supabaseAdmin.storage.from('runly-notes').createSignedUploadUrl(key)
       if (error) return c.json({ error: error.message }, 500)
       const { data: publicData } = supabaseAdmin.storage.from('runly-notes').getPublicUrl(key)
+      if (safeNoteId !== 'draft') await images.bindUploaded(safeNoteId, 'runly-notes', key)
       return c.json({ uploadUrl: data.signedUrl, objectKey: key, uploadToken: data.token, publicUrl: publicData.publicUrl }, 201)
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)
@@ -497,6 +520,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     try {
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
+      await images.bindForPublication(noteId, userId)
       const note = await shares.publishNote(noteId, userId)
       return c.json({ note })
     } catch (e) {

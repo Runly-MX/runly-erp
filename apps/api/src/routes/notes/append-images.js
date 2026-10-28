@@ -3,8 +3,8 @@
 // Images for "append to a note" (MCP / MirAI). An image arrives as an https
 // URL only (proposals are persisted as JSON, so inline bytes are not accepted);
 // it is validated, fetched, type-checked
-// by magic bytes, uploaded to the same public `runly-notes` bucket the editor
-// uses and turned into an `image` block carrying the public URL.
+// by magic bytes, uploaded to the private `runly-notes` bucket the editor
+// uses and turned into an image block carrying a durable resource reference.
 //
 // Fetching a caller-supplied URL is an SSRF vector, so every URL (and every
 // redirect hop) must be https on port 443, carry no credentials and resolve
@@ -12,6 +12,7 @@
 // real type comes from the bytes, never from Content-Type.
 import net from 'node:net'
 import { lookup as dnsLookup } from 'node:dns/promises'
+import { parseNoteImageReference } from './image-references.js'
 
 export const MAX_IMAGES_PER_APPEND = 5
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -246,7 +247,7 @@ export function collectImageRequests(blocks, images = []) {
   return requests
 }
 
-export function createNoteImageAppender({ supabaseAdmin = null, fetchImpl = fetch, lookupImpl = dnsLookup } = {}) {
+export function createNoteImageAppender({ supabaseAdmin = null, fetchImpl = fetch, lookupImpl = dnsLookup, bindUploaded, resolveManagedImage } = {}) {
   // Validates, downloads and uploads ALL images before returning; on any
   // failure the already uploaded objects are removed and the error rethrown,
   // so the caller can leave the note untouched. Mutates the image blocks in
@@ -255,17 +256,21 @@ export function createNoteImageAppender({ supabaseAdmin = null, fetchImpl = fetc
     const requests = collectImageRequests(blocks, images)
     if (!requests.length) return 0
     if (!supabaseAdmin?.storage) throw new ImageAppendError('El almacenamiento de imágenes no está disponible en este momento.', 503)
-    for (const r of requests) if (r.source.url) parseSafeImageUrl(r.source.url)
+    for (const r of requests) if (r.source.url && !(resolveManagedImage && parseNoteImageReference(r.source.url))) parseSafeImageUrl(r.source.url)
     const uploaded = []
     try {
       for (const r of requests) {
         if (!r.source.url) throw new ImageAppendError('Las imagenes se indican solo por URL https.', 400)
-        const loaded = await fetchImageBytes(r.source.url, { fetchImpl, lookupImpl })
+        const loaded = resolveManagedImage && parseNoteImageReference(r.source.url)
+          ? await resolveManagedImage(r.source.url, userId, companyId)
+          : await fetchImageBytes(r.source.url, { fetchImpl, lookupImpl })
+        if (loaded.buffer.length > MAX_IMAGE_BYTES) throw new ImageAppendError('La imagen supera 10 MB.')
         const prefix = companyId ? `companies/${companyId}/notes/${noteId}` : `notes/${userId}/${noteId}`
         const key = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2)}.${EXT_BY_MIME[loaded.mime]}`
         const { error } = await supabaseAdmin.storage.from(NOTES_BUCKET).upload(key, loaded.buffer, { contentType: loaded.mime, upsert: false })
         if (error) throw new ImageAppendError('No se pudo guardar la imagen en el almacenamiento.', 502)
         uploaded.push(key)
+        await bindUploaded?.(noteId, NOTES_BUCKET, key)
         const { data } = supabaseAdmin.storage.from(NOTES_BUCKET).getPublicUrl(key)
         r.block.src = data.publicUrl
         r.block.alt = String(r.alt ?? '').slice(0, 200)

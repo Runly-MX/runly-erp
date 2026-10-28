@@ -2,7 +2,8 @@ import { createFoldersService } from './folders-service.js';
 import { createNoteReferencesService } from './references-service.js';
 import * as Y from 'yjs';
 import { createYDocService } from './ydoc-service.js';
-import { createNoteImageAppender, ImageAppendError } from './append-images.js';
+import { createNoteImageAppender, ImageAppendError, readImageSize } from './append-images.js';
+import { createNoteImageService } from './image-service.js';
 import { parseAppendText, blocksToHtml, blocksToPlainText, appendBlocksToYDoc } from './append-blocks.js';
 import { exceedsDepth, isUuid, MAX_DEPTH_MESSAGE, shouldCascadeArchive } from './subpages.js';
 
@@ -50,7 +51,13 @@ export function hasNoteChanges(current, data) {
 }
 
 export function createNotesService({ prisma, broadcaster = null, supabaseAdmin = null, fetchImpl, lookupImpl }) {
-  const imageAppender = createNoteImageAppender({ supabaseAdmin, fetchImpl, lookupImpl });
+  const images = createNoteImageService({ prisma, supabaseAdmin });
+  const imageAppender = createNoteImageAppender({ supabaseAdmin, fetchImpl, lookupImpl, bindUploaded: images.bindUploaded,
+    resolveManagedImage: async (url, userId, companyId) => {
+      const image = await images.readForCopy(url, userId, companyId);
+      return { buffer: image.bytes, mime: image.mime, size: readImageSize(image.bytes, image.mime) };
+    },
+  });
   const folders = createFoldersService({ prisma });
   const references = createNoteReferencesService({ prisma });
   // ------------------------------------------------------------------
@@ -133,7 +140,7 @@ export function createNotesService({ prisma, broadcaster = null, supabaseAdmin =
     `;
     if (exceedsDepth(depth)) throw new NotesServiceError(MAX_DEPTH_MESSAGE, 422);
     const type = noteType === 'canvas' ? 'canvas' : 'document';
-
+    const imageRefs = await images.validateNewReferences({ companyId: parent.company_id, userId, content });
     return prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw`
         INSERT INTO notes (
@@ -154,6 +161,7 @@ export function createNotesService({ prisma, broadcaster = null, supabaseAdmin =
         RETURNING *
       `;
       const child = rows[0];
+      await createNoteImageService({ prisma: tx, supabaseAdmin }).bindManyUploaded(child.id, imageRefs);
       // The child must be as visible as its parent: same collaborators, plus the
       // parent's owner when somebody else (an editor) creates the page.
       await tx.$executeRaw`
@@ -174,7 +182,9 @@ export function createNotesService({ prisma, broadcaster = null, supabaseAdmin =
     if (parentId) return createSubpage({ userId, parentId, title, content, icon, backgroundColor, noteType });
     await folders.assertFolder({ folderId, userId, companyId });
     const type = noteType === 'canvas' ? 'canvas' : 'document';
-    const rows = await prisma.$queryRaw`
+    const imageRefs = await images.validateNewReferences({ companyId, userId, content });
+    const insert = async db => {
+      const rows = await db.$queryRaw`
       INSERT INTO notes (
         owner_user_id,
         company_id,
@@ -197,7 +207,10 @@ export function createNotesService({ prisma, broadcaster = null, supabaseAdmin =
       )
       RETURNING *
     `;
-    return rows[0];
+      await createNoteImageService({ prisma: db, supabaseAdmin }).bindManyUploaded(rows[0].id, imageRefs);
+      return rows[0];
+    };
+    return imageRefs.length ? prisma.$transaction(insert) : insert(prisma);
   }
 
   // ------------------------------------------------------------------

@@ -740,7 +740,8 @@ async function ensureBuckets() {
   });
   await ensureBucket(WEBSITE_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: null });
   await ensureBucket("runly-chat", { public: false, fileSizeLimit: 52428800 }); // 50 MB
-  await ensureBucket("runly-notes", { public: true, fileSizeLimit: 20971520, allowedMimeTypes: ['image/*'] }); // 20 MB
+  const { prepareNotesPrivateStorage } = await import('./routes/notes/image-storage.js');
+  await prepareNotesPrivateStorage({ prisma, supabaseAdmin });
 }
 
 function serializeModulesForResponse(modules, context, options = {}) {
@@ -863,7 +864,7 @@ if (process.env.RUNLY_API_TEST_MODE !== "1") {
   bundlerService.startDevWatcher();
 }
 
-ensureBuckets();
+await ensureBuckets();
 
 // Instances updated to a new image never re-run POST /modules/sync, so tables
 // declared inline in core manifests (e.g. inventory_assistant_thread) are
@@ -963,6 +964,14 @@ app.get("/brand/:filename", async (c) => {
 const _publicNotesShares = createNotesSharesService({ prisma, broadcaster });
 const _publicNotesCanvas = createNotesCanvasService({ prisma });
 const _publicNotesYDoc = createNotesYDocService({ prisma });
+const { createNoteImageService } = await import('./routes/notes/image-service.js');
+const _notesImages = createNoteImageService({ prisma, supabaseAdmin });
+app.get('/public/notes/:slug/media', async c => {
+  try {
+    const image = await _notesImages.resolve(c.req.query('src'), { slug: c.req.param('slug') });
+    return new Response(image.bytes, { headers: { 'Content-Type': image.mime, 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
+  } catch (error) { return c.json({ error: 'Imagen no disponible.' }, error.status ?? 503); }
+});
 app.get("/public/notes/:slug", async (c) => {
   try {
     const slug = c.req.param("slug");
