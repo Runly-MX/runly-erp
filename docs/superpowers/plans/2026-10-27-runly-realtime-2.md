@@ -47,4 +47,17 @@ refactors profundos de B/C/D sin línea base. No migrar instalaciones existentes
   diferida se cancela solo si todos los elementos/tombstones, archivos, capas y
   appState están cubiertos. Guard de hidratación saliente conservado. Los metadatos
   de capas siguen sin revisión propia; falta validación completa de imágenes/GUI.
-- D/E: pendientes. Soak de 10 minutos y recuperación HTTP/compatibilidad en curso.
+- D: suscripciones PG/Broadcast con refcount, aislamiento por dueño de sesión,
+  coalescing de invalidaciones 40 ms y typing máximo 1 Hz con false inmediato.
+  Benchmark mensajes 1/5/10 y ráfaga typing medidos; 1.126 tests de dominio pasan,
+  uno omitido. No se eliminó PG Changes ni polling sin un A/B suficiente.
+- E: soak Notes 10 minutos, recovery HTTP, compatibilidad Notes cruzada, reinicio
+  real de Realtime con StrictMode, API Docker completa, Web completa y cuatro
+  comprobaciones GUI pasaron. Regresión Studio 83 pass/1 skip; Installer 5 pass.
+  La base Canvas no recuperaba cambios durante corte: nueva reconciliación lo hace.
+  Check privacidad completo: 67 hallazgos previos; archivos propios: cero.
+- Cierre con NO GO: prueba Storage real confirma imagen de nota privada descargable
+  sin sesión. No se cambió bucket legado sin transición de URLs persistidas/notas
+  públicas. Matriz móvil/IME/llamadas/upgrade con clientes abiertos y otras fallas
+  extendidas incompleta. Informe, cifras y pendientes:
+  `docs/deployment/RUNLY_REALTIME_2_LOCAL_VALIDATION.md`.

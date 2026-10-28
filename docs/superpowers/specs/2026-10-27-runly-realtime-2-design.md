@@ -1,7 +1,8 @@
 # Runly Realtime 2 — diseño y auditoría local
 
 Fecha: 2026-10-27. Base: `c5498bd3873c2f9067643fc8b018dbcc0c44b828`, main limpio.
-Estado: investigación y medición; ninguna cifra de Studio es una medición de estos módulos.
+Estado: optimizaciones locales medidas; NO GO por Storage privado expuesto y matriz
+integral pendiente. Ninguna cifra de Studio es una medición de estos módulos.
 
 ## Contrato y restricciones
 
@@ -135,3 +136,18 @@ Corrida Y.js posterior de 60 s: 603/3017/6035 Broadcast HTTP con 1/5/10 editores
 convergencia en los tres. Con 5 usuarios CPU API/PG/Realtime 16.75/15.51/9.55 s,
 frente a 50.75/55.39/34.30 s de la base sana. Con 10, comparar entrega además de CPU:
 la base falló, la nueva corrida entregó aproximadamente el doble de HTTP.
+
+## Cierre de validación local
+
+Chat conserva PG Changes y polling; se corrigieron propiedad de canales y cascadas
+de invalidación. Canvas añade reconciliación selectiva al rejoin, demostrada mediante
+parada/arranque real de Realtime. Soak Notes de 10 minutos, compatibilidad Notes en
+ambas direcciones, builds API/Web y cuatro pruebas del producto completo pasaron.
+No se modifica Studio ni se añaden roles/migraciones.
+
+Seguridad de archivos falla: imagen subida a una nota privada puede descargarse sin
+sesión del bucket público runly-notes. No se declara resuelto por mejorar RLS de
+Realtime. Cerrar ese bucket exige transición de URLs persistidas y lectores públicos,
+no un cambio aislado que rompa contenido. El runner lo reporta como bloqueo explícito.
+El informe `docs/deployment/RUNLY_REALTIME_2_LOCAL_VALIDATION.md` contiene métricas,
+evidencia, commits, cobertura real y pendientes. Dictamen: NO GO; sin publicación.
