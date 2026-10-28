@@ -172,6 +172,63 @@ async function runCount(n) {
       const l = await Promise.all(pages.map(p => latencyOf(p, 3, started, 90000)))
       return { latency: summarize(l), note: 'ms from Realtime restart until the bell shows the 3 notifications missed during the outage; Realtime CPU delta is invalid (container restarted)' }
     })
+    async function securityChecks() {
+      const checks = []
+      const record = (name, ok, detail = '') => { checks.push({ name, ok: Boolean(ok), detail: String(detail) }) }
+      await stack.pool.query("INSERT INTO role_permission(id,role_id,permission_id) SELECT uuidv7(),$1,id FROM permission WHERE key LIKE 'notifications.%' ON CONFLICT DO NOTHING", [companies[1].roleId])
+      async function makeUser(label, comp) {
+        const email = `${label}@notifications.example.test`
+        const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true }); assert.equal(error, null)
+        const profile = (await stack.pool.query('INSERT INTO user_profile(id,auth_user_id,display_name,email,updated_at) VALUES(uuidv7(),$1,$2,$3,now()) RETURNING id', [data.user.id, label, email])).rows[0]
+        await stack.pool.query('INSERT INTO membership(id,company_id,user_id,role_id,updated_at) VALUES(uuidv7(),$1,$2,$3,now())', [comp.id, profile.id, comp.roleId])
+        const client = createClient(stack.urls.kong, stack.secret.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+        const signed = await client.auth.signInWithPassword({ email, password }); assert.equal(signed.error, null)
+        return { id: profile.id, email, client, token: signed.data.session.access_token }
+      }
+      const call = (path, token, companyId, init = {}) => fetch(stack.urls.api + path, { ...init, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'X-Runly-Company-Id': companyId, 'Content-Type': 'application/json' } })
+      const foreign = await makeUser('foreign', companies[1]), revoked = await makeUser('revoked', company)
+      record('summary without a session is denied', (await call('/notifications/summary', null, company.id)).status === 401)
+      const cross = await call('/notifications/summary', foreign.token, company.id)
+      record('a user of company B cannot read company A counters', [401, 403].includes(cross.status), cross.status)
+      await publishAs('S-1')
+      const own = await call('/notifications/summary', foreign.token, companies[1].id)
+      record('company B user sees none of the company A notifications', own.status === 200 && (await own.json()).unreadCount === 0, own.status)
+      const toForeign = await call('/notifications/publish', users[0].token, company.id, { method: 'POST', body: JSON.stringify({ eventType: 'system.benchmark', title: 'X', recipients: { userIds: [foreign.id] } }) })
+      record('publishing to a recipient outside the company is rejected', toForeign.status === 400, toForeign.status)
+      const { revision } = await (await fetch(stack.urls.api + '/realtime/revision')).json()
+      for (const [label, token] of [['company B user', foreign.token], ['anonymous client', null]]) {
+        const client = createClient(stack.urls.kong, stack.secret.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+        if (token) client.realtime.setAuth(token)
+        const received = []
+        const channel = client.channel(`user:${users[0].id}:events@${revision}`, { config: { private: true } }).on('broadcast', { event: 'notification.new' }, payload => received.push(payload))
+        const status = await new Promise(resolve => { channel.subscribe(s => { if (['SUBSCRIBED', 'CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(s)) resolve(s) }); setTimeout(() => resolve('TIMEOUT'), 10000) })
+        await publishAs(`S-rt-${label}`); await wait(2500)
+        record(`${label} receives nothing from another user's private channel`, received.length === 0, `join=${status}`)
+        await client.removeAllChannels()
+      }
+      await fetch(stack.urls.api + '/notifications/publish', { method: 'POST', headers: { Authorization: `Bearer ${users[0].token}`, 'X-Runly-Company-Id': company.id, 'Content-Type': 'application/json' }, body: JSON.stringify({ eventType: 'system.benchmark', title: 'S-revoked', recipients: { userIds: [revoked.id] } }) })
+      const before = await call('/notifications/summary', revoked.token, company.id)
+      record('a member sees their own counter', before.status === 200 && (await before.json()).unreadCount === 1, before.status)
+      await stack.pool.query('UPDATE membership SET enabled=false WHERE user_id=$1', [revoked.id])
+      const after = await call('/notifications/summary', revoked.token, company.id)
+      record('a revoked member is denied immediately', [401, 403].includes(after.status), after.status)
+      const toRevoked = await call('/notifications/publish', users[0].token, company.id, { method: 'POST', body: JSON.stringify({ eventType: 'system.benchmark', title: 'X', recipients: { userIds: [revoked.id] } }) })
+      record('a revoked member no longer receives new notifications', toRevoked.status === 400, toRevoked.status)
+      const renewed = await users0Client().auth.signInWithPassword({ email: users[0].email, password })
+      const afterRenewal = await call('/notifications/summary', renewed.data.session.access_token, company.id)
+      record('a renewed token keeps working', afterRenewal.status === 200, afterRenewal.status)
+      const published = (await stack.pool.query("SELECT count(*)::int AS n FROM pg_publication_tables WHERE pubname='supabase_realtime' AND tablename='notification'")).rows[0].n
+      record('notification is not in the supabase_realtime publication (postgres_changes cannot deliver)', published === 0, published)
+      const summaryResponse = await call('/notifications/summary', users[0].token, company.id)
+      if (summaryResponse.status === 200) {
+        const summaryBody = await summaryResponse.json()
+        const listBody = await (await call('/notifications?limit=1', users[0].token, company.id)).json()
+        record('summary counters equal the list counters', summaryBody.unreadCount === listBody.unreadCount && JSON.stringify(summaryBody.unreadByCategory) === JSON.stringify(listBody.unreadByCategory), JSON.stringify(summaryBody))
+      }
+      return { scenario: 'S_security', users: n, checks, failed: checks.filter(c => !c.ok).length }
+    }
+    const users0Client = () => createClient(stack.urls.kong, stack.secret.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+    if (!only.length || only.includes('S')) { const security = await securityChecks(); results.push(security); console.log(JSON.stringify({ n, scenario: 'S_security', failed: security.failed, checks: security.checks.filter(c => !c.ok) })) }
     await writeFile(join(output, `n${n}.json`), JSON.stringify({ label, sourceSha, image, users: n, windowSeconds: windowMs / 1000, errors, results }, null, 2))
   } finally {
     await browser?.close().catch(() => {}); await web?.close?.().catch(() => {}); await stack.close()
