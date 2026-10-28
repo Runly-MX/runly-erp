@@ -104,7 +104,11 @@ async function scenario(name, { mode, legacy = true, prepare = null, owner = 'no
       if (state) assert.equal((await fetch(state.url)).status !== undefined, true)
     } else {
       assert.equal(first.ok, true, `${name}: installation must succeed\n${first.output.slice(-1500)}`)
-      assert.equal((await fetch(`${stack.urls.api}/health`)).status, 200)
+      // The installer already waited for /health; a host-side request can still hit a connection reset while Docker publishes the port, so retry briefly and keep the container log if it never answers.
+      let healthy = false
+      for (let attempt = 0; attempt < 20 && !healthy; attempt++) { healthy = await fetch(`${stack.urls.api}/health`).then(r => r.status === 200, () => false); if (!healthy) await wait(1000) }
+      if (!healthy) console.log((await command('docker', ['logs', '--tail', '40', `${appName}-api-${mode}`]).catch(e => String(e.message))).slice(-2500))
+      assert.equal(healthy, true, `${name}: API must answer /health from the host`)
       assert.match(first.output, /Verifying Notes private image Storage/)
       assert.match(first.output, /Probing Notes Storage with anonymous requests/)
       const inspected = await command('docker', ['inspect', `${appName}-api-${mode}`, '--format', '{{json .Config.Env}}'])
