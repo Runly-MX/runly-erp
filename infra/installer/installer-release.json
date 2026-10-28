@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.10.28.3",
+  "version": "2026.10.28.4",
   "files": {
     ".env.local.example": {
       "sha256": "ef097c568385535ca646f29353f834a1646b773663def037f49020680eed47ab",
@@ -249,12 +249,14 @@
       "legacyGitBlobs": []
     },
     "lib/api-health.mjs": {
-      "sha256": "4c9e4f7f3edef279b32d50b7e32bccce1c9f231b87b965e41abe9b026df28e8d",
+      "sha256": "4270e08dd6f161122bbf927edb67f13f0dee02089259c982c66005eb67dcb0c4",
       "modes": [
         "local",
         "external"
       ],
-      "legacyGitBlobs": []
+      "legacyGitBlobs": [
+        "35992db0b6d7e050bf0ab42a75571007f3089781"
+      ]
     },
     "lib/instance-identity.mjs": {
       "sha256": "6b9a188c74cd978d45eaed0977a4a46c4cc273386658d2d987414842264171c7",
@@ -359,7 +361,7 @@
       ]
     },
     "setup-local.mjs": {
-      "sha256": "ce284c45acf085b0e28f4f4c82268cd6664f14b36d4ec46a8733dbc1e106d0c9",
+      "sha256": "36544fec7c5c727a07f78c86ad26d06ab1fbfdf101b14fcb04bb418b1d1449b6",
       "modes": [
         "local"
       ],
@@ -375,6 +377,7 @@
         "22f84b4ee6d5de92ce01edfeb93fc5fcad9f0b67",
         "275f439522bbc66aee4acc9037b646291e40ff5c",
         "40f08838d10069e2e99921faf1bbed26480929c4",
+        "443b00601c6d07c3e4a2ec1c06d47cd718dbebe4",
         "47f78d1b07fc244a25e16b6165c1c7f19a2aa0e8",
         "4b36b71d3a5c0feddabba04addd9f81ca802cfa2",
         "5278e25c2c7e4d5b4c7c40f84bf3fdc1c900426f",
@@ -617,7 +620,7 @@
       ]
     },
     "setup-external.mjs": {
-      "sha256": "147adcace14509231d235b3be77e422fcdd236c58e2fac14f99b34b019804f64",
+      "sha256": "1e04144a4d111538807cc49a958d1cc98b6b79fb17d1db0b9951eba4a136bcc0",
       "modes": [
         "external"
       ],
@@ -631,6 +634,7 @@
         "18f2a370f22d9a29b46b6a54089f8fe3c5ac4f62",
         "19e99fd5ae7e2a6b1ee13c9083491dd62d541187",
         "224e6cb89a8841696e827447d58b95f04fffa826",
+        "2271f0fcfcc0df61d7f7bdf04cf9781bb840c093",
         "26ea812f604d55ee8a6323602acd09b90e428460",
         "2ebbcd568768e93954daca10fa3d164ba50e5b4a",
         "3c1ecd4ae23f3d850c46a530cab134e923d840b0",

@@ -52,7 +52,8 @@ async function scenario(name, { mode, legacy = true, prepare = null, owner = 'no
   if (mode === 'local') appCompose.push('-f', join(directory, 'supabase/docker-compose.supabase.yml'))
   try {
     const config = JSON.parse(await readFile(stack.composeFile, 'utf8'))
-    config.services['supabase-db'].volumes = config.services['supabase-db'].volumes.filter(v => !v.target.includes('studio-realtime-role'))
+    // A fresh install lets the installer apply the Realtime owner SQL; the previous version's schema needs it up front.
+    if (!legacy) config.services['supabase-db'].volumes = config.services['supabase-db'].volumes.filter(v => !v.target.includes('studio-realtime-role'))
     await writeFile(stack.composeFile, JSON.stringify(config))
     await stack.compose(['up', '-d', '--wait', '--wait-timeout', '120', 'supabase-db', 'supabase-auth', 'supabase-rest', 'supabase-realtime', 'supabase-storage', 'supabase-kong'])
     await stack.verifyTarget()

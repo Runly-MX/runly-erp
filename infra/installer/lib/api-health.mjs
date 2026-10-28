@@ -1,6 +1,14 @@
 // The API exits at boot when it cannot serve (for example when the Notes
 // Storage protections are missing). Compose then restarts it forever, so
 // "containers started" is not evidence that the installation works.
+// The API is published on RUNLY_PUBLIC_BIND_ADDR:RUNLY_API_HOST_PORT (compose defaults
+// 0.0.0.0:4010); probe the address the installation actually uses.
+export function resolveApiHealthUrl({ bindAddr, port } = {}) {
+  const host = !bindAddr || bindAddr === "0.0.0.0" ? "127.0.0.1" : bindAddr;
+  const number = Number(port);
+  return `http://${host}:${Number.isInteger(number) && number > 0 ? number : 4010}/health`;
+}
+
 export async function waitForApiHealth({ url = "http://127.0.0.1:4010/health", timeoutMs = 180000, intervalMs = 3000, fetchImpl = fetch, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), now = Date.now } = {}) {
   const deadline = now() + timeoutMs;
   let last = "no response";

@@ -37,7 +37,7 @@ import {
 } from "./lib/livekit-config.mjs";
 import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME, LINUX_HOST_NETWORK_SERVICES, probePublicHealth } from "./lib/hairpin-nat.mjs";
 import { buildTranscriberDatabaseUrl, generateTranscriberPassword } from "./lib/transcriber-db.mjs";
-import { waitForApiHealth } from "./lib/api-health.mjs";
+import { waitForApiHealth, resolveApiHealthUrl } from "./lib/api-health.mjs";
 import { prepareAndVerifyNotesStorage, probeNotesStorage } from "./lib/notes-storage-gate.mjs";
 import { resolveBackupConfig, getBackupComposeProfiles } from "./lib/backup-config.mjs";
 
@@ -1170,7 +1170,10 @@ async function main() {
 
   if (office.enabled) run("docker", ["compose", ...composeFiles, ...office.profiles, "up", "-d", "collabora"]);
   console.log("Waiting for the API to answer /health...");
-  await waitForApiHealth();
+  {
+    const healthEnv = await fs.readFile(envFile, "utf8");
+    await waitForApiHealth({ url: resolveApiHealthUrl({ bindAddr: parseEnvValue(healthEnv, "RUNLY_PUBLIC_BIND_ADDR"), port: parseEnvValue(healthEnv, "RUNLY_API_HOST_PORT") }) });
+  }
   probeNotesStorage({ run, image: resolvedApiImage, dockerRunBase: ["run", "--rm", ...externalMigrationNetwork(await fs.readFile(envFile, "utf8")), "--add-host", "host.docker.internal:host-gateway", "--env-file", envFile] });
   await validateLiveKitRuntime(liveKit);
   await checkOfficeRuntime(office);
