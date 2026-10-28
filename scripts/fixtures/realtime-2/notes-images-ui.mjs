@@ -32,14 +32,32 @@ export async function verifyNotesImagesUi(stack,{users,company,noteId,canvasId,s
   }
   async function notePage(user,mobile=false) {
     const page=await pageFor(user,mobile)
+    const trail=[],t0=Date.now(),mark=text=>trail.push(`${Date.now()-t0}ms ${text}`)
+    const failed=[],consoleErrors=[]
+    page.on('requestfailed',request=>failed.push(`${request.method()} ${request.url()} ${request.failure()?.errorText}`))
+    page.on('response',response=>{if(response.status()>=400)failed.push(`${response.status()} ${response.url()}`)})
+    page.on('console',message=>{if(['error','warning'].includes(message.type()))consoleErrors.push(message.text().slice(0,300))})
     await page.goto(`${stack.urls.web}/app/m/runly.notes/?note=${noteId}`)
+    mark('goto done')
     for(let i=0;i<40;i++) {
-      if(await page.locator('.ProseMirror:visible').count())break
+      if(await page.locator('.ProseMirror:visible').count()){mark('editor visible');break}
       const card=page.locator('h3:visible').filter({hasText:/Historica|Contenido historico/}).first()
-      if(await card.count())await card.click({timeout:500}).catch(()=>{})
+      if(await card.count()){mark('click card');await card.click({timeout:500}).catch(()=>{})}
       await page.waitForTimeout(250)
     }
-    await page.locator('.ProseMirror:visible').first().waitFor({timeout:30000})
+    try { await page.locator('.ProseMirror:visible').first().waitFor({timeout:30000}) }
+    catch(error) {
+      // Failure evidence for diagnosis only; the assertion itself is unchanged.
+      const out=process.env.RUNLY_NOTES_MOBILE_DIAG
+      if(out) {
+        await mkdir(out,{recursive:true})
+        await page.screenshot({path:join(out,'failure.png')}).catch(()=>{})
+        const dom=await page.evaluate(()=>({url:location.href,title:document.title,text:document.body.innerText.slice(0,2000),editors:[...document.querySelectorAll('.ProseMirror')].map(x=>({visible:!!x.offsetParent,rect:x.getBoundingClientRect().toJSON(),editable:x.getAttribute('contenteditable')})),h3:[...document.querySelectorAll('h3')].map(x=>({text:x.textContent.slice(0,60),visible:!!x.offsetParent})),sheet:!!document.querySelector('.note-sheet'),rootChildren:document.querySelector('#root')?.children.length,width:innerWidth})).catch(e=>({evaluateFailed:String(e.message)}))
+        await writeFile(join(out,'failure.json'),JSON.stringify({trail,failed,consoleErrors,errors,dom},null,2))
+      }
+      throw error
+    }
+    mark('editor wait ok')
     await imagesLoaded(page)
     return page
   }

@@ -8,6 +8,7 @@ import { BlueprintCrudScreen } from "../shell/BlueprintCrudScreen.jsx";
 import { useRuntimeModules } from "./useRuntimeModules";
 import { isModuleAvailable } from "../lib/runtimeModules";
 import { applyBrandTheme } from "../lib/brandTheme.js";
+import { moduleRootRedirect } from "./moduleRootRedirect.js";
 import { useBrandingStore } from "../stores/branding.js";
 import { TRASH_SUBPATH } from "../shell/trash/useTrashProviders.js";
 
@@ -600,21 +601,10 @@ export function ModuleOutlet() {
 
   useEffect(() => {
     if (isLoading || !module) return;
-    if (subPath !== "/") return;
-
-    const navigation = module.navigation ?? [];
-    if (!navigation.length) return;
-    const hasRootNavigation = navigation.some((item) => item?.path === "/");
-    if (hasRootNavigation) return;
-
-    const fallbackPath = navigation[0]?.path;
-    if (!fallbackPath || fallbackPath === "/") return;
-
-    const targetPath = fallbackPath.startsWith("/app/m/")
-      ? fallbackPath
-      : `/app/m/${module.key}${fallbackPath}`;
-    navigate(targetPath, { replace: true });
-  }, [isLoading, module, subPath, navigate]);
+    // Query string and hash travel with the redirect: deep links such as ?note=<id> must survive it.
+    const target = moduleRootRedirect(module, subPath, { search: location.search, hash: location.hash });
+    if (target) navigate(target, { replace: true });
+  }, [isLoading, module, subPath, location.search, location.hash, navigate]);
 
   if (isLoading || isPending) return <LoadingFallback />;
 
