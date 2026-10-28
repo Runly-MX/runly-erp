@@ -12,6 +12,7 @@ import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
 import { verifyRealtimeSecurity } from './fixtures/realtime-2/security.mjs'
 import { DEFAULT_CHANNEL_ROLES } from '../apps/api/src/routes/chat/chat-permissions-service.js'
 import { verifyRealtimeUi } from './fixtures/realtime-2/ui.mjs'
+import { prepareDisposableNotesStorageOwner } from './fixtures/realtime-2/notes-storage-owner.mjs'
 
 const require = createRequire(resolve('apps/api/package.json'))
 const { build } = require('esbuild'), { createClient } = require('@supabase/supabase-js')
@@ -27,7 +28,7 @@ assert.ok(counts.every(n => Number.isInteger(n) && n >= 1 && n <= 20))
 assert.ok(modules.every(name => ['canvas', 'notes', 'notes-canvas', 'chat', 'chat-ui'].includes(name)))
 assert.ok(activities.every(name => ['idle', 'active'].includes(name)))
 const image = arg('api-image')
-assert.match(image ?? '', /^runly-realtime2:[a-zA-Z0-9_-]+$/)
+assert.match(image ?? '', /^(?:runly-realtime2|runly-notes-private):[a-zA-Z0-9_-]+$/)
 const sourceRef = arg('source-ref')
 if (sourceRef) assert.match(sourceRef, /^[a-f0-9]{7,40}$/)
 const source = sourceRef ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
@@ -69,6 +70,7 @@ try {
   await writeFile(kongPath, (await readFile(kongPath,'utf8')).replace(/(  - name: realtime-v1-ws[\s\S]*?read_timeout:) 3000/, '$1 60000'))
   await stack.compose(['up','-d','--wait','--wait-timeout','120','supabase-db','supabase-auth','supabase-rest','supabase-realtime','supabase-storage','supabase-kong'], { log: join(output,'startup.log') })
   await stack.verifyTarget(); await stack.initialize()
+  if(image.startsWith('runly-notes-private:'))await prepareDisposableNotesStorageOwner(stack)
   await stack.pool.query('CREATE EXTENSION IF NOT EXISTS pg_stat_statements')
   const data = await seedStudioScenario(stack), { users, companies } = data, company = companies[0]
   const actors = [users[0], users[2]]
@@ -157,7 +159,7 @@ try {
         pending.push((async()=>{const response=await request.response();const bytes=Buffer.byteLength(request.postData()??'')+(await response.body()).length;if(isJoin){metrics.joinBodyBytes+=bytes;return}if(!response.ok())metrics.httpErrors++;metrics.httpBodyBytes+=bytes;const s=await request.sizes();metrics.httpTransferBytes+=s.requestBodySize+s.requestHeadersSize+s.responseBodySize+s.responseHeadersSize})().catch(()=>{}))
       })
       await p.goto(`http://127.0.0.1:${server.address().port}`);await p.waitForFunction(()=>!!window.start)
-      await p.evaluate(input=>window.start(input),{module,typingMs,strict:process.argv.includes('--strict'),canvasRecovery:process.argv.includes('--canvas-recovery'),api:stack.urls.api,url:stack.urls.kong,key:stack.secret.SUPABASE_ANON_KEY,session:actors[i].session,token:actors[i].session.access_token,actorId:actors[i].id,companyId:company.id,boardId:board.id,pageId:page.id,noteId:note.id,conversationId:conversation.id})
+      await p.evaluate(input=>window.start(input),{module,typingMs,strict:process.argv.includes('--strict'),canvasRecovery:process.argv.includes('--canvas-recovery')||process.argv.includes('--ws-recovery'),api:stack.urls.api,url:stack.urls.kong,key:stack.secret.SUPABASE_ANON_KEY,session:actors[i].session,token:actors[i].session.access_token,actorId:actors[i].id,companyId:company.id,boardId:board.id,pageId:page.id,noteId:note.id,conversationId:conversation.id})
       await p.waitForFunction(()=>window.state().ready,null,{timeout:25000})
     }
     if(module === 'canvas' || module === 'chat') for(const p of pages) await p.waitForFunction(({n,module})=>window.state().peers >= (module==='canvas'?n-1:n),{n,module},{timeout:20000})
@@ -220,7 +222,8 @@ try {
       await Promise.all(pages.map(p=>p.waitForFunction(()=>window.state().ready,null,{timeout:45000})))
       let recovered=true
       for(const p of pages)try{await p.waitForFunction(({module,objectId})=>module==='canvas'?window.state().boardObjectIds.includes(objectId):window.state().text.includes('socket-A')&&window.state().text.includes('socket-B'),{module,objectId},{timeout:10000})}catch{recovered=false}
-      await writeFile(join(output,`ws-recovery-${module}.json`),JSON.stringify({recovered,elapsedMs:Date.now()-reconnectStart,module,scenario:'Real Realtime container stop/start and edits during outage'},null,2))
+      const states=await Promise.all(pages.map(p=>p.evaluate(()=>{const s=window.state();return{ready:s.ready,channels:s.channels,boardObjectIds:s.boardObjectIds,status:s.status,failures:s.failures}})))
+      await writeFile(join(output,`ws-recovery-${module}.json`),JSON.stringify({recovered,elapsedMs:Date.now()-reconnectStart,module,objectId,states,scenario:'Real Realtime container stop/start and edits during outage'},null,2))
       if(phase==='after')assert.equal(recovered,true,'WebSocket recovery missed changes made while disconnected')
     }
     if(module==='notes-canvas' && n>=2 && process.argv.includes('--scene-regression')) {

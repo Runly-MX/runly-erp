@@ -19,7 +19,7 @@ export function useNoteImage(src, explicit = {}) {
       try {
         const response = await fetchNoteImage(src, { noteId, publicSlug, token, signal: controller.signal })
         if (!response.ok) {
-          if ([401,403,404,415].includes(response.status)) return
+          if ([401,403,415].includes(response.status)) return
           throw Error('Imagen no disponible')
         }
         const blob = await response.blob()

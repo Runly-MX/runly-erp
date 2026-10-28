@@ -5,9 +5,15 @@ import { createHash } from 'node:crypto'
 export function createNoteImageService({ prisma, supabaseAdmin }) {
   function deny(status = 404) { throw Object.assign(new Error('Imagen no disponible.'), { status }) }
 
-  async function load(noteId, { userId = null, slug = null } = {}) {
+  async function load(noteId, { userId = null, slug = null, includeReferences = false } = {}) {
+    const withReferences = includeReferences || Boolean(slug)
     const [note] = await prisma.$queryRaw`
-      SELECT n.*, y.state, s.files,
+      SELECT n.id,n.company_id,n.owner_user_id,
+        CASE WHEN ${withReferences} THEN n.content END AS content,
+        CASE WHEN ${withReferences} THEN n.cover_url END AS cover_url,
+        CASE WHEN ${withReferences} THEN n.background_image_url END AS background_image_url,
+        CASE WHEN ${withReferences} THEN y.state END AS state,
+        CASE WHEN ${withReferences} THEN s.files END AS files,
         CASE WHEN ${userId}::uuid IS NULL THEN false
           ELSE public.runly_note_user_access(n.id, ${userId}::uuid, true) END AS can_edit
       FROM notes n LEFT JOIN note_ydoc_state y ON y.note_id=n.id
@@ -67,9 +73,7 @@ export function createNoteImageService({ prisma, supabaseAdmin }) {
     const ref = parseNoteImageReference(raw)
     if (!ref) deny()
     const note = await load(context.noteId ?? null, context)
-    const references = collectNoteImageReferences(note)
-    const referenced = references.some(r => r.bucket === ref.bucket && r.key === ref.key)
-    if (context.slug && !referenced) deny()
+    if (context.slug && !collectNoteImageReferences(note).some(r => r.bucket === ref.bucket && r.key === ref.key)) deny()
     const [binding] = await prisma.$queryRaw`SELECT 1 FROM note_image_binding
       WHERE note_id=${note.id}::uuid AND bucket=${ref.bucket} AND object_key=${ref.key}`
     // Reading/publishing a collaborator's document must never grant access to
@@ -84,7 +88,7 @@ export function createNoteImageService({ prisma, supabaseAdmin }) {
   }
 
   async function bindForPublication(noteId, userId) {
-    const note = await load(noteId, { userId })
+    const note = await load(noteId, { userId, includeReferences: true })
     if (note.owner_user_id !== userId) deny()
     for (const ref of collectNoteImageReferences(note)) {
       const [bound] = await prisma.$queryRaw`SELECT 1 FROM note_image_binding

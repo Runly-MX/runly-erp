@@ -653,12 +653,11 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
           const document = new DOMParser().parseFromString(html, 'text/html')
           const sources = [...document.images].map(image => image.getAttribute('src')).filter(isStoredNoteImage)
           if (!sources.length) return false
-          event.preventDefault()
-          attachNoteImages(sources, { noteId: note.id, token }).then(() => {
-            const editor = editorInstanceRef.current
-            if (editor && !editor.isDestroyed) editor.chain().focus().insertContent(html).run()
-          }).catch(error => toast.error(error.message))
-          return true
+          // Keep the normal synchronous paste/CRDT transaction. Delaying the
+          // document insertion until HTTP completes could replace text typed
+          // or received in the meantime. Image reads remain denied until bind.
+          attachNoteImages(sources, { noteId: note.id, token }).catch(error => toast.error(error.message))
+          return false
         },
         attributes: {
           class: 'focus:outline-none note-sheet-inset pb-6 min-h-full',

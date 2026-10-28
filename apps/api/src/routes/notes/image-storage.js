@@ -21,7 +21,7 @@ export async function ensureNotesStoragePolicy(prisma) {
     return ensureNotesStoragePolicy(prisma)
   }
   const expected="(bucket_id<>ALL(ARRAY['runly-notes'::text,'atlas-notes'::text]))"
-  const normalize=value=>value.replace(/\s+/g,'')
+  const normalize=value=>value.replace(/'[^']*(?:''[^']*)*'|\s+/g,part=>part.startsWith("'")?part:'')
   if (policy.polpermissive || policy.polcmd !== '*' || JSON.stringify(policy.roles)!==JSON.stringify(['anon','authenticated']) || normalize(policy.using_expr??'')!==expected || normalize(policy.check_expr??'')!==expected)
     throw Error('NOTES_STORAGE_POLICY_MISMATCH')
 }
@@ -60,7 +60,7 @@ export async function ensureNotesBucketGuard(prisma) {
     FROM pg_trigger t JOIN pg_proc p ON p.oid=t.tgfoid JOIN pg_namespace n ON n.oid=p.pronamespace
     WHERE t.tgrelid='storage.buckets'::regclass AND t.tgname='runly_notes_bucket_private_v1' AND NOT t.tgisinternal`
   if(guard) {
-    if(guard.tgenabled!=='O'||guard.tgtype!==23||guard.nspname!=='storage'||guard.proname!=='runly_notes_require_private_bucket'||guard.prosrc.replace(/\s+/g,'')!==body.replace(/\s+/g,''))throw Error('NOTES_STORAGE_BUCKET_GUARD_MISMATCH')
+    if(guard.tgenabled!=='O'||guard.tgtype!==23||guard.nspname!=='storage'||guard.proname!=='runly_notes_require_private_bucket'||guard.prosrc.trim()!==body)throw Error('NOTES_STORAGE_BUCKET_GUARD_MISMATCH')
     return
   }
   try {
