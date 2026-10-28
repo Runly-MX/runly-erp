@@ -127,7 +127,7 @@ export function CanvasEditor({ note }) {
       const topLayer = [...ls].sort((a, b) => b.order - a.order)[0]
       filesManifestRef.current = s.files ?? {}
       appStateRef.current = s.appState ?? {}
-      const fileArr = await hydrateImages(s.files)
+      const fileArr = await hydrateImages(s.files, { noteId, token })
       if (cancelled) return
       initialDataRef.current = {
         elements: deriveScene(elementsRef.current, ls),
@@ -142,7 +142,7 @@ export function CanvasEditor({ note }) {
     return () => {
       cancelled = true
     }
-  }, [data?.scene, ready])
+  }, [data?.scene, ready, noteId, token])
 
   // Realtime provider — lifecycle keyed by note + token (see NoteEditor's engine).
   useEffect(() => {
@@ -175,7 +175,7 @@ export function CanvasEditor({ note }) {
         if (snap.files && typeof snap.files === 'object') {
           filesManifestRef.current = snap.files
           try {
-            const arr = await hydrateImages(snap.files)
+            const arr = await hydrateImages(snap.files, { noteId: note.id, token })
             if (arr.length) apiRef.current?.addFiles(arr)
           } catch {
             /* best effort */
@@ -193,7 +193,7 @@ export function CanvasEditor({ note }) {
       onRemoteFiles: async (files) => {
         filesManifestRef.current = { ...filesManifestRef.current, ...files }
         try {
-          const arr = await hydrateImages(files)
+          const arr = await hydrateImages(files, { noteId: note.id, token })
           if (arr.length) apiRef.current?.addFiles(arr)
           apiRef.current?.updateScene({
             elements: deriveScene(elementsRef.current, layersRef.current),

@@ -5,6 +5,7 @@ import { ConfirmDialog, ImageEditorDialog } from '@runly/ui'
 import { toast } from 'sonner'
 import { getImageNaturalSize, uploadNoteImage } from '../lib/noteImageUpload.js'
 import { withImageVariant } from '../../../lib/imageVariants.js'
+import { useNoteImage } from '../hooks/useNoteImage.js'
 import { useBlockDragReorder } from '../hooks/useBlockDragReorder.js'
 import { isInsideTableCell } from '../lib/tableContext.js'
 import { cropToViewBox, effectiveNaturalSize, normalizeRotation } from '../lib/imageCrop.js'
@@ -27,6 +28,7 @@ function parseCrop(raw) {
 
 export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos, deleteNode }) {
   const { viewing, noteId, token } = useContext(NoteInteractionContext)
+  const imageSrc = useNoteImage(node.attrs.src)
   const boxRef = useRef(null) // the sized img+svg container — resize math + click-outside
   const frameRef = useRef(null) // the image frame only (no control chrome) — measured/cloned for drag reorder
   const rotWrapRef = useRef(null) // sized/positioned per crop; useRotatedFillSize measures this
@@ -161,8 +163,8 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
   }
 
   const transformFailed = transformFailedSrc === node.attrs.src
-  const src = transformFailed ? node.attrs.src : withImageVariant(node.attrs.src, 'content')
-  const lqipSrc = transformFailed ? null : withImageVariant(node.attrs.src, 'lqip')
+  const src = transformFailed ? imageSrc : withImageVariant(imageSrc, 'content')
+  const lqipSrc = transformFailed ? null : withImageVariant(imageSrc, 'lqip')
   const onVariantError = () => {
     if (src !== node.attrs.src) setTransformFailedSrc(node.attrs.src)
   }
@@ -316,7 +318,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
             className="absolute top-2 right-2 flex items-center gap-1.5"
           >
             <NoteImagePreviewButton
-              src={node.attrs.src}
+              src={imageSrc}
               alt={node.attrs.alt}
               editable={canEditImage}
               onReplaceImage={replaceWithEdited}
@@ -383,7 +385,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
         <ImageEditorDialog
           open
           onOpenChange={setEditorOpen}
-          src={node.attrs.src}
+          src={imageSrc}
           fileName={node.attrs.alt || 'imagen'}
           mimeType={/\.png(\?|$)/i.test(node.attrs.src) ? 'image/png' : /\.webp(\?|$)/i.test(node.attrs.src) ? 'image/webp' : 'image/jpeg'}
           title="Editar imagen"

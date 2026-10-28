@@ -48,7 +48,7 @@ export default function PublicCanvasView({ slug, note }) {
     elementsRef.current = Array.isArray(scene.elements) ? scene.elements : []
     layersRef.current = ensureLayers(scene.layers)
     ;(async () => {
-      const files = await hydrateImages(scene.files)
+      const files = await hydrateImages(scene.files, { publicSlug: slug })
       if (cancelled) return
       initialDataRef.current = {
         elements: deriveScene(elementsRef.current, layersRef.current),
@@ -81,7 +81,7 @@ export default function PublicCanvasView({ slug, note }) {
       },
       onRemoteFiles: async (files) => {
         try {
-          const arr = await hydrateImages(files)
+          const arr = await hydrateImages(files, { publicSlug: slug })
           if (arr.length) apiRef.current?.addFiles(arr)
           apiRef.current?.updateScene({
             elements: deriveScene(elementsRef.current, layersRef.current),
@@ -95,7 +95,7 @@ export default function PublicCanvasView({ slug, note }) {
       cancelled = true
       sync.destroy()
     }
-  }, [scene])
+  }, [scene, slug])
 
   if (isLoading || (scene && !ready)) {
     return (

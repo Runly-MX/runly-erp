@@ -1,10 +1,11 @@
+import { fetchNoteImage } from './noteImageAccess.js'
 const MAX_INLINE_IMAGE_BYTES = 20 * 1024 * 1024
 
-async function embedPublicImage(image) {
+async function embedPublicImage(image, context) {
   const src = image.getAttribute('src')
   if (!src || src.startsWith('data:')) return
   try {
-    const response = await fetch(src, { credentials: 'omit', signal: AbortSignal.timeout(10000) })
+    const response = await fetchNoteImage(src, { ...context, signal: AbortSignal.timeout(10000) })
     if (!response.ok) return
     const blob = await response.blob()
     if (!blob.type.startsWith('image/') || blob.size > MAX_INLINE_IMAGE_BYTES) return
@@ -43,7 +44,7 @@ export function getNoteClipboardContent(sheet, coverUrl) {
   return { text, document }
 }
 
-export async function copyNoteContent(sheet, { coverUrl } = {}) {
+export async function copyNoteContent(sheet, { coverUrl, context } = {}) {
   const { text, document } = getNoteClipboardContent(sheet, coverUrl)
   const clipboard = navigator.clipboard
   if (!clipboard?.writeText) throw new Error('Este navegador no permite copiar contenido. Usa una conexión HTTPS.')
@@ -51,7 +52,7 @@ export async function copyNoteContent(sheet, { coverUrl } = {}) {
     await clipboard.writeText(text)
     return { rich: false }
   }
-  const htmlBlob = Promise.all([...document.images].map(embedPublicImage)).then(() =>
+  const htmlBlob = Promise.all([...document.images].map(image => embedPublicImage(image, context))).then(() =>
     new Blob([document.body.innerHTML], { type: 'text/html' }),
   )
   try {

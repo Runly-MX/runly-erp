@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom'
+import { toast } from 'sonner'
 import { NoteInteractionContext } from './NoteInteractionContext.js'
 import { EditorProvider } from '@tiptap/react'
 import { useEffect, useMemo, useRef, useCallback, useState } from 'react'
@@ -41,6 +42,8 @@ import { patchNoteInCache } from '../lib/noteCache.js'
 import { DrawingBlock } from '../lib/extensions/DrawingBlock.jsx'
 import { AnnotatableImage } from '../lib/extensions/AnnotatableImage.jsx'
 import { notesDebug } from '../lib/notesDebug.js'
+import { NoteImageContext } from '../hooks/useNoteImage.js'
+import { attachNoteImages, isStoredNoteImage } from '../lib/noteImageAccess.js'
 import { NOTE_HTML_PARSE_OPTIONS, noteTextInputAttributes } from '../lib/noteTextInput.js'
 import { NOTE_TOUCH_BAR_HEIGHT as TOUCH_BAR_HEIGHT, noteToolbarPlacement } from '../lib/noteToolbarPlacement.js'
 
@@ -78,7 +81,12 @@ function colorForUser(seed) {
 // dropped and switching notes would leave stale content on screen — the
 // editor instance would outlive the note it was built for. Keying the surface
 // by note.id and gating on the engine fixes both.
-export function NoteEditor({ note, readOnly = false, viewOnly = false, scrollable = true, zoom = 100, publicSlug = null, onCreateSubpage }) {
+export function NoteEditor(props) {
+  const imageContext = useMemo(() => ({ noteId: props.note?.id, publicSlug: props.publicSlug }), [props.note?.id, props.publicSlug])
+  return <NoteImageContext.Provider value={imageContext}><NoteEditorInner {...props} /></NoteImageContext.Provider>
+}
+
+function NoteEditorInner({ note, readOnly = false, viewOnly = false, scrollable = true, zoom = 100, publicSlug = null, onCreateSubpage }) {
   const { session, userProfile } = useAuth()
   const token = session?.access_token
 
@@ -638,6 +646,20 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
       onUpdate={handleUpdate}
       onSelectionUpdate={handleSelectionUpdate}
       editorProps={{
+        handlePaste: (_view, event) => {
+          if (viewing) return false
+          const html = event.clipboardData?.getData('text/html')
+          if (!html) return false
+          const document = new DOMParser().parseFromString(html, 'text/html')
+          const sources = [...document.images].map(image => image.getAttribute('src')).filter(isStoredNoteImage)
+          if (!sources.length) return false
+          event.preventDefault()
+          attachNoteImages(sources, { noteId: note.id, token }).then(() => {
+            const editor = editorInstanceRef.current
+            if (editor && !editor.isDestroyed) editor.chain().focus().insertContent(html).run()
+          }).catch(error => toast.error(error.message))
+          return true
+        },
         attributes: {
           class: 'focus:outline-none note-sheet-inset pb-6 min-h-full',
           ...noteTextInputAttributes(globalThis.window?.__RUNLY_NATIVE_HOST__?.platform),

@@ -6,6 +6,7 @@ import {
 } from '@runly/ui'
 import { NoteIcon } from '../noteIcons.jsx'
 import { extractPreview } from '../lib/notePreview.js'
+import { useNoteImage } from '../hooks/useNoteImage.js'
 import { NOTE_BACKGROUND_COLORS, DARK_BG_MAP, noteAccentColor } from '../lib/noteColors.js'
 
 const LONG_PRESS_MS = 500
@@ -18,6 +19,7 @@ export function NoteGridCard({
   onOpen, onToggleSelect, onPin, onArchive, onTrash, onColor,
 }) {
   const preview = useMemo(() => extractPreview(note.content, note.title), [note.content, note.title])
+  const imageSrc = useNoteImage(preview.firstImage, { noteId: note.id })
   const press = useRef(null)
   const longPressed = useRef(false)
 
@@ -82,7 +84,7 @@ export function NoteGridCard({
     >
       {preview.firstImage && (
         <img
-          src={preview.firstImage}
+          src={imageSrc}
           alt=""
           loading="lazy"
           draggable={false}

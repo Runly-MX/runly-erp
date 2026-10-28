@@ -119,7 +119,7 @@ export default function PublicNoteScreen() {
             <PublicNoteToolbar
               title={note.title}
               publicUrl={publicUrl}
-              onCopyContent={() => copyNoteContent(contentRef.current?.querySelector('.note-sheet'), { coverUrl: note.cover_url })}
+              onCopyContent={() => copyNoteContent(contentRef.current?.querySelector('.note-sheet'), { coverUrl: note.cover_url, context: { publicSlug: slug } })}
               onDownloadPdf={() =>
                 exportNoteSheetAsPdf(contentRef.current?.querySelector('.note-sheet'), {
                   title: note.title,

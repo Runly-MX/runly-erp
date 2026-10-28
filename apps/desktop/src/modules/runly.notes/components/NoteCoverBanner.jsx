@@ -5,6 +5,7 @@ import { ImageSourceSheet, useCoarsePointer } from '@runly/ui'
 import { uploadNoteImage } from '../lib/noteImageUpload.js'
 import { withImageVariant } from '../../../lib/imageVariants.js'
 import { NoteImagePreviewButton } from './NoteImagePreviewButton.jsx'
+import { useNoteImage } from '../hooks/useNoteImage.js'
 
 const MAX_BANNER_BYTES = 20 * 1024 * 1024
 
@@ -12,6 +13,7 @@ const MAX_BANNER_BYTES = 20 * 1024 * 1024
 // bucket flow as in-body images (NoteToolbar.jsx), but persists the result on
 // note.cover_url instead of inserting a TipTap node.
 export function NoteCoverBanner({ coverUrl, editable, noteId, token, onChange, onRemove }) {
+  const imageSrc = useNoteImage(coverUrl, { noteId, token })
   const [uploading, setUploading] = useState(false)
   // If the Supabase image-transform endpoint (/render/image/public/) can't
   // serve the `banner` variant, fall back to the original object URL so a
@@ -106,14 +108,14 @@ export function NoteCoverBanner({ coverUrl, editable, noteId, token, onChange, o
     <div className="relative group/cover w-full aspect-[3/1] overflow-hidden bg-muted">
       <img
         key={coverUrl}
-        src={imgFallback ? coverUrl : withImageVariant(coverUrl, 'banner')}
+        src={imgFallback ? imageSrc : withImageVariant(imageSrc, 'banner')}
         alt=""
         className="w-full h-full object-cover"
         draggable={false}
         onError={() => setFailedUrl(coverUrl)}
       />
       <div className="absolute top-2 right-2">
-        <NoteImagePreviewButton src={coverUrl} alt="Portada de la nota" editable={Boolean(editable && token)} onReplaceImage={replaceCover} />
+        <NoteImagePreviewButton src={imageSrc} alt="Portada de la nota" editable={Boolean(editable && token)} onReplaceImage={replaceCover} />
       </div>
       {editable && (
         <div className="absolute bottom-2 right-2 flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover/cover:opacity-100 transition-opacity">

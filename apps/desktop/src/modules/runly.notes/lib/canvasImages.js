@@ -1,5 +1,6 @@
 import { runly } from '../../../lib/runly'
 import { supabase } from '../../../lib/supabase'
+import { fetchNoteImage } from './noteImageAccess.js'
 
 export const MAX_IMAGE_BYTES = 30 * 1024 * 1024
 
@@ -48,18 +49,18 @@ export function pickManifest(manifest, ids) {
 
 // On load: fetch each manifest url and return an array shaped for
 // excalidrawAPI.addFiles(): [{ id, mimeType, dataURL, created }].
-export async function hydrateImages(manifest) {
+export async function hydrateImages(manifest, context) {
   const entries = await Promise.all(
     Object.entries(manifest ?? {}).map(async ([fileId, meta]) => {
       if (!meta?.url) return null
       try {
-        const res = await fetch(meta.url)
+        const res = await fetchNoteImage(meta.url, context)
         if (!res.ok) return null
         const blob = await res.blob()
         const dataURL = await blobToDataURL(blob)
         return {
           id: fileId,
-          mimeType: meta.mimeType ?? blob.type ?? 'image/png',
+          mimeType: blob.type || meta.mimeType || 'image/png',
           dataURL,
           created: meta.created ?? Date.now(),
         }
