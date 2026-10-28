@@ -38,26 +38,51 @@ function CatalogImage({resource,token,fit='cover'}) {
   </div>
 }
 
+// Each image tab can draw from several providers; one that is down or not configured never blocks the others.
 const CATALOG_TABS={
-  openverse:{provider:'openverse',category:'photograph',label:'fotografías',hint:'Openverse · CC0, dominio público y CC BY. Orígenes admitidos: Wikimedia y Flickr. Revisa los créditos antes de publicar.'},
-  illustrations:{provider:'openverse',category:'illustration',label:'ilustraciones',hint:'Openverse · ilustraciones y dibujos CC0, dominio público y CC BY (PNG, JPG, WebP). Revisa los créditos antes de publicar.'},
+  openverse:{category:'photograph',label:'fotografías',sources:['pixabay','openverse','wikimedia']},
+  illustrations:{category:'illustration',label:'ilustraciones',sources:['packs','pixabay','openverse']},
   iconify:{provider:'iconify',label:'iconos'},
 }
+const SOURCE_LABEL={pixabay:'Pixabay',openverse:'Openverse',wikimedia:'Wikimedia Commons',packs:'Colecciones Runly'}
+const SOURCE_HINT={
+  pixabay:'Pixabay · licencia de contenido de Pixabay, uso comercial sin atribución obligatoria. Revisa los créditos antes de publicar.',
+  openverse:'Openverse · CC0, dominio público y CC BY. Orígenes admitidos: Wikimedia y Flickr. Revisa los créditos antes de publicar.',
+  wikimedia:'Wikimedia Commons · CC0, dominio público y CC BY, con atribución. Revisa los créditos antes de publicar.',
+  packs:'Colecciones incluidas en Runly · CC0, sin conexión a terceros.',
+}
+const STATE_SUFFIX={degraded:' · inestable',unavailable:' · no disponible',disabled:' · no configurado'}
+const blocked=state=>state==='disabled'||state==='unavailable'
+// One lightweight request describes every provider; if it fails, sources are assumed available and errors show per search.
+function useCatalogStatus(token) {
+  const [status,setStatus]=useState({}),[refresh,setRefresh]=useState(0)
+  useEffect(()=>{
+    const controller=new AbortController()
+    runly.studio.catalogStatus(token,controller.signal).then(response=>{if(!controller.signal.aborted)setStatus(Object.fromEntries(response.data.map(row=>[row.id,row])))}).catch(()=>{})
+    return()=>controller.abort()
+  },[token,refresh])
+  return [status,()=>setRefresh(value=>value+1)]
+}
 
-function ProviderCatalog({tab,token,designId,disabled,onInsert}) {
-  const {provider,category,label,hint}=CATALOG_TABS[tab]
-  const collectionId=useId()
-  const [search,setSearch]=useState(''),[q,setQ]=useState(''),[page,setPage]=useState(1),[collection,setCollection]=useState('local')
+function ProviderCatalog({tab,token,designId,disabled,onInsert,status,onRefreshStatus}) {
+  const {category,label,sources}=CATALOG_TABS[tab]
+  const sourceId=useId(),collectionId=useId()
+  const [picked,setPicked]=useState(null)
+  const source=picked??(sources?sources.find(id=>!blocked(status[id]?.state))??sources[0]:null)
+  const provider=sources?source:'iconify',hint=sources?SOURCE_HINT[source]:'',state=sources?status[source]?.state:'available'
+  const [search,setSearch]=useState(''),[q,setQ]=useState(''),[page,setPage]=useState(1),[collection,setCollection]=useState('tabler')
   const [result,setResult]=useState(null),[error,setError]=useState(null),[loading,setLoading]=useState(false),[retry,setRetry]=useState(0)
   const [preview,setPreview]=useState(null),[inserting,setInserting]=useState(false)
   useEffect(()=>{const timer=setTimeout(()=>{setQ(search.trim());setPage(1)},300);return()=>clearTimeout(timer)},[search])
   useEffect(()=>{
+    // Do not query a provider known to be unconfigured or cooling down; the user picks another source or refreshes.
+    if(blocked(state)){setResult(null);setLoading(false);setError(null);return}
     const controller=new AbortController();setResult(null);setLoading(true);setError(null)
     const timer=setTimeout(()=>{setError({status:504,code:'CATALOG_CLIENT_TIMEOUT'});setLoading(false);controller.abort()},18000)
     runly.studio.catalogSearch(provider,token,{q,page,collection,category},controller.signal).then(response=>{if(!controller.signal.aborted)setResult(response.data)})
       .catch(error=>{if(!controller.signal.aborted)setError(error)}).finally(()=>{clearTimeout(timer);if(!controller.signal.aborted)setLoading(false)})
     return()=>{clearTimeout(timer);controller.abort()}
-  },[provider,category,token,q,page,collection,retry])
+  },[provider,category,token,q,page,collection,retry,state])
   async function insert() {
     if(disabled||inserting)return
     setInserting(true);setError('')
@@ -66,10 +91,14 @@ function ProviderCatalog({tab,token,designId,disabled,onInsert}) {
     catch(error){setError(controller.signal.aborted?{status:504,code:'CATALOG_CLIENT_TIMEOUT'}:error)}finally{clearTimeout(timer);setInserting(false)}
   }
   return <section className="space-y-3" aria-label={`Catálogo de ${label}`}>
-    <SearchInput aria-label={`Buscar ${label}`} placeholder={provider==='iconify'?'Buscar iconos (p. ej. star)':`Buscar ${label}`} value={search} maxLength={80} onChange={event=>setSearch(event.target.value)} onClear={()=>setSearch('')}/>
-    {provider==='iconify'?<SelectField id={collectionId} label="Colección" value={collection} options={[LOCAL_ICON_COLLECTION,...ICON_COLLECTIONS].map(row=>({value:row.id,label:`${row.name} · ${row.license}`}))} onChange={value=>{setCollection(value);setPage(1)}}/>:
-      <p className="text-xs text-[hsl(var(--muted-foreground))]">{hint}</p>}
-    {provider==='iconify'&&collection==='local'?<p className="text-xs text-[hsl(var(--muted-foreground))]">Ocho iconos incluidos con geometría editable. No necesitan internet. Cambia la colección para consultar Iconify.</p>:null}
+    {sources?<SelectField id={sourceId} label="Fuente" value={source} options={sources.map(id=>({value:id,label:`${SOURCE_LABEL[id]}${STATE_SUFFIX[status[id]?.state]??''}`}))} onChange={value=>{setPicked(value);setPage(1);setSearch('')}}/>:null}
+    <SearchInput aria-label={`Buscar ${label}`} placeholder={provider==='iconify'?'Buscar iconos (p. ej. star)':`Buscar ${label}`} disabled={blocked(state)} value={search} maxLength={80} onChange={event=>setSearch(event.target.value)} onClear={()=>setSearch('')}/>
+    {provider==='iconify'?<SelectField id={collectionId} label="Colección" value={collection} options={[...ICON_COLLECTIONS,LOCAL_ICON_COLLECTION].map(row=>({value:row.id,label:`${row.name} · ${row.license}`}))} onChange={value=>{setCollection(value);setPage(1)}}/>:
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">{hint}{source==='pixabay'?<> Imágenes de <a href="https://pixabay.com" target="_blank" rel="noopener noreferrer" className="underline">Pixabay</a>.</>:null}</p>}
+    {provider==='iconify'?<p className="text-xs text-[hsl(var(--muted-foreground))]">{collection==='local'?'Ocho iconos básicos con geometría editable. No necesitan internet.':'Biblioteca incluida en Runly, con geometría editable. No necesita internet.'}</p>:null}
+    {blocked(state)?<EmptyState variant="compact" icon={ImageOff} title={state==='disabled'?'Fuente no configurada':'Fuente no disponible temporalmente'}
+      description={state==='disabled'?'Esta instalación no tiene configurada esta fuente. Elige otra o usa Archivos.':'El proveedor no responde. Elige otra fuente o actualiza el estado en unos minutos.'}
+      action={state==='unavailable'?<Button size="sm" variant="outline" onClick={onRefreshStatus}>Actualizar estado</Button>:undefined}/>:null}
     {loading?<div className={RESOURCE_GRID} aria-busy="true" aria-label="Buscando recursos">{Array.from({length:6},(_,i)=><div key={i} className="space-y-1.5"><Skeleton className="aspect-square rounded-xl"/><Skeleton className="h-2.5 w-3/4 rounded-full"/></div>)}</div>:null}
     {error&&!preview?<ErrorState variant="compact" {...catalogError(error)} onRetry={()=>setRetry(value=>value+1)}/>:null}
     {result&&!result.data.length?<EmptyState variant="compact" icon={Search} title={result.requiresQuery?'Busca tu próximo recurso':'Sin recursos compatibles'} description={result.requiresQuery?'Escribe una búsqueda para consultar el catálogo.':'Prueba otra consulta; las licencias y orígenes no admitidos se excluyen.'}/>:null}
@@ -80,6 +109,7 @@ function ProviderCatalog({tab,token,designId,disabled,onInsert}) {
           <div className="h-full w-full transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"><CatalogImage resource={resource} token={token}/></div>
         </div>
         <p className="truncate px-0.5 pt-1.5 text-xs text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--foreground))]">{resource.title}</p>
+        {resource.provider!=='iconify'&&resource.author?<p className="truncate px-0.5 text-[10px] text-[hsl(var(--muted-foreground))]">{resource.author}{resource.provider==='pixabay'?' · Pixabay':''}</p>:null}
       </div></li>)}
     </ul>
     {q&&(page>1||result?.pagination.hasNext)?<PageFooter hideCount compact pageIndex={page-1} pageCount={result?.pagination.hasNext?page+1:page} pageSize={1}
@@ -99,9 +129,9 @@ function ProviderCatalog({tab,token,designId,disabled,onInsert}) {
 }
 
 export function StudioCreativeResources({token,designId,disabled,onFileInsert,onVectorInsert,uploader}) {
-  const [tab,setTab]=useState('files')
+  const [tab,setTab]=useState('files'),[status,refreshStatus]=useCatalogStatus(token)
   return <div className="space-y-4">
     <SegmentedControl ariaLabel="Tipo de recursos" value={tab} onChange={setTab} options={[{value:'files',label:'Archivos'},{value:'openverse',label:'Fotos'},{value:'illustrations',label:'Ilustraciones'},{value:'iconify',label:'Iconos'}]}/>
-    {tab==='files'?<StudioResources token={token} disabled={disabled} uploader={uploader} onInsert={onFileInsert}/>:<ProviderCatalog key={tab} tab={tab} token={token} designId={designId} disabled={disabled} onInsert={async result=>{if(result.object)await onVectorInsert(result.object);else await onFileInsert(result.file)}}/>}
+    {tab==='files'?<StudioResources token={token} disabled={disabled} uploader={uploader} onInsert={onFileInsert}/>:<ProviderCatalog key={tab} tab={tab} status={status} onRefreshStatus={refreshStatus} token={token} designId={designId} disabled={disabled} onInsert={async result=>{if(result.object)await onVectorInsert(result.object);else await onFileInsert(result.file)}}/>}
   </div>
 }

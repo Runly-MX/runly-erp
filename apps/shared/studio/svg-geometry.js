@@ -9,14 +9,14 @@ export function iconGeometry(body,width=24,height=24) {
   const stack = [{ fill:'currentColor', stroke:'none','stroke-width':'1','stroke-linecap':'butt','stroke-linejoin':'miter' }], paths=[]
   let rest = body.trim(), count=0
   while (rest) {
-    const tag=rest.match(/^<(\/)?([a-z]+)((?:\s+[a-z-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/)
+    const tag=rest.match(/^<(\/)?([a-z]+)((?:\s+[a-z][a-z0-9-]*\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/)
     if (!tag || ++count > 256) fail()
     rest=rest.slice(tag[0].length).trim()
     const [,close,name,attributes,selfClose]=tag
     if (!geometryKeys[name]) fail()
     if (close) { if (name!=='g' || attributes || selfClose || stack.length===1) fail();stack.pop();continue }
     const own={}
-    for (const match of attributes.matchAll(/([a-z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) {
+    for (const match of attributes.matchAll(/([a-z][a-z0-9-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) {
       const key=match[1];if (key in own || (!paint.has(key) && !geometryKeys[name].includes(key))) fail()
       own[key]=match[2]??match[3]
     }

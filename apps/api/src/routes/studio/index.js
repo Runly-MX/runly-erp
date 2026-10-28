@@ -62,6 +62,10 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     const body = await c.req.parseBody()
     return c.json({data:await imageCopies.create(...context(c),c.req.param('id'),c.req.param('fileId'),body.file,fileContext(c))},201)
   })
+  app.get('/studio/catalog/status', requirePermission('studio.view'), async c => {
+    c.header('Cache-Control', 'private, no-store')
+    return c.json({ data: await catalog.status(...context(c)) })
+  })
   app.get('/studio/catalog/:provider/search', requirePermission('studio.view'), async c => {
     c.header('Cache-Control', 'private, no-store')
     return c.json({ data: await catalog.search(...context(c), c.req.param('provider'), c.req.query(), catalogContext(c)) })

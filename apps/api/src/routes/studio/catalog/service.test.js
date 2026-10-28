@@ -18,10 +18,10 @@ test('included basic icons search and import editable geometry without any exter
 test('thumbnail saturation leaves search capacity available and cancelled requests release their lane',async()=>{
   const controller=new AbortController()
   const {service}=fixture({get:async(_url,_state,{signal})=>new Promise((resolve,reject)=>{if(signal.aborted)return reject(new StudioError('Cancelled',499));signal.addEventListener('abort',()=>reject(new StudioError('Cancelled',499)),{once:true})})})
-  const requests=Array.from({length:8},()=>service.thumbnail('company-a','actor-a','iconify','tabler:star',{signal:controller.signal}))
+  const requests=Array.from({length:8},()=>service.thumbnail('company-a','actor-a','iconify','tabler:zz-remote-only',{signal:controller.signal}))
   const settled=Promise.allSettled(requests)
   await new Promise(resolve=>setImmediate(resolve))
-  await assert.rejects(service.thumbnail('company-a','actor-a','iconify','tabler:star'),{status:429})
+  await assert.rejects(service.thumbnail('company-a','actor-a','iconify','tabler:zz-remote-only'),{status:429})
   assert.equal((await service.search('company-a','actor-a','iconify',{q:'estrella',collection:'local'})).data.length,1)
   controller.abort();assert.ok((await settled).every(row=>row.status==='rejected'&&row.reason.status===499))
 })
@@ -40,9 +40,9 @@ test('strict Iconify geometry accepts primitives, rejects executable/recursive/r
 })
 test('authorization precedes cache hits and scopes by company and actor; viewer cannot import',async()=>{
   const{state,service}=fixture()
-  await service.search('company-a','actor-a','iconify',{q:'star'});await service.search('company-a','actor-a','iconify',{q:'star'})
+  await service.search('company-a','actor-a','iconify',{q:'star',source:'iconify'});await service.search('company-a','actor-a','iconify',{q:'star',source:'iconify'})
   assert.equal(state.requests,2)
-  for(const company of ['company-b','company-a']){state.allowed=company!=='company-a';await assert.rejects(service.search(company,'actor-a','iconify',{q:'star'}),{status:403})}
+  for(const company of ['company-b','company-a']){state.allowed=company!=='company-a';await assert.rejects(service.search(company,'actor-a','iconify',{q:'star',source:'iconify'}),{status:403})}
   state.allowed=true;state.edit=false;await assert.rejects(service.insert('company-a','actor-a','iconify','tabler:star',design,{}),{status:404})
   assert.equal(state.requests,2);assert.equal(state.uploads,0)
 })
@@ -54,9 +54,9 @@ test('Iconify pages use limit as end index (start < limit) and stop at the API m
     ranges.push([Number(url.searchParams.get('start')),Number(url.searchParams.get('limit'))])
     return{mime:'application/json',bytes:Buffer.from(JSON.stringify({icons:Array.from({length:32},(_,i)=>`tabler:icon-${i}`)}))}
   }})
-  assert.equal((await service.search('company-a','actor-a','iconify',{q:'star',page:2})).pagination.hasNext,true)
-  assert.equal((await service.search('company-a','actor-a','iconify',{q:'star',page:31})).pagination.hasNext,false)
-  assert.deepEqual(await service.search('company-a','actor-a','iconify',{q:'star',page:32}),{data:[],pagination:{page:32,hasNext:false},collections:(await service.search('company-a','actor-a','iconify',{q:'star',page:33})).collections})
+  assert.equal((await service.search('company-a','actor-a','iconify',{q:'star',page:2,source:'iconify'})).pagination.hasNext,true)
+  assert.equal((await service.search('company-a','actor-a','iconify',{q:'star',page:31,source:'iconify'})).pagination.hasNext,false)
+  assert.deepEqual(await service.search('company-a','actor-a','iconify',{q:'star',page:32,source:'iconify'}),{data:[],pagination:{page:32,hasNext:false},collections:(await service.search('company-a','actor-a','iconify',{q:'star',page:33,source:'iconify'})).collections})
   assert.deepEqual(ranges,[[32,64],[960,992]])
 })
 test('Openverse search respects anonymous page size and preserves filters and pagination',async()=>{
@@ -97,7 +97,7 @@ test('unknown licenses, private URLs, malformed responses, missing resources and
   }
   const{state,service}=fixture();state.bytes=Buffer.alloc(10*1024*1024+1)
   await assert.rejects(service.insert('company-a','actor-a','openverse',id,design,{}),{status:413});assert.equal(state.uploads,0)
-  state.response={icons:'malformed'};await assert.rejects(service.search('company-a','actor-a','iconify',{q:'bad'}),{status:502})
+  state.response={icons:'malformed'};await assert.rejects(service.search('company-a','actor-a','iconify',{q:'bad',source:'iconify'}),{status:502})
   const missing=fixture({get:async()=>{throw new StudioError('Removed',404)}});await assert.rejects(missing.service.details('company-a','actor-a','openverse',id),{status:404})
 })
 test('SVG disguised as an allowed raster MIME is rejected before image decoding or Files upload',async()=>{

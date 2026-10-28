@@ -4,12 +4,20 @@ import net from 'node:net'
 import { isPublicAddress } from '../../../services/automation-http-service.js'
 import { StudioError } from '../../../../../shared/studio/document.js'
 
-export function catalogUrl(value) {
+// Each provider may only reach its own hosts, including after redirects. The union is kept for callers without a provider.
+export const PROVIDER_HOSTS = Object.freeze({
+  iconify: ['api.iconify.design', 'api.simplesvg.com', 'api.unisvg.com'],
+  openverse: ['api.openverse.org', 'upload.wikimedia.org', 'live.staticflickr.com', /^farm[1-9]\.staticflickr\.com$/],
+  wikimedia: ['commons.wikimedia.org', 'upload.wikimedia.org', 'thumb.wikimedia.org'],
+  pixabay: ['pixabay.com', 'cdn.pixabay.com'],
+})
+const hostAllowed = (host, rules) => rules.some(rule => typeof rule === 'string' ? rule === host : rule.test(host))
+export function catalogUrl(value, provider) {
   let url
   try { url = new URL(value) } catch { throw new StudioError('Dirección del recurso no válida.', 400) }
   const host = url.hostname.toLowerCase()
-  if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hash ||
-    !(['api.iconify.design','api.openverse.org','upload.wikimedia.org','live.staticflickr.com'].includes(host) || /^farm[1-9]\.staticflickr\.com$/.test(host))) throw new StudioError('Este origen de recursos no está permitido.', 403, 'CATALOG_ORIGIN_DENIED')
+  const rules = provider === undefined ? Object.values(PROVIDER_HOSTS).flat() : PROVIDER_HOSTS[provider] ?? []
+  if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hash || !hostAllowed(host, rules)) throw new StudioError('Este origen de recursos no está permitido.', 403, 'CATALOG_ORIGIN_DENIED')
   return url
 }
 export function publicCatalogAddress(address) {
@@ -21,12 +29,12 @@ const failure = (stage, timeout = false) => new StudioError(messages[stage], tim
 export function createCatalogNetwork({ lookup = dns.lookup, transport = https.request, timeoutMs = 15000, addressAllowed = publicCatalogAddress, observe,
   stageTimeouts = {} } = {}) {
   const limits = { DNS:2000, CONNECT:2000, TLS:2500, HEADERS:5000, DOWNLOAD:5000, ...stageTimeouts }
-  async function get(value, { maxBytes = 262144, signal, timeoutMs: total = timeoutMs, onTiming } = {}) {
+  async function get(value, { maxBytes = 262144, signal, timeoutMs: total = timeoutMs, onTiming, provider, userAgent = 'Runly-Studio/1' } = {}) {
     const started = Date.now(), deadline = started + Math.max(1, Math.min(30000, total))
     const emit = (host, stage, extra = {}) => { const event={host,stage,elapsedMs:Date.now()-started,...extra}; try { observe?.(event); onTiming?.(event) } catch { /* telemetry cannot change authorization or transport */ } }
     const aborted = () => new StudioError('Solicitud cancelada.', 499, 'CATALOG_CANCELLED')
     const remaining = () => Math.max(1, deadline-Date.now())
-    let url = catalogUrl(value)
+    let url = catalogUrl(value, provider)
     for (let redirects=0; redirects<=2; redirects++) {
       if (signal?.aborted) throw aborted()
       if (Date.now()>=deadline) throw failure('HEADERS',true)
@@ -57,7 +65,7 @@ export function createCatalogNetwork({ lookup = dns.lookup, transport = https.re
             const phase=next=>{if(settled)return;stage=next;emit(host,next,{attempt,family:address.family});clearTimeout(timer);timer=setTimeout(()=>finish(failure(stage,true)),Math.min(limits[stage],remaining()))}
             signal?.addEventListener('abort',cancel,{once:true});phase('CONNECT')
             try {request=transport(url,{method:'GET',agent:false,autoSelectFamily:false,family:address.family,servername:host,rejectUnauthorized:true,
-              headers:{Accept:'application/json,image/*','User-Agent':'Runly-Studio/1'},
+              headers:{Accept:'application/json,image/*','User-Agent':userAgent},
               // Match native dns.lookup's asynchronous contract, including an
               // immediately unreachable route during TLSSocket construction.
               lookup:(_host,options,callback)=>queueMicrotask(()=>options?.all?callback(null,[address]):callback(null,address.address,address.family))},incoming=>{
@@ -94,7 +102,7 @@ export function createCatalogNetwork({ lookup = dns.lookup, transport = https.re
       if(!result)throw lastError??failure('CONNECT',true)
       if(!('location' in result))return result
       if(redirects===2||!result.location)throw new StudioError('Redirección del proveedor no permitida.',403,'CATALOG_REDIRECT_DENIED')
-      url=catalogUrl(new URL(result.location,url).href)
+      url=catalogUrl(new URL(result.location,url).href,provider)
     }
   }
   return { get }

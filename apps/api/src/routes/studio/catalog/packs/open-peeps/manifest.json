@@ -1,0 +1,195 @@
+{
+  "id": "open-peeps",
+  "name": "Open Peeps",
+  "author": "Pablo Stanley",
+  "sourceUrl": "https://www.openpeeps.com/",
+  "license": {
+    "id": "CC0-1.0",
+    "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "evidenceUrl": "https://www.openpeeps.com/",
+    "verifiedAt": "2026-10-28",
+    "statement": "Free for commercial and personal use under CC0 License."
+  },
+  "assets": [
+    {
+      "id": "peep-1",
+      "title": "Personaje 1",
+      "file": "assets/peep-1.svg",
+      "tags": [
+        "peep",
+        "1",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "e13aab7eadf45db5feb55d50f1812baf7de88f34b34580ed47055185a3d12f39",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e532a2aeba259dc7140a0e2_peep-1.svg"
+    },
+    {
+      "id": "peep-29",
+      "title": "Personaje 29",
+      "file": "assets/peep-29.svg",
+      "tags": [
+        "peep",
+        "29",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "441d6da7429b0f1176402cb69c197db589e3e14ee9f78b5086d1f5a55d8c1829",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e53543d8e2493ff6d04cae9_peep-29.svg"
+    },
+    {
+      "id": "peep-100",
+      "title": "Personaje 100",
+      "file": "assets/peep-100.svg",
+      "tags": [
+        "peep",
+        "100",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "4150e0848d754a87d58f3c5dc9bff778d9297de982407972d6f1784ec9a7ee3b",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e535d4c5197057a87a74020_peep-100.svg"
+    },
+    {
+      "id": "peep-30",
+      "title": "Personaje 30",
+      "file": "assets/peep-30.svg",
+      "tags": [
+        "peep",
+        "30",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "dbe5e25a75f66eae85e7b3315c65fc24519c3b028cb3411cef370c546afcd2dc",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e5354762b568a35a017730e_peep-30.svg"
+    },
+    {
+      "id": "peep-41",
+      "title": "Personaje 41",
+      "file": "assets/peep-41.svg",
+      "tags": [
+        "peep",
+        "41",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "13808830a6e5f5d6d2acb5c21e320d5b6bde5c4e24916aba548f1f20c6051fc9",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e53566767293a5a435c41a7_peep-41.svg"
+    },
+    {
+      "id": "peep-63",
+      "title": "Personaje 63",
+      "file": "assets/peep-63.svg",
+      "tags": [
+        "peep",
+        "63",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "fd24acbb3b165d54a6a5c1dacd2e75ebfbff832d134c6f6d0f437c83fd1bb2f2",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e5358fb9b55b0b0f453f5f5_peep-63.svg"
+    },
+    {
+      "id": "peep-71",
+      "title": "Personaje 71",
+      "file": "assets/peep-71.svg",
+      "tags": [
+        "peep",
+        "71",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "d0c703cafd22f2ffb016e30153090743608bce81a3c790ea1ba813fc9ed42d42",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e5359ee8becbf772f53c5d4_peep-71.svg"
+    },
+    {
+      "id": "peep-62",
+      "title": "Personaje 62",
+      "file": "assets/peep-62.svg",
+      "tags": [
+        "peep",
+        "62",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "2a799636dfc685d0fe9f51fd69c95467d5ecdf21c3c366523d5082c12c597cc0",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e5358df64109d4cdc019647_peep-62.svg"
+    },
+    {
+      "id": "peep-86",
+      "title": "Personaje 86",
+      "file": "assets/peep-86.svg",
+      "tags": [
+        "peep",
+        "86",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "09325d3be08eb7377e1749485a72ce4275365b41842c00a8cf33788408f7e155",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e535bb6e35d38cae7684f8c_peep-86.svg"
+    },
+    {
+      "id": "peep-42",
+      "title": "Personaje 42",
+      "file": "assets/peep-42.svg",
+      "tags": [
+        "peep",
+        "42",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "8a961220600e92b875fb32b8b6322b233fa8fa328e25d5c73e555ed36c69d9b8",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e535686f5fa1a3aa6f812cb_peep-42.svg"
+    },
+    {
+      "id": "peep-46",
+      "title": "Personaje 46",
+      "file": "assets/peep-46.svg",
+      "tags": [
+        "peep",
+        "46",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "ee843e95d1d35c1404836602c472526cc5e841147657b8bec3c0e5d54eb4602a",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e53570264109d16a7014c37_peep-46.svg"
+    },
+    {
+      "id": "peep-12",
+      "title": "Personaje 12",
+      "file": "assets/peep-12.svg",
+      "tags": [
+        "peep",
+        "12",
+        "persona",
+        "personaje",
+        "gente",
+        "ilustracion"
+      ],
+      "sha256": "aec461d88d45338a178f1df67f8739f16a9a6ab0fe342d2240de3fbcfc92e74c",
+      "sourceFile": "https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e535195d87131f9760b1c69_peep-12.svg"
+    }
+  ]
+}

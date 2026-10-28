@@ -132,3 +132,90 @@ metadata y una miniatura para confirmar su contrato. Las suites automáticas usa
 simuladores Docker locales; no consumen cuotas públicas ni infraestructura Runly
 existente. El transporte del simulador exige un identificador aleatorio
 `runly-studio-e2e-*` y la marca exacta de la base desechable. Sin ella falla cerrado.
+
+## Actualización 2026-10-28: proveedores aislados, biblioteca local y fuentes nuevas
+
+### Diagnóstico de los 503/504 (contrastado con el código y la red actual)
+
+- `node scripts/diagnose-studio-catalog.mjs` y `curl` desde el mismo equipo dan el
+  mismo resultado: Iconify, Wikimedia y Flickr responden en 0,14-0,4 s. Openverse
+  completa DNS, TCP y TLS (certificado válido) en unos 150 ms, y `/v1/` y
+  `/healthcheck/` responden en ~200 ms, pero `GET /v1/images/?q=...` no envía
+  cabeceras en más de 40 s, incluso con `curl` y otro User-Agent. Es una espera de
+  cabeceras (`CATALOG_HEADERS_TIMEOUT`) en el buscador del proveedor: no es DNS, ni
+  conexión, ni TLS, ni un defecto del cliente de Runly. Un 504 puede tener otra causa
+  en otro entorno; el código de etapa del diagnóstico sigue distinguiéndolas.
+- Defecto propio que agravaba el efecto: todos los proveedores compartían el mismo
+  carril (4 concurrentes) y la misma cuota por usuario. Cuatro búsquedas colgadas de
+  Openverse dejaban sin servicio a iconos y miniaturas durante 15 s. Ahora cada
+  proveedor tiene sus propios carriles y su interruptor.
+
+### Arquitectura
+
+| Pieza | Archivo | Función |
+| --- | --- | --- |
+| Biblioteca local | `catalog/icon-library.js` | Tabler 3.50.0 (MIT) y Lucide 1.63.0 (ISC) desde `@tabler/icons` y `lucide-static` con versión exacta. Índice ligero en memoria (id + texto), SVG leído de disco bajo demanda, validado por la gramática estricta y entregado como geometría; el navegador nunca recibe todos los SVG. 32 resultados/página. |
+| Exclusiones | `catalog/icon-library.exclusions.json` | Iconos que la gramática no puede representar (hoy 2 de Tabler). Una prueba falla si cambia una versión sin ejecutar `node scripts/generate-studio-icon-exclusions.mjs`. |
+| Interruptor | `catalog/health.js` | 3 fallos de transporte/5xx abren 30 s (duplica hasta 5 min); después pasa una sola prueba. Cuota fija por proveedor (Pixabay 90/min). Los 404/licencia/formato no cuentan. |
+| Adaptadores | `catalog/providers/*.js` | `openverse`, `wikimedia`, `pixabay`, `packs` con la misma interfaz `search`/`resolve`. |
+| Allowlist | `catalog/network.js` | `PROVIDER_HOSTS`: cada proveedor solo alcanza sus hosts, también tras redirecciones. |
+| Estado | `GET /studio/catalog/status` | Disponibilidad por proveedor (`available`, `degraded`, `unavailable`, `disabled`) sin contactar a ninguno. SDK: `studio.catalogStatus`. |
+
+Contratos conservados: rutas y SDK existentes, ids `tabler:*`/`lucide:*`, objeto
+vectorial del documento, FileAssets privados con `studioSource`, créditos y avisos.
+Los resultados nuevos solo añaden campos (`source`, `library`, `availability`).
+
+### Qué cambia por proveedor
+
+- **Iconos**: Tabler y Lucide se sirven de la biblioteca local (sin red). Iconify queda
+  como respaldo explícito (`source=iconify`) o si la biblioteca no carga, con los hosts
+  oficiales redundantes `api.iconify.design`, `api.simplesvg.com` y `api.unisvg.com`
+  en ese orden. Tabler incluye también la variante `-filled`.
+- **Openverse**: sin cambios de licencias; un fallo suyo ya no afecta a otros.
+- **Wikimedia Commons**: API oficial de MediaWiki (sin scraping), User-Agent
+  identificable (`STUDIO_CATALOG_USER_AGENT`), solo CC0, dominio público declarado y
+  CC BY 1.0-4.0; se descartan SA, ND, NC, GFDL y términos desconocidos. Autor y URL de
+  origen se conservan. Validado contra la API real: búsqueda, miniatura e importación.
+  El filtro de licencias reduce los resultados por página.
+- **Pixabay**: deshabilitado sin `PIXABAY_API_KEY`. Con clave: respuestas cacheadas 24 h
+  (caché del proveedor, acotada, sin datos de empresa), 90 solicitudes/min, miniaturas
+  servidas por la API, nunca la URL del CDN al navegador y copia privada a Files solo al
+  importar. La clave no aparece en errores, diagnósticos ni respuestas. Licencia propia
+  de Pixabay (no es CC0): se registra como `Pixabay-Content-License` con su enlace.
+- **Colecciones Runly** (`packs`): infraestructura lista y probada (manifiesto, CC0,
+  SHA256, SVG estricto, rasterización a PNG). Sin colecciones instaladas.
+
+### Validación y colecciones reales (2026-10-28, segunda fase)
+
+- **Simulador y E2E aislado**: `scripts/fixtures/studio/catalog-server.mjs` simula ahora
+  Wikimedia (licencias CC BY/SA/CC0/PD, atribución en HTML, SVG, redirecciones válidas y
+  hostiles, miniaturas en `thumb.wikimedia.org`) y Pixabay (clave falsa inexistente,
+  hits válidos y hostiles, cabeceras de cuota), con disparadores `rate-limit` (429),
+  `offline` (503), `gateway` (504), `stall` (sin respuesta) y `malformed`.
+  `node scripts/verify-studio-catalog-providers.mjs` lo ejecuta en UN contenedor Docker
+  desechable (`runly-studio-e2e-<hex12>-sim`, sin volúmenes, raíz de solo lectura, sin
+  capacidades, puerto en 127.0.0.1) y comprueba 9 escenarios con el servicio real. Solo
+  detiene su propio contenedor por nombre exacto; no usa compose, prune ni borrado de
+  volúmenes. No sustituye al stack Supabase completo (`supabase-creative.mjs`), que no se
+  reconstruyó en esta fase.
+- **Colecciones incluidas** (`catalog/packs/`): Open Doodles (12) y Open Peeps (12) de Pablo
+  Stanley, CC0, tomadas de los botones de descarga de sus páginas oficiales con
+  `scripts/import-studio-illustration-pack.mjs`. Cada colección conserva manifiesto con
+  URL de origen y SHA256 por archivo, la declaración de licencia capturada de la página
+  oficial (`PROVENANCE.md`) y el texto legal CC0 (`LICENSE-CC0-1.0.txt`). Se importan
+  siempre como PNG (el SVG se rasteriza en el servidor) y el autor se muestra en la tarjeta,
+  la vista previa y los créditos exportados.
+- **Búsqueda en español**: `catalog/icon-synonyms.js` (≈300 equivalencias es-en, sin acentos,
+  singular/plural, sin palabras vacías). El inglés y los nombres originales no cambian.
+  Pixabay recibe `lang=es` solo si la consulta parece español; si no, `lang=en`.
+- **Pixabay**: caché de 24 h verificada (entre actores y con reloj controlado), mención
+  visible "Imágenes de Pixabay" y autor en cada resultado, la clave solo existe en el
+  servidor: no aparece en respuestas, diagnósticos, errores, SDK ni frontend.
+
+### Pendiente
+
+- Pixabay no se probó contra la API real: requiere la clave del responsable.
+- Importar las ilustraciones como geometría editable no se habilita (degradados y
+  transformaciones); se conservan como PNG.
+- Una colección mayor de Open Peeps/Open Doodles se amplía ejecutando el script con otro N.
+- E2E con el stack Supabase completo y navegador: pendiente de reconstruir las imágenes locales.

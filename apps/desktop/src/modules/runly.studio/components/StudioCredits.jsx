@@ -5,7 +5,7 @@ import { Check, Copy, Download, ExternalLink, FileBadge, Image as ImageIcon, Sha
 import { runly } from '../../../lib/runly.js'
 import { creditsText } from '../../../../../shared/studio/licenses.js'
 
-const KIND = { iconify: { label: 'Icono', icon: Shapes }, openverse: { label: 'Foto', icon: ImageIcon }, font: { label: 'Fuente', icon: Type } }
+const KIND = { iconify: { label: 'Icono', icon: Shapes }, openverse: { label: 'Foto', icon: ImageIcon }, wikimedia: { label: 'Foto', icon: ImageIcon }, pixabay: { label: 'Foto', icon: ImageIcon }, packs: { label: 'Ilustración', icon: ImageIcon }, font: { label: 'Fuente', icon: Type } }
 
 function ResourceRow({ row }) {
   const kind = KIND[row.provider] ?? { label: 'Recurso', icon: FileBadge }, Icon = kind.icon
