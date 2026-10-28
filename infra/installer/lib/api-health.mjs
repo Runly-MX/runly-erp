@@ -9,12 +9,25 @@ export function resolveApiHealthUrl({ bindAddr, port } = {}) {
   return `http://${host}:${Number.isInteger(number) && number > 0 ? number : 4010}/health`;
 }
 
-export async function waitForApiHealth({ url = "http://127.0.0.1:4010/health", timeoutMs = 180000, intervalMs = 3000, fetchImpl = fetch, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), now = Date.now } = {}) {
+// AbortSignal.timeout() uses an unref'd timer: a request that never answers while nothing else is
+// pending lets Node exit 0 in silence, and the installer would stop without a verdict. A regular
+// timer keeps the process alive until the abort fires.
+async function fetchWithTimeout(fetchImpl, url, ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetchImpl(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function waitForApiHealth({ url = "http://127.0.0.1:4010/health", timeoutMs = 180000, intervalMs = 3000, requestTimeoutMs = 5000, fetchImpl = fetch, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), now = Date.now } = {}) {
   const deadline = now() + timeoutMs;
   let last = "no response";
   while (now() < deadline) {
     try {
-      const response = await fetchImpl(url, { signal: AbortSignal.timeout(5000) });
+      const response = await fetchWithTimeout(fetchImpl, url, requestTimeoutMs);
       if (response.ok) return;
       last = `HTTP ${response.status}`;
     } catch (error) {

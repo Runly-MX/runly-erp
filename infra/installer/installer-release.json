@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.10.28.4",
+  "version": "2026.10.28.5",
   "files": {
     ".env.local.example": {
       "sha256": "ef097c568385535ca646f29353f834a1646b773663def037f49020680eed47ab",
@@ -249,13 +249,14 @@
       "legacyGitBlobs": []
     },
     "lib/api-health.mjs": {
-      "sha256": "4270e08dd6f161122bbf927edb67f13f0dee02089259c982c66005eb67dcb0c4",
+      "sha256": "84538e1c33bd71042e8aeb2be19c0ac1ec666ec0dac403ba72b24028d56d39fa",
       "modes": [
         "local",
         "external"
       ],
       "legacyGitBlobs": [
-        "35992db0b6d7e050bf0ab42a75571007f3089781"
+        "35992db0b6d7e050bf0ab42a75571007f3089781",
+        "c7c4885af6824b85535a7f35325348b6a700d84c"
       ]
     },
     "lib/instance-identity.mjs": {

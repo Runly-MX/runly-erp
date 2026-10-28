@@ -23,3 +23,9 @@ test('probes the published address and port, not a fixed one', async () => {
   assert.equal(resolveApiHealthUrl({ bindAddr: '10.0.0.5', port: '4010' }), 'http://10.0.0.5:4010/health')
   assert.equal(resolveApiHealthUrl({ port: 'oops' }), 'http://127.0.0.1:4010/health')
 })
+
+test('a request that never answers is aborted and keeps the process alive until then', async () => {
+  const hanging = (url, { signal }) => new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))))
+  let t = 0
+  await assert.rejects(waitForApiHealth({ timeoutMs: 120, intervalMs: 1, requestTimeoutMs: 20, fetchImpl: hanging, sleep: async () => {}, now: () => (t += 50) }), /API_HEALTH_CHECK_FAILED/)
+})
