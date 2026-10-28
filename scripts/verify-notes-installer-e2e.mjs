@@ -66,7 +66,7 @@ async function scenario(name, { mode, legacy = true, prepare = null, owner = 'no
     const appUrl = config.services['runly-api'].environment.DATABASE_URL
     const settings = {
       RUNLY_COMPOSE_PROJECT_NAME: appName, RUNLY_CONTAINER_PREFIX: appName, RUNLY_INSTANCE_ID: stack.name.slice(-8),
-      RUNLY_API_HOST_PORT: String(stack.ports.api), RUNLY_WEB_HOST_PORT: String(stack.ports.web), RUNLY_PUBLIC_BIND_ADDR: '127.0.0.1',
+      RUNLY_API_PORT: '4010', RUNLY_API_HOST_PORT: String(stack.ports.api), RUNLY_WEB_HOST_PORT: String(stack.ports.web), RUNLY_PUBLIC_BIND_ADDR: '127.0.0.1',
       RUNLY_SUPABASE_MODE: 'selfhosted', RUNLY_SUPABASE_STUDIO_HOST_PORT: String(await unusedPort()),
       LIVEKIT_MODE: 'disabled', TRANSCRIPTION_MODE: 'disabled', MIRAI_TTS_MODE: 'disabled', BACKUP_MODE: 'disabled', RUNLY_OFFICE_ENABLED: 'false',
       RUNLY_API_LOCAL_IMAGE: tagged.api, RUNLY_WORKER_LOCAL_IMAGE: tagged.worker, RUNLY_WEB_LOCAL_IMAGE: tagged.web,
@@ -103,6 +103,8 @@ async function scenario(name, { mode, legacy = true, prepare = null, owner = 'no
       assert.equal(await containerExists(), false, `${name}: no API may be started when the gate fails`)
       if (state) assert.equal((await fetch(state.url)).status !== undefined, true)
     } else {
+      if (!first.ok) console.log(`--- ${name}: API container log ---
+` + (await command('docker', ['logs', '--tail', '60', `${appName}-api-${mode}`]).catch(e => String(e.message))).slice(-3500))
       assert.equal(first.ok, true, `${name}: installation must succeed\n${first.output.slice(-1500)}`)
       // The installer already waited for /health; a host-side request can still hit a connection reset while Docker publishes the port, so retry briefly and keep the container log if it never answers.
       let healthy = false
