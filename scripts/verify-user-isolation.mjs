@@ -36,6 +36,7 @@ try {
     CREATE ROLE service_role NOLOGIN BYPASSRLS;
     CREATE SCHEMA auth;
     CREATE TABLE auth.users(id uuid PRIMARY KEY, raw_user_meta_data jsonb);
+    CREATE TABLE auth.sessions(id uuid PRIMARY KEY, user_id uuid, not_after timestamptz);
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
     CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$ SELECT current_setting('request.jwt.claim.role', true) $$;
     CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claims', true), '')::jsonb $$;
@@ -46,6 +47,8 @@ try {
     GRANT USAGE ON SCHEMA public, auth, realtime TO anon, authenticated, service_role;
     GRANT SELECT, INSERT ON realtime.messages TO anon, authenticated;
     CREATE PUBLICATION supabase_realtime;
+    CREATE ROLE runly_studio_socket NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+    GRANT USAGE ON SCHEMA realtime TO runly_studio_socket;
   `;
   run('docker', ['exec', '-i', name, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input: bootstrap });
   console.log('Applying all Runly migrations to an empty PostgreSQL 18 database...');

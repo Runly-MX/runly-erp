@@ -11,6 +11,7 @@ import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
 import { blankDocument, appendObject } from '../apps/shared/studio/document.js'
 import { verifyStudioRealtimeSecurity } from './fixtures/studio/realtime-security.mjs'
 import { useStudioRealtimeSource } from './fixtures/studio/realtime-source.mjs'
+import { prepareDisposableNotesStorageOwner } from './fixtures/realtime-2/notes-storage-owner.mjs'
 const apiRequire = createRequire(resolve('apps/api/package.json'))
 const { build } = apiRequire('esbuild'), { createClient } = apiRequire('@supabase/supabase-js')
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.slice(name.length + 3)
@@ -60,6 +61,8 @@ try {
   await writeFile(kongPath,websocketKong)
   await stack.compose(['up','-d','--wait','--wait-timeout','120','supabase-db','supabase-auth','supabase-rest','supabase-realtime','supabase-storage','supabase-kong'],{log:join(stack.directory,'startup.log')})
   await stack.verifyTarget(); await stack.initialize()
+  // Candidate API images refuse to start without owner-prepared private Notes Storage.
+  if(phase==='after')await prepareDisposableNotesStorageOwner(stack)
   await stack.pool.query('CREATE EXTENSION IF NOT EXISTS pg_stat_statements')
   const data = await seedStudioScenario(stack), { users, companies, admin } = data, company = companies[0]
   const tenantCapacity=(await stack.pool.query('SELECT max_events_per_second,max_bytes_per_second,max_presence_events_per_second FROM _realtime.tenants')).rows
