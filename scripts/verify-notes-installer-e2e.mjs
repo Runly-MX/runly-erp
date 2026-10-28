@@ -13,6 +13,7 @@ import { createStudioStack, command, unusedPort } from './fixtures/studio/supaba
 import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
 import { prepareDisposableNotesStorageOwner } from './fixtures/realtime-2/notes-storage-owner.mjs'
 import { installRelease } from '../infra/installer/update-installer.mjs'
+import { diffInventories } from './rehearsal/lib/inventory.mjs'
 
 const arg = (name, fallback) => process.argv.find(a => a.startsWith(`--${name}=`))?.slice(name.length + 3) ?? fallback
 const images = { api: arg('api-image'), worker: arg('worker-image'), web: arg('web-image') }
@@ -342,7 +343,17 @@ await scenario('update-script-local', { mode: 'local', via: { script: 'update-lo
 // with the candidate image, Storage was never prepared (no guard, no policy) and the Notes buckets are still public.
 // It holds users, permissions, notes and historical objects of several kinds in both buckets. A restored backup of the
 // real instance is NOT used here; this is a synthetic replica, and the rehearsal on the real backup stays pending.
-let replicaBefore = null
+let replicaBefore = null, replicaInventoryBefore = null
+// The rehearsal tooling itself (scripts/rehearsal/replica-inventory.mjs) runs against the disposable replica exactly as it
+// would against a restored copy: connection data only through the environment, loopback hosts only.
+async function runInventoryCli(stack, output) {
+  const config = JSON.parse(await readFile(stack.composeFile, 'utf8')), url = new URL(config.services['runly-api'].environment.DATABASE_URL)
+  url.hostname = '127.0.0.1'; url.port = String(stack.ports.db)
+  const env = { ...cleanEnv, REPLICA_DATABASE_URL: url.href, REPLICA_SUPABASE_URL: stack.urls.kong, REPLICA_SERVICE_ROLE_KEY: stack.secret.SUPABASE_SERVICE_ROLE_KEY }
+  const summary = await command(process.execPath, ['scripts/rehearsal/replica-inventory.mjs', 'collect', '--output=' + output], { env })
+  assert.equal(summary.includes(stack.secret.SUPABASE_SERVICE_ROLE_KEY) || summary.includes(url.password), false, 'the inventory CLI must not print connection data')
+  return JSON.parse(await readFile(output, 'utf8'))
+}
 const supabaseAdminFor = stack => createClient(stack.urls.kong, stack.secret.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
 async function replicaState(stack) {
   const admin = supabaseAdminFor(stack), rows = async sql => (await stack.pool.query(sql)).rows
@@ -373,6 +384,7 @@ await scenario('external-affected-replica-rehearsal', { mode: 'external', via: {
     const migrationEnv = { ...cleanEnv, DATABASE_URL: appUrl, DIRECT_URL: appUrl }
     for (const script of ['db:migrate', 'db:seed']) await command('docker', ['run', '--rm', '--network', `${stack.name}_default`, '-e', 'DATABASE_URL', '-e', 'DIRECT_URL', tagged.api, 'pnpm', script], { env: migrationEnv })
     replicaBefore = await replicaState(stack)
+    replicaInventoryBefore = await runInventoryCli(stack, join(stack.directory, 'inventory-before.json'))
     assert.ok(replicaBefore.migrations.includes(NOTES_MIGRATION), 'precondition: the migrations are already applied')
     assert.deepEqual(replicaBefore.buckets.map(bucket => bucket.public), [true, true], 'precondition: both buckets are still public')
     assert.ok(Object.keys(replicaBefore.objects).length >= 4, 'precondition: historical objects of several kinds')
@@ -392,6 +404,13 @@ await scenario('external-affected-replica-rehearsal', { mode: 'external', via: {
     assert.equal(envFile.includes('RUNLY_NOTES_OWNER_DATABASE_URL'), false, 'the owner connection must not be written to .env.external')
     assert.ok(envFile.includes(`SUPABASE_SERVICE_ROLE_KEY=${stack.secret.SUPABASE_SERVICE_ROLE_KEY}`), 'existing configuration values are preserved')
     const after = await replicaState(stack)
+    const cliAfter = await runInventoryCli(stack, join(stack.directory, 'inventory-after.json'))
+    // What an update legitimately writes (audit, blueprint re-sync, module registry, the Notes tables, permission seed timestamps).
+    // Objects, business tables and the SEMANTIC permission/membership/identity digests must be identical.
+    const updateTables = ['audit_log', 'blueprint', 'module_migration', 'note_image_binding', 'note_image_storage_state', 'realtime_authorization_revision', 'role', 'role_permission', 'runly_field', 'runly_model', 'runly_module', 'inventory_assistant_thread', 'inventory_reusable_catalog']
+    assert.deepEqual(diffInventories(replicaInventoryBefore, cliAfter, { allow: ['migrations-added', 'protections', 'buckets', ...updateTables.map(table => 'tables:' + table)] }), [], 'only the expected update-time tables may change')
+    assert.equal(cliAfter.semantic.grants, replicaInventoryBefore.semantic.grants, 'permission grants must be semantically identical')
+    assert.ok(Object.values(replicaInventoryBefore.semantic).every(Boolean), 'the semantic digests must be computed')
     assert.deepEqual(after.migrations, replicaBefore.migrations, 'Prisma history is preserved (no migration reverted, none repeated)')
     assert.deepEqual(after.objects, replicaBefore.objects, 'every Storage object keeps its exact bytes')
     assert.deepEqual([after.people, after.notes], [replicaBefore.people, replicaBefore.notes], 'users, permissions and notes are preserved')

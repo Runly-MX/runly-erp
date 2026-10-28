@@ -1,6 +1,6 @@
 # Runly: certificacion integrada y Release Candidate (local)
 
-El dictamen vigente esta en la seccion A (SHA de producto `40e1b6b0a6d6`, Installer `2026.10.28.6`).
+La preparacion del ensayo (estado: no ejecutado, que falta) esta en la seccion B. El dictamen vigente del candidato esta en la seccion A (SHA de producto `40e1b6b0a6d6`, Installer `2026.10.28.6`).
 La seccion 0 documenta el candidato intermedio `44e09bb7f71d` y las secciones 1 a 13 la certificacion
 previa sobre `330e4a712`; se conservan por trazabilidad.
 
@@ -11,6 +11,61 @@ No se uso SSH, VPS, credenciales de produccion, publicacion de imagenes ni
 Este documento certifica la integracion, no introduce funcionalidades. Las unicas
 modificaciones de codigo de esta pasada son correcciones de fixtures de prueba
 (seccion 2).
+
+## B. Preparacion del ensayo sobre copia restaurada (2026-10-28)
+
+**Estado: ensayo NO ejecutado.** No existe copia restaurada ni respaldo de la instalacion
+real en el equipo (se comprobo: ni contenedores, ni volumenes, ni volcados del Runly real;
+solo stacks de otros proyectos y los desechables de prueba). No se ha sustituido el ensayo
+por datos sinteticos. Plan completo en `EXTERNAL_UPDATE_REHEARSAL_PLAN.md`.
+
+### B.1 Candidato congelado y divergencia con `main`
+
+- Certificado: SHA de producto `40e1b6b0a6d6dd0fc03a724163c8be56b034179d`, Installer
+  `2026.10.28.6`, contrato `studio-realtime-1`. Commits certificados de esta fase:
+  `ccbfe9f31` (enlace profundo), `44e09bb7f` (gate antes de migrar) y `40e1b6b0a`
+  (arnes). Imagenes y digests en A.2; presentes en Docker con los mismos digests.
+- `main` (= `origin/main` mas cinco commits locales) contiene **57 archivos de producto
+  distintos** del SHA certificado (46 en `apps/api/src`, 5 en `packages/ui`, 3 en
+  `apps/desktop`, SDK y contratos de Studio): trabajo de otra sesion sin certificar. **`infra/`
+  y `prisma/` son identicos al SHA certificado**, de modo que el Installer `.6` y el historial
+  de migraciones no cambian. No se usa nada de lo posterior en el ensayo.
+- Los scripts `update-external.sh`/`update-local.sh` descargan el Installer de `main` y las
+  imagenes que indique `.env.external`; el plan los sustituye por el Installer extraido del
+  SHA certificado con `--skip-pull` e imagenes locales fijadas por etiqueta y digest.
+
+### B.2 Herramientas para el ensayo (validadas solo contra la replica desechable)
+
+| Herramienta | Funcion |
+|---|---|
+| `scripts/rehearsal/replica-guard.mjs` | revisa el `.env` de la replica y senala por **nombre** (nunca valor) cualquier ajuste que apunte fuera de ella o lleve una credencial real; `--print-overrides` da los valores neutralizantes |
+| `scripts/rehearsal/replica-inventory.mjs collect/compare` | inventario de solo lectura: migraciones, todas las tablas (filas y hash del contenido), modulos, buckets, **SHA-256 de cada objeto de Storage**, guard y politica de Notes, resumen semantico de permisos/membresias/identidades y tablas con alcance externo; rechaza hosts que no sean loopback o privados |
+| `external-affected-replica-rehearsal` (E2E) | ejecuta esas herramientas contra la replica sintetica y comprueba que, tras la actualizacion, solo cambian las tablas esperadas |
+
+Resultado en la replica sintetica: el inventario tras la actualizacion difiere unicamente en
+las tablas que una actualizacion escribe de forma legitima (`audit_log`, `blueprint`,
+`module_migration`, `note_image_binding`, `note_image_storage_state`,
+`realtime_authorization_revision`, `role`, `role_permission`, `runly_field`, `runly_model`,
+`runly_module` y las tablas nuevas `inventory_*`), en las migraciones anadidas, en la
+proteccion de Notes y en los buckets. `role` y `role_permission` cambian el hash de fila
+(marcas de tiempo del seed) pero **no** sus resumenes semanticos (permisos concedidos,
+membresias, identidades), que son identicos. Ningun objeto de Storage ni tabla de negocio
+cambia.
+
+### B.3 Lo que falta para ejecutar el ensayo
+
+1. Un respaldo completo de la base (esquemas `public`, `storage`, `auth`) y de los objetos de
+   Storage, y el inventario de produccion del mismo momento, entregados con autorizacion
+   separada (no se pidieron ni se usan).
+2. Una maquina o red de ensayo sin ruta de salida (criterio de aceptacion con un `fetch` que
+   debe fallar; no se puede comprobar en este equipo de desarrollo sin una red dedicada).
+3. La decision del responsable sobre que datos de la copia se neutralizan (tokens push,
+   credenciales SMTP/OAuth, webhooks, conexiones de modulo) antes de arrancar el Worker.
+4. Credencial de prueba de propietario de Storage de la replica.
+
+**Dictamen de esta fase**: el candidato y las herramientas estan preparados; el ensayo
+**no** puede iniciarse hasta cumplir B.3. Esto no es un GO ni un NO GO para una
+actualizacion real: esa decision depende del resultado del ensayo.
 
 ## A. Cierre final: SHA de producto `40e1b6b0a6d6dd0fc03a724163c8be56b034179d`
 
