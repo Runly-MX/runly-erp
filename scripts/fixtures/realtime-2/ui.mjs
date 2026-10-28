@@ -73,7 +73,7 @@ export async function verifyRealtimeUi(stack,{actors,company,conversation}) {
 
     const notePath=`/app/m/runly.notes/?note=${note.id}`
     await Promise.all([owner,peer].map(page=>page.goto(stack.urls.web+notePath)))
-    await Promise.all([owner,peer].map(page=>page.getByText('Nota visual',{exact:true}).first().click()))
+    // The deep link itself opens the note (no list card to tap): this click only worked while ?note= was being dropped.
     const editor=page=>page.locator('.ProseMirror[contenteditable="true"]:visible').first()
     await Promise.all([owner,peer].map(page=>editor(page).waitFor({timeout:45000})))
     await editor(owner).fill('Contenido realtime verificado')
