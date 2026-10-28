@@ -24,6 +24,7 @@ import {
 } from "./lib/livekit-config.mjs";
 import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME, LINUX_HOST_NETWORK_SERVICES, probePublicHealth } from "./lib/hairpin-nat.mjs";
 import { waitForApiHealth } from "./lib/api-health.mjs";
+import { prepareAndVerifyNotesStorage, probeNotesStorage } from "./lib/notes-storage-gate.mjs";
 import { buildTranscriberDatabaseUrl, generateTranscriberPassword } from "./lib/transcriber-db.mjs";
 import { resolveBackupConfig, getBackupComposeProfiles } from "./lib/backup-config.mjs";
 import { createStudioDatabaseRunner, prepareStudioRealtimeOwner, inspectStudioRealtimeFailure, assertStudioMigrationsUnblocked } from './lib/studio-realtime-db.mjs';
@@ -1328,6 +1329,13 @@ async function main() {
     ]);
   }
 
+  // Fail before an incompatible API starts, not after it restarts in a loop.
+  const notesGateBase = ["run", "--rm", ...addHostArgs, ...migrateNetworkArgs, "--env-file", localEnvFile];
+  prepareAndVerifyNotesStorage({
+    run, image: resolvedApiImage, dockerRunBase: notesGateBase,
+    ownerUrl: process.env.RUNLY_NOTES_OWNER_DATABASE_URL ?? null,
+  });
+
   console.log("[8/8] Starting Runly local profile...");
   if (!office.enabled) run("docker", ["compose", ...composeFiles, "--profile", "office", "stop", "collabora"]);
   removeInactiveLiveKitServices(liveKit);
@@ -1370,6 +1378,7 @@ async function main() {
   if (office.enabled) run("docker", ["compose", ...composeFiles, ...office.profiles, "up", "-d", "collabora"]);
   console.log("Waiting for the API to answer /health...");
   await waitForApiHealth();
+  probeNotesStorage({ run, image: resolvedApiImage, dockerRunBase: notesGateBase });
   await validateLiveKitRuntime(liveKit);
   await checkOfficeRuntime(office);
 

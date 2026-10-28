@@ -1,5 +1,5 @@
 {
-  "version": "2026.10.28.2",
+  "version": "2026.10.28.3",
   "modes": {
     "local": [
       ".env.local.example",
@@ -17,6 +17,7 @@
       "lib/installer-runtime.mjs",
       "lib/api-health.mjs",
       "lib/instance-identity.mjs",
+      "lib/notes-storage-gate.mjs",
       "lib/livekit-config.mjs",
       "lib/office-config.mjs",
       "lib/studio-realtime-db.mjs",
@@ -61,6 +62,7 @@
       "lib/installer-runtime.mjs",
       "lib/api-health.mjs",
       "lib/instance-identity.mjs",
+      "lib/notes-storage-gate.mjs",
       "lib/livekit-config.mjs",
       "lib/office-config.mjs",
       "lib/studio-realtime-db.mjs",

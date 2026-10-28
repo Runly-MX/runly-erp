@@ -38,6 +38,7 @@ import {
 import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME, LINUX_HOST_NETWORK_SERVICES, probePublicHealth } from "./lib/hairpin-nat.mjs";
 import { buildTranscriberDatabaseUrl, generateTranscriberPassword } from "./lib/transcriber-db.mjs";
 import { waitForApiHealth } from "./lib/api-health.mjs";
+import { prepareAndVerifyNotesStorage, probeNotesStorage } from "./lib/notes-storage-gate.mjs";
 import { resolveBackupConfig, getBackupComposeProfiles } from "./lib/backup-config.mjs";
 
 const argv = new Set(process.argv.slice(2));
@@ -1114,16 +1115,17 @@ async function main() {
     if (transcription.mode === "local") {
       run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:provision-transcriber-role"]);
     }
-    // The Notes Storage protections need the Storage owner. Without a
-    // configured owner connection the API verifies they already exist and the
-    // health check below reports a clear failure if they do not.
-    const notesOwnerUrl = process.env.RUNLY_NOTES_OWNER_DATABASE_URL ?? parseEnvValue(await fs.readFile(envFile, "utf8"), "RUNLY_NOTES_OWNER_DATABASE_URL");
-    if (notesOwnerUrl) {
-      console.log("Preparing Notes private image Storage with the configured owner connection...");
-      run("docker", [...dockerRunBase, "-e", "RUNLY_NOTES_OWNER_DATABASE_URL", resolvedApiImage, "node", "apps/api/scripts/notes-storage-preflight.mjs", "--prepare-owner"], { env: { ...process.env, RUNLY_NOTES_OWNER_DATABASE_URL: notesOwnerUrl } });
-    } else {
-      console.log("RUNLY_NOTES_OWNER_DATABASE_URL not set: assuming the Notes Storage protections were already prepared.");
-    }
+  }
+
+  // The Notes Storage gate runs on every pass (also --skip-migrate / --up-only):
+  // an existing installation must never start a new API on unverified Storage.
+  {
+    const gateEnv = await fs.readFile(envFile, "utf8");
+    prepareAndVerifyNotesStorage({
+      run, image: resolvedApiImage,
+      ownerUrl: process.env.RUNLY_NOTES_OWNER_DATABASE_URL ?? parseEnvValue(gateEnv, "RUNLY_NOTES_OWNER_DATABASE_URL") ?? null,
+      dockerRunBase: ["run", "--rm", ...externalMigrationNetwork(gateEnv), "--add-host", "host.docker.internal:host-gateway", "--env-file", envFile],
+    });
   }
 
   // ── 6. Start containers ────────────────────────────────────────────────────
@@ -1169,6 +1171,7 @@ async function main() {
   if (office.enabled) run("docker", ["compose", ...composeFiles, ...office.profiles, "up", "-d", "collabora"]);
   console.log("Waiting for the API to answer /health...");
   await waitForApiHealth();
+  probeNotesStorage({ run, image: resolvedApiImage, dockerRunBase: ["run", "--rm", ...externalMigrationNetwork(await fs.readFile(envFile, "utf8")), "--add-host", "host.docker.internal:host-gateway", "--env-file", envFile] });
   await validateLiveKitRuntime(liveKit);
   await checkOfficeRuntime(office);
 

@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.10.28.2",
+  "version": "2026.10.28.3",
   "files": {
     ".env.local.example": {
       "sha256": "ef097c568385535ca646f29353f834a1646b773663def037f49020680eed47ab",
@@ -264,6 +264,14 @@
       ],
       "legacyGitBlobs": []
     },
+    "lib/notes-storage-gate.mjs": {
+      "sha256": "365da9f000de7db3827e59cc258a0afef98fe9dfc9a7b5a6fdd271d3c3d9b51e",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": []
+    },
     "lib/livekit-config.mjs": {
       "sha256": "0090f35d4f9481e9b6cfdf5f2010b875059673f96fcf75400305ff9383d31337",
       "modes": [
@@ -351,7 +359,7 @@
       ]
     },
     "setup-local.mjs": {
-      "sha256": "f7b31a3b8b09710a38bf5447835f945735847b23b394a8c795c0e0036fa5d3a5",
+      "sha256": "ce284c45acf085b0e28f4f4c82268cd6664f14b36d4ec46a8733dbc1e106d0c9",
       "modes": [
         "local"
       ],
@@ -396,6 +404,7 @@
         "a29ae3c6abdfcd36760bf561845d020f2dde6cb4",
         "a36f66bcc8e51ec45ac79688e8db3cb7166ed9cd",
         "ae2f675ac363d77374f932b6017d23f6dd1349b9",
+        "af997a064a788c84682ba2598f5bc03c521a3be8",
         "b08dedb79143eb6b6150e72d400fcbff54f58f8f",
         "b1ecf920216c44023162a69a2bbdbaff3b73ca32",
         "b7270f433c05d774c1d1d97b1df6ebf675e3a16d",
@@ -608,7 +617,7 @@
       ]
     },
     "setup-external.mjs": {
-      "sha256": "2824ec5d85d704a0b965b512bb2ac2aa57fb6e22cb3d5b3fc6b7c8d301f0caa2",
+      "sha256": "147adcace14509231d235b3be77e422fcdd236c58e2fac14f99b34b019804f64",
       "modes": [
         "external"
       ],
@@ -627,6 +636,7 @@
         "3c1ecd4ae23f3d850c46a530cab134e923d840b0",
         "4a5785aeb08bb006f502729026c898759b813933",
         "4f6f1428813c6f27c3f40bfe97f09c2f71e6e7a5",
+        "4fd273d5fd2d1635f2d9249cf1f674df6d86d99c",
         "5f4fe99fc2b4f5972750b20096ce622c1e040dd1",
         "641bb0567011b3c35da4a4be7cbaf1e6575905b9",
         "6916bd498b42ecefda17201771a1338313e44a21",
