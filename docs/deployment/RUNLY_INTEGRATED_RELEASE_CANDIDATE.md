@@ -1,8 +1,8 @@
 # Runly: certificacion integrada y Release Candidate (local)
 
-El Release Candidate vigente esta en la seccion 0 (SHA `44e09bb7f71d`, Installer `2026.10.28.6`).
-Las secciones 1 a 13 documentan la certificacion previa sobre `330e4a712` y se conservan
-por trazabilidad.
+El dictamen vigente esta en la seccion A (SHA de producto `40e1b6b0a6d6`, Installer `2026.10.28.6`).
+La seccion 0 documenta el candidato intermedio `44e09bb7f71d` y las secciones 1 a 13 la certificacion
+previa sobre `330e4a712`; se conservan por trazabilidad.
 
 Fecha: 2026-10-28. Alcance: exclusivamente local (Docker y Supabase desechables).
 No se uso SSH, VPS, credenciales de produccion, publicacion de imagenes ni
@@ -12,12 +12,232 @@ Este documento certifica la integracion, no introduce funcionalidades. Las unica
 modificaciones de codigo de esta pasada son correcciones de fixtures de prueba
 (seccion 2).
 
-## 0. Release Candidate final: SHA `44e09bb7f71d46f02517db7af0c91fd25ea447c0`
+## A. Cierre final: SHA de producto `40e1b6b0a6d6dd0fc03a724163c8be56b034179d`
+
+Actualizacion del 2026-10-28. Local; sin SSH, sin actualizaciones reales, sin publicacion
+Docker, sin acceso a bases ni a Storage reales, sin tocar archivos de otras sesiones. **Esta
+seccion sustituye a las secciones 0 y 12 como dictamen vigente.** La seccion 0 (SHA
+`44e09bb7f`) documenta el candidato intermedio y las secciones 1 a 13 la certificacion
+previa sobre `330e4a712`.
+
+### A.1 Notes movil: causa, correccion y repeticion
+
+**Era un defecto del producto, enmascarado por el arnes.** `ModuleOutlet` redirige la raiz
+de un modulo (`/app/m/<modulo>/`) a su primera pantalla con `navigate(destino, { replace })`
+**sin la query string ni el hash**. Un enlace profundo como
+`/app/m/runly.notes/?note=<id>` perdia `?note=` y abria la lista en lugar de la nota. La
+otra redireccion del mismo archivo (alias de modulo) si conserva `search` y `hash`.
+
+Evidencia de la causa (captura de fallo del fixture, dos fallos independientes): la
+cronologia solo contenia `goto done`, ninguna pulsacion, y la pagina terminaba en
+`/app/m/runly.notes/notes` sin `?note=` con la lista de notas visible. El fixture tenia un
+respaldo que pulsaba una tarjeta por su titulo; funcionaba o no segun el titulo que la
+nota tuviera en ese momento (las pruebas previas la renombraban al pegar contenido). Por
+eso parecia intermitente (2 de 6 fallos con el SHA final anterior, 1 de 3 con el previo),
+cuando en realidad el enlace profundo nunca funcionaba. No se amplio ningun timeout ni se
+anadio ningun reintento.
+
+Correccion (`ccbfe9f31`): `moduleRootRedirect` (nueva funcion pura en `apps/desktop/src/app/`)
+calcula el destino conservando `search` y `hash` y fusionando con la query propia del item de
+navegacion. Prueba de regresion unitaria (4 casos). Los fixtures dejan de enmascarar el
+defecto: se elimino el respaldo de pulsacion en `notes-images-ui.mjs` y el clic sobre la
+tarjeta en `realtime-2/ui.mjs` (solo funcionaba mientras `?note=` se perdia).
+
+Repeticion con un verificador dedicado (`scripts/verify-notes-mobile-deeplink.mjs`: contexto
+tactil nuevo, inicio de sesion, enlace profundo, el editor debe aparecer sin pulsar nada y
+la URL conserva `?note=`), sobre worktrees limpios:
+
+| Build | Resultado |
+|---|---|
+| Antes de la correccion (`ba30e4fad`, worktree limpio) | **0 de 20**; las 20 terminan en `/notes` sin `?note=` |
+| Despues (`ccbfe9f31`, worktree limpio) | **20 de 20** |
+| SHA final (`40e1b6b0a`, worktree limpio) | **20 de 20** |
+| Notes con actualizacion y UI completa, SHA final, sin respaldo | 3 de 3; instalacion nueva: pasa |
+| Notes realtime + seguridad, SHA final (+1 linea de fixture) | 3 de 3, `releaseBlockers: []` |
+
+Efecto en el producto: cualquier enlace de modulo con query en la raiz (notificaciones,
+enlaces compartidos, MirAI) abria la lista. Es un cambio de solo frontend (la imagen Web).
+
+### A.2 Candidato limpio y compatibilidad
+
+- **SHA de producto certificado**: `40e1b6b0a6d6dd0fc03a724163c8be56b034179d` (arbol
+  `0d1ed288b9322a96ec51d2b254aa047401290c50`). Las imagenes salen de `git archive` de ese
+  commit y toda la validacion se ejecuto desde un worktree limpio (`git status` vacio, arbol
+  identico) con los `node_modules` enlazados. La unica excepcion: el paso de Notes realtime
+  con UI se ejecuto en un segundo worktree limpio de `40e1b6b0a` con un unico archivo de
+  fixture del commit `7fcd10c8c` (una linea).
+- Lo que ya no es el mismo codigo: **`origin/main` esta en `8f00ba0da`** y contiene mis
+  commits hasta `40e1b6b0a` (el Installer `.6` esta publicado en `main`) **mas un commit
+  de Studio de otra sesion** (51 archivos, +2.888 lineas en `apps/`, `packages/` y
+  `prisma/`; sin cambios en `infra/`) que **no** esta certificado. HEAD local esta 4
+  commits por delante de `origin/main` (tres de otra sesion y uno mio de fixtures).
+
+| Imagen | Tag local | Digest (id) |
+|---|---|---|
+| API | `runly-notifications:api-40e1b6b0a6d6` | `sha256:42101cf2c44162522a4dd1c83b4b0ad96df9c8ceb589b8f3388415a28247766a` |
+| Worker | `runly-notifications:worker-40e1b6b0a6d6` | `sha256:d08b38102dad335fe02d7256840de4ab10941fc7ee51be3b6d7adf7e90dc3537` |
+| Web | `runly-notifications:web-40e1b6b0a6d6` | `sha256:8c86ce4e8a995c3246826afb4fbe8756d66f45dc5f92aa64f69c212506a08ee0` |
+
+- Installer `2026.10.28.6`; `generate-installer-release.mjs --check` pasa; contrato
+  `studio-realtime-1` presente en las tres imagenes. Los hashes anteriores (`330e4a712` y
+  `44e09bb7f`) no se reutilizan: la imagen Web cambia con la correccion y estas son
+  imagenes nuevas.
+- Compatibilidad: Installer `.6` + imagenes del mismo SHA o posterior a `ccbfe9f31`. Una API
+  anterior con la Web nueva (o al reves) funciona: la correccion solo toca el frontend. Un
+  Installer `.5` con cualquier imagen sigue teniendo el orden defectuoso del gate.
+- **Para publicar imagenes certificadas hay que construirlas del commit
+  `40e1b6b0a`, no del `HEAD` actual de `main`**, que incluye codigo de Studio sin
+  certificar. Si se quiere publicar `HEAD`, hay que volver a certificarlo.
+
+### A.3 Scripts de actualizacion
+
+Documento detallado: `INSTALLER_UPDATE_SCRIPTS_BEHAVIOR.md`. Ocho escenas
+(`update-script-*`) sobre un origen de distribucion controlado (el Installer `.5` leido de
+Git esta instalado; el origen sirve el `.6`): todas PASS.
+
+| Escena | Resultado |
+|---|---|
+| `update-external.sh` completo (refresco `.5` a `.6`, gate, migraciones, contenedores, `/health`, lecturas anonimas denegadas) | PASS |
+| Storage no preparado tras el refresco | PASS: scripts actualizados, esquema y datos sin tocar |
+| Refresco interrumpido: fallo de red, archivo corrupto, bootstrap inalcanzable | PASS: el Installer instalado queda igual; la repeticion termina bien |
+| Recreacion de contenedores interrumpida (despues de migrar) | PASS: las migraciones **permanecen aplicadas** (sin rollback); la repeticion converge sin repetirlas |
+| Migracion fallida | PASS: queda sin terminar en `_prisma_migrations`, no se revierte sola; el Installer se niega a seguir (`STUDIO_FAILURE_REQUIRES_REVIEW`) aunque se corrija la causa; tras `migrate resolve --rolled-back` converge |
+| `update-local.sh` | PASS |
+
+Las tres clases de interrupcion (refresco, migracion, recreacion de contenedores) son
+distintas y se tratan por separado en el documento. No se asume rollback automatico de una
+migracion Prisma. Durante la puesta a punto del arnes, un `PATH` mal construido dejo que
+`curl` hiciera dos lecturas publicas de solo lectura a GitHub (sin credenciales ni
+escrituras); esta corregido y verificado.
+
+### A.4 Ensayo de la external afectada (replica sintetica)
+
+`external-affected-replica-rehearsal`: una **replica desechable** construida como la dejo
+el Installer `.5`: migraciones y seed aplicados con `pnpm db:migrate` y `db:seed`, sin
+preparar Storage, buckets `runly-notes` y `atlas-notes` publicos, sin guard ni politica,
+usuarios y permisos del seed, una nota, y cuatro objetos historicos (dos PNG, un PDF y un
+PNG en `atlas-notes`). Resultado (PASS):
+
+1. **Sin credencial de propietario**: se detiene antes de migrar o sembrar. El estado
+   completo de la replica es identico antes y despues (historial de migraciones, usuarios,
+   permisos, notas, hash SHA-256 de cada objeto, buckets) y no hay contenedores.
+2. **Con credencial temporal** (solo en el entorno del proceso): prepara, cierra ambos
+   buckets, actualiza. La conexion no aparece en la salida, ni en `.env.external`, ni en el
+   entorno del contenedor de la API; los valores existentes de `.env.external` se
+   conservan. Historial de Prisma, usuarios, permisos, notas y los bytes de cada objeto
+   quedan iguales.
+3. **Peticiones anonimas reales** a cada objeto (URL publica, objeto, autenticada y
+   render) y al listado de ambos buckets: ninguna devuelve 200 y los listados estan vacios.
+4. **Repeticion**: segundo update con la misma credencial; sin cambios.
+
+**Pendiente (no inventado)**: el ensayo sobre una **copia restaurada de la instancia real**
+no se ha hecho; no hay respaldo restaurado disponible para esta sesion. La replica es
+sintetica y no demuestra nada sobre datos, volumen ni configuracion reales.
+
+### A.5 Regresiones y compuertas con el SHA final
+
+| Area | Resultado |
+|---|---|
+| Installer E2E (diez originales + ocho de scripts + replica) | **19 de 19** |
+| Studio E2E + seguridad | PASS: cursor 117 ms, revocacion 19,9 s, reconexion 5,8 s, 0 `live`, socket crudo sin reentrar |
+| Studio benchmark (30 s) | 0 `live`/min, 0 escrituras; p95 de 14,7 a 50,9 ms |
+| Aislamiento entre empresas | 14 de 14 |
+| Canvas, CPU total 1/5/10 | 1,31 / 28,38 / 53,12 s |
+| Notes, CPU total 1/5/10 | 8,69 / 35,55 / 69,03 s |
+| Chat (`chat-ui`), CPU total 1/5/10 | 9,67 / 49,14 / 149,35 s (otras corridas: 9,41 / 47,60 / 125,77; certificado: 14,28 / 102,13 / 208,30) |
+| Errores HTTP en esas corridas | 0 |
+| Notificaciones, p95 de aparicion 1/5/10 | 69 / 166 / 315 ms; 0 perdidos, 0 duplicados, seguridad 0 fallos |
+| Notificaciones, rafaga de 100 a 10 usuarios | API 8,0 s, PG 14,7 s, Realtime 4,1 s; ultimo aviso visible a 10,0 s |
+| `pnpm lint` (worktree limpio) | exit 0 |
+| `build:web` (worktree limpio) | exit 0 |
+| `test:mcp` | 189 de 208; 17 fallos heredados (`parent_note_id`) |
+
+Variacion: Chat con 10 usuarios cuesta mas que en la corrida anterior (149 frente a 126 s)
+y sigue por debajo del valor certificado; el CPU de PostgreSQL en la rafaga varia de 14,1 a
+23,8 s entre corridas de la misma maquina. Se registra como variacion entre corridas, no
+como cambio atribuible al codigo (que no cambio entre ellas).
+
+**Suite Node en el worktree limpio**: 5.692 pruebas: 5.665 PASS, 12 FAIL, 15 SKIP (suman
+5.692). Las 12 son las 11 heredadas (nueve archivos, identicas a la linea base `133a8972`:
+Contacts (2), transcripcion, configuracion publica del sitio, `module-runtime-routes` (2),
+catalogo de runtime, snapshot del devkit, `runly-env-config`, `docker-shared-sources`,
+portapapeles de ProseMirror) mas una nueva: `storefront-sdk/react-exports`, que importa
+`packages/storefront-sdk/dist/react/index.js`, una **salida de build ignorada por Git**
+que no existe en un checkout limpio. No es una regresion: es una dependencia oculta de la
+suite respecto a un build previo (y explica las 9 pruebas menos respecto a la corrida del
+arbol de trabajo, 5.701). Los dos fallos heredados de Contacts siguen contabilizados.
+
+### A.6 No ejecutado y limitaciones
+
+- Ensayo sobre una copia restaurada de la instancia real (pendiente, sin respaldo).
+- `update-external.sh` / `update-local.sh` contra GitHub real o sobre una instalacion real;
+  Linux/macOS; `update-local.sh` con Supabase CLI.
+- Interrupcion del proceso a mitad de una migracion (matar el contenedor): se simulo por
+  conflicto de esquema y por fallo del `compose up`.
+- Push/FCM y Tauri reales; PWA movil; DND de extremo a extremo; cambio de empresa en vivo;
+  inbox E2E; plantillas, guardado y exportacion de Studio en navegador; Chat con adjuntos,
+  invitados y llamadas en navegador.
+- Memoria y fugas de conexiones; CPU y memoria del Worker; 20 usuarios con 1.000
+  notificaciones; `test:mcp` en el baseline.
+- **Supabase Cloud y proveedores gestionados**: no se probaron. Sin acceso de propietario
+  al esquema `storage` la preparacion es imposible (NO GO).
+- Dependencia oculta de la suite respecto a `dist` de `storefront-sdk` (A.5).
+
+### A.7 Dictamen, separado
+
+**1. ¿Esta Runly lista para ensayar la actualizacion de una instalacion existente con
+datos restaurados? SI (GO para iniciar el ensayo en una copia restaurada).** Condiciones:
+
+1. Usar el Installer `2026.10.28.6` ya presente en `main` (`origin/main` lo contiene) con
+   imagenes construidas **del commit `40e1b6b0a`** (o de un SHA posterior que se haya
+   vuelto a certificar). Las imagenes locales de esta entrega sirven para un ensayo local
+   sin registro (`RUNLY_*_LOCAL_IMAGE`), como hace la E2E.
+2. Copia de seguridad previa y copia restaurada sin ningun acceso a la instancia real
+   (base y almacenamiento de objetos).
+3. Credencial de propietario temporal segun `EXTERNAL_NOTES_STORAGE_RECOVERY.md`
+   (`read -rs`, solo en el entorno del proceso, `unset` al terminar), y repetir el ensayo
+   **sin** ella para confirmar que se detiene antes de tocar el esquema.
+4. Que el ensayo mida lo no medido (A.6) y registre el resultado con hashes de objetos,
+   historial de migraciones y peticiones anonimas, como en la replica.
+
+**2. ¿Que condiciones siguen faltando para publicar y actualizar instalaciones reales?**
+(Esto **no** esta autorizado; requiere la autorizacion explicita del responsable.)
+
+1. Resolver la **divergencia entre lo certificado y `main`**: `main` contiene un commit de
+   Studio sin certificar (`8f00ba0da`) y otros tres posteriores. Decidir si se publica
+   `40e1b6b0a` o se certifica el `HEAD`.
+2. Construir y publicar las imagenes con `pnpm docker:release` desde ese SHA (no se hizo
+   aqui) y comprobar su contrato `studio-realtime-1` y los hashes.
+3. Completar el ensayo sobre la copia restaurada real y obtener su resultado.
+4. Confirmar que la instalacion real tiene la credencial de propietario (o el SQL
+   aplicado por el administrador); sin ella el Installer se detiene por diseno.
+5. Plan de rollback aceptado: no reabrir el bucket; las migraciones Prisma no se revierten;
+   una migracion fallida requiere resolucion manual documentada.
+6. Comunicar que las imagenes descargadas mientras el bucket era publico no se pueden
+   retirar.
+7. Riesgos residuales aceptados: coste de CPU en rafagas (R1), 11 pruebas Node y 17 de MCP
+   heredadas, dependencia de la suite respecto a `dist`, memoria/Worker/20 usuarios sin
+   medir, `update-*.sh` no ejecutados contra la distribucion real.
+8. Proveedores gestionados sin acceso al esquema `storage`: NO GO.
+
+| Modalidad | Modulo (nivel 1) | Instalacion local (nivel 2) | Ensayo en copia restaurada (nivel 3) | Despliegue real (nivel 4) |
+|---|---|---|---|---|
+| Local nueva / existente | GO | GO | Preparado | No autorizado |
+| External con credencial de propietario | GO | GO | Preparado | No autorizado |
+| External sin credencial, Storage ya preparado | GO | GO | Preparado | No autorizado |
+| **External afectada (migrada, sin guard) con credencial temporal** | GO | GO (replica) | **GO para iniciar el ensayo** | No autorizado |
+| External sin credencial y sin preparar | NO GO (se detiene antes de tocar nada) | NO GO | No aplica | No autorizado |
+| Proveedor sin acceso a `storage` (p. ej. Supabase Cloud) | NO GO | NO GO | No aplica | No autorizado |
+
+---
+
+## Anexo: candidato intermedio `44e09bb7f` y certificacion previa
+
+## 0. Release Candidate intermedio: SHA `44e09bb7f71d46f02517db7af0c91fd25ea447c0`
 
 Actualizacion del 2026-10-28, posterior a la certificacion de `330e4a712` (secciones 1 a
 13, conservadas abajo por trazabilidad). Local, sin SSH, sin actualizaciones reales, sin
-publicacion Docker, sin acceso a instancias existentes. **Esta seccion sustituye a la
-seccion 12 como dictamen vigente.**
+publicacion Docker, sin acceso a instancias existentes. (Sustituida por la seccion A.)
 
 ### 0.1 Estado del repositorio
 

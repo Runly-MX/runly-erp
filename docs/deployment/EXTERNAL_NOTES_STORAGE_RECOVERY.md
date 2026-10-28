@@ -148,6 +148,7 @@ preferible a exponerlas.
 - No se ha probado en Supabase Cloud ni en proveedores que no permitan crear politicas
   o triggers en el esquema `storage`: en ellos el propietario no existe y esta
   recuperacion no es posible.
+- Ensayo en una replica sintetica (`external-affected-replica-rehearsal`): migraciones y seed aplicados, Storage sin preparar, buckets publicos, usuarios, permisos, una nota y cuatro objetos historicos. Sin propietario se detuvo sin cambiar nada (hash de cada objeto incluido); con la credencial temporal preparó, cerro los buckets y conservo historial, usuarios, notas y los bytes de cada objeto; las peticiones anonimas reales fueron denegadas. **El ensayo sobre una copia restaurada de la instancia real sigue pendiente.**
 - El procedimiento se verifica con bases desechables (`scripts/verify-notes-installer-e2e.mjs`,
   caso `external-regression-to-unsafe`), que ejecuta el script de estado de este
   documento antes y despues; no se ha ensayado en la instancia real.
