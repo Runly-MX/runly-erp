@@ -595,7 +595,10 @@ export function createNotificationService({ prisma, broadcaster: injectedBroadca
     };
 
     if (broadcaster && result.inAppRecipientIds.length > 0) {
-      await broadcaster.broadcastToUsers(result.inAppRecipientIds, "notification.new", (userId) => ({
+      // The rows are committed. Announcing them is best effort and must not make
+      // the producer's request wait for Realtime (a lost hint is repaired by the
+      // client's reconcile). Errors are swallowed inside the promise chain.
+      void broadcaster.broadcastToUsers(result.inAppRecipientIds, "notification.new", (userId) => ({
         notificationId: result.identities.get(userId)?.id ?? null,
         count: result.identities.get(userId)?.count ?? 1,
         companyId, sourceType: parsed.sourceType, sourceId: parsed.sourceId,

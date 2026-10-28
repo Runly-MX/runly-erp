@@ -139,7 +139,7 @@ async function runCount(n) {
       try { await page.waitForFunction(x => window.__badgeAt[x] !== undefined, v, { timeout, polling: 100 }) } catch { return null }
       return Math.max(0, (await badgeAt(page, v)) - startedAt)
     }
-    const summarize = values => ({ p50: pct(values.filter(Boolean), 0.5), p95: pct(values.filter(Boolean), 0.95), lost: values.filter(v => v == null).length, samples: values.length })
+    const summarize = values => ({ p50: pct(values.filter(v => v != null), 0.5), p95: pct(values.filter(v => v != null), 0.95), lost: values.filter(v => v == null).length, samples: values.length })
 
     await measure('A_idle_bell_closed', () => wait(windowMs))
     await measure('C_bell_open', async () => { for (const p of pages) await p.locator(BELL).click(); await wait(windowMs); for (const p of pages) await p.keyboard.press('Escape') })
