@@ -24,3 +24,13 @@ Pruebas: Auth/Storage/PG reales, matriz owner/editor/lector/ajeno/otra empresa/a
 revocación y publicación, variantes raw, histórica HTML/Y.Doc/canvas, exportación,
 fallo Storage y reintento. Validar GUI desktop/móvil y regresiones compartidas. Informe
 final en docs/deployment/NOTES_PRIVATE_STORAGE_SECURITY_CLOSURE.md con límites reales.
+
+Decisión validada: leer/publicar no registra permisos implícitos sobre otra nota.
+El pegado explícito valida lectura de origen y edición de destino; creación de notas
+con imágenes de borrador registra asociaciones atómicamente. Append MirAI copia
+recursos gestionados únicamente con autorización de origen y empresa.
+
+Política restrictiva y trigger de no reapertura se preparan por el dueño de Storage
+fuera de Prisma. El API valida ambas protecciones, y la migración aditiva solo crea
+tablas de aplicación. No se revierte a bucket público como rollback. Web nueva debe
+acompañar al API para resolver URLs históricas privadas; recargar clientes abiertos.
