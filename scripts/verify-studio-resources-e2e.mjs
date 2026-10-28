@@ -24,8 +24,10 @@ const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer
 const KEEP = [/^apps\/shared\/studio\//, /^packages\/sdk\/src\/domains\/studio\.js$/, /StudioCreativeResources\.jsx$/, /StudioCredits\.jsx$/,
   // HEAD renders <ToolButton> without importing it; the working-tree one-line import is required to open the Files tab.
   /runly\.studio\/components\/StudioResources\.jsx$/]
+// --committed-only: hold back EVERY uncommitted source file so the web bundle is exactly the committed tree.
+const committedOnly = process.argv.includes('--committed-only')
 const heldBack = git('diff', '--name-only', '--diff-filter=M', 'HEAD', '--', 'apps/desktop', 'apps/shared', 'packages/ui', 'packages/sdk')
-  .split(/\r?\n/).filter(file => /\.(?:js|jsx|css)$/.test(file) && !KEEP.some(pattern => pattern.test(file)))
+  .split(/\r?\n/).filter(file => /\.(?:js|jsx|css)$/.test(file) && (committedOnly || !KEEP.some(pattern => pattern.test(file))))
 console.log(`Held back to HEAD (other sessions): ${heldBack.length ? heldBack.join(', ') : 'none'}`)
 const stack = await createStudioStack({ apiImage: build.images.api })
 let web
